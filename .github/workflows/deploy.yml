@@ -46,19 +46,21 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAGES_PROJECT_NAME: gwenda
 
+      - name: Set site password
+        run: |
+          printf 'SITE_PASSWORD=%s' "$SITE_PASSWORD" > /tmp/pages-secrets.env
+          ./node_modules/.bin/wrangler pages secret bulk /tmp/pages-secrets.env --project-name=gwenda
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=gwenda --commit-dirty=true
-
-      - name: Set site password
-        run: printf '%s' "$SITE_PASSWORD" | npx wrangler pages secret put SITE_PASSWORD --project-name=gwenda
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
 
       - name: Ensure custom domain and DNS
         run: node scripts/ensure-pages-domain.mjs
