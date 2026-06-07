@@ -52,6 +52,7 @@ export const siteConfig = {
     galleryHeading: "A glimpse within",
     gallerySubheading: "The details reveal themselves in time",
     signupHeading: "Be the first to know",
+    signupNavCta: "First to know",
     signupEyebrowPromo: "Almost there",
     signupSubheading:
       "Be among the first through the door. Opening updates, private invitations, and the occasional whisper.",

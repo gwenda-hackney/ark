@@ -1,5 +1,5 @@
 import { initCountdown } from "./countdown.js";
-import { initSignup } from "./signup.js";
+import { initSignup, initSignupAnchors } from "./signup.js";
 
 /* Hero image reveal */
 const heroImage = document.querySelector(".hero-image");
@@ -132,6 +132,7 @@ if (revealEls.length) {
 /* Email signup */
 const signupForm = document.getElementById("signup-form");
 if (signupForm) initSignup(signupForm);
+initSignupAnchors();
 
 /* Menu tease — touch: tap to reveal */
 const menuTeaseCtas = document.querySelectorAll(".menu-tease-cta");

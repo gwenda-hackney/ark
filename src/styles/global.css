@@ -6,7 +6,8 @@
   --color-text-muted: #8a8680;
   --color-gold: #c9a84c;
   --color-gold-dim: rgba(201, 168, 76, 0.35);
-  --color-border: rgba(201, 168, 76, 0.15);
+  --color-border: rgba(201, 168, 76, 0.1);
+  --color-border-subtle: rgba(201, 168, 76, 0.06);
   --font-display: "Cormorant Garamond", Georgia, serif;
   --font-body: "Lora", Georgia, serif;
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -111,9 +112,9 @@ a:hover {
 /* Typography */
 .section-eyebrow {
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   line-height: 1.4;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--color-gold);
   margin-bottom: 1rem;
@@ -148,7 +149,7 @@ a:hover {
 }
 
 .section {
-  padding: 7rem 0;
+  padding: 6rem 0;
 }
 
 /* Buttons */
@@ -160,7 +161,7 @@ a:hover {
   padding: 0.9rem 2.2rem;
   font-size: 0.95rem;
   font-weight: 600;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border: 1px solid var(--color-gold);
   cursor: pointer;
@@ -211,8 +212,10 @@ a:hover {
 }
 
 .site-header.scrolled {
-  background: rgba(13, 13, 13, 0.97);
-  border-bottom: 1px solid var(--color-border);
+  background: rgba(13, 13, 13, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .site-header-logo-img {
@@ -472,8 +475,8 @@ a:hover {
   position: relative;
   display: block;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 2.75rem);
-  font-weight: 500;
+  font-size: clamp(1.85rem, 4.5vw, 2.5rem);
+  font-weight: 400;
   color: var(--color-text);
   line-height: 1.1;
   min-width: 2ch;
@@ -522,10 +525,12 @@ a:hover {
 .countdown-sep {
   font-family: var(--font-display);
   color: var(--color-gold-dim);
-  font-size: 1.75rem;
+  font-size: 1.25rem;
+  font-weight: 300;
   line-height: 1.1;
-  margin-top: 0.15rem;
+  margin-top: 0.2rem;
   user-select: none;
+  opacity: 0.6;
 }
 
 .hero-location {
@@ -578,8 +583,10 @@ a:hover {
 
 /* Story */
 .story {
-  background: var(--color-bg-elevated);
-  border-block: 1px solid var(--color-border);
+  padding: 5rem 0;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 0%, rgba(201, 168, 76, 0.04), transparent 70%),
+    var(--color-bg-elevated);
 }
 
 .story-grid {
@@ -623,10 +630,13 @@ a:hover {
 }
 
 .story-lead {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   color: var(--color-text-muted);
-  font-style: italic;
-  line-height: 1.7;
+  line-height: 1.75;
+}
+
+.story-grid-right.reveal {
+  transition-delay: 0.12s;
 }
 
 .story-body p {
@@ -652,8 +662,18 @@ a:hover {
 }
 
 .team {
-  background: var(--color-bg-elevated);
-  border-block: 1px solid var(--color-border);
+  padding: 7.5rem 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(201, 168, 76, 0.03), transparent 65%),
+    var(--color-bg);
+}
+
+.team-inner {
+  max-width: 40rem;
+}
+
+.team-body.reveal {
+  transition-delay: 0.1s;
 }
 
 .team-inner h2 {
@@ -770,7 +790,7 @@ a:hover {
 }
 
 .menu-tease-footer {
-  margin-top: 3.5rem;
+  margin-top: 2.75rem;
   text-align: center;
 }
 
@@ -779,8 +799,8 @@ a:hover {
   grid-template-columns: 1fr auto;
   gap: 2rem;
   align-items: center;
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--color-border);
+  padding: 1.35rem 0;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .menu-tease-card:last-child {
@@ -812,9 +832,9 @@ a:hover {
 
 .menu-tease-status {
   font-family: var(--font-display);
-  font-size: 1rem;
-  font-style: italic;
-  letter-spacing: 0.06em;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   white-space: nowrap;
   color: var(--color-gold);
   filter: blur(6px);
@@ -940,12 +960,13 @@ a:hover {
 
 /* Signup */
 .signup {
+  padding: 5.5rem 0 6.5rem;
   background: var(--color-bg-card);
-  border-block: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .signup-inner {
-  max-width: 560px;
+  max-width: 36rem;
 }
 
 .signup-form {
@@ -956,14 +977,17 @@ a:hover {
 
 .signup-field {
   display: flex;
-  gap: 0;
-  border: 1px solid var(--color-border);
+  gap: 1rem;
+  align-items: stretch;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.25rem;
 }
 
 .signup-field input[type="email"] {
   flex: 1;
-  padding: 1rem 1.25rem;
-  background: var(--color-bg);
+  padding: 0.85rem 0;
+  background: transparent;
   border: none;
   color: var(--color-text);
   font-family: var(--font-body);
@@ -976,8 +1000,9 @@ a:hover {
 }
 
 .signup-field .btn {
-  border: none;
-  border-left: 1px solid var(--color-border);
+  flex-shrink: 0;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 
@@ -1029,7 +1054,111 @@ a:hover {
 /* Footer */
 .site-footer {
   padding: 4rem 0 2rem;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.site-footer--promo {
+  padding: 4rem 0 3rem;
+  border-top: none;
+}
+
+.site-footer-promo {
+  display: flex;
+  justify-content: center;
+}
+
+.site-footer-promo-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  text-align: center;
+}
+
+.site-footer-logo {
+  display: block;
+  width: fit-content;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.site-footer-logo-img {
+  display: block;
+  width: auto;
+  height: 2.35rem;
+  opacity: 0.92;
+  transition: opacity 0.2s ease;
+}
+
+.site-footer--promo .site-footer-logo-img {
+  height: 2.75rem;
+}
+
+.site-footer-logo:hover .site-footer-logo-img {
+  opacity: 1;
+}
+
+.site-footer-promo-primary,
+.site-footer-promo-meta,
+.site-footer-brand-head {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.site-footer-promo-primary,
+.site-footer-brand-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 0;
+}
+
+.site-footer-promo-details {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.site-footer-promo-meta {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.site-footer-brand-head {
+  margin-bottom: 0.35rem;
+  justify-content: flex-start;
+}
+
+.site-footer-brand-head .site-footer-location {
+  margin: 0;
+}
+
+.site-footer-promo-sep {
+  margin-inline: 0.5rem;
+  opacity: 0.35;
+}
+
+.site-footer-promo-details a {
+  color: var(--color-gold);
+}
+
+.site-footer-promo-details a:hover {
+  opacity: 0.8;
+}
+
+.site-footer-promo-meta a {
+  color: var(--color-text-muted);
+}
+
+.site-footer-promo-meta a:hover {
+  color: var(--color-gold);
+  opacity: 1;
 }
 
 .site-footer-inner {
@@ -1038,24 +1167,6 @@ a:hover {
   align-items: flex-start;
   gap: 2rem;
   margin-bottom: 3rem;
-}
-
-.site-footer-name {
-  display: inline-block;
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  letter-spacing: 0.1em;
-  margin-bottom: 0.25rem;
-  color: var(--color-text);
-  text-decoration: none;
-  border-bottom: 1px solid var(--color-gold-dim);
-  transition: color 0.2s ease, border-color 0.2s ease;
-}
-
-.site-footer-name:hover {
-  color: var(--color-gold);
-  border-bottom-color: var(--color-gold);
-  opacity: 1;
 }
 
 .site-footer-location,
@@ -1402,11 +1513,12 @@ a:hover {
 
   .signup-field {
     flex-direction: column;
+    gap: 1.25rem;
+    padding-bottom: 0;
   }
 
   .signup-field .btn {
-    border-left: none;
-    border-top: 1px solid var(--color-border);
+    width: 100%;
   }
 
   .site-footer-inner {

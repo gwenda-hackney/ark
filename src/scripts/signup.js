@@ -1,5 +1,31 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const SIGNUP_FOCUS_DELAY_MS = 650;
+
+export function initSignupAnchors() {
+  const email = document.getElementById("email");
+  if (!email) return;
+
+  const focusEmail = () => {
+    const form = email.closest(".signup-form");
+    if (form?.hidden || form?.classList.contains("is-success")) return;
+
+    window.setTimeout(() => {
+      email.focus({ preventScroll: true });
+    }, SIGNUP_FOCUS_DELAY_MS);
+  };
+
+  document.querySelectorAll('a[href="#list"]').forEach((link) => {
+    link.addEventListener("click", focusEmail);
+  });
+
+  window.addEventListener("hashchange", () => {
+    if (location.hash === "#list") focusEmail();
+  });
+
+  if (location.hash === "#list") focusEmail();
+}
+
 export function initSignup(form) {
   const message = document.getElementById("signup-message");
   const errorEl = document.getElementById("signup-error");
