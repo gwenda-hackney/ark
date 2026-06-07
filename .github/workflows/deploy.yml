@@ -53,8 +53,10 @@ jobs:
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
 
       - name: Set Buttondown API key
-        if: ${{ secrets.BUTTONDOWN_API_KEY != '' }}
-        run: printf '%s' "$BUTTONDOWN_API_KEY" | ./node_modules/.bin/wrangler pages secret put BUTTONDOWN_API_KEY --project-name=gwenda
+        run: |
+          if [ -n "$BUTTONDOWN_API_KEY" ]; then
+            printf '%s' "$BUTTONDOWN_API_KEY" | ./node_modules/.bin/wrangler pages secret put BUTTONDOWN_API_KEY --project-name=gwenda
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
