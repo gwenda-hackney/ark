@@ -4,11 +4,11 @@ import { getFeatures } from "../config/features";
 import Header from "./Header.astro";
 import Hero from "./Hero.astro";
 import Story from "./Story.astro";
+import Team from "./Team.astro";
 import TeaserGallery from "./TeaserGallery.astro";
 import EmailSignup from "./EmailSignup.astro";
 import Footer from "./Footer.astro";
 import Menu from "./Menu.astro";
-import MenuTease from "./MenuTease.astro";
 
 interface Props {
   mode?: SiteMode;
@@ -30,7 +30,7 @@ const features = getFeatures(mode);
 <main>
   <Hero mode={mode} />
   <Story mode={mode} features={features} />
-  {features.showMenuTease && <MenuTease />}
+  {features.showTeam && mode === "promo" && <Team />}
   {features.showGallery && <TeaserGallery features={features} />}
   <EmailSignup mode={mode} />
   <Menu features={features} />

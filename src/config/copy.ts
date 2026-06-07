@@ -20,7 +20,7 @@ export function getCopy(mode: SiteMode) {
     description: copy.descriptionPromo,
     storyBody: copy.storyBodyPromo,
     storyClosing: null,
-    signupEyebrow: "We'll write",
+    signupEyebrow: copy.signupEyebrowPromo,
     signupHeading: copy.signupHeading,
     signupSubheading: copy.signupSubheadingPromo,
     footerOpening: copy.footerOpeningPromo,
