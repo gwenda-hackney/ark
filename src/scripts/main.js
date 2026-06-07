@@ -71,6 +71,20 @@ window.addEventListener(
 
 if (header) onScrollFrame();
 
+/* Floating back-to-top — after hero */
+const hero = document.getElementById("hero");
+const scrollTop = document.getElementById("scroll-top");
+
+if (hero && scrollTop) {
+  const scrollTopObserver = new IntersectionObserver(
+    ([entry]) => {
+      scrollTop.classList.toggle("is-visible", !entry.isIntersecting);
+    },
+    { threshold: 0 },
+  );
+  scrollTopObserver.observe(hero);
+}
+
 /* Mobile nav */
 const menuBtn = document.getElementById("site-header-menu-btn");
 const siteNav = document.getElementById("site-header-nav");

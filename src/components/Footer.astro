@@ -2,8 +2,8 @@
 import { Image } from "astro:assets";
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import { getCopy } from "../config/copy";
 import logo from "../assets/images/logos/logo.png";
+import FooterSocialLink from "./FooterSocialLink.astro";
 
 interface Props {
   mode: SiteMode;
@@ -12,76 +12,29 @@ interface Props {
 
 const { mode, features } = Astro.props;
 const { social, location } = siteConfig;
-const copy = getCopy(mode);
-
-const openingFormatted = new Date(siteConfig.openingDate).toLocaleDateString(
-  "en-GB",
-  { day: "numeric", month: "long", year: "numeric" },
-);
+const year = new Date().getFullYear();
 
 const address = features.useShortAddress
   ? location.addressShort
   : location.address;
-
-const isPromoFooter = mode === "promo";
 ---
 
-{
-  isPromoFooter ? (
-    <footer class="site-footer site-footer--promo">
-      <div class="container site-footer-promo">
-        <div class="site-footer-promo-block">
-          <p class="site-footer-promo-primary">
-            <a href="#hero" class="site-footer-logo" aria-label="Gwenda — back to top">
-              <Image
-                src={logo}
-                alt=""
-                class="site-footer-logo-img"
-                widths={[160, 240, 320]}
-                sizes="160px"
-                height={100}
-                width={160}
-              />
-            </a>
-            <span class="site-footer-promo-sep" aria-hidden="true">·</span>
-            <span class="site-footer-promo-details">
-              <a
-                href={location.mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {location.area}
-              </a>
-              <span class="site-footer-promo-sep" aria-hidden="true">·</span>
-              <span>{copy.footerOpening}</span>
-            </span>
-          </p>
-          <p class="site-footer-promo-meta">
-            <a href="/privacy">Privacy</a>
-            <span class="site-footer-promo-sep" aria-hidden="true">·</span>
-            <span>© {new Date().getFullYear()} {siteConfig.name}</span>
-          </p>
-        </div>
-      </div>
-    </footer>
-  ) : (
-    <footer class="site-footer">
-      <div class="container site-footer-inner">
-        <div class="site-footer-brand">
-          <p class="site-footer-brand-head">
-            <a href="#hero" class="site-footer-logo" aria-label="Gwenda — back to top">
-              <Image
-                src={logo}
-                alt=""
-                class="site-footer-logo-img"
-                widths={[140, 200, 280]}
-                sizes="140px"
-                height={88}
-                width={140}
-              />
-            </a>
-            <span class="site-footer-location">{location.area}</span>
-          </p>
+<footer class="site-footer">
+  <div class="container">
+    <div class="site-footer-grid">
+      <div class="site-footer-brand">
+        <a href="#hero" class="site-footer-logo" aria-label="Gwenda">
+          <Image
+            src={logo}
+            alt=""
+            class="site-footer-logo-img"
+            widths={[200, 280, 400]}
+            sizes="(min-width: 768px) 220px, 180px"
+            height={100}
+            width={160}
+          />
+        </a>
+        <div class="site-footer-brand-details">
           <a
             href={location.mapsUrl}
             class="site-footer-address"
@@ -90,46 +43,42 @@ const isPromoFooter = mode === "promo";
           >
             {address}
           </a>
-          {
-            features.showOpeningDate ? (
-              <p class="site-footer-opening">Opens {openingFormatted}</p>
-            ) : (
-              <p class="site-footer-opening">{copy.footerOpening}</p>
-            )
-          }
-        </div>
-
-        <div class="site-footer-links">
-          {
-            features.showSocial && (
-              <>
-                <a
-                  href={social.instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Instagram"
-                >
-                  Instagram
-                </a>
-                <a
-                  href={social.tiktok}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="TikTok"
-                >
-                  TikTok
-                </a>
-              </>
-            )
-          }
-          <a href="#hero">Top</a>
-          <a href="/privacy">Privacy</a>
+          <p class="site-footer-copyright">
+            <span>© {year}</span>
+            <span>{siteConfig.name}</span>
+          </p>
         </div>
       </div>
 
-      <p class="site-footer-legal">
-        © {new Date().getFullYear()} {siteConfig.name}
-      </p>
-    </footer>
-  )
-}
+      <div class="site-footer-col">
+        <p class="site-footer-col-label">Explore</p>
+        <ul class="site-footer-list">
+          <li><a href="#story">Story</a></li>
+          {features.showTeam && <li><a href="#team">Who we are</a></li>}
+          {features.showGallery && <li><a href="#glimpse">Glimpse</a></li>}
+          {features.showMenu && <li><a href="#menu">Menu</a></li>}
+          <li><a href="#list">{siteConfig.copy.signupNavCta}</a></li>
+        </ul>
+      </div>
+
+      <div class="site-footer-col">
+        <p class="site-footer-col-label">Connect</p>
+        <ul class="site-footer-list">
+          {
+            features.showSocial && (
+              <>
+                <li>
+                  <FooterSocialLink label="Instagram" url={social.instagram} />
+                </li>
+                <li>
+                  <FooterSocialLink label="TikTok" url={social.tiktok} />
+                </li>
+              </>
+            )
+          }
+          <li><a href="/privacy">Privacy</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</footer>

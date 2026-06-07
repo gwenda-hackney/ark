@@ -1,0 +1,20 @@
+---
+interface Props {
+  label: string;
+  url: string;
+}
+
+const { label, url } = Astro.props;
+---
+
+{
+  url ? (
+    <a href={url} target="_blank" rel="noopener noreferrer" aria-label={label}>
+      {label}
+    </a>
+  ) : (
+    <span class="site-footer-social site-footer-social--placeholder" aria-label={`${label} (coming soon)`}>
+      {label}
+    </span>
+  )
+}

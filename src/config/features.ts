@@ -19,7 +19,7 @@ const promoFeatures: SiteFeatures = {
   showTeam: true,
   showMenuTease: false,
   showAtmosphere: false,
-  showSocial: false,
+  showSocial: true,
   showOpeningDate: false,
   useShortAddress: true,
 };
