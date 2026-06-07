@@ -1,0 +1,38 @@
+---
+import type { SiteMode } from "../types/features";
+import { getFeatures } from "../config/features";
+import Header from "./Header.astro";
+import Hero from "./Hero.astro";
+import Story from "./Story.astro";
+import TeaserGallery from "./TeaserGallery.astro";
+import EmailSignup from "./EmailSignup.astro";
+import Footer from "./Footer.astro";
+import Menu from "./Menu.astro";
+import MenuTease from "./MenuTease.astro";
+
+interface Props {
+  mode?: SiteMode;
+}
+
+const { mode = "promo" } = Astro.props;
+const features = getFeatures(mode);
+---
+
+{
+  mode === "preview" && (
+    <div class="preview-banner" role="status">
+      Preview — full menu &amp; gallery. Not for public distribution.
+    </div>
+  )
+}
+
+<Header features={features} />
+<main>
+  <Hero mode={mode} />
+  <Story mode={mode} features={features} />
+  {features.showMenuTease && <MenuTease />}
+  {features.showGallery && <TeaserGallery features={features} />}
+  <EmailSignup mode={mode} />
+  <Menu features={features} />
+</main>
+<Footer mode={mode} features={features} />

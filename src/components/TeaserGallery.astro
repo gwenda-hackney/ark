@@ -1,0 +1,42 @@
+---
+import { Image } from "astro:assets";
+import { siteConfig } from "../config/site";
+import type { SiteFeatures } from "../types/features";
+import { getCocktailsWithImages } from "../data/menu";
+
+interface Props {
+  features: SiteFeatures;
+}
+
+const { features } = Astro.props;
+const cocktails = getCocktailsWithImages();
+const { revealDrinkNames } = features;
+const roman = ["I", "II", "III", "IV", "V", "VI"];
+---
+
+<section class="glimpse section" id="glimpse">
+  <div class="container">
+    <header class="section-header reveal">
+      <p class="section-eyebrow">Shhh</p>
+      <h2>{siteConfig.copy.galleryHeading}</h2>
+      <p>{siteConfig.copy.gallerySubheading}</p>
+    </header>
+  </div>
+
+  <div class="glimpse-grid">
+    {
+      cocktails.map((cocktail, i) => (
+        <figure class="glimpse-item reveal">
+          <Image
+            src={cocktail.image!}
+            alt={revealDrinkNames ? `${cocktail.name} cocktail` : "Cocktail teaser"}
+            class="glimpse-photo"
+          />
+          <figcaption class="glimpse-caption">
+            {revealDrinkNames ? cocktail.name : roman[i] ?? "—"}
+          </figcaption>
+        </figure>
+      ))
+    }
+  </div>
+</section>

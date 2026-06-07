@@ -1,0 +1,78 @@
+---
+import type { SiteMode, SiteFeatures } from "../types/features";
+import { siteConfig } from "../config/site";
+import { getCopy } from "../config/copy";
+
+interface Props {
+  mode: SiteMode;
+  features: SiteFeatures;
+}
+
+const { mode, features } = Astro.props;
+const { social, location } = siteConfig;
+const copy = getCopy(mode);
+
+const openingFormatted = new Date(siteConfig.openingDate).toLocaleDateString(
+  "en-GB",
+  { day: "numeric", month: "long", year: "numeric" },
+);
+
+const address = features.useShortAddress
+  ? location.addressShort
+  : location.address;
+---
+
+<footer class="site-footer">
+  <div class="container site-footer-inner">
+    <div class="site-footer-brand">
+      <a href="#hero" class="site-footer-name">{siteConfig.name}</a>
+      <p class="site-footer-location">{location.area}</p>
+      <a
+        href={location.mapsUrl}
+        class="site-footer-address"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {address}
+      </a>
+      {
+        features.showOpeningDate ? (
+          <p class="site-footer-opening">Opens {openingFormatted}</p>
+        ) : (
+          <p class="site-footer-opening">{copy.footerOpening}</p>
+        )
+      }
+    </div>
+
+    <div class="site-footer-links">
+      {
+        features.showSocial && (
+          <>
+            <a
+              href={social.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+            >
+              Instagram
+            </a>
+            <a
+              href={social.tiktok}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="TikTok"
+            >
+              TikTok
+            </a>
+          </>
+        )
+      }
+      <a href="#hero">Top</a>
+      <a href="/privacy">Privacy</a>
+    </div>
+  </div>
+
+  <p class="site-footer-legal">
+    © {new Date().getFullYear()} {siteConfig.name}
+  </p>
+</footer>

@@ -1,0 +1,25 @@
+---
+import type { SiteFeatures } from "../types/features";
+import { menu } from "../data/menu";
+import MenuSection from "./MenuSection.astro";
+
+interface Props {
+  features: SiteFeatures;
+}
+
+const { features } = Astro.props;
+const { showMenu } = features;
+---
+
+{
+  showMenu && (
+    <section class="menu" id="menu">
+      <header class="menu-header">
+        <h2>The Menu</h2>
+      </header>
+      {menu.sections.map((section) => (
+        <MenuSection section={section} features={features} />
+      ))}
+    </section>
+  )
+}

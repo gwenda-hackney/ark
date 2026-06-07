@@ -1,0 +1,29 @@
+---
+import { menuTease, menuTeaseCta } from "../data/menu-tease";
+---
+
+<section class="menu-tease section" id="menu-tease">
+  <div class="container">
+    <div class="menu-tease-grid">
+      <header class="menu-tease-intro reveal">
+        <p class="section-eyebrow">Shhh</p>
+        <h2>What's brewing</h2>
+        <p class="menu-tease-lead">The menu lands closer to opening. Worth coming back for.</p>
+      </header>
+
+      <ul class="menu-tease-list reveal">
+      {
+        menuTease.map((row) => (
+          <li class="menu-tease-card">
+            <span class="menu-tease-label">{row.label}</span>
+            <a href="#list" class="menu-tease-cta" aria-expanded="false">
+              <span class="menu-tease-status">{menuTeaseCta}</span>
+              <span class="menu-tease-veil" aria-hidden="true" />
+            </a>
+          </li>
+        ))
+      }
+      </ul>
+    </div>
+  </div>
+</section>
