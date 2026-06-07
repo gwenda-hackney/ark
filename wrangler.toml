@@ -1,0 +1,5 @@
+name = "gwenda"
+account_id = "1c23e160e39a187ce33fe192595c4a7f"
+compatibility_date = "2024-01-01"
+
+pages_build_output_dir = "dist"

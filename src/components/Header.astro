@@ -1,0 +1,36 @@
+---
+import { Image } from "astro:assets";
+import type { SiteFeatures } from "../types/features";
+import logoMark from "../assets/images/logos/logo-g-dark.png";
+
+interface Props {
+  features: SiteFeatures;
+}
+
+const { features } = Astro.props;
+---
+
+<header class="site-header" id="site-header">
+  <a href="#hero" class="site-header-logo" aria-label="Gwenda — back to top">
+    <Image src={logoMark} alt="" width={40} height={40} />
+  </a>
+
+  <button
+    type="button"
+    class="site-header-menu-btn"
+    id="site-header-menu-btn"
+    aria-expanded="false"
+    aria-controls="site-header-nav"
+    aria-label="Open menu"
+  >
+    <span class="site-header-menu-icon" aria-hidden="true"></span>
+  </button>
+
+  <nav class="site-header-nav" id="site-header-nav">
+    <a href="#story">Story</a>
+    {features.showMenuTease && <a href="#menu-tease">Menu</a>}
+    {features.showGallery && <a href="#glimpse">Glimpse</a>}
+    {features.showMenu && <a href="#menu">Menu</a>}
+    <a href="#list" class="site-header-cta">The List</a>
+  </nav>
+</header>

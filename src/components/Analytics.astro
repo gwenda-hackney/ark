@@ -1,0 +1,14 @@
+---
+import { cfBeaconToken } from "../config/site";
+---
+
+{
+  cfBeaconToken && (
+    <script
+      is:inline
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon={`{"token": "${cfBeaconToken}"}`}
+    />
+  )
+}

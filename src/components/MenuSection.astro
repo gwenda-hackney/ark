@@ -1,0 +1,37 @@
+---
+import type { MenuSection } from "../types/menu";
+import type { SiteFeatures } from "../types/features";
+import { getAvailableItems } from "../data/menu";
+
+interface Props {
+  section: MenuSection;
+  features: SiteFeatures;
+}
+
+const { section, features } = Astro.props;
+const items = getAvailableItems(section);
+const { showPrices } = features;
+---
+
+<section class="menu-section" id={section.id}>
+  <header class="menu-section-header">
+    <h2>{section.title}</h2>
+    {section.subtitle && <p>{section.subtitle}</p>}
+  </header>
+
+  <ul class="menu-list">
+    {
+      items.map((item) => (
+        <li class="menu-item">
+          <div class="menu-item-heading">
+            <h3>{item.name}</h3>
+            {showPrices && item.price && (
+              <span class="menu-item-price">£{item.price}</span>
+            )}
+          </div>
+          {item.description && <p class="menu-item-description">{item.description}</p>}
+        </li>
+      ))
+    }
+  </ul>
+</section>

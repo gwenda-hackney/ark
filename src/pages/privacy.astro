@@ -1,0 +1,82 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { siteConfig } from "../config/site";
+---
+
+<BaseLayout title={`Privacy — ${siteConfig.name}`}>
+  <main class="legal-page">
+    <div class="container">
+      <a href="/" class="legal-back">← Back</a>
+      <h1>Privacy Policy</h1>
+      <p class="legal-updated">Last updated: June 2026</p>
+
+      <section>
+        <h2>Who we are</h2>
+        <p>
+          {siteConfig.name} is a ristobar located in {siteConfig.location.area},
+          London. This website is operated at {siteConfig.domain}.
+        </p>
+      </section>
+
+      <section>
+        <h2>What we collect</h2>
+        <ul>
+          <li>
+            <strong>Email address</strong> — when you join our pre-launch list, we
+            store your email to send opening updates and marketing communications.
+          </li>
+          <li>
+            <strong>Analytics data</strong> — we use Cloudflare Web Analytics to
+            understand how visitors use this site. It does not use cookies.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>How we use your data</h2>
+        <p>
+          We use your email to send you information about our opening, events,
+          and offers. You can unsubscribe at any time via the link in any email
+          we send.
+        </p>
+        <p>
+          We process your data on the basis of your consent (email sign-up) and
+          legitimate interest (anonymous site analytics).
+        </p>
+      </section>
+
+      <section>
+        <h2>Third parties</h2>
+        <ul>
+          <li>
+            <strong>Buttondown</strong> — email list management (<a
+              href="https://buttondown.email/legal/privacy"
+              target="_blank"
+              rel="noopener">privacy policy</a
+            >)
+          </li>
+          <li>
+            <strong>Cloudflare</strong> — hosting and cookieless Web Analytics
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Your rights</h2>
+        <p>
+          Under UK GDPR you have the right to access, correct, or delete your
+          personal data, and to withdraw consent at any time. Contact us at
+          hello@gwenda.co.uk to make a request.
+        </p>
+      </section>
+
+      <section>
+        <h2>Cookies</h2>
+        <p>
+          This site does not use analytics cookies. Cloudflare may set essential
+          cookies for security and performance when serving the site.
+        </p>
+      </section>
+    </div>
+  </main>
+</BaseLayout>

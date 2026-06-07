@@ -1,0 +1,30 @@
+---
+import { Image } from "astro:assets";
+import { getCocktailsWithImages } from "../data/menu";
+
+const cocktails = getCocktailsWithImages();
+---
+
+<section class="gallery" id="gallery">
+  <div class="gallery-header">
+    <h2>Our Signature Creations</h2>
+    <p>Handcrafted cocktails with premium spirits and fresh ingredients</p>
+  </div>
+
+  <div class="gallery-container">
+    {
+      cocktails.map((cocktail) => (
+        <div class="gallery-item">
+          <Image
+            src={cocktail.image!}
+            alt={`${cocktail.name} cocktail`}
+            class="gallery-photo"
+          />
+          <div class="gallery-overlay">
+            <h3>{cocktail.name}</h3>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</section>

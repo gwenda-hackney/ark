@@ -1,0 +1,19 @@
+{
+  "name": "gwenda-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0 --port 4321",
+    "build": "astro build",
+    "preview": "astro preview --host 0.0.0.0 --port 4321",
+    "ensure:domain": "node scripts/ensure-pages-domain.mjs",
+    "resolve:analytics": "node scripts/resolve-beacon-token.mjs",
+    "setup:analytics": "node scripts/setup-cf-analytics.mjs"
+  },
+  "dependencies": {
+    "astro": "^4.16.18"
+  },
+  "devDependencies": {
+    "wrangler": "^4.98.0"
+  }
+}
