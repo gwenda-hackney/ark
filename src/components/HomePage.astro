@@ -8,6 +8,7 @@ import TeaserGallery from "./TeaserGallery.astro";
 import EmailSignup from "./EmailSignup.astro";
 import Footer from "./Footer.astro";
 import Menu from "./Menu.astro";
+import ScrollToTop from "./ScrollToTop.astro";
 
 interface Props {
   mode?: SiteMode;
@@ -34,3 +35,4 @@ const features = getFeatures(mode);
   <Menu features={features} />
 </main>
 <Footer mode={mode} features={features} />
+<ScrollToTop />

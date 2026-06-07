@@ -15,8 +15,8 @@ export const siteConfig = {
     revealDrinkNames: false,
   },
   social: {
-    instagram: "https://instagram.com/gwenda.hackneywick",
-    tiktok: "https://tiktok.com/@gwenda.hackneywick",
+    instagram: "",
+    tiktok: "",
     /** Link previews — WhatsApp, iMessage, Slack, X, etc. */
     shareTitle: "Gwenda — Hackney Wick",
     shareDescription:
