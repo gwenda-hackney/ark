@@ -54,7 +54,6 @@ jobs:
           command: pages deploy dist --project-name=gwenda --commit-dirty=true
 
       - name: Set site password
-        if: ${{ secrets.SITE_PASSWORD != '' }}
         run: printf '%s' "$SITE_PASSWORD" | npx wrangler pages secret put SITE_PASSWORD --project-name=gwenda
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
