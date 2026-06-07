@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
@@ -47,9 +47,7 @@ jobs:
           PAGES_PROJECT_NAME: gwenda
 
       - name: Set site password
-        run: |
-          printf 'SITE_PASSWORD=%s' "$SITE_PASSWORD" > /tmp/pages-secrets.env
-          ./node_modules/.bin/wrangler pages secret bulk /tmp/pages-secrets.env --project-name=gwenda
+        run: printf '%s' "$SITE_PASSWORD" | ./node_modules/.bin/wrangler pages secret put SITE_PASSWORD --project-name=gwenda
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
