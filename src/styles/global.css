@@ -720,6 +720,11 @@ a:hover {
   list-style: none;
 }
 
+.menu-tease-footer {
+  margin-top: 3.5rem;
+  text-align: center;
+}
+
 .menu-tease-card {
   display: grid;
   grid-template-columns: 1fr auto;

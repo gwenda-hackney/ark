@@ -29,7 +29,8 @@ export const siteConfig = {
     descriptionPromo:
       "A polished ristorbar on the Hackney Wick canal. Opening soon.",
     heroEyebrow: "Opening Summer 2026",
-    heroCta: "Join the experience",
+    heroCta: "Enter our world",
+    joinExperienceCta: "Join the experience",
     storyHeading: "Behind the door",
     storyLead:
       "A polished ristorbar on the canal — grounded in Hackney Wick's art culture.",
