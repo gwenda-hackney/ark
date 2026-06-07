@@ -2,17 +2,24 @@
 import "../styles/global.css";
 import { siteConfig, cfBeaconToken } from "../config/site";
 import Analytics from "../components/Analytics.astro";
+import SocialMeta from "../components/SocialMeta.astro";
 import favicon from "../assets/images/logos/favicon-dark.png";
 
 interface Props {
   title?: string;
   description?: string;
+  socialTitle?: string;
+  socialDescription?: string;
 }
 
 const {
   title = `${siteConfig.name} — ${siteConfig.tagline}`,
   description = siteConfig.description,
+  socialTitle,
+  socialDescription,
 } = Astro.props;
+
+const canonicalUrl = new URL(Astro.url.pathname, siteConfig.domain).href;
 ---
 
 <!doctype html>
@@ -23,6 +30,12 @@ const {
     <title>{title}</title>
     <meta name="description" content={description} />
 
+    <SocialMeta
+      title={socialTitle ?? title}
+      description={socialDescription ?? description}
+      url={canonicalUrl}
+    />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -30,16 +43,6 @@ const {
       rel="stylesheet"
     />
     <link rel="icon" type="image/png" href={favicon.src} />
-
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={siteConfig.domain} />
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
-    <meta property="og:image" content={`${siteConfig.domain}/og-image.jpg`} />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={`${siteConfig.domain}/og-image.jpg`} />
 
     {cfBeaconToken && <Analytics />}
     <slot name="head" />

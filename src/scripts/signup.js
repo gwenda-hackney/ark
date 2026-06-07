@@ -7,6 +7,9 @@ export function initSignupAnchors() {
   if (!email) return;
 
   const focusEmail = () => {
+    const section = document.getElementById("list");
+    if (section?.classList.contains("is-confirmed")) return;
+
     const form = email.closest(".signup-form");
     if (form?.hidden || form?.classList.contains("is-success")) return;
 
@@ -27,7 +30,8 @@ export function initSignupAnchors() {
 }
 
 export function initSignup(form) {
-  const message = document.getElementById("signup-message");
+  const section = document.getElementById("list");
+  const confirmEl = document.getElementById("signup-confirm");
   const errorEl = document.getElementById("signup-error");
   const submitBtn = form.querySelector('button[type="submit"]');
   const defaultBtnText = submitBtn?.textContent ?? "";
@@ -70,9 +74,8 @@ export function initSignup(form) {
         throw new Error(data.error ?? "Something went wrong. Try again?");
       }
 
-      form.classList.add("is-success");
-      form.hidden = true;
-      if (message) message.hidden = false;
+      setLoading(form, submitBtn, false, defaultBtnText);
+      showConfirmation(section, confirmEl);
     } catch (err) {
       showError(
         errorEl,
@@ -80,6 +83,17 @@ export function initSignup(form) {
       );
       setLoading(form, submitBtn, false, defaultBtnText);
     }
+  });
+}
+
+function showConfirmation(section, confirmEl) {
+  if (!section || !confirmEl) return;
+
+  confirmEl.setAttribute("aria-hidden", "false");
+  section.classList.add("is-confirmed");
+
+  window.requestAnimationFrame(() => {
+    section.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 }
 

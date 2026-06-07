@@ -1,8 +1,8 @@
 import { defineConfig, envField } from "astro/config";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
+import { subscribeEmail } from "./functions/_lib/subscribe.js";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
 const sitePassword = env.SITE_PASSWORD;
 const gatePlugin = devSiteGate(sitePassword);
@@ -22,18 +22,24 @@ function devSubscribeApi() {
         req.on("data", (chunk) => {
           body += chunk;
         });
-        req.on("end", () => {
+        req.on("end", async () => {
           try {
-            const { email } = JSON.parse(body);
-            if (!email || !EMAIL_RE.test(email)) {
-              res.statusCode = 400;
-              res.setHeader("Content-Type", "application/json");
-              res.end(JSON.stringify({ error: "Valid email required." }));
-              return;
-            }
-            res.statusCode = 200;
+            const { email, tag } = JSON.parse(body);
+            const result = await subscribeEmail({
+              email,
+              tag,
+              env: {
+                BUTTONDOWN_API_KEY: env.BUTTONDOWN_API_KEY,
+                PUBLIC_BUTTONDOWN_USERNAME: env.PUBLIC_BUTTONDOWN_USERNAME,
+                BUTTONDOWN_BYPASS_FIREWALL: "true",
+              },
+            });
+
+            res.statusCode = result.status;
             res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify({ ok: true }));
+            res.end(
+              JSON.stringify(result.ok ? { ok: true } : { error: result.error }),
+            );
           } catch {
             res.statusCode = 400;
             res.setHeader("Content-Type", "application/json");
