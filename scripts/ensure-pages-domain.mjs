@@ -1,5 +1,5 @@
 /**
- * Attach gwenda.co.uk to the Pages project and ensure DNS on the same account.
+ * Attach gwenda.co.uk to the Pages project and point apex DNS at Pages.
  * Run after deploy in CI. Requires zone on the Gwenda account (see .env.example).
  */
 
@@ -36,14 +36,13 @@ async function cf(path, { method = "GET", body } = {}) {
 function pointsToPages(record, pagesTarget) {
   const target = pagesTarget.replace(/\.$/, "");
   const content = record.content?.replace(/\.$/, "");
-  if (record.type === "CNAME") {
-    return content === target || content.endsWith(".pages.dev");
-  }
-  return false;
+  return record.type === "CNAME" && content === target;
 }
 
 const project = await cf(`/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}`);
-const pagesTarget = `${project.subdomain}.pages.dev`;
+const pagesTarget = project.subdomain.endsWith(".pages.dev")
+  ? project.subdomain
+  : `${project.subdomain}.pages.dev`;
 
 let domains = await cf(
   `/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}/domains`,
@@ -83,45 +82,35 @@ if (!zone) {
 const apexRecords = await cf(
   `/zones/${zone.id}/dns_records?name=${encodeURIComponent(DOMAIN)}`,
 );
+const webRecords = apexRecords?.filter((r) =>
+  ["A", "AAAA", "CNAME"].includes(r.type),
+);
 
-const pagesRecord = apexRecords?.find((r) => pointsToPages(r, pagesTarget));
-if (pagesRecord) {
+const correctCname = webRecords?.find((r) => pointsToPages(r, pagesTarget));
+
+if (correctCname) {
   console.log(
-    `DNS already configured: ${pagesRecord.type} ${DOMAIN} → ${pagesRecord.content}`,
+    `DNS already configured: CNAME ${DOMAIN} → ${correctCname.content}`,
   );
   process.exit(0);
 }
 
-if (apexRecords?.length > 0) {
-  const summary = apexRecords
-    .map((r) => `${r.type}→${r.content}`)
-    .join(", ");
-  console.log(
-    `Apex DNS records already exist (${summary}). ` +
-      `Pages target is ${pagesTarget} — leaving DNS unchanged.`,
-  );
-  process.exit(0);
-}
-
-try {
-  await cf(`/zones/${zone.id}/dns_records`, {
-    method: "POST",
-    body: {
-      type: "CNAME",
-      name: "@",
-      content: pagesTarget,
-      proxied: true,
-      ttl: 1,
-    },
+for (const record of webRecords ?? []) {
+  await cf(`/zones/${zone.id}/dns_records/${record.id}`, {
+    method: "DELETE",
   });
-  console.log(`Created CNAME ${DOMAIN} → ${pagesTarget} (proxied).`);
-} catch (err) {
-  if (err.code === 81053) {
-    console.log(
-      `Apex DNS record already exists — skipping create. ` +
-        `Verify ${DOMAIN} points to ${pagesTarget}.`,
-    );
-    process.exit(0);
-  }
-  throw err;
+  console.log(`Removed ${record.type} ${DOMAIN} → ${record.content}`);
 }
+
+await cf(`/zones/${zone.id}/dns_records`, {
+  method: "POST",
+  body: {
+    type: "CNAME",
+    name: "@",
+    content: pagesTarget,
+    proxied: true,
+    ttl: 1,
+  },
+});
+
+console.log(`Created CNAME ${DOMAIN} → ${pagesTarget} (proxied).`);
