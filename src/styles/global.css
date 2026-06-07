@@ -665,13 +665,13 @@ a:hover {
 .story-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4rem;
+  column-gap: 6rem;
+  row-gap: 4rem;
   align-items: start;
 }
 
 .story-grid--split {
   grid-template-rows: auto auto;
-  column-gap: 4rem;
   row-gap: 1rem;
 }
 
@@ -690,6 +690,12 @@ a:hover {
   grid-column: 2;
   grid-row: 2;
   align-self: start;
+}
+
+@media (min-width: 901px) {
+  .story-grid-right.story-menu {
+    margin-top: 1.75rem;
+  }
 }
 
 .story-grid-left h2,
