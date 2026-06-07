@@ -39,12 +39,19 @@ jobs:
           PUBLIC_BUTTONDOWN_USERNAME: ${{ vars.PUBLIC_BUTTONDOWN_USERNAME }}
           PUBLIC_CF_BEACON_TOKEN: ${{ steps.beacon.outputs.token }}
 
+      - name: Ensure Pages project exists
+        run: node scripts/ensure-pages-project.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT_NAME: gwenda
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=gwenda
+          command: pages deploy dist --project-name=gwenda --commit-dirty=true
 
       - name: Ensure custom domain and DNS
         run: node scripts/ensure-pages-domain.mjs
