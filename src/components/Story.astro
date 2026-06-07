@@ -49,18 +49,21 @@ const isPromoStory = mode === "promo" && !hasStoryBody;
     }
 
     {
-      features.showTeam && mode === "preview" && (
+      features.showTeam && (
         <div class="story-team" id="team">
-          <div class="story-grid story-grid--split">
-            <p class="section-eyebrow story-grid-eyebrow reveal">The team</p>
-            <div class="story-grid-left reveal">
-              <h2>{siteConfig.copy.teamHeading}</h2>
-              <p class="story-lead">{siteConfig.copy.teamLead}</p>
-            </div>
-            <div class="story-grid-right story-body reveal">
-              {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
-            </div>
+          <p class="section-eyebrow reveal">The team</p>
+          <h2 class="reveal">{siteConfig.copy.teamHeading}</h2>
+          <p class="story-lead reveal">{siteConfig.copy.teamLead}</p>
+          <div class="story-body reveal">
+            {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
           </div>
+          {
+            mode === "promo" && (
+              <p class="menu-tease-footer reveal">
+                <a href="#list" class="btn btn-primary">{siteConfig.copy.joinExperienceCta}</a>
+              </p>
+            )
+          }
         </div>
       )
     }

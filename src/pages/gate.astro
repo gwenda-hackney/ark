@@ -1,0 +1,54 @@
+---
+import "../styles/global.css";
+import { Image } from "astro:assets";
+import logo from "../assets/images/logos/logo.png";
+import favicon from "../assets/images/logos/favicon-dark.png";
+
+const next = Astro.url.searchParams.get("next") ?? "/";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Gwenda — Enter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/png" href={favicon.src} />
+  </head>
+  <body class="gate-page">
+    <div class="grain" aria-hidden="true"></div>
+    <main class="gate">
+      <Image src={logo} alt="Gwenda" class="gate-logo" loading="eager" />
+      <p class="gate-eyebrow">By invitation</p>
+      <h1 class="gate-title">Enter the door</h1>
+      <p class="gate-lead">A password is required to view the site.</p>
+
+      <form class="gate-form" id="gate-form" novalidate>
+        <label class="visually-hidden" for="gate-password">Password</label>
+        <div class="gate-field">
+          <input
+            type="password"
+            id="gate-password"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Password"
+            required
+          />
+          <button type="button" class="btn btn-primary" id="gate-submit">Enter</button>
+        </div>
+        <p class="gate-error" id="gate-error" hidden></p>
+      </form>
+    </main>
+    <script>
+      import { initGate } from "../scripts/gate.js";
+      initGate();
+    </script>
+  </body>
+</html>

@@ -1,6 +1,11 @@
-import { defineConfig } from "astro/config";
+import { defineConfig, envField } from "astro/config";
+import { loadEnv } from "vite";
+import { devSiteGate } from "./scripts/dev-site-gate.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
+const sitePassword = env.SITE_PASSWORD;
+const gatePlugin = devSiteGate(sitePassword);
 
 /** Dev-only stub for /api/subscribe — production uses functions/api/subscribe.js */
 function devSubscribeApi() {
@@ -42,12 +47,21 @@ function devSubscribeApi() {
 
 export default defineConfig({
   output: "static",
+  env: {
+    schema: {
+      SITE_PASSWORD: envField.string({
+        context: "server",
+        access: "secret",
+        optional: true,
+      }),
+    },
+  },
   image: {
     service: {
       entrypoint: "astro/assets/services/sharp",
     },
   },
   vite: {
-    plugins: [devSubscribeApi()],
+    plugins: [devSubscribeApi(), ...(gatePlugin ? [gatePlugin] : [])],
   },
 });
