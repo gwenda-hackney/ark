@@ -1,0 +1,20 @@
+---
+import { siteConfig } from "../config/site";
+---
+
+<section class="team section" id="team">
+  <div class="container">
+    <div class="team-inner reveal">
+      <p class="section-eyebrow">The team</p>
+      <h2>{siteConfig.copy.teamHeading}</h2>
+      <p class="story-lead">{siteConfig.copy.teamLead}</p>
+      <div class="team-body">
+        {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
+      </div>
+    </div>
+
+    <p class="menu-tease-footer reveal">
+      <a href="#list" class="btn btn-primary">{siteConfig.copy.joinExperienceCta}</a>
+    </p>
+  </div>
+</section>

@@ -1,0 +1,17 @@
+---
+import { menuTease, menuTeaseStatus } from "../data/menu-tease";
+---
+
+<ul class="menu-tease-list">
+  {
+    menuTease.map((row) => (
+      <li class="menu-tease-card">
+        <span class="menu-tease-label">{row.label}</span>
+        <span class="menu-tease-cta" tabindex="0">
+          <span class="menu-tease-status">{menuTeaseStatus}</span>
+          <span class="menu-tease-veil" aria-hidden="true" />
+        </span>
+      </li>
+    ))
+  }
+</ul>

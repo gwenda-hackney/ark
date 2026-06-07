@@ -31,13 +31,10 @@ export const siteConfig = {
     heroEyebrow: "Opening Summer 2026",
     heroCta: "Enter our world",
     joinExperienceCta: "Join the experience",
-    storyHeading: "Behind the door",
+    storyHeading: "Behind the Doors",
     storyLead:
-      "A polished ristorbar on the canal — grounded in Hackney Wick's art culture.",
-    storyBodyPromo: [
-      "Real Italian food, serious cocktails, natural wine, and craft beer. Local producers where we can — local art and music on the walls.",
-      "The menu stays close to the chest. The door opens soon.",
-    ],
+      "Step into the world of Gwenda — a canalside ristorbar in the heart of Hackney Wick. Experience hand-crafted cocktails, natural wines, real Italian small plates and a carefully curated selection of beer.",
+    storyBodyPromo: [],
     storyClosingPromo: null,
     storyBody: [
       "Real Italian food, not theatre. Cocktails, wine, and craft beer worth taking seriously. Local producers wherever we can — because this neighbourhood deserves a menu that actually comes from here.",
@@ -49,16 +46,17 @@ export const siteConfig = {
     teamLead:
       "An independent team with a proven track record in Hackney Wick and Fish Island — Gwenda isn't our first venture in this neighbourhood.",
     teamBody: [
-      "We're the people behind The Pirate's Hub. We know the canal, the studios, and the rhythm of the Wick — what's worked here and what this place is still hungry for.",
-      "Deep roots with local artists, DJs, creatives, professionals, and residents. That network isn't decoration — it's how Gwenda gets built right, with the people who already make this corner of London worth showing up for.",
+      "We're behind The Pirate's Hub. We know the canal, the studios, and the rhythm of the Wick.",
+      "Gwenda grows from that — built with the artists, DJs, and locals who already make this neighbourhood worth showing up for.",
     ],
     galleryHeading: "A glimpse within",
     gallerySubheading: "The details reveal themselves in time",
-    signupHeading: "The list",
+    signupHeading: "Be the first to know",
+    signupEyebrowPromo: "Almost there",
     signupSubheading:
       "Be among the first through the door. Opening updates, private invitations, and the occasional whisper.",
     signupSubheadingPromo:
-      "Still fitting out. Leave your email — we'll send updates as opening gets closer.",
+      "We're putting the finishing touches on Gwenda. Leave your email and we'll be in touch.",
     footerOpeningPromo: "Opening Summer 2026",
     signupConsent:
       "I agree to receive opening updates and marketing emails from Gwenda. I can unsubscribe at any time.",

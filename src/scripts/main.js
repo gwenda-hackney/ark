@@ -133,32 +133,21 @@ if (revealEls.length) {
 const signupForm = document.getElementById("signup-form");
 if (signupForm) initSignup(signupForm);
 
-/* Menu tease — touch: tap to reveal, tap again to follow link */
+/* Menu tease — touch: tap to reveal */
 const menuTeaseCtas = document.querySelectorAll(".menu-tease-cta");
 const hasHover = window.matchMedia("(hover: hover)").matches;
 
 if (menuTeaseCtas.length && !hasHover) {
   menuTeaseCtas.forEach((cta) => {
-    cta.addEventListener("click", (e) => {
-      if (!cta.classList.contains("is-revealed")) {
-        e.preventDefault();
-        menuTeaseCtas.forEach((other) => {
-          if (other !== cta) {
-            other.classList.remove("is-revealed");
-            other.setAttribute("aria-expanded", "false");
-          }
-        });
-        cta.classList.add("is-revealed");
-        cta.setAttribute("aria-expanded", "true");
-      }
+    cta.addEventListener("click", () => {
+      const revealed = cta.classList.contains("is-revealed");
+      menuTeaseCtas.forEach((other) => other.classList.remove("is-revealed"));
+      if (!revealed) cta.classList.add("is-revealed");
     });
   });
 
   document.addEventListener("click", (e) => {
     if (e.target.closest(".menu-tease-cta")) return;
-    menuTeaseCtas.forEach((cta) => {
-      cta.classList.remove("is-revealed");
-      cta.setAttribute("aria-expanded", "false");
-    });
+    menuTeaseCtas.forEach((cta) => cta.classList.remove("is-revealed"));
   });
 }

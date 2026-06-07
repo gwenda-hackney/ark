@@ -12,7 +12,7 @@ const { features } = Astro.props;
 
 <header class="site-header" id="site-header">
   <a href="#hero" class="site-header-logo" aria-label="Gwenda — back to top">
-    <Image src={logoMark} alt="" width={40} height={40} />
+    <Image src={logoMark} alt="Gwenda" class="site-header-logo-img" height={36} />
   </a>
 
   <button
@@ -28,7 +28,7 @@ const { features } = Astro.props;
 
   <nav class="site-header-nav" id="site-header-nav">
     <a href="#story">Story</a>
-    {features.showMenuTease && <a href="#menu-tease">Menu</a>}
+    {features.showTeam && <a href="#team">Who we are</a>}
     {features.showGallery && <a href="#glimpse">Glimpse</a>}
     {features.showMenu && <a href="#menu">Menu</a>}
     <a href="#list" class="site-header-cta">The List</a>

@@ -2,6 +2,7 @@
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
+import MenuTeaseList from "./MenuTeaseList.astro";
 
 interface Props {
   mode: SiteMode;
@@ -10,32 +11,55 @@ interface Props {
 
 const { mode, features } = Astro.props;
 const copy = getCopy(mode);
+const hasStoryBody = copy.storyBody.length > 0 || copy.storyClosing;
+const isPromoStory = mode === "promo" && !hasStoryBody;
 ---
 
 <section class="story section" id="story">
   <div class="container">
-    <div class="story-grid">
-      <div class="story-intro reveal">
-        <p class="section-eyebrow">Est. MMXXVI</p>
-        <h2>{siteConfig.copy.storyHeading}</h2>
-        <p class="story-lead">{siteConfig.copy.storyLead}</p>
-      </div>
-      <div class="story-body reveal">
-        {copy.storyBody.map((paragraph) => <p>{paragraph}</p>)}
-        {copy.storyClosing && <p class="story-closing">{copy.storyClosing}</p>}
-      </div>
-    </div>
+    {
+      isPromoStory ? (
+        <div class="story-grid story-grid--split">
+          <p class="section-eyebrow story-grid-eyebrow reveal">Est. MMXXVI</p>
+          <div class="story-grid-left reveal">
+            <h2>{siteConfig.copy.storyHeading}</h2>
+            <p class="story-lead">{siteConfig.copy.storyLead}</p>
+          </div>
+          <div class="story-grid-right story-menu reveal">
+            <MenuTeaseList />
+          </div>
+        </div>
+      ) : (
+        <div class="story-grid story-grid--split">
+          <p class="section-eyebrow story-grid-eyebrow reveal">Est. MMXXVI</p>
+          <div class="story-grid-left reveal">
+            <h2>{siteConfig.copy.storyHeading}</h2>
+            <p class="story-lead">{siteConfig.copy.storyLead}</p>
+          </div>
+          {
+            hasStoryBody && (
+              <div class="story-grid-right story-body reveal">
+                {copy.storyBody.map((paragraph) => <p>{paragraph}</p>)}
+                {copy.storyClosing && <p class="story-closing">{copy.storyClosing}</p>}
+              </div>
+            )
+          }
+        </div>
+      )
+    }
 
     {
-      features.showTeam && (
-        <div class="story-team">
-          <div class="story-intro reveal">
-            <p class="section-eyebrow">The team</p>
-            <h2>{siteConfig.copy.teamHeading}</h2>
-            <p class="story-lead">{siteConfig.copy.teamLead}</p>
-          </div>
-          <div class="story-body reveal">
-            {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
+      features.showTeam && mode === "preview" && (
+        <div class="story-team" id="team">
+          <div class="story-grid story-grid--split">
+            <p class="section-eyebrow story-grid-eyebrow reveal">The team</p>
+            <div class="story-grid-left reveal">
+              <h2>{siteConfig.copy.teamHeading}</h2>
+              <p class="story-lead">{siteConfig.copy.teamLead}</p>
+            </div>
+            <div class="story-grid-right story-body reveal">
+              {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
+            </div>
           </div>
         </div>
       )
