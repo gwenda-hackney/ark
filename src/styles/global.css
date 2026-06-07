@@ -330,9 +330,20 @@ a:hover {
   pointer-events: none;
 }
 
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-color: #0d0d0d;
+  background-image:
+    linear-gradient(to bottom, rgba(201, 168, 76, 0.055) 0%, transparent 42%),
+    linear-gradient(135deg, #161310 0%, #0f0e0c 38%, #0d0d0d 68%, #0a0908 100%);
+}
+
 .hero-image {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -355,15 +366,26 @@ a:hover {
   position: absolute;
   inset: 0;
   z-index: 2;
+  opacity: 0;
   background: radial-gradient(ellipse at center, transparent 0%, rgba(13, 13, 13, 0.5) 100%);
+  transition: opacity 1.4s var(--ease-out);
 }
 
 .hero-vignette {
   position: absolute;
   inset: 0;
   z-index: 3;
+  opacity: 0;
   background: radial-gradient(ellipse at center, transparent 40%, rgba(13, 13, 13, 0.8) 100%);
   pointer-events: none;
+  transition: opacity 1.4s var(--ease-out);
+}
+
+.hero-image.loaded ~ .hero-overlay,
+.hero-image.loaded ~ .hero-vignette,
+.hero-image.revealed ~ .hero-overlay,
+.hero-image.revealed ~ .hero-vignette {
+  opacity: 1;
 }
 
 .hero-content {
@@ -661,22 +683,7 @@ a:hover {
   border-top: 1px solid var(--color-border);
 }
 
-.team {
-  padding: 7.5rem 0;
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 100%, rgba(201, 168, 76, 0.03), transparent 65%),
-    var(--color-bg);
-}
-
-.team-inner {
-  max-width: 40rem;
-}
-
-.team-body.reveal {
-  transition-delay: 0.1s;
-}
-
-.team-inner h2 {
+.story-team h2 {
   font-family: var(--font-display);
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 500;
@@ -685,14 +692,9 @@ a:hover {
   line-height: 1.2;
 }
 
-.team-body p {
-  color: var(--color-text-muted);
-  margin-bottom: 1.25rem;
-  line-height: 1.8;
-}
-
-.team-body p:last-child {
-  margin-bottom: 0;
+.story-team .menu-tease-footer {
+  margin-top: 2.5rem;
+  text-align: left;
 }
 
 /* Atmosphere */
@@ -1051,6 +1053,112 @@ a:hover {
   letter-spacing: 0.05em;
 }
 
+/* Site gate */
+.gate-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gate {
+  position: relative;
+  z-index: 1;
+  width: min(100% - 2.5rem, 22rem);
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.gate-logo {
+  height: clamp(5rem, 18vw, 7rem);
+  width: auto;
+  margin-inline: auto;
+  margin-bottom: 2rem;
+  opacity: 0.95;
+}
+
+.gate-eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: 0.75rem;
+}
+
+.gate-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.65rem;
+}
+
+.gate-lead {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.gate-form {
+  text-align: left;
+}
+
+.gate-field {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.25rem;
+}
+
+.gate-field input[type="password"] {
+  flex: 1;
+  min-width: 0;
+  padding: 0.85rem 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 1rem;
+}
+
+.gate-field input[type="password"]::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.65;
+}
+
+.gate-field input[type="password"]:focus {
+  outline: none;
+}
+
+.gate-field .btn {
+  flex-shrink: 0;
+  padding: 0.65rem 1.5rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.gate-error {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #c97a7a;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .gate-field {
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-bottom: 0;
+  }
+
+  .gate-field .btn {
+    width: 100%;
+  }
+}
+
 /* Footer */
 .site-footer {
   padding: 4rem 0 2rem;
@@ -1359,6 +1467,14 @@ a:hover {
     transform: none;
   }
 
+  .hero-image.loaded ~ .hero-overlay,
+  .hero-image.loaded ~ .hero-vignette,
+  .hero-image.revealed ~ .hero-overlay,
+  .hero-image.revealed ~ .hero-vignette {
+    opacity: 1;
+    transition: none;
+  }
+
   .hero-stagger {
     opacity: 1;
     animation: none;
@@ -1418,7 +1534,6 @@ a:hover {
   }
 
   .story-grid,
-  .story-team,
   .menu-tease-grid {
     grid-template-columns: 1fr;
     gap: 2rem;
