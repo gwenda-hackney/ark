@@ -33,6 +33,15 @@ async function cf(path, { method = "GET", body } = {}) {
   return data.result;
 }
 
+function pointsToPages(record, pagesTarget) {
+  const target = pagesTarget.replace(/\.$/, "");
+  const content = record.content?.replace(/\.$/, "");
+  if (record.type === "CNAME") {
+    return content === target || content.endsWith(".pages.dev");
+  }
+  return false;
+}
+
 const project = await cf(`/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}`);
 const pagesTarget = `${project.subdomain}.pages.dev`;
 
@@ -71,14 +80,30 @@ if (!zone) {
   process.exit(0);
 }
 
-const records = await cf(`/zones/${zone.id}/dns_records?type=CNAME`);
-const apexRecord = records?.find(
-  (r) =>
-    r.name === DOMAIN &&
-    (r.content === pagesTarget || r.content === `${pagesTarget}.`),
+const apexRecords = await cf(
+  `/zones/${zone.id}/dns_records?name=${encodeURIComponent(DOMAIN)}`,
 );
 
-if (!apexRecord) {
+const pagesRecord = apexRecords?.find((r) => pointsToPages(r, pagesTarget));
+if (pagesRecord) {
+  console.log(
+    `DNS already configured: ${pagesRecord.type} ${DOMAIN} → ${pagesRecord.content}`,
+  );
+  process.exit(0);
+}
+
+if (apexRecords?.length > 0) {
+  const summary = apexRecords
+    .map((r) => `${r.type}→${r.content}`)
+    .join(", ");
+  console.log(
+    `Apex DNS records already exist (${summary}). ` +
+      `Pages target is ${pagesTarget} — leaving DNS unchanged.`,
+  );
+  process.exit(0);
+}
+
+try {
   await cf(`/zones/${zone.id}/dns_records`, {
     method: "POST",
     body: {
@@ -90,6 +115,13 @@ if (!apexRecord) {
     },
   });
   console.log(`Created CNAME ${DOMAIN} → ${pagesTarget} (proxied).`);
-} else {
-  console.log(`DNS already points ${DOMAIN} → ${apexRecord.content}.`);
+} catch (err) {
+  if (err.code === 81053) {
+    console.log(
+      `Apex DNS record already exists — skipping create. ` +
+        `Verify ${DOMAIN} points to ${pagesTarget}.`,
+    );
+    process.exit(0);
+  }
+  throw err;
 }
