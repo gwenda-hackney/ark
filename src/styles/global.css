@@ -971,6 +971,94 @@ a:hover {
   max-width: 36rem;
 }
 
+.signup-stage {
+  display: grid;
+  align-items: center;
+  position: relative;
+}
+
+.signup-panel,
+.signup-confirm {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.5s var(--ease-out),
+    transform 0.5s var(--ease-out),
+    visibility 0.5s;
+}
+
+.signup-panel {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.signup-confirm {
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+  opacity: 0;
+  transform: translateY(1rem);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.signup.is-confirmed .signup-panel {
+  opacity: 0;
+  transform: translateY(-0.75rem);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.signup.is-confirmed .signup-confirm {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0.08s;
+}
+
+.signup-confirm-logo {
+  height: clamp(4rem, 14vw, 5.5rem);
+  width: auto;
+  margin-inline: auto;
+  margin-bottom: 1.75rem;
+  opacity: 0.95;
+}
+
+.signup-confirm-eyebrow {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: 0.75rem;
+}
+
+.signup-confirm-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.35rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: 1rem;
+}
+
+.signup-confirm-lead {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  margin-bottom: 2rem;
+  line-height: 1.65;
+}
+
+.signup-confirm-back {
+  min-width: 12rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signup-panel,
+  .signup-confirm {
+    transition: none;
+  }
+}
+
 .signup-form {
   display: flex;
   flex-direction: column;
@@ -1045,12 +1133,56 @@ a:hover {
   cursor: wait;
 }
 
-.signup-message {
+/* Signup confirmation */
+.thanks-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thanks {
+  position: relative;
+  z-index: 1;
+  width: min(100% - 2.5rem, 26rem);
   text-align: center;
-  color: var(--color-gold);
+  padding: 2rem 0;
+}
+
+.thanks-logo {
+  height: clamp(5rem, 18vw, 7rem);
+  width: auto;
+  margin-inline: auto;
+  margin-bottom: 2rem;
+  opacity: 0.95;
+}
+
+.thanks-eyebrow {
   font-family: var(--font-display);
-  font-size: 1.2rem;
-  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  margin-bottom: 0.75rem;
+}
+
+.thanks-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: 1rem;
+}
+
+.thanks-lead {
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  margin-bottom: 2.5rem;
+  line-height: 1.65;
+}
+
+.thanks-back {
+  min-width: 12rem;
 }
 
 /* Site gate */

@@ -17,6 +17,11 @@ export const siteConfig = {
   social: {
     instagram: "https://instagram.com/gwenda.hackneywick",
     tiktok: "https://tiktok.com/@gwenda.hackneywick",
+    /** Link previews — WhatsApp, iMessage, Slack, X, etc. */
+    shareTitle: "Gwenda — Hackney Wick",
+    shareDescription:
+      "A polished Italian ristorbar on the Hackney Wick canal. Handcrafted cocktails, natural wines, and real food — with local art and music. Opening Summer 2026.",
+    imageAlt: "Gwenda — Italian ristorbar on the Hackney Wick canal",
   },
   location: {
     area: "Hackney Wick",
@@ -62,12 +67,12 @@ export const siteConfig = {
     signupConsent:
       "I agree to receive opening updates and marketing emails from Gwenda. I can unsubscribe at any time.",
     signupButton: "Let me know",
-    signupSuccess: "Got it. We'll be in touch.",
+    signupSuccessTitle: "You're on the list",
+    signupSuccessLead:
+      "We'll be in touch with opening updates, private invitations, and the occasional whisper.",
+    signupSuccessBack: "Back to Gwenda",
   },
 } as const;
-
-export const buttondownUsername =
-  import.meta.env.PUBLIC_BUTTONDOWN_USERNAME ?? "";
 
 export const cfBeaconToken =
   import.meta.env.PUBLIC_CF_BEACON_TOKEN ?? "";

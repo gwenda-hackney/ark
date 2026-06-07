@@ -1,7 +1,9 @@
 ---
+import { Image } from "astro:assets";
 import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
+import logo from "../assets/images/logos/logo.png";
 
 interface Props {
   mode: SiteMode;
@@ -13,41 +15,52 @@ const copy = getCopy(mode);
 
 <section class="signup section" id="list">
   <div class="container signup-inner">
-    <header class="section-header reveal">
-      <p class="section-eyebrow">{copy.signupEyebrow}</p>
-      <h2>{copy.signupHeading}</h2>
-      <p>{copy.signupSubheading}</p>
-    </header>
+    <div class="signup-stage">
+      <div class="signup-panel" id="signup-panel">
+        <header class="section-header reveal">
+          <p class="section-eyebrow">{copy.signupEyebrow}</p>
+          <h2>{copy.signupHeading}</h2>
+          <p>{copy.signupSubheading}</p>
+        </header>
 
-    <form class="signup-form reveal" id="signup-form" novalidate>
-      <div class="signup-field">
-        <label for="email" class="visually-hidden">Email address</label>
-        <input
-          type="email"
-          name="email"
-          id="email"
-          placeholder="your@email.com"
-          required
-          autocomplete="email"
-          inputmode="email"
-          spellcheck="false"
-        />
-        <button type="submit" class="btn btn-primary">
-          {siteConfig.copy.signupButton}
-        </button>
+        <form class="signup-form reveal" id="signup-form" novalidate>
+          <div class="signup-field">
+            <label for="email" class="visually-hidden">Email address</label>
+            <input
+              type="email"
+              name="email"
+              id="email"
+              placeholder="your@email.com"
+              required
+              autocomplete="email"
+              inputmode="email"
+              spellcheck="false"
+            />
+            <button type="submit" class="btn btn-primary">
+              {siteConfig.copy.signupButton}
+            </button>
+          </div>
+
+          <label class="signup-consent">
+            <input type="checkbox" name="consent" id="consent" required />
+            <span>{siteConfig.copy.signupConsent}</span>
+          </label>
+
+          <input type="hidden" name="tag" value="prelaunch" />
+
+          <p class="signup-error" id="signup-error" hidden></p>
+        </form>
       </div>
 
-      <label class="signup-consent">
-        <input type="checkbox" name="consent" id="consent" required />
-        <span>{siteConfig.copy.signupConsent}</span>
-      </label>
-
-      <input type="hidden" name="tag" value="prelaunch" />
-
-      <p class="signup-error" id="signup-error" hidden></p>
-      <p class="signup-message" id="signup-message" hidden>
-        {siteConfig.copy.signupSuccess}
-      </p>
-    </form>
+      <div class="signup-confirm" id="signup-confirm" aria-hidden="true">
+        <Image src={logo} alt="Gwenda" class="signup-confirm-logo" loading="eager" />
+        <p class="signup-confirm-eyebrow">Thank you</p>
+        <h2 class="signup-confirm-title">{siteConfig.copy.signupSuccessTitle}</h2>
+        <p class="signup-confirm-lead">{siteConfig.copy.signupSuccessLead}</p>
+        <a href="/#hero" class="btn btn-primary signup-confirm-back">
+          {siteConfig.copy.signupSuccessBack}
+        </a>
+      </div>
+    </div>
   </div>
 </section>

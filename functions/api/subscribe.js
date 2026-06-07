@@ -1,4 +1,4 @@
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { subscribeEmail } from "../_lib/subscribe.js";
 
 export async function onRequestPost(context) {
   let body;
@@ -8,31 +8,14 @@ export async function onRequestPost(context) {
     return json({ error: "Invalid request." }, 400);
   }
 
-  const email = body.email?.trim().toLowerCase();
-  if (!email || !EMAIL_RE.test(email)) {
-    return json({ error: "Valid email required." }, 400);
-  }
+  const result = await subscribeEmail({
+    email: body.email,
+    tag: body.tag,
+    env: context.env,
+  });
 
-  const tag = body.tag ?? "prelaunch";
-  const username = context.env.PUBLIC_BUTTONDOWN_USERNAME;
-
-  if (username) {
-    const upstream = await fetch(
-      `https://buttondown.email/api/emails/embed-subscribe/${username}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ email, tag }),
-      },
-    );
-
-    if (!upstream.ok) {
-      const text = await upstream.text();
-      const alreadyOnList = /already|exists|subscribed/i.test(text);
-      if (!alreadyOnList) {
-        return json({ error: "Something went wrong. Try again?" }, 502);
-      }
-    }
+  if (!result.ok) {
+    return json({ error: result.error }, result.status);
   }
 
   return json({ ok: true });
