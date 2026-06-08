@@ -1,5 +1,5 @@
 /**
- * Password-protects the whole site in production when SITE_PASSWORD is set.
+ * Password-protects the site when SITE_PASSWORD is set (staging always; prod only if configured).
  * Unauthenticated visitors are sent to /gate (themed login) instead of browser basic auth.
  */
 import {

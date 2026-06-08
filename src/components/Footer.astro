@@ -2,7 +2,7 @@
 import { Image } from "astro:assets";
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import logo from "../assets/images/logos/logo.png";
+import footerLogo from "../assets/images/logos/logo-footer.png";
 import FooterSocialLink from "./FooterSocialLink.astro";
 
 interface Props {
@@ -25,13 +25,13 @@ const address = features.useShortAddress
       <div class="site-footer-brand">
         <a href="#hero" class="site-footer-logo" aria-label="Gwenda">
           <Image
-            src={logo}
+            src={footerLogo}
             alt=""
             class="site-footer-logo-img"
-            widths={[200, 280, 400]}
-            sizes="(min-width: 768px) 220px, 180px"
-            height={100}
-            width={160}
+            widths={[140, 200, 280]}
+            sizes="(min-width: 768px) 180px, 140px"
+            height={74}
+            width={139}
           />
         </a>
         <div class="site-footer-brand-details">

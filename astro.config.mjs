@@ -60,6 +60,12 @@ export default defineConfig({
         access: "secret",
         optional: true,
       }),
+      PUBLIC_IS_STAGING: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "false",
+      }),
     },
   },
   image: {

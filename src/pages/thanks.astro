@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { Image } from "astro:assets";
+import StagingRibbon from "../components/StagingRibbon.astro";
 import { siteConfig } from "../config/site";
 import logo from "../assets/images/logos/logo.png";
 import favicon from "../assets/images/logos/favicon-dark.png";
@@ -22,6 +23,7 @@ import favicon from "../assets/images/logos/favicon-dark.png";
     <link rel="icon" type="image/png" href={favicon.src} />
   </head>
   <body class="thanks-page">
+    <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main class="thanks">
       <Image src={logo} alt="Gwenda" class="thanks-logo" loading="eager" />

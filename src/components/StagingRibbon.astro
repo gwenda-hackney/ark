@@ -1,0 +1,11 @@
+---
+import { isStaging } from "../config/env";
+---
+
+{
+  isStaging && (
+    <div class="staging-ribbon" role="status" aria-label="Staging environment">
+      <span>Staging</span>
+    </div>
+  )
+}

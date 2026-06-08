@@ -1,8 +1,10 @@
 ---
 import "../styles/global.css";
 import { siteConfig, cfBeaconToken } from "../config/site";
+import { isStaging } from "../config/env";
 import Analytics from "../components/Analytics.astro";
 import SocialMeta from "../components/SocialMeta.astro";
+import StagingRibbon from "../components/StagingRibbon.astro";
 import favicon from "../assets/images/logos/favicon-dark.png";
 
 interface Props {
@@ -29,6 +31,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteConfig.domain).href;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {isStaging && <meta name="robots" content="noindex, nofollow" />}
 
     <SocialMeta
       title={socialTitle ?? title}
@@ -48,6 +51,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteConfig.domain).href;
     <slot name="head" />
   </head>
   <body>
+    <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <slot />
     <script src="../scripts/main.js"></script>
