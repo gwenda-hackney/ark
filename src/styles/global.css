@@ -1202,6 +1202,19 @@ a:hover {
   }
 }
 
+@media (prefers-reduced-motion: reduce) and (max-width: 640px) {
+  .signup-field.is-targeted {
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .signup-field.is-targeted input[type="email"] {
+    animation: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 1px rgba(201, 168, 76, 0.35);
+  }
+}
+
 .signup-field input[type="email"] {
   flex: 1;
   padding: 0.85rem 0;
@@ -1863,7 +1876,26 @@ a:hover {
   .signup-field {
     flex-direction: column;
     gap: 1.25rem;
-    padding-bottom: 0;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .signup-field input[type="email"] {
+    border: 1px solid transparent;
+    border-bottom-color: var(--color-border);
+    border-radius: 2px;
+    padding: 0.85rem 0.75rem;
+  }
+
+  .signup-field.is-targeted {
+    animation: none;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .signup-field.is-targeted input[type="email"] {
+    animation: signup-field-glow 2s var(--ease-out) forwards;
   }
 
   .signup-field .btn {
