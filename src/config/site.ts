@@ -6,7 +6,7 @@ export const siteConfig = {
   openingRoman: "MMXXVI",
   heroSeasonWord: "Summer",
   description:
-    "A polished Italian ristorbar on the Hackney Wick canal — real food, serious cocktails, wine and craft beer, with local art, music, and producers at the centre.",
+    "A canalside ristobar in Hackney Wick — real food, serious cocktails, wine and craft beer, with local art, music, and producers at the centre.",
   features: {
     showMenu: false,
     /** Off during promo — cocktail images are placeholders (AI-generated) */
@@ -20,8 +20,8 @@ export const siteConfig = {
     /** Link previews — WhatsApp, iMessage, Slack, X, etc. */
     shareTitle: "Gwenda — Hackney Wick",
     shareDescription:
-      "A polished Italian ristorbar on the Hackney Wick canal. Handcrafted cocktails, natural wines, and real food — with local art and music. Opening Summer 2026.",
-    imageAlt: "Gwenda — Italian ristorbar on the Hackney Wick canal",
+      "A canalside ristobar in Hackney Wick. Handcrafted cocktails, natural wines, and real food — with local art and music. Opening Summer 2026.",
+    imageAlt: "Gwenda — Italian ristobar on the Hackney Wick canal",
   },
   location: {
     area: "Hackney Wick",
@@ -32,13 +32,13 @@ export const siteConfig = {
   },
   copy: {
     descriptionPromo:
-      "A polished ristorbar on the Hackney Wick canal. Opening soon.",
+      "A canalside ristobar in Hackney Wick. Opening soon.",
     heroEyebrow: "Opening Summer 2026",
     heroCta: "Enter our world",
     joinExperienceCta: "Join the experience",
     storyHeading: "Behind the Doors",
     storyLead:
-      "Step into the world of Gwenda — a canalside ristorbar in the heart of Hackney Wick. Experience hand-crafted cocktails, natural wines, real Italian small plates and a carefully curated selection of beer.",
+      "Step into the world of Gwenda — a canalside ristobar in the heart of Hackney Wick. Experience hand-crafted cocktails, natural wines, real Italian small plates and a carefully curated selection of beer.",
     storyBodyPromo: [],
     storyClosingPromo: null,
     storyBody: [
