@@ -46,12 +46,12 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAGES_PROJECT_NAME: gwenda
 
-      - name: Remove site password (production is public)
-        run: |
-          ./node_modules/.bin/wrangler pages secret delete SITE_PASSWORD --project-name=gwenda || true
+      - name: Set site password
+        run: printf '%s' "$SITE_PASSWORD" | ./node_modules/.bin/wrangler pages secret put SITE_PASSWORD --project-name=gwenda
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
 
       - name: Set Buttondown API key
         run: |
