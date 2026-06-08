@@ -22,6 +22,8 @@ Actions → **Deploy production** → Run workflow (uses the current branch/ref)
 
 Builds use **CalVer** — `YYYY.MM.DD+shortsha` (UTC date + git commit), e.g. `2026.06.08+abc1234`. No manual version bumps.
 
+Each **production** deploy creates an annotated git tag with that label (staging is not tagged). Tags: [github.com/gwenda-hackney/web/tags](https://github.com/gwenda-hackney/web/tags). Re-running a deploy for the same commit skips tagging if the tag already exists.
+
 Check what's live (not exposed in the UI):
 
 ```bash
