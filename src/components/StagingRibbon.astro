@@ -1,10 +1,16 @@
 ---
 import { isStaging } from "../config/env";
+import { buildLabel } from "../config/build";
 ---
 
 {
   isStaging && (
-    <div class="staging-ribbon" role="status" aria-label="Staging environment">
+    <div
+      class="staging-ribbon"
+      role="status"
+      aria-label={`Staging environment. Build ${buildLabel()}.`}
+      title={`Build ${buildLabel()}`}
+    >
       <span>Staging</span>
     </div>
   )

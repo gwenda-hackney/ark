@@ -54,7 +54,7 @@ export function initSignup(form) {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    errorEl?.setAttribute("hidden", "");
+    clearError(errorEl);
 
     const emailInput = form.querySelector('input[name="email"]');
     const consentInput = form.querySelector('input[name="consent"]');
@@ -100,6 +100,16 @@ export function initSignup(form) {
       setLoading(form, submitBtn, false, defaultBtnText);
     }
   });
+
+  document.querySelector(".signup-confirm-back")?.addEventListener("click", () => {
+    resetSignup({ section, confirmEl, form, errorEl, submitBtn, defaultBtnText });
+  });
+
+  window.addEventListener("hashchange", () => {
+    if (section?.classList.contains("is-confirmed") && location.hash !== "#list") {
+      resetSignup({ section, confirmEl, form, errorEl, submitBtn, defaultBtnText });
+    }
+  });
 }
 
 function showConfirmation(section, confirmEl) {
@@ -113,10 +123,22 @@ function showConfirmation(section, confirmEl) {
   });
 }
 
+function resetSignup({ section, confirmEl, form, errorEl, submitBtn, defaultBtnText }) {
+  section?.classList.remove("is-confirmed");
+  confirmEl?.setAttribute("aria-hidden", "true");
+  form?.reset();
+  clearError(errorEl);
+  setLoading(form, submitBtn, false, defaultBtnText);
+}
+
 function showError(el, text) {
   if (!el) return;
   el.textContent = text;
-  el.hidden = false;
+}
+
+function clearError(el) {
+  if (!el) return;
+  el.textContent = "";
 }
 
 function setLoading(form, btn, loading, defaultText) {

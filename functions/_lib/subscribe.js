@@ -1,74 +1,46 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const BUTTONDOWN_API = "https://api.buttondown.com/v1/subscribers";
+const DEFAULT_BASEROW_API = "https://api.baserow.io";
+const DEFAULT_BASEROW_TABLE_ID = "1017358";
 
 export async function subscribeEmail({ email: rawEmail, tag = "prelaunch", env = {} }) {
   const email = rawEmail?.trim().toLowerCase();
+  const tagValue = (typeof tag === "string" ? tag : "prelaunch").trim() || "prelaunch";
   if (!email || !EMAIL_RE.test(email)) {
     return { ok: false, status: 400, error: "Valid email required." };
   }
 
-  const apiKey = env.BUTTONDOWN_API_KEY;
-  const username = env.PUBLIC_BUTTONDOWN_USERNAME;
+  const apiKey = env.BASEROW_API_KEY;
+  const tableId = env.BASEROW_TABLE_ID || DEFAULT_BASEROW_TABLE_ID;
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
 
-  if (apiKey) {
-    const headers = {
+  if (!apiKey) {
+    return { ok: false, status: 502, error: "Something went wrong. Try again?" };
+  }
+
+  const url = `${apiBase}/api/database/rows/table/${tableId}/?user_field_names=true`;
+  const upstream = await fetch(url, {
+    method: "POST",
+    headers: {
       Authorization: `Token ${apiKey}`,
       "Content-Type": "application/json",
-      "X-Buttondown-Collision-Behavior": "add",
-    };
-    if (env.BUTTONDOWN_BYPASS_FIREWALL === "true") {
-      headers["X-Buttondown-Bypass-Firewall"] = "true";
-    }
+    },
+    body: JSON.stringify({
+      Email: email,
+      Tag: tagValue,
+      "Signed up": new Date().toISOString().slice(0, 10),
+      Synced: false,
+    }),
+  });
 
-    const upstream = await fetch(BUTTONDOWN_API, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        email_address: email,
-        tags: [tag],
-        type: "regular",
-      }),
-    });
-
-    if (!upstream.ok) {
-      const detail = await upstream.text();
-      const error = parseButtondownError(upstream.status, detail);
-      if (error) return error;
-    }
-  } else if (username) {
-    const upstream = await fetch(
-      `https://buttondown.email/api/emails/embed-subscribe/${username}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ email, tag }),
-      },
-    );
-
-    if (!upstream.ok) {
-      const text = await upstream.text();
-      const alreadyOnList = /already|exists|subscribed/i.test(text);
-      if (!alreadyOnList) {
-        return { ok: false, status: 502, error: "Something went wrong. Try again?" };
-      }
-    }
+  if (!upstream.ok) {
+    return parseBaserowError(upstream.status, await upstream.text());
   }
 
   return { ok: true, status: 200 };
 }
 
-function parseButtondownError(status, detail) {
-  let body;
-  try {
-    body = JSON.parse(detail);
-  } catch {
-    body = null;
-  }
-
-  const code = body?.code ?? "";
-  const message = body?.detail ?? detail;
-
-  if (status === 429 || code === "rate_limited") {
+function parseBaserowError(status, detail) {
+  if (status === 429) {
     return {
       ok: false,
       status: 429,
@@ -76,20 +48,30 @@ function parseButtondownError(status, detail) {
     };
   }
 
-  if (
-    status === 400 &&
-    (code === "subscriber_already_exists" ||
-      /already|exists|subscribed/i.test(message))
-  ) {
-    return null;
+  let body;
+  try {
+    body = JSON.parse(detail);
+  } catch {
+    body = null;
   }
 
-  if (code === "subscriber_blocked") {
-    return {
-      ok: false,
-      status: 400,
-      error: "That email couldn't be added. Try a different address?",
-    };
+  const code = body?.error ?? "";
+  const message = body?.detail ?? body?.error ?? detail;
+
+  if (
+    status === 400 &&
+    (code === "ERROR_FIELD_DATA_CONSTRAINT" ||
+      /field constraint|unique|duplicate|already exists/i.test(String(message)))
+  ) {
+    return { ok: true, status: 200 };
+  }
+
+  if (status === 401 || status === 403) {
+    return { ok: false, status: 502, error: "Something went wrong. Try again?" };
+  }
+
+  if (status === 400 && /email|invalid|validation/i.test(String(message))) {
+    return { ok: false, status: 400, error: "That doesn't look like a valid email." };
   }
 
   return { ok: false, status: 502, error: "Something went wrong. Try again?" };
