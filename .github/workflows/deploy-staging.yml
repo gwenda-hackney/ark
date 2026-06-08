@@ -1,0 +1,74 @@
+name: Deploy staging
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    env:
+      PAGES_PROJECT_NAME: gwenda-staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Web Analytics beacon token
+        id: beacon
+        run: echo "token=$(node scripts/resolve-beacon-token.mjs)" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PUBLIC_CF_BEACON_TOKEN: ${{ vars.PUBLIC_CF_BEACON_TOKEN }}
+
+      - name: Build (staging)
+        run: npm run build
+        env:
+          PUBLIC_CF_BEACON_TOKEN: ${{ steps.beacon.outputs.token }}
+          PUBLIC_IS_STAGING: "true"
+
+      - name: Ensure Pages project exists
+        run: node scripts/ensure-pages-project.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT_NAME: gwenda-staging
+
+      - name: Set site password
+        run: printf '%s' "$SITE_PASSWORD" | ./node_modules/.bin/wrangler pages secret put SITE_PASSWORD --project-name=gwenda-staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+
+      - name: Set Buttondown API key
+        run: |
+          if [ -n "$BUTTONDOWN_API_KEY" ]; then
+            printf '%s' "$BUTTONDOWN_API_KEY" | ./node_modules/.bin/wrangler pages secret put BUTTONDOWN_API_KEY --project-name=gwenda-staging
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=gwenda-staging --commit-dirty=true

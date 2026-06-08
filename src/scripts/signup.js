@@ -1,6 +1,20 @@
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SIGNUP_FOCUS_DELAY_MS = 650;
+const SIGNUP_GLOW_MS = 2000;
+
+function highlightSignupField() {
+  const field = document.querySelector(".signup-field");
+  if (!field) return;
+
+  field.classList.remove("is-targeted");
+  void field.offsetWidth;
+  field.classList.add("is-targeted");
+
+  window.setTimeout(() => {
+    field.classList.remove("is-targeted");
+  }, SIGNUP_GLOW_MS);
+}
 
 export function initSignupAnchors() {
   const email = document.getElementById("email");
@@ -12,6 +26,8 @@ export function initSignupAnchors() {
 
     const form = email.closest(".signup-form");
     if (form?.hidden || form?.classList.contains("is-success")) return;
+
+    highlightSignupField();
 
     window.setTimeout(() => {
       email.focus({ preventScroll: true });

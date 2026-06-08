@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import { Image } from "astro:assets";
 import SocialMeta from "../components/SocialMeta.astro";
+import StagingRibbon from "../components/StagingRibbon.astro";
 import { siteConfig } from "../config/site";
 import logo from "../assets/images/logos/logo.png";
 import favicon from "../assets/images/logos/favicon-dark.png";
@@ -26,6 +27,7 @@ const next = Astro.url.searchParams.get("next") ?? "/";
     <link rel="icon" type="image/png" href={favicon.src} />
   </head>
   <body class="gate-page">
+    <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main class="gate">
       <Image src={logo} alt="Gwenda" class="gate-logo" loading="eager" />
