@@ -2,7 +2,6 @@
 import "../styles/global.css";
 import { siteConfig, cfBeaconToken } from "../config/site";
 import { isStaging } from "../config/env";
-import { buildSha, buildRef, buildTime, buildVersion } from "../config/build";
 import Analytics from "../components/Analytics.astro";
 import SocialMeta from "../components/SocialMeta.astro";
 import StagingRibbon from "../components/StagingRibbon.astro";
@@ -33,11 +32,6 @@ const canonicalUrl = new URL(Astro.url.pathname, siteConfig.domain).href;
     <title>{title}</title>
     <meta name="description" content={description} />
     {isStaging && <meta name="robots" content="noindex, nofollow" />}
-    {buildVersion && <meta name="build-version" content={buildVersion} />}
-    {buildSha && <meta name="build-sha" content={buildSha} />}
-    {buildRef && <meta name="build-ref" content={buildRef} />}
-    {buildTime && <meta name="build-time" content={buildTime} />}
-
     <SocialMeta
       title={socialTitle ?? title}
       description={socialDescription ?? description}
