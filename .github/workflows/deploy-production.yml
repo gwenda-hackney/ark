@@ -33,6 +33,15 @@ jobs:
         id: buildmeta
         run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
+      - name: Compute build version
+        id: version
+        run: |
+          TIME="${{ github.event.head_commit.timestamp || steps.buildmeta.outputs.time }}"
+          SHA="${{ github.sha }}"
+          CAL=$(date -u -d "$TIME" +%Y.%m.%d 2>/dev/null || date -u +%Y.%m.%d)
+          SHORT=$(echo "$SHA" | cut -c1-7)
+          echo "value=${CAL}+${SHORT}" >> "$GITHUB_OUTPUT"
+
       - name: Resolve Web Analytics beacon token
         id: beacon
         run: echo "token=$(node scripts/resolve-beacon-token.mjs)" >> "$GITHUB_OUTPUT"
@@ -48,6 +57,7 @@ jobs:
           PUBLIC_BUILD_SHA: ${{ github.sha }}
           PUBLIC_BUILD_REF: ${{ github.ref_name }}
           PUBLIC_BUILD_TIME: ${{ github.event.head_commit.timestamp || steps.buildmeta.outputs.time }}
+          PUBLIC_BUILD_VERSION: ${{ steps.version.outputs.value }}
 
       - name: Ensure Pages project exists
         run: node scripts/ensure-pages-project.mjs
@@ -91,3 +101,16 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAGES_PROJECT_NAME: gwenda
           CUSTOM_DOMAIN: gwenda.co.uk
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Production deployed"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Version** | \`${{ steps.version.outputs.value }}\` |"
+            echo "| **Commit** | [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |"
+            echo "| **Site** | https://gwenda.co.uk |"
+            echo "| **Deployments** | [GitHub Environments](${{ github.server_url }}/${{ github.repository }}/deployments/activity_log?environment=production) |"
+          } >> "$GITHUB_STEP_SUMMARY"

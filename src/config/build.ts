@@ -9,11 +9,6 @@ export function shortSha(sha = buildSha): string {
   return sha ? sha.slice(0, 7) : "";
 }
 
-/** Date portion of the CalVer label (e.g. 2026.06.08). */
-export function versionDate(version = buildVersion): string {
-  return version ? version.split("+")[0] : "";
-}
-
 /** Human-readable label for staging UI / support checks. */
 export function buildLabel(): string {
   if (!buildSha) return "local dev";

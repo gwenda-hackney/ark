@@ -2,7 +2,6 @@
 import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import { buildVersion, buildLabel, versionDate } from "../config/build";
 import logoMark from "../assets/images/logos/logo-g-dark.png";
 
 interface Props {
@@ -35,16 +34,4 @@ const { features } = Astro.props;
     {features.showMenu && <a href="#menu">Menu</a>}
     <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>
   </nav>
-
-  {
-    buildVersion && (
-      <span
-        class="site-header-version"
-        aria-hidden="true"
-        title={`Build ${buildLabel()}`}
-      >
-        {versionDate()}
-      </span>
-    )
-  }
 </header>
