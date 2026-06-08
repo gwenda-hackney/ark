@@ -7,7 +7,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       deployments: write
     environment:
       name: production
@@ -102,6 +102,21 @@ jobs:
           PAGES_PROJECT_NAME: gwenda
           CUSTOM_DOMAIN: gwenda.co.uk
 
+      - name: Tag production release
+        id: tag
+        run: |
+          TAG="${{ steps.version.outputs.value }}"
+          ENCODED=$(node -e "console.log(encodeURIComponent(process.argv[1]))" "$TAG")
+          echo "encoded=${ENCODED}" >> "$GITHUB_OUTPUT"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists — skipping."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Production deploy ${TAG}"
+          git push origin "$TAG"
+
       - name: Deployment summary
         run: |
           {
@@ -110,6 +125,7 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| **Version** | \`${{ steps.version.outputs.value }}\` |"
+            echo "| **Tag** | [\`${{ steps.version.outputs.value }}\`](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.encoded }}) |"
             echo "| **Commit** | [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |"
             echo "| **Site** | https://gwenda.co.uk |"
             echo "| **Deployments** | [GitHub Environments](${{ github.server_url }}/${{ github.repository }}/deployments/activity_log?environment=production) |"
