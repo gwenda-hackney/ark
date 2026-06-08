@@ -1241,9 +1241,17 @@ a:hover {
 }
 
 .signup-error {
+  min-height: 1.35rem;
+  line-height: 1.35;
   text-align: center;
   color: #c47a6a;
   font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 0.2s var(--ease-out);
+}
+
+.signup-error:not(:empty) {
+  opacity: 1;
 }
 
 .signup-form.is-loading .signup-field {

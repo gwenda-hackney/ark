@@ -29,9 +29,9 @@ function devSubscribeApi() {
               email,
               tag,
               env: {
-                BUTTONDOWN_API_KEY: env.BUTTONDOWN_API_KEY,
-                PUBLIC_BUTTONDOWN_USERNAME: env.PUBLIC_BUTTONDOWN_USERNAME,
-                BUTTONDOWN_BYPASS_FIREWALL: "true",
+                BASEROW_API_KEY: env.BASEROW_API_KEY,
+                BASEROW_TABLE_ID: env.BASEROW_TABLE_ID,
+                BASEROW_API_URL: env.BASEROW_API_URL,
               },
             });
 
@@ -65,6 +65,30 @@ export default defineConfig({
         access: "public",
         optional: true,
         default: "false",
+      }),
+      PUBLIC_BUILD_SHA: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "",
+      }),
+      PUBLIC_BUILD_REF: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "",
+      }),
+      PUBLIC_BUILD_TIME: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "",
+      }),
+      PUBLIC_BUILD_VERSION: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "",
       }),
     },
   },

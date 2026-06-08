@@ -11,6 +11,9 @@ jobs:
     permissions:
       contents: read
       deployments: write
+    environment:
+      name: staging
+      url: https://gwenda-staging.pages.dev
 
     env:
       PAGES_PROJECT_NAME: gwenda-staging
@@ -28,6 +31,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set build timestamp
+        id: buildmeta
+        run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Resolve Web Analytics beacon token
         id: beacon
         run: echo "token=$(node scripts/resolve-beacon-token.mjs)" >> "$GITHUB_OUTPUT"
@@ -41,6 +48,9 @@ jobs:
         env:
           PUBLIC_CF_BEACON_TOKEN: ${{ steps.beacon.outputs.token }}
           PUBLIC_IS_STAGING: "true"
+          PUBLIC_BUILD_SHA: ${{ github.sha }}
+          PUBLIC_BUILD_REF: ${{ github.ref_name }}
+          PUBLIC_BUILD_TIME: ${{ github.event.head_commit.timestamp || steps.buildmeta.outputs.time }}
 
       - name: Ensure Pages project exists
         run: node scripts/ensure-pages-project.mjs
@@ -56,19 +66,23 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
 
-      - name: Set Buttondown API key
+      - name: Set Baserow secrets
         run: |
-          if [ -n "$BUTTONDOWN_API_KEY" ]; then
-            printf '%s' "$BUTTONDOWN_API_KEY" | ./node_modules/.bin/wrangler pages secret put BUTTONDOWN_API_KEY --project-name=gwenda-staging
+          if [ -n "$BASEROW_API_KEY" ]; then
+            printf '%s' "$BASEROW_API_KEY" | ./node_modules/.bin/wrangler pages secret put BASEROW_API_KEY --project-name=gwenda-staging
+          fi
+          if [ -n "$BASEROW_TABLE_ID" ]; then
+            printf '%s' "$BASEROW_TABLE_ID" | ./node_modules/.bin/wrangler pages secret put BASEROW_TABLE_ID --project-name=gwenda-staging
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+          BASEROW_API_KEY: ${{ secrets.BASEROW_API_KEY }}
+          BASEROW_TABLE_ID: ${{ vars.BASEROW_TABLE_ID }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=gwenda-staging --commit-dirty=true
+          command: pages deploy dist --project-name=gwenda-staging --commit-hash=${{ github.sha }} --branch=${{ github.ref_name }}
