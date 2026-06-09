@@ -122,18 +122,56 @@ if (countdown) {
 /* Scroll reveal */
 const revealEls = document.querySelectorAll(".reveal");
 if (revealEls.length) {
-  const observer = new IntersectionObserver(
+  const revealObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           entry.target.classList.add("visible");
-          observer.unobserve(entry.target);
+          revealObserver.unobserve(entry.target);
         }
       });
     },
-    { threshold: 0.15, rootMargin: "0px 0px -40px 0px" },
+    { threshold: 0.12, rootMargin: "0px 0px -32px 0px" },
   );
-  revealEls.forEach((el) => observer.observe(el));
+  revealEls.forEach((el) => revealObserver.observe(el));
+}
+
+/* Hero scroll hint — fade once user scrolls */
+const scrollHint = document.querySelector(".hero-scroll-hint");
+if (scrollHint && hero) {
+  const fadeScrollHint = () => {
+    scrollHint.classList.toggle("is-faded", window.scrollY > 48);
+  };
+  window.addEventListener("scroll", fadeScrollHint, { passive: true });
+  fadeScrollHint();
+}
+
+/* Hero — subtle depth parallax on the image */
+const heroMedia = document.querySelector(".hero-media");
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+if (hero && heroMedia && !prefersReducedMotion) {
+  let parallaxTicking = false;
+
+  const onHeroParallax = () => {
+    const rect = hero.getBoundingClientRect();
+    if (rect.bottom > 0 && rect.top < window.innerHeight) {
+      const progress = Math.min(1, Math.max(0, -rect.top / (rect.height * 0.85)));
+      heroMedia.style.transform = `translate3d(0, ${progress * 28}px, 0)`;
+    }
+    parallaxTicking = false;
+  };
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!parallaxTicking) {
+        parallaxTicking = true;
+        requestAnimationFrame(onHeroParallax);
+      }
+    },
+    { passive: true },
+  );
 }
 
 /* Email signup */
@@ -151,6 +189,13 @@ if (menuTeaseCtas.length && !hasHover) {
       const revealed = cta.classList.contains("is-revealed");
       menuTeaseCtas.forEach((other) => other.classList.remove("is-revealed"));
       if (!revealed) cta.classList.add("is-revealed");
+    });
+
+    cta.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        cta.click();
+      }
     });
   });
 
