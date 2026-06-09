@@ -121,6 +121,23 @@ When in doubt, leave it out.
 
 Gwenda occupies deliberate tension. We are not a warehouse dive bar dressed up, and we are not a Mayfair import dropped into East London. The archive salon lives in the space between—technical hospitality inside raw industrial architecture, the Wick’s creative pulse present but not performed.
 
+### Public naming & labels
+
+*Formalized June 2026. Summary: [brand-brief.md § Public naming](./brand-brief.md#public-naming--labels).*
+
+**Public category label: Ristobar.** Use when discovery needs a venue type—SEO titles, Google Business, press, link previews. **Archive salon** stays theme language for strategy and story copy; it is not the public label.
+
+| Layer | Label |
+| --- | --- |
+| **Titles, SEO, OG tags, listings** | **Gwenda — Ristobar \| Hackney Wick** (+ canalside / opening when space allows) |
+| **Short descriptions** | *Canalside ristobar* + craft cocktails, hyper-regional Italian food, art, vinyl |
+| **Story body (site)** | *archive salon* lowercase—explains the idea after the negation |
+| **Theme / mission / vision** | *archive salon*, *The Archive Salon · On the Canal* — internal |
+
+**Do not lead with:** Archive Salon · restaurant · bar · club · lounge · cocktail bar.
+
+**Public lead order:** Name → **Ristobar** → place → pillars → opening/when.
+
 | Industrial shell | Luxury anchor |
 | --- | --- |
 | Canal-side wharf, exposed brick, warehouse bones | Dark timber, warm light, candlelit intimacy |
@@ -338,5 +355,7 @@ High-level alignment for front and back of house. Detailed workflows, timing tar
 | 1.14 | June 2026 | Art copy: Wick studios, not generic “rotating art” |
 | 1.15 | June 2026 | Terse public copy; no em dashes |
 | 1.16 | June 2026 | Avoid *DJs* in public copy; use vinyl, decks |
+| 1.17 | June 2026 | Public naming & labels formalized; theme language ≠ SEO/category labels |
+| 1.18 | June 2026 | **Ristobar** adopted as public category label |
 
 *This document is the source of truth for brand voice, marketing tone, and design intent. Menu development, pricing, cocktail specs, and floor operations live elsewhere.*
