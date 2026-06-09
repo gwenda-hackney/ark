@@ -14,14 +14,16 @@ export const siteConfig = {
     showPrices: false,
     revealDrinkNames: false,
   },
+  /** SEO & link previews — WhatsApp, iMessage, Slack, X, Google snippets */
+  seoTitle: "Gwenda — Canalside Archive Salon | Hackney Wick, London",
   social: {
     instagram: "https://www.instagram.com/gwendahackney",
     tiktok: "",
-    /** Link previews — WhatsApp, iMessage, Slack, X, etc. */
-    shareTitle: "Gwenda | Hackney Wick",
+    shareTitle: "Gwenda — Canalside Archive Salon | Hackney Wick, London",
     shareDescription:
-      "Canalside in Hackney Wick. Craft cocktails, hyper-regional Italian street food, art, and vinyl on the decks. Opening Summer 2026.",
-    imageAlt: "Gwenda, archive salon on the Hackney Wick canal",
+      "Canalside in Hackney Wick. Craft cocktails, regional Italian food, art and vinyl. Opening Summer 2026.",
+    imageAlt:
+      "Gwenda — archive salon in Hackney Wick. Opening Summer 2026.",
   },
   location: {
     area: "Hackney Wick",
@@ -32,7 +34,7 @@ export const siteConfig = {
   },
   copy: {
     descriptionPromo:
-      "A canalside archive salon in Hackney Wick. Opening Summer 2026.",
+      "A canalside archive salon in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl. Opening Summer 2026.",
     heroEyebrow: "Opening Summer 2026",
     heroCta: "Enter our world",
     joinExperienceCta: "Join the experience",
