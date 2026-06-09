@@ -1,4 +1,5 @@
 import { issueSubscribeTokens, validateSubscribeRequest } from "../_lib/subscribe-auth.js";
+import { isSubscribeHoneypotTripped } from "../_lib/subscribe-honeypot.js";
 import { subscribeEmail } from "../_lib/subscribe.js";
 
 export async function onRequestGet(context) {
@@ -27,6 +28,10 @@ export async function onRequestPost(context) {
     body = await context.request.json();
   } catch {
     return json({ error: "Invalid request." }, 400);
+  }
+
+  if (isSubscribeHoneypotTripped(body)) {
+    return json({ ok: true });
   }
 
   const result = await subscribeEmail({
