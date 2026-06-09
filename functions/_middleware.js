@@ -1,5 +1,6 @@
 /**
- * Password-protects the site when SITE_PASSWORD is set (staging always; prod only if configured).
+ * Password-protects the site when SITE_PASSWORD is set, or always on staging
+ * (SITE_ENV=staging on the gwenda-staging Pages project).
  * Unauthenticated visitors are sent to /gate (themed login) instead of browser basic auth.
  * Optional GATE_BYPASS_KEY accepts ?access=<key> to set the gate cookie and strip the param.
  */
@@ -8,17 +9,22 @@ import {
   buildAuthCookie,
   createAuthToken,
   gateBypassRedirectPath,
+  gateMisconfiguredResponse,
   isPublicPath,
+  isSearchEngineCrawler,
   matchesSecret,
   parseCookies,
+  resolveGate,
   safeRedirectPath,
   verifyAuthToken,
 } from "./_lib/site-auth.js";
 
 export async function onRequest(context) {
-  const expected = context.env.SITE_PASSWORD;
-  if (!expected) return context.next();
+  const gate = resolveGate(context.env);
+  if (gate.kind === "misconfigured") return gateMisconfiguredResponse();
+  if (gate.kind === "open") return context.next();
 
+  const expected = gate.password;
   const url = new URL(context.request.url);
   const cookies = parseCookies(context.request.headers.get("Cookie"));
   const authed = await verifyAuthToken(expected, cookies[AUTH_COOKIE_NAME]);
@@ -47,11 +53,13 @@ export async function onRequest(context) {
 
   if (isPublicPath(url.pathname)) return context.next();
 
+  if (isSearchEngineCrawler(context.request)) return context.next();
+
   if (authed) return context.next();
 
-  const gate = new URL("/gate", url.origin);
+  const gateUrl = new URL("/gate", url.origin);
   const next = url.pathname + url.search;
-  if (next !== "/") gate.searchParams.set("next", next);
+  if (next !== "/") gateUrl.searchParams.set("next", next);
 
-  return Response.redirect(gate.toString(), 302);
+  return Response.redirect(gateUrl.toString(), 302);
 }

@@ -1,14 +1,19 @@
 import {
   buildAuthCookie,
   createAuthToken,
+  gateMisconfiguredResponse,
+  resolveGate,
   safeRedirectPath,
 } from "../_lib/site-auth.js";
 
 export async function onRequestPost(context) {
-  const expected = context.env.SITE_PASSWORD;
-  if (!expected) {
+  const gate = resolveGate(context.env);
+  if (gate.kind === "misconfigured") return gateMisconfiguredResponse();
+  if (gate.kind === "open") {
     return json({ ok: true, redirect: "/" });
   }
+
+  const expected = gate.password;
 
   let body;
   try {

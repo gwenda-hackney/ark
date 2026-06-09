@@ -55,6 +55,7 @@ function devSubscribeApi() {
 }
 
 export default defineConfig({
+  site: "https://gwenda.co.uk",
   output: "static",
   env: {
     schema: {
