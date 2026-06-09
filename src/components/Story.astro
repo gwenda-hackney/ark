@@ -14,6 +14,8 @@ const copy = getCopy(mode);
 const hasStoryBody =
   copy.storyBody.length > 0 || copy.storyClosing || copy.storyOpening;
 const openingYear = new Date(openingDate).getFullYear();
+const closingRevealDelay = `${copy.storyBody.length * 0.1}s`;
+const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 0)) * 0.1}s`;
 ---
 
 <section class="story section" id="story">
@@ -34,10 +36,31 @@ const openingYear = new Date(openingDate).getFullYear();
       </div>
       {
         hasStoryBody && (
-          <div class="story-grid-right story-body reveal">
-            {copy.storyBody.map((paragraph) => <p>{paragraph}</p>)}
-            {copy.storyClosing && <p class="story-closing">{copy.storyClosing}</p>}
-            {copy.storyOpening && <p class="story-opening">{copy.storyOpening}</p>}
+          <div class="story-grid-right story-body">
+            {copy.storyBody.map((paragraph, index) => (
+              <p
+                class="reveal reveal-stagger"
+                style={`--reveal-delay: ${index * 0.1}s`}
+              >
+                {paragraph}
+              </p>
+            ))}
+            {copy.storyClosing && (
+              <p
+                class="story-closing reveal reveal-stagger"
+                style={`--reveal-delay: ${closingRevealDelay}`}
+              >
+                {copy.storyClosing}
+              </p>
+            )}
+            {copy.storyOpening && (
+              <p
+                class="story-opening reveal reveal-stagger"
+                style={`--reveal-delay: ${openingRevealDelay}`}
+              >
+                {copy.storyOpening}
+              </p>
+            )}
           </div>
         )
       }
