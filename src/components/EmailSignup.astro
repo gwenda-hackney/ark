@@ -48,6 +48,17 @@ const copy = getCopy(mode);
 
           <input type="hidden" name="tag" value="prelaunch" />
 
+          <div class="visually-hidden" aria-hidden="true">
+            <label for="website">Website</label>
+            <input
+              type="text"
+              name="website"
+              id="website"
+              tabindex="-1"
+              autocomplete="off"
+            />
+          </div>
+
           <p class="signup-error" id="signup-error" role="alert" aria-live="polite"></p>
         </form>
       </div>
