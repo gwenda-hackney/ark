@@ -2,14 +2,16 @@ import {
   AUTH_COOKIE_NAME,
   buildAuthCookie,
   createAuthToken,
+  gateBypassRedirectPath,
   isPublicPath,
+  matchesSecret,
   parseCookies,
   safeRedirectPath,
   verifyAuthToken,
 } from "../functions/_lib/site-auth.js";
 
 /** Vite dev plugin — must run at the Node HTTP layer (Astro static middleware cannot read cookies). */
-export function devSiteGate(password) {
+export function devSiteGate({ password, bypassKey } = {}) {
   if (!password) return null;
 
   const handleAuthPost = (req, res) => {
@@ -48,6 +50,21 @@ export function devSiteGate(password) {
     const url = new URL(req.url ?? "/", "http://localhost");
     const cookies = parseCookies(req.headers.cookie);
     const authed = await verifyAuthToken(password, cookies[AUTH_COOKIE_NAME]);
+    const accessParam = url.searchParams.get("access");
+
+    if (bypassKey && accessParam && matchesSecret(accessParam, bypassKey)) {
+      const redirectPath = gateBypassRedirectPath(url);
+      if (redirectPath) {
+        const headers = { Location: redirectPath };
+        if (!authed) {
+          const token = await createAuthToken(password);
+          headers["Set-Cookie"] = buildAuthCookie(token, { secure: false });
+        }
+        res.writeHead(302, headers);
+        res.end();
+        return;
+      }
+    }
 
     if (url.pathname === "/api/auth" && req.method === "POST") {
       handleAuthPost(req, res);

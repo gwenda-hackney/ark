@@ -1,4 +1,5 @@
 export const AUTH_COOKIE_NAME = "gwenda_access";
+export const GATE_BYPASS_PARAM = "access";
 const AUTH_SCOPE = "gwenda-gate-v1";
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 
@@ -32,12 +33,30 @@ export async function createAuthToken(secret) {
 export async function verifyAuthToken(secret, token) {
   if (!token || !secret) return false;
   const expected = await createAuthToken(secret);
-  if (token.length !== expected.length) return false;
+  return matchesSecret(token, expected);
+}
+
+export function matchesSecret(provided, expected) {
+  if (!provided || !expected) return false;
+  if (provided.length !== expected.length) return false;
   let diff = 0;
-  for (let i = 0; i < token.length; i++) {
-    diff |= token.charCodeAt(i) ^ expected.charCodeAt(i);
+  for (let i = 0; i < provided.length; i++) {
+    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
   }
   return diff === 0;
+}
+
+export function gateBypassRedirectPath(url) {
+  const clean = new URL(url);
+  if (!clean.searchParams.has(GATE_BYPASS_PARAM)) return null;
+  clean.searchParams.delete(GATE_BYPASS_PARAM);
+
+  if (clean.pathname === "/gate" || clean.pathname === "/gate/") {
+    return safeRedirectPath(clean.searchParams.get("next"));
+  }
+
+  const search = clean.searchParams.toString();
+  return clean.pathname + (search ? `?${search}` : "");
 }
 
 export function parseCookies(header) {

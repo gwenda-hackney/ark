@@ -5,7 +5,10 @@ import { subscribeEmail } from "./functions/_lib/subscribe.js";
 
 const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
 const sitePassword = env.SITE_PASSWORD;
-const gatePlugin = devSiteGate(sitePassword);
+const gatePlugin = devSiteGate({
+  password: sitePassword,
+  bypassKey: env.GATE_BYPASS_KEY,
+});
 
 /** Dev-only stub for /api/subscribe — production uses functions/api/subscribe.js */
 function devSubscribeApi() {
