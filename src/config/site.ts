@@ -38,16 +38,16 @@ export const siteConfig = {
     joinExperienceCta: "Join the experience",
     storyHeading: "Behind the Doors",
     storyLead:
-      "Canalside in Hackney Wick. Craft cocktails, rare regional Italian street food, art, and vinyl on the decks.",
+      "Canalside in Hackney Wick. Craft cocktails, hyper-regional Italian street food, art, and vinyl on the decks.",
     storyBodyPromo: [
-      "We are not a restaurant that also pours drinks, or a bar that happens to serve food.",
-      "The kitchen draws on regional Italian street food you rarely see in London, refined for a lounge and paired with hand-crafted cocktails by our in-house mixologists.",
+      "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
+      "Hyper-regional Italian street food, rarely seen in London, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
     ],
     storyClosingPromo:
       "Who is Gwenda? We can't say. Come experience for yourself.",
     storyBody: [
-      "We are not a restaurant that also pours drinks, or a bar that happens to serve food.",
-      "The kitchen draws on regional Italian street food you rarely see in London, refined for a lounge and paired with hand-crafted cocktails by our in-house mixologists.",
+      "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
+      "Hyper-regional Italian street food, rarely seen in London, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
     ],
     storyClosing:
       "Who is Gwenda? We can't say. Come experience for yourself.",
