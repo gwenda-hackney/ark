@@ -8,7 +8,7 @@ export function getCopy(mode: SiteMode) {
     return {
       description: siteConfig.description,
       storyBody: copy.storyBody,
-      storyClosing: null,
+      storyClosing: copy.storyClosing,
       signupEyebrow: "Pre-launch",
       signupHeading: copy.signupHeading,
       signupSubheading: copy.signupSubheading,
@@ -19,7 +19,7 @@ export function getCopy(mode: SiteMode) {
   return {
     description: copy.descriptionPromo,
     storyBody: copy.storyBodyPromo,
-    storyClosing: null,
+    storyClosing: copy.storyClosingPromo,
     signupEyebrow: copy.signupEyebrowPromo,
     signupHeading: copy.signupHeading,
     signupSubheading: copy.signupSubheadingPromo,

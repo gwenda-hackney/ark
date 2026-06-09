@@ -1,0 +1,19 @@
+---
+import { siteConfig } from "../config/site";
+import MenuTeaseList from "./MenuTeaseList.astro";
+---
+
+<section class="menu-tease section" id="menu">
+  <div class="container">
+    <div class="menu-tease-grid">
+      <div class="menu-tease-intro reveal">
+        <p class="section-eyebrow">{siteConfig.copy.menuTeaseEyebrow}</p>
+        <h2>{siteConfig.copy.menuTeaseHeading}</h2>
+        <p class="menu-tease-lead">{siteConfig.copy.menuTeaseLead}</p>
+      </div>
+      <div class="reveal">
+        <MenuTeaseList />
+      </div>
+    </div>
+  </div>
+</section>

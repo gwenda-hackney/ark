@@ -1,7 +1,7 @@
 export const menuTease = [
   { id: "cocktails", label: "Cocktails" },
-  { id: "wines", label: "Natural Wines" },
   { id: "small-plates", label: "Small Plates" },
+  { id: "wines", label: "Natural Wines" },
   { id: "craft-beer", label: "Craft Beer" },
 ] as const;
 

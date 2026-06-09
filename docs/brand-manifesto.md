@@ -4,29 +4,40 @@
 
 Hackney Wick · Schwartz Wharf · Opening Summer 2026
 
+*Shareable summary: [brand-brief.md](./brand-brief.md)*  
 *Detailed service workflows, kitchen pass standards, and opening checklists live in separate operations documents.*
 
 ---
 
-## Mission & Vision
+## Mission · Vision · Theme
 
-**Mission** is what we create—every service, every night. **Vision** is what we aspire to become—the reputation and place we are building toward. If they sound the same, one of them is wrong.
+These three describe the same place at different altitudes. **Theme** is what Gwenda is. **Mission** is what we deliver nightly. **Vision** is what we become. They must use the same language—archive salon, canal, fusion—or something is off.
+
+### Theme
+
+**The Archive Salon · On the Canal**
+
+Gwenda is a fused after-hours **archive salon** on Schwartz Wharf—not a bar with food, or a restaurant with drinks, but one room where **culinary craft, mixology, art, and music** hold equal weight.
+
+| Layer | Meaning |
+| --- | --- |
+| **The archive** | Rare elevated street food and craft cocktails—regional traditions most venues never serve |
+| **The salon** | Intimate, low-lit, conversation-first—a room that holds still |
+| **The canal** | Schwartz Wharf; water at the door; a warehouse on the canal, not a nautical theme pub |
+
+**Gwenda** may be a woman, a vessel, or both. The name could sit on a boat or on a door—we can't say which.
 
 ### Mission
 
-To fuse craft mixology, rare hyper-regional elevated street food, local art, and curated music into one after-hours salon on the canal—executed with precision, held to one standard.
+To deliver the archive salon every service—fusing craft mixology, rare hyper-regional elevated street food, local art, and curated music on the canal, held to one standard.
 
 ### Vision
 
-A destination East London recommends when the evening should fuse food, drink, art, and sound—a moored archive salon on Schwartz Wharf that outlasts category and trend.
+An archive salon on Schwartz Wharf that East London recommends—where fused food, drink, art, and sound outlast category and trend.
 
 ---
 
-## Theme: The Archive Salon · Moored on the Canal
-
-The **theme** is the unifying idea behind every choice we make—not a decor mood board, but the experience we are building toward.
-
-Gwenda is an **archive salon moored on the canal**: a private-feeling, after-hours **experience** at Schwartz Wharf—not a bar that serves food, or a restaurant with good drinks, but a room where culinary craft, mixology, art, and music are designed to fuse. Four pillars, one evening:
+## Theme in depth
 
 | Pillar | Role in the experience |
 | --- | --- |
@@ -37,19 +48,7 @@ Gwenda is an **archive salon moored on the canal**: a private-feeling, after-hou
 
 Remove one pillar and Gwenda becomes a venue that happens to have the others. The goal is **arrival**, not transaction.
 
-Three threads hold the frame:
-
-| Thread | What it means |
-| --- | --- |
-| **The archive** | Rare food and intentional drinks—not generic Italian, not a hotel-bar list |
-| **The salon** | Intimate, low-lit, conversation-first—the experience needs a room that holds still |
-| **The mooring** | Schwartz Wharf and the canal; coastal Italy meets East London water—maritime references felt, never costume |
-
-**Gwenda** may be a woman, a vessel, or both. The name sits easily on a ship’s hull or a host’s lips—vaguely European, port-to-port, never pinned to one country. We do not explain which. The lounge sits on the wharf as if the name belonged to something that once tied up here and never quite left.
-
-**Theme in one line:** A fused canal-side experience—culinary archive, craft cocktails, local art, and curated sound in a room that feels moored, not parked.
-
-If a decision does not serve the fused experience—the salon, the archive, or the mooring—it does not belong here.
+If a decision does not serve the fused experience—the archive, the salon, or the canal—it does not belong here.
 
 ---
 
@@ -70,7 +69,7 @@ When in doubt, leave it out.
 | Jukeboxes, touch-screen music, commercial playlists | Generic; undermines curated vinyl and atmosphere |
 | Pool tables, arcade games, pub gaming | Wrong energy—this is a lounge, not a games bar |
 | Photobooths, branded props, stag/hen packages | Breaks the room’s tone and guest mix |
-| Heavy-handed nautical theming (portholes, rope nets, anchor walls) | Maritime is atmosphere, not costume—the canal earns it; props do not |
+| Heavy-handed nautical theming (portholes, rope nets, anchor walls) | The canal earns the setting; props do not |
 | Pirate, treasure-hunt, or seaside-pub gimmicks | Undermines the salon; location speaks for itself |
 
 ### Food & drink
@@ -125,7 +124,7 @@ Gwenda occupies deliberate tension. We are not a warehouse dive bar dressed up, 
 | Industrial shell | Luxury anchor |
 | --- | --- |
 | Canal-side wharf, exposed brick, warehouse bones | Dark timber, warm light, candlelit intimacy |
-| Maritime undertow—brass, lantern glow, water at the door | Craft cocktails with coastal and canal inflection |
+| Water at the door—brass, lantern glow, wharf character | Craft cocktails with a canal-side point of view |
 | Continuous, social small-plate service | Flawless, unforced service |
 | Local art and vinyl as atmosphere | Rare elevated regional food as co-equal with the bar |
 
@@ -137,14 +136,14 @@ Gwenda occupies deliberate tension. We are not a warehouse dive bar dressed up, 
 
 ## The Experience
 
-Gwenda is an **experience**, not a category. We do not compete as the best cocktail bar in the Wick, or the most interesting Italian small-plates spot. We compete on the **fusion**—how culinary craft, mixology, art, and music land together in one candlelit salon moored on the canal.
+Gwenda is an **experience**, not a category. We do not compete as the best cocktail bar in the Wick, or the most interesting Italian small-plates spot. We compete on the **fusion**—how culinary craft, mixology, art, and music land together in one candlelit salon on the canal.
 
 **What fusion means in practice:**
 
 - **Culinary + mixology** share one standard and one story—food and drink are co-authored, not siloed
 - **Art** is chosen to live in the room, not fill wall space—guests notice it because it belongs
 - **Music** is programmed for the room’s mood, not the hour’s trend—sound completes the experience, it does not perform over it
-- **The canal** anchors all of it—maritime undertow, wharf-side character, a sense of being moored rather than passing through
+- **The canal** grounds the room—Schwartz Wharf, water nearby, warehouse on the water; the setting is real, not decorated
 
 Promotional copy may lead with food and drink—that is often how discovery starts. But anyone who walks in should feel all four pillars working. If they remember only one, we have narrowed ourselves back into a category.
 
@@ -154,9 +153,9 @@ Promotional copy may lead with food and drink—that is often how discovery star
 
 Gwenda is not a mascot. She is the **tone** of the room—a host who never appears, but whose taste governs everything.
 
-She may be a woman, a ship, or both—we never say. The name could belong to a vessel moored on the canal or a host who moved port to port from the Atlantic to the Adriatic. Vaguely European, never fixed to one flag. Cultured enough for hand-blown glass and museum lighting; mischievous enough to hide the best recipes where guidebooks do not look.
+She may be a woman, a ship, or both—we can't say. The name could belong to a boat tied up on the canal or a host with no fixed address. Vaguely European, never pinned to one country. Cultured enough for hand-blown glass and museum lighting; mischievous enough to hide the best recipes where guidebooks do not look.
 
-She **archives**—tracking down regional street traditions from Italy’s coasts and hinterlands, pairing them with liquid work that carries the same specificity: canal light, salt air, harbour botanicals, coastal Italian bitterness. The cocktail program holds maritime references—not as theme-park garnish, but as an honest line from Schwartz Wharf to the Mediterranean.
+She **archives**—tracking down regional street traditions from across Italy, pairing them with craft cocktails that reflect the same care. Some drinks nod to the canal and the wharf; that is the setting speaking, not a theme-night gimmick.
 
 She is classy with a rough edge. Avant-garde without chaos. Magnetic without explanation.
 
@@ -182,13 +181,13 @@ Attitude lives in Gwenda’s character and in how we edit—not in mission copy.
 
 | Use | Avoid |
 | --- | --- |
-| rare, heritage, hyper-regional, elevated, experience, fusion, coastal, moored, technical, curated, archive, salon, converge, precise, tactile | authentic, traditional, unique, special, unparalleled, rustic, trendy, hidden gem, nautical (as gimmick) |
+| rare, heritage, hyper-regional, elevated, experience, fusion, canal-side, wharf, technical, curated, archive, salon, converge, precise, tactile | authentic, traditional, unique, special, unparalleled, rustic, trendy, hidden gem, nautical (as gimmick) |
 | craft, continuous, intimate, industrial, measured | rogue, defiant, irreverent, obscure, anarchist, counter-culture |
 
 ### Copy principles
 
 - **Short beats long.** One strong line over a paragraph of adjectives.
-- **Show the craft.** Reference technique, region, and place—canal, coast, port where relevant; skip lifestyle fluff.
+- **Show the craft.** Reference technique, region, and place—the canal, the wharf, Hackney Wick where relevant; skip lifestyle fluff.
 - **Withhold a little.** We do not explain everything. Mystery is intentional.
 - **Food footnotes.** Menu copy includes brief notes on region and tradition—factual, typewritten in spirit. No folklore padding.
 
@@ -262,8 +261,8 @@ The space should read as **polished friction**—industrial permanence softened 
 ### What the room should feel like
 
 - Low light, warm amber, candle depth—lantern as much as lounge
-- Moored on the canal: wharf-side character, water nearby, industrial bones held with care
-- Subtle maritime texture—brass, weathered metal, rope-adjacent materials where natural—not a themed pub
+- On the canal: wharf-side character, water nearby, industrial bones held with care
+- Subtle metal and brass where it fits naturally—not rope-and-anchor décor
 - Dark timber, plush seating, tactile surfaces that invite staying
 - Art on the walls as a quiet backdrop; the bar and counter remain the focus
 - Sound that hums beneath conversation—melodic, curated, never dominating
@@ -277,9 +276,9 @@ The space should read as **polished friction**—industrial permanence softened 
 
 - An arts venue where the drinks are an afterthought
 
-### Maritime tone (subtle, not literal)
+### Canal-side tone
 
-The canal and coastal Italy are **reference points**, not a dress code. Drinks may nod to harbour botanicals, salt, citrus, bitter coastal amari, canal-side botanicals—but never with prop garnishes or pun names as the main event. Copy and design should feel *moored*, not *themed*.
+The canal is a **real setting**, not a dress code. The building sits on Schwartz Wharf; water is at the door. Drinks and copy can reference that honestly—canal-side botanicals, the wharf, the Wick—without prop garnishes, puns, or ship-wheel décor. Feel *canal-side*, not *themed*.
 
 Specific lighting layouts, furniture selections, and acoustic treatment belong in fit-out and operations documents.
 
@@ -324,5 +323,7 @@ High-level alignment for front and back of house. Detailed workflows, timing tar
 | 1.6 | June 2026 | Maritime thread; Gwenda as vessel; canal mooring theme |
 | 1.7 | June 2026 | Fused experience; four pillars (culinary, mixology, art, music) |
 | 1.8 | June 2026 | Mission/vision split clarified; vision reframed as aspiration |
+| 1.9 | June 2026 | Mission, vision, theme aligned; theme leads brief |
+| 1.10 | June 2026 | Plain canal-side language; removed coastal/maritime undertow |
 
 *This document is the source of truth for brand voice, marketing tone, and design intent. Menu development, pricing, cocktail specs, and floor operations live elsewhere.*
