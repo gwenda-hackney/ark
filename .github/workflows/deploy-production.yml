@@ -73,6 +73,16 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
 
+      - name: Set gate bypass key
+        run: |
+          if [ -n "$GATE_BYPASS_KEY" ]; then
+            printf '%s' "$GATE_BYPASS_KEY" | ./node_modules/.bin/wrangler pages secret put GATE_BYPASS_KEY --project-name=gwenda
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GATE_BYPASS_KEY: ${{ secrets.GATE_BYPASS_KEY }}
+
       - name: Set Baserow secrets
         run: |
           if [ -n "$BASEROW_API_KEY" ]; then
