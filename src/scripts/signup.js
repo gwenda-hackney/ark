@@ -103,6 +103,13 @@ export function initSignup(form) {
       return;
     }
 
+    const website = form.querySelector('input[name="website"]')?.value.trim() ?? "";
+    if (website) {
+      setLoading(form, submitBtn, false, defaultBtnText);
+      showConfirmation(section, confirmEl);
+      return;
+    }
+
     setLoading(form, submitBtn, true, defaultBtnText);
 
     try {
@@ -156,6 +163,7 @@ async function postSubscribe(form, email) {
     body: JSON.stringify({
       email,
       tag: form.querySelector('input[name="tag"]')?.value ?? "prelaunch",
+      website: form.querySelector('input[name="website"]')?.value ?? "",
     }),
   });
 
