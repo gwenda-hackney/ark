@@ -52,9 +52,11 @@ const address = features.useShortAddress
                 <li>
                   <FooterSocialLink label="Instagram" url={social.instagram} />
                 </li>
-                <li>
-                  <FooterSocialLink label="TikTok" url={social.tiktok} />
-                </li>
+                {social.tiktok && (
+                  <li>
+                    <FooterSocialLink label="TikTok" url={social.tiktok} />
+                  </li>
+                )}
               </>
             )
           }

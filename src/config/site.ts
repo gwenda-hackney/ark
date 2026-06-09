@@ -15,7 +15,7 @@ export const siteConfig = {
     revealDrinkNames: false,
   },
   social: {
-    instagram: "",
+    instagram: "https://www.instagram.com/gwendahackney",
     tiktok: "",
     /** Link previews — WhatsApp, iMessage, Slack, X, etc. */
     shareTitle: "Gwenda | Hackney Wick",
@@ -41,18 +41,16 @@ export const siteConfig = {
       "Canalside in Hackney Wick. Craft cocktails, rare regional Italian street food, art, and vinyl on the decks.",
     storyBodyPromo: [
       "We are not a restaurant that also pours drinks, or a bar that happens to serve food.",
-      "The kitchen works from regional Italian street recipes you rarely see in London, refined for a lounge. The cocktails are hand-crafted to the same standard.",
-      "The walls and the decks aren't decoration. Local art, rotating vinyl, canalside at Schwartz Wharf.",
+      "The kitchen draws on regional Italian street food you rarely see in London, refined for a lounge and paired with hand-crafted cocktails by our in-house mixologists.",
     ],
     storyClosingPromo:
-      "Who is Gwenda? We can't say. Come experience for yourself. The door opens 4 July.",
+      "Who is Gwenda? We can't say. Come experience for yourself.",
     storyBody: [
       "We are not a restaurant that also pours drinks, or a bar that happens to serve food.",
-      "The kitchen works from regional Italian street recipes you rarely see in London, refined for a lounge. The cocktails are hand-crafted to the same standard.",
-      "The walls and the decks aren't decoration. Local art, rotating vinyl, canalside at Schwartz Wharf.",
+      "The kitchen draws on regional Italian street food you rarely see in London, refined for a lounge and paired with hand-crafted cocktails by our in-house mixologists.",
     ],
     storyClosing:
-      "Who is Gwenda? We can't say. Come experience for yourself. The door opens 4 July.",
+      "Who is Gwenda? We can't say. Come experience for yourself.",
     teamHeading: "Who we are",
     teamBody: [
       "We already run The Pirate's Hub on this stretch of canal. Gwenda is what comes next. The canal, the studios, the late nights—we know this pocket of the Wick.",

@@ -11,7 +11,8 @@ interface Props {
 
 const { mode } = Astro.props;
 const copy = getCopy(mode);
-const hasStoryBody = copy.storyBody.length > 0 || copy.storyClosing;
+const hasStoryBody =
+  copy.storyBody.length > 0 || copy.storyClosing || copy.storyOpening;
 const openingYear = new Date(openingDate).getFullYear();
 ---
 
@@ -36,6 +37,7 @@ const openingYear = new Date(openingDate).getFullYear();
           <div class="story-grid-right story-body reveal">
             {copy.storyBody.map((paragraph) => <p>{paragraph}</p>)}
             {copy.storyClosing && <p class="story-closing">{copy.storyClosing}</p>}
+            {copy.storyOpening && <p class="story-opening">{copy.storyOpening}</p>}
           </div>
         )
       }
