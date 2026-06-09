@@ -1,7 +1,9 @@
 name: Deploy production
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - release
 
 jobs:
   deploy:
@@ -15,6 +17,7 @@ jobs:
 
     env:
       PAGES_PROJECT_NAME: gwenda
+      PAGES_PRODUCTION_BRANCH: release
 
     steps:
       - name: Checkout code
@@ -66,6 +69,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAGES_PROJECT_NAME: gwenda
+          PAGES_PRODUCTION_BRANCH: release
 
       - name: Pin production environment
         run: node scripts/ensure-pages-env.mjs
@@ -75,22 +79,14 @@ jobs:
           PAGES_PROJECT_NAME: gwenda
           SITE_ENV: production
 
-      - name: Set site password
-        run: printf '%s' "$SITE_PASSWORD" | ./node_modules/.bin/wrangler pages secret put SITE_PASSWORD --project-name=gwenda
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
-
-      - name: Set gate bypass key
+      - name: Remove production gate secrets
         run: |
-          if [ -n "$GATE_BYPASS_KEY" ]; then
-            printf '%s' "$GATE_BYPASS_KEY" | ./node_modules/.bin/wrangler pages secret put GATE_BYPASS_KEY --project-name=gwenda
-          fi
+          for key in SITE_PASSWORD GATE_BYPASS_KEY; do
+            ./node_modules/.bin/wrangler pages secret delete "$key" --project-name=gwenda || true
+          done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          GATE_BYPASS_KEY: ${{ secrets.GATE_BYPASS_KEY }}
 
       - name: Set Baserow secrets
         run: |
@@ -111,7 +107,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=gwenda --commit-hash=${{ github.sha }} --branch=${{ github.ref_name }}
+          command: pages deploy dist --project-name=gwenda --commit-hash=${{ github.sha }} --branch=release
 
       - name: Ensure custom domain and DNS
         run: node scripts/ensure-pages-domain.mjs
@@ -133,7 +129,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Production deploy ${TAG}"
+          git tag -a "$TAG" -m "Production release ${TAG}"
           git push origin "$TAG"
 
       - name: Deployment summary
@@ -146,6 +142,7 @@ jobs:
             echo "| **Version** | \`${{ steps.version.outputs.value }}\` |"
             echo "| **Tag** | [\`${{ steps.version.outputs.value }}\`](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.encoded }}) |"
             echo "| **Commit** | [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |"
+            echo "| **Branch** | \`release\` |"
             echo "| **Site** | https://gwenda.co.uk |"
             echo "| **Deployments** | [GitHub Environments](${{ github.server_url }}/${{ github.repository }}/deployments/activity_log?environment=production) |"
           } >> "$GITHUB_STEP_SUMMARY"

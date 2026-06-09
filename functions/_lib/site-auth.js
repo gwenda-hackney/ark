@@ -1,6 +1,7 @@
 export const AUTH_COOKIE_NAME = "gwenda_access";
 export const GATE_BYPASS_PARAM = "access";
 export const STAGING_SITE_ENV = "staging";
+export const PRODUCTION_SITE_ENV = "production";
 const AUTH_SCOPE = "gwenda-gate-v1";
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 
@@ -92,6 +93,10 @@ export function isSearchEngineCrawler(request) {
 
 /** @returns {{ kind: "open" | "gated" | "misconfigured", password?: string }} */
 export function resolveGate(env) {
+  if (env.SITE_ENV === PRODUCTION_SITE_ENV) {
+    return { kind: "open" };
+  }
+
   const stagingRequired = env.SITE_ENV === STAGING_SITE_ENV;
   const password = env.SITE_PASSWORD;
 

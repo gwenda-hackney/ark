@@ -4,7 +4,7 @@
 
 Hackney Wick · Schwartz Wharf
 
-*Companion to [brand-manifesto.md](./brand-manifesto.md). The website is the visual source of truth; the hero and concept imagery are **directional mood boards**, not a literal fit-out brief.*
+*Companion to [brand-manifesto.md](./brand-manifesto.md) and [brand-brief.md](./brand-brief.md). The website is the visual source of truth; the hero and concept imagery are **directional mood boards**, not a literal fit-out brief.*
 
 ---
 
@@ -60,8 +60,8 @@ Fonts loaded on the website ([Google Fonts](https://fonts.google.com/)):
 
 | Role | Font | Weights used |
 | --- | --- | --- |
-| **Display** | [Cormorant Garamond](https://fonts.google.com/specimen/Cormorant+Garamond) | 400, 500, 600, 700 (+ italic) |
-| **Body** | [Lora](https://fonts.google.com/specimen/Lora) | 400, 500 (+ italic) |
+| **Display** | [Cormorant Garamond](https://fonts.google.com/specimen/Cormorant+Garamond?query=cormorant) | 400, 500, 600, 700 (+ italic) |
+| **Body** | [Lora](https://fonts.google.com/specimen/Lora?query=lora) | 400, 500 (+ italic) |
 
 ### Physical application
 

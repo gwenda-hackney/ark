@@ -4,25 +4,45 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages.
 
 ## Deployments
 
-| Environment | Site | Trigger | GitHub |
-|---|---|---|---|
-| **Staging** | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | Push to `main` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=staging) |
-| **Production** | [gwenda.co.uk](https://gwenda.co.uk) | Manual workflow | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=production) |
+| Environment | Site | Branch | Trigger | GitHub |
+|---|---|---|---|---|
+| **Staging** | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main` | Push to `main` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=staging) |
+| **Production** | [gwenda.co.uk](https://gwenda.co.uk) | `release` | Push to `release` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=production) |
 
 ![Staging deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/staging?label=staging)
 ![Production deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/production?label=production)
 
 All deployment history: [github.com/gwenda-hackney/web/deployments](https://github.com/gwenda-hackney/web/deployments)
 
-### Deploy production
+### Branch flow
 
-Actions → **Deploy production** → Run workflow (uses the current branch/ref).
+GitLab Flow with a long-running `release` branch:
+
+1. **Develop on `main`** — merges auto-deploy to staging.
+2. **Release to production** — merge `main` into `release` and push:
+
+```bash
+git checkout release
+git merge main
+git push origin release
+```
+
+3. **CI tags the release** — each production deploy creates a CalVer tag (`YYYY.MM.DD+shortsha`).
+
+First-time setup: create `release` from current `main`:
+
+```bash
+git checkout main
+git pull
+git checkout -b release
+git push -u origin release
+```
 
 ## Versioning
 
 Builds use **CalVer** — `YYYY.MM.DD+shortsha` (UTC date + git commit), e.g. `2026.06.08+abc1234`. No manual version bumps.
 
-Each **production** deploy creates an annotated git tag with that label (staging is not tagged). Tags: [github.com/gwenda-hackney/web/tags](https://github.com/gwenda-hackney/web/tags). Re-running a deploy for the same commit skips tagging if the tag already exists.
+Each **production** deploy (push to `release`) creates an annotated git tag with that label. Tags: [github.com/gwenda-hackney/web/tags](https://github.com/gwenda-hackney/web/tags). Re-deploying the same commit skips tagging if the tag already exists.
 
 Check what's live (not exposed in the UI):
 
