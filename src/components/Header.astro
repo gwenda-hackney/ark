@@ -3,7 +3,6 @@ import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
 import logoHeader from "../assets/images/logos/logo-header.png";
-import logoGHeader from "../assets/images/logos/logo-g-header.png";
 
 interface Props {
   features: SiteFeatures;
@@ -17,14 +16,7 @@ const { features } = Astro.props;
     <Image
       src={logoHeader}
       alt=""
-      class="site-header-logo-img site-header-logo-img--full"
-      height={80}
-      densities={[1, 2]}
-    />
-    <Image
-      src={logoGHeader}
-      alt=""
-      class="site-header-logo-img site-header-logo-img--g"
+      class="site-header-logo-img"
       height={80}
       densities={[1, 2]}
     />

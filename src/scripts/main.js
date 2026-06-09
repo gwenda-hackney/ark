@@ -34,14 +34,21 @@ const scrollTop = document.getElementById("scroll-top");
 const mobileNavQuery = window.matchMedia("(max-width: 640px)");
 let scrollTicking = false;
 let headerVisible = false;
-const HEADER_SHOW_AT = 120;
-const HEADER_HIDE_AT = 40;
+let headerShowAt = 120;
+let headerHideAt = 40;
+
+function updateHeaderThresholds() {
+  if (!hero) return;
+  const halfHero = hero.offsetHeight * 0.5;
+  headerShowAt = halfHero;
+  headerHideAt = halfHero * 0.85;
+}
 
 function onScrollFrame() {
   const y = window.scrollY;
   let shouldShow = headerVisible;
-  if (!headerVisible && y > HEADER_SHOW_AT) shouldShow = true;
-  if (headerVisible && y < HEADER_HIDE_AT) shouldShow = false;
+  if (!headerVisible && y > headerShowAt) shouldShow = true;
+  if (headerVisible && y < headerHideAt) shouldShow = false;
 
   if (header && shouldShow !== headerVisible) {
     headerVisible = shouldShow;
@@ -52,6 +59,16 @@ function onScrollFrame() {
 
   scrollTicking = false;
 }
+
+updateHeaderThresholds();
+window.addEventListener(
+  "resize",
+  () => {
+    updateHeaderThresholds();
+    onScrollFrame();
+  },
+  { passive: true },
+);
 
 window.addEventListener(
   "scroll",

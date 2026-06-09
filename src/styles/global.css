@@ -322,11 +322,6 @@ a:focus-visible {
   border-radius: 2px;
 }
 
-.site-header-logo-img--g {
-  display: none;
-  height: 2.75rem;
-}
-
 .site-header-nav {
   display: flex;
   align-items: center;
@@ -1034,7 +1029,25 @@ a:focus-visible {
 }
 
 .story-team {
-  border-top: 1px solid var(--color-border);
+  position: relative;
+}
+
+.story-team::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1100px, calc(100% - 48px));
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-border-subtle) 18%,
+    var(--color-gold-dim) 50%,
+    var(--color-border-subtle) 82%,
+    transparent
+  );
 }
 
 .story-team-grid {
@@ -1121,9 +1134,26 @@ a:focus-visible {
 
 /* Menu tease */
 .menu-tease {
+  position: relative;
   background: var(--color-bg-elevated);
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
+}
+
+.menu-tease::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1100px, calc(100% - 48px));
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-border-subtle) 18%,
+    var(--color-gold-dim) 50%,
+    var(--color-border-subtle) 82%,
+    transparent
+  );
 }
 
 .menu-tease + .story-team {
@@ -1355,9 +1385,27 @@ a:focus-visible {
 
 /* Signup */
 .signup {
+  position: relative;
   padding: 5.5rem 0 6.5rem;
   background: var(--color-bg-card);
-  border-top: 1px solid var(--color-border-subtle);
+}
+
+.signup::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1100px, calc(100% - 48px));
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-border-subtle) 18%,
+    var(--color-gold-dim) 50%,
+    var(--color-border-subtle) 82%,
+    transparent
+  );
 }
 
 .signup-inner {
@@ -1761,8 +1809,16 @@ a:focus-visible {
 .site-footer-meta {
   margin-top: 3rem;
   padding-top: 2rem;
-  border-top: 1px solid var(--color-border-subtle);
   text-align: center;
+}
+
+.site-footer-meta::before {
+  content: "";
+  display: block;
+  width: clamp(5rem, 18vw, 10rem);
+  height: 1px;
+  margin: 0 auto 2rem;
+  background: linear-gradient(90deg, transparent, var(--color-gold-dim), transparent);
 }
 
 .site-footer-address,
@@ -2174,12 +2230,20 @@ a:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .site-header-logo-img--full {
-    display: none;
+  :root {
+    --header-height: 56px;
   }
 
-  .site-header-logo-img--g {
-    display: block;
+  .site-header {
+    padding: 0 1.15rem;
+  }
+
+  .site-header-logo {
+    padding-inline: 0.35rem;
+  }
+
+  .site-header-logo-img {
+    height: 2rem;
   }
 
   .site-header-menu-btn {
