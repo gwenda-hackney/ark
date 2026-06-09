@@ -1,71 +1,33 @@
 ---
-import type { SiteMode, SiteFeatures } from "../types/features";
+import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
-import MenuTeaseList from "./MenuTeaseList.astro";
 
 interface Props {
   mode: SiteMode;
-  features: SiteFeatures;
 }
 
-const { mode, features } = Astro.props;
+const { mode } = Astro.props;
 const copy = getCopy(mode);
 const hasStoryBody = copy.storyBody.length > 0 || copy.storyClosing;
-const isPromoStory = mode === "promo" && !hasStoryBody;
 ---
 
 <section class="story section" id="story">
   <div class="container">
-    {
-      isPromoStory ? (
-        <div class="story-grid story-grid--split">
-          <p class="section-eyebrow story-grid-eyebrow reveal">Est. MMXXVI</p>
-          <div class="story-grid-left reveal">
-            <h2>{siteConfig.copy.storyHeading}</h2>
-            <p class="story-lead">{siteConfig.copy.storyLead}</p>
+    <div class="story-grid story-grid--split">
+      <p class="section-eyebrow story-grid-eyebrow reveal">Est. MMXXVI</p>
+      <div class="story-grid-left reveal">
+        <h2>{siteConfig.copy.storyHeading}</h2>
+        <p class="story-lead">{siteConfig.copy.storyLead}</p>
+      </div>
+      {
+        hasStoryBody && (
+          <div class="story-grid-right story-body reveal">
+            {copy.storyBody.map((paragraph) => <p>{paragraph}</p>)}
+            {copy.storyClosing && <p class="story-closing">{copy.storyClosing}</p>}
           </div>
-          <div class="story-grid-right story-menu reveal">
-            <MenuTeaseList />
-          </div>
-        </div>
-      ) : (
-        <div class="story-grid story-grid--split">
-          <p class="section-eyebrow story-grid-eyebrow reveal">Est. MMXXVI</p>
-          <div class="story-grid-left reveal">
-            <h2>{siteConfig.copy.storyHeading}</h2>
-            <p class="story-lead">{siteConfig.copy.storyLead}</p>
-          </div>
-          {
-            hasStoryBody && (
-              <div class="story-grid-right story-body reveal">
-                {copy.storyBody.map((paragraph) => <p>{paragraph}</p>)}
-                {copy.storyClosing && <p class="story-closing">{copy.storyClosing}</p>}
-              </div>
-            )
-          }
-        </div>
-      )
-    }
-
-    {
-      features.showTeam && (
-        <div class="story-team" id="team">
-          <p class="section-eyebrow reveal">The team</p>
-          <h2 class="reveal">{siteConfig.copy.teamHeading}</h2>
-          <p class="story-lead reveal">{siteConfig.copy.teamLead}</p>
-          <div class="story-body reveal">
-            {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
-          </div>
-          {
-            mode === "promo" && (
-              <p class="menu-tease-footer reveal">
-                <a href="#list" class="btn btn-primary">{siteConfig.copy.joinExperienceCta}</a>
-              </p>
-            )
-          }
-        </div>
-      )
-    }
+        )
+      }
+    </div>
   </div>
 </section>

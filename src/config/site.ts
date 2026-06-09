@@ -6,7 +6,7 @@ export const siteConfig = {
   openingRoman: "MMXXVI",
   heroSeasonWord: "Summer",
   description:
-    "A canalside ristobar in Hackney Wick — real food, serious cocktails, wine and craft beer, with local art, music, and producers at the centre.",
+    "Gwenda is an archive salon on Schwartz Wharf. Craft cocktails, rare Italian street food, local art, and music on the Hackney Wick canal.",
   features: {
     showMenu: false,
     /** Off during promo — cocktail images are placeholders (AI-generated) */
@@ -18,10 +18,10 @@ export const siteConfig = {
     instagram: "",
     tiktok: "",
     /** Link previews — WhatsApp, iMessage, Slack, X, etc. */
-    shareTitle: "Gwenda — Hackney Wick",
+    shareTitle: "Gwenda | Hackney Wick",
     shareDescription:
-      "A canalside ristobar in Hackney Wick. Handcrafted cocktails, natural wines, and real food — with local art and music. Opening Summer 2026.",
-    imageAlt: "Gwenda — Italian ristobar on the Hackney Wick canal",
+      "Archive salon on Schwartz Wharf. Craft cocktails, rare Italian street food, local art, and music. Opening Summer 2026.",
+    imageAlt: "Gwenda, archive salon on the Hackney Wick canal",
   },
   location: {
     area: "Hackney Wick",
@@ -32,30 +32,37 @@ export const siteConfig = {
   },
   copy: {
     descriptionPromo:
-      "A canalside ristobar in Hackney Wick. Opening soon.",
+      "An archive salon on Schwartz Wharf, Hackney Wick. Opening Summer 2026.",
     heroEyebrow: "Opening Summer 2026",
     heroCta: "Enter our world",
     joinExperienceCta: "Join the experience",
     storyHeading: "Behind the Doors",
     storyLead:
-      "Step into the world of Gwenda — a canalside ristobar in the heart of Hackney Wick. Experience hand-crafted cocktails, natural wines, real Italian small plates and a carefully curated selection of beer.",
-    storyBodyPromo: [],
-    storyClosingPromo: null,
-    storyBody: [
-      "Real Italian food, not theatre. Cocktails, wine, and craft beer worth taking seriously. Local producers wherever we can — because this neighbourhood deserves a menu that actually comes from here.",
-      "The kitchen sits at the centre of everything. It works in lockstep with the bar — a gastro experience built for Hackney Wick, not borrowed from somewhere else.",
-      "Food and drink are only half the room. Local musicians, local art on the walls, the creative pulse of the Wick running right through it. Entertainment here means people you might already know, playing and showing work that matters.",
-      "The full menu stays close to the chest for now. The door opens 15 July — join the experience and we'll keep you in the loop.",
+      "On Schwartz Wharf: craft cocktails, rare regional Italian street food, art from local studios, and curated vinyl.",
+    storyBodyPromo: [
+      "We are not a restaurant that also pours drinks, or a bar that happens to serve food. The room is the point.",
+      "The kitchen works from regional Italian street recipes you rarely see in London, refined for a lounge. The bar is built to the same level.",
+      "Art on the walls rotates. The music is chosen for here. The canal is outside the door.",
     ],
+    storyClosingPromo: "Who is Gwenda? We can't say. The door opens 15 July.",
+    storyBody: [
+      "We are not a restaurant that also pours drinks, or a bar that happens to serve food. The room is the point.",
+      "The kitchen works from regional Italian street recipes you rarely see in London, refined for a lounge. The bar is built to the same level.",
+      "Art on the walls rotates. The music is chosen for here. The canal is outside the door.",
+    ],
+    storyClosing: "Who is Gwenda? We can't say. The door opens 15 July.",
     teamHeading: "Who we are",
     teamLead:
-      "An independent team with a proven track record in Hackney Wick and Fish Island — Gwenda isn't our first venture in this neighbourhood.",
+      "We already run The Pirate's Hub on this stretch of canal. Gwenda is what comes next.",
     teamBody: [
-      "We're behind The Pirate's Hub. We know the canal, the studios, and the rhythm of the Wick.",
-      "Gwenda grows from that — built with the artists, DJs, and locals who already make this neighbourhood worth showing up for.",
+      "Schwartz Wharf, the studios, the late nights. We know this pocket of the Wick.",
+      "Gwenda is built with the artists and musicians who were here before the sign went up.",
     ],
     galleryHeading: "A glimpse within",
     gallerySubheading: "The details reveal themselves in time",
+    menuTeaseEyebrow: "The menu",
+    menuTeaseHeading: "What we serve",
+    menuTeaseLead: "The full list opens with the door. Until then, a glimpse.",
     signupHeading: "Be the first to know",
     signupNavCta: "First to know",
     signupEyebrowPromo: "Almost there",

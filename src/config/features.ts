@@ -17,7 +17,7 @@ const previewFeatures: SiteFeatures = {
 const promoFeatures: SiteFeatures = {
   ...siteConfig.features,
   showTeam: true,
-  showMenuTease: false,
+  showMenuTease: true,
   showAtmosphere: false,
   showSocial: true,
   showOpeningDate: false,
