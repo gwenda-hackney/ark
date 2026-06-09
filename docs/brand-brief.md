@@ -34,6 +34,38 @@ Gwenda may be a woman, a vessel, or both. We can't say.
 
 ---
 
+## Public naming & labels
+
+*How we name Gwenda in titles, meta tags, listings, press, and link previews.*
+
+**When a venue type is needed, use Ristobar.** Gwenda is more than the label—but *ristobar* is the one category word we stand behind for discovery: Italian food and drink as equals, not a bar with a kitchen or a restaurant with a drinks list.
+
+| Context | Label |
+| --- | --- |
+| **Primary name** | **Gwenda** — always |
+| **Public category** | **Ristobar** — titles, SEO, listings, press when a short type helps |
+| **Location** | Hackney Wick · Schwartz Wharf · canalside |
+| **Page titles & SEO** | `Gwenda — Ristobar` + `\| Hackney Wick` (+ season/canalside as space allows) |
+| **Link previews & short descriptions** | Canalside ristobar + pillars: craft cocktails, hyper-regional Italian food, art, vinyl |
+| **Story / on-site body copy** | *archive salon* (lowercase) when **explaining** the room—after the negation; theme language, not the public label |
+| **Theme (internal)** | *The Archive Salon · On the Canal* — strategy, briefs, mission |
+
+**Do not use as a primary public label**
+
+Archive Salon · restaurant · bar · club · lounge · cocktail bar · Italian restaurant
+
+**Examples**
+
+| ✓ Use | ✗ Avoid |
+| --- | --- |
+| Gwenda — Ristobar \| Hackney Wick, London | Gwenda — Canalside Archive Salon |
+| A canalside ristobar in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl. | Gwenda — Italian Restaurant, Hackney Wick |
+| *An archive salon where food, drink, art, and sound converge.* (story, lowercase, explanatory) | Archive Salon \| Hackney Wick (title case) |
+
+Full voice rules: [brand-manifesto.md § Public naming](./brand-manifesto.md#public-naming--labels).
+
+---
+
 ## Mission
 
 To deliver the archive salon every service—fusing craft mixology, rare hyper-regional elevated street food, work from Wick studios, and vinyl on the canal, held to one standard.

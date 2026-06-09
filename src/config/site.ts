@@ -5,8 +5,10 @@ export const siteConfig = {
   openingRoman: "MMXXVI",
   menuAntiquated: "Tabula",
   heroSeasonWord: "Summer",
+  /** Public venue type — titles, SEO, listings. See docs/brand-brief.md § Public naming */
+  publicLabel: "Ristobar",
   description:
-    "Gwenda is a canalside archive salon in Hackney Wick. Craft cocktails, rare Italian street food, art from Wick studios, and vinyl on the decks.",
+    "A canalside ristobar in Hackney Wick. Craft cocktails, hyper-regional Italian street food, art, and vinyl on the decks.",
   features: {
     showMenu: false,
     /** Off during promo — cocktail images are placeholders (AI-generated) */
@@ -15,15 +17,14 @@ export const siteConfig = {
     revealDrinkNames: false,
   },
   /** SEO & link previews — WhatsApp, iMessage, Slack, X, Google snippets */
-  seoTitle: "Gwenda — Canalside Archive Salon | Hackney Wick, London",
+  seoTitle: "Gwenda — Ristobar | Hackney Wick, London",
   social: {
     instagram: "https://www.instagram.com/gwendahackney",
     tiktok: "",
-    shareTitle: "Gwenda — Canalside Archive Salon | Hackney Wick, London",
+    shareTitle: "Gwenda — Ristobar | Hackney Wick, London",
     shareDescription:
-      "Canalside in Hackney Wick. Craft cocktails, regional Italian food, art and vinyl. Opening Summer 2026.",
-    imageAlt:
-      "Gwenda — archive salon in Hackney Wick. Opening Summer 2026.",
+      "A canalside ristobar in Hackney Wick. Craft cocktails, regional Italian food, art and vinyl. Opening Summer 2026.",
+    imageAlt: "Gwenda — ristobar on the Hackney Wick canal. Opening Summer 2026.",
   },
   location: {
     area: "Hackney Wick",
@@ -34,7 +35,7 @@ export const siteConfig = {
   },
   copy: {
     descriptionPromo:
-      "A canalside archive salon in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl. Opening Summer 2026.",
+      "A canalside ristobar in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl. Opening Summer 2026.",
     heroEyebrow: "Opening Summer 2026",
     heroCta: "Enter our world",
     joinExperienceCta: "Join the experience",
