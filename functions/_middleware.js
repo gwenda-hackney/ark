@@ -1,6 +1,5 @@
 /**
- * Password-protects the site when SITE_PASSWORD is set, or always on staging
- * (SITE_ENV=staging on the gwenda-staging Pages project).
+ * Password-protects staging (SITE_ENV=staging). Production (SITE_ENV=production) is always public.
  * Unauthenticated visitors are sent to /gate (themed login) instead of browser basic auth.
  * Optional GATE_BYPASS_KEY accepts ?access=<key> to set the gate cookie and strip the param.
  */

@@ -34,7 +34,7 @@ Gwenda may be a woman, a vessel, or both. We can't say.
 
 ---
 
-## Public naming & labels
+## Public naming and labels
 
 *How we name Gwenda in titles, meta tags, listings, press, and link previews.*
 
@@ -62,7 +62,7 @@ Archive Salon · restaurant · bar · club · lounge · cocktail bar · Italian 
 | A canalside ristobar in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl. | Gwenda — Italian Restaurant, Hackney Wick |
 | *An archive salon where food, drink, art, and sound converge.* (story, lowercase, explanatory) | Archive Salon \| Hackney Wick (title case) |
 
-Full voice rules: [brand-manifesto.md § Public naming](./brand-manifesto.md#public-naming--labels).
+Full voice rules: [brand-manifesto.md](./brand-manifesto.md) (see **Public naming and labels** under Positioning).
 
 ---
 

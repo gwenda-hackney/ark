@@ -69,6 +69,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAGES_PROJECT_NAME: gwenda-staging
+          PAGES_PRODUCTION_BRANCH: main
 
       - name: Pin staging environment
         run: node scripts/ensure-pages-env.mjs

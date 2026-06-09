@@ -121,9 +121,9 @@ When in doubt, leave it out.
 
 Gwenda occupies deliberate tension. We are not a warehouse dive bar dressed up, and we are not a Mayfair import dropped into East London. The archive salon lives in the space between—technical hospitality inside raw industrial architecture, the Wick’s creative pulse present but not performed.
 
-### Public naming & labels
+### Public naming and labels
 
-*Formalized June 2026. Summary: [brand-brief.md § Public naming](./brand-brief.md#public-naming--labels).*
+*Formalized June 2026. Summary: [brand-brief.md](./brand-brief.md) (see **Public naming and labels**).*
 
 **Public category label: Ristobar.** Use when discovery needs a venue type—SEO titles, Google Business, press, link previews. **Archive salon** stays theme language for strategy and story copy; it is not the public label.
 
@@ -217,7 +217,7 @@ Attitude lives in Gwenda’s character and in how we edit—not in mission copy.
 
 ### Visual tone
 
-Match the [staging site](https://gwenda-staging.pages.dev/): dark ground, warm gold accents, serif display type, low light, close detail. Imagery should feel candlelit and tactile—steam, glass, stone, shadow—not bright, stock, or lifestyle-staged.
+Match the website: dark ground, warm gold accents, serif display type, low light, close detail. Imagery should feel candlelit and tactile—steam, glass, stone, shadow—not bright, stock, or lifestyle-staged. Visual tokens: [brand-decor-guidelines.md](./brand-decor-guidelines.md). Live previews ([staging](https://gwenda-staging.pages.dev/), [production](https://gwenda.co.uk/)) require the site password.
 
 **Important:** The website hero and concept imagery are **directional guides**, not literal build specifications. They express mood, palette, and attitude. The finished space will follow the spirit of those references—not a frame-for-frame reproduction.
 

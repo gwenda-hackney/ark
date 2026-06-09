@@ -31,7 +31,24 @@ const existing = await cf(
 );
 
 if (existing.data.success) {
-  console.log(`Pages project "${PROJECT}" already exists.`);
+  const currentBranch = existing.data.result.production_branch;
+  if (currentBranch !== BRANCH) {
+    const updated = await cf(`/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}`, {
+      method: "PATCH",
+      body: { production_branch: BRANCH },
+    });
+    if (!updated.data.success) {
+      const msg =
+        updated.data.errors?.map((e) => e.message).join("; ") || "Unknown error";
+      console.error(`Could not update production branch: ${msg}`);
+      process.exit(1);
+    }
+    console.log(
+      `Updated Pages project "${PROJECT}" production branch: ${currentBranch} → ${BRANCH}.`,
+    );
+  } else {
+    console.log(`Pages project "${PROJECT}" already exists (branch: ${BRANCH}).`);
+  }
   process.exit(0);
 }
 
