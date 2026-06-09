@@ -2,6 +2,7 @@ import { defineConfig, envField } from "astro/config";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
 import { issueSubscribeTokens, validateSubscribeAuth } from "./functions/_lib/subscribe-auth.js";
+import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.js";
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
 
@@ -67,13 +68,19 @@ function devSubscribeApi() {
           return;
         }
 
-        let body = "";
+        let rawBody = "";
         req.on("data", (chunk) => {
-          body += chunk;
+          rawBody += chunk;
         });
         req.on("end", async () => {
           try {
-            const { email, tag } = JSON.parse(body);
+            const payload = JSON.parse(rawBody);
+            if (isSubscribeHoneypotTripped(payload)) {
+              sendJson(res, 200, { ok: true });
+              return;
+            }
+
+            const { email, tag } = payload;
             const result = await subscribeEmail({
               email,
               tag,
