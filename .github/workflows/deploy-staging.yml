@@ -109,11 +109,15 @@ jobs:
           if [ -n "$BASEROW_TABLE_ID" ]; then
             printf '%s' "$BASEROW_TABLE_ID" | ./node_modules/.bin/wrangler pages secret put BASEROW_TABLE_ID --project-name=gwenda-staging
           fi
+          if [ -n "$SUBSCRIBE_SECRET" ]; then
+            printf '%s' "$SUBSCRIBE_SECRET" | ./node_modules/.bin/wrangler pages secret put SUBSCRIBE_SECRET --project-name=gwenda-staging
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           BASEROW_API_KEY: ${{ secrets.BASEROW_API_KEY }}
           BASEROW_TABLE_ID: ${{ vars.BASEROW_TABLE_ID }}
+          SUBSCRIBE_SECRET: ${{ secrets.SUBSCRIBE_SECRET }}
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

@@ -3,6 +3,35 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SIGNUP_FOCUS_DELAY_MS = 650;
 const SIGNUP_GLOW_MS = 2000;
 
+/** @type {{ csrfToken: string, secret: string } | null} */
+let subscribeAuth = null;
+/** @type {Promise<void> | null} */
+let subscribeAuthPromise = null;
+
+async function loadSubscribeAuth() {
+  const res = await fetch("/api/subscribe", { credentials: "same-origin" });
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data.error ?? "Something went wrong. Try again?");
+  }
+
+  if (!data.csrfToken || !data.secret) {
+    throw new Error("Something went wrong. Try again?");
+  }
+
+  subscribeAuth = { csrfToken: data.csrfToken, secret: data.secret };
+}
+
+function ensureSubscribeAuth() {
+  if (!subscribeAuthPromise) {
+    subscribeAuthPromise = loadSubscribeAuth().finally(() => {
+      subscribeAuthPromise = null;
+    });
+  }
+  return subscribeAuthPromise;
+}
+
 function highlightSignupField() {
   const field = document.querySelector(".signup-field");
   if (!field) return;
@@ -52,6 +81,8 @@ export function initSignup(form) {
   const submitBtn = form.querySelector('button[type="submit"]');
   const defaultBtnText = submitBtn?.textContent ?? "";
 
+  ensureSubscribeAuth();
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     clearError(errorEl);
@@ -75,19 +106,15 @@ export function initSignup(form) {
     setLoading(form, submitBtn, true, defaultBtnText);
 
     try {
-      const res = await fetch("/api/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          tag: form.querySelector('input[name="tag"]')?.value ?? "prelaunch",
-        }),
-      });
+      await ensureSubscribeAuth();
+      const submitted = await postSubscribe(form, email);
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data.error ?? "Something went wrong. Try again?");
+      if (submitted === "retry") {
+        await ensureSubscribeAuth();
+        const retryResult = await postSubscribe(form, email);
+        if (retryResult === "retry") {
+          throw new Error("Something went wrong. Try again?");
+        }
       }
 
       setLoading(form, submitBtn, false, defaultBtnText);
@@ -110,6 +137,40 @@ export function initSignup(form) {
       resetSignup({ section, confirmEl, form, errorEl, submitBtn, defaultBtnText });
     }
   });
+}
+
+/** @returns {Promise<"ok" | "retry">} */
+async function postSubscribe(form, email) {
+  if (!subscribeAuth) {
+    throw new Error("Something went wrong. Try again?");
+  }
+
+  const res = await fetch("/api/subscribe", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRF-Token": subscribeAuth.csrfToken,
+      "X-Subscribe-Secret": subscribeAuth.secret,
+    },
+    body: JSON.stringify({
+      email,
+      tag: form.querySelector('input[name="tag"]')?.value ?? "prelaunch",
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (res.status === 403) {
+    subscribeAuth = null;
+    return "retry";
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error ?? "Something went wrong. Try again?");
+  }
+
+  return "ok";
 }
 
 function showConfirmation(section, confirmEl) {
