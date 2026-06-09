@@ -42,13 +42,13 @@ export const siteConfig = {
     storyBodyPromo: [
       "We are not a restaurant that also pours drinks, or a bar that happens to serve food. The experience is the point.",
       "The kitchen works from regional Italian street recipes you rarely see in London, refined for a lounge. The cocktails are hand-crafted to the same standard.",
-      "Work from Wick studios on the walls. The decks rotate most nights. The conversation continues. The canal is outside the door.",
+      "The walls and the decks aren't decoration. Local art, rotating vinyl, canalside at Schwartz Wharf.",
     ],
     storyClosingPromo: "Who is Gwenda? We can't say.",
     storyBody: [
       "We are not a restaurant that also pours drinks, or a bar that happens to serve food. The experience is the point.",
       "The kitchen works from regional Italian street recipes you rarely see in London, refined for a lounge. The cocktails are hand-crafted to the same standard.",
-      "Work from Wick studios on the walls. The decks rotate most nights. The conversation continues. The canal is outside the door.",
+      "The walls and the decks aren't decoration. Local art, rotating vinyl, canalside at Schwartz Wharf.",
     ],
     storyClosing: "Who is Gwenda? We can't say.",
     teamHeading: "Who we are",
