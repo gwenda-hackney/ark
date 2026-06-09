@@ -1,5 +1,10 @@
 import { siteConfig } from "./site";
+import { openingDateLabel } from "./opening";
 import type { SiteMode } from "../types/features";
+
+function storyClosingWithDate(closing: string): string {
+  return `${closing} The door opens ${openingDateLabel()}.`;
+}
 
 export function getCopy(mode: SiteMode) {
   const { copy } = siteConfig;
@@ -8,7 +13,7 @@ export function getCopy(mode: SiteMode) {
     return {
       description: siteConfig.description,
       storyBody: copy.storyBody,
-      storyClosing: copy.storyClosing,
+      storyClosing: storyClosingWithDate(copy.storyClosing),
       signupEyebrow: "Pre-launch",
       signupHeading: copy.signupHeading,
       signupSubheading: copy.signupSubheading,
@@ -19,7 +24,7 @@ export function getCopy(mode: SiteMode) {
   return {
     description: copy.descriptionPromo,
     storyBody: copy.storyBodyPromo,
-    storyClosing: copy.storyClosingPromo,
+    storyClosing: storyClosingWithDate(copy.storyClosingPromo),
     signupEyebrow: copy.signupEyebrowPromo,
     signupHeading: copy.signupHeading,
     signupSubheading: copy.signupSubheadingPromo,

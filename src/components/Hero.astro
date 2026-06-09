@@ -2,6 +2,7 @@
 import { Image } from "astro:assets";
 import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
+import { openingDate, openingTimestamp } from "../config/opening";
 import logo from "../assets/images/logos/logo.png";
 import heroImg from "../assets/images/hero/hero.png";
 
@@ -11,9 +12,9 @@ interface Props {
 
 const { mode = "promo" } = Astro.props;
 
-const openingYear = new Date(siteConfig.openingDate).getFullYear();
-const openingTimestamp = new Date(`${siteConfig.openingDate}T00:00:00`).getTime();
-const diff = Math.max(0, openingTimestamp - Date.now());
+const openingYear = new Date(openingDate).getFullYear();
+const openingMs = openingTimestamp();
+const diff = Math.max(0, openingMs - Date.now());
 const days = Math.floor(diff / 86400000);
 const hours = Math.floor((diff % 86400000) / 3600000);
 const minutes = Math.floor((diff % 3600000) / 60000);
@@ -45,7 +46,7 @@ const minutes = Math.floor((diff % 3600000) / 60000);
     <div
       class="hero-countdown hero-stagger"
       id="countdown"
-      data-opening={openingTimestamp}
+      data-opening={openingMs}
       aria-live="polite"
     >
       <div class="countdown-unit" data-unit="days">
@@ -69,7 +70,7 @@ const minutes = Math.floor((diff % 3600000) / 60000);
     </div>
 
     <p class="hero-location hero-stagger">{siteConfig.tagline}</p>
-    <a href="#story" class="btn btn-primary hero-stagger">{siteConfig.copy.heroCta}</a>
+    <a href="#story" class="btn btn-primary hero-stagger" id="hero-cta">{siteConfig.copy.heroCta}</a>
   </div>
 
   <a href="#story" class="hero-scroll-hint" aria-label="Scroll to story">

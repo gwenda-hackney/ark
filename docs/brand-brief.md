@@ -26,7 +26,9 @@ Gwenda is a fused after-hours **archive salon** on Schwartz Wharf—not a bar wi
 
 - **The archive** — rare elevated street food and craft cocktails; regional traditions most venues never serve
 - **The salon** — intimate, low-lit, conversation-first; a room that holds still
-- **The canal** — Schwartz Wharf; water at the door; a warehouse on the canal, not a nautical theme pub
+- **The canal** — canalside on the water; warehouse setting, not a nautical theme pub
+- **Art** — work from Wick studios on the walls; sparse, considered, never permanent
+- **Music** — vinyl on the decks; lounge-first, not the dance floor
 
 Gwenda may be a woman, a vessel, or both. We can't say.
 
@@ -34,7 +36,7 @@ Gwenda may be a woman, a vessel, or both. We can't say.
 
 ## Mission
 
-To deliver the archive salon every service—fusing craft mixology, rare hyper-regional elevated street food, local art, and curated music on the canal, held to one standard.
+To deliver the archive salon every service—fusing craft mixology, rare hyper-regional elevated street food, work from Wick studios, and vinyl on the canal, held to one standard.
 
 ---
 

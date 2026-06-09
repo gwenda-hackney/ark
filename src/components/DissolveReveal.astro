@@ -1,0 +1,20 @@
+---
+interface Props {
+  id: string;
+  antiquated: string;
+  modern: string;
+  emphasis?: boolean;
+}
+
+const { id, antiquated, modern, emphasis = false } = Astro.props;
+---
+
+<span
+  class:list={["dissolve-reveal", emphasis && "dissolve-reveal--emphasis"]}
+  id={id}
+  data-modern={modern}
+>
+  <span class="dissolve-reveal-modern" aria-hidden="true">{modern}</span>
+  <span class="dissolve-reveal-antiquated" aria-hidden="true">{antiquated}</span>
+  <span class="visually-hidden" id={`${id}-sr`}>{antiquated}</span>
+</span>

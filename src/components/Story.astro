@@ -2,6 +2,8 @@
 import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
+import { openingDate } from "../config/opening";
+import DissolveReveal from "./DissolveReveal.astro";
 
 interface Props {
   mode: SiteMode;
@@ -10,12 +12,21 @@ interface Props {
 const { mode } = Astro.props;
 const copy = getCopy(mode);
 const hasStoryBody = copy.storyBody.length > 0 || copy.storyClosing;
+const openingYear = new Date(openingDate).getFullYear();
 ---
 
 <section class="story section" id="story">
   <div class="container">
     <div class="story-grid story-grid--split">
-      <p class="section-eyebrow story-grid-eyebrow reveal">Est. MMXXVI</p>
+      <p class="section-eyebrow story-grid-eyebrow dissolve-reveal-eyebrow reveal">
+        Est.&nbsp;
+        <DissolveReveal
+          id="story-year"
+          antiquated={siteConfig.openingRoman}
+          modern={String(openingYear)}
+          emphasis
+        />
+      </p>
       <div class="story-grid-left reveal">
         <h2>{siteConfig.copy.storyHeading}</h2>
         <p class="story-lead">{siteConfig.copy.storyLead}</p>

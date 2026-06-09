@@ -722,6 +722,150 @@ a:hover {
   margin-bottom: 0;
 }
 
+.dissolve-reveal-eyebrow {
+  display: flex;
+  align-items: baseline;
+}
+
+.dissolve-reveal {
+  position: relative;
+  display: inline-block;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+.dissolve-reveal-antiquated,
+.dissolve-reveal-modern {
+  white-space: nowrap;
+}
+
+.dissolve-reveal-antiquated {
+  position: relative;
+  display: block;
+  font-size: 1em;
+  letter-spacing: inherit;
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: none;
+}
+
+.dissolve-reveal-modern {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  font-size: 1em;
+  letter-spacing: inherit;
+  opacity: 0;
+  filter: blur(5px);
+  pointer-events: none;
+}
+
+.dissolve-reveal--emphasis .dissolve-reveal-modern {
+  font-size: 1.35em;
+  letter-spacing: 0.32em;
+}
+
+.dissolve-reveal .dissolve-reveal-modern {
+  animation: dissolveCoalesce 14s ease-in-out infinite;
+}
+
+.dissolve-reveal .dissolve-reveal-antiquated {
+  animation: dissolveFade 14s ease-in-out infinite;
+}
+
+@keyframes dissolveFade {
+  0%,
+  100% {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  14% {
+    opacity: 0.92;
+    filter: blur(1px);
+  }
+
+  30% {
+    opacity: 0.45;
+    filter: blur(2.5px);
+  }
+
+  40% {
+    opacity: 0;
+    filter: blur(5px);
+  }
+
+  58% {
+    opacity: 0;
+    filter: blur(5px);
+  }
+
+  72% {
+    opacity: 0.45;
+    filter: blur(2.5px);
+  }
+
+  86% {
+    opacity: 0.92;
+    filter: blur(1px);
+  }
+}
+
+@keyframes dissolveCoalesce {
+  0%,
+  100% {
+    opacity: 0;
+    filter: blur(5px);
+  }
+
+  14% {
+    opacity: 0.15;
+    filter: blur(3.5px);
+  }
+
+  30% {
+    opacity: 0.55;
+    filter: blur(1.5px);
+  }
+
+  40% {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  58% {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  72% {
+    opacity: 0.55;
+    filter: blur(1.5px);
+  }
+
+  86% {
+    opacity: 0.15;
+    filter: blur(3.5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dissolve-reveal .dissolve-reveal-modern,
+  .dissolve-reveal .dissolve-reveal-antiquated {
+    animation: none;
+  }
+
+  .dissolve-reveal .dissolve-reveal-modern {
+    opacity: 1;
+    filter: none;
+  }
+
+  .dissolve-reveal .dissolve-reveal-antiquated {
+    opacity: 0;
+    filter: none;
+  }
+}
+
 .story-grid-left {
   grid-column: 1;
   grid-row: 2;
@@ -935,12 +1079,13 @@ a:hover {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--color-gold);
-  filter: blur(6px);
-  opacity: 0.5;
+  color: var(--color-text-muted);
+  opacity: 0.42;
+  text-shadow: none;
   transition:
-    filter 1.1s var(--ease-out),
-    opacity 1.1s var(--ease-out);
+    opacity 1.1s var(--ease-out),
+    color 1.1s var(--ease-out),
+    text-shadow 1.1s var(--ease-out);
 }
 
 .menu-tease-veil {
@@ -962,8 +1107,11 @@ a:hover {
 .menu-tease-cta:hover .menu-tease-status,
 .menu-tease-cta:focus-visible .menu-tease-status,
 .menu-tease-cta.is-revealed .menu-tease-status {
-  filter: blur(0);
   opacity: 1;
+  color: var(--color-gold);
+  text-shadow:
+    0 0 10px rgba(201, 168, 76, 0.5),
+    0 0 22px rgba(201, 168, 76, 0.22);
 }
 
 .menu-tease-card:hover .menu-tease-veil,
@@ -993,8 +1141,11 @@ a:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .menu-tease-status {
-    filter: none;
     opacity: 0.85;
+    color: var(--color-gold);
+    text-shadow:
+      0 0 10px rgba(201, 168, 76, 0.5),
+      0 0 22px rgba(201, 168, 76, 0.22);
   }
 
   .menu-tease-veil {
