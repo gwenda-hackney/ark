@@ -70,8 +70,21 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAGES_PROJECT_NAME: gwenda-staging
 
+      - name: Pin staging environment
+        run: node scripts/ensure-pages-env.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT_NAME: gwenda-staging
+          SITE_ENV: staging
+
       - name: Set site password
-        run: printf '%s' "$SITE_PASSWORD" | ./node_modules/.bin/wrangler pages secret put SITE_PASSWORD --project-name=gwenda-staging
+        run: |
+          if [ -z "$SITE_PASSWORD" ]; then
+            echo "SITE_PASSWORD is required for staging deploys."
+            exit 1
+          fi
+          printf '%s' "$SITE_PASSWORD" | ./node_modules/.bin/wrangler pages secret put SITE_PASSWORD --project-name=gwenda-staging
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
