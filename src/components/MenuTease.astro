@@ -1,13 +1,21 @@
 ---
 import { siteConfig } from "../config/site";
 import MenuTeaseList from "./MenuTeaseList.astro";
+import DissolveReveal from "./DissolveReveal.astro";
 ---
 
 <section class="menu-tease section" id="menu">
   <div class="container">
     <div class="menu-tease-grid">
       <div class="menu-tease-intro reveal">
-        <p class="section-eyebrow">{siteConfig.copy.menuTeaseEyebrow}</p>
+        <p class="section-eyebrow menu-tease-eyebrow dissolve-reveal-eyebrow">
+          The&nbsp;
+          <DissolveReveal
+            id="menu-word"
+            antiquated={siteConfig.menuAntiquated}
+            modern="Menu"
+          />
+        </p>
         <h2>{siteConfig.copy.menuTeaseHeading}</h2>
         <p class="menu-tease-lead">{siteConfig.copy.menuTeaseLead}</p>
       </div>

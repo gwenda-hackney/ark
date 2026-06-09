@@ -29,7 +29,7 @@ Gwenda is a fused after-hours **archive salon** on Schwartz Wharf—not a bar wi
 
 ### Mission
 
-To deliver the archive salon every service—fusing craft mixology, rare hyper-regional elevated street food, local art, and curated music on the canal, held to one standard.
+To deliver the archive salon every service—fusing craft mixology, rare hyper-regional elevated street food, work from Wick studios, and vinyl on the canal, held to one standard.
 
 ### Vision
 
@@ -43,8 +43,8 @@ An archive salon on Schwartz Wharf that East London recommends—where fused foo
 | --- | --- |
 | **Culinary** | Rare, hyper-regional elevated street food—the edible archive |
 | **Mixology** | Craft cocktails—liquid craft at the same standard |
-| **Art** | Rotating local work on the walls—the visual layer of the room |
-| **Music** | Curated vinyl—the sonic layer beneath conversation |
+| **Art** | Work from Wick studios on the walls—sparse, considered, never permanent |
+| **Music** | Vinyl on the decks—different hands most nights; sound that supports the lounge, not a headline club night |
 
 Remove one pillar and Gwenda becomes a venue that happens to have the others. The goal is **arrival**, not transaction.
 
@@ -66,7 +66,7 @@ When in doubt, leave it out.
 | --- | --- |
 | TVs, sports screens, wall-mounted displays | Pulls attention away from the table, the bar, and conversation |
 | Bright overhead lighting, neon, club-style LED | Breaks candlelit intimacy |
-| Jukeboxes, touch-screen music, commercial playlists | Generic; undermines curated vinyl and atmosphere |
+| Jukeboxes, touch-screen music, commercial playlists | Generic; undermines the vinyl programme |
 | Pool tables, arcade games, pub gaming | Wrong energy—this is a lounge, not a games bar |
 | Photobooths, branded props, stag/hen packages | Breaks the room’s tone and guest mix |
 | Heavy-handed nautical theming (portholes, rope nets, anchor walls) | The canal earns the setting; props do not |
@@ -85,7 +85,7 @@ When in doubt, leave it out.
 
 | Eschew | Why |
 | --- | --- |
-| Headline DJ nights, dance-floor energy | Art and music support the lounge—they do not override it |
+| Club-night energy, dance-floor takeover | Vinyl yes; nightclub no—the salon still comes first |
 | Karaoke, trivia, pub-quiz nights | Wrong format; breaks intimacy |
 | Loud live bands that force guests to shout | Conversation-first, always |
 
@@ -111,7 +111,7 @@ When in doubt, leave it out.
 | --- | --- |
 | Treating Gwenda as “just cocktails” or “just food” | We create a fused experience—all four pillars matter |
 | Generic playlist, stock art, or list cocktails on autopilot | Any pillar run cheaply breaks the fusion |
-| Programming that spotlights one pillar and ignores the rest | e.g. gallery opening with no bar/kitchen intent, or DJ night that overrides the salon |
+| Programming that spotlights one pillar and ignores the rest | e.g. gallery opening with no bar/kitchen intent, or a set on the decks that overrides the salon |
 
 *This list is not exhaustive. When something new comes up—seasonal idea, vendor pitch, fit-out suggestion—run it through the test.*
 
@@ -126,9 +126,15 @@ Gwenda occupies deliberate tension. We are not a warehouse dive bar dressed up, 
 | Canal-side wharf, exposed brick, warehouse bones | Dark timber, warm light, candlelit intimacy |
 | Water at the door—brass, lantern glow, wharf character | Craft cocktails with a canal-side point of view |
 | Continuous, social small-plate service | Flawless, unforced service |
-| Local art and vinyl as atmosphere | Rare elevated regional food as co-equal with the bar |
+| Local art and vinyl on the decks as atmosphere | Rare elevated regional food as co-equal with the bar |
 
 **Food positioning:** The menu draws from rare Italian street and market traditions—cicchetti, stuzzichini, regional snacks you will not find on a standard trattoria menu—but the execution is **a step above**. Proper silverware, considered plating, lounge-grade presentation. Street-food heritage; cocktail-lounge refinement. Food and drink hold the same standard.
+
+**Cocktail positioning:** Hand-crafted cocktails, not assembly-line pours. A signature craft mixology program held to the same standard as the kitchen—considered, deliberate, co-equal with the food. Public copy: *hand-crafted*, *craft cocktails*, *signature*; skip jargon (molecular, progressive, artisanal). Some drinks may nod to the canal; the setting informs the list, it does not theme it. Recipes, specs, and pricing live in menu and ops documents—not here.
+
+**Art positioning:** Work from Wick studios on the walls. Sparse, considered, cleared for the next show. Public copy example: *Work from Wick studios on the walls*. Say less. Avoid *rotating art*, *local art*, *curated collection*.
+
+**Music positioning:** Vinyl on the decks, different hands most nights. Lounge-first, not club-night. Public copy example: *The decks rotate most nights. The conversation continues*. Avoid *DJs*, *on rotation*, *headline night*, *club*, *dance floor*.
 
 **The promise:** guests leave having **experienced** the room—what they tasted, what hung on the walls, what played—not merely “had drinks” or “ate well.”
 
@@ -142,7 +148,7 @@ Gwenda is an **experience**, not a category. We do not compete as the best cockt
 
 - **Culinary + mixology** share one standard and one story—food and drink are co-authored, not siloed
 - **Art** is chosen to live in the room, not fill wall space—guests notice it because it belongs
-- **Music** is programmed for the room’s mood, not the hour’s trend—sound completes the experience, it does not perform over it
+- **Music** means vinyl on the decks most nights. Sound supports the experience; it does not perform over it
 - **The canal** grounds the room—Schwartz Wharf, water nearby, warehouse on the water; the setting is real, not decorated
 
 Promotional copy may lead with food and drink—that is often how discovery starts. But anyone who walks in should feel all four pillars working. If they remember only one, we have narrowed ourselves back into a category.
@@ -187,9 +193,10 @@ Attitude lives in Gwenda’s character and in how we edit—not in mission copy.
 ### Copy principles
 
 - **Short beats long.** One strong line over a paragraph of adjectives.
-- **Show the craft.** Reference technique, region, and place—the canal, the wharf, Hackney Wick where relevant; skip lifestyle fluff.
+- **Show the craft.** Reference technique, region, and place where relevant; skip lifestyle fluff.
 - **Withhold a little.** We do not explain everything. Mystery is intentional.
-- **Food footnotes.** Menu copy includes brief notes on region and tradition—factual, typewritten in spirit. No folklore padding.
+- **No em dashes in public copy.** Use a full stop or a comma instead.
+- **Food footnotes.** Menu copy includes brief notes on region and tradition. Factual, typewritten in spirit. No folklore padding.
 
 ### Visual tone
 
@@ -246,8 +253,8 @@ Gwenda grows through **controlled reach**—present where it matters, never loud
 
 Local art and music are **pillars of the fusion**, not decoration added after the menu is written. We partner with Hackney Wick studios and musicians because the experience is incomplete without them—not because we are an arts venue that also serves drinks.
 
-- Rotating work from local artists on designated walls—sparse, considered, integral to the room
-- Curated background vinyl; conversation-first, not headline DJ nights
+- Work from Wick studios on designated walls—sparse, considered, cleared for the next show
+- Different hands on the decks most nights—vinyl-first where possible; lounge-first, not club-night
 - Soft collaborations with neighbours—private views, studio nights, canal-side events that extend the experience outward
 
 Artist and neighbour partnerships feed discovery alongside social, email, and business collaboration.
@@ -265,7 +272,7 @@ The space should read as **polished friction**—industrial permanence softened 
 - Subtle metal and brass where it fits naturally—not rope-and-anchor décor
 - Dark timber, plush seating, tactile surfaces that invite staying
 - Art on the walls as a quiet backdrop; the bar and counter remain the focus
-- Sound that hums beneath conversation—melodic, curated, never dominating
+- Sound from the decks—curated, low, never dominating the room
 
 ### What the room should not feel like
 
@@ -291,7 +298,7 @@ High-level alignment for front and back of house. Detailed workflows, timing tar
 - **Fused, not stacked.** Culinary, mixology, art, and music are one experience—never treat any pillar as filler for the others.
 - **One standard.** Bar and kitchen speak the same language; food and drink are co-authored, not siloed.
 - **Elevated street food.** Regional traditions from Italy’s streets and markets, refined for a high-end lounge—proper silverware, polished presentation, the same care as the cocktail program.
-- **Art and sound with intent.** Walls and speakers are curated; nothing runs on autopilot.
+- **Art and sound with intent.** Walls and decks are curated; nothing runs on autopilot.
 - **Continuous, social service.** Small plates and cocktails ordered throughout the visit—relaxed, not coursed.
 - **Precision without pretension.** High-end execution, zero stuffiness.
 - **Protect the room.** Discourage flash and intrusive filming when it breaks the atmosphere for others.
@@ -325,5 +332,11 @@ High-level alignment for front and back of house. Detailed workflows, timing tar
 | 1.8 | June 2026 | Mission/vision split clarified; vision reframed as aspiration |
 | 1.9 | June 2026 | Mission, vision, theme aligned; theme leads brief |
 | 1.10 | June 2026 | Plain canal-side language; removed coastal/maritime undertow |
+| 1.11 | June 2026 | Cocktail positioning voice guidelines |
+| 1.12 | June 2026 | Music = DJs behind the decks; music positioning added |
+| 1.13 | June 2026 | Dropped “on rotation” phrasing from music copy |
+| 1.14 | June 2026 | Art copy: Wick studios, not generic “rotating art” |
+| 1.15 | June 2026 | Terse public copy; no em dashes |
+| 1.16 | June 2026 | Avoid *DJs* in public copy; use vinyl, decks |
 
 *This document is the source of truth for brand voice, marketing tone, and design intent. Menu development, pricing, cocktail specs, and floor operations live elsewhere.*

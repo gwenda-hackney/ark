@@ -61,6 +61,7 @@ jobs:
           PUBLIC_BUILD_REF: ${{ github.ref_name }}
           PUBLIC_BUILD_TIME: ${{ github.event.head_commit.timestamp || steps.buildmeta.outputs.time }}
           PUBLIC_BUILD_VERSION: ${{ steps.version.outputs.value }}
+          PUBLIC_OPENING_DATE: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-04' }}
 
       - name: Ensure Pages project exists
         run: node scripts/ensure-pages-project.mjs

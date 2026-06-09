@@ -93,6 +93,12 @@ export default defineConfig({
         optional: true,
         default: "",
       }),
+      PUBLIC_OPENING_DATE: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "2026-07-04",
+      }),
     },
   },
   image: {
