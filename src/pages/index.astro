@@ -2,14 +2,10 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import HomePage from "../components/HomePage.astro";
 import { getCopy } from "../config/copy";
-import { siteConfig } from "../config/site";
 import heroImg from "../assets/images/hero/hero.png";
 ---
 
-<BaseLayout
-  description={getCopy("promo").description}
-  socialDescription={siteConfig.social.shareDescription}
->
+<BaseLayout description={getCopy("promo").description}>
   <link slot="head" rel="preload" as="image" href={heroImg.src} fetchpriority="high" />
 
   <HomePage mode="promo" />

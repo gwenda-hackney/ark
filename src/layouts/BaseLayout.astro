@@ -37,7 +37,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     {isStaging && <meta name="robots" content="noindex, nofollow" />}
     <SocialMeta
       title={socialTitle ?? title}
-      description={socialDescription ?? description}
+      description={socialDescription ?? siteConfig.social.shareDescription}
       url={canonicalUrl}
     />
 

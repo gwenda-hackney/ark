@@ -20,7 +20,7 @@ export const siteConfig = {
     /** Link previews — WhatsApp, iMessage, Slack, X, etc. */
     shareTitle: "Gwenda | Hackney Wick",
     shareDescription:
-      "Canalside archive salon in Hackney Wick. Craft cocktails, rare Italian street food, art from Wick studios, and vinyl on the decks. Opening Summer 2026.",
+      "Canalside in Hackney Wick. Craft cocktails, hyper-regional Italian street food, art, and vinyl on the decks. Opening Summer 2026.",
     imageAlt: "Gwenda, archive salon on the Hackney Wick canal",
   },
   location: {
