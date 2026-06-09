@@ -25,8 +25,12 @@ if (heroImage) {
   }
 }
 
-/* Single rAF-throttled scroll handler */
+/* Header + nav */
 const header = document.getElementById("site-header");
+const menuBtn = document.getElementById("site-header-menu-btn");
+const siteNav = document.getElementById("site-header-nav");
+const hero = document.getElementById("hero");
+const scrollTop = document.getElementById("scroll-top");
 const mobileNavQuery = window.matchMedia("(max-width: 640px)");
 let scrollTicking = false;
 let headerVisible = false;
@@ -35,24 +39,15 @@ const HEADER_HIDE_AT = 40;
 
 function onScrollFrame() {
   const y = window.scrollY;
-  const isMobile = mobileNavQuery.matches;
+  let shouldShow = headerVisible;
+  if (!headerVisible && y > HEADER_SHOW_AT) shouldShow = true;
+  if (headerVisible && y < HEADER_HIDE_AT) shouldShow = false;
 
-  if (isMobile) {
-    if (!headerVisible) {
-      headerVisible = true;
-      header?.classList.add("visible");
-    }
-    header?.classList.toggle("scrolled", y > HEADER_HIDE_AT);
-  } else {
-    let shouldShow = headerVisible;
-    if (!headerVisible && y > HEADER_SHOW_AT) shouldShow = true;
-    if (headerVisible && y < HEADER_HIDE_AT) shouldShow = false;
-
-    if (header && shouldShow !== headerVisible) {
-      headerVisible = shouldShow;
-      header.classList.toggle("visible", shouldShow);
-      header.classList.toggle("scrolled", shouldShow);
-    }
+  if (header && shouldShow !== headerVisible) {
+    headerVisible = shouldShow;
+    header.classList.toggle("visible", shouldShow);
+    header.classList.toggle("scrolled", shouldShow);
+    siteNav?.classList.toggle("visible", shouldShow);
   }
 
   scrollTicking = false;
@@ -72,22 +67,15 @@ window.addEventListener(
 if (header) onScrollFrame();
 
 /* Floating back-to-top — after hero */
-const hero = document.getElementById("hero");
-const scrollTop = document.getElementById("scroll-top");
-
-if (hero && scrollTop) {
-  const scrollTopObserver = new IntersectionObserver(
+if (hero) {
+  const heroObserver = new IntersectionObserver(
     ([entry]) => {
-      scrollTop.classList.toggle("is-visible", !entry.isIntersecting);
+      scrollTop?.classList.toggle("is-visible", !entry.isIntersecting);
     },
     { threshold: 0 },
   );
-  scrollTopObserver.observe(hero);
+  heroObserver.observe(hero);
 }
-
-/* Mobile nav */
-const menuBtn = document.getElementById("site-header-menu-btn");
-const siteNav = document.getElementById("site-header-nav");
 
 function closeMobileNav() {
   siteNav?.classList.remove("is-open");
@@ -106,6 +94,10 @@ if (menuBtn && siteNav) {
     document.body.classList.toggle("site-nav-open", isOpen);
   });
 
+  siteNav.addEventListener("click", (e) => {
+    if (e.target === siteNav) closeMobileNav();
+  });
+
   siteNav.querySelectorAll("a").forEach((link) => {
     link.addEventListener("click", closeMobileNav);
   });
@@ -116,6 +108,7 @@ if (menuBtn && siteNav) {
 
   mobileNavQuery.addEventListener("change", (e) => {
     if (!e.matches) closeMobileNav();
+    if (e.matches) siteNav?.classList.remove("visible");
     onScrollFrame();
   });
 }

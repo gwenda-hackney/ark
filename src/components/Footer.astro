@@ -1,8 +1,6 @@
 ---
-import { Image } from "astro:assets";
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import footerLogo from "../assets/images/logos/logo-footer.png";
 import FooterSocialLink from "./FooterSocialLink.astro";
 
 interface Props {
@@ -22,34 +20,6 @@ const address = features.useShortAddress
 <footer class="site-footer">
   <div class="container">
     <div class="site-footer-grid">
-      <div class="site-footer-brand">
-        <a href="#hero" class="site-footer-logo" aria-label="Gwenda">
-          <Image
-            src={footerLogo}
-            alt=""
-            class="site-footer-logo-img"
-            widths={[140, 200, 280]}
-            sizes="(min-width: 768px) 180px, 140px"
-            height={74}
-            width={139}
-          />
-        </a>
-        <div class="site-footer-brand-details">
-          <a
-            href={location.mapsUrl}
-            class="site-footer-address"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {address}
-          </a>
-          <p class="site-footer-copyright">
-            <span>© {year}</span>
-            <span>{siteConfig.name}</span>
-          </p>
-        </div>
-      </div>
-
       <div class="site-footer-col">
         <p class="site-footer-col-label">Explore</p>
         <ul class="site-footer-list">
@@ -66,6 +36,16 @@ const address = features.useShortAddress
       <div class="site-footer-col">
         <p class="site-footer-col-label">Connect</p>
         <ul class="site-footer-list">
+          <li>
+            <a
+              href={location.mapsUrl}
+              class="site-footer-address"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {address}
+            </a>
+          </li>
           {
             features.showSocial && (
               <>
@@ -81,6 +61,13 @@ const address = features.useShortAddress
           <li><a href="/privacy">Privacy</a></li>
         </ul>
       </div>
+    </div>
+
+    <div class="site-footer-meta">
+      <p class="site-footer-copyright">
+        <span>© {year}</span>
+        <span>{siteConfig.name}</span>
+      </p>
     </div>
   </div>
 </footer>

@@ -2,7 +2,8 @@
 import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import logoMark from "../assets/images/logos/logo-g-dark.png";
+import logoHeader from "../assets/images/logos/logo-header.png";
+import logoGHeader from "../assets/images/logos/logo-g-header.png";
 
 interface Props {
   features: SiteFeatures;
@@ -13,7 +14,20 @@ const { features } = Astro.props;
 
 <header class="site-header" id="site-header">
   <a href="#hero" class="site-header-logo" aria-label="Gwenda">
-    <Image src={logoMark} alt="Gwenda" class="site-header-logo-img" height={36} />
+    <Image
+      src={logoHeader}
+      alt=""
+      class="site-header-logo-img site-header-logo-img--full"
+      height={80}
+      densities={[1, 2]}
+    />
+    <Image
+      src={logoGHeader}
+      alt=""
+      class="site-header-logo-img site-header-logo-img--g"
+      height={80}
+      densities={[1, 2]}
+    />
   </a>
 
   <button
@@ -26,11 +40,11 @@ const { features } = Astro.props;
   >
     <span class="site-header-menu-icon" aria-hidden="true"></span>
   </button>
-
-  <nav class="site-header-nav" id="site-header-nav">
-    <a href="#story">Story</a>
-    {(features.showMenu || features.showMenuTease) && <a href="#menu">Menu</a>}
-    {features.showTeam && <a href="#team">Who we are</a>}
-    <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>
-  </nav>
 </header>
+
+<nav class="site-header-nav" id="site-header-nav">
+  <a href="#story">Story</a>
+  {(features.showMenu || features.showMenuTease) && <a href="#menu">Menu</a>}
+  {features.showTeam && <a href="#team">Who we are</a>}
+  <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>
+</nav>
