@@ -11,7 +11,7 @@ const { social } = siteConfig;
 const title = Astro.props.title ?? social.shareTitle;
 const description = Astro.props.description ?? social.shareDescription;
 const url = Astro.props.url ?? siteConfig.domain;
-const image = `${siteConfig.domain}/og-image.jpg`;
+const image = new URL("/og-image.jpg", url).href;
 ---
 
 <link rel="canonical" href={url} />

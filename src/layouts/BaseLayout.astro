@@ -21,7 +21,10 @@ const {
   socialDescription,
 } = Astro.props;
 
-const canonicalUrl = new URL(Astro.url.pathname, siteConfig.domain).href;
+const siteOrigin = isStaging
+  ? "https://gwenda-staging.pages.dev"
+  : siteConfig.domain;
+const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 ---
 
 <!doctype html>

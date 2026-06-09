@@ -83,7 +83,7 @@ export function buildAuthCookie(token, { secure = true } = {}) {
 }
 
 const SEARCH_ENGINE_BOTS =
-  /googlebot|google-inspectiontool|storebot-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot/i;
+  /googlebot|google-inspectiontool|storebot-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|microsoft office|ms-office|skypeuripreview|teams/i;
 
 export function isSearchEngineCrawler(request) {
   const ua = request.headers.get("User-Agent") ?? "";
