@@ -4,14 +4,17 @@ import { siteConfig } from "../config/site";
 
 <section class="story-team section" id="team">
   <div class="container">
-    <p class="section-eyebrow reveal">The team</p>
-    <h2 class="reveal">{siteConfig.copy.teamHeading}</h2>
-    <p class="story-lead reveal">{siteConfig.copy.teamLead}</p>
-    <div class="story-body reveal">
-      {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
+    <div class="story-team-grid">
+      <div class="story-team-inner reveal">
+        <p class="section-eyebrow">The team</p>
+        <h2>{siteConfig.copy.teamHeading}</h2>
+        <div class="story-body">
+          {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
+        </div>
+        <p class="join-cta-footer">
+          <a href="#list" class="btn btn-primary">{siteConfig.copy.joinExperienceCta}</a>
+        </p>
+      </div>
     </div>
-    <p class="join-cta-footer reveal">
-      <a href="#list" class="btn btn-primary">{siteConfig.copy.joinExperienceCta}</a>
-    </p>
   </div>
 </section>
