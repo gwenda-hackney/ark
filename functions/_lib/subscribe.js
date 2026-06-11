@@ -2,19 +2,31 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_BASEROW_API = "https://api.baserow.io";
 const DEFAULT_BASEROW_TABLE_ID = "1017358";
 
-export async function subscribeEmail({ email: rawEmail, tag = "prelaunch", env = {} }) {
+export async function subscribeEmail({
+  email: rawEmail,
+  tag = "prelaunch",
+  env = {},
+}) {
   const email = rawEmail?.trim().toLowerCase();
-  const tagValue = (typeof tag === "string" ? tag : "prelaunch").trim() || "prelaunch";
+  const tagValue =
+    (typeof tag === "string" ? tag : "prelaunch").trim() || "prelaunch";
   if (!email || !EMAIL_RE.test(email)) {
     return { ok: false, status: 400, error: "Valid email required." };
   }
 
   const apiKey = env.BASEROW_API_KEY;
   const tableId = env.BASEROW_TABLE_ID || DEFAULT_BASEROW_TABLE_ID;
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
+    /\/$/,
+    "",
+  );
 
   if (!apiKey) {
-    return { ok: false, status: 502, error: "Something went wrong. Try again?" };
+    return {
+      ok: false,
+      status: 502,
+      error: "Something went wrong. Try again?",
+    };
   }
 
   const url = `${apiBase}/api/database/rows/table/${tableId}/?user_field_names=true`;
@@ -67,11 +79,19 @@ function parseBaserowError(status, detail) {
   }
 
   if (status === 401 || status === 403) {
-    return { ok: false, status: 502, error: "Something went wrong. Try again?" };
+    return {
+      ok: false,
+      status: 502,
+      error: "Something went wrong. Try again?",
+    };
   }
 
   if (status === 400 && /email|invalid|validation/i.test(String(message))) {
-    return { ok: false, status: 400, error: "That doesn't look like a valid email." };
+    return {
+      ok: false,
+      status: 400,
+      error: "That doesn't look like a valid email.",
+    };
   }
 
   return { ok: false, status: 502, error: "Something went wrong. Try again?" };

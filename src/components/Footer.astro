@@ -8,7 +8,7 @@ interface Props {
   features: SiteFeatures;
 }
 
-const { mode, features } = Astro.props;
+const { features } = Astro.props;
 const { social, location } = siteConfig;
 const year = new Date().getFullYear();
 
@@ -24,11 +24,27 @@ const address = features.useShortAddress
         <p class="site-footer-col-label">Explore</p>
         <ul class="site-footer-list">
           <li><a href="#story">Story</a></li>
-          {(features.showMenu || features.showMenuTease) && (
-            <li><a href="#menu">Menu</a></li>
-          )}
-          {features.showTeam && <li><a href="#team">Who we are</a></li>}
-          {features.showGallery && <li><a href="#glimpse">Glimpse</a></li>}
+          {
+            (features.showMenu || features.showMenuTease) && (
+              <li>
+                <a href="#menu">Menu</a>
+              </li>
+            )
+          }
+          {
+            features.showTeam && (
+              <li>
+                <a href="#team">Who we are</a>
+              </li>
+            )
+          }
+          {
+            features.showGallery && (
+              <li>
+                <a href="#glimpse">Glimpse</a>
+              </li>
+            )
+          }
           <li><a href="#list">{siteConfig.copy.signupNavCta}</a></li>
         </ul>
       </div>

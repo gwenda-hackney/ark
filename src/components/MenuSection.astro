@@ -29,7 +29,9 @@ const { showPrices } = features;
               <span class="menu-item-price">£{item.price}</span>
             )}
           </div>
-          {item.description && <p class="menu-item-description">{item.description}</p>}
+          {item.description && (
+            <p class="menu-item-description">{item.description}</p>
+          )}
         </li>
       ))
     }

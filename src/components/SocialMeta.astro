@@ -1,5 +1,6 @@
 ---
 import { siteConfig } from "../config/site";
+import sharePreviewImage from "../assets/images/social/logo-board.png";
 
 interface Props {
   title?: string;
@@ -11,7 +12,7 @@ const { social } = siteConfig;
 const title = Astro.props.title ?? social.shareTitle;
 const description = Astro.props.description ?? social.shareDescription;
 const url = Astro.props.url ?? siteConfig.domain;
-const image = new URL("/og-image.jpg", url).href;
+const image = new URL(sharePreviewImage.src, url).href;
 ---
 
 <link rel="canonical" href={url} />
@@ -23,8 +24,8 @@ const image = new URL("/og-image.jpg", url).href;
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:image" content={image} />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
+<meta property="og:image:width" content={String(sharePreviewImage.width)} />
+<meta property="og:image:height" content={String(sharePreviewImage.height)} />
 <meta property="og:image:alt" content={social.imageAlt} />
 
 <meta name="twitter:card" content="summary_large_image" />

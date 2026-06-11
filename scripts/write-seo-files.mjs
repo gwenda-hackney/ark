@@ -22,7 +22,9 @@ const robots = isStaging
     ].join("\n");
 
 writeFileSync(resolve(distDir, "robots.txt"), `${robots}\n`);
-console.log(`Wrote dist/robots.txt (${isStaging ? "staging — noindex" : "production"})`);
+console.log(
+  `Wrote dist/robots.txt (${isStaging ? "staging — noindex" : "production"})`,
+);
 
 if (isStaging) {
   console.log("Skipping sitemap.xml on staging.");

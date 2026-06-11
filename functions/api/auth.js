@@ -30,11 +30,9 @@ export async function onRequestPost(context) {
   const token = await createAuthToken(expected);
   const redirect = safeRedirectPath(body.next);
 
-  return json(
-    { ok: true, redirect },
-    200,
-    { "Set-Cookie": buildAuthCookie(token) },
-  );
+  return json({ ok: true, redirect }, 200, {
+    "Set-Cookie": buildAuthCookie(token),
+  });
 }
 
 function json(data, status = 200, extraHeaders = {}) {

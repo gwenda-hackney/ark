@@ -26,20 +26,22 @@ async function cf(path, { method = "GET", body } = {}) {
   return { status: res.status, data };
 }
 
-const existing = await cf(
-  `/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}`,
-);
+const existing = await cf(`/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}`);
 
 if (existing.data.success) {
   const currentBranch = existing.data.result.production_branch;
   if (currentBranch !== BRANCH) {
-    const updated = await cf(`/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}`, {
-      method: "PATCH",
-      body: { production_branch: BRANCH },
-    });
+    const updated = await cf(
+      `/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}`,
+      {
+        method: "PATCH",
+        body: { production_branch: BRANCH },
+      },
+    );
     if (!updated.data.success) {
       const msg =
-        updated.data.errors?.map((e) => e.message).join("; ") || "Unknown error";
+        updated.data.errors?.map((e) => e.message).join("; ") ||
+        "Unknown error";
       console.error(`Could not update production branch: ${msg}`);
       process.exit(1);
     }
@@ -47,7 +49,9 @@ if (existing.data.success) {
       `Updated Pages project "${PROJECT}" production branch: ${currentBranch} → ${BRANCH}.`,
     );
   } else {
-    console.log(`Pages project "${PROJECT}" already exists (branch: ${BRANCH}).`);
+    console.log(
+      `Pages project "${PROJECT}" already exists (branch: ${BRANCH}).`,
+    );
   }
   process.exit(0);
 }
@@ -74,4 +78,6 @@ if (!created.data.success) {
   process.exit(1);
 }
 
-console.log(`Created Pages project "${PROJECT}" (production branch: ${BRANCH}).`);
+console.log(
+  `Created Pages project "${PROJECT}" (production branch: ${BRANCH}).`,
+);

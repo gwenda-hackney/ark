@@ -1,4 +1,15 @@
-1. we need to set the meta info for whatsapp and other social media
-  - for whatsapp and other previews - look at the original concept site, but adapt the wording
+# Backlog
 
-2. implement the back end for colelcting peoples email - we can post directly to buttondown...i will get you the api key shortly
+Tracked in GitHub issues where noted. See README and `.github/copilot-instructions.md` for current architecture.
+
+## Done (remove when verified in staging/production)
+
+- [x] Social / link preview meta — `SocialMeta.astro` + `logo-board.png`
+- [x] Email signup backend — `/api/subscribe` → Baserow (CSRF + honeypot)
+
+## Open
+
+- [ ] Expand unit test coverage — [#6](https://github.com/gwenda-hackney/web/issues/6)
+- [ ] Playwright regression suite — [#7](https://github.com/gwenda-hackney/web/issues/7)
+- [ ] Automated security scanning (ZAP, Dependabot) — [#8](https://github.com/gwenda-hackney/web/issues/8)
+- [ ] First-time blue/green production setup — rename `gwenda` → `gwenda-blue`, set `PRODUCTION_ACTIVE_SLOT`
