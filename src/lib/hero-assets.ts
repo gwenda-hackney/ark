@@ -17,5 +17,21 @@ export const heroLogo = {
   format: "webp" as const,
 };
 
+/** Header + signup confirm: 80px / 88px max rendered height. */
+export const headerLogo = {
+  src: logo,
+  height: 80,
+  format: "webp" as const,
+  densities: [1, 2] as const,
+};
+
+/** Gate + thanks pages: clamp max is 7rem (~112px). */
+export const compactLogo = {
+  src: logo,
+  height: 112,
+  format: "webp" as const,
+  densities: [1, 2] as const,
+};
+
 export { heroImg, logo };
 export type { ImageMetadata };

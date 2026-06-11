@@ -6,7 +6,7 @@ import Fonts from "../components/Fonts.astro";
 import StagingRibbon from "../components/StagingRibbon.astro";
 import { siteConfig } from "../config/site";
 import { isStaging } from "../config/env";
-import logo from "../assets/images/logos/logo.png";
+import { compactLogo } from "../lib/hero-assets";
 import favicon from "../assets/images/logos/favicon-light.png";
 
 const next = Astro.url.searchParams.get("next") ?? "/";
@@ -36,7 +36,7 @@ const canonicalUrl = new URL(next === "/" ? "/" : next, siteOrigin).href;
     <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main class="gate">
-      <Image src={logo} alt="Gwenda" class="gate-logo" loading="eager" />
+      <Image {...compactLogo} alt="Gwenda" class="gate-logo" loading="eager" />
       <p class="gate-eyebrow">By invitation</p>
       <h1 class="gate-title">Enter the door</h1>
       <p class="gate-lead">A password is required to view the site.</p>

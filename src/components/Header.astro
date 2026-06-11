@@ -2,7 +2,7 @@
 import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import logo from "../assets/images/logos/logo.png";
+import { headerLogo } from "../lib/hero-assets";
 
 interface Props {
   features: SiteFeatures;
@@ -13,13 +13,7 @@ const { features } = Astro.props;
 
 <header class="site-header" id="site-header">
   <a href="#hero" class="site-header-logo" aria-label="Gwenda">
-    <Image
-      src={logo}
-      alt=""
-      class="site-header-logo-img"
-      height={80}
-      densities={[1, 2]}
-    />
+    <Image {...headerLogo} alt="" class="site-header-logo-img" />
   </a>
 
   <button

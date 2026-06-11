@@ -4,7 +4,7 @@ import { Image } from "astro:assets";
 import Fonts from "../components/Fonts.astro";
 import StagingRibbon from "../components/StagingRibbon.astro";
 import { siteConfig } from "../config/site";
-import logo from "../assets/images/logos/logo.png";
+import { compactLogo } from "../lib/hero-assets";
 import favicon from "../assets/images/logos/favicon-light.png";
 ---
 
@@ -22,7 +22,7 @@ import favicon from "../assets/images/logos/favicon-light.png";
     <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main class="thanks">
-      <Image src={logo} alt="Gwenda" class="thanks-logo" loading="eager" />
+      <Image {...compactLogo} alt="Gwenda" class="thanks-logo" loading="eager" />
       <p class="thanks-eyebrow">Thank you</p>
       <h1 class="thanks-title">{siteConfig.copy.signupSuccessTitle}</h1>
       <p class="thanks-lead">{siteConfig.copy.signupSuccessLead}</p>

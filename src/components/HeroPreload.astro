@@ -1,24 +1,14 @@
 ---
 import { getImage } from "astro:assets";
-import { heroBackground, heroLogo } from "../lib/hero-assets";
+import { heroBackground } from "../lib/hero-assets";
 
-const [hero, logo] = await Promise.all([
-  getImage(heroBackground),
-  getImage(heroLogo),
-]);
+const hero = await getImage(heroBackground);
 ---
 
 <link
   rel="preload"
   as="image"
   href={hero.src}
-  type="image/webp"
-  fetchpriority="high"
-/>
-<link
-  rel="preload"
-  as="image"
-  href={logo.src}
   type="image/webp"
   fetchpriority="high"
 />
