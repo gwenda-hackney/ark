@@ -59,7 +59,7 @@ inputs:
     description: Subscribe endpoint secret
     required: false
   analytics-host:
-    description: Hostname for Cloudflare Web Analytics (zone auto-inject)
+    description: Hostname for Cloudflare Web Analytics (zone auto-inject; host rules isolate staging from prod)
     required: false
   analytics-zone:
     description: DNS zone for Web Analytics (default gwenda.co.uk)
