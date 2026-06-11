@@ -11,9 +11,6 @@ jobs:
 
   deploy:
     needs: verify
-    environment:
-      name: staging
-      url: https://staging.gwenda.co.uk
     uses: ./.github/workflows/pages-preview-production.yml
     with:
       pages-project: gwenda-staging
@@ -30,12 +27,14 @@ jobs:
       summary-site-url: https://staging.gwenda.co.uk
       ensure-custom-domain: staging.gwenda.co.uk
       ensure-zone-name: gwenda.co.uk
+      github-environment: staging
+      github-environment-url: https://staging.gwenda.co.uk
+      public-cf-beacon-token: ${{ vars.PUBLIC_CF_BEACON_TOKEN }}
+      baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      PUBLIC_CF_BEACON_TOKEN: ${{ vars.PUBLIC_CF_BEACON_TOKEN }}
       SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
       GATE_BYPASS_KEY: ${{ secrets.GATE_BYPASS_KEY }}
       BASEROW_API_KEY: ${{ secrets.BASEROW_API_KEY }}
-      BASEROW_TABLE_ID: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
       SUBSCRIBE_SECRET: ${{ secrets.SUBSCRIBE_SECRET }}

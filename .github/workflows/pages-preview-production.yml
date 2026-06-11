@@ -47,20 +47,31 @@ on:
         required: false
         type: string
         default: ""
+      github-environment:
+        required: true
+        type: string
+      github-environment-url:
+        required: false
+        type: string
+        default: ""
+      public-cf-beacon-token:
+        required: false
+        type: string
+        default: ""
+      baserow-table-id:
+        required: false
+        type: string
+        default: ""
     secrets:
       CLOUDFLARE_API_TOKEN:
         required: true
       CLOUDFLARE_ACCOUNT_ID:
         required: true
-      PUBLIC_CF_BEACON_TOKEN:
-        required: false
       SITE_PASSWORD:
         required: false
       GATE_BYPASS_KEY:
         required: false
       BASEROW_API_KEY:
-        required: false
-      BASEROW_TABLE_ID:
         required: false
       SUBSCRIBE_SECRET:
         required: false
@@ -68,8 +79,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.github-environment }}
+      url: ${{ inputs.github-environment-url }}
     permissions:
-      contents: ${{ inputs.tag-release && 'write' || 'read' }}
+      contents: write
       deployments: write
 
     steps:
@@ -100,7 +114,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PUBLIC_CF_BEACON_TOKEN: ${{ secrets.PUBLIC_CF_BEACON_TOKEN }}
+          PUBLIC_CF_BEACON_TOKEN: ${{ inputs.public-cf-beacon-token }}
 
       - name: Ensure custom domain
         if: inputs.ensure-custom-domain != ''
@@ -140,7 +154,7 @@ jobs:
           site-password: ${{ secrets.SITE_PASSWORD }}
           gate-bypass-key: ${{ secrets.GATE_BYPASS_KEY }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
-          baserow-table-id: ${{ secrets.BASEROW_TABLE_ID }}
+          baserow-table-id: ${{ inputs.baserow-table-id }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
 
       - name: Smoke test preview
@@ -168,7 +182,7 @@ jobs:
           site-password: ${{ secrets.SITE_PASSWORD }}
           gate-bypass-key: ${{ secrets.GATE_BYPASS_KEY }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
-          baserow-table-id: ${{ secrets.BASEROW_TABLE_ID }}
+          baserow-table-id: ${{ inputs.baserow-table-id }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
 
       - name: Smoke test live domain
