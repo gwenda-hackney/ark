@@ -99,16 +99,7 @@ The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manag
 
 ### Rollback
 
-**Bad release after a successful deploy:** use the Cloudflare dashboard (Deployments → Rollback) or:
-
-```bash
-CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \
-node scripts/ci/rollback-pages-production.mjs \
-  --project gwenda \
-  --deployment-id <previous-deployment-id>
-```
-
-Find deployment IDs in the Cloudflare Pages dashboard or via the [Deployments API](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/).
+**Bad release after a successful deploy:** use the Cloudflare dashboard (Deployments → Rollback).
 
 ## Versioning
 

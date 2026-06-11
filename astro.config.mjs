@@ -158,6 +158,9 @@ export default defineConfig({
     },
   },
   vite: {
+    // Devcontainer / Cursor port forwards use non-localhost Host headers; Vite blocks those with 403.
+    server: { allowedHosts: true },
+    preview: { allowedHosts: true },
     plugins: [devSubscribeApi(), ...(gatePlugin ? [gatePlugin] : [])],
   },
 });
