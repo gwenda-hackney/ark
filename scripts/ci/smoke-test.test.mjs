@@ -26,12 +26,4 @@ describe("assertHomePageHealthy", () => {
       ),
     ).not.toThrow();
   });
-
-  it("rejects manual cloudflareinsights embed", () => {
-    expect(() =>
-      assertHomePageHealthy(
-        "<title>Gwenda</title><script src=\"https://static.cloudflareinsights.com/beacon.min.js\"></script><div id=\"countdown\"></div>",
-      ),
-    ).toThrow(/cloudflareinsights/);
-  });
 });

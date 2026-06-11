@@ -27,5 +27,12 @@ jobs:
         env:
           PUBLIC_OPENING_DATE: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-04' }}
 
+      - name: Reject manual analytics beacon in build output
+        run: |
+          if rg -q 'cloudflareinsights\.com' dist/; then
+            echo "dist/ contains manual Cloudflare Web Analytics embed — remove it from source"
+            exit 1
+          fi
+
       - name: Unit tests
         run: npm test
