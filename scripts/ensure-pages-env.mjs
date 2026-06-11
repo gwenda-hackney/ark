@@ -1,6 +1,9 @@
 /**
  * Set SITE_ENV on a Cloudflare Pages project (plain env var, not a secret).
  * Staging uses SITE_ENV=staging so middleware always requires SITE_PASSWORD.
+ *
+ * Run BEFORE sync-pages-secrets in CI — PATCHing deployment_configs here can
+ * clear wrangler-managed secrets; the following secret sync restores them.
  */
 
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;

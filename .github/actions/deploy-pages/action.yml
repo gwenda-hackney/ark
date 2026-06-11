@@ -37,9 +37,6 @@ inputs:
   build-time:
     description: Build timestamp
     required: true
-  beacon-token:
-    description: Cloudflare Web Analytics beacon token
-    required: true
   cloudflare-api-token:
     description: Cloudflare API token
     required: true
@@ -85,15 +82,14 @@ runs:
         PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
         PAGES_PRODUCTION_BRANCH: ${{ inputs.pages-production-branch }}
 
-    - name: Configure Pages Web Analytics
+    - name: Pin environment
       shell: bash
-      run: node scripts/ensure-pages-analytics.mjs
+      run: node scripts/ensure-pages-env.mjs
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
-        WEB_ANALYTICS_ENABLED: ${{ inputs.site-env == 'production' && 'true' || 'false' }}
-        WEB_ANALYTICS_TOKEN: ${{ inputs.beacon-token }}
+        SITE_ENV: ${{ inputs.site-env }}
 
     - name: Sync Pages secrets
       shell: bash
@@ -114,13 +110,4 @@ runs:
         apiToken: ${{ inputs.cloudflare-api-token }}
         accountId: ${{ inputs.cloudflare-account-id }}
         command: pages deploy dist --project-name=${{ inputs.pages-project }} --commit-hash=${{ inputs.build-sha }} --branch=${{ inputs.deploy-branch }}
-
-    - name: Pin environment
-      shell: bash
-      run: node scripts/ensure-pages-env.mjs
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
-        PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
-        SITE_ENV: ${{ inputs.site-env }}
 
