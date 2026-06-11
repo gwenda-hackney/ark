@@ -58,6 +58,13 @@ inputs:
   subscribe-secret:
     description: Subscribe endpoint secret
     required: false
+  analytics-host:
+    description: Hostname for Cloudflare Web Analytics (zone auto-inject)
+    required: false
+  analytics-zone:
+    description: DNS zone for Web Analytics (default gwenda.co.uk)
+    required: false
+    default: gwenda.co.uk
 
 runs:
   using: composite
@@ -102,6 +109,16 @@ runs:
         BASEROW_API_KEY: ${{ inputs.baserow-api-key }}
         BASEROW_TABLE_ID: ${{ inputs.baserow-table-id }}
         SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
+
+    - name: Ensure Web Analytics
+      if: inputs.analytics-host != ''
+      shell: bash
+      run: node scripts/ensure-web-analytics.mjs
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        SITE_HOST: ${{ inputs.analytics-host }}
+        ZONE_NAME: ${{ inputs.analytics-zone }}
 
     - name: Deploy to Cloudflare Pages
       id: pages_deploy

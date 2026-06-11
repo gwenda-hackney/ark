@@ -14,7 +14,8 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 ## Branch flow
 
 - Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → ensure domain → smoke test.
-- Release: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): same steps → CalVer tag.
+- **Production requires explicit authorization.** Do not merge `main` into `release`, push to `release`, open a production deploy PR, or run production deploy steps unless the user clearly asks (e.g. “deploy to production”, “push release”). Default after changes: commit and push **`main`** only, then verify staging.
+- When authorized: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): same steps → CalVer tag.
 
 There is no separate CI workflow. Quality gates run on every push to `main`; a PR into `release` promotes already-verified code.
 
@@ -55,8 +56,9 @@ dist/          Build output (gitignored)
 - **Verify before deploy:** reusable workflow `verify.yml` (lint → build → test). Called by both deploy workflows.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Staging custom domain:** `ensure-pages-domain.mjs` with `CUSTOM_DOMAIN=staging.gwenda.co.uk`, `ZONE_NAME=gwenda.co.uk`.
+- **Staging = production for testable infra:** same deploy action, Web Analytics (zone auto-inject via `ensure-web-analytics.mjs`), smoke test depth, and secret sync order. Intentional staging-only differences: password gate, `SITE_ENV`, Baserow table, `PUBLIC_IS_STAGING` / noindex.
 - **Deploy pipeline:** `deploy-staging.yml` and `deploy-production.yml` are mirrored — build, deploy, ensure domain (staging only), live smoke test, summary (+ CalVer tag on production). Keep them in sync when changing deploy steps.
-- **Smoke tests:** `scripts/ci/smoke-test.mjs` — `/`, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
+- **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (with gate bypass on staging), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
 - **Secrets:** synced via `scripts/ci/sync-pages-secrets.mjs` profiles (`staging` | `production`). Never commit secrets.
 
 ## Code quality
@@ -75,6 +77,7 @@ dist/          Build output (gitignored)
 
 ## What not to do
 
+- **Do not deploy to production without explicit user authorization** — no merges/pushes to `release`, no production workflow triggers, no manual prod Cloudflare deploys unless the user asks.
 - Do not add a `public/` folder for assets — use `src/assets/` imports.
 - Do not let `deploy-staging.yml` and `deploy-production.yml` diverge — they must run the same steps.
 - Do not reintroduce a standalone CI workflow on `main` — verify already runs inside Deploy staging.
@@ -87,8 +90,7 @@ dist/          Build output (gitignored)
 ```bash
 npm run ensure:project   # Create/update Pages project
 npm run ensure:domain    # Attach custom domain + DNS (CUSTOM_DOMAIN, ZONE_NAME)
-npm run resolve:analytics
-npm run setup:analytics
+npm run ensure:analytics # Web Analytics zone auto-inject (SITE_HOST, ZONE_NAME)
 ```
 
 ## Related docs

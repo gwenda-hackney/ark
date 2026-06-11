@@ -62,6 +62,8 @@ jobs:
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
           baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
+          analytics-host: staging.gwenda.co.uk
+          analytics-zone: gwenda.co.uk
 
       - name: Ensure custom domain
         run: node scripts/ensure-pages-domain.mjs
@@ -73,6 +75,8 @@ jobs:
           ZONE_NAME: gwenda.co.uk
 
       - name: Smoke test live domains
+        env:
+          SMOKE_TEST_GATE_BYPASS_KEY: ${{ secrets.GATE_BYPASS_KEY }}
         run: node scripts/ci/smoke-test.mjs --url https://staging.gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
 
       - name: Deployment summary

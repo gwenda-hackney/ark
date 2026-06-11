@@ -14,14 +14,14 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 
 Deployment history: [github.com/gwenda-hackney/web/deployments](https://github.com/gwenda-hackney/web/deployments)
 
-Staging is password-gated (`SITE_PASSWORD`). Staging and production use the same deploy pipeline — only project, branch, secrets profile, and live smoke URLs differ.
+Staging is password-gated (`SITE_PASSWORD`). **Staging mirrors production** for everything testable in CI — same deploy pipeline, Web Analytics (zone auto-inject), smoke test depth, and secrets sync order. Only intentional differences: gate, `SITE_ENV`, Baserow table, and `noindex` robots.
 
 ## Branch flow
 
 GitLab Flow with a long-running `release` branch:
 
-1. **Develop on `main`** — every push runs lint, build, and tests, then deploys to staging.
-2. **Release to production** — when ready, merge `main` into `release` and push. No separate CI runs on the PR; `main` was already verified on each push.
+1. **Develop on `main`** — every push runs build and tests, then deploys to staging.
+2. **Release to production** — only when you explicitly authorize it. Merge `main` into `release` and push. Agents and automation must not push to `release` without your say-so.
 
 ```bash
 git checkout release
@@ -54,11 +54,12 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 
 Both [Deploy staging](.github/workflows/deploy-staging.yml) and [Deploy production](.github/workflows/deploy-production.yml) run the same steps (mirrored YAML — only project, branch, secrets, and smoke URLs differ):
 
-1. Verify (lint, build, test)
+1. Verify (build, test)
 2. Build and deploy to the environment's Pages project (`main` for staging, `release` for production)
-3. Ensure custom domain (staging only — idempotent attach of `staging.gwenda.co.uk`)
-4. Smoke test the live URL(s)
-5. Tag the CalVer release (production only)
+3. Ensure Web Analytics zone auto-inject for the live hostname
+4. Ensure custom domain (staging only — idempotent attach of `staging.gwenda.co.uk`)
+5. Smoke test the live URL(s)
+6. Tag the CalVer release (production only)
 
 |                   | Staging                | Production                         |
 | ----------------- | ---------------------- | ---------------------------------- |
@@ -72,12 +73,16 @@ Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages
 
 ### Smoke tests
 
-[`scripts/ci/smoke-test.mjs`](scripts/ci/smoke-test.mjs) runs after deploy:
+[`scripts/ci/smoke-test.mjs`](scripts/ci/smoke-test.mjs) runs after deploy on every live custom domain:
 
-- `GET /` — expects HTTP 200 and `X-Gwenda-Version` matching the build
-- `GET /robots.txt` — expects HTTP 200
+- `GET /` — HTTP 200, `X-Gwenda-Version` matches the build, expected homepage content
+- `GET /api/subscribe` — HTTP 200 JSON with `csrfToken` and `secret` (same check the signup form uses on load)
+- Critical `/_astro/` JS/CSS assets referenced by the homepage — all HTTP 200
+- `GET /robots.txt` — HTTP 200
 
-**Staging and production (same pipeline):** smoke test runs against each live custom domain after deploy. Checks retry for up to ~90s while Cloudflare propagates the deployment.
+On staging, smoke tests use `GATE_BYPASS_KEY` to pass the password gate so the homepage is exercised the same way as production.
+
+Checks retry for up to ~90s while Cloudflare propagates the deployment.
 
 ### Local checks
 
@@ -145,7 +150,7 @@ npm run build
 
 **Secrets:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SITE_PASSWORD`, `GATE_BYPASS_KEY`, `BASEROW_API_KEY`, `SUBSCRIBE_SECRET`
 
-**Variables:** `PUBLIC_OPENING_DATE`, `BASEROW_TABLE_ID` (production subscribe list), `BASEROW_STAGING_TABLE_ID` (staging list, default `1024006`), `PUBLIC_CF_BEACON_TOKEN` (optional fallback)
+**Variables:** `PUBLIC_OPENING_DATE`, `BASEROW_TABLE_ID` (production subscribe list), `BASEROW_STAGING_TABLE_ID` (staging list, default `1024006`)
 
 Staging signups go to a [separate Baserow table](https://baserow.io/database/465058/table/1024006/2009979) so test data does not mix with production.
 
