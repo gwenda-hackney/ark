@@ -86,9 +86,16 @@ export function buildAuthCookie(token, { secure = true } = {}) {
 const SEARCH_ENGINE_BOTS =
   /googlebot|google-inspectiontool|storebot-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|microsoft office|ms-office|skypeuripreview|teams|opengraphxyzbot|iframely|embedly|preview/i;
 
+function getUserAgent(request) {
+  const headers = request.headers;
+  if (typeof headers?.get === "function") {
+    return headers.get("User-Agent") ?? "";
+  }
+  return headers?.["user-agent"] ?? headers?.["User-Agent"] ?? "";
+}
+
 export function isSearchEngineCrawler(request) {
-  const ua = request.headers.get("User-Agent") ?? "";
-  return SEARCH_ENGINE_BOTS.test(ua);
+  return SEARCH_ENGINE_BOTS.test(getUserAgent(request));
 }
 
 /** @returns {{ kind: "open" | "gated" | "misconfigured", password?: string }} */
@@ -116,9 +123,10 @@ export function gateMisconfiguredResponse() {
 export function isPublicPath(pathname) {
   if (pathname === "/gate" || pathname === "/gate/") return true;
   if (pathname === "/thanks" || pathname === "/thanks/") return true;
-  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return true;
+  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/"))
+    return true;
   if (pathname === "/api/subscribe") return true;
-  if (pathname === "/og-image.jpg" || pathname === "/robots.txt") return true;
+  if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname.startsWith("/_astro/")) return true;
   if (pathname.startsWith("/_image")) return true;

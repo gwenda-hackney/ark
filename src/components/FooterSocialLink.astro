@@ -13,7 +13,10 @@ const { label, url } = Astro.props;
       {label}
     </a>
   ) : (
-    <span class="site-footer-social site-footer-social--placeholder" aria-label={`${label} (coming soon)`}>
+    <span
+      class="site-footer-social site-footer-social--placeholder"
+      aria-label={`${label} (coming soon)`}
+    >
       {label}
     </span>
   )

@@ -75,10 +75,13 @@ export function initCountdown(container, openingTimestamp) {
     el.textContent = formatUnit(unit, 0);
     el.dataset.value = formatUnit(unit, 0);
 
-    window.setTimeout(() => {
-      unitEl?.classList.add("is-visible");
-      rollValue(el, unit, target, !prefersReducedMotion);
-    }, 400 + index * 180);
+    window.setTimeout(
+      () => {
+        unitEl?.classList.add("is-visible");
+        rollValue(el, unit, target, !prefersReducedMotion);
+      },
+      400 + index * 180,
+    );
   });
 
   return window.setInterval(() => {

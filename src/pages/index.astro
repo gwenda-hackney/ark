@@ -6,7 +6,13 @@ import heroImg from "../assets/images/hero/hero.png";
 ---
 
 <BaseLayout description={getCopy("promo").description}>
-  <link slot="head" rel="preload" as="image" href={heroImg.src} fetchpriority="high" />
+  <link
+    slot="head"
+    rel="preload"
+    as="image"
+    href={heroImg.src}
+    fetchpriority="high"
+  />
 
   <HomePage mode="promo" />
 </BaseLayout>
