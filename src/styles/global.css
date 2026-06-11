@@ -1,3 +1,5 @@
+@import "./fonts.css";
+
 :root {
   --color-bg: #0d0d0d;
   --color-bg-elevated: #141414;
@@ -544,27 +546,41 @@ a:focus-visible {
 
 .hero-stagger {
   opacity: 0;
+}
+
+html.fonts-ready .hero-stagger {
   animation: fadeUp 0.85s var(--ease-out) forwards;
 }
 
-.hero-eyebrow.hero-stagger {
+html.fonts-ready .hero-eyebrow.hero-stagger {
   animation-delay: 0.25s;
 }
 
-.hero-logo.hero-stagger {
+html.fonts-ready .hero-logo.hero-stagger {
   animation-delay: 0.5s;
 }
 
-.hero-countdown.hero-stagger {
+html.fonts-ready .hero-countdown.hero-stagger {
   animation-delay: 0.75s;
 }
 
-.hero-location.hero-stagger {
+html.fonts-ready .hero-location.hero-stagger {
   animation-delay: 0.95s;
 }
 
-.hero-content .btn.hero-stagger {
+html.fonts-ready .hero-content .btn.hero-stagger {
   animation-delay: 1.15s;
+}
+
+html:not(.fonts-ready) .gate,
+html:not(.fonts-ready) .thanks {
+  opacity: 0;
+}
+
+html.fonts-ready .gate,
+html.fonts-ready .thanks {
+  opacity: 1;
+  transition: opacity 0.25s var(--ease-out);
 }
 
 .hero-eyebrow {
@@ -2110,6 +2126,7 @@ a:focus-visible {
     opacity: 1;
   }
 
+  html.fonts-ready .hero-stagger,
   .hero-stagger {
     opacity: 1;
     animation: none;
