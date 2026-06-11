@@ -18,8 +18,8 @@ All deployment history: [github.com/gwenda-hackney/web/deployments](https://gith
 
 GitLab Flow with a long-running `release` branch:
 
-1. **Develop on `main`** — merges auto-deploy to staging.
-2. **Release to production** — merge `main` into `release` and push:
+1. **Develop on `main`** — pushes auto-deploy to staging.
+2. **Release to production** — open a PR from `main` into `release` (CI verifies), merge, then push:
 
 ```bash
 git checkout release
@@ -79,7 +79,7 @@ npm run build
 
 ## CI and tests
 
-Pull requests and pushes to `main` run [CI](.github/workflows/ci.yml): lint, build, and unit tests.
+Pull requests to `release` run [CI](.github/workflows/ci.yml): lint, build, and unit tests.
 
 Deploy workflows run the same checks before deploying.
 
