@@ -40,7 +40,7 @@ if (!match) {
 }
 
 await cf(
-  `/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}/domains/${match.id}`,
+  `/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}/domains/${encodeURIComponent(DOMAIN)}`,
   { method: "DELETE" },
 );
 console.log(`Detached ${DOMAIN} from Pages project "${PROJECT}".`);
