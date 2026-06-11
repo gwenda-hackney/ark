@@ -60,8 +60,6 @@ jobs:
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
           baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
-          analytics-host: gwenda.co.uk
-          analytics-zone: gwenda.co.uk
 
       - name: Ensure apex custom domain
         run: node scripts/ensure-pages-domain.mjs

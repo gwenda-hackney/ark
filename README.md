@@ -6,7 +6,7 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 
 | Environment    | URL                                                                                                  | Branch    | Trigger           |
 | -------------- | ---------------------------------------------------------------------------------------------------- | --------- | ----------------- |
-| **Staging**    | [staging.gwenda.co.uk](https://staging.gwenda.co.uk) ([pages.dev](https://gwenda-staging.pages.dev)) | `main`    | Push to `main`    |
+| **Staging**    | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main`    | Push to `main`    |
 | **Production** | [gwenda.co.uk](https://gwenda.co.uk)                                                                 | `release` | Push to `release` |
 
 ![Staging deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/staging?label=staging)
@@ -14,7 +14,7 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 
 Deployment history: [github.com/gwenda-hackney/web/deployments](https://github.com/gwenda-hackney/web/deployments)
 
-Staging is password-gated (`SITE_PASSWORD`). **Staging mirrors production** for everything testable in CI — same deploy pipeline, Web Analytics (zone auto-inject with host rules), smoke test depth, and secrets sync order. Only intentional differences: gate, `SITE_ENV`, Baserow table, `noindex` robots, and **separate Web Analytics sites** (staging subdomain must not pollute production metrics).
+Staging is password-gated (`SITE_PASSWORD`) at **`gwenda-staging.pages.dev`**. Staging uses the Pages default URL (not a hostname in the `gwenda.co.uk` zone) so prod Web Analytics auto-inject does not count staging visits. Same deploy pipeline and smoke test depth as production; intentional differences: gate, `SITE_ENV`, Baserow table, `noindex` robots, URL.
 
 ## Branch flow
 
@@ -50,30 +50,26 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 
 **Toolchain:** Node 24, `npm ci` via Corepack (`packageManager` in `package.json`). Local devcontainer matches CI.
 
-### Deploy pipeline (staging and production)
+### Deploy pipeline
 
-Both [Deploy staging](.github/workflows/deploy-staging.yml) and [Deploy production](.github/workflows/deploy-production.yml) run the same steps (mirrored YAML — only project, branch, secrets, and smoke URLs differ):
+Shared build/deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml) and [scripts/ci/](scripts/ci/).
 
-1. Verify (build, test)
-2. Build and deploy to the environment's Pages project (`main` for staging, `release` for production)
-3. Ensure Web Analytics zone auto-inject with host rules (production excludes `staging.gwenda.co.uk`; staging has its own site)
-4. Ensure custom domain (staging only — idempotent attach of `staging.gwenda.co.uk`)
-5. Smoke test the live URL(s)
-6. Tag the CalVer release (production only)
+**Staging** ([deploy-staging.yml](.github/workflows/deploy-staging.yml)): verify → deploy to `gwenda-staging` → smoke test `gwenda-staging.pages.dev`.
 
-|                   | Staging                | Production                         |
-| ----------------- | ---------------------- | ---------------------------------- |
-| Project           | `gwenda-staging`       | `gwenda`                           |
-| Production branch | `main`                 | `release`                          |
-| Live smoke        | `staging.gwenda.co.uk` | `gwenda.co.uk`, `www.gwenda.co.uk` |
+**Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → deploy to `gwenda` → ensure `gwenda.co.uk` + `www` custom domains → smoke test both → CalVer tag.
 
-Custom domains stay permanently attached on production. There is no domain detach/attach per deploy.
+|                   | Staging                  | Production                         |
+| ----------------- | ------------------------ | ---------------------------------- |
+| Project           | `gwenda-staging`         | `gwenda`                           |
+| Production branch | `main`                   | `release`                          |
+| Live URL          | `gwenda-staging.pages.dev` | `gwenda.co.uk`, `www.gwenda.co.uk` |
+| Custom domain CI  | None                     | `ensure-pages-domain.mjs`          |
 
-Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml) and [scripts/ci/](scripts/ci/).
+Production custom domains stay permanently attached. **Web Analytics:** Cloudflare dashboard zone auto-inject on production only (no repo scripts).
 
 ### Smoke tests
 
-[`scripts/ci/smoke-test.mjs`](scripts/ci/smoke-test.mjs) runs after deploy on every live custom domain:
+[`scripts/ci/smoke-test.mjs`](scripts/ci/smoke-test.mjs) runs after deploy:
 
 - `GET /` — HTTP 200, `X-Gwenda-Version` matches the build, expected homepage content
 - `GET /api/subscribe` — HTTP 200 JSON with `csrfToken` and `secret` (same check the signup form uses on load)
@@ -100,7 +96,9 @@ Staging uses a separate project (`gwenda-staging` on `main`).
 
 Delete the unused **`gwenda-green`** Pages project in Cloudflare when convenient.
 
-The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage DNS (staging custom domain).
+The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage **production** DNS.
+
+**Optional cleanup:** detach `staging.gwenda.co.uk` from the `gwenda-staging` Pages project and delete the `staging` CNAME if still present (legacy blue/green setup).
 
 ### Rollback
 
@@ -116,7 +114,7 @@ Check what's live:
 
 ```bash
 curl -sI https://gwenda.co.uk | grep -i x-gwenda
-curl -sI https://staging.gwenda.co.uk | grep -i x-gwenda
+curl -sI https://gwenda-staging.pages.dev | grep -i x-gwenda
 ```
 
 Response headers: `X-Gwenda-Version`, `X-Gwenda-Build-Sha`. On staging, the corner ribbon also shows the version.

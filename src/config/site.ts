@@ -80,5 +80,3 @@ export const siteConfig = {
     signupSuccessBack: "Back to Gwenda",
   },
 } as const;
-
-export const cfBeaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN ?? "";
