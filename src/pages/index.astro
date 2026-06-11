@@ -1,18 +1,12 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import HomePage from "../components/HomePage.astro";
+import HeroPreload from "../components/HeroPreload.astro";
 import { getCopy } from "../config/copy";
-import heroImg from "../assets/images/hero/hero.png";
 ---
 
 <BaseLayout description={getCopy("promo").description}>
-  <link
-    slot="head"
-    rel="preload"
-    as="image"
-    href={heroImg.src}
-    fetchpriority="high"
-  />
+  <HeroPreload slot="head" />
 
   <HomePage mode="promo" />
 </BaseLayout>
