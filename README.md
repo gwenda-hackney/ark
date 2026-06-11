@@ -4,10 +4,10 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages.
 
 ## Deployments
 
-| Environment    | Site                                                         | Branch    | Trigger           | GitHub                                                                                               |
-| -------------- | ------------------------------------------------------------ | --------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| Environment    | Site                                                                                                                     | Branch    | Trigger           | GitHub                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------ | --------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Staging**    | [staging.gwenda.co.uk](https://staging.gwenda.co.uk) (also [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev)) | `main`    | Push to `main`    | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=staging)    |
-| **Production** | [gwenda.co.uk](https://gwenda.co.uk)                         | `release` | Push to `release` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=production) |
+| **Production** | [gwenda.co.uk](https://gwenda.co.uk)                                                                                     | `release` | Push to `release` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=production) |
 
 ![Staging deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/staging?label=staging)
 ![Production deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/production?label=production)
@@ -79,10 +79,10 @@ npm run build
 
 ## CI and tests
 
-| Trigger           | Workflow                                                     | Checks                         | Deploy              |
-| ----------------- | ------------------------------------------------------------ | ------------------------------ | ------------------- |
-| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | Lint, build, unit tests        | `gwenda-staging`    |
-| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | Lint, build, unit tests        | Blue/green → live   |
+| Trigger           | Workflow                                                     | Checks                  | Deploy            |
+| ----------------- | ------------------------------------------------------------ | ----------------------- | ----------------- |
+| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | Lint, build, unit tests | `gwenda-staging`  |
+| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | Lint, build, unit tests | Blue/green → live |
 
 Checks run in the reusable [verify](.github/workflows/verify.yml) job before any deploy. A PR to `release` promotes code that already passed on `main` — there is no separate CI workflow on that PR.
 
