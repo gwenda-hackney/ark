@@ -1,30 +1,6 @@
 import { initCountdown } from "./countdown.js";
 import { initSignup, initSignupAnchors } from "./signup.js";
 
-/* Hero image reveal */
-const heroImage = document.querySelector(".hero-image");
-
-if (heroImage) {
-  const revealHero = () => {
-    requestAnimationFrame(() => heroImage.classList.add("loaded"));
-  };
-
-  heroImage.addEventListener(
-    "animationend",
-    () => {
-      heroImage.classList.remove("loaded");
-      heroImage.classList.add("revealed");
-    },
-    { once: true },
-  );
-
-  if (heroImage.complete && heroImage.naturalHeight !== 0) {
-    revealHero();
-  } else {
-    heroImage.addEventListener("load", revealHero, { once: true });
-  }
-}
-
 /* Header + nav */
 const header = document.getElementById("site-header");
 const menuBtn = document.getElementById("site-header-menu-btn");

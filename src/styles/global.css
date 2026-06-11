@@ -496,16 +496,11 @@ a:focus-visible {
   object-position: center;
   filter: blur(2px) brightness(0.55);
   opacity: 0;
-  transform: scale(1.05);
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.hero-image.loaded {
-  animation: heroReveal 1.4s var(--ease-out) both;
-}
-
-.hero-image.revealed {
+.hero-image.is-visible {
   opacity: 1;
-  transform: scale(1);
 }
 
 .hero-overlay {
@@ -518,7 +513,7 @@ a:focus-visible {
     transparent 0%,
     rgba(13, 13, 13, 0.5) 100%
   );
-  transition: opacity 1.4s var(--ease-out);
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .hero-vignette {
@@ -532,13 +527,11 @@ a:focus-visible {
     rgba(13, 13, 13, 0.8) 100%
   );
   pointer-events: none;
-  transition: opacity 1.4s var(--ease-out);
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.hero-image.loaded ~ .hero-overlay,
-.hero-image.loaded ~ .hero-vignette,
-.hero-image.revealed ~ .hero-overlay,
-.hero-image.revealed ~ .hero-vignette {
+.hero-media.is-ready .hero-overlay,
+.hero-media.is-ready .hero-vignette {
   opacity: 1;
 }
 
@@ -2106,19 +2099,15 @@ a:focus-visible {
     transition: none;
   }
 
-  .hero-image.loaded,
-  .hero-image.revealed {
-    animation: none;
+  .hero-image.is-visible {
+    transition: none;
     opacity: 1;
-    transform: none;
   }
 
-  .hero-image.loaded ~ .hero-overlay,
-  .hero-image.loaded ~ .hero-vignette,
-  .hero-image.revealed ~ .hero-overlay,
-  .hero-image.revealed ~ .hero-vignette {
-    opacity: 1;
+  .hero-media.is-ready .hero-overlay,
+  .hero-media.is-ready .hero-vignette {
     transition: none;
+    opacity: 1;
   }
 
   .hero-stagger {
@@ -2137,17 +2126,6 @@ a:focus-visible {
 }
 
 /* Animations */
-@keyframes heroReveal {
-  from {
-    opacity: 0;
-    transform: scale(1.08);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
 @keyframes fadeUp {
   from {
     opacity: 0;
