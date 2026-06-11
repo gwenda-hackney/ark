@@ -1,18 +1,12 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import HomePage from "../../components/HomePage.astro";
-import heroImg from "../../assets/images/hero/hero.png";
+import HeroPreload from "../../components/HeroPreload.astro";
 ---
 
 <BaseLayout title="Gwenda — Preview">
   <meta name="robots" content="noindex, nofollow" slot="head" />
-  <link
-    slot="head"
-    rel="preload"
-    as="image"
-    href={heroImg.src}
-    fetchpriority="high"
-  />
+  <HeroPreload slot="head" />
 
   <HomePage mode="preview" />
 </BaseLayout>

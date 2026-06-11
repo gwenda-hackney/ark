@@ -2,8 +2,7 @@
 import { Image } from "astro:assets";
 import { siteConfig } from "../config/site";
 import { openingDate, openingTimestamp } from "../config/opening";
-import logo from "../assets/images/logos/logo.png";
-import heroImg from "../assets/images/hero/hero.png";
+import { heroBackground, heroLogo } from "../lib/hero-assets";
 
 const openingYear = new Date(openingDate).getFullYear();
 const openingMs = openingTimestamp();
@@ -17,7 +16,7 @@ const minutes = Math.floor((diff % 3600000) / 60000);
   <div class="hero-media">
     <div class="hero-bg" aria-hidden="true"></div>
     <Image
-      src={heroImg}
+      {...heroBackground}
       alt=""
       class="hero-image"
       loading="eager"
@@ -35,10 +34,11 @@ const minutes = Math.floor((diff % 3600000) / 60000);
       </span>
     </p>
     <Image
-      src={logo}
+      {...heroLogo}
       alt="Gwenda"
       class="hero-logo hero-stagger"
       loading="eager"
+      fetchpriority="high"
     />
 
     <div
