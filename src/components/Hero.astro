@@ -81,3 +81,18 @@ const minutes = Math.floor((diff % 3600000) / 60000);
     <span class="hero-scroll-chevron"></span>
   </a>
 </section>
+
+<noscript>
+  <style>
+    .hero-image,
+    .hero-overlay,
+    .hero-vignette {
+      opacity: 1 !important;
+    }
+  </style>
+</noscript>
+
+<script>
+  import { initHeroReveal } from "../scripts/hero-reveal.js";
+  initHeroReveal();
+</script>
