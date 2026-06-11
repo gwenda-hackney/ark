@@ -1,8 +1,7 @@
 ---
 import "../styles/global.css";
-import { siteConfig, cfBeaconToken } from "../config/site";
+import { siteConfig } from "../config/site";
 import { isStaging } from "../config/env";
-import Analytics from "../components/Analytics.astro";
 import SocialMeta from "../components/SocialMeta.astro";
 import Fonts from "../components/Fonts.astro";
 import StagingRibbon from "../components/StagingRibbon.astro";
@@ -45,7 +44,6 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     <Fonts />
     <link rel="icon" type="image/png" href={favicon.src} />
 
-    {cfBeaconToken && <Analytics />}
     <slot name="head" />
   </head>
   <body>
