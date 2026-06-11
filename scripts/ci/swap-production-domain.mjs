@@ -3,26 +3,31 @@
  * On failure, detach standby (if needed) and re-attach the live slot.
  */
 import { spawnSync } from "node:child_process";
-import { findProjectWithDomain } from "../_lib/cloudflare-api.mjs";
 
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
-const DOMAIN = process.env.CUSTOM_DOMAIN || "gwenda.co.uk";
-const ZONE_NAME = process.env.ZONE_NAME || DOMAIN;
+const ZONE_NAME = process.env.ZONE_NAME || "gwenda.co.uk";
 const LIVE_PROJECT = process.env.LIVE_PROJECT;
 const STANDBY_PROJECT = process.env.STANDBY_PROJECT;
 const NEW_ACTIVE_SLOT = process.env.NEW_ACTIVE_SLOT;
-const LEGACY_PROJECT = process.env.LEGACY_PROJECT || "gwenda";
+
+const PRODUCTION_DOMAINS = (
+  process.env.PRODUCTION_DOMAINS || "gwenda.co.uk,www.gwenda.co.uk"
+)
+  .split(",")
+  .map((domain) => domain.trim())
+  .filter(Boolean);
 
 if (
   !ACCOUNT_ID ||
   !API_TOKEN ||
   !LIVE_PROJECT ||
   !STANDBY_PROJECT ||
-  !NEW_ACTIVE_SLOT
+  !NEW_ACTIVE_SLOT ||
+  PRODUCTION_DOMAINS.length === 0
 ) {
   console.error(
-    "Missing LIVE_PROJECT, STANDBY_PROJECT, NEW_ACTIVE_SLOT, or Cloudflare credentials",
+    "Missing LIVE_PROJECT, STANDBY_PROJECT, NEW_ACTIVE_SLOT, PRODUCTION_DOMAINS, or Cloudflare credentials",
   );
   process.exit(1);
 }
@@ -34,64 +39,60 @@ function run(script, env) {
   });
 }
 
-function detach(project) {
+function detach(project, domain) {
   return run("scripts/ci/detach-pages-domain.mjs", {
     PAGES_PROJECT_NAME: project,
-    CUSTOM_DOMAIN: DOMAIN,
+    CUSTOM_DOMAIN: domain,
   });
 }
 
-function ensureDomain(project) {
+function ensureDomain(project, domain) {
   return run("scripts/ensure-pages-domain.mjs", {
     PAGES_PROJECT_NAME: project,
-    CUSTOM_DOMAIN: DOMAIN,
+    CUSTOM_DOMAIN: domain,
     ZONE_NAME,
   });
 }
 
-function rollbackToLive(rollbackProject) {
+function swapDomains(fromProject, toProject) {
+  for (const domain of PRODUCTION_DOMAINS) {
+    const detached = detach(fromProject, domain);
+    if (detached.status !== 0) return detached.status || 1;
+
+    const attached = ensureDomain(toProject, domain);
+    if (attached.status !== 0) return attached.status || 1;
+  }
+  return 0;
+}
+
+function rollbackToLive() {
   console.error(
-    `Swap failed — rolling back custom domain to ${rollbackProject}.`,
+    `Swap failed — rolling back production domains to ${LIVE_PROJECT}.`,
   );
-  detach(STANDBY_PROJECT);
-  const reattach = ensureDomain(rollbackProject);
-  if (reattach.status === 0) {
-    console.error(
-      `Rollback complete: ${DOMAIN} restored on ${rollbackProject}. Swap aborted.`,
-    );
-    return 0;
+
+  for (const domain of PRODUCTION_DOMAINS) {
+    detach(STANDBY_PROJECT, domain);
+    const attached = ensureDomain(LIVE_PROJECT, domain);
+    if (attached.status !== 0) {
+      console.error(
+        "Rollback failed — production domains may need manual recovery in Cloudflare.",
+      );
+      return attached.status || 1;
+    }
   }
 
   console.error(
-    `Rollback failed — ${DOMAIN} may need manual recovery in Cloudflare.`,
+    `Rollback complete: production domains restored on ${LIVE_PROJECT}. Swap aborted.`,
   );
-  return reattach.status || 1;
+  return 0;
 }
-
-let rollbackProject = LIVE_PROJECT;
 
 if (LIVE_PROJECT !== STANDBY_PROJECT) {
-  const domainHolder = await findProjectWithDomain(DOMAIN, [
-    LIVE_PROJECT,
-    LEGACY_PROJECT,
-  ]);
-
-  const detachFrom = domainHolder ?? LIVE_PROJECT;
-  rollbackProject = detachFrom;
-  if (domainHolder && domainHolder !== LIVE_PROJECT) {
-    console.log(
-      `Custom domain ${DOMAIN} is on "${domainHolder}" (expected live slot "${LIVE_PROJECT}").`,
-    );
+  const swapped = swapDomains(LIVE_PROJECT, STANDBY_PROJECT);
+  if (swapped !== 0) {
+    const rollbackStatus = rollbackToLive();
+    process.exit(rollbackStatus || swapped || 1);
   }
-
-  const detached = detach(detachFrom);
-  if (detached.status !== 0) process.exit(detached.status || 1);
-}
-
-const attached = ensureDomain(STANDBY_PROJECT);
-if (attached.status !== 0) {
-  const rollbackStatus = rollbackToLive(rollbackProject);
-  process.exit(rollbackStatus || attached.status || 1);
 }
 
 const repo = process.env.GITHUB_REPOSITORY;
@@ -149,5 +150,5 @@ if (repo && token) {
 }
 
 console.log(
-  `Production domain ${DOMAIN} now on ${STANDBY_PROJECT} (${NEW_ACTIVE_SLOT} slot).`,
+  `Production domains (${PRODUCTION_DOMAINS.join(", ")}) now on ${STANDBY_PROJECT} (${NEW_ACTIVE_SLOT} slot).`,
 );
