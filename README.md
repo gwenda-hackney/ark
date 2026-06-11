@@ -6,7 +6,7 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages.
 
 | Environment    | Site                                                         | Branch    | Trigger           | GitHub                                                                                               |
 | -------------- | ------------------------------------------------------------ | --------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
-| **Staging**    | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main`    | Push to `main`    | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=staging)    |
+| **Staging**    | [staging.gwenda.co.uk](https://staging.gwenda.co.uk) (also [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev)) | `main`    | Push to `main`    | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=staging)    |
 | **Production** | [gwenda.co.uk](https://gwenda.co.uk)                         | `release` | Push to `release` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=production) |
 
 ![Staging deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/staging?label=staging)
@@ -101,11 +101,15 @@ Repository variable **`PRODUCTION_ACTIVE_SLOT`**: `blue` or `green` (defaults to
 On each push to `release`:
 
 1. Deploy to the **standby** slot (`gwenda-{inactive}`)
-2. Run a minimal smoke test (`/` + `/robots.txt`) against the standby URL
+2. Run a minimal smoke test (`/` + `/robots.txt`) against the standby `.pages.dev` URL
 3. Swap `gwenda.co.uk` to the standby slot if smoke passes
 4. Tag the CalVer release
 
 Live traffic is unchanged until smoke passes and the domain swap completes.
+
+**Swap safety:** DNS updates patch the existing apex CNAME in place (no delete-then-create gap). If attach to the standby slot fails, the workflow re-attaches `gwenda.co.uk` to the live slot and aborts.
+
+**Staging custom domain:** Each push to `main` also attaches `staging.gwenda.co.uk` and smoke-tests it — same Pages + DNS + SSL path as production, without touching the apex domain.
 
 ### First-time blue/green setup
 
@@ -116,7 +120,11 @@ Live traffic is unchanged until smoke passes and the domain swap completes.
 
 ### Rollback
 
-If a release misbehaves after swap, swap back to the previous slot (the old deployment stays running on its `.pages.dev` URL):
+If a release misbehaves after a successful swap, swap back to the previous slot (the old deployment stays running on its `.pages.dev` URL):
+
+If a swap **fails mid-way**, CI attempts to re-attach the live slot automatically. Check the workflow log; if rollback also fails, fix the domain binding manually in Cloudflare.
+
+Manual rollback after a successful swap:
 
 ```bash
 # If green is live and you need to revert to blue:
