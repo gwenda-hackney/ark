@@ -76,10 +76,11 @@ jobs:
           baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
 
-      - name: Smoke test standby
+      - name: Smoke test standby slot (pre-cutover)
         run: node scripts/ci/smoke-test.mjs --url "${{ steps.slot.outputs.deploy_url }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
 
       - name: Swap production domain
+        id: swap
         run: node scripts/ci/swap-production-domain.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -87,12 +88,33 @@ jobs:
           LIVE_PROJECT: ${{ steps.slot.outputs.live_project }}
           STANDBY_PROJECT: ${{ steps.slot.outputs.deploy_project }}
           NEW_ACTIVE_SLOT: ${{ steps.slot.outputs.standby_slot }}
-          CUSTOM_DOMAIN: gwenda.co.uk
           ZONE_NAME: gwenda.co.uk
+          PRODUCTION_DOMAINS: gwenda.co.uk,www.gwenda.co.uk
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Smoke test live domain (post-cutover)
+        id: smoke_production
+        run: |
+          node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+          node scripts/ci/smoke-test.mjs --url https://www.gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      - name: Rollback production domain
+        if: failure() && steps.smoke_production.outcome == 'failure'
+        run: node scripts/ci/swap-production-domain.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          LIVE_PROJECT: ${{ steps.slot.outputs.deploy_project }}
+          STANDBY_PROJECT: ${{ steps.slot.outputs.live_project }}
+          NEW_ACTIVE_SLOT: ${{ steps.slot.outputs.active_slot }}
+          ZONE_NAME: gwenda.co.uk
+          PRODUCTION_DOMAINS: gwenda.co.uk,www.gwenda.co.uk
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Tag production release
+        if: success()
         run: node scripts/ci/tag-production-release.mjs
         env:
           RELEASE_VERSION: ${{ steps.buildmeta.outputs.version }}

@@ -62,13 +62,14 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 1. Verify (lint, build, test)
 2. Resolve active slot from `PRODUCTION_ACTIVE_SLOT` (`blue` or `green`, default `blue`)
 3. Deploy to the **standby** slot (`gwenda-{inactive}`)
-4. Smoke test the standby `.pages.dev` URL with the same version header check (retries while Pages propagates the new deployment)
+4. **Pre-cutover:** smoke test the standby `.pages.dev` URL (confirms the build uploaded before we touch the live domain)
 5. Swap `gwenda.co.uk` to the standby slot
-6. Tag the CalVer release
+6. **Post-cutover:** smoke test `https://gwenda.co.uk` and `https://www.gwenda.co.uk` for HTTP 200 and matching `X-Gwenda-Version`; rollback the domain swap if either fails
+7. Tag the CalVer release
 
-Live traffic stays on the current slot until the standby smoke test passes and the domain swap completes.
+Live traffic stays on the current slot until the standby pre-cutover check passes, the domain swap completes, and the post-cutover live-domain check passes.
 
-**Swap safety:** apex DNS is updated in place (PATCH, not delete-then-create). If attach to the standby slot fails, CI re-attaches `gwenda.co.uk` to the live slot and aborts.
+**Swap safety:** apex DNS is updated in place (PATCH, not delete-then-create). If attach to the standby slot fails during swap, CI re-attaches `gwenda.co.uk` to the prior holder and aborts. If the **post-cutover** live-domain smoke test fails, CI swaps the domain back to the previous slot.
 
 Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml) and [scripts/ci/](scripts/ci/).
 
@@ -76,10 +77,17 @@ Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages
 
 [`scripts/ci/smoke-test.mjs`](scripts/ci/smoke-test.mjs) runs after deploy:
 
-- `GET /` (follows staging gate redirect) — expects `X-Gwenda-Version` to match the CalVer label for that build
+- `GET /` — expects HTTP 200 and `X-Gwenda-Version` matching the build
 - `GET /robots.txt` — expects HTTP 200
 
-Staging and production standby checks retry for up to ~90s while Cloudflare propagates the deployment (and staging DNS/SSL).
+**Staging:** `https://staging.gwenda.co.uk` after deploy.
+
+**Production (two phases):**
+
+1. **Pre-cutover** — standby slot `.pages.dev` URL. Gate before the domain is moved.
+2. **Post-cutover** — `https://gwenda.co.uk` and `https://www.gwenda.co.uk` after the swap. This is the check that confirms visitors see the new release.
+
+All checks retry for up to ~90s while Cloudflare propagates the deployment (and DNS/SSL on custom domains).
 
 ### Local checks
 
@@ -102,10 +110,11 @@ GitHub repository variable **`PRODUCTION_ACTIVE_SLOT`**: `blue` or `green`.
 
 ### First-time setup
 
-1. Rename (or recreate) the existing `gwenda` Pages project as **`gwenda-blue`** when convenient (optional — CI detects the legacy `gwenda` project during the first swap).
-2. **`gwenda-green`** is created automatically on first deploy if missing.
-3. Set **`PRODUCTION_ACTIVE_SLOT`** = `blue` if `gwenda-blue` (or legacy `gwenda`) currently serves production.
-4. Push to `release` to run the first blue/green deploy.
+1. Create **`gwenda-blue`** and **`gwenda-green`** Pages projects (production branch: `release`), with `SITE_ENV=production` on both.
+2. Set **`PRODUCTION_ACTIVE_SLOT`** to whichever slot currently serves `gwenda.co.uk` and `www.gwenda.co.uk`.
+3. Push to `release` — CI deploys the standby slot, swaps both domains, and runs post-cutover smoke tests.
+
+Delete the legacy **`gwenda`** Pages project in Cloudflare when ready.
 
 The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage DNS.
 
@@ -121,7 +130,7 @@ PRODUCTION_ACTIVE_SLOT=green \
 LIVE_PROJECT=gwenda-green \
 STANDBY_PROJECT=gwenda-blue \
 NEW_ACTIVE_SLOT=blue \
-CUSTOM_DOMAIN=gwenda.co.uk \
+PRODUCTION_DOMAINS=gwenda.co.uk,www.gwenda.co.uk \
 ZONE_NAME=gwenda.co.uk \
 node scripts/ci/swap-production-domain.mjs
 ```
