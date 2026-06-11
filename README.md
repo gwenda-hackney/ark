@@ -14,7 +14,7 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 
 Deployment history: [github.com/gwenda-hackney/web/deployments](https://github.com/gwenda-hackney/web/deployments)
 
-Staging is password-gated (`SITE_PASSWORD`). Staging and production use the same Cloudflare Pages deploy model: preview on `ci-{sha}`, smoke test, production cutover, live smoke test, rollback on failure, prune old previews.
+Staging is password-gated (`SITE_PASSWORD`). Staging and production use the same deploy pipeline — only project, branch, secrets profile, and live smoke URLs differ.
 
 ## Branch flow
 
@@ -52,17 +52,13 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 
 ### Deploy pipeline (staging and production)
 
-Both environments use the shared [pages-preview-production](.github/workflows/pages-preview-production.yml) workflow:
+Both environments call the same reusable [deploy-environment](.github/workflows/deploy-environment.yml) workflow (via [Deploy staging](.github/workflows/deploy-staging.yml) or [Deploy production](.github/workflows/deploy-production.yml)):
 
 1. Verify (lint, build, test)
-2. Record the current production deployment (for rollback)
-3. Build and deploy a **preview** (`ci-{sha}` branch — custom domains unchanged)
-4. Smoke test the preview `.pages.dev` URL
-5. Deploy the same build to **production** (`main` for staging, `release` for production — atomic cutover)
-6. Smoke test the live URL(s); rollback if any check fails
-7. Prune older `ci-*` preview deployments (keep the current preview)
-
-Production also tags the CalVer release on success. Staging runs `ensure-pages-domain` for `staging.gwenda.co.uk` (idempotent).
+2. Build and deploy to the environment's Pages project (`main` for staging, `release` for production)
+3. Ensure custom domain (staging only — idempotent attach of `staging.gwenda.co.uk`)
+4. Smoke test the live URL(s)
+5. Tag the CalVer release (production only)
 
 |                   | Staging                | Production                         |
 | ----------------- | ---------------------- | ---------------------------------- |
@@ -70,11 +66,9 @@ Production also tags the CalVer release on success. Staging runs `ensure-pages-d
 | Production branch | `main`                 | `release`                          |
 | Live smoke        | `staging.gwenda.co.uk` | `gwenda.co.uk`, `www.gwenda.co.uk` |
 
-Custom domains stay permanently attached. There is no domain detach/attach per deploy.
+Custom domains stay permanently attached on production. There is no domain detach/attach per deploy.
 
-**Rollback:** if the post-cutover smoke test fails, CI calls the [Cloudflare Pages rollback API](https://developers.cloudflare.com/pages/configuration/rollbacks/) to restore the previous production deployment.
-
-Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml) and [scripts/ci/](scripts/ci/).
+Shared deploy logic: [deploy-environment](.github/workflows/deploy-environment.yml), [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml), and [scripts/ci/](scripts/ci/).
 
 ### Smoke tests
 
@@ -83,12 +77,7 @@ Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages
 - `GET /` — expects HTTP 200 and `X-Gwenda-Version` matching the build
 - `GET /robots.txt` — expects HTTP 200
 
-**Staging and production (same pipeline):**
-
-1. **Preview** — hash `.pages.dev` URL (`ci-{sha}` branch). Live custom domains are unchanged.
-2. **Live** — custom domain(s) after the production-branch deploy.
-
-Preview checks retry for up to ~90s while Cloudflare propagates the deployment. Live checks use shorter retries — cutover is atomic.
+**Staging and production (same pipeline):** smoke test runs against each live custom domain after deploy. Checks retry for up to ~90s while Cloudflare propagates the deployment.
 
 ### Local checks
 
@@ -109,8 +98,6 @@ Delete the unused **`gwenda-green`** Pages project in Cloudflare when convenient
 The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage DNS (staging custom domain).
 
 ### Rollback
-
-**Failed post-cutover smoke test:** CI rolls back to the production deployment recorded before the release.
 
 **Bad release after a successful deploy:** use the Cloudflare dashboard (Deployments → Rollback) or:
 
