@@ -1,7 +1,7 @@
 /**
  * Detach a custom domain from a Cloudflare Pages project.
  */
-import { cf } from "../_lib/cloudflare-api.mjs";
+import { cf, isProjectNotFoundError } from "../_lib/cloudflare-api.mjs";
 
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
@@ -15,9 +15,21 @@ if (!ACCOUNT_ID || !API_TOKEN || !PROJECT) {
   process.exit(1);
 }
 
-const domains = await cf(
-  `/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}/domains`,
-);
+let domains;
+try {
+  domains = await cf(
+    `/accounts/${ACCOUNT_ID}/pages/projects/${PROJECT}/domains`,
+  );
+} catch (err) {
+  if (isProjectNotFoundError(err)) {
+    console.log(
+      `Pages project "${PROJECT}" not found — nothing to detach for ${DOMAIN}.`,
+    );
+    process.exit(0);
+  }
+  throw err;
+}
+
 const match = domains?.find((d) => d.name === DOMAIN);
 
 if (!match) {
