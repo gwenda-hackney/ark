@@ -88,6 +88,7 @@ jobs:
           STANDBY_PROJECT: ${{ steps.slot.outputs.deploy_project }}
           NEW_ACTIVE_SLOT: ${{ steps.slot.outputs.standby_slot }}
           CUSTOM_DOMAIN: gwenda.co.uk
+          ZONE_NAME: gwenda.co.uk
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
