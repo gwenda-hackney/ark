@@ -3,7 +3,7 @@
  * Run after deploy in CI. Requires the zone on the Gwenda account (see .env.example).
  *
  * Env:
- *   CUSTOM_DOMAIN — e.g. gwenda.co.uk or staging.gwenda.co.uk
+ *   CUSTOM_DOMAIN — e.g. gwenda.co.uk or www.gwenda.co.uk
  *   ZONE_NAME     — DNS zone (default: CUSTOM_DOMAIN), e.g. gwenda.co.uk for subdomains
  */
 
