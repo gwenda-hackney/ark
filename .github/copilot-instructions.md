@@ -9,7 +9,7 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 | Environment | Branch    | Cloudflare Pages project | URL                                                            |
 | ----------- | --------- | ------------------------ | -------------------------------------------------------------- |
 | Staging     | `main`    | `gwenda-staging`         | https://staging.gwenda.co.uk (also `gwenda-staging.pages.dev`) |
-| Production  | `release` | `gwenda-blue`            | https://gwenda.co.uk                                           |
+| Production  | `release` | `gwenda`                 | https://gwenda.co.uk                                           |
 
 ## Branch flow
 

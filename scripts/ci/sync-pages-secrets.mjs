@@ -3,7 +3,7 @@
  *
  * Usage:
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
- *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-blue --profile production
+ *   node scripts/ci/sync-pages-secrets.mjs --project gwenda --profile production
  */
 import { spawnSync } from "node:child_process";
 

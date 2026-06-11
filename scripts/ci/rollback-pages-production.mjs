@@ -2,7 +2,7 @@
  * Roll back a Pages project to a previous production deployment.
  *
  * Usage:
- *   node scripts/ci/rollback-pages-production.mjs --project gwenda-blue --deployment-id <id>
+ *   node scripts/ci/rollback-pages-production.mjs --project gwenda --deployment-id <id>
  */
 import { cf } from "../_lib/cloudflare-api.mjs";
 
