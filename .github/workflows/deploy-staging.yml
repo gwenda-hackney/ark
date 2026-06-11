@@ -10,88 +10,31 @@ jobs:
     uses: ./.github/workflows/verify.yml
 
   deploy:
-    runs-on: ubuntu-latest
     needs: verify
-    permissions:
-      contents: read
-      deployments: write
-    environment:
-      name: staging
-      url: https://staging.gwenda.co.uk
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Compute build metadata
-        id: buildmeta
-        run: node scripts/ci/compute-build-metadata.mjs
-        env:
-          GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
-
-      - name: Resolve Web Analytics beacon token
-        id: beacon
-        run: echo "token=$(node scripts/resolve-beacon-token.mjs)" >> "$GITHUB_OUTPUT"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PUBLIC_CF_BEACON_TOKEN: ${{ vars.PUBLIC_CF_BEACON_TOKEN }}
-
-      - name: Deploy staging
-        uses: ./.github/actions/deploy-pages
-        with:
-          pages-project: gwenda-staging
-          pages-production-branch: main
-          site-env: staging
-          secret-profile: staging
-          deploy-branch: ${{ github.ref_name }}
-          public-is-staging: "true"
-          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-04' }}
-          build-version: ${{ steps.buildmeta.outputs.version }}
-          build-sha: ${{ steps.buildmeta.outputs.sha }}
-          build-ref: ${{ steps.buildmeta.outputs.ref }}
-          build-time: ${{ steps.buildmeta.outputs.time }}
-          beacon-token: ${{ steps.beacon.outputs.token }}
-          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          site-password: ${{ secrets.SITE_PASSWORD }}
-          gate-bypass-key: ${{ secrets.GATE_BYPASS_KEY }}
-          baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
-          baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
-          subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
-
-      - name: Attach staging custom domain
-        run: node scripts/ensure-pages-domain.mjs
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PAGES_PROJECT_NAME: gwenda-staging
-          CUSTOM_DOMAIN: staging.gwenda.co.uk
-          ZONE_NAME: gwenda.co.uk
-
-      - name: Smoke test staging custom domain
-        run: node scripts/ci/smoke-test.mjs --url https://staging.gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
-
-      - name: Deployment summary
-        run: node scripts/ci/write-deployment-summary.mjs
-        env:
-          DEPLOY_SUMMARY_JSON: >-
-            {"title":"Staging deployed","rows":[
-              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
-              ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
-              ["Site","https://staging.gwenda.co.uk"],
-              ["Pages dev","https://gwenda-staging.pages.dev"],
-              ["Deployments","[GitHub Environments](${{ github.server_url }}/${{ github.repository }}/deployments/activity_log?environment=staging)"]
-            ]}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      pages-project: gwenda-staging
+      pages-production-branch: main
+      site-env: staging
+      secret-profile: staging
+      public-is-staging: "true"
+      public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-04' }}
+      smoke-test-urls: |
+        https://staging.gwenda.co.uk
+      summary-title: Staging deployed
+      summary-site-url: https://staging.gwenda.co.uk
+      summary-pages-dev-url: https://gwenda-staging.pages.dev
+      ensure-custom-domain: staging.gwenda.co.uk
+      ensure-zone-name: gwenda.co.uk
+      github-environment: staging
+      github-environment-url: https://staging.gwenda.co.uk
+      public-cf-beacon-token: ${{ vars.PUBLIC_CF_BEACON_TOKEN }}
+      baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
+      tag-release: false
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+      GATE_BYPASS_KEY: ${{ secrets.GATE_BYPASS_KEY }}
+      BASEROW_API_KEY: ${{ secrets.BASEROW_API_KEY }}
+      SUBSCRIBE_SECRET: ${{ secrets.SUBSCRIBE_SECRET }}
