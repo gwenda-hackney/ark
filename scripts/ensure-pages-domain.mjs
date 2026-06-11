@@ -55,7 +55,9 @@ if (!attached) {
       method: "POST",
       body: { name: DOMAIN },
     });
-    console.log(`Attached custom domain ${DOMAIN} to Pages project "${PROJECT}".`);
+    console.log(
+      `Attached custom domain ${DOMAIN} to Pages project "${PROJECT}".`,
+    );
   } catch (err) {
     if (err.code === 8000018) {
       console.log(`Custom domain ${DOMAIN} already attached.`);

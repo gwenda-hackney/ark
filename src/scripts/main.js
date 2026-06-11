@@ -165,7 +165,9 @@ if (scrollHint && hero) {
 
 /* Hero — subtle depth parallax on the image */
 const heroMedia = document.querySelector(".hero-media");
-const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const prefersReducedMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
 
 if (hero && heroMedia && !prefersReducedMotion) {
   let parallaxTicking = false;
@@ -173,7 +175,10 @@ if (hero && heroMedia && !prefersReducedMotion) {
   const onHeroParallax = () => {
     const rect = hero.getBoundingClientRect();
     if (rect.bottom > 0 && rect.top < window.innerHeight) {
-      const progress = Math.min(1, Math.max(0, -rect.top / (rect.height * 0.85)));
+      const progress = Math.min(
+        1,
+        Math.max(0, -rect.top / (rect.height * 0.85)),
+      );
       heroMedia.style.transform = `translate3d(0, ${progress * 28}px, 0)`;
     }
     parallaxTicking = false;

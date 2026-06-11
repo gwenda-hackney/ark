@@ -52,18 +52,30 @@ export function issueSubscribeTokens(env, { secure = true } = {}) {
 export function validateSubscribeAuth({ getHeader, cookies, env }) {
   const secret = env.SUBSCRIBE_SECRET;
   if (!secret) {
-    return { ok: false, status: 503, error: "Something went wrong. Try again?" };
+    return {
+      ok: false,
+      status: 503,
+      error: "Something went wrong. Try again?",
+    };
   }
 
   const providedSecret = getHeader("X-Subscribe-Secret") ?? "";
   if (!matchesSecret(providedSecret, secret)) {
-    return { ok: false, status: 403, error: "Something went wrong. Try again?" };
+    return {
+      ok: false,
+      status: 403,
+      error: "Something went wrong. Try again?",
+    };
   }
 
   const csrfHeader = getHeader("X-CSRF-Token") ?? "";
   const csrfCookie = cookies[SUBSCRIBE_CSRF_COOKIE] ?? "";
   if (!csrfHeader || !csrfCookie || !matchesSecret(csrfHeader, csrfCookie)) {
-    return { ok: false, status: 403, error: "Something went wrong. Try again?" };
+    return {
+      ok: false,
+      status: 403,
+      error: "Something went wrong. Try again?",
+    };
   }
 
   return { ok: true };

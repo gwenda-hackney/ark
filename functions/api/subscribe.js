@@ -1,4 +1,7 @@
-import { issueSubscribeTokens, validateSubscribeRequest } from "../_lib/subscribe-auth.js";
+import {
+  issueSubscribeTokens,
+  validateSubscribeRequest,
+} from "../_lib/subscribe-auth.js";
 import { isSubscribeHoneypotTripped } from "../_lib/subscribe-honeypot.js";
 import { subscribeEmail } from "../_lib/subscribe.js";
 
@@ -10,11 +13,9 @@ export async function onRequestGet(context) {
     return json({ error: issued.error }, issued.status);
   }
 
-  return json(
-    { csrfToken: issued.csrfToken, secret: issued.secret },
-    200,
-    { "Set-Cookie": issued.setCookie },
-  );
+  return json({ csrfToken: issued.csrfToken, secret: issued.secret }, 200, {
+    "Set-Cookie": issued.setCookie,
+  });
 }
 
 export async function onRequestPost(context) {

@@ -1,16 +1,9 @@
 ---
 import { Image } from "astro:assets";
-import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { openingDate, openingTimestamp } from "../config/opening";
 import logo from "../assets/images/logos/logo.png";
 import heroImg from "../assets/images/hero/hero.png";
-
-interface Props {
-  mode?: SiteMode;
-}
-
-const { mode = "promo" } = Astro.props;
 
 const openingYear = new Date(openingDate).getFullYear();
 const openingMs = openingTimestamp();
@@ -41,7 +34,12 @@ const minutes = Math.floor((diff % 3600000) / 60000);
         <span class="hero-eyebrow-year">{openingYear}</span>
       </span>
     </p>
-    <Image src={logo} alt="Gwenda" class="hero-logo hero-stagger" loading="eager" />
+    <Image
+      src={logo}
+      alt="Gwenda"
+      class="hero-logo hero-stagger"
+      loading="eager"
+    />
 
     <div
       class="hero-countdown hero-stagger"
@@ -55,14 +53,18 @@ const minutes = Math.floor((diff % 3600000) / 60000);
       </div>
       <span class="countdown-sep" aria-hidden="true">·</span>
       <div class="countdown-unit" data-unit="hours">
-        <span class="countdown-value" data-value={String(hours).padStart(2, "0")}
+        <span
+          class="countdown-value"
+          data-value={String(hours).padStart(2, "0")}
           >{String(hours).padStart(2, "0")}</span
         >
         <span class="countdown-label">Hours</span>
       </div>
       <span class="countdown-sep" aria-hidden="true">·</span>
       <div class="countdown-unit" data-unit="minutes">
-        <span class="countdown-value" data-value={String(minutes).padStart(2, "0")}
+        <span
+          class="countdown-value"
+          data-value={String(minutes).padStart(2, "0")}
           >{String(minutes).padStart(2, "0")}</span
         >
         <span class="countdown-label">Min</span>
@@ -70,7 +72,9 @@ const minutes = Math.floor((diff % 3600000) / 60000);
     </div>
 
     <p class="hero-location hero-stagger">{siteConfig.tagline}</p>
-    <a href="#story" class="btn btn-primary hero-stagger" id="hero-cta">{siteConfig.copy.heroCta}</a>
+    <a href="#story" class="btn btn-primary hero-stagger" id="hero-cta"
+      >{siteConfig.copy.heroCta}</a
+    >
   </div>
 
   <a href="#story" class="hero-scroll-hint" aria-label="Scroll to story">

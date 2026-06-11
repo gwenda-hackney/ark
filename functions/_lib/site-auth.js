@@ -123,7 +123,8 @@ export function gateMisconfiguredResponse() {
 export function isPublicPath(pathname) {
   if (pathname === "/gate" || pathname === "/gate/") return true;
   if (pathname === "/thanks" || pathname === "/thanks/") return true;
-  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return true;
+  if (pathname === "/api/auth" || pathname.startsWith("/api/auth/"))
+    return true;
   if (pathname === "/api/subscribe") return true;
   if (pathname === "/og-image.jpg" || pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;

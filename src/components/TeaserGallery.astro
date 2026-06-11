@@ -29,11 +29,13 @@ const roman = ["I", "II", "III", "IV", "V", "VI"];
         <figure class="glimpse-item reveal">
           <Image
             src={cocktail.image!}
-            alt={revealDrinkNames ? `${cocktail.name} cocktail` : "Cocktail teaser"}
+            alt={
+              revealDrinkNames ? `${cocktail.name} cocktail` : "Cocktail teaser"
+            }
             class="glimpse-photo"
           />
           <figcaption class="glimpse-caption">
-            {revealDrinkNames ? cocktail.name : roman[i] ?? "—"}
+            {revealDrinkNames ? cocktail.name : (roman[i] ?? "—")}
           </figcaption>
         </figure>
       ))

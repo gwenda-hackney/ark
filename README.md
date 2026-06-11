@@ -4,10 +4,10 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages.
 
 ## Deployments
 
-| Environment | Site | Branch | Trigger | GitHub |
-|---|---|---|---|---|
-| **Staging** | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main` | Push to `main` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=staging) |
-| **Production** | [gwenda.co.uk](https://gwenda.co.uk) | `release` | Push to `release` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=production) |
+| Environment    | Site                                                         | Branch    | Trigger           | GitHub                                                                                               |
+| -------------- | ------------------------------------------------------------ | --------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| **Staging**    | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main`    | Push to `main`    | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=staging)    |
+| **Production** | [gwenda.co.uk](https://gwenda.co.uk)                         | `release` | Push to `release` | [Deployments](https://github.com/gwenda-hackney/web/deployments/activity_log?environment=production) |
 
 ![Staging deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/staging?label=staging)
 ![Production deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/production?label=production)
@@ -76,3 +76,52 @@ PUBLIC_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
 PUBLIC_BUILD_VERSION=$(node scripts/compute-build-version.mjs --export) \
 npm run build
 ```
+
+## CI and tests
+
+Pull requests and pushes to `main` run [CI](.github/workflows/ci.yml): lint, build, and unit tests.
+
+Deploy workflows run the same checks before deploying.
+
+```bash
+npm run lint        # ESLint + Prettier
+npm test            # Vitest unit tests
+npm run test:watch  # Vitest watch mode
+```
+
+## Production blue/green deploy
+
+Production uses two Cloudflare Pages projects — **gwenda-blue** and **gwenda-green** — with `gwenda.co.uk` attached to the active slot.
+
+Repository variable **`PRODUCTION_ACTIVE_SLOT`**: `blue` or `green` (defaults to `blue` if unset).
+
+On each push to `release`:
+
+1. Deploy to the **standby** slot (`gwenda-{inactive}`)
+2. Run a minimal smoke test (`/` + `/robots.txt`) against the standby URL
+3. Swap `gwenda.co.uk` to the standby slot if smoke passes
+4. Tag the CalVer release
+
+Live traffic is unchanged until smoke passes and the domain swap completes.
+
+### First-time blue/green setup
+
+1. In Cloudflare, rename the existing `gwenda` Pages project to **`gwenda-blue`** (or recreate it with that name and redeploy).
+2. Create **`gwenda-green`** (CI creates it automatically on first deploy if missing).
+3. Set GitHub repository variable **`PRODUCTION_ACTIVE_SLOT`** = `blue` if `gwenda-blue` currently serves production.
+4. Push to `release` to run the first blue/green deploy.
+
+### Rollback
+
+If a release misbehaves after swap, swap back to the previous slot (the old deployment stays running on its `.pages.dev` URL):
+
+```bash
+# If green is live and you need to revert to blue:
+PRODUCTION_ACTIVE_SLOT=green \
+LIVE_PROJECT=gwenda-green \
+STANDBY_PROJECT=gwenda-blue \
+NEW_ACTIVE_SLOT=blue \
+node scripts/ci/swap-production-domain.mjs
+```
+
+Set `PRODUCTION_ACTIVE_SLOT` manually if the GitHub API update fails.

@@ -23,7 +23,12 @@ const copy = getCopy(mode);
           <p>{copy.signupSubheading}</p>
         </header>
 
-        <form class="signup-form reveal reveal-stagger" id="signup-form" style="--reveal-delay: 0.14s" novalidate>
+        <form
+          class="signup-form reveal reveal-stagger"
+          id="signup-form"
+          style="--reveal-delay: 0.14s"
+          novalidate
+        >
           <div class="signup-field">
             <label for="email" class="visually-hidden">Email address</label>
             <input
@@ -59,14 +64,27 @@ const copy = getCopy(mode);
             />
           </div>
 
-          <p class="signup-error" id="signup-error" role="alert" aria-live="polite"></p>
+          <p
+            class="signup-error"
+            id="signup-error"
+            role="alert"
+            aria-live="polite"
+          >
+          </p>
         </form>
       </div>
 
       <div class="signup-confirm" id="signup-confirm" aria-hidden="true">
-        <Image src={logo} alt="Gwenda" class="signup-confirm-logo" loading="eager" />
+        <Image
+          src={logo}
+          alt="Gwenda"
+          class="signup-confirm-logo"
+          loading="eager"
+        />
         <p class="signup-confirm-eyebrow">Thank you</p>
-        <h2 class="signup-confirm-title">{siteConfig.copy.signupSuccessTitle}</h2>
+        <h2 class="signup-confirm-title">
+          {siteConfig.copy.signupSuccessTitle}
+        </h2>
         <p class="signup-confirm-lead">{siteConfig.copy.signupSuccessLead}</p>
         <a href="/#hero" class="btn btn-primary signup-confirm-back">
           {siteConfig.copy.signupSuccessBack}

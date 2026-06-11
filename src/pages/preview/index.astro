@@ -6,7 +6,13 @@ import heroImg from "../../assets/images/hero/hero.png";
 
 <BaseLayout title="Gwenda — Preview">
   <meta name="robots" content="noindex, nofollow" slot="head" />
-  <link slot="head" rel="preload" as="image" href={heroImg.src} fetchpriority="high" />
+  <link
+    slot="head"
+    rel="preload"
+    as="image"
+    href={heroImg.src}
+    fetchpriority="high"
+  />
 
   <HomePage mode="preview" />
 </BaseLayout>

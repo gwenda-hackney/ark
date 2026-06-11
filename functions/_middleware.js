@@ -33,7 +33,9 @@ export async function onRequest(context) {
   if (bypassKey && accessParam && matchesSecret(accessParam, bypassKey)) {
     const redirectPath = gateBypassRedirectPath(url);
     if (redirectPath) {
-      const headers = { Location: new URL(redirectPath, url.origin).toString() };
+      const headers = {
+        Location: new URL(redirectPath, url.origin).toString(),
+      };
       if (!authed) {
         const token = await createAuthToken(expected);
         headers["Set-Cookie"] = buildAuthCookie(token);

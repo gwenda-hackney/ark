@@ -103,7 +103,8 @@ export function initSignup(form) {
       return;
     }
 
-    const website = form.querySelector('input[name="website"]')?.value.trim() ?? "";
+    const website =
+      form.querySelector('input[name="website"]')?.value.trim() ?? "";
     if (website) {
       setLoading(form, submitBtn, false, defaultBtnText);
       showConfirmation(section, confirmEl);
@@ -135,13 +136,32 @@ export function initSignup(form) {
     }
   });
 
-  document.querySelector(".signup-confirm-back")?.addEventListener("click", () => {
-    resetSignup({ section, confirmEl, form, errorEl, submitBtn, defaultBtnText });
-  });
+  document
+    .querySelector(".signup-confirm-back")
+    ?.addEventListener("click", () => {
+      resetSignup({
+        section,
+        confirmEl,
+        form,
+        errorEl,
+        submitBtn,
+        defaultBtnText,
+      });
+    });
 
   window.addEventListener("hashchange", () => {
-    if (section?.classList.contains("is-confirmed") && location.hash !== "#list") {
-      resetSignup({ section, confirmEl, form, errorEl, submitBtn, defaultBtnText });
+    if (
+      section?.classList.contains("is-confirmed") &&
+      location.hash !== "#list"
+    ) {
+      resetSignup({
+        section,
+        confirmEl,
+        form,
+        errorEl,
+        submitBtn,
+        defaultBtnText,
+      });
     }
   });
 }
@@ -192,7 +212,14 @@ function showConfirmation(section, confirmEl) {
   });
 }
 
-function resetSignup({ section, confirmEl, form, errorEl, submitBtn, defaultBtnText }) {
+function resetSignup({
+  section,
+  confirmEl,
+  form,
+  errorEl,
+  submitBtn,
+  defaultBtnText,
+}) {
   section?.classList.remove("is-confirmed");
   confirmEl?.setAttribute("aria-hidden", "true");
   form?.reset();
