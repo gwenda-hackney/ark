@@ -593,7 +593,7 @@ a:focus-visible {
 }
 
 .hero-logo {
-  height: clamp(180px, 28vw, 320px);
+  height: clamp(135px, 21vw, 240px);
   width: auto;
   margin-inline: auto;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));

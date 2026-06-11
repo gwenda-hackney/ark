@@ -118,6 +118,17 @@ Match site treatment:
 - Close detail: glass, steam, stone, candle edge
 - Vignette at edges—center glow, dark perimeter
 
+### Social — Instagram dimensions
+
+| Format | Size (px) | Aspect | Use |
+| --- | --- | --- | --- |
+| **Feed post** | **1080 × 1350** | 4:5 portrait | Typical Instagram post—primary format for announcements, food, atmosphere |
+| Story / Reels cover | 1080 × 1920 | 9:16 | Full-screen vertical—stories, reels thumbnail |
+
+Feed posts should use the site palette and typography (Cormorant display, Lora body, `#C9A84C` gold accent on dark ground).
+
+**Social posts:** Export from Adobe Illustrator at the sizes above. Site repo holds web assets only (`logo.png`, `favicon-light.png`).
+
 ### Materials (aligned to manifesto + site)
 
 | Element | Direction |
@@ -179,7 +190,8 @@ The site uses slow fades and staggered reveals (`cubic-bezier(0.25, 0.46, 0.45, 
 | --- | --- |
 | CSS tokens | `src/styles/global.css` (`:root` variables) |
 | Fonts | `src/layouts/BaseLayout.astro` |
-| Logo | `src/assets/images/logos/` |
+| Logo | `src/assets/images/logos/logo.png` |
+| Favicon | `src/assets/images/logos/favicon-light.png` |
 | Hero / atmosphere imagery | `src/assets/images/` — **conceptual guides only** |
 
 ---
