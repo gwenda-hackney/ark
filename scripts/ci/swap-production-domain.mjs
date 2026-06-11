@@ -3,6 +3,7 @@
  * On failure, detach standby (if needed) and re-attach the live slot.
  */
 import { spawnSync } from "node:child_process";
+import { findProjectWithDomain } from "../_lib/cloudflare-api.mjs";
 
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
@@ -11,6 +12,7 @@ const ZONE_NAME = process.env.ZONE_NAME || DOMAIN;
 const LIVE_PROJECT = process.env.LIVE_PROJECT;
 const STANDBY_PROJECT = process.env.STANDBY_PROJECT;
 const NEW_ACTIVE_SLOT = process.env.NEW_ACTIVE_SLOT;
+const LEGACY_PROJECT = process.env.LEGACY_PROJECT || "gwenda";
 
 if (
   !ACCOUNT_ID ||
@@ -47,15 +49,15 @@ function ensureDomain(project) {
   });
 }
 
-function rollbackToLive() {
+function rollbackToLive(rollbackProject) {
   console.error(
-    `Swap failed — rolling back custom domain to live slot (${LIVE_PROJECT}).`,
+    `Swap failed — rolling back custom domain to ${rollbackProject}.`,
   );
   detach(STANDBY_PROJECT);
-  const reattach = ensureDomain(LIVE_PROJECT);
+  const reattach = ensureDomain(rollbackProject);
   if (reattach.status === 0) {
     console.error(
-      `Rollback complete: ${DOMAIN} restored on ${LIVE_PROJECT}. Swap aborted.`,
+      `Rollback complete: ${DOMAIN} restored on ${rollbackProject}. Swap aborted.`,
     );
     return 0;
   }
@@ -66,14 +68,29 @@ function rollbackToLive() {
   return reattach.status || 1;
 }
 
+let rollbackProject = LIVE_PROJECT;
+
 if (LIVE_PROJECT !== STANDBY_PROJECT) {
-  const detached = detach(LIVE_PROJECT);
+  const domainHolder = await findProjectWithDomain(DOMAIN, [
+    LIVE_PROJECT,
+    LEGACY_PROJECT,
+  ]);
+
+  const detachFrom = domainHolder ?? LIVE_PROJECT;
+  rollbackProject = detachFrom;
+  if (domainHolder && domainHolder !== LIVE_PROJECT) {
+    console.log(
+      `Custom domain ${DOMAIN} is on "${domainHolder}" (expected live slot "${LIVE_PROJECT}").`,
+    );
+  }
+
+  const detached = detach(detachFrom);
   if (detached.status !== 0) process.exit(detached.status || 1);
 }
 
 const attached = ensureDomain(STANDBY_PROJECT);
 if (attached.status !== 0) {
-  const rollbackStatus = rollbackToLive();
+  const rollbackStatus = rollbackToLive(rollbackProject);
   process.exit(rollbackStatus || attached.status || 1);
 }
 

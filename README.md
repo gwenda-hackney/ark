@@ -102,9 +102,9 @@ GitHub repository variable **`PRODUCTION_ACTIVE_SLOT`**: `blue` or `green`.
 
 ### First-time setup
 
-1. Rename (or recreate) the existing `gwenda` Pages project as **`gwenda-blue`**.
+1. Rename (or recreate) the existing `gwenda` Pages project as **`gwenda-blue`** when convenient (optional — CI detects the legacy `gwenda` project during the first swap).
 2. **`gwenda-green`** is created automatically on first deploy if missing.
-3. Set **`PRODUCTION_ACTIVE_SLOT`** = `blue` if `gwenda-blue` currently serves production.
+3. Set **`PRODUCTION_ACTIVE_SLOT`** = `blue` if `gwenda-blue` (or legacy `gwenda`) currently serves production.
 4. Push to `release` to run the first blue/green deploy.
 
 The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage DNS.

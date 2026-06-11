@@ -12,4 +12,3 @@ Tracked in GitHub issues where noted. See README and `.github/copilot-instructio
 - [ ] Expand unit test coverage — [#6](https://github.com/gwenda-hackney/web/issues/6)
 - [ ] Playwright regression suite — [#7](https://github.com/gwenda-hackney/web/issues/7)
 - [ ] Automated security scanning (ZAP, Dependabot) — [#8](https://github.com/gwenda-hackney/web/issues/8)
-- [ ] First-time blue/green production setup — rename `gwenda` → `gwenda-blue`, set `PRODUCTION_ACTIVE_SLOT`
