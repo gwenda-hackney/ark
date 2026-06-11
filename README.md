@@ -43,9 +43,9 @@ git push -u origin release
 
 There is one workflow per deploy target. Both call the reusable [verify](.github/workflows/verify.yml) job (lint → build → unit tests) before deploying.
 
-| Trigger           | Workflow                                                     | Deploy target                  |
-| ----------------- | ------------------------------------------------------------ | ------------------------------ |
-| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | `gwenda-staging`               |
+| Trigger           | Workflow                                                     | Deploy target             |
+| ----------------- | ------------------------------------------------------------ | ------------------------- |
+| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | `gwenda-staging`          |
 | Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | `gwenda` → `gwenda.co.uk` |
 
 **Toolchain:** Node 24, `npm ci` via Corepack (`packageManager` in `package.json`). Local devcontainer matches CI.
