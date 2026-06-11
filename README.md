@@ -14,7 +14,7 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 
 Deployment history: [github.com/gwenda-hackney/web/deployments](https://github.com/gwenda-hackney/web/deployments)
 
-Staging is password-gated (`SITE_PASSWORD`). Production uses blue/green Pages projects with a smoke test before the domain swap.
+Staging is password-gated (`SITE_PASSWORD`). Staging and production use the same Cloudflare Pages deploy model: preview on `ci-{sha}`, smoke test, production cutover, live smoke test, rollback on failure, prune old previews.
 
 ## Branch flow
 
@@ -43,33 +43,36 @@ git push -u origin release
 
 There is one workflow per deploy target. Both call the reusable [verify](.github/workflows/verify.yml) job (lint → build → unit tests) before deploying.
 
-| Trigger           | Workflow                                                     | Deploy target                            |
-| ----------------- | ------------------------------------------------------------ | ---------------------------------------- |
-| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | `gwenda-staging`                         |
-| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | Standby blue/green slot → `gwenda.co.uk` |
+| Trigger           | Workflow                                                     | Deploy target                  |
+| ----------------- | ------------------------------------------------------------ | ------------------------------ |
+| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | `gwenda-staging`               |
+| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | `gwenda-blue` → `gwenda.co.uk` |
 
 **Toolchain:** Node 24, `npm ci` via Corepack (`packageManager` in `package.json`). Local devcontainer matches CI.
 
-### Staging pipeline (`main`)
+### Deploy pipeline (staging and production)
+
+Both environments use the shared [pages-preview-production](.github/workflows/pages-preview-production.yml) workflow:
 
 1. Verify (lint, build, test)
-2. Build and deploy to `gwenda-staging`
-3. Attach `staging.gwenda.co.uk` (Pages custom domain + zone DNS) — rehearses the production domain path without touching the apex
-4. Smoke test `https://staging.gwenda.co.uk` — checks `/` and `/robots.txt`, asserts `X-Gwenda-Version` matches the build, retries while DNS/SSL propagate
+2. Record the current production deployment (for rollback)
+3. Build and deploy a **preview** (`ci-{sha}` branch — custom domains unchanged)
+4. Smoke test the preview `.pages.dev` URL
+5. Deploy the same build to **production** (`main` for staging, `release` for production — atomic cutover)
+6. Smoke test the live URL(s); rollback if any check fails
+7. Prune older `ci-*` preview deployments (keep the current preview)
 
-### Production pipeline (`release`)
+Production also tags the CalVer release on success. Staging runs `ensure-pages-domain` for `staging.gwenda.co.uk` (idempotent).
 
-1. Verify (lint, build, test)
-2. Resolve active slot from `PRODUCTION_ACTIVE_SLOT` (`blue` or `green`, default `blue`)
-3. Deploy to the **standby** slot (`gwenda-{inactive}`)
-4. **Pre-cutover:** smoke test the standby `.pages.dev` URL (confirms the build uploaded before we touch the live domain)
-5. Swap `gwenda.co.uk` to the standby slot
-6. **Post-cutover:** smoke test `https://gwenda.co.uk` and `https://www.gwenda.co.uk` for HTTP 200 and matching `X-Gwenda-Version`; rollback the domain swap if either fails
-7. Tag the CalVer release
+|                   | Staging                | Production                         |
+| ----------------- | ---------------------- | ---------------------------------- |
+| Project           | `gwenda-staging`       | `gwenda-blue`                      |
+| Production branch | `main`                 | `release`                          |
+| Live smoke        | `staging.gwenda.co.uk` | `gwenda.co.uk`, `www.gwenda.co.uk` |
 
-Live traffic stays on the current slot until the standby pre-cutover check passes, the domain swap completes, and the post-cutover live-domain check passes.
+Custom domains stay permanently attached. There is no domain detach/attach per deploy.
 
-**Swap safety:** apex DNS is updated in place (PATCH, not delete-then-create). If attach to the standby slot fails during swap, CI re-attaches `gwenda.co.uk` to the prior holder and aborts. If the **post-cutover** live-domain smoke test fails, CI swaps the domain back to the previous slot.
+**Rollback:** if the post-cutover smoke test fails, CI calls the [Cloudflare Pages rollback API](https://developers.cloudflare.com/pages/configuration/rollbacks/) to restore the previous production deployment.
 
 Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml) and [scripts/ci/](scripts/ci/).
 
@@ -80,14 +83,12 @@ Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages
 - `GET /` — expects HTTP 200 and `X-Gwenda-Version` matching the build
 - `GET /robots.txt` — expects HTTP 200
 
-**Staging:** `https://staging.gwenda.co.uk` after deploy.
+**Staging and production (same pipeline):**
 
-**Production (two phases):**
+1. **Preview** — hash `.pages.dev` URL (`ci-{sha}` branch). Live custom domains are unchanged.
+2. **Live** — custom domain(s) after the production-branch deploy.
 
-1. **Pre-cutover** — standby slot `.pages.dev` URL. Gate before the domain is moved.
-2. **Post-cutover** — `https://gwenda.co.uk` and `https://www.gwenda.co.uk` after the swap. This is the check that confirms visitors see the new release.
-
-All checks retry for up to ~90s while Cloudflare propagates the deployment (and DNS/SSL on custom domains).
+Preview checks retry for up to ~90s while Cloudflare propagates the deployment. Live checks use shorter retries — cutover is atomic.
 
 ### Local checks
 
@@ -97,45 +98,30 @@ npm test            # Vitest unit tests
 npm run test:watch  # Vitest watch mode
 ```
 
-## Production blue/green
+## Production Pages project
 
-Two Cloudflare Pages projects alternate as live and standby:
+Production runs on a single Cloudflare Pages project: **`gwenda-blue`** (production branch: `release`). Custom domains `gwenda.co.uk` and `www.gwenda.co.uk` are attached once and never moved per deploy.
 
-| Slot  | Project        |
-| ----- | -------------- |
-| Blue  | `gwenda-blue`  |
-| Green | `gwenda-green` |
+Staging uses a separate project (`gwenda-staging` on `main`).
 
-GitHub repository variable **`PRODUCTION_ACTIVE_SLOT`**: `blue` or `green`.
+The legacy `gwenda` and `gwenda-green` projects can be deleted in Cloudflare when convenient.
 
-### First-time setup
-
-1. Create **`gwenda-blue`** and **`gwenda-green`** Pages projects (production branch: `release`), with `SITE_ENV=production` on both.
-2. Set **`PRODUCTION_ACTIVE_SLOT`** to whichever slot currently serves `gwenda.co.uk` and `www.gwenda.co.uk`.
-3. Push to `release` — CI deploys the standby slot, swaps both domains, and runs post-cutover smoke tests.
-
-Delete the legacy **`gwenda`** Pages project in Cloudflare when ready.
-
-The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage DNS.
+The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage DNS (staging custom domain).
 
 ### Rollback
 
-**Failed swap:** CI attempts to re-attach the live slot automatically. Check the workflow log; if that fails too, fix the domain binding in the Cloudflare dashboard.
+**Failed post-cutover smoke test:** CI rolls back to the production deployment recorded before the release.
 
-**Bad release after a successful swap:** the previous slot is still running on its `.pages.dev` URL. Swap the domain back manually:
+**Bad release after a successful deploy:** use the Cloudflare dashboard (Deployments → Rollback) or:
 
 ```bash
-# Example: green is live, revert to blue
-PRODUCTION_ACTIVE_SLOT=green \
-LIVE_PROJECT=gwenda-green \
-STANDBY_PROJECT=gwenda-blue \
-NEW_ACTIVE_SLOT=blue \
-PRODUCTION_DOMAINS=gwenda.co.uk,www.gwenda.co.uk \
-ZONE_NAME=gwenda.co.uk \
-node scripts/ci/swap-production-domain.mjs
+CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \
+node scripts/ci/rollback-pages-production.mjs \
+  --project gwenda-blue \
+  --deployment-id <previous-deployment-id>
 ```
 
-Set `PRODUCTION_ACTIVE_SLOT` manually if the GitHub API update fails.
+Find deployment IDs in the Cloudflare Pages dashboard or via the [Deployments API](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/).
 
 ## Versioning
 
@@ -181,7 +167,7 @@ npm run build
 
 **Secrets:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SITE_PASSWORD`, `GATE_BYPASS_KEY`, `BASEROW_API_KEY`, `SUBSCRIBE_SECRET`
 
-**Variables:** `PRODUCTION_ACTIVE_SLOT`, `PUBLIC_OPENING_DATE`, `BASEROW_TABLE_ID` (production subscribe list), `BASEROW_STAGING_TABLE_ID` (staging list, default `1024006`), `PUBLIC_CF_BEACON_TOKEN` (optional fallback)
+**Variables:** `PUBLIC_OPENING_DATE`, `BASEROW_TABLE_ID` (production subscribe list), `BASEROW_STAGING_TABLE_ID` (staging list, default `1024006`), `PUBLIC_CF_BEACON_TOKEN` (optional fallback)
 
 Staging signups go to a [separate Baserow table](https://baserow.io/database/465058/table/1024006/2009979) so test data does not mix with production.
 

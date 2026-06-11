@@ -61,11 +61,24 @@ inputs:
   subscribe-secret:
     description: Subscribe endpoint secret
     required: false
+  skip-build:
+    description: Skip npm run build (reuse an existing dist/ directory)
+    required: false
+    default: "false"
+
+outputs:
+  deployment_url:
+    description: Primary .pages.dev URL for the deployment
+    value: ${{ steps.resolve_deployment.outputs.deployment_url }}
+  deployment_id:
+    description: Cloudflare Pages deployment ID
+    value: ${{ steps.resolve_deployment.outputs.deployment_id }}
 
 runs:
   using: composite
   steps:
     - name: Build
+      if: inputs.skip-build != 'true'
       shell: bash
       run: npm run build
       env:
@@ -108,8 +121,17 @@ runs:
         SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
 
     - name: Deploy to Cloudflare Pages
+      id: pages_deploy
       uses: cloudflare/wrangler-action@v3
       with:
         apiToken: ${{ inputs.cloudflare-api-token }}
         accountId: ${{ inputs.cloudflare-account-id }}
         command: pages deploy dist --project-name=${{ inputs.pages-project }} --commit-hash=${{ inputs.build-sha }} --branch=${{ inputs.deploy-branch }}
+
+    - name: Resolve deployment URL
+      id: resolve_deployment
+      shell: bash
+      run: node scripts/ci/get-production-deployment.mjs --project "${{ inputs.pages-project }}" --branch "${{ inputs.deploy-branch }}"
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
