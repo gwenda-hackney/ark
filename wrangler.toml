@@ -6,4 +6,4 @@ pages_build_output_dir = "dist"
 # CI deploys Cloudflare Pages projects:
 #   gwenda-staging — main branch, password gated (staging.gwenda.co.uk)
 #   gwenda         — release branch, production (gwenda.co.uk + www)
-# Custom domains stay on the production project; CI preview-then-production deploys.
+# Custom domains stay on the production project; CI deploys directly to each project's production branch.

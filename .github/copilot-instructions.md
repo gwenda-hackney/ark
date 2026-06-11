@@ -13,7 +13,7 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 
 ## Branch flow
 
-- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → smoke test.
+- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → ensure domain → smoke test.
 - Release: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): same steps → CalVer tag.
 
 There is no separate CI workflow. Quality gates run on every push to `main`; a PR into `release` promotes already-verified code.
@@ -26,7 +26,7 @@ Do not push directly to `release` without going through `main` first.
 src/           Pages, components, styles, client JS, imported assets
 functions/     Pages Functions — _middleware.js (gate), api/auth, api/subscribe
 scripts/       Build post-processors, Cloudflare API helpers
-scripts/ci/    Deploy orchestration (secrets sync, smoke test, rollback)
+scripts/ci/    Deploy orchestration (secrets sync, smoke test, tagging)
 dist/          Build output (gitignored)
 ```
 
