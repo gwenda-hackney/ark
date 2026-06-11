@@ -62,7 +62,7 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 1. Verify (lint, build, test)
 2. Resolve active slot from `PRODUCTION_ACTIVE_SLOT` (`blue` or `green`, default `blue`)
 3. Deploy to the **standby** slot (`gwenda-{inactive}`)
-4. Smoke test the standby `.pages.dev` URL with the same version header check
+4. Smoke test the standby `.pages.dev` URL with the same version header check (retries while Pages propagates the new deployment)
 5. Swap `gwenda.co.uk` to the standby slot
 6. Tag the CalVer release
 
@@ -79,7 +79,7 @@ Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages
 - `GET /` (follows staging gate redirect) — expects `X-Gwenda-Version` to match the CalVer label for that build
 - `GET /robots.txt` — expects HTTP 200
 
-Staging custom-domain checks retry for up to ~90s while Cloudflare provisions the hostname.
+Staging and production standby checks retry for up to ~90s while Cloudflare propagates the deployment (and staging DNS/SSL).
 
 ### Local checks
 
