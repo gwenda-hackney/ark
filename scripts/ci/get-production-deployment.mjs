@@ -2,8 +2,8 @@
  * Read production deployment metadata for a Pages project.
  *
  * Usage:
- *   node scripts/ci/get-production-deployment.mjs --project gwenda-blue --position current
- *   node scripts/ci/get-production-deployment.mjs --project gwenda-blue --branch ci-2026.06.11+abc
+ *   node scripts/ci/get-production-deployment.mjs --project gwenda --position current
+ *   node scripts/ci/get-production-deployment.mjs --project gwenda --branch ci-2026.06.11+abc
  */
 import { appendFileSync } from "node:fs";
 import { cf } from "../_lib/cloudflare-api.mjs";

@@ -2,7 +2,7 @@
  * Minimal HTTP smoke test for a deployed site.
  *
  * Usage:
- *   node scripts/ci/smoke-test.mjs --url https://gwenda-blue.pages.dev
+ *   node scripts/ci/smoke-test.mjs --url https://gwenda.pages.dev
  *   node scripts/ci/smoke-test.mjs --url https://staging.gwenda.co.uk --expected-version 2026.06.11+abc1234
  */
 const args = process.argv.slice(2);

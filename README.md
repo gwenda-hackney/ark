@@ -46,7 +46,7 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 | Trigger           | Workflow                                                     | Deploy target                  |
 | ----------------- | ------------------------------------------------------------ | ------------------------------ |
 | Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | `gwenda-staging`               |
-| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | `gwenda-blue` → `gwenda.co.uk` |
+| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | `gwenda` → `gwenda.co.uk` |
 
 **Toolchain:** Node 24, `npm ci` via Corepack (`packageManager` in `package.json`). Local devcontainer matches CI.
 
@@ -66,7 +66,7 @@ Production also tags the CalVer release on success. Staging runs `ensure-pages-d
 
 |                   | Staging                | Production                         |
 | ----------------- | ---------------------- | ---------------------------------- |
-| Project           | `gwenda-staging`       | `gwenda-blue`                      |
+| Project           | `gwenda-staging`       | `gwenda`                           |
 | Production branch | `main`                 | `release`                          |
 | Live smoke        | `staging.gwenda.co.uk` | `gwenda.co.uk`, `www.gwenda.co.uk` |
 
@@ -100,11 +100,11 @@ npm run test:watch  # Vitest watch mode
 
 ## Production Pages project
 
-Production runs on a single Cloudflare Pages project: **`gwenda-blue`** (production branch: `release`). Custom domains `gwenda.co.uk` and `www.gwenda.co.uk` are attached once and never moved per deploy.
+Production runs on a single Cloudflare Pages project: **`gwenda`** (production branch: `release`). Custom domains `gwenda.co.uk` and `www.gwenda.co.uk` are attached once and never moved per deploy.
 
 Staging uses a separate project (`gwenda-staging` on `main`).
 
-The legacy `gwenda` and `gwenda-green` projects can be deleted in Cloudflare when convenient.
+Delete the unused **`gwenda-green`** Pages project in Cloudflare when convenient.
 
 The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manage DNS (staging custom domain).
 
@@ -117,7 +117,7 @@ The `gwenda.co.uk` zone must be on the Gwenda Cloudflare account for CI to manag
 ```bash
 CLOUDFLARE_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \
 node scripts/ci/rollback-pages-production.mjs \
-  --project gwenda-blue \
+  --project gwenda \
   --deployment-id <previous-deployment-id>
 ```
 

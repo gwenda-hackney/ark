@@ -16,7 +16,7 @@ jobs:
       url: https://gwenda.co.uk
     uses: ./.github/workflows/pages-preview-production.yml
     with:
-      pages-project: gwenda-blue
+      pages-project: gwenda
       pages-production-branch: release
       production-deploy-branch: release
       site-env: production

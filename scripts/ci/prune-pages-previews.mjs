@@ -6,7 +6,7 @@
  *
  * Usage:
  *   node scripts/ci/prune-pages-previews.mjs \
- *     --project gwenda-blue \
+ *     --project gwenda \
  *     --keep-deployment-id <uuid>
  */
 import { cf } from "../_lib/cloudflare-api.mjs";
