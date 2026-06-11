@@ -24,7 +24,8 @@ export const siteConfig = {
     shareTitle: "Gwenda — Ristobar | Hackney Wick, London",
     shareDescription:
       "A canalside ristobar in Hackney Wick. Craft cocktails, regional Italian food, art and vinyl. Opening Summer 2026.",
-    imageAlt: "Gwenda — ristobar on the Hackney Wick canal. Opening Summer 2026.",
+    imageAlt:
+      "Gwenda — ristobar on the Hackney Wick canal. Opening Summer 2026.",
   },
   location: {
     area: "Hackney Wick",
@@ -52,8 +53,7 @@ export const siteConfig = {
       "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
       "Hyper-regional Italian street food, rarely seen in London, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
     ],
-    storyClosing:
-      "Who is Gwenda? We can't say. Come experience for yourself.",
+    storyClosing: "Who is Gwenda? We can't say. Come experience for yourself.",
     teamHeading: "Who we are",
     teamBody: [
       "We already run The Pirate's Hub on this stretch of canal. Gwenda is what comes next. The canal, the studios, the late nights—we know this pocket of the Wick.",
@@ -81,5 +81,4 @@ export const siteConfig = {
   },
 } as const;
 
-export const cfBeaconToken =
-  import.meta.env.PUBLIC_CF_BEACON_TOKEN ?? "";
+export const cfBeaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN ?? "";

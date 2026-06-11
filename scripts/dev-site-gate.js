@@ -22,7 +22,9 @@ export function devSiteGate({ password, bypassKey } = {}) {
     });
     req.on("end", async () => {
       try {
-        const { password: submitted, next: nextPath } = JSON.parse(body || "{}");
+        const { password: submitted, next: nextPath } = JSON.parse(
+          body || "{}",
+        );
         if (submitted !== password) {
           res.statusCode = 401;
           res.setHeader("Content-Type", "application/json");
@@ -34,10 +36,7 @@ export function devSiteGate({ password, bypassKey } = {}) {
         const redirect = safeRedirectPath(nextPath);
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
-        res.setHeader(
-          "Set-Cookie",
-          buildAuthCookie(token, { secure: false }),
-        );
+        res.setHeader("Set-Cookie", buildAuthCookie(token, { secure: false }));
         res.end(JSON.stringify({ ok: true, redirect }));
       } catch {
         res.statusCode = 400;

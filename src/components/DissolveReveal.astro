@@ -15,6 +15,7 @@ const { id, antiquated, modern, emphasis = false } = Astro.props;
   data-modern={modern}
 >
   <span class="dissolve-reveal-modern" aria-hidden="true">{modern}</span>
-  <span class="dissolve-reveal-antiquated" aria-hidden="true">{antiquated}</span>
+  <span class="dissolve-reveal-antiquated" aria-hidden="true">{antiquated}</span
+  >
   <span class="visually-hidden" id={`${id}-sr`}>{antiquated}</span>
 </span>

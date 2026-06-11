@@ -1,7 +1,10 @@
 import { defineConfig, envField } from "astro/config";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
-import { issueSubscribeTokens, validateSubscribeAuth } from "./functions/_lib/subscribe-auth.js";
+import {
+  issueSubscribeTokens,
+  validateSubscribeAuth,
+} from "./functions/_lib/subscribe-auth.js";
 import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.js";
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";

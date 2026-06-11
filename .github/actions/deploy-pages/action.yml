@@ -1,0 +1,115 @@
+name: Deploy to Cloudflare Pages
+description: Build and deploy the static site to a Cloudflare Pages project
+
+inputs:
+  pages-project:
+    description: Cloudflare Pages project name
+    required: true
+  pages-production-branch:
+    description: Production branch for the Pages project
+    required: true
+  site-env:
+    description: SITE_ENV value (staging or production)
+    required: true
+  secret-profile:
+    description: Secret profile (staging or production)
+    required: true
+  deploy-branch:
+    description: Branch label passed to wrangler pages deploy
+    required: true
+  public-is-staging:
+    description: Set PUBLIC_IS_STAGING=true for staging builds
+    required: false
+    default: "false"
+  public-opening-date:
+    description: PUBLIC_OPENING_DATE build variable
+    required: false
+    default: "2026-07-04"
+  build-version:
+    description: CalVer build version
+    required: true
+  build-sha:
+    description: Git commit SHA
+    required: true
+  build-ref:
+    description: Git ref name
+    required: true
+  build-time:
+    description: Build timestamp
+    required: true
+  beacon-token:
+    description: Cloudflare Web Analytics beacon token
+    required: true
+  cloudflare-api-token:
+    description: Cloudflare API token
+    required: true
+  cloudflare-account-id:
+    description: Cloudflare account ID
+    required: true
+  site-password:
+    description: Staging site password secret
+    required: false
+  gate-bypass-key:
+    description: Staging gate bypass key
+    required: false
+  baserow-api-key:
+    description: Baserow API key
+    required: false
+  baserow-table-id:
+    description: Baserow table ID
+    required: false
+  subscribe-secret:
+    description: Subscribe endpoint secret
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Build
+      shell: bash
+      run: npm run build
+      env:
+        PUBLIC_CF_BEACON_TOKEN: ${{ inputs.beacon-token }}
+        PUBLIC_IS_STAGING: ${{ inputs.public-is-staging }}
+        PUBLIC_BUILD_SHA: ${{ inputs.build-sha }}
+        PUBLIC_BUILD_REF: ${{ inputs.build-ref }}
+        PUBLIC_BUILD_TIME: ${{ inputs.build-time }}
+        PUBLIC_BUILD_VERSION: ${{ inputs.build-version }}
+        PUBLIC_OPENING_DATE: ${{ inputs.public-opening-date }}
+
+    - name: Ensure Pages project exists
+      shell: bash
+      run: node scripts/ensure-pages-project.mjs
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
+        PAGES_PRODUCTION_BRANCH: ${{ inputs.pages-production-branch }}
+
+    - name: Pin environment
+      shell: bash
+      run: node scripts/ensure-pages-env.mjs
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
+        SITE_ENV: ${{ inputs.site-env }}
+
+    - name: Sync Pages secrets
+      shell: bash
+      run: node scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secret-profile }}"
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        SITE_PASSWORD: ${{ inputs.site-password }}
+        GATE_BYPASS_KEY: ${{ inputs.gate-bypass-key }}
+        BASEROW_API_KEY: ${{ inputs.baserow-api-key }}
+        BASEROW_TABLE_ID: ${{ inputs.baserow-table-id }}
+        SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
+
+    - name: Deploy to Cloudflare Pages
+      uses: cloudflare/wrangler-action@v3
+      with:
+        apiToken: ${{ inputs.cloudflare-api-token }}
+        accountId: ${{ inputs.cloudflare-account-id }}
+        command: pages deploy dist --project-name=${{ inputs.pages-project }} --commit-hash=${{ inputs.build-sha }} --branch=${{ inputs.deploy-branch }}

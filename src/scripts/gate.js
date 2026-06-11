@@ -5,8 +5,11 @@ export function initGate(nextPath) {
   if (!form || !input || !errorEl) return;
 
   const fromUrl = new URLSearchParams(window.location.search).get("next");
-  const next =
-    nextPath?.startsWith("/") ? nextPath : fromUrl?.startsWith("/") ? fromUrl : "/";
+  const next = nextPath?.startsWith("/")
+    ? nextPath
+    : fromUrl?.startsWith("/")
+      ? fromUrl
+      : "/";
 
   const submit = document.getElementById("gate-submit");
 

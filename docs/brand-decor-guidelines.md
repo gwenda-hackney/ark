@@ -4,7 +4,7 @@
 
 Hackney Wick · Schwartz Wharf
 
-*Companion to [brand-manifesto.md](./brand-manifesto.md) and [brand-brief.md](./brand-brief.md). The website is the visual source of truth; the hero and concept imagery are **directional mood boards**, not a literal fit-out brief.*
+_Companion to [brand-manifesto.md](./brand-manifesto.md) and [brand-brief.md](./brand-brief.md). The website is the visual source of truth; the hero and concept imagery are **directional mood boards**, not a literal fit-out brief._
 
 ---
 
@@ -22,24 +22,24 @@ Values taken from the live site CSS (`src/styles/global.css`).
 
 ### Core
 
-| Role | Hex | Use in the room |
-| --- | --- | --- |
-| **Background** | `#0D0D0D` | Primary wall and ceiling tone—not pure black; soft charcoal |
-| **Background elevated** | `#141414` | Bar back wall, alcoves, secondary surfaces |
-| **Background card** | `#1A1A1A` | Banquette backs, menu boards, raised panels |
-| **Text primary** | `#E8E4DC` | Warm off-white—menu paper, wayfinding if needed |
-| **Text muted** | `#8A8680` | Secondary copy, subtle labels |
-| **Gold accent** | `#C9A84C` | Brass hardware, candle-adjacent light, key details |
-| **Gold dim** | `rgba(201, 168, 76, 0.35)` | Thin borders, edge lighting, muted highlights |
+| Role                    | Hex                        | Use in the room                                             |
+| ----------------------- | -------------------------- | ----------------------------------------------------------- |
+| **Background**          | `#0D0D0D`                  | Primary wall and ceiling tone—not pure black; soft charcoal |
+| **Background elevated** | `#141414`                  | Bar back wall, alcoves, secondary surfaces                  |
+| **Background card**     | `#1A1A1A`                  | Banquette backs, menu boards, raised panels                 |
+| **Text primary**        | `#E8E4DC`                  | Warm off-white—menu paper, wayfinding if needed             |
+| **Text muted**          | `#8A8680`                  | Secondary copy, subtle labels                               |
+| **Gold accent**         | `#C9A84C`                  | Brass hardware, candle-adjacent light, key details          |
+| **Gold dim**            | `rgba(201, 168, 76, 0.35)` | Thin borders, edge lighting, muted highlights               |
 
 ### Supporting tones (hero gradient)
 
 The site hero uses a warm dark gradient—not flat black. Use these for timber, stone, and layered surfaces:
 
-| Hex | Character |
-| --- | --- |
-| `#161310` | Warm brown-black—dark timber stain target |
-| `#0F0E0C` | Mid depth—bar front, shelving |
+| Hex       | Character                                  |
+| --------- | ------------------------------------------ |
+| `#161310` | Warm brown-black—dark timber stain target  |
+| `#0F0E0C` | Mid depth—bar front, shelving              |
 | `#0A0908` | Deepest recess—shadow zones, ceiling coves |
 
 ### Gold wash
@@ -58,20 +58,20 @@ The site applies gold at **~5% opacity** as ambient warmth (`rgba(201, 168, 76, 
 
 Fonts loaded on the website ([Google Fonts](https://fonts.google.com/)):
 
-| Role | Font | Weights used |
-| --- | --- | --- |
+| Role        | Font                                                                                       | Weights used                  |
+| ----------- | ------------------------------------------------------------------------------------------ | ----------------------------- |
 | **Display** | [Cormorant Garamond](https://fonts.google.com/specimen/Cormorant+Garamond?query=cormorant) | 400, 500, 600, 700 (+ italic) |
-| **Body** | [Lora](https://fonts.google.com/specimen/Lora?query=lora) | 400, 500 (+ italic) |
+| **Body**    | [Lora](https://fonts.google.com/specimen/Lora?query=lora)                                  | 400, 500 (+ italic)           |
 
 ### Physical application
 
-| Surface | Font | Treatment |
-| --- | --- | --- |
-| Logo / external brass plate | Cormorant Garamond | Wordmark only—minimal, confident |
-| Menu headings, section titles | Cormorant Garamond | Medium weight (500), slight letter-spacing |
-| Menu body, descriptions | Lora | Regular; archive footnotes may feel typewriter-adjacent but stay in Lora |
-| Eyebrows / labels (“Cocktails”, “Small Plates”) | Cormorant Garamond | Uppercase, wide letter-spacing (~0.2–0.3em)—see site `.section-eyebrow` |
-| Buttons / CTAs (if printed) | Cormorant Garamond | Uppercase, semi-bold, gold on dark or reverse |
+| Surface                                         | Font               | Treatment                                                                |
+| ----------------------------------------------- | ------------------ | ------------------------------------------------------------------------ |
+| Logo / external brass plate                     | Cormorant Garamond | Wordmark only—minimal, confident                                         |
+| Menu headings, section titles                   | Cormorant Garamond | Medium weight (500), slight letter-spacing                               |
+| Menu body, descriptions                         | Lora               | Regular; archive footnotes may feel typewriter-adjacent but stay in Lora |
+| Eyebrows / labels (“Cocktails”, “Small Plates”) | Cormorant Garamond | Uppercase, wide letter-spacing (~0.2–0.3em)—see site `.section-eyebrow`  |
+| Buttons / CTAs (if printed)                     | Cormorant Garamond | Uppercase, semi-bold, gold on dark or reverse                            |
 
 ### Do not use
 
@@ -93,13 +93,13 @@ The site is built on **low luminance + warm accent + vignette.**
 
 ### In the room
 
-| Layer | Guideline |
-| --- | --- |
-| **Ambient** | Low. Dimmed throughout. No flat white ceiling wash |
-| **Accent** | Warm amber (~2700K–3000K). Candles on bar. Edison or equivalent over bar seats |
-| **Feature** | Glass-block or back-bar glow using gold wash at low intensity |
-| **Art** | Spotlights on work only—museum-style, not gallery track everywhere |
-| **Avoid** | Neon, RGB, cool white (4000K+), bright downlights on tables |
+| Layer       | Guideline                                                                      |
+| ----------- | ------------------------------------------------------------------------------ |
+| **Ambient** | Low. Dimmed throughout. No flat white ceiling wash                             |
+| **Accent**  | Warm amber (~2700K–3000K). Candles on bar. Edison or equivalent over bar seats |
+| **Feature** | Glass-block or back-bar glow using gold wash at low intensity                  |
+| **Art**     | Spotlights on work only—museum-style, not gallery track everywhere             |
+| **Avoid**   | Neon, RGB, cool white (4000K+), bright downlights on tables                    |
 
 ---
 
@@ -120,10 +120,10 @@ Match site treatment:
 
 ### Social — Instagram dimensions
 
-| Format | Size (px) | Aspect | Use |
-| --- | --- | --- | --- |
-| **Feed post** | **1080 × 1350** | 4:5 portrait | Typical Instagram post—primary format for announcements, food, atmosphere |
-| Story / Reels cover | 1080 × 1920 | 9:16 | Full-screen vertical—stories, reels thumbnail |
+| Format              | Size (px)       | Aspect       | Use                                                                       |
+| ------------------- | --------------- | ------------ | ------------------------------------------------------------------------- |
+| **Feed post**       | **1080 × 1350** | 4:5 portrait | Typical Instagram post—primary format for announcements, food, atmosphere |
+| Story / Reels cover | 1080 × 1920     | 9:16         | Full-screen vertical—stories, reels thumbnail                             |
 
 Feed posts should use the site palette and typography (Cormorant display, Lora body, `#C9A84C` gold accent on dark ground).
 
@@ -131,14 +131,14 @@ Feed posts should use the site palette and typography (Cormorant display, Lora b
 
 ### Materials (aligned to manifesto + site)
 
-| Element | Direction |
-| --- | --- |
-| **Bar** | Dark timber (`#0F0E0C`–`#161310` range), honed not high gloss |
-| **Walls** | Exposed brick or charcoal plaster—site background family |
-| **Metal** | Brass and aged brass toward `#C9A84C`—handles, rails, menu clips |
-| **Stone / slate** | Dark grey, raw edge—for plate presentation and surfaces |
-| **Seating** | Deep tan or emerald leather—manifesto; sits against dark ground |
-| **Linens** | Off-white toward `#E8E4DC`—warm, not bleached white |
+| Element           | Direction                                                                    |
+| ----------------- | ---------------------------------------------------------------------------- |
+| **Bar**           | Dark timber (`#0F0E0C`–`#161310` range), honed not high gloss                |
+| **Walls**         | Exposed brick or charcoal plaster—site background family                     |
+| **Metal**         | Brass and aged brass toward `#C9A84C`—handles, rails, menu clips             |
+| **Stone / slate** | Dark grey, raw edge—for plate presentation and surfaces                      |
+| **Seating**       | Deep tan or emerald leather—manifesto; sits against dark ground              |
+| **Linens**        | Off-white toward `#E8E4DC`—warm, not bleached white                          |
 | **Canal / wharf** | Subtle—weathered metal, lantern forms. No portholes, rope nets, anchor décor |
 
 ---
@@ -173,33 +173,33 @@ The site uses slow fades and staggered reveals (`cubic-bezier(0.25, 0.46, 0.45, 
 
 ## Quick reference — on brand vs off brand
 
-| On brand | Off brand |
-| --- | --- |
-| Charcoal walls, warm amber pools of light | White walls, bright even lighting |
-| `#C9A84C` brass accents, sparse | Gold leaf everywhere, glitter, neon gold |
-| Cormorant + Lora on menus and signs | Sans-serif, chalkboard clichés |
-| Dark timber bar, matte brick | Blonde wood, glossy laminate |
-| Candle depth, vignette, grain | Ring-light brightness, clinical clean |
-| Canal-side industrial, on the wharf | Nautical theme pub, pirate kitsch |
+| On brand                                  | Off brand                                |
+| ----------------------------------------- | ---------------------------------------- |
+| Charcoal walls, warm amber pools of light | White walls, bright even lighting        |
+| `#C9A84C` brass accents, sparse           | Gold leaf everywhere, glitter, neon gold |
+| Cormorant + Lora on menus and signs       | Sans-serif, chalkboard clichés           |
+| Dark timber bar, matte brick              | Blonde wood, glossy laminate             |
+| Candle depth, vignette, grain             | Ring-light brightness, clinical clean    |
+| Canal-side industrial, on the wharf       | Nautical theme pub, pirate kitsch        |
 
 ---
 
 ## Source files
 
-| Asset | Location |
-| --- | --- |
-| CSS tokens | `src/styles/global.css` (`:root` variables) |
-| Fonts | `src/layouts/BaseLayout.astro` |
-| Logo | `src/assets/images/logos/logo.png` |
-| Favicon | `src/assets/images/logos/favicon-light.png` |
+| Asset                     | Location                                          |
+| ------------------------- | ------------------------------------------------- |
+| CSS tokens                | `src/styles/global.css` (`:root` variables)       |
+| Fonts                     | `src/layouts/BaseLayout.astro`                    |
+| Logo                      | `src/assets/images/logos/logo.png`                |
+| Favicon                   | `src/assets/images/logos/favicon-light.png`       |
 | Hero / atmosphere imagery | `src/assets/images/` — **conceptual guides only** |
 
 ---
 
 ## Document control
 
-| Version | Date | Notes |
-| --- | --- | --- |
-| 1.0 | June 2026 | Initial decor guidelines from website tokens |
+| Version | Date      | Notes                                        |
+| ------- | --------- | -------------------------------------------- |
+| 1.0     | June 2026 | Initial decor guidelines from website tokens |
 
-*Update this document when site palette or typography changes. Fit-out specs, lighting plans, and FF&E schedules live in separate operations documents.*
+_Update this document when site palette or typography changes. Fit-out specs, lighting plans, and FF&E schedules live in separate operations documents._
