@@ -44,7 +44,9 @@ function dnsRecordLabel() {
   if (DOMAIN.endsWith(suffix)) {
     return DOMAIN.slice(0, -suffix.length);
   }
-  throw new Error(`CUSTOM_DOMAIN ${DOMAIN} is not under ZONE_NAME ${ZONE_NAME}`);
+  throw new Error(
+    `CUSTOM_DOMAIN ${DOMAIN} is not under ZONE_NAME ${ZONE_NAME}`,
+  );
 }
 
 function pointsToPages(record, pagesTarget) {
