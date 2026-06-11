@@ -69,7 +69,7 @@ jobs:
           site-password: ${{ secrets.SITE_PASSWORD }}
           gate-bypass-key: ${{ secrets.GATE_BYPASS_KEY }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
-          baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
+          baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
 
       - name: Attach staging custom domain

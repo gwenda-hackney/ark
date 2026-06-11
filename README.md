@@ -172,6 +172,8 @@ npm run build
 
 **Secrets:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SITE_PASSWORD`, `GATE_BYPASS_KEY`, `BASEROW_API_KEY`, `SUBSCRIBE_SECRET`
 
-**Variables:** `PRODUCTION_ACTIVE_SLOT`, `PUBLIC_OPENING_DATE`, `BASEROW_TABLE_ID`, `PUBLIC_CF_BEACON_TOKEN` (optional fallback)
+**Variables:** `PRODUCTION_ACTIVE_SLOT`, `PUBLIC_OPENING_DATE`, `BASEROW_TABLE_ID` (production subscribe list), `BASEROW_STAGING_TABLE_ID` (staging list, default `1024006`), `PUBLIC_CF_BEACON_TOKEN` (optional fallback)
+
+Staging signups go to a [separate Baserow table](https://baserow.io/database/465058/table/1024006/2009979) so test data does not mix with production.
 
 See [.env.example](.env.example) for local equivalents.
