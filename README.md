@@ -18,8 +18,8 @@ All deployment history: [github.com/gwenda-hackney/web/deployments](https://gith
 
 GitLab Flow with a long-running `release` branch:
 
-1. **Develop on `main`** — pushes auto-deploy to staging.
-2. **Release to production** — open a PR from `main` into `release` (CI verifies), merge, then push:
+1. **Develop on `main`** — every push runs lint, build, and tests, then deploys to staging.
+2. **Release to production** — open a PR from `main` into `release` (main is already verified), merge, then push:
 
 ```bash
 git checkout release
@@ -79,9 +79,12 @@ npm run build
 
 ## CI and tests
 
-Pull requests to `release` run [CI](.github/workflows/ci.yml): lint, build, and unit tests.
+| Trigger           | Workflow                                                     | Checks                         | Deploy              |
+| ----------------- | ------------------------------------------------------------ | ------------------------------ | ------------------- |
+| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | Lint, build, unit tests        | `gwenda-staging`    |
+| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | Lint, build, unit tests        | Blue/green → live   |
 
-Deploy workflows run the same checks before deploying.
+Checks run in the reusable [verify](.github/workflows/verify.yml) job before any deploy. A PR to `release` promotes code that already passed on `main` — there is no separate CI workflow on that PR.
 
 ```bash
 npm run lint        # ESLint + Prettier
