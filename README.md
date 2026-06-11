@@ -52,7 +52,7 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 
 ### Deploy pipeline (staging and production)
 
-Both environments call the same reusable [deploy-environment](.github/workflows/deploy-environment.yml) workflow (via [Deploy staging](.github/workflows/deploy-staging.yml) or [Deploy production](.github/workflows/deploy-production.yml)):
+Both [Deploy staging](.github/workflows/deploy-staging.yml) and [Deploy production](.github/workflows/deploy-production.yml) run the same steps (mirrored YAML — only project, branch, secrets, and smoke URLs differ):
 
 1. Verify (lint, build, test)
 2. Build and deploy to the environment's Pages project (`main` for staging, `release` for production)
@@ -68,7 +68,7 @@ Both environments call the same reusable [deploy-environment](.github/workflows/
 
 Custom domains stay permanently attached on production. There is no domain detach/attach per deploy.
 
-Shared deploy logic: [deploy-environment](.github/workflows/deploy-environment.yml), [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml), and [scripts/ci/](scripts/ci/).
+Shared deploy logic: [.github/actions/deploy-pages](.github/actions/deploy-pages/action.yml) and [scripts/ci/](scripts/ci/).
 
 ### Smoke tests
 

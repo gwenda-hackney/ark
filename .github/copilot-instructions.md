@@ -13,8 +13,8 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 
 ## Branch flow
 
-- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → [deploy-environment](workflows/deploy-environment.yml).
-- Release: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): same pipeline → CalVer tag.
+- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → smoke test.
+- Release: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): same steps → CalVer tag.
 
 There is no separate CI workflow. Quality gates run on every push to `main`; a PR into `release` promotes already-verified code.
 
@@ -55,7 +55,7 @@ dist/          Build output (gitignored)
 - **Verify before deploy:** reusable workflow `verify.yml` (lint → build → test). Called by both deploy workflows.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Staging custom domain:** `ensure-pages-domain.mjs` with `CUSTOM_DOMAIN=staging.gwenda.co.uk`, `ZONE_NAME=gwenda.co.uk`.
-- **Deploy pipeline:** shared workflow `deploy-environment.yml` — build, deploy, ensure domain (staging), live smoke test, summary. Staging and production use identical steps; only project, branch, secrets profile, and live URLs differ.
+- **Deploy pipeline:** `deploy-staging.yml` and `deploy-production.yml` are mirrored — build, deploy, ensure domain (staging only), live smoke test, summary (+ CalVer tag on production). Keep them in sync when changing deploy steps.
 - **Smoke tests:** `scripts/ci/smoke-test.mjs` — `/`, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
 - **Secrets:** synced via `scripts/ci/sync-pages-secrets.mjs` profiles (`staging` | `production`). Never commit secrets.
 
@@ -76,7 +76,7 @@ dist/          Build output (gitignored)
 ## What not to do
 
 - Do not add a `public/` folder for assets — use `src/assets/` imports.
-- Do not deploy staging or production without the shared `deploy-environment.yml` workflow.
+- Do not let `deploy-staging.yml` and `deploy-production.yml` diverge — they must run the same steps.
 - Do not reintroduce a standalone CI workflow on `main` — verify already runs inside Deploy staging.
 - Do not introduce Pulumi/Terraform unless explicitly requested — Cloudflare provisioning uses Node scripts.
 - Do not add CodeQL or heavy SAST unless requested — lint + targeted Vitest tests are the standard.
