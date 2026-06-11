@@ -3,7 +3,7 @@
  *
  * Usage:
  *   node scripts/ci/smoke-test.mjs --url https://gwenda-blue.pages.dev
- *   node scripts/ci/smoke-test.mjs --url https://staging.gwenda.co.uk --retries 18
+ *   node scripts/ci/smoke-test.mjs --url https://staging.gwenda.co.uk --expected-version 2026.06.11+abc1234
  */
 const args = process.argv.slice(2);
 
@@ -16,6 +16,8 @@ const baseUrl = (getArg("--url") || process.env.SMOKE_TEST_URL || "").replace(
   /\/$/,
   "",
 );
+const expectedVersion =
+  getArg("--expected-version") || process.env.SMOKE_TEST_EXPECTED_VERSION || "";
 const retries = Number(
   getArg("--retries") ?? process.env.SMOKE_TEST_RETRIES ?? "0",
 );
@@ -24,7 +26,9 @@ const retryDelayMs = Number(
 );
 
 if (!baseUrl) {
-  console.error("Usage: smoke-test.mjs --url https://example.pages.dev");
+  console.error(
+    "Usage: smoke-test.mjs --url https://example.pages.dev [--expected-version YYYY.MM.DD+sha]",
+  );
   process.exit(1);
 }
 
@@ -38,10 +42,18 @@ async function checkPath(path, { expectVersionHeader = path === "/" } = {}) {
   if (!res.ok) {
     throw new Error(`${url} returned ${res.status}`);
   }
-  if (expectVersionHeader && !res.headers.get("x-gwenda-version")) {
+  const version = res.headers.get("x-gwenda-version");
+  if (expectVersionHeader && !version) {
     throw new Error(`${url} missing X-Gwenda-Version header`);
   }
-  console.log(`OK ${url} (${res.status})`);
+  if (expectVersionHeader && expectedVersion && version !== expectedVersion) {
+    throw new Error(
+      `${url} X-Gwenda-Version mismatch: expected ${expectedVersion}, got ${version}`,
+    );
+  }
+  const versionNote =
+    expectVersionHeader && version ? `, X-Gwenda-Version: ${version}` : "";
+  console.log(`OK ${url} (${res.status}${versionNote})`);
 }
 
 async function runChecks() {
