@@ -41,14 +41,6 @@ jobs:
         env:
           GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
 
-      - name: Resolve Web Analytics beacon token
-        id: beacon
-        run: echo "token=$(node scripts/resolve-beacon-token.mjs)" >> "$GITHUB_OUTPUT"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PUBLIC_CF_BEACON_TOKEN: ${{ vars.PUBLIC_CF_BEACON_TOKEN }}
-
       - name: Deploy
         uses: ./.github/actions/deploy-pages
         with:
@@ -63,7 +55,6 @@ jobs:
           build-sha: ${{ steps.buildmeta.outputs.sha }}
           build-ref: ${{ steps.buildmeta.outputs.ref }}
           build-time: ${{ steps.buildmeta.outputs.time }}
-          beacon-token: ${{ steps.beacon.outputs.token }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
