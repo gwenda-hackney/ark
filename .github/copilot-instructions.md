@@ -55,7 +55,7 @@ dist/          Build output (gitignored)
 - **Verify before deploy:** reusable workflow `verify.yml` (lint → build → test). Called by both deploy workflows.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Staging custom domain:** `ensure-pages-domain.mjs` with `CUSTOM_DOMAIN=staging.gwenda.co.uk`, `ZONE_NAME=gwenda.co.uk`.
-- **Smoke tests:** `scripts/ci/smoke-test.mjs` — `/`, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`. Staging retries while DNS/SSL propagate.
+- **Smoke tests:** `scripts/ci/smoke-test.mjs` — `/`, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`. Staging and production standby retries while Cloudflare propagates.
 - **Production blue/green:** `PRODUCTION_ACTIVE_SLOT` repo variable (`blue`|`green`). Swap only after smoke passes. DNS PATCH in place; failed attach rolls back to live slot.
 - **Secrets:** synced via `scripts/ci/sync-pages-secrets.mjs` profiles (`staging` | `production`). Never commit secrets.
 
