@@ -3,7 +3,7 @@ import { Image } from "astro:assets";
 import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
-import logo from "../assets/images/logos/logo.png";
+import { headerLogo } from "../lib/hero-assets";
 
 interface Props {
   mode: SiteMode;
@@ -76,10 +76,10 @@ const copy = getCopy(mode);
 
       <div class="signup-confirm" id="signup-confirm" aria-hidden="true">
         <Image
-          src={logo}
+          {...headerLogo}
           alt="Gwenda"
           class="signup-confirm-logo"
-          loading="eager"
+          loading="lazy"
         />
         <p class="signup-confirm-eyebrow">Thank you</p>
         <h2 class="signup-confirm-title">
