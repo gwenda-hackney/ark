@@ -1,25 +1,33 @@
 /**
- * Ensure Cloudflare Web Analytics uses zone auto-injection (same as production).
+ * Ensure Cloudflare Web Analytics uses zone auto-inject without mixing staging and production.
  *
- * Proxied sites report to /cdn-cgi/rum on the live hostname — no manual HTML embed.
- * Run in CI for staging and production so both environments match.
+ * Same zone (gwenda.co.uk) but staging runs on a subdomain — zone-wide auto_install would
+ * otherwise count staging traffic in production. We keep separate Web Analytics sites and
+ * host rules so metrics stay isolated.
  *
  * Env:
- *   SITE_HOST   — e.g. gwenda.co.uk or staging.gwenda.co.uk
- *   ZONE_NAME   — DNS zone (default: gwenda.co.uk)
+ *   SITE_HOST     — gwenda.co.uk (production) or staging.gwenda.co.uk (staging)
+ *   ZONE_NAME     — DNS zone (default: gwenda.co.uk)
+ *   STAGING_HOST  — excluded from production site (default: staging.gwenda.co.uk)
  */
+
+import { fileURLToPath } from "node:url";
 
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const HOST = process.env.SITE_HOST;
 const ZONE_NAME = process.env.ZONE_NAME || "gwenda.co.uk";
+const STAGING_HOST = process.env.STAGING_HOST || "staging.gwenda.co.uk";
+const PRODUCTION_HOSTS = ["gwenda.co.uk", "www.gwenda.co.uk"];
 
 if (!ACCOUNT_ID || !API_TOKEN || !HOST) {
   console.error(
-    "Missing CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, or SITE_HOST",
+    "Missing Cloudflare account/token or SITE_HOST for Web Analytics setup.",
   );
   process.exit(1);
 }
+
+const isStagingHost = HOST === STAGING_HOST || HOST.startsWith("staging.");
 
 async function cf(path, { method = "GET", body } = {}) {
   const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
@@ -48,69 +56,151 @@ function findSiteForHost(sites, host) {
   );
 }
 
-function siteNeedsUpdate(site) {
+function siteNeedsAutoInstall(site) {
   return site.auto_install !== true || site.ruleset?.enabled !== true;
 }
 
-const sites = await cf(`/accounts/${ACCOUNT_ID}/rum/site_info/list`);
-let site = findSiteForHost(sites, HOST);
+function ruleMatches(rule, host, inclusive) {
+  return rule.host === host && rule.inclusive === inclusive && !rule.is_paused;
+}
 
-if (!site) {
+async function listRules(rulesetId) {
+  const result = await cf(`/accounts/${ACCOUNT_ID}/rum/v2/${rulesetId}/rules`);
+  return result?.rules ?? [];
+}
+
+async function ensureHostRule(rulesetId, { host, inclusive }) {
+  const rules = await listRules(rulesetId);
+  const existing = rules.find((rule) => ruleMatches(rule, host, inclusive));
+  const body = { host, inclusive, paths: ["*"], is_paused: false };
+
+  if (existing?.id) {
+    await cf(`/accounts/${ACCOUNT_ID}/rum/v2/${rulesetId}/rule/${existing.id}`, {
+      method: "PUT",
+      body,
+    });
+    console.log(
+      `Updated Web Analytics rule (${inclusive ? "include" : "exclude"} ${host}).`,
+    );
+    return;
+  }
+
+  await cf(`/accounts/${ACCOUNT_ID}/rum/v2/${rulesetId}/rule`, {
+    method: "POST",
+    body,
+  });
+  console.log(
+    `Created Web Analytics rule (${inclusive ? "include" : "exclude"} ${host}).`,
+  );
+}
+
+async function ensureHostRules(rulesetId, hosts, inclusive) {
+  for (const host of hosts) {
+    await ensureHostRule(rulesetId, { host, inclusive });
+  }
+}
+
+async function getZone() {
   const zones = await cf(
     `/zones?name=${ZONE_NAME}&account.id=${ACCOUNT_ID}`,
   );
-  const zone = zones?.[0];
-  const body = zone
-    ? { host: HOST, zone_tag: zone.id, auto_install: true, enabled: true }
-    : { host: HOST, auto_install: true, enabled: true };
+  return zones?.[0] ?? null;
+}
 
-  try {
+async function ensureSite(host) {
+  const sites = await cf(`/accounts/${ACCOUNT_ID}/rum/site_info/list`);
+  let site = findSiteForHost(sites, host);
+
+  if (!site) {
+    const zone = await getZone();
+    const body = zone
+      ? { host, zone_tag: zone.id, auto_install: true, enabled: true }
+      : { host, auto_install: true, enabled: true };
+
     site = await cf(`/accounts/${ACCOUNT_ID}/rum/site_info`, {
       method: "POST",
       body,
     });
-    console.log(
-      `Created Web Analytics for ${HOST} (auto_install, zone ${ZONE_NAME}).`,
-    );
-  } catch (err) {
-    console.warn(
-      `Could not create Web Analytics for ${HOST} (${err.message}).\n` +
-        `Enable it in Cloudflare dashboard → Web Analytics, or grant Analytics Edit on CLOUDFLARE_API_TOKEN.`,
-    );
-    process.exit(0);
+    console.log(`Created Web Analytics site for ${host}.`);
   }
-}
 
-const siteTag = site.site_tag;
-if (!siteTag) {
-  console.error(`Could not resolve Web Analytics site_tag for ${HOST}.`);
-  process.exit(1);
-}
+  const siteTag = site.site_tag;
+  if (!siteTag) {
+    throw new Error(`Could not resolve Web Analytics site_tag for ${host}.`);
+  }
 
-if (siteNeedsUpdate(site)) {
-  const zoneTag = site.ruleset?.zone_tag;
-  const zones = zoneTag
-    ? [{ id: zoneTag }]
-    : await cf(`/zones?name=${ZONE_NAME}&account.id=${ACCOUNT_ID}`);
-  const zone = zoneTag ? zones[0] : zones?.[0];
+  if (siteNeedsAutoInstall(site)) {
+    const zoneTag = site.ruleset?.zone_tag;
+    const zone = zoneTag ? { id: zoneTag } : await getZone();
 
-  try {
     await cf(`/accounts/${ACCOUNT_ID}/rum/site_info/${siteTag}`, {
       method: "PUT",
       body: {
         auto_install: true,
         enabled: true,
-        host: HOST,
+        host,
         ...(zone ? { zone_tag: zone.id ?? zoneTag } : {}),
       },
     });
-    console.log(`Updated Web Analytics for ${HOST} (auto_install, enabled).`);
+    console.log(`Enabled zone auto-inject for ${host}.`);
+  }
+
+  const refreshed = await cf(`/accounts/${ACCOUNT_ID}/rum/site_info/${siteTag}`);
+  const rulesetId = refreshed.ruleset?.id ?? site.ruleset?.id;
+  if (!rulesetId) {
+    throw new Error(`No Web Analytics ruleset for ${host}.`);
+  }
+
+  return { siteTag, rulesetId };
+}
+
+async function configureProductionSite(rulesetId) {
+  await ensureHostRule(rulesetId, {
+    host: STAGING_HOST,
+    inclusive: false,
+  });
+  console.log(
+    `Production Web Analytics excludes ${STAGING_HOST} (staging traffic stays out of prod metrics).`,
+  );
+}
+
+async function configureStagingSite(rulesetId) {
+  await ensureHostRule(rulesetId, {
+    host: STAGING_HOST,
+    inclusive: true,
+  });
+  await ensureHostRules(rulesetId, PRODUCTION_HOSTS, false);
+  console.log(
+    `Staging Web Analytics tracks ${STAGING_HOST} only (separate from production).`,
+  );
+}
+
+async function main() {
+  try {
+    const { rulesetId } = await ensureSite(HOST);
+
+    if (isStagingHost) {
+      await configureStagingSite(rulesetId);
+    } else {
+      await configureProductionSite(rulesetId);
+    }
+
+    console.log(`Web Analytics configured for ${HOST}.`);
   } catch (err) {
     console.warn(
-      `Could not update Web Analytics for ${HOST} (${err.message}).\n` +
-        `Set auto-inject in Cloudflare dashboard → Web Analytics → ${HOST}.`,
+      `Could not configure Web Analytics for ${HOST} (${err.message}).\n` +
+        `Set host rules in Cloudflare dashboard → Web Analytics, or grant Analytics Edit on ` +
+        `CLOUDFLARE_API_TOKEN.\n` +
+        (isStagingHost
+          ? `Staging site: include ${STAGING_HOST}; exclude ${PRODUCTION_HOSTS.join(", ")}.\n`
+          : `Production site: exclude ${STAGING_HOST} from zone auto-inject.\n`),
     );
+    process.exit(0);
   }
-} else {
-  console.log(`Web Analytics for ${HOST} already matches production (auto_install, enabled).`);
+}
+
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  await main();
 }

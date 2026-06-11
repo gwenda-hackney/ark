@@ -56,7 +56,7 @@ dist/          Build output (gitignored)
 - **Verify before deploy:** reusable workflow `verify.yml` (lint → build → test). Called by both deploy workflows.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Staging custom domain:** `ensure-pages-domain.mjs` with `CUSTOM_DOMAIN=staging.gwenda.co.uk`, `ZONE_NAME=gwenda.co.uk`.
-- **Staging = production for testable infra:** same deploy action, Web Analytics (zone auto-inject via `ensure-web-analytics.mjs`), smoke test depth, and secret sync order. Intentional staging-only differences: password gate, `SITE_ENV`, Baserow table, `PUBLIC_IS_STAGING` / noindex.
+- **Staging = production for testable infra:** same deploy action, Web Analytics (zone auto-inject via `ensure-web-analytics.mjs` with host rules so staging does not mix with prod metrics), smoke test depth, and secret sync order. Intentional staging-only differences: password gate, `SITE_ENV`, Baserow table, `PUBLIC_IS_STAGING` / noindex, separate analytics site.
 - **Deploy pipeline:** `deploy-staging.yml` and `deploy-production.yml` are mirrored — build, deploy, ensure domain (staging only), live smoke test, summary (+ CalVer tag on production). Keep them in sync when changing deploy steps.
 - **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (with gate bypass on staging), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
 - **Secrets:** synced via `scripts/ci/sync-pages-secrets.mjs` profiles (`staging` | `production`). Never commit secrets.

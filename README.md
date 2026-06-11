@@ -14,7 +14,7 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 
 Deployment history: [github.com/gwenda-hackney/web/deployments](https://github.com/gwenda-hackney/web/deployments)
 
-Staging is password-gated (`SITE_PASSWORD`). **Staging mirrors production** for everything testable in CI — same deploy pipeline, Web Analytics (zone auto-inject), smoke test depth, and secrets sync order. Only intentional differences: gate, `SITE_ENV`, Baserow table, and `noindex` robots.
+Staging is password-gated (`SITE_PASSWORD`). **Staging mirrors production** for everything testable in CI — same deploy pipeline, Web Analytics (zone auto-inject with host rules), smoke test depth, and secrets sync order. Only intentional differences: gate, `SITE_ENV`, Baserow table, `noindex` robots, and **separate Web Analytics sites** (staging subdomain must not pollute production metrics).
 
 ## Branch flow
 
@@ -56,7 +56,7 @@ Both [Deploy staging](.github/workflows/deploy-staging.yml) and [Deploy producti
 
 1. Verify (build, test)
 2. Build and deploy to the environment's Pages project (`main` for staging, `release` for production)
-3. Ensure Web Analytics zone auto-inject for the live hostname
+3. Ensure Web Analytics zone auto-inject with host rules (production excludes `staging.gwenda.co.uk`; staging has its own site)
 4. Ensure custom domain (staging only — idempotent attach of `staging.gwenda.co.uk`)
 5. Smoke test the live URL(s)
 6. Tag the CalVer release (production only)
