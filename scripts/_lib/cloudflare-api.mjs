@@ -30,35 +30,3 @@ export async function cf(
 export function isProjectNotFoundError(err) {
   return err?.code === 8000007;
 }
-
-export async function projectHasDomain(
-  project,
-  domain,
-  { accountId, token } = {},
-) {
-  try {
-    const account = accountId || process.env.CLOUDFLARE_ACCOUNT_ID;
-    const domains = await cf(
-      `/accounts/${account}/pages/projects/${project}/domains`,
-      { accountId, token },
-    );
-    return domains?.some((entry) => entry.name === domain) ?? false;
-  } catch (err) {
-    if (isProjectNotFoundError(err)) return false;
-    throw err;
-  }
-}
-
-/** Return the first Pages project in `projects` that hosts `domain`. */
-export async function findProjectWithDomain(
-  domain,
-  projects,
-  { accountId, token } = {},
-) {
-  for (const project of projects) {
-    if (await projectHasDomain(project, domain, { accountId, token })) {
-      return project;
-    }
-  }
-  return null;
-}

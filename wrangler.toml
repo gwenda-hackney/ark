@@ -4,7 +4,6 @@ compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
 # CI deploys Cloudflare Pages projects:
-#   gwenda-staging — main branch, password gated (gwenda-staging.pages.dev)
-#   gwenda-blue    — release branch, blue production slot
-#   gwenda-green   — release branch, green production slot
-# gwenda.co.uk attaches to whichever slot is active (PRODUCTION_ACTIVE_SLOT).
+#   gwenda-staging — main branch, password gated (staging.gwenda.co.uk)
+#   gwenda-blue    — release branch, production (gwenda.co.uk + www)
+# Custom domains stay on the production project; CI preview-then-production deploys.

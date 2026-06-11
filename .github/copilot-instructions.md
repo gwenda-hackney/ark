@@ -6,15 +6,15 @@ Repository custom instructions for GitHub Copilot and coding agents working on t
 
 Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4** static output deployed to **Cloudflare Pages** with **Pages Functions** for server logic.
 
-| Environment | Branch    | Cloudflare Pages project                    | URL                                                            |
-| ----------- | --------- | ------------------------------------------- | -------------------------------------------------------------- |
-| Staging     | `main`    | `gwenda-staging`                            | https://staging.gwenda.co.uk (also `gwenda-staging.pages.dev`) |
-| Production  | `release` | `gwenda-blue` / `gwenda-green` (blue/green) | https://gwenda.co.uk                                           |
+| Environment | Branch    | Cloudflare Pages project | URL                                                            |
+| ----------- | --------- | ------------------------ | -------------------------------------------------------------- |
+| Staging     | `main`    | `gwenda-staging`         | https://staging.gwenda.co.uk (also `gwenda-staging.pages.dev`) |
+| Production  | `release` | `gwenda-blue`            | https://gwenda.co.uk                                           |
 
 ## Branch flow
 
-- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify (lint, build, test) → deploy → attach `staging.gwenda.co.uk` → smoke test.
-- Release: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): verify → deploy standby slot → smoke test → swap domain → CalVer tag.
+- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → [pages-preview-production](workflows/pages-preview-production.yml) (preview → smoke → production → live smoke → prune).
+- Release: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): same pipeline → CalVer tag.
 
 There is no separate CI workflow. Quality gates run on every push to `main`; a PR into `release` promotes already-verified code.
 
@@ -26,7 +26,7 @@ Do not push directly to `release` without going through `main` first.
 src/           Pages, components, styles, client JS, imported assets
 functions/     Pages Functions — _middleware.js (gate), api/auth, api/subscribe
 scripts/       Build post-processors, Cloudflare API helpers
-scripts/ci/    Deploy orchestration (secrets sync, smoke test, blue/green swap)
+scripts/ci/    Deploy orchestration (secrets sync, smoke test, rollback)
 dist/          Build output (gitignored)
 ```
 
@@ -55,8 +55,8 @@ dist/          Build output (gitignored)
 - **Verify before deploy:** reusable workflow `verify.yml` (lint → build → test). Called by both deploy workflows.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Staging custom domain:** `ensure-pages-domain.mjs` with `CUSTOM_DOMAIN=staging.gwenda.co.uk`, `ZONE_NAME=gwenda.co.uk`.
-- **Smoke tests:** `scripts/ci/smoke-test.mjs` — `/`, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`. Production: pre-cutover on standby `.pages.dev`, **post-cutover on `gwenda.co.uk` + `www.gwenda.co.uk`** (rollback swap if post-cutover fails).
-- **Production blue/green:** `PRODUCTION_ACTIVE_SLOT` repo variable (`blue`|`green`). Projects `gwenda-blue` / `gwenda-green` only. Swap moves `gwenda.co.uk` + `www.gwenda.co.uk`.
+- **Deploy pipeline:** shared workflow `pages-preview-production.yml` — preview (`ci-{sha}`) → smoke → production branch deploy → live smoke → rollback on failure → prune old previews. Staging rehearses production exactly; only project, branch, and live URLs differ.
+- **Smoke tests:** `scripts/ci/smoke-test.mjs` — `/`, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
 - **Secrets:** synced via `scripts/ci/sync-pages-secrets.mjs` profiles (`staging` | `production`). Never commit secrets.
 
 ## Code quality
@@ -76,7 +76,7 @@ dist/          Build output (gitignored)
 ## What not to do
 
 - Do not add a `public/` folder for assets — use `src/assets/` imports.
-- Do not deploy production without the blue/green pipeline (standby → smoke → swap).
+- Do not deploy staging or production without the shared preview-then-production pipeline.
 - Do not reintroduce a standalone CI workflow on `main` — verify already runs inside Deploy staging.
 - Do not introduce Pulumi/Terraform unless explicitly requested — Cloudflare provisioning uses Node scripts.
 - Do not add CodeQL or heavy SAST unless requested — lint + targeted Vitest tests are the standard.
