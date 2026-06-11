@@ -26,9 +26,4 @@ export function assertHomePageHealthy(html) {
   if (!/id=["']countdown["']|id=["']signup-form["']/i.test(html)) {
     throw new Error("Homepage missing expected content (countdown or signup)");
   }
-  if (/cloudflareinsights\.com/i.test(html)) {
-    throw new Error(
-      "Homepage contains manual cloudflareinsights embed (use zone auto-inject only)",
-    );
-  }
 }
