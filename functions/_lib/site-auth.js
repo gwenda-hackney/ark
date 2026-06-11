@@ -126,7 +126,7 @@ export function isPublicPath(pathname) {
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/"))
     return true;
   if (pathname === "/api/subscribe") return true;
-  if (pathname === "/og-image.jpg" || pathname === "/robots.txt") return true;
+  if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname.startsWith("/_astro/")) return true;
   if (pathname.startsWith("/_image")) return true;
