@@ -31,10 +31,13 @@ if (isStaging) {
   process.exit(0);
 }
 
+const lastmod = new Date().toISOString();
+
 const urls = indexablePaths
   .map(
     (path) => `  <url>
     <loc>${domain}${path === "/" ? "/" : path}</loc>
+    <lastmod>${lastmod}</lastmod>
   </url>`,
   )
   .join("\n");

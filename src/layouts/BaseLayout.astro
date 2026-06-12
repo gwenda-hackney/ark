@@ -3,9 +3,12 @@ import "../styles/global.css";
 import { siteConfig } from "../config/site";
 import { isStaging } from "../config/env";
 import SocialMeta from "../components/SocialMeta.astro";
+import StructuredData from "../components/StructuredData.astro";
 import Fonts from "../components/Fonts.astro";
 import StagingRibbon from "../components/StagingRibbon.astro";
 import favicon from "../assets/images/logos/favicon-light.png";
+
+const themeColor = "#0d0d0d";
 
 interface Props {
   title?: string;
@@ -34,15 +37,38 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    {isStaging && <meta name="robots" content="noindex, nofollow" />}
+    <meta name="theme-color" content={themeColor} />
+    <meta name="geo.region" content="GB-LND" />
+    <meta name="geo.placename" content="Hackney Wick, London" />
+    <meta
+      name="geo.position"
+      content={`${siteConfig.location.geo.latitude};${siteConfig.location.geo.longitude}`}
+    />
+    <meta
+      name="ICBM"
+      content={`${siteConfig.location.geo.latitude}, ${siteConfig.location.geo.longitude}`}
+    />
+    {
+      isStaging ? (
+        <meta name="robots" content="noindex, nofollow" />
+      ) : (
+        <meta name="robots" content="index, follow" />
+      )
+    }
     <SocialMeta
       title={socialTitle ?? title}
       description={socialDescription ?? siteConfig.social.shareDescription}
       url={canonicalUrl}
     />
+    <StructuredData
+      url={canonicalUrl}
+      title={title}
+      description={description}
+    />
 
     <Fonts />
     <link rel="icon" type="image/png" href={favicon.src} />
+    <link rel="apple-touch-icon" href={favicon.src} />
 
     <slot name="head" />
   </head>
