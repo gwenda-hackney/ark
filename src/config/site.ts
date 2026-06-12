@@ -29,10 +29,21 @@ export const siteConfig = {
   },
   location: {
     area: "Hackney Wick",
-    address: "4 Schwartz Wharf, London, E9 5AA",
+    streetAddress: "Unit 4003, 4 Schwartz Wharf",
+    addressLocality: "London",
+    addressRegion: "England",
+    postalCode: "E9 5AA",
+    address: "Unit 4003, 4 Schwartz Wharf, London, E9 5AA",
     addressShort: "Schwartz Wharf, Hackney Wick",
     mapsUrl:
-      "https://www.google.com/maps/search/?api=1&query=4+Schwartz+Wharf,+London,+E9+5AA",
+      "https://www.google.com/maps/search/?api=1&query=Unit%204003%2C%204%20Schwartz%20Wharf%2C%20London%2C%20E9%205AA",
+    geo: {
+      latitude: 51.541812,
+      longitude: -0.022465,
+    },
+  },
+  contact: {
+    email: "hello@gwenda.co.uk",
   },
   copy: {
     descriptionPromo:

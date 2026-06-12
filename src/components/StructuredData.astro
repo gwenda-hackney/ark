@@ -1,0 +1,68 @@
+---
+import { siteConfig } from "../config/site";
+import sharePreviewImage from "../assets/images/social/logo-board.png";
+
+interface Props {
+  url: string;
+  title: string;
+  description: string;
+}
+
+const { url, title, description } = Astro.props;
+const { location, social, name, domain, contact } = siteConfig;
+const image = new URL(sharePreviewImage.src, url).href;
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${domain}/#website`,
+      url: domain,
+      name,
+      description: siteConfig.description,
+      inLanguage: "en-GB",
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${url}#webpage`,
+      url,
+      name: title,
+      description,
+      isPartOf: { "@id": `${domain}/#website` },
+      about: { "@id": `${domain}/#business` },
+      inLanguage: "en-GB",
+    },
+    {
+      "@type": "BarOrPub",
+      "@id": `${domain}/#business`,
+      name,
+      description: siteConfig.description,
+      url: domain,
+      image,
+      email: contact.email,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: location.streetAddress,
+        addressLocality: location.addressLocality,
+        addressRegion: location.addressRegion,
+        postalCode: location.postalCode,
+        addressCountry: "GB",
+      },
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: location.geo.latitude,
+        longitude: location.geo.longitude,
+      },
+      hasMap: location.mapsUrl,
+      servesCuisine: "Italian",
+      sameAs: [social.instagram].filter(Boolean),
+    },
+  ],
+};
+---
+
+<script
+  type="application/ld+json"
+  set:html={JSON.stringify(structuredData)}
+/>
