@@ -54,7 +54,7 @@ export const siteConfig = {
     /** Organization schema logo — min 112×112, dark brand background. */
     organizationLogoPath: "/brand/logo-organization.png",
     organizationLogoWidth: 511,
-    organizationLogoHeight: 278,
+    organizationLogoHeight: 344,
   },
   copy: {
     descriptionPromo:

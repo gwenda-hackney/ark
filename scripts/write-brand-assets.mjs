@@ -4,7 +4,7 @@
  * Run when favicon or logo sources change:
  *   npm run generate:brand-assets
  */
-import { copyFileSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import sharp from "sharp";
@@ -16,27 +16,48 @@ const faviconSrc = resolve(
 );
 const logoSrc = resolve(process.cwd(), "src/assets/images/logos/logo.png");
 
-/** Google Organization logo: min 112×112. Site brand background. */
+/** Google Organization logo: min 112×112, square preferred. Site brand background. */
 const organizationLogoWidth = 512;
 const brandBackground = { r: 13, g: 13, b: 13, alpha: 1 };
+/** Top/bottom inset so logos aren't flush in Google rich-result previews. */
+const verticalPaddingRatio = 0.12;
 
 mkdirSync(resolve(outDir, "brand"), { recursive: true });
 
-copyFileSync(faviconSrc, resolve(outDir, "favicon.png"));
+async function writePaddedSquareIcon(sourcePath, size, outPath) {
+  const inner = Math.round(size * (1 - 2 * verticalPaddingRatio));
+  const scaled = await sharp(sourcePath)
+    .resize(inner, inner, {
+      fit: "inside",
+      background: brandBackground,
+    })
+    .toBuffer();
 
-const appleTouch = spawnSync(
-  "convert",
-  [faviconSrc, "-resize", "180x180", resolve(outDir, "apple-touch-icon.png")],
-  { encoding: "utf8" },
-);
-if (appleTouch.status !== 0) {
-  copyFileSync(faviconSrc, resolve(outDir, "apple-touch-icon.png"));
+  await sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: brandBackground,
+    },
+  })
+    .composite([{ input: scaled, gravity: "center" }])
+    .png()
+    .toFile(outPath);
 }
+
+const faviconPngPath = resolve(outDir, "favicon.png");
+await writePaddedSquareIcon(faviconSrc, 96, faviconPngPath);
+await writePaddedSquareIcon(
+  faviconSrc,
+  180,
+  resolve(outDir, "apple-touch-icon.png"),
+);
 
 const ico = spawnSync(
   "convert",
   [
-    faviconSrc,
+    faviconPngPath,
     "-define",
     "icon:auto-resize=96,48,32,16",
     resolve(outDir, "favicon.ico"),
@@ -68,11 +89,13 @@ const logoLayer = await sharp(logoSrc)
 const orgLogoMeta = await sharp(logoLayer).metadata();
 const orgWidth = orgLogoMeta.width ?? organizationLogoWidth;
 const orgLogoHeight = orgLogoMeta.height ?? orgHeight;
+const orgPaddingY = Math.round(orgLogoHeight * verticalPaddingRatio);
+const orgCanvasHeight = orgLogoHeight + orgPaddingY * 2;
 
 await sharp({
   create: {
     width: orgWidth,
-    height: orgLogoHeight,
+    height: orgCanvasHeight,
     channels: 4,
     background: brandBackground,
   },
@@ -85,5 +108,5 @@ console.log("Wrote public/favicon.png (from favicon-light.png)");
 console.log("Wrote public/favicon.ico");
 console.log("Wrote public/apple-touch-icon.png");
 console.log(
-  `Wrote public/brand/logo-organization.png (${orgWidth}×${orgLogoHeight}, #0d0d0d background)`,
+  `Wrote public/brand/logo-organization.png (${orgWidth}×${orgCanvasHeight}, #0d0d0d background)`,
 );
