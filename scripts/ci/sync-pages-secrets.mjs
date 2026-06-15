@@ -1,5 +1,6 @@
 /**
  * Sync Cloudflare Pages secrets from environment variables.
+ * Plain vars (e.g. SITE_ENV) live in wrangler.toml / wrangler.staging.toml and sync on deploy.
  *
  * Usage:
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging

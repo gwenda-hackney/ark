@@ -57,11 +57,13 @@ Shared build/deploy logic: [.github/actions/deploy-pages](.github/actions/deploy
 
 **Staging** ([deploy-staging.yml](.github/workflows/deploy-staging.yml)): verify → deploy to `gwenda-staging` → smoke test `gwenda-staging.pages.dev`.
 
-**Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → deploy preview to the `release-preview` branch alias (see job summary for URL) → smoke test preview → stop.
+**Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → build once → deploy preview (`release-preview` branch, Cloudflare **preview** environment) → smoke test → upload `dist/` artifact.
 
-**Promote to live** ([deploy-production-promote.yml](.github/workflows/deploy-production-promote.yml)): **Run workflow** after reviewing the preview. Promotes current `release` HEAD if it matches the last successful preview deploy.
+**Promote to live** ([deploy-production-promote.yml](.github/workflows/deploy-production-promote.yml)): **Run workflow** after reviewing the preview. Downloads the previewed `dist/` artifact and redeploys it to the `release` branch (Cloudflare **production** environment) — no rebuild. Same bytes you smoke-tested.
 
-GitHub Environment required reviewers do not work on private repos without Enterprise, so promotion is a separate manual workflow instead of an in-run approval button.
+Pages runtime vars (`SITE_ENV`, etc.) live in [`wrangler.toml`](wrangler.toml) (production project) and [`wrangler.staging.toml`](wrangler.staging.toml) (staging project); they sync on each `wrangler pages deploy`. Secrets stay in `sync-pages-secrets.mjs`.
+
+GitHub Environment required reviewers do not work on private repos without Enterprise, so promotion is a separate manual workflow.
 
 |                   | Staging                  | Production                         |
 | ----------------- | ------------------------ | ---------------------------------- |
