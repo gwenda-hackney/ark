@@ -119,7 +119,10 @@ runs:
 
     - name: Prepare Wrangler config
       shell: bash
-      run: cp "${{ inputs.wrangler-config }}" wrangler.toml
+      run: |
+        if [ "${{ inputs.wrangler-config }}" != wrangler.toml ]; then
+          cp "${{ inputs.wrangler-config }}" wrangler.toml
+        fi
 
     - name: Deploy to Cloudflare Pages
       id: pages_deploy
