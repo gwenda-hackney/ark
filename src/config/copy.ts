@@ -1,10 +1,9 @@
 import { siteConfig } from "./site";
-import { openingDateLabel } from "./opening";
 import type { SiteMode } from "../types/features";
 
 export function getCopy(mode: SiteMode) {
   const { copy } = siteConfig;
-  const storyOpening = `The door opens ${openingDateLabel()}.`;
+  const storyOpening = copy.storyOpeningPromo;
 
   if (mode === "preview") {
     return {
