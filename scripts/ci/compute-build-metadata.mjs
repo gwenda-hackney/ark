@@ -8,7 +8,8 @@ const time =
   process.env.PUBLIC_BUILD_TIME ||
   process.env.GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP ||
   new Date().toISOString();
-const sha = process.env.GITHUB_SHA || "";
+/** Promote passes BUILD_COMMIT_SHA — GITHUB_SHA cannot be overridden in Actions. */
+const sha = process.env.BUILD_COMMIT_SHA || process.env.GITHUB_SHA || "";
 const ref = process.env.GITHUB_REF_NAME || "";
 
 process.env.PUBLIC_BUILD_TIME = time;
