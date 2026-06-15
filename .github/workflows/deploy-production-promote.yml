@@ -57,6 +57,7 @@ jobs:
         run: node scripts/ci/compute-build-metadata.mjs
         env:
           GITHUB_REF_NAME: release
+          GITHUB_SHA: ${{ steps.preview.outputs.sha }}
 
       - name: Deploy previewed dist to production branch
         uses: ./.github/actions/deploy-pages
