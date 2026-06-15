@@ -59,7 +59,7 @@ Shared build/deploy logic: [.github/actions/deploy-pages](.github/actions/deploy
 
 **Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → deploy preview to the `release-preview` branch alias (see job summary for URL) → smoke test preview → stop.
 
-**Promote to live** ([deploy-production-promote.yml](.github/workflows/deploy-production-promote.yml)): manual **Run workflow** after reviewing the preview. Enter the version and sha from the preview job summary, the preview URL, and type `promote` in confirm → deploy live on `release` → ensure `gwenda.co.uk` + `www` → smoke test both → CalVer tag.
+**Promote to live** ([deploy-production-promote.yml](.github/workflows/deploy-production-promote.yml)): manual **Run workflow** after reviewing the preview — check the confirmation box only. Promotes current `release` HEAD if it matches the last successful preview deploy.
 
 GitHub Environment required reviewers do not work on private repos without Enterprise, so promotion is a separate manual workflow instead of an in-run approval button.
 

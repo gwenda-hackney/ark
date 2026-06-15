@@ -3,17 +3,9 @@ name: Promote production to live
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: CalVer from the preview job summary (e.g. 2026.06.15+01c5716)
-        required: true
-      sha:
-        description: Commit SHA from the preview job summary
-        required: true
-      preview_url:
-        description: Preview URL you reviewed (optional, for the job summary)
-        required: false
-      confirm:
-        description: Type promote to go live
+      reviewed_preview:
+        description: I have reviewed the production preview
+        type: boolean
         required: true
 
 jobs:
@@ -23,6 +15,7 @@ jobs:
     permissions:
       contents: write
       deployments: write
+      actions: read
     environment:
       name: production
       url: https://gwenda.co.uk
@@ -30,15 +23,26 @@ jobs:
     steps:
       - name: Confirm promotion
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "promote" ]; then
-            echo "Input confirm must be exactly 'promote'." >&2
+          if [ "${{ github.event.inputs.reviewed_preview }}" != "true" ]; then
+            echo "Check the box to confirm you reviewed the production preview." >&2
             exit 1
           fi
 
-      - name: Checkout release commit
+      - name: Checkout release
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.sha }}
+          ref: release
+
+      - name: Resolve release HEAD
+        id: release
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release matches last preview
+        id: preview
+        run: node scripts/ci/verify-previewed-release.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
 
       - name: Enable Corepack
         run: corepack enable
@@ -56,15 +60,7 @@ jobs:
         id: buildmeta
         run: node scripts/ci/compute-build-metadata.mjs
         env:
-          GITHUB_SHA: ${{ github.event.inputs.sha }}
           GITHUB_REF_NAME: release
-
-      - name: Verify preview version
-        run: |
-          if [ "${{ steps.buildmeta.outputs.version }}" != "${{ github.event.inputs.version }}" ]; then
-            echo "Version mismatch: preview was ${{ github.event.inputs.version }}, commit computes ${{ steps.buildmeta.outputs.version }}" >&2
-            exit 1
-          fi
 
       - name: Deploy live to Cloudflare Pages
         uses: ./.github/actions/deploy-pages
@@ -122,7 +118,7 @@ jobs:
             {"title":"Production deployed","rows":[
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
-              ["Previewed at","${{ github.event.inputs.preview_url || '—' }}"],
+              ["Preview run","[${{ steps.preview.outputs.preview-run-url }}](${{ steps.preview.outputs.preview-run-url }})"],
               ["Site","https://gwenda.co.uk"],
               ["Deployments","[GitHub Environments](${{ github.server_url }}/${{ github.repository }}/deployments/activity_log?environment=production)"]
             ]}
