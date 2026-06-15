@@ -18,6 +18,9 @@ if (!version) {
 const headers = `/*
   X-Gwenda-Version: ${version}
   X-Gwenda-Build-Sha: ${process.env.PUBLIC_BUILD_SHA || ""}
+
+/_astro/logo.*
+  X-Robots-Tag: noimageindex
 `;
 
 writeFileSync(resolve(distDir, "_headers"), headers);

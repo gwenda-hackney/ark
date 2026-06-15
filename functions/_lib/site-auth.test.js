@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { matchesSecret } from "./site-auth.js";
+import { isPublicPath, matchesSecret } from "./site-auth.js";
+
+describe("isPublicPath", () => {
+  it("allows stable brand assets through the staging gate", () => {
+    expect(isPublicPath("/favicon.ico")).toBe(true);
+    expect(isPublicPath("/favicon.png")).toBe(true);
+    expect(isPublicPath("/apple-touch-icon.png")).toBe(true);
+    expect(isPublicPath("/brand/logo-organization.png")).toBe(true);
+  });
+});
 
 describe("matchesSecret", () => {
   it("returns true for identical strings", () => {

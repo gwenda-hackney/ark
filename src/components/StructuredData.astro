@@ -1,6 +1,5 @@
 ---
 import { siteConfig } from "../config/site";
-import sharePreviewImage from "../assets/images/social/logo-board.png";
 
 interface Props {
   url: string;
@@ -9,18 +8,32 @@ interface Props {
 }
 
 const { url, title, description } = Astro.props;
-const { location, social, name, domain, contact } = siteConfig;
-const image = new URL(sharePreviewImage.src, url).href;
+const { location, social, name, domain, contact, brand } = siteConfig;
+const logoUrl = new URL(brand.organizationLogoPath, domain).href;
 
 const structuredData = {
   "@context": "https://schema.org",
   "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${domain}/#organization`,
+      name,
+      url: domain,
+      logo: {
+        "@type": "ImageObject",
+        url: logoUrl,
+        width: brand.organizationLogoWidth,
+        height: brand.organizationLogoHeight,
+      },
+      sameAs: [social.instagram].filter(Boolean),
+    },
     {
       "@type": "WebSite",
       "@id": `${domain}/#website`,
       url: domain,
       name,
       description: siteConfig.description,
+      publisher: { "@id": `${domain}/#organization` },
       inLanguage: "en-GB",
     },
     {
@@ -39,8 +52,9 @@ const structuredData = {
       name,
       description: siteConfig.description,
       url: domain,
-      image,
+      image: logoUrl,
       email: contact.email,
+      parentOrganization: { "@id": `${domain}/#organization` },
       address: {
         "@type": "PostalAddress",
         streetAddress: location.streetAddress,
@@ -62,7 +76,4 @@ const structuredData = {
 };
 ---
 
-<script
-  type="application/ld+json"
-  set:html={JSON.stringify(structuredData)}
-/>
+<script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
