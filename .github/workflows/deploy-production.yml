@@ -9,15 +9,22 @@ jobs:
   verify:
     uses: ./.github/workflows/verify.yml
 
-  deploy:
+  deploy-preview:
+    name: Deploy production preview
     runs-on: ubuntu-latest
     needs: verify
     permissions:
-      contents: write
+      contents: read
       deployments: write
     environment:
-      name: production
-      url: https://gwenda.co.uk
+      name: production-preview
+      url: https://release-preview.gwenda.pages.dev
+    outputs:
+      version: ${{ steps.buildmeta.outputs.version }}
+      sha: ${{ steps.buildmeta.outputs.sha }}
+      ref: ${{ steps.buildmeta.outputs.ref }}
+      time: ${{ steps.buildmeta.outputs.time }}
+      preview-url: ${{ steps.preview_url.outputs.url }}
 
     steps:
       - name: Checkout code
@@ -41,20 +48,95 @@ jobs:
         env:
           GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
 
-      - name: Deploy
+      - name: Deploy preview to Cloudflare Pages
+        id: deploy
         uses: ./.github/actions/deploy-pages
         with:
           pages-project: gwenda
           pages-production-branch: release
           site-env: production
           secret-profile: production
-          deploy-branch: ${{ github.ref_name }}
+          deploy-branch: release-preview
           public-is-staging: "false"
           public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-18' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
           build-ref: ${{ steps.buildmeta.outputs.ref }}
           build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
+          baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
+          subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
+
+      - name: Resolve preview URL
+        id: preview_url
+        run: |
+          URL="${{ steps.deploy.outputs.pages-deployment-alias-url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ steps.deploy.outputs.deployment-url }}"
+          fi
+          if [ -z "$URL" ]; then
+            echo "Could not resolve Cloudflare Pages preview URL" >&2
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test preview
+        run: node scripts/ci/smoke-test.mjs --url "${{ steps.preview_url.outputs.url }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      - name: Preview deployment summary
+        run: node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Production preview ready — review before promoting","rows":[
+              ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
+              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
+              ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
+              ["Next step","Approve the **Promote preview to live** job in [GitHub Actions](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"]
+            ]}
+
+  promote:
+    name: Promote preview to live
+    runs-on: ubuntu-latest
+    needs: deploy-preview
+    permissions:
+      contents: write
+      deployments: write
+    environment:
+      name: production
+      url: ${{ needs.deploy-preview.outputs.preview-url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy live to Cloudflare Pages
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda
+          pages-production-branch: release
+          site-env: production
+          secret-profile: production
+          deploy-branch: release
+          public-is-staging: "false"
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-18' }}
+          build-version: ${{ needs.deploy-preview.outputs.version }}
+          build-sha: ${{ needs.deploy-preview.outputs.sha }}
+          build-ref: ${{ needs.deploy-preview.outputs.ref }}
+          build-time: ${{ needs.deploy-preview.outputs.time }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
@@ -82,22 +164,22 @@ jobs:
       - name: Smoke test live domains
         run: |
           for url in https://gwenda.co.uk https://www.gwenda.co.uk; do
-            node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+            node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ needs.deploy-preview.outputs.version }}" --retries 18 --retry-delay-ms 5000
           done
 
       - name: Tag production release
         run: node scripts/ci/tag-production-release.mjs
         env:
-          RELEASE_VERSION: ${{ steps.buildmeta.outputs.version }}
+          RELEASE_VERSION: ${{ needs.deploy-preview.outputs.version }}
 
       - name: Deployment summary
         run: node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Production deployed","rows":[
-              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
-              ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
+              ["Version","`${{ needs.deploy-preview.outputs.version }}`"],
+              ["Commit","[\\`${{ needs.deploy-preview.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ needs.deploy-preview.outputs.sha }})"],
+              ["Previewed at","[${{ needs.deploy-preview.outputs.preview-url }}](${{ needs.deploy-preview.outputs.preview-url }})"],
               ["Site","https://gwenda.co.uk"],
-              ["Pages dev","https://gwenda-blue.pages.dev"],
               ["Deployments","[GitHub Environments](${{ github.server_url }}/${{ github.repository }}/deployments/activity_log?environment=production)"]
             ]}

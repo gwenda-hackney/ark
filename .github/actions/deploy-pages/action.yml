@@ -59,6 +59,14 @@ inputs:
     description: Subscribe endpoint secret
     required: false
 
+outputs:
+  deployment-url:
+    description: Cloudflare Pages deployment URL
+    value: ${{ steps.pages_deploy.outputs.deployment-url }}
+  pages-deployment-alias-url:
+    description: Cloudflare Pages branch alias URL (preview branches)
+    value: ${{ steps.pages_deploy.outputs.pages-deployment-alias-url }}
+
 runs:
   using: composite
   steps:
