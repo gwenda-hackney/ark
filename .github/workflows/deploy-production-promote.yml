@@ -38,6 +38,7 @@ jobs:
           name: production-dist
           run-id: ${{ steps.preview.outputs.preview-run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist
 
       - name: Enable Corepack
         run: corepack enable
