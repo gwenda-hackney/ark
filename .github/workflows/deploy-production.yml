@@ -18,7 +18,7 @@ jobs:
       deployments: write
     environment:
       name: production-preview
-      url: https://release-preview.gwenda.pages.dev
+      url: https://release-preview.gwenda-blue.pages.dev
     outputs:
       version: ${{ steps.buildmeta.outputs.version }}
       sha: ${{ steps.buildmeta.outputs.sha }}

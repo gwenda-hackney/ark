@@ -56,7 +56,7 @@ Shared build/deploy logic: [.github/actions/deploy-pages](.github/actions/deploy
 
 **Staging** ([deploy-staging.yml](.github/workflows/deploy-staging.yml)): verify → deploy to `gwenda-staging` → smoke test `gwenda-staging.pages.dev`.
 
-**Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → deploy preview to `https://release-preview.gwenda.pages.dev` → **manual approval** on the `production` GitHub Environment → promote to live on `release` → ensure `gwenda.co.uk` + `www` → smoke test both → CalVer tag.
+**Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → deploy preview to the `release-preview` branch alias (see job summary for URL) → **manual approval** on the `production` GitHub Environment → promote to live on `release` → ensure `gwenda.co.uk` + `www` → smoke test both → CalVer tag.
 
 Enable **Required reviewers** on the `production` environment (GitHub → Settings → Environments → production). After the preview job, open the workflow run, check the preview link in the job summary, then approve **Promote preview to live**.
 
