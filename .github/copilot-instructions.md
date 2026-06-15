@@ -15,7 +15,9 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 
 - Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → smoke test.
 - **Production requires explicit authorization.** Do not merge `main` into `release`, push to `release`, open a production deploy PR, or run production deploy steps unless the user clearly asks (e.g. “deploy to production”, “push release”). Default after changes: commit and push **`main`** only, then verify staging.
-- When authorized: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): deploy → ensure prod domains → smoke test → CalVer tag.
+- When authorized: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): verify → deploy **preview** (`release-preview` branch on Pages) → **manual approval** on the `production` environment → promote to live (`release` branch) → ensure prod domains → smoke test → CalVer tag.
+
+**Production manual gate:** The `production` GitHub Environment must have **Required reviewers** enabled (Settings → Environments → production). After the preview job finishes, open the workflow run, review the preview link in the job summary, then approve **Promote preview to live**. Preview URL is typically `https://release-preview.gwenda.pages.dev`.
 
 There is no separate CI workflow. Quality gates run on every push to `main`; a PR into `release` promotes already-verified code.
 
