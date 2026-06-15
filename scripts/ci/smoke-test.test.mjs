@@ -22,7 +22,7 @@ describe("assertHomePageHealthy", () => {
   it("accepts a normal homepage", () => {
     expect(() =>
       assertHomePageHealthy(
-        "<title>Gwenda — Ristobar</title><div id=\"countdown\"></div>",
+        "<title>Gwenda | Ristobar</title><div id=\"countdown\"></div>",
       ),
     ).not.toThrow();
   });
