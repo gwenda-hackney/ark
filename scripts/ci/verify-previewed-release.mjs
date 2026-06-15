@@ -63,6 +63,7 @@ console.log(runUrl);
 
 const outputPath = process.env.GITHUB_OUTPUT;
 if (outputPath) {
+  appendFileSync(outputPath, `preview-run-id=${latest.id}\n`);
   appendFileSync(outputPath, `preview-run-url=${runUrl}\n`);
   appendFileSync(outputPath, `sha=${latest.head_sha}\n`);
 }

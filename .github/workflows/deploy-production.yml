@@ -54,9 +54,9 @@ jobs:
         with:
           pages-project: gwenda
           pages-production-branch: release
-          site-env: production
           secret-profile: production
           deploy-branch: release-preview
+          wrangler-config: wrangler.toml
           public-is-staging: "false"
           public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-18' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
@@ -68,6 +68,13 @@ jobs:
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
           baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
+
+      - name: Upload preview dist for promote
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-dist
+          path: dist/
+          retention-days: 14
 
       - name: Resolve preview URL
         id: preview_url

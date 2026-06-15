@@ -1,0 +1,7 @@
+# Cloudflare Pages — staging project (gwenda-staging).
+name = "gwenda-staging"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "dist"
+
+[vars]
+SITE_ENV = "staging"

@@ -32,6 +32,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_SHA: ${{ steps.release.outputs.sha }}
 
+      - name: Download previewed dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: production-dist
+          run-id: ${{ steps.preview.outputs.preview-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Enable Corepack
         run: corepack enable
 
@@ -50,16 +57,16 @@ jobs:
         env:
           GITHUB_REF_NAME: release
 
-      - name: Deploy live to Cloudflare Pages
+      - name: Deploy previewed dist to production branch
         uses: ./.github/actions/deploy-pages
         with:
           pages-project: gwenda
           pages-production-branch: release
-          site-env: production
           secret-profile: production
           deploy-branch: release
+          wrangler-config: wrangler.toml
+          skip-build: "true"
           public-is-staging: "false"
-          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-18' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
           build-ref: ${{ steps.buildmeta.outputs.ref }}
