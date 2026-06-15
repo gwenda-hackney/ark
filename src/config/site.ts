@@ -18,19 +18,6 @@ export const siteConfig = {
   },
   /** SEO & link previews — WhatsApp, iMessage, Slack, X, Google snippets */
   seoTitle: "Gwenda | Hackney Wick, London",
-  /** Comma-separated meta keywords for indexable pages. */
-  keywords: [
-    "Gwenda",
-    "Hackney Wick bar",
-    "Hackney Wick restaurant",
-    "ristobar London",
-    "Italian bar London",
-    "canalside bar",
-    "cocktails Hackney Wick",
-    "natural wine",
-    "East London bar",
-    "Schwartz Wharf",
-  ],
   social: {
     instagram: "https://www.instagram.com/gwendahackney",
     tiktok: "",

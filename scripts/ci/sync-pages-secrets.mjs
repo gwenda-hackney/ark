@@ -25,35 +25,60 @@ if (!project || !profile) {
 }
 
 const wrangler = "./node_modules/.bin/wrangler";
-const env = {
+const wranglerEnv = {
   ...process.env,
   CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
   CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
 };
 
+/** Pages Functions secrets are scoped per deployment environment. Preview branch deploys need preview secrets. */
+const deploymentEnvs = ["production", "preview"];
+
 function putSecret(key, value) {
   if (!value) return;
-  const result = spawnSync(
-    wrangler,
-    ["pages", "secret", "put", key, "--project-name", project],
-    { input: value, encoding: "utf8", env },
-  );
-  if (result.status !== 0) {
-    console.error(result.stderr || result.stdout);
-    process.exit(result.status || 1);
+  for (const deploymentEnv of deploymentEnvs) {
+    const result = spawnSync(
+      wrangler,
+      [
+        "pages",
+        "secret",
+        "put",
+        key,
+        "--project-name",
+        project,
+        "--env",
+        deploymentEnv,
+      ],
+      { input: value, encoding: "utf8", env: wranglerEnv },
+    );
+    if (result.status !== 0) {
+      console.error(result.stderr || result.stdout);
+      process.exit(result.status || 1);
+    }
+    console.log(`Set secret ${key} on ${project} (${deploymentEnv}).`);
   }
-  console.log(`Set secret ${key} on ${project}.`);
 }
 
 function deleteSecret(key) {
-  spawnSync(
-    wrangler,
-    ["pages", "secret", "delete", key, "--project-name", project],
-    {
-      env,
-      stdio: "inherit",
-    },
-  );
+  for (const deploymentEnv of deploymentEnvs) {
+    spawnSync(
+      wrangler,
+      [
+        "pages",
+        "secret",
+        "delete",
+        key,
+        "--project-name",
+        project,
+        "--env",
+        deploymentEnv,
+      ],
+      {
+        env: wranglerEnv,
+        stdio: "inherit",
+      },
+    );
+  }
 }
 
 const profiles = {
