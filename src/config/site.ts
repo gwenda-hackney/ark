@@ -45,6 +45,17 @@ export const siteConfig = {
   contact: {
     email: "hello@gwenda.co.uk",
   },
+  /** Stable paths in public/ — synced from src/assets (see generate:brand-assets). */
+  brand: {
+    faviconPath: "/favicon.ico",
+    faviconPngPath: "/favicon.png",
+    faviconSize: 96,
+    appleTouchIconPath: "/apple-touch-icon.png",
+    /** Organization schema logo — min 112×112, dark brand background. */
+    organizationLogoPath: "/brand/logo-organization.png",
+    organizationLogoWidth: 511,
+    organizationLogoHeight: 278,
+  },
   copy: {
     descriptionPromo:
       "A canalside ristobar in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl. Opening Summer 2026.",

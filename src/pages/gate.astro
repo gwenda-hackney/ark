@@ -7,7 +7,6 @@ import StagingRibbon from "../components/StagingRibbon.astro";
 import { siteConfig } from "../config/site";
 import { isStaging } from "../config/env";
 import { compactLogo } from "../lib/hero-assets";
-import favicon from "../assets/images/logos/favicon-light.png";
 
 const next = Astro.url.searchParams.get("next") ?? "/";
 const siteOrigin = isStaging
@@ -30,7 +29,13 @@ const canonicalUrl = new URL(next === "/" ? "/" : next, siteOrigin).href;
       url={canonicalUrl}
     />
     <Fonts />
-    <link rel="icon" type="image/png" href={favicon.src} />
+    <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes={`${siteConfig.brand.faviconSize}x${siteConfig.brand.faviconSize}`}
+      href={siteConfig.brand.faviconPngPath}
+    />
   </head>
   <body class="gate-page">
     <StagingRibbon />

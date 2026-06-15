@@ -82,7 +82,10 @@ async function fetchChecked(url, init = {}) {
   return res;
 }
 
-async function checkPath(path, { expectVersionHeader = path === "/", cookie = "" } = {}) {
+async function checkPath(
+  path,
+  { expectVersionHeader = path === "/", cookie = "" } = {},
+) {
   const url = `${baseUrl}${path}`;
   const res = await fetchChecked(url, fetchInit(cookie));
   const version = res.headers.get("x-gwenda-version");
@@ -150,6 +153,16 @@ async function runChecks() {
   await checkSubscribeApi(cookie);
   await checkCriticalAssets(html, cookie);
   await checkPath("/robots.txt", { expectVersionHeader: false, cookie });
+  await checkPath("/favicon.ico", { expectVersionHeader: false, cookie });
+  await checkPath("/favicon.png", { expectVersionHeader: false, cookie });
+  await checkPath("/brand/logo-organization.png", {
+    expectVersionHeader: false,
+    cookie,
+  });
+
+  if (!html.includes('href="/favicon.ico"')) {
+    throw new Error("Homepage missing stable favicon link");
+  }
 }
 
 const maxAttempts = retries + 1;

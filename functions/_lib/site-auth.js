@@ -128,6 +128,10 @@ export function isPublicPath(pathname) {
   if (pathname === "/api/subscribe") return true;
   if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
+  if (pathname === "/favicon.ico") return true;
+  if (pathname === "/favicon.png") return true;
+  if (pathname === "/apple-touch-icon.png") return true;
+  if (pathname.startsWith("/brand/")) return true;
   if (pathname.startsWith("/_astro/")) return true;
   if (pathname.startsWith("/_image")) return true;
   if (pathname.startsWith("/@")) return true;
