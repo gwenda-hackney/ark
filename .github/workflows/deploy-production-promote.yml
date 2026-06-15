@@ -2,11 +2,6 @@ name: Promote production to live
 
 on:
   workflow_dispatch:
-    inputs:
-      reviewed_preview:
-        description: I have reviewed the production preview
-        type: boolean
-        required: true
 
 jobs:
   promote:
@@ -21,13 +16,6 @@ jobs:
       url: https://gwenda.co.uk
 
     steps:
-      - name: Confirm promotion
-        run: |
-          if [ "${{ github.event.inputs.reviewed_preview }}" != "true" ]; then
-            echo "Check the box to confirm you reviewed the production preview." >&2
-            exit 1
-          fi
-
       - name: Checkout release
         uses: actions/checkout@v4
         with:

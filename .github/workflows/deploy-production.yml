@@ -93,5 +93,5 @@ jobs:
               ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
-              ["Next step","Review the preview above, then run [Promote production to live](${{ github.server_url }}/${{ github.repository }}/actions/workflows/deploy-production-promote.yml) and check **I have reviewed the production preview**"]
+              ["Next step","Review the preview above, then run [Promote production to live](${{ github.server_url }}/${{ github.repository }}/actions/workflows/deploy-production-promote.yml)"]
             ]}
