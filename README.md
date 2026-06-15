@@ -7,7 +7,7 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 | Environment    | URL                                                                                                  | Branch    | Trigger           |
 | -------------- | ---------------------------------------------------------------------------------------------------- | --------- | ----------------- |
 | **Staging**    | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main`    | Push to `main`    |
-| **Production** | [gwenda.co.uk](https://gwenda.co.uk)                                                                 | `release` | Push to `release` |
+| **Production** | [gwenda.co.uk](https://gwenda.co.uk)                                                                 | `release` | Push to `release` (preview), then manual promote |
 
 ![Staging deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/staging?label=staging)
 ![Production deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/production?label=production)
@@ -21,7 +21,7 @@ Staging is password-gated (`SITE_PASSWORD`) at **`gwenda-staging.pages.dev`**. S
 GitLab Flow with a long-running `release` branch:
 
 1. **Develop on `main`** — every push runs build and tests, then deploys to staging.
-2. **Release to production** — only when you explicitly authorize it. Merge `main` into `release` and push. Agents and automation must not push to `release` without your say-so.
+2. **Release to production** — only when you explicitly authorize it. Merge `main` into `release` and push (deploys a **preview**). Review the preview, then manually run **Promote production to live** in GitHub Actions. Agents and automation must not push to `release` or run the promote workflow without your say-so.
 
 ```bash
 git checkout release
@@ -46,7 +46,8 @@ There is one workflow per deploy target. Both call the reusable [verify](.github
 | Trigger           | Workflow                                                     | Deploy target             |
 | ----------------- | ------------------------------------------------------------ | ------------------------- |
 | Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | `gwenda-staging`          |
-| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | `gwenda` → `gwenda.co.uk` |
+| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | preview on `gwenda`       |
+| Manual            | [Promote production to live](.github/workflows/deploy-production-promote.yml) | `gwenda` → `gwenda.co.uk` |
 
 **Toolchain:** Node 24, `npm ci` via Corepack (`packageManager` in `package.json`). Local devcontainer matches CI.
 
@@ -56,9 +57,11 @@ Shared build/deploy logic: [.github/actions/deploy-pages](.github/actions/deploy
 
 **Staging** ([deploy-staging.yml](.github/workflows/deploy-staging.yml)): verify → deploy to `gwenda-staging` → smoke test `gwenda-staging.pages.dev`.
 
-**Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → deploy preview to the `release-preview` branch alias (see job summary for URL) → **manual approval** on the `production` GitHub Environment → promote to live on `release` → ensure `gwenda.co.uk` + `www` → smoke test both → CalVer tag.
+**Production** ([deploy-production.yml](.github/workflows/deploy-production.yml)): verify → deploy preview to the `release-preview` branch alias (see job summary for URL) → smoke test preview → stop.
 
-Enable **Required reviewers** on the `production` environment (GitHub → Settings → Environments → production). After the preview job, open the workflow run, check the preview link in the job summary, then approve **Promote preview to live**.
+**Promote to live** ([deploy-production-promote.yml](.github/workflows/deploy-production-promote.yml)): manual **Run workflow** after reviewing the preview. Enter the version and sha from the preview job summary, the preview URL, and type `promote` in confirm → deploy live on `release` → ensure `gwenda.co.uk` + `www` → smoke test both → CalVer tag.
+
+GitHub Environment required reviewers do not work on private repos without Enterprise, so promotion is a separate manual workflow instead of an in-run approval button.
 
 |                   | Staging                  | Production                         |
 | ----------------- | ------------------------ | ---------------------------------- |
