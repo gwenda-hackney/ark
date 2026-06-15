@@ -17,15 +17,28 @@ export const siteConfig = {
     revealDrinkNames: false,
   },
   /** SEO & link previews — WhatsApp, iMessage, Slack, X, Google snippets */
-  seoTitle: "Gwenda — Ristobar | Hackney Wick, London",
+  seoTitle: "Gwenda | Hackney Wick, London",
+  /** Comma-separated meta keywords for indexable pages. */
+  keywords: [
+    "Gwenda",
+    "Hackney Wick bar",
+    "Hackney Wick restaurant",
+    "ristobar London",
+    "Italian bar London",
+    "canalside bar",
+    "cocktails Hackney Wick",
+    "natural wine",
+    "East London bar",
+    "Schwartz Wharf",
+  ],
   social: {
     instagram: "https://www.instagram.com/gwendahackney",
     tiktok: "",
-    shareTitle: "Gwenda — Ristobar | Hackney Wick, London",
+    shareTitle: "Gwenda | Hackney Wick, London",
     shareDescription:
       "A canalside ristobar in Hackney Wick. Craft cocktails, regional Italian food, art and vinyl. Opening Summer 2026.",
     imageAlt:
-      "Gwenda — ristobar on the Hackney Wick canal. Opening Summer 2026.",
+      "Gwenda on the Hackney Wick canal. Opening Summer 2026.",
   },
   location: {
     area: "Hackney Wick",
