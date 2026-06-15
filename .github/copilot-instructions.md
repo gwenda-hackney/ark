@@ -15,9 +15,9 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 
 - Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → smoke test.
 - **Production requires explicit authorization.** Do not merge `main` into `release`, push to `release`, open a production deploy PR, or run production deploy steps unless the user clearly asks (e.g. “deploy to production”, “push release”). Default after changes: commit and push **`main`** only, then verify staging.
-- When authorized: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): verify → deploy **preview** (`release-preview` branch on Pages) → **manual approval** on the `production` environment → promote to live (`release` branch) → ensure prod domains → smoke test → CalVer tag.
+- When authorized: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): verify → deploy **preview** (`release-preview` branch on Pages) → smoke test preview. After reviewing the preview link in the job summary, manually run [Promote production to live](workflows/deploy-production-promote.yml) with the version, sha, preview URL, and confirm `promote` → live deploy on `release` → ensure prod domains → smoke test → CalVer tag.
 
-**Production manual gate:** The `production` GitHub Environment must have **Required reviewers** enabled (Settings → Environments → production). After the preview job finishes, open the workflow run, review the preview link in the job summary, then approve **Promote preview to live**. Preview URL is the `release-preview` branch alias from the deploy step (currently `https://release-preview.gwenda-blue.pages.dev`).
+**Production manual gate:** Promotion is a separate `workflow_dispatch` workflow (private repos cannot use GitHub Environment required reviewers without Enterprise). Preview URL is the `release-preview` branch alias from the deploy step (currently `https://release-preview.gwenda-blue.pages.dev`).
 
 There is no separate CI workflow. Quality gates run on every push to `main`; a PR into `release` promotes already-verified code.
 
