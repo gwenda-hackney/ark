@@ -50,7 +50,7 @@ jobs:
           secret-profile: staging
           deploy-branch: ${{ github.ref_name }}
           public-is-staging: "true"
-          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-04' }}
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-07-18' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
           build-ref: ${{ steps.buildmeta.outputs.ref }}

@@ -71,6 +71,7 @@ export const siteConfig = {
     ],
     storyClosingPromo:
       "Who is Gwenda? We can't say. Come experience for yourself.",
+    storyOpeningPromo: "Opening Summer 2026",
     storyBody: [
       "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
       "Hyper-regional Italian street food, rarely seen in London, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
