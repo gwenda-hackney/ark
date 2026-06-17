@@ -11,7 +11,7 @@ const previewFeatures: SiteFeatures = {
   showAtmosphere: false,
   showSocial: true,
   showOpeningDate: true,
-  useShortAddress: false,
+  useShortAddress: true,
 };
 
 const promoFeatures: SiteFeatures = {
@@ -21,7 +21,7 @@ const promoFeatures: SiteFeatures = {
   showAtmosphere: false,
   showSocial: true,
   showOpeningDate: false,
-  useShortAddress: false,
+  useShortAddress: true,
 };
 
 export function getFeatures(mode: SiteMode): SiteFeatures {
