@@ -38,19 +38,27 @@ const AI_BOT_AGENTS = [
 const DISALLOWED_PATHS = ["/gate/", "/preview/", "/thanks/", "/api/"];
 
 function buildRobotsTxt({ includeSitemap }) {
-  const lines = [
-    "# Gwenda — search and AI crawlers welcome",
-    "User-agent: *",
-    "Content-Signal: search=yes,ai-input=yes,ai-train=yes",
+  const signal = "Content-Signal: search=yes,ai-input=yes,ai-train=yes";
+  const agentBlock = (agent) => [
+    `User-agent: ${agent}`,
+    signal,
     "Allow: /",
     ...DISALLOWED_PATHS.map((path) => `Disallow: ${path}`),
     "",
-    ...AI_BOT_AGENTS.flatMap((agent) => [
-      `User-agent: ${agent}`,
-      "Allow: /",
-      ...DISALLOWED_PATHS.map((path) => `Disallow: ${path}`),
-      "",
-    ]),
+  ];
+
+  const lines = [
+    "# Gwenda — search and AI crawlers welcome",
+    "# Explicit Google-Extended allow (clears prior Cloudflare opt-out for Gemini).",
+    ...agentBlock("Google-Extended"),
+    `User-agent: *`,
+    signal,
+    "Allow: /",
+    ...DISALLOWED_PATHS.map((path) => `Disallow: ${path}`),
+    "",
+    ...AI_BOT_AGENTS.filter((agent) => agent !== "Google-Extended").flatMap(
+      (agent) => agentBlock(agent),
+    ),
   ];
 
   if (includeSitemap) {
