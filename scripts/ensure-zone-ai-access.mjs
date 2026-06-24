@@ -34,8 +34,13 @@ try {
   );
   console.log(`Verified live robots.txt at ${VERIFY_ORIGIN}/robots.txt`);
 } catch (err) {
-  console.error(err.message || err);
-  if (!String(err.message || "").includes(TOKEN_PERMISSION_HINT)) {
+  const message = String(err.message || err);
+  console.error(message);
+  const isRobotsVerificationFailure = /robots\.txt still/.test(message);
+  if (
+    !isRobotsVerificationFailure &&
+    !message.includes(TOKEN_PERMISSION_HINT)
+  ) {
     console.error(TOKEN_PERMISSION_HINT);
   }
   process.exit(1);
