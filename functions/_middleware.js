@@ -10,7 +10,7 @@ import {
   gateBypassRedirectPath,
   gateMisconfiguredResponse,
   isPublicPath,
-  isSearchEngineCrawler,
+  isUnauthenticatedCrawler,
   matchesSecret,
   parseCookies,
   resolveGate,
@@ -54,7 +54,7 @@ export async function onRequest(context) {
 
   if (isPublicPath(url.pathname)) return context.next();
 
-  if (isSearchEngineCrawler(context.request)) return context.next();
+  if (isUnauthenticatedCrawler(context.request)) return context.next();
 
   if (authed) return context.next();
 

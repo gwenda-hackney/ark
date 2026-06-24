@@ -8,22 +8,63 @@ const isStaging = process.env.PUBLIC_IS_STAGING === "true";
 /** Public pages that should appear in search indexes. */
 const indexablePaths = ["/", "/privacy/"];
 
-const robots = isStaging
-  ? ["User-agent: *", "Disallow: /"].join("\n")
-  : [
-      "User-agent: *",
-      "Allow: /",
-      "Disallow: /gate/",
-      "Disallow: /preview/",
-      "Disallow: /thanks/",
-      "Disallow: /api/",
-      "",
-      `Sitemap: ${domain}/sitemap.xml`,
-    ].join("\n");
+/** Well-known AI crawlers and browsing agents (explicit Allow in robots.txt). */
+const AI_BOT_AGENTS = [
+  "Amazonbot",
+  "Applebot-Extended",
+  "Bytespider",
+  "CCBot",
+  "ChatGPT-User",
+  "ClaudeBot",
+  "CloudflareBrowserRenderingCrawler",
+  "cohere-ai",
+  "Diffbot",
+  "DuckAssistBot",
+  "Google-CloudVertexBot",
+  "Google-Extended",
+  "GoogleOther",
+  "GPTBot",
+  "meta-externalagent",
+  "OAI-SearchBot",
+  "PerplexityBot",
+  "PetalBot",
+  "anthropic-ai",
+  "AI2Bot",
+  "PhindBot",
+  "TikTokSpider",
+  "YouBot",
+];
 
-writeFileSync(resolve(distDir, "robots.txt"), `${robots}\n`);
+const DISALLOWED_PATHS = ["/gate/", "/preview/", "/thanks/", "/api/"];
+
+function buildRobotsTxt({ includeSitemap }) {
+  const lines = [
+    "# Gwenda — search and AI crawlers welcome",
+    "User-agent: *",
+    "Content-Signal: search=yes,ai-input=yes,ai-train=yes",
+    "Allow: /",
+    ...DISALLOWED_PATHS.map((path) => `Disallow: ${path}`),
+    "",
+    ...AI_BOT_AGENTS.flatMap((agent) => [
+      `User-agent: ${agent}`,
+      "Allow: /",
+      ...DISALLOWED_PATHS.map((path) => `Disallow: ${path}`),
+      "",
+    ]),
+  ];
+
+  if (includeSitemap) {
+    lines.push(`Sitemap: ${domain}/sitemap.xml`);
+  }
+
+  return `${lines.join("\n").trim()}\n`;
+}
+
+const robots = buildRobotsTxt({ includeSitemap: !isStaging });
+
+writeFileSync(resolve(distDir, "robots.txt"), robots);
 console.log(
-  `Wrote dist/robots.txt (${isStaging ? "staging — noindex" : "production"})`,
+  `Wrote dist/robots.txt (${isStaging ? "staging — HTML noindex" : "production"})`,
 );
 
 if (isStaging) {
