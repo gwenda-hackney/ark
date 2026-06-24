@@ -1,76 +1,42 @@
 /**
- * Allow AI crawlers on the production zone: disable Cloudflare-managed robots.txt
- * blocks and edge rules that stop GPTBot, Google-Extended, etc.
+ * Allow AI crawlers on the production zone via Cloudflare Bot Management API.
  *
  * Env: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, ZONE_NAME (default gwenda.co.uk)
+ * Token needs permission: App Security | Bot Management | Edit on gwenda.co.uk
  */
+import {
+  createCfClient,
+  ensureZoneAiAccess,
+  TOKEN_PERMISSION_HINT,
+} from "./lib/zone-ai-access.mjs";
+
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const ZONE_NAME = process.env.ZONE_NAME || "gwenda.co.uk";
+const VERIFY_ORIGIN =
+  process.env.ZONE_VERIFY_ORIGIN ||
+  (ZONE_NAME.startsWith("http") ? ZONE_NAME : `https://${ZONE_NAME}`);
 
 if (!ACCOUNT_ID || !API_TOKEN) {
   console.error("Missing CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN");
   process.exit(1);
 }
 
-async function cf(path, { method = "GET", body } = {}) {
-  const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${API_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json();
-  if (!data.success) {
-    const msg = data.errors?.map((e) => e.message).join("; ") || res.statusText;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.code = data.errors?.[0]?.code;
-    throw err;
-  }
-  return data.result;
-}
-
-const zones = await cf(`/zones?name=${ZONE_NAME}&account.id=${ACCOUNT_ID}`);
-const zone = zones?.[0];
-
-if (!zone) {
-  console.warn(
-    `Zone ${ZONE_NAME} is not on account ${ACCOUNT_ID}. Skipping AI access config.`,
-  );
-  process.exit(0);
-}
-
-let current = {};
 try {
-  current = (await cf(`/zones/${zone.id}/bot_management`)) ?? {};
+  const cf = createCfClient({ accountId: ACCOUNT_ID, apiToken: API_TOKEN });
+  const { zoneId, config } = await ensureZoneAiAccess(cf, ZONE_NAME, {
+    verifyOrigin: VERIFY_ORIGIN,
+  });
+
+  console.log(`Zone ${ZONE_NAME} (${zoneId}): AI crawler access enabled.`);
+  console.log(
+    `  ai_bots_protection=${config.ai_bots_protection}, is_robots_txt_managed=${config.is_robots_txt_managed}, cf_robots_variant=${config.cf_robots_variant}`,
+  );
+  console.log(`Verified live robots.txt at ${VERIFY_ORIGIN}/robots.txt`);
 } catch (err) {
-  if (err.status === 403 || err.code === 10000) {
-    console.warn(
-      `Bot Management API unavailable for ${ZONE_NAME} (${err.message}).\n` +
-        "Disable “Block AI bots” and managed robots.txt manually in the Cloudflare dashboard:\n" +
-        "Security → Bots → Configure Bot Fight Mode / AI bots.",
-    );
-    process.exit(0);
+  console.error(err.message || err);
+  if (!String(err.message || "").includes(TOKEN_PERMISSION_HINT)) {
+    console.error(TOKEN_PERMISSION_HINT);
   }
-  throw err;
+  process.exit(1);
 }
-
-const next = {
-  ...current,
-  ai_bots_protection: "disabled",
-  crawler_protection: "disabled",
-  is_robots_txt_managed: false,
-  cf_robots_variant: "off",
-};
-
-await cf(`/zones/${zone.id}/bot_management`, { method: "PUT", body: next });
-
-console.log(
-  `Zone ${ZONE_NAME}: AI bot blocking disabled, managed robots.txt off.`,
-);
-console.log(
-  "  ai_bots_protection=disabled, crawler_protection=disabled, is_robots_txt_managed=false",
-);
