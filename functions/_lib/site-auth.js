@@ -86,6 +86,9 @@ export function buildAuthCookie(token, { secure = true } = {}) {
 const SEARCH_ENGINE_BOTS =
   /googlebot|google-inspectiontool|storebot-google|bingbot|slurp|duckduckbot|baiduspider|yandexbot|applebot|facebookexternalhit|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|microsoft office|ms-office|skypeuripreview|teams|opengraphxyzbot|iframely|embedly|preview/i;
 
+const AI_READING_BOTS =
+  /gptbot|chatgpt-user|oai-searchbot|claudebot|anthropic-ai|google-extended|googleother|google-cloudvertexbot|bytespider|ccbot|meta-externalagent|amazonbot|applebot-extended|cloudflarebrowserrenderingcrawler|perplexitybot|cohere-ai|diffbot|youbot|ai2bot|phindbot|duckassistbot|petalbot|tiktokspider/i;
+
 function getUserAgent(request) {
   const headers = request.headers;
   if (typeof headers?.get === "function") {
@@ -96,6 +99,17 @@ function getUserAgent(request) {
 
 export function isSearchEngineCrawler(request) {
   return SEARCH_ENGINE_BOTS.test(getUserAgent(request));
+}
+
+export function isAiReadingBot(request) {
+  return AI_READING_BOTS.test(getUserAgent(request));
+}
+
+/** Search, social preview, and AI reading bots bypass the staging password gate. */
+export function isUnauthenticatedCrawler(request) {
+  return (
+    isSearchEngineCrawler(request) || isAiReadingBot(request)
+  );
 }
 
 /** @returns {{ kind: "open" | "gated" | "misconfigured", password?: string }} */

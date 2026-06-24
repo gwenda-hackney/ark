@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { isPublicPath, matchesSecret } from "./site-auth.js";
+import {
+  isAiReadingBot,
+  isPublicPath,
+  isUnauthenticatedCrawler,
+  matchesSecret,
+} from "./site-auth.js";
+
+function req(userAgent) {
+  return { headers: { get: (name) => (name === "User-Agent" ? userAgent : "") } };
+}
 
 describe("isPublicPath", () => {
   it("allows stable brand assets through the staging gate", () => {
@@ -27,5 +36,34 @@ describe("matchesSecret", () => {
     expect(matchesSecret("", "abc")).toBe(false);
     expect(matchesSecret("abc", "")).toBe(false);
     expect(matchesSecret(null, "abc")).toBe(false);
+  });
+});
+
+describe("isAiReadingBot", () => {
+  it("recognises common AI crawlers", () => {
+    expect(isAiReadingBot(req("GPTBot/1.0"))).toBe(true);
+    expect(isAiReadingBot(req("Mozilla/5.0 (compatible; Google-Extended)"))).toBe(
+      true,
+    );
+    expect(isAiReadingBot(req("ClaudeBot/1.0"))).toBe(true);
+  });
+
+  it("ignores normal browsers", () => {
+    expect(
+      isAiReadingBot(
+        req(
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0",
+        ),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isUnauthenticatedCrawler", () => {
+  it("allows search and AI bots through the staging gate", () => {
+    expect(isUnauthenticatedCrawler(req("Mozilla/5.0 (compatible; Googlebot/2.1)"))).toBe(
+      true,
+    );
+    expect(isUnauthenticatedCrawler(req("GPTBot/1.0"))).toBe(true);
   });
 });
