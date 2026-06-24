@@ -19,6 +19,21 @@ const MANAGED_ROBOTS_MARKER = "# BEGIN Cloudflare Managed content";
 const BLOCKED_AI_AGENTS = ["Google-Extended", "GPTBot", "ClaudeBot"];
 
 /**
+ * True when an agent section has `Disallow: /` (whole site), not path rules like `/gate/`.
+ * @param {string} robotsTxt
+ * @param {string} agent
+ */
+function agentSectionBlocksEntireSite(robotsTxt, agent) {
+  const section = new RegExp(
+    `User-agent:\\s*${agent}\\b([\\s\\S]*?)(?=\\nUser-agent:|$)`,
+    "i",
+  );
+  const match = robotsTxt.match(section);
+  if (!match) return false;
+  return /^Disallow:\s*\/\s*$/m.test(match[1]);
+}
+
+/**
  * @param {string} robotsTxt
  */
 export function assertRobotsTxtAllowsAi(robotsTxt) {
@@ -29,11 +44,7 @@ export function assertRobotsTxtAllowsAi(robotsTxt) {
   }
 
   for (const agent of BLOCKED_AI_AGENTS) {
-    const block = new RegExp(
-      `User-agent:\\s*${agent}[\\s\\S]*?Disallow:\\s*/`,
-      "i",
-    );
-    if (block.test(robotsTxt)) {
+    if (agentSectionBlocksEntireSite(robotsTxt, agent)) {
       throw new Error(`robots.txt still blocks ${agent}.`);
     }
   }

@@ -14,6 +14,21 @@ const OPEN_ROBOTS = `User-agent: *
 Content-Signal: search=yes,ai-input=yes,ai-train=yes
 Allow: /`;
 
+const PRODUCTION_ROBOTS = `# Gwenda — search and AI crawlers welcome
+User-agent: Google-Extended
+Content-Signal: search=yes,ai-input=yes,ai-train=yes
+Allow: /
+Disallow: /gate/
+Disallow: /preview/
+Disallow: /thanks/
+Disallow: /api/
+
+User-agent: *
+Content-Signal: search=yes,ai-input=yes,ai-train=yes
+Allow: /
+Disallow: /gate/
+`;
+
 describe("assertRobotsTxtAllowsAi", () => {
   it("rejects Cloudflare managed AI blocks", () => {
     expect(() => assertRobotsTxtAllowsAi(BLOCKED_ROBOTS)).toThrow(
@@ -21,8 +36,18 @@ describe("assertRobotsTxtAllowsAi", () => {
     );
   });
 
+  it("rejects whole-site Disallow for AI agents", () => {
+    expect(() =>
+      assertRobotsTxtAllowsAi(`User-agent: GPTBot\nDisallow: /`),
+    ).toThrow(/blocks GPTBot/);
+  });
+
   it("accepts an open robots.txt", () => {
     expect(() => assertRobotsTxtAllowsAi(OPEN_ROBOTS)).not.toThrow();
+  });
+
+  it("accepts path-specific disallows after Allow (production robots.txt)", () => {
+    expect(() => assertRobotsTxtAllowsAi(PRODUCTION_ROBOTS)).not.toThrow();
   });
 });
 
