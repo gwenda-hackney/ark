@@ -4,7 +4,7 @@ import {
   createAuthToken,
   gateBypassRedirectPath,
   isPublicPath,
-  isSearchEngineCrawler,
+  isUnauthenticatedCrawler,
   matchesSecret,
   parseCookies,
   safeRedirectPath,
@@ -87,7 +87,7 @@ export function devSiteGate({ password, bypassKey } = {}) {
       return;
     }
 
-    if (isSearchEngineCrawler(req)) {
+    if (isUnauthenticatedCrawler(req)) {
       next();
       return;
     }
