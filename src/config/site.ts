@@ -1,8 +1,3 @@
-import { siteConfig } from "../config/site";
-import { openingPromoLine } from "../config/opening";
-
-const openingPromo = openingPromoLine();
-
 export const siteConfig = {
   name: "Gwenda",
   tagline: "Hackney Wick",
@@ -27,9 +22,9 @@ export const siteConfig = {
     tiktok: "",
     shareTitle: "Gwenda | Hackney Wick, London",
     shareDescription:
-      `A canalside ristobar in Hackney Wick. Craft cocktails, regional Italian food, art and vinyl. ${openingPromo}.`,
+      "A canalside ristobar in Hackney Wick. Craft cocktails, regional Italian food, art and vinyl.",
     imageAlt:
-      `Gwenda on the Hackney Wick canal. ${openingPromo}.`,
+      "Gwenda on the Hackney Wick canal.",
   },
   location: {
     area: "Hackney Wick",
@@ -62,8 +57,7 @@ export const siteConfig = {
   },
   copy: {
     descriptionPromo:
-      `A canalside ristobar in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl. ${openingPromo}.`,
-    heroEyebrow: openingPromo,
+      "A canalside ristobar in Hackney Wick. Craft cocktails, hyper-regional Italian food, art and vinyl.",
     heroCta: "Enter our world",
     joinExperienceCta: "Join the experience",
     storyHeading: "Behind the Doors",
@@ -75,7 +69,6 @@ export const siteConfig = {
     ],
     storyClosingPromo:
       "Who is Gwenda? We can't say. Come experience for yourself.",
-    storyOpeningPromo: openingPromo,
     storyBody: [
       "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
       "Hyper-regional Italian street food, rarely seen in London, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
@@ -97,7 +90,6 @@ export const siteConfig = {
       "Be among the first through the door. Opening updates, private invitations, and the occasional whisper.",
     signupSubheadingPromo:
       "We're putting the finishing touches on Gwenda. Leave your email and we'll be in touch.",
-    footerOpeningPromo: openingPromo,
     signupConsent:
       "I agree to receive opening updates and marketing emails from Gwenda. I can unsubscribe at any time.",
     signupButton: "Let me know",
