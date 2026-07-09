@@ -8,6 +8,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import sharp from "sharp";
+import colors from "../src/config/colors.json" with { type: "json" };
 
 const outDir = resolve(process.cwd(), "public");
 const faviconSrc = resolve(
@@ -18,7 +19,12 @@ const logoSrc = resolve(process.cwd(), "src/assets/images/logos/logo.png");
 
 /** Google Organization logo: min 112×112, square preferred. Site brand background. */
 const organizationLogoWidth = 512;
-const brandBackground = { r: 13, g: 13, b: 13, alpha: 1 };
+const brandBackground = {
+  r: Number.parseInt(colors.bg.slice(1, 3), 16),
+  g: Number.parseInt(colors.bg.slice(3, 5), 16),
+  b: Number.parseInt(colors.bg.slice(5, 7), 16),
+  alpha: 1,
+};
 /** Top/bottom inset so logos aren't flush in Google rich-result previews. */
 const verticalPaddingRatio = 0.12;
 
@@ -108,5 +114,5 @@ console.log("Wrote public/favicon.png (from favicon-light.png)");
 console.log("Wrote public/favicon.ico");
 console.log("Wrote public/apple-touch-icon.png");
 console.log(
-  `Wrote public/brand/logo-organization.png (${orgWidth}×${orgCanvasHeight}, #0d0d0d background)`,
+  `Wrote public/brand/logo-organization.png (${orgWidth}×${orgCanvasHeight}, ${colors.bg} background)`,
 );

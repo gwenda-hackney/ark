@@ -1,0 +1,28 @@
+/* Keep hex values in sync with src/config/colors.ts — verified by colors.test.ts */
+
+:root {
+  /* Solid palette */
+  --color-bg: #0d0d0d;
+  --color-bg-elevated: #141414;
+  --color-bg-story: #151414;
+  --color-bg-story-print: #23211b;
+  --color-bg-card: #1a1a1a;
+  --color-bg-scrim: rgba(8, 8, 8, 0.94);
+  --color-bg-warm-light: #161310;
+  --color-bg-warm-mid: #0f0e0c;
+  --color-bg-deep: #0a0908;
+  --color-text: #e8e4dc;
+  --color-text-muted: #8a8680;
+  --color-gold: #c9a84c;
+  --color-gold-dark: #8b6914;
+  --color-error: #c97a7a;
+
+  /* Derived from palette */
+  --color-gold-dim: color-mix(in srgb, var(--color-gold) 35%, transparent);
+  --color-border: color-mix(in srgb, var(--color-gold) 10%, transparent);
+  --color-border-subtle: color-mix(in srgb, var(--color-gold) 6%, transparent);
+  --color-focus-ring:
+    0 0 0 1px color-mix(in srgb, var(--color-gold) 50%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-gold) 14%, transparent);
+  --focus-ring: var(--color-focus-ring);
+}

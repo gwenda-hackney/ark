@@ -4,10 +4,10 @@ Marketing site for [Gwenda](https://gwenda.co.uk) — Astro on Cloudflare Pages 
 
 ## Sites
 
-| Environment    | URL                                                                                                  | Branch    | Trigger           |
-| -------------- | ---------------------------------------------------------------------------------------------------- | --------- | ----------------- |
-| **Staging**    | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main`    | Push to `main`    |
-| **Production** | [gwenda.co.uk](https://gwenda.co.uk)                                                                 | `release` | Push to `release` (preview), then manual promote |
+| Environment    | URL                                                          | Branch    | Trigger                                          |
+| -------------- | ------------------------------------------------------------ | --------- | ------------------------------------------------ |
+| **Staging**    | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | `main`    | Push to `main`                                   |
+| **Production** | [gwenda.co.uk](https://gwenda.co.uk)                         | `release` | Push to `release` (preview), then manual promote |
 
 ![Staging deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/staging?label=staging)
 ![Production deployment](https://img.shields.io/github/deployments/gwenda-hackney/web/production?label=production)
@@ -43,10 +43,10 @@ git push -u origin release
 
 There is one workflow per deploy target. Both call the reusable [verify](.github/workflows/verify.yml) job (lint → build → unit tests) before deploying.
 
-| Trigger           | Workflow                                                     | Deploy target             |
-| ----------------- | ------------------------------------------------------------ | ------------------------- |
-| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)       | `gwenda-staging`          |
-| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml) | preview on `gwenda`       |
+| Trigger           | Workflow                                                                      | Deploy target             |
+| ----------------- | ----------------------------------------------------------------------------- | ------------------------- |
+| Push to `main`    | [Deploy staging](.github/workflows/deploy-staging.yml)                        | `gwenda-staging`          |
+| Push to `release` | [Deploy production](.github/workflows/deploy-production.yml)                  | preview on `gwenda`       |
 | Manual            | [Promote production to live](.github/workflows/deploy-production-promote.yml) | `gwenda` → `gwenda.co.uk` |
 
 **Toolchain:** Node 24, `npm ci` via Corepack (`packageManager` in `package.json`). Local devcontainer matches CI.
@@ -65,12 +65,12 @@ Pages runtime vars (`SITE_ENV`, etc.) live in [`wrangler.toml`](wrangler.toml) (
 
 GitHub Environment required reviewers do not work on private repos without Enterprise, so promotion is a separate manual workflow.
 
-|                   | Staging                  | Production                         |
-| ----------------- | ------------------------ | ---------------------------------- |
-| Project           | `gwenda-staging`         | `gwenda`                           |
-| Production branch | `main`                   | `release`                          |
+|                   | Staging                    | Production                         |
+| ----------------- | -------------------------- | ---------------------------------- |
+| Project           | `gwenda-staging`           | `gwenda`                           |
+| Production branch | `main`                     | `release`                          |
 | Live URL          | `gwenda-staging.pages.dev` | `gwenda.co.uk`, `www.gwenda.co.uk` |
-| Custom domain CI  | None                     | `ensure-pages-domain.mjs`          |
+| Custom domain CI  | None                       | `ensure-pages-domain.mjs`          |
 
 Production custom domains stay permanently attached. **Web Analytics:** Cloudflare dashboard zone auto-inject on production only (no repo scripts).
 
@@ -131,6 +131,10 @@ Response headers: `X-Gwenda-Version`, `X-Gwenda-Build-Sha`. On staging, the corn
 The hero countdown reads `PUBLIC_OPENING_DATE` (`YYYY-MM-DD`) at build time. The date is not shown in the UI — only the counter updates.
 
 Change it via GitHub repository variable `PUBLIC_OPENING_DATE`, then redeploy. Default: `2026-07-04`. Local: set in `.env`.
+
+## Brand colors
+
+Canonical palette and Canva swatches: [docs/colors.md](docs/colors.md). Source of truth: `src/config/colors.json`.
 
 ## Local development
 
