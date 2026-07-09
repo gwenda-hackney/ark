@@ -1,0 +1,73 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { siteConfig } from "../config/site";
+import { formatEventDate, getUpcomingEvents } from "../data/events";
+
+const upcomingEvents = getUpcomingEvents();
+const pageDescription = `Upcoming events at ${siteConfig.name} — canalside ${siteConfig.publicLabel.toLowerCase()} in Hackney Wick.`;
+
+const eventSchema = upcomingEvents.map((event) => ({
+  "@type": "Event",
+  name: event.title,
+  startDate: event.date,
+  description: event.description,
+  eventStatus: "https://schema.org/EventScheduled",
+  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+  location: {
+    "@type": "Place",
+    name: siteConfig.name,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: siteConfig.location.streetAddress,
+      addressLocality: siteConfig.location.addressLocality,
+      postalCode: siteConfig.location.postalCode,
+      addressCountry: "GB",
+    },
+  },
+  organizer: {
+    "@type": "Organization",
+    name: siteConfig.name,
+    url: siteConfig.domain,
+  },
+}));
+---
+
+<BaseLayout title={`Events — ${siteConfig.name}`} description={pageDescription}>
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": eventSchema,
+    })}
+  />
+
+  <main class="events-page">
+    <div class="container events-inner">
+      <a href="/" class="legal-back">← Back</a>
+
+      <header class="section-header reveal">
+        <p class="section-eyebrow">What's on</p>
+        <h1>Events</h1>
+        <p>Canalside evenings in {siteConfig.location.area}.</p>
+      </header>
+
+      {
+        upcomingEvents.length > 0 ? (
+          <ul class="events-list">
+            {upcomingEvents.map((event) => (
+              <li class="event-card reveal">
+                <p class="event-date">
+                  <time datetime={event.date}>{formatEventDate(event.date)}</time>
+                </p>
+                <h2 class="event-title">{event.title}</h2>
+                <p class="event-description">{event.description}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="events-empty reveal">Nothing scheduled yet. Check back soon.</p>
+        )
+      }
+    </div>
+  </main>
+</BaseLayout>
