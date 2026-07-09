@@ -29,7 +29,7 @@ inputs:
   public-opening-date:
     description: PUBLIC_OPENING_DATE build variable
     required: false
-    default: "2026-07-18"
+    default: "2026-08-01"
   build-version:
     description: CalVer build version
     required: true

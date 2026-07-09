@@ -148,7 +148,7 @@ export default defineConfig({
         context: "client",
         access: "public",
         optional: true,
-        default: "2026-07-18",
+        default: "2026-08-01",
       }),
     },
   },

@@ -130,7 +130,7 @@ Response headers: `X-Gwenda-Version`, `X-Gwenda-Build-Sha`. On staging, the corn
 
 The hero countdown reads `PUBLIC_OPENING_DATE` (`YYYY-MM-DD`) at build time. The date is not shown in the UI — only the counter updates.
 
-Change it via GitHub repository variable `PUBLIC_OPENING_DATE`, then redeploy. Default: `2026-07-04`. Local: set in `.env`.
+Change it via GitHub repository variable `PUBLIC_OPENING_DATE`, then redeploy. Default: `2026-08-01`. Local: set in `.env`.
 
 ## Brand colors
 
