@@ -6,7 +6,7 @@ const domain = "https://gwenda.co.uk";
 const isStaging = process.env.PUBLIC_IS_STAGING === "true";
 
 /** Public pages that should appear in search indexes. */
-const indexablePaths = ["/", "/privacy/"];
+const indexablePaths = ["/", "/privacy/", "/events/"];
 
 /** Well-known AI crawlers and browsing agents (explicit Allow in robots.txt). */
 const AI_BOT_AGENTS = [
