@@ -1,9 +1,10 @@
 import { siteConfig } from "./site";
 import type { SiteMode } from "../types/features";
+import { openingPromoLine } from "./opening";
 
 export function getCopy(mode: SiteMode) {
   const { copy } = siteConfig;
-  const storyOpening = copy.storyOpeningPromo;
+  const storyOpening = openingPromoLine();
 
   if (mode === "preview") {
     return {
@@ -26,6 +27,6 @@ export function getCopy(mode: SiteMode) {
     signupEyebrow: copy.signupEyebrowPromo,
     signupHeading: copy.signupHeading,
     signupSubheading: copy.signupSubheadingPromo,
-    footerOpening: copy.footerOpeningPromo,
+    footerOpening: openingPromoLine(),
   };
 }

@@ -1,7 +1,7 @@
 ---
 import { Image } from "astro:assets";
 import { siteConfig } from "../config/site";
-import { openingDate, openingTimestamp } from "../config/opening";
+import { openingDate, openingTimestamp, openingDateLabel } from "../config/opening";
 import { heroBackground, heroLogo } from "../lib/hero-assets";
 
 const openingYear = new Date(openingDate).getFullYear();
@@ -30,7 +30,7 @@ const minutes = Math.floor((diff % 3600000) / 60000);
     <h1 class="visually-hidden">{siteConfig.seoTitle}</h1>
     <p class="hero-eyebrow hero-stagger">
       <span class="hero-eyebrow-label">
-        <span class="hero-eyebrow-word">{siteConfig.heroSeasonWord}</span>
+        <span class="hero-eyebrow-word">{openingDateLabel()}</span>
         <span class="hero-eyebrow-year">{openingYear}</span>
       </span>
     </p>
