@@ -1,0 +1,16 @@
+{
+  "bg": "#0d0d0d",
+  "bgElevated": "#141414",
+  "bgStory": "#151414",
+  "bgStoryPrint": "#23211b",
+  "bgCard": "#1a1a1a",
+  "bgScrim": "rgba(8, 8, 8, 0.94)",
+  "bgWarmLight": "#161310",
+  "bgWarmMid": "#0f0e0c",
+  "bgDeep": "#0a0908",
+  "text": "#e8e4dc",
+  "textMuted": "#8a8680",
+  "gold": "#c9a84c",
+  "goldDark": "#8b6914",
+  "error": "#c97a7a"
+}
