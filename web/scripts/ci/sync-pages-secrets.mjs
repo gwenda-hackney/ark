@@ -17,10 +17,16 @@ const rootDir = resolve(webDir, "..");
 
 function findWrangler() {
   for (const base of [webDir, rootDir]) {
-    const bin = join(base, "node_modules/.bin/wrangler");
+    const bin = join(base, "node_modules/wrangler/bin/wrangler.js");
     if (existsSync(bin)) return bin;
   }
-  return "wrangler";
+  return null;
+}
+
+const wrangler = findWrangler();
+if (!wrangler) {
+  console.error("wrangler not found — run npm ci at the repo root.");
+  process.exit(1);
 }
 
 const args = process.argv.slice(2);
@@ -40,7 +46,6 @@ if (!project || !profile) {
   process.exit(1);
 }
 
-const wrangler = findWrangler();
 const wranglerEnv = {
   ...process.env,
   CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
@@ -54,8 +59,9 @@ function putSecret(key, value) {
   if (!value) return;
   for (const deploymentEnv of deploymentEnvs) {
     const result = spawnSync(
-      wrangler,
+      process.execPath,
       [
+        wrangler,
         "pages",
         "secret",
         "put",
@@ -67,6 +73,10 @@ function putSecret(key, value) {
       ],
       { input: value, encoding: "utf8", env: wranglerEnv },
     );
+    if (result.error) {
+      console.error(`wrangler pages secret put ${key} failed: ${result.error.message}`);
+      process.exit(1);
+    }
     if (result.status !== 0) {
       const message = [result.stderr, result.stdout].filter(Boolean).join("\n");
       console.error(message || `wrangler pages secret put ${key} failed (exit ${result.status})`);
@@ -79,8 +89,9 @@ function putSecret(key, value) {
 function deleteSecret(key) {
   for (const deploymentEnv of deploymentEnvs) {
     spawnSync(
-      wrangler,
+      process.execPath,
       [
+        wrangler,
         "pages",
         "secret",
         "delete",
