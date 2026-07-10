@@ -82,7 +82,7 @@ runs:
     - name: Build
       if: inputs.skip-build != 'true'
       shell: bash
-      run: npm run build
+      run: cd web && npm run build
       env:
         PUBLIC_IS_STAGING: ${{ inputs.public-is-staging }}
         PUBLIC_BUILD_SHA: ${{ inputs.build-sha }}
@@ -96,15 +96,15 @@ runs:
       if: inputs.skip-build == 'true'
       shell: bash
       run: |
-        if [ ! -d dist ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
-          echo "skip-build requires a non-empty dist/ directory" >&2
+        if [ ! -d web/dist ] || [ -z "$(ls -A web/dist 2>/dev/null)" ]; then
+          echo "skip-build requires a non-empty web/dist/ directory" >&2
           exit 1
         fi
 
     - name: Refresh build headers
       if: inputs.skip-build == 'true'
       shell: bash
-      run: node scripts/write-build-headers.mjs
+      run: cd web && node scripts/write-build-headers.mjs
       env:
         PUBLIC_BUILD_SHA: ${{ inputs.build-sha }}
         PUBLIC_BUILD_TIME: ${{ inputs.build-time }}
@@ -112,7 +112,7 @@ runs:
 
     - name: Ensure Pages project exists
       shell: bash
-      run: node scripts/ensure-pages-project.mjs
+      run: cd web && node scripts/ensure-pages-project.mjs
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
@@ -121,7 +121,7 @@ runs:
 
     - name: Sync Pages secrets
       shell: bash
-      run: node scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secret-profile }}"
+      run: cd web && node scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secret-profile }}"
       env:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
@@ -135,7 +135,7 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.wrangler-config }}" != wrangler.toml ]; then
-          cp "${{ inputs.wrangler-config }}" wrangler.toml
+          cp "web/${{ inputs.wrangler-config }}" web/wrangler.toml
         fi
 
     - name: Deploy to Cloudflare Pages
@@ -145,3 +145,4 @@ runs:
         apiToken: ${{ inputs.cloudflare-api-token }}
         accountId: ${{ inputs.cloudflare-account-id }}
         command: pages deploy dist --project-name=${{ inputs.pages-project }} --commit-hash=${{ inputs.build-sha }} --branch=${{ inputs.deploy-branch }}
+        workingDirectory: web

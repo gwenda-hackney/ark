@@ -1,16 +1,23 @@
 FROM node:24
 
-# GH, jq, sudo, curl
+# Node tooling + Python for tools/ utilities
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gh jq sudo curl \
+    && apt-get install -y --no-install-recommends \
+        gh \
+        jq \
+        sudo \
+        curl \
+        python3 \
+        python3-pip \
+        python3-venv \
+        imagemagick \
     && rm -rf /var/lib/apt/lists/* \
     && echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Fly.io CLI
-RUN curl -L https://fly.io/install.sh | FLYCTL_INSTALL=/usr/local sh
-
-# NPM Gloabl tools, pnpm, yalc and airtable blocks CLI
-RUN npm add --global pnpm@10 yalc@1.0.0-pre.53 @airtable/blocks-cli
+RUN python3 -m pip install --break-system-packages --no-cache-dir \
+        httpx \
+        pyyaml \
+        ruff
 
 ARG USERNAME=node
 
@@ -19,7 +26,6 @@ RUN \
     && printf "store-dir=/home/${USERNAME}/.pnpm-store\n" > /home/${USERNAME}/.config/pnpm/rc \
     && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config /home/${USERNAME}/.pnpm-store
 
-# Pre-create workspace dirs and npm cache with correct ownership
 RUN mkdir -p /src/node_modules /src/.forge /home/${USERNAME}/.npm \
     && chown -R ${USERNAME}:${USERNAME} /src/node_modules /src/.forge /home/${USERNAME}/.npm
 

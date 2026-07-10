@@ -1,0 +1,12 @@
+{
+  "name": "@gwenda/brand",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gwenda brand guidelines — static HTML hosted on Cloudflare Pages at brand.gwenda.co.uk",
+  "scripts": {
+    "deploy": "wrangler pages deploy . --project-name gwenda-brand --commit-dirty=true"
+  },
+  "devDependencies": {
+    "wrangler": "^4.98.0"
+  }
+}

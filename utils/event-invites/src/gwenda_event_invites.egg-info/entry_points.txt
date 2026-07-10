@@ -1,0 +1,2 @@
+[console_scripts]
+event-invites = gwenda_event_invites.cli:main

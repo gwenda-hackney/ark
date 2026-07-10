@@ -22,18 +22,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Build site
+        run: npm run build -w @gwenda/web
         env:
           PUBLIC_OPENING_DATE: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
           PUBLIC_BOOKING_ENABLED_FROM: ${{ vars.PUBLIC_BOOKING_ENABLED_FROM || '' }}
 
       - name: Reject manual analytics beacon in build output
         run: |
-          if rg -q 'cloudflareinsights\.com' dist/; then
-            echo "dist/ contains manual Cloudflare Web Analytics embed — remove it from source"
+          if rg -q 'cloudflareinsights\.com' web/dist/; then
+            echo "web/dist/ contains manual Cloudflare Web Analytics embed — remove it from source"
             exit 1
           fi
 
       - name: Unit tests
-        run: npm test
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check

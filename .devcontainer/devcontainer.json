@@ -10,13 +10,22 @@
     "vscode": {
       "extensions": [
         "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "charliermarsh.ruff",
         "vitest.explorer@1.40.0",
         "vscode-icons-team.vscode-icons",
         "ritwickdey.LiveServer"
-      ]
+      ],
+      "settings": {
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true
+        },
+        "python.defaultInterpreterPath": "/usr/bin/python3"
+      }
     }
   },
-  "forwardPorts": [3000],
+  "forwardPorts": [4321],
   "postStartCommand": "bash /src/.devcontainer/post-start.sh",
   "remoteUser": "node"
 }
