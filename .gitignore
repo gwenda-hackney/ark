@@ -2,6 +2,8 @@ node_modules/
 .DS_Store
 .env
 .wrangler/
+.astro/
+/src/env.d.ts
 utils/**/.venv/
 utils/**/__pycache__/
 web/dist/

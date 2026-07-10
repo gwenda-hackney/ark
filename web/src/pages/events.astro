@@ -2,8 +2,10 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { siteConfig } from "../config/site";
 import { formatEventDate, getUpcomingEvents } from "../data/events";
+import { fetchEvents } from "../lib/sanity/events";
 
-const upcomingEvents = getUpcomingEvents();
+const events = await fetchEvents();
+const upcomingEvents = getUpcomingEvents(events);
 const pageDescription = `Upcoming events at ${siteConfig.name} — canalside ${siteConfig.publicLabel.toLowerCase()} in Hackney Wick.`;
 
 const eventSchema = upcomingEvents.map((event) => ({

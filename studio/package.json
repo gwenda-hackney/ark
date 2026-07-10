@@ -1,0 +1,24 @@
+{
+  "name": "@gwenda/studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sanity Studio for Gwenda content",
+  "scripts": {
+    "dev": "sanity dev",
+    "build": "sanity build",
+    "deploy": "sanity deploy",
+    "start": "sanity start"
+  },
+  "keywords": ["sanity"],
+  "dependencies": {
+    "@sanity/vision": "^6.4.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "sanity": "^6.4.0",
+    "styled-components": "^6.3.11"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "typescript": "^5.9.3"
+  }
+}
