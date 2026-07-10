@@ -9,7 +9,7 @@ const DEFAULT_DATASET = "development";
 export type SanityConfig = {
   projectId: string;
   dataset: string;
-  token: string;
+  token?: string;
 };
 
 function findRepoRoot(): string {
@@ -99,12 +99,6 @@ export function getSanityConfig(): SanityConfig {
     readDotEnv("SANITY_API_TOKEN", findRepoRoot()),
     process.env.SANITY_API_TOKEN,
   ]);
-
-  if (!token) {
-    throw new Error(
-      `SANITY_API_TOKEN is required in ${resolve(findRepoRoot(), ".env")} (local) or GitHub Actions secrets (CI).`,
-    );
-  }
 
   return { projectId, dataset, token };
 }
