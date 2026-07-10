@@ -1,0 +1,10 @@
+# Sanity build output
+dist/
+.sanity/
+
+# Dependencies
+node_modules/
+
+# Local env
+.env
+.env.*

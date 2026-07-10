@@ -76,6 +76,7 @@ jobs:
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
           baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
+          sanity-api-token: ${{ secrets.SANITY_API_TOKEN }}
 
       - name: Upload preview dist for promote
         uses: actions/upload-artifact@v4

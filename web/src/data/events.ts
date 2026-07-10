@@ -1,18 +1,4 @@
 import type { Event } from "../types/events";
-import { openingDate } from "../config/opening";
-
-/**
- * Single source of truth for events content.
- * Swap for a Baserow fetch when non-devs need to edit.
- */
-export const events: Event[] = [
-  {
-    id: "grand-opening",
-    title: "Grand Opening",
-    date: openingDate,
-    description: "Details to follow.",
-  },
-];
 
 export function formatEventDate(isoDate: string): string {
   const [year, month, day] = isoDate.split("-").map(Number);
@@ -25,7 +11,7 @@ export function formatEventDate(isoDate: string): string {
   });
 }
 
-export function getUpcomingEvents(now = new Date()): Event[] {
+export function getUpcomingEvents(events: Event[], now = new Date()): Event[] {
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
 

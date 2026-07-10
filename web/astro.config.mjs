@@ -156,6 +156,23 @@ export default defineConfig({
         optional: true,
         default: "",
       }),
+      SANITY_PROJECT_ID: envField.string({
+        context: "server",
+        access: "public",
+        optional: true,
+        default: "pn5yjro6",
+      }),
+      SANITY_DATASET: envField.string({
+        context: "server",
+        access: "public",
+        optional: true,
+        default: "production",
+      }),
+      SANITY_API_TOKEN: envField.string({
+        context: "server",
+        access: "secret",
+        optional: true,
+      }),
     },
   },
   image: {
@@ -164,6 +181,8 @@ export default defineConfig({
     },
   },
   vite: {
+    // Monorepo: shared secrets and Sanity token live in ark/.env
+    envDir: "..",
     // Devcontainer / Cursor port forwards use non-localhost Host headers; Vite blocks those with 403.
     server: { allowedHosts: true },
     preview: { allowedHosts: true },

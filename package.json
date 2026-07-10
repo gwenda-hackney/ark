@@ -5,12 +5,15 @@
   "workspaces": [
     "web",
     "brand",
+    "studio",
     "utils/*"
   ],
   "scripts": {
     "dev": "npm run dev -w @gwenda/web",
     "build": "npm run build -w @gwenda/web",
     "preview": "npm run preview -w @gwenda/web",
+    "studio": "npm run dev -w @gwenda/studio",
+    "studio:deploy": "npm run deploy -w @gwenda/studio",
     "generate:brand-assets": "npm run generate:brand-assets -w @gwenda/web",
     "sync:brand": "node .github/scripts/sync-brand-tokens.mjs",
     "test": "npm run test -w @gwenda/web",

@@ -67,6 +67,9 @@ inputs:
   subscribe-secret:
     description: Subscribe endpoint secret
     required: false
+  sanity-api-token:
+    description: Sanity read token for build-time content fetch
+    required: false
 
 outputs:
   deployment-url:
@@ -91,6 +94,9 @@ runs:
         PUBLIC_BUILD_VERSION: ${{ inputs.build-version }}
         PUBLIC_OPENING_DATE: ${{ inputs.public-opening-date }}
         PUBLIC_BOOKING_ENABLED_FROM: ${{ inputs.public-booking-enabled-from }}
+        SANITY_PROJECT_ID: pn5yjro6
+        SANITY_DATASET: production
+        SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
 
     - name: Ensure dist exists
       if: inputs.skip-build == 'true'
