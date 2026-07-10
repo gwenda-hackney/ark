@@ -7,6 +7,21 @@
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda --profile production
  */
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const webDir = resolve(scriptDir, "..");
+const rootDir = resolve(webDir, "..");
+
+function findWrangler() {
+  for (const base of [webDir, rootDir]) {
+    const bin = join(base, "node_modules/.bin/wrangler");
+    if (existsSync(bin)) return bin;
+  }
+  return "wrangler";
+}
 
 const args = process.argv.slice(2);
 
@@ -25,7 +40,7 @@ if (!project || !profile) {
   process.exit(1);
 }
 
-const wrangler = "./node_modules/.bin/wrangler";
+const wrangler = findWrangler();
 const wranglerEnv = {
   ...process.env,
   CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
@@ -53,7 +68,8 @@ function putSecret(key, value) {
       { input: value, encoding: "utf8", env: wranglerEnv },
     );
     if (result.status !== 0) {
-      console.error(result.stderr || result.stdout);
+      const message = [result.stderr, result.stdout].filter(Boolean).join("\n");
+      console.error(message || `wrangler pages secret put ${key} failed (exit ${result.status})`);
       process.exit(result.status || 1);
     }
     console.log(`Set secret ${key} on ${project} (${deploymentEnv}).`);
