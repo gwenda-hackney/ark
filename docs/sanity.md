@@ -18,6 +18,21 @@ SANITY_API_TOKEN=sk...
 
 CI and deploy workflows set `SANITY_DATASET=production` — do not change that for local `.env`.
 
+### GitHub secrets (CI)
+
+| Secret | Token in Sanity | Used by |
+|--------|---------------|---------|
+| `SANITY_API_TOKEN` | Viewer (`ark-ci-read`) — read-only, production dataset | Staging + production **site builds** (fetch menu, events, etc.) |
+| `SANITY_AUTH_TOKEN` | Deploy permission | **Studio deploy** workflow only |
+
+Set the viewer token once:
+
+```bash
+gh secret set SANITY_API_TOKEN < <(grep '^SANITY_API_TOKEN=' .env | cut -d= -f2-)
+```
+
+Staging and production builds pass this into `npm run build` so Astro can query Sanity at build time.
+
 ## First-time setup
 
 1. Create the dev dataset (one-time):

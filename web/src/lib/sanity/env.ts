@@ -9,7 +9,7 @@ const DEFAULT_DATASET = "development";
 export type SanityConfig = {
   projectId: string;
   dataset: string;
-  token?: string;
+  token: string;
 };
 
 function findRepoRoot(): string {
@@ -99,6 +99,14 @@ export function getSanityConfig(): SanityConfig {
     readDotEnv("SANITY_API_TOKEN", findRepoRoot()),
     process.env.SANITY_API_TOKEN,
   ]);
+
+  if (!token) {
+    const hint =
+      dataset === "production"
+        ? "GitHub Actions secrets (CI) or repo-root .env (local preview)."
+        : `${resolve(findRepoRoot(), ".env")} (local).`;
+    throw new Error(`SANITY_API_TOKEN is required — set the read-only viewer token in ${hint}`);
+  }
 
   return { projectId, dataset, token };
 }
