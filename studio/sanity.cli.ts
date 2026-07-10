@@ -6,4 +6,6 @@ export default defineCliConfig({
     projectId: getStudioProjectId(),
     dataset: getStudioDataset(),
   },
+  /** Hosted Studio URL: https://gwenda.sanity.studio */
+  studioHost: "gwenda",
 });
