@@ -2,13 +2,12 @@
 
 Tracked in GitHub issues where noted. See README and `.github/copilot-instructions.md` for current architecture.
 
-## Done (remove when verified in staging/production)
-
-- [x] Social / link preview meta — `SocialMeta.astro` + `logo-board.png`
-- [x] Email signup backend — `/api/subscribe` → Baserow (CSRF + honeypot)
-
 ## Open
 
-- [ ] Expand unit test coverage — [#6](https://github.com/gwenda-hackney/web/issues/6)
-- [ ] Playwright regression suite — [#7](https://github.com/gwenda-hackney/web/issues/7)
-- [ ] Automated security scanning (ZAP, Dependabot) — [#8](https://github.com/gwenda-hackney/web/issues/8)
+- [ ] Expand unit test coverage — [#6](https://github.com/gwenda-hackney/ark/issues/6)
+- [ ] Playwright regression suite — [#7](https://github.com/gwenda-hackney/ark/issues/7)
+- [ ] Automated security scanning (ZAP, Dependabot) — [#8](https://github.com/gwenda-hackney/ark/issues/8)
+
+
+
+Who is Gwenda

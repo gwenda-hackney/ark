@@ -1,6 +1,10 @@
 node_modules/
-.astro/
-dist/
 .DS_Store
 .env
 .wrangler/
+utils/**/.venv/
+utils/**/__pycache__/
+web/dist/
+web/.astro/
+web/node_modules/
+brand/node_modules/
