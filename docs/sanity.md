@@ -97,7 +97,7 @@ Schema changes live in `studio/schemaTypes/` — commit with matching query upda
 
 Mark cocktails as **Signature cocktail** and upload a **Photo** in Studio. Only items with both appear on the homepage gallery.
 
-### Seed development menu photos
+### Seed menu (development)
 
 ```bash
 npm run studio:seed:dev
@@ -105,6 +105,16 @@ npm run studio:seed:dev
 ```
 
 Uploads test cocktail PNGs and seeds the **development** dataset (signature + traditional sections).
+
+### Seed menu (production, one-off)
+
+Requires a **Developer or Editor** token with write access to the production dataset (local `.env` token is fine):
+
+```bash
+npm run studio:seed:production
+```
+
+Idempotent — updates existing sections/items by slug/name, or creates them if missing.
 
 ## Hosted Studio (editors)
 

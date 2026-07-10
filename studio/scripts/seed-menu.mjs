@@ -1,8 +1,9 @@
 /**
- * Seed development dataset menu sections and cocktail items.
+ * Seed menu sections and cocktail items into a Sanity dataset.
  *
  * Usage (from repo root):
- *   node --env-file=.env studio/scripts/seed-development-menu.mjs
+ *   npm run studio:seed:dev
+ *   CONFIRM_PRODUCTION_SEED=1 npm run studio:seed:production
  */
 import { createClient } from "@sanity/client";
 import { readFileSync } from "node:fs";
@@ -13,10 +14,26 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(__dirname, "../..");
 const imageDir = resolve(repoRoot, "web/src/assets/images/cocktails");
 
+const dataset = process.env.SANITY_DATASET || "development";
+const projectId = process.env.SANITY_PROJECT_ID || "pn5yjro6";
+const token = process.env.SANITY_API_TOKEN;
+
+if (dataset === "production" && process.env.CONFIRM_PRODUCTION_SEED !== "1") {
+  console.error(
+    "Refusing to seed production without CONFIRM_PRODUCTION_SEED=1",
+  );
+  process.exit(1);
+}
+
+if (!token) {
+  console.error("SANITY_API_TOKEN is required (Developer or Editor token with write access).");
+  process.exit(1);
+}
+
 const client = createClient({
-  projectId: process.env.SANITY_PROJECT_ID || "pn5yjro6",
-  dataset: process.env.SANITY_DATASET || "development",
-  token: process.env.SANITY_API_TOKEN,
+  projectId,
+  dataset,
+  token,
   apiVersion: "2025-01-01",
   useCdn: false,
 });
@@ -45,9 +62,6 @@ const MENU_SECTIONS = [
   },
 ];
 
-/**
- * Development signature cocktails — names and placeholder copy for testing.
- */
 const SIGNATURE_COCKTAILS = [
   {
     name: "Gwenda",
@@ -77,7 +91,6 @@ const SIGNATURE_COCKTAILS = [
   },
 ];
 
-/** Standard classics for the traditional section — no homepage gallery photos. */
 const TRADITIONAL_COCKTAILS = [
   {
     name: "Old Fashioned",
@@ -193,6 +206,8 @@ async function ensureMenuItem(sectionId, cocktail, index, { signature = false, i
 }
 
 async function main() {
+  console.log(`Seeding ${projectId}/${dataset}…`);
+
   console.log("Ensuring menu sections…");
   const sectionIds = {};
   for (const section of MENU_SECTIONS) {
@@ -229,7 +244,7 @@ async function main() {
     console.log(`  ${cocktail.name}`);
   }
 
-  console.log("Done. Refresh the site to see both menu sections.");
+  console.log(`Done. Seeded ${dataset} menu (sections + ${SIGNATURE_COCKTAILS.length + TRADITIONAL_COCKTAILS.length} items).`);
 }
 
 main().catch((error) => {
