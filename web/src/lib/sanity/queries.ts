@@ -20,7 +20,10 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(sortOrder asc) {
     notes,
     image {
       alt,
+      crop,
+      hotspot,
       asset->{
+        _id,
         url,
         metadata { dimensions { width, height } }
       }

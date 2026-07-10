@@ -41,7 +41,8 @@ export const menuItem = defineType({
       name: "image",
       title: "Photo",
       type: "image",
-      description: "Cocktail photo for the homepage gallery and menu.",
+      description:
+        "Homepage gallery: drag the crop handles to frame the drink, then drag the hotspot circle onto the glass — it stays in view when tiles trim the edges.",
       options: { hotspot: true },
       fields: [
         defineField({

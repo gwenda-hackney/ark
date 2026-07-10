@@ -47,6 +47,71 @@ const TEST_IMAGES = [
   "cocktail6.png",
 ];
 
+/** Bottom-weighted gallery crop — stored on each menuItem image in Sanity. */
+const CROP_PRESETS = {
+  "bottom-center": {
+    crop: { top: 0.4, bottom: 0.06, left: 0.18, right: 0.18 },
+    hotspot: { x: 0.5, y: 0.72, width: 0.44, height: 0.48 },
+  },
+  "bottom-right": {
+    crop: { top: 0.3, bottom: 0.06, left: 0.38, right: 0.06 },
+    hotspot: { x: 0.78, y: 0.66, width: 0.38, height: 0.52 },
+  },
+  "bottom-left": {
+    crop: { top: 0.36, bottom: 0.06, left: 0.06, right: 0.36 },
+    hotspot: { x: 0.28, y: 0.72, width: 0.4, height: 0.48 },
+  },
+};
+
+function galleryCrop({ position = "bottom-center", crop = {}, hotspot = {} } = {}) {
+  const base = CROP_PRESETS[position] ?? CROP_PRESETS["bottom-center"];
+  return {
+    crop: { ...base.crop, ...crop },
+    hotspot: { ...base.hotspot, ...hotspot },
+  };
+}
+
+const SIGNATURE_COCKTAILS = [
+  {
+    name: "Gwenda",
+    imageFile: "cocktail1.png",
+    ...galleryCrop({ position: "bottom-right" }),
+    description:
+      process.env.GWENDA_INGREDIENTS?.trim() ||
+      "Tanqueray No. Ten, Italicus, lavender honey, lemon, prosecco float",
+    notes: "Aperitif",
+    price: "12",
+  },
+  {
+    name: "Canal Bloom",
+    imageFile: "cocktail2.png",
+    ...galleryCrop({ position: "bottom-center" }),
+    description: "Vodka, elderflower, cucumber, garden mint, soda",
+    notes: "Long & spritzy",
+    price: "12",
+  },
+  {
+    name: "Wick Lantern Sour",
+    imageFile: "cocktail3.png",
+    ...galleryCrop({ position: "bottom-left" }),
+    description: "Mezcal, Aperol, passion fruit, lime, a whisper of Tajín",
+    notes: "Sour",
+    price: "12",
+  },
+  {
+    name: "Night Archive",
+    imageFile: "cocktail4.png",
+    ...galleryCrop({
+      position: "bottom-right",
+      crop: { top: 0.24, left: 0.34, bottom: 0.04, right: 0.04 },
+      hotspot: { x: 0.76, y: 0.62, width: 0.36, height: 0.58 },
+    }),
+    description: "Aged rum, cold-brew, banana liqueur, cacao, salted cream",
+    notes: "After dark",
+    price: "12",
+  },
+];
+
 const MENU_SECTIONS = [
   {
     title: "Signature Cocktails",
@@ -59,35 +124,6 @@ const MENU_SECTIONS = [
     slug: "traditional-cocktails",
     sortOrder: 1,
     subtitle: "Classics, done properly.",
-  },
-];
-
-const SIGNATURE_COCKTAILS = [
-  {
-    name: "Gwenda",
-    description:
-      process.env.GWENDA_INGREDIENTS?.trim() ||
-      "Tanqueray No. Ten, Italicus, lavender honey, lemon, prosecco float",
-    notes: "Aperitif",
-    price: "12",
-  },
-  {
-    name: "Canal Bloom",
-    description: "Vodka, elderflower, cucumber, garden mint, soda",
-    notes: "Long & spritzy",
-    price: "12",
-  },
-  {
-    name: "Wick Lantern Sour",
-    description: "Mezcal, Aperol, passion fruit, lime, a whisper of Tajín",
-    notes: "Sour",
-    price: "12",
-  },
-  {
-    name: "Night Archive",
-    description: "Aged rum, cold-brew, banana liqueur, cacao, salted cream",
-    notes: "After dark",
-    price: "12",
   },
 ];
 
@@ -140,7 +176,7 @@ async function uploadImage(filename) {
   return asset._id;
 }
 
-function imageField(assetId, alt) {
+function imageField(assetId, alt, { crop, hotspot } = {}) {
   return {
     _type: "image",
     alt,
@@ -148,6 +184,8 @@ function imageField(assetId, alt) {
       _type: "reference",
       _ref: assetId,
     },
+    ...(crop ? { crop } : {}),
+    ...(hotspot ? { hotspot } : {}),
   };
 }
 
@@ -218,20 +256,23 @@ async function main() {
   const signatureSectionId = sectionIds["signature-cocktails"];
   const traditionalSectionId = sectionIds["traditional-cocktails"];
 
-  console.log(`Uploading ${TEST_IMAGES.length} test images for signature cocktails…`);
-  const assetIds = [];
+  console.log(`Uploading ${TEST_IMAGES.length} test images…`);
+  const assetByFile = {};
   for (const filename of TEST_IMAGES) {
-    const assetId = await uploadImage(filename);
-    assetIds.push(assetId);
+    assetByFile[filename] = await uploadImage(filename);
     console.log(`  uploaded ${filename}`);
   }
 
   console.log("Seeding signature cocktails…");
   for (const [index, cocktail] of SIGNATURE_COCKTAILS.entries()) {
-    const assetId = assetIds[index % assetIds.length];
+    const assetId = assetByFile[cocktail.imageFile];
     await ensureMenuItem(signatureSectionId, cocktail, index, {
       signature: true,
-      image: imageField(assetId, `${cocktail.name} — signature cocktail at Gwenda`),
+      image: imageField(
+        assetId,
+        `${cocktail.name} — signature cocktail at Gwenda`,
+        { crop: cocktail.crop, hotspot: cocktail.hotspot },
+      ),
     });
     console.log(`  ${cocktail.name}`);
   }

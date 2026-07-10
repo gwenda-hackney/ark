@@ -1259,8 +1259,8 @@ html.fonts-ready .thanks {
   min-height: 0;
   min-width: 0;
   width: 100%;
-  aspect-ratio: 3 / 2;
-  min-height: clamp(200px, 52vw, 280px);
+  aspect-ratio: 4 / 5;
+  min-height: clamp(220px, 58vw, 320px);
   border-radius: 3px;
   background: var(--color-bg-card);
   /* Tiles float up a little further than the default reveal. */
@@ -1275,13 +1275,12 @@ html.fonts-ready .thanks {
 
   .menu-tease-gallery--areas {
     grid-template-columns: repeat(var(--cols-d), minmax(0, 1fr));
-    grid-template-rows: repeat(var(--rows-d), clamp(92px, 8.5vw, 128px));
-    grid-template-areas: var(--areas-d);
+    grid-template-rows: repeat(var(--rows-d), clamp(100px, 9.2vw, 136px));
   }
 
   .menu-tease-gallery--auto {
     grid-template-columns: repeat(var(--cols-d), minmax(0, 1fr));
-    grid-auto-rows: clamp(92px, 8.5vw, 128px);
+    grid-auto-rows: clamp(100px, 9.2vw, 136px);
     grid-auto-flow: dense;
   }
 

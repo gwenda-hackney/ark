@@ -1,6 +1,7 @@
 import type { Menu, MenuItem, MenuSection } from "../../types/menu";
+import type { MenuTeaseCocktail } from "../../data/menu-tease";
 import { createSanityClient } from "./client";
-import { mapSanityImage, type SanityImageField } from "./images";
+import { mapSanityGalleryImage, mapSanityImage, type SanityImageField } from "./images";
 import { MENU_QUERY } from "./queries";
 
 type SanityMenuSection = {
@@ -60,4 +61,34 @@ export async function fetchMenu(): Promise<Menu> {
     .filter((section): section is MenuSection => section !== null);
 
   return { sections };
+}
+
+/** Signature cocktails for the homepage gallery — one URL per tile shape. */
+export async function fetchMenuTeaseCocktails(): Promise<MenuTeaseCocktail[]> {
+  const client = createSanityClient();
+  const docs = await client.fetch<SanityMenuSection[]>(MENU_QUERY);
+
+  const signatureItems = docs
+    .flatMap((section) => section.items)
+    .filter((item) => item.signature === true && item.image?.asset?._id);
+
+  return signatureItems
+    .map((item): MenuTeaseCocktail | null => {
+      if (!item.id || !item.name) return null;
+
+      const image = mapSanityGalleryImage(item.image, item.name);
+
+      if (!image) return null;
+
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description?.trim() || undefined,
+        price: item.price?.trim() || undefined,
+        signature: true,
+        notes: item.notes?.trim() || undefined,
+        image,
+      };
+    })
+    .filter((item): item is MenuTeaseCocktail => item !== null);
 }
