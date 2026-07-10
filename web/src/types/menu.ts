@@ -3,6 +3,8 @@ export type MenuItemImage = {
   width: number;
   height: number;
   alt?: string;
+  /** CSS object-position for gallery tiles — from Sanity hotspot. */
+  objectPosition?: string;
 };
 
 export type MenuItem = {

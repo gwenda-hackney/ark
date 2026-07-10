@@ -2,11 +2,9 @@
 import { siteConfig } from "../config/site";
 import MenuTeaseCocktails from "./MenuTeaseCocktails.astro";
 import DissolveReveal from "./DissolveReveal.astro";
-import { getMenuTeaseCocktails } from "../data/menu-tease";
-import { fetchMenu } from "../lib/sanity/menu";
+import { fetchMenuTeaseCocktails } from "../lib/sanity/menu";
 
-const menu = await fetchMenu();
-const cocktails = getMenuTeaseCocktails(menu);
+const cocktails = await fetchMenuTeaseCocktails();
 ---
 
 <section class="menu-tease section" id="menu">

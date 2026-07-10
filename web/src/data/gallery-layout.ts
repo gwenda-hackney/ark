@@ -23,7 +23,13 @@ const DESKTOP_MAPS: Record<number, { cols: number; rows: string[] }> = {
   3: { cols: 3, rows: ["a a b", "a a b", "c c c", "c c c"] },
   4: {
     cols: 5,
-    rows: ["a a a b b", "a a a b b", "a a a c c", "d d d c c", "d d d c c"],
+    rows: [
+      "a a a b b",
+      "a a a b b",
+      "a a a c c",
+      "d d d c c",
+      "d d d c c",
+    ],
   },
   5: {
     cols: 4,
@@ -83,7 +89,7 @@ export function galleryContainerVars(layout: GalleryLayout): string {
   if (layout.usesAreas) {
     parts.push(
       `--rows-d:${layout.rowsDesktop}`,
-      `--areas-d:${layout.areasDesktop}`,
+      `grid-template-areas:${layout.areasDesktop}`,
     );
   }
 
@@ -108,4 +114,48 @@ export function galleryTileVars(layout: GalleryLayout, index: number): string {
 
   const span = FALLBACK_SPANS[index % FALLBACK_SPANS.length]!;
   return `--tile-col:${span.col}; --tile-row:${span.row}`;
+}
+
+export type GalleryTileSpan = {
+  cols: number;
+  rows: number;
+};
+
+/** Column/row span for a mapped tile — used to size Sanity CDN crops. */
+export function getGalleryTileSpan(
+  layout: GalleryLayout,
+  index: number,
+): GalleryTileSpan {
+  if (!layout.usesAreas) {
+    const span = FALLBACK_SPANS[index % FALLBACK_SPANS.length]!;
+    return { cols: span.col, rows: span.row };
+  }
+
+  const letter = layout.tileAreas[index];
+  if (!letter) return { cols: 1, rows: 1 };
+
+  const rowStrings = [...layout.areasDesktop.matchAll(/"([^"]+)"/g)].map((match) =>
+    match[1]!.split(/\s+/),
+  );
+
+  const cells: Array<{ row: number; col: number }> = [];
+  for (let row = 0; row < rowStrings.length; row++) {
+    for (let col = 0; col < rowStrings[row]!.length; col++) {
+      if (rowStrings[row]![col] === letter) {
+        cells.push({ row, col });
+      }
+    }
+  }
+
+  if (cells.length === 0) return { cols: 1, rows: 1 };
+
+  const minRow = Math.min(...cells.map((cell) => cell.row));
+  const maxRow = Math.max(...cells.map((cell) => cell.row));
+  const minCol = Math.min(...cells.map((cell) => cell.col));
+  const maxCol = Math.max(...cells.map((cell) => cell.col));
+
+  return {
+    cols: maxCol - minCol + 1,
+    rows: maxRow - minRow + 1,
+  };
 }
