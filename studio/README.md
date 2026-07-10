@@ -1,34 +1,20 @@
 # Gwenda Sanity Studio
 
-Content editor for menu and events. Project `pn5yjro6`, dataset `production`.
+Content editor for menu and events. See [docs/sanity.md](../docs/sanity.md) for datasets and workflow.
 
-## First-time setup
-
-Log in to Sanity (one-time, opens a browser):
+## Quick start
 
 ```bash
-npx sanity login
+npx sanity login                              # one-time
+npm run studio:dataset:create -- development --visibility private  # one-time
+npm run studio                                # http://localhost:3333 — development dataset
 ```
 
-## Local dev
-
-From repo root:
-
-```bash
-npm run studio
-```
-
-Opens at http://localhost:3333
-
-## Deploy hosted Studio
-
-After `sanity login`:
+## Deploy hosted Studio (production dataset, for editors)
 
 ```bash
 npm run studio:deploy
 ```
-
-Editors can use the hosted URL (e.g. `https://gwenda.sanity.studio`) without running locally.
 
 ## Schema
 
@@ -38,4 +24,4 @@ Editors can use the hosted URL (e.g. `https://gwenda.sanity.studio`) without run
 | `menuItem` | Individual dishes/drinks |
 | `event` | Events page entries |
 
-The Astro site fetches these at build time — see `web/src/lib/sanity/` (coming next).
+The Astro site fetches at build time — `web/src/lib/sanity/`.
