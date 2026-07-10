@@ -14,6 +14,7 @@
     "preview": "npm run preview -w @gwenda/web",
     "studio": "npm run dev -w @gwenda/studio",
     "studio:deploy": "npm run deploy -w @gwenda/studio",
+    "studio:deploy:dev": "SANITY_ACTIVE_ENV=development npm run deploy -w @gwenda/studio",
     "studio:dataset:create": "npm run dataset:create -w @gwenda/studio --",
     "studio:seed:dev": "env -u SANITY_API_TOKEN SANITY_DATASET=development node --env-file=.env studio/scripts/seed-menu.mjs",
     "studio:seed:production": "env -u SANITY_API_TOKEN SANITY_DATASET=production CONFIRM_PRODUCTION_SEED=1 node --env-file=.env studio/scripts/seed-menu.mjs",

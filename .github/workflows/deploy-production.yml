@@ -16,6 +16,8 @@ jobs:
   verify:
     uses: ./.github/workflows/verify.yml
     secrets: inherit
+    with:
+      sanity-dataset: production
 
   deploy-preview:
     name: Deploy production preview
@@ -78,6 +80,7 @@ jobs:
           baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
           sanity-api-token: ${{ secrets.SANITY_API_TOKEN }}
+          sanity-dataset: production
 
       - name: Upload preview dist for promote
         uses: actions/upload-artifact@v4

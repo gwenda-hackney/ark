@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_PROJECT_ID = "pn5yjro6";
-/** Local dev default — CI sets SANITY_DATASET=production explicitly. */
+/** Local dev default — CI sets SANITY_DATASET per environment (development on staging, production on live). */
 const DEFAULT_DATASET = "development";
 
 export type SanityConfig = {
