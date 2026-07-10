@@ -1,5 +1,6 @@
 import { initCountdown } from "./countdown.js";
 import { initSignup, initSignupAnchors } from "./signup.js";
+import { initBookingGate } from "./booking-gate.js";
 
 /* Header + nav */
 const header = document.getElementById("site-header");
@@ -202,3 +203,5 @@ if (menuTeaseCtas.length && !hasHover) {
     menuTeaseCtas.forEach((cta) => cta.classList.remove("is-revealed"));
   });
 }
+
+initBookingGate();

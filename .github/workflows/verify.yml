@@ -26,6 +26,7 @@ jobs:
         run: npm run build
         env:
           PUBLIC_OPENING_DATE: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
+          PUBLIC_BOOKING_ENABLED_FROM: ${{ vars.PUBLIC_BOOKING_ENABLED_FROM || '' }}
 
       - name: Reject manual analytics beacon in build output
         run: |

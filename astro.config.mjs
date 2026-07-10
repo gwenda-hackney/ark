@@ -150,6 +150,12 @@ export default defineConfig({
         optional: true,
         default: "2026-08-01",
       }),
+      PUBLIC_BOOKING_ENABLED_FROM: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "",
+      }),
     },
   },
   image: {

@@ -59,6 +59,7 @@ jobs:
           wrangler-config: wrangler.toml
           public-is-staging: "false"
           public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
+          public-booking-enabled-from: ${{ vars.PUBLIC_BOOKING_ENABLED_FROM || '' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
           build-ref: ${{ steps.buildmeta.outputs.ref }}

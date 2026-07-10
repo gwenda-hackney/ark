@@ -1,0 +1,30 @@
+---
+description: Gwenda brand colors — read docs/colors.md before answering color questions
+alwaysApply: true
+---
+
+# Gwenda colors
+
+For any question about brand colors, backgrounds, hex values, or Canva swatches:
+
+1. Read **`docs/colors.md`** first (or `src/config/colors.json` for machine values).
+2. Answer with the **exact hex** from that doc. Do not guess or approximate.
+3. Do not invent warmer charcoal substitutes (e.g. `#1c1b18`) unless the user asks to change the palette.
+
+## Solid swatches (memorize these)
+
+| Name | Hex |
+|------|-----|
+| Background | `#0d0d0d` |
+| Background elevated | `#141414` |
+| Background story | `#151414` |
+| Background story print | `#23211b` |
+| Background card | `#1a1a1a` |
+| Text | `#e8e4dc` |
+| Text muted | `#8a8680` |
+| Gold | `#c9a84c` |
+| Error | `#c97a7a` |
+
+Default page background is **`#0d0d0d`**, not `#141414`.
+
+For story section off-site (Canva, print): use **`#23211b`** (`bgStoryPrint`). Do not use `#141414` or `#151414` — too dark and cold for flat fills.

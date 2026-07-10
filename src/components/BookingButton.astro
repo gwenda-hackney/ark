@@ -1,0 +1,41 @@
+---
+import { siteConfig } from "../config/site";
+import {
+  bookingEnabledFromTimestamp,
+  bookingUrl,
+  isBookingEnabled,
+  isBookingScheduled,
+} from "../config/booking";
+
+interface Props {
+  variant?: "primary" | "ghost" | "nav";
+  class?: string;
+}
+
+const { variant = "primary", class: className } = Astro.props;
+const fromMs = bookingEnabledFromTimestamp();
+const enabled = isBookingEnabled();
+---
+
+{
+  isBookingScheduled() && fromMs !== null && (
+    <a
+      href={bookingUrl}
+      class:list={[
+        "booking-cta",
+        variant === "nav" ? "site-header-booking" : "btn",
+        variant === "primary" && "btn-primary",
+        variant === "ghost" && "btn-ghost",
+        className,
+      ]}
+      data-booking-from={fromMs}
+      hidden={!enabled}
+      aria-hidden={!enabled}
+      tabindex={enabled ? undefined : -1}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      {siteConfig.copy.bookingCta}
+    </a>
+  )
+}

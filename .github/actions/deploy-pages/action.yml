@@ -30,6 +30,10 @@ inputs:
     description: PUBLIC_OPENING_DATE build variable
     required: false
     default: "2026-08-01"
+  public-booking-enabled-from:
+    description: PUBLIC_BOOKING_ENABLED_FROM — booking CTA go-live date (YYYY-MM-DD, empty = off)
+    required: false
+    default: ""
   build-version:
     description: CalVer build version
     required: true
@@ -86,6 +90,7 @@ runs:
         PUBLIC_BUILD_TIME: ${{ inputs.build-time }}
         PUBLIC_BUILD_VERSION: ${{ inputs.build-version }}
         PUBLIC_OPENING_DATE: ${{ inputs.public-opening-date }}
+        PUBLIC_BOOKING_ENABLED_FROM: ${{ inputs.public-booking-enabled-from }}
 
     - name: Ensure dist exists
       if: inputs.skip-build == 'true'

@@ -3,6 +3,7 @@ import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
 import { headerLogo } from "../lib/hero-assets";
+import BookingButton from "./BookingButton.astro";
 
 interface Props {
   features: SiteFeatures;
@@ -33,5 +34,6 @@ const { features } = Astro.props;
   {(features.showMenu || features.showMenuTease) && <a href="#menu">Menu</a>}
   {features.showTeam && <a href="#team">Who we are</a>}
   <a href="/events">Events</a>
+  <BookingButton variant="nav" />
   <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>
 </nav>
