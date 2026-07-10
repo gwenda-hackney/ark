@@ -34,6 +34,11 @@ if (existsSync(envPath)) {
   }
 }
 
+// Sanity CLI (`sanity deploy`) reads SANITY_AUTH_TOKEN; we standardise on SANITY_API_TOKEN.
+if (process.env.SANITY_API_TOKEN && !process.env.SANITY_AUTH_TOKEN) {
+  process.env.SANITY_AUTH_TOKEN = process.env.SANITY_API_TOKEN;
+}
+
 const [command, ...args] = process.argv.slice(2);
 if (!command) {
   console.error("usage: with-env <command> [args...]");

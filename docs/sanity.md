@@ -7,31 +7,47 @@ Project `pn5yjro6` on [sanity.io/manage](https://www.sanity.io/manage).
 | Dataset | Used by | Purpose |
 |---------|---------|---------|
 | **`development`** | Local `npm run studio` + `npm run dev` | Safe sandbox for schema and content experiments |
-| **`production`** | CI (staging + live builds), hosted Studio deploy | Real content editors publish |
+| **`production`** | CI (staging + live builds), hosted Studio | Real content editors publish |
 
-Set in repo root `.env`:
+## Tokens — `SANITY_API_TOKEN` everywhere
+
+Everything uses **`SANITY_API_TOKEN`**. Local and CI use **different** Sanity tokens with **different** permissions.
+
+| | Where | Sanity permission | Dataset |
+|---|--------|-------------------|---------|
+| **Local dev** | repo root `.env` | **Developer** | `development` |
+| **CI** | GitHub secret `SANITY_API_TOKEN` | **Deploy** | `production` (workflows set `SANITY_DATASET=production`) |
+
+### CI token permissions (Deploy)
+
+CI runs two Sanity jobs with the **same** GitHub secret:
+
+1. **Website build** — GROQ fetch of published menu/events at `npm run build`
+2. **Studio deploy** — `npm run studio:deploy` when `studio/**` changes
+
+**Deploy** is the minimum permission that covers both. Do **not** use Developer or Editor for CI — those can write content, which builds do not need.
+
+Create at [sanity.io/manage](https://www.sanity.io/manage) → API → Tokens:
+
+- **Name:** `ark-ci`
+- **Permissions:** Deploy
+- **Dataset:** production
 
 ```bash
+gh secret set SANITY_API_TOKEN
+```
+
+Never copy your local `.env` token into GitHub — that is a **Developer** token on the **development** dataset.
+
+### Local `.env`
+
+```bash
+SANITY_PROJECT_ID=pn5yjro6
 SANITY_DATASET=development
-SANITY_API_TOKEN=sk...
+SANITY_API_TOKEN=sk...   # Developer token — development dataset only
 ```
 
-CI and deploy workflows set `SANITY_DATASET=production` — do not change that for local `.env`.
-
-### GitHub secrets (CI)
-
-| Secret | Token in Sanity | Used by |
-|--------|---------------|---------|
-| `SANITY_API_TOKEN` | Viewer (`ark-ci-read`) — read-only, production dataset | Staging + production **site builds** (fetch menu, events, etc.) |
-| `SANITY_AUTH_TOKEN` | Deploy permission | **Studio deploy** workflow only |
-
-Set the viewer token once:
-
-```bash
-gh secret set SANITY_API_TOKEN < <(grep '^SANITY_API_TOKEN=' .env | cut -d= -f2-)
-```
-
-Staging and production builds pass this into `npm run build` so Astro can query Sanity at build time.
+For local `npm run studio:deploy`, use `npx sanity login` (one-time browser auth) unless you add a separate Deploy token locally.
 
 ## First-time setup
 
@@ -40,8 +56,6 @@ Staging and production builds pass this into `npm run build` so Astro can query 
    ```bash
    npm run studio:dataset:create -- development --visibility private
    ```
-
-   Or in Sanity manage → Datasets → Add dataset → `development`.
 
 2. Log in to Sanity CLI (one-time):
 
@@ -77,10 +91,7 @@ npm run studio:seed:dev
 # Optional: GWENDA_INGREDIENTS="Gin, vermouth, …" npm run studio:seed:dev
 ```
 
-Uploads the six test PNGs from `web/src/assets/images/cocktails/` and seeds the **development** dataset with:
-
-- **Signature Cocktails** — photos, `signature: true` (homepage gallery)
-- **Traditional Cocktails** — classics (Old Fashioned, Negroni, Martini, etc.), menu page only
+Uploads test cocktail PNGs and seeds the **development** dataset (signature + traditional sections).
 
 ## Hosted Studio (editors)
 
@@ -90,7 +101,7 @@ Deploy against **production** only:
 npm run studio:deploy
 ```
 
-Pushes to `main` that touch `studio/**` also run [Deploy Studio](../.github/workflows/deploy-studio.yml) in CI (requires `SANITY_AUTH_TOKEN` in GitHub secrets).
+Pushes to `main` that touch `studio/**` also run [Deploy Studio](../.github/workflows/deploy-studio.yml) (uses GitHub secret `SANITY_API_TOKEN`).
 
 ## Content vs code
 
@@ -100,4 +111,4 @@ Pushes to `main` that touch `studio/**` also run [Deploy Studio](../.github/work
 | Published content | Sanity publish → webhook rebuilds staging (planned) |
 | Local dev content | Stays in `development` until you copy or re-enter in production |
 
-To preview production content locally, temporarily set `SANITY_DATASET=production` in `.env` (Viewer token is read-only).
+To preview production content locally, temporarily set `SANITY_DATASET=production` in `.env` and use a token with read access to production (Deploy or Viewer).

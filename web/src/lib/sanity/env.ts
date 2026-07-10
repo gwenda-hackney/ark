@@ -103,9 +103,9 @@ export function getSanityConfig(): SanityConfig {
   if (!token) {
     const hint =
       dataset === "production"
-        ? "GitHub Actions secrets (CI) or repo-root .env (local preview)."
-        : `${resolve(findRepoRoot(), ".env")} (local).`;
-    throw new Error(`SANITY_API_TOKEN is required — set the read-only viewer token in ${hint}`);
+        ? "GitHub secret SANITY_API_TOKEN (CI) or repo-root .env (local)."
+        : "repo-root .env (local dev).";
+    throw new Error(`SANITY_API_TOKEN is required — set it in ${hint}`);
   }
 
   return { projectId, dataset, token };

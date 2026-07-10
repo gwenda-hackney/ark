@@ -68,7 +68,7 @@ inputs:
     description: Subscribe endpoint secret
     required: false
   sanity-api-token:
-    description: Sanity read token for build-time content fetch
+    description: SANITY_API_TOKEN — CI Deploy token for build-time fetch and Studio deploy
     required: false
 
 outputs:
