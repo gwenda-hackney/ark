@@ -166,7 +166,7 @@ export default defineConfig({
         context: "server",
         access: "public",
         optional: true,
-        default: "production",
+        default: "development",
       }),
       SANITY_API_TOKEN: envField.string({
         context: "server",
