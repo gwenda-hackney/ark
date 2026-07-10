@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    environment:
+      name: studio
+      url: https://gwenda.sanity.studio
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,3 +41,13 @@ jobs:
         env:
           SANITY_API_TOKEN: ${{ secrets.SANITY_API_TOKEN }}
           SANITY_DATASET: production
+
+      - name: Deployment summary
+        run: cd web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Studio deployed","rows":[
+              ["Studio","https://gwenda.sanity.studio"],
+              ["Dataset","production"],
+              ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"]
+            ]}

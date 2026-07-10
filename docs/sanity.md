@@ -95,6 +95,8 @@ Uploads test cocktail PNGs and seeds the **development** dataset (signature + tr
 
 ## Hosted Studio (editors)
 
+**URL:** https://gwenda.sanity.studio (production dataset)
+
 Deploy against **production** only:
 
 ```bash

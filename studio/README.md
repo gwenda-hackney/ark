@@ -12,6 +12,8 @@ npm run studio                                # http://localhost:3333 — develo
 
 ## Deploy hosted Studio (production dataset, for editors)
 
+**https://gwenda.sanity.studio**
+
 ```bash
 npm run studio:deploy
 ```
