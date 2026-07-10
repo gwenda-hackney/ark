@@ -2,138 +2,103 @@
 
 Project `pn5yjro6` on [sanity.io/manage](https://www.sanity.io/manage).
 
-## Datasets
+## Environments
 
-| Dataset | Used by | Purpose |
-|---------|---------|---------|
-| **`development`** | Local `npm run studio` + `npm run dev` | Safe sandbox for schema and content experiments |
-| **`production`** | CI (staging + live builds), hosted Studio | Real content editors publish |
+| | Git branch | Website | Sanity dataset | Hosted Studio |
+|---|------------|---------|----------------|---------------|
+| **Local dev** | — | `npm run dev` | `development` | `npm run studio` (localhost) |
+| **Staging** | `main` | gwenda-staging.pages.dev | **`development`** | https://gwenda-dev.sanity.studio |
+| **Production** | `release` | gwenda.co.uk | **`production`** | https://gwenda.sanity.studio |
 
-## Tokens — `SANITY_API_TOKEN` everywhere
+Schema and query changes flow **main → staging (dev dataset) → release → live (prod dataset)**. Content is promoted separately when ready.
 
-Everything uses **`SANITY_API_TOKEN`**. Local and CI use **different** Sanity tokens with **different** permissions.
+## Workflow
 
-| | Where | Sanity permission | Dataset |
-|---|--------|-------------------|---------|
-| **Local dev** | repo root `.env` | **Developer** | `development` |
-| **CI** | GitHub secret `SANITY_API_TOKEN` | **Deploy** | `production` (via `studio/.env.production`) |
+1. **Develop on `main`** — edit schema in `studio/`, seed/test content in the **development** dataset, push to `main`.
+2. **CI on `main`** deploys:
+   - **Staging site** — builds against **development** dataset (preview structural + content changes)
+   - **Development Studio** — https://gwenda-dev.sanity.studio (edit dev content/schema in hosted UI)
+3. **Promote to production** — merge `main` → `release`, push:
+   - **Live site** builds against **production** dataset
+   - **Production Studio** — run manually when schema is ready:
+     ```bash
+     npm run studio:deploy
+     ```
+   - **Production content** — edit in prod Studio or `npm run studio:seed:production` (one-off)
 
-### Hosted Studio dataset
+Local `.env` always uses `SANITY_DATASET=development` — same sandbox as staging.
 
-**Datasets ≠ workspaces.** In Sanity manage you see two **datasets** (`development` and `production`) — those are separate content databases. The hosted Studio has **one workspace** (the editor UI). There is no dropdown to switch datasets; the workspace is wired to **one** dataset when the Studio app is built and deployed.
+## Tokens — `SANITY_API_TOKEN`
 
-Sanity only inlines env vars prefixed with **`SANITY_STUDIO_`** into the Studio bundle. `sanity.config.ts` must use `process.env.SANITY_STUDIO_DATASET` directly so the value is baked in at build time.
-
-| File | Loaded when | Dataset |
-|------|-------------|---------|
-| `studio/.env.development` | `npm run studio` (local) | `development` |
-| `studio/.env.production` | `sanity deploy` / CI | `production` |
-
-After deploy, https://gwenda.sanity.studio should show **Gwenda** (not “development”) and production content.
-
-### CI token permissions (Deploy)
-
-CI runs two Sanity jobs with the **same** GitHub secret:
-
-1. **Website build** — GROQ fetch of published menu/events at `npm run build`
-2. **Studio deploy** — `npm run studio:deploy` when `studio/**` changes
-
-**Deploy** is the minimum permission that covers both. Do **not** use Developer or Editor for CI — those can write content, which builds do not need.
-
-Create at [sanity.io/manage](https://www.sanity.io/manage) → API → Tokens:
-
-- **Name:** `ark-ci`
-- **Permissions:** Deploy
-- **Dataset:** production
+| | Where | Sanity permission |
+|---|--------|-------------------|
+| **Local dev** | repo root `.env` | **Developer** |
+| **CI** | GitHub secret `SANITY_API_TOKEN` | **Deploy** (read both datasets + deploy Studio) |
 
 ```bash
 gh secret set SANITY_API_TOKEN
 ```
 
-Never copy your local `.env` token into GitHub — that is a **Developer** token on the **development** dataset.
+Never copy your local `.env` token into GitHub.
 
 ### Local `.env`
 
 ```bash
 SANITY_PROJECT_ID=pn5yjro6
 SANITY_DATASET=development
-SANITY_API_TOKEN=sk...   # Developer token — development dataset only
+SANITY_API_TOKEN=sk...
 ```
 
-For local `npm run studio:deploy`, use `npx sanity login` (one-time browser auth) unless you add a separate Deploy token locally.
+## Studio env files
+
+Sanity inlines `SANITY_STUDIO_*` vars at build time. `sanity.config.ts` must reference them directly.
+
+| File | Used by | Dataset | URL |
+|------|---------|---------|-----|
+| `studio/.env.development` | `npm run studio`, `studio:deploy:dev`, main CI | `development` | gwenda-dev.sanity.studio |
+| `studio/.env.production` | `studio:deploy` | `production` | gwenda.sanity.studio |
+
+`SANITY_ACTIVE_ENV=development` makes `sanity deploy` load `.env.development` instead of `.env.production`.
 
 ## First-time setup
 
-1. Create the dev dataset (one-time):
-
-   ```bash
-   npm run studio:dataset:create -- development --visibility private
-   ```
-
-2. Log in to Sanity CLI (one-time):
-
-   ```bash
-   npx sanity login
-   ```
-
-3. Copy env vars from `.env.example` into repo root `.env`.
-
-## Local workflow
-
 ```bash
-npm run studio    # edit content in development dataset
-npm run dev       # site fetches from development dataset
+npm run studio:dataset:create -- development --visibility private
+npx sanity login
 ```
 
-Schema changes live in `studio/schemaTypes/` — commit with matching query updates in `web/src/lib/sanity/`.
+Copy env vars from `.env.example` into repo root `.env`.
 
-### Menu items
+## Local commands
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `image` | image (+ optional alt) | Cocktail photo from Sanity CDN |
-| `signature` | boolean | Include in homepage gallery (requires `image`) |
-| `notes` | string | Cocktail style, e.g. Aperitif, Digestif |
+```bash
+npm run studio              # localhost Studio → development
+npm run dev                 # site → development dataset
+npm run studio:deploy:dev   # hosted dev Studio (same as main CI)
+npm run studio:deploy       # hosted prod Studio (editors)
+npm run studio:seed:dev     # seed development menu
+npm run studio:seed:production   # seed production menu (one-off, CONFIRM built in)
+```
 
-Mark cocktails as **Signature cocktail** and upload a **Photo** in Studio. Only items with both appear on the homepage gallery.
+## Schema + content
 
-### Seed menu (development)
+Schema lives in git (`studio/schemaTypes/`). Queries in `web/src/lib/sanity/`. Content lives in Sanity datasets — development and production are independent until you copy or re-enter.
+
+### Menu seed
 
 ```bash
 npm run studio:seed:dev
-# Optional: GWENDA_INGREDIENTS="Gin, vermouth, …" npm run studio:seed:dev
+npm run studio:seed:production   # requires Developer/Editor token in .env
 ```
 
-Uploads test cocktail PNGs and seeds the **development** dataset (signature + traditional sections).
-
-### Seed menu (production, one-off)
-
-Requires a **Developer or Editor** token with write access to the production dataset (local `.env` token is fine):
-
-```bash
-npm run studio:seed:production
-```
-
-Idempotent — updates existing sections/items by slug/name, or creates them if missing.
-
-## Hosted Studio (editors)
-
-**URL:** https://gwenda.sanity.studio (production dataset)
-
-Deploy against **production** only:
-
-```bash
-npm run studio:deploy
-```
-
-Pushes to `main` that touch `studio/**` also run [Deploy Studio](../.github/workflows/deploy-studio.yml) (uses GitHub secret `SANITY_API_TOKEN`).
+Idempotent — updates by slug/name.
 
 ## Content vs code
 
-| What | Where it promotes |
-|------|-------------------|
-| Schema + queries | Git → `main` → staging → `release` → live |
-| Published content | Sanity publish → webhook rebuilds staging (planned) |
-| Local dev content | Stays in `development` until you copy or re-enter in production |
-
-To preview production content locally, temporarily set `SANITY_DATASET=production` in `.env` and use a token with read access to production (Deploy or Viewer).
+| What | Promotes via |
+|------|----------------|
+| Schema + queries | git → main (staging/dev) → release (live/prod) |
+| Dev Studio deploy | push `studio/**` to `main` |
+| Prod Studio deploy | `npm run studio:deploy` when schema ready |
+| Dev content | stays in `development` until copied to prod |
+| Prod content | editors publish in prod Studio |

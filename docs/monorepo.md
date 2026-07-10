@@ -32,11 +32,11 @@ Cloudflare Pages Git integration may need reconnecting after the rename.
 
 Each deploy workflow only runs when its project (or shared CI config) changes:
 
-| Workflow | Triggers on |
-|----------|-------------|
-| `deploy-staging.yml` | `web/**` |
-| `deploy-production.yml` | `web/**` (on `release`) |
-| `deploy-studio.yml` | `studio/**` |
+| Workflow | Triggers on | Sanity dataset |
+|----------|-------------|----------------|
+| `deploy-staging.yml` | `web/**` on `main` | development |
+| `deploy-production.yml` | `web/**` on `release` | production |
+| `deploy-studio.yml` | `studio/**` on `main` | development (gwenda-dev.sanity.studio) |
 | `deploy-brand.yml` | `brand/**`, `web/src/config/colors.json` |
 | `deploy-recipe-cost-webhook.yml` | `utils/recipe-cost-webhook/**` |
 
