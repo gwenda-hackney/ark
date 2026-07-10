@@ -36,6 +36,7 @@ Each deploy workflow only runs when its project (or shared CI config) changes:
 |----------|-------------|
 | `deploy-staging.yml` | `web/**` |
 | `deploy-production.yml` | `web/**` (on `release`) |
+| `deploy-studio.yml` | `studio/**` |
 | `deploy-brand.yml` | `brand/**`, `web/src/config/colors.json` |
 | `deploy-recipe-cost-webhook.yml` | `utils/recipe-cost-webhook/**` |
 

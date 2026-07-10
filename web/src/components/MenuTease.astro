@@ -1,27 +1,41 @@
 ---
 import { siteConfig } from "../config/site";
-import MenuTeaseList from "./MenuTeaseList.astro";
+import MenuTeaseCocktails from "./MenuTeaseCocktails.astro";
 import DissolveReveal from "./DissolveReveal.astro";
+import { getMenuTeaseCocktails } from "../data/menu-tease";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const menu = await fetchMenu();
+const cocktails = getMenuTeaseCocktails(menu);
 ---
 
 <section class="menu-tease section" id="menu">
   <div class="container">
-    <div class="menu-tease-grid">
-      <div class="menu-tease-intro reveal">
-        <p class="section-eyebrow menu-tease-eyebrow dissolve-reveal-eyebrow">
-          The&nbsp;
-          <DissolveReveal
-            id="menu-word"
-            antiquated={siteConfig.menuAntiquated}
-            modern="Menu"
-          />
-        </p>
-        <h2>{siteConfig.copy.menuTeaseHeading}</h2>
-        <p class="menu-tease-lead">{siteConfig.copy.menuTeaseLead}</p>
+    <header class="section-intro menu-tease-header reveal">
+      <p class="section-eyebrow dissolve-reveal-eyebrow">
+        The&nbsp;
+        <DissolveReveal
+          id="menu-word"
+          antiquated={siteConfig.menuAntiquated}
+          modern="Menu"
+        />
+      </p>
+      <h2>{siteConfig.copy.menuTeaseHeading}</h2>
+      <p class="section-lead">{siteConfig.copy.menuTeaseLead}</p>
+    </header>
+  </div>
+
+  {
+    cocktails.length > 0 && (
+      <div class="container menu-tease-gallery-wrap">
+        <MenuTeaseCocktails cocktails={cocktails} />
       </div>
-      <div class="reveal">
-        <MenuTeaseList />
-      </div>
-    </div>
+    )
+  }
+
+  <div class="container">
+    <footer class="menu-tease-footer reveal">
+      <a href="/menu" class="btn btn-ghost">View the full menu</a>
+    </footer>
   </div>
 </section>

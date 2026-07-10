@@ -1,0 +1,40 @@
+name: Deploy Studio
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "studio/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy-studio.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Sanity Studio
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy hosted Studio
+        run: npm run studio:deploy
+        env:
+          SANITY_AUTH_TOKEN: ${{ secrets.SANITY_AUTH_TOKEN }}
+          SANITY_API_TOKEN: ${{ secrets.SANITY_API_TOKEN }}

@@ -2,14 +2,16 @@
 import { Image } from "astro:assets";
 import { siteConfig } from "../config/site";
 import type { SiteFeatures } from "../types/features";
-import { getCocktailsWithImages } from "../data/menu";
+import { getSignatureCocktails } from "../data/menu";
+import { fetchMenu } from "../lib/sanity/menu";
 
 interface Props {
   features: SiteFeatures;
 }
 
 const { features } = Astro.props;
-const cocktails = getCocktailsWithImages();
+const menu = await fetchMenu();
+const cocktails = getSignatureCocktails(menu);
 const { revealDrinkNames } = features;
 const roman = ["I", "II", "III", "IV", "V", "VI"];
 ---
@@ -28,10 +30,14 @@ const roman = ["I", "II", "III", "IV", "V", "VI"];
       cocktails.map((cocktail, i) => (
         <figure class="glimpse-item reveal">
           <Image
-            src={cocktail.image!}
+            src={cocktail.image.url}
             alt={
-              revealDrinkNames ? `${cocktail.name} cocktail` : "Cocktail teaser"
+              revealDrinkNames
+                ? (cocktail.image.alt ?? `${cocktail.name} cocktail`)
+                : "Cocktail teaser"
             }
+            width={cocktail.image.width}
+            height={cocktail.image.height}
             class="glimpse-photo"
           />
           <figcaption class="glimpse-caption">

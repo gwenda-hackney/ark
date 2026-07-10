@@ -10,5 +10,7 @@ export function createSanityClient() {
     token,
     apiVersion: "2025-01-01",
     useCdn: false,
+    // The public site only ever renders published content — never Studio drafts.
+    perspective: "published",
   });
 }

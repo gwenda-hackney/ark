@@ -12,11 +12,17 @@ export const menuItem = defineType({
       validation: (rule) => rule.required(),
     }),
     defineField({
-      name: "slug",
-      title: "Slug",
-      type: "slug",
-      options: { source: "name", maxLength: 96 },
-      validation: (rule) => rule.required(),
+      name: "description",
+      title: "Description",
+      type: "text",
+      rows: 2,
+      description: "Ingredient list or tasting notes shown on the menu.",
+    }),
+    defineField({
+      name: "notes",
+      title: "Cocktail type",
+      type: "string",
+      description: "Style or serve, e.g. Aperitif, Digestif, Long drink.",
     }),
     defineField({
       name: "section",
@@ -26,35 +32,32 @@ export const menuItem = defineType({
       validation: (rule) => rule.required(),
     }),
     defineField({
-      name: "description",
-      title: "Description",
-      type: "text",
-      rows: 2,
-    }),
-    defineField({
       name: "price",
       title: "Price",
       description: "Display price without £, e.g. 14",
       type: "string",
     }),
     defineField({
-      name: "tags",
-      title: "Tags",
-      type: "array",
-      of: [{ type: "string" }],
-      options: { layout: "tags" },
-    }),
-    defineField({
-      name: "available",
-      title: "Available",
-      type: "boolean",
-      initialValue: true,
-    }),
-    defineField({
       name: "image",
-      title: "Image",
+      title: "Photo",
       type: "image",
+      description: "Cocktail photo for the homepage gallery and menu.",
       options: { hotspot: true },
+      fields: [
+        defineField({
+          name: "alt",
+          title: "Alt text",
+          type: "string",
+          description: "Describe the drink for screen readers. Defaults to the cocktail name.",
+        }),
+      ],
+    }),
+    defineField({
+      name: "signature",
+      title: "Signature cocktail",
+      type: "boolean",
+      description: "Show in the homepage image gallery (requires a photo).",
+      initialValue: false,
     }),
     defineField({
       name: "sortOrder",
@@ -68,7 +71,18 @@ export const menuItem = defineType({
     select: {
       title: "name",
       subtitle: "section.title",
+      price: "price",
       media: "image",
+      signature: "signature",
+      notes: "notes",
+    },
+    prepare({ title, subtitle, price, media, signature, notes }) {
+      const prefix = signature ? "★ " : "";
+      return {
+        title: `${prefix}${title}`,
+        subtitle: [notes, subtitle, price ? `£${price}` : null].filter(Boolean).join(" · "),
+        media,
+      };
     },
   },
   orderings: [
