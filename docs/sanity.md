@@ -16,7 +16,20 @@ Everything uses **`SANITY_API_TOKEN`**. Local and CI use **different** Sanity to
 | | Where | Sanity permission | Dataset |
 |---|--------|-------------------|---------|
 | **Local dev** | repo root `.env` | **Developer** | `development` |
-| **CI** | GitHub secret `SANITY_API_TOKEN` | **Deploy** | `production` (workflows set `SANITY_DATASET=production`) |
+| **CI** | GitHub secret `SANITY_API_TOKEN` | **Deploy** | `production` (via `studio/.env.production`) |
+
+### Hosted Studio dataset
+
+The dataset is **not** switched in the Studio UI — it is baked into the app at deploy time.
+
+Sanity only embeds env vars prefixed with **`SANITY_STUDIO_`** in the deployed Studio bundle. Setting `SANITY_DATASET` in CI does **not** affect the hosted Studio (that variable is for the Astro site).
+
+| File | Loaded when | Dataset |
+|------|-------------|---------|
+| `studio/.env.development` | `npm run studio` (local) | `development` |
+| `studio/.env.production` | `sanity deploy` / CI | `production` |
+
+After changing these files, redeploy Studio (`npm run studio:deploy` or the Deploy Studio workflow). The hosted URL should show **Gwenda** (not “development”): https://gwenda.sanity.studio
 
 ### CI token permissions (Deploy)
 

@@ -13,7 +13,7 @@
     "build": "npm run build -w @gwenda/web",
     "preview": "npm run preview -w @gwenda/web",
     "studio": "npm run dev -w @gwenda/studio",
-    "studio:deploy": "SANITY_DATASET=production npm run deploy -w @gwenda/studio",
+    "studio:deploy": "npm run deploy -w @gwenda/studio",
     "studio:dataset:create": "npm run dataset:create -w @gwenda/studio --",
     "studio:seed:dev": "env -u SANITY_API_TOKEN node --env-file=.env studio/scripts/seed-development-menu.mjs",
     "generate:brand-assets": "npm run generate:brand-assets -w @gwenda/web",
