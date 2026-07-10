@@ -1,10 +1,12 @@
 import { defineCliConfig } from "sanity/cli";
-import { getStudioDataset, getStudioProjectId } from "./lib/env";
+
+const dataset = process.env.SANITY_STUDIO_DATASET || "development";
+const projectId = process.env.SANITY_STUDIO_PROJECT_ID || "pn5yjro6";
 
 export default defineCliConfig({
   api: {
-    projectId: getStudioProjectId(),
-    dataset: getStudioDataset(),
+    projectId,
+    dataset,
   },
   /** Hosted Studio URL: https://gwenda.sanity.studio */
   studioHost: "gwenda",
