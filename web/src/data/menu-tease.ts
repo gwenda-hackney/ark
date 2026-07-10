@@ -1,17 +1,13 @@
-export const menuTease = [
-  { id: "cocktails", label: "Cocktails" },
-  { id: "small-plates", label: "Small Plates" },
-  { id: "wines", label: "Natural Wines" },
-  { id: "craft-beer", label: "Craft Beer" },
-] as const;
+import type { MenuItem } from "../types/menu";
+import { getSignatureCocktails } from "./menu";
 
-export const menuTeaseStatus = "Coming soon";
+export type MenuTeaseCocktail = MenuItem & { image: NonNullable<MenuItem["image"]> };
 
-export const whispers = [
-  "Natural wine.",
-  "Small plates.",
-  "Late nights.",
-  "Local art.",
-  "Craft beer.",
-  "The canal.",
-] as const;
+/** Signature cocktails for the homepage gallery — from Sanity only. */
+export function getMenuTeaseCocktails(menu: Parameters<typeof getSignatureCocktails>[0]): MenuTeaseCocktail[] {
+  return getSignatureCocktails(menu);
+}
+
+export function hasLiveMenuCocktails(menu: Parameters<typeof getSignatureCocktails>[0]): boolean {
+  return getSignatureCocktails(menu).length > 0;
+}

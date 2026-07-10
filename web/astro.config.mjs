@@ -179,6 +179,13 @@ export default defineConfig({
     service: {
       entrypoint: "astro/assets/services/sharp",
     },
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "cdn.sanity.io",
+        pathname: "/images/**",
+      },
+    ],
   },
   vite: {
     // Monorepo: shared secrets and Sanity token live in ark/.env

@@ -45,6 +45,28 @@ npm run dev       # site fetches from development dataset
 
 Schema changes live in `studio/schemaTypes/` — commit with matching query updates in `web/src/lib/sanity/`.
 
+### Menu items
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `image` | image (+ optional alt) | Cocktail photo from Sanity CDN |
+| `signature` | boolean | Include in homepage gallery (requires `image`) |
+| `notes` | string | Cocktail style, e.g. Aperitif, Digestif |
+
+Mark cocktails as **Signature cocktail** and upload a **Photo** in Studio. Only items with both appear on the homepage gallery.
+
+### Seed development menu photos
+
+```bash
+npm run studio:seed:dev
+# Optional: GWENDA_INGREDIENTS="Gin, vermouth, …" npm run studio:seed:dev
+```
+
+Uploads the six test PNGs from `web/src/assets/images/cocktails/` and seeds the **development** dataset with:
+
+- **Signature Cocktails** — photos, `signature: true` (homepage gallery)
+- **Traditional Cocktails** — classics (Old Fashioned, Negroni, Martini, etc.), menu page only
+
 ## Hosted Studio (editors)
 
 Deploy against **production** only:
@@ -52,6 +74,8 @@ Deploy against **production** only:
 ```bash
 npm run studio:deploy
 ```
+
+Pushes to `main` that touch `studio/**` also run [Deploy Studio](../.github/workflows/deploy-studio.yml) in CI (requires `SANITY_AUTH_TOKEN` in GitHub secrets).
 
 ## Content vs code
 

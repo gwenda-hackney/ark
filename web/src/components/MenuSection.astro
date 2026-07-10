@@ -1,39 +1,43 @@
 ---
 import type { MenuSection } from "../types/menu";
-import type { SiteFeatures } from "../types/features";
 import { getAvailableItems } from "../data/menu";
+import MenuSectionHeader from "./MenuSectionHeader.astro";
 
 interface Props {
   section: MenuSection;
-  features: SiteFeatures;
+  showPrices?: boolean;
 }
 
-const { section, features } = Astro.props;
+const { section, showPrices = true } = Astro.props;
 const items = getAvailableItems(section);
-const { showPrices } = features;
 ---
 
-<section class="menu-section" id={section.id}>
-  <header class="menu-section-header">
-    <h2>{section.title}</h2>
-    {section.subtitle && <p>{section.subtitle}</p>}
-  </header>
+{
+  items.length > 0 && (
+    <section class="menu-section reveal" id={section.id} aria-labelledby={`${section.id}-heading`}>
+      <MenuSectionHeader section={section} />
 
-  <ul class="menu-list">
-    {
-      items.map((item) => (
-        <li class="menu-item">
-          <div class="menu-item-heading">
-            <h3>{item.name}</h3>
-            {showPrices && item.price && (
-              <span class="menu-item-price">£{item.price}</span>
+      <ul class="menu-list">
+        {items.map((item) => (
+          <li class="menu-item">
+            <div class="menu-item-row">
+              <h3 class="menu-item-name">{item.name}</h3>
+              {showPrices && item.price ? (
+                <>
+                  <span class="menu-item-leader" aria-hidden="true" />
+                  <span class="menu-item-price">£{item.price}</span>
+                </>
+              ) : (
+                <span class="menu-item-leader menu-item-leader--full" aria-hidden="true" />
+              )}
+            </div>
+            {item.description && (
+              <p class="menu-item-description">{item.description}</p>
             )}
-          </div>
-          {item.description && (
-            <p class="menu-item-description">{item.description}</p>
-          )}
-        </li>
-      ))
-    }
-  </ul>
-</section>
+            {item.notes && <p class="menu-item-notes">{item.notes}</p>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

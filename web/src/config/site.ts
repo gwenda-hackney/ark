@@ -83,7 +83,8 @@ export const siteConfig = {
     galleryHeading: "A glimpse within",
     gallerySubheading: "The details reveal themselves in time",
     menuTeaseHeading: "What we serve",
-    menuTeaseLead: "The full list opens with the door. Until then, a glimpse.",
+    menuTeaseLead:
+      "Signature cocktails, hand-crafted in-house, elevated for the lounge.",
     signupHeading: "Be the first to know",
     signupNavCta: "First to know",
     signupEyebrowPromo: "Almost there",

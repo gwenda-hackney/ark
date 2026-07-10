@@ -1,0 +1,62 @@
+---
+import type { MenuTeaseCocktail } from "../data/menu-tease";
+import {
+  galleryContainerVars,
+  galleryTileVars,
+  getGalleryLayout,
+} from "../data/gallery-layout";
+
+interface Props {
+  cocktails: MenuTeaseCocktail[];
+}
+
+const { cocktails } = Astro.props;
+const layout = getGalleryLayout(cocktails.length);
+const containerClass = layout.usesAreas
+  ? "menu-tease-gallery menu-tease-gallery--areas"
+  : "menu-tease-gallery menu-tease-gallery--auto";
+---
+
+<div
+  class={containerClass}
+  role="list"
+  aria-label="Signature cocktails"
+  style={galleryContainerVars(layout)}
+>
+  {
+    cocktails.map((cocktail, index) => (
+      <figure
+        class="menu-tease-cocktail reveal reveal-stagger"
+        role="listitem"
+        style={`${galleryTileVars(layout, index)}; --reveal-delay:${(index * 0.09).toFixed(2)}s`}
+      >
+        <img
+          src={cocktail.image.url}
+          width={cocktail.image.width}
+          height={cocktail.image.height}
+          alt={cocktail.image.alt ?? `${cocktail.name} — signature cocktail at Gwenda`}
+          class="menu-tease-cocktail-photo"
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption class="menu-tease-cocktail-caption">
+          <span class="menu-tease-cocktail-name">{cocktail.name}</span>
+          {(cocktail.notes || cocktail.description) && (
+            <span class="menu-tease-cocktail-details">
+              <span class="menu-tease-cocktail-details-inner">
+                {cocktail.notes && (
+                  <span class="menu-tease-cocktail-notes">{cocktail.notes}</span>
+                )}
+                {cocktail.description && (
+                  <span class="menu-tease-cocktail-description">
+                    {cocktail.description}
+                  </span>
+                )}
+              </span>
+            </span>
+          )}
+        </figcaption>
+      </figure>
+    ))
+  }
+</div>

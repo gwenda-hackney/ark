@@ -1,25 +1,28 @@
 ---
 import type { SiteFeatures } from "../types/features";
-import { menu } from "../data/menu";
-import MenuSection from "./MenuSection.astro";
+import { fetchMenu } from "../lib/sanity/menu";
+import MenuDisplay from "./MenuDisplay.astro";
 
 interface Props {
   features: SiteFeatures;
 }
 
 const { features } = Astro.props;
-const { showMenu } = features;
+const { showMenu, showPrices } = features;
+const menu = await fetchMenu();
 ---
 
 {
   showMenu && (
-    <section class="menu" id="menu">
-      <header class="menu-header">
-        <h2>The Menu</h2>
-      </header>
-      {menu.sections.map((section) => (
-        <MenuSection section={section} features={features} />
-      ))}
+    <section class="menu section" id="menu">
+      <div class="container">
+        <header class="section-header reveal">
+          <p class="section-eyebrow">Tabula</p>
+          <h2>The Menu</h2>
+          <p>Craft cocktails, Italian small plates, and natural wine.</p>
+        </header>
+        <MenuDisplay menu={menu} showPrices={showPrices} />
+      </div>
     </section>
   )
 }

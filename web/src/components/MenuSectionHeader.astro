@@ -1,0 +1,20 @@
+---
+import type { MenuSection } from "../types/menu";
+
+interface Props {
+  section: MenuSection;
+}
+
+const { section } = Astro.props;
+---
+
+<header class="menu-section-header reveal">
+  <h2 class="menu-section-title" id={`${section.id}-heading`}>
+    {section.title}
+  </h2>
+  {
+    section.subtitle && (
+      <p class="section-lead menu-section-lead">{section.subtitle}</p>
+    )
+  }
+</header>

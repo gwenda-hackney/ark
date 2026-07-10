@@ -1,0 +1,25 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import BackLink from "../components/BackLink.astro";
+import MenuDisplay from "../components/MenuDisplay.astro";
+import { siteConfig } from "../config/site";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const menu = await fetchMenu();
+const pageDescription = `Menu at ${siteConfig.name} — craft cocktails, Italian small plates, and natural wine in Hackney Wick.`;
+---
+
+<BaseLayout title={`Menu — ${siteConfig.name}`} description={pageDescription}>
+  <main class="menu-page">
+    <div class="container menu-inner">
+      <BackLink fallback="/#menu" />
+
+      <header class="menu-page-header section-intro reveal">
+        <p class="section-eyebrow menu-page-eyebrow">The Menu</p>
+        <h1 class="visually-hidden">Menu — {siteConfig.name}</h1>
+      </header>
+
+      <MenuDisplay menu={menu} showPrices />
+    </div>
+  </main>
+</BaseLayout>

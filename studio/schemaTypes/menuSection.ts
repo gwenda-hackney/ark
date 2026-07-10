@@ -15,6 +15,7 @@ export const menuSection = defineType({
       name: "slug",
       title: "Slug",
       type: "slug",
+      description: "URL-safe id, e.g. cocktails, small-plates",
       options: { source: "title", maxLength: 96 },
       validation: (rule) => rule.required(),
     }),

@@ -1,8 +1,9 @@
 ---
-import { Image } from "astro:assets";
-import { getCocktailsWithImages } from "../data/menu";
+import { getSignatureCocktails } from "../data/menu";
+import { fetchMenu } from "../lib/sanity/menu";
 
-const cocktails = getCocktailsWithImages();
+const menu = await fetchMenu();
+const cocktails = getSignatureCocktails(menu);
 ---
 
 <section class="gallery" id="gallery">
@@ -15,10 +16,14 @@ const cocktails = getCocktailsWithImages();
     {
       cocktails.map((cocktail) => (
         <div class="gallery-item">
-          <Image
-            src={cocktail.image!}
-            alt={`${cocktail.name} cocktail`}
+          <img
+            src={cocktail.image.url}
+            width={cocktail.image.width}
+            height={cocktail.image.height}
+            alt={cocktail.image.alt ?? `${cocktail.name} cocktail`}
             class="gallery-photo"
+            loading="lazy"
+            decoding="async"
           />
           <div class="gallery-overlay">
             <h3>{cocktail.name}</h3>

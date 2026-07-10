@@ -18,10 +18,10 @@ npm run studio:deploy
 
 ## Schema
 
-| Type | Purpose |
-|------|---------|
-| `menuSection` | Cocktails, small plates, etc. |
-| `menuItem` | Individual dishes/drinks |
-| `event` | Events page entries |
+| Type | Fields |
+|------|--------|
+| `menuSection` | Title, slug, optional subtitle, sort order |
+| `menuItem` | Name, description, section (reference), price |
+| `event` | Title, slug, date, description |
 
 The Astro site fetches at build time — `web/src/lib/sanity/`.

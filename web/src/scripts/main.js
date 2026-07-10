@@ -178,30 +178,4 @@ const signupForm = document.getElementById("signup-form");
 if (signupForm) initSignup(signupForm);
 initSignupAnchors();
 
-/* Menu tease — touch: tap to reveal */
-const menuTeaseCtas = document.querySelectorAll(".menu-tease-cta");
-const hasHover = window.matchMedia("(hover: hover)").matches;
-
-if (menuTeaseCtas.length && !hasHover) {
-  menuTeaseCtas.forEach((cta) => {
-    cta.addEventListener("click", () => {
-      const revealed = cta.classList.contains("is-revealed");
-      menuTeaseCtas.forEach((other) => other.classList.remove("is-revealed"));
-      if (!revealed) cta.classList.add("is-revealed");
-    });
-
-    cta.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        cta.click();
-      }
-    });
-  });
-
-  document.addEventListener("click", (e) => {
-    if (e.target.closest(".menu-tease-cta")) return;
-    menuTeaseCtas.forEach((cta) => cta.classList.remove("is-revealed"));
-  });
-}
-
 initBookingGate();
