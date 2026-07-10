@@ -397,6 +397,14 @@ a:focus-visible {
   box-shadow: 0 0 20px color-mix(in srgb, var(--color-gold) 18%, transparent);
 }
 
+.site-header-booking {
+  color: var(--color-text);
+}
+
+.site-header-booking[hidden] {
+  display: none;
+}
+
 .site-header-menu-btn {
   display: none;
   align-items: center;
@@ -570,8 +578,21 @@ html.fonts-ready .hero-location.hero-stagger {
   animation-delay: 0.7s;
 }
 
-html.fonts-ready .hero-content .btn.hero-stagger {
+html.fonts-ready .hero-content .hero-actions.hero-stagger {
   animation-delay: 0.9s;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+
+.hero-actions .booking-cta[hidden] {
+  display: none;
 }
 
 html:not(.fonts-ready) .gate,
