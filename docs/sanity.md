@@ -20,16 +20,16 @@ Everything uses **`SANITY_API_TOKEN`**. Local and CI use **different** Sanity to
 
 ### Hosted Studio dataset
 
-The dataset is **not** switched in the Studio UI — it is baked into the app at deploy time.
+**Datasets ≠ workspaces.** In Sanity manage you see two **datasets** (`development` and `production`) — those are separate content databases. The hosted Studio has **one workspace** (the editor UI). There is no dropdown to switch datasets; the workspace is wired to **one** dataset when the Studio app is built and deployed.
 
-Sanity only embeds env vars prefixed with **`SANITY_STUDIO_`** in the deployed Studio bundle. Setting `SANITY_DATASET` in CI does **not** affect the hosted Studio (that variable is for the Astro site).
+Sanity only inlines env vars prefixed with **`SANITY_STUDIO_`** into the Studio bundle. `sanity.config.ts` must use `process.env.SANITY_STUDIO_DATASET` directly so the value is baked in at build time.
 
 | File | Loaded when | Dataset |
 |------|-------------|---------|
 | `studio/.env.development` | `npm run studio` (local) | `development` |
 | `studio/.env.production` | `sanity deploy` / CI | `production` |
 
-After changing these files, redeploy Studio (`npm run studio:deploy` or the Deploy Studio workflow). The hosted URL should show **Gwenda** (not “development”): https://gwenda.sanity.studio
+After deploy, https://gwenda.sanity.studio should show **Gwenda** (not “development”) and production content.
 
 ### CI token permissions (Deploy)
 
