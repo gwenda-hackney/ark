@@ -23,8 +23,8 @@ if (menuEmpty || galleryTiles === 0) {
       `  menu page empty: ${menuEmpty}`,
       "",
       "Staging builds use the development dataset (gwenda-dev.sanity.studio).",
-      "Ensure GitHub secret SANITY_API_TOKEN is a Deploy token with read access,",
-      "then seed or publish menu content: npm run studio:seed:dev",
+      "Set GitHub secret SANITY_API_TOKEN to a Viewer token (separate from SANITY_DEPLOY_TOKEN).",
+      "Seed or publish menu content: npm run studio:seed:dev",
     ].join("\n"),
   );
   process.exit(1);

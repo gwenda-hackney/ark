@@ -61,8 +61,7 @@ function assertMenuContent(sections: MenuSection[]) {
   const { dataset } = getSanityImageConfig();
   throw new Error(
     `Sanity menu is empty (dataset: ${dataset}). ` +
-      "The development dataset is private — CI needs a Deploy token with read access in GitHub secret SANITY_API_TOKEN. " +
-      "Seed content with `npm run studio:seed:dev` or edit https://gwenda-dev.sanity.studio.",
+      "Set GitHub secret SANITY_API_TOKEN to a Viewer token (Deploy Studio cannot read documents).",
   );
 }
 
