@@ -1,6 +1,10 @@
 import { initCountdown } from "./countdown.js";
 import { initSignup, initSignupAnchors } from "./signup.js";
 import { initBookingGate } from "./booking-gate.js";
+import { initNavigationRestore, whenNavigationReady } from "./navigation-restore.js";
+import { initReveal } from "./reveal.js";
+
+initNavigationRestore();
 
 /* Header + nav */
 const header = document.getElementById("site-header");
@@ -58,17 +62,67 @@ window.addEventListener(
   { passive: true },
 );
 
-if (header) onScrollFrame();
+if (header) {
+  whenNavigationReady(() => onScrollFrame());
+}
+
+function initScrollHint() {
+  const scrollHint = document.querySelector(".hero-scroll-hint");
+  if (!scrollHint || !hero) return;
+  const fadeScrollHint = () => {
+    scrollHint.classList.toggle("is-faded", window.scrollY > 48);
+  };
+  window.addEventListener("scroll", fadeScrollHint, { passive: true });
+  fadeScrollHint();
+}
+
+function initHeroParallax() {
+  const heroMedia = document.querySelector(".hero-media");
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+
+  if (!hero || !heroMedia || prefersReducedMotion) return;
+
+  let parallaxTicking = false;
+
+  const onHeroParallax = () => {
+    const rect = hero.getBoundingClientRect();
+    if (rect.bottom > 0 && rect.top < window.innerHeight) {
+      const progress = Math.min(
+        1,
+        Math.max(0, -rect.top / (rect.height * 0.85)),
+      );
+      heroMedia.style.transform = `translate3d(0, ${progress * 28}px, 0)`;
+    }
+    parallaxTicking = false;
+  };
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!parallaxTicking) {
+        parallaxTicking = true;
+        requestAnimationFrame(onHeroParallax);
+      }
+    },
+    { passive: true },
+  );
+
+  onHeroParallax();
+}
 
 /* Floating back-to-top — after hero */
 if (hero) {
-  const heroObserver = new IntersectionObserver(
-    ([entry]) => {
-      scrollTop?.classList.toggle("is-visible", !entry.isIntersecting);
-    },
-    { threshold: 0 },
-  );
-  heroObserver.observe(hero);
+  whenNavigationReady(() => {
+    const heroObserver = new IntersectionObserver(
+      ([entry]) => {
+        scrollTop?.classList.toggle("is-visible", !entry.isIntersecting);
+      },
+      { threshold: 0 },
+    );
+    heroObserver.observe(hero);
+  });
 }
 
 function closeMobileNav() {
@@ -114,64 +168,12 @@ if (countdown) {
 }
 
 /* Scroll reveal */
-const revealEls = document.querySelectorAll(".reveal");
-if (revealEls.length) {
-  const revealObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("visible");
-          revealObserver.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.12, rootMargin: "0px 0px -32px 0px" },
-  );
-  revealEls.forEach((el) => revealObserver.observe(el));
-}
+initReveal();
 
-/* Hero scroll hint — fade once user scrolls */
-const scrollHint = document.querySelector(".hero-scroll-hint");
-if (scrollHint && hero) {
-  const fadeScrollHint = () => {
-    scrollHint.classList.toggle("is-faded", window.scrollY > 48);
-  };
-  window.addEventListener("scroll", fadeScrollHint, { passive: true });
-  fadeScrollHint();
-}
-
-/* Hero — subtle depth parallax on the image */
-const heroMedia = document.querySelector(".hero-media");
-const prefersReducedMotion = window.matchMedia(
-  "(prefers-reduced-motion: reduce)",
-).matches;
-
-if (hero && heroMedia && !prefersReducedMotion) {
-  let parallaxTicking = false;
-
-  const onHeroParallax = () => {
-    const rect = hero.getBoundingClientRect();
-    if (rect.bottom > 0 && rect.top < window.innerHeight) {
-      const progress = Math.min(
-        1,
-        Math.max(0, -rect.top / (rect.height * 0.85)),
-      );
-      heroMedia.style.transform = `translate3d(0, ${progress * 28}px, 0)`;
-    }
-    parallaxTicking = false;
-  };
-
-  window.addEventListener(
-    "scroll",
-    () => {
-      if (!parallaxTicking) {
-        parallaxTicking = true;
-        requestAnimationFrame(onHeroParallax);
-      }
-    },
-    { passive: true },
-  );
-}
+whenNavigationReady(() => {
+  initScrollHint();
+  initHeroParallax();
+});
 
 /* Email signup */
 const signupForm = document.getElementById("signup-form");

@@ -10,6 +10,8 @@ const pageDescription = `Menu at ${siteConfig.name} — craft cocktails, Italian
 ---
 
 <BaseLayout title={`Menu — ${siteConfig.name}`} description={pageDescription}>
+  <link rel="prefetch" href="/" slot="head" />
+
   <main class="menu-page">
     <div class="container menu-inner">
       <BackLink fallback="/#menu" />
