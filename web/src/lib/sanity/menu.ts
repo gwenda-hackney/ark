@@ -1,6 +1,7 @@
 import type { Menu, MenuItem, MenuSection } from "../../types/menu";
 import type { MenuTeaseCocktail } from "../../data/menu-tease";
 import { createSanityClient } from "./client";
+import { getSanityImageConfig } from "./env";
 import { mapSanityGalleryImage, mapSanityImage, type SanityImageField } from "./images";
 import { MENU_QUERY } from "./queries";
 
@@ -52,6 +53,19 @@ function mapMenuSection(doc: SanityMenuSection): MenuSection | null {
   };
 }
 
+function assertMenuContent(sections: MenuSection[]) {
+  if (sections.length > 0 || process.env.GITHUB_ACTIONS !== "true") {
+    return;
+  }
+
+  const { dataset } = getSanityImageConfig();
+  throw new Error(
+    `Sanity menu is empty (dataset: ${dataset}). ` +
+      "The development dataset is private — CI needs a Deploy token with read access in GitHub secret SANITY_API_TOKEN. " +
+      "Seed content with `npm run studio:seed:dev` or edit https://gwenda-dev.sanity.studio.",
+  );
+}
+
 export async function fetchMenu(): Promise<Menu> {
   const client = createSanityClient();
   const docs = await client.fetch<SanityMenuSection[]>(MENU_QUERY);
@@ -59,6 +73,8 @@ export async function fetchMenu(): Promise<Menu> {
   const sections = docs
     .map(mapMenuSection)
     .filter((section): section is MenuSection => section !== null);
+
+  assertMenuContent(sections);
 
   return { sections };
 }

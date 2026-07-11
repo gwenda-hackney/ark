@@ -63,7 +63,7 @@ function pickSanityToken(candidates: Array<string | undefined>): string | undefi
     .map(normalizeEnvValue);
 
   const valid = normalized.filter(
-    (value) => value.startsWith("sk") && value.length >= 100 && value.length <= 220,
+    (value) => value.startsWith("sk") && value.length >= 100 && value.length <= 512,
   );
 
   if (valid.length === 0) return undefined;
@@ -73,6 +73,12 @@ function pickSanityToken(candidates: Array<string | undefined>): string | undefi
 }
 
 function readEnv(name: string): string | undefined {
+  // CI and explicit shell env win over Astro-inlined import.meta.env defaults.
+  const fromProcess = process.env[name];
+  if (typeof fromProcess === "string" && fromProcess.trim()) {
+    return normalizeEnvValue(fromProcess);
+  }
+
   const meta = import.meta.env as Record<string, string | undefined>;
   const fromMeta = meta[name];
   if (typeof fromMeta === "string" && fromMeta.trim()) {
@@ -82,11 +88,6 @@ function readEnv(name: string): string | undefined {
   const root = findRepoRoot();
   const fromFile = readDotEnv(name, root);
   if (fromFile) return fromFile;
-
-  const fromProcess = process.env[name];
-  if (typeof fromProcess === "string" && fromProcess.trim()) {
-    return normalizeEnvValue(fromProcess);
-  }
 
   return undefined;
 }
@@ -101,9 +102,9 @@ export function getSanityImageConfig(): Pick<SanityConfig, "projectId" | "datase
 export function getSanityConfig(): SanityConfig {
   const { projectId, dataset } = getSanityImageConfig();
   const token = pickSanityToken([
+    process.env.SANITY_API_TOKEN,
     import.meta.env.SANITY_API_TOKEN as string | undefined,
     readDotEnv("SANITY_API_TOKEN", findRepoRoot()),
-    process.env.SANITY_API_TOKEN,
   ]);
 
   if (!token) {
