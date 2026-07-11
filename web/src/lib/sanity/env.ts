@@ -91,9 +91,15 @@ function readEnv(name: string): string | undefined {
   return undefined;
 }
 
-export function getSanityConfig(): SanityConfig {
+/** projectId + dataset only — enough to build image URLs, no API token needed. */
+export function getSanityImageConfig(): Pick<SanityConfig, "projectId" | "dataset"> {
   const projectId = readEnv("SANITY_PROJECT_ID") || DEFAULT_PROJECT_ID;
   const dataset = readEnv("SANITY_DATASET") || DEFAULT_DATASET;
+  return { projectId, dataset };
+}
+
+export function getSanityConfig(): SanityConfig {
+  const { projectId, dataset } = getSanityImageConfig();
   const token = pickSanityToken([
     import.meta.env.SANITY_API_TOKEN as string | undefined,
     readDotEnv("SANITY_API_TOKEN", findRepoRoot()),

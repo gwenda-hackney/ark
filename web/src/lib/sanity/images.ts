@@ -1,10 +1,10 @@
 import { createImageUrlBuilder } from "@sanity/image-url";
 import type { SanityImageSource } from "@sanity/image-url";
 import type { MenuItemImage } from "../../types/menu";
-import { getSanityConfig } from "./env";
+import { getSanityImageConfig } from "./env";
 
 function createBuilder() {
-  const { projectId, dataset } = getSanityConfig();
+  const { projectId, dataset } = getSanityImageConfig();
   return createImageUrlBuilder({ projectId, dataset });
 }
 

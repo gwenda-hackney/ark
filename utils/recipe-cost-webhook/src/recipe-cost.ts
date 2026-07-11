@@ -31,6 +31,7 @@ export async function recalculateRecipeCostFromTask(
   totalCost: number;
   stockItemsTouched: number;
   targetCost?: number;
+  suggestedPrice?: number;
 }> {
   const changedTask = await getTask(apiKey, changedTaskId, true);
   const recipeId =
