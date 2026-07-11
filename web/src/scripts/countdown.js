@@ -65,12 +65,19 @@ export function initCountdown(container, openingTimestamp) {
   if (units.some((unit) => !elements[unit])) return null;
 
   let last = getTimeLeft(openingTimestamp);
+  const skipEnter = document.documentElement.classList.contains("navigation-restore");
 
   units.forEach((unit, index) => {
     const el = elements[unit];
     const unitEl = el.closest(".countdown-unit");
     const target = last[unit];
     unitEl?.style.setProperty("--enter-delay", `${index * 120}ms`);
+
+    if (skipEnter) {
+      unitEl?.classList.add("is-visible");
+      rollValue(el, unit, target, false);
+      return;
+    }
 
     el.textContent = formatUnit(unit, 0);
     el.dataset.value = formatUnit(unit, 0);

@@ -22,7 +22,7 @@ html {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html {
+  html:not(.navigation-restore) {
     scroll-behavior: smooth;
   }
 }
@@ -2432,6 +2432,39 @@ html.fonts-ready .thanks {
 .reveal.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Back navigation — render in final state, no entrance animations (set in head). */
+html.navigation-restore {
+  scroll-behavior: auto !important;
+}
+
+html.navigation-restore .reveal {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+html.navigation-restore .hero-image {
+  opacity: 1;
+  transition: none;
+}
+
+html.navigation-restore .hero-overlay,
+html.navigation-restore .hero-vignette {
+  opacity: 1;
+  transition: none;
+}
+
+html.navigation-restore .hero-stagger {
+  opacity: 1;
+  animation: none !important;
+}
+
+html.navigation-restore .countdown-unit {
+  opacity: 1;
+  transform: none;
+  transition: none;
 }
 
 .reveal-stagger {

@@ -11,6 +11,12 @@ export function initHeroReveal() {
     "(prefers-reduced-motion: reduce)",
   ).matches;
 
+  const nav = performance.getEntriesByType("navigation")[0];
+  const restored =
+    reducedMotion ||
+    nav?.type === "back_forward" ||
+    document.documentElement.classList.contains("navigation-restore");
+
   let revealed = false;
 
   function reveal() {
@@ -22,7 +28,7 @@ export function initHeroReveal() {
     media.classList.add("is-ready");
   }
 
-  if (reducedMotion) {
+  if (reducedMotion || restored) {
     reveal();
     return;
   }

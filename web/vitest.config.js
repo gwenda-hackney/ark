@@ -7,6 +7,7 @@ export default defineConfig({
       "scripts/ci/**/*.test.mjs",
       "scripts/lib/**/*.test.mjs",
       "src/**/*.test.ts",
+      "src/**/*.test.js",
     ],
   },
 });
