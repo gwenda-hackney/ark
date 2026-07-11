@@ -4,7 +4,8 @@
   "dockerComposeFile": ["docker-compose.yml"],
   "mounts": [
     "source=..,target=/src,type=bind,consistency=cached",
-    "source=bashhistory,target=/commandhistory,type=volume"
+    "source=bashhistory,target=/commandhistory,type=volume",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gh,target=/home/node/.config/gh,type=bind,consistency=cached"
   ],
   "customizations": {
     "vscode": {

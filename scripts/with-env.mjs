@@ -34,9 +34,14 @@ if (existsSync(envPath)) {
   }
 }
 
-// Sanity CLI (`sanity deploy`) reads SANITY_AUTH_TOKEN; we standardise on SANITY_API_TOKEN.
-if (process.env.SANITY_API_TOKEN && !process.env.SANITY_AUTH_TOKEN) {
-  process.env.SANITY_AUTH_TOKEN = process.env.SANITY_API_TOKEN;
+// Sanity CLI (`sanity deploy`) reads SANITY_AUTH_TOKEN.
+// CI passes SANITY_DEPLOY_TOKEN (Deploy Studio role); local dev falls back to SANITY_API_TOKEN.
+if (!process.env.SANITY_AUTH_TOKEN) {
+  if (process.env.SANITY_DEPLOY_TOKEN) {
+    process.env.SANITY_AUTH_TOKEN = process.env.SANITY_DEPLOY_TOKEN;
+  } else if (process.env.SANITY_API_TOKEN) {
+    process.env.SANITY_AUTH_TOKEN = process.env.SANITY_API_TOKEN;
+  }
 }
 
 const [command, ...args] = process.argv.slice(2);
