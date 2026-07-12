@@ -1,0 +1,47 @@
+---
+description: Agent access to GitHub, Sanity, and Cloudflare for infrastructure setup
+alwaysApply: true
+---
+
+# Infrastructure — agent capabilities
+
+In this devcontainer / agent environment you can configure Gwenda infrastructure **without asking the user to run manual steps**.
+
+## Available credentials
+
+| Source | What it provides |
+|--------|------------------|
+| Repo-root `.env` (gitignored) | `CLOUDFLARE_API_TOKEN`, `SANITY_API_TOKEN` (Developer), `SANITY_PROJECT_ID=pn5yjro6`, deploy vars after `npm run setup:site-deploy` |
+| `gh` CLI | Authenticated as the repo owner — `repo` + `workflow` scopes. Use `gh secret set`, `gh workflow run`, `gh auth token` |
+| GitHub Actions secrets | `SANITY_API_TOKEN`, `SANITY_DEPLOY_TOKEN`, `CLOUDFLARE_*`, etc. — set via `gh secret set`, never read back |
+
+## Sanity tokens
+
+- **Developer** token in `.env` — create/revoke robot tokens, seed content, schema work. Cannot deploy hosted Studio.
+- **Deploy Studio** — GitHub secret `SANITY_DEPLOY_TOKEN` (create via `npm run setup:ci-secrets` using Developer token).
+- **Viewer** — GitHub secret `SANITY_API_TOKEN` — site builds only.
+
+Do not ask the user to create Sanity CI tokens manually; run `npm run setup:ci-secrets` when needed.
+
+## Site deploy (Studio → website rebuild)
+
+Run **`npm run setup:site-deploy`** — it will:
+
+1. Generate `DEPLOY_WEBHOOK_SECRET` (or reuse from `.env`)
+2. Set GitHub secrets (`DEPLOY_WEBHOOK_SECRET`, `DISPATCH_TOKEN` from `gh auth token`, `SANITY_STUDIO_SITE_DEPLOY_URL`)
+3. Deploy `utils/site-deploy-webhook` Worker and sync Worker secrets
+4. Write `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env` for local Studio
+5. Dispatch `deploy-studio.yml` to redeploy hosted dev Studio with deploy config
+
+Local Studio (`npm run studio`) picks up deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `deploy-studio.yml`.
+
+Do not ask the user to manually `gh secret set` deploy secrets or edit Worker URLs unless setup fails and needs diagnosis.
+
+## Cloudflare
+
+Use `CLOUDFLARE_API_TOKEN` from `.env` and `account_id` from `utils/*/wrangler.toml` for Worker deploys. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
+
+## After setup
+
+- Restart local Studio if it was already running.
+- Production hosted Studio: `npm run studio:deploy` (needs `SANITY_DEPLOY_TOKEN` in env or CI).

@@ -157,22 +157,27 @@ Studio (browser) → gwenda-site-deploy-webhook (Worker) → GitHub Actions → 
 
 Worker: `utils/site-deploy-webhook/` — validates a shared secret, dispatches the content deploy workflow.
 
-**One-time setup** (after merging):
+**Automated setup** (agents and developers — uses `.env` + `gh`):
 
 ```bash
-# GitHub secrets (repo settings)
-gh secret set DEPLOY_WEBHOOK_SECRET      # shared with Studio + Worker
-gh secret set GITHUB_DISPATCH_TOKEN      # PAT or fine-grained token: repo + Actions write
+npm run setup:site-deploy
+```
 
-# Deploy Worker (CI does this on push to main, or manually):
-npm run deploy -w @gwenda/site-deploy-webhook
+This generates `DEPLOY_WEBHOOK_SECRET`, pushes GitHub secrets, deploys the Worker, writes `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env`, and dispatches `deploy-studio.yml` for hosted dev Studio.
 
-# Add Worker URL + secret to Studio env files, then redeploy Studio:
-# studio/.env.development + studio/.env.production
-SANITY_STUDIO_SITE_DEPLOY_URL=https://gwenda-site-deploy-webhook.<account>.workers.dev
-SANITY_STUDIO_SITE_DEPLOY_SECRET=<same as DEPLOY_WEBHOOK_SECRET>
+Prerequisites: `CLOUDFLARE_API_TOKEN` in `.env`, `gh auth login` with `repo,workflow` scopes.
 
-npm run studio:deploy:dev    # staging Studio
-npm run studio:deploy        # production Studio
+| Secret / var | Role |
+|---|---|
+| `DEPLOY_WEBHOOK_SECRET` | Shared password — GitHub secret, Worker secret, `SANITY_STUDIO_SITE_DEPLOY_SECRET` |
+| `DISPATCH_TOKEN` | GitHub PAT with Actions write — Worker uses it to trigger content deploy workflows (setup uses `gh auth token`) |
+| `SANITY_STUDIO_SITE_DEPLOY_URL` | Public Worker URL — GitHub secret + `.env` |
+
+Local Studio reads deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `deploy-studio.yml` at deploy time.
+
+Production hosted Studio after setup:
+
+```bash
+npm run studio:deploy   # uses SANITY_DEPLOY_TOKEN (CI secret or local)
 ```
 

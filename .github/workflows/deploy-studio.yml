@@ -40,6 +40,8 @@ jobs:
         run: npm run studio:deploy:dev
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
+          SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
+          SANITY_STUDIO_SITE_DEPLOY_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
 
       - name: Deployment summary
         run: cd web && node scripts/ci/write-deployment-summary.mjs

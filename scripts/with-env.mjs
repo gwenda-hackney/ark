@@ -44,6 +44,11 @@ if (!process.env.SANITY_AUTH_TOKEN) {
   }
 }
 
+// Site deploy — root .env uses DEPLOY_WEBHOOK_SECRET; Studio inlines SANITY_STUDIO_* at build time.
+if (!process.env.SANITY_STUDIO_SITE_DEPLOY_SECRET?.trim() && process.env.DEPLOY_WEBHOOK_SECRET?.trim()) {
+  process.env.SANITY_STUDIO_SITE_DEPLOY_SECRET = process.env.DEPLOY_WEBHOOK_SECRET.trim();
+}
+
 const [command, ...args] = process.argv.slice(2);
 if (!command) {
   console.error("usage: with-env <command> [args...]");
