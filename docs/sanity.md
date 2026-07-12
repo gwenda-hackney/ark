@@ -1,5 +1,9 @@
 # Sanity CMS
 
+Sanity is Gwenda's **editorial layer** — website data and copy that editors own, distinct from site code in git. The static site reads published documents at build time; **Deploy site** in Studio triggers a rebuild.
+
+Only part of gwenda.co.uk is CMS-backed today. Schema and queries grow as more content moves out of the repo (`studio/schemaTypes/`, `web/src/lib/sanity/`).
+
 Project `pn5yjro6` on [sanity.io/manage](https://www.sanity.io/manage).
 
 ## Environments
