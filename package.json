@@ -19,6 +19,7 @@
     "studio:seed:dev": "env -u SANITY_API_TOKEN SANITY_DATASET=development node --env-file=.env studio/scripts/seed-menu.mjs",
     "studio:seed:production": "env -u SANITY_API_TOKEN SANITY_DATASET=production CONFIRM_PRODUCTION_SEED=1 node --env-file=.env studio/scripts/seed-menu.mjs",
     "setup:ci-secrets": "node scripts/setup-ci-sanity-secrets.mjs",
+    "setup:site-deploy": "node scripts/setup-site-deploy.mjs",
     "generate:brand-assets": "npm run generate:brand-assets -w @gwenda/web",
     "sync:brand": "node .github/scripts/sync-brand-tokens.mjs",
     "test": "npm run test -w @gwenda/web",
