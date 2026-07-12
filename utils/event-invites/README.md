@@ -8,14 +8,14 @@ Uses `CLICKUP_API_KEY` from the workspace root `.env` (see `.cursor/skills/click
 
 ```bash
 # From monorepo root (ark/)
-python3 -m venv tools/event-invites/.venv
-tools/event-invites/.venv/bin/pip install -e tools/event-invites
+python3 -m venv utils/event-invites/.venv
+utils/event-invites/.venv/bin/pip install -e utils/event-invites
 
 # Or after devcontainer post-start (venv created automatically)
-tools/event-invites/.venv/bin/event-invites --help
+utils/event-invites/.venv/bin/event-invites --help
 ```
 
-Copy `tools/event-invites/.env.example` values into `/workspace/.env` or export them:
+Copy `utils/event-invites/.env.example` values into `/workspace/.env` or export them:
 
 | Variable | Purpose |
 |----------|---------|

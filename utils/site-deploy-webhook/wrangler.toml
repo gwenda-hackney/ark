@@ -1,0 +1,7 @@
+name = "gwenda-site-deploy-webhook"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+account_id = "1c23e160e39a187ce33fe192595c4a7f"
+
+[vars]
+GITHUB_REPOSITORY = "gwenda-hackney/ark"

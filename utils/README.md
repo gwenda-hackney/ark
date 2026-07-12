@@ -5,7 +5,8 @@ Operational tools for Gwenda. Each utility is a self-contained package.
 | Tool | Path | Stack |
 |------|------|-------|
 | **Event invites** | [`event-invites/`](event-invites/) | Python CLI |
-| **Recipe cost webhook** | [`recipe-cost-webhook/`](recipe-cost-webhook/) | Cloudflare Worker — CI deploys on push to `main` when `utils/recipe-cost-webhook/**` changes |
+| **Recipe cost webhook** | [`recipe-cost-webhook/`](recipe-cost-webhook/) | Cloudflare Worker — ClickUp → recipe costs |
+| **Site deploy webhook** | [`site-deploy-webhook/`](site-deploy-webhook/) | Cloudflare Worker — Studio → GitHub content deploy |
 
 ## Development
 
