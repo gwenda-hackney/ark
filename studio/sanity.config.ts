@@ -1,6 +1,7 @@
 import { defineConfig } from "sanity";
 import { structureTool } from "sanity/structure";
 import { visionTool } from "@sanity/vision";
+import { siteDeployPlugin } from "./plugins/siteDeploy";
 import { schemaTypes } from "./schemaTypes";
 
 /** Inlined at build time from studio/.env.production or studio/.env.development */
@@ -12,7 +13,7 @@ export default defineConfig({
   title: dataset === "production" ? "Gwenda" : "Gwenda (development)",
   projectId,
   dataset,
-  plugins: [structureTool(), visionTool()],
+  plugins: [structureTool(), visionTool(), siteDeployPlugin()],
   schema: {
     types: schemaTypes,
   },

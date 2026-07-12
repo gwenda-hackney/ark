@@ -6,8 +6,9 @@ Static HTML brand guidelines at [brand.gwenda.co.uk](https://brand.gwenda.co.uk)
 
 ```
 brand/
+├── brand-guidelines.md   ← full guidelines (Markdown reference)
 └── src/
-    └── index.html    ← the guidelines document
+    └── index.html        ← published at brand.gwenda.co.uk
 ```
 
 ## Colour tokens

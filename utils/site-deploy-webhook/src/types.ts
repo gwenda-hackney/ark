@@ -1,0 +1,23 @@
+export type DeployTarget = "staging" | "production";
+
+export type Env = {
+  DEPLOY_WEBHOOK_SECRET: string;
+  GITHUB_TOKEN: string;
+  GITHUB_REPOSITORY: string;
+};
+
+export type DeployRequest = {
+  target?: DeployTarget;
+};
+
+export type HandlerResult = {
+  status: number;
+  body: Record<string, unknown>;
+};
+
+export type WorkflowRun = {
+  id: number;
+  status: string;
+  conclusion: string | null;
+  html_url: string;
+};
