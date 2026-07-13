@@ -30,15 +30,21 @@ Cloudflare Pages Git integration may need reconnecting after the rename.
 
 ## CI path filters
 
-Each deploy workflow only runs when its project (or shared CI config) changes:
+Each deploy workflow only runs when files in that project change:
 
-| Workflow | Triggers on | Sanity dataset |
-|----------|-------------|----------------|
-| `deploy-staging.yml` | `web/**` on `main` | development |
-| `deploy-production.yml` | `web/**` on `release` | production |
-| `deploy-studio.yml` | `studio/**` on `main` | development (gwenda-dev.sanity.studio) |
-| `deploy-brand.yml` | `brand/**`, `web/src/config/colors.json` |
-| `deploy-recipe-cost-webhook.yml` | `utils/recipe-cost-webhook/**` |
+| Workflow | Triggers on | Preview URL |
+|----------|-------------|-------------|
+| `deploy-staging.yml` | `web/**` on `main` | — (updates [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev)) |
+| `deploy-web-preview.yml` | `web/**` on branches except `main` / `release` | `https://<branch>.gwenda-staging.pages.dev` |
+| `deploy-production.yml` | `web/**` on `release` | [release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev) |
+| `deploy-studio.yml` | `studio/**` on `main` | — |
+| `deploy-brand.yml` | `brand/**` on any branch | Production on `main`/`release`; else `https://<branch>.gwenda-brand.pages.dev` |
+| `deploy-recipe-cost-webhook.yml` | `utils/recipe-cost-webhook/**` on `main` | — |
+| `deploy-site-deploy-webhook.yml` | `utils/site-deploy-webhook/**` on `main` | — |
+
+Branch preview names are sanitized by `.github/scripts/cloudflare-pages-branch.mjs` (slashes → dashes, lowercase).
+
+Colour changes in `web/src/config/colors.json` do not auto-deploy brand — run `npm run sync:brand`, commit `brand/`, then push. CI `verify` still enforces sync via `sync:brand --check`.
 
 Cross-project scripts (e.g. `sync-brand-tokens.mjs`) live in `.github/scripts/`.
 

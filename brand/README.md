@@ -29,11 +29,30 @@ Source of truth: `web/src/config/colors.json`.
 
 ## Deploy
 
-Push to `main` (or `release`) — [deploy-brand workflow](../.github/workflows/deploy-brand.yml) runs only when `brand/` changes.
+| Trigger | Target | URL |
+|---------|--------|-----|
+| Push to `main` or `release` (`brand/**` changes) | Production (`--branch main`) | [brand.gwenda.co.uk](https://brand.gwenda.co.uk) |
+| Push to any other branch (`brand/**` changes) | Branch preview | `https://<branch>.gwenda-brand.pages.dev` |
+| Manual | [Deploy brand guidelines](../.github/workflows/deploy-brand.yml) → **workflow_dispatch** | Choose preview or production |
 
-Manual deploy:
+Preview branch names are sanitized (`feat/brand-green-palette` → `feat-brand-green-palette`).
+
+Manual production deploy:
 
 ```bash
 npm run sync:brand
-npm run deploy -w @gwenda/brand   # uploads brand/src/ (not the repo folder root)
+npm run deploy:production -w @gwenda/brand
+```
+
+Manual preview deploy (does not touch production):
+
+```bash
+npm run sync:brand
+npm run deploy:preview -w @gwenda/brand -- --branch "$(node ../.github/scripts/cloudflare-pages-branch.mjs feat/my-branch)"
+```
+
+Or from `brand/`:
+
+```bash
+npx wrangler pages deploy src --project-name gwenda-brand --branch feat-my-branch --commit-dirty=true
 ```

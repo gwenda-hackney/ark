@@ -4,7 +4,9 @@
   "private": true,
   "description": "Gwenda brand guidelines — static HTML hosted on Cloudflare Pages at brand.gwenda.co.uk",
   "scripts": {
-    "deploy": "wrangler pages deploy src --project-name gwenda-brand --commit-dirty=true"
+    "deploy": "wrangler pages deploy src --project-name gwenda-brand --branch main --commit-dirty=true",
+    "deploy:production": "wrangler pages deploy src --project-name gwenda-brand --branch main --commit-dirty=true",
+    "deploy:preview": "wrangler pages deploy src --project-name gwenda-brand --commit-dirty=true"
   },
   "devDependencies": {
     "wrangler": "^4.98.0"
