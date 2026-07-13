@@ -16,7 +16,7 @@ const menuEmpty = menu.includes("being prepared");
 const hasComingSoon =
   home.includes("menu-tease-empty") || home.includes("Coming soon");
 
-if (!datasetMatch) {
+if (!datasetMatch && !(hasComingSoon && menuEmpty)) {
   console.error(
     [
       "Sanity dataset not found in build output — CMS fetch may have failed.",
