@@ -70,6 +70,42 @@ inputs:
   event-admin-secret:
     description: Bearer secret for /api/event-admin (Studio Event invites)
     required: false
+  smtp-host:
+    description: SMTP host for invite emails
+    required: false
+  smtp-port:
+    description: SMTP port for invite emails
+    required: false
+  smtp-user:
+    description: SMTP user for invite emails
+    required: false
+  smtp-password:
+    description: SMTP password for invite emails
+    required: false
+  smtp-from:
+    description: SMTP from address for invite emails
+    required: false
+  instagram-access-token:
+    description: Instagram Graph API token for invite DMs
+    required: false
+  instagram-business-account-id:
+    description: Instagram business account id for invite DMs
+    required: false
+  invite-base-url:
+    description: Base URL for personal invite links
+    required: false
+  invite-image-url:
+    description: Hero image URL in invite emails
+    required: false
+  invite-email-subject:
+    description: Invite email subject template
+    required: false
+  invite-email-body:
+    description: Invite email body template
+    required: false
+  invite-instagram-message:
+    description: Invite Instagram DM template
+    required: false
   sanity-api-token:
     description: SANITY_API_TOKEN — CI token for build-time CMS fetch
     required: false
@@ -143,6 +179,18 @@ runs:
         BASEROW_TABLE_ID: ${{ inputs.baserow-table-id }}
         SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
         EVENT_ADMIN_SECRET: ${{ inputs.event-admin-secret }}
+        SMTP_HOST: ${{ inputs.smtp-host }}
+        SMTP_PORT: ${{ inputs.smtp-port }}
+        SMTP_USER: ${{ inputs.smtp-user }}
+        SMTP_PASSWORD: ${{ inputs.smtp-password }}
+        SMTP_FROM: ${{ inputs.smtp-from }}
+        INSTAGRAM_ACCESS_TOKEN: ${{ inputs.instagram-access-token }}
+        INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ inputs.instagram-business-account-id }}
+        INVITE_BASE_URL: ${{ inputs.invite-base-url }}
+        INVITE_IMAGE_URL: ${{ inputs.invite-image-url }}
+        INVITE_EMAIL_SUBJECT: ${{ inputs.invite-email-subject }}
+        INVITE_EMAIL_BODY: ${{ inputs.invite-email-body }}
+        INVITE_INSTAGRAM_MESSAGE: ${{ inputs.invite-instagram-message }}
 
     - name: Prepare Wrangler config
       shell: bash

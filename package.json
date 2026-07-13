@@ -21,6 +21,7 @@
     "studio:seed:events:dev": "env -u SANITY_API_TOKEN SANITY_DATASET=development node --env-file=.env studio/scripts/seed-events.mjs",
     "studio:seed:events:production": "env -u SANITY_API_TOKEN SANITY_DATASET=production CONFIRM_PRODUCTION_SEED=1 node --env-file=.env studio/scripts/seed-events.mjs",
     "setup:event-admin": "node scripts/setup-event-admin.mjs",
+    "setup:event-ops": "node --env-file=.env scripts/setup-event-ops.mjs",
     "setup:baserow-rsvp": "node --env-file=.env scripts/setup-baserow-rsvp.mjs",
     "setup:ci-secrets": "node scripts/setup-ci-sanity-secrets.mjs",
     "setup:site-deploy": "node scripts/setup-site-deploy.mjs",
