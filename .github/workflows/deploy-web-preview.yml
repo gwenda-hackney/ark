@@ -86,6 +86,18 @@ jobs:
           baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
           event-admin-secret: ${{ secrets.EVENT_ADMIN_SECRET }}
+          invite-base-url: https://gwenda-staging.pages.dev
+          invite-image-url: https://gwenda.co.uk/images/event-invite.jpg
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-password: ${{ secrets.SMTP_PASSWORD }}
+          smtp-from: ${{ secrets.SMTP_FROM }}
+          instagram-access-token: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          instagram-business-account-id: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          invite-email-subject: ${{ secrets.INVITE_EMAIL_SUBJECT }}
+          invite-email-body: ${{ secrets.INVITE_EMAIL_BODY }}
+          invite-instagram-message: ${{ secrets.INVITE_INSTAGRAM_MESSAGE }}
           sanity-api-token: ${{ secrets.SANITY_API_TOKEN }}
           sanity-dataset: development
 

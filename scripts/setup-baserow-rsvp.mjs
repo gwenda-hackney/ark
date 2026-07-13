@@ -24,6 +24,7 @@ import {
   DEFAULT_BASEROW_API,
   DEV_BASEROW_DATABASE_ID,
   DEV_SUBSCRIBE_TABLE_ID,
+  PRODUCTION_SUBSCRIBE_TABLE_ID,
   RSVP_TABLE_NAME,
 } from "../web/functions/_lib/baserow.js";
 
@@ -191,7 +192,7 @@ async function fetchJwt(apiBase, email, password) {
   return token;
 }
 
-async function loadDevDatabaseTables(apiBase, jwt, databaseId, subscribeTableId) {
+async function loadDatabaseTables(apiBase, jwt, databaseId, subscribeTableId, label) {
   const tables = await baserowRequest(
     apiBase,
     jwt,
@@ -200,14 +201,30 @@ async function loadDevDatabaseTables(apiBase, jwt, databaseId, subscribeTableId)
   const marker = tables.find((table) => String(table.id) === subscribeTableId);
   if (!marker) {
     throw new Error(
-      `Expected dev Baserow database ${databaseId} to contain subscribe table ${subscribeTableId}. ` +
-        "Check BASEROW_TABLE_ID in .env — local dev uses the same database as gwenda-staging.",
+      `Expected ${label} Baserow database ${databaseId} to contain subscribe table ${subscribeTableId}.`,
     );
   }
   console.log(
-    `Dev database ${databaseId} (subscribe table "${marker.name}" id ${subscribeTableId}).`,
+    `${label} database ${databaseId} (subscribe table "${marker.name}" id ${subscribeTableId}).`,
   );
   return tables;
+}
+
+async function resolveProductionDatabaseId(apiBase, apiKey) {
+  const response = await fetch(`${apiBase}/api/database/tables/all-tables/`, {
+    headers: { Authorization: `Token ${apiKey}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Could not list Baserow tables (${response.status}).`);
+  }
+  const tables = await response.json();
+  const subscribe = tables.find((table) => String(table.id) === PRODUCTION_SUBSCRIBE_TABLE_ID);
+  if (!subscribe) {
+    throw new Error(
+      `Production subscribe table ${PRODUCTION_SUBSCRIBE_TABLE_ID} not visible to BASEROW_API_KEY.`,
+    );
+  }
+  return String(subscribe.database_id);
 }
 
 async function findOrCreateTable(tables, apiBase, jwt, databaseId, tableName) {
@@ -258,10 +275,25 @@ async function ensureFields(apiBase, jwt, tableId) {
 }
 
 async function main() {
-  const databaseId = DEV_BASEROW_DATABASE_ID;
-  const subscribeTableId = readEnv("BASEROW_TABLE_ID") || DEV_SUBSCRIBE_TABLE_ID;
+  const production = process.argv.includes("--production");
   const tableName = readEnv("BASEROW_RSVP_TABLE_NAME") || RSVP_TABLE_NAME;
   const apiBase = (readEnv("BASEROW_API_URL") || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const apiKey = readEnv("BASEROW_API_KEY");
+
+  let databaseId = readEnv("BASEROW_DATABASE_ID");
+  let subscribeTableId = readEnv("BASEROW_TABLE_ID") || DEV_SUBSCRIBE_TABLE_ID;
+  let label = "Dev";
+
+  if (production) {
+    if (!apiKey) {
+      throw new Error("BASEROW_API_KEY is required for --production (resolves prod database id).");
+    }
+    databaseId = databaseId || (await resolveProductionDatabaseId(apiBase, apiKey));
+    subscribeTableId = PRODUCTION_SUBSCRIBE_TABLE_ID;
+    label = "Production";
+  } else {
+    databaseId = databaseId || DEV_BASEROW_DATABASE_ID;
+  }
 
   const { email, password } = await promptCredentials(databaseId);
 
@@ -269,11 +301,12 @@ async function main() {
   const jwt = await fetchJwt(apiBase, email, password);
 
   console.log(`Table "${tableName}"…`);
-  const tables = await loadDevDatabaseTables(
+  const tables = await loadDatabaseTables(
     apiBase,
     jwt,
     databaseId,
     subscribeTableId,
+    label,
   );
   const table = await findOrCreateTable(
     tables,
@@ -291,13 +324,17 @@ async function main() {
   console.log(`Event Invites table ready (id ${table.id}).`);
   console.log(`Grid: ${gridUrl}`);
   console.log("");
-  console.log("Next:");
-  console.log("  1. Create a database token (Settings → Database tokens) with CRUD on this table.");
-  console.log("  2. Set BASEROW_API_KEY in .env (same token works for dev + staging).");
-  console.log(`  3. Set BASEROW_RSVP_GRID_URL=${gridUrl} in repo-root .env`);
-  console.log("");
-  console.log("Runtime code resolves the table by name — no table id in .env.");
-  console.log("Production: duplicate the table in the prod Baserow database when you promote.");
+  if (production) {
+    console.log("Production table created. The site resolves this table by name at runtime.");
+  } else {
+    console.log("Next:");
+    console.log("  1. Create a database token (Settings → Database tokens) with CRUD on this table.");
+    console.log("  2. Set BASEROW_API_KEY in .env (same token works for dev + staging).");
+    console.log(`  3. Set BASEROW_RSVP_GRID_URL=${gridUrl} in repo-root .env`);
+    console.log("");
+    console.log("Runtime code resolves the table by name — no table id in .env.");
+    console.log("Production: npm run setup:baserow-rsvp -- --production");
+  }
 }
 
 main().catch((error) => {
