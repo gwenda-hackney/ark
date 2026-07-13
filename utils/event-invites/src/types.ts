@@ -15,7 +15,15 @@ export type Guest = {
 
 export type ClickUpCustomField = {
   name?: string;
+  type?: string;
   value?: unknown;
+  type_config?: {
+    options?: Array<{
+      id?: string;
+      name?: string;
+      orderindex?: number;
+    }>;
+  };
 };
 
 export type ClickUpTask = {

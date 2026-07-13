@@ -8,9 +8,19 @@ export function normalizeInstagramHandle(raw: string | null | undefined): string
   return handle ? handle.toLowerCase() : null;
 }
 
-export function parseInviteChannel(raw: string | null | undefined): InviteChannel | null {
-  if (!raw?.trim()) return null;
-  const value = raw.trim().toLowerCase();
+export function parseInviteChannel(raw: string | null | undefined | unknown): InviteChannel | null {
+  let text = "";
+  if (typeof raw === "string") {
+    text = raw;
+  } else if (raw && typeof raw === "object" && "value" in raw) {
+    const value = (raw as { value?: unknown }).value;
+    text = typeof value === "string" ? value : String(value ?? "");
+  } else if (raw != null) {
+    text = String(raw);
+  }
+
+  if (!text.trim()) return null;
+  const value = text.trim().toLowerCase();
   if (value === "email" || value === "e-mail") return "email";
   if (value === "instagram" || value === "ig" || value === "dm" || value === "insta") {
     return "instagram";
