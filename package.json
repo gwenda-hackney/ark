@@ -23,6 +23,7 @@
     "setup:event-admin": "node scripts/setup-event-admin.mjs",
     "setup:event-ops": "node --env-file=.env scripts/setup-event-ops.mjs",
     "setup:baserow-rsvp": "node --env-file=.env scripts/setup-baserow-rsvp.mjs",
+    "setup:instagram": "node --env-file=.env scripts/setup-instagram.mjs",
     "setup:ci-secrets": "node scripts/setup-ci-sanity-secrets.mjs",
     "setup:site-deploy": "node scripts/setup-site-deploy.mjs",
     "event-invites": "node scripts/with-env.mjs npm run cli -w @gwenda/event-invites --",
