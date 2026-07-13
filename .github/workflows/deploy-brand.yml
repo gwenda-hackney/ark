@@ -46,5 +46,19 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy . --project-name gwenda-brand --branch main --commit-dirty=true
+          command: pages deploy src --project-name gwenda-brand --branch main --commit-dirty=true
           workingDirectory: brand
+
+      - name: Smoke test deployment
+        run: |
+          url="https://gwenda-brand.pages.dev/"
+          for i in $(seq 1 12); do
+            if curl -fsS "$url" | grep -q "Gwenda — Brand Guidelines"; then
+              echo "OK $url"
+              exit 0
+            fi
+            echo "Waiting for deployment… ($i/12)"
+            sleep 5
+          done
+          echo "Brand guidelines not served at $url"
+          exit 1
