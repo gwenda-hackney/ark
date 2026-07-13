@@ -61,26 +61,37 @@ Add both to repo-root `.env` for local sends. For staging/production site sends,
 
 ### One-time Meta setup
 
-1. **Instagram** — @gwendahackney must be a **Professional** account (Business or Creator).
-2. **Facebook Page** — connect the Instagram account to a Facebook Page (Meta Business Suite).
-3. **Meta app** — [developers.facebook.com](https://developers.facebook.com/) → Create app → add **Instagram** product.
-4. **Permissions** — request / grant at minimum:
-   - `instagram_basic`
-   - `instagram_manage_messages`
-   - `pages_show_list`, `pages_read_engagement` (to reach the linked Page)
-5. **Access token** — Graph API Explorer or Business Suite:
-   - Select your app + Page
-   - Generate a token with the permissions above
-   - Prefer a **long-lived** Page token (60 days; refresh via Meta)
-6. **Instagram account ID** — with a valid token:
+Same mechanism as Canva: **you authorize our Meta app**, we store the token.
+
+1. **Meta app** — [developers.facebook.com](https://developers.facebook.com/) → Create app → add **Facebook Login** + **Instagram**.
+2. **OAuth redirect** — in the app, add valid redirect URI: `http://localhost:8765/callback`
+3. **App credentials** — add to repo-root `.env`:
+   ```
+   META_APP_ID=...
+   META_APP_SECRET=...
+   ```
+4. **Connect** — run:
+   ```bash
+   npm run setup:instagram
+   ```
+   Opens Meta login (like Canva’s “Connect Instagram”), then writes `INSTAGRAM_ACCESS_TOKEN` and `INSTAGRAM_BUSINESS_ACCOUNT_ID` to `.env`.
+
+Manual alternative (Graph API Explorer) is still documented below if you prefer.
+
+<details>
+<summary>Manual token setup (Graph API Explorer)</summary>
+
+1. **Instagram** — @gwendahackney must be a **Professional** account linked to a Facebook Page.
+2. **Permissions** — `instagram_basic`, `instagram_manage_messages`, `pages_show_list`, `pages_read_engagement`.
+3. **Access token** — generate long-lived Page token in Graph API Explorer.
+4. **Instagram account ID**:
 
 ```bash
-# Replace TOKEN with your Page/user token
 curl "https://graph.facebook.com/v21.0/me/accounts?access_token=TOKEN"
-# Then for your Page id:
 curl "https://graph.facebook.com/v21.0/PAGE_ID?fields=instagram_business_account&access_token=TOKEN"
-# instagram_business_account.id → INSTAGRAM_BUSINESS_ACCOUNT_ID
 ```
+
+</details>
 
 ### Important limitation
 
