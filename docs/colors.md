@@ -4,6 +4,8 @@ Single source of truth for hex values: **`src/config/colors.json`**
 
 CSS variables: `src/styles/colors.css` (kept in sync by `src/config/colors.test.ts`)
 
+The palette is **monochromatic black, brown, and gold** — drawn from the ship's world at Schwartz Wharf (hull black, teak and timber brown, brass gold). See [brand guidelines §1.1](../brand/brand-guidelines.md#11-ship-palette) and the [hero colour breakdown](../brand/brand-guidelines.md#30a-hero--colour-in-practice).
+
 ---
 
 ## Solid swatches
@@ -20,6 +22,7 @@ Use these exact hex values in Canva, Figma, print, and social templates.
 | **Text**                   | `#e8e4dc` | Body copy, headings                               |
 | **Text muted**             | `#8a8680` | Secondary copy, nav links                         |
 | **Gold**                   | `#c9a84c` | Accent, buttons, links, eyebrows                  |
+| **Gold dark**              | `#8b6914` | Deeper gold — shadows, depth, hover states      |
 | **Error**                  | `#c97a7a` | Form validation messages                          |
 
 ### Quick answers

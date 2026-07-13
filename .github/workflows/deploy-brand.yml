@@ -7,9 +7,6 @@ on:
       - release
     paths:
       - "brand/**"
-      - "web/src/config/colors.json"
-      - ".github/scripts/sync-brand-tokens.mjs"
-      - ".github/workflows/deploy-brand.yml"
   workflow_dispatch:
 
 jobs:
