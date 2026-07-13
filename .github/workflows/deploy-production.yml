@@ -11,6 +11,7 @@ on:
       - ".github/workflows/deploy-production.yml"
       - ".github/workflows/verify.yml"
       - ".github/actions/deploy-pages/**"
+  workflow_dispatch:
 
 jobs:
   verify:
