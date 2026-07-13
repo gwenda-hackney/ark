@@ -121,6 +121,7 @@ const profiles = {
     putSecret("BASEROW_TABLE_ID", process.env.BASEROW_TABLE_ID);
     putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
     putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
+    putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
     putSecret("SMTP_HOST", process.env.SMTP_HOST);
     putSecret("SMTP_PORT", process.env.SMTP_PORT);
     putSecret("SMTP_USER", process.env.SMTP_USER);
@@ -142,6 +143,7 @@ const profiles = {
     putSecret("BASEROW_TABLE_ID", process.env.BASEROW_TABLE_ID);
     putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
     putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
+    putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
     putSecret("SMTP_HOST", process.env.SMTP_HOST);
     putSecret("SMTP_PORT", process.env.SMTP_PORT);
     putSecret("SMTP_USER", process.env.SMTP_USER);

@@ -10,6 +10,7 @@ function rowToGuest(row) {
   const rsvp = row["RSVP Guests"];
   return {
     rowId: row.id,
+    taskId: null,
     name: (row.Name ?? "").trim(),
     contact: row.Contact?.trim() || null,
     channel,

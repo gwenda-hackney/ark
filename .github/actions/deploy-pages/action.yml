@@ -179,6 +179,7 @@ runs:
         BASEROW_TABLE_ID: ${{ inputs.baserow-table-id }}
         SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
         EVENT_ADMIN_SECRET: ${{ inputs.event-admin-secret }}
+        SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         SMTP_HOST: ${{ inputs.smtp-host }}
         SMTP_PORT: ${{ inputs.smtp-port }}
         SMTP_USER: ${{ inputs.smtp-user }}

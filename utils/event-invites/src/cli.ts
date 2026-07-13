@@ -4,6 +4,8 @@ import { parseArgs } from "node:util";
 
 import { ensureGuestInvite, BaserowError } from "./baserow.js";
 import { fetchGuestsFromBaserow, BaserowGuestError } from "./baserow-guests.js";
+import { syncGuestsToBaserow } from "./baserow-sync.js";
+import { fetchGuestsFromClickUp, ClickUpError } from "./clickup.js";
 import { EmailConfigError, EmailSendError, sendInviteEmail } from "./email.js";
 import {
   fetchUsernameToUserIdMap,
@@ -20,6 +22,7 @@ import {
   guestInstagramHandle,
   resolveInstagramRecipientId,
 } from "./lib.js";
+import { fetchEventBySlug, resolveInviteImageUrl } from "./sanity-event.js";
 import type { Guest } from "./types.js";
 
 type ManualInstagramRow = {
@@ -49,21 +52,21 @@ function guestsNeedInstagram(guests: Guest[]): boolean {
   return guests.some((guest) => guest.channel === "instagram");
 }
 
+function defaultSource(): "clickup" | "baserow" {
+  return env("CLICKUP_INVITE_LIST_ID") ? "clickup" : "baserow";
+}
+
 function printHelp(): void {
   console.log(`Usage: event-invites [options]
 
-Send private event invites from a Baserow guest list.
-Each guest gets a personal link: {invite-base}/invite/{token}
-
-Baserow columns: Event Slug, Name, Channel (Email | Instagram), Contact.
+Send private event invites. Guests come from ClickUp (default when
+CLICKUP_INVITE_LIST_ID is set) or Baserow. ClickUp guests sync to Baserow
+for RSVP tokens before send.
 
 Options:
-  --event-slug <slug>              Sanity event slug (or INVITE_EVENT_SLUG) — required
+  --event-slug <slug>              Sanity event slug (or INVITE_EVENT_SLUG)
+  --source <clickup|baserow>       Guest list source (default: clickup if list id set)
   --invite-base-url <url>          Site origin (or INVITE_BASE_URL)
-  --invite-image-url <url>         Invite image for email (or INVITE_IMAGE_URL)
-  --email-subject <text>           Email subject
-  --email-body <text>              Email body ({name}, {link}, {image})
-  --instagram-message <text>       Instagram DM ({name}, {link})
   --dry-run                        Preview sends without delivering
   --send                           Register links + send invites
   --export-manual-instagram <csv>  Instagram guests needing manual DM
@@ -72,15 +75,29 @@ Options:
 `);
 }
 
+async function loadGuests(
+  source: "clickup" | "baserow",
+  eventSlug: string,
+): Promise<Guest[]> {
+  if (source === "clickup") {
+    const fromClickUp = await fetchGuestsFromClickUp(process.env);
+    console.log(`Loaded ${fromClickUp.length} guest(s) from ClickUp`);
+    const synced = await syncGuestsToBaserow(process.env, eventSlug, fromClickUp);
+    console.log(`Synced ${synced.length} guest(s) to Baserow for ${eventSlug}`);
+    return synced;
+  }
+
+  const guests = await fetchGuestsFromBaserow(process.env, eventSlug);
+  console.log(`Loaded ${guests.length} guest(s) from Baserow for ${eventSlug}`);
+  return guests;
+}
+
 async function main(): Promise<number> {
   const { values } = parseArgs({
     options: {
       help: { type: "boolean", short: "h", default: false },
+      source: { type: "string", default: defaultSource() },
       "invite-base-url": { type: "string", default: env("INVITE_BASE_URL", "https://gwenda.co.uk") },
-      "invite-image-url": {
-        type: "string",
-        default: env("INVITE_IMAGE_URL", "https://gwenda.co.uk/images/event-invite.jpg"),
-      },
       "event-slug": { type: "string", default: env("INVITE_EVENT_SLUG", "") },
       "email-subject": {
         type: "string",
@@ -115,12 +132,16 @@ async function main(): Promise<number> {
     return 1;
   }
 
+  const source = (values.source === "baserow" ? "baserow" : "clickup") as
+    | "clickup"
+    | "baserow";
+
   let guests: Guest[];
   try {
-    guests = await fetchGuestsFromBaserow(process.env, eventSlug);
+    guests = await loadGuests(source, eventSlug);
   } catch (error) {
-    if (error instanceof BaserowGuestError) {
-      console.error(`Baserow error: ${error.message} (${error.status}) ${error.body}`);
+    if (error instanceof ClickUpError || error instanceof BaserowGuestError) {
+      console.error(`Guest list error: ${error.message} (${error.status}) ${error.body}`);
       return 1;
     }
     throw error;
@@ -129,10 +150,15 @@ async function main(): Promise<number> {
   const limit = Number(values.limit ?? "0");
   if (limit > 0) guests = guests.slice(0, limit);
 
-  console.log(`Loaded ${guests.length} guest(s) from Baserow for event ${eventSlug}`);
+  const event = await fetchEventBySlug(process.env, eventSlug);
+  if (!event) {
+    console.error(`Warning: no Sanity event found for slug "${eventSlug}" — using fallback image`);
+  } else {
+    console.log(`Event: ${event.title}${event.heroImageUrl ? " (hero image from Sanity)" : ""}`);
+  }
 
   const inviteBaseUrl = values["invite-base-url"] ?? "https://gwenda.co.uk";
-  const inviteImageUrl = values["invite-image-url"] ?? "https://gwenda.co.uk/images/event-invite.jpg";
+  const inviteImageUrl = resolveInviteImageUrl(process.env, event);
   const emailSubject = values["email-subject"] ?? "You are invited — Gwenda";
   const emailBodyTemplate = values["email-body"] ?? DEFAULT_EMAIL_BODY;
   const instagramTemplate = values["instagram-message"] ?? DEFAULT_INSTAGRAM_MESSAGE;
@@ -238,7 +264,7 @@ async function main(): Promise<number> {
       } else if (values.send) {
         try {
           const config = readInstagramConfig(process.env);
-          const messageId = await sendDm(config, recipientId, text);
+          const messageId = await sendDm(config, recipientId, text, inviteImageUrl);
           console.log(`Instagram → @${handle ?? recipientId} (${guest.name}) id=${messageId}`);
           instagramSent += 1;
         } catch (error) {
