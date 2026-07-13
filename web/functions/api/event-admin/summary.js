@@ -1,9 +1,9 @@
 import {
   eventAdminUnauthorized,
   verifyEventAdminRequest,
-} from "../_lib/event-admin-auth.js";
-import { fetchGuestsForEvent, summarizeGuests } from "../_lib/event-guests.js";
-import { fetchEventBySlug } from "../_lib/sanity-event.js";
+} from "../../_lib/event-admin-auth.js";
+import { fetchGuestsForEvent, summarizeGuests } from "../../_lib/event-guests.js";
+import { fetchEventBySlug } from "../../_lib/sanity-event.js";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
