@@ -1,5 +1,6 @@
 import type { Event } from "../../types/events";
 import { createSanityClient } from "./client";
+import { mapSanityImage, type SanityImageField } from "./images";
 import { EVENTS_QUERY } from "./queries";
 
 type SanityEvent = {
@@ -7,6 +8,7 @@ type SanityEvent = {
   title: string;
   date: string;
   description: string;
+  heroImage?: SanityImageField;
 };
 
 function mapEvent(doc: SanityEvent): Event | null {
@@ -19,6 +21,7 @@ function mapEvent(doc: SanityEvent): Event | null {
     title: doc.title,
     date: doc.date,
     description: doc.description,
+    heroImage: mapSanityImage(doc.heroImage, doc.title),
   };
 }
 

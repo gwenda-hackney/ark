@@ -4,7 +4,8 @@ import { siteConfig } from "../config/site";
 import { formatEventDate, getUpcomingEvents } from "../data/events";
 import { fetchEvents } from "../lib/sanity/events";
 
-const events = await fetchEvents();
+/** Build-time fallback for schema.org; list body loads live from /api/events. */
+const events = await fetchEvents().catch(() => []);
 const upcomingEvents = getUpcomingEvents(events);
 const pageDescription = `Upcoming events at ${siteConfig.name} — canalside ${siteConfig.publicLabel.toLowerCase()} in Hackney Wick.`;
 
@@ -53,23 +54,15 @@ const eventSchema = upcomingEvents.map((event) => ({
         <p>Canalside evenings in {siteConfig.location.area}.</p>
       </header>
 
-      {
-        upcomingEvents.length > 0 ? (
-          <ul class="events-list">
-            {upcomingEvents.map((event) => (
-              <li class="event-card reveal">
-                <p class="event-date">
-                  <time datetime={event.date}>{formatEventDate(event.date)}</time>
-                </p>
-                <h2 class="event-title">{event.title}</h2>
-                <p class="event-description">{event.description}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p class="events-empty reveal">Nothing scheduled yet. Check back soon.</p>
-        )
-      }
+      <p id="events-loading" class="events-empty reveal">Loading events…</p>
+      <p id="events-empty" class="events-empty reveal" hidden>
+        Nothing scheduled yet. Check back soon.
+      </p>
+      <ul class="events-list" id="events-list"></ul>
     </div>
   </main>
+  <script>
+    import { initEventsPage } from "../scripts/events.js";
+    initEventsPage();
+  </script>
 </BaseLayout>

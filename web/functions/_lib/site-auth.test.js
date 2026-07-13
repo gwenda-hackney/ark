@@ -17,6 +17,13 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/apple-touch-icon.png")).toBe(true);
     expect(isPublicPath("/brand/logo-organization.png")).toBe(true);
   });
+
+  it("allows invite pages and RSVP API through the staging gate", () => {
+    expect(isPublicPath("/invite/")).toBe(true);
+    expect(isPublicPath("/invite/abc123")).toBe(true);
+    expect(isPublicPath("/api/rsvp")).toBe(true);
+    expect(isPublicPath("/api/events")).toBe(true);
+  });
 });
 
 describe("matchesSecret", () => {

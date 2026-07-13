@@ -74,6 +74,7 @@ jobs:
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
           baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
+          event-admin-secret: ${{ secrets.EVENT_ADMIN_SECRET }}
           sanity-api-token: ${{ secrets.SANITY_API_TOKEN }}
           sanity-dataset: development
 

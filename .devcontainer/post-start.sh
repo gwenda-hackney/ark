@@ -9,14 +9,4 @@ if [ -f /src/package-lock.json ]; then
   fi
 fi
 
-# Event-invites tool venv
-INVITES_VENV=/src/utils/event-invites/.venv
-if [ -f /src/utils/event-invites/pyproject.toml ]; then
-  if [ ! -d "$INVITES_VENV" ]; then
-    echo "Creating event-invites virtualenv..."
-    python3 -m venv "$INVITES_VENV"
-    "$INVITES_VENV/bin/pip" install -q -e /src/utils/event-invites
-  fi
-fi
-
-echo "Ark monorepo ready — web/, brand/, utils/"
+echo "Ark monorepo ready — web/, brand/, studio/, utils/"

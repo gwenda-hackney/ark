@@ -8,6 +8,14 @@ import {
 import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.js";
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
+import { getInviteByToken, saveRsvpGuests } from "./functions/_lib/rsvp.js";
+import { fetchPublishedEvents } from "./functions/_lib/sanity-events.js";
+import {
+  verifyEventAdminRequest,
+} from "./functions/_lib/event-admin-auth.js";
+import { fetchGuestsForEvent, summarizeGuests } from "./functions/_lib/event-guests.js";
+import { fetchEventBySlug } from "./functions/_lib/sanity-event.js";
+import { sendEventInvites } from "./functions/_lib/invite-send.js";
 
 const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
 const sitePassword = env.SITE_PASSWORD;
@@ -21,6 +29,33 @@ const subscribeEnv = () => ({
   BASEROW_API_KEY: env.BASEROW_API_KEY,
   BASEROW_TABLE_ID: env.BASEROW_TABLE_ID,
   BASEROW_API_URL: env.BASEROW_API_URL,
+});
+
+const rsvpEnv = () => ({
+  BASEROW_API_KEY: env.BASEROW_API_KEY,
+  BASEROW_API_URL: env.BASEROW_API_URL,
+  BASEROW_DATABASE_ID: env.BASEROW_DATABASE_ID,
+  BASEROW_RSVP_TABLE_NAME: env.BASEROW_RSVP_TABLE_NAME,
+  SITE_ENV: env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV,
+  SANITY_PROJECT_ID: env.SANITY_PROJECT_ID,
+  SANITY_DATASET: env.SANITY_DATASET,
+});
+
+const adminEnv = () => ({
+  ...rsvpEnv(),
+  EVENT_ADMIN_SECRET: env.EVENT_ADMIN_SECRET,
+  INVITE_BASE_URL: env.INVITE_BASE_URL,
+  INVITE_IMAGE_URL: env.INVITE_IMAGE_URL,
+  INVITE_EMAIL_SUBJECT: env.INVITE_EMAIL_SUBJECT,
+  INVITE_EMAIL_BODY: env.INVITE_EMAIL_BODY,
+  INVITE_INSTAGRAM_MESSAGE: env.INVITE_INSTAGRAM_MESSAGE,
+  SMTP_HOST: env.SMTP_HOST,
+  SMTP_PORT: env.SMTP_PORT,
+  SMTP_USER: env.SMTP_USER,
+  SMTP_PASSWORD: env.SMTP_PASSWORD,
+  SMTP_FROM: env.SMTP_FROM,
+  INSTAGRAM_ACCESS_TOKEN: env.INSTAGRAM_ACCESS_TOKEN,
+  INSTAGRAM_BUSINESS_ACCOUNT_ID: env.INSTAGRAM_BUSINESS_ACCOUNT_ID,
 });
 
 function sendJson(res, status, data, extraHeaders = {}) {
@@ -104,6 +139,186 @@ function devSubscribeApi() {
   };
 }
 
+/** Dev-only stub for /api/rsvp — production uses functions/api/rsvp.js */
+function devRsvpApi() {
+  return {
+    name: "dev-rsvp-api",
+    configureServer(server) {
+      server.middlewares.use("/api/rsvp", async (req, res, next) => {
+        const runtimeEnv = rsvpEnv();
+
+        if (req.method === "GET") {
+          const url = new URL(req.url ?? "", "http://localhost");
+          const token = url.searchParams.get("token");
+          const result = await getInviteByToken(runtimeEnv, token ?? "");
+          sendJson(
+            res,
+            result.status,
+            result.ok
+              ? {
+                  ok: true,
+                  name: result.guest.name,
+                  rsvpGuests: result.guest.rsvpGuests,
+                  event: result.event,
+                }
+              : { error: result.error },
+          );
+          return;
+        }
+
+        if (req.method !== "POST") {
+          next();
+          return;
+        }
+
+        let rawBody = "";
+        req.on("data", (chunk) => {
+          rawBody += chunk;
+        });
+        req.on("end", async () => {
+          try {
+            const payload = JSON.parse(rawBody);
+            const parsed =
+              typeof payload.guests === "number"
+                ? payload.guests
+                : Number.parseInt(String(payload.guests), 10);
+            const result = await saveRsvpGuests(runtimeEnv, payload.token, parsed);
+            sendJson(
+              res,
+              result.status,
+              result.ok
+                ? {
+                    ok: true,
+                    name: result.guest.name,
+                    rsvpGuests: result.guest.rsvpGuests,
+                    event: result.event,
+                  }
+                : { error: result.error },
+            );
+          } catch {
+            sendJson(res, 400, { error: "Invalid request." });
+          }
+        });
+      });
+    },
+  };
+}
+
+/** Dev-only stub for /api/events */
+function devEventsApi() {
+  return {
+    name: "dev-events-api",
+    configureServer(server) {
+      server.middlewares.use("/api/events", async (req, res, next) => {
+        if (req.method !== "GET") {
+          next();
+          return;
+        }
+        const events = await fetchPublishedEvents(adminEnv());
+        sendJson(res, 200, { ok: true, events });
+      });
+    },
+  };
+}
+
+/** Dev-only stub for /api/event-admin/* */
+function devEventAdminApi() {
+  return {
+    name: "dev-event-admin-api",
+    configureServer(server) {
+      server.middlewares.use("/api/event-admin", async (req, res, next) => {
+        const runtimeEnv = adminEnv();
+        const url = new URL(req.url ?? "", "http://localhost");
+        const path = url.pathname.replace(/^\/api\/event-admin\/?/, "");
+
+        if (
+          !verifyEventAdminRequest(
+            new Request("http://localhost", {
+              headers: {
+                Authorization: req.headers.authorization ?? req.headers.Authorization ?? "",
+              },
+            }),
+            runtimeEnv,
+          )
+        ) {
+          sendJson(res, 401, { error: "Unauthorized." });
+          return;
+        }
+
+        if (path === "summary" && req.method === "GET") {
+          const slug = url.searchParams.get("slug");
+          if (!slug) {
+            sendJson(res, 400, { error: "Missing slug." });
+            return;
+          }
+          const [event, guestsResult] = await Promise.all([
+            fetchEventBySlug(runtimeEnv, slug),
+            fetchGuestsForEvent(runtimeEnv, slug),
+          ]);
+          if (!guestsResult.ok) {
+            sendJson(res, guestsResult.status, { error: guestsResult.error });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            slug,
+            event,
+            summary: summarizeGuests(guestsResult.guests),
+          });
+          return;
+        }
+
+        if (path === "guests" && req.method === "GET") {
+          const slug = url.searchParams.get("slug");
+          if (!slug) {
+            sendJson(res, 400, { error: "Missing slug." });
+            return;
+          }
+          const result = await fetchGuestsForEvent(runtimeEnv, slug);
+          sendJson(
+            res,
+            result.ok ? 200 : result.status,
+            result.ok ? { ok: true, slug, guests: result.guests } : { error: result.error },
+          );
+          return;
+        }
+
+        if (path === "send" && req.method === "POST") {
+          let rawBody = "";
+          req.on("data", (chunk) => {
+            rawBody += chunk;
+          });
+          req.on("end", async () => {
+            try {
+              const payload = JSON.parse(rawBody);
+              const slug = payload?.slug?.trim();
+              if (!slug) {
+                sendJson(res, 400, { error: "Missing slug." });
+                return;
+              }
+              const result = await sendEventInvites(runtimeEnv, slug, {
+                dryRun: Boolean(payload?.dryRun),
+              });
+              sendJson(
+                res,
+                result.ok ? 200 : result.status,
+                result.ok ? result : { error: result.error },
+              );
+            } catch (error) {
+              sendJson(res, 502, {
+                error: error instanceof Error ? error.message : "Send failed.",
+              });
+            }
+          });
+          return;
+        }
+
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   site: "https://gwenda.co.uk",
   output: "static",
@@ -156,6 +371,12 @@ export default defineConfig({
         optional: true,
         default: "",
       }),
+      PUBLIC_INVITE_IMAGE_URL: envField.string({
+        context: "client",
+        access: "public",
+        optional: true,
+        default: "",
+      }),
       SANITY_PROJECT_ID: envField.string({
         context: "server",
         access: "public",
@@ -193,6 +414,6 @@ export default defineConfig({
     // Devcontainer / Cursor port forwards use non-localhost Host headers; Vite blocks those with 403.
     server: { allowedHosts: true },
     preview: { allowedHosts: true },
-    plugins: [devSubscribeApi(), ...(gatePlugin ? [gatePlugin] : [])],
+    plugins: [devSubscribeApi(), devRsvpApi(), devEventsApi(), devEventAdminApi(), ...(gatePlugin ? [gatePlugin] : [])],
   },
 });

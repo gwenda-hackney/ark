@@ -54,7 +54,7 @@ Static HTML brand guidelines at [brand.gwenda.co.uk](https://brand.gwenda.co.uk)
 
 ### Utils — [`utils/`](utils/)
 
-Operational tools: event-invite CLI, ClickUp recipe-cost webhook, Studio→GitHub site-deploy webhook.
+Operational tools: private event-invite CLI, ClickUp recipe-cost webhook, Studio→GitHub site-deploy webhook.
 
 → **[utils/README.md](utils/README.md)** — tool index and development notes
 
