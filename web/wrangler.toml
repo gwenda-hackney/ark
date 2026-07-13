@@ -2,7 +2,7 @@
 # Vars sync on deploy via wrangler pages deploy (replaces ensure-pages-env.mjs).
 # Secrets: scripts/ci/sync-pages-secrets.mjs (not stored in repo).
 name = "gwenda"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
