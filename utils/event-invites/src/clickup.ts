@@ -25,11 +25,35 @@ function readFieldNames() {
   };
 }
 
+function resolveDropdownValue(field: ClickUpCustomField): string {
+  const options = field.type_config?.options ?? [];
+  const value = field.value;
+  if (value == null || options.length === 0) return "";
+
+  if (typeof value === "number") {
+    const match =
+      options.find((option) => option.orderindex === value) ??
+      options.find((option) => String(option.orderindex) === String(value));
+    return match?.name?.trim() ?? String(value);
+  }
+
+  if (typeof value === "string") {
+    const match = options.find((option) => option.id === value);
+    return match?.name?.trim() ?? value.trim();
+  }
+
+  return "";
+}
+
 function fieldValue(task: ClickUpTask, fieldName: string): string {
   const field = task.custom_fields?.find(
     (item) => item.name?.trim().toLowerCase() === fieldName.trim().toLowerCase(),
   );
   if (!field) return "";
+
+  if (field.type === "drop_down") {
+    return resolveDropdownValue(field);
+  }
 
   const value = field.value;
   if (value == null) return "";
