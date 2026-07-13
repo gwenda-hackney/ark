@@ -78,13 +78,37 @@ export async function sendDm(
   config: InstagramConfig,
   recipientId: string,
   text: string,
+  imageUrl?: string,
 ): Promise<string> {
+  const headers = {
+    Authorization: `Bearer ${config.accessToken}`,
+    "Content-Type": "application/json",
+  };
+
+  if (imageUrl?.trim()) {
+    const imageResponse = await fetch(`${GRAPH_BASE}/${config.businessAccountId}/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: "image",
+            payload: { url: imageUrl.trim() },
+          },
+        },
+      }),
+    });
+    if (!imageResponse.ok) {
+      throw new InstagramError(
+        `Instagram image send failed (${imageResponse.status}): ${(await imageResponse.text()).slice(0, 400)}`,
+      );
+    }
+  }
+
   const response = await fetch(`${GRAPH_BASE}/${config.businessAccountId}/messages`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.accessToken}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       recipient: { id: recipientId },
       message: { text },

@@ -7,6 +7,7 @@ import {
   normalizeInstagramHandle,
 } from "./invite-lib.js";
 import { ensureGuestToken, fetchGuestsForEvent } from "./event-guests.js";
+import { fetchEventHeroImageUrl } from "./sanity-event.js";
 
 const GRAPH_BASE = "https://graph.instagram.com/v21.0";
 
@@ -52,19 +53,40 @@ async function fetchInstagramHandleMap(env) {
   return handleMap;
 }
 
-async function sendInstagramDm(env, recipientId, text) {
+async function sendInstagramDm(env, recipientId, text, imageUrl) {
   const accessToken = env.INSTAGRAM_ACCESS_TOKEN?.trim();
   const businessAccountId = env.INSTAGRAM_BUSINESS_ACCOUNT_ID?.trim();
   if (!accessToken || !businessAccountId) {
     throw new Error("Instagram is not configured.");
   }
 
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+
+  if (imageUrl) {
+    const imageResponse = await fetch(`${GRAPH_BASE}/${businessAccountId}/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: "image",
+            payload: { url: imageUrl },
+          },
+        },
+      }),
+    });
+    if (!imageResponse.ok) {
+      throw new Error(`Instagram image send failed (${imageResponse.status}).`);
+    }
+  }
+
   const response = await fetch(`${GRAPH_BASE}/${businessAccountId}/messages`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       recipient: { id: recipientId },
       message: { text },
@@ -133,6 +155,7 @@ export async function sendEventInvites(env, eventSlug, { dryRun = false } = {}) 
   if (!loaded.ok) return loaded;
 
   const settings = readInviteEnv(env);
+  const inviteImageUrl = await fetchEventHeroImageUrl(env, eventSlug);
   const conversationMap = await fetchInstagramHandleMap(env);
 
   let emailCount = 0;
@@ -161,7 +184,7 @@ export async function sendEventInvites(env, eventSlug, { dryRun = false } = {}) 
     const content = {
       name: guest.name,
       link: inviteUrl,
-      image: settings.inviteImageUrl,
+      image: inviteImageUrl,
     };
 
     if (guest.channel === "email") {
@@ -181,7 +204,7 @@ export async function sendEventInvites(env, eventSlug, { dryRun = false } = {}) 
         settings.emailSubject,
         body,
         inviteUrl,
-        settings.inviteImageUrl,
+        inviteImageUrl,
       );
       emailCount += 1;
       continue;
@@ -192,7 +215,7 @@ export async function sendEventInvites(env, eventSlug, { dryRun = false } = {}) 
     const text = formatInviteContent(settings.instagramMessage, content);
 
     if (recipientId) {
-      if (!dryRun) await sendInstagramDm(env, recipientId, text);
+      if (!dryRun) await sendInstagramDm(env, recipientId, text, inviteImageUrl);
       instagramSent += 1;
       continue;
     }

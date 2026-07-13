@@ -2,7 +2,7 @@
 
 | Tool | Path | Stack |
 |------|------|-------|
-| **Event invites** | [`event-invites/`](event-invites/) | TypeScript CLI — ClickUp guest list → email + Instagram DM |
+| **Event invites** | [`event-invites/`](event-invites/) | TypeScript CLI — ClickUp guest list → Baserow → email + Instagram DM |
 | **Recipe cost webhook** | [`recipe-cost-webhook/`](recipe-cost-webhook/) | Cloudflare Worker — ClickUp → recipe costs |
 | **Site deploy webhook** | [`site-deploy-webhook/`](site-deploy-webhook/) | Cloudflare Worker — Studio → GitHub content deploy |
 
