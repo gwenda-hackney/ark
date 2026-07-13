@@ -30,5 +30,5 @@ Manual deploy:
 
 ```bash
 npm run sync:brand
-npm run deploy -w @gwenda/brand
+npm run deploy -w @gwenda/brand   # uploads brand/src/ (not the repo folder root)
 ```
