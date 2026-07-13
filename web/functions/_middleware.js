@@ -17,6 +17,7 @@ import {
   safeRedirectPath,
   verifyAuthToken,
 } from "./_lib/site-auth.js";
+import { verifyEventAdminRequest } from "./_lib/event-admin-auth.js";
 
 export async function onRequest(context) {
   const gate = resolveGate(context.env);
@@ -53,6 +54,12 @@ export async function onRequest(context) {
   }
 
   if (isPublicPath(url.pathname)) return context.next();
+
+  if (url.pathname.startsWith("/api/event-admin")) {
+    if (verifyEventAdminRequest(context.request, context.env)) {
+      return context.next();
+    }
+  }
 
   if (isUnauthenticatedCrawler(context.request)) return context.next();
 

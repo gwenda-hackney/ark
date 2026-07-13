@@ -3,10 +3,13 @@
 # Secrets: scripts/ci/sync-pages-secrets.mjs (not stored in repo).
 name = "gwenda"
 compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
 [vars]
 SITE_ENV = "production"
+SANITY_PROJECT_ID = "pn5yjro6"
+SANITY_DATASET = "production"
 
 # Preview branch deploys (e.g. release-preview) use the same runtime as production.
 [env.preview.vars]

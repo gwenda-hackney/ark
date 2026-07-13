@@ -1,62 +1,98 @@
-# Event invites
+# Private event invites
 
-Send special-event invitations to guests stored in a **ClickUp list** — email via SMTP, Instagram handles exported for manual DMs (Meta does not offer a simple DM API for one-off events).
+Send **private event invitations** from a **Baserow guest list**. Each guest gets a personal link:
+
+`https://gwenda.co.uk/invite/{token}`
+
+The website greets them by name, loads event copy from Sanity at runtime, and collects RSVP headcount.
+
+## Architecture
+
+| Store | Role |
+|-------|------|
+| **Sanity** | Event title, description, date, hero — public + invite pages |
+| **Baserow** | Guest list, tokens, RSVP counts |
+| **Studio → Event invites** | Headcount dashboard + send (via site admin API) |
+
+## Baserow
+
+Local dev and **gwenda-staging** share one Baserow database (`465058`). The **Event Invites** table is found by name at runtime — no table id in `.env`.
+
+| Table | Lookup |
+|-------|--------|
+| Subscribe | `BASEROW_TABLE_ID` (or dev/staging default `1024006`) |
+| Event invites | table name `Event Invites` (override with `BASEROW_RSVP_TABLE_NAME`) |
+
+Create the RSVP table once for dev/staging (`npm run setup:baserow-rsvp`), then duplicate to production when you promote. The database token must have CRUD access on **Event Invites**.
+
+RSVP table columns (one table for all events; filter by **Event Slug**):
+
+| Field | Set by |
+|-------|--------|
+| Event Slug | Ops |
+| Name | Ops |
+| Channel | Ops (`Email` or `Instagram`) |
+| Contact | Ops |
+| Token | Send flow |
+| RSVP Guests | Guest via website |
+| RSVP Updated | Guest via website |
 
 ## Setup
 
-Uses `CLICKUP_API_KEY` from the workspace root `.env` (see `.cursor/skills/clickup/`).
-
 ```bash
-# From monorepo root (ark/)
-python3 -m venv utils/event-invites/.venv
-utils/event-invites/.venv/bin/pip install -e utils/event-invites
-
-# Or after devcontainer post-start (venv created automatically)
-utils/event-invites/.venv/bin/event-invites --help
+npm install
+npm run setup:baserow-rsvp   # creates Event Invites table (JWT auth — see below)
+npm run setup:event-admin    # generates EVENT_ADMIN_SECRET
 ```
 
-Copy `utils/event-invites/.env.example` values into `/workspace/.env` or export them:
+### Baserow table (JWT vs database token)
 
-| Variable | Purpose |
-|----------|---------|
-| `CLICKUP_INVITE_LIST_ID` | Guest list in ClickUp |
-| `CLICKUP_INVITE_EMAIL_FIELD` | Custom field name (default `Email`) |
-| `CLICKUP_INVITE_INSTAGRAM_FIELD` | Custom field name (default `Instagram`) |
-| `SMTP_*` | Outbound email |
-| `INVITE_EMAIL_SUBJECT` / `INVITE_EMAIL_BODY` | Message content (`{name}` in body) |
+Baserow has two token types:
 
-## Usage
+| Token | How to get it | Can do |
+|-------|---------------|--------|
+| **Database token** | Settings → Database tokens | Row CRUD only (`BASEROW_API_KEY`) |
+| **JWT** | Your Baserow login via `POST /api/user/token-auth/` | Create tables/fields (schema) |
 
-**Preview** (no sends):
+`npm run setup:baserow-rsvp` prompts for your Baserow email and password (not saved), obtains a short-lived JWT, creates the **Event Invites** table in the dev/staging database, and adds fields.
 
-```bash
-event-invites --dry-run --export-instagram /tmp/ig-guests.csv
+After that, create a **database token** with create/read/update/delete on that table and set `BASEROW_API_KEY` for the site and CLI.
+
+Copy invite vars into repo-root `.env` (see `.env.example`).
+
+Local Studio reads the same file via `with-env`:
+
+```
+EVENT_ADMIN_URL=http://localhost:4321
+EVENT_ADMIN_SECRET=<from npm run setup:event-admin>
+BASEROW_RSVP_GRID_URL=https://baserow.io/.../table/...
 ```
 
-**Send emails** to every task with an Email field:
+## Workflow
+
+1. **Create event** in Sanity Studio (Events).
+2. **Add guests** in Baserow grid filtered to `Event Slug = your-slug`.
+3. **Event invites** tool in Studio — headcount, dry run, send.
+4. Guests RSVP at `/invite/{token}`; counts update in Baserow + Studio.
+
+## CLI
 
 ```bash
-event-invites --send-email
+npm run event-invites -- --dry-run --event-slug private-launch-party
+npm run event-invites -- --send --event-slug private-launch-party
+npm run event-invites -- --export-manual-instagram guests.csv
 ```
 
-**Instagram** — export handles for manual DM or scheduling tool:
+## Website
+
+- `/events` — live event list from Sanity (`GET /api/events`)
+- `/invite/{token}` — RSVP page
+- `GET/POST /api/rsvp` — guest lookup + save
+- `/api/event-admin/*` — Studio admin API (Bearer `EVENT_ADMIN_SECRET`)
+
+## Development
 
 ```bash
-event-invites --export-instagram guests-instagram.csv
+npm test -w @gwenda/event-invites
+npm test -w @gwenda/web -- functions/_lib/event-guests.test.js
 ```
-
-Combine flags as needed. Use `--limit 5` to test on a subset first.
-
-## ClickUp list shape
-
-Each guest is a **task** on the list. Expected custom fields:
-
-- **Email** — used for SMTP invites
-- **Instagram** — handle or profile URL; normalised to `@handle` in CSV export
-
-Task name is used as the guest name in `{name}` substitution.
-
-## Notes
-
-- Instagram DMs cannot be automated reliably without Meta Business API approval; this tool exports a CSV for your manual workflow (or a future integration).
-- Always run `--dry-run` before `--send-email` on a live list.

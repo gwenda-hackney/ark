@@ -67,6 +67,9 @@ inputs:
   subscribe-secret:
     description: Subscribe endpoint secret
     required: false
+  event-admin-secret:
+    description: Bearer secret for /api/event-admin (Studio Event invites)
+    required: false
   sanity-api-token:
     description: SANITY_API_TOKEN — CI token for build-time CMS fetch
     required: false
@@ -139,6 +142,7 @@ runs:
         BASEROW_API_KEY: ${{ inputs.baserow-api-key }}
         BASEROW_TABLE_ID: ${{ inputs.baserow-table-id }}
         SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
+        EVENT_ADMIN_SECRET: ${{ inputs.event-admin-secret }}
 
     - name: Prepare Wrangler config
       shell: bash

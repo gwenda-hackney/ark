@@ -79,14 +79,26 @@ SANITY_API_TOKEN=sk...
 
 ## Studio env files
 
-Sanity inlines `SANITY_STUDIO_*` vars at build time. `sanity.config.ts` must reference them directly.
+All local configuration lives in **repo-root `.env`**. `scripts/with-env.mjs` loads it for Studio, web dev, and CLI, and maps shared names to `SANITY_STUDIO_*` build-time aliases:
 
-| File | Used by | Dataset | URL |
-|------|---------|---------|-----|
-| `studio/.env.development` | `npm run studio`, `studio:deploy:dev`, main CI | `development` | gwenda-dev.sanity.studio |
-| `studio/.env.production` | `studio:deploy` | `production` | gwenda.sanity.studio |
+| Root `.env` | Studio alias |
+|-------------|--------------|
+| `SANITY_PROJECT_ID` | `SANITY_STUDIO_PROJECT_ID` |
+| `SANITY_DATASET` | `SANITY_STUDIO_DATASET` |
+| `EVENT_ADMIN_SECRET` | `SANITY_STUDIO_EVENT_ADMIN_SECRET` |
+| `EVENT_ADMIN_URL` | `SANITY_STUDIO_EVENT_ADMIN_URL` |
+| `BASEROW_RSVP_GRID_URL` | `SANITY_STUDIO_BASEROW_RSVP_URL` |
+| `DEPLOY_WEBHOOK_SECRET` | `SANITY_STUDIO_SITE_DEPLOY_SECRET` |
 
-`SANITY_ACTIVE_ENV=development` makes `sanity deploy` load `.env.development` instead of `.env.production`.
+`studio/.env.development` and `studio/.env.production` are stubs only — do not put secrets there.
+
+| Command | Dataset / hostname |
+|---------|-------------------|
+| `npm run studio` | from root `SANITY_DATASET` (default `development`) |
+| `npm run studio:deploy:dev` | `development` → gwenda-dev.sanity.studio |
+| `npm run studio:deploy` | `production` → gwenda.sanity.studio |
+
+Hosted Studio deploys get extra vars from GitHub Actions secrets (see `deploy-studio.yml`).
 
 ## First-time setup
 

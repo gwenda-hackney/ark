@@ -1,0 +1,50 @@
+export function parseInviteChannel(raw) {
+  if (!raw?.trim()) return null;
+  const value = raw.trim().toLowerCase();
+  if (value === "email" || value === "e-mail") return "email";
+  if (value === "instagram" || value === "ig" || value === "dm" || value === "insta") {
+    return "instagram";
+  }
+  return null;
+}
+
+export function guestEmail(guest) {
+  if (guest.channel !== "email" || !guest.contact?.trim()) return null;
+  return guest.contact.trim();
+}
+
+export function normalizeInstagramHandle(raw) {
+  if (!raw?.trim()) return null;
+  let handle = raw.trim().replace(/^@/, "");
+  handle = handle.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "");
+  handle = handle.split("?")[0]?.replace(/\/$/, "") ?? "";
+  return handle ? handle.toLowerCase() : null;
+}
+
+export function guestInstagramHandle(guest) {
+  if (guest.channel !== "instagram" || !guest.contact?.trim()) return null;
+  return normalizeInstagramHandle(guest.contact);
+}
+
+export function formatInviteContent(template, values) {
+  return template
+    .replaceAll("{name}", values.name || "there")
+    .replaceAll("{link}", values.link)
+    .replaceAll("{image}", values.image);
+}
+
+export const DEFAULT_EMAIL_BODY = `Dear {name},
+
+You are invited to a special evening at Gwenda.
+
+Open your personal invitation: {link}
+
+We would be delighted to welcome you to Schwartz Wharf, Hackney Wick.
+
+With warm regards,
+Dan
+White Post Partners Ltd
+`;
+
+export const DEFAULT_INSTAGRAM_MESSAGE =
+  "Hi {name}, you're invited to a private evening at Gwenda. Your personal invite: {link}";

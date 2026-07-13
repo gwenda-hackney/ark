@@ -120,6 +120,19 @@ const profiles = {
     putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
     putSecret("BASEROW_TABLE_ID", process.env.BASEROW_TABLE_ID);
     putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
+    putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
+    putSecret("SMTP_HOST", process.env.SMTP_HOST);
+    putSecret("SMTP_PORT", process.env.SMTP_PORT);
+    putSecret("SMTP_USER", process.env.SMTP_USER);
+    putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
+    putSecret("SMTP_FROM", process.env.SMTP_FROM);
+    putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
+    putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
+    putSecret("INVITE_BASE_URL", process.env.INVITE_BASE_URL);
+    putSecret("INVITE_IMAGE_URL", process.env.INVITE_IMAGE_URL);
+    putSecret("INVITE_EMAIL_SUBJECT", process.env.INVITE_EMAIL_SUBJECT);
+    putSecret("INVITE_EMAIL_BODY", process.env.INVITE_EMAIL_BODY);
+    putSecret("INVITE_INSTAGRAM_MESSAGE", process.env.INVITE_INSTAGRAM_MESSAGE);
   },
   production: () => {
     for (const key of ["SITE_PASSWORD", "GATE_BYPASS_KEY"]) {
@@ -128,6 +141,19 @@ const profiles = {
     putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
     putSecret("BASEROW_TABLE_ID", process.env.BASEROW_TABLE_ID);
     putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
+    putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
+    putSecret("SMTP_HOST", process.env.SMTP_HOST);
+    putSecret("SMTP_PORT", process.env.SMTP_PORT);
+    putSecret("SMTP_USER", process.env.SMTP_USER);
+    putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
+    putSecret("SMTP_FROM", process.env.SMTP_FROM);
+    putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
+    putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
+    putSecret("INVITE_BASE_URL", process.env.INVITE_BASE_URL);
+    putSecret("INVITE_IMAGE_URL", process.env.INVITE_IMAGE_URL);
+    putSecret("INVITE_EMAIL_SUBJECT", process.env.INVITE_EMAIL_SUBJECT);
+    putSecret("INVITE_EMAIL_BODY", process.env.INVITE_EMAIL_BODY);
+    putSecret("INVITE_INSTAGRAM_MESSAGE", process.env.INVITE_INSTAGRAM_MESSAGE);
   },
 };
 

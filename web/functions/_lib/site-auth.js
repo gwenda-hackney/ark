@@ -140,6 +140,10 @@ export function isPublicPath(pathname) {
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/"))
     return true;
   if (pathname === "/api/subscribe") return true;
+  if (pathname === "/api/rsvp" || pathname.startsWith("/api/rsvp/")) return true;
+  if (pathname === "/api/events" || pathname.startsWith("/api/events/")) return true;
+  if (pathname === "/invite" || pathname === "/invite/") return true;
+  if (pathname.startsWith("/invite/")) return true;
   if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico") return true;

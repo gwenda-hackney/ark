@@ -41,7 +41,10 @@ jobs:
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
           SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
-          SANITY_STUDIO_SITE_DEPLOY_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+          EVENT_ADMIN_URL: https://gwenda-staging.pages.dev
+          EVENT_ADMIN_SECRET: ${{ secrets.EVENT_ADMIN_SECRET }}
+          BASEROW_RSVP_GRID_URL: ${{ vars.BASEROW_RSVP_GRID_URL }}
 
       - name: Deployment summary
         run: cd web && node scripts/ci/write-deployment-summary.mjs

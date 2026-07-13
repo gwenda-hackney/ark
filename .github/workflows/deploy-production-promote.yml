@@ -78,6 +78,7 @@ jobs:
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
           baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
+          event-admin-secret: ${{ secrets.EVENT_ADMIN_SECRET }}
           sanity-dataset: production
 
       - name: Ensure apex custom domain

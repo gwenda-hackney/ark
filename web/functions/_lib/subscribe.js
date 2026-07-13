@@ -1,6 +1,6 @@
+import { DEFAULT_BASEROW_API, subscribeTableId } from "./baserow.js";
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DEFAULT_BASEROW_API = "https://api.baserow.io";
-const DEFAULT_BASEROW_TABLE_ID = "1017358";
 
 export async function subscribeEmail({
   email: rawEmail,
@@ -15,7 +15,7 @@ export async function subscribeEmail({
   }
 
   const apiKey = env.BASEROW_API_KEY;
-  const tableId = env.BASEROW_TABLE_ID || DEFAULT_BASEROW_TABLE_ID;
+  const tableId = subscribeTableId(env);
   const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
     /\/$/,
     "",
