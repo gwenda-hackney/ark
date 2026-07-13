@@ -10,10 +10,10 @@ export const heroBackground = {
   quality: 80,
 };
 
-/** Hero logo: max rendered height is 240px (see .hero-logo). */
+/** Hero logo: max rendered height is 200px (see .hero-logo). */
 export const heroLogo = {
   src: logo,
-  height: 240,
+  height: 200,
   format: "webp" as const,
 };
 

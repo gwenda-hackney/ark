@@ -687,7 +687,7 @@ html.fonts-ready .thanks {
 }
 
 .hero-logo {
-  height: clamp(135px, 21vw, 240px);
+  height: clamp(115px, 17.5vw, 200px);
   width: auto;
   margin-inline: auto;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
