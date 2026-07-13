@@ -76,6 +76,26 @@ The hero still sits on `#0d0d0d` as its base fill.
 
 ---
 
+## Brown-hue greens (material lane)
+
+Green does **not** join gold as a UI accent. The only greens in the system are **brown-hue** — olive, moss, canal mud — so desaturated they read as timber shadow before they read as green (hue ~70–95°, lightness never above `#23211b`).
+
+| Token | Hex | When to use |
+| ----- | --- | ----------- |
+| **`bgCanalShadow`** | `#1a2218` | Murky canal water at dusk, moss in deep shadow — photography grade target |
+| **`bgDampTimber`** | `#1e261c` | Wet deck wood, herb tones in shadow — brown extension of timber |
+| **`bgVerdigris`** | `#2a3530` | Oxidized brass patina — overlay on gold only (6–12%), cool limit |
+
+**Where green appears:**
+
+- **Photography** — herbs, garnish, canal (menu tease gallery, social). Grade toward olive-brown, not emerald.
+- **Material shadows** — optional fills/overlays using the tokens above.
+- **Never** — buttons, eyebrows, logos, or bright sage/emerald/mint accents.
+
+Material ladder: `#0a0908` → `#161310` → `#23211b` → `#1e261c` → `#1a2218`. See [brand guidelines §3.7](../brand/brand-guidelines.md#37-green--brown-hue-materials).
+
+---
+
 ## Overlays (not separate swatches)
 
 The site layers effects on top of the solid palette. These are **not** extra colors to pick in Canva — they explain why a flat swatch can look different on screen.

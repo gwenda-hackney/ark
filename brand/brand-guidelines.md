@@ -10,13 +10,21 @@
 
 ## Contents
 
+### Foundations
+
 1. [Brand Overview](#1-brand-overview)
-2. [Logo](#2-logo)
-3. [Colour Palette](#3-colour-palette)
+2. [Theme](#2-theme)
+3. [Colour](#3-colour)
 4. [Typography](#4-typography)
-5. [Design Elements](#5-design-elements)
+5. [Logo](#5-logo)
 6. [Voice & Tone](#6-voice--tone)
-7. [Key Copy & CTAs](#7-key-copy--ctas)
+
+### Applications
+
+7. [Digital](#7-digital)
+8. [Print & off-screen](#8-print--off-screen)
+9. [Photography](#9-photography)
+10. [Key Copy & CTAs](#10-key-copy--ctas)
 
 ---
 
@@ -43,7 +51,7 @@ Gwenda sits at **Schwartz Wharf** on the Hackney Wick canal. The palette evokes 
 | Material | Brand role | Hex |
 |----------|------------|-----|
 | **Hull & tar** | Near-black grounds — page body, hero base, shadows | `#0d0d0d` · `#0a0908` |
-| **Teak & timber** | Warm browns — charcoals, hero gradient, print fills | `#161310` – `#23211b` |
+| **Teak & timber** | Warm browns — charcoals, hero gradient, print fills, brown-hue shadow greens | `#161310` – `#23211b` · `#1e261c` · `#1a2218` |
 | **Brass & flame** | Accent — buttons, eyebrows, wordmark, rule lines | `#c9a84c` · `#8b6914` |
 
 Hull black and tar in shadow. Teak, aged timber, and warm iron in the mid-tones. Brass hardware and candlelight as accent — timber, iron, and lamplight in a hold or salon below deck.
@@ -174,6 +182,31 @@ The website layers effects over the solid palette to create depth and atmosphere
 - Do not introduce new colours without updating `web/src/config/colors.json`
 - Do not use white (`#ffffff`) as a background at any scale
 - Do not use bright or saturated colours — the palette is intentionally restrained and warm-dark
+- Do not use cold greens (sage, emerald, mint) as accents — grade food and canal photography toward brown-hue olive
+
+### 3.7 Green & brown-hue materials
+
+Green does **not** join gold as a fourth UI accent. The only greens in the system are **brown-hue** — olive, moss, canal mud — an extension of the **brown** material lane, not a separate accent.
+
+| Token | Hex | Role |
+|-------|-----|------|
+| `bgCanalShadow` | `#1a2218` | Murky canal / moss in deep shadow |
+| `bgDampTimber` | `#1e261c` | Wet deck wood; herb tones graded in photography |
+| `bgVerdigris` | `#2a3530` | Oxidized brass — low-opacity overlay on gold only |
+
+**Three roles:**
+
+| Role | Where |
+|------|--------|
+| **Place** | Canal, wharf, moss — in photography; hero/menu grade pulls green toward timber brown |
+| **Plate** | Herbs, olive oil, natural wine — in imagery; grade toward `#3a3828` / `#1e261c`, not emerald |
+| **Patina** | Verdigris wash on brass hardware — texture overlay, not a CTA colour |
+
+**On the site:** the **Menu tease** (`#menu`, `.menu-tease`) — section chrome is ship palette; brown-hue olive appears inside gallery photographs only. Gold stays the sole UI accent.
+
+**On the wheel:** gold and charcoals cluster ~43°. Brown-hue greens sit ~70–95° at very low saturation — adjacent to timber, not at cold green ~120°+.
+
+**Rejected:** sage, emerald, mint — too bright; read hospitality or eco, not ship's salon.
 
 ---
 

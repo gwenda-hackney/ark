@@ -85,6 +85,7 @@ export const siteConfig = {
     menuTeaseHeading: "What we serve",
     menuTeaseLead:
       "Signature cocktails, hand-crafted in-house, elevated for the lounge.",
+    menuTeaseComingSoon: "Coming soon",
     signupHeading: "Be the first to know",
     signupNavCta: "First to know",
     signupEyebrowPromo: "Almost there",

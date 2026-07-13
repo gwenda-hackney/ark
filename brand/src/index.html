@@ -53,18 +53,20 @@
       --bg:           #0d0d0d;
       --bg-elevated:  #141414;
       --bg-warm:      #23211b;
+      --bg-canal-shadow: #1a2218;
+      --bg-damp-timber: #1e261c;
+      --bg-verdigris: #2a3530;
       --bg-card:      #1a1a1a;
       --text:         #e8e4dc;
       --muted:        #8a8680;
       --gold:         #c9a84c;
       --gold-dark:    #8b6914;
       --error:        #c97a7a;
-      --bg-paper:     #f8f7f5;
       --font-display: "Cormorant Garamond", Georgia, serif;
       --font-body:    "Lora", Georgia, serif;
     }
 
-    html { background: var(--bg-paper); }
+    html { background: var(--bg-paper); scroll-behavior: smooth; }
 
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
@@ -890,6 +892,641 @@
     .wheel-marker-cream { background: #e8e4dc; top: 34%; left: 66%; }
     .wheel-marker-charcoal { background: #23211b; top: 40%; left: 60%; }
     .wheel-marker-dark-gold { background: #8b6914; top: 46%; left: 54%; }
+    .wheel-marker-green { background: #1e261c; top: 44%; left: 56%; }
+    .wheel-marker-olive { background: #1a2218; top: 50%; left: 52%; }
+
+    /* ── Brown-hue green ladder ── */
+    .brown-hue-ladder {
+      display: flex;
+      height: 56px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #e8e4dc;
+      margin: 20px 0 8px;
+    }
+    .brown-hue-ladder span {
+      flex: 1;
+      position: relative;
+    }
+    .brown-hue-ladder span::after {
+      content: attr(data-label);
+      position: absolute;
+      bottom: 6px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: monospace;
+      font-size: 0.58rem;
+      color: color-mix(in srgb, var(--text) 80%, transparent);
+      line-height: 1.2;
+      padding: 0 2px;
+    }
+    .brown-hue-ladder span:first-child::after {
+      color: #6a6560;
+    }
+    .brown-green-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .brown-green-compare-tile {
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #e8e4dc;
+    }
+    .brown-green-compare-photo {
+      aspect-ratio: 4 / 3;
+    }
+    .brown-green-compare-photo--cold {
+      background:
+        radial-gradient(ellipse 75% 55% at 50% 40%, #4a7a52 0%, transparent 50%),
+        linear-gradient(160deg, #3a5c40 0%, #2a4030 100%);
+      filter: brightness(0.9);
+    }
+    .brown-green-compare-photo--brown {
+      background:
+        radial-gradient(ellipse 75% 55% at 50% 40%, #4a4432 0%, transparent 50%),
+        linear-gradient(160deg, #3a3428 0%, #2a2820 55%, #1e261c 100%);
+      filter: brightness(0.9) saturate(0.88);
+    }
+    .brown-green-compare-cap {
+      padding: 10px 12px;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      background: var(--bg-paper);
+      color: #3a3530;
+    }
+    .brown-green-compare-cap strong {
+      color: #1a1a1a;
+    }
+    .brown-green-compare-cap--ok strong {
+      color: var(--gold-dark);
+    }
+    @media (max-width: 720px) {
+      .brown-green-compare { grid-template-columns: 1fr; }
+      .brown-hue-ladder { flex-direction: column; height: auto; }
+      .brown-hue-ladder span { min-height: 44px; }
+    }
+
+    /* ── Green guidance ── */
+    .green-explore-intro {
+      max-width: 52em;
+    }
+    .green-fit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .green-fit-card {
+      padding: 20px 22px;
+      border-radius: 4px;
+      border: 1px solid color-mix(in srgb, var(--gold) 18%, #e8e4dc);
+      background: var(--bg-paper);
+    }
+    .green-fit-label {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold-dark);
+      margin-bottom: 10px;
+    }
+    .green-fit-card p {
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      line-height: 1.65;
+      color: #3a3530;
+      margin: 0;
+    }
+    .green-compare-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      margin: 20px 0 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #e8e4dc;
+    }
+    .green-compare-block {
+      padding: 28px 12px 14px;
+      min-height: 100px;
+      position: relative;
+    }
+    .green-compare-block span {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      font-family: monospace;
+      font-size: 0.68rem;
+      color: color-mix(in srgb, var(--text) 85%, transparent);
+      line-height: 1.35;
+    }
+    .green-compare-block--light span {
+      color: #4a4540;
+    }
+    .green-compare-caption {
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      color: #8a8580;
+      margin: 0 0 24px;
+      line-height: 1.5;
+    }
+    .verdigris-demo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .verdigris-panel {
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--gold) 12%, transparent);
+    }
+    .verdigris-panel-swatch {
+      height: 88px;
+      display: flex;
+      align-items: flex-end;
+      padding: 12px 14px;
+    }
+    .verdigris-panel-swatch--brass {
+      background: #c9a84c;
+    }
+    .verdigris-panel-swatch--patina {
+      background: #c9a84c;
+      background-image: linear-gradient(
+        to bottom,
+        color-mix(in srgb, #2a3530 12%, transparent),
+        color-mix(in srgb, #1e261c 6%, transparent)
+      );
+    }
+    .verdigris-panel-label {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #0d0d0d;
+      opacity: 0.75;
+    }
+    .verdigris-panel-info {
+      padding: 12px 14px;
+      background: var(--bg-warm);
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      line-height: 1.55;
+      color: var(--text);
+      opacity: 0.9;
+    }
+    .green-wheel-panel {
+      margin-top: 8px;
+    }
+    .green-wheel-panel .scheme-copy p {
+      margin-bottom: 0;
+    }
+    .green-reject {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 16px 0 0;
+    }
+    .green-reject-swatch {
+      flex: 1;
+      min-width: 100px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1.5px solid #c97a7a;
+      opacity: 0.85;
+    }
+    .green-reject-block {
+      height: 48px;
+    }
+    .green-reject-label {
+      font-size: 0.65rem;
+      padding: 6px 8px;
+      background: color-mix(in srgb, #c97a7a 8%, var(--bg-paper));
+      color: #6a4a4a;
+      font-family: var(--font-body);
+    }
+    @media (max-width: 720px) {
+      .green-fit-grid,
+      .verdigris-demo,
+      .green-compare-strip,
+      .green-practice-compare { grid-template-columns: 1fr; }
+    }
+
+    /* ── Green in practice demo ── */
+    .green-practice-demo {
+      margin: 28px 0 36px;
+    }
+    .green-practice-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0 12px;
+    }
+    .green-practice-panel {
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--gold) 12%, #e8e4dc);
+    }
+    .green-practice-photo {
+      position: relative;
+      min-height: 300px;
+      overflow: hidden;
+    }
+    /* Simulated canalside plate photo — visible green before grade */
+    .green-practice-photo-base {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 55% at 72% 38%, #4a6b48 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 28% 62%, #2a4a38 0%, transparent 50%),
+        linear-gradient(165deg, #3d5c44 0%, #1e3228 35%, #2a4038 55%, #1a2820 100%);
+    }
+    .green-practice-photo--raw .green-practice-photo-base {
+      filter: none;
+    }
+    .green-practice-photo--brand .green-practice-photo-base {
+      filter: brightness(0.55) saturate(0.88);
+    }
+    .green-practice-grade {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .green-practice-photo--brand .green-practice-grade {
+      background:
+        linear-gradient(to bottom, color-mix(in srgb, #c9a84c 5.5%, transparent) 0%, transparent 42%),
+        linear-gradient(135deg, color-mix(in srgb, #161310 55%, transparent) 0%, color-mix(in srgb, #0f0e0c 70%, transparent) 45%, color-mix(in srgb, #0d0d0d 85%, transparent) 100%);
+    }
+    .green-practice-vignette {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 25%, color-mix(in srgb, #0d0d0d 78%, transparent) 100%);
+      pointer-events: none;
+    }
+    .green-practice-ui {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 24px 22px;
+      background: linear-gradient(to top, color-mix(in srgb, #0d0d0d 92%, transparent) 0%, transparent 55%);
+    }
+    .green-practice-ui .t-eyebrow {
+      display: block;
+      margin-bottom: 8px;
+    }
+    .green-practice-ui-title {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--text);
+      margin-bottom: 6px;
+      text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+    }
+    .green-practice-ui-body {
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      line-height: 1.55;
+      color: color-mix(in srgb, var(--text) 88%, transparent);
+      margin-bottom: 14px;
+      max-width: 260px;
+    }
+    .green-practice-cta {
+      display: inline-block;
+      align-self: flex-start;
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #0d0d0d;
+      background: #c9a84c;
+      padding: 0.65rem 1.4rem;
+      border-radius: 2px;
+    }
+    .green-practice-caption {
+      padding: 12px 14px;
+      background: var(--bg-paper);
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: #3a3530;
+      border-top: 1px solid #e8e4dc;
+    }
+    .green-practice-caption strong {
+      color: #1a1a1a;
+    }
+    .green-practice-caption--ok strong {
+      color: var(--gold-dark);
+    }
+    .green-practice-breakdown {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: color-mix(in srgb, var(--gold) 10%, transparent);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--gold) 12%, transparent);
+    }
+    .green-practice-breakdown-col {
+      padding: 16px 18px;
+      background: var(--bg-warm);
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .green-practice-breakdown-col strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .green-practice-breakdown-col code {
+      font-size: 0.7rem;
+      color: color-mix(in srgb, var(--text) 85%, var(--gold));
+    }
+    @media (max-width: 720px) {
+      .green-practice-breakdown { grid-template-columns: 1fr; }
+    }
+
+    .green-patina-scene {
+      margin: 0 0 28px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--gold) 12%, transparent);
+    }
+    .green-patina-scene-bg {
+      position: relative;
+      height: 140px;
+      background:
+        linear-gradient(145deg, #1e261c 0%, #161310 45%, #0d0d0d 100%);
+    }
+    .green-patina-hook {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -45%);
+      width: 72px;
+      height: 28px;
+      border-radius: 14px 14px 4px 4px;
+      background: linear-gradient(to bottom, #c9a84c, #8b6914);
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, #2a3530 65%, transparent),
+        0 8px 24px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 color-mix(in srgb, #e8e4dc 25%, transparent);
+    }
+    .green-patina-hook::before {
+      content: '';
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 18px;
+      border-radius: 2px;
+      background: linear-gradient(to right, #8b6914, #c9a84c, #8b6914);
+    }
+    .green-patina-scene-caption {
+      padding: 14px 18px;
+      background: var(--bg-warm);
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: var(--text);
+      opacity: 0.9;
+    }
+    .green-patina-scene-caption strong {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    /* ── Site mock (menu tease — mirrors gwenda.co.uk) ── */
+    .site-mock {
+      position: relative;
+      margin: 24px 0 20px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--gold) 14%, transparent);
+      box-shadow: 0 12px 40px color-mix(in srgb, #0d0d0d 12%, transparent);
+    }
+    .site-mock--menu-tease {
+      background: #141414;
+    }
+    .site-mock-glow {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 42%;
+      background: radial-gradient(ellipse 80% 100% at 50% 0%, color-mix(in srgb, #c9a84c 4%, transparent), transparent 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .site-mock-grain {
+      position: absolute;
+      inset: 0;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 4;
+    }
+    .site-mock-toprule {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(100%, 520px);
+      height: 1px;
+      background: linear-gradient(90deg, transparent, color-mix(in srgb, #c9a84c 22%, transparent) 50%, transparent);
+      z-index: 2;
+    }
+    .site-mock-inner {
+      position: relative;
+      z-index: 2;
+      padding: 36px 28px 32px;
+    }
+    .site-mock-label {
+      font-family: monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid color-mix(in srgb, var(--gold) 12%, transparent);
+    }
+    .site-mock-label code {
+      color: color-mix(in srgb, var(--gold) 80%, var(--muted));
+    }
+    .site-mock-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .site-mock-header .t-eyebrow {
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+    .site-mock-header h2 {
+      font-family: var(--font-display);
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--text);
+      margin: 0 0 12px;
+      padding: 0;
+      border: none;
+    }
+    .site-mock-header h2::after {
+      display: none;
+    }
+    .site-mock-lead {
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      line-height: 1.75;
+      color: color-mix(in srgb, var(--text) 82%, transparent);
+      max-width: 28em;
+      margin: 0 auto;
+    }
+    .site-mock-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .site-mock-tile {
+      position: relative;
+      aspect-ratio: 4 / 5;
+      border-radius: 3px;
+      overflow: hidden;
+      background: #1a1a1a;
+      margin: 0;
+    }
+    .site-mock-tile-photo {
+      position: absolute;
+      inset: 0;
+      filter: brightness(0.9) saturate(0.92);
+    }
+    .site-mock-tile-photo--herbs {
+      background:
+        radial-gradient(ellipse 80% 60% at 55% 42%, #4a4432 0%, transparent 52%),
+        radial-gradient(ellipse 50% 45% at 30% 68%, #3a3828 0%, transparent 48%),
+        linear-gradient(160deg, #3a3428 0%, #2a2820 40%, #1e261c 100%);
+    }
+    .site-mock-tile-photo--cocktail {
+      background:
+        radial-gradient(circle at 62% 28%, #4a4838 0%, transparent 28%),
+        radial-gradient(ellipse 70% 50% at 40% 70%, #2a3028 0%, transparent 55%),
+        linear-gradient(145deg, #1e261c 0%, #0d0d0d 100%);
+    }
+    .site-mock-tile-photo--canal {
+      background:
+        radial-gradient(ellipse 90% 50% at 50% 85%, #1a2a22 0%, transparent 45%),
+        linear-gradient(to bottom, #2a3830 0%, #1a2218 45%, #0d0d0d 100%);
+      filter: brightness(0.55) saturate(0.85);
+    }
+    .site-mock-tile-caption {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 12px 10px;
+      background: linear-gradient(180deg, transparent 42%, color-mix(in srgb, #0d0d0d 55%, transparent) 78%, color-mix(in srgb, #0d0d0d 88%, transparent) 100%);
+    }
+    .site-mock-tile-name {
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .site-mock-tile-detail {
+      font-family: var(--font-body);
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .site-mock-footer {
+      text-align: center;
+    }
+    .site-mock-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      justify-content: center;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid color-mix(in srgb, var(--gold) 10%, transparent);
+    }
+    .site-mock-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-body);
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .site-mock-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .site-mock-legend-dot--green {
+      background: #3a3828;
+      box-shadow: 0 0 0 2px color-mix(in srgb, #3a3828 35%, transparent);
+    }
+    .site-mock-legend-dot--gold {
+      background: #c9a84c;
+    }
+    .site-mock-legend-dot--cream {
+      background: #e8e4dc;
+    }
+    .site-mock-callout {
+      position: relative;
+      z-index: 2;
+      padding: 14px 18px;
+      background: var(--bg-warm);
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      line-height: 1.65;
+      color: var(--text);
+      opacity: 0.92;
+      border-top: 1px solid color-mix(in srgb, var(--gold) 12%, transparent);
+    }
+    .site-mock-callout strong {
+      color: var(--gold);
+      font-weight: 600;
+    }
+    @media (max-width: 720px) {
+      .site-mock-gallery { grid-template-columns: 1fr; }
+      .site-mock-inner { padding: 28px 18px 24px; }
+    }
+
     .scheme-copy h4 {
       font-family: var(--font-display);
       font-size: 22px;
@@ -1216,6 +1853,19 @@
       opacity: 0.45;
       margin-bottom: 32px;
     }
+    .toc-part {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold-dark);
+      margin: 28px 0 4px;
+      grid-column: 1 / -1;
+    }
+    .toc-part:first-of-type {
+      margin-top: 0;
+    }
     .toc-list {
       list-style: none;
       display: grid;
@@ -1267,7 +1917,138 @@
     @media print {
       .toc { margin: 0; padding: 20mm 18mm; }
       .toc-link { text-decoration: none; color: inherit; }
+      .doc-nav, .doc-back-top, .section-jump { display: none !important; }
     }
+
+    /* ── Document navigation ── */
+    #doc-top, #toc, .section, [id^="s-"] {
+      scroll-margin-top: 58px;
+    }
+    a.xref {
+      color: var(--gold-dark);
+      text-decoration: none;
+      border-bottom: 1px solid color-mix(in srgb, var(--gold-dark) 35%, transparent);
+    }
+    a.xref:hover {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+    }
+    .doc-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9000;
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid color-mix(in srgb, var(--gold) 18%, transparent);
+      transform: translateY(-100%);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+    .doc-nav.doc-nav--visible {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .doc-nav-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 10px 48px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .doc-nav-home {
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .doc-nav-home:hover { color: var(--text); }
+    .doc-nav-jump-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+    }
+    .doc-nav-jump {
+      flex: 1;
+      min-width: 140px;
+      max-width: 320px;
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      color: var(--text);
+      background: color-mix(in srgb, var(--bg-elevated) 80%, var(--bg));
+      border: 1px solid color-mix(in srgb, var(--gold) 22%, transparent);
+      border-radius: 2px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    .doc-nav-top {
+      font-family: var(--font-display);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      flex-shrink: 0;
+      padding: 6px 10px;
+      border: 1px solid color-mix(in srgb, var(--gold) 15%, transparent);
+      border-radius: 2px;
+    }
+    .doc-nav-top:hover {
+      color: var(--gold);
+      border-color: color-mix(in srgb, var(--gold) 40%, transparent);
+    }
+    .doc-back-top {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 8999;
+      width: 44px;
+      height: 44px;
+      border-radius: 2px;
+      border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+      background: color-mix(in srgb, var(--bg) 90%, transparent);
+      backdrop-filter: blur(10px);
+      color: var(--gold);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+    }
+    .doc-back-top.doc-back-top--visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .doc-back-top:hover { color: var(--text); }
+    .section-jump {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 1px solid color-mix(in srgb, var(--gold) 12%, transparent);
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+    }
+    .section-jump a {
+      color: var(--gold-dark);
+      text-decoration: none;
+      margin-right: 14px;
+    }
+    .section-jump a:hover { color: var(--gold); }
 
     /* ── Mobile ── */
     @media (max-width: 640px) {
@@ -1298,6 +2079,12 @@
       }
       .toc-item:nth-child(odd) {
         padding-right: 20px;
+      }
+      .doc-nav-inner {
+        padding: 10px 20px;
+      }
+      .doc-nav-jump {
+        max-width: none;
       }
       .logo-demo-row {
         grid-template-columns: 1fr;
@@ -1498,7 +2285,7 @@
 </div>
 
 <!-- ═══ COVER ═══ -->
-<div class="cover">
+<div class="cover" id="doc-top">
   <img src="logo.png" alt="Gwenda">
   <div class="cover-divider"></div>
   <div class="cover-title">Brand Guidelines</div>
@@ -1507,26 +2294,27 @@
 
 
 <!-- ═══ TOC ═══ -->
-<div class="toc no-print-bg">
+<div class="toc no-print-bg" id="toc">
   <div class="toc-eyebrow">Contents</div>
   <div class="toc-heading">Brand Guidelines</div>
   <div class="toc-divider"></div>
+  <div class="toc-part">Foundations</div>
   <ul class="toc-list">
     <li class="toc-item">
       <a href="#s-overview" class="toc-link">
         <span class="toc-num">01</span>
         <div>
           <div class="toc-item-title">Brand Overview</div>
-          <div class="toc-item-desc">Concept, ship palette, theme keywords</div>
+          <div class="toc-item-desc">Concept, ship palette</div>
         </div>
       </a>
     </li>
     <li class="toc-item">
-      <a href="#s-logo" class="toc-link">
+      <a href="#s-theme" class="toc-link">
         <span class="toc-num">02</span>
         <div>
-          <div class="toc-item-title">Logo</div>
-          <div class="toc-item-desc">Usage, backgrounds, don'ts</div>
+          <div class="toc-item-title">Theme</div>
+          <div class="toc-item-desc">Look &amp; feel keywords</div>
         </div>
       </a>
     </li>
@@ -1534,8 +2322,8 @@
       <a href="#s-colour" class="toc-link">
         <span class="toc-num">03</span>
         <div>
-          <div class="toc-item-title">Colour Palette</div>
-          <div class="toc-item-desc">Scheme, swatches, hero, print</div>
+          <div class="toc-item-title">Colour</div>
+          <div class="toc-item-desc">Scheme, swatches, don&apos;ts</div>
         </div>
       </a>
     </li>
@@ -1549,11 +2337,11 @@
       </a>
     </li>
     <li class="toc-item">
-      <a href="#s-design" class="toc-link">
+      <a href="#s-logo" class="toc-link">
         <span class="toc-num">05</span>
         <div>
-          <div class="toc-item-title">Design Elements</div>
-          <div class="toc-item-desc">Buttons, dividers, grain, spacing</div>
+          <div class="toc-item-title">Logo</div>
+          <div class="toc-item-desc">Usage, backgrounds, don&apos;ts</div>
         </div>
       </a>
     </li>
@@ -1562,13 +2350,43 @@
         <span class="toc-num">06</span>
         <div>
           <div class="toc-item-title">Voice &amp; Tone</div>
-          <div class="toc-item-desc">Character, do/don't, language</div>
+          <div class="toc-item-desc">Character, do/don&apos;t, language</div>
+        </div>
+      </a>
+    </li>
+  </ul>
+  <div class="toc-part">Applications</div>
+  <ul class="toc-list">
+    <li class="toc-item">
+      <a href="#s-digital" class="toc-link">
+        <span class="toc-num">07</span>
+        <div>
+          <div class="toc-item-title">Digital</div>
+          <div class="toc-item-desc">Hero, UI, dividers, grain, layout</div>
+        </div>
+      </a>
+    </li>
+    <li class="toc-item">
+      <a href="#s-print" class="toc-link">
+        <span class="toc-num">08</span>
+        <div>
+          <div class="toc-item-title">Print &amp; off-screen</div>
+          <div class="toc-item-desc">Flat fills, Canva, story section</div>
+        </div>
+      </a>
+    </li>
+    <li class="toc-item">
+      <a href="#s-photography" class="toc-link">
+        <span class="toc-num">09</span>
+        <div>
+          <div class="toc-item-title">Photography</div>
+          <div class="toc-item-desc">Treatments, menu tease, green grading</div>
         </div>
       </a>
     </li>
     <li class="toc-item">
       <a href="#s-copy" class="toc-link">
-        <span class="toc-num">07</span>
+        <span class="toc-num">10</span>
         <div>
           <div class="toc-item-title">Key Copy &amp; CTAs</div>
           <div class="toc-item-desc">Approved calls-to-action, headings</div>
@@ -1577,6 +2395,32 @@
     </li>
   </ul>
 </div>
+
+<nav class="doc-nav" id="doc-nav" aria-label="Document navigation">
+  <div class="doc-nav-inner">
+    <a href="#toc" class="doc-nav-home">Contents</a>
+    <label class="doc-nav-jump-label" for="doc-nav-jump">Jump to section</label>
+    <select id="doc-nav-jump" class="doc-nav-jump">
+      <option value="">Jump to section…</option>
+      <optgroup label="Foundations">
+        <option value="#s-overview">01 · Brand Overview</option>
+        <option value="#s-theme">02 · Theme</option>
+        <option value="#s-colour">03 · Colour</option>
+        <option value="#s-typography">04 · Typography</option>
+        <option value="#s-logo">05 · Logo</option>
+        <option value="#s-voice">06 · Voice &amp; Tone</option>
+      </optgroup>
+      <optgroup label="Applications">
+        <option value="#s-digital">07 · Digital</option>
+        <option value="#s-print">08 · Print &amp; off-screen</option>
+        <option value="#s-photography">09 · Photography</option>
+        <option value="#s-copy">10 · Key Copy &amp; CTAs</option>
+      </optgroup>
+    </select>
+    <a href="#doc-top" class="doc-nav-top" title="Back to top">↑ Top</a>
+  </div>
+</nav>
+<button type="button" class="doc-back-top" id="doc-back-top" aria-label="Back to top" title="Back to top">↑</button>
 
 
 <!-- ═══ 1. BRAND OVERVIEW ═══ -->
@@ -1613,17 +2457,17 @@
       <div class="ship-material ship-material--black">
         <div class="ship-material-label">Black</div>
         <div class="ship-material-name">Hull &amp; tar</div>
-        <div class="ship-material-hex"><code>#0d0d0d</code> · <code>#0a0908</code></div>
+        <div class="ship-material-hex">Hull &amp; tar — <a href="#s-colour" class="xref">§03</a></div>
       </div>
       <div class="ship-material ship-material--brown">
         <div class="ship-material-label">Brown</div>
         <div class="ship-material-name">Teak &amp; timber</div>
-        <div class="ship-material-hex"><code>#161310</code> – <code>#23211b</code></div>
+        <div class="ship-material-hex">Teak &amp; timber — <a href="#s-colour" class="xref">§03</a></div>
       </div>
       <div class="ship-material ship-material--gold">
         <div class="ship-material-label">Gold</div>
         <div class="ship-material-name">Brass &amp; flame</div>
-        <div class="ship-material-hex"><code>#c9a84c</code> · <code>#8b6914</code></div>
+        <div class="ship-material-hex">Brass &amp; flame — <a href="#s-colour" class="xref">§03</a></div>
       </div>
     </div>
 
@@ -1634,7 +2478,7 @@
       </div>
       <div class="ship-system">
         <strong>Colour</strong>
-        <span>Near-black grounds everything. Warm browns carry the wood and iron. Gold appears only where light would catch — buttons, eyebrows, rule lines, the wordmark.</span>
+        <span>Near-black grounds everything. Warm browns carry the wood and iron — including brown-hue greens (<code>#1e261c</code>, <code>#1a2218</code>) in shadow. Gold appears only where light would catch — buttons, eyebrows, rule lines, the wordmark.</span>
       </div>
       <div class="ship-system">
         <strong>Lines</strong>
@@ -1643,9 +2487,16 @@
     </div>
   </div>
 
-  <div class="theme-direction">
-    <h3>Theme keywords</h3>
-    <p>The shorthand for Gwenda everywhere — site, social, email, motion, photography, and copy. Split by what the eye reads and what the words imply. All touchpoints should match the ship palette and hero (§03) in <em>look</em>; the examples in §06 in <em>feel</em> and <em>tone</em>.</p>
+  <p class="note">Ship palette hex values — <a href="#s-colour" class="xref">§03 Colour</a>. Theme keywords — <a href="#s-theme" class="xref">§02 Theme</a>. Applications — <a href="#s-digital" class="xref">§07 Digital</a>, <a href="#s-print" class="xref">§08 Print</a>, <a href="#s-photography" class="xref">§09 Photography</a>.</p>
+</div>
+
+<!-- ═══ 2. THEME ═══ -->
+<div class="section page-break" id="s-theme">
+  <div class="section-label">02</div>
+  <h2>Theme</h2>
+
+  <h3>Theme keywords</h3>
+    <p>The shorthand for Gwenda everywhere — site, social, email, motion, photography, and copy. Split by what the eye reads and what the words imply. All touchpoints should match the ship palette (<a href="#s-colour" class="xref">§03</a>) and digital hero (<a href="#s-digital" class="xref">§07</a>) in <em>look</em>; the examples in <a href="#s-voice" class="xref">§06 Voice</a> in <em>feel</em> and <em>tone</em>.</p>
 
     <div class="theme-keyword-groups">
       <div>
@@ -1671,60 +2522,14 @@
         </div>
       </div>
     </div>
-    <p class="note" style="margin-top:14px;">Hairline rules read as deck seams and brass inlay — see §05 Dividers. Type specimens — §04 Typography.</p>
-  </div>
+    <p class="note" style="margin-top:14px;">Hairline rules read as deck seams and brass inlay — see <a href="#digital-dividers" class="xref">§07 Dividers</a>. Type specimens — <a href="#s-typography" class="xref">§04 Typography</a>.</p>
 </div>
 
 
-<!-- ═══ 2. LOGO ═══ -->
-<div class="section page-break" id="s-logo">
-  <div class="section-label">02</div>
-  <h2>Logo</h2>
-
-  <p>The Gwenda wordmark is the primary brand mark — gold and cream on dark. Use the <strong>black-only variant</strong> only on light backgrounds or for single-colour print. The wordmark is set in a refined serif typeface, reinforcing the archival and editorial character of the brand.</p>
-
-  <h3>Approved usage</h3>
-  <div class="logo-demo-row">
-    <div>
-      <div class="logo-box-dark">
-        <img src="logo.png" alt="Gwenda on dark background">
-      </div>
-      <p class="note" style="margin-top:8px;">✓ Dark background — <code>#0d0d0d</code> · file: <code>logo.png</code></p>
-    </div>
-    <div>
-      <div class="logo-box-warm">
-        <img src="logo.png" alt="Gwenda on warm charcoal">
-      </div>
-      <p class="note" style="margin-top:8px;">✓ Warm charcoal (print) — <code>#23211b</code> · file: <code>logo.png</code></p>
-    </div>
-    <div>
-      <div class="logo-box-light">
-        <img src="logo-black.png" alt="Gwenda black wordmark on cream">
-      </div>
-      <p class="note" style="margin-top:8px;">✓ Black-only on cream — <code>#e8e4dc</code> · file: <code>logo-black.png</code></p>
-    </div>
-  </div>
-
-  <h3>Do not use</h3>
-  <div class="logo-demo-row">
-    <div>
-      <div class="logo-box-bad">
-        <span class="do-not">✗ Do not use</span>
-        <img src="logo.png" alt="Incorrect light background">
-      </div>
-      <p class="note" style="margin-top:8px;">✗ Never on white or light backgrounds</p>
-    </div>
-    <div style="display:flex; flex-direction:column; justify-content:center; padding: 16px 0;">
-      <p>Always use the logo at a generous size with clear space around it. Do not distort, recolour, or place on anything outside the brand dark palette.</p>
-    </div>
-  </div>
-</div>
-
-
-<!-- ═══ 3. COLOUR PALETTE ═══ -->
+<!-- ═══ 3. COLOUR ═══ -->
 <div class="section page-break" id="s-colour">
   <div class="section-label">03</div>
-  <h2>Colour Palette</h2>
+  <h2>Colour</h2>
 
   <p>The palette is warm-dark and intentionally restrained. Every colour has a specific role. Do not introduce new colours.</p>
 
@@ -1854,49 +2659,42 @@
     </div>
   </div>
 
-  <h3>Hero — colour in practice</h3>
-  <p>The homepage hero at <a href="https://gwenda.co.uk" style="color:var(--gold-dark);">gwenda.co.uk</a> shows how the swatches above layer on screen — hull black through timber brown to brass gold:</p>
-
-  <div class="hero-demo" aria-label="Hero colour demo — mirrors gwenda.co.uk">
-    <div class="hero-demo-bg" aria-hidden="true"></div>
-    <img class="hero-demo-image" src="hero.webp" alt="" aria-hidden="true">
-    <div class="hero-demo-overlay" aria-hidden="true"></div>
-    <div class="hero-demo-vignette" aria-hidden="true"></div>
-    <div class="hero-demo-content">
-      <img src="logo.png" alt="Gwenda">
-      <div class="hero-demo-location">Hackney Wick</div>
-      <span class="hero-demo-cta">Enter our world</span>
+  <h3 id="colour-brown-hue">Brown-hue greens (material)</h3>
+  <p>Extension of the <strong>brown</strong> lane — olive, moss, canal mud. Not UI accents. Tokens in <code>web/src/config/colors.json</code>.</p>
+  <div class="swatches">
+    <div class="swatch">
+      <div class="swatch-block" style="background:var(--bg-canal-shadow);"></div>
+      <div class="swatch-info">
+        <span class="swatch-name">Canal shadow</span>
+        <span class="swatch-hex">#1a2218</span>
+        <div class="swatch-usage"><code>bgCanalShadow</code> — murky canal, moss in deep shadow</div>
+      </div>
     </div>
-  </div>
-
-  <div class="hero-color-panel">
-    <div class="hero-color-map">
-      <div class="hero-color-row"><strong>Base &amp; gradient</strong> <code>#0d0d0d</code> fill with warm gradient <code>#161310</code> → <code>#0f0e0c</code> → <code>#0a0908</code> (hull black through timber shadow)</div>
-      <div class="hero-color-row"><strong>Gold wash</strong> 5.5% <code>#c9a84c</code> from the top, like lamplight on brass above the deck</div>
-      <div class="hero-color-row"><strong>Photograph</strong> Interior image at <code>brightness(0.55)</code>; dominant tones read warm brown (<code>#301800</code>–<code>#481800</code>), mapping to <code>#161310</code> and <code>#23211b</code></div>
-      <div class="hero-color-row"><strong>UI accents</strong> Cream <code>#e8e4dc</code> type and logo; gold <code>#c9a84c</code> CTA and scroll chevron; hairline rules at 45% cream opacity flanking the location line</div>
+    <div class="swatch">
+      <div class="swatch-block" style="background:var(--bg-damp-timber);"></div>
+      <div class="swatch-info">
+        <span class="swatch-name">Damp timber</span>
+        <span class="swatch-hex">#1e261c</span>
+        <div class="swatch-usage"><code>bgDampTimber</code> — wet deck wood; herb grade target in photos</div>
+      </div>
     </div>
-  </div>
-  <p class="note" style="margin-top:12px;">See §05 Design Elements for divider, grain, and button specs. Hero photograph: <code>web/src/assets/images/hero/hero.png</code>.</p>
-
-  <h3>Print vs screen — the story section</h3>
-  <p>The story section on the website is <em>not</em> a flat fill — it layers a dark base, a 4% gold glow, and 3.5% film grain. For print and Canva, always use the warm charcoal flat equivalent:</p>
-
-  <div class="story-swatch">
-    <span class="story-swatch-label">Story section — as seen on screen</span>
-  </div>
-
-  <div class="warm-demo">
-    <div class="label">Print / Canva equivalent</div>
-    <p>Warm Charcoal <strong>#23211b</strong> — use this for all flat print and off-screen design work. Do not use #141414 or #151414 for print — they are too dark and too cold.</p>
+    <div class="swatch">
+      <div class="swatch-block" style="background:var(--bg-verdigris);"></div>
+      <div class="swatch-info">
+        <span class="swatch-name">Verdigris</span>
+        <span class="swatch-hex">#2a3530</span>
+        <div class="swatch-usage"><code>bgVerdigris</code> — oxidized brass overlay on gold only</div>
+      </div>
+    </div>
   </div>
 
   <h3>Do not use</h3>
   <p class="note">✗ Do not use white (#ffffff) as a background at any scale.<br>
   ✗ Do not use #1c1b18 — this was an explicitly rejected charcoal substitute.<br>
-  ✗ Do not introduce bright or saturated colours — the palette is intentionally restrained.</p>
-</div>
+  ✗ Do not introduce bright or saturated colours — the palette is intentionally restrained.<br>
+  ✗ Do not use cold greens (sage, emerald, mint) as accents — see <a href="#s-photography" class="xref">§09 Photography</a>.</p>
 
+</div>
 
 <!-- ═══ 4. TYPOGRAPHY ═══ -->
 <div class="section page-break" id="s-typography">
@@ -1970,58 +2768,48 @@
 </div>
 
 
-<!-- ═══ 5. DESIGN ELEMENTS ═══ -->
-<div class="section page-break" id="s-design">
+<!-- ═══ 5. LOGO ═══ -->
+<div class="section page-break" id="s-logo">
   <div class="section-label">05</div>
-  <h2>Design Elements</h2>
+  <h2>Logo</h2>
 
-  <h3>Buttons</h3>
-  <p>All buttons: uppercase, Cormorant Garamond 600, letter-spacing 0.08–0.1em, border-radius 2px. No pill shapes.</p>
+  <p>The Gwenda wordmark is the primary brand mark — gold and cream on dark. Use the <strong>black-only variant</strong> only on light backgrounds or for single-colour print. The wordmark is set in a refined serif typeface, reinforcing the archival and editorial character of the brand.</p>
 
-  <div class="dark-btn-row">
-    <a class="btn-primary-dark">Enter our world</a>
-    <a class="btn-ghost-dark">Join the experience</a>
-  </div>
-  <p class="note">Buttons always appear on dark backgrounds — primary (gold fill) and ghost (transparent with gold border).</p>
-
-  <h3>Dividers</h3>
-  <p>1px gradient lines using gold at low opacity. Used beneath section headings, between blocks, in menus, and flanking the hero location line. They read as deck seams, ledger rules, and brass inlay — structural, not decorative.</p>
-  <div class="divider-demo">
-    <div class="divider-demo-eyebrow">What we serve</div>
-    <div class="gold-divider"></div>
-    <div class="divider-demo-body">The full list opens with the door. Until then, a glimpse.</div>
-    <div class="gold-divider-left" style="margin-top:16px;"></div>
-    <div class="divider-demo-muted">Schwartz Wharf &nbsp;·&nbsp; Hackney Wick</div>
-  </div>
-
-  <h3>Film grain</h3>
-  <p>A white noise texture at 3.5% opacity is applied site-wide. It adds tactility and an analogue feel — referencing print, archival materials, and late-night atmospheric spaces. Replicate in Canva by overlaying a grain texture at low opacity.</p>
-  <div class="grain-demo">
-    <div class="grain-demo-inner">
-      <span class="t-eyebrow">Behind the Doors</span>
-      <div class="t-display-xl" style="color:var(--text); margin: 10px 0 14px;">An archive salon</div>
-      <p>Canalside in Hackney Wick. The film grain overlay adds depth without distracting from the content — barely perceptible at 3.5% opacity, but unmistakably felt.</p>
+  <h3>Approved usage</h3>
+  <div class="logo-demo-row">
+    <div>
+      <div class="logo-box-dark">
+        <img src="logo.png" alt="Gwenda on dark background">
+      </div>
+      <p class="note" style="margin-top:8px;">✓ Dark background — <code>#0d0d0d</code> · file: <code>logo.png</code></p>
+    </div>
+    <div>
+      <div class="logo-box-warm">
+        <img src="logo.png" alt="Gwenda on warm charcoal">
+      </div>
+      <p class="note" style="margin-top:8px;">✓ Warm charcoal (print) — <code>#23211b</code> · file: <code>logo.png</code></p>
+    </div>
+    <div>
+      <div class="logo-box-light">
+        <img src="logo-black.png" alt="Gwenda black wordmark on cream">
+      </div>
+      <p class="note" style="margin-top:8px;">✓ Black-only on cream — <code>#e8e4dc</code> · file: <code>logo-black.png</code></p>
     </div>
   </div>
 
-  <h3>Spacing & layout</h3>
-  <table>
-    <tr><th>Element</th><th>Value</th></tr>
-    <tr><td>Max content width</td><td><code>min(1100px, 100% − 48px)</code></td></tr>
-    <tr><td>Section padding</td><td><code>6rem 0</code></td></tr>
-    <tr><td>Header height (desktop)</td><td><code>72px</code></td></tr>
-    <tr><td>Header height (mobile)</td><td><code>56px</code></td></tr>
-    <tr><td>Border radius</td><td><code>2px</code> — minimal, never pill-shaped</td></tr>
-  </table>
-
-  <h3>Imagery</h3>
-  <table>
-    <tr><th>Context</th><th>Treatment</th></tr>
-    <tr><td>Hero image</td><td>brightness(0.55) with warm gradient and 5.5% gold wash overlay</td></tr>
-    <tr><td>Section backgrounds</td><td>brightness(0.45) saturate(0.85) with fade-to-background gradients</td></tr>
-    <tr><td>Gallery images</td><td>brightness(0.9), hover scale 1.06, 4px gap grid</td></tr>
-  </table>
-  <p>Images should feel moody, warm, and slightly withdrawn — never bright, overexposed, or high-contrast.</p>
+  <h3>Do not use</h3>
+  <div class="logo-demo-row">
+    <div>
+      <div class="logo-box-bad">
+        <span class="do-not">✗ Do not use</span>
+        <img src="logo.png" alt="Incorrect light background">
+      </div>
+      <p class="note" style="margin-top:8px;">✗ Never on white or light backgrounds</p>
+    </div>
+    <div style="display:flex; flex-direction:column; justify-content:center; padding: 16px 0;">
+      <p>Always use the logo at a generous size with clear space around it. Do not distort, recolour, or place on anything outside the brand dark palette.</p>
+    </div>
+  </div>
 </div>
 
 
@@ -2030,7 +2818,7 @@
   <div class="section-label">06</div>
   <h2>Voice &amp; Tone</h2>
 
-  <p>Gwenda's voice is evocative, restrained, and slightly mysterious. It is not corporate. It is not hard-sell. It is the voice of somewhere that knows exactly what it is and invites you to discover it yourself. The <em>feel &amp; tone</em> keywords in §01 are the benchmark — the examples below show them in practice.</p>
+  <p>Gwenda's voice is evocative, restrained, and slightly mysterious. It is not corporate. It is not hard-sell. It is the voice of somewhere that knows exactly what it is and invites you to discover it yourself. The <em>feel &amp; tone</em> keywords in <a href="#s-theme" class="xref">§02 Theme</a> are the benchmark — the examples below show them in practice.</p>
 
   <h3>Approved copy — key statements</h3>
 
@@ -2074,9 +2862,303 @@
 </div>
 
 
-<!-- ═══ 7. KEY COPY ═══ -->
-<div class="section page-break" id="s-copy">
+<!-- ═══ 7. DIGITAL ═══ -->
+<span id="s-design" hidden aria-hidden="true"></span>
+<div class="section page-break" id="s-digital">
   <div class="section-label">07</div>
+  <h2>Digital</h2>
+  <p>Website and UI — <a href="https://gwenda.co.uk" style="color:var(--gold-dark);">gwenda.co.uk</a>. Foundations in <a href="#s-colour" class="xref">§03</a>–<a href="#s-logo" class="xref">§05</a>; this section shows how they layer on screen.</p>
+
+  <h3>Hero — colour in practice</h3>
+  <p>The homepage hero at <a href="https://gwenda.co.uk" style="color:var(--gold-dark);">gwenda.co.uk</a> shows how the swatches above layer on screen — hull black through timber brown to brass gold:</p>
+
+  <div class="hero-demo" aria-label="Hero colour demo — mirrors gwenda.co.uk">
+    <div class="hero-demo-bg" aria-hidden="true"></div>
+    <img class="hero-demo-image" src="hero.webp" alt="" aria-hidden="true">
+    <div class="hero-demo-overlay" aria-hidden="true"></div>
+    <div class="hero-demo-vignette" aria-hidden="true"></div>
+    <div class="hero-demo-content">
+      <img src="logo.png" alt="Gwenda">
+      <div class="hero-demo-location">Hackney Wick</div>
+      <span class="hero-demo-cta">Enter our world</span>
+    </div>
+  </div>
+
+  <div class="hero-color-panel">
+    <div class="hero-color-map">
+      <div class="hero-color-row"><strong>Base &amp; gradient</strong> <code>#0d0d0d</code> fill with warm gradient <code>#161310</code> → <code>#0f0e0c</code> → <code>#0a0908</code> (hull black through timber shadow)</div>
+      <div class="hero-color-row"><strong>Gold wash</strong> 5.5% <code>#c9a84c</code> from the top, like lamplight on brass above the deck</div>
+      <div class="hero-color-row"><strong>Photograph</strong> Interior image at <code>brightness(0.55)</code>; dominant tones read warm brown (<code>#301800</code>–<code>#481800</code>), mapping to <code>#161310</code> and <code>#23211b</code></div>
+      <div class="hero-color-row"><strong>UI accents</strong> Cream <code>#e8e4dc</code> type and logo; gold <code>#c9a84c</code> CTA and scroll chevron; hairline rules at 45% cream opacity flanking the location line</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:12px;">Divider, grain, and button specs below. Hero photograph: <code>web/src/assets/images/hero/hero.png</code>. Photo grade — <a href="#s-photography" class="xref">§09 Photography</a>.</p>
+
+
+
+
+
+
+
+  <h3>Buttons</h3>
+  <p>All buttons: uppercase, Cormorant Garamond 600, letter-spacing 0.08–0.1em, border-radius 2px. No pill shapes.</p>
+
+  <div class="dark-btn-row">
+    <a class="btn-primary-dark">Enter our world</a>
+    <a class="btn-ghost-dark">Join the experience</a>
+  </div>
+  <p class="note">Buttons always appear on dark backgrounds — primary (gold fill) and ghost (transparent with gold border).</p>
+
+  <h3 id="digital-dividers">Dividers</h3>
+  <p>1px gradient lines using gold at low opacity. Used beneath section headings, between blocks, in menus, and flanking the hero location line. They read as deck seams, ledger rules, and brass inlay — structural, not decorative.</p>
+  <div class="divider-demo">
+    <div class="divider-demo-eyebrow">What we serve</div>
+    <div class="gold-divider"></div>
+    <div class="divider-demo-body">The full list opens with the door. Until then, a glimpse.</div>
+    <div class="gold-divider-left" style="margin-top:16px;"></div>
+    <div class="divider-demo-muted">Schwartz Wharf &nbsp;·&nbsp; Hackney Wick</div>
+  </div>
+
+  <h3>Film grain</h3>
+  <p>A white noise texture at 3.5% opacity is applied site-wide. It adds tactility and an analogue feel — referencing print, archival materials, and late-night atmospheric spaces.</p>
+  <div class="grain-demo">
+    <div class="grain-demo-inner">
+      <span class="t-eyebrow">Behind the Doors</span>
+      <div class="t-display-xl" style="color:var(--text); margin: 10px 0 14px;">An archive salon</div>
+      <p>Canalside in Hackney Wick. The film grain overlay adds depth without distracting from the content — barely perceptible at 3.5% opacity, but unmistakably felt.</p>
+    </div>
+  </div>
+
+  <h3>Spacing & layout</h3>
+  <table>
+    <tr><th>Element</th><th>Value</th></tr>
+    <tr><td>Max content width</td><td><code>min(1100px, 100% − 48px)</code></td></tr>
+    <tr><td>Section padding</td><td><code>6rem 0</code></td></tr>
+    <tr><td>Header height (desktop)</td><td><code>72px</code></td></tr>
+    <tr><td>Header height (mobile)</td><td><code>56px</code></td></tr>
+    <tr><td>Border radius</td><td><code>2px</code> — minimal, never pill-shaped</td></tr>
+  </table>
+
+  <p class="note">Photography treatments — <a href="#s-photography" class="xref">§09 Photography</a>.</p>
+</div>
+
+<!-- ═══ 8. PRINT & OFF-SCREEN ═══ -->
+<div class="section page-break" id="s-print">
+  <div class="section-label">08</div>
+  <h2>Print &amp; off-screen</h2>
+  <p>Canva, business cards, menus, and any flat fill that is not a layered screen render. Use foundation swatches from <a href="#s-colour" class="xref">§03</a> — especially warm charcoal <code>#23211b</code>.</p>
+
+  <h3>Print vs screen — the story section</h3>
+  <p>The story section on the website is <em>not</em> a flat fill — it layers a dark base, a 4% gold glow, and 3.5% film grain. For print and Canva, always use the warm charcoal flat equivalent:</p>
+
+  <div class="story-swatch">
+    <span class="story-swatch-label">Story section — as seen on screen</span>
+  </div>
+
+  <div class="warm-demo">
+    <div class="label">Print / Canva equivalent</div>
+    <p>Warm Charcoal <strong>#23211b</strong> — use this for all flat print and off-screen design work. Do not use #141414 or #151414 for print — they are too dark and too cold.</p>
+  </div>
+
+
+  <h3>Film grain (off-screen)</h3>
+  <p>Replicate the on-screen grain in Canva or print by overlaying a noise texture at <strong>3.5% opacity</strong> on flat fills — especially warm charcoal <code>#23211b</code>. See <a href="#s-digital" class="xref">§07 Digital</a> for the live site implementation.</p>
+
+  <h3>Logo on print</h3>
+  <p>Gold wordmark on warm charcoal <code>#23211b</code> or hull black <code>#0d0d0d</code>; black-only variant on cream <code>#e8e4dc</code> for light paper. Full specs — <a href="#s-logo" class="xref">§05 Logo</a>.</p>
+</div>
+
+<!-- ═══ 9. PHOTOGRAPHY ═══ -->
+<div class="section page-break" id="s-photography">
+  <div class="section-label">09</div>
+  <h2>Photography</h2>
+  <p>Food, drink, canal, and interior imagery for the site, social, and print. Colour tokens for green grading — <a href="#colour-brown-hue" class="xref">§03 Brown-hue greens</a>.</p>
+
+  <h3>Principles</h3>
+  <p>Images should feel moody, warm, and slightly withdrawn — never bright, overexposed, or high-contrast. Green appears in photography only, graded toward brown-hue olive — not as a UI accent.</p>
+
+  <h3>Imagery</h3>
+  <table>
+    <tr><th>Context</th><th>Treatment</th></tr>
+    <tr><td>Hero image</td><td>brightness(0.55) with warm gradient and 5.5% gold wash overlay</td></tr>
+    <tr><td>Section backgrounds</td><td>brightness(0.45) saturate(0.85) with fade-to-background gradients</td></tr>
+    <tr><td>Gallery images</td><td>brightness(0.9), hover scale 1.06, 4px gap grid</td></tr>
+  </table>
+  <p class="note">Hero layer breakdown on site — <a href="#s-digital" class="xref">§07 Digital</a>.</p>
+
+  <h3 id="s-green">Green &amp; brown-hue materials</h3>
+  <p class="green-explore-intro">Green does <strong>not</strong> join gold as a fourth UI accent. The only green that fits the ship palette is <strong>brown-hue green</strong> — olive, moss, canal mud — so desaturated it reads as timber shadow before it reads as green. Bright cold greens stay in rejected territory.</p>
+
+  <div class="green-fit-grid">
+    <div class="green-fit-card">
+      <div class="green-fit-label">Place</div>
+      <p>Canal water, wharf brick, moss on stone — <strong>photography only</strong>. Schwartz Wharf and the Wick bring natural green; hero treatment (<code>brightness(0.55)</code> + warm gradient) pulls it toward timber brown.</p>
+    </div>
+    <div class="green-fit-card">
+      <div class="green-fit-label">Plate</div>
+      <p>Herbs, olive oil, natural wine, seasonal produce — <strong>content and imagery</strong>. Italian small plates and canalside setting imply green without a swatch.</p>
+    </div>
+    <div class="green-fit-card">
+      <div class="green-fit-label">Patina</div>
+      <p>Oxidized brass and damp timber — <strong>shadow tones only</strong>. Dark olives and verdigris that read as near-black brown, never brighter than warm charcoal.</p>
+    </div>
+  </div>
+
+  <h4>On the site — Menu tease</h4>
+  <p>The <strong>What we serve</strong> section on <a href="https://gwenda.co.uk/#menu" style="color:var(--gold-dark);">gwenda.co.uk</a> is where green shows up in practice. The section chrome is ship palette; green lives inside the gallery photographs only.</p>
+
+  <div class="site-mock site-mock--menu-tease" aria-label="Menu tease section — mirrors gwenda.co.uk #menu">
+    <div class="site-mock-glow" aria-hidden="true"></div>
+    <div class="site-mock-toprule" aria-hidden="true"></div>
+    <div class="site-mock-grain" aria-hidden="true"></div>
+    <div class="site-mock-inner">
+      <div class="site-mock-label">Live component · <code>.menu-tease</code> · <code>#menu</code></div>
+
+      <header class="site-mock-header">
+        <span class="t-eyebrow">The Menu</span>
+        <h2>What we serve</h2>
+        <p class="site-mock-lead"><em>The full list opens with the door. Until then, a glimpse.</em></p>
+      </header>
+
+      <div class="site-mock-gallery">
+        <figure class="site-mock-tile">
+          <div class="site-mock-tile-photo site-mock-tile-photo--herbs" aria-hidden="true"></div>
+          <figcaption class="site-mock-tile-caption">
+            <span class="site-mock-tile-name">Cicoria</span>
+            <span class="site-mock-tile-detail">Wild greens · lemon · olive oil</span>
+          </figcaption>
+        </figure>
+        <figure class="site-mock-tile">
+          <div class="site-mock-tile-photo site-mock-tile-photo--cocktail" aria-hidden="true"></div>
+          <figcaption class="site-mock-tile-caption">
+            <span class="site-mock-tile-name">Verde</span>
+            <span class="site-mock-tile-detail">Herbal · cucumber · fino</span>
+          </figcaption>
+        </figure>
+        <figure class="site-mock-tile">
+          <div class="site-mock-tile-photo site-mock-tile-photo--canal" aria-hidden="true"></div>
+          <figcaption class="site-mock-tile-caption">
+            <span class="site-mock-tile-name">Schwartz Wharf</span>
+            <span class="site-mock-tile-detail">Canal at dusk · graded like hero</span>
+          </figcaption>
+        </figure>
+      </div>
+
+      <footer class="site-mock-footer">
+        <a class="btn-ghost-dark" href="#" onclick="return false;">View the full menu</a>
+      </footer>
+
+      <div class="site-mock-legend">
+        <span class="site-mock-legend-item"><span class="site-mock-legend-dot site-mock-legend-dot--green" aria-hidden="true"></span> Brown-hue olive — inside photos (herbs, garnish, canal)</span>
+        <span class="site-mock-legend-item"><span class="site-mock-legend-dot site-mock-legend-dot--cream" aria-hidden="true"></span> Cream — eyebrows, headings, captions</span>
+        <span class="site-mock-legend-item"><span class="site-mock-legend-dot site-mock-legend-dot--gold" aria-hidden="true"></span> Gold — buttons, rules, hover borders</span>
+      </div>
+    </div>
+    <div class="site-mock-callout">
+      <strong>How it works:</strong> Section background <code>#141414</code> + 4% gold glow. Food photography should grade herbs and garnish toward <strong>brown-hue olive</strong> (~70–95°, low saturation) — not cold sage. Canal tile uses hero grade <code>brightness(0.55)</code>. Gold stays the only UI accent.
+    </div>
+  </div>
+
+  <h4>Brown-hue greens — timber's shadow</h4>
+  <p>The viable greens are not “green” on the wheel — they sit beside warm brown and charcoal, same family as teak and damp deck. Think moss on timber, mud at the canal edge, olive oil in shadow. Hue roughly <strong>70–95°</strong> at very low saturation; lightness never above warm charcoal <code>#23211b</code>.</p>
+
+  <div class="brown-hue-ladder" aria-label="Material ladder from hull black through brown to brown-hue green">
+    <span style="background:#0a0908;" data-label="#0a0908 Deep"></span>
+    <span style="background:#161310;" data-label="#161310 Timber"></span>
+    <span style="background:#23211b;" data-label="#23211b Charcoal"></span>
+    <span style="background:#1e261c;" data-label="#1e261c Damp timber"></span>
+    <span style="background:#1a2218;" data-label="#1a2218 Canal"></span>
+  </div>
+  <p class="green-compare-caption">Brown-hue greens are a continuation of the brown lane — not a separate accent. If you squint, canal shadow should be hard to tell from warm charcoal.</p>
+
+  <p>In menu and social photography, grade greens toward olive-brown, not emerald:</p>
+  <div class="brown-green-compare">
+    <div class="brown-green-compare-tile">
+      <div class="brown-green-compare-photo brown-green-compare-photo--cold" aria-hidden="true"></div>
+      <div class="brown-green-compare-cap"><strong>✗ Cold green</strong> — sage/emerald in the plate. Reads healthy and bright; pulls away from candlelight.</div>
+    </div>
+    <div class="brown-green-compare-tile">
+      <div class="brown-green-compare-photo brown-green-compare-photo--brown" aria-hidden="true"></div>
+      <div class="brown-green-compare-cap brown-green-compare-cap--ok"><strong>✓ Brown-hue green</strong> — same dish, graded toward <code>#3a3828</code> / <code>#1e261c</code>. Herb reads as food in shadow, not brand colour.</div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:28px;">Shadow greens vs warm charcoal</h4>
+  <p>Proposed material tones — adjacent to the brown family, not a new accent lane. Compare to approved warm charcoal <code>#23211b</code>:</p>
+
+  <div class="green-compare-strip">
+    <div class="green-compare-block green-compare-block--light" style="background:#23211b;">
+      <span>Warm charcoal<br><code>#23211b</code> · approved</span>
+    </div>
+    <div class="green-compare-block" style="background:#1a2218;">
+      <span>Canal shadow<br><code>#1a2218</code></span>
+    </div>
+    <div class="green-compare-block" style="background:#1e261c;">
+      <span>Damp timber<br><code>#1e261c</code></span>
+    </div>
+    <div class="green-compare-block" style="background:#2a3530;">
+      <span>Verdigris<br><code>#2a3530</code></span>
+    </div>
+  </div>
+  <p class="green-compare-caption">Left to right: approved print fill → brown-hue material tokens. On screen they should read as hull shadow or damp timber.</p>
+
+  <h4>Brass with patina</h4>
+  <p>Gold stays the accent. Verdigris appears only as a low-opacity wash over brass — aged hardware, not a second accent colour:</p>
+
+  <div class="verdigris-demo">
+    <div class="verdigris-panel">
+      <div class="verdigris-panel-swatch verdigris-panel-swatch--brass">
+        <span class="verdigris-panel-label">Polished brass</span>
+      </div>
+      <div class="verdigris-panel-info">Gold <code>#c9a84c</code> — buttons, CTA, eyebrows (current)</div>
+    </div>
+    <div class="verdigris-panel">
+      <div class="verdigris-panel-swatch verdigris-panel-swatch--patina">
+        <span class="verdigris-panel-label">Aged brass</span>
+      </div>
+      <div class="verdigris-panel-info">Gold + 6–12% verdigris <code>#2a3530</code> — texture overlay only, not a replacement swatch</div>
+    </div>
+  </div>
+
+
+  <div class="scheme-panel green-wheel-panel">
+    <div class="color-wheel-wrap" aria-hidden="true">
+      <div class="color-wheel"></div>
+      <div class="wheel-highlight"></div>
+      <span class="wheel-marker wheel-marker-gold" title="Gold ~43°"></span>
+      <span class="wheel-marker wheel-marker-charcoal" title="Warm charcoal ~43°"></span>
+      <span class="wheel-marker wheel-marker-olive" title="Canal shadow ~82°"></span>
+      <span class="wheel-marker wheel-marker-green" title="Damp timber ~88°"></span>
+    </div>
+    <div class="scheme-copy">
+      <div class="scheme-tag">On the wheel</div>
+      <h4>Brown-hue greens hug the timber cluster</h4>
+      <p>Gold and charcoals sit around <strong>~43°</strong> (warm). Viable greens are <strong>olive-browns at ~70–95°</strong> with very low saturation — close enough to read as damp timber, not a second accent. Cold greens at <strong>~120°+</strong> stay off-palette. Verdigris <code>#2a3530</code> is the cool limit; prefer canal shadow and damp timber for anything in the brown family.</p>
+    </div>
+  </div>
+
+  <h4>Do not use as accents</h4>
+  <p>Bright greens break the candlelight logic and compete with gold:</p>
+  <div class="green-reject">
+    <div class="green-reject-swatch">
+      <div class="green-reject-block" style="background:#5a7a5a;"></div>
+      <div class="green-reject-label">✗ Sage · too hospitality</div>
+    </div>
+    <div class="green-reject-swatch">
+      <div class="green-reject-block" style="background:#3d6b4a;"></div>
+      <div class="green-reject-label">✗ Emerald · too saturated</div>
+    </div>
+    <div class="green-reject-swatch">
+      <div class="green-reject-block" style="background:#8aab7a;"></div>
+      <div class="green-reject-label">✗ Mint · too bright</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:14px;">Brown-hue greens extend the brown material lane only. Gold stays the sole UI accent. See also <code>docs/colors.md</code>.</p>
+</div>
+
+<!-- ═══ 10. KEY COPY ═══ -->
+<div class="section page-break" id="s-copy">
+  <div class="section-label">10</div>
   <h2>Key Copy &amp; CTAs</h2>
 
   <h3>Approved calls-to-action</h3>
@@ -2157,6 +3239,64 @@
     }
 
     form.addEventListener('submit', handleSubmit);
+  })();
+</script>
+
+<script>
+  (function () {
+    var docNav = document.getElementById('doc-nav');
+    var backTop = document.getElementById('doc-back-top');
+    var jumpSelect = document.getElementById('doc-nav-jump');
+    var sections = document.querySelectorAll('.section[id]');
+    var showAfter = 280;
+
+    if (!docNav || !backTop) return;
+
+    document.querySelectorAll('.section').forEach(function (section) {
+      var jump = document.createElement('nav');
+      jump.className = 'section-jump';
+      jump.setAttribute('aria-label', 'Section navigation');
+      jump.innerHTML = '<a href="#toc">↑ Contents</a><a href="#doc-top">↑ Top</a>';
+      section.appendChild(jump);
+    });
+
+    function onScroll() {
+      var y = window.scrollY || document.documentElement.scrollTop;
+      var visible = y > showAfter;
+      docNav.classList.toggle('doc-nav--visible', visible);
+      backTop.classList.toggle('doc-back-top--visible', y > showAfter * 2);
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    if (jumpSelect) {
+      jumpSelect.addEventListener('change', function () {
+        var target = jumpSelect.value;
+        if (!target) return;
+        var el = document.querySelector(target);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        jumpSelect.value = '';
+      });
+    }
+
+    backTop.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    if ('IntersectionObserver' in window) {
+      var observer = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting && jumpSelect) {
+              jumpSelect.value = '#' + entry.target.id;
+            }
+          });
+        },
+        { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+      );
+      sections.forEach(function (section) { observer.observe(section); });
+    }
   })();
 </script>
 

@@ -1245,6 +1245,18 @@ html.fonts-ready .thanks {
   margin-bottom: 2.75rem;
 }
 
+.menu-tease-empty {
+  margin: 0;
+  padding: 3.5rem 1rem;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
 .menu-tease-gallery {
   display: flex;
   flex-direction: column;
