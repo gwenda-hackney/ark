@@ -665,7 +665,13 @@ html.fonts-ready .enter-stagger--auto {
   transition: transform 0.7s var(--ease-smooth);
 }
 
+.enter-scene:not(.is-visible) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .enter-scene.is-visible {
+  visibility: visible;
   transform: translateY(0);
 }
 
@@ -690,7 +696,7 @@ html.fonts-ready .hero-content .hero-actions.enter-stagger--auto {
   --enter-delay: 0.9s;
 }
 
-html.fonts-ready .enter-scene.is-visible .invite-card-logo.enter-stagger {
+html.fonts-ready .enter-scene.is-visible .invite-card-logo-wrap.enter-stagger {
   --enter-delay: 0.18s;
 }
 
@@ -2216,15 +2222,17 @@ html.fonts-ready .thanks {
   box-shadow: var(--focus-ring);
 }
 
+.invite-card-logo-wrap {
+  align-self: center;
+  margin-inline: auto;
+  margin-bottom: clamp(1.35rem, 3.5dvh, 2rem);
+}
+
 .invite-card-logo {
   display: block;
-  align-self: center;
   height: clamp(5rem, 22vw, 8.5rem);
   width: auto;
   max-width: min(100%, 18rem);
-  margin-inline: auto;
-  margin-bottom: clamp(1.35rem, 3.5dvh, 2rem);
-  opacity: 0.95;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
 }
 
@@ -2549,9 +2557,12 @@ html.fonts-ready .thanks {
     padding-top: clamp(1.25rem, 17dvh, 5.5rem);
   }
 
+  .event-rsvp--viewport .invite-card-logo-wrap {
+    margin-bottom: clamp(1.25rem, 3dvh, 1.75rem);
+  }
+
   .event-rsvp--viewport .invite-card-logo {
     height: clamp(4.5rem, 24vw, 7rem);
-    margin-bottom: clamp(1.25rem, 3dvh, 1.75rem);
   }
 }
 

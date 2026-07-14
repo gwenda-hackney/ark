@@ -202,10 +202,9 @@ export async function showInviteCard({ startOpen = false } = {}) {
   const scene = document.getElementById("invite-card-scene");
   if (!scene) return;
 
-  scene.hidden = false;
   scene.classList.remove("is-visible");
   initInviteCard({ startOpen });
-  await revealEnterScene(scene);
+  await revealEnterScene(scene, { unhide: true });
 }
 
 export function hideInviteCard() {
