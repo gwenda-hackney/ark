@@ -6,6 +6,7 @@ import {
 } from "./rsvp-guest-form.js";
 import {
   finishInviteCardRsvp,
+  fadeOutRsvpLoading,
   hideInviteCard,
   openInviteCard,
   setInviteCardSending,
@@ -38,9 +39,15 @@ function setText(id, text) {
 }
 
 function blocked(message) {
-  hideInviteCard();
-  showOnly("rsvp-error");
-  setText("rsvp-error-text", message);
+  fadeOutRsvpLoading(() => {
+    hideInviteCard();
+    showOnly("rsvp-error");
+    setText("rsvp-error-text", message);
+    const panel = document.getElementById("rsvp-error");
+    if (panel instanceof HTMLElement) {
+      requestAnimationFrame(() => panel.classList.add("visible"));
+    }
+  });
 }
 
 function isPrivateEvent(event) {
@@ -189,11 +196,13 @@ export async function initEventRsvp() {
       return;
     }
 
-    hideInviteCard();
-    showOnly("rsvp-form-wrap");
-    renderEvent(data.event);
-    bindRsvpForm(parsed);
-    showInviteCard({ startOpen: false });
+    fadeOutRsvpLoading(() => {
+      hideInviteCard();
+      showOnly("rsvp-form-wrap");
+      renderEvent(data.event);
+      bindRsvpForm(parsed);
+      showInviteCard({ startOpen: false });
+    });
   } catch {
     blocked("Something went wrong. Please try again.");
   }
