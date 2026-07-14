@@ -1,6 +1,6 @@
 ---
 import { Image } from "astro:assets";
-import { compactLogo } from "../lib/hero-assets";
+import { inviteCardLogo } from "../lib/hero-assets";
 ---
 
 <div id="invite-card-scene" class="invite-card-scene" hidden>
@@ -13,11 +13,18 @@ import { compactLogo } from "../lib/hero-assets";
         aria-controls="invite-card-back"
         aria-expanded="false"
       >
-        <Image {...compactLogo} alt="Gwenda" class="invite-card-logo" loading="eager" />
-        <h1 class="invite-card-title">Your invitation awaits</h1>
-        <p class="invite-card-lead" id="invite-card-lead" hidden></p>
-        <p class="invite-card-subtitle" id="invite-card-subtitle" hidden></p>
-        <span class="invite-card-hint">Tap to open</span>
+        <div class="invite-card-front-idle" id="invite-card-front-idle">
+          <Image {...inviteCardLogo} alt="Gwenda" class="invite-card-logo" loading="eager" />
+          <p class="invite-card-badge" id="invite-card-eyebrow" hidden>Private event</p>
+          <p class="invite-card-intro">Your invitation awaits</p>
+          <h1 class="invite-card-headline" id="invite-card-subtitle" hidden></h1>
+          <p class="invite-card-meta" id="invite-card-lead" hidden></p>
+          <span class="invite-card-hint">Tap to open</span>
+        </div>
+        <div class="invite-card-front-sending" id="invite-card-front-sending" hidden>
+          <span class="invite-loader-mark" aria-hidden="true"></span>
+          <p class="invite-card-sending-text">Sending your reply</p>
+        </div>
       </button>
 
       <div class="invite-card-face invite-card-back" id="invite-card-back">

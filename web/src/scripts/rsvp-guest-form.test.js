@@ -1,32 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
+  additionalGuestsToTotal,
+  formatSuccessContent,
   formatSuccessMessage,
   isValidEmail,
-  pillTotalToStored,
-  storedToPillTotal,
+  prepareRsvpConfirmation,
+  revealRsvpConfirmation,
+  totalToAdditionalGuests,
 } from "./rsvp-guest-form.js";
 
-describe("pillTotalToStored", () => {
-  it("stores headcount from pill value", () => {
-    expect(pillTotalToStored(1)).toBe(1);
-    expect(pillTotalToStored(6)).toBe(6);
+describe("additionalGuestsToTotal", () => {
+  it("stores you plus any additional guests", () => {
+    expect(additionalGuestsToTotal(0)).toBe(1);
+    expect(additionalGuestsToTotal(1)).toBe(2);
+    expect(additionalGuestsToTotal(4)).toBe(5);
+    expect(additionalGuestsToTotal(5)).toBe(6);
   });
 
-  it("rejects empty or zero pills", () => {
-    expect(pillTotalToStored(null)).toBeNull();
-    expect(pillTotalToStored(0)).toBeNull();
+  it("rejects invalid counts", () => {
+    expect(additionalGuestsToTotal(null)).toBeNull();
+    expect(additionalGuestsToTotal(-1)).toBeNull();
+    expect(additionalGuestsToTotal(6)).toBeNull();
   });
 });
 
-describe("storedToPillTotal", () => {
+describe("totalToAdditionalGuests", () => {
   it("returns null when not attending", () => {
-    expect(storedToPillTotal(0)).toBeNull();
+    expect(totalToAdditionalGuests(0)).toBeNull();
   });
 
-  it("maps stored totals back to pills", () => {
-    expect(storedToPillTotal(3)).toBe(3);
-    expect(storedToPillTotal(5)).toBe(6);
-    expect(storedToPillTotal(6)).toBe(6);
+  it("maps stored totals back to additional guest pills", () => {
+    expect(totalToAdditionalGuests(1)).toBe(0);
+    expect(totalToAdditionalGuests(3)).toBe(2);
+    expect(totalToAdditionalGuests(6)).toBe(5);
   });
 });
 
@@ -42,20 +48,75 @@ describe("isValidEmail", () => {
   });
 });
 
+describe("formatSuccessContent", () => {
+  it("thanks a decline with editorial structure", () => {
+    const content = formatSuccessContent({ attending: false });
+    expect(content.eyebrow).toBe("Gwenda");
+    expect(content.title).toMatch(/thanks for letting us know/i);
+    expect(content.lead).toMatch(/sorry you can't make it/i);
+  });
+
+  it("confirms a yes without repeating party size", () => {
+    const content = formatSuccessContent({ attending: true, guests: 3 });
+    expect(content.eyebrow).toMatch(/on the list/i);
+    expect(content.title).toMatch(/see you there/i);
+    expect(content.lead).toMatch(/ticket link/i);
+    expect(content.lead).not.toMatch(/guest/i);
+  });
+});
+
 describe("formatSuccessMessage", () => {
-  it("thanks a decline", () => {
-    expect(formatSuccessMessage({ attending: false, guests: 0 })).toMatch(/sorry you can't make it/i);
+  it("joins lead copy for legacy callers", () => {
+    expect(formatSuccessMessage({ attending: true })).toMatch(/ticket link/i);
+    expect(formatSuccessMessage({ attending: true })).toMatch(/see you there/i);
+  });
+});
+
+/**
+ * @vitest-environment jsdom
+ */
+describe("rsvp confirmation reveal", () => {
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <header id="rsvp-event-header"></header>
+      <div id="rsvp-attend-step"></div>
+      <div id="rsvp-details"></div>
+      <button id="rsvp-submit"></button>
+      <div id="rsvp-confirmation" class="reveal" hidden>
+        <p id="rsvp-success-eyebrow"></p>
+        <h1 id="rsvp-success-title"></h1>
+        <p id="rsvp-success-lead"></p>
+        <a href="/" id="rsvp-explore-link">Explore Gwenda</a>
+      </div>
+    `;
   });
 
-  it("confirms a solo yes", () => {
-    expect(formatSuccessMessage({ attending: true, guests: 1 })).toMatch(/on the list/i);
+  it("stages confirmation copy and hides the invite details", () => {
+    prepareRsvpConfirmation({ attending: true });
+
+    expect(document.getElementById("rsvp-confirmation")?.hidden).toBe(false);
+    expect(document.getElementById("rsvp-success-eyebrow")?.textContent).toMatch(/on the list/i);
+    expect(document.getElementById("rsvp-success-title")?.textContent).toMatch(/see you there/i);
+    expect(document.getElementById("rsvp-success-lead")?.textContent).toMatch(/ticket link/i);
+    expect(document.getElementById("rsvp-confirmation")?.classList.contains("visible")).toBe(false);
+    expect(document.getElementById("rsvp-event-header")?.hidden).toBe(true);
   });
 
-  it("counts a group", () => {
-    expect(formatSuccessMessage({ attending: true, guests: 3 })).toMatch(/3 of you/i);
-  });
+  it("adds visible for the rise transition", () => {
+    prepareRsvpConfirmation({ attending: true });
+    revealRsvpConfirmation();
 
-  it("caps at a party of five plus", () => {
-    expect(formatSuccessMessage({ attending: true, guests: 6 })).toMatch(/5 or more/i);
+    expect(document.getElementById("rsvp-confirmation")?.classList.contains("visible")).toBe(false);
+
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          expect(document.getElementById("rsvp-confirmation")?.classList.contains("visible")).toBe(
+            true,
+          );
+          resolve();
+        });
+      });
+    });
   });
 });

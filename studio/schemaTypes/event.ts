@@ -2,6 +2,7 @@ import { defineArrayMember, defineField, defineType } from "sanity";
 import { ChannelPreview } from "../components/ChannelPreview";
 import { ChannelUrlInput } from "../components/ChannelUrlInput";
 import { generateChannelToken } from "../lib/channels";
+import { eventDescription } from "./eventDescription";
 
 export const event = defineType({
   name: "event",
@@ -43,14 +44,14 @@ export const event = defineType({
             }),
             defineField({
               name: "token",
-              title: "Invite link",
+              title: "Event password",
               type: "string",
               readOnly: true,
               initialValue: generateChannelToken,
               components: { input: ChannelUrlInput },
               validation: (rule) =>
-                rule.required().regex(/^[a-z0-9]{6,40}$/i, {
-                  name: "access code",
+                rule.required().regex(/^[a-z]{2,20}(-[a-z]{2,20}){2}$/i, {
+                  name: "event password",
                   invert: false,
                 }),
             }),
@@ -63,6 +64,22 @@ export const event = defineType({
       ],
     }),
     defineField({
+      name: "eventType",
+      title: "Event type",
+      type: "string",
+      options: {
+        list: [
+          { title: "Public event", value: "public" },
+          { title: "Private event", value: "private" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "public",
+      validation: (rule) => rule.required(),
+      description:
+        "Private events are invite-only. They do not appear on the public events page.",
+    }),
+    defineField({
       name: "date",
       title: "Date",
       type: "date",
@@ -71,8 +88,8 @@ export const event = defineType({
     defineField({
       name: "description",
       title: "Description",
-      type: "text",
-      rows: 4,
+      type: "eventDescription",
+      description: "Shown on the RSVP page. Press Enter for a new paragraph.",
       validation: (rule) => rule.required(),
     }),
     defineField({
@@ -159,7 +176,11 @@ See you there.`,
     }),
   ],
   preview: {
-    select: { title: "title", subtitle: "date", media: "heroImage" },
+    select: { title: "title", subtitle: "eventType", media: "heroImage" },
+    prepare({ title, subtitle, media }) {
+      const typeLabel = subtitle === "private" ? "Private event" : "Public event";
+      return { title, subtitle: typeLabel, media };
+    },
   },
   orderings: [
     {

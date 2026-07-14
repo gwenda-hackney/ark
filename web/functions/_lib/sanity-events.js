@@ -1,6 +1,7 @@
 import { sanityQuery } from "./sanity-query.js";
+import { portableTextToPlain } from "./portable-text.js";
 
-const EVENTS_LIST_QUERY = `*[_type == "event"] | order(date asc) {
+const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public"] | order(date asc) {
   "id": slug.current,
   title,
   date,
@@ -17,7 +18,7 @@ export async function fetchPublishedEvents(env) {
       id: row.id,
       title: row.title,
       date: row.date,
-      description: row.description,
+      description: portableTextToPlain(row.description),
       heroImageUrl: row.heroImageUrl ?? null,
     }));
 }

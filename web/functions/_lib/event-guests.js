@@ -6,9 +6,18 @@ import { fetchEventBySlug } from "./sanity-event.js";
 
 const EVENT_SLUG_FIELD = "Event Slug";
 
+/** Baserow's REST API returns number field values as strings (e.g. "2"). */
+function parseGuestCount(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function rowToGuest(row) {
   const channel = parseInviteChannel(row.Channel);
-  const rsvp = row["RSVP Guests"];
   return {
     rowId: row.id,
     taskId: null,
@@ -16,7 +25,7 @@ function rowToGuest(row) {
     contact: row.Contact?.trim() || null,
     channel,
     token: row.Token?.trim() || null,
-    rsvpGuests: typeof rsvp === "number" ? rsvp : null,
+    rsvpGuests: parseGuestCount(row["RSVP Guests"]),
     rsvpUpdated: row["RSVP Updated"] ?? null,
   };
 }
@@ -117,6 +126,36 @@ export async function ensureGuestToken(env, guest, inviteBaseUrl, eventSlug, eve
   }
 
   return { token, inviteUrl: buildInviteUrl(inviteBaseUrl, rsvpCode, token) };
+}
+
+/** Look up a guest by Baserow row id, scoped to an event slug (for ticket links). */
+export async function getGuestByIdForEvent(env, eventSlug, rowId) {
+  const slug = eventSlug?.trim();
+  if (!slug || !Number.isInteger(rowId) || rowId <= 0) {
+    return { ok: false, status: 400, error: "Event and guest are required." };
+  }
+
+  const config = await baserowRsvpRowsUrl(env);
+  if (!config.ok) {
+    return { ok: false, status: 502, error: "Could not reach guest registry." };
+  }
+
+  const upstream = await fetch(config.rowUrl(rowId), {
+    headers: { Authorization: `Token ${config.apiKey}` },
+  });
+  if (upstream.status === 404) {
+    return { ok: true, status: 200, guest: null };
+  }
+  if (!upstream.ok) {
+    return { ok: false, status: 502, error: "Could not load guest." };
+  }
+
+  const row = await upstream.json();
+  if ((row[EVENT_SLUG_FIELD] ?? "").trim() !== slug) {
+    return { ok: true, status: 200, guest: null };
+  }
+
+  return { ok: true, status: 200, guest: rowToGuest(row) };
 }
 
 export async function findGuestByEventAndContact(env, eventSlug, contact) {

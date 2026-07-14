@@ -1,3 +1,9 @@
+import {
+  buildEventInviteUrl,
+  isValidEventPassword,
+  normalizeEventPassword,
+  readEventPasswordFromSearchParams,
+} from "./event-password.js";
 import { baserowRsvpRowsUrl } from "./baserow.js";
 import {
   createGuestForEvent,
@@ -5,18 +11,15 @@ import {
 } from "./event-guests.js";
 import { isValidEmail } from "./invite-lib.js";
 import { sendRsvpConfirmationEmail } from "./rsvp-email.js";
+import { buildTicketUrl } from "./ticket-auth.js";
 import { fetchEventBySlug, publicEventFields } from "./sanity-event.js";
 
 const EVENT_SLUG_FIELD = "Event Slug";
 const SOURCE_FIELD = "Source";
 const INVALID_LINK = "This invitation link isn't valid or has expired.";
 
-// Short lowercase alphanumeric access code. Kept permissive so older 32-char
-// links keep working; the real gate is the exact match in findChannel().
-const CHANNEL_TOKEN_RE = /^[a-z0-9]{6,40}$/i;
-
 export function isValidChannelToken(token) {
-  return typeof token === "string" && CHANNEL_TOKEN_RE.test(token.trim());
+  return isValidEventPassword(token);
 }
 
 function today() {
@@ -25,7 +28,7 @@ function today() {
 
 /** Find the channel a token belongs to on an event, or null. */
 export function findChannel(event, token) {
-  const normalized = token?.trim().toLowerCase();
+  const normalized = normalizeEventPassword(token);
   if (!normalized || !Array.isArray(event?.channels)) return null;
   return event.channels.find((channel) => channel.token === normalized) || null;
 }
@@ -64,11 +67,8 @@ export async function getEventRsvp(env, slug, token) {
  * or created by email; declines are recorded as an anonymous zero-guest row.
  */
 function inviteUrlFor(origin, env, slug, token) {
-  const base = (origin || env.INVITE_BASE_URL || "https://gwenda.co.uk").replace(
-    /\/$/,
-    "",
-  );
-  return `${base}/events/${slug}?key=${token}`;
+  const base = origin || env.INVITE_BASE_URL || "https://gwenda.co.uk";
+  return buildEventInviteUrl(base, slug, token);
 }
 
 export async function saveRsvpResponse(
@@ -167,6 +167,10 @@ export async function saveRsvpResponse(
     return { ok: false, status: 502, error: "Something went wrong. Try again?" };
   }
 
+  // The ticket link is the guest's own page to view their RSVP and add it to
+  // Apple Wallet — no email required to test the round trip.
+  const ticketUrl = await buildTicketUrl(origin, env, event.slug, guest.rowId);
+
   // Best-effort confirmation email. A mail failure must not fail the RSVP,
   // which is already saved at this point.
   try {
@@ -176,6 +180,7 @@ export async function saveRsvpResponse(
       guests: count,
       event,
       inviteUrl: inviteUrlFor(origin, env, event.slug, token),
+      ticketUrl,
       origin,
       ticketId: `${event.slug}-${guest.rowId}`,
     });
@@ -194,5 +199,6 @@ export async function saveRsvpResponse(
     rsvpGuests: count,
     source,
     event: publicEventFields(event),
+    ticketUrl,
   };
 }

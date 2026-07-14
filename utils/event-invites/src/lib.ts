@@ -62,7 +62,7 @@ export function formatInviteContent(
 
 export const DEFAULT_EMAIL_BODY = `Hi {name},
 
-We're hosting a private launch party to celebrate the opening of Gwenda, and we'd love you to come along. Free signature cocktail from 5 to 7pm, music, and friends.
+We're hosting a private launch party to celebrate the opening of Gwenda, and we'd love for you to come join us. Free signature cocktail from 5 to 7pm, music, and friends.
 
 When you get a sec, RSVP here: {link}
 

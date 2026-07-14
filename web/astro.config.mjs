@@ -10,14 +10,21 @@ import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
 import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
+import { readEventPasswordFromSearchParams } from "./functions/_lib/event-password.js";
 import { fetchPublishedEvents } from "./functions/_lib/sanity-events.js";
 import {
   verifyEventAdminRequest,
 } from "./functions/_lib/event-admin-auth.js";
 import { fetchGuestsForEvent, summarizeGuests } from "./functions/_lib/event-guests.js";
-import { fetchEventBySlug } from "./functions/_lib/sanity-event.js";
+import { fetchEventBySlug, publicEventFields } from "./functions/_lib/sanity-event.js";
 import { sendEventInvites } from "./functions/_lib/invite-send.js";
 import { pickPemValue } from "./functions/_lib/env-pem.js";
+import { resolveTicket } from "./functions/_lib/ticket.js";
+import {
+  buildAppleWalletPass,
+  buildCalendarTicket,
+  ticketAttachmentBaseName,
+} from "./functions/_lib/rsvp-tickets.js";
 
 const env = loadEnv(
   process.env.NODE_ENV ?? "development",
@@ -43,6 +50,9 @@ const rsvpEnv = () => ({
   BASEROW_DATABASE_ID: process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
   BASEROW_RSVP_TABLE_NAME: process.env.BASEROW_RSVP_TABLE_NAME || env.BASEROW_RSVP_TABLE_NAME,
   SITE_ENV: process.env.SITE_ENV || (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+  TICKET_SECRET: process.env.TICKET_SECRET || env.TICKET_SECRET,
+  EVENT_ADMIN_SECRET: process.env.EVENT_ADMIN_SECRET || env.EVENT_ADMIN_SECRET,
+  SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
   SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "development",
   SANITY_API_TOKEN: process.env.SANITY_API_TOKEN || env.SANITY_API_TOKEN,
@@ -196,7 +206,7 @@ function devRsvpApi() {
           const result = await getEventRsvp(
             runtimeEnv,
             url.searchParams.get("slug"),
-            url.searchParams.get("key"),
+            readEventPasswordFromSearchParams(url.searchParams),
           );
           sendJson(
             res,
@@ -240,12 +250,117 @@ function devRsvpApi() {
                     rsvpGuests: result.rsvpGuests,
                     source: result.source,
                     event: result.event,
+                    ticketUrl: result.ticketUrl ?? null,
                   }
                 : { error: result.error },
             );
           } catch {
             sendJson(res, 400, { error: "Invalid request." });
           }
+        });
+      });
+    },
+  };
+}
+
+/**
+ * Dev-only stub for /api/ticket, /api/ticket/pass, /api/ticket/calendar —
+ * production uses functions/api/ticket.js and functions/api/ticket/*.js.
+ *
+ * Each route gets its own server.middlewares.use() mount (rather than one
+ * mount with path parsing) because Vite/connect strips the matched mount
+ * path from req.url before calling the handler — a single "/api/ticket"
+ * mount never sees "/pass" or "/calendar" in req.url.
+ */
+async function resolveTicketFromRequest(req) {
+  const url = new URL(req.url ?? "", "http://localhost");
+  return {
+    url,
+    result: await resolveTicket(rsvpEnv(), {
+      slug: url.searchParams.get("slug"),
+      guest: url.searchParams.get("guest"),
+      token: url.searchParams.get("t"),
+    }),
+  };
+}
+
+function devTicketApi() {
+  return {
+    name: "dev-ticket-api",
+    configureServer(server) {
+      server.middlewares.use("/api/ticket/pass", async (req, res, next) => {
+        if (req.method !== "GET") return next();
+        const { result } = await resolveTicketFromRequest(req);
+        if (!result.ok) {
+          sendJson(res, result.status, { error: result.error });
+          return;
+        }
+        const { event, guest, ticketId } = result;
+        const pass = await buildAppleWalletPass(rsvpEnv(), {
+          ticketId,
+          title: event.title,
+          date: event.date,
+          startTime: event.ticketStart,
+          endTime: event.ticketEnd,
+          venue: event.venue,
+          guestName: guest.name,
+          guests: guest.rsvpGuests,
+          heroImageUrl: event.heroImageUrl,
+        });
+        if (!pass) {
+          sendJson(res, 503, { error: "Apple Wallet isn't set up for this event yet." });
+          return;
+        }
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${ticketAttachmentBaseName(event.slug)}.pkpass"`,
+        );
+        res.end(pass);
+      });
+
+      server.middlewares.use("/api/ticket/calendar", async (req, res, next) => {
+        if (req.method !== "GET") return next();
+        const { result } = await resolveTicketFromRequest(req);
+        if (!result.ok) {
+          sendJson(res, result.status, { error: result.error });
+          return;
+        }
+        const { event, guest, ticketId } = result;
+        const ics = buildCalendarTicket({
+          ticketId,
+          title: event.title,
+          date: event.date,
+          startTime: event.ticketStart,
+          endTime: event.ticketEnd,
+          venue: event.venue,
+          guestName: guest.name,
+          guests: guest.rsvpGuests,
+          description: event.description,
+        });
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${ticketAttachmentBaseName(event.slug)}.ics"`,
+        );
+        res.end(ics);
+      });
+
+      server.middlewares.use("/api/ticket", async (req, res, next) => {
+        if (req.method !== "GET") return next();
+        const { result } = await resolveTicketFromRequest(req);
+        if (!result.ok) {
+          sendJson(res, result.status, { error: result.error });
+          return;
+        }
+        const { event, guest, ticketId } = result;
+        sendJson(res, 200, {
+          ok: true,
+          event: publicEventFields(event),
+          guest: { name: guest.name, guests: guest.rsvpGuests },
+          ticketId,
         });
       });
     },
@@ -367,27 +482,6 @@ function devEventAdminApi() {
   };
 }
 
-/** Dev-only rewrites matching public/_redirects (Cloudflare Pages). */
-function devSpaRewrites() {
-  return {
-    name: "dev-spa-rewrites",
-    configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
-        const pathname = (req.url ?? "").split("?")[0] ?? "";
-        if (
-          pathname.startsWith("/events/") &&
-          pathname !== "/events/rsvp" &&
-          pathname !== "/events/rsvp/"
-        ) {
-          const query = (req.url ?? "").includes("?") ? `?${req.url.split("?")[1]}` : "";
-          req.url = `/events/rsvp/${query}`;
-        }
-        next();
-      });
-    },
-  };
-}
-
 export default defineConfig({
   site: "https://gwenda.co.uk",
   output: "static",
@@ -484,9 +578,9 @@ export default defineConfig({
     server: { allowedHosts: true },
     preview: { allowedHosts: true },
     plugins: [
-      devSpaRewrites(),
       devSubscribeApi(),
       devRsvpApi(),
+      devTicketApi(),
       devEventsApi(),
       devEventAdminApi(),
       ...(gatePlugin ? [gatePlugin] : []),

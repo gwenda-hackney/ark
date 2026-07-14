@@ -1,12 +1,8 @@
-const TOKEN_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
-const TOKEN_LENGTH = 10;
+import {
+  EVENT_PASSWORD_PATTERN,
+  generateEventPassword,
+} from "../../web/functions/_lib/event-password.js";
 
-/** Short, URL-friendly channel access code (10 lowercase alphanumeric chars). */
-export function generateChannelToken(): string {
-  const bytes = new Uint8Array(TOKEN_LENGTH);
-  crypto.getRandomValues(bytes);
-  return Array.from(
-    bytes,
-    (byte) => TOKEN_ALPHABET[byte % TOKEN_ALPHABET.length],
-  ).join("");
-}
+export { generateEventPassword as generateChannelToken };
+
+export const channelPasswordPattern = EVENT_PASSWORD_PATTERN;

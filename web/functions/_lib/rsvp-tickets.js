@@ -2,12 +2,29 @@
 // - .ics calendar import (always)
 // - .pkpass Apple Wallet (when APPLE_WALLET_* env is configured)
 
+import { formatEventWhen } from "./rsvp-email-template.js";
+import { WALLET_BRAND_ASSETS } from "./wallet-brand-assets.generated.js";
+
 const DEFAULT_LOCATION = {
   name: "Gwenda",
   address: "Unit 4003, 4 Schwartz Wharf, London, E9 5AA",
   lat: 51.541812,
   lng: -0.022465,
 };
+
+/** Display name for calendar and Wallet tickets, e.g. "Gwenda Launch Party". */
+export function formatTicketTitle(title) {
+  const trimmed = String(title ?? "").trim();
+  if (!trimmed) return "Gwenda Launch Party";
+  if (/^gwenda\b/i.test(trimmed)) return trimmed;
+  return `Gwenda ${trimmed}`;
+}
+
+/** Decode a bundled wallet brand image (see wallet-brand-assets.generated.js). */
+function brandAssetBuffer(file) {
+  const base64 = WALLET_BRAND_ASSETS[file];
+  return base64 ? Buffer.from(base64, "base64") : null;
+}
 
 function foldIcsLine(line) {
   const max = 75;
@@ -67,7 +84,7 @@ export function buildCalendarTicket({
   const now = toIcsUtc(new Date());
   const start = parseTimeOnDate(date, startTime);
   const end = parseTimeOnDate(date, endTime);
-  const summary = escapeIcsText(title || "Gwenda event");
+  const summary = escapeIcsText(formatTicketTitle(title));
   const location = escapeIcsText(venue || DEFAULT_LOCATION.address);
   const attendee = guestName ? `ATTENDEE;CN=${escapeIcsText(guestName)}:MAILTO:guest@gwenda.co.uk\r\n` : "";
   const details = [
@@ -126,15 +143,85 @@ function readAppleWalletEnv(env) {
   };
 }
 
+/** PNG/JPEG magic bytes — catches SPA fallback pages served with a 200 for a missing asset. */
+function looksLikeImage(buffer, contentType) {
+  if (contentType && /^image\//i.test(contentType)) return true;
+  if (buffer.length < 4) return false;
+  const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
+  return isPng || isJpeg;
+}
+
 export async function fetchImageBuffer(url) {
   if (!url) return null;
   try {
     const response = await fetch(url);
     if (!response.ok) return null;
-    return Buffer.from(await response.arrayBuffer());
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!looksLikeImage(buffer, response.headers.get("content-type"))) return null;
+    return buffer;
   } catch {
     return null;
   }
+}
+
+/** Apple Wallet event-ticket strip sizes (see Wallet Human Interface Guidelines). */
+export const WALLET_STRIP_SIZES = [
+  { file: "strip.png", width: 375, height: 98, fallback: "strip-fallback.png" },
+  { file: "strip@2x.png", width: 750, height: 196, fallback: "strip-fallback@2x.png" },
+  { file: "strip@3x.png", width: 1125, height: 294, fallback: "strip-fallback@3x.png" },
+];
+
+const WALLET_BRAND_FILES = [
+  "logo.png",
+  "logo@2x.png",
+  "logo@3x.png",
+  "icon.png",
+  "icon@2x.png",
+  "icon@3x.png",
+];
+
+/** Build a cropped hero URL sized for the Wallet strip image. */
+export function walletStripImageUrl(heroImageUrl, width, height) {
+  const url = heroImageUrl?.trim();
+  if (!url || !width || !height) return null;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}w=${width}&h=${height}&fit=crop&auto=format`;
+}
+
+async function buildPassImageBuffers({ heroImageUrl }) {
+  const buffers = {};
+
+  for (const file of WALLET_BRAND_FILES) {
+    const buffer = brandAssetBuffer(file);
+    if (buffer) buffers[file] = buffer;
+  }
+
+  let hasStrip = false;
+  if (heroImageUrl) {
+    const strips = await Promise.all(
+      WALLET_STRIP_SIZES.map(async ({ file, width, height }) => {
+        const buffer = await fetchImageBuffer(walletStripImageUrl(heroImageUrl, width, height));
+        return buffer ? [file, buffer] : null;
+      }),
+    );
+    for (const entry of strips) {
+      if (entry) {
+        const [file, buffer] = entry;
+        buffers[file] = buffer;
+        hasStrip = true;
+      }
+    }
+  }
+
+  if (!hasStrip) {
+    for (const { file, fallback } of WALLET_STRIP_SIZES) {
+      const buffer = brandAssetBuffer(fallback);
+      if (buffer) buffers[file] = buffer;
+    }
+  }
+
+  return buffers;
 }
 
 /**
@@ -150,83 +237,95 @@ export async function buildAppleWalletPass(env, options) {
     title,
     date,
     startTime,
+    endTime,
     venue,
     guestName,
     guests,
-    logoUrl,
-    origin,
+    heroImageUrl,
   } = options;
 
+  const eventTitle = formatTicketTitle(title);
   const start = parseTimeOnDate(date, startTime);
+  const whenLabel = formatEventWhen(date, startTime, endTime);
 
-  const { PKPass } = await import("passkit-generator");
-  const logo = (await fetchImageBuffer(logoUrl)) || (await fetchImageBuffer(`${origin}/favicon.png`));
-  const buffers = logo ? { "logo.png": logo, "icon.png": logo } : {};
+  const buffers = await buildPassImageBuffers({ heroImageUrl });
 
-  const pass = new PKPass(
-    buffers,
-    {
-      wwdr: config.wwdr,
-      signerCert: config.signerCert,
-      signerKey: config.signerKey,
-      signerKeyPassphrase: config.signerKeyPassphrase,
-    },
-    {
-      formatVersion: 1,
-      passTypeIdentifier: config.passTypeId,
-      teamIdentifier: config.teamId,
-      organizationName: "Gwenda",
-      description: title || "Gwenda event ticket",
-      serialNumber: ticketId,
-      logoText: "Gwenda",
-      foregroundColor: "rgb(232, 228, 220)",
-      backgroundColor: "rgb(13, 13, 13)",
-      labelColor: "rgb(201, 168, 76)",
-    },
-  );
-
-  pass.type = "eventTicket";
-  if (start) pass.setRelevantDate(start);
-  pass.setLocations({
-    latitude: DEFAULT_LOCATION.lat,
-    longitude: DEFAULT_LOCATION.lng,
-    relevantText: venue || DEFAULT_LOCATION.name,
-  });
-  pass.setBarcodes({
-    message: ticketId,
-    format: "PKBarcodeFormatQR",
-    messageEncoding: "iso-8859-1",
-  });
-
-  pass.headerFields.push({
-    key: "guest",
-    label: "GUEST",
-    value: guestName || "Guest",
-  });
-  pass.primaryFields.push({
-    key: "event",
-    label: "EVENT",
-    value: title || "Gwenda",
-  });
-  pass.secondaryFields.push({
-    key: "when",
-    label: "DATE",
-    value: date || "",
-  });
-  pass.auxiliaryFields.push({
-    key: "party",
-    label: "PARTY",
-    value: guests > 1 ? `${guests} guests` : "1 guest",
-  });
-  if (venue) {
-    pass.auxiliaryFields.push({
-      key: "venue",
-      label: "VENUE",
-      value: venue,
-    });
+  // The brand icon/logo are bundled at build time (wallet-brand-assets.generated.js),
+  // so this should never be missing. Guard anyway rather than ship a pass Apple
+  // will refuse to render on-device — the calendar .ics ticket still goes out.
+  if (!buffers["icon.png"]) {
+    console.warn("Apple Wallet pass skipped: bundled icon.png is missing. Run npm run generate:brand-assets.");
+    return null;
   }
 
-  return pass.getAsBuffer();
+  try {
+    const { PKPass } = await import("passkit-generator");
+    const pass = new PKPass(
+      buffers,
+      {
+        wwdr: config.wwdr,
+        signerCert: config.signerCert,
+        signerKey: config.signerKey,
+        signerKeyPassphrase: config.signerKeyPassphrase,
+      },
+      {
+        formatVersion: 1,
+        passTypeIdentifier: config.passTypeId,
+        teamIdentifier: config.teamId,
+        organizationName: "Gwenda",
+        description: eventTitle,
+        serialNumber: ticketId,
+        logoText: "Gwenda",
+        foregroundColor: "rgb(232, 228, 220)",
+        backgroundColor: "rgb(13, 13, 13)",
+        labelColor: "rgb(201, 168, 76)",
+      },
+    );
+
+    pass.type = "eventTicket";
+    if (start) pass.setRelevantDate(start);
+    pass.setLocations({
+      latitude: DEFAULT_LOCATION.lat,
+      longitude: DEFAULT_LOCATION.lng,
+      relevantText: venue || DEFAULT_LOCATION.name,
+    });
+
+    pass.headerFields.push({
+      key: "guest",
+      label: "GUEST",
+      value: guestName || "Guest",
+    });
+    pass.primaryFields.push({
+      key: "event",
+      label: "EVENT",
+      value: eventTitle,
+    });
+    pass.secondaryFields.push({
+      key: "when",
+      label: "WHEN",
+      value: whenLabel || date || "",
+    });
+    pass.auxiliaryFields.push({
+      key: "party",
+      label: "PARTY",
+      value: guests > 1 ? `${guests} guests` : "1 guest",
+    });
+    if (venue) {
+      pass.auxiliaryFields.push({
+        key: "venue",
+        label: "VENUE",
+        value: venue,
+      });
+    }
+
+    return await pass.getAsBuffer();
+  } catch (error) {
+    console.warn(
+      "Apple Wallet pass generation failed:",
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
 }
 
 export function ticketAttachmentBaseName(eventSlug) {
@@ -239,7 +338,7 @@ export async function buildRsvpTicketAttachments(env, options) {
   const attachmentBase = ticketAttachmentBaseName(options.eventSlug);
   const ics = buildCalendarTicket({
     ticketId,
-    title: options.title,
+    title: formatTicketTitle(options.title),
     date: options.date,
     startTime: options.startTime,
     endTime: options.endTime,

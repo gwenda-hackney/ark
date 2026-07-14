@@ -1,0 +1,47 @@
+---
+import EventRsvpPage from "../../components/EventRsvpPage.astro";
+import { isStaging } from "../../config/env";
+import { siteConfig } from "../../config/site";
+import {
+  fetchRsvpEventPages,
+  socialDescription,
+  type RsvpEventPage,
+} from "../../lib/sanity/rsvp-events";
+
+export async function getStaticPaths() {
+  try {
+    const events = await fetchRsvpEventPages();
+    return events.map((event) => ({
+      params: { slug: event.slug },
+      props: { event },
+    }));
+  } catch (error) {
+    console.warn("RSVP static paths skipped — could not fetch events from Sanity:", error);
+    return [];
+  }
+}
+
+interface Props {
+  event: RsvpEventPage;
+}
+
+const { event } = Astro.props;
+const siteOrigin = isStaging
+  ? "https://gwenda-staging.pages.dev"
+  : siteConfig.domain;
+const pageUrl = `${siteOrigin}/events/${event.slug}`;
+const pageTitle = `${event.title} · Gwenda`;
+const pageDescription = socialDescription(event.description);
+---
+
+<EventRsvpPage
+  meta={{
+    title: pageTitle,
+    description: pageDescription,
+    url: pageUrl,
+    image: event.socialImage?.url,
+    imageWidth: event.socialImage?.width,
+    imageHeight: event.socialImage?.height,
+    imageAlt: event.socialImage?.alt,
+  }}
+/>

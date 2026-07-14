@@ -63,7 +63,7 @@ describe("buildConfirmationContent", () => {
       name: "Dan",
       guests: 1,
       origin: "https://gwenda.co.uk",
-      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?key=abc",
+      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
       event: {
         title: "Launch Party",
         date: "2026-08-15",
@@ -85,6 +85,21 @@ describe("buildConfirmationContent", () => {
     expect(content.logoCid).toBe(LOGO_CID);
     expect(content.mapsUrl).toBe(VENUE_MAPS_URL);
   });
+
+  it("links to the ticket page in the default body copy", () => {
+    const content = buildConfirmationContent({
+      name: "Dan",
+      guests: 1,
+      origin: "https://gwenda.co.uk",
+      ticketUrl: "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
+      event: { title: "Launch Party", date: "2026-08-15" },
+    });
+
+    expect(content.bodyText).toContain(
+      "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
+    );
+    expect(content.bodyText).not.toContain("attached");
+  });
 });
 
 describe("confirmationHtml", () => {
@@ -94,14 +109,13 @@ describe("confirmationHtml", () => {
       bodyHtml: "<p>Hi Dan.</p>",
       logoUrl: "https://gwenda.co.uk/brand/logo-email.png",
       logoCid: LOGO_CID,
-      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?key=abc",
+      ticketUrl: "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
       mapsUrl: VENUE_MAPS_URL,
-      googleWalletUrl: null,
     });
     expect(html).toContain(`cid:${LOGO_CID}`);
     expect(html).toContain("text-align:center");
     expect(html).not.toContain("logo-email.png");
-    expect(html).toContain("View your invitation");
+    expect(html).toContain("View your ticket");
     expect(html).toContain("Get directions");
     expect(html).toContain("You're on the list");
   });
@@ -124,7 +138,7 @@ describe("buildRsvpTicketAttachments", () => {
       venue: "Schwartz Wharf",
       guestName: "Dan",
       guests: 1,
-      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?key=abc",
+      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
       origin: "https://gwenda.co.uk",
     });
 
@@ -144,12 +158,12 @@ describe("buildCalendarTicket", () => {
       guestName: "Dan",
       guests: 2,
       description: "Free signature cocktail from 5 to 7pm.",
-      url: "https://gwenda.co.uk/events/private-launch-party?key=abc",
+      url: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
     });
 
     expect(ics).toContain("BEGIN:VCALENDAR");
     expect(ics).toContain("BEGIN:VEVENT");
-    expect(ics).toContain("SUMMARY:Launch Party");
+    expect(ics).toContain("SUMMARY:Gwenda Launch Party");
     expect(ics).toContain("DTSTART:");
     expect(ics).toContain("DTEND:");
     expect(ics).toContain("LOCATION:Schwartz Wharf\\, Hackney Wick");

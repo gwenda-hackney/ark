@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEventDate, getUpcomingEvents } from "./events";
+import { formatEventDate, formatEventWhen, getUpcomingEvents } from "./events";
 import type { Event } from "../types/events";
 
 const sampleEvents: Event[] = [
@@ -26,6 +26,14 @@ const sampleEvents: Event[] = [
 describe("formatEventDate", () => {
   it("formats ISO dates in en-GB long form", () => {
     expect(formatEventDate("2026-08-01")).toBe("Saturday, 1 August 2026");
+  });
+});
+
+describe("formatEventWhen", () => {
+  it("includes door times when provided", () => {
+    expect(formatEventWhen("2026-08-15", "17:00", "23:00")).toBe(
+      "Saturday, 15 August 2026, 5pm–11pm",
+    );
   });
 });
 

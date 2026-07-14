@@ -125,7 +125,7 @@ npm run dev
 
 ## C. Test locally
 
-- [ ] Open a valid invite: `/events/<slug>?key=<code>`
+- [ ] Open a valid invite: `/events/<slug>?event-password=<three-word-password>`
 - [ ] RSVP **Yes**, enter name + email + party size
 - [ ] Click **Send my reply**
 - [ ] Check inbox (and spam) for:
