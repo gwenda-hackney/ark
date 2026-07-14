@@ -2,6 +2,7 @@ import { baserowRsvpRowsUrl } from "./baserow.js";
 import { parseInviteChannel } from "./invite-lib.js";
 import { generateInviteToken } from "./invite-tokens.js";
 import { buildInviteUrl } from "./invite-url.js";
+import { fetchEventBySlug } from "./sanity-event.js";
 
 const EVENT_SLUG_FIELD = "Event Slug";
 
@@ -73,11 +74,20 @@ export function summarizeGuests(guests) {
   };
 }
 
-export async function ensureGuestToken(env, guest, inviteBaseUrl, eventSlug) {
+export async function ensureGuestToken(env, guest, inviteBaseUrl, eventSlug, eventCode) {
+  let rsvpCode = eventCode?.trim().toLowerCase() || null;
+  if (!rsvpCode) {
+    const event = await fetchEventBySlug(env, eventSlug);
+    rsvpCode = event?.rsvpCode?.trim().toLowerCase() || null;
+  }
+  if (!rsvpCode) {
+    throw new Error(`Event "${eventSlug}" has no RSVP code. Add one in Sanity.`);
+  }
+
   if (guest.token) {
     return {
       token: guest.token,
-      inviteUrl: buildInviteUrl(inviteBaseUrl, guest.token),
+      inviteUrl: buildInviteUrl(inviteBaseUrl, rsvpCode, guest.token),
     };
   }
 
@@ -106,5 +116,73 @@ export async function ensureGuestToken(env, guest, inviteBaseUrl, eventSlug) {
     throw new Error(`Could not register invite link (${patch.status}).`);
   }
 
-  return { token, inviteUrl: buildInviteUrl(inviteBaseUrl, token) };
+  return { token, inviteUrl: buildInviteUrl(inviteBaseUrl, rsvpCode, token) };
+}
+
+export async function findGuestByEventAndContact(env, eventSlug, contact) {
+  const slug = eventSlug?.trim();
+  const normalizedContact = contact?.trim();
+  if (!slug || !normalizedContact) {
+    return { ok: false, status: 400, error: "Event and contact are required." };
+  }
+
+  const config = await baserowRsvpRowsUrl(env);
+  if (!config.ok) {
+    return { ok: false, status: 502, error: "Could not reach guest registry." };
+  }
+
+  const filterUrl =
+    `${config.rowsUrl}&filter__${encodeURIComponent(EVENT_SLUG_FIELD)}__equal=` +
+    `${encodeURIComponent(slug)}&filter__Contact__equal=${encodeURIComponent(normalizedContact)}`;
+  const upstream = await fetch(filterUrl, {
+    headers: { Authorization: `Token ${config.apiKey}` },
+  });
+
+  if (!upstream.ok) {
+    return { ok: false, status: 502, error: "Could not load guest." };
+  }
+
+  const payload = await upstream.json();
+  const row = payload?.results?.[0];
+  if (!row) {
+    return { ok: true, status: 200, guest: null };
+  }
+
+  return { ok: true, status: 200, guest: rowToGuest(row) };
+}
+
+export async function createGuestForEvent(env, eventSlug, { name, email, source }) {
+  const slug = eventSlug?.trim();
+  const contact = email?.trim();
+  const guestName = name?.trim() || contact?.split("@")[0] || "Guest";
+  if (!slug || !contact) {
+    return { ok: false, status: 400, error: "Event and email are required." };
+  }
+
+  const config = await baserowRsvpRowsUrl(env);
+  if (!config.ok) {
+    return { ok: false, status: 502, error: "Could not reach guest registry." };
+  }
+
+  const create = await fetch(config.rowsUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${config.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      Name: guestName,
+      Channel: "Email",
+      Contact: contact,
+      [EVENT_SLUG_FIELD]: slug,
+      ...(source ? { Source: source } : {}),
+    }),
+  });
+
+  if (!create.ok) {
+    return { ok: false, status: 502, error: "Could not register your RSVP." };
+  }
+
+  const row = await create.json();
+  return { ok: true, status: 200, guest: rowToGuest(row) };
 }

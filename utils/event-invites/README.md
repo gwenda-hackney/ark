@@ -59,9 +59,11 @@ Instagram invites use the **Meta Instagram Messaging API**. DMs are sent **from 
 
 Add both to repo-root `.env` for local sends. For staging/production site sends, also set them as GitHub secrets and re-deploy (or run `npm run setup:event-ops`).
 
-### One-time Meta setup
+### Connect Instagram (OAuth)
 
 Same mechanism as Canva: **you authorize our Meta app**, we store the token.
+
+**Checklist:** [`docs/instagram-invites-setup.md`](../../docs/instagram-invites-setup.md)
 
 1. **Meta app** — [developers.facebook.com](https://developers.facebook.com/) → Create app → add **Facebook Login** + **Instagram**.
 2. **OAuth redirect** — in the app, add valid redirect URI: `http://localhost:8765/callback`

@@ -1,0 +1,29 @@
+---
+import { Image } from "astro:assets";
+import { compactLogo } from "../lib/hero-assets";
+---
+
+<div id="invite-card-scene" class="invite-card-scene" hidden>
+  <div class="invite-card" id="invite-card">
+    <div class="invite-card-inner">
+      <button
+        type="button"
+        class="invite-card-face invite-card-front"
+        id="invite-card-open"
+        aria-controls="invite-card-back"
+        aria-expanded="false"
+      >
+        <Image {...compactLogo} alt="Gwenda" class="invite-card-logo" loading="eager" />
+        <h1 class="invite-card-title">Your invitation awaits</h1>
+        <p class="invite-card-lead">Private launch party</p>
+        <span class="invite-card-hint">Tap to open</span>
+      </button>
+
+      <div class="invite-card-face invite-card-back" id="invite-card-back">
+        <div class="invite-card-back-inner">
+          <slot />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

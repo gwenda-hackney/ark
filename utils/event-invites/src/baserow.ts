@@ -1,6 +1,7 @@
 import { generateInviteToken } from "./tokens.js";
 import type { Guest } from "./types.js";
 import { DEFAULT_BASEROW_API, resolveRsvpTableId } from "./baserow-table.js";
+import { fetchEventBySlug } from "./sanity-event.js";
 
 export class BaserowError extends Error {
   constructor(
@@ -54,8 +55,10 @@ async function baserowFetch(
   });
 }
 
-export function buildInviteUrl(baseUrl: string, token: string): string {
-  return `${baseUrl.replace(/\/$/, "")}/invite/${token}`;
+export function buildInviteUrl(baseUrl: string, eventCode: string, token: string): string {
+  const base = baseUrl.replace(/\/$/, "");
+  const code = eventCode.trim().toLowerCase();
+  return `${base}/events/${code}/${token}`;
 }
 
 export async function ensureGuestInvite(
@@ -64,10 +67,20 @@ export async function ensureGuestInvite(
   inviteBaseUrl: string,
   eventSlug: string,
 ): Promise<{ token: string; inviteUrl: string }> {
+  const event = await fetchEventBySlug(env, eventSlug);
+  const rsvpCode = event?.rsvpCode?.trim().toLowerCase();
+  if (!rsvpCode) {
+    throw new BaserowError(
+      `Event "${eventSlug}" has no RSVP code. Add one in Sanity.`,
+      0,
+      "",
+    );
+  }
+
   if (guest.token) {
     return {
       token: guest.token,
-      inviteUrl: buildInviteUrl(inviteBaseUrl, guest.token),
+      inviteUrl: buildInviteUrl(inviteBaseUrl, rsvpCode, guest.token),
     };
   }
 
@@ -96,5 +109,5 @@ export async function ensureGuestInvite(
     );
   }
 
-  return { token, inviteUrl: buildInviteUrl(inviteBaseUrl, token) };
+  return { token, inviteUrl: buildInviteUrl(inviteBaseUrl, rsvpCode, token) };
 }

@@ -1,4 +1,5 @@
 import { defineConfig, envField } from "astro/config";
+import { resolve } from "node:path";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
 import {
@@ -8,7 +9,7 @@ import {
 import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.js";
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
-import { getInviteByToken, saveRsvpGuests } from "./functions/_lib/rsvp.js";
+import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
 import { fetchPublishedEvents } from "./functions/_lib/sanity-events.js";
 import {
   verifyEventAdminRequest,
@@ -17,7 +18,11 @@ import { fetchGuestsForEvent, summarizeGuests } from "./functions/_lib/event-gue
 import { fetchEventBySlug } from "./functions/_lib/sanity-event.js";
 import { sendEventInvites } from "./functions/_lib/invite-send.js";
 
-const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
+const env = loadEnv(
+  process.env.NODE_ENV ?? "development",
+  resolve(process.cwd(), ".."),
+  "",
+);
 const sitePassword = env.SITE_PASSWORD;
 const gatePlugin = devSiteGate({
   password: sitePassword,
@@ -32,13 +37,24 @@ const subscribeEnv = () => ({
 });
 
 const rsvpEnv = () => ({
-  BASEROW_API_KEY: env.BASEROW_API_KEY,
-  BASEROW_API_URL: env.BASEROW_API_URL,
-  BASEROW_DATABASE_ID: env.BASEROW_DATABASE_ID,
-  BASEROW_RSVP_TABLE_NAME: env.BASEROW_RSVP_TABLE_NAME,
-  SITE_ENV: env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV,
-  SANITY_PROJECT_ID: env.SANITY_PROJECT_ID,
-  SANITY_DATASET: env.SANITY_DATASET,
+  BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
+  BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
+  BASEROW_DATABASE_ID: process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
+  BASEROW_RSVP_TABLE_NAME: process.env.BASEROW_RSVP_TABLE_NAME || env.BASEROW_RSVP_TABLE_NAME,
+  SITE_ENV: process.env.SITE_ENV || (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+  SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
+  SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "development",
+  SANITY_API_TOKEN: process.env.SANITY_API_TOKEN || env.SANITY_API_TOKEN,
+  INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
+  INVITE_IMAGE_URL: process.env.INVITE_IMAGE_URL || env.INVITE_IMAGE_URL,
+  INVITE_EMAIL_SUBJECT: process.env.INVITE_EMAIL_SUBJECT || env.INVITE_EMAIL_SUBJECT,
+  INVITE_EMAIL_BODY: process.env.INVITE_EMAIL_BODY || env.INVITE_EMAIL_BODY,
+  SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
+  SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || env.SMTP_PASSWORD,
+  SMTP_FROM: process.env.SMTP_FROM || env.SMTP_FROM,
+  SMTP_FROM_EVENTS: process.env.SMTP_FROM_EVENTS || env.SMTP_FROM_EVENTS,
 });
 
 const adminEnv = () => ({
@@ -145,22 +161,30 @@ function devRsvpApi() {
     name: "dev-rsvp-api",
     configureServer(server) {
       server.middlewares.use("/api/rsvp", async (req, res, next) => {
-        const runtimeEnv = rsvpEnv();
+        const runtimeEnv = {
+          ...rsvpEnv(),
+          SANITY_API_TOKEN:
+            process.env.SANITY_API_TOKEN?.trim() || env.SANITY_API_TOKEN?.trim(),
+          SANITY_DATASET:
+            process.env.SANITY_DATASET?.trim() ||
+            env.SANITY_DATASET?.trim() ||
+            "development",
+          SANITY_PROJECT_ID:
+            process.env.SANITY_PROJECT_ID?.trim() || env.SANITY_PROJECT_ID?.trim(),
+        };
 
         if (req.method === "GET") {
           const url = new URL(req.url ?? "", "http://localhost");
-          const token = url.searchParams.get("token");
-          const result = await getInviteByToken(runtimeEnv, token ?? "");
+          const result = await getEventRsvp(
+            runtimeEnv,
+            url.searchParams.get("slug"),
+            url.searchParams.get("key"),
+          );
           sendJson(
             res,
             result.status,
             result.ok
-              ? {
-                  ok: true,
-                  name: result.guest.name,
-                  rsvpGuests: result.guest.rsvpGuests,
-                  event: result.event,
-                }
+              ? { ok: true, event: result.event, source: result.source }
               : { error: result.error },
           );
           return;
@@ -178,19 +202,25 @@ function devRsvpApi() {
         req.on("end", async () => {
           try {
             const payload = JSON.parse(rawBody);
-            const parsed =
-              typeof payload.guests === "number"
-                ? payload.guests
-                : Number.parseInt(String(payload.guests), 10);
-            const result = await saveRsvpGuests(runtimeEnv, payload.token, parsed);
+            const result = await saveRsvpResponse(runtimeEnv, {
+              slug: payload.slug,
+              token: payload.token,
+              attending: payload.attending,
+              name: payload.name,
+              email: payload.email,
+              guests: payload.guests,
+              origin: req.headers.host ? `http://${req.headers.host}` : undefined,
+            });
             sendJson(
               res,
               result.status,
               result.ok
                 ? {
                     ok: true,
-                    name: result.guest.name,
-                    rsvpGuests: result.guest.rsvpGuests,
+                    attending: result.attending,
+                    name: result.name ?? null,
+                    rsvpGuests: result.rsvpGuests,
+                    source: result.source,
                     event: result.event,
                   }
                 : { error: result.error },
@@ -319,6 +349,27 @@ function devEventAdminApi() {
   };
 }
 
+/** Dev-only rewrites matching public/_redirects (Cloudflare Pages). */
+function devSpaRewrites() {
+  return {
+    name: "dev-spa-rewrites",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const pathname = (req.url ?? "").split("?")[0] ?? "";
+        if (
+          pathname.startsWith("/events/") &&
+          pathname !== "/events/rsvp" &&
+          pathname !== "/events/rsvp/"
+        ) {
+          const query = (req.url ?? "").includes("?") ? `?${req.url.split("?")[1]}` : "";
+          req.url = `/events/rsvp/${query}`;
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   site: "https://gwenda.co.uk",
   output: "static",
@@ -414,6 +465,13 @@ export default defineConfig({
     // Devcontainer / Cursor port forwards use non-localhost Host headers; Vite blocks those with 403.
     server: { allowedHosts: true },
     preview: { allowedHosts: true },
-    plugins: [devSubscribeApi(), devRsvpApi(), devEventsApi(), devEventAdminApi(), ...(gatePlugin ? [gatePlugin] : [])],
+    plugins: [
+      devSpaRewrites(),
+      devSubscribeApi(),
+      devRsvpApi(),
+      devEventsApi(),
+      devEventAdminApi(),
+      ...(gatePlugin ? [gatePlugin] : []),
+    ],
   },
 });

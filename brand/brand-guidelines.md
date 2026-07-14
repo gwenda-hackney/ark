@@ -271,6 +271,55 @@ Both typefaces are served via `@fontsource` (self-hosted) in Latin subset only. 
 
 All buttons: uppercase, `padding: 0.9rem 2.2rem`, `letter-spacing: 0.08em`, weight 600, `border-radius: 2px`.
 
+### 5.3.1 Form fields (boxed inputs)
+
+Use **boxed** fields (`.gw-field`) for RSVP pages, email capture, and any standalone text or number input. Reserve the underline-style `.signup-field` / `.gate-field` pattern for inline email+button rows on the homepage.
+
+| Token | Value | Notes |
+|-------|-------|-------|
+| Background | `#1a1a1a` (`--color-bg-card`) | Lifts the field off page background `#0d0d0d` |
+| Border | Gold at 10% (`--color-border`) | 1px solid |
+| Text | `#e8e4dc` (`--color-text`) | Body copy colour — not muted |
+| Placeholder | `#8a8680` (`--color-text-muted`) | ~85% opacity |
+| Padding | `0.85rem 1rem` | Comfortable tap target |
+| Radius | `2px` | Matches buttons |
+
+**Focus state:** gold border at ~55% mix, plus glow:
+
+```
+border-color: color-mix(in srgb, var(--color-gold) 55%, transparent);
+box-shadow:
+  0 0 0 1px color-mix(in srgb, var(--color-gold) 35%, transparent),
+  0 0 18px color-mix(in srgb, var(--color-gold) 22%, transparent);
+```
+
+**Disabled:** `opacity: 0.45`, `cursor: not-allowed`.
+
+**RSVP copy:** conversational, like a note to friends. Not website marketing voice.
+
+### 5.3.2 RSVP & invite page layout
+
+Private invite and event RSVP pages open with a **flip invite card** (`.invite-card-scene`), then reveal a single RSVP form inside the card back.
+
+**One form, channel-gated.** The event RSVP page lives at `/events/<slug>` (a readable slug like `launch-party`, not an opaque code). Access needs a **channel access code** in the `?key=` query, e.g. `/events/launch-party?key=<code>`. The code is a short lowercase alphanumeric string (10 chars). Each channel is defined in Sanity on the event (`channels[]` = label + token) and stands for where the link was shared, e.g. *Dan - WhatsApp*. The channel label is recorded on every RSVP as the attribution **Source** in Baserow.
+
+The form asks *Can you make it?* first; picking **Yes** reveals name, email, and party size. Picking **No** just records a decline and thanks them (no further fields).
+
+**No valid code, no entry.** Opening `/events/<slug>` without a matching channel access code shows the on-brand block panel (`.rsvp-blocked`: gold eyebrow, editorial heading, muted lead), never the form. Invites are distributed personally, one channel link per person or place.
+
+| Element | Class / pattern | Notes |
+|---------|-----------------|-------|
+| Card shell | `InviteFlipCardShell` | Front: wordmark, *You're invited*, tap to open |
+| Flip | `.invite-card.is-open` | Single 3D flip; height animates with the flip (JS locks `.invite-card-inner` to the visible face) |
+| Card size | `30rem` wide; height follows content | Front `min-height: 26rem`; never an inner scrollbar, page scrolls if truly tall |
+| Section | `.event-rsvp.section` | `#0d0d0d` background; top-anchored on desktop, vertically centred with no top/bottom padding on mobile |
+| Intro | `.section-intro.event-rsvp-intro` | Inside card back after flip |
+| Attendance | `.rsvp-pick--attending` | Yes / No, revealed first |
+| Details | `.rsvp-details` | Name + email (`.gw-field`) then party size, shown only when attending |
+| Party size | `.rsvp-pick--counts` | 1–4 or 5+ (`5+` stores 6) |
+
+Errors show outside the card. A recorded reply collapses the form controls (`lockRsvpForm`) and leaves the confirmation message in place.
+
 ### 5.4 Shadows & glows
 
 | Element | Specification |
@@ -278,7 +327,8 @@ All buttons: uppercase, `padding: 0.9rem 2.2rem`, `letter-spacing: 0.08em`, weig
 | Primary button hover | `box-shadow: 0 0 28px` gold at 22% |
 | Header CTA hover | `box-shadow: 0 0 20px` gold at 18% |
 | Hero logo | `drop-shadow(0 4px 24px rgba(0,0,0,0.5))` |
-| Form field focus | Animated gold border + box-shadow glow |
+| Form field focus (boxed `.gw-field`) | Gold border at 55% mix + `box-shadow` glow (see §5.3.1) |
+| Form field focus (underline `.signup-field`) | Animated gold border + box-shadow glow |
 | Focus ring (accessibility) | Double ring: 1px solid gold at 50%, outer 4px at 14% |
 
 ### 5.5 Imagery treatment
@@ -346,7 +396,13 @@ Always write in British English:
 - Dates in DD Month YYYY format: *4 July 2026*
 - Currency: £
 
-### 6.3 What Gwenda is not
+### 6.3 Punctuation and layout
+
+Do **not** use em dashes (`—`) in customer-facing copy or UI strings. They read as generic, over-written AI voice. Use a full stop, comma, colon, or parentheses instead. For page titles, separate with a middle dot (` · `), e.g. *You're invited · Gwenda*.
+
+Centre-aligned body copy is for marketing sections (signup header, thanks page). Invite and RSVP pages use **left-aligned** editorial type inside the card panel.
+
+### 6.4 What Gwenda is not
 
 Gwenda's positioning is deliberately expressed as negation — it defines itself against categories:
 
@@ -354,11 +410,11 @@ Gwenda's positioning is deliberately expressed as negation — it defines itself
 
 Use this framework when explaining the concept. Avoid generic hospitality language: *award-winning*, *great atmosphere*, *something for everyone*.
 
-### 6.4 "Who is Gwenda?"
+### 6.5 "Who is Gwenda?"
 
 The mystery of Gwenda's identity is intentional and must be preserved in all customer-facing communications. Do not invent backstory, explain the name, or resolve the question. The answer is: *come and find out*.
 
-### 6.5 Language to use
+### 6.6 Language to use
 
 | Preferred | Avoid |
 |-----------|-------|

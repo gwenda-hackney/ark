@@ -144,6 +144,8 @@ export function isPublicPath(pathname) {
   if (pathname === "/api/events" || pathname.startsWith("/api/events/")) return true;
   if (pathname === "/invite" || pathname === "/invite/") return true;
   if (pathname.startsWith("/invite/")) return true;
+  if (pathname === "/events/rsvp" || pathname === "/events/rsvp/") return true;
+  if (pathname.startsWith("/events/")) return true;
   if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico") return true;

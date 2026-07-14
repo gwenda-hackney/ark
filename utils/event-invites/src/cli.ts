@@ -101,7 +101,7 @@ async function main(): Promise<number> {
       "event-slug": { type: "string", default: env("INVITE_EVENT_SLUG", "") },
       "email-subject": {
         type: "string",
-        default: env("INVITE_EMAIL_SUBJECT", "You are invited — Gwenda"),
+        default: env("INVITE_EMAIL_SUBJECT", "Launch party at Gwenda"),
       },
       "email-body": { type: "string", default: env("INVITE_EMAIL_BODY", DEFAULT_EMAIL_BODY) },
       "instagram-message": {
@@ -159,7 +159,7 @@ async function main(): Promise<number> {
 
   const inviteBaseUrl = values["invite-base-url"] ?? "https://gwenda.co.uk";
   const inviteImageUrl = resolveInviteImageUrl(process.env, event);
-  const emailSubject = values["email-subject"] ?? "You are invited — Gwenda";
+  const emailSubject = values["email-subject"] ?? "Launch party at Gwenda";
   const emailBodyTemplate = values["email-body"] ?? DEFAULT_EMAIL_BODY;
   const instagramTemplate = values["instagram-message"] ?? DEFAULT_INSTAGRAM_MESSAGE;
 

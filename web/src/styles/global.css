@@ -388,6 +388,14 @@ a:focus-visible {
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+.site-header--invite {
+  transform: translateY(0);
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
 .site-header-logo {
   display: block;
   padding-inline: 0.6rem;
@@ -2055,64 +2063,472 @@ html.fonts-ready .thanks {
   text-align: center;
 }
 
-.invite {
-  width: min(100% - 2.5rem, 26rem);
+/* Flip invite card (see brand guidelines §5.3.2) */
+.invite-card-scene {
+  perspective: 1600px;
+  width: min(100%, 30rem);
+  margin-inline: auto;
 }
 
-.invite-hero {
+.invite-card {
   width: 100%;
-  height: auto;
+}
+
+.invite-card-inner {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition:
+    transform 0.8s var(--ease-smooth),
+    height 0.8s var(--ease-smooth);
+}
+
+.invite-card.is-open .invite-card-inner {
+  transform: rotateY(180deg);
+}
+
+/* Faces are auto-height; JS locks the inner wrapper to the visible face. */
+.invite-card-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
   border-radius: 2px;
-  margin-bottom: 1.5rem;
-  display: block;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-.invite-guest-line {
-  margin-bottom: 1rem;
+.invite-card-face::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-dim),
+    transparent
+  );
 }
 
-.invite-event-description {
-  margin: 0 0 1.5rem;
-  font-size: 0.95rem;
-  line-height: 1.6;
+.invite-card-front {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 26rem;
+  padding: clamp(4rem, 22vh, 9rem) 2rem 3.25rem;
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  transition: box-shadow 0.25s ease;
+}
+
+.invite-card-front:hover {
+  box-shadow: 0 0 32px color-mix(in srgb, var(--color-gold) 16%, transparent);
+}
+
+.invite-card-front:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.invite-card-logo {
+  height: clamp(4.5rem, 15vw, 6rem);
+  width: auto;
+  margin-bottom: 1.25rem;
+  opacity: 0.95;
+}
+
+.invite-card-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 7vw, 2.9rem);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  line-height: 1.15;
+  color: var(--color-text);
+}
+
+.invite-card-lead {
+  font-size: 1rem;
   color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-top: 0.35rem;
+}
+
+.invite-card-hint {
+  margin-top: 1.75rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-gold) 70%, var(--color-text-muted));
+}
+
+.invite-card-back {
+  transform: rotateY(180deg);
+}
+
+.invite-card-back-inner {
+  padding: clamp(1.75rem, 4vw, 2.25rem);
+}
+
+.invite-card-back .event-rsvp-intro {
+  margin-bottom: 1.75rem;
+}
+
+.invite-card-back .event-rsvp-intro h1 {
+  font-size: clamp(1.65rem, 4vw, 2.15rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invite-card-inner {
+    transition: none;
+  }
+}
+
+/* Event RSVP / private invite (see brand guidelines §5.3.2) */
+.event-rsvp.section {
+  padding: 2.5rem 0 3.5rem;
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-start;
+}
+
+@media (max-width: 640px) {
+  .event-rsvp.section {
+    padding: 0;
+    min-height: 100dvh;
+    align-items: center;
+  }
+}
+
+.event-rsvp-inner {
+  width: 100%;
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+.invite-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: clamp(3rem, 12vh, 6rem) 0;
   text-align: center;
 }
 
-.invite-form {
-  text-align: left;
+/* Charcoal disc with a pulsing gold core and an expanding gold ring. */
+.invite-loader-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
 }
 
-.invite-label {
-  display: block;
-  font-size: 0.85rem;
-  letter-spacing: 0.06em;
+.invite-loader-mark::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--color-gold);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-gold) 55%, transparent);
+}
+
+.invite-loader-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-gold);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .invite-loader-mark::before {
+    animation: inviteLoaderCore 1.8s var(--ease-smooth) infinite;
+  }
+
+  .invite-loader-mark::after {
+    animation: inviteLoaderPulse 1.8s var(--ease-smooth) infinite;
+  }
+}
+
+@keyframes inviteLoaderCore {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes inviteLoaderPulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.event-rsvp-loading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  margin-bottom: 0.75rem;
 }
 
-.invite-field input[type="number"] {
-  flex: 1;
-  min-width: 0;
-  padding: 0.85rem 0;
-  background: transparent;
-  border: none;
+.event-rsvp-intro {
+  margin-bottom: 2.5rem;
+}
+
+.event-rsvp-intro h1 {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  margin-bottom: 0;
+}
+
+.event-rsvp-intro h1::after {
+  content: "";
+  display: block;
+  width: 2rem;
+  height: 1px;
+  margin-top: 1.15rem;
+  margin-bottom: 1.25rem;
+  background: linear-gradient(90deg, var(--color-gold-dim), transparent);
+}
+
+.event-rsvp-intro .section-lead + .section-lead {
+  margin-top: 1rem;
+}
+
+/* Respect the line breaks / blank lines typed into the Sanity description
+   field so authors can space out sentences and paragraphs. */
+#rsvp-event-description-personal {
+  white-space: pre-line;
+}
+
+.event-rsvp-hero-wrap {
+  position: relative;
+  margin-bottom: 2rem;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.event-rsvp-hero-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-gold) 5.5%, transparent),
+    transparent 45%
+  );
+  pointer-events: none;
+}
+
+.event-rsvp-hero {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: brightness(0.55) saturate(0.92);
+}
+
+.rsvp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 36rem;
+}
+
+.rsvp-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* `display: flex` above beats the UA `[hidden] { display: none }`, so restore
+   it explicitly: the name/email/guests fields only show once "Yes" is picked. */
+.rsvp-details[hidden] {
+  display: none;
+}
+
+.rsvp-step-label {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--color-text);
+  margin-bottom: 0.85rem;
+}
+
+.rsvp-step-hint {
+  margin: -0.5rem 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.rsvp-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.rsvp-pick--attending {
+  flex-direction: column;
+}
+
+@media (min-width: 480px) {
+  .rsvp-pick--attending {
+    flex-direction: row;
+  }
+
+  .rsvp-pick--attending .rsvp-pick-btn {
+    flex: 1;
+  }
+}
+
+.rsvp-pick-btn {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--color-text);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  padding: 0.85rem 1.15rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.rsvp-pick-btn--count {
+  min-width: 3.25rem;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  padding-inline: 1rem;
+}
+
+.rsvp-pick-btn:hover {
+  border-color: color-mix(in srgb, var(--color-gold) 35%, transparent);
+}
+
+.rsvp-pick-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rsvp-pick-btn.is-selected {
+  border-color: var(--color-gold);
+  background: color-mix(in srgb, var(--color-gold) 12%, var(--color-bg-card));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-gold) 18%, transparent);
+}
+
+.rsvp-submit {
+  width: 100%;
+  max-width: 16rem;
+}
+
+/* `.btn` sets `display: inline-flex`, which beats `[hidden]`, so keep the reply
+   button hidden until a choice is made and after the reply is locked in. */
+.rsvp-submit[hidden] {
+  display: none;
+}
+
+.rsvp-error {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-error);
+  line-height: 1.45;
+}
+
+.rsvp-message {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-gold);
+  line-height: 1.55;
+}
+
+.rsvp-blocked {
+  max-width: 34rem;
+}
+
+.rsvp-blocked-eyebrow {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+/* Boxed text inputs — see brand guidelines §5.3.1 */
+.gw-field {
+  margin-bottom: 0;
+}
+
+.gw-field input[type="text"],
+.gw-field input[type="email"],
+.gw-field input[type="number"],
+.gw-field input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.85rem 1rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 1rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.invite-field input[type="number"]:focus {
+.gw-field input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.gw-field input:focus {
   outline: none;
+  border-color: color-mix(in srgb, var(--color-gold) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-gold) 35%, transparent),
+    0 0 18px color-mix(in srgb, var(--color-gold) 22%, transparent);
 }
 
-.invite-note {
-  margin-top: 1rem;
-  font-size: 0.9rem;
-  color: var(--color-gold);
-  text-align: center;
-  line-height: 1.5;
+.gw-field input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 @media (max-width: 480px) {

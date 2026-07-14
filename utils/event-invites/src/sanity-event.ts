@@ -6,18 +6,36 @@ export type SanityEvent = {
   description: string;
   date: string | null;
   heroImageUrl: string | null;
+  slug: string | null;
+  rsvpCode: string | null;
 };
 
 function sanityDataset(env: NodeJS.ProcessEnv): string {
   return env.SANITY_DATASET?.trim() || "development";
 }
 
-const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug][0]{
+const EVENT_FIELDS = `{
   title,
   description,
   date,
-  "heroImageUrl": heroImage.asset->url
+  "heroImageUrl": heroImage.asset->url,
+  "slug": slug.current,
+  rsvpCode
 }`;
+
+const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug][0]${EVENT_FIELDS}`;
+
+function toEventRecord(doc: Partial<SanityEvent> & { title?: string } | null | undefined): SanityEvent | null {
+  if (!doc?.title) return null;
+  return {
+    title: doc.title,
+    description: doc.description ?? "",
+    date: doc.date ?? null,
+    heroImageUrl: doc.heroImageUrl ?? null,
+    slug: doc.slug ?? null,
+    rsvpCode: doc.rsvpCode ?? null,
+  };
+}
 
 export async function fetchEventBySlug(
   env: NodeJS.ProcessEnv,
@@ -40,15 +58,7 @@ export async function fetchEventBySlug(
   if (!response.ok) return null;
 
   const payload = (await response.json()) as { result?: SanityEvent };
-  const doc = payload.result;
-  if (!doc?.title) return null;
-
-  return {
-    title: doc.title,
-    description: doc.description ?? "",
-    date: doc.date ?? null,
-    heroImageUrl: doc.heroImageUrl ?? null,
-  };
+  return toEventRecord(payload.result);
 }
 
 export function resolveInviteImageUrl(

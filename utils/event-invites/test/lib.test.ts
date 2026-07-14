@@ -64,6 +64,6 @@ describe("resolveInstagramRecipientId", () => {
 
 describe("formatMessage", () => {
   it("substitutes name in templates", () => {
-    expect(formatMessage(DEFAULT_EMAIL_BODY, "Alex")).toContain("Dear Alex,");
+    expect(formatMessage(DEFAULT_EMAIL_BODY, "Alex")).toContain("Hi Alex,");
   });
 });
