@@ -197,14 +197,28 @@ Use **Google SMTP relay** (`smtp-relay.gmail.com`, port 587) with IP allowlistin
 
 ## G. Optional: Apple Wallet (`.pkpass`)
 
-Calendar `.ics` works without extra setup. For Apple Wallet attachments, add to `.env` / Cloudflare secrets:
+Calendar `.ics` works without extra setup. For Apple Wallet attachments:
 
 ```bash
-APPLE_WALLET_PASS_TYPE_ID=pass.co.uk.gwenda.event
-APPLE_WALLET_TEAM_ID=...
-APPLE_WALLET_SIGNER_CERT=...
-APPLE_WALLET_SIGNER_KEY=...
-APPLE_WALLET_WWDR_CERT=...
+npm run setup:apple-wallet:csr
+```
+
+Upload `.apple-wallet/signing.csr` when Apple asks for a CSR (no Mac required).
+
+After Apple issues the certificate:
+
+```bash
+export APPLE_WALLET_PASS_TYPE_ID=pass.co.uk.gwenda.event
+export APPLE_WALLET_TEAM_ID=XXXXXXXXXX
+npm run setup:apple-wallet:import -- ~/Downloads/pass.cer
+```
+
+Restart `npm run dev`. RSVP Yes should attach `gwenda-ticket.pkpass` alongside the calendar file.
+
+For staging/production, sync secrets after `.env` is populated:
+
+```bash
+node web/scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
 ```
 
 Requires an Apple Developer Pass Type ID and signing certificate.

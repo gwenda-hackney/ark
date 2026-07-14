@@ -17,6 +17,7 @@ import {
 import { fetchGuestsForEvent, summarizeGuests } from "./functions/_lib/event-guests.js";
 import { fetchEventBySlug } from "./functions/_lib/sanity-event.js";
 import { sendEventInvites } from "./functions/_lib/invite-send.js";
+import { pickPemValue } from "./functions/_lib/env-pem.js";
 
 const env = loadEnv(
   process.env.NODE_ENV ?? "development",
@@ -55,6 +56,23 @@ const rsvpEnv = () => ({
   SMTP_PASSWORD: process.env.SMTP_PASSWORD || env.SMTP_PASSWORD,
   SMTP_FROM: process.env.SMTP_FROM || env.SMTP_FROM,
   SMTP_FROM_EVENTS: process.env.SMTP_FROM_EVENTS || env.SMTP_FROM_EVENTS,
+  APPLE_WALLET_PASS_TYPE_ID:
+    process.env.APPLE_WALLET_PASS_TYPE_ID || env.APPLE_WALLET_PASS_TYPE_ID,
+  APPLE_WALLET_TEAM_ID: process.env.APPLE_WALLET_TEAM_ID || env.APPLE_WALLET_TEAM_ID,
+  APPLE_WALLET_SIGNER_CERT: pickPemValue(
+    process.env.APPLE_WALLET_SIGNER_CERT,
+    env.APPLE_WALLET_SIGNER_CERT,
+  ),
+  APPLE_WALLET_SIGNER_KEY: pickPemValue(
+    process.env.APPLE_WALLET_SIGNER_KEY,
+    env.APPLE_WALLET_SIGNER_KEY,
+  ),
+  APPLE_WALLET_WWDR_CERT: pickPemValue(
+    process.env.APPLE_WALLET_WWDR_CERT,
+    env.APPLE_WALLET_WWDR_CERT,
+  ),
+  APPLE_WALLET_SIGNER_KEY_PASSPHRASE:
+    process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE || env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
 });
 
 const adminEnv = () => ({

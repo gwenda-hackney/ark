@@ -128,6 +128,15 @@ const profiles = {
     putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
     putSecret("SMTP_FROM", process.env.SMTP_FROM);
     putSecret("SMTP_FROM_EVENTS", process.env.SMTP_FROM_EVENTS);
+    putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
+    putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
+    putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
+    putSecret("APPLE_WALLET_SIGNER_KEY", process.env.APPLE_WALLET_SIGNER_KEY);
+    putSecret("APPLE_WALLET_WWDR_CERT", process.env.APPLE_WALLET_WWDR_CERT);
+    putSecret(
+      "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
+      process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
+    );
     putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
     putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
     putSecret("INVITE_BASE_URL", process.env.INVITE_BASE_URL);
@@ -151,6 +160,15 @@ const profiles = {
     putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
     putSecret("SMTP_FROM", process.env.SMTP_FROM);
     putSecret("SMTP_FROM_EVENTS", process.env.SMTP_FROM_EVENTS);
+    putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
+    putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
+    putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
+    putSecret("APPLE_WALLET_SIGNER_KEY", process.env.APPLE_WALLET_SIGNER_KEY);
+    putSecret("APPLE_WALLET_WWDR_CERT", process.env.APPLE_WALLET_WWDR_CERT);
+    putSecret(
+      "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
+      process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
+    );
     putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
     putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
     putSecret("INVITE_BASE_URL", process.env.INVITE_BASE_URL);

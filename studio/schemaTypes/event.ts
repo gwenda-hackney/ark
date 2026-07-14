@@ -127,9 +127,9 @@ export const event = defineType({
 
 Thanks for replying. {guests_line}
 
-{title} is on {date} at {venue}.
+When: {date}
 
-Directions: {maps_url}
+{venue}
 
 Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
 

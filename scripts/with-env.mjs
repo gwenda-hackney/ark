@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDotEnv } from "../web/functions/_lib/env-pem.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = join(root, ".env");
@@ -58,22 +59,7 @@ function deriveStudioEnv() {
 }
 
 if (existsSync(envPath)) {
-  for (const line of readFileSync(envPath, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-
+  for (const [key, value] of parseDotEnv(readFileSync(envPath, "utf8"))) {
     setEnvIfMissing(key, value);
   }
 }
