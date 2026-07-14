@@ -316,7 +316,7 @@ The form asks *Can you make it?* first; picking **Yes** reveals name, email, and
 | Flip | `.invite-card.is-open` | Single 3D flip; card height is CSS (`100dvh` minus padding), not JS. While closing (`.is-flipping`), front copy stays hidden until the transform finishes — never show *Tap anywhere to open* mid-rotation |
 | Card size | `30rem` wide; fills viewport minus padding | Section is `100dvh` with `--invite-card-vpad`; card flex-fills the rest. No page scroll. Back face scrolls internally when open. |
 | Card front layout | `.invite-card-front-idle` | Centred invitation cover (like gate/thanks): logo, copy, and CTA; content starts ~⅓ down, not vertically centred |
-| Card front logo | `.invite-card-logo` | Centred (like hero/gate), `clamp(5rem, 22vw, 8.5rem)` height, brand drop-shadow |
+| Card front logo | `.invite-card-logo-wrap` + `.invite-card-logo` | Centred wrapper carries `enter-stagger` (not the filtered img); no static opacity on the image — avoids flicker before fonts load |
 | Card entrance | `.enter-scene` + `.enter-stagger` | Loader fades via `fadeOutElement`; scene waits for `fonts-ready` + logo decode (`revealEnterScene` in `entrance-motion.js`); scene slides up (transform only); children stagger with `fadeUp` after fonts load |
 | Card front CTA | `.invite-card-hint` | Centred, gold uppercase: *Tap anywhere to open*; hairline divider above |
 | Card front event name | `.invite-card-event-name` | Cormorant `clamp(1.75rem, 3.8vw, 2.25rem)`, weight 400 — smaller than §4.2 section headings |

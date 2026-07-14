@@ -14,7 +14,9 @@ import { inviteCardLogo } from "../lib/hero-assets";
         aria-expanded="false"
       >
         <div class="invite-card-front-idle" id="invite-card-front-idle">
-          <Image {...inviteCardLogo} alt="Gwenda" class="invite-card-logo enter-stagger" loading="eager" />
+          <div class="invite-card-logo-wrap enter-stagger">
+            <Image {...inviteCardLogo} alt="Gwenda" class="invite-card-logo" loading="eager" />
+          </div>
           <p class="invite-card-badge enter-stagger" id="invite-card-eyebrow" hidden>Private event</p>
           <p class="invite-card-intro enter-stagger">Your invitation awaits</p>
           <h1 class="invite-card-headline enter-stagger" id="invite-card-subtitle" hidden></h1>

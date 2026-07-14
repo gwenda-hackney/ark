@@ -25,7 +25,7 @@ describe("entrance-motion", () => {
 
   it("reveals a scene after fonts-ready and image decode", async () => {
     document.body.innerHTML = `
-      <div id="scene" class="enter-scene">
+      <div id="scene" class="enter-scene" hidden>
         <img src="/logo.webp" alt="" />
       </div>
     `;
@@ -35,8 +35,9 @@ describe("entrance-motion", () => {
     img.decode = vi.fn().mockResolvedValue(undefined);
 
     document.documentElement.classList.add("fonts-ready");
-    await revealEnterScene(scene);
+    await revealEnterScene(scene, { unhide: true });
 
+    expect(scene.hidden).toBe(false);
     expect(scene.classList.contains("is-visible")).toBe(true);
     expect(img.decode).toHaveBeenCalled();
   });

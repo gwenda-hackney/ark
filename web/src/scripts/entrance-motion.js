@@ -42,10 +42,11 @@ export function whenImagesReady(root) {
  * Reveal a scene after fonts and images are ready — same contract as the hero.
  * Scene motion is transform-only; stagger children handle opacity via CSS.
  */
-export async function revealEnterScene(scene, { decodeImages = true } = {}) {
+export async function revealEnterScene(scene, { decodeImages = true, unhide = false } = {}) {
   if (!(scene instanceof HTMLElement)) return;
 
   if (shouldSkipEntranceMotion()) {
+    if (unhide) scene.hidden = false;
     scene.classList.add("is-visible");
     return;
   }
@@ -55,6 +56,8 @@ export async function revealEnterScene(scene, { decodeImages = true } = {}) {
 
   await nextFrame();
   await nextFrame();
+
+  if (unhide) scene.hidden = false;
   forceReflow(scene);
   scene.classList.add("is-visible");
 }
