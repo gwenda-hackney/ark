@@ -76,6 +76,17 @@ const siteOrigin = isStaging
                   />
                 </div>
                 <h1 id="rsvp-event-title-personal"></h1>
+                <p class="event-rsvp-date" id="rsvp-event-date-personal" hidden></p>
+                <p class="event-rsvp-venue" id="rsvp-event-venue-wrap" hidden>
+                  <a
+                    id="rsvp-event-maps-link"
+                    href={siteConfig.location.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {siteConfig.location.addressShort}
+                  </a>
+                </p>
                 <p class="section-lead" id="rsvp-event-description-personal" hidden></p>
               </header>
 

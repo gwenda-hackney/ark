@@ -77,6 +77,7 @@ describe("fetchEventBySlug", () => {
       title: "Private launch party",
       description: "An intimate evening",
       date: "2026-08-15",
+      venue: "Schwartz Wharf, Hackney Wick",
       heroImageUrl: "https://cdn.sanity.io/images/demo/hero.jpg",
     });
   });

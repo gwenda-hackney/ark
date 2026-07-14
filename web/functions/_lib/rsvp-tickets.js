@@ -126,7 +126,7 @@ function readAppleWalletEnv(env) {
   };
 }
 
-async function fetchImageBuffer(url) {
+export async function fetchImageBuffer(url) {
   if (!url) return null;
   try {
     const response = await fetch(url);

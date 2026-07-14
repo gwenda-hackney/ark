@@ -2164,6 +2164,15 @@ html.fonts-ready .thanks {
   margin-top: 0.35rem;
 }
 
+.invite-card-subtitle {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-gold) 75%, var(--color-text-muted));
+  margin-top: 0.65rem;
+}
+
 .invite-card-hint {
   margin-top: 1.75rem;
   font-family: var(--font-display);
@@ -2318,6 +2327,30 @@ html.fonts-ready .thanks {
   margin-top: 1.15rem;
   margin-bottom: 1.25rem;
   background: linear-gradient(90deg, var(--color-gold-dim), transparent);
+}
+
+.event-rsvp-date {
+  margin: -0.35rem 0 1.25rem;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.event-rsvp-venue {
+  margin: 0 0 1.25rem;
+}
+
+.event-rsvp-venue a {
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+.event-rsvp-venue a:hover {
+  color: var(--color-text);
 }
 
 .event-rsvp-intro .section-lead + .section-lead {

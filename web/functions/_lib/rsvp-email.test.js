@@ -3,24 +3,51 @@ import {
   buildConfirmationContent,
   confirmationHtml,
   formatRsvpContent,
+  greetingLine,
   guestLine,
+  LOGO_CID,
 } from "./rsvp-email-template.js";
 import { buildCalendarTicket } from "./rsvp-tickets.js";
+import { VENUE_MAPS_URL } from "./site-location.js";
+
+describe("greetingLine", () => {
+  it("uses the guest name when present", () => {
+    expect(greetingLine("Dan")).toBe("Hi Dan,");
+  });
+
+  it("falls back when the name is missing", () => {
+    expect(greetingLine("")).toBe("Hello,");
+    expect(greetingLine("   ")).toBe("Hello,");
+  });
+});
 
 describe("formatRsvpContent", () => {
   it("replaces RSVP placeholders", () => {
-    const text = formatRsvpContent("Hi {name}. {guests_line} {title} on {date} at {venue}.", {
-      name: "Dan",
-      guests: 2,
-      guestsLine: guestLine(2),
-      title: "Private launch party",
-      date: "Saturday 15 August 2026",
-      venue: "Schwartz Wharf",
-    });
-    expect(text).toContain("Hi Dan.");
+    const text = formatRsvpContent(
+      "{greeting} {guests_line} {title} on {date} at {venue}. {maps_url}",
+      {
+        name: "Dan",
+        guests: 2,
+        guestsLine: guestLine(2),
+        title: "Private launch party",
+        date: "Saturday 15 August 2026",
+        venue: "Schwartz Wharf",
+        mapsUrl: VENUE_MAPS_URL,
+      },
+    );
+    expect(text).toContain("Hi Dan,");
     expect(text).toContain("We've got 2 of you down.");
     expect(text).toContain("Private launch party");
     expect(text).toContain("Schwartz Wharf");
+    expect(text).toContain("google.com/maps");
+  });
+
+  it("adjusts legacy salutations when the name is missing", () => {
+    const text = formatRsvpContent("Hi {name},\n\nThanks for replying.", {
+      name: "",
+      guests: 1,
+    });
+    expect(text).toBe("Hello,\n\nThanks for replying.");
   });
 });
 
@@ -38,29 +65,35 @@ describe("buildConfirmationContent", () => {
         rsvpConfirmation: {
           subject: "See you soon · {title}",
           heading: "All set",
-          body: "Hi {name}. {guests_line}",
+          body: "{greeting} {guests_line}",
         },
       },
     });
 
     expect(content.subject).toBe("See you soon · Private launch party");
     expect(content.heading).toBe("All set");
-    expect(content.bodyText).toContain("Hi Dan.");
+    expect(content.bodyText).toContain("Hi Dan,");
     expect(content.logoUrl).toBe("https://gwenda.co.uk/brand/logo-organization.png");
+    expect(content.logoCid).toBe(LOGO_CID);
+    expect(content.mapsUrl).toBe(VENUE_MAPS_URL);
   });
 });
 
 describe("confirmationHtml", () => {
-  it("includes the logo and invite button", () => {
+  it("embeds the logo via CID and includes action links", () => {
     const html = confirmationHtml({
       heading: "You're on the list",
       bodyHtml: "<p>Hi Dan.</p>",
       logoUrl: "https://gwenda.co.uk/brand/logo-organization.png",
+      logoCid: LOGO_CID,
       inviteUrl: "https://gwenda.co.uk/events/private-launch-party?key=abc",
+      mapsUrl: VENUE_MAPS_URL,
       googleWalletUrl: null,
     });
-    expect(html).toContain("logo-organization.png");
+    expect(html).toContain(`cid:${LOGO_CID}`);
+    expect(html).not.toContain("logo-organization.png");
     expect(html).toContain("View your invitation");
+    expect(html).toContain("Get directions");
     expect(html).toContain("You're on the list");
   });
 });
