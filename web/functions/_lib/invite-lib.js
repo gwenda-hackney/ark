@@ -18,6 +18,12 @@ export function parseInviteChannel(raw) {
   return null;
 }
 
+export function isValidEmail(raw) {
+  const email = raw?.trim();
+  if (!email) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export function guestEmail(guest) {
   if (guest.channel !== "email" || !guest.contact?.trim()) return null;
   return guest.contact.trim();
@@ -43,18 +49,16 @@ export function formatInviteContent(template, values) {
     .replaceAll("{image}", values.image);
 }
 
-export const DEFAULT_EMAIL_BODY = `Dear {name},
+export const DEFAULT_EMAIL_BODY = `Hi {name},
 
-You are invited to a special evening at Gwenda.
+We're hosting a private launch party to celebrate the opening of Gwenda, and we'd love you to come along. Free signature cocktail from 5 to 7pm, music, and friends.
 
-Open your personal invitation: {link}
+When you get a sec, RSVP here: {link}
 
-We would be delighted to welcome you to Schwartz Wharf, Hackney Wick.
+Schwartz Wharf, Hackney Wick.
 
-With warm regards,
 Dan
-White Post Partners Ltd
 `;
 
 export const DEFAULT_INSTAGRAM_MESSAGE =
-  "Hi {name}, you're invited to a private evening at Gwenda. Your personal invite: {link}";
+  "Hey {name}, we're hosting a private launch party for Gwenda's opening and we'd love you there. Free signature cocktail 5 to 7, music and friends. RSVP here: {link}";

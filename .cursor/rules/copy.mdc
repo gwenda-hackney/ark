@@ -1,0 +1,36 @@
+---
+description: Gwenda copy and punctuation — no em dashes, editorial left alignment on invite pages
+alwaysApply: true
+---
+
+# Gwenda copy
+
+## No em dashes
+
+Do **not** use em dashes (`—`) or double hyphens (`--`) as punctuation in:
+
+- User-facing site copy (RSVP, email, UI strings, meta titles)
+- Agent replies to the user in chat
+
+They read as generic AI voice. Use instead:
+
+- A full stop and new sentence
+- A comma
+- A colon
+- Parentheses for asides
+- The word *and*
+
+**Title separators:** use a middle dot (` · `) or pipe (` | `), not an em dash.
+
+Good: `You're invited · Gwenda`  
+Bad: `You're invited — Gwenda`
+
+## Invite / RSVP layout
+
+Private invite and event RSVP pages use **left-aligned editorial** type inside the card panel. Do not centre headings, leads, or form titles on those pages.
+
+Centre alignment is for marketing blocks (signup section header, thanks page). RSVP reads like a personal note, not a landing section.
+
+## Voice
+
+See `brand/brand-guidelines.md` §6. Evocative, restrained, slightly mysterious. Not corporate. Avoid hard-sell CTAs (*Sign up*, *Register*).

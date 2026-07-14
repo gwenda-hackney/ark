@@ -18,9 +18,11 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/brand/logo-organization.png")).toBe(true);
   });
 
-  it("allows invite pages and RSVP API through the staging gate", () => {
+  it("allows invite pages, event RSVP pages, and RSVP API through the staging gate", () => {
     expect(isPublicPath("/invite/")).toBe(true);
     expect(isPublicPath("/invite/abc123")).toBe(true);
+    expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01")).toBe(true);
+    expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01/b2c3d4e5f6789012345678abcdef0123")).toBe(true);
     expect(isPublicPath("/api/rsvp")).toBe(true);
     expect(isPublicPath("/api/events")).toBe(true);
   });

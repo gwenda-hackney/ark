@@ -1,5 +1,5 @@
 const DEFAULT_PROJECT_ID = "pn5yjro6";
-const API_VERSION = "2025-01-01";
+const API_VERSION = "v2025-01-01";
 
 export function sanityDatasetForEnv(env = {}) {
   if (env.SANITY_DATASET?.trim()) return env.SANITY_DATASET.trim();

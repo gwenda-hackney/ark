@@ -49,6 +49,10 @@ const EXPECTED_FIELDS = [
     body: { name: "Contact", type: "text" },
   },
   {
+    name: "Source",
+    body: { name: "Source", type: "text" },
+  },
+  {
     name: "Token",
     body: { name: "Token", type: "text", db_index: true },
   },

@@ -1,3 +1,5 @@
+import { siteOriginForDataset as siteOriginForDatasetFromLib } from "../../lib/site";
+
 export type EventOption = {
   id: string;
   title: string;
@@ -58,7 +60,5 @@ export function baserowGridUrl(): string {
 }
 
 export function siteOriginForDataset(dataset: string): string {
-  return dataset === "production"
-    ? "https://gwenda.co.uk"
-    : "https://gwenda-staging.pages.dev";
+  return siteOriginForDatasetFromLib(dataset);
 }

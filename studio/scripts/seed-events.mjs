@@ -6,6 +6,7 @@
  *   CONFIRM_PRODUCTION_SEED=1 npm run studio:seed:events:production
  */
 import { createClient } from "@sanity/client";
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,15 +43,51 @@ const client = createClient({
 
 const EVENTS = [
   {
-    title: "Private Launch Party",
+    title: "Private launch party",
     slug: "private-launch-party",
     date: "2026-08-15",
     description:
-      "An intimate evening at Gwenda to celebrate our opening — cocktails, canalside atmosphere, and good company by invitation only.",
+      "We're hosting a private launch party to celebrate the opening of Gwenda, and we'd love you to come. Free signature cocktail from 5 to 7pm, music, and friends.",
+    venue: "Schwartz Wharf, Hackney Wick, London E9 5AA",
+    ticketStart: "17:00",
+    ticketEnd: "23:00",
+    rsvpConfirmation: {
+      subject: "You're on the list · Gwenda",
+      heading: "You're on the list",
+      body: `Hi {name},
+
+Thanks for replying. {guests_line}
+
+{title} is on {date} at {venue}.
+
+Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
+
+See you there.`,
+    },
     heroImageFile: "cocktail1.png",
-    heroAlt: "Cocktails at Gwenda — Private Launch Party",
+    heroAlt: "Cocktails at Gwenda launch party",
+    channels: ["Direct link"],
   },
 ];
+
+const TOKEN_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+/** Short, URL-friendly channel access code (10 lowercase alphanumeric chars). */
+function channelToken() {
+  return Array.from(
+    randomBytes(10),
+    (byte) => TOKEN_ALPHABET[byte % TOKEN_ALPHABET.length],
+  ).join("");
+}
+
+function channelObjects(labels) {
+  return labels.map((label) => ({
+    _type: "channel",
+    _key: randomBytes(6).toString("hex"),
+    label,
+    token: channelToken(),
+  }));
+}
 
 async function uploadImage(filename) {
   const filepath = resolve(imageDir, filename);
@@ -74,8 +111,8 @@ function imageField(assetId, alt) {
 }
 
 async function ensureEvent(event, heroImage) {
-  const existingId = await client.fetch(
-    `*[_type == "event" && slug.current == $slug][0]._id`,
+  const existing = await client.fetch(
+    `*[_type == "event" && slug.current == $slug][0]{ _id, channels }`,
     { slug: event.slug },
   );
 
@@ -85,11 +122,14 @@ async function ensureEvent(event, heroImage) {
     date: event.date,
     description: event.description,
     ...(heroImage ? { heroImage } : {}),
+    ...(!existing?.channels?.length
+      ? { channels: channelObjects(event.channels ?? ["Direct link"]) }
+      : {}),
   };
 
-  if (existingId) {
-    await client.patch(existingId).set(fields).commit();
-    return existingId;
+  if (existing?._id) {
+    await client.patch(existing._id).set(fields).commit();
+    return existing._id;
   }
 
   const created = await client.create({

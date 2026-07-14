@@ -1,0 +1,65 @@
+<form class="rsvp-form" id="rsvp-form" novalidate>
+  <div class="rsvp-step" id="rsvp-attend-step">
+    <p class="rsvp-step-label">Can you make it?</p>
+    <div class="rsvp-pick rsvp-pick--attending">
+      <button type="button" class="rsvp-pick-btn" data-attending="yes" aria-pressed="false">
+        Yes, I'll be there
+      </button>
+      <button type="button" class="rsvp-pick-btn" data-attending="no" aria-pressed="false">
+        Sorry, can't make it
+      </button>
+    </div>
+  </div>
+
+  <div class="rsvp-details" id="rsvp-details" hidden>
+    <div class="gw-field">
+      <label class="visually-hidden" for="rsvp-name">Name</label>
+      <input
+        type="text"
+        id="rsvp-name"
+        name="name"
+        autocomplete="name"
+        placeholder="Your name"
+      />
+    </div>
+
+    <div class="gw-field">
+      <label class="visually-hidden" for="rsvp-email">Email</label>
+      <input
+        type="email"
+        id="rsvp-email"
+        name="email"
+        autocomplete="email"
+        placeholder="your@email.com"
+      />
+    </div>
+
+    <div class="rsvp-step rsvp-step-guests">
+      <p class="rsvp-step-label">How many of you in total?</p>
+      <p class="rsvp-step-hint">Including you.</p>
+      <div class="rsvp-pick rsvp-pick--counts" role="group" aria-label="Party size">
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-total="1" aria-pressed="false">
+          1
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-total="2" aria-pressed="false">
+          2
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-total="3" aria-pressed="false">
+          3
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-total="4" aria-pressed="false">
+          4
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-total="6" aria-pressed="false">
+          5+
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary rsvp-submit" id="rsvp-submit" hidden>
+    Send my reply
+  </button>
+  <p class="rsvp-error" id="rsvp-error-form" hidden></p>
+  <p class="rsvp-message" id="rsvp-success" hidden></p>
+</form>

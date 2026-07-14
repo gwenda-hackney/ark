@@ -8,6 +8,7 @@ import {
 } from "./invite-lib.js";
 import { ensureGuestToken, fetchGuestsForEvent } from "./event-guests.js";
 import { fetchEventHeroImageUrl } from "./sanity-event.js";
+import { resolveSmtpFrom, SMTP_PURPOSE } from "./smtp-from.js";
 
 const GRAPH_BASE = "https://graph.instagram.com/v21.0";
 
@@ -16,7 +17,7 @@ function readInviteEnv(env) {
     inviteBaseUrl: (env.INVITE_BASE_URL || "https://gwenda.co.uk").replace(/\/$/, ""),
     inviteImageUrl:
       env.INVITE_IMAGE_URL || "https://gwenda.co.uk/images/event-invite.jpg",
-    emailSubject: env.INVITE_EMAIL_SUBJECT || "You are invited — Gwenda",
+    emailSubject: env.INVITE_EMAIL_SUBJECT || "Launch party at Gwenda",
     emailBody: env.INVITE_EMAIL_BODY || DEFAULT_EMAIL_BODY,
     instagramMessage: env.INVITE_INSTAGRAM_MESSAGE || DEFAULT_INSTAGRAM_MESSAGE,
   };
@@ -122,9 +123,9 @@ function inviteEmailHtml(bodyText, inviteUrl, imageUrl) {
 </body></html>`;
 }
 
-async function sendInviteEmail(env, to, subject, bodyText, inviteUrl, imageUrl) {
+export async function sendInviteEmail(env, to, subject, bodyText, inviteUrl, imageUrl) {
   const host = env.SMTP_HOST?.trim();
-  const from = env.SMTP_FROM?.trim();
+  const from = resolveSmtpFrom(env, SMTP_PURPOSE.INVITES);
   if (!host || !from) {
     throw new Error("SMTP is not configured — use npm run event-invites -- --send locally.");
   }
