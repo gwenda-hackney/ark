@@ -10,6 +10,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateEventPassword } from "../../web/functions/_lib/event-password.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(__dirname, "../..");
@@ -41,13 +42,28 @@ const client = createClient({
   useCdn: false,
 });
 
+function textToBlocks(text) {
+  return String(text)
+    .split("\n\n")
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => ({
+      _type: "block",
+      style: "normal",
+      markDefs: [],
+      children: [{ _type: "span", text: paragraph, marks: [] }],
+    }));
+}
+
 const EVENTS = [
   {
     title: "Launch Party",
+    eventType: "private",
     slug: "private-launch-party",
     date: "2026-08-15",
-    description:
-      "We're hosting a private launch party to celebrate the opening of Gwenda, and we'd love you to come. Free signature cocktail from 5 to 7pm, music, and friends.",
+    description: textToBlocks(
+      "We're hosting a private launch party to celebrate the opening of Gwenda, and we'd love for you to come join us.\n\nFree signature cocktail from 5 to 7pm, music, and friends.",
+    ),
     venue: "Schwartz Wharf, Hackney Wick, London E9 5AA",
     ticketStart: "17:00",
     ticketEnd: "23:00",
@@ -72,22 +88,12 @@ See you there.`,
   },
 ];
 
-const TOKEN_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
-
-/** Short, URL-friendly channel access code (10 lowercase alphanumeric chars). */
-function channelToken() {
-  return Array.from(
-    randomBytes(10),
-    (byte) => TOKEN_ALPHABET[byte % TOKEN_ALPHABET.length],
-  ).join("");
-}
-
 function channelObjects(labels) {
   return labels.map((label) => ({
     _type: "channel",
     _key: randomBytes(6).toString("hex"),
     label,
-    token: channelToken(),
+    token: generateEventPassword(),
   }));
 }
 
@@ -120,9 +126,14 @@ async function ensureEvent(event, heroImage) {
 
   const fields = {
     title: event.title,
+    eventType: event.eventType ?? "public",
     slug: { _type: "slug", current: event.slug },
     date: event.date,
     description: event.description,
+    venue: event.venue,
+    ticketStart: event.ticketStart,
+    ticketEnd: event.ticketEnd,
+    rsvpConfirmation: event.rsvpConfirmation,
     ...(heroImage ? { heroImage } : {}),
     ...(!existing?.channels?.length
       ? { channels: channelObjects(event.channels ?? ["Direct link"]) }

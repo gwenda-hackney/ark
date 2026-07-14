@@ -32,6 +32,7 @@ describe("fetchEventBySlug", () => {
         json: async () => ({
           result: {
             title: "Launch Party",
+            eventType: "private",
             description: "An intimate evening",
             date: "2026-08-15",
             venue: "Schwartz Wharf, Hackney Wick",
@@ -59,6 +60,7 @@ describe("fetchEventBySlug", () => {
     );
     expect(event).toEqual({
       title: "Launch Party",
+      eventType: "private",
       description: "An intimate evening",
       date: "2026-08-15",
       venue: "Schwartz Wharf, Hackney Wick",
@@ -75,10 +77,39 @@ describe("fetchEventBySlug", () => {
     });
     expect(publicEventFields(event)).toEqual({
       title: "Launch Party",
+      eventType: "private",
       description: "An intimate evening",
       date: "2026-08-15",
       venue: "Schwartz Wharf, Hackney Wick",
+      ticketStart: "17:00",
+      ticketEnd: "23:00",
       heroImageUrl: "https://cdn.sanity.io/images/demo/hero.jpg",
     });
+  });
+
+  it("flattens portable text in publicEventFields", () => {
+    const event = {
+      title: "Launch Party",
+      eventType: "private",
+      description: [
+        {
+          _type: "block",
+          children: [{ _type: "span", text: "First paragraph." }],
+        },
+        {
+          _type: "block",
+          children: [{ _type: "span", text: "Second paragraph." }],
+        },
+      ],
+      date: "2026-08-15",
+      venue: "Schwartz Wharf, Hackney Wick",
+      ticketStart: "17:00",
+      ticketEnd: "23:00",
+      heroImageUrl: "https://cdn.sanity.io/images/demo/hero.jpg",
+    };
+
+    expect(publicEventFields(event)?.description).toBe(
+      "First paragraph.\n\nSecond paragraph.",
+    );
   });
 });

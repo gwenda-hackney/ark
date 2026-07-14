@@ -1,12 +1,19 @@
 // Confirmation email sent to a guest after they RSVP "yes".
-// Copy comes from Sanity; ticket files are attached for calendar / wallet import.
+// Copy comes from Sanity; the email links to the guest's ticket page (Wallet
+// pass + calendar download live there, generated on demand — see ticket.js /
+// functions/api/ticket/*) and attaches a lightweight .ics for quick import.
 
 import {
   buildConfirmationContent,
   confirmationHtml,
   LOGO_CID,
 } from "./rsvp-email-template.js";
-import { buildRsvpTicketAttachments, fetchImageBuffer } from "./rsvp-tickets.js";
+import {
+  buildCalendarTicket,
+  fetchImageBuffer,
+  formatTicketTitle,
+  ticketAttachmentBaseName,
+} from "./rsvp-tickets.js";
 import {
   EVENTS_NO_REPLY_HEADERS,
   resolveSmtpFrom,
@@ -19,7 +26,7 @@ import {
  */
 export async function sendRsvpConfirmationEmail(
   env,
-  { to, name, guests, event, inviteUrl, origin, ticketId },
+  { to, name, guests, event, inviteUrl, ticketUrl, origin, ticketId },
 ) {
   const host = env.SMTP_HOST?.trim();
   const from = resolveSmtpFrom(env, SMTP_PURPOSE.EVENTS);
@@ -33,6 +40,7 @@ export async function sendRsvpConfirmationEmail(
     guests,
     event,
     inviteUrl,
+    ticketUrl,
     origin,
   });
 
@@ -41,10 +49,18 @@ export async function sendRsvpConfirmationEmail(
     (await fetchImageBuffer(content.logoUrl)) ||
     (await fetchImageBuffer(`${base}/favicon.png`));
 
-  const { attachments } = await buildRsvpTicketAttachments(env, {
+  const attachments = [];
+  if (logoBuffer) {
+    attachments.push({
+      filename: "gwenda-logo.png",
+      content: logoBuffer,
+      cid: LOGO_CID,
+    });
+  }
+
+  const ics = buildCalendarTicket({
     ticketId,
-    eventSlug: event?.slug,
-    title: event?.title,
+    title: formatTicketTitle(event?.title),
     date: event?.date,
     startTime: content.ticketStart,
     endTime: content.ticketEnd,
@@ -52,18 +68,13 @@ export async function sendRsvpConfirmationEmail(
     guestName: name,
     guests,
     description: event?.description,
-    inviteUrl,
-    logoUrl: content.logoUrl,
-    origin: base,
+    url: ticketUrl || inviteUrl,
   });
-
-  if (logoBuffer) {
-    attachments.unshift({
-      filename: "gwenda-logo.png",
-      content: logoBuffer,
-      cid: LOGO_CID,
-    });
-  }
+  attachments.push({
+    filename: `${ticketAttachmentBaseName(event?.slug)}.ics`,
+    content: ics,
+    contentType: "text/calendar; charset=utf-8",
+  });
 
   const nodemailer = await import("nodemailer");
   const port = Number(env.SMTP_PORT?.trim() || "587");
@@ -87,9 +98,8 @@ export async function sendRsvpConfirmationEmail(
       bodyHtml: content.bodyHtml,
       logoUrl: content.logoUrl,
       logoCid: logoBuffer ? LOGO_CID : null,
-      inviteUrl,
+      ticketUrl,
       mapsUrl: content.mapsUrl,
-      googleWalletUrl: null,
     }),
     headers: EVENTS_NO_REPLY_HEADERS,
     attachments,

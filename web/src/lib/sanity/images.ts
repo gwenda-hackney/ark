@@ -167,3 +167,31 @@ export function mapSanityGalleryImage(
     alt: image.alt?.trim() || fallbackAlt,
   };
 }
+
+const SOCIAL_OG_WIDTH = 1200;
+const SOCIAL_OG_HEIGHT = 630;
+
+/** 1200×630 crop for link previews (Open Graph / Twitter cards). */
+export function mapSanitySocialPreviewImage(
+  image: SanityImageField,
+  fallbackAlt?: string,
+): MenuItemImage | undefined {
+  const source = image ? toImageSource(image) : null;
+  if (!source) return undefined;
+
+  const url = createBuilder()
+    .image(source)
+    .width(SOCIAL_OG_WIDTH)
+    .height(SOCIAL_OG_HEIGHT)
+    .fit("crop")
+    .auto("format")
+    .quality(85)
+    .url();
+
+  return {
+    url,
+    width: SOCIAL_OG_WIDTH,
+    height: SOCIAL_OG_HEIGHT,
+    alt: image?.alt?.trim() || fallbackAlt,
+  };
+}

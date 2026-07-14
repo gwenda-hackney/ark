@@ -24,7 +24,7 @@ export function ChannelUrlInput(props: StringInputProps) {
     return (
       <Box paddingY={1}>
         <Text size={1} muted>
-          A token is generated automatically when you add the channel.
+          A three-word event password is generated automatically when you add the channel.
         </Text>
       </Box>
     );

@@ -1,31 +1,26 @@
 import { getEventRsvp, saveRsvpResponse } from "../_lib/rsvp.js";
+import { jsonResponse, withApiHandler } from "../_lib/api-handler.js";
+import { readEventPasswordFromSearchParams } from "../_lib/event-password.js";
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-export async function onRequestGet(context) {
+export const onRequestGet = withApiHandler(async (context) => {
   const params = new URL(context.request.url).searchParams;
   const result = await getEventRsvp(
     context.env,
     params.get("slug"),
-    params.get("key"),
+    readEventPasswordFromSearchParams(params),
   );
   if (!result.ok) {
-    return json({ error: result.error }, result.status);
+    return jsonResponse({ error: result.error }, result.status);
   }
-  return json({ ok: true, event: result.event, source: result.source });
-}
+  return jsonResponse({ ok: true, event: result.event, source: result.source });
+});
 
-export async function onRequestPost(context) {
+export const onRequestPost = withApiHandler(async (context) => {
   let payload;
   try {
     payload = await context.request.json();
   } catch {
-    return json({ error: "Invalid request." }, 400);
+    return jsonResponse({ error: "Invalid request." }, 400);
   }
 
   const result = await saveRsvpResponse(context.env, {
@@ -38,15 +33,16 @@ export async function onRequestPost(context) {
     origin: new URL(context.request.url).origin,
   });
   if (!result.ok) {
-    return json({ error: result.error }, result.status);
+    return jsonResponse({ error: result.error }, result.status);
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     attending: result.attending,
     name: result.name ?? null,
     rsvpGuests: result.rsvpGuests,
     source: result.source,
     event: result.event,
+    ticketUrl: result.ticketUrl ?? null,
   });
-}
+});

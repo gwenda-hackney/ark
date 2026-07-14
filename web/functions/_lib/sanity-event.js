@@ -1,7 +1,10 @@
+import { normalizeEventPassword } from "./event-password.js";
 import { sanityDatasetForEnv, sanityProjectId, sanityQuery } from "./sanity-query.js";
+import { portableTextToPlain } from "./portable-text.js";
 
 const EVENT_FIELDS = `{
   title,
+  eventType,
   description,
   date,
   venue,
@@ -28,7 +31,7 @@ function normalizeChannels(channels) {
     .filter((channel) => channel?.token)
     .map((channel) => ({
       label: (channel.label ?? "").trim(),
-      token: channel.token.trim().toLowerCase(),
+      token: normalizeEventPassword(channel.token),
     }));
 }
 
@@ -36,7 +39,8 @@ function toEventRecord(doc) {
   if (!doc?.title) return null;
   return {
     title: doc.title,
-    description: doc.description ?? "",
+    eventType: doc.eventType === "private" ? "private" : "public",
+    description: portableTextToPlain(doc.description),
     date: doc.date ?? null,
     venue: doc.venue ?? null,
     ticketStart: doc.ticketStart ?? null,
@@ -52,9 +56,12 @@ export function publicEventFields(event) {
   if (!event) return null;
   return {
     title: event.title,
-    description: event.description,
+    eventType: event.eventType,
+    description: portableTextToPlain(event.description),
     date: event.date,
     venue: event.venue,
+    ticketStart: event.ticketStart,
+    ticketEnd: event.ticketEnd,
     heroImageUrl: event.heroImageUrl,
   };
 }

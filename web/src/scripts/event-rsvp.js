@@ -1,19 +1,28 @@
 import {
   bindRsvpPickForm,
-  formatSuccessMessage,
-  lockRsvpForm,
+  prepareRsvpConfirmation,
+  revealRsvpConfirmation,
   readRsvpForm,
 } from "./rsvp-guest-form.js";
-import { hideInviteCard, showInviteCard } from "./invite-card.js";
-import { formatEventDate } from "../data/events.ts";
+import {
+  finishInviteCardRsvp,
+  hideInviteCard,
+  openInviteCard,
+  setInviteCardSending,
+  showInviteCard,
+  syncInviteCardHeight,
+} from "./invite-card.js";
+import { formatEventWhen } from "../data/events.ts";
+import { portableTextToPlain } from "../lib/sanity/portable-text.ts";
 
-/** `/events/<slug>` with the channel access code in the `?key=` query. */
+/** `/events/<slug>` with the channel event password in the `?event-password=` query. */
 function parseEventRsvp() {
   const parts = window.location.pathname.split("/").filter(Boolean);
   if (parts[0] !== "events" || !parts[1] || parts[1] === "rsvp") return null;
+  const search = new URLSearchParams(window.location.search);
   return {
     slug: decodeURIComponent(parts[1]),
-    token: new URLSearchParams(window.location.search).get("key"),
+    token: search.get("event-password") ?? search.get("key"),
   };
 }
 
@@ -34,20 +43,27 @@ function blocked(message) {
   setText("rsvp-error-text", message);
 }
 
+function isPrivateEvent(event) {
+  return event?.eventType === "private";
+}
+
 function setInviteCardFront(event) {
   if (!event) return;
 
-  const lead = document.getElementById("invite-card-lead");
+  const eyebrow = document.getElementById("invite-card-eyebrow");
   const subtitle = document.getElementById("invite-card-subtitle");
+  const lead = document.getElementById("invite-card-lead");
 
-  if (lead && event.date) {
-    lead.textContent = formatEventDate(event.date);
-    lead.hidden = false;
-  }
+  if (eyebrow) eyebrow.hidden = !isPrivateEvent(event);
 
   if (subtitle && event.title) {
     subtitle.textContent = event.title;
     subtitle.hidden = false;
+  }
+
+  if (lead && event.date) {
+    lead.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd);
+    lead.hidden = false;
   }
 }
 
@@ -56,6 +72,9 @@ function renderEvent(event) {
 
   setInviteCardFront(event);
 
+  const innerEyebrow = document.getElementById("rsvp-event-eyebrow-personal");
+  if (innerEyebrow) innerEyebrow.hidden = !isPrivateEvent(event);
+
   if (event.title) {
     setText("rsvp-event-title-personal", event.title);
     document.title = `${event.title} · Gwenda`;
@@ -63,7 +82,7 @@ function renderEvent(event) {
 
   const dateEl = document.getElementById("rsvp-event-date-personal");
   if (dateEl && event.date) {
-    dateEl.textContent = formatEventDate(event.date);
+    dateEl.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd);
     dateEl.hidden = false;
   }
 
@@ -75,8 +94,9 @@ function renderEvent(event) {
   }
 
   const description = document.getElementById("rsvp-event-description-personal");
-  if (description && event.description) {
-    description.textContent = event.description;
+  const descriptionText = portableTextToPlain(event.description);
+  if (description && descriptionText) {
+    description.textContent = descriptionText;
     description.hidden = false;
   }
 
@@ -98,9 +118,7 @@ function bindRsvpForm({ slug, token }) {
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const errorEl = document.getElementById("rsvp-error-form");
-    const successEl = document.getElementById("rsvp-success");
     const submitEl = document.getElementById("rsvp-submit");
-    const submittingEl = document.getElementById("rsvp-submitting");
     if (errorEl) errorEl.hidden = true;
 
     const response = readRsvpForm();
@@ -112,11 +130,8 @@ function bindRsvpForm({ slug, token }) {
       return;
     }
 
-    if (submitEl instanceof HTMLButtonElement) {
-      submitEl.disabled = true;
-      submitEl.hidden = true;
-    }
-    if (submittingEl) submittingEl.hidden = false;
+    if (submitEl instanceof HTMLButtonElement) submitEl.disabled = true;
+    setInviteCardSending(true);
 
     try {
       const save = await fetch("/api/rsvp", {
@@ -127,34 +142,29 @@ function bindRsvpForm({ slug, token }) {
       });
       const saveData = await save.json();
       if (!save.ok) {
+        setInviteCardSending(false);
+        openInviteCard();
         if (errorEl) {
           errorEl.textContent = saveData.error || "Could not save your RSVP.";
           errorEl.hidden = false;
         }
-        if (submitEl instanceof HTMLButtonElement) {
-          submitEl.disabled = false;
-          submitEl.hidden = false;
-        }
-        if (submittingEl) submittingEl.hidden = true;
+        if (submitEl instanceof HTMLButtonElement) submitEl.disabled = false;
+        requestAnimationFrame(() => syncInviteCardHeight());
         return;
       }
 
       if (saveData.event) renderEvent(saveData.event);
-      lockRsvpForm();
-      if (successEl) {
-        successEl.textContent = formatSuccessMessage(response);
-        successEl.hidden = false;
-      }
+      prepareRsvpConfirmation({ attending: response.attending });
+      finishInviteCardRsvp(() => revealRsvpConfirmation());
     } catch {
+      setInviteCardSending(false);
+      openInviteCard();
       if (errorEl) {
         errorEl.textContent = "Something went wrong. Please try again.";
         errorEl.hidden = false;
       }
-      if (submitEl instanceof HTMLButtonElement) {
-        submitEl.disabled = false;
-        submitEl.hidden = false;
-      }
-      if (submittingEl) submittingEl.hidden = true;
+      if (submitEl instanceof HTMLButtonElement) submitEl.disabled = false;
+      requestAnimationFrame(() => syncInviteCardHeight());
     }
   });
 }
@@ -167,7 +177,7 @@ export async function initEventRsvp() {
   }
 
   const query = new URLSearchParams({ slug: parsed.slug });
-  if (parsed.token) query.set("key", parsed.token);
+  if (parsed.token) query.set("event-password", parsed.token);
 
   try {
     const res = await fetch(`/api/rsvp?${query.toString()}`, {

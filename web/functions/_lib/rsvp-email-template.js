@@ -21,7 +21,7 @@ When: {date}
 
 {venue}
 
-Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
+View your ticket and add it to Apple Wallet: {ticket_url}
 
 See you there.`;
 
@@ -111,7 +111,8 @@ export function formatRsvpContent(template, values) {
     .replaceAll("{date}", values.date || "")
     .replaceAll("{venue}", values.venue || DEFAULT_VENUE)
     .replaceAll("{maps_url}", values.mapsUrl || VENUE_MAPS_URL)
-    .replaceAll("{invite_url}", values.inviteUrl || "");
+    .replaceAll("{invite_url}", values.inviteUrl || "")
+    .replaceAll("{ticket_url}", values.ticketUrl || "");
 
   if (!name) {
     text = text.replace(/^Hi\s*,/gm, "Hello,").replace(/^Hi there,/gm, "Hello,");
@@ -138,7 +139,7 @@ function bodyToHtmlParagraphs(text) {
     .join("");
 }
 
-export function buildConfirmationContent({ name, guests, event, inviteUrl, origin }) {
+export function buildConfirmationContent({ name, guests, event, inviteUrl, ticketUrl, origin }) {
   const copy = mergeRsvpConfirmation(event);
   const values = {
     name,
@@ -150,6 +151,7 @@ export function buildConfirmationContent({ name, guests, event, inviteUrl, origi
     venue: copy.venue,
     mapsUrl: VENUE_MAPS_URL,
     inviteUrl,
+    ticketUrl,
   };
 
   const bodyText = formatRsvpContent(copy.body, values);
@@ -175,9 +177,8 @@ export function confirmationHtml({
   bodyHtml,
   logoUrl,
   logoCid,
-  inviteUrl,
+  ticketUrl,
   mapsUrl,
-  googleWalletUrl,
 }) {
   const logoSrc = logoCid ? `cid:${logoCid}` : logoUrl;
   const logoMarkup = logoSrc
@@ -185,14 +186,9 @@ export function confirmationHtml({
         <img src="${escapeHtml(logoSrc)}" alt="Gwenda" width="180" style="width:min(180px, 55vw);height:auto;margin:0 auto;display:block;" />
       </div>`
     : "";
-  const inviteButton = inviteUrl
+  const ticketButton = ticketUrl
     ? `<p style="margin:1.75rem 0 0;">
-        <a href="${escapeHtml(inviteUrl)}" style="display:inline-block;padding:0.85rem 1.5rem;background:${COLORS.gold};color:${COLORS.bg};text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;font-size:0.8rem;">View your invitation</a>
-      </p>`
-    : "";
-  const walletButton = googleWalletUrl
-    ? `<p style="margin:1rem 0 0;">
-        <a href="${escapeHtml(googleWalletUrl)}" style="display:inline-block;padding:0.85rem 1.5rem;border:1px solid ${COLORS.gold};color:${COLORS.gold};text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;font-size:0.8rem;">Add to Google Wallet</a>
+        <a href="${escapeHtml(ticketUrl)}" style="display:inline-block;padding:0.85rem 1.5rem;background:${COLORS.gold};color:${COLORS.bg};text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;font-size:0.8rem;">View your ticket</a>
       </p>`
     : "";
   const directionsButton = mapsUrl
@@ -207,9 +203,8 @@ export function confirmationHtml({
     ${logoMarkup}
     <h1 style="margin:0 0 1.25rem;font-weight:500;font-size:1.9rem;line-height:1.15;color:${COLORS.text};">${escapeHtml(heading)}</h1>
     ${bodyHtml}
-    ${inviteButton}
+    ${ticketButton}
     ${directionsButton}
-    ${walletButton}
   </div>
 </body></html>`;
 }

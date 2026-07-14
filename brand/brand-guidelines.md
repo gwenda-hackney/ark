@@ -268,8 +268,11 @@ Both typefaces are served via `@fontsource` (self-hosted) in Latin subset only. 
 |---------|-------|
 | **Primary** (`.btn-primary`) | Gold fill, dark text. Hover: ghost with gold glow (`box-shadow: 0 0 28px` gold at 22%) |
 | **Ghost** (`.btn-ghost`) | Transparent fill, subtle gold border |
+| **Negative** (`.rsvp-pick-btn--decline`) | Muted rose outline (`#c97a7a`). Transparent fill. Hover: light rose wash. Selected: rose border + soft fill + glow |
 
 All buttons: uppercase, `padding: 0.9rem 2.2rem`, `letter-spacing: 0.08em`, weight 600, `border-radius: 2px`.
+
+**RSVP pick buttons** (`.rsvp-pick-btn`) use sentence case, not uppercase. Affirmative choices (Yes, party size) use the default charcoal card + gold selected state. Decline or opt-out choices use **negative** styling so they read as a gentle no, not a second primary action.
 
 ### 5.3.1 Form fields (boxed inputs)
 
@@ -301,24 +304,29 @@ box-shadow:
 
 Private invite and event RSVP pages open with a **flip invite card** (`.invite-card-scene`), then reveal a single RSVP form inside the card back.
 
-**One form, channel-gated.** The event RSVP page lives at `/events/<slug>` (a readable slug like `launch-party`, not an opaque code). Access needs a **channel access code** in the `?key=` query, e.g. `/events/launch-party?key=<code>`. The code is a short lowercase alphanumeric string (10 chars). Each channel is defined in Sanity on the event (`channels[]` = label + token) and stands for where the link was shared, e.g. *Dan - WhatsApp*. The channel label is recorded on every RSVP as the attribution **Source** in Baserow.
+**One form, channel-gated.** The event RSVP page lives at `/events/<slug>` (a readable slug like `launch-party`, not an opaque code). Access needs an **event password** in the `?event-password=` query, e.g. `/events/launch-party?event-password=candle-canal-vinyl`. Each password is three random words, hyphen-separated. Each channel is defined in Sanity on the event (`channels[]` = label + password) and stands for where the link was shared, e.g. *Dan - WhatsApp*. The channel label is recorded on every RSVP as the attribution **Source** in Baserow.
 
 The form asks *Can you make it?* first; picking **Yes** reveals name, email, and party size. Picking **No** just records a decline and thanks them (no further fields).
 
-**No valid code, no entry.** Opening `/events/<slug>` without a matching channel access code shows the on-brand block panel (`.rsvp-blocked`: gold eyebrow, editorial heading, muted lead), never the form. Invites are distributed personally, one channel link per person or place.
+**No valid password, no entry.** Opening `/events/<slug>` without a matching channel event password shows the on-brand block panel (`.rsvp-blocked`: gold eyebrow, editorial heading, muted lead), never the form. Invites are distributed personally, one channel link per person or place.
 
 | Element | Class / pattern | Notes |
 |---------|-----------------|-------|
-| Card shell | `InviteFlipCardShell` | Front: wordmark, *You're invited*, tap to open |
-| Flip | `.invite-card.is-open` | Single 3D flip; height animates with the flip (JS locks `.invite-card-inner` to the visible face) |
-| Card size | `30rem` wide; height follows content | Front `min-height: 26rem`; never an inner scrollbar, page scrolls if truly tall |
-| Section | `.event-rsvp.section` | `#0d0d0d` background; top-anchored on desktop, vertically centred with no top/bottom padding on mobile |
+| Card shell | `InviteFlipCardShell` | Front: wordmark, *Your invitation awaits* (Lora lead line), event name (card scale, weight 400), when, tap to open |
+| Flip | `.invite-card.is-open` | Single 3D flip; card height is CSS (`100dvh` minus padding), not JS |
+| Card size | `30rem` wide; fills viewport minus padding | Section is `100dvh` with `--invite-card-vpad`; card flex-fills the rest. No page scroll. Back face scrolls internally when open. |
+| Card front layout | `.invite-card-front-idle` | Content starts ~⅓ down (`padding-top: clamp(1rem, 16–18dvh, …)`), not vertically centred |
+| Card front event name | `.invite-card-event-name` | Cormorant `clamp(1.75rem, 3.8vw, 2.25rem)`, weight 400 — smaller than §4.2 section headings |
+| Section | `.event-rsvp.event-rsvp--viewport` | `#0d0d0d` background; `100dvh` locked, top-anchored, `--invite-card-vpad` inset |
+| Card face | `.invite-card-face` | `bgCard` (`#1a1a1a`) — standard on-screen card surface, not `bgStoryPrint` (print-only, too flat/warm for this raised card) |
 | Intro | `.section-intro.event-rsvp-intro` | Inside card back after flip |
-| Attendance | `.rsvp-pick--attending` | Yes / No, revealed first |
+| Attendance | `.rsvp-pick--attending` | Yes (default pick) / No (`.rsvp-pick-btn--decline`), revealed first |
 | Details | `.rsvp-details` | Name + email (`.gw-field`) then party size, shown only when attending |
-| Party size | `.rsvp-pick--counts` | 1–4 or 5+ (`5+` stores 6) |
+| Party size | `.rsvp-pick--counts` | Just me, +1–+4, or 5+ **additional** guests (`5+` stores 6 total) |
 
-Errors show outside the card. A recorded reply collapses the form controls (`lockRsvpForm`) and leaves the confirmation message in place.
+Errors show outside the card. After **Send my reply**, the card flips closed, shows a centred *Sending your reply* loader on the front, then flips open to the confirmation on the back. The invite details (hero, title, date, venue) hide at the same time. Confirmation uses left-aligned editorial type: gold eyebrow, Cormorant heading, Lora lead, and an *Explore Gwenda* ghost button linking to `/`. It never restates the invite or party size.
+
+| Confirmation | `.rsvp-confirmation.section-intro` | Eyebrow (*You're on the list* / *Gwenda*), heading, lead, *Explore Gwenda* link |
 
 ### 5.4 Shadows & glows
 
@@ -356,7 +364,8 @@ All animations respect `prefers-reduced-motion`.
 | Animation | Description |
 |-----------|------------|
 | `fadeUp` | Hero elements stagger in on font load (`translateY` + opacity) |
-| Scroll-triggered reveal | Sections fade up `14px` as they enter the viewport |
+| Scroll-triggered reveal | Sections fade up `14px` as they enter the viewport (`.reveal` → `.visible`) |
+| RSVP confirmation | After save, confirmation copy on the card back rises `18px` with `.reveal` / `.visible` once the flip completes |
 | Word dissolve | "Antiquated ↔ modern" word reveal loops every 28 seconds (story section) |
 | Scroll chevron | Gentle bounce loop |
 | Form field glow | Keyframe border + shadow pulse on focus |

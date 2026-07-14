@@ -1,4 +1,8 @@
 import { getStudioDataset } from "./env";
+import {
+  buildEventInviteUrl,
+  normalizeEventPassword,
+} from "../../web/functions/_lib/event-password.js";
 
 export function siteOriginForDataset(dataset: string): string {
   const override = process.env.SANITY_STUDIO_INVITE_BASE_URL?.trim();
@@ -15,11 +19,8 @@ export function siteOrigin(): string {
 
 export function buildEventChannelUrl(
   slug: string,
-  token: string,
+  password: string,
   origin = siteOrigin(),
 ): string {
-  const base = origin.replace(/\/$/, "");
-  const cleanSlug = slug.trim();
-  const cleanToken = token.trim().toLowerCase();
-  return `${base}/events/${cleanSlug}?key=${cleanToken}`;
+  return buildEventInviteUrl(origin, slug, normalizeEventPassword(password));
 }

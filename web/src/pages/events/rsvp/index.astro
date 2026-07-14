@@ -1,104 +1,17 @@
 ---
-import "../../../styles/global.css";
-import SocialMeta from "../../../components/SocialMeta.astro";
-import Fonts from "../../../components/Fonts.astro";
-import StagingRibbon from "../../../components/StagingRibbon.astro";
-import InviteFlipCardShell from "../../../components/InviteFlipCardShell.astro";
-import RsvpPersonalForm from "../../../components/RsvpPersonalForm.astro";
-import { siteConfig } from "../../../config/site";
+import EventRsvpPage from "../../../components/EventRsvpPage.astro";
 import { isStaging } from "../../../config/env";
+import { siteConfig } from "../../../config/site";
 
 const siteOrigin = isStaging
   ? "https://gwenda-staging.pages.dev"
   : siteConfig.domain;
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="description" content="Event RSVP · Gwenda" />
-    <title>Event RSVP · Gwenda</title>
-    <SocialMeta
-      title="Event RSVP · Gwenda"
-      description="Launch party to celebrate the opening of Gwenda."
-      url={`${siteOrigin}/events/`}
-    />
-    <Fonts />
-    <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes={`${siteConfig.brand.faviconSize}x${siteConfig.brand.faviconSize}`}
-      href={siteConfig.brand.faviconPngPath}
-    />
-  </head>
-  <body>
-    <StagingRibbon />
-    <div class="grain" aria-hidden="true"></div>
-    <main>
-      <section class="event-rsvp section">
-        <div class="container event-rsvp-inner">
-          <div id="rsvp-loading" class="rsvp-state">
-            <div class="invite-loader" role="status" aria-live="polite">
-              <span class="invite-loader-mark" aria-hidden="true"></span>
-              <p class="event-rsvp-loading">Opening your invitation</p>
-            </div>
-          </div>
-
-          <div id="rsvp-error" class="rsvp-state rsvp-blocked" hidden>
-            <header class="section-intro">
-              <p class="rsvp-blocked-eyebrow">Gwenda</p>
-              <h1>This invitation isn't open</h1>
-              <p class="section-lead" id="rsvp-error-text">
-                This invitation link isn't valid or has expired.
-              </p>
-              <p class="section-lead">
-                If someone invited you, ask them for their personal link and open it in full.
-              </p>
-            </header>
-          </div>
-
-          <InviteFlipCardShell>
-            <div id="rsvp-form-wrap" class="rsvp-state" hidden>
-              <header class="section-intro event-rsvp-intro">
-                <div class="event-rsvp-hero-wrap" id="rsvp-hero-personal-wrap" hidden>
-                  <img
-                    id="rsvp-hero-personal"
-                    src=""
-                    alt=""
-                    class="event-rsvp-hero"
-                    width="960"
-                    height="360"
-                    loading="eager"
-                  />
-                </div>
-                <h1 id="rsvp-event-title-personal"></h1>
-                <p class="event-rsvp-date" id="rsvp-event-date-personal" hidden></p>
-                <p class="event-rsvp-venue" id="rsvp-event-venue-wrap" hidden>
-                  <a
-                    id="rsvp-event-maps-link"
-                    href={siteConfig.location.mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {siteConfig.location.addressShort}
-                  </a>
-                </p>
-                <p class="section-lead" id="rsvp-event-description-personal" hidden></p>
-              </header>
-
-              <RsvpPersonalForm />
-            </div>
-          </InviteFlipCardShell>
-        </div>
-      </section>
-    </main>
-    <script>
-      import { initEventRsvp } from "../../../scripts/event-rsvp.js";
-      initEventRsvp();
-    </script>
-  </body>
-</html>
+<EventRsvpPage
+  meta={{
+    title: "Event RSVP · Gwenda",
+    description: "Launch party to celebrate the opening of Gwenda.",
+    url: `${siteOrigin}/events/`,
+  }}
+/>

@@ -1,13 +1,26 @@
-/** Map pill value to stored headcount. 6 means 5 or more. */
-export function pillTotalToStored(pillTotal) {
-  if (pillTotal == null || pillTotal < 1) return null;
-  return pillTotal;
+import { syncInviteCardHeight } from "./invite-card.js";
+
+/** Map additional-guest pill to stored headcount (you + extras). 5 means 5+ extras (stores 6). */
+export function additionalGuestsToTotal(additional) {
+  if (additional == null || additional < 0 || additional > 5) return null;
+  if (additional === 5) return 6;
+  return 1 + additional;
 }
 
+export function totalToAdditionalGuests(total) {
+  if (!total || total <= 0) return null;
+  if (total >= 6) return 5;
+  return total - 1;
+}
+
+/** @deprecated Use additionalGuestsToTotal — kept for transitional imports. */
+export function pillTotalToStored(pillTotal) {
+  return additionalGuestsToTotal(pillTotal);
+}
+
+/** @deprecated Use totalToAdditionalGuests — kept for transitional imports. */
 export function storedToPillTotal(stored) {
-  if (!stored || stored <= 0) return null;
-  if (stored >= 5) return 6;
-  return stored;
+  return totalToAdditionalGuests(stored);
 }
 
 export function isValidEmail(email) {
@@ -43,12 +56,17 @@ export function readRsvpForm() {
 
   if (!name) return { ok: false, error: "Please add your name." };
   if (!isValidEmail(email)) return { ok: false, error: "Please add a valid email." };
-  if (!(countBtn instanceof HTMLButtonElement)) {
-    return { ok: false, error: "How many of you are coming?" };
+
+  let additional = 0;
+  if (countBtn instanceof HTMLButtonElement) {
+    const parsed = Number.parseInt(countBtn.dataset.additional ?? "", 10);
+    if (Number.isInteger(parsed) && parsed >= 0) additional = parsed;
   }
 
-  const guests = pillTotalToStored(Number.parseInt(countBtn.dataset.total ?? "", 10));
-  if (guests == null) return { ok: false, error: "How many of you are coming?" };
+  const guests = additionalGuestsToTotal(additional);
+  if (guests == null) {
+    return { ok: false, error: "Let us know if anyone else is coming." };
+  }
 
   return { ok: true, attending: true, name, email, guests };
 }
@@ -99,14 +117,21 @@ export function prefillRsvpForm({ name, email, rsvpGuests } = {}) {
     attending ? btn.dataset.attending === "yes" : btn.dataset.attending === "no",
   );
 
-  const pillTotal = attending ? storedToPillTotal(rsvpGuests) : null;
+  const additional = attending ? totalToAdditionalGuests(rsvpGuests) : null;
   selectInGroup(".rsvp-pick--counts", (btn) => {
-    const value = Number.parseInt(btn.dataset.total ?? "", 10);
-    return pillTotal != null && value === pillTotal;
+    const value = Number.parseInt(btn.dataset.additional ?? "", 10);
+    return additional != null && value === additional;
   });
 
   syncDetailsVisibility(attending);
   syncSubmitVisibility(true);
+}
+
+function selectDefaultPartySize() {
+  selectInGroup(
+    ".rsvp-pick--counts",
+    (btn) => btn instanceof HTMLButtonElement && btn.dataset.additional === "0",
+  );
 }
 
 export function bindRsvpPickForm() {
@@ -120,7 +145,11 @@ export function bindRsvpPickForm() {
       selectInGroup(".rsvp-pick--attending", (candidate) => candidate === btn);
       syncDetailsVisibility(attending);
       syncSubmitVisibility(true);
-      if (attending) focusRsvpName();
+      requestAnimationFrame(() => syncInviteCardHeight());
+      if (attending) {
+        selectDefaultPartySize();
+        focusRsvpName();
+      }
     });
   }
 
@@ -134,21 +163,67 @@ export function bindRsvpPickForm() {
 
 /** Collapse the interactive controls once a reply has been recorded. */
 export function lockRsvpForm() {
-  for (const id of ["rsvp-attend-step", "rsvp-details", "rsvp-submit", "rsvp-submitting"]) {
+  for (const id of ["rsvp-attend-step", "rsvp-details", "rsvp-submit"]) {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
   }
 }
 
-export function formatSuccessMessage({ attending, guests } = {}) {
+/** Hide the invite details (hero, title, date, venue) so only the confirmation shows. */
+function hideEventHeader() {
+  const header = document.getElementById("rsvp-event-header");
+  if (header) header.hidden = true;
+}
+
+/** Confirmation copy for the card back after a successful RSVP. */
+export function formatSuccessContent({ attending } = {}) {
   if (!attending) {
-    return "Thanks for letting us know. Sorry you can't make it, we'll catch you next time.";
+    return {
+      eyebrow: "Gwenda",
+      title: "Thanks for letting us know",
+      lead: "Sorry you can't make it. We'll catch you next time.",
+    };
   }
-  if (!guests || guests <= 1) {
-    return "Lovely, you're on the list. See you there.";
+  return {
+    eyebrow: "You're on the list",
+    title: "See you there",
+    lead: "We've received your reply and emailed you your ticket link.",
+  };
+}
+
+/** @deprecated Use formatSuccessContent — kept for tests that assert on lead copy. */
+export function formatSuccessMessage({ attending } = {}) {
+  const { lead } = formatSuccessContent({ attending });
+  return attending ? `${lead} Can't wait to see you there.` : lead;
+}
+
+function setConfirmationText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+/** Stage the confirmation on the card back before the flip completes. */
+export function prepareRsvpConfirmation({ attending } = {}) {
+  lockRsvpForm();
+  hideEventHeader();
+  const content = formatSuccessContent({ attending });
+  setConfirmationText("rsvp-success-eyebrow", content.eyebrow);
+  setConfirmationText("rsvp-success-title", content.title);
+  setConfirmationText("rsvp-success-lead", content.lead);
+  const wrap = document.getElementById("rsvp-confirmation");
+  if (wrap) {
+    wrap.hidden = false;
+    wrap.classList.add("reveal");
+    wrap.classList.remove("visible");
   }
-  if (guests >= 6) {
-    return "Lovely, we've got a party of 5 or more down for you. See you there.";
-  }
-  return `Lovely, we've got ${guests} of you down. See you there.`;
+  requestAnimationFrame(() => syncInviteCardHeight());
+}
+
+/** Rise the confirmation in after the card opens (see `.reveal` in global.css). */
+export function revealRsvpConfirmation() {
+  const wrap = document.getElementById("rsvp-confirmation");
+  if (!wrap) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => wrap.classList.add("visible"));
+  });
 }

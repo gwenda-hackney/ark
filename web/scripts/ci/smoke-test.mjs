@@ -120,6 +120,25 @@ async function checkSubscribeApi(cookie = "") {
   console.log(`OK ${url} (200, subscribe tokens issued)`);
 }
 
+async function checkRsvpApi(cookie = "") {
+  const url = new URL(`${baseUrl}/api/rsvp`);
+  url.searchParams.set("slug", "invalid-event-slug");
+  url.searchParams.set("event-password", "invalid-word-set-here");
+  const res = await fetch(url, fetchInit(cookie));
+  if (res.status !== 403 && res.status !== 404) {
+    throw new Error(`${url} expected 403 or 404 for invalid invite, got ${res.status}`);
+  }
+  const type = res.headers.get("content-type") || "";
+  if (!type.includes("application/json")) {
+    throw new Error(`${url} expected application/json, got ${type}`);
+  }
+  const data = await res.json();
+  if (!data.error) {
+    throw new Error(`${url} missing error message in response`);
+  }
+  console.log(`OK ${url} (${res.status}, RSVP API returns JSON errors)`);
+}
+
 async function checkCriticalAssets(html, cookie = "") {
   const paths = collectSameOriginAssetPaths(html, baseUrl);
   const required = paths.filter(
@@ -151,6 +170,7 @@ async function runChecks() {
   console.log("OK homepage content checks passed");
 
   await checkSubscribeApi(cookie);
+  await checkRsvpApi(cookie);
   await checkCriticalAssets(html, cookie);
   await checkPath("/robots.txt", { expectVersionHeader: false, cookie });
   await checkPath("/favicon.ico", { expectVersionHeader: false, cookie });

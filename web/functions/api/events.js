@@ -1,16 +1,11 @@
 import { fetchPublishedEvents } from "../_lib/sanity-events.js";
+import { jsonResponse, withApiHandler } from "../_lib/api-handler.js";
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=60",
-    },
-  });
-}
-
-export async function onRequestGet(context) {
+export const onRequestGet = withApiHandler(async (context) => {
   const events = await fetchPublishedEvents(context.env);
-  return json({ ok: true, events });
-}
+  return jsonResponse(
+    { ok: true, events },
+    200,
+    { "Cache-Control": "public, max-age=60" },
+  );
+});
