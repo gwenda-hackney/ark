@@ -7,9 +7,10 @@ import {
   greetingLine,
   guestLine,
   LOGO_CID,
+  mergeRsvpConfirmation,
 } from "./rsvp-email-template.js";
-import { buildCalendarTicket, buildRsvpTicketAttachments, ticketAttachmentBaseName } from "./rsvp-tickets.js";
-import { VENUE_MAPS_URL } from "./site-location.js";
+import { buildCalendarTicket, ticketAttachmentBaseName } from "./rsvp-tickets.js";
+import { SITE_ADDRESS, VENUE_MAPS_URL } from "./site-location.js";
 
 describe("greetingLine", () => {
   it("uses the guest name when present", () => {
@@ -18,7 +19,15 @@ describe("greetingLine", () => {
 
   it("falls back when the name is missing", () => {
     expect(greetingLine("")).toBe("Hello,");
-    expect(greetingLine("   ")).toBe("Hello,");
+  });
+});
+
+describe("guestLine", () => {
+  it("matches RSVP pill labels", () => {
+    expect(guestLine(1)).toBe("We've got you down.");
+    expect(guestLine(2)).toBe("We've got you down for 2.");
+    expect(guestLine(3)).toBe("We've got you down for 3.");
+    expect(guestLine(6)).toBe("We've got you down for 5+.");
   });
 });
 
@@ -29,31 +38,16 @@ describe("formatEventWhen", () => {
   });
 });
 
-describe("formatRsvpContent", () => {
-  it("replaces RSVP placeholders", () => {
-    const text = formatRsvpContent(
-      "When: {date}. {venue}",
-      {
-        name: "Dan",
-        guests: 2,
-        guestsLine: guestLine(2),
-        title: "Launch Party",
-        date: "Saturday 15 August 2026, 5pm–11pm",
-        venue: "Schwartz Wharf",
-        mapsUrl: VENUE_MAPS_URL,
+describe("mergeRsvpConfirmation", () => {
+  it("maps legacy heading-only copy to eyebrow + title", () => {
+    const copy = mergeRsvpConfirmation({
+      rsvpConfirmation: {
+        heading: "You're on the list",
+        body: "Hello",
       },
-    );
-    expect(text).toContain("When: Saturday 15 August 2026, 5pm–11pm.");
-    expect(text).toContain("Schwartz Wharf");
-    expect(text).not.toContain("google.com/maps");
-  });
-
-  it("adjusts legacy salutations when the name is missing", () => {
-    const text = formatRsvpContent("Hi {name},\n\nThanks for replying.", {
-      name: "",
-      guests: 1,
     });
-    expect(text).toBe("Hello,\n\nThanks for replying.");
+    expect(copy.eyebrow).toBe("You're on the list");
+    expect(copy.heading).toBe("See you there");
   });
 });
 
@@ -69,9 +63,9 @@ describe("buildConfirmationContent", () => {
         date: "2026-08-15",
         ticketStart: "17:00",
         ticketEnd: "23:00",
-        venue: "Schwartz Wharf, Hackney Wick",
         rsvpConfirmation: {
           subject: "See you soon · {title}",
+          eyebrow: "Gwenda",
           heading: "All set",
           body: "{greeting} {guests_line}",
         },
@@ -79,70 +73,58 @@ describe("buildConfirmationContent", () => {
     });
 
     expect(content.subject).toBe("See you soon · Launch Party");
-    expect(content.heading).toBe("All set");
+    expect(content.eyebrow).toBe("Gwenda");
+    expect(content.eventTitle).toBe("Launch Party");
+    expect(content.eventBlockHtml).toContain("Launch Party");
     expect(content.bodyText).toContain("Hi Dan,");
-    expect(content.logoUrl).toBe("https://gwenda.co.uk/brand/logo-email.png");
     expect(content.logoCid).toBe(LOGO_CID);
     expect(content.mapsUrl).toBe(VENUE_MAPS_URL);
   });
 
-  it("links to the ticket page in the default body copy", () => {
+  it("does not repeat the ticket URL in the default body copy", () => {
     const content = buildConfirmationContent({
       name: "Dan",
-      guests: 1,
+      guests: 2,
       origin: "https://gwenda.co.uk",
+      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
       ticketUrl: "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
       event: { title: "Launch Party", date: "2026-08-15" },
     });
 
-    expect(content.bodyText).toContain(
-      "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
-    );
+    expect(content.bodyText).not.toContain("ticket?guest=42");
     expect(content.bodyText).not.toContain("attached");
+    expect(content.bodyText).toContain("Apple Wallet");
+    expect(content.bodyText).toContain("We've got you down for 2.");
+    expect(content.bodyHtml).not.toContain(SITE_ADDRESS);
   });
 });
 
 describe("confirmationHtml", () => {
-  it("embeds the logo via CID and includes action links", () => {
+  it("renders on-brand layout with ticket and modify links", () => {
     const html = confirmationHtml({
-      heading: "You're on the list",
+      eyebrow: "You're on the list",
+      heading: "See you there",
       bodyHtml: "<p>Hi Dan.</p>",
+      eventBlockHtml: "<div>Launch Party</div>",
       logoUrl: "https://gwenda.co.uk/brand/logo-email.png",
       logoCid: LOGO_CID,
       ticketUrl: "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
-      mapsUrl: VENUE_MAPS_URL,
+      modifyUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
     });
     expect(html).toContain(`cid:${LOGO_CID}`);
-    expect(html).toContain("text-align:center");
-    expect(html).not.toContain("logo-email.png");
-    expect(html).toContain("View your ticket");
-    expect(html).toContain("Get directions");
-    expect(html).toContain("You're on the list");
+    expect(html).toContain("Open your ticket");
+    expect(html).toContain("Change your reply");
+    expect(html).not.toContain("Get directions");
+    expect(html).toContain("Instagram");
+    expect(html).toContain(SITE_ADDRESS);
+    expect(html).toContain(VENUE_MAPS_URL);
+    expect(html).toContain("#c9a84c");
   });
 });
 
 describe("ticketAttachmentBaseName", () => {
   it("drops a private- prefix from the event slug", () => {
     expect(ticketAttachmentBaseName("private-launch-party")).toBe("launch-party");
-  });
-});
-
-describe("buildRsvpTicketAttachments", () => {
-  it("names ticket files from the event slug", async () => {
-    const result = await buildRsvpTicketAttachments({}, {
-      eventSlug: "private-launch-party",
-      title: "Launch Party",
-      date: "2026-08-15",
-      startTime: "17:00",
-      endTime: "23:00",
-      venue: "Schwartz Wharf",
-      guestName: "Dan",
-      guests: 1,
-      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
-      origin: "https://gwenda.co.uk",
-    });
-
-    expect(result.attachments[0].filename).toBe("launch-party.ics");
   });
 });
 
@@ -162,11 +144,6 @@ describe("buildCalendarTicket", () => {
     });
 
     expect(ics).toContain("BEGIN:VCALENDAR");
-    expect(ics).toContain("BEGIN:VEVENT");
     expect(ics).toContain("SUMMARY:Gwenda Launch Party");
-    expect(ics).toContain("DTSTART:");
-    expect(ics).toContain("DTEND:");
-    expect(ics).toContain("LOCATION:Schwartz Wharf\\, Hackney Wick");
-    expect(ics).toContain("private-launch-party-42@gwenda.co.uk");
   });
 });

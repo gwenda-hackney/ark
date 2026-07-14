@@ -10,6 +10,7 @@ import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
 import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
+import { resolvePublicOrigin } from "./functions/_lib/public-origin.js";
 import { readEventPasswordFromSearchParams } from "./functions/_lib/event-password.js";
 import { fetchPublishedEvents } from "./functions/_lib/sanity-events.js";
 import {
@@ -237,7 +238,10 @@ function devRsvpApi() {
               name: payload.name,
               email: payload.email,
               guests: payload.guests,
-              origin: req.headers.host ? `http://${req.headers.host}` : undefined,
+              origin: resolvePublicOrigin(
+                req.headers.host ? `http://${req.headers.host}` : undefined,
+                runtimeEnv,
+              ),
             });
             sendJson(
               res,

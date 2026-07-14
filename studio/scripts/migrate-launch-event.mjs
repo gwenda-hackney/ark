@@ -9,6 +9,7 @@
  *   CONFIRM_PRODUCTION_MIGRATE=1 npm run studio:migrate:launch-party:production
  */
 import { createClient } from "@sanity/client";
+import { ensurePortableTextKeys, textToBlocks } from "./lib/portable-text.mjs";
 
 const dataset = process.env.SANITY_DATASET || "development";
 const projectId = process.env.SANITY_PROJECT_ID || "pn5yjro6";
@@ -35,24 +36,15 @@ const client = createClient({
   useCdn: false,
 });
 
-function textToBlocks(text) {
-  if (Array.isArray(text)) return text;
-  return String(text)
-    .split("\n\n")
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .map((paragraph) => ({
-      _type: "block",
-      style: "normal",
-      markDefs: [],
-      children: [{ _type: "span", text: paragraph, marks: [] }],
-    }));
+function textToBlocksFromLegacy(text) {
+  if (Array.isArray(text)) return ensurePortableTextKeys(text);
+  return textToBlocks(text);
 }
 
 const CANONICAL = {
   title: "Launch Party",
   eventType: "private",
-  description: textToBlocks(
+  description: textToBlocksFromLegacy(
     "We're hosting a private launch party to celebrate the opening of Gwenda, and we'd love for you to come join us.\n\nFree signature cocktail from 5 to 7pm, music, and friends.",
   ),
   venue: "Schwartz Wharf, Hackney Wick, London E9 5AA",
@@ -60,18 +52,17 @@ const CANONICAL = {
   ticketEnd: "23:00",
   rsvpConfirmation: {
     subject: "You're on the list · Gwenda",
-    heading: "You're on the list",
+    eyebrow: "You're on the list",
+    heading: "See you there",
     body: `{greeting}
 
 Thanks for replying. {guests_line}
 
-When: {date}
+{event_block}
 
-{venue}
+Open your ticket link below to view your pass, add it to Apple Wallet, or save the date to your calendar.
 
-Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
-
-See you there.`,
+Need to change your reply? {modify_url}`,
   },
 };
 

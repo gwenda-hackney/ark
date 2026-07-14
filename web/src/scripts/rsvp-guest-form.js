@@ -94,10 +94,14 @@ function syncDetailsVisibility(attending) {
 function focusRsvpName() {
   const name = document.getElementById("rsvp-name");
   if (!(name instanceof HTMLInputElement)) return;
-  requestAnimationFrame(() => {
+
+  const cardBack = name.closest(".invite-card-back-inner");
+  cardBack?.scrollTo({ top: 0, behavior: "smooth" });
+
+  window.setTimeout(() => {
     name.scrollIntoView({ behavior: "smooth", block: "center" });
     name.focus({ preventScroll: true });
-  });
+  }, 280);
 }
 
 function syncSubmitVisibility(ready) {
@@ -187,7 +191,7 @@ export function formatSuccessContent({ attending } = {}) {
   return {
     eyebrow: "You're on the list",
     title: "See you there",
-    lead: "We've received your reply and emailed you your ticket link.",
+    lead: "We've received your reply and emailed you your ticket link. You can change your reply below if plans shift.",
   };
 }
 
@@ -210,6 +214,15 @@ export function prepareRsvpConfirmation({ attending } = {}) {
   setConfirmationText("rsvp-success-eyebrow", content.eyebrow);
   setConfirmationText("rsvp-success-title", content.title);
   setConfirmationText("rsvp-success-lead", content.lead);
+  const modifyLink = document.getElementById("rsvp-modify-link");
+  if (modifyLink instanceof HTMLAnchorElement) {
+    if (attending) {
+      modifyLink.href = window.location.href;
+      modifyLink.hidden = false;
+    } else {
+      modifyLink.hidden = true;
+    }
+  }
   const wrap = document.getElementById("rsvp-confirmation");
   if (wrap) {
     wrap.hidden = false;

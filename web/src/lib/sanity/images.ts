@@ -175,7 +175,7 @@ const SOCIAL_OG_HEIGHT = 630;
 export function mapSanitySocialPreviewImage(
   image: SanityImageField,
   fallbackAlt?: string,
-): MenuItemImage | undefined {
+): (MenuItemImage & { type: string }) | undefined {
   const source = image ? toImageSource(image) : null;
   if (!source) return undefined;
 
@@ -184,7 +184,7 @@ export function mapSanitySocialPreviewImage(
     .width(SOCIAL_OG_WIDTH)
     .height(SOCIAL_OG_HEIGHT)
     .fit("crop")
-    .auto("format")
+    .format("jpg")
     .quality(85)
     .url();
 
@@ -193,5 +193,6 @@ export function mapSanitySocialPreviewImage(
     width: SOCIAL_OG_WIDTH,
     height: SOCIAL_OG_HEIGHT,
     alt: image?.alt?.trim() || fallbackAlt,
+    type: "image/jpeg",
   };
 }

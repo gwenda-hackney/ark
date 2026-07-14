@@ -12,6 +12,7 @@ import {
 import { isValidEmail } from "./invite-lib.js";
 import { sendRsvpConfirmationEmail } from "./rsvp-email.js";
 import { buildTicketUrl } from "./ticket-auth.js";
+import { resolvePublicOrigin } from "./public-origin.js";
 import { fetchEventBySlug, publicEventFields } from "./sanity-event.js";
 
 const EVENT_SLUG_FIELD = "Event Slug";
@@ -169,7 +170,9 @@ export async function saveRsvpResponse(
 
   // The ticket link is the guest's own page to view their RSVP and add it to
   // Apple Wallet — no email required to test the round trip.
-  const ticketUrl = await buildTicketUrl(origin, env, event.slug, guest.rowId);
+  const publicOrigin = resolvePublicOrigin(origin, env);
+  const ticketUrl = await buildTicketUrl(publicOrigin, env, event.slug, guest.rowId);
+  const inviteLink = inviteUrlFor(publicOrigin, env, event.slug, token);
 
   // Best-effort confirmation email. A mail failure must not fail the RSVP,
   // which is already saved at this point.
@@ -179,9 +182,9 @@ export async function saveRsvpResponse(
       name: cleanName,
       guests: count,
       event,
-      inviteUrl: inviteUrlFor(origin, env, event.slug, token),
+      inviteUrl: inviteLink,
       ticketUrl,
-      origin,
+      origin: publicOrigin,
       ticketId: `${event.slug}-${guest.rowId}`,
     });
   } catch (error) {

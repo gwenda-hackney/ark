@@ -2,7 +2,21 @@ import { defineArrayMember, defineField, defineType } from "sanity";
 import { ChannelPreview } from "../components/ChannelPreview";
 import { ChannelUrlInput } from "../components/ChannelUrlInput";
 import { generateChannelToken } from "../lib/channels";
+import {
+  EVENT_PASSWORD_PATTERN,
+  LEGACY_CHANNEL_TOKEN_PATTERN,
+} from "../../web/functions/_lib/event-password.js";
 import { eventDescription } from "./eventDescription";
+
+function isValidChannelToken(value: unknown) {
+  const token = String(value ?? "").trim();
+  if (!token) return false;
+  const normalized = token.toLowerCase();
+  return (
+    EVENT_PASSWORD_PATTERN.test(normalized) ||
+    LEGACY_CHANNEL_TOKEN_PATTERN.test(token)
+  );
+}
 
 export const event = defineType({
   name: "event",
@@ -50,9 +64,9 @@ export const event = defineType({
               initialValue: generateChannelToken,
               components: { input: ChannelUrlInput },
               validation: (rule) =>
-                rule.required().regex(/^[a-z]{2,20}(-[a-z]{2,20}){2}$/i, {
-                  name: "event password",
-                  invert: false,
+                rule.required().custom((value) => {
+                  if (isValidChannelToken(value)) return true;
+                  return "Use three hyphenated words (e.g. candle-canal-vinyl) or keep an existing legacy channel code.";
                 }),
             }),
           ],
@@ -118,7 +132,7 @@ export const event = defineType({
       title: "RSVP confirmation email",
       type: "object",
       description:
-        "Sent automatically when someone RSVPs yes. Placeholders: {greeting}, {name}, {guests_line}, {guests}, {title}, {date}, {venue}, {maps_url}, {invite_url}.",
+        "Sent automatically when someone RSVPs yes. Placeholders: {greeting}, {name}, {guests_line}, {guests}, {title}, {date}, {event_block}, {invite_url}, {modify_url}, {ticket_url}. Event details render automatically in {event_block}. Address lives in the email footer.",
       fields: [
         defineField({
           name: "subject",
@@ -128,11 +142,18 @@ export const event = defineType({
           initialValue: "You're on the list · Gwenda",
         }),
         defineField({
+          name: "eyebrow",
+          title: "Email eyebrow",
+          type: "string",
+          description: "Small gold label above the heading.",
+          initialValue: "You're on the list",
+        }),
+        defineField({
           name: "heading",
           title: "Email heading",
           type: "string",
           validation: (rule) => rule.required(),
-          initialValue: "You're on the list",
+          initialValue: "See you there",
         }),
         defineField({
           name: "body",
@@ -144,13 +165,11 @@ export const event = defineType({
 
 Thanks for replying. {guests_line}
 
-When: {date}
+{event_block}
 
-{venue}
+Open your ticket link below to view your pass, add it to Apple Wallet, or save the date to your calendar.
 
-Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
-
-See you there.`,
+Need to change your reply? {modify_url}`,
         }),
         defineField({
           name: "venue",
