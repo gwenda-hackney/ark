@@ -1,6 +1,8 @@
 // RSVP confirmation email copy and HTML. Event-specific content comes from Sanity;
 // placeholders are filled at send time.
 
+import { DEFAULT_VENUE, VENUE_MAPS_URL } from "./site-location.js";
+
 const COLORS = {
   bg: "#0d0d0d",
   card: "#1a1a1a",
@@ -11,17 +13,19 @@ const COLORS = {
 
 const DEFAULT_SUBJECT = "You're on the list · Gwenda";
 const DEFAULT_HEADING = "You're on the list";
-const DEFAULT_BODY = `Hi {name},
+const DEFAULT_BODY = `{greeting}
 
 Thanks for replying. {guests_line}
 
 {title} is on {date} at {venue}.
 
+Directions: {maps_url}
+
 Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
 
 See you there.`;
 
-const DEFAULT_VENUE = "Schwartz Wharf, Hackney Wick, London E9 5AA";
+export const LOGO_CID = "gwenda-logo@gwenda";
 
 export function defaultRsvpConfirmation() {
   return {
@@ -59,6 +63,12 @@ export function formatEventDate(date) {
   }).format(parsed);
 }
 
+/** Salutation line for the email body. Uses the guest name when we have one. */
+export function greetingLine(name) {
+  const trimmed = String(name ?? "").trim();
+  return trimmed ? `Hi ${trimmed},` : "Hello,";
+}
+
 /** Human line for the party size, matching the on-site confirmation copy. */
 export function guestLine(guests) {
   if (!guests || guests <= 1) return "We've got you down.";
@@ -67,14 +77,24 @@ export function guestLine(guests) {
 }
 
 export function formatRsvpContent(template, values) {
-  return String(template ?? "")
-    .replaceAll("{name}", values.name || "there")
+  const name = String(values.name ?? "").trim();
+  const greeting = values.greeting ?? greetingLine(name);
+  let text = String(template ?? "")
+    .replaceAll("{greeting}", greeting)
+    .replaceAll("{name}", name)
     .replaceAll("{guests_line}", values.guestsLine || guestLine(values.guests))
     .replaceAll("{guests}", String(values.guests ?? ""))
     .replaceAll("{title}", values.title || "The event")
     .replaceAll("{date}", values.date || "")
     .replaceAll("{venue}", values.venue || DEFAULT_VENUE)
+    .replaceAll("{maps_url}", values.mapsUrl || VENUE_MAPS_URL)
     .replaceAll("{invite_url}", values.inviteUrl || "");
+
+  if (!name) {
+    text = text.replace(/^Hi\s*,/gm, "Hello,").replace(/^Hi there,/gm, "Hello,");
+  }
+
+  return text;
 }
 
 function escapeHtml(value) {
@@ -101,9 +121,11 @@ export function buildConfirmationContent({ name, guests, event, inviteUrl, origi
     name,
     guests,
     guestsLine: guestLine(guests),
+    greeting: greetingLine(name),
     title: event?.title || "The event",
     date: formatEventDate(event?.date),
     venue: copy.venue,
+    mapsUrl: VENUE_MAPS_URL,
     inviteUrl,
   };
 
@@ -117,6 +139,8 @@ export function buildConfirmationContent({ name, guests, event, inviteUrl, origi
     bodyText,
     bodyHtml: bodyToHtmlParagraphs(bodyText),
     logoUrl,
+    logoCid: LOGO_CID,
+    mapsUrl: VENUE_MAPS_URL,
     venue: copy.venue,
     ticketStart: copy.ticketStart,
     ticketEnd: copy.ticketEnd,
@@ -127,9 +151,15 @@ export function confirmationHtml({
   heading,
   bodyHtml,
   logoUrl,
+  logoCid,
   inviteUrl,
+  mapsUrl,
   googleWalletUrl,
 }) {
+  const logoSrc = logoCid ? `cid:${logoCid}` : logoUrl;
+  const logoMarkup = logoSrc
+    ? `<img src="${escapeHtml(logoSrc)}" alt="Gwenda" width="180" style="width:min(180px, 55vw);height:auto;margin:0 0 1.75rem;display:block;" />`
+    : "";
   const inviteButton = inviteUrl
     ? `<p style="margin:1.75rem 0 0;">
         <a href="${escapeHtml(inviteUrl)}" style="display:inline-block;padding:0.85rem 1.5rem;background:${COLORS.gold};color:${COLORS.bg};text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;font-size:0.8rem;">View your invitation</a>
@@ -140,14 +170,20 @@ export function confirmationHtml({
         <a href="${escapeHtml(googleWalletUrl)}" style="display:inline-block;padding:0.85rem 1.5rem;border:1px solid ${COLORS.gold};color:${COLORS.gold};text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;font-size:0.8rem;">Add to Google Wallet</a>
       </p>`
     : "";
+  const directionsButton = mapsUrl
+    ? `<p style="margin:1rem 0 0;">
+        <a href="${escapeHtml(mapsUrl)}" style="display:inline-block;padding:0.85rem 1.5rem;border:1px solid rgba(232,228,220,0.2);color:${COLORS.text};text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;font-size:0.8rem;">Get directions</a>
+      </p>`
+    : "";
 
   return `<!doctype html>
 <html><body style="background:${COLORS.bg};color:${COLORS.text};font-family:Georgia,serif;padding:24px;margin:0;">
   <div style="max-width:560px;margin:0 auto;background:${COLORS.card};border:1px solid rgba(232,228,220,0.08);border-radius:2px;padding:28px;">
-    <img src="${escapeHtml(logoUrl)}" alt="Gwenda" width="180" style="width:min(180px, 55vw);height:auto;margin:0 0 1.75rem;display:block;" />
+    ${logoMarkup}
     <h1 style="margin:0 0 1.25rem;font-weight:500;font-size:1.9rem;line-height:1.15;color:${COLORS.text};">${escapeHtml(heading)}</h1>
     ${bodyHtml}
     ${inviteButton}
+    ${directionsButton}
     ${walletButton}
   </div>
 </body></html>`;

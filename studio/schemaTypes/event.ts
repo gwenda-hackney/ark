@@ -101,7 +101,7 @@ export const event = defineType({
       title: "RSVP confirmation email",
       type: "object",
       description:
-        "Sent automatically when someone RSVPs yes. Placeholders: {name}, {guests_line}, {guests}, {title}, {date}, {venue}, {invite_url}.",
+        "Sent automatically when someone RSVPs yes. Placeholders: {greeting}, {name}, {guests_line}, {guests}, {title}, {date}, {venue}, {maps_url}, {invite_url}.",
       fields: [
         defineField({
           name: "subject",
@@ -123,11 +123,13 @@ export const event = defineType({
           type: "text",
           rows: 10,
           validation: (rule) => rule.required(),
-          initialValue: `Hi {name},
+          initialValue: `{greeting}
 
 Thanks for replying. {guests_line}
 
 {title} is on {date} at {venue}.
+
+Directions: {maps_url}
 
 Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
 

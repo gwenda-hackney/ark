@@ -54,11 +54,13 @@ const EVENTS = [
     rsvpConfirmation: {
       subject: "You're on the list · Gwenda",
       heading: "You're on the list",
-      body: `Hi {name},
+      body: `{greeting}
 
 Thanks for replying. {guests_line}
 
 {title} is on {date} at {venue}.
+
+Directions: {maps_url}
 
 Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
 

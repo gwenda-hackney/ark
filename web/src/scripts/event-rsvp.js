@@ -5,6 +5,7 @@ import {
   readRsvpForm,
 } from "./rsvp-guest-form.js";
 import { hideInviteCard, showInviteCard } from "./invite-card.js";
+import { formatEventDate } from "../data/events.ts";
 
 /** `/events/<slug>` with the channel access code in the `?key=` query. */
 function parseEventRsvp() {
@@ -33,12 +34,44 @@ function blocked(message) {
   setText("rsvp-error-text", message);
 }
 
+function setInviteCardFront(event) {
+  if (!event) return;
+
+  const lead = document.getElementById("invite-card-lead");
+  const subtitle = document.getElementById("invite-card-subtitle");
+
+  if (lead && event.date) {
+    lead.textContent = formatEventDate(event.date);
+    lead.hidden = false;
+  }
+
+  if (subtitle && event.title) {
+    subtitle.textContent = event.title;
+    subtitle.hidden = false;
+  }
+}
+
 function renderEvent(event) {
   if (!event) return;
+
+  setInviteCardFront(event);
 
   if (event.title) {
     setText("rsvp-event-title-personal", event.title);
     document.title = `${event.title} · Gwenda`;
+  }
+
+  const dateEl = document.getElementById("rsvp-event-date-personal");
+  if (dateEl && event.date) {
+    dateEl.textContent = formatEventDate(event.date);
+    dateEl.hidden = false;
+  }
+
+  const venueWrap = document.getElementById("rsvp-event-venue-wrap");
+  const mapsLink = document.getElementById("rsvp-event-maps-link");
+  if (venueWrap instanceof HTMLElement && mapsLink instanceof HTMLAnchorElement) {
+    mapsLink.textContent = event.venue?.trim() || mapsLink.textContent;
+    venueWrap.hidden = false;
   }
 
   const description = document.getElementById("rsvp-event-description-personal");

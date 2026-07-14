@@ -54,6 +54,7 @@ export function publicEventFields(event) {
     title: event.title,
     description: event.description,
     date: event.date,
+    venue: event.venue,
     heroImageUrl: event.heroImageUrl,
   };
 }

@@ -4,8 +4,9 @@
 import {
   buildConfirmationContent,
   confirmationHtml,
+  LOGO_CID,
 } from "./rsvp-email-template.js";
-import { buildRsvpTicketAttachments } from "./rsvp-tickets.js";
+import { buildRsvpTicketAttachments, fetchImageBuffer } from "./rsvp-tickets.js";
 import {
   EVENTS_NO_REPLY_HEADERS,
   resolveSmtpFrom,
@@ -35,6 +36,11 @@ export async function sendRsvpConfirmationEmail(
     origin,
   });
 
+  const base = (origin || "https://gwenda.co.uk").replace(/\/$/, "");
+  const logoBuffer =
+    (await fetchImageBuffer(content.logoUrl)) ||
+    (await fetchImageBuffer(`${base}/favicon.png`));
+
   const { attachments } = await buildRsvpTicketAttachments(env, {
     ticketId,
     eventSlug: event?.slug,
@@ -48,8 +54,16 @@ export async function sendRsvpConfirmationEmail(
     description: event?.description,
     inviteUrl,
     logoUrl: content.logoUrl,
-    origin: (origin || "https://gwenda.co.uk").replace(/\/$/, ""),
+    origin: base,
   });
+
+  if (logoBuffer) {
+    attachments.unshift({
+      filename: "gwenda-logo.png",
+      content: logoBuffer,
+      cid: LOGO_CID,
+    });
+  }
 
   const nodemailer = await import("nodemailer");
   const port = Number(env.SMTP_PORT?.trim() || "587");
@@ -72,7 +86,9 @@ export async function sendRsvpConfirmationEmail(
       heading: content.heading,
       bodyHtml: content.bodyHtml,
       logoUrl: content.logoUrl,
+      logoCid: logoBuffer ? LOGO_CID : null,
       inviteUrl,
+      mapsUrl: content.mapsUrl,
       googleWalletUrl: null,
     }),
     headers: EVENTS_NO_REPLY_HEADERS,
