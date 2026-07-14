@@ -650,28 +650,73 @@ a:focus-visible {
   padding: 2rem 2rem 5rem;
 }
 
-.hero-stagger {
+/* Shared entrance motion (brand §5.7) — hero, invite card, loaders */
+.enter-stagger {
   opacity: 0;
 }
 
-html.fonts-ready .hero-stagger {
+html.fonts-ready .enter-stagger--auto {
   animation: fadeUp 0.85s var(--ease-out) forwards;
+  animation-delay: var(--enter-delay, 0s);
 }
 
-html.fonts-ready .hero-logo.hero-stagger {
-  animation-delay: 0.25s;
+.enter-scene {
+  transform: translateY(var(--enter-scene-y, 18px));
+  transition: transform 0.7s var(--ease-smooth);
 }
 
-html.fonts-ready .hero-countdown.hero-stagger {
-  animation-delay: 0.5s;
+.enter-scene.is-visible {
+  transform: translateY(0);
 }
 
-html.fonts-ready .hero-location.hero-stagger {
-  animation-delay: 0.7s;
+html.fonts-ready .enter-scene.is-visible .enter-stagger {
+  animation: fadeUp 0.85s var(--ease-out) forwards;
+  animation-delay: var(--enter-delay, 0s);
 }
 
-html.fonts-ready .hero-content .hero-actions.hero-stagger {
-  animation-delay: 0.9s;
+html.fonts-ready .hero-logo.enter-stagger--auto {
+  --enter-delay: 0.25s;
+}
+
+html.fonts-ready .hero-countdown.enter-stagger--auto {
+  --enter-delay: 0.5s;
+}
+
+html.fonts-ready .hero-location.enter-stagger--auto {
+  --enter-delay: 0.7s;
+}
+
+html.fonts-ready .hero-content .hero-actions.enter-stagger--auto {
+  --enter-delay: 0.9s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-logo.enter-stagger {
+  --enter-delay: 0.18s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-badge.enter-stagger {
+  --enter-delay: 0.3s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-intro.enter-stagger {
+  --enter-delay: 0.4s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-headline.enter-stagger {
+  --enter-delay: 0.5s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-meta.enter-stagger {
+  --enter-delay: 0.6s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-hint.enter-stagger {
+  --enter-delay: 0.78s;
+}
+
+.is-leaving {
+  opacity: 0;
+  transition: opacity 0.45s var(--ease-out);
 }
 
 .hero-actions {
@@ -2109,6 +2154,14 @@ html.fonts-ready .thanks {
   transform: rotateY(180deg);
 }
 
+.invite-card.is-flipping .invite-card-front {
+  pointer-events: none;
+}
+
+.invite-card.is-flipping:not(.is-sending) .invite-card-front-idle {
+  display: none !important;
+}
+
 /* Both faces fill the card; height grows with back content when open. */
 .invite-card-face {
   position: absolute;
@@ -2147,7 +2200,7 @@ html.fonts-ready .thanks {
   gap: 0;
   padding: 0 clamp(1.25rem, 4vw, 1.75rem) clamp(1.25rem, 3dvh, 1.75rem);
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   font: inherit;
   color: inherit;
   transition: box-shadow 0.25s ease;
@@ -2164,17 +2217,18 @@ html.fonts-ready .thanks {
 }
 
 .invite-card-logo {
-  height: clamp(3.25rem, 12vw, 4.75rem);
+  display: block;
+  align-self: center;
+  height: clamp(5rem, 22vw, 8.5rem);
   width: auto;
-  max-width: min(100%, 14rem);
-  margin-bottom: clamp(1rem, 2.5dvh, 1.35rem);
+  max-width: min(100%, 18rem);
+  margin-inline: auto;
+  margin-bottom: clamp(1.35rem, 3.5dvh, 2rem);
   opacity: 0.95;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
 }
 
-/* ── Invite card editorial type (brand §4.2 / §5.3.2)
-   One scale for front, back, and confirmation. Left-aligned, weight 400. */
-.invite-card-front-idle,
+/* Card back + confirmation: left-aligned editorial (brand §5.3.2). */
 .invite-card-back-inner,
 .rsvp-confirmation {
   text-align: left;
@@ -2250,6 +2304,17 @@ html.fonts-ready .thanks {
   background: linear-gradient(90deg, var(--color-gold-dim), transparent);
 }
 
+.invite-card-front-idle .invite-card-headline::after {
+  width: 2.5rem;
+  margin-inline: auto;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-dim),
+    transparent
+  );
+}
+
 .invite-card-meta {
   margin: -0.25rem 0 0;
   font-family: var(--font-display);
@@ -2281,28 +2346,40 @@ html.fonts-ready .thanks {
 
 .invite-card-hint {
   display: block;
-  margin-top: 1.25rem;
+  align-self: stretch;
+  margin-top: auto;
+  padding-top: clamp(1.5rem, 4dvh, 2.5rem);
+  text-align: center;
   font-family: var(--font-display);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--color-gold);
+  border-top: 1px solid color-mix(in srgb, var(--color-gold) 28%, transparent);
+}
+
+.invite-card-front:hover .invite-card-hint {
+  color: color-mix(in srgb, var(--color-gold) 88%, white);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--color-gold) 35%, transparent);
 }
 
 .invite-card-front-idle,
 .invite-card-front-sending {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   width: 100%;
+  text-align: center;
+  font-family: var(--font-body);
+  color: var(--color-text);
 }
 
 .invite-card-front-idle {
   flex: 1 1 auto;
   justify-content: flex-start;
   align-self: stretch;
-  padding-top: clamp(1rem, 16dvh, 3.5rem);
+  padding-top: clamp(1.25rem, 17dvh, 5.5rem);
 }
 
 .invite-card-back {
@@ -2443,6 +2520,10 @@ html.fonts-ready .thanks {
   display: none;
 }
 
+#rsvp-loading {
+  opacity: 1;
+}
+
 .event-rsvp--viewport .event-rsvp-inner {
   width: min(100%, 30rem);
   max-width: 30rem;
@@ -2465,12 +2546,12 @@ html.fonts-ready .thanks {
   }
 
   .event-rsvp--viewport .invite-card-front-idle {
-    padding-top: clamp(1rem, 16dvh, 3.5rem);
+    padding-top: clamp(1.25rem, 17dvh, 5.5rem);
   }
 
   .event-rsvp--viewport .invite-card-logo {
-    height: clamp(3.25rem, 12vw, 4.75rem);
-    margin-bottom: 1rem;
+    height: clamp(4.5rem, 24vw, 7rem);
+    margin-bottom: clamp(1.25rem, 3dvh, 1.75rem);
   }
 }
 
@@ -3284,14 +3365,23 @@ html.navigation-restore .hero-vignette {
   transition: none;
 }
 
-html.navigation-restore .hero-stagger {
+html.navigation-restore .countdown-unit {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+html.navigation-restore .enter-stagger {
   opacity: 1;
   animation: none !important;
 }
 
-html.navigation-restore .countdown-unit {
-  opacity: 1;
+html.navigation-restore .enter-scene {
   transform: none;
+  transition: none;
+}
+
+html.navigation-restore #rsvp-loading {
   transition: none;
 }
 
@@ -3306,6 +3396,20 @@ html.navigation-restore .countdown-unit {
     transition: none;
   }
 
+  .enter-scene {
+    transform: none;
+    transition: none;
+  }
+
+  .enter-stagger {
+    opacity: 1;
+    animation: none !important;
+  }
+
+  #rsvp-loading {
+    transition: none;
+  }
+
   .hero-image.is-visible {
     transition: none;
     opacity: 1;
@@ -3317,8 +3421,8 @@ html.navigation-restore .countdown-unit {
     opacity: 1;
   }
 
-  html.fonts-ready .hero-stagger,
-  .hero-stagger {
+  html.fonts-ready .enter-stagger,
+  .enter-stagger {
     opacity: 1;
     animation: none;
   }

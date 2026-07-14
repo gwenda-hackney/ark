@@ -31,13 +31,13 @@ const minutes = Math.floor((diff % 3600000) / 60000);
     <Image
       {...heroLogo}
       alt="Gwenda"
-      class="hero-logo hero-stagger"
+      class="hero-logo enter-stagger enter-stagger--auto"
       loading="eager"
       fetchpriority="high"
     />
 
     <div
-      class="hero-countdown hero-stagger"
+      class="hero-countdown enter-stagger enter-stagger--auto"
       id="countdown"
       data-opening={openingMs}
       aria-live="polite"
@@ -66,9 +66,9 @@ const minutes = Math.floor((diff % 3600000) / 60000);
       </div>
     </div>
 
-    <p class="hero-location hero-stagger">{siteConfig.tagline}</p>
-    <div class="hero-actions hero-stagger">
-      <a href="#story" class="btn btn-primary hero-stagger" id="hero-cta"
+    <p class="hero-location enter-stagger enter-stagger--auto">{siteConfig.tagline}</p>
+    <div class="hero-actions enter-stagger enter-stagger--auto">
+      <a href="#story" class="btn btn-primary enter-stagger enter-stagger--auto" id="hero-cta"
         >{siteConfig.copy.heroCta}</a
       >
       <BookingButton variant="primary" />

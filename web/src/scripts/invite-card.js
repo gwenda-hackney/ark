@@ -1,3 +1,9 @@
+import {
+  fadeOutElement,
+  revealEnterScene,
+  shouldSkipEntranceMotion,
+} from "./entrance-motion.js";
+
 const INVITE_HISTORY_STATE = { inviteCard: "open" };
 
 function faces() {
@@ -18,6 +24,22 @@ function inviteHistoryActive() {
 }
 
 let heightObserver = null;
+let flipLock = false;
+let flipGeneration = 0;
+
+function frontPanels() {
+  return {
+    idle: document.getElementById("invite-card-front-idle"),
+    sending: document.getElementById("invite-card-front-sending"),
+  };
+}
+
+/** Keep front copy hidden until the flip finishes (avoids hint bleed mid-rotation). */
+function setFrontPanel(mode) {
+  const { idle, sending } = frontPanels();
+  if (idle) idle.hidden = mode !== "idle";
+  if (sending) sending.hidden = mode !== "sending";
+}
 
 function backInner(refs) {
   return refs.back?.querySelector(".invite-card-back-inner");
@@ -69,13 +91,10 @@ function bindHeightObserver(refs) {
 
 function resetSendingState(refs) {
   const { card, front } = refs;
-  const idle = document.getElementById("invite-card-front-idle");
-  const sending = document.getElementById("invite-card-front-sending");
   if (!card || !(front instanceof HTMLButtonElement)) return;
 
   card.classList.remove("is-sending");
-  if (idle) idle.hidden = false;
-  if (sending) sending.hidden = true;
+  setFrontPanel("idle");
   front.removeAttribute("aria-busy");
 }
 
@@ -97,17 +116,56 @@ function applyOpenState(refs) {
   return true;
 }
 
-function applyCloseState(refs) {
+function applyCloseState(refs, { reveal = "idle" } = {}) {
   const { card, front } = refs;
   if (!card || !(front instanceof HTMLButtonElement)) return;
+
+  if (card.classList.contains("is-open")) {
+    beginCloseFlip(refs, { reveal });
+    return;
+  }
+
+  if (card.classList.contains("is-sending")) {
+    card.classList.remove("is-sending");
+    setFrontPanel(reveal === "sending" ? "sending" : "idle");
+    front.removeAttribute("aria-busy");
+    front.disabled = false;
+  }
+}
+
+function beginCloseFlip(refs, { reveal = "idle" } = {}) {
+  const { card, front } = refs;
+  if (!card || !(front instanceof HTMLButtonElement)) return;
+  if (!card.classList.contains("is-open")) return;
+
+  flipGeneration += 1;
+  const generation = flipGeneration;
+  flipLock = true;
+  card.classList.add("is-flipping");
+  setFrontPanel(reveal === "sending" ? "sending" : "hidden");
 
   card.classList.remove("is-open");
   front.setAttribute("aria-expanded", "false");
   front.removeAttribute("aria-hidden");
-  if (!card.classList.contains("is-sending")) {
-    front.disabled = false;
-  }
+  front.disabled = true;
   syncHeight(refs);
+
+  afterInviteCardFlip(() => {
+    if (generation !== flipGeneration) return;
+    flipLock = false;
+    card.classList.remove("is-flipping");
+    if (reveal === "idle") setFrontPanel("idle");
+    if (reveal === "sending") setFrontPanel("sending");
+    if (!card.classList.contains("is-open")) {
+      front.disabled = false;
+    }
+  });
+}
+
+/** Test-only reset for pending flip callbacks between cases. */
+export function resetInviteCardMotionForTests() {
+  flipGeneration += 1;
+  flipLock = false;
 }
 
 function pushInviteHistory() {
@@ -126,7 +184,6 @@ function handlePopState(event) {
   }
 
   if (card.classList.contains("is-open") || card.classList.contains("is-sending")) {
-    resetSendingState(refs);
     applyCloseState(refs);
   }
 }
@@ -135,18 +192,42 @@ export function syncInviteCardHeight() {
   syncHeight(faces());
 }
 
-export function showInviteCard({ startOpen = false } = {}) {
+/** Fade out the page loader before revealing the card or blocked panel. */
+export function fadeOutRsvpLoading(onComplete) {
+  const loading = document.getElementById("rsvp-loading");
+  fadeOutElement(loading).then(() => onComplete?.());
+}
+
+export async function showInviteCard({ startOpen = false } = {}) {
   const scene = document.getElementById("invite-card-scene");
-  if (scene) scene.hidden = false;
+  if (!scene) return;
+
+  scene.hidden = false;
+  scene.classList.remove("is-visible");
   initInviteCard({ startOpen });
+  await revealEnterScene(scene);
 }
 
 export function hideInviteCard() {
   const scene = document.getElementById("invite-card-scene");
-  if (scene) scene.hidden = true;
+  if (scene) {
+    scene.hidden = true;
+    scene.classList.remove("is-visible");
+  }
+
+  flipLock = false;
   const refs = faces();
-  resetSendingState(refs);
-  applyCloseState(refs);
+  const { card, front } = refs;
+  if (card) {
+    card.classList.remove("is-flipping", "is-open", "is-sending");
+  }
+  if (front instanceof HTMLButtonElement) {
+    front.setAttribute("aria-expanded", "false");
+    front.removeAttribute("aria-hidden");
+    front.removeAttribute("aria-busy");
+    front.disabled = false;
+  }
+  setFrontPanel("idle");
   if (refs.inner) refs.inner.style.height = "";
 }
 
@@ -163,7 +244,7 @@ export function openInviteCard({ pushHistory = true } = {}) {
 /** Run after the card flip transition (or immediately if motion is reduced). */
 export function afterInviteCardFlip(callback) {
   const inner = document.querySelector("#invite-card .invite-card-inner");
-  if (!(inner instanceof HTMLElement)) {
+  if (!(inner instanceof HTMLElement) || shouldSkipEntranceMotion()) {
     callback();
     return;
   }
@@ -200,25 +281,27 @@ export function finishInviteCardRsvp(onRevealed) {
 export function setInviteCardSending(isSending) {
   const refs = faces();
   const { card, front } = refs;
-  const idle = document.getElementById("invite-card-front-idle");
-  const sending = document.getElementById("invite-card-front-sending");
   if (!card || !(front instanceof HTMLButtonElement)) return;
 
-  card.classList.toggle("is-sending", isSending);
-  if (idle) idle.hidden = isSending;
-  if (sending) sending.hidden = !isSending;
-
   if (isSending) {
-    applyCloseState(refs);
-    front.disabled = true;
+    card.classList.add("is-sending");
     front.setAttribute("aria-busy", "true");
-  } else {
-    front.removeAttribute("aria-busy");
-    if (!card.classList.contains("is-open")) {
-      front.disabled = false;
+    if (card.classList.contains("is-open")) {
+      applyCloseState(refs, { reveal: "sending" });
+    } else {
+      setFrontPanel("sending");
+      front.disabled = true;
     }
+    syncHeight(refs);
+    return;
   }
 
+  card.classList.remove("is-sending");
+  front.removeAttribute("aria-busy");
+  if (!card.classList.contains("is-open")) {
+    setFrontPanel("idle");
+    front.disabled = false;
+  }
   syncHeight(refs);
 }
 

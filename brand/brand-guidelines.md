@@ -313,9 +313,12 @@ The form asks *Can you make it?* first; picking **Yes** reveals name, email, and
 | Element | Class / pattern | Notes |
 |---------|-----------------|-------|
 | Card shell | `InviteFlipCardShell` | Front: wordmark, *Your invitation awaits* (Lora lead line), event name (card scale, weight 400), when, tap to open |
-| Flip | `.invite-card.is-open` | Single 3D flip; card height is CSS (`100dvh` minus padding), not JS |
+| Flip | `.invite-card.is-open` | Single 3D flip; card height is CSS (`100dvh` minus padding), not JS. While closing (`.is-flipping`), front copy stays hidden until the transform finishes — never show *Tap anywhere to open* mid-rotation |
 | Card size | `30rem` wide; fills viewport minus padding | Section is `100dvh` with `--invite-card-vpad`; card flex-fills the rest. No page scroll. Back face scrolls internally when open. |
-| Card front layout | `.invite-card-front-idle` | Content starts ~⅓ down (`padding-top: clamp(1rem, 16–18dvh, …)`), not vertically centred |
+| Card front layout | `.invite-card-front-idle` | Centred invitation cover (like gate/thanks): logo, copy, and CTA; content starts ~⅓ down, not vertically centred |
+| Card front logo | `.invite-card-logo` | Centred (like hero/gate), `clamp(5rem, 22vw, 8.5rem)` height, brand drop-shadow |
+| Card entrance | `.enter-scene` + `.enter-stagger` | Loader fades via `fadeOutElement`; scene waits for `fonts-ready` + logo decode (`revealEnterScene` in `entrance-motion.js`); scene slides up (transform only); children stagger with `fadeUp` after fonts load |
+| Card front CTA | `.invite-card-hint` | Centred, gold uppercase: *Tap anywhere to open*; hairline divider above |
 | Card front event name | `.invite-card-event-name` | Cormorant `clamp(1.75rem, 3.8vw, 2.25rem)`, weight 400 — smaller than §4.2 section headings |
 | Section | `.event-rsvp.event-rsvp--viewport` | `#0d0d0d` background; `100dvh` locked, top-anchored, `--invite-card-vpad` inset |
 | Card face | `.invite-card-face` | `bgCard` (`#1a1a1a`) — standard on-screen card surface, not `bgStoryPrint` (print-only, too flat/warm for this raised card) |
@@ -364,6 +367,11 @@ All animations respect `prefers-reduced-motion`.
 | Animation | Description |
 |-----------|------------|
 | `fadeUp` | Hero elements stagger in on font load (`translateY` + opacity) |
+| Shared entrance | `entrance-motion.js`: wait for `html.fonts-ready` and image decode before opacity animation; `fadeOutElement` for loaders |
+| `.enter-stagger` | Hidden until fonts ready, then `fadeUp`; use `--enter-delay` for sequence |
+| `.enter-scene` | Parent slides up (`transform` only, no opacity) while children stagger; add `.is-visible` via `revealEnterScene` |
+| `.enter-stagger--auto` | Stagger on page load without a scene parent (hero) |
+| Invite card entrance | Loader fades → `revealEnterScene` on `.invite-card-scene.enter-scene` → staggered front copy |
 | Scroll-triggered reveal | Sections fade up `14px` as they enter the viewport (`.reveal` → `.visible`) |
 | RSVP confirmation | After save, confirmation copy on the card back rises `18px` with `.reveal` / `.visible` once the flip completes |
 | Word dissolve | "Antiquated ↔ modern" word reveal loops every 28 seconds (story section) |
@@ -409,7 +417,7 @@ Always write in British English:
 
 Do **not** use em dashes (`—`) in customer-facing copy or UI strings. They read as generic, over-written AI voice. Use a full stop, comma, colon, or parentheses instead. For page titles, separate with a middle dot (` · `), e.g. *You're invited · Gwenda*.
 
-Centre-aligned body copy is for marketing sections (signup header, thanks page). Invite and RSVP pages use **left-aligned** editorial type inside the card panel.
+Centre-aligned body copy is for marketing sections (signup header, thanks page) and the **invite card front** (invitation cover). The RSVP form on the card back and the confirmation panel use **left-aligned** editorial type.
 
 ### 6.4 What Gwenda is not
 
