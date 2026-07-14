@@ -153,6 +153,7 @@ export function isPublicPath(pathname) {
   if (pathname === "/favicon.png") return true;
   if (pathname === "/apple-touch-icon.png") return true;
   if (pathname.startsWith("/brand/")) return true;
+  if (pathname.startsWith("/og/")) return true;
   if (pathname.startsWith("/_astro/")) return true;
   if (pathname.startsWith("/_image")) return true;
   if (pathname.startsWith("/@")) return true;

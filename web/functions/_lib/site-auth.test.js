@@ -16,6 +16,7 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/favicon.png")).toBe(true);
     expect(isPublicPath("/apple-touch-icon.png")).toBe(true);
     expect(isPublicPath("/brand/logo-organization.png")).toBe(true);
+    expect(isPublicPath("/og/events/private-launch-party.jpg")).toBe(true);
   });
 
   it("allows invite pages, event RSVP pages, and RSVP API through the staging gate", () => {

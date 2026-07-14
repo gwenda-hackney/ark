@@ -39,9 +39,12 @@ const pageDescription = socialDescription(event.description);
     title: pageTitle,
     description: pageDescription,
     url: pageUrl,
-    image: event.socialImage?.url,
+    image: event.socialImage
+      ? `${siteOrigin}${event.socialImage.publicPath}`
+      : undefined,
     imageWidth: event.socialImage?.width,
     imageHeight: event.socialImage?.height,
+    imageType: event.socialImage?.type,
     imageAlt: event.socialImage?.alt,
   }}
 />

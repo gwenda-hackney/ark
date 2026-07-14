@@ -23,8 +23,18 @@ const image = useCustomImage
   : new URL(sharePreviewImage.src, url).href;
 const imageWidth = Astro.props.imageWidth ?? sharePreviewImage.width;
 const imageHeight = Astro.props.imageHeight ?? sharePreviewImage.height;
-const imageType = Astro.props.imageType ?? (useCustomImage ? undefined : "image/png");
+const imageType =
+  Astro.props.imageType ??
+  (useCustomImage ? inferImageType(image) : "image/png");
 const imageAlt = Astro.props.imageAlt ?? social.imageAlt;
+const secureImage = image.startsWith("https://") ? image : undefined;
+
+function inferImageType(imageUrl: string) {
+  if (/\.jpe?g(?:$|[?#])/i.test(imageUrl)) return "image/jpeg";
+  if (/\.png(?:$|[?#])/i.test(imageUrl)) return "image/png";
+  if (/\.webp(?:$|[?#])/i.test(imageUrl)) return "image/webp";
+  return undefined;
+}
 ---
 
 <link rel="canonical" href={url} />
@@ -36,6 +46,7 @@ const imageAlt = Astro.props.imageAlt ?? social.imageAlt;
 <meta property="og:title" content={title} />
 <meta property="og:description" content={description} />
 <meta property="og:image" content={image} />
+{secureImage && <meta property="og:image:secure_url" content={secureImage} />}
 <meta property="og:image:width" content={String(imageWidth)} />
 <meta property="og:image:height" content={String(imageHeight)} />
 {imageType && <meta property="og:image:type" content={imageType} />}

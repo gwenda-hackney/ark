@@ -22,6 +22,8 @@
     "studio:seed:events:production": "env -u SANITY_API_TOKEN SANITY_DATASET=production CONFIRM_PRODUCTION_SEED=1 node --env-file=.env studio/scripts/seed-events.mjs",
     "studio:migrate:launch-event:dev": "node --env-file=.env studio/scripts/migrate-launch-event.mjs",
     "studio:migrate:launch-event:production": "SANITY_DATASET=production CONFIRM_PRODUCTION_MIGRATE=1 node --env-file=.env studio/scripts/migrate-launch-event.mjs",
+    "studio:fix:events:dev": "node --env-file=.env studio/scripts/fix-events.mjs",
+    "studio:fix:events:production": "SANITY_DATASET=production CONFIRM_PRODUCTION_MIGRATE=1 node --env-file=.env studio/scripts/fix-events.mjs",
     "setup:event-admin": "node scripts/setup-event-admin.mjs",
     "setup:event-ops": "node --env-file=.env scripts/setup-event-ops.mjs",
     "setup:baserow-rsvp": "node --env-file=.env scripts/setup-baserow-rsvp.mjs",

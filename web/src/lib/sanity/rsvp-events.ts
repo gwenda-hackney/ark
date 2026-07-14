@@ -24,6 +24,9 @@ export type RsvpEventPage = {
     width: number;
     height: number;
     alt: string;
+    type: string;
+    /** Self-hosted path under /og/events/, written at build time. */
+    publicPath: string;
   };
 };
 
@@ -44,6 +47,8 @@ function mapRsvpEventPage(doc: SanityRsvpEvent): RsvpEventPage | null {
           width: socialImage.width,
           height: socialImage.height,
           alt: socialImage.alt || doc.title,
+          type: socialImage.type,
+          publicPath: `/og/events/${slug}.jpg`,
         }
       : undefined,
   };

@@ -1,19 +1,14 @@
 // Confirmation email sent to a guest after they RSVP "yes".
 // Copy comes from Sanity; the email links to the guest's ticket page (Wallet
 // pass + calendar download live there, generated on demand — see ticket.js /
-// functions/api/ticket/*) and attaches a lightweight .ics for quick import.
+// functions/api/ticket/*).
 
 import {
   buildConfirmationContent,
   confirmationHtml,
   LOGO_CID,
 } from "./rsvp-email-template.js";
-import {
-  buildCalendarTicket,
-  fetchImageBuffer,
-  formatTicketTitle,
-  ticketAttachmentBaseName,
-} from "./rsvp-tickets.js";
+import { fetchImageBuffer } from "./rsvp-tickets.js";
 import {
   EVENTS_NO_REPLY_HEADERS,
   resolveSmtpFrom,
@@ -58,24 +53,6 @@ export async function sendRsvpConfirmationEmail(
     });
   }
 
-  const ics = buildCalendarTicket({
-    ticketId,
-    title: formatTicketTitle(event?.title),
-    date: event?.date,
-    startTime: content.ticketStart,
-    endTime: content.ticketEnd,
-    venue: content.venue,
-    guestName: name,
-    guests,
-    description: event?.description,
-    url: ticketUrl || inviteUrl,
-  });
-  attachments.push({
-    filename: `${ticketAttachmentBaseName(event?.slug)}.ics`,
-    content: ics,
-    contentType: "text/calendar; charset=utf-8",
-  });
-
   const nodemailer = await import("nodemailer");
   const port = Number(env.SMTP_PORT?.trim() || "587");
   const user = env.SMTP_USER?.trim() ?? "";
@@ -94,12 +71,14 @@ export async function sendRsvpConfirmationEmail(
     subject: content.subject,
     text: content.bodyText,
     html: confirmationHtml({
+      eyebrow: content.eyebrow,
       heading: content.heading,
       bodyHtml: content.bodyHtml,
+      eventBlockHtml: content.eventBlockHtml,
       logoUrl: content.logoUrl,
       logoCid: logoBuffer ? LOGO_CID : null,
       ticketUrl,
-      mapsUrl: content.mapsUrl,
+      modifyUrl: content.modifyUrl,
     }),
     headers: EVENTS_NO_REPLY_HEADERS,
     attachments,

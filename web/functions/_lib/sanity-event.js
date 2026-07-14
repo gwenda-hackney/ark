@@ -15,6 +15,7 @@ const EVENT_FIELDS = `{
   "channels": channels[]{label, token},
   rsvpConfirmation {
     subject,
+    eyebrow,
     heading,
     body,
     venue

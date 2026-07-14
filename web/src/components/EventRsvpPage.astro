@@ -14,6 +14,7 @@ export interface EventRsvpMeta {
   image?: string;
   imageWidth?: number;
   imageHeight?: number;
+  imageType?: string;
   imageAlt?: string;
 }
 
@@ -39,6 +40,7 @@ const { meta } = Astro.props;
       image={meta.image}
       imageWidth={meta.imageWidth}
       imageHeight={meta.imageHeight}
+      imageType={meta.imageType}
       imageAlt={meta.imageAlt}
     />
     <Fonts />
