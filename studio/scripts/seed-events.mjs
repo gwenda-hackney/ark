@@ -43,7 +43,7 @@ const client = createClient({
 
 const EVENTS = [
   {
-    title: "Private launch party",
+    title: "Launch Party",
     slug: "private-launch-party",
     date: "2026-08-15",
     description:
@@ -58,9 +58,9 @@ const EVENTS = [
 
 Thanks for replying. {guests_line}
 
-{title} is on {date} at {venue}.
+When: {date}
 
-Directions: {maps_url}
+{venue}
 
 Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
 

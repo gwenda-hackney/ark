@@ -1,6 +1,7 @@
 node_modules/
 .DS_Store
 .env
+.apple-wallet/
 .wrangler/
 .astro/
 /src/env.d.ts

@@ -31,7 +31,7 @@ describe("fetchEventBySlug", () => {
         ok: true,
         json: async () => ({
           result: {
-            title: "Private launch party",
+            title: "Launch Party",
             description: "An intimate evening",
             date: "2026-08-15",
             venue: "Schwartz Wharf, Hackney Wick",
@@ -58,7 +58,7 @@ describe("fetchEventBySlug", () => {
       "private-launch-party",
     );
     expect(event).toEqual({
-      title: "Private launch party",
+      title: "Launch Party",
       description: "An intimate evening",
       date: "2026-08-15",
       venue: "Schwartz Wharf, Hackney Wick",
@@ -74,7 +74,7 @@ describe("fetchEventBySlug", () => {
       },
     });
     expect(publicEventFields(event)).toEqual({
-      title: "Private launch party",
+      title: "Launch Party",
       description: "An intimate evening",
       date: "2026-08-15",
       venue: "Schwartz Wharf, Hackney Wick",

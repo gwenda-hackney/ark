@@ -2496,6 +2496,60 @@ html.fonts-ready .thanks {
   display: none;
 }
 
+.rsvp-submitting {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.rsvp-submitting[hidden] {
+  display: none;
+}
+
+.rsvp-submitting-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.rsvp-submitting-mark::before {
+  content: "";
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--color-gold);
+}
+
+.rsvp-submitting-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-gold);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rsvp-submitting-mark::before {
+    animation: inviteLoaderCore 1.8s var(--ease-smooth) infinite;
+  }
+
+  .rsvp-submitting-mark::after {
+    animation: inviteLoaderPulse 1.8s var(--ease-smooth) infinite;
+  }
+}
+
 .rsvp-error {
   margin: 0;
   font-size: 0.9rem;

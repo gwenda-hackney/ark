@@ -17,9 +17,9 @@ const DEFAULT_BODY = `{greeting}
 
 Thanks for replying. {guests_line}
 
-{title} is on {date} at {venue}.
+When: {date}
 
-Directions: {maps_url}
+{venue}
 
 Your ticket is attached. Add it to Apple Wallet or import the calendar file on your phone.
 
@@ -61,6 +61,29 @@ export function formatEventDate(date) {
     month: "long",
     year: "numeric",
   }).format(parsed);
+}
+
+function formatTicketTime(time) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? "").trim());
+  if (!match) return "";
+  let hours = Number.parseInt(match[1], 10);
+  const minutes = Number.parseInt(match[2], 10);
+  if (hours > 23 || minutes > 59) return "";
+  const period = hours >= 12 ? "pm" : "am";
+  hours %= 12;
+  if (hours === 0) hours = 12;
+  if (minutes === 0) return `${hours}${period}`;
+  return `${hours}:${String(minutes).padStart(2, "0")}${period}`;
+}
+
+/** Date and door times for the confirmation email When line. */
+export function formatEventWhen(date, startTime, endTime) {
+  const datePart = formatEventDate(date);
+  const start = formatTicketTime(startTime);
+  const end = formatTicketTime(endTime);
+  if (datePart && start && end) return `${datePart}, ${start}–${end}`;
+  if (datePart && start) return `${datePart}, ${start}`;
+  return datePart;
 }
 
 /** Salutation line for the email body. Uses the guest name when we have one. */
@@ -123,7 +146,7 @@ export function buildConfirmationContent({ name, guests, event, inviteUrl, origi
     guestsLine: guestLine(guests),
     greeting: greetingLine(name),
     title: event?.title || "The event",
-    date: formatEventDate(event?.date),
+    date: formatEventWhen(event?.date, copy.ticketStart, copy.ticketEnd),
     venue: copy.venue,
     mapsUrl: VENUE_MAPS_URL,
     inviteUrl,
@@ -131,7 +154,7 @@ export function buildConfirmationContent({ name, guests, event, inviteUrl, origi
 
   const bodyText = formatRsvpContent(copy.body, values);
   const base = (origin || "https://gwenda.co.uk").replace(/\/$/, "");
-  const logoUrl = `${base}/brand/logo-organization.png`;
+  const logoUrl = `${base}/brand/logo-email.png`;
 
   return {
     subject: formatRsvpContent(copy.subject, values),
@@ -158,7 +181,9 @@ export function confirmationHtml({
 }) {
   const logoSrc = logoCid ? `cid:${logoCid}` : logoUrl;
   const logoMarkup = logoSrc
-    ? `<img src="${escapeHtml(logoSrc)}" alt="Gwenda" width="180" style="width:min(180px, 55vw);height:auto;margin:0 0 1.75rem;display:block;" />`
+    ? `<div style="text-align:center;margin:0 0 1.75rem;">
+        <img src="${escapeHtml(logoSrc)}" alt="Gwenda" width="180" style="width:min(180px, 55vw);height:auto;margin:0 auto;display:block;" />
+      </div>`
     : "";
   const inviteButton = inviteUrl
     ? `<p style="margin:1.75rem 0 0;">

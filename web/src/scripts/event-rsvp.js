@@ -99,6 +99,8 @@ function bindRsvpForm({ slug, token }) {
     event.preventDefault();
     const errorEl = document.getElementById("rsvp-error-form");
     const successEl = document.getElementById("rsvp-success");
+    const submitEl = document.getElementById("rsvp-submit");
+    const submittingEl = document.getElementById("rsvp-submitting");
     if (errorEl) errorEl.hidden = true;
 
     const response = readRsvpForm();
@@ -110,26 +112,49 @@ function bindRsvpForm({ slug, token }) {
       return;
     }
 
-    const save = await fetch("/api/rsvp", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, token, ...response }),
-    });
-    const saveData = await save.json();
-    if (!save.ok) {
+    if (submitEl instanceof HTMLButtonElement) {
+      submitEl.disabled = true;
+      submitEl.hidden = true;
+    }
+    if (submittingEl) submittingEl.hidden = false;
+
+    try {
+      const save = await fetch("/api/rsvp", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, token, ...response }),
+      });
+      const saveData = await save.json();
+      if (!save.ok) {
+        if (errorEl) {
+          errorEl.textContent = saveData.error || "Could not save your RSVP.";
+          errorEl.hidden = false;
+        }
+        if (submitEl instanceof HTMLButtonElement) {
+          submitEl.disabled = false;
+          submitEl.hidden = false;
+        }
+        if (submittingEl) submittingEl.hidden = true;
+        return;
+      }
+
+      if (saveData.event) renderEvent(saveData.event);
+      lockRsvpForm();
+      if (successEl) {
+        successEl.textContent = formatSuccessMessage(response);
+        successEl.hidden = false;
+      }
+    } catch {
       if (errorEl) {
-        errorEl.textContent = saveData.error || "Could not save your RSVP.";
+        errorEl.textContent = "Something went wrong. Please try again.";
         errorEl.hidden = false;
       }
-      return;
-    }
-
-    if (saveData.event) renderEvent(saveData.event);
-    lockRsvpForm();
-    if (successEl) {
-      successEl.textContent = formatSuccessMessage(response);
-      successEl.hidden = false;
+      if (submitEl instanceof HTMLButtonElement) {
+        submitEl.disabled = false;
+        submitEl.hidden = false;
+      }
+      if (submittingEl) submittingEl.hidden = true;
     }
   });
 }

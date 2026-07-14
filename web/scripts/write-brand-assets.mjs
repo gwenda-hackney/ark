@@ -110,9 +110,13 @@ await sharp({
   .png()
   .toFile(resolve(outDir, "brand/logo-organization.png"));
 
+/** Transparent wordmark for dark email backgrounds. */
+await sharp(logoLayer).png().toFile(resolve(outDir, "brand/logo-email.png"));
+
 console.log("Wrote public/favicon.png (from favicon-light.png)");
 console.log("Wrote public/favicon.ico");
 console.log("Wrote public/apple-touch-icon.png");
 console.log(
   `Wrote public/brand/logo-organization.png (${orgWidth}×${orgCanvasHeight}, ${colors.bg} background)`,
 );
+console.log("Wrote public/brand/logo-email.png (transparent wordmark)");

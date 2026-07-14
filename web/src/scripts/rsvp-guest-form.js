@@ -134,7 +134,7 @@ export function bindRsvpPickForm() {
 
 /** Collapse the interactive controls once a reply has been recorded. */
 export function lockRsvpForm() {
-  for (const id of ["rsvp-attend-step", "rsvp-details", "rsvp-submit"]) {
+  for (const id of ["rsvp-attend-step", "rsvp-details", "rsvp-submit", "rsvp-submitting"]) {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
   }

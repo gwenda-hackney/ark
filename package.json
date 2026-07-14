@@ -26,6 +26,8 @@
     "setup:instagram": "node --env-file=.env scripts/setup-instagram.mjs",
     "setup:ci-secrets": "node scripts/setup-ci-sanity-secrets.mjs",
     "setup:site-deploy": "node scripts/setup-site-deploy.mjs",
+    "setup:apple-wallet:csr": "node scripts/setup-apple-wallet.mjs csr",
+    "setup:apple-wallet:import": "node scripts/setup-apple-wallet.mjs import",
     "event-invites": "node scripts/with-env.mjs npm run cli -w @gwenda/event-invites --",
     "generate:brand-assets": "npm run generate:brand-assets -w @gwenda/web",
     "sync:brand": "node .github/scripts/sync-brand-tokens.mjs",

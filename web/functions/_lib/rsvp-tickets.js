@@ -159,7 +159,7 @@ export async function buildAppleWalletPass(env, options) {
 
   const start = parseTimeOnDate(date, startTime);
 
-  const { default: PKPass } = await import("passkit-generator");
+  const { PKPass } = await import("passkit-generator");
   const logo = (await fetchImageBuffer(logoUrl)) || (await fetchImageBuffer(`${origin}/favicon.png`));
   const buffers = logo ? { "logo.png": logo, "icon.png": logo } : {};
 
@@ -229,8 +229,14 @@ export async function buildAppleWalletPass(env, options) {
   return pass.getAsBuffer();
 }
 
+export function ticketAttachmentBaseName(eventSlug) {
+  const slug = eventSlug?.trim() || "event";
+  return slug.replace(/^private-/, "");
+}
+
 export async function buildRsvpTicketAttachments(env, options) {
   const ticketId = options.ticketId || `gwenda-${options.eventSlug || "event"}-${Date.now()}`;
+  const attachmentBase = ticketAttachmentBaseName(options.eventSlug);
   const ics = buildCalendarTicket({
     ticketId,
     title: options.title,
@@ -246,7 +252,7 @@ export async function buildRsvpTicketAttachments(env, options) {
 
   const attachments = [
     {
-      filename: "gwenda-ticket.ics",
+      filename: `${attachmentBase}.ics`,
       content: ics,
       contentType: "text/calendar; charset=utf-8",
     },
@@ -267,7 +273,7 @@ export async function buildRsvpTicketAttachments(env, options) {
 
   if (appleWalletPass) {
     attachments.push({
-      filename: "gwenda-ticket.pkpass",
+      filename: `${attachmentBase}.pkpass`,
       content: appleWalletPass,
       contentType: "application/vnd.apple.pkpass",
     });
