@@ -4,6 +4,7 @@ import { visionTool } from "@sanity/vision";
 import { siteDeployPlugin } from "./plugins/siteDeploy";
 import { eventInvitesPlugin } from "./plugins/eventInvites";
 import { schemaTypes } from "./schemaTypes";
+import { structure } from "./structure";
 
 /** Inlined at build time — vars from repo-root `.env` via scripts/with-env.mjs */
 const dataset = process.env.SANITY_STUDIO_DATASET || "development";
@@ -14,7 +15,12 @@ export default defineConfig({
   title: dataset === "production" ? "Gwenda" : "Gwenda (development)",
   projectId,
   dataset,
-  plugins: [structureTool(), visionTool(), siteDeployPlugin(), eventInvitesPlugin()],
+  plugins: [
+    structureTool({ structure }),
+    visionTool(),
+    siteDeployPlugin(),
+    eventInvitesPlugin(),
+  ],
   schema: {
     types: schemaTypes,
   },
