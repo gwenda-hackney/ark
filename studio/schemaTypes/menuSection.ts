@@ -1,10 +1,13 @@
 import { defineField, defineType } from "sanity";
+import { orderRankField, orderRankOrdering } from "@sanity/orderable-document-list";
 
 export const menuSection = defineType({
   name: "menuSection",
   title: "Menu section",
   type: "document",
+  orderings: [orderRankOrdering],
   fields: [
+    orderRankField({ type: "menuSection" }),
     defineField({
       name: "title",
       title: "Title",
@@ -24,22 +27,8 @@ export const menuSection = defineType({
       title: "Subtitle",
       type: "string",
     }),
-    defineField({
-      name: "sortOrder",
-      title: "Sort order",
-      type: "number",
-      initialValue: 0,
-      validation: (rule) => rule.required().integer().min(0),
-    }),
   ],
   preview: {
     select: { title: "title", subtitle: "subtitle" },
   },
-  orderings: [
-    {
-      title: "Sort order",
-      name: "sortOrderAsc",
-      by: [{ field: "sortOrder", direction: "asc" }],
-    },
-  ],
 });

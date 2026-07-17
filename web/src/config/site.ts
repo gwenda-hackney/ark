@@ -35,7 +35,7 @@ export const siteConfig = {
     address: "Unit 4003, 4 Schwartz Wharf, London, E9 5AA",
     addressShort: "Schwartz Wharf, Hackney Wick",
     mapsUrl:
-      "https://www.google.com/maps/search/?api=1&query=Unit%204003%2C%204%20Schwartz%20Wharf%2C%20London%2C%20E9%205AA",
+      "https://www.google.com/maps/search/Gwenda/@51.541812,-0.022465,17z",
     geo: {
       latitude: 51.541812,
       longitude: -0.022465,

@@ -1,6 +1,7 @@
 # Sanity build output
 dist/
 .sanity/
+*.tsbuildinfo
 
 # Dependencies
 node_modules/

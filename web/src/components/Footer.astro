@@ -1,6 +1,8 @@
 ---
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
+import { bookingUrl } from "../config/booking";
+import { fetchSiteSettings } from "../lib/sanity/site-settings";
 import FooterSocialLink from "./FooterSocialLink.astro";
 
 interface Props {
@@ -11,6 +13,7 @@ interface Props {
 const { features } = Astro.props;
 const { social, location } = siteConfig;
 const year = new Date().getFullYear();
+const { bookingEnabled } = await fetchSiteSettings();
 
 const address = features.useShortAddress
   ? location.addressShort
@@ -40,6 +43,20 @@ const address = features.useShortAddress
             )
           }
           <li><a href="/events">Events</a></li>
+          {
+            bookingEnabled && (
+              <li>
+                <a
+                  href={bookingUrl}
+                  class="booking-cta"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {siteConfig.copy.bookingCta}
+                </a>
+              </li>
+            )
+          }
           <li><a href="#list">{siteConfig.copy.signupNavCta}</a></li>
         </ul>
       </div>

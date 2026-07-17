@@ -1,98 +1,125 @@
 # Private event invites
 
-Send **private event invitations** from a **Baserow guest list**. Each guest gets a personal link:
+End-to-end flow for private events:
 
-`https://gwenda.co.uk/invite/{token}`
+1. **ClickUp** — guest list (Name, Username/Email, Channel)
+2. **Sync** — guests upserted to Baserow for RSVP tokens
+3. **Sanity** — event copy + hero image on invite page and in email/DM
+4. **Send** — email (SMTP) or Instagram DM with personal link
+5. **RSVP** — guest opens `/invite/{token}` and confirms headcount
 
-The website greets them by name, loads event copy from Sanity at runtime, and collects RSVP headcount.
+## ClickUp list model
 
-## Architecture
+| Field | ClickUp source | Values |
+|-------|----------------|--------|
+| **Name** | Task title | Guest name |
+| **Username/Email** | Custom field | Email address or Instagram handle |
+| **Channel** | Custom field | `Email` or `Instagram` |
 
-| Store | Role |
-|-------|------|
-| **Sanity** | Event title, description, date, hero — public + invite pages |
-| **Baserow** | Guest list, tokens, RSVP counts |
-| **Studio → Event invites** | Headcount dashboard + send (via site admin API) |
+Env: `CLICKUP_INVITE_LIST_ID`, `CLICKUP_API_KEY` (repo-root `.env`).
+
+Override field names with `CLICKUP_INVITE_CONTACT_FIELD` and `CLICKUP_INVITE_CHANNEL_FIELD`.
 
 ## Baserow
 
-Local dev and **gwenda-staging** share one Baserow database (`465058`). The **Event Invites** table is found by name at runtime — no table id in `.env`.
+Runtime RSVP storage — table **Event Invites** (see main README section). ClickUp sync creates/updates rows filtered by **Event Slug**.
 
-| Table | Lookup |
-|-------|--------|
-| Subscribe | `BASEROW_TABLE_ID` (or dev/staging default `1024006`) |
-| Event invites | table name `Event Invites` (override with `BASEROW_RSVP_TABLE_NAME`) |
-
-Create the RSVP table once for dev/staging (`npm run setup:baserow-rsvp`), then duplicate to production when you promote. The database token must have CRUD access on **Event Invites**.
-
-RSVP table columns (one table for all events; filter by **Event Slug**):
-
-| Field | Set by |
-|-------|--------|
-| Event Slug | Ops |
-| Name | Ops |
-| Channel | Ops (`Email` or `Instagram`) |
-| Contact | Ops |
-| Token | Send flow |
-| RSVP Guests | Guest via website |
-| RSVP Updated | Guest via website |
-
-## Setup
+## Commands
 
 ```bash
-npm install
-npm run setup:baserow-rsvp   # creates Event Invites table (JWT auth — see below)
-npm run setup:event-admin    # generates EVENT_ADMIN_SECRET
+# Staging E2E (ClickUp → Baserow → preview send)
+npm run event-invites -- \
+  --event-slug private-launch-party \
+  --source clickup \
+  --invite-base-url https://gwenda-staging.pages.dev \
+  --dry-run
+
+# Live send (needs SMTP_* and/or Instagram tokens in .env)
+npm run event-invites -- \
+  --event-slug private-launch-party \
+  --source clickup \
+  --invite-base-url https://gwenda-staging.pages.dev \
+  --send
 ```
 
-### Baserow table (JWT vs database token)
+`--source baserow` skips ClickUp and reads guests already in Baserow.
 
-Baserow has two token types:
+Hero image comes from the Sanity **event** document (`heroImage`); falls back to `INVITE_IMAGE_URL`.
 
-| Token | How to get it | Can do |
-|-------|---------------|--------|
-| **Database token** | Settings → Database tokens | Row CRUD only (`BASEROW_API_KEY`) |
-| **JWT** | Your Baserow login via `POST /api/user/token-auth/` | Create tables/fields (schema) |
+## Instagram DMs (@gwendahackney)
 
-`npm run setup:baserow-rsvp` prompts for your Baserow email and password (not saved), obtains a short-lived JWT, creates the **Event Invites** table in the dev/staging database, and adds fields.
+Instagram invites use the **Meta Instagram Messaging API**. DMs are sent **from your connected Instagram professional account** — in production that is [@gwendahackney](https://www.instagram.com/gwendahackney).
 
-After that, create a **database token** with create/read/update/delete on that table and set `BASEROW_API_KEY` for the site and CLI.
+### What you need
 
-Copy invite vars into repo-root `.env` (see `.env.example`).
+| Env var | What it is |
+|---------|------------|
+| `INSTAGRAM_ACCESS_TOKEN` | Long-lived token with `instagram_manage_messages` (and related Page permissions) |
+| `INSTAGRAM_BUSINESS_ACCOUNT_ID` | Instagram professional account ID (numeric — **not** the @handle) |
 
-Local Studio reads the same file via `with-env`:
+Add both to repo-root `.env` for local sends. For staging/production site sends, also set them as GitHub secrets and re-deploy (or run `npm run setup:event-ops`).
 
-```
-EVENT_ADMIN_URL=http://localhost:4321
-EVENT_ADMIN_SECRET=<from npm run setup:event-admin>
-BASEROW_RSVP_GRID_URL=https://baserow.io/.../table/...
-```
+### Connect Instagram (OAuth)
 
-## Workflow
+Same mechanism as Canva: **you authorize our Meta app**, we store the token.
 
-1. **Create event** in Sanity Studio (Events).
-2. **Add guests** in Baserow grid filtered to `Event Slug = your-slug`.
-3. **Event invites** tool in Studio — headcount, dry run, send.
-4. Guests RSVP at `/invite/{token}`; counts update in Baserow + Studio.
+**Checklist:** [`docs/instagram-invites-setup.md`](../../docs/instagram-invites-setup.md)
 
-## CLI
+1. **Meta app** — [developers.facebook.com](https://developers.facebook.com/) → Create app → add **Facebook Login** + **Instagram**.
+2. **OAuth redirect** — in the app, add valid redirect URI: `http://localhost:8765/callback`
+3. **App credentials** — add to repo-root `.env`:
+   ```
+   META_APP_ID=...
+   META_APP_SECRET=...
+   ```
+4. **Connect** — run:
+   ```bash
+   npm run setup:instagram
+   ```
+   Opens Meta login (like Canva’s “Connect Instagram”), then writes `INSTAGRAM_ACCESS_TOKEN` and `INSTAGRAM_BUSINESS_ACCOUNT_ID` to `.env`.
+
+Manual alternative (Graph API Explorer) is still documented below if you prefer.
+
+<details>
+<summary>Manual token setup (Graph API Explorer)</summary>
+
+1. **Instagram** — @gwendahackney must be a **Professional** account linked to a Facebook Page.
+2. **Permissions** — `instagram_basic`, `instagram_manage_messages`, `pages_show_list`, `pages_read_engagement`.
+3. **Access token** — generate long-lived Page token in Graph API Explorer.
+4. **Instagram account ID**:
 
 ```bash
-npm run event-invites -- --dry-run --event-slug private-launch-party
-npm run event-invites -- --send --event-slug private-launch-party
-npm run event-invites -- --export-manual-instagram guests.csv
+curl "https://graph.facebook.com/v21.0/me/accounts?access_token=TOKEN"
+curl "https://graph.facebook.com/v21.0/PAGE_ID?fields=instagram_business_account&access_token=TOKEN"
 ```
+
+</details>
+
+### Important limitation
+
+Meta only lets you DM users who have **already messaged** @gwendahackney (an open conversation). The CLI indexes your inbox to match handles. If you have not DM'd the account before, message @gwendahackney once from your personal Instagram first, then re-run send.
+
+### Send Instagram test
+
+```bash
+npm run event-invites -- \
+  --event-slug private-launch-party \
+  --source clickup \
+  --invite-base-url https://gwenda-staging.pages.dev \
+  --send
+```
+
+Dry run first to confirm ClickUp → Baserow sync and handle match:
+
+```bash
+npm run event-invites -- --event-slug private-launch-party --source clickup --dry-run
+```
+
+
+The development dataset is private. Staging Pages needs `SANITY_API_TOKEN` (Viewer) synced as a Cloudflare secret — handled by deploy workflows.
 
 ## Website
 
-- `/events` — live event list from Sanity (`GET /api/events`)
-- `/invite/{token}` — RSVP page
+- `/invite/{token}` — RSVP page (event hero from Sanity when token is set)
 - `GET/POST /api/rsvp` — guest lookup + save
-- `/api/event-admin/*` — Studio admin API (Bearer `EVENT_ADMIN_SECRET`)
-
-## Development
-
-```bash
-npm test -w @gwenda/event-invites
-npm test -w @gwenda/web -- functions/_lib/event-guests.test.js
-```
+- `/api/event-admin/*` — Studio admin API

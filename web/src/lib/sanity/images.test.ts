@@ -4,6 +4,7 @@ import {
   galleryObjectPosition,
   mapSanityGalleryImage,
   mapSanityImage,
+  mapSanitySocialPreviewImage,
 } from "./images";
 
 describe("buildSanityImageUrl", () => {
@@ -86,5 +87,27 @@ describe("mapSanityGalleryImage", () => {
     });
 
     expect(position).toBe("50.0% 50.0%");
+  });
+});
+
+describe("mapSanitySocialPreviewImage", () => {
+  const sampleAssetId =
+    "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-800x1000-png";
+
+  it("builds a 1200×630 JPEG for link previews", () => {
+    const image = mapSanitySocialPreviewImage({
+      alt: "Launch cocktails",
+      asset: {
+        _id: sampleAssetId,
+        url: "https://cdn.sanity.io/images/pn5yjro6/development/abc-800x1000.png",
+        metadata: { dimensions: { width: 800, height: 1000 } },
+      },
+    });
+
+    expect(image?.width).toBe(1200);
+    expect(image?.height).toBe(630);
+    expect(image?.type).toBe("image/jpeg");
+    expect(image?.url).toContain("fm=jpg");
+    expect(image?.url).not.toContain("auto=format");
   });
 });

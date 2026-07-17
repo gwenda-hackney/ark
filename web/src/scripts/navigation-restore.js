@@ -22,6 +22,11 @@ function markRestore() {
 /** Force every deferred/animated element into its resting, visible state. */
 function settleAnimations() {
   document.querySelectorAll(".reveal").forEach((el) => el.classList.add("visible"));
+  document.querySelectorAll(".enter-scene").forEach((el) => el.classList.add("is-visible"));
+  document.querySelectorAll(".enter-stagger").forEach((el) => {
+    el.style.opacity = "1";
+    el.style.transform = "none";
+  });
   document.querySelectorAll(".countdown-unit").forEach((el) => el.classList.add("is-visible"));
   document.querySelector(".hero-image")?.classList.add("is-visible");
   document.querySelector(".hero-media")?.classList.add("is-ready");

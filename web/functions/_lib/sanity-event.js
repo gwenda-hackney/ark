@@ -1,41 +1,82 @@
-const DEFAULT_PROJECT_ID = "pn5yjro6";
+import { normalizeEventPassword } from "./event-password.js";
+import { sanityDatasetForEnv, sanityProjectId, sanityQuery } from "./sanity-query.js";
+import { portableTextToPlain } from "./portable-text.js";
 
-const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug][0]{
+const EVENT_FIELDS = `{
   title,
+  eventType,
   description,
   date,
-  "heroImageUrl": heroImage.asset->url
+  venue,
+  ticketStart,
+  ticketEnd,
+  "heroImageUrl": heroImage.asset->url,
+  "slug": slug.current,
+  "channels": channels[]{label, token},
+  rsvpConfirmation {
+    subject,
+    eyebrow,
+    heading,
+    body,
+    venue
+  }
 }`;
 
-export function sanityDatasetForEnv(env = {}) {
-  if (env.SANITY_DATASET?.trim()) return env.SANITY_DATASET.trim();
-  if (env.SITE_ENV === "staging") return "development";
-  return "production";
+const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug][0]${EVENT_FIELDS}`;
+
+export { sanityDatasetForEnv };
+
+function normalizeChannels(channels) {
+  if (!Array.isArray(channels)) return [];
+  return channels
+    .filter((channel) => channel?.token)
+    .map((channel) => ({
+      label: (channel.label ?? "").trim(),
+      token: normalizeEventPassword(channel.token),
+    }));
+}
+
+function toEventRecord(doc) {
+  if (!doc?.title) return null;
+  return {
+    title: doc.title,
+    eventType: doc.eventType === "private" ? "private" : "public",
+    description: portableTextToPlain(doc.description),
+    date: doc.date ?? null,
+    venue: doc.venue ?? null,
+    ticketStart: doc.ticketStart ?? null,
+    ticketEnd: doc.ticketEnd ?? null,
+    heroImageUrl: doc.heroImageUrl ?? null,
+    slug: doc.slug ?? null,
+    channels: normalizeChannels(doc.channels),
+    rsvpConfirmation: doc.rsvpConfirmation ?? null,
+  };
+}
+
+export function publicEventFields(event) {
+  if (!event) return null;
+  return {
+    title: event.title,
+    eventType: event.eventType,
+    description: portableTextToPlain(event.description),
+    date: event.date,
+    venue: event.venue,
+    ticketStart: event.ticketStart,
+    ticketEnd: event.ticketEnd,
+    heroImageUrl: event.heroImageUrl,
+  };
 }
 
 export async function fetchEventBySlug(env, slug) {
   const normalized = slug?.trim();
   if (!normalized) return null;
 
-  const projectId = env.SANITY_PROJECT_ID?.trim() || DEFAULT_PROJECT_ID;
-  const dataset = sanityDatasetForEnv(env);
-  const url = new URL(
-    `https://${projectId}.apicdn.sanity.io/v2025-01-01/data/query/${dataset}`,
-  );
-  url.searchParams.set("query", EVENT_BY_SLUG_QUERY);
-  url.searchParams.set("$slug", JSON.stringify(normalized));
+  const doc = await sanityQuery(env, EVENT_BY_SLUG_QUERY, { $slug: normalized });
+  return toEventRecord(doc);
+}
 
-  const response = await fetch(url.toString());
-  if (!response.ok) return null;
-
-  const payload = await response.json();
-  const doc = payload?.result;
-  if (!doc?.title) return null;
-
-  return {
-    title: doc.title,
-    description: doc.description ?? "",
-    date: doc.date ?? null,
-    heroImageUrl: doc.heroImageUrl ?? null,
-  };
+export async function fetchEventHeroImageUrl(env, slug) {
+  const event = await fetchEventBySlug(env, slug);
+  if (event?.heroImageUrl) return event.heroImageUrl;
+  return env.INVITE_IMAGE_URL?.trim() || "https://gwenda.co.uk/images/event-invite.jpg";
 }

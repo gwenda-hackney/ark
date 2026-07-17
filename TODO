@@ -1,5 +1,7 @@
 # Backlog
 
+i need error handling to notify via email
+
 Tracked in GitHub issues where noted. See README and `.github/copilot-instructions.md` for current architecture.
 
 ## Open
@@ -10,4 +12,5 @@ Tracked in GitHub issues where noted. See README and `.github/copilot-instructio
 
 
 
-Who is Gwenda
+## Final changes
+1. error handling - we need to be notified for errors from cloudflaare

@@ -33,5 +33,13 @@ export const compactLogo = {
   densities: [1, 2] as const,
 };
 
+/** Invite card front: clamp max is 8.5rem (~136px), gate/hero scale. */
+export const inviteCardLogo = {
+  src: logo,
+  height: 200,
+  format: "webp" as const,
+  densities: [1, 2] as const,
+};
+
 export { heroImg, logo };
 export type { ImageMetadata };

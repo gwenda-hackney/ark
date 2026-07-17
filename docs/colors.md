@@ -23,7 +23,7 @@ Use these exact hex values in Canva, Figma, print, and social templates.
 | **Text muted**             | `#8a8680` | Secondary copy, nav links                         |
 | **Gold**                   | `#c9a84c` | Accent, buttons, links, eyebrows                  |
 | **Gold dark**              | `#8b6914` | Deeper gold — shadows, depth, hover states      |
-| **Error**                  | `#c97a7a` | Form validation messages                          |
+| **Error**                  | `#c97a7a` | Form validation, decline / opt-out buttons (outline) |
 
 ### Quick answers
 

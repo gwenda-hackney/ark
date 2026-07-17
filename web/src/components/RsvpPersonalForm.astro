@@ -1,0 +1,78 @@
+<form class="rsvp-form" id="rsvp-form" novalidate>
+  <div class="rsvp-step" id="rsvp-attend-step">
+    <div class="rsvp-pick rsvp-pick--attending" role="group" aria-label="Attending">
+      <button type="button" class="rsvp-pick-btn" data-attending="yes" aria-pressed="false">
+        Count me In
+      </button>
+      <button
+        type="button"
+        class="rsvp-pick-btn rsvp-pick-btn--decline"
+        data-attending="no"
+        aria-pressed="false"
+      >
+        Sorry, can't make it
+      </button>
+    </div>
+  </div>
+
+  <div class="rsvp-details" id="rsvp-details" hidden>
+    <div class="gw-field">
+      <label class="visually-hidden" for="rsvp-name">Name</label>
+      <input
+        type="text"
+        id="rsvp-name"
+        name="name"
+        autocomplete="name"
+        placeholder="Your name"
+      />
+    </div>
+
+    <div class="gw-field">
+      <label class="visually-hidden" for="rsvp-email">Email</label>
+      <input
+        type="email"
+        id="rsvp-email"
+        name="email"
+        autocomplete="email"
+        placeholder="your@email.com"
+      />
+    </div>
+
+    <div class="rsvp-step rsvp-step-guests">
+      <p class="rsvp-step-label">Anyone else coming?</p>
+      <p class="rsvp-step-hint">Extra guests beyond you.</p>
+      <div class="rsvp-pick rsvp-pick--counts" role="group" aria-label="Additional guests">
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-additional="0" aria-pressed="false">
+          Just me
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-additional="1" aria-pressed="false">
+          +1
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-additional="2" aria-pressed="false">
+          +2
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-additional="3" aria-pressed="false">
+          +3
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-additional="4" aria-pressed="false">
+          +4
+        </button>
+        <button type="button" class="rsvp-pick-btn rsvp-pick-btn--count" data-additional="5" aria-pressed="false">
+          5+
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary rsvp-submit" id="rsvp-submit" hidden>
+    Send my reply
+  </button>
+  <p class="rsvp-error" id="rsvp-error-form" hidden></p>
+</form>
+<div id="rsvp-confirmation" class="rsvp-confirmation reveal" hidden>
+  <p class="invite-card-eyebrow" id="rsvp-success-eyebrow"></p>
+  <h1 class="invite-card-headline" id="rsvp-success-title"></h1>
+  <p class="invite-card-body" id="rsvp-success-lead"></p>
+  <a href="#" class="btn btn-ghost rsvp-confirmation-modify" id="rsvp-modify-link" hidden>Change your reply</a>
+  <a href="/" class="btn btn-ghost rsvp-confirmation-explore">Explore Gwenda</a>
+</div>

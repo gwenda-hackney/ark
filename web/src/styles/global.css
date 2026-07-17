@@ -36,6 +36,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+main {
+  width: 100%;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--color-gold) 28%, transparent);
   color: var(--color-text);
@@ -388,6 +392,14 @@ a:focus-visible {
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+.site-header--invite {
+  transform: translateY(0);
+  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
 .site-header-logo {
   display: block;
   padding-inline: 0.6rem;
@@ -477,12 +489,53 @@ a:focus-visible {
   box-shadow: 0 0 20px color-mix(in srgb, var(--color-gold) 18%, transparent);
 }
 
-.site-header-booking {
-  color: var(--color-text);
+.booking-float {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 70;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  border: 1px solid var(--color-gold-dim);
+  padding: 0.7rem 1.1rem;
+  background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition:
+    border-color 0.3s var(--ease-smooth),
+    box-shadow 0.3s var(--ease-smooth),
+    color 0.3s var(--ease-smooth),
+    background 0.3s var(--ease-smooth),
+    transform 0.2s var(--ease-smooth);
 }
 
-.site-header-booking[hidden] {
+.booking-float:hover,
+.booking-float:focus-visible {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--color-gold) 20%, transparent);
+}
+
+.booking-float:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--color-gold) 20%, transparent),
+    var(--focus-ring);
+}
+
+.booking-float:active {
+  transform: scale(0.98);
+}
+
+.booking-float[hidden] {
   display: none;
+}
+
+body:has(.booking-float:not([hidden])) .scroll-top-hint {
+  bottom: 4.75rem;
 }
 
 .site-header-menu-btn {
@@ -638,41 +691,79 @@ a:focus-visible {
   padding: 2rem 2rem 5rem;
 }
 
-.hero-stagger {
+/* Shared entrance motion (brand §5.7) — hero, invite card, loaders */
+.enter-stagger {
   opacity: 0;
 }
 
-html.fonts-ready .hero-stagger {
+html.fonts-ready .enter-stagger--auto {
   animation: fadeUp 0.85s var(--ease-out) forwards;
+  animation-delay: var(--enter-delay, 0s);
 }
 
-html.fonts-ready .hero-logo.hero-stagger {
-  animation-delay: 0.25s;
+.enter-scene {
+  transform: translateY(var(--enter-scene-y, 18px));
+  transition: transform 0.7s var(--ease-smooth);
 }
 
-html.fonts-ready .hero-countdown.hero-stagger {
-  animation-delay: 0.5s;
+.enter-scene:not(.is-visible) {
+  visibility: hidden;
+  pointer-events: none;
 }
 
-html.fonts-ready .hero-location.hero-stagger {
-  animation-delay: 0.7s;
+.enter-scene.is-visible {
+  visibility: visible;
+  transform: translateY(0);
 }
 
-html.fonts-ready .hero-content .hero-actions.hero-stagger {
-  animation-delay: 0.9s;
+html.fonts-ready .enter-scene.is-visible .enter-stagger {
+  animation: fadeUp 0.85s var(--ease-out) forwards;
+  animation-delay: var(--enter-delay, 0s);
 }
 
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 0.25rem;
+html.fonts-ready .hero-logo.enter-stagger--auto {
+  --enter-delay: 0.25s;
 }
 
-.hero-actions .booking-cta[hidden] {
-  display: none;
+html.fonts-ready .hero-countdown.enter-stagger--auto {
+  --enter-delay: 0.5s;
+}
+
+html.fonts-ready .hero-location.enter-stagger--auto {
+  --enter-delay: 0.7s;
+}
+
+html.fonts-ready .hero-content > .btn.enter-stagger--auto {
+  --enter-delay: 0.9s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-logo-wrap.enter-stagger {
+  --enter-delay: 0.18s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-badge.enter-stagger {
+  --enter-delay: 0.3s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-intro.enter-stagger {
+  --enter-delay: 0.4s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-headline.enter-stagger {
+  --enter-delay: 0.5s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-meta.enter-stagger {
+  --enter-delay: 0.6s;
+}
+
+html.fonts-ready .enter-scene.is-visible .invite-card-hint.enter-stagger {
+  --enter-delay: 0.78s;
+}
+
+.is-leaving {
+  opacity: 0;
+  transition: opacity 0.45s var(--ease-out);
 }
 
 html:not(.fonts-ready) .gate,
@@ -2055,64 +2146,841 @@ html.fonts-ready .thanks {
   text-align: center;
 }
 
-.invite {
-  width: min(100% - 2.5rem, 26rem);
+/* Flip invite card (see brand guidelines §5.3.2) */
+.invite-card-scene[hidden] {
+  display: none;
 }
 
-.invite-hero {
+.invite-card-scene {
+  perspective: 1600px;
   width: 100%;
-  height: auto;
+  max-width: 30rem;
+  margin-inline: auto;
+  align-self: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.invite-card {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
   border-radius: 2px;
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.invite-card-inner {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition:
+    transform 0.8s var(--ease-smooth),
+    height 0.35s var(--ease-smooth);
+}
+
+.invite-card.is-open .invite-card-inner {
+  transform: rotateY(180deg);
+}
+
+.invite-card.is-flipping .invite-card-front {
+  pointer-events: none;
+}
+
+.invite-card.is-flipping:not(.is-sending) .invite-card-front-idle {
+  display: none !important;
+}
+
+/* Both faces fill the card; height grows with back content when open. */
+.invite-card-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 2px;
+  --invite-text-soft: color-mix(in srgb, var(--color-text) 78%, var(--color-text-muted));
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.invite-card-face::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-dim),
+    transparent
+  );
+}
+
+.invite-card-front {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0 clamp(1.25rem, 4vw, 1.75rem) clamp(1.25rem, 3dvh, 1.75rem);
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  transition: box-shadow 0.25s ease;
+  overflow: hidden;
+}
+
+.invite-card-front:hover {
+  box-shadow: 0 0 32px color-mix(in srgb, var(--color-gold) 16%, transparent);
+}
+
+.invite-card-front:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.invite-card-logo-wrap {
+  align-self: center;
+  margin-inline: auto;
+  margin-bottom: clamp(1.35rem, 3.5dvh, 2rem);
+}
+
+.invite-card-logo {
   display: block;
+  height: clamp(5rem, 22vw, 8.5rem);
+  width: auto;
+  max-width: min(100%, 18rem);
+  filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
 }
 
-.invite-guest-line {
-  margin-bottom: 1rem;
+/* Card back + confirmation: left-aligned editorial (brand §5.3.2). */
+.invite-card-back-inner,
+.rsvp-confirmation {
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--color-text);
 }
 
-.invite-event-description {
-  margin: 0 0 1.5rem;
-  font-size: 0.95rem;
-  line-height: 1.6;
+.invite-card-eyebrow {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.invite-card-eyebrow[hidden] {
+  display: none;
+}
+
+.invite-card-badge {
+  display: inline-block;
+  width: fit-content;
+  margin: 0 0 0.85rem;
+  padding: 0.38rem 0.8rem;
+  font-family: var(--font-display);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  background: color-mix(in srgb, var(--color-gold) 9%, var(--color-bg-card));
+  border: 1px solid color-mix(in srgb, var(--color-gold) 32%, transparent);
+  border-radius: 2px;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-gold) 8%, transparent);
+}
+
+.invite-card-badge[hidden] {
+  display: none;
+}
+
+.invite-card-intro {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.65;
   color: var(--color-text-muted);
+}
+
+.invite-card-headline {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: var(--color-gold);
+  margin: 0;
+}
+
+.invite-card-headline[hidden] {
+  display: none;
+}
+
+.invite-card-headline::after {
+  content: "";
+  display: block;
+  width: 2rem;
+  height: 1px;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(90deg, var(--color-gold-dim), transparent);
+}
+
+.invite-card-front-idle .invite-card-headline::after {
+  width: 2.5rem;
+  margin-inline: auto;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold-dim),
+    transparent
+  );
+}
+
+.invite-card-meta {
+  margin: -0.25rem 0 0;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  line-height: 1.45;
+}
+
+.invite-card-meta[hidden] {
+  display: none;
+}
+
+.invite-card-body {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--color-text-muted);
+  max-width: none;
+}
+
+.invite-card-body[hidden] {
+  display: none;
+}
+
+.invite-card-hint {
+  display: block;
+  align-self: stretch;
+  margin-top: auto;
+  padding-top: clamp(1.5rem, 4dvh, 2.5rem);
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  border-top: 1px solid color-mix(in srgb, var(--color-gold) 28%, transparent);
+}
+
+.invite-card-front:hover .invite-card-hint {
+  color: color-mix(in srgb, var(--color-gold) 88%, white);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--color-gold) 35%, transparent);
+}
+
+.invite-card-front-idle,
+.invite-card-front-sending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-body);
+  color: var(--color-text);
+}
+
+.invite-card-front-idle {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  align-self: stretch;
+  padding-top: clamp(1.25rem, 17dvh, 5.5rem);
+}
+
+.invite-card-back {
+  transform: rotateY(180deg);
+  overflow: hidden;
+}
+
+.invite-card-front-sending {
+  flex: 1;
+  gap: 1.5rem;
+  justify-content: center;
+  align-self: stretch;
+}
+
+.invite-card.is-sending .invite-card-front {
+  justify-content: center;
+}
+
+.invite-card-front-idle[hidden],
+.invite-card-front-sending[hidden] {
+  display: none;
+}
+
+.invite-card-sending-text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.invite-card.is-sending .invite-card-front {
+  cursor: default;
+  pointer-events: none;
+}
+
+.invite-card.is-sending .invite-card-front:hover {
+  box-shadow: none;
+}
+
+.event-rsvp-intro .invite-card-headline,
+.invite-card-front-idle .invite-card-headline {
+  color: var(--color-gold);
+}
+
+.rsvp-confirmation .invite-card-headline {
+  color: var(--color-text);
+}
+
+.invite-card-back-inner {
+  padding: clamp(1.25rem, 3dvh, 1.75rem);
+}
+
+.invite-card-back .event-rsvp-venue a {
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+.invite-card-back .event-rsvp-venue a:hover {
+  color: var(--color-text);
+}
+
+.invite-card-back .rsvp-step-hint {
+  color: var(--color-text-muted);
+}
+
+.invite-card-back .event-rsvp-intro {
+  margin-bottom: 1.5rem;
+}
+
+.invite-card-back .event-rsvp-hero-wrap {
+  margin-bottom: 1.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invite-card-inner {
+    transition: none;
+  }
+}
+
+.event-rsvp--viewport .invite-card.is-open {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
+}
+
+.event-rsvp--viewport:has(.invite-card.is-open) .invite-card-scene {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+.event-rsvp--viewport .invite-card.is-open .invite-card-inner {
+  flex: 0 0 auto;
+  min-height: auto;
+}
+
+/* Event RSVP / private invite (see brand guidelines §5.3.2) */
+.event-rsvp.section {
+  padding: 2.5rem 0 3.5rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Invite flip card: closed = one viewport, no page scroll; open = card grows, page scrolls. */
+.event-rsvp--viewport.section {
+  --invite-card-vpad: clamp(0.75rem, 2.5dvh, 1.25rem);
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  padding: var(--invite-card-vpad);
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.event-rsvp--viewport.section:has(.invite-card.is-open),
+.event-rsvp--viewport.section:has(#rsvp-error:not([hidden])) {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-height: none;
+  overflow-y: auto;
+}
+
+.rsvp-state[hidden] {
+  display: none;
+}
+
+#rsvp-loading {
+  opacity: 1;
+}
+
+.event-rsvp--viewport .event-rsvp-inner {
+  width: min(100%, 30rem);
+  max-width: 30rem;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.event-rsvp-inner {
+  width: 100%;
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+@media (max-width: 640px) {
+  .event-rsvp--viewport.section {
+    padding: var(--invite-card-vpad);
+  }
+
+  .event-rsvp--viewport .invite-card-front-idle {
+    padding-top: clamp(1.25rem, 17dvh, 5.5rem);
+  }
+
+  .event-rsvp--viewport .invite-card-logo-wrap {
+    margin-bottom: clamp(1.25rem, 3dvh, 1.75rem);
+  }
+
+  .event-rsvp--viewport .invite-card-logo {
+    height: clamp(4.5rem, 24vw, 7rem);
+  }
+}
+
+.invite-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: clamp(3rem, 12vh, 6rem) 0;
   text-align: center;
 }
 
-.invite-form {
-  text-align: left;
+/* Charcoal disc with a pulsing gold core and an expanding gold ring. */
+.invite-loader-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
 }
 
-.invite-label {
+.invite-loader-mark::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--color-gold);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-gold) 55%, transparent);
+}
+
+.invite-loader-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-gold);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .invite-loader-mark::before {
+    animation: inviteLoaderCore 1.8s var(--ease-smooth) infinite;
+  }
+
+  .invite-loader-mark::after {
+    animation: inviteLoaderPulse 1.8s var(--ease-smooth) infinite;
+  }
+}
+
+@keyframes inviteLoaderCore {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes inviteLoaderPulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.event-rsvp-loading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.event-rsvp-intro {
+  margin-bottom: 1.5rem;
+}
+
+.event-rsvp-venue {
+  margin: 0 0 1rem;
+}
+
+/* Ticket page reuses invite editorial classes; keep legacy aliases mapped. */
+.event-rsvp-eyebrow {
+  margin: 0 0 0.85rem;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.event-rsvp-date {
+  margin: -0.25rem 0 1rem;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  line-height: 1.45;
+}
+
+.event-rsvp-venue a {
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+.event-rsvp-venue a:hover {
+  color: var(--color-text);
+}
+
+#rsvp-event-description-personal {
+  white-space: pre-line;
+}
+
+.event-rsvp-hero-wrap {
+  position: relative;
+  margin-bottom: 1.25rem;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.event-rsvp-hero-wrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-gold) 5.5%, transparent),
+    transparent 45%
+  );
+  pointer-events: none;
+}
+
+.event-rsvp-hero {
   display: block;
+  width: 100%;
+  height: auto;
+  filter: brightness(0.55) saturate(0.92);
+}
+
+.ticket-guest-card {
+  margin: 0 0 2.25rem;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  border-radius: 2px;
+}
+
+.ticket-guest-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.ticket-guest-party {
+  margin: 0.35rem 0 0;
   font-size: 0.85rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  margin-bottom: 0.75rem;
 }
 
-.invite-field input[type="number"] {
-  flex: 1;
-  min-width: 0;
-  padding: 0.85rem 0;
+.ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.rsvp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 36rem;
+}
+
+.rsvp-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* `display: flex` above beats the UA `[hidden] { display: none }`, so restore
+   it explicitly: the name/email/guests fields only show once "Yes" is picked. */
+.rsvp-details[hidden] {
+  display: none;
+}
+
+.rsvp-step-label {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--color-text);
+  margin-bottom: 0.85rem;
+}
+
+.rsvp-step-hint {
+  margin: -0.5rem 0 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.rsvp-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.rsvp-pick--attending {
+  flex-direction: column;
+}
+
+@media (min-width: 480px) {
+  .rsvp-pick--attending {
+    flex-direction: row;
+  }
+
+  .rsvp-pick--attending .rsvp-pick-btn {
+    flex: 1;
+  }
+}
+
+.rsvp-pick-btn {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--color-text);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  padding: 0.85rem 1.15rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.rsvp-pick-btn--count {
+  min-width: 3.25rem;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  padding-inline: 1rem;
+}
+
+.rsvp-pick-btn:hover {
+  border-color: color-mix(in srgb, var(--color-gold) 35%, transparent);
+}
+
+.rsvp-pick-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rsvp-pick-btn.is-selected {
+  border-color: var(--color-gold);
+  background: color-mix(in srgb, var(--color-gold) 12%, var(--color-bg-card));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-gold) 18%, transparent);
+}
+
+.rsvp-pick-btn--decline {
+  color: var(--color-error);
+  border-color: color-mix(in srgb, var(--color-error) 50%, transparent);
   background: transparent;
-  border: none;
+}
+
+.rsvp-pick-btn--decline:hover {
+  border-color: color-mix(in srgb, var(--color-error) 70%, transparent);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-card));
+}
+
+.rsvp-pick-btn--decline.is-selected {
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg-card));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-error) 18%, transparent);
+}
+
+.rsvp-submit {
+  width: 100%;
+  max-width: 16rem;
+}
+
+/* `.btn` sets `display: inline-flex`, which beats `[hidden]`, so keep the reply
+   button hidden until a choice is made and after the reply is locked in. */
+.rsvp-submit[hidden] {
+  display: none;
+}
+
+.rsvp-error {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-error);
+  line-height: 1.45;
+}
+
+#rsvp-attend-step[hidden],
+.rsvp-confirmation[hidden] {
+  display: none;
+}
+
+.rsvp-confirmation {
+  margin-top: 0;
+  padding-top: 0.25rem;
+  --reveal-y: 18px;
+  max-width: none;
+}
+
+.rsvp-confirmation-explore,
+.rsvp-confirmation-modify {
+  margin-top: 0.25rem;
+}
+
+.rsvp-confirmation.reveal:not(.visible) {
+  opacity: 0;
+  transform: translateY(var(--reveal-y, 18px));
+}
+
+.rsvp-blocked {
+  width: 100%;
+  max-width: none;
+}
+
+.rsvp-blocked-eyebrow {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+/* Boxed text inputs — see brand guidelines §5.3.1 */
+.gw-field {
+  margin-bottom: 0;
+}
+
+.gw-field input[type="text"],
+.gw-field input[type="email"],
+.gw-field input[type="number"],
+.gw-field input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.85rem 1rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 1rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.invite-field input[type="number"]:focus {
+.gw-field input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.gw-field input:focus {
   outline: none;
+  border-color: color-mix(in srgb, var(--color-gold) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-gold) 35%, transparent),
+    0 0 18px color-mix(in srgb, var(--color-gold) 22%, transparent);
 }
 
-.invite-note {
-  margin-top: 1rem;
-  font-size: 0.9rem;
-  color: var(--color-gold);
-  text-align: center;
-  line-height: 1.5;
+.gw-field input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 @media (max-width: 480px) {
@@ -2536,14 +3404,23 @@ html.navigation-restore .hero-vignette {
   transition: none;
 }
 
-html.navigation-restore .hero-stagger {
+html.navigation-restore .countdown-unit {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+html.navigation-restore .enter-stagger {
   opacity: 1;
   animation: none !important;
 }
 
-html.navigation-restore .countdown-unit {
-  opacity: 1;
+html.navigation-restore .enter-scene {
   transform: none;
+  transition: none;
+}
+
+html.navigation-restore #rsvp-loading {
   transition: none;
 }
 
@@ -2558,6 +3435,20 @@ html.navigation-restore .countdown-unit {
     transition: none;
   }
 
+  .enter-scene {
+    transform: none;
+    transition: none;
+  }
+
+  .enter-stagger {
+    opacity: 1;
+    animation: none !important;
+  }
+
+  #rsvp-loading {
+    transition: none;
+  }
+
   .hero-image.is-visible {
     transition: none;
     opacity: 1;
@@ -2569,8 +3460,8 @@ html.navigation-restore .countdown-unit {
     opacity: 1;
   }
 
-  html.fonts-ready .hero-stagger,
-  .hero-stagger {
+  html.fonts-ready .enter-stagger,
+  .enter-stagger {
     opacity: 1;
     animation: none;
   }
@@ -2702,6 +3593,19 @@ html.navigation-restore .countdown-unit {
 @media (max-width: 640px) {
   :root {
     --header-height: 56px;
+  }
+
+  .booking-float {
+    right: 1rem;
+    bottom: 1rem;
+    padding: 0.6rem 0.95rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+  }
+
+  body:has(.booking-float:not([hidden])) .scroll-top-hint {
+    bottom: 4.25rem;
+    right: 1rem;
   }
 
   .site-header {

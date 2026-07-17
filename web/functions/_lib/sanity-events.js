@@ -1,8 +1,7 @@
-import { sanityDatasetForEnv } from "./sanity-event.js";
+import { sanityQuery } from "./sanity-query.js";
+import { portableTextToPlain } from "./portable-text.js";
 
-const DEFAULT_PROJECT_ID = "pn5yjro6";
-
-const EVENTS_LIST_QUERY = `*[_type == "event"] | order(date asc) {
+const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public"] | order(date asc) {
   "id": slug.current,
   title,
   date,
@@ -11,18 +10,7 @@ const EVENTS_LIST_QUERY = `*[_type == "event"] | order(date asc) {
 }`;
 
 export async function fetchPublishedEvents(env) {
-  const projectId = env.SANITY_PROJECT_ID?.trim() || DEFAULT_PROJECT_ID;
-  const dataset = sanityDatasetForEnv(env);
-  const url = new URL(
-    `https://${projectId}.apicdn.sanity.io/v2025-01-01/data/query/${dataset}`,
-  );
-  url.searchParams.set("query", EVENTS_LIST_QUERY);
-
-  const response = await fetch(url.toString());
-  if (!response.ok) return [];
-
-  const payload = await response.json();
-  const rows = payload?.result ?? [];
+  const rows = (await sanityQuery(env, EVENTS_LIST_QUERY)) ?? [];
 
   return rows
     .filter((row) => row?.id && row?.title && row?.date && row?.description)
@@ -30,7 +18,7 @@ export async function fetchPublishedEvents(env) {
       id: row.id,
       title: row.title,
       date: row.date,
-      description: row.description,
+      description: portableTextToPlain(row.description),
       heroImageUrl: row.heroImageUrl ?? null,
     }));
 }

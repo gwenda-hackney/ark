@@ -1,18 +1,25 @@
 import type { Event } from "../../types/events";
 import { createSanityClient } from "./client";
 import { mapSanityImage, type SanityImageField } from "./images";
+import { portableTextToPlain } from "./portable-text";
 import { EVENTS_QUERY } from "./queries";
+
+type PortableTextBlock = {
+  _type?: string;
+  children?: Array<{ text?: string }>;
+};
 
 type SanityEvent = {
   id: string | null;
   title: string;
   date: string;
-  description: string;
+  description: string | PortableTextBlock[];
   heroImage?: SanityImageField;
 };
 
 function mapEvent(doc: SanityEvent): Event | null {
-  if (!doc.id || !doc.title || !doc.date || !doc.description) {
+  const description = portableTextToPlain(doc.description);
+  if (!doc.id || !doc.title || !doc.date || !description) {
     return null;
   }
 
@@ -20,7 +27,7 @@ function mapEvent(doc: SanityEvent): Event | null {
     id: doc.id,
     title: doc.title,
     date: doc.date,
-    description: doc.description,
+    description,
     heroImage: mapSanityImage(doc.heroImage, doc.title),
   };
 }

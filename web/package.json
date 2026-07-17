@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node ../scripts/with-env.mjs ../node_modules/.bin/astro dev --host 0.0.0.0 --port 4321",
-    "build": "node ../scripts/with-env.mjs ../node_modules/.bin/astro build && node scripts/write-seo-files.mjs && node scripts/write-build-headers.mjs",
+    "build": "node ../scripts/with-env.mjs node scripts/write-event-og-images.mjs && node ../scripts/with-env.mjs ../node_modules/.bin/astro build && node scripts/write-seo-files.mjs && node scripts/write-build-headers.mjs",
     "generate:brand-assets": "node scripts/write-brand-assets.mjs && node scripts/write-story-swatch.mjs",
     "preview": "astro preview --host 0.0.0.0 --port 4321",
     "ensure:project": "node scripts/ensure-pages-project.mjs",
@@ -21,7 +21,8 @@
     "@sanity/client": "^7.23.0",
     "@sanity/image-url": "^2.1.1",
     "astro": "^4.16.18",
-    "nodemailer": "^7.0.6"
+    "nodemailer": "^7.0.6",
+    "passkit-generator": "^3.5.7"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.61.0",

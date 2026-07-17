@@ -1,0 +1,39 @@
+---
+import { Image } from "astro:assets";
+import { inviteCardLogo } from "../lib/hero-assets";
+---
+
+<div id="invite-card-scene" class="invite-card-scene enter-scene" hidden>
+  <div class="invite-card" id="invite-card">
+    <div class="invite-card-inner">
+      <button
+        type="button"
+        class="invite-card-face invite-card-front"
+        id="invite-card-open"
+        aria-controls="invite-card-back"
+        aria-expanded="false"
+      >
+        <div class="invite-card-front-idle" id="invite-card-front-idle">
+          <div class="invite-card-logo-wrap enter-stagger">
+            <Image {...inviteCardLogo} alt="Gwenda" class="invite-card-logo" loading="eager" />
+          </div>
+          <p class="invite-card-badge enter-stagger" id="invite-card-eyebrow" hidden>Private event</p>
+          <p class="invite-card-intro enter-stagger">Your invitation awaits</p>
+          <h1 class="invite-card-headline enter-stagger" id="invite-card-subtitle" hidden></h1>
+          <p class="invite-card-meta enter-stagger" id="invite-card-lead" hidden></p>
+          <span class="invite-card-hint enter-stagger">Tap anywhere to open</span>
+        </div>
+        <div class="invite-card-front-sending" id="invite-card-front-sending" hidden>
+          <span class="invite-loader-mark" aria-hidden="true"></span>
+          <p class="invite-card-sending-text">Sending your reply</p>
+        </div>
+      </button>
+
+      <div class="invite-card-face invite-card-back" id="invite-card-back">
+        <div class="invite-card-back-inner">
+          <slot />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

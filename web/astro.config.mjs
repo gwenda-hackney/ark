@@ -1,4 +1,5 @@
 import { defineConfig, envField } from "astro/config";
+import { resolve } from "node:path";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
 import {
@@ -8,16 +9,29 @@ import {
 import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.js";
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
-import { getInviteByToken, saveRsvpGuests } from "./functions/_lib/rsvp.js";
+import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
+import { resolvePublicOrigin } from "./functions/_lib/public-origin.js";
+import { readEventPasswordFromSearchParams } from "./functions/_lib/event-password.js";
 import { fetchPublishedEvents } from "./functions/_lib/sanity-events.js";
 import {
   verifyEventAdminRequest,
 } from "./functions/_lib/event-admin-auth.js";
 import { fetchGuestsForEvent, summarizeGuests } from "./functions/_lib/event-guests.js";
-import { fetchEventBySlug } from "./functions/_lib/sanity-event.js";
+import { fetchEventBySlug, publicEventFields } from "./functions/_lib/sanity-event.js";
 import { sendEventInvites } from "./functions/_lib/invite-send.js";
+import { pickPemValue } from "./functions/_lib/env-pem.js";
+import { resolveTicket } from "./functions/_lib/ticket.js";
+import {
+  buildAppleWalletPass,
+  buildCalendarTicket,
+  ticketAttachmentBaseName,
+} from "./functions/_lib/rsvp-tickets.js";
 
-const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
+const env = loadEnv(
+  process.env.NODE_ENV ?? "development",
+  resolve(process.cwd(), ".."),
+  "",
+);
 const sitePassword = env.SITE_PASSWORD;
 const gatePlugin = devSiteGate({
   password: sitePassword,
@@ -32,13 +46,44 @@ const subscribeEnv = () => ({
 });
 
 const rsvpEnv = () => ({
-  BASEROW_API_KEY: env.BASEROW_API_KEY,
-  BASEROW_API_URL: env.BASEROW_API_URL,
-  BASEROW_DATABASE_ID: env.BASEROW_DATABASE_ID,
-  BASEROW_RSVP_TABLE_NAME: env.BASEROW_RSVP_TABLE_NAME,
-  SITE_ENV: env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV,
-  SANITY_PROJECT_ID: env.SANITY_PROJECT_ID,
-  SANITY_DATASET: env.SANITY_DATASET,
+  BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
+  BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
+  BASEROW_DATABASE_ID: process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
+  BASEROW_RSVP_TABLE_NAME: process.env.BASEROW_RSVP_TABLE_NAME || env.BASEROW_RSVP_TABLE_NAME,
+  SITE_ENV: process.env.SITE_ENV || (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+  TICKET_SECRET: process.env.TICKET_SECRET || env.TICKET_SECRET,
+  EVENT_ADMIN_SECRET: process.env.EVENT_ADMIN_SECRET || env.EVENT_ADMIN_SECRET,
+  SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
+  SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
+  SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "development",
+  SANITY_API_TOKEN: process.env.SANITY_API_TOKEN || env.SANITY_API_TOKEN,
+  INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
+  INVITE_IMAGE_URL: process.env.INVITE_IMAGE_URL || env.INVITE_IMAGE_URL,
+  INVITE_EMAIL_SUBJECT: process.env.INVITE_EMAIL_SUBJECT || env.INVITE_EMAIL_SUBJECT,
+  INVITE_EMAIL_BODY: process.env.INVITE_EMAIL_BODY || env.INVITE_EMAIL_BODY,
+  SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
+  SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD || env.SMTP_PASSWORD,
+  SMTP_FROM: process.env.SMTP_FROM || env.SMTP_FROM,
+  SMTP_FROM_EVENTS: process.env.SMTP_FROM_EVENTS || env.SMTP_FROM_EVENTS,
+  APPLE_WALLET_PASS_TYPE_ID:
+    process.env.APPLE_WALLET_PASS_TYPE_ID || env.APPLE_WALLET_PASS_TYPE_ID,
+  APPLE_WALLET_TEAM_ID: process.env.APPLE_WALLET_TEAM_ID || env.APPLE_WALLET_TEAM_ID,
+  APPLE_WALLET_SIGNER_CERT: pickPemValue(
+    process.env.APPLE_WALLET_SIGNER_CERT,
+    env.APPLE_WALLET_SIGNER_CERT,
+  ),
+  APPLE_WALLET_SIGNER_KEY: pickPemValue(
+    process.env.APPLE_WALLET_SIGNER_KEY,
+    env.APPLE_WALLET_SIGNER_KEY,
+  ),
+  APPLE_WALLET_WWDR_CERT: pickPemValue(
+    process.env.APPLE_WALLET_WWDR_CERT,
+    env.APPLE_WALLET_WWDR_CERT,
+  ),
+  APPLE_WALLET_SIGNER_KEY_PASSPHRASE:
+    process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE || env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
 });
 
 const adminEnv = () => ({
@@ -145,22 +190,30 @@ function devRsvpApi() {
     name: "dev-rsvp-api",
     configureServer(server) {
       server.middlewares.use("/api/rsvp", async (req, res, next) => {
-        const runtimeEnv = rsvpEnv();
+        const runtimeEnv = {
+          ...rsvpEnv(),
+          SANITY_API_TOKEN:
+            process.env.SANITY_API_TOKEN?.trim() || env.SANITY_API_TOKEN?.trim(),
+          SANITY_DATASET:
+            process.env.SANITY_DATASET?.trim() ||
+            env.SANITY_DATASET?.trim() ||
+            "development",
+          SANITY_PROJECT_ID:
+            process.env.SANITY_PROJECT_ID?.trim() || env.SANITY_PROJECT_ID?.trim(),
+        };
 
         if (req.method === "GET") {
           const url = new URL(req.url ?? "", "http://localhost");
-          const token = url.searchParams.get("token");
-          const result = await getInviteByToken(runtimeEnv, token ?? "");
+          const result = await getEventRsvp(
+            runtimeEnv,
+            url.searchParams.get("slug"),
+            readEventPasswordFromSearchParams(url.searchParams),
+          );
           sendJson(
             res,
             result.status,
             result.ok
-              ? {
-                  ok: true,
-                  name: result.guest.name,
-                  rsvpGuests: result.guest.rsvpGuests,
-                  event: result.event,
-                }
+              ? { ok: true, event: result.event, source: result.source }
               : { error: result.error },
           );
           return;
@@ -178,26 +231,140 @@ function devRsvpApi() {
         req.on("end", async () => {
           try {
             const payload = JSON.parse(rawBody);
-            const parsed =
-              typeof payload.guests === "number"
-                ? payload.guests
-                : Number.parseInt(String(payload.guests), 10);
-            const result = await saveRsvpGuests(runtimeEnv, payload.token, parsed);
+            const result = await saveRsvpResponse(runtimeEnv, {
+              slug: payload.slug,
+              token: payload.token,
+              attending: payload.attending,
+              name: payload.name,
+              email: payload.email,
+              guests: payload.guests,
+              origin: resolvePublicOrigin(
+                req.headers.host ? `http://${req.headers.host}` : undefined,
+                runtimeEnv,
+              ),
+            });
             sendJson(
               res,
               result.status,
               result.ok
                 ? {
                     ok: true,
-                    name: result.guest.name,
-                    rsvpGuests: result.guest.rsvpGuests,
+                    attending: result.attending,
+                    name: result.name ?? null,
+                    rsvpGuests: result.rsvpGuests,
+                    source: result.source,
                     event: result.event,
+                    ticketUrl: result.ticketUrl ?? null,
                   }
                 : { error: result.error },
             );
           } catch {
             sendJson(res, 400, { error: "Invalid request." });
           }
+        });
+      });
+    },
+  };
+}
+
+/**
+ * Dev-only stub for /api/ticket, /api/ticket/pass, /api/ticket/calendar —
+ * production uses functions/api/ticket.js and functions/api/ticket/*.js.
+ *
+ * Each route gets its own server.middlewares.use() mount (rather than one
+ * mount with path parsing) because Vite/connect strips the matched mount
+ * path from req.url before calling the handler — a single "/api/ticket"
+ * mount never sees "/pass" or "/calendar" in req.url.
+ */
+async function resolveTicketFromRequest(req) {
+  const url = new URL(req.url ?? "", "http://localhost");
+  return {
+    url,
+    result: await resolveTicket(rsvpEnv(), {
+      slug: url.searchParams.get("slug"),
+      guest: url.searchParams.get("guest"),
+      token: url.searchParams.get("t"),
+    }),
+  };
+}
+
+function devTicketApi() {
+  return {
+    name: "dev-ticket-api",
+    configureServer(server) {
+      server.middlewares.use("/api/ticket/pass", async (req, res, next) => {
+        if (req.method !== "GET") return next();
+        const { result } = await resolveTicketFromRequest(req);
+        if (!result.ok) {
+          sendJson(res, result.status, { error: result.error });
+          return;
+        }
+        const { event, guest, ticketId } = result;
+        const pass = await buildAppleWalletPass(rsvpEnv(), {
+          ticketId,
+          title: event.title,
+          date: event.date,
+          startTime: event.ticketStart,
+          endTime: event.ticketEnd,
+          venue: event.venue,
+          guestName: guest.name,
+          guests: guest.rsvpGuests,
+          heroImageUrl: event.heroImageUrl,
+        });
+        if (!pass) {
+          sendJson(res, 503, { error: "Apple Wallet isn't set up for this event yet." });
+          return;
+        }
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${ticketAttachmentBaseName(event.slug)}.pkpass"`,
+        );
+        res.end(pass);
+      });
+
+      server.middlewares.use("/api/ticket/calendar", async (req, res, next) => {
+        if (req.method !== "GET") return next();
+        const { result } = await resolveTicketFromRequest(req);
+        if (!result.ok) {
+          sendJson(res, result.status, { error: result.error });
+          return;
+        }
+        const { event, guest, ticketId } = result;
+        const ics = buildCalendarTicket({
+          ticketId,
+          title: event.title,
+          date: event.date,
+          startTime: event.ticketStart,
+          endTime: event.ticketEnd,
+          venue: event.venue,
+          guestName: guest.name,
+          guests: guest.rsvpGuests,
+          description: event.description,
+        });
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${ticketAttachmentBaseName(event.slug)}.ics"`,
+        );
+        res.end(ics);
+      });
+
+      server.middlewares.use("/api/ticket", async (req, res, next) => {
+        if (req.method !== "GET") return next();
+        const { result } = await resolveTicketFromRequest(req);
+        if (!result.ok) {
+          sendJson(res, result.status, { error: result.error });
+          return;
+        }
+        const { event, guest, ticketId } = result;
+        sendJson(res, 200, {
+          ok: true,
+          event: publicEventFields(event),
+          guest: { name: guest.name, guests: guest.rsvpGuests },
+          ticketId,
         });
       });
     },
@@ -365,12 +532,6 @@ export default defineConfig({
         optional: true,
         default: "2026-08-01",
       }),
-      PUBLIC_BOOKING_ENABLED_FROM: envField.string({
-        context: "client",
-        access: "public",
-        optional: true,
-        default: "",
-      }),
       PUBLIC_INVITE_IMAGE_URL: envField.string({
         context: "client",
         access: "public",
@@ -414,6 +575,13 @@ export default defineConfig({
     // Devcontainer / Cursor port forwards use non-localhost Host headers; Vite blocks those with 403.
     server: { allowedHosts: true },
     preview: { allowedHosts: true },
-    plugins: [devSubscribeApi(), devRsvpApi(), devEventsApi(), devEventAdminApi(), ...(gatePlugin ? [gatePlugin] : [])],
+    plugins: [
+      devSubscribeApi(),
+      devRsvpApi(),
+      devTicketApi(),
+      devEventsApi(),
+      devEventAdminApi(),
+      ...(gatePlugin ? [gatePlugin] : []),
+    ],
   },
 });

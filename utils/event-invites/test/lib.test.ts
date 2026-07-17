@@ -12,10 +12,13 @@ import type { Guest } from "../src/types";
 
 function guest(overrides: Partial<Guest> = {}): Guest {
   return {
-    taskId: "1",
+    rowId: 1,
+    taskId: "cu-1",
     name: "Alex",
     contact: null,
     channel: null,
+    token: null,
+    rsvpGuests: null,
     status: null,
     ...overrides,
   };
@@ -61,6 +64,6 @@ describe("resolveInstagramRecipientId", () => {
 
 describe("formatMessage", () => {
   it("substitutes name in templates", () => {
-    expect(formatMessage(DEFAULT_EMAIL_BODY, "Alex")).toContain("Dear Alex,");
+    expect(formatMessage(DEFAULT_EMAIL_BODY, "Alex")).toContain("Hi Alex,");
   });
 });

@@ -1,6 +1,5 @@
 import { initCountdown } from "./countdown.js";
 import { initSignup, initSignupAnchors } from "./signup.js";
-import { initBookingGate } from "./booking-gate.js";
 import { initNavigationRestore, whenNavigationReady } from "./navigation-restore.js";
 import { initReveal } from "./reveal.js";
 
@@ -179,5 +178,3 @@ whenNavigationReady(() => {
 const signupForm = document.getElementById("signup-form");
 if (signupForm) initSignup(signupForm);
 initSignupAnchors();
-
-initBookingGate();

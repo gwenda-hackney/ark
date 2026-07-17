@@ -30,10 +30,6 @@ inputs:
     description: PUBLIC_OPENING_DATE build variable
     required: false
     default: "2026-08-01"
-  public-booking-enabled-from:
-    description: PUBLIC_BOOKING_ENABLED_FROM — booking CTA go-live date (YYYY-MM-DD, empty = off)
-    required: false
-    default: ""
   build-version:
     description: CalVer build version
     required: true
@@ -135,7 +131,6 @@ runs:
         PUBLIC_BUILD_TIME: ${{ inputs.build-time }}
         PUBLIC_BUILD_VERSION: ${{ inputs.build-version }}
         PUBLIC_OPENING_DATE: ${{ inputs.public-opening-date }}
-        PUBLIC_BOOKING_ENABLED_FROM: ${{ inputs.public-booking-enabled-from }}
         SANITY_PROJECT_ID: pn5yjro6
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
@@ -179,6 +174,7 @@ runs:
         BASEROW_TABLE_ID: ${{ inputs.baserow-table-id }}
         SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
         EVENT_ADMIN_SECRET: ${{ inputs.event-admin-secret }}
+        SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         SMTP_HOST: ${{ inputs.smtp-host }}
         SMTP_PORT: ${{ inputs.smtp-port }}
         SMTP_USER: ${{ inputs.smtp-user }}

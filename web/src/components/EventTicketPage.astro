@@ -1,0 +1,111 @@
+---
+import "../styles/global.css";
+import SocialMeta from "./SocialMeta.astro";
+import Fonts from "./Fonts.astro";
+import StagingRibbon from "./StagingRibbon.astro";
+import { siteConfig } from "../config/site";
+
+export interface EventTicketMeta {
+  title: string;
+  url: string;
+}
+
+interface Props {
+  meta: EventTicketMeta;
+}
+
+const { meta } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{meta.title}</title>
+    <SocialMeta title={meta.title} description="Your ticket · Gwenda" url={meta.url} />
+    <Fonts />
+    <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes={`${siteConfig.brand.faviconSize}x${siteConfig.brand.faviconSize}`}
+      href={siteConfig.brand.faviconPngPath}
+    />
+  </head>
+  <body>
+    <StagingRibbon />
+    <div class="grain" aria-hidden="true"></div>
+    <main>
+      <section class="event-rsvp section">
+        <div class="container event-rsvp-inner">
+          <div id="ticket-loading" class="ticket-state">
+            <div class="invite-loader" role="status" aria-live="polite">
+              <span class="invite-loader-mark" aria-hidden="true"></span>
+              <p class="event-rsvp-loading">Opening your ticket</p>
+            </div>
+          </div>
+
+          <div id="ticket-error" class="ticket-state" hidden>
+            <header class="section-intro">
+              <p class="rsvp-blocked-eyebrow">Gwenda</p>
+              <h1>This ticket isn't available</h1>
+              <p class="section-lead" id="ticket-error-text">
+                This ticket link isn't valid.
+              </p>
+            </header>
+          </div>
+
+          <div id="ticket-view" class="ticket-state" hidden>
+            <div class="event-rsvp-hero-wrap" id="ticket-hero-wrap" hidden>
+              <img
+                id="ticket-hero"
+                src=""
+                alt=""
+                class="event-rsvp-hero"
+                width="960"
+                height="360"
+                loading="eager"
+              />
+            </div>
+
+            <header class="section-intro event-rsvp-intro">
+              <p class="event-rsvp-eyebrow">Your ticket</p>
+              <h1 id="ticket-event-title"></h1>
+              <p class="event-rsvp-date" id="ticket-event-date"></p>
+              <p class="event-rsvp-venue">
+                <a
+                  id="ticket-venue-link"
+                  href={siteConfig.location.mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {siteConfig.location.addressShort}
+                </a>
+              </p>
+            </header>
+
+            <div class="ticket-guest-card">
+              <p class="ticket-guest-name" id="ticket-guest-name"></p>
+              <p class="ticket-guest-party" id="ticket-guest-party"></p>
+            </div>
+
+            <div class="ticket-actions">
+              <a id="ticket-wallet-btn" class="btn btn-primary" href="#" rel="nofollow">
+                Add to Apple Wallet
+              </a>
+              <a id="ticket-calendar-btn" class="btn btn-ghost" href="#" rel="nofollow">
+                Add to calendar
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>
+      import { initEventTicket } from "../scripts/event-ticket.js";
+      initEventTicket();
+    </script>
+  </body>
+</html>
