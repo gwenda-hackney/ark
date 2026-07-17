@@ -7,7 +7,7 @@ import { fetchEvents } from "../lib/sanity/events";
 /** Build-time fallback for schema.org; list body loads live from /api/events. */
 const events = await fetchEvents().catch(() => []);
 const upcomingEvents = getUpcomingEvents(events);
-const pageDescription = `Upcoming events at ${siteConfig.name} — canalside ${siteConfig.publicLabel.toLowerCase()} in Hackney Wick.`;
+const { title: pageTitle, description: pageDescription } = siteConfig.seo.events;
 
 const eventSchema = upcomingEvents.map((event) => ({
   "@type": "Event",
@@ -35,7 +35,7 @@ const eventSchema = upcomingEvents.map((event) => ({
 }));
 ---
 
-<BaseLayout title={`Events — ${siteConfig.name}`} description={pageDescription}>
+<BaseLayout title={pageTitle} description={pageDescription}>
   <script
     type="application/ld+json"
     set:html={JSON.stringify({

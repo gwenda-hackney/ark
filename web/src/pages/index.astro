@@ -2,10 +2,12 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import HomePage from "../components/HomePage.astro";
 import HeroPreload from "../components/HeroPreload.astro";
-import { getCopy } from "../config/copy";
+import { siteConfig } from "../config/site";
+
+const { title, description } = siteConfig.seo.home;
 ---
 
-<BaseLayout description={getCopy("promo").description}>
+<BaseLayout title={title} description={description}>
   <HeroPreload slot="head" />
 
   <HomePage mode="promo" />
