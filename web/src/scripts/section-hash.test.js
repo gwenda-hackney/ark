@@ -2,11 +2,7 @@
  * @vitest-environment jsdom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  buildSectionUrl,
-  initSectionHash,
-  pickActiveSection,
-} from "./section-hash.js";
+import { buildSectionUrl, initSectionHash } from "./section-hash.js";
 
 describe("section-hash helpers", () => {
   beforeEach(() => {
@@ -23,38 +19,11 @@ describe("section-hash helpers", () => {
     expect(buildSectionUrl("story")).toBe("/#story");
     expect(buildSectionUrl("menu")).toBe("/#menu");
   });
-
-  it("picks the section with the highest intersection ratio", () => {
-    const ratios = new Map([
-      ["hero", 0.2],
-      ["story", 0.65],
-      ["menu", 0.1],
-    ]);
-
-    expect(pickActiveSection(ratios)).toBe("story");
-    expect(pickActiveSection(new Map([["hero", 0]]))).toBeNull();
-  });
 });
 
 describe("initSectionHash", () => {
-  /** @type {IntersectionObserverCallback | null} */
-  let observerCallback = null;
-
-  class MockIntersectionObserver {
-    /** @param {IntersectionObserverCallback} callback */
-    constructor(callback) {
-      observerCallback = callback;
-    }
-
-    observe() {}
-
-    disconnect() {}
-  }
-
   beforeEach(() => {
-    observerCallback = null;
     window.history.replaceState(null, "", "/#story");
-    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
 
     document.body.innerHTML = `
       <main>
@@ -63,47 +32,22 @@ describe("initSectionHash", () => {
         <section id="menu"></section>
       </main>
       <a href="#menu" id="menu-link">Menu</a>
+      <a href="#story" id="story-link">Story</a>
     `;
   });
 
   afterEach(() => {
     document.body.innerHTML = "";
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
   it("does nothing when the homepage hero is absent", () => {
     document.body.innerHTML = "<main><section id='story'></section></main>";
-    expect(initSectionHash()).toBeTypeOf("function");
-    expect(observerCallback).toBeNull();
+    const cleanup = initSectionHash();
+    expect(cleanup).toBeTypeOf("function");
   });
 
-  it("replaces the hash while scrolling between sections", () => {
-    const replaceState = vi.spyOn(window.history, "replaceState");
-
-    initSectionHash();
-    replaceState.mockClear();
-
-    observerCallback?.(
-      [
-        {
-          target: document.getElementById("hero"),
-          isIntersecting: true,
-          intersectionRatio: 0.8,
-        },
-        {
-          target: document.getElementById("story"),
-          isIntersecting: true,
-          intersectionRatio: 0.1,
-        },
-      ],
-      /** @type {IntersectionObserver} */ ({}),
-    );
-
-    expect(replaceState).toHaveBeenCalledWith(null, "", "/");
-  });
-
-  it("pauses hash updates briefly after anchor clicks", () => {
+  it("smooth-scrolls section anchors and updates the hash", () => {
     const replaceState = vi.spyOn(window.history, "replaceState");
     const menu = document.getElementById("menu");
     const scrollIntoView = vi.fn();
@@ -120,25 +64,6 @@ describe("initSectionHash", () => {
       expect.objectContaining({ behavior: "smooth", block: "start" }),
     );
     expect(replaceState).toHaveBeenCalledWith(null, "", "/#menu");
-    replaceState.mockClear();
-
-    observerCallback?.(
-      [
-        {
-          target: document.getElementById("hero"),
-          isIntersecting: true,
-          intersectionRatio: 0.9,
-        },
-        {
-          target: document.getElementById("menu"),
-          isIntersecting: true,
-          intersectionRatio: 0.05,
-        },
-      ],
-      /** @type {IntersectionObserver} */ ({}),
-    );
-
-    expect(replaceState).not.toHaveBeenCalled();
   });
 
   it("smooth-scrolls even when the hash already matches", () => {
@@ -156,5 +81,22 @@ describe("initSectionHash", () => {
     expect(scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ behavior: "smooth" }),
     );
+  });
+
+  it("does not observe scroll or rewrite the hash on its own", () => {
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+
+    initSectionHash();
+    replaceState.mockClear();
+
+    window.dispatchEvent(new Event("scroll"));
+    expect(replaceState).not.toHaveBeenCalled();
   });
 });

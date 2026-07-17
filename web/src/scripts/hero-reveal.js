@@ -21,18 +21,24 @@ export function initHeroReveal() {
 
   let revealed = false;
 
-  async function reveal() {
+  async function reveal({ animate = true } = {}) {
     if (revealed) return;
     revealed = true;
     await whenImageReady(img);
-    // Commit opacity:0 before starting the transition.
-    void img.offsetWidth;
+    if (animate) {
+      // Commit opacity:0 before starting the transition.
+      void img.offsetWidth;
+    }
     img.classList.add("is-visible");
     media.classList.add("is-ready");
   }
 
   if (reducedMotion || restored) {
-    void reveal();
+    // Already shown via navigation-restore CSS / settleAnimations. Do not
+    // force a reflow or await decode — that restarts the fade and flickers.
+    revealed = true;
+    img.classList.add("is-visible");
+    media.classList.add("is-ready");
     return;
   }
 
