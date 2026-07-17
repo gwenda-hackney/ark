@@ -1,6 +1,12 @@
 ---
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
+import {
+  bookingUrl,
+  isBookingEnabled,
+  isBookingScheduled,
+  bookingEnabledFromTimestamp,
+} from "../config/booking";
 import FooterSocialLink from "./FooterSocialLink.astro";
 
 interface Props {
@@ -11,6 +17,8 @@ interface Props {
 const { features } = Astro.props;
 const { social, location } = siteConfig;
 const year = new Date().getFullYear();
+const bookingFromMs = bookingEnabledFromTimestamp();
+const bookingEnabled = isBookingEnabled();
 
 const address = features.useShortAddress
   ? location.addressShort
@@ -40,6 +48,24 @@ const address = features.useShortAddress
             )
           }
           <li><a href="/events">Events</a></li>
+          {
+            isBookingScheduled() && bookingFromMs !== null && (
+              <li>
+                <a
+                  href={bookingUrl}
+                  class="booking-cta"
+                  data-booking-from={bookingFromMs}
+                  hidden={!bookingEnabled}
+                  aria-hidden={!bookingEnabled}
+                  tabindex={bookingEnabled ? undefined : -1}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {siteConfig.copy.bookingCta}
+                </a>
+              </li>
+            )
+          }
           <li><a href="#list">{siteConfig.copy.signupNavCta}</a></li>
         </ul>
       </div>
