@@ -105,13 +105,22 @@ describe("initSectionHash", () => {
 
   it("pauses hash updates briefly after anchor clicks", () => {
     const replaceState = vi.spyOn(window.history, "replaceState");
+    const menu = document.getElementById("menu");
+    const scrollIntoView = vi.fn();
+    if (menu) menu.scrollIntoView = scrollIntoView;
 
     initSectionHash();
     replaceState.mockClear();
 
     document.getElementById("menu-link")?.dispatchEvent(
-      new MouseEvent("click", { bubbles: true }),
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
     );
+
+    expect(scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: "smooth", block: "start" }),
+    );
+    expect(replaceState).toHaveBeenCalledWith(null, "", "/#menu");
+    replaceState.mockClear();
 
     observerCallback?.(
       [
@@ -130,5 +139,22 @@ describe("initSectionHash", () => {
     );
 
     expect(replaceState).not.toHaveBeenCalled();
+  });
+
+  it("smooth-scrolls even when the hash already matches", () => {
+    window.history.replaceState(null, "", "/#menu");
+    const menu = document.getElementById("menu");
+    const scrollIntoView = vi.fn();
+    if (menu) menu.scrollIntoView = scrollIntoView;
+
+    initSectionHash();
+
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    document.getElementById("menu-link")?.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: "smooth" }),
+    );
   });
 });
