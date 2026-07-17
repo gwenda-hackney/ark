@@ -17,6 +17,41 @@ export const siteConfig = {
   },
   /** SEO & link previews — WhatsApp, iMessage, Slack, X, Google snippets */
   seoTitle: "Gwenda | Hackney Wick, London",
+  /**
+   * Per-page titles and meta descriptions for organic search.
+   * Unique copy helps Google build sitelinks (Events, Menu, etc.) under the main result.
+   * Lead with the distinctive phrase; keep under ~155 characters.
+   */
+  seo: {
+    home: {
+      title: "Gwenda | Hackney Wick, London",
+      description:
+        "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art, and vinyl on the decks.",
+    },
+    events: {
+      title: "Events · Gwenda",
+      description:
+        "Nights at Gwenda. Private invitations, openings, and canalside gatherings in Hackney Wick.",
+    },
+    menu: {
+      title: "Menu · Gwenda",
+      description:
+        "Craft cocktails, Italian small plates, and natural wine. The list at Gwenda, Hackney Wick.",
+    },
+    privacy: {
+      title: "Privacy · Gwenda",
+      description:
+        "How Gwenda handles your email and data. Privacy policy for gwenda.co.uk.",
+    },
+  },
+  /** Topics for schema.org knowsAbout (helps Google associate the venue). */
+  seoTopics: [
+    "Hackney Wick ristobar",
+    "craft cocktails London",
+    "Italian small plates",
+    "canalside bar Hackney Wick",
+    "vinyl and art",
+  ],
   social: {
     instagram: "https://www.instagram.com/gwendahackney",
     tiktok: "",

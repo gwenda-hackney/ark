@@ -3,7 +3,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { siteConfig } from "../config/site";
 ---
 
-<BaseLayout title={`Privacy — ${siteConfig.name}`}>
+<BaseLayout
+  title={siteConfig.seo.privacy.title}
+  description={siteConfig.seo.privacy.description}
+>
   <main class="legal-page">
     <div class="container">
       <a href="/" class="legal-back">← Back</a>
