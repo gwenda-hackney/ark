@@ -12,8 +12,12 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useClient } from "sanity";
 import {
+  clearStoredProductionPreview,
   fetchDeployStatus,
+  loadStoredProductionPreview,
+  storeProductionPreview,
   triggerContentDeploy,
+  triggerContentPromote,
   wait,
 } from "./deployClient";
 import type { ContentSummary } from "./types";
@@ -21,6 +25,7 @@ import {
   deployTargetForDataset,
   deployToolTitle,
   liveSiteUrl,
+  previewSiteUrl,
 } from "./types";
 
 const CONTENT_TYPES = ["menuSection", "menuItem", "event"];
@@ -32,7 +37,14 @@ const SUMMARY_QUERY = `{
   "draftsHeldBack": count(*[_id in path("drafts.**") && _type in $types])
 }`;
 
-type DeployPhase = "idle" | "deploying" | "success" | "error";
+type DeployPhase =
+  | "idle"
+  | "previewing"
+  | "preview_ready"
+  | "promoting"
+  | "deploying"
+  | "success"
+  | "error";
 
 export function SiteDeployTool() {
   const client = useClient({ apiVersion: "2025-01-01" });
@@ -41,6 +53,7 @@ export function SiteDeployTool() {
   const deploySecret = process.env.SANITY_STUDIO_SITE_DEPLOY_SECRET?.trim() || "";
 
   const target = useMemo(() => deployTargetForDataset(dataset), [dataset]);
+  const isProduction = target === "production";
   const siteUrl = liveSiteUrl(target);
   const title = deployToolTitle(target);
 
@@ -49,8 +62,12 @@ export function SiteDeployTool() {
   const [phase, setPhase] = useState<DeployPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [runUrl, setRunUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewRunId, setPreviewRunId] = useState<number | null>(null);
 
   const configured = Boolean(deployUrl && deploySecret);
+  const busy =
+    phase === "deploying" || phase === "previewing" || phase === "promoting";
 
   const loadSummary = useCallback(async () => {
     setSummaryLoading(true);
@@ -70,23 +87,40 @@ export function SiteDeployTool() {
     void loadSummary();
   }, [loadSummary]);
 
-  const handleDeploy = useCallback(async () => {
-    if (!configured) return;
+  useEffect(() => {
+    if (!isProduction) return;
+    const stored = loadStoredProductionPreview();
+    if (!stored) return;
+    setPreviewRunId(stored.previewRunId);
+    setPreviewUrl(stored.previewUrl);
+    setRunUrl(stored.runUrl);
+    setPhase("preview_ready");
+  }, [isProduction]);
 
+  const pollUntilComplete = useCallback(
+    async (runId: number) => {
+      let status = await fetchDeployStatus(deployUrl, deploySecret, runId);
+      while (!status.completed) {
+        await wait(5000);
+        status = await fetchDeployStatus(deployUrl, deploySecret, runId);
+      }
+      return status;
+    },
+    [deploySecret, deployUrl],
+  );
+
+  const handleStagingDeploy = useCallback(async () => {
     setPhase("deploying");
     setError(null);
     setRunUrl(null);
+    setPreviewUrl(null);
+    setPreviewRunId(null);
 
     try {
-      const trigger = await triggerContentDeploy(deployUrl, deploySecret, target);
+      const trigger = await triggerContentDeploy(deployUrl, deploySecret, "staging");
       setRunUrl(trigger.runUrl);
 
-      let status = await fetchDeployStatus(deployUrl, deploySecret, trigger.runId);
-      while (!status.completed) {
-        await wait(5000);
-        status = await fetchDeployStatus(deployUrl, deploySecret, trigger.runId);
-      }
-
+      const status = await pollUntilComplete(trigger.runId);
       if (status.conclusion === "success") {
         setPhase("success");
         await loadSummary();
@@ -94,12 +128,90 @@ export function SiteDeployTool() {
       }
 
       setPhase("error");
-      setError(`Deploy failed — see ${status.runUrl}`);
+      setError(`Deploy failed. See ${status.runUrl}`);
     } catch (err) {
       setPhase("error");
       setError(err instanceof Error ? err.message : "Deploy failed");
     }
-  }, [configured, deploySecret, deployUrl, loadSummary, target]);
+  }, [deploySecret, deployUrl, loadSummary, pollUntilComplete]);
+
+  const handleProductionPreview = useCallback(async () => {
+    setPhase("previewing");
+    setError(null);
+    setRunUrl(null);
+    setPreviewUrl(null);
+    setPreviewRunId(null);
+    clearStoredProductionPreview();
+
+    try {
+      const trigger = await triggerContentDeploy(
+        deployUrl,
+        deploySecret,
+        "production",
+      );
+      setRunUrl(trigger.runUrl);
+
+      const status = await pollUntilComplete(trigger.runId);
+      if (status.conclusion !== "success") {
+        setPhase("error");
+        setError(`Preview failed. See ${status.runUrl}`);
+        return;
+      }
+
+      const nextPreviewUrl = status.previewUrl || previewSiteUrl();
+      const nextPreviewRunId = status.previewRunId ?? status.runId;
+      setPreviewUrl(nextPreviewUrl);
+      setPreviewRunId(nextPreviewRunId);
+      setRunUrl(status.runUrl);
+      storeProductionPreview({
+        previewRunId: nextPreviewRunId,
+        previewUrl: nextPreviewUrl,
+        runUrl: status.runUrl,
+      });
+      setPhase("preview_ready");
+    } catch (err) {
+      setPhase("error");
+      setError(err instanceof Error ? err.message : "Preview failed");
+    }
+  }, [deploySecret, deployUrl, pollUntilComplete]);
+
+  const handleProductionPromote = useCallback(async () => {
+    if (!previewRunId) return;
+
+    setPhase("promoting");
+    setError(null);
+
+    try {
+      const trigger = await triggerContentPromote(
+        deployUrl,
+        deploySecret,
+        previewRunId,
+      );
+      setRunUrl(trigger.runUrl);
+
+      const status = await pollUntilComplete(trigger.runId);
+      if (status.conclusion === "success") {
+        clearStoredProductionPreview();
+        setPhase("success");
+        await loadSummary();
+        return;
+      }
+
+      setPhase("error");
+      setError(`Promote failed. See ${status.runUrl}`);
+    } catch (err) {
+      setPhase("error");
+      setError(err instanceof Error ? err.message : "Promote failed");
+    }
+  }, [deploySecret, deployUrl, loadSummary, pollUntilComplete, previewRunId]);
+
+  const primaryLabel = isProduction
+    ? phase === "previewing"
+      ? "Deploying preview…"
+      : "Deploy preview"
+    : phase === "deploying"
+      ? "Deploying…"
+      : title;
 
   return (
     <Box padding={4} sizing="border">
@@ -109,8 +221,9 @@ export function SiteDeployTool() {
             {title}
           </Heading>
           <Text muted size={2}>
-            Rebuild the website from published content in Sanity. Draft documents
-            are held back and will not appear on the site.
+            {isProduction
+              ? "Rebuild the live site from published content. First deploy a preview for review, then promote that exact build to gwenda.co.uk."
+              : "Rebuild the website from published content in Sanity. Draft documents are held back and will not appear on the site."}
           </Text>
         </Stack>
 
@@ -151,25 +264,41 @@ export function SiteDeployTool() {
         <Flex gap={3} wrap="wrap">
           <Button
             icon={LaunchIcon}
-            text={phase === "deploying" ? "Deploying…" : title}
+            text={primaryLabel}
             tone="primary"
-            disabled={!configured || phase === "deploying"}
-            onClick={() => void handleDeploy()}
+            disabled={!configured || busy}
+            onClick={() =>
+              void (isProduction ? handleProductionPreview() : handleStagingDeploy())
+            }
           />
+          {isProduction && (phase === "preview_ready" || phase === "promoting") ? (
+            <Button
+              text={phase === "promoting" ? "Promoting…" : "Promote to live"}
+              tone="positive"
+              disabled={!configured || busy || !previewRunId}
+              onClick={() => void handleProductionPromote()}
+            />
+          ) : null}
           <Button
             mode="ghost"
             text="Refresh summary"
-            disabled={summaryLoading || phase === "deploying"}
+            disabled={summaryLoading || busy}
             onClick={() => void loadSummary()}
           />
         </Flex>
 
-        {phase === "deploying" ? (
+        {phase === "deploying" || phase === "previewing" || phase === "promoting" ? (
           <Card padding={4} radius={2} tone="primary">
             <Flex align="center" gap={3}>
               <Spinner />
               <Stack space={2}>
-                <Text size={2}>Building and deploying published content…</Text>
+                <Text size={2}>
+                  {phase === "previewing"
+                    ? "Building production content preview…"
+                    : phase === "promoting"
+                      ? "Promoting previewed content to live…"
+                      : "Building and deploying published content…"}
+                </Text>
                 {runUrl ? (
                   <Text size={1} muted>
                     <a href={runUrl} target="_blank" rel="noreferrer">
@@ -182,10 +311,37 @@ export function SiteDeployTool() {
           </Card>
         ) : null}
 
+        {phase === "preview_ready" && previewUrl ? (
+          <Card padding={4} radius={2} tone="caution">
+            <Stack space={3}>
+              <Text size={2}>Preview ready for review.</Text>
+              <Text size={2}>
+                <a href={previewUrl} target="_blank" rel="noreferrer">
+                  {previewUrl}
+                </a>
+              </Text>
+              <Text size={1} muted>
+                Promote deploys this exact build to {siteUrl}. Publishing more
+                documents in Studio will not change the preview until you deploy
+                preview again.
+              </Text>
+              {runUrl ? (
+                <Text size={1} muted>
+                  <a href={runUrl} target="_blank" rel="noreferrer">
+                    View preview build run
+                  </a>
+                </Text>
+              ) : null}
+            </Stack>
+          </Card>
+        ) : null}
+
         {phase === "success" ? (
           <Card padding={4} radius={2} tone="positive">
             <Stack space={2}>
-              <Text size={2}>Site updated.</Text>
+              <Text size={2}>
+                {isProduction ? "Live site updated." : "Site updated."}
+              </Text>
               <Text size={2}>
                 <a href={siteUrl} target="_blank" rel="noreferrer">
                   {siteUrl}
