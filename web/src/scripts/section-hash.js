@@ -1,7 +1,10 @@
 /**
- * Keep the URL hash in sync with the section currently in view while scrolling.
- * Anchor clicks still work natively; we use replaceState so history isn't
- * flooded with every scroll position.
+ * Homepage in-page anchors: always smooth-scroll via JS so clicks work after
+ * back/forward (CSS scroll-behavior stays auto during restore) and when the
+ * URL hash already matches the target.
+ *
+ * Do not sync the hash while scrolling. replaceState during restore fights the
+ * browser's scroll restoration and causes visible flicker.
  */
 
 /** @param {string | null | undefined} sectionId */
@@ -9,21 +12,6 @@ export function buildSectionUrl(sectionId) {
   const base = `${location.pathname}${location.search}`;
   if (!sectionId || sectionId === "hero") return base;
   return `${base}#${sectionId}`;
-}
-
-/** @param {Map<string, number>} ratios */
-export function pickActiveSection(ratios) {
-  let bestId = null;
-  let bestRatio = 0;
-
-  for (const [id, ratio] of ratios) {
-    if (ratio > bestRatio) {
-      bestRatio = ratio;
-      bestId = id;
-    }
-  }
-
-  return bestRatio > 0 ? bestId : null;
 }
 
 function syncHash(sectionId) {
@@ -37,52 +25,11 @@ function syncHash(sectionId) {
 
 /**
  * @param {object} [options]
- * @param {() => void} [options.onSectionChange]
+ * @param {(sectionId: string) => void} [options.onSectionChange]
  */
 export function initSectionHash(options = {}) {
   const hero = document.getElementById("hero");
   if (!hero) return () => {};
-
-  const sections = [...document.querySelectorAll("main section[id]")].filter(
-    (section) => section.id,
-  );
-  if (sections.length === 0) return () => {};
-
-  /** @type {Map<string, number>} */
-  const ratios = new Map();
-  let activeId = null;
-  let clickLockUntil = 0;
-
-  const applyActiveSection = (sectionId) => {
-    if (!sectionId || sectionId === activeId) return;
-    activeId = sectionId;
-    syncHash(sectionId);
-    options.onSectionChange?.(sectionId);
-  };
-
-  const updateFromRatios = () => {
-    if (Date.now() < clickLockUntil) return;
-    applyActiveSection(pickActiveSection(ratios));
-  };
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        ratios.set(entry.target.id, entry.intersectionRatio);
-      }
-      updateFromRatios();
-    },
-    {
-      root: null,
-      rootMargin: "-20% 0px -55% 0px",
-      threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
-    },
-  );
-
-  for (const section of sections) {
-    ratios.set(section.id, 0);
-    observer.observe(section);
-  }
 
   const onAnchorClick = (event) => {
     const link = event.target.closest('a[href^="#"]');
@@ -95,13 +42,9 @@ export function initSectionHash(options = {}) {
     const target = document.getElementById(sectionId);
     if (!target) return;
 
-    // Drive scroll in JS so it stays smooth after back/forward restore
-    // (CSS scroll-behavior is locked to auto until restore settles), and so
-    // clicking the same hash again still animates.
     event.preventDefault();
-    clickLockUntil = Date.now() + 900;
-    activeId = sectionId;
     syncHash(sectionId);
+    options.onSectionChange?.(sectionId);
 
     const prefersReduced = window.matchMedia?.(
       "(prefers-reduced-motion: reduce)",
@@ -113,10 +56,8 @@ export function initSectionHash(options = {}) {
   };
 
   document.addEventListener("click", onAnchorClick, true);
-  updateFromRatios();
 
   return () => {
-    observer.disconnect();
     document.removeEventListener("click", onAnchorClick, true);
   };
 }
