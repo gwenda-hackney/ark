@@ -85,6 +85,8 @@ At ~200 contacts, Standard is typically far cheaper than Buttondown whitelabel (
 
 **GO** — Mailchimp Marketing API satisfies sync + branded notification requirements.
 
-**Next (Phase 1, only after this GO is accepted):** scaffold `utils/subscribe-mailchimp-sync/` (cron Worker, manual trigger, tests, local dry-run), secrets wiring, and a versioned Gwenda HTML shell under `brand/email/` for Mailchimp custom template import. Do **not** merge or delete `feat/buttondown-sync-and-email-brand`; keep it as the parallel ESP experiment.
+**In progress:** branded HTML shell lives at [`brand/email/mailchimp-template.html`](../brand/email/mailchimp-template.html) (test via Mailchimp send-to-self first). Subscriber sync Worker comes after template sign-off.
+
+**Later:** scaffold `utils/subscribe-mailchimp-sync/` (cron Worker, manual trigger, tests, local dry-run) and secrets wiring. Do **not** merge or delete `feat/buttondown-sync-and-email-brand`; keep it as the parallel ESP experiment.
 
 **NO-GO would mean:** Standard plan unavailable, or consent rules forbid API `subscribed` without DOI and DOI is unacceptable for UX. Neither blocks the API itself.
