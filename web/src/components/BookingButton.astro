@@ -8,7 +8,7 @@ import {
 } from "../config/booking";
 
 interface Props {
-  variant?: "primary" | "ghost" | "nav";
+  variant?: "primary" | "ghost" | "float";
   class?: string;
 }
 
@@ -23,7 +23,7 @@ const enabled = isBookingEnabled();
       href={bookingUrl}
       class:list={[
         "booking-cta",
-        variant === "nav" ? "site-header-booking" : "btn",
+        variant === "float" ? "booking-float" : "btn",
         variant === "primary" && "btn-primary",
         variant === "ghost" && "btn-ghost",
         className,

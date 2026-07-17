@@ -6,6 +6,7 @@ import SocialMeta from "../components/SocialMeta.astro";
 import StructuredData from "../components/StructuredData.astro";
 import Fonts from "../components/Fonts.astro";
 import StagingRibbon from "../components/StagingRibbon.astro";
+import BookingButton from "../components/BookingButton.astro";
 import { colors } from "../config/colors";
 
 const themeColor = colors.bg;
@@ -100,6 +101,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <slot />
+    <BookingButton variant="float" />
     <script src="../scripts/main.js"></script>
   </body>
 </html>

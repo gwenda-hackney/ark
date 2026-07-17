@@ -10,11 +10,19 @@ describe("booking config", () => {
     vi.useRealTimers();
   });
 
-  it("is off when PUBLIC_BOOKING_ENABLED_FROM is unset", async () => {
+  it("defaults to the go-live date when PUBLIC_BOOKING_ENABLED_FROM is unset", async () => {
     vi.stubEnv("PUBLIC_BOOKING_ENABLED_FROM", "");
-    const { isBookingEnabled, isBookingScheduled } = await import("./booking");
-    expect(isBookingScheduled()).toBe(false);
-    expect(isBookingEnabled()).toBe(false);
+    const {
+      DEFAULT_BOOKING_ENABLED_FROM,
+      bookingEnabledFrom,
+      isBookingEnabled,
+      isBookingScheduled,
+    } = await import("./booking");
+    expect(bookingEnabledFrom).toBe(DEFAULT_BOOKING_ENABLED_FROM);
+    expect(isBookingScheduled()).toBe(true);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(`${DEFAULT_BOOKING_ENABLED_FROM}T00:00:00`));
+    expect(isBookingEnabled()).toBe(true);
   });
 
   it("enables on and after the go-live date", async () => {

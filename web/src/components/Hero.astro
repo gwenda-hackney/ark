@@ -3,7 +3,6 @@ import { Image } from "astro:assets";
 import { siteConfig } from "../config/site";
 import { openingTimestamp } from "../config/opening";
 import { heroBackground, heroLogo } from "../lib/hero-assets";
-import BookingButton from "./BookingButton.astro";
 
 const openingMs = openingTimestamp();
 const diff = Math.max(0, openingMs - Date.now());
@@ -67,16 +66,13 @@ const minutes = Math.floor((diff % 3600000) / 60000);
     </div>
 
     <p class="hero-location enter-stagger enter-stagger--auto">{siteConfig.tagline}</p>
-    <div class="hero-actions enter-stagger enter-stagger--auto">
-      <a href="#story" class="btn btn-primary enter-stagger enter-stagger--auto" id="hero-cta"
-        >{siteConfig.copy.heroCta}</a
-      >
-      <BookingButton variant="primary" />
-    </div>
+    <a href="#story" class="btn btn-primary enter-stagger enter-stagger--auto" id="hero-cta"
+      >{siteConfig.copy.heroCta}</a
+    >
   </div>
 
   <a href="#story" class="hero-scroll-hint" aria-label="Scroll to story">
-    <span class="hero-scroll-chevron"></span>
+    <span class="hero-scroll-chevron" aria-hidden="true"></span>
   </a>
 </section>
 

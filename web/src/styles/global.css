@@ -489,12 +489,53 @@ a:focus-visible {
   box-shadow: 0 0 20px color-mix(in srgb, var(--color-gold) 18%, transparent);
 }
 
-.site-header-booking {
-  color: var(--color-text);
+.booking-float {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 70;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+  border: 1px solid var(--color-gold-dim);
+  padding: 0.7rem 1.1rem;
+  background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition:
+    border-color 0.3s var(--ease-smooth),
+    box-shadow 0.3s var(--ease-smooth),
+    color 0.3s var(--ease-smooth),
+    background 0.3s var(--ease-smooth),
+    transform 0.2s var(--ease-smooth);
 }
 
-.site-header-booking[hidden] {
+.booking-float:hover,
+.booking-float:focus-visible {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--color-gold) 20%, transparent);
+}
+
+.booking-float:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--color-gold) 20%, transparent),
+    var(--focus-ring);
+}
+
+.booking-float:active {
+  transform: scale(0.98);
+}
+
+.booking-float[hidden] {
   display: none;
+}
+
+body:has(.booking-float:not([hidden])) .scroll-top-hint {
+  bottom: 4.75rem;
 }
 
 .site-header-menu-btn {
@@ -692,7 +733,7 @@ html.fonts-ready .hero-location.enter-stagger--auto {
   --enter-delay: 0.7s;
 }
 
-html.fonts-ready .hero-content .hero-actions.enter-stagger--auto {
+html.fonts-ready .hero-content > .btn.enter-stagger--auto {
   --enter-delay: 0.9s;
 }
 
@@ -723,19 +764,6 @@ html.fonts-ready .enter-scene.is-visible .invite-card-hint.enter-stagger {
 .is-leaving {
   opacity: 0;
   transition: opacity 0.45s var(--ease-out);
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 0.25rem;
-}
-
-.hero-actions .booking-cta[hidden] {
-  display: none;
 }
 
 html:not(.fonts-ready) .gate,
@@ -3565,6 +3593,19 @@ html.navigation-restore #rsvp-loading {
 @media (max-width: 640px) {
   :root {
     --header-height: 56px;
+  }
+
+  .booking-float {
+    right: 1rem;
+    bottom: 1rem;
+    padding: 0.6rem 0.95rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+  }
+
+  body:has(.booking-float:not([hidden])) .scroll-top-hint {
+    bottom: 4.25rem;
+    right: 1rem;
   }
 
   .site-header {

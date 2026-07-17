@@ -536,7 +536,7 @@ export default defineConfig({
         context: "client",
         access: "public",
         optional: true,
-        default: "",
+        default: "2026-07-17",
       }),
       PUBLIC_INVITE_IMAGE_URL: envField.string({
         context: "client",
