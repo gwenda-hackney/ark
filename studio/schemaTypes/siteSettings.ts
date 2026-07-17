@@ -15,10 +15,10 @@ export const siteSettings = defineType({
     }),
     defineField({
       name: "cocktailGalleryEnabled",
-      title: "Show cocktail menu gallery",
+      title: "Show cocktail gallery images",
       type: "boolean",
       description:
-        "When on, the signature cocktail gallery appears on the homepage (after Publish and Deploy site).",
+        "When off, the homepage menu section stays visible with a coming soon message instead of cocktail photos (after Publish and Deploy site).",
       initialValue: true,
     }),
   ],
