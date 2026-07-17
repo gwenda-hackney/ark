@@ -17,7 +17,7 @@ Part of the Gwenda monorepo (repo root is one level up).
 
 Deployment history: [github.com/gwenda-hackney/ark/deployments](https://github.com/gwenda-hackney/ark/deployments)
 
-**Content deploys** (published CMS → site rebuild) are triggered from Studio → **Deploy site**, not from git pushes. See [docs/sanity.md](../docs/sanity.md#deploy-published-content-to-the-website).
+**Content deploys** (published CMS → site rebuild) are triggered from Studio → **Deploy site**, not from git pushes. Staging is one click; production is preview → promote. See [docs/sanity.md](../docs/sanity.md#deploy-published-content-to-the-website).
 
 ## Development
 
@@ -39,7 +39,7 @@ GitLab Flow with a long-running `release` branch:
 2. **Feature branches** — push `web/**` changes → branch preview on `gwenda-staging` (see [deploy-web-preview.yml](../.github/workflows/deploy-web-preview.yml)).
 3. **Release** — merge `main` into `release`, push (production preview), then manually promote to live.
 
-Schema and site code promote via git. Editorial content promotes separately in Sanity (dev dataset → prod dataset, then **Deploy site**).
+Schema and site code promote via git. Editorial content promotes separately in Sanity (dev dataset → prod dataset, then Studio **Deploy site**: staging one-click, production preview → promote).
 
 ## Layout
 

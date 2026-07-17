@@ -11,7 +11,7 @@ export type MenuItem = {
   id: string;
   name: string;
   description?: string;
-  /** Display price, e.g. "14" (rendered as £14) */
+  /** Display price, e.g. "14" */
   price?: string;
   tags?: string[];
   available?: boolean;

@@ -153,17 +153,22 @@ The static site reads **published** Sanity documents at build time. Publishing a
 1. Edit documents in Studio. Use per-document **Publish** when a piece of content is ready.
 2. Leave work-in-progress as **drafts** — they are held back and never included in a deploy.
 3. Open **Deploy site** in the Studio toolbar.
-4. Click **Deploy to staging** (dev Studio) or **Deploy to live** (prod Studio).
+4. **Development Studio:** click **Deploy to staging** (straight to staging).
+5. **Production Studio:**
+   1. Click **Deploy preview** (builds published production content to the production preview URL).
+   2. Review the preview link in Studio.
+   3. Click **Promote to live** (ships that exact build to gwenda.co.uk).
 
-The site rebuilds from published content only and goes straight to the live URL — no GitHub promote step.
+Staging is one step. Production content uses the same preview → promote gate as code deploys, so live only updates after review.
 
 ### Code vs content deploys
 
 | | Code (developers) | Content (editors) |
 |---|---|---|
 | Trigger | Push to `main` / `release` | Studio **Deploy site** button |
-| Production gate | Preview → manual promote | Straight to gwenda.co.uk |
-| GitHub workflows | `deploy-staging.yml`, `deploy-production.yml` | `deploy-staging-content.yml`, `deploy-production-content.yml` |
+| Staging | Push to `main` | Dev Studio → Deploy to staging |
+| Production gate | Preview → manual promote | Prod Studio → Deploy preview → Promote to live |
+| GitHub workflows | `deploy-staging.yml`, `deploy-production.yml`, `deploy-production-promote.yml` | `deploy-staging-content.yml`, `deploy-production-content.yml`, `deploy-production-content-promote.yml` |
 
 ### Infrastructure
 
@@ -171,7 +176,13 @@ The site rebuilds from published content only and goes straight to the live URL 
 Studio (browser) → gwenda-site-deploy-webhook (Worker) → GitHub Actions → Cloudflare Pages
 ```
 
-Worker: `utils/site-deploy-webhook/` — validates a shared secret, dispatches the content deploy workflow.
+Worker: `utils/site-deploy-webhook/` validates a shared secret, then dispatches content deploy (and production promote) workflows.
+
+| Endpoint | Role |
+|---|---|
+| `POST /deploy` | Staging deploy, or production **preview** |
+| `POST /promote` | Production **promote** (body: `{ previewRunId }`) |
+| `GET /status?run_id=` | Poll run; production preview success includes `previewUrl` |
 
 **Automated setup** (agents and developers — uses `.env` + `gh`):
 

@@ -1,0 +1,142 @@
+name: Promote production content to live
+
+# Studio "Promote to live" — deploys the exact dist from a content preview run.
+on:
+  workflow_dispatch:
+    inputs:
+      preview_run_id:
+        description: GitHub Actions run ID of the successful content preview
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production-content-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote content preview to live
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+      actions: read
+    environment:
+      name: production
+      url: https://gwenda.co.uk
+
+    steps:
+      - name: Checkout release
+        uses: actions/checkout@v4
+        with:
+          ref: release
+
+      - name: Verify preview run
+        id: preview
+        run: cd web && node scripts/ci/verify-content-preview.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_RUN_ID: ${{ inputs.preview_run_id }}
+
+      - name: Download previewed dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: production-content-dist
+          run-id: ${{ inputs.preview_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: web/dist
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute build metadata
+        id: buildmeta
+        run: cd web && node scripts/ci/compute-build-metadata.mjs
+        env:
+          GITHUB_REF_NAME: release
+          BUILD_COMMIT_SHA: ${{ steps.preview.outputs.sha }}
+
+      - name: Deploy previewed dist to production branch
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda
+          pages-production-branch: release
+          secret-profile: production
+          deploy-branch: release
+          wrangler-config: wrangler.toml
+          skip-build: "true"
+          public-is-staging: "false"
+          build-version: ${{ steps.buildmeta.outputs.version }}
+          build-sha: ${{ steps.buildmeta.outputs.sha }}
+          build-ref: ${{ steps.buildmeta.outputs.ref }}
+          build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
+          baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
+          subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
+          event-admin-secret: ${{ secrets.EVENT_ADMIN_SECRET }}
+          invite-base-url: https://gwenda.co.uk
+          invite-image-url: https://gwenda.co.uk/images/event-invite.jpg
+          smtp-host: ${{ secrets.SMTP_HOST }}
+          smtp-port: ${{ secrets.SMTP_PORT }}
+          smtp-user: ${{ secrets.SMTP_USER }}
+          smtp-password: ${{ secrets.SMTP_PASSWORD }}
+          smtp-from: ${{ secrets.SMTP_FROM }}
+          instagram-access-token: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          instagram-business-account-id: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          invite-email-subject: ${{ secrets.INVITE_EMAIL_SUBJECT }}
+          invite-email-body: ${{ secrets.INVITE_EMAIL_BODY }}
+          invite-instagram-message: ${{ secrets.INVITE_INSTAGRAM_MESSAGE }}
+          sanity-dataset: production
+
+      - name: Ensure apex custom domain
+        run: cd web && node scripts/ensure-pages-domain.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT_NAME: gwenda
+          ZONE_NAME: gwenda.co.uk
+          CUSTOM_DOMAIN: gwenda.co.uk
+
+      - name: Ensure www custom domain
+        run: cd web && node scripts/ensure-pages-domain.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT_NAME: gwenda
+          ZONE_NAME: gwenda.co.uk
+          CUSTOM_DOMAIN: www.gwenda.co.uk
+
+      - name: Allow AI crawlers on production zone
+        run: cd web && node scripts/ensure-zone-ai-access.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ZONE_NAME: gwenda.co.uk
+
+      - name: Smoke test live domains
+        run: |
+          for url in https://gwenda.co.uk https://www.gwenda.co.uk; do
+            (cd web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
+          done
+
+      - name: Deployment summary
+        run: cd web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Production content promoted to live","rows":[
+              ["Trigger","Sanity Studio — promote published content"],
+              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
+              ["Preview run","[${{ steps.preview.outputs.preview-run-url }}](${{ steps.preview.outputs.preview-run-url }})"],
+              ["Site","https://gwenda.co.uk"]
+            ]}
