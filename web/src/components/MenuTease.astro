@@ -4,7 +4,13 @@ import MenuTeaseCocktails from "./MenuTeaseCocktails.astro";
 import DissolveReveal from "./DissolveReveal.astro";
 import { fetchMenuTeaseCocktails } from "../lib/sanity/menu";
 
-const cocktails = await fetchMenuTeaseCocktails();
+interface Props {
+  /** When false, keep the section but hide cocktail images (coming soon). */
+  showCocktailImages?: boolean;
+}
+
+const { showCocktailImages = true } = Astro.props;
+const cocktails = showCocktailImages ? await fetchMenuTeaseCocktails() : [];
 ---
 
 <section class="menu-tease section" id="menu">

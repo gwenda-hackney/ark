@@ -20,7 +20,6 @@ interface Props {
 const { mode = "promo" } = Astro.props;
 const features = getFeatures(mode);
 const { cocktailGalleryEnabled } = await fetchSiteSettings();
-const showMenuTease = features.showMenuTease && cocktailGalleryEnabled;
 ---
 
 {
@@ -31,11 +30,13 @@ const showMenuTease = features.showMenuTease && cocktailGalleryEnabled;
   )
 }
 
-<Header features={features} showMenuTease={showMenuTease} />
+<Header features={features} showMenuTease={features.showMenuTease} />
 <main>
   <Hero mode={mode} />
   <Story mode={mode} />
-  {showMenuTease && <MenuTease />}
+  {features.showMenuTease && (
+    <MenuTease showCocktailImages={cocktailGalleryEnabled} />
+  )}
   {features.showTeam && <Team />}
   {features.showGallery && <TeaserGallery features={features} />}
   <EmailSignup mode={mode} />

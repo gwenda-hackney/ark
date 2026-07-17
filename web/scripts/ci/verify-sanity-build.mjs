@@ -43,6 +43,14 @@ if (galleryTiles > 0) {
   process.exit(0);
 }
 
+if (hasComingSoon && galleryTiles === 0) {
+  console.log(
+    `Sanity build OK — dataset: ${dataset}, homepage cocktail gallery coming soon` +
+      (menuSections > 0 ? `, menu sections: ${menuSections}` : ""),
+  );
+  process.exit(0);
+}
+
 if (menuSections > 0) {
   console.log(
     `Sanity build OK — dataset: ${dataset}, menu sections: ${menuSections}` +
