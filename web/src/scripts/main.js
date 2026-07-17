@@ -2,6 +2,7 @@ import { initCountdown } from "./countdown.js";
 import { initSignup, initSignupAnchors } from "./signup.js";
 import { initNavigationRestore, whenNavigationReady } from "./navigation-restore.js";
 import { initReveal } from "./reveal.js";
+import { initSectionHash } from "./section-hash.js";
 
 initNavigationRestore();
 
@@ -172,6 +173,7 @@ initReveal();
 whenNavigationReady(() => {
   initScrollHint();
   initHeroParallax();
+  initSectionHash();
 });
 
 /* Email signup */
