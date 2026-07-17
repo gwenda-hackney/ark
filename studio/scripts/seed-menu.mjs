@@ -6,6 +6,7 @@
  *   CONFIRM_PRODUCTION_SEED=1 npm run studio:seed:production
  */
 import { createClient } from "@sanity/client";
+import { LexoRank } from "lexorank";
 import { readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -71,6 +72,17 @@ function galleryCrop({ position = "bottom-center", crop = {}, hotspot = {} } = {
   };
 }
 
+/** Sequential LexoRanks matching Studio "Reset order" / drag ranking. */
+function allocateOrderRanks(count) {
+  const ranks = [];
+  let rank = LexoRank.min();
+  for (let i = 0; i < count; i += 1) {
+    rank = rank.genNext().genNext();
+    ranks.push(rank.toString());
+  }
+  return ranks;
+}
+
 const SIGNATURE_COCKTAILS = [
   {
     name: "Gwenda",
@@ -78,36 +90,116 @@ const SIGNATURE_COCKTAILS = [
     ...galleryCrop({ position: "bottom-right" }),
     description:
       process.env.GWENDA_INGREDIENTS?.trim() ||
-      "Tanqueray No. Ten, Italicus, lavender honey, lemon, prosecco float",
-    notes: "Aperitif",
-    price: "12",
+      "Gin | Prosecco | Italicus | Elderflower | Lime",
+    notes: "Sweet & Citrusy",
+    price: "15",
   },
   {
-    name: "Canal Bloom",
+    name: "Kraken",
     imageFile: "cocktail2.png",
     ...galleryCrop({ position: "bottom-center" }),
-    description: "Vodka, elderflower, cucumber, garden mint, soda",
-    notes: "Long & spritzy",
-    price: "12",
+    description:
+      "Dark Rum | Coffee Liqueur | Cocoa Bitters | Maple Syrup | Oak Smoke",
+    notes: "Dark & Decadent",
+    price: "15",
   },
   {
-    name: "Wick Lantern Sour",
+    name: "Maestrale",
     imageFile: "cocktail3.png",
     ...galleryCrop({ position: "bottom-left" }),
-    description: "Mezcal, Aperol, passion fruit, lime, a whisper of Tajín",
-    notes: "Sour",
-    price: "12",
+    description: "Tequila | Lime | Grapefruit | Agave | Sea Salt",
+    notes: "Crisp & Zesty",
+    price: "15",
   },
   {
-    name: "Night Archive",
+    name: "Ponente",
     imageFile: "cocktail4.png",
     ...galleryCrop({
       position: "bottom-right",
       crop: { top: 0.24, left: 0.34, bottom: 0.04, right: 0.04 },
       hotspot: { x: 0.76, y: 0.62, width: 0.36, height: 0.58 },
     }),
-    description: "Aged rum, cold-brew, banana liqueur, cacao, salted cream",
-    notes: "After dark",
+    description: "Campari Rosso | Italicus | Prosecco | Peach Soda",
+    notes: "Herbal & Lively",
+    price: "15",
+  },
+];
+
+const ITALIAN_SPRITZERS = [
+  {
+    name: "Aperol Spritz",
+    description: "Aperol | Prosecco | Soda | Orange",
+    notes: "Bright & Citrusy",
+    price: "12",
+  },
+  {
+    name: "Campari Spritz",
+    description: "Campari | Prosecco | Soda | Orange",
+    notes: "Herbal & Vibrant",
+    price: "12",
+  },
+  {
+    name: "Hugo Spritz",
+    description: "St-Germain | Prosecco | Soda | Lime",
+    notes: "Floral & Refreshing",
+    price: "12",
+  },
+  {
+    name: "Limoncello Spritz",
+    description: "Limoncello | Prosecco | Soda | Lemon",
+    notes: "Zesty & Sweet",
+    price: "12",
+  },
+];
+
+const CLASSIC_COCKTAILS = [
+  {
+    name: "Margarita",
+    description: "Tequila | Triple Sec | Lime | Sugar | Salt",
+    notes: "Zesty & Salty",
+    price: "12",
+  },
+  {
+    name: "Whiskey Sour",
+    description: "Whiskey | Lemon | Sugar | Aquafaba | Angostura Bitters",
+    notes: "Rich & Citrusy",
+    price: "13",
+  },
+  {
+    name: "East 8 Hold Up",
+    description:
+      "Vodka | Aperol | Prosecco | Pineapple | Passion Fruit Syrup | Sugar",
+    notes: "Tropical & Tangy",
+    price: "13",
+  },
+  {
+    name: "Negroni",
+    description: "Gin | Campari | Sweet Vermouth | Orange",
+    notes: "Complex & Herby",
+    price: "13",
+  },
+  {
+    name: "Smoky Negroni",
+    description: "Mezcal | Campari | Sweet Vermouth | Orange",
+    notes: "Smoky & Velvety",
+    price: "13",
+  },
+  {
+    name: "Bellini",
+    description: "Prosecco | Peach Puree",
+    notes: "Fresh & Elegant",
+    price: "12",
+  },
+  {
+    name: "Americano",
+    description: "Campari | Sweet Vermouth | Soda",
+    notes: "Herbal & Refreshing",
+    price: "12",
+  },
+  {
+    name: "Imperial Buck",
+    description: "Dark Rum | Pineapple | Lime | Ginger Syrup",
+    notes: "Spicy & Refreshing",
     price: "12",
   },
 ];
@@ -116,55 +208,27 @@ const MENU_SECTIONS = [
   {
     title: "Signature Cocktails",
     slug: "signature-cocktails",
-    sortOrder: 0,
     subtitle: "Hand-crafted in-house, elevated for the lounge.",
+    items: SIGNATURE_COCKTAILS,
+    signature: true,
   },
   {
-    title: "Traditional Cocktails",
-    slug: "traditional-cocktails",
-    sortOrder: 1,
-    subtitle: "Classics, done properly.",
+    title: "Italian Spritzers",
+    slug: "italian-spritzers",
+    subtitle: "Iconic aperitifs, inspired by Italian tradition.",
+    items: ITALIAN_SPRITZERS,
+    signature: false,
+  },
+  {
+    title: "Classic Cocktails",
+    slug: "classic-cocktails",
+    subtitle: "Timeless classics, for every taste and occasion.",
+    items: CLASSIC_COCKTAILS,
+    signature: false,
   },
 ];
 
-const TRADITIONAL_COCKTAILS = [
-  {
-    name: "Old Fashioned",
-    description: "Bourbon, sugar, Angostura bitters, orange peel",
-    notes: "Stirred",
-    price: "12",
-  },
-  {
-    name: "Negroni",
-    description: "Gin, Campari, sweet vermouth, orange peel",
-    notes: "Aperitif",
-    price: "12",
-  },
-  {
-    name: "Martini",
-    description: "Gin, dry vermouth, lemon twist or olive",
-    notes: "Stirred",
-    price: "12",
-  },
-  {
-    name: "Manhattan",
-    description: "Rye, sweet vermouth, Angostura bitters, cherry",
-    notes: "Stirred",
-    price: "13",
-  },
-  {
-    name: "Whiskey Sour",
-    description: "Bourbon, lemon, sugar, egg white",
-    notes: "Sour",
-    price: "12",
-  },
-  {
-    name: "Daiquiri",
-    description: "White rum, lime, sugar",
-    notes: "Sour",
-    price: "11",
-  },
-];
+const SEEDED_SECTION_SLUGS = new Set(MENU_SECTIONS.map((section) => section.slug));
 
 async function uploadImage(filename) {
   const filepath = resolve(imageDir, filename);
@@ -189,7 +253,7 @@ function imageField(assetId, alt, { crop, hotspot } = {}) {
   };
 }
 
-async function ensureSection({ title, slug, sortOrder, subtitle }) {
+async function ensureSection({ title, slug, subtitle, orderRank }) {
   const existingId = await client.fetch(
     `*[_type == "menuSection" && slug.current == $slug][0]._id`,
     { slug },
@@ -197,13 +261,13 @@ async function ensureSection({ title, slug, sortOrder, subtitle }) {
 
   const fields = {
     title,
-    sortOrder,
+    orderRank,
     slug: { _type: "slug", current: slug },
     ...(subtitle ? { subtitle } : {}),
   };
 
   if (existingId) {
-    await client.patch(existingId).set(fields).commit();
+    await client.patch(existingId).set(fields).unset(["sortOrder"]).commit();
     return existingId;
   }
 
@@ -214,10 +278,11 @@ async function ensureSection({ title, slug, sortOrder, subtitle }) {
   return created._id;
 }
 
-async function ensureMenuItem(sectionId, cocktail, index, { signature = false, image }) {
+async function ensureMenuItem(sectionId, cocktail, { signature = false, image, orderRank }) {
+  // Match by name globally so items can move between sections on re-seed.
   const existingId = await client.fetch(
-    `*[_type == "menuItem" && section._ref == $sectionId && name == $name && !(_id in path("drafts.**"))][0]._id`,
-    { sectionId, name: cocktail.name },
+    `*[_type == "menuItem" && name == $name && !(_id in path("drafts.**"))][0]._id`,
+    { name: cocktail.name },
   );
 
   const fields = {
@@ -225,14 +290,22 @@ async function ensureMenuItem(sectionId, cocktail, index, { signature = false, i
     description: cocktail.description,
     notes: cocktail.notes,
     price: cocktail.price,
-    sortOrder: index,
+    orderRank,
     signature,
     section: { _type: "reference", _ref: sectionId },
     ...(image ? { image } : {}),
   };
 
   if (existingId) {
-    await client.patch(existingId).set(fields).commit();
+    let patch = client.patch(existingId).set(fields).unset(["sortOrder"]);
+    if (!image && signature === false) {
+      // Non-signature items should not keep stale gallery photos.
+      patch = patch.unset(["image"]);
+    }
+    if (cocktail.price == null) {
+      patch = patch.unset(["price"]);
+    }
+    await patch.commit();
     return existingId;
   }
 
@@ -243,49 +316,112 @@ async function ensureMenuItem(sectionId, cocktail, index, { signature = false, i
   return created._id;
 }
 
+async function ensureSiteSettings() {
+  const existing = await client.fetch(
+    `*[_type == "siteSettings" && _id == "siteSettings"][0]._id`,
+  );
+
+  const fields = {
+    bookingEnabled: false,
+  };
+
+  if (existing) {
+    await client.patch("siteSettings").set(fields).commit();
+    return "siteSettings";
+  }
+
+  await client.createOrReplace({
+    _id: "siteSettings",
+    _type: "siteSettings",
+    ...fields,
+  });
+  return "siteSettings";
+}
+
+async function removeObsoleteContent(keptItemIds) {
+  const items = await client.fetch(
+    `*[_type == "menuItem" && !(_id in path("drafts.**"))]{ _id, name }`,
+  );
+  const obsoleteItems = items.filter((item) => !keptItemIds.has(item._id));
+  for (const item of obsoleteItems) {
+    await client.delete(item._id);
+    console.log(`  removed obsolete item: ${item.name}`);
+  }
+
+  const sections = await client.fetch(
+    `*[_type == "menuSection" && !(_id in path("drafts.**"))]{ _id, title, "slug": slug.current }`,
+  );
+  for (const section of sections) {
+    if (!SEEDED_SECTION_SLUGS.has(section.slug)) {
+      await client.delete(section._id);
+      console.log(`  removed obsolete section: ${section.title} (${section.slug})`);
+    }
+  }
+}
+
 async function main() {
   console.log(`Seeding ${projectId}/${dataset}…`);
 
+  console.log("Ensuring site settings…");
+  await ensureSiteSettings();
+  console.log("  siteSettings (bookingEnabled: false)");
+
+  const sectionRanks = allocateOrderRanks(MENU_SECTIONS.length);
+
   console.log("Ensuring menu sections…");
   const sectionIds = {};
-  for (const section of MENU_SECTIONS) {
-    sectionIds[section.slug] = await ensureSection(section);
+  for (const [index, section] of MENU_SECTIONS.entries()) {
+    sectionIds[section.slug] = await ensureSection({
+      ...section,
+      orderRank: sectionRanks[index],
+    });
     console.log(`  ${section.title} (${section.slug})`);
   }
 
-  const signatureSectionId = sectionIds["signature-cocktails"];
-  const traditionalSectionId = sectionIds["traditional-cocktails"];
-
-  console.log(`Uploading ${TEST_IMAGES.length} test images…`);
+  const needsImages = MENU_SECTIONS.some((section) =>
+    section.items.some((item) => item.imageFile),
+  );
   const assetByFile = {};
-  for (const filename of TEST_IMAGES) {
-    assetByFile[filename] = await uploadImage(filename);
-    console.log(`  uploaded ${filename}`);
+  if (needsImages) {
+    console.log(`Uploading ${TEST_IMAGES.length} test images…`);
+    for (const filename of TEST_IMAGES) {
+      assetByFile[filename] = await uploadImage(filename);
+      console.log(`  uploaded ${filename}`);
+    }
   }
 
-  console.log("Seeding signature cocktails…");
-  for (const [index, cocktail] of SIGNATURE_COCKTAILS.entries()) {
-    const assetId = assetByFile[cocktail.imageFile];
-    await ensureMenuItem(signatureSectionId, cocktail, index, {
-      signature: true,
-      image: imageField(
-        assetId,
-        `${cocktail.name} — signature cocktail at Gwenda`,
-        { crop: cocktail.crop, hotspot: cocktail.hotspot },
-      ),
-    });
-    console.log(`  ${cocktail.name}`);
+  const keptItemIds = new Set();
+  let itemCount = 0;
+
+  for (const section of MENU_SECTIONS) {
+    const sectionId = sectionIds[section.slug];
+    const itemRanks = allocateOrderRanks(section.items.length);
+    console.log(`Seeding ${section.title}…`);
+    for (const [index, cocktail] of section.items.entries()) {
+      const image = cocktail.imageFile
+        ? imageField(
+            assetByFile[cocktail.imageFile],
+            `${cocktail.name} · signature cocktail at Gwenda`,
+            { crop: cocktail.crop, hotspot: cocktail.hotspot },
+          )
+        : undefined;
+      const id = await ensureMenuItem(sectionId, cocktail, {
+        signature: section.signature,
+        image,
+        orderRank: itemRanks[index],
+      });
+      keptItemIds.add(id);
+      itemCount += 1;
+      console.log(`  ${cocktail.name}`);
+    }
   }
 
-  console.log("Seeding traditional cocktails…");
-  for (const [index, cocktail] of TRADITIONAL_COCKTAILS.entries()) {
-    await ensureMenuItem(traditionalSectionId, cocktail, index, {
-      signature: false,
-    });
-    console.log(`  ${cocktail.name}`);
-  }
+  console.log("Removing obsolete menu content…");
+  await removeObsoleteContent(keptItemIds);
 
-  console.log(`Done. Seeded ${dataset} menu (sections + ${SIGNATURE_COCKTAILS.length + TRADITIONAL_COCKTAILS.length} items).`);
+  console.log(
+    `Done. Seeded ${dataset} menu (${MENU_SECTIONS.length} sections + ${itemCount} items).`,
+  );
 }
 
 main().catch((error) => {

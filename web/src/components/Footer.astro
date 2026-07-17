@@ -1,12 +1,8 @@
 ---
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import {
-  bookingUrl,
-  isBookingEnabled,
-  isBookingScheduled,
-  bookingEnabledFromTimestamp,
-} from "../config/booking";
+import { bookingUrl } from "../config/booking";
+import { fetchSiteSettings } from "../lib/sanity/site-settings";
 import FooterSocialLink from "./FooterSocialLink.astro";
 
 interface Props {
@@ -17,8 +13,7 @@ interface Props {
 const { features } = Astro.props;
 const { social, location } = siteConfig;
 const year = new Date().getFullYear();
-const bookingFromMs = bookingEnabledFromTimestamp();
-const bookingEnabled = isBookingEnabled();
+const { bookingEnabled } = await fetchSiteSettings();
 
 const address = features.useShortAddress
   ? location.addressShort
@@ -49,15 +44,11 @@ const address = features.useShortAddress
           }
           <li><a href="/events">Events</a></li>
           {
-            isBookingScheduled() && bookingFromMs !== null && (
+            bookingEnabled && (
               <li>
                 <a
                   href={bookingUrl}
                   class="booking-cta"
-                  data-booking-from={bookingFromMs}
-                  hidden={!bookingEnabled}
-                  aria-hidden={!bookingEnabled}
-                  tabindex={bookingEnabled ? undefined : -1}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

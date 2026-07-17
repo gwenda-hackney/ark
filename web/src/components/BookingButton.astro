@@ -1,11 +1,7 @@
 ---
 import { siteConfig } from "../config/site";
-import {
-  bookingEnabledFromTimestamp,
-  bookingUrl,
-  isBookingEnabled,
-  isBookingScheduled,
-} from "../config/booking";
+import { bookingUrl } from "../config/booking";
+import { fetchSiteSettings } from "../lib/sanity/site-settings";
 
 interface Props {
   variant?: "primary" | "ghost" | "float";
@@ -13,12 +9,11 @@ interface Props {
 }
 
 const { variant = "primary", class: className } = Astro.props;
-const fromMs = bookingEnabledFromTimestamp();
-const enabled = isBookingEnabled();
+const { bookingEnabled } = await fetchSiteSettings();
 ---
 
 {
-  isBookingScheduled() && fromMs !== null && (
+  bookingEnabled && (
     <a
       href={bookingUrl}
       class:list={[
@@ -28,10 +23,6 @@ const enabled = isBookingEnabled();
         variant === "ghost" && "btn-ghost",
         className,
       ]}
-      data-booking-from={fromMs}
-      hidden={!enabled}
-      aria-hidden={!enabled}
-      tabindex={enabled ? undefined : -1}
       target="_blank"
       rel="noopener noreferrer"
     >

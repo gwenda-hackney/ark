@@ -46,12 +46,12 @@ export const RSVP_EVENTS_QUERY = `*[_type == "event" && defined(slug.current)] |
   }
 }`;
 
-/** Menu sections with nested items — ordered for display. */
-export const MENU_QUERY = `*[_type == "menuSection"] | order(sortOrder asc) {
+/** Menu sections with nested items — ordered for display (Studio drag rank). */
+export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
   "id": slug.current,
   title,
   subtitle,
-  "items": *[_type == "menuItem" && references(^._id)] | order(sortOrder asc) {
+  "items": *[_type == "menuItem" && references(^._id)] | order(orderRank asc) {
     "id": _id,
     name,
     description,
@@ -69,4 +69,9 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(sortOrder asc) {
       }
     }
   }
+}`;
+
+/** Singleton site settings (fixed document id). */
+export const SITE_SETTINGS_QUERY = `*[_id == "siteSettings"][0] {
+  bookingEnabled
 }`;
