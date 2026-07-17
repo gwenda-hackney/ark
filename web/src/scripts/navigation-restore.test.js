@@ -1,15 +1,23 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { isRestoredNavigation } from "./navigation-restore.js";
+import {
+  isRestoredNavigation,
+  whenNavigationReady,
+} from "./navigation-restore.js";
 import { shouldSkipRevealAnimation } from "./reveal.js";
 
 describe("navigation restore helpers", () => {
   beforeEach(() => {
+    document.documentElement.className = "";
     vi.stubGlobal("performance", {
       getEntriesByType: vi.fn(() => [{ type: "navigate" }]),
     });
   });
 
   afterEach(() => {
+    document.documentElement.className = "";
     vi.unstubAllGlobals();
   });
 
@@ -23,5 +31,12 @@ describe("navigation restore helpers", () => {
     performance.getEntriesByType.mockReturnValue([{ type: "navigate" }]);
     expect(isRestoredNavigation()).toBe(false);
     expect(shouldSkipRevealAnimation()).toBe(false);
+  });
+
+  it("marks restore settled so smooth scrolling can resume", () => {
+    whenNavigationReady(() => {});
+    expect(
+      document.documentElement.classList.contains("navigation-restore-settled"),
+    ).toBe(true);
   });
 });
