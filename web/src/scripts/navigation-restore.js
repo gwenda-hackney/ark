@@ -49,25 +49,15 @@ export function initNavigationRestore() {
   });
 }
 
-/** Re-enable CSS smooth scrolling after back/forward scroll has landed. */
-function markRestoreSettled() {
-  document.documentElement.classList.add("navigation-restore-settled");
-}
-
 /**
  * Run scroll-sensitive setup once the restored scroll position has settled.
  * On back/forward the browser restores scroll around the load event, so wait a
  * frame; on a fresh load run immediately.
  */
 export function whenNavigationReady(fn) {
-  const run = () => {
-    markRestoreSettled();
-    fn();
-  };
-
   if (!isRestoredNavigation()) {
-    run();
+    fn();
     return;
   }
-  requestAnimationFrame(() => requestAnimationFrame(run));
+  requestAnimationFrame(() => requestAnimationFrame(fn));
 }

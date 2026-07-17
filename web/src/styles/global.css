@@ -22,9 +22,10 @@ html {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Smooth anchors after load. Stay instant only while back/forward scroll settles. */
-  html:not(.navigation-restore),
-  html.navigation-restore.navigation-restore-settled {
+  /* Smooth anchors on fresh loads. Stay instant for the whole back/forward
+     session so restore cannot fight CSS smooth scrolling (that flicker).
+     In-page CTAs still animate via scrollIntoView in section-hash.js. */
+  html:not(.navigation-restore) {
     scroll-behavior: smooth;
   }
 }
@@ -3385,7 +3386,7 @@ html.fonts-ready .thanks {
 }
 
 /* Back navigation — render in final state, no entrance animations (set in head). */
-html.navigation-restore:not(.navigation-restore-settled) {
+html.navigation-restore {
   scroll-behavior: auto !important;
 }
 
