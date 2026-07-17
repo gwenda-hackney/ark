@@ -22,7 +22,9 @@ html {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html:not(.navigation-restore) {
+  /* Smooth anchors after load. Stay instant only while back/forward scroll settles. */
+  html:not(.navigation-restore),
+  html.navigation-restore.navigation-restore-settled {
     scroll-behavior: smooth;
   }
 }
@@ -3383,7 +3385,7 @@ html.fonts-ready .thanks {
 }
 
 /* Back navigation — render in final state, no entrance animations (set in head). */
-html.navigation-restore {
+html.navigation-restore:not(.navigation-restore-settled) {
   scroll-behavior: auto !important;
 }
 

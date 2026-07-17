@@ -92,10 +92,24 @@ export function initSectionHash(options = {}) {
     if (!hash.startsWith("#") || hash.length < 2) return;
 
     const sectionId = decodeURIComponent(hash.slice(1));
-    if (!document.getElementById(sectionId)) return;
+    const target = document.getElementById(sectionId);
+    if (!target) return;
 
+    // Drive scroll in JS so it stays smooth after back/forward restore
+    // (CSS scroll-behavior is locked to auto until restore settles), and so
+    // clicking the same hash again still animates.
+    event.preventDefault();
     clickLockUntil = Date.now() + 900;
     activeId = sectionId;
+    syncHash(sectionId);
+
+    const prefersReduced = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({
+      behavior: prefersReduced ? "auto" : "smooth",
+      block: "start",
+    });
   };
 
   document.addEventListener("click", onAnchorClick, true);
