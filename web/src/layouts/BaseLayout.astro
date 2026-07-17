@@ -19,8 +19,8 @@ interface Props {
 }
 
 const {
-  title = siteConfig.seoTitle,
-  description = siteConfig.description,
+  title = siteConfig.seo.home.title,
+  description = siteConfig.seo.home.description,
   socialTitle,
   socialDescription,
 } = Astro.props;

@@ -6,10 +6,10 @@ import { siteConfig } from "../config/site";
 import { fetchMenu } from "../lib/sanity/menu";
 
 const menu = await fetchMenu();
-const pageDescription = `Menu at ${siteConfig.name} — craft cocktails, Italian small plates, and natural wine in Hackney Wick.`;
+const { title: pageTitle, description: pageDescription } = siteConfig.seo.menu;
 ---
 
-<BaseLayout title={`Menu — ${siteConfig.name}`} description={pageDescription}>
+<BaseLayout title={pageTitle} description={pageDescription}>
   <link rel="prefetch" href="/" slot="head" />
 
   <main class="menu-page">
@@ -18,7 +18,7 @@ const pageDescription = `Menu at ${siteConfig.name} — craft cocktails, Italian
 
       <header class="menu-page-header section-intro reveal">
         <p class="section-eyebrow menu-page-eyebrow">The Menu</p>
-        <h1 class="visually-hidden">Menu — {siteConfig.name}</h1>
+        <h1 class="visually-hidden">{pageTitle}</h1>
       </header>
 
       <MenuDisplay menu={menu} showPrices />
