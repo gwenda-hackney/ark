@@ -6,9 +6,10 @@ import { headerLogo } from "../lib/hero-assets";
 
 interface Props {
   features: SiteFeatures;
+  showMenuTease?: boolean;
 }
 
-const { features } = Astro.props;
+const { features, showMenuTease = false } = Astro.props;
 ---
 
 <header class="site-header" id="site-header">
@@ -30,7 +31,7 @@ const { features } = Astro.props;
 
 <nav class="site-header-nav" id="site-header-nav">
   <a href="#story">Story</a>
-  <a href="#menu">Menu</a>
+  {showMenuTease && <a href="#menu">Menu</a>}
   {features.showTeam && <a href="#team">Who we are</a>}
   <a href="/events">Events</a>
   <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>

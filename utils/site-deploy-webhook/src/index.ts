@@ -1,4 +1,4 @@
-import { handleDeploy, handleStatus } from "./handler";
+import { handleDeploy, handlePromote, handleStatus } from "./handler";
 import type { Env } from "./types";
 
 const ALLOWED_ORIGINS = new Set([
@@ -37,6 +37,7 @@ function serviceInfo(request: Request): Response {
     ok: true,
     service: "gwenda-site-deploy-webhook",
     deploy: "POST /deploy",
+    promote: "POST /promote",
     status: "GET /status?run_id=",
     health: "GET /health",
   });
@@ -50,27 +51,39 @@ export default {
 
     const url = new URL(request.url);
 
-    if (request.method === "GET" && url.pathname === "/health") {
-      return jsonResponse(request, { ok: true, service: "gwenda-site-deploy-webhook" });
-    }
+    try {
+      if (request.method === "GET" && url.pathname === "/health") {
+        return jsonResponse(request, { ok: true, service: "gwenda-site-deploy-webhook" });
+      }
 
-    if (
-      request.method === "GET" &&
-      (url.pathname === "/" || url.pathname === "/deploy")
-    ) {
-      return serviceInfo(request);
-    }
+      if (
+        request.method === "GET" &&
+        (url.pathname === "/" || url.pathname === "/deploy")
+      ) {
+        return serviceInfo(request);
+      }
 
-    if (request.method === "POST" && url.pathname === "/deploy") {
-      const result = await handleDeploy(request, env);
-      return jsonResponse(request, result.body, result.status);
-    }
+      if (request.method === "POST" && url.pathname === "/deploy") {
+        const result = await handleDeploy(request, env);
+        return jsonResponse(request, result.body, result.status);
+      }
 
-    if (request.method === "GET" && url.pathname === "/status") {
-      const result = await handleStatus(request, env);
-      return jsonResponse(request, result.body, result.status);
-    }
+      if (request.method === "POST" && url.pathname === "/promote") {
+        const result = await handlePromote(request, env);
+        return jsonResponse(request, result.body, result.status);
+      }
 
-    return jsonResponse(request, { error: "Not found" }, 404);
+      if (request.method === "GET" && url.pathname === "/status") {
+        const result = await handleStatus(request, env);
+        return jsonResponse(request, result.body, result.status);
+      }
+
+      return jsonResponse(request, { error: "Not found" }, 404);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected worker error";
+      console.error("site-deploy-webhook error:", message);
+      return jsonResponse(request, { error: message }, 502);
+    }
   },
 };

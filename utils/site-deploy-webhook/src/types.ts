@@ -10,6 +10,10 @@ export type DeployRequest = {
   target?: DeployTarget;
 };
 
+export type PromoteRequest = {
+  previewRunId?: number | string;
+};
+
 export type HandlerResult = {
   status: number;
   body: Record<string, unknown>;
@@ -20,4 +24,7 @@ export type WorkflowRun = {
   status: string;
   conclusion: string | null;
   html_url: string;
+  path?: string;
+  name?: string;
+  head_sha?: string;
 };

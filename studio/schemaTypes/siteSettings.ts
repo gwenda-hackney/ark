@@ -13,6 +13,14 @@ export const siteSettings = defineType({
         "When on, the Book a table CTA appears on the site (after Publish and Deploy site).",
       initialValue: false,
     }),
+    defineField({
+      name: "cocktailGalleryEnabled",
+      title: "Show cocktail menu gallery",
+      type: "boolean",
+      description:
+        "When on, the signature cocktail gallery appears on the homepage (after Publish and Deploy site).",
+      initialValue: true,
+    }),
   ],
   preview: {
     prepare() {

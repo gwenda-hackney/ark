@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   handleDeploy,
+  handlePromote,
   handleStatus,
   isAuthorized,
   parseDeployTarget,
+  parsePreviewRunId,
 } from "../src/handler";
 
 const env = {
@@ -21,6 +23,19 @@ describe("parseDeployTarget", () => {
   it("rejects invalid targets", () => {
     expect(parseDeployTarget({ target: "live" } as never)).toBeNull();
     expect(parseDeployTarget(null)).toBeNull();
+  });
+});
+
+describe("parsePreviewRunId", () => {
+  it("accepts numeric and string ids", () => {
+    expect(parsePreviewRunId({ previewRunId: 42 })).toBe(42);
+    expect(parsePreviewRunId({ previewRunId: "99" })).toBe(99);
+  });
+
+  it("rejects missing or invalid ids", () => {
+    expect(parsePreviewRunId(null)).toBeNull();
+    expect(parsePreviewRunId({ previewRunId: 0 })).toBeNull();
+    expect(parsePreviewRunId({ previewRunId: "nope" })).toBeNull();
   });
 });
 
@@ -61,6 +76,19 @@ describe("handleDeploy", () => {
   });
 });
 
+describe("handlePromote", () => {
+  it("returns 400 without previewRunId", async () => {
+    const request = new Request("https://example.com/promote", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-secret" },
+      body: JSON.stringify({}),
+    });
+
+    const result = await handlePromote(request, env);
+    expect(result.status).toBe(400);
+  });
+});
+
 describe("handleStatus", () => {
   it("requires run_id", async () => {
     const request = new Request("https://example.com/status", {
@@ -69,6 +97,36 @@ describe("handleStatus", () => {
 
     const result = await handleStatus(request, env);
     expect(result.status).toBe(400);
+  });
+
+  it("returns previewUrl for successful production content preview", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 55,
+            status: "completed",
+            conclusion: "success",
+            html_url: "https://github.com/run/55",
+            path: ".github/workflows/deploy-production-content.yml",
+          }),
+        ),
+      ),
+    );
+
+    const request = new Request("https://example.com/status?run_id=55", {
+      headers: { Authorization: "Bearer test-secret" },
+    });
+    const result = await handleStatus(request, env);
+    expect(result.status).toBe(200);
+    expect(result.body.phase).toBe("preview");
+    expect(result.body.previewUrl).toBe(
+      "https://release-preview.gwenda-blue.pages.dev",
+    );
+    expect(result.body.previewRunId).toBe(55);
+
+    vi.unstubAllGlobals();
   });
 });
 
@@ -99,6 +157,51 @@ describe("github integration", () => {
     const run = await dispatchContentDeploy(env, "staging");
 
     expect(run.id).toBe(99);
+
+    const [, dispatchInit] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    const headers = new Headers(dispatchInit.headers);
+    expect(headers.get("User-Agent")).toBe("gwenda-site-deploy-webhook");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("dispatches promote with preview_run_id input", async () => {
+    vi.resetModules();
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              workflow_runs: [
+                {
+                  id: 77,
+                  status: "in_progress",
+                  conclusion: null,
+                  html_url: "https://github.com/run/77",
+                },
+              ],
+            }),
+          ),
+        ),
+    );
+
+    const { dispatchContentPromote } = await import("../src/github");
+    const run = await dispatchContentPromote(env, 55);
+    expect(run.id).toBe(77);
+
+    const [dispatchUrl, dispatchInit] = (
+      globalThis.fetch as ReturnType<typeof vi.fn>
+    ).mock.calls[0] as [string, RequestInit];
+    expect(dispatchUrl).toContain("deploy-production-content-promote.yml");
+    const body = JSON.parse(String(dispatchInit.body));
+    expect(body.inputs.preview_run_id).toBe("55");
+
     vi.unstubAllGlobals();
   });
 });

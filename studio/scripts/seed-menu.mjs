@@ -208,7 +208,7 @@ const MENU_SECTIONS = [
   {
     title: "Signature Cocktails",
     slug: "signature-cocktails",
-    subtitle: "Hand-crafted in-house, elevated for the lounge.",
+    subtitle: "Original creations, crafted with passion and precision.",
     items: SIGNATURE_COCKTAILS,
     signature: true,
   },
@@ -323,6 +323,7 @@ async function ensureSiteSettings() {
 
   const fields = {
     bookingEnabled: false,
+    cocktailGalleryEnabled: true,
   };
 
   if (existing) {
@@ -364,7 +365,7 @@ async function main() {
 
   console.log("Ensuring site settings…");
   await ensureSiteSettings();
-  console.log("  siteSettings (bookingEnabled: false)");
+  console.log("  siteSettings (bookingEnabled: false, cocktailGalleryEnabled: true)");
 
   const sectionRanks = allocateOrderRanks(MENU_SECTIONS.length);
 

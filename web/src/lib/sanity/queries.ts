@@ -73,5 +73,6 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
 
 /** Singleton site settings (fixed document id). */
 export const SITE_SETTINGS_QUERY = `*[_id == "siteSettings"][0] {
-  bookingEnabled
+  bookingEnabled,
+  cocktailGalleryEnabled
 }`;
