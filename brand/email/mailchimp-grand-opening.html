@@ -15,7 +15,7 @@
     </xml>
   </noscript>
   <![endif]-->
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&amp;family=Lora:ital,wght@0,400;1,400&amp;display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&amp;family=Lora:ital,wght@0,400;1,400&amp;display=swap" rel="stylesheet" />
   <style type="text/css">
     :root { color-scheme: dark only; supported-color-schemes: dark only; }
     body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
@@ -23,8 +23,22 @@
     img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
     a { color: #c9a84c; }
     @media screen and (max-width: 620px) {
-      .gw-heading { font-size: 40px !important; letter-spacing: 0.03em !important; }
+      .gw-heading { font-size: 56px !important; letter-spacing: 0.04em !important; }
       .gw-pad { padding-left: 20px !important; padding-right: 20px !important; }
+      .gw-date { font-size: 15px !important; letter-spacing: 0.08em !important; padding-left: 10px !important; padding-right: 10px !important; }
+      .gw-date-rule { width: 20px !important; max-width: 20px !important; }
+      .gw-date-rule table { width: 20px !important; }
+    }
+    /* Keep primary gold in clients that invert colours (Gmail dark mode) */
+    @media (prefers-color-scheme: dark) {
+      .gw-btn-primary {
+        background-color: #c9a84c !important;
+        color: #0d0d0d !important;
+        border-color: #c9a84c !important;
+      }
+      .gw-btn-cell {
+        background-color: #c9a84c !important;
+      }
     }
   </style>
 </head>
@@ -42,13 +56,13 @@
   -->
   <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#0d0d0d" style="width:100%;background-color:#0d0d0d;">
     <tr>
-      <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:64px 16px 56px;">
+      <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:28px 16px 56px;">
 
         <table role="presentation" width="560" border="0" cellspacing="0" cellpadding="0" bgcolor="#0d0d0d" style="width:100%;max-width:560px;background-color:#0d0d0d;">
 
           <!-- Wordmark -->
           <tr>
-            <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:0 0 32px;">
+            <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:0;">
               <a href="https://gwenda.co.uk" style="text-decoration:none;border:0;">
                 <img src="https://gwenda.co.uk/brand/logo-email.png" alt="Gwenda" width="224" style="display:block;margin:0 auto;width:224px;max-width:64%;height:auto;border:0;" />
               </a>
@@ -57,42 +71,32 @@
 
           <!-- Heading (section-header h2) -->
           <tr>
-            <td align="center" bgcolor="#0d0d0d" class="gw-heading gw-pad" style="background-color:#0d0d0d;padding:0 16px;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:52px;font-weight:500;letter-spacing:0.04em;line-height:1.1;color:#e8e4dc;white-space:nowrap;">
-              Grand Opening
+            <td align="center" bgcolor="#0d0d0d" class="gw-heading gw-pad" style="background-color:#0d0d0d;padding:0 16px 28px;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:72px;font-weight:500;font-style:italic;letter-spacing:0.04em;line-height:1.05;text-transform:uppercase;color:#c9a84c;">
+              Grand<br />
+              Opening
             </td>
           </tr>
 
-          <!-- Hairline (section-header h2::after) -->
+          <!-- Location line: keep one line on mobile (tighter tracking + shorter month) -->
           <tr>
-            <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:20px 0 24px;">
-              <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;">
+            <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:0 12px 18px;">
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;margin:0 auto;">
                 <tr>
-                  <td width="40" style="font-size:0;line-height:0;height:0;border-top:1px solid #5c5340;mso-line-height-rule:exactly;">&nbsp;</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Location line (hero-location: flanking rules, tracked uppercase, muted) -->
-          <tr>
-            <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:0 16px 32px;">
-              <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" style="border-collapse:collapse;">
-                <tr>
-                  <td width="40" valign="middle" style="width:40px;padding:0;font-size:0;line-height:0;">
-                    <table role="presentation" width="40" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
-                      <tr><td height="9" style="height:9px;font-size:0;line-height:9px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
+                  <td class="gw-date-rule" width="28" valign="middle" style="width:28px;padding:0;font-size:0;line-height:0;">
+                    <table role="presentation" width="28" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                      <tr><td height="8" style="height:8px;font-size:0;line-height:8px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
                       <tr><td height="1" style="height:1px;font-size:0;line-height:1px;border-top:1px solid #4a463e;mso-line-height-rule:exactly;">&nbsp;</td></tr>
-                      <tr><td height="9" style="height:9px;font-size:0;line-height:9px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
+                      <tr><td height="8" style="height:8px;font-size:0;line-height:8px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
                     </table>
                   </td>
-                  <td valign="middle" style="padding:0 18px;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:15px;font-weight:500;letter-spacing:0.2em;line-height:19px;text-transform:uppercase;color:#e8e4dc;white-space:nowrap;">
-                    Saturday · 1 August 2026
+                  <td class="gw-date" valign="middle" style="padding:0 14px;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:16px;font-weight:500;letter-spacing:0.1em;line-height:20px;text-transform:uppercase;color:#c9a84c;white-space:nowrap;">
+                    Saturday&nbsp;&middot;&nbsp;1&nbsp;Aug&nbsp;2026
                   </td>
-                  <td width="40" valign="middle" style="width:40px;padding:0;font-size:0;line-height:0;">
-                    <table role="presentation" width="40" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
-                      <tr><td height="9" style="height:9px;font-size:0;line-height:9px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
+                  <td class="gw-date-rule" width="28" valign="middle" style="width:28px;padding:0;font-size:0;line-height:0;">
+                    <table role="presentation" width="28" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                      <tr><td height="8" style="height:8px;font-size:0;line-height:8px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
                       <tr><td height="1" style="height:1px;font-size:0;line-height:1px;border-top:1px solid #4a463e;mso-line-height-rule:exactly;">&nbsp;</td></tr>
-                      <tr><td height="9" style="height:9px;font-size:0;line-height:9px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
+                      <tr><td height="8" style="height:8px;font-size:0;line-height:8px;mso-line-height-rule:exactly;">&nbsp;</td></tr>
                     </table>
                   </td>
                 </tr>
@@ -100,19 +104,35 @@
             </td>
           </tr>
 
-          <!-- Lead (section-lead: one restrained sentence, brand voice) -->
+          <!-- Lead copy -->
           <tr>
-            <td align="center" bgcolor="#0d0d0d" class="gw-pad" style="background-color:#0d0d0d;padding:0 48px 40px;font-family:Lora,Georgia,'Times New Roman',serif;font-size:17px;font-style:italic;line-height:1.75;color:#8a8680;">
-              Craft cocktails, Italian small plates, and vinyl on the decks. The doors are open.
+            <td align="center" bgcolor="#0d0d0d" class="gw-pad" style="background-color:#0d0d0d;padding:0 40px 4px;font-family:Lora,Georgia,'Times New Roman',serif;font-size:17px;line-height:1.45;color:#8a8680;">
+              Join us on 1 August for our grand opening.
+            </td>
+          </tr>
+          <tr>
+            <td align="center" bgcolor="#0d0d0d" class="gw-pad" style="background-color:#0d0d0d;padding:0 40px 4px;font-family:Lora,Georgia,'Times New Roman',serif;font-size:17px;font-style:italic;line-height:1.45;color:#8a8680;">
+              Craft cocktails, Italian small plates, and vinyl on the decks.
+            </td>
+          </tr>
+          <tr>
+            <td align="center" bgcolor="#0d0d0d" class="gw-pad" style="background-color:#0d0d0d;padding:0 40px 32px;font-family:Lora,Georgia,'Times New Roman',serif;font-size:17px;line-height:1.45;color:#8a8680;">
+              Book your table and explore what's behind the doors.
             </td>
           </tr>
 
-          <!-- Primary CTA — funnels to the website, not straight to OpenTable -->
+          <!-- Primary CTA — matches site .btn.btn-primary (bulletproof table for Gmail) -->
           <tr>
             <td align="center" bgcolor="#0d0d0d" style="background-color:#0d0d0d;padding:0 24px 52px;">
-              <a href="https://gwenda.co.uk" style="display:inline-block;padding:0.9rem 2.2rem;background-color:#c9a84c;background:#c9a84c;color:#0d0d0d;text-decoration:none;font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;font-size:15px;border-radius:2px;border:1px solid #c9a84c;">
-                Open for booking
-              </a>
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" style="border-collapse:separate;">
+                <tr>
+                  <td class="gw-btn-cell" align="center" bgcolor="#c9a84c" style="background-color:#c9a84c;background:#c9a84c;border-radius:2px;mso-padding-alt:14px 35px;">
+                    <a class="gw-btn-primary" href="https://gwenda.co.uk" style="display:inline-block;padding:14px 35px;background-color:#c9a84c;background:#c9a84c;color:#0d0d0d;text-decoration:none;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-size:15px;font-weight:600;letter-spacing:0.08em;line-height:1.2;text-transform:uppercase;border:1px solid #c9a84c;border-radius:2px;mso-line-height-rule:exactly;">
+                      Book Now
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
