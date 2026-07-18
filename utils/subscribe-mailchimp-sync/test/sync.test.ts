@@ -6,8 +6,11 @@ import {
   listUnsyncedRows,
   mailchimpSubscriberHash,
   normalizeEmail,
+  normalizeSignedUp,
+  normalizeTag,
   resolveAudienceId,
   resolveTableId,
+  SIGNED_UP_MERGE_TAG,
   syncUnsyncedSubscribers,
   upsertMailchimpMember,
 } from "../src/sync";
@@ -26,6 +29,15 @@ describe("helpers", () => {
   it("normalizes emails", () => {
     expect(normalizeEmail("  Dan@Gwenda.co.uk ")).toBe("dan@gwenda.co.uk");
     expect(normalizeEmail("nope")).toBeNull();
+  });
+
+  it("normalizes tags and signed-up dates", () => {
+    expect(normalizeTag("prelaunch")).toBe("prelaunch");
+    expect(normalizeTag({ value: "prelaunch" })).toBe("prelaunch");
+    expect(normalizeTag({})).toBeUndefined();
+    expect(normalizeSignedUp("2026-07-04")).toBe("2026-07-04");
+    expect(normalizeSignedUp("2026-07-04T12:00:00.000Z")).toBe("2026-07-04");
+    expect(normalizeSignedUp("nope")).toBeUndefined();
   });
 
   it("defaults to the production subscribe table and audience", () => {
@@ -96,6 +108,7 @@ describe("upsertMailchimpMember", () => {
           email_address: "a@example.com",
           status_if_new: "subscribed",
           status: "subscribed",
+          merge_fields: { [SIGNED_UP_MERGE_TAG]: "2026-07-04" },
         });
         return new Response("{}", { status: 200 });
       }
@@ -113,6 +126,7 @@ describe("upsertMailchimpMember", () => {
       audienceId: "e2c69d5d31",
       email: "a@example.com",
       tag: "prelaunch",
+      signedUp: "2026-07-04",
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 

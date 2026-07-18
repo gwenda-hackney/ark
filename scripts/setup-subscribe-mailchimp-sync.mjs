@@ -95,7 +95,45 @@ function setGhSecret(name, value) {
   console.log(`Set GitHub secret ${name}.`);
 }
 
-function main() {
+async function ensureSignedUpMergeField(mailchimpKey, audienceId) {
+  const dc = mailchimpKey.split("-").pop();
+  const base = `https://${dc}.api.mailchimp.com/3.0`;
+  const auth = `Basic ${Buffer.from(`anystring:${mailchimpKey}`).toString("base64")}`;
+  const list = await fetch(
+    `${base}/lists/${audienceId}/merge-fields?count=100`,
+    { headers: { Authorization: auth } },
+  );
+  const body = await list.json();
+  if (!list.ok) {
+    throw new Error(`Mailchimp list merge fields failed: ${JSON.stringify(body)}`);
+  }
+  const existing = (body.merge_fields || []).find((f) => f.tag === "SIGNEDUP");
+  if (existing) {
+    console.log("Mailchimp merge field SIGNEDUP already exists.");
+    return;
+  }
+  const create = await fetch(`${base}/lists/${audienceId}/merge-fields`, {
+    method: "POST",
+    headers: {
+      Authorization: auth,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      tag: "SIGNEDUP",
+      name: "Signed up",
+      type: "date",
+      required: false,
+      public: false,
+    }),
+  });
+  const created = await create.json().catch(() => ({}));
+  if (!create.ok) {
+    throw new Error(`Mailchimp create SIGNEDUP failed: ${JSON.stringify(created)}`);
+  }
+  console.log("Created Mailchimp merge field SIGNEDUP (date).");
+}
+
+async function main() {
   loadDotEnv();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
@@ -106,6 +144,8 @@ function main() {
   if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing from .env");
   if (!baserowKey) throw new Error("BASEROW_API_KEY is missing from .env");
   if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY is missing from .env");
+
+  await ensureSignedUpMergeField(mailchimpKey, audienceId);
 
   let syncSecret = process.env.SUBSCRIBE_MAILCHIMP_SYNC_SECRET?.trim();
   if (!syncSecret) {
@@ -178,4 +218,7 @@ function main() {
   );
 }
 
-main();
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

@@ -11,6 +11,8 @@ export const DEFAULT_BASEROW_API = "https://api.baserow.io";
 export const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
 export const DEFAULT_MAILCHIMP_AUDIENCE_ID = "e2c69d5d31";
 export const DEFAULT_LIMIT = 100;
+/** Mailchimp merge field for Baserow "Signed up" (YYYY-MM-DD). */
+export const SIGNED_UP_MERGE_TAG = "SIGNEDUP";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TERMINAL_MAILCHIMP_STATUSES = new Set([
@@ -51,6 +53,32 @@ export function normalizeEmail(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const email = raw.trim().toLowerCase();
   return email && EMAIL_RE.test(email) ? email : null;
+}
+
+/** Baserow single-select may arrive as `{ value: "prelaunch" }`. */
+export function normalizeTag(raw: unknown): string | undefined {
+  if (typeof raw === "string") {
+    const tag = raw.trim();
+    return tag || undefined;
+  }
+  if (raw && typeof raw === "object" && "value" in raw) {
+    const value = (raw as { value?: unknown }).value;
+    if (typeof value === "string") {
+      const tag = value.trim();
+      return tag || undefined;
+    }
+  }
+  return undefined;
+}
+
+/** Accept YYYY-MM-DD or ISO datetime; return YYYY-MM-DD for Mailchimp date fields. */
+export function normalizeSignedUp(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  const day = trimmed.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return undefined;
+  return day;
 }
 
 export function isAuthorized(
@@ -106,6 +134,7 @@ type UpsertParams = {
   audienceId: string;
   email: string;
   tag?: string;
+  signedUp?: string;
   fetchImpl: typeof fetch;
 };
 
@@ -118,6 +147,7 @@ export async function upsertMailchimpMember({
   audienceId,
   email,
   tag,
+  signedUp,
   fetchImpl,
 }: UpsertParams): Promise<UpsertResult> {
   const base = resolveMailchimpBase(apiKey);
@@ -144,17 +174,22 @@ export async function upsertMailchimpMember({
     };
   }
 
+  const body: Record<string, unknown> = {
+    email_address: email,
+    status_if_new: "subscribed",
+    status: "subscribed",
+  };
+  if (signedUp) {
+    body.merge_fields = { [SIGNED_UP_MERGE_TAG]: signedUp };
+  }
+
   const put = await fetchImpl(memberUrl, {
     method: "PUT",
     headers: {
       Authorization: auth,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      email_address: email,
-      status_if_new: "subscribed",
-      status: "subscribed",
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!put.ok) {
@@ -312,7 +347,8 @@ export async function syncUnsyncedSubscribers(
       apiKey: mailchimpKey,
       audienceId,
       email,
-      tag: typeof row.Tag === "string" ? row.Tag : undefined,
+      tag: normalizeTag(row.Tag),
+      signedUp: normalizeSignedUp(row["Signed up"]),
       fetchImpl,
     });
 
