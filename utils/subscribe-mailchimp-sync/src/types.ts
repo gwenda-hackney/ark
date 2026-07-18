@@ -24,7 +24,9 @@ export type SyncOptions = {
 export type BaserowSubscribeRow = {
   id: number;
   Email?: string;
-  Tag?: string;
+  Tag?: string | { value?: string };
+  /** Website signup date (YYYY-MM-DD). */
+  "Signed up"?: string;
   Synced?: boolean;
 };
 

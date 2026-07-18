@@ -7,10 +7,12 @@ The website `/api/subscribe` path stays Baserow-only.
 ## Behaviour
 
 1. List Baserow rows where `Synced` is false (production table `1017358`, up to 100 per run)
-2. Upsert each email in Mailchimp (`PUT /lists/{id}/members/{md5}`) and apply Baserow `Tag` when present
+2. Upsert each email in Mailchimp (`PUT /lists/{id}/members/{md5}`), set merge field `SIGNEDUP` from Baserow `Signed up`, and apply Baserow `Tag` when present
 3. `PATCH` Baserow `Synced: true` on success
 4. Leave failed rows unsynced for the next run; stop early on rate limit
 5. If Mailchimp already has the member as `unsubscribed` / `cleaned` / `archived`, do **not** force resubscribe; still mark Baserow synced
+
+Audience merge field: **Signed up** (`SIGNEDUP`, date). Create once if missing (setup does this).
 
 ## Setup
 
