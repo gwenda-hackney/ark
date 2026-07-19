@@ -30,6 +30,8 @@
     "setup:instagram": "node --env-file=.env scripts/setup-instagram.mjs",
     "setup:ci-secrets": "node scripts/setup-ci-sanity-secrets.mjs",
     "setup:site-deploy": "node scripts/setup-site-deploy.mjs",
+    "setup:subscribe-mailchimp-sync": "node scripts/setup-subscribe-mailchimp-sync.mjs",
+    "subscribe-mailchimp-sync": "node scripts/with-env.mjs npm run cli -w @gwenda/subscribe-mailchimp-sync --",
     "setup:apple-wallet:csr": "node scripts/setup-apple-wallet.mjs csr",
     "setup:apple-wallet:import": "node scripts/setup-apple-wallet.mjs import",
     "event-invites": "node scripts/with-env.mjs npm run cli -w @gwenda/event-invites --",
