@@ -498,16 +498,19 @@ a:focus-visible {
   bottom: 1.25rem;
   z-index: 70;
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-gold);
-  border: 1px solid var(--color-gold-dim);
-  padding: 0.7rem 1.1rem;
+  border: 1px solid var(--color-gold);
+  padding: 0.8rem 1.25rem;
   background: color-mix(in srgb, var(--color-bg) 78%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--color-gold) 28%, transparent),
+    0 0 36px color-mix(in srgb, var(--color-gold) 10%, transparent);
   transition:
     border-color 0.3s var(--ease-smooth),
     box-shadow 0.3s var(--ease-smooth),
@@ -516,21 +519,79 @@ a:focus-visible {
     transform 0.2s var(--ease-smooth);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .booking-float {
+    animation: booking-float-glow 2.8s var(--ease-out) 0.4s both;
+  }
+}
+
+@keyframes booking-float-glow {
+  0% {
+    opacity: 0;
+    transform: translateY(0.6rem) scale(0.96);
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--color-gold) 0%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--color-gold) 0%, transparent);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  28%,
+  42% {
+    box-shadow:
+      0 0 28px color-mix(in srgb, var(--color-gold) 65%, transparent),
+      0 0 56px color-mix(in srgb, var(--color-gold) 32%, transparent),
+      0 0 88px color-mix(in srgb, var(--color-gold) 16%, transparent);
+  }
+
+  55% {
+    box-shadow:
+      0 0 14px color-mix(in srgb, var(--color-gold) 22%, transparent),
+      0 0 28px color-mix(in srgb, var(--color-gold) 8%, transparent);
+  }
+
+  68%,
+  82% {
+    box-shadow:
+      0 0 24px color-mix(in srgb, var(--color-gold) 52%, transparent),
+      0 0 48px color-mix(in srgb, var(--color-gold) 24%, transparent),
+      0 0 72px color-mix(in srgb, var(--color-gold) 12%, transparent);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow:
+      0 0 18px color-mix(in srgb, var(--color-gold) 28%, transparent),
+      0 0 36px color-mix(in srgb, var(--color-gold) 10%, transparent);
+  }
+}
+
 .booking-float:hover,
 .booking-float:focus-visible {
   border-color: var(--color-gold);
-  box-shadow: 0 0 24px color-mix(in srgb, var(--color-gold) 20%, transparent);
+  background: color-mix(in srgb, var(--color-gold) 10%, transparent);
+  box-shadow: 0 0 32px color-mix(in srgb, var(--color-gold) 36%, transparent);
 }
 
 .booking-float:focus-visible {
   outline: none;
   box-shadow:
-    0 0 24px color-mix(in srgb, var(--color-gold) 20%, transparent),
+    0 0 32px color-mix(in srgb, var(--color-gold) 36%, transparent),
     var(--focus-ring);
 }
 
 .booking-float:active {
   transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-float {
+    animation: none;
+  }
 }
 
 .booking-float[hidden] {
@@ -3601,8 +3662,8 @@ html.navigation-restore #rsvp-loading {
   .booking-float {
     right: 1rem;
     bottom: 1rem;
-    padding: 0.6rem 0.95rem;
-    font-size: 0.7rem;
+    padding: 0.7rem 1.05rem;
+    font-size: 0.72rem;
     letter-spacing: 0.12em;
   }
 
