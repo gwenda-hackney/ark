@@ -1,0 +1,27 @@
+name = "gwenda-wifi-captive-portal"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "1c23e160e39a187ce33fe192595c4a7f"
+workers_dev = true
+
+# Public captive portal host (DNS + cert managed by Wrangler custom_domain)
+routes = [
+  { pattern = "wifi.gwenda.co.uk", custom_domain = true }
+]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# Let static logo/fonts serve from Assets; Worker handles portal routes first.
+run_worker_first = ["/", "/guest", "/guest/*", "/authorize", "/health"]
+
+[vars]
+BASEROW_TABLE_ID = "1017358"
+BASEROW_API_URL = "https://api.baserow.io"
+WIFI_SUBSCRIBE_TAG = "wifi"
+UNIFI_SITE_IDENTIFIER = "default"
+UNIFI_GUEST_MINUTES = "1440"
+REDIRECT_URL = "https://gwenda.co.uk"
+# Console id from https://unifi.ui.com/consoles/{UNIFI_CONSOLE_ID}/…
+UNIFI_CONSOLE_ID = "A89C6C0EB1810000000009A42CB9000000000A2C1924000000006920A430:1883747293"
