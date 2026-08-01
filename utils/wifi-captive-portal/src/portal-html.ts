@@ -187,8 +187,81 @@ const SHARED_STYLES = `
   }
   .error {
     color: var(--error);
-    font-size: 0.95rem;
-    margin-bottom: 1rem;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    background: color-mix(in srgb, var(--error) 8%, transparent);
+    border-left: 2px solid color-mix(in srgb, var(--error) 55%, transparent);
+    padding: 0.7rem 0.85rem;
+    margin-bottom: 1.2rem;
+  }
+`;
+
+/** Meta-refresh delay, shared with the progress bar animation. */
+const REDIRECT_SECONDS = 2;
+
+const SUCCESS_STYLES = `
+  .success .panel {
+    text-align: center;
+    padding: 2.15rem 1.6rem 1.85rem;
+    animation: rise 0.8s var(--ease-smooth) both;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: none; }
+  }
+  .seal {
+    width: 3.1rem;
+    height: 3.1rem;
+    margin: 0 auto 1.3rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 70%);
+  }
+  .seal svg {
+    width: 1.35rem;
+    height: 1.35rem;
+    stroke: var(--gold);
+    stroke-width: 1.6;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .seal path {
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
+    animation: draw 0.9s var(--ease-smooth) 0.25s forwards;
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .success h1::after {
+    margin-inline: auto;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold) 70%, transparent), transparent);
+  }
+  .success .lead { margin-bottom: 0; }
+  .success a {
+    color: var(--gold);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
+  }
+  .progress {
+    height: 1px;
+    margin-top: 1.7rem;
+    background: color-mix(in srgb, var(--text) 12%, transparent);
+    overflow: hidden;
+  }
+  .progress span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 45%, transparent), var(--gold));
+    animation: fill ${REDIRECT_SECONDS}s linear forwards;
+  }
+  @keyframes fill { to { width: 100%; } }
+  @media (prefers-reduced-motion: reduce) {
+    .success .panel, .seal path, .progress span { animation: none; }
+    .seal path { stroke-dashoffset: 0; }
+    .progress span { width: 100%; }
   }
 `;
 
@@ -241,26 +314,22 @@ export function renderSuccessPage(redirectUrl: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#0d0d0d" />
-  <meta http-equiv="refresh" content="2;url=${safe}" />
+  <meta http-equiv="refresh" content="${REDIRECT_SECONDS};url=${safe}" />
   <title>Connected · Gwenda</title>
-  <style>
-    ${SHARED_STYLES}
-    .success {
-      text-align: center;
-    }
-    .success h1::after {
-      margin-inline: auto;
-    }
-    .success .lead { margin-bottom: 0; }
-    .success a { color: var(--gold); }
-  </style>
+  <style>${SHARED_STYLES}${SUCCESS_STYLES}</style>
 </head>
 <body>
   <main class="success">
     <img class="logo" src="/logo.png" width="512" height="320" alt="Gwenda" />
-    <p class="eyebrow">You’re online</p>
-    <h1>Connected</h1>
-    <p class="lead">Opening <a href="${safe}">gwenda.co.uk</a>…</p>
+    <div class="panel">
+      <div class="seal" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6.5" /></svg>
+      </div>
+      <p class="eyebrow">You’re online</p>
+      <h1>Connected</h1>
+      <p class="lead">Taking you to <a href="${safe}">gwenda.co.uk</a></p>
+      <div class="progress" aria-hidden="true"><span></span></div>
+    </div>
   </main>
 </body>
 </html>`;
