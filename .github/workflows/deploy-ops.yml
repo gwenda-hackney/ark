@@ -1,0 +1,163 @@
+name: Deploy ops tools
+
+on:
+  push:
+    paths:
+      - "ops/**"
+      - ".github/workflows/deploy-ops.yml"
+      - ".github/scripts/cloudflare-pages-branch.mjs"
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: Deploy target
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+
+jobs:
+  deploy-production:
+    name: Deploy ops (production)
+    if: >-
+      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'release'))
+      || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production'
+          && (github.ref_name == 'main' || github.ref_name == 'release'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: ops-production
+      url: https://gwenda-ops.pages.dev
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Cloudflare Pages (production)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true
+          workingDirectory: ops
+
+      - name: Smoke test production gate
+        run: |
+          url="https://gwenda-ops.pages.dev/gate/"
+          for i in $(seq 1 12); do
+            if curl -fsS "$url" | grep -q "Menu prices and stock"; then
+              echo "OK $url"
+              exit 0
+            fi
+            echo "Waiting for deployment… ($i/12)"
+            sleep 5
+          done
+          echo "Ops gate not served at $url"
+          exit 1
+
+      - name: Deployment summary
+        run: node web/scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Ops tools — production","rows":[
+              ["Live","[gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)"],
+              ["Branch","`main`"],
+              ["Git","`${{ github.ref_name }}` @ `${{ github.sha }}`"]
+            ]}
+
+  deploy-preview:
+    name: Deploy ops (preview)
+    if: >-
+      (github.event_name == 'push' && github.ref_name != 'main' && github.ref_name != 'release')
+      || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'preview')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: ops-preview
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Pages preview branch
+        id: branch
+        run: |
+          NAME=$(node .github/scripts/cloudflare-pages-branch.mjs '${{ github.ref_name }}')
+          if [ "$NAME" = "main" ] || [ "$NAME" = "release" ]; then
+            NAME="preview-${GITHUB_SHA::7}"
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy preview to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy src --project-name gwenda-ops --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
+          workingDirectory: ops
+
+      - name: Resolve preview URL
+        id: preview_url
+        run: |
+          URL="${{ steps.deploy.outputs.pages-deployment-alias-url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ steps.deploy.outputs.deployment-url }}"
+          fi
+          if [ -z "$URL" ]; then
+            URL="https://${{ steps.branch.outputs.name }}.gwenda-ops.pages.dev"
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test preview gate
+        run: |
+          url="${{ steps.preview_url.outputs.url }}/gate/"
+          for i in $(seq 1 12); do
+            if curl -fsS "$url" | grep -q "Menu prices and stock"; then
+              echo "OK $url"
+              exit 0
+            fi
+            echo "Waiting for preview… ($i/12)"
+            sleep 5
+          done
+          echo "Ops gate preview not served at $url"
+          exit 1
+
+      - name: Deployment summary
+        run: node web/scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Ops tools — branch preview","rows":[
+              ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
+              ["Pages branch","`${{ steps.branch.outputs.name }}`"],
+              ["Git branch","`${{ github.ref_name }}`"],
+              ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"],
+              ["Production","Unchanged — merge to `main` to update [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)"]
+            ]}

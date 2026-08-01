@@ -5,6 +5,7 @@
   "workspaces": [
     "web",
     "brand",
+    "ops",
     "studio",
     "utils/*"
   ],

@@ -6,6 +6,7 @@ Three sibling projects under one git repository (`gwenda-hackney/ark` on GitHub)
 ark/
 ├── web/src/            ← marketing site
 ├── brand/src/          ← brand guidelines HTML
+├── ops/src/            ← internal ops HTML (password-gated)
 └── utils/              ← operational tools
 ```
 
@@ -39,6 +40,7 @@ Each deploy workflow only runs when files in that project change:
 | `deploy-production.yml` | `web/**` on `release` | [release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev) |
 | `deploy-studio.yml` | `studio/**` on `main` | — |
 | `deploy-brand.yml` | `brand/**` on any branch | Production on `main`/`release`; else `https://<branch>.gwenda-brand.pages.dev` |
+| `deploy-ops.yml` | `ops/**` on any branch | Production on `main`/`release`; else `https://<branch>.gwenda-ops.pages.dev` |
 | `deploy-recipe-cost-webhook.yml` | `utils/recipe-cost-webhook/**` on `main` | — |
 | `deploy-site-deploy-webhook.yml` | `utils/site-deploy-webhook/**` on `main` | — |
 
