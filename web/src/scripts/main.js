@@ -1,4 +1,3 @@
-import { initCountdown } from "./countdown.js";
 import { initSignup, initSignupAnchors } from "./signup.js";
 import { initNavigationRestore, whenNavigationReady } from "./navigation-restore.js";
 import { initReveal } from "./reveal.js";
@@ -159,12 +158,6 @@ if (menuBtn && siteNav) {
     if (e.matches) siteNav?.classList.remove("visible");
     onScrollFrame();
   });
-}
-
-/* Countdown */
-const countdown = document.getElementById("countdown");
-if (countdown) {
-  initCountdown(countdown, Number(countdown.dataset.opening));
 }
 
 /* Scroll reveal */

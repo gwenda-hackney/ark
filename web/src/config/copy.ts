@@ -10,7 +10,7 @@ export function getCopy(mode: SiteMode) {
       storyBody: copy.storyBody,
       storyClosing: copy.storyClosing,
       storyOpening: null as string | null,
-      signupEyebrow: "Pre-launch",
+      signupEyebrow: copy.signupEyebrowPromo,
       signupHeading: copy.signupHeading,
       signupSubheading: copy.signupSubheading,
       footerOpening: null as string | null,

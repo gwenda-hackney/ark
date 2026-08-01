@@ -789,16 +789,12 @@ html.fonts-ready .hero-logo.enter-stagger--auto {
   --enter-delay: 0.25s;
 }
 
-html.fonts-ready .hero-countdown.enter-stagger--auto {
+html.fonts-ready .hero-location.enter-stagger--auto {
   --enter-delay: 0.5s;
 }
 
-html.fonts-ready .hero-location.enter-stagger--auto {
-  --enter-delay: 0.7s;
-}
-
 html.fonts-ready .hero-content > .btn.enter-stagger--auto {
-  --enter-delay: 0.9s;
+  --enter-delay: 0.7s;
 }
 
 html.fonts-ready .enter-scene.is-visible .invite-card-logo-wrap.enter-stagger {
@@ -842,98 +838,11 @@ html.fonts-ready .thanks {
 }
 
 .hero-logo {
-  height: clamp(115px, 17.5vw, 200px);
+  /* vh cap keeps the wordmark clear of the CTA on short desktop windows. */
+  height: clamp(120px, min(20vw, 34vh), 340px);
   width: auto;
   margin-inline: auto;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
-}
-
-.hero-countdown {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 1.25rem;
-  margin: 2rem 0 1.5rem;
-}
-
-.countdown-unit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  opacity: 0;
-  transform: translateY(12px);
-  transition:
-    opacity 0.6s var(--ease-out),
-    transform 0.6s var(--ease-out);
-  transition-delay: var(--enter-delay, 0ms);
-}
-
-.countdown-unit.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.countdown-value {
-  position: relative;
-  display: block;
-  font-family: var(--font-display);
-  font-size: clamp(1.85rem, 4.5vw, 2.5rem);
-  font-weight: 400;
-  color: var(--color-text);
-  line-height: 1.1;
-  min-width: 2ch;
-  text-align: center;
-  height: 1.1em;
-  overflow: hidden;
-}
-
-.countdown-value .roll-out,
-.countdown-value .roll-in {
-  display: block;
-  transition:
-    transform 0.55s cubic-bezier(0.37, 0.01, 0.32, 1),
-    opacity 0.45s ease;
-}
-
-.countdown-value .roll-out {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.countdown-value .roll-in {
-  position: absolute;
-  inset: 0;
-  transform: translateY(100%);
-  opacity: 0;
-}
-
-.countdown-value.is-rolling-active .roll-out {
-  transform: translateY(-100%);
-  opacity: 0;
-}
-
-.countdown-value.is-rolling-active .roll-in {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-.countdown-label {
-  font-size: 0.65rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.countdown-sep {
-  font-family: var(--font-display);
-  color: var(--color-gold-dim);
-  font-size: 1.25rem;
-  font-weight: 400;
-  line-height: 1.1;
-  margin-top: 0.2rem;
-  user-select: none;
-  opacity: 0.6;
 }
 
 .hero-location {
@@ -943,6 +852,7 @@ html.fonts-ready .thanks {
   text-transform: uppercase;
   color: var(--color-text);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+  margin-top: 2rem;
   margin-bottom: 2.5rem;
   display: flex;
   align-items: center;
@@ -3468,12 +3378,6 @@ html.navigation-restore .hero-vignette {
   transition: none;
 }
 
-html.navigation-restore .countdown-unit {
-  opacity: 1;
-  transform: none;
-  transition: none;
-}
-
 html.navigation-restore .enter-stagger {
   opacity: 1;
   animation: none !important;
@@ -3528,11 +3432,6 @@ html.navigation-restore #rsvp-loading {
   .enter-stagger {
     opacity: 1;
     animation: none;
-  }
-
-  .countdown-value .roll-out,
-  .countdown-value .roll-in {
-    transition: none;
   }
 
   .btn:active:not(:disabled) {
