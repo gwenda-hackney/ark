@@ -87,6 +87,6 @@ At ~200 contacts, Standard is typically far cheaper than Buttondown whitelabel (
 
 **Done (email):** branded HTML at [`brand/email/`](../brand/email/) (grand opening campaign created in Mailchimp UI/API).
 
-**In progress (sync):** [`utils/subscribe-mailchimp-sync/`](../utils/subscribe-mailchimp-sync/) mirrors the Buttondown Worker (hourly cron, manual POST, local dry-run). Setup: `npm run setup:subscribe-mailchimp-sync`. Do **not** merge or delete `feat/buttondown-sync-and-email-brand`; keep it as the parallel ESP experiment.
+**Done (sync):** [`utils/subscribe-mailchimp-sync/`](../utils/subscribe-mailchimp-sync/) (hourly cron, manual POST, local dry-run, `SIGNEDUP` merge field). Setup: `npm run setup:subscribe-mailchimp-sync`. The Buttondown ESP experiment branch was retired; Mailchimp is the live path.
 
 **NO-GO would mean:** Standard plan unavailable, or consent rules forbid API `subscribed` without DOI and DOI is unacceptable for UX. Neither blocks the API itself.

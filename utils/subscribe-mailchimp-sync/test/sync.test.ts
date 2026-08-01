@@ -221,6 +221,67 @@ describe("syncUnsyncedSubscribers", () => {
     expect(summary.results[0]?.status).toBe("synced");
   });
 
+  it("records a sync-run row when BASEROW_SYNC_LOG_TABLE_ID is set", async () => {
+    const logPosts: unknown[] = [];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (
+        url.includes("/rows/table/999/") &&
+        init?.method === "POST"
+      ) {
+        logPosts.push(JSON.parse(String(init.body)));
+        return Response.json({ id: 1 });
+      }
+      if (url.includes("api.baserow.io") && !init?.method) {
+        return Response.json({ results: [] });
+      }
+      throw new Error(`Unexpected fetch: ${url} ${init?.method}`);
+    });
+
+    const summary = await syncUnsyncedSubscribers(
+      { ...env, BASEROW_SYNC_LOG_TABLE_ID: "999" },
+      {
+        trigger: "cron",
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+    );
+
+    expect(summary.ok).toBe(true);
+    expect(summary.scanned).toBe(0);
+    expect(logPosts).toHaveLength(1);
+    const row = logPosts[0] as Record<string, unknown>;
+    expect(row.Trigger).toBe("cron");
+    expect(row.Scanned).toBe(0);
+    expect(row.Ok).toBe(true);
+    expect(row["Dry run"]).toBe(false);
+    expect(typeof row.Run).toBe("string");
+    expect(String(row.Run)).toContain("cron");
+    expect(row.Results).toBe("[]");
+  });
+
+  it("does not fail the sync when sync-log POST fails", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/rows/table/999/") && init?.method === "POST") {
+        return new Response("nope", { status: 500 });
+      }
+      if (url.includes("api.baserow.io") && !init?.method) {
+        return Response.json({ results: [] });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const summary = await syncUnsyncedSubscribers(
+      { ...env, BASEROW_SYNC_LOG_TABLE_ID: "999" },
+      { fetchImpl: fetchImpl as unknown as typeof fetch },
+    );
+
+    expect(summary.ok).toBe(true);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it("stops early when Mailchimp rate-limits", async () => {
     let mailchimpPuts = 0;
     const hashA = mailchimpSubscriberHash("a@example.com");

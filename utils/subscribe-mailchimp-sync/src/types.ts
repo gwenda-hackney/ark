@@ -6,8 +6,12 @@ export type Env = {
   /** Mailchimp Audience (list) ID. */
   MAILCHIMP_AUDIENCE_ID?: string;
   BASEROW_TABLE_ID?: string;
+  /** Baserow table for durable sync-run history. */
+  BASEROW_SYNC_LOG_TABLE_ID?: string;
   BASEROW_API_URL?: string;
 };
+
+export type SyncTrigger = "cron" | "manual" | "cli";
 
 export type SyncOptions = {
   dryRun?: boolean;
@@ -18,6 +22,8 @@ export type SyncOptions = {
    * Used for ESP migration / Mailchimp backfill after Buttondown already marked Synced.
    */
   all?: boolean;
+  /** Who/what started this run (stored on the sync-log row). */
+  trigger?: SyncTrigger;
   fetchImpl?: typeof fetch;
 };
 

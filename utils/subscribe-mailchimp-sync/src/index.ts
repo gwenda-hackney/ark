@@ -11,7 +11,7 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ): Promise<void> {
-    const summary = await syncUnsyncedSubscribers(env);
+    const summary = await syncUnsyncedSubscribers(env, { trigger: "cron" });
     console.log(
       JSON.stringify({
         event: "subscribe-mailchimp-sync",
@@ -60,6 +60,7 @@ export default {
         const summary = await syncUnsyncedSubscribers(env, {
           dryRun,
           all,
+          trigger: "manual",
           limit:
             limit !== undefined && Number.isFinite(limit) && limit > 0
               ? Math.floor(limit)
