@@ -453,9 +453,8 @@ The mystery of Gwenda's identity is intentional and must be preserved in all cus
 | CTA | Context |
 |-----|---------|
 | **Enter our world** | Primary hero CTA |
-| **Join the experience** | Secondary / email sign-up CTA |
+| **Join the experience** | Email sign-up · nav link to the list · secondary CTA |
 | **Let me know** | Email form submit button |
-| **First to know** | Navigation link to sign-up section |
 
 Do not use "Sign up", "Subscribe", "Register", or "Book now".
 
@@ -481,8 +480,8 @@ Do not use "Sign up", "Subscribe", "Register", or "Book now".
 | Menu section heading | *What we serve* |
 | Menu tease lead | *The full list opens with the door. Until then, a glimpse.* |
 | Team heading | *Who we are* |
-| Sign-up heading | *Be the first to know* |
-| Sign-up subheading | *Opening updates, private invitations, and the occasional whisper.* |
+| Sign-up heading | *Stay close* |
+| Sign-up subheading | *Nights ahead. Openings, gatherings, and the occasional whisper.* |
 | Closing story line | *Who is Gwenda? We can't say. Come experience for yourself.* |
 
 ### 7.4 Establishment year

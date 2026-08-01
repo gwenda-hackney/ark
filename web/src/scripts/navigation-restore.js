@@ -27,7 +27,6 @@ function settleAnimations() {
     el.style.opacity = "1";
     el.style.transform = "none";
   });
-  document.querySelectorAll(".countdown-unit").forEach((el) => el.classList.add("is-visible"));
   document.querySelector(".hero-image")?.classList.add("is-visible");
   document.querySelector(".hero-media")?.classList.add("is-ready");
 }

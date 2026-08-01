@@ -1,4 +1,4 @@
-/** Go-live date for the hero countdown — YYYY-MM-DD, set via PUBLIC_OPENING_DATE at build. */
+/** Opening year for Story (Est. MMXXVI) — YYYY-MM-DD, set via PUBLIC_OPENING_DATE at build. */
 const DEFAULT_OPENING_DATE = "2026-08-01";
 
 export const openingDate =

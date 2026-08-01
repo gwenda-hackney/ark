@@ -32,7 +32,7 @@ const { cocktailGalleryEnabled } = await fetchSiteSettings();
 
 <Header features={features} showMenuTease={features.showMenuTease} />
 <main>
-  <Hero mode={mode} />
+  <Hero />
   <Story mode={mode} />
   {features.showMenuTease && (
     <MenuTease showCocktailImages={cocktailGalleryEnabled} />

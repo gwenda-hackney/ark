@@ -1,14 +1,7 @@
 ---
 import { Image } from "astro:assets";
 import { siteConfig } from "../config/site";
-import { openingTimestamp } from "../config/opening";
 import { heroBackground, heroLogo } from "../lib/hero-assets";
-
-const openingMs = openingTimestamp();
-const diff = Math.max(0, openingMs - Date.now());
-const days = Math.floor(diff / 86400000);
-const hours = Math.floor((diff % 86400000) / 3600000);
-const minutes = Math.floor((diff % 3600000) / 60000);
 ---
 
 <section class="hero" id="hero">
@@ -34,36 +27,6 @@ const minutes = Math.floor((diff % 3600000) / 60000);
       loading="eager"
       fetchpriority="high"
     />
-
-    <div
-      class="hero-countdown enter-stagger enter-stagger--auto"
-      id="countdown"
-      data-opening={openingMs}
-      aria-live="polite"
-    >
-      <div class="countdown-unit" data-unit="days">
-        <span class="countdown-value" data-value={String(days)}>{days}</span>
-        <span class="countdown-label">Days</span>
-      </div>
-      <span class="countdown-sep" aria-hidden="true">·</span>
-      <div class="countdown-unit" data-unit="hours">
-        <span
-          class="countdown-value"
-          data-value={String(hours).padStart(2, "0")}
-          >{String(hours).padStart(2, "0")}</span
-        >
-        <span class="countdown-label">Hours</span>
-      </div>
-      <span class="countdown-sep" aria-hidden="true">·</span>
-      <div class="countdown-unit" data-unit="minutes">
-        <span
-          class="countdown-value"
-          data-value={String(minutes).padStart(2, "0")}
-          >{String(minutes).padStart(2, "0")}</span
-        >
-        <span class="countdown-label">Min</span>
-      </div>
-    </div>
 
     <p class="hero-location enter-stagger enter-stagger--auto">{siteConfig.tagline}</p>
     <a href="#story" class="btn btn-primary enter-stagger enter-stagger--auto" id="hero-cta"
