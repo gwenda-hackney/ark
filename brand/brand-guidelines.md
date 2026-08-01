@@ -89,8 +89,8 @@ The Gwenda wordmark is the primary brand mark — gold and cream on dark backgro
 | Primary logo (PNG) | `brand/src/logo.png` · `web/src/assets/images/logos/logo.png` |
 | Black-only wordmark (PNG) | `web/public/brand/logo-black.png` · `brand/src/logo-black.png` |
 | Organisation logo (PNG, dark bg) | `web/public/brand/logo-organization.png` (511 × 344 px) |
-| Sign artwork (SVG) | `marketing/signs/logo.svg` (workspace `marketing/` shared drive) |
-| Illustrator master | `marketing/logos/logo-only.ai` |
+| Sign artwork (SVG) | `shared/marketing/signs/logo.svg` (workspace Marketing shared drive) |
+| Illustrator master | `shared/marketing/logos/logo-only.ai` |
 
 ### Approved usage
 
@@ -504,8 +504,8 @@ Gwenda was established in **2026** — displayed as **MMXXVI** in Roman numerals
 | Font imports | `web/src/styles/fonts.css` |
 | All brand copy | `web/src/config/site.ts` |
 | Logo (PNG) | `web/src/assets/images/logos/logo.png` |
-| Logo master (AI) | `marketing/logos/logo-only.ai` |
-| Sign artwork (SVG) | `marketing/signs/logo.svg` |
+| Logo master (AI) | `shared/marketing/logos/logo-only.ai` |
+| Sign artwork (SVG) | `shared/marketing/signs/logo.svg` |
 | Story background (PNG swatch) | `web/public/brand/story-background.png` |
 
 ---
