@@ -11,3 +11,6 @@ web/dist/
 web/.astro/
 web/node_modules/
 brand/node_modules/
+
+# Local wrangler config/logs from agent deploys
+.wrangler-config/

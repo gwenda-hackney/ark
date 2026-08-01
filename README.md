@@ -7,6 +7,7 @@ ark/
 ├── web/                ← marketing site (Astro → Cloudflare Pages)
 ├── studio/             ← Sanity CMS (website content & copy)
 ├── brand/              ← brand guidelines (→ brand.gwenda.co.uk)
+├── ops/                ← internal ops HTML (→ gwenda-ops.pages.dev)
 ├── utils/              ← CLI tools and Cloudflare Workers
 ├── docs/               ← cross-project guides (Sanity, monorepo, colours)
 ├── .github/            ← CI/CD workflows
@@ -51,6 +52,12 @@ Sanity CMS — the editorial source for website data and copy. Hosted Studio for
 Static HTML brand guidelines at [brand.gwenda.co.uk](https://brand.gwenda.co.uk). Colour tokens synced from the marketing site.
 
 → **[brand/README.md](brand/README.md)** — layout, colour sync, deploy
+
+### Ops — [`ops/`](ops/)
+
+Password-gated internal tools (menu prices & stock) at [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev). Edit in `mydrive/`, sync, then deploy.
+
+→ **[ops/README.md](ops/README.md)** — sync, password secret, deploy
 
 ### Utils — [`utils/`](utils/)
 
