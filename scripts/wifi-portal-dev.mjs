@@ -55,6 +55,15 @@ function writeDevVars() {
 loadRootEnv();
 writeDevVars();
 
+// UniFi redirects to /guest/s/{site}/?id=<guest-mac>&ap=<ap-mac>&…
+// Locally you must include id= or /authorize rejects with "Missing device details".
+const testUrl =
+  "http://127.0.0.1:8787/guest/s/default/?id=aa:bb:cc:dd:ee:ff&ap=11:22:33:44:55:66";
+console.log(`\nOpen to test (fake guest MAC):\n  ${testUrl}\n`);
+console.log(
+  "Baserow write will run for real. UniFi authorize will fail with a fake MAC unless that client is on the hotspot.\n",
+);
+
 const extra = process.argv.slice(2);
 const result = spawnSync(
   "npx",

@@ -43,7 +43,16 @@ export async function subscribeEmailToBaserow(opts: {
   });
 
   if (!upstream.ok) {
-    return parseBaserowError(upstream.status, await upstream.text());
+    const detail = await upstream.text();
+    const result = parseBaserowError(upstream.status, detail);
+    if (!result.ok) {
+      console.error(
+        "[wifi-captive-portal] Baserow write failed",
+        upstream.status,
+        detail.slice(0, 300),
+      );
+    }
+    return result;
   }
 
   return { ok: true };
