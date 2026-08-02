@@ -77,7 +77,7 @@ dist/          Build output (gitignored)
 - Local: copy `.env.example` → `.env`.
 - Staging gate: `SITE_PASSWORD` (GitHub secret + Cloudflare Pages secret).
 - Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY`. Table IDs: `BASEROW_STAGING_TABLE_ID` (dev + staging subscribe), `BASEROW_TABLE_ID` (production subscribe). Event invites table resolved by name (`Event Invites`).
-- Countdown: `PUBLIC_OPENING_DATE` (GitHub variable, build-time).
+- Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
 
 ## What not to do
 

@@ -101,7 +101,7 @@ const SIGNATURE_COCKTAILS = [
     description:
       "Dark Rum | Coffee Liqueur | Cocoa Bitters | Maple Syrup | Oak Smoke",
     notes: "Dark & Decadent",
-    price: "15",
+    price: "12",
   },
   {
     name: "Maestrale",
@@ -109,7 +109,7 @@ const SIGNATURE_COCKTAILS = [
     ...galleryCrop({ position: "bottom-left" }),
     description: "Tequila | Lime | Grapefruit | Agave | Sea Salt",
     notes: "Crisp & Zesty",
-    price: "15",
+    price: "10",
   },
   {
     name: "Ponente",
@@ -163,38 +163,38 @@ const CLASSIC_COCKTAILS = [
     name: "Whiskey Sour",
     description: "Whiskey | Lemon | Sugar | Aquafaba | Angostura Bitters",
     notes: "Rich & Citrusy",
-    price: "13",
+    price: "12",
   },
   {
     name: "East 8 Hold Up",
     description:
       "Vodka | Aperol | Prosecco | Pineapple | Passion Fruit Syrup | Sugar",
     notes: "Tropical & Tangy",
-    price: "13",
+    price: "12",
   },
   {
     name: "Negroni",
     description: "Gin | Campari | Sweet Vermouth | Orange",
     notes: "Complex & Herby",
-    price: "13",
+    price: "11",
   },
   {
     name: "Smoky Negroni",
     description: "Mezcal | Campari | Sweet Vermouth | Orange",
     notes: "Smoky & Velvety",
-    price: "13",
+    price: "12",
   },
   {
     name: "Bellini",
     description: "Prosecco | Peach Puree",
     notes: "Fresh & Elegant",
-    price: "12",
+    price: "10",
   },
   {
     name: "Americano",
     description: "Campari | Sweet Vermouth | Soda",
     notes: "Herbal & Refreshing",
-    price: "12",
+    price: "10",
   },
   {
     name: "Imperial Buck",
@@ -316,27 +316,31 @@ async function ensureMenuItem(sectionId, cocktail, { signature = false, image, o
   return created._id;
 }
 
+/** Create siteSettings only when missing. Never overwrite live flags. */
 async function ensureSiteSettings() {
   const existing = await client.fetch(
-    `*[_type == "siteSettings" && _id == "siteSettings"][0]._id`,
+    `*[_type == "siteSettings" && _id == "siteSettings"][0]{
+      _id,
+      bookingEnabled,
+      cocktailGalleryEnabled
+    }`,
   );
 
-  const fields = {
-    bookingEnabled: false,
-    cocktailGalleryEnabled: true,
-  };
-
   if (existing) {
-    await client.patch("siteSettings").set(fields).commit();
-    return "siteSettings";
+    return existing;
   }
 
   await client.createOrReplace({
     _id: "siteSettings",
     _type: "siteSettings",
-    ...fields,
+    bookingEnabled: false,
+    cocktailGalleryEnabled: true,
   });
-  return "siteSettings";
+  return {
+    _id: "siteSettings",
+    bookingEnabled: false,
+    cocktailGalleryEnabled: true,
+  };
 }
 
 async function removeObsoleteContent(keptItemIds) {
@@ -364,8 +368,10 @@ async function main() {
   console.log(`Seeding ${projectId}/${dataset}…`);
 
   console.log("Ensuring site settings…");
-  await ensureSiteSettings();
-  console.log("  siteSettings (bookingEnabled: false, cocktailGalleryEnabled: true)");
+  const siteSettings = await ensureSiteSettings();
+  console.log(
+    `  siteSettings (bookingEnabled: ${Boolean(siteSettings.bookingEnabled)}, cocktailGalleryEnabled: ${siteSettings.cocktailGalleryEnabled !== false})`,
+  );
 
   const sectionRanks = allocateOrderRanks(MENU_SECTIONS.length);
 

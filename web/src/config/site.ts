@@ -121,19 +121,19 @@ export const siteConfig = {
     menuTeaseLead:
       "Signature cocktails, hand-crafted in-house, elevated for the lounge.",
     menuTeaseComingSoon: "Coming soon",
-    signupHeading: "Be the first to know",
-    signupNavCta: "First to know",
-    signupEyebrowPromo: "Almost there",
+    signupHeading: "Stay close",
+    signupNavCta: "Join the experience",
+    signupEyebrowPromo: "The list",
     signupSubheading:
-      "Be among the first through the door. Opening updates, private invitations, and the occasional whisper.",
+      "Nights ahead. Openings, gatherings, and the occasional whisper.",
     signupSubheadingPromo:
-      "We're putting the finishing touches on Gwenda. Leave your email and we'll be in touch.",
+      "Nights ahead. Openings, gatherings, and the occasional whisper.",
     signupConsent:
-      "I agree to receive opening updates and marketing emails from Gwenda. I can unsubscribe at any time.",
+      "I agree to receive emails about events and nights at Gwenda. I can unsubscribe at any time.",
     signupButton: "Let me know",
     signupSuccessTitle: "You're on the list",
     signupSuccessLead:
-      "We'll be in touch with opening updates, private invitations, and the occasional whisper.",
+      "We'll be in touch with nights ahead, and the occasional whisper.",
     signupSuccessBack: "Back to Gwenda",
   },
 } as const;

@@ -89,8 +89,8 @@ The Gwenda wordmark is the primary brand mark — gold and cream on dark backgro
 | Primary logo (PNG) | `brand/src/logo.png` · `web/src/assets/images/logos/logo.png` |
 | Black-only wordmark (PNG) | `web/public/brand/logo-black.png` · `brand/src/logo-black.png` |
 | Organisation logo (PNG, dark bg) | `web/public/brand/logo-organization.png` (511 × 344 px) |
-| Sign artwork (SVG) | `marketing/signs/logo.svg` (workspace `marketing/` shared drive) |
-| Illustrator master | `marketing/logos/logo-only.ai` |
+| Sign artwork (SVG) | `shared/marketing/signs/logo.svg` (workspace Marketing shared drive) |
+| Illustrator master | `shared/marketing/logos/logo-only.ai` |
 
 ### Approved usage
 
@@ -453,9 +453,8 @@ The mystery of Gwenda's identity is intentional and must be preserved in all cus
 | CTA | Context |
 |-----|---------|
 | **Enter our world** | Primary hero CTA |
-| **Join the experience** | Secondary / email sign-up CTA |
+| **Join the experience** | Email sign-up · nav link to the list · secondary CTA |
 | **Let me know** | Email form submit button |
-| **First to know** | Navigation link to sign-up section |
 
 Do not use "Sign up", "Subscribe", "Register", or "Book now".
 
@@ -481,8 +480,8 @@ Do not use "Sign up", "Subscribe", "Register", or "Book now".
 | Menu section heading | *What we serve* |
 | Menu tease lead | *The full list opens with the door. Until then, a glimpse.* |
 | Team heading | *Who we are* |
-| Sign-up heading | *Be the first to know* |
-| Sign-up subheading | *Opening updates, private invitations, and the occasional whisper.* |
+| Sign-up heading | *Stay close* |
+| Sign-up subheading | *Nights ahead. Openings, gatherings, and the occasional whisper.* |
 | Closing story line | *Who is Gwenda? We can't say. Come experience for yourself.* |
 
 ### 7.4 Establishment year
@@ -504,8 +503,8 @@ Gwenda was established in **2026** — displayed as **MMXXVI** in Roman numerals
 | Font imports | `web/src/styles/fonts.css` |
 | All brand copy | `web/src/config/site.ts` |
 | Logo (PNG) | `web/src/assets/images/logos/logo.png` |
-| Logo master (AI) | `marketing/logos/logo-only.ai` |
-| Sign artwork (SVG) | `marketing/signs/logo.svg` |
+| Logo master (AI) | `shared/marketing/logos/logo-only.ai` |
+| Sign artwork (SVG) | `shared/marketing/signs/logo.svg` |
 | Story background (PNG swatch) | `web/public/brand/story-background.png` |
 
 ---

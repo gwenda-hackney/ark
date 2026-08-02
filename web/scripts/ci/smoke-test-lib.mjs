@@ -23,7 +23,7 @@ export function assertHomePageHealthy(html) {
   if (!/<title>\s*Gwenda/i.test(html)) {
     throw new Error("Homepage missing expected <title>");
   }
-  if (!/id=["']countdown["']|id=["']signup-form["']/i.test(html)) {
-    throw new Error("Homepage missing expected content (countdown or signup)");
+  if (!/id=["']signup-form["']/i.test(html)) {
+    throw new Error("Homepage missing expected signup form");
   }
 }

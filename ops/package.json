@@ -1,0 +1,15 @@
+{
+  "name": "@gwenda/ops",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gwenda internal ops tools — menu prices & stock (password-gated Cloudflare Pages)",
+  "scripts": {
+    "sync": "node scripts/sync-from-mydrive.mjs",
+    "deploy": "wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
+    "deploy:production": "wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
+    "deploy:preview": "wrangler pages deploy src --project-name gwenda-ops --commit-dirty=true"
+  },
+  "devDependencies": {
+    "wrangler": "^4.98.0"
+  }
+}

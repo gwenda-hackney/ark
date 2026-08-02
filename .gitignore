@@ -3,6 +3,8 @@ node_modules/
 .env
 .apple-wallet/
 .wrangler/
+.dev.vars
+utils/**/.dev.vars
 .astro/
 /src/env.d.ts
 utils/**/.venv/
@@ -11,3 +13,6 @@ web/dist/
 web/.astro/
 web/node_modules/
 brand/node_modules/
+
+# Local wrangler config/logs from agent deploys
+.wrangler-config/
