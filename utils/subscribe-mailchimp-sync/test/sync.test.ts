@@ -8,6 +8,7 @@ import {
   normalizeEmail,
   normalizeSignedUp,
   normalizeTag,
+  normalizeTags,
   resolveAudienceId,
   resolveTableId,
   SIGNED_UP_MERGE_TAG,
@@ -35,6 +36,15 @@ describe("helpers", () => {
     expect(normalizeTag("prelaunch")).toBe("prelaunch");
     expect(normalizeTag({ value: "prelaunch" })).toBe("prelaunch");
     expect(normalizeTag({})).toBeUndefined();
+    expect(normalizeTags("prelaunch")).toEqual(["prelaunch"]);
+    expect(normalizeTags([{ value: "prelaunch" }, { value: "wifi" }])).toEqual([
+      "prelaunch",
+      "wifi",
+    ]);
+    expect(normalizeTags(["prelaunch", "wifi", "prelaunch"])).toEqual([
+      "prelaunch",
+      "wifi",
+    ]);
     expect(normalizeSignedUp("2026-07-04")).toBe("2026-07-04");
     expect(normalizeSignedUp("2026-07-04T12:00:00.000Z")).toBe("2026-07-04");
     expect(normalizeSignedUp("nope")).toBeUndefined();
@@ -96,7 +106,7 @@ describe("listUnsyncedRows", () => {
 });
 
 describe("upsertMailchimpMember", () => {
-  it("puts a new member then applies tag", async () => {
+  it("puts a new member then applies all tags", async () => {
     const hash = mailchimpSubscriberHash("a@example.com");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -114,7 +124,10 @@ describe("upsertMailchimpMember", () => {
       }
       if (url.endsWith(`/members/${hash}/tags`) && init?.method === "POST") {
         expect(JSON.parse(String(init.body))).toEqual({
-          tags: [{ name: "prelaunch", status: "active" }],
+          tags: [
+            { name: "prelaunch", status: "active" },
+            { name: "wifi", status: "active" },
+          ],
         });
         return new Response(null, { status: 204 });
       }
@@ -125,7 +138,7 @@ describe("upsertMailchimpMember", () => {
       apiKey: "mailchimp-key-us2",
       audienceId: "e2c69d5d31",
       email: "a@example.com",
-      tag: "prelaunch",
+      tags: ["prelaunch", "wifi"],
       signedUp: "2026-07-04",
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
@@ -147,7 +160,7 @@ describe("upsertMailchimpMember", () => {
       apiKey: "mailchimp-key-us2",
       audienceId: "e2c69d5d31",
       email: "a@example.com",
-      tag: "prelaunch",
+      tags: ["prelaunch"],
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 

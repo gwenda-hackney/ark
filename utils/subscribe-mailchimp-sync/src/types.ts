@@ -30,7 +30,8 @@ export type SyncOptions = {
 export type BaserowSubscribeRow = {
   id: number;
   Email?: string;
-  Tag?: string | { value?: string };
+  /** single_select string/object or multiple_select array of those. */
+  Tag?: string | { value?: string } | Array<string | { value?: string }>;
   /** Website signup date (YYYY-MM-DD). */
   "Signed up"?: string;
   Synced?: boolean;

@@ -1,7 +1,7 @@
 # Gwenda Wi‑Fi captive portal (Cloudflare Worker + UniFi Site Manager)
 
 Captive portal for the UDR7 guest Wi‑Fi. Guests enter an email; the Worker writes
-the same Baserow subscribe table as the website (`Tag: wifi`, `Synced: false`),
+the same Baserow subscribe table as the website (`Tag` includes `wifi`, `Synced: false`),
 then authorizes the device through Ubiquiti’s **Site Manager cloud proxy**
 (`api.ui.com`). The existing Mailchimp sync Worker picks up new rows hourly.
 
@@ -11,9 +11,9 @@ No LAN host required while the console is online at [unifi.ui.com](https://unifi
 
 1. Guest joins the Hotspot SSID
 2. UniFi redirects to `https://<portal>/guest/s/default/?id=<mac>&ap=<ap>&…`
-3. Guest submits email → Baserow row → Site Manager `authorize-guest`
+3. Guest submits email → Baserow create or merge `wifi` onto existing tags → Site Manager `authorize-guest`
 4. Success page → `REDIRECT_URL` (default gwenda.co.uk)
-5. Mailchimp sync copies the row when `Synced` is false
+5. Mailchimp sync applies every Tag when `Synced` is false
 
 ## Setup
 
@@ -64,8 +64,8 @@ Use the Hotspot UI you already have open, e.g.
 1. Join the guest SSID from a phone
 2. Captive sheet should show **Gwenda · Welcome aboard**
 3. Submit an email
-4. Baserow: new row with `Tag = wifi`, `Synced = false`
-5. Mailchimp sync (hourly or manual) applies tag `wifi`
+4. Baserow: create row with `Tag = [wifi]`, or merge `wifi` onto an existing email’s tags and set `Synced = false`
+5. Mailchimp sync (hourly or manual) applies every Baserow Tag (e.g. `prelaunch` + `wifi`)
 
 ## Secrets / vars
 

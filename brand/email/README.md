@@ -5,13 +5,32 @@ On-brand HTML for subscriber notifications. Inline styles + `bgcolor` so Gmail/O
 | File | Role |
 |------|------|
 | [`mailchimp-template.html`](mailchimp-template.html) | Generic notification shell |
-| [`mailchimp-grand-opening.html`](mailchimp-grand-opening.html) | Grand opening · 1 August 2026 (flyer layout, solid dark bg) |
+| [`mailchimp-grand-opening.html`](mailchimp-grand-opening.html) | Grand opening · today · 1 August 2026 (schedule + booking CTA) |
 
 ## Grand opening email
 
-Matches the print flyer hierarchy (wordmark, gold title, date, ornament rules, features, booking CTA, address line) on a **solid `#0d0d0d` canvas**. No full-bleed photo background, so image-blocked clients still see the design.
+Companion to the grand opening flyer, in **left-aligned editorial** layout: wordmark, cream *Grand Opening* over gold *Today*, date eyebrow, lead copy, schedule (large numeral, `pm`, gold vertical rule, gold label, DJ lineup), OpenTable CTA.
 
-CTA links to OpenTable (`web/src/config/booking.ts`). Flyer QR is omitted in email; use the button/link instead (QR is an image and fails when images are blocked).
+Solid `#0d0d0d` canvas with no photo background, so image-blocked clients still see the design. Type scale carries the hierarchy that the flyer gets from the photograph.
+
+Italic is a sparing accent (brand guidelines §4.3): the two invitation lines only. What we serve, the schedule, and the lineup stay upright.
+
+CTA uses site copy **Book a table** and links to OpenTable (`web/src/config/booking.ts`).
+
+`mailchimp-grand-opening.gmail-preview.html` is **generated** from the template, not hand-edited. Regenerate after any change:
+
+```bash
+node -e '
+const fs=require("node:fs");
+let h=fs.readFileSync("brand/email/mailchimp-grand-opening.html","utf8");
+h=h.replace(/^\s*<link href="https:\/\/fonts\.googleapis\.com[^\n]*\n/m,"")
+   .replace(/'"'"'Cormorant Garamond'"'"',Garamond,/g,"Garamond,")
+   .replace(/Lora,Garamond,/g,"Garamond,")
+   .replace("<title>Grand Opening · Gwenda</title>","<title>Grand Opening · Gmail font preview (Garamond)</title>")
+   .replace(/(<body[^>]*>)/,`$1\n  <div style="position:sticky;top:0;z-index:9;background:#23211b;color:#c9a84c;font-family:Garamond,serif;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;text-align:center;padding:10px 16px;border-bottom:1px solid #4a463e;">\n    Preview · Gmail fallback fonts (Garamond) · web fonts blocked\n  </div>\n`);
+fs.writeFileSync("brand/email/mailchimp-grand-opening.gmail-preview.html",h);
+'
+```
 
 Upload / refresh via API (needs `MAILCHIMP_API_KEY` in `.env`):
 
