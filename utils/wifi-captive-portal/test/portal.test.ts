@@ -29,10 +29,18 @@ describe("baserow", () => {
     expect(normalizeEmail("nope")).toBeNull();
   });
 
-  it("posts a Synced=false wifi row", async () => {
-    let posted: unknown;
-    const fetchImpl = (async (_url: string, init?: RequestInit) => {
-      posted = JSON.parse(String(init?.body));
+  it("posts a Synced=false wifi row with Tag as an array", async () => {
+    const calls: { url: string; method?: string; body?: unknown }[] = [];
+    const fetchImpl = (async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      calls.push({
+        url: String(url),
+        method,
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      if (method === "GET") {
+        return Response.json({ results: [] });
+      }
       return new Response("{}", { status: 200 });
     }) as unknown as typeof fetch;
 
@@ -45,22 +53,36 @@ describe("baserow", () => {
       fetchImpl,
     });
     expect(result).toEqual({ ok: true });
-    expect(posted).toMatchObject({
+    expect(calls[0]?.url).toContain("filter__Email__equal=guest%40example.com");
+    expect(calls[1]?.body).toMatchObject({
       Email: "guest@example.com",
-      Tag: "wifi",
+      Tag: ["wifi"],
       Synced: false,
     });
   });
 
-  it("treats duplicate emails as success", async () => {
-    const fetchImpl = (async () =>
-      new Response(
-        JSON.stringify({
-          error: "ERROR_FIELD_DATA_CONSTRAINT",
-          detail: "unique",
-        }),
-        { status: 400 },
-      )) as unknown as typeof fetch;
+  it("merges wifi onto an existing prelaunch row and clears Synced", async () => {
+    const calls: { method?: string; body?: unknown }[] = [];
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      calls.push({
+        method,
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      if (method === "GET") {
+        return Response.json({
+          results: [
+            {
+              id: 42,
+              Email: "guest@example.com",
+              Tag: [{ id: 1, value: "prelaunch", color: "blue" }],
+              Synced: true,
+            },
+          ],
+        });
+      }
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
 
     const result = await subscribeEmailToBaserow({
       email: "guest@example.com",
@@ -71,6 +93,39 @@ describe("baserow", () => {
       fetchImpl,
     });
     expect(result).toEqual({ ok: true });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toEqual({
+      method: "PATCH",
+      body: { Tag: ["prelaunch", "wifi"], Synced: false },
+    });
+  });
+
+  it("no-ops when the email already has the wifi tag", async () => {
+    let patched = false;
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      if ((init?.method ?? "GET") === "PATCH") patched = true;
+      return Response.json({
+        results: [
+          {
+            id: 42,
+            Email: "guest@example.com",
+            Tag: ["prelaunch", "wifi"],
+            Synced: true,
+          },
+        ],
+      });
+    }) as unknown as typeof fetch;
+
+    const result = await subscribeEmailToBaserow({
+      email: "guest@example.com",
+      tag: "wifi",
+      apiKey: "token",
+      apiUrl: "https://api.baserow.io",
+      tableId: "1017358",
+      fetchImpl,
+    });
+    expect(result).toEqual({ ok: true });
+    expect(patched).toBe(false);
   });
 });
 

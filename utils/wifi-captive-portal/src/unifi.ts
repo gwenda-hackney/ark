@@ -14,6 +14,11 @@ function normalizeMac(raw: string): string {
   return raw.trim().toLowerCase().replace(/-/g, ":");
 }
 
+/** Cloudflare Workers rejects unbound `const f = fetch; f()` (Illegal invocation). */
+function resolveFetch(fetchImpl?: typeof fetch): typeof fetch {
+  return fetchImpl ?? ((input, init) => fetch(input, init));
+}
+
 /**
  * Authorize via Ubiquiti Site Manager cloud proxy (api.ui.com).
  * Works from Cloudflare when the console is online at unifi.ui.com.
@@ -23,7 +28,7 @@ function normalizeMac(raw: string): string {
 export async function authorizeGuest(
   env: Env,
   input: AuthorizeGuestInput,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl?: typeof fetch,
 ): Promise<AuthorizeResult> {
   const mac = normalizeMac(input.mac);
   if (!mac) return { ok: false, error: "Missing guest MAC address." };
@@ -50,7 +55,8 @@ export async function authorizeGuest(
     body.ap_mac = normalizeMac(input.apMac);
   }
 
-  const res = await fetchImpl(url, {
+  const doFetch = resolveFetch(fetchImpl);
+  const res = await doFetch(url, {
     method: "POST",
     headers: {
       "X-API-KEY": apiKey,

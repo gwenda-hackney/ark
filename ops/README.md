@@ -11,19 +11,31 @@ ops/
 ├── src/
 │   ├── index.html     ← hub with links to tools
 │   ├── stock/         ← menu prices & stock (synced from mydrive)
-│   ├── gate/          ← password form (/gate)
+│   ├── breakeven/      ← breakeven analysis (git-native, edit directly)
+│   ├── gate/           ← password form (/gate)
 │   └── robots.txt
 ├── functions/         ← Pages Functions password gate
 └── scripts/sync-from-mydrive.mjs
 ```
 
+Both tools are served from the same password-gated project (`OPS_PASSWORD`) — see below.
+
 ## Edit → publish
+
+**Menu prices & stock** — working copy lives in Drive, synced into the repo:
 
 1. Edit the working copy: `mydrive/operations/stock/master-stock-pricing.html`
 2. Sync into this package: `npm run sync -w @gwenda/ops` (writes `src/stock/index.html`)
 3. Deploy: `npm run deploy:production -w @gwenda/ops`
 
-Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment (see repo `.env.example`).
+**Breakeven analysis** — git-native, no Drive sync step:
+
+1. Edit directly: `ops/src/breakeven/index.html`
+2. Deploy: `npm run deploy:production -w @gwenda/ops` (or push to `main`/`release` — CI auto-deploys `ops/**` changes, see `.github/workflows/deploy-ops.yml`)
+
+The founders-only spreadsheet version (`Breakeven.xlsx`) stays in `shared/founders/Operations/Breakeven/` on Drive — only the interactive HTML lives in git.
+
+Deploying locally requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment (see repo `.env.example`).
 
 ## Password
 

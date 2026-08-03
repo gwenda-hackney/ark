@@ -56,20 +56,31 @@ export function normalizeEmail(raw: unknown): string | null {
   return email && EMAIL_RE.test(email) ? email : null;
 }
 
-/** Baserow single-select may arrive as `{ value: "prelaunch" }`. */
-export function normalizeTag(raw: unknown): string | undefined {
+/** Baserow Tag may be a string, `{ value }`, or a multiple_select array. */
+export function normalizeTags(raw: unknown): string[] {
+  if (raw == null) return [];
   if (typeof raw === "string") {
     const tag = raw.trim();
-    return tag || undefined;
+    return tag ? [tag] : [];
   }
-  if (raw && typeof raw === "object" && "value" in raw) {
-    const value = (raw as { value?: unknown }).value;
-    if (typeof value === "string") {
-      const tag = value.trim();
-      return tag || undefined;
+  if (Array.isArray(raw)) {
+    const out: string[] = [];
+    for (const item of raw) {
+      for (const tag of normalizeTags(item)) {
+        if (!out.includes(tag)) out.push(tag);
+      }
     }
+    return out;
   }
-  return undefined;
+  if (typeof raw === "object" && "value" in raw) {
+    return normalizeTags((raw as { value?: unknown }).value);
+  }
+  return [];
+}
+
+/** @deprecated Prefer normalizeTags. Returns the first tag only. */
+export function normalizeTag(raw: unknown): string | undefined {
+  return normalizeTags(raw)[0];
 }
 
 /** Accept YYYY-MM-DD or ISO datetime; return YYYY-MM-DD for Mailchimp date fields. */
@@ -134,7 +145,7 @@ type UpsertParams = {
   apiKey: string;
   audienceId: string;
   email: string;
-  tag?: string;
+  tags?: string[];
   signedUp?: string;
   fetchImpl: typeof fetch;
 };
@@ -147,7 +158,7 @@ export async function upsertMailchimpMember({
   apiKey,
   audienceId,
   email,
-  tag,
+  tags: rawTags,
   signedUp,
   fetchImpl,
 }: UpsertParams): Promise<UpsertResult> {
@@ -202,13 +213,13 @@ export async function upsertMailchimpMember({
     };
   }
 
-  const trimmedTag = tag?.trim();
-  if (trimmedTag) {
-    const tagged = await applyMailchimpTag({
+  const tags = (rawTags ?? []).map((tag) => tag.trim()).filter(Boolean);
+  if (tags.length) {
+    const tagged = await applyMailchimpTags({
       apiKey,
       audienceId,
       hash,
-      tag: trimmedTag,
+      tags,
       fetchImpl,
     });
     if (!tagged.ok) return tagged;
@@ -221,15 +232,15 @@ type TagParams = {
   apiKey: string;
   audienceId: string;
   hash: string;
-  tag: string;
+  tags: string[];
   fetchImpl: typeof fetch;
 };
 
-export async function applyMailchimpTag({
+export async function applyMailchimpTags({
   apiKey,
   audienceId,
   hash,
-  tag,
+  tags,
   fetchImpl,
 }: TagParams): Promise<UpsertResult> {
   const base = resolveMailchimpBase(apiKey);
@@ -243,7 +254,7 @@ export async function applyMailchimpTag({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        tags: [{ name: tag, status: "active" }],
+        tags: tags.map((name) => ({ name, status: "active" as const })),
       }),
     },
   );
@@ -406,7 +417,7 @@ export async function syncUnsyncedSubscribers(
       apiKey: mailchimpKey,
       audienceId,
       email,
-      tag: normalizeTag(row.Tag),
+      tags: normalizeTags(row.Tag),
       signedUp: normalizeSignedUp(row["Signed up"]),
       fetchImpl,
     });

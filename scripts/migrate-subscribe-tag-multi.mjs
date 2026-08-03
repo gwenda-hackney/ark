@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * Add the `wifi` option to the subscribe table `Tag` single-select field.
+ * Convert subscribe `Tag` from single_select → multiple_select and ensure
+ * the `wifi` (and `prelaunch`) options exist.
  *
- * The captive portal writes rows with Tag=wifi; Baserow rejects select values
- * that are not existing options.
+ * Captive portal merges tags when a guest email already exists (e.g. prelaunch
+ * + wifi). Mailchimp sync applies every Tag value.
  *
- * Database tokens only allow row CRUD. Editing field options needs a JWT
- * from POST /api/user/token-auth/ (Admin or Builder on the workspace).
+ * Database tokens only allow row CRUD. Field edits need a JWT from
+ * POST /api/user/token-auth/ (Admin or Builder on the workspace).
  *
  * Env: BASEROW_JWT_EMAIL, BASEROW_JWT_PASSWORD (or interactive TTY prompt)
  */
@@ -17,13 +18,17 @@ const API_BASE = (process.env.BASEROW_API_URL || "https://api.baserow.io").repla
   /\/$/,
   "",
 );
-const TAG_OPTION = process.env.WIFI_SUBSCRIBE_TAG?.trim() || "wifi";
-const TABLE_IDS = (
-  process.env.SUBSCRIBE_TABLE_IDS || "1017358,1024006"
-)
+const WIFI_OPTION = process.env.WIFI_SUBSCRIBE_TAG?.trim() || "wifi";
+const REQUIRED_OPTIONS = ["prelaunch", WIFI_OPTION];
+const TABLE_IDS = (process.env.SUBSCRIBE_TABLE_IDS || "1017358,1024006")
   .split(",")
   .map((id) => id.trim())
   .filter(Boolean);
+
+const OPTION_COLORS = {
+  prelaunch: "light-blue",
+  wifi: "dark-blue",
+};
 
 function readEnv(name) {
   const value = process.env[name];
@@ -77,7 +82,7 @@ async function promptCredentials() {
   }
 
   console.log("Log in with your Baserow account (Admin or Builder).");
-  console.log("Credentials are not saved — used once for a short-lived JWT.\n");
+  console.log("Credentials are not saved. Used once for a short-lived JWT.\n");
 
   const rl = createInterface({ input: stdin, output: stdout });
   try {
@@ -119,7 +124,7 @@ async function fetchJwt(email, password) {
   const response = await fetch(`${API_BASE}/api/user/token-auth/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password }),
+    body: JSON.stringify({ email, password }),
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -132,7 +137,27 @@ async function fetchJwt(email, password) {
   return token;
 }
 
-async function ensureTagOption(jwt, tableId) {
+function buildSelectOptions(existing) {
+  const byValue = new Map();
+  for (const option of existing ?? []) {
+    if (option?.value) byValue.set(option.value, option);
+  }
+  for (const value of REQUIRED_OPTIONS) {
+    if (!byValue.has(value)) {
+      byValue.set(value, {
+        value,
+        color: OPTION_COLORS[value] || "dark-gray",
+      });
+    }
+  }
+  return [...byValue.values()].map((option) =>
+    option.id
+      ? { id: option.id, value: option.value, color: option.color }
+      : { value: option.value, color: option.color },
+  );
+}
+
+async function ensureMultiTag(jwt, tableId) {
   const fields = await baserowRequest(
     jwt,
     `/api/database/fields/table/${tableId}/`,
@@ -142,40 +167,47 @@ async function ensureTagOption(jwt, tableId) {
     console.log(`- table ${tableId}: no Tag field, skipped`);
     return;
   }
-  if (tag.type !== "single_select") {
-    console.log(`- table ${tableId}: Tag is ${tag.type}, no options needed`);
+
+  if (tag.type !== "single_select" && tag.type !== "multiple_select") {
+    console.log(`- table ${tableId}: Tag is ${tag.type}, skipped`);
     return;
   }
 
-  const options = tag.select_options ?? [];
-  if (options.some((option) => option.value === TAG_OPTION)) {
-    console.log(`- table ${tableId}: "${TAG_OPTION}" already an option`);
-    return;
+  const selectOptions = buildSelectOptions(tag.select_options);
+  const payload = {
+    type: "multiple_select",
+    select_options: selectOptions,
+  };
+
+  if (tag.type === "multiple_select") {
+    const values = new Set((tag.select_options ?? []).map((o) => o.value));
+    const missing = REQUIRED_OPTIONS.filter((v) => !values.has(v));
+    if (!missing.length) {
+      console.log(`- table ${tableId}: already multiple_select with options`);
+      return;
+    }
   }
 
   await baserowRequest(jwt, `/api/database/fields/${tag.id}/`, {
     method: "PATCH",
-    body: JSON.stringify({
-      select_options: [
-        ...options.map((option) => ({
-          id: option.id,
-          value: option.value,
-          color: option.color,
-        })),
-        { value: TAG_OPTION, color: "dark-blue" },
-      ],
-    }),
+    body: JSON.stringify(payload),
   });
-  console.log(`- table ${tableId}: added "${TAG_OPTION}" option`);
+
+  const from = tag.type;
+  console.log(
+    `- table ${tableId}: ${from} → multiple_select (${selectOptions.map((o) => o.value).join(", ")})`,
+  );
 }
 
 async function main() {
   const { email, password } = await promptCredentials();
   const jwt = await fetchJwt(email, password);
   for (const tableId of TABLE_IDS) {
-    await ensureTagOption(jwt, tableId);
+    await ensureMultiTag(jwt, tableId);
   }
-  console.log("\nDone. Captive portal rows can now use Tag=" + TAG_OPTION);
+  console.log(
+    "\nDone. Tag is multiple_select; portal can merge wifi onto existing tags.",
+  );
 }
 
 main().catch((error) => {

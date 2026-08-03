@@ -13,7 +13,7 @@ Mailchimp’s Marketing API covers the same Baserow → ESP sync and on-brand no
 | Site signup | Baserow only (`web/functions/_lib/subscribe.js`: `Email`, `Tag`, `Synced=false`) |
 | Production only | Table `1017358` |
 | Sync | Drain `Synced=false` → ESP, then `Synced=true` |
-| Tags | Baserow `Tag` (e.g. `prelaunch`) |
+| Tags | Baserow `Tag` multiple_select (e.g. `prelaunch`, `wifi`) |
 | Brand | Hull `#0d0d0d`, cream `#e8e4dc`, gold `#c9a84c`, serif; client-reliable HTML |
 | Scale | ~200 subscribers |
 | Out of scope | Staging table; site → ESP; two-way unsub → Baserow; RSVP / Mandrill |
@@ -53,7 +53,7 @@ Auth: HTTP Basic with any username and the API key as password (`Authorization: 
 | Baserow | Mailchimp |
 |---------|-----------|
 | `Email` | `email_address` (trim + lowercase before hash and PUT) |
-| `Tag` | Member tag `name` = tag string, `status: "active"` |
+| `Tag` | Member tags: each value → `{ name, status: "active" }` |
 | `Synced` | Set `true` only after successful upsert (and tag, when present) |
 | `Signed up` | Optional later via merge field; not required for v1 sync |
 
