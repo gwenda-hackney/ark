@@ -119,6 +119,28 @@ npm run studio:seed:production   # requires Editor token in .env
 
 Idempotent — updates by slug/name.
 
+## Mirror datasets (staging ↔ production)
+
+Sanity **development** and **production** datasets stay independent until you mirror them.
+
+GitHub → Actions → **Sync Sanity datasets** (workflow_dispatch):
+
+| Direction | Overwrites |
+|-----------|------------|
+| `staging-to-production` | `production` |
+| `production-to-staging` | `development` |
+
+You must type the target dataset name in `confirm_target`. Uses secret `SANITY_DATASET_SYNC_TOKEN` (Editor robot from `npm run setup:sanity-tokens`).
+
+This only updates the CMS. Rebuild the site afterwards (Studio **Deploy site**, or `deploy-*-content` workflows).
+
+Locally:
+
+```bash
+npm run sync:sanity-datasets -- --direction staging-to-production --confirm production
+npm run sync:sanity-datasets -- --direction production-to-staging --confirm development
+```
+
 ## Content vs code
 
 | What | Promotes via |
@@ -128,6 +150,7 @@ Idempotent — updates by slug/name.
 | Prod Studio deploy | `npm run studio:deploy` when schema ready |
 | Dev content | stays in `development` until copied to prod |
 | Prod content | editors publish in prod Studio |
+| Dataset mirror | GitHub **Sync Sanity datasets** (`staging-to-production` / `production-to-staging`) |
 | **Site content (published)** | **Studio → Deploy site** (see below) |
 
 ## Deploy published content to the website

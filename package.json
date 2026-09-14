@@ -34,6 +34,7 @@
     "env:seed": "node scripts/seed-bitwarden-env.mjs",
     "env:set": "node scripts/set-bitwarden-env.mjs",
     "setup:sanity-tokens": "node scripts/setup-sanity-tokens.mjs",
+    "sync:sanity-datasets": "node scripts/sync-sanity-datasets.mjs",
     "setup:event-admin": "node scripts/setup-event-admin.mjs",
     "setup:event-ops": "node --env-file=.env scripts/setup-event-ops.mjs",
     "setup:baserow-rsvp": "node --env-file=.env scripts/setup-baserow-rsvp.mjs",
