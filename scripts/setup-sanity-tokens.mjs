@@ -114,7 +114,7 @@ function resolveAdminToken() {
   const fromEnv = process.env.SANITY_AUTH_TOKEN?.trim();
   if (fromEnv) return fromEnv;
 
-  const studioDir = resolve(ROOT, "studio");
+  const studioDir = resolve(ROOT, "marketing/studio");
   const cwd = existsSync(resolve(studioDir, "sanity.cli.ts")) ? studioDir : ROOT;
   const debug = run("npx", ["sanity", "debug", "--secrets"], { quiet: true, cwd });
   const match = debug.match(/Auth token:\s+(\S+)/);
