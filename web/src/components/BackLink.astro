@@ -1,37 +1,10 @@
 ---
 interface Props {
-  /** Used when there is no same-origin referrer to go back to. */
-  fallback?: string;
+  href?: string;
   label?: string;
 }
 
-const { fallback = "/#menu", label = "← Back" } = Astro.props;
+const { href = "/", label = "← Back" } = Astro.props;
 ---
 
-<a href={fallback} class="legal-back" data-history-back>{label}</a>
-
-<script>
-  function bindHistoryBack() {
-    document.querySelectorAll<HTMLAnchorElement>("[data-history-back]").forEach((link) => {
-      if (link.dataset.historyBound === "true") return;
-      link.dataset.historyBound = "true";
-
-      link.addEventListener("click", (event) => {
-        const referrer = document.referrer;
-        if (!referrer) return;
-
-        try {
-          if (new URL(referrer).origin === location.origin) {
-            event.preventDefault();
-            history.back();
-          }
-        } catch {
-          /* Fall through to href. */
-        }
-      });
-    });
-  }
-
-  bindHistoryBack();
-  document.addEventListener("astro:page-load", bindHistoryBack);
-</script>
+<a href={href} class="legal-back">{label}</a>
