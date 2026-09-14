@@ -1,57 +1,80 @@
 # Gwenda ops tools
 
-Password-gated internal HTML tools on Cloudflare Pages (menu prices & stock).
+Password-gated internal HTML tools on Cloudflare Pages.
 
-Live: [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev) (optional custom domain later: `ops.gwenda.co.uk`).
+Live: [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)
 
 ## Layout
 
 ```
 ops/
 ├── src/
-│   ├── index.html     ← hub with links to tools
-│   ├── stock/         ← menu prices & stock (synced from mydrive)
-│   ├── breakeven/      ← breakeven analysis (git-native, edit directly)
-│   ├── gate/           ← password form (/gate)
+│   ├── index.html     ← hub
+│   ├── menu/          ← recipes in Baserow Ops (photos, spec book, publish)
+│   ├── stock/         ← menu prices & stock (Drive sync)
+│   ├── breakeven/
+│   ├── cashflow/
+│   ├── gate/
 │   └── robots.txt
-├── functions/         ← Pages Functions password gate
+├── functions/         ← password gate + Baserow menu API
 └── scripts/sync-from-mydrive.mjs
 ```
 
-Both tools are served from the same password-gated project (`OPS_PASSWORD`) — see below.
+## Where data lives
 
-## Edit → publish
+| Data | Store |
+|------|--------|
+| Recipes, ingredients, method, glass, garnish, ops photos | **Baserow** database `Gwenda Ops` |
+| Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
+| Stock / POS HTML | Drive → `ops/src/stock` |
 
-**Menu prices & stock** — working copy lives in Drive, synced into the repo:
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields from Baserow into matching Sanity `menuItem` documents (by name or stored Sanity ID), then triggers the site rebuild webhook.
 
-1. Edit the working copy: `mydrive/operations/stock/master-stock-pricing.html`
-2. Sync into this package: `npm run sync -w @gwenda/ops` (writes `src/stock/index.html`)
-3. Deploy: `npm run deploy:production -w @gwenda/ops`
+## Menu recipes
 
-**Breakeven analysis** — git-native, no Drive sync step:
+1. Create tables: `npm run setup:baserow-ops` (needs Baserow admin login; prefers the **Gwenda** workspace)
+2. Script writes table IDs into repo-root `.env` and, if Bitwarden is unlocked, into `ark/.env.local`
+3. Seed sections + copy drinks from Sanity: `npm run seed:baserow-ops-menu`
+4. Push Pages secrets: `npm run setup:ops` (needs `CLOUDFLARE_API_TOKEN`)
+5. Open [Menu recipes](https://gwenda-ops.pages.dev/menu/) after deploy
+6. **Publish** syncs guest-facing fields to Sanity + rebuilds the site
 
-1. Edit directly: `ops/src/breakeven/index.html`
-2. Deploy: `npm run deploy:production -w @gwenda/ops` (or push to `main`/`release` — CI auto-deploys `ops/**` changes, see `.github/workflows/deploy-ops.yml`)
+If Bitwarden was locked during setup, sync the ids manually:
 
-The founders-only spreadsheet version (`Breakeven.xlsx`) stays in `shared/founders/Operations/Breakeven/` on Drive — only the interactive HTML lives in git.
+```bash
+export BW_SESSION=$(bw unlock --raw)
+npm run env:set -- BASEROW_OPS_DATABASE_ID '556507'
+npm run env:set -- BASEROW_OPS_SECTIONS_TABLE_ID '1196325'
+npm run env:set -- BASEROW_OPS_ITEMS_TABLE_ID '1196326'
+npm run env:set -- BASEROW_OPS_INGREDIENTS_TABLE_ID '1196327'
+npm run env:set -- BASEROW_WORKSPACE_ID '208709'
+```
 
-Deploying locally requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment (see repo `.env.example`).
+(`setup:baserow-ops` now attempts this automatically when the vault is unlocked.)
+
+
+Local:
+
+```bash
+npm run dev -w @gwenda/ops
+```
+
+Requires `OPS_PASSWORD` and `BASEROW_API_KEY` (plus ops table IDs) in repo-root `.env`. Publish also needs `SANITY_API_TOKEN` and the deploy webhook secrets.
+
+## Stock / breakeven / cashflow
+
+Unchanged — see earlier sections in git history or edit those HTML tools directly. Stock still syncs from Drive with `npm run sync -w @gwenda/ops`.
 
 ## Password
-
-Set the Pages secret once:
 
 ```bash
 cd ops
 npx wrangler pages secret put OPS_PASSWORD --project-name gwenda-ops
 ```
 
-Optional shareable bypass link: set `OPS_BYPASS_KEY`, then open `https://gwenda-ops.pages.dev/?access=<key>`.
-
 ## Deploy
 
-| Trigger | Target | URL |
-|---------|--------|-----|
-| Push to `main` or `release` (`ops/**`) | Production (`--branch main`) | [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev) |
-| Push to any other branch (`ops/**`) | Branch preview | `https://<branch>.gwenda-ops.pages.dev` |
-| Manual | [Deploy ops](../.github/workflows/deploy-ops.yml) | preview or production |
+| Trigger | Target |
+|---------|--------|
+| Push to `main` / `release` (`ops/**`) | [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev) |
+| Other branches | `https://<branch>.gwenda-ops.pages.dev` |

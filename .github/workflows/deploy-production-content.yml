@@ -52,7 +52,7 @@ jobs:
 
       - name: Compute build metadata
         id: buildmeta
-        run: cd web && node scripts/ci/compute-build-metadata.mjs
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
         env:
           GITHUB_REF_NAME: release
           GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
@@ -97,7 +97,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: production-content-dist
-          path: web/dist/
+          path: marketing/web/dist/
           retention-days: 14
 
       - name: Resolve preview URL
@@ -139,10 +139,10 @@ jobs:
           retention-days: 14
 
       - name: Smoke test preview
-        run: cd web && node scripts/ci/smoke-test.mjs --url "${{ steps.preview_url.outputs.url }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url "${{ steps.preview_url.outputs.url }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
 
       - name: Preview deployment summary
-        run: cd web && node scripts/ci/write-deployment-summary.mjs
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Production content preview ready for Studio review","rows":[

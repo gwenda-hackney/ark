@@ -18,7 +18,7 @@
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../web/functions/_lib/env-pem.js";
+import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   DEFAULT_LOCAL_ITEM,
   DEFAULT_SERVER,
@@ -72,7 +72,8 @@ Default item: ${DEFAULT_LOCAL_ITEM}
 EU server:    ${DEFAULT_SERVER}
 
 Seed empty notes first: npm run env:seed
-Set one key:           npm run env:set -- KEY value`);
+Set one key:           npm run env:set -- KEY value
+Push local .env → vault: npm run env:push`);
 }
 
 function main() {

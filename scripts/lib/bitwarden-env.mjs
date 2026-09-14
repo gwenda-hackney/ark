@@ -2,10 +2,11 @@
  * Shared Bitwarden helpers for ark env vault items.
  */
 import { spawnSync } from "node:child_process";
-import { parseDotEnv } from "../../web/functions/_lib/env-pem.js";
+import { parseDotEnv } from "../../marketing/web/functions/_lib/env-pem.js";
 
 export const DEFAULT_SERVER = "https://vault.bitwarden.eu";
 export const DEFAULT_LOCAL_ITEM = "ark/.env.local";
+export const ARK_FOLDER_NAME = "ark";
 
 export const ENV_ITEMS = {
   local: "ark/.env.local",
@@ -196,11 +197,12 @@ export function applySecretsToTemplate(template, secrets) {
   };
 }
 
-export function createSecureNote(name, notes) {
+export function createSecureNote(name, notes, { folderId = null } = {}) {
   const template = JSON.parse(runBw(["get", "template", "item"]));
   template.type = 2; // Secure Note
   template.name = name;
   template.notes = notes.endsWith("\n") ? notes : `${notes}\n`;
+  template.folderId = folderId;
   template.secureNote = { type: 0 };
   template.login = null;
   template.card = null;
@@ -217,4 +219,31 @@ export function updateItemNotes(item, notes) {
   const next = { ...item, notes: notes.endsWith("\n") ? notes : `${notes}\n` };
   const encoded = runBw(["encode"], { input: JSON.stringify(next) });
   return JSON.parse(runBw(["edit", "item", item.id, encoded]));
+}
+
+/** Ensure the personal vault folder exists; return its id. */
+export function ensureFolder(folderName = ARK_FOLDER_NAME) {
+  const folders = JSON.parse(runBw(["list", "folders"]));
+  const existing = folders.find(
+    (folder) => String(folder.name || "").trim() === folderName,
+  );
+  if (existing?.id) return existing.id;
+
+  const template = JSON.parse(runBw(["get", "template", "folder"]));
+  template.name = folderName;
+  const encoded = runBw(["encode"], { input: JSON.stringify(template) });
+  const created = JSON.parse(runBw(["create", "folder", encoded]));
+  console.log(`Created Bitwarden folder "${folderName}" (${created.id}).`);
+  return created.id;
+}
+
+/** Move an item into a folder if it is not already there. */
+export function ensureItemInFolder(item, folderId) {
+  if (!item?.id || !folderId) return item;
+  if (item.folderId === folderId) return item;
+  const next = { ...item, folderId };
+  const encoded = runBw(["encode"], { input: JSON.stringify(next) });
+  const updated = JSON.parse(runBw(["edit", "item", item.id, encoded]));
+  console.log(`Moved "${item.name}" into folder id ${folderId}.`);
+  return updated;
 }

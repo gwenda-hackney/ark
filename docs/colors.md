@@ -4,7 +4,7 @@ Single source of truth for hex values: **`src/config/colors.json`**
 
 CSS variables: `src/styles/colors.css` (kept in sync by `src/config/colors.test.ts`)
 
-The palette is **monochromatic black, brown, and gold** — drawn from the ship's world at Schwartz Wharf (hull black, teak and timber brown, brass gold). See [brand guidelines §1.1](../brand/brand-guidelines.md#11-ship-palette) and the [hero colour breakdown](../brand/brand-guidelines.md#30a-hero--colour-in-practice).
+The palette is **monochromatic black, brown, and gold** — drawn from the ship's world at Schwartz Wharf (hull black, teak and timber brown, brass gold). See [brand guidelines §1.1](../marketing/brand/brand-guidelines.md#11-ship-palette) and the [hero colour breakdown](../marketing/brand/brand-guidelines.md#30a-hero--colour-in-practice).
 
 ---
 
@@ -92,7 +92,7 @@ Green does **not** join gold as a UI accent. The only greens in the system are *
 - **Material shadows** — optional fills/overlays using the tokens above.
 - **Never** — buttons, eyebrows, logos, or bright sage/emerald/mint accents.
 
-Material ladder: `#0a0908` → `#161310` → `#23211b` → `#1e261c` → `#1a2218`. See [brand guidelines §3.7](../brand/brand-guidelines.md#37-green--brown-hue-materials).
+Material ladder: `#0a0908` → `#161310` → `#23211b` → `#1e261c` → `#1a2218`. See [brand guidelines §3.7](../marketing/brand/brand-guidelines.md#37-green--brown-hue-materials).
 
 ---
 

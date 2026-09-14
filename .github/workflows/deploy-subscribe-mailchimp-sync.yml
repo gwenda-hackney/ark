@@ -5,9 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "utils/subscribe-mailchimp-sync/**"
-      - "package.json"
-      - "package-lock.json"
+      - "marketing/subscribe-mailchimp-sync/**"
       - ".github/workflows/deploy-subscribe-mailchimp-sync.yml"
   workflow_dispatch:
 
@@ -45,11 +43,11 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
-          workingDirectory: utils/subscribe-mailchimp-sync
+          workingDirectory: marketing/subscribe-mailchimp-sync
 
       - name: Sync Worker secrets
         run: |
-          cd utils/subscribe-mailchimp-sync
+          cd marketing/subscribe-mailchimp-sync
           echo "$BASEROW_API_KEY" | npx wrangler secret put BASEROW_API_KEY
           echo "$MAILCHIMP_API_KEY" | npx wrangler secret put MAILCHIMP_API_KEY
           echo "$SUBSCRIBE_MAILCHIMP_SYNC_SECRET" | npx wrangler secret put SYNC_SECRET

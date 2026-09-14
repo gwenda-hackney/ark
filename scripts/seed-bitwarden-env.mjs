@@ -15,6 +15,8 @@ import {
   ENV_ITEMS,
   createSecureNote,
   ensureBwInstalled,
+  ensureFolder,
+  ensureItemInFolder,
   ensureServer,
   ensureSession,
   getItemOrNull,
@@ -58,8 +60,9 @@ function main() {
 Usage:
   node scripts/seed-bitwarden-env.mjs [--force] [--env local|staging|production]
 
-Creates ark/.env.local, ark/.env.staging, ark/.env.production if missing.
-Without --force, existing items are left unchanged.`);
+Creates ark/.env.local, ark/.env.staging, ark/.env.production if missing
+(placed in the Bitwarden folder named "ark").
+Without --force, existing items are left unchanged (still moved into "ark").`);
     return;
   }
 
@@ -68,6 +71,7 @@ Without --force, existing items are left unchanged.`);
   ensureSession();
   syncVault();
 
+  const folderId = ensureFolder();
   const targets = opts.env ? [opts.env] : Object.keys(TEMPLATES);
 
   for (const envName of targets) {
@@ -80,13 +84,15 @@ Without --force, existing items are left unchanged.`);
     const existing = getItemOrNull(itemName);
 
     if (!existing) {
-      const created = createSecureNote(itemName, notes);
-      console.log(`Created ${itemName} (${created.id}).`);
+      const created = createSecureNote(itemName, notes, { folderId });
+      console.log(`Created ${itemName} in folder ark (${created.id}).`);
       continue;
     }
 
+    ensureItemInFolder(existing, folderId);
+
     if (!opts.force) {
-      console.log(`Exists ${itemName} — skipped (use --force to replace notes).`);
+      console.log(`Exists ${itemName} — skipped notes (use --force to replace).`);
       continue;
     }
 

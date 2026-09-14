@@ -5,9 +5,7 @@ on:
     branches:
       - release
     paths:
-      - "studio/**"
-      - "package.json"
-      - "package-lock.json"
+      - "marketing/studio/**"
       - ".github/workflows/deploy-studio-production.yml"
   workflow_dispatch:
 
@@ -47,7 +45,7 @@ jobs:
           BASEROW_RSVP_GRID_URL: ${{ vars.BASEROW_RSVP_GRID_URL }}
 
       - name: Deployment summary
-        run: cd web && node scripts/ci/write-deployment-summary.mjs
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Production Studio deployed","rows":[

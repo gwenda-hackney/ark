@@ -36,7 +36,7 @@ Run **`npm run setup:site-deploy`** — it will:
 
 1. Generate `DEPLOY_WEBHOOK_SECRET` (or reuse from `.env`)
 2. Set GitHub secrets (`DEPLOY_WEBHOOK_SECRET`, `DISPATCH_TOKEN` from `gh auth token`, `SANITY_STUDIO_SITE_DEPLOY_URL`)
-3. Deploy `utils/site-deploy-webhook` Worker and sync Worker secrets
+3. Deploy `marketing/site-deploy-webhook` Worker and sync Worker secrets
 4. Write `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env` for local Studio
 5. Dispatch `deploy-studio.yml` to redeploy hosted Studio with deploy config
 
@@ -46,7 +46,7 @@ Do not ask the user to manually `gh secret set` deploy secrets or edit Worker UR
 
 ## Cloudflare
 
-Use `CLOUDFLARE_API_TOKEN` from `.env` and `account_id` from `utils/*/wrangler.toml` for Worker deploys. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
+Use `CLOUDFLARE_API_TOKEN` from `.env` and `account_id` from `marketing/*/wrangler.toml` or `ops/*/wrangler.toml` for Worker deploys. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
 
 ## After setup
 

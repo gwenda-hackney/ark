@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Copy the working stock HTML from mydrive into ops/src/stock for publish.
- * Source of truth: mydrive/operations/stock/master-stock-pricing.html
+ * Copy a stock HTML working copy from nest work/ into ops/src/stock for publish.
+ * Expected path while editing: work/master-stock-pricing.html
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -12,7 +12,7 @@ const opsRoot = resolve(here, "..");
 const workspaceRoot = resolve(opsRoot, "../..");
 const source = resolve(
   workspaceRoot,
-  "mydrive/operations/stock/master-stock-pricing.html",
+  "work/master-stock-pricing.html",
 );
 const destDir = resolve(opsRoot, "src/stock");
 const dest = resolve(destDir, "index.html");
