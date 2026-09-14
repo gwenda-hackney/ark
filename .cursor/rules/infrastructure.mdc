@@ -5,23 +5,30 @@ alwaysApply: true
 
 # Infrastructure — agent capabilities
 
-In this devcontainer / agent environment you can configure Gwenda infrastructure **without asking the user to run manual steps**.
+When `ark/.env` and `gh` are present, configure Gwenda infrastructure without asking the user to run Wrangler or `gh secret set` by hand. On a fresh nest: unlock Bitwarden (`export BW_SESSION=$(bw unlock --raw)`), run `npm run env:pull`, and `gh auth login` if needed. Cloudflare and GitHub will not give secret values back.
+
+This checkout often sits inside the **Gwenda nest** (`~/dev/gwenda`, or `/workspaces/gwenda` in a Codespace). Sibling `founders/`, `marketing/`, `operations/`, and `gwenda-mydrive/` are rclone FUSE mounts (workspace symlinks to `~/dev/mnt/gwenda/`). Nest `work/` is a flat local scratch pad for the file you are editing (export with `md-to-gdoc FILE.md remote:path` after confirmation). Shared Drive: `founders/`, `marketing/`, `operations/`. ClickUp keys may live in the nest `.env`, not `ark/.env`. Workspace map: nest `AGENTS.md`.
 
 ## Available credentials
 
 | Source | What it provides |
 |--------|------------------|
-| Repo-root `.env` (gitignored) | `CLOUDFLARE_API_TOKEN`, `SANITY_API_TOKEN` (Developer), `SANITY_PROJECT_ID=pn5yjro6`, deploy vars after `npm run setup:site-deploy` |
-| `gh` CLI | Authenticated as the repo owner — `repo` + `workflow` scopes. Use `gh secret set`, `gh workflow run`, `gh auth token` |
-| GitHub Actions secrets | `SANITY_API_TOKEN`, `SANITY_DEPLOY_TOKEN`, `CLOUDFLARE_*`, etc. — set via `gh secret set`, never read back |
+| Bitwarden (`bitwarden.eu`) | Source of truth for local secrets. Secure note `ark/.env.local` (Notes = dotenv). Pull with `npm run env:pull`. Optional `ark/.env.staging` / `ark/.env.production` for env backups. |
+| `ark/.env` (gitignored) | `CLOUDFLARE_API_TOKEN`, `SANITY_API_TOKEN` (**Editor** robot `ark-local-editor`), `SANITY_PROJECT_ID=pn5yjro6`, deploy vars after `npm run setup:site-deploy`. Prefer `env:pull` / `setup:sanity-tokens` over hand-copying. |
+| Nest `.env` (`~/dev/gwenda/.env` or `/workspaces/gwenda/.env`) | Workspace tools (e.g. ClickUp). Not a substitute for `ark/.env`. |
+| `gh` CLI | When logged in as the repo owner: `repo` + `workflow`. Use `gh secret set`, `gh workflow run`, `gh variable list`. **Not always authenticated** in a new Codespace. |
+| GitHub Actions secrets / Cloudflare Pages secrets | Set via `gh secret set` or `wrangler pages secret put`. **Never readable after write** (names only). |
+
+Do **not** regenerate Cloudflare / Sanity / Baserow tokens on a fresh clone when Bitwarden already has them. Only run `setup:ci-secrets` / `setup:site-deploy` for first-time wiring or repair.
 
 ## Sanity tokens
 
-- **Developer** token in `.env` — create/revoke robot tokens, seed content, schema work. Cannot deploy hosted Studio.
-- **Deploy Studio** — GitHub secret `SANITY_DEPLOY_TOKEN` (create via `npm run setup:ci-secrets` using Developer token).
-- **Viewer** — GitHub secret `SANITY_API_TOKEN` — site builds only.
+- **Local Editor** (`ark-local-editor`) in `.env` — Studio, seeds, schema work. Cannot mint other tokens.
+- **Mint/revoke** — personal `npx sanity login` (project Administrator), then `npm run setup:sanity-tokens`.
+- **Deploy Studio** — GitHub `SANITY_DEPLOY_TOKEN` (`ark-ci-deploy-studio`).
+- **Viewer** — GitHub `SANITY_API_TOKEN` (`ark-ci-viewer`) — site builds only.
 
-Do not ask the user to create Sanity CI tokens manually; run `npm run setup:ci-secrets` when needed.
+Do not ask the user to create Sanity CI tokens manually; run `npm run setup:sanity-tokens` when needed.
 
 ## Site deploy (Studio → website rebuild)
 
@@ -31,7 +38,7 @@ Run **`npm run setup:site-deploy`** — it will:
 2. Set GitHub secrets (`DEPLOY_WEBHOOK_SECRET`, `DISPATCH_TOKEN` from `gh auth token`, `SANITY_STUDIO_SITE_DEPLOY_URL`)
 3. Deploy `utils/site-deploy-webhook` Worker and sync Worker secrets
 4. Write `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env` for local Studio
-5. Dispatch `deploy-studio.yml` to redeploy hosted dev Studio with deploy config
+5. Dispatch `deploy-studio.yml` to redeploy hosted Studio with deploy config
 
 Local Studio (`npm run studio`) picks up deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `deploy-studio.yml`.
 

@@ -1,6 +1,8 @@
 FROM node:24
 
-# Node tooling + Python for tools/ utilities
+# Shared Gwenda image: ark site toolchain + nest docs tools.
+# Nest `.devcontainer/devcontainer.json` builds this file too.
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         gh \
@@ -11,13 +13,31 @@ RUN apt-get update \
         python3-pip \
         python3-venv \
         imagemagick \
+        ripgrep \
+        fd-find \
+        pandoc \
+        poppler-utils \
+        tesseract-ocr \
+        csvkit \
+        qpdf \
+        unzip \
     && rm -rf /var/lib/apt/lists/* \
     && echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN ln -sf "$(command -v fdfind)" /usr/local/bin/fd || true
 
 RUN python3 -m pip install --break-system-packages --no-cache-dir \
         httpx \
         pyyaml \
-        ruff
+        ruff \
+        pandas \
+        openpyxl \
+        python-docx \
+        pypdf \
+        tabulate
+
+# Bitwarden CLI — npm run env:pull (EU vault → repo-root .env)
+RUN npm install -g @bitwarden/cli@2026.8.0 --allow-scripts=core-js
 
 ARG USERNAME=node
 
