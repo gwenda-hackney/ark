@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Local Wi‑Fi captive portal: sync secrets from repo-root .env into
- * utils/wifi-captive-portal/.dev.vars, then run `wrangler dev`.
+ * marketing/wifi-captive-portal/.dev.vars, then run `wrangler dev`.
  *
  *   npm run wifi-portal
  */
@@ -9,10 +9,10 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../web/functions/_lib/env-pem.js";
+import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const WORKER_DIR = resolve(ROOT, "utils/wifi-captive-portal");
+const WORKER_DIR = resolve(ROOT, "marketing/wifi-captive-portal");
 const ENV_PATH = resolve(ROOT, ".env");
 const DEV_VARS_PATH = resolve(WORKER_DIR, ".dev.vars");
 

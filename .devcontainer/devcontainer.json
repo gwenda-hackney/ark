@@ -5,7 +5,8 @@
   "mounts": [
     "source=..,target=/src,type=bind,consistency=cached",
     "source=bashhistory,target=/commandhistory,type=volume",
-    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gh,target=/home/node/.config/gh,type=bind,consistency=cached"
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gh,target=/home/node/.config/gh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/Bitwarden CLI,target=/home/node/.config/Bitwarden CLI,type=bind,consistency=cached"
   ],
   "customizations": {
     "vscode": {
@@ -15,7 +16,14 @@
         "charliermarsh.ruff",
         "vitest.explorer@1.40.0",
         "vscode-icons-team.vscode-icons",
-        "ritwickdey.LiveServer"
+        "ritwickdey.LiveServer",
+        "yzhang.markdown-all-in-one",
+        "bierner.markdown-preview-github-styles",
+        "DavidAnson.vscode-markdownlint",
+        "mechatroner.rainbow-csv",
+        "GrapeCity.gc-excelviewer",
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml"
       ],
       "settings": {
         "[python]": {
@@ -26,7 +34,8 @@
       }
     }
   },
-  "forwardPorts": [4321],
+  "forwardPorts": [4321, 3333],
   "postStartCommand": "bash /src/.devcontainer/post-start.sh",
-  "remoteUser": "node"
+  "remoteUser": "node",
+  "shutdownAction": "stopCompose"
 }

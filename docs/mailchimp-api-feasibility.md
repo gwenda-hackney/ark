@@ -13,7 +13,7 @@ Mailchimp’s Marketing API covers the same Baserow → ESP sync and on-brand no
 | Site signup | Baserow only (`web/functions/_lib/subscribe.js`: `Email`, `Tag`, `Synced=false`) |
 | Production only | Table `1017358` |
 | Sync | Drain `Synced=false` → ESP, then `Synced=true` |
-| Tags | Baserow `Tag` (e.g. `prelaunch`) |
+| Tags | Baserow `Tag` multiple_select (e.g. `prelaunch`, `wifi`) |
 | Brand | Hull `#0d0d0d`, cream `#e8e4dc`, gold `#c9a84c`, serif; client-reliable HTML |
 | Scale | ~200 subscribers |
 | Out of scope | Staging table; site → ESP; two-way unsub → Baserow; RSVP / Mandrill |
@@ -53,7 +53,7 @@ Auth: HTTP Basic with any username and the API key as password (`Authorization: 
 | Baserow | Mailchimp |
 |---------|-----------|
 | `Email` | `email_address` (trim + lowercase before hash and PUT) |
-| `Tag` | Member tag `name` = tag string, `status: "active"` |
+| `Tag` | Member tags: each value → `{ name, status: "active" }` |
 | `Synced` | Set `true` only after successful upsert (and tag, when present) |
 | `Signed up` | Optional later via merge field; not required for v1 sync |
 
@@ -85,8 +85,8 @@ At ~200 contacts, Standard is typically far cheaper than Buttondown whitelabel (
 
 **GO** — Mailchimp Marketing API satisfies sync + branded notification requirements.
 
-**Done (email):** branded HTML at [`brand/email/`](../brand/email/) (grand opening campaign created in Mailchimp UI/API).
+**Done (email):** branded HTML at [`marketing/brand/email/`](../marketing/brand/email/) (grand opening campaign created in Mailchimp UI/API).
 
-**Done (sync):** [`utils/subscribe-mailchimp-sync/`](../utils/subscribe-mailchimp-sync/) (hourly cron, manual POST, local dry-run, `SIGNEDUP` merge field). Setup: `npm run setup:subscribe-mailchimp-sync`. The Buttondown ESP experiment branch was retired; Mailchimp is the live path.
+**Done (sync):** [`marketing/subscribe-mailchimp-sync/`](../marketing/subscribe-mailchimp-sync/) (hourly cron, manual POST, local dry-run, `SIGNEDUP` merge field). Setup: `npm run setup:subscribe-mailchimp-sync`. The Buttondown ESP experiment branch was retired; Mailchimp is the live path.
 
 **NO-GO would mean:** Standard plan unavailable, or consent rules forbid API `subscribed` without DOI and DOI is unacceptable for UX. Neither blocks the API itself.

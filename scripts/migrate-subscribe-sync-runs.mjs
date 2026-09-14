@@ -14,7 +14,7 @@
  *   or interactive prompt when stdin is a TTY
  *
  * After success, set BASEROW_SYNC_LOG_TABLE_ID in
- * utils/subscribe-mailchimp-sync/wrangler.toml [vars] and redeploy.
+ * marketing/subscribe-mailchimp-sync/wrangler.toml [vars] and redeploy.
  */
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -332,7 +332,7 @@ async function main() {
   console.log("");
   console.log("Next:");
   console.log(
-    `  1. Set BASEROW_SYNC_LOG_TABLE_ID = "${table.id}" in utils/subscribe-mailchimp-sync/wrangler.toml [vars]`,
+    `  1. Set BASEROW_SYNC_LOG_TABLE_ID = "${table.id}" in marketing/subscribe-mailchimp-sync/wrangler.toml [vars]`,
   );
   console.log(
     "  2. Optionally set BASEROW_SYNC_LOG_TABLE_ID in repo-root .env for local CLI",

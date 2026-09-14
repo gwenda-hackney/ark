@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");
-const WORKER_DIR = resolve(ROOT, "utils/site-deploy-webhook");
+const WORKER_DIR = resolve(ROOT, "marketing/site-deploy-webhook");
 const WORKER_NAME = "gwenda-site-deploy-webhook";
 
 function loadDotEnv() {
@@ -94,7 +94,7 @@ function setGhSecret(name, value) {
 function readWranglerAccountId() {
   const toml = readFileSync(resolve(WORKER_DIR, "wrangler.toml"), "utf8");
   const match = toml.match(/^account_id\s*=\s*"([^"]+)"/m);
-  if (!match) throw new Error("account_id not found in utils/site-deploy-webhook/wrangler.toml");
+  if (!match) throw new Error("account_id not found in marketing/site-deploy-webhook/wrangler.toml");
   return match[1];
 }
 
@@ -115,7 +115,7 @@ function writeSiteDeployEnvLines(lines) {
 }
 
 const API_VERSION = "v2025-08-18";
-const DEPLOY_STUDIO_LABEL = "ark-setup-site-deploy-studio";
+const DEPLOY_STUDIO_LABEL = "ark-ci-deploy-studio";
 
 async function sanityRequest(path, { method = "GET", body, adminToken, projectId }) {
   const res = await fetch(`https://api.sanity.io/${API_VERSION}${path}`, {
@@ -170,6 +170,25 @@ async function createDeployStudioToken(projectId, adminToken) {
 
   return key;
 }
+
+function resolvePersonalSanityToken() {
+  const fromEnv = process.env.SANITY_AUTH_TOKEN?.trim();
+  if (fromEnv) return fromEnv;
+  const studioDir = resolve(ROOT, "studio");
+  const out = run("npx", ["sanity", "debug", "--secrets"], {
+    cwd: studioDir,
+    quiet: true,
+  });
+  const match = out.match(/Auth token:\s+(\S+)/);
+  if (!match) {
+    throw new Error(
+      "Need a Deploy Studio token or personal Sanity login.\n" +
+        "  Set SANITY_DEPLOY_TOKEN in .env, or run: npx sanity login",
+    );
+  }
+  return match[1];
+}
+
 
 function deployHostedDevStudio({ deploySecret, workerUrl, deployStudioToken }) {
   console.log("Deploying hosted development Studio with site deploy config…");
@@ -258,12 +277,17 @@ async function main() {
   const projectId = projectIdRaw && /^[a-z0-9]+$/.test(projectIdRaw) && projectIdRaw.length <= 12
     ? projectIdRaw
     : "pn5yjro6";
-  const adminToken = process.env.SANITY_API_TOKEN?.trim();
-  if (!adminToken) {
-    throw new Error("SANITY_API_TOKEN is missing from .env (Developer token required for Studio deploy).");
-  }
 
-  const deployStudioToken = await createDeployStudioToken(projectId, adminToken);
+  let deployStudioToken = process.env.SANITY_DEPLOY_TOKEN?.trim();
+  if (deployStudioToken) {
+    console.log("Reusing SANITY_DEPLOY_TOKEN from .env for hosted Studio deploy.");
+  } else {
+    console.log(
+      "SANITY_DEPLOY_TOKEN missing — minting ark-ci-deploy-studio via personal Sanity login…",
+    );
+    const personalToken = resolvePersonalSanityToken();
+    deployStudioToken = await createDeployStudioToken(projectId, personalToken);
+  }
   deployHostedDevStudio({ deploySecret, workerUrl, deployStudioToken });
 
   console.log(

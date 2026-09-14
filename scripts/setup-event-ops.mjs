@@ -17,7 +17,7 @@ import {
   DEV_BASEROW_DATABASE_ID,
   PRODUCTION_SUBSCRIBE_TABLE_ID,
   RSVP_TABLE_NAME,
-} from "../web/functions/_lib/baserow.js";
+} from "../marketing/web/functions/_lib/baserow.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");

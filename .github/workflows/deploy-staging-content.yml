@@ -47,7 +47,7 @@ jobs:
 
       - name: Compute build metadata
         id: buildmeta
-        run: cd web && node scripts/ci/compute-build-metadata.mjs
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
         env:
           GITHUB_REF_NAME: main
           GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
@@ -92,10 +92,10 @@ jobs:
       - name: Smoke test staging
         env:
           SMOKE_TEST_GATE_BYPASS_KEY: ${{ secrets.GATE_BYPASS_KEY }}
-        run: cd web && node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
 
       - name: Deployment summary
-        run: cd web && node scripts/ci/write-deployment-summary.mjs
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Staging content deployed","rows":[

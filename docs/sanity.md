@@ -2,7 +2,7 @@
 
 Sanity is Gwenda's **editorial layer** — website data and copy that editors own, distinct from site code in git. The static site reads published documents at build time; **Deploy site** in Studio triggers a rebuild.
 
-Only part of gwenda.co.uk is CMS-backed today. Schema and queries grow as more content moves out of the repo (`studio/schemaTypes/`, `web/src/lib/sanity/`).
+Only part of gwenda.co.uk is CMS-backed today. Schema and queries grow as more content moves out of the repo (`marketing/studio/schemaTypes/`, `marketing/web/src/lib/sanity/`).
 
 Project `pn5yjro6` on [sanity.io/manage](https://www.sanity.io/manage).
 
@@ -18,7 +18,7 @@ Schema and query changes flow **main → staging (dev dataset) → release → l
 
 ## Workflow
 
-1. **Develop on `main`** — edit schema in `studio/`, seed/test content in the **development** dataset, push to `main`.
+1. **Develop on `main`** — edit schema in `marketing/studio/`, seed/test content in the **development** dataset, push to `main`.
 2. **CI on `main`** deploys:
    - **Staging site** — builds against **development** dataset (preview structural + content changes)
    - **Development Studio** — https://gwenda-dev.sanity.studio (edit dev content/schema in hosted UI)
@@ -34,47 +34,33 @@ Local `.env` always uses `SANITY_DATASET=development` — same sandbox as stagin
 
 ## Tokens
 
-Sanity allows **one role per token**. On standard plans the built-in roles are separate — no single role both reads documents and deploys Studio:
+Sanity **robot / API tokens** on this plan are **Viewer**, **Editor**, and **Deploy Studio**. There is no **Developer** robot role in the manage UI (Developer is a human user role on Growth+).
 
-| Built-in role | Read menu/content | Deploy Studio |
-|---|---|---|
-| **Viewer** | Yes | No |
-| **Deploy Studio** | No | Yes |
+**Keep-set (exactly three robots):**
 
-Use **two GitHub secrets** for CI (one Sanity role per token):
+| Label | Role | Where | Used for |
+|-------|------|-------|----------|
+| `ark-local-editor` | **Editor** | Bitwarden `ark/.env.local` + repo `.env` as `SANITY_API_TOKEN` | Local Studio, seeds. **Never** GitHub. |
+| `ark-ci-viewer` | **Viewer** | GitHub `SANITY_API_TOKEN` | Site builds / content deploys |
+| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub `SANITY_DEPLOY_TOKEN` | Hosted Studio deploys |
 
-| Secret | Role | Used by |
-|---|---|---|
-| `SANITY_API_TOKEN` | **Viewer** | Site builds (`verify`, `deploy-staging`, `deploy-production`, content deploys) |
-| `SANITY_DEPLOY_TOKEN` | **Deploy Studio** | `deploy-studio.yml` only |
-
-**Automated setup** (uses Developer token in `.env`, pushes secrets via `gh`):
+Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity login`), not the local Editor robot:
 
 ```bash
-npm run setup:ci-secrets
-```
-
-One-time GitHub login in the devcontainer (persisted via `.config/gh` mount on rebuild):
-
-```bash
+npx sanity login
 gh auth login -h github.com -p https -s repo,workflow
+export BW_SESSION=$(bw unlock --raw)   # optional vault sync
+npm run setup:sanity-tokens
 ```
 
-Manual alternative:
-
-```bash
-gh secret set SANITY_API_TOKEN      # Viewer
-gh secret set SANITY_DEPLOY_TOKEN   # Deploy Studio
-```
-
-Local dev keeps a **Developer** token in repo-root `.env` — never copy it to GitHub.
+`setup:ci-secrets` is a deprecated alias that only refreshes CI tokens + GitHub secrets.
 
 ### Local `.env`
 
 ```bash
 SANITY_PROJECT_ID=pn5yjro6
 SANITY_DATASET=development
-SANITY_API_TOKEN=sk...
+SANITY_API_TOKEN=sk...   # ark-local-editor (Editor robot)
 ```
 
 ## Studio env files
@@ -90,7 +76,7 @@ All local configuration lives in **repo-root `.env`**. `scripts/with-env.mjs` lo
 | `BASEROW_RSVP_GRID_URL` | `SANITY_STUDIO_BASEROW_RSVP_URL` |
 | `DEPLOY_WEBHOOK_SECRET` | `SANITY_STUDIO_SITE_DEPLOY_SECRET` |
 
-`studio/.env.development` and `studio/.env.production` are stubs only — do not put secrets there.
+`marketing/studio/.env.development` and `marketing/studio/.env.production` are stubs only — do not put secrets there.
 
 | Command | Dataset / hostname |
 |---------|-------------------|
@@ -107,7 +93,7 @@ npm run studio:dataset:create -- development --visibility private
 npx sanity login
 ```
 
-Copy env vars from `.env.example` into repo root `.env`.
+Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), or copy `.env.example` → `.env` and fill by hand. See [docs/env.md](env.md).
 
 ## Local commands
 
@@ -122,13 +108,13 @@ npm run studio:seed:production   # seed production menu (one-off, CONFIRM built 
 
 ## Schema + content
 
-Schema lives in git (`studio/schemaTypes/`). Queries in `web/src/lib/sanity/`. Content lives in Sanity datasets — development and production are independent until you copy or re-enter.
+Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in Sanity datasets — development and production are independent until you copy or re-enter.
 
 ### Menu seed
 
 ```bash
 npm run studio:seed:dev
-npm run studio:seed:production   # requires Developer/Editor token in .env
+npm run studio:seed:production   # requires Editor token in .env
 ```
 
 Idempotent — updates by slug/name.
@@ -138,7 +124,7 @@ Idempotent — updates by slug/name.
 | What | Promotes via |
 |------|----------------|
 | Schema + queries | git → main (staging/dev) → release (live/prod) |
-| Dev Studio deploy | push `studio/**` to `main` |
+| Dev Studio deploy | push `marketing/studio/**` to `main` |
 | Prod Studio deploy | `npm run studio:deploy` when schema ready |
 | Dev content | stays in `development` until copied to prod |
 | Prod content | editors publish in prod Studio |
@@ -176,7 +162,7 @@ Staging is one step. Production content uses the same preview → promote gate a
 Studio (browser) → gwenda-site-deploy-webhook (Worker) → GitHub Actions → Cloudflare Pages
 ```
 
-Worker: `utils/site-deploy-webhook/` validates a shared secret, then dispatches content deploy (and production promote) workflows.
+Worker: `marketing/site-deploy-webhook/` validates a shared secret, then dispatches content deploy (and production promote) workflows.
 
 | Endpoint | Role |
 |---|---|

@@ -1,0 +1,24 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import BackLink from "../components/BackLink.astro";
+import MenuDisplay from "../components/MenuDisplay.astro";
+import { siteConfig } from "../config/site";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const menu = await fetchMenu();
+const { title: pageTitle, description: pageDescription } = siteConfig.seo.menu;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <link rel="prefetch" href="/" slot="head" />
+
+  <main class="menu-page">
+    <div class="container menu-inner">
+      <BackLink href="/#menu" />
+
+      <h1 class="visually-hidden">{pageTitle}</h1>
+
+      <MenuDisplay menu={menu} showPrices />
+    </div>
+  </main>
+</BaseLayout>

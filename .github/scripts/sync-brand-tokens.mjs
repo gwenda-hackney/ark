@@ -1,5 +1,5 @@
 /**
- * Sync brand colour tokens from web/src/config/colors.json into brand/src/index.html.
+ * Sync brand colour tokens from marketing/web/src/config/colors.json into marketing/brand/src/index.html.
  *
  *   npm run sync:brand          — write changes
  *   npm run sync:brand -- --check — exit 1 if out of date (CI)
@@ -8,8 +8,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
-const colorsPath = resolve(root, "web/src/config/colors.json");
-const brandHtmlPath = resolve(root, "brand/src/index.html");
+const colorsPath = resolve(root, "marketing/web/src/config/colors.json");
+const brandHtmlPath = resolve(root, "marketing/brand/src/index.html");
 const checkOnly = process.argv.includes("--check");
 
 const colors = JSON.parse(readFileSync(colorsPath, "utf8"));
@@ -35,7 +35,7 @@ const rootBlock = /(:root\s*\{)([\s\S]*?)(\n\s*\})/m;
 
 const match = html.match(rootBlock);
 if (!match) {
-  console.error("Could not find :root { } block in brand/src/index.html");
+  console.error("Could not find :root { } block in marketing/brand/src/index.html");
   process.exit(1);
 }
 
@@ -59,7 +59,7 @@ const updated = html.replace(rootBlock, newBlock);
 
 if (updated === html) {
   if (checkOnly) {
-    console.log("brand/src/index.html colour tokens are up to date");
+    console.log("marketing/brand/src/index.html colour tokens are up to date");
   } else {
     console.log("No colour token changes needed");
   }
@@ -68,12 +68,12 @@ if (updated === html) {
 
 if (checkOnly) {
   console.error(
-    "brand/src/index.html is out of sync with web/src/config/colors.json — run: npm run sync:brand",
+    "marketing/brand/src/index.html is out of sync with marketing/web/src/config/colors.json — run: npm run sync:brand",
   );
   process.exit(1);
 }
 
 writeFileSync(brandHtmlPath, updated);
 console.log(
-  "Updated brand/src/index.html colour tokens from web/src/config/colors.json",
+  "Updated marketing/brand/src/index.html colour tokens from marketing/web/src/config/colors.json",
 );

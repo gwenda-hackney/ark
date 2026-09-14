@@ -3,7 +3,12 @@ name: Deploy ops tools
 on:
   push:
     paths:
-      - "ops/**"
+      - "ops/src/**"
+      - "ops/functions/**"
+      - "ops/scripts/**"
+      - "ops/package.json"
+      - "ops/wrangler.toml"
+      - "ops/README.md"
       - ".github/workflows/deploy-ops.yml"
       - ".github/scripts/cloudflare-pages-branch.mjs"
   workflow_dispatch:
@@ -47,6 +52,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Unit tests
+        run: npm test -w @gwenda/ops
+
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -59,7 +67,7 @@ jobs:
         run: |
           url="https://gwenda-ops.pages.dev/gate/"
           for i in $(seq 1 12); do
-            if curl -fsS "$url" | grep -q "Menu prices and stock"; then
+            if curl -fsS "$url" | grep -q "Enter our world"; then
               echo "OK $url"
               exit 0
             fi
@@ -70,7 +78,7 @@ jobs:
           exit 1
 
       - name: Deployment summary
-        run: node web/scripts/ci/write-deployment-summary.mjs
+        run: node marketing/web/scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Ops tools — production","rows":[
@@ -106,6 +114,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Unit tests
+        run: npm test -w @gwenda/ops
+
       - name: Resolve Pages preview branch
         id: branch
         run: |
@@ -140,7 +151,7 @@ jobs:
         run: |
           url="${{ steps.preview_url.outputs.url }}/gate/"
           for i in $(seq 1 12); do
-            if curl -fsS "$url" | grep -q "Menu prices and stock"; then
+            if curl -fsS "$url" | grep -q "Enter our world"; then
               echo "OK $url"
               exit 0
             fi
@@ -151,7 +162,7 @@ jobs:
           exit 1
 
       - name: Deployment summary
-        run: node web/scripts/ci/write-deployment-summary.mjs
+        run: node marketing/web/scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Ops tools — branch preview","rows":[

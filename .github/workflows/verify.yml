@@ -37,12 +37,12 @@ jobs:
 
       - name: Verify Sanity menu content in build output
         run: node scripts/ci/verify-sanity-build.mjs
-        working-directory: web
+        working-directory: marketing/web
 
       - name: Reject manual analytics beacon in build output
         run: |
-          if rg -q 'cloudflareinsights\.com' web/dist/; then
-            echo "web/dist/ contains manual Cloudflare Web Analytics embed — remove it from source"
+          if rg -q 'cloudflareinsights\.com' marketing/web/dist/; then
+            echo "marketing/web/dist/ contains manual Cloudflare Web Analytics embed — remove it from source"
             exit 1
           fi
 

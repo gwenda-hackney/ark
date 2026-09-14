@@ -1,0 +1,25 @@
+---
+import type { MenuSection } from "../types/menu";
+
+interface Props {
+  chapters: Pick<MenuSection, "id" | "title">[];
+}
+
+const { chapters } = Astro.props;
+---
+
+{
+  chapters.length >= 2 && (
+    <nav class="menu-toc" aria-label="Menu sections" data-menu-toc>
+      <ul class="menu-toc-list">
+        {chapters.map((chapter) => (
+          <li class="menu-toc-item">
+            <a class="menu-toc-link" href={`#${chapter.id}`}>
+              {chapter.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

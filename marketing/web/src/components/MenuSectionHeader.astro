@@ -1,0 +1,46 @@
+---
+import type { MenuSection } from "../types/menu";
+
+interface Props {
+  section: Pick<MenuSection, "id" | "title" | "subtitle">;
+  /** Chapter = main print section; subsection = Spritz / Amaro under a chapter. */
+  variant?: "chapter" | "subsection";
+}
+
+const { section, variant = "chapter" } = Astro.props;
+const HeadingTag = variant === "subsection" ? "h3" : "h2";
+
+/** Print menus break the chapter lead after the first sentence. */
+function subtitleLines(subtitle: string): string[] {
+  const match = subtitle.match(/^(.+?\.)\s+(.+)$/);
+  if (!match) return [subtitle];
+  return [match[1], match[2]];
+}
+
+const leadLines = section.subtitle ? subtitleLines(section.subtitle) : [];
+---
+
+<header class:list={["menu-section-header", `menu-section-header--${variant}`, "reveal"]}>
+  <HeadingTag
+    class:list={[
+      "menu-section-title",
+      variant === "subsection" && "menu-section-title--subsection",
+    ]}
+    id={`${section.id}-heading`}
+  >
+    {section.title}
+  </HeadingTag>
+  {
+    leadLines.length > 0 && (
+      <p class="section-lead menu-section-lead">
+        {leadLines[0]}
+        {leadLines.length > 1 && (
+          <>
+            <br />
+            {leadLines[1]}
+          </>
+        )}
+      </p>
+    )
+  }
+</header>

@@ -56,7 +56,7 @@ dist/          Build output (gitignored)
 
 - **Node 24 + npm 11** via Corepack (`packageManager` in `package.json`). Workflows run `corepack enable` before `npm ci`.
 - **Verify before deploy:** reusable workflow `verify.yml` (build → test). Called by both deploy workflows.
-- **Deploy logic:** `actions/deploy-pages/action.yml` + `web/scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
+- **Deploy logic:** `actions/deploy-pages/action.yml` + `marketing/web/scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Wrangler config:** `wrangler.toml` (gwenda — `[vars]` + `[env.preview.vars]`) and `wrangler.staging.toml` (gwenda-staging). Plain vars sync on deploy; secrets via `sync-pages-secrets.mjs`.
 - **Production promote:** preview job uploads `production-dist` artifact; promote workflow downloads it and deploys with `skip-build: true` to the `release` branch (production environment).
 - **Production custom domains:** `ensure-pages-domain.mjs` for `gwenda.co.uk` and `www.gwenda.co.uk` only (production deploy).
@@ -74,7 +74,7 @@ dist/          Build output (gitignored)
 
 ## Configuration
 
-- Local: copy `.env.example` → `.env`.
+- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`) or copy `.env.example` → `.env`. See [docs/env.md](../docs/env.md).
 - Staging gate: `SITE_PASSWORD` (GitHub secret + Cloudflare Pages secret).
 - Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY`. Table IDs: `BASEROW_STAGING_TABLE_ID` (dev + staging subscribe), `BASEROW_TABLE_ID` (production subscribe). Event invites table resolved by name (`Event Invites`).
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
@@ -99,4 +99,5 @@ npm run ensure:domain    # Attach custom domain + DNS (CUSTOM_DOMAIN, ZONE_NAME)
 ## Related docs
 
 - [README.md](../README.md) — full setup, branch flow, rollback
+- [docs/env.md](../docs/env.md) — Bitwarden → local `.env`
 - [.env.example](../.env.example) — local env reference

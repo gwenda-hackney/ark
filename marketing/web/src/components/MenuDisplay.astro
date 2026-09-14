@@ -1,0 +1,74 @@
+---
+import type { Menu } from "../types/menu";
+import { getAvailableItems } from "../data/menu";
+import MenuSection from "./MenuSection.astro";
+import MenuSectionHeader from "./MenuSectionHeader.astro";
+import MenuToc from "./MenuToc.astro";
+
+interface Props {
+  menu: Menu;
+  showPrices?: boolean;
+}
+
+const { menu, showPrices = true } = Astro.props;
+
+function chapterHasContent(section: (typeof menu.sections)[number]): boolean {
+  if (getAvailableItems(section).length > 0) return true;
+  return (section.subsections ?? []).some(
+    (sub) => getAvailableItems(sub).length > 0,
+  );
+}
+
+const chapters = menu.sections.filter(chapterHasContent);
+---
+
+{
+  chapters.length > 0 ? (
+    <div class="menu-display">
+      <MenuToc chapters={chapters} />
+      {chapters.map((chapter) => {
+        const subsections = (chapter.subsections ?? []).filter(
+          (sub) => getAvailableItems(sub).length > 0,
+        );
+        const hasDirectItems = getAvailableItems(chapter).length > 0;
+
+        if (subsections.length === 0) {
+          return (
+            <MenuSection
+              section={chapter}
+              showPrices={showPrices}
+              variant="chapter"
+            />
+          );
+        }
+
+        return (
+          <section class="menu-chapter reveal" id={chapter.id}>
+            <MenuSectionHeader section={chapter} variant="chapter" />
+            {hasDirectItems && (
+              <MenuSection
+                section={chapter}
+                showPrices={showPrices}
+                showHeader={false}
+                omitId
+                variant="chapter"
+              />
+            )}
+            {subsections.map((sub) => (
+              <MenuSection
+                section={sub}
+                showPrices={showPrices}
+                variant="subsection"
+              />
+            ))}
+          </section>
+        );
+      })}
+      <p class="menu-disclaimer reveal">
+        *Spirits available in 25ml / 35ml measures. Please ask your server.
+      </p>
+    </div>
+  ) : (
+    <p class="menu-empty reveal">The menu is being prepared. Check back soon.</p>
+  )
+}

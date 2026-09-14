@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const WORKER_DIR = resolve(ROOT, "utils/wifi-captive-portal");
+const WORKER_DIR = resolve(ROOT, "marketing/wifi-captive-portal");
 const ENV_PATH = resolve(ROOT, ".env");
 const WRANGLER_PATH = resolve(WORKER_DIR, "wrangler.toml");
 
