@@ -6,6 +6,7 @@
  *   ark-local-editor      Editor        → Bitwarden ark/.env.local + repo .env
  *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN (+ BW staging/prod)
  *   ark-ci-deploy-studio  Deploy Studio → GitHub SANITY_DEPLOY_TOKEN (+ BW staging/prod)
+ *   ark-ci-dataset-sync   Editor        → GitHub SANITY_DATASET_SYNC_TOKEN (dataset mirror)
  *
  * Admin auth (mint/revoke): personal Sanity CLI session (`npx sanity login`),
  * or SANITY_AUTH_TOKEN env. Do not store the personal token in Bitwarden.
@@ -57,6 +58,12 @@ const KEEP = {
     roleName: "deploy-studio",
     ghSecret: "SANITY_DEPLOY_TOKEN",
     envKey: "SANITY_DEPLOY_TOKEN",
+  },
+  ciDatasetSync: {
+    label: "ark-ci-dataset-sync",
+    roleName: "editor",
+    ghSecret: "SANITY_DATASET_SYNC_TOKEN",
+    envKey: "SANITY_DATASET_SYNC_TOKEN",
   },
 };
 
@@ -324,10 +331,13 @@ Requires: npx sanity login (project Administrator).`);
           "  npm run setup:sanity-tokens -- --skip-bitwarden",
       );
     } else if (opts.dryRun) {
-      console.log("Would set GitHub secrets SANITY_API_TOKEN and SANITY_DEPLOY_TOKEN.");
+      console.log(
+        "Would set GitHub secrets SANITY_API_TOKEN, SANITY_DEPLOY_TOKEN, SANITY_DATASET_SYNC_TOKEN.",
+      );
     } else {
       setGhSecret(KEEP.ciViewer.ghSecret, keys[KEEP.ciViewer.label]);
       setGhSecret(KEEP.ciDeploy.ghSecret, keys[KEEP.ciDeploy.label]);
+      setGhSecret(KEEP.ciDatasetSync.ghSecret, keys[KEEP.ciDatasetSync.label]);
     }
   }
 
@@ -347,6 +357,7 @@ Requires: npx sanity login (project Administrator).`);
         SANITY_PROJECT_ID: projectId,
         SANITY_API_TOKEN: keys[KEEP.ciViewer.label],
         SANITY_DEPLOY_TOKEN: keys[KEEP.ciDeploy.label],
+        SANITY_DATASET_SYNC_TOKEN: keys[KEEP.ciDatasetSync.label],
       };
 
       upsertBitwardenNote(
