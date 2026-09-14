@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Copy a stock HTML working copy from nest work/ into ops/src/stock for publish.
+ * Copy a stock HTML working copy from nest work/ into ops/site/src/stock for publish.
  * Expected path while editing: work/master-stock-pricing.html
  */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const opsRoot = resolve(here, "..");
-const workspaceRoot = resolve(opsRoot, "../..");
+const workspaceRoot = resolve(opsRoot, "../../..");
 const source = resolve(
   workspaceRoot,
   "work/master-stock-pricing.html",

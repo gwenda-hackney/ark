@@ -16,7 +16,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = join(root, ".env");
 
 function setEnvIfMissing(key, value) {
-  if (value !== undefined && value !== "" && process.env[key] === undefined) {
+  // Treat empty string as unset so a blank shell export does not block .env.
+  if (value !== undefined && value !== "" && !process.env[key]) {
     process.env[key] = value;
   }
 }

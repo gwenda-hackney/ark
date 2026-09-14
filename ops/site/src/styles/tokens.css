@@ -1,0 +1,94 @@
+/*
+  Ops design tokens — trading shell semantics, Gwenda palette.
+
+  Components and pages read these names only. Colours are Gwenda hex
+  (docs/colors.md); radii / density / motion follow trading shell.web.
+*/
+
+:root {
+  /* ─── Radii ──────────────────────────────────────────────────────────── */
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-pill: 999px;
+  --radius: var(--radius-md);
+
+  /* ─── Layout rhythm ──────────────────────────────────────────────────── */
+  --page-gutter: 1.5rem;
+  --card-pad: 1.25rem;
+  --card-pad-lg: 1.5rem;
+  --gap-xs: 0.375rem;
+  --gap-sm: 0.625rem;
+  --gap: 1rem;
+  --gap-lg: 1.5rem;
+
+  /* ─── Controls ───────────────────────────────────────────────────────── */
+  --control-h: 2.5rem;
+  --control-h-sm: 2.125rem;
+  --control-h-xs: 1.75rem;
+
+  /* ─── Motion ─────────────────────────────────────────────────────────── */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast: 120ms;
+  --t: 200ms;
+  --t-slow: 320ms;
+
+  /* ─── Type ───────────────────────────────────────────────────────────── */
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font: "Lora", Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ─── Gwenda dark palette (semantic) ─────────────────────────────────── */
+  color-scheme: dark;
+
+  --background: #0d0d0d;
+  --foreground: #e8e4dc;
+
+  --card: #1a1a1a;
+  --card-foreground: var(--foreground);
+
+  --sunken: #141414;
+
+  --muted: #151414;
+  --muted-foreground: #8a8680;
+  --subtle-foreground: color-mix(in srgb, var(--muted-foreground) 75%, transparent);
+
+  --accent: color-mix(in srgb, #c9a84c 8%, #141414);
+  --accent-foreground: #e8e4dc;
+
+  --border: color-mix(in srgb, #c9a84c 12%, transparent);
+  --border-strong: color-mix(in srgb, #c9a84c 28%, transparent);
+  --input: var(--border);
+
+  --primary: #c9a84c;
+  --primary-hover: color-mix(in srgb, #c9a84c 88%, #e8e4dc);
+  --primary-foreground: #0d0d0d;
+  --primary-wash: color-mix(in srgb, #c9a84c 14%, transparent);
+  --primary-wash-strong: color-mix(in srgb, #c9a84c 22%, transparent);
+
+  --ring: #c9a84c;
+  --ring-wash: color-mix(in srgb, #c9a84c 22%, transparent);
+
+  --up: #6b9b78;
+  --down: #c97a7a;
+  --success: var(--up);
+  --warning: #c9a84c;
+  --destructive: #c97a7a;
+  --destructive-hover: color-mix(in srgb, #c97a7a 85%, #e8e4dc);
+  --destructive-foreground: #0d0d0d;
+  --destructive-wash: color-mix(in srgb, #c97a7a 14%, transparent);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-primary: 0 0 0 1px color-mix(in srgb, #c9a84c 40%, transparent),
+    0 4px 18px color-mix(in srgb, #c9a84c 18%, transparent);
+
+  /* Spec book / print canvas */
+  --book-bg: #23211b;
+  --book-ink: #e8e4dc;
+  --book-muted: #8a8680;
+}

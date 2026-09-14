@@ -9,7 +9,8 @@
     "marketing/site-deploy-webhook",
     "marketing/subscribe-mailchimp-sync",
     "marketing/wifi-captive-portal",
-    "ops",
+    "ops/site",
+    "ops/site/menu-app",
     "ops/recipe-cost-webhook",
     "ops/event-invites"
   ],

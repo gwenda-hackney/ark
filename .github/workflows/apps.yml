@@ -5,11 +5,8 @@ on:
     paths:
       - "marketing/brand/**"
       - "marketing/web/src/config/colors.json"
-      - "ops/src/**"
-      - "ops/functions/**"
-      - "ops/scripts/**"
-      - "ops/package.json"
-      - "ops/wrangler.toml"
+      - "ops/site/**"
+      - "ops/site/menu-app/**"
       - "ops/README.md"
       - ".github/workflows/apps.yml"
       - ".github/scripts/sync-brand-tokens.mjs"
@@ -54,11 +51,8 @@ jobs:
               - '.github/scripts/sync-brand-tokens.mjs'
               - '.github/workflows/apps.yml'
             ops:
-              - 'ops/src/**'
-              - 'ops/functions/**'
-              - 'ops/scripts/**'
-              - 'ops/package.json'
-              - 'ops/wrangler.toml'
+              - 'ops/site/**'
+              - 'ops/site/menu-app/**'
               - 'ops/README.md'
               - '.github/workflows/apps.yml'
       - id: set
@@ -270,13 +264,16 @@ jobs:
       - name: Unit tests
         run: npm test -w @gwenda/ops
 
+      - name: Build menu SPA
+        run: npm run build -w @gwenda/ops
+
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true
-          workingDirectory: ops
+          workingDirectory: ops/site
 
       - name: Smoke test production gate
         run: |
@@ -335,6 +332,9 @@ jobs:
       - name: Unit tests
         run: npm test -w @gwenda/ops
 
+      - name: Build menu SPA
+        run: npm run build -w @gwenda/ops
+
       - name: Resolve Pages preview branch
         id: branch
         run: |
@@ -351,7 +351,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-ops --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
-          workingDirectory: ops
+          workingDirectory: ops/site
 
       - name: Resolve preview URL
         id: preview_url
