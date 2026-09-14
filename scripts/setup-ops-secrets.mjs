@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(scriptDir, "..");
-const opsDir = join(rootDir, "ops");
+const opsDir = join(rootDir, "ops/site");
 
 function findWrangler() {
   for (const base of [opsDir, rootDir]) {

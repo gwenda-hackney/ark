@@ -7,6 +7,8 @@ node_modules/
 .dev.vars
 marketing/**/.dev.vars
 ops/**/.dev.vars
+ops/site/src/menu/
+ops/site/menu-app/node_modules/
 .astro/
 /src/env.d.ts
 ops/**/.venv/
