@@ -6,37 +6,69 @@ import MenuSectionHeader from "./MenuSectionHeader.astro";
 interface Props {
   section: MenuSection;
   showPrices?: boolean;
+  /** Omit chapter/subsection title when the parent already rendered it. */
+  showHeader?: boolean;
+  /** Skip id when a parent chapter wrapper already owns the anchor. */
+  omitId?: boolean;
+  variant?: "chapter" | "subsection";
 }
 
-const { section, showPrices = true } = Astro.props;
+const {
+  section,
+  showPrices = true,
+  showHeader = true,
+  omitId = false,
+  variant = "chapter",
+} = Astro.props;
 const items = getAvailableItems(section);
 ---
 
 {
   items.length > 0 && (
-    <section class="menu-section reveal" id={section.id} aria-labelledby={`${section.id}-heading`}>
-      <MenuSectionHeader section={section} />
+    <section
+      class:list={["menu-section", variant === "subsection" && "menu-section--subsection"]}
+      id={omitId ? undefined : section.id}
+      aria-labelledby={showHeader ? `${section.id}-heading` : undefined}
+    >
+      {showHeader && <MenuSectionHeader section={section} variant={variant} />}
 
       <ul class="menu-list">
-        {items.map((item) => (
-          <li class="menu-item">
-            <div class="menu-item-row">
-              <h3 class="menu-item-name">{item.name}</h3>
-              {showPrices && item.price ? (
-                <>
-                  <span class="menu-item-leader" aria-hidden="true" />
-                  <span class="menu-item-price">{item.price}</span>
-                </>
-              ) : (
-                <span class="menu-item-leader menu-item-leader--full" aria-hidden="true" />
+        {items.map((item) => {
+          const hasDetail = Boolean(
+            item.description ||
+              item.notes ||
+              item.abv ||
+              item.volume ||
+              item.producer,
+          );
+          return (
+            <li class:list={["menu-item", { "menu-item--compact": !hasDetail }]}>
+              <div class="menu-item-row">
+                <h3 class="menu-item-name">{item.name}</h3>
+                {showPrices && item.price ? (
+                  <>
+                    <span class="menu-item-leader" aria-hidden="true" />
+                    <span class="menu-item-price">{item.price}</span>
+                  </>
+                ) : (
+                  <span
+                    class="menu-item-leader menu-item-leader--full"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
+              {item.description && (
+                <p class="menu-item-description">{item.description}</p>
               )}
-            </div>
-            {item.description && (
-              <p class="menu-item-description">{item.description}</p>
-            )}
-            {item.notes && <p class="menu-item-notes">{item.notes}</p>}
-          </li>
-        ))}
+              {(item.abv || item.volume || item.producer) && (
+                <p class="menu-item-description">
+                  {[item.abv, item.volume, item.producer].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              {item.notes && <p class="menu-item-notes">{item.notes}</p>}
+            </li>
+          );
+        })}
       </ul>
     </section>
   )

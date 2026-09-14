@@ -9,6 +9,7 @@ type SanityMenuSection = {
   id: string | null;
   title: string;
   subtitle?: string | null;
+  parentId?: string | null;
   items: Array<{
     id: string | null;
     name: string;
@@ -16,6 +17,9 @@ type SanityMenuSection = {
     price?: string | null;
     signature?: boolean | null;
     notes?: string | null;
+    abv?: string | null;
+    volume?: string | null;
+    producer?: string | null;
     image?: SanityImageField;
   }>;
 };
@@ -32,11 +36,14 @@ function mapMenuItem(doc: SanityMenuSection["items"][number]): MenuItem | null {
     price: doc.price?.trim() || undefined,
     signature: doc.signature === true,
     notes: doc.notes?.trim() || undefined,
+    abv: doc.abv?.trim() || undefined,
+    volume: doc.volume?.trim() || undefined,
+    producer: doc.producer?.trim() || undefined,
     image: mapSanityImage(doc.image, doc.name),
   };
 }
 
-function mapMenuSection(doc: SanityMenuSection): MenuSection | null {
+function mapFlatSection(doc: SanityMenuSection): (MenuSection & { parentId?: string }) | null {
   if (!doc.id || !doc.title) {
     return null;
   }
@@ -50,7 +57,31 @@ function mapMenuSection(doc: SanityMenuSection): MenuSection | null {
     title: doc.title,
     subtitle: doc.subtitle?.trim() || undefined,
     items,
+    parentId: doc.parentId?.trim() || undefined,
   };
+}
+
+/** Nest subsections under parent chapters (print menu hierarchy). */
+export function nestMenuSections(
+  flat: Array<MenuSection & { parentId?: string }>,
+): MenuSection[] {
+  const childrenByParent = new Map<string, MenuSection[]>();
+
+  for (const section of flat) {
+    if (!section.parentId) continue;
+    const list = childrenByParent.get(section.parentId) ?? [];
+    const { parentId: _parentId, ...child } = section;
+    list.push(child);
+    childrenByParent.set(section.parentId, list);
+  }
+
+  return flat
+    .filter((section) => !section.parentId)
+    .map((section) => {
+      const { parentId: _parentId, ...chapter } = section;
+      const subsections = childrenByParent.get(section.id);
+      return subsections?.length ? { ...chapter, subsections } : chapter;
+    });
 }
 
 function assertMenuContent(sections: MenuSection[]) {
@@ -69,10 +100,11 @@ export async function fetchMenu(): Promise<Menu> {
   const client = createSanityClient();
   const docs = await client.fetch<SanityMenuSection[]>(MENU_QUERY);
 
-  const sections = docs
-    .map(mapMenuSection)
-    .filter((section): section is MenuSection => section !== null);
+  const flat = docs
+    .map(mapFlatSection)
+    .filter((section): section is MenuSection & { parentId?: string } => section !== null);
 
+  const sections = nestMenuSections(flat);
   assertMenuContent(sections);
 
   return { sections };

@@ -51,6 +51,7 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
   "id": slug.current,
   title,
   subtitle,
+  "parentId": parent->slug.current,
   "items": *[_type == "menuItem" && references(^._id)] | order(orderRank asc) {
     "id": _id,
     name,
@@ -58,6 +59,9 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
     price,
     signature,
     notes,
+    abv,
+    volume,
+    producer,
     image {
       alt,
       crop,

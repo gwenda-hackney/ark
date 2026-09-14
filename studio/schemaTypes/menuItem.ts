@@ -63,6 +63,24 @@ export const menuItem = defineType({
       description: "Show in the homepage image gallery (requires a photo).",
       initialValue: false,
     }),
+    defineField({
+      name: "abv",
+      title: "ABV",
+      type: "string",
+      description: "Optional. For beer/wine e.g. 4.8% or 0.0%.",
+    }),
+    defineField({
+      name: "volume",
+      title: "Volume",
+      type: "string",
+      description: "Optional serve size e.g. 33cl.",
+    }),
+    defineField({
+      name: "producer",
+      title: "Producer / brand",
+      type: "string",
+      description: "Optional. Brewery or house for bottled drinks.",
+    }),
   ],
   preview: {
     select: {
@@ -72,12 +90,15 @@ export const menuItem = defineType({
       media: "image",
       signature: "signature",
       notes: "notes",
+      abv: "abv",
     },
-    prepare({ title, subtitle, price, media, signature, notes }) {
+    prepare({ title, subtitle, price, media, signature, notes, abv }) {
       const prefix = signature ? "★ " : "";
       return {
         title: `${prefix}${title}`,
-        subtitle: [notes, subtitle, price ? `£${price}` : null].filter(Boolean).join(" · "),
+        subtitle: [notes, abv, subtitle, price ? `£${price}` : null]
+          .filter(Boolean)
+          .join(" · "),
         media,
       };
     },

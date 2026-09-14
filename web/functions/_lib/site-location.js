@@ -1,12 +1,12 @@
 /** Venue and maps URLs shared by RSVP emails and tickets. Keep in sync with web/src/config/site.ts */
 
-const { latitude, longitude } = {
+export const VENUE_GEO = {
   latitude: 51.541812,
   longitude: -0.022465,
 };
 
-/** Named pin for Gwenda at Schwartz Wharf (geo from site config). */
-export const VENUE_MAPS_URL = `https://www.google.com/maps/search/Gwenda/@${latitude},${longitude},17z`;
+/** Named pin for Gwenda at Schwartz Wharf. Keep in sync with web/src/config/site.ts `location.mapsUrl`. */
+export const VENUE_MAPS_URL = "https://maps.app.goo.gl/HDUpp4fGpFzJo3Me6";
 
 export const DEFAULT_VENUE = "Schwartz Wharf, Hackney Wick, London E9 5AA";
 
