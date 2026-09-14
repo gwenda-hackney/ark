@@ -25,7 +25,7 @@ Document types in `studio/schemaTypes/` — queries live in `web/src/lib/sanity/
 
 | Type | Purpose |
 |------|---------|
-| `menuSection` | Menu grouping (title, slug, sort order) |
+| `menuSection` | Menu grouping (title, slug, parent chapter, sort order) |
 | `menuItem` | Cocktail / drink entry |
 | `event` | Special events listing |
 

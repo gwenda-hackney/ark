@@ -16,10 +16,7 @@ const { title: pageTitle, description: pageDescription } = siteConfig.seo.menu;
     <div class="container menu-inner">
       <BackLink fallback="/#menu" />
 
-      <header class="menu-page-header section-intro reveal">
-        <p class="section-eyebrow menu-page-eyebrow">The Menu</p>
-        <h1 class="visually-hidden">{pageTitle}</h1>
-      </header>
+      <h1 class="visually-hidden">{pageTitle}</h1>
 
       <MenuDisplay menu={menu} showPrices />
     </div>

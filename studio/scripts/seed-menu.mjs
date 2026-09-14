@@ -1,9 +1,12 @@
 /**
- * Seed menu sections and cocktail items into a Sanity dataset.
+ * Seed menu sections and items into a Sanity dataset (print menu structure).
  *
  * Usage (from repo root):
  *   npm run studio:seed:dev
  *   CONFIRM_PRODUCTION_SEED=1 npm run studio:seed:production
+ *
+ * Unbranded spirits use generic names (vodka, gin, mezcal…) — never "XXXX".
+ * Bottled Beer section is created empty until products are confirmed.
  */
 import { createClient } from "@sanity/client";
 import { LexoRank } from "lexorank";
@@ -27,7 +30,7 @@ if (dataset === "production" && process.env.CONFIRM_PRODUCTION_SEED !== "1") {
 }
 
 if (!token) {
-  console.error("SANITY_API_TOKEN is required (Developer or Editor token with write access).");
+  console.error("SANITY_API_TOKEN is required (Editor token with write access).");
   process.exit(1);
 }
 
@@ -83,33 +86,25 @@ function allocateOrderRanks(count) {
   return ranks;
 }
 
-const SIGNATURE_COCKTAILS = [
+// ── Our Formulas (house creations) ──────────────────────────────────────────
+
+const OUR_FORMULAS = [
   {
     name: "Gwenda",
     imageFile: "cocktail1.png",
     ...galleryCrop({ position: "bottom-right" }),
     description:
       process.env.GWENDA_INGREDIENTS?.trim() ||
-      "Gin | Prosecco | Italicus | Elderflower | Lime",
-    notes: "Sweet & Citrusy",
-    price: "15",
+      "Bombay gin, Italicus, elderflower liqueur, lime, soda, basil",
+    notes: "Floral fizz",
+    price: "13",
+    signature: true,
   },
   {
-    name: "Kraken",
-    imageFile: "cocktail2.png",
-    ...galleryCrop({ position: "bottom-center" }),
-    description:
-      "Dark Rum | Coffee Liqueur | Cocoa Bitters | Maple Syrup | Oak Smoke",
-    notes: "Dark & Decadent",
-    price: "12",
-  },
-  {
-    name: "Maestrale",
-    imageFile: "cocktail3.png",
-    ...galleryCrop({ position: "bottom-left" }),
-    description: "Tequila | Lime | Grapefruit | Agave | Sea Salt",
-    notes: "Crisp & Zesty",
-    price: "10",
+    name: "The Wick",
+    description: "Vodka, coconut water, blue curaçao, lime, soda",
+    notes: "Cool coconut",
+    price: "11",
   },
   {
     name: "Ponente",
@@ -119,114 +114,206 @@ const SIGNATURE_COCKTAILS = [
       crop: { top: 0.24, left: 0.34, bottom: 0.04, right: 0.04 },
       hotspot: { x: 0.76, y: 0.62, width: 0.36, height: 0.58 },
     }),
-    description: "Campari Rosso | Italicus | Prosecco | Peach Soda",
-    notes: "Herbal & Lively",
-    price: "15",
-  },
-];
-
-const ITALIAN_SPRITZERS = [
-  {
-    name: "Aperol Spritz",
-    description: "Aperol | Prosecco | Soda | Orange",
-    notes: "Bright & Citrusy",
+    description: "Campari, gin, Amaro Montenegro, cherry, lemon",
+    notes: "Bitter lemon",
     price: "12",
-  },
-  {
-    name: "Campari Spritz",
-    description: "Campari | Prosecco | Soda | Orange",
-    notes: "Herbal & Vibrant",
-    price: "12",
-  },
-  {
-    name: "Hugo Spritz",
-    description: "St-Germain | Prosecco | Soda | Lime",
-    notes: "Floral & Refreshing",
-    price: "12",
-  },
-  {
-    name: "Limoncello Spritz",
-    description: "Limoncello | Prosecco | Soda | Lemon",
-    notes: "Zesty & Sweet",
-    price: "12",
-  },
-];
-
-const CLASSIC_COCKTAILS = [
-  {
-    name: "Margarita",
-    description: "Tequila | Triple Sec | Lime | Sugar | Salt",
-    notes: "Zesty & Salty",
-    price: "12",
-  },
-  {
-    name: "Whiskey Sour",
-    description: "Whiskey | Lemon | Sugar | Aquafaba | Angostura Bitters",
-    notes: "Rich & Citrusy",
-    price: "12",
-  },
-  {
-    name: "East 8 Hold Up",
-    description:
-      "Vodka | Aperol | Prosecco | Pineapple | Passion Fruit Syrup | Sugar",
-    notes: "Tropical & Tangy",
-    price: "12",
-  },
-  {
-    name: "Negroni",
-    description: "Gin | Campari | Sweet Vermouth | Orange",
-    notes: "Complex & Herby",
-    price: "11",
-  },
-  {
-    name: "Smoky Negroni",
-    description: "Mezcal | Campari | Sweet Vermouth | Orange",
-    notes: "Smoky & Velvety",
-    price: "12",
-  },
-  {
-    name: "Bellini",
-    description: "Prosecco | Peach Puree",
-    notes: "Fresh & Elegant",
-    price: "10",
-  },
-  {
-    name: "Americano",
-    description: "Campari | Sweet Vermouth | Soda",
-    notes: "Herbal & Refreshing",
-    price: "10",
-  },
-  {
-    name: "Imperial Buck",
-    description: "Dark Rum | Pineapple | Lime | Ginger Syrup",
-    notes: "Spicy & Refreshing",
-    price: "12",
-  },
-];
-
-const MENU_SECTIONS = [
-  {
-    title: "Signature Cocktails",
-    slug: "signature-cocktails",
-    subtitle: "Original creations, crafted with passion and precision.",
-    items: SIGNATURE_COCKTAILS,
     signature: true,
   },
   {
-    title: "Italian Spritzers",
-    slug: "italian-spritzers",
-    subtitle: "Iconic aperitifs, inspired by Italian tradition.",
-    items: ITALIAN_SPRITZERS,
-    signature: false,
+    name: "Tramontana",
+    description: "Grey Goose, Carta dry vermouth, cherry, saline, lemon",
+    notes: "Salty cherry",
+    price: "11",
   },
   {
-    title: "Classic Cocktails",
-    slug: "classic-cocktails",
-    subtitle: "Timeless classics, for every taste and occasion.",
-    items: CLASSIC_COCKTAILS,
-    signature: false,
+    name: "Maestrale",
+    imageFile: "cocktail3.png",
+    ...galleryCrop({ position: "bottom-left" }),
+    description: "Blanco tequila, grapefruit, lime, agave, sea salt",
+    notes: "Salted grapefruit",
+    price: "11",
+    signature: true,
+  },
+  {
+    name: "Aurelia",
+    description: "Hendrick's gin, cucumber, pineapple, lemon, sugar syrup",
+    notes: "Cucumber and pineapple",
+    price: "11",
+  },
+  {
+    name: "Paradise Lost",
+    description: "Mezcal, passion fruit, lime, agave",
+    notes: "Smoky passion fruit",
+    price: "11",
+  },
+  {
+    name: "Barbarossa",
+    description: "Mezcal, strawberry syrup, chilli, lime, red wine",
+    notes: "Smoke, strawberry, chilli",
+    price: "11",
+  },
+  {
+    name: "Ambra",
+    description:
+      "Vecchia Romagna cognac, banana syrup, tonka syrup, lemon, orange bitters",
+    notes: "Banana and tonka",
+    price: "12",
+  },
+  {
+    name: "Scirocco",
+    description: "Maker's Mark bourbon, fig syrup, cinnamon, orange bitters",
+    notes: "Fig and cinnamon",
+    price: "11",
+  },
+  {
+    name: "Kraken",
+    imageFile: "cocktail2.png",
+    ...galleryCrop({ position: "bottom-center" }),
+    description: "Appleton Estate rum, Borghetti, maple syrup, Angostura",
+    notes: "Coffee and maple",
+    price: "11",
+    signature: true,
   },
 ];
+
+// ── Free of Spirit ──────────────────────────────────────────────────────────
+
+const FREE_OF_SPIRIT = [
+  {
+    name: "Apple Mint Fizz",
+    description: "Apple juice, mint syrup, lemon, soda",
+    price: "7",
+  },
+  {
+    name: "Tropical Punch",
+    description: "Pineapple juice, orange juice, lemon, soda",
+    price: "7",
+  },
+  {
+    name: "Virgin Sunrise",
+    description: "Orange juice, grenadine, lemon",
+    price: "7",
+  },
+  {
+    name: "Pomegranate Sparkler",
+    description: "Pomegranate juice, lemon, sugar syrup, soda",
+    price: "7",
+  },
+];
+
+// ── By the Book ─────────────────────────────────────────────────────────────
+
+const SPRITZ = [
+  { name: "Aperol Spritz", price: "9" },
+  { name: "Hugo Spritz", price: "9" },
+  { name: "Limoncello Spritz", price: "9" },
+  { name: "Spinello Spritz", price: "9" },
+];
+
+const NEGRONI = [
+  { name: "Negroni", price: "10" },
+  { name: "Mezcal Negroni", price: "10" },
+  { name: "Negroni Sbagliato", price: "10" },
+  { name: "Boulevardier", price: "10" },
+];
+
+const SOUR = [
+  { name: "Whiskey Sour", price: "10" },
+  { name: "Amaretto Sour", price: "9" },
+  { name: "Margarita", price: "9" },
+  { name: "Spicy Margarita", price: "9" },
+];
+
+const HIGHBALL = [
+  { name: "Moscow Mule", price: "10" },
+  { name: "Gin and Tonic", price: "8" },
+  { name: "Rum and Coke", price: "8" },
+  { name: "Vodka Red Bull", price: "8" },
+  { name: "Vodka Lemon", price: "8" },
+];
+
+// Classics: name + price only for now. Optional description/notes still supported in schema.
+// Bottled beer products intentionally empty until confirmed.
+const BOTTLED_BEER = [];
+
+// ── The Cabinet ─────────────────────────────────────────────────────────────
+
+const AMARO = [
+  { name: "Amaro Montenegro", price: "6" },
+  { name: "Vecchio Amaro Del Capo", price: "5" },
+  { name: "Amaro Lucano", price: "5" },
+];
+
+const WHISKEY = [
+  { name: "Jameson", price: "5" },
+];
+
+const GRAPPA = [
+  { name: "Grappa", price: "5" },
+  { name: "Grappa Barricata 1903 Mezzaluna", price: "6" },
+  { name: "Grappa Diciotto Lune", price: "7" },
+  { name: "Grappa Nardini Bianca", price: "6" },
+];
+
+const LIQUEURS = [
+  { name: "Sambuca Molinari", price: "5" },
+  { name: "Mirto Rosso", price: "5" },
+];
+
+const MENU_CHAPTERS = [
+  {
+    title: "Our Formulas",
+    slug: "our-formulas",
+    subtitle:
+      "The definitive liquid experience. Elegant expressions crafted for candlelit evenings.",
+    items: OUR_FORMULAS,
+  },
+  {
+    title: "Free of Spirit",
+    slug: "free-of-spirit",
+    subtitle:
+      "The mindful liquid experience. Zero-proof expressions crafted with the same complexity.",
+    items: FREE_OF_SPIRIT,
+  },
+  {
+    title: "By the Book",
+    slug: "by-the-book",
+    subtitle: "The traditional liquid ritual. Timeless serves, made as you know them.",
+    items: [],
+    subsections: [
+      { title: "Spritz", slug: "spritz", items: SPRITZ },
+      { title: "Negroni", slug: "negroni", items: NEGRONI },
+      { title: "Sour", slug: "sour", items: SOUR },
+      { title: "Highball", slug: "highball", items: HIGHBALL },
+      {
+        title: "Bottled Beer",
+        slug: "bottled-beer",
+        items: BOTTLED_BEER,
+      },
+    ],
+  },
+  {
+    title: "The Cabinet",
+    slug: "the-cabinet",
+    subtitle: "The liquid cabinet. Amaro, grappa, and whiskey for the quieter close.",
+    items: [],
+    subsections: [
+      { title: "Amaro", slug: "amaro", items: AMARO },
+      { title: "Whiskey", slug: "whiskey", items: WHISKEY },
+      { title: "Grappa", slug: "grappa", items: GRAPPA },
+      { title: "Liqueurs", slug: "liqueurs", items: LIQUEURS },
+    ],
+  },
+];
+
+/** Flat list for seeding + obsolete cleanup (chapters then subsections). */
+const MENU_SECTIONS = MENU_CHAPTERS.flatMap((chapter) => [
+  chapter,
+  ...(chapter.subsections ?? []).map((sub) => ({
+    ...sub,
+    parentSlug: chapter.slug,
+  })),
+]);
 
 const SEEDED_SECTION_SLUGS = new Set(MENU_SECTIONS.map((section) => section.slug));
 
@@ -253,7 +340,7 @@ function imageField(assetId, alt, { crop, hotspot } = {}) {
   };
 }
 
-async function ensureSection({ title, slug, subtitle, orderRank }) {
+async function ensureSection({ title, slug, subtitle, orderRank, parentId }) {
   const existingId = await client.fetch(
     `*[_type == "menuSection" && slug.current == $slug][0]._id`,
     { slug },
@@ -264,10 +351,17 @@ async function ensureSection({ title, slug, subtitle, orderRank }) {
     orderRank,
     slug: { _type: "slug", current: slug },
     ...(subtitle ? { subtitle } : {}),
+    ...(parentId
+      ? { parent: { _type: "reference", _ref: parentId } }
+      : {}),
   };
 
+  const unsetFields = ["sortOrder"];
+  if (!subtitle) unsetFields.push("subtitle");
+  if (!parentId) unsetFields.push("parent");
+
   if (existingId) {
-    await client.patch(existingId).set(fields).unset(["sortOrder"]).commit();
+    await client.patch(existingId).set(fields).unset(unsetFields).commit();
     return existingId;
   }
 
@@ -278,34 +372,45 @@ async function ensureSection({ title, slug, subtitle, orderRank }) {
   return created._id;
 }
 
-async function ensureMenuItem(sectionId, cocktail, { signature = false, image, orderRank }) {
-  // Match by name globally so items can move between sections on re-seed.
+async function ensureMenuItem(sectionId, cocktail, { image, orderRank }) {
   const existingId = await client.fetch(
     `*[_type == "menuItem" && name == $name && !(_id in path("drafts.**"))][0]._id`,
     { name: cocktail.name },
   );
 
+  const signature = cocktail.signature === true;
+  const description = cocktail.description?.trim() || undefined;
+  const notes = cocktail.notes?.trim() || undefined;
+  const price = cocktail.price == null ? undefined : String(cocktail.price);
+  const abv = cocktail.abv?.trim() || undefined;
+  const volume = cocktail.volume?.trim() || undefined;
+  const producer = cocktail.producer?.trim() || undefined;
+
   const fields = {
     name: cocktail.name,
-    description: cocktail.description,
-    notes: cocktail.notes,
-    price: cocktail.price,
     orderRank,
     signature,
     section: { _type: "reference", _ref: sectionId },
+    ...(description ? { description } : {}),
+    ...(notes ? { notes } : {}),
+    ...(price != null ? { price } : {}),
+    ...(abv ? { abv } : {}),
+    ...(volume ? { volume } : {}),
+    ...(producer ? { producer } : {}),
     ...(image ? { image } : {}),
   };
 
+  const unsetFields = ["sortOrder"];
+  if (!description) unsetFields.push("description");
+  if (!notes) unsetFields.push("notes");
+  if (price == null) unsetFields.push("price");
+  if (!abv) unsetFields.push("abv");
+  if (!volume) unsetFields.push("volume");
+  if (!producer) unsetFields.push("producer");
+  if (!image && !signature) unsetFields.push("image");
+
   if (existingId) {
-    let patch = client.patch(existingId).set(fields).unset(["sortOrder"]);
-    if (!image && signature === false) {
-      // Non-signature items should not keep stale gallery photos.
-      patch = patch.unset(["image"]);
-    }
-    if (cocktail.price == null) {
-      patch = patch.unset(["price"]);
-    }
-    await patch.commit();
+    await client.patch(existingId).set(fields).unset(unsetFields).commit();
     return existingId;
   }
 
@@ -378,11 +483,22 @@ async function main() {
   console.log("Ensuring menu sections…");
   const sectionIds = {};
   for (const [index, section] of MENU_SECTIONS.entries()) {
+    const parentId = section.parentSlug ? sectionIds[section.parentSlug] : undefined;
+    if (section.parentSlug && !parentId) {
+      throw new Error(
+        `Parent section "${section.parentSlug}" must be seeded before "${section.slug}".`,
+      );
+    }
     sectionIds[section.slug] = await ensureSection({
-      ...section,
+      title: section.title,
+      slug: section.slug,
+      subtitle: section.subtitle,
       orderRank: sectionRanks[index],
+      parentId,
     });
-    console.log(`  ${section.title} (${section.slug})`);
+    console.log(
+      `  ${section.parentSlug ? "↳ " : ""}${section.title} (${section.slug}) — ${section.items.length} item(s)`,
+    );
   }
 
   const needsImages = MENU_SECTIONS.some((section) =>
@@ -402,6 +518,10 @@ async function main() {
 
   for (const section of MENU_SECTIONS) {
     const sectionId = sectionIds[section.slug];
+    if (section.items.length === 0) {
+      console.log(`Seeding ${section.title}… (empty — skipping items)`);
+      continue;
+    }
     const itemRanks = allocateOrderRanks(section.items.length);
     console.log(`Seeding ${section.title}…`);
     for (const [index, cocktail] of section.items.entries()) {
@@ -413,7 +533,6 @@ async function main() {
           )
         : undefined;
       const id = await ensureMenuItem(sectionId, cocktail, {
-        signature: section.signature,
         image,
         orderRank: itemRanks[index],
       });
@@ -427,7 +546,7 @@ async function main() {
   await removeObsoleteContent(keptItemIds);
 
   console.log(
-    `Done. Seeded ${dataset} menu (${MENU_SECTIONS.length} sections + ${itemCount} items).`,
+    `Done. Seeded ${dataset} menu (${MENU_CHAPTERS.length} chapters · ${MENU_SECTIONS.length} sections + ${itemCount} items).`,
   );
 }
 

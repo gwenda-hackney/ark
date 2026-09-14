@@ -3228,9 +3228,91 @@ html.fonts-ready .thanks {
   gap: 3rem;
 }
 
-.menu-section + .menu-section {
+.menu-toc {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: -0.5rem 0 -1.5rem;
+  padding: 0.85rem 0 0.95rem;
+  background: var(--color-bg);
+}
+
+.menu-toc-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.35rem 0;
+  margin: 0;
+  padding: 0;
+  row-gap: 0.45rem;
+}
+
+.menu-toc-item {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.menu-toc-item + .menu-toc-item::before {
+  content: "·";
+  margin: 0 0.7rem;
+  color: color-mix(in srgb, var(--color-text-muted) 70%, transparent);
+  font-weight: 400;
+  pointer-events: none;
+}
+
+.menu-toc-link {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  line-height: 1.35;
+  transition: color 0.2s ease;
+}
+
+.menu-toc-link:hover,
+.menu-toc-link:focus-visible {
+  color: var(--color-gold);
+}
+
+.menu-toc-link.is-active,
+.menu-toc-link[aria-current="true"] {
+  color: var(--color-gold);
+}
+
+.menu-toc-link:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
+  outline-offset: 3px;
+}
+
+.menu-chapter,
+.menu-section:not(.menu-section--subsection) {
+  scroll-margin-top: 4.25rem;
+}
+
+.menu-chapter {
+  display: grid;
+  gap: 2.25rem;
+}
+
+.menu-section:not(.menu-section--subsection) + .menu-section:not(.menu-section--subsection),
+.menu-chapter + .menu-chapter,
+.menu-chapter + .menu-section:not(.menu-section--subsection),
+.menu-section:not(.menu-section--subsection) + .menu-chapter {
   padding-top: 2.75rem;
   border-top: 1px solid color-mix(in srgb, var(--color-gold) 14%, transparent);
+}
+
+.menu-section--subsection {
+  padding-top: 0;
+  border-top: none;
+}
+
+.menu-section--subsection + .menu-section--subsection {
+  padding-top: 1.75rem;
+  border-top: none;
 }
 
 .menu-page-header {
@@ -3256,27 +3338,52 @@ html.fonts-ready .thanks {
   font-size: 1.05rem;
 }
 
+.menu-disclaimer {
+  margin: 0;
+  padding-top: 0.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  font-style: italic;
+}
+
 .menu-section-header {
   max-width: none;
   margin-bottom: 1.75rem;
+  text-align: center;
+}
+
+.menu-section-header--subsection {
   text-align: left;
+  margin-bottom: 1.1rem;
 }
 
 .menu-section-title {
   font-family: var(--font-display);
-  font-size: clamp(1.55rem, 3.2vw, 2.1rem);
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-size: clamp(1.75rem, 3.6vw, 2.35rem);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.02em;
   line-height: 1.15;
   color: var(--color-gold);
   white-space: nowrap;
 }
 
+.menu-section-title--subsection {
+  font-size: clamp(1.35rem, 2.8vw, 1.75rem);
+}
+
 .menu-section-lead {
   margin-top: 0.85rem;
   margin-bottom: 0;
+  margin-inline: auto;
   font-size: 1rem;
   max-width: 32rem;
+}
+
+.menu-section-header--subsection .menu-section-lead {
+  margin-inline: 0;
 }
 
 .menu-list {
@@ -3287,6 +3394,10 @@ html.fonts-ready .thanks {
 
 .menu-item {
   padding: 1.35rem 0;
+}
+
+.menu-item--compact {
+  padding: 0.55rem 0;
 }
 
 .menu-item-row {

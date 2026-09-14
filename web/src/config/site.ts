@@ -69,8 +69,7 @@ export const siteConfig = {
     postalCode: "E9 5AA",
     address: "Unit 4003, 4 Schwartz Wharf, London, E9 5AA",
     addressShort: "Schwartz Wharf, Hackney Wick",
-    mapsUrl:
-      "https://www.google.com/maps/search/Gwenda/@51.541812,-0.022465,17z",
+    mapsUrl: "https://maps.app.goo.gl/HDUpp4fGpFzJo3Me6",
     geo: {
       latitude: 51.541812,
       longitude: -0.022465,

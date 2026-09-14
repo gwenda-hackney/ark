@@ -17,10 +17,14 @@ export type MenuItem = {
   available?: boolean;
   /** Sanity CDN image — required for homepage gallery. */
   image?: MenuItemImage;
-  /** Style or serve — e.g. Aperitif, Digestif. */
+  /** Style or serve — e.g. Floral fizz, Digestif. */
   notes?: string;
   /** Featured in the homepage signature cocktail gallery. */
   signature?: boolean;
+  /** Optional bottle metadata (beer / wine). */
+  abv?: string;
+  volume?: string;
+  producer?: string;
 };
 
 export type MenuSection = {
@@ -28,6 +32,8 @@ export type MenuSection = {
   title: string;
   subtitle?: string;
   items: MenuItem[];
+  /** Nested groups under a chapter (e.g. Spritz under By the Book). */
+  subsections?: MenuSection[];
 };
 
 export type Menu = {
