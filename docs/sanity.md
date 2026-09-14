@@ -84,7 +84,7 @@ All local configuration lives in **repo-root `.env`**. `scripts/with-env.mjs` lo
 | `npm run studio:deploy:dev` | `development` → gwenda-dev.sanity.studio |
 | `npm run studio:deploy` | `production` → gwenda.sanity.studio |
 
-Hosted Studio deploys get extra vars from GitHub Actions secrets (see `deploy-studio.yml`).
+Hosted Studio deploys get extra vars from GitHub Actions secrets (see `studio.yml`).
 
 ## First-time setup
 
@@ -123,7 +123,7 @@ Idempotent — updates by slug/name.
 
 Sanity **development** and **production** datasets stay independent until you mirror them.
 
-GitHub → Actions → **Sync Sanity datasets** (workflow_dispatch):
+GitHub → Actions → **Sanity** (`sanity.yml`, workflow_dispatch):
 
 | Direction | Overwrites |
 |-----------|------------|
@@ -150,7 +150,7 @@ npm run sync:sanity-datasets -- --direction production-to-staging --confirm deve
 | Prod Studio deploy | `npm run studio:deploy` when schema ready |
 | Dev content | stays in `development` until copied to prod |
 | Prod content | editors publish in prod Studio |
-| Dataset mirror | GitHub **Sync Sanity datasets** (`staging-to-production` / `production-to-staging`) |
+| Dataset mirror | GitHub **Sanity** workflow (`sanity.yml`) |
 | **Site content (published)** | **Studio → Deploy site** (see below) |
 
 ## Deploy published content to the website
@@ -177,7 +177,7 @@ Staging is one step. Production content uses the same preview → promote gate a
 | Trigger | Push to `main` / `release` | Studio **Deploy site** button |
 | Staging | Push to `main` | Dev Studio → Deploy to staging |
 | Production gate | Preview → manual promote | Prod Studio → Deploy preview → Promote to live |
-| GitHub workflows | `deploy-staging.yml`, `deploy-production.yml`, `deploy-production-promote.yml` | `deploy-staging-content.yml`, `deploy-production-content.yml`, `deploy-production-content-promote.yml` |
+| GitHub workflows | `web.yml` + `web-promote.yml` (`kind=code`) | `web.yml` (content actions) + `web-promote.yml` (`kind=content`) |
 
 ### Infrastructure
 
@@ -199,7 +199,7 @@ Worker: `marketing/site-deploy-webhook/` validates a shared secret, then dispatc
 npm run setup:site-deploy
 ```
 
-This generates `DEPLOY_WEBHOOK_SECRET`, pushes GitHub secrets, deploys the Worker, writes `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env`, and dispatches `deploy-studio.yml` for hosted dev Studio.
+This generates `DEPLOY_WEBHOOK_SECRET`, pushes GitHub secrets, deploys the Worker, writes `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env`, and dispatches `studio.yml` for hosted dev Studio.
 
 Prerequisites: `CLOUDFLARE_API_TOKEN` in `.env`, `gh auth login` with `repo,workflow` scopes.
 
@@ -209,7 +209,7 @@ Prerequisites: `CLOUDFLARE_API_TOKEN` in `.env`, `gh auth login` with `repo,work
 | `DISPATCH_TOKEN` | GitHub PAT with Actions write — Worker uses it to trigger content deploy workflows (setup uses `gh auth token`) |
 | `SANITY_STUDIO_SITE_DEPLOY_URL` | Public Worker URL — GitHub secret + `.env` |
 
-Local Studio reads deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `deploy-studio.yml` at deploy time.
+Local Studio reads deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `studio.yml` at deploy time.
 
 Production hosted Studio after setup:
 

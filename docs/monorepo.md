@@ -20,23 +20,23 @@ npm workspaces (not pnpm). Root `package.json` lists each package path explicitl
 
 Reads `marketing/web/src/config/colors.json`, updates `marketing/brand/src/index.html` `:root` CSS variables. CI enforces sync on every verify run.
 
-## Deploy triggers (path filters)
+## Deploy workflows
 
-| Workflow | Paths | Notes |
-|----------|-------|-------|
-| `deploy-staging.yml` | `marketing/web/**` or `package-lock.json` on `main` | Updates [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) |
-| `deploy-web-preview.yml` | `marketing/web/**` or `package-lock.json` on branches except `main` / `release` | `https://<branch>.gwenda-staging.pages.dev` |
-| `deploy-production.yml` | `marketing/web/**` or `package-lock.json` on `release` | [release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev) |
-| `deploy-studio.yml` | `marketing/studio/**` on `main` | — |
-| `deploy-brand.yml` | `marketing/brand/**` on any branch | Production on `main`/`release`; else `https://<branch>.gwenda-brand.pages.dev` |
-| `deploy-ops.yml` | `ops/**` (Pages app) | — |
-| `deploy-recipe-cost-webhook.yml` | `ops/recipe-cost-webhook/**` on `main` | — |
-| `deploy-site-deploy-webhook.yml` | `marketing/site-deploy-webhook/**` on `main` | — |
-| `deploy-subscribe-mailchimp-sync.yml` | `marketing/subscribe-mailchimp-sync/**` on `main` | — |
+Seven workflow files under `.github/workflows/`:
 
-Root `package.json` alone should not trigger Worker deploys (path filters omit it).
+| Workflow | Role |
+|----------|------|
+| `web.yml` | Staging (`main`), production preview (`release`), branch previews, Studio content deploys |
+| `web-promote.yml` | Promote production preview to live (`kind=code` or `content`) |
+| `studio.yml` | Hosted Sanity Studio (dev on `main`, prod on `release`) |
+| `workers.yml` | site-deploy-webhook, Mailchimp sync, recipe-cost |
+| `apps.yml` | Brand guidelines + ops Pages |
+| `sanity.yml` | Mirror development ↔ production datasets |
+| `verify.yml` | Reusable build/test (called by `web.yml`) |
 
-Colour changes in `marketing/web/src/config/colors.json` do not auto-deploy brand unless that file is also in the brand workflow filter (it is). Prefer `npm run sync:brand`, commit `marketing/brand/`, then push. CI `verify` still enforces sync via `sync:brand --check`.
+Root `package.json` alone should not trigger Worker deploys.
+
+Colour changes in `marketing/web/src/config/colors.json` are included in the brand app filter. Prefer `npm run sync:brand`, commit `marketing/brand/`, then push. CI `verify` still enforces sync via `sync:brand --check`.
 
 ## Migration map (old → new)
 
@@ -50,3 +50,4 @@ Colour changes in `marketing/web/src/config/colors.json` do not auto-deploy bran
 | `utils/wifi-captive-portal/` | `marketing/wifi-captive-portal/` |
 | `utils/recipe-cost-webhook/` | `ops/recipe-cost-webhook/` |
 | `utils/event-invites/` | `ops/event-invites/` |
+| `deploy-staging.yml` etc. | `web.yml` / `web-promote.yml` / `studio.yml` / `workers.yml` / `apps.yml` / `sanity.yml` |
