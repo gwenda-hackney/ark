@@ -36,8 +36,8 @@ Repo-root `.env` supplies `SANITY_*` for local builds. See [docs/sanity.md](../d
 GitLab Flow with a long-running `release` branch:
 
 1. **Develop on `main`** — verify + deploy to staging (development dataset).
-2. **Feature branches** — push `web/**` changes → branch preview on `gwenda-staging` (see [deploy-web-preview.yml](../.github/workflows/deploy-web-preview.yml)).
-3. **Release** — merge `main` into `release`, push (production preview), then manually promote to live.
+2. **Feature branches** — push `marketing/web/**` changes → branch preview on `gwenda-staging` (see [web.yml](../.github/workflows/web.yml)).
+3. **Release** — merge `main` into `release`, push (production preview via `web.yml`), then manually promote with [web-promote.yml](../.github/workflows/web-promote.yml) (`kind=code`).
 
 Schema and site code promote via git. Editorial content promotes separately in Sanity (dev dataset → prod dataset, then Studio **Deploy site**: staging one-click, production preview → promote).
 

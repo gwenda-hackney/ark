@@ -109,7 +109,9 @@ describe("handleStatus", () => {
             status: "completed",
             conclusion: "success",
             html_url: "https://github.com/run/55",
-            path: ".github/workflows/deploy-production-content.yml",
+            path: ".github/workflows/web.yml",
+            name: "production-content",
+            display_title: "production-content",
           }),
         ),
       ),
@@ -132,6 +134,7 @@ describe("handleStatus", () => {
 
 describe("github integration", () => {
   it("dispatches workflow for staging", async () => {
+    vi.resetModules();
     vi.stubGlobal(
       "fetch",
       vi
@@ -143,9 +146,12 @@ describe("github integration", () => {
               workflow_runs: [
                 {
                   id: 99,
-                  status: "queued",
+                  status: "in_progress",
                   conclusion: null,
                   html_url: "https://github.com/run/99",
+                  path: ".github/workflows/web.yml",
+                  name: "staging-content",
+                  display_title: "staging-content",
                 },
               ],
             }),
@@ -158,17 +164,19 @@ describe("github integration", () => {
 
     expect(run.id).toBe(99);
 
-    const [, dispatchInit] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
-      string,
-      RequestInit,
-    ];
+    const [dispatchUrl, dispatchInit] = (
+      globalThis.fetch as ReturnType<typeof vi.fn>
+    ).mock.calls[0] as [string, RequestInit];
     const headers = new Headers(dispatchInit.headers);
     expect(headers.get("User-Agent")).toBe("gwenda-site-deploy-webhook");
+    expect(dispatchUrl).toContain("web.yml");
+    const body = JSON.parse(String(dispatchInit.body));
+    expect(body.inputs.action).toBe("staging-content");
 
     vi.unstubAllGlobals();
   });
 
-  it("dispatches promote with preview_run_id input", async () => {
+  it("dispatches promote with kind=content and preview_run_id", async () => {
     vi.resetModules();
     vi.stubGlobal(
       "fetch",
@@ -184,6 +192,9 @@ describe("github integration", () => {
                   status: "in_progress",
                   conclusion: null,
                   html_url: "https://github.com/run/77",
+                  path: ".github/workflows/web-promote.yml",
+                  name: "promote-content",
+                  display_title: "promote-content",
                 },
               ],
             }),
@@ -198,8 +209,9 @@ describe("github integration", () => {
     const [dispatchUrl, dispatchInit] = (
       globalThis.fetch as ReturnType<typeof vi.fn>
     ).mock.calls[0] as [string, RequestInit];
-    expect(dispatchUrl).toContain("deploy-production-content-promote.yml");
+    expect(dispatchUrl).toContain("web-promote.yml");
     const body = JSON.parse(String(dispatchInit.body));
+    expect(body.inputs.kind).toBe("content");
     expect(body.inputs.preview_run_id).toBe("55");
 
     vi.unstubAllGlobals();

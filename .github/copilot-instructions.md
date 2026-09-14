@@ -13,9 +13,9 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 
 ## Branch flow
 
-- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → smoke test.
+- Develop on **`main`** → [Web](workflows/web.yml): verify → staging deploy → smoke test.
 - **Production requires explicit authorization.** Do not merge `main` into `release`, push to `release`, open a production deploy PR, or run production deploy steps unless the user clearly asks (e.g. “deploy to production”, “push release”). Default after changes: commit and push **`main`** only, then verify staging.
-- When authorized: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): verify → deploy **preview** → smoke test preview. After reviewing the preview link in the job summary, run [Promote production to live](workflows/deploy-production-promote.yml) → live deploy → ensure prod domains → smoke test → CalVer tag.
+- When authorized: merge `main` into **`release`**, push → [Web](workflows/web.yml) production preview → smoke test. After reviewing the preview, run [Web promote](workflows/web-promote.yml) with `kind=code` → live deploy → CalVer tag.
 
 **Production manual gate:** Promotion is a separate `workflow_dispatch` workflow (private repos cannot use GitHub Environment required reviewers without Enterprise). Preview URL is the `release-preview` branch alias from the deploy step (currently `https://release-preview.gwenda-blue.pages.dev`).
 

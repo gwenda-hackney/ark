@@ -41,13 +41,17 @@ if (!res.ok) {
 
 const run = await res.json();
 const path = typeof run.path === "string" ? run.path : "";
+const title = String(run.display_title || run.name || "");
 const okWorkflow =
-  path.endsWith("deploy-production-content.yml") ||
-  path.includes("/deploy-production-content.yml");
+  (path.endsWith("web.yml") || path.includes("/web.yml")) &&
+  (title === "production-content" ||
+    title.includes("production-content") ||
+    title === "content-deploy-production" ||
+    title.includes("content-deploy-production"));
 
 if (!okWorkflow) {
   console.error(
-    `Run ${runId} is not a production content preview (path: ${path || "unknown"}).`,
+    `Run ${runId} is not a production content preview (path: ${path || "unknown"}, name: ${title || "unknown"}).`,
   );
   process.exit(1);
 }

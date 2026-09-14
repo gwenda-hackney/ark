@@ -38,9 +38,9 @@ Run **`npm run setup:site-deploy`** — it will:
 2. Set GitHub secrets (`DEPLOY_WEBHOOK_SECRET`, `DISPATCH_TOKEN` from `gh auth token`, `SANITY_STUDIO_SITE_DEPLOY_URL`)
 3. Deploy `marketing/site-deploy-webhook` Worker and sync Worker secrets
 4. Write `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env` for local Studio
-5. Dispatch `deploy-studio.yml` to redeploy hosted Studio with deploy config
+5. Dispatch `studio.yml` to redeploy hosted Studio with deploy config
 
-Local Studio (`npm run studio`) picks up deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `deploy-studio.yml`.
+Local Studio (`npm run studio`) picks up deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `studio.yml`.
 
 Do not ask the user to manually `gh secret set` deploy secrets or edit Worker URLs unless setup fails and needs diagnosis.
 

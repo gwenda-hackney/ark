@@ -24,7 +24,9 @@ export type WorkflowRun = {
   status: string;
   conclusion: string | null;
   html_url: string;
+  /** Workflow file path, e.g. .github/workflows/web.yml */
   path?: string;
   name?: string;
+  display_title?: string;
   head_sha?: string;
 };

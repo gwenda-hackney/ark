@@ -1,0 +1,118 @@
+name: Studio
+
+on:
+  push:
+    paths:
+      - "marketing/studio/**"
+      - ".github/workflows/studio.yml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Studio target
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - development
+          - production
+
+jobs:
+  deploy-development:
+    name: Deploy development Studio
+    if: >-
+      (github.event_name == 'push' && github.ref_name == 'main')
+      || (github.event_name == 'workflow_dispatch'
+          && (inputs.target == 'development'
+              || (inputs.target == 'auto' && github.ref_name == 'main')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: studio-dev
+      url: https://gwenda-dev.sanity.studio
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy hosted Studio (development)
+        run: npm run studio:deploy:dev
+        env:
+          SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
+          SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+          EVENT_ADMIN_URL: https://gwenda-staging.pages.dev
+          EVENT_ADMIN_SECRET: ${{ secrets.EVENT_ADMIN_SECRET }}
+          BASEROW_RSVP_GRID_URL: ${{ vars.BASEROW_RSVP_GRID_URL }}
+
+      - name: Deployment summary
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Development Studio deployed","rows":[
+              ["Studio","https://gwenda-dev.sanity.studio"],
+              ["Dataset","development"],
+              ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"]
+            ]}
+
+  deploy-production:
+    name: Deploy production Studio
+    if: >-
+      (github.event_name == 'push' && github.ref_name == 'release')
+      || (github.event_name == 'workflow_dispatch'
+          && (inputs.target == 'production'
+              || (inputs.target == 'auto' && github.ref_name == 'release')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: studio-production
+      url: https://gwenda.sanity.studio
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy hosted Studio (production)
+        run: npm run studio:deploy
+        env:
+          SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
+          SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+          EVENT_ADMIN_URL: https://gwenda.co.uk
+          EVENT_ADMIN_SECRET: ${{ secrets.EVENT_ADMIN_SECRET }}
+          BASEROW_RSVP_GRID_URL: ${{ vars.BASEROW_RSVP_GRID_URL }}
+
+      - name: Deployment summary
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Production Studio deployed","rows":[
+              ["Studio","https://gwenda.sanity.studio"],
+              ["Dataset","production"],
+              ["Event admin API","https://gwenda.co.uk/api/event-admin"],
+              ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"]
+            ]}

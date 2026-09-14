@@ -1,44 +1,86 @@
-name: Promote production content to live
+name: Web promote
 
-# Studio "Promote to live" — deploys the exact dist from a content preview run.
+# Promote a production preview (code or content) to live gwenda.co.uk.
+
+run-name: promote-${{ inputs.kind }}
+
 on:
   workflow_dispatch:
     inputs:
-      preview_run_id:
-        description: GitHub Actions run ID of the successful content preview
+      kind:
+        description: Promote kind
         required: true
+        type: choice
+        default: code
+        options:
+          - code
+          - content
+      preview_run_id:
+        description: Content preview run ID (required when kind=content)
+        required: false
         type: string
 
 concurrency:
-  group: deploy-production-content-promote
+  group: web-promote-${{ inputs.kind }}
   cancel-in-progress: false
 
 jobs:
   promote:
-    name: Promote content preview to live
+    name: Promote ${{ inputs.kind }} to live
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       deployments: write
       actions: read
     environment:
       name: production
       url: https://gwenda.co.uk
-
     steps:
+      - name: Require content preview_run_id
+        if: inputs.kind == 'content'
+        run: |
+          if [ -z "${{ inputs.preview_run_id }}" ]; then
+            echo "preview_run_id is required when kind=content" >&2
+            exit 1
+          fi
+
       - name: Checkout release
         uses: actions/checkout@v4
         with:
           ref: release
 
-      - name: Verify preview run
-        id: preview
+      - name: Resolve release HEAD
+        if: inputs.kind == 'code'
+        id: release
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify code preview
+        if: inputs.kind == 'code'
+        id: code_preview
+        run: cd marketing/web && node scripts/ci/verify-previewed-release.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+
+      - name: Verify content preview
+        if: inputs.kind == 'content'
+        id: content_preview
         run: cd marketing/web && node scripts/ci/verify-content-preview.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PREVIEW_RUN_ID: ${{ inputs.preview_run_id }}
 
-      - name: Download previewed dist artifact
+      - name: Download code preview dist
+        if: inputs.kind == 'code'
+        uses: actions/download-artifact@v4
+        with:
+          name: production-dist
+          run-id: ${{ steps.code_preview.outputs.preview-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: marketing/web/dist
+
+      - name: Download content preview dist
+        if: inputs.kind == 'content'
         uses: actions/download-artifact@v4
         with:
           name: production-content-dist
@@ -63,7 +105,7 @@ jobs:
         run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
         env:
           GITHUB_REF_NAME: release
-          BUILD_COMMIT_SHA: ${{ steps.preview.outputs.sha }}
+          BUILD_COMMIT_SHA: ${{ inputs.kind == 'code' && steps.code_preview.outputs.sha || steps.content_preview.outputs.sha }}
 
       - name: Deploy previewed dist to production branch
         uses: ./.github/actions/deploy-pages
@@ -130,13 +172,18 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
+      - name: Tag production release
+        if: inputs.kind == 'code'
+        run: cd marketing/web && node scripts/ci/tag-production-release.mjs
+        env:
+          RELEASE_VERSION: ${{ steps.buildmeta.outputs.version }}
+
       - name: Deployment summary
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Production content promoted to live","rows":[
-              ["Trigger","Sanity Studio — promote published content"],
+            {"title":"${{ inputs.kind == 'content' && 'Production content promoted to live' || 'Production deployed' }}","rows":[
+              ["Kind","`${{ inputs.kind }}`"],
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
-              ["Preview run","[${{ steps.preview.outputs.preview-run-url }}](${{ steps.preview.outputs.preview-run-url }})"],
               ["Site","https://gwenda.co.uk"]
             ]}

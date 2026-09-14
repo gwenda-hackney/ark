@@ -1,5 +1,5 @@
 /**
- * Ensure release HEAD was previewed by the latest successful Deploy production run.
+ * Ensure release HEAD was previewed by the latest successful Web production-code run.
  *
  * Requires GITHUB_TOKEN (actions:read), GITHUB_REPOSITORY, and RELEASE_SHA.
  */
@@ -16,11 +16,11 @@ if (!token || !repo || !releaseSha) {
 
 const [owner, name] = repo.split("/");
 const url = new URL(
-  `https://api.github.com/repos/${owner}/${name}/actions/workflows/deploy-production.yml/runs`,
+  `https://api.github.com/repos/${owner}/${name}/actions/workflows/web.yml/runs`,
 );
 url.searchParams.set("branch", "release");
 url.searchParams.set("status", "success");
-url.searchParams.set("per_page", "1");
+url.searchParams.set("per_page", "10");
 
 const res = await fetch(url, {
   headers: {
@@ -36,11 +36,15 @@ if (!res.ok) {
 }
 
 const data = await res.json();
-const latest = data.workflow_runs?.[0];
+const runs = data.workflow_runs ?? [];
+const latest = runs.find((run) => {
+  const title = String(run.display_title || run.name || "");
+  return title === "push-release" || title.includes("push-release");
+});
 
 if (!latest) {
   console.error(
-    "No successful production preview found on release. Push to release first.",
+    "No successful production code preview found on release. Push to release first.",
   );
   process.exit(1);
 }
