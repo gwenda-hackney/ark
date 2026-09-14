@@ -24,6 +24,8 @@ import {
   applySecretsToTemplate,
   createSecureNote,
   ensureBwInstalled,
+  ensureFolder,
+  ensureItemInFolder,
   ensureServer,
   ensureSession,
   getItemOrNull,
@@ -253,9 +255,12 @@ function upsertBitwardenNote(itemName, templatePath, updates, { dryRun }) {
   }
 
   if (!item) {
-    item = createSecureNote(itemName, notes);
-    console.log(`Created Bitwarden ${itemName}.`);
+    const folderId = ensureFolder();
+    item = createSecureNote(itemName, notes, { folderId });
+    console.log(`Created Bitwarden ${itemName} in folder ark.`);
   } else {
+    const folderId = ensureFolder();
+    item = ensureItemInFolder(item, folderId);
     updateItemNotes(item, notes);
     console.log(`Updated Bitwarden ${itemName}.`);
   }

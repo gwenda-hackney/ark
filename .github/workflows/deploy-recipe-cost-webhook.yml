@@ -5,9 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "utils/recipe-cost-webhook/**"
-      - "package.json"
-      - "package-lock.json"
+      - "ops/recipe-cost-webhook/**"
       - ".github/workflows/deploy-recipe-cost-webhook.yml"
   workflow_dispatch:
 
@@ -45,4 +43,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
-          workingDirectory: utils/recipe-cost-webhook
+          workingDirectory: ops/recipe-cost-webhook

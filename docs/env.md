@@ -2,13 +2,19 @@
 
 Local secrets live in Bitwarden (`bitwarden.eu`), not in git. Do **not** mint new Cloudflare / Sanity / Baserow tokens on every fresh clone.
 
+Vault notes live in the Bitwarden folder **`ark`**, named `ark/.env.local`, `ark/.env.staging`, and `ark/.env.production`.
+
 ## Vault item names
 
-| Bitwarden item | Seed template | Role |
-|----------------|---------------|------|
-| `ark/.env.local` | `scripts/env-templates/local.env` | Laptop / nest (default `env:pull`) |
-| `ark/.env.staging` | `scripts/env-templates/staging.env` | Staging secrets backup |
-| `ark/.env.production` | `scripts/env-templates/production.env` | Production secrets backup |
+Notes live in the Bitwarden folder **`ark`**:
+
+| Bitwarden item | Folder | Seed template | Role |
+|----------------|--------|---------------|------|
+| `ark/.env.local` | `ark` | `scripts/env-templates/local.env` | Laptop / nest (default `env:pull`) |
+| `ark/.env.staging` | `ark` | `scripts/env-templates/staging.env` | Staging secrets backup |
+| `ark/.env.production` | `ark` | `scripts/env-templates/production.env` | Production secrets backup |
+
+`npm run env:seed` creates missing notes and moves existing ones into the `ark` folder.
 
 ## First-time seed
 
@@ -29,7 +35,15 @@ npm run env:set -- SANITY_API_TOKEN 'sk...'
 npm run env:set -- CLOUDFLARE_API_TOKEN '...'
 ```
 
+Or push every non-empty key from local `.env` into the vault note:
+
+```bash
+export BW_SESSION=$(bw unlock --raw)
+npm run env:push
+```
+
 `env:set` updates the vault note and merges into local `.env` (for `--env local`, the default).
+`env:push` only writes vault ← local (skips `BITWARDEN_EMAIL` / `BITWARDEN_PASSWORD`).
 
 Create a **Editor** robot (`ark-local-editor`) via `npm run setup:sanity-tokens` after `npx sanity login`. Never put that token in GitHub; CI uses Viewer / Deploy Studio robots.
 

@@ -26,7 +26,7 @@ import {
   DEV_SUBSCRIBE_TABLE_ID,
   PRODUCTION_SUBSCRIBE_TABLE_ID,
   RSVP_TABLE_NAME,
-} from "../web/functions/_lib/baserow.js";
+} from "../marketing/web/functions/_lib/baserow.js";
 
 const EXPECTED_FIELDS = [
   {

@@ -13,7 +13,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const WORKER_DIR = resolve(ROOT, "utils/subscribe-mailchimp-sync");
+const WORKER_DIR = resolve(ROOT, "marketing/subscribe-mailchimp-sync");
 const ENV_PATH = resolve(ROOT, ".env");
 
 function run(cmd, args, { cwd = ROOT, env = process.env, input, quiet = false } = {}) {

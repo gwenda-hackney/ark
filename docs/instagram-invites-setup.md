@@ -4,7 +4,7 @@ Use this when wiring **ClickUp → Instagram DM → staging RSVP** for private e
 
 Check boxes in your editor (`- [ ]` → `- [x]`), or print this page.
 
-**Related:** `[utils/event-invites/README.md](../utils/event-invites/README.md)` · `npm run setup:instagram` · `npm run event-invites`
+**Related:** `[ops/event-invites/README.md](../ops/event-invites/README.md)` · `npm run setup:instagram` · `npm run event-invites`
 
 ---
 
@@ -259,7 +259,7 @@ You should see in Business settings:
 | Send invites        | `npm run event-invites -- --send …`                                  |
 | Staging site        | [https://gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) |
 | Dev Studio          | [https://gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) |
-| ClickUp → send docs | `[utils/event-invites/README.md](../utils/event-invites/README.md)`  |
+| ClickUp → send docs | `[ops/event-invites/README.md](../ops/event-invites/README.md)`  |
 
 
 ---

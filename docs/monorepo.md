@@ -1,59 +1,52 @@
 # Monorepo layout
 
-Three sibling projects under one git repository (`gwenda-hackney/ark` on GitHub):
-
 ```
 ark/
-├── web/src/            ← marketing site
-├── brand/src/          ← brand guidelines HTML
-├── ops/src/            ← internal ops HTML (password-gated)
-└── utils/              ← operational tools
+├── marketing/
+│   ├── web/            ← marketing site
+│   ├── brand/          ← brand guidelines HTML
+│   ├── studio/         ← Sanity Studio (website CMS)
+│   └── … Workers       ← site-deploy, Mailchimp sync, Wi‑Fi portal
+├── ops/                ← ops Pages app + recipe-cost / event-invites
+├── docs/
+└── scripts/
 ```
+
+npm workspaces (not pnpm). Root `package.json` lists each package path explicitly under `marketing/` and `ops/`.
 
 ## Brand colour sync
 
-```bash
-npm run sync:brand
-```
+`npm run sync:brand` (`.github/scripts/sync-brand-tokens.mjs`):
 
-Reads `web/src/config/colors.json`, updates `brand/src/index.html` `:root` CSS variables. CI enforces sync on every verify run.
+Reads `marketing/web/src/config/colors.json`, updates `marketing/brand/src/index.html` `:root` CSS variables. CI enforces sync on every verify run.
 
-## GitHub
+## Deploy triggers (path filters)
 
-Rename the remote repository from `web` to `ark`, then:
+| Workflow | Paths | Notes |
+|----------|-------|-------|
+| `deploy-staging.yml` | `marketing/web/**` or `package-lock.json` on `main` | Updates [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) |
+| `deploy-web-preview.yml` | `marketing/web/**` or `package-lock.json` on branches except `main` / `release` | `https://<branch>.gwenda-staging.pages.dev` |
+| `deploy-production.yml` | `marketing/web/**` or `package-lock.json` on `release` | [release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev) |
+| `deploy-studio.yml` | `marketing/studio/**` on `main` | — |
+| `deploy-brand.yml` | `marketing/brand/**` on any branch | Production on `main`/`release`; else `https://<branch>.gwenda-brand.pages.dev` |
+| `deploy-ops.yml` | `ops/**` (Pages app) | — |
+| `deploy-recipe-cost-webhook.yml` | `ops/recipe-cost-webhook/**` on `main` | — |
+| `deploy-site-deploy-webhook.yml` | `marketing/site-deploy-webhook/**` on `main` | — |
+| `deploy-subscribe-mailchimp-sync.yml` | `marketing/subscribe-mailchimp-sync/**` on `main` | — |
 
-```bash
-cd ark
-git remote set-url origin https://github.com/gwenda-hackney/ark.git
-```
+Root `package.json` alone should not trigger Worker deploys (path filters omit it).
 
-Cloudflare Pages Git integration may need reconnecting after the rename.
+Colour changes in `marketing/web/src/config/colors.json` do not auto-deploy brand unless that file is also in the brand workflow filter (it is). Prefer `npm run sync:brand`, commit `marketing/brand/`, then push. CI `verify` still enforces sync via `sync:brand --check`.
 
-## CI path filters
+## Migration map (old → new)
 
-Each deploy workflow only runs when files in that project change:
-
-| Workflow | Triggers on | Preview URL |
-|----------|-------------|-------------|
-| `deploy-staging.yml` | `web/**` on `main` | — (updates [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev)) |
-| `deploy-web-preview.yml` | `web/**` on branches except `main` / `release` | `https://<branch>.gwenda-staging.pages.dev` |
-| `deploy-production.yml` | `web/**` on `release` | [release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev) |
-| `deploy-studio.yml` | `studio/**` on `main` | — |
-| `deploy-brand.yml` | `brand/**` on any branch | Production on `main`/`release`; else `https://<branch>.gwenda-brand.pages.dev` |
-| `deploy-ops.yml` | `ops/**` on any branch | Production on `main`/`release`; else `https://<branch>.gwenda-ops.pages.dev` |
-| `deploy-recipe-cost-webhook.yml` | `utils/recipe-cost-webhook/**` on `main` | — |
-| `deploy-site-deploy-webhook.yml` | `utils/site-deploy-webhook/**` on `main` | — |
-
-Branch preview names are sanitized by `.github/scripts/cloudflare-pages-branch.mjs` (slashes → dashes, lowercase).
-
-Colour changes in `web/src/config/colors.json` do not auto-deploy brand — run `npm run sync:brand`, commit `brand/`, then push. CI `verify` still enforces sync via `sync:brand --check`.
-
-Cross-project scripts (e.g. `sync-brand-tokens.mjs`) live in `.github/scripts/`.
-
-## Moved paths (from pre-monorepo layout)
-
-| Was | Now |
+| Old | New |
 |-----|-----|
-| Standalone `web/` repo root | `ark/web/` |
-| Standalone `brand/` repo | `ark/brand/src/` |
-| `utils/workers/…` | `ark/utils/…` |
+| `web/` | `marketing/web/` |
+| `brand/` | `marketing/brand/` |
+| `studio/` | `marketing/studio/` |
+| `utils/site-deploy-webhook/` | `marketing/site-deploy-webhook/` |
+| `utils/subscribe-mailchimp-sync/` | `marketing/subscribe-mailchimp-sync/` |
+| `utils/wifi-captive-portal/` | `marketing/wifi-captive-portal/` |
+| `utils/recipe-cost-webhook/` | `ops/recipe-cost-webhook/` |
+| `utils/event-invites/` | `ops/event-invites/` |

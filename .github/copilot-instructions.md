@@ -56,7 +56,7 @@ dist/          Build output (gitignored)
 
 - **Node 24 + npm 11** via Corepack (`packageManager` in `package.json`). Workflows run `corepack enable` before `npm ci`.
 - **Verify before deploy:** reusable workflow `verify.yml` (build → test). Called by both deploy workflows.
-- **Deploy logic:** `actions/deploy-pages/action.yml` + `web/scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
+- **Deploy logic:** `actions/deploy-pages/action.yml` + `marketing/web/scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Wrangler config:** `wrangler.toml` (gwenda — `[vars]` + `[env.preview.vars]`) and `wrangler.staging.toml` (gwenda-staging). Plain vars sync on deploy; secrets via `sync-pages-secrets.mjs`.
 - **Production promote:** preview job uploads `production-dist` artifact; promote workflow downloads it and deploys with `skip-build: true` to the `release` branch (production environment).
 - **Production custom domains:** `ensure-pages-domain.mjs` for `gwenda.co.uk` and `www.gwenda.co.uk` only (production deploy).

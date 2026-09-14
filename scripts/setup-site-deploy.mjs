@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");
-const WORKER_DIR = resolve(ROOT, "utils/site-deploy-webhook");
+const WORKER_DIR = resolve(ROOT, "marketing/site-deploy-webhook");
 const WORKER_NAME = "gwenda-site-deploy-webhook";
 
 function loadDotEnv() {
@@ -94,7 +94,7 @@ function setGhSecret(name, value) {
 function readWranglerAccountId() {
   const toml = readFileSync(resolve(WORKER_DIR, "wrangler.toml"), "utf8");
   const match = toml.match(/^account_id\s*=\s*"([^"]+)"/m);
-  if (!match) throw new Error("account_id not found in utils/site-deploy-webhook/wrangler.toml");
+  if (!match) throw new Error("account_id not found in marketing/site-deploy-webhook/wrangler.toml");
   return match[1];
 }
 

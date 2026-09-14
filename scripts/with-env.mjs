@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../web/functions/_lib/env-pem.js";
+import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = join(root, ".env");

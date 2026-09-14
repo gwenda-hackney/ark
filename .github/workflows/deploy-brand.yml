@@ -3,11 +3,11 @@ name: Deploy brand guidelines
 on:
   push:
     paths:
-      - "brand/**"
+      - "marketing/brand/**"
       - ".github/workflows/deploy-brand.yml"
       - ".github/scripts/sync-brand-tokens.mjs"
       - ".github/scripts/cloudflare-pages-branch.mjs"
-      - "web/src/config/colors.json"
+      - "marketing/web/src/config/colors.json"
   workflow_dispatch:
     inputs:
       deploy_target:
@@ -61,7 +61,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-brand --branch main --commit-dirty=true
-          workingDirectory: brand
+          workingDirectory: marketing/brand
 
       - name: Smoke test production
         run: |
@@ -78,7 +78,7 @@ jobs:
           exit 1
 
       - name: Deployment summary
-        run: node web/scripts/ci/write-deployment-summary.mjs
+        run: node marketing/web/scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Brand guidelines — production","rows":[
@@ -133,7 +133,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-brand --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
-          workingDirectory: brand
+          workingDirectory: marketing/brand
 
       - name: Resolve preview URL
         id: preview_url
@@ -162,7 +162,7 @@ jobs:
           exit 1
 
       - name: Deployment summary
-        run: node web/scripts/ci/write-deployment-summary.mjs
+        run: node marketing/web/scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
             {"title":"Brand guidelines — branch preview","rows":[

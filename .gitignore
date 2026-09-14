@@ -1,18 +1,21 @@
 node_modules/
 .DS_Store
 .env
+.env.bak
 .apple-wallet/
 .wrangler/
 .dev.vars
-utils/**/.dev.vars
+marketing/**/.dev.vars
+ops/**/.dev.vars
 .astro/
 /src/env.d.ts
-utils/**/.venv/
-utils/**/__pycache__/
-web/dist/
-web/.astro/
-web/node_modules/
-brand/node_modules/
+ops/**/.venv/
+ops/**/__pycache__/
+marketing/**/.venv/
+marketing/web/dist/
+marketing/web/.astro/
+marketing/web/node_modules/
+marketing/brand/node_modules/
 
 # Local wrangler config/logs from agent deploys
 .wrangler-config/
