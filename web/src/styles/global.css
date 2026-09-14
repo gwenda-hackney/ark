@@ -3233,7 +3233,7 @@ html.fonts-ready .thanks {
   top: 0;
   z-index: 4;
   margin: -0.5rem 0 -1.5rem;
-  padding: 0.85rem 0 0.95rem;
+  padding: 0.85rem 0 1.1rem;
   background: var(--color-bg);
 }
 
@@ -3242,39 +3242,51 @@ html.fonts-ready .thanks {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  align-items: baseline;
-  gap: 0.35rem 0;
+  align-items: center;
+  gap: 1.25rem 2rem;
   margin: 0;
   padding: 0;
-  row-gap: 0.45rem;
 }
 
 .menu-toc-item {
   display: inline-flex;
-  align-items: baseline;
-}
-
-.menu-toc-item + .menu-toc-item::before {
-  content: "·";
-  margin: 0 0.7rem;
-  color: color-mix(in srgb, var(--color-text-muted) 70%, transparent);
-  font-weight: 400;
-  pointer-events: none;
 }
 
 .menu-toc-link {
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
+  color: var(--color-text-muted);
+  position: relative;
   line-height: 1.35;
-  transition: color 0.2s ease;
+}
+
+.menu-toc-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  width: 100%;
+  height: 1px;
+  background: var(--color-gold);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.35s var(--ease-smooth);
 }
 
 .menu-toc-link:hover,
 .menu-toc-link:focus-visible {
   color: var(--color-gold);
+}
+
+.menu-toc-link:hover::after,
+.menu-toc-link:focus-visible::after,
+.menu-toc-link.is-active::after,
+.menu-toc-link[aria-current="true"]::after {
+  transform: scaleX(1);
+  transform-origin: left center;
 }
 
 .menu-toc-link.is-active,
@@ -3283,8 +3295,9 @@ html.fonts-ready .thanks {
 }
 
 .menu-toc-link:focus-visible {
-  outline: 1px solid color-mix(in srgb, var(--color-gold) 55%, transparent);
-  outline-offset: 3px;
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 2px;
 }
 
 .menu-chapter,
@@ -3316,16 +3329,7 @@ html.fonts-ready .thanks {
 }
 
 .menu-page-header {
-  margin-bottom: 3rem;
-  text-align: center;
-  max-width: none;
-}
-
-.menu-page-eyebrow {
-  font-size: clamp(1.5rem, 4.5vw, 2.5rem);
-  letter-spacing: 0.32em;
-  margin-bottom: 0;
-  justify-content: center;
+  margin-bottom: 2.75rem;
 }
 
 .menu.section {
