@@ -2,7 +2,7 @@
 
 Astro site for [gwenda.co.uk](https://gwenda.co.uk) — Cloudflare Pages with Functions for the password gate and subscribe API. Website content and copy from Sanity are included at build time; more pages are moving into the CMS over time.
 
-Part of the Gwenda monorepo (repo root is one level up).
+Part of the Gwenda monorepo (`marketing/web/` under the ark root).
 
 ## Environments
 
