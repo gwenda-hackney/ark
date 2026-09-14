@@ -34,47 +34,33 @@ Local `.env` always uses `SANITY_DATASET=development` — same sandbox as stagin
 
 ## Tokens
 
-Sanity allows **one role per token**. On standard plans the built-in roles are separate — no single role both reads documents and deploys Studio:
+Sanity **robot / API tokens** on this plan are **Viewer**, **Editor**, and **Deploy Studio**. There is no **Developer** robot role in the manage UI (Developer is a human user role on Growth+).
 
-| Built-in role | Read menu/content | Deploy Studio |
-|---|---|---|
-| **Viewer** | Yes | No |
-| **Deploy Studio** | No | Yes |
+**Keep-set (exactly three robots):**
 
-Use **two GitHub secrets** for CI (one Sanity role per token):
+| Label | Role | Where | Used for |
+|-------|------|-------|----------|
+| `ark-local-editor` | **Editor** | Bitwarden `ark/.env.local` + repo `.env` as `SANITY_API_TOKEN` | Local Studio, seeds. **Never** GitHub. |
+| `ark-ci-viewer` | **Viewer** | GitHub `SANITY_API_TOKEN` | Site builds / content deploys |
+| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub `SANITY_DEPLOY_TOKEN` | Hosted Studio deploys |
 
-| Secret | Role | Used by |
-|---|---|---|
-| `SANITY_API_TOKEN` | **Viewer** | Site builds (`verify`, `deploy-staging`, `deploy-production`, content deploys) |
-| `SANITY_DEPLOY_TOKEN` | **Deploy Studio** | `deploy-studio.yml` only |
-
-**Automated setup** (uses Developer token in `.env`, pushes secrets via `gh`):
+Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity login`), not the local Editor robot:
 
 ```bash
-npm run setup:ci-secrets
-```
-
-One-time GitHub login in the devcontainer (persisted via `.config/gh` mount on rebuild):
-
-```bash
+npx sanity login
 gh auth login -h github.com -p https -s repo,workflow
+export BW_SESSION=$(bw unlock --raw)   # optional vault sync
+npm run setup:sanity-tokens
 ```
 
-Manual alternative:
-
-```bash
-gh secret set SANITY_API_TOKEN      # Viewer
-gh secret set SANITY_DEPLOY_TOKEN   # Deploy Studio
-```
-
-Local dev keeps a **Developer** token in repo-root `.env` — never copy it to GitHub.
+`setup:ci-secrets` is a deprecated alias that only refreshes CI tokens + GitHub secrets.
 
 ### Local `.env`
 
 ```bash
 SANITY_PROJECT_ID=pn5yjro6
 SANITY_DATASET=development
-SANITY_API_TOKEN=sk...
+SANITY_API_TOKEN=sk...   # ark-local-editor (Editor robot)
 ```
 
 ## Studio env files
@@ -107,7 +93,7 @@ npm run studio:dataset:create -- development --visibility private
 npx sanity login
 ```
 
-Copy env vars from `.env.example` into repo root `.env`.
+Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), or copy `.env.example` → `.env` and fill by hand. See [docs/env.md](env.md).
 
 ## Local commands
 
@@ -128,7 +114,7 @@ Schema lives in git (`studio/schemaTypes/`). Queries in `web/src/lib/sanity/`. C
 
 ```bash
 npm run studio:seed:dev
-npm run studio:seed:production   # requires Developer/Editor token in .env
+npm run studio:seed:production   # requires Editor token in .env
 ```
 
 Idempotent — updates by slug/name.

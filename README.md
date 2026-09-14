@@ -26,11 +26,13 @@ ark/
 
 ```bash
 npm install
+export BW_SESSION=$(bw unlock --raw)   # after bw login (EU: vault.bitwarden.eu)
+npm run env:pull                       # Bitwarden → repo-root .env
 npm run dev             # Astro site at http://localhost:4321
 npm run studio          # Sanity Studio at http://localhost:3333
 ```
 
-Copy `.env.example` → `.env` for local Sanity and Cloudflare tokens. Open **`.devcontainer/`** in Cursor for the full dev environment (Node 24, Python 3.12, `gh` CLI).
+Secrets come from Bitwarden, not from minting new API tokens. See **[docs/env.md](docs/env.md)**. Open **`.devcontainer/`** in Cursor for the full env (Node 24, Python, `gh`, `bw`, ImageMagick, plus nest docs tools: pandoc, csvkit). The Gwenda nest workspace builds this same Dockerfile.
 
 ## Projects
 
@@ -55,7 +57,7 @@ Static HTML brand guidelines at [brand.gwenda.co.uk](https://brand.gwenda.co.uk)
 
 ### Ops — [`ops/`](ops/)
 
-Password-gated internal tools (menu prices & stock) at [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev). Edit in `mydrive/`, sync, then deploy.
+Password-gated internal tools (menu prices & stock) at [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev). Edit in `gdrive/operations/stock/`, sync into `ops/`, then deploy.
 
 → **[ops/README.md](ops/README.md)** — sync, password secret, deploy
 
@@ -70,17 +72,19 @@ Operational tools: private event-invite CLI, ClickUp recipe-cost webhook, Studio
 | Guide | Contents |
 |-------|----------|
 | [docs/monorepo.md](docs/monorepo.md) | Layout, CI path filters, brand sync |
+| [docs/env.md](docs/env.md) | Bitwarden → local `.env` (`npm run env:pull`) |
 | [docs/sanity.md](docs/sanity.md) | CMS environments, tokens, content deploy |
 | [docs/colors.md](docs/colors.md) | Brand colour reference |
 
 ## Common commands
 
 ```bash
+npm run env:pull               # Bitwarden → .env (see docs/env.md)
 npm run dev                    # local site
 npm run studio                 # local Studio
 npm run build                  # production site build
 npm test                       # site unit tests
 npm run sync:brand             # site colours → brand guidelines
-npm run setup:ci-secrets       # Sanity Viewer + Deploy Studio → GitHub
-npm run setup:site-deploy      # Studio content-deploy webhook + secrets
+npm run setup:sanity-tokens  # Editor local + Viewer/Deploy Studio → GitHub (+ Bitwarden)
+npm run setup:site-deploy      # Studio content-deploy webhook + secrets (first-time / repair)
 ```
