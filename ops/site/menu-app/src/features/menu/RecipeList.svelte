@@ -96,7 +96,13 @@
 	}
 
 	.search {
-		padding: var(--gap-sm) var(--gap-sm) 0;
+		padding: var(--gap-sm);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.search :global(.wrap) {
+		height: var(--control-h-sm);
+		width: 100%;
 	}
 
 	.nav {
@@ -107,11 +113,12 @@
 	}
 
 	.chapter {
-		margin: 0 0 var(--gap);
+		margin: 0 0 0.85rem;
 	}
 
 	.chapter h2 {
-		margin: 0 0 0.4rem;
+		margin: 0 0 0.35rem;
+		padding: 0 0.35rem;
 		font-family: var(--font);
 		font-size: 0.6875rem;
 		font-weight: 600;
@@ -121,13 +128,15 @@
 	}
 
 	.section-title {
-		margin: 0.45rem 0 0.2rem;
+		margin: 0.35rem 0 0.15rem;
+		padding: 0 0.35rem;
 		font-size: 0.75rem;
 		color: var(--muted-foreground);
 	}
 
 	.item {
-		display: block;
+		display: grid;
+		gap: 0.1rem;
 		width: 100%;
 		text-align: left;
 		border: 0;
@@ -151,11 +160,13 @@
 		display: block;
 		font-size: 0.8125rem;
 		font-weight: 500;
+		line-height: 1.25;
 	}
 
 	small {
 		display: block;
 		color: var(--muted-foreground);
 		font-size: 0.75rem;
+		line-height: 1.2;
 	}
 </style>

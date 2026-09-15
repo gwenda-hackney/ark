@@ -10,6 +10,7 @@
 		size = "md",
 		mono = false,
 		align = "start",
+		type = "text",
 		class: className = "",
 		...rest
 	}: HTMLInputAttributes & {
@@ -18,24 +19,38 @@
 		mono?: boolean;
 		align?: "start" | "end";
 	} = $props();
+
+	const isFile = $derived(type === "file");
 </script>
 
-<input
-	class="input {size} {className}"
-	class:mono
-	class:end={align === "end"}
-	bind:value
-	{...rest}
-/>
-
+{#if isFile}
+	<input
+		class="input {size} {className}"
+		type="file"
+		{...rest}
+	/>
+{:else}
+	<input
+		class="input {size} {className}"
+		class:mono
+		class:end={align === "end"}
+		{type}
+		bind:value
+		{...rest}
+	/>
+{/if}
 <style>
 	.input {
+		display: block;
 		width: 100%;
 		min-width: 0;
+		box-sizing: border-box;
+		margin: 0;
 		border: 1px solid var(--input);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
 		color: var(--foreground);
+		line-height: 1.25;
 		transition:
 			border-color var(--t-fast) var(--ease-in-out),
 			box-shadow var(--t-fast) var(--ease-in-out);
@@ -93,19 +108,24 @@
 		margin: 0;
 	}
 
-	.input[type="date"] {
-		font-family: var(--font-mono);
-		font-variant-numeric: tabular-nums;
+	.input[type="file"] {
+		height: auto;
+		min-height: var(--control-h-sm);
+		padding: 0.4rem 0.65rem;
+		font-size: 0.75rem;
+		color: var(--muted-foreground);
 	}
 
-	.input[type="date"]::-webkit-calendar-picker-indicator {
-		opacity: 0.5;
+	.input[type="file"]::file-selector-button {
+		margin-right: 0.65rem;
+		padding: 0.25rem 0.65rem;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-pill);
+		background: transparent;
+		color: var(--foreground);
+		font: inherit;
+		font-size: 0.75rem;
+		font-weight: 500;
 		cursor: pointer;
-		transition: opacity var(--t-fast) var(--ease-in-out);
-	}
-
-	.input[type="date"]:hover::-webkit-calendar-picker-indicator,
-	.input[type="date"]:focus::-webkit-calendar-picker-indicator {
-		opacity: 1;
 	}
 </style>

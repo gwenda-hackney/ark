@@ -124,6 +124,15 @@
 		min-width: 0;
 	}
 
+	h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 600;
+		letter-spacing: -0.02em;
+		line-height: 1.2;
+	}
+
 	.subtitle {
 		font-size: 0.75rem;
 		line-height: 1.5;
@@ -172,8 +181,8 @@
 		min-height: 0;
 	}
 
+	/* Keep form content natural height; the body scrolls. */
 	.body.fill > :global(*) {
-		flex: 1;
 		min-height: 0;
 	}
 

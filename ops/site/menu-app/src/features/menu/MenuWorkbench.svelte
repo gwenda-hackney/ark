@@ -418,24 +418,26 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--gap-sm) var(--gap);
-		align-items: flex-start;
+		align-items: center;
 		justify-content: space-between;
-		padding: 0.85rem var(--page-gutter);
+		padding: 0.75rem var(--page-gutter);
 		background: var(--card);
 		border-bottom: 1px solid var(--border);
+		min-height: calc(var(--topbar-h, 4rem));
 	}
 
 	.brand {
 		display: grid;
-		gap: 0.15rem;
+		gap: 0.1rem;
 	}
 
 	.brand h1 {
-		font-size: 1.35rem;
+		font-size: 1.25rem;
+		line-height: 1.15;
 	}
 
 	.back {
-		font-size: 0.8125rem;
+		font-size: 0.75rem;
 		color: var(--muted-foreground);
 	}
 
@@ -446,23 +448,25 @@
 	.tools {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--gap-xs);
+		gap: 0.45rem;
 		align-items: center;
 		justify-content: flex-end;
 	}
 
 	.target {
-		display: flex;
+		display: grid;
+		grid-auto-flow: column;
 		gap: 0.45rem;
 		align-items: center;
 		font-size: 0.75rem;
 		font-weight: 500;
 		color: var(--muted-foreground);
+		height: var(--control-h-sm);
 	}
 
 	.target :global(select) {
 		width: auto;
-		min-width: 9rem;
+		min-width: 9.5rem;
 	}
 
 	.warn {
@@ -488,8 +492,16 @@
 
 	.main {
 		min-height: 0;
-		overflow: auto;
-		padding: var(--gap) var(--page-gutter) 2rem;
+		overflow: hidden;
+		padding: var(--gap) var(--page-gutter) var(--gap);
+		display: flex;
+		flex-direction: column;
+	}
+
+	.main :global(.editor),
+	.main :global(.empty) {
+		flex: 1;
+		min-height: 0;
 	}
 
 	@media (max-width: 880px) {

@@ -12,8 +12,11 @@
 
 <style>
 	.input {
+		display: block;
 		width: 100%;
 		min-width: 0;
+		box-sizing: border-box;
+		margin: 0;
 		min-height: 4.5rem;
 		padding: 0.65rem 0.75rem;
 		border: 1px solid var(--input);
