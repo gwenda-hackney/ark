@@ -49,7 +49,7 @@ Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity l
 ```bash
 npx sanity login
 gh auth login -h github.com -p https -s repo,workflow
-export BW_SESSION=$(bw unlock --raw)   # optional vault sync
+bw-unlock   # optional vault sync
 npm run setup:sanity-tokens
 ```
 

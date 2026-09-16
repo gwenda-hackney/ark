@@ -59,13 +59,13 @@
 	.md {
 		height: var(--control-h);
 		padding: 0 0.75rem;
-		font-size: 0.8125rem;
+		font-size: var(--text);
 	}
 
 	.sm {
 		height: var(--control-h-sm);
 		padding: 0 0.6875rem;
-		font-size: 0.8125rem;
+		font-size: var(--text);
 	}
 
 	.mono {
@@ -112,7 +112,7 @@
 		height: auto;
 		min-height: var(--control-h-sm);
 		padding: 0.4rem 0.65rem;
-		font-size: 0.75rem;
+		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 	}
 
@@ -124,7 +124,7 @@
 		background: transparent;
 		color: var(--foreground);
 		font: inherit;
-		font-size: 0.75rem;
+		font-size: var(--text-sm);
 		font-weight: 500;
 		cursor: pointer;
 	}

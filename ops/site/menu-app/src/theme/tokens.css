@@ -24,11 +24,16 @@
   --gap-sm: 0.625rem;
   --gap: 1rem;
   --gap-lg: 1.5rem;
+  --rail-w: 4.5rem;
+  --rail-w-open: 15rem;
+  --topbar-h: 3.5rem;
+  /* Keep in sync with SHELL_MOBILE_MAX_PX. Includes the home indicator. */
+  --bottom-nav-h: calc(3.5rem + env(safe-area-inset-bottom, 0px));
 
   /* ─── Controls ───────────────────────────────────────────────────────── */
-  --control-h: 2.5rem;
-  --control-h-sm: 2.125rem;
-  --control-h-xs: 1.75rem;
+  --control-h: 2.625rem;
+  --control-h-sm: 2.25rem;
+  --control-h-xs: 1.875rem;
 
   /* ─── Motion ─────────────────────────────────────────────────────────── */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -38,9 +43,13 @@
   --t-slow: 320ms;
 
   /* ─── Type ───────────────────────────────────────────────────────────── */
-  --font-display: "Cormorant Garamond", Georgia, serif;
-  --font: "Lora", Georgia, serif;
+  --font-display: "Ysabeau", system-ui, sans-serif;
+  --font: "Roboto", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 0.75rem; /* 12px — hints, meta */
+  --text-sm: 0.8125rem; /* 13px — field labels */
+  --text: 0.875rem; /* 14px — controls, secondary */
+  --text-md: 1rem; /* 16px — body */
 
   /* ─── Gwenda dark palette (semantic) ─────────────────────────────────── */
   color-scheme: dark;
@@ -76,7 +85,7 @@
   --up: #6b9b78;
   --down: #c97a7a;
   --success: var(--up);
-  --warning: #c9a84c;
+  --warning: #c97a7a;
   --destructive: #c97a7a;
   --destructive-hover: color-mix(in srgb, #c97a7a 85%, #e8e4dc);
   --destructive-foreground: #0d0d0d;
@@ -86,9 +95,17 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-primary: 0 0 0 1px color-mix(in srgb, #c9a84c 40%, transparent),
     0 4px 18px color-mix(in srgb, #c9a84c 18%, transparent);
+  --shadow-pop: var(--shadow);
 
-  /* Spec book / print canvas */
-  --book-bg: #23211b;
-  --book-ink: #e8e4dc;
-  --book-muted: #8a8680;
+  --brand-mark: #c9a84c;
+  --glow: color-mix(in srgb, #c9a84c 18%, transparent);
+  --popover: #1a1a1a;
+  --popover-foreground: #e8e4dc;
+
+  /* Spec book: white paper, black ink, gold-dark accents */
+  --book-bg: #ffffff;
+  --book-ink: #0d0d0d;
+  --book-muted: color-mix(in srgb, #0d0d0d 58%, #8a8680);
+  --book-accent: #8b6914;
+  --book-rule: color-mix(in srgb, #0d0d0d 14%, transparent);
 }

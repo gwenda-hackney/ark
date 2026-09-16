@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  applyDescriptionFromRecipe,
+  computeRecipeAbv,
   deployTargetForEnv,
   flattenIngredientsForMenu,
   groupImportRows,
@@ -9,6 +9,7 @@ import {
   normalizeIngredients,
   parseImportText,
   parseIngredientLine,
+  resolveIngredientAbv,
 } from "./menu.js";
 
 describe("deployTargetForEnv", () => {
@@ -64,16 +65,53 @@ describe("ingredientsFromDescription", () => {
   });
 });
 
+describe("resolveIngredientAbv", () => {
+  it("prefers inventory ABV for linked lines", () => {
+    const map = new Map([["9", "40"]]);
+    assert.equal(
+      resolveIngredientAbv({ inventoryId: "9", abv: "12" }, map),
+      "40",
+    );
+  });
+
+  it("ignores stale line ABV when linked inventory has none", () => {
+    const map = new Map([["9", undefined]]);
+    assert.equal(
+      resolveIngredientAbv({ inventoryId: "9", abv: "40" }, map),
+      undefined,
+    );
+  });
+
+  it("uses line ABV when unlinked", () => {
+    assert.equal(resolveIngredientAbv({ abv: "18%" }, new Map()), "18%");
+  });
+});
+
+describe("computeRecipeAbv", () => {
+  it("weights linked inventory ABV over denormalized line values", () => {
+    const map = new Map([["1", "40"]]);
+    const abv = computeRecipeAbv(
+      [
+        { name: "gin", quantity: 50, unit: "ml", inventoryId: "1", abv: "10" },
+        { name: "soda", quantity: 50, unit: "ml" },
+      ],
+      map,
+    );
+    assert.equal(abv, 20);
+  });
+});
+
 describe("normalizeIngredients", () => {
   it("drops empty names and normalises units", () => {
     const rows = normalizeIngredients([
-      { name: "gin", quantity: "25", unit: "ML" },
+      { name: "gin", quantity: "25", unit: "ML", abv: "40%" },
       { name: "" },
       { name: "soda", unit: "top", note: "to fill" },
     ]);
     assert.equal(rows.length, 2);
     assert.equal(rows[0].quantity, 25);
     assert.equal(rows[0].unit, "ml");
+    assert.equal(rows[0].abv, "40");
     assert.equal(rows[1].note, "to fill");
   });
 });
@@ -92,26 +130,3 @@ describe("parseImportText", () => {
   });
 });
 
-describe("applyDescriptionFromRecipe", () => {
-  it("fills the guest line from ingredient names", () => {
-    const fields = applyDescriptionFromRecipe(
-      {},
-      {
-        lockDescription: false,
-        ingredients: [{ name: "gin" }, { name: "vermouth" }],
-      },
-    );
-    assert.equal(fields.description, "gin, vermouth");
-  });
-
-  it("leaves a locked line alone", () => {
-    const fields = applyDescriptionFromRecipe(
-      { description: "Floral gin fizz" },
-      {
-        lockDescription: true,
-        ingredients: [{ name: "gin" }],
-      },
-    );
-    assert.equal(fields.description, "Floral gin fizz");
-  });
-});

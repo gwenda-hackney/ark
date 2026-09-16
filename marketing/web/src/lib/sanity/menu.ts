@@ -15,7 +15,8 @@ type SanityMenuSection = {
     name: string;
     description?: string | null;
     price?: string | null;
-    signature?: boolean | null;
+    priceAlt?: string | null;
+    drinkType?: string | null;
     notes?: string | null;
     abv?: string | null;
     volume?: string | null;
@@ -23,6 +24,12 @@ type SanityMenuSection = {
     image?: SanityImageField;
   }>;
 };
+
+function mapDrinkType(value: string | null | undefined): MenuItem["drinkType"] {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "pour" || raw === "beer" || raw === "packaged") return raw;
+  return "cocktail";
+}
 
 function mapMenuItem(doc: SanityMenuSection["items"][number]): MenuItem | null {
   if (!doc.id || !doc.name) {
@@ -34,7 +41,8 @@ function mapMenuItem(doc: SanityMenuSection["items"][number]): MenuItem | null {
     name: doc.name,
     description: doc.description?.trim() || undefined,
     price: doc.price?.trim() || undefined,
-    signature: doc.signature === true,
+    priceAlt: doc.priceAlt?.trim() || undefined,
+    drinkType: mapDrinkType(doc.drinkType),
     notes: doc.notes?.trim() || undefined,
     abv: doc.abv?.trim() || undefined,
     volume: doc.volume?.trim() || undefined,
@@ -110,16 +118,19 @@ export async function fetchMenu(): Promise<Menu> {
   return { sections };
 }
 
-/** Signature cocktails for the homepage gallery — one URL per tile shape. */
+/** Cocktail photos for the homepage gallery — one URL per tile shape. */
 export async function fetchMenuTeaseCocktails(): Promise<MenuTeaseCocktail[]> {
   const client = createSanityClient();
   const docs = await client.fetch<SanityMenuSection[]>(MENU_QUERY);
 
-  const signatureItems = docs
+  const cocktailItems = docs
     .flatMap((section) => section.items)
-    .filter((item) => item.signature === true && item.image?.asset?._id);
+    .filter(
+      (item) =>
+        mapDrinkType(item.drinkType) === "cocktail" && item.image?.asset?._id,
+    );
 
-  return signatureItems
+  return cocktailItems
     .map((item): MenuTeaseCocktail | null => {
       if (!item.id || !item.name) return null;
 
@@ -132,7 +143,8 @@ export async function fetchMenuTeaseCocktails(): Promise<MenuTeaseCocktail[]> {
         name: item.name,
         description: item.description?.trim() || undefined,
         price: item.price?.trim() || undefined,
-        signature: true,
+        priceAlt: item.priceAlt?.trim() || undefined,
+        drinkType: mapDrinkType(item.drinkType),
         notes: item.notes?.trim() || undefined,
         image,
       };

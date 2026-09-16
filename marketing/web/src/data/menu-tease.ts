@@ -3,7 +3,7 @@ import { getSignatureCocktails } from "./menu";
 
 export type MenuTeaseCocktail = MenuItem & { image: NonNullable<MenuItem["image"]> };
 
-/** Signature cocktails for the homepage gallery — from Sanity only. */
+/** Cocktail photos for the homepage gallery — from Sanity only. */
 export function getMenuTeaseCocktails(menu: Parameters<typeof getSignatureCocktails>[0]): MenuTeaseCocktail[] {
   return getSignatureCocktails(menu);
 }

@@ -85,7 +85,7 @@
 		height: 100%;
 		border: none;
 		background: none;
-		font-size: 0.8125rem;
+		font-size: var(--text);
 		color: var(--foreground);
 	}
 
@@ -103,7 +103,7 @@
 
 	.count {
 		flex-shrink: 0;
-		font-size: 0.6875rem;
+		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 	}
 

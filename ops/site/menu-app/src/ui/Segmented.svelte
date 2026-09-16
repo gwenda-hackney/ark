@@ -30,19 +30,36 @@
 
 <div class="track {tone} {size}" role="tablist" aria-label={ariaLabel}>
 	{#each items as item (item.id)}
-		<button
-			type="button"
-			role="tab"
-			class="tab"
-			aria-selected={item.id === value}
-			disabled={item.disabled}
-			onclick={() => pick(item)}
-		>
-			<span>{item.label}</span>
-			{#if item.count !== undefined}
-				<span class="count num">{item.count}</span>
-			{/if}
-		</button>
+		{#if item.href}
+			<a
+				href={item.href}
+				role="tab"
+				class="tab"
+				aria-selected={item.id === value}
+				aria-disabled={item.disabled || undefined}
+				tabindex={item.disabled ? -1 : 0}
+				onclick={item.disabled ? (e) => e.preventDefault() : undefined}
+			>
+				<span>{item.label}</span>
+				{#if item.count !== undefined}
+					<span class="count num">{item.count}</span>
+				{/if}
+			</a>
+		{:else}
+			<button
+				type="button"
+				role="tab"
+				class="tab"
+				aria-selected={item.id === value}
+				disabled={item.disabled}
+				onclick={() => pick(item)}
+			>
+				<span>{item.label}</span>
+				{#if item.count !== undefined}
+					<span class="count num">{item.count}</span>
+				{/if}
+			</button>
+		{/if}
 	{/each}
 </div>
 
@@ -66,31 +83,39 @@
 		background: none;
 		color: var(--muted-foreground);
 		font-weight: 500;
+		font-family: inherit;
 		white-space: nowrap;
+		text-decoration: none;
+		cursor: pointer;
 		transition:
 			background-color var(--t) var(--ease-in-out),
 			color var(--t) var(--ease-in-out),
 			box-shadow var(--t) var(--ease);
 	}
 
+	.tab[aria-selected="true"] {
+		font-weight: 600;
+	}
+
 	.md .tab {
 		height: 1.875rem;
 		padding: 0 0.8125rem;
-		font-size: 0.8125rem;
+		font-size: var(--text);
 	}
 
 	.sm .tab {
 		height: 1.625rem;
 		padding: 0 0.6875rem;
-		font-size: 0.75rem;
+		font-size: var(--text-sm);
 	}
 
-	.tab:hover:not(:disabled):not([aria-selected="true"]) {
+	.tab:hover:not(:disabled):not([aria-disabled="true"]):not([aria-selected="true"]) {
 		color: var(--foreground);
 		background: var(--accent);
 	}
 
-	.tab:disabled {
+	.tab:disabled,
+	.tab[aria-disabled="true"] {
 		opacity: 0.4;
 		pointer-events: none;
 	}
@@ -102,13 +127,17 @@
 	}
 
 	.soft .tab[aria-selected="true"] {
-		background: var(--card);
-		color: var(--foreground);
-		box-shadow: var(--shadow-sm);
+		background: var(--primary-wash-strong);
+		color: var(--primary);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 42%, transparent);
 	}
 
 	.count {
-		font-size: 0.6875rem;
+		font-size: var(--text-xs);
 		opacity: 0.7;
+	}
+
+	.tab[aria-selected="true"] .count {
+		opacity: 1;
 	}
 </style>

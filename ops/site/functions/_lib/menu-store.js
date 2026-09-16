@@ -2,8 +2,10 @@ import {
   boolField,
   createRow,
   deleteRow,
+  deleteRowsInOrder,
   fileUrl,
   getRow,
+  linkHasQuery,
   linkIds,
   linkValue,
   listAllRows,
@@ -12,12 +14,22 @@ import {
   uploadUserFile,
 } from "./baserow.js";
 import {
-  applyDescriptionFromRecipe,
-  flattenIngredientsForMenu,
+  computeRecipeAbv,
+  computeRecipeVolumeMl,
+  formatAbv,
+  inventoryAbvById,
   normalizeIngredients,
   normalizeUnit,
   parseQuantity,
 } from "./menu.js";
+import { assertUniqueItemName, itemSlug } from "./item-key.js";
+import { parsePublishSnapshots } from "./reconcile.js";
+import { flattenMenuSections, nestMenuSections } from "./menu-sections.js";
+import {
+  ANALYSIS_NOTE_FIELD,
+  parseStoredAnalyzeNote,
+  serializeAnalyzeNote,
+} from "./analyze-note.js";
 
 function text(value) {
   if (typeof value !== "string") return "";
@@ -32,6 +44,20 @@ function unitFromBaserow(value) {
   return "";
 }
 
+function selectValue(value) {
+  if (typeof value === "string") return value.trim();
+  if (value && typeof value === "object" && typeof value.value === "string") {
+    return value.value.trim();
+  }
+  return "";
+}
+
+function normalizeDrinkType(value) {
+  const raw = selectValue(value).toLowerCase();
+  if (raw === "pour" || raw === "beer" || raw === "packaged") return raw;
+  return "cocktail";
+}
+
 function mapIngredient(row) {
   return {
     id: row.id,
@@ -39,8 +65,13 @@ function mapIngredient(row) {
     quantity: parseQuantity(row.Qty),
     unit: unitFromBaserow(row.Unit),
     note: text(row.Note),
+    abv: text(row.ABV) || undefined,
     order: parseQuantity(row.Order) ?? 0,
     itemId: linkValue(row["Menu Item"]),
+    inventoryId:
+      linkValue(row.Inventory) != null
+        ? String(linkValue(row.Inventory))
+        : undefined,
   };
 }
 
@@ -68,12 +99,13 @@ function mapItem(row) {
     description: text(row["Menu line"]) || undefined,
     lockDescription: boolField(row["Lock menu line"]),
     price: text(row.Price) || undefined,
+    priceAlt: text(row["Alt price"]) || undefined,
+    drinkType: normalizeDrinkType(row["Drink type"]),
     notes: text(row.Type) || undefined,
     glassware: text(row.Glassware) || undefined,
     garnish: text(row.Garnish) || undefined,
     ice: text(row.Ice) || undefined,
     method: text(row.Method) || undefined,
-    signature: boolField(row.Signature),
     abv: text(row.ABV) || undefined,
     volume: text(row.Volume) || undefined,
     producer: text(row.Producer) || undefined,
@@ -81,6 +113,8 @@ function mapItem(row) {
     sectionId: linkValue(row.Section) != null ? String(linkValue(row.Section)) : null,
     sanityId: text(row["Sanity ID"]) || undefined,
     onDigitalMenu: row["On digital menu"] == null ? true : boolField(row["On digital menu"]),
+    publishSnapshots: parsePublishSnapshots(row["Publish snapshots"]),
+    analysisNote: parseStoredAnalyzeNote(row[ANALYSIS_NOTE_FIELD]),
     image: photo
       ? {
           alt: text(row.Name),
@@ -99,7 +133,10 @@ export async function loadMenuTree(env) {
     listAllRows(env, tables.ingredients),
   ]);
 
-  const sections = sectionRows.map(mapSection).sort((a, b) => a.orderRank - b.orderRank);
+  const sections = sectionRows
+    .map(mapSection)
+    .filter((section) => Boolean(section.title || section.slug))
+    .sort((a, b) => a.orderRank - b.orderRank);
   const byId = new Map(sections.map((section) => [section._id, section]));
   for (const section of sections) {
     if (section.parentId && byId.has(section.parentId)) {
@@ -120,7 +157,10 @@ export async function loadMenuTree(env) {
     list.sort((a, b) => a.order - b.order || a.id - b.id);
   }
 
-  const items = itemRows.map(mapItem).sort((a, b) => a.orderRank - b.orderRank);
+  const items = itemRows
+    .map(mapItem)
+    .filter((item) => Boolean(item.name))
+    .sort((a, b) => a.orderRank - b.orderRank);
   for (const item of items) {
     item.ingredients = ingredientsByItem.get(item._id) || [];
     const section = item.sectionId ? byId.get(item.sectionId) : null;
@@ -134,10 +174,32 @@ export async function loadMenuTree(env) {
     }
   }
 
-  return { tables, sections, items };
+  return { tables, sections: nestMenuSections(sections), items };
 }
 
-function itemFieldsFromInput(input, { ingredients }) {
+async function loadInventoryAbvMap(env, tables) {
+  if (!tables.inventory) return new Map();
+  const rows = await listAllRows(env, tables.inventory);
+  return inventoryAbvById(
+    rows.map((row) => ({
+      id: String(row.id),
+      abv: text(row.ABV) || undefined,
+    })),
+  );
+}
+
+/** Drink ABV/volume from recipe lines + live inventory ABV. */
+function drinkMetricsFields(drinkType, ingredients, inventoryById) {
+  if (drinkType !== "cocktail") return {};
+  const abv = computeRecipeAbv(ingredients, inventoryById);
+  const volumeMl = computeRecipeVolumeMl(ingredients);
+  return {
+    ...(abv != null ? { ABV: formatAbv(abv) } : {}),
+    ...(volumeMl != null ? { Volume: `${volumeMl} ml` } : {}),
+  };
+}
+
+function itemFieldsFromInput(input) {
   const name = text(input.name);
   if (!name) {
     const error = new Error("Name is required.");
@@ -151,24 +213,22 @@ function itemFieldsFromInput(input, { ingredients }) {
     throw error;
   }
 
-  const lockDescription = input.lockDescription === true || input.lockDescription === "true";
-  const fields = {
-    description: text(input.description) || undefined,
-  };
-  applyDescriptionFromRecipe(fields, { lockDescription, ingredients });
+  const drinkType = normalizeDrinkType(input.drinkType);
 
   return {
     Name: name,
     Section: [sectionId],
-    "Menu line": fields.description || "",
-    "Lock menu line": lockDescription,
+    "Menu line": text(input.description) || "",
+    "Lock menu line": false,
     Price: text(input.price),
+    "Alt price": text(input.priceAlt),
+    "Drink type": drinkType,
     Type: text(input.notes),
     Glassware: text(input.glassware),
     Garnish: text(input.garnish),
     Ice: text(input.ice),
-    Method: text(input.method),
-    Signature: input.signature === true || input.signature === "true",
+    Method: drinkType === "cocktail" ? text(input.method) : "",
+    Signature: false,
     ABV: text(input.abv),
     Volume: text(input.volume),
     Producer: text(input.producer),
@@ -178,36 +238,129 @@ function itemFieldsFromInput(input, { ingredients }) {
         ? true
         : input.onDigitalMenu === true || input.onDigitalMenu === "true",
     ...(text(input.sanityId) ? { "Sanity ID": text(input.sanityId) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(input, "analysisNote")
+      ? { [ANALYSIS_NOTE_FIELD]: serializeAnalyzeNote(input.analysisNote) }
+      : {}),
   };
 }
 
-async function replaceIngredients(env, tables, itemId, ingredients) {
-  const existing = await listAllRows(env, tables.ingredients);
-  const mine = existing.filter((row) => linkIds(row["Menu Item"]).includes(Number(itemId)));
-  await Promise.all(mine.map((row) => deleteRow(env, tables.ingredients, row.id)));
-
-  const normalized = normalizeIngredients(ingredients);
-  const created = [];
-  for (const [index, ing] of normalized.entries()) {
-    const row = await createRow(env, tables.ingredients, {
-      Name: ing.name,
-      "Menu Item": [Number(itemId)],
-      Qty: ing.quantity ?? null,
-      Unit: ing.unit || null,
-      Note: ing.note || "",
-      Order: ing.order ?? index + 1,
-    });
-    created.push(mapIngredient(row));
+function ingredientFields(ing, itemId, index, tables) {
+  const payload = {
+    Name: ing.name,
+    "Menu Item": [Number(itemId)],
+    Qty: ing.quantity ?? null,
+    Unit: ing.unit || null,
+    Note: ing.note || "",
+    // Linked lines: inventory is the ABV source. Do not denormalize.
+    ABV: ing.inventoryId ? "" : ing.abv || "",
+    Order: ing.order ?? index + 1,
+  };
+  if (tables.inventory) {
+    payload.Inventory = ing.inventoryId ? [Number(ing.inventoryId)] : [];
   }
-  return created;
+  return payload;
+}
+
+export function ingredientLineSignature(ing, index) {
+  return {
+    name: text(ing.name),
+    quantity: ing.quantity ?? null,
+    unit: ing.unit || "",
+    note: ing.note || "",
+    abv: ing.inventoryId ? "" : text(ing.abv),
+    order: ing.order ?? index + 1,
+    inventoryId: ing.inventoryId ? String(ing.inventoryId) : "",
+  };
+}
+
+function claimExistingIngredient(unused, ing) {
+  const id = ing.id != null && ing.id !== "" ? String(ing.id) : "";
+  if (id && unused.has(id)) {
+    const row = unused.get(id);
+    unused.delete(id);
+    return row;
+  }
+  const wantName = text(ing.name).toLowerCase();
+  const wantInv = ing.inventoryId ? String(ing.inventoryId) : "";
+  for (const [key, row] of unused) {
+    const mapped = mapIngredient(row);
+    const sameName = text(mapped.name).toLowerCase() === wantName;
+    const sameInv = String(mapped.inventoryId || "") === wantInv;
+    if (sameName && sameInv) {
+      unused.delete(key);
+      return row;
+    }
+  }
+  return null;
+}
+
+export function planIngredientSync(existingRows, ingredients) {
+  const normalized = normalizeIngredients(ingredients);
+  const unused = new Map(
+    (existingRows || []).map((row) => [String(row.id), row]),
+  );
+  const ops = [];
+  for (const [index, ing] of normalized.entries()) {
+    const match = claimExistingIngredient(unused, ing);
+    if (!match) {
+      ops.push({ action: "create", incoming: ing, index });
+      continue;
+    }
+    const prev = ingredientLineSignature(mapIngredient(match), index);
+    const next = ingredientLineSignature(ing, index);
+    if (JSON.stringify(prev) === JSON.stringify(next)) {
+      ops.push({ action: "keep", row: match, index });
+    } else {
+      ops.push({ action: "update", row: match, incoming: ing, index });
+    }
+  }
+  return { ops, deletes: [...unused.values()] };
+}
+
+async function replaceIngredients(env, tables, itemId, ingredients) {
+  const existing = await listAllRows(env, tables.ingredients, {
+    filters: linkHasQuery("Menu Item", itemId),
+  });
+  const { ops, deletes } = planIngredientSync(existing, ingredients);
+  const saved = [];
+  for (const op of ops) {
+    if (op.action === "keep") {
+      saved.push(mapIngredient(op.row));
+      continue;
+    }
+    const fields = ingredientFields(op.incoming, itemId, op.index, tables);
+    if (op.action === "update") {
+      const row = await updateRow(env, tables.ingredients, op.row.id, fields);
+      saved.push(mapIngredient(row));
+      continue;
+    }
+    const row = await createRow(env, tables.ingredients, fields);
+    saved.push(mapIngredient(row));
+  }
+  await deleteRowsInOrder(
+    env,
+    tables.ingredients,
+    deletes.map((row) => row.id),
+  );
+  return saved;
 }
 
 export async function createMenuItem(env, input) {
   const tables = await resolveOpsTableIds(env);
   const ingredients = normalizeIngredients(input.ingredients);
-  const fields = itemFieldsFromInput(input, { ingredients });
+  const inventoryById = await loadInventoryAbvMap(env, tables);
+  const fields = itemFieldsFromInput(input);
+  const siblings = await listAllRows(env, tables.items);
+  assertUniqueItemName(
+    siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
+    fields.Name,
+    { kind: "drink" },
+  );
+  Object.assign(
+    fields,
+    drinkMetricsFields(fields["Drink type"], ingredients, inventoryById),
+  );
   if (!fields.Order) {
-    const siblings = await listAllRows(env, tables.items);
     const maxOrder = siblings.reduce((max, row) => {
       const order = parseQuantity(row.Order) ?? 0;
       return order > max ? order : max;
@@ -231,12 +384,22 @@ export async function updateMenuItem(env, itemId, input) {
     throw error;
   }
   const ingredients = normalizeIngredients(input.ingredients);
+  const inventoryById = await loadInventoryAbvMap(env, tables);
   const fields = itemFieldsFromInput(
     {
       ...input,
       sectionId: input.sectionId || linkValue(existing.Section),
     },
-    { ingredients },
+  );
+  Object.assign(
+    fields,
+    drinkMetricsFields(fields["Drink type"], ingredients, inventoryById),
+  );
+  const siblings = await listAllRows(env, tables.items);
+  assertUniqueItemName(
+    siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
+    fields.Name,
+    { exceptId: itemId, kind: "drink" },
   );
   const row = await updateRow(env, tables.items, itemId, fields);
   const savedIngredients = await replaceIngredients(env, tables, itemId, ingredients);
@@ -246,11 +409,69 @@ export async function updateMenuItem(env, itemId, input) {
   return item;
 }
 
+/**
+ * After inventory ABV changes, recompute drink ABV for every cocktail that
+ * links that stock row.
+ */
+export async function recomputeDrinksForInventoryId(env, inventoryId) {
+  const invId = Number(inventoryId);
+  if (!Number.isFinite(invId)) return { updated: 0 };
+
+  const tables = await resolveOpsTableIds(env);
+  if (!tables.inventory || !tables.ingredients || !tables.items) {
+    return { updated: 0 };
+  }
+
+  const [ingredientRows, inventoryById] = await Promise.all([
+    listAllRows(env, tables.ingredients),
+    loadInventoryAbvMap(env, tables),
+  ]);
+
+  const menuItemIds = new Set();
+  for (const row of ingredientRows) {
+    if (!linkIds(row.Inventory).includes(invId)) continue;
+    for (const itemId of linkIds(row["Menu Item"])) {
+      menuItemIds.add(itemId);
+    }
+  }
+  if (menuItemIds.size === 0) return { updated: 0 };
+
+  const ingredientsByItem = new Map();
+  for (const row of ingredientRows) {
+    const ing = mapIngredient(row);
+    if (!ing.itemId) continue;
+    const key = Number(ing.itemId);
+    if (!menuItemIds.has(key)) continue;
+    const list = ingredientsByItem.get(key) ?? [];
+    list.push(ing);
+    ingredientsByItem.set(key, list);
+  }
+
+  let updated = 0;
+  for (const itemId of menuItemIds) {
+    const itemRow = await getRow(env, tables.items, itemId);
+    if (!itemRow?.id) continue;
+    const drinkType = normalizeDrinkType(itemRow["Drink type"]);
+    if (drinkType !== "cocktail") continue;
+    const ingredients = ingredientsByItem.get(itemId) || [];
+    const metrics = drinkMetricsFields(drinkType, ingredients, inventoryById);
+    if (!Object.keys(metrics).length) continue;
+    await updateRow(env, tables.items, itemId, metrics);
+    updated += 1;
+  }
+  return { updated };
+}
+
 export async function deleteMenuItem(env, itemId) {
   const tables = await resolveOpsTableIds(env);
-  const existing = await listAllRows(env, tables.ingredients);
-  const mine = existing.filter((row) => linkIds(row["Menu Item"]).includes(Number(itemId)));
-  await Promise.all(mine.map((row) => deleteRow(env, tables.ingredients, row.id)));
+  const mine = await listAllRows(env, tables.ingredients, {
+    filters: linkHasQuery("Menu Item", itemId),
+  });
+  await deleteRowsInOrder(
+    env,
+    tables.ingredients,
+    mine.map((row) => row.id),
+  );
   await deleteRow(env, tables.items, itemId);
   return { id: String(itemId) };
 }
@@ -262,6 +483,12 @@ export async function setMenuItemPhoto(env, itemId, bytes, { filename, contentTy
     Photo: [{ name: uploaded.name }],
     ...(alt ? {} : {}),
   });
+  return mapItem(row);
+}
+
+export async function clearMenuItemPhoto(env, itemId) {
+  const tables = await resolveOpsTableIds(env);
+  const row = await updateRow(env, tables.items, itemId, { Photo: [] });
   return mapItem(row);
 }
 
@@ -287,14 +514,140 @@ export async function importIngredientsForItems(env, rows) {
     }
     const ingredients = normalizeIngredients(ingredientRows);
     await replaceIngredients(env, tables, existing._id, ingredients);
-    const lockDescription = existing.lockDescription === true;
-    if (!lockDescription) {
-      const line = flattenIngredientsForMenu(ingredients);
-      if (line) {
-        await updateRow(env, tables.items, existing._id, { "Menu line": line });
-      }
-    }
     matched.push({ id: existing._id, name: existing.name, count: ingredients.length });
   }
   return { matched, unmatched };
 }
+
+function fail(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  throw error;
+}
+
+function nextSectionOrder(rows) {
+  return (
+    rows.reduce((max, row) => {
+      const order = parseQuantity(row.Order) ?? 0;
+      return order > max ? order : max;
+    }, 0) + 1
+  );
+}
+
+function mappedSectionsFromRows(rows) {
+  const sections = rows
+    .map(mapSection)
+    .filter((section) => Boolean(section.title || section.slug));
+  const byId = new Map(sections.map((section) => [section._id, section]));
+  for (const section of sections) {
+    if (section.parentId && byId.has(section.parentId)) {
+      section.parentTitle = byId.get(section.parentId).title;
+    }
+  }
+  return { sections, byId };
+}
+
+async function assertSectionParent(byId, parentId, { exceptId } = {}) {
+  if (!parentId) return null;
+  const parent = byId.get(String(parentId));
+  if (!parent) fail(400, "Parent section not found.");
+  if (parent.parentId) {
+    fail(400, "Only chapters can have groups. Pick a top-level section.");
+  }
+  if (exceptId && String(parent._id) === String(exceptId)) {
+    fail(400, "A section cannot sit under itself.");
+  }
+  return parent;
+}
+
+function assertUniqueSectionSlug(sections, slug, exceptId) {
+  const except = exceptId != null ? String(exceptId) : "";
+  const clash = sections.find((section) => {
+    if (except && section._id === except) return false;
+    return itemSlug(section.slug || section.title) === slug;
+  });
+  if (clash) fail(409, "A section with that name already exists.");
+}
+
+export async function createMenuSection(env, input) {
+  const tables = await resolveOpsTableIds(env);
+  const title = text(input.title);
+  if (!title) fail(400, "Section name is required.");
+  const slug = itemSlug(input.slug) || itemSlug(title);
+  if (!slug) fail(400, "Use letters or numbers in the section name.");
+  const rows = await listAllRows(env, tables.sections);
+  const { sections, byId } = mappedSectionsFromRows(rows);
+  assertUniqueSectionSlug(sections, slug);
+  const parentId = text(input.parentId) || null;
+  await assertSectionParent(byId, parentId);
+  const fields = {
+    Name: title,
+    Slug: slug,
+    Subtitle: text(input.subtitle),
+    Order: parseQuantity(input.orderRank) ?? nextSectionOrder(rows),
+    Parent: parentId ? [Number(parentId)] : [],
+  };
+  const row = await createRow(env, tables.sections, fields);
+  return mapSection(row);
+}
+
+export async function updateMenuSection(env, sectionId, input) {
+  const tables = await resolveOpsTableIds(env);
+  const existing = await getRow(env, tables.sections, sectionId);
+  if (!existing?.id) fail(404, "Section not found.");
+  const current = mapSection(existing);
+  const title = text(input.title) || current.title;
+  if (!title) fail(400, "Section name is required.");
+  const slug = itemSlug(input.slug) || current.slug || itemSlug(title);
+  if (!slug) fail(400, "Use letters or numbers in the section name.");
+  const rows = await listAllRows(env, tables.sections);
+  const { sections, byId } = mappedSectionsFromRows(rows);
+  assertUniqueSectionSlug(sections, slug, current._id);
+  const parentId =
+    input.parentId === "" || input.parentId === null
+      ? null
+      : text(input.parentId) || current.parentId;
+  if (parentId) {
+    const descendants = new Set(
+      sections
+        .filter((section) => section.parentId === current._id)
+        .map((section) => section._id),
+    );
+    if (descendants.has(String(parentId))) {
+      fail(400, "A chapter cannot sit under one of its groups.");
+    }
+  }
+  await assertSectionParent(byId, parentId, { exceptId: current._id });
+  const fields = {
+    Name: title,
+    Slug: slug,
+    Subtitle: input.subtitle == null ? current.subtitle || "" : text(input.subtitle),
+    Parent: parentId ? [Number(parentId)] : [],
+  };
+  if (input.orderRank != null) {
+    const order = parseQuantity(input.orderRank);
+    if (order != null) fields.Order = order;
+  }
+  const row = await updateRow(env, tables.sections, sectionId, fields);
+  return mapSection(row);
+}
+
+export async function deleteMenuSection(env, sectionId) {
+  const { sections, items, tables } = await loadMenuTree(env);
+  const section = flattenMenuSections(sections).find(
+    (entry) => entry._id === String(sectionId),
+  );
+  if (!section) fail(404, "Section not found.");
+  if ((section.subsections || []).length) {
+    fail(409, "Remove the groups under this chapter first.");
+  }
+  const drinks = (items || []).filter(
+    (item) => item.sectionId === String(sectionId),
+  );
+  if (drinks.length) {
+    fail(409, "Move the drinks out of this section first.");
+  }
+  await deleteRow(env, tables.sections, sectionId);
+  return { id: String(sectionId) };
+}
+

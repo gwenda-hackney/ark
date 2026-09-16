@@ -1,0 +1,439 @@
+import {
+  createRow,
+  deleteRow,
+  deleteRowsInOrder,
+  getRow,
+  linkHasQuery,
+  linkValue,
+  listAllRows,
+  resolveOpsTableIds,
+  updateRow,
+} from "./baserow.js";
+import { recomputeDrinksForInventoryId } from "./menu-store.js";
+import {
+  looksLikeOnlyUrls,
+  normalizeSupplierEntries,
+  parseMoney,
+  parseProductUrl,
+  skuFromProductUrl,
+  supplierFromUrl,
+} from "./suppliers.js";
+import { assertUniqueItemName } from "./item-key.js";
+
+function text(value) {
+  if (typeof value !== "string") return "";
+  return value.trim();
+}
+
+function selectValueLocal(value) {
+  if (typeof value === "string") return value.trim();
+  if (value && typeof value === "object" && typeof value.value === "string") {
+    return value.value.trim();
+  }
+  return "";
+}
+
+const KINDS = new Set([
+  "liquor",
+  "liqueur",
+  "wine",
+  "beer",
+  "syrup",
+  "juice",
+  "bitter",
+  "mixer",
+  "garnish",
+  "other",
+]);
+
+export function normalizeInventoryKind(value) {
+  const raw = selectValueLocal(value).toLowerCase();
+  if (KINDS.has(raw)) return raw;
+  return "other";
+}
+
+export function mapSupplier(row) {
+  return {
+    _id: String(row.id),
+    id: String(row.id),
+    name: text(row.Name),
+    website: parseProductUrl(row.Website) || undefined,
+    notes: text(row.Notes) || undefined,
+  };
+}
+
+export function mapInventoryItem(row, suppliers = []) {
+  const notesRaw = text(row.Notes);
+  const notes =
+    suppliers.length > 0 && looksLikeOnlyUrls(notesRaw)
+      ? undefined
+      : notesRaw || undefined;
+
+  return {
+    _id: String(row.id),
+    id: String(row.id),
+    name: text(row.Name),
+    fullName: text(row["Full name"]) || undefined,
+    kind: normalizeInventoryKind(row.Kind),
+    abv: text(row.ABV) || undefined,
+    defaultUnit: selectValueLocal(row["Default unit"]) || undefined,
+    estimatedCost: parseMoney(row["Estimated cost"]) ?? undefined,
+    suppliers,
+    notes,
+    active: row.Active == null ? true : Boolean(row.Active),
+  };
+}
+
+function mapLinkedSupplier(row, suppliersById) {
+  const supplierId =
+    linkValue(row.Supplier) != null ? String(linkValue(row.Supplier)) : "";
+  const inventoryId =
+    linkValue(row.Inventory) != null ? String(linkValue(row.Inventory)) : "";
+  const supplier = supplierId ? suppliersById.get(supplierId) : null;
+  const productUrl = parseProductUrl(row["Product URL"]);
+  const name = supplier?.name || text(row.Name);
+  if (!inventoryId || (!name && !productUrl)) return null;
+  const sku = text(row.SKU) || skuFromProductUrl(productUrl);
+  const pack = text(row.Pack);
+  const price = parseMoney(row.Price);
+  return {
+    _id: String(row.id),
+    inventoryId,
+    ...(supplierId ? { supplierId } : {}),
+    name,
+    ...(productUrl ? { productUrl } : {}),
+    ...(sku ? { sku } : {}),
+    ...(pack ? { pack } : {}),
+    ...(price != null ? { price } : {}),
+  };
+}
+
+function supplierIndex(rows) {
+  const byId = new Map();
+  const byName = new Map();
+  for (const row of rows) {
+    const mapped = mapSupplier(row);
+    byId.set(mapped._id, mapped);
+    if (mapped.name) byName.set(mapped.name.toLowerCase(), mapped);
+  }
+  return { byId, byName };
+}
+
+async function loadSupplierIndex(env, tables) {
+  if (!tables.suppliers) return { byId: new Map(), byName: new Map() };
+  const rows = await listAllRows(env, tables.suppliers);
+  return supplierIndex(rows);
+}
+
+async function findOrCreateSupplier(env, tables, index, entry) {
+  const supplierId = text(String(entry.supplierId ?? ""));
+  if (supplierId && index.byId.has(supplierId)) return index.byId.get(supplierId);
+
+  let name = text(entry.name);
+  let website = parseProductUrl(entry.website);
+  if (!name && entry.productUrl) {
+    const inferred = supplierFromUrl(entry.productUrl);
+    name = inferred?.name || "";
+    website = website || inferred?.website || "";
+  }
+  if (!name) return null;
+
+  const hit = index.byName.get(name.toLowerCase());
+  if (hit) {
+    if (website && !hit.website) {
+      const row = await updateRow(env, tables.suppliers, hit._id, {
+        Website: website,
+      });
+      const mapped = mapSupplier(row);
+      index.byId.set(mapped._id, mapped);
+      index.byName.set(mapped.name.toLowerCase(), mapped);
+      return mapped;
+    }
+    return hit;
+  }
+
+  const row = await createRow(env, tables.suppliers, {
+    Name: name,
+    Website: website || "",
+    Notes: "",
+  });
+  const mapped = mapSupplier(row);
+  index.byId.set(mapped._id, mapped);
+  index.byName.set(mapped.name.toLowerCase(), mapped);
+  return mapped;
+}
+
+function linkKey(supplierId, productUrl) {
+  return `${supplierId}|${parseProductUrl(productUrl).toLowerCase()}`;
+}
+
+function junctionFields(inventoryId, supplier, entry) {
+  const productUrl = parseProductUrl(entry.productUrl);
+  const sku = text(entry.sku) || skuFromProductUrl(productUrl);
+  const pack = text(entry.pack);
+  const price = parseMoney(entry.price);
+  return {
+    Name: supplier.name,
+    Inventory: [Number(inventoryId)],
+    Supplier: [Number(supplier._id)],
+    "Product URL": productUrl || "",
+    SKU: sku,
+    Pack: pack,
+    Price: price,
+  };
+}
+
+function linkMetaChanged(row, fields) {
+  return (
+    parseProductUrl(row["Product URL"]) !== parseProductUrl(fields["Product URL"]) ||
+    text(row.SKU) !== text(fields.SKU) ||
+    text(row.Pack) !== text(fields.Pack) ||
+    parseMoney(row.Price) !== parseMoney(fields.Price)
+  );
+}
+
+async function replaceInventorySuppliers(
+  env,
+  tables,
+  inventoryId,
+  entries,
+  index,
+) {
+  if (!tables.inventorySuppliers || !tables.suppliers) return [];
+
+  const existingRows = await listAllRows(env, tables.inventorySuppliers, {
+    filters: linkHasQuery("Inventory", inventoryId),
+  });
+  const existingByKey = new Map();
+  for (const row of existingRows) {
+    const mapped = mapLinkedSupplier(row, index.byId);
+    if (!mapped?.supplierId) continue;
+    existingByKey.set(linkKey(mapped.supplierId, mapped.productUrl), row);
+  }
+
+  const keep = new Set();
+  const out = [];
+  for (const entry of normalizeSupplierEntries(entries)) {
+    const supplier = await findOrCreateSupplier(env, tables, index, entry);
+    if (!supplier) continue;
+    const productUrl = parseProductUrl(entry.productUrl);
+    const key = linkKey(supplier._id, productUrl);
+    keep.add(key);
+    const fields = junctionFields(inventoryId, supplier, entry);
+    const current = existingByKey.get(key);
+    if (current) {
+      if (linkMetaChanged(current, fields)) {
+        const row = await updateRow(env, tables.inventorySuppliers, current.id, fields);
+        const mapped = mapLinkedSupplier(row, index.byId);
+        if (mapped) out.push(mapped);
+      } else {
+        const mapped = mapLinkedSupplier(current, index.byId);
+        if (mapped) out.push(mapped);
+      }
+      continue;
+    }
+    const row = await createRow(env, tables.inventorySuppliers, fields);
+    const mapped = mapLinkedSupplier(row, index.byId);
+    if (mapped) out.push(mapped);
+  }
+
+  await deleteRowsInOrder(
+    env,
+    tables.inventorySuppliers,
+    existingRows
+      .filter((row) => {
+        const mapped = mapLinkedSupplier(row, index.byId);
+        if (!mapped?.supplierId) return true;
+        return !keep.has(linkKey(mapped.supplierId, mapped.productUrl));
+      })
+      .map((row) => row.id),
+  );
+
+  return out;
+}
+
+function attachSuppliers(items, linkRows, suppliersById) {
+  const byInventory = new Map();
+  for (const row of linkRows) {
+    const mapped = mapLinkedSupplier(row, suppliersById);
+    if (!mapped) continue;
+    const list = byInventory.get(mapped.inventoryId) ?? [];
+    list.push({
+      _id: mapped._id,
+      supplierId: mapped.supplierId,
+      name: mapped.name,
+      ...(mapped.productUrl ? { productUrl: mapped.productUrl } : {}),
+      ...(mapped.sku ? { sku: mapped.sku } : {}),
+      ...(mapped.pack ? { pack: mapped.pack } : {}),
+      ...(mapped.price != null ? { price: mapped.price } : {}),
+    });
+    byInventory.set(mapped.inventoryId, list);
+  }
+  return items.map((item) => {
+    const suppliers = byInventory.get(item._id) || [];
+    const notes =
+      suppliers.length > 0 && looksLikeOnlyUrls(item.notes)
+        ? undefined
+        : item.notes;
+    return { ...item, suppliers, notes };
+  });
+}
+
+function requireInventory(tables) {
+  if (!tables.inventory) {
+    const error = new Error(
+      "Inventory table is not set up yet. Run npm run setup:baserow-ops.",
+    );
+    error.status = 503;
+    throw error;
+  }
+  return tables;
+}
+
+export async function listInventory(env, { includeInactive = false } = {}) {
+  const tables = requireInventory(await resolveOpsTableIds(env));
+  const [invRows, supplierRows, linkRows] = await Promise.all([
+    listAllRows(env, tables.inventory),
+    tables.suppliers ? listAllRows(env, tables.suppliers) : Promise.resolve([]),
+    tables.inventorySuppliers
+      ? listAllRows(env, tables.inventorySuppliers)
+      : Promise.resolve([]),
+  ]);
+  const { byId } = supplierIndex(supplierRows);
+  return attachSuppliers(
+    invRows.map((row) => mapInventoryItem(row)),
+    linkRows,
+    byId,
+  )
+    .filter((item) => includeInactive || item.active !== false)
+    .sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+        sensitivity: "base",
+      }),
+    );
+}
+
+function fieldsFromInput(input) {
+  const name = text(input.name);
+  if (!name) {
+    const error = new Error("Name is required.");
+    error.status = 400;
+    throw error;
+  }
+  const abv = text(String(input.abv ?? "")).replace(/%/g, "");
+  const notes = text(input.notes);
+
+  return {
+    Name: name,
+    "Full name": text(input.fullName),
+    Kind: normalizeInventoryKind(input.kind),
+    ABV: abv,
+    "Default unit": text(input.defaultUnit) || null,
+    "Estimated cost": parseMoney(input.estimatedCost),
+    Notes: notes,
+    Active:
+      input.active == null
+        ? true
+        : input.active === true || input.active === "true",
+  };
+}
+
+function entriesFromInput(input) {
+  if (input.suppliers !== undefined) return normalizeSupplierEntries(input.suppliers);
+  if (input.supplierLinks !== undefined) {
+    return normalizeSupplierEntries(input.supplierLinks);
+  }
+  return undefined;
+}
+
+export async function createInventoryItem(env, input) {
+  const tables = requireInventory(await resolveOpsTableIds(env));
+  const fields = fieldsFromInput(input);
+  const siblings = await listAllRows(env, tables.inventory);
+  assertUniqueItemName(
+    siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
+    fields.Name,
+  );
+  const row = await createRow(env, tables.inventory, fields);
+  const index = await loadSupplierIndex(env, tables);
+  const suppliers = await replaceInventorySuppliers(
+    env,
+    tables,
+    row.id,
+    entriesFromInput(input) || [],
+    index,
+  );
+  return mapInventoryItem(row, suppliers);
+}
+
+export async function updateInventoryItem(env, itemId, input) {
+  const tables = requireInventory(await resolveOpsTableIds(env));
+  const existing = await getRow(env, tables.inventory, itemId);
+  if (!existing?.id) {
+    const error = new Error("Inventory item not found.");
+    error.status = 404;
+    throw error;
+  }
+  const mapped = mapInventoryItem(existing);
+  const prevAbv = text(String(mapped.abv ?? "")).replace(/%/g, "");
+  const fields = fieldsFromInput({
+      name: input.name ?? mapped.name,
+      fullName: input.fullName !== undefined ? input.fullName : mapped.fullName,
+      kind: input.kind ?? mapped.kind,
+      abv: input.abv ?? mapped.abv,
+      defaultUnit: input.defaultUnit ?? mapped.defaultUnit,
+      estimatedCost:
+        input.estimatedCost !== undefined
+          ? input.estimatedCost
+          : mapped.estimatedCost,
+      notes: input.notes !== undefined ? input.notes : mapped.notes,
+      active: input.active ?? mapped.active,
+    });
+  const siblings = await listAllRows(env, tables.inventory);
+  assertUniqueItemName(
+    siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
+    fields.Name,
+    { exceptId: itemId },
+  );
+  const row = await updateRow(env, tables.inventory, itemId, fields);
+  const index = await loadSupplierIndex(env, tables);
+  const nextEntries = entriesFromInput(input);
+  const suppliers =
+    nextEntries !== undefined
+      ? await replaceInventorySuppliers(env, tables, itemId, nextEntries, index)
+      : attachSuppliers(
+          [mapped],
+          tables.inventorySuppliers
+            ? await listAllRows(env, tables.inventorySuppliers)
+            : [],
+          index.byId,
+        )[0].suppliers;
+  const next = mapInventoryItem(row, suppliers);
+  const nextAbv = text(String(next.abv ?? "")).replace(/%/g, "");
+  if (prevAbv !== nextAbv) {
+    await recomputeDrinksForInventoryId(env, itemId);
+  }
+  return next;
+}
+
+export async function deleteInventoryItem(env, itemId) {
+  const tables = requireInventory(await resolveOpsTableIds(env));
+  const existing = await getRow(env, tables.inventory, itemId);
+  if (!existing?.id) {
+    const error = new Error("Inventory item not found.");
+    error.status = 404;
+    throw error;
+  }
+  if (tables.inventorySuppliers) {
+    const links = await listAllRows(env, tables.inventorySuppliers, {
+      filters: linkHasQuery("Inventory", itemId),
+    });
+    await deleteRowsInOrder(
+      env,
+      tables.inventorySuppliers,
+      links.map((row) => row.id),
+    );
+  }
+  await deleteRow(env, tables.inventory, itemId);
+  return { ok: true };
+}

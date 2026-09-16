@@ -1,6 +1,11 @@
 /**
- * Set Cloudflare Pages secrets for gwenda-ops (Baserow menu recipes + publish).
- * Does not rotate OPS_PASSWORD.
+ * Set Cloudflare Pages secrets for gwenda-ops (Baserow API key, publish).
+ * Ops table ids are wrangler [vars], not secrets. Leftover table-id, Auth0,
+ * and OPS_ALLOWED_EMAILS secrets are removed so they cannot override wrangler.toml
+ * or the Baserow Users table.
+ *
+ * Does not rotate OPS_PASSWORD. Production should leave it unset so middleware
+ * expects Cloudflare Access headers. Local still uses OPS_PASSWORD via .dev.vars.
  *
  * Usage (from repo root):
  *   npm run setup:ops
@@ -9,6 +14,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(scriptDir, "..");
@@ -24,7 +30,7 @@ function findWrangler() {
 
 const wrangler = findWrangler();
 if (!wrangler) {
-  console.error("wrangler not found — run npm ci at the repo root.");
+  console.error("wrangler not found. Run npm ci at the repo root.");
   process.exit(1);
 }
 
@@ -32,12 +38,12 @@ const project = "gwenda-ops";
 const deploymentEnvs = ["production", "preview"];
 const wranglerEnv = {
   ...process.env,
-  CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
+  CLOUDFLARE_API_TOKEN: resolveCloudflareDevToken(),
   CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
 };
 
 if (!wranglerEnv.CLOUDFLARE_API_TOKEN) {
-  console.error("CLOUDFLARE_API_TOKEN is required.");
+  console.error("CLOUDFLARE_DEV_API_TOKEN (or legacy CLOUDFLARE_API_TOKEN) is required.");
   process.exit(1);
 }
 
@@ -76,13 +82,6 @@ function putSecret(key, value) {
 }
 
 putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
-putSecret("BASEROW_OPS_DATABASE_ID", process.env.BASEROW_OPS_DATABASE_ID);
-putSecret("BASEROW_OPS_SECTIONS_TABLE_ID", process.env.BASEROW_OPS_SECTIONS_TABLE_ID);
-putSecret("BASEROW_OPS_ITEMS_TABLE_ID", process.env.BASEROW_OPS_ITEMS_TABLE_ID);
-putSecret(
-  "BASEROW_OPS_INGREDIENTS_TABLE_ID",
-  process.env.BASEROW_OPS_INGREDIENTS_TABLE_ID,
-);
 putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
 putSecret(
   "SITE_DEPLOY_WEBHOOK_URL",
@@ -94,4 +93,64 @@ putSecret(
 );
 putSecret("OPS_BYPASS_KEY", process.env.OPS_BYPASS_KEY);
 
-console.log("Done. OPS_PASSWORD is unchanged.");
+const LEFTOVER_SECRET_KEYS = [
+  "BASEROW_OPS_DATABASE_ID",
+  "BASEROW_OPS_SECTIONS_TABLE_ID",
+  "BASEROW_OPS_ITEMS_TABLE_ID",
+  "BASEROW_OPS_INGREDIENTS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_TABLE_ID",
+  "BASEROW_OPS_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_USERS_TABLE_ID",
+  "AUTH0_DOMAIN",
+  "AUTH0_CLIENT_ID",
+  "AUTH0_CLIENT_SECRET",
+  "AUTH0_AUDIENCE",
+  "AUTH0_CONNECTION",
+  "AUTH0_ALLOWED_EMAILS",
+  "OPS_ALLOWED_EMAILS",
+  "OPS_AUTH_MODE",
+  "OPS_DEV_ACCESS_EMAIL",
+  "OPS_DEV_ACCESS_SECRET",
+  "OPS_SESSION_SECRET",
+];
+
+function deleteSecret(key) {
+  for (const deploymentEnv of deploymentEnvs) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        wrangler,
+        "pages",
+        "secret",
+        "delete",
+        key,
+        "--project-name",
+        project,
+        "--env",
+        deploymentEnv,
+      ],
+      { input: "y\n", encoding: "utf8", env: wranglerEnv, cwd: opsDir },
+    );
+    if (result.status === 0) {
+      console.log(`Removed leftover secret ${key} on ${project} (${deploymentEnv}).`);
+      continue;
+    }
+    const message = [result.stderr, result.stdout].filter(Boolean).join("\n").trim();
+    console.log(
+      `Leave ${key} (${deploymentEnv}): ${message || "not present or wrangler declined"}.`,
+    );
+  }
+}
+
+console.log(
+  "Ops table ids live in ops/site/wrangler.toml [vars], not Pages secrets.",
+);
+for (const key of LEFTOVER_SECRET_KEYS) deleteSecret(key);
+
+console.log(
+  "Done. Production uses Cloudflare Access (npm run setup:ops-access).",
+);
+console.log(
+  "Leave OPS_PASSWORD unset on Pages so middleware expects Access headers. Local still needs OPS_PASSWORD.",
+);

@@ -381,7 +381,7 @@ Requires: npx sanity login (project Administrator).`);
     } catch (err) {
       console.warn(
         `\nBitwarden skipped: ${err instanceof Error ? err.message : err}\n` +
-          "  bw login && export BW_SESSION=$(bw unlock --raw)\n" +
+          "  bw login && bw-unlock\n" +
           "  then re-run with --skip-github to push vault notes only",
       );
     }

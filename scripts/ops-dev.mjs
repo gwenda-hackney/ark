@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * Local ops: write .dev.vars, run Pages Functions on :8788, Vite menu SPA on :5174.
+ * Local ops: write .dev.vars, run Pages Functions on :8788, Vite ops SPA on :5174.
  *
- * Open http://127.0.0.1:5174/menu/ (API proxied to wrangler).
- * Gate/password still served by wrangler at :8788.
+ * Open http://localhost:5174/ (API + static tools proxied to wrangler).
  *
  *   npm run dev -w @gwenda/ops
  */
@@ -20,13 +19,20 @@ const ENV_PATH = resolve(ROOT, ".env");
 const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
 
 const DEV_VAR_KEYS = [
+  "OPS_AUTH_MODE",
   "OPS_PASSWORD",
   "OPS_BYPASS_KEY",
+  "OPS_DEV_ACCESS_EMAIL",
+  "OPS_DEV_ACCESS_SECRET",
   "BASEROW_API_KEY",
   "BASEROW_OPS_DATABASE_ID",
   "BASEROW_OPS_SECTIONS_TABLE_ID",
   "BASEROW_OPS_ITEMS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_TABLE_ID",
+  "BASEROW_OPS_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID",
   "BASEROW_OPS_INGREDIENTS_TABLE_ID",
+  "BASEROW_OPS_USERS_TABLE_ID",
   "SANITY_API_TOKEN",
   "SANITY_PROJECT_ID",
   "SANITY_DATASET",
@@ -53,10 +59,21 @@ function writeDevVars() {
     if (!value) continue;
     lines.push(`${key}=${value}`);
   }
-  if (!process.env.OPS_PASSWORD?.trim()) {
+
+  const accessMode =
+    String(process.env.OPS_AUTH_MODE || "").trim().toLowerCase() === "access";
+  const password = process.env.OPS_PASSWORD?.trim();
+  const accessSecret = process.env.OPS_DEV_ACCESS_SECRET?.trim();
+
+  if (accessMode) {
+    if (!password && !accessSecret) {
+      throw new Error(
+        "Local Access mode needs OPS_PASSWORD or OPS_DEV_ACCESS_SECRET in .env (cookie signing).",
+      );
+    }
+  } else if (!password) {
     throw new Error(
-      "OPS_PASSWORD missing in repo-root .env (and shell).\n" +
-        "Set it with: npm run env:set -- OPS_PASSWORD '…'",
+      "Set OPS_PASSWORD in .env, or OPS_AUTH_MODE=access to test the Users table locally.",
     );
   }
   writeFileSync(DEV_VARS_PATH, `${lines.join("\n")}\n`);
@@ -86,22 +103,26 @@ function run(command, args, cwd, name) {
   return child;
 }
 
+const accessMode =
+  String(process.env.OPS_AUTH_MODE || "").trim().toLowerCase() === "access";
 console.log(`
 Ops local:
-  Menu SPA (HMR):  http://localhost:5174/menu/
-  Pages + gate:    http://localhost:8788/
-  Password:        OPS_PASSWORD from .env
-  Tip: log in at http://localhost:8788/gate/?next=/menu/ then open the SPA,
-  or use the built app at http://localhost:8788/menu/ after npm run build -w @gwenda/ops
+  SPA (HMR):       http://localhost:5174/
+  Pages + auth:    http://localhost:8788/
+  Auth:            ${
+    accessMode
+      ? "local Access (email + Baserow Users). Real Google is production only."
+      : "OPS_PASSWORD gate. Set OPS_AUTH_MODE=access to test Users locally."
+  }
 `);
 
 run(
   "npx",
-  ["wrangler", "pages", "dev", "src", "--port", "8788"],
+  ["wrangler", "pages", "dev", "src", "--ip", "0.0.0.0", "--port", "8788"],
   OPS_DIR,
   "wrangler",
 );
-run("npx", ["vite", "--host", "localhost"], MENU_APP, "vite");
+run("npx", ["vite", "--host", "0.0.0.0"], MENU_APP, "vite");
 
 function shutdown() {
   for (const child of children) {

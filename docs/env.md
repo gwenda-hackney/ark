@@ -21,36 +21,51 @@ Notes live in the Bitwarden folder **`ark`**:
 ```bash
 bw config server https://vault.bitwarden.eu   # once
 bw login                                      # once
-export BW_SESSION=$(bw unlock --raw)
+bw-unlock                                     # or: export BW_SESSION=$(bw unlock --raw)
 
 npm run env:seed          # create the three notes from templates (skip if exist)
 npm run env:pull          # write repo-root .env from ark/.env.local
 ```
+
+In the devcontainer, `bw-unlock` writes the session key to `/commandhistory/.bw-session` (a Docker volume). New shells and env scripts reuse it, so you should not need to unlock again until `bw-lock`, `bw logout`, or a new login. Treat that file like a decrypted vault key. Override the path with `BW_SESSION_FILE`.
 
 Fill secrets one at a time:
 
 ```bash
 npm run env:set -- SANITY_API_TOKEN 'sk...'
 # later:
-npm run env:set -- CLOUDFLARE_API_TOKEN '...'
+npm run env:set -- CLOUDFLARE_DEV_API_TOKEN '...'
 ```
 
 Or push every non-empty key from local `.env` into the vault note:
 
 ```bash
-export BW_SESSION=$(bw unlock --raw)
+bw-unlock                 # skip if already unlocked in this container
 npm run env:push
 ```
 
 `env:set` updates the vault note and merges into local `.env` (for `--env local`, the default).
 `env:push` only writes vault ← local (skips `BITWARDEN_EMAIL` / `BITWARDEN_PASSWORD`).
 
+## Cloudflare tokens
+
+| Key | Where | Role |
+|-----|--------|------|
+| `CLOUDFLARE_DEV_API_TOKEN` | local `.env` | Local DEV: Pages, Wrangler, Access setup. Legacy alias: `CLOUDFLARE_API_TOKEN`. |
+| `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | CI deploys. Same name Wrangler expects in CI. |
+
+Local DEV token permissions (custom token, this account):
+
+- Account · Cloudflare Pages · Edit
+- Account · Access: Apps and Policies · Edit
+- Account · Access: Organizations, Identity Providers, and Groups · Edit
+
 Create a **Editor** robot (`ark-local-editor`) via `npm run setup:sanity-tokens` after `npx sanity login`. Never put that token in GitHub; CI uses Viewer / Deploy Studio robots.
 
 ## Fresh machine / nest
 
 ```bash
-export BW_SESSION=$(bw unlock --raw)
+bw-unlock                 # skip if already unlocked in this container
 npm run env:pull
 ```
 

@@ -7,20 +7,23 @@ export type MenuItemImage = {
   objectPosition?: string;
 };
 
+export type DrinkType = "cocktail" | "pour" | "beer" | "packaged";
+
 export type MenuItem = {
   id: string;
   name: string;
   description?: string;
-  /** Display price, e.g. "14" */
+  /** Primary price (single / pint / unit), e.g. "14" */
   price?: string;
+  /** Second size (double / half pint). */
+  priceAlt?: string;
+  drinkType?: DrinkType;
   tags?: string[];
   available?: boolean;
   /** Sanity CDN image — required for homepage gallery. */
   image?: MenuItemImage;
-  /** Style or serve — e.g. Floral fizz, Digestif. */
+  /** Style line — e.g. Floral fizz, Digestif. */
   notes?: string;
-  /** Featured in the homepage signature cocktail gallery. */
-  signature?: boolean;
   /** Optional bottle metadata (beer / wine). */
   abv?: string;
   volume?: string;
@@ -39,3 +42,11 @@ export type MenuSection = {
 export type Menu = {
   sections: MenuSection[];
 };
+
+/** Guest / grid display without currency symbol (CSS adds £). */
+export function formatMenuPrice(item: MenuItem): string {
+  const primary = item.price?.trim();
+  const alt = item.priceAlt?.trim();
+  if (primary && alt) return `${primary} / ${alt}`;
+  return primary || alt || "";
+}

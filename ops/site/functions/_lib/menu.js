@@ -117,25 +117,133 @@ export function normalizeIngredients(rows) {
       const quantity = parseQuantity(parsed.quantity);
       const unit = normalizeUnit(parsed.unit) || "";
       const note = typeof parsed.note === "string" ? parsed.note.trim() : "";
+      const abvRaw =
+        typeof parsed.abv === "string"
+          ? parsed.abv.trim().replace(/%/g, "")
+          : parsed.abv != null
+            ? String(parsed.abv).trim().replace(/%/g, "")
+            : "";
       const order = parseQuantity(parsed.order);
       return {
         name,
         ...(quantity != null ? { quantity } : {}),
         ...(unit ? { unit } : {}),
         ...(note ? { note } : {}),
+        ...(abvRaw ? { abv: abvRaw } : {}),
         ...(order != null ? { order } : {}),
         ...(parsed.id != null ? { id: parsed.id } : {}),
+        ...(parsed.inventoryId != null && String(parsed.inventoryId).trim()
+          ? { inventoryId: String(parsed.inventoryId).trim() }
+          : {}),
       };
     })
     .filter(Boolean);
 }
 
-export function applyDescriptionFromRecipe(fields, { lockDescription, ingredients }) {
-  if (lockDescription) return fields;
-  if (!Array.isArray(ingredients) || ingredients.length === 0) return fields;
-  const line = flattenIngredientsForMenu(ingredients);
-  if (line) fields.description = line;
-  return fields;
+/** Approximate ml for volume-bearing recipe units. */
+export function quantityToMl(quantity, unit) {
+  const q =
+    typeof quantity === "number"
+      ? quantity
+      : typeof quantity === "string"
+        ? Number(String(quantity).replace(/,/g, "").trim())
+        : NaN;
+  if (!Number.isFinite(q) || q <= 0) return null;
+
+  switch (typeof unit === "string" ? unit.trim().toLowerCase() : "") {
+    case "ml":
+      return q;
+    case "cl":
+      return q * 10;
+    case "dash":
+      return q * 0.9;
+    case "barspoon":
+      return q * 5;
+    case "tsp":
+      return q * 5;
+    case "tbsp":
+      return q * 15;
+    case "drop":
+      return q * 0.05;
+    case "splash":
+      return q * 3.5;
+    default:
+      return null;
+  }
+}
+
+export function parseAbvPercent(value) {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return value;
+  }
+  if (typeof value !== "string") return null;
+  const cleaned = value.replace(/%/g, "").trim();
+  if (!cleaned) return null;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n;
+}
+
+export function formatAbv(percent) {
+  const rounded = Math.round(percent * 10) / 10;
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `${text}%`;
+}
+
+export function inventoryAbvById(inventory) {
+  const map = new Map();
+  for (const item of inventory || []) {
+    const id = String(item._id || item.id || "").trim();
+    if (!id) continue;
+    const abv = typeof item.abv === "string" ? item.abv.trim() : "";
+    map.set(id, abv || undefined);
+  }
+  return map;
+}
+
+/**
+ * Linked lines use inventory ABV only.
+ * Unlinked lines may carry a local ABV override.
+ */
+export function resolveIngredientAbv(ing, inventoryById) {
+  const invId =
+    ing?.inventoryId != null ? String(ing.inventoryId).trim() : "";
+  if (invId) {
+    if (!inventoryById) return undefined;
+    const fromInv = inventoryById.get(invId);
+    return fromInv && String(fromInv).trim()
+      ? String(fromInv).trim()
+      : undefined;
+  }
+  const line = typeof ing?.abv === "string" ? ing.abv.trim() : "";
+  return line || undefined;
+}
+
+export function computeRecipeAbv(ingredients, inventoryById) {
+  let alcoholMl = 0;
+  let totalMl = 0;
+  for (const ing of ingredients || []) {
+    const ml = quantityToMl(ing.quantity, ing.unit);
+    if (ml == null) continue;
+    totalMl += ml;
+    const abv = resolveIngredientAbv(ing, inventoryById);
+    alcoholMl += ml * ((parseAbvPercent(abv) ?? 0) / 100);
+  }
+  if (totalMl <= 0) return null;
+  return (alcoholMl / totalMl) * 100;
+}
+
+export function computeRecipeVolumeMl(ingredients) {
+  let totalMl = 0;
+  let any = false;
+  for (const ing of ingredients || []) {
+    const ml = quantityToMl(ing.quantity, ing.unit);
+    if (ml == null) continue;
+    any = true;
+    totalMl += ml;
+  }
+  if (!any) return null;
+  return Math.round(totalMl * 10) / 10;
 }
 
 function splitCsvRow(line) {

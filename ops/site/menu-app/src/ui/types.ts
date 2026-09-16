@@ -14,4 +14,6 @@ export type SegmentedItem = {
 	/** Row tally rendered as a trailing chip. */
 	count?: number;
 	disabled?: boolean;
+	/** When set, the tab is a real link so the active section can be shared. */
+	href?: string;
 };

@@ -1,54 +1,115 @@
 /**
- * Password-protects the whole ops Pages project (OPS_PASSWORD).
- * Unauthenticated visitors are sent to /gate/.
+ * Protects the ops Pages project.
+ * Cloudflare Access in production; OPS_PASSWORD or local Access sim (Users table).
  */
 import {
-  AUTH_COOKIE_NAME,
+  accessRequiredResponse,
   buildAuthCookie,
-  createAuthToken,
-  gateMisconfiguredResponse,
+  createPasswordToken,
+  gateRedirectPath,
+  isProtectedApiPath,
   isPublicPath,
+  isRequestAuthed,
+  isSecureOrigin,
   matchesSecret,
-  parseCookies,
-  resolveGate,
+  opsUserForbiddenResponse,
+  relativeRedirect,
+  requestOrigin,
+  resolveAccessEmail,
+  resolveAuth,
   safeRedirectPath,
-  verifyAuthToken,
+  signInRequiredResponse,
 } from "./_lib/auth.js";
+import { attachLogger, serializeError } from "./_lib/log.js";
+import { isSpaDocumentPath } from "./_lib/spa-path.js";
+import { isOpsUser } from "./_lib/user-store.js";
 
 export async function onRequest(context) {
-  const gate = resolveGate(context.env);
-  if (gate.kind === "misconfigured") return gateMisconfiguredResponse();
+  const log = attachLogger(context);
+  try {
+    return await handleRequest(context);
+  } catch (error) {
+    log.error("request.unhandled", { err: serializeError(error) });
+    throw error;
+  }
+}
 
-  const expected = gate.password;
+async function handleRequest(context) {
+  const auth = resolveAuth(context.env);
   const url = new URL(context.request.url);
-  const cookies = parseCookies(context.request.headers.get("Cookie"));
-  const authed = await verifyAuthToken(expected, cookies[AUTH_COOKIE_NAME]);
   const bypassKey = context.env.OPS_BYPASS_KEY;
   const accessParam = url.searchParams.get("access");
 
-  if (bypassKey && accessParam && matchesSecret(accessParam, bypassKey)) {
+  const authed = await isRequestAuthed(auth, context.request);
+
+  if (
+    auth.kind === "password" &&
+    bypassKey &&
+    accessParam &&
+    matchesSecret(accessParam, bypassKey)
+  ) {
     const clean = new URL(url);
     clean.searchParams.delete("access");
     const headers = { Location: clean.pathname + clean.search };
     if (!authed) {
-      const token = await createAuthToken(expected);
-      headers["Set-Cookie"] = buildAuthCookie(token);
+      headers["Set-Cookie"] = buildAuthCookie(
+        await createPasswordToken(auth.password),
+        { secure: isSecureOrigin(requestOrigin(context.request)) },
+      );
     }
     return new Response(null, { status: 302, headers });
   }
 
   if (isPublicPath(url.pathname)) {
     if ((url.pathname === "/gate" || url.pathname === "/gate/") && authed) {
-      const next = safeRedirectPath(url.searchParams.get("next"));
-      return Response.redirect(new URL(next, url.origin).toString(), 302);
+      if (auth.kind === "access") {
+        const allowed = await isOpsUser(
+          context.env,
+          await resolveAccessEmail(context.request, auth),
+        );
+        if (!allowed) return opsUserForbiddenResponse();
+      }
+      return relativeRedirect(safeRedirectPath(url.searchParams.get("next")));
     }
     return context.next();
   }
 
-  if (authed) return context.next();
+  if (auth.kind === "access" && authed) {
+    const allowed = await isOpsUser(
+      context.env,
+      await resolveAccessEmail(context.request, auth),
+    );
+    if (!allowed) {
+      if (isProtectedApiPath(url.pathname)) {
+        return opsUserForbiddenResponse({ json: true });
+      }
+      return opsUserForbiddenResponse();
+    }
+  }
 
-  const gateUrl = new URL("/gate/", url.origin);
-  const next = url.pathname + url.search;
-  if (next !== "/") gateUrl.searchParams.set("next", next);
-  return Response.redirect(gateUrl.toString(), 302);
+  if (authed) {
+    if (isSpaDocumentPath(url.pathname)) return serveSpaIndex(context);
+    return context.next();
+  }
+
+  if (isProtectedApiPath(url.pathname)) return signInRequiredResponse();
+
+  // Local Access sim uses the gate; production Access never reaches here without a header.
+  if (auth.kind === "access" && auth.local) {
+    return relativeRedirect(gateRedirectPath(url.pathname + url.search));
+  }
+  if (auth.kind === "access") return accessRequiredResponse();
+  return relativeRedirect(gateRedirectPath(url.pathname + url.search));
+}
+
+async function serveSpaIndex(context) {
+  const url = new URL(context.request.url);
+  url.pathname = "/index.html";
+  url.search = "";
+  url.hash = "";
+  const assets = context.env?.ASSETS;
+  if (assets && typeof assets.fetch === "function") {
+    return assets.fetch(new Request(url.toString(), context.request));
+  }
+  return context.next();
 }

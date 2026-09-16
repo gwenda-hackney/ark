@@ -1,0 +1,712 @@
+<script lang="ts">
+	/**
+	 * Ops chrome: collapsible icon rail, fixed top bar, one scrolling content pane.
+	 * Viewport never scrolls — only `.content` does.
+	 */
+	import type { Snippet } from "svelte";
+	import Icon from "./Icon.svelte";
+	import MoreSheet from "./MoreSheet.svelte";
+	import type { NavRoute } from "./types";
+	import {
+		interceptClientNav,
+		listen,
+		navigate,
+		readPath,
+		shellCrumbs,
+		syncCanonicalUrl,
+	} from "../lib/nav";
+	import { crumbLeaf } from "../lib/crumbs.svelte";
+	import {
+		MOBILE_TABS,
+		hideShellChrome,
+		isStockListPath,
+		mobileTabFor,
+		rememberStockPath,
+		stockSwitchValue,
+		tabHref,
+		type MobileTabId,
+	} from "../lib/mobile-nav";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../lib/viewport.svelte";
+
+	const RAIL_KEY = "ops.rail";
+
+	let {
+		routes,
+		brandTitle = "Gwenda",
+		brandSubtitle = "Operations",
+		path = $bindable("/"),
+		children,
+	}: {
+		routes: NavRoute[];
+		brandTitle?: string;
+		brandSubtitle?: string;
+		path?: string;
+		children: Snippet<[{ path: string; active: NavRoute | null }]>;
+	} = $props();
+
+	function readRail(): boolean {
+		try {
+			return localStorage.getItem(RAIL_KEY) === "open";
+		} catch {
+			return false;
+		}
+	}
+
+	/** Collapsed by default — icons only. */
+	let open = $state(readRail());
+	let moreOpen = $state(false);
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
+	const editorChrome = $derived(hideShellChrome(path));
+	const showTabs = $derived(phone.matches && !editorChrome);
+	const showStockSwitch = $derived(phone.matches && isStockListPath(path));
+	const showTopbar = $derived(!phone.matches || showStockSwitch);
+	const currentTab = $derived(moreOpen ? "more" : mobileTabFor(path));
+	const stockValue = $derived(stockSwitchValue(path));
+
+	const active = $derived.by(() => {
+		const withoutQuery = path.split("?")[0] ?? "/";
+		const exact = routes.find((n) => n.path === withoutQuery);
+		if (exact) return exact;
+		const ranked = routes
+			.filter(
+				(n) =>
+					n.path !== "/" &&
+					(withoutQuery === n.path || withoutQuery.startsWith(`${n.path}/`)),
+			)
+			.sort((a, b) => b.path.length - a.path.length);
+		if (ranked[0]) return ranked[0];
+		if (withoutQuery === "/" || withoutQuery === "") {
+			return routes.find((n) => n.path === "/") ?? routes[0] ?? null;
+		}
+		return null;
+	});
+
+	const mark = $derived(brandTitle.trim().charAt(0).toUpperCase() || "G");
+
+	const crumbs = $derived(
+		shellCrumbs(path, {
+			homeLabel: brandSubtitle,
+			sectionLabel: active?.name || "",
+			sectionHref: active?.path || "",
+			leaf: crumbLeaf.value,
+		}),
+	);
+
+	function go(next: string): void {
+		moreOpen = false;
+		navigate(next);
+		path = readPath();
+	}
+
+	function onTab(id: MobileTabId, event: MouseEvent): void {
+		if (
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey ||
+			event.button !== 0
+		) {
+			return;
+		}
+		event.preventDefault();
+		if (id === "more") {
+			moreOpen = !moreOpen;
+			return;
+		}
+		go(tabHref(id));
+	}
+
+	function toggleRail(): void {
+		open = !open;
+		try {
+			localStorage.setItem(RAIL_KEY, open ? "open" : "closed");
+		} catch {
+			/* ignore */
+		}
+	}
+
+	$effect(() => {
+		rememberStockPath(path);
+		moreOpen = false;
+	});
+
+	$effect(() => {
+		if (!phone.matches || editorChrome) moreOpen = false;
+	});
+
+	$effect(() => {
+		if (typeof window === "undefined") return;
+		path = syncCanonicalUrl();
+		const onChange = () => {
+			path = readPath();
+		};
+		const stop = listen(onChange);
+		window.addEventListener("click", interceptClientNav);
+		return () => {
+			stop();
+			window.removeEventListener("click", interceptClientNav);
+		};
+	});
+</script>
+
+<div
+	class="shell"
+	class:open
+	class:mobile={phone.matches}
+	class:has-tabs={showTabs}
+	class:has-topbar={showTopbar}
+	class:editor={editorChrome}
+>
+	<aside class="rail" aria-label="Primary">
+		<div class="brand">
+			<span class="mark" aria-hidden="true">{mark}</span>
+			<span class="brand-text">
+				<span class="brand-title">{brandTitle}</span>
+				<span class="brand-sub">{brandSubtitle}</span>
+			</span>
+		</div>
+
+		<nav class="nav">
+			{#each routes as item (item.id)}
+				{@const on = active?.id === item.id}
+				<a
+					class="nav-item"
+					class:on
+					href={item.path}
+					aria-current={on ? "page" : undefined}
+					onclick={(e) => {
+						if (
+							e.metaKey ||
+							e.ctrlKey ||
+							e.shiftKey ||
+							e.altKey ||
+							e.button !== 0
+						) {
+							return;
+						}
+						e.preventDefault();
+						go(item.path);
+					}}
+				>
+					<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
+					<span class="nav-label">{item.name}</span>
+					<span class="tip" aria-hidden="true">{item.name}</span>
+				</a>
+			{/each}
+		</nav>
+
+		<div class="rail-foot">
+			<a class="nav-item" href="/api/auth/logout">
+				<span class="nav-icon"><Icon name="logout" size={19} /></span>
+				<span class="nav-label">Sign out</span>
+				<span class="tip" aria-hidden="true">Sign out</span>
+			</a>
+			<button
+				type="button"
+				class="nav-item"
+				aria-label={open ? "Collapse navigation" : "Expand navigation"}
+				onclick={toggleRail}
+			>
+				<span class="nav-icon">
+					<Icon name={open ? "chevron-left" : "chevron-right"} size={19} />
+				</span>
+				<span class="nav-label">Collapse</span>
+				<span class="tip" aria-hidden="true">{open ? "Collapse" : "Expand"}</span>
+			</button>
+		</div>
+	</aside>
+
+	<div class="main">
+		{#if showTopbar}
+			<header class="topbar">
+				{#if showStockSwitch}
+					<nav class="stock-switch" aria-label="Stock section">
+						<a
+							class="stock-link"
+							class:on={stockValue === "menu"}
+							href="/menu"
+							aria-current={stockValue === "menu" ? "page" : undefined}
+						>
+							Menu
+						</a>
+						<a
+							class="stock-link"
+							class:on={stockValue === "inventory"}
+							href="/inventory"
+							aria-current={stockValue === "inventory" ? "page" : undefined}
+						>
+							Inventory
+						</a>
+					</nav>
+				{:else if !phone.matches}
+					<nav class="crumbs" aria-label="Breadcrumb">
+						<ol>
+							{#each crumbs as crumb, index (crumb.label + String(crumb.href || "") + index)}
+								<li>
+									{#if index > 0}
+										<span class="sep" aria-hidden="true">/</span>
+									{/if}
+									{#if crumb.href}
+										<a class="crumb-link" href={crumb.href}>{crumb.label}</a>
+									{:else}
+										<span class="route" aria-current="page">{crumb.label}</span>
+									{/if}
+								</li>
+							{/each}
+						</ol>
+					</nav>
+				{/if}
+			</header>
+		{/if}
+
+		<main class="content scrollbar-fade">
+			{@render children({ path, active })}
+		</main>
+	</div>
+
+	{#if showTabs}
+		<nav class="tabs" aria-label="Primary">
+			{#each MOBILE_TABS as item (item.id)}
+				{@const on = currentTab === item.id}
+				<a
+					class="tab"
+					class:on
+					href={item.id === "more" ? "/config" : tabHref(item.id)}
+					aria-current={on && item.id !== "more" ? "page" : undefined}
+					aria-expanded={item.id === "more" ? moreOpen : undefined}
+					onclick={(e) => onTab(item.id, e)}
+				>
+					<span class="tab-icon"><Icon name={item.icon} size={20} /></span>
+					<span class="tab-label">{item.label}</span>
+				</a>
+			{/each}
+		</nav>
+	{/if}
+
+	<MoreSheet open={moreOpen} {path} onclose={() => (moreOpen = false)} />
+</div>
+
+<style>
+	.shell {
+		display: grid;
+		grid-template-columns: var(--rail-w) minmax(0, 1fr);
+		position: relative;
+		height: 100dvh;
+		overflow: hidden;
+		background: var(--background);
+		color: var(--foreground);
+		transition: grid-template-columns var(--t-slow) var(--ease);
+	}
+
+	.shell.open {
+		grid-template-columns: var(--rail-w-open) minmax(0, 1fr);
+	}
+
+	.rail {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		height: 100dvh;
+		padding: 0.875rem 0.75rem 1rem;
+		background: var(--card);
+		border-right: 1px solid var(--border);
+		overflow: hidden;
+	}
+
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		height: calc(var(--topbar-h) - 1.75rem);
+		padding: 0 0.25rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.mark {
+		display: grid;
+		place-items: center;
+		width: 2.125rem;
+		height: 2.125rem;
+		flex-shrink: 0;
+		border-radius: var(--radius-md);
+		background: var(--brand-mark);
+		color: var(--primary-foreground);
+		font-family: var(--font-display);
+		font-size: 1.05rem;
+		font-weight: 600;
+		box-shadow: var(--shadow-primary);
+	}
+
+	.brand-text {
+		display: grid;
+		min-width: 0;
+		opacity: 0;
+		transition: opacity var(--t) var(--ease);
+	}
+
+	.open .brand-text {
+		opacity: 1;
+	}
+
+	.brand-title {
+		font-size: var(--text-md);
+		font-weight: 650;
+		letter-spacing: -0.02em;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.brand-sub {
+		font-size: var(--text-xs);
+		color: var(--muted-foreground);
+		white-space: nowrap;
+	}
+
+	.nav {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1875rem;
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		overflow-x: hidden;
+	}
+
+	.rail-foot {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1875rem;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--border);
+	}
+
+	.nav-item {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		height: 2.75rem;
+		padding: 0 0.6875rem;
+		border: none;
+		border-radius: var(--radius-md);
+		background: none;
+		color: var(--muted-foreground);
+		font: inherit;
+		font-size: var(--text);
+		font-weight: 500;
+		text-align: left;
+		text-decoration: none;
+		cursor: pointer;
+		transition:
+			background-color var(--t-fast) var(--ease-in-out),
+			color var(--t-fast) var(--ease-in-out),
+			box-shadow var(--t-fast) var(--ease-in-out);
+	}
+
+	.nav-item:hover:not(.on) {
+		background: var(--accent);
+		color: var(--foreground);
+	}
+
+	.nav-item:focus-visible {
+		outline: none;
+		border-radius: var(--radius-md);
+		color: var(--foreground);
+		background: var(--accent);
+		box-shadow: inset 0 0 0 1px var(--border-strong);
+	}
+
+	.nav-item.on {
+		background: var(--primary-wash);
+		color: var(--primary);
+	}
+
+	.nav-item.on:focus-visible {
+		color: var(--primary);
+		background: var(--primary-wash);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent);
+	}
+
+	/* Collapsed: circle halo only (no rect wash). Expanded: rect wash only. */
+	.shell:not(.open) .nav-item.on {
+		background: transparent;
+	}
+
+	.nav-item.on::before {
+		content: "";
+		position: absolute;
+		left: 0.0625rem;
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+		background: var(--glow);
+		pointer-events: none;
+	}
+
+	.open .nav-item.on::before {
+		display: none;
+	}
+
+	/* Collapsed rail clips outer rings; keep keyboard focus on the icon halo. */
+	.shell:not(.open) .nav-item:focus-visible {
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.shell:not(.open) .nav-item:focus-visible::after {
+		content: "";
+		position: absolute;
+		left: 0.0625rem;
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 45%, transparent);
+		pointer-events: none;
+	}
+
+	.nav-icon {
+		display: inline-flex;
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.nav-label {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+		opacity: 0;
+		transition: opacity var(--t) var(--ease);
+	}
+
+	.open .nav-label {
+		opacity: 1;
+	}
+
+	.tip {
+		position: absolute;
+		left: calc(100% + 0.625rem);
+		top: 50%;
+		z-index: 60;
+		padding: 0.3125rem 0.5625rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--popover);
+		color: var(--popover-foreground);
+		box-shadow: var(--shadow-pop);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		white-space: nowrap;
+		opacity: 0;
+		transform: translate(-0.25rem, -50%);
+		pointer-events: none;
+		transition:
+			opacity var(--t-fast) var(--ease),
+			transform var(--t-fast) var(--ease);
+	}
+
+	.nav-item:hover .tip,
+	.nav-item:focus-visible .tip {
+		opacity: 1;
+		transform: translate(0, -50%);
+	}
+
+	.open .tip {
+		display: none;
+	}
+
+	.main {
+		display: grid;
+		grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+		min-width: 0;
+		height: 100dvh;
+	}
+
+	.topbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--gap);
+		padding: 0 var(--page-gutter);
+		border-bottom: 1px solid var(--border);
+		background: var(--background);
+	}
+
+	.crumbs {
+		min-width: 0;
+		font-size: var(--text);
+	}
+
+	.crumbs ol {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.crumbs li {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+
+	.crumbs li:last-child {
+		flex: 1;
+	}
+
+	.crumb-link {
+		flex-shrink: 0;
+		color: var(--muted-foreground);
+		font-weight: 500;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.crumb-link:hover {
+		color: var(--foreground);
+	}
+
+	.crumb-link:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.sep {
+		color: var(--border-strong);
+	}
+
+	.route {
+		min-width: 0;
+		font-weight: 500;
+		color: var(--foreground);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.content {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		min-height: 0;
+		overflow: hidden;
+	}
+
+	.tabs {
+		display: none;
+	}
+
+	.stock-switch {
+		display: flex;
+		align-items: stretch;
+		width: 100%;
+		height: 100%;
+	}
+
+	.stock-link {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 1;
+		height: 100%;
+		padding: 0 0.5rem;
+		border-bottom: 2px solid transparent;
+		color: var(--muted-foreground);
+		font-size: var(--text-md);
+		font-weight: 500;
+		letter-spacing: -0.01em;
+		text-decoration: none;
+	}
+
+	.stock-link.on {
+		color: var(--foreground);
+		font-weight: 600;
+		border-bottom-color: var(--primary);
+	}
+
+	.stock-link:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -4px;
+	}
+
+	/* Keep in sync with SHELL_MOBILE_MAX_PX. */
+	@media (max-width: 900px) {
+		:global(:root) {
+			--page-gutter: 1rem;
+		}
+
+		.shell,
+		.shell.open {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: minmax(0, 1fr);
+		}
+
+		.has-tabs {
+			grid-template-rows: minmax(0, 1fr) var(--bottom-nav-h);
+		}
+
+		.rail {
+			display: none;
+		}
+
+		.main {
+			height: auto;
+			min-height: 0;
+			grid-template-rows: minmax(0, 1fr);
+		}
+
+		.has-topbar .main {
+			grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+		}
+
+		.tabs {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			align-items: start;
+			height: var(--bottom-nav-h);
+			padding: 0.35rem 0.4rem env(safe-area-inset-bottom, 0px);
+			border-top: 1px solid var(--border);
+			background: var(--card);
+		}
+
+		.tab {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 0.15rem;
+			min-height: 2.75rem;
+			padding: 0.2rem 0.25rem;
+			border-radius: var(--radius-md);
+			color: var(--muted-foreground);
+			text-decoration: none;
+			font-size: 0.6875rem;
+			font-weight: 600;
+			letter-spacing: 0.01em;
+		}
+
+		.tab.on {
+			color: var(--primary);
+		}
+
+		.tab:focus-visible {
+			outline: 2px solid var(--ring);
+			outline-offset: 2px;
+		}
+
+		.tab-icon {
+			display: inline-flex;
+		}
+
+		.tab-label {
+			line-height: 1;
+		}
+	}
+</style>

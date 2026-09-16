@@ -1,6 +1,14 @@
-import { updateRow } from "./baserow.js";
-import { flattenIngredientsForMenu } from "./menu.js";
+import { baserowFetch, updateRow } from "./baserow.js";
 import { loadMenuTree } from "./menu-store.js";
+import {
+  PUBLISH_SNAPSHOTS_FIELD,
+  photoFingerprint,
+  projectionHash,
+  recordTargetSnapshot,
+  sanityPatchFromProjection,
+  serializePublishSnapshots,
+  websiteProjection,
+} from "./reconcile.js";
 import {
   sanityDataset,
   sanityMutate,
@@ -38,6 +46,29 @@ async function syncPhoto(env, dataset, item) {
   };
 }
 
+async function persistLinkAndSnapshot(env, tables, item, target, payload, sanityId) {
+  const next = recordTargetSnapshot(item.publishSnapshots, target, payload);
+  const fields = {
+    [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(next),
+  };
+  if (!item.sanityId && sanityId) fields["Sanity ID"] = sanityId;
+  await updateRow(env, tables.items, item._id, fields);
+}
+
+async function assertPublishSnapshotsField(env, tableId) {
+  const fields = await baserowFetch(
+    env,
+    `/api/database/fields/table/${tableId}/`,
+  );
+  const names = Array.isArray(fields) ? fields.map((field) => field.name) : [];
+  if (names.includes(PUBLISH_SNAPSHOTS_FIELD)) return;
+  const error = new Error(
+    "Baserow Menu Items is missing the Publish snapshots field. Run npm run setup:baserow-ops.",
+  );
+  error.status = 503;
+  throw error;
+}
+
 /**
  * Push guest-facing fields from Baserow ops → Sanity (marketing site CMS).
  * Recipes / method / glass stay in Baserow only.
@@ -45,9 +76,11 @@ async function syncPhoto(env, dataset, item) {
 export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
   const dataset = sanityDataset(env, target);
   const { items, tables } = await loadMenuTree(env);
+  await assertPublishSnapshotsField(env, tables.items);
   const publishable = items.filter((item) => item.onDigitalMenu !== false);
 
   const synced = [];
+  const unchanged = [];
   const missing = [];
 
   for (const item of publishable) {
@@ -57,47 +90,42 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
       continue;
     }
 
-    const description =
-      item.description ||
-      flattenIngredientsForMenu(item.ingredients) ||
-      undefined;
+    const payload = websiteProjection(item);
+    const previous = item.publishSnapshots?.[target];
+    const hashMatches = previous?.hash === projectionHash(payload);
 
-    const set = {
-      name: item.name,
-      ...(description ? { description } : {}),
-      ...(item.price ? { price: item.price } : {}),
-      ...(item.notes ? { notes: item.notes } : {}),
-      signature: item.signature === true,
-      ...(item.abv ? { abv: item.abv } : {}),
-      ...(item.volume ? { volume: item.volume } : {}),
-      ...(item.producer ? { producer: item.producer } : {}),
-    };
+    if (hashMatches) {
+      if (!item.sanityId) {
+        await updateRow(env, tables.items, item._id, { "Sanity ID": sanityId });
+      }
+      unchanged.push({ id: item._id, name: item.name, sanityId });
+      continue;
+    }
 
-    const unset = [];
-    if (!description) unset.push("description");
-    if (!item.price) unset.push("price");
-    if (!item.notes) unset.push("notes");
-    if (!item.abv) unset.push("abv");
-    if (!item.volume) unset.push("volume");
-    if (!item.producer) unset.push("producer");
+    const { set, unset } = sanityPatchFromProjection(payload);
+    const photoChanged = previous?.payload?.photo !== photoFingerprint(item);
 
-    try {
-      const image = await syncPhoto(env, dataset, item);
-      if (image) set.image = image;
-    } catch {
-      // Keep previous Sanity image if upload fails.
+    if (photoChanged) {
+      const url = item.image?.asset?.url;
+      if (!url) {
+        unset.push("image");
+      } else {
+        try {
+          const image = await syncPhoto(env, dataset, item);
+          if (image) set.image = image;
+        } catch {
+          // Keep previous Sanity image if upload fails.
+        }
+      }
     }
 
     await sanityMutate(env, dataset, [
       { patch: { id: sanityId, set, ...(unset.length ? { unset } : {}) } },
     ]);
 
-    if (!item.sanityId) {
-      await updateRow(env, tables.items, item._id, { "Sanity ID": sanityId });
-    }
-
+    await persistLinkAndSnapshot(env, tables, item, target, payload, sanityId);
     synced.push({ id: item._id, name: item.name, sanityId });
   }
 
-  return { dataset, synced, missing };
+  return { dataset, synced, unchanged, missing };
 }
