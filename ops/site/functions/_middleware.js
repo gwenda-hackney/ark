@@ -1,9 +1,9 @@
 /**
  * Protects the ops Pages project.
- * Cloudflare Access in production; OPS_PASSWORD or local Access sim (Users table).
+ * Google OAuth (local + production); optional OPS_PASSWORD bypass.
  */
 import {
-  accessRequiredResponse,
+  authMisconfiguredResponse,
   buildAuthCookie,
   createPasswordToken,
   gateRedirectPath,
@@ -15,8 +15,8 @@ import {
   opsUserForbiddenResponse,
   relativeRedirect,
   requestOrigin,
-  resolveAccessEmail,
   resolveAuth,
+  resolveSessionEmail,
   safeRedirectPath,
   signInRequiredResponse,
 } from "./_lib/auth.js";
@@ -36,6 +36,8 @@ export async function onRequest(context) {
 
 async function handleRequest(context) {
   const auth = resolveAuth(context.env);
+  if (auth.kind === "misconfigured") return authMisconfiguredResponse();
+
   const url = new URL(context.request.url);
   const bypassKey = context.env.OPS_BYPASS_KEY;
   const accessParam = url.searchParams.get("access");
@@ -43,7 +45,7 @@ async function handleRequest(context) {
   const authed = await isRequestAuthed(auth, context.request);
 
   if (
-    auth.kind === "password" &&
+    auth.password &&
     bypassKey &&
     accessParam &&
     matchesSecret(accessParam, bypassKey)
@@ -62,10 +64,10 @@ async function handleRequest(context) {
 
   if (isPublicPath(url.pathname)) {
     if ((url.pathname === "/gate" || url.pathname === "/gate/") && authed) {
-      if (auth.kind === "access") {
+      if (auth.kind === "google") {
         const allowed = await isOpsUser(
           context.env,
-          await resolveAccessEmail(context.request, auth),
+          await resolveSessionEmail(context.request, auth),
         );
         if (!allowed) return opsUserForbiddenResponse();
       }
@@ -74,16 +76,16 @@ async function handleRequest(context) {
     return context.next();
   }
 
-  if (auth.kind === "access" && authed) {
-    const allowed = await isOpsUser(
-      context.env,
-      await resolveAccessEmail(context.request, auth),
-    );
-    if (!allowed) {
-      if (isProtectedApiPath(url.pathname)) {
-        return opsUserForbiddenResponse({ json: true });
+  if (auth.kind === "google" && authed) {
+    const email = await resolveSessionEmail(context.request, auth);
+    if (email) {
+      const allowed = await isOpsUser(context.env, email);
+      if (!allowed) {
+        if (isProtectedApiPath(url.pathname)) {
+          return opsUserForbiddenResponse({ json: true });
+        }
+        return opsUserForbiddenResponse();
       }
-      return opsUserForbiddenResponse();
     }
   }
 
@@ -93,12 +95,6 @@ async function handleRequest(context) {
   }
 
   if (isProtectedApiPath(url.pathname)) return signInRequiredResponse();
-
-  // Local Access sim uses the gate; production Access never reaches here without a header.
-  if (auth.kind === "access" && auth.local) {
-    return relativeRedirect(gateRedirectPath(url.pathname + url.search));
-  }
-  if (auth.kind === "access") return accessRequiredResponse();
   return relativeRedirect(gateRedirectPath(url.pathname + url.search));
 }
 

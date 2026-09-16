@@ -39,7 +39,6 @@
 	import RecipeEditor from "./RecipeEditor.svelte";
 	import SpecBook from "./SpecBook.svelte";
 	import PublishPanel from "./PublishPanel.svelte";
-	import SectionsPanel from "./SectionsPanel.svelte";
 
 	let { path = "/menu" }: { path?: string } = $props();
 
@@ -62,7 +61,6 @@
 	let detailOpen = $state(false);
 	let listPaneEl = $state<HTMLDivElement | undefined>();
 	let publishOpen = $state(false);
-	let sectionsOpen = $state(false);
 	let query = $state("");
 	let publishTarget = $state<PublishTarget>(
 		(localStorage.getItem("gwenda-ops-menu-publish") as PublishTarget) ||
@@ -410,21 +408,11 @@
 	}
 
 	function openPublish() {
-		sectionsOpen = false;
 		publishOpen = true;
 	}
 
 	function closePublish() {
 		publishOpen = false;
-	}
-
-	function openSections() {
-		publishOpen = false;
-		sectionsOpen = true;
-	}
-
-	function closeSections() {
-		sectionsOpen = false;
 	}
 
 	function reloadMenu() {
@@ -443,12 +431,11 @@
 	});
 
 	$effect(() => {
-		if (!publishOpen && !sectionsOpen) return;
+		if (!publishOpen) return;
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				e.preventDefault();
-				if (publishOpen) closePublish();
-				if (sectionsOpen) closeSections();
+				closePublish();
 			}
 		};
 		window.addEventListener("keydown", onKey);
@@ -651,17 +638,6 @@
 								</Button>
 							{/if}
 							<Button
-								variant="outline"
-								size="sm"
-								disabled={busy}
-								onclick={openSections}
-							>
-								{#snippet icon()}
-									<Icon name="list" size={15} />
-								{/snippet}
-								Sections
-							</Button>
-							<Button
 								variant="primary"
 								size="sm"
 								disabled={busy}
@@ -717,19 +693,6 @@
 			<BusyOverlay active={loading} label={busyLabel} />
 		</div>
 
-		<SidePanel
-			open={sectionsOpen}
-			onclose={closeSections}
-			ariaLabel="Menu sections"
-			width="min(28rem, 100%)"
-		>
-			<SectionsPanel
-				{sections}
-				{busy}
-				onchanged={loadMenu}
-				onclose={closeSections}
-			/>
-		</SidePanel>
 		<SidePanel
 			open={publishOpen}
 			onclose={closePublish}

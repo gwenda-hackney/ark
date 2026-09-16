@@ -57,7 +57,8 @@ export function toolFrameFor(path: string): (typeof TOOL_FRAMES)[ToolId] {
 export function mobileTabFor(path: string): MobileTabId {
 	const page = parseShellPath(path).page;
 	if (page === "menu" || page === "inventory") return "stock";
-	if (page === "config" || page === "users" || page === "tools") return "more";
+	if (page === "config" || page === "sections" || page === "users" || page === "tools")
+		return "more";
 	return "home";
 }
 

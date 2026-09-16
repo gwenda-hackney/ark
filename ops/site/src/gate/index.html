@@ -20,18 +20,21 @@ main{width:min(100%,22rem);text-align:center}
 .eyebrow{font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:0 0 .5rem}
 h1{font-size:1.45rem;font-weight:600;margin:0 0 .4rem}
 .lead{color:var(--muted);font-size:.9rem;margin:0 0 1.35rem}
-form{display:flex;flex-direction:column;gap:.65rem}
+.stack{display:flex;flex-direction:column;gap:.65rem}
 input{
   width:100%;padding:.7rem .85rem;border:1px solid var(--line);background:#161614;
   color:var(--ink);font:inherit;font-size:.95rem
 }
 input:focus{outline:1px solid var(--gold);border-color:var(--gold)}
-button{
+button,.google{
   appearance:none;border:1px solid var(--line);background:#161614;color:var(--ink);
-  font:inherit;font-weight:600;padding:.7rem 1rem;cursor:pointer
+  font:inherit;font-weight:600;padding:.7rem 1rem;cursor:pointer;text-decoration:none;
+  display:block;width:100%;box-sizing:border-box
 }
-button:hover{border-color:var(--gold)}
+button:hover,.google:hover{border-color:var(--gold)}
+.google{background:color-mix(in srgb, var(--gold) 18%, #161614);border-color:var(--gold);color:var(--ink)}
 .error{color:#e8a0a0;font-size:.82rem;margin:0;min-height:1.2em}
+.divider{color:var(--muted);font-size:.75rem;margin:.25rem 0}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 </style>
 </head>
@@ -40,83 +43,81 @@ button:hover{border-color:var(--gold)}
   <p class="eyebrow">Gwenda · internal</p>
   <h1>Enter our world</h1>
   <p class="lead" id="gate-lead">Loading…</p>
-  <form id="gate-form" novalidate hidden>
-    <label id="gate-label" for="gate-input" class="visually-hidden">Password</label>
-    <input id="gate-input" name="credential" required>
-    <button type="submit" id="gate-submit">Enter</button>
+  <div class="stack" id="gate-stack" hidden>
+    <a class="google" id="google-btn" href="/api/auth/login">Continue with Google</a>
+    <p class="divider" id="password-divider" hidden>or password</p>
+    <form id="gate-form" novalidate hidden>
+      <label for="gate-input" class="visually-hidden">Password</label>
+      <input type="password" id="gate-input" name="password" autocomplete="current-password" placeholder="Password" required>
+      <button type="submit">Enter</button>
+    </form>
     <p class="error" id="gate-error" hidden></p>
-  </form>
+  </div>
 </main>
 <script>
 (function () {
+  const stack = document.getElementById("gate-stack");
   const form = document.getElementById("gate-form");
   const input = document.getElementById("gate-input");
-  const label = document.getElementById("gate-label");
   const lead = document.getElementById("gate-lead");
-  const submit = document.getElementById("gate-submit");
+  const googleBtn = document.getElementById("google-btn");
+  const divider = document.getElementById("password-divider");
   const error = document.getElementById("gate-error");
   const next = new URLSearchParams(location.search).get("next") || "/";
-  let mode = "password";
+  const queryError = new URLSearchParams(location.search).get("error");
 
   function showError(message) {
     error.textContent = message;
     error.hidden = false;
   }
 
+  if (queryError) showError(queryError);
+  googleBtn.href = "/api/auth/login?next=" + encodeURIComponent(next);
+
   function paint(meta) {
-    mode = meta.mode === "access" ? "access" : "password";
-    form.hidden = false;
-    if (mode === "access") {
-      lead.textContent =
-        "Local Access: enter a Google email from the Baserow Users table.";
-      label.textContent = "Email";
-      input.type = "email";
-      input.name = "email";
-      input.autocomplete = "username";
-      input.placeholder = "you@gwenda.co.uk";
-      input.value = meta.defaultEmail || "";
-      submit.textContent = "Continue";
-    } else {
+    stack.hidden = false;
+    if (meta.mode === "google") {
+      lead.textContent = "Sign in with your Google account. You must be on the ops users list.";
+      googleBtn.hidden = false;
+      if (meta.password) {
+        divider.hidden = false;
+        form.hidden = false;
+      } else {
+        divider.hidden = true;
+        form.hidden = true;
+      }
+    } else if (meta.mode === "password") {
       lead.textContent = "Enter the password to open ops tools.";
-      label.textContent = "Password";
-      input.type = "password";
-      input.name = "password";
-      input.autocomplete = "current-password";
-      input.placeholder = "Password";
-      submit.textContent = "Enter";
+      googleBtn.hidden = true;
+      divider.hidden = true;
+      form.hidden = false;
+    } else {
+      lead.textContent = "Auth is not configured. Set Google OAuth secrets or OPS_PASSWORD.";
+      googleBtn.hidden = true;
+      form.hidden = true;
     }
-    input.focus();
   }
 
   fetch("/api/auth")
     .then((res) => res.json())
     .then(paint)
     .catch(() => {
-      paint({ mode: "password" });
+      paint({ mode: "misconfigured" });
       showError("Could not load the gate. Try again.");
     });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     error.hidden = true;
-    const body =
-      mode === "access"
-        ? { email: input.value, next }
-        : { password: input.value, next };
     try {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ password: input.value, next }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        showError(
-          data.error ||
-            (mode === "access"
-              ? "That Google account is not on the ops users list."
-              : "That password isn't right."),
-        );
+        showError(data.error || "That password isn't right.");
         return;
       }
       location.assign(data.redirect || "/");

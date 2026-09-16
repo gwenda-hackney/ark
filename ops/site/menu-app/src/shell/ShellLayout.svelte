@@ -26,6 +26,7 @@
 		tabHref,
 		type MobileTabId,
 	} from "../lib/mobile-nav";
+	import { matchActiveRoute, navGroupContains } from "../lib/nav-tree";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../lib/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
@@ -64,23 +65,7 @@
 	const currentTab = $derived(moreOpen ? "more" : mobileTabFor(path));
 	const stockValue = $derived(stockSwitchValue(path));
 
-	const active = $derived.by(() => {
-		const withoutQuery = path.split("?")[0] ?? "/";
-		const exact = routes.find((n) => n.path === withoutQuery);
-		if (exact) return exact;
-		const ranked = routes
-			.filter(
-				(n) =>
-					n.path !== "/" &&
-					(withoutQuery === n.path || withoutQuery.startsWith(`${n.path}/`)),
-			)
-			.sort((a, b) => b.path.length - a.path.length);
-		if (ranked[0]) return ranked[0];
-		if (withoutQuery === "/" || withoutQuery === "") {
-			return routes.find((n) => n.path === "/") ?? routes[0] ?? null;
-		}
-		return null;
-	});
+	const active = $derived(matchActiveRoute(routes, path));
 
 	const mark = $derived(brandTitle.trim().charAt(0).toUpperCase() || "G");
 
@@ -97,6 +82,28 @@
 		moreOpen = false;
 		navigate(next);
 		path = readPath();
+	}
+
+	function isModifiedClick(event: MouseEvent): boolean {
+		return (
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey ||
+			event.button !== 0
+		);
+	}
+
+	function onLeafClick(event: MouseEvent, href: string): void {
+		if (isModifiedClick(event) || !href) return;
+		event.preventDefault();
+		go(href);
+	}
+
+	function collapsedGroupHref(item: NavRoute): string {
+		if (item.id === "stock") return tabHref("stock");
+		const child = item.children?.find((row) => row.path);
+		return child?.path || "/";
 	}
 
 	function onTab(id: MobileTabId, event: MouseEvent): void {
@@ -169,30 +176,77 @@
 
 		<nav class="nav">
 			{#each routes as item (item.id)}
-				{@const on = active?.id === item.id}
-				<a
-					class="nav-item"
-					class:on
-					href={item.path}
-					aria-current={on ? "page" : undefined}
-					onclick={(e) => {
-						if (
-							e.metaKey ||
-							e.ctrlKey ||
-							e.shiftKey ||
-							e.altKey ||
-							e.button !== 0
-						) {
-							return;
-						}
-						e.preventDefault();
-						go(item.path);
-					}}
-				>
-					<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
-					<span class="nav-label">{item.name}</span>
-					<span class="tip" aria-hidden="true">{item.name}</span>
-				</a>
+				{#if item.children?.length}
+					{@const inGroup = navGroupContains(item, active)}
+					{@const groupHref = collapsedGroupHref(item)}
+					<div class="nav-group">
+						{#if open}
+							<div class="nav-item group-label" class:in={inGroup}>
+								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
+								<span class="nav-label">{item.name}</span>
+							</div>
+							<div class="nav-children" role="group" aria-label={item.name}>
+								{#each item.children as child (child.id)}
+									{@const on = active?.id === child.id}
+									{@const href = child.path || "/"}
+									<a
+										class="nav-item nested"
+										class:on
+										href={href}
+										aria-current={on ? "page" : undefined}
+										onclick={(e) => onLeafClick(e, href)}
+									>
+										<span class="nav-icon"><Icon name={child.icon} size={17} /></span>
+										<span class="nav-label">{child.name}</span>
+									</a>
+								{/each}
+							</div>
+						{:else}
+							<a
+								class="nav-item"
+								class:on={inGroup}
+								href={groupHref}
+								aria-current={inGroup ? "true" : undefined}
+								aria-haspopup="true"
+								onclick={(e) => onLeafClick(e, groupHref)}
+							>
+								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
+								<span class="nav-label">{item.name}</span>
+							</a>
+							<nav class="flyout" aria-label={item.name}>
+								<div class="flyout-card">
+									{#each item.children as child (child.id)}
+										{@const on = active?.id === child.id}
+										{@const href = child.path || "/"}
+										<a
+											class="flyout-link"
+											href={href}
+											aria-current={on ? "page" : undefined}
+											onclick={(e) => onLeafClick(e, href)}
+										>
+											<span class="nav-icon"><Icon name={child.icon} size={16} /></span>
+											{child.name}
+										</a>
+									{/each}
+								</div>
+							</nav>
+						{/if}
+					</div>
+				{:else}
+					{@const on = active?.id === item.id}
+					{@const href = item.path || "/"}
+					<a
+						class="nav-item"
+						class:on
+						href={href}
+						aria-current={on ? "page" : undefined}
+						onclick={(e) => onLeafClick(e, href)}
+					>
+						<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
+						<span class="nav-label">{item.name}</span>
+						<span class="tip" aria-hidden="true">{item.name}</span>
+					</a>
+				{/if}
 			{/each}
 		</nav>
 
@@ -306,9 +360,11 @@
 	.rail {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0;
+		position: relative;
+		z-index: 50;
 		height: 100dvh;
-		padding: 0.875rem 0.75rem 1rem;
+		padding: 0 0.75rem 1rem;
 		background: var(--card);
 		border-right: 1px solid var(--border);
 		overflow: hidden;
@@ -318,9 +374,12 @@
 		display: flex;
 		align-items: center;
 		gap: 0.625rem;
-		height: calc(var(--topbar-h) - 1.75rem);
+		height: var(--topbar-h);
 		padding: 0 0.25rem;
-		margin-bottom: 0.5rem;
+		margin: 0 -0.75rem 0.875rem;
+		padding-left: 1rem;
+		padding-right: 1rem;
+		border-bottom: 1px solid var(--border);
 	}
 
 	.mark {
@@ -341,11 +400,16 @@
 	.brand-text {
 		display: grid;
 		min-width: 0;
+		max-width: 0;
 		opacity: 0;
-		transition: opacity var(--t) var(--ease);
+		overflow: hidden;
+		transition:
+			opacity var(--t) var(--ease),
+			max-width var(--t) var(--ease);
 	}
 
 	.open .brand-text {
+		max-width: 12rem;
 		opacity: 1;
 	}
 
@@ -370,8 +434,114 @@
 		gap: 0.1875rem;
 		flex: 1;
 		min-height: 0;
+		padding-top: 0.25rem;
 		overflow-y: auto;
 		overflow-x: hidden;
+	}
+
+	.shell:not(.open) .rail,
+	.shell:not(.open) .nav {
+		overflow: visible;
+	}
+
+	.nav-group {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	.nav-children {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		padding: 0 0 0.35rem 0.35rem;
+	}
+
+	.nav-item.nested {
+		height: 2.45rem;
+		font-size: var(--text-sm);
+	}
+
+	.nav-item.group-label {
+		cursor: default;
+		color: var(--subtle-foreground);
+	}
+
+	.nav-item.group-label:hover {
+		background: none;
+		color: var(--subtle-foreground);
+	}
+
+	.nav-item.group-label.in {
+		color: var(--primary);
+		background: none;
+	}
+
+	.nav-item.group-label.in:hover {
+		color: var(--primary);
+		background: none;
+	}
+
+	.flyout {
+		position: absolute;
+		left: 100%;
+		top: 0;
+		z-index: 70;
+		padding-left: 0.5rem;
+		opacity: 0;
+		pointer-events: none;
+		transform: translate(-0.25rem, 0);
+		transition:
+			opacity var(--t-fast) var(--ease),
+			transform var(--t-fast) var(--ease);
+	}
+
+	.nav-group:hover .flyout,
+	.nav-group:focus-within .flyout {
+		opacity: 1;
+		pointer-events: auto;
+		transform: translate(0, 0);
+	}
+
+	.flyout-card {
+		display: grid;
+		gap: 0.125rem;
+		min-width: 12.75rem;
+		padding: 0.35rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--popover);
+		color: var(--popover-foreground);
+		box-shadow: var(--shadow-pop);
+	}
+
+	.flyout-link {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		min-height: 2.35rem;
+		padding: 0.35rem 0.55rem;
+		border-radius: var(--radius-sm);
+		color: var(--popover-foreground);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		text-decoration: none;
+	}
+
+	.flyout-link:hover {
+		background: var(--accent);
+		color: var(--foreground);
+	}
+
+	.flyout-link.on {
+		background: var(--primary-wash);
+		color: var(--primary);
+	}
+
+	.flyout-link:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 1px;
 	}
 
 	.rail-foot {
@@ -475,14 +645,18 @@
 
 	.nav-label {
 		min-width: 0;
+		max-width: 0;
 		overflow: hidden;
 		white-space: nowrap;
 		text-overflow: ellipsis;
 		opacity: 0;
-		transition: opacity var(--t) var(--ease);
+		transition:
+			opacity var(--t) var(--ease),
+			max-width var(--t) var(--ease);
 	}
 
 	.open .nav-label {
+		max-width: 12rem;
 		opacity: 1;
 	}
 

@@ -94,16 +94,19 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/menu/negroni/recipe"), true);
     assert.equal(isSpaDocumentPath("/inventory/gin"), true);
     assert.equal(isSpaDocumentPath("/config"), true);
+    assert.equal(isSpaDocumentPath("/sections"), true);
     assert.equal(isSpaDocumentPath("/users"), true);
     assert.equal(isSpaDocumentPath("/tools/breakeven"), true);
     assert.equal(isSpaDocumentPath("/stock"), false);
     assert.equal(isSpaDocumentPath("/api/menu"), false);
     assert.equal(isClientNavPath("/config"), true);
+    assert.equal(isClientNavPath("/sections"), true);
     assert.equal(isClientNavPath("/users"), true);
     assert.equal(isClientNavPath("/tools/cashflow"), true);
     assert.equal(isClientNavPath("/stock"), false);
     assert.equal(isClientNavPath("/stock/index.html"), false);
     assert.equal(shellPageKey("/config"), "config");
+    assert.equal(shellPageKey("/sections"), "sections");
     assert.equal(shellPageKey("/users"), "users");
     assert.equal(shellPageKey("/tools/breakeven"), "tools");
     assert.deepEqual(parseShellPath("/tools/stock"), {
@@ -114,6 +117,7 @@ describe("spa-path", () => {
       page: "tools",
       tool: "breakeven",
     });
+    assert.deepEqual(parseShellPath("/sections"), { page: "sections" });
   });
 
   it("treats drink tabs as the same editor, and list as leaving", () => {
@@ -125,6 +129,8 @@ describe("spa-path", () => {
     assert.equal(navigationLeavesEditor("/menu/ambra", "/menu"), true);
     assert.equal(navigationLeavesEditor("/menu/ambra", "/inventory"), true);
     assert.equal(navigationLeavesEditor("/menu", "/inventory"), false);
+    assert.equal(navigationLeavesEditor("/menu", "/sections"), false);
+    assert.equal(navigationLeavesEditor("/menu/ambra", "/sections"), true);
   });
 
   it("sends Close back to the opener, not always the recipes table", () => {
@@ -199,6 +205,14 @@ describe("spa-path", () => {
         sectionHref: "/config",
       }),
       [{ label: "Operations", href: "/" }, { label: "Configuration" }],
+    );
+    assert.deepEqual(
+      shellCrumbs("/sections", {
+        homeLabel: "Operations",
+        sectionLabel: "Sections",
+        sectionHref: "/sections",
+      }),
+      [{ label: "Operations", href: "/" }, { label: "Sections" }],
     );
     assert.equal(
       shellCrumbs("/inventory/new", {

@@ -717,14 +717,16 @@ export function recipePriceAnalysis(
 	});
 	const serves: ServePourReading[] = [primary];
 	const altFactor = altCostFactor(drinkType);
-	if (labels.alt && altFactor != null) {
+	const altPriceRaw = String(item?.priceAlt || "").trim();
+	// Alt serve is opt-in per drink (set a double / half price to enable it).
+	if (labels.alt && altFactor != null && altPriceRaw) {
 		serves.push(
 			pourReading({
 				key: "alt",
 				label: labels.alt,
 				costFactor: altFactor,
 				baseCost,
-				price: parseGbp(item?.priceAlt),
+				price: parseGbp(altPriceRaw),
 				complete,
 				targetPourCost,
 			}),

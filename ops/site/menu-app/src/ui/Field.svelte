@@ -127,30 +127,31 @@
 		flex-shrink: 0;
 	}
 
-	/* Field actions stay compact but readable — gold icon tools, not micro glyphs. */
+	/* Field actions: quiet icon tools on the label row, not mini FABs. */
 	.label-actions :global(.btn) {
-		min-height: var(--control-h-xs);
-		height: var(--control-h-xs);
+		min-height: 1.375rem;
+		height: 1.375rem;
 	}
 
-	.label-actions :global(.btn.icon-only) {
-		width: var(--control-h-xs);
+	.label-actions :global(.btn.icon-only),
+	.label-actions :global(.btn:not(:has(.label))) {
+		width: 1.375rem;
 		padding: 0;
 	}
 
-	.label-actions :global(.btn:not(.icon-only)) {
+	.label-actions :global(.btn:has(.label)) {
 		width: auto;
-		padding: 0 0.55rem;
+		padding: 0 0.45rem;
 	}
 
 	.label-actions :global(.btn .glyph) {
-		width: 1rem;
-		height: 1rem;
+		width: 0.875rem;
+		height: 0.875rem;
 	}
 
 	.label-actions :global(.btn svg) {
-		width: 1rem;
-		height: 1rem;
+		width: 0.875rem;
+		height: 0.875rem;
 	}
 
 	.tip-wrap {

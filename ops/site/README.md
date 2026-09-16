@@ -1,7 +1,7 @@
 # Gwenda ops site
 
 Internal ops tools on Cloudflare Pages with a shared Svelte shell (collapsible rail).
-Production uses Cloudflare Access with Google. Local wrangler uses the password gate.
+Auth is Google OAuth in the app (local and production). Membership is Baserow Users.
 
 Live: [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)
 
@@ -17,10 +17,10 @@ ops/site/
 │   ├── stock/         ← menu prices & stock (Drive sync)
 │   ├── breakeven/
 │   ├── cashflow/
-│   ├── gate/          ← local password UI (Access never reaches this in production)
+│   ├── gate/          ← Google sign-in (optional password bypass)
 │   ├── styles/
 │   └── robots.txt
-├── functions/         ← Access / password gate + Baserow menu API
+├── functions/         ← Google OAuth gate + Baserow menu API
 └── scripts/sync-from-mydrive.mjs
 ```
 
@@ -37,6 +37,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/inventory` | Inventory |
 | `/inventory/new` | New inventory item |
 | `/inventory/:name` | Inventory item detail |
+| `/users` | Who may sign in |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |
 | `/breakeven` | Breakeven (iframe) |
 | `/cashflow` | Cashflow (iframe) |
@@ -45,48 +46,31 @@ Old hash URLs (`/#/menu`) still resolve to the path routes. Drink and inventory 
 
 Theme/UI primitives mirror trading’s `shell.web` (Gwenda colours + Ysabeau/Roboto).
 
-## Auth (Cloudflare Access + Google)
+## Auth (Google OAuth + Baserow Users)
 
-Production (`gwenda-ops.pages.dev` and `*.gwenda-ops.pages.dev`) is locked at the edge by Cloudflare Access. Google is the identity provider. Who may use ops lives in the Baserow **Users** table (Email + Active), not in env.
-
-If Zero Trust has never been used on this account, enable it once at [one.dash.cloudflare.com](https://one.dash.cloudflare.com/) (or Pages → gwenda-ops → Settings → General → Access policy). Local setup uses `CLOUDFLARE_DEV_API_TOKEN` (Pages, Wrangler, and Access). GitHub CI keeps `CLOUDFLARE_API_TOKEN`.
+The same Google login works on **localhost** and **gwenda-ops.pages.dev**. Who may use ops lives in the Baserow **Users** table (Email + Active), managed at `/users`.
 
 ```bash
 # .env
-CF_ACCESS_GOOGLE_CLIENT_ID=…
-CF_ACCESS_GOOGLE_CLIENT_SECRET=…
+GOOGLE_OAUTH_CLIENT_ID=…
+GOOGLE_OAUTH_CLIENT_SECRET=…
+OPS_SESSION_SECRET=…          # signs the app session cookie (not from Google)
 
-npm run setup:baserow-ops   # creates Users (and other Ops tables)
-npm run setup:ops-access
-npm run setup:ops
+npm run setup:baserow-ops     # creates Users (and other Ops tables)
+npm run setup:ops             # Pages secrets
+npm run teardown:ops-access   # once: remove old Cloudflare Access apps
 ```
 
-`setup:ops-access` upserts the Google IdP and two Access apps (production + preview wildcard). Access allows anyone who signs in with that Google client. Middleware then checks Baserow Users. It prints the Google Cloud redirect URI (`https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`) if the client is missing.
+Google Cloud **Web application** OAuth client (reuse the existing client):
 
-Create a Google Cloud **Web application** OAuth client:
+1. Authorized JavaScript origins: `http://localhost:5174`, `http://127.0.0.1:5174`, `https://gwenda-ops.pages.dev`
+2. Authorized redirect URIs: `http://localhost:5174/api/auth/callback`, `http://127.0.0.1:5174/api/auth/callback`, `https://gwenda-ops.pages.dev/api/auth/callback`
 
-1. Authorized JavaScript origins: `https://<team>.cloudflareaccess.com`
-2. Authorized redirect URI: `https://<team>.cloudflareaccess.com/cdn-cgi/access/callback`
+Local: `npm run dev -w @gwenda/ops` → http://localhost:5174/ → Continue with Google. Optional `OPS_PASSWORD` remains a local bypass only. Leave `OPS_PASSWORD` unset on Pages.
 
-Do not put the Google client secret on Pages. Access holds it.
+Logout clears the session cookie and returns to `/gate/`.
 
-Local password (default): `OPS_PASSWORD` in repo-root `.env`. Wrangler never sees Cloudflare Access.
-
-Local Access sim (Users table, no Google):
-
-```bash
-# .env
-OPS_AUTH_MODE=access
-OPS_PASSWORD=…                 # still used to sign the local session cookie
-# optional: OPS_DEV_ACCESS_EMAIL=you@gwenda.co.uk  # skip the gate and auto-use this email
-```
-
-Then `npm run dev -w @gwenda/ops`, open http://localhost:5174/, enter a Baserow Users email at `/gate/`. Allowed emails get in; others get the same forbidden message as production. Real Google login only happens on `gwenda-ops.pages.dev`.
-
-`OPS_BYPASS_KEY` is password-mode only (`?access=`). Leave `OPS_PASSWORD` unset on Pages once Access works. Never set `OPS_AUTH_MODE` or `OPS_DEV_ACCESS_EMAIL` on Pages.
-
-Logout in production is `/cdn-cgi/access/logout`. Local Access sim logs out to `/gate/`.
-
+If Cloudflare Access still intercepts production after cutover, run `npm run teardown:ops-access` (or delete the Gwenda ops Access apps in Zero Trust).
 ## Where data lives
 
 | Data | Store |
@@ -110,7 +94,7 @@ npm run dev -w @gwenda/ops
 - Vite SPA with HMR: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
 - Pages + auth Functions: [http://127.0.0.1:8788/](http://127.0.0.1:8788/)
 
-Requires `BASEROW_API_KEY` plus either `OPS_PASSWORD` or `OPS_AUTH_MODE=access` in repo-root `.env`. Ops table ids come from `wrangler.toml` `[vars]` (and name lookup as a fallback). Local seed scripts still read ids from `.env`.
+Requires `BASEROW_API_KEY` plus Google OAuth secrets (`GOOGLE_OAUTH_*` + `OPS_SESSION_SECRET`) or `OPS_PASSWORD` in repo-root `.env`. Ops table ids come from `wrangler.toml` `[vars]` (and name lookup as a fallback). Local seed scripts still read ids from `.env`.
 
 Build:
 

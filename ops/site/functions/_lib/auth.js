@@ -1,22 +1,24 @@
 /**
- * Ops auth: Cloudflare Access in production, OPS_PASSWORD or local Access sim.
- *
- * Local Access: OPS_AUTH_MODE=access. Signs in with an email at /gate/, then
- * checks the Baserow Users table (same membership path as production).
- * Real Google/Access only runs on gwenda-ops.pages.dev.
+ * Ops auth: Google OAuth (local + production) with optional OPS_PASSWORD bypass.
+ * Membership is Baserow Users. No Cloudflare Access.
  */
 import { canonicalizePath } from "./spa-path.js";
 
 export const AUTH_COOKIE_NAME = "gwenda_ops_access";
-export const ACCESS_EMAIL_HEADER = "Cf-Access-Authenticated-User-Email";
+export const OAUTH_STATE_COOKIE = "gwenda_ops_oauth";
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 14;
-const ACCESS_EMAIL_SCOPE = "gwenda-ops-access-email-v1";
+const SESSION_SCOPE = "gwenda-ops-google-session-v1";
+const OAUTH_STATE_SCOPE = "gwenda-ops-oauth-state-v1";
 
 function bufferToBase64Url(buf) {
   const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function bytesToBase64Url(bytes) {
+  return bufferToBase64Url(bytes);
 }
 
 async function hmacSign(secret, message) {
@@ -49,48 +51,52 @@ export function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+export function googleClientId(env = {}) {
+  return env.GOOGLE_OAUTH_CLIENT_ID?.trim() || "";
+}
+
+export function googleClientSecret(env = {}) {
+  return env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() || "";
+}
+
+export function sessionSecret(env = {}) {
+  return env.OPS_SESSION_SECRET?.trim() || "";
+}
+
 /**
  * @param {Record<string, string | undefined>} env
  * @returns {{
- *   kind: "access" | "password",
- *   local?: boolean,
+ *   kind: "google" | "password" | "misconfigured",
  *   password?: string,
  *   sessionSecret?: string,
- *   defaultEmail?: string,
+ *   googleClientId?: string,
+ *   googleClientSecret?: string,
  * }}
  */
 export function resolveAuth(env) {
   const password = env.OPS_PASSWORD?.trim() || "";
-  const sessionSecret =
-    env.OPS_DEV_ACCESS_SECRET?.trim() || password || "";
-  const defaultEmail = normalizeEmail(env.OPS_DEV_ACCESS_EMAIL);
-  const authMode = String(env.OPS_AUTH_MODE || "")
-    .trim()
-    .toLowerCase();
+  const clientId = googleClientId(env);
+  const clientSecret = googleClientSecret(env);
+  const secret = sessionSecret(env);
 
-  if (authMode === "access") {
+  if (clientId && clientSecret && secret) {
     return {
-      kind: "access",
-      local: true,
-      sessionSecret: sessionSecret || undefined,
-      defaultEmail: defaultEmail || undefined,
+      kind: "google",
+      sessionSecret: secret,
+      googleClientId: clientId,
+      googleClientSecret: clientSecret,
+      password: password || undefined,
     };
   }
   if (password) return { kind: "password", password };
-  return { kind: "access", local: false };
+  return { kind: "misconfigured" };
 }
 
 export function authMisconfiguredResponse() {
   return new Response(
-    "Ops site requires Cloudflare Access or OPS_PASSWORD.",
+    "Ops site requires Google OAuth (GOOGLE_OAUTH_CLIENT_ID/SECRET + OPS_SESSION_SECRET) or OPS_PASSWORD.",
     { status: 503 },
   );
-}
-
-export function accessRequiredResponse() {
-  return new Response("This host must be behind Cloudflare Access.", {
-    status: 403,
-  });
 }
 
 export function opsUserForbiddenResponse({ json = false } = {}) {
@@ -115,24 +121,59 @@ export async function verifyPasswordToken(password, token) {
   return matchesSecret(token, expected);
 }
 
-/** Local Access-sim cookie: email + HMAC. */
-export async function createAccessEmailToken(secret, email) {
+/** Signed session: email.exp.sig */
+export async function createSessionToken(secret, email, maxAgeSec = COOKIE_MAX_AGE_SEC) {
   const normalized = normalizeEmail(email);
   if (!secret || !normalized) return "";
-  const sig = await hmacSign(secret, `${ACCESS_EMAIL_SCOPE}:${normalized}`);
-  return `${normalized}.${sig}`;
+  const exp = Math.floor(Date.now() / 1000) + maxAgeSec;
+  const payload = `${normalized}.${exp}`;
+  const sig = await hmacSign(secret, `${SESSION_SCOPE}:${payload}`);
+  return `${payload}.${sig}`;
 }
 
-export async function verifyAccessEmailToken(secret, token) {
+export async function verifySessionToken(secret, token) {
   if (!secret || !token) return "";
-  const dot = String(token).lastIndexOf(".");
-  if (dot <= 0) return "";
-  const email = normalizeEmail(token.slice(0, dot));
-  const sig = token.slice(dot + 1);
-  if (!email || !sig) return "";
-  const expected = await createAccessEmailToken(secret, email);
-  if (!matchesSecret(token, expected)) return "";
+  // email may contain dots — split from the right: email.exp.sig
+  const raw = String(token);
+  const sigDot = raw.lastIndexOf(".");
+  if (sigDot <= 0) return "";
+  const sig = raw.slice(sigDot + 1);
+  const withoutSig = raw.slice(0, sigDot);
+  const expDot = withoutSig.lastIndexOf(".");
+  if (expDot <= 0) return "";
+  const email = normalizeEmail(withoutSig.slice(0, expDot));
+  const exp = Number(withoutSig.slice(expDot + 1));
+  if (!email || !sig || !Number.isFinite(exp)) return "";
+  if (exp < Math.floor(Date.now() / 1000)) return "";
+  const payload = `${email}.${exp}`;
+  const expected = await hmacSign(secret, `${SESSION_SCOPE}:${payload}`);
+  if (!matchesSecret(sig, expected)) return "";
   return email;
+}
+
+export async function createOauthStateToken(secret, state, codeVerifier) {
+  if (!secret || !state || !codeVerifier) return "";
+  // state and verifier are url-safe; join with a char that cannot appear in them
+  const payload = `${state}|${codeVerifier}`;
+  const sig = await hmacSign(secret, `${OAUTH_STATE_SCOPE}:${payload}`);
+  return `${payload}.${sig}`;
+}
+
+export async function verifyOauthStateToken(secret, token) {
+  if (!secret || !token) return null;
+  const raw = String(token);
+  const sigDot = raw.lastIndexOf(".");
+  if (sigDot <= 0) return null;
+  const sig = raw.slice(sigDot + 1);
+  const payload = raw.slice(0, sigDot);
+  const sep = payload.indexOf("|");
+  if (sep <= 0 || !sig) return null;
+  const state = payload.slice(0, sep);
+  const codeVerifier = payload.slice(sep + 1);
+  if (!state || !codeVerifier) return null;
+  const expected = await hmacSign(secret, `${OAUTH_STATE_SCOPE}:${payload}`);
+  if (!matchesSecret(sig, expected)) return null;
+  return { state, codeVerifier };
 }
 
 export function parseCookies(header) {
@@ -145,9 +186,9 @@ export function parseCookies(header) {
   return out;
 }
 
-export function buildAuthCookie(token, { secure = true, maxAge = COOKIE_MAX_AGE_SEC } = {}) {
+function cookieParts(name, value, { secure = true, maxAge = COOKIE_MAX_AGE_SEC } = {}) {
   const parts = [
-    `${AUTH_COOKIE_NAME}=${token}`,
+    `${name}=${value}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",
@@ -157,16 +198,20 @@ export function buildAuthCookie(token, { secure = true, maxAge = COOKIE_MAX_AGE_
   return parts.join("; ");
 }
 
-export function clearAuthCookie({ secure = true } = {}) {
-  const parts = [
-    `${AUTH_COOKIE_NAME}=`,
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-    "Max-Age=0",
-  ];
-  if (secure) parts.push("Secure");
-  return parts.join("; ");
+export function buildAuthCookie(token, opts = {}) {
+  return cookieParts(AUTH_COOKIE_NAME, token, opts);
+}
+
+export function clearAuthCookie(opts = {}) {
+  return cookieParts(AUTH_COOKIE_NAME, "", { ...opts, maxAge: 0 });
+}
+
+export function buildOauthStateCookie(token, opts = {}) {
+  return cookieParts(OAUTH_STATE_COOKIE, token, { ...opts, maxAge: 600 });
+}
+
+export function clearOauthStateCookie(opts = {}) {
+  return cookieParts(OAUTH_STATE_COOKIE, "", { ...opts, maxAge: 0 });
 }
 
 export function isPublicPath(pathname) {
@@ -218,10 +263,6 @@ export function gateRedirectPath(next) {
   return `/gate/?next=${encodeURIComponent(safe)}`;
 }
 
-export function accessLogoutPath() {
-  return "/cdn-cgi/access/logout";
-}
-
 export function safeRedirectPath(next) {
   if (!next || typeof next !== "string") return "/";
   const clean = canonicalizePath(next);
@@ -234,40 +275,23 @@ export function safeRedirectPath(next) {
   return clean;
 }
 
-/** Production Access header only. Local sim never trusts a spoofable header. */
-export function accessEmailHeader(request) {
-  return normalizeEmail(request.headers.get(ACCESS_EMAIL_HEADER));
-}
-
-/**
- * Resolve the signed-in email for Access (production header or local cookie/env).
- * @param {Request} request
- * @param {{ kind: string, local?: boolean, sessionSecret?: string, defaultEmail?: string }} auth
- */
-export async function resolveAccessEmail(request, auth) {
-  if (auth.kind !== "access") return "";
-  if (auth.local) {
-    if (auth.sessionSecret) {
-      const cookies = parseCookies(request.headers.get("Cookie"));
-      const fromCookie = await verifyAccessEmailToken(
-        auth.sessionSecret,
-        cookies[AUTH_COOKIE_NAME],
-      );
-      if (fromCookie) return fromCookie;
-    }
-    return auth.defaultEmail || "";
+export async function resolveSessionEmail(request, auth) {
+  if (auth.kind === "google" && auth.sessionSecret) {
+    const cookies = parseCookies(request.headers.get("Cookie"));
+    return verifySessionToken(auth.sessionSecret, cookies[AUTH_COOKIE_NAME]);
   }
-  return accessEmailHeader(request);
-}
-
-/** @deprecated Prefer resolveAccessEmail */
-export function accessEmail(request) {
-  return accessEmailHeader(request);
+  return "";
 }
 
 export async function isRequestAuthed(auth, request) {
-  if (auth.kind === "access") {
-    return Boolean(await resolveAccessEmail(request, auth));
+  if (auth.kind === "misconfigured") return false;
+  if (auth.kind === "google") {
+    if (await resolveSessionEmail(request, auth)) return true;
+    if (auth.password) {
+      const cookies = parseCookies(request.headers.get("Cookie"));
+      return verifyPasswordToken(auth.password, cookies[AUTH_COOKIE_NAME]);
+    }
+    return false;
   }
   const cookies = parseCookies(request.headers.get("Cookie"));
   const token = cookies[AUTH_COOKIE_NAME];

@@ -19,11 +19,11 @@ const ENV_PATH = resolve(ROOT, ".env");
 const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
 
 const DEV_VAR_KEYS = [
-  "OPS_AUTH_MODE",
   "OPS_PASSWORD",
   "OPS_BYPASS_KEY",
-  "OPS_DEV_ACCESS_EMAIL",
-  "OPS_DEV_ACCESS_SECRET",
+  "OPS_SESSION_SECRET",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "GOOGLE_OAUTH_CLIENT_SECRET",
   "BASEROW_API_KEY",
   "BASEROW_OPS_DATABASE_ID",
   "BASEROW_OPS_SECTIONS_TABLE_ID",
@@ -60,20 +60,18 @@ function writeDevVars() {
     lines.push(`${key}=${value}`);
   }
 
-  const accessMode =
-    String(process.env.OPS_AUTH_MODE || "").trim().toLowerCase() === "access";
+  const googleId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const googleSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+  const session = process.env.OPS_SESSION_SECRET?.trim();
   const password = process.env.OPS_PASSWORD?.trim();
-  const accessSecret = process.env.OPS_DEV_ACCESS_SECRET?.trim();
 
-  if (accessMode) {
-    if (!password && !accessSecret) {
-      throw new Error(
-        "Local Access mode needs OPS_PASSWORD or OPS_DEV_ACCESS_SECRET in .env (cookie signing).",
-      );
-    }
-  } else if (!password) {
+  if (googleId && googleSecret && session) {
+    // Google mode
+  } else if (password) {
+    // Password-only fallback
+  } else {
     throw new Error(
-      "Set OPS_PASSWORD in .env, or OPS_AUTH_MODE=access to test the Users table locally.",
+      "Set GOOGLE_OAUTH_CLIENT_ID/SECRET + OPS_SESSION_SECRET (or OPS_PASSWORD) in .env.",
     );
   }
   writeFileSync(DEV_VARS_PATH, `${lines.join("\n")}\n`);
@@ -103,16 +101,19 @@ function run(command, args, cwd, name) {
   return child;
 }
 
-const accessMode =
-  String(process.env.OPS_AUTH_MODE || "").trim().toLowerCase() === "access";
+const googleReady = Boolean(
+  process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() &&
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() &&
+    process.env.OPS_SESSION_SECRET?.trim(),
+);
 console.log(`
 Ops local:
   SPA (HMR):       http://localhost:5174/
   Pages + auth:    http://localhost:8788/
   Auth:            ${
-    accessMode
-      ? "local Access (email + Baserow Users). Real Google is production only."
-      : "OPS_PASSWORD gate. Set OPS_AUTH_MODE=access to test Users locally."
+    googleReady
+      ? "Google OAuth + Baserow Users (same as production)"
+      : "OPS_PASSWORD gate"
   }
 `);
 
