@@ -51,14 +51,14 @@ npm run env:push
 
 | Key | Where | Role |
 |-----|--------|------|
-| `CLOUDFLARE_DEV_API_TOKEN` | local `.env` | Local DEV: Pages, Wrangler, Access setup. Legacy alias: `CLOUDFLARE_API_TOKEN`. |
+| `CLOUDFLARE_DEV_API_TOKEN` | local `.env` | Local DEV: Pages, Wrangler, Access teardown. Legacy alias: `CLOUDFLARE_API_TOKEN`. |
 | `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | CI deploys. Same name Wrangler expects in CI. |
 
 Local DEV token permissions (custom token, this account):
 
 - Account · Cloudflare Pages · Edit
-- Account · Access: Apps and Policies · Edit
-- Account · Access: Organizations, Identity Providers, and Groups · Edit
+- Account · Access: Apps and Policies · Edit (only needed for `npm run teardown:ops-access`)
+- Account · Access: Organizations, Identity Providers, and Groups · Edit (teardown IdP)
 
 Create a **Editor** robot (`ark-local-editor`) via `npm run setup:sanity-tokens` after `npx sanity login`. Never put that token in GitHub; CI uses Viewer / Deploy Studio robots.
 

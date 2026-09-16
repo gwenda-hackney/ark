@@ -18,6 +18,9 @@
 	} = $props();
 
 	const onConfig = $derived(path === "/config" || path.startsWith("/config/"));
+	const onSections = $derived(
+		path === "/sections" || path.startsWith("/sections/"),
+	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
 </script>
 
@@ -50,6 +53,18 @@
 					<span class="copy">
 						<span class="label">Users</span>
 						<span class="hint">Who may sign in</span>
+					</span>
+				</a>
+				<a
+					class="row"
+					class:on={onSections}
+					href="/sections"
+					aria-current={onSections ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="list" size={18} /></span>
+					<span class="copy">
+						<span class="label">Sections</span>
+						<span class="hint">Menu chapters and groups</span>
 					</span>
 				</a>
 				<a

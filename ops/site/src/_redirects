@@ -7,6 +7,9 @@
 /config /index.html 200
 /config/ /index.html 200
 /config/* /index.html 200
+/sections /index.html 200
+/sections/ /index.html 200
+/sections/* /index.html 200
 /users /index.html 200
 /users/ /index.html 200
 /users/* /index.html 200

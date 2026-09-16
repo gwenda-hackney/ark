@@ -1,16 +1,19 @@
 <script lang="ts">
 	/**
-	 * Working cost numbers under the recipe: drink cost, menu prices,
-	 * and live pour cost per serve, stacked so they can be scanned.
+	 * Cost under the recipe: drink cost, target, and pour readings per serve.
+	 * Alt size (double / half) is opt-in via "Add pour".
 	 */
 	import { Button, TextField } from "../../ui";
 	import {
+		altCostFactor,
 		formatPourPercent,
 		marginTone,
 		serveVerdict,
+		snapGbp,
 		type RecipePriceAnalysis,
+		type ServePourReading,
 	} from "../../lib/cost";
-	import { formatGbp } from "../../lib/types";
+	import { formatGbp, priceLabels } from "../../lib/types";
 	import { Icon } from "../../shell";
 	import PourSettingsDialog from "./PourSettingsDialog.svelte";
 
@@ -29,6 +32,17 @@
 	} = $props();
 
 	let settingsOpen = $state(false);
+	/** Local draft so Add pour can open an empty field before a price is saved. */
+	let draftingAlt = $state(false);
+
+	const labels = $derived(priceLabels(price.drinkType));
+	const canOfferAlt = $derived(
+		!!labels.alt && altCostFactor(price.drinkType) != null,
+	);
+	const hasAlt = $derived(String(priceAltValue || "").trim() !== "");
+	const showAlt = $derived(hasAlt || draftingAlt);
+	const primary = $derived(price.serves.find((s) => s.key === "primary") ?? null);
+	const alt = $derived(price.serves.find((s) => s.key === "alt") ?? null);
 
 	const drinkCostLabel = $derived.by(() => {
 		if (price.drinkCost == null) return "n/a";
@@ -36,20 +50,39 @@
 		return price.hasEstimates ? `~${amount}` : amount;
 	});
 
-	function servePrice(key: "primary" | "alt"): string {
-		return key === "alt" ? priceAltValue : priceValue;
-	}
+	$effect(() => {
+		if (hasAlt) draftingAlt = false;
+	});
 
-	function setServePrice(key: "primary" | "alt", value: string) {
-		if (key === "alt") onpricealt(value);
-		else onprice(value);
-	}
-
-	function pourCopy(serve: RecipePriceAnalysis["serves"][number]): string {
+	function pourCopy(serve: ServePourReading | null): string {
+		if (!serve) return "n/a";
 		if (serve.pourCost != null) return formatPourPercent(serve.pourCost);
 		if (!price.complete && price.drinkCost == null) return "n/a";
-		if (serve.price == null) return "no price";
+		if (serve.price == null) return "set price";
 		return "n/a";
+	}
+
+	function addAlt() {
+		const factor = altCostFactor(price.drinkType);
+		if (
+			factor != null &&
+			price.drinkCost != null &&
+			price.complete &&
+			price.targetPourCost > 0
+		) {
+			const suggested = snapGbp(
+				(price.drinkCost * factor) / (price.targetPourCost / 100),
+			);
+			onpricealt(String(suggested));
+			return;
+		}
+		draftingAlt = true;
+		onpricealt("");
+	}
+
+	function removeAlt() {
+		draftingAlt = false;
+		onpricealt("");
 	}
 </script>
 
@@ -70,59 +103,55 @@
 		</Button>
 	</div>
 
-	<div class="rows">
+	<div class="summary">
 		<div class="row">
 			<span class="label">Drink cost</span>
 			<span class="value tnum">{drinkCostLabel}</span>
 		</div>
 		<div class="row">
-			<span class="label">Target pour</span>
-			<span class="value tnum">
+			<span class="label">Target</span>
+			<span class="value tnum muted">
 				{formatPourPercent(price.targetPourCost) || "n/a"}
 			</span>
 		</div>
 	</div>
 
-	{#each price.serves.filter((serve) => serve.key === "alt") as serve (serve.key)}
+	{#if primary}
 		{@const tone = marginTone(
-			serve.margin,
-			serve.pourCost,
+			primary.margin,
+			primary.pourCost,
 			price.targetPourCost,
 		)}
-		{@const verdict = serveVerdict(serve, price.complete)}
-		{@const fieldId = serve.key === "alt" ? "f-price-alt" : "f-price"}
+		{@const verdict = serveVerdict(primary, price.complete)}
 		<div class="serve">
 			<div class="row">
-				<label class="label" for={fieldId}>{serve.label}</label>
+				<label class="label" for="f-cost-price">{primary.label}</label>
 				<div class="price">
 					<TextField
-						id={fieldId}
+						id="f-cost-price"
 						size="sm"
 						mono
 						align="end"
 						inputmode="decimal"
-						value={servePrice(serve.key)}
+						value={priceValue}
 						oninput={(e) =>
-							setServePrice(
-								serve.key,
-								(e.currentTarget as HTMLInputElement).value,
-							)}
+							onprice((e.currentTarget as HTMLInputElement).value)}
 					/>
 				</div>
 			</div>
 			<div class="row">
-				<span class="label">Pour</span>
+				<span class="label">Pour cost</span>
 				<span
 					class="value tnum"
 					class:up={tone === "up"}
 					class:down={tone === "down"}
 					class:loss={tone === "loss"}
-					class:muted={tone === "muted" || serve.pourCost == null}
+					class:muted={tone === "muted" || primary.pourCost == null}
 				>
-					{pourCopy(serve)}
+					{pourCopy(primary)}
 				</span>
 			</div>
-			{#if verdict && serve.pourCost != null}
+			{#if verdict && primary.pourCost != null}
 				<p
 					class="verdict"
 					class:ok={verdict.tone === "ok"}
@@ -130,12 +159,89 @@
 					class:loss={verdict.tone === "loss"}
 					class:muted={verdict.tone === "muted"}
 				>
-					{verdict.headline}{#if serve.suggestedPrice != null && verdict.tone !== "ok"}
-						{" "}· {formatGbp(serve.suggestedPrice)}{/if}
+					{verdict.headline} vs target{#if primary.suggestedPrice != null && verdict.tone !== "ok"}
+						{" "}· aim {formatGbp(primary.suggestedPrice)}{/if}
 				</p>
 			{/if}
 		</div>
-	{/each}
+	{/if}
+
+	{#if showAlt && labels.alt}
+		{@const tone = alt
+			? marginTone(alt.margin, alt.pourCost, price.targetPourCost)
+			: "muted"}
+		{@const verdict = alt ? serveVerdict(alt, price.complete) : null}
+		<div class="serve">
+			<div class="row">
+				<label class="label" for="f-cost-price-alt">{labels.alt}</label>
+				<div class="price-tools">
+					<div class="price">
+						<TextField
+							id="f-cost-price-alt"
+							size="sm"
+							mono
+							align="end"
+							inputmode="decimal"
+							value={priceAltValue}
+							oninput={(e) =>
+								onpricealt(
+									(e.currentTarget as HTMLInputElement).value,
+								)}
+						/>
+					</div>
+					<Button
+						variant="ghost"
+						size="xs"
+						type="button"
+						aria-label={`Remove ${labels.alt.toLowerCase()} price`}
+						title={`Remove ${labels.alt.toLowerCase()}`}
+						onclick={removeAlt}
+					>
+						{#snippet icon()}
+							<Icon name="close" size={14} />
+						{/snippet}
+					</Button>
+				</div>
+			</div>
+			{#if alt}
+				<div class="row">
+					<span class="label">Pour cost</span>
+					<span
+						class="value tnum"
+						class:up={tone === "up"}
+						class:down={tone === "down"}
+						class:loss={tone === "loss"}
+						class:muted={tone === "muted" || alt.pourCost == null}
+					>
+						{pourCopy(alt)}
+					</span>
+				</div>
+				{#if verdict && alt.pourCost != null}
+					<p
+						class="verdict"
+						class:ok={verdict.tone === "ok"}
+						class:low={verdict.tone === "low"}
+						class:loss={verdict.tone === "loss"}
+						class:muted={verdict.tone === "muted"}
+					>
+						{verdict.headline} vs target{#if alt.suggestedPrice != null && verdict.tone !== "ok"}
+							{" "}· aim {formatGbp(alt.suggestedPrice)}{/if}
+					</p>
+				{/if}
+			{:else}
+				<p class="hint">Enter a {labels.alt.toLowerCase()} menu price.</p>
+			{/if}
+		</div>
+	{:else if canOfferAlt && labels.alt}
+		<div class="add-row">
+			<Button variant="ghost" size="xs" type="button" onclick={addAlt}>
+				{#snippet icon()}
+					<Icon name="plus" size={14} />
+				{/snippet}
+				Add {labels.alt.toLowerCase()}
+			</Button>
+		</div>
+	{/if}
 
 	{#if price.hasEstimates}
 		<p class="note">Includes estimates</p>
@@ -183,10 +289,10 @@
 		background: var(--border-strong);
 	}
 
-	.rows,
+	.summary,
 	.serve {
 		display: grid;
-		gap: 0.35rem;
+		gap: 0.3rem;
 		min-width: 0;
 	}
 
@@ -201,6 +307,12 @@
 		justify-content: space-between;
 		gap: 0.85rem;
 		min-height: var(--control-h-sm);
+	}
+
+	.price-tools {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
 	}
 
 	.price {
@@ -233,7 +345,8 @@
 		color: var(--down);
 	}
 
-	.value.muted {
+	.value.muted,
+	.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
 	}
@@ -257,6 +370,17 @@
 
 	.verdict.muted {
 		color: var(--muted-foreground);
+	}
+
+	.hint {
+		margin: 0;
+		font-size: var(--text-sm);
+		line-height: 1.4;
+		color: var(--muted-foreground);
+	}
+
+	.add-row {
+		padding-top: 0.35rem;
 	}
 
 	.note {

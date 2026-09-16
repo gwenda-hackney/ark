@@ -31,7 +31,7 @@ import {
   TABLE_SUPPLIERS,
   TABLE_USERS,
 } from "../ops/site/functions/_lib/baserow.js";
-import { parseEmailList } from "./lib/ops-access.mjs";
+import { parseEmailList } from "./lib/parse-email-list.mjs";
 import {
   looksLikeOnlyUrls,
   parseProductUrl,

@@ -26,6 +26,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/inventory/") ||
     p === "/config" ||
     p.startsWith("/config/") ||
+    p === "/sections" ||
+    p.startsWith("/sections/") ||
     p === "/users" ||
     p.startsWith("/users/") ||
     p === "/tools" ||
@@ -119,6 +121,7 @@ export function parseShellPath(path) {
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
+  if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
   if (p === "/tools" || p.startsWith("/tools/")) {
     const rest = p === "/tools" ? "" : p.slice("/tools/".length);
     const tool = rest.split("/").filter(Boolean)[0] || "breakeven";
@@ -199,7 +202,9 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "stock" ||
     from === "breakeven" ||
     from === "cashflow" ||
-    from === "config"
+    from === "config" ||
+    from === "sections" ||
+    from === "users"
   ) {
     return false;
   }

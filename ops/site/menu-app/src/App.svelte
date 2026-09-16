@@ -7,6 +7,7 @@
 	import MenuWorkbench from "./features/menu/MenuWorkbench.svelte";
 	import InventoryWorkbench from "./features/inventory/InventoryWorkbench.svelte";
 	import ConfigPage from "./features/config/ConfigPage.svelte";
+	import SectionsPage from "./features/menu/SectionsPage.svelte";
 	import UsersPage from "./features/users/UsersPage.svelte";
 	import ToolFrame from "./features/tools/ToolFrame.svelte";
 	import { shellPageKey } from "./lib/nav";
@@ -14,10 +15,18 @@
 
 	const routes: NavRoute[] = [
 		{ id: "home", path: "/", name: "Dashboard", icon: "home" },
-		{ id: "menu", path: "/menu", name: "Menu prices", icon: "menu" },
-		{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
+		{
+			id: "stock",
+			name: "Stock",
+			icon: "stock",
+			children: [
+				{ id: "menu", path: "/menu", name: "Menu prices", icon: "menu" },
+				{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
+				{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
+				{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
+			],
+		},
 		{ id: "users", path: "/users", name: "Users", icon: "users" },
-		{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
 	];
 
 	let path = $state("/");
@@ -54,6 +63,8 @@
 					<InventoryWorkbench path={current} />
 				{:else if key === "users"}
 					<UsersPage />
+				{:else if key === "sections"}
+					<SectionsPage />
 				{:else if key === "config"}
 					<ConfigPage />
 				{:else if key === "tools"}

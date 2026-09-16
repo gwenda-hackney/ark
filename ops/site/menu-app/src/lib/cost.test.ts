@@ -191,7 +191,15 @@ describe("Ambra pour cost at 20%", () => {
 		);
 	});
 
-	it("reads single and double pour costs with a 2x double cost", () => {
+	it("only includes a double serve when an alt price is set", () => {
+		const singleOnly = recipePriceAnalysis(
+			{ ...ambra, price: "14", priceAlt: "" },
+			inventory,
+			DEFAULT_POUR_TARGETS,
+		);
+		assert.equal(singleOnly.serves.length, 1);
+		assert.equal(singleOnly.serves[0].label, "Single");
+
 		const price = recipePriceAnalysis(
 			{ ...ambra, price: "14", priceAlt: "20" },
 			inventory,

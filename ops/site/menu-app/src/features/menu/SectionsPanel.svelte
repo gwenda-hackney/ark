@@ -15,8 +15,10 @@
 		sections: MenuSection[];
 		busy?: boolean;
 		onchanged: () => Promise<void> | void;
-		onclose: () => void;
+		onclose?: () => void;
 	} = $props();
+
+	const showChrome = $derived(typeof onclose === "function");
 
 	let editingId = $state<string | null>(null);
 	let draftTitle = $state("");
@@ -134,23 +136,27 @@
 	}
 </script>
 
-<div class="panel">
-	<header class="head">
-		<div>
-			<p class="kicker">Menu</p>
-			<h2>Sections</h2>
-		</div>
-		<Button variant="ghost" size="sm" type="button" aria-label="Close" onclick={onclose}>
-			{#snippet icon()}
-				<Icon name="close" size={16} />
-			{/snippet}
-		</Button>
-	</header>
+<div class="panel" class:bare={!showChrome}>
+	{#if showChrome}
+		<header class="head">
+			<div>
+				<p class="kicker">Menu</p>
+				<h2>Sections</h2>
+			</div>
+			<Button variant="ghost" size="sm" type="button" aria-label="Close" onclick={onclose}>
+				{#snippet icon()}
+					<Icon name="close" size={16} />
+				{/snippet}
+			</Button>
+		</header>
+	{/if}
 
 	<div class="body">
-		<p class="lead">
-			Chapters and groups drinks belong to. Same tree as the print menu.
-		</p>
+		{#if showChrome}
+			<p class="lead">
+				Chapters and groups drinks belong to. Same tree as the print menu.
+			</p>
+		{/if}
 
 		<ul class="tree">
 			{#each sections as chapter, chapterIndex (chapter._id)}
@@ -440,6 +446,16 @@
 		height: 100%;
 		min-height: 0;
 		background: var(--card);
+	}
+
+	.panel.bare {
+		height: auto;
+		background: transparent;
+	}
+
+	.panel.bare .body {
+		padding: 0;
+		overflow: visible;
 	}
 
 	.head {

@@ -148,17 +148,17 @@ export const DRINK_TYPES: { value: DrinkType; label: string; blurb: string }[] =
     {
       value: "cocktail",
       label: "Cocktail",
-      blurb: "Built or mixed drink with a recipe. Single and double serves.",
+      blurb: "Built or mixed drink with a recipe. Optional double price.",
     },
     {
       value: "pour",
       label: "Pour",
-      blurb: "Spirit or wine poured neat. Single and double serves.",
+      blurb: "Spirit or wine poured neat. Optional double price.",
     },
     {
       value: "beer",
       label: "Beer",
-      blurb: "Draught beer. Pint and half pint.",
+      blurb: "Draught beer. Optional half-pint price.",
     },
     {
       value: "packaged",

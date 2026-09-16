@@ -1061,7 +1061,7 @@
 										{#snippet actions()}
 										{#if showRecipe}
 											<Button
-												variant="accent"
+												variant="ghost"
 												size="xs"
 												type="button"
 												aria-label="Create from ingredients"
@@ -1103,7 +1103,7 @@
 								>
 									{#snippet actions()}
 										<Button
-											variant="accent"
+											variant="ghost"
 											size="xs"
 											type="button"
 											aria-label="Recalculate from recipe"

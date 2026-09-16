@@ -49,7 +49,7 @@
     "setup:ci-secrets": "node scripts/setup-ci-sanity-secrets.mjs",
     "setup:site-deploy": "node scripts/setup-site-deploy.mjs",
     "setup:ops": "node --env-file=.env scripts/setup-ops-secrets.mjs",
-    "setup:ops-access": "node --env-file=.env scripts/setup-ops-access.mjs",
+    "teardown:ops-access": "node --env-file=.env scripts/teardown-ops-access.mjs",
     "setup:subscribe-mailchimp-sync": "node scripts/setup-subscribe-mailchimp-sync.mjs",
     "setup:wifi-portal": "node scripts/setup-wifi-portal.mjs",
     "migrate:subscribe-sync-runs": "CONFIRM_PRODUCTION_MIGRATE=1 node --env-file=.env scripts/migrate-subscribe-sync-runs.mjs",

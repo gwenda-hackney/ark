@@ -1,11 +1,9 @@
 /**
- * Set Cloudflare Pages secrets for gwenda-ops (Baserow API key, publish).
+ * Set Cloudflare Pages secrets for gwenda-ops (Baserow, Google OAuth, publish).
  * Ops table ids are wrangler [vars], not secrets. Leftover table-id, Auth0,
- * and OPS_ALLOWED_EMAILS secrets are removed so they cannot override wrangler.toml
- * or the Baserow Users table.
+ * Access, and allowlist secrets are removed.
  *
- * Does not rotate OPS_PASSWORD. Production should leave it unset so middleware
- * expects Cloudflare Access headers. Local still uses OPS_PASSWORD via .dev.vars.
+ * Does not put OPS_PASSWORD on Pages. Local may still use it via .dev.vars.
  *
  * Usage (from repo root):
  *   npm run setup:ops
@@ -81,6 +79,9 @@ function putSecret(key, value) {
   }
 }
 
+const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+const googleClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+
 putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
 putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
 putSecret(
@@ -92,6 +93,9 @@ putSecret(
   process.env.DEPLOY_WEBHOOK_SECRET || process.env.SANITY_STUDIO_SITE_DEPLOY_SECRET,
 );
 putSecret("OPS_BYPASS_KEY", process.env.OPS_BYPASS_KEY);
+putSecret("GOOGLE_OAUTH_CLIENT_ID", googleClientId);
+putSecret("GOOGLE_OAUTH_CLIENT_SECRET", googleClientSecret);
+putSecret("OPS_SESSION_SECRET", process.env.OPS_SESSION_SECRET);
 
 const LEFTOVER_SECRET_KEYS = [
   "BASEROW_OPS_DATABASE_ID",
@@ -112,7 +116,9 @@ const LEFTOVER_SECRET_KEYS = [
   "OPS_AUTH_MODE",
   "OPS_DEV_ACCESS_EMAIL",
   "OPS_DEV_ACCESS_SECRET",
-  "OPS_SESSION_SECRET",
+  "CF_ACCESS_GOOGLE_CLIENT_ID",
+  "CF_ACCESS_GOOGLE_CLIENT_SECRET",
+  "OPS_PASSWORD",
 ];
 
 function deleteSecret(key) {
@@ -148,9 +154,8 @@ console.log(
 );
 for (const key of LEFTOVER_SECRET_KEYS) deleteSecret(key);
 
+console.log("Done. Production uses Google OAuth + Baserow Users.");
 console.log(
-  "Done. Production uses Cloudflare Access (npm run setup:ops-access).",
+  "Leave OPS_PASSWORD unset on Pages. Local can keep it as an optional bypass.",
 );
-console.log(
-  "Leave OPS_PASSWORD unset on Pages so middleware expects Access headers. Local still needs OPS_PASSWORD.",
-);
+console.log("If Access still intercepts the host: npm run teardown:ops-access");
