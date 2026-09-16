@@ -1,5 +1,6 @@
 import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { setMenuItemPhoto } from "../../_lib/menu-store.js";
+import { clearMenuItemPhoto, setMenuItemPhoto } from "../../_lib/menu-store.js";
+import { toClientItem } from "../../_lib/reconcile.js";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
@@ -35,10 +36,23 @@ export const onRequestPost = withApiHandler(async (context) => {
     contentType,
     alt,
   });
+  const client = toClientItem(item);
 
   return jsonResponse({
     ok: true,
-    url: item.image?.asset?.url,
-    item,
+    url: client.image?.asset?.url,
+    item: client,
+  });
+});
+
+export const onRequestDelete = withApiHandler(async (context) => {
+  const url = new URL(context.request.url);
+  const itemId = String(url.searchParams.get("itemId") || "").trim();
+  if (!itemId) return jsonResponse({ error: "itemId is required." }, 400);
+
+  const item = await clearMenuItemPhoto(context.env, itemId);
+  return jsonResponse({
+    ok: true,
+    item: toClientItem(item),
   });
 });

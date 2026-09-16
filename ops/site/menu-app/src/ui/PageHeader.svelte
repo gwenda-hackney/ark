@@ -66,7 +66,7 @@
 
 	.subtitle {
 		max-width: 48rem;
-		font-size: 0.8125rem;
+		font-size: var(--text);
 		line-height: 1.55;
 		color: var(--muted-foreground);
 	}

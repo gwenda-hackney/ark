@@ -2,6 +2,19 @@ name = "gwenda-ops"
 pages_build_output_dir = "src"
 compatibility_date = "2026-07-01"
 
+# Table ids are not secrets. Runtime can also resolve them by name via
+# BASEROW_OPS_DATABASE_ID. BASEROW_API_KEY stays a Pages secret.
 [vars]
 SANITY_PROJECT_ID = "pn5yjro6"
+BASEROW_OPS_DATABASE_ID = "556507"
+BASEROW_OPS_SECTIONS_TABLE_ID = "1196325"
+BASEROW_OPS_ITEMS_TABLE_ID = "1196326"
+BASEROW_OPS_INGREDIENTS_TABLE_ID = "1196327"
+BASEROW_OPS_INVENTORY_TABLE_ID = "1199467"
+BASEROW_OPS_SUPPLIERS_TABLE_ID = "1201355"
+BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID = "1201356"
+BASEROW_OPS_USERS_TABLE_ID = "1202467"
 
+[ai]
+binding = "AI"
+remote = true

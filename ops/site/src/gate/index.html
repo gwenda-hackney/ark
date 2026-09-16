@@ -27,51 +27,101 @@ input{
 }
 input:focus{outline:1px solid var(--gold);border-color:var(--gold)}
 button{
-  appearance:none;border:1px solid var(--gold);background:var(--gold);color:#0d0d0d;
+  appearance:none;border:1px solid var(--line);background:#161614;color:var(--ink);
   font:inherit;font-weight:600;padding:.7rem 1rem;cursor:pointer
 }
-button:hover{filter:brightness(1.05)}
+button:hover{border-color:var(--gold)}
 .error{color:#e8a0a0;font-size:.82rem;margin:0;min-height:1.2em}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 </style>
 </head>
 <body>
 <main>
   <p class="eyebrow">Gwenda · internal</p>
   <h1>Enter our world</h1>
-  <p class="lead">Internal ops tools — enter to continue.</p>
-  <form id="gate-form" novalidate>
-    <label for="gate-password" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Password</label>
-    <input type="password" id="gate-password" name="password" autocomplete="current-password" placeholder="Password" required>
-    <button type="submit">Enter</button>
+  <p class="lead" id="gate-lead">Loading…</p>
+  <form id="gate-form" novalidate hidden>
+    <label id="gate-label" for="gate-input" class="visually-hidden">Password</label>
+    <input id="gate-input" name="credential" required>
+    <button type="submit" id="gate-submit">Enter</button>
     <p class="error" id="gate-error" hidden></p>
   </form>
 </main>
 <script>
 (function () {
   const form = document.getElementById("gate-form");
-  const input = document.getElementById("gate-password");
+  const input = document.getElementById("gate-input");
+  const label = document.getElementById("gate-label");
+  const lead = document.getElementById("gate-lead");
+  const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
   const next = new URLSearchParams(location.search).get("next") || "/";
+  let mode = "password";
+
+  function showError(message) {
+    error.textContent = message;
+    error.hidden = false;
+  }
+
+  function paint(meta) {
+    mode = meta.mode === "access" ? "access" : "password";
+    form.hidden = false;
+    if (mode === "access") {
+      lead.textContent =
+        "Local Access: enter a Google email from the Baserow Users table.";
+      label.textContent = "Email";
+      input.type = "email";
+      input.name = "email";
+      input.autocomplete = "username";
+      input.placeholder = "you@gwenda.co.uk";
+      input.value = meta.defaultEmail || "";
+      submit.textContent = "Continue";
+    } else {
+      lead.textContent = "Enter the password to open ops tools.";
+      label.textContent = "Password";
+      input.type = "password";
+      input.name = "password";
+      input.autocomplete = "current-password";
+      input.placeholder = "Password";
+      submit.textContent = "Enter";
+    }
+    input.focus();
+  }
+
+  fetch("/api/auth")
+    .then((res) => res.json())
+    .then(paint)
+    .catch(() => {
+      paint({ mode: "password" });
+      showError("Could not load the gate. Try again.");
+    });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     error.hidden = true;
+    const body =
+      mode === "access"
+        ? { email: input.value, next }
+        : { password: input.value, next };
     try {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: input.value, next }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        error.textContent = data.error || "That password isn't right.";
-        error.hidden = false;
+        showError(
+          data.error ||
+            (mode === "access"
+              ? "That Google account is not on the ops users list."
+              : "That password isn't right."),
+        );
         return;
       }
       location.assign(data.redirect || "/");
     } catch {
-      error.textContent = "Could not reach the gate. Try again.";
-      error.hidden = false;
+      showError("Could not reach the gate. Try again.");
     }
   });
 })();

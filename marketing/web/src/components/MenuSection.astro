@@ -1,5 +1,6 @@
 ---
 import type { MenuSection } from "../types/menu";
+import { formatMenuPrice } from "../types/menu";
 import { getAvailableItems } from "../data/menu";
 import MenuSectionHeader from "./MenuSectionHeader.astro";
 
@@ -34,6 +35,7 @@ const items = getAvailableItems(section);
 
       <ul class="menu-list">
         {items.map((item) => {
+          const priceLabel = formatMenuPrice(item);
           const hasDetail = Boolean(
             item.description ||
               item.notes ||
@@ -45,10 +47,10 @@ const items = getAvailableItems(section);
             <li class:list={["menu-item", { "menu-item--compact": !hasDetail }]}>
               <div class="menu-item-row">
                 <h3 class="menu-item-name">{item.name}</h3>
-                {showPrices && item.price ? (
+                {showPrices && priceLabel ? (
                   <>
                     <span class="menu-item-leader" aria-hidden="true" />
-                    <span class="menu-item-price">{item.price}</span>
+                    <span class="menu-item-price">{priceLabel}</span>
                   </>
                 ) : (
                   <span

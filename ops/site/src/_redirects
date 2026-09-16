@@ -1,0 +1,15 @@
+/menu /index.html 200
+/menu/ /index.html 200
+/menu/* /index.html 200
+/inventory /index.html 200
+/inventory/ /index.html 200
+/inventory/* /index.html 200
+/config /index.html 200
+/config/ /index.html 200
+/config/* /index.html 200
+/users /index.html 200
+/users/ /index.html 200
+/users/* /index.html 200
+/tools /index.html 200
+/tools/ /index.html 200
+/tools/* /index.html 200

@@ -2,11 +2,17 @@
  * Shared Bitwarden helpers for ark env vault items.
  */
 import { spawnSync } from "node:child_process";
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname } from "node:path";
 import { parseDotEnv } from "../../marketing/web/functions/_lib/env-pem.js";
 
 export const DEFAULT_SERVER = "https://vault.bitwarden.eu";
 export const DEFAULT_LOCAL_ITEM = "ark/.env.local";
 export const ARK_FOLDER_NAME = "ark";
+export const DEFAULT_CONTAINER_SESSION_FILE = "/commandhistory/.bw-session";
+
+const UNLOCK_HINT = "  bw-unlock   # or: export BW_SESSION=$(bw unlock --raw)";
 
 export const ENV_ITEMS = {
   local: "ark/.env.local",
@@ -59,7 +65,50 @@ export function readStatus() {
   return JSON.parse(runBw(["status"]));
 }
 
+/** Session key file so unlock survives new shells / agent processes. */
+export function sessionFilePath() {
+  const override = process.env.BW_SESSION_FILE?.trim();
+  if (override) return override;
+  if (existsSync("/commandhistory")) return DEFAULT_CONTAINER_SESSION_FILE;
+  return `${homedir()}/.bw-session`;
+}
+
+export function loadPersistedSession() {
+  if (process.env.BW_SESSION?.trim()) return;
+  try {
+    const session = readFileSync(sessionFilePath(), "utf8").replace(/[\n\r]+/g, "").trim();
+    if (session) process.env.BW_SESSION = session;
+  } catch {
+    // missing or unreadable
+  }
+}
+
+export function persistSession(session = process.env.BW_SESSION) {
+  const key = String(session ?? "").trim();
+  if (!key) return;
+  process.env.BW_SESSION = key;
+  const path = sessionFilePath();
+  try {
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+    writeFileSync(path, `${key}\n`, { encoding: "utf8", mode: 0o600 });
+    chmodSync(path, 0o600);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.warn(`Could not persist Bitwarden session to ${path}: ${detail}`);
+  }
+}
+
+export function clearPersistedSession() {
+  delete process.env.BW_SESSION;
+  try {
+    unlinkSync(sessionFilePath());
+  } catch {
+    // already gone
+  }
+}
+
 export function ensureSession() {
+  loadPersistedSession();
   const status = readStatus();
 
   if (status.status === "unauthenticated") {
@@ -67,11 +116,12 @@ export function ensureSession() {
       "Bitwarden CLI is not logged in.\n" +
         `  bw config server ${DEFAULT_SERVER}\n` +
         "  bw login\n" +
-        "  export BW_SESSION=$(bw unlock --raw)",
+        UNLOCK_HINT,
     );
   }
 
   if (status.status === "unlocked") {
+    persistSession();
     return;
   }
 
@@ -79,9 +129,14 @@ export function ensureSession() {
     throw new Error(`Unexpected Bitwarden status: ${status.status}`);
   }
 
+  // Stale session file / env: drop it so unlock can mint a new key.
+  if (process.env.BW_SESSION) {
+    clearPersistedSession();
+  }
+
   if (process.env.BW_PASSWORD) {
     const session = runBw(["unlock", "--passwordenv", "BW_PASSWORD", "--raw"]);
-    process.env.BW_SESSION = session.trim();
+    persistSession(session);
     console.log("Unlocked vault (BW_PASSWORD).");
     return;
   }
@@ -89,12 +144,12 @@ export function ensureSession() {
   if (!process.stdin.isTTY) {
     throw new Error(
       "Bitwarden vault is locked.\n" +
-        "  export BW_SESSION=$(bw unlock --raw)\n" +
-        "  then re-run the command",
+        `${UNLOCK_HINT}\n` +
+        "  then re-run the command (session persists for this container)",
     );
   }
 
-  console.log("Vault locked — enter your Bitwarden master password.");
+  console.log("Vault locked. Enter your Bitwarden master password.");
   const unlock = spawnSync("bw", ["unlock", "--raw"], {
     encoding: "utf8",
     stdio: ["inherit", "pipe", "inherit"],
@@ -103,7 +158,7 @@ export function ensureSession() {
   if (unlock.status !== 0) {
     throw new Error((unlock.stderr || "").trim() || "bw unlock failed");
   }
-  process.env.BW_SESSION = (unlock.stdout || "").trim();
+  persistSession(unlock.stdout);
   console.log("Unlocked vault.");
 }
 

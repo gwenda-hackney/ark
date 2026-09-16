@@ -11,15 +11,15 @@
  * Usage:
  *   npm run setup:baserow-rsvp
  *
- * Prompts for Baserow email + password (not stored). Optional non-interactive:
+ * Prompts for Baserow email + password on first login, then caches the JWT in
+ * `.baserow-jwt.json`. Optional non-interactive:
  *   BASEROW_JWT_EMAIL, BASEROW_JWT_PASSWORD
  *
  * Optional:
  *   BASEROW_RSVP_TABLE_NAME=Event Invites
  *   BASEROW_API_URL=https://api.baserow.io
  */
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 import {
   DEFAULT_BASEROW_API,
   DEV_BASEROW_DATABASE_ID,
@@ -80,79 +80,6 @@ function readEnv(name) {
   return process.env[name]?.trim() || "";
 }
 
-function promptHidden(question) {
-  return new Promise((resolve, reject) => {
-    stdout.write(question);
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding("utf8");
-
-    let password = "";
-    const onData = (char) => {
-      if (char === "\n" || char === "\r" || char === "\u0004") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        resolve(password);
-        return;
-      }
-      if (char === "\u0003") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        process.exit(130);
-      }
-      if (char === "\u007f") {
-        if (password.length > 0) password = password.slice(0, -1);
-        return;
-      }
-      password += char;
-    };
-
-    stdin.on("data", onData);
-  });
-}
-
-async function promptCredentials(databaseId) {
-  let email = readEnv("BASEROW_JWT_EMAIL");
-  let password = readEnv("BASEROW_JWT_PASSWORD");
-  if (email && password) {
-    return { email, password };
-  }
-
-  if (!stdin.isTTY) {
-    throw new Error(
-      "Set BASEROW_JWT_EMAIL and BASEROW_JWT_PASSWORD for non-interactive use.",
-    );
-  }
-
-  console.log(
-    `Log in with your Baserow account (Admin or Builder on database ${databaseId}).`,
-  );
-  console.log("Credentials are not saved — used once for a short-lived JWT.\n");
-
-  const rl = createInterface({ input: stdin, output: stdout });
-  try {
-    if (!email) {
-      email = (await rl.question("Baserow email: ")).trim();
-    }
-  } finally {
-    rl.close();
-  }
-
-  if (!password) {
-    password = await promptHidden("Baserow password: ");
-  }
-
-  if (!email || !password) {
-    throw new Error("Email and password are required.");
-  }
-
-  return { email, password };
-}
-
 async function baserowRequest(apiBase, jwt, path, init = {}) {
   const url = path.startsWith("http") ? path : `${apiBase}${path}`;
   const response = await fetch(url, {
@@ -175,25 +102,6 @@ async function baserowRequest(apiBase, jwt, path, init = {}) {
     throw new Error(`${init.method || "GET"} ${path} → ${response.status}: ${detail}`);
   }
   return json;
-}
-
-async function fetchJwt(apiBase, email, password) {
-  const response = await fetch(`${apiBase}/api/user/token-auth/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `Baserow login failed (${response.status}): ${payload.detail || payload.error || "check email/password"}`,
-    );
-  }
-  const token = payload.access_token || payload.token;
-  if (!token) {
-    throw new Error("Baserow login succeeded but no access_token in response.");
-  }
-  return token;
 }
 
 async function loadDatabaseTables(apiBase, jwt, databaseId, subscribeTableId, label) {
@@ -299,10 +207,9 @@ async function main() {
     databaseId = databaseId || DEV_BASEROW_DATABASE_ID;
   }
 
-  const { email, password } = await promptCredentials(databaseId);
-
-  console.log(`Authenticating with Baserow (${apiBase})…`);
-  const jwt = await fetchJwt(apiBase, email, password);
+  const jwt = await getBaserowJwt(apiBase, {
+    hint: `database ${databaseId}`,
+  });
 
   console.log(`Table "${tableName}"…`);
   const tables = await loadDatabaseTables(

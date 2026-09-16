@@ -76,7 +76,7 @@
   --up: #6b9b78;
   --down: #c97a7a;
   --success: var(--up);
-  --warning: #c9a84c;
+  --warning: #c97a7a;
   --destructive: #c97a7a;
   --destructive-hover: color-mix(in srgb, #c97a7a 85%, #e8e4dc);
   --destructive-foreground: #0d0d0d;
@@ -87,8 +87,10 @@
   --shadow-primary: 0 0 0 1px color-mix(in srgb, #c9a84c 40%, transparent),
     0 4px 18px color-mix(in srgb, #c9a84c 18%, transparent);
 
-  /* Spec book / print canvas */
-  --book-bg: #23211b;
-  --book-ink: #e8e4dc;
-  --book-muted: #8a8680;
+  /* Spec book: white paper, black ink, gold-dark accents */
+  --book-bg: #ffffff;
+  --book-ink: #0d0d0d;
+  --book-muted: color-mix(in srgb, #0d0d0d 58%, #8a8680);
+  --book-accent: #8b6914;
+  --book-rule: color-mix(in srgb, #0d0d0d 14%, transparent);
 }

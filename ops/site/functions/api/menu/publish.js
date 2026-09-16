@@ -59,11 +59,14 @@ export const onRequestPost = withApiHandler(async (context) => {
   }
 
   const sync = await syncOpsMenuToSanity(context.env, { target });
+  if (!sync.synced.length) {
+    return jsonResponse({ ok: true, target, sync, deployed: false });
+  }
   const result = await webhookJson(`${baseUrl}/deploy`, secret, {
     method: "POST",
     body: { target },
   });
-  return jsonResponse({ ok: true, target, sync, ...result }, 202);
+  return jsonResponse({ ok: true, target, sync, deployed: true, ...result }, 202);
 });
 
 export const onRequestGet = withApiHandler(async (context) => {

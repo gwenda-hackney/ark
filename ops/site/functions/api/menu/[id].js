@@ -1,5 +1,6 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
 import { deleteMenuItem, loadMenuTree, updateMenuItem } from "../../_lib/menu-store.js";
+import { toClientItem } from "../../_lib/reconcile.js";
 
 function itemId(context) {
   return decodeURIComponent(context.params?.id || "");
@@ -11,7 +12,7 @@ export const onRequestGet = withApiHandler(async (context) => {
   const { items } = await loadMenuTree(context.env);
   const item = items.find((entry) => entry._id === id);
   if (!item) return jsonResponse({ error: "Item not found." }, 404);
-  return jsonResponse({ item });
+  return jsonResponse({ item: toClientItem(item) });
 });
 
 export const onRequestPatch = withApiHandler(async (context) => {
@@ -22,7 +23,7 @@ export const onRequestPatch = withApiHandler(async (context) => {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
   const item = await updateMenuItem(context.env, id, body);
-  return jsonResponse({ ok: true, item });
+  return jsonResponse({ ok: true, item: toClientItem(item) });
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {

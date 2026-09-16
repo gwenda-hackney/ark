@@ -23,7 +23,7 @@
 		border-radius: var(--radius-md);
 		background: var(--sunken);
 		color: var(--foreground);
-		font-size: 0.8125rem;
+		font-size: var(--text);
 		line-height: 1.45;
 		resize: vertical;
 		transition:

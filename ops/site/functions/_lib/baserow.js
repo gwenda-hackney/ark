@@ -4,6 +4,19 @@ export const OPS_DATABASE_NAME = "Gwenda Ops";
 export const TABLE_SECTIONS = "Menu Sections";
 export const TABLE_ITEMS = "Menu Items";
 export const TABLE_INGREDIENTS = "Ingredients";
+export const TABLE_INVENTORY = "Inventory";
+export const TABLE_SUPPLIERS = "Suppliers";
+export const TABLE_INVENTORY_SUPPLIERS = "Inventory suppliers";
+export const TABLE_USERS = "Users";
+
+/** Baserow Cloud allows 10 concurrent API requests. Stay under that. */
+export const BASEROW_MAX_CONCURRENT = 8;
+export const BASEROW_MAX_RETRIES = 4;
+export const BASEROW_RETRY_CAP_MS = 5000;
+/** Drop leases from canceled requests whose `finally` never ran. */
+export const BASEROW_LEASE_STALE_MS = 8000;
+/** Do not wait on another request's slot forever (Workers treat that as a hang). */
+export const BASEROW_SLOT_WAIT_CAP_MS = 1000;
 
 export function baserowApiBase(env = {}) {
   return (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
@@ -27,7 +40,87 @@ function requireKey(env) {
   return apiKey;
 }
 
-export async function baserowFetch(env, path, init = {}) {
+let tableIdCache = null;
+let tableIdCacheKey = "";
+/** Request-local leases. A counter leaks when Workers cancel `finally` after HMR/abort. */
+const activeLeases = new Set();
+
+function defaultSleep(ms) {
+  // `setTimeout` callbacks can run in another request's context in workerd.
+  // `scheduler.wait` stays on the creating request.
+  if (globalThis.navigator?.userAgent === "Cloudflare-Workers") {
+    const wait = globalThis.scheduler?.wait;
+    if (typeof wait === "function") return wait.call(globalThis.scheduler, ms);
+  }
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export const baserowClient = {
+  maxConcurrent: BASEROW_MAX_CONCURRENT,
+  maxRetries: BASEROW_MAX_RETRIES,
+  slotWaitMs: 15,
+  leaseStaleMs: BASEROW_LEASE_STALE_MS,
+  slotWaitCapMs: BASEROW_SLOT_WAIT_CAP_MS,
+  sleep: defaultSleep,
+};
+
+export function resetBaserowClientForTests() {
+  activeLeases.clear();
+  tableIdCache = null;
+  tableIdCacheKey = "";
+  baserowClient.maxConcurrent = BASEROW_MAX_CONCURRENT;
+  baserowClient.maxRetries = BASEROW_MAX_RETRIES;
+  baserowClient.slotWaitMs = 15;
+  baserowClient.leaseStaleMs = BASEROW_LEASE_STALE_MS;
+  baserowClient.slotWaitCapMs = BASEROW_SLOT_WAIT_CAP_MS;
+  baserowClient.sleep = defaultSleep;
+}
+
+export function parseRetryAfterMs(header, attempt = 0) {
+  const raw = String(header || "").trim();
+  if (raw) {
+    if (/^\d+(\.\d+)?$/.test(raw)) {
+      return Math.min(BASEROW_RETRY_CAP_MS, Math.max(0, Number(raw) * 1000));
+    }
+    const date = Date.parse(raw);
+    if (!Number.isNaN(date)) {
+      return Math.min(BASEROW_RETRY_CAP_MS, Math.max(0, date - Date.now()));
+    }
+  }
+  const base = Math.min(BASEROW_RETRY_CAP_MS, 200 * 2 ** attempt);
+  return base;
+}
+
+function pruneLeases(now = Date.now()) {
+  const staleMs = Math.max(1, Number(baserowClient.leaseStaleMs) || BASEROW_LEASE_STALE_MS);
+  for (const lease of activeLeases) {
+    if (now - lease.at >= staleMs) activeLeases.delete(lease);
+  }
+}
+
+async function withBaserowSlot(work) {
+  const max = Math.max(1, Number(baserowClient.maxConcurrent) || BASEROW_MAX_CONCURRENT);
+  const waitMs = Math.max(1, Number(baserowClient.slotWaitMs) || 15);
+  const waitCapMs = Math.max(waitMs, Number(baserowClient.slotWaitCapMs) || BASEROW_SLOT_WAIT_CAP_MS);
+  const waitDeadline = Date.now() + waitCapMs;
+  const lease = { at: Date.now() };
+  // Poll with a request-local sleep. Never resolve another request's Promise:
+  // Workers cancel those continuations and then treat the waiter as hung.
+  for (;;) {
+    pruneLeases();
+    if (activeLeases.size < max) break;
+    if (Date.now() >= waitDeadline) break;
+    await baserowClient.sleep(waitMs);
+  }
+  activeLeases.add(lease);
+  try {
+    return await work();
+  } finally {
+    activeLeases.delete(lease);
+  }
+}
+
+async function baserowFetchOnce(env, path, init = {}) {
   const apiKey = requireKey(env);
   const apiBase = baserowApiBase(env);
   const url = path.startsWith("http") ? path : `${apiBase}${path}`;
@@ -51,38 +144,97 @@ export async function baserowFetch(env, path, init = {}) {
       json?.detail || json?.error || text.slice(0, 300) || response.statusText;
     const error = new Error(`Baserow ${response.status}: ${detail}`);
     error.status = response.status >= 500 ? 502 : response.status;
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After");
+      if (retryAfter) error.retryAfterMs = parseRetryAfterMs(retryAfter, 0);
+    }
     throw error;
   }
   return json;
+}
+
+export async function baserowFetch(env, path, init = {}) {
+  const maxRetries = Math.max(0, Number(baserowClient.maxRetries) || 0);
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await withBaserowSlot(() => baserowFetchOnce(env, path, init));
+    } catch (error) {
+      if (error?.status !== 429 || attempt >= maxRetries) throw error;
+      const waitMs =
+        typeof error.retryAfterMs === "number"
+          ? error.retryAfterMs
+          : parseRetryAfterMs(null, attempt);
+      attempt += 1;
+      await baserowClient.sleep(waitMs);
+    }
+  }
 }
 
 export async function listAllTables(env) {
   return baserowFetch(env, "/api/database/tables/all-tables/");
 }
 
-export async function resolveOpsTableIds(env) {
-  const explicit = {
-    sections: env.BASEROW_OPS_SECTIONS_TABLE_ID?.trim(),
-    items: env.BASEROW_OPS_ITEMS_TABLE_ID?.trim(),
-    ingredients: env.BASEROW_OPS_INGREDIENTS_TABLE_ID?.trim(),
+function explicitTableIds(env) {
+  return {
+    sections: env.BASEROW_OPS_SECTIONS_TABLE_ID?.trim() || "",
+    items: env.BASEROW_OPS_ITEMS_TABLE_ID?.trim() || "",
+    ingredients: env.BASEROW_OPS_INGREDIENTS_TABLE_ID?.trim() || "",
+    inventory: env.BASEROW_OPS_INVENTORY_TABLE_ID?.trim() || "",
+    suppliers: env.BASEROW_OPS_SUPPLIERS_TABLE_ID?.trim() || "",
+    inventorySuppliers: env.BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID?.trim() || "",
+    users: env.BASEROW_OPS_USERS_TABLE_ID?.trim() || "",
   };
-  if (explicit.sections && explicit.items && explicit.ingredients) {
-    return explicit;
-  }
+}
 
-  const tables = await listAllTables(env);
-  const databaseId = opsDatabaseId(env);
-  let scoped = Array.isArray(tables) ? tables : [];
-  if (databaseId) {
-    scoped = scoped.filter((table) => String(table.database_id) === databaseId);
+function tableIdEnvKey(env) {
+  const explicit = explicitTableIds(env);
+  return [
+    opsDatabaseId(env),
+    explicit.sections,
+    explicit.items,
+    explicit.ingredients,
+    explicit.inventory,
+    explicit.suppliers,
+    explicit.inventorySuppliers,
+    explicit.users,
+  ].join("|");
+}
+
+export async function resolveOpsTableIds(env) {
+  const cacheKey = tableIdEnvKey(env);
+  if (tableIdCache && tableIdCacheKey === cacheKey) return tableIdCache;
+
+  const explicit = explicitTableIds(env);
+
+  const specs = [
+    { key: "sections", name: TABLE_SECTIONS, required: true },
+    { key: "items", name: TABLE_ITEMS, required: true },
+    { key: "ingredients", name: TABLE_INGREDIENTS, required: true },
+    { key: "inventory", name: TABLE_INVENTORY, required: false },
+    { key: "suppliers", name: TABLE_SUPPLIERS, required: false },
+    { key: "inventorySuppliers", name: TABLE_INVENTORY_SUPPLIERS, required: false },
+    { key: "users", name: TABLE_USERS, required: false },
+  ];
+
+  const needsLookup = specs.some((spec) => !explicit[spec.key]);
+  let scoped = [];
+  if (needsLookup) {
+    const tables = await listAllTables(env);
+    const databaseId = opsDatabaseId(env);
+    scoped = Array.isArray(tables) ? tables : [];
+    if (databaseId) {
+      scoped = scoped.filter((table) => String(table.database_id) === databaseId);
+    }
   }
 
   const byName = (name) => scoped.filter((table) => table.name === name);
-  const pick = (name, fallbackEnv) => {
+  const pick = (name, fallbackEnv, { required = true } = {}) => {
     if (fallbackEnv) return fallbackEnv;
     const matches = byName(name);
     if (matches.length === 1) return String(matches[0].id);
     if (matches.length === 0) {
+      if (!required) return "";
       const error = new Error(
         `Baserow table "${name}" not found. Run npm run setup:baserow-ops.`,
       );
@@ -96,10 +248,30 @@ export async function resolveOpsTableIds(env) {
     throw error;
   };
 
+  const resolved = {};
+  for (const spec of specs) {
+    resolved[spec.key] = pick(spec.name, explicit[spec.key], {
+      required: spec.required,
+    });
+  }
+  tableIdCache = resolved;
+  tableIdCacheKey = cacheKey;
+  return resolved;
+}
+
+/** Query params that list only rows linked to `rowId` on `fieldName`. */
+export function linkHasQuery(fieldName, rowId) {
   return {
-    sections: pick(TABLE_SECTIONS, explicit.sections),
-    items: pick(TABLE_ITEMS, explicit.items),
-    ingredients: pick(TABLE_INGREDIENTS, explicit.ingredients),
+    filters: JSON.stringify({
+      filter_type: "AND",
+      filters: [
+        {
+          field: fieldName,
+          type: "link_row_has",
+          value: String(rowId),
+        },
+      ],
+    }),
   };
 }
 
@@ -159,6 +331,12 @@ export async function deleteRow(env, tableId, rowId) {
   return baserowFetch(env, `/api/database/rows/table/${tableId}/${rowId}/`, {
     method: "DELETE",
   });
+}
+
+export async function deleteRowsInOrder(env, tableId, rowIds) {
+  for (const rowId of rowIds) {
+    await deleteRow(env, tableId, rowId);
+  }
 }
 
 /** Upload a user file, then attach via file field name on a row. */

@@ -23,7 +23,7 @@ ark/
 
 ```bash
 npm install
-npm run env:pull          # Bitwarden → .env (needs BW_SESSION)
+npm run env:pull          # Bitwarden → .env (bw-unlock once per container)
 npm run dev               # marketing site → http://localhost:4321
 npm run studio            # Sanity Studio → http://localhost:3333
 ```

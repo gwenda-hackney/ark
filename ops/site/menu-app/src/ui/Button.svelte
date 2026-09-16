@@ -7,7 +7,7 @@
 	import type { Snippet } from "svelte";
 	import type { HTMLButtonAttributes } from "svelte/elements";
 
-	type Variant = "primary" | "outline" | "subtle" | "ghost" | "destructive";
+	type Variant = "primary" | "outline" | "subtle" | "ghost" | "accent" | "destructive";
 	type Size = "md" | "sm" | "xs";
 
 	let {
@@ -38,6 +38,7 @@
 	class="btn {variant} {size} {className}"
 	class:full
 	class:busy
+	class:icon-only={!children && !!icon}
 	aria-busy={busy || undefined}
 	{...rest}
 >
@@ -57,13 +58,13 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.5rem;
 		flex-shrink: 0;
 		border: 1px solid transparent;
 		border-radius: var(--radius-pill);
 		background: transparent;
 		font-weight: 500;
 		white-space: nowrap;
+		line-height: 1;
 		-webkit-user-select: none;
 		user-select: none;
 		transition:
@@ -92,19 +93,50 @@
 	.md {
 		height: var(--control-h);
 		padding: 0 1.125rem;
-		font-size: 0.8125rem;
+		font-size: var(--text);
+		gap: 0.5rem;
 	}
 
 	.sm {
 		height: var(--control-h-sm);
-		padding: 0 0.875rem;
-		font-size: 0.8125rem;
+		padding: 0 1rem;
+		font-size: var(--text);
+		gap: 0.5rem;
 	}
 
 	.xs {
 		height: var(--control-h-xs);
-		padding: 0 0.6875rem;
-		font-size: 0.75rem;
+		padding: 0 0.75rem;
+		font-size: var(--text-sm);
+		gap: 0.375rem;
+	}
+
+	/* MD3: leading-icon buttons tighten start padding, keep end breathing room. */
+	.md:has(.glyph):has(.label) {
+		padding-inline: 0.875rem 1.125rem;
+	}
+
+	.sm:has(.glyph):has(.label) {
+		padding-inline: 0.75rem 1rem;
+	}
+
+	.xs:has(.glyph):has(.label) {
+		padding-inline: 0.625rem 0.75rem;
+	}
+
+	.md:not(:has(.label)) {
+		width: var(--control-h);
+		padding: 0;
+	}
+
+	.sm:not(:has(.label)) {
+		width: var(--control-h-sm);
+		padding: 0;
+	}
+
+	.xs:not(:has(.label)) {
+		width: var(--control-h-xs);
+		padding: 0;
 	}
 
 	/* ─── Variants ─── */
@@ -148,6 +180,18 @@
 		color: var(--foreground);
 	}
 
+	.accent {
+		border-color: color-mix(in srgb, var(--primary) 45%, transparent);
+		background: var(--primary-wash);
+		color: var(--primary);
+	}
+
+	.accent:hover:not(:disabled) {
+		border-color: var(--primary);
+		background: var(--primary-wash-strong);
+		color: var(--primary-hover);
+	}
+
 	.destructive {
 		background: var(--destructive);
 		color: var(--destructive-foreground);
@@ -159,16 +203,45 @@
 
 	/* ─── Content ─── */
 
+	/*
+	  Fixed icon box (MD3 ~20dp on default, scales with control size) so SVG
+	  viewBoxes centre on the label, independent of whatever size="" the call
+	  site passed into Icon.
+	*/
 	.glyph {
 		display: inline-flex;
+		flex-shrink: 0;
 		align-items: center;
 		justify-content: center;
+		line-height: 0;
+	}
+
+	.md .glyph {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+
+	.sm .glyph {
+		width: 1.125rem;
+		height: 1.125rem;
+	}
+
+	.xs .glyph {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.glyph :global(svg) {
+		display: block;
+		width: 100%;
+		height: 100%;
 	}
 
 	.label {
 		display: inline-flex;
 		align-items: center;
 		min-width: 0;
+		line-height: 1;
 	}
 
 	/* A run in flight pulses rather than swapping in a spinner, so the button

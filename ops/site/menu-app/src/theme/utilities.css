@@ -16,6 +16,11 @@
 	font-feature-settings: "tnum";
 }
 
+.num {
+	text-align: right;
+	justify-content: flex-end;
+}
+
 /* Grouped figures in the UI font — headline balances, stat values. */
 .tnum {
 	font-variant-numeric: tabular-nums;
@@ -30,6 +35,11 @@
 
 .down {
 	color: var(--down);
+}
+
+.loss {
+	color: var(--down);
+	font-weight: 650;
 }
 
 .gold {
@@ -47,7 +57,7 @@
 /* ─── Labels ─────────────────────────────────────────────────────────────── */
 
 .eyebrow {
-	font-size: 0.6875rem;
+	font-size: var(--text-xs);
 	font-weight: 600;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
@@ -121,5 +131,48 @@
 	to {
 		opacity: 1;
 		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rise {
+		animation: none;
+	}
+}
+
+/* ─── Spec book print ────────────────────────────────────────────────────── */
+
+@media print {
+	@page {
+		size: 210mm 297mm;
+		margin: 0;
+	}
+
+	html.print-book,
+	html.print-book body,
+	html.print-book #app {
+		background: #ffffff !important;
+		color: #0d0d0d !important;
+		height: auto !important;
+		overflow: visible !important;
+		color-scheme: light;
+	}
+
+	html.print-book .shell,
+	html.print-book .shell .main,
+	html.print-book .shell .content,
+	html.print-book .page.menu {
+		display: block !important;
+		height: auto !important;
+		min-height: 0 !important;
+		overflow: visible !important;
+		grid-template-columns: none !important;
+		grid-template-rows: none !important;
+	}
+
+	html.print-book .rail,
+	html.print-book .topbar,
+	html.print-book .no-print {
+		display: none !important;
 	}
 }

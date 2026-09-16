@@ -275,19 +275,8 @@ jobs:
           command: pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true
           workingDirectory: ops/site
 
-      - name: Smoke test production gate
-        run: |
-          url="https://gwenda-ops.pages.dev/gate/"
-          for i in $(seq 1 12); do
-            if curl -fsS "$url" | grep -q "Enter our world"; then
-              echo "OK $url"
-              exit 0
-            fi
-            echo "Waiting for deployment… ($i/12)"
-            sleep 5
-          done
-          echo "Ops gate not served at $url"
-          exit 1
+      - name: Smoke test production Access
+        run: node scripts/smoke-ops-access.mjs https://gwenda-ops.pages.dev/
 
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs
@@ -365,19 +354,8 @@ jobs:
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke test preview gate
-        run: |
-          url="${{ steps.preview_url.outputs.url }}/gate/"
-          for i in $(seq 1 12); do
-            if curl -fsS "$url" | grep -q "Enter our world"; then
-              echo "OK $url"
-              exit 0
-            fi
-            echo "Waiting for preview… ($i/12)"
-            sleep 5
-          done
-          echo "Ops gate preview not served at $url"
-          exit 1
+      - name: Smoke test preview Access
+        run: node scripts/smoke-ops-access.mjs "${{ steps.preview_url.outputs.url }}"
 
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs

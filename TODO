@@ -1,5 +1,23 @@
 # Backlog
 
+## Ops
+ - do we reallyt need table id's to be in secrets? won't config be fine?
+ - also - wy do we need table IDS at all? if baserow only works on table ids then...maybe we should use something else
+
+
+configuration screen for common configs - target pour cost, etc.
+
+
+
+
+
+
+
+
+
+
+
+
 i need error handling to notify via email
 
 Tracked in GitHub issues where noted. See README and `.github/copilot-instructions.md` for current architecture.
