@@ -73,4 +73,35 @@ describe("menu-list", () => {
 		assert.equal(items[0].name, "Negroni");
 		assert.equal(items[1].name, "Ambra");
 	});
+
+	it("counts analysis issues on cocktail rows", () => {
+		const rows = buildMenuListRows({
+			sections: [
+				{
+					_id: "s1",
+					title: "Cocktails",
+					items: [
+						{
+							_id: "a",
+							name: "Ambra",
+							drinkType: "cocktail",
+							price: "12",
+							ingredients: [
+								{ name: "Gin", quantity: 40, unit: "ml" },
+								{ name: "Lemon", quantity: 20, unit: "ml" },
+							],
+						},
+					],
+				},
+			],
+			inventory: [],
+			query: "",
+			targets: DEFAULT_POUR_TARGETS,
+		});
+		const item = rows.find((row) => row._kind === "item");
+		assert.equal(item?._kind, "item");
+		if (item?._kind !== "item") return;
+		assert.ok((item._issueCount || 0) > 0);
+		assert.notEqual(item._issueLabel, "—");
+	});
 });

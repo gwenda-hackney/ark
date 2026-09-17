@@ -84,7 +84,7 @@ function assertLocalNotProdDatabase(databaseId) {
       if (String(databaseId) === String(OPS_PRODUCTION_DATABASE_ID)) {
         throw new Error(
           `Refusing to start local ops against production Baserow DB ${OPS_PRODUCTION_DATABASE_ID}. ` +
-            `Set BASEROW_OPS_DATABASE_ID to the Gwenda Ops Dev clone (see .baserow-ops-dev.json).`,
+            `Set BASEROW_OPS_DATABASE_ID to the Gwenda Dev Ops clone (see .baserow-ops-dev.json).`,
         );
       }
     },

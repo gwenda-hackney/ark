@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Enter · Gwenda ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -42,8 +44,9 @@ button:hover,.google:hover{border-color:var(--gold)}
 <main>
   <p class="eyebrow">Gwenda · internal</p>
   <h1>Enter our world</h1>
-  <p class="lead" id="gate-lead">Loading…</p>
-  <div class="stack" id="gate-stack" hidden>
+  <!-- Default: Google (prod). /api/auth only reveals password or misconfigured. -->
+  <p class="lead" id="gate-lead">Sign in with your Google account. You must be on the ops users list.</p>
+  <div class="stack" id="gate-stack">
     <a class="google" id="google-btn" href="/api/auth/login">Continue with Google</a>
     <p class="divider" id="password-divider" hidden>or password</p>
     <form id="gate-form" novalidate hidden>
@@ -56,7 +59,6 @@ button:hover,.google:hover{border-color:var(--gold)}
 </main>
 <script>
 (function () {
-  const stack = document.getElementById("gate-stack");
   const form = document.getElementById("gate-form");
   const input = document.getElementById("gate-input");
   const lead = document.getElementById("gate-lead");
@@ -75,7 +77,6 @@ button:hover,.google:hover{border-color:var(--gold)}
   googleBtn.href = "/api/auth/login?next=" + encodeURIComponent(next);
 
   function paint(meta) {
-    stack.hidden = false;
     if (meta.mode === "google") {
       lead.textContent = "Sign in with your Google account. You must be on the ops users list.";
       googleBtn.hidden = false;
@@ -86,16 +87,19 @@ button:hover,.google:hover{border-color:var(--gold)}
         divider.hidden = true;
         form.hidden = true;
       }
-    } else if (meta.mode === "password") {
+      return;
+    }
+    if (meta.mode === "password") {
       lead.textContent = "Enter the password to open ops tools.";
       googleBtn.hidden = true;
       divider.hidden = true;
       form.hidden = false;
-    } else {
-      lead.textContent = "Auth is not configured. Set Google OAuth secrets or OPS_LOCAL_ADMIN_PW.";
-      googleBtn.hidden = true;
-      form.hidden = true;
+      return;
     }
+    lead.textContent = "Auth is not configured. Set Google OAuth secrets or OPS_LOCAL_ADMIN_PW.";
+    googleBtn.hidden = true;
+    divider.hidden = true;
+    form.hidden = true;
   }
 
   fetch("/api/auth")
