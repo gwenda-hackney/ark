@@ -9,6 +9,7 @@ import {
   resetUsersCacheForTests,
   updateOpsUser,
 } from "./user-store.js";
+import { jsonResponse, mockOpsBaserow, opsCatalogTables } from "./test-baserow-mock.js";
 
 afterEach(() => {
   mock.restoreAll();
@@ -16,23 +17,7 @@ afterEach(() => {
   resetUsersCacheForTests();
 });
 
-function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-const tableEnv = {
-  BASEROW_API_KEY: "token",
-  BASEROW_OPS_SECTIONS_TABLE_ID: "1",
-  BASEROW_OPS_ITEMS_TABLE_ID: "2",
-  BASEROW_OPS_INGREDIENTS_TABLE_ID: "3",
-  BASEROW_OPS_INVENTORY_TABLE_ID: "4",
-  BASEROW_OPS_SUPPLIERS_TABLE_ID: "5",
-  BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID: "6",
-  BASEROW_OPS_USERS_TABLE_ID: "99",
-};
+const tableEnv = { BASEROW_API_KEY: "token" };
 
 describe("activeEmailsFromRows", () => {
   it("keeps active emails and drops inactive or blank ones", () => {
@@ -48,34 +33,36 @@ describe("activeEmailsFromRows", () => {
 
 describe("isOpsUser", () => {
   it("matches the Access email against the Users table", async () => {
-    mock.method(globalThis, "fetch", async (input) => {
-      const url = String(input);
-      assert.match(url, /\/rows\/table\/99\//);
-      return jsonResponse({
-        results: [
-          { id: 1, Email: "person@gwenda.com", Active: true },
-          { id: 2, Email: "gone@gwenda.com", Active: false },
-        ],
-      });
-    });
+    mock.method(
+      globalThis,
+      "fetch",
+      mockOpsBaserow(async (_input, _init, url) => {
+        assert.match(url, /\/rows\/table\/99\//);
+        return jsonResponse({
+          results: [
+            { id: 1, Email: "person@gwenda.com", Active: true },
+            { id: 2, Email: "gone@gwenda.com", Active: false },
+          ],
+        });
+      }),
+    );
     assert.equal(await isOpsUser(tableEnv, "Person@Gwenda.com"), true);
     assert.equal(await isOpsUser(tableEnv, "gone@gwenda.com"), false);
     assert.equal(await isOpsUser(tableEnv, "other@gwenda.com"), false);
   });
 
-  it("fails closed when the Users table id is missing", async () => {
-    mock.method(globalThis, "fetch", async () => jsonResponse([]));
+  it("fails closed when the Users table is missing from the catalog", async () => {
+    mock.method(globalThis, "fetch", async (input) => {
+      const url = String(input);
+      if (url.includes("/tables/all-tables/")) {
+        return jsonResponse(
+          opsCatalogTables().filter((table) => table.name !== "Users"),
+        );
+      }
+      return jsonResponse({ results: [] });
+    });
     await assert.rejects(
-      () =>
-        isOpsUser(
-          {
-            BASEROW_API_KEY: "token",
-            BASEROW_OPS_SECTIONS_TABLE_ID: "1",
-            BASEROW_OPS_ITEMS_TABLE_ID: "2",
-            BASEROW_OPS_INGREDIENTS_TABLE_ID: "3",
-          },
-          "person@gwenda.com",
-        ),
+      () => isOpsUser(tableEnv, "person@gwenda.com"),
       (error) => error.status === 503,
     );
   });
@@ -83,14 +70,18 @@ describe("isOpsUser", () => {
 
 describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
   it("lists users with emails, sorted", async () => {
-    mock.method(globalThis, "fetch", async () =>
-      jsonResponse({
-        results: [
-          { id: 2, Name: "B", Email: "b@gwenda.com", Active: true },
-          { id: 1, Name: "A", Email: "a@gwenda.com", Active: false },
-          { id: 3, Name: "", Email: "", Active: true },
-        ],
-      }),
+    mock.method(
+      globalThis,
+      "fetch",
+      mockOpsBaserow(async () =>
+        jsonResponse({
+          results: [
+            { id: 2, Name: "B", Email: "b@gwenda.com", Active: true },
+            { id: 1, Name: "A", Email: "a@gwenda.com", Active: false },
+            { id: 3, Name: "", Email: "", Active: true },
+          ],
+        }),
+      ),
     );
     const users = await listOpsUsers(tableEnv);
     assert.deepEqual(
@@ -101,23 +92,24 @@ describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
   });
 
   it("creates a user and rejects duplicates", async () => {
-    const calls = [];
-    mock.method(globalThis, "fetch", async (input, init) => {
-      const url = String(input);
-      calls.push({ url, method: init?.method || "GET" });
-      if ((init?.method || "GET") === "POST") {
-        const body = JSON.parse(init.body);
+    mock.method(
+      globalThis,
+      "fetch",
+      mockOpsBaserow(async (_input, init) => {
+        if ((init?.method || "GET") === "POST") {
+          const body = JSON.parse(init.body);
+          return jsonResponse({
+            id: 9,
+            Name: body.Name,
+            Email: body.Email,
+            Active: body.Active,
+          });
+        }
         return jsonResponse({
-          id: 9,
-          Name: body.Name,
-          Email: body.Email,
-          Active: body.Active,
+          results: [{ id: 1, Email: "a@gwenda.com", Active: true }],
         });
-      }
-      return jsonResponse({
-        results: [{ id: 1, Email: "a@gwenda.com", Active: true }],
-      });
-    });
+      }),
+    );
     const created = await createOpsUser(tableEnv, {
       email: "New@Gwenda.com",
       name: "New",
@@ -133,19 +125,23 @@ describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
   });
 
   it("patches Active without requiring email", async () => {
-    mock.method(globalThis, "fetch", async (input, init) => {
-      if ((init?.method || "GET") === "PATCH") {
-        const body = JSON.parse(init.body);
-        assert.deepEqual(body, { Active: false });
-        return jsonResponse({
-          id: 1,
-          Email: "a@gwenda.com",
-          Name: "A",
-          Active: false,
-        });
-      }
-      return jsonResponse({ results: [] });
-    });
+    mock.method(
+      globalThis,
+      "fetch",
+      mockOpsBaserow(async (_input, init) => {
+        if ((init?.method || "GET") === "PATCH") {
+          const body = JSON.parse(init.body);
+          assert.deepEqual(body, { Active: false });
+          return jsonResponse({
+            id: 1,
+            Email: "a@gwenda.com",
+            Name: "A",
+            Active: false,
+          });
+        }
+        return jsonResponse({ results: [] });
+      }),
+    );
     const user = await updateOpsUser(tableEnv, "1", { active: false });
     assert.equal(user.active, false);
   });

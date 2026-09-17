@@ -7,13 +7,14 @@
  * BASEROW_API_KEY.
  */
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
+import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 
 const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
   /\/$/,
   "",
 );
 const apiKey = process.env.BASEROW_API_KEY?.trim();
-const tableId = process.env.BASEROW_OPS_INVENTORY_TABLE_ID?.trim();
+let tableId = "";
 
 const FULL_NAMES = {
   "st-germain": "St-Germain elderflower liqueur",
@@ -22,8 +23,8 @@ const FULL_NAMES = {
   disaronno: "Disaronno amaretto",
 };
 
-if (!apiKey || !tableId) {
-  console.error("Need BASEROW_API_KEY and BASEROW_OPS_INVENTORY_TABLE_ID");
+if (!apiKey) {
+  console.error("Need BASEROW_API_KEY");
   process.exit(1);
 }
 
@@ -130,6 +131,11 @@ async function fillFullNames() {
 }
 
 async function main() {
+  const tables = await requireOpsTables();
+  tableId = tables.inventory;
+  if (!tableId) {
+    throw new Error('Baserow table "Inventory" not found. Run npm run setup:baserow-ops.');
+  }
   await ensureFullNameField();
   await fillFullNames();
 }

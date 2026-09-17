@@ -11,19 +11,18 @@ import {
   PRINT_MENU_CHAPTERS,
   flattenPrintMenuSections,
 } from "./lib/print-menu-sections.mjs";
+import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 
 const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
   /\/$/,
   "",
 );
 const apiKey = process.env.BASEROW_API_KEY?.trim();
-const sectionsTableId = process.env.BASEROW_OPS_SECTIONS_TABLE_ID?.trim();
-const itemsTableId = process.env.BASEROW_OPS_ITEMS_TABLE_ID?.trim();
+let sectionsTableId = "";
+let itemsTableId = "";
 
-if (!apiKey || !sectionsTableId || !itemsTableId) {
-  console.error(
-    "Need BASEROW_API_KEY, BASEROW_OPS_SECTIONS_TABLE_ID, BASEROW_OPS_ITEMS_TABLE_ID",
-  );
+if (!apiKey) {
+  console.error("Need BASEROW_API_KEY");
   process.exit(1);
 }
 
@@ -438,6 +437,9 @@ async function ensureSanityPrintItems(client, sectionIds) {
 }
 
 async function main() {
+  const tables = await requireOpsTables();
+  sectionsTableId = tables.sections;
+  itemsTableId = tables.items;
   await deleteGhostBaserowRows();
   await ensureBaserowSections();
 

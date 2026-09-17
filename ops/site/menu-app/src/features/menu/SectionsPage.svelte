@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { fly } from "svelte/transition";
 	import { BusyOverlay, Card, PageHeader } from "../../ui";
 	import * as api from "../../lib/api";
 	import { loginNext } from "../../lib/nav";
 	import { toast } from "../../lib/toast.svelte";
+	import { easeOut, flyMs } from "../../lib/motion";
 	import type { MenuSection } from "../../lib/types";
 	import SectionsPanel from "./SectionsPanel.svelte";
 
@@ -49,7 +51,7 @@
 	});
 </script>
 
-<div class="page">
+<div class="page scrollbar-fade">
 	<PageHeader
 		title="Sections"
 		subtitle="Chapters and groups drinks belong to. Same tree as the print menu."
@@ -57,10 +59,13 @@
 
 	{#if error}
 		<p class="error">{error}</p>
-	{:else}
-		<div class="stack">
+	{:else if !loading}
+		<div
+			class="stack"
+			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
+		>
 			<Card>
-				<SectionsPanel {sections} busy={loading} {onchanged} />
+				<SectionsPanel {sections} busy={false} {onchanged} />
 			</Card>
 		</div>
 	{/if}

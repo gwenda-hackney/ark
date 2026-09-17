@@ -3,6 +3,9 @@
 	 * Blocks a positioned ancestor while an async run is in flight.
 	 * Matches trading shell.web: top progress bar, scrim, spinner + label.
 	 */
+	import { fade } from "svelte/transition";
+	import { easeOut, fadeMs } from "../lib/motion";
+
 	let {
 		active = false,
 		label = "Working…",
@@ -19,6 +22,7 @@
 		aria-live="polite"
 		aria-busy="true"
 		aria-label={label}
+		out:fade={{ duration: fadeMs, easing: easeOut }}
 	>
 		<div class="bar" role="progressbar" aria-hidden="true"></div>
 		<div class="veil" aria-hidden="true"></div>

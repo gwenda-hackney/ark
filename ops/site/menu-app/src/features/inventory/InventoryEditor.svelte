@@ -250,7 +250,7 @@
 				</div>
 			</header>
 
-			<div class="body">
+			<div class="body scrollbar-fade">
 				<div class="grid">
 					<div class="full">
 						<Field

@@ -883,7 +883,7 @@
 					</div>
 				</header>
 
-				<div class="tab-scroll">
+				<div class="tab-scroll scrollbar-fade">
 					<div class="tabs">
 						<Segmented
 							value={tab}

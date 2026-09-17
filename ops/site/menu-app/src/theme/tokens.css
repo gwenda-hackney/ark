@@ -102,6 +102,10 @@
   --popover: #1a1a1a;
   --popover-foreground: #e8e4dc;
 
+  --scrollbar: color-mix(in srgb, #8a8680 72%, transparent);
+  --scrollbar-hover: #8a8680;
+  --scrollbar-size: 8px;
+
   /* Spec book: white paper, black ink, gold-dark accents */
   --book-bg: #ffffff;
   --book-ink: #0d0d0d;

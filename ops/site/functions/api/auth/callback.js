@@ -17,11 +17,13 @@ import {
   googleEmailFromTokens,
   parseOauthStateParam,
 } from "../../_lib/google-oauth.js";
+import { opsEnv } from "../../_lib/ops-env.js";
 import { isOpsUser } from "../../_lib/user-store.js";
 
 /** Google OAuth callback: exchange code, check Users, set session. */
 export async function onRequestGet(context) {
-  const auth = resolveAuth(context.env);
+  const env = await opsEnv(context);
+  const auth = resolveAuth(env);
   const secure = isSecureOrigin(requestOrigin(context.request));
   const clearOauth = clearOauthStateCookie({ secure });
 
@@ -60,7 +62,7 @@ export async function onRequestGet(context) {
   }
 
   try {
-    const tokens = await exchangeGoogleCode(context.env, context.request, {
+    const tokens = await exchangeGoogleCode(env, context.request, {
       code,
       codeVerifier: oauth.codeVerifier,
     });
@@ -74,7 +76,7 @@ export async function onRequestGet(context) {
       );
     }
 
-    const allowed = await isOpsUser(context.env, email);
+    const allowed = await isOpsUser(env, email);
     if (!allowed) {
       return withClear(opsUserForbiddenResponse(), clearOauth);
     }

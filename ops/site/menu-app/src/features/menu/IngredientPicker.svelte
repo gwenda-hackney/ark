@@ -18,14 +18,23 @@
 	let {
 		inventory = $bindable([] as InventoryItem[]),
 		active = false,
+		mode = "add",
 		defaultQuantity = "",
+		initial = null,
 		onpick,
 	}: {
 		inventory?: InventoryItem[];
-		/** When true, focus qty for a fresh add. */
+		/** When true, focus qty for a fresh add (or search when editing). */
 		active?: boolean;
+		mode?: "add" | "edit";
 		/** Prefill qty (pint for draught, 25ml for a pour). */
 		defaultQuantity?: string;
+		/** Seed fields when opening in edit mode. */
+		initial?: {
+			quantity?: string;
+			unit?: string;
+			name?: string;
+		} | null;
 		onpick: (line: Ingredient) => void;
 	} = $props();
 
@@ -85,13 +94,16 @@
 	$effect(() => {
 		const now = active;
 		if (now && !wasActive) {
-			qty = String(defaultQuantity || "").trim();
-			unit = "ml";
-			query = "";
+			qty = String(initial?.quantity ?? defaultQuantity ?? "").trim();
+			unit = String(initial?.unit || "ml").trim() || "ml";
+			query = String(initial?.name || "").trim();
 			abvDraft = "";
 			kindDraft = "liquor";
 			error = "";
-			void tick().then(() => qtyEl?.focus());
+			void tick().then(() => {
+				if (mode === "edit") searchEl?.focus();
+				else qtyEl?.focus();
+			});
 		}
 		wasActive = now;
 	});
@@ -113,6 +125,7 @@
 	}
 
 	async function afterPick() {
+		if (mode === "edit") return;
 		query = "";
 		qty = String(defaultQuantity || "").trim();
 		error = "";
@@ -213,7 +226,7 @@
 		/>
 	</Field>
 
-	<div class="results" role="listbox" aria-label="Inventory matches">
+	<div class="results scrollbar-fade" role="listbox" aria-label="Inventory matches">
 		{#if matches.length}
 			{#each matches as item (item._id || item.id)}
 				<button
@@ -285,7 +298,7 @@
 				{busy}
 				onclick={() => void createAndPick()}
 			>
-				{busy ? "Adding…" : "Add to inventory and recipe"}
+				{busy ? "Adding…" : mode === "edit" ? "Save to inventory and update" : "Add to inventory and recipe"}
 			</Button>
 			{#if error}
 				<p class="error">{error}</p>

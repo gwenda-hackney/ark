@@ -23,7 +23,7 @@ describe("ops auth", () => {
       GOOGLE_OAUTH_CLIENT_ID: "id",
       GOOGLE_OAUTH_CLIENT_SECRET: "sec",
       OPS_SESSION_SECRET: "sess",
-      OPS_PASSWORD: "copper",
+      OPS_LOCAL_ADMIN_PW: "copper",
     });
     assert.equal(auth.kind, "google");
     assert.equal(auth.password, "copper");
@@ -38,10 +38,16 @@ describe("ops auth", () => {
     assert.equal(auth.kind, "misconfigured");
   });
 
-  it("uses the password gate when Google is not configured", () => {
-    const auth = resolveAuth({ OPS_PASSWORD: "copper" });
+  it("uses the local admin password gate when Google is not configured", () => {
+    const auth = resolveAuth({ OPS_LOCAL_ADMIN_PW: "copper" });
     assert.equal(auth.kind, "password");
     assert.equal(auth.password, "copper");
+  });
+
+  it("accepts legacy OPS_PASSWORD as the local admin password", () => {
+    const auth = resolveAuth({ OPS_PASSWORD: "legacy" });
+    assert.equal(auth.kind, "password");
+    assert.equal(auth.password, "legacy");
   });
 
   it("round-trips password tokens", async () => {
@@ -83,7 +89,7 @@ describe("ops auth", () => {
   });
 
   it("authenticates local password cookies", async () => {
-    const auth = resolveAuth({ OPS_PASSWORD: "copper" });
+    const auth = resolveAuth({ OPS_LOCAL_ADMIN_PW: "copper" });
     const token = await createPasswordToken("copper");
     const req = new Request("http://localhost:5174/menu", {
       headers: { Cookie: `gwenda_ops_access=${token}` },

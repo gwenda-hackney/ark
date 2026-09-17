@@ -62,7 +62,7 @@
 		</Button>
 	</header>
 
-	<div class="body">
+	<div class="body scrollbar-fade">
 		<p class="lede">
 			Push your saved menu changes to the website so guests can see them.
 		</p>

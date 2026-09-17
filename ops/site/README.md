@@ -38,6 +38,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/inventory/new` | New inventory item |
 | `/inventory/:name` | Inventory item detail |
 | `/users` | Who may sign in |
+| `/config` | House pour-cost targets (Baserow App Config) |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |
 | `/breakeven` | Breakeven (iframe) |
 | `/cashflow` | Cashflow (iframe) |
@@ -66,7 +67,7 @@ Google Cloud **Web application** OAuth client (reuse the existing client):
 1. Authorized JavaScript origins: `http://localhost:5174`, `http://127.0.0.1:5174`, `https://gwenda-ops.pages.dev`
 2. Authorized redirect URIs: `http://localhost:5174/api/auth/callback`, `http://127.0.0.1:5174/api/auth/callback`, `https://gwenda-ops.pages.dev/api/auth/callback`
 
-Local: `npm run dev -w @gwenda/ops` → http://localhost:5174/ → Continue with Google. Optional `OPS_PASSWORD` remains a local bypass only. Leave `OPS_PASSWORD` unset on Pages.
+Local: `npm run dev -w @gwenda/ops` → http://localhost:5174/ → Continue with Google. Optional `OPS_LOCAL_ADMIN_PW` remains a local bypass only. Leave `OPS_LOCAL_ADMIN_PW` unset on Pages.
 
 Logout clears the session cookie and returns to `/gate/`.
 
@@ -80,6 +81,7 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Bar stock / ABV catalog | **Baserow** `Inventory` |
 | Wholesalers, product pages, and pack prices | **Baserow** `Suppliers` plus junction `Inventory suppliers` (SKU, pack, trade price, product URL) |
 | Who may sign in to ops | **Baserow** `Users` (Email, Active). Manage in the app at `/users`, or in Baserow. |
+| House pour-cost targets and other non-secret knobs | **Baserow** `App Config` (Name, Value, Env, Service). Edit in the app at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
@@ -94,7 +96,13 @@ npm run dev -w @gwenda/ops
 - Vite SPA with HMR: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
 - Pages + auth Functions: [http://127.0.0.1:8788/](http://127.0.0.1:8788/)
 
-Requires `BASEROW_API_KEY` plus Google OAuth secrets (`GOOGLE_OAUTH_*` + `OPS_SESSION_SECRET`) or `OPS_PASSWORD` in repo-root `.env`. Ops table ids come from `wrangler.toml` `[vars]` (and name lookup as a fallback). Local seed scripts still read ids from `.env`.
+Requires `BASEROW_API_KEY` plus Google OAuth secrets in **`.env.ops`** (or `.env`). Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets) load from Baserow **App Config**. See [docs/config.md](../../docs/config.md).
+
+```bash
+cp scripts/env-templates/ops.local.env .env.ops   # if missing
+npm run setup:baserow-ops
+npm run dev -w @gwenda/ops
+```
 
 Build:
 

@@ -89,8 +89,9 @@
 			{
 				headerName: "Name",
 				field: "name",
-				minWidth: 140,
-				flex: 1.6,
+				minWidth: 160,
+				maxWidth: 240,
+				flex: 1,
 				cellClass: "name-cell",
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data.name || "Untitled" : "",

@@ -8,6 +8,7 @@ export const TABLE_INVENTORY = "Inventory";
 export const TABLE_SUPPLIERS = "Suppliers";
 export const TABLE_INVENTORY_SUPPLIERS = "Inventory suppliers";
 export const TABLE_USERS = "Users";
+export const TABLE_CONFIG = "App Config";
 
 /** Baserow Cloud allows 10 concurrent API requests. Stay under that. */
 export const BASEROW_MAX_CONCURRENT = 8;
@@ -175,88 +176,111 @@ export async function listAllTables(env) {
   return baserowFetch(env, "/api/database/tables/all-tables/");
 }
 
-function explicitTableIds(env) {
-  return {
-    sections: env.BASEROW_OPS_SECTIONS_TABLE_ID?.trim() || "",
-    items: env.BASEROW_OPS_ITEMS_TABLE_ID?.trim() || "",
-    ingredients: env.BASEROW_OPS_INGREDIENTS_TABLE_ID?.trim() || "",
-    inventory: env.BASEROW_OPS_INVENTORY_TABLE_ID?.trim() || "",
-    suppliers: env.BASEROW_OPS_SUPPLIERS_TABLE_ID?.trim() || "",
-    inventorySuppliers: env.BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID?.trim() || "",
-    users: env.BASEROW_OPS_USERS_TABLE_ID?.trim() || "",
-  };
-}
+/** Tables that identify the Gwenda Ops database when DATABASE_ID is unset. */
+const OPS_FINGERPRINT = [TABLE_SECTIONS, TABLE_ITEMS, TABLE_INGREDIENTS];
 
-function tableIdEnvKey(env) {
-  const explicit = explicitTableIds(env);
-  return [
-    opsDatabaseId(env),
-    explicit.sections,
-    explicit.items,
-    explicit.ingredients,
-    explicit.inventory,
-    explicit.suppliers,
-    explicit.inventorySuppliers,
-    explicit.users,
-  ].join("|");
-}
+export const OPS_TABLE_SPECS = [
+  { key: "sections", name: TABLE_SECTIONS, required: true },
+  { key: "items", name: TABLE_ITEMS, required: true },
+  { key: "ingredients", name: TABLE_INGREDIENTS, required: true },
+  { key: "inventory", name: TABLE_INVENTORY, required: false },
+  { key: "suppliers", name: TABLE_SUPPLIERS, required: false },
+  { key: "inventorySuppliers", name: TABLE_INVENTORY_SUPPLIERS, required: false },
+  { key: "users", name: TABLE_USERS, required: false },
+  { key: "config", name: TABLE_CONFIG, required: false },
+];
 
-export async function resolveOpsTableIds(env) {
-  const cacheKey = tableIdEnvKey(env);
-  if (tableIdCache && tableIdCacheKey === cacheKey) return tableIdCache;
-
-  const explicit = explicitTableIds(env);
-
-  const specs = [
-    { key: "sections", name: TABLE_SECTIONS, required: true },
-    { key: "items", name: TABLE_ITEMS, required: true },
-    { key: "ingredients", name: TABLE_INGREDIENTS, required: true },
-    { key: "inventory", name: TABLE_INVENTORY, required: false },
-    { key: "suppliers", name: TABLE_SUPPLIERS, required: false },
-    { key: "inventorySuppliers", name: TABLE_INVENTORY_SUPPLIERS, required: false },
-    { key: "users", name: TABLE_USERS, required: false },
-  ];
-
-  const needsLookup = specs.some((spec) => !explicit[spec.key]);
-  let scoped = [];
-  if (needsLookup) {
-    const tables = await listAllTables(env);
-    const databaseId = opsDatabaseId(env);
-    scoped = Array.isArray(tables) ? tables : [];
-    if (databaseId) {
-      scoped = scoped.filter((table) => String(table.database_id) === databaseId);
-    }
-  }
-
-  const byName = (name) => scoped.filter((table) => table.name === name);
-  const pick = (name, fallbackEnv, { required = true } = {}) => {
-    if (fallbackEnv) return fallbackEnv;
-    const matches = byName(name);
-    if (matches.length === 1) return String(matches[0].id);
-    if (matches.length === 0) {
-      if (!required) return "";
+/**
+ * Pick the Ops database id: explicit env, or the only database that contains
+ * the fingerprint tables (Menu Sections / Menu Items / Ingredients).
+ */
+export function pickOpsDatabaseId(tables, preferredId = "") {
+  const list = Array.isArray(tables) ? tables : [];
+  if (preferredId) {
+    const scoped = list.filter((table) => String(table.database_id) === preferredId);
+    if (!scoped.length) {
       const error = new Error(
-        `Baserow table "${name}" not found. Run npm run setup:baserow-ops.`,
+        `Baserow database ${preferredId} has no tables visible to this token.`,
       );
       error.status = 503;
       throw error;
     }
+    return preferredId;
+  }
+
+  const byDb = new Map();
+  for (const table of list) {
+    const id = String(table.database_id);
+    if (!byDb.has(id)) byDb.set(id, new Set());
+    byDb.get(id).add(table.name);
+  }
+  const matches = [...byDb.entries()].filter(([, names]) =>
+    OPS_FINGERPRINT.every((name) => names.has(name)),
+  );
+  if (matches.length === 1) return matches[0][0];
+  if (matches.length === 0) {
     const error = new Error(
-      `Multiple Baserow tables named "${name}". Set BASEROW_OPS_DATABASE_ID.`,
+      `Baserow Ops tables not found (need ${OPS_FINGERPRINT.join(", ")}). Run npm run setup:baserow-ops.`,
     );
     error.status = 503;
     throw error;
-  };
+  }
+  const error = new Error(
+    `Multiple Baserow databases look like Ops. Set BASEROW_OPS_DATABASE_ID to one of: ${matches
+      .map(([id]) => id)
+      .join(", ")}.`,
+  );
+  error.status = 503;
+  throw error;
+}
 
-  const resolved = {};
-  for (const spec of specs) {
-    resolved[spec.key] = pick(spec.name, explicit[spec.key], {
-      required: spec.required,
-    });
+function pickTableId(scoped, name, { required = true } = {}) {
+  const matches = scoped.filter((table) => table.name === name);
+  if (matches.length === 1) return String(matches[0].id);
+  if (matches.length === 0) {
+    if (!required) return "";
+    const error = new Error(
+      `Baserow table "${name}" not found. Run npm run setup:baserow-ops.`,
+    );
+    error.status = 503;
+    throw error;
+  }
+  const error = new Error(
+    `Multiple Baserow tables named "${name}" in this database. Rename duplicates.`,
+  );
+  error.status = 503;
+  throw error;
+}
+
+/**
+ * Resolve Ops table ids from the Baserow catalog by stable names.
+ * Cached per isolate. Optional BASEROW_OPS_DATABASE_ID scopes when the token
+ * can see more than one Ops-like database.
+ */
+export async function resolveOpsTableIds(env) {
+  const preferredDb = opsDatabaseId(env);
+  const cacheKey = preferredDb || "*";
+  if (tableIdCache && tableIdCacheKey === cacheKey) return tableIdCache;
+
+  const tables = await listAllTables(env);
+  const databaseId = pickOpsDatabaseId(tables, preferredDb);
+  const scoped = (Array.isArray(tables) ? tables : []).filter(
+    (table) => String(table.database_id) === databaseId,
+  );
+
+  const resolved = { databaseId };
+  for (const spec of OPS_TABLE_SPECS) {
+    resolved[spec.key] = pickTableId(scoped, spec.name, { required: spec.required });
   }
   tableIdCache = resolved;
   tableIdCacheKey = cacheKey;
   return resolved;
+}
+
+/** App Config table id (name lookup via the shared Ops catalog cache). */
+export async function resolveConfigTableId(env) {
+  const tables = await resolveOpsTableIds(env);
+  return tables.config || "";
 }
 
 /** Query params that list only rows linked to `rowId` on `fieldName`. */

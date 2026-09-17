@@ -42,6 +42,15 @@ export async function login(password: string, next = "/menu") {
   });
 }
 
+export type AuthMe = {
+  email: string | null;
+  mode: "google" | "password" | "misconfigured";
+};
+
+export function getMe() {
+  return request<AuthMe>("/api/auth/me");
+}
+
 export function getMenu() {
   return coalesce("menu", () =>
     request<{ sections: import("./types").MenuSection[] }>("/api/menu"),
@@ -229,4 +238,27 @@ export function analyzeRecipeNote(body: {
 			body: JSON.stringify(body),
 		},
 	);
+}
+
+export function getConfig() {
+	return coalesce("config", () =>
+		request<{
+			pourTargets: import("./types").PourTargetMap;
+			values: Record<string, string>;
+		}>("/api/config"),
+	);
+}
+
+export function updateConfig(body: {
+	pourTargets?: Partial<import("./types").PourTargetMap>;
+	reset?: boolean;
+}) {
+	return request<{
+		ok: boolean;
+		pourTargets: import("./types").PourTargetMap;
+	}>("/api/config", {
+		method: "PATCH",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
 }

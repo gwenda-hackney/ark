@@ -36,6 +36,26 @@
 		window.addEventListener("keydown", onKeydown);
 		return () => window.removeEventListener("keydown", onKeydown);
 	});
+
+	/** Closing removes the overlay under the cursor; block the click that would fall through. */
+	function closeWithoutClickThrough(event?: Event) {
+		event?.preventDefault();
+		event?.stopPropagation();
+		onclose();
+		if (typeof document === "undefined") return;
+		const block = (ev: Event) => {
+			ev.preventDefault();
+			ev.stopPropagation();
+		};
+		document.addEventListener("click", block, true);
+		document.addEventListener("pointerup", block, true);
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				document.removeEventListener("click", block, true);
+				document.removeEventListener("pointerup", block, true);
+			});
+		});
+	}
 </script>
 
 {#if open}
@@ -44,8 +64,7 @@
 			type="button"
 			class="backdrop"
 			aria-label="Close dialog"
-			onclick={onclose}
-			transition:fade={{ duration: 180, easing: easeOut }}
+			onclick={closeWithoutClickThrough}
 		></button>
 		<div
 			class="dialog"
@@ -58,11 +77,16 @@
 		>
 			<header class="head">
 				<h2>{title}</h2>
-				<button type="button" class="x" aria-label="Close" onclick={onclose}>
+				<button
+					type="button"
+					class="x"
+					aria-label="Close"
+					onclick={closeWithoutClickThrough}
+				>
 					×
 				</button>
 			</header>
-			<div class="body">
+			<div class="body scrollbar-fade">
 				{@render children()}
 			</div>
 			{#if footer}

@@ -7,22 +7,21 @@
  *   node --env-file=.env scripts/seed-ops-print-menu.mjs --dry-run
  */
 import { PRINT_MENU_CHAPTERS, PRINT_MENU_SECTION_SLUGS } from "./lib/print-menu-sections.mjs";
+import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 
 const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
   /\/$/,
   "",
 );
 const apiKey = process.env.BASEROW_API_KEY?.trim();
-const sectionsTableId = process.env.BASEROW_OPS_SECTIONS_TABLE_ID?.trim();
-const itemsTableId = process.env.BASEROW_OPS_ITEMS_TABLE_ID?.trim();
-const ingredientsTableId = process.env.BASEROW_OPS_INGREDIENTS_TABLE_ID?.trim();
-const inventoryTableId = process.env.BASEROW_OPS_INVENTORY_TABLE_ID?.trim();
+let sectionsTableId = "";
+let itemsTableId = "";
+let ingredientsTableId = "";
+let inventoryTableId = "";
 const dryRun = process.argv.includes("--dry-run");
 
-if (!apiKey || !sectionsTableId || !itemsTableId || !ingredientsTableId || !inventoryTableId) {
-  console.error(
-    "Need BASEROW_API_KEY and BASEROW_OPS_{SECTIONS,ITEMS,INGREDIENTS,INVENTORY}_TABLE_ID",
-  );
+if (!apiKey) {
+  console.error("Need BASEROW_API_KEY");
   process.exit(1);
 }
 
@@ -1190,6 +1189,14 @@ async function upsertMenuItem(def, sectionIdBySlug, itemsByName, invIds) {
 }
 
 async function main() {
+  const tables = await requireOpsTables();
+  sectionsTableId = tables.sections;
+  itemsTableId = tables.items;
+  ingredientsTableId = tables.ingredients;
+  inventoryTableId = tables.inventory;
+  if (!inventoryTableId) {
+    throw new Error('Baserow table "Inventory" not found. Run npm run setup:baserow-ops.');
+  }
   console.log(dryRun ? "Dry run…\n" : "Seeding ops print menu…\n");
 
   console.log("Inventory…");

@@ -181,7 +181,7 @@
 	{#if open}
 		<div
 			bind:this={menuEl}
-			class="menu"
+			class="menu scrollbar-fade"
 			style={menuStyle}
 			role="listbox"
 			tabindex="-1"

@@ -1,5 +1,6 @@
 /** JSON helpers for Cloudflare Pages Functions. */
 import { attachLogger, serializeError } from "./log.js";
+import { opsEnv } from "./ops-env.js";
 
 export function jsonResponse(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -13,7 +14,8 @@ export function withApiHandler(handler) {
     const started = Date.now();
     const log = attachLogger(context);
     try {
-      const response = await handler(context);
+      const env = await opsEnv(context);
+      const response = await handler({ ...context, env });
       log.info("api.request", {
         status: response.status,
         ms: Date.now() - started,
