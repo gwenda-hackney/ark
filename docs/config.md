@@ -73,4 +73,11 @@ Subscribe table id, SMTP host/port, invite URLs stay in marketing wrangler `[var
 2. Machine accounts: `ark-local` (read/write), `ark-ci` (read).
 3. Access tokens: `ark-local-devcontainer`, `ark-ci-github-actions`.
 4. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ops:pull`.
-5. CI: store `ARK_CI_BW_TOKEN` (or `BWS_ACCESS_TOKEN`) as a GitHub secret; job runs `npm run env:ops:pull -- --env-only` (or injects into the job env) before `npm run setup:ops`.
+5. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret. Prefer the **ark-ci** (read-only) machine-account token; ark-local works for wiring but is broader than CI needs.
+6. Sync to Cloudflare Pages (manual / after rotation):
+
+```bash
+gh workflow run ops-secrets.yml
+```
+
+That workflow pulls SM → job env (`env:ops:pull -- --github-env`) then runs [`scripts/setup-ops-secrets.mjs`](../scripts/setup-ops-secrets.mjs) (`wrangler pages secret put`). Cloudflare does **not** read Bitwarden at runtime.

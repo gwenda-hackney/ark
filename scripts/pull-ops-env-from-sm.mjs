@@ -5,15 +5,15 @@
  * Bootstrap (shared `.env` only):
  *   ARK_LOCAL_BW_TOKEN   machine-account access token (ark-local)
  *
- * CI uses ARK_CI_BW_TOKEN or BWS_ACCESS_TOKEN, then either:
- *   npm run env:ops:pull -- --env-only   # print KEY=value for Actions
- *   or feed setup:ops after exporting secrets into the job env
+ * CI uses BWS_ACCESS_TOKEN (ark-ci), then:
+ *   npm run env:ops:pull -- --github-env   # before setup:ops in ops-secrets.yml
  *
  *   npm run env:ops:pull
  *   npm run env:ops:pull -- --dry-run
  *   npm run env:ops:pull -- --env-only
+ *   npm run env:ops:pull -- --github-env
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
@@ -34,10 +34,11 @@ function loadDotEnv(path) {
 }
 
 function parseArgs(argv) {
-  const out = { dryRun: false, envOnly: false };
+  const out = { dryRun: false, envOnly: false, githubEnv: false };
   for (const arg of argv) {
     if (arg === "--dry-run") out.dryRun = true;
     else if (arg === "--env-only") out.envOnly = true;
+    else if (arg === "--github-env") out.githubEnv = true;
     else if (arg === "--help" || arg === "-h") out.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -57,6 +58,24 @@ function formatOpsEnv(values) {
   return `${lines.join("\n")}\n`;
 }
 
+/** GitHub Actions multiline env file syntax. */
+function appendGithubEnv(fromSm) {
+  const path = process.env.GITHUB_ENV?.trim();
+  if (!path) {
+    throw new Error("--github-env requires GITHUB_ENV (GitHub Actions only).");
+  }
+  let n = 0;
+  for (const key of OPS_ENV_SECRET_KEYS) {
+    const value = fromSm.get(key);
+    if (value == null || !String(value).trim()) continue;
+    // Never inject local-admin password into CI job env for Pages sync.
+    if (key === "OPS_LOCAL_ADMIN_PW") continue;
+    appendFileSync(path, `${key}<<BW_EOF\n${value}\nBW_EOF\n`);
+    n += 1;
+  }
+  return n;
+}
+
 function main() {
   let opts;
   try {
@@ -66,15 +85,15 @@ function main() {
     process.exit(1);
   }
   if (opts.help) {
-    console.log(`Usage: node scripts/pull-ops-env-from-sm.mjs [--dry-run] [--env-only]
+    console.log(`Usage: node scripts/pull-ops-env-from-sm.mjs [--dry-run] [--env-only] [--github-env]
 
-  --dry-run    List keys that would sync (no write, no values)
-  --env-only   Print KEY=value lines to stdout (for CI); do not write .env.ops
+  --dry-run      List keys that would sync (no write, no values)
+  --env-only     Print KEY=value lines to stdout; do not write .env.ops
+  --github-env   Append filled secrets to $GITHUB_ENV (skips OPS_LOCAL_ADMIN_PW)
 `);
     return;
   }
 
-  // Shared .env first so ARK_LOCAL_BW_TOKEN is available.
   const shared = loadDotEnv(ENV_PATH);
   for (const [key, value] of shared) {
     if (!process.env[key]) process.env[key] = value;
@@ -96,14 +115,12 @@ function main() {
     if (fromSm.has(key) && String(fromSm.get(key) ?? "").trim()) {
       ops.set(key, fromSm.get(key));
     } else if (existing.has(key)) {
-      // Keep local-only values (e.g. OPS_LOCAL_ADMIN_PW) until they exist in SM.
       ops.set(key, existing.get(key) ?? "");
     } else {
       ops.set(key, fromSm.get(key) ?? "");
     }
   }
   const missing = OPS_ENV_SECRET_KEYS.filter((key) => !fromSm.has(key));
-  const filled = OPS_ENV_SECRET_KEYS.filter((key) => (ops.get(key) || "").trim());
   const fromSmFilled = OPS_ENV_SECRET_KEYS.filter(
     (key) => fromSm.has(key) && String(fromSm.get(key) ?? "").trim(),
   );
@@ -118,6 +135,12 @@ function main() {
     if (ignored.length) {
       console.log(`SM keys not written to .env.ops: ${ignored.join(", ")}`);
     }
+    return;
+  }
+
+  if (opts.githubEnv) {
+    const n = appendGithubEnv(fromSm);
+    console.log(`Appended ${n} secrets to GITHUB_ENV (from SM).`);
     return;
   }
 
@@ -146,4 +169,5 @@ function main() {
     );
   }
 }
+
 main();

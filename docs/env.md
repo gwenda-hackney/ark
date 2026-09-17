@@ -98,7 +98,13 @@ npm run env:ops:pull
 npm run env:ops:pull -- --dry-run
 ```
 
-CI (production Pages secrets): set `ARK_CI_BW_TOKEN`, then `npm run env:ops:pull -- --env-only` into the job env (or `setup:ops` after exporting those keys), so Cloudflare gets secrets without a committed `.env.ops`.
+CI (production Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then:
+
+```bash
+gh workflow run ops-secrets.yml
+```
+
+That syncs SM → Cloudflare Pages secrets. Deploy workflows do not refresh secrets on every push.
 
 ## Secrets vs config
 
