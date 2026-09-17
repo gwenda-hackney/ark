@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { Card, PageHeader } from "../../ui";
+	import { fly } from "svelte/transition";
+	import { BusyOverlay, Card, PageHeader } from "../../ui";
 	import Icon from "../../shell/Icon.svelte";
+	import { easeOut, flyMs } from "../../lib/motion";
 	import * as api from "../../lib/api";
 	import {
 		clampPercent,
@@ -28,8 +30,9 @@
 	let loaded = $state(false);
 	let loadError = $state("");
 
+	const ready = $derived(loaded && pourSettings.loaded && !loadError);
 	const summary = $derived.by((): DashboardSummary | null => {
-		if (!loaded || loadError) return null;
+		if (!ready) return null;
 		return summarizeDashboard(
 			menuItemsFromSections(sections),
 			inventory,
@@ -132,7 +135,7 @@
 	});
 </script>
 
-<div class="dash">
+<div class="dash scrollbar-fade">
 	<PageHeader
 		title="Dashboard"
 		subtitle="Critical issues, warnings, gross margin, and stock that still sits on estimates."
@@ -140,23 +143,14 @@
 
 	{#if loadError}
 		<p class="error">{loadError}</p>
-	{:else}
+	{:else if ready && summary}
+		<div
+			class="ready"
+			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
+		>
 		<div class="stats">
-			<div class="stat rise {loaded && summary ? `heat-${recipeTone}` : ''}">
+			<div class="stat heat-{recipeTone}">
 				<p class="kicker">Recipe issues</p>
-				{#if !loaded || !summary}
-					<div class="pair">
-						<div class="fig">
-							<span class="skel value-skel"></span>
-							<span class="skel line"></span>
-						</div>
-						<div class="fig">
-							<span class="skel value-skel"></span>
-							<span class="skel line"></span>
-						</div>
-					</div>
-					<span class="skel meter-skel"></span>
-				{:else}
 					<div class="pair">
 						<div
 							class="fig"
@@ -203,16 +197,11 @@
 							{summary.recipeCount === 1 ? "drink needs" : "drinks need"} a look.
 						{/if}
 					</p>
-				{/if}
 			</div>
 
-			<div class="stat rise {loaded && summary?.avgGrossMargin != null ? `heat-${gmHeat}` : ''}">
+			<div class="stat {summary.avgGrossMargin != null ? `heat-${gmHeat}` : ''}">
 				<p class="kicker">Gross margin</p>
-				{#if !loaded || !summary}
-					<span class="skel value-skel"></span>
-					<span class="skel meter-skel"></span>
-					<span class="skel line"></span>
-				{:else if summary.avgGrossMargin == null || summary.avgTargetMargin == null}
+				{#if summary.avgGrossMargin == null || summary.avgTargetMargin == null}
 					<p class="value tnum muted">n/a</p>
 					<p class="hint">
 						Need a complete cost and a menu price to read margin.
@@ -246,12 +235,9 @@
 				{/if}
 			</div>
 
-			<div class="stat rise">
+			<div class="stat">
 				<p class="kicker">Pour cost</p>
-				{#if !loaded || !summary}
-					<span class="skel value-skel"></span>
-					<span class="skel line"></span>
-				{:else if summary.recipesPriced === 0}
+				{#if summary.recipesPriced === 0}
 					<p class="value tnum muted">n/a</p>
 					<p class="hint">No drinks have a complete pour-cost reading yet.</p>
 				{:else}
@@ -268,12 +254,8 @@
 				{/if}
 			</div>
 
-			<div class="stat rise">
+			<div class="stat">
 				<p class="kicker">Estimated stock</p>
-				{#if !loaded || !summary}
-					<span class="skel value-skel"></span>
-					<span class="skel line"></span>
-				{:else}
 					<p
 						class="value tnum"
 						class:down={summary.inventoryEstimated > 0}
@@ -293,7 +275,6 @@
 							{/if}
 						{/if}
 					</p>
-				{/if}
 			</div>
 		</div>
 
@@ -304,23 +285,6 @@
 				title="Flagged recipes"
 				subtitle="Critical serve problems first, then warnings from spec analysis and missing data."
 			>
-				{#if !loaded || !summary}
-					<div class="pair">
-						<div class="fig">
-							<span class="skel value-skel"></span>
-							<span class="skel line"></span>
-						</div>
-						<div class="fig">
-							<span class="skel value-skel"></span>
-							<span class="skel line"></span>
-						</div>
-					</div>
-					<ul class="list" aria-hidden="true">
-						<li><span class="skel line"></span></li>
-						<li><span class="skel line"></span></li>
-						<li><span class="skel line"></span></li>
-					</ul>
-				{:else}
 					<div class="pair">
 						<div
 							class="fig"
@@ -353,7 +317,7 @@
 						></span>
 					</div>
 					{#if summary.flaggedRecipes.length}
-						<ul class="list">
+						<ul class="list scrollbar-fade">
 							{#each summary.flaggedRecipes.slice(0, 8) as row (row.id)}
 								<li>
 									<div class="row-top">
@@ -394,7 +358,6 @@
 					{:else}
 						<p class="empty">No recipe issues. Open a drink to read the full spec analysis.</p>
 					{/if}
-				{/if}
 				{#snippet footer()}
 					<a class="go" href="/menu">
 						Menu prices
@@ -409,23 +372,6 @@
 				title="Margin outliers"
 				subtitle="Drinks over the house pour-cost target. Negative margin is a drink sold below cost."
 			>
-				{#if !loaded || !summary}
-					<div class="pair">
-						<div class="fig">
-							<span class="skel value-skel"></span>
-							<span class="skel line"></span>
-						</div>
-						<div class="fig">
-							<span class="skel value-skel"></span>
-							<span class="skel line"></span>
-						</div>
-					</div>
-					<ul class="list" aria-hidden="true">
-						<li><span class="skel line"></span></li>
-						<li><span class="skel line"></span></li>
-						<li><span class="skel line"></span></li>
-					</ul>
-				{:else}
 					<div class="pair">
 						<div
 							class="fig"
@@ -468,7 +414,7 @@
 						></span>
 					</div>
 					{#if summary.pourOutliers.length}
-						<ul class="list">
+						<ul class="list scrollbar-fade">
 							{#each summary.pourOutliers.slice(0, 8) as row (row.id)}
 								{@const tone = rowTone(row)}
 								{@const delta = pourCostDelta(row.pourCost, row.targetPourCost)}
@@ -499,7 +445,6 @@
 							{/if}
 						</p>
 					{/if}
-				{/if}
 				{#snippet footer()}
 					<a class="go" href="/config">
 						Pour targets
@@ -513,14 +458,8 @@
 				title="Estimated inventory"
 				subtitle="Active stock with no supplier trade price. Recipe costs for these lines are stand-ins."
 			>
-				{#if !loaded || !summary}
-					<ul class="list" aria-hidden="true">
-						<li><span class="skel line"></span></li>
-						<li><span class="skel line"></span></li>
-						<li><span class="skel line"></span></li>
-					</ul>
-				{:else if summary.estimatedStock.length}
-					<ul class="list">
+				{#if summary.estimatedStock.length}
+					<ul class="list scrollbar-fade">
 						{#each summary.estimatedStock.slice(0, 10) as row (row.id)}
 							<li>
 								<div class="row-top">
@@ -553,15 +492,24 @@
 				{/snippet}
 			</Card>
 		</div>
+		</div>
 	{/if}
+	<BusyOverlay active={!ready && !loadError} label="Loading…" />
 </div>
 
 <style>
 	.dash {
+		position: relative;
 		flex: 1;
 		min-height: 0;
 		overflow-y: auto;
 		padding: var(--page-gutter);
+	}
+
+	.ready {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 	}
 
 	.error {
@@ -659,11 +607,6 @@
 		pointer-events: none;
 	}
 
-	.meter-skel {
-		height: 0.4rem;
-		width: 100%;
-	}
-
 	.target-meter {
 		height: 0.55rem;
 	}
@@ -734,16 +677,6 @@
 	.hint.down,
 	.hint.loss {
 		color: var(--down);
-	}
-
-	.value-skel {
-		height: 2rem;
-		width: 4rem;
-	}
-
-	.line {
-		height: 0.75rem;
-		width: 100%;
 	}
 
 	.panels {

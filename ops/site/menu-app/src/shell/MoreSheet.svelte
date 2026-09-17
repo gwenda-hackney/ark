@@ -10,10 +10,12 @@
 	let {
 		open = false,
 		path = "/",
+		email = "",
 		onclose,
 	}: {
 		open?: boolean;
 		path?: string;
+		email?: string;
 		onclose: () => void;
 	} = $props();
 
@@ -80,6 +82,15 @@
 					</span>
 				</a>
 			</nav>
+			{#if email}
+				<div class="row session" title={email}>
+					<span class="icon"><Icon name="users" size={18} /></span>
+					<span class="copy">
+						<span class="label">{email}</span>
+						<span class="hint">Signed in</span>
+					</span>
+				</div>
+			{/if}
 			<a class="row signout" href="/api/auth/logout">
 				<span class="icon"><Icon name="logout" size={18} /></span>
 				<span class="copy">
@@ -191,10 +202,30 @@
 		color: color-mix(in srgb, var(--primary) 70%, var(--muted-foreground));
 	}
 
-	.signout {
+	.session {
 		margin-top: 0.25rem;
 		border-top: 1px solid var(--border);
-		border-radius: 0 0 var(--radius-md) var(--radius-md);
 		color: var(--muted-foreground);
+		cursor: default;
+	}
+
+	.session:hover {
+		background: transparent;
+	}
+
+	.session .label {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-weight: 500;
+	}
+
+	.signout {
+		color: var(--muted-foreground);
+	}
+
+	.signout:first-child {
+		margin-top: 0.25rem;
+		border-top: 1px solid var(--border);
 	}
 </style>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import { fly } from "svelte/transition";
 	import { Icon } from "../../shell";
 	import {
 		BusyOverlay,
@@ -15,6 +16,7 @@
 		updateOpsUser,
 	} from "../../lib/api";
 	import { toast } from "../../lib/toast.svelte";
+	import { easeOut, flyMs } from "../../lib/motion";
 	import type { OpsUser } from "../../lib/types";
 
 	let users = $state<OpsUser[]>([]);
@@ -100,7 +102,7 @@
 	}
 </script>
 
-<div class="page">
+<div class="page scrollbar-fade">
 	<PageHeader
 		title="Users"
 		subtitle="Who may sign in to ops with Google. Active emails only."
@@ -133,12 +135,13 @@
 		</Card>
 
 		<Card title="People" subtitle="{users.length} on the list">
-			{#if loading}
-				<p class="muted">Loading…</p>
-			{:else if users.length === 0}
+			{#if !loading && users.length === 0}
 				<p class="muted">No users yet. Add someone above.</p>
-			{:else}
-				<ul class="list">
+			{:else if !loading}
+				<ul
+					class="list"
+					in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
+				>
 					{#each users as user (user.id)}
 						<li class="row" class:off={!user.active}>
 							<div class="copy">
@@ -176,11 +179,12 @@
 		</Card>
 	</div>
 
-	<BusyOverlay open={Boolean(busyId) || saving} label={saving ? "Adding…" : "Saving…"} />
+	<BusyOverlay active={loading} label="Loading…" />
 </div>
 
 <style>
 	.page {
+		position: relative;
 		flex: 1;
 		min-height: 0;
 		overflow-y: auto;

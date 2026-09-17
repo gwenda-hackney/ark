@@ -1,6 +1,8 @@
 /**
- * Ops auth: Google OAuth (local + production) with optional OPS_PASSWORD bypass.
+ * Ops auth: Google OAuth (local + production) with optional local admin password.
  * Membership is Baserow Users. No Cloudflare Access.
+ * OPS_LOCAL_ADMIN_PW is a local-only gate (conceptually a local admin account);
+ * optional OPS_BYPASS_KEY accepts ?access=… as a magic-link into that session.
  */
 import { canonicalizePath } from "./spa-path.js";
 
@@ -63,6 +65,15 @@ export function sessionSecret(env = {}) {
   return env.OPS_SESSION_SECRET?.trim() || "";
 }
 
+/** Local admin password gate (never deploy to Pages). Legacy alias: OPS_PASSWORD. */
+export function localAdminPassword(env = {}) {
+  return (
+    env.OPS_LOCAL_ADMIN_PW?.trim() ||
+    env.OPS_PASSWORD?.trim() ||
+    ""
+  );
+}
+
 /**
  * @param {Record<string, string | undefined>} env
  * @returns {{
@@ -74,7 +85,7 @@ export function sessionSecret(env = {}) {
  * }}
  */
 export function resolveAuth(env) {
-  const password = env.OPS_PASSWORD?.trim() || "";
+  const password = localAdminPassword(env);
   const clientId = googleClientId(env);
   const clientSecret = googleClientSecret(env);
   const secret = sessionSecret(env);
@@ -94,7 +105,7 @@ export function resolveAuth(env) {
 
 export function authMisconfiguredResponse() {
   return new Response(
-    "Ops site requires Google OAuth (GOOGLE_OAUTH_CLIENT_ID/SECRET + OPS_SESSION_SECRET) or OPS_PASSWORD.",
+    "Ops site requires Google OAuth (GOOGLE_OAUTH_CLIENT_ID/SECRET + OPS_SESSION_SECRET) or OPS_LOCAL_ADMIN_PW.",
     { status: 503 },
   );
 }

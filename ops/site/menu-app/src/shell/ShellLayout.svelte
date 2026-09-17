@@ -4,9 +4,11 @@
 	 * Viewport never scrolls — only `.content` does.
 	 */
 	import type { Snippet } from "svelte";
+	import { onMount } from "svelte";
 	import Icon from "./Icon.svelte";
 	import MoreSheet from "./MoreSheet.svelte";
 	import type { NavRoute } from "./types";
+	import { getMe, type AuthMe } from "../lib/api";
 	import {
 		interceptClientNav,
 		listen,
@@ -30,6 +32,7 @@
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../lib/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
+	const GROUP_KEY = "ops.nav.groups";
 
 	let {
 		routes,
@@ -53,10 +56,40 @@
 		}
 	}
 
+	function readExpandedGroups(): Record<string, boolean> {
+		try {
+			const raw = localStorage.getItem(GROUP_KEY);
+			if (!raw) return { stock: true };
+			const parsed = JSON.parse(raw) as Record<string, boolean>;
+			return parsed && typeof parsed === "object" ? parsed : { stock: true };
+		} catch {
+			return { stock: true };
+		}
+	}
+
 	/** Collapsed by default — icons only. */
 	let open = $state(readRail());
+	let expandedGroups = $state<Record<string, boolean>>(readExpandedGroups());
 	let moreOpen = $state(false);
+	let me = $state<AuthMe | null>(null);
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
+	const sessionLabel = $derived(
+		me?.email ? me.email : me ? "Local access" : "",
+	);
+	const sessionMark = $derived(
+		(me?.email || "L").trim().charAt(0).toUpperCase() || "?",
+	);
+
+	onMount(() => {
+		void getMe()
+			.then((row) => {
+				me = row;
+			})
+			.catch(() => {
+				me = null;
+			});
+	});
 
 	const editorChrome = $derived(hideShellChrome(path));
 	const showTabs = $derived(phone.matches && !editorChrome);
@@ -104,6 +137,26 @@
 		if (item.id === "stock") return tabHref("stock");
 		const child = item.children?.find((row) => row.path);
 		return child?.path || "/";
+	}
+
+	function isGroupExpanded(id: string): boolean {
+		return expandedGroups[id] !== false;
+	}
+
+	function persistGroups(): void {
+		try {
+			localStorage.setItem(GROUP_KEY, JSON.stringify(expandedGroups));
+		} catch {
+			/* ignore quota / private mode */
+		}
+	}
+
+	function toggleGroup(id: string): void {
+		expandedGroups = {
+			...expandedGroups,
+			[id]: !isGroupExpanded(id),
+		};
+		persistGroups();
 	}
 
 	function onTab(id: MobileTabId, event: MouseEvent): void {
@@ -174,32 +227,54 @@
 			</span>
 		</div>
 
-		<nav class="nav">
+		<nav class="nav scrollbar-fade">
 			{#each routes as item (item.id)}
 				{#if item.children?.length}
 					{@const inGroup = navGroupContains(item, active)}
 					{@const groupHref = collapsedGroupHref(item)}
-					<div class="nav-group">
+					{@const groupOpen = isGroupExpanded(item.id)}
+					<div class="nav-group" class:expanded={groupOpen}>
 						{#if open}
-							<div class="nav-item group-label" class:in={inGroup}>
+							<button
+								type="button"
+								class="nav-item group-label"
+								class:in={inGroup}
+								class:open={groupOpen}
+								aria-expanded={groupOpen}
+								aria-controls={`nav-group-${item.id}`}
+								onclick={() => toggleGroup(item.id)}
+							>
 								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
 								<span class="nav-label">{item.name}</span>
-							</div>
-							<div class="nav-children" role="group" aria-label={item.name}>
-								{#each item.children as child (child.id)}
-									{@const on = active?.id === child.id}
-									{@const href = child.path || "/"}
-									<a
-										class="nav-item nested"
-										class:on
-										href={href}
-										aria-current={on ? "page" : undefined}
-										onclick={(e) => onLeafClick(e, href)}
-									>
-										<span class="nav-icon"><Icon name={child.icon} size={17} /></span>
-										<span class="nav-label">{child.name}</span>
-									</a>
-								{/each}
+								<span class="group-chevron" aria-hidden="true">
+									<Icon name="chevron-right" size={14} />
+								</span>
+							</button>
+							<div
+								class="nav-children"
+								id={`nav-group-${item.id}`}
+								role="group"
+								aria-label={item.name}
+								aria-hidden={!groupOpen}
+								inert={groupOpen ? undefined : true}
+							>
+								<div class="nav-children-inner">
+									{#each item.children as child (child.id)}
+										{@const on = active?.id === child.id}
+										{@const href = child.path || "/"}
+										<a
+											class="nav-item nested"
+											class:on
+											href={href}
+											aria-current={on ? "page" : undefined}
+											tabindex={groupOpen ? undefined : -1}
+											onclick={(e) => onLeafClick(e, href)}
+										>
+											<span class="nav-icon"><Icon name={child.icon} size={17} /></span>
+											<span class="nav-label">{child.name}</span>
+										</a>
+									{/each}
+								</div>
 							</div>
 						{:else}
 							<a
@@ -251,6 +326,13 @@
 		</nav>
 
 		<div class="rail-foot">
+			{#if sessionLabel}
+				<div class="nav-item session" title={sessionLabel}>
+					<span class="nav-icon session-mark" aria-hidden="true">{sessionMark}</span>
+					<span class="nav-label session-label">{sessionLabel}</span>
+					<span class="tip" aria-hidden="true">{sessionLabel}</span>
+				</div>
+			{/if}
 			<a class="nav-item" href="/api/auth/logout">
 				<span class="nav-icon"><Icon name="logout" size={19} /></span>
 				<span class="nav-label">Sign out</span>
@@ -338,7 +420,12 @@
 		</nav>
 	{/if}
 
-	<MoreSheet open={moreOpen} {path} onclose={() => (moreOpen = false)} />
+	<MoreSheet
+		open={moreOpen}
+		{path}
+		email={sessionLabel}
+		onclose={() => (moreOpen = false)}
+	/>
 </div>
 
 <style>
@@ -452,6 +539,25 @@
 	}
 
 	.nav-children {
+		display: grid;
+		grid-template-rows: 0fr;
+		opacity: 0;
+		overflow: hidden;
+		pointer-events: none;
+		transition:
+			grid-template-rows var(--t-slow) var(--ease),
+			opacity var(--t-slow) var(--ease);
+	}
+
+	.nav-group.expanded .nav-children {
+		grid-template-rows: 1fr;
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.nav-children-inner {
+		min-height: 0;
+		overflow: hidden;
 		display: flex;
 		flex-direction: column;
 		gap: 0.125rem;
@@ -464,13 +570,17 @@
 	}
 
 	.nav-item.group-label {
-		cursor: default;
+		cursor: pointer;
 		color: var(--subtle-foreground);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
 	}
 
 	.nav-item.group-label:hover {
-		background: none;
-		color: var(--subtle-foreground);
+		background: var(--accent);
+		color: var(--foreground);
 	}
 
 	.nav-item.group-label.in {
@@ -480,7 +590,43 @@
 
 	.nav-item.group-label.in:hover {
 		color: var(--primary);
-		background: none;
+		background: var(--accent);
+	}
+
+	.nav-item.group-label.open {
+		color: var(--foreground);
+	}
+
+	.nav-item.group-label.in.open {
+		color: var(--primary);
+	}
+
+	.group-chevron {
+		display: grid;
+		place-items: center;
+		margin-left: auto;
+		flex-shrink: 0;
+		width: 1.125rem;
+		height: 1.125rem;
+		color: var(--muted-foreground);
+		opacity: 0.85;
+		transform: rotate(0deg);
+		transition: transform var(--t-slow) var(--ease);
+	}
+
+	.nav-item.group-label.open .group-chevron {
+		transform: rotate(90deg);
+	}
+
+	.nav-item.group-label:hover .group-chevron,
+	.nav-item.group-label.open .group-chevron,
+	.nav-item.group-label.in .group-chevron {
+		color: inherit;
+		opacity: 1;
+	}
+
+	.shell:not(.open) .group-chevron {
+		display: none;
 	}
 
 	.flyout {
@@ -552,6 +698,38 @@
 		border-top: 1px solid var(--border);
 	}
 
+	.nav-item.session {
+		cursor: default;
+		color: var(--muted-foreground);
+	}
+
+	.nav-item.session:hover {
+		background: transparent;
+		color: var(--muted-foreground);
+	}
+
+	.session-mark {
+		display: grid;
+		place-items: center;
+		width: 1.35rem;
+		height: 1.35rem;
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--primary) 22%, var(--card));
+		color: var(--primary);
+		font-size: 0.7rem;
+		font-weight: 650;
+		letter-spacing: 0;
+		line-height: 1;
+	}
+
+	.session-label {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: var(--text-xs);
+		font-weight: 500;
+	}
+
 	.nav-item {
 		position: relative;
 		display: flex;
@@ -576,7 +754,7 @@
 			box-shadow var(--t-fast) var(--ease-in-out);
 	}
 
-	.nav-item:hover:not(.on) {
+	.nav-item:hover:not(.on):not(.session) {
 		background: var(--accent);
 		color: var(--foreground);
 	}
@@ -766,6 +944,7 @@
 	}
 
 	.content {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		min-width: 0;

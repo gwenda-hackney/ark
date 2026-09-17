@@ -1,13 +1,14 @@
 <script lang="ts">
 	/**
-	 * Editable recipe lines. Add lines via the parent dialog.
+	 * Editable recipe lines. Qty / unit / note edit inline.
+	 * Click the ingredient name to change stock (dialog). Add via parent +.
 	 * Linked stock ABV is resolved from inventory (read-only in the grid).
 	 * Line cost comes from the same pour-cost math as analysis.
 	 */
 	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
-	import { DataGrid, Field, NativeSelect, TextField } from "../../ui";
+	import { Button, DataGrid, Dialog, Field, NativeSelect, TextField } from "../../ui";
 	import { svelteCell } from "../../lib/grid";
-	import { inventoryItemPath } from "../../lib/nav";
+	import { inventoryItemPath, navigate } from "../../lib/nav";
 	import { inventoryAbvById, resolveIngredientAbv } from "../../lib/abv";
 	import { costIngredientLine } from "../../lib/cost";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../lib/viewport.svelte";
@@ -17,8 +18,9 @@
 		type Ingredient,
 		type InventoryItem,
 	} from "../../lib/types";
-	import InventoryLink from "./cells/InventoryLink.svelte";
+	import IngredientNameCell from "./cells/IngredientNameCell.svelte";
 	import RemoveRowCell from "./cells/RemoveRowCell.svelte";
+	import IngredientPicker from "./IngredientPicker.svelte";
 
 	type IngRow = Ingredient & {
 		_key: string;
@@ -42,6 +44,8 @@
 
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 	const unitOptions = UNITS.map((unit) => ({ value: unit, label: unit }));
+
+	let editIndex = $state<number | null>(null);
 
 	const abvById = $derived(inventoryAbvById(inventory));
 
@@ -110,6 +114,10 @@
 			),
 	);
 
+	const editing = $derived(
+		editIndex != null ? ingredients[editIndex] ?? null : null,
+	);
+
 	function commit(next: Ingredient[]) {
 		onChange(next);
 	}
@@ -122,6 +130,25 @@
 
 	function removeRow(index: number) {
 		onChange(ingredients.filter((_, i) => i !== index));
+	}
+
+	function openEdit(index: number) {
+		editIndex = index;
+	}
+
+	function closeEdit() {
+		editIndex = null;
+	}
+
+	function applyEdit(line: Ingredient) {
+		if (editIndex == null) return;
+		const prev = ingredients[editIndex];
+		patchIndex(editIndex, {
+			...line,
+			note: prev?.note,
+			abv: undefined,
+		});
+		closeEdit();
 	}
 
 	function findInventory(name: string): InventoryItem | undefined {
@@ -197,15 +224,18 @@
 		{
 			headerName: "Ingredient",
 			field: "name",
-			editable: (params) => !params.data?.href,
+			editable: false,
 			flex: 1,
-			minWidth: 140,
-			valueSetter: setter("name"),
+			minWidth: 160,
 			cellRenderer: svelteCell(
-				InventoryLink,
+				IngredientNameCell,
 				(params: ICellRendererParams<IngRow>) => ({
 					text: params.data?.name || "",
 					href: params.data?.href || "",
+					onedit: () => {
+						const index = rows.findIndex((r) => r._key === params.data?._key);
+						if (index >= 0) openEdit(index);
+					},
 				}),
 			),
 		},
@@ -273,12 +303,33 @@
 			{#each rows as row, index (row._key)}
 				<article class="card">
 					<header class="card-head">
-						{#if row.href}
-							<InventoryLink text={row.name || "Untitled"} href={row.href} inline />
-						{:else}
-							<span class="card-name">{row.name || "Untitled"}</span>
-						{/if}
-						<RemoveRowCell onremove={() => removeRow(index)} />
+						<span class="card-name">{row.name || "Untitled"}</span>
+						<div class="card-tools">
+							<button
+								type="button"
+								class="card-action"
+								title="Change ingredient"
+								aria-label="Change ingredient"
+								onclick={() => openEdit(index)}
+							>
+								Edit
+							</button>
+							{#if row.href}
+								<a
+									class="card-action"
+									href={row.href}
+									title="Open in inventory"
+									onclick={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+										navigate(row.href!);
+									}}
+								>
+									Stock
+								</a>
+							{/if}
+							<RemoveRowCell onremove={() => removeRow(index)} />
+						</div>
 					</header>
 					<div class="card-grid">
 						<Field label="Qty" for={`ing-qty-${index}`}>
@@ -326,21 +377,6 @@
 							</p>
 						</Field>
 					</div>
-					{#if !row.href}
-						<Field label="Ingredient" for={`ing-name-${index}`}>
-							<TextField
-								id={`ing-name-${index}`}
-								size="sm"
-								placeholder="Name"
-								value={row.name || ""}
-								oninput={(e) =>
-									applyName(
-										index,
-										(e.currentTarget as HTMLInputElement).value,
-									)}
-							/>
-						</Field>
-					{/if}
 					<Field label="Note" for={`ing-note-${index}`}>
 						<TextField
 							id={`ing-note-${index}`}
@@ -373,6 +409,31 @@
 		</div>
 	{/if}
 </div>
+
+<Dialog
+	open={editIndex != null}
+	title="Change ingredient"
+	onclose={closeEdit}
+>
+	{#if editing}
+		<IngredientPicker
+			bind:inventory
+			mode="edit"
+			active={editIndex != null}
+			initial={{
+				quantity: editing.quantity == null ? "" : String(editing.quantity),
+				unit: editing.unit || "ml",
+				name: editing.name || "",
+			}}
+			onpick={applyEdit}
+		/>
+	{/if}
+	{#snippet footer()}
+		<Button variant="outline" size="sm" type="button" onclick={closeEdit}>
+			Cancel
+		</Button>
+	{/snippet}
+</Dialog>
 
 <style>
 	.grid-wrap {
@@ -416,8 +477,36 @@
 	}
 
 	.card-name {
+		min-width: 0;
 		font-weight: 600;
 		line-height: 1.3;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.card-tools {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		flex-shrink: 0;
+	}
+
+	.card-action {
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--muted-foreground);
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.card-action:hover {
+		color: var(--primary);
 	}
 
 	.card-grid {

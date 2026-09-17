@@ -143,33 +143,7 @@ describe("baserowFetch", () => {
 });
 
 describe("resolveOpsTableIds", () => {
-  it("uses wrangler/env ids without listing tables", async () => {
-    const fetchMock = mock.method(globalThis, "fetch", async () => {
-      throw new Error("should not list tables");
-    });
-    const tables = await resolveOpsTableIds({
-      BASEROW_API_KEY: "token",
-      BASEROW_OPS_SECTIONS_TABLE_ID: "1",
-      BASEROW_OPS_ITEMS_TABLE_ID: "2",
-      BASEROW_OPS_INGREDIENTS_TABLE_ID: "3",
-      BASEROW_OPS_INVENTORY_TABLE_ID: "4",
-      BASEROW_OPS_SUPPLIERS_TABLE_ID: "5",
-      BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID: "6",
-      BASEROW_OPS_USERS_TABLE_ID: "7",
-    });
-    assert.deepEqual(tables, {
-      sections: "1",
-      items: "2",
-      ingredients: "3",
-      inventory: "4",
-      suppliers: "5",
-      inventorySuppliers: "6",
-      users: "7",
-    });
-    assert.equal(fetchMock.mock.callCount(), 0);
-  });
-
-  it("resolves missing ids by table name and caches the result", async () => {
+  it("resolves table ids by name from the catalog and caches", async () => {
     const fetchMock = mock.method(globalThis, "fetch", async () =>
       jsonResponse([
         { id: 11, name: "Menu Sections", database_id: 9 },
@@ -179,18 +153,39 @@ describe("resolveOpsTableIds", () => {
         { id: 15, name: "Suppliers", database_id: 9 },
         { id: 16, name: "Inventory suppliers", database_id: 9 },
         { id: 17, name: "Users", database_id: 9 },
+        { id: 18, name: "App Config", database_id: 9 },
+        { id: 99, name: "Menu Items", database_id: 8 },
       ]),
     );
-    const env = {
-      BASEROW_API_KEY: "token",
-      BASEROW_OPS_DATABASE_ID: "9",
-    };
+    const env = { BASEROW_API_KEY: "token" };
     const first = await resolveOpsTableIds(env);
     const second = await resolveOpsTableIds(env);
+    assert.equal(first.databaseId, "9");
     assert.equal(first.sections, "11");
     assert.equal(first.inventorySuppliers, "16");
     assert.equal(first.users, "17");
+    assert.equal(first.config, "18");
     assert.equal(second, first);
     assert.equal(fetchMock.mock.callCount(), 1);
+  });
+
+  it("scopes to BASEROW_OPS_DATABASE_ID when set", async () => {
+    mock.method(globalThis, "fetch", async () =>
+      jsonResponse([
+        { id: 11, name: "Menu Sections", database_id: 9 },
+        { id: 12, name: "Menu Items", database_id: 9 },
+        { id: 13, name: "Ingredients", database_id: 9 },
+        { id: 21, name: "Menu Sections", database_id: 7 },
+        { id: 22, name: "Menu Items", database_id: 7 },
+        { id: 23, name: "Ingredients", database_id: 7 },
+      ]),
+    );
+    const tables = await resolveOpsTableIds({
+      BASEROW_API_KEY: "token",
+      BASEROW_OPS_DATABASE_ID: "7",
+    });
+    assert.equal(tables.databaseId, "7");
+    assert.equal(tables.sections, "21");
+    assert.equal(tables.items, "22");
   });
 });

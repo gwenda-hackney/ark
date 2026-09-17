@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { ShellLayout } from "./shell";
 	import type { NavRoute } from "./shell";
 	import { Toaster } from "./ui";
-	import { fly } from "svelte/transition";
+	import { fade, fly } from "svelte/transition";
 	import HomeOverview from "./features/home/HomeOverview.svelte";
 	import MenuWorkbench from "./features/menu/MenuWorkbench.svelte";
 	import InventoryWorkbench from "./features/inventory/InventoryWorkbench.svelte";
@@ -12,6 +13,8 @@
 	import ToolFrame from "./features/tools/ToolFrame.svelte";
 	import { shellPageKey } from "./lib/nav";
 	import { toolFrameFor } from "./lib/mobile-nav";
+	import { loadPourSettings } from "./lib/settings.svelte";
+	import { easeOut, fadeMs, flyMs } from "./lib/motion";
 
 	const routes: NavRoute[] = [
 		{ id: "home", path: "/", name: "Dashboard", icon: "home" },
@@ -31,19 +34,13 @@
 
 	let path = $state("/");
 
+	onMount(() => {
+		void loadPourSettings();
+	});
+
 	function pageKey(current: string): string {
 		return shellPageKey(current);
 	}
-
-	/** Soft settle — matches theme `--ease`. */
-	function easeOut(t: number): number {
-		return 1 - Math.pow(1 - t, 3.2);
-	}
-
-	const reduced =
-		typeof window !== "undefined" &&
-		window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-	const inMs = reduced ? 0 : 320;
 </script>
 
 <ShellLayout {routes} bind:path>
@@ -53,7 +50,8 @@
 			<div
 				class="page"
 				class:fill={key === "menu" || key === "inventory" || key === "tools"}
-				in:fly={{ y: 8, duration: inMs, easing: easeOut }}
+				in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
+				out:fade={{ duration: fadeMs, easing: easeOut }}
 			>
 				{#if key === "home"}
 					<HomeOverview />
@@ -83,11 +81,13 @@
 
 <style>
 	.page {
-		flex: 1;
-		min-height: 0;
+		position: absolute;
+		inset: 0;
 		display: flex;
 		flex-direction: column;
+		min-height: 0;
 		width: 100%;
+		background: var(--background);
 	}
 
 	.page.fill :global(.workbench),

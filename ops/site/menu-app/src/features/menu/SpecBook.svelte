@@ -173,7 +173,7 @@
 	});
 </script>
 
-<div class="book" bind:this={scroller}>
+<div class="book scrollbar-fade" bind:this={scroller}>
 	<div class="toolbar no-print">
 		<Button variant="outline" onclick={onclose}>Back to menu</Button>
 		<Segmented

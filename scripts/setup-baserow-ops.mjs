@@ -8,9 +8,10 @@
  * Usage:
  *   npm run setup:baserow-ops
  *
- * Also creates the Users table (Email + Active). Optional one-time seed from
- * OPS_ALLOWED_EMAILS if that leftover is still in .env. After that, add people
- * in Baserow, not env.
+ * Also creates the Users table (Email + Active) and App Config (runtime
+ * non-secret settings such as pour-cost targets). Optional one-time Users seed
+ * from OPS_ALLOWED_EMAILS if that leftover is still in .env. After that, add
+ * people in Baserow, not env.
  *
  * Prompts for Baserow email + password on first login, then caches the JWT in
  * `.baserow-jwt.json` (gitignored) for this checkout. Optional non-interactive:
@@ -30,7 +31,14 @@ import {
   TABLE_SECTIONS,
   TABLE_SUPPLIERS,
   TABLE_USERS,
+  TABLE_CONFIG,
 } from "../ops/site/functions/_lib/baserow.js";
+import {
+  DEFAULT_POUR_TARGETS,
+  DEFAULT_SANITY_PROJECT_ID,
+  OPS_CONFIG_KEYS,
+  POUR_TARGET_KEYS,
+} from "../ops/site/functions/_lib/config-store.js";
 import { parseEmailList } from "./lib/parse-email-list.mjs";
 import {
   looksLikeOnlyUrls,
@@ -440,6 +448,38 @@ function userFields() {
   ];
 }
 
+function configFields() {
+  return [
+    { name: "Value", body: { name: "Value", type: "text" } },
+    {
+      name: "Env",
+      body: {
+        name: "Env",
+        type: "single_select",
+        select_options: [
+          { value: "all", color: "dark-gray" },
+          { value: "local", color: "blue" },
+          { value: "staging", color: "orange" },
+          { value: "production", color: "green" },
+        ],
+      },
+    },
+    {
+      name: "Service",
+      body: {
+        name: "Service",
+        type: "single_select",
+        select_options: [
+          { value: "all", color: "dark-gray" },
+          { value: "ops", color: "purple" },
+          { value: "web", color: "cyan" },
+          { value: "workers", color: "yellow" },
+        ],
+      },
+    },
+  ];
+}
+
 function inventorySupplierFields(inventoryTableId, suppliersTableId) {
   return [
     {
@@ -593,6 +633,72 @@ async function seedUsers(apiBase, jwt, usersTableId) {
     byEmail.add(email);
     console.log(`  + ${email}`);
   }
+}
+
+async function seedAppConfig(apiBase, jwt, configTableId) {
+  const existing = await listRows(apiBase, jwt, configTableId);
+  const byKey = new Map();
+  for (const row of existing) {
+    const key = String(row.Name || "").trim();
+    const env = String(row.Env?.value || row.Env || "all")
+      .trim()
+      .toLowerCase();
+    const service = String(row.Service?.value || row.Service || "all")
+      .trim()
+      .toLowerCase();
+    if (key) byKey.set(`${key}|${env}|${service}`, row);
+  }
+
+  async function ensureRow(key, value, envName, service = "ops") {
+    if (!value) return;
+    const mapKey = `${key}|${envName}|${service}`;
+    if (byKey.has(mapKey)) {
+      console.log(`  ✓ ${key} (${envName})`);
+      return;
+    }
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${configTableId}/?user_field_names=true`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          Name: key,
+          Value: String(value),
+          Env: envName,
+          Service: service,
+        }),
+      },
+    );
+    byKey.set(mapKey, true);
+    const shown =
+      key.includes("secret") || key.includes("token") || key.includes("password")
+        ? "(set)"
+        : String(value).length > 48
+          ? `${String(value).slice(0, 24)}…`
+          : value;
+    console.log(`  + ${key}=${shown} (${envName})`);
+  }
+
+  for (const [type, key] of Object.entries(POUR_TARGET_KEYS)) {
+    await ensureRow(key, DEFAULT_POUR_TARGETS[type], "all");
+  }
+
+  await ensureRow(
+    OPS_CONFIG_KEYS.sanityProjectId,
+    readEnv("SANITY_PROJECT_ID") || DEFAULT_SANITY_PROJECT_ID,
+    "all",
+  );
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "development", "local");
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "development", "staging");
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "production", "production");
+
+  const webhook =
+    readEnv("SITE_DEPLOY_WEBHOOK_URL") || readEnv("SANITY_STUDIO_SITE_DEPLOY_URL");
+  await ensureRow(OPS_CONFIG_KEYS.siteDeployWebhookUrl, webhook, "all");
+
+  const googleClientId = readEnv("GOOGLE_OAUTH_CLIENT_ID");
+  await ensureRow(OPS_CONFIG_KEYS.googleOauthClientId, googleClientId, "all");
 }
 
 async function findOrCreateSupplier(apiBase, jwt, suppliersTableId, byName, hint) {
@@ -814,6 +920,13 @@ async function main() {
     TABLE_INGREDIENTS,
   );
   const users = await findOrCreateTable(apiBase, jwt, databaseId, tables, TABLE_USERS);
+  const config = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_CONFIG,
+  );
 
   console.log(`Fields on ${TABLE_SECTIONS}:`);
   await ensureFields(apiBase, jwt, sections.id, sectionFields(sections.id));
@@ -839,11 +952,15 @@ async function main() {
   );
   console.log(`Fields on ${TABLE_USERS}:`);
   await ensureFields(apiBase, jwt, users.id, userFields());
+  console.log(`Fields on ${TABLE_CONFIG}:`);
+  await ensureFields(apiBase, jwt, config.id, configFields());
 
   console.log(`Rows on ${TABLE_SUPPLIERS}:`);
   const supplierByName = await seedSuppliers(apiBase, jwt, suppliers.id);
   console.log(`Rows on ${TABLE_USERS}:`);
   await seedUsers(apiBase, jwt, users.id);
+  console.log(`Rows on ${TABLE_CONFIG}:`);
+  await seedAppConfig(apiBase, jwt, config.id);
   console.log(`Migrate inventory → supplier links:`);
   await migrateSupplierLinks(
     apiBase,
@@ -862,30 +979,19 @@ async function main() {
   console.log(`  ${TABLE_INVENTORY_SUPPLIERS} → ${inventorySuppliers.id}`);
   console.log(`  ${TABLE_INGREDIENTS} → ${ingredients.id}`);
   console.log(`  ${TABLE_USERS} → ${users.id}`);
+  console.log(`  ${TABLE_CONFIG} → ${config.id}`);
   console.log("");
 
-  const envLines = [
-    `BASEROW_OPS_DATABASE_ID=${databaseId}`,
-    `BASEROW_OPS_SECTIONS_TABLE_ID=${sections.id}`,
-    `BASEROW_OPS_ITEMS_TABLE_ID=${items.id}`,
-    `BASEROW_OPS_INVENTORY_TABLE_ID=${inventory.id}`,
-    `BASEROW_OPS_SUPPLIERS_TABLE_ID=${suppliers.id}`,
-    `BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID=${inventorySuppliers.id}`,
-    `BASEROW_OPS_INGREDIENTS_TABLE_ID=${ingredients.id}`,
-    `BASEROW_OPS_USERS_TABLE_ID=${users.id}`,
-  ];
+  const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];
   await maybeWriteEnv(envLines);
   await maybeWriteWranglerVars({
     BASEROW_OPS_DATABASE_ID: String(databaseId),
-    BASEROW_OPS_SECTIONS_TABLE_ID: String(sections.id),
-    BASEROW_OPS_ITEMS_TABLE_ID: String(items.id),
-    BASEROW_OPS_INGREDIENTS_TABLE_ID: String(ingredients.id),
-    BASEROW_OPS_INVENTORY_TABLE_ID: String(inventory.id),
-    BASEROW_OPS_SUPPLIERS_TABLE_ID: String(suppliers.id),
-    BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID: String(inventorySuppliers.id),
-    BASEROW_OPS_USERS_TABLE_ID: String(users.id),
   });
+  await maybeStripTableIdEnvKeys();
 
+  console.log(
+    "Table ids are resolved by name at runtime (no env/wrangler map).",
+  );
   console.log(
     "Next: npm run setup:ops  (pushes Baserow API key + deploy secrets to gwenda-ops Pages)",
   );
@@ -950,16 +1056,76 @@ async function maybeWriteWranglerVars(vars) {
   const { resolve } = await import("node:path");
   const wranglerPath = resolve(process.cwd(), "ops/site/wrangler.toml");
   if (!existsSync(wranglerPath)) {
-    console.log("Add table ids to ops/site/wrangler.toml [vars].");
+    console.log("Add BASEROW_OPS_DATABASE_ID to ops/site/wrangler.toml [vars] if needed.");
     return;
   }
-  const current = readFileSync(wranglerPath, "utf8");
-  const next = upsertTomlVars(current, vars);
+  let next = readFileSync(wranglerPath, "utf8");
+  const current = next;
+  next = upsertTomlVars(next, vars);
+  // Drop legacy per-table id vars; runtime resolves by name.
+  for (const key of TABLE_ID_ENV_KEYS) {
+    next = next.replace(new RegExp(`^${key}\\s*=\\s*.*\\n?`, "gm"), "");
+  }
   if (next !== current) {
     writeFileSync(wranglerPath, next);
-    console.log(`Wrote Baserow Ops ids into ${wranglerPath} [vars]`);
+    console.log(`Wrote Baserow Ops database id into ${wranglerPath} [vars]`);
   } else {
-    console.log("Baserow Ops ids already present in wrangler.toml");
+    console.log("Baserow Ops database id already present in wrangler.toml");
+  }
+}
+
+const TABLE_ID_ENV_KEYS = [
+  "BASEROW_OPS_SECTIONS_TABLE_ID",
+  "BASEROW_OPS_ITEMS_TABLE_ID",
+  "BASEROW_OPS_INGREDIENTS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_TABLE_ID",
+  "BASEROW_OPS_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_USERS_TABLE_ID",
+  "BASEROW_OPS_CONFIG_TABLE_ID",
+];
+
+async function maybeStripTableIdEnvKeys() {
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const envPath = resolve(process.cwd(), ".env");
+  if (!existsSync(envPath)) return;
+  let text = readFileSync(envPath, "utf8");
+  const before = text;
+  for (const key of TABLE_ID_ENV_KEYS) {
+    text = text.replace(new RegExp(`^${key}=.*\\n?`, "gm"), "");
+  }
+  if (text !== before) {
+    writeFileSync(envPath, text);
+    console.log("Removed legacy BASEROW_OPS_*_TABLE_ID keys from .env");
+  }
+  try {
+    const {
+      ensureBwInstalled,
+      ensureServer,
+      ensureSession,
+      syncVault,
+      getItemOrNull,
+      updateItemNotes,
+      DEFAULT_LOCAL_ITEM,
+    } = await import("./lib/bitwarden-env.mjs");
+    ensureBwInstalled();
+    ensureServer();
+    ensureSession();
+    syncVault();
+    const item = getItemOrNull(DEFAULT_LOCAL_ITEM);
+    if (!item?.notes) return;
+    let notes = item.notes;
+    const notesBefore = notes;
+    for (const key of TABLE_ID_ENV_KEYS) {
+      notes = notes.replace(new RegExp(`^${key}=.*\\n?`, "gm"), "");
+    }
+    if (notes !== notesBefore) {
+      updateItemNotes(item, notes);
+      console.log(`Stripped table id keys from Bitwarden ${DEFAULT_LOCAL_ITEM}.`);
+    }
+  } catch {
+    // Local .env strip is enough when vault is locked.
   }
 }
 
@@ -997,7 +1163,7 @@ async function maybeSyncBitwarden(lines) {
       notes = upsertDotEnvKey(notes, key, value);
     }
     updateItemNotes(item, notes);
-    console.log(`Updated Bitwarden ${DEFAULT_LOCAL_ITEM} with Baserow Ops ids.`);
+    console.log(`Updated Bitwarden ${DEFAULT_LOCAL_ITEM} with Baserow Ops database id.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.log("");

@@ -1,22 +1,33 @@
 /**
  * Set Cloudflare Pages secrets for gwenda-ops (Baserow, Google OAuth, publish).
- * Ops table ids are wrangler [vars], not secrets. Leftover table-id, Auth0,
- * Access, and allowlist secrets are removed.
+ * Plain ops settings (Sanity project/dataset, deploy webhook URL, OAuth client id)
+ * live in Baserow App Config. Table ids are resolved by name.
  *
- * Does not put OPS_PASSWORD on Pages. Local may still use it via .dev.vars.
+ * Loads `.env` then `.env.ops` (ops wins). Does not put OPS_LOCAL_ADMIN_PW on Pages.
  *
  * Usage (from repo root):
  *   npm run setup:ops
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
+import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(scriptDir, "..");
 const opsDir = join(rootDir, "ops/site");
+
+function loadEnvFile(path, { override = false } = {}) {
+  if (!existsSync(path)) return;
+  for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
+    if (override || !process.env[key]) process.env[key] = value;
+  }
+}
+
+loadEnvFile(resolve(rootDir, ".env"), { override: false });
+loadEnvFile(resolve(rootDir, ".env.ops"), { override: true });
 
 function findWrangler() {
   for (const base of [opsDir, rootDir]) {
@@ -79,48 +90,6 @@ function putSecret(key, value) {
   }
 }
 
-const googleClientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
-const googleClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
-
-putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
-putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
-putSecret(
-  "SITE_DEPLOY_WEBHOOK_URL",
-  process.env.SITE_DEPLOY_WEBHOOK_URL || process.env.SANITY_STUDIO_SITE_DEPLOY_URL,
-);
-putSecret(
-  "DEPLOY_WEBHOOK_SECRET",
-  process.env.DEPLOY_WEBHOOK_SECRET || process.env.SANITY_STUDIO_SITE_DEPLOY_SECRET,
-);
-putSecret("OPS_BYPASS_KEY", process.env.OPS_BYPASS_KEY);
-putSecret("GOOGLE_OAUTH_CLIENT_ID", googleClientId);
-putSecret("GOOGLE_OAUTH_CLIENT_SECRET", googleClientSecret);
-putSecret("OPS_SESSION_SECRET", process.env.OPS_SESSION_SECRET);
-
-const LEFTOVER_SECRET_KEYS = [
-  "BASEROW_OPS_DATABASE_ID",
-  "BASEROW_OPS_SECTIONS_TABLE_ID",
-  "BASEROW_OPS_ITEMS_TABLE_ID",
-  "BASEROW_OPS_INGREDIENTS_TABLE_ID",
-  "BASEROW_OPS_INVENTORY_TABLE_ID",
-  "BASEROW_OPS_SUPPLIERS_TABLE_ID",
-  "BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID",
-  "BASEROW_OPS_USERS_TABLE_ID",
-  "AUTH0_DOMAIN",
-  "AUTH0_CLIENT_ID",
-  "AUTH0_CLIENT_SECRET",
-  "AUTH0_AUDIENCE",
-  "AUTH0_CONNECTION",
-  "AUTH0_ALLOWED_EMAILS",
-  "OPS_ALLOWED_EMAILS",
-  "OPS_AUTH_MODE",
-  "OPS_DEV_ACCESS_EMAIL",
-  "OPS_DEV_ACCESS_SECRET",
-  "CF_ACCESS_GOOGLE_CLIENT_ID",
-  "CF_ACCESS_GOOGLE_CLIENT_SECRET",
-  "OPS_PASSWORD",
-];
-
 function deleteSecret(key) {
   for (const deploymentEnv of deploymentEnvs) {
     const result = spawnSync(
@@ -149,13 +118,54 @@ function deleteSecret(key) {
   }
 }
 
+putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
+putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
+putSecret(
+  "DEPLOY_WEBHOOK_SECRET",
+  process.env.DEPLOY_WEBHOOK_SECRET || process.env.SANITY_STUDIO_SITE_DEPLOY_SECRET,
+);
+putSecret("OPS_BYPASS_KEY", process.env.OPS_BYPASS_KEY);
+putSecret("GOOGLE_OAUTH_CLIENT_SECRET", process.env.GOOGLE_OAUTH_CLIENT_SECRET);
+putSecret("OPS_SESSION_SECRET", process.env.OPS_SESSION_SECRET);
+
+const LEFTOVER_SECRET_KEYS = [
+  "BASEROW_OPS_DATABASE_ID",
+  "BASEROW_OPS_SECTIONS_TABLE_ID",
+  "BASEROW_OPS_ITEMS_TABLE_ID",
+  "BASEROW_OPS_INGREDIENTS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_TABLE_ID",
+  "BASEROW_OPS_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_USERS_TABLE_ID",
+  "BASEROW_OPS_CONFIG_TABLE_ID",
+  "SANITY_PROJECT_ID",
+  "SANITY_DATASET",
+  "SITE_DEPLOY_WEBHOOK_URL",
+  "SANITY_STUDIO_SITE_DEPLOY_URL",
+  "GOOGLE_OAUTH_CLIENT_ID",
+  "AUTH0_DOMAIN",
+  "AUTH0_CLIENT_ID",
+  "AUTH0_CLIENT_SECRET",
+  "AUTH0_AUDIENCE",
+  "AUTH0_CONNECTION",
+  "AUTH0_ALLOWED_EMAILS",
+  "OPS_ALLOWED_EMAILS",
+  "OPS_AUTH_MODE",
+  "OPS_DEV_ACCESS_EMAIL",
+  "OPS_DEV_ACCESS_SECRET",
+  "CF_ACCESS_GOOGLE_CLIENT_ID",
+  "CF_ACCESS_GOOGLE_CLIENT_SECRET",
+  "OPS_LOCAL_ADMIN_PW",
+  "OPS_PASSWORD",
+];
+
 console.log(
-  "Ops table ids live in ops/site/wrangler.toml [vars], not Pages secrets.",
+  "Ops plain config (Sanity ids, webhook URL, OAuth client id) lives in Baserow App Config.",
 );
 for (const key of LEFTOVER_SECRET_KEYS) deleteSecret(key);
 
-console.log("Done. Production uses Google OAuth + Baserow Users.");
+console.log("Done. Production uses Google OAuth + Baserow Users + App Config.");
 console.log(
-  "Leave OPS_PASSWORD unset on Pages. Local can keep it as an optional bypass.",
+  "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local can keep it as an optional bypass in .env.ops.",
 );
 console.log("If Access still intercepts the host: npm run teardown:ops-access");

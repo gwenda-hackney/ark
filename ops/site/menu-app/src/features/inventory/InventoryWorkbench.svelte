@@ -5,7 +5,7 @@
 	import { onMount } from "svelte";
 	import { fade, fly } from "svelte/transition";
 	import type { ColDef } from "ag-grid-community";
-	import { Button, DataGrid, SearchField } from "../../ui";
+	import { Button, BusyOverlay, DataGrid, SearchField } from "../../ui";
 	import { Icon } from "../../shell";
 	import * as api from "../../lib/api";
 	import { toast } from "../../lib/toast.svelte";
@@ -25,6 +25,7 @@
 	import { setCrumbLeaf } from "../../lib/crumbs.svelte";
 	import { unsaved, rememberBlockedNav } from "../../lib/unsaved.svelte";
 	import { restoreGridScroll, parkGridScroll, unparkGridScroll } from "../../lib/grid-scroll";
+	import { easeOut, fadeMs, flyMs } from "../../lib/motion";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../lib/viewport.svelte";
 	import {
 		INVENTORY_KINDS,
@@ -38,21 +39,12 @@
 
 	let { path = "/inventory" }: { path?: string } = $props();
 
-	function easeOut(t: number): number {
-		return 1 - Math.pow(1 - t, 3.2);
-	}
-
-	const reduced =
-		typeof window !== "undefined" &&
-		window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-	const fadeMs = reduced ? 0 : 180;
-	const flyMs = reduced ? 0 : 320;
-
 	let items = $state<InventoryItem[]>([]);
 	let query = $state("");
 	let loadError = $state("");
-	let busy = $state(false);
-	let busyLabel = $state("Working…");
+	let busy = $state(true);
+	let busyLabel = $state("Loading…");
+	const loading = $derived(busy && busyLabel === "Loading…");
 	let showInactive = $state(false);
 	let selectedId = $state<string | null>(null);
 	let item = $state<InventoryItem | null>(null);
@@ -537,7 +529,7 @@
 						</p>
 					</div>
 
-					{#if rows.length === 0}
+					{#if rows.length === 0 && !loading}
 						<p class="empty">
 							{q
 								? "No inventory matches that search."
@@ -590,6 +582,7 @@
 				</div>
 			{/if}
 		{/if}
+		<BusyOverlay active={loading} label={busyLabel} />
 	</div>
 </div>
 

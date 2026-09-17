@@ -1,6 +1,7 @@
 /**
  * Sync Cloudflare Pages secrets from environment variables.
- * Plain vars (e.g. SITE_ENV) live in wrangler.toml / wrangler.staging.toml and sync on deploy.
+ * Plain config (table ids, SMTP host/port, invite URLs, copy templates) lives in
+ * wrangler.toml [vars] or code defaults — not Pages secrets.
  *
  * Usage:
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
@@ -88,7 +89,7 @@ function putSecret(key, value) {
 
 function deleteSecret(key) {
   for (const deploymentEnv of deploymentEnvs) {
-    spawnSync(
+    const result = spawnSync(
       process.execPath,
       [
         wrangler,
@@ -102,11 +103,54 @@ function deleteSecret(key) {
         deploymentEnv,
       ],
       {
+        input: "y\n",
+        encoding: "utf8",
         env: wranglerEnv,
-        stdio: "inherit",
       },
     );
+    if (result.status === 0) {
+      console.log(`Removed leftover secret ${key} on ${project} (${deploymentEnv}).`);
+      continue;
+    }
+    const message = [result.stderr, result.stdout].filter(Boolean).join("\n").trim();
+    console.log(
+      `Leave ${key} (${deploymentEnv}): ${message || "not present or wrangler declined"}.`,
+    );
   }
+}
+
+/** Non-secrets that used to be synced as Pages secrets. Now wrangler [vars] / code defaults. */
+const LEFTOVER_CONFIG_SECRET_KEYS = [
+  "BASEROW_TABLE_ID",
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_FROM_EVENTS",
+  "INVITE_BASE_URL",
+  "INVITE_IMAGE_URL",
+  "INVITE_EMAIL_SUBJECT",
+  "INVITE_EMAIL_BODY",
+  "INVITE_INSTAGRAM_MESSAGE",
+];
+
+function putSharedSecrets() {
+  putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
+  putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
+  putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
+  putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
+  putSecret("SMTP_USER", process.env.SMTP_USER);
+  putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
+  putSecret("SMTP_FROM", process.env.SMTP_FROM);
+  putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
+  putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
+  putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
+  putSecret("APPLE_WALLET_SIGNER_KEY", process.env.APPLE_WALLET_SIGNER_KEY);
+  putSecret("APPLE_WALLET_WWDR_CERT", process.env.APPLE_WALLET_WWDR_CERT);
+  putSecret(
+    "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
+    process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
+  );
+  putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
+  putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
 }
 
 const profiles = {
@@ -117,65 +161,13 @@ const profiles = {
     }
     putSecret("SITE_PASSWORD", process.env.SITE_PASSWORD);
     putSecret("GATE_BYPASS_KEY", process.env.GATE_BYPASS_KEY);
-    putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
-    putSecret("BASEROW_TABLE_ID", process.env.BASEROW_TABLE_ID);
-    putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
-    putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
-    putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
-    putSecret("SMTP_HOST", process.env.SMTP_HOST);
-    putSecret("SMTP_PORT", process.env.SMTP_PORT);
-    putSecret("SMTP_USER", process.env.SMTP_USER);
-    putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
-    putSecret("SMTP_FROM", process.env.SMTP_FROM);
-    putSecret("SMTP_FROM_EVENTS", process.env.SMTP_FROM_EVENTS);
-    putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
-    putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
-    putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
-    putSecret("APPLE_WALLET_SIGNER_KEY", process.env.APPLE_WALLET_SIGNER_KEY);
-    putSecret("APPLE_WALLET_WWDR_CERT", process.env.APPLE_WALLET_WWDR_CERT);
-    putSecret(
-      "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
-      process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
-    );
-    putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
-    putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
-    putSecret("INVITE_BASE_URL", process.env.INVITE_BASE_URL);
-    putSecret("INVITE_IMAGE_URL", process.env.INVITE_IMAGE_URL);
-    putSecret("INVITE_EMAIL_SUBJECT", process.env.INVITE_EMAIL_SUBJECT);
-    putSecret("INVITE_EMAIL_BODY", process.env.INVITE_EMAIL_BODY);
-    putSecret("INVITE_INSTAGRAM_MESSAGE", process.env.INVITE_INSTAGRAM_MESSAGE);
+    putSharedSecrets();
   },
   production: () => {
     for (const key of ["SITE_PASSWORD", "GATE_BYPASS_KEY"]) {
       deleteSecret(key);
     }
-    putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
-    putSecret("BASEROW_TABLE_ID", process.env.BASEROW_TABLE_ID);
-    putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
-    putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
-    putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
-    putSecret("SMTP_HOST", process.env.SMTP_HOST);
-    putSecret("SMTP_PORT", process.env.SMTP_PORT);
-    putSecret("SMTP_USER", process.env.SMTP_USER);
-    putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
-    putSecret("SMTP_FROM", process.env.SMTP_FROM);
-    putSecret("SMTP_FROM_EVENTS", process.env.SMTP_FROM_EVENTS);
-    putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
-    putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
-    putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
-    putSecret("APPLE_WALLET_SIGNER_KEY", process.env.APPLE_WALLET_SIGNER_KEY);
-    putSecret("APPLE_WALLET_WWDR_CERT", process.env.APPLE_WALLET_WWDR_CERT);
-    putSecret(
-      "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
-      process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
-    );
-    putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
-    putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
-    putSecret("INVITE_BASE_URL", process.env.INVITE_BASE_URL);
-    putSecret("INVITE_IMAGE_URL", process.env.INVITE_IMAGE_URL);
-    putSecret("INVITE_EMAIL_SUBJECT", process.env.INVITE_EMAIL_SUBJECT);
-    putSecret("INVITE_EMAIL_BODY", process.env.INVITE_EMAIL_BODY);
-    putSecret("INVITE_INSTAGRAM_MESSAGE", process.env.INVITE_INSTAGRAM_MESSAGE);
+    putSharedSecrets();
   },
 };
 
@@ -186,3 +178,8 @@ if (!run) {
 }
 
 run();
+
+console.log(
+  "Plain config (BASEROW_TABLE_ID, SMTP host/port, invite URLs) lives in wrangler [vars].",
+);
+for (const key of LEFTOVER_CONFIG_SECRET_KEYS) deleteSecret(key);

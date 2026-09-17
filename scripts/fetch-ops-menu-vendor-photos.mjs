@@ -9,22 +9,21 @@
  *   node --env-file=.env scripts/fetch-ops-menu-vendor-photos.mjs --dry-run
  *   node --env-file=.env scripts/fetch-ops-menu-vendor-photos.mjs --force
  */
+import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
+
 const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
   /\/$/,
   "",
 );
 const apiKey = process.env.BASEROW_API_KEY?.trim();
-const itemsTableId = process.env.BASEROW_OPS_ITEMS_TABLE_ID?.trim();
-const ingredientsTableId = process.env.BASEROW_OPS_INGREDIENTS_TABLE_ID?.trim();
-const inventorySuppliersTableId =
-  process.env.BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID?.trim();
+let itemsTableId = "";
+let ingredientsTableId = "";
+let inventorySuppliersTableId = "";
 const dryRun = process.argv.includes("--dry-run");
 const force = process.argv.includes("--force");
 
-if (!apiKey || !itemsTableId || !ingredientsTableId || !inventorySuppliersTableId) {
-  console.error(
-    "Need BASEROW_API_KEY and BASEROW_OPS_{ITEMS,INGREDIENTS,INVENTORY_SUPPLIERS}_TABLE_ID",
-  );
+if (!apiKey) {
+  console.error("Need BASEROW_API_KEY");
   process.exit(1);
 }
 
@@ -205,6 +204,15 @@ async function uploadAndAttach(itemId, name, bytes, contentType, ext) {
 }
 
 async function main() {
+  const tables = await requireOpsTables();
+  itemsTableId = tables.items;
+  ingredientsTableId = tables.ingredients;
+  inventorySuppliersTableId = tables.inventorySuppliers;
+  if (!inventorySuppliersTableId) {
+    throw new Error(
+      'Baserow table "Inventory suppliers" not found. Run npm run setup:baserow-ops.',
+    );
+  }
   console.log(
     dryRun
       ? "Dry run: vendor photos for pour / packaged / beer…\n"

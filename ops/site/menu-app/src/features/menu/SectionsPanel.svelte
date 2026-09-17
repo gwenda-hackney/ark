@@ -151,7 +151,7 @@
 		</header>
 	{/if}
 
-	<div class="body">
+	<div class="body scrollbar-fade">
 		{#if showChrome}
 			<p class="lead">
 				Chapters and groups drinks belong to. Same tree as the print menu.

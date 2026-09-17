@@ -1,6 +1,6 @@
 /**
  * Protects the ops Pages project.
- * Google OAuth (local + production); optional OPS_PASSWORD bypass.
+ * Google OAuth (local + production); optional OPS_LOCAL_ADMIN_PW + OPS_BYPASS_KEY.
  */
 import {
   authMisconfiguredResponse,
@@ -21,6 +21,7 @@ import {
   signInRequiredResponse,
 } from "./_lib/auth.js";
 import { attachLogger, serializeError } from "./_lib/log.js";
+import { opsEnv } from "./_lib/ops-env.js";
 import { isSpaDocumentPath } from "./_lib/spa-path.js";
 import { isOpsUser } from "./_lib/user-store.js";
 
@@ -35,11 +36,12 @@ export async function onRequest(context) {
 }
 
 async function handleRequest(context) {
-  const auth = resolveAuth(context.env);
+  const env = await opsEnv(context);
+  const auth = resolveAuth(env);
   if (auth.kind === "misconfigured") return authMisconfiguredResponse();
 
   const url = new URL(context.request.url);
-  const bypassKey = context.env.OPS_BYPASS_KEY;
+  const bypassKey = env.OPS_BYPASS_KEY;
   const accessParam = url.searchParams.get("access");
 
   const authed = await isRequestAuthed(auth, context.request);
@@ -66,7 +68,7 @@ async function handleRequest(context) {
     if ((url.pathname === "/gate" || url.pathname === "/gate/") && authed) {
       if (auth.kind === "google") {
         const allowed = await isOpsUser(
-          context.env,
+          env,
           await resolveSessionEmail(context.request, auth),
         );
         if (!allowed) return opsUserForbiddenResponse();
@@ -79,7 +81,7 @@ async function handleRequest(context) {
   if (auth.kind === "google" && authed) {
     const email = await resolveSessionEmail(context.request, auth);
     if (email) {
-      const allowed = await isOpsUser(context.env, email);
+      const allowed = await isOpsUser(env, email);
       if (!allowed) {
         if (isProtectedApiPath(url.pathname)) {
           return opsUserForbiddenResponse({ json: true });

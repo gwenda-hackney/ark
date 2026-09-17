@@ -11,10 +11,12 @@ import {
   buildGoogleAuthorizeUrl,
   randomUrlSafe,
 } from "../../_lib/google-oauth.js";
+import { opsEnv } from "../../_lib/ops-env.js";
 
 /** Start Google OAuth (PKCE). */
 export async function onRequestGet(context) {
-  const auth = resolveAuth(context.env);
+  const env = await opsEnv(context);
+  const auth = resolveAuth(env);
   if (auth.kind !== "google") {
     return new Response("Google OAuth is not configured.", { status: 503 });
   }
@@ -23,7 +25,7 @@ export async function onRequestGet(context) {
   const next = safeRedirectPath(url.searchParams.get("next"));
   const state = randomUrlSafe(16);
   const codeVerifier = randomUrlSafe(32);
-  const authorizeUrl = await buildGoogleAuthorizeUrl(context.env, context.request, {
+  const authorizeUrl = await buildGoogleAuthorizeUrl(env, context.request, {
     state,
     codeVerifier,
     next,

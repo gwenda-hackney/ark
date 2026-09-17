@@ -16,6 +16,7 @@ import {
   skuFromProductUrl,
   supplierFromUrl,
 } from "../ops/site/functions/_lib/suppliers.js";
+import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 
 const LWC_PRICES = JSON.parse(
   readFileSync(
@@ -29,17 +30,13 @@ const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replac
   "",
 );
 const apiKey = process.env.BASEROW_API_KEY?.trim();
-const inventoryTableId = process.env.BASEROW_OPS_INVENTORY_TABLE_ID?.trim();
-const suppliersTableId = process.env.BASEROW_OPS_SUPPLIERS_TABLE_ID?.trim();
-const inventorySuppliersTableId =
-  process.env.BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID?.trim();
+let inventoryTableId = "";
+let suppliersTableId = "";
+let inventorySuppliersTableId = "";
 const dryRun = process.argv.includes("--dry-run");
 
-if (!apiKey || !inventoryTableId || !suppliersTableId || !inventorySuppliersTableId) {
-  console.error(
-    "Need BASEROW_API_KEY and BASEROW_OPS_{INVENTORY,SUPPLIERS,INVENTORY_SUPPLIERS}_TABLE_ID",
-  );
-  console.error("Run npm run setup:baserow-ops first.");
+if (!apiKey) {
+  console.error("Need BASEROW_API_KEY. Run npm run setup:baserow-ops first.");
   process.exit(1);
 }
 
@@ -385,6 +382,15 @@ function mergeLinks(...groups) {
 }
 
 async function main() {
+  const tables = await requireOpsTables();
+  inventoryTableId = tables.inventory;
+  suppliersTableId = tables.suppliers;
+  inventorySuppliersTableId = tables.inventorySuppliers;
+  if (!inventoryTableId || !suppliersTableId || !inventorySuppliersTableId) {
+    throw new Error(
+      "Missing Inventory / Suppliers / Inventory suppliers. Run npm run setup:baserow-ops.",
+    );
+  }
   console.log(dryRun ? "Dry run…\n" : "Enriching inventory from supplier pages…\n");
 
   const [inventoryRows, supplierRows, linkRows, linkFieldNames] = await Promise.all([

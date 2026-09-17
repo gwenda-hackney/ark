@@ -1,46 +1,82 @@
 /**
- * House pour-cost targets. Defaults live in the drink-type model; the gear
- * dialog writes overrides to localStorage so analysis can use them live.
+ * House pour-cost targets from Baserow App Config (via /api/config).
+ * Defaults match the drink-type model until the first successful load.
  */
 import {
 	DEFAULT_POUR_TARGETS,
 	normalizePourTargets,
 	type PourTargetMap,
 } from "./types.ts";
-
-export const POUR_TARGET_STORAGE_KEY = "gwenda-ops-pour-targets";
-
-function readStored(): PourTargetMap {
-	if (typeof localStorage === "undefined") {
-		return { ...DEFAULT_POUR_TARGETS };
-	}
-	try {
-		const raw = localStorage.getItem(POUR_TARGET_STORAGE_KEY);
-		if (!raw) return { ...DEFAULT_POUR_TARGETS };
-		return normalizePourTargets(JSON.parse(raw) as Partial<PourTargetMap>);
-	} catch {
-		return { ...DEFAULT_POUR_TARGETS };
-	}
-}
+import * as api from "./api.ts";
 
 export const pourSettings = $state({
-	targets: readStored(),
+	targets: { ...DEFAULT_POUR_TARGETS } as PourTargetMap,
+	loaded: false,
+	saving: false,
+	error: "",
 });
 
-export function setPourTargets(next: Partial<PourTargetMap>) {
+let loadPromise: Promise<void> | null = null;
+
+export function loadPourSettings(): Promise<void> {
+	if (pourSettings.loaded) return Promise.resolve();
+	if (loadPromise) return loadPromise;
+	loadPromise = (async () => {
+		pourSettings.error = "";
+		try {
+			const data = await api.getConfig();
+			pourSettings.targets = normalizePourTargets(data.pourTargets);
+			pourSettings.loaded = true;
+		} catch (err) {
+			pourSettings.error =
+				err instanceof Error ? err.message : "Could not load configuration.";
+			// Keep defaults so recipe analysis still works offline / before setup.
+			pourSettings.loaded = true;
+		} finally {
+			loadPromise = null;
+		}
+	})();
+	return loadPromise;
+}
+
+export async function setPourTargets(next: Partial<PourTargetMap>) {
 	const targets = normalizePourTargets({
 		...pourSettings.targets,
 		...next,
 	});
+	const previous = { ...pourSettings.targets };
 	pourSettings.targets = targets;
-	if (typeof localStorage !== "undefined") {
-		localStorage.setItem(POUR_TARGET_STORAGE_KEY, JSON.stringify(targets));
+	pourSettings.saving = true;
+	pourSettings.error = "";
+	try {
+		const data = await api.updateConfig({ pourTargets: targets });
+		pourSettings.targets = normalizePourTargets(data.pourTargets);
+		pourSettings.loaded = true;
+	} catch (err) {
+		pourSettings.targets = previous;
+		pourSettings.error =
+			err instanceof Error ? err.message : "Could not save configuration.";
+		throw err;
+	} finally {
+		pourSettings.saving = false;
 	}
 }
 
-export function resetPourTargets() {
+export async function resetPourTargets() {
+	const previous = { ...pourSettings.targets };
 	pourSettings.targets = { ...DEFAULT_POUR_TARGETS };
-	if (typeof localStorage !== "undefined") {
-		localStorage.removeItem(POUR_TARGET_STORAGE_KEY);
+	pourSettings.saving = true;
+	pourSettings.error = "";
+	try {
+		const data = await api.updateConfig({ reset: true });
+		pourSettings.targets = normalizePourTargets(data.pourTargets);
+		pourSettings.loaded = true;
+	} catch (err) {
+		pourSettings.targets = previous;
+		pourSettings.error =
+			err instanceof Error ? err.message : "Could not reset configuration.";
+		throw err;
+	} finally {
+		pourSettings.saving = false;
 	}
 }

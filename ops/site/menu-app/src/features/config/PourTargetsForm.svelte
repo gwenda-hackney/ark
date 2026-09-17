@@ -11,6 +11,7 @@
 		resetPourTargets,
 		setPourTargets,
 	} from "../../lib/settings.svelte";
+	import { toast } from "../../lib/toast.svelte";
 
 	let {
 		active = true,
@@ -44,24 +45,42 @@
 		syncDraft();
 	});
 
-	function commit(type: DrinkType, raw: string) {
+	async function commit(type: DrinkType, raw: string) {
 		draft = { ...draft, [type]: raw };
-		setPourTargets({ [type]: raw } as Partial<PourTargetMap>);
-		draft = {
-			...draft,
-			[type]: String(pourSettings.targets[type]),
-		};
+		try {
+			await setPourTargets({ [type]: raw } as Partial<PourTargetMap>);
+			draft = {
+				...draft,
+				[type]: String(pourSettings.targets[type]),
+			};
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Could not save pour targets.",
+			);
+			syncDraft();
+		}
 	}
 
-	function reset() {
-		resetPourTargets();
-		syncDraft();
+	async function reset() {
+		try {
+			await resetPourTargets();
+			syncDraft();
+			toast.ok("Pour targets reset.");
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Could not reset pour targets.",
+			);
+			syncDraft();
+		}
 	}
 </script>
 
 <p class="lead">
-	Target pour cost is ingredient cost as a share of the selling price. Cocktails default to 20%, the usual mixed-drink target. Saved in this browser.
+	Target pour cost is ingredient cost as a share of the selling price. Cocktails default to 20%, the usual mixed-drink target. Saved in Baserow for the whole team.
 </p>
+{#if pourSettings.error && !pourSettings.saving}
+	<p class="warn" role="status">{pourSettings.error}</p>
+{/if}
 <div class="rows">
 	{#each DRINK_TYPES as row (row.value)}
 		<Field
@@ -74,18 +93,19 @@
 				size="sm"
 				mono
 				inputmode="decimal"
+				disabled={pourSettings.saving}
 				value={draft[row.value]}
 				oninput={(e) => {
 					const raw = (e.currentTarget as HTMLInputElement).value;
 					draft = { ...draft, [row.value]: raw };
 				}}
 				onchange={(e) =>
-					commit(
+					void commit(
 						row.value,
 						(e.currentTarget as HTMLInputElement).value,
 					)}
 				onblur={(e) =>
-					commit(
+					void commit(
 						row.value,
 						(e.currentTarget as HTMLInputElement).value,
 					)}
@@ -95,7 +115,13 @@
 </div>
 {#if showReset}
 	<div class="actions">
-		<Button variant="outline" size="sm" type="button" onclick={reset}>
+		<Button
+			variant="outline"
+			size="sm"
+			type="button"
+			disabled={pourSettings.saving}
+			onclick={() => void reset()}
+		>
 			Reset to standard
 		</Button>
 	</div>
@@ -107,6 +133,12 @@
 		font-size: var(--text);
 		line-height: 1.5;
 		color: var(--muted-foreground);
+	}
+
+	.warn {
+		margin: 0 0 1rem;
+		font-size: var(--text-sm);
+		color: var(--destructive, #c97a7a);
 	}
 
 	.rows {

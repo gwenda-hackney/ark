@@ -86,5 +86,20 @@ If staging/production already work, skip `setup:ci-secrets` / `setup:site-deploy
 
 | File | Purpose |
 |------|---------|
-| `ark/.env` (file) ← item `ark/.env.local` | Site, Studio, Workers, ops |
+| `ark/.env` (file) ← item `ark/.env.local` | Marketing / shared local secrets + `ARK_LOCAL_BW_TOKEN` |
+| `.env.ops` | Ops secrets from Secrets Manager (`npm run env:ops:pull`) |
 | Nest `.env` (`~/dev/gwenda/.env`) | Workspace tools (e.g. ClickUp). Separate. |
+
+## Ops Secrets Manager pull
+
+```bash
+# Requires ARK_LOCAL_BW_TOKEN in .env
+npm run env:ops:pull
+npm run env:ops:pull -- --dry-run
+```
+
+CI (production Pages secrets): set `ARK_CI_BW_TOKEN`, then `npm run env:ops:pull -- --env-only` into the job env (or `setup:ops` after exporting those keys), so Cloudflare gets secrets without a committed `.env.ops`.
+
+## Secrets vs config
+
+Bitwarden is for **credentials** only. Ops plain config belongs in Baserow **App Config**. Marketing still uses wrangler `[vars]` / `.env` until its migration. See [config.md](./config.md).

@@ -53,44 +53,80 @@
 	}
 
 	function prepareColDefs<T>(defs: ColDef<T>[]): ColDef<T>[] {
-		return withNumericHeaders(lockPixelCols(defs));
+		return withNumericAlignment(lockPixelCols(defs));
 	}
 
-	function withNumericHeaders<T>(defs: ColDef<T>[]): ColDef<T>[] {
+	/** Right-align headers and cells for `type: "num"` (and explicit num classes). */
+	function withNumericAlignment<T>(defs: ColDef<T>[]): ColDef<T>[] {
 		return defs.map((def) => {
 			if (!isNumericCol(def)) return def;
-			const existing = def.headerClass;
-			if (typeof existing === "string" && existing.split(/\s+/).includes(NUMERIC_HEADER)) {
-				return def;
+			let next: ColDef<T> = { ...def };
+
+			const header = next.headerClass;
+			if (typeof header === "string" && header.split(/\s+/).includes(NUMERIC_HEADER)) {
+				/* already set */
+			} else if (Array.isArray(header) && header.includes(NUMERIC_HEADER)) {
+				/* already set */
+			} else if (!header) {
+				next = { ...next, headerClass: NUMERIC_HEADER };
+			} else if (typeof header === "string") {
+				next = { ...next, headerClass: `${header} ${NUMERIC_HEADER}` };
+			} else if (Array.isArray(header)) {
+				next = { ...next, headerClass: [...header, NUMERIC_HEADER] };
+			} else {
+				next = {
+					...next,
+					headerClass: (params) => {
+						const result = header(params);
+						if (!result) return NUMERIC_HEADER;
+						if (typeof result === "string") {
+							return result.split(/\s+/).includes(NUMERIC_HEADER)
+								? result
+								: `${result} ${NUMERIC_HEADER}`;
+						}
+						if (Array.isArray(result)) {
+							return result.includes(NUMERIC_HEADER)
+								? result
+								: [...result, NUMERIC_HEADER];
+						}
+						return NUMERIC_HEADER;
+					},
+				};
 			}
-			if (Array.isArray(existing) && existing.includes(NUMERIC_HEADER)) {
-				return def;
+
+			const cell = next.cellClass;
+			if (typeof cell === "function") {
+				const prior = cell;
+				next = {
+					...next,
+					cellClass: (params) => {
+						const result = prior(params);
+						const classes = Array.isArray(result)
+							? result.join(" ")
+							: String(result || "");
+						if (/(^|\s)(num|ag-right-aligned-cell)(\s|$)/.test(classes)) {
+							return result;
+						}
+						const extra = "num ag-right-aligned-cell";
+						if (!result) return extra;
+						if (Array.isArray(result)) return [...result, "num", "ag-right-aligned-cell"];
+						return `${classes} ${extra}`;
+					},
+				};
+			} else if (typeof cell === "string") {
+				if (!/(^|\s)(num|ag-right-aligned-cell)(\s|$)/.test(cell)) {
+					next = { ...next, cellClass: `${cell} num ag-right-aligned-cell` };
+				}
+			} else if (Array.isArray(cell)) {
+				const joined = cell.filter((c) => typeof c === "string").join(" ");
+				if (!/(^|\s)(num|ag-right-aligned-cell)(\s|$)/.test(joined)) {
+					next = { ...next, cellClass: [...cell, "num", "ag-right-aligned-cell"] };
+				}
+			} else if (!cell) {
+				next = { ...next, cellClass: "num ag-right-aligned-cell" };
 			}
-			if (!existing) return { ...def, headerClass: NUMERIC_HEADER };
-			if (typeof existing === "string") {
-				return { ...def, headerClass: `${existing} ${NUMERIC_HEADER}` };
-			}
-			if (Array.isArray(existing)) {
-				return { ...def, headerClass: [...existing, NUMERIC_HEADER] };
-			}
-			return {
-				...def,
-				headerClass: (params) => {
-					const result = existing(params);
-					if (!result) return NUMERIC_HEADER;
-					if (typeof result === "string") {
-						return result.split(/\s+/).includes(NUMERIC_HEADER)
-							? result
-							: `${result} ${NUMERIC_HEADER}`;
-					}
-					if (Array.isArray(result)) {
-						return result.includes(NUMERIC_HEADER)
-							? result
-							: [...result, NUMERIC_HEADER];
-					}
-					return NUMERIC_HEADER;
-				},
-			};
+
+			return next;
 		});
 	}
 
@@ -284,22 +320,34 @@
 	}
 
 	/*
-	  AG Grid paints a 1px header focus box via ::after. Links inside cells
-	  (the name column) pick up the global :focus-visible pill, which hugs the
-	  word. Keep one table-shaped ring on the cell instead.
+	  One focus ring for the table. AG Grid paints its own cell-focus border;
+	  global :focus-visible also rings links/buttons inside cells. Keep a single
+	  inset ring on the focused cell and silence everything nested.
 	*/
+	.host :global(.ag-header-cell:focus),
 	.host :global(.ag-header-cell:focus-visible),
+	.host :global(.ag-header-group-cell:focus),
 	.host :global(.ag-header-group-cell:focus-visible),
-	.host :global(.ag-cell:focus-visible),
+	.host :global(.ag-cell:focus:not(.ag-cell-inline-editing)),
+	.host :global(.ag-cell:focus-visible:not(.ag-cell-inline-editing)),
+	.host :global(.ag-cell :focus),
 	.host :global(.ag-cell :focus-visible) {
-		outline: none;
+		outline: none !important;
 		outline-offset: 0;
-		border-radius: 0;
+		box-shadow: none !important;
 	}
 
+	.host :global(.ag-cell.ag-cell-focus:not(.ag-cell-inline-editing)),
 	.host :global(.ag-cell:focus-within:not(.ag-cell-inline-editing)) {
+		border-color: transparent !important;
 		outline: 1px solid var(--ring);
 		outline-offset: -4px;
+		box-shadow: none !important;
+	}
+
+	.host :global(.ag-cell.ag-cell-focus.ag-cell-inline-editing),
+	.host :global(.ag-cell:focus-within.ag-cell-inline-editing) {
+		outline: none !important;
 	}
 
 	.host :global(.ag-cell) {
@@ -315,9 +363,12 @@
 	}
 
 	.host :global(.ag-right-aligned-cell .ag-cell-wrapper),
-	.host :global(.ag-cell.num .ag-cell-wrapper) {
+	.host :global(.ag-cell.num .ag-cell-wrapper),
+	.host :global(.ag-right-aligned-cell .ag-cell-value),
+	.host :global(.ag-cell.num .ag-cell-value) {
 		justify-content: flex-end;
 		width: 100%;
+		text-align: right;
 	}
 
 	.host :global(.ag-right-aligned-header .ag-cell-label-container) {
@@ -334,7 +385,9 @@
 	}
 
 	.host :global(.ag-right-aligned-cell .ag-cell-inline-editing input),
-	.host :global(.ag-cell.num .ag-cell-inline-editing input) {
+	.host :global(.ag-cell.num .ag-cell-inline-editing input),
+	.host :global(.ag-right-aligned-cell .ag-cell-editor input),
+	.host :global(.ag-cell.num .ag-cell-editor input) {
 		text-align: right;
 	}
 
@@ -348,7 +401,7 @@
 		padding-right: calc(var(--ag-cell-horizontal-padding) - 1px);
 		border: 1px solid transparent !important;
 		border-radius: 0;
-		box-shadow: inset 0 0 0 1px var(--ring);
+		box-shadow: inset 0 0 0 1px var(--ring) !important;
 		background-color: transparent;
 		background-image: none;
 	}

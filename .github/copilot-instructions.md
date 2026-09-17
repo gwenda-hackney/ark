@@ -57,7 +57,7 @@ dist/          Build output (gitignored)
 - **Node 24 + npm 11** via Corepack (`packageManager` in `package.json`). Workflows run `corepack enable` before `npm ci`.
 - **Verify before deploy:** reusable workflow `verify.yml` (build → test). Called by both deploy workflows.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `marketing/web/scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
-- **Wrangler config:** `wrangler.toml` (gwenda — `[vars]` + `[env.preview.vars]`) and `wrangler.staging.toml` (gwenda-staging). Plain vars sync on deploy; secrets via `sync-pages-secrets.mjs`.
+- **Wrangler config:** `wrangler.toml` (gwenda — `[vars]` + `[env.preview.vars]`) and `wrangler.staging.toml` (gwenda-staging). Plain vars (including `BASEROW_TABLE_ID`, SMTP host/port, invite URLs) sync on deploy; secrets via `sync-pages-secrets.mjs` (which also deletes leftover config-as-secret keys).
 - **Production promote:** preview job uploads `production-dist` artifact; promote workflow downloads it and deploys with `skip-build: true` to the `release` branch (production environment).
 - **Production custom domains:** `ensure-pages-domain.mjs` for `gwenda.co.uk` and `www.gwenda.co.uk` only (production deploy).
 - **Staging URL:** `gwenda-staging.pages.dev` only — no custom domain in zone (keeps staging out of prod Web Analytics).
@@ -74,11 +74,11 @@ dist/          Build output (gitignored)
 
 ## Configuration
 
-- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`) or copy `.env.example` → `.env`. See [docs/env.md](../docs/env.md).
+- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`) or copy `.env.example` → `.env`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
 - Staging gate: `SITE_PASSWORD` (GitHub secret + Cloudflare Pages secret).
-- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY`. Table IDs: `BASEROW_STAGING_TABLE_ID` (dev + staging subscribe), `BASEROW_TABLE_ID` (production subscribe). Event invites table resolved by name (`Event Invites`).
+- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (secrets). Subscribe table ids live in wrangler `[vars]` (`BASEROW_TABLE_ID`). Event invites table resolved by name (`Event Invites`).
+- Ops runtime knobs (pour-cost targets): Baserow **App Config** via `/api/config`. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
-
 ## What not to do
 
 - **Do not deploy to production without explicit user authorization** — no merges/pushes to `release`, no production workflow triggers, no manual prod Cloudflare deploys unless the user asks.

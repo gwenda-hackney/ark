@@ -6,10 +6,11 @@ import {
   resolveAuth,
   safeRedirectPath,
 } from "../_lib/auth.js";
+import { opsEnv } from "../_lib/ops-env.js";
 
 /** Gate mode for the UI. */
 export async function onRequestGet(context) {
-  const auth = resolveAuth(context.env);
+  const auth = resolveAuth(await opsEnv(context));
   if (auth.kind === "google") {
     return json({
       mode: "google",
@@ -22,9 +23,9 @@ export async function onRequestGet(context) {
   return json({ mode: "misconfigured" }, 503);
 }
 
-/** Optional password login when OPS_PASSWORD is set. */
+/** Optional local admin password login when OPS_LOCAL_ADMIN_PW is set. */
 export async function onRequestPost(context) {
-  const auth = resolveAuth(context.env);
+  const auth = resolveAuth(await opsEnv(context));
   let body;
   try {
     body = await context.request.json();
