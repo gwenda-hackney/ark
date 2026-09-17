@@ -1,0 +1,80 @@
+---
+import { Image } from "astro:assets";
+import type { FormPage } from "../lib/sanity/forms";
+import { compactLogo } from "../lib/hero-assets";
+
+interface Props {
+  form: FormPage;
+  /** Show the Gwenda wordmark (Play page). */
+  showLogo?: boolean;
+  /** Initial title before client hydrates from session. */
+  title?: string;
+  /** Initial message before client hydrates from session. */
+  message?: string;
+}
+
+const {
+  form,
+  showLogo = false,
+  title = "One moment…",
+  message = "Loading your confirmation.",
+} = Astro.props;
+---
+
+<div
+  class="contact-success"
+  id="contact-success"
+  data-form-slug={form.slug}
+  data-success-title={form.successTitle}
+  data-success-message={form.successMessage}
+  data-verify-pending-title={form.verifyPendingTitle ?? "Check your email"}
+  data-verify-pending-message={
+    form.verifyPendingMessage ??
+    "We sent a link to {email}. Open it to finish (valid for 48 hours)."
+  }
+>
+  {
+    showLogo ? (
+      <a href="/" class="contact-logo-link" aria-label="Gwenda home">
+        <Image {...compactLogo} alt="" class="contact-logo" loading="lazy" />
+      </a>
+    ) : null
+  }
+  <p class="section-eyebrow">{form.eyebrow ?? "Gwenda"}</p>
+  <h1 id="contact-success-title">{title}</h1>
+  <p id="contact-success-message">{message}</p>
+  <div class="contact-verify-actions" id="contact-verify-actions" hidden>
+    <button type="button" class="btn btn-ghost" id="contact-wrong-email">
+      Wrong address?
+    </button>
+    <div class="contact-resend gw-field" id="contact-resend" hidden>
+      <label for="contact-resend-email">Email</label>
+      <input
+        type="email"
+        id="contact-resend-email"
+        name="resendEmail"
+        autocomplete="email"
+      />
+      <button type="button" class="btn btn-primary" id="contact-resend-submit">
+        Resend link
+      </button>
+      <p
+        class="contact-error"
+        id="contact-resend-error"
+        role="alert"
+        aria-live="polite"
+        hidden
+      ></p>
+    </div>
+  </div>
+  <a href="/" class="btn btn-ghost" id="contact-success-home" hidden
+    >Back to Gwenda</a
+  >
+  <a
+    href={`/forms/${form.slug}`}
+    class="btn btn-ghost"
+    id="contact-success-retry"
+  >
+    Back to the form
+  </a>
+</div>

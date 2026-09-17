@@ -82,6 +82,16 @@
 	import PourCostPanel from "./PourCostPanel.svelte";
 	import RecipeAnalysisPanel from "./RecipeAnalysisPanel.svelte";
 
+	const PHOTO_KEY = "ops.menu.photo";
+
+	function readPhotoOpen(): boolean {
+		try {
+			return localStorage.getItem(PHOTO_KEY) !== "closed";
+		} catch {
+			return true;
+		}
+	}
+
 	let {
 		item = $bindable(null as MenuItem | null),
 		sections,
@@ -127,6 +137,7 @@
 	let snapshot = $state("");
 	let photoDragging = $state(false);
 	let photoDragDepth = 0;
+	let photoOpen = $state(readPhotoOpen());
 	let addIngredientOpen = $state(false);
 	let deleteOpen = $state(false);
 	let discardOpen = $state(false);
@@ -435,6 +446,15 @@
 		void onphotoremove();
 	}
 
+	function setPhotoOpen(next: boolean) {
+		photoOpen = next;
+		try {
+			localStorage.setItem(PHOTO_KEY, next ? "open" : "closed");
+		} catch {
+			/* ignore quota / private mode */
+		}
+	}
+
 	function onPhotoInput(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		acceptPhotoFile(input.files?.[0]);
@@ -692,15 +712,27 @@
 	>
 		<BusyOverlay active={busy} label={busyLabel} />
 		<EditorBackBar label="Menu" {dirty} onback={discardAndClose} />
-		<div class="split">
+		<div class="split" class:photo-collapsed={!photoOpen}>
 			<aside
 				class="hero"
 				class:dragging={photoDragging}
+				aria-hidden={!photoOpen}
+				inert={!photoOpen}
 				ondragenter={onPhotoDragEnter}
 				ondragover={onPhotoDragOver}
 				ondragleave={onPhotoDragLeave}
 				ondrop={onPhotoDrop}
 			>
+				<button
+					class="photo-collapse"
+					type="button"
+					title="Hide photo"
+					aria-label="Hide photo"
+					tabindex={photoOpen ? 0 : -1}
+					onclick={() => setPhotoOpen(false)}
+				>
+					<Icon name="chevron-left" size={16} />
+				</button>
 				{#if photoUrl}
 					<img
 						class="hero-img"
@@ -797,6 +829,21 @@
 					</div>
 					<div class="head-tools">
 						<div class="toolbar-actions">
+							{#if !photoOpen}
+								<Button
+									class="photo-expand"
+									variant="ghost"
+									size="sm"
+									type="button"
+									title="Show photo"
+									aria-label="Show photo"
+									onclick={() => setPhotoOpen(true)}
+								>
+									{#snippet icon()}
+										<Icon name="chevron-right" />
+									{/snippet}
+								</Button>
+							{/if}
 							<Button
 								variant="ghost"
 								size="sm"
@@ -1453,18 +1500,23 @@
 
 	.split {
 		display: grid;
-		grid-template-columns: minmax(18rem, 40%) minmax(0, 1fr);
-		gap: var(--gap);
+		grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+		column-gap: var(--gap);
+		row-gap: var(--gap);
 		flex: 1;
 		min-height: 0;
 		height: 100%;
 		padding: var(--gap) var(--page-gutter) var(--gap);
+		transition:
+			grid-template-columns var(--t-slow) var(--ease),
+			column-gap var(--t-slow) var(--ease);
 	}
 
 	.hero {
 		position: relative;
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
 		min-height: 0;
 		height: 100%;
 		border: 1px solid var(--border);
@@ -1472,9 +1524,60 @@
 		background: var(--sunken);
 		overflow: hidden;
 		box-shadow: var(--shadow-sm);
+		opacity: 1;
 		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
+			opacity var(--t) var(--ease),
+			border-color var(--t-slow) var(--ease),
+			box-shadow var(--t-slow) var(--ease);
+	}
+
+	.photo-collapse {
+		position: absolute;
+		top: 0.55rem;
+		right: 0.55rem;
+		z-index: 3;
+		display: grid;
+		place-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: color-mix(in srgb, var(--card) 88%, transparent);
+		color: var(--muted-foreground);
+		backdrop-filter: blur(8px);
+		cursor: pointer;
+		opacity: 0;
+		transition:
+			opacity var(--t-fast) var(--ease-in-out),
+			color var(--t-fast) var(--ease-in-out),
+			background-color var(--t-fast) var(--ease-in-out),
+			border-color var(--t-fast) var(--ease-in-out);
+	}
+
+	.hero:hover .photo-collapse,
+	.hero:focus-within .photo-collapse,
+	.photo-collapse:focus-visible {
+		opacity: 1;
+	}
+
+	.photo-collapse:hover,
+	.photo-collapse:focus-visible {
+		color: var(--foreground);
+		border-color: var(--border-strong, var(--border));
+		background: var(--card);
+	}
+
+	.split.photo-collapsed {
+		grid-template-columns: 0% minmax(0, 1fr);
+		column-gap: 0;
+	}
+
+	.split.photo-collapsed .hero {
+		opacity: 0;
+		border-color: transparent;
+		box-shadow: none;
+		pointer-events: none;
 	}
 
 	.hero.dragging {
@@ -1716,6 +1819,103 @@
 
 	.thumb {
 		display: none;
+	}
+
+	.split.photo-collapsed .thumb {
+		display: block;
+		position: relative;
+		grid-column: 1;
+		grid-row: 1 / span 2;
+		width: 3.75rem;
+		height: 3.75rem;
+		align-self: start;
+		margin-top: 0.15rem;
+	}
+
+	.split.photo-collapsed .panel-head {
+		grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+		column-gap: 0.7rem;
+	}
+
+	.split.photo-collapsed .type-line {
+		grid-column: 2;
+		grid-row: 1;
+	}
+
+	.split.photo-collapsed .head-tools {
+		grid-column: 3;
+		grid-row: 1;
+	}
+
+	.split.photo-collapsed .title-name,
+	.split.photo-collapsed .panel-head:has(.title-meta) .title-name {
+		grid-column: 2 / -1;
+		grid-row: 2;
+	}
+
+	.split.photo-collapsed .title-meta {
+		grid-column: 1 / -1;
+		grid-row: 3;
+		align-items: flex-start;
+		padding-top: 0.35rem;
+	}
+
+	.split.photo-collapsed .price-row,
+	.split.photo-collapsed .pour-row {
+		justify-content: flex-start;
+	}
+
+	.thumb-hit {
+		display: block;
+		width: 100%;
+		height: 100%;
+		margin: 0;
+		border-radius: var(--radius-md);
+		overflow: hidden;
+		background: var(--sunken);
+		cursor: pointer;
+	}
+
+	.thumb-img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.thumb-empty {
+		display: grid;
+		place-content: center;
+		width: 100%;
+		height: 100%;
+		color: var(--muted-foreground);
+	}
+
+	.thumb-hit:focus-within {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.thumb-remove {
+		position: absolute;
+		top: -0.35rem;
+		right: -0.35rem;
+		display: grid;
+		place-content: center;
+		width: 1.35rem;
+		height: 1.35rem;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: var(--card);
+		color: var(--muted-foreground);
+		cursor: pointer;
+	}
+
+	.thumb-remove:hover:not(:disabled),
+	.thumb-remove:focus-visible {
+		color: var(--destructive);
+		background: var(--destructive-wash);
 	}
 
 	.title-name {
@@ -1974,8 +2174,9 @@
 		position: sticky;
 		top: 0;
 		z-index: 2;
-		padding: 0.75rem var(--card-pad) 0.5rem;
+		padding: 0.55rem var(--card-pad) 0;
 		background: var(--card);
+		border-bottom: 1px solid var(--border);
 	}
 
 	.tab-scroll {
@@ -2008,6 +2209,7 @@
 		align-items: center;
 		gap: 0.75rem;
 		margin: 0 0 0.65rem;
+		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
 		letter-spacing: 0.04em;
@@ -2135,7 +2337,11 @@
 
 	@media (max-width: 1100px) {
 		.split {
-			grid-template-columns: minmax(14rem, 36%) minmax(0, 1fr);
+			grid-template-columns: minmax(0, 36%) minmax(0, 1fr);
+		}
+
+		.split.photo-collapsed {
+			grid-template-columns: 0% minmax(0, 1fr);
 		}
 
 		.grid.three {
@@ -2144,12 +2350,15 @@
 	}
 
 	@media (max-width: 900px) {
-		.split {
-			grid-template-columns: 1fr;
+		.split,
+		.split.photo-collapsed {
+			grid-template-columns: minmax(0, 1fr);
 			grid-template-rows: minmax(0, 1fr);
 			height: auto;
 			padding: 0;
-			gap: 0;
+			column-gap: 0;
+			row-gap: 0;
+			transition: none;
 		}
 
 		.hero {
@@ -2163,6 +2372,10 @@
 		}
 
 		.head-tools :global(.close-btn) {
+			display: none;
+		}
+
+		.head-tools :global(.photo-expand) {
 			display: none;
 		}
 
@@ -2208,59 +2421,6 @@
 		.price-row,
 		.pour-row {
 			justify-content: flex-start;
-		}
-
-		.thumb-hit {
-			display: block;
-			width: 100%;
-			height: 100%;
-			margin: 0;
-			border-radius: var(--radius-md);
-			overflow: hidden;
-			background: var(--sunken);
-			cursor: pointer;
-		}
-
-		.thumb-img {
-			display: block;
-			width: 100%;
-			height: 100%;
-			object-fit: cover;
-		}
-
-		.thumb-empty {
-			display: grid;
-			place-content: center;
-			width: 100%;
-			height: 100%;
-			color: var(--muted-foreground);
-		}
-
-		.thumb-hit:focus-within {
-			outline: 2px solid var(--ring);
-			outline-offset: 2px;
-		}
-
-		.thumb-remove {
-			position: absolute;
-			top: -0.35rem;
-			right: -0.35rem;
-			display: grid;
-			place-content: center;
-			width: 1.35rem;
-			height: 1.35rem;
-			padding: 0;
-			border: 1px solid var(--border);
-			border-radius: var(--radius-pill);
-			background: var(--card);
-			color: var(--muted-foreground);
-			cursor: pointer;
-		}
-
-		.thumb-remove:hover:not(:disabled),
-		.thumb-remove:focus-visible {
-			color: var(--destructive);
-			background: var(--destructive-wash);
 		}
 	}
 

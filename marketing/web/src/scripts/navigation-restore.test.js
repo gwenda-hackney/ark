@@ -22,6 +22,12 @@ describe("navigation restore helpers", () => {
     expect(shouldSkipRevealAnimation()).toBe(true);
   });
 
+  it("detects soft restore from the navigation-restore class", () => {
+    document.documentElement.classList.add("navigation-restore");
+    expect(isRestoredNavigation()).toBe(true);
+    document.documentElement.classList.remove("navigation-restore");
+  });
+
   it("treats fresh navigation as normal (animations play)", () => {
     performance.getEntriesByType.mockReturnValue([{ type: "navigate" }]);
     expect(isRestoredNavigation()).toBe(false);

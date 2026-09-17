@@ -25,6 +25,7 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01")).toBe(true);
     expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01/b2c3d4e5f6789012345678abcdef0123")).toBe(true);
     expect(isPublicPath("/api/rsvp")).toBe(true);
+    expect(isPublicPath("/api/forms")).toBe(true);
     expect(isPublicPath("/api/events")).toBe(true);
     expect(isPublicPath("/api/ticket")).toBe(true);
     expect(isPublicPath("/api/ticket/pass")).toBe(true);

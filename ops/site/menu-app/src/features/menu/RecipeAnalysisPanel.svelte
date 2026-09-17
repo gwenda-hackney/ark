@@ -598,6 +598,7 @@
 		align-items: center;
 		gap: 0.75rem;
 		margin: 0;
+		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
 		letter-spacing: 0.04em;

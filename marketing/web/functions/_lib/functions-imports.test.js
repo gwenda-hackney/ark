@@ -7,11 +7,15 @@ import { describe, expect, it } from "vitest";
 const modules = [
   "../api/rsvp.js",
   "../api/subscribe.js",
+  "../api/forms/index.js",
+  "../api/forms/verify.js",
+  "../api/forms/resend.js",
   "../api/events.js",
   "../api/auth.js",
   "./event-password.js",
   "./rsvp.js",
   "./sanity-event.js",
+  "./form-submit.js",
 ];
 
 describe("Pages Function imports", () => {

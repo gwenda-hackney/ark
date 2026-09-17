@@ -1,0 +1,47 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Subpage from "../components/Subpage.astro";
+import { siteConfig } from "../config/site";
+
+const { contactPage } = siteConfig.copy;
+---
+
+<BaseLayout
+  title={siteConfig.seo.contact.title}
+  description={siteConfig.seo.contact.description}
+  showBooking={false}
+>
+  <Subpage class="contact-hub" innerClass="contact-hub-inner">
+    <header class="contact-hub-header reveal">
+      <p class="section-eyebrow">{contactPage.eyebrow}</p>
+      <h1>{contactPage.heading}</h1>
+      <p>{contactPage.lead}</p>
+    </header>
+
+    <div class="contact-hub-paths">
+      <article
+        class="contact-hub-path reveal reveal-stagger"
+        style="--reveal-delay: 0.08s"
+      >
+        <p class="contact-hub-path-eyebrow">{contactPage.listEyebrow}</p>
+        <h2>{contactPage.listHeading}</h2>
+        <p>{contactPage.listLead}</p>
+        <a href="/list" class="btn btn-primary">{contactPage.listCta}</a>
+      </article>
+
+      <div class="contact-hub-rule" aria-hidden="true"></div>
+
+      <article
+        class="contact-hub-path reveal reveal-stagger"
+        style="--reveal-delay: 0.16s"
+      >
+        <p class="contact-hub-path-eyebrow">{contactPage.playEyebrow}</p>
+        <h2>{contactPage.playHeading}</h2>
+        <p>{contactPage.playLead}</p>
+        <a href="/forms/play-at-gwenda" class="btn btn-ghost"
+          >{contactPage.playCta}</a
+        >
+      </article>
+    </div>
+  </Subpage>
+</BaseLayout>

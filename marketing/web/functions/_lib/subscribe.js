@@ -1,4 +1,4 @@
-import { DEFAULT_BASEROW_API, subscribeTableId } from "./baserow.js";
+import { DEFAULT_BASEROW_API, resolveSubscribeTableId } from "./baserow.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -60,7 +60,6 @@ export async function subscribeEmail({
   }
 
   const apiKey = env.BASEROW_API_KEY;
-  const tableId = subscribeTableId(env);
   const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
     /\/$/,
     "",
@@ -73,6 +72,16 @@ export async function subscribeEmail({
       error: "Something went wrong. Try again?",
     };
   }
+
+  const resolved = await resolveSubscribeTableId(env);
+  if (!resolved.ok) {
+    return {
+      ok: false,
+      status: 502,
+      error: "Something went wrong. Try again?",
+    };
+  }
+  const { tableId } = resolved;
 
   const headers = {
     Authorization: `Token ${apiKey}`,

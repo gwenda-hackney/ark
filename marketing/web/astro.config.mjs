@@ -7,6 +7,12 @@ import {
   validateSubscribeAuth,
 } from "./functions/_lib/subscribe-auth.js";
 import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.js";
+import {
+  onRequestGet as formsOnGet,
+  onRequestPost as formsOnPost,
+} from "./functions/api/forms/index.js";
+import { onRequestGet as formsVerifyOnGet } from "./functions/api/forms/verify.js";
+import { onRequestPost as formsResendOnPost } from "./functions/api/forms/resend.js";
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
 import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
@@ -39,10 +45,13 @@ const gatePlugin = devSiteGate({
 });
 
 const subscribeEnv = () => ({
-  SUBSCRIBE_SECRET: env.SUBSCRIBE_SECRET,
-  BASEROW_API_KEY: env.BASEROW_API_KEY,
-  BASEROW_TABLE_ID: env.BASEROW_TABLE_ID,
-  BASEROW_API_URL: env.BASEROW_API_URL,
+  SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
+  BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
+  BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
+  BASEROW_DATABASE_ID: process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
+  BASEROW_SUBSCRIBE_TABLE_NAME:
+    process.env.BASEROW_SUBSCRIBE_TABLE_NAME || env.BASEROW_SUBSCRIBE_TABLE_NAME,
+  SITE_ENV: process.env.SITE_ENV || (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
 });
 
 const rsvpEnv = () => ({
@@ -179,6 +188,112 @@ function devSubscribeApi() {
             sendJson(res, 400, { error: "Invalid request." });
           }
         });
+      });
+    },
+  };
+}
+
+/** Dev-only stub for /api/forms* — production uses functions/api/forms*.js */
+function devFormsApi() {
+  return {
+    name: "dev-forms-api",
+    configureServer(server) {
+      const formsEnv = () => ({
+        SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
+        SANITY_PROJECT_ID:
+          process.env.SANITY_PROJECT_ID?.trim() || env.SANITY_PROJECT_ID?.trim(),
+        SANITY_DATASET:
+          process.env.SANITY_DATASET?.trim() ||
+          env.SANITY_DATASET?.trim() ||
+          "development",
+        SANITY_API_TOKEN:
+          process.env.SANITY_API_TOKEN?.trim() || env.SANITY_API_TOKEN?.trim(),
+        BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
+        BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
+        BASEROW_DATABASE_ID:
+          process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
+        BASEROW_FORM_SUBMISSIONS_TABLE_NAME:
+          process.env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME ||
+          env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME,
+        SITE_ENV:
+          process.env.SITE_ENV ||
+          (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+        SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
+        SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
+        SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
+        SMTP_PASSWORD: process.env.SMTP_PASSWORD || env.SMTP_PASSWORD,
+        SMTP_FROM: process.env.SMTP_FROM || env.SMTP_FROM,
+        SMTP_FROM_EVENTS: process.env.SMTP_FROM_EVENTS || env.SMTP_FROM_EVENTS,
+        INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
+        SITE_URL: process.env.SITE_URL || env.SITE_URL,
+      });
+
+      async function pipeFunction(req, res, handler, urlPath) {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        const bodyBuf = Buffer.concat(chunks);
+        const headers = new Headers();
+        for (const [key, value] of Object.entries(req.headers)) {
+          if (value == null) continue;
+          if (Array.isArray(value)) {
+            for (const item of value) headers.append(key, item);
+          } else {
+            headers.set(key, value);
+          }
+        }
+        const origin = `http://${req.headers.host || "localhost:4321"}`;
+        const request = new Request(new URL(urlPath, origin), {
+          method: req.method,
+          headers,
+          body:
+            req.method === "GET" || req.method === "HEAD"
+              ? undefined
+              : bodyBuf.length
+                ? bodyBuf
+                : undefined,
+        });
+        const response = await handler({
+          request,
+          env: formsEnv(),
+        });
+        res.statusCode = response.status;
+        response.headers.forEach((value, key) => {
+          res.setHeader(key, value);
+        });
+        const text = await response.text();
+        res.end(text);
+      }
+
+      server.middlewares.use(async (req, res, next) => {
+        const pathOnly = (req.url || "").split("?")[0];
+        try {
+          if (pathOnly === "/api/forms/verify" && req.method === "GET") {
+            const qs = (req.url || "").includes("?")
+              ? req.url.slice(req.url.indexOf("?"))
+              : "";
+            await pipeFunction(req, res, formsVerifyOnGet, `/api/forms/verify${qs}`);
+            return;
+          }
+          if (pathOnly === "/api/forms/resend" && req.method === "POST") {
+            await pipeFunction(req, res, formsResendOnPost, "/api/forms/resend");
+            return;
+          }
+          if (pathOnly === "/api/forms" || pathOnly === "/api/forms/") {
+            if (req.method === "GET") {
+              await pipeFunction(req, res, formsOnGet, "/api/forms");
+              return;
+            }
+            if (req.method === "POST") {
+              await pipeFunction(req, res, formsOnPost, "/api/forms");
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("dev forms api", error);
+          sendJson(res, 500, { error: "Something went wrong. Try again?" });
+          return;
+        }
+        next();
       });
     },
   };
@@ -577,6 +692,7 @@ export default defineConfig({
     preview: { allowedHosts: true },
     plugins: [
       devSubscribeApi(),
+      devFormsApi(),
       devRsvpApi(),
       devTicketApi(),
       devEventsApi(),

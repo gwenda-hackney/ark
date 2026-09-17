@@ -6,7 +6,9 @@ export type Env = {
   UNIFI_CONSOLE_ID: string;
   /** Optional static assets binding (logo + fonts served by Assets). */
   ASSETS?: Fetcher;
-  BASEROW_TABLE_ID?: string;
+  /** Disambiguates Subscribers when the token sees multiple databases. */
+  BASEROW_DATABASE_ID?: string;
+  BASEROW_SUBSCRIBE_TABLE_NAME?: string;
   BASEROW_API_URL?: string;
   WIFI_SUBSCRIBE_TAG?: string;
   UNIFI_SITE_IDENTIFIER?: string;
@@ -14,15 +16,26 @@ export type Env = {
   REDIRECT_URL?: string;
 };
 
-export const DEFAULT_BASEROW_TABLE_ID = "1017358";
+export const PRODUCTION_BASEROW_DATABASE_ID = "461843";
+export const SUBSCRIBE_TABLE_NAME = "Subscribers";
 export const DEFAULT_BASEROW_API_URL = "https://api.baserow.io";
 export const DEFAULT_SUBSCRIBE_TAG = "wifi";
 export const DEFAULT_SITE_IDENTIFIER = "default";
 export const DEFAULT_GUEST_MINUTES = 1440;
 export const DEFAULT_REDIRECT_URL = "https://gwenda.co.uk";
 
-export function resolveTableId(env: Env): string {
-  return env.BASEROW_TABLE_ID?.trim() || DEFAULT_BASEROW_TABLE_ID;
+const tableIdCache = new Map<string, string>();
+
+export function clearSubscribeTableIdCache() {
+  tableIdCache.clear();
+}
+
+export function resolveDatabaseId(env: Env): string {
+  return env.BASEROW_DATABASE_ID?.trim() || PRODUCTION_BASEROW_DATABASE_ID;
+}
+
+export function resolveSubscribeTableName(env: Env): string {
+  return env.BASEROW_SUBSCRIBE_TABLE_NAME?.trim() || SUBSCRIBE_TABLE_NAME;
 }
 
 export function resolveApiUrl(env: Env): string {
@@ -30,6 +43,45 @@ export function resolveApiUrl(env: Env): string {
     /\/$/,
     "",
   );
+}
+
+export async function resolveSubscribeTableId(env: Env): Promise<string> {
+  const apiKey = env.BASEROW_API_KEY?.trim();
+  if (!apiKey) throw new Error("BASEROW_API_KEY is not configured");
+
+  const tableName = resolveSubscribeTableName(env);
+  const databaseId = resolveDatabaseId(env);
+  const apiBase = resolveApiUrl(env);
+  const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
+  const cached = tableIdCache.get(cacheKey);
+  if (cached) return cached;
+
+  const upstream = await fetch(`${apiBase}/api/database/tables/all-tables/`, {
+    headers: { Authorization: `Token ${apiKey}` },
+  });
+  if (!upstream.ok) {
+    throw new Error(`Could not list Baserow tables (${upstream.status})`);
+  }
+  const tables = (await upstream.json()) as Array<{
+    id: number;
+    name: string;
+    database_id: number;
+  }>;
+  const matches = tables.filter(
+    (table) =>
+      table.name === tableName && String(table.database_id) === databaseId,
+  );
+  if (matches.length === 0) {
+    throw new Error(
+      `Baserow table "${tableName}" not found in database ${databaseId}.`,
+    );
+  }
+  if (matches.length > 1) {
+    throw new Error(`Multiple Baserow tables named "${tableName}".`);
+  }
+  const tableId = String(matches[0].id);
+  tableIdCache.set(cacheKey, tableId);
+  return tableId;
 }
 
 export function resolveSubscribeTag(env: Env): string {

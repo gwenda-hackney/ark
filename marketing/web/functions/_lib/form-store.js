@@ -1,0 +1,399 @@
+import { baserowFormSubmissionRowsUrl } from "./baserow.js";
+import { replyToFromAnswers } from "./form-submit.js";
+
+export const FORM_STATUS_PENDING = "Pending";
+export const FORM_STATUS_VERIFIED = "Verified";
+
+function selectValue(field) {
+  if (field == null) return "";
+  if (typeof field === "string") return field;
+  if (typeof field === "object" && field.value != null) return String(field.value);
+  return String(field);
+}
+
+/**
+ * Persist a validated form submission as a document row in Baserow.
+ * @param {Record<string, string | undefined>} env
+ * @param {{
+ *   form: { title?: string, slug?: string },
+ *   answers: Array<{ key: string, label: string, value: string }>,
+ *   rawAnswers?: Record<string, string | string[]>,
+ *   submittedAt?: string,
+ *   status?: string,
+ * }} params
+ * @returns {Promise<{ ok: true, rowId: string } | { ok: false, error: string }>}
+ */
+export async function storeFormSubmission(
+  env,
+  { form, answers, rawAnswers, submittedAt, status = FORM_STATUS_VERIFIED },
+) {
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const when = submittedAt || new Date().toISOString();
+  const replyToRaw = replyToFromAnswers(answers);
+  const normalized = normalizeAnswersEmail(answers, rawAnswers, replyToRaw);
+
+  const upstream = await fetch(resolved.rowsUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      "Form Slug": form.slug ?? "",
+      Submitted: when,
+      "Form Title": form.title ?? "",
+      "Reply To": normalized.replyTo || "",
+      Status: status,
+      Answers: serializeFormAnswers(normalized.entries, normalized.raw),
+    }),
+  });
+
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => "");
+    console.error(
+      "Form submission Baserow write failed",
+      upstream.status,
+      detail.slice(0, 300),
+    );
+    return { ok: false, error: "Could not save. Try again?" };
+  }
+
+  const row = await upstream.json().catch(() => null);
+  return { ok: true, rowId: String(row?.id ?? ""), updated: false };
+}
+
+/**
+ * Upsert by form slug + email. Updates answers on the existing row when found.
+ * @returns {Promise<
+ *   | { ok: true, rowId: string, updated: boolean }
+ *   | { ok: false, error: string }
+ * >}
+ */
+export async function upsertFormSubmission(
+  env,
+  { form, answers, rawAnswers, submittedAt, status = FORM_STATUS_VERIFIED },
+) {
+  const replyToRaw = replyToFromAnswers(answers);
+  const normalized = normalizeAnswersEmail(answers, rawAnswers, replyToRaw);
+  const slug = String(form?.slug ?? "").trim();
+
+  if (normalized.replyTo && slug) {
+    const existing = await findFormSubmissionByEmail(env, {
+      slug,
+      email: normalized.replyTo,
+    });
+    if (!existing.ok) return existing;
+
+    if (existing.row?.id) {
+      const resolved = await baserowFormSubmissionRowsUrl(env);
+      if (!resolved.ok) return resolved;
+
+      const when = submittedAt || new Date().toISOString();
+      const upstream = await fetch(resolved.rowUrl(String(existing.row.id)), {
+        method: "PATCH",
+        headers: {
+          Authorization: `Token ${resolved.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          Submitted: when,
+          "Form Title": form.title ?? "",
+          "Reply To": normalized.replyTo,
+          Status: status,
+          Answers: serializeFormAnswers(normalized.entries, normalized.raw),
+        }),
+      });
+
+      if (!upstream.ok) {
+        const detail = await upstream.text().catch(() => "");
+        console.error(
+          "Form submission Baserow upsert failed",
+          upstream.status,
+          detail.slice(0, 300),
+        );
+        return { ok: false, error: "Could not save. Try again?" };
+      }
+
+      return { ok: true, rowId: String(existing.row.id), updated: true };
+    }
+  }
+
+  return storeFormSubmission(env, {
+    form,
+    answers: normalized.entries,
+    rawAnswers: normalized.raw ?? undefined,
+    submittedAt,
+    status,
+  });
+}
+
+/**
+ * @returns {Promise<
+ *   | { ok: true, row: Record<string, unknown> }
+ *   | { ok: false, error: string }
+ * >}
+ */
+export async function fetchFormSubmissionRow(env, rowId) {
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+
+  const id = String(rowId ?? "").trim();
+  if (!id) return { ok: false, error: "Missing submission." };
+
+  const upstream = await fetch(resolved.rowUrl(id), {
+    headers: { Authorization: `Token ${resolved.apiKey}` },
+  });
+
+  if (upstream.status === 404) {
+    return { ok: false, error: "Submission not found." };
+  }
+  if (!upstream.ok) {
+    return { ok: false, error: "Could not load submission." };
+  }
+
+  const row = await upstream.json();
+  return { ok: true, row };
+}
+
+/**
+ * Latest submission for this form + email (Verified preferred over Pending).
+ * Matches Reply To case-insensitively so legacy mixed-case rows still upsert.
+ * @returns {Promise<
+ *   | { ok: true, row: Record<string, unknown> | null }
+ *   | { ok: false, error: string }
+ * >}
+ */
+export async function findFormSubmissionByEmail(env, { slug, email }) {
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+
+  const cleanSlug = String(slug ?? "").trim();
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  if (!cleanSlug || !cleanEmail) {
+    return { ok: true, row: null };
+  }
+
+  const url = new URL(resolved.rowsUrl);
+  url.searchParams.set("filter__Form Slug__equal", cleanSlug);
+  url.searchParams.set("order_by", "-Submitted");
+  url.searchParams.set("size", "100");
+
+  const upstream = await fetch(url.toString(), {
+    headers: { Authorization: `Token ${resolved.apiKey}` },
+  });
+  if (!upstream.ok) {
+    return { ok: false, error: "Could not look up submission." };
+  }
+
+  const body = await upstream.json().catch(() => null);
+  const rows = Array.isArray(body?.results) ? body.results : [];
+  // Results are ordered by -Submitted; keep that order after the email filter so
+  // resubmits upsert the latest row even when older Verified duplicates exist.
+  const match = rows.find((row) => {
+    const reply = String(row?.["Reply To"] ?? "")
+      .trim()
+      .toLowerCase();
+    return reply === cleanEmail;
+  });
+  return { ok: true, row: match ?? null };
+}
+
+function normalizeAnswersEmail(entries, raw, replyTo) {
+  const email = String(replyTo ?? "").trim().toLowerCase();
+  const nextEntries = (entries ?? []).map((row) =>
+    row.key === "email" ? { ...row, value: email || row.value } : row,
+  );
+  let nextRaw = raw;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    nextRaw = { ...raw };
+    if (email) nextRaw.email = email;
+  }
+  return { entries: nextEntries, raw: nextRaw, replyTo: email };
+}
+
+export function formSubmissionStatus(row) {
+  return selectValue(row?.Status);
+}
+
+/**
+ * Normalize Baserow Answers JSON (legacy array or { entries, raw }).
+ * @returns {{
+ *   entries: Array<{ key: string, label: string, value: string }>,
+ *   raw: Record<string, string | string[]> | null,
+ * }}
+ */
+export function parseFormSubmissionDocument(row) {
+  const rawField = row?.Answers;
+  if (typeof rawField !== "string" || !rawField.trim()) {
+    return { entries: [], raw: null };
+  }
+  try {
+    const parsed = JSON.parse(rawField);
+    if (Array.isArray(parsed)) {
+      return { entries: parsed, raw: null };
+    }
+    if (parsed && typeof parsed === "object" && Array.isArray(parsed.entries)) {
+      const raw =
+        parsed.raw && typeof parsed.raw === "object" && !Array.isArray(parsed.raw)
+          ? parsed.raw
+          : null;
+      return { entries: parsed.entries, raw };
+    }
+    return { entries: [], raw: null };
+  } catch {
+    return { entries: [], raw: null };
+  }
+}
+
+export function parseFormSubmissionAnswers(row) {
+  return parseFormSubmissionDocument(row).entries;
+}
+
+/** Form-field values for restoring the client form (prefers raw snapshot). */
+export function draftAnswersFromSubmission(row) {
+  const doc = parseFormSubmissionDocument(row);
+  if (doc.raw) return doc.raw;
+  /** @type {Record<string, string>} */
+  const out = {};
+  for (const entry of doc.entries) {
+    if (!entry?.key) continue;
+    out[entry.key] = String(entry.value ?? "");
+  }
+  return out;
+}
+
+function serializeFormAnswers(entries, raw) {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return JSON.stringify({ v: 1, entries, raw });
+  }
+  return JSON.stringify(entries);
+}
+
+/**
+ * Update reply-to / email on a pending row (typo fix + resend).
+ */
+export async function updateFormSubmissionEmail(env, rowId, email) {
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+
+  const id = String(rowId ?? "").trim();
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  if (!id || !cleanEmail) {
+    return { ok: false, error: "Missing email." };
+  }
+
+  const loaded = await fetchFormSubmissionRow(env, id);
+  if (!loaded.ok) return loaded;
+
+  const doc = parseFormSubmissionDocument(loaded.row);
+  const nextEntries = doc.entries.map((row) =>
+    row.key === "email" ? { ...row, value: cleanEmail } : row,
+  );
+  const nextRaw = doc.raw
+    ? { ...doc.raw, email: cleanEmail }
+    : null;
+
+  const upstream = await fetch(resolved.rowUrl(id), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Token ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      "Reply To": cleanEmail,
+      Answers: serializeFormAnswers(nextEntries, nextRaw),
+    }),
+  });
+
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => "");
+    console.error(
+      "Form submission email update failed",
+      upstream.status,
+      detail.slice(0, 300),
+    );
+    return { ok: false, error: "Could not update. Try again?" };
+  }
+
+  return { ok: true, answers: nextEntries };
+}
+
+/**
+ * Mark a pending submission verified. Idempotent if already verified.
+ * @returns {Promise<
+ *   | { ok: true, already?: boolean, answers: Array, formSlug: string, formTitle: string, submittedAt?: string }
+ *   | { ok: false, error: string }
+ * >}
+ */
+export async function markFormSubmissionVerified(env, rowId, expectedEmail) {
+  const loaded = await fetchFormSubmissionRow(env, rowId);
+  if (!loaded.ok) return loaded;
+
+  const { row } = loaded;
+  const status = formSubmissionStatus(row);
+  const answers = parseFormSubmissionAnswers(row);
+  const formSlug = String(row["Form Slug"] ?? "");
+  const formTitle = String(row["Form Title"] ?? "");
+  const submittedAt =
+    typeof row.Submitted === "string" ? row.Submitted : undefined;
+  const replyTo = String(row["Reply To"] ?? "")
+    .trim()
+    .toLowerCase();
+  const expected = String(expectedEmail ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (expected && replyTo && replyTo !== expected) {
+    return { ok: false, error: "This link isn't valid." };
+  }
+
+  if (status === FORM_STATUS_VERIFIED) {
+    return {
+      ok: true,
+      already: true,
+      answers,
+      formSlug,
+      formTitle,
+      submittedAt,
+    };
+  }
+
+  if (status && status !== FORM_STATUS_PENDING) {
+    return { ok: false, error: "This submission can't be confirmed." };
+  }
+
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+
+  const upstream = await fetch(resolved.rowUrl(String(rowId)), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Token ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ Status: FORM_STATUS_VERIFIED }),
+  });
+
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => "");
+    console.error(
+      "Form submission verify failed",
+      upstream.status,
+      detail.slice(0, 300),
+    );
+    return { ok: false, error: "Could not confirm. Try again?" };
+  }
+
+  return {
+    ok: true,
+    already: false,
+    answers,
+    formSlug,
+    formTitle,
+    submittedAt,
+  };
+}

@@ -147,7 +147,7 @@ jobs:
           site-password: ${{ secrets.SITE_PASSWORD }}
           gate-bypass-key: ${{ secrets.GATE_BYPASS_KEY }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
-          baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
+          
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
           event-admin-secret: ${{ secrets.EVENT_ADMIN_SECRET }}
           invite-base-url: https://gwenda-staging.pages.dev
@@ -238,7 +238,7 @@ jobs:
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
-          baserow-table-id: ${{ vars.BASEROW_TABLE_ID }}
+          
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
           event-admin-secret: ${{ secrets.EVENT_ADMIN_SECRET }}
           invite-base-url: https://gwenda.co.uk
@@ -386,7 +386,7 @@ jobs:
           site-password: ${{ secrets.SITE_PASSWORD }}
           gate-bypass-key: ${{ secrets.GATE_BYPASS_KEY }}
           baserow-api-key: ${{ secrets.BASEROW_API_KEY }}
-          baserow-table-id: ${{ vars.BASEROW_STAGING_TABLE_ID || '1024006' }}
+          
           subscribe-secret: ${{ secrets.SUBSCRIBE_SECRET }}
           event-admin-secret: ${{ secrets.EVENT_ADMIN_SECRET }}
           invite-base-url: https://gwenda-staging.pages.dev

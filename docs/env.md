@@ -86,8 +86,9 @@ If staging/production already work, skip `setup:ci-secrets` / `setup:site-deploy
 
 | File | Purpose |
 |------|---------|
-| `ark/.env` (file) ← item `ark/.env.local` | Marketing / shared local secrets + `ARK_LOCAL_BW_TOKEN` |
+| `ark/.env` (file) ← item `ark/.env.local` | Shared local + `ARK_LOCAL_BW_TOKEN` (SM bootstrap) |
 | `.env.ops` | Ops secrets from Secrets Manager (`npm run env:ops:pull`) |
+| `.env.web` | Marketing secrets from Secrets Manager (`npm run env:web:pull`) |
 | Nest `.env` (`~/dev/gwenda/.env`) | Workspace tools (e.g. ClickUp). Separate. |
 
 ## Ops Secrets Manager pull
@@ -108,6 +109,45 @@ That syncs SM → Cloudflare Pages secrets (including `BASEROW_API_KEY_PRODUCTIO
 
 Ops local vs prod Baserow workspaces: see [config.md](./config.md#ops-baserow-workspaces).
 
+## Marketing Secrets Manager pull
+
+Uses the **Ark/Web** Secrets Manager project (not Ark/Ops).
+
+```bash
+npm run env:web:push          # once: copy filled marketing keys from .env → Ark/Web
+npm run env:web:pull          # Ark/Web → .env.web
+npm run env:web:pull -- --dry-run
+```
+
+CI:
+
+```bash
+gh workflow run web-secrets.yml -f profile=staging
+gh workflow run web-secrets.yml -f profile=production
+```
+
+Uses SM `BASEROW_API_KEY_MARKETING` as Pages `BASEROW_API_KEY` (not the ops Free-workspace token).
+
+## SMTP (form + invite mail)
+
+`SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` are plain Pages project vars (wrangler `[vars]` and `sync-pages-secrets.mjs`). Only `SMTP_PASSWORD` is a Pages secret (Ark/Web SM).
+
+Gmail accounts with 2FA need a [Google app password](https://support.google.com/accounts/answer/185833) for `notifications@gwenda.co.uk`. Paste with or without spaces; sync strips spaces. A normal account password fails with `534 Application-specific password required`, and form verify returns 502 after the Baserow row is already saved.
+
+After rotating the app password: put it in `.env.web` / Ark/Web (`SMTP_PASSWORD`), then:
+
+```bash
+npm run env:web:push
+node marketing/web/scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
+# or: gh workflow run web-secrets.yml -f profile=staging
+```
+
+Redeploy if form mail still 502s after a secret-only change that also touched host/user vars.
+
+## Workers Logs (Pages Functions)
+
+Pages does not accept `[observability]` in wrangler.toml. Enable logs in the Cloudflare dashboard: Workers & Pages → project → Settings → Observability. Form failures emit structured JSON with an `event` field (e.g. `form_verify_email_failed`).
+
 ## Secrets vs config
 
-Bitwarden is for **credentials** only. Ops plain config belongs in Baserow **App Config**. Marketing still uses wrangler `[vars]` / `.env` until its migration. See [config.md](./config.md).
+Bitwarden is for **credentials** only. Ops plain config belongs in Baserow **App Config**. Marketing tables (`Subscribers`, `Event Invites`, `Form Submissions`) are resolved by name; database id stays in wrangler `[vars]`. See [config.md](./config.md).

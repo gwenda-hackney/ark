@@ -1,0 +1,3 @@
+# Short URL aliases (relative — stay on the current host).
+/collaborate /contact 302
+/collaborate/ /contact 302
