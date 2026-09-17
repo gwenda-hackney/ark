@@ -4,6 +4,8 @@
  * live in Baserow App Config. Table ids are resolved by name.
  *
  * Loads `.env` then `.env.ops` (ops wins). Does not put OPS_LOCAL_ADMIN_PW on Pages.
+ * Prefer BASEROW_API_KEY_PRODUCTION for Pages (prod workspace); fall back to
+ * BASEROW_API_KEY for older setups.
  *
  * Usage (from repo root):
  *   npm run setup:ops
@@ -118,7 +120,11 @@ function deleteSecret(key) {
   }
 }
 
-putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
+putSecret(
+  "BASEROW_API_KEY",
+  process.env.BASEROW_API_KEY_PRODUCTION?.trim() ||
+    process.env.BASEROW_API_KEY?.trim(),
+);
 putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
 putSecret(
   "DEPLOY_WEBHOOK_SECRET",

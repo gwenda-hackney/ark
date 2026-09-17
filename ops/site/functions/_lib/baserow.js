@@ -1,6 +1,8 @@
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
 
 export const OPS_DATABASE_NAME = "Gwenda Ops";
+/** Production Ops Baserow database (Gwenda workspace). Local must not use this. */
+export const OPS_PRODUCTION_DATABASE_ID = "556507";
 export const TABLE_SECTIONS = "Menu Sections";
 export const TABLE_ITEMS = "Menu Items";
 export const TABLE_INGREDIENTS = "Ingredients";

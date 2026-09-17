@@ -20,7 +20,7 @@ const ENV_PATH = resolve(ROOT, ".env");
 const OPS_ENV_PATH = resolve(ROOT, ".env.ops");
 const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
 
-/** Secrets + App Config fills written into .dev.vars. Database id comes from wrangler [vars]. */
+/** Secrets + App Config fills written into .dev.vars. */
 const DEV_VAR_KEYS = [
   "OPS_LOCAL_ADMIN_PW",
   "OPS_BYPASS_KEY",
@@ -28,6 +28,7 @@ const DEV_VAR_KEYS = [
   "GOOGLE_OAUTH_CLIENT_ID",
   "GOOGLE_OAUTH_CLIENT_SECRET",
   "BASEROW_API_KEY",
+  "BASEROW_OPS_DATABASE_ID",
   "SANITY_API_TOKEN",
   "DEPLOY_WEBHOOK_SECRET",
   "SANITY_STUDIO_SITE_DEPLOY_SECRET",
@@ -37,6 +38,8 @@ const DEV_VAR_KEYS = [
   "SITE_DEPLOY_WEBHOOK_URL",
   "SANITY_STUDIO_SITE_DEPLOY_URL",
 ];
+
+const OPS_DEV_META_PATH = resolve(ROOT, ".baserow-ops-dev.json");
 
 function loadEnvFile(path, { override = false } = {}) {
   if (!existsSync(path)) return false;
@@ -54,6 +57,38 @@ function loadRootEnv() {
   } else if (hadOps) {
     console.log("Loaded .env.ops (ops secrets; overrides .env).");
   }
+}
+
+function resolveLocalOpsDatabaseId() {
+  const fromEnv = process.env.BASEROW_OPS_DATABASE_ID?.trim();
+  if (fromEnv) return fromEnv;
+  if (existsSync(OPS_DEV_META_PATH)) {
+    try {
+      const meta = JSON.parse(readFileSync(OPS_DEV_META_PATH, "utf8"));
+      return String(meta.databaseId || "").trim();
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
+function assertLocalNotProdDatabase(databaseId) {
+  return import("../ops/site/functions/_lib/baserow.js").then(
+    ({ OPS_PRODUCTION_DATABASE_ID }) => {
+      if (!databaseId) {
+        throw new Error(
+          "Local ops needs BASEROW_OPS_DATABASE_ID (dev clone). Run: npm run clone:baserow-ops-dev",
+        );
+      }
+      if (String(databaseId) === String(OPS_PRODUCTION_DATABASE_ID)) {
+        throw new Error(
+          `Refusing to start local ops against production Baserow DB ${OPS_PRODUCTION_DATABASE_ID}. ` +
+            `Set BASEROW_OPS_DATABASE_ID to the Gwenda Ops Dev clone (see .baserow-ops-dev.json).`,
+        );
+      }
+    },
+  );
 }
 
 function writeDevVars() {
@@ -90,6 +125,11 @@ function writeDevVars() {
 
 async function main() {
   loadRootEnv();
+
+  const databaseId = resolveLocalOpsDatabaseId();
+  if (databaseId) process.env.BASEROW_OPS_DATABASE_ID = databaseId;
+  await assertLocalNotProdDatabase(process.env.BASEROW_OPS_DATABASE_ID?.trim() || "");
+
   // Pull plain settings (e.g. Google client id) from App Config when missing in env.
   if (process.env.BASEROW_API_KEY?.trim()) {
     try {
@@ -119,6 +159,9 @@ async function main() {
     }
   }
   writeDevVars();
+  console.log(
+    `Local Baserow Ops DB: ${process.env.BASEROW_OPS_DATABASE_ID} (not production)`,
+  );
 
   const children = [];
 

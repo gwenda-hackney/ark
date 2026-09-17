@@ -5,6 +5,7 @@ node_modules/
 .env.ops
 .env.ops.bak
 .baserow-jwt.json
+.baserow-ops-dev.json
 .bw-session
 **/.bw-session
 .apple-wallet/
