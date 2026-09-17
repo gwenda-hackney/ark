@@ -23,7 +23,7 @@
 			name: "Stock",
 			icon: "stock",
 			children: [
-				{ id: "menu", path: "/menu", name: "Menu prices", icon: "menu" },
+				{ id: "menu", path: "/menu", name: "Menu Items", icon: "menu" },
 				{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
 				{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
 				{ id: "config", path: "/config", name: "Configuration", icon: "settings" },

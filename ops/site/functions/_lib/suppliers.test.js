@@ -56,6 +56,27 @@ describe("normalizeSupplierEntries", () => {
     assert.equal(rows[0].name, "Hills Prospect");
     assert.equal(rows[1].name, "Alivini");
   });
+
+  it("dedupes the same SKU under one supplier", () => {
+    const rows = normalizeSupplierEntries([
+      {
+        name: "LWC Drinks",
+        productUrl:
+          "https://www.hillsprospect.com/displayitemdetails/P/SPL47686/buen-amigo-silver-tequila",
+        sku: "SPL47686",
+        price: 15.97,
+      },
+      {
+        name: "LWC Drinks",
+        productUrl:
+          "https://www.hillsprospect.com/displayitemdetails/P/SPL47686/tequila-buen-amigo-silver",
+        sku: "SPL47686",
+        price: 15.97,
+      },
+    ]);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].sku, "SPL47686");
+  });
 });
 
 describe("formatSupplierEntries", () => {

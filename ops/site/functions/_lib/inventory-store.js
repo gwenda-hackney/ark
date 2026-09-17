@@ -163,8 +163,11 @@ async function findOrCreateSupplier(env, tables, index, entry) {
   return mapped;
 }
 
-function linkKey(supplierId, productUrl) {
-  return `${supplierId}|${parseProductUrl(productUrl).toLowerCase()}`;
+/** Prefer SKU so slug-only URL differences do not create duplicate links. */
+function linkKey(supplierId, productUrl, sku = "") {
+  const code = text(sku).toUpperCase() || skuFromProductUrl(productUrl);
+  if (code) return `${supplierId}|sku:${code}`;
+  return `${supplierId}|url:${parseProductUrl(productUrl).toLowerCase()}`;
 }
 
 function junctionFields(inventoryId, supplier, entry) {
@@ -205,10 +208,19 @@ async function replaceInventorySuppliers(
     filters: linkHasQuery("Inventory", inventoryId),
   });
   const existingByKey = new Map();
+  const duplicateIds = new Set();
   for (const row of existingRows) {
     const mapped = mapLinkedSupplier(row, index.byId);
-    if (!mapped?.supplierId) continue;
-    existingByKey.set(linkKey(mapped.supplierId, mapped.productUrl), row);
+    if (!mapped?.supplierId) {
+      duplicateIds.add(row.id);
+      continue;
+    }
+    const key = linkKey(mapped.supplierId, mapped.productUrl, mapped.sku);
+    if (existingByKey.has(key)) {
+      duplicateIds.add(row.id);
+      continue;
+    }
+    existingByKey.set(key, row);
   }
 
   const keep = new Set();
@@ -217,7 +229,8 @@ async function replaceInventorySuppliers(
     const supplier = await findOrCreateSupplier(env, tables, index, entry);
     if (!supplier) continue;
     const productUrl = parseProductUrl(entry.productUrl);
-    const key = linkKey(supplier._id, productUrl);
+    const sku = text(entry.sku) || skuFromProductUrl(productUrl);
+    const key = linkKey(supplier._id, productUrl, sku);
     keep.add(key);
     const fields = junctionFields(inventoryId, supplier, entry);
     const current = existingByKey.get(key);
@@ -242,9 +255,12 @@ async function replaceInventorySuppliers(
     tables.inventorySuppliers,
     existingRows
       .filter((row) => {
+        if (duplicateIds.has(row.id)) return true;
         const mapped = mapLinkedSupplier(row, index.byId);
         if (!mapped?.supplierId) return true;
-        return !keep.has(linkKey(mapped.supplierId, mapped.productUrl));
+        return !keep.has(
+          linkKey(mapped.supplierId, mapped.productUrl, mapped.sku),
+        );
       })
       .map((row) => row.id),
   );

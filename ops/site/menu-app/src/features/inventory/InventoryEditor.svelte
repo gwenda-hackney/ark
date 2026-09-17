@@ -7,6 +7,7 @@
 		EditorBackBar,
 		Field,
 		NativeSelect,
+		SidePanel,
 		TextArea,
 		TextField,
 	} from "../../ui";
@@ -51,6 +52,9 @@
 	let snapshot = $state("");
 	let deleteOpen = $state(false);
 	let discardOpen = $state(false);
+	let supplierDrawerOpen = $state(false);
+	let supplierEditIndex = $state<number | null>(null);
+	let supplierDraft = $state<InventorySupplier>({ name: "" });
 
 	const kindOptions: SelectOption[] = INVENTORY_KINDS.map((row) => ({
 		value: row.value,
@@ -79,6 +83,9 @@
 	const dirty = $derived(Boolean(snapshot && serialize(item) !== snapshot));
 	const itemKey = $derived(String(item?._id || item?.id || "new"));
 	const supplierRows = $derived(item?.suppliers || []);
+	const supplierDrawerTitle = $derived(
+		supplierEditIndex == null ? "Add supplier" : "Edit supplier",
+	);
 
 	$effect(() => {
 		const key = itemKey;
@@ -86,6 +93,8 @@
 		snapshot = serialize(untrack(() => item));
 		discardOpen = false;
 		deleteOpen = false;
+		supplierDrawerOpen = false;
+		supplierEditIndex = null;
 	});
 
 	$effect(() => {
@@ -125,42 +134,86 @@
 		patch("suppliers", next);
 	}
 
-	function updateSupplier(
-		index: number,
+	function openAddSupplier() {
+		supplierEditIndex = null;
+		supplierDraft = { name: "", productUrl: "" };
+		supplierDrawerOpen = true;
+	}
+
+	function openEditSupplier(index: number) {
+		const entry = supplierList()[index];
+		if (!entry) return;
+		supplierEditIndex = index;
+		supplierDraft = { ...entry };
+		supplierDrawerOpen = true;
+	}
+
+	function closeSupplierDrawer() {
+		supplierDrawerOpen = false;
+		supplierEditIndex = null;
+	}
+
+	function patchDraft(
 		field: "name" | "productUrl" | "sku" | "pack" | "price",
 		value: string,
 	) {
-		const next = supplierList().map((entry, i) => {
-			if (i !== index) return entry;
-			if (field === "price") {
-				const trimmed = value.trim();
-				if (!trimmed) {
-					const { price: _drop, ...rest } = entry;
-					void _drop;
-					return rest;
-				}
-				const n = Number(trimmed.replace(/[£,\s]/g, ""));
-				return { ...entry, price: Number.isFinite(n) ? n : entry.price };
+		if (field === "price") {
+			const trimmed = value.trim();
+			if (!trimmed) {
+				const { price: _drop, ...rest } = supplierDraft;
+				void _drop;
+				supplierDraft = rest;
+				return;
 			}
-			if (field === "productUrl") {
-				const sku = entry.sku || skuFromProductUrl(value);
-				return {
-					...entry,
-					productUrl: value,
-					...(sku ? { sku } : {}),
-				};
-			}
-			return { ...entry, [field]: value };
-		});
-		setSuppliers(next);
+			const n = Number(trimmed.replace(/[£,\s]/g, ""));
+			supplierDraft = {
+				...supplierDraft,
+				price: Number.isFinite(n) ? n : supplierDraft.price,
+			};
+			return;
+		}
+		if (field === "productUrl") {
+			const sku = supplierDraft.sku || skuFromProductUrl(value);
+			supplierDraft = {
+				...supplierDraft,
+				productUrl: value,
+				...(sku ? { sku } : {}),
+			};
+			return;
+		}
+		supplierDraft = { ...supplierDraft, [field]: value };
 	}
 
-	function addSupplier() {
-		setSuppliers([...supplierList(), { name: "", productUrl: "" }]);
+	function applySupplierDraft() {
+		const name = String(supplierDraft.name || "").trim();
+		const productUrl = String(supplierDraft.productUrl || "").trim();
+		if (!name && !productUrl) {
+			closeSupplierDrawer();
+			return;
+		}
+		const nextEntry: InventorySupplier = {
+			...supplierDraft,
+			name,
+			...(productUrl ? { productUrl } : {}),
+		};
+		const list = supplierList();
+		if (supplierEditIndex == null) {
+			setSuppliers([...list, nextEntry]);
+		} else {
+			setSuppliers(
+				list.map((entry, i) => (i === supplierEditIndex ? nextEntry : entry)),
+			);
+		}
+		closeSupplierDrawer();
 	}
 
-	function removeSupplier(index: number) {
-		setSuppliers(supplierList().filter((_, i) => i !== index));
+	function removeSupplierFromDrawer() {
+		if (supplierEditIndex == null) {
+			closeSupplierDrawer();
+			return;
+		}
+		setSuppliers(supplierList().filter((_, i) => i !== supplierEditIndex));
+		closeSupplierDrawer();
 	}
 
 	function discardAndClose() {
@@ -358,17 +411,17 @@
 							<div>
 								<p class="supplier-label">Suppliers</p>
 								<p class="supplier-help">
-									One row per wholesaler. Price is the trade cost for that
-									pack (from the LWC list when we have a SKU).
+									Trade pack cost from the wholesaler list. Click a row to
+									edit.
 								</p>
 							</div>
 							<Button
 								variant="outline"
 								size="sm"
 								type="button"
-								onclick={addSupplier}
+								onclick={openAddSupplier}
 							>
-								Add supplier
+								Add
 							</Button>
 						</div>
 						{#if supplierRows.length === 0}
@@ -377,117 +430,55 @@
 								buy this from.
 							</p>
 						{:else}
-							<div class="supplier-list">
-								{#each supplierRows as entry, index (index)}
-									<div class="supplier-card">
-										<div class="supplier-row">
-											<Field
-												label="Supplier"
-												for={`inv-supplier-${index}`}
-											>
-												<TextField
-													id={`inv-supplier-${index}`}
-													size="sm"
-													placeholder="LWC Drinks"
-													value={entry.name || ""}
-													oninput={(e) =>
-														updateSupplier(
-															index,
-															"name",
-															(e.currentTarget as HTMLInputElement).value,
-														)}
-												/>
-											</Field>
-											<Field label="SKU" for={`inv-sku-${index}`}>
-												<TextField
-													id={`inv-sku-${index}`}
-													size="sm"
-													placeholder="SPA47010"
-													value={entry.sku || ""}
-													oninput={(e) =>
-														updateSupplier(
-															index,
-															"sku",
-															(e.currentTarget as HTMLInputElement).value,
-														)}
-												/>
-											</Field>
-											<Field label="Pack" for={`inv-pack-${index}`}>
-												<TextField
-													id={`inv-pack-${index}`}
-													size="sm"
-													placeholder="BOTTLE"
-													value={entry.pack || ""}
-													oninput={(e) =>
-														updateSupplier(
-															index,
-															"pack",
-															(e.currentTarget as HTMLInputElement).value,
-														)}
-												/>
-											</Field>
-											<Field label="Price" for={`inv-price-${index}`}>
-												<TextField
-													id={`inv-price-${index}`}
-													size="sm"
-													inputmode="decimal"
-													placeholder="0.00"
-													value={
-														entry.price == null ? "" : String(entry.price)
-													}
-													oninput={(e) =>
-														updateSupplier(
-															index,
-															"price",
-															(e.currentTarget as HTMLInputElement).value,
-														)}
-												/>
-											</Field>
-											<button
-												class="supplier-remove"
-												type="button"
-												aria-label="Remove supplier"
-												onclick={() => removeSupplier(index)}
-											>
-												Remove
-											</button>
-										</div>
-										<div class="supplier-url">
-											<Field
-												label="Product page"
-												for={`inv-url-${index}`}
-											>
-												<TextField
-													id={`inv-url-${index}`}
-													size="sm"
-													placeholder="https://"
-													value={entry.productUrl || ""}
-													oninput={(e) =>
-														updateSupplier(
-															index,
-															"productUrl",
-															(e.currentTarget as HTMLInputElement).value,
-														)}
-												/>
-											</Field>
-											{#if entry.productUrl}
-												<a
-													class="supplier-open"
-													href={entry.productUrl}
-													target="_blank"
-													rel="noreferrer"
-												>
-													Open
-												</a>
-											{/if}
-											{#if entry.price != null && entry.pack}
-												<p class="supplier-meta">
-													{formatGbp(entry.price)} / {entry.pack}
-												</p>
-											{/if}
-										</div>
-									</div>
-								{/each}
+							<div class="supplier-table-wrap">
+								<table class="supplier-table">
+									<thead>
+										<tr>
+											<th scope="col">Supplier</th>
+											<th scope="col">SKU</th>
+											<th scope="col">Pack</th>
+											<th scope="col" class="num">Price</th>
+											<th scope="col" class="link-col">
+												<span class="sr-only">Page</span>
+											</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each supplierRows as entry, index (entry._id || `${entry.name}-${entry.sku}-${index}`)}
+											<tr>
+												<td>
+													<button
+														type="button"
+														class="supplier-name"
+														onclick={() => openEditSupplier(index)}
+													>
+														{entry.name || "Untitled"}
+													</button>
+												</td>
+												<td class="mono">{entry.sku || "-"}</td>
+												<td>{entry.pack || "-"}</td>
+												<td class="num mono">
+													{entry.price != null
+														? formatGbp(entry.price)
+														: "-"}
+												</td>
+												<td class="link-col">
+													{#if entry.productUrl}
+														<a
+															class="supplier-open"
+															href={entry.productUrl}
+															target="_blank"
+															rel="noreferrer"
+															onclick={(e) => e.stopPropagation()}
+														>
+															Open
+														</a>
+													{/if}
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
 							</div>
 						{/if}
 					</div>
@@ -589,6 +580,149 @@
 			</Button>
 		{/snippet}
 	</Dialog>
+
+	<SidePanel
+		open={supplierDrawerOpen}
+		ariaLabel={supplierDrawerTitle}
+		width="min(28rem, 100%)"
+		onclose={closeSupplierDrawer}
+	>
+		<div class="drawer">
+			<header class="drawer-head">
+				<div>
+					<p class="drawer-eyebrow">Supplier</p>
+					<h2>{supplierDrawerTitle}</h2>
+				</div>
+				<Button
+					variant="ghost"
+					size="sm"
+					type="button"
+					aria-label="Close"
+					onclick={closeSupplierDrawer}
+				>
+					{#snippet icon()}
+						<Icon name="close" size={16} />
+					{/snippet}
+				</Button>
+			</header>
+			<div class="drawer-body scrollbar-fade">
+				<div class="drawer-grid">
+					<Field label="Supplier" for="drawer-supplier">
+						<TextField
+							id="drawer-supplier"
+							size="sm"
+							placeholder="LWC Drinks"
+							value={supplierDraft.name || ""}
+							oninput={(e) =>
+								patchDraft(
+									"name",
+									(e.currentTarget as HTMLInputElement).value,
+								)}
+						/>
+					</Field>
+					<div class="drawer-row">
+						<Field label="SKU" for="drawer-sku">
+							<TextField
+								id="drawer-sku"
+								size="sm"
+								placeholder="SPA47010"
+								value={supplierDraft.sku || ""}
+								oninput={(e) =>
+									patchDraft(
+										"sku",
+										(e.currentTarget as HTMLInputElement).value,
+									)}
+							/>
+						</Field>
+						<Field label="Pack" for="drawer-pack">
+							<TextField
+								id="drawer-pack"
+								size="sm"
+								placeholder="BOTTLE"
+								value={supplierDraft.pack || ""}
+								oninput={(e) =>
+									patchDraft(
+										"pack",
+										(e.currentTarget as HTMLInputElement).value,
+									)}
+							/>
+						</Field>
+						<Field label="Price" for="drawer-price">
+							<TextField
+								id="drawer-price"
+								size="sm"
+								mono
+								inputmode="decimal"
+								placeholder="0.00"
+								value={
+									supplierDraft.price == null
+										? ""
+										: String(supplierDraft.price)
+								}
+								oninput={(e) =>
+									patchDraft(
+										"price",
+										(e.currentTarget as HTMLInputElement).value,
+									)}
+							/>
+						</Field>
+					</div>
+					<Field label="Product page" for="drawer-url">
+						<TextField
+							id="drawer-url"
+							size="sm"
+							placeholder="https://"
+							value={supplierDraft.productUrl || ""}
+							oninput={(e) =>
+								patchDraft(
+									"productUrl",
+									(e.currentTarget as HTMLInputElement).value,
+								)}
+						/>
+					</Field>
+					{#if supplierDraft.productUrl}
+						<a
+							class="drawer-open"
+							href={supplierDraft.productUrl}
+							target="_blank"
+							rel="noreferrer"
+						>
+							Open product page
+						</a>
+					{/if}
+				</div>
+			</div>
+			<footer class="drawer-foot">
+				{#if supplierEditIndex != null}
+					<Button
+						class="drawer-remove"
+						variant="destructive"
+						size="sm"
+						type="button"
+						onclick={removeSupplierFromDrawer}
+					>
+						Remove
+					</Button>
+				{/if}
+				<Button
+					variant="outline"
+					size="sm"
+					type="button"
+					onclick={closeSupplierDrawer}
+				>
+					Cancel
+				</Button>
+				<Button
+					variant="primary"
+					size="sm"
+					type="button"
+					onclick={applySupplierDraft}
+				>
+					Done
+				</Button>
+			</footer>
+		</div>
+	</SidePanel>
 {/if}
 
 <style>
@@ -739,68 +873,171 @@
 		color: var(--muted-foreground);
 	}
 
-	.supplier-list {
-		display: grid;
-		gap: 0.75rem;
-	}
-
-	.supplier-card {
-		display: grid;
-		gap: 0.55rem;
-		padding: 0.7rem 0.75rem 0.8rem;
+	.supplier-table-wrap {
+		overflow-x: auto;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
 	}
 
-	.supplier-row {
-		display: grid;
-		grid-template-columns: minmax(8rem, 1.2fr) minmax(6rem, 0.7fr) minmax(5rem, 0.6fr) minmax(5rem, 0.6fr) auto;
-		gap: 0.55rem;
-		align-items: end;
-	}
-
-	.supplier-url {
-		display: grid;
-		grid-template-columns: 1fr auto auto;
-		gap: 0.55rem;
-		align-items: end;
-	}
-
-	.supplier-open,
-	.supplier-meta {
-		margin: 0;
+	.supplier-table {
+		width: 100%;
+		border-collapse: collapse;
 		font-size: var(--text-sm);
-		white-space: nowrap;
-		padding-bottom: 0.45rem;
+	}
+
+	.supplier-table th,
+	.supplier-table td {
+		padding: 0.55rem 0.7rem;
+		text-align: left;
+		border-bottom: 1px solid var(--border);
+		vertical-align: middle;
+	}
+
+	.supplier-table th {
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+		background: color-mix(in srgb, var(--card) 70%, transparent);
+	}
+
+	.supplier-table tbody tr:last-child td {
+		border-bottom: 0;
+	}
+
+	.supplier-table tbody tr:hover td {
+		background: color-mix(in srgb, var(--accent) 55%, transparent);
+	}
+
+	.supplier-table .num {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.supplier-table .link-col {
+		width: 3.5rem;
+		text-align: right;
+	}
+
+	.supplier-table .mono {
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 0.8rem;
+	}
+
+	.supplier-name {
+		display: block;
+		width: 100%;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		color: var(--foreground);
+		font: inherit;
+		font-weight: 500;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.supplier-name:hover {
+		color: var(--primary);
 	}
 
 	.supplier-open {
 		color: var(--primary);
 		text-decoration: none;
+		font-size: var(--text-sm);
+		white-space: nowrap;
 	}
 
 	.supplier-open:hover {
 		text-decoration: underline;
 	}
 
-	.supplier-meta {
-		color: var(--muted-foreground);
-	}
-
-	.supplier-remove {
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
 		border: 0;
-		background: transparent;
-		color: var(--muted-foreground);
-		font: inherit;
-		font-size: var(--text-sm);
-		cursor: pointer;
-		padding: 0 0 0.45rem;
-		height: var(--control-h-sm);
 	}
 
-	.supplier-remove:hover {
-		color: var(--destructive);
+	.drawer {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		min-height: 0;
+	}
+
+	.drawer-head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.9rem 1rem 0.75rem;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.drawer-eyebrow {
+		margin: 0 0 0.15rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
+	.drawer-head h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.1rem;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+
+	.drawer-body {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		padding: 1rem;
+	}
+
+	.drawer-grid {
+		display: grid;
+		gap: 0.85rem;
+	}
+
+	.drawer-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1fr;
+		gap: 0.65rem;
+	}
+
+	.drawer-open {
+		font-size: var(--text-sm);
+		color: var(--primary);
+		text-decoration: none;
+	}
+
+	.drawer-open:hover {
+		text-decoration: underline;
+	}
+
+	.drawer-foot {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.45rem;
+		padding: 0.75rem 1rem;
+		border-top: 1px solid var(--border);
+	}
+
+	.drawer-foot :global(.drawer-remove) {
+		margin-right: auto;
 	}
 
 	.panel-foot {
@@ -898,20 +1135,8 @@
 			grid-template-columns: 1fr;
 		}
 
-		.supplier-row,
-		.supplier-url {
+		.drawer-row {
 			grid-template-columns: 1fr;
-		}
-
-		.supplier-open,
-		.supplier-meta {
-			padding-bottom: 0;
-		}
-
-		.supplier-remove {
-			height: auto;
-			padding: 0;
-			justify-self: start;
 		}
 
 		.panel-foot {
