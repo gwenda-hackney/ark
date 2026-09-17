@@ -81,6 +81,39 @@
 	const sessionMark = $derived(
 		(me?.email || "L").trim().charAt(0).toUpperCase() || "?",
 	);
+	const envLabel = $derived(me?.envLabel || "");
+	const envMark = $derived(
+		envLabel ? envLabel.trim().charAt(0).toUpperCase() : "",
+	);
+	const envDetail = $derived(
+		!me
+			? ""
+			: [
+					me.envLabel,
+					me.databaseId ? `Baserow DB ${me.databaseId}` : "Baserow DB not set",
+					me.databaseLabel,
+				].join(" · "),
+	);
+	const envSummary = $derived(
+		!me ? "" : me.databaseId ? `${me.envLabel} · ${me.databaseId}` : me.envLabel,
+	);
+	const showEnvBanner = $derived(
+		Boolean(me && (me.siteEnv !== "production" || me.risk)),
+	);
+	const envBannerText = $derived(
+		!me
+			? ""
+			: me.risk === "nonprod_on_production_db"
+				? `Misconfigured: ${me.envLabel} is pointed at the production Baserow DB (${me.databaseId}). Do not edit.`
+				: me.risk === "production_on_nonprod_db"
+					? `Misconfigured: Production is pointed at a non-production Baserow DB (${me.databaseId}).`
+					: me.siteEnv === "local"
+						? `Local · edits go to Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}), not production.`
+						: `${me.envLabel} · Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}).`,
+	);
+	const brandSub = $derived(
+		envLabel ? `${brandSubtitle} · ${envLabel}` : brandSubtitle,
+	);
 
 	onMount(() => {
 		void getMe()
@@ -224,7 +257,7 @@
 			<span class="mark" aria-hidden="true">{mark}</span>
 			<span class="brand-text">
 				<span class="brand-title">{brandTitle}</span>
-				<span class="brand-sub">{brandSubtitle}</span>
+				<span class="brand-sub">{brandSub}</span>
 			</span>
 		</div>
 
@@ -327,9 +360,28 @@
 		</nav>
 
 		<div class="rail-foot">
+			{#if envSummary}
+				<div
+					class="nav-item session env"
+					class:risk={Boolean(me?.risk)}
+					class:local={me?.siteEnv === "local" && !me?.risk}
+					title={envDetail}
+				>
+					<span class="nav-icon" aria-hidden="true">
+						<span class="session-mark">{envMark}</span>
+					</span>
+					<span class="nav-label session-label">
+						<span class="env-line">{envSummary}</span>
+						<span class="env-db">{me?.databaseLabel}</span>
+					</span>
+					<span class="tip" aria-hidden="true">{envDetail}</span>
+				</div>
+			{/if}
 			{#if sessionLabel}
 				<div class="nav-item session" title={sessionLabel}>
-					<span class="nav-icon session-mark" aria-hidden="true">{sessionMark}</span>
+					<span class="nav-icon" aria-hidden="true">
+						<span class="session-mark">{sessionMark}</span>
+					</span>
 					<span class="nav-label session-label">{sessionLabel}</span>
 					<span class="tip" aria-hidden="true">{sessionLabel}</span>
 				</div>
@@ -397,6 +449,17 @@
 			</header>
 		{/if}
 
+		{#if showEnvBanner}
+			<div
+				class="env-banner"
+				class:risk={Boolean(me?.risk)}
+				role="status"
+				title={envDetail}
+			>
+				{envBannerText}
+			</div>
+		{/if}
+
 		<main class="content scrollbar-fade">
 			{@render children({ path, active })}
 		</main>
@@ -425,6 +488,9 @@
 		open={moreOpen}
 		{path}
 		email={sessionLabel}
+		{envSummary}
+		{envDetail}
+		envRisk={Boolean(me?.risk)}
 		onclose={() => (moreOpen = false)}
 	/>
 </div>
@@ -709,20 +775,6 @@
 		color: var(--muted-foreground);
 	}
 
-	.session-mark {
-		display: grid;
-		place-items: center;
-		width: 1.35rem;
-		height: 1.35rem;
-		border-radius: var(--radius-md);
-		background: color-mix(in srgb, var(--primary) 22%, var(--card));
-		color: var(--primary);
-		font-size: 0.7rem;
-		font-weight: 650;
-		letter-spacing: 0;
-		line-height: 1;
-	}
-
 	.session-label {
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -818,8 +870,27 @@
 
 	.nav-icon {
 		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		position: relative;
 		flex-shrink: 0;
+	}
+
+	.session-mark {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		width: 1.1875rem;
+		height: 1.1875rem;
+		border-radius: var(--radius-sm);
+		background: color-mix(in srgb, var(--primary) 22%, var(--card));
+		color: var(--primary);
+		font-size: 0.625rem;
+		font-weight: 700;
+		letter-spacing: 0;
+		line-height: 1;
+		text-align: center;
 	}
 
 	.nav-label {
@@ -876,6 +947,67 @@
 		grid-template-rows: var(--topbar-h) minmax(0, 1fr);
 		min-width: 0;
 		height: 100dvh;
+	}
+
+	.shell:has(.env-banner) .main {
+		grid-template-rows: var(--topbar-h) auto minmax(0, 1fr);
+	}
+
+	.shell:not(.has-topbar):has(.env-banner) .main {
+		grid-template-rows: auto minmax(0, 1fr);
+	}
+
+	.env-banner {
+		padding: 0.45rem var(--page-gutter);
+		border-bottom: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+		background: color-mix(in srgb, var(--primary) 16%, var(--background));
+		color: var(--primary);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		line-height: 1.35;
+	}
+
+	.env-banner.risk {
+		border-bottom-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+		background: color-mix(in srgb, var(--warning) 18%, var(--background));
+		color: var(--warning);
+	}
+
+	.nav-item.session.env.local .session-mark {
+		background: color-mix(in srgb, var(--primary) 28%, var(--card));
+		color: var(--primary);
+	}
+
+	.nav-item.session.env.risk .session-mark {
+		background: color-mix(in srgb, var(--warning) 28%, var(--card));
+		color: var(--warning);
+	}
+
+	.env-line {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.env-db {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 0.65rem;
+		font-weight: 500;
+		color: var(--subtle-foreground);
+		opacity: 0.9;
+	}
+
+	.nav-item.session.env {
+		height: auto;
+		min-height: 2.75rem;
+		padding-top: 0.4rem;
+		padding-bottom: 0.4rem;
+		align-items: center;
 	}
 
 	.topbar {
@@ -1018,6 +1150,14 @@
 
 		.has-topbar .main {
 			grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+		}
+
+		.shell:has(.env-banner) .main {
+			grid-template-rows: auto minmax(0, 1fr);
+		}
+
+		.shell.has-topbar:has(.env-banner) .main {
+			grid-template-rows: var(--topbar-h) auto minmax(0, 1fr);
 		}
 
 		.tabs {

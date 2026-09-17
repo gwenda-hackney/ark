@@ -104,4 +104,43 @@ describe("menu-list", () => {
 		assert.ok((item._issueCount || 0) > 0);
 		assert.notEqual(item._issueLabel, "—");
 	});
+
+	it("labels cocktail rows with cocktail type as category", () => {
+		const rows = buildMenuListRows({
+			sections: [
+				{
+					_id: "our-formulas",
+					title: "Our Formulas",
+					orderRank: 1,
+					items: [
+						{
+							_id: "a",
+							name: "Aperol Spritz",
+							drinkType: "cocktail",
+							cocktailType: "spritz",
+						},
+						{
+							_id: "b",
+							name: "House Gin",
+							drinkType: "pour",
+						},
+					],
+				},
+			],
+			inventory: [],
+			query: "",
+			targets: DEFAULT_POUR_TARGETS,
+		});
+		const spritz = rows.find(
+			(row) => row._kind === "item" && row.name === "Aperol Spritz",
+		);
+		const pour = rows.find(
+			(row) => row._kind === "item" && row.name === "House Gin",
+		);
+		assert.equal(spritz?._kind, "item");
+		assert.equal(pour?._kind, "item");
+		if (spritz?._kind !== "item" || pour?._kind !== "item") return;
+		assert.equal(spritz._categoryLabel, "Spritz");
+		assert.equal(pour._categoryLabel, "—");
+	});
 });

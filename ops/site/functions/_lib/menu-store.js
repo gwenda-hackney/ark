@@ -58,6 +58,21 @@ function normalizeDrinkType(value) {
   return "cocktail";
 }
 
+const COCKTAIL_TYPES = new Set([
+  "spritz",
+  "highball",
+  "sour",
+  "stirred",
+  "negroni",
+  "fizz",
+  "other",
+]);
+
+function normalizeCocktailType(value) {
+  const raw = selectValue(value).toLowerCase();
+  return COCKTAIL_TYPES.has(raw) ? raw : "";
+}
+
 function mapIngredient(row) {
   return {
     id: row.id,
@@ -101,6 +116,7 @@ function mapItem(row) {
     price: text(row.Price) || undefined,
     priceAlt: text(row["Alt price"]) || undefined,
     drinkType: normalizeDrinkType(row["Drink type"]),
+    cocktailType: normalizeCocktailType(row["Cocktail type"]) || undefined,
     notes: text(row.Type) || undefined,
     glassware: text(row.Glassware) || undefined,
     garnish: text(row.Garnish) || undefined,
@@ -214,6 +230,8 @@ function itemFieldsFromInput(input) {
   }
 
   const drinkType = normalizeDrinkType(input.drinkType);
+  const cocktailType =
+    drinkType === "cocktail" ? normalizeCocktailType(input.cocktailType) : "";
 
   return {
     Name: name,
@@ -223,6 +241,7 @@ function itemFieldsFromInput(input) {
     Price: text(input.price),
     "Alt price": text(input.priceAlt),
     "Drink type": drinkType,
+    "Cocktail type": cocktailType || null,
     Type: text(input.notes),
     Glassware: text(input.glassware),
     Garnish: text(input.garnish),
@@ -483,7 +502,15 @@ export async function setMenuItemPhoto(env, itemId, bytes, { filename, contentTy
     Photo: [{ name: uploaded.name }],
     ...(alt ? {} : {}),
   });
-  return mapItem(row);
+  const item = mapItem(row);
+  if (!item.image?.asset?.url) {
+    const error = new Error(
+      'Photo did not attach. Menu Items is missing a "Photo" file field (or Baserow ignored the upload). Run npm run setup:baserow-ops against this Ops database.',
+    );
+    error.status = 502;
+    throw error;
+  }
+  return item;
 }
 
 export async function clearMenuItemPhoto(env, itemId) {

@@ -45,6 +45,12 @@ export async function login(password: string, next = "/menu") {
 export type AuthMe = {
   email: string | null;
   mode: "google" | "password" | "misconfigured";
+  siteEnv: "local" | "staging" | "production" | string;
+  envLabel: string;
+  databaseId: string | null;
+  databaseLabel: string;
+  isProductionDb: boolean;
+  risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
 };
 
 export function getMe() {
@@ -116,7 +122,12 @@ export function publishMenu(target: string) {
   return request<{
     target?: string;
     runUrl?: string;
-    sync?: { synced?: unknown[]; unchanged?: unknown[]; missing?: string[] };
+    sync?: {
+      synced?: unknown[];
+      created?: unknown[];
+      unchanged?: unknown[];
+      missing?: string[];
+    };
     deployed?: boolean;
   }>("/api/menu/publish", {
     method: "POST",

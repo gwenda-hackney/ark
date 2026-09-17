@@ -26,6 +26,7 @@ export const WEBSITE_FIELDS = [
   "abv",
   "volume",
   "producer",
+  "sectionId",
   "onDigitalMenu",
   "photo",
 ];
@@ -93,6 +94,8 @@ export function websiteProjection(item) {
     abv: text(item?.abv),
     volume: text(item?.volume),
     producer: text(item?.producer),
+    // Baserow section row id — detects moves; Sanity ref is resolved at publish.
+    sectionId: text(item?.sectionId || item?.section?._id),
     onDigitalMenu: item?.onDigitalMenu !== false,
     photo: photoFingerprint(item),
   };

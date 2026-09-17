@@ -11,11 +11,17 @@
 		open = false,
 		path = "/",
 		email = "",
+		envSummary = "",
+		envDetail = "",
+		envRisk = false,
 		onclose,
 	}: {
 		open?: boolean;
 		path?: string;
 		email?: string;
+		envSummary?: string;
+		envDetail?: string;
+		envRisk?: boolean;
 		onclose: () => void;
 	} = $props();
 
@@ -82,6 +88,21 @@
 					</span>
 				</a>
 			</nav>
+			{#if envSummary}
+				<div
+					class="row session env"
+					class:risk={envRisk}
+					title={envDetail || envSummary}
+				>
+					<span class="icon"><Icon name="settings" size={18} /></span>
+					<span class="copy">
+						<span class="label">{envSummary}</span>
+						<span class="hint"
+							>{envRisk ? "Check Baserow target" : "Connected environment"}</span
+						>
+					</span>
+				</div>
+			{/if}
 			{#if email}
 				<div class="row session" title={email}>
 					<span class="icon"><Icon name="users" size={18} /></span>
@@ -218,6 +239,19 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-weight: 500;
+	}
+
+	.session.env {
+		color: var(--primary);
+	}
+
+	.session.env.risk {
+		color: var(--warning);
+	}
+
+	.session.env + .session {
+		margin-top: 0;
+		border-top: none;
 	}
 
 	.signout {

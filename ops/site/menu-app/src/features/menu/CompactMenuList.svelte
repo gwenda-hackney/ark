@@ -76,7 +76,11 @@
 								<HighlightText text={row._matchHint.text} {query} />
 							</span>
 						{:else}
-							<span class="meta">{row._typeLabel}</span>
+							<span class="meta">
+								{[row._typeLabel, row._categoryLabel]
+									.filter((part) => part && part !== "—")
+									.join(" · ") || row._typeLabel}
+							</span>
 						{/if}
 					</span>
 					<span class="metrics">

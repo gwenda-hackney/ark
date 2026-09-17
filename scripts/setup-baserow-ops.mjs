@@ -295,6 +295,22 @@ function itemFields(sectionsTableId) {
         ],
       },
     },
+    {
+      name: "Cocktail type",
+      body: {
+        name: "Cocktail type",
+        type: "single_select",
+        select_options: [
+          { value: "spritz", color: "pink" },
+          { value: "highball", color: "blue" },
+          { value: "sour", color: "yellow" },
+          { value: "stirred", color: "dark-gray" },
+          { value: "negroni", color: "orange" },
+          { value: "fizz", color: "cyan" },
+          { value: "other", color: "light-gray" },
+        ],
+      },
+    },
     { name: "Type", body: { name: "Type", type: "text" } },
     { name: "Glassware", body: { name: "Glassware", type: "text" } },
     { name: "Garnish", body: { name: "Garnish", type: "text" } },
@@ -695,7 +711,11 @@ async function seedAppConfig(apiBase, jwt, configTableId) {
 
   const webhook =
     readEnv("SITE_DEPLOY_WEBHOOK_URL") || readEnv("SANITY_STUDIO_SITE_DEPLOY_URL");
-  await ensureRow(OPS_CONFIG_KEYS.siteDeployWebhookUrl, webhook, "all");
+  if (webhook) {
+    await ensureRow(OPS_CONFIG_KEYS.siteDeployWebhookUrl, webhook, "all");
+  } else {
+    console.log("  (skip site_deploy.webhook_url — set SITE_DEPLOY_WEBHOOK_URL in .env)");
+  }
 
   const googleClientId = readEnv("GOOGLE_OAUTH_CLIENT_ID");
   await ensureRow(OPS_CONFIG_KEYS.googleOauthClientId, googleClientId, "all");
@@ -984,9 +1004,16 @@ async function main() {
 
   const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];
   await maybeWriteEnv(envLines);
-  await maybeWriteWranglerVars({
-    BASEROW_OPS_DATABASE_ID: String(databaseId),
-  });
+  // wrangler.toml is production Pages config. Never point it at a local clone.
+  if (String(databaseId) === "556507") {
+    await maybeWriteWranglerVars({
+      BASEROW_OPS_DATABASE_ID: String(databaseId),
+    });
+  } else {
+    console.log(
+      `Skipping wrangler.toml update (database ${databaseId} is not production 556507).`,
+    );
+  }
   await maybeStripTableIdEnvKeys();
 
   console.log(

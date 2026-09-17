@@ -385,15 +385,18 @@
 	.photo {
 		margin: 0;
 		flex: 0 0 auto;
-		align-self: center;
-		max-width: 100%;
-		max-height: 64mm;
+		align-self: stretch;
+		width: 100%;
+		max-height: 130mm;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.photo img {
 		display: block;
 		max-width: 100%;
-		max-height: 64mm;
+		max-height: 130mm;
 		width: auto;
 		height: auto;
 		object-fit: contain;

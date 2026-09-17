@@ -1,4 +1,5 @@
 import {
+	cocktailTypeLabel,
 	drinkTypeLabel,
 	flattenIngredientsForMenu,
 	formatPrices,
@@ -107,9 +108,15 @@ export function recipeSearchFields(
 		},
 		{
 			key: "notes",
-			label: "Style",
+			label: "Tasting note",
 			value: String(item.notes || ""),
-			inGrid: false,
+			inGrid: true,
+		},
+		{
+			key: "category",
+			label: "Category",
+			value: cocktailTypeLabel(item.cocktailType),
+			inGrid: true,
 		},
 		{
 			key: "description",

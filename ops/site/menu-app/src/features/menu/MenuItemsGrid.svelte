@@ -109,61 +109,10 @@
 				),
 			},
 			{
-				headerName: "Style",
-				field: "notes",
-				minWidth: 140,
-				flex: 1.6,
-				valueGetter: (p) =>
-					p.data?._kind === "item" ? p.data.notes || "" : "",
-				cellRenderer: svelteCell(
-					HighlightCell,
-					(params: ICellRendererParams<GridRow>) => ({
-						text:
-							params.data?._kind === "item" ? params.data.notes || "" : "",
-						query: search,
-					}),
-				),
-			},
-			{
-				headerName: "Issues",
-				colId: "issues",
-				width: 88,
-				minWidth: 72,
-				flex: 0,
-				type: "num",
-				valueGetter: (p) =>
-					p.data?._kind === "item" ? p.data._issueLabel || "—" : "",
-				comparator: (_a, _b, nodeA, nodeB) =>
-					compareNullable(
-						nodeA?.data?._kind === "item" ? nodeA.data._issueCount : null,
-						nodeB?.data?._kind === "item" ? nodeB.data._issueCount : null,
-					),
-				cellClass: "issue-cell",
-				cellRenderer: svelteCell(
-					IssuesCell,
-					(params: ICellRendererParams<GridRow>) => ({
-						item: params.data?._kind === "item" ? params.data : null,
-						label:
-							params.data?._kind === "item"
-								? params.data._issueLabel || "—"
-								: "—",
-						tone:
-							params.data?._kind === "item"
-								? params.data._issueTone || ""
-								: "",
-						hint:
-							params.data?._kind === "item"
-								? params.data._issueHint || ""
-								: "",
-						onview: view,
-					}),
-				),
-			},
-			{
 				headerName: "Kind",
 				field: "_typeLabel",
-				width: 110,
-				minWidth: 90,
+				width: 100,
+				minWidth: 84,
 				flex: 0,
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data._typeLabel || "" : "",
@@ -172,6 +121,42 @@
 					(params: ICellRendererParams<GridRow>) => ({
 						text:
 							params.data?._kind === "item" ? params.data._typeLabel || "" : "",
+						query: search,
+					}),
+				),
+			},
+			{
+				headerName: "Category",
+				colId: "category",
+				field: "_categoryLabel",
+				minWidth: 110,
+				width: 130,
+				flex: 0.7,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data._categoryLabel || "" : "",
+				cellRenderer: svelteCell(
+					HighlightCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						text:
+							params.data?._kind === "item"
+								? params.data._categoryLabel || ""
+								: "",
+						query: search,
+					}),
+				),
+			},
+			{
+				headerName: "Tasting note",
+				field: "notes",
+				minWidth: 140,
+				flex: 1.4,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data.notes || "" : "",
+				cellRenderer: svelteCell(
+					HighlightCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						text:
+							params.data?._kind === "item" ? params.data.notes || "" : "",
 						query: search,
 					}),
 				),
@@ -281,6 +266,41 @@
 					p.data?._kind === "item" && p.data._volumeMl != null
 						? "num ag-right-aligned-cell"
 						: "num muted ag-right-aligned-cell",
+			},
+			{
+				headerName: "Issues",
+				colId: "issues",
+				width: 88,
+				minWidth: 72,
+				flex: 0,
+				type: "num",
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data._issueLabel || "—" : "",
+				comparator: (_a, _b, nodeA, nodeB) =>
+					compareNullable(
+						nodeA?.data?._kind === "item" ? nodeA.data._issueCount : null,
+						nodeB?.data?._kind === "item" ? nodeB.data._issueCount : null,
+					),
+				cellClass: "issue-cell",
+				cellRenderer: svelteCell(
+					IssuesCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						item: params.data?._kind === "item" ? params.data : null,
+						label:
+							params.data?._kind === "item"
+								? params.data._issueLabel || "—"
+								: "—",
+						tone:
+							params.data?._kind === "item"
+								? params.data._issueTone || ""
+								: "",
+						hint:
+							params.data?._kind === "item"
+								? params.data._issueHint || ""
+								: "",
+						onview: view,
+					}),
+				),
 			},
 			{
 				headerName: "Live",

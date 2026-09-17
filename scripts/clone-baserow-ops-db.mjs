@@ -3,7 +3,8 @@
  * One-time clone: production Ops Baserow DB → Free workspace "Gwenda Dev".
  *
  * Creates workspace + database, recreates tables/fields, copies rows with link
- * remapping. File fields (e.g. Photo) are skipped (re-fetch vendor photos later).
+ * remapping. File field *values* (e.g. Photo) are skipped (re-fetch later);
+ * empty file columns are still created so uploads work on the clone.
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
  * Source rows: BASEROW_API_KEY with read access to the production Ops DB.
@@ -148,7 +149,10 @@ async function listAllRows(apiBase, apiKey, tableId) {
 
 function fieldCreateBody(field, tableIdByOldId) {
   if (field.read_only && field.type !== "text") return null;
-  if (field.type === "file") return null;
+  // Create empty file columns; row values are skipped in remapRowPayload.
+  if (field.type === "file") {
+    return { name: field.name, type: "file" };
+  }
 
   const base = { name: field.name, type: field.type };
 

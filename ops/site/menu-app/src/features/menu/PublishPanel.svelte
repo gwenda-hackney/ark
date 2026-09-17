@@ -130,7 +130,8 @@
 				<section class="group">
 					<h3>Not on the website ({groups.missing.length})</h3>
 					<p class="group-note">
-						No stored website id. Publish will try to match by name.
+						No stored website id yet. Publish will match by name or create
+						them on the site.
 					</p>
 					<ul>
 						{#each groups.missing as row (row.name)}
