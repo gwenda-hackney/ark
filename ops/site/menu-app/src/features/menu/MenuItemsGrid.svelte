@@ -73,8 +73,8 @@
 			{
 				headerName: "",
 				colId: "photo",
-				maxWidth: 48,
-				minWidth: 48,
+				width: 48,
+				minWidth: 40,
 				flex: 0,
 				sortable: false,
 				cellClass: "photo-cell",
@@ -90,8 +90,7 @@
 				headerName: "Name",
 				field: "name",
 				minWidth: 160,
-				maxWidth: 240,
-				flex: 1,
+				flex: 1.4,
 				cellClass: "name-cell",
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data.name || "Untitled" : "",
@@ -109,9 +108,43 @@
 				),
 			},
 			{
+				headerName: "Style",
+				field: "notes",
+				minWidth: 120,
+				flex: 1.2,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data.notes || "" : "",
+				cellRenderer: svelteCell(
+					HighlightCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						text:
+							params.data?._kind === "item" ? params.data.notes || "" : "",
+						query: search,
+					}),
+				),
+			},
+			{
+				headerName: "Producer",
+				field: "producer",
+				minWidth: 110,
+				flex: 1,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data.producer || "" : "",
+				cellRenderer: svelteCell(
+					HighlightCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						text:
+							params.data?._kind === "item"
+								? params.data.producer || ""
+								: "",
+						query: search,
+					}),
+				),
+			},
+			{
 				headerName: "Kind",
 				field: "_typeLabel",
-				maxWidth: 110,
+				width: 110,
 				minWidth: 90,
 				flex: 0,
 				valueGetter: (p) =>
@@ -128,7 +161,7 @@
 			{
 				headerName: "Price",
 				field: "_priceLabel",
-				maxWidth: 120,
+				width: 120,
 				minWidth: 88,
 				flex: 0,
 				type: "num",
@@ -148,7 +181,7 @@
 			{
 				headerName: "Cost",
 				colId: "cost",
-				maxWidth: 96,
+				width: 96,
 				minWidth: 80,
 				flex: 0,
 				type: "num",
@@ -169,7 +202,7 @@
 			{
 				headerName: "Pour",
 				colId: "pour",
-				maxWidth: 88,
+				width: 88,
 				minWidth: 72,
 				flex: 0,
 				type: "num",
@@ -196,7 +229,7 @@
 			{
 				headerName: "ABV",
 				colId: "abv",
-				maxWidth: 72,
+				width: 72,
 				minWidth: 64,
 				flex: 0,
 				type: "num",
@@ -215,7 +248,7 @@
 			{
 				headerName: "Volume",
 				colId: "volume",
-				maxWidth: 96,
+				width: 96,
 				minWidth: 80,
 				flex: 0,
 				type: "num",
@@ -234,7 +267,7 @@
 			{
 				headerName: "Live",
 				colId: "live",
-				maxWidth: 64,
+				width: 64,
 				minWidth: 52,
 				flex: 0,
 				cellClass: "status-cell",
@@ -264,7 +297,7 @@
 			{
 				headerName: "",
 				colId: "actions",
-				maxWidth: 56,
+				width: 56,
 				minWidth: 48,
 				flex: 0,
 				sortable: false,

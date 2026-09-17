@@ -1,12 +1,12 @@
 <script lang="ts">
 	/**
-	 * Right-hand side panel with backdrop. Fades and slides in/out so every
-	 * ops drawer feels the same.
+	 * Right-hand drawer with backdrop. Portaled to body so it is not clipped
+	 * by editor overflow. Escape and backdrop click close.
 	 */
 	import type { Snippet } from "svelte";
 	import { fade, fly } from "svelte/transition";
+	import { portal } from "./portal";
 
-	/** Matches theme `--ease` (soft overshoot settle). */
 	function easeOut(t: number): number {
 		return 1 - Math.pow(1 - t, 3.2);
 	}
@@ -15,7 +15,7 @@
 		open = false,
 		onclose,
 		ariaLabel = "Side panel",
-		width = "min(24rem, 100%)",
+		width = "min(26rem, 100%)",
 		children,
 	}: {
 		open?: boolean;
@@ -24,10 +24,27 @@
 		width?: string;
 		children: Snippet;
 	} = $props();
+
+	$effect(() => {
+		if (!open || typeof window === "undefined") return;
+		function onKeydown(e: KeyboardEvent) {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				onclose();
+			}
+		}
+		window.addEventListener("keydown", onKeydown);
+		return () => window.removeEventListener("keydown", onKeydown);
+	});
 </script>
 
 {#if open}
-	<div class="root" style:--side-panel-width={width} role="presentation">
+	<div
+		class="root"
+		style:--side-panel-width={width}
+		role="presentation"
+		use:portal
+	>
 		<button
 			type="button"
 			class="backdrop"
@@ -50,9 +67,9 @@
 
 <style>
 	.root {
-		position: absolute;
+		position: fixed;
 		inset: 0;
-		z-index: 40;
+		z-index: 180;
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) var(--side-panel-width);
 		pointer-events: none;
@@ -69,6 +86,8 @@
 
 	.panel {
 		pointer-events: auto;
+		display: flex;
+		flex-direction: column;
 		min-width: 0;
 		height: 100%;
 		border-left: 1px solid var(--border);

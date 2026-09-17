@@ -50,9 +50,10 @@
 
 	function readRail(): boolean {
 		try {
-			return localStorage.getItem(RAIL_KEY) === "open";
+			// Default open; only collapse when the user has closed it.
+			return localStorage.getItem(RAIL_KEY) !== "closed";
 		} catch {
-			return false;
+			return true;
 		}
 	}
 
@@ -67,7 +68,7 @@
 		}
 	}
 
-	/** Collapsed by default — icons only. */
+	/** Expanded by default — labels visible unless the user collapses the rail. */
 	let open = $state(readRail());
 	let expandedGroups = $state<Record<string, boolean>>(readExpandedGroups());
 	let moreOpen = $state(false);

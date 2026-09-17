@@ -81,7 +81,7 @@ const INVENTORY = [
   { name: "Appleton Estate Signature Rum", kind: "liquor", defaultUnit: "ml" },
   { name: "Juan de la Costa Spiced Rum", kind: "liquor", defaultUnit: "ml" },
   { name: "El Dorado 12 Year Old Rum", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 50.35 },
-  { name: "Admiral's Old J Tiki Fire Spiced Rum", kind: "liquor", defaultUnit: "ml", abv: "35", estimatedCost: 48.32 },
+  { name: "Admiral's Old J Tiki Fire Spiced Rum", kind: "liquor", defaultUnit: "ml", abv: "35", estimatedCost: 37.94 },
   { name: "Bacardi Reserva Ocho Rum", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 38.31 },
   { name: "Iron Wheel Kentucky Bourbon", kind: "liquor", defaultUnit: "ml" },
   { name: "Jameson Black Barrel", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 40.89 },

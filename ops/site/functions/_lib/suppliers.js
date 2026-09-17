@@ -159,6 +159,7 @@ export function formatSupplierEntries(entries) {
 export function normalizeSupplierEntries(input) {
   if (Array.isArray(input)) {
     const fromObjects = [];
+    const seen = new Set();
     for (const entry of input) {
       if (typeof entry === "string") {
         fromObjects.push(...parseSupplierEntries(entry));
@@ -172,6 +173,11 @@ export function normalizeSupplierEntries(input) {
       const sku = text(entry.sku) || skuFromProductUrl(productUrl);
       const pack = text(entry.pack);
       const price = parseMoney(entry.price);
+      const key = sku
+        ? `${name.toLowerCase()}|sku:${sku.toUpperCase()}`
+        : `${name.toLowerCase()}|${productUrl.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       fromObjects.push({
         ...(entry.supplierId != null && String(entry.supplierId).trim()
           ? { supplierId: String(entry.supplierId).trim() }

@@ -76,7 +76,7 @@ const SUPPLIER_LINKS = {
     "https://www.hillsprospect.com/displayitemdetails/P/SPR47046/el-dorado-12-year-old-rum",
   ],
   "Admiral's Old J Tiki Fire Spiced Rum": [
-    "https://www.hillsprospect.com/displayitemdetails/P/SPR54016/admirals-old-j-spiced-rum",
+    "https://www.hillsprospect.com/displayitemdetails/P/SPR47101/admirals-old-j-tiki-fire-spiced-rum",
   ],
   "Bacardi Reserva Ocho Rum": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPR47008/bacardi-reserva-ocho-rum",
@@ -452,12 +452,13 @@ async function main() {
     }
 
     const existing = linksByInventory.get(String(row.id)) || [];
-    const existingByUrl = new Map(
-      existing.map((link) => [
-        parseProductUrl(link["Product URL"]).toLowerCase(),
-        link,
-      ]),
-    );
+    const existingByKey = new Map();
+    for (const link of existing) {
+      const url = parseProductUrl(link["Product URL"]).toLowerCase();
+      const sku = (String(link.SKU || "").trim() || skuFromProductUrl(url)).toUpperCase();
+      if (sku) existingByKey.set(`sku:${sku}`, link);
+      if (url) existingByKey.set(`url:${url}`, link);
+    }
 
     let linksChanged = 0;
     for (const url of resolvedLinks) {
@@ -485,7 +486,10 @@ async function main() {
       if (linkFieldNames.has("Pack") && pack) payload.Pack = pack;
       if (linkFieldNames.has("Price") && price != null) payload.Price = price;
 
-      const current = existingByUrl.get(url.toLowerCase());
+      const skuKey = lwc.sku ? `sku:${lwc.sku}` : "";
+      const urlKey = `url:${url.toLowerCase()}`;
+      const current =
+        (skuKey && existingByKey.get(skuKey)) || existingByKey.get(urlKey);
       const samePrice =
         !linkFieldNames.has("Price") ||
         Number(current?.Price) === Number(price ?? current?.Price);
@@ -497,8 +501,13 @@ async function main() {
         String(current?.Pack || "") === String(pack || current?.Pack || "");
       const sameSupplier =
         current && String(linkId(current.Supplier) ?? "") === String(supplier.id);
+      const sameUrl =
+        current &&
+        parseProductUrl(current["Product URL"]).toLowerCase() === url.toLowerCase();
 
-      if (current && samePrice && sameSku && samePack && sameSupplier) continue;
+      if (current && samePrice && sameSku && samePack && sameSupplier && sameUrl) {
+        continue;
+      }
 
       if (!dryRun && !String(supplier.id).startsWith("dry:")) {
         if (current) {
@@ -506,14 +515,16 @@ async function main() {
             `/api/database/rows/table/${inventorySuppliersTableId}/${current.id}/?user_field_names=true`,
             { method: "PATCH", body: JSON.stringify(payload) },
           );
-          existingByUrl.set(url.toLowerCase(), patched);
+          if (skuKey) existingByKey.set(skuKey, patched);
+          existingByKey.set(urlKey, patched);
         } else {
           const created = await baserow(
             `/api/database/rows/table/${inventorySuppliersTableId}/?user_field_names=true`,
             { method: "POST", body: JSON.stringify(payload) },
           );
           existing.push(created);
-          existingByUrl.set(url.toLowerCase(), created);
+          if (skuKey) existingByKey.set(skuKey, created);
+          existingByKey.set(urlKey, created);
           linksByInventory.set(String(row.id), existing);
         }
       }
