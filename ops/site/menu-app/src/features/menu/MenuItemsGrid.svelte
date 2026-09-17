@@ -25,6 +25,7 @@
 	import { Icon } from "../../shell";
 	import CompactMenuList from "./CompactMenuList.svelte";
 	import HighlightCell from "./cells/HighlightCell.svelte";
+	import IssuesCell from "./cells/IssuesCell.svelte";
 	import NameCell from "./cells/NameCell.svelte";
 	import PhotoCell from "./cells/PhotoCell.svelte";
 	import PublishStatusCell from "./cells/PublishStatusCell.svelte";
@@ -45,7 +46,7 @@
 		inventory?: InventoryItem[];
 		query?: string;
 		selectedId?: string | null;
-		onview: (item: MenuItem) => void;
+		onview: (item: MenuItem, tab?: string) => void;
 		onnew?: () => void;
 	} = $props();
 
@@ -110,8 +111,8 @@
 			{
 				headerName: "Style",
 				field: "notes",
-				minWidth: 120,
-				flex: 1.2,
+				minWidth: 140,
+				flex: 1.6,
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data.notes || "" : "",
 				cellRenderer: svelteCell(
@@ -124,20 +125,37 @@
 				),
 			},
 			{
-				headerName: "Producer",
-				field: "producer",
-				minWidth: 110,
-				flex: 1,
+				headerName: "Issues",
+				colId: "issues",
+				width: 88,
+				minWidth: 72,
+				flex: 0,
+				type: "num",
 				valueGetter: (p) =>
-					p.data?._kind === "item" ? p.data.producer || "" : "",
+					p.data?._kind === "item" ? p.data._issueLabel || "—" : "",
+				comparator: (_a, _b, nodeA, nodeB) =>
+					compareNullable(
+						nodeA?.data?._kind === "item" ? nodeA.data._issueCount : null,
+						nodeB?.data?._kind === "item" ? nodeB.data._issueCount : null,
+					),
+				cellClass: "issue-cell",
 				cellRenderer: svelteCell(
-					HighlightCell,
+					IssuesCell,
 					(params: ICellRendererParams<GridRow>) => ({
-						text:
+						item: params.data?._kind === "item" ? params.data : null,
+						label:
 							params.data?._kind === "item"
-								? params.data.producer || ""
+								? params.data._issueLabel || "—"
+								: "—",
+						tone:
+							params.data?._kind === "item"
+								? params.data._issueTone || ""
 								: "",
-						query: search,
+						hint:
+							params.data?._kind === "item"
+								? params.data._issueHint || ""
+								: "",
+						onview: view,
 					}),
 				),
 			},
@@ -467,6 +485,13 @@
 		overflow: visible;
 		height: 100%;
 		line-height: 0;
+	}
+
+	.grid-host :global(.issue-cell),
+	.grid-host :global(.issue-cell .ag-cell-wrapper),
+	.grid-host :global(.issue-cell .ag-cell-value) {
+		justify-content: flex-end;
+		align-items: center;
 	}
 
 	.grid-host :global(.photo-cell) {

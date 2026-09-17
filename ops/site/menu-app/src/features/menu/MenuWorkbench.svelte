@@ -191,7 +191,10 @@
 		};
 	}
 
-	function openItem(next: MenuItem, skipNav = false) {
+	function openItem(
+		next: MenuItem,
+		opts: { skipNav?: boolean; tab?: string } = {},
+	) {
 		parkGridScroll("menu-list", listPaneEl);
 		selectedId = next._id || null;
 		item = {
@@ -202,8 +205,12 @@
 		};
 		detailOpen = true;
 		missingId = "";
-		if (!skipNav) {
-			navigate(next.name?.trim() ? menuItemPath(next.name) : menuNewPath());
+		if (!opts.skipNav) {
+			navigate(
+				next.name?.trim()
+					? menuItemPath(next.name, opts.tab)
+					: menuNewPath(opts.tab),
+			);
 		}
 	}
 
@@ -490,7 +497,7 @@
 				return;
 			}
 			appliedPath = path;
-			openItem(blankItem(), true);
+			openItem(blankItem(), { skipNav: true });
 			selectedId = null;
 			return;
 		}
@@ -504,7 +511,9 @@
 				if (canonical && canonical !== path) {
 					navigate(canonical, { replace: true, force: true });
 				}
-				if (selectedId !== found._id || !detailOpen) openItem(found, true);
+				if (selectedId !== found._id || !detailOpen) {
+					openItem(found, { skipNav: true });
+				}
 				return;
 			}
 			if (!sections.length && !loadError) return;
@@ -658,7 +667,7 @@
 							{inventory}
 							bind:query
 							{selectedId}
-							onview={openItem}
+							onview={(row, tab) => openItem(row, { tab })}
 							onnew={newItem}
 						/>
 					</div>

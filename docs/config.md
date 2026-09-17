@@ -26,8 +26,10 @@ Ops uses **two Baserow workspaces** so a local token cannot see production data:
 
 | Env | Workspace | Database id | Token (SM) |
 |-----|-----------|-------------|------------|
-| production | `Gwenda` (`208709`) | `556507` | `BASEROW_API_KEY_PRODUCTION` |
-| local | `Gwenda Ops Dev` (Free) | clone id (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY` |
+| production | `Gwenda` (`208709`) | Ops DB `556507` | `BASEROW_API_KEY_PRODUCTION` |
+| local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY` |
+
+Each workspace holds the **Gwenda Ops** database (and can later hold other domain DBs).
 
 Second workspace is Free ($0; 3k rows). Clone once:
 

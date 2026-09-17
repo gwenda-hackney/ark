@@ -1,4 +1,9 @@
 import {
+	analyzeRecipe,
+	isIssue,
+	summarizeIssues,
+} from "./analyze.ts";
+import {
 	computeRecipeAbv,
 	computeRecipeVolumeMl,
 	formatAbv,
@@ -12,7 +17,6 @@ import {
 	marginHint,
 	marginTone,
 	parseLabelVolumeMl,
-	recipePriceAnalysis,
 	type MarginTone,
 } from "./cost.ts";
 import {
@@ -50,6 +54,10 @@ export type MenuListItem = MenuItem & {
 	_pourLabel?: string;
 	_pourTone?: MarginTone | "";
 	_pourHint?: string;
+	_issueCount?: number;
+	_issueLabel?: string;
+	_issueTone?: "loss" | "down" | "";
+	_issueHint?: string;
 	_abv?: number | null;
 	_abvLabel?: string;
 	_volumeMl?: number | null;
@@ -125,6 +133,46 @@ function costHint(price: {
 	return parts.join(" ");
 }
 
+function issueHint(
+	critical: number,
+	warning: number,
+	messages: string[],
+): string {
+	const total = critical + warning;
+	if (total <= 0) return "No analysis issues.";
+	const head = [
+		critical > 0 ? `${critical} critical` : "",
+		warning > 0 ? `${warning} warning${warning === 1 ? "" : "s"}` : "",
+	]
+		.filter(Boolean)
+		.join(", ");
+	const detail = messages.slice(0, 4).join(" · ");
+	return detail ? `${head}. ${detail}` : `${head}.`;
+}
+
+function allMenuItems(sections: MenuSection[]): MenuItem[] {
+	const chapters = [...sections].sort(
+		(a, b) => (a.orderRank ?? 0) - (b.orderRank ?? 0),
+	);
+	const out: MenuItem[] = [];
+	for (const chapter of chapters) {
+		for (const block of [chapter, ...(chapter.subsections || [])]) {
+			for (const item of block.items || []) {
+				out.push({
+					...item,
+					section: item.section || {
+						_id: block._id,
+						title: block.title,
+						parentTitle: block.parentId ? chapter.title : undefined,
+					},
+					sectionId: item.sectionId || block._id,
+				});
+			}
+		}
+	}
+	return out;
+}
+
 export function buildMenuListRows(opts: {
 	sections: MenuSection[];
 	inventory: InventoryItem[];
@@ -137,6 +185,7 @@ export function buildMenuListRows(opts: {
 		(a, b) => (a.orderRank ?? 0) - (b.orderRank ?? 0),
 	);
 	const byId = inventoryAbvById(inventory);
+	const peers = allMenuItems(sections);
 
 	const out: MenuListRow[] = [];
 	let order = 0;
@@ -156,7 +205,13 @@ export function buildMenuListRows(opts: {
 				.flatMap((item): MenuListItem[] => {
 					const fields = recipeSearchFields(item, sectionLabel(item));
 					if (!itemMatchesSearch(fields, needle)) return [];
-					const price = recipePriceAnalysis(item, inventory, targets);
+					const analysis = analyzeRecipe(item, inventory, peers, targets);
+					const price = analysis.price;
+					const issues = summarizeIssues(analysis.flags);
+					const issueMessages = analysis.flags
+						.filter(isIssue)
+						.map((flag) => flag.message);
+					const issueCount = issues.critical + issues.warning;
 					const abv = abvFor(item, byId);
 					const volume = volumeFor(item);
 					const costApprox =
@@ -195,6 +250,19 @@ export function buildMenuListRows(opts: {
 								hasPrice: parseGbp(item.price) != null,
 								serves: price.serves,
 							}),
+							_issueCount: issueCount,
+							_issueLabel: issueCount > 0 ? String(issueCount) : "—",
+							_issueTone:
+								issues.critical > 0
+									? "loss"
+									: issues.warning > 0
+										? "down"
+										: "",
+							_issueHint: issueHint(
+								issues.critical,
+								issues.warning,
+								issueMessages,
+							),
 							_abv: abv.percent,
 							_abvLabel: abv.label,
 							_volumeMl: volume.ml,

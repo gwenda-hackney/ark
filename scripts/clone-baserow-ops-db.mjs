@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-time clone: production Ops Baserow DB → new Free workspace "Gwenda Ops Dev".
+ * One-time clone: production Ops Baserow DB → Free workspace "Gwenda Dev".
  *
  * Creates workspace + database, recreates tables/fields, copies rows with link
  * remapping. File fields (e.g. Photo) are skipped (re-fetch vendor photos later).
@@ -12,8 +12,8 @@
  *   npm run clone:baserow-ops-dev -- --dry-run
  *
  * Env overrides:
- *   BASEROW_OPS_DATABASE_ID   source DB (default 556507)
- *   BASEROW_OPS_DEV_WORKSPACE_NAME  (default "Gwenda Ops Dev")
+ *   BASEROW_OPS_CLONE_SOURCE_ID     source DB (default 556507)
+ *   BASEROW_OPS_DEV_WORKSPACE_NAME  (default "Gwenda Dev")
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -35,7 +35,9 @@ import {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
 const DEFAULT_SOURCE_DB = "556507";
-const DEV_WORKSPACE_NAME = "Gwenda Ops Dev";
+const DEV_WORKSPACE_NAME = "Gwenda Dev";
+/** Older clone name; findOrCreate renames it to DEV_WORKSPACE_NAME. */
+const LEGACY_DEV_WORKSPACE_NAME = "Gwenda Ops Dev";
 
 /** Create order: parents before children that link to them. */
 const TABLE_ORDER = [
@@ -275,12 +277,30 @@ function remapRowPayload(row, fields, idMapsByOldTableId) {
 async function findOrCreateWorkspace(apiBase, jwt, name, dryRun) {
   const list = await jwtRequest(apiBase, jwt, "/api/workspaces/");
   const workspaces = Array.isArray(list) ? list : [];
-  const existing = workspaces.find(
-    (ws) => String(ws.name).trim().toLowerCase() === name.toLowerCase(),
-  );
+  const norm = (n) => String(n).trim().toLowerCase();
+  const existing = workspaces.find((ws) => norm(ws.name) === norm(name));
   if (existing) {
     console.log(`Using existing workspace "${existing.name}" (${existing.id}).`);
     return String(existing.id);
+  }
+  const legacy = workspaces.find(
+    (ws) => norm(ws.name) === norm(LEGACY_DEV_WORKSPACE_NAME),
+  );
+  if (legacy) {
+    if (dryRun) {
+      console.log(
+        `[dry-run] would rename workspace "${legacy.name}" → "${name}" (${legacy.id})`,
+      );
+      return String(legacy.id);
+    }
+    const renamed = await jwtRequest(apiBase, jwt, `/api/workspaces/${legacy.id}/`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    });
+    console.log(
+      `Renamed workspace "${legacy.name}" → "${renamed.name}" (${renamed.id}).`,
+    );
+    return String(renamed.id);
   }
   if (dryRun) {
     console.log(`[dry-run] would create workspace "${name}"`);
