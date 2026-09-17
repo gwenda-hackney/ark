@@ -86,10 +86,30 @@ describe("recipe search", () => {
 		assert.equal(hint?.label, "Method");
 	});
 
-	it("keeps style as a hidden hint, not a grid column", () => {
+	it("does not invent a hint when tasting note is already on the grid", () => {
 		assert.equal(itemMatchesSearch(fields, "aperitivo"), true);
-		const hint = hiddenMatchHint(fieldHits(fields, "aperitivo"), "aperitivo");
-		assert.equal(hint?.label, "Style");
-		assert.equal(hint?.text.includes("Bitter aperitivo"), true);
+		const hits = fieldHits(fields, "aperitivo");
+		assert.deepEqual(
+			hits.map((hit) => hit.key),
+			["notes"],
+		);
+		assert.equal(hiddenMatchHint(hits, "aperitivo"), null);
+	});
+
+	it("treats cocktail type as the category column", () => {
+		const withType = recipeSearchFields(
+			{ ...ponente, cocktailType: "spritz" },
+			"Our Formulas",
+		);
+		assert.equal(itemMatchesSearch(withType, "spritz"), true);
+		const hits = fieldHits(withType, "spritz");
+		assert.ok(hits.some((hit) => hit.key === "category"));
+		assert.equal(
+			hiddenMatchHint(
+				hits.filter((hit) => hit.key === "category"),
+				"spritz",
+			),
+			null,
+		);
 	});
 });

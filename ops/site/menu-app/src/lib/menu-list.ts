@@ -27,6 +27,7 @@ import {
 	type MatchHint,
 } from "./search.ts";
 import {
+	cocktailTypeLabel,
 	drinkTypeLabel,
 	formatPrices,
 	normalizeDrinkType,
@@ -47,6 +48,8 @@ export type MenuListItem = MenuItem & {
 	_priceLabel?: string;
 	_sellPrice?: number | null;
 	_typeLabel?: string;
+	/** Cocktail build: Spritz, Highball, Stirred, etc. */
+	_categoryLabel?: string;
 	_cost?: number | null;
 	_costLabel?: string;
 	_costHint?: string;
@@ -94,6 +97,11 @@ function sectionLabel(item: MenuItem): string {
 	const title = item.section?.title;
 	if (parent && title) return `${parent} / ${title}`;
 	return title || "—";
+}
+
+function categoryLabel(item: MenuItem): string {
+	if (normalizeDrinkType(item.drinkType) !== "cocktail") return "—";
+	return cocktailTypeLabel(item.cocktailType) || "—";
 }
 
 function abvFor(
@@ -227,6 +235,7 @@ export function buildMenuListRows(opts: {
 							_priceLabel: formatPrices(item) || "—",
 							_sellPrice: parseGbp(item.price),
 							_typeLabel: drinkTypeLabel(normalizeDrinkType(item.drinkType)),
+							_categoryLabel: categoryLabel(item),
 							_cost: price.drinkCost,
 							_costLabel: formatCostLabel(price.drinkCost, costApprox),
 							_costHint: costHint(price),

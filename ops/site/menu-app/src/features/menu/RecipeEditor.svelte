@@ -14,6 +14,7 @@
 	} from "../../ui";
 	import type { SegmentedItem, SelectOption } from "../../ui/types";
 	import {
+		COCKTAIL_TYPES,
 		DRINK_TYPES,
 		GLASSWARE,
 		ICE_OPTIONS,
@@ -22,11 +23,13 @@
 		flattenIngredientsForMenu,
 		formatGbp,
 		hasRecipe,
+		normalizeCocktailType,
 		normalizeDrinkType,
 		serveTabLabel,
 		publishFieldLabel,
 		publishHint,
 		formatPublishDiff,
+		type CocktailType,
 		type DrinkType,
 		type Ingredient,
 		type InventoryItem,
@@ -262,6 +265,14 @@
 		label: row.label,
 	}));
 
+	const cocktailTypeOptions: SelectOption[] = [
+		{ value: "", label: "—" },
+		...COCKTAIL_TYPES.map((row) => ({
+			value: row.value,
+			label: row.label,
+		})),
+	];
+
 	const sectionOptions: SelectOption[] = $derived(
 		flattenMenuSections(sections).map((section) => ({
 			value: section._id,
@@ -494,7 +505,11 @@
 		if (normalizeDrinkType(item.drinkType) === next) return;
 		remember("drinkType");
 		const cleared =
-			next === "packaged" ? { ...item, drinkType: next, priceAlt: "" } : { ...item, drinkType: next };
+			next === "packaged"
+				? { ...item, drinkType: next, priceAlt: "", cocktailType: "" as const }
+				: next === "cocktail"
+					? { ...item, drinkType: next }
+					: { ...item, drinkType: next, cocktailType: "" as const };
 		if (next === "cocktail") {
 			item = cleared;
 			return;
@@ -506,6 +521,37 @@
 	}
 
 	const photoUrl = $derived(item?.image?.asset?.url);
+	const heroPhotoSrc = $derived.by(() => {
+		if (!photoUrl) return "";
+		try {
+			const parsed = new URL(photoUrl, location.origin);
+			if (parsed.hostname.includes("cdn.sanity.io")) {
+				parsed.searchParams.set("w", "1200");
+				parsed.searchParams.set("fit", "max");
+				parsed.searchParams.set("auto", "format");
+				return parsed.toString();
+			}
+		} catch {
+			/* keep original */
+		}
+		return photoUrl;
+	});
+	const thumbPhotoSrc = $derived.by(() => {
+		if (!photoUrl) return "";
+		try {
+			const parsed = new URL(photoUrl, location.origin);
+			if (parsed.hostname.includes("cdn.sanity.io")) {
+				parsed.searchParams.set("w", "240");
+				parsed.searchParams.set("h", "240");
+				parsed.searchParams.set("fit", "crop");
+				parsed.searchParams.set("auto", "format");
+				return parsed.toString();
+			}
+		} catch {
+			/* keep original */
+		}
+		return photoUrl;
+	});
 	const abvLabel = $derived.by(() => {
 		const parsed = parseAbvPercent(item?.abv);
 		return parsed == null ? "" : formatAbv(parsed);
@@ -658,7 +704,7 @@
 				{#if photoUrl}
 					<img
 						class="hero-img"
-						src="{photoUrl}?w=1200"
+						src={heroPhotoSrc}
 						alt={item.image?.alt || item.name || ""}
 					/>
 					<div class="photo-hit has-photo">
@@ -710,9 +756,7 @@
 							{#if photoUrl}
 								<img
 									class="thumb-img"
-									src={photoUrl.includes("cdn.sanity.io")
-										? `${photoUrl.split("?")[0]}?w=240&h=240&fit=crop&auto=format`
-										: photoUrl}
+									src={thumbPhotoSrc}
 									alt=""
 								/>
 							{:else}
@@ -921,6 +965,27 @@
 											)}
 									/>
 								</Field>
+								{#if showRecipe}
+									<Field
+										label="Category"
+										for="f-cocktail-type"
+										tooltip="Build family: spritz, highball, stirred, and so on. Separate from where it sits on the menu."
+									>
+										<NativeSelect
+											id="f-cocktail-type"
+											size="sm"
+											options={cocktailTypeOptions}
+											value={normalizeCocktailType(item.cocktailType)}
+											onchange={(e) =>
+												patch(
+													"cocktailType",
+													normalizeCocktailType(
+														(e.currentTarget as HTMLSelectElement).value,
+													) as CocktailType | "",
+												)}
+										/>
+									</Field>
+								{/if}
 								<Field label="Section" for="f-section">
 									<NativeSelect
 										id="f-section"
@@ -1036,7 +1101,7 @@
 								</div>
 								<div class="full">
 									<Field
-										label="Style note"
+										label="Tasting note"
 										for="f-notes"
 										tooltip="Short line under the name on the website menu."
 									>

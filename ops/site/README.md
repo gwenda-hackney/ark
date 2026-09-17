@@ -85,7 +85,7 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields from Baserow into matching Sanity `menuItem` documents (by name or stored Sanity ID), then triggers the site rebuild webhook.
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into Sanity `menuItem` documents. It matches by stored Sanity ID or name, creates missing sections/items, then triggers the site rebuild webhook (staging → `gwenda-staging.pages.dev`).
 
 ## Local
 

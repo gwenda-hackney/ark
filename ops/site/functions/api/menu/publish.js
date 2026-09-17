@@ -59,7 +59,11 @@ export const onRequestPost = withApiHandler(async (context) => {
   }
 
   const sync = await syncOpsMenuToSanity(context.env, { target });
-  if (!sync.synced.length) {
+  const changed =
+    (sync.synced?.length || 0) +
+    (sync.created?.length || 0) +
+    (sync.sectionWrites || 0);
+  if (!changed) {
     return jsonResponse({ ok: true, target, sync, deployed: false });
   }
   const result = await webhookJson(`${baseUrl}/deploy`, secret, {

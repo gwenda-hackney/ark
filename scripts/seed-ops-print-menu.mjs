@@ -184,6 +184,27 @@ function inv(name, quantity, unit) {
   return { name, quantity, unit, inventoryName: name };
 }
 
+const COCKTAIL_TYPES = new Set([
+  "spritz",
+  "highball",
+  "sour",
+  "stirred",
+  "negroni",
+  "fizz",
+  "other",
+]);
+
+function cocktailTypeFor(def) {
+  const explicit = String(def.cocktailType || "")
+    .trim()
+    .toLowerCase();
+  if (COCKTAIL_TYPES.has(explicit)) return explicit;
+  const fromSection = String(def.sectionSlug || "")
+    .trim()
+    .toLowerCase();
+  return COCKTAIL_TYPES.has(fromSection) ? fromSection : "";
+}
+
 /** UK pint. Half pint is costed at half of this serve. */
 const UK_PINT_ML = 568;
 
@@ -196,6 +217,7 @@ const UK_PINT_ML = 568;
  *  price?: string,
  *  priceAlt?: string,
  *  drinkType: string,
+ *  cocktailType?: string,
  *  notes?: string,
  *  description?: string,
  *  lockDescription?: boolean,
@@ -215,6 +237,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "13",
     drinkType: "cocktail",
+    cocktailType: "fizz",
     notes: "Floral fizz",
     description: "Roku gin, Italicus, elderflower liqueur, lime, soda, basil",
     lockDescription: true,
@@ -233,6 +256,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "fizz",
     notes: "Cool coconut",
     description: "42 Below vodka, coconut water, blue curaçao, lime, soda",
     lockDescription: true,
@@ -250,6 +274,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "12",
     drinkType: "cocktail",
+    cocktailType: "sour",
     notes: "Bitter lemon",
     description: "Campari, Arboretum gin, Amaro Montenegro, cherry, lemon",
     lockDescription: true,
@@ -267,6 +292,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "sour",
     notes: "Salty cherry",
     description: "42 Below vodka, Martini Riserva Speciale Bitter, cherry, saline, lemon",
     lockDescription: true,
@@ -284,6 +310,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "sour",
     notes: "Salted grapefruit",
     description: "Buen Amigo Silver tequila, grapefruit, lime, agave, sea salt",
     lockDescription: true,
@@ -301,6 +328,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "sour",
     notes: "Cucumber and pineapple",
     description: "Renegade gin, cucumber, pineapple, lemon, sugar syrup",
     lockDescription: true,
@@ -318,6 +346,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "sour",
     notes: "Smoky passion fruit",
     description: "Ojo de Dios mezcal, passion fruit, lime, agave",
     lockDescription: true,
@@ -334,6 +363,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "sour",
     notes: "Smoke, strawberry, chilli",
     description: "Ojo de Dios mezcal, strawberry syrup, chilli powder, lime, red wine",
     lockDescription: true,
@@ -351,6 +381,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "12",
     drinkType: "cocktail",
+    cocktailType: "sour",
     notes: "Banana and tonka",
     description: "Vecchia Romagna Etichetta Nera, banana syrup, tonka syrup, lemon, orange bitters",
     lockDescription: true,
@@ -368,6 +399,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "stirred",
     notes: "Fig and cinnamon",
     description: "Iron Wheel Kentucky bourbon, fig syrup, cinnamon, orange bitters",
     lockDescription: true,
@@ -384,6 +416,7 @@ const MENU_UPDATES = [
     sectionSlug: "our-formulas",
     price: "11",
     drinkType: "cocktail",
+    cocktailType: "stirred",
     notes: "Coffee and maple",
     description: "Appleton Estate Signature Rum, Borghetti, maple syrup, Angostura",
     lockDescription: true,
@@ -402,6 +435,7 @@ const MENU_UPDATES = [
     sectionSlug: "free-of-spirit",
     price: "7",
     drinkType: "cocktail",
+    cocktailType: "fizz",
     description: "Apple juice, mint syrup, lemon, soda",
     lockDescription: true,
     ingredients: [
@@ -417,6 +451,7 @@ const MENU_UPDATES = [
     sectionSlug: "free-of-spirit",
     price: "7",
     drinkType: "cocktail",
+    cocktailType: "fizz",
     description: "Pineapple juice, orange juice, lemon, soda",
     lockDescription: true,
     ingredients: [
@@ -432,6 +467,7 @@ const MENU_UPDATES = [
     sectionSlug: "free-of-spirit",
     price: "7",
     drinkType: "cocktail",
+    cocktailType: "other",
     description: "Orange juice, grenadine, lemon",
     lockDescription: true,
     ingredients: [
@@ -446,6 +482,7 @@ const MENU_UPDATES = [
     sectionSlug: "free-of-spirit",
     price: "7",
     drinkType: "cocktail",
+    cocktailType: "fizz",
     description: "Pomegranate juice, lemon, sugar syrup, soda",
     lockDescription: true,
     ingredients: [
@@ -1137,6 +1174,7 @@ async function upsertMenuItem(def, sectionIdBySlug, itemsByName, invIds) {
     Price: def.price || "",
     "Alt price": def.priceAlt || "",
     "Drink type": def.drinkType,
+    "Cocktail type": cocktailTypeFor(def) || null,
     Type: def.notes || "",
     ABV: def.abv || "",
     Volume: def.volume || "",

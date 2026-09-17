@@ -117,6 +117,54 @@ export function skuFromProductUrl(url: string | undefined): string {
 /** How the drink is served and configured in ops. */
 export type DrinkType = "cocktail" | "pour" | "beer" | "packaged";
 
+/**
+ * Cocktail build / family. Independent of menu section placement
+ * (a signature under Our Formulas can still be a spritz).
+ */
+export type CocktailType =
+	| "spritz"
+	| "highball"
+	| "sour"
+	| "stirred"
+	| "negroni"
+	| "fizz"
+	| "other";
+
+export const COCKTAIL_TYPES: { value: CocktailType; label: string }[] = [
+	{ value: "spritz", label: "Spritz" },
+	{ value: "highball", label: "Highball" },
+	{ value: "sour", label: "Sour" },
+	{ value: "stirred", label: "Stirred" },
+	{ value: "negroni", label: "Negroni" },
+	{ value: "fizz", label: "Fizz" },
+	{ value: "other", label: "Other" },
+];
+
+export function normalizeCocktailType(value: unknown): CocktailType | "" {
+	const raw = String(value || "")
+		.trim()
+		.toLowerCase();
+	if (!raw) return "";
+	const found = COCKTAIL_TYPES.find((row) => row.value === raw);
+	return found?.value || "";
+}
+
+export function cocktailTypeLabel(value: unknown): string {
+	const normalized = normalizeCocktailType(value);
+	if (!normalized) return "";
+	return (
+		COCKTAIL_TYPES.find((row) => row.value === normalized)?.label || normalized
+	);
+}
+
+/** Infer cocktail type from a menu section slug when backfilling. */
+export function cocktailTypeFromSectionSlug(slug: unknown): CocktailType | "" {
+	const raw = String(slug || "")
+		.trim()
+		.toLowerCase();
+	return normalizeCocktailType(raw);
+}
+
 export type PublishTarget = "staging" | "production";
 
 export type PublishStatus =
@@ -247,7 +295,9 @@ export type MenuItem = {
   /** Second size: double (cocktail/pour) or half pint (beer). */
   priceAlt?: string;
   drinkType?: DrinkType;
-  /** Guest-facing style line (e.g. Floral fizz). Not the drink category. */
+  /** Cocktail build: spritz, highball, stirred, etc. Ops only. */
+  cocktailType?: CocktailType | "";
+  /** Guest-facing tasting note (e.g. Floral fizz). Not the cocktail category. */
   notes?: string;
   glassware?: string;
   ice?: string;
@@ -291,11 +341,12 @@ const PUBLISH_FIELD_LABELS: Record<string, string> = {
   description: "description",
   price: "price",
   priceAlt: "alt price",
-  notes: "style",
+  notes: "tasting note",
   drinkType: "kind",
   abv: "ABV",
   volume: "volume",
   producer: "producer",
+  sectionId: "section",
   onDigitalMenu: "visibility",
   photo: "photo",
 };

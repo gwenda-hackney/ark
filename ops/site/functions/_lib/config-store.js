@@ -4,8 +4,11 @@
  * Secrets never belong in this table.
  */
 import {
+  OPS_DATABASE_NAME,
+  OPS_PRODUCTION_DATABASE_ID,
   createRow,
   listAllRows,
+  opsDatabaseId,
   resolveConfigTableId,
   updateRow,
 } from "./baserow.js";
@@ -57,6 +60,41 @@ export function siteEnvName(env = {}) {
   if (raw === "local" || raw === "development" || raw === "dev") return "local";
   if (raw === "production" || raw === "prod") return "production";
   return raw || "production";
+}
+
+/** Human labels for shell chrome (which Baserow world this request hits). */
+export function opsConnectionInfo(env = {}) {
+  const siteEnv = siteEnvName(env);
+  const databaseId = opsDatabaseId(env) || null;
+  const isProductionDb = databaseId === OPS_PRODUCTION_DATABASE_ID;
+  const envLabel =
+    siteEnv === "local"
+      ? "Local"
+      : siteEnv === "staging"
+        ? "Staging"
+        : siteEnv === "production"
+          ? "Production"
+          : siteEnv;
+  const databaseLabel = !databaseId
+    ? "Baserow Ops (auto)"
+    : isProductionDb
+      ? OPS_DATABASE_NAME
+      : `${OPS_DATABASE_NAME} (dev)`;
+
+  let risk = null;
+  if (siteEnv !== "production" && isProductionDb) risk = "nonprod_on_production_db";
+  else if (siteEnv === "production" && databaseId && !isProductionDb) {
+    risk = "production_on_nonprod_db";
+  }
+
+  return {
+    siteEnv,
+    envLabel,
+    databaseId,
+    databaseLabel,
+    isProductionDb,
+    risk,
+  };
 }
 
 function text(value) {

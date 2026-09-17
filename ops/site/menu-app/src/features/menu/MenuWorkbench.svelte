@@ -254,6 +254,7 @@
 				price: item.price,
 				priceAlt: item.priceAlt,
 				drinkType: item.drinkType || "cocktail",
+				cocktailType: item.cocktailType || "",
 				notes: item.notes,
 				glassware: item.glassware,
 				ice: item.ice,
@@ -346,6 +347,11 @@
 			busy = true;
 			busyLabel = "Uploading photo…";
 			const data = await api.uploadPhoto(form);
+			if (!data.item?.image?.asset?.url && !data.url) {
+				throw new Error(
+					"Upload finished but no photo URL came back. Check the Photo field on Menu Items.",
+				);
+			}
 			await applyPhotoItem(data.item);
 			toast.ok("Photo saved.");
 		} catch (err) {
@@ -393,18 +399,20 @@
 					? "live website"
 					: "preview site";
 			const synced = data.sync?.synced?.length || 0;
+			const created = data.sync?.created?.length || 0;
+			const changed = synced + created;
 			const missing = data.sync?.missing || [];
 			if (missing.length) {
 				toast.error(
-					`Updated ${synced} item(s) on the ${where}, but ${missing.length} could not be matched: ${missing.join(", ")}.`,
+					`Updated ${changed} item(s) on the ${where}, but ${missing.length} need a menu section: ${missing.join(", ")}.`,
 				);
-			} else if (!synced) {
+			} else if (!changed) {
 				toast.ok(`Nothing to send to the ${where}.`);
 			} else {
 				toast.ok(
-					`Website update started for the ${where}${
-						synced ? ` (${synced} item${synced === 1 ? "" : "s"})` : ""
-					}. It may take a minute to appear.`,
+					`Website update started for the ${where} (${changed} item${
+						changed === 1 ? "" : "s"
+					}). It may take a minute to appear.`,
 				);
 			}
 		} catch (err) {

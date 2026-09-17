@@ -23,7 +23,7 @@ export const menuItem = defineType({
     }),
     defineField({
       name: "notes",
-      title: "Style",
+      title: "Tasting note",
       type: "string",
       description: "Optional guest line, e.g. Floral fizz, Digestif.",
     }),

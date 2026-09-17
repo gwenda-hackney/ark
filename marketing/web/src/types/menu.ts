@@ -22,7 +22,7 @@ export type MenuItem = {
   available?: boolean;
   /** Sanity CDN image — required for homepage gallery. */
   image?: MenuItemImage;
-  /** Style line — e.g. Floral fizz, Digestif. */
+  /** Tasting note — e.g. Floral fizz, Digestif. */
   notes?: string;
   /** Optional bottle metadata (beer / wine). */
   abv?: string;

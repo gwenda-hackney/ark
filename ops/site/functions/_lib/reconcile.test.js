@@ -41,6 +41,7 @@ describe("websiteProjection", () => {
     assert.equal(payload.name, "Gwenda");
     assert.equal(payload.description, "gin, italicus, soda");
     assert.equal(payload.price, "14");
+    assert.equal(payload.sectionId, "");
     assert.equal(payload.photo, "https://files.baserow.io/photo.jpg");
     assert.equal(payload.onDigitalMenu, true);
     assert.equal("method" in payload, false);
@@ -70,6 +71,7 @@ describe("projectionHash", () => {
     const b = {
       photo: a.photo,
       onDigitalMenu: a.onDigitalMenu,
+      sectionId: a.sectionId,
       producer: a.producer,
       volume: a.volume,
       abv: a.abv,
