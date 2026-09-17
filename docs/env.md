@@ -104,7 +104,9 @@ CI (production Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then
 gh workflow run ops-secrets.yml
 ```
 
-That syncs SM → Cloudflare Pages secrets. Deploy workflows do not refresh secrets on every push.
+That syncs SM → Cloudflare Pages secrets (including `BASEROW_API_KEY_PRODUCTION` as Pages `BASEROW_API_KEY`). Deploy workflows do not refresh secrets on every push.
+
+Ops local vs prod Baserow workspaces: see [config.md](./config.md#ops-baserow-workspaces).
 
 ## Secrets vs config
 

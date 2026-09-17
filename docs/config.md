@@ -20,27 +20,44 @@ While marketing is still on the old pattern:
 
 Ops scripts and `npm run dev -w @gwenda/ops` load `.env` then `.env.ops` (ops wins). Marketing keeps using `.env` alone.
 
+## Ops Baserow workspaces
+
+Ops uses **two Baserow workspaces** so a local token cannot see production data:
+
+| Env | Workspace | Database id | Token (SM) |
+|-----|-----------|-------------|------------|
+| production | `Gwenda` (`208709`) | `556507` | `BASEROW_API_KEY_PRODUCTION` |
+| local | `Gwenda Ops Dev` (Free) | clone id (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY` |
+
+Second workspace is Free ($0; 3k rows). Clone once:
+
+```bash
+npm run clone:baserow-ops-dev          # or --force to wipe+recopy
+```
+
+Then mint/refresh scoped database tokens (script prints next steps). Local `ops-dev` **refuses** to start if `BASEROW_OPS_DATABASE_ID` is still the production id.
+
 ## Ops bootstrap
 
 **Shared `.env`:**
 
 - `ARK_LOCAL_BW_TOKEN` — ark-local machine-account access token (only local SM bootstrap)
 
-**`.env.ops` (from SM, not hand-edited):**
+**`.env.ops` (from SM + clone metadata):**
 
 ```bash
 npm run env:ops:pull
 ```
 
-Writes `BASEROW_API_KEY`, OAuth/session secrets, `SANITY_API_TOKEN`, optional `OPS_LOCAL_ADMIN_PW` / `DEPLOY_WEBHOOK_SECRET`, etc.
+Writes local `BASEROW_API_KEY`, OAuth/session secrets, `SANITY_API_TOKEN`, optional `OPS_LOCAL_ADMIN_PW` / `DEPLOY_WEBHOOK_SECRET`, and keeps `BASEROW_OPS_DATABASE_ID` for the dev clone.
 
-**Not in `.env.ops`:**
+**Not hand-edited for production:**
 
 | Value | Where |
 |-------|--------|
-| `BASEROW_OPS_DATABASE_ID` | `ops/site/wrangler.toml` `[vars]` |
-| `BASEROW_WORKSPACE_ID` | Shared `.env` (schema setup only) |
-| `CLOUDFLARE_ACCOUNT_ID` / CF tokens | Shared `.env` (deploy tooling; CF token may also live in SM for other uses) |
+| Prod `BASEROW_OPS_DATABASE_ID` | `ops/site/wrangler.toml` `[vars]` = `556507` |
+| Prod Baserow token | SM `BASEROW_API_KEY_PRODUCTION` → Pages via `ops-secrets` |
+| `CLOUDFLARE_ACCOUNT_ID` / CF tokens | Shared `.env` (deploy tooling) |
 | `SITE_ENV` | `local` via ops-dev; `production` in wrangler `[vars]` |
 
 **Ops table ids are not configured.** Names are resolved from the Baserow catalog.
@@ -58,9 +75,10 @@ Writes `BASEROW_API_KEY`, OAuth/session secrets, `SANITY_API_TOKEN`, optional `O
 Do **not** put credentials in App Config.
 
 ```bash
-npm run env:ops:pull                             # SM → .env.ops
-npm run setup:baserow-ops                        # seed/repair App Config
-npm run setup:ops                                # push ops secrets to Pages
+npm run clone:baserow-ops-dev                    # once: Free workspace + data copy
+npm run env:ops:pull                             # SM → .env.ops (local key)
+npm run setup:baserow-ops                        # seed/repair App Config (JWT)
+gh workflow run ops-secrets.yml                  # SM prod key → Pages
 ```
 
 ## Marketing (unchanged for now)
@@ -69,15 +87,15 @@ Subscribe table id, SMTP host/port, invite URLs stay in marketing wrangler `[var
 
 ## Bitwarden Secrets Manager
 
-1. Project with credential secrets only (keys named like env vars: `BASEROW_API_KEY`, …).
+1. Project with credential secrets only (keys named like env vars).
 2. Machine accounts: `ark-local` (read/write), `ark-ci` (read).
 3. Access tokens: `ark-local-devcontainer`, `ark-ci-github-actions`.
 4. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ops:pull`.
-5. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret. Prefer the **ark-ci** (read-only) machine-account token; ark-local works for wiring but is broader than CI needs.
+5. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci).
 6. Sync to Cloudflare Pages (manual / after rotation):
 
 ```bash
 gh workflow run ops-secrets.yml
 ```
 
-That workflow pulls SM → job env (`env:ops:pull -- --github-env`) then runs [`scripts/setup-ops-secrets.mjs`](../scripts/setup-ops-secrets.mjs) (`wrangler pages secret put`). Cloudflare does **not** read Bitwarden at runtime.
+Uses `BASEROW_API_KEY_PRODUCTION` for Pages (not the local/dev Baserow token). Cloudflare does **not** read Bitwarden at runtime.

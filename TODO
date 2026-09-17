@@ -7,17 +7,7 @@
 
 ~~configuration screen for common configs - target pour cost, etc.~~ → `/config` + Baserow App Config
 
-
-
-
-
-
-
-
-
-
-
-
+- [ ] Redeploy hosted Studio after `DEPLOY_WEBHOOK_SECRET` rotation (Studio still has old `SANITY_STUDIO_SITE_DEPLOY_SECRET`; Worker/GitHub/local already updated)
 
 i need error handling to notify via email
 
