@@ -119,11 +119,13 @@ function deleteSecret(key) {
   }
 }
 
-/** Non-secrets that used to be synced as Pages secrets. Now wrangler [vars] / code defaults. */
+/** Non-secrets that used to be synced as Pages secrets. Now wrangler [vars] / Sanity / code defaults.
+ *  Still ensure SMTP host/user/port exist as plain project vars — deleting them without a
+ *  redeploy that reapplies wrangler [vars] breaks form mail (502 after store). */
 const LEFTOVER_CONFIG_SECRET_KEYS = [
   "BASEROW_TABLE_ID",
-  "SMTP_HOST",
-  "SMTP_PORT",
+  "BASEROW_DATABASE_ID",
+  "SMTP_FROM",
   "SMTP_FROM_EVENTS",
   "INVITE_BASE_URL",
   "INVITE_IMAGE_URL",
@@ -132,14 +134,65 @@ const LEFTOVER_CONFIG_SECRET_KEYS = [
   "INVITE_INSTAGRAM_MESSAGE",
 ];
 
+/** Plain SMTP config that must remain on the Pages project (not secrets). */
+const SMTP_PLAIN_VARS = {
+  SMTP_HOST: "smtp.gmail.com",
+  SMTP_PORT: "587",
+  SMTP_USER: "notifications@gwenda.co.uk",
+  SMTP_FROM_EVENTS: "Gwenda Events <events@gwenda.co.uk>",
+};
+
+async function putPlainSmtpVars() {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
+  if (!accountId || !token) {
+    console.warn("Skip SMTP plain vars: CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN missing.");
+    return;
+  }
+
+  const envVars = Object.fromEntries(
+    Object.entries(SMTP_PLAIN_VARS).map(([key, value]) => [
+      key,
+      { type: "plain_text", value },
+    ]),
+  );
+
+  for (const deploymentEnv of deploymentEnvs) {
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${project}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          deployment_configs: {
+            [deploymentEnv]: { env_vars: envVars },
+          },
+        }),
+      },
+    );
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.success) {
+      console.error(
+        `Failed to set SMTP plain vars on ${project} (${deploymentEnv}):`,
+        body.errors || response.status,
+      );
+      process.exit(1);
+    }
+    console.log(`Set SMTP plain vars on ${project} (${deploymentEnv}).`);
+  }
+}
+
 function putSharedSecrets() {
   putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
   putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
   putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
   putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
-  putSecret("SMTP_USER", process.env.SMTP_USER);
-  putSecret("SMTP_PASSWORD", process.env.SMTP_PASSWORD);
-  putSecret("SMTP_FROM", process.env.SMTP_FROM);
+  // Gmail app passwords are often pasted with spaces; store the 16-char form.
+  const smtpPassword = (process.env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
+  putSecret("SMTP_PASSWORD", smtpPassword);
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
   putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
   putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
@@ -178,8 +231,9 @@ if (!run) {
 }
 
 run();
+await putPlainSmtpVars();
 
 console.log(
-  "Plain config (BASEROW_TABLE_ID, SMTP host/port, invite URLs) lives in wrangler [vars].",
+  "Plain SMTP host/port/user are project vars; only SMTP_PASSWORD is a Pages secret. Form From/Reply-To live in Sanity.",
 );
 for (const key of LEFTOVER_CONFIG_SECRET_KEYS) deleteSecret(key);

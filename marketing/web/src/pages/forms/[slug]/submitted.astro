@@ -1,0 +1,85 @@
+---
+import { Image } from "astro:assets";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import Subpage from "../../../components/Subpage.astro";
+import ContactFormStatus from "../../../components/ContactFormStatus.astro";
+import { siteConfig } from "../../../config/site";
+import { compactLogo } from "../../../lib/hero-assets";
+import {
+  fetchFormBySlug,
+  fetchFormSlugs,
+} from "../../../lib/sanity/forms";
+import turnTable from "../../../assets/images/play/turn-table.jpg";
+
+export async function getStaticPaths() {
+  try {
+    const slugs = await fetchFormSlugs();
+    return slugs.map((slug) => ({ params: { slug } }));
+  } catch (error) {
+    console.warn(
+      "Form submitted paths skipped — could not fetch forms from Sanity:",
+      error,
+    );
+    return [];
+  }
+}
+
+const { slug } = Astro.params;
+const form = slug ? await fetchFormBySlug(slug) : null;
+
+if (!form) {
+  return Astro.redirect("/");
+}
+
+const pageTitle = `Submitted · ${form.heading} · ${siteConfig.name}`;
+const showTurntable = form.slug === "play-at-gwenda";
+---
+
+<BaseLayout
+  title={pageTitle}
+  description="Your form submission."
+  showBooking={false}
+>
+  <Subpage
+    class:list={[
+      "contact-page",
+      "contact-page--submitted",
+      showTurntable && "contact-page--play",
+    ]}
+    innerClass="contact-inner"
+    flush={showTurntable}
+  >
+    {
+      showTurntable ? (
+        <aside slot="aside" class="contact-visual">
+          <div class="contact-visual-bg" aria-hidden="true"></div>
+          <div class="contact-visual-stage" aria-hidden="true">
+            <Image
+              src={turnTable}
+              alt=""
+              widths={[720, 1080, 1440]}
+              sizes="(min-width: 900px) 33vw, 100vw"
+              class="contact-visual-image"
+              loading="eager"
+              fetchpriority="high"
+            />
+          </div>
+          <div class="contact-visual-overlay" aria-hidden="true"></div>
+          <div class="contact-visual-vignette" aria-hidden="true"></div>
+          <a href="/" class="contact-play-brand" aria-label="Gwenda home">
+            <Image
+              {...compactLogo}
+              alt=""
+              class="contact-play-brand-mark"
+              loading="eager"
+            />
+          </a>
+        </aside>
+      ) : null
+    }
+
+    <div id="contact-panel" class="contact-panel">
+      <ContactFormStatus form={form} showLogo={showTurntable} />
+    </div>
+  </Subpage>
+</BaseLayout>

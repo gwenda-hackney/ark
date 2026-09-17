@@ -90,11 +90,24 @@
 		return path.startsWith("/inventory/") ? path : undefined;
 	}
 
+	function parseQtyInput(value: unknown): number | undefined | false {
+		if (value == null || value === "") return undefined;
+		if (typeof value === "number") {
+			return Number.isFinite(value) ? value : false;
+		}
+		const cleaned = String(value).replace(/,/g, "").trim();
+		if (!cleaned) return undefined;
+		const n = Number(cleaned);
+		return Number.isFinite(n) ? n : false;
+	}
+
 	const rows = $derived.by((): IngRow[] =>
 		ingredients.map((ing, i) => {
 			const priced = costIngredientLine(ing, catalogById);
+			const qty = parseQtyInput(ing.quantity);
 			return {
 				...ing,
+				quantity: qty === false ? ing.quantity : qty,
 				_key: `ing-${i}-${(ing as { id?: string | number }).id ?? ""}`,
 				href: stockHref(ing),
 				displayAbv: resolveIngredientAbv(ing, abvById) || "",
@@ -179,8 +192,17 @@
 	function setter(field: keyof Ingredient) {
 		return (params: ValueSetterParams<IngRow>) => {
 			const index = rows.findIndex((r) => r._key === params.data?._key);
-			if (index < 0) return false;
+			if (index < 0 || !params.data) return false;
 			const value = params.newValue;
+
+			if (field === "quantity") {
+				const next = parseQtyInput(value);
+				if (next === false) return false;
+				params.data.quantity = next;
+				patchIndex(index, { quantity: next });
+				return true;
+			}
+
 			const next =
 				value == null || value === "" ? undefined : String(value);
 
@@ -192,10 +214,13 @@
 			if (field === "abv") {
 				const row = ingredients[index];
 				if (row?.inventoryId) return false;
+				params.data.abv = next;
+				params.data.displayAbv = next || "";
 				patchIndex(index, { abv: next });
 				return true;
 			}
 
+			(params.data as Record<string, unknown>)[field] = next;
 			patchIndex(index, { [field]: next } as Partial<Ingredient>);
 			return true;
 		};
@@ -209,6 +234,7 @@
 			width: 88,
 			flex: 0,
 			type: "num",
+			cellDataType: "number",
 			valueSetter: setter("quantity"),
 		},
 		{
@@ -225,8 +251,8 @@
 			headerName: "Ingredient",
 			field: "name",
 			editable: false,
-			flex: 1,
-			minWidth: 160,
+			flex: 2.2,
+			minWidth: 260,
 			cellRenderer: svelteCell(
 				IngredientNameCell,
 				(params: ICellRendererParams<IngRow>) => ({
@@ -245,6 +271,7 @@
 			width: 80,
 			flex: 0,
 			type: "num",
+			cellDataType: "text",
 			editable: (params) => !params.data?.inventoryId,
 			valueGetter: (params) => params.data?.displayAbv || "",
 			valueSetter: setter("abv"),
@@ -255,6 +282,7 @@
 			width: 96,
 			flex: 0,
 			type: "num",
+			cellDataType: "text",
 			editable: false,
 			sortable: true,
 			cellClass: (params) =>
@@ -269,7 +297,7 @@
 			field: "note",
 			editable: true,
 			minWidth: 120,
-			flex: 1.4,
+			flex: 1,
 			valueSetter: setter("note"),
 		},
 		{
@@ -338,10 +366,13 @@
 								size="sm"
 								inputmode="decimal"
 								value={row.quantity == null ? "" : String(row.quantity)}
-								oninput={(e) =>
+								oninput={(e) => {
+									const raw = (e.currentTarget as HTMLInputElement).value;
+									const next = parseQtyInput(raw);
 									patchIndex(index, {
-										quantity: (e.currentTarget as HTMLInputElement).value,
-									})}
+										quantity: next === false ? raw : next,
+									});
+								}}
 							/>
 						</Field>
 						<Field label="Unit" for={`ing-unit-${index}`}>

@@ -2,7 +2,7 @@ import { getStudioDataset } from "./env";
 import {
   buildEventInviteUrl,
   normalizeEventPassword,
-} from "../web/functions/_lib/event-password.js";
+} from "../../web/functions/_lib/event-password.js";
 
 export function siteOriginForDataset(dataset: string): string {
   const override = process.env.SANITY_STUDIO_INVITE_BASE_URL?.trim();

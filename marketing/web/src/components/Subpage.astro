@@ -1,0 +1,33 @@
+---
+import BackLink from "./BackLink.astro";
+
+interface Props {
+  /** Extra classes on `<main>` for page-specific layout hooks. */
+  class?: string;
+  /** Extra classes on the inner `.container`. */
+  innerClass?: string;
+  href?: string;
+  label?: string;
+  /**
+   * Skip main padding. Use for split layouts (play form) that pad the
+   * content column themselves.
+   */
+  flush?: boolean;
+}
+
+const {
+  class: className,
+  innerClass,
+  href = "/",
+  label = "← Back",
+  flush = false,
+} = Astro.props;
+---
+
+<main class:list={["subpage", flush && "subpage--flush", className]}>
+  <slot name="aside" />
+  <div class:list={["container", "subpage-inner", innerClass]}>
+    <BackLink href={href} label={label} />
+    <slot />
+  </div>
+</main>

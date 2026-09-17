@@ -35,17 +35,13 @@ async function main() {
       process.env.MAILCHIMP_AUDIENCE_ID ||
       process.env.SUBSCRIBE_MAILCHIMP_AUDIENCE_ID ||
       "e2c69d5d31",
-    BASEROW_TABLE_ID:
-      process.env.SUBSCRIBE_MAILCHIMP_BASEROW_TABLE_ID ||
-      process.env.BASEROW_TABLE_ID ||
-      "1017358",
+    BASEROW_DATABASE_ID:
+      process.env.BASEROW_DATABASE_ID ||
+      process.env.SUBSCRIBE_MAILCHIMP_BASEROW_DATABASE_ID ||
+      "461843",
     BASEROW_SYNC_LOG_TABLE_ID: process.env.BASEROW_SYNC_LOG_TABLE_ID,
     BASEROW_API_URL: process.env.BASEROW_API_URL,
   };
-
-  if (!process.env.SUBSCRIBE_MAILCHIMP_BASEROW_TABLE_ID) {
-    env.BASEROW_TABLE_ID = "1017358";
-  }
 
   const summary = await syncUnsyncedSubscribers(env, {
     dryRun,

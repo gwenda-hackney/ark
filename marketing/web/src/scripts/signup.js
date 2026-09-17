@@ -45,7 +45,14 @@ function highlightSignupField() {
   }, SIGNUP_GLOW_MS);
 }
 
+/** @type {AbortController | null} */
+let signupAnchorsAbort = null;
+
 export function initSignupAnchors() {
+  signupAnchorsAbort?.abort();
+  signupAnchorsAbort = new AbortController();
+  const { signal } = signupAnchorsAbort;
+
   const email = document.getElementById("email");
   if (!email) return;
 
@@ -64,12 +71,16 @@ export function initSignupAnchors() {
   };
 
   document.querySelectorAll('a[href="#list"]').forEach((link) => {
-    link.addEventListener("click", focusEmail);
+    link.addEventListener("click", focusEmail, { signal });
   });
 
-  window.addEventListener("hashchange", () => {
-    if (location.hash === "#list") focusEmail();
-  });
+  window.addEventListener(
+    "hashchange",
+    () => {
+      if (location.hash === "#list") focusEmail();
+    },
+    { signal },
+  );
 
   if (location.hash === "#list") focusEmail();
 }

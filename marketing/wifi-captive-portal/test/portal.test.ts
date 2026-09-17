@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { normalizeEmail, subscribeEmailToBaserow } from "../src/baserow.js";
 import { handlePortalRequest } from "../src/handler.js";
 import type { Env } from "../src/types.js";
-import { resolveTableId } from "../src/types.js";
+import {
+  clearSubscribeTableIdCache,
+  PRODUCTION_BASEROW_DATABASE_ID,
+  resolveDatabaseId,
+  resolveSubscribeTableId,
+} from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
 
 const env: Env = {
@@ -13,13 +18,29 @@ const env: Env = {
   ASSETS: {
     fetch: async () => new Response("asset", { status: 200 }),
   } as unknown as Env["ASSETS"],
-  BASEROW_TABLE_ID: "1017358",
+  BASEROW_DATABASE_ID: PRODUCTION_BASEROW_DATABASE_ID,
   WIFI_SUBSCRIBE_TAG: "wifi",
 };
 
 describe("types", () => {
-  it("defaults to production subscribe table", () => {
-    expect(resolveTableId({} as Env)).toBe("1017358");
+  it("defaults to production subscribe database", () => {
+    expect(resolveDatabaseId({} as Env)).toBe(PRODUCTION_BASEROW_DATABASE_ID);
+  });
+
+  it("resolves Subscribers by name", async () => {
+    clearSubscribeTableIdCache();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => [
+          { id: 1017358, name: "Subscribers", database_id: 461843 },
+          { id: 1024006, name: "Subscribers", database_id: 465058 },
+        ],
+      })),
+    );
+    await expect(resolveSubscribeTableId(env)).resolves.toBe("1017358");
+    vi.unstubAllGlobals();
   });
 });
 
@@ -183,6 +204,22 @@ describe("unifi site manager authorize", () => {
 
 describe("handler", () => {
   it("serves the UniFi guest path and authorizes on submit", async () => {
+    clearSubscribeTableIdCache();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/all-tables/")) {
+          return {
+            ok: true,
+            json: async () => [
+              { id: 1017358, name: "Subscribers", database_id: 461843 },
+            ],
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
     const subscribe = vi.fn(async () => ({ ok: true as const }));
     const authorize = vi.fn(async () => ({ ok: true as const }));
 
@@ -233,6 +270,7 @@ describe("handler", () => {
         siteIdentifier: "default",
       }),
     );
+    vi.unstubAllGlobals();
   });
 
   it("exposes health", async () => {

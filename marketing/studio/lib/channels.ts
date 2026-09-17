@@ -1,7 +1,7 @@
 import {
   EVENT_PASSWORD_PATTERN,
   generateEventPassword,
-} from "../web/functions/_lib/event-password.js";
+} from "../../web/functions/_lib/event-password.js";
 
 export { generateEventPassword as generateChannelToken };
 

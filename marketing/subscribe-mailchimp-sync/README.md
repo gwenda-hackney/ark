@@ -8,7 +8,7 @@ The website `/api/subscribe` path stays Baserow-only.
 
 ## Behaviour
 
-1. List Baserow rows where `Synced` is false (production table `1017358`, up to 100 per run)
+1. List Baserow rows where `Synced` is false (production `Subscribers` table, up to 100 per run)
 2. Upsert each email in Mailchimp (`PUT /lists/{id}/members/{md5}`), set merge field `SIGNEDUP` from Baserow `Signed up`, and apply Baserow `Tag` when present
 3. `PATCH` Baserow `Synced: true` on success
 4. Leave failed rows unsynced for the next run; stop early on rate limit
@@ -49,7 +49,7 @@ npm run subscribe-mailchimp-sync -- --limit 50
 npm run subscribe-mailchimp-sync -- --all
 ```
 
-Uses production table `1017358` unless `SUBSCRIBE_MAILCHIMP_BASEROW_TABLE_ID` is set.
+Resolves the production `Subscribers` table by name (database `461843`) unless `BASEROW_DATABASE_ID` / `BASEROW_SUBSCRIBE_TABLE_NAME` are set.
 
 ## Manual trigger
 

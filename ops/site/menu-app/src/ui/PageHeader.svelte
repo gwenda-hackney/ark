@@ -61,7 +61,7 @@
 
 	h1 {
 		font-size: 1.5rem;
-		letter-spacing: -0.028em;
+		letter-spacing: 0.02em;
 	}
 
 	.subtitle {

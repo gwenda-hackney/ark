@@ -81,3 +81,53 @@ export const SITE_SETTINGS_QUERY = `*[_id == "siteSettings"][0] {
   bookingEnabled,
   cocktailGalleryEnabled
 }`;
+
+const FORM_FIELDS_PROJECTION = `fields[] {
+  key,
+  label,
+  section,
+  type,
+  placeholder,
+  helpText,
+  required,
+  options[] { label, value }
+}`;
+
+/** Enabled forms for static paths. */
+export const FORM_SLUGS_QUERY = `*[_type == "form" && enabled == true && defined(slug.current)]{
+  "slug": slug.current
+}`;
+
+export const FORM_BY_SLUG_QUERY = `*[_type == "form" && enabled == true && slug.current == $slug][0] {
+  title,
+  "slug": slug.current,
+  eyebrow,
+  heading,
+  intro,
+  seoDescription,
+  notifyEmail,
+  fromEmail,
+  replyToEmail,
+  requireEmailVerification,
+  submitLabel,
+  successTitle,
+  successMessage,
+  verifyPendingTitle,
+  verifyPendingMessage,
+  ${FORM_FIELDS_PROJECTION}
+}`;
+
+/** Runtime validation for form submissions (Pages Function). */
+export const FORM_SUBMIT_QUERY = `*[_type == "form" && enabled == true && slug.current == $slug][0] {
+  title,
+  "slug": slug.current,
+  notifyEmail,
+  fromEmail,
+  replyToEmail,
+  requireEmailVerification,
+  successTitle,
+  successMessage,
+  verifyPendingTitle,
+  verifyPendingMessage,
+  ${FORM_FIELDS_PROJECTION}
+}`;

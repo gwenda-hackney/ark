@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
-	 * Cost under the recipe: drink cost, target, and pour readings per serve.
-	 * Alt size (double / half) is opt-in via "Add pour".
+	 * Pour list under the recipe. Each pour is one line:
+	 * price · cost · target · actual · over/under.
+	 * Extra sizes (double / half) are opt-in via a list row.
 	 */
 	import { Button, TextField } from "../../ui";
 	import {
@@ -44,22 +45,42 @@
 	const primary = $derived(price.serves.find((s) => s.key === "primary") ?? null);
 	const alt = $derived(price.serves.find((s) => s.key === "alt") ?? null);
 
-	const drinkCostLabel = $derived.by(() => {
-		if (price.drinkCost == null) return "n/a";
-		const amount = formatGbp(price.drinkCost);
-		return price.hasEstimates ? `~${amount}` : amount;
-	});
-
 	$effect(() => {
 		if (hasAlt) draftingAlt = false;
 	});
 
-	function pourCopy(serve: ServePourReading | null): string {
+	function costCopy(serve: ServePourReading | null): string {
+		if (!serve || serve.drinkCost == null) return "n/a";
+		const amount = formatGbp(serve.drinkCost);
+		return price.hasEstimates ? `~${amount}` : amount;
+	}
+
+	function actualCopy(serve: ServePourReading | null): string {
 		if (!serve) return "n/a";
 		if (serve.pourCost != null) return formatPourPercent(serve.pourCost);
-		if (!price.complete && price.drinkCost == null) return "n/a";
 		if (serve.price == null) return "set price";
 		return "n/a";
+	}
+
+	function overUnderCopy(serve: ServePourReading | null): string {
+		if (!serve) return "n/a";
+		const verdict = serveVerdict(serve, price.complete);
+		return verdict?.headline || "n/a";
+	}
+
+	function overUnderTone(serve: ServePourReading | null): string {
+		if (!serve) return "muted";
+		const verdict = serveVerdict(serve, price.complete);
+		if (!verdict) return "muted";
+		if (verdict.tone === "ok") return "up";
+		if (verdict.tone === "high" || verdict.tone === "low") return "down";
+		if (verdict.tone === "loss") return "loss";
+		return "muted";
+	}
+
+	function pourTone(serve: ServePourReading | null) {
+		if (!serve) return "muted";
+		return marginTone(serve.margin, serve.pourCost, price.targetPourCost);
 	}
 
 	function addAlt() {
@@ -86,7 +107,7 @@
 	}
 </script>
 
-<section class="panel" aria-label="Cost and pour">
+<section class="cost" aria-label="Cost and pour">
 	<div class="section-head">
 		<p class="section-title">Cost</p>
 		<Button
@@ -103,145 +124,148 @@
 		</Button>
 	</div>
 
-	<div class="summary">
-		<div class="row">
-			<span class="label">Drink cost</span>
-			<span class="value tnum">{drinkCostLabel}</span>
-		</div>
-		<div class="row">
-			<span class="label">Target</span>
-			<span class="value tnum muted">
-				{formatPourPercent(price.targetPourCost) || "n/a"}
-			</span>
-		</div>
-	</div>
-
-	{#if primary}
-		{@const tone = marginTone(
-			primary.margin,
-			primary.pourCost,
-			price.targetPourCost,
-		)}
-		{@const verdict = serveVerdict(primary, price.complete)}
-		<div class="serve">
-			<div class="row">
-				<label class="label" for="f-cost-price">{primary.label}</label>
-				<div class="price">
-					<TextField
-						id="f-cost-price"
-						size="sm"
-						mono
-						align="end"
-						inputmode="decimal"
-						value={priceValue}
-						oninput={(e) =>
-							onprice((e.currentTarget as HTMLInputElement).value)}
-					/>
-				</div>
-			</div>
-			<div class="row">
-				<span class="label">Pour cost</span>
-				<span
-					class="value tnum"
-					class:up={tone === "up"}
-					class:down={tone === "down"}
-					class:loss={tone === "loss"}
-					class:muted={tone === "muted" || primary.pourCost == null}
-				>
-					{pourCopy(primary)}
-				</span>
-			</div>
-			{#if verdict && primary.pourCost != null}
-				<p
-					class="verdict"
-					class:ok={verdict.tone === "ok"}
-					class:low={verdict.tone === "low"}
-					class:loss={verdict.tone === "loss"}
-					class:muted={verdict.tone === "muted"}
-				>
-					{verdict.headline} vs target{#if primary.suggestedPrice != null && verdict.tone !== "ok"}
-						{" "}· aim {formatGbp(primary.suggestedPrice)}{/if}
-				</p>
-			{/if}
-		</div>
-	{/if}
-
-	{#if showAlt && labels.alt}
-		{@const tone = alt
-			? marginTone(alt.margin, alt.pourCost, price.targetPourCost)
-			: "muted"}
-		{@const verdict = alt ? serveVerdict(alt, price.complete) : null}
-		<div class="serve">
-			<div class="row">
-				<label class="label" for="f-cost-price-alt">{labels.alt}</label>
-				<div class="price-tools">
+	<ul class="pours">
+		{#if primary}
+			{@const actualTone = pourTone(primary)}
+			{@const deltaTone = overUnderTone(primary)}
+			<li class="pour">
+				<div class="pour-line">
+					<label class="serve" for="f-cost-price">{primary.label}</label>
 					<div class="price">
 						<TextField
-							id="f-cost-price-alt"
+							id="f-cost-price"
 							size="sm"
 							mono
 							align="end"
 							inputmode="decimal"
-							value={priceAltValue}
+							value={priceValue}
 							oninput={(e) =>
-								onpricealt(
-									(e.currentTarget as HTMLInputElement).value,
-								)}
+								onprice((e.currentTarget as HTMLInputElement).value)}
 						/>
 					</div>
-					<Button
-						variant="ghost"
-						size="xs"
-						type="button"
-						aria-label={`Remove ${labels.alt.toLowerCase()} price`}
-						title={`Remove ${labels.alt.toLowerCase()}`}
-						onclick={removeAlt}
-					>
-						{#snippet icon()}
-							<Icon name="close" size={14} />
-						{/snippet}
-					</Button>
+					<div class="metrics" role="group" aria-label={`${primary.label} pour metrics`}>
+						<div class="metric">
+							<span class="k">Cost</span>
+							<span class="v tnum">{costCopy(primary)}</span>
+						</div>
+						<div class="metric">
+							<span class="k">Target</span>
+							<span class="v tnum muted">
+								{formatPourPercent(price.targetPourCost) || "n/a"}
+							</span>
+						</div>
+						<div class="metric">
+							<span class="k">Actual</span>
+							<span
+								class="v tnum"
+								class:up={actualTone === "up"}
+								class:down={actualTone === "down"}
+								class:loss={actualTone === "loss"}
+								class:muted={actualTone === "muted" || primary.pourCost == null}
+							>
+								{actualCopy(primary)}
+							</span>
+						</div>
+						<div class="metric">
+							<span class="k">Over/under</span>
+							<span
+								class="v tnum"
+								class:up={deltaTone === "up"}
+								class:down={deltaTone === "down"}
+								class:loss={deltaTone === "loss"}
+								class:muted={deltaTone === "muted"}
+							>
+								{overUnderCopy(primary)}
+							</span>
+						</div>
+					</div>
 				</div>
-			</div>
-			{#if alt}
-				<div class="row">
-					<span class="label">Pour cost</span>
-					<span
-						class="value tnum"
-						class:up={tone === "up"}
-						class:down={tone === "down"}
-						class:loss={tone === "loss"}
-						class:muted={tone === "muted" || alt.pourCost == null}
-					>
-						{pourCopy(alt)}
-					</span>
+			</li>
+		{/if}
+
+		{#if showAlt && labels.alt}
+			{@const actualTone = pourTone(alt)}
+			{@const deltaTone = overUnderTone(alt)}
+			<li class="pour">
+				<div class="pour-line">
+					<label class="serve" for="f-cost-price-alt">{labels.alt}</label>
+					<div class="price-tools">
+						<div class="price">
+							<TextField
+								id="f-cost-price-alt"
+								size="sm"
+								mono
+								align="end"
+								inputmode="decimal"
+								value={priceAltValue}
+								oninput={(e) =>
+									onpricealt(
+										(e.currentTarget as HTMLInputElement).value,
+									)}
+							/>
+						</div>
+						<Button
+							variant="ghost"
+							size="xs"
+							type="button"
+							aria-label={`Remove ${labels.alt.toLowerCase()} price`}
+							title={`Remove ${labels.alt.toLowerCase()}`}
+							onclick={removeAlt}
+						>
+							{#snippet icon()}
+								<Icon name="close" size={14} />
+							{/snippet}
+						</Button>
+					</div>
+					<div class="metrics" role="group" aria-label={`${labels.alt} pour metrics`}>
+						<div class="metric">
+							<span class="k">Cost</span>
+							<span class="v tnum">{costCopy(alt)}</span>
+						</div>
+						<div class="metric">
+							<span class="k">Target</span>
+							<span class="v tnum muted">
+								{formatPourPercent(price.targetPourCost) || "n/a"}
+							</span>
+						</div>
+						<div class="metric">
+							<span class="k">Actual</span>
+							<span
+								class="v tnum"
+								class:up={actualTone === "up"}
+								class:down={actualTone === "down"}
+								class:loss={actualTone === "loss"}
+								class:muted={actualTone === "muted" || !alt?.pourCost}
+							>
+								{actualCopy(alt)}
+							</span>
+						</div>
+						<div class="metric">
+							<span class="k">Over/under</span>
+							<span
+								class="v tnum"
+								class:up={deltaTone === "up"}
+								class:down={deltaTone === "down"}
+								class:loss={deltaTone === "loss"}
+								class:muted={deltaTone === "muted"}
+							>
+								{overUnderCopy(alt)}
+							</span>
+						</div>
+					</div>
 				</div>
-				{#if verdict && alt.pourCost != null}
-					<p
-						class="verdict"
-						class:ok={verdict.tone === "ok"}
-						class:low={verdict.tone === "low"}
-						class:loss={verdict.tone === "loss"}
-						class:muted={verdict.tone === "muted"}
-					>
-						{verdict.headline} vs target{#if alt.suggestedPrice != null && verdict.tone !== "ok"}
-							{" "}· aim {formatGbp(alt.suggestedPrice)}{/if}
-					</p>
-				{/if}
-			{:else}
-				<p class="hint">Enter a {labels.alt.toLowerCase()} menu price.</p>
-			{/if}
-		</div>
-	{:else if canOfferAlt && labels.alt}
-		<div class="add-row">
-			<Button variant="ghost" size="xs" type="button" onclick={addAlt}>
-				{#snippet icon()}
-					<Icon name="plus" size={14} />
-				{/snippet}
-				Add {labels.alt.toLowerCase()}
-			</Button>
-		</div>
-	{/if}
+			</li>
+		{:else if canOfferAlt && labels.alt}
+			<li class="add">
+				<Button variant="ghost" size="xs" type="button" onclick={addAlt}>
+					{#snippet icon()}
+						<Icon name="plus" size={14} />
+					{/snippet}
+					Add {labels.alt.toLowerCase()}
+				</Button>
+			</li>
+		{/if}
+	</ul>
 
 	{#if price.hasEstimates}
 		<p class="note">Includes estimates</p>
@@ -251,14 +275,11 @@
 <PourSettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
 
 <style>
-	.panel {
+	.cost {
 		display: grid;
-		gap: 0.7rem;
+		gap: 0.55rem;
 		min-width: 0;
-		padding: 0.85rem 0.95rem 1rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--sunken);
+		margin-top: 0.35rem;
 	}
 
 	.section-head {
@@ -274,6 +295,7 @@
 		flex: 1 1 auto;
 		min-width: 0;
 		margin: 0;
+		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
 		letter-spacing: 0.04em;
@@ -289,105 +311,128 @@
 		background: var(--border-strong);
 	}
 
-	.summary,
-	.serve {
+	.pours {
+		list-style: none;
+		margin: 0;
+		padding: 0;
 		display: grid;
-		gap: 0.3rem;
+		gap: 0;
+		min-width: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--card);
+		overflow: hidden;
+	}
+
+	.pour,
+	.add {
 		min-width: 0;
 	}
 
-	.serve {
-		padding-top: 0.65rem;
+	.pour + .pour,
+	.pour + .add,
+	.add + .pour {
 		border-top: 1px solid var(--border);
 	}
 
-	.row {
+	.pour-line {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		justify-content: space-between;
-		gap: 0.85rem;
-		min-height: var(--control-h-sm);
+		gap: 0.55rem 0.85rem;
+		min-width: 0;
+		padding: 0.55rem 0.7rem;
+	}
+
+	.serve {
+		flex: 0 0 auto;
+		min-width: 3.5rem;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--foreground);
 	}
 
 	.price-tools {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.15rem;
+		gap: 0.1rem;
+		flex: 0 0 auto;
 	}
 
 	.price {
-		width: 6.5rem;
-		flex: 0 0 6.5rem;
+		width: 5.5rem;
+		flex: 0 0 5.5rem;
 	}
 
-	.label {
+	.metrics {
+		display: flex;
+		flex: 1 1 16rem;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: flex-end;
+		gap: 0.65rem 1.1rem;
 		min-width: 0;
-		font-size: var(--text-sm);
-		font-weight: 500;
-		color: var(--muted-foreground);
 	}
 
-	.value {
-		font-size: var(--text-md);
+	.metric {
+		display: grid;
+		gap: 0.12rem;
+		justify-items: end;
+		min-width: 0;
+	}
+
+	.k {
+		font-size: var(--text-xs);
 		font-weight: 600;
-		font-variant-numeric: tabular-nums;
-		color: var(--foreground);
-		text-align: right;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
 		white-space: nowrap;
 	}
 
-	.value.up {
+	.v {
+		font-size: var(--text-sm);
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		color: var(--foreground);
+		white-space: nowrap;
+	}
+
+	.v.up {
 		color: var(--up);
 	}
 
-	.value.down,
-	.value.loss {
+	.v.down,
+	.v.loss {
 		color: var(--down);
 	}
 
-	.value.muted,
+	.v.muted,
 	.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
 	}
 
-	.verdict {
-		margin: 0;
-		text-align: right;
-		font-size: var(--text-sm);
-		line-height: 1.35;
-		color: var(--muted-foreground);
-	}
-
-	.verdict.ok {
-		color: var(--up);
-	}
-
-	.verdict.low,
-	.verdict.loss {
-		color: var(--down);
-	}
-
-	.verdict.muted {
-		color: var(--muted-foreground);
-	}
-
-	.hint {
-		margin: 0;
-		font-size: var(--text-sm);
-		line-height: 1.4;
-		color: var(--muted-foreground);
-	}
-
-	.add-row {
-		padding-top: 0.35rem;
+	.add {
+		padding: 0.35rem 0.45rem;
 	}
 
 	.note {
-		margin: 0.1rem 0 0;
+		margin: 0;
 		font-size: var(--text-xs);
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		color: var(--muted-foreground);
+	}
+
+	@media (max-width: 720px) {
+		.metrics {
+			justify-content: flex-start;
+			flex: 1 1 100%;
+		}
+
+		.metric {
+			justify-items: start;
+		}
 	}
 </style>

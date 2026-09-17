@@ -43,7 +43,7 @@
   --t-slow: 320ms;
 
   /* ─── Type ───────────────────────────────────────────────────────────── */
-  --font-display: "Ysabeau", system-ui, sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, serif;
   --font: "Roboto", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --text-xs: 0.75rem; /* 12px — hints, meta */

@@ -43,6 +43,11 @@ export const siteConfig = {
       description:
         "How Gwenda handles your email and data. Privacy policy for gwenda.co.uk.",
     },
+    contact: {
+      title: "Contact · Gwenda",
+      description:
+        "Join the list or apply to play at Gwenda in Hackney Wick.",
+    },
   },
   /** Topics for schema.org knowsAbout (helps Google associate the venue). */
   seoTopics: [
@@ -134,5 +139,20 @@ export const siteConfig = {
     signupSuccessLead:
       "We'll be in touch with nights ahead, and the occasional whisper.",
     signupSuccessBack: "Back to Gwenda",
+    contactPage: {
+      eyebrow: "Write to us",
+      heading: "Get in touch",
+      lead: "Stay on the list for nights ahead, or write if you’d like to play here.",
+      listEyebrow: "The list",
+      listHeading: "Stay close",
+      listLead:
+        "Nights ahead. Openings, gatherings, and the occasional whisper.",
+      listCta: "Stay in touch",
+      playEyebrow: "The floor",
+      playHeading: "Play at Gwenda",
+      playLead:
+        "A canalside room for DJs, live acts, and selectors who want something a little more intimate. Bring your sound. Tell us what you’d play here.",
+      playCta: "Play At Gwenda",
+    },
   },
 } as const;

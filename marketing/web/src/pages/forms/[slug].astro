@@ -1,0 +1,102 @@
+---
+import { Image } from "astro:assets";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Subpage from "../../components/Subpage.astro";
+import ContactForm from "../../components/ContactForm.astro";
+import { siteConfig } from "../../config/site";
+import { compactLogo } from "../../lib/hero-assets";
+import {
+  fetchFormBySlug,
+  fetchFormSlugs,
+} from "../../lib/sanity/forms";
+import turnTable from "../../assets/images/play/turn-table.jpg";
+
+export async function getStaticPaths() {
+  try {
+    const slugs = await fetchFormSlugs();
+    return slugs.map((slug) => ({ params: { slug } }));
+  } catch (error) {
+    console.warn("Form static paths skipped — could not fetch forms from Sanity:", error);
+    return [];
+  }
+}
+
+const { slug } = Astro.params;
+const form = slug ? await fetchFormBySlug(slug) : null;
+
+if (!form) {
+  return Astro.redirect("/");
+}
+
+const pageTitle = `${form.heading} · ${siteConfig.name}`;
+const pageDescription =
+  form.seoDescription?.trim() ||
+  form.intro?.trim() ||
+  siteConfig.seo.home.description;
+
+const showTurntable = form.slug === "play-at-gwenda";
+const eyebrow = form.eyebrow?.trim() || "";
+const heading = form.heading?.trim() || "";
+const showEyebrow =
+  Boolean(eyebrow) &&
+  eyebrow.toLowerCase() !== heading.toLowerCase();
+---
+
+<BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
+  <Subpage
+    class:list={["contact-page", showTurntable && "contact-page--play"]}
+    innerClass="contact-inner"
+    flush={showTurntable}
+  >
+    {
+      showTurntable ? (
+        <aside slot="aside" class="contact-visual">
+          <div class="contact-visual-bg" aria-hidden="true"></div>
+          <div class="contact-visual-stage" data-play-parallax aria-hidden="true">
+            <Image
+              src={turnTable}
+              alt=""
+              widths={[720, 1080, 1440]}
+              sizes="(min-width: 900px) 33vw, 100vw"
+              class="contact-visual-image"
+              loading="eager"
+              fetchpriority="high"
+            />
+          </div>
+          <div class="contact-visual-overlay" aria-hidden="true"></div>
+          <div class="contact-visual-vignette" aria-hidden="true"></div>
+          <a href="/" class="contact-play-brand" aria-label="Gwenda home">
+            <Image
+              {...compactLogo}
+              alt=""
+              class="contact-play-brand-mark"
+              loading="eager"
+            />
+          </a>
+        </aside>
+      ) : null
+    }
+
+    <div id="contact-panel" class="contact-panel">
+      <header class="contact-header reveal">
+        {
+          showTurntable ? (
+            <h1 class="contact-play-title">
+              <span class="contact-play-title-gold">Play</span>
+              <span class="contact-play-title-at"> at </span>
+              <span class="contact-play-title-name">Gwenda</span>
+            </h1>
+          ) : (
+            <>
+              {showEyebrow ? <p class="section-eyebrow">{eyebrow}</p> : null}
+              <h1>{heading}</h1>
+            </>
+          )
+        }
+        {form.intro ? <p>{form.intro}</p> : null}
+      </header>
+
+      <ContactForm form={form} />
+    </div>
+  </Subpage>
+</BaseLayout>

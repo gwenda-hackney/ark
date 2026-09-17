@@ -20,7 +20,9 @@ export async function sanityQuery(env, query, params = {}) {
   const url = new URL(`https://${projectId}.${host}/${API_VERSION}/data/query/${dataset}`);
   url.searchParams.set("query", query);
   for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, JSON.stringify(value));
+    // Sanity requires GROQ params as `$name` query-string keys.
+    const paramKey = key.startsWith("$") ? key : `$${key}`;
+    url.searchParams.set(paramKey, JSON.stringify(value));
   }
 
   const response = await fetch(url.toString(), {

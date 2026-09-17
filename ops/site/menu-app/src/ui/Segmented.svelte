@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
-	 * Pill tab bar. `invert` is the reference look — the active pill flips to the
-	 * ink colour, so it reads the same in both themes without a third colour.
+	 * Pill tab bar. `invert` keeps the sunken track + ink pill.
+	 * `soft` is a flat underline strip for sitting on cards (no gray box).
 	 */
 	import type { SegmentedItem } from "./types";
 
@@ -74,6 +74,14 @@
 		border: 1px solid var(--border);
 	}
 
+	.track.soft {
+		gap: 0.15rem;
+		padding: 0;
+		border: none;
+		border-radius: 0;
+		background: transparent;
+	}
+
 	.tab {
 		display: inline-flex;
 		align-items: center;
@@ -93,6 +101,25 @@
 			box-shadow var(--t) var(--ease);
 	}
 
+	.soft .tab {
+		position: relative;
+		border-radius: var(--radius-sm);
+		padding-bottom: 0.35rem;
+		margin-bottom: -1px;
+	}
+
+	.soft .tab::after {
+		content: "";
+		position: absolute;
+		left: 0.35rem;
+		right: 0.35rem;
+		bottom: 0;
+		height: 2px;
+		border-radius: 1px;
+		background: transparent;
+		transition: background-color var(--t) var(--ease-in-out);
+	}
+
 	.tab[aria-selected="true"] {
 		font-weight: 600;
 	}
@@ -109,9 +136,26 @@
 		font-size: var(--text-sm);
 	}
 
+	.soft.md .tab {
+		height: auto;
+		min-height: 1.875rem;
+		padding: 0.2rem 0.55rem 0.45rem;
+	}
+
+	.soft.sm .tab {
+		height: auto;
+		min-height: 1.5rem;
+		padding: 0.15rem 0.45rem 0.4rem;
+	}
+
 	.tab:hover:not(:disabled):not([aria-disabled="true"]):not([aria-selected="true"]) {
 		color: var(--foreground);
 		background: var(--accent);
+	}
+
+	.soft .tab:hover:not(:disabled):not([aria-disabled="true"]):not([aria-selected="true"]) {
+		background: transparent;
+		color: var(--foreground);
 	}
 
 	.tab:disabled,
@@ -127,9 +171,13 @@
 	}
 
 	.soft .tab[aria-selected="true"] {
-		background: var(--primary-wash-strong);
-		color: var(--primary);
-		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 42%, transparent);
+		background: transparent;
+		color: var(--foreground);
+		box-shadow: none;
+	}
+
+	.soft .tab[aria-selected="true"]::after {
+		background: var(--primary);
 	}
 
 	.count {

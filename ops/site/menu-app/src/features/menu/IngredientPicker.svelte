@@ -115,12 +115,14 @@
 	}
 
 	function lineFromItem(item: InventoryItem): Ingredient {
-		const quantity = qty.trim();
+		const raw = qty.trim();
+		const parsed = raw ? Number(raw.replace(/,/g, "")) : NaN;
+		const quantity = Number.isFinite(parsed) ? parsed : undefined;
 		return {
 			name: item.name,
 			unit: resolveUnit(item),
 			inventoryId: String(item._id || item.id || ""),
-			...(quantity ? { quantity } : {}),
+			...(quantity != null ? { quantity } : {}),
 		};
 	}
 

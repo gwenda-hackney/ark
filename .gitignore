@@ -4,6 +4,8 @@ node_modules/
 .env.bak
 .env.ops
 .env.ops.bak
+.env.web
+.env.web.bak
 .baserow-jwt.json
 .baserow-ops-dev.json
 .bw-session

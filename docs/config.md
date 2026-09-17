@@ -5,20 +5,18 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 | Layer | Store | Examples |
 |-------|--------|----------|
 | Secrets | Bitwarden Secrets Manager → `.env` / `.env.ops` / CF secrets | API tokens, passwords, signing keys |
-| Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, marketing `BASEROW_TABLE_ID`, SMTP host |
+| Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, marketing `BASEROW_DATABASE_ID`, SMTP host |
 | Runtime non-secret config | Baserow **App Config** (ops first) | Pour targets, Sanity project/dataset, deploy webhook URL, Google OAuth **client id** |
 | Marketing product flags | Sanity `siteSettings` | Booking / gallery toggles |
 
-## Interim: two env files
-
-While marketing is still on the old pattern:
-
 | File | Role |
 |------|------|
-| `.env` | Marketing / shared + `ARK_LOCAL_BW_TOKEN` (SM bootstrap) |
+| `.env` | Shared bootstrap + Password Manager leftovers + `ARK_LOCAL_BW_TOKEN` |
 | `.env.ops` | Ops runtime secrets from Secrets Manager (`npm run env:ops:pull`) |
+| `.env.web` | Marketing runtime secrets from Secrets Manager (`npm run env:web:pull`) |
 
-Ops scripts and `npm run dev -w @gwenda/ops` load `.env` then `.env.ops` (ops wins). Marketing keeps using `.env` alone.
+Ops scripts and `npm run dev -w @gwenda/ops` load `.env` then `.env.ops` (ops wins).
+Marketing / Studio via `with-env` load `.env` then `.env.web` (web wins).
 
 ## Ops Baserow workspaces
 
@@ -83,21 +81,40 @@ npm run setup:baserow-ops                        # seed/repair App Config (JWT)
 gh workflow run ops-secrets.yml                  # SM prod key → Pages
 ```
 
-## Marketing (unchanged for now)
+## Marketing
 
-Subscribe table id, SMTP host/port, invite URLs stay in marketing wrangler `[vars]` + `.env`. Migrate marketing to App Config in a later pass.
+Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). Wrangler `[vars]` only carries `BASEROW_DATABASE_ID` (prod `461843`, staging/dev `465058`) to disambiguate when the token sees both databases.
+
+```bash
+npm run env:web:push                             # seed SM from filled .env keys (once)
+npm run env:web:pull                             # SM → .env.web (local key)
+npm run setup:baserow-form-submissions           # create/repair Form Submissions table (JWT)
+gh workflow run web-secrets.yml -f profile=staging
+gh workflow run web-secrets.yml -f profile=production
+```
+
+SM stores the marketing Baserow token as `BASEROW_API_KEY_MARKETING` (ops Free-workspace `BASEROW_API_KEY` cannot see Subscribers). Apple Wallet PEMs stay on GitHub for now.
+
+SMTP host/port/user remain in marketing wrangler `[vars]`. Form From / Reply-To / notify addresses live on the Sanity `form` document. Only `SMTP_PASSWORD` is a Secrets Manager / Pages secret.
 
 ## Bitwarden Secrets Manager
 
-1. Project with credential secrets only (keys named like env vars).
-2. Machine accounts: `ark-local` (read/write), `ark-ci` (read).
-3. Access tokens: `ark-local-devcontainer`, `ark-ci-github-actions`.
-4. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ops:pull`.
-5. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci).
-6. Sync to Cloudflare Pages (manual / after rotation):
+| Project | Id | Used by |
+|---------|----|---------|
+| **Ark/Ops** | `ea9095b4-8226-4dec-96c3-b4c8008b0b6b` | `npm run env:ops:pull` · `ops-secrets.yml` |
+| **Ark/Web** | `d7881774-3a4c-4603-97e3-b4c8010fd860` | `npm run env:web:pull` / `env:web:push` · `web-secrets.yml` |
+
+Override with `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
+
+1. Machine accounts: `ark-local` (read/write), `ark-ci` (read). Grant each account access to both projects.
+2. Access tokens: `ark-local-devcontainer`, `ark-ci-github-actions`.
+3. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ops:pull` / `npm run env:web:pull`.
+4. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci).
+5. Sync to Cloudflare Pages (manual / after rotation):
 
 ```bash
 gh workflow run ops-secrets.yml
+gh workflow run web-secrets.yml -f profile=production
 ```
 
 Uses `BASEROW_API_KEY_PRODUCTION` for Pages (not the local/dev Baserow token). Cloudflare does **not** read Bitwarden at runtime.

@@ -5,7 +5,7 @@ import { generateChannelToken } from "../lib/channels";
 import {
   EVENT_PASSWORD_PATTERN,
   LEGACY_CHANNEL_TOKEN_PATTERN,
-} from "../web/functions/_lib/event-password.js";
+} from "../../web/functions/_lib/event-password.js";
 import { eventDescription } from "./eventDescription";
 
 function isValidChannelToken(value: unknown) {

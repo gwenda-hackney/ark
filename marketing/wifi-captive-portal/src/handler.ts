@@ -5,7 +5,7 @@ import {
   resolveApiUrl,
   resolveRedirectUrl,
   resolveSubscribeTag,
-  resolveTableId,
+  resolveSubscribeTableId,
 } from "./types.js";
 import { authorizeGuest } from "./unifi.js";
 
@@ -126,12 +126,25 @@ export async function handlePortalRequest(
       );
     }
 
+    let tableId: string;
+    try {
+      tableId = await resolveSubscribeTableId(env);
+    } catch {
+      return html(
+        renderPortalPage({
+          ...pageFields,
+          error: "Something went wrong. Try again?",
+        }),
+        502,
+      );
+    }
+
     const saved = await subscribe({
       email,
       tag: resolveSubscribeTag(env),
       apiKey: env.BASEROW_API_KEY,
       apiUrl: resolveApiUrl(env),
-      tableId: resolveTableId(env),
+      tableId,
     });
 
     if (!saved.ok) {
