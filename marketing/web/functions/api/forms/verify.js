@@ -3,6 +3,7 @@ import {
   replyToFromAnswers,
 } from "../../_lib/form-submit.js";
 import { sendFormNotificationEmail } from "../../_lib/form-email.js";
+import { formPublicPath } from "../../_lib/form-paths.js";
 import { parseFormVerifyToken } from "../../_lib/form-verify-auth.js";
 import {
   draftAnswersFromSubmission,
@@ -42,7 +43,7 @@ export async function onRequestGet(context) {
       {
         ok: false,
         error: "This link isn't valid.",
-        formPath: `/forms/${parsed.slug}`,
+        formPath: formPublicPath(parsed.slug),
       },
       400,
     );
@@ -52,9 +53,7 @@ export async function onRequestGet(context) {
   const successTitle = form?.successTitle || "You're confirmed";
   const successMessage =
     form?.successMessage || "Thanks for writing. We'll be in touch.";
-  const formPath = marked.formSlug
-    ? `/forms/${marked.formSlug}`
-    : `/forms/${parsed.slug}`;
+  const formPath = formPublicPath(marked.formSlug || parsed.slug);
 
   if (!marked.already) {
     try {
@@ -113,7 +112,7 @@ async function draftExtrasForClaims(env, claims) {
   /** @type {{ formPath?: string, draftAnswers?: Record<string, string | string[]> }} */
   const extras = {};
   if (slug && /^[a-z0-9-]+$/i.test(slug)) {
-    extras.formPath = `/forms/${slug}`;
+    extras.formPath = formPublicPath(slug);
   }
   if (!rowId) return extras;
 
@@ -127,7 +126,7 @@ async function draftExtrasForClaims(env, claims) {
   if (!extras.formPath) {
     const rowSlug = String(loaded.row["Form Slug"] ?? "").trim();
     if (rowSlug && /^[a-z0-9-]+$/i.test(rowSlug)) {
-      extras.formPath = `/forms/${rowSlug}`;
+      extras.formPath = formPublicPath(rowSlug);
     }
   }
   return extras;

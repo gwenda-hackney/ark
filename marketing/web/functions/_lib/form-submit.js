@@ -168,7 +168,7 @@ export function validateFormAnswers(form, answers) {
 export function formatFormEmail({ form, answers, submittedAt }) {
   const lines = [
     `New submission: ${form.title}`,
-    `Form: /forms/${form.slug}`,
+    `Form: /contact/${form.slug}`,
     `Received: ${submittedAt}`,
     "",
     ...answers

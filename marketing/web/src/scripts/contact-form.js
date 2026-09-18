@@ -176,7 +176,7 @@ function readFormSession(slug) {
 }
 
 async function navigateToSubmitted(slug) {
-  const path = `/forms/${encodeURIComponent(slug)}/submitted`;
+  const path = `/contact/${encodeURIComponent(slug)}/submitted`;
   try {
     const { navigate } = await import("astro:transitions/client");
     navigate(path);
@@ -917,6 +917,27 @@ function initPlayParallax() {
   update();
 }
 
+/** On /contact/play, put the cursor in the name field on land. */
+function focusPlayNameField(form, slug) {
+  if (slug !== "play") return;
+  const nameInput = form.querySelector('input[name="name"]');
+  if (!(nameInput instanceof HTMLInputElement)) return;
+
+  const active = document.activeElement;
+  if (
+    active instanceof HTMLElement &&
+    active !== document.body &&
+    active !== document.documentElement &&
+    form.contains(active)
+  ) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    nameInput.focus({ preventScroll: true });
+  });
+}
+
 export function initContactForm() {
   const form = document.getElementById("contact-form");
   initPlayParallax();
@@ -982,6 +1003,7 @@ export function initContactForm() {
   initBrandedSelects(panel instanceof Element ? panel : form);
   initFieldValidation(form);
   restoreSavedAnswers();
+  focusPlayNameField(form, slug);
 
   ensureFormAuth().catch(() => {
     /* auth loads again on submit */

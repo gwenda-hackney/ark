@@ -143,7 +143,7 @@ npm run env:web:push
   - Logo + confirmation copy
   - Attachment: `gwenda-ticket.ics`
 
-- [ ] Submit `/forms/play-at-gwenda` and confirm From / Reply-To show `play@gwenda.co.uk`
+- [ ] Submit `/contact/play` and confirm From / Reply-To show `play@gwenda.co.uk`
 
 The RSVP is saved even if email fails (best-effort). Check the terminal for `RSVP confirmation email failed` if nothing arrives.
 
