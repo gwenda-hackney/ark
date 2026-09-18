@@ -36,7 +36,7 @@ Seed Play + Collaborate forms into the development dataset:
 npm run studio:seed:forms:dev
 ```
 
-Public URL: `/forms/<slug>` (e.g. `/forms/play-at-gwenda`). Contact hub: `/contact`.
+Public URL: `/contact/<slug>` (e.g. `/contact/play`). Contact hub: `/contact`.
 
 Form mail identity (`notifyEmail`, `fromEmail`, `replyToEmail`) is edited in Studio (default `play@gwenda.co.uk`). Only `SMTP_PASSWORD` is a secret.
 

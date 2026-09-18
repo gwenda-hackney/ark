@@ -176,7 +176,7 @@ export function formVerifyOrigin(requestUrl, env) {
 export async function buildFormVerifyUrl(requestUrl, env, token) {
   if (!token) return null;
   const origin = formVerifyOrigin(requestUrl, env);
-  const url = new URL(`${origin}/forms/verify`);
+  const url = new URL(`${origin}/contact/verify`);
   url.searchParams.set("t", token);
   return url.toString();
 }

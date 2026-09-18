@@ -5,6 +5,7 @@ import Subpage from "../../../components/Subpage.astro";
 import ContactFormStatus from "../../../components/ContactFormStatus.astro";
 import { siteConfig } from "../../../config/site";
 import { compactLogo } from "../../../lib/hero-assets";
+import { PLAY_FORM_SLUG, isReservedFormSlug } from "../../../lib/form-paths";
 import {
   fetchFormBySlug,
   fetchFormSlugs,
@@ -14,7 +15,9 @@ import turnTable from "../../../assets/images/play/turn-table.jpg";
 export async function getStaticPaths() {
   try {
     const slugs = await fetchFormSlugs();
-    return slugs.map((slug) => ({ params: { slug } }));
+    return slugs
+      .filter((slug) => !isReservedFormSlug(slug))
+      .map((slug) => ({ params: { slug } }));
   } catch (error) {
     console.warn(
       "Form submitted paths skipped — could not fetch forms from Sanity:",
@@ -28,11 +31,11 @@ const { slug } = Astro.params;
 const form = slug ? await fetchFormBySlug(slug) : null;
 
 if (!form) {
-  return Astro.redirect("/");
+  return Astro.redirect("/contact");
 }
 
 const pageTitle = `Submitted · ${form.heading} · ${siteConfig.name}`;
-const showTurntable = form.slug === "play-at-gwenda";
+const showTurntable = form.slug === PLAY_FORM_SLUG;
 ---
 
 <BaseLayout
@@ -47,6 +50,7 @@ const showTurntable = form.slug === "play-at-gwenda";
       showTurntable && "contact-page--play",
     ]}
     innerClass="contact-inner"
+    href="/contact"
     flush={showTurntable}
   >
     {

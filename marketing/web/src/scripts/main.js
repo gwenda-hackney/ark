@@ -30,14 +30,12 @@ function initPage() {
 
   let scrollTicking = false;
   let headerScrollVisible = false;
-  let headerHoverPinned = false;
   let headerShowAt = 120;
   let headerHideAt = 40;
-  const HEADER_HOVER_ZONE_PX = 72;
 
   function updateHeaderThresholds() {
     if (!hero) return;
-    // Desktop: half hero. Mobile: earlier so the hamburger (and Contact) appear sooner.
+    // Desktop: half hero. Mobile: earlier so the logo appears sooner.
     const showRatio = mobileNavQuery.matches ? 0.2 : 0.5;
     const showAt = hero.offsetHeight * showRatio;
     headerShowAt = showAt;
@@ -47,19 +45,22 @@ function initPage() {
   function applyHeaderVisibility() {
     if (!header) return;
     const mobile = mobileNavQuery.matches;
-    // Mobile has no hover reveal — keep the hamburger reachable at the top
-    // of the page. Desktop still uses scroll + top-of-viewport hover.
-    const shouldShow = mobile || headerHoverPinned || headerScrollVisible;
-    // Light gradient over the hero; blur chrome only after scroll (or desktop hover).
-    const shouldChrome =
-      headerScrollVisible || (!mobile && headerHoverPinned);
+    const navOpen = siteNav?.classList.contains("is-open") ?? false;
+    // Blur chrome only after the hero — never while the overlay is open
+    // (avoids a different-colored strip above the full menu).
+    const shouldChrome = headerScrollVisible && !navOpen;
+    // Nav logo only after the hero logo is gone (same scroll mark).
+    const showLogo = !hero || headerScrollVisible;
 
-    header.classList.toggle("visible", shouldShow);
-    header.classList.toggle("scrolled", shouldChrome);
-
-    if (!mobile) {
-      siteNav?.classList.toggle("visible", shouldShow);
+    // Desktop past hero uses inline links — close overlay first so it can
+    // fade out without flashing the horizontal bar mid-dismiss.
+    if (showLogo && !mobile && navOpen) {
+      closeSiteNav();
+      return;
     }
+
+    header.classList.toggle("scrolled", shouldChrome);
+    header.classList.toggle("has-logo", showLogo);
   }
 
   function onScrollFrame() {
@@ -70,33 +71,11 @@ function initPage() {
     scrollTicking = false;
   }
 
-  function pointerOverHeaderChrome(clientX, clientY) {
-    const el = document.elementFromPoint(clientX, clientY);
-    return Boolean(el?.closest("#site-header, #site-header-nav"));
-  }
-
-  function onHeaderPointerMove(e) {
-    if (mobileNavQuery.matches || !header) return;
-    const next =
-      e.clientY <= HEADER_HOVER_ZONE_PX ||
-      pointerOverHeaderChrome(e.clientX, e.clientY);
-    if (next === headerHoverPinned) return;
-    headerHoverPinned = next;
-    applyHeaderVisibility();
-  }
-
-  function onHeaderPointerLeave() {
-    if (mobileNavQuery.matches || !headerHoverPinned) return;
-    headerHoverPinned = false;
-    applyHeaderVisibility();
-  }
-
   updateHeaderThresholds();
   window.addEventListener(
     "resize",
     () => {
       updateHeaderThresholds();
-      if (mobileNavQuery.matches) headerHoverPinned = false;
       onScrollFrame();
     },
     { passive: true, signal },
@@ -114,15 +93,6 @@ function initPage() {
   );
 
   if (header) {
-    window.addEventListener("pointermove", onHeaderPointerMove, {
-      passive: true,
-      signal,
-    });
-    document.documentElement.addEventListener(
-      "pointerleave",
-      onHeaderPointerLeave,
-      { signal },
-    );
     whenNavigationReady(() => onScrollFrame());
   }
 
@@ -185,23 +155,72 @@ function initPage() {
     });
   }
 
-  function closeMobileNav() {
-    siteNav?.classList.remove("is-open");
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let navClosingTimer = null;
+
+  function finishNavClosing() {
+    if (!siteNav?.classList.contains("is-closing")) return;
+    siteNav.classList.remove("is-closing");
+    if (navClosingTimer != null) {
+      clearTimeout(navClosingTimer);
+      navClosingTimer = null;
+    }
+    applyHeaderVisibility();
+  }
+
+  function closeSiteNav() {
+    if (!siteNav) return;
+    const wasOpen = siteNav.classList.contains("is-open");
+    siteNav.classList.remove("is-open");
     menuBtn?.classList.remove("is-open");
     menuBtn?.setAttribute("aria-expanded", "false");
     menuBtn?.setAttribute("aria-label", "Open menu");
     document.body.classList.remove("site-nav-open");
+
+    if (wasOpen) {
+      // Keep overlay geometry while opacity fades so desktop inline styles
+      // cannot match :not(.is-open) and flash the horizontal bar.
+      siteNav.classList.add("is-closing");
+      if (navClosingTimer != null) clearTimeout(navClosingTimer);
+      const onEnd = (event) => {
+        if (event.target !== siteNav || event.propertyName !== "opacity") return;
+        siteNav.removeEventListener("transitionend", onEnd);
+        finishNavClosing();
+      };
+      siteNav.addEventListener("transitionend", onEnd);
+      navClosingTimer = setTimeout(() => {
+        siteNav.removeEventListener("transitionend", onEnd);
+        finishNavClosing();
+      }, 450);
+    }
+
+    applyHeaderVisibility();
   }
 
   if (menuBtn && siteNav) {
     menuBtn.addEventListener(
       "click",
       () => {
-        const isOpen = siteNav.classList.toggle("is-open");
-        menuBtn.classList.toggle("is-open", isOpen);
-        menuBtn.setAttribute("aria-expanded", String(isOpen));
-        menuBtn.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
-        document.body.classList.toggle("site-nav-open", isOpen);
+        if (siteNav.classList.contains("is-open")) {
+          closeSiteNav();
+          return;
+        }
+        siteNav.classList.remove("is-closing");
+        if (navClosingTimer != null) {
+          clearTimeout(navClosingTimer);
+          navClosingTimer = null;
+        }
+        // Force a closed frame so opacity can animate 0 → 1 (re-open during
+        // close, or desktop parked bar, otherwise snaps with no transition).
+        void siteNav.offsetHeight;
+        requestAnimationFrame(() => {
+          siteNav.classList.add("is-open");
+          menuBtn.classList.add("is-open");
+          menuBtn.setAttribute("aria-expanded", "true");
+          menuBtn.setAttribute("aria-label", "Close menu");
+          document.body.classList.add("site-nav-open");
+          applyHeaderVisibility();
+        });
       },
       { signal },
     );
@@ -209,28 +228,27 @@ function initPage() {
     siteNav.addEventListener(
       "click",
       (e) => {
-        if (e.target === siteNav) closeMobileNav();
+        if (e.target === siteNav) closeSiteNav();
       },
       { signal },
     );
 
     siteNav.querySelectorAll("a").forEach((link) => {
-      link.addEventListener("click", closeMobileNav, { signal });
+      link.addEventListener("click", closeSiteNav, { signal });
     });
 
     document.addEventListener(
       "keydown",
       (e) => {
-        if (e.key === "Escape") closeMobileNav();
+        if (e.key === "Escape") closeSiteNav();
       },
       { signal },
     );
 
     mobileNavQuery.addEventListener(
       "change",
-      (e) => {
-        if (!e.matches) closeMobileNav();
-        if (e.matches) siteNav?.classList.remove("visible");
+      () => {
+        closeSiteNav();
         onScrollFrame();
       },
       { signal },

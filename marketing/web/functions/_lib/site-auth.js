@@ -140,7 +140,12 @@ export function isPublicPath(pathname) {
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/"))
     return true;
   if (pathname === "/api/subscribe") return true;
-  if (pathname === "/api/forms") return true;
+  if (pathname === "/api/forms" || pathname.startsWith("/api/forms/"))
+    return true;
+  if (pathname === "/contact/verify" || pathname === "/contact/verify/")
+    return true;
+  if (pathname === "/forms/verify" || pathname === "/forms/verify/")
+    return true;
   if (pathname === "/api/rsvp" || pathname.startsWith("/api/rsvp/")) return true;
   if (pathname === "/api/ticket" || pathname.startsWith("/api/ticket/")) return true;
   if (pathname === "/api/events" || pathname.startsWith("/api/events/")) return true;

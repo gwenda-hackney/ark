@@ -19,8 +19,16 @@ export const form = defineType({
       title: "Slug",
       type: "slug",
       options: { source: "title", maxLength: 96 },
-      validation: (rule) => rule.required(),
-      description: "Public URL: /forms/<slug>. Example: play-at-gwenda.",
+      description: "Public URL: /contact/<slug>. Example: play → /contact/play.",
+      validation: (rule) =>
+        rule.required().custom((value) => {
+          const current = value?.current;
+          if (!current) return "Required";
+          if (current === "verify") {
+            return 'Reserved — use another slug than "verify".';
+          }
+          return true;
+        }),
     }),
     defineField({
       name: "enabled",
@@ -172,7 +180,7 @@ export const form = defineType({
       const status = enabled === false ? " · off" : "";
       return {
         title: title || "Form",
-        subtitle: subtitle ? `/forms/${subtitle}${status}` : status.trim(),
+        subtitle: subtitle ? `/contact/${subtitle}${status}` : status.trim(),
       };
     },
   },

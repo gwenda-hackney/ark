@@ -1,6 +1,9 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { siteConfig } from "../../config/site";
+import { formPublicPath, PLAY_FORM_SLUG } from "../../lib/form-paths";
+
+const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
 ---
 
 <BaseLayout
@@ -15,7 +18,7 @@ import { siteConfig } from "../../config/site";
       <p id="verify-message">One moment while we confirm your email.</p>
       <p class="contact-error" id="verify-error" role="alert" hidden></p>
       <a href="/" class="btn btn-ghost" id="verify-home" hidden>Back to Gwenda</a>
-      <a href="/forms/play-at-gwenda" class="btn btn-ghost" id="verify-retry" hidden
+      <a href={defaultRetryHref} class="btn btn-ghost" id="verify-retry" hidden
         >Back to the form</a
       >
     </div>
@@ -23,6 +26,8 @@ import { siteConfig } from "../../config/site";
 </BaseLayout>
 
 <script>
+  import { formPublicPath, slugFromFormPath } from "../../lib/form-paths";
+
   function slugFromToken(token) {
     try {
       const payload = String(token || "").split(".")[0];
@@ -40,7 +45,7 @@ import { siteConfig } from "../../config/site";
 
   function seedFormDraft(formPath, draftAnswers) {
     if (!formPath || typeof sessionStorage === "undefined") return;
-    const slug = String(formPath).replace(/^\/forms\//, "").split("/")[0];
+    const slug = slugFromFormPath(formPath);
     if (!slug || !/^[a-z0-9-]+$/i.test(slug)) return;
     if (!draftAnswers || typeof draftAnswers !== "object") return;
 
@@ -67,7 +72,7 @@ import { siteConfig } from "../../config/site";
       return;
     }
     const slug = slugFromToken(token);
-    if (slug) retryEl.href = `/forms/${slug}`;
+    if (slug) retryEl.href = formPublicPath(slug);
   }
 
   async function runVerify() {

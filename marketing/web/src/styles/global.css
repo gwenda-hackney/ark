@@ -6,7 +6,7 @@
   --font-body: "Lora", Georgia, serif;
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
-  --header-height: 72px;
+  --header-height: 88px;
 }
 
 *,
@@ -194,7 +194,7 @@ main {
   --ribbon-fold: 5.5rem;
   position: fixed;
   top: 0;
-  right: 0;
+  left: 0;
   z-index: 90;
   width: var(--ribbon-fold);
   height: var(--ribbon-fold);
@@ -209,12 +209,11 @@ main {
   content: "";
   position: absolute;
   top: 0;
-  right: 0;
+  left: 0;
   border-style: solid;
-  border-width: 0 var(--ribbon-fold) var(--ribbon-fold) 0;
-  border-color: transparent
-    color-mix(in srgb, var(--color-gold-dark) 75%, transparent) transparent
-    transparent;
+  border-width: var(--ribbon-fold) var(--ribbon-fold) 0 0;
+  border-color: color-mix(in srgb, var(--color-gold-dark) 75%, transparent)
+    transparent transparent transparent;
 }
 
 .staging-ribbon span {
@@ -222,9 +221,9 @@ main {
   display: block;
   width: 8.5rem;
   top: 1.15rem;
-  right: -2.15rem;
+  left: -2.15rem;
   padding: 0.3rem 0;
-  transform: rotate(45deg);
+  transform: rotate(-45deg);
   text-align: center;
   font-family: var(--font-display);
   font-size: 0.65rem;
@@ -250,10 +249,6 @@ main {
   text-transform: uppercase;
   color: var(--color-bg);
   background: var(--color-gold);
-}
-
-body:has(.preview-banner) .site-header.visible {
-  top: 2rem;
 }
 
 body:has(.preview-banner) .site-header {
@@ -520,14 +515,10 @@ a:focus-visible {
     color-mix(in srgb, var(--color-bg) 90%, transparent),
     transparent
   );
-  transform: translateY(-100%);
+  transform: translateY(0);
   transition:
     transform 0.25s var(--ease-out),
     background 0.2s ease;
-}
-
-.site-header.visible {
-  transform: translateY(0);
 }
 
 .site-header.scrolled {
@@ -548,11 +539,31 @@ a:focus-visible {
 .site-header-logo {
   display: block;
   padding-inline: 0.6rem;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-100%);
+  transition:
+    transform 0.4s var(--ease-out),
+    visibility 0.4s;
+}
+
+/* Only after the hero logo has scrolled away — avoids two logos at once. */
+.site-header.has-logo .site-header-logo {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.site-header--invite .site-header-logo {
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition: none;
 }
 
 .site-header-logo-img {
   display: block;
-  height: 2.5rem;
+  height: 3.75rem;
   width: auto;
   opacity: 0.92;
   transition: opacity 0.3s var(--ease-smooth);
@@ -567,71 +578,6 @@ a:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
   border-radius: 2px;
-}
-
-.site-header-nav {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-}
-
-.site-header-nav a {
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  position: relative;
-}
-
-.site-header-nav a:not(.site-header-cta)::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -3px;
-  width: 100%;
-  height: 1px;
-  background: var(--color-gold);
-  transform: scaleX(0);
-  transform-origin: right center;
-  transition: transform 0.35s var(--ease-smooth);
-}
-
-.site-header-nav a:not(.site-header-cta):hover::after,
-.site-header-nav a:not(.site-header-cta):focus-visible::after {
-  transform: scaleX(1);
-  transform-origin: left center;
-}
-
-.site-header-nav a:hover {
-  color: var(--color-gold);
-  opacity: 1;
-}
-
-.site-header-nav a:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: 2px;
-}
-
-.site-header-cta {
-  color: var(--color-gold) !important;
-  border: 1px solid var(--color-gold-dim);
-  padding: 0.4rem 1rem;
-  transition:
-    border-color 0.3s var(--ease-smooth),
-    box-shadow 0.3s var(--ease-smooth),
-    color 0.3s var(--ease-smooth);
-}
-
-.site-header-cta::after {
-  display: none;
-}
-
-.site-header-cta:hover,
-.site-header-cta:focus-visible {
-  border-color: var(--color-gold);
-  box-shadow: 0 0 20px color-mix(in srgb, var(--color-gold) 18%, transparent);
 }
 
 .booking-float {
@@ -745,15 +691,20 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
 }
 
 .site-header-menu-btn {
-  display: none;
+  display: flex;
+  position: absolute;
+  top: 50%;
+  right: 1.5rem;
+  z-index: 1;
   align-items: center;
   justify-content: center;
-  width: auto;
-  height: auto;
-  padding: 0.5rem;
-  margin: -0.5rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  margin: 0;
   border: none;
   background: transparent;
+  transform: translateY(-50%);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -761,8 +712,8 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
 .site-header-menu-icon {
   position: relative;
   display: block;
-  width: 1.375rem;
-  height: 0.5rem;
+  width: 22px;
+  height: 8px;
 }
 
 .site-header-menu-icon::before,
@@ -770,35 +721,320 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   content: "";
   position: absolute;
   left: 0;
+  top: 0;
   width: 100%;
   height: 1px;
   background: var(--color-gold);
-  transition:
-    transform 0.35s var(--ease-out),
-    top 0.35s var(--ease-out);
+  transition: transform 0.35s var(--ease-out);
 }
 
+/* Integer px offsets so both hairlines render the same weight. */
 .site-header-menu-icon::before {
-  top: 0;
+  transform: translate3d(0, 0, 0);
 }
 
 .site-header-menu-icon::after {
-  top: calc(100% - 1px);
+  transform: translate3d(0, 7px, 0);
 }
 
 .site-header-menu-btn.is-open .site-header-menu-icon::before {
-  top: 50%;
-  transform: translateY(-50%) rotate(45deg);
+  transform: translate3d(0, 3.5px, 0) rotate(45deg);
 }
 
 .site-header-menu-btn.is-open .site-header-menu-icon::after {
-  top: 50%;
-  transform: translateY(-50%) rotate(-45deg);
+  transform: translate3d(0, 3.5px, 0) rotate(-45deg);
 }
 
 .site-header-menu-btn:focus-visible {
   outline: 1px solid var(--color-gold-dim);
   outline-offset: 4px;
+}
+
+/* Full-screen nav — same click experience on desktop and mobile. */
+.site-header-nav {
+  display: flex;
+  position: fixed;
+  inset: 0;
+  z-index: 105;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+  padding: calc(var(--header-height) + 1.5rem) 2rem 2rem;
+  background: var(--color-bg-scrim);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.4s var(--ease-out),
+    visibility 0.4s;
+  pointer-events: none;
+}
+
+.site-header-nav.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* While fading out, keep overlay layout so desktop inline rules cannot match. */
+.site-header-nav.is-closing {
+  inset: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25rem;
+  padding: calc(var(--header-height) + 1.5rem) 2rem 2rem;
+  background: var(--color-bg-scrim);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: none;
+  animation: none;
+}
+
+.site-header-nav a {
+  display: block;
+  padding: 0.85rem 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--color-text-muted);
+  border: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.35s var(--ease-out),
+    transform 0.35s var(--ease-out),
+    color 0.2s ease;
+  position: relative;
+}
+
+.site-header-nav.is-open a {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.site-header-nav.is-open a:nth-child(1) {
+  transition-delay: 0.06s;
+}
+
+.site-header-nav.is-open a:nth-child(2) {
+  transition-delay: 0.11s;
+}
+
+.site-header-nav.is-open a:nth-child(3) {
+  transition-delay: 0.16s;
+}
+
+.site-header-nav.is-open a:nth-child(4) {
+  transition-delay: 0.21s;
+}
+
+.site-header-nav.is-open a:nth-child(5) {
+  transition-delay: 0.26s;
+}
+
+.site-header-nav a:hover {
+  color: var(--color-gold);
+}
+
+.site-header-nav a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 2px;
+}
+
+.site-header-nav .site-header-cta {
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: 0.55rem 1.25rem;
+  border: 1px solid var(--color-gold-dim);
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  color: var(--color-gold) !important;
+  transition:
+    border-color 0.3s var(--ease-smooth),
+    box-shadow 0.3s var(--ease-smooth),
+    color 0.3s var(--ease-smooth);
+}
+
+.site-header-cta::after {
+  display: none;
+}
+
+.site-header-cta:hover,
+.site-header-cta:focus-visible {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-gold) 18%, transparent);
+}
+
+body.site-nav-open {
+  overflow: hidden;
+}
+
+/* Keep the header invisible over the scrim so the top isn't a different strip. */
+body.site-nav-open .site-header {
+  background: transparent;
+  border-bottom: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body.site-nav-open .staging-ribbon {
+  opacity: 0;
+  visibility: hidden;
+}
+
+body:has(.preview-banner) .site-header-nav {
+  padding-top: calc(2rem + var(--header-height) + 1.5rem);
+}
+
+/* Desktop: closed state is a parked top bar (not the overlay), so scroll
+   up/down only slides the bar — never flashes the full-page scrim. */
+@media (min-width: 641px) {
+  .site-header-menu-btn {
+    /* Match the tighter mobile optical placement in the taller desktop bar. */
+    top: calc(50% - 0.35rem);
+    width: 1.75rem;
+    height: 1.75rem;
+    transition:
+      opacity 0.3s var(--ease-out),
+      visibility 0.3s;
+  }
+
+  .site-header.has-logo .site-header-menu-btn {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .site-header-nav:not(.is-open):not(.is-closing) {
+    inset: auto;
+    top: 0;
+    right: 1.5rem;
+    left: auto;
+    bottom: auto;
+    width: auto;
+    height: var(--header-height);
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 2rem;
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    /* opacity 0 while parked so opening the overlay can fade 0 → 1 */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 110;
+    transform: translateY(-100%);
+    transition:
+      transform 0.4s var(--ease-out),
+      opacity 0.4s var(--ease-out),
+      visibility 0.4s;
+  }
+
+  .site-header.has-logo ~ .site-header-nav:not(.is-open):not(.is-closing) {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .site-header-nav:not(.is-open):not(.is-closing) a {
+    display: inline;
+    padding: 0;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    text-align: left;
+    opacity: 0;
+    transform: none;
+    transition: color 0.2s ease, opacity 0.2s ease;
+  }
+
+  .site-header.has-logo ~ .site-header-nav:not(.is-open):not(.is-closing) a {
+    opacity: 1;
+  }
+
+  .site-header-nav:not(.is-open):not(.is-closing) a:not(.site-header-cta)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -3px;
+    width: 100%;
+    height: 1px;
+    background: var(--color-gold);
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform 0.35s var(--ease-smooth);
+  }
+
+  .site-header-nav:not(.is-open):not(.is-closing) a:not(.site-header-cta):hover::after,
+  .site-header-nav:not(.is-open):not(.is-closing) a:not(.site-header-cta):focus-visible::after {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+
+  .site-header-nav:not(.is-open):not(.is-closing) a:nth-child(n) {
+    transition-delay: 0s;
+  }
+
+  .site-header-nav:not(.is-open):not(.is-closing) .site-header-cta {
+    margin-top: 0;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+  }
+
+  /* Overlay open/close still uses the shared fullscreen styles. */
+  .site-header-nav.is-open {
+    inset: 0;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.25rem;
+    padding: calc(var(--header-height) + 1.5rem) 2rem 2rem;
+    background: var(--color-bg-scrim);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition:
+      opacity 0.4s var(--ease-out),
+      visibility 0.4s;
+  }
+
+  body:has(.preview-banner) .site-header-nav:not(.is-open):not(.is-closing) {
+    top: 2rem;
+    padding-top: 0;
+  }
+
+  body:has(.preview-banner) .site-header-nav.is-open,
+  body:has(.preview-banner) .site-header-nav.is-closing {
+    padding-top: calc(2rem + var(--header-height) + 1.5rem);
+  }
 }
 
 /* Hero */
@@ -3538,7 +3774,7 @@ html.fonts-ready .thanks {
   display: none;
 }
 
-/* Sanity-driven contact forms (/forms/<slug>) */
+/* Sanity-driven contact forms (/contact/<slug>) */
 
 .contact-inner {
   max-width: 36rem;
@@ -4044,11 +4280,12 @@ html.fonts-ready .thanks {
 .contact-tags > .contact-field-label {
   float: none;
   width: 100%;
-  margin-bottom: 0;
+  margin-bottom: 0.9rem;
 }
 
 .contact-tags > .contact-help {
-  margin: 0.35rem 0 0.9rem;
+  /* Keep label → help → options spacing in line with .contact-field-heading */
+  margin: -0.55rem 0 0.9rem;
 }
 
 .contact-label-text,
@@ -5049,54 +5286,6 @@ html.navigation-restore #rsvp-loading {
   }
 }
 
-@media (min-width: 641px) {
-  .site-header-nav {
-    position: fixed;
-    top: 0;
-    right: 1.5rem;
-    left: auto;
-    bottom: auto;
-    width: auto;
-    height: var(--header-height);
-    flex-direction: row;
-    align-items: center;
-    gap: 2rem;
-    padding: 0;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    z-index: 110;
-    transform: translateY(-100%);
-    transition: transform 0.25s var(--ease-out);
-  }
-
-  .site-header-nav.visible {
-    transform: translateY(0);
-  }
-
-  .site-header-nav a {
-    display: inline;
-    padding: 0;
-    font-size: 0.85rem;
-    letter-spacing: 0.12em;
-    text-align: left;
-    opacity: 1;
-    transform: none;
-    transition: color 0.2s ease;
-  }
-
-  .site-header-nav .site-header-cta {
-    margin-top: 0;
-    padding: 0.4rem 1rem;
-    border: 1px solid var(--color-gold-dim);
-    font-size: 0.85rem;
-    letter-spacing: 0.12em;
-  }
-}
-
 @media (max-width: 640px) {
   :root {
     --header-height: 56px;
@@ -5116,9 +5305,11 @@ html.navigation-restore #rsvp-loading {
   }
 
   .site-header {
-    /* Always show the bar on mobile — hover-to-reveal does not work on touch. */
-    transform: translateY(0);
     padding: 0 1.15rem;
+  }
+
+  .site-header-menu-btn {
+    right: 1.15rem;
   }
 
   .site-header-logo {
@@ -5126,103 +5317,7 @@ html.navigation-restore #rsvp-loading {
   }
 
   .site-header-logo-img {
-    height: 2rem;
-  }
-
-  .site-header-menu-btn {
-    display: flex;
-    position: relative;
-    z-index: 1;
-  }
-
-  .site-header-nav {
-    display: flex;
-    position: fixed;
-    inset: 0;
-    z-index: 105;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 0.25rem;
-    padding: calc(var(--header-height) + 1.5rem) 2rem 2rem;
-    background: var(--color-bg-scrim);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity 0.4s var(--ease-out),
-      visibility 0.4s;
-    pointer-events: none;
-  }
-
-  .site-header-nav.is-open {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-  }
-
-  .site-header-nav a {
-    display: block;
-    padding: 0.85rem 0;
-    font-size: 0.95rem;
-    letter-spacing: 0.18em;
-    text-align: center;
-    border: none;
-    opacity: 0;
-    transform: translateY(10px);
-    transition:
-      opacity 0.35s var(--ease-out),
-      transform 0.35s var(--ease-out),
-      color 0.2s ease;
-  }
-
-  .site-header-nav.is-open a {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .site-header-nav.is-open a:nth-child(1) {
-    transition-delay: 0.06s;
-  }
-
-  .site-header-nav.is-open a:nth-child(2) {
-    transition-delay: 0.11s;
-  }
-
-  .site-header-nav.is-open a:nth-child(3) {
-    transition-delay: 0.16s;
-  }
-
-  .site-header-nav.is-open a:nth-child(4) {
-    transition-delay: 0.21s;
-  }
-
-  .site-header-nav.is-open a:nth-child(5) {
-    transition-delay: 0.26s;
-  }
-
-  .site-header-nav .site-header-cta {
-    display: inline-block;
-    margin-top: 1.25rem;
-    padding: 0.55rem 1.25rem;
-    border: 1px solid var(--color-gold-dim);
-    font-size: 0.85rem;
-    letter-spacing: 0.12em;
-    color: var(--color-gold) !important;
-  }
-
-  body.site-nav-open {
-    overflow: hidden;
-  }
-
-  body:has(.preview-banner) .site-header-nav {
-    padding-top: calc(2rem + var(--header-height) + 1.5rem);
-  }
-
-  body.site-nav-open .staging-ribbon {
-    opacity: 0;
-    visibility: hidden;
+    height: 2.35rem;
   }
 
   .staging-ribbon {
