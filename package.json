@@ -39,6 +39,8 @@
     "env:ops:pull": "node scripts/pull-ops-env-from-sm.mjs",
     "env:web:pull": "node scripts/pull-web-env-from-sm.mjs",
     "env:web:push": "node scripts/push-web-env-to-sm.mjs",
+    "env:ark:pull": "node scripts/pull-ark-env-from-sm.mjs",
+    "env:ark:push": "node scripts/push-ark-env-to-sm.mjs",
     "setup:sanity-tokens": "node scripts/setup-sanity-tokens.mjs",
     "sync:sanity-datasets": "node scripts/sync-sanity-datasets.mjs",
     "setup:event-admin": "node scripts/setup-event-admin.mjs",
