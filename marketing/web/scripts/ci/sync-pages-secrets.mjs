@@ -57,7 +57,23 @@ const wranglerEnv = {
 const deploymentEnvs = ["production", "preview"];
 
 function putSecret(key, value) {
-  if (!value) return;
+  if (!value) {
+    if (key === "SMTP_PASSWORD") {
+      console.warn(
+        "SMTP_PASSWORD is empty in the environment; leaving existing Pages secret unchanged.",
+      );
+    }
+    return;
+  }
+  if (key === "SMTP_PASSWORD") {
+    const cleaned = String(value).replace(/\s+/g, "");
+    if (cleaned.length !== 16) {
+      console.warn(
+        `SMTP_PASSWORD length is ${cleaned.length} after stripping spaces (expected 16 for a Google app password).`,
+      );
+    }
+    value = cleaned;
+  }
   for (const deploymentEnv of deploymentEnvs) {
     const result = spawnSync(
       process.execPath,
