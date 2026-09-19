@@ -4,7 +4,7 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 
 | Layer | Store | Examples |
 |-------|--------|----------|
-| Secrets | Bitwarden Secrets Manager → `.env` / `.env.ops` / CF secrets | API tokens, passwords, signing keys |
+| Secrets | Bitwarden Secrets Manager → `.env.ark` / `.env.ops` / `.env.web` / CF secrets | API tokens, passwords, signing keys |
 | Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, marketing `BASEROW_DATABASE_ID`, SMTP host |
 | Runtime non-secret config | Baserow **App Config** (ops first) | Pour targets, Sanity project/dataset, deploy webhook URL, Google OAuth **client id** |
 | Marketing product flags | Sanity `siteSettings` | Booking / gallery toggles |
@@ -12,11 +12,12 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 | File | Role |
 |------|------|
 | `.env` | Shared bootstrap + Password Manager leftovers + `ARK_LOCAL_BW_TOKEN` |
+| `.env.ark` | Org Cloudflare tokens from Secrets Manager (`npm run env:ark:pull`) |
 | `.env.ops` | Ops runtime secrets from Secrets Manager (`npm run env:ops:pull`) |
 | `.env.web` | Marketing runtime secrets from Secrets Manager (`npm run env:web:pull`) |
 
-Ops scripts and `npm run dev -w @gwenda/ops` load `.env` then `.env.ops` (ops wins).
-Marketing / Studio via `with-env` load `.env` then `.env.web` (web wins).
+Ops scripts and `npm run dev -w @gwenda/ops` load `.env` then `.env.ark` then `.env.ops` (ops wins).
+Marketing / Studio via `with-env` load `.env` then `.env.ark` then `.env.web` (web wins).
 
 ## Ops Baserow workspaces
 
@@ -27,12 +28,13 @@ Ops uses **two Baserow workspaces** so a local token cannot see production data:
 | production | `Gwenda` (`208709`) | Ops DB `556507` | `BASEROW_API_KEY_PRODUCTION` |
 | local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY` |
 
-Each workspace holds the **Gwenda Ops** database (and can later hold other domain DBs).
+Each workspace holds the **Gwenda Ops** database and, in Dev, the staging website database.
 
 Second workspace is Free ($0; 3k rows). Clone once:
 
 ```bash
 npm run clone:baserow-ops-dev          # or --force to wipe+recopy
+npm run clone:baserow-web-dev          # staging website DB into the same workspace
 ```
 
 Then mint/refresh scoped database tokens (script prints next steps). Local `ops-dev` **refuses** to start if `BASEROW_OPS_DATABASE_ID` is still the production id.
@@ -49,7 +51,7 @@ Then mint/refresh scoped database tokens (script prints next steps). Local `ops-
 npm run env:ops:pull
 ```
 
-Writes local `BASEROW_API_KEY`, OAuth/session secrets, `SANITY_API_TOKEN`, optional `OPS_LOCAL_ADMIN_PW` / `DEPLOY_WEBHOOK_SECRET`, and keeps `BASEROW_OPS_DATABASE_ID` for the dev clone.
+Writes local `BASEROW_API_KEY`, OAuth/session secrets, and (from Ark/Web) `SANITY_API_TOKEN` / `DEPLOY_WEBHOOK_SECRET`. Keeps `BASEROW_OPS_DATABASE_ID` for the dev clone. Also refreshes `.env.ark`.
 
 **Not hand-edited for production:**
 
@@ -57,7 +59,7 @@ Writes local `BASEROW_API_KEY`, OAuth/session secrets, `SANITY_API_TOKEN`, optio
 |-------|--------|
 | Prod `BASEROW_OPS_DATABASE_ID` | `ops/site/wrangler.toml` `[vars]` = `556507` |
 | Prod Baserow token | SM `BASEROW_API_KEY_PRODUCTION` → Pages via `ops-secrets` |
-| `CLOUDFLARE_ACCOUNT_ID` / CF tokens | Shared `.env` (deploy tooling) |
+| `CLOUDFLARE_ACCOUNT_ID` / CF tokens | SM Ark → `.env.ark` (GitHub still has copies for deploy jobs) |
 | `SITE_ENV` | `local` via ops-dev; `production` in wrangler `[vars]` |
 
 **Ops table ids are not configured.** Names are resolved from the Baserow catalog.
@@ -81,35 +83,46 @@ npm run setup:baserow-ops                        # seed/repair App Config (JWT)
 gh workflow run ops-secrets.yml                  # SM prod key → Pages
 ```
 
-## Marketing
+## Marketing Baserow workspaces
 
-Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). Wrangler `[vars]` only carries `BASEROW_DATABASE_ID` (prod `461843`, staging/dev `465058`) to disambiguate when the token sees both databases.
+Marketing uses the same two workspaces so a local/staging token cannot see live subscribers:
+
+| Env | Workspace | Database id | Token (SM) |
+|-----|-----------|-------------|------------|
+| production | `Gwenda` (`208709`) | Website DB `461843` | `BASEROW_API_KEY_MARKETING_PRODUCTION` |
+| staging + local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_API_KEY_MARKETING` |
+
+Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). Wrangler `[vars]` carries `BASEROW_DATABASE_ID` (prod `461843`, staging/dev `563090`).
 
 ```bash
+npm run clone:baserow-web-dev                    # once: copy staging website DB into Gwenda Dev
 npm run env:web:push                             # seed SM from filled .env keys (once)
-npm run env:web:pull                             # SM → .env.web (local key)
+npm run env:web:pull                             # SM → .env.web (Dev website key)
 npm run setup:baserow-form-submissions           # create/repair Form Submissions table (JWT)
 gh workflow run web-secrets.yml -f profile=staging
 gh workflow run web-secrets.yml -f profile=production
 ```
 
-SM stores the marketing Baserow token as `BASEROW_API_KEY_MARKETING` (ops Free-workspace `BASEROW_API_KEY` cannot see Subscribers). Apple Wallet PEMs stay on GitHub for now.
+SM `BASEROW_API_KEY_MARKETING` is the Gwenda Dev website token (local + staging Pages). Production Pages and Mailchimp use `BASEROW_API_KEY_MARKETING_PRODUCTION`. Ops Free-workspace `BASEROW_API_KEY` cannot see Subscribers. Apple Wallet PEMs stay on GitHub for now.
 
 SMTP host/port/user remain in marketing wrangler `[vars]`. Form From / Reply-To / notify addresses live on the Sanity `form` document. Only `SMTP_PASSWORD` is a Secrets Manager / Pages secret.
 
 ## Bitwarden Secrets Manager
 
-| Project | Id | Used by |
-|---------|----|---------|
-| **Ark/Ops** | `ea9095b4-8226-4dec-96c3-b4c8008b0b6b` | `npm run env:ops:pull` · `ops-secrets.yml` |
-| **Ark/Web** | `d7881774-3a4c-4603-97e3-b4c8010fd860` | `npm run env:web:pull` / `env:web:push` · `web-secrets.yml` |
+Each secret lives in **one** owning project. Ops pull may **read** web-owned keys it consumes (`SANITY_API_TOKEN`, `DEPLOY_WEBHOOK_SECRET`). Do not copy those into Ark/Ops.
 
-Override with `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
+| Project | Id | Owns | Used by |
+|---------|----|------|---------|
+| **Ark** | `b9de9355-0a8f-45e7-b5fe-b4ca00eff281` | `CLOUDFLARE_DEV_API_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `npm run env:ark:pull` / `env:ark:push`; also refreshed by ops/web pull |
+| **Ark/Ops** | `ea9095b4-8226-4dec-96c3-b4c8008b0b6b` | Ops Baserow + OAuth/session | `npm run env:ops:pull` · `ops-secrets.yml` |
+| **Ark/Web** | `d7881774-3a4c-4603-97e3-b4c8010fd860` | Marketing (Sanity, deploy webhook, SMTP, subscribe, …) | `npm run env:web:pull` / `env:web:push` · `web-secrets.yml` |
 
-1. Machine accounts: `ark-local` (read/write), `ark-ci` (read). Grant each account access to both projects.
+Override with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
+
+1. Machine accounts: `ark-local` (read/write), `ark-ci` (read). Grant each account access to **Ark**, **Ark/Ops**, and **Ark/Web**.
 2. Access tokens: `ark-local-devcontainer`, `ark-ci-github-actions`.
-3. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ops:pull` / `npm run env:web:pull`.
-4. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci; must reach Ark/Ops and Ark/Web). Also keep `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` for deploy and secret sync. Do **not** mirror app secrets (`SMTP_PASSWORD`, `SITE_PASSWORD`, …) into GitHub.
+3. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ark:pull` / `env:ops:pull` / `env:web:pull`.
+4. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci; must reach all three projects). Do **not** mirror Cloudflare or app secrets into GitHub; pull them from SM in the job.
 5. Sync to Cloudflare Pages (manual / after rotation):
 
 ```bash

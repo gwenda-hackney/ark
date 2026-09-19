@@ -25,6 +25,7 @@ bw-unlock                                     # or: export BW_SESSION=$(bw unloc
 
 npm run env:seed          # create the three notes from templates (skip if exist)
 npm run env:pull          # write repo-root .env from ark/.env.local
+npm run env:ark:pull      # SM Ark → .env.ark (needs ARK_LOCAL_BW_TOKEN in .env)
 ```
 
 In the devcontainer, `bw-unlock` writes the session key to `/commandhistory/.bw-session` (a Docker volume). New shells and env scripts reuse it, so you should not need to unlock again until `bw-lock`, `bw logout`, or a new login. Treat that file like a decrypted vault key. Override the path with `BW_SESSION_FILE`.
@@ -33,8 +34,8 @@ Fill secrets one at a time:
 
 ```bash
 npm run env:set -- SANITY_API_TOKEN 'sk...'
-# later:
-npm run env:set -- CLOUDFLARE_DEV_API_TOKEN '...'
+# Cloudflare org tokens: put them in SM Ark (not only the Password Manager note):
+npm run env:ark:push
 ```
 
 Or push every non-empty key from local `.env` into the vault note:
@@ -51,8 +52,9 @@ npm run env:push
 
 | Key | Where | Role |
 |-----|--------|------|
-| `CLOUDFLARE_DEV_API_TOKEN` | local `.env` | Local DEV: Pages, Wrangler, Access teardown. Legacy alias: `CLOUDFLARE_API_TOKEN`. |
-| `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | CI deploys. Same name Wrangler expects in CI. |
+| `CLOUDFLARE_DEV_API_TOKEN` | SM Ark → `.env.ark` | Local DEV: Pages, Wrangler, Access teardown. |
+| `CLOUDFLARE_API_TOKEN` | SM Ark → `.env.ark`; GitHub Actions secret | CI / Wrangler name. Deploy jobs still use the GitHub copy. |
+| `CLOUDFLARE_ACCOUNT_ID` | SM Ark → `.env.ark`; GitHub Actions secret | Same account as wrangler `account_id`. |
 
 Local DEV token permissions (custom token, this account):
 
@@ -66,7 +68,10 @@ Create a **Editor** robot (`ark-local-editor`) via `npm run setup:sanity-tokens`
 
 ```bash
 bw-unlock                 # skip if already unlocked in this container
-npm run env:pull
+npm run env:pull          # Password Manager → .env (ARK_LOCAL_BW_TOKEN)
+npm run env:ark:pull      # SM Ark → .env.ark
+npm run env:web:pull      # SM → .env.web
+npm run env:ops:pull      # SM → .env.ops
 ```
 
 Useful flags:
@@ -87,9 +92,21 @@ If staging/production already work, skip `setup:ci-secrets` / `setup:site-deploy
 | File | Purpose |
 |------|---------|
 | `ark/.env` (file) ← item `ark/.env.local` | Shared local + `ARK_LOCAL_BW_TOKEN` (SM bootstrap) |
-| `.env.ops` | Ops secrets from Secrets Manager (`npm run env:ops:pull`) |
+| `.env.ark` | Org Cloudflare from Secrets Manager (`npm run env:ark:pull`) |
+| `.env.ops` | Ops secrets from Secrets Manager (`npm run env:ops:pull`; also reads web-owned Sanity / deploy webhook) |
 | `.env.web` | Marketing secrets from Secrets Manager (`npm run env:web:pull`) |
 | Nest `.env` (`~/dev/gwenda/.env`) | Workspace tools (e.g. ClickUp). Separate. |
+
+## Org Cloudflare (Ark)
+
+```bash
+# Requires ARK_LOCAL_BW_TOKEN in .env
+npm run env:ark:push          # once: copy filled Cloudflare keys from .env → Ark
+npm run env:ark:pull          # Ark → .env.ark
+npm run env:ark:pull -- --dry-run
+```
+
+Ops and web pulls also refresh `.env.ark`. GitHub still holds `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` for deploy workflows that never talk to Secrets Manager.
 
 ## Ops Secrets Manager pull
 
@@ -107,17 +124,19 @@ gh workflow run ops-secrets.yml
 
 That syncs SM → Cloudflare Pages secrets (including `BASEROW_API_KEY_PRODUCTION` as Pages `BASEROW_API_KEY`). **Deploy workflows do not push Pages secrets** — only `ops-secrets.yml` / `web-secrets.yml` (or a local `sync-pages-secrets` run) do.
 
-GitHub should hold `BWS_ACCESS_TOKEN` plus Cloudflare deploy credentials (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`). App secrets (`SMTP_PASSWORD`, `SITE_PASSWORD`, …) live in Bitwarden SM, not as duplicated GitHub secrets.
+Ops pull lists **Ark + Ark/Web + Ark/Ops**, then writes only ops keys to `.env.ops`. It reads marketing-owned `SANITY_API_TOKEN` and `DEPLOY_WEBHOOK_SECRET` from Ark/Web instead of duplicating them.
+
+GitHub should hold only `BWS_ACCESS_TOKEN` (machine account with access to **Ark**, **Ark/Ops**, and **Ark/Web**). Cloudflare deploy credentials (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_DEV_API_TOKEN`) live in SM project **Ark** and are pulled into CI via `env:ark:pull` / `env:web:pull` / `env:ops:pull`. App secrets (`SMTP_PASSWORD`, `SITE_PASSWORD`, …) live in Ark/Web or Ark/Ops, not as duplicated GitHub secrets.
 
 Ops local vs prod Baserow workspaces: see [config.md](./config.md#ops-baserow-workspaces).
 
 ## Marketing Secrets Manager pull
 
-Uses the **Ark/Web** Secrets Manager project (not Ark/Ops).
+Uses **Ark/Web** (plus org **Ark** for Cloudflare). Sanity and the deploy webhook are marketing-owned; ops pull reads those two keys.
 
 ```bash
 npm run env:web:push          # once: copy filled marketing keys from .env → Ark/Web
-npm run env:web:pull          # Ark/Web → .env.web
+npm run env:web:pull          # Ark + Ark/Web → .env.web (and .env.ark)
 npm run env:web:pull -- --dry-run
 ```
 
@@ -130,7 +149,7 @@ gh workflow run web-secrets.yml -f profile=production
 
 `web.yml` deploys code only. It may pull Ark/Web into the job env for build-time `SANITY_API_TOKEN` and smoke-test `GATE_BYPASS_KEY`, but it does **not** write those values to Cloudflare Pages. Rotate runtime secrets with `web-secrets.yml` (or local sync).
 
-Uses SM `BASEROW_API_KEY_MARKETING` as Pages `BASEROW_API_KEY` (not the ops Free-workspace token).
+Uses SM `BASEROW_API_KEY_MARKETING` for staging Pages (Gwenda Dev website) and `BASEROW_API_KEY_MARKETING_PRODUCTION` for production Pages (not the ops Free-workspace token).
 
 ## SMTP (form + invite mail)
 
@@ -165,13 +184,13 @@ Standalone Workers can persist logs with `[observability] enabled = true`. `gwen
 
 `GET /health` on the marketing site returns `{ ok: true, service: "gwenda" }` (liveness only). Staging gate allows it without a password.
 
-`gwenda-site-health` (cron every 5 minutes) probes `https://gwenda.co.uk/health` and the homepage title. After two consecutive failures it emails `play@gwenda.co.uk`, reminds at most every 30 minutes while down, and sends one recovery mail. First-time wiring:
+`gwenda-site-health` (cron every 5 minutes) probes `https://gwenda.co.uk/health` and the homepage title. After two consecutive failures it emails `play@gwenda.co.uk`, reminds at most every 30 minutes while down, and sends one recovery mail. A `/health` 404 is ignored until that endpoint has returned `{ ok: true }` once, so the Worker can ship before production is promoted. First-time wiring:
 
 ```
 npm run setup:site-health
 ```
 
-That creates the KV namespace, deploys the Worker, and puts `SMTP_PASSWORD`. CI redeploys from `.github/workflows/workers.yml`.
+That creates the KV namespace, deploys the Worker on `health.gwenda.co.uk`, and puts `SMTP_PASSWORD`. CI redeploys from `.github/workflows/workers.yml`.
 
 ## Secrets vs config
 

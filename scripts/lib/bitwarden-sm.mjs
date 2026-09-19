@@ -8,17 +8,25 @@ import {
   existsSync,
   mkdirSync,
   unlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 export const DEFAULT_SM_SERVER = "https://vault.bitwarden.eu";
 
+/** Gwenda org Secrets Manager project (Cloudflare tooling). */
+export const DEFAULT_ARK_PROJECT_ID = "b9de9355-0a8f-45e7-b5fe-b4ca00eff281";
+
 /** Gwenda ops Secrets Manager project (machine accounts ark-local / ark-ci). */
 export const DEFAULT_OPS_PROJECT_ID = "ea9095b4-8226-4dec-96c3-b4c8008b0b6b";
 
 /** Gwenda marketing web Secrets Manager project (`Ark/Web`). */
 export const DEFAULT_WEB_PROJECT_ID = "d7881774-3a4c-4603-97e3-b4c8010fd860";
+
+export function resolveArkProjectId(env = process.env) {
+  return env.BWS_ARK_PROJECT_ID?.trim() || DEFAULT_ARK_PROJECT_ID;
+}
 
 export function resolveOpsProjectId(env = process.env) {
   return env.BWS_OPS_PROJECT_ID?.trim() || DEFAULT_OPS_PROJECT_ID;
@@ -28,9 +36,25 @@ export function resolveWebProjectId(env = process.env) {
   return env.BWS_WEB_PROJECT_ID?.trim() || DEFAULT_WEB_PROJECT_ID;
 }
 
+/** Org Cloudflare keys written to `.env.ark` (`npm run env:ark:pull`). */
+export const ARK_ENV_SECRET_KEYS = [
+  "CLOUDFLARE_DEV_API_TOKEN",
+  "CLOUDFLARE_API_TOKEN",
+  "CLOUDFLARE_ACCOUNT_ID",
+];
+
+/**
+ * Web-owned keys that ops pull still copies into `.env.ops`.
+ * Ownership stays Ark/Web; ops is allowed to read them.
+ */
+export const OPS_CONSUMES_WEB_SECRET_KEYS = [
+  "SANITY_API_TOKEN",
+  "DEPLOY_WEBHOOK_SECRET",
+];
+
 /**
  * Secret keys written to `.env.ops` for local ops.
- * Other SM keys (e.g. CLOUDFLARE_DEV_API_TOKEN) stay in shared `.env`.
+ * SANITY_API_TOKEN and DEPLOY_WEBHOOK_SECRET are owned by Ark/Web.
  */
 export const OPS_ENV_SECRET_KEYS = [
   "BASEROW_API_KEY",
@@ -44,8 +68,10 @@ export const OPS_ENV_SECRET_KEYS = [
 
 /**
  * Secret keys written to `.env.web` for local marketing web.
- * SM stores the marketing Baserow token as BASEROW_API_KEY_MARKETING
- * (ops BASEROW_API_KEY is Free-workspace only and cannot see Subscribers).
+ * SM stores marketing Baserow tokens as:
+ *   BASEROW_API_KEY_MARKETING              Gwenda Dev website DB (local + staging)
+ *   BASEROW_API_KEY_MARKETING_PRODUCTION   Gwenda production website DB
+ * (ops BASEROW_API_KEY is Free-workspace Ops only).
  * Apple Wallet PEMs stay in GitHub / Password Manager for now.
  */
 export const WEB_ENV_SECRET_KEYS = [
@@ -53,6 +79,7 @@ export const WEB_ENV_SECRET_KEYS = [
   "SUBSCRIBE_SECRET",
   "EVENT_ADMIN_SECRET",
   "SANITY_API_TOKEN",
+  "DEPLOY_WEBHOOK_SECRET",
   "SMTP_PASSWORD",
   "SITE_PASSWORD",
   "GATE_BYPASS_KEY",
@@ -60,10 +87,21 @@ export const WEB_ENV_SECRET_KEYS = [
   "INSTAGRAM_BUSINESS_ACCOUNT_ID",
 ];
 
-/** SM key remapped when writing `.env.web` / Pages env. */
+/** SM key remapped when writing `.env.web` / Pages env (local + staging). */
 export const WEB_SM_KEY_ALIASES = {
   BASEROW_API_KEY_MARKETING: "BASEROW_API_KEY",
 };
+
+/** SM key remapped for production Pages / Mailchimp. */
+export const WEB_PRODUCTION_SM_KEY_ALIASES = {
+  BASEROW_API_KEY_MARKETING_PRODUCTION: "BASEROW_API_KEY",
+};
+
+export function webBaserowSmKey(profile = "staging") {
+  return profile === "production"
+    ? "BASEROW_API_KEY_MARKETING_PRODUCTION"
+    : "BASEROW_API_KEY_MARKETING";
+}
 
 const BWS_VERSION = "2.1.0";
 const BWS_ASSET = `bws-x86_64-unknown-linux-gnu-${BWS_VERSION}.zip`;
@@ -209,6 +247,105 @@ export function listSmSecretEntries({
   return map;
 }
 
+/**
+ * Merge secret maps. Later maps win.
+ * @param {Map<string, string>[]} maps
+ * @param {{ onConflict?: (key: string) => void }} [opts]
+ */
+export function mergeSmSecretMaps(maps, { onConflict } = {}) {
+  const out = new Map();
+  for (const map of maps) {
+    if (!map) continue;
+    for (const [key, value] of map) {
+      if (out.has(key) && out.get(key) !== value) {
+        onConflict?.(key);
+      }
+      out.set(key, value);
+    }
+  }
+  return out;
+}
+
+export function warnSmKeyConflict(key) {
+  console.warn(
+    `SM key ${key} exists in more than one project with different values; later project wins.`,
+  );
+}
+
+/**
+ * List secrets from each project and merge (later project ids win).
+ * @returns {Map<string, string>}
+ */
+export function listSmSecretsFromProjects({
+  accessToken,
+  serverUrl,
+  projectIds = [],
+  onConflict = warnSmKeyConflict,
+} = {}) {
+  const maps = [];
+  for (const projectId of projectIds.filter(Boolean)) {
+    try {
+      maps.push(listSmSecrets({ accessToken, serverUrl, projectId }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Skipping SM project ${projectId}: ${message}`);
+    }
+  }
+  return mergeSmSecretMaps(maps, { onConflict });
+}
+
+export function listMergedOpsSecrets({ accessToken, serverUrl, onConflict } = {}) {
+  return listSmSecretsFromProjects({
+    accessToken,
+    serverUrl,
+    projectIds: [
+      resolveArkProjectId(),
+      resolveWebProjectId(),
+      resolveOpsProjectId(),
+    ],
+    onConflict,
+  });
+}
+
+export function listMergedWebSecrets({ accessToken, serverUrl, onConflict } = {}) {
+  return listSmSecretsFromProjects({
+    accessToken,
+    serverUrl,
+    projectIds: [resolveArkProjectId(), resolveWebProjectId()],
+    onConflict,
+  });
+}
+
+export function pickArkSecrets(allSecrets) {
+  const out = new Map();
+  for (const key of ARK_ENV_SECRET_KEYS) {
+    if (allSecrets.has(key)) out.set(key, allSecrets.get(key) ?? "");
+  }
+  return out;
+}
+
+export function formatArkEnv(values) {
+  const lines = [
+    "# Generated by npm run env:ark:pull from Bitwarden Secrets Manager (Ark).",
+    "# Do not commit. Org Cloudflare tokens. Bootstrap token lives in .env (ARK_LOCAL_BW_TOKEN).",
+    "",
+  ];
+  for (const key of ARK_ENV_SECRET_KEYS) {
+    lines.push(`${key}=${values.get(key) ?? ""}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+export function writeArkEnvFile(path, allSecrets, { dryRun = false } = {}) {
+  const ark = pickArkSecrets(allSecrets);
+  const filled = ARK_ENV_SECRET_KEYS.filter(
+    (key) => String(ark.get(key) ?? "").trim(),
+  );
+  const content = formatArkEnv(ark);
+  if (!dryRun) writeFileSync(path, content);
+  return { wrote: !dryRun, filled, content };
+}
+
 export function pickOpsSecrets(allSecrets) {
   const out = new Map();
   for (const key of OPS_ENV_SECRET_KEYS) {
@@ -218,13 +355,18 @@ export function pickOpsSecrets(allSecrets) {
 }
 
 /**
- * Resolve marketing web secrets from SM (applies BASEROW_API_KEY_MARKETING alias).
+ * Resolve marketing web secrets from SM (applies Baserow key alias for profile).
  * @param {Map<string, string>} allSecrets
+ * @param {{ profile?: "staging" | "production" }} [opts]
  * @returns {Map<string, string>} local key → value
  */
-export function pickWebSecrets(allSecrets) {
+export function pickWebSecrets(allSecrets, { profile = "staging" } = {}) {
   const out = new Map();
-  for (const [smKey, localKey] of Object.entries(WEB_SM_KEY_ALIASES)) {
+  const aliases =
+    profile === "production"
+      ? WEB_PRODUCTION_SM_KEY_ALIASES
+      : WEB_SM_KEY_ALIASES;
+  for (const [smKey, localKey] of Object.entries(aliases)) {
     const value = allSecrets.get(smKey);
     if (value != null && String(value).trim()) {
       out.set(localKey, value);

@@ -63,7 +63,7 @@ dist/          Build output (gitignored)
 - **Staging URL:** `gwenda-staging.pages.dev` only — no custom domain in zone (keeps staging out of prod Web Analytics).
 - **Web Analytics:** Cloudflare dashboard zone auto-inject on production only; no analytics CI scripts or manual HTML beacons.
 - **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (gate bypass on staging), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
-- **Secrets:** Bitwarden SM is source of truth. GitHub keeps `BWS_ACCESS_TOKEN` + Cloudflare deploy tokens. Never commit secrets.
+- **Secrets:** Bitwarden SM is source of truth (Ark / Ark/Ops / Ark/Web). GitHub keeps only `BWS_ACCESS_TOKEN`. Never commit secrets.
 
 ## Code quality
 
@@ -74,9 +74,9 @@ dist/          Build output (gitignored)
 
 ## Configuration
 
-- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`) or copy `.env.example` → `.env`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
+- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`), then `env:ark:pull` / `env:ops:pull` / `env:web:pull`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
 - Staging gate: `SITE_PASSWORD` (Bitwarden Ark/Web → Cloudflare Pages via `web-secrets.yml`).
-- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (Pages secrets from SM). Subscribe and Event Invites tables resolved by name; `BASEROW_DATABASE_ID` in wrangler `[vars]`.
+- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (Pages secrets from SM; staging uses Dev website token, production uses `BASEROW_API_KEY_MARKETING_PRODUCTION`). Subscribe and Event Invites tables resolved by name; `BASEROW_DATABASE_ID` in wrangler `[vars]`.
 - Ops runtime knobs (pour-cost targets): Baserow **App Config** via `/api/config`. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
 ## What not to do

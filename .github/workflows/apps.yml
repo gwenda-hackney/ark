@@ -102,6 +102,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Pull Ark secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env
+
       - name: Sync brand colour tokens
         run: npm run sync:brand
 
@@ -111,8 +116,8 @@ jobs:
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-brand --branch main --commit-dirty=true
           workingDirectory: marketing/brand
 
@@ -170,6 +175,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Pull Ark secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env
+
       - name: Resolve Pages preview branch
         id: branch
         run: |
@@ -186,8 +196,8 @@ jobs:
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-brand --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
           workingDirectory: marketing/brand
 
@@ -261,6 +271,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Pull Ark secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env
+
       - name: Unit tests
         run: npm test -w @gwenda/ops
 
@@ -270,8 +285,8 @@ jobs:
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true
           workingDirectory: ops/site
 
@@ -318,6 +333,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Pull Ark secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env
+
       - name: Unit tests
         run: npm test -w @gwenda/ops
 
@@ -337,8 +357,8 @@ jobs:
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy src --project-name gwenda-ops --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
           workingDirectory: ops/site
 
