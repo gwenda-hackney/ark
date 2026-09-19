@@ -31,12 +31,13 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | Route | Content |
 |-------|---------|
 | `/` | Overview |
-| `/menu` | Menu recipes |
+| `/menu` | Recipes (Stock) |
 | `/menu/new` | New recipe |
 | `/menu/:name` | Recipe detail (`/menu/negroni`) |
-| `/inventory` | Inventory |
+| `/inventory` | Inventory (Stock) |
 | `/inventory/new` | New inventory item |
 | `/inventory/:name` | Inventory item detail |
+| `/sections` | Guest menu sections |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow App Config) |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |
@@ -95,6 +96,8 @@ npm run dev -w @gwenda/ops
 
 - Vite SPA with HMR: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
 - Pages + auth Functions: [http://127.0.0.1:8788/](http://127.0.0.1:8788/)
+
+TODO: `:8788` still serves the built SPA, so both ports show a UI. Prefer Wrangler proxying the shell back to Vite so local UI is only the live HMR app.
 
 Requires `BASEROW_API_KEY` plus Google OAuth secrets in **`.env.ops`** (or `.env`). Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets) load from Baserow **App Config**. See [docs/config.md](../../docs/config.md).
 

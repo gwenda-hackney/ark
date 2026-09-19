@@ -60,11 +60,13 @@
 	function readExpandedGroups(): Record<string, boolean> {
 		try {
 			const raw = localStorage.getItem(GROUP_KEY);
-			if (!raw) return { stock: true };
+			if (!raw) return { stock: true, menu: true };
 			const parsed = JSON.parse(raw) as Record<string, boolean>;
-			return parsed && typeof parsed === "object" ? parsed : { stock: true };
+			return parsed && typeof parsed === "object"
+				? { stock: true, menu: true, ...parsed }
+				: { stock: true, menu: true };
 		} catch {
-			return { stock: true };
+			return { stock: true, menu: true };
 		}
 	}
 
@@ -417,7 +419,7 @@
 							href="/menu"
 							aria-current={stockValue === "menu" ? "page" : undefined}
 						>
-							Menu
+							Recipes
 						</a>
 						<a
 							class="stock-link"

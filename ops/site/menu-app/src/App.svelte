@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { ShellLayout } from "./shell";
-	import type { NavRoute } from "./shell";
 	import { Toaster } from "./ui";
 	import { fade, fly } from "svelte/transition";
 	import HomeOverview from "./features/home/HomeOverview.svelte";
@@ -12,25 +11,12 @@
 	import UsersPage from "./features/users/UsersPage.svelte";
 	import ToolFrame from "./features/tools/ToolFrame.svelte";
 	import { shellPageKey } from "./lib/nav";
+	import { NAV_ROUTES } from "./lib/nav-routes";
 	import { toolFrameFor } from "./lib/mobile-nav";
 	import { loadPourSettings } from "./lib/settings.svelte";
 	import { easeOut, fadeMs, flyMs } from "./lib/motion";
 
-	const routes: NavRoute[] = [
-		{ id: "home", path: "/", name: "Dashboard", icon: "home" },
-		{
-			id: "stock",
-			name: "Stock",
-			icon: "stock",
-			children: [
-				{ id: "menu", path: "/menu", name: "Menu Items", icon: "menu" },
-				{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
-				{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
-				{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
-			],
-		},
-		{ id: "users", path: "/users", name: "Users", icon: "users" },
-	];
+	const routes = NAV_ROUTES;
 
 	let path = $state("/");
 

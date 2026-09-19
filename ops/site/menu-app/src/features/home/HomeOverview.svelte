@@ -352,7 +352,7 @@
 						</ul>
 						{#if summary.flaggedRecipes.length > 8}
 							<p class="more">
-								{summary.flaggedRecipes.length - 8} more on Menu Items.
+								{summary.flaggedRecipes.length - 8} more on Recipes.
 							</p>
 						{/if}
 					{:else}
@@ -360,7 +360,7 @@
 					{/if}
 				{#snippet footer()}
 					<a class="go" href="/menu">
-						Menu Items
+						Recipes
 						<Icon name="chevron-right" size={16} />
 					</a>
 				{/snippet}
