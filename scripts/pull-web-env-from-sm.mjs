@@ -168,8 +168,21 @@ function main() {
   }
 
   if (opts.githubEnv) {
+    const smKeyNames = [...all.keys()].sort();
+    console.log(
+      `SM project Ark/Web (${resolveWebProjectId()}): ${smKeyNames.length} keys (${smKeyNames.join(", ") || "none"})`,
+    );
+    console.log(`Filled web secrets from SM: ${fromSmFilled.join(", ") || "(none)"}`);
+    if (missing.length) {
+      console.log(`Missing in SM: ${missing.join(", ")}`);
+    }
     const n = appendGithubEnv(web);
     console.log(`Appended ${n} secrets to GITHUB_ENV (from SM).`);
+    if (n === 0) {
+      throw new Error(
+        "No web secrets were loaded from Secrets Manager into GITHUB_ENV. Check BWS_ACCESS_TOKEN access to the Ark/Web project.",
+      );
+    }
     return;
   }
 
