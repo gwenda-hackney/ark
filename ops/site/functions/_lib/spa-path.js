@@ -24,6 +24,10 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/menu/") ||
     p === "/inventory" ||
     p.startsWith("/inventory/") ||
+    p === "/lightspeed" ||
+    p.startsWith("/lightspeed/") ||
+    p === "/suppliers" ||
+    p.startsWith("/suppliers/") ||
     p === "/config" ||
     p.startsWith("/config/") ||
     p === "/sections" ||
@@ -119,6 +123,12 @@ export function parseShellPath(path) {
       isNew: false,
     };
   }
+  if (p === "/lightspeed" || p.startsWith("/lightspeed/")) {
+    return { page: "lightspeed" };
+  }
+  if (p === "/suppliers" || p.startsWith("/suppliers/")) {
+    return { page: "suppliers" };
+  }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
@@ -198,6 +208,8 @@ export function navigationLeavesEditor(fromPath, toPath) {
   if (
     from === "menu" ||
     from === "inventory" ||
+    from === "lightspeed" ||
+    from === "suppliers" ||
     from === "home" ||
     from === "stock" ||
     from === "breakeven" ||

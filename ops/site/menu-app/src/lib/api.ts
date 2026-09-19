@@ -205,6 +205,53 @@ export function deleteInventoryItem(id: string) {
   });
 }
 
+export function previewLightspeedCsv(text: string, body: {
+  apply?: boolean;
+  createKeys?: string[];
+} = {}) {
+  return request<import("./types").LightspeedPreview>("/api/inventory/lightspeed", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      apply: Boolean(body.apply),
+      createKeys: body.createKeys || [],
+    }),
+  });
+}
+
+export function getSuppliers() {
+  return coalesce("suppliers", () =>
+    request<{ suppliers: import("./types").CatalogSupplier[] }>("/api/suppliers"),
+  );
+}
+
+export function createSupplier(body: unknown) {
+  return request<{ supplier: import("./types").CatalogSupplier }>("/api/suppliers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateSupplier(id: string, body: unknown) {
+  return request<{ supplier: import("./types").CatalogSupplier }>(
+    `/api/suppliers/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteSupplier(id: string) {
+  return request(`/api/suppliers/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 export function getOpsUsers() {
   return coalesce("users", () =>
     request<{ users: import("./types").OpsUser[] }>("/api/users"),

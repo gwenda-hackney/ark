@@ -6,6 +6,31 @@ export function parseProductUrl(value) {
   return raw;
 }
 
+/** Accept a full URL or a bare host. Empty stays empty. */
+export function normalizeWebsite(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const direct = parseProductUrl(raw);
+  if (direct) return direct;
+  if (/^https?:\/\//i.test(raw)) return "";
+  return parseProductUrl(`https://${raw.replace(/^\/+/, "")}`);
+}
+
+export function findSupplierNameClash(entries, name, { exceptId } = {}) {
+  const needle = String(name || "")
+    .trim()
+    .toLowerCase();
+  if (!needle) return null;
+  const except = exceptId != null && exceptId !== "" ? String(exceptId) : "";
+  return (
+    (entries || []).find((entry) => {
+      const id = String(entry?.id ?? entry?._id ?? "");
+      if (except && id === except) return false;
+      return String(entry?.name || "").trim().toLowerCase() === needle;
+    }) || null
+  );
+}
+
 /** Hostname (no www) → supplier row to find-or-create. */
 export const KNOWN_HOST_SUPPLIERS = [
   {

@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 import {
   formatGbp,
   formatSupplierEntries,
+  findSupplierNameClash,
   looksLikeOnlyUrls,
   normalizeSupplierEntries,
+  normalizeWebsite,
   parseMoney,
   parseSupplierEntries,
   skuFromProductUrl,
@@ -116,5 +118,31 @@ describe("parseMoney / formatGbp", () => {
     assert.equal(parseMoney("£15.10"), 15.1);
     assert.equal(formatGbp(15.1), "£15.10");
     assert.equal(formatGbp(""), "");
+  });
+});
+
+describe("normalizeWebsite", () => {
+  it("keeps a full URL and fills https for a bare host", () => {
+    assert.equal(normalizeWebsite(""), "");
+    assert.equal(
+      normalizeWebsite("https://www.hillsprospect.com"),
+      "https://www.hillsprospect.com",
+    );
+    assert.equal(
+      normalizeWebsite("www.lwc-drinks.co.uk"),
+      "https://www.lwc-drinks.co.uk",
+    );
+    assert.equal(normalizeWebsite("not a website"), "");
+  });
+});
+
+describe("findSupplierNameClash", () => {
+  it("matches names case-insensitively and can skip one id", () => {
+    const rows = [
+      { id: "1", name: "LWC Drinks" },
+      { id: "2", name: "Hills Prospect" },
+    ];
+    assert.equal(findSupplierNameClash(rows, "lwc drinks")?.id, "1");
+    assert.equal(findSupplierNameClash(rows, "LWC Drinks", { exceptId: "1" }), null);
   });
 });

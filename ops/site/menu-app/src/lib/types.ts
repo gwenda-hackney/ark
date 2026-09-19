@@ -60,6 +60,17 @@ export type InventorySupplier = {
   price?: number;
 };
 
+/** Wholesaler row in the Suppliers table. */
+export type CatalogSupplier = {
+  _id?: string;
+  id?: string;
+  name: string;
+  website?: string;
+  notes?: string;
+  /** Inventory links using this supplier. */
+  itemCount?: number;
+};
+
 export type InventoryItem = {
   _id?: string;
   id?: string;
@@ -79,6 +90,53 @@ export type InventoryItem = {
   suppliers?: InventorySupplier[];
   notes?: string;
   active?: boolean;
+  /** POS item SKU in Lightspeed K-Series. Not the wholesaler code. */
+  lightspeedSku?: string;
+  /** On-hand quantity from a Lightspeed count, or a manual correction. */
+  actualQty?: number;
+  actualUnit?: string;
+  /** ISO timestamp of the last count (Lightspeed apply or a qty edit). */
+  countedAt?: string;
+};
+
+export type LightspeedCsvRow = {
+  key?: string;
+  sku?: string;
+  name?: string;
+  quantity?: number | null;
+  unit?: string;
+  type?: string;
+  canCreate?: boolean;
+};
+
+export type LightspeedOpsRow = {
+  id?: string;
+  name?: string;
+  fullName?: string;
+  kind?: InventoryKind;
+  lightspeedSku?: string;
+  actualQty?: number;
+  actualUnit?: string;
+  countedAt?: string;
+  active?: boolean;
+};
+
+export type LightspeedMatchRow = {
+  via: string;
+  ops: LightspeedOpsRow;
+  lightspeed: LightspeedCsvRow;
+};
+
+export type LightspeedPreview = {
+  ok?: boolean;
+  applied?: boolean;
+  countedAt?: string;
+  matched: LightspeedMatchRow[];
+  conflicts: LightspeedMatchRow[];
+  lightspeedOnly: LightspeedCsvRow[];
+  opsOnly: LightspeedOpsRow[];
+  itemImportCsv?: string;
+  created?: InventoryItem[];
 };
 
 /** Who may sign in to ops (Baserow Users). */

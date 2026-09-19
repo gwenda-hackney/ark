@@ -13,6 +13,8 @@ export const NAV_ROUTES: NavRoute[] = [
 		children: [
 			{ id: "recipes", path: "/menu", name: "Recipes", icon: "recipes" },
 			{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
+			{ id: "suppliers", path: "/suppliers", name: "Suppliers", icon: "suppliers" },
+			{ id: "lightspeed", path: "/lightspeed", name: "Lightspeed", icon: "lightspeed" },
 		],
 	},
 	{
