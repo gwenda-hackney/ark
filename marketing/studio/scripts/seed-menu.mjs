@@ -249,10 +249,8 @@ const WHISKEY = [
 ];
 
 const GRAPPA = [
-  { name: "Grappa", price: "5" },
-  { name: "Grappa Barricata 1903 Mezzaluna", price: "6" },
-  { name: "Grappa Diciotto Lune", price: "7" },
-  { name: "Grappa Nardini Bianca", price: "6" },
+  { name: "Grappa Nardini Bianca", price: "5" },
+  { name: "Grappa Diciotto Lune", price: "6" },
 ];
 
 const LIQUEURS = [

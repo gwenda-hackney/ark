@@ -75,6 +75,8 @@ function text(value) {
 export function guestDescription(item) {
   const written = text(item?.description);
   if (written) return written;
+  const drinkType = text(item?.drinkType).toLowerCase();
+  if (drinkType && drinkType !== "cocktail") return "";
   return flattenIngredientsForMenu(item?.ingredients) || "";
 }
 
@@ -82,8 +84,22 @@ export function photoFingerprint(item) {
   return text(item?.image?.asset?.url);
 }
 
+/** Guest menus only show ABV / volume / producer on packaged (bottled) drinks. */
+export function guestPackagedMeta(item) {
+  const drinkType = text(item?.drinkType).toLowerCase();
+  if (drinkType !== "packaged") {
+    return { abv: "", volume: "", producer: "" };
+  }
+  return {
+    abv: text(item?.abv),
+    volume: text(item?.volume),
+    producer: text(item?.producer),
+  };
+}
+
 /** Guest-facing payload for marketing site Sanity docs. */
 export function websiteProjection(item) {
+  const packaged = guestPackagedMeta(item);
   return {
     name: text(item?.name),
     description: guestDescription(item),
@@ -91,9 +107,9 @@ export function websiteProjection(item) {
     priceAlt: text(item?.priceAlt),
     notes: text(item?.notes),
     drinkType: text(item?.drinkType) || "cocktail",
-    abv: text(item?.abv),
-    volume: text(item?.volume),
-    producer: text(item?.producer),
+    abv: packaged.abv,
+    volume: packaged.volume,
+    producer: packaged.producer,
     // Baserow section row id — detects moves; Sanity ref is resolved at publish.
     sectionId: text(item?.sectionId || item?.section?._id),
     onDigitalMenu: item?.onDigitalMenu !== false,

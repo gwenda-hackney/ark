@@ -51,6 +51,17 @@ describe("websiteProjection", () => {
     assert.equal("ingredients" in payload, false);
   });
 
+  it("does not flatten pours into a guest description", () => {
+    const payload = websiteProjection({
+      ...baseItem,
+      name: "Grappa Nardini Bianca",
+      description: "",
+      drinkType: "pour",
+      ingredients: [{ name: "Grappa Nardini Bianca" }],
+    });
+    assert.equal(payload.description, "");
+  });
+
   it("flattens ingredient names when the menu line is empty", () => {
     const payload = websiteProjection({
       ...baseItem,
@@ -62,6 +73,33 @@ describe("websiteProjection", () => {
       ],
     });
     assert.equal(payload.description, "Bombay gin, Italicus");
+  });
+
+  it("keeps ABV and volume only for packaged drinks", () => {
+    const cocktail = websiteProjection({
+      ...baseItem,
+      drinkType: "cocktail",
+      abv: "16.4%",
+      volume: "135 ml",
+      producer: "House",
+    });
+    assert.equal(cocktail.abv, "");
+    assert.equal(cocktail.volume, "");
+    assert.equal(cocktail.producer, "");
+
+    const bottled = websiteProjection({
+      ...baseItem,
+      name: "Menabrea Bionda Lager",
+      drinkType: "packaged",
+      abv: "4.8%",
+      volume: "33cl",
+      producer: "Menabrea",
+      description: "",
+      ingredients: [],
+    });
+    assert.equal(bottled.abv, "4.8%");
+    assert.equal(bottled.volume, "33cl");
+    assert.equal(bottled.producer, "Menabrea");
   });
 });
 

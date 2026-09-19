@@ -64,9 +64,17 @@ const chapters = menu.sections.filter(chapterHasContent);
           </section>
         );
       })}
-      <p class="menu-disclaimer reveal">
-        *Spirits available in 25ml / 35ml measures. Please ask your server.
-      </p>
+      <div class="menu-disclaimers reveal">
+        <p class="menu-disclaimer">
+          Spirits available in 25ml / 35ml measures. Please ask your server.
+        </p>
+        <p class="menu-disclaimer">
+          Draught beer available in half pints. Please ask your server.
+        </p>
+        <p class="menu-disclaimer">
+          Please make staff aware of any allergies you might have.
+        </p>
+      </div>
     </div>
   ) : (
     <p class="menu-empty reveal">The menu is being prepared. Check back soon.</p>

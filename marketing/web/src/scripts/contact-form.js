@@ -1293,7 +1293,7 @@ export function initContactFormSubmitted() {
     showDone(
       root.dataset.successTitle || "Got it",
       root.dataset.successMessage ||
-        "Thanks for writing. We'll read this and be in touch if there's a fit.",
+        "Thanks for writing. Our team will get in touch with you shortly.",
     );
   } else {
     showMissing();
