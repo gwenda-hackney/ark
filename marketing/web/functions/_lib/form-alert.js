@@ -55,7 +55,7 @@ export function formatFormAlertEmail({ event, extra = {} }) {
 }
 
 export async function sendAlertEmail(env, { event, extra = {} }, deps = {}) {
-  const to = env.ALERT_EMAIL?.trim() || "play@gwenda.co.uk";
+  const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
   const host = env.SMTP_HOST?.trim();
   const from =
     env.SMTP_FROM?.trim() || formatFromAddress(env.SMTP_USER?.trim());

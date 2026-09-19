@@ -176,7 +176,7 @@ Pages Functions do **not** persist logs. `[observability]` is rejected in Pages 
 - `form_receipt_email_failed` / `form_receipt_failed_after_store`
 - `form_verify_email_failed` / `form_verify_resend_failed` / `form_verify_token_failed`
 
-On production (`SITE_ENV=production`) those events also email `ALERT_EMAIL` (`play@gwenda.co.uk`) via SMTP. Client 400s and honeypots are not alerted. Missing notify address on a form is logged, not emailed. Missing SMTP in production is emailed.
+On production (`SITE_ENV=production`) those events also email `ALERT_EMAIL` (`alerts@gwenda.co.uk`) via SMTP. Client 400s and honeypots are not alerted. Missing notify address on a form is logged, not emailed. Missing SMTP in production is emailed.
 
 Standalone Workers can persist logs with `[observability] enabled = true`. `gwenda-site-health` does this.
 
@@ -184,7 +184,7 @@ Standalone Workers can persist logs with `[observability] enabled = true`. `gwen
 
 `GET /health` on the marketing site returns `{ ok: true, service: "gwenda" }` (liveness only). Staging gate allows it without a password.
 
-`gwenda-site-health` (cron every 5 minutes) probes `https://gwenda.co.uk/health` and the homepage title. After two consecutive failures it emails `play@gwenda.co.uk`, reminds at most every 30 minutes while down, and sends one recovery mail. A `/health` 404 is ignored until that endpoint has returned `{ ok: true }` once, so the Worker can ship before production is promoted. First-time wiring:
+`gwenda-site-health` (cron every 5 minutes) probes `https://gwenda.co.uk/health` and the homepage title. After two consecutive failures it emails `alerts@gwenda.co.uk`, reminds at most every 30 minutes while down, and sends one recovery mail. A `/health` 404 is ignored until that endpoint has returned `{ ok: true }` once, so the Worker can ship before production is promoted. First-time wiring:
 
 ```
 npm run setup:site-health

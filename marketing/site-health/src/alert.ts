@@ -37,7 +37,7 @@ export async function sendHealthAlert(
   alert: Exclude<HealthAlert, null>,
   probe: ProbeResult,
 ): Promise<{ ok: boolean; error?: string }> {
-  const to = env.ALERT_EMAIL?.trim() || "play@gwenda.co.uk";
+  const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
   const host = env.SMTP_HOST?.trim();
   const from = formatFromAddress(env.SMTP_USER?.trim() || "");
   const user = env.SMTP_USER?.trim() ?? "";

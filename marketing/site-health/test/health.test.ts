@@ -184,7 +184,7 @@ describe("runHealthCheck", () => {
 
   const env = {
     SITE_URL: "https://gwenda.co.uk",
-    ALERT_EMAIL: "play@gwenda.co.uk",
+    ALERT_EMAIL: "alerts@gwenda.co.uk",
     SMTP_HOST: "smtp.gmail.com",
     SMTP_PORT: "587",
     SMTP_USER: "notifications@gwenda.co.uk",

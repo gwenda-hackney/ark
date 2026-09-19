@@ -20,6 +20,7 @@ Use **one paid Workspace user** as the SMTP login (`SMTP_USER`). Add **free alia
 | **App Password** (`SMTP_PASSWORD`) | Created on this account (2FA required). **Only this value is a secret.** |
 | **RSVP From** (guests see) | `events@gwenda.co.uk` (alias on this user) |
 | **Form From / Reply-To / notify** | `play@gwenda.co.uk` (Google Group; set on each Sanity form) |
+| **Ops alerts** (`ALERT_EMAIL`) | `alerts@gwenda.co.uk` (Google Group; health + form infrastructure) |
 
 **Aliases / group:**
 
@@ -27,6 +28,7 @@ Use **one paid Workspace user** as the SMTP login (`SMTP_USER`). Add **free alia
 |---------|----------|
 | `events@gwenda.co.uk` | RSVP confirmations (no-reply). Wrangler `SMTP_FROM_EVENTS` or code default. |
 | `play@gwenda.co.uk` | Play / collaborate forms. Sanity `notifyEmail`, `fromEmail`, `replyToEmail`. |
+| `alerts@gwenda.co.uk` | Site health and form infrastructure alerts. Wrangler `ALERT_EMAIL`. |
 
 You pay for **one** user (`notifications@`). Aliases and groups do not add seats.
 
@@ -82,6 +84,11 @@ Copy for RSVP emails is edited in **Sanity** on each event (`RSVP confirmation e
   - Members who should receive submissions
   - Allow `notifications@` to **send as** the group (Group settings → Posting / Sending)
 
+- [ ] **Google Group** `alerts@gwenda.co.uk` for ops alerts:
+  - Members who should receive site health and form infrastructure mail
+  - Who can post: anyone in the organisation, or add `notifications@` as a posting member
+  - Do **not** allow posting from the public internet. Mail comes from `notifications@`, not as the group
+
 - [ ] **Skip “Send mail as” in Gmail** unless SMTP fails (see troubleshooting). That Gmail screen is for adding *other* accounts or addresses that are not already aliases on the user. If `events@` is an Admin alias on `notifications@`, you are done after adding it in Admin.
 
 - [ ] **2-Step Verification** enabled on `notifications@`:
@@ -105,6 +112,7 @@ Do **not** put your normal Google password in `.env`. Use the App Password only.
 | `SMTP_PASSWORD` | Secrets Manager → `.env.web` / Pages secret (`npm run env:web:push`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` | Wrangler `[vars]` (and local `.env` for overrides) |
 | Form From / Reply-To / notify | Sanity form fields (`play@gwenda.co.uk`) |
+| Ops alerts | Wrangler `ALERT_EMAIL` (`alerts@gwenda.co.uk`) |
 | RSVP From | Wrangler `SMTP_FROM_EVENTS` |
 
 In repo-root `.env` / `.env.web`, only the password needs to be filled for Secrets Manager:
@@ -232,6 +240,7 @@ Secret:                SMTP_PASSWORD only           (Secrets Manager)
 RSVP From:             Gwenda Events <events@gwenda.co.uk>
 Form From / Reply-To:  play@gwenda.co.uk            (Sanity form)
 Form notify:           play@gwenda.co.uk            (Sanity form)
+Ops alerts:            alerts@gwenda.co.uk           (wrangler ALERT_EMAIL)
 SMTP host:             smtp.gmail.com
 SMTP port:             587
 ```
