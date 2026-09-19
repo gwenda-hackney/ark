@@ -1,14 +1,45 @@
 /** Shared field format rules for Play / contact forms (client + server). */
 
+/** Loose shape check; tighter rules live in isValidEmail. */
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 export const URL_RE = /^https?:\/\/\S+$/i;
 
 /**
+ * Stricter email check for form submissions.
+ * Rejects missing TLD, consecutive dots, leading/trailing dots, and overlong addresses.
  * @param {string} value
  * @returns {boolean}
  */
 export function isValidEmail(value) {
-  return EMAIL_RE.test(String(value ?? "").trim());
+  const email = String(value ?? "").trim().toLowerCase();
+  if (!email || email.length > 254) return false;
+  if (email.includes("..")) return false;
+  if (!EMAIL_RE.test(email)) return false;
+
+  const at = email.lastIndexOf("@");
+  if (at < 1) return false;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+
+  if (!local || local.length > 64) return false;
+  if (local.startsWith(".") || local.endsWith(".")) return false;
+  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(local)) return false;
+
+  if (!domain || domain.length > 253) return false;
+  if (domain.startsWith("-") || domain.endsWith("-") || domain.startsWith(".")) {
+    return false;
+  }
+  // Need a real hostname with a TLD label (e.g. example.com), not a@b.c alone of 1-char TLD is ok with {2,}
+  const labels = domain.split(".");
+  if (labels.length < 2) return false;
+  if (labels.some((label) => !label || label.length > 63)) return false;
+  if (labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))) {
+    return false;
+  }
+  const tld = labels[labels.length - 1];
+  if (!/^[a-z]{2,24}$/i.test(tld)) return false;
+
+  return true;
 }
 
 /**
@@ -71,7 +102,9 @@ export function formatErrorForFieldValue(field) {
   if (!value) return "";
 
   if (type === "email" || key === "email") {
-    if (!isValidEmail(value)) return "Enter a valid email.";
+    if (!isValidEmail(value)) {
+      return "Enter a full email address (name@example.com).";
+    }
   }
 
   if (type === "tel" || key === "phone") {

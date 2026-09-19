@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Subpage from "../components/Subpage.astro";
 import { siteConfig } from "../config/site";
+import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
 
 const { contactPage } = siteConfig.copy;
 ---
@@ -11,7 +12,7 @@ const { contactPage } = siteConfig.copy;
   description={siteConfig.seo.contact.description}
   showBooking={false}
 >
-  <Subpage class="contact-hub" innerClass="contact-hub-inner">
+  <Subpage class="contact-hub" innerClass="contact-hub-inner" href="/">
     <header class="contact-hub-header reveal">
       <p class="section-eyebrow">{contactPage.eyebrow}</p>
       <h1>{contactPage.heading}</h1>
@@ -38,9 +39,9 @@ const { contactPage } = siteConfig.copy;
         <p class="contact-hub-path-eyebrow">{contactPage.playEyebrow}</p>
         <h2>{contactPage.playHeading}</h2>
         <p>{contactPage.playLead}</p>
-          <a href="/contact/play" class="btn btn-ghost"
-            >{contactPage.playCta}</a
-          >
+        <a href={formPublicPath(PLAY_FORM_SLUG)} class="btn btn-ghost"
+          >{contactPage.playCta}</a
+        >
       </article>
     </div>
   </Subpage>

@@ -7,12 +7,6 @@ import {
   validateSubscribeAuth,
 } from "./functions/_lib/subscribe-auth.js";
 import { isSubscribeHoneypotTripped } from "./functions/_lib/subscribe-honeypot.js";
-import {
-  onRequestGet as formsOnGet,
-  onRequestPost as formsOnPost,
-} from "./functions/api/forms/index.js";
-import { onRequestGet as formsVerifyOnGet } from "./functions/api/forms/verify.js";
-import { onRequestPost as formsResendOnPost } from "./functions/api/forms/resend.js";
 import { parseCookies } from "./functions/_lib/site-auth.js";
 import { subscribeEmail } from "./functions/_lib/subscribe.js";
 import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
@@ -271,20 +265,49 @@ function devFormsApi() {
             const qs = (req.url || "").includes("?")
               ? req.url.slice(req.url.indexOf("?"))
               : "";
-            await pipeFunction(req, res, formsVerifyOnGet, `/api/forms/verify${qs}`);
+            const mod = await server.ssrLoadModule(
+              "/functions/api/forms/verify.js",
+            );
+            await pipeFunction(
+              req,
+              res,
+              mod.onRequestGet,
+              `/api/forms/verify${qs}`,
+            );
+            return;
+          }
+          if (pathOnly === "/api/forms/edit" && req.method === "GET") {
+            const qs = (req.url || "").includes("?")
+              ? req.url.slice(req.url.indexOf("?"))
+              : "";
+            const mod = await server.ssrLoadModule(
+              "/functions/api/forms/edit.js",
+            );
+            await pipeFunction(
+              req,
+              res,
+              mod.onRequestGet,
+              `/api/forms/edit${qs}`,
+            );
             return;
           }
           if (pathOnly === "/api/forms/resend" && req.method === "POST") {
-            await pipeFunction(req, res, formsResendOnPost, "/api/forms/resend");
+            const mod = await server.ssrLoadModule(
+              "/functions/api/forms/resend.js",
+            );
+            await pipeFunction(req, res, mod.onRequestPost, "/api/forms/resend");
             return;
           }
           if (pathOnly === "/api/forms" || pathOnly === "/api/forms/") {
+            const mod = await server.ssrLoadModule(
+              "/functions/api/forms/index.js",
+            );
             if (req.method === "GET") {
-              await pipeFunction(req, res, formsOnGet, "/api/forms");
+              await pipeFunction(req, res, mod.onRequestGet, "/api/forms");
               return;
             }
             if (req.method === "POST") {
-              await pipeFunction(req, res, formsOnPost, "/api/forms");
+              await pipeFunction(req, res, mod.onRequestPost, "/api/forms");
               return;
             }
           }

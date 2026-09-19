@@ -1,10 +1,11 @@
-// Signed magic links for form email verification.
-// Token shape: base64url(payloadJson).base64url(hmac) — payload includes expiry.
+// Signed magic links for form email verification and edit-draft links.
+// Token shape: base64url(payloadJson).base64url(hmac).
 
 import { resolvePublicOrigin } from "./public-origin.js";
 
 const FORM_VERIFY_SCOPE = "gwenda-form-verify-v1";
 const FORM_RESEND_SCOPE = "gwenda-form-resend-v1";
+const FORM_EDIT_SCOPE = "gwenda-form-edit-v1";
 /** Link lifetime: 48 hours. */
 export const FORM_VERIFY_TTL_MS = 48 * 60 * 60 * 1000;
 
@@ -145,6 +146,76 @@ export async function parseFormVerifyToken(env, token) {
   };
 }
 
+/**
+ * Non-expiring edit-draft token for receipt "change your application" links.
+ * @returns {Promise<string | null>}
+ */
+export async function createFormEditToken(env, { rowId, email, slug }) {
+  const secret = formVerifySecret(env);
+  const cleanRow = String(rowId ?? "").trim();
+  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const cleanSlug = String(slug ?? "").trim();
+  if (!secret || !cleanRow || !cleanEmail || !cleanSlug) return null;
+
+  const payload = stringToBase64Url(
+    JSON.stringify({
+      v: FORM_EDIT_SCOPE,
+      rowId: cleanRow,
+      email: cleanEmail,
+      slug: cleanSlug,
+    }),
+  );
+  const sig = await hmacSign(secret, payload);
+  return `${payload}.${sig}`;
+}
+
+/**
+ * @returns {Promise<
+ *   | { ok: true, rowId: string, email: string, slug: string }
+ *   | { ok: false, reason: "missing" | "invalid", rowId?: string, email?: string, slug?: string }
+ * >}
+ */
+export async function parseFormEditToken(env, token) {
+  const raw = String(token ?? "").trim();
+  if (!raw || !raw.includes(".")) {
+    return { ok: false, reason: "missing" };
+  }
+
+  const [payload, sig] = raw.split(".");
+  if (!payload || !sig) return { ok: false, reason: "invalid" };
+
+  const secret = formVerifySecret(env);
+  if (!secret) return { ok: false, reason: "invalid" };
+
+  const expected = await hmacSign(secret, payload);
+  if (!matchesToken(sig, expected)) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  let data;
+  try {
+    data = JSON.parse(base64UrlToString(payload));
+  } catch {
+    return { ok: false, reason: "invalid" };
+  }
+
+  if (
+    data?.v !== FORM_EDIT_SCOPE ||
+    !data.rowId ||
+    !data.email ||
+    !data.slug
+  ) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  return {
+    ok: true,
+    rowId: String(data.rowId),
+    email: String(data.email).toLowerCase(),
+    slug: String(data.slug),
+  };
+}
+
 /** Opaque token bound to row+slug so the client can resend without guessing ids alone. */
 export async function createFormResendToken(env, { rowId, slug }) {
   const secret = formVerifySecret(env);
@@ -177,6 +248,14 @@ export async function buildFormVerifyUrl(requestUrl, env, token) {
   if (!token) return null;
   const origin = formVerifyOrigin(requestUrl, env);
   const url = new URL(`${origin}/contact/verify`);
+  url.searchParams.set("t", token);
+  return url.toString();
+}
+
+export async function buildFormEditUrl(requestUrl, env, token) {
+  if (!token) return null;
+  const origin = formVerifyOrigin(requestUrl, env);
+  const url = new URL(`${origin}/contact/edit`);
   url.searchParams.set("t", token);
   return url.toString();
 }

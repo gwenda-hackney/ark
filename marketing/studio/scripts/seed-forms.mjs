@@ -75,11 +75,11 @@ const PLAY_AT_GWENDA = {
   notifyEmail: "play@gwenda.co.uk",
   fromEmail: "play@gwenda.co.uk",
   replyToEmail: "play@gwenda.co.uk",
-  requireEmailVerification: true,
+  requireEmailVerification: false,
   submitLabel: "Send",
-  successTitle: "You're confirmed",
+  successTitle: "Got it",
   successMessage:
-    "Thanks for writing. We'll read this and be in touch if there's a fit.",
+    "Thanks for writing. We'll read this and be in touch if there's a fit. We've also sent a copy to your email.",
   verifyPendingTitle: "Check your email",
   verifyPendingMessage:
     "We sent a link to {email}. Open it to finish your application (valid for 48 hours).",
@@ -254,11 +254,11 @@ const COLLABORATE = {
   notifyEmail: "play@gwenda.co.uk",
   fromEmail: "play@gwenda.co.uk",
   replyToEmail: "play@gwenda.co.uk",
-  requireEmailVerification: true,
+  requireEmailVerification: false,
   submitLabel: "Send",
-  successTitle: "You're confirmed",
+  successTitle: "Got it",
   successMessage:
-    "Thanks for writing. We'll read this and be in touch if there's a fit.",
+    "Thanks for writing. We'll read this and be in touch if there's a fit. We've also sent a copy to your email.",
   verifyPendingTitle: "Check your email",
   verifyPendingMessage:
     "We sent a link to {email}. Open it to finish (valid for 48 hours).",
@@ -343,10 +343,11 @@ const COLLABORATE = {
   ],
 };
 
-async function upsertForm(doc) {
+async function upsertForm(doc, { alsoMatchSlugs = [] } = {}) {
+  const slugs = [doc.slug.current, ...alsoMatchSlugs];
   const existing = await client.fetch(
-    `*[_type == "form" && slug.current == $slug][0]._id`,
-    { slug: doc.slug.current },
+    `*[_type == "form" && slug.current in $slugs][0]._id`,
+    { slugs },
   );
   const id = existing || doc._id;
   const { _id, ...body } = doc;
@@ -356,7 +357,9 @@ async function upsertForm(doc) {
 
 async function main() {
   console.log(`Seeding forms into ${projectId}/${dataset}…`);
-  await upsertForm(PLAY_AT_GWENDA);
+  await upsertForm(PLAY_AT_GWENDA, {
+    alsoMatchSlugs: ["perform", "play-at-gwenda"],
+  });
   await upsertForm(COLLABORATE);
   console.log("Done.");
   console.log(`Studio path hint: ${resolve(__dirname, "..")}`);

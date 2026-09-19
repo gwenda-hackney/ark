@@ -1,18 +1,27 @@
 ---
-import BackLink from "./BackLink.astro";
+import SubpageChrome from "./SubpageChrome.astro";
 
 interface Props {
   /** Extra classes on `<main>` for page-specific layout hooks. */
   class?: string;
   /** Extra classes on the inner `.container`. */
   innerClass?: string;
+  /** Back chip destination. */
   href?: string;
   label?: string;
+  /** Wordmark home link. */
+  homeHref?: string;
   /**
-   * Skip main padding. Use for split layouts (play form) that pad the
-   * content column themselves.
+   * `stack` — padded single column (default).
+   * `split` — full-bleed aside + content column (Play).
+   */
+  layout?: "stack" | "split";
+  /**
+   * @deprecated Prefer `layout="split"`.
    */
   flush?: boolean;
+  /** Hide logo + back (rare). */
+  showChrome?: boolean;
 }
 
 const {
@@ -20,14 +29,23 @@ const {
   innerClass,
   href = "/",
   label = "← Back",
+  homeHref = "/",
+  layout,
   flush = false,
+  showChrome = true,
 } = Astro.props;
+
+const isSplit = layout === "split" || flush;
 ---
 
-<main class:list={["subpage", flush && "subpage--flush", className]}>
+<main class:list={["subpage", isSplit && "subpage--split", className]}>
+  {
+    showChrome ? (
+      <SubpageChrome href={href} label={label} homeHref={homeHref} />
+    ) : null
+  }
   <slot name="aside" />
   <div class:list={["container", "subpage-inner", innerClass]}>
-    <BackLink href={href} label={label} />
     <slot />
   </div>
 </main>

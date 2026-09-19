@@ -5,6 +5,8 @@
 # Legacy /forms/* → /contact/*
 /forms/verify /contact/verify 301
 /forms/verify/ /contact/verify 301
+/forms/edit /contact/edit 301
+/forms/edit/ /contact/edit 301
 /forms/play-at-gwenda /contact/play 301
 /forms/play-at-gwenda/ /contact/play 301
 /forms/play-at-gwenda/submitted /contact/play/submitted 301
@@ -13,3 +15,9 @@
 /forms/:slug/ /contact/:slug 301
 /forms/:slug/submitted /contact/:slug/submitted 301
 /forms/:slug/submitted/ /contact/:slug/submitted 301
+
+# Brief Perform slug → Play
+/contact/perform /contact/play 301
+/contact/perform/ /contact/play 301
+/contact/perform/submitted /contact/play/submitted 301
+/contact/perform/submitted/ /contact/play/submitted 301

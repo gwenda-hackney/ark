@@ -30,6 +30,8 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/api/forms/resend")).toBe(true);
     expect(isPublicPath("/contact/verify")).toBe(true);
     expect(isPublicPath("/forms/verify")).toBe(true);
+    expect(isPublicPath("/contact/edit")).toBe(true);
+    expect(isPublicPath("/forms/edit")).toBe(true);
     expect(isPublicPath("/api/events")).toBe(true);
     expect(isPublicPath("/api/ticket")).toBe(true);
     expect(isPublicPath("/api/ticket/pass")).toBe(true);

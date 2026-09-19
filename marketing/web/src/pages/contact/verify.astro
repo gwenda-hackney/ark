@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import Subpage from "../../components/Subpage.astro";
 import { siteConfig } from "../../config/site";
 import { formPublicPath, PLAY_FORM_SLUG } from "../../lib/form-paths";
 
@@ -11,18 +12,19 @@ const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
   description="Confirm your form submission."
   showBooking={false}
 >
-  <main class="contact-page contact-verify-page">
-    <div class="container contact-verify">
-      <p class="section-eyebrow">Gwenda</p>
-      <h1 id="verify-title">Confirming…</h1>
-      <p id="verify-message">One moment while we confirm your email.</p>
-      <p class="contact-error" id="verify-error" role="alert" hidden></p>
-      <a href="/" class="btn btn-ghost" id="verify-home" hidden>Back to Gwenda</a>
-      <a href={defaultRetryHref} class="btn btn-ghost" id="verify-retry" hidden
-        >Back to the form</a
-      >
-    </div>
-  </main>
+  <Subpage
+    class="contact-page contact-verify-page"
+    innerClass="contact-verify"
+    href="/contact"
+  >
+    <h1 id="verify-title">Confirming…</h1>
+    <p id="verify-message">One moment while we confirm your email.</p>
+    <p class="contact-error" id="verify-error" role="alert" hidden></p>
+    <a href="/" class="btn btn-ghost" id="verify-home" hidden>Back to Gwenda</a>
+    <a href={defaultRetryHref} class="btn btn-ghost" id="verify-retry" hidden
+      >Back to the form</a
+    >
+  </Subpage>
 </BaseLayout>
 
 <script>
@@ -90,7 +92,8 @@ const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
       if (messageEl) messageEl.textContent = "";
       if (errorEl) {
         errorEl.hidden = false;
-        errorEl.textContent = "Open the link from your email, or submit the form again.";
+        errorEl.textContent =
+          "Open the link from your email, or submit the form again.";
       }
       if (retryEl) retryEl.hidden = false;
       return;
@@ -132,7 +135,8 @@ const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
     } catch {
       if (titleEl) titleEl.textContent = "Something went wrong";
       if (messageEl) {
-        messageEl.textContent = "Try the link again, or submit the form once more.";
+        messageEl.textContent =
+          "Try the link again, or submit the form once more.";
       }
       setRetryLink(retryEl, "", token);
     }
@@ -144,7 +148,6 @@ const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
 <style>
   .contact-verify {
     max-width: 32rem;
-    padding: 4rem 1.25rem 6rem;
   }
 
   .contact-verify h1 {

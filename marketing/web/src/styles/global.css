@@ -3501,26 +3501,118 @@ html.fonts-ready .thanks {
   opacity: 0.65;
 }
 
-/* Subpages with a chip BackLink (menu, contact, events, privacy, forms) */
+/* Subpages: one stable overlay chrome (back left, wordmark right).
+   The controls live in the page gutters and never participate in layout. */
 .subpage {
-  padding: 1.25rem 0 4rem;
+  --subpage-gutter: 1rem;
+  position: relative;
+  padding: 4.75rem 0 4rem;
   min-height: 100vh;
 }
 
 @media (min-width: 900px) {
   .subpage {
+    --subpage-gutter: clamp(1.5rem, 3vw, 3.5rem);
     padding-top: 2rem;
+  }
+
+  /* Preserve real side rails for chrome instead of letting page content
+     compete with it. Page-specific max-widths may narrow this further. */
+  .subpage:not(.subpage--split) > .subpage-inner {
+    width: min(1100px, calc(100% - 12rem));
   }
 }
 
+.subpage--split,
 .subpage--flush {
   padding: 0;
+}
+
+.subpage-chrome {
+  position: absolute;
+  top: 1rem;
+  left: var(--subpage-gutter);
+  right: var(--subpage-gutter);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  pointer-events: none;
+}
+
+.subpage-chrome .page-back,
+.subpage-chrome-logo {
+  pointer-events: auto;
+}
+
+.subpage-chrome-logo {
+  display: block;
+  line-height: 0;
+  text-decoration: none;
+  flex-shrink: 0;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.subpage-chrome-logo:hover,
+.subpage-chrome-logo:focus-visible {
+  opacity: 1;
+}
+
+.subpage-chrome-logo:focus-visible {
+  outline: 1px solid var(--color-gold);
+  outline-offset: 6px;
+}
+
+.subpage-chrome-logo-img {
+  display: block;
+  height: 2.75rem;
+  width: auto;
+}
+
+@media (min-width: 900px) {
+  .subpage-chrome-logo-img {
+    height: 3.25rem;
+  }
+}
+
+.subpage-chrome .page-back {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* The staging corner ribbon is diagnostics, not page chrome. Keep it out of
+   the chrome rail on subpages. */
+body:has(.subpage) .staging-ribbon {
+  top: auto;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  width: auto;
+  height: auto;
+  overflow: visible;
+}
+
+body:has(.subpage) .staging-ribbon::before {
+  display: none;
+}
+
+body:has(.subpage) .staging-ribbon span {
+  position: static;
+  width: auto;
+  transform: none;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.55rem;
+  border-radius: 2px;
+  opacity: 0.65;
+  box-shadow: none;
 }
 
 .page-back {
   position: static;
   display: inline-block;
-  margin: 0 0 1.25rem;
+  margin: 0;
   padding: 0.4rem 0.65rem;
   font-family: var(--font-display);
   font-size: 0.85rem;
@@ -3787,24 +3879,6 @@ html.fonts-ready .thanks {
   margin-bottom: 2rem;
 }
 
-.contact-logo-link {
-  display: inline-flex;
-  margin-bottom: 1.35rem;
-  text-decoration: none;
-}
-
-.contact-logo-link:focus-visible {
-  outline: 1px solid var(--color-gold);
-  outline-offset: 6px;
-}
-
-.contact-logo {
-  height: clamp(3.75rem, 14vw, 5.5rem);
-  width: auto;
-  opacity: 0.95;
-  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.45));
-}
-
 .contact-header .section-eyebrow {
   margin-bottom: 0.75rem;
 }
@@ -3953,34 +4027,6 @@ html.fonts-ready .thanks {
   background: var(--color-bg);
 }
 
-.contact-play-brand {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  z-index: 5;
-  line-height: 0;
-  text-decoration: none;
-  pointer-events: auto;
-  opacity: 0.9;
-  transition: opacity 0.2s ease;
-}
-
-.contact-play-brand:hover {
-  opacity: 1;
-}
-
-.contact-play-brand:focus-visible {
-  outline: 1px solid var(--color-gold);
-  outline-offset: 6px;
-}
-
-.contact-play-brand-mark {
-  display: block;
-  height: 3.75rem;
-  width: auto;
-  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.45));
-}
-
 .contact-page--play .contact-panel {
   width: 100%;
   container-type: inline-size;
@@ -4028,24 +4074,8 @@ html.fonts-ready .thanks {
   max-width: none;
 }
 
-.contact-page--play .contact-logo-link {
-  display: flex;
-  justify-content: flex-start;
-  margin-inline: 0;
-  margin-bottom: 1.75rem;
-}
-
-.contact-page--play .contact-logo-link .contact-logo {
-  height: clamp(4.5rem, 16vw, 6.5rem);
-}
-
 .contact-page--play .contact-nav-list {
   justify-content: flex-start;
-}
-
-.contact-page--play .contact-success .contact-logo-link {
-  margin-bottom: 1.5rem;
-  justify-content: center;
 }
 
 .contact-nav-sentinel {
@@ -4724,6 +4754,39 @@ html.fonts-ready .thanks {
   margin-bottom: 0.75rem;
 }
 
+.contact-success-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem 1.75rem;
+  margin-top: 2rem;
+  width: 100%;
+}
+
+.contact-success-actions .btn {
+  margin: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.contact-page--play .contact-success-actions {
+  margin-inline: auto;
+}
+
+@media (max-width: 520px) {
+  .contact-success-actions {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .contact-success-actions .btn {
+    flex: 1 1 auto;
+    white-space: normal;
+  }
+}
+
 .contact-resend {
   display: grid;
   gap: 0.65rem;
@@ -4800,15 +4863,6 @@ html.fonts-ready .thanks {
 
   .contact-page--play .contact-panel {
     max-width: 40rem;
-  }
-
-  .contact-play-brand {
-    top: 1.25rem;
-    left: 1.35rem;
-  }
-
-  .contact-play-brand-mark {
-    height: 5rem;
   }
 
   .contact-nav {

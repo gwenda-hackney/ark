@@ -3,23 +3,34 @@ import {
   validateSubscribeRequest,
 } from "../../_lib/subscribe-auth.js";
 import { isFormHoneypotTripped } from "../../_lib/form-honeypot.js";
-import { sendFormNotificationEmail } from "../../_lib/form-email.js";
-import { sendFormVerifyEmail } from "../../_lib/form-verify-email.js";
-import { createFormResendToken } from "../../_lib/form-verify-auth.js";
 import {
-  FORM_STATUS_PENDING,
-  FORM_STATUS_VERIFIED,
-  findFormSubmissionByEmail,
-  formSubmissionStatus,
-  upsertFormSubmission,
-} from "../../_lib/form-store.js";
+  sendFormNotificationEmail,
+  sendFormReceiptEmail,
+} from "../../_lib/form-email.js";
+import { FORM_STATUS_VERIFIED, upsertFormSubmission } from "../../_lib/form-store.js";
+import { formPublicPath } from "../../_lib/form-paths.js";
 import {
   fetchFormForSubmit,
   replyToFromAnswers,
   validateFormAnswers,
 } from "../../_lib/form-submit.js";
+import {
+  buildFormEditUrl,
+  createFormEditToken,
+} from "../../_lib/form-verify-auth.js";
+import {
+  FORM_RATE_LIMITS,
+  checkFormRateLimit,
+  formRateLimitResponse,
+} from "../../_lib/form-rate-limit.js";
+import { resolvePublicOrigin } from "../../_lib/public-origin.js";
 
 export async function onRequestGet(context) {
+  const limited = await checkFormRateLimit(context.request, FORM_RATE_LIMITS.csrf);
+  if (!limited.ok) {
+    return formRateLimitResponse(limited.retryAfterSec);
+  }
+
   const secure = new URL(context.request.url).protocol === "https:";
   const issued = issueSubscribeTokens(context.env, { secure });
 
@@ -33,6 +44,14 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
+  const limited = await checkFormRateLimit(
+    context.request,
+    FORM_RATE_LIMITS.submit,
+  );
+  if (!limited.ok) {
+    return formRateLimitResponse(limited.retryAfterSec);
+  }
+
   const auth = validateSubscribeRequest(context.request, context.env);
   if (!auth.ok) {
     return json({ error: auth.error }, auth.status);
@@ -64,42 +83,17 @@ export async function onRequestPost(context) {
     return json({ error: validated.error }, 400);
   }
 
-  const requireVerify = Boolean(form.requireEmailVerification);
   const replyTo = replyToFromAnswers(validated.answers);
-
-  if (requireVerify && !replyTo) {
-    return json(
-      { error: "Please enter a valid email so we can confirm it." },
-      400,
-    );
-  }
-
-  let priorStatus = "";
-  if (requireVerify && replyTo) {
-    const existing = await findFormSubmissionByEmail(context.env, {
-      slug,
-      email: replyTo,
-    });
-    if (!existing.ok) {
-      return json(
-        { error: existing.error || "Could not save. Try again?" },
-        502,
-      );
-    }
-    priorStatus = existing.row ? formSubmissionStatus(existing.row) : "";
+  if (!replyTo) {
+    return json({ error: "Please enter a valid email." }, 400);
   }
 
   const submittedAt = new Date().toISOString();
-  // Already-verified emails keep Verified on upsert (edit in place).
-  // New / pending emails stay Pending until the magic link is opened.
-  const alreadyVerified = priorStatus === FORM_STATUS_VERIFIED;
-  const status =
-    requireVerify && !alreadyVerified
-      ? FORM_STATUS_PENDING
-      : FORM_STATUS_VERIFIED;
 
   let rowId;
   let updated = false;
+  /** @type {Array<{ key: string, label: string, from: string, to: string }> | undefined} */
+  let changes;
   try {
     const stored = await upsertFormSubmission(context.env, {
       form,
@@ -111,109 +105,38 @@ export async function onRequestPost(context) {
           ? body.answers
           : undefined,
       submittedAt,
-      status,
+      status: FORM_STATUS_VERIFIED,
     });
     if (!stored.ok) {
       return json({ error: stored.error || "Could not save. Try again?" }, 502);
     }
     rowId = stored.rowId;
     updated = Boolean(stored.updated);
+    changes = stored.changes;
   } catch (error) {
     console.error("Form submission upsert failed", error);
     return json({ error: "Could not save. Try again?" }, 502);
   }
 
-  if (requireVerify && alreadyVerified) {
-    try {
-      await sendFormNotificationEmail(context.env, {
-        form,
-        answers: validated.answers,
-        submittedAt,
-      });
-    } catch (error) {
-      console.error("Form staff notify on verified update failed", error);
-    }
-
-    return json({
-      ok: true,
-      alreadyVerified: true,
-      updated: true,
-      rowId,
-      email: replyTo,
-      successTitle: form.successTitle || "You're confirmed",
-      successMessage:
-        form.successMessage ||
-        "We've updated your submission. Open the link from your email anytime to review it again.",
-    });
-  }
-
-  if (requireVerify) {
-    try {
-      const sent = await sendFormVerifyEmail(context.env, {
-        form,
-        email: replyTo,
-        rowId,
-        requestUrl: context.request.url,
-        updated,
-      });
-      if (!sent.ok && !sent.skipped && !sent.dryRun) {
-        console.error(
-          JSON.stringify({
-            event: "form_verify_failed_after_store",
-            rowId,
-            slug,
-            error: sent.error || "unknown",
-          }),
-        );
-        return json({ error: "Could not send confirmation. Try again?" }, 502);
-      }
-      if (sent.skipped) {
-        console.error(
-          JSON.stringify({
-            event: "form_verify_skipped_after_store",
-            rowId,
-            slug,
-            error: sent.error || "smtp_not_configured",
-          }),
-        );
-        return json({ error: "Could not send confirmation. Try again?" }, 503);
-      }
-    } catch (error) {
-      console.error(
-        JSON.stringify({
-          event: "form_verify_exception_after_store",
-          rowId,
-          slug,
-          error: error instanceof Error ? error.message : String(error),
-        }),
-      );
-      return json({ error: "Could not send confirmation. Try again?" }, 502);
-    }
-
-    const resendToken = await createFormResendToken(context.env, {
-      rowId,
-      slug,
-    });
-
-    return json({
-      ok: true,
-      pendingVerification: true,
-      updated,
-      rowId,
-      email: replyTo,
-      resendToken,
-      verifyPendingTitle: form.verifyPendingTitle || "Check your email",
-      verifyPendingMessage:
-        form.verifyPendingMessage ||
-        "We sent a link to {email}. Open it to finish (valid for 48 hours).",
-    });
-  }
+  const origin = resolvePublicOrigin(
+    new URL(context.request.url).origin,
+    context.env,
+  );
+  const editToken = await createFormEditToken(context.env, {
+    rowId,
+    email: replyTo,
+    slug,
+  });
+  const editUrl =
+    (await buildFormEditUrl(context.request.url, context.env, editToken)) ||
+    `${origin.replace(/\/$/, "")}${formPublicPath(slug)}`;
 
   try {
     const sent = await sendFormNotificationEmail(context.env, {
       form,
       answers: validated.answers,
-      submittedAt,
+      changes: updated ? changes : undefined,
+      updated,
     });
     if (!sent.ok && !sent.skipped) {
       console.error(
@@ -228,12 +151,38 @@ export async function onRequestPost(context) {
     console.error("Form staff notify failed", error);
   }
 
+  try {
+    const receipt = await sendFormReceiptEmail(context.env, {
+      form,
+      answers: validated.answers,
+      email: replyTo,
+      editUrl,
+      updated,
+    });
+    if (!receipt.ok && !receipt.skipped && !receipt.dryRun) {
+      console.error(
+        JSON.stringify({
+          event: "form_receipt_failed_after_store",
+          slug,
+          rowId,
+          error: receipt.error || "unknown",
+        }),
+      );
+    }
+  } catch (error) {
+    console.error("Form applicant receipt failed", error);
+  }
+
   return json({
     ok: true,
     pendingVerification: false,
     updated,
-    successTitle: form.successTitle,
-    successMessage: form.successMessage,
+    rowId,
+    email: replyTo,
+    successTitle: form.successTitle || "Got it",
+    successMessage:
+      form.successMessage ||
+      "Thanks for writing. We'll read this and be in touch if there's a fit.",
   });
 }
 

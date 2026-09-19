@@ -4,7 +4,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import Subpage from "../../components/Subpage.astro";
 import ContactForm from "../../components/ContactForm.astro";
 import { siteConfig } from "../../config/site";
-import { compactLogo } from "../../lib/hero-assets";
 import { PLAY_FORM_SLUG, isReservedFormSlug } from "../../lib/form-paths";
 import {
   fetchFormBySlug,
@@ -50,7 +49,7 @@ const showEyebrow =
     class:list={["contact-page", showTurntable && "contact-page--play"]}
     innerClass="contact-inner"
     href="/contact"
-    flush={showTurntable}
+    layout={showTurntable ? "split" : "stack"}
   >
     {
       showTurntable ? (
@@ -69,14 +68,6 @@ const showEyebrow =
           </div>
           <div class="contact-visual-overlay" aria-hidden="true"></div>
           <div class="contact-visual-vignette" aria-hidden="true"></div>
-          <a href="/" class="contact-play-brand" aria-label="Gwenda home">
-            <Image
-              {...compactLogo}
-              alt=""
-              class="contact-play-brand-mark"
-              loading="eager"
-            />
-          </a>
         </aside>
       ) : null
     }
