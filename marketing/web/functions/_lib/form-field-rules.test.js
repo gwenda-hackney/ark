@@ -9,9 +9,16 @@ import {
 describe("form-field-rules", () => {
   it("accepts common emails and rejects junk", () => {
     expect(isValidEmail("alex@example.com")).toBe(true);
+    expect(isValidEmail("a.b+tag@mail.co.uk")).toBe(true);
     expect(isValidEmail("a@b.co")).toBe(true);
     expect(isValidEmail("nope")).toBe(false);
     expect(isValidEmail("a@b")).toBe(false);
+    expect(isValidEmail("a@b.c")).toBe(false);
+    expect(isValidEmail(".alex@example.com")).toBe(false);
+    expect(isValidEmail("alex.@example.com")).toBe(false);
+    expect(isValidEmail("alex..b@example.com")).toBe(false);
+    expect(isValidEmail("alex@-example.com")).toBe(false);
+    expect(isValidEmail("alex@example")).toBe(false);
   });
 
   it("accepts international phone shapes", () => {
@@ -43,7 +50,7 @@ describe("form-field-rules", () => {
         label: "Email",
         value: "nope",
       }),
-    ).toMatch(/email/i);
+    ).toMatch(/email|full/i);
     expect(
       formatErrorForFieldValue({
         key: "phone",

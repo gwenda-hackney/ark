@@ -1,12 +1,8 @@
 ---
-import { Image } from "astro:assets";
 import type { FormPage } from "../lib/sanity/forms";
-import { compactLogo } from "../lib/hero-assets";
 
 interface Props {
   form: FormPage;
-  /** Show the Gwenda wordmark (Play page). */
-  showLogo?: boolean;
   /** Initial title before client hydrates from session. */
   title?: string;
   /** Initial message before client hydrates from session. */
@@ -15,7 +11,6 @@ interface Props {
 
 const {
   form,
-  showLogo = false,
   title = "One moment…",
   message = "Loading your confirmation.",
 } = Astro.props;
@@ -33,13 +28,6 @@ const {
     "We sent a link to {email}. Open it to finish (valid for 48 hours)."
   }
 >
-  {
-    showLogo ? (
-      <a href="/" class="contact-logo-link" aria-label="Gwenda home">
-        <Image {...compactLogo} alt="" class="contact-logo" loading="lazy" />
-      </a>
-    ) : null
-  }
   <p class="section-eyebrow">{form.eyebrow ?? "Gwenda"}</p>
   <h1 id="contact-success-title">{title}</h1>
   <p id="contact-success-message">{message}</p>
@@ -67,14 +55,16 @@ const {
       ></p>
     </div>
   </div>
-  <a href="/" class="btn btn-ghost" id="contact-success-home" hidden
-    >Back to Gwenda</a
-  >
-  <a
-    href={`/contact/${form.slug}`}
-    class="btn btn-ghost"
-    id="contact-success-retry"
-  >
-    Back to the form
-  </a>
+  <div class="contact-success-actions" id="contact-success-actions" hidden>
+    <a
+      href={`/contact/${form.slug}`}
+      class="btn btn-ghost"
+      id="contact-success-retry"
+    >
+      Back to the form
+    </a>
+    <a href="/" class="btn btn-primary" id="contact-success-home">
+      Back to Gwenda
+    </a>
+  </div>
 </div>

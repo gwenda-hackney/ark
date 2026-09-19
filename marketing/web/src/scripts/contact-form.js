@@ -190,7 +190,34 @@ const URL_RE = /^https?:\/\/\S+$/i;
 
 /** Keep in sync with functions/_lib/form-field-rules.js */
 function isValidEmail(value) {
-  return EMAIL_RE.test(String(value ?? "").trim());
+  const email = String(value ?? "").trim().toLowerCase();
+  if (!email || email.length > 254) return false;
+  if (email.includes("..")) return false;
+  if (!EMAIL_RE.test(email)) return false;
+
+  const at = email.lastIndexOf("@");
+  if (at < 1) return false;
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+
+  if (!local || local.length > 64) return false;
+  if (local.startsWith(".") || local.endsWith(".")) return false;
+  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(local)) return false;
+
+  if (!domain || domain.length > 253) return false;
+  if (domain.startsWith("-") || domain.endsWith("-") || domain.startsWith(".")) {
+    return false;
+  }
+  const labels = domain.split(".");
+  if (labels.length < 2) return false;
+  if (labels.some((label) => !label || label.length > 63)) return false;
+  if (labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))) {
+    return false;
+  }
+  const tld = labels[labels.length - 1];
+  if (!/^[a-z]{2,24}$/i.test(tld)) return false;
+
+  return true;
 }
 
 function isValidUrl(value) {
@@ -234,7 +261,9 @@ function formatErrorForFieldValue({ key, type, label, value }) {
   if (!fieldValue) return "";
 
   if (fieldType === "email" || fieldKey === "email") {
-    if (!isValidEmail(fieldValue)) return "Enter a valid email.";
+    if (!isValidEmail(fieldValue)) {
+      return "Enter a full email address (name@example.com).";
+    }
   }
   if (fieldType === "tel" || fieldKey === "phone") {
     if (!isValidPhone(fieldValue)) {
@@ -1176,6 +1205,7 @@ export function initContactFormSubmitted() {
   const resendErrorEl = document.getElementById("contact-resend-error");
   const homeEl = document.getElementById("contact-success-home");
   const retryEl = document.getElementById("contact-success-retry");
+  const actionsEl = document.getElementById("contact-success-actions");
 
   /** @type {{ rowId: string, resendToken: string, email: string } | null} */
   let pendingSession = null;
@@ -1193,11 +1223,16 @@ export function initContactFormSubmitted() {
     }
   }
 
+  function showActions({ home = false, retry = false } = {}) {
+    if (actionsEl) actionsEl.hidden = !(home || retry);
+    if (homeEl) homeEl.hidden = !home;
+    if (retryEl) retryEl.hidden = !retry;
+  }
+
   function showPending(title, message, email) {
     fillCopy(title, message, email);
     if (verifyActionsEl) verifyActionsEl.hidden = false;
-    if (homeEl) homeEl.hidden = false;
-    if (retryEl) retryEl.hidden = false;
+    showActions({ home: true, retry: true });
     if (resendEmailInput instanceof HTMLInputElement && email) {
       resendEmailInput.value = email;
     }
@@ -1207,8 +1242,7 @@ export function initContactFormSubmitted() {
     fillCopy(title, message, "");
     if (verifyActionsEl) verifyActionsEl.hidden = true;
     if (resendWrap) resendWrap.hidden = true;
-    if (homeEl) homeEl.hidden = false;
-    if (retryEl) retryEl.hidden = false;
+    showActions({ home: true, retry: true });
   }
 
   function showMissing() {
@@ -1219,9 +1253,12 @@ export function initContactFormSubmitted() {
     );
     if (verifyActionsEl) verifyActionsEl.hidden = true;
     if (resendWrap) resendWrap.hidden = true;
-    if (homeEl) homeEl.hidden = true;
-    if (retryEl) retryEl.hidden = false;
+    showActions({ home: false, retry: true });
   }
+
+  const wantsPreview =
+    import.meta.env.DEV &&
+    new URLSearchParams(window.location.search).get("preview") === "1";
 
   const session = slug ? readFormSession(slug) : null;
   if (
@@ -1251,6 +1288,12 @@ export function initContactFormSubmitted() {
         root.dataset.verifyPendingMessage ||
         "We sent a link to {email}. Open it to finish (valid for 48 hours).",
       session.result.email || "",
+    );
+  } else if (wantsPreview) {
+    showDone(
+      root.dataset.successTitle || "Got it",
+      root.dataset.successMessage ||
+        "Thanks for writing. We'll read this and be in touch if there's a fit.",
     );
   } else {
     showMissing();

@@ -58,6 +58,10 @@ const EXPECTED_FIELDS = [
     },
   },
   {
+    name: "Current",
+    body: { name: "Current", type: "boolean" },
+  },
+  {
     name: "Answers",
     body: { name: "Answers", type: "long_text" },
   },

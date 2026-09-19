@@ -1,0 +1,157 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Subpage from "../../components/Subpage.astro";
+import { siteConfig } from "../../config/site";
+import { formPublicPath, PLAY_FORM_SLUG } from "../../lib/form-paths";
+
+const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
+---
+
+<BaseLayout
+  title={`Your application · ${siteConfig.name}`}
+  description="Open your application to make changes."
+  showBooking={false}
+>
+  <Subpage
+    class="contact-page contact-verify-page"
+    innerClass="contact-verify"
+    href="/contact"
+  >
+    <h1 id="edit-title">Opening…</h1>
+    <p id="edit-message">One moment while we prepare your application.</p>
+    <p class="contact-error" id="edit-error" role="alert" hidden></p>
+    <a href={defaultRetryHref} class="btn btn-ghost" id="edit-retry" hidden
+      >Back to the form</a
+    >
+  </Subpage>
+</BaseLayout>
+
+<script>
+  import { formPublicPath, slugFromFormPath } from "../../lib/form-paths";
+
+  function slugFromToken(token) {
+    try {
+      const payload = String(token || "").split(".")[0];
+      if (!payload) return "";
+      const padded = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const pad =
+        padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+      const json = JSON.parse(atob(padded + pad));
+      const slug = String(json?.slug || "").trim();
+      return /^[a-z0-9-]+$/i.test(slug) ? slug : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function seedFormDraft(formPath, draftAnswers) {
+    if (!formPath || typeof sessionStorage === "undefined") return;
+    const slug = slugFromFormPath(formPath);
+    if (!slug || !/^[a-z0-9-]+$/i.test(slug)) return;
+    if (!draftAnswers || typeof draftAnswers !== "object") return;
+
+    try {
+      sessionStorage.setItem(
+        `gwenda-form:${slug}`,
+        JSON.stringify({
+          answers: draftAnswers,
+          pending: null,
+          result: null,
+          savedAt: Date.now(),
+        }),
+      );
+    } catch {
+      /* ignore quota */
+    }
+  }
+
+  function setRetryLink(retryEl, formPath, token) {
+    if (!(retryEl instanceof HTMLAnchorElement)) return;
+    retryEl.hidden = false;
+    if (formPath) {
+      retryEl.href = formPath;
+      return;
+    }
+    const slug = slugFromToken(token);
+    if (slug) retryEl.href = formPublicPath(slug);
+  }
+
+  async function runEdit() {
+    const titleEl = document.getElementById("edit-title");
+    const messageEl = document.getElementById("edit-message");
+    const errorEl = document.getElementById("edit-error");
+    const retryEl = document.getElementById("edit-retry");
+
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("t") || "";
+
+    if (!token) {
+      if (titleEl) titleEl.textContent = "This link isn't valid";
+      if (messageEl) messageEl.textContent = "";
+      if (errorEl) {
+        errorEl.hidden = false;
+        errorEl.textContent =
+          "Open the link from your email, or fill the form again.";
+      }
+      if (retryEl) retryEl.hidden = false;
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/forms/edit?t=${encodeURIComponent(token)}`,
+        { credentials: "same-origin" },
+      );
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        if (titleEl) titleEl.textContent = "This link isn't valid";
+        if (messageEl) {
+          messageEl.textContent =
+            data.error || "Open the form again to make changes.";
+        }
+        setRetryLink(retryEl, data.formPath, token);
+        return;
+      }
+
+      seedFormDraft(data.formPath, data.draftAnswers);
+      const dest =
+        typeof data.formPath === "string" && data.formPath.startsWith("/")
+          ? data.formPath
+          : formPublicPath(slugFromToken(token));
+      window.location.replace(dest);
+    } catch {
+      if (titleEl) titleEl.textContent = "Something went wrong";
+      if (messageEl) {
+        messageEl.textContent = "Try the link again, or open the form directly.";
+      }
+      setRetryLink(retryEl, "", token);
+    }
+  }
+
+  runEdit();
+</script>
+
+<style>
+  .contact-verify {
+    max-width: 32rem;
+  }
+
+  .contact-verify h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    margin: 0.5rem 0 1rem;
+    color: var(--color-text);
+  }
+
+  .contact-verify p {
+    color: var(--color-text-muted);
+    line-height: 1.55;
+  }
+
+  .contact-verify .btn {
+    margin-top: 1.5rem;
+    margin-right: 0.75rem;
+  }
+</style>

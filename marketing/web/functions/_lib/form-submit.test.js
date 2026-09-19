@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   formatFormEmail,
+  formatFormNotifyHtml,
+  formatFormNotifySubject,
+  formatFormReceiptSubject,
+  diffFormAnswers,
   replyToFromAnswers,
   validateFormAnswers,
 } from "./form-submit.js";
 
 const sampleForm = {
   title: "Play at Gwenda",
-  slug: "play-at-gwenda",
+  slug: "play",
   notifyEmail: "communityevent@gwenda.co.uk",
   fields: [
     { key: "name", label: "Name", type: "text", required: true },
@@ -194,17 +198,290 @@ describe("validateFormAnswers", () => {
 });
 
 describe("formatFormEmail", () => {
-  it("formats labelled answers", () => {
+  it("formats labelled answers in sections without ops meta", () => {
     const text = formatFormEmail({
+      form: {
+        ...sampleForm,
+        fields: [
+          {
+            key: "name",
+            label: "Name",
+            type: "text",
+            section: "About you",
+            required: true,
+          },
+          {
+            key: "email",
+            label: "Email",
+            type: "email",
+            section: "About you",
+            required: true,
+          },
+        ],
+      },
+      answers: [
+        { key: "name", label: "Name", value: "Alex" },
+        { key: "email", label: "Email", value: "alex@example.com" },
+      ],
+    });
+    expect(text).toContain("Play at Gwenda");
+    expect(text).toContain("About you");
+    expect(text).toContain("Name\nAlex");
+    expect(text).toContain("Email\nalex@example.com");
+    expect(text).not.toContain("/contact/play");
+    expect(text).not.toContain("Awaiting email confirmation");
+  });
+});
+
+describe("diffFormAnswers", () => {
+  it("lists only fields that changed", () => {
+    const changes = diffFormAnswers(
+      [
+        { key: "name", label: "Name", value: "Alex" },
+        { key: "email", label: "Email", value: "alex@example.com" },
+      ],
+      [
+        { key: "name", label: "Name", value: "Alexandra" },
+        { key: "email", label: "Email", value: "alex@example.com" },
+      ],
+      sampleForm,
+    );
+    expect(changes).toEqual([
+      {
+        key: "name",
+        label: "Name",
+        from: "Alex",
+        to: "Alexandra",
+        kind: "text",
+      },
+    ]);
+  });
+
+  it("diffs multiSelect as sets (add/remove, ignore reorder)", () => {
+    const form = {
+      ...sampleForm,
+      fields: [
+        ...sampleForm.fields,
+        {
+          key: "roles",
+          label: "Roles",
+          type: "multiSelect",
+          options: [
+            { label: "DJ", value: "DJ" },
+            { label: "Selector", value: "Selector" },
+            { label: "Live", value: "Live" },
+            { label: "Band", value: "Band" },
+          ],
+        },
+      ],
+    };
+
+    expect(
+      diffFormAnswers(
+        [{ key: "roles", label: "Roles", value: "DJ, Selector" }],
+        [{ key: "roles", label: "Roles", value: "Selector, DJ" }],
+        form,
+      ),
+    ).toEqual([]);
+
+    expect(
+      diffFormAnswers(
+        [{ key: "roles", label: "Roles", value: "DJ, Selector" }],
+        [{ key: "roles", label: "Roles", value: "Selector, Live" }],
+        form,
+      ),
+    ).toEqual([
+      {
+        key: "roles",
+        label: "Roles",
+        from: "DJ, Selector",
+        to: "Selector, Live",
+        kind: "multi",
+        removed: ["DJ"],
+        added: ["Live"],
+      },
+    ]);
+  });
+
+  it("marks cleared text fields", () => {
+    expect(
+      diffFormAnswers(
+        [{ key: "musicLink", label: "Link", value: "https://x.test" }],
+        [{ key: "musicLink", label: "Link", value: "" }],
+        sampleForm,
+      ),
+    ).toEqual([
+      {
+        key: "musicLink",
+        label: "Link to your music",
+        from: "https://x.test",
+        to: "",
+        kind: "text",
+      },
+    ]);
+  });
+});
+
+describe("formatFormNotifyHtml", () => {
+  it("renders branded dark HTML with every filled answer", () => {
+    const html = formatFormNotifyHtml({
+      form: {
+        ...sampleForm,
+        fields: [
+          {
+            key: "artistName",
+            label: "Artist / DJ name",
+            type: "text",
+            section: "About you",
+          },
+          {
+            key: "email",
+            label: "Email",
+            type: "email",
+            section: "About you",
+          },
+          {
+            key: "phone",
+            label: "Phone",
+            type: "tel",
+            section: "About you",
+          },
+          {
+            key: "musicLink",
+            label: "Link to your music",
+            type: "url",
+            section: "Your music",
+          },
+        ],
+      },
+      answers: [
+        { key: "artistName", label: "Artist / DJ name", value: "DJ Alex" },
+        { key: "email", label: "Email", value: "alex@example.com" },
+        { key: "phone", label: "Phone", value: "" },
+        {
+          key: "musicLink",
+          label: "Link to your music",
+          value: "https://soundcloud.com/alex",
+        },
+      ],
+      year: 2026,
+    });
+
+    expect(html).toContain("#0d0d0d");
+    expect(html).toContain("#c9a84c");
+    expect(html).toContain("Cormorant Garamond");
+    expect(html).toContain("DJ Alex");
+    expect(html).toContain("About you");
+    expect(html).toContain("Your music");
+    expect(html).toContain('mailto:alex@example.com');
+    expect(html).toContain("https://soundcloud.com/alex");
+    expect(html).not.toContain(">Phone<");
+    expect(html).not.toContain("/contact/play");
+    expect(html).toContain("© 2026 Gwenda");
+    expect(html).toContain("Reply to write back");
+  });
+
+  it("shows what changed on updates", () => {
+    const html = formatFormNotifyHtml({
+      form: sampleForm,
+      answers: [
+        { key: "name", label: "Name", value: "Alexandra" },
+        { key: "email", label: "Email", value: "alex@example.com" },
+      ],
+      changes: [
+        {
+          key: "name",
+          label: "Name",
+          from: "Alex",
+          to: "Alexandra",
+          kind: "text",
+        },
+      ],
+      year: 2026,
+    });
+    expect(html).toContain("Update");
+    expect(html).toContain("What changed");
+    expect(html).toContain("<s ");
+    expect(html).toContain("Alex");
+    expect(html).toContain("Alexandra");
+    expect(html).not.toContain("→");
+  });
+
+  it("renders multiSelect removals with strikethrough", () => {
+    const html = formatFormNotifyHtml({
+      form: sampleForm,
+      answers: [
+        { key: "whatYouDo", label: "What do you do?", value: "Selector, Live" },
+      ],
+      changes: [
+        {
+          key: "whatYouDo",
+          label: "What do you do?",
+          from: "DJ, Selector",
+          to: "Selector, Live",
+          kind: "multi",
+          removed: ["DJ"],
+          added: ["Live"],
+        },
+      ],
+      year: 2026,
+    });
+    expect(html).toContain("<s ");
+    expect(html).toContain("DJ");
+    expect(html).toContain("Selector, Live");
+  });
+
+  it("renders an applicant receipt with edit link", () => {
+    const html = formatFormNotifyHtml({
       form: sampleForm,
       answers: [
         { key: "name", label: "Name", value: "Alex" },
         { key: "email", label: "Email", value: "alex@example.com" },
       ],
-      submittedAt: "2026-09-17T12:00:00.000Z",
+      variant: "applicant",
+      editUrl: "https://gwenda.co.uk/contact/edit?t=token",
+      year: 2026,
     });
-    expect(text).toContain("Play at Gwenda");
-    expect(text).toContain("Name\nAlex");
+    expect(html).toContain("Hi Alex,");
+    expect(html).toContain("Thank you for writing");
+    expect(html).toContain("Change your application");
+    expect(html).toContain("https://gwenda.co.uk/contact/edit?t=token");
+    expect(html).not.toContain("What changed");
+    expect(html).not.toContain("Reply to write back");
+    expect(html).not.toContain(">Received<");
+    expect(html).not.toContain(">Updated<");
+  });
+});
+
+describe("formatFormNotifySubject", () => {
+  it("prefers artist name in the subject", () => {
+    expect(
+      formatFormNotifySubject(sampleForm, [
+        { key: "name", label: "Name", value: "Alex" },
+        { key: "artistName", label: "Artist", value: "DJ Alex" },
+      ]),
+    ).toBe("DJ Alex applied · Play at Gwenda");
+  });
+
+  it("uses update wording when resubmitted", () => {
+    expect(
+      formatFormNotifySubject(
+        sampleForm,
+        [{ key: "name", label: "Name", value: "Dan" }],
+        { updated: true },
+      ),
+    ).toBe("Dan updated their application · Play at Gwenda");
+  });
+});
+
+describe("formatFormReceiptSubject", () => {
+  it("uses thank-you and update subjects", () => {
+    expect(formatFormReceiptSubject(sampleForm)).toBe(
+      "Play at Gwenda | Thank you",
+    );
+    expect(formatFormReceiptSubject(sampleForm, { updated: true })).toBe(
+      "Play at Gwenda | We received your update",
+    );
   });
 });
 

@@ -6,6 +6,8 @@ import {
   buildFormVerifyUrl,
   createFormVerifyToken,
 } from "./form-verify-auth.js";
+import { LOGO_CID } from "./rsvp-email-template.js";
+import { fetchImageBuffer } from "./rsvp-tickets.js";
 import {
   SITE_ADDRESS,
   SITE_DOMAIN,
@@ -25,6 +27,7 @@ const FONT_DISPLAY = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
 const FONT_BODY = "Lora, Georgia, 'Times New Roman', serif";
 const GOLD_BORDER = "rgba(201, 168, 76, 0.12)";
 const GOLD_UNDERLINE = "rgba(201, 168, 76, 0.45)";
+const LOGO_URL = `${SITE_DOMAIN}/brand/logo-email.png`;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -34,7 +37,7 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
-function formVerifyCopy({ title, verifyUrl, updated }) {
+function formVerifyCopy({ title, updated }) {
   const formTitle = title || "Gwenda";
   const eyebrow = "Confirm";
   const heading = updated ? "One more look" : "Almost there";
@@ -43,6 +46,7 @@ function formVerifyCopy({ title, verifyUrl, updated }) {
     : `Thanks for writing to ${formTitle}. Open below when you're ready to confirm.`;
   const aside =
     "There's no rush. This note will keep for a couple of days.";
+  // HTML carries the Confirm button; keep plain text free of a raw link.
   const text = [
     heading,
     "",
@@ -50,7 +54,7 @@ function formVerifyCopy({ title, verifyUrl, updated }) {
     "",
     aside,
     "",
-    verifyUrl,
+    "Use the Confirm email button in this message.",
     "",
     "If this wasn't you, you can let it pass.",
   ].join("\n");
@@ -72,10 +76,12 @@ export function buildFormVerifyEmailHtml({
   lead,
   aside,
   verifyUrl,
-  logoUrl = `${SITE_DOMAIN}/brand/logo-email.png`,
+  logoUrl = LOGO_URL,
+  logoCid = null,
   year = new Date().getFullYear(),
 }) {
-  const safeLogo = escapeHtml(logoUrl);
+  const logoSrc = logoCid ? `cid:${logoCid}` : logoUrl;
+  const safeLogo = escapeHtml(logoSrc);
   const safeVerify = escapeHtml(verifyUrl);
 
   return `<!DOCTYPE html>
@@ -203,16 +209,27 @@ export async function sendFormVerifyEmail(
 
   const verifyUrl = await buildFormVerifyUrl(requestUrl, env, token);
   const title = form.title || form.heading || "Gwenda";
-  const copy = formVerifyCopy({ title, verifyUrl, updated: Boolean(updated) });
-  // Always the public production asset. Localhost / staging origins break in inboxes.
+  const copy = formVerifyCopy({ title, updated: Boolean(updated) });
+
+  // Embed the mark like RSVP mail so inboxes that block remote images still show it.
+  const logoBuffer = await fetchImageBuffer(LOGO_URL);
   const html = buildFormVerifyEmailHtml({
     eyebrow: copy.eyebrow,
     heading: copy.heading,
     lead: copy.lead,
     aside: copy.aside,
     verifyUrl,
-    logoUrl: `${SITE_DOMAIN}/brand/logo-email.png`,
+    logoUrl: LOGO_URL,
+    logoCid: logoBuffer ? LOGO_CID : null,
   });
+  const attachments = [];
+  if (logoBuffer) {
+    attachments.push({
+      filename: "gwenda-logo.png",
+      content: logoBuffer,
+      cid: LOGO_CID,
+    });
+  }
 
   if (!smtpReady) {
     if (!isDeployed) {
@@ -253,6 +270,7 @@ export async function sendFormVerifyEmail(
       subject: copy.subject,
       text: copy.text,
       html,
+      attachments,
     });
 
     console.info(
@@ -263,6 +281,7 @@ export async function sendFormVerifyEmail(
         slug: form?.slug ?? "",
         updated: Boolean(updated),
         htmlBytes: html.length,
+        logoEmbedded: Boolean(logoBuffer),
         subject: copy.subject,
       }),
     );

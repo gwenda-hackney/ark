@@ -2,7 +2,6 @@ import {
   fetchFormForSubmit,
   replyToFromAnswers,
 } from "../../_lib/form-submit.js";
-import { sendFormNotificationEmail } from "../../_lib/form-email.js";
 import { formPublicPath } from "../../_lib/form-paths.js";
 import { parseFormVerifyToken } from "../../_lib/form-verify-auth.js";
 import {
@@ -55,24 +54,7 @@ export async function onRequestGet(context) {
     form?.successMessage || "Thanks for writing. We'll be in touch.";
   const formPath = formPublicPath(marked.formSlug || parsed.slug);
 
-  if (!marked.already) {
-    try {
-      const notifyForm = form || {
-        title: marked.formTitle || parsed.slug,
-        slug: parsed.slug,
-        notifyEmail: undefined,
-      };
-      if (form?.notifyEmail) {
-        await sendFormNotificationEmail(context.env, {
-          form: notifyForm,
-          answers: marked.answers,
-          submittedAt: marked.submittedAt,
-        });
-      }
-    } catch (error) {
-      console.error("Form staff notify after verify failed", error);
-    }
-  }
+  // Ops were notified on submit; verifying only flips status in Baserow.
 
   const loaded = await fetchFormSubmissionRow(context.env, parsed.rowId);
   const draftAnswers = loaded.ok

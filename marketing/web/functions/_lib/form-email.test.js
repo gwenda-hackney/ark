@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatFormFromAddress,
   resolveFormFrom,
+  resolveFormNotifyFrom,
   resolveFormReplyTo,
 } from "./form-email.js";
 
@@ -37,5 +38,31 @@ describe("form email identity", () => {
     expect(resolveFormReplyTo({ fromEmail: "play@gwenda.co.uk" })).toBe(
       "play@gwenda.co.uk",
     );
+  });
+
+  it("notifies from the SMTP mailbox, not play@ → play@", () => {
+    expect(
+      resolveFormNotifyFrom(
+        {
+          SMTP_USER: "notifications@gwenda.co.uk",
+          SMTP_FROM: "",
+        },
+        { fromEmail: "play@gwenda.co.uk", notifyEmail: "play@gwenda.co.uk" },
+        "play@gwenda.co.uk",
+      ),
+    ).toBe("Gwenda <notifications@gwenda.co.uk>");
+  });
+
+  it("prefers SMTP_FROM for notify when set", () => {
+    expect(
+      resolveFormNotifyFrom(
+        {
+          SMTP_USER: "notifications@gwenda.co.uk",
+          SMTP_FROM: "Gwenda <hello@gwenda.co.uk>",
+        },
+        { fromEmail: "play@gwenda.co.uk" },
+        "play@gwenda.co.uk",
+      ),
+    ).toBe("Gwenda <hello@gwenda.co.uk>");
   });
 });

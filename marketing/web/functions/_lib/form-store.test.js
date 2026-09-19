@@ -26,11 +26,12 @@ describe("storeFormSubmission", () => {
       expect(init.method).toBe("POST");
       expect(init.headers.Authorization).toBe("Token test-token");
       const body = JSON.parse(init.body);
-      expect(body["Form Slug"]).toBe("play-at-gwenda");
-      expect(body["Form Title"]).toBe("Play at Gwenda");
+      expect(body["Form Slug"]).toBe("play");
+      expect(body["Form Title"]).toBe("Play");
       expect(body["Reply To"]).toBe("alex@example.com");
       expect(body.Submitted).toBe("2026-09-17T12:00:00.000Z");
       expect(body.Status).toBe("Verified");
+      expect(body.Current).toBe(true);
       expect(JSON.parse(body.Answers)).toEqual([
         { key: "name", label: "Name", value: "Alex" },
         { key: "email", label: "Email", value: "alex@example.com" },
@@ -47,7 +48,7 @@ describe("storeFormSubmission", () => {
     const result = await storeFormSubmission(
       { BASEROW_API_KEY: "test-token" },
       {
-        form: { title: "Play at Gwenda", slug: "play-at-gwenda" },
+        form: { title: "Play", slug: "play" },
         answers: [
           { key: "name", label: "Name", value: "Alex" },
           { key: "email", label: "Email", value: "alex@example.com" },
@@ -87,7 +88,7 @@ describe("storeFormSubmission", () => {
     const result = await storeFormSubmission(
       { BASEROW_API_KEY: "test-token" },
       {
-        form: { title: "Play", slug: "play-at-gwenda" },
+        form: { title: "Play", slug: "play" },
         answers: [{ key: "email", label: "Email", value: "a@b.co" }],
         status: "Pending",
       },
@@ -168,7 +169,7 @@ describe("findFormSubmissionByEmail", () => {
       }
 
       const href = String(url);
-      expect(href).toContain("filter__Form+Slug__equal=play-at-gwenda");
+      expect(href).toContain("filter__Form+Slug__equal=play");
       expect(href).not.toContain("filter__Reply");
 
       return {
@@ -178,14 +179,14 @@ describe("findFormSubmissionByEmail", () => {
             {
               id: 14,
               Status: { value: "Pending" },
-              "Form Slug": "play-at-gwenda",
+              "Form Slug": "play",
               "Reply To": "Alex@Example.com",
               Submitted: "2026-09-17T18:00:00.000Z",
             },
             {
               id: 13,
               Status: { value: "Verified" },
-              "Form Slug": "play-at-gwenda",
+              "Form Slug": "play",
               "Reply To": "alex@example.com",
               Submitted: "2026-09-17T12:00:00.000Z",
             },
@@ -197,14 +198,14 @@ describe("findFormSubmissionByEmail", () => {
 
     const result = await findFormSubmissionByEmail(
       { BASEROW_API_KEY: "test-token" },
-      { slug: "play-at-gwenda", email: "Alex@Example.com" },
+      { slug: "play", email: "Alex@Example.com" },
     );
 
     expect(result.ok).toBe(true);
     expect(result.row?.id).toBe(14);
   });
 
-  it("upserts an existing row by email instead of inserting", async () => {
+  it("patches a pending row in place on resubmit", async () => {
     const fetchMock = vi.fn(async (url, init) => {
       if (String(url).includes("/all-tables/")) {
         return {
@@ -226,9 +227,14 @@ describe("findFormSubmissionByEmail", () => {
             results: [
               {
                 id: 13,
-                Status: { value: "Verified" },
-                "Form Slug": "play-at-gwenda",
+                Status: { value: "Pending" },
+                Current: true,
+                "Form Slug": "play",
                 "Reply To": "alex@example.com",
+                Answers: JSON.stringify([
+                  { key: "name", label: "Name", value: "Alex" },
+                  { key: "email", label: "Email", value: "alex@example.com" },
+                ]),
               },
             ],
           }),
@@ -239,6 +245,7 @@ describe("findFormSubmissionByEmail", () => {
       expect(String(url)).toContain("/13/");
       const body = JSON.parse(init.body);
       expect(body.Status).toBe("Pending");
+      expect(body.Current).toBe(true);
       expect(body["Reply To"]).toBe("alex@example.com");
       expect(JSON.parse(body.Answers).raw.email).toBe("alex@example.com");
 
@@ -254,7 +261,7 @@ describe("findFormSubmissionByEmail", () => {
     const result = await upsertFormSubmission(
       { BASEROW_API_KEY: "test-token" },
       {
-        form: { title: "Play at Gwenda", slug: "play-at-gwenda" },
+        form: { title: "Play", slug: "play" },
         answers: [
           { key: "name", label: "Name", value: "Alex" },
           { key: "email", label: "Email", value: "Alex@Example.com" },
@@ -264,6 +271,100 @@ describe("findFormSubmissionByEmail", () => {
       },
     );
 
-    expect(result).toEqual({ ok: true, rowId: "13", updated: true });
+    expect(result.ok).toBe(true);
+    expect(result.rowId).toBe("13");
+    expect(result.updated).toBe(true);
+  });
+
+  it("inserts a new Current row when a verified submission is updated", async () => {
+    const calls = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).includes("/all-tables/")) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              id: 77,
+              name: FORM_SUBMISSIONS_TABLE_NAME,
+              database_id: 465058,
+            },
+          ],
+        };
+      }
+
+      const method = init?.method || "GET";
+      calls.push({ method, url: String(url), body: init?.body });
+
+      if (method === "GET") {
+        return {
+          ok: true,
+          json: async () => ({
+            results: [
+              {
+                id: 13,
+                Status: { value: "Verified" },
+                Current: true,
+                "Form Slug": "play",
+                "Reply To": "alex@example.com",
+                Answers: JSON.stringify([
+                  { key: "name", label: "Name", value: "Alex" },
+                  { key: "email", label: "Email", value: "alex@example.com" },
+                ]),
+              },
+            ],
+          }),
+        };
+      }
+
+      if (method === "PATCH") {
+        expect(String(url)).toContain("/13/");
+        expect(JSON.parse(init.body)).toEqual({ Current: false });
+        return { ok: true, json: async () => ({ id: 13 }), text: async () => "" };
+      }
+
+      expect(method).toBe("POST");
+      const body = JSON.parse(init.body);
+      expect(body.Current).toBe(true);
+      expect(body.Status).toBe("Verified");
+      expect(JSON.parse(body.Answers).entries[0].value).toBe("Alexandra");
+      return { ok: true, json: async () => ({ id: 99 }), text: async () => "" };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { upsertFormSubmission } = await import("./form-store.js");
+    const result = await upsertFormSubmission(
+      { BASEROW_API_KEY: "test-token" },
+      {
+        form: {
+          title: "Play",
+          slug: "play",
+          fields: [
+            { key: "name", label: "Name" },
+            { key: "email", label: "Email" },
+          ],
+        },
+        answers: [
+          { key: "name", label: "Name", value: "Alexandra" },
+          { key: "email", label: "Email", value: "alex@example.com" },
+        ],
+        rawAnswers: { name: "Alexandra", email: "alex@example.com" },
+        status: "Verified",
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.rowId).toBe("99");
+    expect(result.updated).toBe(true);
+    expect(result.changes).toEqual([
+      {
+        key: "name",
+        label: "Name",
+        from: "Alex",
+        to: "Alexandra",
+        kind: "text",
+      },
+    ]);
+    expect(calls.some((call) => call.method === "PATCH")).toBe(true);
+    expect(calls.some((call) => call.method === "POST")).toBe(true);
   });
 });

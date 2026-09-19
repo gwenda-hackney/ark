@@ -1,5 +1,5 @@
 import { baserowFormSubmissionRowsUrl } from "./baserow.js";
-import { replyToFromAnswers } from "./form-submit.js";
+import { diffFormAnswers, replyToFromAnswers } from "./form-submit.js";
 
 export const FORM_STATUS_PENDING = "Pending";
 export const FORM_STATUS_VERIFIED = "Verified";
@@ -11,6 +11,11 @@ function selectValue(field) {
   return String(field);
 }
 
+function isCurrentRow(row) {
+  const value = row?.Current;
+  return value === true || value === "true" || value === 1;
+}
+
 /**
  * Persist a validated form submission as a document row in Baserow.
  * @param {Record<string, string | undefined>} env
@@ -20,12 +25,20 @@ function selectValue(field) {
  *   rawAnswers?: Record<string, string | string[]>,
  *   submittedAt?: string,
  *   status?: string,
+ *   current?: boolean,
  * }} params
- * @returns {Promise<{ ok: true, rowId: string } | { ok: false, error: string }>}
+ * @returns {Promise<{ ok: true, rowId: string, updated: false } | { ok: false, error: string }>}
  */
 export async function storeFormSubmission(
   env,
-  { form, answers, rawAnswers, submittedAt, status = FORM_STATUS_VERIFIED },
+  {
+    form,
+    answers,
+    rawAnswers,
+    submittedAt,
+    status = FORM_STATUS_VERIFIED,
+    current = true,
+  },
 ) {
   const resolved = await baserowFormSubmissionRowsUrl(env);
   if (!resolved.ok) {
@@ -48,6 +61,7 @@ export async function storeFormSubmission(
       "Form Title": form.title ?? "",
       "Reply To": normalized.replyTo || "",
       Status: status,
+      Current: Boolean(current),
       Answers: serializeFormAnswers(normalized.entries, normalized.raw),
     }),
   });
@@ -67,9 +81,49 @@ export async function storeFormSubmission(
 }
 
 /**
- * Upsert by form slug + email. Updates answers on the existing row when found.
+ * Mark prior rows for this form+email as not current (keeps history flat in one table).
+ */
+async function markRowsNotCurrent(env, rows) {
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+
+  const targets = (rows ?? []).filter(
+    (row) => row?.id && (isCurrentRow(row) || row.Current == null),
+  );
+  for (const row of targets) {
+    const upstream = await fetch(resolved.rowUrl(String(row.id)), {
+      method: "PATCH",
+      headers: {
+        Authorization: `Token ${resolved.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ Current: false }),
+    });
+    if (!upstream.ok) {
+      const detail = await upstream.text().catch(() => "");
+      console.error(
+        "Form submission demote Current failed",
+        upstream.status,
+        detail.slice(0, 300),
+      );
+      return { ok: false, error: "Could not save. Try again?" };
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Upsert by form slug + email.
+ * Pending rows are patched in place. Verified resubmits insert a new Current row
+ * and demote the previous one (flat history until a dedicated table exists).
  * @returns {Promise<
- *   | { ok: true, rowId: string, updated: boolean }
+ *   | {
+ *       ok: true,
+ *       rowId: string,
+ *       updated: boolean,
+ *       previousAnswers?: Array<{ key: string, label: string, value: string }>,
+ *       changes?: Array<{ key: string, label: string, from: string, to: string }>,
+ *     }
  *   | { ok: false, error: string }
  * >}
  */
@@ -89,36 +143,72 @@ export async function upsertFormSubmission(
     if (!existing.ok) return existing;
 
     if (existing.row?.id) {
-      const resolved = await baserowFormSubmissionRowsUrl(env);
-      if (!resolved.ok) return resolved;
+      const priorStatus = formSubmissionStatus(existing.row);
+      const previousAnswers = parseFormSubmissionAnswers(existing.row);
+      const changes = diffFormAnswers(previousAnswers, normalized.entries, form);
 
-      const when = submittedAt || new Date().toISOString();
-      const upstream = await fetch(resolved.rowUrl(String(existing.row.id)), {
-        method: "PATCH",
-        headers: {
-          Authorization: `Token ${resolved.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          Submitted: when,
-          "Form Title": form.title ?? "",
-          "Reply To": normalized.replyTo,
-          Status: status,
-          Answers: serializeFormAnswers(normalized.entries, normalized.raw),
-        }),
-      });
+      // Still awaiting confirm: edit the pending row in place.
+      if (priorStatus === FORM_STATUS_PENDING) {
+        const resolved = await baserowFormSubmissionRowsUrl(env);
+        if (!resolved.ok) return resolved;
 
-      if (!upstream.ok) {
-        const detail = await upstream.text().catch(() => "");
-        console.error(
-          "Form submission Baserow upsert failed",
-          upstream.status,
-          detail.slice(0, 300),
-        );
-        return { ok: false, error: "Could not save. Try again?" };
+        const when = submittedAt || new Date().toISOString();
+        const upstream = await fetch(resolved.rowUrl(String(existing.row.id)), {
+          method: "PATCH",
+          headers: {
+            Authorization: `Token ${resolved.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            Submitted: when,
+            "Form Title": form.title ?? "",
+            "Reply To": normalized.replyTo,
+            Status: status,
+            Current: true,
+            Answers: serializeFormAnswers(normalized.entries, normalized.raw),
+          }),
+        });
+
+        if (!upstream.ok) {
+          const detail = await upstream.text().catch(() => "");
+          console.error(
+            "Form submission Baserow upsert failed",
+            upstream.status,
+            detail.slice(0, 300),
+          );
+          return { ok: false, error: "Could not save. Try again?" };
+        }
+
+        return {
+          ok: true,
+          rowId: String(existing.row.id),
+          updated: true,
+          previousAnswers,
+          changes,
+        };
       }
 
-      return { ok: true, rowId: String(existing.row.id), updated: true };
+      // Verified (or other): keep prior row as history, insert new Current.
+      const demoted = await markRowsNotCurrent(env, existing.matches ?? [existing.row]);
+      if (!demoted.ok) return demoted;
+
+      const stored = await storeFormSubmission(env, {
+        form,
+        answers: normalized.entries,
+        rawAnswers: normalized.raw ?? undefined,
+        submittedAt,
+        status,
+        current: true,
+      });
+      if (!stored.ok) return stored;
+
+      return {
+        ok: true,
+        rowId: stored.rowId,
+        updated: true,
+        previousAnswers,
+        changes,
+      };
     }
   }
 
@@ -128,6 +218,7 @@ export async function upsertFormSubmission(
     rawAnswers: normalized.raw ?? undefined,
     submittedAt,
     status,
+    current: true,
   });
 }
 
@@ -160,10 +251,15 @@ export async function fetchFormSubmissionRow(env, rowId) {
 }
 
 /**
- * Latest submission for this form + email (Verified preferred over Pending).
+ * Latest / current submission for this form + email.
+ * Prefers Current=true; falls back to newest Submitted.
  * Matches Reply To case-insensitively so legacy mixed-case rows still upsert.
  * @returns {Promise<
- *   | { ok: true, row: Record<string, unknown> | null }
+ *   | {
+ *       ok: true,
+ *       row: Record<string, unknown> | null,
+ *       matches?: Array<Record<string, unknown>>,
+ *     }
  *   | { ok: false, error: string }
  * >}
  */
@@ -191,15 +287,14 @@ export async function findFormSubmissionByEmail(env, { slug, email }) {
 
   const body = await upstream.json().catch(() => null);
   const rows = Array.isArray(body?.results) ? body.results : [];
-  // Results are ordered by -Submitted; keep that order after the email filter so
-  // resubmits upsert the latest row even when older Verified duplicates exist.
-  const match = rows.find((row) => {
+  const matches = rows.filter((row) => {
     const reply = String(row?.["Reply To"] ?? "")
       .trim()
       .toLowerCase();
     return reply === cleanEmail;
   });
-  return { ok: true, row: match ?? null };
+  const current = matches.find((row) => isCurrentRow(row));
+  return { ok: true, row: current ?? matches[0] ?? null, matches };
 }
 
 function normalizeAnswersEmail(entries, raw, replyTo) {

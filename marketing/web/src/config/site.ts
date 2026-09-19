@@ -152,7 +152,7 @@ export const siteConfig = {
       playHeading: "Play at Gwenda",
       playLead:
         "A canalside room for DJs, live acts, and selectors who want something a little more intimate. Bring your sound. Tell us what you’d play here.",
-      playCta: "Play At Gwenda",
+      playCta: "Play at Gwenda",
     },
   },
 } as const;

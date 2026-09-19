@@ -2,10 +2,11 @@
 
 export const FORM_PUBLIC_BASE = "/contact";
 export const FORM_VERIFY_PATH = "/contact/verify";
+export const FORM_EDIT_PATH = "/contact/edit";
 /** Play form slug — drives turntable layout. */
 export const PLAY_FORM_SLUG = "play";
 
-const RESERVED_SLUGS = new Set(["verify"]);
+const RESERVED_SLUGS = new Set(["verify", "edit"]);
 
 export function isReservedFormSlug(slug: string | null | undefined): boolean {
   return RESERVED_SLUGS.has(String(slug || "").trim());
