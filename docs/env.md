@@ -105,7 +105,9 @@ CI (production Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then
 gh workflow run ops-secrets.yml
 ```
 
-That syncs SM → Cloudflare Pages secrets (including `BASEROW_API_KEY_PRODUCTION` as Pages `BASEROW_API_KEY`). Deploy workflows do not refresh secrets on every push.
+That syncs SM → Cloudflare Pages secrets (including `BASEROW_API_KEY_PRODUCTION` as Pages `BASEROW_API_KEY`). **Deploy workflows do not push Pages secrets** — only `ops-secrets.yml` / `web-secrets.yml` (or a local `sync-pages-secrets` run) do.
+
+GitHub should hold `BWS_ACCESS_TOKEN` plus Cloudflare deploy credentials (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`). App secrets (`SMTP_PASSWORD`, `SITE_PASSWORD`, …) live in Bitwarden SM, not as duplicated GitHub secrets.
 
 Ops local vs prod Baserow workspaces: see [config.md](./config.md#ops-baserow-workspaces).
 
@@ -125,6 +127,8 @@ CI:
 gh workflow run web-secrets.yml -f profile=staging
 gh workflow run web-secrets.yml -f profile=production
 ```
+
+`web.yml` deploys code only. It may pull Ark/Web into the job env for build-time `SANITY_API_TOKEN` and smoke-test `GATE_BYPASS_KEY`, but it does **not** write those values to Cloudflare Pages. Rotate runtime secrets with `web-secrets.yml` (or local sync).
 
 Uses SM `BASEROW_API_KEY_MARKETING` as Pages `BASEROW_API_KEY` (not the ops Free-workspace token).
 
@@ -146,7 +150,28 @@ Redeploy if form mail still 502s after a secret-only change that also touched ho
 
 ## Workers Logs (Pages Functions)
 
-Pages does not accept `[observability]` in wrangler.toml. Enable logs in the Cloudflare dashboard: Workers & Pages → project → Settings → Observability. Form failures emit structured JSON with an `event` field (e.g. `form_verify_email_failed`).
+Pages Functions do **not** persist logs. `[observability]` is rejected in Pages wrangler.toml. Live tail still works (`wrangler pages deployment tail`, or a deployment's Functions tab). Form infrastructure failures emit one JSON line with `service: "gwenda"` and an `event` field:
+
+- `form_store_failed`
+- `form_notify_email_failed` / `form_notify_failed_after_store`
+- `form_receipt_email_failed` / `form_receipt_failed_after_store`
+- `form_verify_email_failed` / `form_verify_resend_failed` / `form_verify_token_failed`
+
+On production (`SITE_ENV=production`) those events also email `ALERT_EMAIL` (`play@gwenda.co.uk`) via SMTP. Client 400s and honeypots are not alerted. Missing notify address on a form is logged, not emailed. Missing SMTP in production is emailed.
+
+Standalone Workers can persist logs with `[observability] enabled = true`. `gwenda-site-health` does this.
+
+## Site health
+
+`GET /health` on the marketing site returns `{ ok: true, service: "gwenda" }` (liveness only). Staging gate allows it without a password.
+
+`gwenda-site-health` (cron every 5 minutes) probes `https://gwenda.co.uk/health` and the homepage title. After two consecutive failures it emails `play@gwenda.co.uk`, reminds at most every 30 minutes while down, and sends one recovery mail. First-time wiring:
+
+```
+npm run setup:site-health
+```
+
+That creates the KV namespace, deploys the Worker, and puts `SMTP_PASSWORD`. CI redeploys from `.github/workflows/workers.yml`.
 
 ## Secrets vs config
 

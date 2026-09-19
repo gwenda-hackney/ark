@@ -83,6 +83,7 @@ function appendGithubEnv(fromSm) {
     let value = fromSm.get(key);
     if (key === "BASEROW_API_KEY_PRODUCTION" && value?.trim()) {
       // Expose as BASEROW_API_KEY for setup-ops-secrets putSecret fallback chain.
+      process.stdout.write(`::add-mask::${String(value)}\n`);
       appendFileSync(
         path,
         `BASEROW_API_KEY_PRODUCTION<<BW_EOF\n${value}\nBW_EOF\n`,
@@ -97,6 +98,7 @@ function appendGithubEnv(fromSm) {
     }
     if (value == null || !String(value).trim()) continue;
     if (key === "OPS_LOCAL_ADMIN_PW") continue;
+    process.stdout.write(`::add-mask::${String(value)}\n`);
     appendFileSync(path, `${key}<<BW_EOF\n${value}\nBW_EOF\n`);
     n += 1;
   }

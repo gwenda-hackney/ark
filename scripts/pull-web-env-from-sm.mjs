@@ -87,6 +87,8 @@ function appendGithubEnv(fromWeb) {
   for (const key of WEB_ENV_SECRET_KEYS) {
     const value = fromWeb.get(key);
     if (value == null || !String(value).trim()) continue;
+    // Mask so later step env dumps do not print plaintext.
+    process.stdout.write(`::add-mask::${String(value)}\n`);
     appendFileSync(path, `${key}<<BW_EOF\n${value}\nBW_EOF\n`);
     n += 1;
   }
