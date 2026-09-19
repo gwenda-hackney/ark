@@ -177,7 +177,7 @@ function main() {
     "\nDone.\n" +
       `- Probe: ${process.env.SITE_URL?.trim() || "https://gwenda.co.uk"}/health\n` +
       `- Worker health: https://${host}/health\n` +
-      "- Cron: every 5 minutes. Alerts go to play@gwenda.co.uk after two consecutive failures.\n",
+      "- Cron: every 5 minutes. Alerts go to alerts@gwenda.co.uk after two consecutive failures.\n",
   );
 }
 
