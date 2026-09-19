@@ -58,9 +58,23 @@ function formatWebEnv(values) {
     "",
   ];
   for (const key of WEB_ENV_SECRET_KEYS) {
-    lines.push(`${key}=${values.get(key) ?? ""}`);
+    let value = values.get(key) ?? "";
+    // Gmail app passwords are often stored with spaces; strip for SMTP and so
+    // `source .env.web` does not truncate at the first space.
+    if (key === "SMTP_PASSWORD") {
+      value = String(value).replace(/\s+/g, "");
+    }
+    lines.push(`${key}=${shellQuoteEnvValue(value)}`);
   }
   return `${lines.join("\n")}\n`;
+}
+
+/** Quote values so `source .env.web` keeps spaces and special chars intact. */
+function shellQuoteEnvValue(value) {
+  const raw = String(value ?? "");
+  if (!raw) return "";
+  if (/^[A-Za-z0-9_./:@+-]+$/.test(raw)) return raw;
+  return `"${raw.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\$/g, "\\$").replace(/`/g, "\\`")}"`;
 }
 
 /** GitHub Actions multiline env file syntax. */
