@@ -35,7 +35,15 @@ export function slugifySection(title, fallback = "section") {
 }
 
 async function resolveSanityItemId(env, dataset, item) {
-  if (item.sanityId) return item.sanityId;
+  if (item.sanityId) {
+    const exists = await sanityQuery(
+      env,
+      dataset,
+      `*[_id == $id][0]._id`,
+      { id: item.sanityId },
+    );
+    if (exists) return exists;
+  }
   const found = await sanityQuery(
     env,
     dataset,

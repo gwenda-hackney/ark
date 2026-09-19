@@ -188,6 +188,10 @@ async function main() {
       process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() &&
       process.env.OPS_SESSION_SECRET?.trim(),
   );
+  // TODO: Local Wrangler (:8788) still serves the built SPA from ops/site/src,
+  // so both ports show a UI. Prefer Wrangler proxying unmatched document
+  // routes to Vite (:5174) so there is one live SPA with HMR, and :8788 is
+  // Functions + static HTML tools only.
   console.log(`
 Ops local:
   SPA (HMR):       http://localhost:5174/

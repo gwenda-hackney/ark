@@ -54,7 +54,7 @@
 <div class="page scrollbar-fade">
 	<PageHeader
 		title="Sections"
-		subtitle="Chapters and groups drinks belong to. Same tree as the print menu."
+		subtitle="Chapters and groups on the guest menu. Same tree as the print menu."
 	/>
 
 	{#if error}

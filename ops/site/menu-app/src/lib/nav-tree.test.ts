@@ -1,41 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { NavRoute } from "../shell/types.ts";
 import {
 	flattenNavRoutes,
 	matchActiveRoute,
 	navGroupContains,
 } from "./nav-tree.ts";
+import { NAV_ROUTES } from "./nav-routes.ts";
 
-const routes: NavRoute[] = [
-	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
-	{
-		id: "stock",
-		name: "Stock",
-		icon: "stock",
-		children: [
-			{ id: "menu", path: "/menu", name: "Menu Items", icon: "menu" },
-			{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
-			{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
-			{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
-		],
-	},
-	{ id: "users", path: "/users", name: "Users", icon: "users" },
-];
+const routes = NAV_ROUTES;
 
 describe("flattenNavRoutes", () => {
-	it("returns only leaves, not the Stock group", () => {
+	it("returns only leaves, not Stock or Menu groups", () => {
 		assert.deepEqual(
 			flattenNavRoutes(routes).map((row) => row.id),
-			["home", "menu", "inventory", "sections", "config", "users"],
+			["home", "recipes", "inventory", "sections", "users", "config"],
 		);
 	});
 });
 
 describe("matchActiveRoute", () => {
 	it("matches nested stock pages and drink editors to the leaf", () => {
-		assert.equal(matchActiveRoute(routes, "/menu")?.id, "menu");
-		assert.equal(matchActiveRoute(routes, "/menu/negroni")?.id, "menu");
+		assert.equal(matchActiveRoute(routes, "/menu")?.id, "recipes");
+		assert.equal(matchActiveRoute(routes, "/menu/negroni")?.id, "recipes");
 		assert.equal(matchActiveRoute(routes, "/inventory/gin")?.id, "inventory");
 		assert.equal(matchActiveRoute(routes, "/sections")?.id, "sections");
 		assert.equal(matchActiveRoute(routes, "/config")?.id, "config");
@@ -43,15 +29,21 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/users")?.id, "users");
 	});
 
-	it("does not treat the Stock group as the active page", () => {
+	it("does not treat Stock or Menu groups as the active page", () => {
 		assert.notEqual(matchActiveRoute(routes, "/menu")?.id, "stock");
+		assert.notEqual(matchActiveRoute(routes, "/sections")?.id, "menu");
 	});
 });
 
 describe("navGroupContains", () => {
-	it("is true when a Stock child is active", () => {
-		const stock = routes[1];
-		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/config")), true);
+	it("puts recipes and inventory under Stock, sections under Menu", () => {
+		const stock = routes.find((row) => row.id === "stock")!;
+		const menu = routes.find((row) => row.id === "menu")!;
+		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/menu")), true);
+		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/inventory")), true);
+		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/sections")), false);
+		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/sections")), true);
+		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/menu")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/users")), false);
 	});

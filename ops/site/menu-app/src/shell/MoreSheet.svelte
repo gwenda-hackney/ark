@@ -51,6 +51,20 @@
 		>
 			<div class="grab" aria-hidden="true"></div>
 			<nav class="links">
+				<p class="heading">Menu</p>
+				<a
+					class="row"
+					class:on={onSections}
+					href="/sections"
+					aria-current={onSections ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="list" size={18} /></span>
+					<span class="copy">
+						<span class="label">Sections</span>
+						<span class="hint">Guest menu chapters and groups</span>
+					</span>
+				</a>
+				<p class="heading">Ops</p>
 				<a
 					class="row"
 					class:on={onUsers}
@@ -61,18 +75,6 @@
 					<span class="copy">
 						<span class="label">Users</span>
 						<span class="hint">Who may sign in</span>
-					</span>
-				</a>
-				<a
-					class="row"
-					class:on={onSections}
-					href="/sections"
-					aria-current={onSections ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="list" size={18} /></span>
-					<span class="copy">
-						<span class="label">Sections</span>
-						<span class="hint">Menu chapters and groups</span>
 					</span>
 				</a>
 				<a
@@ -170,6 +172,19 @@
 	.links {
 		display: grid;
 		gap: 0.125rem;
+	}
+
+	.heading {
+		margin: 0.15rem 0.7rem 0.2rem;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
+	.heading:not(:first-child) {
+		margin-top: 0.65rem;
 	}
 
 	.row {

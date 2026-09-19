@@ -5,6 +5,10 @@ import { resolve } from "node:path";
 const siteSrc = resolve(import.meta.dirname, "../src");
 const pagesOrigin = "http://127.0.0.1:8788";
 
+// TODO: Reverse this. Vite currently proxies /api and HTML tools to Wrangler;
+// Wrangler still serves its own built SPA. Prefer :8788 proxying the shell
+// back to this Vite server so local UI is only the live HMR app.
+
 function rewritePagesLocation(location: string, host: string | undefined) {
   try {
     const incoming = `http://${host || "localhost:5174"}`;
