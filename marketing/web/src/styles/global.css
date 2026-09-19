@@ -19,15 +19,6 @@
 
 html {
   -webkit-tap-highlight-color: transparent;
-  /* Always hide native bars so navigations never flash a system scrollbar */
-  scrollbar-width: none;
-}
-
-html::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-  display: none;
-  background: transparent;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -48,42 +39,41 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom overlay scrollbars (native bars hidden). Slide in from the right. */
+/*
+  Overlay scrollbars (DevExpress ScrollView look): thin square thumb, transparent
+  track, sits on top of content. Wider invisible hit strip for hover / drag.
+*/
 :root {
-  --scrollbar-size: 0.4rem;
-  --scrollbar-thumb: color-mix(in srgb, var(--color-text-muted) 55%, #1a1a1a);
-  --scrollbar-thumb-active: color-mix(in srgb, var(--color-gold) 45%, #2c2a26);
+  --scrollbar-size: 6px;
+  --scrollbar-hit: 14px;
+  /* Fluent / DevExpress medium gray, softened for dark pages */
+  --scrollbar: color-mix(in srgb, #c1c1c1 55%, transparent);
+  --scrollbar-hover: color-mix(in srgb, #c1c1c1 78%, transparent);
+  --scrollbar-fade-duration: 0.28s;
 }
 
-html,
-html * {
+html {
   scrollbar-width: none;
 }
 
-html *::-webkit-scrollbar {
+html::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
   display: none;
   background: transparent;
 }
 
-html *::-webkit-scrollbar-button {
-  display: none !important;
+*,
+*::before,
+*::after {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
-  background: transparent;
-}
-
-html *::-webkit-scrollbar-corner {
   display: none;
   background: transparent;
-}
-
-/* Fallback if JS has not marked the document yet */
-::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0;
 }
 
 .gw-scrollbar {
@@ -92,13 +82,10 @@ html *::-webkit-scrollbar-corner {
   right: 0;
   bottom: 0;
   z-index: 80;
-  width: var(--scrollbar-size);
-  pointer-events: none;
+  width: var(--scrollbar-hit);
+  pointer-events: auto;
   opacity: 0;
-  transform: translate3d(100%, 0, 0);
-  transition:
-    transform 0.35s var(--ease-smooth),
-    opacity 0.28s ease;
+  transition: opacity var(--scrollbar-fade-duration) ease;
 }
 
 body > .gw-scrollbar {
@@ -111,15 +98,15 @@ body > .gw-scrollbar {
 
 .gw-scrollbar.is-visible {
   opacity: 1;
-  transform: translate3d(0, 0, 0);
-  pointer-events: auto;
 }
 
-/* Quiet during soft page navigations — no slide in/out mid-fade */
-html.is-page-transitioning .gw-scrollbar,
-html.is-page-transitioning .gw-scrollbar.is-visible {
+.gw-scrollbar.is-dragging {
+  opacity: 1;
+  transition: none;
+}
+
+html.is-page-transitioning .gw-scrollbar {
   opacity: 0 !important;
-  transform: translate3d(100%, 0, 0) !important;
   transition: none !important;
   pointer-events: none !important;
 }
@@ -127,22 +114,38 @@ html.is-page-transitioning .gw-scrollbar.is-visible {
 .gw-scrollbar-thumb {
   position: absolute;
   top: 0;
-  left: 0;
   right: 0;
-  min-height: 1.75rem;
-  border-radius: 999px;
-  background: var(--scrollbar-thumb);
+  /* Full rail width is the grab target; paint only the outer strip. */
+  width: 100%;
+  min-height: 18px;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  padding-left: calc(var(--scrollbar-hit) - var(--scrollbar-size));
+  background-color: var(--scrollbar);
+  background-clip: content-box;
   cursor: grab;
-  transition: background-color 0.2s ease;
+  touch-action: none;
 }
 
 .gw-scrollbar-thumb:hover,
 .gw-scrollbar.is-dragging .gw-scrollbar-thumb {
-  background: var(--scrollbar-thumb-active);
+  background-color: var(--scrollbar-hover);
 }
 
 .gw-scrollbar.is-dragging .gw-scrollbar-thumb {
   cursor: grabbing;
+}
+
+html.is-scrollbar-dragging,
+html.is-scrollbar-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+/* Smooth scroll must not run during thumb drag or the bar lags behind. */
+html.is-scrollbar-dragging {
+  scroll-behavior: auto !important;
 }
 
 /* Soft crossfade between pages (View Transitions) */

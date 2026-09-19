@@ -1,18 +1,21 @@
 /**
- * Overlay scrollbars that slide in from the right while scrolling / hovering.
- * Native bars are hidden; this paints a brand rail instead.
+ * Overlay scrollbars that sit on top of content (no layout gutter).
+ * Native bars are hidden. Reveal on scroll or when the pointer is on the rail.
  */
 
-const HIDE_MS = 900;
+const HIDE_MS = 1800;
+const NESTED = ".scrollbar-fade, .gw-select-menu, .event-rsvp--viewport";
 
 /**
  * @typedef {{
  *   root: HTMLElement,
+ *   scrollEl: Element,
  *   rail: HTMLElement,
  *   thumb: HTMLElement,
  *   isViewport: boolean,
  *   hideTimer: ReturnType<typeof setTimeout> | null,
  *   dragging: boolean,
+ *   edgeHover: boolean,
  * }} ScrollbarHost
  */
 
@@ -26,7 +29,6 @@ let listenersBound = false;
 
 /**
  * @param {Element} el
- * @returns {boolean}
  */
 function canScrollY(el) {
   if (el === document.documentElement || el === document.body) {
@@ -38,14 +40,214 @@ function canScrollY(el) {
   if (!(el instanceof HTMLElement)) return false;
   const style = getComputedStyle(el);
   const overflowY = style.overflowY;
-  if (
-    overflowY !== "auto" &&
-    overflowY !== "scroll" &&
-    overflowY !== "overlay"
-  ) {
+  if (overflowY !== "auto" && overflowY !== "scroll" && overflowY !== "overlay") {
     return false;
   }
   return el.scrollHeight > el.clientHeight + 1;
+}
+
+/**
+ * @param {ScrollbarHost} host
+ */
+function metrics(host) {
+  if (host.isViewport) {
+    const html = document.documentElement;
+    const body = document.body;
+    return {
+      scrollTop: html.scrollTop || body.scrollTop || 0,
+      scrollHeight: Math.max(
+        html.scrollHeight,
+        body.scrollHeight,
+        html.offsetHeight,
+        body.offsetHeight,
+      ),
+      clientHeight: html.clientHeight,
+    };
+  }
+  const el = /** @type {HTMLElement} */ (host.scrollEl);
+  return {
+    scrollTop: el.scrollTop,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+  };
+}
+
+/**
+ * @param {ScrollbarHost} host
+ */
+function syncThumb(host) {
+  const { scrollTop, scrollHeight, clientHeight } = metrics(host);
+  if (scrollHeight <= clientHeight + 1) {
+    host.rail.classList.remove("is-visible");
+    host.rail.hidden = true;
+    return;
+  }
+
+  host.rail.hidden = false;
+  // Track is the rail itself (matches DevExpress: proportional thumb, small min).
+  const track = host.rail.clientHeight || clientHeight;
+  const thumbH = Math.max(18, (clientHeight / scrollHeight) * track);
+  const maxTop = Math.max(0, track - thumbH);
+  const maxScroll = Math.max(1, scrollHeight - clientHeight);
+  const top = (scrollTop / maxScroll) * maxTop;
+
+  host.thumb.style.height = `${thumbH}px`;
+  host.thumb.style.transform = `translate3d(0, ${top}px, 0)`;
+}
+
+/**
+ * @param {ScrollbarHost} host
+ */
+function clearHide(host) {
+  if (host.hideTimer) {
+    clearTimeout(host.hideTimer);
+    host.hideTimer = null;
+  }
+}
+
+/**
+ * @param {ScrollbarHost} host
+ */
+function scheduleHide(host) {
+  clearHide(host);
+  if (host.dragging || host.edgeHover) return;
+  host.hideTimer = setTimeout(() => {
+    host.hideTimer = null;
+    if (!host.dragging && !host.edgeHover) {
+      host.rail.classList.remove("is-visible");
+    }
+  }, HIDE_MS);
+}
+
+/**
+ * @param {ScrollbarHost} host
+ */
+function show(host) {
+  if (document.documentElement.classList.contains("is-page-transitioning")) {
+    return;
+  }
+  if (!canScrollY(host.isViewport ? document.documentElement : host.scrollEl)) {
+    host.rail.classList.remove("is-visible");
+    host.rail.hidden = true;
+    return;
+  }
+
+  syncThumb(host);
+  host.rail.classList.add("is-visible");
+  scheduleHide(host);
+}
+
+/**
+ * @param {ScrollbarHost} host
+ */
+function bindThumbDrag(host) {
+  if (host.rail.dataset.gwBound === "1") return;
+  host.rail.dataset.gwBound = "1";
+
+  /** Offset from thumb top to where the pointer grabbed (px). */
+  let grabOffset = 0;
+  /** @type {number | null} */
+  let activePointer = null;
+
+  /**
+   * @param {number} clientY
+   */
+  function scrollToPointer(clientY) {
+    const { scrollHeight, clientHeight } = metrics(host);
+    const rect = host.rail.getBoundingClientRect();
+    const track = host.rail.clientHeight || clientHeight;
+    const thumbH = host.thumb.offsetHeight || 18;
+    const maxTop = Math.max(0, track - thumbH);
+    const maxScroll = Math.max(1, scrollHeight - clientHeight);
+    const top = Math.min(maxTop, Math.max(0, clientY - rect.top - grabOffset));
+    const next = maxTop === 0 ? 0 : (top / maxTop) * maxScroll;
+
+    if (host.isViewport) {
+      // Direct assignment + auto behavior (class on <html>) — never smooth.
+      document.documentElement.scrollTop = next;
+      document.body.scrollTop = next;
+    } else if (host.scrollEl instanceof HTMLElement) {
+      host.scrollEl.scrollTop = next;
+    }
+    syncThumb(host);
+  }
+
+  /**
+   * @param {PointerEvent} event
+   */
+  function onPointerMove(event) {
+    if (!host.dragging || event.pointerId !== activePointer) return;
+    event.preventDefault();
+    scrollToPointer(event.clientY);
+  }
+
+  /**
+   * @param {PointerEvent} event
+   */
+  function endDrag(event) {
+    if (!host.dragging || (activePointer !== null && event.pointerId !== activePointer)) {
+      return;
+    }
+    host.dragging = false;
+    activePointer = null;
+    host.rail.classList.remove("is-dragging");
+    document.documentElement.classList.remove("is-scrollbar-dragging");
+    try {
+      host.rail.releasePointerCapture(event.pointerId);
+    } catch {
+      /* already released */
+    }
+    host.rail.removeEventListener("pointermove", onPointerMove);
+    host.rail.removeEventListener("pointerup", endDrag);
+    host.rail.removeEventListener("pointercancel", endDrag);
+    scheduleHide(host);
+  }
+
+  host.rail.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    if (!canScrollY(host.isViewport ? document.documentElement : host.scrollEl)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    syncThumb(host);
+    const thumbRect = host.thumb.getBoundingClientRect();
+    const y = event.clientY;
+
+    host.dragging = true;
+    activePointer = event.pointerId;
+    clearHide(host);
+    host.rail.classList.add("is-visible", "is-dragging");
+    document.documentElement.classList.add("is-scrollbar-dragging");
+
+    // Hit the thumb (full rail width counts): drag from grab point.
+    // Miss: jump so the thumb centers on the pointer, then drag.
+    if (y >= thumbRect.top && y <= thumbRect.bottom) {
+      grabOffset = y - thumbRect.top;
+    } else {
+      grabOffset = host.thumb.offsetHeight / 2;
+      scrollToPointer(y);
+    }
+
+    host.rail.setPointerCapture(event.pointerId);
+    host.rail.addEventListener("pointermove", onPointerMove);
+    host.rail.addEventListener("pointerup", endDrag);
+    host.rail.addEventListener("pointercancel", endDrag);
+  });
+
+  host.rail.addEventListener("pointerenter", () => {
+    host.edgeHover = true;
+    show(host);
+    clearHide(host);
+  });
+
+  host.rail.addEventListener("pointerleave", () => {
+    if (host.dragging) return;
+    host.edgeHover = false;
+    scheduleHide(host);
+  });
 }
 
 /**
@@ -57,7 +259,6 @@ function ensureHost(scrollEl) {
     scrollEl === document.documentElement || scrollEl === document.body;
 
   if (isViewport && viewportHost?.rail.isConnected) {
-    hosts.set(scrollEl, viewportHost);
     hosts.set(document.documentElement, viewportHost);
     return viewportHost;
   }
@@ -77,11 +278,9 @@ function ensureHost(scrollEl) {
     if (pos === "static") root.style.position = "relative";
   }
 
-  // Reuse a leftover viewport rail after View Transitions swap if present.
-  let rail =
-    isViewport
-      ? document.body.querySelector(":scope > .gw-scrollbar")
-      : null;
+  let rail = isViewport
+    ? document.body.querySelector(":scope > .gw-scrollbar")
+    : null;
   let thumb = rail?.querySelector(".gw-scrollbar-thumb") ?? null;
 
   if (!(rail instanceof HTMLElement)) {
@@ -108,95 +307,42 @@ function ensureHost(scrollEl) {
   /** @type {ScrollbarHost} */
   const host = {
     root,
+    scrollEl: isViewport ? document.documentElement : scrollEl,
     rail,
     thumb,
     isViewport,
     hideTimer: null,
     dragging: false,
+    edgeHover: false,
   };
-  hosts.set(scrollEl, host);
+
+  hosts.set(host.scrollEl, host);
   if (isViewport) {
     hosts.set(document.documentElement, host);
     viewportHost = host;
   }
 
-  bindThumbDrag(host, scrollEl);
+  bindThumbDrag(host);
   return host;
 }
 
 /**
- * @param {ScrollbarHost} host
  * @param {Element} scrollEl
  */
-function metrics(host, scrollEl) {
-  if (host.isViewport) {
-    const el = document.documentElement;
-    return {
-      scrollTop: el.scrollTop || document.body.scrollTop || 0,
-      scrollHeight: el.scrollHeight,
-      clientHeight: el.clientHeight,
-    };
+function pulse(scrollEl) {
+  const el =
+    scrollEl === document.body ? document.documentElement : scrollEl;
+  const host = hosts.get(el) ?? (el === document.documentElement ? viewportHost : null);
+  if (host?.dragging) {
+    syncThumb(host);
+    return;
   }
-  const el = /** @type {HTMLElement} */ (scrollEl);
-  return {
-    scrollTop: el.scrollTop,
-    scrollHeight: el.scrollHeight,
-    clientHeight: el.clientHeight,
-  };
+  if (!canScrollY(el) && el !== document.documentElement) return;
+  const next = ensureHost(el);
+  if (!next) return;
+  show(next);
 }
 
-/**
- * @param {ScrollbarHost} host
- * @param {Element} scrollEl
- */
-function syncThumb(host, scrollEl) {
-  const { scrollTop, scrollHeight, clientHeight } = metrics(host, scrollEl);
-  if (scrollHeight <= clientHeight + 1) {
-    host.rail.classList.remove("is-visible");
-    return;
-  }
-
-  const track = clientHeight;
-  const thumbH = Math.max(28, (clientHeight / scrollHeight) * track);
-  const maxTop = Math.max(0, track - thumbH);
-  const maxScroll = Math.max(1, scrollHeight - clientHeight);
-  const top = (scrollTop / maxScroll) * maxTop;
-
-  host.thumb.style.height = `${thumbH}px`;
-  host.thumb.style.transform = `translate3d(0, ${top}px, 0)`;
-}
-
-/**
- * @param {ScrollbarHost} host
- * @param {Element} scrollEl
- */
-function show(host, scrollEl) {
-  if (document.documentElement.classList.contains("is-page-transitioning")) {
-    return;
-  }
-
-  if (!canScrollY(scrollEl) && !host.isViewport) {
-    host.rail.classList.remove("is-visible");
-    return;
-  }
-  if (host.isViewport && !canScrollY(document.documentElement)) {
-    host.rail.classList.remove("is-visible");
-    return;
-  }
-
-  syncThumb(host, scrollEl);
-  host.rail.classList.add("is-visible");
-
-  if (host.hideTimer) clearTimeout(host.hideTimer);
-  if (host.dragging) return;
-  host.hideTimer = setTimeout(() => {
-    if (!host.dragging && !host.rail.matches(":hover")) {
-      host.rail.classList.remove("is-visible");
-    }
-  }, HIDE_MS);
-}
-
-/** Hide every overlay rail immediately (page swap / transition). */
 export function hideOverlayScrollbars() {
   document.querySelectorAll(".gw-scrollbar").forEach((rail) => {
     rail.classList.remove("is-visible", "is-dragging");
@@ -207,65 +353,10 @@ export function hideOverlayScrollbars() {
   }
 }
 
-/**
- * @param {ScrollbarHost} host
- * @param {Element} scrollEl
- */
-function bindThumbDrag(host, scrollEl) {
-  if (host.rail.dataset.gwBound === "1") return;
-  host.rail.dataset.gwBound = "1";
-
-  let startY = 0;
-  let startScroll = 0;
-
-  const onMove = (event) => {
-    if (!host.dragging) return;
-    const { scrollHeight, clientHeight } = metrics(host, scrollEl);
-    const thumbH = host.thumb.offsetHeight;
-    const maxTop = Math.max(0, clientHeight - thumbH);
-    const maxScroll = Math.max(1, scrollHeight - clientHeight);
-    const delta = event.clientY - startY;
-    const next = startScroll + (delta / Math.max(1, maxTop)) * maxScroll;
-    if (host.isViewport) {
-      window.scrollTo(0, next);
-    } else if (scrollEl instanceof HTMLElement) {
-      scrollEl.scrollTop = next;
-    }
-  };
-
-  const onUp = () => {
-    if (!host.dragging) return;
-    host.dragging = false;
-    host.rail.classList.remove("is-dragging");
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    show(host, scrollEl);
-  };
-
-  host.thumb.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    host.dragging = true;
-    host.rail.classList.add("is-visible", "is-dragging");
-    startY = event.clientY;
-    startScroll = metrics(host, scrollEl).scrollTop;
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+function syncNested() {
+  document.querySelectorAll(NESTED).forEach((el) => {
+    if (canScrollY(el)) ensureHost(el);
   });
-
-  host.rail.addEventListener("pointerenter", () => {
-    show(host, scrollEl);
-  });
-}
-
-/**
- * @param {Element} scrollEl
- */
-function pulse(scrollEl) {
-  if (!canScrollY(scrollEl) && scrollEl !== document.documentElement) return;
-  const host = ensureHost(scrollEl);
-  if (!host) return;
-  show(host, scrollEl);
 }
 
 function bindTransitionHooks() {
@@ -277,28 +368,30 @@ function bindTransitionHooks() {
   document.addEventListener("astro:after-swap", () => {
     document.documentElement.classList.add("is-page-transitioning");
     hideOverlayScrollbars();
-    // Body was swapped — drop stale viewport host until ensureHost rebuilds.
     if (viewportHost && !viewportHost.rail.isConnected) {
       viewportHost = null;
     }
   });
 
   document.addEventListener("astro:page-load", () => {
-    // Keep quiet through the fade, then allow normal scroll pulses.
     requestAnimationFrame(() => {
       document.documentElement.classList.remove("is-page-transitioning");
       hideOverlayScrollbars();
+      syncNested();
     });
   });
 }
 
 export function initOverlayScrollbars() {
-  document.documentElement.classList.add("gw-scrollbar-ready");
-
   if (listenersBound) return;
   listenersBound = true;
 
   bindTransitionHooks();
+  // Mount the viewport rail immediately so the right-edge hit strip exists
+  // before the first scroll.
+  const viewport = ensureHost(document.documentElement);
+  if (viewport) syncThumb(viewport);
+  syncNested();
 
   document.addEventListener(
     "scroll",
@@ -313,27 +406,15 @@ export function initOverlayScrollbars() {
     { capture: true, passive: true },
   );
 
-  // Keep select menus / overflow panels wired when they open.
-  document.addEventListener(
-    "pointerenter",
-    (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const scroller = target.closest(
-        ".gw-select-menu, .contact-inner, [data-gw-scroll]",
-      );
-      if (scroller instanceof Element && canScrollY(scroller)) {
-        pulse(scroller);
-      }
-    },
-    true,
-  );
-
   window.addEventListener(
     "resize",
     () => {
       const host = hosts.get(document.documentElement) ?? viewportHost;
-      if (host?.rail.isConnected) syncThumb(host, document.documentElement);
+      if (host?.rail.isConnected) {
+        syncThumb(host);
+        if (host.rail.classList.contains("is-visible")) scheduleHide(host);
+      }
+      syncNested();
     },
     { passive: true },
   );
