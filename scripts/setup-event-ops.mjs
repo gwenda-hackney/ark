@@ -14,7 +14,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DEFAULT_BASEROW_API,
-  DEV_BASEROW_DATABASE_ID,
   PRODUCTION_SUBSCRIBE_TABLE_ID,
   RSVP_TABLE_NAME,
 } from "../marketing/web/functions/_lib/baserow.js";

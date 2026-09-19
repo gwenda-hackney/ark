@@ -101,7 +101,7 @@ npm run dev -w @gwenda/ops
 
 TODO: `:8788` still serves the built SPA, so both ports show a UI. Prefer Wrangler proxying the shell back to Vite so local UI is only the live HMR app.
 
-Requires `BASEROW_API_KEY` plus Google OAuth secrets in **`.env.ops`** (or `.env`). Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets) load from Baserow **App Config**. See [docs/config.md](../../docs/config.md).
+Requires `BASEROW_API_KEY` plus Google OAuth secrets in **`.env.ops`** (or `.env`). `SANITY_API_TOKEN` and `DEPLOY_WEBHOOK_SECRET` are owned by Ark/Web; ops pull copies them into `.env.ops`. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets) load from Baserow **App Config**. See [docs/config.md](../../docs/config.md).
 
 ```bash
 cp scripts/env-templates/ops.local.env .env.ops   # if missing

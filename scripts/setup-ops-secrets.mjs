@@ -3,7 +3,8 @@
  * Plain ops settings (Sanity project/dataset, deploy webhook URL, OAuth client id)
  * live in Baserow App Config. Table ids are resolved by name.
  *
- * Loads `.env` then `.env.ops` (ops wins). Does not put OPS_LOCAL_ADMIN_PW on Pages.
+ * Loads `.env` then `.env.ark` then `.env.ops` (ops wins). Does not put
+ * OPS_LOCAL_ADMIN_PW on Pages.
  * Prefer BASEROW_API_KEY_PRODUCTION for Pages (prod workspace); fall back to
  * BASEROW_API_KEY for older setups.
  *
@@ -29,6 +30,7 @@ function loadEnvFile(path, { override = false } = {}) {
 }
 
 loadEnvFile(resolve(rootDir, ".env"), { override: false });
+loadEnvFile(resolve(rootDir, ".env.ark"), { override: true });
 loadEnvFile(resolve(rootDir, ".env.ops"), { override: true });
 
 function findWrangler() {

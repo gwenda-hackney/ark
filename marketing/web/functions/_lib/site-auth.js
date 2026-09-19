@@ -107,9 +107,7 @@ export function isAiReadingBot(request) {
 
 /** Search, social preview, and AI reading bots bypass the staging password gate. */
 export function isUnauthenticatedCrawler(request) {
-  return (
-    isSearchEngineCrawler(request) || isAiReadingBot(request)
-  );
+  return isSearchEngineCrawler(request) || isAiReadingBot(request);
 }
 
 /** @returns {{ kind: "open" | "gated" | "misconfigured", password?: string }} */
@@ -137,6 +135,7 @@ export function gateMisconfiguredResponse() {
 export function isPublicPath(pathname) {
   if (pathname === "/gate" || pathname === "/gate/") return true;
   if (pathname === "/thanks" || pathname === "/thanks/") return true;
+  if (pathname === "/health" || pathname === "/health/") return true;
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/"))
     return true;
   if (pathname === "/api/subscribe") return true;
@@ -148,11 +147,13 @@ export function isPublicPath(pathname) {
     return true;
   if (pathname === "/contact/edit" || pathname === "/contact/edit/")
     return true;
-  if (pathname === "/forms/edit" || pathname === "/forms/edit/")
+  if (pathname === "/forms/edit" || pathname === "/forms/edit/") return true;
+  if (pathname === "/api/rsvp" || pathname.startsWith("/api/rsvp/"))
     return true;
-  if (pathname === "/api/rsvp" || pathname.startsWith("/api/rsvp/")) return true;
-  if (pathname === "/api/ticket" || pathname.startsWith("/api/ticket/")) return true;
-  if (pathname === "/api/events" || pathname.startsWith("/api/events/")) return true;
+  if (pathname === "/api/ticket" || pathname.startsWith("/api/ticket/"))
+    return true;
+  if (pathname === "/api/events" || pathname.startsWith("/api/events/"))
+    return true;
   if (pathname === "/invite" || pathname === "/invite/") return true;
   if (pathname.startsWith("/invite/")) return true;
   if (pathname === "/events/rsvp" || pathname === "/events/rsvp/") return true;

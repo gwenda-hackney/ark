@@ -17,7 +17,6 @@ binding = "ASSETS"
 run_worker_first = ["/", "/guest", "/guest/*", "/authorize", "/health"]
 
 [vars]
-BASEROW_DATABASE_ID = "461843"
 BASEROW_API_URL = "https://api.baserow.io"
 WIFI_SUBSCRIBE_TAG = "wifi"
 UNIFI_SITE_IDENTIFIER = "default"

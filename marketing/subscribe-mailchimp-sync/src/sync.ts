@@ -9,7 +9,6 @@ import type {
 } from "./types";
 
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
-export const PRODUCTION_BASEROW_DATABASE_ID = "461843";
 export const SUBSCRIBE_TABLE_NAME = "Subscribers";
 /** @deprecated Prefer name resolution; kept for migration scripts. */
 export const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
@@ -29,12 +28,6 @@ const tableIdCache = new Map<string, string>();
 
 export function clearSubscribeTableIdCache() {
   tableIdCache.clear();
-}
-
-export function resolveDatabaseId(
-  env: Pick<Env, "BASEROW_DATABASE_ID">,
-): string {
-  return env.BASEROW_DATABASE_ID?.trim() || PRODUCTION_BASEROW_DATABASE_ID;
 }
 
 export function resolveSubscribeTableName(
@@ -57,7 +50,7 @@ export async function resolveTableId(
   if (!apiKey) throw new Error("BASEROW_API_KEY is not configured");
 
   const tableName = resolveSubscribeTableName(env);
-  const databaseId = resolveDatabaseId(env);
+  const databaseId = env.BASEROW_DATABASE_ID?.trim() || "";
   const apiBase = resolveApiBase(env);
   const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
   const cached = tableIdCache.get(cacheKey);
@@ -74,17 +67,19 @@ export async function resolveTableId(
     name: string;
     database_id: number;
   }>;
-  const matches = tables.filter(
-    (table) =>
-      table.name === tableName && String(table.database_id) === databaseId,
-  );
-  if (matches.length === 0) {
-    throw new Error(
-      `Baserow table "${tableName}" not found in database ${databaseId}.`,
+  let matches = tables.filter((table) => table.name === tableName);
+  if (databaseId) {
+    matches = matches.filter(
+      (table) => String(table.database_id) === databaseId,
     );
   }
+  if (matches.length === 0) {
+    throw new Error(`Baserow table "${tableName}" not found.`);
+  }
   if (matches.length > 1) {
-    throw new Error(`Multiple Baserow tables named "${tableName}".`);
+    throw new Error(
+      `Multiple Baserow tables named "${tableName}". Scope the token to the Website database.`,
+    );
   }
   const tableId = String(matches[0].id);
   tableIdCache.set(cacheKey, tableId);

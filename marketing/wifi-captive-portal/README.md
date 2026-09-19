@@ -74,7 +74,6 @@ Use the Hotspot UI you already have open, e.g.
 | `BASEROW_API_KEY` | Worker secret | Same as site subscribe |
 | `UNIFI_SITE_MANAGER_API_KEY` | Worker secret | From unifi.ui.com API Keys |
 | `UNIFI_CONSOLE_ID` | `wrangler.toml` `[vars]` | From the Site Manager URL |
-| `BASEROW_DATABASE_ID` | vars | Default `461843` (prod); table `Subscribers` resolved by name |
 | `WIFI_SUBSCRIBE_TAG` | vars | Default `wifi` |
 | `UNIFI_GUEST_MINUTES` | vars | Default `1440` |
 | `REDIRECT_URL` | vars | Default `https://gwenda.co.uk` |

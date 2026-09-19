@@ -1,4 +1,6 @@
 import { resolveSmtpFrom, SMTP_PURPOSE } from "./smtp-from.js";
+import { reportFormError } from "./form-alert.js";
+import { createLogger } from "./log.js";
 import {
   formatFormEmail,
   formatFormNotifyHtml,
@@ -16,6 +18,17 @@ import {
 } from "./site-location.js";
 
 const LOGO_URL = `${SITE_DOMAIN}/brand/logo-email.png`;
+const log = createLogger();
+
+function smtpSkipFields(host, from, to, user, password) {
+  return {
+    hasHost: Boolean(host),
+    hasFrom: Boolean(from),
+    hasTo: Boolean(to),
+    hasUser: Boolean(user),
+    hasPassword: Boolean(password),
+  };
+}
 
 /** Format a bare address as `Gwenda <addr>` when no display name is present. */
 export function formatFormFromAddress(fromEmail) {
@@ -125,34 +138,25 @@ export async function sendFormNotificationEmail(
   }
 
   if (!to) {
-    console.error(
-      JSON.stringify({
-        event: "form_notify_email_skipped",
-        reason: "missing_notify_email",
-        slug: form?.slug ?? "",
-      }),
-    );
+    log.event("error", "form_notify_email_skipped", {
+      reason: "missing_notify_email",
+      slug: form?.slug ?? "",
+    });
     return { ok: false, skipped: true, error: "No notify address configured." };
   }
 
   if (!smtpReady) {
     if (!isDeployed) {
-      console.info(
-        `[form email dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"} subject=${subject}\n${text}`,
+      log.info(
+        `[form email dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"} subject=${subject}`,
       );
       return { ok: true, dryRun: true };
     }
-    console.error(
-      JSON.stringify({
-        event: "form_notify_email_skipped",
-        reason: "smtp_not_configured",
-        hasHost: Boolean(host),
-        hasFrom: Boolean(from),
-        hasTo: Boolean(to),
-        hasUser: Boolean(user),
-        hasPassword: Boolean(password),
-      }),
-    );
+    await reportFormError(env, "form_notify_email_skipped", {
+      reason: "smtp_not_configured",
+      slug: form?.slug ?? "",
+      ...smtpSkipFields(host, from, to, user, password),
+    });
     return { ok: false, skipped: true, error: "Email is not configured." };
   }
 
@@ -177,32 +181,27 @@ export async function sendFormNotificationEmail(
       attachments,
     });
 
-    console.info(
-      JSON.stringify({
-        event: "form_notify_email_sent",
-        to,
-        from,
-        slug: form?.slug ?? "",
-        subject,
-        replyTo: replyTo || null,
-        logoEmbedded: Boolean(logoBuffer),
-        answerCount: (answers ?? []).filter((row) => row?.value).length,
-      }),
-    );
+    log.event("info", "form_notify_email_sent", {
+      to,
+      from,
+      slug: form?.slug ?? "",
+      subject,
+      replyTo: replyTo || null,
+      logoEmbedded: Boolean(logoBuffer),
+      answerCount: (answers ?? []).filter((row) => row?.value).length,
+    });
 
     return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      JSON.stringify({
-        event: "form_notify_email_failed",
-        error: message,
-        from,
-        to,
-        host,
-        user,
-      }),
-    );
+    log.event("error", "form_notify_email_failed", {
+      error: message,
+      from,
+      to,
+      host,
+      user,
+      slug: form?.slug ?? "",
+    });
     return { ok: false, error: message };
   }
 }
@@ -216,7 +215,9 @@ export async function sendFormReceiptEmail(
   { form, answers, email, editUrl, updated = false },
 ) {
   const host = env.SMTP_HOST?.trim();
-  const to = String(email ?? "").trim().toLowerCase();
+  const to = String(email ?? "")
+    .trim()
+    .toLowerCase();
   const from = resolveFormFrom(env, form);
   const replyTo = resolveFormReplyTo(form);
   const user = env.SMTP_USER?.trim() ?? "";
@@ -259,22 +260,16 @@ export async function sendFormReceiptEmail(
 
   if (!smtpReady) {
     if (!isDeployed) {
-      console.info(
-        `[form receipt dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"} subject=${subject}\n${text}`,
+      log.info(
+        `[form receipt dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"} subject=${subject}`,
       );
       return { ok: true, dryRun: true };
     }
-    console.error(
-      JSON.stringify({
-        event: "form_receipt_email_skipped",
-        reason: "smtp_not_configured",
-        hasHost: Boolean(host),
-        hasFrom: Boolean(from),
-        hasTo: Boolean(to),
-        hasUser: Boolean(user),
-        hasPassword: Boolean(password),
-      }),
-    );
+    await reportFormError(env, "form_receipt_email_skipped", {
+      reason: "smtp_not_configured",
+      slug: form?.slug ?? "",
+      ...smtpSkipFields(host, from, to, user, password),
+    });
     return { ok: false, skipped: true, error: "Email is not configured." };
   }
 
@@ -299,30 +294,25 @@ export async function sendFormReceiptEmail(
       attachments,
     });
 
-    console.info(
-      JSON.stringify({
-        event: "form_receipt_email_sent",
-        to,
-        from,
-        slug: form?.slug ?? "",
-        subject,
-        logoEmbedded: Boolean(logoBuffer),
-      }),
-    );
+    log.event("info", "form_receipt_email_sent", {
+      to,
+      from,
+      slug: form?.slug ?? "",
+      subject,
+      logoEmbedded: Boolean(logoBuffer),
+    });
 
     return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      JSON.stringify({
-        event: "form_receipt_email_failed",
-        error: message,
-        from,
-        to,
-        host,
-        user,
-      }),
-    );
+    log.event("error", "form_receipt_email_failed", {
+      error: message,
+      from,
+      to,
+      host,
+      user,
+      slug: form?.slug ?? "",
+    });
     return { ok: false, error: message };
   }
 }

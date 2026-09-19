@@ -6,6 +6,7 @@
  *   SMOKE_TEST_GATE_BYPASS_KEY=... node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev ...
  */
 import {
+  assertHealthPayload,
   assertHomePageHealthy,
   collectSameOriginAssetPaths,
 } from "./smoke-test-lib.mjs";
@@ -103,6 +104,21 @@ async function checkPath(
   return res;
 }
 
+async function checkHealth() {
+  const url = `${baseUrl}/health`;
+  const res = await fetch(url, { redirect: "follow" });
+  if (!res.ok) {
+    throw new Error(`${url} returned ${res.status}`);
+  }
+  const type = res.headers.get("content-type") || "";
+  if (!type.includes("application/json")) {
+    throw new Error(`${url} expected application/json, got ${type}`);
+  }
+  const data = await res.json();
+  assertHealthPayload(data);
+  console.log(`OK ${url} (200, service=${data.service})`);
+}
+
 async function checkSubscribeApi(cookie = "") {
   const url = `${baseUrl}/api/subscribe`;
   const res = await fetch(url, fetchInit(cookie));
@@ -126,7 +142,9 @@ async function checkRsvpApi(cookie = "") {
   url.searchParams.set("event-password", "invalid-word-set-here");
   const res = await fetch(url, fetchInit(cookie));
   if (res.status !== 403 && res.status !== 404) {
-    throw new Error(`${url} expected 403 or 404 for invalid invite, got ${res.status}`);
+    throw new Error(
+      `${url} expected 403 or 404 for invalid invite, got ${res.status}`,
+    );
   }
   const type = res.headers.get("content-type") || "";
   if (!type.includes("application/json")) {
@@ -164,6 +182,7 @@ async function checkCriticalAssets(html, cookie = "") {
 
 async function runChecks() {
   const cookie = await gateBypassCookie();
+  await checkHealth();
   const homeRes = await checkPath("/", { cookie });
   const html = await homeRes.text();
   assertHomePageHealthy(html);

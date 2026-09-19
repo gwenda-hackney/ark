@@ -13,8 +13,8 @@ This checkout often sits inside the **Gwenda nest** (`~/dev/gwenda`, or `/worksp
 
 | Source | What it provides |
 |--------|------------------|
-| Bitwarden (`bitwarden.eu`) | Source of truth for local secrets. Secure note `ark/.env.local` (Notes = dotenv). Pull with `npm run env:pull`. Optional `ark/.env.staging` / `ark/.env.production` for env backups. |
-| `ark/.env` (gitignored) | `CLOUDFLARE_DEV_API_TOKEN` (local Pages, Wrangler; legacy alias `CLOUDFLARE_API_TOKEN`), `SANITY_API_TOKEN` (**Editor** robot `ark-local-editor`), `SANITY_PROJECT_ID=pn5yjro6`, deploy vars after `npm run setup:site-deploy`. Prefer `env:pull` / `setup:sanity-tokens` over hand-copying. |
+| Bitwarden (`bitwarden.eu`) | Source of truth for local secrets. Password Manager note `ark/.env.local` (Notes = dotenv) via `env:pull`. Secrets Manager projects **Ark** (Cloudflare), **Ark/Ops**, **Ark/Web** via `env:ark:pull` / `env:ops:pull` / `env:web:pull`. |
+| `ark/.env` (gitignored) | SM bootstrap `ARK_LOCAL_BW_TOKEN`, Editor `SANITY_API_TOKEN` leftovers, `SANITY_PROJECT_ID=pn5yjro6`. Cloudflare org tokens prefer `.env.ark` after `env:ark:pull`. |
 | Nest `.env` (`~/dev/gwenda/.env` or `/workspaces/gwenda/.env`) | Workspace tools (e.g. ClickUp). Not a substitute for `ark/.env`. |
 | `gh` CLI | When logged in as the repo owner: `repo` + `workflow`. Use `gh secret set`, `gh workflow run`, `gh variable list`. **Not always authenticated** in a new Codespace. |
 | GitHub Actions secrets / Cloudflare Pages secrets | Set via `gh secret set` or `wrangler pages secret put`. **Never readable after write** (names only). |
@@ -46,7 +46,7 @@ Do not ask the user to manually `gh secret set` deploy secrets or edit Worker UR
 
 ## Cloudflare
 
-Use `CLOUDFLARE_DEV_API_TOKEN` from `.env` (legacy alias `CLOUDFLARE_API_TOKEN`) and `account_id` from `marketing/*/wrangler.toml` or `ops/*/wrangler.toml` for Worker deploys. GitHub CI still uses secret `CLOUDFLARE_API_TOKEN`. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
+Use `CLOUDFLARE_DEV_API_TOKEN` from `.env.ark` (after `npm run env:ark:pull`; legacy leftovers may still be in `.env`) and `account_id` from `marketing/*/wrangler.toml` or `ops/*/wrangler.toml` for Worker deploys. GitHub CI still uses secret `CLOUDFLARE_API_TOKEN`. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
 
 ## After setup
 

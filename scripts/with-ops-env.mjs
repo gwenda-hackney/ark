@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Run a command after loading repo-root `.env` then `.env.ops` (ops wins).
- * Missing files are skipped so CI can inject secrets another way.
+ * Run a command after loading repo-root `.env`, `.env.ark`, then `.env.ops`
+ * (ops wins). Missing files are skipped so CI can inject secrets another way.
  *
  *   node scripts/with-ops-env.mjs node scripts/setup-baserow-ops.mjs
  */
@@ -21,6 +21,7 @@ function loadEnvFile(path, { override = false } = {}) {
 }
 
 loadEnvFile(join(root, ".env"), { override: false });
+loadEnvFile(join(root, ".env.ark"), { override: true });
 loadEnvFile(join(root, ".env.ops"), { override: true });
 
 const args = process.argv.slice(2);

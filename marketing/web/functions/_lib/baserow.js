@@ -1,14 +1,13 @@
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
 
-/** Dev + gwenda-staging share this Baserow database. Production uses a separate DB. */
-export const DEV_BASEROW_DATABASE_ID = "465058";
-export const PRODUCTION_BASEROW_DATABASE_ID = "461843";
+/** Same database name in Gwenda (prod) and Gwenda Dev. */
+export const WEBSITE_DATABASE_NAME = "Website";
 export const SUBSCRIBE_TABLE_NAME = "Subscribers";
 export const RSVP_TABLE_NAME = "Event Invites";
 export const FORM_SUBMISSIONS_TABLE_NAME = "Form Submissions";
 
 /** @deprecated Prefer name resolution; kept for one-off migration scripts. */
-export const DEV_SUBSCRIBE_TABLE_ID = "1024006";
+export const DEV_SUBSCRIBE_TABLE_ID = "1208349";
 /** @deprecated Prefer name resolution; kept for one-off migration scripts. */
 export const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
 
@@ -42,13 +41,9 @@ export function formSubmissionsTableName(env) {
   );
 }
 
-/** Optional disambiguator when the token can see multiple databases. */
+/** Optional numeric filter. Prefer a token that can see only one Website database. */
 export function baserowDatabaseId(env) {
-  const explicit = env.BASEROW_DATABASE_ID?.trim();
-  if (explicit) return explicit;
-  return isProductionSite(env)
-    ? PRODUCTION_BASEROW_DATABASE_ID
-    : DEV_BASEROW_DATABASE_ID;
+  return env.BASEROW_DATABASE_ID?.trim() || "";
 }
 
 async function resolveTableIdByName(env, tableName) {
@@ -59,7 +54,7 @@ async function resolveTableIdByName(env, tableName) {
 
   const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
   const databaseId = baserowDatabaseId(env);
-  const cacheKey = `${apiKey}:${tableName}:${databaseId ?? ""}`;
+  const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
 
   const cached = tableIdCache.get(cacheKey);
   if (cached) {
@@ -91,7 +86,7 @@ async function resolveTableIdByName(env, tableName) {
   if (matches.length > 1) {
     return {
       ok: false,
-      error: `Multiple Baserow tables named "${tableName}". Set BASEROW_DATABASE_ID.`,
+      error: `Multiple Baserow tables named "${tableName}". Scope the token to the ${WEBSITE_DATABASE_NAME} database.`,
     };
   }
 

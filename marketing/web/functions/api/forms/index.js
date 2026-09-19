@@ -7,7 +7,12 @@ import {
   sendFormNotificationEmail,
   sendFormReceiptEmail,
 } from "../../_lib/form-email.js";
-import { FORM_STATUS_VERIFIED, upsertFormSubmission } from "../../_lib/form-store.js";
+import {
+  FORM_STATUS_VERIFIED,
+  upsertFormSubmission,
+} from "../../_lib/form-store.js";
+import { reportFormError } from "../../_lib/form-alert.js";
+import { requestFields } from "../../_lib/log.js";
 import { formPublicPath } from "../../_lib/form-paths.js";
 import {
   fetchFormForSubmit,
@@ -26,7 +31,10 @@ import {
 import { resolvePublicOrigin } from "../../_lib/public-origin.js";
 
 export async function onRequestGet(context) {
-  const limited = await checkFormRateLimit(context.request, FORM_RATE_LIMITS.csrf);
+  const limited = await checkFormRateLimit(
+    context.request,
+    FORM_RATE_LIMITS.csrf,
+  );
   if (!limited.ok) {
     return formRateLimitResponse(limited.retryAfterSec);
   }
@@ -114,7 +122,12 @@ export async function onRequestPost(context) {
     updated = Boolean(stored.updated);
     changes = stored.changes;
   } catch (error) {
-    console.error("Form submission upsert failed", error);
+    await reportFormError(context.env, "form_store_failed", {
+      ...requestFields(context.request),
+      op: "upsert",
+      slug,
+      error,
+    });
     return json({ error: "Could not save. Try again?" }, 502);
   }
 
@@ -139,16 +152,18 @@ export async function onRequestPost(context) {
       updated,
     });
     if (!sent.ok && !sent.skipped) {
-      console.error(
-        JSON.stringify({
-          event: "form_notify_failed_after_store",
-          slug,
-          error: sent.error || "unknown",
-        }),
-      );
+      await reportFormError(context.env, "form_notify_failed_after_store", {
+        ...requestFields(context.request),
+        slug,
+        error: sent.error || "unknown",
+      });
     }
   } catch (error) {
-    console.error("Form staff notify failed", error);
+    await reportFormError(context.env, "form_notify_failed_after_store", {
+      ...requestFields(context.request),
+      slug,
+      error,
+    });
   }
 
   try {
@@ -160,17 +175,20 @@ export async function onRequestPost(context) {
       updated,
     });
     if (!receipt.ok && !receipt.skipped && !receipt.dryRun) {
-      console.error(
-        JSON.stringify({
-          event: "form_receipt_failed_after_store",
-          slug,
-          rowId,
-          error: receipt.error || "unknown",
-        }),
-      );
+      await reportFormError(context.env, "form_receipt_failed_after_store", {
+        ...requestFields(context.request),
+        slug,
+        rowId,
+        error: receipt.error || "unknown",
+      });
     }
   } catch (error) {
-    console.error("Form applicant receipt failed", error);
+    await reportFormError(context.env, "form_receipt_failed_after_store", {
+      ...requestFields(context.request),
+      slug,
+      rowId,
+      error,
+    });
   }
 
   return json({

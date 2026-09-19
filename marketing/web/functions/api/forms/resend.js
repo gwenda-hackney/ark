@@ -10,6 +10,8 @@ import {
   updateFormSubmissionEmail,
 } from "../../_lib/form-store.js";
 import { fetchFormForSubmit } from "../../_lib/form-submit.js";
+import { reportFormError } from "../../_lib/form-alert.js";
+import { requestFields } from "../../_lib/log.js";
 
 export async function onRequestPost(context) {
   const auth = validateSubscribeRequest(context.request, context.env);
@@ -48,7 +50,10 @@ export async function onRequestPost(context) {
     token: resendToken,
   });
   if (!tokenOk) {
-    return json({ error: "This session isn't valid. Submit the form again." }, 403);
+    return json(
+      { error: "This session isn't valid. Submit the form again." },
+      403,
+    );
   }
 
   const form = await fetchFormForSubmit(context.env, slug);
@@ -93,7 +98,12 @@ export async function onRequestPost(context) {
       return json({ error: "Could not send confirmation. Try again?" }, 503);
     }
   } catch (error) {
-    console.error("Form verify resend failed", error);
+    await reportFormError(context.env, "form_verify_resend_failed", {
+      ...requestFields(context.request),
+      slug,
+      rowId,
+      error,
+    });
     return json({ error: "Could not send confirmation. Try again?" }, 502);
   }
 

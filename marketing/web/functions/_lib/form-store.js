@@ -1,5 +1,10 @@
 import { baserowFormSubmissionRowsUrl } from "./baserow.js";
+import { reportFormError } from "./form-alert.js";
 import { diffFormAnswers, replyToFromAnswers } from "./form-submit.js";
+
+async function reportStoreFailure(env, extra) {
+  await reportFormError(env, "form_store_failed", extra);
+}
 
 export const FORM_STATUS_PENDING = "Pending";
 export const FORM_STATUS_VERIFIED = "Verified";
@@ -7,7 +12,8 @@ export const FORM_STATUS_VERIFIED = "Verified";
 function selectValue(field) {
   if (field == null) return "";
   if (typeof field === "string") return field;
-  if (typeof field === "object" && field.value != null) return String(field.value);
+  if (typeof field === "object" && field.value != null)
+    return String(field.value);
   return String(field);
 }
 
@@ -42,6 +48,11 @@ export async function storeFormSubmission(
 ) {
   const resolved = await baserowFormSubmissionRowsUrl(env);
   if (!resolved.ok) {
+    await reportStoreFailure(env, {
+      op: "write",
+      slug: form.slug ?? "",
+      error: resolved.error,
+    });
     return resolved;
   }
 
@@ -68,11 +79,12 @@ export async function storeFormSubmission(
 
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => "");
-    console.error(
-      "Form submission Baserow write failed",
-      upstream.status,
-      detail.slice(0, 300),
-    );
+    await reportStoreFailure(env, {
+      op: "write",
+      slug: form.slug ?? "",
+      status: upstream.status,
+      detail: detail.slice(0, 300),
+    });
     return { ok: false, error: "Could not save. Try again?" };
   }
 
@@ -85,7 +97,10 @@ export async function storeFormSubmission(
  */
 async function markRowsNotCurrent(env, rows) {
   const resolved = await baserowFormSubmissionRowsUrl(env);
-  if (!resolved.ok) return resolved;
+  if (!resolved.ok) {
+    await reportStoreFailure(env, { op: "demote", error: resolved.error });
+    return resolved;
+  }
 
   const targets = (rows ?? []).filter(
     (row) => row?.id && (isCurrentRow(row) || row.Current == null),
@@ -101,11 +116,11 @@ async function markRowsNotCurrent(env, rows) {
     });
     if (!upstream.ok) {
       const detail = await upstream.text().catch(() => "");
-      console.error(
-        "Form submission demote Current failed",
-        upstream.status,
-        detail.slice(0, 300),
-      );
+      await reportStoreFailure(env, {
+        op: "demote",
+        status: upstream.status,
+        detail: detail.slice(0, 300),
+      });
       return { ok: false, error: "Could not save. Try again?" };
     }
   }
@@ -145,7 +160,11 @@ export async function upsertFormSubmission(
     if (existing.row?.id) {
       const priorStatus = formSubmissionStatus(existing.row);
       const previousAnswers = parseFormSubmissionAnswers(existing.row);
-      const changes = diffFormAnswers(previousAnswers, normalized.entries, form);
+      const changes = diffFormAnswers(
+        previousAnswers,
+        normalized.entries,
+        form,
+      );
 
       // Still awaiting confirm: edit the pending row in place.
       if (priorStatus === FORM_STATUS_PENDING) {
@@ -171,11 +190,12 @@ export async function upsertFormSubmission(
 
         if (!upstream.ok) {
           const detail = await upstream.text().catch(() => "");
-          console.error(
-            "Form submission Baserow upsert failed",
-            upstream.status,
-            detail.slice(0, 300),
-          );
+          await reportStoreFailure(env, {
+            op: "upsert",
+            slug,
+            status: upstream.status,
+            detail: detail.slice(0, 300),
+          });
           return { ok: false, error: "Could not save. Try again?" };
         }
 
@@ -189,7 +209,10 @@ export async function upsertFormSubmission(
       }
 
       // Verified (or other): keep prior row as history, insert new Current.
-      const demoted = await markRowsNotCurrent(env, existing.matches ?? [existing.row]);
+      const demoted = await markRowsNotCurrent(
+        env,
+        existing.matches ?? [existing.row],
+      );
       if (!demoted.ok) return demoted;
 
       const stored = await storeFormSubmission(env, {
@@ -268,7 +291,9 @@ export async function findFormSubmissionByEmail(env, { slug, email }) {
   if (!resolved.ok) return resolved;
 
   const cleanSlug = String(slug ?? "").trim();
-  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const cleanEmail = String(email ?? "")
+    .trim()
+    .toLowerCase();
   if (!cleanSlug || !cleanEmail) {
     return { ok: true, row: null };
   }
@@ -298,7 +323,9 @@ export async function findFormSubmissionByEmail(env, { slug, email }) {
 }
 
 function normalizeAnswersEmail(entries, raw, replyTo) {
-  const email = String(replyTo ?? "").trim().toLowerCase();
+  const email = String(replyTo ?? "")
+    .trim()
+    .toLowerCase();
   const nextEntries = (entries ?? []).map((row) =>
     row.key === "email" ? { ...row, value: email || row.value } : row,
   );
@@ -333,7 +360,9 @@ export function parseFormSubmissionDocument(row) {
     }
     if (parsed && typeof parsed === "object" && Array.isArray(parsed.entries)) {
       const raw =
-        parsed.raw && typeof parsed.raw === "object" && !Array.isArray(parsed.raw)
+        parsed.raw &&
+        typeof parsed.raw === "object" &&
+        !Array.isArray(parsed.raw)
           ? parsed.raw
           : null;
       return { entries: parsed.entries, raw };
@@ -376,7 +405,9 @@ export async function updateFormSubmissionEmail(env, rowId, email) {
   if (!resolved.ok) return resolved;
 
   const id = String(rowId ?? "").trim();
-  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const cleanEmail = String(email ?? "")
+    .trim()
+    .toLowerCase();
   if (!id || !cleanEmail) {
     return { ok: false, error: "Missing email." };
   }
@@ -388,9 +419,7 @@ export async function updateFormSubmissionEmail(env, rowId, email) {
   const nextEntries = doc.entries.map((row) =>
     row.key === "email" ? { ...row, value: cleanEmail } : row,
   );
-  const nextRaw = doc.raw
-    ? { ...doc.raw, email: cleanEmail }
-    : null;
+  const nextRaw = doc.raw ? { ...doc.raw, email: cleanEmail } : null;
 
   const upstream = await fetch(resolved.rowUrl(id), {
     method: "PATCH",
@@ -406,11 +435,11 @@ export async function updateFormSubmissionEmail(env, rowId, email) {
 
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => "");
-    console.error(
-      "Form submission email update failed",
-      upstream.status,
-      detail.slice(0, 300),
-    );
+    await reportStoreFailure(env, {
+      op: "email_update",
+      status: upstream.status,
+      detail: detail.slice(0, 300),
+    });
     return { ok: false, error: "Could not update. Try again?" };
   }
 
@@ -475,11 +504,11 @@ export async function markFormSubmissionVerified(env, rowId, expectedEmail) {
 
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => "");
-    console.error(
-      "Form submission verify failed",
-      upstream.status,
-      detail.slice(0, 300),
-    );
+    await reportStoreFailure(env, {
+      op: "verify",
+      status: upstream.status,
+      detail: detail.slice(0, 300),
+    });
     return { ok: false, error: "Could not confirm. Try again?" };
   }
 

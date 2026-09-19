@@ -20,7 +20,7 @@ const API_BASE = (process.env.BASEROW_API_URL || "https://api.baserow.io").repla
 );
 const WIFI_OPTION = process.env.WIFI_SUBSCRIBE_TAG?.trim() || "wifi";
 const REQUIRED_OPTIONS = ["prelaunch", WIFI_OPTION];
-const TABLE_IDS = (process.env.SUBSCRIBE_TABLE_IDS || "1017358,1024006")
+const TABLE_IDS = (process.env.SUBSCRIBE_TABLE_IDS || "1017358,1208349")
   .split(",")
   .map((id) => id.trim())
   .filter(Boolean);
