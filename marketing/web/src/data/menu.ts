@@ -15,12 +15,21 @@ export function getAvailableItems(section: MenuSection): MenuItem[] {
   return section.items.filter((item) => item.available !== false);
 }
 
-/** Signature cocktails with CMS photos — homepage gallery source. */
-export function getSignatureCocktails(menu: Menu): Array<MenuItem & { image: NonNullable<MenuItem["image"]> }> {
+function isCocktail(item: MenuItem): boolean {
+  const raw = String(item.drinkType || "cocktail")
+    .trim()
+    .toLowerCase();
+  return raw === "cocktail" || raw === "";
+}
+
+/** Cocktail photos for the homepage gallery. */
+export function getSignatureCocktails(
+  menu: Menu,
+): Array<MenuItem & { image: NonNullable<MenuItem["image"]> }> {
   return flattenMenuSections(menu.sections)
     .flatMap((section) => getAvailableItems(section))
     .filter(
       (item): item is MenuItem & { image: NonNullable<MenuItem["image"]> } =>
-        item.signature === true && Boolean(item.image),
+        isCocktail(item) && Boolean(item.image),
     );
 }

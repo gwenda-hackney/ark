@@ -1,7 +1,12 @@
 import type { StructureResolver } from "sanity/structure";
 import { orderableDocumentListDeskItem } from "@sanity/orderable-document-list";
 
-const HIDDEN_FROM_LIST = new Set(["menuSection", "menuItem", "siteSettings"]);
+const HIDDEN_FROM_LIST = new Set([
+  "menuSection",
+  "menuItem",
+  "siteSettings",
+  "form",
+]);
 
 export const structure: StructureResolver = async (S, context) => {
   const client = context.getClient({ apiVersion: "2025-01-01" });
@@ -46,6 +51,11 @@ export const structure: StructureResolver = async (S, context) => {
           context,
         }),
       ),
+      S.divider(),
+      S.listItem()
+        .title("Forms")
+        .id("forms")
+        .child(S.documentTypeList("form").title("Forms")),
       S.divider(),
       ...S.documentTypeListItems().filter(
         (item) => !HIDDEN_FROM_LIST.has(item.getId() ?? ""),

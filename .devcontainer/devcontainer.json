@@ -34,7 +34,11 @@
       }
     }
   },
-  "forwardPorts": [4321, 3333],
+  "forwardPorts": [4321, 3333, 5174, 8788],
+  "portsAttributes": {
+    "5174": { "label": "Ops SPA" },
+    "8788": { "label": "Ops Functions" }
+  },
   "postStartCommand": "bash /src/.devcontainer/post-start.sh",
   "remoteUser": "node",
   "shutdownAction": "stopCompose"

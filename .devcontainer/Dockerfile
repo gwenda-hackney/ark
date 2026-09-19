@@ -39,6 +39,14 @@ RUN python3 -m pip install --break-system-packages --no-cache-dir \
 # Bitwarden CLI — npm run env:pull (EU vault → repo-root .env)
 RUN npm install -g @bitwarden/cli@2026.8.0 --allow-scripts=core-js
 
+# Secrets Manager CLI — npm run env:ops:pull (SM → .env.ops). Script can also self-install.
+RUN curl -sL -o /tmp/bws.zip \
+      "https://github.com/bitwarden/sdk-sm/releases/download/bws-v2.1.0/bws-x86_64-unknown-linux-gnu-2.1.0.zip" \
+    && unzip -o -j /tmp/bws.zip bws -d /usr/local/bin \
+    && chmod 755 /usr/local/bin/bws \
+    && rm -f /tmp/bws.zip \
+    && bws --version
+
 ARG USERNAME=node
 
 RUN \
@@ -57,3 +65,32 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 
 RUN grep -qxF "alias python=python3" "/home/$USERNAME/.bashrc" \
     || echo "alias python=python3" >> "/home/$USERNAME/.bashrc"
+
+# Bitwarden session file across shells. Keep in sync with bw-session.bashrc.
+# post-start.sh also installs this for already-built images.
+RUN cat >> "/home/$USERNAME/.bashrc" << 'EOF'
+
+# >>> ark-bw-session >>>
+# Persist `bw unlock` across shells in this container. Treat the session file
+# like a decrypted vault key. Override path with BW_SESSION_FILE.
+export BW_SESSION_FILE="${BW_SESSION_FILE:-/commandhistory/.bw-session}"
+if [ -z "${BW_SESSION:-}" ] && [ -r "$BW_SESSION_FILE" ]; then
+  BW_SESSION="$(tr -d '\n\r' < "$BW_SESSION_FILE")"
+  export BW_SESSION
+fi
+bw-unlock() {
+  local session
+  session="$(command bw unlock --raw)" || return
+  export BW_SESSION="$session"
+  if [ -n "${BW_SESSION_FILE:-}" ]; then
+    (umask 077 && printf '%s\n' "$BW_SESSION" > "$BW_SESSION_FILE")
+    chmod 600 "$BW_SESSION_FILE" 2>/dev/null || true
+  fi
+}
+bw-lock() {
+  command bw lock "$@"
+  unset BW_SESSION
+  rm -f "${BW_SESSION_FILE:-/commandhistory/.bw-session}"
+}
+# <<< ark-bw-session <<<
+EOF

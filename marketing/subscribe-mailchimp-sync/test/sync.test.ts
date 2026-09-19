@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import {
+  clearSubscribeTableIdCache,
   isAuthorized,
   isRateLimited,
   listUnsyncedRows,
@@ -22,7 +23,6 @@ const env: Env = {
   MAILCHIMP_API_KEY: "mailchimp-key-us2",
   SYNC_SECRET: "sync-secret",
   MAILCHIMP_AUDIENCE_ID: "e2c69d5d31",
-  BASEROW_TABLE_ID: "1017358",
   BASEROW_API_URL: "https://api.baserow.io",
 };
 
@@ -50,10 +50,35 @@ describe("helpers", () => {
     expect(normalizeSignedUp("nope")).toBeUndefined();
   });
 
-  it("defaults to the production subscribe table and audience", () => {
-    expect(resolveTableId({})).toBe("1017358");
-    expect(resolveTableId({ BASEROW_TABLE_ID: " 99 " })).toBe("99");
+  it("resolves Subscribers by name and defaults the audience", async () => {
+    clearSubscribeTableIdCache();
     expect(resolveAudienceId({})).toBe("e2c69d5d31");
+
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { id: 1017358, name: "Subscribers", database_id: 461843 },
+      ],
+    })) as unknown as typeof fetch;
+
+    await expect(
+      resolveTableId({ BASEROW_API_KEY: "k" }, fetchImpl),
+    ).resolves.toBe("1017358");
+  });
+
+  it("errors when the token can see more than one Subscribers table", async () => {
+    clearSubscribeTableIdCache();
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { id: 1017358, name: "Subscribers", database_id: 461843 },
+        { id: 1024006, name: "Subscribers", database_id: 563090 },
+      ],
+    })) as unknown as typeof fetch;
+
+    await expect(
+      resolveTableId({ BASEROW_API_KEY: "k" }, fetchImpl),
+    ).rejects.toThrow(/Website database/);
   });
 
   it("hashes lowercase email for Mailchimp", () => {
@@ -169,12 +194,20 @@ describe("upsertMailchimpMember", () => {
 });
 
 describe("syncUnsyncedSubscribers", () => {
+  function tablesResponse() {
+    return Response.json([
+      { id: 1017358, name: "Subscribers", database_id: 461843 },
+    ]);
+  }
+
   it("dry-run does not call Mailchimp or patch Baserow", async () => {
+    clearSubscribeTableIdCache();
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes("api.mailchimp.com") || init?.method === "PATCH") {
         throw new Error(`Unexpected mutating fetch: ${url}`);
       }
+      if (url.includes("/all-tables/")) return tablesResponse();
       if (url.includes("/rows/table/")) {
         return Response.json({
           results: [
@@ -194,13 +227,15 @@ describe("syncUnsyncedSubscribers", () => {
     expect(summary.dryRun).toBe(true);
     expect(summary.synced).toBe(1);
     expect(summary.results[0]?.status).toBe("dry-run");
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it("upserts in Mailchimp then marks Baserow Synced", async () => {
+    clearSubscribeTableIdCache();
     const hash = mailchimpSubscriberHash("a@example.com");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/all-tables/")) return tablesResponse();
       if (url.includes("api.baserow.io") && init?.method !== "PATCH") {
         return Response.json({
           results: [
@@ -235,9 +270,11 @@ describe("syncUnsyncedSubscribers", () => {
   });
 
   it("records a sync-run row when BASEROW_SYNC_LOG_TABLE_ID is set", async () => {
+    clearSubscribeTableIdCache();
     const logPosts: unknown[] = [];
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/all-tables/")) return tablesResponse();
       if (
         url.includes("/rows/table/999/") &&
         init?.method === "POST"
@@ -273,8 +310,10 @@ describe("syncUnsyncedSubscribers", () => {
   });
 
   it("does not fail the sync when sync-log POST fails", async () => {
+    clearSubscribeTableIdCache();
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/all-tables/")) return tablesResponse();
       if (url.includes("/rows/table/999/") && init?.method === "POST") {
         return new Response("nope", { status: 500 });
       }
@@ -296,10 +335,12 @@ describe("syncUnsyncedSubscribers", () => {
   });
 
   it("stops early when Mailchimp rate-limits", async () => {
+    clearSubscribeTableIdCache();
     let mailchimpPuts = 0;
     const hashA = mailchimpSubscriberHash("a@example.com");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/all-tables/")) return tablesResponse();
       if (url.includes("api.baserow.io") && init?.method !== "PATCH") {
         return Response.json({
           results: [

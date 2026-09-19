@@ -5,7 +5,9 @@ export type Env = {
   SYNC_SECRET: string;
   /** Mailchimp Audience (list) ID. */
   MAILCHIMP_AUDIENCE_ID?: string;
-  BASEROW_TABLE_ID?: string;
+  /** Optional. Only needed if the token can see more than one Subscribers table. */
+  BASEROW_DATABASE_ID?: string;
+  BASEROW_SUBSCRIBE_TABLE_NAME?: string;
   /** Baserow table for durable sync-run history. */
   BASEROW_SYNC_LOG_TABLE_ID?: string;
   BASEROW_API_URL?: string;

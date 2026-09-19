@@ -13,9 +13,9 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 
 ## Branch flow
 
-- Develop on **`main`** → [Deploy staging](workflows/deploy-staging.yml): verify → deploy → smoke test.
+- Develop on **`main`** → [Web](workflows/web.yml): verify → staging deploy → smoke test.
 - **Production requires explicit authorization.** Do not merge `main` into `release`, push to `release`, open a production deploy PR, or run production deploy steps unless the user clearly asks (e.g. “deploy to production”, “push release”). Default after changes: commit and push **`main`** only, then verify staging.
-- When authorized: merge `main` into **`release`**, push → [Deploy production](workflows/deploy-production.yml): verify → deploy **preview** → smoke test preview. After reviewing the preview link in the job summary, run [Promote production to live](workflows/deploy-production-promote.yml) → live deploy → ensure prod domains → smoke test → CalVer tag.
+- When authorized: merge `main` into **`release`**, push → [Web](workflows/web.yml) production preview → smoke test. After reviewing the preview, run [Web promote](workflows/web-promote.yml) with `kind=code` → live deploy → CalVer tag.
 
 **Production manual gate:** Promotion is a separate `workflow_dispatch` workflow (private repos cannot use GitHub Environment required reviewers without Enterprise). Preview URL is the `release-preview` branch alias from the deploy step (currently `https://release-preview.gwenda-blue.pages.dev`).
 
@@ -57,13 +57,13 @@ dist/          Build output (gitignored)
 - **Node 24 + npm 11** via Corepack (`packageManager` in `package.json`). Workflows run `corepack enable` before `npm ci`.
 - **Verify before deploy:** reusable workflow `verify.yml` (build → test). Called by both deploy workflows.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `marketing/web/scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
-- **Wrangler config:** `wrangler.toml` (gwenda — `[vars]` + `[env.preview.vars]`) and `wrangler.staging.toml` (gwenda-staging). Plain vars sync on deploy; secrets via `sync-pages-secrets.mjs`.
+- **Wrangler config:** `wrangler.toml` (gwenda — `[vars]` + `[env.preview.vars]`) and `wrangler.staging.toml` (gwenda-staging). Plain vars (SMTP host/port, invite URLs) live in wrangler; runtime secrets sync only via `web-secrets.yml` / `ops-secrets.yml` → `sync-pages-secrets.mjs` (Bitwarden SM → Pages). Deploys do not push secrets.
 - **Production promote:** preview job uploads `production-dist` artifact; promote workflow downloads it and deploys with `skip-build: true` to the `release` branch (production environment).
 - **Production custom domains:** `ensure-pages-domain.mjs` for `gwenda.co.uk` and `www.gwenda.co.uk` only (production deploy).
 - **Staging URL:** `gwenda-staging.pages.dev` only — no custom domain in zone (keeps staging out of prod Web Analytics).
 - **Web Analytics:** Cloudflare dashboard zone auto-inject on production only; no analytics CI scripts or manual HTML beacons.
 - **Smoke tests:** `scripts/ci/smoke-test.mjs` — homepage (gate bypass on staging), `/api/subscribe`, critical `/_astro/` assets, `/robots.txt`, `X-Gwenda-Version` must match `--expected-version`.
-- **Secrets:** synced via `scripts/ci/sync-pages-secrets.mjs` profiles (`staging` | `production`). Never commit secrets.
+- **Secrets:** Bitwarden SM is source of truth (Ark / Ark/Ops / Ark/Web). GitHub keeps only `BWS_ACCESS_TOKEN`. Never commit secrets.
 
 ## Code quality
 
@@ -74,11 +74,11 @@ dist/          Build output (gitignored)
 
 ## Configuration
 
-- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`) or copy `.env.example` → `.env`. See [docs/env.md](../docs/env.md).
-- Staging gate: `SITE_PASSWORD` (GitHub secret + Cloudflare Pages secret).
-- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY`. Table IDs: `BASEROW_STAGING_TABLE_ID` (dev + staging subscribe), `BASEROW_TABLE_ID` (production subscribe). Event invites table resolved by name (`Event Invites`).
+- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`), then `env:ark:pull` / `env:ops:pull` / `env:web:pull`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
+- Staging gate: `SITE_PASSWORD` (Bitwarden Ark/Web → Cloudflare Pages via `web-secrets.yml`).
+- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (Pages secrets from SM; staging uses Dev website token, production uses `BASEROW_API_KEY_MARKETING_PRODUCTION`). Subscribe, Event Invites, and Form Submissions tables are resolved by name. The token selects the Website database.
+- Ops runtime knobs (pour-cost targets): Baserow **App Config** via `/api/config`. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
-
 ## What not to do
 
 - **Do not deploy to production without explicit user authorization** — no merges/pushes to `release`, no production workflow triggers, no manual prod Cloudflare deploys unless the user asks.

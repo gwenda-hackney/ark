@@ -5,27 +5,27 @@
  * Database tokens only allow row CRUD. Creating tables/fields requires a short-lived
  * JWT from POST /api/user/token-auth/ (Admin or Builder on the workspace).
  *
- * Dev and gwenda-staging share the same Baserow database (465058). Production tables
+ * Dev and gwenda-staging share Gwenda Dev / Website. Production tables
  * are created separately when you promote.
  *
  * Usage:
  *   npm run setup:baserow-rsvp
  *
- * Prompts for Baserow email + password (not stored). Optional non-interactive:
+ * Prompts for Baserow email + password on first login, then caches the JWT in
+ * `.baserow-jwt.json`. Optional non-interactive:
  *   BASEROW_JWT_EMAIL, BASEROW_JWT_PASSWORD
  *
  * Optional:
  *   BASEROW_RSVP_TABLE_NAME=Event Invites
  *   BASEROW_API_URL=https://api.baserow.io
  */
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
+import { resolveWebsiteDatabase } from "./lib/baserow-clone.mjs";
 import {
   DEFAULT_BASEROW_API,
-  DEV_BASEROW_DATABASE_ID,
-  DEV_SUBSCRIBE_TABLE_ID,
-  PRODUCTION_SUBSCRIBE_TABLE_ID,
   RSVP_TABLE_NAME,
+  SUBSCRIBE_TABLE_NAME,
+  WEBSITE_DATABASE_NAME,
 } from "../marketing/web/functions/_lib/baserow.js";
 
 const EXPECTED_FIELDS = [
@@ -80,79 +80,6 @@ function readEnv(name) {
   return process.env[name]?.trim() || "";
 }
 
-function promptHidden(question) {
-  return new Promise((resolve, reject) => {
-    stdout.write(question);
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding("utf8");
-
-    let password = "";
-    const onData = (char) => {
-      if (char === "\n" || char === "\r" || char === "\u0004") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        resolve(password);
-        return;
-      }
-      if (char === "\u0003") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        process.exit(130);
-      }
-      if (char === "\u007f") {
-        if (password.length > 0) password = password.slice(0, -1);
-        return;
-      }
-      password += char;
-    };
-
-    stdin.on("data", onData);
-  });
-}
-
-async function promptCredentials(databaseId) {
-  let email = readEnv("BASEROW_JWT_EMAIL");
-  let password = readEnv("BASEROW_JWT_PASSWORD");
-  if (email && password) {
-    return { email, password };
-  }
-
-  if (!stdin.isTTY) {
-    throw new Error(
-      "Set BASEROW_JWT_EMAIL and BASEROW_JWT_PASSWORD for non-interactive use.",
-    );
-  }
-
-  console.log(
-    `Log in with your Baserow account (Admin or Builder on database ${databaseId}).`,
-  );
-  console.log("Credentials are not saved — used once for a short-lived JWT.\n");
-
-  const rl = createInterface({ input: stdin, output: stdout });
-  try {
-    if (!email) {
-      email = (await rl.question("Baserow email: ")).trim();
-    }
-  } finally {
-    rl.close();
-  }
-
-  if (!password) {
-    password = await promptHidden("Baserow password: ");
-  }
-
-  if (!email || !password) {
-    throw new Error("Email and password are required.");
-  }
-
-  return { email, password };
-}
-
 async function baserowRequest(apiBase, jwt, path, init = {}) {
   const url = path.startsWith("http") ? path : `${apiBase}${path}`;
   const response = await fetch(url, {
@@ -177,58 +104,22 @@ async function baserowRequest(apiBase, jwt, path, init = {}) {
   return json;
 }
 
-async function fetchJwt(apiBase, email, password) {
-  const response = await fetch(`${apiBase}/api/user/token-auth/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `Baserow login failed (${response.status}): ${payload.detail || payload.error || "check email/password"}`,
-    );
-  }
-  const token = payload.access_token || payload.token;
-  if (!token) {
-    throw new Error("Baserow login succeeded but no access_token in response.");
-  }
-  return token;
-}
-
-async function loadDatabaseTables(apiBase, jwt, databaseId, subscribeTableId, label) {
+async function loadDatabaseTables(apiBase, jwt, databaseId, label) {
   const tables = await baserowRequest(
     apiBase,
     jwt,
     `/api/database/tables/database/${databaseId}/`,
   );
-  const marker = tables.find((table) => String(table.id) === subscribeTableId);
+  const marker = tables.find((table) => table.name === SUBSCRIBE_TABLE_NAME);
   if (!marker) {
     throw new Error(
-      `Expected ${label} Baserow database ${databaseId} to contain subscribe table ${subscribeTableId}.`,
+      `Expected ${label} "${WEBSITE_DATABASE_NAME}" (${databaseId}) to contain "${SUBSCRIBE_TABLE_NAME}".`,
     );
   }
   console.log(
-    `${label} database ${databaseId} (subscribe table "${marker.name}" id ${subscribeTableId}).`,
+    `${label} "${WEBSITE_DATABASE_NAME}" (${databaseId}), "${marker.name}" id ${marker.id}.`,
   );
   return tables;
-}
-
-async function resolveProductionDatabaseId(apiBase, apiKey) {
-  const response = await fetch(`${apiBase}/api/database/tables/all-tables/`, {
-    headers: { Authorization: `Token ${apiKey}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Could not list Baserow tables (${response.status}).`);
-  }
-  const tables = await response.json();
-  const subscribe = tables.find((table) => String(table.id) === PRODUCTION_SUBSCRIBE_TABLE_ID);
-  if (!subscribe) {
-    throw new Error(
-      `Production subscribe table ${PRODUCTION_SUBSCRIBE_TABLE_ID} not visible to BASEROW_API_KEY.`,
-    );
-  }
-  return String(subscribe.database_id);
 }
 
 async function findOrCreateTable(tables, apiBase, jwt, databaseId, tableName) {
@@ -282,34 +173,26 @@ async function main() {
   const production = process.argv.includes("--production");
   const tableName = readEnv("BASEROW_RSVP_TABLE_NAME") || RSVP_TABLE_NAME;
   const apiBase = (readEnv("BASEROW_API_URL") || DEFAULT_BASEROW_API).replace(/\/$/, "");
-  const apiKey = readEnv("BASEROW_API_KEY");
+  const label = production ? "Production" : "Dev";
+
+  const jwt = await getBaserowJwt(apiBase, {
+    hint: `${label} ${WEBSITE_DATABASE_NAME}`,
+  });
 
   let databaseId = readEnv("BASEROW_DATABASE_ID");
-  let subscribeTableId = readEnv("BASEROW_TABLE_ID") || DEV_SUBSCRIBE_TABLE_ID;
-  let label = "Dev";
-
-  if (production) {
-    if (!apiKey) {
-      throw new Error("BASEROW_API_KEY is required for --production (resolves prod database id).");
-    }
-    databaseId = databaseId || (await resolveProductionDatabaseId(apiBase, apiKey));
-    subscribeTableId = PRODUCTION_SUBSCRIBE_TABLE_ID;
-    label = "Production";
-  } else {
-    databaseId = databaseId || DEV_BASEROW_DATABASE_ID;
+  if (!databaseId) {
+    const found = await resolveWebsiteDatabase(apiBase, jwt, { production });
+    databaseId = found.databaseId;
+    console.log(
+      `${found.workspaceName} / ${found.databaseName} (${databaseId}).`,
+    );
   }
-
-  const { email, password } = await promptCredentials(databaseId);
-
-  console.log(`Authenticating with Baserow (${apiBase})…`);
-  const jwt = await fetchJwt(apiBase, email, password);
 
   console.log(`Table "${tableName}"…`);
   const tables = await loadDatabaseTables(
     apiBase,
     jwt,
     databaseId,
-    subscribeTableId,
     label,
   );
   const table = await findOrCreateTable(
@@ -333,7 +216,7 @@ async function main() {
   } else {
     console.log("Next:");
     console.log("  1. Create a database token (Settings → Database tokens) with CRUD on this table.");
-    console.log("  2. Set BASEROW_API_KEY in .env (same token works for dev + staging).");
+    console.log("  2. Set BASEROW_API_KEY in .env.web (Gwenda Dev website token).");
     console.log(`  3. Set BASEROW_RSVP_GRID_URL=${gridUrl} in repo-root .env`);
     console.log("");
     console.log("Runtime code resolves the table by name — no table id in .env.");

@@ -1,0 +1,30 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Subpage from "../components/Subpage.astro";
+import EmailSignup from "../components/EmailSignup.astro";
+import { siteConfig } from "../config/site";
+
+const { contactPage } = siteConfig.copy;
+---
+
+<BaseLayout
+  title={`Stay close · ${siteConfig.name}`}
+  description="Join the Gwenda list for nights ahead in Hackney Wick."
+  showBooking={false}
+>
+  <Subpage
+    class="contact-list-page"
+    innerClass="contact-list-inner"
+    href="/contact"
+  >
+    <header class="contact-list-header reveal">
+      <p class="section-eyebrow">{contactPage.listEyebrow}</p>
+      <h1>{contactPage.listHeading}</h1>
+      <p>{contactPage.listLead}</p>
+    </header>
+
+    <div class="contact-list-form reveal reveal-stagger" style="--reveal-delay: 0.1s">
+      <EmailSignup mode="promo" embedded />
+    </div>
+  </Subpage>
+</BaseLayout>

@@ -23,9 +23,24 @@ export const menuItem = defineType({
     }),
     defineField({
       name: "notes",
-      title: "Cocktail type",
+      title: "Tasting note",
       type: "string",
-      description: "Style or serve, e.g. Aperitif, Digestif, Long drink.",
+      description: "Optional guest line, e.g. Floral fizz, Digestif.",
+    }),
+    defineField({
+      name: "drinkType",
+      title: "Drink type",
+      type: "string",
+      options: {
+        list: [
+          { title: "Cocktail", value: "cocktail" },
+          { title: "Pour", value: "pour" },
+          { title: "Beer", value: "beer" },
+          { title: "Packaged", value: "packaged" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "cocktail",
     }),
     defineField({
       name: "section",
@@ -37,7 +52,13 @@ export const menuItem = defineType({
     defineField({
       name: "price",
       title: "Price",
-      description: "Display price without £, e.g. 14",
+      description: "Primary price without £ (single, pint, or unit).",
+      type: "string",
+    }),
+    defineField({
+      name: "priceAlt",
+      title: "Alt price",
+      description: "Second size without £ (double or half pint).",
       type: "string",
     }),
     defineField({
@@ -58,9 +79,10 @@ export const menuItem = defineType({
     }),
     defineField({
       name: "signature",
-      title: "Signature cocktail",
+      title: "Signature cocktail (legacy)",
       type: "boolean",
-      description: "Show in the homepage image gallery (requires a photo).",
+      description: "Deprecated. Gallery uses cocktail photos instead.",
+      hidden: true,
       initialValue: false,
     }),
     defineField({
@@ -87,16 +109,18 @@ export const menuItem = defineType({
       title: "name",
       subtitle: "section.title",
       price: "price",
+      priceAlt: "priceAlt",
+      drinkType: "drinkType",
       media: "image",
-      signature: "signature",
       notes: "notes",
       abv: "abv",
     },
-    prepare({ title, subtitle, price, media, signature, notes, abv }) {
-      const prefix = signature ? "★ " : "";
+    prepare({ title, subtitle, price, priceAlt, drinkType, media, notes, abv }) {
+      const priceLine =
+        price && priceAlt ? `£${price} / £${priceAlt}` : price ? `£${price}` : null;
       return {
-        title: `${prefix}${title}`,
-        subtitle: [notes, abv, subtitle, price ? `£${price}` : null]
+        title,
+        subtitle: [drinkType, notes, abv, subtitle, priceLine]
           .filter(Boolean)
           .join(" · "),
         media,

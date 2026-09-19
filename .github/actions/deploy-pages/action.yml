@@ -1,15 +1,15 @@
 name: Deploy to Cloudflare Pages
 description: Build and deploy the static site to a Cloudflare Pages project
 
+# Runtime Pages secrets (SMTP_PASSWORD, SITE_PASSWORD, …) are NOT synced here.
+# Source of truth is Bitwarden SM → Cloudflare via web-secrets.yml (or local sync).
+
 inputs:
   pages-project:
     description: Cloudflare Pages project name
     required: true
   pages-production-branch:
     description: Production branch for the Pages project
-    required: true
-  secret-profile:
-    description: Secret profile (staging or production)
     required: true
   deploy-branch:
     description: Branch label passed to wrangler pages deploy
@@ -48,62 +48,8 @@ inputs:
   cloudflare-account-id:
     description: Cloudflare account ID
     required: true
-  site-password:
-    description: Staging site password secret
-    required: false
-  gate-bypass-key:
-    description: Staging gate bypass key
-    required: false
-  baserow-api-key:
-    description: Baserow API key
-    required: false
-  baserow-table-id:
-    description: Baserow table ID
-    required: false
-  subscribe-secret:
-    description: Subscribe endpoint secret
-    required: false
-  event-admin-secret:
-    description: Bearer secret for /api/event-admin (Studio Event invites)
-    required: false
-  smtp-host:
-    description: SMTP host for invite emails
-    required: false
-  smtp-port:
-    description: SMTP port for invite emails
-    required: false
-  smtp-user:
-    description: SMTP user for invite emails
-    required: false
-  smtp-password:
-    description: SMTP password for invite emails
-    required: false
-  smtp-from:
-    description: SMTP from address for invite emails
-    required: false
-  instagram-access-token:
-    description: Instagram Graph API token for invite DMs
-    required: false
-  instagram-business-account-id:
-    description: Instagram business account id for invite DMs
-    required: false
-  invite-base-url:
-    description: Base URL for personal invite links
-    required: false
-  invite-image-url:
-    description: Hero image URL in invite emails
-    required: false
-  invite-email-subject:
-    description: Invite email subject template
-    required: false
-  invite-email-body:
-    description: Invite email body template
-    required: false
-  invite-instagram-message:
-    description: Invite Instagram DM template
-    required: false
   sanity-api-token:
-    description: SANITY_API_TOKEN — CI token for build-time CMS fetch
+    description: SANITY_API_TOKEN — CI token for build-time CMS fetch (from Bitwarden SM)
     required: false
   sanity-dataset:
     description: Sanity dataset for build-time CMS fetch (development or production)
@@ -161,32 +107,6 @@ runs:
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
         PAGES_PRODUCTION_BRANCH: ${{ inputs.pages-production-branch }}
-
-    - name: Sync Pages secrets
-      shell: bash
-      run: cd marketing/web && node scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secret-profile }}"
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
-        SITE_PASSWORD: ${{ inputs.site-password }}
-        GATE_BYPASS_KEY: ${{ inputs.gate-bypass-key }}
-        BASEROW_API_KEY: ${{ inputs.baserow-api-key }}
-        BASEROW_TABLE_ID: ${{ inputs.baserow-table-id }}
-        SUBSCRIBE_SECRET: ${{ inputs.subscribe-secret }}
-        EVENT_ADMIN_SECRET: ${{ inputs.event-admin-secret }}
-        SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
-        SMTP_HOST: ${{ inputs.smtp-host }}
-        SMTP_PORT: ${{ inputs.smtp-port }}
-        SMTP_USER: ${{ inputs.smtp-user }}
-        SMTP_PASSWORD: ${{ inputs.smtp-password }}
-        SMTP_FROM: ${{ inputs.smtp-from }}
-        INSTAGRAM_ACCESS_TOKEN: ${{ inputs.instagram-access-token }}
-        INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ inputs.instagram-business-account-id }}
-        INVITE_BASE_URL: ${{ inputs.invite-base-url }}
-        INVITE_IMAGE_URL: ${{ inputs.invite-image-url }}
-        INVITE_EMAIL_SUBJECT: ${{ inputs.invite-email-subject }}
-        INVITE_EMAIL_BODY: ${{ inputs.invite-email-body }}
-        INVITE_INSTAGRAM_MESSAGE: ${{ inputs.invite-instagram-message }}
 
     - name: Prepare Wrangler config
       shell: bash

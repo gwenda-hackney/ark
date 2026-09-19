@@ -8,19 +8,57 @@
  * Usage:
  *   npm run setup:baserow-ops
  *
- * Prompts for Baserow email + password (not stored). Optional non-interactive:
+ * Also creates the Users table (Email + Active) and App Config (runtime
+ * non-secret settings such as pour-cost targets). Optional one-time Users seed
+ * from OPS_ALLOWED_EMAILS if that leftover is still in .env. After that, add
+ * people in Baserow, not env.
+ *
+ * Prompts for Baserow email + password on first login, then caches the JWT in
+ * `.baserow-jwt.json` (gitignored) for this checkout. Optional non-interactive:
  *   BASEROW_JWT_EMAIL, BASEROW_JWT_PASSWORD
  *   BASEROW_WORKSPACE_ID   (required to create a new database)
  *   BASEROW_OPS_DATABASE_ID (reuse an existing Ops database)
  */
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
+import {
+  OPS_DATABASE_NAME,
+  TABLE_INGREDIENTS,
+  TABLE_INVENTORY,
+  TABLE_INVENTORY_SUPPLIERS,
+  TABLE_ITEMS,
+  TABLE_SECTIONS,
+  TABLE_SUPPLIERS,
+  TABLE_USERS,
+  TABLE_CONFIG,
+} from "../ops/site/functions/_lib/baserow.js";
+import {
+  DEFAULT_POUR_TARGETS,
+  DEFAULT_SANITY_PROJECT_ID,
+  OPS_CONFIG_KEYS,
+  POUR_TARGET_KEYS,
+} from "../ops/site/functions/_lib/config-store.js";
+import { parseEmailList } from "./lib/parse-email-list.mjs";
+import {
+  looksLikeOnlyUrls,
+  parseProductUrl,
+  SEED_SUPPLIERS,
+  skuFromProductUrl,
+  supplierFromUrl,
+} from "../ops/site/functions/_lib/suppliers.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const LWC_PRICES = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "data/lwc-price-list.json"),
+    "utf8",
+  ),
+);
 
 const DEFAULT_BASEROW_API = "https://api.baserow.io";
-const OPS_DATABASE_NAME = "Gwenda Ops";
-const TABLE_SECTIONS = "Menu Sections";
-const TABLE_ITEMS = "Menu Items";
-const TABLE_INGREDIENTS = "Ingredients";
 
 const RECIPE_UNITS = [
   "ml",
@@ -41,64 +79,6 @@ const RECIPE_UNITS = [
 
 function readEnv(name) {
   return process.env[name]?.trim() || "";
-}
-
-function promptHidden(question) {
-  return new Promise((resolve) => {
-    stdout.write(question);
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding("utf8");
-    let password = "";
-    const onData = (char) => {
-      if (char === "\n" || char === "\r" || char === "\u0004") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        resolve(password);
-        return;
-      }
-      if (char === "\u0003") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        process.exit(130);
-      }
-      if (char === "\u007f") {
-        if (password.length > 0) password = password.slice(0, -1);
-        return;
-      }
-      password += char;
-    };
-    stdin.on("data", onData);
-  });
-}
-
-async function promptCredentials() {
-  let email = readEnv("BASEROW_JWT_EMAIL");
-  let password = readEnv("BASEROW_JWT_PASSWORD");
-  if (email && password) return { email, password };
-
-  if (!stdin.isTTY) {
-    throw new Error(
-      "Set BASEROW_JWT_EMAIL and BASEROW_JWT_PASSWORD for non-interactive use.",
-    );
-  }
-
-  console.log("Log in with your Baserow account (Admin or Builder).");
-  console.log("Credentials are not saved — used once for a short-lived JWT.\n");
-
-  const rl = createInterface({ input: stdin, output: stdout });
-  try {
-    if (!email) email = (await rl.question("Baserow email: ")).trim();
-  } finally {
-    rl.close();
-  }
-  if (!password) password = await promptHidden("Baserow password: ");
-  if (!email || !password) throw new Error("Email and password are required.");
-  return { email, password };
 }
 
 async function baserowRequest(apiBase, jwt, path, init = {}) {
@@ -123,23 +103,6 @@ async function baserowRequest(apiBase, jwt, path, init = {}) {
     throw new Error(`${init.method || "GET"} ${path} → ${response.status}: ${detail}`);
   }
   return json;
-}
-
-async function fetchJwt(apiBase, email, password) {
-  const response = await fetch(`${apiBase}/api/user/token-auth/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `Baserow login failed (${response.status}): ${payload.detail || payload.error || "check email/password"}`,
-    );
-  }
-  const token = payload.access_token || payload.token;
-  if (!token) throw new Error("Baserow login succeeded but no access_token.");
-  return token;
 }
 
 async function listWorkspaces(apiBase, jwt) {
@@ -318,6 +281,36 @@ function itemFields(sectionsTableId) {
     { name: "Menu line", body: { name: "Menu line", type: "long_text" } },
     { name: "Lock menu line", body: { name: "Lock menu line", type: "boolean" } },
     { name: "Price", body: { name: "Price", type: "text" } },
+    { name: "Alt price", body: { name: "Alt price", type: "text" } },
+    {
+      name: "Drink type",
+      body: {
+        name: "Drink type",
+        type: "single_select",
+        select_options: [
+          { value: "cocktail", color: "purple" },
+          { value: "pour", color: "orange" },
+          { value: "beer", color: "yellow" },
+          { value: "packaged", color: "cyan" },
+        ],
+      },
+    },
+    {
+      name: "Cocktail type",
+      body: {
+        name: "Cocktail type",
+        type: "single_select",
+        select_options: [
+          { value: "spritz", color: "pink" },
+          { value: "highball", color: "blue" },
+          { value: "sour", color: "yellow" },
+          { value: "stirred", color: "dark-gray" },
+          { value: "negroni", color: "orange" },
+          { value: "fizz", color: "cyan" },
+          { value: "other", color: "light-gray" },
+        ],
+      },
+    },
     { name: "Type", body: { name: "Type", type: "text" } },
     { name: "Glassware", body: { name: "Glassware", type: "text" } },
     { name: "Garnish", body: { name: "Garnish", type: "text" } },
@@ -342,10 +335,18 @@ function itemFields(sectionsTableId) {
       name: "On digital menu",
       body: { name: "On digital menu", type: "boolean" },
     },
+    {
+      name: "Publish snapshots",
+      body: { name: "Publish snapshots", type: "long_text" },
+    },
+    {
+      name: "AI reading",
+      body: { name: "AI reading", type: "long_text" },
+    },
   ];
 }
 
-function ingredientFields(itemsTableId) {
+function ingredientFields(itemsTableId, inventoryTableId) {
   return [
     {
       name: "Menu Item",
@@ -355,6 +356,17 @@ function ingredientFields(itemsTableId) {
         link_row_table_id: itemsTableId,
         has_related_field: false,
       },
+    },
+    {
+      name: "Inventory",
+      body: inventoryTableId
+        ? {
+            name: "Inventory",
+            type: "link_row",
+            link_row_table_id: inventoryTableId,
+            has_related_field: false,
+          }
+        : null,
     },
     {
       name: "Qty",
@@ -377,6 +389,7 @@ function ingredientFields(itemsTableId) {
       },
     },
     { name: "Note", body: { name: "Note", type: "text" } },
+    { name: "ABV", body: { name: "ABV", type: "text" } },
     {
       name: "Order",
       body: {
@@ -389,11 +402,520 @@ function ingredientFields(itemsTableId) {
   ];
 }
 
+function inventoryFields() {
+  return [
+    { name: "Full name", body: { name: "Full name", type: "text" } },
+    {
+      name: "Kind",
+      body: {
+        name: "Kind",
+        type: "single_select",
+        select_options: [
+          { value: "liquor", color: "purple" },
+          { value: "liqueur", color: "dark-purple" },
+          { value: "wine", color: "red" },
+          { value: "beer", color: "yellow" },
+          { value: "syrup", color: "orange" },
+          { value: "juice", color: "green" },
+          { value: "bitter", color: "brown" },
+          { value: "mixer", color: "cyan" },
+          { value: "garnish", color: "light-green" },
+          { value: "other", color: "gray" },
+        ],
+      },
+    },
+    { name: "ABV", body: { name: "ABV", type: "text" } },
+    {
+      name: "Default unit",
+      body: {
+        name: "Default unit",
+        type: "single_select",
+        select_options: RECIPE_UNITS.map((value, index) => ({
+          value,
+          color: ["blue", "green", "orange", "purple", "cyan"][index % 5],
+        })),
+      },
+    },
+    {
+      name: "Estimated cost",
+      body: {
+        name: "Estimated cost",
+        type: "number",
+        number_decimal_places: 2,
+        number_negative: false,
+      },
+    },
+    { name: "Notes", body: { name: "Notes", type: "text" } },
+    { name: "Active", body: { name: "Active", type: "boolean" } },
+    { name: "Lightspeed SKU", body: { name: "Lightspeed SKU", type: "text" } },
+    {
+      name: "Actual qty",
+      body: {
+        name: "Actual qty",
+        type: "number",
+        number_decimal_places: 3,
+        number_negative: false,
+      },
+    },
+    { name: "Actual unit", body: { name: "Actual unit", type: "text" } },
+    {
+      name: "Counted at",
+      body: {
+        name: "Counted at",
+        type: "date",
+        date_format: "ISO",
+        date_include_time: true,
+        date_time_format: "24",
+      },
+    },
+  ];
+}
+
+function supplierFields() {
+  return [
+    { name: "Website", body: { name: "Website", type: "url" } },
+    { name: "Notes", body: { name: "Notes", type: "text" } },
+  ];
+}
+
+function userFields() {
+  return [
+    { name: "Email", body: { name: "Email", type: "email" } },
+    { name: "Active", body: { name: "Active", type: "boolean" } },
+  ];
+}
+
+function configFields() {
+  return [
+    { name: "Value", body: { name: "Value", type: "text" } },
+    {
+      name: "Env",
+      body: {
+        name: "Env",
+        type: "single_select",
+        select_options: [
+          { value: "all", color: "dark-gray" },
+          { value: "local", color: "blue" },
+          { value: "staging", color: "orange" },
+          { value: "production", color: "green" },
+        ],
+      },
+    },
+    {
+      name: "Service",
+      body: {
+        name: "Service",
+        type: "single_select",
+        select_options: [
+          { value: "all", color: "dark-gray" },
+          { value: "ops", color: "purple" },
+          { value: "web", color: "cyan" },
+          { value: "workers", color: "yellow" },
+        ],
+      },
+    },
+  ];
+}
+
+function inventorySupplierFields(inventoryTableId, suppliersTableId) {
+  return [
+    {
+      name: "Inventory",
+      body: {
+        name: "Inventory",
+        type: "link_row",
+        link_row_table_id: inventoryTableId,
+        has_related_field: true,
+      },
+    },
+    {
+      name: "Supplier",
+      body: {
+        name: "Supplier",
+        type: "link_row",
+        link_row_table_id: suppliersTableId,
+        has_related_field: true,
+      },
+    },
+    { name: "Product URL", body: { name: "Product URL", type: "url" } },
+    { name: "SKU", body: { name: "SKU", type: "text" } },
+    { name: "Pack", body: { name: "Pack", type: "text" } },
+    {
+      name: "Price",
+      body: {
+        name: "Price",
+        type: "number",
+        number_decimal_places: 2,
+        number_negative: false,
+      },
+    },
+  ];
+}
+
+async function listRows(apiBase, jwt, tableId) {
+  const rows = [];
+  let page = 1;
+  for (;;) {
+    const payload = await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${tableId}/?user_field_names=true&size=200&page=${page}`,
+    );
+    rows.push(...(payload.results || []));
+    if (!payload?.next) break;
+    page += 1;
+    if (page > 50) break;
+  }
+  return rows;
+}
+
+function linkId(value) {
+  if (Array.isArray(value) && value[0]) {
+    const first = value[0];
+    if (typeof first === "number") return first;
+    if (first && typeof first === "object" && first.id != null) return Number(first.id);
+  }
+  return null;
+}
+
+async function seedSuppliers(apiBase, jwt, suppliersTableId) {
+  const existing = await listRows(apiBase, jwt, suppliersTableId);
+  const byName = new Map(
+    existing.map((row) => [String(row.Name || "").trim().toLowerCase(), row]),
+  );
+  for (const seed of SEED_SUPPLIERS) {
+    const key = seed.name.toLowerCase();
+    const hit = byName.get(key);
+    if (hit) {
+      const website = String(hit.Website || "").trim();
+      if (seed.website && !website) {
+        await baserowRequest(
+          apiBase,
+          jwt,
+          `/api/database/rows/table/${suppliersTableId}/${hit.id}/?user_field_names=true`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ Website: seed.website }),
+          },
+        );
+        console.log(`  ~ ${seed.name} (website)`);
+      } else {
+        console.log(`  ✓ ${seed.name}`);
+      }
+      continue;
+    }
+    const created = await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${suppliersTableId}/?user_field_names=true`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          Name: seed.name,
+          Website: seed.website || "",
+          Notes: "",
+        }),
+      },
+    );
+    byName.set(key, created);
+    console.log(`  + ${seed.name}`);
+  }
+  return byName;
+}
+
+async function seedUsers(apiBase, jwt, usersTableId) {
+  const emails = parseEmailList(
+    process.env.OPS_ALLOWED_EMAILS || process.env.AUTH0_ALLOWED_EMAILS,
+  );
+  const existing = await listRows(apiBase, jwt, usersTableId);
+  const byEmail = new Set();
+  for (const row of existing) {
+    const email = String(row.Email || "").trim().toLowerCase();
+    if (!email) {
+      await baserowRequest(
+        apiBase,
+        jwt,
+        `/api/database/rows/table/${usersTableId}/${row.id}/`,
+        { method: "DELETE" },
+      );
+      console.log("  − empty starter row");
+      continue;
+    }
+    byEmail.add(email);
+  }
+  if (!emails.length && byEmail.size === 0) {
+    console.log(
+      "  (empty) Add Email + Active in Baserow Users before anyone can sign in on production.",
+    );
+    return;
+  }
+  for (const email of emails) {
+    if (byEmail.has(email)) {
+      console.log(`  ✓ ${email}`);
+      continue;
+    }
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${usersTableId}/?user_field_names=true`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          Name: email,
+          Email: email,
+          Active: true,
+        }),
+      },
+    );
+    byEmail.add(email);
+    console.log(`  + ${email}`);
+  }
+}
+
+async function seedAppConfig(apiBase, jwt, configTableId) {
+  const existing = await listRows(apiBase, jwt, configTableId);
+  const byKey = new Map();
+  for (const row of existing) {
+    const key = String(row.Name || "").trim();
+    const env = String(row.Env?.value || row.Env || "all")
+      .trim()
+      .toLowerCase();
+    const service = String(row.Service?.value || row.Service || "all")
+      .trim()
+      .toLowerCase();
+    if (key) byKey.set(`${key}|${env}|${service}`, row);
+  }
+
+  async function ensureRow(key, value, envName, service = "ops") {
+    if (!value) return;
+    const mapKey = `${key}|${envName}|${service}`;
+    if (byKey.has(mapKey)) {
+      console.log(`  ✓ ${key} (${envName})`);
+      return;
+    }
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${configTableId}/?user_field_names=true`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          Name: key,
+          Value: String(value),
+          Env: envName,
+          Service: service,
+        }),
+      },
+    );
+    byKey.set(mapKey, true);
+    const shown =
+      key.includes("secret") || key.includes("token") || key.includes("password")
+        ? "(set)"
+        : String(value).length > 48
+          ? `${String(value).slice(0, 24)}…`
+          : value;
+    console.log(`  + ${key}=${shown} (${envName})`);
+  }
+
+  for (const [type, key] of Object.entries(POUR_TARGET_KEYS)) {
+    await ensureRow(key, DEFAULT_POUR_TARGETS[type], "all");
+  }
+
+  await ensureRow(
+    OPS_CONFIG_KEYS.sanityProjectId,
+    readEnv("SANITY_PROJECT_ID") || DEFAULT_SANITY_PROJECT_ID,
+    "all",
+  );
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "development", "local");
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "development", "staging");
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "production", "production");
+
+  const webhook =
+    readEnv("SITE_DEPLOY_WEBHOOK_URL") || readEnv("SANITY_STUDIO_SITE_DEPLOY_URL");
+  if (webhook) {
+    await ensureRow(OPS_CONFIG_KEYS.siteDeployWebhookUrl, webhook, "all");
+  } else {
+    console.log("  (skip site_deploy.webhook_url — set SITE_DEPLOY_WEBHOOK_URL in .env)");
+  }
+
+  const googleClientId = readEnv("GOOGLE_OAUTH_CLIENT_ID");
+  await ensureRow(OPS_CONFIG_KEYS.googleOauthClientId, googleClientId, "all");
+}
+
+async function findOrCreateSupplier(apiBase, jwt, suppliersTableId, byName, hint) {
+  const name = String(hint?.name || "").trim();
+  if (!name) return null;
+  const key = name.toLowerCase();
+  const hit = byName.get(key);
+  if (hit) {
+    const website = String(hit.Website || "").trim();
+    if (hint.website && !website) {
+      const updated = await baserowRequest(
+        apiBase,
+        jwt,
+        `/api/database/rows/table/${suppliersTableId}/${hit.id}/?user_field_names=true`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ Website: hint.website }),
+        },
+      );
+      byName.set(key, updated);
+      return updated;
+    }
+    return hit;
+  }
+  const created = await baserowRequest(
+    apiBase,
+    jwt,
+    `/api/database/rows/table/${suppliersTableId}/?user_field_names=true`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        Name: name,
+        Website: hint.website || "",
+        Notes: "",
+      }),
+    },
+  );
+  byName.set(key, created);
+  console.log(`  + supplier ${name}`);
+  return created;
+}
+
+function lwcFieldsForUrl(url) {
+  const sku = skuFromProductUrl(url);
+  const hit = sku ? LWC_PRICES[sku] : null;
+  const fields = {};
+  if (sku) fields.SKU = sku;
+  if (hit?.pack) fields.Pack = hit.pack;
+  if (typeof hit?.price === "number") fields.Price = hit.price;
+  return fields;
+}
+
+function leftoverProductUrls(row) {
+  const dedicated = String(row["Supplier links"] || "");
+  const notes = String(row.Notes || "");
+  const urls = [];
+  const seen = new Set();
+  for (const line of dedicated.split(/\r?\n/).concat(
+    looksLikeOnlyUrls(notes) ? notes.split(/\r?\n/) : [],
+  )) {
+    const url = parseProductUrl(line);
+    if (!url) continue;
+    const key = url.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    urls.push(url);
+  }
+  return urls;
+}
+
+async function migrateSupplierLinks(
+  apiBase,
+  jwt,
+  { inventory, suppliers, inventorySuppliers },
+  supplierByName,
+) {
+  const fields = await baserowRequest(
+    apiBase,
+    jwt,
+    `/api/database/fields/table/${inventory.id}/`,
+  );
+  const hasLegacy = (fields || []).some((field) => field.name === "Supplier links");
+  const inventoryRows = await listRows(apiBase, jwt, inventory.id);
+  const linkRows = await listRows(apiBase, jwt, inventorySuppliers.id);
+  const existingByUrl = new Map(
+    linkRows.map((row) => {
+      const invId = linkId(row.Inventory);
+      const url = parseProductUrl(row["Product URL"]).toLowerCase();
+      return [`${invId}|${url}`, row];
+    }),
+  );
+
+  let created = 0;
+  let priced = 0;
+  for (const row of inventoryRows) {
+    const urls = leftoverProductUrls(row);
+    if (!urls.length) continue;
+    for (const url of urls) {
+      const lwc = lwcFieldsForUrl(url);
+      const hint =
+        lwc.Price != null
+          ? {
+              name: "LWC Drinks",
+              website: "https://www.lwc-drinks.co.uk",
+              productUrl: url,
+            }
+          : supplierFromUrl(url);
+      const supplier = await findOrCreateSupplier(
+        apiBase,
+        jwt,
+        suppliers.id,
+        supplierByName,
+        hint,
+      );
+      if (!supplier) continue;
+      const urlKey = `${row.id}|${url.toLowerCase()}`;
+      const payload = {
+        Name: String(supplier.Name || hint.name || "").trim(),
+        Inventory: [Number(row.id)],
+        Supplier: [Number(supplier.id)],
+        "Product URL": url,
+        ...lwc,
+      };
+      const current = existingByUrl.get(urlKey);
+      if (current) {
+        const needsPrice =
+          Number(current.Price) !== Number(lwc.Price ?? current.Price) ||
+          String(current.SKU || "") !== String(lwc.SKU || "") ||
+          String(current.Pack || "") !== String(lwc.Pack || "");
+        if (needsPrice) {
+          await baserowRequest(
+            apiBase,
+            jwt,
+            `/api/database/rows/table/${inventorySuppliers.id}/${current.id}/?user_field_names=true`,
+            { method: "PATCH", body: JSON.stringify(payload) },
+          );
+          priced += 1;
+        }
+        continue;
+      }
+      const createdRow = await baserowRequest(
+        apiBase,
+        jwt,
+        `/api/database/rows/table/${inventorySuppliers.id}/?user_field_names=true`,
+        { method: "POST", body: JSON.stringify(payload) },
+      );
+      existingByUrl.set(urlKey, createdRow);
+      created += 1;
+    }
+
+    if (looksLikeOnlyUrls(row.Notes) && String(row.Notes || "").trim()) {
+      await baserowRequest(
+        apiBase,
+        jwt,
+        `/api/database/rows/table/${inventory.id}/${row.id}/?user_field_names=true`,
+        { method: "PATCH", body: JSON.stringify({ Notes: "" }) },
+      );
+    }
+  }
+
+  if (created) console.log(`  + ${created} inventory–supplier link(s)`);
+  if (priced) console.log(`  ~ ${priced} link(s) priced from LWC list`);
+  if (!created && !priced) console.log("  ✓ links already migrated");
+
+  if (hasLegacy) {
+    const field = (fields || []).find((item) => item.name === "Supplier links");
+    await baserowRequest(apiBase, jwt, `/api/database/fields/${field.id}/`, {
+      method: "DELETE",
+    });
+    console.log("  − removed Inventory field “Supplier links”");
+  }
+}
+
 async function main() {
   const apiBase = (readEnv("BASEROW_API_URL") || DEFAULT_BASEROW_API).replace(/\/$/, "");
-  const { email, password } = await promptCredentials();
-  console.log(`Authenticating with Baserow (${apiBase})…`);
-  const jwt = await fetchJwt(apiBase, email, password);
+  const jwt = await getBaserowJwt(apiBase);
 
   const databaseId = await findOrCreateOpsDatabase(apiBase, jwt);
   let tables = await baserowRequest(
@@ -410,6 +932,27 @@ async function main() {
     TABLE_SECTIONS,
   );
   const items = await findOrCreateTable(apiBase, jwt, databaseId, tables, TABLE_ITEMS);
+  const inventory = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_INVENTORY,
+  );
+  const suppliers = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_SUPPLIERS,
+  );
+  const inventorySuppliers = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_INVENTORY_SUPPLIERS,
+  );
   const ingredients = await findOrCreateTable(
     apiBase,
     jwt,
@@ -417,31 +960,89 @@ async function main() {
     tables,
     TABLE_INGREDIENTS,
   );
+  const users = await findOrCreateTable(apiBase, jwt, databaseId, tables, TABLE_USERS);
+  const config = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_CONFIG,
+  );
 
   console.log(`Fields on ${TABLE_SECTIONS}:`);
   await ensureFields(apiBase, jwt, sections.id, sectionFields(sections.id));
   console.log(`Fields on ${TABLE_ITEMS}:`);
   await ensureFields(apiBase, jwt, items.id, itemFields(sections.id));
+  console.log(`Fields on ${TABLE_INVENTORY}:`);
+  await ensureFields(apiBase, jwt, inventory.id, inventoryFields());
+  console.log(`Fields on ${TABLE_SUPPLIERS}:`);
+  await ensureFields(apiBase, jwt, suppliers.id, supplierFields());
+  console.log(`Fields on ${TABLE_INVENTORY_SUPPLIERS}:`);
+  await ensureFields(
+    apiBase,
+    jwt,
+    inventorySuppliers.id,
+    inventorySupplierFields(inventory.id, suppliers.id),
+  );
   console.log(`Fields on ${TABLE_INGREDIENTS}:`);
-  await ensureFields(apiBase, jwt, ingredients.id, ingredientFields(items.id));
+  await ensureFields(
+    apiBase,
+    jwt,
+    ingredients.id,
+    ingredientFields(items.id, inventory.id),
+  );
+  console.log(`Fields on ${TABLE_USERS}:`);
+  await ensureFields(apiBase, jwt, users.id, userFields());
+  console.log(`Fields on ${TABLE_CONFIG}:`);
+  await ensureFields(apiBase, jwt, config.id, configFields());
+
+  console.log(`Rows on ${TABLE_SUPPLIERS}:`);
+  const supplierByName = await seedSuppliers(apiBase, jwt, suppliers.id);
+  console.log(`Rows on ${TABLE_USERS}:`);
+  await seedUsers(apiBase, jwt, users.id);
+  console.log(`Rows on ${TABLE_CONFIG}:`);
+  await seedAppConfig(apiBase, jwt, config.id);
+  console.log(`Migrate inventory → supplier links:`);
+  await migrateSupplierLinks(
+    apiBase,
+    jwt,
+    { inventory, suppliers, inventorySuppliers },
+    supplierByName,
+  );
 
   console.log("");
   console.log("Gwenda Ops menu tables ready.");
   console.log(`Database: https://baserow.io/database/${databaseId}/`);
   console.log(`  ${TABLE_SECTIONS} → ${sections.id}`);
   console.log(`  ${TABLE_ITEMS} → ${items.id}`);
+  console.log(`  ${TABLE_INVENTORY} → ${inventory.id}`);
+  console.log(`  ${TABLE_SUPPLIERS} → ${suppliers.id}`);
+  console.log(`  ${TABLE_INVENTORY_SUPPLIERS} → ${inventorySuppliers.id}`);
   console.log(`  ${TABLE_INGREDIENTS} → ${ingredients.id}`);
+  console.log(`  ${TABLE_USERS} → ${users.id}`);
+  console.log(`  ${TABLE_CONFIG} → ${config.id}`);
   console.log("");
 
-  const envLines = [
-    `BASEROW_OPS_DATABASE_ID=${databaseId}`,
-    `BASEROW_OPS_SECTIONS_TABLE_ID=${sections.id}`,
-    `BASEROW_OPS_ITEMS_TABLE_ID=${items.id}`,
-    `BASEROW_OPS_INGREDIENTS_TABLE_ID=${ingredients.id}`,
-  ];
+  const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];
   await maybeWriteEnv(envLines);
+  // wrangler.toml is production Pages config. Never point it at a local clone.
+  if (String(databaseId) === "556507") {
+    await maybeWriteWranglerVars({
+      BASEROW_OPS_DATABASE_ID: String(databaseId),
+    });
+  } else {
+    console.log(
+      `Skipping wrangler.toml update (database ${databaseId} is not production 556507).`,
+    );
+  }
+  await maybeStripTableIdEnvKeys();
 
-  console.log("Next: npm run setup:ops  (pushes Baserow + deploy secrets to gwenda-ops Pages)");
+  console.log(
+    "Table ids are resolved by name at runtime (no env/wrangler map).",
+  );
+  console.log(
+    "Next: npm run setup:ops  (pushes Baserow API key + deploy secrets to gwenda-ops Pages)",
+  );
 }
 
 async function maybeWriteEnv(lines) {
@@ -484,6 +1085,98 @@ async function maybeWriteEnv(lines) {
   await maybeSyncBitwarden(lines);
 }
 
+function upsertTomlVars(text, vars) {
+  let next = text;
+  for (const [key, value] of Object.entries(vars)) {
+    const line = `${key} = "${value}"`;
+    const pattern = new RegExp(`^${key}\\s*=\\s*.*$`, "gm");
+    if (pattern.test(next)) {
+      next = next.replace(pattern, line);
+      continue;
+    }
+    next = next.replace(/\[vars\]\n/, `[vars]\n${line}\n`);
+  }
+  return next;
+}
+
+async function maybeWriteWranglerVars(vars) {
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const wranglerPath = resolve(process.cwd(), "ops/site/wrangler.toml");
+  if (!existsSync(wranglerPath)) {
+    console.log("Add BASEROW_OPS_DATABASE_ID to ops/site/wrangler.toml [vars] if needed.");
+    return;
+  }
+  let next = readFileSync(wranglerPath, "utf8");
+  const current = next;
+  next = upsertTomlVars(next, vars);
+  // Drop legacy per-table id vars; runtime resolves by name.
+  for (const key of TABLE_ID_ENV_KEYS) {
+    next = next.replace(new RegExp(`^${key}\\s*=\\s*.*\\n?`, "gm"), "");
+  }
+  if (next !== current) {
+    writeFileSync(wranglerPath, next);
+    console.log(`Wrote Baserow Ops database id into ${wranglerPath} [vars]`);
+  } else {
+    console.log("Baserow Ops database id already present in wrangler.toml");
+  }
+}
+
+const TABLE_ID_ENV_KEYS = [
+  "BASEROW_OPS_SECTIONS_TABLE_ID",
+  "BASEROW_OPS_ITEMS_TABLE_ID",
+  "BASEROW_OPS_INGREDIENTS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_TABLE_ID",
+  "BASEROW_OPS_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_INVENTORY_SUPPLIERS_TABLE_ID",
+  "BASEROW_OPS_USERS_TABLE_ID",
+  "BASEROW_OPS_CONFIG_TABLE_ID",
+];
+
+async function maybeStripTableIdEnvKeys() {
+  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
+  const { resolve } = await import("node:path");
+  const envPath = resolve(process.cwd(), ".env");
+  if (!existsSync(envPath)) return;
+  let text = readFileSync(envPath, "utf8");
+  const before = text;
+  for (const key of TABLE_ID_ENV_KEYS) {
+    text = text.replace(new RegExp(`^${key}=.*\\n?`, "gm"), "");
+  }
+  if (text !== before) {
+    writeFileSync(envPath, text);
+    console.log("Removed legacy BASEROW_OPS_*_TABLE_ID keys from .env");
+  }
+  try {
+    const {
+      ensureBwInstalled,
+      ensureServer,
+      ensureSession,
+      syncVault,
+      getItemOrNull,
+      updateItemNotes,
+      DEFAULT_LOCAL_ITEM,
+    } = await import("./lib/bitwarden-env.mjs");
+    ensureBwInstalled();
+    ensureServer();
+    ensureSession();
+    syncVault();
+    const item = getItemOrNull(DEFAULT_LOCAL_ITEM);
+    if (!item?.notes) return;
+    let notes = item.notes;
+    const notesBefore = notes;
+    for (const key of TABLE_ID_ENV_KEYS) {
+      notes = notes.replace(new RegExp(`^${key}=.*\\n?`, "gm"), "");
+    }
+    if (notes !== notesBefore) {
+      updateItemNotes(item, notes);
+      console.log(`Stripped table id keys from Bitwarden ${DEFAULT_LOCAL_ITEM}.`);
+    }
+  } catch {
+    // Local .env strip is enough when vault is locked.
+  }
+}
+
 async function maybeSyncBitwarden(lines) {
   try {
     const {
@@ -518,7 +1211,7 @@ async function maybeSyncBitwarden(lines) {
       notes = upsertDotEnvKey(notes, key, value);
     }
     updateItemNotes(item, notes);
-    console.log(`Updated Bitwarden ${DEFAULT_LOCAL_ITEM} with Baserow Ops ids.`);
+    console.log(`Updated Bitwarden ${DEFAULT_LOCAL_ITEM} with Baserow Ops database id.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.log("");

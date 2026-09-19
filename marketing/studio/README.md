@@ -28,5 +28,16 @@ Document types in `schemaTypes/` — queries live in `marketing/web/src/lib/sani
 | `menuSection` | Menu grouping (title, slug, parent chapter, sort order) |
 | `menuItem` | Cocktail / drink entry |
 | `event` | Special events listing |
+| `form` | Configurable public forms (fields, copy, notify / From / Reply-To) |
+
+Seed Play + Collaborate forms into the development dataset:
+
+```bash
+npm run studio:seed:forms:dev
+```
+
+Public URL: `/contact/<slug>` (e.g. `/contact/play`). Contact hub: `/contact`.
+
+Form mail identity (`notifyEmail`, `fromEmail`, `replyToEmail`) is edited in Studio (default `play@gwenda.co.uk`). Only `SMTP_PASSWORD` is a secret.
 
 The Astro site reads **published** documents at build time. Staging uses the **development** dataset; live uses **production**.

@@ -1,21 +1,11 @@
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
-export const DEV_BASEROW_DATABASE_ID = "465058";
+export const WEBSITE_DATABASE_NAME = "Website";
 export const RSVP_TABLE_NAME = "Event Invites";
 
 const rsvpTableIdCache = new Map<string, string>();
 
-function isProductionSite(env: NodeJS.ProcessEnv) {
-  return env.SITE_ENV?.trim().toLowerCase() === "production";
-}
-
 export function rsvpTableName(env: NodeJS.ProcessEnv) {
   return env.BASEROW_RSVP_TABLE_NAME?.trim() || RSVP_TABLE_NAME;
-}
-
-function baserowDatabaseId(env: NodeJS.ProcessEnv) {
-  const explicit = env.BASEROW_DATABASE_ID?.trim();
-  if (explicit) return explicit;
-  return isProductionSite(env) ? null : DEV_BASEROW_DATABASE_ID;
 }
 
 type ResolveResult =
@@ -35,8 +25,8 @@ export async function resolveRsvpTableId(
     "",
   );
   const tableName = rsvpTableName(env);
-  const databaseId = baserowDatabaseId(env);
-  const cacheKey = `${apiKey}:${tableName}:${databaseId ?? ""}`;
+  const databaseId = env.BASEROW_DATABASE_ID?.trim() || "";
+  const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
 
   const cached = rsvpTableIdCache.get(cacheKey);
   if (cached) {
@@ -72,7 +62,7 @@ export async function resolveRsvpTableId(
   if (matches.length > 1) {
     return {
       ok: false,
-      error: `Multiple Baserow tables named "${tableName}". Set BASEROW_DATABASE_ID.`,
+      error: `Multiple Baserow tables named "${tableName}". Scope the token to the ${WEBSITE_DATABASE_NAME} database.`,
     };
   }
 

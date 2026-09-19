@@ -1,53 +1,62 @@
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
 
-/** Dev + gwenda-staging share this Baserow database. Production uses separate tables. */
-export const DEV_BASEROW_DATABASE_ID = "465058";
-export const DEV_SUBSCRIBE_TABLE_ID = "1024006";
-export const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
+/** Same database name in Gwenda (prod) and Gwenda Dev. */
+export const WEBSITE_DATABASE_NAME = "Website";
+export const SUBSCRIBE_TABLE_NAME = "Subscribers";
 export const RSVP_TABLE_NAME = "Event Invites";
+export const FORM_SUBMISSIONS_TABLE_NAME = "Form Submissions";
 
-const rsvpTableIdCache = new Map();
+/** @deprecated Prefer name resolution; kept for one-off migration scripts. */
+export const DEV_SUBSCRIBE_TABLE_ID = "1208349";
+/** @deprecated Prefer name resolution; kept for one-off migration scripts. */
+export const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
 
+const tableIdCache = new Map();
+
+export function clearBaserowTableIdCache() {
+  tableIdCache.clear();
+}
+
+/** @deprecated Use clearBaserowTableIdCache */
 export function clearRsvpTableIdCache() {
-  rsvpTableIdCache.clear();
+  clearBaserowTableIdCache();
 }
 
 export function isProductionSite(env) {
   return env.SITE_ENV?.trim().toLowerCase() === "production";
 }
 
-/** Subscribe list table — dev/staging default unless BASEROW_TABLE_ID is set. */
-export function subscribeTableId(env) {
-  const explicit = env.BASEROW_TABLE_ID?.trim();
-  if (explicit) return explicit;
-  return isProductionSite(env)
-    ? PRODUCTION_SUBSCRIBE_TABLE_ID
-    : DEV_SUBSCRIBE_TABLE_ID;
+export function subscribeTableName(env) {
+  return env.BASEROW_SUBSCRIBE_TABLE_NAME?.trim() || SUBSCRIBE_TABLE_NAME;
 }
 
 export function rsvpTableName(env) {
   return env.BASEROW_RSVP_TABLE_NAME?.trim() || RSVP_TABLE_NAME;
 }
 
-/** Optional disambiguator when the token can see multiple databases. */
-export function baserowDatabaseId(env) {
-  const explicit = env.BASEROW_DATABASE_ID?.trim();
-  if (explicit) return explicit;
-  return isProductionSite(env) ? null : DEV_BASEROW_DATABASE_ID;
+export function formSubmissionsTableName(env) {
+  return (
+    env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME?.trim() ||
+    FORM_SUBMISSIONS_TABLE_NAME
+  );
 }
 
-export async function resolveRsvpTableId(env) {
+/** Optional numeric filter. Prefer a token that can see only one Website database. */
+export function baserowDatabaseId(env) {
+  return env.BASEROW_DATABASE_ID?.trim() || "";
+}
+
+async function resolveTableIdByName(env, tableName) {
   const apiKey = env.BASEROW_API_KEY?.trim();
   if (!apiKey) {
     return { ok: false, error: "Baserow is not configured." };
   }
 
   const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
-  const tableName = rsvpTableName(env);
   const databaseId = baserowDatabaseId(env);
-  const cacheKey = `${apiKey}:${tableName}:${databaseId ?? ""}`;
+  const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
 
-  const cached = rsvpTableIdCache.get(cacheKey);
+  const cached = tableIdCache.get(cacheKey);
   if (cached) {
     return { ok: true, tableId: cached };
   }
@@ -71,28 +80,69 @@ export async function resolveRsvpTableId(env) {
   if (matches.length === 0) {
     return {
       ok: false,
-      error: `Baserow table "${tableName}" not found. Run npm run setup:baserow-rsvp.`,
+      error: `Baserow table "${tableName}" not found.`,
     };
   }
   if (matches.length > 1) {
     return {
       ok: false,
-      error: `Multiple Baserow tables named "${tableName}". Set BASEROW_DATABASE_ID.`,
+      error: `Multiple Baserow tables named "${tableName}". Scope the token to the ${WEBSITE_DATABASE_NAME} database.`,
     };
   }
 
   const tableId = String(matches[0].id);
-  rsvpTableIdCache.set(cacheKey, tableId);
+  tableIdCache.set(cacheKey, tableId);
   return { ok: true, tableId };
+}
+
+export async function resolveSubscribeTableId(env) {
+  const result = await resolveTableIdByName(env, subscribeTableName(env));
+  if (!result.ok && result.error?.includes("not found")) {
+    return {
+      ok: false,
+      error: `Baserow table "${subscribeTableName(env)}" not found.`,
+    };
+  }
+  return result;
+}
+
+export async function resolveRsvpTableId(env) {
+  const tableName = rsvpTableName(env);
+  const result = await resolveTableIdByName(env, tableName);
+  if (!result.ok && result.error?.includes("not found")) {
+    return {
+      ok: false,
+      error: `Baserow table "${tableName}" not found. Run npm run setup:baserow-rsvp.`,
+    };
+  }
+  return result;
+}
+
+export async function resolveFormSubmissionsTableId(env) {
+  const tableName = formSubmissionsTableName(env);
+  const result = await resolveTableIdByName(env, tableName);
+  if (!result.ok && result.error?.includes("not found")) {
+    return {
+      ok: false,
+      error: `Baserow table "${tableName}" not found. Run npm run setup:baserow-form-submissions.`,
+    };
+  }
+  return result;
 }
 
 export async function baserowRowsUrl(env) {
   const apiKey = env.BASEROW_API_KEY?.trim();
-  const tableId = subscribeTableId(env);
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
-  if (!apiKey || !tableId) {
+  if (!apiKey) {
     return { ok: false, error: "Baserow is not configured." };
   }
+
+  const resolved = await resolveSubscribeTableId(env);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const { tableId } = resolved;
   return {
     ok: true,
     apiKey,
@@ -110,6 +160,29 @@ export async function baserowRsvpRowsUrl(env) {
   }
 
   const resolved = await resolveRsvpTableId(env);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const { tableId } = resolved;
+  return {
+    ok: true,
+    apiKey,
+    tableId,
+    rowsUrl: `${apiBase}/api/database/rows/table/${tableId}/?user_field_names=true`,
+    rowUrl: (rowId) =>
+      `${apiBase}/api/database/rows/table/${tableId}/${rowId}/?user_field_names=true`,
+  };
+}
+
+export async function baserowFormSubmissionRowsUrl(env) {
+  const apiKey = env.BASEROW_API_KEY?.trim();
+  if (!apiKey) {
+    return { ok: false, error: "Baserow is not configured." };
+  }
+
+  const resolved = await resolveFormSubmissionsTableId(env);
   if (!resolved.ok) {
     return resolved;
   }

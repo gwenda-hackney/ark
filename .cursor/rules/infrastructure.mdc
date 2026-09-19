@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Infrastructure — agent capabilities
 
-When `ark/.env` and `gh` are present, configure Gwenda infrastructure without asking the user to run Wrangler or `gh secret set` by hand. On a fresh nest: unlock Bitwarden (`export BW_SESSION=$(bw unlock --raw)`), run `npm run env:pull`, and `gh auth login` if needed. Cloudflare and GitHub will not give secret values back.
+When `ark/.env` and `gh` are present, configure Gwenda infrastructure without asking the user to run Wrangler or `gh secret set` by hand. On a fresh nest: unlock Bitwarden (`bw-unlock`, or `export BW_SESSION=$(bw unlock --raw)`), run `npm run env:pull`, and `gh auth login` if needed. The env scripts persist `BW_SESSION` to `/commandhistory/.bw-session` in the devcontainer so later shells do not need a new unlock. Cloudflare and GitHub will not give secret values back.
 
 This checkout often sits inside the **Gwenda nest** (`~/dev/gwenda`, or `/workspaces/gwenda` in a Codespace). Sibling `founders/`, `marketing/`, `operations/`, and `gwenda-mydrive/` are rclone FUSE mounts (workspace symlinks to `~/dev/mnt/gwenda/`). Nest `work/` is a flat local scratch pad for the file you are editing (export with `md-to-gdoc FILE.md remote:path` after confirmation). Shared Drive: `founders/`, `marketing/`, `operations/`. ClickUp keys may live in the nest `.env`, not `ark/.env`. Workspace map: nest `AGENTS.md`.
 
@@ -13,8 +13,8 @@ This checkout often sits inside the **Gwenda nest** (`~/dev/gwenda`, or `/worksp
 
 | Source | What it provides |
 |--------|------------------|
-| Bitwarden (`bitwarden.eu`) | Source of truth for local secrets. Secure note `ark/.env.local` (Notes = dotenv). Pull with `npm run env:pull`. Optional `ark/.env.staging` / `ark/.env.production` for env backups. |
-| `ark/.env` (gitignored) | `CLOUDFLARE_API_TOKEN`, `SANITY_API_TOKEN` (**Editor** robot `ark-local-editor`), `SANITY_PROJECT_ID=pn5yjro6`, deploy vars after `npm run setup:site-deploy`. Prefer `env:pull` / `setup:sanity-tokens` over hand-copying. |
+| Bitwarden (`bitwarden.eu`) | Source of truth for local secrets. Password Manager note `ark/.env.local` (Notes = dotenv) via `env:pull`. Secrets Manager projects **Ark** (Cloudflare), **Ark/Ops**, **Ark/Web** via `env:ark:pull` / `env:ops:pull` / `env:web:pull`. |
+| `ark/.env` (gitignored) | SM bootstrap `ARK_LOCAL_BW_TOKEN`, Editor `SANITY_API_TOKEN` leftovers, `SANITY_PROJECT_ID=pn5yjro6`. Cloudflare org tokens prefer `.env.ark` after `env:ark:pull`. |
 | Nest `.env` (`~/dev/gwenda/.env` or `/workspaces/gwenda/.env`) | Workspace tools (e.g. ClickUp). Not a substitute for `ark/.env`. |
 | `gh` CLI | When logged in as the repo owner: `repo` + `workflow`. Use `gh secret set`, `gh workflow run`, `gh variable list`. **Not always authenticated** in a new Codespace. |
 | GitHub Actions secrets / Cloudflare Pages secrets | Set via `gh secret set` or `wrangler pages secret put`. **Never readable after write** (names only). |
@@ -38,15 +38,15 @@ Run **`npm run setup:site-deploy`** — it will:
 2. Set GitHub secrets (`DEPLOY_WEBHOOK_SECRET`, `DISPATCH_TOKEN` from `gh auth token`, `SANITY_STUDIO_SITE_DEPLOY_URL`)
 3. Deploy `marketing/site-deploy-webhook` Worker and sync Worker secrets
 4. Write `SANITY_STUDIO_SITE_DEPLOY_*` into repo-root `.env` for local Studio
-5. Dispatch `deploy-studio.yml` to redeploy hosted Studio with deploy config
+5. Dispatch `studio.yml` to redeploy hosted Studio with deploy config
 
-Local Studio (`npm run studio`) picks up deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `deploy-studio.yml`.
+Local Studio (`npm run studio`) picks up deploy vars from `.env` via `scripts/with-env.mjs`. Hosted Studio gets them from GitHub secrets in `studio.yml`.
 
 Do not ask the user to manually `gh secret set` deploy secrets or edit Worker URLs unless setup fails and needs diagnosis.
 
 ## Cloudflare
 
-Use `CLOUDFLARE_API_TOKEN` from `.env` and `account_id` from `marketing/*/wrangler.toml` or `ops/*/wrangler.toml` for Worker deploys. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
+Use `CLOUDFLARE_DEV_API_TOKEN` from `.env.ark` (after `npm run env:ark:pull`; legacy leftovers may still be in `.env`) and `account_id` from `marketing/*/wrangler.toml` or `ops/*/wrangler.toml` for Worker deploys. GitHub CI still uses secret `CLOUDFLARE_API_TOKEN`. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
 
 ## After setup
 

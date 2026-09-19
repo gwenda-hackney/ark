@@ -34,9 +34,7 @@ export async function onRequest(context) {
   if (bypassKey && accessParam && matchesSecret(accessParam, bypassKey)) {
     const redirectPath = gateBypassRedirectPath(url);
     if (redirectPath) {
-      const headers = {
-        Location: new URL(redirectPath, url.origin).toString(),
-      };
+      const headers = { Location: redirectPath };
       if (!authed) {
         const token = await createAuthToken(expected);
         headers["Set-Cookie"] = buildAuthCookie(token);
@@ -48,7 +46,7 @@ export async function onRequest(context) {
   if (url.pathname === "/gate" || url.pathname === "/gate/") {
     if (authed) {
       const next = safeRedirectPath(url.searchParams.get("next"));
-      return Response.redirect(new URL(next, url.origin).toString(), 302);
+      return new Response(null, { status: 302, headers: { Location: next } });
     }
     return context.next();
   }
@@ -69,5 +67,8 @@ export async function onRequest(context) {
   const next = url.pathname + url.search;
   if (next !== "/") gateUrl.searchParams.set("next", next);
 
-  return Response.redirect(gateUrl.toString(), 302);
+  return new Response(null, {
+    status: 302,
+    headers: { Location: `${gateUrl.pathname}${gateUrl.search}` },
+  });
 }

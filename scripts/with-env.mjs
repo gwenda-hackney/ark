@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Run a command after loading repo-root `.env` when present.
- * Skips missing file so CI can inject env vars via workflow secrets instead.
+ * Run a command after loading repo-root `.env`, `.env.ark`, then `.env.web`.
+ * Skips missing files so CI can inject env vars via workflow secrets instead.
  *
- * Studio, web, and CLI share one env file. Root names map to SANITY_STUDIO_* aliases
- * before Sanity/Vite read them (see deriveStudioEnv below).
+ * Load order: `.env` then `.env.ark` then `.env.web` (web wins). Marketing
+ * secrets come from Secrets Manager via `npm run env:web:pull`. Org Cloudflare
+ * comes from `env:ark:pull`. Studio, web, and CLI share this loader; root names
+ * map to SANITY_STUDIO_* aliases (see deriveStudioEnv).
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -14,11 +16,26 @@ import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = join(root, ".env");
+const arkEnvPath = join(root, ".env.ark");
+const webEnvPath = join(root, ".env.web");
 
 function setEnvIfMissing(key, value) {
-  if (value !== undefined && value !== "" && process.env[key] === undefined) {
+  // Treat empty string as unset so a blank shell export does not block .env.
+  if (value !== undefined && value !== "" && !process.env[key]) {
     process.env[key] = value;
   }
+}
+
+function applyDotEnv(path, { override = false } = {}) {
+  if (!existsSync(path)) return false;
+  for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
+    if (override) {
+      if (value !== undefined && value !== "") process.env[key] = value;
+    } else {
+      setEnvIfMissing(key, value);
+    }
+  }
+  return true;
 }
 
 function copyEnvIfMissing(target, source) {
@@ -58,10 +75,10 @@ function deriveStudioEnv() {
   copyEnvIfMissing("SANITY_STUDIO_SITE_DEPLOY_URL", "SITE_DEPLOY_WEBHOOK_URL");
 }
 
-if (existsSync(envPath)) {
-  for (const [key, value] of parseDotEnv(readFileSync(envPath, "utf8"))) {
-    setEnvIfMissing(key, value);
-  }
+applyDotEnv(envPath, { override: false });
+applyDotEnv(arkEnvPath, { override: true });
+if (applyDotEnv(webEnvPath, { override: true })) {
+  // Quiet: web secrets override shared .env / .env.ark (same pattern as ops).
 }
 
 deriveStudioEnv();

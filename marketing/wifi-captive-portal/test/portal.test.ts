@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { normalizeEmail, subscribeEmailToBaserow } from "../src/baserow.js";
 import { handlePortalRequest } from "../src/handler.js";
 import type { Env } from "../src/types.js";
-import { resolveTableId } from "../src/types.js";
+import {
+  clearSubscribeTableIdCache,
+  resolveSubscribeTableId,
+} from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
 
 const env: Env = {
@@ -13,13 +16,39 @@ const env: Env = {
   ASSETS: {
     fetch: async () => new Response("asset", { status: 200 }),
   } as unknown as Env["ASSETS"],
-  BASEROW_TABLE_ID: "1017358",
   WIFI_SUBSCRIBE_TAG: "wifi",
 };
 
 describe("types", () => {
-  it("defaults to production subscribe table", () => {
-    expect(resolveTableId({} as Env)).toBe("1017358");
+  it("resolves Subscribers by name", async () => {
+    clearSubscribeTableIdCache();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => [
+          { id: 1017358, name: "Subscribers", database_id: 461843 },
+        ],
+      })),
+    );
+    await expect(resolveSubscribeTableId(env)).resolves.toBe("1017358");
+    vi.unstubAllGlobals();
+  });
+
+  it("errors when the token can see more than one Subscribers table", async () => {
+    clearSubscribeTableIdCache();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => [
+          { id: 1017358, name: "Subscribers", database_id: 461843 },
+          { id: 1024006, name: "Subscribers", database_id: 563090 },
+        ],
+      })),
+    );
+    await expect(resolveSubscribeTableId(env)).rejects.toThrow(/Website database/);
+    vi.unstubAllGlobals();
   });
 });
 
@@ -183,6 +212,22 @@ describe("unifi site manager authorize", () => {
 
 describe("handler", () => {
   it("serves the UniFi guest path and authorizes on submit", async () => {
+    clearSubscribeTableIdCache();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/all-tables/")) {
+          return {
+            ok: true,
+            json: async () => [
+              { id: 1017358, name: "Subscribers", database_id: 461843 },
+            ],
+          };
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
     const subscribe = vi.fn(async () => ({ ok: true as const }));
     const authorize = vi.fn(async () => ({ ok: true as const }));
 
@@ -233,6 +278,7 @@ describe("handler", () => {
         siteIdentifier: "default",
       }),
     );
+    vi.unstubAllGlobals();
   });
 
   it("exposes health", async () => {

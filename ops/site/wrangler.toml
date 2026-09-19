@@ -1,0 +1,21 @@
+name = "gwenda-ops"
+pages_build_output_dir = "src"
+compatibility_date = "2026-07-01"
+
+# Table ids are resolved at runtime by name from the Baserow catalog.
+# Production Ops DB only. Local uses BASEROW_OPS_DATABASE_ID from .env.ops / .dev.vars
+# (Gwenda Dev workspace clone). BASEROW_API_KEY stays a Pages secret (prod token).
+# Non-secret knobs live in Baserow App Config.
+[vars]
+SITE_ENV = "production"
+SANITY_PROJECT_ID = "pn5yjro6"
+BASEROW_OPS_DATABASE_ID = "556507"
+# Non-secret OAuth client id (secret stays a Pages secret). Needed so direct
+# `wrangler pages deploy` snapshots include it — project API plain_text vars alone are not enough.
+GOOGLE_OAUTH_CLIENT_ID = "682046070260-n9jpt18kt29vufljre5dkfqupq7rrdlt.apps.googleusercontent.com"
+SITE_DEPLOY_WEBHOOK_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
+SANITY_STUDIO_SITE_DEPLOY_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
+
+[ai]
+binding = "AI"
+remote = true

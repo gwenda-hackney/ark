@@ -14,7 +14,6 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   DEFAULT_BASEROW_API,
-  DEV_BASEROW_DATABASE_ID,
   PRODUCTION_SUBSCRIBE_TABLE_ID,
   RSVP_TABLE_NAME,
 } from "../marketing/web/functions/_lib/baserow.js";
@@ -24,19 +23,9 @@ const ENV_PATH = resolve(ROOT, ".env");
 
 const GITHUB_SECRET_KEYS = [
   "EVENT_ADMIN_SECRET",
-  "SMTP_HOST",
-  "SMTP_PORT",
-  "SMTP_USER",
   "SMTP_PASSWORD",
-  "SMTP_FROM",
-  "SMTP_FROM_EVENTS",
   "INSTAGRAM_ACCESS_TOKEN",
   "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-  "INVITE_BASE_URL",
-  "INVITE_IMAGE_URL",
-  "INVITE_EMAIL_SUBJECT",
-  "INVITE_EMAIL_BODY",
-  "INVITE_INSTAGRAM_MESSAGE",
 ];
 
 const DEFAULT_INVITE_SECRETS = {

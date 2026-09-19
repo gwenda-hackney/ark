@@ -1,0 +1,5 @@
+SKU,Accounting group,Type,Name,Default price,Cost price,Button name,Menu/Screen,Package content,Package unit
+CAMPARI,Spirits,Item,Campari,0,18.50,Campari,Bar,700,ml
+NEGRONI,Cocktails,Combo,Negroni,12,0,Negroni,Cocktails,,
+BOMBAY,Spirits,Item,Bombay Sapphire,0,22.00,Bombay,Bar,700,ml
+HOUSEGIN,Spirits,Item,Tanqueray,0,14.00,Tanqueray,Bar,700,ml

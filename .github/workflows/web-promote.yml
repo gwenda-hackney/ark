@@ -1,0 +1,177 @@
+name: Web promote
+
+# Promote a production preview (code or content) to live gwenda.co.uk.
+
+run-name: promote-${{ inputs.kind }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: Promote kind
+        required: true
+        type: choice
+        default: code
+        options:
+          - code
+          - content
+      preview_run_id:
+        description: Content preview run ID (required when kind=content)
+        required: false
+        type: string
+
+concurrency:
+  group: web-promote-${{ inputs.kind }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.kind }} to live
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: write
+      actions: read
+    environment:
+      name: production
+      url: https://gwenda.co.uk
+    steps:
+      - name: Require content preview_run_id
+        if: inputs.kind == 'content'
+        run: |
+          if [ -z "${{ inputs.preview_run_id }}" ]; then
+            echo "preview_run_id is required when kind=content" >&2
+            exit 1
+          fi
+
+      - name: Checkout release
+        uses: actions/checkout@v4
+        with:
+          ref: release
+
+      - name: Resolve release HEAD
+        if: inputs.kind == 'code'
+        id: release
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify code preview
+        if: inputs.kind == 'code'
+        id: code_preview
+        run: cd marketing/web && node scripts/ci/verify-previewed-release.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
+
+      - name: Verify content preview
+        if: inputs.kind == 'content'
+        id: content_preview
+        run: cd marketing/web && node scripts/ci/verify-content-preview.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_RUN_ID: ${{ inputs.preview_run_id }}
+
+      - name: Download code preview dist
+        if: inputs.kind == 'code'
+        uses: actions/download-artifact@v4
+        with:
+          name: production-dist
+          run-id: ${{ steps.code_preview.outputs.preview-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: marketing/web/dist
+
+      - name: Download content preview dist
+        if: inputs.kind == 'content'
+        uses: actions/download-artifact@v4
+        with:
+          name: production-content-dist
+          run-id: ${{ inputs.preview_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: marketing/web/dist
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute build metadata
+        id: buildmeta
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
+        env:
+          GITHUB_REF_NAME: release
+          BUILD_COMMIT_SHA: ${{ inputs.kind == 'code' && steps.code_preview.outputs.sha || steps.content_preview.outputs.sha }}
+
+      - name: Pull Ark secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ark:pull -- --github-env
+
+      - name: Deploy previewed dist to production branch
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda
+          pages-production-branch: release
+          deploy-branch: release
+          wrangler-config: wrangler.toml
+          skip-build: "true"
+          public-is-staging: "false"
+          build-version: ${{ steps.buildmeta.outputs.version }}
+          build-sha: ${{ steps.buildmeta.outputs.sha }}
+          build-ref: ${{ steps.buildmeta.outputs.ref }}
+          build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          sanity-dataset: production
+
+      - name: Ensure apex custom domain
+        run: cd marketing/web && node scripts/ensure-pages-domain.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT_NAME: gwenda
+          ZONE_NAME: gwenda.co.uk
+          CUSTOM_DOMAIN: gwenda.co.uk
+
+      - name: Ensure www custom domain
+        run: cd marketing/web && node scripts/ensure-pages-domain.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT_NAME: gwenda
+          ZONE_NAME: gwenda.co.uk
+          CUSTOM_DOMAIN: www.gwenda.co.uk
+
+      - name: Allow AI crawlers on production zone
+        run: cd marketing/web && node scripts/ensure-zone-ai-access.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          ZONE_NAME: gwenda.co.uk
+
+      - name: Smoke test live domains
+        run: |
+          for url in https://gwenda.co.uk https://www.gwenda.co.uk; do
+            (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
+          done
+
+      - name: Tag production release
+        if: inputs.kind == 'code'
+        run: cd marketing/web && node scripts/ci/tag-production-release.mjs
+        env:
+          RELEASE_VERSION: ${{ steps.buildmeta.outputs.version }}
+
+      - name: Deployment summary
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"${{ inputs.kind == 'content' && 'Production content promoted to live' || 'Production deployed' }}","rows":[
+              ["Kind","`${{ inputs.kind }}`"],
+              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
+              ["Site","https://gwenda.co.uk"]
+            ]}

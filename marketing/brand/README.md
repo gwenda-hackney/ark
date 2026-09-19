@@ -25,15 +25,15 @@ Dark-palette CSS variables are synced from the marketing site:
 npm run sync:brand
 ```
 
-Source of truth: `web/src/config/colors.json`.
+Source of truth: `marketing/web/src/config/colors.json`.
 
 ## Deploy
 
 | Trigger | Target | URL |
 |---------|--------|-----|
-| Push to `main` or `release` (`brand/**` changes) | Production (`--branch main`) | [brand.gwenda.co.uk](https://brand.gwenda.co.uk) |
-| Push to any other branch (`brand/**` changes) | Branch preview | `https://<branch>.gwenda-brand.pages.dev` |
-| Manual | [Deploy brand guidelines](../.github/workflows/deploy-brand.yml) → **workflow_dispatch** | Choose preview or production |
+| Push to `main` or `release` (`marketing/brand/**` changes) | Production (`--branch main`) | [brand.gwenda.co.uk](https://brand.gwenda.co.uk) |
+| Push to any other branch (`marketing/brand/**` changes) | Branch preview | `https://<branch>.gwenda-brand.pages.dev` |
+| Manual | [Apps](../.github/workflows/apps.yml) → **workflow_dispatch** (`app=brand`) | Choose preview or production |
 
 Preview branch names are sanitized (`feat/brand-green-palette` → `feat-brand-green-palette`).
 

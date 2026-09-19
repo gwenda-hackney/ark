@@ -1,0 +1,170 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Subpage from "../../components/Subpage.astro";
+import { siteConfig } from "../../config/site";
+import { formPublicPath, PLAY_FORM_SLUG } from "../../lib/form-paths";
+
+const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
+---
+
+<BaseLayout
+  title={`Confirm · ${siteConfig.name}`}
+  description="Confirm your form submission."
+  showBooking={false}
+>
+  <Subpage
+    class="contact-page contact-verify-page"
+    innerClass="contact-verify"
+    href="/contact"
+  >
+    <h1 id="verify-title">Confirming…</h1>
+    <p id="verify-message">One moment while we confirm your email.</p>
+    <p class="contact-error" id="verify-error" role="alert" hidden></p>
+    <a href="/" class="btn btn-ghost" id="verify-home" hidden>Back to Gwenda</a>
+    <a href={defaultRetryHref} class="btn btn-ghost" id="verify-retry" hidden
+      >Back to the form</a
+    >
+  </Subpage>
+</BaseLayout>
+
+<script>
+  import { formPublicPath, slugFromFormPath } from "../../lib/form-paths";
+
+  function slugFromToken(token) {
+    try {
+      const payload = String(token || "").split(".")[0];
+      if (!payload) return "";
+      const padded = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const pad =
+        padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+      const json = JSON.parse(atob(padded + pad));
+      const slug = String(json?.slug || "").trim();
+      return /^[a-z0-9-]+$/i.test(slug) ? slug : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function seedFormDraft(formPath, draftAnswers) {
+    if (!formPath || typeof sessionStorage === "undefined") return;
+    const slug = slugFromFormPath(formPath);
+    if (!slug || !/^[a-z0-9-]+$/i.test(slug)) return;
+    if (!draftAnswers || typeof draftAnswers !== "object") return;
+
+    try {
+      sessionStorage.setItem(
+        `gwenda-form:${slug}`,
+        JSON.stringify({
+          answers: draftAnswers,
+          pending: null,
+          result: null,
+          savedAt: Date.now(),
+        }),
+      );
+    } catch {
+      /* ignore quota */
+    }
+  }
+
+  function setRetryLink(retryEl, formPath, token) {
+    if (!(retryEl instanceof HTMLAnchorElement)) return;
+    retryEl.hidden = false;
+    if (formPath) {
+      retryEl.href = formPath;
+      return;
+    }
+    const slug = slugFromToken(token);
+    if (slug) retryEl.href = formPublicPath(slug);
+  }
+
+  async function runVerify() {
+    const titleEl = document.getElementById("verify-title");
+    const messageEl = document.getElementById("verify-message");
+    const errorEl = document.getElementById("verify-error");
+    const homeEl = document.getElementById("verify-home");
+    const retryEl = document.getElementById("verify-retry");
+
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("t") || "";
+
+    if (!token) {
+      if (titleEl) titleEl.textContent = "This link isn't valid";
+      if (messageEl) messageEl.textContent = "";
+      if (errorEl) {
+        errorEl.hidden = false;
+        errorEl.textContent =
+          "Open the link from your email, or submit the form again.";
+      }
+      if (retryEl) retryEl.hidden = false;
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/forms/verify?t=${encodeURIComponent(token)}`,
+        { credentials: "same-origin" },
+      );
+      const data = await res.json().catch(() => ({}));
+
+      if (data.formPath || data.draftAnswers) {
+        seedFormDraft(data.formPath, data.draftAnswers);
+      }
+
+      if (!res.ok || !data.ok) {
+        if (titleEl) {
+          titleEl.textContent =
+            data.reason === "expired"
+              ? "This link has expired"
+              : "This link isn't valid";
+        }
+        if (messageEl) {
+          messageEl.textContent =
+            data.error || "Submit the form again to get a new link.";
+        }
+        setRetryLink(retryEl, data.formPath, token);
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = data.successTitle || "You're confirmed";
+      if (messageEl) {
+        messageEl.textContent =
+          data.successMessage || "Thanks for writing. We'll be in touch.";
+      }
+      if (homeEl) homeEl.hidden = false;
+      setRetryLink(retryEl, data.formPath, token);
+    } catch {
+      if (titleEl) titleEl.textContent = "Something went wrong";
+      if (messageEl) {
+        messageEl.textContent =
+          "Try the link again, or submit the form once more.";
+      }
+      setRetryLink(retryEl, "", token);
+    }
+  }
+
+  runVerify();
+</script>
+
+<style>
+  .contact-verify {
+    max-width: 32rem;
+  }
+
+  .contact-verify h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    margin: 0.5rem 0 1rem;
+    color: var(--color-text);
+  }
+
+  .contact-verify p {
+    color: var(--color-text-muted);
+    line-height: 1.55;
+  }
+
+  .contact-verify .btn {
+    margin-top: 1.5rem;
+    margin-right: 0.75rem;
+  }
+</style>

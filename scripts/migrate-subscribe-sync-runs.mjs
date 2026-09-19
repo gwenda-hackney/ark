@@ -9,18 +9,17 @@
  * Usage (from repo root):
  *   CONFIRM_PRODUCTION_MIGRATE=1 npm run migrate:subscribe-sync-runs
  *
- * Credentials (not stored):
+ * Credentials: cached JWT in `.baserow-jwt.json` after first login, or
  *   BASEROW_JWT_EMAIL, BASEROW_JWT_PASSWORD
  *   or interactive prompt when stdin is a TTY
  *
  * After success, set BASEROW_SYNC_LOG_TABLE_ID in
  * marketing/subscribe-mailchimp-sync/wrangler.toml [vars] and redeploy.
  */
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");
@@ -79,84 +78,6 @@ function readEnv(key) {
   return process.env[key]?.trim() || "";
 }
 
-function promptHidden(label) {
-  return new Promise((resolvePromise, reject) => {
-    if (!stdin.isTTY) {
-      reject(new Error("Cannot prompt for password without a TTY."));
-      return;
-    }
-    stdout.write(label);
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding("utf8");
-    let password = "";
-
-    const onData = (chunk) => {
-      const char = String(chunk);
-      if (char === "\n" || char === "\r" || char === "\u0004") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        resolvePromise(password);
-        return;
-      }
-      if (char === "\u0003") {
-        stdin.setRawMode(false);
-        stdin.pause();
-        stdin.removeListener("data", onData);
-        stdout.write("\n");
-        process.exit(130);
-      }
-      if (char === "\u007f") {
-        if (password.length > 0) password = password.slice(0, -1);
-        return;
-      }
-      password += char;
-    };
-
-    stdin.on("data", onData);
-  });
-}
-
-async function promptCredentials(databaseId) {
-  let email = readEnv("BASEROW_JWT_EMAIL");
-  let password = readEnv("BASEROW_JWT_PASSWORD");
-  if (email && password) {
-    return { email, password };
-  }
-
-  if (!stdin.isTTY) {
-    throw new Error(
-      "Set BASEROW_JWT_EMAIL and BASEROW_JWT_PASSWORD for non-interactive use.",
-    );
-  }
-
-  console.log(
-    `Log in with your Baserow account (Admin or Builder on database ${databaseId}).`,
-  );
-  console.log("Credentials are not saved — used once for a short-lived JWT.\n");
-
-  const rl = createInterface({ input: stdin, output: stdout });
-  try {
-    if (!email) {
-      email = (await rl.question("Baserow email: ")).trim();
-    }
-  } finally {
-    rl.close();
-  }
-
-  if (!password) {
-    password = await promptHidden("Baserow password: ");
-  }
-
-  if (!email || !password) {
-    throw new Error("Email and password are required.");
-  }
-
-  return { email, password };
-}
-
 async function baserowRequest(apiBase, jwt, path, init = {}) {
   const url = path.startsWith("http") ? path : `${apiBase}${path}`;
   const response = await fetch(url, {
@@ -181,25 +102,6 @@ async function baserowRequest(apiBase, jwt, path, init = {}) {
     );
   }
   return json;
-}
-
-async function fetchJwt(apiBase, email, password) {
-  const response = await fetch(`${apiBase}/api/user/token-auth/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password }),
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      `Baserow login failed (${response.status}): ${payload.detail || payload.error || "check email/password"}`,
-    );
-  }
-  const token = payload.access_token || payload.token;
-  if (!token) {
-    throw new Error("Baserow login succeeded but no access_token in response.");
-  }
-  return token;
 }
 
 async function resolveProductionDatabaseId(apiBase, apiKey) {
@@ -305,9 +207,9 @@ async function main() {
     `Production database ${databaseId} (subscribe table ${PRODUCTION_SUBSCRIBE_TABLE_ID}).`,
   );
 
-  const { email, password } = await promptCredentials(databaseId);
-  console.log(`Authenticating with Baserow (${apiBase})…`);
-  const jwt = await fetchJwt(apiBase, email, password);
+  const jwt = await getBaserowJwt(apiBase, {
+    hint: `database ${databaseId}`,
+  });
 
   const tables = await baserowRequest(
     apiBase,

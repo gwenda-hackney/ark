@@ -7,59 +7,21 @@
  *   node --env-file=.env scripts/seed-baserow-ops-menu.mjs
  */
 import { createClient } from "@sanity/client";
+import { PRINT_MENU_CHAPTERS } from "./lib/print-menu-sections.mjs";
+import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 
 const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
   /\/$/,
   "",
 );
 const apiKey = process.env.BASEROW_API_KEY?.trim();
-const sectionsTableId = process.env.BASEROW_OPS_SECTIONS_TABLE_ID?.trim();
-const itemsTableId = process.env.BASEROW_OPS_ITEMS_TABLE_ID?.trim();
+let sectionsTableId = "";
+let itemsTableId = "";
 
-if (!apiKey || !sectionsTableId || !itemsTableId) {
-  console.error(
-    "Need BASEROW_API_KEY, BASEROW_OPS_SECTIONS_TABLE_ID, BASEROW_OPS_ITEMS_TABLE_ID",
-  );
+if (!apiKey) {
+  console.error("Need BASEROW_API_KEY");
   process.exit(1);
 }
-
-const MENU_CHAPTERS = [
-  {
-    title: "Our Formulas",
-    slug: "our-formulas",
-    subtitle:
-      "The definitive liquid experience. Elegant expressions crafted for candlelit evenings.",
-  },
-  {
-    title: "Free of Spirit",
-    slug: "free-of-spirit",
-    subtitle:
-      "The mindful liquid experience. Zero-proof expressions crafted with the same complexity.",
-  },
-  {
-    title: "By the Book",
-    slug: "by-the-book",
-    subtitle: "The traditional liquid ritual. Timeless serves, made as you know them.",
-    subsections: [
-      { title: "Spritz", slug: "spritz" },
-      { title: "Negroni", slug: "negroni" },
-      { title: "Sour", slug: "sour" },
-      { title: "Highball", slug: "highball" },
-      { title: "Bottled Beer", slug: "bottled-beer" },
-    ],
-  },
-  {
-    title: "The Cabinet",
-    slug: "the-cabinet",
-    subtitle: "The liquid cabinet. Amaro, grappa, and whiskey for the quieter close.",
-    subsections: [
-      { title: "Amaro", slug: "amaro" },
-      { title: "Whiskey", slug: "whiskey" },
-      { title: "Grappa", slug: "grappa" },
-      { title: "Liqueurs", slug: "liqueurs" },
-    ],
-  },
-];
 
 async function baserow(path, init = {}) {
   const response = await fetch(`${apiBase}${path}`, {
@@ -215,11 +177,14 @@ async function syncItemsFromSanity(sectionIdBySlug) {
 }
 
 async function main() {
+  const tables = await requireOpsTables();
+  sectionsTableId = tables.sections;
+  itemsTableId = tables.items;
   console.log("Seeding Baserow Ops menu sections…");
   const sanitySections = await sanitySectionMap();
   const sectionIdBySlug = new Map();
   let order = 0;
-  for (const chapter of MENU_CHAPTERS) {
+  for (const chapter of PRINT_MENU_CHAPTERS) {
     order += 1;
     const chapterId = await ensureSection({
       title: chapter.title,

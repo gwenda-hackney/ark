@@ -1,0 +1,314 @@
+---
+import type { FormField, FormPage } from "../lib/sanity/forms";
+import { groupFormSections } from "../lib/sanity/forms";
+
+interface Props {
+  form: FormPage;
+}
+
+const { form } = Astro.props;
+const sections = groupFormSections(form.fields);
+
+function optionValue(option: { label: string; value: string | null }) {
+  return (option.value?.trim() || option.label).trim();
+}
+
+function isOtherChoice(value: string) {
+  return /^other$/i.test(value.trim());
+}
+
+function fieldHasOther(field: FormField) {
+  return (field.options ?? []).some((option) =>
+    isOtherChoice(optionValue(option)),
+  );
+}
+
+function inputType(field: FormField) {
+  switch (field.type) {
+    case "email":
+      return "email";
+    case "tel":
+      return "tel";
+    case "url":
+      return "url";
+    default:
+      return "text";
+  }
+}
+---
+
+{
+  sections.length > 1 ? (
+    <div class="contact-nav-sentinel" aria-hidden="true" />
+  ) : null
+}
+{
+  sections.length > 1 ? (
+    <nav class="contact-nav" id="contact-nav" aria-label="Form sections">
+      <div class="contact-nav-jump gw-field">
+        <label class="visually-hidden" for="contact-section-select">
+          Jump to section
+        </label>
+        <select id="contact-section-select" autocomplete="off">
+          {sections.map((section, index) => (
+            <option value={section.id} selected={index === 0}>
+              {`${String(index + 1).padStart(2, "0")} · ${section.title}`}
+            </option>
+          ))}
+        </select>
+      </div>
+      <ol class="contact-nav-list">
+        {sections.map((section, index) => (
+          <li>
+            <a
+              class="contact-nav-link"
+              href={`#${section.id}`}
+              data-section={section.id}
+            >
+              <span class="contact-nav-index">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span class="contact-nav-label">{section.title}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  ) : null
+}
+
+<form
+  class="contact-form"
+  id="contact-form"
+  data-form-slug={form.slug}
+  data-require-verify={form.requireEmailVerification ? "true" : undefined}
+  data-success-title={form.successTitle}
+  data-success-message={form.successMessage}
+  data-verify-pending-title={form.verifyPendingTitle ?? "Check your email"}
+  data-verify-pending-message={
+    form.verifyPendingMessage ??
+    "We sent a link to {email}. Open it to finish (valid for 48 hours)."
+  }
+  novalidate
+>
+  <p class="contact-required-note">
+    A few fields are marked <span class="contact-required-text">Required</span>.
+    The rest are optional if you’d rather skip them.
+  </p>
+  {
+    sections.map((section) => (
+      <section
+        class="contact-section"
+        id={section.id}
+        data-section={section.id}
+      >
+        <header class="contact-section-header">
+          <h2>{section.title}</h2>
+          <div class="contact-section-rule" aria-hidden="true" />
+        </header>
+        <div class="contact-stack">
+          {section.fields.map((field) => {
+            const id = `form-${field.key}`;
+            const required = Boolean(field.required);
+
+            const labelText = (
+              <span class="contact-label-text">
+                <span class="contact-label-name">{field.label}</span>
+                {required ? (
+                  <span class="contact-required">
+                    <span class="contact-required-mark" aria-hidden="true">
+                      *
+                    </span>
+                    <span class="contact-required-text">Required</span>
+                  </span>
+                ) : null}
+              </span>
+            );
+            const help = field.helpText ? (
+              <p class="contact-help" id={`${id}-help`}>
+                {field.helpText}
+              </p>
+            ) : null;
+
+            if (field.type === "textarea") {
+              return (
+                <div class="contact-stack-item">
+                  <div class="contact-field gw-field">
+                    <div class="contact-field-heading">
+                      <label class="contact-field-label" for={id}>
+                        {labelText}
+                      </label>
+                      {help}
+                    </div>
+                    <textarea
+                      id={id}
+                      name={field.key}
+                      rows="4"
+                      placeholder={field.placeholder ?? undefined}
+                      required={required}
+                      aria-describedby={field.helpText ? `${id}-help` : undefined}
+                    />
+                  </div>
+                </div>
+              );
+            }
+
+            if (field.type === "select") {
+              const showOther = fieldHasOther(field);
+              const options = field.options ?? [];
+              return (
+                <div class="contact-stack-item">
+                  <div class="contact-field gw-field" data-choice-field={field.key}>
+                    <div class="contact-field-heading">
+                      <label class="contact-field-label" for={id}>
+                        {labelText}
+                      </label>
+                      {help}
+                    </div>
+                    <select
+                      id={id}
+                      name={field.key}
+                      required={required}
+                      data-has-other={showOther ? "true" : undefined}
+                      aria-describedby={field.helpText ? `${id}-help` : undefined}
+                    >
+                      <option value="" disabled selected>
+                        Select…
+                      </option>
+                      {options.map((option) => {
+                        const value = optionValue(option);
+                        return (
+                          <option
+                            value={value}
+                            data-is-other={isOtherChoice(value) ? "true" : undefined}
+                          >
+                            {option.label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {showOther ? (
+                      <div class="contact-other gw-field" data-other-for={field.key} hidden>
+                        <label for={`${id}-other`}>Please specify</label>
+                        <input
+                          type="text"
+                          id={`${id}-other`}
+                          name={`${field.key}Other`}
+                          placeholder="Tell us what…"
+                          autocomplete="off"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            }
+
+            if (field.type === "multiSelect") {
+              const showOther = fieldHasOther(field);
+              return (
+                <div class="contact-stack-item">
+                  <fieldset class="contact-field contact-tags" data-choice-field={field.key}>
+                    <legend class="contact-field-label">{labelText}</legend>
+                    {help}
+                    <div
+                      class="contact-tag-list"
+                      aria-describedby={field.helpText ? `${id}-help` : undefined}
+                    >
+                      {(field.options ?? []).map((option) => {
+                        const value = optionValue(option);
+                        const choiceId = `${id}-${value}`;
+                        return (
+                          <label class="contact-tag" for={choiceId}>
+                            <input
+                              type="checkbox"
+                              id={choiceId}
+                              name={field.key}
+                              value={value}
+                              data-is-other={isOtherChoice(value) ? "true" : undefined}
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {showOther ? (
+                      <div class="contact-other gw-field" data-other-for={field.key} hidden>
+                        <label for={`${id}-other`}>Please specify</label>
+                        <input
+                          type="text"
+                          id={`${id}-other`}
+                          name={`${field.key}Other`}
+                          placeholder="Tell us what…"
+                          autocomplete="off"
+                        />
+                      </div>
+                    ) : null}
+                  </fieldset>
+                </div>
+              );
+            }
+
+            return (
+              <div class="contact-stack-item">
+                <div class="contact-field gw-field">
+                  <div class="contact-field-heading">
+                    <label class="contact-field-label" for={id}>
+                      {labelText}
+                    </label>
+                    {help}
+                  </div>
+                  <input
+                    type={inputType(field)}
+                    id={id}
+                    name={field.key}
+                    placeholder={field.placeholder ?? undefined}
+                    required={required}
+                    aria-describedby={field.helpText ? `${id}-help` : undefined}
+                    autocomplete={
+                      field.type === "email"
+                        ? "email"
+                        : field.key === "name"
+                          ? "name"
+                          : field.type === "tel"
+                            ? "tel"
+                            : "off"
+                    }
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    ))
+  }
+
+  <div class="visually-hidden" aria-hidden="true">
+    <label for="form-website">Website</label>
+    <input
+      type="text"
+      name="website"
+      id="form-website"
+      tabindex="-1"
+      autocomplete="off"
+    />
+  </div>
+
+  <div class="contact-actions">
+    <button
+      type="submit"
+      class="btn btn-primary contact-submit"
+      id="contact-submit"
+    >
+      {form.submitLabel}
+    </button>
+    <p
+      class="contact-error"
+      id="contact-error"
+      role="alert"
+      aria-live="polite"
+      hidden
+    ></p>
+  </div>
+</form>

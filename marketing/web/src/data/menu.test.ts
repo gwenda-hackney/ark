@@ -23,19 +23,25 @@ const sampleMenu: Menu = {
           id: "a",
           name: "Wick Lantern Sour",
           price: "14",
-          signature: true,
+          drinkType: "cocktail",
           image: sampleImage,
           notes: "Aperitif",
         },
-        { id: "b", name: "Canal Bloom", description: "Rye, smoke", signature: true },
-        { id: "c", name: "Hidden", available: false, signature: true, image: sampleImage },
-        { id: "d", name: "House Negroni", signature: false, image: sampleImage },
+        { id: "b", name: "Canal Bloom", description: "Rye, smoke", drinkType: "cocktail" },
+        {
+          id: "c",
+          name: "Hidden",
+          available: false,
+          drinkType: "cocktail",
+          image: sampleImage,
+        },
+        { id: "d", name: "House Negroni", drinkType: "pour", image: sampleImage },
       ],
     },
     {
       id: "wines",
       title: "Natural Wines",
-      items: [{ id: "w1", name: "By the Glass" }],
+      items: [{ id: "w1", name: "By the Glass", drinkType: "pour" }],
     },
   ],
 };
@@ -58,23 +64,23 @@ describe("getAvailableItems", () => {
 });
 
 describe("getSignatureCocktails", () => {
-  it("returns signature cocktails with CMS images from any section", () => {
+  it("returns cocktail photos from any section", () => {
     const signatures = getSignatureCocktails(sampleMenu);
     expect(signatures).toHaveLength(1);
     expect(signatures[0]?.name).toBe("Wick Lantern Sour");
     expect(signatures[0]?.image.url).toBe(sampleImage.url);
   });
 
-  it("excludes signature items without images", () => {
+  it("excludes non-cocktails and cocktails without images", () => {
     const menu: Menu = {
       sections: [
         {
-          id: "signature-cocktails",
-          title: "Signature Cocktails",
+          id: "drinks",
+          title: "Drinks",
           items: [
-            { id: "a", name: "With photo", signature: true, image: sampleImage },
-            { id: "b", name: "No photo", signature: true },
-            { id: "c", name: "Not signature", image: sampleImage },
+            { id: "a", name: "With photo", drinkType: "cocktail", image: sampleImage },
+            { id: "b", name: "No photo", drinkType: "cocktail" },
+            { id: "c", name: "Bottled beer", drinkType: "packaged", image: sampleImage },
           ],
         },
       ],

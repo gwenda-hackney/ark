@@ -1,0 +1,19 @@
+{
+  "name": "@gwenda/ops",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gwenda internal ops tools: shared shell, recipes, menu prices and stock (Cloudflare Access / Pages)",
+  "scripts": {
+    "dev": "node ../../scripts/ops-dev.mjs",
+    "build": "npm run build -w @gwenda/ops-menu",
+    "test": "node --test functions/_lib/*.test.js menu-app/src/lib/*.test.ts ../../scripts/lib/cloudflare-tokens.test.mjs ../../scripts/lib/bitwarden-sm.test.mjs",
+    "sync": "node scripts/sync-from-mydrive.mjs",
+    "deploy": "npm run build && wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
+    "deploy:production": "npm run build && wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
+    "deploy:preview": "npm run build && wrangler pages deploy src --project-name gwenda-ops --commit-dirty=true"
+  },
+  "devDependencies": {
+    "wrangler": "^4.98.0"
+  }
+}

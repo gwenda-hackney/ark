@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import Subpage from "../components/Subpage.astro";
 import { siteConfig } from "../config/site";
 import { formatEventDate, getUpcomingEvents } from "../data/events";
 import { fetchEvents } from "../lib/sanity/events";
@@ -44,23 +45,19 @@ const eventSchema = upcomingEvents.map((event) => ({
     })}
   />
 
-  <main class="events-page">
-    <div class="container events-inner">
-      <a href="/" class="legal-back">← Back</a>
+  <Subpage class="events-page" innerClass="events-inner">
+    <header class="section-header reveal">
+      <p class="section-eyebrow">What's on</p>
+      <h1>Events</h1>
+      <p>Canalside evenings in {siteConfig.location.area}.</p>
+    </header>
 
-      <header class="section-header reveal">
-        <p class="section-eyebrow">What's on</p>
-        <h1>Events</h1>
-        <p>Canalside evenings in {siteConfig.location.area}.</p>
-      </header>
-
-      <p id="events-loading" class="events-empty reveal">Loading events…</p>
-      <p id="events-empty" class="events-empty reveal" hidden>
-        Nothing scheduled yet. Check back soon.
-      </p>
-      <ul class="events-list" id="events-list"></ul>
-    </div>
-  </main>
+    <p id="events-loading" class="events-empty reveal">Loading events…</p>
+    <p id="events-empty" class="events-empty reveal" hidden>
+      Nothing scheduled yet. Check back soon.
+    </p>
+    <ul class="events-list" id="events-list"></ul>
+  </Subpage>
   <script>
     import { initEventsPage } from "../scripts/events.js";
     initEventsPage();

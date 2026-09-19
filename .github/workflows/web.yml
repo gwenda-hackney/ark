@@ -1,0 +1,393 @@
+name: Web
+
+# Marketing site: staging, production preview, branch previews, and content deploys.
+# Promote to live is web-promote.yml.
+
+run-name: >-
+  ${{
+    github.event_name == 'repository_dispatch' && github.event.action ||
+    github.event_name == 'workflow_dispatch' && inputs.action ||
+    format('push-{0}', github.ref_name)
+  }}
+
+on:
+  push:
+    paths:
+      - "marketing/web/**"
+      - "package-lock.json"
+      - ".github/workflows/web.yml"
+      - ".github/workflows/verify.yml"
+      - ".github/actions/deploy-pages/**"
+      - ".github/scripts/cloudflare-pages-branch.mjs"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Deploy action
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - staging-content
+          - production-content
+  repository_dispatch:
+    types: [content-deploy-staging, content-deploy-production]
+
+jobs:
+  resolve:
+    name: Resolve mode
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.r.outputs.mode }}
+      dataset: ${{ steps.r.outputs.dataset }}
+    steps:
+      - id: r
+        run: |
+          MODE=""
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            case "${{ github.event.action }}" in
+              content-deploy-staging) MODE=staging-content ;;
+              content-deploy-production) MODE=production-content ;;
+            esac
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ACTION="${{ inputs.action }}"
+            if [ "$ACTION" = "staging-content" ] || [ "$ACTION" = "production-content" ]; then
+              MODE="$ACTION"
+            elif [ "$ACTION" = "auto" ]; then
+              case "${{ github.ref_name }}" in
+                main) MODE=staging-code ;;
+                release) MODE=production-code ;;
+                *) MODE=branch-preview ;;
+              esac
+            fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            case "${{ github.ref_name }}" in
+              main) MODE=staging-code ;;
+              release) MODE=production-code ;;
+              *) MODE=branch-preview ;;
+            esac
+          fi
+
+          if [ -z "$MODE" ]; then
+            echo "Could not resolve deploy mode" >&2
+            exit 1
+          fi
+
+          case "$MODE" in
+            production-code|production-content) DATASET=production ;;
+            *) DATASET=development ;;
+          esac
+
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "dataset=$DATASET" >> "$GITHUB_OUTPUT"
+          echo "Resolved mode=$MODE dataset=$DATASET"
+
+  verify:
+    needs: resolve
+    uses: ./.github/workflows/verify.yml
+    secrets: inherit
+    with:
+      sanity-dataset: ${{ needs.resolve.outputs.dataset }}
+
+  deploy-staging:
+    name: Deploy staging
+    needs: [resolve, verify]
+    if: needs.resolve.outputs.mode == 'staging-code' || needs.resolve.outputs.mode == 'staging-content'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: web-staging
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: staging
+      url: https://gwenda-staging.pages.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.mode == 'staging-content' && 'main' || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute build metadata
+        id: buildmeta
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
+        env:
+          GITHUB_REF_NAME: main
+          GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
+
+      - name: Pull web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:web:pull -- --github-env
+
+      - name: Deploy
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda-staging
+          pages-production-branch: main
+          deploy-branch: main
+          wrangler-config: wrangler.staging.toml
+          public-is-staging: "true"
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
+          build-version: ${{ steps.buildmeta.outputs.version }}
+          build-sha: ${{ steps.buildmeta.outputs.sha }}
+          build-ref: ${{ steps.buildmeta.outputs.ref }}
+          build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          sanity-api-token: ${{ env.SANITY_API_TOKEN }}
+          sanity-dataset: development
+
+      - name: Smoke test
+        env:
+          SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      - name: Deployment summary
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"${{ needs.resolve.outputs.mode == 'staging-content' && 'Staging content deployed' || 'Staging deployed' }}","rows":[
+              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
+              ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
+              ["Site","https://gwenda-staging.pages.dev"],
+              ["Mode","`${{ needs.resolve.outputs.mode }}`"]
+            ]}
+
+  deploy-production-preview:
+    name: Deploy production preview
+    needs: [resolve, verify]
+    if: needs.resolve.outputs.mode == 'production-code' || needs.resolve.outputs.mode == 'production-content'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: web-production-preview
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: production-preview
+      url: https://release-preview.gwenda-blue.pages.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.mode == 'production-content' && 'release' || github.sha }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute build metadata
+        id: buildmeta
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
+        env:
+          GITHUB_REF_NAME: release
+          GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
+
+      - name: Pull web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:web:pull -- --github-env --profile production
+
+      - name: Deploy preview
+        id: deploy
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda
+          pages-production-branch: release
+          deploy-branch: release-preview
+          wrangler-config: wrangler.toml
+          public-is-staging: "false"
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
+          build-version: ${{ steps.buildmeta.outputs.version }}
+          build-sha: ${{ steps.buildmeta.outputs.sha }}
+          build-ref: ${{ steps.buildmeta.outputs.ref }}
+          build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          sanity-api-token: ${{ env.SANITY_API_TOKEN }}
+          sanity-dataset: production
+
+      - name: Upload preview dist for promote
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.resolve.outputs.mode == 'production-content' && 'production-content-dist' || 'production-dist' }}
+          path: marketing/web/dist/
+          retention-days: 14
+
+      - name: Resolve preview URL
+        id: preview_url
+        run: |
+          URL="${{ steps.deploy.outputs.pages-deployment-alias-url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ steps.deploy.outputs.deployment-url }}"
+          fi
+          if [ -z "$URL" ]; then
+            URL="https://release-preview.gwenda-blue.pages.dev"
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Write content preview meta
+        if: needs.resolve.outputs.mode == 'production-content'
+        run: |
+          mkdir -p /tmp/content-preview-meta
+          node -e "
+            const fs = require('fs');
+            fs.writeFileSync(
+              '/tmp/content-preview-meta/meta.json',
+              JSON.stringify({
+                previewUrl: process.env.PREVIEW_URL,
+                version: process.env.VERSION,
+                runId: process.env.RUN_ID,
+              }),
+            );
+          "
+        env:
+          PREVIEW_URL: ${{ steps.preview_url.outputs.url }}
+          VERSION: ${{ steps.buildmeta.outputs.version }}
+          RUN_ID: ${{ github.run_id }}
+
+      - name: Upload content preview meta
+        if: needs.resolve.outputs.mode == 'production-content'
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-preview-meta
+          path: /tmp/content-preview-meta/
+          retention-days: 14
+
+      - name: Allow AI crawlers on production zone
+        if: needs.resolve.outputs.mode == 'production-code'
+        run: cd marketing/web && node scripts/ensure-zone-ai-access.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          ZONE_NAME: gwenda.co.uk
+
+      - name: Smoke test preview
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url "${{ steps.preview_url.outputs.url }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      - name: Preview deployment summary
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"${{ needs.resolve.outputs.mode == 'production-content' && 'Production content preview ready' || 'Production preview ready — review before promoting' }}","rows":[
+              ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
+              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
+              ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
+              ["Next step","Run [Web promote](${{ github.server_url }}/${{ github.repository }}/actions/workflows/web-promote.yml) (kind=${{ needs.resolve.outputs.mode == 'production-content' && 'content' || 'code' }})"]
+            ]}
+
+  deploy-branch-preview:
+    name: Deploy branch preview
+    needs: [resolve, verify]
+    if: needs.resolve.outputs.mode == 'branch-preview'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: web-preview
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve Pages preview branch
+        id: branch
+        run: |
+          NAME=$(node .github/scripts/cloudflare-pages-branch.mjs '${{ github.ref_name }}')
+          if [ "$NAME" = "main" ] || [ "$NAME" = "release" ]; then
+            NAME="preview-${GITHUB_SHA::7}"
+          fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Compute build metadata
+        id: buildmeta
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
+        env:
+          GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+
+      - name: Pull web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:web:pull -- --github-env
+
+      - name: Deploy preview
+        id: deploy
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda-staging
+          pages-production-branch: main
+          deploy-branch: ${{ steps.branch.outputs.name }}
+          wrangler-config: wrangler.staging.toml
+          public-is-staging: "true"
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
+          build-version: ${{ steps.buildmeta.outputs.version }}
+          build-sha: ${{ steps.buildmeta.outputs.sha }}
+          build-ref: ${{ steps.buildmeta.outputs.ref }}
+          build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          sanity-api-token: ${{ env.SANITY_API_TOKEN }}
+          sanity-dataset: development
+
+      - name: Resolve preview URL
+        id: preview_url
+        run: |
+          URL="${{ steps.deploy.outputs.pages-deployment-alias-url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ steps.deploy.outputs.deployment-url }}"
+          fi
+          if [ -z "$URL" ]; then
+            URL="https://${{ steps.branch.outputs.name }}.gwenda-staging.pages.dev"
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test preview
+        env:
+          SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url "${{ steps.preview_url.outputs.url }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      - name: Deployment summary
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Web — branch preview","rows":[
+              ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
+              ["Pages branch","`${{ steps.branch.outputs.name }}`"],
+              ["Git branch","`${{ github.ref_name }}`"],
+              ["Version","`${{ steps.buildmeta.outputs.version }}`"]
+            ]}

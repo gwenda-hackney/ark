@@ -1,0 +1,27 @@
+---
+import { Image } from "astro:assets";
+import BackLink from "./BackLink.astro";
+import { headerLogo } from "../lib/hero-assets";
+
+interface Props {
+  /** Where the back chip goes. */
+  href?: string;
+  label?: string;
+  /** Wordmark home link. */
+  homeHref?: string;
+}
+
+const { href = "/", label = "← Back", homeHref = "/" } = Astro.props;
+---
+
+<div class="subpage-chrome">
+  <BackLink href={href} label={label} />
+  <a href={homeHref} class="subpage-chrome-logo" aria-label="Gwenda home">
+    <Image
+      {...headerLogo}
+      alt=""
+      class="subpage-chrome-logo-img"
+      loading="eager"
+    />
+  </a>
+</div>

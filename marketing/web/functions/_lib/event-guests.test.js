@@ -42,7 +42,7 @@ describe("getGuestByIdForEvent", () => {
         if (href.includes("all-tables")) {
           return Promise.resolve({
             ok: true,
-            json: async () => [{ id: 555, name: "Event Invites", database_id: 465058 }],
+            json: async () => [{ id: 555, name: "Event Invites", database_id: 1 }],
           });
         }
         return Promise.resolve({
@@ -77,7 +77,7 @@ describe("getGuestByIdForEvent", () => {
         if (href.includes("all-tables")) {
           return Promise.resolve({
             ok: true,
-            json: async () => [{ id: 556, name: "Event Invites", database_id: 465058 }],
+            json: async () => [{ id: 556, name: "Event Invites", database_id: 1 }],
           });
         }
         return Promise.resolve({

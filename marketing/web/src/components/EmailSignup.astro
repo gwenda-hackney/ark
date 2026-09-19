@@ -7,13 +7,16 @@ import { headerLogo } from "../lib/hero-assets";
 
 interface Props {
   mode: SiteMode;
+  /** Compact layout for embedding on /contact (no home #list anchor). */
+  embedded?: boolean;
 }
 
-const { mode } = Astro.props;
+const { mode, embedded = false } = Astro.props;
 const copy = getCopy(mode);
+const sectionClass = embedded ? "signup section signup--embedded" : "signup section";
 ---
 
-<section class="signup section" id="list">
+<section class={sectionClass} id={embedded ? undefined : "list"}>
   <div class="container signup-inner">
     <div class="signup-stage">
       <div class="signup-panel" id="signup-panel">
