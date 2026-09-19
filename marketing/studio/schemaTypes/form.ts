@@ -123,7 +123,7 @@ export const form = defineType({
       title: "Success message",
       type: "text",
       rows: 3,
-      initialValue: "Thanks for writing. We'll be in touch.",
+      initialValue: "Thanks for writing. Our team will get in touch with you shortly.",
       validation: (rule) => rule.required(),
     }),
     defineField({

@@ -60,26 +60,23 @@ const PRINT_ITEMS = [
     name: "Gwenda Pilsner",
     price: "6.5",
     drinkType: "beer",
-    abv: "3.4%",
   },
   {
     sectionSlug: "draught-beer",
     name: "Tiny Rebel IPA",
     price: "7",
     drinkType: "beer",
-    abv: "4.3%",
   },
   {
     sectionSlug: "draught-beer",
     name: "Caffrey's Black Stout",
     price: "7.5",
     drinkType: "beer",
-    abv: "3.4%",
   },
   {
     sectionSlug: "agave",
     name: "Bandero Premium Blanco",
-    price: "8",
+    price: "7",
     drinkType: "pour",
   },
   {
@@ -91,25 +88,25 @@ const PRINT_ITEMS = [
   {
     sectionSlug: "agave",
     name: "Astral Tequila Blanco",
-    price: "6",
+    price: "5",
     drinkType: "pour",
   },
   {
     sectionSlug: "agave",
     name: "Ilegal Joven Mezcal",
-    price: "10",
+    price: "7",
     drinkType: "pour",
   },
   {
     sectionSlug: "agave",
     name: "Ojo de Dios Mezcal Joven",
-    price: "8",
+    price: "6",
     drinkType: "pour",
   },
   {
     sectionSlug: "rum",
     name: "El Dorado 12 Year Old Rum",
-    price: "10",
+    price: "8",
     drinkType: "pour",
   },
   {
@@ -121,15 +118,8 @@ const PRINT_ITEMS = [
   {
     sectionSlug: "rum",
     name: "Bacardi Reserva Ocho Rum",
-    price: "8",
+    price: "6",
     drinkType: "pour",
-  },
-  {
-    sectionSlug: "whiskey",
-    name: "Jameson Black Barrel",
-    price: "8",
-    drinkType: "pour",
-    aliases: ["Jameson"],
   },
   {
     sectionSlug: "whiskey",
@@ -140,13 +130,13 @@ const PRINT_ITEMS = [
   {
     sectionSlug: "whiskey",
     name: "Maker's Mark 46",
-    price: "9",
+    price: "7",
     drinkType: "pour",
   },
   {
     sectionSlug: "whiskey",
     name: "Laphroaig 10 Year Old Whisky",
-    price: "11",
+    price: "8",
     drinkType: "pour",
   },
   {
@@ -165,60 +155,20 @@ const PRINT_ITEMS = [
   {
     sectionSlug: "amaro-digestivi",
     name: "Grappa Nardini Bianca",
-    price: "6",
+    price: "5",
     drinkType: "pour",
   },
   {
     sectionSlug: "amaro-digestivi",
     name: "Grappa Diciotto Lune",
-    price: "7",
+    price: "6",
     drinkType: "pour",
   },
   {
     sectionSlug: "amaro-digestivi",
     name: "Pernod Absinthe Supérieure",
-    price: "10",
+    price: "7",
     drinkType: "pour",
-  },
-  {
-    sectionSlug: "amaro-digestivi",
-    name: "Sombrero Crema de Plátano y Tequila",
-    price: "6",
-    drinkType: "pour",
-  },
-  {
-    sectionSlug: "amaro-digestivi",
-    name: "Sombrero Crema de Maracuyá",
-    price: "6",
-    drinkType: "pour",
-  },
-  {
-    sectionSlug: "highball",
-    name: "Gin and Tonic",
-    price: "8",
-    priceAlt: "10",
-    drinkType: "cocktail",
-  },
-  {
-    sectionSlug: "highball",
-    name: "Rum and Coke",
-    price: "8",
-    priceAlt: "10",
-    drinkType: "cocktail",
-  },
-  {
-    sectionSlug: "highball",
-    name: "Vodka Red Bull",
-    price: "8",
-    priceAlt: "10",
-    drinkType: "cocktail",
-  },
-  {
-    sectionSlug: "highball",
-    name: "Vodka Lemon",
-    price: "8",
-    priceAlt: "10",
-    drinkType: "cocktail",
   },
 ];
 
@@ -228,6 +178,16 @@ const DROP_SANITY_NAMES = new Set([
   "Amaro Lucano",
   "Sambuca Molinari",
   "Mirto Rosso",
+  "Jameson",
+  "Jameson Black Barrel",
+  "Vecchio Amaro Del Capo",
+  "Sombrero Crema de Plátano y Tequila",
+  "Sombrero Crema de Maracuyá",
+  "Moscow Mule",
+  "Gin and Tonic",
+  "Rum and Coke",
+  "Vodka Red Bull",
+  "Vodka Lemon",
 ]);
 
 async function baserow(path, init = {}) {
@@ -419,6 +379,10 @@ async function ensureSanityPrintItems(client, sectionIds) {
     if (hit) {
       const unsetFields = [];
       if (!item.priceAlt) unsetFields.push("priceAlt");
+      if (!item.notes) unsetFields.push("notes");
+      if (!item.abv) unsetFields.push("abv");
+      if (!item.volume) unsetFields.push("volume");
+      if (!item.producer) unsetFields.push("producer");
       await client.patch(hit._id).set(fields).unset(unsetFields).commit();
       byName.set(item.name.toLowerCase(), { ...hit, name: item.name });
       console.log(`  ${item.name}`);
@@ -433,6 +397,76 @@ async function ensureSanityPrintItems(client, sectionIds) {
     if (!DROP_SANITY_NAMES.has(doc.name)) continue;
     await client.delete(doc._id);
     console.log(`  removed ${doc.name}`);
+  }
+
+  await patchGuestFacingPrint(client);
+  await dropEmptyLeftoverSections(client);
+}
+
+const GUEST_PATCHES = [
+  {
+    name: "The Wick",
+    set: {
+      description: "Finlandia vodka, coconut water, blue curaçao, lime, soda",
+    },
+  },
+  {
+    name: "Spicy Margarita",
+    set: { price: "10" },
+  },
+  {
+    name: "Tiny Rebel IPA",
+    unset: ["notes"],
+  },
+];
+
+async function patchGuestFacingPrint(client) {
+  console.log("Guest-facing print patches…");
+  for (const patch of GUEST_PATCHES) {
+    const id = await client.fetch(
+      `*[_type == "menuItem" && name == $name && !(_id in path("drafts.**"))][0]._id`,
+      { name: patch.name },
+    );
+    if (!id) {
+      console.log(`  skip ${patch.name} (missing)`);
+      continue;
+    }
+    let next = client.patch(id);
+    if (patch.set) next = next.set(patch.set);
+    if (patch.unset) next = next.unset(patch.unset);
+    await next.commit();
+    console.log(`  ${patch.name}`);
+  }
+
+  const pours = await client.fetch(
+    `*[_type == "menuItem" && drinkType == "pour" && !(_id in path("drafts.**"))]{ _id, name, description }`,
+  );
+  for (const doc of pours) {
+    const description = String(doc.description || "").trim();
+    if (!description || description === doc.name) {
+      if (!description) continue;
+      await client.patch(doc._id).unset(["description"]).commit();
+      console.log(`  cleared pour description ${doc.name}`);
+    }
+  }
+}
+
+const LEFTOVER_SECTION_SLUGS = ["amaro", "grappa", "liqueurs"];
+
+async function dropEmptyLeftoverSections(client) {
+  console.log("Leftover Sanity sections…");
+  for (const slug of LEFTOVER_SECTION_SLUGS) {
+    const section = await client.fetch(
+      `*[_type == "menuSection" && slug.current == $slug][0]{ _id, title, "itemCount": count(*[_type == "menuItem" && references(^._id)]) }`,
+      { slug },
+    );
+    if (!section?._id) continue;
+    if (section.itemCount > 0) {
+      console.log(`  keep ${section.title} (${section.itemCount} items)`);
+      continue;
+    }
+    await client.delete(section._id);
+    console.log(`  removed empty section ${section.title}`);
   }
 }
 

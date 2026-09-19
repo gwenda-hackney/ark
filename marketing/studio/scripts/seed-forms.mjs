@@ -79,7 +79,7 @@ const PLAY_AT_GWENDA = {
   submitLabel: "Send",
   successTitle: "Got it",
   successMessage:
-    "Thanks for writing. We'll read this and be in touch if there's a fit. We've also sent a copy to your email.",
+    "Thanks for writing. Our team will get in touch with you shortly. We've also sent a copy to your email.",
   verifyPendingTitle: "Check your email",
   verifyPendingMessage:
     "We sent a link to {email}. Open it to finish your application (valid for 48 hours).",
@@ -258,7 +258,7 @@ const COLLABORATE = {
   submitLabel: "Send",
   successTitle: "Got it",
   successMessage:
-    "Thanks for writing. We'll read this and be in touch if there's a fit. We've also sent a copy to your email.",
+    "Thanks for writing. Our team will get in touch with you shortly. We've also sent a copy to your email.",
   verifyPendingTitle: "Check your email",
   verifyPendingMessage:
     "We sent a link to {email}. Open it to finish (valid for 48 hours).",

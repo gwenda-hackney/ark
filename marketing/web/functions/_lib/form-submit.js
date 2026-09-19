@@ -469,8 +469,8 @@ export function formatFormEmail({
     header.push("");
     header.push(
       updated
-        ? `Thank you for the update. We've taken in your latest note for ${title}. Our team will review it and be in touch if there's a fit.`
-        : `Thank you for writing. We've taken in your note for ${title}. Our team will read it and be in touch if there's a fit.`,
+        ? `Thank you for the update. We've taken in your latest note for ${title}. Our team will get in touch with you shortly.`
+        : `Thank you for writing. We've taken in your note for ${title}. Our team will get in touch with you shortly.`,
     );
   } else {
     header.push(updated ? "Update" : "New application");
@@ -563,8 +563,8 @@ export function formatFormNotifyHtml({
 
   const lead = isApplicant
     ? updated
-      ? `Thank you for the update. We've taken in your latest note for ${title}. Our team will review it and be in touch if there's a fit.`
-      : `Thank you for writing. We've taken in your note for ${title}. Our team will read it and be in touch if there's a fit.`
+      ? `Thank you for the update. We've taken in your latest note for ${title}. Our team will get in touch with you shortly.`
+      : `Thank you for writing. We've taken in your note for ${title}. Our team will get in touch with you shortly.`
     : updated
       ? `${who} updated their information.`
       : `New application for ${title}.`;

@@ -200,7 +200,7 @@ export async function onRequestPost(context) {
     successTitle: form.successTitle || "Got it",
     successMessage:
       form.successMessage ||
-      "Thanks for writing. We'll read this and be in touch if there's a fit.",
+      "Thanks for writing. Our team will get in touch with you shortly.",
   });
 }
 
