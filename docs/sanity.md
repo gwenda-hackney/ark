@@ -123,6 +123,8 @@ Idempotent — updates by slug/name.
 
 Sanity **development** and **production** datasets stay independent until you mirror them.
 
+`npm run sync:sanity-datasets` prefers **Cloud Clone** when the plan allows it. On this project it usually falls back to **export → import `--replace` → delete orphans** (import alone only overwrites matching IDs and would leave old menu entries behind).
+
 GitHub → Actions → **Sanity** (`sanity.yml`, workflow_dispatch):
 
 | Direction | Overwrites |
@@ -130,7 +132,7 @@ GitHub → Actions → **Sanity** (`sanity.yml`, workflow_dispatch):
 | `staging-to-production` | `production` |
 | `production-to-staging` | `development` |
 
-You must type the target dataset name in `confirm_target`. Uses secret `SANITY_DATASET_SYNC_TOKEN` (Editor robot from `npm run setup:sanity-tokens`).
+You must type the target dataset name in `confirm_target`. Uses secret `SANITY_DATASET_SYNC_TOKEN` when Cloud Clone works; export/import needs a token that can write the target (personal admin session or Editor with mutate).
 
 This only updates the CMS. Rebuild the site afterwards (Studio **Deploy site**, or `deploy-*-content` workflows).
 
@@ -139,6 +141,8 @@ Locally:
 ```bash
 npm run sync:sanity-datasets -- --direction staging-to-production --confirm production
 npm run sync:sanity-datasets -- --direction production-to-staging --confirm development
+# Force export/import path:
+npm run sync:sanity-datasets -- --direction staging-to-production --confirm production --method export-import
 ```
 
 ## Content vs code
