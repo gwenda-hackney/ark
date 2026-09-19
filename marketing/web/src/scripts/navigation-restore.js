@@ -87,7 +87,6 @@ export function initNavigationRestore() {
   document.addEventListener("astro:after-swap", () => {
     // swapRootAttributes wiped client classes — put them back.
     ensureFontsReadyClass();
-    document.documentElement.classList.add("gw-scrollbar-ready");
 
     if (pendingRestore) {
       markRestore();
