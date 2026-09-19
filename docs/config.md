@@ -109,7 +109,7 @@ Override with `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
 1. Machine accounts: `ark-local` (read/write), `ark-ci` (read). Grant each account access to both projects.
 2. Access tokens: `ark-local-devcontainer`, `ark-ci-github-actions`.
 3. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ops:pull` / `npm run env:web:pull`.
-4. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci).
+4. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci; must reach Ark/Ops and Ark/Web). Also keep `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` for deploy and secret sync. Do **not** mirror app secrets (`SMTP_PASSWORD`, `SITE_PASSWORD`, …) into GitHub.
 5. Sync to Cloudflare Pages (manual / after rotation):
 
 ```bash
@@ -117,4 +117,4 @@ gh workflow run ops-secrets.yml
 gh workflow run web-secrets.yml -f profile=production
 ```
 
-Uses `BASEROW_API_KEY_PRODUCTION` for Pages (not the local/dev Baserow token). Cloudflare does **not** read Bitwarden at runtime.
+Deploy workflows (`web.yml`, `web-promote.yml`) ship code only. They do not push Pages secrets.
