@@ -11,8 +11,10 @@ import {
 } from "./baserow.js";
 import { recomputeDrinksForInventoryId } from "./menu-store.js";
 import {
+  findSupplierNameClash,
   looksLikeOnlyUrls,
   normalizeSupplierEntries,
+  normalizeWebsite,
   parseMoney,
   parseProductUrl,
   skuFromProductUrl,
@@ -68,6 +70,8 @@ export function mapInventoryItem(row, suppliers = []) {
     suppliers.length > 0 && looksLikeOnlyUrls(notesRaw)
       ? undefined
       : notesRaw || undefined;
+  const actualQty = parseQty(row["Actual qty"]);
+  const countedAt = dateText(row["Counted at"]);
 
   return {
     _id: String(row.id),
@@ -81,7 +85,28 @@ export function mapInventoryItem(row, suppliers = []) {
     suppliers,
     notes,
     active: row.Active == null ? true : Boolean(row.Active),
+    lightspeedSku: text(row["Lightspeed SKU"]) || undefined,
+    ...(actualQty != null ? { actualQty } : {}),
+    actualUnit: text(row["Actual unit"]) || undefined,
+    ...(countedAt ? { countedAt } : {}),
   };
+}
+
+export function parseQty(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const raw = String(value ?? "")
+    .trim()
+    .replace(/,/g, "");
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function dateText(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "object" && value.value) return String(value.value).trim();
+  return "";
 }
 
 function mapLinkedSupplier(row, suppliersById) {
@@ -339,6 +364,9 @@ function fieldsFromInput(input) {
   const abv = text(String(input.abv ?? "")).replace(/%/g, "");
   const notes = text(input.notes);
 
+  const qty = parseQty(input.actualQty);
+  const actualUnit = text(input.actualUnit);
+
   return {
     Name: name,
     "Full name": text(input.fullName),
@@ -351,6 +379,8 @@ function fieldsFromInput(input) {
       input.active == null
         ? true
         : input.active === true || input.active === "true",
+    "Actual qty": qty,
+    "Actual unit": actualUnit,
   };
 }
 
@@ -365,6 +395,9 @@ function entriesFromInput(input) {
 export async function createInventoryItem(env, input) {
   const tables = requireInventory(await resolveOpsTableIds(env));
   const fields = fieldsFromInput(input);
+  if (fields["Actual qty"] != null) {
+    fields["Counted at"] = new Date().toISOString();
+  }
   const siblings = await listAllRows(env, tables.inventory);
   assertUniqueItemName(
     siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
@@ -404,7 +437,15 @@ export async function updateInventoryItem(env, itemId, input) {
           : mapped.estimatedCost,
       notes: input.notes !== undefined ? input.notes : mapped.notes,
       active: input.active ?? mapped.active,
+      actualQty: input.actualQty !== undefined ? input.actualQty : mapped.actualQty,
+      actualUnit:
+        input.actualUnit !== undefined ? input.actualUnit : mapped.actualUnit,
     });
+  if (fields["Actual qty"] !== (mapped.actualQty ?? null) ||
+      text(fields["Actual unit"]) !== text(mapped.actualUnit)) {
+    fields["Counted at"] =
+      fields["Actual qty"] == null ? null : new Date().toISOString();
+  }
   const siblings = await listAllRows(env, tables.inventory);
   assertUniqueItemName(
     siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
@@ -451,5 +492,230 @@ export async function deleteInventoryItem(env, itemId) {
     );
   }
   await deleteRow(env, tables.inventory, itemId);
+  return { ok: true };
+}
+
+function lightspeedFieldsFromPatch(patch, countedAt) {
+  const sku = text(patch.lightspeedSku);
+  const qty = parseQty(patch.actualQty);
+  const unit = text(patch.actualUnit);
+  const fields = {};
+  if (sku) fields["Lightspeed SKU"] = sku;
+  if (qty != null) {
+    fields["Actual qty"] = qty;
+    fields["Actual unit"] = unit;
+    if (countedAt) fields["Counted at"] = countedAt;
+  } else if (unit) {
+    fields["Actual unit"] = unit;
+  }
+  return fields;
+}
+
+/** Write Lightspeed SKU and counted quantity without touching catalog fields. */
+export async function applyLightspeedActual(env, patches, countedAt) {
+  const tables = requireInventory(await resolveOpsTableIds(env));
+  const stamp = countedAt || new Date().toISOString();
+  const updated = [];
+  for (const patch of patches || []) {
+    const id = text(String(patch.id ?? patch._id ?? ""));
+    if (!id) continue;
+    const fields = lightspeedFieldsFromPatch(patch, stamp);
+    if (!Object.keys(fields).length) continue;
+    const row = await updateRow(env, tables.inventory, id, fields);
+    updated.push(mapInventoryItem(row));
+  }
+  return updated;
+}
+
+/** Explicit create from an unmatched Lightspeed Item row. */
+export async function createInventoryFromLightspeed(env, row, countedAt) {
+  const tables = requireInventory(await resolveOpsTableIds(env));
+  const name = text(row.name);
+  if (!name) {
+    const error = new Error("Name is required.");
+    error.status = 400;
+    throw error;
+  }
+  const siblings = await listAllRows(env, tables.inventory);
+  let unique = name;
+  try {
+    assertUniqueItemName(
+      siblings.map((item) => ({ id: item.id, name: text(item.Name) })),
+      unique,
+    );
+  } catch (error) {
+    if (error.status !== 409) throw error;
+    const sku = text(row.sku);
+    unique = sku ? `${name} (${sku})` : `${name} (Lightspeed)`;
+    assertUniqueItemName(
+      siblings.map((item) => ({ id: item.id, name: text(item.Name) })),
+      unique,
+    );
+  }
+  const stamp = countedAt || new Date().toISOString();
+  const fields = {
+    Name: unique,
+    Kind: "other",
+    Active: true,
+    ...lightspeedFieldsFromPatch(
+      {
+        lightspeedSku: row.sku,
+        actualQty: row.quantity,
+        actualUnit: row.unit,
+      },
+      stamp,
+    ),
+  };
+  const created = await createRow(env, tables.inventory, fields);
+  return mapInventoryItem(created, []);
+}
+
+function requireSuppliersTable(tables) {
+  if (!tables.suppliers) {
+    const error = new Error(
+      "Suppliers table is not set up yet. Run npm run setup:baserow-ops.",
+    );
+    error.status = 503;
+    throw error;
+  }
+  return tables;
+}
+
+function supplierFieldsFromInput(input, { partial = false } = {}) {
+  const fields = {};
+  if (!partial || input.name !== undefined) {
+    const name = text(input.name);
+    if (!name) {
+      const error = new Error("Name is required.");
+      error.status = 400;
+      throw error;
+    }
+    fields.Name = name;
+  }
+  if (!partial || input.website !== undefined) {
+    const raw = text(input.website);
+    const website = normalizeWebsite(raw);
+    if (raw && !website) {
+      const error = new Error("Enter a website URL.");
+      error.status = 400;
+      throw error;
+    }
+    fields.Website = website;
+  }
+  if (!partial || input.notes !== undefined) {
+    fields.Notes = text(input.notes);
+  }
+  return fields;
+}
+
+function namedSupplierRows(rows) {
+  return (rows || []).map((row) => ({ id: row.id, name: text(row.Name) }));
+}
+
+export async function listSuppliers(env) {
+  const tables = requireSuppliersTable(await resolveOpsTableIds(env));
+  const [rows, links] = await Promise.all([
+    listAllRows(env, tables.suppliers),
+    tables.inventorySuppliers
+      ? listAllRows(env, tables.inventorySuppliers)
+      : Promise.resolve([]),
+  ]);
+  const counts = new Map();
+  for (const row of links) {
+    const supplierId = linkValue(row.Supplier);
+    if (supplierId == null) continue;
+    const key = String(supplierId);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return rows
+    .map(mapSupplier)
+    .filter((row) => row.name)
+    .map((row) => ({
+      ...row,
+      itemCount: counts.get(row.id) || 0,
+    }))
+    .sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+        sensitivity: "base",
+      }),
+    );
+}
+
+export async function createSupplier(env, input) {
+  const tables = requireSuppliersTable(await resolveOpsTableIds(env));
+  const fields = supplierFieldsFromInput(input || {});
+  const siblings = await listAllRows(env, tables.suppliers);
+  if (findSupplierNameClash(namedSupplierRows(siblings), fields.Name)) {
+    const error = new Error("A supplier with that name already exists.");
+    error.status = 409;
+    throw error;
+  }
+  const row = await createRow(env, tables.suppliers, fields);
+  return { ...mapSupplier(row), itemCount: 0 };
+}
+
+export async function updateSupplier(env, supplierId, input) {
+  const tables = requireSuppliersTable(await resolveOpsTableIds(env));
+  const id = text(String(supplierId || ""));
+  if (!id) {
+    const error = new Error("Missing id.");
+    error.status = 400;
+    throw error;
+  }
+  const existing = await getRow(env, tables.suppliers, id);
+  if (!existing?.id) {
+    const error = new Error("Supplier not found.");
+    error.status = 404;
+    throw error;
+  }
+  const fields = supplierFieldsFromInput(input || {}, { partial: true });
+  if (fields.Name) {
+    const siblings = await listAllRows(env, tables.suppliers);
+    if (findSupplierNameClash(namedSupplierRows(siblings), fields.Name, { exceptId: id })) {
+      const error = new Error("A supplier with that name already exists.");
+      error.status = 409;
+      throw error;
+    }
+  }
+  const row = await updateRow(env, tables.suppliers, id, fields);
+  let itemCount = 0;
+  if (tables.inventorySuppliers) {
+    const links = await listAllRows(env, tables.inventorySuppliers, {
+      filters: linkHasQuery("Supplier", id),
+    });
+    itemCount = links.length;
+  }
+  return { ...mapSupplier(row), itemCount };
+}
+
+export async function deleteSupplier(env, supplierId) {
+  const tables = requireSuppliersTable(await resolveOpsTableIds(env));
+  const id = text(String(supplierId || ""));
+  if (!id) {
+    const error = new Error("Missing id.");
+    error.status = 400;
+    throw error;
+  }
+  const existing = await getRow(env, tables.suppliers, id);
+  if (!existing?.id) {
+    const error = new Error("Supplier not found.");
+    error.status = 404;
+    throw error;
+  }
+  if (tables.inventorySuppliers) {
+    const links = await listAllRows(env, tables.inventorySuppliers, {
+      filters: linkHasQuery("Supplier", id),
+    });
+    if (links.length) {
+      const error = new Error(
+        links.length === 1
+          ? "This supplier is used on 1 inventory item. Remove that link first."
+          : `This supplier is used on ${links.length} inventory items. Remove those links first.`,
+      );
+      error.status = 409;
+      throw error;
+    }
+  }
+  await deleteRow(env, tables.suppliers, id);
   return { ok: true };
 }

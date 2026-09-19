@@ -2,11 +2,12 @@
 	/**
 	 * Shared liquors and ingredients — ABV feeds cocktail recipe calc.
 	 */
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import { fade, fly } from "svelte/transition";
-	import type { ColDef } from "ag-grid-community";
+	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { Button, BusyOverlay, DataGrid, SearchField } from "../../ui";
 	import { Icon } from "../../shell";
+	import { hasRangeSelection, svelteCell } from "../../lib/grid";
 	import * as api from "../../lib/api";
 	import { toast } from "../../lib/toast.svelte";
 	import {
@@ -34,6 +35,8 @@
 	} from "../../lib/types";
 	import InventoryEditor from "./InventoryEditor.svelte";
 	import CompactInventoryList from "./CompactInventoryList.svelte";
+	import NameCell from "./cells/NameCell.svelte";
+	import ViewDetailsCell from "./cells/ViewDetailsCell.svelte";
 
 	type GridRow = InventoryItem & { _id: string };
 
@@ -220,6 +223,8 @@
 				),
 				notes: item.notes || "",
 				active: item.active !== false,
+				actualQty: item.actualQty ?? null,
+				actualUnit: item.actualUnit || "",
 			};
 			const existing = String(item._id || item.id || "");
 			const data = existing
@@ -263,12 +268,25 @@
 		}
 	}
 
-	const columnDefs = $derived.by((): ColDef<GridRow>[] => [
+	const columnDefs = $derived.by((): ColDef<GridRow>[] => {
+		const search = query.trim();
+		const view = untrack(() => openItem);
+		return [
 		{
 			headerName: "Name",
 			field: "name",
 			minWidth: 160,
 			flex: 1.6,
+			cellClass: "name-cell",
+			valueGetter: (p) => p.data?.name || "Untitled",
+			cellRenderer: svelteCell(
+				NameCell,
+				(params: ICellRendererParams<GridRow>) => ({
+					item: params.data || null,
+					query: search,
+					onview: view,
+				}),
+			),
 		},
 		{
 			headerName: "Kind",
@@ -298,6 +316,20 @@
 			maxWidth: 100,
 			minWidth: 84,
 			flex: 0,
+		},
+		{
+			headerName: "On hand",
+			colId: "actualQty",
+			maxWidth: 110,
+			minWidth: 88,
+			flex: 0,
+			type: "num",
+			valueGetter: (p) => p.data?.actualQty ?? null,
+			valueFormatter: (p) => {
+				if (p.value == null) return "";
+				const unit = p.data?.actualUnit || "";
+				return unit ? `${p.value} ${unit}` : String(p.value);
+			},
 		},
 		{
 			headerName: "Suppliers",
@@ -353,7 +385,24 @@
 			flex: 0,
 			valueGetter: (p) => (p.data?.active === false ? "No" : "Yes"),
 		},
-	]);
+		{
+			headerName: "",
+			colId: "actions",
+			width: 56,
+			minWidth: 48,
+			flex: 0,
+			sortable: false,
+			cellClass: "action-cell",
+			cellRenderer: svelteCell(
+				ViewDetailsCell,
+				(params: ICellRendererParams<GridRow>) => ({
+					item: params.data || null,
+					onview: view,
+				}),
+			),
+		},
+		];
+	});
 
 	onMount(() => {
 		reload().catch(() => undefined);
@@ -546,9 +595,9 @@
 								context={{ selectedId }}
 								getRowId={(row) => row._id}
 								domLayout="normal"
-								onRowClicked={(row) => openItem(row)}
 								gridOptions={{
 									suppressCellFocus: true,
+									suppressRowClickSelection: true,
 									suppressScrollOnNewData: true,
 									getRowClass: (params) => {
 										const selected =
@@ -557,6 +606,10 @@
 										return params.data?._id === selected
 											? "row-selected"
 											: undefined;
+									},
+									onRowDoubleClicked: (event) => {
+										if (hasRangeSelection()) return;
+										if (event.data) openItem(event.data);
 									},
 								}}
 							/>
@@ -707,6 +760,20 @@
 		flex: 1;
 		min-width: 0;
 		min-height: 0;
+	}
+
+	.grid-host :global(.ag-row) {
+		cursor: default;
+	}
+
+	.grid-host :global(.action-cell),
+	.grid-host :global(.action-cell .ag-cell-wrapper),
+	.grid-host :global(.action-cell .ag-cell-value) {
+		justify-content: center;
+		align-items: center;
+		overflow: visible;
+		height: 100%;
+		line-height: 0;
 	}
 
 	.grid-host :global(.row-selected) {

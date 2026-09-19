@@ -447,6 +447,27 @@ function inventoryFields() {
     },
     { name: "Notes", body: { name: "Notes", type: "text" } },
     { name: "Active", body: { name: "Active", type: "boolean" } },
+    { name: "Lightspeed SKU", body: { name: "Lightspeed SKU", type: "text" } },
+    {
+      name: "Actual qty",
+      body: {
+        name: "Actual qty",
+        type: "number",
+        number_decimal_places: 3,
+        number_negative: false,
+      },
+    },
+    { name: "Actual unit", body: { name: "Actual unit", type: "text" } },
+    {
+      name: "Counted at",
+      body: {
+        name: "Counted at",
+        type: "date",
+        date_format: "ISO",
+        date_include_time: true,
+        date_time_format: "24",
+      },
+    },
   ];
 }
 

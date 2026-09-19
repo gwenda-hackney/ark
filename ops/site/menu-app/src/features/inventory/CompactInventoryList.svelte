@@ -44,6 +44,10 @@
 						<span class="dot">·</span>
 						{row.defaultUnit}
 					{/if}
+					{#if row.actualQty != null}
+						<span class="dot">·</span>
+						{row.actualQty}{row.actualUnit ? ` ${row.actualUnit}` : ""}
+					{/if}
 					{#if row.active === false}
 						<span class="dot">·</span>
 						Inactive

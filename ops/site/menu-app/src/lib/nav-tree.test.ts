@@ -13,7 +13,7 @@ describe("flattenNavRoutes", () => {
 	it("returns only leaves, not Stock or Menu groups", () => {
 		assert.deepEqual(
 			flattenNavRoutes(routes).map((row) => row.id),
-			["home", "recipes", "inventory", "sections", "users", "config"],
+			["home", "recipes", "inventory", "suppliers", "lightspeed", "sections", "users", "config"],
 		);
 	});
 });
@@ -23,6 +23,8 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/menu")?.id, "recipes");
 		assert.equal(matchActiveRoute(routes, "/menu/negroni")?.id, "recipes");
 		assert.equal(matchActiveRoute(routes, "/inventory/gin")?.id, "inventory");
+		assert.equal(matchActiveRoute(routes, "/lightspeed")?.id, "lightspeed");
+		assert.equal(matchActiveRoute(routes, "/suppliers")?.id, "suppliers");
 		assert.equal(matchActiveRoute(routes, "/sections")?.id, "sections");
 		assert.equal(matchActiveRoute(routes, "/config")?.id, "config");
 		assert.equal(matchActiveRoute(routes, "/")?.id, "home");
@@ -41,6 +43,8 @@ describe("navGroupContains", () => {
 		const menu = routes.find((row) => row.id === "menu")!;
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/menu")), true);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/inventory")), true);
+		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/lightspeed")), true);
+		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/suppliers")), true);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/sections")), false);
 		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/sections")), true);
 		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/menu")), false);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, untrack } from "svelte";
+	import { onDestroy, onMount, untrack } from "svelte";
 	import {
 		Button,
 		BusyOverlay,
@@ -17,13 +17,17 @@
 		UNITS,
 		formatGbp,
 		skuFromProductUrl,
+		type CatalogSupplier,
 		type InventoryItem,
 		type InventoryKind,
 		type InventorySupplier,
+		type MenuSection,
 	} from "../../lib/types";
 	import { kindCostEstimate } from "../../lib/cost";
 	import { Icon } from "../../shell";
 	import { navigate } from "../../lib/nav";
+	import { getMenu, getSuppliers } from "../../lib/api";
+	import { recipesUsingInventory } from "../../lib/inventory-usage";
 	import {
 		beginLeave,
 		clearUnsavedGuard,
@@ -55,6 +59,8 @@
 	let supplierDrawerOpen = $state(false);
 	let supplierEditIndex = $state<number | null>(null);
 	let supplierDraft = $state<InventorySupplier>({ name: "" });
+	let catalog = $state<CatalogSupplier[]>([]);
+	let menuSections = $state<MenuSection[]>([]);
 
 	const kindOptions: SelectOption[] = INVENTORY_KINDS.map((row) => ({
 		value: row.value,
@@ -77,8 +83,36 @@
 			suppliers: row.suppliers || [],
 			notes: row.notes || "",
 			active: row.active !== false,
+			actualQty: row.actualQty ?? null,
+			actualUnit: row.actualUnit || "",
 		});
 	}
+
+	function formatCountedAt(value: string | undefined): string {
+		if (!value) return "";
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return value;
+		return date.toLocaleString("en-GB", {
+			dateStyle: "medium",
+			timeStyle: "short",
+		});
+	}
+
+	const onHandHint = $derived.by(() => {
+		const when = formatCountedAt(item?.countedAt);
+		const sku = item?.lightspeedSku ? `Lightspeed SKU ${item.lightspeedSku}. ` : "";
+		if (when) {
+			return `${sku}Last counted ${when}. From a Lightspeed export, or a correction you type here.`;
+		}
+		return `${sku}From a Lightspeed export, or a count you type here.`;
+	});
+	const actualUnitOptions = $derived.by((): SelectOption[] => {
+		const current = item?.actualUnit || "";
+		if (current && !unitOptions.some((row) => row.value === current)) {
+			return [...unitOptions, { value: current, label: current }];
+		}
+		return unitOptions;
+	});
 
 	const dirty = $derived(Boolean(snapshot && serialize(item) !== snapshot));
 	const itemKey = $derived(String(item?._id || item?.id || "new"));
@@ -86,6 +120,63 @@
 	const supplierDrawerTitle = $derived(
 		supplierEditIndex == null ? "Add supplier" : "Edit supplier",
 	);
+
+	const usedIn = $derived(
+		recipesUsingInventory(menuSections, item?._id || item?.id),
+	);
+	const catalogId = $derived(String(supplierDraft.supplierId || ""));
+	const supplierOptions = $derived.by((): SelectOption[] => {
+		const rows: SelectOption[] = catalog.map((row) => ({
+			value: String(row.id || row._id || ""),
+			label: row.name,
+			hint: hostLabel(row.website),
+		}));
+		const currentId = catalogId;
+		const currentName = String(supplierDraft.name || "").trim();
+		if (currentId && !rows.some((row) => row.value === currentId)) {
+			rows.unshift({
+				value: currentId,
+				label: currentName || "Supplier",
+				hint: "Not in the list",
+			});
+		} else if (
+			!currentId &&
+			currentName &&
+			!catalog.some(
+				(row) => row.name.toLowerCase() === currentName.toLowerCase(),
+			)
+		) {
+			rows.unshift({
+				value: `name:${currentName}`,
+				label: currentName,
+				hint: "Not in the list",
+			});
+		}
+		return [{ value: "", label: "Choose a supplier" }, ...rows];
+	});
+
+	async function loadCatalog() {
+		try {
+			const data = await getSuppliers();
+			catalog = data.suppliers || [];
+		} catch {
+			catalog = [];
+		}
+	}
+
+	async function loadUsage() {
+		try {
+			const data = await getMenu();
+			menuSections = data.sections || [];
+		} catch {
+			menuSections = [];
+		}
+	}
+
+	onMount(() => {
+		void loadCatalog();
+		void loadUsage();
+	});
 
 	$effect(() => {
 		const key = itemKey;
@@ -134,17 +225,58 @@
 		patch("suppliers", next);
 	}
 
+	function patchSupplierPrice(index: number, raw: string) {
+		const list = supplierList();
+		const entry = list[index];
+		if (!entry) return;
+		const trimmed = raw.trim();
+		let next: InventorySupplier;
+		if (!trimmed) {
+			const { price: _drop, ...rest } = entry;
+			void _drop;
+			next = rest;
+		} else {
+			const n = Number(trimmed.replace(/[£,\s]/g, ""));
+			next = {
+				...entry,
+				price: Number.isFinite(n) ? n : entry.price,
+			};
+		}
+		setSuppliers(list.map((row, i) => (i === index ? next : row)));
+	}
+
+	function hostLabel(url: string | undefined): string {
+		if (!url) return "";
+		try {
+			return new URL(url).hostname.replace(/^www\./i, "");
+		} catch {
+			return "";
+		}
+	}
+
+	function catalogIdFor(entry: InventorySupplier): string {
+		const id = String(entry.supplierId || "").trim();
+		if (id) return id;
+		const name = String(entry.name || "").trim().toLowerCase();
+		if (!name) return "";
+		const hit = catalog.find((row) => row.name.toLowerCase() === name);
+		return String(hit?.id || hit?._id || "");
+	}
+
 	function openAddSupplier() {
+		void loadCatalog();
 		supplierEditIndex = null;
-		supplierDraft = { name: "", productUrl: "" };
+		supplierDraft = { name: "", supplierId: "", productUrl: "" };
 		supplierDrawerOpen = true;
 	}
 
 	function openEditSupplier(index: number) {
 		const entry = supplierList()[index];
 		if (!entry) return;
+		void loadCatalog();
 		supplierEditIndex = index;
-		supplierDraft = { ...entry };
+		const supplierId = catalogIdFor(entry);
+		supplierDraft = { ...entry, ...(supplierId ? { supplierId } : {}) };
 		supplierDrawerOpen = true;
 	}
 
@@ -185,15 +317,23 @@
 	}
 
 	function applySupplierDraft() {
-		const name = String(supplierDraft.name || "").trim();
+		const pickedId = String(supplierDraft.supplierId || "").trim();
+		const picked = catalog.find(
+			(row) => String(row.id || row._id || "") === pickedId,
+		);
+		const name = picked?.name || String(supplierDraft.name || "").trim();
 		const productUrl = String(supplierDraft.productUrl || "").trim();
 		if (!name && !productUrl) {
 			closeSupplierDrawer();
 			return;
 		}
+		if (!name) {
+			return;
+		}
 		const nextEntry: InventorySupplier = {
 			...supplierDraft,
 			name,
+			...(picked ? { supplierId: String(picked.id || picked._id) } : {}),
 			...(productUrl ? { productUrl } : {}),
 		};
 		const list = supplierList();
@@ -205,6 +345,29 @@
 			);
 		}
 		closeSupplierDrawer();
+	}
+
+	function onPickSupplier(value: string) {
+		if (!value) {
+			supplierDraft = { ...supplierDraft, supplierId: "", name: "" };
+			return;
+		}
+		if (value.startsWith("name:")) {
+			supplierDraft = {
+				...supplierDraft,
+				supplierId: "",
+				name: value.slice("name:".length),
+			};
+			return;
+		}
+		const picked = catalog.find(
+			(row) => String(row.id || row._id || "") === value,
+		);
+		supplierDraft = {
+			...supplierDraft,
+			supplierId: value,
+			name: picked?.name || supplierDraft.name,
+		};
 	}
 
 	function removeSupplierFromDrawer() {
@@ -284,6 +447,22 @@
 					</div>
 				</div>
 				<div class="head-actions">
+					<label
+						class="switch compact"
+						title="Shown when picking ingredients for recipes"
+					>
+						<input
+							type="checkbox"
+							checked={item.active !== false}
+							onchange={(e) =>
+								patch(
+									"active",
+									(e.currentTarget as HTMLInputElement).checked,
+								)}
+						/>
+						<span class="switch-ui"></span>
+						<span class="switch-label">Active</span>
+					</label>
 					{#if dirty}
 						<span class="dirty-pill" aria-live="polite">Unsaved</span>
 					{/if}
@@ -334,11 +513,7 @@
 								patch("kind", e.currentTarget.value as InventoryKind)}
 						/>
 					</Field>
-					<Field
-						label="ABV %"
-						for="inv-abv"
-						tooltip="Alcohol by volume as printed on the bottle. Used to calculate cocktail strength."
-					>
+					<Field label="ABV %" for="inv-abv">
 						<TextField
 							id="inv-abv"
 							size="sm"
@@ -364,7 +539,7 @@
 					<Field
 						label="Estimate (£)"
 						for="inv-estimate"
-						hint={estimateHint(item.kind)}
+						tooltip={estimateHint(item.kind)}
 					>
 						<TextField
 							id="inv-estimate"
@@ -391,112 +566,184 @@
 							}}
 						/>
 					</Field>
-					<div class="full">
-						<label class="switch">
-							<input
-								type="checkbox"
-								checked={item.active !== false}
-								onchange={(e) =>
-									patch(
-										"active",
-										(e.currentTarget as HTMLInputElement).checked,
-									)}
-							/>
-							<span class="switch-ui"></span>
-							<span class="switch-label">Active in recipes</span>
-						</label>
-					</div>
-					<div class="full suppliers">
-						<div class="supplier-head">
-							<div>
-								<p class="supplier-label">Suppliers</p>
-								<p class="supplier-help">
-									Trade pack cost from the wholesaler list. Click a row to
-									edit.
-								</p>
-							</div>
-							<Button
-								variant="outline"
-								size="sm"
-								type="button"
-								onclick={openAddSupplier}
-							>
-								Add
-							</Button>
-						</div>
-						{#if supplierRows.length === 0}
-							<p class="supplier-empty">
-								No suppliers yet. Add LWC, Hills Prospect, or whoever you
-								buy this from.
-							</p>
-						{:else}
-							<div class="supplier-table-wrap">
-								<table class="supplier-table">
-									<thead>
-										<tr>
-											<th scope="col">Supplier</th>
-											<th scope="col">SKU</th>
-											<th scope="col">Pack</th>
-											<th scope="col" class="num">Price</th>
-											<th scope="col" class="link-col">
-												<span class="sr-only">Page</span>
-											</th>
-										</tr>
-									</thead>
-									<tbody>
-										{#each supplierRows as entry, index (entry._id || `${entry.name}-${entry.sku}-${index}`)}
-											<tr>
-												<td>
-													<button
-														type="button"
-														class="supplier-name"
-														onclick={() => openEditSupplier(index)}
-													>
-														{entry.name || "Untitled"}
-													</button>
-												</td>
-												<td class="mono">{entry.sku || "-"}</td>
-												<td>{entry.pack || "-"}</td>
-												<td class="num mono">
-													{entry.price != null
-														? formatGbp(entry.price)
-														: "-"}
-												</td>
-												<td class="link-col">
-													{#if entry.productUrl}
-														<a
-															class="supplier-open"
-															href={entry.productUrl}
-															target="_blank"
-															rel="noreferrer"
-															onclick={(e) => e.stopPropagation()}
-														>
-															Open
-														</a>
-													{/if}
-												</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</div>
-						{/if}
-					</div>
-					<div class="full">
-						<Field label="Notes" for="inv-notes">
-							<TextArea
-								id="inv-notes"
-								rows={3}
-								value={item.notes || ""}
-								oninput={(e) =>
-									patch(
-										"notes",
-										(e.currentTarget as HTMLTextAreaElement).value,
-									)}
-							/>
-						</Field>
-					</div>
+					<Field
+						label="On hand"
+						for="inv-on-hand"
+						tooltip={onHandHint}
+					>
+						<TextField
+							id="inv-on-hand"
+							size="sm"
+							mono
+							inputmode="decimal"
+							placeholder="0"
+							value={item.actualQty != null ? String(item.actualQty) : ""}
+							oninput={(e) => {
+								const raw = (e.currentTarget as HTMLInputElement).value.trim();
+								if (!raw) {
+									patch("actualQty", undefined);
+									return;
+								}
+								const n = Number(raw.replace(/,/g, ""));
+								if (!Number.isFinite(n)) {
+									patch("actualQty", item.actualQty);
+									return;
+								}
+								if (!item.actualUnit && item.defaultUnit) {
+									item = {
+										...item,
+										actualQty: n,
+										actualUnit: item.defaultUnit,
+									};
+									return;
+								}
+								patch("actualQty", n);
+							}}
+						/>
+					</Field>
+					<Field label="On-hand unit" for="inv-on-hand-unit">
+						<NativeSelect
+							id="inv-on-hand-unit"
+							size="sm"
+							options={actualUnitOptions}
+							value={item.actualUnit || ""}
+							onchange={(e) => patch("actualUnit", e.currentTarget.value)}
+						/>
+					</Field>
 				</div>
+
+				<section class="block">
+					<div class="section-head">
+						<p class="section-title">Suppliers</p>
+						<Button
+							variant="accent"
+							size="xs"
+							type="button"
+							aria-label="Add supplier"
+							title="Add supplier"
+							onclick={openAddSupplier}
+						>
+							{#snippet icon()}
+								<Icon name="plus" size={15} />
+							{/snippet}
+						</Button>
+					</div>
+					{#if supplierRows.length === 0}
+						<p class="muted">
+							No suppliers on this item yet. Add one from the catalog.
+						</p>
+					{:else}
+						<div class="supplier-table-wrap">
+							<table class="supplier-table">
+								<thead>
+									<tr>
+										<th scope="col">Supplier</th>
+										<th scope="col">SKU</th>
+										<th scope="col">Pack</th>
+										<th scope="col" class="num">Price</th>
+										<th scope="col" class="icon-col">
+											<span class="sr-only">Product page</span>
+										</th>
+										<th scope="col" class="icon-col">
+											<span class="sr-only">Details</span>
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each supplierRows as entry, index (entry._id || `${entry.name}-${entry.sku}-${index}`)}
+										<tr>
+											<td class="name-cell">{entry.name || "Untitled"}</td>
+											<td class="mono">{entry.sku || ""}</td>
+											<td>{entry.pack || ""}</td>
+											<td class="price-cell">
+												<TextField
+													class="price-input"
+													size="sm"
+													mono
+													align="end"
+													inputmode="decimal"
+													placeholder="0.00"
+													aria-label="Price for {entry.name || 'supplier'}"
+													value={
+														entry.price != null ? String(entry.price) : ""
+													}
+													oninput={(e) =>
+														patchSupplierPrice(
+															index,
+															(e.currentTarget as HTMLInputElement).value,
+														)}
+												/>
+											</td>
+											<td class="icon-col">
+												{#if entry.productUrl}
+													<a
+														class="icon-btn"
+														href={entry.productUrl}
+														target="_blank"
+														rel="noreferrer"
+														aria-label="Product page"
+														title="Product page"
+													>
+														<Icon name="external-link" size={15} />
+													</a>
+												{/if}
+											</td>
+											<td class="icon-col">
+												<Button
+													variant="ghost"
+													size="xs"
+													type="button"
+													aria-label="Supplier details"
+													title="Details"
+													onclick={() => openEditSupplier(index)}
+												>
+													{#snippet icon()}
+														<Icon name="pen" size={14} />
+													{/snippet}
+												</Button>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{/if}
+				</section>
+
+				<section class="block">
+					<p class="section-title">Used in</p>
+					{#if usedIn.length === 0}
+						<p class="muted">
+							{item.active === false
+								? "Not used in any recipe. Hidden from the ingredient picker."
+								: "Not used in any recipe yet."}
+						</p>
+					{:else}
+						<div class="used-in">
+							{#each usedIn as drink (drink.id)}
+								<a href={drink.href}>{drink.name}</a>
+							{/each}
+						</div>
+						{#if item.active === false}
+							<p class="muted">Hidden from the ingredient picker.</p>
+						{/if}
+					{/if}
+				</section>
+
+				<section class="block">
+					<Field label="Notes" for="inv-notes">
+						<TextArea
+							id="inv-notes"
+							rows={3}
+							value={item.notes || ""}
+							oninput={(e) =>
+								patch(
+									"notes",
+									(e.currentTarget as HTMLTextAreaElement).value,
+								)}
+						/>
+					</Field>
+				</section>
 			</div>
 
 			<footer class="panel-foot">
@@ -608,18 +855,20 @@
 			<div class="drawer-body scrollbar-fade">
 				<div class="drawer-grid">
 					<Field label="Supplier" for="drawer-supplier">
-						<TextField
+						<NativeSelect
 							id="drawer-supplier"
 							size="sm"
-							placeholder="LWC Drinks"
-							value={supplierDraft.name || ""}
-							oninput={(e) =>
-								patchDraft(
-									"name",
-									(e.currentTarget as HTMLInputElement).value,
-								)}
+							options={supplierOptions}
+							value={catalogId ||
+								(supplierDraft.name && !catalogId
+									? `name:${supplierDraft.name}`
+									: "")}
+							onchange={(e) => onPickSupplier(e.currentTarget.value)}
 						/>
 					</Field>
+					<p class="drawer-manage">
+						<a href="/suppliers">Manage suppliers</a>
+					</p>
 					<div class="drawer-row">
 						<Field label="SKU" for="drawer-sku">
 							<TextField
@@ -836,7 +1085,7 @@
 
 	.grid {
 		display: grid;
-		grid-template-columns: 1fr 1fr 1fr;
+		grid-template-columns: 1fr 1fr;
 		gap: 0.7rem 0.85rem;
 		align-items: start;
 	}
@@ -845,31 +1094,52 @@
 		grid-column: 1 / -1;
 	}
 
-	.supplier-head {
+	.block {
+		display: grid;
+		gap: 0.65rem;
+	}
+
+	.block + .block,
+	.grid + .block {
+		margin-top: 1.25rem;
+	}
+
+	.section-title {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
 		gap: 0.75rem;
-		margin-bottom: 0.45rem;
-	}
-
-	.supplier-label {
 		margin: 0;
-		font-size: var(--text-sm);
+		font-family: var(--font-display);
+		font-size: var(--text-md);
 		font-weight: 600;
+		letter-spacing: 0.04em;
+		line-height: 1.3;
+		color: var(--primary);
 	}
 
-	.supplier-empty {
+	.section-title::after {
+		content: "";
+		flex: 1 1 auto;
+		height: 1px;
+		min-width: 1.5rem;
+		background: var(--border-strong);
+	}
+
+	.section-head {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.section-head .section-title {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.muted {
 		margin: 0;
 		font-size: var(--text-sm);
 		line-height: 1.45;
-		color: var(--muted-foreground);
-	}
-
-	.supplier-help {
-		margin: 0.15rem 0 0;
-		font-size: var(--text-sm);
-		line-height: 1.4;
 		color: var(--muted-foreground);
 	}
 
@@ -888,7 +1158,7 @@
 
 	.supplier-table th,
 	.supplier-table td {
-		padding: 0.55rem 0.7rem;
+		padding: 0.4rem 0.65rem;
 		text-align: left;
 		border-bottom: 1px solid var(--border);
 		vertical-align: middle;
@@ -907,52 +1177,75 @@
 		border-bottom: 0;
 	}
 
-	.supplier-table tbody tr:hover td {
-		background: color-mix(in srgb, var(--accent) 55%, transparent);
-	}
-
-	.supplier-table .num {
-		text-align: right;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.supplier-table .link-col {
-		width: 3.5rem;
-		text-align: right;
-	}
-
 	.supplier-table .mono {
 		font-family: var(--font-mono, ui-monospace, monospace);
 		font-size: 0.8rem;
 	}
 
-	.supplier-name {
-		display: block;
-		width: 100%;
-		margin: 0;
-		padding: 0;
-		border: 0;
-		background: transparent;
-		color: var(--foreground);
-		font: inherit;
+	.name-cell {
 		font-weight: 500;
-		text-align: left;
-		cursor: pointer;
 	}
 
-	.supplier-name:hover {
-		color: var(--primary);
+	.price-cell {
+		width: 6.5rem;
+		text-align: right;
 	}
 
-	.supplier-open {
-		color: var(--primary);
-		text-decoration: none;
+	.supplier-table th.num {
+		text-align: right;
+	}
+
+	.supplier-table :global(.price-input) {
+		height: 2rem;
+		padding: 0 0.5rem;
+		background: var(--card);
+	}
+
+	.icon-col {
+		width: 2.25rem;
+		padding-left: 0.2rem;
+		padding-right: 0.35rem;
+		text-align: center;
+	}
+
+	.icon-btn {
+		display: inline-grid;
+		place-content: center;
+		width: 1.85rem;
+		height: 1.85rem;
+		color: var(--muted-foreground);
+	}
+
+	.icon-btn:hover {
+		color: var(--foreground);
+	}
+
+	.used-in {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.used-in a {
+		display: inline-flex;
+		align-items: center;
+		max-width: 100%;
+		padding: 0.28rem 0.72rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: var(--sunken);
+		color: var(--foreground);
 		font-size: var(--text-sm);
+		line-height: 1.3;
+		text-decoration: none;
+		overflow: hidden;
+		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.supplier-open:hover {
-		text-decoration: underline;
+	.used-in a:hover {
+		border-color: var(--primary);
+		color: var(--primary);
 	}
 
 	.sr-only {
@@ -1010,6 +1303,20 @@
 	.drawer-grid {
 		display: grid;
 		gap: 0.85rem;
+	}
+
+	.drawer-manage {
+		margin: -0.45rem 0 0;
+		font-size: var(--text-sm);
+	}
+
+	.drawer-manage a {
+		color: var(--muted-foreground);
+		text-decoration: none;
+	}
+
+	.drawer-manage a:hover {
+		color: var(--foreground);
 	}
 
 	.drawer-row {
@@ -1108,8 +1415,28 @@
 	}
 
 	.switch-label {
-		font-size: var(--text);
+		font-size: var(--text-sm);
 		font-weight: 500;
+		color: var(--muted-foreground);
+	}
+
+	.switch.compact {
+		gap: 0.45rem;
+		flex-shrink: 0;
+	}
+
+	.switch.compact .switch-ui {
+		width: 2.15rem;
+		height: 1.25rem;
+	}
+
+	.switch.compact .switch-ui::after {
+		width: 0.85rem;
+		height: 0.85rem;
+	}
+
+	.switch.compact input:checked + .switch-ui::after {
+		transform: translateX(0.9rem);
 	}
 
 	@media (max-width: 900px) {

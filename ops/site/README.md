@@ -37,6 +37,8 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/inventory` | Inventory (Stock) |
 | `/inventory/new` | New inventory item |
 | `/inventory/:name` | Inventory item detail |
+| `/lightspeed` | Lightspeed count reconcile (Stock) |
+| `/suppliers` | Wholesaler catalog (Stock) |
 | `/sections` | Guest menu sections |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow App Config) |

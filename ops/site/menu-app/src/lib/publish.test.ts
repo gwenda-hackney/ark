@@ -80,7 +80,7 @@ describe("publish labels", () => {
 		assert.equal(publishLiveLabel(publish), "Live on the website");
 		assert.equal(
 			publishHint(publish),
-			"Preview site: unpublished (price, style). Live website: up to date.",
+			"Preview site: unpublished (price, tasting note). Live website: up to date.",
 		);
 	});
 

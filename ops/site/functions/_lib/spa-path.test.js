@@ -93,6 +93,8 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/menu/negroni"), true);
     assert.equal(isSpaDocumentPath("/menu/negroni/recipe"), true);
     assert.equal(isSpaDocumentPath("/inventory/gin"), true);
+    assert.equal(isSpaDocumentPath("/lightspeed"), true);
+    assert.equal(isSpaDocumentPath("/suppliers"), true);
     assert.equal(isSpaDocumentPath("/config"), true);
     assert.equal(isSpaDocumentPath("/sections"), true);
     assert.equal(isSpaDocumentPath("/users"), true);
@@ -100,12 +102,16 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/stock"), false);
     assert.equal(isSpaDocumentPath("/api/menu"), false);
     assert.equal(isClientNavPath("/config"), true);
+    assert.equal(isClientNavPath("/lightspeed"), true);
+    assert.equal(isClientNavPath("/suppliers"), true);
     assert.equal(isClientNavPath("/sections"), true);
     assert.equal(isClientNavPath("/users"), true);
     assert.equal(isClientNavPath("/tools/cashflow"), true);
     assert.equal(isClientNavPath("/stock"), false);
     assert.equal(isClientNavPath("/stock/index.html"), false);
     assert.equal(shellPageKey("/config"), "config");
+    assert.equal(shellPageKey("/lightspeed"), "lightspeed");
+    assert.equal(shellPageKey("/suppliers"), "suppliers");
     assert.equal(shellPageKey("/sections"), "sections");
     assert.equal(shellPageKey("/users"), "users");
     assert.equal(shellPageKey("/tools/breakeven"), "tools");
@@ -118,6 +124,8 @@ describe("spa-path", () => {
       tool: "breakeven",
     });
     assert.deepEqual(parseShellPath("/sections"), { page: "sections" });
+    assert.deepEqual(parseShellPath("/lightspeed"), { page: "lightspeed" });
+    assert.deepEqual(parseShellPath("/suppliers"), { page: "suppliers" });
   });
 
   it("treats drink tabs as the same editor, and list as leaving", () => {

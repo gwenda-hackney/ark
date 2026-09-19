@@ -116,6 +116,9 @@ describe("ops auth", () => {
 
   it("maps menu API return paths to the shell route", () => {
     assert.equal(safeRedirectPath("/api/menu"), "/menu");
+    assert.equal(safeRedirectPath("/api/inventory/lightspeed"), "/lightspeed");
+    assert.equal(safeRedirectPath("/api/inventory"), "/inventory");
+    assert.equal(safeRedirectPath("/api/suppliers"), "/suppliers");
     assert.equal(gateRedirectPath("/stock/"), "/gate/?next=%2Fstock");
   });
 

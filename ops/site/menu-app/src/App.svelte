@@ -6,6 +6,8 @@
 	import HomeOverview from "./features/home/HomeOverview.svelte";
 	import MenuWorkbench from "./features/menu/MenuWorkbench.svelte";
 	import InventoryWorkbench from "./features/inventory/InventoryWorkbench.svelte";
+	import LightspeedPage from "./features/inventory/LightspeedPage.svelte";
+	import SuppliersPage from "./features/inventory/SuppliersPage.svelte";
 	import ConfigPage from "./features/config/ConfigPage.svelte";
 	import SectionsPage from "./features/menu/SectionsPage.svelte";
 	import UsersPage from "./features/users/UsersPage.svelte";
@@ -45,6 +47,10 @@
 					<MenuWorkbench path={current} />
 				{:else if key === "inventory"}
 					<InventoryWorkbench path={current} />
+				{:else if key === "lightspeed"}
+					<LightspeedPage />
+				{:else if key === "suppliers"}
+					<SuppliersPage />
 				{:else if key === "users"}
 					<UsersPage />
 				{:else if key === "sections"}
