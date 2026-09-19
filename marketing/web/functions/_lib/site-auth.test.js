@@ -7,12 +7,16 @@ import {
 } from "./site-auth.js";
 
 function req(userAgent) {
-  return { headers: { get: (name) => (name === "User-Agent" ? userAgent : "") } };
+  return {
+    headers: { get: (name) => (name === "User-Agent" ? userAgent : "") },
+  };
 }
 
 describe("isPublicPath", () => {
   it("allows stable brand assets through the staging gate", () => {
     expect(isPublicPath("/favicon.ico")).toBe(true);
+    expect(isPublicPath("/health")).toBe(true);
+    expect(isPublicPath("/health/")).toBe(true);
     expect(isPublicPath("/favicon.png")).toBe(true);
     expect(isPublicPath("/apple-touch-icon.png")).toBe(true);
     expect(isPublicPath("/brand/logo-organization.png")).toBe(true);
@@ -23,7 +27,11 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/invite/")).toBe(true);
     expect(isPublicPath("/invite/abc123")).toBe(true);
     expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01")).toBe(true);
-    expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01/b2c3d4e5f6789012345678abcdef0123")).toBe(true);
+    expect(
+      isPublicPath(
+        "/events/a1b2c3d4e5f6789012345678abcdef01/b2c3d4e5f6789012345678abcdef0123",
+      ),
+    ).toBe(true);
     expect(isPublicPath("/api/rsvp")).toBe(true);
     expect(isPublicPath("/api/forms")).toBe(true);
     expect(isPublicPath("/api/forms/verify")).toBe(true);
@@ -62,9 +70,9 @@ describe("matchesSecret", () => {
 describe("isAiReadingBot", () => {
   it("recognises common AI crawlers", () => {
     expect(isAiReadingBot(req("GPTBot/1.0"))).toBe(true);
-    expect(isAiReadingBot(req("Mozilla/5.0 (compatible; Google-Extended)"))).toBe(
-      true,
-    );
+    expect(
+      isAiReadingBot(req("Mozilla/5.0 (compatible; Google-Extended)")),
+    ).toBe(true);
     expect(isAiReadingBot(req("ClaudeBot/1.0"))).toBe(true);
   });
 
@@ -81,9 +89,9 @@ describe("isAiReadingBot", () => {
 
 describe("isUnauthenticatedCrawler", () => {
   it("allows search and AI bots through the staging gate", () => {
-    expect(isUnauthenticatedCrawler(req("Mozilla/5.0 (compatible; Googlebot/2.1)"))).toBe(
-      true,
-    );
+    expect(
+      isUnauthenticatedCrawler(req("Mozilla/5.0 (compatible; Googlebot/2.1)")),
+    ).toBe(true);
     expect(isUnauthenticatedCrawler(req("GPTBot/1.0"))).toBe(true);
   });
 });

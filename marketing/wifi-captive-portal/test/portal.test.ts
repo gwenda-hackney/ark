@@ -4,8 +4,6 @@ import { handlePortalRequest } from "../src/handler.js";
 import type { Env } from "../src/types.js";
 import {
   clearSubscribeTableIdCache,
-  PRODUCTION_BASEROW_DATABASE_ID,
-  resolveDatabaseId,
   resolveSubscribeTableId,
 } from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
@@ -18,15 +16,10 @@ const env: Env = {
   ASSETS: {
     fetch: async () => new Response("asset", { status: 200 }),
   } as unknown as Env["ASSETS"],
-  BASEROW_DATABASE_ID: PRODUCTION_BASEROW_DATABASE_ID,
   WIFI_SUBSCRIBE_TAG: "wifi",
 };
 
 describe("types", () => {
-  it("defaults to production subscribe database", () => {
-    expect(resolveDatabaseId({} as Env)).toBe(PRODUCTION_BASEROW_DATABASE_ID);
-  });
-
   it("resolves Subscribers by name", async () => {
     clearSubscribeTableIdCache();
     vi.stubGlobal(
@@ -35,11 +28,26 @@ describe("types", () => {
         ok: true,
         json: async () => [
           { id: 1017358, name: "Subscribers", database_id: 461843 },
-          { id: 1024006, name: "Subscribers", database_id: 465058 },
         ],
       })),
     );
     await expect(resolveSubscribeTableId(env)).resolves.toBe("1017358");
+    vi.unstubAllGlobals();
+  });
+
+  it("errors when the token can see more than one Subscribers table", async () => {
+    clearSubscribeTableIdCache();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => [
+          { id: 1017358, name: "Subscribers", database_id: 461843 },
+          { id: 1024006, name: "Subscribers", database_id: 563090 },
+        ],
+      })),
+    );
+    await expect(resolveSubscribeTableId(env)).rejects.toThrow(/Website database/);
     vi.unstubAllGlobals();
   });
 });

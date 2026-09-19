@@ -5,7 +5,7 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 | Layer | Store | Examples |
 |-------|--------|----------|
 | Secrets | Bitwarden Secrets Manager → `.env.ark` / `.env.ops` / `.env.web` / CF secrets | API tokens, passwords, signing keys |
-| Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, marketing `BASEROW_DATABASE_ID`, SMTP host |
+| Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, SMTP host |
 | Runtime non-secret config | Baserow **App Config** (ops first) | Pour targets, Sanity project/dataset, deploy webhook URL, Google OAuth **client id** |
 | Marketing product flags | Sanity `siteSettings` | Booking / gallery toggles |
 
@@ -92,7 +92,7 @@ Marketing uses the same two workspaces so a local/staging token cannot see live 
 | production | `Gwenda` (`208709`) | Website DB `461843` | `BASEROW_API_KEY_MARKETING_PRODUCTION` |
 | staging + local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_API_KEY_MARKETING` |
 
-Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). Wrangler `[vars]` carries `BASEROW_DATABASE_ID` (prod `461843`, staging/dev `563090`).
+Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). The marketing token is scoped to that env's Website database, so runtime does not need a numeric database id. `BASEROW_DATABASE_ID` is optional (only if a token can see more than one table with the same name). Studio's RSVP grid URL still uses Baserow's numeric UI path.
 
 ```bash
 npm run clone:baserow-web-dev                    # once: copy staging website DB into Gwenda Dev

@@ -10,9 +10,7 @@ import {
   normalizeSignedUp,
   normalizeTag,
   normalizeTags,
-  PRODUCTION_BASEROW_DATABASE_ID,
   resolveAudienceId,
-  resolveDatabaseId,
   resolveTableId,
   SIGNED_UP_MERGE_TAG,
   syncUnsyncedSubscribers,
@@ -25,7 +23,6 @@ const env: Env = {
   MAILCHIMP_API_KEY: "mailchimp-key-us2",
   SYNC_SECRET: "sync-secret",
   MAILCHIMP_AUDIENCE_ID: "e2c69d5d31",
-  BASEROW_DATABASE_ID: PRODUCTION_BASEROW_DATABASE_ID,
   BASEROW_API_URL: "https://api.baserow.io",
 };
 
@@ -53,22 +50,35 @@ describe("helpers", () => {
     expect(normalizeSignedUp("nope")).toBeUndefined();
   });
 
-  it("defaults to the production subscribe database and audience", async () => {
+  it("resolves Subscribers by name and defaults the audience", async () => {
     clearSubscribeTableIdCache();
-    expect(resolveDatabaseId({})).toBe(PRODUCTION_BASEROW_DATABASE_ID);
     expect(resolveAudienceId({})).toBe("e2c69d5d31");
 
     const fetchImpl = vi.fn(async () => ({
       ok: true,
       json: async () => [
         { id: 1017358, name: "Subscribers", database_id: 461843 },
-        { id: 1024006, name: "Subscribers", database_id: 465058 },
       ],
     })) as unknown as typeof fetch;
 
     await expect(
       resolveTableId({ BASEROW_API_KEY: "k" }, fetchImpl),
     ).resolves.toBe("1017358");
+  });
+
+  it("errors when the token can see more than one Subscribers table", async () => {
+    clearSubscribeTableIdCache();
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { id: 1017358, name: "Subscribers", database_id: 461843 },
+        { id: 1024006, name: "Subscribers", database_id: 563090 },
+      ],
+    })) as unknown as typeof fetch;
+
+    await expect(
+      resolveTableId({ BASEROW_API_KEY: "k" }, fetchImpl),
+    ).rejects.toThrow(/Website database/);
   });
 
   it("hashes lowercase email for Mailchimp", () => {

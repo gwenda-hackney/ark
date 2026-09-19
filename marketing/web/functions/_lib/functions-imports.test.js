@@ -10,6 +10,7 @@ const modules = [
   "../api/forms/index.js",
   "../api/forms/verify.js",
   "../api/forms/resend.js",
+  "../health.js",
   "../api/events.js",
   "../api/auth.js",
   "./event-password.js",

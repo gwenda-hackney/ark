@@ -1,7 +1,6 @@
-import {
-  resolveFormFrom,
-  resolveFormReplyTo,
-} from "./form-email.js";
+import { resolveFormFrom, resolveFormReplyTo } from "./form-email.js";
+import { reportFormError } from "./form-alert.js";
+import { createLogger } from "./log.js";
 import {
   buildFormVerifyUrl,
   createFormVerifyToken,
@@ -28,6 +27,7 @@ const FONT_BODY = "Lora, Georgia, 'Times New Roman', serif";
 const GOLD_BORDER = "rgba(201, 168, 76, 0.12)";
 const GOLD_UNDERLINE = "rgba(201, 168, 76, 0.45)";
 const LOGO_URL = `${SITE_DOMAIN}/brand/logo-email.png`;
+const log = createLogger();
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -44,8 +44,7 @@ function formVerifyCopy({ title, updated }) {
   const lead = updated
     ? `We've taken in your latest note for ${formTitle}. Open below when you're ready to confirm.`
     : `Thanks for writing to ${formTitle}. Open below when you're ready to confirm.`;
-  const aside =
-    "There's no rush. This note will keep for a couple of days.";
+  const aside = "There's no rush. This note will keep for a couple of days.";
   // HTML carries the Confirm button; keep plain text free of a raw link.
   const text = [
     heading,
@@ -182,7 +181,9 @@ export async function sendFormVerifyEmail(
   const host = env.SMTP_HOST?.trim();
   const from = resolveFormFrom(env, form);
   const replyTo = resolveFormReplyTo(form);
-  const to = String(email ?? "").trim().toLowerCase();
+  const to = String(email ?? "")
+    .trim()
+    .toLowerCase();
   const user = env.SMTP_USER?.trim() ?? "";
   // Gmail app passwords are often pasted with spaces; SMTP auth wants the 16 chars.
   const password = (env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
@@ -196,14 +197,11 @@ export async function sendFormVerifyEmail(
     slug: form.slug,
   });
   if (!token) {
-    console.error(
-      JSON.stringify({
-        event: "form_verify_token_failed",
-        reason: "missing_secret_or_row",
-        rowId: String(rowId ?? ""),
-        slug: form?.slug ?? "",
-      }),
-    );
+    await reportFormError(env, "form_verify_token_failed", {
+      reason: "missing_secret_or_row",
+      rowId: String(rowId ?? ""),
+      slug: form?.slug ?? "",
+    });
     return { ok: false, error: "Could not create confirmation link." };
   }
 
@@ -233,22 +231,20 @@ export async function sendFormVerifyEmail(
 
   if (!smtpReady) {
     if (!isDeployed) {
-      console.info(
-        `[form verify dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"}\n${copy.text}`,
+      log.info(
+        `[form verify dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"}`,
       );
       return { ok: true, dryRun: true, verifyUrl };
     }
-    console.error(
-      JSON.stringify({
-        event: "form_verify_email_skipped",
-        reason: "smtp_not_configured",
-        hasHost: Boolean(host),
-        hasFrom: Boolean(from),
-        hasTo: Boolean(to),
-        hasUser: Boolean(user),
-        hasPassword: Boolean(password),
-      }),
-    );
+    await reportFormError(env, "form_verify_email_skipped", {
+      reason: "smtp_not_configured",
+      hasHost: Boolean(host),
+      hasFrom: Boolean(from),
+      hasTo: Boolean(to),
+      hasUser: Boolean(user),
+      hasPassword: Boolean(password),
+      slug: form?.slug ?? "",
+    });
     return { ok: false, skipped: true, error: "Email is not configured." };
   }
 
@@ -273,32 +269,27 @@ export async function sendFormVerifyEmail(
       attachments,
     });
 
-    console.info(
-      JSON.stringify({
-        event: "form_verify_email_sent",
-        to,
-        rowId: String(rowId ?? ""),
-        slug: form?.slug ?? "",
-        updated: Boolean(updated),
-        htmlBytes: html.length,
-        logoEmbedded: Boolean(logoBuffer),
-        subject: copy.subject,
-      }),
-    );
+    log.event("info", "form_verify_email_sent", {
+      to,
+      rowId: String(rowId ?? ""),
+      slug: form?.slug ?? "",
+      updated: Boolean(updated),
+      htmlBytes: html.length,
+      logoEmbedded: Boolean(logoBuffer),
+      subject: copy.subject,
+    });
 
     return { ok: true, verifyUrl };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      JSON.stringify({
-        event: "form_verify_email_failed",
-        error: message,
-        from,
-        to,
-        host,
-        user,
-      }),
-    );
+    await reportFormError(env, "form_verify_email_failed", {
+      error: message,
+      from,
+      to,
+      host,
+      user,
+      slug: form?.slug ?? "",
+    });
     return { ok: false, error: message };
   }
 }

@@ -49,7 +49,7 @@ npm run subscribe-mailchimp-sync -- --limit 50
 npm run subscribe-mailchimp-sync -- --all
 ```
 
-Resolves the production `Subscribers` table by name (database `461843`) unless `BASEROW_DATABASE_ID` / `BASEROW_SUBSCRIBE_TABLE_NAME` are set.
+Resolves the production `Subscribers` table by name (token scoped to Gwenda / Website). Optional `BASEROW_DATABASE_ID` / `BASEROW_SUBSCRIBE_TABLE_NAME` only if the token can see more than one match.
 
 ## Manual trigger
 

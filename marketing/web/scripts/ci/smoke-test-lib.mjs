@@ -27,3 +27,16 @@ export function assertHomePageHealthy(html) {
     throw new Error("Homepage missing expected signup form");
   }
 }
+
+/** @param {unknown} data */
+export function assertHealthPayload(data) {
+  if (!data || typeof data !== "object") {
+    throw new Error("Health payload is not an object");
+  }
+  if (data.ok !== true) {
+    throw new Error("Health payload missing ok: true");
+  }
+  if (data.service !== "gwenda") {
+    throw new Error(`Health payload unexpected service: ${data.service}`);
+  }
+}

@@ -17,7 +17,7 @@ describe("storeFormSubmission", () => {
             {
               id: 77,
               name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 465058,
+              database_id: 1,
             },
           ],
         };
@@ -70,7 +70,7 @@ describe("storeFormSubmission", () => {
             {
               id: 77,
               name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 465058,
+              database_id: 1,
             },
           ],
         };
@@ -120,7 +120,7 @@ describe("storeFormSubmission", () => {
               {
                 id: 77,
                 name: FORM_SUBMISSIONS_TABLE_NAME,
-                database_id: 465058,
+                database_id: 1,
               },
             ],
           };
@@ -162,7 +162,7 @@ describe("findFormSubmissionByEmail", () => {
             {
               id: 77,
               name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 465058,
+              database_id: 1,
             },
           ],
         };
@@ -214,7 +214,7 @@ describe("findFormSubmissionByEmail", () => {
             {
               id: 77,
               name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 465058,
+              database_id: 1,
             },
           ],
         };
@@ -286,7 +286,7 @@ describe("findFormSubmissionByEmail", () => {
             {
               id: 77,
               name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 465058,
+              database_id: 1,
             },
           ],
         };

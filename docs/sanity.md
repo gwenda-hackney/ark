@@ -93,7 +93,7 @@ npm run studio:dataset:create -- development --visibility private
 npx sanity login
 ```
 
-Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), or copy `.env.example` → `.env` and fill by hand. See [docs/env.md](env.md).
+Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:web:pull`. See [docs/env.md](env.md).
 
 ## Local commands
 

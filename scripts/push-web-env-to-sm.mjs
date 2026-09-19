@@ -3,11 +3,13 @@
  * Push filled marketing secrets from repo-root `.env` (and optional `.env.web`)
  * into Bitwarden Secrets Manager.
  *
- * Creates BASEROW_API_KEY_MARKETING from local BASEROW_API_KEY (never overwrites
- * ops BASEROW_API_KEY). Other WEB_ENV_SECRET_KEYS are upserted by the same name.
+ * Creates BASEROW_API_KEY_MARKETING from local BASEROW_API_KEY (Gwenda Dev
+ * website token). Never overwrites ops BASEROW_API_KEY.
+ * Use --production to upsert BASEROW_API_KEY_MARKETING_PRODUCTION instead.
  *
  *   npm run env:web:push
  *   npm run env:web:push -- --dry-run
+ *   npm run env:web:push -- --production
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -31,9 +33,10 @@ function loadDotEnv(path) {
 }
 
 function parseArgs(argv) {
-  const out = { dryRun: false };
+  const out = { dryRun: false, production: false };
   for (const arg of argv) {
     if (arg === "--dry-run") out.dryRun = true;
+    else if (arg === "--production") out.production = true;
     else if (arg === "--help" || arg === "-h") out.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -56,10 +59,11 @@ function main() {
     process.exit(1);
   }
   if (opts.help) {
-    console.log(`Usage: node scripts/push-web-env-to-sm.mjs [--dry-run]
+    console.log(`Usage: node scripts/push-web-env-to-sm.mjs [--dry-run] [--production]
 
   Upserts filled marketing secrets from .env / .env.web into Secrets Manager.
-  BASEROW_API_KEY → SM key BASEROW_API_KEY_MARKETING.
+  BASEROW_API_KEY → SM key BASEROW_API_KEY_MARKETING (Gwenda Dev website).
+  --production maps BASEROW_API_KEY → BASEROW_API_KEY_MARKETING_PRODUCTION.
 `);
     return;
   }
@@ -86,7 +90,11 @@ function main() {
     const value = localValue(web, shared, localKey);
     if (!value) continue;
     const smKey =
-      localKey === "BASEROW_API_KEY" ? "BASEROW_API_KEY_MARKETING" : localKey;
+      localKey === "BASEROW_API_KEY"
+        ? opts.production
+          ? "BASEROW_API_KEY_MARKETING_PRODUCTION"
+          : "BASEROW_API_KEY_MARKETING"
+        : localKey;
     planned.push({ smKey, localKey, value });
   }
 
@@ -111,8 +119,10 @@ function main() {
       projectId,
       note:
         row.smKey === "BASEROW_API_KEY_MARKETING"
-          ? "Marketing / subscribe / RSVP Baserow token (not ops Free workspace)"
-          : undefined,
+          ? "Gwenda Dev website Baserow token (local + staging)"
+          : row.smKey === "BASEROW_API_KEY_MARKETING_PRODUCTION"
+            ? "Gwenda production website Baserow token"
+            : undefined,
     });
     console.log(`${result}: ${row.smKey}`);
   }

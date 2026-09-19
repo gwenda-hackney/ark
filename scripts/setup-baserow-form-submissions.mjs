@@ -5,7 +5,7 @@
  * Database tokens only allow row CRUD. Creating tables/fields requires a short-lived
  * JWT from POST /api/user/token-auth/ (Admin or Builder on the workspace).
  *
- * Dev and gwenda-staging share the same Baserow database (465058). Production tables
+ * Dev and gwenda-staging share Gwenda Dev / Website. Production tables
  * are created separately when you promote.
  *
  * Usage:
@@ -20,12 +20,12 @@
  *   BASEROW_API_URL=https://api.baserow.io
  */
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
+import { resolveWebsiteDatabase } from "./lib/baserow-clone.mjs";
 import {
   DEFAULT_BASEROW_API,
-  DEV_BASEROW_DATABASE_ID,
-  DEV_SUBSCRIBE_TABLE_ID,
   FORM_SUBMISSIONS_TABLE_NAME,
-  PRODUCTION_SUBSCRIBE_TABLE_ID,
+  SUBSCRIBE_TABLE_NAME,
+  WEBSITE_DATABASE_NAME,
 } from "../marketing/web/functions/_lib/baserow.js";
 
 const EXPECTED_FIELDS = [
@@ -95,39 +95,22 @@ async function baserowRequest(apiBase, jwt, path, init = {}) {
   return json;
 }
 
-async function loadDatabaseTables(apiBase, jwt, databaseId, subscribeTableId, label) {
+async function loadDatabaseTables(apiBase, jwt, databaseId, label) {
   const tables = await baserowRequest(
     apiBase,
     jwt,
     `/api/database/tables/database/${databaseId}/`,
   );
-  const marker = tables.find((table) => String(table.id) === subscribeTableId);
+  const marker = tables.find((table) => table.name === SUBSCRIBE_TABLE_NAME);
   if (!marker) {
     throw new Error(
-      `Expected ${label} Baserow database ${databaseId} to contain subscribe table ${subscribeTableId}.`,
+      `Expected ${label} "${WEBSITE_DATABASE_NAME}" (${databaseId}) to contain "${SUBSCRIBE_TABLE_NAME}".`,
     );
   }
   console.log(
-    `${label} database ${databaseId} (subscribe table "${marker.name}" id ${subscribeTableId}).`,
+    `${label} "${WEBSITE_DATABASE_NAME}" (${databaseId}), "${marker.name}" id ${marker.id}.`,
   );
   return tables;
-}
-
-async function resolveProductionDatabaseId(apiBase, apiKey) {
-  const response = await fetch(`${apiBase}/api/database/tables/all-tables/`, {
-    headers: { Authorization: `Token ${apiKey}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Could not list Baserow tables (${response.status}).`);
-  }
-  const tables = await response.json();
-  const subscribe = tables.find((table) => String(table.id) === PRODUCTION_SUBSCRIBE_TABLE_ID);
-  if (!subscribe) {
-    throw new Error(
-      `Production subscribe table ${PRODUCTION_SUBSCRIBE_TABLE_ID} not visible to BASEROW_API_KEY.`,
-    );
-  }
-  return String(subscribe.database_id);
 }
 
 async function findOrCreateTable(tables, apiBase, jwt, databaseId, tableName) {
@@ -209,33 +192,26 @@ async function main() {
   const tableName =
     readEnv("BASEROW_FORM_SUBMISSIONS_TABLE_NAME") || FORM_SUBMISSIONS_TABLE_NAME;
   const apiBase = (readEnv("BASEROW_API_URL") || DEFAULT_BASEROW_API).replace(/\/$/, "");
-  const apiKey = readEnv("BASEROW_API_KEY");
-
-  let databaseId = readEnv("BASEROW_DATABASE_ID");
-  let subscribeTableId = readEnv("BASEROW_TABLE_ID") || DEV_SUBSCRIBE_TABLE_ID;
-  let label = "Dev";
-
-  if (production) {
-    if (!apiKey) {
-      throw new Error("BASEROW_API_KEY is required for --production (resolves prod database id).");
-    }
-    databaseId = databaseId || (await resolveProductionDatabaseId(apiBase, apiKey));
-    subscribeTableId = PRODUCTION_SUBSCRIBE_TABLE_ID;
-    label = "Production";
-  } else {
-    databaseId = databaseId || DEV_BASEROW_DATABASE_ID;
-  }
+  const label = production ? "Production" : "Dev";
 
   const jwt = await getBaserowJwt(apiBase, {
-    hint: `database ${databaseId}`,
+    hint: `${label} ${WEBSITE_DATABASE_NAME}`,
   });
+
+  let databaseId = readEnv("BASEROW_DATABASE_ID");
+  if (!databaseId) {
+    const found = await resolveWebsiteDatabase(apiBase, jwt, { production });
+    databaseId = found.databaseId;
+    console.log(
+      `${found.workspaceName} / ${found.databaseName} (${databaseId}).`,
+    );
+  }
 
   console.log(`Table "${tableName}"…`);
   const tables = await loadDatabaseTables(
     apiBase,
     jwt,
     databaseId,
-    subscribeTableId,
     label,
   );
   const table = await findOrCreateTable(

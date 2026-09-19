@@ -6,7 +6,7 @@ ark/
 │   ├── web/            ← marketing site
 │   ├── brand/          ← brand guidelines HTML
 │   ├── studio/         ← Sanity Studio (website CMS)
-│   └── … Workers       ← site-deploy, Mailchimp sync, Wi‑Fi portal
+│   └── … Workers       ← site-deploy, Mailchimp sync, site health, Wi‑Fi portal
 ├── ops/
 │   ├── site/           ← ops Pages app (HTML tools)
 │   ├── event-invites/
@@ -32,7 +32,7 @@ Seven workflow files under `.github/workflows/`:
 | `web.yml` | Staging (`main`), production preview (`release`), branch previews, Studio content deploys |
 | `web-promote.yml` | Promote production preview to live (`kind=code` or `content`) |
 | `studio.yml` | Hosted Sanity Studio (dev on `main`, prod on `release`) |
-| `workers.yml` | site-deploy-webhook, Mailchimp sync, recipe-cost |
+| `workers.yml` | site-deploy-webhook, Mailchimp sync, site-health, recipe-cost |
 | `apps.yml` | Brand guidelines + ops Pages |
 | `sanity.yml` | Mirror development ↔ production datasets |
 | `verify.yml` | Reusable build/test (called by `web.yml`) |
