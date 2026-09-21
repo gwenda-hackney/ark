@@ -30,6 +30,9 @@ import {
 	cocktailTypeLabel,
 	drinkTypeLabel,
 	formatPrices,
+	guestMenuLabel,
+	guestMenuPlacement,
+	lightspeedStatusLabel,
 	normalizeDrinkType,
 	parseGbp,
 	publishNotLive,
@@ -67,6 +70,10 @@ export type MenuListItem = MenuItem & {
 	_volumeLabel?: string;
 	_sectionOrder?: number;
 	_matchHint?: MatchHint | null;
+	_posLabel?: string;
+	_posStatus?: string;
+	_guestLabel?: string;
+	_guestPlacement?: string;
 };
 
 export type MenuListGroup = {
@@ -278,6 +285,10 @@ export function buildMenuListRows(opts: {
 							_volumeLabel: volume.label,
 							_sectionOrder: order,
 							_matchHint: hiddenMatchHint(fieldHits(fields, needle), needle),
+							_posLabel: lightspeedStatusLabel(item.lightspeedStatus) || "—",
+							_posStatus: item.lightspeedStatus || "",
+							_guestPlacement: guestMenuPlacement(item),
+							_guestLabel: guestMenuLabel(guestMenuPlacement(item)),
 						},
 					];
 				})

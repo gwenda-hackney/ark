@@ -211,6 +211,24 @@ export async function getConfigString(env, key, { service = "ops" } = {}) {
 }
 
 /**
+ * Create or patch one App Config row. Env=all + Service=ops unless overridden.
+ */
+export async function setConfigString(
+  env,
+  key,
+  value,
+  { envName = "all", service = "ops" } = {},
+) {
+  const tableId = requireConfigTableId(await resolveConfigTableId(env));
+  const loaded = await loadConfigRows(env);
+  await upsertConfigValue(env, tableId, loaded.rows || [], key, value, {
+    envName,
+    service,
+  });
+  bustConfigCache();
+}
+
+/**
  * Merge App Config into a plain env-like object.
  * Binding/env values win when already set (bootstrap + secrets stay authoritative).
  */

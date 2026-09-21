@@ -34,6 +34,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/sections/") ||
     p === "/users" ||
     p.startsWith("/users/") ||
+    p === "/web" ||
+    p.startsWith("/web/") ||
     p === "/tools" ||
     p.startsWith("/tools/")
   );
@@ -124,12 +126,17 @@ export function parseShellPath(path) {
     };
   }
   if (p === "/lightspeed" || p.startsWith("/lightspeed/")) {
-    return { page: "lightspeed" };
+    const rest = p === "/lightspeed" ? "" : p.slice("/lightspeed/".length);
+    return {
+      page: "lightspeed",
+      view: rest === "export" ? "export" : "reconcile",
+    };
   }
   if (p === "/suppliers" || p.startsWith("/suppliers/")) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
+  if (p === "/web" || p.startsWith("/web/")) return { page: "web" };
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
   if (p === "/tools" || p.startsWith("/tools/")) {
@@ -216,7 +223,8 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "cashflow" ||
     from === "config" ||
     from === "sections" ||
-    from === "users"
+    from === "users" ||
+    from === "web"
   ) {
     return false;
   }

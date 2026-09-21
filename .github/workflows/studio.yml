@@ -14,22 +14,22 @@ on:
         default: auto
         options:
           - auto
-          - development
+          - staging
           - production
 
 jobs:
-  deploy-development:
-    name: Deploy development Studio
+  deploy-staging:
+    name: Deploy Dev Studio
     if: >-
       (github.event_name == 'push' && github.ref_name == 'main')
       || (github.event_name == 'workflow_dispatch'
-          && (inputs.target == 'development'
+          && (inputs.target == 'staging'
               || (inputs.target == 'auto' && github.ref_name == 'main')))
     runs-on: ubuntu-latest
     permissions:
       contents: read
     environment:
-      name: studio-dev
+      name: studio-staging
       url: https://gwenda-dev.sanity.studio
     steps:
       - name: Checkout code
@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Deploy hosted Studio (development)
+      - name: Deploy hosted Studio (dev)
         run: npm run studio:deploy:dev
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
@@ -61,9 +61,9 @@ jobs:
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Development Studio deployed","rows":[
+            {"title":"Dev Studio deployed","rows":[
               ["Studio","https://gwenda-dev.sanity.studio"],
-              ["Dataset","development"],
+              ["Dataset","staging"],
               ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"]
             ]}
 

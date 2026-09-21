@@ -8,6 +8,7 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/menu/negroni"), "stock");
 		assert.equal(mobileTabFor("/inventory"), "stock");
 		assert.equal(mobileTabFor("/lightspeed"), "stock");
+		assert.equal(mobileTabFor("/lightspeed/export"), "stock");
 		assert.equal(mobileTabFor("/suppliers"), "stock");
 	});
 
@@ -15,5 +16,6 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/sections"), "more");
 		assert.equal(mobileTabFor("/config"), "more");
 		assert.equal(mobileTabFor("/users"), "more");
+		assert.equal(mobileTabFor("/web"), "more");
 	});
 });

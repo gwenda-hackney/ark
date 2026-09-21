@@ -5,6 +5,7 @@
 	import Icon from "../../shell/Icon.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
 	import * as api from "../../lib/api";
+	import type { WebStatus } from "../../lib/api";
 	import {
 		clampPercent,
 		issueHeat,
@@ -27,6 +28,7 @@
 
 	let sections = $state<MenuSection[]>([]);
 	let inventory = $state<InventoryItem[]>([]);
+	let webStatus = $state<WebStatus | null>(null);
 	let loaded = $state(false);
 	let loadError = $state("");
 
@@ -113,11 +115,30 @@
 			: 1,
 	);
 
+	function webHealthTone(): "up" | "down" | "muted" {
+		const prod = webStatus?.environments.production.health;
+		if (!prod) return "muted";
+		if (prod.down || prod.ok === false) return "down";
+		if (prod.ok === true) return "up";
+		return "muted";
+	}
+
+	function webHealthLabel(): string {
+		const prod = webStatus?.environments.production.health;
+		const staging = webStatus?.environments.staging.health;
+		if (prod?.down) return "Production is down";
+		if (staging?.down) return "Staging is down";
+		if (prod?.ok === true && staging?.ok === true) return "Staging and production are up";
+		if (prod?.ok === true) return "Production is up";
+		return "Health unknown";
+	}
+
 	onMount(() => {
-		Promise.all([api.getMenu(), api.getInventory(false)])
-			.then(([menuData, inventoryData]) => {
+		Promise.all([api.getMenu(), api.getInventory(false), api.getWebStatus().catch(() => null)])
+			.then(([menuData, inventoryData, web]) => {
 				sections = menuData.sections || [];
 				inventory = inventoryData.items || [];
+				webStatus = web;
 				loadError = "";
 			})
 			.catch((err) => {
@@ -278,6 +299,44 @@
 			</div>
 		</div>
 
+		{#if webStatus}
+			<Card
+				fill
+				class="web-status {webStatus.environments.production.health.down
+					? 'heat-bad'
+					: webStatus.drift.inSync
+						? 'heat-ok'
+						: webStatus.drift.unknown
+							? ''
+							: 'heat-caution'}"
+				title="Website"
+				subtitle="Staging versus production: code, content, and health."
+			>
+				<div class="pair">
+					<div class="fig" class:up={webStatus.drift.inSync} class:warn={!webStatus.drift.inSync && !webStatus.drift.unknown}>
+						<p class="value tnum">{webStatus.drift.inSync ? "Match" : webStatus.drift.unknown ? "n/a" : "Ahead"}</p>
+						<p class="fig-label">Staging vs live</p>
+					</div>
+					<div class="fig" class:up={webHealthTone() === "up"} class:down={webHealthTone() === "down"}>
+						<p class="value tnum">{webHealthTone() === "down" ? "Down" : webHealthTone() === "up" ? "Up" : "n/a"}</p>
+						<p class="fig-label">Health</p>
+					</div>
+				</div>
+				<p class="hint {webHealthTone()}">
+					{webStatus.driftLabel}. {webHealthLabel()}.
+					{#if webStatus.lastError}
+						{" "}{webStatus.lastError}
+					{/if}
+				</p>
+				{#snippet footer()}
+					<a class="go" href="/web">
+						Web
+						<Icon name="chevron-right" size={16} />
+					</a>
+				{/snippet}
+			</Card>
+		{/if}
+
 		<div class="panels">
 			<Card
 				fill
@@ -352,7 +411,7 @@
 						</ul>
 						{#if summary.flaggedRecipes.length > 8}
 							<p class="more">
-								{summary.flaggedRecipes.length - 8} more on Recipes.
+								{summary.flaggedRecipes.length - 8} more on Menu items.
 							</p>
 						{/if}
 					{:else}
@@ -360,7 +419,7 @@
 					{/if}
 				{#snippet footer()}
 					<a class="go" href="/menu">
-						Recipes
+						Menu items
 						<Icon name="chevron-right" size={16} />
 					</a>
 				{/snippet}
@@ -510,6 +569,29 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
+	}
+
+	.dash :global(.web-status) {
+		margin-bottom: var(--gap-lg);
+	}
+
+	.dash :global(.web-status.heat-ok) {
+		border-color: color-mix(in srgb, var(--up) 32%, var(--border));
+		background: linear-gradient(
+			165deg,
+			color-mix(in srgb, var(--up) 14%, transparent),
+			var(--card) 72%
+		);
+	}
+
+	.dash :global(.web-status.heat-caution) {
+		border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
+		background: linear-gradient(165deg, var(--primary-wash), var(--card) 72%);
+	}
+
+	.dash :global(.web-status.heat-bad) {
+		border-color: color-mix(in srgb, var(--down) 40%, var(--border));
+		background: linear-gradient(165deg, var(--destructive-wash), var(--card) 58%);
 	}
 
 	.error {

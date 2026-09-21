@@ -7,12 +7,19 @@ import { schemaTypes } from "./schemaTypes";
 import { structure } from "./structure";
 
 /** Inlined at build time — vars from repo-root `.env` via scripts/with-env.mjs */
-const dataset = process.env.SANITY_STUDIO_DATASET || "development";
+const dataset = process.env.SANITY_STUDIO_DATASET || "staging";
 const projectId = process.env.SANITY_STUDIO_PROJECT_ID || "pn5yjro6";
 
+function studioMeta(value: string) {
+  if (value === "production") return { name: "gwenda", title: "Gwenda" };
+  return { name: "gwenda-dev", title: "Gwenda (dev)" };
+}
+
+const { name, title } = studioMeta(dataset);
+
 export default defineConfig({
-  name: dataset === "production" ? "gwenda" : "gwenda-dev",
-  title: dataset === "production" ? "Gwenda" : "Gwenda (development)",
+  name,
+  title,
   projectId,
   dataset,
   plugins: [

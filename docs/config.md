@@ -70,7 +70,7 @@ Writes local `BASEROW_API_KEY`, OAuth/session secrets, and (from Ark/Web) `SANIT
 |-----|---------|
 | `pour_target.*` | House pour-cost % by drink type |
 | `sanity.project_id` | Sanity project |
-| `sanity.dataset` | Per-env dataset (`local`/`staging` → development, `production` → production) |
+| `sanity.dataset` | Optional default. Editorial writes always go to `staging`. Production is clone-only. |
 | `site_deploy.webhook_url` | Studio → site rebuild webhook base URL |
 | `google.oauth_client_id` | Google OAuth client id (public-ish; secret stays in SM) |
 
@@ -90,12 +90,14 @@ Marketing uses the same two workspaces so a local/staging token cannot see live 
 | Env | Workspace | Database id | Token (SM) |
 |-----|-----------|-------------|------------|
 | production | `Gwenda` (`208709`) | Website DB `461843` | `BASEROW_API_KEY_MARKETING_PRODUCTION` |
-| staging + local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_API_KEY_MARKETING` |
+| staging | `Gwenda` (`208709`) | Website Staging `564496` | `BASEROW_API_KEY_MARKETING_STAGING` (falls back to `BASEROW_API_KEY_MARKETING` until minted) |
+| local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_API_KEY_MARKETING` |
 
 Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). The marketing token is scoped to that env's Website database, so runtime does not need a numeric database id. `BASEROW_DATABASE_ID` is optional (only if a token can see more than one table with the same name). Studio's RSVP grid URL still uses Baserow's numeric UI path.
 
 ```bash
-npm run clone:baserow-web-dev                    # once: copy staging website DB into Gwenda Dev
+npm run clone:baserow-web-dev                    # once: copy website DB into Gwenda Dev
+npm run clone:baserow-web-staging                # once: Website Staging in the paid Gwenda workspace
 npm run env:web:push                             # seed SM from filled .env keys (once)
 npm run env:web:pull                             # SM → .env.web (Dev website key)
 npm run setup:baserow-form-submissions           # create/repair Form Submissions table (JWT)
@@ -103,7 +105,7 @@ gh workflow run web-secrets.yml -f profile=staging
 gh workflow run web-secrets.yml -f profile=production
 ```
 
-SM `BASEROW_API_KEY_MARKETING` is the Gwenda Dev website token (local + staging Pages). Production Pages and Mailchimp use `BASEROW_API_KEY_MARKETING_PRODUCTION`. Ops Free-workspace `BASEROW_API_KEY` cannot see Subscribers. Apple Wallet PEMs stay on GitHub for now.
+SM `BASEROW_API_KEY_MARKETING` is the Gwenda Dev website token (local). Staging Pages uses `BASEROW_API_KEY_MARKETING_STAGING` when present. Production Pages and Mailchimp use `BASEROW_API_KEY_MARKETING_PRODUCTION`. Do not copy subscriber or RSVP rows from staging to production.
 
 SMTP host/port/user remain in marketing wrangler `[vars]`. Form From / Reply-To / notify addresses live on the Sanity `form` document. Only `SMTP_PASSWORD` is a Secrets Manager / Pages secret.
 

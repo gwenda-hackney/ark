@@ -19,6 +19,9 @@
 /users /index.html 200
 /users/ /index.html 200
 /users/* /index.html 200
+/web /index.html 200
+/web/ /index.html 200
+/web/* /index.html 200
 /tools /index.html 200
 /tools/ /index.html 200
 /tools/* /index.html 200

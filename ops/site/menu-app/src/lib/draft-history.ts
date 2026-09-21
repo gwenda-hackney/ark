@@ -14,6 +14,7 @@ export type MenuDraft = {
 	ice: string;
 	garnish: string;
 	onDigitalMenu: boolean;
+	onPrintMenu: boolean;
 	description: string;
 	method: string;
 	abv: string;
@@ -45,6 +46,7 @@ export function serializeMenuDraft(row: MenuItem | null): string {
 		ice: row.ice || "",
 		garnish: row.garnish || "",
 		onDigitalMenu: row.onDigitalMenu !== false,
+		onPrintMenu: row.onPrintMenu !== false,
 		description: row.description || "",
 		method: row.method || "",
 		abv: row.abv || "",

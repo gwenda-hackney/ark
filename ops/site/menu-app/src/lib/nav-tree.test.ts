@@ -13,7 +13,7 @@ describe("flattenNavRoutes", () => {
 	it("returns only leaves, not Stock or Menu groups", () => {
 		assert.deepEqual(
 			flattenNavRoutes(routes).map((row) => row.id),
-			["home", "recipes", "inventory", "suppliers", "lightspeed", "sections", "users", "config"],
+			["home", "recipes", "inventory", "suppliers", "lightspeed", "sections", "web", "users", "config"],
 		);
 	});
 });
@@ -24,9 +24,11 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/menu/negroni")?.id, "recipes");
 		assert.equal(matchActiveRoute(routes, "/inventory/gin")?.id, "inventory");
 		assert.equal(matchActiveRoute(routes, "/lightspeed")?.id, "lightspeed");
+		assert.equal(matchActiveRoute(routes, "/lightspeed/export")?.id, "lightspeed");
 		assert.equal(matchActiveRoute(routes, "/suppliers")?.id, "suppliers");
 		assert.equal(matchActiveRoute(routes, "/sections")?.id, "sections");
 		assert.equal(matchActiveRoute(routes, "/config")?.id, "config");
+		assert.equal(matchActiveRoute(routes, "/web")?.id, "web");
 		assert.equal(matchActiveRoute(routes, "/")?.id, "home");
 		assert.equal(matchActiveRoute(routes, "/users")?.id, "users");
 	});

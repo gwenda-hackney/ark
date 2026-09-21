@@ -29,12 +29,12 @@ Seven workflow files under `.github/workflows/`:
 
 | Workflow | Role |
 |----------|------|
-| `web.yml` | Staging (`main`), production preview (`release`), branch previews, Studio content deploys |
-| `web-promote.yml` | Promote production preview to live (`kind=code` or `content`) |
-| `studio.yml` | Hosted Sanity Studio (dev on `main`, prod on `release`) |
+| `web.yml` | Staging (`main`), verify-only (`develop`), branch previews, staging content rebuild |
+| `web-promote.yml` | Copy staging onto production (Sanity clone + rebuild) |
+| `studio.yml` | Hosted Studios: Dev Studio on `main`, Prod Studio on promote |
 | `workers.yml` | site-deploy-webhook, Mailchimp sync, site-health, recipe-cost |
 | `apps.yml` | Brand guidelines + ops Pages |
-| `sanity.yml` | Mirror development ↔ production datasets |
+| `sanity.yml` | Mirror `staging` ↔ `production` datasets |
 | `verify.yml` | Reusable build/test (called by `web.yml`) |
 
 Root `package.json` alone should not trigger Worker deploys.

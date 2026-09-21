@@ -4,6 +4,7 @@ import type { Env } from "./types";
 const ALLOWED_ORIGINS = new Set([
   "https://gwenda.sanity.studio",
   "https://gwenda-dev.sanity.studio",
+  "https://gwenda-staging.sanity.studio",
   "http://localhost:3333",
 ]);
 

@@ -1,7 +1,7 @@
 import type { NavRoute } from "../shell/types";
 
 /**
- * Side rail. Stock is bar stock (recipes + inventory). Menu is the guest
+ * Side rail. Stock is bar stock (menu items + inventory). Menu is the guest
  * menu: sections now, a visual website layout later.
  */
 export const NAV_ROUTES: NavRoute[] = [
@@ -11,7 +11,7 @@ export const NAV_ROUTES: NavRoute[] = [
 		name: "Stock",
 		icon: "stock",
 		children: [
-			{ id: "recipes", path: "/menu", name: "Recipes", icon: "recipes" },
+			{ id: "recipes", path: "/menu", name: "Menu items", icon: "recipes" },
 			{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
 			{ id: "suppliers", path: "/suppliers", name: "Suppliers", icon: "suppliers" },
 			{ id: "lightspeed", path: "/lightspeed", name: "Lightspeed", icon: "lightspeed" },
@@ -25,6 +25,7 @@ export const NAV_ROUTES: NavRoute[] = [
 			{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
 		],
 	},
+	{ id: "web", path: "/web", name: "Web", icon: "web" },
 	{ id: "users", path: "/users", name: "Users", icon: "users" },
 	{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
 ];

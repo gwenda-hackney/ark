@@ -7,12 +7,14 @@
 	import MenuWorkbench from "./features/menu/MenuWorkbench.svelte";
 	import InventoryWorkbench from "./features/inventory/InventoryWorkbench.svelte";
 	import LightspeedPage from "./features/inventory/LightspeedPage.svelte";
+	import LightspeedExportPage from "./features/inventory/LightspeedExportPage.svelte";
 	import SuppliersPage from "./features/inventory/SuppliersPage.svelte";
 	import ConfigPage from "./features/config/ConfigPage.svelte";
 	import SectionsPage from "./features/menu/SectionsPage.svelte";
 	import UsersPage from "./features/users/UsersPage.svelte";
+	import WebPage from "./features/web/WebPage.svelte";
 	import ToolFrame from "./features/tools/ToolFrame.svelte";
-	import { shellPageKey } from "./lib/nav";
+	import { parseShellPath, shellPageKey } from "./lib/nav";
 	import { NAV_ROUTES } from "./lib/nav-routes";
 	import { toolFrameFor } from "./lib/mobile-nav";
 	import { loadPourSettings } from "./lib/settings.svelte";
@@ -48,11 +50,17 @@
 				{:else if key === "inventory"}
 					<InventoryWorkbench path={current} />
 				{:else if key === "lightspeed"}
-					<LightspeedPage />
+					{#if parseShellPath(current).view === "export"}
+						<LightspeedExportPage />
+					{:else}
+						<LightspeedPage />
+					{/if}
 				{:else if key === "suppliers"}
 					<SuppliersPage />
 				{:else if key === "users"}
 					<UsersPage />
+				{:else if key === "web"}
+					<WebPage />
 				{:else if key === "sections"}
 					<SectionsPage />
 				{:else if key === "config"}

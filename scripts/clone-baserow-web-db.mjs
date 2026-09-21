@@ -1,23 +1,22 @@
 #!/usr/bin/env node
 /**
- * One-time clone: staging website Baserow DB → Free workspace "Gwenda Dev".
+ * Clone the marketing website Baserow database.
+ *
+ *   npm run clone:baserow-web-dev        Gwenda Dev (local)
+ *   npm run clone:baserow-web-staging    Website Staging in paid Gwenda workspace
  *
  * Recreates every table/field, copies rows with link remapping. File field
  * values are skipped; empty file columns are still created.
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
- * Source rows use the same JWT (must see database 465058 in workspace Gwenda).
- *
- *   npm run clone:baserow-web-dev
- *   npm run clone:baserow-web-dev -- --dry-run
- *
- * Destination database is always named Website (same as production).
+ * Source rows use the same JWT (must see database 465058).
  *
  * Env overrides:
- *   BASEROW_WEB_CLONE_SOURCE_ID     source DB (default 465058)
- *   BASEROW_WEB_DEV_WORKSPACE_NAME  (default "Gwenda Dev")
- *   BASEROW_WEB_DEV_WORKSPACE_ID    (default from .baserow-ops-dev.json)
- *   BASEROW_WEB_DEV_DATABASE_NAME   (default "Website")
+ *   BASEROW_WEB_CLONE_SOURCE_ID          source DB (default 465058)
+ *   BASEROW_WEB_DEV_WORKSPACE_NAME       (default "Gwenda Dev")
+ *   BASEROW_WEB_DEV_WORKSPACE_ID         (default from .baserow-ops-dev.json)
+ *   BASEROW_WEB_DEV_DATABASE_NAME        (default "Website")
+ *   BASEROW_WEB_STAGING_WORKSPACE_ID     (default paid Gwenda 208709)
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -42,7 +41,10 @@ const DEFAULT_SOURCE_DB = "465058";
 const DEV_WORKSPACE_NAME = "Gwenda Dev";
 const DEFAULT_DATABASE_NAME = "Website";
 const META_PATH = resolve(ROOT, ".baserow-web-dev.json");
+const STAGING_META_PATH = resolve(ROOT, ".baserow-web-staging.json");
 const OPS_META_PATH = resolve(ROOT, ".baserow-ops-dev.json");
+const GWENDA_WORKSPACE_ID = "208709";
+const STAGING_DATABASE_NAME = "Website Staging";
 
 function loadEnvFiles() {
   for (const name of [".env", ".env.web"]) {
@@ -59,10 +61,12 @@ function readEnv(name, fallback = "") {
 }
 
 function parseArgs(argv) {
-  const out = { dryRun: false, force: false };
+  const out = { dryRun: false, force: false, target: "dev" };
   for (const arg of argv) {
     if (arg === "--dry-run") out.dryRun = true;
     else if (arg === "--force") out.force = true;
+    else if (arg === "--target=staging" || arg === "--staging") out.target = "staging";
+    else if (arg === "--target=dev" || arg === "--dev") out.target = "dev";
     else if (arg === "--help" || arg === "-h") out.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -132,16 +136,22 @@ async function main() {
   loadEnvFiles();
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(`Usage: node scripts/clone-baserow-web-db.mjs [--dry-run] [--force]`);
+    console.log(`Usage: node scripts/clone-baserow-web-db.mjs [--dry-run] [--force] [--target=dev|staging]`);
     return;
   }
 
+  const staging = opts.target === "staging";
   const apiBase = readEnv("BASEROW_API_URL", DEFAULT_API).replace(/\/$/, "");
-  const sourceDbId = readEnv("BASEROW_WEB_CLONE_SOURCE_ID", DEFAULT_SOURCE_DB);
-  const workspaceName = readEnv(
-    "BASEROW_WEB_DEV_WORKSPACE_NAME",
-    DEV_WORKSPACE_NAME,
-  );
+  const devMeta = readJson(META_PATH);
+  const sourceDbId = staging
+    ? readEnv(
+        "BASEROW_WEB_CLONE_SOURCE_ID",
+        devMeta?.databaseId || DEFAULT_SOURCE_DB,
+      )
+    : readEnv("BASEROW_WEB_CLONE_SOURCE_ID", DEFAULT_SOURCE_DB);
+  const workspaceName = staging
+    ? readEnv("BASEROW_WEB_STAGING_WORKSPACE_NAME", "Gwenda")
+    : readEnv("BASEROW_WEB_DEV_WORKSPACE_NAME", DEV_WORKSPACE_NAME);
 
   console.log(`Source website database: ${sourceDbId}`);
   console.log(`Target workspace name: ${workspaceName}`);
@@ -177,7 +187,9 @@ async function main() {
 
   const ordered = orderTables(sourceTables, sourceFieldsByTableId);
   const sourceName = await resolveSourceName(apiBase, jwt, sourceDbId);
-  const destName = readEnv("BASEROW_WEB_DEV_DATABASE_NAME", DEFAULT_DATABASE_NAME);
+  const destName = staging
+    ? readEnv("BASEROW_WEB_STAGING_DATABASE_NAME", STAGING_DATABASE_NAME)
+    : readEnv("BASEROW_WEB_DEV_DATABASE_NAME", DEFAULT_DATABASE_NAME);
   const totalRows = [...rowCounts.values()].reduce((sum, n) => sum + n, 0);
 
   console.log(`Source database name: ${sourceName}`);
@@ -190,12 +202,16 @@ async function main() {
     );
   }
   console.log(
-    `\nFree workspace row cap is 3000 (shared with Ops). This clone is ${totalRows} rows.`,
+    staging
+      ? `\nStaging clone goes into the paid Gwenda workspace.`
+      : `\nFree workspace row cap is 3000 (shared with Ops). This clone is ${totalRows} rows.`,
   );
 
   if (opts.dryRun) return;
 
-  const workspaceId = await resolveWorkspaceId(apiBase, jwt, workspaceName);
+  const workspaceId = staging
+    ? readEnv("BASEROW_WEB_STAGING_WORKSPACE_ID", GWENDA_WORKSPACE_ID)
+    : await resolveWorkspaceId(apiBase, jwt, workspaceName);
   const databaseId = await findOrCreateDatabase(apiBase, jwt, workspaceId, destName);
 
   let destTables = await jwtRequest(
@@ -352,12 +368,31 @@ async function main() {
     console.log(`  copied ${rows.length}`);
   }
 
-  writeLocalDevHints({
-    workspaceId,
-    databaseId,
-    databaseName: destName,
-    sourceDbId,
-  });
+  if (staging) {
+    writeFileSync(
+      STAGING_META_PATH,
+      `${JSON.stringify(
+        {
+          workspaceId,
+          databaseId,
+          workspaceName,
+          databaseName: destName,
+          sourceDatabaseId: sourceDbId,
+          clonedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    console.log(`Wrote ${STAGING_META_PATH}`);
+  } else {
+    writeLocalDevHints({
+      workspaceId,
+      databaseId,
+      databaseName: destName,
+      sourceDbId,
+    });
+  }
 
   const destSubscribe = destByName.get("Subscribers");
   const destRsvp = destByName.get("Event Invites");
@@ -370,14 +405,20 @@ Clone complete.
   Source:     ${sourceDbId}
 
 Next:
-  1. Copy the current SM key BASEROW_API_KEY_MARKETING → BASEROW_API_KEY_MARKETING_PRODUCTION
+${
+  staging
+    ? `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
+       Create a token with access ONLY to this website database (${databaseId}).
+  2. Put that token in Secrets Manager as BASEROW_API_KEY_MARKETING_STAGING.
+  3. gh workflow run web-secrets.yml -f profile=staging
+  4. Local stays on BASEROW_API_KEY_MARKETING (Gwenda Dev).`
+    : `  1. Copy the current SM key BASEROW_API_KEY_MARKETING → BASEROW_API_KEY_MARKETING_PRODUCTION
      (keep production + Mailchimp on workspace Gwenda).
   2. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this website database (${databaseId}).
-  3. Put that token in Secrets Manager as BASEROW_API_KEY_MARKETING (local + staging).
-  4. GitHub: keep secrets.BASEROW_API_KEY as the prod-workspace token;
-       add secrets.BASEROW_API_KEY_STAGING with the Dev token.
-  5. npm run env:web:pull
+  3. Put that token in Secrets Manager as BASEROW_API_KEY_MARKETING (local).
+  4. npm run env:web:pull`
+}
 ${destRsvp ? `  6. Studio grid: BASEROW_RSVP_GRID_URL=https://baserow.io/database/${databaseId}/table/${destRsvp.id}/\n` : ""}${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {
     console.log(`  Subscribers table id: ${destSubscribe.id}`);

@@ -63,8 +63,10 @@
 	let publishOpen = $state(false);
 	let query = $state("");
 	let publishTarget = $state<PublishTarget>(
-		(localStorage.getItem("gwenda-ops-menu-publish") as PublishTarget) ||
-			"staging",
+		localStorage.getItem("gwenda-ops-menu-publish") === "production"
+			? "staging"
+			: ((localStorage.getItem("gwenda-ops-menu-publish") as PublishTarget) ||
+				"staging"),
 	);
 	let bookMode = $state(false);
 	let loadError = $state("");
@@ -188,6 +190,7 @@
 			drinkType: "cocktail",
 			ingredients: [],
 			onDigitalMenu: true,
+			onPrintMenu: true,
 		};
 	}
 
@@ -260,6 +263,7 @@
 				ice: item.ice,
 				garnish: item.garnish,
 				onDigitalMenu: item.onDigitalMenu !== false,
+				onPrintMenu: item.onPrintMenu !== false,
 				description: item.description,
 				method: item.method,
 				abv: item.abv,
@@ -378,26 +382,15 @@
 
 	async function publish() {
 		if (busy) return;
-		if (
-			publishTarget === "production" &&
-			!confirm(
-				"Update the live website menu? Guests will see these changes once the site finishes rebuilding.",
-			)
-		) {
-			return;
-		}
 		try {
 			busy = true;
 			busyLabel = "Updating website…";
-			const data = await api.publishMenu(publishTarget);
+			const data = await api.publishMenu("staging");
 			await loadMenu();
 			if (selectedId && detailOpen) {
 				item = findById(selectedId) || item;
 			}
-			const where =
-				(data.target || publishTarget) === "production"
-					? "live website"
-					: "preview site";
+			const where = "preview site";
 			const synced = data.sync?.synced?.length || 0;
 			const created = data.sync?.created?.length || 0;
 			const changed = synced + created;
@@ -615,7 +608,7 @@
 					<div class="missing">
 						<p>That drink is not on the menu.</p>
 						<Button variant="outline" size="sm" onclick={backToGrid}>
-							Back to recipes
+							Back to menu items
 						</Button>
 					</div>
 				</div>

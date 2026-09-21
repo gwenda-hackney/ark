@@ -52,7 +52,7 @@ inputs:
     description: SANITY_API_TOKEN — CI token for build-time CMS fetch (from Bitwarden SM)
     required: false
   sanity-dataset:
-    description: Sanity dataset for build-time CMS fetch (development or production)
+    description: Sanity dataset for build-time CMS fetch (staging or production)
     required: true
 
 outputs:

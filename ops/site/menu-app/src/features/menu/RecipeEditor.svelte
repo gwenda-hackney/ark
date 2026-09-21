@@ -22,6 +22,11 @@
 		drinkTypeLabel,
 		flattenIngredientsForMenu,
 		formatGbp,
+		guestMenuBlurb,
+		guestMenuFlags,
+		guestMenuPlacement,
+		asGuestMenuPlacement,
+		GUEST_MENU_PLACEMENTS,
 		hasRecipe,
 		normalizeCocktailType,
 		normalizeDrinkType,
@@ -301,6 +306,12 @@
 		label: g || "—",
 	}));
 
+	const guestPlacement = $derived(guestMenuPlacement(item));
+	const guestPlacementItems: SegmentedItem[] = GUEST_MENU_PLACEMENTS.map((row) => ({
+		id: row.value,
+		label: row.label,
+	}));
+
 	const itemKey = $derived(item?._id || (item ? "draft:new" : ""));
 
 	$effect(() => {
@@ -491,6 +502,19 @@
 		if (item[field] === value) return;
 		remember(String(field));
 		item = { ...item, [field]: value };
+	}
+
+	function setGuestPlacement(placement: string) {
+		if (!item) return;
+		const next = guestMenuFlags(asGuestMenuPlacement(placement));
+		if (
+			(item.onPrintMenu !== false) === next.onPrintMenu &&
+			(item.onDigitalMenu !== false) === next.onDigitalMenu
+		) {
+			return;
+		}
+		remember("guestPlacement");
+		item = { ...item, ...next };
 	}
 
 	function pourText(value: number | null | undefined): string {
@@ -1102,31 +1126,21 @@
 							<p class="section-title">Menu</p>
 							<div class="grid">
 								<div class="full">
-									<label class="switch">
-										<input
-											id="f-on-menu"
-											type="checkbox"
-											checked={item.onDigitalMenu !== false}
-											onchange={(e) =>
-												patch(
-													"onDigitalMenu",
-													(e.currentTarget as HTMLInputElement)
-														.checked,
-												)}
+									<Field
+										label="Guest menus"
+										for="f-guest-menu"
+										tooltip="POS can still sell this drink if it is off print and the website."
+									>
+										<Segmented
+											value={guestPlacement}
+											items={guestPlacementItems}
+											size="sm"
+											ariaLabel="Guest menus"
+											onChange={setGuestPlacement}
 										/>
-										<span class="switch-ui" aria-hidden="true"></span>
-										<span class="switch-label">
-											{item.onDigitalMenu !== false
-												? "Visible On Website"
-												: "Not Visible on Website"}
-										</span>
-									</label>
-									{#if item.onDigitalMenu === false}
-										<p class="hint">
-											Not on the digital menu. Preview and live stay as they
-											are until you turn this on and publish.
-										</p>
-									{:else}
+									</Field>
+									<p class="hint">{guestMenuBlurb(guestPlacement)}</p>
+									{#if item.onDigitalMenu !== false}
 										<p class="hint">{publishHint(item.publish)}</p>
 										{#if item.publish?.staging?.diff?.length || item.publish?.production?.diff?.length}
 											<ul class="publish-diff">
@@ -2269,70 +2283,6 @@
 		font-size: var(--text-sm);
 		line-height: 1.4;
 		color: var(--muted-foreground);
-	}
-
-	.switch {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.75rem;
-		min-height: var(--control-h-sm);
-		cursor: pointer;
-		user-select: none;
-	}
-
-	.switch input {
-		position: absolute;
-		opacity: 0;
-		width: 1px;
-		height: 1px;
-		margin: 0;
-		pointer-events: none;
-	}
-
-	.switch-ui {
-		position: relative;
-		width: 2.5rem;
-		height: 1.4rem;
-		flex-shrink: 0;
-		border-radius: var(--radius-pill);
-		background: var(--muted);
-		border: 1px solid var(--border-strong);
-		transition:
-			background-color var(--t-fast) var(--ease-in-out),
-			border-color var(--t-fast) var(--ease-in-out);
-	}
-
-	.switch-ui::after {
-		content: "";
-		position: absolute;
-		top: 0.15rem;
-		left: 0.15rem;
-		width: 1rem;
-		height: 1rem;
-		border-radius: 50%;
-		background: var(--foreground);
-		transition: transform var(--t-fast) var(--ease);
-	}
-
-	.switch input:checked + .switch-ui {
-		background: var(--primary);
-		border-color: var(--primary);
-	}
-
-	.switch input:checked + .switch-ui::after {
-		transform: translateX(1.05rem);
-		background: var(--primary-foreground);
-	}
-
-	.switch input:focus-visible + .switch-ui {
-		outline: 2px solid var(--primary);
-		outline-offset: 2px;
-	}
-
-	.switch-label {
-		font-size: var(--text);
-		font-weight: 500;
-		color: var(--foreground);
 	}
 
 	@media (max-width: 1100px) {

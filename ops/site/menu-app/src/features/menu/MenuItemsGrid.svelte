@@ -29,6 +29,8 @@
 	import NameCell from "./cells/NameCell.svelte";
 	import PhotoCell from "./cells/PhotoCell.svelte";
 	import PublishStatusCell from "./cells/PublishStatusCell.svelte";
+	import PosStatusCell from "./cells/PosStatusCell.svelte";
+	import GuestMenuCell from "./cells/GuestMenuCell.svelte";
 	import SectionGroupCell from "./cells/SectionGroupCell.svelte";
 	import ViewDetailsCell from "./cells/ViewDetailsCell.svelte";
 
@@ -299,6 +301,71 @@
 								? params.data._issueHint || ""
 								: "",
 						onview: view,
+					}),
+				),
+			},
+			{
+				headerName: "POS",
+				colId: "pos",
+				width: 120,
+				minWidth: 96,
+				flex: 0,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data._posLabel || "—" : "",
+				comparator: (_a, _b, nodeA, nodeB) => {
+					const rank = (status: string | undefined) => {
+						if (status === "missing") return 3;
+						if (status === "mismatch") return 2;
+						if (status === "matched") return 1;
+						return 0;
+					};
+					const av =
+						nodeA?.data?._kind === "item" ? rank(nodeA.data._posStatus) : 0;
+					const bv =
+						nodeB?.data?._kind === "item" ? rank(nodeB.data._posStatus) : 0;
+					return av - bv;
+				},
+				cellRenderer: svelteCell(
+					PosStatusCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						status:
+							params.data?._kind === "item"
+								? params.data._posStatus || ""
+								: "",
+					}),
+				),
+			},
+			{
+				headerName: "Guest",
+				colId: "guest",
+				width: 96,
+				minWidth: 80,
+				flex: 0,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data._guestLabel || "Both" : "",
+				comparator: (_a, _b, nodeA, nodeB) => {
+					const rank = (placement: string | undefined) => {
+						if (placement === "none") return 3;
+						if (placement === "print" || placement === "digital") return 2;
+						return 1;
+					};
+					const av =
+						nodeA?.data?._kind === "item"
+							? rank(nodeA.data._guestPlacement)
+							: 0;
+					const bv =
+						nodeB?.data?._kind === "item"
+							? rank(nodeB.data._guestPlacement)
+							: 0;
+					return av - bv;
+				},
+				cellRenderer: svelteCell(
+					GuestMenuCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						placement:
+							params.data?._kind === "item"
+								? params.data._guestPlacement || "both"
+								: "both",
 					}),
 				),
 			},

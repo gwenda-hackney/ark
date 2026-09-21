@@ -1,6 +1,6 @@
 import {
   dispatchContentDeploy,
-  dispatchContentPromote,
+  dispatchStagingPromote,
   findInProgressPromoteRun,
   findInProgressRun,
   getRunStatus,
@@ -68,7 +68,16 @@ export async function handleDeploy(
   if (!target) {
     return {
       status: 400,
-      body: { error: 'Missing or invalid "target". Use "staging" or "production".' },
+      body: { error: 'Missing or invalid "target". Use "staging".' },
+    };
+  }
+  if (target === "production") {
+    return {
+      status: 400,
+      body: {
+        error:
+          "Production is updated by promoting staging. Use POST /promote from ops.",
+      },
     };
   }
 
@@ -102,6 +111,12 @@ export async function handleDeploy(
   };
 }
 
+export function parsePromoteKind(body: PromoteRequest | null): string {
+  const kind = body?.kind;
+  if (kind === "development-to-staging") return kind;
+  return "staging-to-production";
+}
+
 export async function handlePromote(
   request: Request,
   env: Env,
@@ -121,25 +136,38 @@ export async function handlePromote(
     body = null;
   }
 
-  const previewRunId = parsePreviewRunId(body);
-  if (!previewRunId) {
-    return {
-      status: 400,
-      body: { error: 'Missing or invalid "previewRunId"' },
-    };
-  }
+  const kind = parsePromoteKind(body);
+  const toStaging = kind === "development-to-staging";
 
-  const previewRun = await getRunStatus(env, previewRunId);
-  if (!isProductionContentPreviewRun(previewRun)) {
+  if (toStaging) {
+    const inProgressStaging = await findInProgressRun(env, "staging");
+    if (inProgressStaging) {
+      return {
+        status: 202,
+        body: {
+          ok: true,
+          target: "staging",
+          phase: "deploy",
+          kind,
+          alreadyRunning: true,
+          runId: inProgressStaging.id,
+          runUrl: inProgressStaging.html_url,
+          status: inProgressStaging.status,
+        },
+      };
+    }
+    const run = await dispatchContentDeploy(env, "staging");
     return {
-      status: 400,
-      body: { error: "previewRunId is not a production content preview run" },
-    };
-  }
-  if (previewRun.status !== "completed" || previewRun.conclusion !== "success") {
-    return {
-      status: 400,
-      body: { error: "Content preview must complete successfully before promote" },
+      status: 202,
+      body: {
+        ok: true,
+        target: "staging",
+        phase: "deploy",
+        kind: "staging-content",
+        runId: run.id,
+        runUrl: run.html_url,
+        status: run.status,
+      },
     };
   }
 
@@ -152,7 +180,6 @@ export async function handlePromote(
         target: "production",
         phase: "promote",
         alreadyRunning: true,
-        previewRunId,
         runId: inProgress.id,
         runUrl: inProgress.html_url,
         status: inProgress.status,
@@ -160,14 +187,14 @@ export async function handlePromote(
     };
   }
 
-  const run = await dispatchContentPromote(env, previewRunId);
+  const run = await dispatchStagingPromote(env);
   return {
     status: 202,
     body: {
       ok: true,
       target: "production",
       phase: "promote",
-      previewRunId,
+      kind: body?.kind || "staging-to-production",
       runId: run.id,
       runUrl: run.html_url,
       status: run.status,

@@ -98,6 +98,28 @@ describe("pick helpers", () => {
     assert.equal(picked.get("BASEROW_API_KEY"), "mkt");
     assert.equal(picked.get("DEPLOY_WEBHOOK_SECRET"), "hook");
   });
+
+  it("prefers the staging Baserow token when present", () => {
+    const picked = pickWebSecrets(
+      new Map([
+        ["BASEROW_API_KEY_MARKETING", "dev"],
+        ["BASEROW_API_KEY_MARKETING_STAGING", "stage"],
+      ]),
+      { profile: "staging" },
+    );
+    assert.equal(picked.get("BASEROW_API_KEY"), "stage");
+  });
+
+  it("keeps local pulls on the Dev website token", () => {
+    const picked = pickWebSecrets(
+      new Map([
+        ["BASEROW_API_KEY_MARKETING", "dev"],
+        ["BASEROW_API_KEY_MARKETING_STAGING", "stage"],
+      ]),
+      { profile: "local" },
+    );
+    assert.equal(picked.get("BASEROW_API_KEY"), "dev");
+  });
 });
 
 describe("formatArkEnv", () => {

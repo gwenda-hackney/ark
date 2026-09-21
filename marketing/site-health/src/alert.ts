@@ -36,6 +36,7 @@ export async function sendHealthAlert(
   env: Env,
   alert: Exclude<HealthAlert, null>,
   probe: ProbeResult,
+  siteUrl?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
   const host = env.SMTP_HOST?.trim();
@@ -49,7 +50,7 @@ export async function sendHealthAlert(
   const { subject, text } = formatHealthAlertEmail(
     alert,
     probe,
-    env.SITE_URL || "https://gwenda.co.uk",
+    siteUrl || env.SITE_URL || "https://gwenda.co.uk",
   );
 
   try {

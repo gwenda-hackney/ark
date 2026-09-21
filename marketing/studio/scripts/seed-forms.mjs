@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { portableTextKey } from "./lib/portable-text.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const dataset = process.env.SANITY_DATASET || "development";
+const dataset = process.env.SANITY_DATASET || "staging";
 const projectId = process.env.SANITY_PROJECT_ID || "pn5yjro6";
 const token = process.env.SANITY_API_TOKEN;
 

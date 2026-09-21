@@ -58,7 +58,13 @@ export function mobileTabFor(path: string): MobileTabId {
 	const page = parseShellPath(path).page;
 	if (page === "menu" || page === "inventory" || page === "lightspeed" || page === "suppliers")
 		return "stock";
-	if (page === "config" || page === "sections" || page === "users" || page === "tools")
+	if (
+		page === "config" ||
+		page === "sections" ||
+		page === "users" ||
+		page === "web" ||
+		page === "tools"
+	)
 		return "more";
 	return "home";
 }

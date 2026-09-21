@@ -69,7 +69,8 @@ export const OPS_ENV_SECRET_KEYS = [
 /**
  * Secret keys written to `.env.web` for local marketing web.
  * SM stores marketing Baserow tokens as:
- *   BASEROW_API_KEY_MARKETING              Gwenda Dev website DB (local + staging)
+ *   BASEROW_API_KEY_MARKETING              Gwenda Dev website DB (local)
+ *   BASEROW_API_KEY_MARKETING_STAGING      Website Staging DB (staging Pages)
  *   BASEROW_API_KEY_MARKETING_PRODUCTION   Gwenda production website DB
  * (ops BASEROW_API_KEY is Free-workspace Ops only).
  * Apple Wallet PEMs stay in GitHub / Password Manager for now.
@@ -90,6 +91,7 @@ export const WEB_ENV_SECRET_KEYS = [
 /** SM key remapped when writing `.env.web` / Pages env (local + staging). */
 export const WEB_SM_KEY_ALIASES = {
   BASEROW_API_KEY_MARKETING: "BASEROW_API_KEY",
+  BASEROW_API_KEY_MARKETING_STAGING: "BASEROW_API_KEY",
 };
 
 /** SM key remapped for production Pages / Mailchimp. */
@@ -98,9 +100,11 @@ export const WEB_PRODUCTION_SM_KEY_ALIASES = {
 };
 
 export function webBaserowSmKey(profile = "staging") {
-  return profile === "production"
-    ? "BASEROW_API_KEY_MARKETING_PRODUCTION"
-    : "BASEROW_API_KEY_MARKETING";
+  if (profile === "production") return "BASEROW_API_KEY_MARKETING_PRODUCTION";
+  if (profile === "local" || profile === "development") {
+    return "BASEROW_API_KEY_MARKETING";
+  }
+  return "BASEROW_API_KEY_MARKETING_STAGING";
 }
 
 const BWS_VERSION = "2.1.0";
@@ -365,7 +369,9 @@ export function pickWebSecrets(allSecrets, { profile = "staging" } = {}) {
   const aliases =
     profile === "production"
       ? WEB_PRODUCTION_SM_KEY_ALIASES
-      : WEB_SM_KEY_ALIASES;
+      : profile === "local" || profile === "development"
+        ? { BASEROW_API_KEY_MARKETING: "BASEROW_API_KEY" }
+        : WEB_SM_KEY_ALIASES;
   for (const [smKey, localKey] of Object.entries(aliases)) {
     const value = allSecrets.get(smKey);
     if (value != null && String(value).trim()) {

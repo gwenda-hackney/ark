@@ -85,7 +85,7 @@ async function ensureSection({ title, slug, subtitle, order, parentId, sanityId 
 async function sanitySectionMap() {
   const token = process.env.SANITY_API_TOKEN?.trim();
   const projectId = process.env.SANITY_PROJECT_ID?.trim() || "pn5yjro6";
-  const dataset = process.env.SANITY_DATASET?.trim() || "development";
+  const dataset = process.env.SANITY_DATASET?.trim() || "staging";
   if (!token) return new Map();
   const client = createClient({
     projectId,
@@ -111,7 +111,7 @@ async function syncItemsFromSanity(sectionIdBySlug) {
     return;
   }
   const projectId = process.env.SANITY_PROJECT_ID?.trim() || "pn5yjro6";
-  const dataset = process.env.SANITY_DATASET?.trim() || "development";
+  const dataset = process.env.SANITY_DATASET?.trim() || "staging";
   const client = createClient({
     projectId,
     dataset,
@@ -207,7 +207,7 @@ async function main() {
     }
   }
 
-  console.log("Syncing menu items from Sanity development…");
+  console.log("Syncing menu items from Sanity staging…");
   await syncItemsFromSanity(sectionIdBySlug);
   console.log("Done.");
   console.log(`Grid: https://baserow.io/database/${process.env.BASEROW_OPS_DATABASE_ID}/`);

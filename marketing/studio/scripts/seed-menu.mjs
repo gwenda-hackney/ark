@@ -18,7 +18,7 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
 const imageDir = resolve(repoRoot, "marketing/web/src/assets/images/cocktails");
 
-const dataset = process.env.SANITY_DATASET || "development";
+const dataset = process.env.SANITY_DATASET || "staging";
 const projectId = process.env.SANITY_PROJECT_ID || "pn5yjro6";
 const token = process.env.SANITY_API_TOKEN;
 

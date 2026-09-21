@@ -15,6 +15,7 @@ BASEROW_OPS_DATABASE_ID = "556507"
 GOOGLE_OAUTH_CLIENT_ID = "682046070260-n9jpt18kt29vufljre5dkfqupq7rrdlt.apps.googleusercontent.com"
 SITE_DEPLOY_WEBHOOK_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
 SANITY_STUDIO_SITE_DEPLOY_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
+SITE_HEALTH_URL = "https://health.gwenda.co.uk"
 
 [ai]
 binding = "AI"
