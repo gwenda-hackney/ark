@@ -129,7 +129,7 @@ export function parseShellPath(path) {
     const rest = p === "/lightspeed" ? "" : p.slice("/lightspeed/".length);
     return {
       page: "lightspeed",
-      view: rest === "export" ? "export" : "reconcile",
+      view: rest === "export" ? "export" : rest === "menus" ? "menus" : "reconcile",
     };
   }
   if (p === "/suppliers" || p.startsWith("/suppliers/")) {

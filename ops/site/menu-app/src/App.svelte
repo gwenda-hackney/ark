@@ -8,6 +8,7 @@
 	import InventoryWorkbench from "./features/inventory/InventoryWorkbench.svelte";
 	import LightspeedPage from "./features/inventory/LightspeedPage.svelte";
 	import LightspeedExportPage from "./features/inventory/LightspeedExportPage.svelte";
+	import LightspeedMenusPage from "./features/inventory/LightspeedMenusPage.svelte";
 	import SuppliersPage from "./features/inventory/SuppliersPage.svelte";
 	import ConfigPage from "./features/config/ConfigPage.svelte";
 	import SectionsPage from "./features/menu/SectionsPage.svelte";
@@ -52,6 +53,8 @@
 				{:else if key === "lightspeed"}
 					{#if parseShellPath(current).view === "export"}
 						<LightspeedExportPage />
+					{:else if parseShellPath(current).view === "menus"}
+						<LightspeedMenusPage />
 					{:else}
 						<LightspeedPage />
 					{/if}

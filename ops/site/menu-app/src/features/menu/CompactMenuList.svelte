@@ -81,6 +81,12 @@
 									row._typeLabel,
 									row._categoryLabel,
 									row._posLabel !== "—" ? row._posLabel : "",
+									row._posMenusLabel && row._posMenusLabel !== "None"
+										? row._posMenusLabel
+										: "",
+									row._posScreensLabel && row._posScreensLabel !== "None"
+										? row._posScreensLabel
+										: "",
 									row._guestPlacement && row._guestPlacement !== "both"
 										? row._guestLabel
 										: "",

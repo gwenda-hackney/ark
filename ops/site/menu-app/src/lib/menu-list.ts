@@ -1,3 +1,4 @@
+import { posScreensLabel } from "../../../functions/_lib/lightspeed-stock.js";
 import {
 	analyzeRecipe,
 	isIssue,
@@ -35,6 +36,7 @@ import {
 	lightspeedStatusLabel,
 	normalizeDrinkType,
 	parseGbp,
+	posMenusLabel,
 	publishNotLive,
 	type InventoryItem,
 	type MenuItem,
@@ -74,6 +76,8 @@ export type MenuListItem = MenuItem & {
 	_posStatus?: string;
 	_guestLabel?: string;
 	_guestPlacement?: string;
+	_posMenusLabel?: string;
+	_posScreensLabel?: string;
 };
 
 export type MenuListGroup = {
@@ -287,6 +291,8 @@ export function buildMenuListRows(opts: {
 							_matchHint: hiddenMatchHint(fieldHits(fields, needle), needle),
 							_posLabel: lightspeedStatusLabel(item.lightspeedStatus) || "—",
 							_posStatus: item.lightspeedStatus || "",
+							_posMenusLabel: posMenusLabel(item.posMenus),
+							_posScreensLabel: posScreensLabel(item) || "None",
 							_guestPlacement: guestMenuPlacement(item),
 							_guestLabel: guestMenuLabel(guestMenuPlacement(item)),
 						},

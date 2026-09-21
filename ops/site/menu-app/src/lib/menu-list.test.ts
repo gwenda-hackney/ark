@@ -230,6 +230,61 @@ describe("menu-list", () => {
 		}
 		assert.equal(house._guestLabel, "Both");
 		assert.equal(printPour._guestLabel, "Print");
-		assert.equal(posShot._guestLabel, "Neither");
+		assert.equal(posShot._guestLabel, "POS only");
+	});
+
+	it("labels POS menus on the grid, including overlap", () => {
+		const rows = buildMenuListRows({
+			sections: [
+				{
+					_id: "s1",
+					title: "Pours",
+					items: [
+						{
+							_id: "i",
+							name: "l'Ippa",
+							drinkType: "pour",
+							posMenus: [
+								{ id: "1", name: "Fall 2026" },
+								{ id: "2", name: "Gwenda" },
+							],
+						},
+						{
+							_id: "n",
+							name: "Negroni",
+							drinkType: "cocktail",
+							posMenus: [{ id: "1", name: "Fall 2026" }],
+						},
+						{
+							_id: "x",
+							name: "Off menu",
+							drinkType: "pour",
+							posMenus: [],
+						},
+					],
+				},
+			],
+			inventory: [],
+			query: "",
+			targets: DEFAULT_POUR_TARGETS,
+		});
+		const ippa = rows.find((row) => row._kind === "item" && row.name === "l'Ippa");
+		const negroni = rows.find(
+			(row) => row._kind === "item" && row.name === "Negroni",
+		);
+		const off = rows.find((row) => row._kind === "item" && row.name === "Off menu");
+		assert.equal(ippa?._kind, "item");
+		assert.equal(negroni?._kind, "item");
+		assert.equal(off?._kind, "item");
+		if (
+			ippa?._kind !== "item" ||
+			negroni?._kind !== "item" ||
+			off?._kind !== "item"
+		) {
+			return;
+		}
+		assert.equal(ippa._posMenusLabel, "Fall 2026 · Gwenda");
+		assert.equal(negroni._posMenusLabel, "Fall 2026");
+		assert.equal(off._posMenusLabel, "None");
 	});
 });

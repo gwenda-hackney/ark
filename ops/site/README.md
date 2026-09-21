@@ -39,6 +39,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/inventory/:name` | Inventory item detail |
 | `/lightspeed` | Lightspeed POS reconcile (Stock) |
 | `/lightspeed/export` | Lightspeed POS export (Stock) |
+| `/lightspeed/menus` | Lightspeed POS menus (Stock) |
 | `/suppliers` | Wholesaler catalog (Stock) |
 | `/sections` | Guest menu sections |
 | `/web` | Website staging vs production, health, promote |
@@ -82,6 +83,8 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Data | Store |
 |------|--------|
 | Recipes, ingredients, method, glass, garnish, ops photos | **Baserow** `Menu Items` + `Ingredients` |
+| Lightspeed menus a drink sits on (Fall 2026, live menu, overlap) | **Baserow** `POS Menus`, linked from Menu Items. Manage at `/lightspeed/menus`. |
+| Lightspeed Menu/Screen path (Gwenda/Spirits/Liqueurs & Amari) | **Baserow** Menu Items field `Lightspeed menu/screen`. Stamped from the item-list export on Reconcile. |
 | Menu chapters and groups (Our Formulas, Spritz, Draught Beer…) | **Baserow** `Menu Sections` (parent + order). Nested tree on `GET /api/menu`. Edit in the menu **Sections** panel. |
 | Bar stock / ABV catalog | **Baserow** `Inventory` |
 | Wholesalers, product pages, and pack prices | **Baserow** `Suppliers` plus junction `Inventory suppliers` (SKU, pack, trade price, product URL) |

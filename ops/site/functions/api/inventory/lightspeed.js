@@ -1,4 +1,9 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
+import {
+  applyLightspeedActual,
+  createInventoryFromLightspeed,
+  listInventory,
+} from "../../_lib/inventory-store.js";
 import { getConfigString, setConfigString } from "../../_lib/config-store.js";
 import { assertUniqueItemName } from "../../_lib/item-key.js";
 import {
@@ -9,12 +14,13 @@ import {
 import {
   DEFAULT_LIGHTSPEED_MENU,
   LIGHTSPEED_ARCHIVE_KEY,
-  matchLightspeedRows,
+  matchLightspeedCatalog,
   menuItemFromLightspeed,
   menuPatchesFromMatch,
   mergeArchiveEntries,
   parseArchiveEntries,
   parseLightspeedItemCsv,
+  patchesFromMatch,
   removeArchiveSkus,
   resolveManualLinks,
   summarizeMatch,
@@ -44,15 +50,33 @@ async function previewFromCsv(env, text, menuName, archiveEntries, { apply } = {
     throw error;
   }
 
-  const { items } = await loadMenuTree(env);
-  const match = matchLightspeedRows(items, rows);
+  const [{ items }, inventory] = await Promise.all([
+    loadMenuTree(env),
+    listInventory(env).catch(() => []),
+  ]);
+  const match = matchLightspeedCatalog({ menuItems: items, inventory }, rows);
 
   if (apply) {
     await applyLightspeedMenuMatch(env, menuPatchesFromMatch(match));
+    const stockPatches = patchesFromMatch({
+      matched: match.stockMatched,
+      conflicts: match.stockConflicts,
+    }).filter((patch) => patch.lightspeedSku);
+    if (stockPatches.length) {
+      await applyLightspeedActual(env, stockPatches);
+    }
   }
 
   const nextItems = apply ? (await loadMenuTree(env)).items : items;
-  const nextMatch = apply ? matchLightspeedRows(nextItems, rows) : match;
+  const nextInventory = apply
+    ? await listInventory(env).catch(() => inventory)
+    : inventory;
+  const nextMatch = apply
+    ? matchLightspeedCatalog(
+        { menuItems: nextItems, inventory: nextInventory },
+        rows,
+      )
+    : match;
   return summarizeMatch(nextMatch, menuName, { archiveEntries });
 }
 
@@ -95,6 +119,56 @@ export const onRequestPost = withApiHandler(async (context) => {
       archiveEntries = removeArchiveSkus(archiveEntries, addedSkus);
       await saveArchiveEntries(env, archiveEntries);
     }
+  } else if (action === "add-stock") {
+    const items = Array.isArray(body.items) ? body.items : [];
+    if (!items.length) {
+      return jsonResponse({ error: "Pick a Lightspeed item to add to inventory." }, 400);
+    }
+    const addedSkus = [];
+    for (const item of items) {
+      const created = await createInventoryFromLightspeed(env, item);
+      if (created?.lightspeedSku) addedSkus.push(created.lightspeedSku);
+    }
+    if (addedSkus.length) {
+      archiveEntries = removeArchiveSkus(archiveEntries, addedSkus);
+      await saveArchiveEntries(env, archiveEntries);
+    }
+  } else if (action === "stamp-skus") {
+    const patches = Array.isArray(body.patches) ? body.patches : [];
+    if (!patches.length) {
+      return jsonResponse({ error: "No SKUs to save." }, 400);
+    }
+    const menuPatches = [];
+    const inventoryPatches = [];
+    for (const patch of patches) {
+      const rawId = String(patch?.id ?? patch?._id ?? "");
+      if (rawId.startsWith("inv:")) {
+        inventoryPatches.push({
+          ...patch,
+          id: rawId.slice(4),
+          lightspeedSku: patch.lightspeedSku,
+        });
+      } else if (rawId.startsWith("alt:")) {
+        menuPatches.push({
+          id: rawId.slice(4),
+          lightspeedSkuAlt: patch.lightspeedSku,
+        });
+      } else {
+        menuPatches.push(patch);
+      }
+    }
+    if (menuPatches.length) {
+      await applyLightspeedMenuMatch(env, menuPatches);
+    }
+    if (inventoryPatches.length) {
+      await applyLightspeedActual(env, inventoryPatches);
+    }
+    return jsonResponse({
+      ok: true,
+      applied: true,
+      stamped: patches.length,
+      menuName,
+    });
   } else if (action === "link") {
     if (!text) {
       return jsonResponse({ error: "Upload the item list first." }, 400);

@@ -95,6 +95,7 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/inventory/gin"), true);
     assert.equal(isSpaDocumentPath("/lightspeed"), true);
     assert.equal(isSpaDocumentPath("/lightspeed/export"), true);
+    assert.equal(isSpaDocumentPath("/lightspeed/menus"), true);
     assert.equal(isSpaDocumentPath("/suppliers"), true);
     assert.equal(isSpaDocumentPath("/config"), true);
     assert.equal(isSpaDocumentPath("/sections"), true);
@@ -106,6 +107,7 @@ describe("spa-path", () => {
     assert.equal(isClientNavPath("/config"), true);
     assert.equal(isClientNavPath("/lightspeed"), true);
     assert.equal(isClientNavPath("/lightspeed/export"), true);
+    assert.equal(isClientNavPath("/lightspeed/menus"), true);
     assert.equal(isClientNavPath("/suppliers"), true);
     assert.equal(isClientNavPath("/sections"), true);
     assert.equal(isClientNavPath("/users"), true);
@@ -116,6 +118,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/config"), "config");
     assert.equal(shellPageKey("/lightspeed"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
+    assert.equal(shellPageKey("/lightspeed/menus"), "lightspeed");
     assert.equal(shellPageKey("/suppliers"), "suppliers");
     assert.equal(shellPageKey("/sections"), "sections");
     assert.equal(shellPageKey("/users"), "users");
@@ -137,6 +140,10 @@ describe("spa-path", () => {
     assert.deepEqual(parseShellPath("/lightspeed/export"), {
       page: "lightspeed",
       view: "export",
+    });
+    assert.deepEqual(parseShellPath("/lightspeed/menus"), {
+      page: "lightspeed",
+      view: "menus",
     });
     assert.deepEqual(parseShellPath("/suppliers"), { page: "suppliers" });
   });

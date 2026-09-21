@@ -1,67 +1,231 @@
 <script lang="ts">
 	import { onMount } from "svelte";
+	import type { ColDef, GridApi } from "ag-grid-community";
 	import {
 		BusyOverlay,
 		Button,
-		Card,
-		Field,
+		DataGrid,
+		NativeSelect,
 		PageHeader,
+		PageHelp,
 		SearchField,
-		TextField,
 	} from "../../ui";
-	import { getMenu } from "../../lib/api";
+	import type { SelectOption } from "../../ui/types";
+	import { getInventory, getMenu, previewLightspeedCsv } from "../../lib/api";
 	import { toast } from "../../lib/toast.svelte";
-	import { sectionPathLabel } from "../../lib/menu-sections";
-	import type { MenuItem, MenuSection } from "../../lib/types";
+	import type {
+		InventoryItem,
+		MenuItem,
+		MenuSection,
+		PosMenu,
+	} from "../../lib/types";
 	import {
 		collectMenuItems,
 		DEFAULT_LIGHTSPEED_MENU,
-		lightspeedItemUpdateCsv,
-		lightspeedMenuLayoutCsv,
+		LIGHTSPEED_COMBINED_IMPORT_HEADERS,
+		LIVE_POS_MENU_NAME,
+		expandMenuItemsForLightspeedExport,
+		itemOnPosMenu,
+		inventoryExclusiveForExport,
+		lightspeedCombinedImportPreviewRows,
+		lightspeedCombinedItemImportCsv,
+		newlyAllocatedLightspeedSkus,
+		posScreenPaths,
 		storedLightspeedSku,
+		withAllocatedLightspeedSkus,
+		withInventoryExportIds,
 	} from "../../../../functions/_lib/lightspeed-stock.js";
 	import LightspeedTabs from "./LightspeedTabs.svelte";
+	import { EXPORT_HELP } from "./lightspeed-help";
+
+	type GridRow = Record<string, string> & {
+		_id: string;
+		_source?: string;
+	};
+	type ExportItem = (MenuItem | InventoryItem) & {
+		_id?: string;
+		id?: string;
+		lightspeedSku?: string;
+		posMenus?: Array<{ id?: string; name?: string }>;
+	};
+
+	const FILTER_ALL = "all";
+	const FILTER_UNASSIGNED = "unassigned";
 
 	let sections = $state<MenuSection[]>([]);
+	let inventory = $state<InventoryItem[]>([]);
 	let loading = $state(true);
+	let savingSkus = $state(false);
 	let error = $state("");
 	let query = $state("");
-	let menuName = $state(DEFAULT_LIGHTSPEED_MENU);
-	let selected = $state<Record<string, boolean>>({});
+	let menuFilter = $state(FILTER_ALL);
+	let posMenus = $state<PosMenu[]>([]);
+	let selectedCount = $state(0);
+	let gridApi = $state.raw<GridApi<GridRow> | undefined>(undefined);
 
-	const items = $derived(collectMenuItems(sections) as MenuItem[]);
-	const filtered = $derived(filterItems(items, query));
-	const selectedItems = $derived(
-		items.filter((item) => selected[itemId(item)]),
+	const fallMenuName = $derived(findMenuName(posMenus, DEFAULT_LIGHTSPEED_MENU));
+	const gwendaMenuName = $derived(findMenuName(posMenus, LIVE_POS_MENU_NAME));
+	const menuFilterOptions = $derived.by((): SelectOption[] => {
+		const opts: SelectOption[] = [
+			{ value: FILTER_ALL, label: "All menus" },
+			...[...posMenus]
+				.sort(
+					(a, b) =>
+						(a.orderRank ?? 0) - (b.orderRank ?? 0) ||
+						String(a.name || "").localeCompare(String(b.name || "")),
+				)
+				.map((menu) => ({
+					value: String(menu.id),
+					label: menu.name || `Menu ${menu.id}`,
+				})),
+			{ value: FILTER_UNASSIGNED, label: "Unassigned drinks" },
+		];
+		return opts;
+	});
+	const filterMenuName = $derived.by(() => {
+		if (menuFilter === FILTER_ALL || menuFilter === FILTER_UNASSIGNED) return "";
+		const hit = posMenus.find((menu) => String(menu.id) === menuFilter);
+		return hit?.name || "";
+	});
+	/** Menus written into Menu/Screen for the visible drink set. */
+	const exportMenus = $derived.by(() => {
+		if (filterMenuName) return [filterMenuName];
+		const named = posMenus
+			.map((menu) => String(menu.name || "").trim())
+			.filter(Boolean);
+		if (named.length) return named;
+		return [fallMenuName, gwendaMenuName].filter(Boolean) as string[];
+	});
+
+	const menuItems = $derived(collectMenuItems(sections) as MenuItem[]);
+	const visibleBaseMenuItems = $derived.by(() => {
+		if (menuFilter === FILTER_ALL) return menuItems;
+		if (menuFilter === FILTER_UNASSIGNED) {
+			return menuItems.filter((item) => !(item.posMenus || []).length);
+		}
+		const name = filterMenuName;
+		if (!name) return menuItems;
+		return menuItems.filter((item) => itemOnPosMenu(item, name));
+	});
+	const expandedMenuItems = $derived(
+		expandMenuItemsForLightspeedExport(visibleBaseMenuItems) as ExportItem[],
 	);
-	const selectedWithSku = $derived(
-		selectedItems.filter((item) => storedLightspeedSku(item)),
+	const inventoryForExport = $derived(
+		withInventoryExportIds(
+			inventoryExclusiveForExport(menuItems, inventory),
+		) as ExportItem[],
 	);
-	const selectedMissingSku = $derived(
-		selectedItems.filter((item) => !storedLightspeedSku(item)),
+	const catalogBefore = $derived([
+		...expandedMenuItems,
+		...inventoryForExport,
+	]);
+	const catalogAllocated = $derived(
+		withAllocatedLightspeedSkus(catalogBefore) as ExportItem[],
 	);
-	const layoutCsv = $derived(
-		selectedWithSku.length ? lightspeedMenuLayoutCsv(selectedWithSku) : "",
+	const allocatedMenuItems = $derived(
+		catalogAllocated.filter(
+			(item) => !String(item._id || item.id || "").startsWith("inv:"),
+		) as MenuItem[],
 	);
-	const updateCsv = $derived(
-		selectedWithSku.length ? lightspeedItemUpdateCsv(selectedWithSku) : "",
+	const allocatedInventory = $derived(
+		catalogAllocated.filter((item) =>
+			String(item._id || item.id || "").startsWith("inv:"),
+		) as ExportItem[],
 	);
-	const layoutPreview = $derived(csvPreview(layoutCsv));
-	const updatePreview = $derived(csvPreview(updateCsv));
+	const newSkuCount = $derived(
+		newlyAllocatedLightspeedSkus(catalogBefore, catalogAllocated).length,
+	);
+	const previewRows = $derived(
+		lightspeedCombinedImportPreviewRows(
+			allocatedMenuItems,
+			allocatedInventory,
+			exportMenus,
+		) as GridRow[],
+	);
+	const rows = $derived(filterRows(previewRows, query));
+
+	const columnDefs = $derived.by((): ColDef<GridRow>[] =>
+		(LIGHTSPEED_COMBINED_IMPORT_HEADERS as string[]).map((header) => ({
+			headerName: header,
+			colId: header,
+			field: header,
+			minWidth: columnWidth(header),
+			flex: header === "Name" || header === "Menu/Screen" ? 1.4 : 0,
+			tooltipField: header,
+			cellClass: emptyCellClass,
+		})),
+	);
 
 	onMount(() => {
 		void load();
 	});
 
+	function findMenuName(menus: PosMenu[], preferred: string) {
+		const want = preferred.trim().toLowerCase();
+		const hit = menus.find(
+			(menu) => String(menu.name || "").trim().toLowerCase() === want,
+		);
+		return hit?.name || preferred;
+	}
+
+	function columnWidth(header: string) {
+		if (header === "Name" || header === "Menu/Screen" || header === "Button name") {
+			return 160;
+		}
+		if (header === "SKU" || header === "Price" || header === "Type") {
+			return 100;
+		}
+		if (
+			header === "Accounting group" ||
+			header === "Sharing mode" ||
+			header === "Package unit (stock mngmt)"
+		) {
+			return 130;
+		}
+		return 110;
+	}
+
+	function emptyCellClass(params: { value?: unknown }) {
+		return params.value == null || params.value === "" ? "cell-empty" : undefined;
+	}
+
+	function filterRows(source: GridRow[], raw: string): GridRow[] {
+		const ranked = [...source].sort((a, b) =>
+			String(a.Name || "").localeCompare(String(b.Name || "")),
+		);
+		const q = raw.trim().toLowerCase();
+		if (!q) return ranked;
+		return ranked.filter((row) =>
+			(LIGHTSPEED_COMBINED_IMPORT_HEADERS as string[])
+				.map((header) => String(row[header] || ""))
+				.join(" ")
+				.toLowerCase()
+				.includes(q),
+		);
+	}
+
 	async function load() {
 		loading = true;
 		error = "";
 		try {
-			const data = await getMenu();
-			sections = data.sections || [];
+			const [menuData, stockData] = await Promise.all([
+				getMenu(),
+				getInventory(true),
+			]);
+			sections = menuData.sections || [];
+			posMenus = menuData.posMenus || [];
+			inventory = stockData.items || [];
+			if (menuFilter === FILTER_ALL || !posMenus.some((m) => String(m.id) === menuFilter)) {
+				const fall = posMenus.find(
+					(menu) =>
+						String(menu.name || "").trim().toLowerCase() ===
+						DEFAULT_LIGHTSPEED_MENU.toLowerCase(),
+				);
+				menuFilter = fall ? String(fall.id) : FILTER_ALL;
+			}
 		} catch (err) {
 			const message =
-				err instanceof Error ? err.message : "Could not load menu items.";
+				err instanceof Error ? err.message : "Could not load catalog.";
 			error = message;
 			toast.error(message);
 		} finally {
@@ -69,50 +233,22 @@
 		}
 	}
 
-	function itemId(item: MenuItem) {
-		return String(item._id || item.id || "");
+	function selectedRows(): GridRow[] {
+		return (gridApi?.getSelectedRows() || []) as GridRow[];
 	}
 
-	function filterItems(rows: MenuItem[], raw: string) {
-		const q = raw.trim().toLowerCase();
-		if (!q) return rows;
-		return rows.filter((item) => {
-			const hay = [
-				item.name,
-				item.lightspeedSku,
-				sectionPathLabel(item.section),
-			]
-				.filter(Boolean)
-				.join(" ")
-				.toLowerCase();
-			return hay.includes(q);
-		});
+	function syncSelectionCount() {
+		selectedCount = selectedRows().length;
 	}
 
-	function csvPreview(csv: string) {
-		return csv
-			.trim()
-			.split("\n")
-			.slice(0, 8)
-			.join("\n");
-	}
-
-	function toggle(item: MenuItem) {
-		const id = itemId(item);
-		if (!id) return;
-		selected = { ...selected, [id]: !selected[id] };
-	}
-
-	function selectFilteredWithSku() {
-		const next = { ...selected };
-		for (const item of filtered) {
-			if (storedLightspeedSku(item)) next[itemId(item)] = true;
-		}
-		selected = next;
+	function selectAllVisible() {
+		gridApi?.selectAll("filtered");
+		syncSelectionCount();
 	}
 
 	function clearSelected() {
-		selected = {};
+		gridApi?.deselectAll();
+		syncSelectionCount();
 	}
 
 	function download(filename: string, csv: string) {
@@ -126,330 +262,259 @@
 		URL.revokeObjectURL(url);
 	}
 
-	function fileSlug() {
-		if (selectedWithSku.length === 1) {
-			return String(selectedWithSku[0].name || "item")
-				.toLowerCase()
-				.replace(/[^a-z0-9]+/g, "-")
-				.replace(/^-|-$/g, "");
+	async function persistNewSkus(before: ExportItem[], after: ExportItem[]) {
+		const created = newlyAllocatedLightspeedSkus(before, after);
+		if (!created.length) return 0;
+		await previewLightspeedCsv("", {
+			action: "stamp-skus",
+			patches: created.map((row) => ({
+				id: row.id,
+				lightspeedSku: row.lightspeedSku,
+			})),
+		});
+		await load();
+		return created.length;
+	}
+
+	async function downloadImport() {
+		const selected = selectedRows();
+		if (!selected.length) {
+			toast.error("Select at least one item.");
+			return;
 		}
-		return `${selectedWithSku.length}-items`;
+		const byId = new Map(
+			catalogAllocated.map((item) => [String(item._id || item.id || ""), item]),
+		);
+		const selectedCatalog = selected
+			.map((row) => byId.get(row._id))
+			.filter((item): item is ExportItem => Boolean(item));
+		if (!selectedCatalog.length) {
+			toast.error("Could not match selected rows to the catalog.");
+			return;
+		}
+		const missingSku = selectedCatalog.filter((item) => !storedLightspeedSku(item));
+		if (missingSku.length) {
+			toast.error("Every selected item needs a SKU.");
+			return;
+		}
+		const selectedDrinks = selectedCatalog.filter(
+			(item) => !String(item._id || item.id || "").startsWith("inv:"),
+		) as MenuItem[];
+		const selectedStock = selectedCatalog.filter((item) =>
+			String(item._id || item.id || "").startsWith("inv:"),
+		);
+		if (!selectedDrinks.length && !selectedStock.length) {
+			toast.error("Nothing in the current menu filter is selected.");
+			return;
+		}
+		const missingScreen = selectedDrinks.filter(
+			(item) => posScreenPaths(item).length === 0,
+		);
+		savingSkus = true;
+		try {
+			const stamped = await persistNewSkus(catalogBefore, catalogAllocated);
+			const csv = lightspeedCombinedItemImportCsv(
+				selectedDrinks,
+				selectedStock,
+				exportMenus,
+			);
+			download(`lightspeed-items-${selectedCatalog.length}.csv`, csv);
+			if (missingScreen.length) {
+				toast.error(
+					`${missingScreen.length} drink${missingScreen.length === 1 ? "" : "s"} without a POS screen. Stock rows are fine blank. Set screens on the drink editor before import.`,
+				);
+			} else if (stamped) {
+				toast.ok(
+					`Downloaded ${selectedCatalog.length}. Saved ${stamped} new SKU${stamped === 1 ? "" : "s"} as G-codes (G0001, G0002, …).`,
+				);
+			} else {
+				toast.ok(
+					`Downloaded ${selectedCatalog.length} items (${selectedDrinks.length} drinks, ${selectedStock.length} stock). Map identical column names.`,
+				);
+			}
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not save new SKUs.");
+		} finally {
+			savingSkus = false;
+		}
 	}
 </script>
 
-<div class="page scrollbar-fade">
-	<PageHeader
-		title="POS export"
-		subtitle="Pick drinks that already have a Lightspeed SKU. Place them on a new menu without taking them off the current one, or export an item list to try in-place edits."
-	>
+<div class="page">
+	<PageHeader title="POS export">
 		{#snippet actions()}
+			<PageHelp title="POS export" topics={EXPORT_HELP} />
 			<Button
 				variant="outline"
 				size="sm"
-				disabled={!filtered.some((item) => storedLightspeedSku(item))}
-				onclick={selectFilteredWithSku}
+				disabled={!rows.length}
+				onclick={selectAllVisible}
 			>
-				Select with SKU
+				Select all
 			</Button>
 			<Button
 				variant="ghost"
 				size="sm"
-				disabled={!selectedItems.length}
+				disabled={!selectedCount}
 				onclick={clearSelected}
 			>
 				Clear
+			</Button>
+			<Button
+				variant="primary"
+				size="sm"
+				disabled={!selectedCount || savingSkus}
+				onclick={() => void downloadImport()}
+			>
+				Download
 			</Button>
 		{/snippet}
 		<LightspeedTabs view="export" />
 	</PageHeader>
 
-	<div class="stack">
-		<Card
-			title="How Lightspeed splits this"
-			subtitle="The item library is the catalogue. Menus are layouts that point at SKUs. An item can sit on more than one menu."
-		>
-			<ol class="steps">
-				<li>
-					<strong>New menu, keep the current one.</strong>
-					In Back Office create a menu named {menuName || "Gwenda Next"} (Menu
-					management, empty is fine). Download the menu layout for one drink (Negroni
-					is a good first test). Open that new menu, More actions, Import. Leave
-					Replace the menu with the content of the file off. The SKU is added to
-					this menu. It should still be on the live menu.
-				</li>
-				<li>
-					<strong>In-place edits.</strong>
-					Download the item update for the same drink. Item list, Import, File
-					import. Map SKU, Type, and only the columns you changed. Skip Menu/Screen
-					if that column appears. SKU is the key, so this updates the live library
-					row rather than creating a copy.
-				</li>
-			</ol>
-		</Card>
-
-		<Card title="Export" subtitle="{selectedWithSku.length} of {selectedItems.length} selected drinks have a SKU.">
-			<div class="export-bar">
-				<Field label="New menu name" for="ls-export-menu">
-					<TextField id="ls-export-menu" size="sm" bind:value={menuName} />
-				</Field>
-				<div class="export-actions">
-					<Button
-						variant="primary"
-						size="sm"
-						disabled={!layoutCsv}
-						onclick={() =>
-							download(`lightspeed-menu-layout-${fileSlug()}.csv`, layoutCsv)}
-					>
-						Download menu layout
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={!updateCsv}
-						onclick={() =>
-							download(`lightspeed-item-update-${fileSlug()}.csv`, updateCsv)}
-					>
-						Download item update
-					</Button>
-				</div>
-			</div>
-			{#if selectedMissingSku.length}
-				<p class="warn">
-					{selectedMissingSku.length}
-					{selectedMissingSku.length === 1 ? "drink has" : "drinks have"} no
-					Lightspeed SKU yet. Stamp SKUs on Reconcile first, or leave them unselected.
-				</p>
-			{/if}
-			{#if layoutPreview}
-				<div class="previews">
-					<div>
-						<p class="preview-label">Menu layout (SKU + Screens)</p>
-						<pre class="preview">{layoutPreview}</pre>
-					</div>
-					<div>
-						<p class="preview-label">Item update (no Menu/Screen)</p>
-						<pre class="preview">{updatePreview}</pre>
-					</div>
-				</div>
-			{/if}
-		</Card>
-
-		<Card title="Menu items">
-			{#snippet actions()}
+	<div class="body">
+		<div class="toolbar">
+			<div class="filters">
+				<NativeSelect
+					bind:value={menuFilter}
+					options={menuFilterOptions}
+					size="sm"
+				/>
 				<SearchField
 					bind:value={query}
-					placeholder="Filter drinks"
-					ariaLabel="Filter drinks"
-					count={query ? filtered.length : undefined}
-					width="14rem"
+					placeholder="Filter CSV preview"
+					ariaLabel="Filter CSV preview"
+					count={query ? rows.length : undefined}
+					width="min(100%, 18rem)"
 				/>
-			{/snippet}
-			{#if error}
-				<p class="error">{error}</p>
-			{:else if !loading && items.length === 0}
-				<p class="muted">No menu items yet.</p>
-			{:else if filtered.length === 0}
-				<p class="muted">No drinks match that filter.</p>
-			{:else}
-				<table class="table">
-					<thead>
-						<tr>
-							<th class="check">
-								<span class="sr-only">Selected</span>
-							</th>
-							<th>Name</th>
-							<th>Section</th>
-							<th>SKU</th>
-							<th>Price</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each filtered as item (itemId(item))}
-							{@const id = itemId(item)}
-							{@const sku = storedLightspeedSku(item)}
-							<tr class:on={Boolean(selected[id])}>
-								<td class="check">
-									<input
-										type="checkbox"
-										checked={Boolean(selected[id])}
-										disabled={!id}
-										aria-label={`Select ${item.name || "drink"}`}
-										onchange={() => toggle(item)}
-									/>
-								</td>
-								<td>{item.name || ""}</td>
-								<td>{sectionPathLabel(item.section)}</td>
-								<td class="mono-cell">{sku || "No SKU"}</td>
-								<td class="num">{item.price || ""}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			{/if}
-		</Card>
+			</div>
+			<p class="meta">
+				CSV preview · {rows.length} row{rows.length === 1 ? "" : "s"}
+				· {allocatedMenuItems.length} drink{allocatedMenuItems.length === 1 ? "" : "s"}
+				· {inventoryForExport.length} stock
+				{#if selectedCount}
+					· {selectedCount} selected
+				{/if}
+				{#if newSkuCount}
+					· {newSkuCount} new SKU{newSkuCount === 1 ? "" : "s"} on download
+				{/if}
+			</p>
+		</div>
+
+		{#if error}
+			<p class="error">{error}</p>
+		{:else if !loading && menuItems.length === 0 && inventory.length === 0}
+			<p class="empty">No menu or inventory items yet.</p>
+		{:else if !loading && rows.length === 0}
+			<p class="empty">No rows match that filter.</p>
+		{:else}
+			<div class="grid-host">
+				<DataGrid
+					rowData={rows}
+					{columnDefs}
+					scrollKey="lightspeed-export"
+					getRowId={(row) => row._id}
+					domLayout="normal"
+					gridOptions={{
+						suppressCellFocus: true,
+						suppressRowClickSelection: false,
+						suppressScrollOnNewData: true,
+						enableBrowserTooltips: true,
+						rowSelection: {
+							mode: "multiRow",
+							checkboxes: true,
+							headerCheckbox: true,
+							selectAll: "filtered",
+							enableClickSelection: true,
+						},
+						onGridReady: (event) => {
+							gridApi = event.api as GridApi<GridRow>;
+							event.api.selectAll("filtered");
+							syncSelectionCount();
+						},
+						onSelectionChanged: () => syncSelectionCount(),
+						onFirstDataRendered: (event) => {
+							if (!gridApi) gridApi = event.api as GridApi<GridRow>;
+							event.api.selectAll("filtered");
+							syncSelectionCount();
+						},
+					}}
+				/>
+			</div>
+		{/if}
 	</div>
 
-	<BusyOverlay active={loading} label="Loading menu items…" />
+	<BusyOverlay
+		active={loading || savingSkus}
+		label={savingSkus ? "Saving new SKUs…" : "Loading drinks and stock…"}
+	/>
 </div>
 
 <style>
 	.page {
 		position: relative;
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		min-height: 0;
+		overflow: hidden;
+		background: var(--background);
+	}
+
+	.body {
+		display: flex;
+		flex-direction: column;
 		flex: 1;
 		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
 	}
 
-	.stack {
-		display: grid;
-		gap: var(--gap-lg);
-		max-width: 64rem;
-		align-content: start;
+	.toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--gap-sm);
+		flex-shrink: 0;
+		padding: 0.75rem var(--page-gutter);
+		border-bottom: 1px solid var(--border);
 	}
 
-	.steps {
+	.filters {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--gap-sm);
+		min-width: 0;
+	}
+
+	.meta {
 		margin: 0;
-		padding-left: 1.15rem;
-		display: grid;
-		gap: var(--gap);
 		font-size: var(--text-sm);
-		line-height: 1.55;
 		color: var(--muted-foreground);
 	}
 
-	.steps strong {
-		color: var(--foreground);
-	}
-
-	.export-bar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-end;
-		gap: var(--gap);
-	}
-
-	.export-bar :global(.field) {
-		flex: 1 1 14rem;
-	}
-
-	.export-actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.35rem;
-	}
-
-	.warn,
-	.error {
-		margin: var(--gap-sm) 0 0;
+	.error,
+	.empty {
+		margin: var(--page-gutter);
 		font-size: var(--text-sm);
-	}
-
-	.warn {
-		color: var(--muted-foreground);
 	}
 
 	.error {
 		color: var(--destructive, #c97a7a);
 	}
 
-	.muted {
-		margin: 0;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-	}
-
-	.previews {
-		display: grid;
-		gap: var(--gap);
-		margin-top: var(--gap);
-	}
-
-	@media (min-width: 48rem) {
-		.previews {
-			grid-template-columns: 1fr 1fr;
-		}
-	}
-
-	.preview-label {
-		margin: 0 0 0.35rem;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+	.empty {
 		color: var(--muted-foreground);
 	}
 
-	.preview {
-		margin: 0;
-		padding: 0.75rem 0.85rem;
-		overflow-x: auto;
-		border-radius: var(--radius-md);
-		background: var(--sunken);
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: var(--text-xs);
-		line-height: 1.45;
-		color: var(--foreground);
+	.grid-host {
+		flex: 1;
+		min-height: 0;
+		padding: 0 var(--page-gutter) var(--page-gutter);
 	}
 
-	.table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: var(--text-sm);
-	}
-
-	.table th,
-	.table td {
-		padding: 0.55rem 0.4rem;
-		text-align: left;
-		border-bottom: 1px solid var(--border);
-		vertical-align: top;
-	}
-
-	.table th {
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+	.grid-host :global(.cell-empty) {
 		color: var(--muted-foreground);
-	}
-
-	.table tr:last-child td {
-		border-bottom: 0;
-	}
-
-	.table tr.on td {
-		background: color-mix(in srgb, var(--primary, #c9a84c) 8%, transparent);
-	}
-
-	.check {
-		width: 1.75rem;
-	}
-
-	.check input {
-		accent-color: var(--primary, #c9a84c);
-	}
-
-	.num {
-		font-variant-numeric: tabular-nums;
-		white-space: nowrap;
-	}
-
-	.mono-cell {
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: var(--text-xs);
-		color: var(--muted-foreground);
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
+		opacity: 0.45;
 	}
 </style>

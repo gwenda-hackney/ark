@@ -45,6 +45,12 @@ const SUPPLIER_LINKS = {
   "Arboretum Gin": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPG47363/arber-arboretum-gin",
   ],
+  "Arboretum Pink Gin": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPG47382/arber-arboretum-pink-gin",
+  ],
+  "Roku Gin": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPG47098/roku-gin",
+  ],
   "Renegade Gin": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPG47346/renegade-gin",
   ],
@@ -54,8 +60,17 @@ const SUPPLIER_LINKS = {
   "Moonshine Vodka": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPV47466/moonshine-vodka",
   ],
+  "Moonshine Vanilla Vodka": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPV47467/moonshine-vanilla-vodka",
+  ],
+  "AU Vodka": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPV47452/au-vodka",
+  ],
   "Buen Amigo Silver Tequila": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPL47686/tequila-buen-amigo-silver",
+  ],
+  "Rooster Rojo Blanco Tequila": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPL47660/rooster-rojo-blanco-tequila",
   ],
   "Bandero Premium Blanco": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPL47719/bandero-premium-blanco",
@@ -78,8 +93,17 @@ const SUPPLIER_LINKS = {
   "Admiral's Old J Tiki Fire Spiced Rum": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPR47101/admirals-old-j-tiki-fire-spiced-rum",
   ],
+  "Admiral's Old J Spiced Rum": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPR47124/admirals-old-j-spiced-rum",
+  ],
   "Bacardi Reserva Ocho Rum": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPR47008/bacardi-reserva-ocho-rum",
+  ],
+  "Juan de la Costa White Rum": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPR47387/juan-de-la-costa-white-rum",
+  ],
+  "Juan de la Costa Dark Rum": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPR47388/juan-de-la-costa-dark-rum",
   ],
   "Juan de la Costa Spiced Rum": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPR47395/juan-de-la-costa-spiced-rum",
@@ -92,6 +116,7 @@ const SUPPLIER_LINKS = {
   ],
   "Jameson Irish Whiskey": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPW54006/jameson-irish-whiskey",
+    "https://www.hillsprospect.com/displayitemdetails/P/SPW47005/jameson-whiskey",
   ],
   "Slane Irish Whiskey": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPW47209/slane-irish-whiskey",
@@ -104,12 +129,6 @@ const SUPPLIER_LINKS = {
   ],
   "Pernod Absinthe Supérieure": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPA47018/pernod-absinthe-sup%C3%A9rieure",
-  ],
-  "Sombrero Crema de Plátano y Tequila": [
-    "https://www.hillsprospect.com/displayitemdetails/P/SPL47777/sombrero-mexicano-banana-cream-liquor-with-tequila",
-  ],
-  "Sombrero Crema de Maracuyá": [
-    "https://www.hillsprospect.com/displayitemdetails/P/SPL47704/sombrero-mexicano-passion-fruit-cream-liquor-with-tequila",
   ],
   "Vecchia Romagna Etichetta Nera": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPB47305/vecchia-romagna-etichetta-nera",
@@ -128,6 +147,9 @@ const SUPPLIER_LINKS = {
   ],
   "Amaro Montenegro": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPL47373/amaro-montenegro-liqueur",
+  ],
+  "Paixão Coffee": [
+    "https://www.hillsprospect.com/displayitemdetails/P/SPL47762/paixao-coffee",
   ],
   "Martini Riserva Speciale Bitter": [
     "https://www.hillsprospect.com/displayitemdetails/P/SPA47035/martini-riserva-speciale-bitter",

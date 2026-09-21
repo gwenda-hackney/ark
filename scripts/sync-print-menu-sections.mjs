@@ -186,7 +186,7 @@ const DROP_SANITY_NAMES = new Set([
   "Moscow Mule",
   "Gin and Tonic",
   "Rum and Coke",
-  "Vodka Red Bull",
+  "Vodka Energy",
   "Vodka Lemon",
 ]);
 

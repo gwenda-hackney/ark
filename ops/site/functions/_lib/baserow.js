@@ -11,6 +11,7 @@ export const TABLE_SUPPLIERS = "Suppliers";
 export const TABLE_INVENTORY_SUPPLIERS = "Inventory suppliers";
 export const TABLE_USERS = "Users";
 export const TABLE_CONFIG = "App Config";
+export const TABLE_POS_MENUS = "POS Menus";
 
 /** Baserow Cloud allows 10 concurrent API requests. Stay under that. */
 export const BASEROW_MAX_CONCURRENT = 8;
@@ -190,6 +191,7 @@ export const OPS_TABLE_SPECS = [
   { key: "inventorySuppliers", name: TABLE_INVENTORY_SUPPLIERS, required: false },
   { key: "users", name: TABLE_USERS, required: false },
   { key: "config", name: TABLE_CONFIG, required: false },
+  { key: "posMenus", name: TABLE_POS_MENUS, required: false },
 ];
 
 /**

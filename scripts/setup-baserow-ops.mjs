@@ -32,7 +32,9 @@ import {
   TABLE_SUPPLIERS,
   TABLE_USERS,
   TABLE_CONFIG,
+  TABLE_POS_MENUS,
 } from "../ops/site/functions/_lib/baserow.js";
+import { DEFAULT_POS_MENU_NAME, LEGACY_DEFAULT_POS_MENU_NAME } from "../ops/site/functions/_lib/pos-menu-store.js";
 import {
   DEFAULT_POUR_TARGETS,
   DEFAULT_SANITY_PROJECT_ID,
@@ -222,7 +224,50 @@ async function ensureFields(apiBase, jwt, tableId, expectedFields) {
   const byName = new Map(fields.map((field) => [field.name, field]));
   const created = [];
   for (const expected of expectedFields) {
-    if (byName.has(expected.name)) {
+    const existing = byName.get(expected.name);
+    if (existing) {
+      const body =
+        typeof expected.body === "function"
+          ? expected.body(byName)
+          : expected.body;
+      const wanted = body?.select_options;
+      if (
+        Array.isArray(wanted) &&
+        wanted.length > 0 &&
+        Array.isArray(existing.select_options)
+      ) {
+        const have = new Set(
+          existing.select_options.map((opt) => String(opt.value)),
+        );
+        const missing = wanted.filter((opt) => !have.has(String(opt.value)));
+        if (missing.length > 0) {
+          await baserowRequest(
+            apiBase,
+            jwt,
+            `/api/database/fields/${existing.id}/`,
+            {
+              method: "PATCH",
+              body: JSON.stringify({
+                select_options: [
+                  ...existing.select_options.map((opt) => ({
+                    id: opt.id,
+                    value: opt.value,
+                    color: opt.color,
+                  })),
+                  ...missing.map((opt) => ({
+                    value: opt.value,
+                    color: opt.color,
+                  })),
+                ],
+              }),
+            },
+          );
+          console.log(
+            `  ~ ${expected.name} (+${missing.map((o) => o.value).join(", ")})`,
+          );
+          continue;
+        }
+      }
       console.log(`  ✓ ${expected.name}`);
       continue;
     }
@@ -286,7 +331,7 @@ function sectionFields(sectionsTableId) {
   ];
 }
 
-function itemFields(sectionsTableId) {
+function itemFields(sectionsTableId, posMenusTableId) {
   return [
     {
       name: "Section",
@@ -311,6 +356,7 @@ function itemFields(sectionsTableId) {
           { value: "pour", color: "orange" },
           { value: "beer", color: "yellow" },
           { value: "packaged", color: "cyan" },
+          { value: "postmix", color: "light-blue" },
         ],
       },
     },
@@ -367,7 +413,15 @@ function itemFields(sectionsTableId) {
       body: { name: "AI reading", type: "long_text" },
     },
     { name: "Lightspeed SKU", body: { name: "Lightspeed SKU", type: "text" } },
+    {
+      name: "Lightspeed SKU alt",
+      body: { name: "Lightspeed SKU alt", type: "text" },
+    },
     { name: "Lightspeed name", body: { name: "Lightspeed name", type: "text" } },
+    {
+      name: "Lightspeed menu/screen",
+      body: { name: "Lightspeed menu/screen", type: "text" },
+    },
     {
       name: "Lightspeed status",
       body: {
@@ -380,7 +434,126 @@ function itemFields(sectionsTableId) {
         ],
       },
     },
+    {
+      name: "POS menus",
+      body: posMenusTableId
+        ? {
+            name: "POS menus",
+            type: "link_row",
+            link_row_table_id: posMenusTableId,
+            has_related_field: false,
+          }
+        : null,
+    },
   ];
+}
+
+function posMenuFields() {
+  return [
+    {
+      name: "Order",
+      body: {
+        name: "Order",
+        type: "number",
+        number_decimal_places: 0,
+        number_negative: false,
+      },
+    },
+    { name: "Default", body: { name: "Default", type: "boolean" } },
+  ];
+}
+
+function linkIdsFrom(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (typeof entry === "number") return entry;
+      if (entry && typeof entry === "object" && entry.id != null) return Number(entry.id);
+      return null;
+    })
+    .filter((id) => Number.isFinite(id));
+}
+
+async function seedFallMenu(apiBase, jwt, posMenusTableId, itemsTableId, { linkEmptyItems }) {
+  let rows = await listRows(apiBase, jwt, posMenusTableId);
+  for (const row of rows) {
+    if (String(row.Name || "").trim()) continue;
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${posMenusTableId}/${row.id}/`,
+      { method: "DELETE" },
+    );
+    console.log(`  - empty sample row ${row.id}`);
+  }
+  rows = rows.filter((row) => String(row.Name || "").trim());
+  const key = DEFAULT_POS_MENU_NAME.toLowerCase();
+  const legacyKey = LEGACY_DEFAULT_POS_MENU_NAME.toLowerCase();
+  let fall = rows.find(
+    (row) => String(row.Name || "").trim().toLowerCase() === key,
+  );
+  if (!fall) {
+    const legacy = rows.find(
+      (row) => String(row.Name || "").trim().toLowerCase() === legacyKey,
+    );
+    if (legacy) {
+      fall = await baserowRequest(
+        apiBase,
+        jwt,
+        `/api/database/rows/table/${posMenusTableId}/${legacy.id}/?user_field_names=true`,
+        { method: "PATCH", body: JSON.stringify({ Name: DEFAULT_POS_MENU_NAME }) },
+      );
+      console.log(`  → renamed ${LEGACY_DEFAULT_POS_MENU_NAME} → ${DEFAULT_POS_MENU_NAME}`);
+    }
+  }
+  const created = !fall;
+  if (!fall) {
+    fall = await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${posMenusTableId}/?user_field_names=true`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          Name: DEFAULT_POS_MENU_NAME,
+          Order: 1,
+          Default: true,
+        }),
+      },
+    );
+    console.log(`  + ${DEFAULT_POS_MENU_NAME}`);
+  } else if (!rows.some((row) => Boolean(row.Default))) {
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${posMenusTableId}/${fall.id}/?user_field_names=true`,
+      { method: "PATCH", body: JSON.stringify({ Default: true }) },
+    );
+    console.log(`  → Default on ${DEFAULT_POS_MENU_NAME}`);
+  } else {
+    console.log(`  ✓ ${DEFAULT_POS_MENU_NAME}`);
+  }
+  const items = await listRows(apiBase, jwt, itemsTableId);
+  if (!linkEmptyItems && !created) {
+    const anyLinked = items.some((item) => linkIdsFrom(item["POS menus"]).length);
+    if (anyLinked) {
+      console.log(`  · skip item links (POS menus already assigned)`);
+      return;
+    }
+  }
+  let patched = 0;
+  for (const item of items) {
+    const linked = linkIdsFrom(item["POS menus"]);
+    if (linked.length) continue;
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${itemsTableId}/${item.id}/?user_field_names=true`,
+      { method: "PATCH", body: JSON.stringify({ "POS menus": [fall.id] }) },
+    );
+    patched += 1;
+  }
+  console.log(`  → ${DEFAULT_POS_MENU_NAME} on ${patched} menu item(s)`);
 }
 
 function ingredientFields(itemsTableId, inventoryTableId) {
@@ -1005,6 +1178,13 @@ async function main() {
     tables,
     TABLE_CONFIG,
   );
+  const posMenus = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_POS_MENUS,
+  );
 
   console.log(`Fields on ${TABLE_SECTIONS}:`);
   await ensureFields(apiBase, jwt, sections.id, sectionFields(sections.id));
@@ -1013,7 +1193,7 @@ async function main() {
     apiBase,
     jwt,
     items.id,
-    itemFields(sections.id),
+    itemFields(sections.id, posMenus.id),
   );
   if (createdItemFields.includes("On print menu")) {
     await defaultBooleanField(apiBase, jwt, items.id, "On print menu", true);
@@ -1040,6 +1220,12 @@ async function main() {
   await ensureFields(apiBase, jwt, users.id, userFields());
   console.log(`Fields on ${TABLE_CONFIG}:`);
   await ensureFields(apiBase, jwt, config.id, configFields());
+  console.log(`Fields on ${TABLE_POS_MENUS}:`);
+  await ensureFields(apiBase, jwt, posMenus.id, posMenuFields());
+  console.log(`Rows on ${TABLE_POS_MENUS}:`);
+  await seedFallMenu(apiBase, jwt, posMenus.id, items.id, {
+    linkEmptyItems: createdItemFields.includes("POS menus"),
+  });
 
   console.log(`Rows on ${TABLE_SUPPLIERS}:`);
   const supplierByName = await seedSuppliers(apiBase, jwt, suppliers.id);
@@ -1066,6 +1252,7 @@ async function main() {
   console.log(`  ${TABLE_INGREDIENTS} → ${ingredients.id}`);
   console.log(`  ${TABLE_USERS} → ${users.id}`);
   console.log(`  ${TABLE_CONFIG} → ${config.id}`);
+  console.log(`  ${TABLE_POS_MENUS} → ${posMenus.id}`);
   console.log("");
 
   const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];

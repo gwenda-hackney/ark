@@ -3,6 +3,7 @@
 ## Ops
  - ~~do we reallyt need table id's to be in secrets? won't config be fine?~~ → resolved by name from Baserow catalog; see `docs/config.md`
  - ~~also - wy do we need table IDS at all?~~ → we don't; runtime maps names → ids on first use
+ - [ ] Review / tidy `ops/site/functions/api/inventory/lightspeed.js` — one handler for preview/save/archive/link/add/stamp-skus; messy, needs a proper split and pass
 
 
 ~~configuration screen for common configs - target pour cost, etc.~~ → `/config` + Baserow App Config
@@ -23,3 +24,7 @@ Tracked in GitHub issues where noted. See README and `.github/copilot-instructio
 
 ## Final changes
 1. error handling - we need to be notified for errors from cloudflaare
+
+
+
+the guest menus control should be a multi select chip control or chip dropdown. Print, Digital. It would not make sense to have it digitial and not POS so having it on a menu implies we need it in the POS. We should have some other control to indicate that it's no longer on the POS which means it needs to be removed from digital and print menus. That might just be "archive" functionality

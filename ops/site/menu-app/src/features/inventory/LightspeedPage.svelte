@@ -10,6 +10,7 @@
 		Field,
 		NativeSelect,
 		PageHeader,
+		PageHelp,
 		SearchField,
 		Segmented,
 		TextField,
@@ -18,11 +19,14 @@
 	import { flattenMenuSections, sectionPathLabel } from "../../lib/menu-sections";
 	import { toast } from "../../lib/toast.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
-	import { rankByName } from "../../../../functions/_lib/lightspeed-stock.js";
+	import {
+		DEFAULT_LIGHTSPEED_MENU,
+		rankByName,
+		serveBaseName,
+	} from "../../../../functions/_lib/lightspeed-stock.js";
 	import {
 		DRINK_TYPES,
 		GUEST_MENU_PLACEMENTS,
-		guestMenuBlurb,
 		guestMenuFlags,
 		asGuestMenuPlacement,
 		type LightspeedCsvRow,
@@ -30,15 +34,19 @@
 		type LightspeedOpsRow,
 		type LightspeedPreview,
 		type MenuSection,
+		type PosMenu,
+		defaultPosMenus,
 	} from "../../lib/types";
 	import type { SelectOption, SegmentedItem } from "../../ui/types";
 	import LightspeedTabs from "./LightspeedTabs.svelte";
+	import { RECONCILE_HELP } from "./lightspeed-help";
 
 	let fileInput: HTMLInputElement | undefined;
 	let dragOver = $state(false);
 	let fileName = $state("");
 	let csvText = $state("");
-	let menuName = $state("Gwenda Next");
+	let menuName = $state(DEFAULT_LIGHTSPEED_MENU);
+	let posMenus = $state<PosMenu[]>([]);
 	let preview = $state<LightspeedPreview | null>(null);
 	let loading = $state(false);
 	let applying = $state(false);
@@ -52,6 +60,7 @@
 	let addDrinkType = $state("pour");
 	let addPrice = $state("");
 	let addPlacement = $state("none");
+	let addPosMenuId = $state("");
 	let archiveAllOpen = $state(false);
 	let acting = $state("");
 	let linkLs = $state<LightspeedCsvRow | null>(null);
@@ -63,6 +72,8 @@
 
 	const archiveRows = $derived(preview?.archive ?? []);
 	const decideRows = $derived(preview?.lightspeedOnly ?? []);
+	const stockRows = $derived(preview?.stockOnly ?? []);
+	const systemRows = $derived(preview?.systemOnly ?? []);
 	const sectionOptions: SelectOption[] = $derived(
 		flattenMenuSections(sections).map((section: MenuSection) => ({
 			value: section._id,
@@ -84,7 +95,9 @@
 	const tabs: SegmentedItem[] = $derived(
 		preview
 			? [
-					{ id: "decide", label: "Decide", count: decideRows.length },
+					{ id: "decide", label: "Sellable", count: decideRows.length },
+					{ id: "stock", label: "Stock", count: stockRows.length },
+					{ id: "system", label: "System", count: systemRows.length },
 					{ id: "mismatch", label: "Name mismatch", count: preview.conflicts.length },
 					{ id: "missing", label: "Missing from POS", count: preview.opsOnly.length },
 					{ id: "matched", label: "Matched", count: preview.matched.length },
@@ -93,6 +106,8 @@
 			: [],
 	);
 	const filteredDecide = $derived(filterRows(decideRows, query));
+	const filteredStock = $derived(filterRows(stockRows, query));
+	const filteredSystem = $derived(filterRows(systemRows, query));
 	const filteredArchive = $derived(filterRows(archiveRows, query));
 	const busyLabel = $derived(
 		acting === "save"
@@ -139,6 +154,13 @@
 			hint: item.lightspeedSku || undefined,
 		})),
 	);
+	const menuOptions: SelectOption[] = $derived(
+		posMenus.map((menu) => ({
+			value: menu.name,
+			label: menu.name,
+			hint: menu.isDefault ? "Default" : undefined,
+		})),
+	);
 	const linkLsOptions: SelectOption[] = $derived(
 		linkLsChoices.map((row: LightspeedCsvRow) => ({
 			value: row.sku || "",
@@ -151,6 +173,9 @@
 		void getMenu()
 			.then((data) => {
 				sections = data.sections || [];
+				posMenus = data.posMenus || [];
+				const fallback = defaultPosMenus(posMenus)[0];
+				if (fallback) menuName = fallback.name;
 			})
 			.catch(() => {
 				sections = [];
@@ -205,8 +230,10 @@
 
 	function pickTab(next: LightspeedPreview) {
 		if (next.lightspeedOnly.length) return "decide";
+		if ((next.stockOnly || []).length) return "stock";
 		if (next.conflicts.length) return "mismatch";
 		if (next.opsOnly.length) return "missing";
+		if ((next.systemOnly || []).length) return "system";
 		if ((next.archive || []).length) return "archive";
 		return "matched";
 	}
@@ -236,7 +263,7 @@
 			csvText = text;
 			const next = await previewFile(text);
 			tab = pickTab(next);
-			toast.ok("Matched against menu items.");
+			toast.ok("Matched drinks to the menu, stock to inventory.");
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Could not read that file.";
@@ -289,7 +316,7 @@
 				action: "save",
 				menuName,
 			});
-			toast.ok("Stamped Lightspeed SKUs onto matched menu items.");
+			toast.ok("Stamped Lightspeed SKUs onto matched drinks and stock.");
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Could not save the match.";
@@ -303,11 +330,13 @@
 
 	function openAdd(row: LightspeedCsvRow) {
 		addRow = row;
-		addName = row.name || "";
+		addName = serveBaseName(row.name) || row.name || "";
 		addDrinkType = row.suggestedDrinkType || "pour";
 		addPrice = row.suggestedPrice || "";
 		addPlacement = "none";
 		addSectionId = guessSectionId(row);
+		const named = posMenus.find((menu) => menu.name === menuName);
+		addPosMenuId = named?.id || defaultPosMenus(posMenus)[0]?.id || "";
 	}
 
 	function closeAdd() {
@@ -338,6 +367,8 @@
 						drinkType: addDrinkType,
 						price: addPrice,
 						defaultPrice: addRow.defaultPrice,
+						posMenuIds: addPosMenuId ? [addPosMenuId] : undefined,
+						menuScreen: addRow.menuScreen,
 						...guestMenuFlags(asGuestMenuPlacement(addPlacement)),
 					},
 				],
@@ -348,6 +379,28 @@
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Could not add that drink.";
+			error = message;
+			toast.error(message);
+		} finally {
+			acting = "";
+		}
+	}
+
+	async function addStock(row: LightspeedCsvRow) {
+		if (!csvText) return;
+		acting = rowKey(row);
+		error = "";
+		try {
+			preview = await previewLightspeedCsv(csvText, {
+				action: "add-stock",
+				menuName,
+				items: [{ sku: row.sku, name: row.name, quantity: row.quantity, unit: row.unit }],
+			});
+			tab = pickTab(preview);
+			toast.ok(`Added ${row.name || row.sku || "item"} to inventory.`);
+		} catch (err) {
+			const message =
+				err instanceof Error ? err.message : "Could not add that stock row.";
 			error = message;
 			toast.error(message);
 		} finally {
@@ -520,9 +573,9 @@
 <div class="page scrollbar-fade">
 	<PageHeader
 		title="POS reconcile"
-		subtitle="Import the Lightspeed item list. Stamp SKUs onto auto-matched drinks, including close names. Leftovers: match by hand, add as an ops menu item, or mark to archive after the new menu is live. Export is a separate page: place drinks on a new menu, or try in-place item updates."
 	>
 		{#snippet actions()}
+			<PageHelp title="POS reconcile" topics={RECONCILE_HELP} />
 			<Button
 				variant="outline"
 				size="sm"
@@ -556,24 +609,36 @@
 
 	<div class="stack">
 					<Card
-						title="New POS menu"
-						subtitle="Create this menu in Back Office today. Export selected drinks from the Export page, then import the layout onto that menu. Launch on the devices tomorrow."
+						title="POS menu"
 					>
-			<Field label="Menu name" for="ls-menu-name">
-				<TextField
-					id="ls-menu-name"
-					size="sm"
-					bind:value={menuName}
-					onchange={() => {
-						void refreshPreview();
-					}}
-				/>
-			</Field>
+			{#if menuOptions.length}
+				<Field label="Menu" for="ls-menu-name">
+					<NativeSelect
+						id="ls-menu-name"
+						size="sm"
+						bind:value={menuName}
+						options={menuOptions}
+						onchange={() => {
+							void refreshPreview();
+						}}
+					/>
+				</Field>
+			{:else}
+				<Field label="Menu name" for="ls-menu-name">
+					<TextField
+						id="ls-menu-name"
+						size="sm"
+						bind:value={menuName}
+						onchange={() => {
+							void refreshPreview();
+						}}
+					/>
+				</Field>
+			{/if}
 		</Card>
 
 		<Card
 			title="Upload item list"
-			subtitle="Lightspeed formatted file from Menu > Item list > Export. Match is SKU, then name (including close spellings and button names). Leftovers can be matched by hand."
 		>
 			<div
 				class="drop"
@@ -623,8 +688,7 @@
 
 				{#if tab === "decide"}
 					<Card
-						title="In Lightspeed only"
-						subtitle="Not on the ops menu. Match it to an existing drink, add drinks we sell, or mark the rest for archive after launch."
+						title="Sellable leftovers"
 					>
 						{#snippet actions()}
 							<SearchField
@@ -644,7 +708,7 @@
 							</Button>
 						{/snippet}
 						{#if decideRows.length === 0}
-							<p class="muted">Every leftover has a decision, or every Lightspeed row matched a menu item.</p>
+							<p class="muted">None left.</p>
 						{:else if filteredDecide.length === 0}
 							<p class="muted">No leftovers match that filter.</p>
 						{:else}
@@ -707,10 +771,106 @@
 							</table>
 						{/if}
 					</Card>
+				{:else if tab === "stock"}
+					<Card
+						title="Stock leftovers"
+					>
+						{#snippet actions()}
+							<SearchField
+								bind:value={query}
+								placeholder="Filter stock"
+								ariaLabel="Filter stock leftovers"
+								count={query ? filteredStock.length : undefined}
+								width="14rem"
+							/>
+						{/snippet}
+						{#if stockRows.length === 0}
+							<p class="muted">None left.</p>
+						{:else if filteredStock.length === 0}
+							<p class="muted">No stock rows match that filter.</p>
+						{:else}
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Name</th>
+										<th>SKU</th>
+										<th>Group</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each filteredStock as row (rowKey(row))}
+										<tr>
+											<td>{row.name || ""}</td>
+											<td class="mono-cell">{row.sku || ""}</td>
+											<td>{row.accountingGroup || row.type || ""}</td>
+											<td class="actions">
+												<Button
+													variant="outline"
+													size="xs"
+													disabled={Boolean(acting)}
+													onclick={() => void addStock(row)}
+												>
+													Add to inventory
+												</Button>
+												<Button
+													variant="ghost"
+													size="xs"
+													disabled={!row.sku || Boolean(acting)}
+													onclick={() => void markArchive([row])}
+												>
+													Archive
+												</Button>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						{/if}
+					</Card>
+				{:else if tab === "system"}
+					<Card
+						title="System leftovers"
+					>
+						{#if systemRows.length === 0}
+							<p class="muted">None left.</p>
+						{:else if filteredSystem.length === 0}
+							<p class="muted">No system rows match that filter.</p>
+						{:else}
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Name</th>
+										<th>SKU</th>
+										<th>Type</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each filteredSystem as row (rowKey(row))}
+										<tr>
+											<td>{row.name || row.sku || ""}</td>
+											<td class="mono-cell">{row.sku || ""}</td>
+											<td>{row.type || ""}</td>
+											<td class="actions">
+												<Button
+													variant="ghost"
+													size="xs"
+													disabled={!row.sku || Boolean(acting)}
+													onclick={() => void markArchive([row])}
+												>
+													Archive
+												</Button>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						{/if}
+					</Card>
 				{:else if tab === "mismatch"}
 					<Card
 						title="Name mismatch"
-						subtitle="{preview.conflicts.length} SKU hits whose Lightspeed name is a different drink. Stamp SKUs keeps the ops name and records the POS name. Use POS name if that wording is the one you want."
 					>
 						{#if preview.conflicts.length === 0}
 							<p class="muted">No SKU conflicts.</p>
@@ -761,7 +921,6 @@
 				{:else if tab === "missing"}
 					<Card
 						title="In ops only"
-						subtitle="{preview.opsOnly.length} drinks missing from this file. Match a leftover POS row, or download item import to create them in the Lightspeed library. Place them on a menu from Export."
 					>
 						{#if preview.opsOnly.length === 0}
 							<p class="muted">Every menu item was in the file.</p>
@@ -793,7 +952,6 @@
 				{:else if tab === "matched"}
 					<Card
 						title="Matched"
-						subtitle="{preview.matched.length} drinks. Stamp SKUs writes the Lightspeed SKU onto the menu item."
 					>
 						{#if preview.matched.length === 0}
 							<p class="muted">Nothing matched this file.</p>
@@ -816,6 +974,9 @@
 												{#if row.lightspeed.sku}
 													<span class="mono">{row.lightspeed.sku}</span>
 												{/if}
+												{#if row.lightspeed.menuScreen}
+													<span class="mono">{row.lightspeed.menuScreen}</span>
+												{/if}
 											</td>
 											<td class="num">
 												{priceLabel(row.lightspeed.defaultPrice)}
@@ -827,10 +988,38 @@
 							</table>
 						{/if}
 					</Card>
+					{#if (preview.altServes || []).length}
+						<Card
+							title="Pint and half"
+						>
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Ops</th>
+										<th>Lightspeed</th>
+										<th>Price</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each preview.altServes || [] as row (`${row.ops.id || ""}:${row.lightspeed.key || row.lightspeed.sku || ""}`)}
+										<tr>
+											<td>{row.ops.name}</td>
+											<td>
+												{row.lightspeed.name || ""}
+												{#if row.lightspeed.sku}
+													<span class="mono">{row.lightspeed.sku}</span>
+												{/if}
+											</td>
+											<td class="num">{priceLabel(row.lightspeed.defaultPrice)}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</Card>
+					{/if}
 				{:else}
 					<Card
 						title="Marked for archive"
-						subtitle="SKU list for Back Office bulk archive after the new menu is live. Not applied by import."
 					>
 						{#snippet actions()}
 							<SearchField
@@ -842,7 +1031,7 @@
 							/>
 						{/snippet}
 						{#if archiveRows.length === 0}
-							<p class="muted">Nothing marked yet. Decide leftovers first.</p>
+							<p class="muted">Nothing marked yet.</p>
 						{:else if filteredArchive.length === 0}
 							<p class="muted">No marked items match that filter.</p>
 						{:else}
@@ -885,9 +1074,9 @@
 	<Dialog open={linkOpen} title="Match items" onclose={closeLink}>
 		<p class="dialog-lead">
 			{#if linkLs}
-				Link {linkLs.name || linkLs.sku} to an ops drink. That writes the Lightspeed SKU onto the menu item.
+				Link {linkLs.name || linkLs.sku} to an ops drink.
 			{:else}
-				Link {linkOps?.name || "this drink"} to a Lightspeed leftover. That writes the POS SKU onto the menu item.
+				Link {linkOps?.name || "this drink"} to a Lightspeed leftover.
 			{/if}
 		</p>
 		<div class="dialog-grid">
@@ -955,9 +1144,6 @@
 	</Dialog>
 
 	<Dialog open={Boolean(addRow)} title="Add to menu" onclose={closeAdd}>
-		<p class="dialog-lead">
-			Creates an ops menu item linked to this Lightspeed SKU. Recipe and pour cost can wait.
-		</p>
 		<div class="dialog-grid">
 			<Field label="Name" for="ls-add-name">
 				<TextField id="ls-add-name" size="sm" bind:value={addName} />
@@ -982,6 +1168,20 @@
 			<Field label="Price" for="ls-add-price">
 				<TextField id="ls-add-price" size="sm" mono bind:value={addPrice} />
 			</Field>
+			{#if posMenus.length}
+				<Field label="POS menu" for="ls-add-pos-menu">
+					<NativeSelect
+						id="ls-add-pos-menu"
+						size="sm"
+						bind:value={addPosMenuId}
+						options={posMenus.map((menu) => ({
+							value: menu.id,
+							label: menu.name,
+							hint: menu.isDefault ? "Default" : undefined,
+						}))}
+					/>
+				</Field>
+			{/if}
 			<Field
 				label="Guest menus"
 				tooltip="POS can still sell this if it is off print and the website."
@@ -993,7 +1193,6 @@
 					ariaLabel="Guest menus"
 				/>
 			</Field>
-			<p class="dialog-lead">{guestMenuBlurb(addPlacement)}</p>
 		</div>
 		{#if !sectionOptions.length}
 			<p class="error">Create a menu section before adding drinks.</p>
@@ -1018,8 +1217,8 @@
 		onclose={() => (archiveAllOpen = false)}
 	>
 		<p class="dialog-lead">
-			Marks {decideRows.length} Lightspeed-only
-			{decideRows.length === 1 ? "row" : "rows"} for archive. Download the SKU list when the new menu is live, then bulk-archive in Back Office. This does not change Lightspeed by itself.
+			Marks {decideRows.length}
+			{decideRows.length === 1 ? "row" : "rows"} for archive. Does not change Lightspeed by itself.
 		</p>
 		{#snippet footer()}
 			<Button variant="ghost" size="sm" onclick={() => (archiveAllOpen = false)}>
