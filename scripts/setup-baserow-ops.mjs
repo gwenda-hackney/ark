@@ -220,6 +220,7 @@ async function ensureFields(apiBase, jwt, tableId, expectedFields) {
     `/api/database/fields/table/${tableId}/`,
   );
   const byName = new Map(fields.map((field) => [field.name, field]));
+  const created = [];
   for (const expected of expectedFields) {
     if (byName.has(expected.name)) {
       console.log(`  ✓ ${expected.name}`);
@@ -238,7 +239,25 @@ async function ensureFields(apiBase, jwt, tableId, expectedFields) {
       body: JSON.stringify(body),
     });
     console.log(`  + ${expected.name}`);
+    created.push(expected.name);
   }
+  return created;
+}
+
+async function defaultBooleanField(apiBase, jwt, tableId, fieldName, value) {
+  const rows = await listRows(apiBase, jwt, tableId);
+  let patched = 0;
+  for (const row of rows) {
+    if (Boolean(row[fieldName]) === Boolean(value)) continue;
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/rows/table/${tableId}/${row.id}/?user_field_names=true`,
+      { method: "PATCH", body: JSON.stringify({ [fieldName]: value }) },
+    );
+    patched += 1;
+  }
+  console.log(`  → ${fieldName}=${value} on ${patched} existing row(s)`);
 }
 
 function sectionFields(sectionsTableId) {
@@ -336,12 +355,30 @@ function itemFields(sectionsTableId) {
       body: { name: "On digital menu", type: "boolean" },
     },
     {
+      name: "On print menu",
+      body: { name: "On print menu", type: "boolean" },
+    },
+    {
       name: "Publish snapshots",
       body: { name: "Publish snapshots", type: "long_text" },
     },
     {
       name: "AI reading",
       body: { name: "AI reading", type: "long_text" },
+    },
+    { name: "Lightspeed SKU", body: { name: "Lightspeed SKU", type: "text" } },
+    { name: "Lightspeed name", body: { name: "Lightspeed name", type: "text" } },
+    {
+      name: "Lightspeed status",
+      body: {
+        name: "Lightspeed status",
+        type: "single_select",
+        select_options: [
+          { value: "matched", color: "green" },
+          { value: "mismatch", color: "orange" },
+          { value: "missing", color: "red" },
+        ],
+      },
     },
   ];
 }
@@ -726,8 +763,8 @@ async function seedAppConfig(apiBase, jwt, configTableId) {
     readEnv("SANITY_PROJECT_ID") || DEFAULT_SANITY_PROJECT_ID,
     "all",
   );
-  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "development", "local");
-  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "development", "staging");
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "staging", "local");
+  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "staging", "staging");
   await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "production", "production");
 
   const webhook =
@@ -972,7 +1009,15 @@ async function main() {
   console.log(`Fields on ${TABLE_SECTIONS}:`);
   await ensureFields(apiBase, jwt, sections.id, sectionFields(sections.id));
   console.log(`Fields on ${TABLE_ITEMS}:`);
-  await ensureFields(apiBase, jwt, items.id, itemFields(sections.id));
+  const createdItemFields = await ensureFields(
+    apiBase,
+    jwt,
+    items.id,
+    itemFields(sections.id),
+  );
+  if (createdItemFields.includes("On print menu")) {
+    await defaultBooleanField(apiBase, jwt, items.id, "On print menu", true);
+  }
   console.log(`Fields on ${TABLE_INVENTORY}:`);
   await ensureFields(apiBase, jwt, inventory.id, inventoryFields());
   console.log(`Fields on ${TABLE_SUPPLIERS}:`);

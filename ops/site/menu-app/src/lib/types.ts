@@ -99,6 +99,8 @@ export type InventoryItem = {
   countedAt?: string;
 };
 
+export type LightspeedStatus = "matched" | "mismatch" | "missing";
+
 export type LightspeedCsvRow = {
   key?: string;
   sku?: string;
@@ -106,19 +108,27 @@ export type LightspeedCsvRow = {
   quantity?: number | null;
   unit?: string;
   type?: string;
-  canCreate?: boolean;
+  accountingGroup?: string;
+  defaultPrice?: number | null;
+  menuScreen?: string;
+  statisticsGroup?: string;
+  buttonName?: string;
+  suggestedDrinkType?: DrinkType;
+  suggestedPrice?: string;
 };
 
 export type LightspeedOpsRow = {
   id?: string;
   name?: string;
-  fullName?: string;
-  kind?: InventoryKind;
+  drinkType?: DrinkType;
+  price?: string;
   lightspeedSku?: string;
-  actualQty?: number;
-  actualUnit?: string;
-  countedAt?: string;
-  active?: boolean;
+  lightspeedName?: string;
+  lightspeedStatus?: LightspeedStatus;
+  section?: {
+    title?: string;
+    parentTitle?: string;
+  };
 };
 
 export type LightspeedMatchRow = {
@@ -130,14 +140,25 @@ export type LightspeedMatchRow = {
 export type LightspeedPreview = {
   ok?: boolean;
   applied?: boolean;
-  countedAt?: string;
+  menuName?: string;
   matched: LightspeedMatchRow[];
   conflicts: LightspeedMatchRow[];
   lightspeedOnly: LightspeedCsvRow[];
+  archive: LightspeedCsvRow[];
   opsOnly: LightspeedOpsRow[];
   itemImportCsv?: string;
-  created?: InventoryItem[];
+  menuLayoutCsv?: string;
+  archiveSkuCsv?: string;
 };
+
+export function lightspeedStatusLabel(
+  status: LightspeedStatus | string | undefined,
+): string {
+  if (status === "matched") return "Match";
+  if (status === "mismatch") return "Name mismatch";
+  if (status === "missing") return "Missing from POS";
+  return "";
+}
 
 /** Who may sign in to ops (Baserow Users). */
 export type OpsUser = {
@@ -273,6 +294,65 @@ export const DRINK_TYPES: { value: DrinkType; label: string; blurb: string }[] =
     },
   ];
 
+/** Where a drink appears for guests. POS can still sell it either way. */
+export type GuestMenuPlacement = "both" | "print" | "digital" | "none";
+
+export const GUEST_MENU_PLACEMENTS: {
+  value: GuestMenuPlacement;
+  label: string;
+  blurb: string;
+}[] = [
+  { value: "both", label: "Both", blurb: "Print menu and website." },
+  { value: "print", label: "Print", blurb: "Print menu only." },
+  { value: "digital", label: "Digital", blurb: "Website only." },
+  { value: "none", label: "Neither", blurb: "POS only. Not on print or the website." },
+];
+
+export function guestMenuPlacement(item?: {
+  onPrintMenu?: boolean;
+  onDigitalMenu?: boolean;
+}): GuestMenuPlacement {
+  const print = item?.onPrintMenu !== false;
+  const digital = item?.onDigitalMenu !== false;
+  if (print && digital) return "both";
+  if (print) return "print";
+  if (digital) return "digital";
+  return "none";
+}
+
+export function guestMenuFlags(placement: GuestMenuPlacement): {
+  onPrintMenu: boolean;
+  onDigitalMenu: boolean;
+} {
+  if (placement === "print") return { onPrintMenu: true, onDigitalMenu: false };
+  if (placement === "digital") return { onPrintMenu: false, onDigitalMenu: true };
+  if (placement === "none") return { onPrintMenu: false, onDigitalMenu: false };
+  return { onPrintMenu: true, onDigitalMenu: true };
+}
+
+export function guestMenuLabel(
+  placement: GuestMenuPlacement | string | undefined,
+): string {
+  if (placement === "print") return "Print";
+  if (placement === "digital") return "Digital";
+  if (placement === "none") return "Neither";
+  if (placement === "both") return "Both";
+  return "";
+}
+
+export function asGuestMenuPlacement(value: string | undefined): GuestMenuPlacement {
+  if (value === "print" || value === "digital" || value === "none" || value === "both") {
+    return value;
+  }
+  return "both";
+}
+
+export function guestMenuBlurb(placement: GuestMenuPlacement | string | undefined): string {
+  return (
+    GUEST_MENU_PLACEMENTS.find((row) => row.value === placement)?.blurb || ""
+  );
+}
+
 /**
  * Target pour cost as a percent of selling price, keyed by drink type.
  * Cocktail 20% is the usual mixed-drink target (18 to 24% industry band).
@@ -361,6 +441,8 @@ export type MenuItem = {
   ice?: string;
   garnish?: string;
   onDigitalMenu?: boolean;
+  /** Guest print menu. Independent of the website. Default on. */
+  onPrintMenu?: boolean;
 	description?: string;
 	method?: string;
   abv?: string;
@@ -379,6 +461,12 @@ export type MenuItem = {
     asset?: { url?: string };
   };
   publish?: ItemPublishState;
+  /** POS item SKU in Lightspeed K-Series. */
+  lightspeedSku?: string;
+  /** Name on the last Lightspeed item export. */
+  lightspeedName?: string;
+  /** Last reconcile against the POS item list. */
+  lightspeedStatus?: LightspeedStatus;
 };
 
 export type MenuSection = {

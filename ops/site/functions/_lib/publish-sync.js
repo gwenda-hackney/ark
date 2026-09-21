@@ -324,3 +324,24 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
 
   return { dataset, created, synced, unchanged, missing, sectionWrites };
 }
+
+/** After a staging → production promote, mark live snapshots as matching staging. */
+export async function copyStagingSnapshotsToProduction(env) {
+  const { items, tables } = await loadMenuTree(env);
+  let copied = 0;
+  for (const item of items) {
+    const staging = item.publishSnapshots?.staging;
+    if (!staging) continue;
+    const next = recordTargetSnapshot(
+      item.publishSnapshots,
+      "production",
+      staging.payload || {},
+    );
+    if (staging.hash) next.production.hash = staging.hash;
+    await updateRow(env, tables.items, item._id, {
+      [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(next),
+    });
+    copied += 1;
+  }
+  return { copied };
+}

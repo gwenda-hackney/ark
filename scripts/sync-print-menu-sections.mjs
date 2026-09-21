@@ -234,7 +234,7 @@ function allocateOrderRanks(count) {
 function sanityClient() {
   const token = process.env.SANITY_API_TOKEN?.trim();
   const projectId = process.env.SANITY_PROJECT_ID?.trim() || "pn5yjro6";
-  const dataset = process.env.SANITY_DATASET?.trim() || "development";
+  const dataset = process.env.SANITY_DATASET?.trim() || "staging";
   if (!token) return null;
   return createClient({
     projectId,

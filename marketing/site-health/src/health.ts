@@ -1,13 +1,19 @@
 import type {
   HealthAlert,
   HealthState,
+  MonitoredSite,
   ProbeCheck,
   ProbeResult,
+  SiteId,
 } from "./types";
 
 export const FAIL_THRESHOLD = 2;
 export const REMIND_AFTER_MS = 30 * 60 * 1000;
 export const STATE_KEY = "site";
+
+export function stateKeyFor(id: SiteId): string {
+  return id === "production" ? STATE_KEY : `site:${id}`;
+}
 
 export function emptyHealthState(): HealthState {
   return {
@@ -15,6 +21,9 @@ export function emptyHealthState(): HealthState {
     lastAlertAt: null,
     down: false,
     healthEndpointSeen: false,
+    lastCheckedAt: null,
+    lastError: null,
+    lastProbe: null,
   };
 }
 
@@ -31,6 +40,13 @@ export function parseHealthState(raw: string | null): HealthState {
         typeof parsed.lastAlertAt === "number" ? parsed.lastAlertAt : null,
       down: Boolean(parsed.down),
       healthEndpointSeen: Boolean(parsed.healthEndpointSeen),
+      lastCheckedAt:
+        typeof parsed.lastCheckedAt === "number" ? parsed.lastCheckedAt : null,
+      lastError: typeof parsed.lastError === "string" ? parsed.lastError : null,
+      lastProbe:
+        parsed.lastProbe && typeof parsed.lastProbe === "object"
+          ? parsed.lastProbe
+          : null,
     };
   } catch {
     return emptyHealthState();
@@ -50,6 +66,7 @@ export function nextHealthState(
       state: {
         ...emptyHealthState(),
         healthEndpointSeen: seen,
+        lastCheckedAt: now,
       },
       alert: wasDown ? "recovery" : null,
     };
@@ -71,9 +88,26 @@ export function nextHealthState(
   }
 
   return {
-    state: { consecutiveFails, lastAlertAt, down, healthEndpointSeen: seen },
+    state: {
+      consecutiveFails,
+      lastAlertAt,
+      down,
+      healthEndpointSeen: seen,
+      lastCheckedAt: now,
+      lastError: null,
+      lastProbe: null,
+    },
     alert,
   };
+}
+
+export function lastErrorFromProbe(probe: ProbeResult): string | null {
+  const failed = probe.checks.find((check) => !check.ok);
+  if (!failed) return null;
+  const error =
+    failed.error ||
+    (failed.status != null ? `HTTP ${failed.status}` : "failed");
+  return `${failed.name}: ${error}`;
 }
 
 /** Until production has shipped /health, a 404 there is not an outage. */
@@ -83,7 +117,8 @@ export function interpretProbe(
 ): { ok: boolean; healthEndpointSeen: boolean } {
   const health = probe.checks.find((check) => check.name === "health");
   const home = probe.checks.find((check) => check.name === "home");
-  const homeOk = Boolean(home?.ok);
+  const homeRequired = Boolean(home);
+  const homeOk = homeRequired ? Boolean(home?.ok) : true;
   if (health?.ok) {
     return { ok: homeOk, healthEndpointSeen: true };
   }
@@ -103,34 +138,74 @@ export function healthPayloadLooksHealthy(data: unknown): boolean {
   return body.ok === true && body.service === "gwenda";
 }
 
+export function monitoredSites(env: {
+  SITE_URL?: string;
+  STAGING_SITE_URL?: string;
+}): MonitoredSite[] {
+  const productionUrl = env.SITE_URL?.trim() || "https://gwenda.co.uk";
+  const stagingUrl =
+    env.STAGING_SITE_URL?.trim() || "https://gwenda-staging.pages.dev";
+  return [
+    {
+      id: "production",
+      url: productionUrl,
+      requireHome: true,
+      alert: true,
+    },
+    {
+      id: "staging",
+      url: stagingUrl,
+      requireHome: false,
+      alert: false,
+    },
+  ];
+}
+
 export async function probeSite(
   siteUrl: string,
   fetchImpl: typeof fetch = fetch,
+  options: { requireHome?: boolean } = {},
 ): Promise<ProbeResult> {
   const base = siteUrl.replace(/\/$/, "");
+  const requireHome = options.requireHome !== false;
   const checks: ProbeCheck[] = [];
 
   const health = await probeHealth(`${base}/health`, fetchImpl);
-  checks.push(health);
+  checks.push(health.check);
 
-  const home = await probeHome(`${base}/`, fetchImpl);
-  checks.push(home);
+  if (requireHome) {
+    const home = await probeHome(`${base}/`, fetchImpl);
+    checks.push(home);
+  }
 
-  return { ok: checks.every((check) => check.ok), checks };
+  return {
+    ok: checks.every((check) => check.ok),
+    checks,
+    env: health.meta?.env ?? null,
+    dataset: health.meta?.dataset ?? null,
+    commit: health.meta?.commit ?? null,
+  };
 }
 
 async function probeHealth(
   url: string,
   fetchImpl: typeof fetch,
-): Promise<ProbeCheck> {
+): Promise<{
+  check: ProbeCheck;
+  meta: { env: string | null; dataset: string | null; commit: string | null };
+}> {
+  const emptyMeta = { env: null, dataset: null, commit: null };
   try {
     const res = await fetchImpl(url, { redirect: "follow" });
     if (!res.ok) {
       return {
-        name: "health",
-        ok: false,
-        status: res.status,
-        error: `HTTP ${res.status}`,
+        check: {
+          name: "health",
+          ok: false,
+          status: res.status,
+          error: `HTTP ${res.status}`,
+        },
+        meta: emptyMeta,
       };
     }
     let data: unknown;
@@ -138,26 +213,47 @@ async function probeHealth(
       data = await res.json();
     } catch {
       return {
-        name: "health",
-        ok: false,
-        status: res.status,
-        error: "Health response was not JSON",
+        check: {
+          name: "health",
+          ok: false,
+          status: res.status,
+          error: "Health response was not JSON",
+        },
+        meta: emptyMeta,
       };
     }
     if (!healthPayloadLooksHealthy(data)) {
       return {
-        name: "health",
-        ok: false,
-        status: res.status,
-        error: "Health payload was not ok",
+        check: {
+          name: "health",
+          ok: false,
+          status: res.status,
+          error: "Health payload was not ok",
+        },
+        meta: emptyMeta,
       };
     }
-    return { name: "health", ok: true, status: res.status };
+    const body = data as {
+      env?: unknown;
+      dataset?: unknown;
+      commit?: unknown;
+    };
+    return {
+      check: { name: "health", ok: true, status: res.status },
+      meta: {
+        env: typeof body.env === "string" ? body.env : null,
+        dataset: typeof body.dataset === "string" ? body.dataset : null,
+        commit: typeof body.commit === "string" ? body.commit : null,
+      },
+    };
   } catch (error) {
     return {
-      name: "health",
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
+      check: {
+        name: "health",
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      meta: emptyMeta,
     };
   }
 }

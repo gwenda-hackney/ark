@@ -1,8 +1,12 @@
 import { createClient } from "@sanity/client";
-import { getSanityConfig } from "./env";
+import { getSanityConfig, sanityPerspective } from "./env";
 
 export function createSanityClient() {
   const { projectId, dataset, token } = getSanityConfig();
+  const perspective = sanityPerspective({
+    perspective: process.env.SANITY_PERSPECTIVE,
+    dev: Boolean(import.meta.env.DEV),
+  });
 
   return createClient({
     projectId,
@@ -10,7 +14,6 @@ export function createSanityClient() {
     token,
     apiVersion: "2025-01-01",
     useCdn: false,
-    // The public site only ever renders published content — never Studio drafts.
-    perspective: "published",
+    perspective,
   });
 }

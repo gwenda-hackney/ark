@@ -35,9 +35,10 @@ export type DeployStatusResponse = {
 
 export type PromoteTriggerResponse = {
   ok: boolean;
-  target: "production";
+  target: "staging" | "production";
   phase: "promote";
-  previewRunId: number;
+  kind?: string;
+  previewRunId?: number;
   runId: number;
   runUrl: string;
   status: string;
@@ -46,7 +47,8 @@ export type PromoteTriggerResponse = {
 };
 
 export function deployTargetForDataset(dataset: string): DeployTarget {
-  return dataset === "production" ? "production" : "staging";
+  if (dataset === "production") return "production";
+  return "staging";
 }
 
 export function liveSiteUrl(target: DeployTarget): string {
@@ -56,9 +58,10 @@ export function liveSiteUrl(target: DeployTarget): string {
 }
 
 export function previewSiteUrl(): string {
-  return "https://release-preview.gwenda-blue.pages.dev";
+  return "https://gwenda-staging.pages.dev";
 }
 
 export function deployToolTitle(target: DeployTarget): string {
-  return target === "production" ? "Deploy to live" : "Deploy to staging";
+  if (target === "production") return "Production (ops promote)";
+  return "Rebuild staging";
 }

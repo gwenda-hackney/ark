@@ -7,7 +7,7 @@ pages_build_output_dir = "dist"
 [vars]
 SITE_ENV = "staging"
 SANITY_PROJECT_ID = "pn5yjro6"
-SANITY_DATASET = "development"
+SANITY_DATASET = "staging"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"
 SMTP_USER = "notifications@gwenda.co.uk"

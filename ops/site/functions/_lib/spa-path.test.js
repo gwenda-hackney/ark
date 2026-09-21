@@ -94,26 +94,32 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/menu/negroni/recipe"), true);
     assert.equal(isSpaDocumentPath("/inventory/gin"), true);
     assert.equal(isSpaDocumentPath("/lightspeed"), true);
+    assert.equal(isSpaDocumentPath("/lightspeed/export"), true);
     assert.equal(isSpaDocumentPath("/suppliers"), true);
     assert.equal(isSpaDocumentPath("/config"), true);
     assert.equal(isSpaDocumentPath("/sections"), true);
     assert.equal(isSpaDocumentPath("/users"), true);
+    assert.equal(isSpaDocumentPath("/web"), true);
     assert.equal(isSpaDocumentPath("/tools/breakeven"), true);
     assert.equal(isSpaDocumentPath("/stock"), false);
     assert.equal(isSpaDocumentPath("/api/menu"), false);
     assert.equal(isClientNavPath("/config"), true);
     assert.equal(isClientNavPath("/lightspeed"), true);
+    assert.equal(isClientNavPath("/lightspeed/export"), true);
     assert.equal(isClientNavPath("/suppliers"), true);
     assert.equal(isClientNavPath("/sections"), true);
     assert.equal(isClientNavPath("/users"), true);
+    assert.equal(isClientNavPath("/web"), true);
     assert.equal(isClientNavPath("/tools/cashflow"), true);
     assert.equal(isClientNavPath("/stock"), false);
     assert.equal(isClientNavPath("/stock/index.html"), false);
     assert.equal(shellPageKey("/config"), "config");
     assert.equal(shellPageKey("/lightspeed"), "lightspeed");
+    assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
     assert.equal(shellPageKey("/suppliers"), "suppliers");
     assert.equal(shellPageKey("/sections"), "sections");
     assert.equal(shellPageKey("/users"), "users");
+    assert.equal(shellPageKey("/web"), "web");
     assert.equal(shellPageKey("/tools/breakeven"), "tools");
     assert.deepEqual(parseShellPath("/tools/stock"), {
       page: "tools",
@@ -124,7 +130,14 @@ describe("spa-path", () => {
       tool: "breakeven",
     });
     assert.deepEqual(parseShellPath("/sections"), { page: "sections" });
-    assert.deepEqual(parseShellPath("/lightspeed"), { page: "lightspeed" });
+    assert.deepEqual(parseShellPath("/lightspeed"), {
+      page: "lightspeed",
+      view: "reconcile",
+    });
+    assert.deepEqual(parseShellPath("/lightspeed/export"), {
+      page: "lightspeed",
+      view: "export",
+    });
     assert.deepEqual(parseShellPath("/suppliers"), { page: "suppliers" });
   });
 

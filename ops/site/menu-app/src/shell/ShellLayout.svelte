@@ -419,7 +419,7 @@
 							href="/menu"
 							aria-current={stockValue === "menu" ? "page" : undefined}
 						>
-							Recipes
+							Menu items
 						</a>
 						<a
 							class="stock-link"

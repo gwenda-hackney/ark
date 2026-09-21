@@ -50,8 +50,8 @@ function deriveStudioEnv() {
   if (activeEnv === "production") {
     setEnvIfMissing("SANITY_STUDIO_DATASET", "production");
     setEnvIfMissing("SANITY_STUDIO_HOSTNAME", "gwenda");
-  } else if (activeEnv === "development") {
-    setEnvIfMissing("SANITY_STUDIO_DATASET", "development");
+  } else if (activeEnv === "staging" || activeEnv === "development") {
+    setEnvIfMissing("SANITY_STUDIO_DATASET", "staging");
     setEnvIfMissing("SANITY_STUDIO_HOSTNAME", "gwenda-dev");
   } else {
     copyEnvIfMissing("SANITY_STUDIO_DATASET", "SANITY_DATASET");
@@ -59,7 +59,7 @@ function deriveStudioEnv() {
       const dataset =
         process.env.SANITY_STUDIO_DATASET?.trim() ||
         process.env.SANITY_DATASET?.trim() ||
-        "development";
+        "staging";
       setEnvIfMissing(
         "SANITY_STUDIO_HOSTNAME",
         dataset === "production" ? "gwenda" : "gwenda-dev",

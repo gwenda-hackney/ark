@@ -11,7 +11,7 @@ export type SanityEvent = {
 };
 
 function sanityDataset(env: NodeJS.ProcessEnv): string {
-  return env.SANITY_DATASET?.trim() || "development";
+  return env.SANITY_DATASET?.trim() || "staging";
 }
 
 const EVENT_FIELDS = `{

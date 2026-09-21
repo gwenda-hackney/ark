@@ -31,15 +31,17 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | Route | Content |
 |-------|---------|
 | `/` | Overview |
-| `/menu` | Recipes (Stock) |
+| `/menu` | Menu items (Stock) |
 | `/menu/new` | New recipe |
 | `/menu/:name` | Recipe detail (`/menu/negroni`) |
 | `/inventory` | Inventory (Stock) |
 | `/inventory/new` | New inventory item |
 | `/inventory/:name` | Inventory item detail |
-| `/lightspeed` | Lightspeed count reconcile (Stock) |
+| `/lightspeed` | Lightspeed POS reconcile (Stock) |
+| `/lightspeed/export` | Lightspeed POS export (Stock) |
 | `/suppliers` | Wholesaler catalog (Stock) |
 | `/sections` | Guest menu sections |
+| `/web` | Website staging vs production, health, promote |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow App Config) |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |
@@ -88,7 +90,7 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into Sanity `menuItem` documents. It matches by stored Sanity ID or name, creates missing sections/items, then triggers the site rebuild webhook (staging → `gwenda-staging.pages.dev`).
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, then rebuilds `gwenda-staging.pages.dev`. Production is a clone of staging from ops Web. Do not edit production in Studio.
 
 ## Local
 

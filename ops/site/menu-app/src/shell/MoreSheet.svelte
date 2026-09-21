@@ -30,6 +30,7 @@
 		path === "/sections" || path.startsWith("/sections/"),
 	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
+	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
 </script>
 
 {#if open}
@@ -62,6 +63,19 @@
 					<span class="copy">
 						<span class="label">Sections</span>
 						<span class="hint">Guest menu chapters and groups</span>
+					</span>
+				</a>
+				<p class="heading">Website</p>
+				<a
+					class="row"
+					class:on={onWeb}
+					href="/web"
+					aria-current={onWeb ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="web" size={18} /></span>
+					<span class="copy">
+						<span class="label">Web</span>
+						<span class="hint">Staging, production, and promote</span>
 					</span>
 				</a>
 				<p class="heading">Ops</p>

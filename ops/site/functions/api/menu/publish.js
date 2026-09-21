@@ -1,4 +1,5 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
+import { siteEnvName } from "../../_lib/config-store.js";
 import { deployTargetForEnv } from "../../_lib/menu.js";
 import { syncOpsMenuToSanity } from "../../_lib/publish-sync.js";
 
@@ -36,9 +37,18 @@ async function webhookJson(url, secret, { method = "GET", body } = {}) {
 
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
-  const target = deployTargetForEnv(body?.target || body?.env || "staging");
+  const target = deployTargetForEnv(
+    body?.target || body?.env,
+    siteEnvName(context.env),
+  );
+  if (target === "production") {
+    return jsonResponse(
+      { error: "Production is updated by promoting staging from Web." },
+      400,
+    );
+  }
   const { baseUrl, secret } = webhookConfig(context.env);
-  if (!baseUrl || !secret) {
+  if (target !== "development" && (!baseUrl || !secret)) {
     return jsonResponse(
       { error: "Site deploy webhook is not configured on ops." },
       503,
@@ -47,30 +57,41 @@ export const onRequestPost = withApiHandler(async (context) => {
 
   const action = body?.action === "promote" ? "promote" : "deploy";
   if (action === "promote") {
-    const previewRunId = Number(body?.previewRunId);
-    if (!Number.isFinite(previewRunId) || previewRunId <= 0) {
-      return jsonResponse({ error: "previewRunId is required to promote." }, 400);
-    }
-    const result = await webhookJson(`${baseUrl}/promote`, secret, {
-      method: "POST",
-      body: { previewRunId },
-    });
-    return jsonResponse({ ok: true, ...result }, 202);
+    return jsonResponse(
+      { error: "Promote staging from the Web page, not from recipe publish." },
+      400,
+    );
   }
 
-  const sync = await syncOpsMenuToSanity(context.env, { target });
+  const sync = await syncOpsMenuToSanity(context.env, { target: "staging" });
   const changed =
     (sync.synced?.length || 0) +
     (sync.created?.length || 0) +
     (sync.sectionWrites || 0);
-  if (!changed) {
-    return jsonResponse({ ok: true, target, sync, deployed: false });
+  if (!changed || target === "development") {
+    return jsonResponse({
+      ok: true,
+      target,
+      dataset: "staging",
+      sync,
+      deployed: false,
+    });
   }
   const result = await webhookJson(`${baseUrl}/deploy`, secret, {
     method: "POST",
-    body: { target },
+    body: { target: "staging" },
   });
-  return jsonResponse({ ok: true, target, sync, deployed: true, ...result }, 202);
+  return jsonResponse(
+    {
+      ok: true,
+      target,
+      dataset: "staging",
+      sync,
+      deployed: true,
+      ...result,
+    },
+    202,
+  );
 });
 
 export const onRequestGet = withApiHandler(async (context) => {

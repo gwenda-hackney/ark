@@ -24,6 +24,7 @@ import {
 } from "./menu.js";
 import { assertUniqueItemName, itemSlug } from "./item-key.js";
 import { parsePublishSnapshots } from "./reconcile.js";
+import { normalizeLightspeedStatus } from "./lightspeed-stock.js";
 import { flattenMenuSections, nestMenuSections } from "./menu-sections.js";
 import {
   ANALYSIS_NOTE_FIELD,
@@ -129,7 +130,11 @@ function mapItem(row) {
     sectionId: linkValue(row.Section) != null ? String(linkValue(row.Section)) : null,
     sanityId: text(row["Sanity ID"]) || undefined,
     onDigitalMenu: row["On digital menu"] == null ? true : boolField(row["On digital menu"]),
+    onPrintMenu: row["On print menu"] == null ? true : boolField(row["On print menu"]),
     publishSnapshots: parsePublishSnapshots(row["Publish snapshots"]),
+    lightspeedSku: text(row["Lightspeed SKU"]) || undefined,
+    lightspeedName: text(row["Lightspeed name"]) || undefined,
+    lightspeedStatus: normalizeLightspeedStatus(row["Lightspeed status"]) || undefined,
     analysisNote: parseStoredAnalyzeNote(row[ANALYSIS_NOTE_FIELD]),
     image: photo
       ? {
@@ -215,6 +220,12 @@ function drinkMetricsFields(drinkType, ingredients, inventoryById) {
   };
 }
 
+function boolInput(value, fallback = true) {
+  if (value == null) return fallback;
+  if (value === false || value === "false") return false;
+  return value === true || value === "true";
+}
+
 function itemFieldsFromInput(input) {
   const name = text(input.name);
   if (!name) {
@@ -252,11 +263,18 @@ function itemFieldsFromInput(input) {
     Volume: text(input.volume),
     Producer: text(input.producer),
     Order: parseQuantity(input.orderRank) ?? 0,
-    "On digital menu":
-      input.onDigitalMenu == null
-        ? true
-        : input.onDigitalMenu === true || input.onDigitalMenu === "true",
+    "On digital menu": boolInput(input.onDigitalMenu, true),
+    "On print menu": boolInput(input.onPrintMenu, true),
     ...(text(input.sanityId) ? { "Sanity ID": text(input.sanityId) } : {}),
+    ...(text(input.lightspeedSku)
+      ? { "Lightspeed SKU": text(input.lightspeedSku) }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(input, "lightspeedName")
+      ? { "Lightspeed name": text(input.lightspeedName) }
+      : {}),
+    ...(normalizeLightspeedStatus(input.lightspeedStatus)
+      ? { "Lightspeed status": normalizeLightspeedStatus(input.lightspeedStatus) }
+      : {}),
     ...(Object.prototype.hasOwnProperty.call(input, "analysisNote")
       ? { [ANALYSIS_NOTE_FIELD]: serializeAnalyzeNote(input.analysisNote) }
       : {}),
@@ -676,5 +694,37 @@ export async function deleteMenuSection(env, sectionId) {
   }
   await deleteRow(env, tables.sections, sectionId);
   return { id: String(sectionId) };
+}
+
+function lightspeedMenuFields(patch) {
+  const sku = text(patch?.lightspeedSku);
+  const name = text(patch?.lightspeedName);
+  const status = normalizeLightspeedStatus(patch?.lightspeedStatus);
+  const fields = {};
+  if (sku) fields["Lightspeed SKU"] = sku;
+  if (Object.prototype.hasOwnProperty.call(patch || {}, "lightspeedName")) {
+    fields["Lightspeed name"] = name;
+  }
+  if (status) fields["Lightspeed status"] = status;
+  if (patch?.adoptName) {
+    const drinkName = text(patch.name || patch.lightspeedName);
+    if (drinkName) fields.Name = drinkName;
+  }
+  return fields;
+}
+
+/** Write Lightspeed SKU and match status onto Menu Items. */
+export async function applyLightspeedMenuMatch(env, patches) {
+  const tables = await resolveOpsTableIds(env);
+  const updated = [];
+  for (const patch of patches || []) {
+    const id = text(String(patch.id ?? patch._id ?? ""));
+    if (!id) continue;
+    const fields = lightspeedMenuFields(patch);
+    if (!Object.keys(fields).length) continue;
+    const row = await updateRow(env, tables.items, id, fields);
+    updated.push(mapItem(row));
+  }
+  return updated;
 }
 

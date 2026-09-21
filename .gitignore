@@ -11,6 +11,7 @@ node_modules/
 .baserow-jwt.json
 .baserow-ops-dev.json
 .baserow-web-dev.json
+.baserow-web-staging.json
 .bw-session
 **/.bw-session
 .apple-wallet/

@@ -353,7 +353,14 @@ export function groupImportRows(rows) {
   return byCocktail;
 }
 
-export function deployTargetForEnv(value) {
+export function deployTargetForEnv(value, siteEnv) {
   const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return raw === "production" ? "production" : "staging";
+  if (raw === "production") return "production";
+  if (raw === "development") return "development";
+  if (raw === "staging") return "staging";
+  const env = typeof siteEnv === "string" ? siteEnv.trim().toLowerCase() : "";
+  if (env === "local" || env === "development" || env === "dev") {
+    return "development";
+  }
+  return "staging";
 }

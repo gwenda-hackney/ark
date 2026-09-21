@@ -182,9 +182,9 @@ Standalone Workers can persist logs with `[observability] enabled = true`. `gwen
 
 ## Site health
 
-`GET /health` on the marketing site returns `{ ok: true, service: "gwenda" }` (liveness only). Staging gate allows it without a password.
+`GET /health` on the marketing site returns `{ ok: true, service: "gwenda", env, dataset, commit }` (liveness plus build metadata). Staging gate allows it without a password.
 
-`gwenda-site-health` (cron every 5 minutes) probes `https://gwenda.co.uk/health` and the homepage title. After two consecutive failures it emails `alerts@gwenda.co.uk`, reminds at most every 30 minutes while down, and sends one recovery mail. A `/health` 404 is ignored until that endpoint has returned `{ ok: true }` once, so the Worker can ship before production is promoted. First-time wiring:
+`gwenda-site-health` (cron every 5 minutes) probes production and staging. Production still emails `alerts@gwenda.co.uk` after two consecutive failures. Staging failures show in ops Web. Authenticated `GET https://health.gwenda.co.uk/status` returns the last probe for both sites (Bearer `HEALTH_STATUS_TOKEN` when that Worker secret is set). First-time wiring:
 
 ```
 npm run setup:site-health

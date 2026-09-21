@@ -62,13 +62,13 @@ export async function triggerContentDeploy(
   return postJson<DeployTriggerResponse>(url, secret, { target });
 }
 
-export async function triggerContentPromote(
+export async function triggerPromote(
   baseUrl: string,
   secret: string,
-  previewRunId: number,
+  kind: "staging-to-production",
 ): Promise<PromoteTriggerResponse> {
   const url = `${baseUrl.replace(/\/$/, "")}/promote`;
-  return postJson<PromoteTriggerResponse>(url, secret, { previewRunId });
+  return postJson<PromoteTriggerResponse>(url, secret, { kind });
 }
 
 export async function fetchDeployStatus(

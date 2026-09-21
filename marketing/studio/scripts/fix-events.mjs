@@ -17,7 +17,7 @@ import {
   textToBlocks,
 } from "./lib/portable-text.mjs";
 
-const dataset = process.env.SANITY_DATASET || "development";
+const dataset = process.env.SANITY_DATASET || "staging";
 const projectId = process.env.SANITY_PROJECT_ID || "pn5yjro6";
 const token = process.env.SANITY_API_TOKEN;
 

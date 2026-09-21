@@ -1,6 +1,6 @@
 const DEFAULT_PROJECT_ID = "pn5yjro6";
 /** Local Studio + npm run dev — never write to production by accident. */
-const DEFAULT_DATASET = "development";
+const DEFAULT_DATASET = "staging";
 
 function readEnv(name: string): string | undefined {
   const value = process.env[name];

@@ -6,12 +6,13 @@
  * import --replace → delete target docs that are not in the source.
  * (`import --replace` alone only overwrites matching IDs and leaves orphans.)
  *
- * Staging site → development dataset
- * Live site    → production dataset
+ * Local Studio + Dev Studio  → staging dataset (drafts locally, publish for the site)
+ * Staging site               → published staging dataset
+ * Prod Studio + live site    → production dataset (clone of staging)
  *
  * Usage (repo root):
  *   node --env-file=.env scripts/sync-sanity-datasets.mjs --direction staging-to-production --confirm production
- *   node --env-file=.env scripts/sync-sanity-datasets.mjs --direction production-to-staging --confirm development
+ *   node --env-file=.env scripts/sync-sanity-datasets.mjs --direction production-to-staging --confirm staging
  *
  * Auth: SANITY_DATASET_SYNC_TOKEN, SANITY_AUTH_TOKEN, or SANITY_API_TOKEN.
  * Export/import needs a token that can write the target (personal admin or Editor).
@@ -30,14 +31,14 @@ const DATA_API = "v2024-01-01";
 
 const DIRECTIONS = {
   "staging-to-production": {
-    source: "development",
+    source: "staging",
     target: "production",
-    label: "staging (development) → production",
+    label: "staging → production",
   },
   "production-to-staging": {
     source: "production",
-    target: "development",
-    label: "production → staging (development)",
+    target: "staging",
+    label: "production → staging",
   },
 };
 
@@ -343,8 +344,8 @@ function printHelp() {
   console.log(`Mirror Sanity datasets (Cloud Clone, or export/import + orphan purge).
 
 Directions:
-  staging-to-production   development → production
-  production-to-staging   production → development
+  staging-to-production     staging → production
+  production-to-staging     production → staging
 
 Required:
   --direction <name>

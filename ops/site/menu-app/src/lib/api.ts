@@ -207,15 +207,39 @@ export function deleteInventoryItem(id: string) {
 
 export function previewLightspeedCsv(text: string, body: {
   apply?: boolean;
-  createKeys?: string[];
+  menuName?: string;
+  action?: "preview" | "save" | "add" | "archive" | "unarchive" | "link";
+  items?: Array<{
+    sku?: string;
+    name?: string;
+    sectionId?: string;
+    drinkType?: string;
+    price?: string;
+    defaultPrice?: number | null;
+    onPrintMenu?: boolean;
+    onDigitalMenu?: boolean;
+  }>;
+  rows?: Array<{ sku?: string; name?: string }>;
+  skus?: string[];
+  links?: Array<{
+    itemId?: string;
+    sku?: string;
+    name?: string;
+    adoptName?: boolean;
+  }>;
 } = {}) {
   return request<import("./types").LightspeedPreview>("/api/inventory/lightspeed", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       text,
-      apply: Boolean(body.apply),
-      createKeys: body.createKeys || [],
+      apply: Boolean(body.apply) || body.action === "save",
+      menuName: body.menuName || "",
+      action: body.action || (body.apply ? "save" : "preview"),
+      items: body.items,
+      rows: body.rows,
+      skus: body.skus,
+      links: body.links,
     }),
   });
 }
@@ -319,4 +343,73 @@ export function updateConfig(body: {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
+}
+
+export type WebEnvId = "staging" | "production";
+
+export type WebEnvStatus = {
+	id: WebEnvId;
+	label: string;
+	hosted: boolean;
+	siteUrl: string | null;
+	dataset: string;
+	git: string;
+	code: {
+		commit: string | null;
+		env: string | null;
+		dataset: string | null;
+		error: string | null;
+	};
+	content: {
+		hash: string | null;
+		count: number;
+		updatedAt: string | null;
+		error: string | null;
+	};
+	health: {
+		ok: boolean | null;
+		down: boolean;
+		lastError: string | null;
+		lastCheckedAt: number | null;
+		consecutiveFails?: number;
+	};
+};
+
+export type WebStatus = {
+	environments: Record<WebEnvId, WebEnvStatus>;
+	drift: {
+		inSync: boolean;
+		codeAhead: boolean;
+		contentAhead: boolean;
+		unknown: boolean;
+	};
+	driftLabel: string;
+	lastError: string | null;
+	promote: {
+		toStaging: boolean;
+		toProduction: boolean;
+	};
+};
+
+export function getWebStatus() {
+	return coalesce("web-status", () => request<WebStatus>("/api/web/status"));
+}
+
+export function promoteWebsite(target: "staging" | "production") {
+	return request<{
+		ok: boolean;
+		kind?: string;
+		runId?: number;
+		runUrl?: string;
+		alreadyRunning?: boolean;
+		error?: string;
+	}>("/api/web/promote", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ confirm: target }),
+	});
+}
+
+export function promoteStagingToProduction() {
+	return promoteWebsite("production");
 }

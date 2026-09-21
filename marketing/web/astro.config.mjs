@@ -33,6 +33,21 @@ const env = loadEnv(
   "",
 );
 const sitePassword = env.SITE_PASSWORD;
+
+function localSanityPerspective() {
+  const explicit =
+    process.env.SANITY_PERSPECTIVE?.trim() || env.SANITY_PERSPECTIVE?.trim();
+  if (explicit === "published" || explicit === "previewDrafts") return explicit;
+  const siteEnv = process.env.SITE_ENV || env.SITE_ENV;
+  if (
+    siteEnv === "staging" ||
+    siteEnv === "production" ||
+    env.PUBLIC_IS_STAGING === "true"
+  ) {
+    return "published";
+  }
+  return "previewDrafts";
+}
 const gatePlugin = devSiteGate({
   password: sitePassword,
   bypassKey: env.GATE_BYPASS_KEY,
@@ -58,8 +73,9 @@ const rsvpEnv = () => ({
   EVENT_ADMIN_SECRET: process.env.EVENT_ADMIN_SECRET || env.EVENT_ADMIN_SECRET,
   SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
-  SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "development",
+  SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "staging",
   SANITY_API_TOKEN: process.env.SANITY_API_TOKEN || env.SANITY_API_TOKEN,
+  SANITY_PERSPECTIVE: localSanityPerspective(),
   INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
   INVITE_IMAGE_URL: process.env.INVITE_IMAGE_URL || env.INVITE_IMAGE_URL,
   INVITE_EMAIL_SUBJECT: process.env.INVITE_EMAIL_SUBJECT || env.INVITE_EMAIL_SUBJECT,
@@ -199,9 +215,10 @@ function devFormsApi() {
         SANITY_DATASET:
           process.env.SANITY_DATASET?.trim() ||
           env.SANITY_DATASET?.trim() ||
-          "development",
+          "staging",
         SANITY_API_TOKEN:
           process.env.SANITY_API_TOKEN?.trim() || env.SANITY_API_TOKEN?.trim(),
+        SANITY_PERSPECTIVE: localSanityPerspective(),
         BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
         BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
         BASEROW_DATABASE_ID:
@@ -335,7 +352,7 @@ function devRsvpApi() {
           SANITY_DATASET:
             process.env.SANITY_DATASET?.trim() ||
             env.SANITY_DATASET?.trim() ||
-            "development",
+            "staging",
           SANITY_PROJECT_ID:
             process.env.SANITY_PROJECT_ID?.trim() || env.SANITY_PROJECT_ID?.trim(),
         };
@@ -686,7 +703,7 @@ export default defineConfig({
         context: "server",
         access: "public",
         optional: true,
-        default: "development",
+        default: "staging",
       }),
       SANITY_API_TOKEN: envField.string({
         context: "server",

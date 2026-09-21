@@ -4,14 +4,27 @@ import {
   publicEventFields,
   sanityDatasetForEnv,
 } from "./sanity-event.js";
+import { sanityPerspectiveForEnv } from "./sanity-query.js";
 
 describe("sanityDatasetForEnv", () => {
-  it("uses staging development dataset", () => {
-    expect(sanityDatasetForEnv({ SITE_ENV: "staging" })).toBe("development");
+  it("uses the staging dataset", () => {
+    expect(sanityDatasetForEnv({ SITE_ENV: "staging" })).toBe("staging");
   });
 
   it("prefers explicit SANITY_DATASET", () => {
     expect(sanityDatasetForEnv({ SANITY_DATASET: "production" })).toBe("production");
+  });
+});
+
+describe("sanityPerspectiveForEnv", () => {
+  it("ignores drafts on staging and production", () => {
+    expect(sanityPerspectiveForEnv({ SITE_ENV: "staging" })).toBe("published");
+    expect(sanityPerspectiveForEnv({ SITE_ENV: "production" })).toBe("published");
+    expect(sanityPerspectiveForEnv({})).toBe("published");
+  });
+
+  it("overlays drafts for local SITE_ENV", () => {
+    expect(sanityPerspectiveForEnv({ SITE_ENV: "local" })).toBe("previewDrafts");
   });
 });
 
@@ -55,9 +68,11 @@ describe("fetchEventBySlug", () => {
     );
 
     const event = await fetchEventBySlug(
-      { SANITY_DATASET: "development" },
+      { SANITY_DATASET: "staging", SITE_ENV: "staging" },
       "private-launch-party",
     );
+    const requested = String(vi.mocked(fetch).mock.calls[0][0]);
+    expect(requested).toContain("perspective=published");
     expect(event).toEqual({
       title: "Launch Party",
       eventType: "private",

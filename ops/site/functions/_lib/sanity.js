@@ -5,9 +5,22 @@ export function sanityProjectId(env = {}) {
   return env.SANITY_PROJECT_ID?.trim() || DEFAULT_PROJECT_ID;
 }
 
+/** Dataset ops may write. Production is clone-only. */
+export const EDITORIAL_DATASET = "staging";
+
 export function sanityDataset(env = {}, target = "staging") {
-  if (env.SANITY_DATASET?.trim()) return env.SANITY_DATASET.trim();
-  return target === "production" ? "production" : "development";
+  if (target === "production") return "production";
+  return EDITORIAL_DATASET;
+}
+
+function assertEditorialDataset(dataset) {
+  if (dataset !== EDITORIAL_DATASET) {
+    const error = new Error(
+      "Ops can only write the staging dataset. Production is updated by clone.",
+    );
+    error.status = 400;
+    throw error;
+  }
 }
 
 function headers(token, extra = {}) {
@@ -45,6 +58,7 @@ export async function sanityQuery(env, dataset, query, params = {}) {
 }
 
 export async function sanityMutate(env, dataset, mutations) {
+  assertEditorialDataset(dataset);
   const token = env.SANITY_API_TOKEN?.trim();
   if (!token) {
     const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
@@ -70,6 +84,7 @@ export async function sanityMutate(env, dataset, mutations) {
 }
 
 export async function sanityUploadImage(env, dataset, bytes, { filename, contentType }) {
+  assertEditorialDataset(dataset);
   const token = env.SANITY_API_TOKEN?.trim();
   if (!token) {
     const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
