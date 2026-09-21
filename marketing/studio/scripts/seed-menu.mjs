@@ -228,7 +228,7 @@ const HIGHBALL = [
   { name: "Moscow Mule", price: "10" },
   { name: "Gin and Tonic", price: "8" },
   { name: "Rum and Coke", price: "8" },
-  { name: "Vodka Red Bull", price: "8" },
+  { name: "Vodka Energy", price: "8" },
   { name: "Vodka Lemon", price: "8" },
 ];
 

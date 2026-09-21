@@ -1,11 +1,18 @@
 import { jsonResponse, withApiHandler } from "../../_lib/http.js";
 import { createMenuItem, loadMenuTree } from "../../_lib/menu-store.js";
+import { listPosMenus } from "../../_lib/pos-menu-store.js";
 import { readJsonBody } from "../../_lib/http.js";
 import { toClientItem, toClientSections } from "../../_lib/reconcile.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
-  const { sections } = await loadMenuTree(context.env);
-  return jsonResponse({ sections: toClientSections(sections) });
+  const [{ sections }, posMenus] = await Promise.all([
+    loadMenuTree(context.env),
+    listPosMenus(context.env),
+  ]);
+  return jsonResponse({
+    sections: toClientSections(sections),
+    posMenus,
+  });
 });
 
 export const onRequestPost = withApiHandler(async (context) => {

@@ -40,6 +40,7 @@
 		type InventoryItem,
 		type MenuItem,
 		type MenuSection,
+		type PosMenu,
 	} from "../../lib/types";
 	import { flattenMenuSections, sectionPathLabel } from "../../lib/menu-sections";
 	import {
@@ -86,6 +87,11 @@
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import PourCostPanel from "./PourCostPanel.svelte";
 	import RecipeAnalysisPanel from "./RecipeAnalysisPanel.svelte";
+	import PosMenuPicker from "./PosMenuPicker.svelte";
+	import PosScreenPicker from "./PosScreenPicker.svelte";
+	import {
+		collectPosScreenSuggestions,
+	} from "../../../../functions/_lib/lightspeed-stock.js";
 
 	const PHOTO_KEY = "ops.menu.photo";
 
@@ -102,6 +108,7 @@
 		sections,
 		inventory = $bindable([] as InventoryItem[]),
 		menuItems = [] as MenuItem[],
+		posMenus = [] as PosMenu[],
 		busy = false,
 		busyLabel = "Working…",
 		cleanToken = 0,
@@ -119,6 +126,7 @@
 		sections: MenuSection[];
 		inventory?: InventoryItem[];
 		menuItems?: MenuItem[];
+		posMenus?: PosMenu[];
 		busy?: boolean;
 		busyLabel?: string;
 		/** Bumped after a successful save so Close no longer prompts. */
@@ -154,6 +162,10 @@
 	let pourDraft = $state("");
 	let pourFocused = $state(false);
 
+	const screenSuggestions = $derived(
+		collectPosScreenSuggestions(menuItems, (posMenus || []).map((menu) => menu.name)),
+	);
+
 	function easeOut(t: number): number {
 		return 1 - Math.pow(1 - t, 3.2);
 	}
@@ -184,7 +196,17 @@
 		const nextIngredients = (draft.ingredients || []).map((ing) => ({
 			...ing,
 		}));
-		item = { ...item, ...draft, ingredients: nextIngredients };
+		const { posMenuIds, ingredients: _ings, ...rest } = draft;
+		const ids = new Set(String(posMenuIds || "").split(",").filter(Boolean));
+		const nextPosMenus = (posMenus || []).filter((menu) =>
+			ids.has(String(menu.id)),
+		);
+		item = {
+			...item,
+			...rest,
+			posMenus: nextPosMenus,
+			ingredients: nextIngredients,
+		};
 		ingredients = nextIngredients;
 		restoring = false;
 	}
@@ -1129,7 +1151,7 @@
 									<Field
 										label="Guest menus"
 										for="f-guest-menu"
-										tooltip="POS can still sell this drink if it is off print and the website."
+										tooltip="Where guests see this drink. POS only keeps it on the till without print or the website."
 									>
 										<Segmented
 											value={guestPlacement}
@@ -1140,6 +1162,44 @@
 										/>
 									</Field>
 									<p class="hint">{guestMenuBlurb(guestPlacement)}</p>
+									<Field
+										label="POS menus"
+										tooltip="Lightspeed menus this drink appears on. Tick more than one when a bottle is still on Gwenda and Fall 2026."
+									>
+										<PosMenuPicker
+											menus={posMenus}
+											value={item.posMenus || []}
+											onchange={(next) => patch("posMenus", next)}
+										/>
+									</Field>
+									<Field
+										label="POS name"
+										for="f-pos-name"
+										tooltip="Short till button name. Leave blank to use the drink name. Serve sizes (Pint, Half, Double, Bottle) are added on export."
+									>
+										<TextField
+											id="f-pos-name"
+											size="sm"
+											value={item.lightspeedName || ""}
+											placeholder={item.name || "Short till name"}
+											oninput={(e) =>
+												patch(
+													"lightspeedName",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+									<Field
+										label="POS screens"
+										for="f-pos-screens"
+										tooltip="Lightspeed screens this drink lands on when you import a menu. Main/Sub-screen. More than one is allowed."
+									>
+										<PosScreenPicker
+											value={item.lightspeedMenuScreen || ""}
+											suggestions={screenSuggestions}
+											onchange={(next) => patch("lightspeedMenuScreen", next)}
+										/>
+									</Field>
 									{#if item.onDigitalMenu !== false}
 										<p class="hint">{publishHint(item.publish)}</p>
 										{#if item.publish?.staging?.diff?.length || item.publish?.production?.diff?.length}

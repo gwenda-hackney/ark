@@ -27,6 +27,12 @@ import { parsePublishSnapshots } from "./reconcile.js";
 import { normalizeLightspeedStatus } from "./lightspeed-stock.js";
 import { flattenMenuSections, nestMenuSections } from "./menu-sections.js";
 import {
+  defaultPosMenuIds,
+  listPosMenus,
+  mapPosMenuLinks,
+  posMenuLinkFields,
+} from "./pos-menu-store.js";
+import {
   ANALYSIS_NOTE_FIELD,
   parseStoredAnalyzeNote,
   serializeAnalyzeNote,
@@ -55,7 +61,9 @@ function selectValue(value) {
 
 function normalizeDrinkType(value) {
   const raw = selectValue(value).toLowerCase();
-  if (raw === "pour" || raw === "beer" || raw === "packaged") return raw;
+  if (raw === "pour" || raw === "beer" || raw === "packaged" || raw === "postmix") {
+    return raw;
+  }
   return "cocktail";
 }
 
@@ -133,8 +141,11 @@ function mapItem(row) {
     onPrintMenu: row["On print menu"] == null ? true : boolField(row["On print menu"]),
     publishSnapshots: parsePublishSnapshots(row["Publish snapshots"]),
     lightspeedSku: text(row["Lightspeed SKU"]) || undefined,
+    lightspeedSkuAlt: text(row["Lightspeed SKU alt"]) || undefined,
     lightspeedName: text(row["Lightspeed name"]) || undefined,
+    lightspeedMenuScreen: text(row["Lightspeed menu/screen"]) || undefined,
     lightspeedStatus: normalizeLightspeedStatus(row["Lightspeed status"]) || undefined,
+    posMenus: mapPosMenuLinks(row["POS menus"]),
     analysisNote: parseStoredAnalyzeNote(row[ANALYSIS_NOTE_FIELD]),
     image: photo
       ? {
@@ -269,8 +280,14 @@ function itemFieldsFromInput(input) {
     ...(text(input.lightspeedSku)
       ? { "Lightspeed SKU": text(input.lightspeedSku) }
       : {}),
+    ...(text(input.lightspeedSkuAlt)
+      ? { "Lightspeed SKU alt": text(input.lightspeedSkuAlt) }
+      : {}),
     ...(Object.prototype.hasOwnProperty.call(input, "lightspeedName")
       ? { "Lightspeed name": text(input.lightspeedName) }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(input, "lightspeedMenuScreen")
+      ? { "Lightspeed menu/screen": text(input.lightspeedMenuScreen) }
       : {}),
     ...(normalizeLightspeedStatus(input.lightspeedStatus)
       ? { "Lightspeed status": normalizeLightspeedStatus(input.lightspeedStatus) }
@@ -386,7 +403,17 @@ export async function createMenuItem(env, input) {
   const tables = await resolveOpsTableIds(env);
   const ingredients = normalizeIngredients(input.ingredients);
   const inventoryById = await loadInventoryAbvMap(env, tables);
-  const fields = itemFieldsFromInput(input);
+  const payload = { ...input };
+  if (
+    tables.posMenus &&
+    !Object.prototype.hasOwnProperty.call(payload, "posMenuIds")
+  ) {
+    payload.posMenuIds = defaultPosMenuIds(await listPosMenus(env));
+  }
+  const fields = {
+    ...itemFieldsFromInput(payload),
+    ...posMenuLinkFields(payload, tables),
+  };
   const siblings = await listAllRows(env, tables.items);
   assertUniqueItemName(
     siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
@@ -422,12 +449,13 @@ export async function updateMenuItem(env, itemId, input) {
   }
   const ingredients = normalizeIngredients(input.ingredients);
   const inventoryById = await loadInventoryAbvMap(env, tables);
-  const fields = itemFieldsFromInput(
-    {
+  const fields = {
+    ...itemFieldsFromInput({
       ...input,
       sectionId: input.sectionId || linkValue(existing.Section),
-    },
-  );
+    }),
+    ...posMenuLinkFields(input, tables),
+  };
   Object.assign(
     fields,
     drinkMetricsFields(fields["Drink type"], ingredients, inventoryById),
@@ -698,12 +726,17 @@ export async function deleteMenuSection(env, sectionId) {
 
 function lightspeedMenuFields(patch) {
   const sku = text(patch?.lightspeedSku);
+  const skuAlt = text(patch?.lightspeedSkuAlt);
   const name = text(patch?.lightspeedName);
   const status = normalizeLightspeedStatus(patch?.lightspeedStatus);
   const fields = {};
   if (sku) fields["Lightspeed SKU"] = sku;
+  if (skuAlt) fields["Lightspeed SKU alt"] = skuAlt;
   if (Object.prototype.hasOwnProperty.call(patch || {}, "lightspeedName")) {
     fields["Lightspeed name"] = name;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch || {}, "lightspeedMenuScreen")) {
+    fields["Lightspeed menu/screen"] = text(patch.lightspeedMenuScreen);
   }
   if (status) fields["Lightspeed status"] = status;
   if (patch?.adoptName) {

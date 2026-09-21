@@ -8,9 +8,10 @@
 		InventoryItem,
 		MenuItem,
 		MenuSection,
+		PosMenu,
 		PublishTarget,
 	} from "../../lib/types";
-	import { publishPendingCount } from "../../lib/types";
+	import { defaultPosMenus, publishPendingCount } from "../../lib/types";
 	import { Icon } from "../../shell";
 	import {
 		loginNext,
@@ -55,6 +56,7 @@
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
 	let sections = $state<MenuSection[]>([]);
+	let posMenus = $state<PosMenu[]>([]);
 	let inventory = $state<InventoryItem[]>([]);
 	let selectedId = $state<string | null>(null);
 	let item = $state<MenuItem | null>(null);
@@ -133,6 +135,7 @@
 			api.getInventory(false).catch(() => ({ items: [] as InventoryItem[] })),
 		]);
 		sections = menuData.sections || [];
+		posMenus = menuData.posMenus || [];
 		inventory = inventoryData.items || [];
 		needsAuth = false;
 		loadError = "";
@@ -191,6 +194,7 @@
 			ingredients: [],
 			onDigitalMenu: true,
 			onPrintMenu: true,
+			posMenus: defaultPosMenus(posMenus),
 		};
 	}
 
@@ -264,6 +268,9 @@
 				garnish: item.garnish,
 				onDigitalMenu: item.onDigitalMenu !== false,
 				onPrintMenu: item.onPrintMenu !== false,
+				posMenuIds: (item.posMenus || []).map((row) => row.id),
+				lightspeedName: item.lightspeedName || "",
+				lightspeedMenuScreen: item.lightspeedMenuScreen || "",
 				description: item.description,
 				method: item.method,
 				abv: item.abv,
@@ -684,6 +691,7 @@
 							{sections}
 							bind:inventory
 							menuItems={allItems()}
+							{posMenus}
 							{busy}
 							{busyLabel}
 							cleanToken={editorCleanToken}

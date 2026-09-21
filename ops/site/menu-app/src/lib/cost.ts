@@ -174,6 +174,7 @@ export type ServePourReading = {
 export function altCostFactor(drinkType: DrinkType | undefined): number | null {
 	switch (normalizeDrinkType(drinkType)) {
 		case "beer":
+		case "postmix":
 			return 0.5;
 		case "packaged":
 			return null;

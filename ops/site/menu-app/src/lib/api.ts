@@ -59,8 +59,44 @@ export function getMe() {
 
 export function getMenu() {
   return coalesce("menu", () =>
-    request<{ sections: import("./types").MenuSection[] }>("/api/menu"),
+    request<{
+      sections: import("./types").MenuSection[];
+      posMenus?: import("./types").PosMenu[];
+    }>("/api/menu"),
   );
+}
+
+export function getPosMenus() {
+  return request<{ posMenus: import("./types").PosMenu[] }>("/api/pos-menus");
+}
+
+export function createPosMenu(body: { name: string; isDefault?: boolean }) {
+  return request<{ posMenu: import("./types").PosMenu }>("/api/pos-menus", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updatePosMenu(
+  id: string,
+  body: { name?: string; isDefault?: boolean; orderRank?: number },
+) {
+  return request<{ posMenu: import("./types").PosMenu }>(
+    `/api/pos-menus/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deletePosMenu(id: string) {
+  return request(`/api/pos-menus/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export function createSection(body: unknown) {
@@ -208,7 +244,7 @@ export function deleteInventoryItem(id: string) {
 export function previewLightspeedCsv(text: string, body: {
   apply?: boolean;
   menuName?: string;
-  action?: "preview" | "save" | "add" | "archive" | "unarchive" | "link";
+  action?: "preview" | "save" | "add" | "add-stock" | "archive" | "unarchive" | "link" | "stamp-skus";
   items?: Array<{
     sku?: string;
     name?: string;
@@ -216,11 +252,16 @@ export function previewLightspeedCsv(text: string, body: {
     drinkType?: string;
     price?: string;
     defaultPrice?: number | null;
+    quantity?: number | null;
+    unit?: string;
     onPrintMenu?: boolean;
     onDigitalMenu?: boolean;
+    posMenuIds?: string[];
+    priceAlt?: string;
   }>;
   rows?: Array<{ sku?: string; name?: string }>;
   skus?: string[];
+  patches?: Array<{ id?: string; lightspeedSku?: string }>;
   links?: Array<{
     itemId?: string;
     sku?: string;
@@ -239,6 +280,7 @@ export function previewLightspeedCsv(text: string, body: {
       items: body.items,
       rows: body.rows,
       skus: body.skus,
+      patches: body.patches,
       links: body.links,
     }),
   });

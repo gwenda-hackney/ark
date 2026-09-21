@@ -10,6 +10,7 @@ import {
   updateRow,
 } from "./baserow.js";
 import { recomputeDrinksForInventoryId } from "./menu-store.js";
+import { normalizeUnit } from "./menu.js";
 import {
   findSupplierNameClash,
   looksLikeOnlyUrls,
@@ -51,6 +52,21 @@ const KINDS = new Set([
 export function normalizeInventoryKind(value) {
   const raw = selectValueLocal(value).toLowerCase();
   if (KINDS.has(raw)) return raw;
+  return "other";
+}
+
+function kindFromLightspeedRow(row) {
+  const name = String(row?.name || "").toLowerCase();
+  const group = String(row?.accountingGroup || "").toLowerCase();
+  const stats = String(row?.statisticsGroup || "").toLowerCase();
+  if (/\bkeg\b/.test(name) || group.includes("beer")) return "beer";
+  if (group === "food") return "garnish";
+  if (stats.includes("ingredients") && /bitter/.test(name)) return "bitter";
+  if (stats.includes("ingredients") && /syrup|cordial/.test(name)) return "syrup";
+  if (stats.includes("ingredients") && /juice/.test(name)) return "juice";
+  if (group.includes("wine")) return "wine";
+  if (group.includes("non-alcoholic")) return "mixer";
+  if (group.includes("alcoholic")) return "liquor";
   return "other";
 }
 
@@ -553,19 +569,22 @@ export async function createInventoryFromLightspeed(env, row, countedAt) {
     );
   }
   const stamp = countedAt || new Date().toISOString();
+  const unit = text(row.unit);
+  const defaultUnit = normalizeUnit(unit);
   const fields = {
     Name: unique,
-    Kind: "other",
+    Kind: kindFromLightspeedRow(row),
     Active: true,
     ...lightspeedFieldsFromPatch(
       {
         lightspeedSku: row.sku,
         actualQty: row.quantity,
-        actualUnit: row.unit,
+        actualUnit: unit,
       },
       stamp,
     ),
   };
+  if (defaultUnit) fields["Default unit"] = defaultUnit;
   const created = await createRow(env, tables.inventory, fields);
   return mapInventoryItem(created, []);
 }

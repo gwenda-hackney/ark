@@ -30,6 +30,8 @@
 	import PhotoCell from "./cells/PhotoCell.svelte";
 	import PublishStatusCell from "./cells/PublishStatusCell.svelte";
 	import PosStatusCell from "./cells/PosStatusCell.svelte";
+	import PosMenuCell from "./cells/PosMenuCell.svelte";
+	import PosScreenCell from "./cells/PosScreenCell.svelte";
 	import GuestMenuCell from "./cells/GuestMenuCell.svelte";
 	import SectionGroupCell from "./cells/SectionGroupCell.svelte";
 	import ViewDetailsCell from "./cells/ViewDetailsCell.svelte";
@@ -331,6 +333,42 @@
 						status:
 							params.data?._kind === "item"
 								? params.data._posStatus || ""
+								: "",
+					}),
+				),
+			},
+			{
+				headerName: "POS menus",
+				colId: "posMenus",
+				minWidth: 120,
+				width: 150,
+				flex: 0.8,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data._posMenusLabel || "None" : "",
+				cellRenderer: svelteCell(
+					PosMenuCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						menus:
+							params.data?._kind === "item"
+								? params.data.posMenus || []
+								: [],
+					}),
+				),
+			},
+			{
+				headerName: "POS screens",
+				colId: "posScreens",
+				minWidth: 140,
+				width: 180,
+				flex: 1,
+				valueGetter: (p) =>
+					p.data?._kind === "item" ? p.data._posScreensLabel || "None" : "",
+				cellRenderer: svelteCell(
+					PosScreenCell,
+					(params: ICellRendererParams<GridRow>) => ({
+						label:
+							params.data?._kind === "item"
+								? params.data._posScreensLabel || ""
 								: "",
 					}),
 				),

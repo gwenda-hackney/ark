@@ -25,6 +25,7 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/inventory/gin")?.id, "inventory");
 		assert.equal(matchActiveRoute(routes, "/lightspeed")?.id, "lightspeed");
 		assert.equal(matchActiveRoute(routes, "/lightspeed/export")?.id, "lightspeed");
+		assert.equal(matchActiveRoute(routes, "/lightspeed/menus")?.id, "lightspeed");
 		assert.equal(matchActiveRoute(routes, "/suppliers")?.id, "suppliers");
 		assert.equal(matchActiveRoute(routes, "/sections")?.id, "sections");
 		assert.equal(matchActiveRoute(routes, "/config")?.id, "config");
