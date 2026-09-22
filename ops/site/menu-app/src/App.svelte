@@ -15,7 +15,7 @@
 	import UsersPage from "./features/users/UsersPage.svelte";
 	import WebPage from "./features/web/WebPage.svelte";
 	import ToolFrame from "./features/tools/ToolFrame.svelte";
-	import { parseShellPath, shellPageKey } from "./lib/nav";
+	import { parseShellPath, shellPageKey, readPath } from "./lib/nav";
 	import { NAV_ROUTES } from "./lib/nav-routes";
 	import { toolFrameFor } from "./lib/mobile-nav";
 	import { loadPourSettings } from "./lib/settings.svelte";
@@ -23,7 +23,7 @@
 
 	const routes = NAV_ROUTES;
 
-	let path = $state("/");
+	let path = $state(readPath());
 
 	onMount(() => {
 		void loadPourSettings();
@@ -37,12 +37,13 @@
 <ShellLayout {routes} bind:path>
 	{#snippet children({ path: current })}
 		{@const key = pageKey(current)}
+		{@const print = Boolean(parseShellPath(current).print)}
 		{#key key}
 			<div
 				class="page"
 				class:fill={key === "menu" || key === "inventory" || key === "tools"}
-				in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-				out:fade={{ duration: fadeMs, easing: easeOut }}
+				in:fly={{ y: print ? 0 : 10, duration: print ? 0 : flyMs, easing: easeOut }}
+				out:fade={{ duration: print ? 0 : fadeMs, easing: easeOut }}
 			>
 				{#if key === "home"}
 					<HomeOverview />

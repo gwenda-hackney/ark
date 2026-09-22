@@ -77,6 +77,7 @@
 	import { Icon } from "../../shell";
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
+	import MethodEditor from "./MethodEditor.svelte";
 	import PourCostPanel from "./PourCostPanel.svelte";
 	import RecipeAnalysisPanel from "./RecipeAnalysisPanel.svelte";
 	import MenuPlacementsTable from "./MenuPlacementsTable.svelte";
@@ -105,6 +106,7 @@
 		busyLabel = "Working…",
 		cleanToken = 0,
 		onsave,
+		onprint,
 		ondelete,
 		onphoto,
 		onphotoremove,
@@ -126,6 +128,7 @@
 		tab?: string;
 		tabBase?: string;
 		onsave: () => void | Promise<void>;
+		onprint?: () => void | Promise<void>;
 		ondelete: () => void | Promise<void>;
 		onphoto: (file: File) => void | Promise<void>;
 		onphotoremove: () => void | Promise<void>;
@@ -161,7 +164,7 @@
 	}
 
 	function onTabChange(id: string) {
-		const order = ["details", "menu", "analysis"];
+		const order = ["details", "menu", "cost", "analysis"];
 		const from = order.indexOf(tabPrev);
 		const to = order.indexOf(id);
 		if (from >= 0 && to >= 0 && from !== to) {
@@ -284,8 +287,9 @@
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const hrefFor = (id: string) => menuTabPath(tabBase, id);
 		return [
-			{ id: "details", label: "Details", href: hrefFor("details") },
+			{ id: "details", label: "Build", href: hrefFor("details") },
 			{ id: "menu", label: "Menu", href: hrefFor("menu") },
+			{ id: "cost", label: "Cost", href: hrefFor("cost") },
 			{ id: "analysis", label: "Analysis", href: hrefFor("analysis") },
 		];
 	});
@@ -887,6 +891,21 @@
 									{/snippet}
 								</Button>
 							{/if}
+							{#if item._id && item.name?.trim()}
+								<Button
+									variant="ghost"
+									size="sm"
+									type="button"
+									disabled={busy}
+									title="Print recipe"
+									aria-label="Print recipe"
+									onclick={() => void onprint?.()}
+								>
+									{#snippet icon()}
+										<Icon name="print" size={15} />
+									{/snippet}
+								</Button>
+							{/if}
 							<Button
 								variant="ghost"
 								size="sm"
@@ -987,17 +1006,17 @@
 					</div>
 				</header>
 
-				<div class="tab-scroll scrollbar-fade">
-					<div class="tabs">
-						<Segmented
-							value={tab}
-							items={tabs}
-							tone="soft"
-							size="sm"
-							ariaLabel="Drink sections"
-						/>
-					</div>
+				<div class="tabs">
+					<Segmented
+						value={tab}
+						items={tabs}
+						tone="soft"
+						size="sm"
+						ariaLabel="Drink sections"
+					/>
+				</div>
 
+				<div class="tab-scroll scrollbar-fade">
 					<div class="tab-body">
 					{#key tab}
 						<div
@@ -1152,44 +1171,6 @@
 										/>
 									</Field>
 								{/if}
-								<div class="full">
-									<Field
-										label="Description"
-										for="f-description"
-										tooltip="Ingredient line or longer blurb on the guest menu."
-									>
-										{#snippet actions()}
-										{#if showRecipe}
-											<Button
-												variant="ghost"
-												size="xs"
-												type="button"
-												aria-label="Create from ingredients"
-												title="Create from ingredients"
-												disabled={!flattenIngredientsForMenu(
-													ingredients,
-												)}
-												onclick={createMenuLineFromIngredients}
-											>
-												{#snippet icon()}
-													<Icon name="from-list" size={14} />
-												{/snippet}
-											</Button>
-										{/if}
-									{/snippet}
-										<TextArea
-											id="f-description"
-											rows={3}
-											value={item.description || ""}
-											oninput={(e) =>
-												patch(
-													"description",
-													(e.currentTarget as HTMLTextAreaElement)
-														.value,
-												)}
-										/>
-									</Field>
-								</div>
 							</div>
 						</section>
 
@@ -1217,16 +1198,10 @@
 							{#if showRecipe}
 								<div class="method-field">
 									<Field label="Method" for="f-method">
-										<TextArea
+										<MethodEditor
 											id="f-method"
-											rows={3}
 											value={item.method || ""}
-											oninput={(e) =>
-												patch(
-													"method",
-													(e.currentTarget as HTMLTextAreaElement)
-														.value,
-												)}
+											onChange={(next) => patch("method", next)}
 										/>
 									</Field>
 									<div class="grid serve-fields">
@@ -1276,15 +1251,43 @@
 									</div>
 								</div>
 							{/if}
-							{#if priceLive}
-								<PourCostPanel
-									price={priceLive}
-									priceValue={item.price || ""}
-									priceAltValue={item.priceAlt || ""}
-									onprice={(value) => patch("price", value)}
-									onpricealt={(value) => patch("priceAlt", value)}
+						</section>
+
+						<section class="block">
+							<p class="section-title">Guest line</p>
+							<Field
+								label="Description"
+								for="f-description"
+								tooltip="Ingredient line or longer blurb on the guest menu."
+							>
+								{#snippet actions()}
+								{#if showRecipe}
+									<Button
+										variant="ghost"
+										size="xs"
+										type="button"
+										aria-label="Create from ingredients"
+										title="Create from ingredients"
+										disabled={!flattenIngredientsForMenu(ingredients)}
+										onclick={createMenuLineFromIngredients}
+									>
+										{#snippet icon()}
+											<Icon name="from-list" size={14} />
+										{/snippet}
+									</Button>
+								{/if}
+							{/snippet}
+								<TextArea
+									id="f-description"
+									rows={3}
+									value={item.description || ""}
+									oninput={(e) =>
+										patch(
+											"description",
+											(e.currentTarget as HTMLTextAreaElement).value,
+										)}
 								/>
-							{/if}
+							</Field>
 						</section>
 
 						<Dialog
@@ -1312,10 +1315,7 @@
 					{:else if tab === "menu"}
 						<section class="block">
 							<p class="section-title">Menus</p>
-							<p class="lede-hint">
-								Where this drink appears: Print chapter, Digital chapter, and each
-								POS menu with its till screen.
-							</p>
+							<p class="lede-hint">Print, digital, and POS placements.</p>
 							<div class="grid">
 								<div class="full">
 									<Field
@@ -1347,6 +1347,24 @@
 									/>
 								</div>
 							</div>
+						</section>
+					{:else if tab === "cost"}
+						<section class="block">
+							{#if priceLive}
+								<PourCostPanel
+									price={priceLive}
+									priceValue={item.price || ""}
+									priceAltValue={item.priceAlt || ""}
+									onpricealt={(value) => patch("priceAlt", value)}
+								/>
+							{:else}
+								<p class="section-title">Pour cost</p>
+								<p class="lede-hint">
+									{showRecipe
+										? "Add ingredients on Build to cost this drink."
+										: "Link stock on Build to cost this drink."}
+								</p>
+							{/if}
 						</section>
 					{:else if tab === "analysis"}
 						<RecipeAnalysisPanel
@@ -1469,6 +1487,7 @@
 		flex-direction: column;
 		min-height: 0;
 		height: 100%;
+		overflow: hidden;
 	}
 
 	.split {
@@ -1772,7 +1791,8 @@
 		align-items: start;
 		column-gap: 0.85rem;
 		row-gap: 0.2rem;
-		padding: 0.45rem var(--card-pad) 0.65rem;
+		flex-shrink: 0;
+		padding: 0.55rem var(--card-pad-lg) 0.75rem;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -2083,8 +2103,9 @@
 		align-items: center;
 		justify-content: flex-end;
 		gap: 0.5rem;
+		flex-shrink: 0;
 		margin-top: auto;
-		padding: 0.55rem var(--card-pad) 0.75rem;
+		padding: 0.65rem var(--card-pad-lg) 0.85rem;
 		border-top: 1px solid var(--border);
 	}
 
@@ -2104,10 +2125,8 @@
 	}
 
 	.tabs {
-		position: sticky;
-		top: 0;
-		z-index: 2;
-		padding: 0.55rem var(--card-pad) 0;
+		flex-shrink: 0;
+		padding: 0.65rem var(--card-pad-lg) 0.35rem;
 		background: var(--card);
 		border-bottom: 1px solid var(--border);
 	}
@@ -2117,15 +2136,16 @@
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
+		overscroll-behavior: contain;
 	}
 
 	.tab-body {
 		position: relative;
-		padding: 0.35rem var(--card-pad) var(--card-pad);
+		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
 	}
 
 	.tab-panel {
-		min-height: 100%;
+		min-width: 0;
 	}
 
 	.block {
@@ -2246,11 +2266,16 @@
 		.split.photo-collapsed {
 			grid-template-columns: minmax(0, 1fr);
 			grid-template-rows: minmax(0, 1fr);
-			height: auto;
+			flex: 1;
+			min-height: 0;
 			padding: 0;
 			column-gap: 0;
 			row-gap: 0;
 			transition: none;
+		}
+
+		.panel {
+			min-height: 0;
 		}
 
 		.hero {
@@ -2315,12 +2340,30 @@
 			justify-content: flex-start;
 			text-align: left;
 		}
+
+		.panel-head,
+		.tabs,
+		.tab-body,
+		.panel-foot {
+			padding-left: max(var(--page-gutter), 1.125rem);
+			padding-right: max(var(--page-gutter), 1.125rem);
+		}
+
+		.tab-body {
+			padding-top: 1rem;
+			padding-bottom: max(var(--page-gutter), 1.125rem);
+		}
+
+		.panel-foot {
+			padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
+		}
 	}
 
 	@media (max-width: 880px) {
 		.split {
 			grid-template-columns: 1fr;
-			height: auto;
+			flex: 1;
+			min-height: 0;
 			padding: 0;
 			gap: 0;
 		}

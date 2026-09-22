@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Gwenda Operations</title>
+    <script>
+      (function () {
+        var p = (location.pathname || "/").replace(/\/+$/, "") || "/";
+        if (
+          p === "/menu/print" ||
+          p.indexOf("/menu/print/") === 0 ||
+          /\/menu\/[^/]+\/print$/.test(p)
+        ) {
+          document.documentElement.classList.add("print-book");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -19,8 +19,10 @@
 		itemSlug,
 		leaveEditor,
 		menuItemPath,
+		menuItemPrintPath,
 		menuListPath,
 		menuNewPath,
+		menuPrintPath,
 		menuTabPath,
 		namesClash,
 		navigate,
@@ -70,7 +72,6 @@
 			: ((localStorage.getItem("gwenda-ops-menu-publish") as PublishTarget) ||
 				"staging"),
 	);
-	let bookMode = $state(false);
 	let loadError = $state("");
 	let busy = $state(true);
 	let busyLabel = $state("Loading…");
@@ -83,6 +84,14 @@
 	let appliedPath = "";
 
 	const menuRoute = $derived(parseShellPath(path));
+	const bookMode = $derived(Boolean(menuRoute.print));
+	const printFilter = $derived(menuRoute.printFilter || "cocktail");
+	const printSlug = $derived(menuRoute.print && menuRoute.slug ? menuRoute.slug : "");
+	const printBookItems = $derived(
+		printSlug
+			? allItems().filter((row) => itemMatchesKey(row, printSlug))
+			: allItems(),
+	);
 	const editorTab = $derived(menuRoute.tab || "details");
 	const tabBase = $derived(
 		menuRoute.isNew || (detailOpen && item && !item._id)
@@ -243,14 +252,14 @@
 		navigate(menuNewPath());
 	}
 
-	async function save() {
-		if (!item || busy) return;
+	async function save(opts?: { after?: string }): Promise<boolean> {
+		if (!item || busy) return false;
 		const clash = allItems().find(
 			(row) => row._id !== item?._id && namesClash(row.name, item?.name),
 		);
 		if (clash) {
 			toast.error("A drink with that name already exists.");
-			return;
+			return false;
 		}
 		try {
 			busy = true;
@@ -297,14 +306,27 @@
 			editorCleanToken += 1;
 			const savedName = item?.name || payload.name;
 			if (savedName) {
-				navigate(menuItemPath(savedName, editorTab), { replace: true, force: true });
+				const dest = opts?.after ?? menuItemPath(savedName, editorTab);
+				navigate(dest, { replace: true, force: true });
 			}
 			toast.ok("Saved. Publish when you want guests to see this.");
+			return true;
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Save failed.");
+			return false;
 		} finally {
 			busy = false;
 		}
+	}
+
+	async function goToPrint(printPath: string) {
+		if (busy) return;
+		if (unsaved.dirty && detailOpen && item) {
+			const ok = await save({ after: printPath });
+			if (!ok) return;
+			return;
+		}
+		navigate(printPath);
 	}
 
 	async function remove() {
@@ -462,6 +484,31 @@
 		void sections;
 		if (route.page !== "menu") return;
 
+		if (route.print) {
+			appliedPath = path;
+			missingId = "";
+			detailOpen = false;
+			item = null;
+			selectedId = null;
+			if (!route.slug) {
+				const canonical = menuPrintPath(route.printFilter);
+				if (canonical !== path) {
+					navigate(canonical, { replace: true, force: true });
+				}
+			} else {
+				const found = findByKey(route.slug);
+				if (found) {
+					const canonical = menuItemPrintPath(found.name);
+					if (canonical && canonical !== path) {
+						navigate(canonical, { replace: true, force: true });
+					}
+				} else if (sections.length || loadError) {
+					missingId = route.slug;
+				}
+			}
+			return;
+		}
+
 		if (
 			!unsaved.allowLeave &&
 			unsaved.dirty &&
@@ -595,14 +642,21 @@
 		</div>
 	</div>
 {:else if bookMode}
-	<div
-		class="book-wrap"
-		in:fly={{ y: 8, duration: flyMs, easing: easeOut }}
-	>
+	<div class="book-wrap">
 		<SpecBook
-			items={allItems()}
+			items={printBookItems}
 			{inventory}
-			onclose={() => (bookMode = false)}
+			filter={printSlug ? "all" : printFilter}
+			single={Boolean(printSlug)}
+			onfilter={printSlug ? undefined : (next) => navigate(menuPrintPath(next))}
+			onclose={() =>
+				navigate(
+					printSlug
+						? printBookItems[0]?.name
+							? menuItemPath(printBookItems[0].name)
+							: `/menu/${encodeURIComponent(printSlug)}`
+						: menuListPath(),
+				)}
 		/>
 	</div>
 {:else}
@@ -646,7 +700,7 @@
 									variant="outline"
 									size="sm"
 									disabled={busy}
-									onclick={() => (bookMode = true)}
+									onclick={() => goToPrint(menuPrintPath())}
 								>
 									{#snippet icon()}
 										<Icon name="print" size={15} />
@@ -698,6 +752,9 @@
 							tab={editorTab}
 							{tabBase}
 							onsave={save}
+							onprint={() =>
+								item?.name?.trim() &&
+								goToPrint(menuItemPrintPath(item.name))}
 							ondelete={remove}
 							onphoto={onPhoto}
 							onphotoremove={onPhotoRemove}

@@ -13,6 +13,7 @@
 		interceptClientNav,
 		listen,
 		navigate,
+		parseShellPath,
 		readPath,
 		shellCrumbs,
 		syncCanonicalUrl,
@@ -99,9 +100,6 @@
 	const envSummary = $derived(
 		!me ? "" : me.databaseId ? `${me.envLabel} · ${me.databaseId}` : me.envLabel,
 	);
-	const showEnvBanner = $derived(
-		Boolean(me && (me.siteEnv !== "production" || me.risk)),
-	);
 	const envBannerText = $derived(
 		!me
 			? ""
@@ -128,9 +126,13 @@
 	});
 
 	const editorChrome = $derived(hideShellChrome(path));
+	const printBook = $derived(Boolean(parseShellPath(path).print));
 	const showTabs = $derived(phone.matches && !editorChrome);
 	const showStockSwitch = $derived(phone.matches && isStockListPath(path));
-	const showTopbar = $derived(!phone.matches || showStockSwitch);
+	const showTopbar = $derived(!printBook && (!phone.matches || showStockSwitch));
+	const showEnvBanner = $derived(
+		!printBook && Boolean(me && (me.siteEnv !== "production" || me.risk)),
+	);
 	const currentTab = $derived(moreOpen ? "more" : mobileTabFor(path));
 	const stockValue = $derived(stockSwitchValue(path));
 
@@ -225,6 +227,12 @@
 	$effect(() => {
 		rememberStockPath(path);
 		moreOpen = false;
+	});
+
+	/** Apply before paint so print routes do not flash rail / env banner. */
+	$effect.pre(() => {
+		if (typeof document === "undefined") return;
+		document.documentElement.classList.toggle("print-book", printBook);
 	});
 
 	$effect(() => {

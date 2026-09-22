@@ -70,14 +70,25 @@ export function canonicalizePath(href) {
   return path + search;
 }
 
-/** Drink editor tabs. `details` is the default and is omitted from the URL. */
-export const MENU_DETAIL_TABS = ["details", "menu", "analysis"];
+/** Drink editor tabs. `details` is the default (Build) and is omitted from the URL. */
+export const MENU_DETAIL_TABS = ["details", "menu", "cost", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
 /** Older drink tabs still resolve. */
 const MENU_TAB_ALIASES = new Map([
   ["pos", "menu"],
   ["recipe", "details"],
 ]);
+
+/** Spec book type filters (`/menu/print`, `/menu/print/beer`). */
+export const MENU_PRINT_FILTERS = [
+  "all",
+  "cocktail",
+  "pour",
+  "beer",
+  "packaged",
+  "postmix",
+];
+const MENU_PRINT_FILTER_IDS = new Set(MENU_PRINT_FILTERS);
 
 function decodeSegment(segment) {
   try {
@@ -91,6 +102,11 @@ export function normalizeMenuTab(tab) {
   const raw = String(tab || "").trim();
   const aliased = MENU_TAB_ALIASES.get(raw) || raw;
   return MENU_TAB_IDS.has(aliased) ? aliased : "details";
+}
+
+export function normalizePrintFilter(filter) {
+  const raw = String(filter || "").trim().toLowerCase();
+  return MENU_PRINT_FILTER_IDS.has(raw) ? raw : "cocktail";
 }
 
 function withMenuTab(base, tab) {
@@ -108,10 +124,31 @@ export function parseShellPath(path) {
       .split("/")
       .filter(Boolean)
       .map(decodeSegment);
-    const tab = normalizeMenuTab(parts[1]);
+    if (parts[0] === "print") {
+      return {
+        page: "menu",
+        slug: null,
+        isNew: false,
+        tab: null,
+        print: true,
+        printFilter: normalizePrintFilter(parts[1]),
+      };
+    }
     if (parts[0] === "new") {
+      const tab = normalizeMenuTab(parts[1]);
       return { page: "menu", slug: null, isNew: true, tab };
     }
+    if (parts[1] === "print") {
+      return {
+        page: "menu",
+        slug: parts[0] || null,
+        isNew: false,
+        tab: null,
+        print: true,
+        printFilter: "all",
+      };
+    }
+    const tab = normalizeMenuTab(parts[1]);
     return {
       page: "menu",
       slug: parts[0] || null,
@@ -159,6 +196,19 @@ export function menuListPath() {
   return "/menu";
 }
 
+/** Spec book. Default filter (`cocktail`) is omitted from the URL. */
+export function menuPrintPath(filter) {
+  const id = normalizePrintFilter(filter);
+  return id === "cocktail" ? "/menu/print" : `/menu/print/${id}`;
+}
+
+/** Single-drink spec sheet (`/menu/negroni/print`). */
+export function menuItemPrintPath(name) {
+  const slug = itemSlug(name);
+  if (!slug) return menuPrintPath();
+  return `/menu/${encodeURIComponent(slug)}/print`;
+}
+
 export function menuNewPath(tab) {
   return withMenuTab("/menu/new", tab);
 }
@@ -169,7 +219,7 @@ export function menuItemPath(name, tab) {
   return withMenuTab(`/menu/${encodeURIComponent(slug)}`, tab);
 }
 
-/** Drink URL plus tab (`/menu/negroni/recipe`). Unknown tabs fold to details. */
+/** Drink URL plus tab (`/menu/negroni/cost`). Unknown tabs fold to details. */
 export function menuTabPath(basePath, tab) {
   const parsed = parseShellPath(basePath);
   if (parsed.page !== "menu") return menuListPath();
@@ -242,9 +292,10 @@ function pathOnly(path) {
   return stripTrailingSlash(String(path || "/").split("?")[0] || "/") || "/";
 }
 
-/** Recipe / inventory detail (including `/menu/new`). Lists and dashboard are not. */
+/** Recipe / inventory detail (including `/menu/new`). Lists and print book are not. */
 export function isEditorPath(path) {
   const route = parseShellPath(path);
+  if (route.print) return false;
   return (
     (route.page === "menu" || route.page === "inventory") &&
     Boolean(route.isNew || route.slug)
@@ -310,7 +361,7 @@ export function shellCrumbs(
   } = {},
 ) {
   const route = parseShellPath(path);
-  const nested = Boolean(route.isNew || route.slug);
+  const nested = Boolean(route.isNew || route.slug || route.print);
   const crumbs = [{ label: homeLabel, href: "/" }];
   if (route.page !== "home" && sectionLabel) {
     const crumb = { label: sectionLabel };
