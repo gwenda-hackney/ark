@@ -38,7 +38,6 @@
 		defaultPosMenus,
 	} from "../../lib/types";
 	import type { SelectOption, SegmentedItem } from "../../ui/types";
-	import LightspeedTabs from "./LightspeedTabs.svelte";
 	import { RECONCILE_HELP } from "./lightspeed-help";
 
 	let fileInput: HTMLInputElement | undefined;
@@ -62,6 +61,7 @@
 	let addPlacement = $state("none");
 	let addPosMenuId = $state("");
 	let archiveAllOpen = $state(false);
+	let importOpen = $state(false);
 	let acting = $state("");
 	let linkLs = $state<LightspeedCsvRow | null>(null);
 	let linkOps = $state<LightspeedOpsRow | null>(null);
@@ -95,11 +95,11 @@
 	const tabs: SegmentedItem[] = $derived(
 		preview
 			? [
-					{ id: "decide", label: "Sellable", count: decideRows.length },
+					{ id: "decide", label: "Lightspeed only", count: decideRows.length },
 					{ id: "stock", label: "Stock", count: stockRows.length },
 					{ id: "system", label: "System", count: systemRows.length },
 					{ id: "mismatch", label: "Name mismatch", count: preview.conflicts.length },
-					{ id: "missing", label: "Missing from POS", count: preview.opsOnly.length },
+					{ id: "missing", label: "Ops only", count: preview.opsOnly.length },
 					{ id: "matched", label: "Matched", count: preview.matched.length },
 					{ id: "archive", label: "Archive", count: archiveRows.length },
 				]
@@ -154,13 +154,26 @@
 			hint: item.lightspeedSku || undefined,
 		})),
 	);
-	const menuOptions: SelectOption[] = $derived(
-		posMenus.map((menu) => ({
-			value: menu.name,
-			label: menu.name,
-			hint: menu.isDefault ? "Default" : undefined,
-		})),
-	);
+	const lastRecon = $derived.by(() => {
+		const items = flattenMenuSections(sections).flatMap(
+			(section) => section.items || [],
+		);
+		let matched = 0;
+		let mismatch = 0;
+		let missing = 0;
+		for (const item of items) {
+			if (item.lightspeedStatus === "matched") matched += 1;
+			else if (item.lightspeedStatus === "mismatch") mismatch += 1;
+			else if (item.lightspeedStatus === "missing") missing += 1;
+		}
+		return {
+			matched,
+			mismatch,
+			missing,
+			stamped: matched + mismatch + missing,
+			total: items.length,
+		};
+	});
 	const linkLsOptions: SelectOption[] = $derived(
 		linkLsChoices.map((row: LightspeedCsvRow) => ({
 			value: row.sku || "",
@@ -261,6 +274,7 @@
 			const text = await file.text();
 			fileName = file.name;
 			csvText = text;
+			importOpen = false;
 			const next = await previewFile(text);
 			tab = pickTab(next);
 			toast.ok("Matched drinks to the menu, stock to inventory.");
@@ -288,22 +302,6 @@
 		dragOver = false;
 		const file = event.dataTransfer?.files?.[0];
 		if (file) void loadCsv(file);
-	}
-
-	async function refreshPreview() {
-		if (!csvText) return;
-		loading = true;
-		error = "";
-		try {
-			await previewFile(csvText);
-		} catch (err) {
-			const message =
-				err instanceof Error ? err.message : "Could not refresh that file.";
-			error = message;
-			toast.error(message);
-		} finally {
-			loading = false;
-		}
 	}
 
 	async function apply() {
@@ -604,41 +602,71 @@
 				Stamp SKUs
 			</Button>
 		{/snippet}
-		<LightspeedTabs view="reconcile" />
-	</PageHeader>
+		</PageHeader>
 
 	<div class="stack">
-					<Card
-						title="POS menu"
-					>
-			{#if menuOptions.length}
-				<Field label="Menu" for="ls-menu-name">
-					<NativeSelect
-						id="ls-menu-name"
-						size="sm"
-						bind:value={menuName}
-						options={menuOptions}
-						onchange={() => {
-							void refreshPreview();
-						}}
-					/>
-				</Field>
+		<Card
+			title={preview ? "This file" : "Last reconcile"}
+			subtitle={preview
+				? `${fileName || "Item list"} compared with ops.`
+				: "Match status from the last time SKUs were stamped."}
+		>
+			{#snippet actions()}
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => (importOpen = true)}
+				>
+					Import item list
+				</Button>
+			{/snippet}
+			{#if preview}
+				<div class="status">
+					<div class="fig" class:up={preview.conflicts.length === 0}>
+						<p class="value tnum">{preview.matched.length}</p>
+						<p class="fig-label">Matched</p>
+					</div>
+					<div class="fig" class:warn={preview.conflicts.length > 0}>
+						<p class="value tnum">{preview.conflicts.length}</p>
+						<p class="fig-label">Name mismatch</p>
+					</div>
+					<div class="fig" class:down={preview.opsOnly.length > 0}>
+						<p class="value tnum">{preview.opsOnly.length}</p>
+						<p class="fig-label">Ops only</p>
+					</div>
+					<div class="fig" class:warn={decideRows.length > 0}>
+						<p class="value tnum">{decideRows.length}</p>
+						<p class="fig-label">Lightspeed only</p>
+					</div>
+				</div>
+			{:else if lastRecon.stamped === 0}
+				<p class="muted">
+					No reconcile has been stamped yet. Import a Lightspeed item list to compare.
+				</p>
 			{:else}
-				<Field label="Menu name" for="ls-menu-name">
-					<TextField
-						id="ls-menu-name"
-						size="sm"
-						bind:value={menuName}
-						onchange={() => {
-							void refreshPreview();
-						}}
-					/>
-				</Field>
+				<div class="status">
+					<div class="fig up">
+						<p class="value tnum">{lastRecon.matched}</p>
+						<p class="fig-label">Matched</p>
+					</div>
+					<div class="fig" class:warn={lastRecon.mismatch > 0}>
+						<p class="value tnum">{lastRecon.mismatch}</p>
+						<p class="fig-label">Name mismatch</p>
+					</div>
+					<div class="fig" class:down={lastRecon.missing > 0}>
+						<p class="value tnum">{lastRecon.missing}</p>
+						<p class="fig-label">Ops only</p>
+					</div>
+				</div>
+				<p class="status-note">
+					{lastRecon.stamped} of {lastRecon.total} drinks were in the last stamp.
+				</p>
 			{/if}
 		</Card>
 
+		{#if importOpen}
 		<Card
-			title="Upload item list"
+			title="Import item list"
 		>
 			<div
 				class="drop"
@@ -681,6 +709,7 @@
 				<p class="error">{error}</p>
 			{/if}
 		</Card>
+		{/if}
 
 		{#if preview}
 			<div class="groups" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
@@ -688,13 +717,13 @@
 
 				{#if tab === "decide"}
 					<Card
-						title="Sellable leftovers"
+						title="Lightspeed only"
 					>
 						{#snippet actions()}
 							<SearchField
 								bind:value={query}
-								placeholder="Filter leftovers"
-								ariaLabel="Filter leftovers"
+								placeholder="Filter"
+								ariaLabel="Filter Lightspeed only"
 								count={query ? filteredDecide.length : undefined}
 								width="14rem"
 							/>
@@ -710,7 +739,7 @@
 						{#if decideRows.length === 0}
 							<p class="muted">None left.</p>
 						{:else if filteredDecide.length === 0}
-							<p class="muted">No leftovers match that filter.</p>
+							<p class="muted">None match.</p>
 						{:else}
 							<table class="table">
 								<thead>
@@ -920,10 +949,10 @@
 					</Card>
 				{:else if tab === "missing"}
 					<Card
-						title="In ops only"
+						title="Ops only"
 					>
 						{#if preview.opsOnly.length === 0}
-							<p class="muted">Every menu item was in the file.</p>
+							<p class="muted">None.</p>
 						{:else}
 							<ul class="ops-only">
 								{#each preview.opsOnly as row (row.id || row.name || "")}
@@ -1213,7 +1242,7 @@
 
 	<Dialog
 		open={archiveAllOpen}
-		title="Archive remaining leftovers"
+		title="Archive remaining"
 		onclose={() => (archiveAllOpen = false)}
 	>
 		<p class="dialog-lead">
@@ -1296,6 +1325,54 @@
 		margin: 0;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
+	}
+
+	.status-note {
+		margin: 0.85rem 0 0;
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+	}
+
+	.status {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+		gap: var(--gap);
+	}
+
+	.fig-label {
+		margin: 0.15rem 0 0;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
+	.value {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+		font-weight: 600;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+	}
+
+	.fig.up .value {
+		color: var(--up);
+	}
+
+	.fig.warn .value {
+		color: var(--primary);
+	}
+
+	.fig.down .value {
+		color: var(--down);
+	}
+
+	@media (max-width: 720px) {
+		.status {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
 	}
 
 	.table {

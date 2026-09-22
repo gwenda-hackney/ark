@@ -13,6 +13,8 @@ export const TABLE_USERS = "Users";
 export const TABLE_CONFIG = "App Config";
 export const TABLE_POS_MENUS = "POS Menus";
 export const TABLE_MENU_PLACEMENTS = "Menu placements";
+export const TABLE_EVENTS = "Events";
+export const TABLE_EVENT_DATES = "Event dates";
 
 /** Baserow Cloud allows 10 concurrent API requests. Stay under that. */
 export const BASEROW_MAX_CONCURRENT = 8;
@@ -47,6 +49,8 @@ function requireKey(env) {
 
 let tableIdCache = null;
 let tableIdCacheKey = "";
+let tableIdCacheAt = 0;
+const TABLE_ID_CACHE_TTL_MS = 5_000;
 /** Request-local leases. A counter leaks when Workers cancel `finally` after HMR/abort. */
 const activeLeases = new Set();
 
@@ -73,6 +77,7 @@ export function resetBaserowClientForTests() {
   activeLeases.clear();
   tableIdCache = null;
   tableIdCacheKey = "";
+  tableIdCacheAt = 0;
   baserowClient.maxConcurrent = BASEROW_MAX_CONCURRENT;
   baserowClient.maxRetries = BASEROW_MAX_RETRIES;
   baserowClient.slotWaitMs = 15;
@@ -194,6 +199,8 @@ export const OPS_TABLE_SPECS = [
   { key: "config", name: TABLE_CONFIG, required: false },
   { key: "posMenus", name: TABLE_POS_MENUS, required: false },
   { key: "menuPlacements", name: TABLE_MENU_PLACEMENTS, required: false },
+  { key: "events", name: TABLE_EVENTS, required: false },
+  { key: "eventDates", name: TABLE_EVENT_DATES, required: false },
 ];
 
 /**
@@ -266,7 +273,13 @@ function pickTableId(scoped, name, { required = true } = {}) {
 export async function resolveOpsTableIds(env) {
   const preferredDb = opsDatabaseId(env);
   const cacheKey = preferredDb || "*";
-  if (tableIdCache && tableIdCacheKey === cacheKey) return tableIdCache;
+  if (
+    tableIdCache &&
+    tableIdCacheKey === cacheKey &&
+    Date.now() - tableIdCacheAt < TABLE_ID_CACHE_TTL_MS
+  ) {
+    return tableIdCache;
+  }
 
   const tables = await listAllTables(env);
   const databaseId = pickOpsDatabaseId(tables, preferredDb);
@@ -280,6 +293,7 @@ export async function resolveOpsTableIds(env) {
   }
   tableIdCache = resolved;
   tableIdCacheKey = cacheKey;
+  tableIdCacheAt = Date.now();
   return resolved;
 }
 

@@ -12,6 +12,9 @@ node_modules/
 .baserow-ops-dev.json
 .baserow-web-dev.json
 .baserow-web-staging.json
+# Google service-account key downloads (store in Ark/Ops SM, never commit)
+gwenda-ops-*.json
+*-service-account*.json
 .bw-session
 **/.bw-session
 .apple-wallet/
@@ -27,6 +30,7 @@ ops/site/src/_app/
 ops/site/src/index.html
 
 ops/site/menu-app/node_modules/
+ops/site/scripts/.lightspeed-export/
 .astro/
 /src/env.d.ts
 ops/**/.venv/

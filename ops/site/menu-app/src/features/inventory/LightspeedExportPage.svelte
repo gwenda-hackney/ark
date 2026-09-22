@@ -35,7 +35,6 @@
 		withAllocatedLightspeedSkus,
 		withInventoryExportIds,
 	} from "../../../../functions/_lib/lightspeed-stock.js";
-	import LightspeedTabs from "./LightspeedTabs.svelte";
 	import { EXPORT_HELP } from "./lightspeed-help";
 
 	type GridRow = Record<string, string> & {
@@ -341,7 +340,10 @@
 </script>
 
 <div class="page">
-	<PageHeader title="POS export">
+	<PageHeader
+		title="Export"
+		subtitle="Lightspeed item import. Filter by menu, select rows, then download."
+	>
 		{#snippet actions()}
 			<PageHelp title="POS export" topics={EXPORT_HELP} />
 			<Button
@@ -364,41 +366,34 @@
 				variant="primary"
 				size="sm"
 				disabled={!selectedCount || savingSkus}
+				title={newSkuCount
+					? `${newSkuCount} new SKU${newSkuCount === 1 ? "" : "s"} will be saved on download`
+					: "Download the selection"}
 				onclick={() => void downloadImport()}
 			>
-				Download
+				{selectedCount ? `Download · ${selectedCount}` : "Download"}
 			</Button>
 		{/snippet}
-		<LightspeedTabs view="export" />
 	</PageHeader>
 
 	<div class="body">
 		<div class="toolbar">
-			<div class="filters">
+			<label class="menu-field" for="ls-export-menu">
+				<span>Menu</span>
 				<NativeSelect
+					id="ls-export-menu"
 					bind:value={menuFilter}
 					options={menuFilterOptions}
 					size="sm"
 				/>
-				<SearchField
-					bind:value={query}
-					placeholder="Filter CSV preview"
-					ariaLabel="Filter CSV preview"
-					count={query ? rows.length : undefined}
-					width="min(100%, 18rem)"
-				/>
-			</div>
-			<p class="meta">
-				CSV preview · {rows.length} row{rows.length === 1 ? "" : "s"}
-				· {allocatedMenuItems.length} drink{allocatedMenuItems.length === 1 ? "" : "s"}
-				· {inventoryForExport.length} stock
-				{#if selectedCount}
-					· {selectedCount} selected
-				{/if}
-				{#if newSkuCount}
-					· {newSkuCount} new SKU{newSkuCount === 1 ? "" : "s"} on download
-				{/if}
-			</p>
+			</label>
+			<SearchField
+				bind:value={query}
+				placeholder="Filter rows"
+				ariaLabel="Filter rows"
+				count={query ? rows.length : undefined}
+				width="min(100%, 18rem)"
+			/>
 		</div>
 
 		{#if error}
@@ -461,6 +456,11 @@
 		background: var(--background);
 	}
 
+	.page :global(.page-header) {
+		margin: 0;
+		padding: var(--page-gutter) var(--page-gutter) 0;
+	}
+
 	.body {
 		display: flex;
 		flex-direction: column;
@@ -471,25 +471,23 @@
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--gap-sm);
+		align-items: flex-end;
+		gap: var(--gap);
 		flex-shrink: 0;
-		padding: 0.75rem var(--page-gutter);
-		border-bottom: 1px solid var(--border);
+		padding: var(--gap) var(--page-gutter);
 	}
 
-	.filters {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--gap-sm);
-		min-width: 0;
+	.menu-field {
+		display: grid;
+		gap: 0.3rem;
+		min-width: min(100%, 16rem);
 	}
 
-	.meta {
-		margin: 0;
-		font-size: var(--text-sm);
+	.menu-field span {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 

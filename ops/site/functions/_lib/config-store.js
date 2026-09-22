@@ -36,6 +36,9 @@ export const OPS_CONFIG_KEYS = {
   sanityDataset: "sanity.dataset",
   siteDeployWebhookUrl: "site_deploy.webhook_url",
   googleOauthClientId: "google.oauth_client_id",
+  googleDriveEventsFolderId: "google.drive_events_folder_id",
+  taskRoleSocial: "tasks.role.social",
+  clickupEventsListId: "clickup.events_list_id",
 };
 
 export const DEFAULT_SANITY_PROJECT_ID = "pn5yjro6";

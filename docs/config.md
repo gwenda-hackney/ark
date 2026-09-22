@@ -73,6 +73,11 @@ Writes local `BASEROW_API_KEY`, OAuth/session secrets, and (from Ark/Web) `SANIT
 | `sanity.dataset` | Optional default. Editorial writes always go to `staging`. Production is clone-only. |
 | `site_deploy.webhook_url` | Studio → site rebuild webhook base URL |
 | `google.oauth_client_id` | Google OAuth client id (public-ish; secret stays in SM) |
+| `google.drive_events_folder_id` | Shared Drive folder for event photos. **Env-specific**: `production` → `Events/`, `local` → `Events-dev/`. Not an env var. |
+
+Lightspeed Back Office export (`LIGHTSPEED_BO_EMAIL`, `LIGHTSPEED_BO_PASSWORD`, optional `LIGHTSPEED_BO_TOTP` / `LIGHTSPEED_OPS_EMAIL`) lives in **Ark/Ops** SM for the nest script and [Lightspeed item export](../.github/workflows/lightspeed-export.yml) Action. Do not put those on Pages or in App Config.
+
+Event image uploads use `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` in **Ark/Ops** (Pages + local). The service account must be a Content manager on the Shared Drive. Folder roots live only in App Config (`google.drive_events_folder_id` per Env).
 
 Do **not** put credentials in App Config.
 

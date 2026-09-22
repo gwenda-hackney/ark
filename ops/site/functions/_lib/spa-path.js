@@ -34,6 +34,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/sections/") ||
     p === "/users" ||
     p.startsWith("/users/") ||
+    p === "/events" ||
+    p.startsWith("/events/") ||
     p === "/web" ||
     p.startsWith("/web/") ||
     p === "/tools" ||
@@ -73,6 +75,9 @@ export function canonicalizePath(href) {
 /** Drink editor tabs. `details` is the default (Build) and is omitted from the URL. */
 export const MENU_DETAIL_TABS = ["details", "menu", "cost", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
+/** Event editor tabs. `details` is the default and is omitted from the URL. */
+export const EVENT_DETAIL_TABS = ["details", "schedule", "gallery", "publish"];
+const EVENT_TAB_IDS = new Set(EVENT_DETAIL_TABS);
 /** Older drink tabs still resolve. */
 const MENU_TAB_ALIASES = new Map([
   ["pos", "menu"],
@@ -111,6 +116,16 @@ export function normalizePrintFilter(filter) {
 
 function withMenuTab(base, tab) {
   const id = normalizeMenuTab(tab);
+  return id === "details" ? base : `${base}/${id}`;
+}
+
+export function normalizeEventTab(tab) {
+  const raw = String(tab || "").trim();
+  return EVENT_TAB_IDS.has(raw) ? raw : "details";
+}
+
+function withEventTab(base, tab) {
+  const id = normalizeEventTab(tab);
   return id === "details" ? base : `${base}/${id}`;
 }
 
@@ -180,6 +195,28 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
+  if (p === "/events") return { page: "events", slug: null, isNew: false, tab: null };
+  if (p.startsWith("/events/")) {
+    const parts = p
+      .slice("/events/".length)
+      .split("/")
+      .filter(Boolean)
+      .map(decodeSegment);
+    if (parts[0] === "new") {
+      return {
+        page: "events",
+        slug: null,
+        isNew: true,
+        tab: normalizeEventTab(parts[1]),
+      };
+    }
+    return {
+      page: "events",
+      slug: parts[0] || null,
+      isNew: false,
+      tab: normalizeEventTab(parts[1]),
+    };
+  }
   if (p === "/web" || p.startsWith("/web/")) return { page: "web" };
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
@@ -228,6 +265,29 @@ export function menuTabPath(basePath, tab) {
   return menuItemPath(parsed.slug, tab);
 }
 
+export function eventListPath() {
+  return "/events";
+}
+
+export function eventNewPath(tab) {
+  return withEventTab("/events/new", tab);
+}
+
+export function eventItemPath(id, tab) {
+  const slug = String(id || "").trim();
+  if (!slug) return eventListPath();
+  return withEventTab(`/events/${encodeURIComponent(slug)}`, tab);
+}
+
+/** Event URL plus tab (`/events/12/schedule`). Unknown tabs fold to details. */
+export function eventTabPath(basePath, tab) {
+  const parsed = parseShellPath(basePath);
+  if (parsed.page !== "events") return eventListPath();
+  if (parsed.isNew) return eventNewPath(tab);
+  if (!parsed.slug) return eventListPath();
+  return eventItemPath(parsed.slug, tab);
+}
+
 export function inventoryListPath() {
   return "/inventory";
 }
@@ -262,6 +322,11 @@ export function editorKey(path) {
     if (route.slug) return `inventory:${route.slug}`;
     return "inventory";
   }
+  if (route.page === "events") {
+    if (route.isNew) return "events:new";
+    if (route.slug) return `events:${route.slug}`;
+    return "events";
+  }
   return route.page || "home";
 }
 
@@ -281,6 +346,7 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "config" ||
     from === "sections" ||
     from === "users" ||
+    from === "events" ||
     from === "web"
   ) {
     return false;
@@ -292,12 +358,12 @@ function pathOnly(path) {
   return stripTrailingSlash(String(path || "/").split("?")[0] || "/") || "/";
 }
 
-/** Recipe / inventory detail (including `/menu/new`). Lists and print book are not. */
+/** Recipe, inventory, and event detail (including `/menu/new`). Lists and print book are not. */
 export function isEditorPath(path) {
   const route = parseShellPath(path);
   if (route.print) return false;
   return (
-    (route.page === "menu" || route.page === "inventory") &&
+    (route.page === "menu" || route.page === "inventory" || route.page === "events") &&
     Boolean(route.isNew || route.slug)
   );
 }
@@ -372,7 +438,7 @@ export function shellCrumbs(
   }
   const leafLabel =
     (typeof leaf === "string" && leaf.trim()) ||
-    (route.isNew ? "New item" : "");
+    (route.isNew ? (route.page === "events" ? "New event" : "New item") : "");
   if (leafLabel && nested) crumbs.push({ label: leafLabel });
   const last = crumbs[crumbs.length - 1];
   if (last) delete last.href;

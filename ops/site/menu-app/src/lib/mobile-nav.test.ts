@@ -3,20 +3,21 @@ import { describe, it } from "node:test";
 import { mobileTabFor } from "./mobile-nav.ts";
 
 describe("mobileTabFor", () => {
-	it("keeps Recipes and Inventory on Stock", () => {
-		assert.equal(mobileTabFor("/menu"), "stock");
-		assert.equal(mobileTabFor("/menu/negroni"), "stock");
+	it("keeps inventory and suppliers on Stock", () => {
 		assert.equal(mobileTabFor("/inventory"), "stock");
-		assert.equal(mobileTabFor("/lightspeed"), "stock");
-		assert.equal(mobileTabFor("/lightspeed/export"), "stock");
-		assert.equal(mobileTabFor("/lightspeed/menus"), "stock");
 		assert.equal(mobileTabFor("/suppliers"), "stock");
 	});
 
-	it("puts Sections and Configuration on More", () => {
+	it("puts menu, Lightspeed, and configuration on More", () => {
+		assert.equal(mobileTabFor("/menu"), "more");
+		assert.equal(mobileTabFor("/menu/negroni"), "more");
 		assert.equal(mobileTabFor("/sections"), "more");
+		assert.equal(mobileTabFor("/lightspeed"), "more");
+		assert.equal(mobileTabFor("/lightspeed/export"), "more");
+		assert.equal(mobileTabFor("/lightspeed/menus"), "more");
 		assert.equal(mobileTabFor("/config"), "more");
 		assert.equal(mobileTabFor("/users"), "more");
 		assert.equal(mobileTabFor("/web"), "more");
+		assert.equal(mobileTabFor("/events"), "more");
 	});
 });

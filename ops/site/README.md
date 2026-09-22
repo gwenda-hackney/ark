@@ -132,3 +132,21 @@ They load inside the shell via iframe; direct URLs still work.
 npm run deploy -w @gwenda/ops
 # or CI via apps.yml
 ```
+
+## Lightspeed item-list export (headless)
+
+Ops still matches a **Lightspeed formatted** CSV from Back Office (`Menu` → `Item list` → `Export`). The browser job only downloads that file. It does not stamp SKUs, import items, or archive.
+
+```bash
+npm run lightspeed:export -w @gwenda/ops -- --probe
+npm run lightspeed:export -w @gwenda/ops -- --headed --repeat 2
+npm run lightspeed:export -w @gwenda/ops -- --check-file ops/site/functions/_lib/fixtures/lightspeed-item-library.csv
+```
+
+Credentials live in Secrets Manager as `LIGHTSPEED_BO_EMAIL` / `LIGHTSPEED_BO_PASSWORD` (optional `LIGHTSPEED_BO_TOTP`). Use a dedicated non-owner Back Office user, not the till owner. `npm run env:ops:pull` writes them into `.env.ops`. They are not Cloudflare Pages secrets.
+
+CI: [Lightspeed item export](../../.github/workflows/lightspeed-export.yml) (`workflow_dispatch`). `--preview` POSTs the CSV to `/api/inventory/lightspeed` as `preview` only. That needs `LIGHTSPEED_OPS_EMAIL` on the ops Users list plus `OPS_SESSION_SECRET`.
+
+The live login form uses Cloudflare Turnstile. If that challenge does not auto-pass (common on GitHub-hosted runners), run `--headed` on the nest instead of scheduling the Action.
+
+If the script exits **2** (SSO, 2FA without a stored TOTP, or captcha), stop. The stable path is the paid K-Series **Items GET**, not more browser automation.

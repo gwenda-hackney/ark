@@ -6,12 +6,20 @@
 	import {
 		getWebStatus,
 		promoteWebsite,
-		type WebEnvStatus,
 		type WebStatus,
 	} from "../../lib/api";
 	import { loginNext } from "../../lib/nav";
 	import { toast } from "../../lib/toast.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
+	import {
+		buildSyncMetrics,
+		formatWhen,
+		healthLabel,
+		healthTone,
+		shortCommit,
+		siteHost,
+		type MetricTone,
+	} from "../../lib/web-metrics";
 
 	let status = $state<WebStatus | null>(null);
 	let loaded = $state(false);
@@ -19,54 +27,19 @@
 	let promoting = $state(false);
 	let confirmTarget = $state<"staging" | "production" | null>(null);
 
-	const environments = $derived(
-		status
-			? [status.environments.staging, status.environments.production]
-			: [],
+	const staging = $derived(status?.environments.staging ?? null);
+	const production = $derived(status?.environments.production ?? null);
+	const syncMetrics = $derived(
+		staging && production ? buildSyncMetrics(staging, production) : [],
 	);
+	const prodTone = $derived(healthTone(production));
+	const stagingTone = $derived(healthTone(staging));
 
-	function shortCommit(commit: string | null): string {
-		if (!commit) return "n/a";
-		return commit.slice(0, 7);
-	}
-
-	function healthLabel(env: WebEnvStatus): string {
-		if (!env.hosted) return "Local only";
-		if (env.health.down) return "Down";
-		if (env.health.ok === true) return "Up";
-		if (env.health.ok === false) return "Unhealthy";
-		return "Unknown";
-	}
-
-	function healthTone(env: WebEnvStatus): "up" | "down" | "muted" {
-		if (!env.hosted) return "muted";
-		if (env.health.down || env.health.ok === false) return "down";
-		if (env.health.ok === true) return "up";
-		return "muted";
-	}
-
-	function formatTime(value: number | null): string {
-		if (!value) return "n/a";
-		try {
-			return new Date(value).toLocaleString("en-GB", {
-				dateStyle: "medium",
-				timeStyle: "short",
-			});
-		} catch {
-			return "n/a";
-		}
-	}
-
-	function formatUpdated(value: string | null): string {
-		if (!value) return "n/a";
-		try {
-			return new Date(value).toLocaleString("en-GB", {
-				dateStyle: "medium",
-				timeStyle: "short",
-			});
-		} catch {
-			return value;
-		}
+	function toneIcon(tone: MetricTone): string {
+		if (tone === "up") return "check";
+		if (tone === "down") return "x-circle";
+		if (tone === "warn") return "alert";
+		return "help";
 	}
 
 	async function load() {
@@ -106,9 +79,7 @@
 			}
 			await load();
 		} catch (err) {
-			toast.error(
-				err instanceof Error ? err.message : "Could not promote.",
-			);
+			toast.error(err instanceof Error ? err.message : "Could not promote.");
 		} finally {
 			promoting = false;
 		}
@@ -118,7 +89,7 @@
 <div class="page scrollbar-fade">
 	<PageHeader
 		title="Web"
-		subtitle="Staging versus production. Local and draft work stays on your branch."
+		subtitle="Publish to staging, review, then promote to production."
 	>
 		{#snippet actions()}
 			<Button
@@ -154,104 +125,114 @@
 
 	{#if loadError}
 		<p class="error">{loadError}</p>
-	{:else if status}
+	{:else if status && staging && production}
 		<div class="ready" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-			<Card
-				title="Environment sync"
-				subtitle={status.driftLabel}
-				class={status.environments.production.health.down
-					? "heat-bad"
-					: status.drift.inSync
-						? "heat-ok"
-						: ""}
-			>
-				<dl class="summary">
-					<div>
-						<dt>Staging vs production</dt>
-						<dd>
-							{#if status.drift.contentAhead}
-								Staging content is ahead
-							{:else if status.drift.codeAhead}
-								Staging code is ahead
-							{:else if status.drift.unknown}
-								Unknown
-							{:else}
-								Match
-							{/if}
-						</dd>
-					</div>
-					<div>
-						<dt>Production health</dt>
-						<dd
-							class={healthTone(status.environments.production)}
-						>
-							{healthLabel(status.environments.production)}
-						</dd>
-					</div>
-					<div>
-						<dt>Staging health</dt>
-						<dd class={healthTone(status.environments.staging)}>
-							{healthLabel(status.environments.staging)}
-						</dd>
-					</div>
-				</dl>
-				{#if status.lastError}
-					<p class="errors">{status.lastError}</p>
+			<Card title="Sync" subtitle="Staging against production.">
+				<ul class="rows">
+					{#each syncMetrics as metric (metric.label)}
+						<li class="row" title={metric.title}>
+							<span class="label">{metric.label}</span>
+							<span class="value {metric.tone}">{metric.value}</span>
+							<span class="mark {metric.tone}" aria-hidden="true">
+								<Icon name={toneIcon(metric.tone)} size={16} />
+							</span>
+						</li>
+					{/each}
+					<li class="row">
+						<span class="label">Health</span>
+						<span class="value {prodTone}">
+							{healthLabel(production)}
+							<span class="meta">· {formatWhen(production.health.lastCheckedAt)}</span>
+						</span>
+						<span class="mark {prodTone}" aria-hidden="true">
+							<Icon name={toneIcon(prodTone)} size={16} />
+						</span>
+					</li>
+				</ul>
+				{#if production.health.lastError}
+					<p class="note down">{production.health.lastError}</p>
 				{/if}
 			</Card>
 
-			<div class="envs">
-				{#each environments as env (env.id)}
-					<Card title={env.label} subtitle="{env.git} · {env.dataset}">
-						<dl class="facts">
-							<div>
-								<dt>Site</dt>
-								<dd>
-									{#if env.siteUrl}
-										<a href={env.siteUrl} target="_blank" rel="noreferrer">
-											{env.siteUrl.replace(/^https:\/\//, "")}
-											<Icon name="external-link" size={14} />
-										</a>
-									{:else}
-										npm run dev
-									{/if}
-								</dd>
-							</div>
-							<div>
-								<dt>Code</dt>
-								<dd class="mono">{shortCommit(env.code.commit)}</dd>
-							</div>
-							<div>
-								<dt>Content</dt>
-								<dd>
-									{env.content.count}
-									{env.content.count === 1 ? "doc" : "docs"}
-									{#if env.content.hash}
-										<span class="mono"> · {env.content.hash}</span>
-									{/if}
-								</dd>
-							</div>
-							<div>
-								<dt>Updated</dt>
-								<dd>{formatUpdated(env.content.updatedAt)}</dd>
-							</div>
-							<div>
-								<dt>Health</dt>
-								<dd class={healthTone(env)}>{healthLabel(env)}</dd>
-							</div>
-							<div>
-								<dt>Last check</dt>
-								<dd>{formatTime(env.health.lastCheckedAt)}</dd>
-							</div>
-						</dl>
-						{#if env.code.error || env.content.error || env.health.lastError}
-							<p class="errors">
-								{env.health.lastError || env.code.error || env.content.error}
-							</p>
-						{/if}
-					</Card>
-				{/each}
-			</div>
+			<Card title="Sites" subtitle="What each environment is running.">
+				<table class="compare">
+					<thead>
+						<tr>
+							<th></th>
+							<th>Staging</th>
+							<th>Production</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th scope="row">Site</th>
+							<td>
+								{#if staging.siteUrl}
+									<a href={staging.siteUrl} target="_blank" rel="noreferrer">
+										{siteHost(staging.siteUrl)}
+										<Icon name="external-link" size={12} />
+									</a>
+								{:else}
+									—
+								{/if}
+							</td>
+							<td>
+								{#if production.siteUrl}
+									<a href={production.siteUrl} target="_blank" rel="noreferrer">
+										{siteHost(production.siteUrl)}
+										<Icon name="external-link" size={12} />
+									</a>
+								{:else}
+									—
+								{/if}
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">Branch</th>
+							<td class="mono">{staging.git}</td>
+							<td class="mono">{production.git}</td>
+						</tr>
+						<tr>
+							<th scope="row">Code</th>
+							<td class="mono">{shortCommit(staging.code.commit)}</td>
+							<td class="mono">{shortCommit(production.code.commit)}</td>
+						</tr>
+						<tr>
+							<th scope="row">Docs</th>
+							<td class="tnum">{staging.content.count}</td>
+							<td class="tnum">{production.content.count}</td>
+						</tr>
+						<tr>
+							<th scope="row">Updated</th>
+							<td>{formatWhen(staging.content.updatedAt)}</td>
+							<td>{formatWhen(production.content.updatedAt)}</td>
+						</tr>
+						<tr>
+							<th scope="row">Health</th>
+							<td>
+								<span class="inline {stagingTone}">
+									<Icon name={toneIcon(stagingTone)} size={14} />
+									{healthLabel(staging)}
+								</span>
+							</td>
+							<td>
+								<span class="inline {prodTone}">
+									<Icon name={toneIcon(prodTone)} size={14} />
+									{healthLabel(production)}
+								</span>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				{#if staging.code.error || staging.content.error || production.code.error || production.content.error}
+					<p class="note down">
+						{staging.code.error ||
+							staging.content.error ||
+							production.code.error ||
+							production.content.error}
+					</p>
+				{/if}
+			</Card>
 		</div>
 	{/if}
 	<BusyOverlay active={!loaded && !loadError} label="Loading…" />
@@ -267,22 +248,9 @@
 	}}
 >
 	{#if confirmTarget === "staging"}
-		<p>
-			This rebuilds gwenda-staging from published staging documents. Drafts stay
-			in Studio until you publish them.
-		</p>
-		<p class="hint">
-			Check the staging site before promoting to production.
-		</p>
+		<p>Rebuilds the preview site from published staging documents.</p>
 	{:else}
-		<p>
-			This copies the staging dataset onto production and rebuilds gwenda.co.uk
-			from the staging git SHA.
-		</p>
-		<p class="hint">
-			Do not edit Prod Studio content. Change copy in Dev Studio, publish,
-			rebuild staging, review, then promote to production.
-		</p>
+		<p>Copies staging onto production and rebuilds gwenda.co.uk.</p>
 	{/if}
 	{#snippet footer()}
 		<Button
@@ -324,6 +292,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
+		max-width: 52rem;
 	}
 
 	.error {
@@ -331,16 +300,101 @@
 		color: var(--destructive);
 	}
 
-	.summary,
-	.facts {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--gap-sm) var(--gap);
+	.rows {
+		list-style: none;
 		margin: 0;
+		padding: 0;
+		display: grid;
 	}
 
-	dt {
-		margin: 0 0 0.15rem;
+	.row {
+		display: grid;
+		grid-template-columns: 8.5rem minmax(0, 1fr) 1.25rem;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.55rem 0;
+		border-bottom: 1px solid var(--border);
+		font-size: var(--text-sm);
+	}
+
+	.row:last-child {
+		border-bottom: 0;
+		padding-bottom: 0;
+	}
+
+	.row:first-child {
+		padding-top: 0;
+	}
+
+	.label {
+		color: var(--muted-foreground);
+		font-weight: 500;
+	}
+
+	.value {
+		min-width: 0;
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+
+	.value .meta {
+		font-weight: 500;
+		color: var(--muted-foreground);
+	}
+
+	.mark {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.value.up,
+	.mark.up,
+	.inline.up {
+		color: var(--up);
+	}
+
+	.value.warn,
+	.mark.warn,
+	.inline.warn {
+		color: var(--primary);
+	}
+
+	.value.down,
+	.mark.down,
+	.inline.down,
+	.note.down {
+		color: var(--down);
+	}
+
+	.value.muted,
+	.mark.muted,
+	.inline.muted {
+		color: var(--muted-foreground);
+	}
+
+	.inline {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-weight: 600;
+	}
+
+	.compare {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: var(--text-sm);
+	}
+
+	.compare th,
+	.compare td {
+		padding: 0.5rem 0.65rem;
+		text-align: left;
+		vertical-align: top;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.compare thead th {
 		font-size: var(--text-xs);
 		font-weight: 600;
 		letter-spacing: 0.06em;
@@ -348,70 +402,73 @@
 		color: var(--muted-foreground);
 	}
 
-	dd {
-		margin: 0;
-		font-size: var(--text);
-		line-height: 1.4;
+	.compare tbody th {
+		width: 5.5rem;
+		padding-left: 0;
+		font-weight: 500;
+		color: var(--muted-foreground);
 	}
 
-	dd a {
+	.compare tbody td:last-child {
+		padding-right: 0;
+	}
+
+	.compare tbody tr:last-child th,
+	.compare tbody tr:last-child td {
+		border-bottom: 0;
+	}
+
+	.compare a {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.25rem;
 		color: inherit;
 		text-decoration: none;
+		word-break: break-all;
 	}
 
-	dd a:hover {
+	.compare a:hover {
 		color: var(--primary);
 	}
 
 	.mono {
+		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-family: var(--font);
 	}
 
-	.up {
-		color: var(--up);
-	}
-
-	.down {
-		color: var(--down);
-	}
-
-	.muted {
-		color: var(--muted-foreground);
-	}
-
-	.errors,
-	.hint {
-		margin: 0.85rem 0 0;
+	.note {
+		margin: 0.75rem 0 0;
 		font-size: var(--text-sm);
-		line-height: 1.5;
+		line-height: 1.45;
 		color: var(--muted-foreground);
 	}
 
-	.errors {
-		color: var(--down);
-	}
+	@media (max-width: 640px) {
+		.row {
+			grid-template-columns: 1fr auto;
+			grid-template-areas:
+				"label mark"
+				"value mark";
+			gap: 0.15rem 0.75rem;
+		}
 
-	.envs {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--gap);
-	}
+		.label {
+			grid-area: label;
+		}
 
-	:global(.card.heat-ok) {
-		border-color: color-mix(in srgb, var(--up) 32%, var(--border));
-	}
+		.value {
+			grid-area: value;
+		}
 
-	:global(.card.heat-bad) {
-		border-color: color-mix(in srgb, var(--down) 40%, var(--border));
-	}
+		.mark {
+			grid-area: mark;
+			align-self: center;
+		}
 
-	@media (max-width: 1100px) {
-		.envs {
-			grid-template-columns: 1fr;
+		.compare thead th:nth-child(2),
+		.compare thead th:nth-child(3),
+		.compare td {
+			font-size: var(--text-xs);
 		}
 	}
 </style>

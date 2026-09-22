@@ -19,7 +19,6 @@
 	import { easeOut, flyMs } from "../../lib/motion";
 	import { collectMenuItems } from "../../../../functions/_lib/lightspeed-stock.js";
 	import type { MenuItem, PosMenu } from "../../lib/types";
-	import LightspeedTabs from "./LightspeedTabs.svelte";
 	import { MENUS_HELP } from "./lightspeed-help";
 
 	let menus = $state<PosMenu[]>([]);
@@ -167,7 +166,6 @@
 		{#snippet actions()}
 			<PageHelp title="POS menus" topics={MENUS_HELP} />
 		{/snippet}
-		<LightspeedTabs view="menus" />
 	</PageHeader>
 
 	<div class="stack">

@@ -34,8 +34,13 @@ import {
   TABLE_CONFIG,
   TABLE_POS_MENUS,
   TABLE_MENU_PLACEMENTS,
+  TABLE_EVENTS,
+  TABLE_EVENT_DATES,
 } from "../ops/site/functions/_lib/baserow.js";
-import { DEFAULT_POS_MENU_NAME, LEGACY_DEFAULT_POS_MENU_NAME } from "../ops/site/functions/_lib/pos-menu-store.js";
+import {
+  DEFAULT_POS_MENU_NAME,
+  LEGACY_DEFAULT_POS_MENU_NAME,
+} from "../ops/site/functions/_lib/pos-menu-store.js";
 import {
   DEFAULT_POUR_TARGETS,
   DEFAULT_SANITY_PROJECT_ID,
@@ -103,7 +108,9 @@ async function baserowRequest(apiBase, jwt, path, init = {}) {
   }
   if (!response.ok) {
     const detail = json?.detail || json?.error || text.slice(0, 300);
-    throw new Error(`${init.method || "GET"} ${path} → ${response.status}: ${detail}`);
+    throw new Error(
+      `${init.method || "GET"} ${path} → ${response.status}: ${detail}`,
+    );
   }
   return json;
 }
@@ -131,7 +138,9 @@ async function resolveWorkspaceId(apiBase, jwt) {
   }
 
   if (workspaces.length === 1) {
-    console.log(`Using only workspace: ${workspaces[0].name} (${workspaces[0].id})`);
+    console.log(
+      `Using only workspace: ${workspaces[0].name} (${workspaces[0].id})`,
+    );
     return String(workspaces[0].id);
   }
 
@@ -182,7 +191,9 @@ async function findOrCreateOpsDatabase(apiBase, jwt) {
     (app) => app.type === "database" && app.name === OPS_DATABASE_NAME,
   );
   if (existing) {
-    console.log(`Using existing database "${OPS_DATABASE_NAME}" (id ${existing.id}).`);
+    console.log(
+      `Using existing database "${OPS_DATABASE_NAME}" (id ${existing.id}).`,
+    );
     return String(existing.id);
   }
 
@@ -280,10 +291,15 @@ async function ensureFields(apiBase, jwt, tableId, expectedFields) {
       console.log(`  · skip ${expected.name} (dependency missing)`);
       continue;
     }
-    await baserowRequest(apiBase, jwt, `/api/database/fields/table/${tableId}/`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
+    await baserowRequest(
+      apiBase,
+      jwt,
+      `/api/database/fields/table/${tableId}/`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
     console.log(`  + ${expected.name}`);
     created.push(expected.name);
   }
@@ -344,7 +360,10 @@ function itemFields(sectionsTableId, posMenusTableId) {
       },
     },
     { name: "Menu line", body: { name: "Menu line", type: "long_text" } },
-    { name: "Lock menu line", body: { name: "Lock menu line", type: "boolean" } },
+    {
+      name: "Lock menu line",
+      body: { name: "Lock menu line", type: "boolean" },
+    },
     { name: "Price", body: { name: "Price", type: "text" } },
     { name: "Alt price", body: { name: "Alt price", type: "text" } },
     {
@@ -418,7 +437,10 @@ function itemFields(sectionsTableId, posMenusTableId) {
       name: "Lightspeed SKU alt",
       body: { name: "Lightspeed SKU alt", type: "text" },
     },
-    { name: "Lightspeed name", body: { name: "Lightspeed name", type: "text" } },
+    {
+      name: "Lightspeed name",
+      body: { name: "Lightspeed name", type: "text" },
+    },
     {
       name: "Lightspeed menu/screen",
       body: { name: "Lightspeed menu/screen", type: "text" },
@@ -523,13 +545,20 @@ function linkIdsFrom(value) {
   return value
     .map((entry) => {
       if (typeof entry === "number") return entry;
-      if (entry && typeof entry === "object" && entry.id != null) return Number(entry.id);
+      if (entry && typeof entry === "object" && entry.id != null)
+        return Number(entry.id);
       return null;
     })
     .filter((id) => Number.isFinite(id));
 }
 
-async function seedFallMenu(apiBase, jwt, posMenusTableId, itemsTableId, { linkEmptyItems }) {
+async function seedFallMenu(
+  apiBase,
+  jwt,
+  posMenusTableId,
+  itemsTableId,
+  { linkEmptyItems },
+) {
   let rows = await listRows(apiBase, jwt, posMenusTableId);
   for (const row of rows) {
     if (String(row.Name || "").trim()) continue;
@@ -545,20 +574,31 @@ async function seedFallMenu(apiBase, jwt, posMenusTableId, itemsTableId, { linkE
   const key = DEFAULT_POS_MENU_NAME.toLowerCase();
   const legacyKey = LEGACY_DEFAULT_POS_MENU_NAME.toLowerCase();
   let fall = rows.find(
-    (row) => String(row.Name || "").trim().toLowerCase() === key,
+    (row) =>
+      String(row.Name || "")
+        .trim()
+        .toLowerCase() === key,
   );
   if (!fall) {
     const legacy = rows.find(
-      (row) => String(row.Name || "").trim().toLowerCase() === legacyKey,
+      (row) =>
+        String(row.Name || "")
+          .trim()
+          .toLowerCase() === legacyKey,
     );
     if (legacy) {
       fall = await baserowRequest(
         apiBase,
         jwt,
         `/api/database/rows/table/${posMenusTableId}/${legacy.id}/?user_field_names=true`,
-        { method: "PATCH", body: JSON.stringify({ Name: DEFAULT_POS_MENU_NAME }) },
+        {
+          method: "PATCH",
+          body: JSON.stringify({ Name: DEFAULT_POS_MENU_NAME }),
+        },
       );
-      console.log(`  → renamed ${LEGACY_DEFAULT_POS_MENU_NAME} → ${DEFAULT_POS_MENU_NAME}`);
+      console.log(
+        `  → renamed ${LEGACY_DEFAULT_POS_MENU_NAME} → ${DEFAULT_POS_MENU_NAME}`,
+      );
     }
   }
   const created = !fall;
@@ -590,7 +630,9 @@ async function seedFallMenu(apiBase, jwt, posMenusTableId, itemsTableId, { linkE
   }
   const items = await listRows(apiBase, jwt, itemsTableId);
   if (!linkEmptyItems && !created) {
-    const anyLinked = items.some((item) => linkIdsFrom(item["POS menus"]).length);
+    const anyLinked = items.some(
+      (item) => linkIdsFrom(item["POS menus"]).length,
+    );
     if (anyLinked) {
       console.log(`  · skip item links (POS menus already assigned)`);
       return;
@@ -736,6 +778,143 @@ function inventoryFields() {
   ];
 }
 
+function eventFields() {
+  return [
+    { name: "Artist", body: { name: "Artist", type: "text" } },
+    { name: "Offer", body: { name: "Offer", type: "text" } },
+    { name: "Description", body: { name: "Description", type: "long_text" } },
+    {
+      name: "Operations notes",
+      body: { name: "Operations notes", type: "long_text" },
+    },
+    { name: "Image links", body: { name: "Image links", type: "long_text" } },
+    {
+      name: "Starts on",
+      body: {
+        name: "Starts on",
+        type: "date",
+        date_format: "ISO",
+        date_include_time: false,
+      },
+    },
+    { name: "Time", body: { name: "Time", type: "text" } },
+    { name: "Start time", body: { name: "Start time", type: "text" } },
+    { name: "End time", body: { name: "End time", type: "text" } },
+    {
+      name: "Repeat every",
+      body: {
+        name: "Repeat every",
+        type: "number",
+        number_decimal_places: 0,
+        number_negative: false,
+      },
+    },
+    {
+      name: "Repeat unit",
+      body: {
+        name: "Repeat unit",
+        type: "single_select",
+        select_options: [
+          { value: "none", color: "gray" },
+          { value: "day", color: "blue" },
+          { value: "week", color: "green" },
+          { value: "month", color: "purple" },
+        ],
+      },
+    },
+    { name: "Weekdays", body: { name: "Weekdays", type: "text" } },
+    {
+      name: "Month day",
+      body: {
+        name: "Month day",
+        type: "number",
+        number_decimal_places: 0,
+        number_negative: false,
+      },
+    },
+    {
+      name: "Ends on",
+      body: {
+        name: "Ends on",
+        type: "date",
+        date_format: "ISO",
+        date_include_time: false,
+      },
+    },
+    {
+      name: "Skipped dates",
+      body: { name: "Skipped dates", type: "long_text" },
+    },
+    { name: "Slug", body: { name: "Slug", type: "text" } },
+    { name: "Drive folder id", body: { name: "Drive folder id", type: "text" } },
+    { name: "Main image", body: { name: "Main image", type: "file" } },
+    { name: "Images", body: { name: "Images", type: "file" } },
+  ];
+}
+
+function eventDateFields(eventsTableId) {
+  return [
+    {
+      name: "Event",
+      body: {
+        name: "Event",
+        type: "link_row",
+        link_row_table_id: eventsTableId,
+      },
+    },
+    {
+      name: "Date",
+      body: {
+        name: "Date",
+        type: "date",
+        date_format: "ISO",
+        date_include_time: false,
+      },
+    },
+    { name: "Slug", body: { name: "Slug", type: "text" } },
+    { name: "Sanity ID", body: { name: "Sanity ID", type: "text" } },
+    {
+      name: "ClickUp Task ID",
+      body: { name: "ClickUp Task ID", type: "text" },
+    },
+    {
+      name: "Title override",
+      body: { name: "Title override", type: "text" },
+    },
+    {
+      name: "Artist override",
+      body: { name: "Artist override", type: "text" },
+    },
+    { name: "Offer override", body: { name: "Offer override", type: "text" } },
+    {
+      name: "Description override",
+      body: { name: "Description override", type: "long_text" },
+    },
+    { name: "Time override", body: { name: "Time override", type: "text" } },
+    {
+      name: "Start time override",
+      body: { name: "Start time override", type: "text" },
+    },
+    {
+      name: "End time override",
+      body: { name: "End time override", type: "text" },
+    },
+    {
+      name: "Operations notes override",
+      body: { name: "Operations notes override", type: "long_text" },
+    },
+    {
+      name: "Image links override",
+      body: { name: "Image links override", type: "long_text" },
+    },
+    { name: "Override image", body: { name: "Override image", type: "file" } },
+    {
+      name: "Publish snapshots",
+      body: { name: "Publish snapshots", type: "long_text" },
+    },
+  ];
+}
+
 function supplierFields() {
   return [
     { name: "Website", body: { name: "Website", type: "url" } },
@@ -838,7 +1017,8 @@ function linkId(value) {
   if (Array.isArray(value) && value[0]) {
     const first = value[0];
     if (typeof first === "number") return first;
-    if (first && typeof first === "object" && first.id != null) return Number(first.id);
+    if (first && typeof first === "object" && first.id != null)
+      return Number(first.id);
   }
   return null;
 }
@@ -846,7 +1026,12 @@ function linkId(value) {
 async function seedSuppliers(apiBase, jwt, suppliersTableId) {
   const existing = await listRows(apiBase, jwt, suppliersTableId);
   const byName = new Map(
-    existing.map((row) => [String(row.Name || "").trim().toLowerCase(), row]),
+    existing.map((row) => [
+      String(row.Name || "")
+        .trim()
+        .toLowerCase(),
+      row,
+    ]),
   );
   for (const seed of SEED_SUPPLIERS) {
     const key = seed.name.toLowerCase();
@@ -895,7 +1080,9 @@ async function seedUsers(apiBase, jwt, usersTableId) {
   const existing = await listRows(apiBase, jwt, usersTableId);
   const byEmail = new Set();
   for (const row of existing) {
-    const email = String(row.Email || "").trim().toLowerCase();
+    const email = String(row.Email || "")
+      .trim()
+      .toLowerCase();
     if (!email) {
       await baserowRequest(
         apiBase,
@@ -974,7 +1161,9 @@ async function seedAppConfig(apiBase, jwt, configTableId) {
     );
     byKey.set(mapKey, true);
     const shown =
-      key.includes("secret") || key.includes("token") || key.includes("password")
+      key.includes("secret") ||
+      key.includes("token") ||
+      key.includes("password")
         ? "(set)"
         : String(value).length > 48
           ? `${String(value).slice(0, 24)}…`
@@ -996,18 +1185,29 @@ async function seedAppConfig(apiBase, jwt, configTableId) {
   await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "production", "production");
 
   const webhook =
-    readEnv("SITE_DEPLOY_WEBHOOK_URL") || readEnv("SANITY_STUDIO_SITE_DEPLOY_URL");
+    readEnv("SITE_DEPLOY_WEBHOOK_URL") ||
+    readEnv("SANITY_STUDIO_SITE_DEPLOY_URL");
   if (webhook) {
     await ensureRow(OPS_CONFIG_KEYS.siteDeployWebhookUrl, webhook, "all");
   } else {
-    console.log("  (skip site_deploy.webhook_url — set SITE_DEPLOY_WEBHOOK_URL in .env)");
+    console.log(
+      "  (skip site_deploy.webhook_url — set SITE_DEPLOY_WEBHOOK_URL in .env)",
+    );
   }
 
   const googleClientId = readEnv("GOOGLE_OAUTH_CLIENT_ID");
   await ensureRow(OPS_CONFIG_KEYS.googleOauthClientId, googleClientId, "all");
+  // google.drive_events_folder_id is env-specific App Config (Events vs Events-dev).
+  // Set in Baserow; do not seed from process env.
 }
 
-async function findOrCreateSupplier(apiBase, jwt, suppliersTableId, byName, hint) {
+async function findOrCreateSupplier(
+  apiBase,
+  jwt,
+  suppliersTableId,
+  byName,
+  hint,
+) {
   const name = String(hint?.name || "").trim();
   if (!name) return null;
   const key = name.toLowerCase();
@@ -1062,9 +1262,9 @@ function leftoverProductUrls(row) {
   const notes = String(row.Notes || "");
   const urls = [];
   const seen = new Set();
-  for (const line of dedicated.split(/\r?\n/).concat(
-    looksLikeOnlyUrls(notes) ? notes.split(/\r?\n/) : [],
-  )) {
+  for (const line of dedicated
+    .split(/\r?\n/)
+    .concat(looksLikeOnlyUrls(notes) ? notes.split(/\r?\n/) : [])) {
     const url = parseProductUrl(line);
     if (!url) continue;
     const key = url.toLowerCase();
@@ -1097,8 +1297,9 @@ async function migrateMenuPlacements(
     posMenuRows.find((row) => Boolean(row.Default)) ||
     posMenuRows.find(
       (row) =>
-        String(row.Name || "").trim().toLowerCase() ===
-        DEFAULT_POS_MENU_NAME.toLowerCase(),
+        String(row.Name || "")
+          .trim()
+          .toLowerCase() === DEFAULT_POS_MENU_NAME.toLowerCase(),
     ) ||
     posMenuRows[0];
   let created = 0;
@@ -1106,7 +1307,8 @@ async function migrateMenuPlacements(
     const itemId = item.id;
     const sectionIds = linkIdsFrom(item.Section);
     const sectionId = sectionIds[0] || null;
-    const onPrint = item["On print menu"] != null ? Boolean(item["On print menu"]) : true;
+    const onPrint =
+      item["On print menu"] != null ? Boolean(item["On print menu"]) : true;
     const onDigital =
       item["On digital menu"] != null ? Boolean(item["On digital menu"]) : true;
     const posLinks = linkIdsFrom(item["POS menus"]);
@@ -1174,7 +1376,9 @@ async function migrateSupplierLinks(
     jwt,
     `/api/database/fields/table/${inventory.id}/`,
   );
-  const hasLegacy = (fields || []).some((field) => field.name === "Supplier links");
+  const hasLegacy = (fields || []).some(
+    (field) => field.name === "Supplier links",
+  );
   const inventoryRows = await listRows(apiBase, jwt, inventory.id);
   const linkRows = await listRows(apiBase, jwt, inventorySuppliers.id);
   const existingByUrl = new Map(
@@ -1267,7 +1471,10 @@ async function migrateSupplierLinks(
 }
 
 async function main() {
-  const apiBase = (readEnv("BASEROW_API_URL") || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const apiBase = (readEnv("BASEROW_API_URL") || DEFAULT_BASEROW_API).replace(
+    /\/$/,
+    "",
+  );
   const jwt = await getBaserowJwt(apiBase);
 
   const databaseId = await findOrCreateOpsDatabase(apiBase, jwt);
@@ -1284,7 +1491,13 @@ async function main() {
     tables,
     TABLE_SECTIONS,
   );
-  const items = await findOrCreateTable(apiBase, jwt, databaseId, tables, TABLE_ITEMS);
+  const items = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_ITEMS,
+  );
   const inventory = await findOrCreateTable(
     apiBase,
     jwt,
@@ -1313,7 +1526,13 @@ async function main() {
     tables,
     TABLE_INGREDIENTS,
   );
-  const users = await findOrCreateTable(apiBase, jwt, databaseId, tables, TABLE_USERS);
+  const users = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_USERS,
+  );
   const config = await findOrCreateTable(
     apiBase,
     jwt,
@@ -1379,6 +1598,24 @@ async function main() {
     menuPlacements.id,
     menuPlacementFields(items.id, sections.id, posMenus.id),
   );
+  const events = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_EVENTS,
+  );
+  const eventDates = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_EVENT_DATES,
+  );
+  console.log(`Fields on ${TABLE_EVENTS}:`);
+  await ensureFields(apiBase, jwt, events.id, eventFields());
+  console.log(`Fields on ${TABLE_EVENT_DATES}:`);
+  await ensureFields(apiBase, jwt, eventDates.id, eventDateFields(events.id));
   console.log(`Rows on ${TABLE_POS_MENUS}:`);
   await seedFallMenu(apiBase, jwt, posMenus.id, items.id, {
     linkEmptyItems: createdItemFields.includes("POS menus"),
@@ -1417,6 +1654,8 @@ async function main() {
   console.log(`  ${TABLE_CONFIG} → ${config.id}`);
   console.log(`  ${TABLE_POS_MENUS} → ${posMenus.id}`);
   console.log(`  ${TABLE_MENU_PLACEMENTS} → ${menuPlacements.id}`);
+  console.log(`  ${TABLE_EVENTS} → ${events.id}`);
+  console.log(`  ${TABLE_EVENT_DATES} → ${eventDates.id}`);
   console.log("");
 
   const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];
@@ -1462,7 +1701,9 @@ async function maybeWriteEnv(lines) {
         text = text.replace(pattern, `${key}=${value}`);
         changed = true;
       } else if (current.trim() !== value) {
-        console.log(`Keeping existing ${key}=${current.trim()} (new value would be ${value})`);
+        console.log(
+          `Keeping existing ${key}=${current.trim()} (new value would be ${value})`,
+        );
       }
     } else {
       if (!text.endsWith("\n")) text += "\n";
@@ -1500,7 +1741,9 @@ async function maybeWriteWranglerVars(vars) {
   const { resolve } = await import("node:path");
   const wranglerPath = resolve(process.cwd(), "ops/site/wrangler.toml");
   if (!existsSync(wranglerPath)) {
-    console.log("Add BASEROW_OPS_DATABASE_ID to ops/site/wrangler.toml [vars] if needed.");
+    console.log(
+      "Add BASEROW_OPS_DATABASE_ID to ops/site/wrangler.toml [vars] if needed.",
+    );
     return;
   }
   let next = readFileSync(wranglerPath, "utf8");
@@ -1566,7 +1809,9 @@ async function maybeStripTableIdEnvKeys() {
     }
     if (notes !== notesBefore) {
       updateItemNotes(item, notes);
-      console.log(`Stripped table id keys from Bitwarden ${DEFAULT_LOCAL_ITEM}.`);
+      console.log(
+        `Stripped table id keys from Bitwarden ${DEFAULT_LOCAL_ITEM}.`,
+      );
     }
   } catch {
     // Local .env strip is enough when vault is locked.
@@ -1607,7 +1852,9 @@ async function maybeSyncBitwarden(lines) {
       notes = upsertDotEnvKey(notes, key, value);
     }
     updateItemNotes(item, notes);
-    console.log(`Updated Bitwarden ${DEFAULT_LOCAL_ITEM} with Baserow Ops database id.`);
+    console.log(
+      `Updated Bitwarden ${DEFAULT_LOCAL_ITEM} with Baserow Ops database id.`,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.log("");

@@ -14,6 +14,8 @@ import {
   classifyLightspeedRow,
   drinkTypeFromLightspeedRow,
   hasItemLibraryHeaders,
+  assertLightspeedFormattedExport,
+  missingLightspeedItemHeaders,
   isServiceChargeRow,
   lightspeedCombinedImportPreviewRows,
   lightspeedCombinedItemImportCsv,
@@ -134,6 +136,20 @@ describe("parseLightspeedCsv", () => {
   it("rejects a stock-level file as a menu-item import", () => {
     assert.equal(hasItemLibraryHeaders(stockCsv), false);
     assert.throws(() => parseLightspeedItemCsv(stockCsv), /POS menu items/);
+  });
+
+  it("accepts the official formatted item-library headers", () => {
+    assert.deepEqual(missingLightspeedItemHeaders(libraryCsv), []);
+    const rows = assertLightspeedFormattedExport(libraryCsv);
+    assert.equal(rows.find((row) => row.sku === "114")?.name, "Negroni");
+  });
+
+  it("rejects a stock-level file as a formatted item-list export", () => {
+    assert.ok(missingLightspeedItemHeaders(stockCsv).includes("Type"));
+    assert.throws(
+      () => assertLightspeedFormattedExport(stockCsv),
+      /missing columns/,
+    );
   });
 
   it("accepts BOM, aliases, and quoted commas", () => {

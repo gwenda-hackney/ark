@@ -2,7 +2,7 @@
   Ops menu design system entry — trading shell layout, Gwenda brand.
 */
 
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
 
 @import "./tokens.css";
 @import "./base.css";

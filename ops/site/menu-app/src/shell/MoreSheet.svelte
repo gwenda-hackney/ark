@@ -26,11 +26,13 @@
 	} = $props();
 
 	const onConfig = $derived(path === "/config" || path.startsWith("/config/"));
+	const onMenu = $derived(path === "/menu" || path.startsWith("/menu/"));
 	const onSections = $derived(
 		path === "/sections" || path.startsWith("/sections/"),
 	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
 	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
+	const onEvents = $derived(path === "/events" || path.startsWith("/events/"));
 </script>
 
 {#if open}
@@ -52,7 +54,34 @@
 		>
 			<div class="grab" aria-hidden="true"></div>
 			<nav class="links">
+				<p class="heading">Lightspeed</p>
+				<a class="row" href="/lightspeed">
+					<span class="icon"><Icon name="lightspeed" size={18} /></span>
+					<span class="copy">
+						<span class="label">Reconcile</span>
+						<span class="hint">Match a Lightspeed item list</span>
+					</span>
+				</a>
+				<a class="row" href="/lightspeed/export">
+					<span class="icon"><Icon name="upload" size={18} /></span>
+					<span class="copy">
+						<span class="label">Export</span>
+						<span class="hint">Item import for Lightspeed</span>
+					</span>
+				</a>
 				<p class="heading">Menu</p>
+				<a
+					class="row"
+					class:on={onMenu}
+					href="/menu"
+					aria-current={onMenu ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="recipes" size={18} /></span>
+					<span class="copy">
+						<span class="label">Menu items</span>
+						<span class="hint">Drinks on the guest menu</span>
+					</span>
+				</a>
 				<a
 					class="row"
 					class:on={onSections}
@@ -66,6 +95,18 @@
 					</span>
 				</a>
 				<p class="heading">Website</p>
+				<a
+					class="row"
+					class:on={onEvents}
+					href="/events"
+					aria-current={onEvents ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="events" size={18} /></span>
+					<span class="copy">
+						<span class="label">Events</span>
+						<span class="hint">Nights on the site, and the social post</span>
+					</span>
+				</a>
 				<a
 					class="row"
 					class:on={onWeb}

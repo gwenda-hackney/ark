@@ -7,6 +7,7 @@ import {
 	formatPourLabel,
 	parseLabelVolumeMl,
 	parsePackCode,
+	priceBasisLabel,
 	priceVerdict,
 	recipePriceAnalysis,
 	resolvePackVolume,
@@ -296,6 +297,23 @@ describe("Ambra pour cost at 20%", () => {
 				detail: "Set a price",
 			},
 		);
+	});
+});
+
+describe("priceBasisLabel", () => {
+	it("names trade, item estimate, and kind estimate", () => {
+		assert.equal(
+			priceBasisLabel({
+				name: "Gin",
+				suppliers: [{ name: "Trade", price: 18 }],
+			}),
+			"Trade",
+		);
+		assert.equal(
+			priceBasisLabel({ name: "Lemon", estimatedCost: 8 }),
+			"Item estimate",
+		);
+		assert.equal(priceBasisLabel({ name: "Syrup", kind: "syrup" }), "Kind estimate");
 	});
 });
 

@@ -1,0 +1,14 @@
+---
+description: Ops typography — no brand serifs
+globs: ops/**/*
+alwaysApply: false
+---
+
+# Ops typography
+
+Ops is a tool UI, not the marketing site.
+
+- Use **Roboto** (`--font` / `--font-display`).
+- Do **not** load or apply **Cormorant Garamond**, **Lora**, or other brand serifs in `ops/`.
+- Cormorant and Lora belong on `marketing/web` and guest-facing print/email only.
+- Prefer `var(--font)` for body and UI. `--font-display` may alias `--font`; do not point it at a serif.

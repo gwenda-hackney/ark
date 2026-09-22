@@ -2,38 +2,11 @@ import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
 import { siteEnvName } from "../../_lib/config-store.js";
 import { deployTargetForEnv } from "../../_lib/menu.js";
 import { syncOpsMenuToSanity } from "../../_lib/publish-sync.js";
-
-function webhookConfig(env) {
-  const baseUrl = (
-    env.SITE_DEPLOY_WEBHOOK_URL ||
-    env.SANITY_STUDIO_SITE_DEPLOY_URL ||
-    ""
-  ).trim();
-  const secret = (
-    env.DEPLOY_WEBHOOK_SECRET ||
-    env.SANITY_STUDIO_SITE_DEPLOY_SECRET ||
-    ""
-  ).trim();
-  return { baseUrl: baseUrl.replace(/\/$/, ""), secret };
-}
-
-async function webhookJson(url, secret, { method = "GET", body } = {}) {
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload.error || `Deploy webhook failed (${response.status}).`);
-    error.status = response.status;
-    throw error;
-  }
-  return payload;
-}
+import {
+  dispatchStagingContentDeploy,
+  webhookConfig,
+  webhookJson,
+} from "../../_lib/site-deploy.js";
 
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
@@ -77,10 +50,7 @@ export const onRequestPost = withApiHandler(async (context) => {
       deployed: false,
     });
   }
-  const result = await webhookJson(`${baseUrl}/deploy`, secret, {
-    method: "POST",
-    body: { target: "staging" },
-  });
+  const result = await dispatchStagingContentDeploy(context.env);
   return jsonResponse(
     {
       ok: true,

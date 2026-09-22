@@ -19,5 +19,6 @@ export { default as SidePanel } from "./SidePanel.svelte";
 export { default as TextField } from "./TextField.svelte";
 export { default as TextArea } from "./TextArea.svelte";
 export { default as NativeSelect } from "./NativeSelect.svelte";
+export { default as MultiSelect } from "./MultiSelect.svelte";
 export { default as Toaster } from "./Toaster.svelte";
 export type { SelectOption, SegmentedItem, PageHelpTopic } from "./types";
