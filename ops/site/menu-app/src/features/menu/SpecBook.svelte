@@ -15,6 +15,7 @@
 	} from "../../lib/types";
 	import { computeRecipeAbv, formatAbv } from "../../lib/abv";
 	import { inventoryItemPath } from "../../lib/nav";
+	import { formatMethodHtml } from "../../lib/format-method";
 	import InventoryLink from "./cells/InventoryLink.svelte";
 
 	type TypeFilter = "all" | DrinkType;
@@ -22,25 +23,48 @@
 	let {
 		items,
 		inventory = [],
+		filter = "cocktail",
+		single = false,
+		onfilter,
 		onclose,
 	}: {
 		items: MenuItem[];
 		inventory?: InventoryItem[];
+		filter?: TypeFilter;
+		/** One drink only — hide type filter. */
+		single?: boolean;
+		onfilter?: (next: TypeFilter) => void;
 		onclose: () => void;
 	} = $props();
 
-	let typeFilter = $state<TypeFilter>("cocktail");
+	const typeFilter = $derived.by((): TypeFilter => {
+		if (single) return "all";
+		const raw = String(filter || "").trim();
+		if (
+			raw === "all" ||
+			raw === "cocktail" ||
+			raw === "pour" ||
+			raw === "beer" ||
+			raw === "packaged" ||
+			raw === "postmix"
+		) {
+			return raw;
+		}
+		return "cocktail";
+	});
 	let scroller: HTMLElement | undefined = $state();
 
 	function setFilter(id: string) {
+		if (single) return;
 		if (
 			id === "all" ||
 			id === "cocktail" ||
 			id === "pour" ||
 			id === "beer" ||
-			id === "packaged"
+			id === "packaged" ||
+			id === "postmix"
 		) {
-			typeFilter = id;
+			onfilter?.(id);
 		}
 	}
 
@@ -113,6 +137,8 @@
 				return "Beer";
 			case "packaged":
 				return "Packaged";
+			case "postmix":
+				return "Postmix";
 			default:
 				return "Spec book";
 		}
@@ -128,6 +154,7 @@
 			pour: 0,
 			beer: 0,
 			packaged: 0,
+			postmix: 0,
 		};
 		for (const item of named) {
 			byType[normalizeDrinkType(item.drinkType)] += 1;
@@ -158,7 +185,6 @@
 	});
 
 	onMount(() => {
-		document.documentElement.classList.add("print-book");
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
 				e.preventDefault();
@@ -167,7 +193,6 @@
 		};
 		window.addEventListener("keydown", onKey);
 		return () => {
-			document.documentElement.classList.remove("print-book");
 			window.removeEventListener("keydown", onKey);
 		};
 	});
@@ -175,20 +200,29 @@
 
 <div class="book scrollbar-fade" bind:this={scroller}>
 	<div class="toolbar no-print">
-		<Button variant="outline" onclick={onclose}>Back to menu</Button>
-		<Segmented
-			value={typeFilter}
-			items={filterItems}
-			tone="soft"
-			size="sm"
-			ariaLabel="Filter by drink type"
-			onChange={setFilter}
-		/>
+		<Button variant="outline" onclick={onclose}>
+			{single ? "Back to drink" : "Back to menu"}
+		</Button>
+		{#if !single}
+			<Segmented
+				value={typeFilter}
+				items={filterItems}
+				tone="soft"
+				size="sm"
+				ariaLabel="Filter by drink type"
+				onChange={setFilter}
+			/>
+		{/if}
 		<p class="tally">
-			{bookTitle(typeFilter)}
-			·
-			{drinks.length}
-			{drinks.length === 1 ? "page" : "pages"}
+			{#if single}
+				{drinks[0]?.name || "Recipe"}
+				· 1 page
+			{:else}
+				{bookTitle(typeFilter)}
+				·
+				{drinks.length}
+				{drinks.length === 1 ? "page" : "pages"}
+			{/if}
 		</p>
 		<Button variant="primary" onclick={() => window.print()}>Print</Button>
 	</div>
@@ -207,106 +241,119 @@
 				{@const price = formatPrices(item)}
 				{@const ings = lines(item)}
 				{@const abv = abvLabel(item)}
+				{@const methodHtml = formatMethodHtml(item.method)}
+				{@const spec = [abv ? `${abv} ABV` : "", item.volume || ""]
+					.filter(Boolean)
+					.join(" · ")}
 				<article class="recipe-page">
 					<header class="mast">
 						<p class="kicker">
 							{[drinkTypeLabel(item.drinkType), sec].filter(Boolean).join(" · ")}
 						</p>
-						<h2>{item.name}</h2>
-						{#if item.notes || price}
-							<p class="lede">
-								{[item.notes, price].filter(Boolean).join(" · ")}
-							</p>
-						{/if}
-						{#if !cocktail && item.producer}
-							<p class="producer">{item.producer}</p>
-						{/if}
+						<div class="mast-row">
+							<div class="mast-main">
+								<h2>{item.name}</h2>
+								{#if item.notes}
+									<p class="lede">{item.notes}</p>
+								{/if}
+								{#if !cocktail && item.producer}
+									<p class="producer">{item.producer}</p>
+								{/if}
+							</div>
+							{#if price || spec}
+								<div class="mast-side">
+									{#if price}
+										<p class="price tnum">{price}</p>
+									{/if}
+									{#if spec}
+										<p class="spec tnum">{spec}</p>
+									{/if}
+								</div>
+							{/if}
+						</div>
 					</header>
 
-					{#if photo}
-						<figure class="photo">
-							<img
-								src={photo}
-								alt={item.image?.alt || item.name || ""}
-								loading="eager"
-							/>
-						</figure>
-					{/if}
+					<div class="body" class:has-photo={Boolean(photo)}>
+						{#if photo}
+							<figure class="photo">
+								<img
+									src={photo}
+									alt={item.image?.alt || item.name || ""}
+									loading="eager"
+								/>
+							</figure>
+						{/if}
 
-					<div class="copy">
-						{#if cocktail}
-							{#if ings.length}
-								<table>
-									<tbody>
+						<div class="copy">
+							{#if cocktail}
+								{#if ings.length}
+									<div class="spec-list build">
 										{#each ings as ing}
 											{@const href = stockHref(ing)}
-											<tr>
-												<td class="qty">{formatQty(ing)}</td>
-												<td>
+											<div class="spec-row">
+												<span class="spec-label">{formatQty(ing)}</span>
+												<span class="spec-value">
 													<InventoryLink
 														text={ing.name || ""}
 														href={href || ""}
 														inline
-													/>{#if ing.note}&nbsp;<em>{ing.note}</em
-													>{/if}
-												</td>
-											</tr>
+													/>{#if ing.note}&nbsp;<em>{ing.note}</em>{/if}
+												</span>
+											</div>
 										{/each}
-									</tbody>
-								</table>
-							{:else if item.description}
-								<div class="method-block">
-									<p class="label">Ingredients</p>
-									<p class="method">{item.description}</p>
-								</div>
-							{:else}
-								<p class="missing">No ingredients on file.</p>
-							{/if}
-
-							{#if item.method}
-								<div class="method-block">
-									<p class="label">Method</p>
-									<p class="method">{item.method}</p>
-								</div>
-							{/if}
-						{:else if ings.length}
-							<table>
-								<tbody>
+									</div>
+								{:else if item.description}
+									<div class="method">{@html formatMethodHtml(item.description)}</div>
+								{:else}
+									<p class="missing">No ingredients on file.</p>
+								{/if}
+							{:else if ings.length}
+								<div class="spec-list build">
 									{#each ings as ing}
 										{@const href = stockHref(ing)}
-										<tr>
-											<td class="qty">{formatQty(ing)}</td>
-											<td>
+										<div class="spec-row">
+											<span class="spec-label">{formatQty(ing)}</span>
+											<span class="spec-value">
 												<InventoryLink
 													text={ing.name || ""}
 													href={href || ""}
 													inline
-												/>{#if ing.note}&nbsp;<em>{ing.note}</em
-												>{/if}
-											</td>
-										</tr>
+												/>{#if ing.note}&nbsp;<em>{ing.note}</em>{/if}
+											</span>
+										</div>
 									{/each}
-								</tbody>
-							</table>
-						{:else if item.description}
-							<p class="method">{item.description}</p>
-						{/if}
+								</div>
+							{:else if item.description}
+								<div class="method">{@html formatMethodHtml(item.description)}</div>
+							{/if}
 
-						{#if item.glassware || item.ice || item.garnish || abv || item.volume}
-							<div class="foot">
-								{#if item.glassware || item.ice || item.garnish}
-									<div class="build">
-										{#if item.glassware}<span>Glass {item.glassware}</span>{/if}
-										{#if item.ice}<span>Ice {item.ice}</span>{/if}
-										{#if item.garnish}<span>Garnish {item.garnish}</span>{/if}
-									</div>
-								{/if}
-								{#if abv || item.volume}
-									<div class="facts">
-										{#if abv}<span>{abv} ABV</span>{/if}
-										{#if item.volume}<span>{item.volume}</span>{/if}
-									</div>
-								{/if}
+							{#if item.glassware || item.ice || item.garnish}
+								<div class="spec-list serve">
+									{#if item.glassware}
+										<div class="spec-row">
+											<span class="spec-label">Glass</span>
+											<span class="spec-value">{item.glassware}</span>
+										</div>
+									{/if}
+									{#if item.ice}
+										<div class="spec-row">
+											<span class="spec-label">Ice</span>
+											<span class="spec-value">{item.ice}</span>
+										</div>
+									{/if}
+									{#if item.garnish}
+										<div class="spec-row">
+											<span class="spec-label">Garnish</span>
+											<span class="spec-value">{item.garnish}</span>
+										</div>
+									{/if}
+								</div>
+							{/if}
+						</div>
+
+						{#if cocktail && methodHtml}
+							<div class="method-block span">
+								<div class="method">{@html methodHtml}</div>
 							</div>
 						{/if}
 					</div>
@@ -362,68 +409,118 @@
 	}
 
 	.recipe-page {
+		--spec-qty: 4.75rem;
+		--spec-gap: 0.75rem;
+		--spec-label: 0.68rem;
+		--spec-body: 0.9rem;
+		--spec-track: 0.14em;
 		width: 210mm;
 		height: 297mm;
 		min-height: 297mm;
 		max-height: 297mm;
 		flex-shrink: 0;
-		padding: 16mm;
+		padding: 14mm;
 		background: var(--book-bg);
 		color: var(--book-ink);
 		border: 1px solid var(--book-rule);
 		box-sizing: border-box;
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0.85rem;
 		overflow: hidden;
+		font-family: var(--font);
 	}
 
 	.mast {
 		flex: 0 0 auto;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid var(--book-accent);
+	}
+
+	.body {
+		flex: 1 1 auto;
+		min-height: 0;
+		min-width: 0;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr);
+		gap: 0.75rem 1rem;
+		align-items: start;
+		align-content: start;
+	}
+
+	.body.has-photo {
+		grid-template-columns: minmax(0, 78mm) minmax(0, 1fr);
+	}
+
+	.body.has-photo .photo {
+		grid-column: 1;
+		grid-row: 1;
+	}
+
+	.body.has-photo .copy {
+		grid-column: 2;
+		grid-row: 1;
+	}
+
+	.span {
+		grid-column: 1 / -1;
+		grid-row: 2;
+		min-height: 0;
 	}
 
 	.photo {
 		margin: 0;
-		flex: 0 0 auto;
-		align-self: stretch;
 		width: 100%;
-		max-height: 130mm;
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		max-height: 110mm;
+		overflow: hidden;
+		text-align: center;
 	}
 
 	.photo img {
 		display: block;
+		margin: 0 auto;
 		max-width: 100%;
-		max-height: 130mm;
-		width: auto;
+		max-height: 110mm;
+		width: 100%;
 		height: auto;
 		object-fit: contain;
-		object-position: center;
+		object-position: top center;
 	}
 
 	.copy {
-		flex: 1 1 auto;
 		min-width: 0;
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
+		gap: 0.55rem;
 	}
 
 	.kicker {
-		margin: 0;
+		margin: 0 0 0.4rem;
 		font-family: var(--font);
-		font-size: 0.68rem;
+		font-size: var(--spec-label);
 		font-weight: 600;
-		letter-spacing: 0.16em;
+		letter-spacing: var(--spec-track);
 		text-transform: uppercase;
 		color: var(--book-accent);
 	}
 
+	.mast-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		column-gap: 1.25rem;
+		align-items: start;
+	}
+
+	.mast-main {
+		min-width: 0;
+	}
+
 	.mast h2 {
-		margin: 0.25rem 0 0;
-		font-size: 26pt;
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 32pt;
 		font-weight: 600;
 		letter-spacing: -0.02em;
 		line-height: 1.05;
@@ -432,91 +529,180 @@
 
 	.lede,
 	.producer {
-		margin: 0.35rem 0 0;
-		color: var(--book-muted);
-		font-style: italic;
-		font-size: 1.05rem;
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
+		margin: 0.4rem 0 0;
 		font-family: var(--font);
-		font-size: 0.95rem;
+		font-style: italic;
+		font-size: var(--spec-body);
+		font-weight: 400;
+		line-height: 1.35;
+		color: var(--book-muted);
 	}
 
-	td {
-		padding: 0.32rem 0;
-		border-bottom: 1px solid var(--book-rule);
-		vertical-align: baseline;
+	.mast-side {
+		display: grid;
+		gap: 0.3rem;
+		justify-items: end;
+		text-align: right;
+		padding-top: 0.2rem;
 	}
 
-	.qty {
-		width: 5.6rem;
-		padding-right: 0.85rem;
+	.price,
+	.spec {
+		margin: 0;
+		font-family: var(--font);
+		font-style: normal;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		line-height: 1.2;
+	}
+
+	.price {
+		font-size: 1.15rem;
+		font-weight: 600;
+		color: var(--book-ink);
+	}
+
+	.spec {
+		font-size: var(--spec-body);
+		font-weight: 400;
+		color: var(--book-muted);
+	}
+
+	.spec-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.18rem;
+		font-family: var(--font);
+		font-size: var(--spec-body);
+		font-weight: 400;
+		line-height: 1.35;
+	}
+
+	.spec-row {
+		display: grid;
+		grid-template-columns: var(--spec-qty) minmax(0, 1fr);
+		column-gap: var(--spec-gap);
+		align-items: baseline;
+	}
+
+	.spec-label {
 		color: var(--book-accent);
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
-		text-align: right;
 	}
 
-	td :global(.inv-link) {
-		font-weight: 500;
+	.spec-value {
+		color: var(--book-ink);
+		min-width: 0;
 	}
 
-	td :global(.inv-link:hover) {
+	.spec-value :global(.inv-link),
+	.spec-value :global(.inv-text) {
+		font-weight: inherit;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.spec-value :global(.inv-link:hover) {
 		color: var(--book-accent);
 	}
 
-	.missing {
-		margin: 0.4rem 0 0;
-		font-family: var(--font);
-		font-size: 0.9rem;
+	.spec-value em {
+		font-style: italic;
 		color: var(--book-muted);
 	}
 
-	.method-block {
-		margin-top: 1.15rem;
+	.missing {
+		margin: 0;
+		font-family: var(--font);
+		font-size: var(--spec-body);
+		font-weight: 400;
+		color: var(--book-muted);
+	}
+
+	.method-block.span {
+		margin: 0;
+		padding: 0;
+		border: 0;
+		min-height: 0;
+		overflow: auto;
 	}
 
 	.copy > :first-child {
 		margin-top: 0;
 	}
 
-	.label {
-		margin: 0 0 0.35rem;
-		font-family: var(--font);
-		font-size: 0.68rem;
-		font-weight: 600;
-		letter-spacing: 0.16em;
-		text-transform: uppercase;
-		color: var(--book-accent);
-	}
-
 	.method {
 		margin: 0;
-		white-space: pre-wrap;
 		font-family: var(--font);
-		font-size: 0.95rem;
-		line-height: 1.5;
+		font-size: var(--spec-body);
+		font-weight: 400;
+		line-height: 1.45;
 		color: var(--book-ink);
 	}
 
-	.foot {
-		margin-top: auto;
-		padding-top: 1.15rem;
-		display: grid;
-		gap: 0.45rem;
+	.method :global(p) {
+		margin: 0 0 0.55rem;
 	}
 
-	.build,
-	.facts {
+	.method :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.method :global(h1),
+	.method :global(h2),
+	.method :global(h3) {
+		margin: 0.65rem 0 0.3rem;
 		font-family: var(--font);
-		font-size: 0.82rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		line-height: 1.25;
+		color: var(--book-ink);
+	}
+
+	.method :global(h1:first-child),
+	.method :global(h2:first-child),
+	.method :global(h3:first-child) {
+		margin-top: 0;
+	}
+
+	.method :global(h1) {
+		font-size: 1.05em;
+	}
+
+	.method :global(h2) {
+		font-size: 1em;
+	}
+
+	.method :global(h3) {
+		font-size: 0.95em;
 		color: var(--book-muted);
-		display: flex;
-		gap: 1.1rem;
-		flex-wrap: wrap;
+	}
+
+	.method :global(ul),
+	.method :global(ol) {
+		margin: 0 0 0.55rem;
+		padding-left: 1.35rem;
+	}
+
+	.method :global(ul > li) {
+		list-style: disc;
+		list-style-position: outside;
+		margin: 0.15rem 0;
+	}
+
+	.method :global(ol > li) {
+		list-style: decimal;
+		list-style-position: outside;
+		margin: 0.15rem 0;
+	}
+
+	.method :global(li::marker) {
+		color: var(--book-accent);
+	}
+
+	.serve {
+		margin: 0.85rem 0 0;
 	}
 
 	@media screen {
@@ -537,9 +723,16 @@
 	}
 
 	@media print {
+		@page {
+			size: A4;
+			margin: 0;
+		}
+
 		.book {
 			background: var(--book-bg);
 			color: var(--book-ink);
+			position: static;
+			overflow: visible;
 		}
 
 		.toolbar {
@@ -547,33 +740,125 @@
 		}
 
 		.pages {
+			display: block;
 			gap: 0;
 			padding: 0;
-			align-items: stretch;
 			width: 210mm;
 		}
 
 		.recipe-page {
+			display: flex;
+			flex-direction: column;
 			width: 210mm;
 			height: 297mm;
-			min-height: 297mm;
 			max-height: 297mm;
-			padding: 16mm;
+			min-height: 297mm;
+			padding: 14mm;
+			gap: 0.65rem;
 			border: 0;
 			overflow: hidden;
 			box-shadow: none;
 			break-inside: avoid;
 			page-break-inside: avoid;
-		}
-
-		.recipe-page:not(:last-child) {
 			break-after: page;
 			page-break-after: always;
+			--spec-body: 0.8rem;
+			--spec-label: 0.62rem;
 		}
 
-		td :global(.inv-link) {
-			color: inherit;
-			text-decoration: none;
+		.recipe-page:last-child {
+			break-after: auto;
+			page-break-after: auto;
+		}
+
+		.mast {
+			display: block;
+			flex: 0 0 auto;
+			margin-bottom: 0;
+			padding-bottom: 0.7rem;
+		}
+
+		/*
+		 * Do not use flex-grow on .body. Chrome treats a flex:1 child as needing
+		 * a full page, so the mast alone lands on page 1 and the build on page 2.
+		 */
+		.body {
+			display: grid;
+			flex: 1 1 auto;
+			min-height: 0;
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr);
+			gap: 0.65rem 0.9rem;
+			align-items: start;
+			align-content: start;
+			width: 100%;
+		}
+
+		.body.has-photo {
+			grid-template-columns: minmax(0, 72mm) minmax(0, 1fr);
+		}
+
+		.body.has-photo .photo {
+			grid-column: 1;
+			grid-row: 1;
+		}
+
+		.body.has-photo .copy {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.span {
+			grid-column: 1 / -1;
+			grid-row: 2;
+			min-height: 0;
+			overflow: hidden;
+		}
+
+		.photo {
+			max-height: 90mm;
+			margin: 0;
+			overflow: hidden;
+		}
+
+		.photo img {
+			max-height: 90mm;
+			width: 100%;
+			height: auto;
+			object-fit: contain;
+			object-position: top center;
+		}
+
+		.mast h2 {
+			font-size: 28pt;
+		}
+
+		.price {
+			font-size: 1.05rem;
+		}
+
+		.copy {
+			display: flex;
+			flex-direction: column;
+			gap: 0.45rem;
+			min-height: 0;
+		}
+
+		.method-block.span {
+			margin: 0;
+			padding: 0;
+		}
+
+		.method {
+			line-height: 1.3;
+		}
+
+		.serve {
+			margin-top: 0.65rem;
+		}
+
+		.spec-list {
+			gap: 0.12rem;
 		}
 	}
 </style>

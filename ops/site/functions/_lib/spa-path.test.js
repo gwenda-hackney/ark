@@ -10,7 +10,9 @@ import {
   isEditorPath,
   isSpaDocumentPath,
   menuItemPath,
+  menuItemPrintPath,
   menuNewPath,
+  menuPrintPath,
   menuTabPath,
   navigationLeavesEditor,
   parseShellPath,
@@ -73,6 +75,44 @@ describe("spa-path", () => {
       isNew: true,
       tab: "analysis",
     });
+    assert.deepEqual(parseShellPath("/menu/print"), {
+      page: "menu",
+      slug: null,
+      isNew: false,
+      tab: null,
+      print: true,
+      printFilter: "cocktail",
+    });
+    assert.deepEqual(parseShellPath("/menu/print/beer"), {
+      page: "menu",
+      slug: null,
+      isNew: false,
+      tab: null,
+      print: true,
+      printFilter: "beer",
+    });
+    assert.deepEqual(parseShellPath("/menu/print/bogus"), {
+      page: "menu",
+      slug: null,
+      isNew: false,
+      tab: null,
+      print: true,
+      printFilter: "cocktail",
+    });
+    assert.deepEqual(parseShellPath("/menu/negroni/print"), {
+      page: "menu",
+      slug: "negroni",
+      isNew: false,
+      tab: null,
+      print: true,
+      printFilter: "all",
+    });
+    assert.deepEqual(parseShellPath("/menu/negroni/cost"), {
+      page: "menu",
+      slug: "negroni",
+      isNew: false,
+      tab: "cost",
+    });
     assert.deepEqual(parseShellPath("/menu/negroni/details"), {
       page: "menu",
       slug: "negroni",
@@ -96,8 +136,21 @@ describe("spa-path", () => {
     assert.equal(menuItemPath("Negroni", "recipe"), "/menu/negroni");
     assert.equal(menuItemPath("Negroni", "details"), "/menu/negroni");
     assert.equal(menuNewPath("analysis"), "/menu/new/analysis");
+    assert.equal(menuPrintPath(), "/menu/print");
+    assert.equal(menuPrintPath("cocktail"), "/menu/print");
+    assert.equal(menuPrintPath("beer"), "/menu/print/beer");
+    assert.equal(menuItemPrintPath("Negroni"), "/menu/negroni/print");
     assert.equal(menuTabPath("/menu/negroni/recipe", "analysis"), "/menu/negroni/analysis");
     assert.equal(inventoryItemPath("Bombay Sapphire"), "/inventory/bombay-sapphire");
+  });
+
+  it("treats print book as a document path, not an editor", () => {
+    assert.equal(isSpaDocumentPath("/menu/print"), true);
+    assert.equal(isSpaDocumentPath("/menu/print/beer"), true);
+    assert.equal(isSpaDocumentPath("/menu/negroni/print"), true);
+    assert.equal(isEditorPath("/menu/print"), false);
+    assert.equal(isEditorPath("/menu/print/all"), false);
+    assert.equal(isEditorPath("/menu/negroni/print"), false);
   });
 
   it("rewrites only shell document paths, not static tools", () => {

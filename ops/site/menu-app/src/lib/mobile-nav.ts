@@ -74,7 +74,8 @@ export function isStockListPath(path: string): boolean {
 	return (
 		(route.page === "menu" || route.page === "inventory") &&
 		!route.isNew &&
-		!route.slug
+		!route.slug &&
+		!route.print
 	);
 }
 
@@ -83,7 +84,8 @@ export function stockSwitchValue(path: string): "menu" | "inventory" {
 }
 
 export function hideShellChrome(path: string): boolean {
-	return isEditorPath(path);
+	const route = parseShellPath(path);
+	return Boolean(route.print) || isEditorPath(path);
 }
 
 export function readStockPath(): string {

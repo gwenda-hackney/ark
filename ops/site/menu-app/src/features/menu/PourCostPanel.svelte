@@ -1,8 +1,7 @@
 <script lang="ts">
 	/**
-	 * Pour list under the recipe. Each pour is one line:
-	 * price · cost · target · actual · over/under.
-	 * Extra sizes (double / half) are opt-in via a list row.
+	 * Pour cost on the Cost tab. Primary sell price is edited in the drink
+	 * header; this panel shows metrics and edits the optional alt serve.
 	 */
 	import { Button, TextField } from "../../ui";
 	import {
@@ -14,7 +13,7 @@
 		type RecipePriceAnalysis,
 		type ServePourReading,
 	} from "../../lib/cost";
-	import { formatGbp, priceLabels } from "../../lib/types";
+	import { formatGbp, hasRecipe, priceLabels } from "../../lib/types";
 	import { Icon } from "../../shell";
 	import PourSettingsDialog from "./PourSettingsDialog.svelte";
 
@@ -22,13 +21,11 @@
 		price,
 		priceValue = "",
 		priceAltValue = "",
-		onprice,
 		onpricealt,
 	}: {
 		price: RecipePriceAnalysis;
 		priceValue?: string;
 		priceAltValue?: string;
-		onprice: (value: string) => void;
 		onpricealt: (value: string) => void;
 	} = $props();
 
@@ -44,6 +41,16 @@
 	const showAlt = $derived(hasAlt || draftingAlt);
 	const primary = $derived(price.serves.find((s) => s.key === "primary") ?? null);
 	const alt = $derived(price.serves.find((s) => s.key === "alt") ?? null);
+	const primaryPriceLabel = $derived.by(() => {
+		const raw = String(priceValue || "").trim();
+		if (!raw) return "Set price in the header";
+		const n = Number(raw);
+		if (Number.isFinite(n)) return formatGbp(n);
+		return raw.startsWith("£") ? raw : `£${raw}`;
+	});
+	const hasRecipeCost = $derived(
+		price.drinkCost != null || (price.lines || []).length > 0,
+	);
 
 	$effect(() => {
 		if (hasAlt) draftingAlt = false;
@@ -127,148 +134,156 @@
 		</Button>
 	</div>
 
-	<ul class="pours">
-		{#if primary}
-			{@const actualTone = pourTone(primary)}
-			{@const deltaTone = overUnderTone(primary)}
-			<li class="pour">
-				<div class="pour-line">
-					<label class="serve" for="f-cost-price">{primary.label}</label>
-					<div class="price">
-						<TextField
-							id="f-cost-price"
-							size="sm"
-							mono
-							align="end"
-							inputmode="decimal"
-							value={priceValue}
-							oninput={(e) =>
-								onprice((e.currentTarget as HTMLInputElement).value)}
-						/>
-					</div>
-					<div class="metrics" role="group" aria-label={`${primary.label} pour metrics`}>
-						<div class="metric">
-							<span class="k">Cost</span>
-							<span class="v tnum">{costCopy(primary)}</span>
-						</div>
-						<div class="metric">
-							<span class="k">Target</span>
-							<span class="v tnum muted">
-								{formatPourPercent(price.targetPourCost) || "n/a"}
-							</span>
-						</div>
-						<div class="metric">
-							<span class="k">Actual</span>
-							<span
-								class="v tnum"
-								class:up={actualTone === "up"}
-								class:down={actualTone === "down"}
-								class:loss={actualTone === "loss"}
-								class:muted={actualTone === "muted" || primary.pourCost == null}
-							>
-								{actualCopy(primary)}
-							</span>
-						</div>
-						<div class="metric">
-							<span class="k">Over/under</span>
-							<span
-								class="v tnum"
-								class:up={deltaTone === "up"}
-								class:down={deltaTone === "down"}
-								class:loss={deltaTone === "loss"}
-								class:muted={deltaTone === "muted"}
-							>
-								{overUnderCopy(primary)}
-							</span>
-						</div>
-					</div>
-				</div>
-			</li>
-		{/if}
-
-		{#if showAlt && labels.alt}
-			{@const actualTone = pourTone(alt)}
-			{@const deltaTone = overUnderTone(alt)}
-			<li class="pour">
-				<div class="pour-line">
-					<label class="serve" for="f-cost-price-alt">{labels.alt}</label>
-					<div class="price-tools">
-						<div class="price">
-							<TextField
-								id="f-cost-price-alt"
-								size="sm"
-								mono
-								align="end"
-								inputmode="decimal"
-								value={priceAltValue}
-								oninput={(e) =>
-									onpricealt(
-										(e.currentTarget as HTMLInputElement).value,
-									)}
-							/>
-						</div>
-						<Button
-							variant="ghost"
-							size="xs"
-							type="button"
-							aria-label={`Remove ${labels.alt.toLowerCase()} price`}
-							title={`Remove ${labels.alt.toLowerCase()}`}
-							onclick={removeAlt}
+	{#if !hasRecipeCost}
+		<p class="empty">
+			{hasRecipe(price.drinkType)
+				? "Add ingredients on Build to cost this drink."
+				: "Link stock on Build to cost this drink."}
+		</p>
+	{:else}
+		<ul class="pours">
+			{#if primary}
+				{@const actualTone = pourTone(primary)}
+				{@const deltaTone = overUnderTone(primary)}
+				<li class="pour">
+					<div class="pour-line">
+						<span class="serve">{primary.label}</span>
+						<p class="price-readout tnum" title="Edit sell price in the header">
+							{primaryPriceLabel}
+						</p>
+						<div
+							class="metrics"
+							role="group"
+							aria-label={`${primary.label} pour metrics`}
 						>
-							{#snippet icon()}
-								<Icon name="close" size={14} />
-							{/snippet}
-						</Button>
-					</div>
-					<div class="metrics" role="group" aria-label={`${labels.alt} pour metrics`}>
-						<div class="metric">
-							<span class="k">Cost</span>
-							<span class="v tnum">{costCopy(alt)}</span>
-						</div>
-						<div class="metric">
-							<span class="k">Target</span>
-							<span class="v tnum muted">
-								{formatPourPercent(price.targetPourCost) || "n/a"}
-							</span>
-						</div>
-						<div class="metric">
-							<span class="k">Actual</span>
-							<span
-								class="v tnum"
-								class:up={actualTone === "up"}
-								class:down={actualTone === "down"}
-								class:loss={actualTone === "loss"}
-								class:muted={actualTone === "muted" || !alt?.pourCost}
-							>
-								{actualCopy(alt)}
-							</span>
-						</div>
-						<div class="metric">
-							<span class="k">Over/under</span>
-							<span
-								class="v tnum"
-								class:up={deltaTone === "up"}
-								class:down={deltaTone === "down"}
-								class:loss={deltaTone === "loss"}
-								class:muted={deltaTone === "muted"}
-							>
-								{overUnderCopy(alt)}
-							</span>
+							<div class="metric">
+								<span class="k">Cost</span>
+								<span class="v tnum">{costCopy(primary)}</span>
+							</div>
+							<div class="metric">
+								<span class="k">Target</span>
+								<span class="v tnum muted">
+									{formatPourPercent(price.targetPourCost) || "n/a"}
+								</span>
+							</div>
+							<div class="metric">
+								<span class="k">Actual</span>
+								<span
+									class="v tnum"
+									class:up={actualTone === "up"}
+									class:down={actualTone === "down"}
+									class:loss={actualTone === "loss"}
+									class:muted={actualTone === "muted" ||
+										primary.pourCost == null}
+								>
+									{actualCopy(primary)}
+								</span>
+							</div>
+							<div class="metric">
+								<span class="k">Over/under</span>
+								<span
+									class="v tnum"
+									class:up={deltaTone === "up"}
+									class:down={deltaTone === "down"}
+									class:loss={deltaTone === "loss"}
+									class:muted={deltaTone === "muted"}
+								>
+									{overUnderCopy(primary)}
+								</span>
+							</div>
 						</div>
 					</div>
-				</div>
-			</li>
-		{:else if canOfferAlt && labels.alt}
-			<li class="add">
-				<Button variant="ghost" size="xs" type="button" onclick={addAlt}>
-					{#snippet icon()}
-						<Icon name="plus" size={14} />
-					{/snippet}
-					Add {labels.alt.toLowerCase()}
-				</Button>
-			</li>
-		{/if}
-	</ul>
+				</li>
+			{/if}
+
+			{#if showAlt && labels.alt}
+				{@const actualTone = pourTone(alt)}
+				{@const deltaTone = overUnderTone(alt)}
+				<li class="pour">
+					<div class="pour-line">
+						<label class="serve" for="f-cost-price-alt">{labels.alt}</label>
+						<div class="price-tools">
+							<div class="price">
+								<TextField
+									id="f-cost-price-alt"
+									size="sm"
+									mono
+									align="end"
+									inputmode="decimal"
+									value={priceAltValue}
+									oninput={(e) =>
+										onpricealt(
+											(e.currentTarget as HTMLInputElement).value,
+										)}
+								/>
+							</div>
+							<Button
+								variant="ghost"
+								size="xs"
+								type="button"
+								aria-label={`Remove ${labels.alt.toLowerCase()} price`}
+								title={`Remove ${labels.alt.toLowerCase()}`}
+								onclick={removeAlt}
+							>
+								{#snippet icon()}
+									<Icon name="close" size={14} />
+								{/snippet}
+							</Button>
+						</div>
+						<div
+							class="metrics"
+							role="group"
+							aria-label={`${labels.alt} pour metrics`}
+						>
+							<div class="metric">
+								<span class="k">Cost</span>
+								<span class="v tnum">{costCopy(alt)}</span>
+							</div>
+							<div class="metric">
+								<span class="k">Target</span>
+								<span class="v tnum muted">
+									{formatPourPercent(price.targetPourCost) || "n/a"}
+								</span>
+							</div>
+							<div class="metric">
+								<span class="k">Actual</span>
+								<span
+									class="v tnum"
+									class:up={actualTone === "up"}
+									class:down={actualTone === "down"}
+									class:loss={actualTone === "loss"}
+									class:muted={actualTone === "muted" || !alt?.pourCost}
+								>
+									{actualCopy(alt)}
+								</span>
+							</div>
+							<div class="metric">
+								<span class="k">Over/under</span>
+								<span
+									class="v tnum"
+									class:up={deltaTone === "up"}
+									class:down={deltaTone === "down"}
+									class:loss={deltaTone === "loss"}
+									class:muted={deltaTone === "muted"}
+								>
+									{overUnderCopy(alt)}
+								</span>
+							</div>
+						</div>
+					</div>
+				</li>
+			{:else if canOfferAlt && labels.alt}
+				<li class="add">
+					<Button variant="ghost" size="xs" type="button" onclick={addAlt}>
+						{#snippet icon()}
+							<Icon name="plus" size={14} />
+						{/snippet}
+						Add {labels.alt.toLowerCase()}
+					</Button>
+				</li>
+			{/if}
+		</ul>
+	{/if}
 </section>
 
 <PourSettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
@@ -278,7 +293,6 @@
 		display: grid;
 		gap: 0.55rem;
 		min-width: 0;
-		margin-top: 0.85rem;
 	}
 
 	.section-head {
@@ -322,91 +336,102 @@
 		margin-left: auto;
 	}
 
+	.empty {
+		margin: 0.15rem 0 0;
+		font-size: var(--text-sm);
+		line-height: 1.45;
+		color: var(--muted-foreground);
+	}
+
 	.pours {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		display: grid;
-		gap: 0;
+		gap: 0.45rem;
 		min-width: 0;
+	}
+
+	.pour {
+		min-width: 0;
+		padding: 0.55rem 0.65rem;
 		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--card);
-		overflow: hidden;
-	}
-
-	.pour,
-	.add {
-		min-width: 0;
-	}
-
-	.pour + .pour,
-	.pour + .add,
-	.add + .pour {
-		border-top: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--sunken);
 	}
 
 	.pour-line {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.55rem 0.85rem;
+		gap: 0.45rem 0.75rem;
 		min-width: 0;
-		padding: 0.55rem 0.7rem;
 	}
 
 	.serve {
 		flex: 0 0 auto;
-		min-width: 3.5rem;
+		min-width: 4.5rem;
 		font-size: var(--text-sm);
 		font-weight: 600;
 		color: var(--foreground);
 	}
 
+	.price,
 	.price-tools {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.1rem;
 		flex: 0 0 auto;
 	}
 
-	.price {
+	.price-tools {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+	}
+
+	.price-readout {
+		flex: 0 0 auto;
+		min-width: 4.5rem;
+		margin: 0;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		line-height: 1.2;
+		text-align: end;
+		color: var(--foreground);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.price :global(input) {
 		width: 5.5rem;
-		flex: 0 0 5.5rem;
 	}
 
 	.metrics {
 		display: flex;
-		flex: 1 1 16rem;
 		flex-wrap: wrap;
-		align-items: baseline;
+		align-items: flex-start;
 		justify-content: flex-end;
-		gap: 0.65rem 1.1rem;
+		gap: 0.55rem 1rem;
+		flex: 1 1 auto;
 		min-width: 0;
 	}
 
 	.metric {
 		display: grid;
-		gap: 0.12rem;
+		gap: 0.1rem;
 		justify-items: end;
-		min-width: 0;
+		min-width: 3.5rem;
 	}
 
 	.k {
 		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
+		letter-spacing: 0.04em;
 		color: var(--muted-foreground);
-		white-space: nowrap;
+		text-transform: uppercase;
 	}
 
 	.v {
 		font-size: var(--text-sm);
 		font-weight: 600;
-		font-variant-numeric: tabular-nums;
+		line-height: 1.2;
 		color: var(--foreground);
-		white-space: nowrap;
 	}
 
 	.v.up {
@@ -436,6 +461,10 @@
 
 		.metric {
 			justify-items: start;
+		}
+
+		.price-readout {
+			text-align: start;
 		}
 	}
 </style>
