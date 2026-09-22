@@ -83,8 +83,9 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Data | Store |
 |------|--------|
 | Recipes, ingredients, method, glass, garnish, ops photos | **Baserow** `Menu Items` + `Ingredients` |
-| Lightspeed menus a drink sits on (Fall 2026, live menu, overlap) | **Baserow** `POS Menus`, linked from Menu Items. Manage at `/lightspeed/menus`. |
-| Lightspeed Menu/Screen path (Gwenda/Spirits/Liqueurs & Amari) | **Baserow** Menu Items field `Lightspeed menu/screen`. Stamped from the item-list export on Reconcile. |
+| Where a drink appears (print / digital / POS) | **Baserow** `Menu placements` (channel + section or POS menu/screen). Legacy Section / On print / On digital / POS menus fields are mirrored for compatibility. |
+| Lightspeed menus catalog (Fall 2026, Gwenda, …) | **Baserow** `POS Menus`. Manage at `/lightspeed/menus`. |
+| Lightspeed till screen path | **Baserow** `Menu placements` POS screen (also mirrored on Menu Items `Lightspeed menu/screen`). |
 | Menu chapters and groups (Our Formulas, Spritz, Draught Beer…) | **Baserow** `Menu Sections` (parent + order). Nested tree on `GET /api/menu`. Edit in the menu **Sections** panel. |
 | Bar stock / ABV catalog | **Baserow** `Inventory` |
 | Wholesalers, product pages, and pack prices | **Baserow** `Suppliers` plus junction `Inventory suppliers` (SKU, pack, trade price, product URL) |

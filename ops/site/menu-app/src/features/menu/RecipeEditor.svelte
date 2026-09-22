@@ -18,27 +18,20 @@
 		DRINK_TYPES,
 		GLASSWARE,
 		ICE_OPTIONS,
+		defaultPosMenus,
 		defaultServeQuantity,
 		drinkTypeLabel,
 		flattenIngredientsForMenu,
 		formatGbp,
-		guestMenuBlurb,
-		guestMenuFlags,
-		guestMenuPlacement,
-		asGuestMenuPlacement,
-		GUEST_MENU_PLACEMENTS,
 		hasRecipe,
 		normalizeCocktailType,
 		normalizeDrinkType,
-		serveTabLabel,
-		publishFieldLabel,
-		publishHint,
-		formatPublishDiff,
 		type CocktailType,
 		type DrinkType,
 		type Ingredient,
 		type InventoryItem,
 		type MenuItem,
+		type MenuPlacement,
 		type MenuSection,
 		type PosMenu,
 	} from "../../lib/types";
@@ -60,7 +53,6 @@
 	import {
 		marginTone,
 		recipePriceAnalysis,
-		snapGbp,
 	} from "../../lib/cost";
 	import { pourSettings } from "../../lib/settings.svelte";
 	import { namesClash } from "../../../../functions/_lib/spa-path.js";
@@ -87,10 +79,10 @@
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import PourCostPanel from "./PourCostPanel.svelte";
 	import RecipeAnalysisPanel from "./RecipeAnalysisPanel.svelte";
-	import PosMenuPicker from "./PosMenuPicker.svelte";
-	import PosScreenPicker from "./PosScreenPicker.svelte";
+	import MenuPlacementsTable from "./MenuPlacementsTable.svelte";
 	import {
 		collectPosScreenSuggestions,
+		defaultPosScreenForItem,
 	} from "../../../../functions/_lib/lightspeed-stock.js";
 
 	const PHOTO_KEY = "ops.menu.photo";
@@ -159,8 +151,6 @@
 	let restoring = false;
 	let aiError = $state("");
 	let aiBusy = $state(false);
-	let pourDraft = $state("");
-	let pourFocused = $state(false);
 
 	const screenSuggestions = $derived(
 		collectPosScreenSuggestions(menuItems, (posMenus || []).map((menu) => menu.name)),
@@ -171,7 +161,7 @@
 	}
 
 	function onTabChange(id: string) {
-		const order = ["details", "recipe", "analysis"];
+		const order = ["details", "menu", "analysis"];
 		const from = order.indexOf(tabPrev);
 		const to = order.indexOf(id);
 		if (from >= 0 && to >= 0 && from !== to) {
@@ -196,15 +186,25 @@
 		const nextIngredients = (draft.ingredients || []).map((ing) => ({
 			...ing,
 		}));
-		const { posMenuIds, ingredients: _ings, ...rest } = draft;
+		const { posMenuIds, placements: draftPlacements, ingredients: _ings, ...rest } =
+			draft as typeof draft & { placements?: string };
 		const ids = new Set(String(posMenuIds || "").split(",").filter(Boolean));
 		const nextPosMenus = (posMenus || []).filter((menu) =>
 			ids.has(String(menu.id)),
 		);
+		let nextPlacements = item.placements || [];
+		if (draftPlacements) {
+			try {
+				nextPlacements = JSON.parse(draftPlacements) as MenuPlacement[];
+			} catch {
+				/* keep */
+			}
+		}
 		item = {
 			...item,
 			...rest,
 			posMenus: nextPosMenus,
+			placements: nextPlacements,
 			ingredients: nextIngredients,
 		};
 		ingredients = nextIngredients;
@@ -285,16 +285,8 @@
 		const hrefFor = (id: string) => menuTabPath(tabBase, id);
 		return [
 			{ id: "details", label: "Details", href: hrefFor("details") },
-			{
-				id: "recipe",
-				label: serveTabLabel(drinkType),
-				href: hrefFor("recipe"),
-			},
-			{
-				id: "analysis",
-				label: "Analysis",
-				href: hrefFor("analysis"),
-			},
+			{ id: "menu", label: "Menu", href: hrefFor("menu") },
+			{ id: "analysis", label: "Analysis", href: hrefFor("analysis") },
 		];
 	});
 
@@ -328,12 +320,6 @@
 		label: g || "—",
 	}));
 
-	const guestPlacement = $derived(guestMenuPlacement(item));
-	const guestPlacementItems: SegmentedItem[] = GUEST_MENU_PLACEMENTS.map((row) => ({
-		id: row.value,
-		label: row.label,
-	}));
-
 	const itemKey = $derived(item?._id || (item ? "draft:new" : ""));
 
 	$effect(() => {
@@ -344,8 +330,6 @@
 			history = emptyDraftHistory();
 			aiError = "";
 			aiBusy = false;
-			pourFocused = false;
-			pourDraft = "";
 			clearUnsavedGuard();
 			return;
 		}
@@ -358,8 +342,6 @@
 		discardOpen = false;
 		aiError = "";
 		aiBusy = false;
-		pourFocused = false;
-		pourDraft = "";
 	});
 
 	$effect(() => {
@@ -526,44 +508,57 @@
 		item = { ...item, [field]: value };
 	}
 
-	function setGuestPlacement(placement: string) {
+	function setPlacements(next: MenuPlacement[]) {
 		if (!item) return;
-		const next = guestMenuFlags(asGuestMenuPlacement(placement));
-		if (
-			(item.onPrintMenu !== false) === next.onPrintMenu &&
-			(item.onDigitalMenu !== false) === next.onDigitalMenu
-		) {
-			return;
-		}
-		remember("guestPlacement");
-		item = { ...item, ...next };
+		remember("placements");
+		const ensured = ensurePosPlacements(next);
+		const print = ensured.find((row) => row.channel === "print");
+		const digital = ensured.find((row) => row.channel === "digital");
+		const pos = ensured.filter((row) => row.channel === "pos");
+		item = {
+			...item,
+			placements: ensured,
+			onPrintMenu: Boolean(print),
+			onDigitalMenu: Boolean(digital),
+			sectionId: print?.sectionId || digital?.sectionId || item.sectionId,
+			posMenus: pos
+				.map((row) => {
+					const menu = (posMenus || []).find(
+						(entry) => String(entry.id) === String(row.posMenuId),
+					);
+					return menu
+						? { id: String(menu.id), name: menu.name }
+						: row.posMenuId
+							? { id: String(row.posMenuId), name: row.posMenuName || "" }
+							: null;
+				})
+				.filter(Boolean) as PosMenu[],
+			lightspeedMenuScreen: [
+				...new Set(pos.map((row) => row.posScreen).filter(Boolean)),
+			].join(","),
+		};
 	}
 
-	function pourText(value: number | null | undefined): string {
-		if (value == null || !Number.isFinite(value)) return "";
-		const rounded = Math.round(value * 10) / 10;
-		return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-	}
-
-	function priceFieldText(value: number): string {
-		return Number.isInteger(value) ? String(value) : value.toFixed(1);
-	}
-
-	function commitHeaderPour() {
-		pourFocused = false;
-		const cost = primaryServe?.drinkCost;
-		const n = Number(String(pourDraft).replace(/%/g, "").trim());
-		if (
-			cost == null ||
-			cost <= 0 ||
-			!Number.isFinite(n) ||
-			n <= 0 ||
-			n >= 100
-		) {
-			pourDraft = pourText(primaryServe?.pourCost);
-			return;
-		}
-		patch("price", priceFieldText(snapGbp(cost / (n / 100))));
+	function ensurePosPlacements(list: MenuPlacement[]): MenuPlacement[] {
+		const hasGuest = list.some(
+			(row) => row.channel === "print" || row.channel === "digital",
+		);
+		const hasPos = list.some((row) => row.channel === "pos");
+		if (!hasGuest || hasPos) return list;
+		const defaults = defaultPosMenus(posMenus);
+		const screen =
+			defaultPosScreenForItem(item) ||
+			screenSuggestions[0] ||
+			"Signature Cocktails";
+		return [
+			...list,
+			...defaults.map((menu) => ({
+				channel: "pos" as const,
+				posMenuId: String(menu.id),
+				posMenuName: menu.name,
+				posScreen: screen,
+			})),
+		];
 	}
 
 	function setDrinkType(next: DrinkType) {
@@ -654,15 +649,17 @@
 			.filter(Boolean)
 			.join(" · "),
 	);
-	const canSetPour = $derived(
-		primaryServe?.drinkCost != null && primaryServe.drinkCost > 0,
-	);
+	const headerPourLabel = $derived.by(() => {
+		const value = primaryServe?.pourCost;
+		if (value == null || !Number.isFinite(value)) return "";
+		const rounded = Math.round(value * 10) / 10;
+		const text = Number.isInteger(rounded)
+			? String(rounded)
+			: rounded.toFixed(1);
+		return `${text}% pour`;
+	});
 	const priceFieldLabel = $derived(primaryServe?.label || "Price");
 
-	$effect(() => {
-		if (pourFocused) return;
-		pourDraft = pourText(primaryServe?.pourCost);
-	});
 	const canAnalyze = $derived(
 		Boolean(
 			analysis &&
@@ -777,7 +774,7 @@
 					tabindex={photoOpen ? 0 : -1}
 					onclick={() => setPhotoOpen(false)}
 				>
-					<Icon name="chevron-left" size={16} />
+					<Icon name="chevron-right" size={16} />
 				</button>
 				{#if photoUrl}
 					<img
@@ -972,48 +969,18 @@
 								<span class="price-alt tnum">/ {item.priceAlt}</span>
 							{/if}
 						</div>
-						<label class="pour-row">
-							<span class="sr-only">{priceFieldLabel} pour cost</span>
-							<input
-								class="pour-input tnum"
-								id="f-pour"
+						{#if headerPourLabel}
+							<p
+								class="pour-readout tnum"
 								class:up={headerPourTone === "up"}
 								class:down={headerPourTone === "down"}
 								class:loss={headerPourTone === "loss"}
-								class:muted={headerPourTone === "muted" ||
-									primaryServe?.pourCost == null}
-								inputmode="decimal"
-								autocomplete="off"
-								disabled={!canSetPour}
-								placeholder={canSetPour ? "" : "n/a"}
-								title={canSetPour
-									? `Pour cost. Type a percent to set the ${priceFieldLabel.toLowerCase()} price.`
-									: "Need a drink cost before pour can be set."}
-								value={pourDraft}
-								onfocus={() => (pourFocused = true)}
-								oninput={(e) =>
-									(pourDraft = (
-										e.currentTarget as HTMLInputElement
-									).value)}
-								onblur={commitHeaderPour}
-								onkeydown={(e) => {
-									if (e.key === "Enter") {
-										e.preventDefault();
-										commitHeaderPour();
-										(e.currentTarget as HTMLInputElement).blur();
-									}
-									if (e.key === "Escape") {
-										e.preventDefault();
-										pourFocused = false;
-										pourDraft = pourText(primaryServe?.pourCost);
-										(e.currentTarget as HTMLInputElement).blur();
-									}
-								}}
-							/>
-							{#if canSetPour || pourDraft}
-								<span class="pour-suffix" aria-hidden="true">%</span>
-							{/if}
-						</label>
+								class:muted={headerPourTone === "muted"}
+								title="Pour cost from recipe cost and sell price"
+							>
+								{headerPourLabel}
+							</p>
+						{/if}
 						{#if headerMeta}
 							<p class="meta-line tnum">{headerMeta}</p>
 						{/if}
@@ -1044,7 +1011,7 @@
 						>
 					{#if tab === "details"}
 						<section class="block">
-							<div class="grid">
+							<div class="grid identity">
 								<Field label="Drink type" for="f-drink-type">
 									<NativeSelect
 										id="f-drink-type"
@@ -1078,29 +1045,7 @@
 												)}
 										/>
 									</Field>
-								{/if}
-								<Field label="Section" for="f-section">
-									<NativeSelect
-										id="f-section"
-										size="sm"
-										options={sectionOptions}
-										value={item.sectionId ||
-											item.section?._ref ||
-											item.section?._id ||
-											""}
-										onchange={(e) =>
-											patch(
-												"sectionId",
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								</Field>
-							</div>
-						</section>
-
-						{#if !showRecipe}
-							<section class="block">
-								<div class="grid">
+								{:else}
 									<Field label="Producer" for="f-producer-d">
 										<TextField
 											id="f-producer-d"
@@ -1113,6 +1058,75 @@
 												)}
 										/>
 									</Field>
+								{/if}
+								<div class="notes">
+									<Field
+										label="Tasting note"
+										for="f-notes"
+										tooltip="Short line under the name."
+									>
+										<TextField
+											id="f-notes"
+											size="sm"
+											value={item.notes || ""}
+											placeholder="e.g. Floral fizz"
+											oninput={(e) =>
+												patch(
+													"notes",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+								</div>
+								{#if showRecipe}
+									<Field
+										label="ABV"
+										for="f-abv"
+										tooltip="From inventory for linked ingredients. Override or recalculate after stock ABV changes."
+									>
+										{#snippet actions()}
+											<Button
+												variant="ghost"
+												size="xs"
+												type="button"
+												aria-label="Recalculate from recipe"
+												title="Recalculate ABV and volume from recipe"
+												disabled={!canRecalcRecipe}
+												onclick={recalculateRecipeMetrics}
+											>
+												{#snippet icon()}
+													<Icon name="refresh" />
+												{/snippet}
+											</Button>
+										{/snippet}
+										<TextField
+											id="f-abv"
+											size="sm"
+											value={item.abv || ""}
+											oninput={(e) =>
+												patch(
+													"abv",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+									<Field
+										label="Volume"
+										for="f-volume"
+										tooltip="From recipe volumes. Override or recalculate with ABV after stock changes."
+									>
+										<TextField
+											id="f-volume"
+											size="sm"
+											value={item.volume || ""}
+											oninput={(e) =>
+												patch(
+													"volume",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+								{:else}
 									<Field label="ABV" for="f-abv-d">
 										<TextField
 											id="f-abv-d"
@@ -1125,124 +1139,24 @@
 												)}
 										/>
 									</Field>
-									<div class="full">
-										<Field label="Volume" for="f-volume-d">
-											<TextField
-												id="f-volume-d"
-												size="sm"
-												value={item.volume || ""}
-												oninput={(e) =>
-													patch(
-														"volume",
-														(e.currentTarget as HTMLInputElement)
-															.value,
-													)}
-											/>
-										</Field>
-									</div>
-								</div>
-							</section>
-						{/if}
-
-						<section class="block">
-							<p class="section-title">Menu</p>
-							<div class="grid">
-								<div class="full">
-									<Field
-										label="Guest menus"
-										for="f-guest-menu"
-										tooltip="Where guests see this drink. POS only keeps it on the till without print or the website."
-									>
-										<Segmented
-											value={guestPlacement}
-											items={guestPlacementItems}
-											size="sm"
-											ariaLabel="Guest menus"
-											onChange={setGuestPlacement}
-										/>
-									</Field>
-									<p class="hint">{guestMenuBlurb(guestPlacement)}</p>
-									<Field
-										label="POS menus"
-										tooltip="Lightspeed menus this drink appears on. Tick more than one when a bottle is still on Gwenda and Fall 2026."
-									>
-										<PosMenuPicker
-											menus={posMenus}
-											value={item.posMenus || []}
-											onchange={(next) => patch("posMenus", next)}
-										/>
-									</Field>
-									<Field
-										label="POS name"
-										for="f-pos-name"
-										tooltip="Short till button name. Leave blank to use the drink name. Serve sizes (Pint, Half, Double, Bottle) are added on export."
-									>
+									<Field label="Volume" for="f-volume-d">
 										<TextField
-											id="f-pos-name"
+											id="f-volume-d"
 											size="sm"
-											value={item.lightspeedName || ""}
-											placeholder={item.name || "Short till name"}
+											value={item.volume || ""}
 											oninput={(e) =>
 												patch(
-													"lightspeedName",
+													"volume",
 													(e.currentTarget as HTMLInputElement).value,
 												)}
 										/>
 									</Field>
-									<Field
-										label="POS screens"
-										for="f-pos-screens"
-										tooltip="Lightspeed screens this drink lands on when you import a menu. Main/Sub-screen. More than one is allowed."
-									>
-										<PosScreenPicker
-											value={item.lightspeedMenuScreen || ""}
-											suggestions={screenSuggestions}
-											onchange={(next) => patch("lightspeedMenuScreen", next)}
-										/>
-									</Field>
-									{#if item.onDigitalMenu !== false}
-										<p class="hint">{publishHint(item.publish)}</p>
-										{#if item.publish?.staging?.diff?.length || item.publish?.production?.diff?.length}
-											<ul class="publish-diff">
-												{#each item.publish?.staging?.diff || [] as change (`staging-${change.field}`)}
-													<li>
-														Preview · {publishFieldLabel(change.field)}:
-														{formatPublishDiff(change)}
-													</li>
-												{/each}
-												{#each item.publish?.production?.diff || [] as change (`live-${change.field}`)}
-													<li>
-														Live · {publishFieldLabel(change.field)}:
-														{formatPublishDiff(change)}
-													</li>
-												{/each}
-											</ul>
-										{/if}
-									{/if}
-								</div>
+								{/if}
 								<div class="full">
 									<Field
-										label="Tasting note"
-										for="f-notes"
-										tooltip="Short line under the name on the website menu."
-									>
-										<TextField
-											id="f-notes"
-											size="sm"
-											value={item.notes || ""}
-											oninput={(e) =>
-												patch(
-													"notes",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-								<div class="full">
-									<Field
-										label="Menu description"
+										label="Description"
 										for="f-description"
-										tooltip="Longer description guests see on the website menu."
+										tooltip="Ingredient line or longer blurb on the guest menu."
 									>
 										{#snippet actions()}
 										{#if showRecipe}
@@ -1265,7 +1179,7 @@
 									{/snippet}
 										<TextArea
 											id="f-description"
-											rows={4}
+											rows={3}
 											value={item.description || ""}
 											oninput={(e) =>
 												patch(
@@ -1278,60 +1192,7 @@
 								</div>
 							</div>
 						</section>
-					{:else if tab === "recipe"}
-						{#if showRecipe}
-						<section class="block">
-							<div class="grid">
-								<Field
-									label="ABV"
-									for="f-abv"
-									tooltip="From inventory for linked ingredients. Recalculate after stock ABV changes."
-								>
-									{#snippet actions()}
-										<Button
-											variant="ghost"
-											size="xs"
-											type="button"
-											aria-label="Recalculate from recipe"
-											title="Recalculate ABV and volume from recipe"
-											disabled={!canRecalcRecipe}
-											onclick={recalculateRecipeMetrics}
-										>
-											{#snippet icon()}
-												<Icon name="refresh" />
-											{/snippet}
-										</Button>
-									{/snippet}
-									<TextField
-										id="f-abv"
-										size="sm"
-										value={item.abv || ""}
-										oninput={(e) =>
-											patch(
-												"abv",
-												(e.currentTarget as HTMLInputElement).value,
-											)}
-									/>
-								</Field>
-								<Field
-									label="Volume"
-									for="f-volume"
-									tooltip="From recipe volumes. Recalculate with ABV after stock changes."
-								>
-									<TextField
-										id="f-volume"
-										size="sm"
-										value={item.volume || ""}
-										oninput={(e) =>
-											patch(
-												"volume",
-												(e.currentTarget as HTMLInputElement).value,
-											)}
-									/>
-								</Field>
-							</div>
-						</section>
-						{/if}
+
 						<section class="block">
 							<div class="section-head">
 								<p class="section-title">{showRecipe ? "Ingredients" : "Serve"}</p>
@@ -1353,6 +1214,68 @@
 								bind:inventory
 								onChange={onIngredientsChange}
 							/>
+							{#if showRecipe}
+								<div class="method-field">
+									<Field label="Method" for="f-method">
+										<TextArea
+											id="f-method"
+											rows={3}
+											value={item.method || ""}
+											oninput={(e) =>
+												patch(
+													"method",
+													(e.currentTarget as HTMLTextAreaElement)
+														.value,
+												)}
+										/>
+									</Field>
+									<div class="grid serve-fields">
+										<Field label="Glassware" for="f-glass">
+											<NativeSelect
+												id="f-glass"
+												size="sm"
+												options={glassOptions}
+												value={item.glassware || ""}
+												onchange={(e) =>
+													patch(
+														"glassware",
+														(e.currentTarget as HTMLSelectElement)
+															.value,
+													)}
+											/>
+										</Field>
+										<Field label="Ice" for="f-ice">
+											<NativeSelect
+												id="f-ice"
+												size="sm"
+												options={iceOptions}
+												value={item.ice || ""}
+												onchange={(e) =>
+													patch(
+														"ice",
+														(e.currentTarget as HTMLSelectElement)
+															.value,
+													)}
+											/>
+										</Field>
+										<div class="full">
+											<Field label="Garnish" for="f-garnish">
+												<TextField
+													id="f-garnish"
+													size="sm"
+													value={item.garnish || ""}
+													oninput={(e) =>
+														patch(
+															"garnish",
+															(e.currentTarget as HTMLInputElement)
+																.value,
+														)}
+												/>
+											</Field>
+										</div>
+									</div>
+								</div>
+							{/if}
 							{#if priceLive}
 								<PourCostPanel
 									price={priceLive}
@@ -1363,69 +1286,6 @@
 								/>
 							{/if}
 						</section>
-						{#if showRecipe}
-						<section class="block">
-							<Field label="Method" for="f-method">
-								<TextArea
-									id="f-method"
-									rows={4}
-									value={item.method || ""}
-									oninput={(e) =>
-										patch(
-											"method",
-											(e.currentTarget as HTMLTextAreaElement).value,
-										)}
-								/>
-							</Field>
-						</section>
-						{/if}
-						{#if showRecipe}
-						<section class="block">
-							<p class="section-title">Serving</p>
-							<div class="grid">
-								<Field label="Glassware" for="f-glass">
-									<NativeSelect
-										id="f-glass"
-										size="sm"
-										options={glassOptions}
-										value={item.glassware || ""}
-										onchange={(e) =>
-											patch(
-												"glassware",
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								</Field>
-								<Field label="Ice" for="f-ice">
-									<NativeSelect
-										id="f-ice"
-										size="sm"
-										options={iceOptions}
-										value={item.ice || ""}
-										onchange={(e) =>
-											patch(
-												"ice",
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								</Field>
-								<div class="full">
-									<Field label="Garnish" for="f-garnish">
-										<TextField
-											id="f-garnish"
-											size="sm"
-											value={item.garnish || ""}
-											oninput={(e) =>
-												patch(
-													"garnish",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-							</div>
-						</section>
-						{/if}
 
 						<Dialog
 							open={addIngredientOpen}
@@ -1449,6 +1309,45 @@
 								</Button>
 							{/snippet}
 						</Dialog>
+					{:else if tab === "menu"}
+						<section class="block">
+							<p class="section-title">Menus</p>
+							<p class="lede-hint">
+								Where this drink appears: Print chapter, Digital chapter, and each
+								POS menu with its till screen.
+							</p>
+							<div class="grid">
+								<div class="full">
+									<Field
+										label="Till button name"
+										for="f-pos-name"
+										tooltip="Short name on the POS button. Leave blank to use the drink name. Serve sizes are added on export."
+									>
+										<TextField
+											id="f-pos-name"
+											size="sm"
+											value={item.lightspeedName || ""}
+											placeholder={item.name || "Same as drink name"}
+											oninput={(e) =>
+												patch(
+													"lightspeedName",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+								</div>
+								<div class="full">
+									<MenuPlacementsTable
+										menus={posMenus}
+										placements={item.placements || []}
+										sectionOptions={sectionOptions}
+										screenSuggestions={screenSuggestions}
+										defaultSectionId={item.sectionId || ""}
+										onchange={setPlacements}
+									/>
+								</div>
+							</div>
+						</section>
 					{:else if tab === "analysis"}
 						<RecipeAnalysisPanel
 							{analysis}
@@ -1574,7 +1473,8 @@
 
 	.split {
 		display: grid;
-		grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
+		grid-template-areas: "panel hero";
 		column-gap: var(--gap);
 		row-gap: var(--gap);
 		flex: 1;
@@ -1587,6 +1487,7 @@
 	}
 
 	.hero {
+		grid-area: hero;
 		position: relative;
 		display: flex;
 		flex-direction: column;
@@ -1608,7 +1509,7 @@
 	.photo-collapse {
 		position: absolute;
 		top: 0.55rem;
-		right: 0.55rem;
+		left: 0.55rem;
 		z-index: 3;
 		display: grid;
 		place-content: center;
@@ -1643,7 +1544,7 @@
 	}
 
 	.split.photo-collapsed {
-		grid-template-columns: 0% minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) 0%;
 		column-gap: 0;
 	}
 
@@ -1847,6 +1748,7 @@
 	}
 
 	.panel {
+		grid-area: panel;
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
@@ -1935,7 +1837,7 @@
 	}
 
 	.split.photo-collapsed .price-row,
-	.split.photo-collapsed .pour-row {
+	.split.photo-collapsed .pour-readout {
 		justify-content: flex-start;
 	}
 
@@ -2054,17 +1956,12 @@
 		padding-top: 0.12rem;
 	}
 
-	.price-row,
-	.pour-row {
+	.price-row {
 		display: flex;
 		align-items: baseline;
 		justify-content: flex-end;
 		gap: 0.35rem;
 		min-width: 0;
-	}
-
-	.pour-row {
-		cursor: text;
 	}
 
 	.price-edit,
@@ -2121,84 +2018,46 @@
 		white-space: nowrap;
 	}
 
-	.price-edit:hover,
-	.pour-input:hover:not(:disabled) {
+	.price-edit:hover {
 		border-color: var(--border);
 	}
 
-	.price-edit:focus-within,
-	.pour-input:focus {
+	.price-edit:focus-within {
 		border-color: var(--ring);
 		background: var(--sunken);
 		box-shadow: 0 0 0 2px var(--ring-wash);
 	}
 
-	.pour-input {
-		width: 4.6ch;
-		min-width: 3.2ch;
-		max-width: 6.5ch;
-		box-sizing: content-box;
-		padding: 0.04em 0.2rem 0.1em;
-		margin: 0;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
-		color: var(--foreground);
-		font-family: var(--font);
-		font-size: clamp(1.15rem, 1.8vw, 1.4rem);
-		font-weight: 600;
-		letter-spacing: 0.02em;
-		line-height: 1.2;
-		text-align: right;
-		outline: none;
-		font-variant-numeric: tabular-nums;
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
-	}
-
 	.price-input::-webkit-outer-spin-button,
-	.price-input::-webkit-inner-spin-button,
-	.pour-input::-webkit-outer-spin-button,
-	.pour-input::-webkit-inner-spin-button {
+	.price-input::-webkit-inner-spin-button {
 		appearance: none;
 		margin: 0;
 	}
 
-	.pour-input.up {
+	.pour-readout {
+		margin: 0;
+		font-family: var(--font);
+		font-size: clamp(1.05rem, 1.6vw, 1.2rem);
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		line-height: 1.25;
+		color: var(--foreground);
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.pour-readout.up {
 		color: var(--up);
 	}
 
-	.pour-input.down,
-	.pour-input.loss {
+	.pour-readout.down,
+	.pour-readout.loss {
 		color: var(--down);
 	}
 
-	.pour-input.muted,
-	.pour-input:disabled {
+	.pour-readout.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
-	}
-
-	.pour-suffix {
-		font-size: clamp(1.15rem, 1.8vw, 1.4rem);
-		font-weight: 600;
-		color: inherit;
-	}
-
-	.pour-row:has(.pour-input.up) .pour-suffix {
-		color: var(--up);
-	}
-
-	.pour-row:has(.pour-input.down) .pour-suffix,
-	.pour-row:has(.pour-input.loss) .pour-suffix {
-		color: var(--down);
-	}
-
-	.pour-row:has(.pour-input.muted) .pour-suffix,
-	.pour-row:has(.pour-input:disabled) .pour-suffix {
-		color: var(--muted-foreground);
 	}
 
 	.meta-line {
@@ -2319,7 +2178,8 @@
 		align-items: start;
 	}
 
-	.grid.three {
+	.grid.three,
+	.grid.identity {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 
@@ -2327,10 +2187,27 @@
 		grid-column: 1 / -1;
 	}
 
+	.method-field {
+		display: grid;
+		gap: 0.7rem;
+		margin-top: 0.85rem;
+	}
+
+	.serve-fields {
+		margin-top: 0;
+	}
+
 	.hint {
 		margin: 0.15rem 0 0;
 		font-size: var(--text);
 		line-height: 1.4;
+		color: var(--muted-foreground);
+	}
+
+	.lede-hint {
+		margin: -0.25rem 0 0.75rem;
+		font-size: var(--text-sm);
+		line-height: 1.45;
 		color: var(--muted-foreground);
 	}
 
@@ -2347,15 +2224,20 @@
 
 	@media (max-width: 1100px) {
 		.split {
-			grid-template-columns: minmax(0, 36%) minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr) minmax(0, 30%);
 		}
 
 		.split.photo-collapsed {
-			grid-template-columns: 0% minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr) 0%;
 		}
 
-		.grid.three {
+		.grid.three,
+		.grid.identity {
 			grid-template-columns: 1fr 1fr;
+		}
+
+		.grid.identity .notes {
+			grid-column: 1 / -1;
 		}
 	}
 
@@ -2429,8 +2311,9 @@
 		}
 
 		.price-row,
-		.pour-row {
+		.pour-readout {
 			justify-content: flex-start;
+			text-align: left;
 		}
 	}
 
@@ -2453,7 +2336,8 @@
 		}
 
 		.grid,
-		.grid.three {
+		.grid.three,
+		.grid.identity {
 			grid-template-columns: 1fr;
 		}
 	}

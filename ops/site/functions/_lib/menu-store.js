@@ -27,11 +27,16 @@ import { parsePublishSnapshots } from "./reconcile.js";
 import { normalizeLightspeedStatus } from "./lightspeed-stock.js";
 import { flattenMenuSections, nestMenuSections } from "./menu-sections.js";
 import {
-  defaultPosMenuIds,
   listPosMenus,
   mapPosMenuLinks,
-  posMenuLinkFields,
 } from "./pos-menu-store.js";
+import {
+  attachPlacements,
+  applyPlacementDerivedFields,
+  legacyFieldsFromPlacements,
+  replaceMenuPlacements,
+  resolvePlacementsForWrite,
+} from "./menu-placements.js";
 import {
   ANALYSIS_NOTE_FIELD,
   parseStoredAnalyzeNote,
@@ -159,10 +164,13 @@ function mapItem(row) {
 
 export async function loadMenuTree(env) {
   const tables = await resolveOpsTableIds(env);
-  const [sectionRows, itemRows, ingredientRows] = await Promise.all([
+  const [sectionRows, itemRows, ingredientRows, placementRows] = await Promise.all([
     listAllRows(env, tables.sections),
     listAllRows(env, tables.items),
     listAllRows(env, tables.ingredients),
+    tables.menuPlacements
+      ? listAllRows(env, tables.menuPlacements)
+      : Promise.resolve([]),
   ]);
 
   const sections = sectionRows
@@ -189,11 +197,25 @@ export async function loadMenuTree(env) {
     list.sort((a, b) => a.order - b.order || a.id - b.id);
   }
 
-  const items = itemRows
+  let items = itemRows
     .map(mapItem)
     .filter((item) => Boolean(item.name))
     .sort((a, b) => a.orderRank - b.orderRank);
+  items = attachPlacements(items, placementRows);
+  const posMenuIndex = tables.posMenus
+    ? new Map(
+        (await listPosMenus(env)).map((menu) => [String(menu.id), menu]),
+      )
+    : new Map();
   for (const item of items) {
+    if (posMenuIndex.size && item.placements?.length) {
+      item.placements = item.placements.map((row) => {
+        if (row.channel !== "pos" || row.posMenuName) return row;
+        const menu = posMenuIndex.get(String(row.posMenuId));
+        return menu ? { ...row, posMenuName: menu.name } : row;
+      });
+      Object.assign(item, applyPlacementDerivedFields(item));
+    }
     item.ingredients = ingredientsByItem.get(item._id) || [];
     const section = item.sectionId ? byId.get(item.sectionId) : null;
     if (section) {
@@ -237,7 +259,7 @@ function boolInput(value, fallback = true) {
   return value === true || value === "true";
 }
 
-function itemFieldsFromInput(input) {
+function itemFieldsFromInput(input, { requireSection = true } = {}) {
   const name = text(input.name);
   if (!name) {
     const error = new Error("Name is required.");
@@ -245,7 +267,8 @@ function itemFieldsFromInput(input) {
     throw error;
   }
   const sectionId = Number(input.sectionId);
-  if (!Number.isFinite(sectionId)) {
+  const hasSection = Number.isFinite(sectionId) && sectionId > 0;
+  if (requireSection && !hasSection) {
     const error = new Error("Section is required.");
     error.status = 400;
     throw error;
@@ -257,7 +280,7 @@ function itemFieldsFromInput(input) {
 
   return {
     Name: name,
-    Section: [sectionId],
+    ...(hasSection ? { Section: [sectionId] } : {}),
     "Menu line": text(input.description) || "",
     "Lock menu line": false,
     Price: text(input.price),
@@ -403,16 +426,23 @@ export async function createMenuItem(env, input) {
   const tables = await resolveOpsTableIds(env);
   const ingredients = normalizeIngredients(input.ingredients);
   const inventoryById = await loadInventoryAbvMap(env, tables);
-  const payload = { ...input };
-  if (
-    tables.posMenus &&
-    !Object.prototype.hasOwnProperty.call(payload, "posMenuIds")
-  ) {
-    payload.posMenuIds = defaultPosMenuIds(await listPosMenus(env));
-  }
+  const posMenus = tables.posMenus ? await listPosMenus(env) : [];
+  const placements = resolvePlacementsForWrite(input, {
+    defaultPosMenus: posMenus,
+  });
+  const derived = applyPlacementDerivedFields({ ...input, placements });
+  const payload = {
+    ...input,
+    ...derived,
+    sectionId: derived.sectionId || input.sectionId,
+    posMenuIds: (derived.posMenus || []).map((menu) => menu.id),
+  };
+  const hasGuest = placements.some(
+    (row) => row.channel === "print" || row.channel === "digital",
+  );
   const fields = {
-    ...itemFieldsFromInput(payload),
-    ...posMenuLinkFields(payload, tables),
+    ...itemFieldsFromInput(payload, { requireSection: hasGuest }),
+    ...legacyFieldsFromPlacements(placements, tables),
   };
   const siblings = await listAllRows(env, tables.items);
   assertUniqueItemName(
@@ -433,9 +463,24 @@ export async function createMenuItem(env, input) {
   }
   const row = await createRow(env, tables.items, fields);
   const savedIngredients = await replaceIngredients(env, tables, row.id, ingredients);
-  const item = mapItem(row);
-  item.ingredients = savedIngredients;
-  item.sectionId = String(linkValue(row.Section) ?? input.sectionId);
+  const savedPlacements = await replaceMenuPlacements(
+    env,
+    tables,
+    row.id,
+    placements,
+  );
+  const item = applyPlacementDerivedFields({
+    ...mapItem(row),
+    ingredients: savedIngredients,
+    placements: savedPlacements,
+  });
+  item.sectionId = item.sectionId
+    ? String(item.sectionId)
+    : linkValue(row.Section) != null
+      ? String(linkValue(row.Section))
+      : input.sectionId
+        ? String(input.sectionId)
+        : null;
   return item;
 }
 
@@ -447,14 +492,44 @@ export async function updateMenuItem(env, itemId, input) {
     error.status = 404;
     throw error;
   }
+  const existingMapped = mapItem(existing);
+  if (tables.menuPlacements) {
+    const placementRows = await listAllRows(env, tables.menuPlacements, {
+      filters: linkHasQuery("Menu item", itemId),
+    });
+    Object.assign(
+      existingMapped,
+      attachPlacements([existingMapped], placementRows)[0],
+    );
+  }
   const ingredients = normalizeIngredients(input.ingredients);
   const inventoryById = await loadInventoryAbvMap(env, tables);
+  const posMenus = tables.posMenus ? await listPosMenus(env) : [];
+  const placements = resolvePlacementsForWrite(input, {
+    existingItem: existingMapped,
+    defaultPosMenus: posMenus,
+  });
+  const derived = applyPlacementDerivedFields({
+    ...existingMapped,
+    ...input,
+    placements,
+  });
+  const payload = {
+    ...existingMapped,
+    ...input,
+    ...derived,
+    sectionId:
+      derived.sectionId ||
+      input.sectionId ||
+      linkValue(existing.Section),
+    posMenuIds: (derived.posMenus || []).map((menu) => menu.id),
+  };
+  const hasGuest = placements.some(
+    (row) => row.channel === "print" || row.channel === "digital",
+  );
   const fields = {
-    ...itemFieldsFromInput({
-      ...input,
-      sectionId: input.sectionId || linkValue(existing.Section),
-    }),
-    ...posMenuLinkFields(input, tables),
+    ...itemFieldsFromInput(payload, { requireSection: hasGuest }),
+    ...legacyFieldsFromPlacements(placements, tables),
   };
   Object.assign(
     fields,
@@ -468,10 +543,17 @@ export async function updateMenuItem(env, itemId, input) {
   );
   const row = await updateRow(env, tables.items, itemId, fields);
   const savedIngredients = await replaceIngredients(env, tables, itemId, ingredients);
-  const item = mapItem(row);
-  item.ingredients = savedIngredients;
-  item.sectionId = String(linkValue(row.Section) ?? input.sectionId);
-  return item;
+  const savedPlacements = await replaceMenuPlacements(
+    env,
+    tables,
+    itemId,
+    placements,
+  );
+  return applyPlacementDerivedFields({
+    ...mapItem(row),
+    ingredients: savedIngredients,
+    placements: savedPlacements,
+  });
 }
 
 /**
@@ -537,8 +619,23 @@ export async function deleteMenuItem(env, itemId) {
     tables.ingredients,
     mine.map((row) => row.id),
   );
+  if (tables.menuPlacements) {
+    const placementRows = await listAllRows(env, tables.menuPlacements, {
+      filters: linkHasQuery("Menu item", itemId),
+    });
+    await deleteRowsInOrder(
+      env,
+      tables.menuPlacements,
+      placementRows.map((row) => row.id),
+    );
+  }
   await deleteRow(env, tables.items, itemId);
   return { id: String(itemId) };
+}
+
+/** Clear guest + POS placements (off till and off guest menus). */
+export async function archiveMenuItem(env, itemId) {
+  return updateMenuItem(env, itemId, { archived: true, placements: [] });
 }
 
 export async function setMenuItemPhoto(env, itemId, bytes, { filename, contentType, alt }) {

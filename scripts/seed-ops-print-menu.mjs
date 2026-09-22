@@ -357,7 +357,7 @@ const MENU_UPDATES = [
     drinkType: "cocktail",
     cocktailType: "sour",
     notes: "Smoke, strawberry, chilli",
-    description: "Ojo de Dios mezcal, strawberry syrup, chilli powder, lime, Terre Forti Sangiovese",
+    description: "Ojo de Dios mezcal, strawberry syrup, chilli powder, lime, red wine",
     lockDescription: true,
     ingredients: [
       inv("Ojo de Dios Mezcal Joven", 45, "ml"),
@@ -502,7 +502,7 @@ const MENU_UPDATES = [
     matchNames: ["Hugo Spritz"],
     name: "Hugo Spritz",
     sectionSlug: "spritz",
-    price: "9",
+    price: "10",
     drinkType: "cocktail",
     ingredients: [
       inv("St-Germain", 30, "ml"),
@@ -515,7 +515,7 @@ const MENU_UPDATES = [
     matchNames: ["Limoncello Spritz"],
     name: "Limoncello Spritz",
     sectionSlug: "spritz",
-    price: "9",
+    price: "10",
     drinkType: "cocktail",
     ingredients: [
       inv("Limoncello", 50, "ml"),
@@ -540,7 +540,7 @@ const MENU_UPDATES = [
     matchNames: ["Negroni"],
     name: "Negroni",
     sectionSlug: "negroni",
-    price: "10",
+    price: "9",
     drinkType: "cocktail",
     ingredients: [
       inv("Arboretum Gin", 30, "ml"),
@@ -564,7 +564,7 @@ const MENU_UPDATES = [
     matchNames: ["Negroni Sbagliato"],
     name: "Negroni Sbagliato",
     sectionSlug: "negroni",
-    price: "10",
+    price: "9",
     drinkType: "cocktail",
     ingredients: [
       inv("Campari", 30, "ml"),
@@ -643,7 +643,7 @@ const MENU_UPDATES = [
     ],
   },
 
-  // ── Highball (8/10 = 25ml / 35ml) ──
+  // ── Highball (POS only · not on print or digital) ──
   {
     matchNames: ["Moscow Mule"],
     name: "Moscow Mule",
@@ -651,6 +651,7 @@ const MENU_UPDATES = [
     price: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     ingredients: [
       inv("Moonshine Vodka", 50, "ml"),
       inv("Ginger beer", 120, "ml"),
@@ -665,6 +666,7 @@ const MENU_UPDATES = [
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     description: "Arboretum gin, tonic. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
@@ -680,6 +682,7 @@ const MENU_UPDATES = [
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     description: "Juan de la Costa spiced rum, Coca-Cola. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
@@ -695,6 +698,7 @@ const MENU_UPDATES = [
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     description: "Moonshine vodka, Monster Energy. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
@@ -710,6 +714,7 @@ const MENU_UPDATES = [
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     description: "Moonshine vodka, lemon soda. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
