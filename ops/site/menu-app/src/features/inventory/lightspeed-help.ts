@@ -2,24 +2,20 @@ import type { PageHelpTopic } from "../../ui/types";
 
 export const RECONCILE_HELP: PageHelpTopic[] = [
 	{
-		title: "Reconcile, Export, Menus",
-		body: "Reconcile matches a Lightspeed item list to ops. Export builds CSVs to import there. Menus are the POS menus drinks can sit on.",
+		title: "Two pages",
+		body: "Reconcile and Export are separate pages under Lightspeed in the side nav.",
 	},
 	{
-		title: "POS menu",
-		body: "First segment of Menu/Screen. Screens are set on the drink. Create menu names on Menus. Place drinks from Export.",
-	},
-	{
-		title: "Upload item list",
-		body: "Back Office: Menu, Item list, Export. Match is SKU, then name, then button name.",
+		title: "Import item list",
+		body: "Back Office: Menu, Item list, Export. Match is SKU, then name, then button name. The page shows the last stamped status until you import a new file.",
 	},
 	{
 		title: "Stamp SKUs",
 		body: "Writes matched Lightspeed SKUs, names, and POS screens onto ops drinks and stock. Close names count as a match. Name mismatches keep the ops name unless you choose Use POS name. You can change screens on the drink after that.",
 	},
 	{
-		title: "Sellable leftovers",
-		body: "POS drinks that are not ops menu items. Add if we still sell them. Match by hand if the names differ. Archive if we do not.",
+		title: "Lightspeed only",
+		body: "In the item list, not on the ops menu. Add, match, or archive.",
 	},
 	{
 		title: "Stock",
@@ -34,8 +30,8 @@ export const RECONCILE_HELP: PageHelpTopic[] = [
 		body: "Same SKU, different name. Stamp SKUs keeps the ops wording.",
 	},
 	{
-		title: "Missing from POS",
-		body: "Ops drinks not in this file. Match a leftover row, or download item import to create them in Lightspeed.",
+		title: "Ops only",
+		body: "On the ops menu, not in this file. Match a Lightspeed row, or download item import.",
 	},
 	{
 		title: "Matched",

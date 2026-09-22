@@ -265,6 +265,31 @@ export function hasItemLibraryHeaders(text) {
   return HEADER_ALIASES.type.some((alias) => index.has(alias));
 }
 
+/** Columns from LIGHTSPEED_ITEM_HEADERS missing in this CSV (normalized). */
+export function missingLightspeedItemHeaders(text) {
+  const index = itemLibraryHeaderIndex(text);
+  return LIGHTSPEED_ITEM_HEADERS.filter(
+    (header) => !index.has(normalizeHeader(header)),
+  );
+}
+
+/**
+ * Official Lightspeed formatted item-list export: every catalog column present,
+ * then parse. Stock-level files fail.
+ */
+export function assertLightspeedFormattedExport(text) {
+  const missing = missingLightspeedItemHeaders(text);
+  if (missing.length) {
+    const error = new Error(
+      `Lightspeed formatted export is missing columns: ${missing.join(", ")}.`,
+    );
+    error.status = 400;
+    error.missing = missing;
+    throw error;
+  }
+  return parseLightspeedItemCsv(text);
+}
+
 export function normalizeName(value) {
   return String(value || "")
     .trim()

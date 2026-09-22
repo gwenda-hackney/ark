@@ -27,6 +27,9 @@ describe("SM key ownership", () => {
     }
     assert.equal(ARK_ENV_SECRET_KEYS.includes("BASEROW_API_KEY"), false);
     assert.equal(ARK_ENV_SECRET_KEYS.includes("SANITY_API_TOKEN"), false);
+    assert.equal(WEB_ENV_SECRET_KEYS.includes("LIGHTSPEED_BO_PASSWORD"), false);
+    assert.ok(OPS_ENV_SECRET_KEYS.includes("LIGHTSPEED_BO_EMAIL"));
+    assert.ok(OPS_ENV_SECRET_KEYS.includes("LIGHTSPEED_BO_PASSWORD"));
   });
 });
 

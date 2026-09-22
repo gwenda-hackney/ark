@@ -134,7 +134,12 @@ putSecret(
 );
 putSecret("OPS_BYPASS_KEY", process.env.OPS_BYPASS_KEY);
 putSecret("GOOGLE_OAUTH_CLIENT_SECRET", process.env.GOOGLE_OAUTH_CLIENT_SECRET);
+putSecret(
+  "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
+  process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,
+);
 putSecret("OPS_SESSION_SECRET", process.env.OPS_SESSION_SECRET);
+// LIGHTSPEED_BO_* stay in SM / GitHub for the export Action. Do not put them on Pages.
 
 const LEFTOVER_SECRET_KEYS = [
   "BASEROW_OPS_DATABASE_ID",

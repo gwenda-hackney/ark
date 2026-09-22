@@ -1,0 +1,84 @@
+# Pull the K-Series item list (Menu > Item list > Export formatted CSV) and
+# POST it to ops as preview only. Does not stamp SKUs.
+#
+# Requires SM keys LIGHTSPEED_BO_EMAIL + LIGHTSPEED_BO_PASSWORD (dedicated
+# non-owner Back Office user). Optional LIGHTSPEED_BO_TOTP, LIGHTSPEED_OPS_EMAIL.
+#
+# Exit 2 from the script means 2FA/SSO/captcha blocked unattended login: stop and use
+# the paid Items GET instead of fighting the UI. Login uses Cloudflare Turnstile;
+# if GitHub-hosted runners fail the challenge, run --headed on the nest.
+
+name: Lightspeed item export
+
+on:
+  workflow_dispatch:
+    inputs:
+      repeat:
+        description: Consecutive exports (spike wants 2)
+        required: true
+        default: "2"
+        type: choice
+        options:
+          - "1"
+          - "2"
+      preview:
+        description: POST CSV to ops /api/inventory/lightspeed as preview (no stamp)
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: lightspeed-item-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Export item list
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Pull ops secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env
+
+      - name: Export formatted item list
+        id: export
+        env:
+          LIGHTSPEED_HEADED: "0"
+          LIGHTSPEED_PREVIEW: ${{ inputs.preview && '1' || '0' }}
+        run: |
+          node scripts/with-ops-env.mjs node ops/site/scripts/lightspeed-item-export.mjs \
+            --repeat "${{ inputs.repeat }}" \
+            --out ops/site/scripts/.lightspeed-export/item-list.csv \
+            ${{ inputs.preview && '--preview' || '' }}
+
+      - name: Upload CSV artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lightspeed-item-list
+          path: |
+            ops/site/scripts/.lightspeed-export/item-list.csv
+            ops/site/scripts/.lightspeed-export/*.png
+          if-no-files-found: ignore
+          retention-days: 14

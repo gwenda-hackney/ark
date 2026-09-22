@@ -241,63 +241,82 @@ export function deleteInventoryItem(id: string) {
   });
 }
 
-export function previewLightspeedCsv(text: string, body: {
-  apply?: boolean;
-  menuName?: string;
-  action?: "preview" | "save" | "add" | "add-stock" | "archive" | "unarchive" | "link" | "stamp-skus";
-  items?: Array<{
-    sku?: string;
-    name?: string;
-    sectionId?: string;
-    drinkType?: string;
-    price?: string;
-    defaultPrice?: number | null;
-    quantity?: number | null;
-    unit?: string;
-    onPrintMenu?: boolean;
-    onDigitalMenu?: boolean;
-    posMenuIds?: string[];
-    priceAlt?: string;
-  }>;
-  rows?: Array<{ sku?: string; name?: string }>;
-  skus?: string[];
-  patches?: Array<{ id?: string; lightspeedSku?: string }>;
-  links?: Array<{
-    itemId?: string;
-    sku?: string;
-    name?: string;
-    adoptName?: boolean;
-  }>;
-} = {}) {
-  return request<import("./types").LightspeedPreview>("/api/inventory/lightspeed", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text,
-      apply: Boolean(body.apply) || body.action === "save",
-      menuName: body.menuName || "",
-      action: body.action || (body.apply ? "save" : "preview"),
-      items: body.items,
-      rows: body.rows,
-      skus: body.skus,
-      patches: body.patches,
-      links: body.links,
-    }),
-  });
+export function previewLightspeedCsv(
+  text: string,
+  body: {
+    apply?: boolean;
+    menuName?: string;
+    action?:
+      | "preview"
+      | "save"
+      | "add"
+      | "add-stock"
+      | "archive"
+      | "unarchive"
+      | "link"
+      | "stamp-skus";
+    items?: Array<{
+      sku?: string;
+      name?: string;
+      sectionId?: string;
+      drinkType?: string;
+      price?: string;
+      defaultPrice?: number | null;
+      quantity?: number | null;
+      unit?: string;
+      onPrintMenu?: boolean;
+      onDigitalMenu?: boolean;
+      posMenuIds?: string[];
+      priceAlt?: string;
+    }>;
+    rows?: Array<{ sku?: string; name?: string }>;
+    skus?: string[];
+    patches?: Array<{ id?: string; lightspeedSku?: string }>;
+    links?: Array<{
+      itemId?: string;
+      sku?: string;
+      name?: string;
+      adoptName?: boolean;
+    }>;
+  } = {},
+) {
+  return request<import("./types").LightspeedPreview>(
+    "/api/inventory/lightspeed",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        apply: Boolean(body.apply) || body.action === "save",
+        menuName: body.menuName || "",
+        action: body.action || (body.apply ? "save" : "preview"),
+        items: body.items,
+        rows: body.rows,
+        skus: body.skus,
+        patches: body.patches,
+        links: body.links,
+      }),
+    },
+  );
 }
 
 export function getSuppliers() {
   return coalesce("suppliers", () =>
-    request<{ suppliers: import("./types").CatalogSupplier[] }>("/api/suppliers"),
+    request<{ suppliers: import("./types").CatalogSupplier[] }>(
+      "/api/suppliers",
+    ),
   );
 }
 
 export function createSupplier(body: unknown) {
-  return request<{ supplier: import("./types").CatalogSupplier }>("/api/suppliers", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return request<{ supplier: import("./types").CatalogSupplier }>(
+    "/api/suppliers",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export function updateSupplier(id: string, body: unknown) {
@@ -350,108 +369,378 @@ export function deleteOpsUser(id: string) {
   });
 }
 
-export function analyzeRecipeNote(body: {
-	item: unknown;
-	analysis: unknown;
-}) {
-	return request<{ ok: boolean; text: string; model?: string }>(
-		"/api/menu/analyze",
-		{
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-		},
-	);
+export function analyzeRecipeNote(body: { item: unknown; analysis: unknown }) {
+  return request<{ ok: boolean; text: string; model?: string }>(
+    "/api/menu/analyze",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export function getConfig() {
-	return coalesce("config", () =>
-		request<{
-			pourTargets: import("./types").PourTargetMap;
-			values: Record<string, string>;
-		}>("/api/config"),
-	);
+  return coalesce("config", () =>
+    request<{
+      pourTargets: import("./types").PourTargetMap;
+      values: Record<string, string>;
+    }>("/api/config"),
+  );
 }
 
 export function updateConfig(body: {
-	pourTargets?: Partial<import("./types").PourTargetMap>;
-	reset?: boolean;
+  pourTargets?: Partial<import("./types").PourTargetMap>;
+  reset?: boolean;
 }) {
-	return request<{
-		ok: boolean;
-		pourTargets: import("./types").PourTargetMap;
-	}>("/api/config", {
-		method: "PATCH",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(body),
-	});
+  return request<{
+    ok: boolean;
+    pourTargets: import("./types").PourTargetMap;
+  }>("/api/config", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export type WebEnvId = "staging" | "production";
 
 export type WebEnvStatus = {
-	id: WebEnvId;
-	label: string;
-	hosted: boolean;
-	siteUrl: string | null;
-	dataset: string;
-	git: string;
-	code: {
-		commit: string | null;
-		env: string | null;
-		dataset: string | null;
-		error: string | null;
-	};
-	content: {
-		hash: string | null;
-		count: number;
-		updatedAt: string | null;
-		error: string | null;
-	};
-	health: {
-		ok: boolean | null;
-		down: boolean;
-		lastError: string | null;
-		lastCheckedAt: number | null;
-		consecutiveFails?: number;
-	};
+  id: WebEnvId;
+  label: string;
+  hosted: boolean;
+  siteUrl: string | null;
+  dataset: string;
+  git: string;
+  code: {
+    commit: string | null;
+    env: string | null;
+    dataset: string | null;
+    error: string | null;
+  };
+  content: {
+    hash: string | null;
+    count: number;
+    updatedAt: string | null;
+    error: string | null;
+  };
+  health: {
+    ok: boolean | null;
+    down: boolean;
+    lastError: string | null;
+    lastCheckedAt: number | null;
+    consecutiveFails?: number;
+  };
 };
 
 export type WebStatus = {
-	environments: Record<WebEnvId, WebEnvStatus>;
-	drift: {
-		inSync: boolean;
-		codeAhead: boolean;
-		contentAhead: boolean;
-		unknown: boolean;
-	};
-	driftLabel: string;
-	lastError: string | null;
-	promote: {
-		toStaging: boolean;
-		toProduction: boolean;
-	};
+  environments: Record<WebEnvId, WebEnvStatus>;
+  drift: {
+    inSync: boolean;
+    codeAhead: boolean;
+    contentAhead: boolean;
+    unknown: boolean;
+  };
+  driftLabel: string;
+  lastError: string | null;
+  promote: {
+    toStaging: boolean;
+    toProduction: boolean;
+  };
 };
 
 export function getWebStatus() {
-	return coalesce("web-status", () => request<WebStatus>("/api/web/status"));
+  return coalesce("web-status", () => request<WebStatus>("/api/web/status"));
 }
 
 export function promoteWebsite(target: "staging" | "production") {
-	return request<{
-		ok: boolean;
-		kind?: string;
-		runId?: number;
-		runUrl?: string;
-		alreadyRunning?: boolean;
-		error?: string;
-	}>("/api/web/promote", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ confirm: target }),
-	});
+  return request<{
+    ok: boolean;
+    kind?: string;
+    runId?: number;
+    runUrl?: string;
+    alreadyRunning?: boolean;
+    error?: string;
+  }>("/api/web/promote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm: target }),
+  });
 }
 
 export function promoteStagingToProduction() {
-	return promoteWebsite("production");
+  return promoteWebsite("production");
+}
+
+export type OpsEventImage = { name: string; url: string };
+
+export type OpsEventOccurrence = {
+  id: string;
+  date: string;
+  slug: string;
+  sanityId: string;
+  clickupTaskId: string;
+  isSpecialEdition: boolean;
+  overrides: {
+    name: string;
+    artist: string;
+    offer: string;
+    description: string;
+    time: string;
+    startTime: string;
+    endTime: string;
+    operationsNotes: string;
+    imageLinks: string[];
+    image: OpsEventImage | null;
+  };
+};
+
+export type OpsEvent = {
+  id: string;
+  name: string;
+  artist: string;
+  offer: string;
+  description: string;
+  operationsNotes: string;
+  imageLinks: string[];
+  startsOn: string;
+  time: string;
+  startTime: string;
+  endTime: string;
+  repeatEvery: number;
+  repeatUnit: "none" | "day" | "week" | "month";
+  weekdays: string[];
+  monthDay: number;
+  endsOn: string;
+  skippedDates: string[];
+  slug: string;
+  driveFolderId: string;
+  driveFolderUrl: string;
+  mainImage: OpsEventImage | null;
+  images: OpsEventImage[];
+  dates: OpsEventOccurrence[];
+  publish: {
+    preview: "unpublished" | "stale" | "current";
+    live: "unpublished" | "stale" | "current";
+    nextDate: string;
+    previewDates: string[];
+  };
+};
+
+export function getEvents() {
+  return request<{ events: OpsEvent[] }>("/api/events");
+}
+
+export function createEvent(body: unknown) {
+  return request<{ event: OpsEvent }>("/api/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateEvent(id: string, body: unknown) {
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteEvent(id: string) {
+  return request<{ ok: boolean; warnings?: string[] }>(
+    `/api/events/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function deleteEventOccurrence(
+  id: string,
+  date: string,
+  scope: "this" | "following" | "all",
+) {
+  return request<{
+    ok: boolean;
+    deleted: boolean;
+    event: OpsEvent | null;
+    scope: "this" | "following" | "all";
+    removed: number;
+    warnings?: string[];
+  }>(
+    `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}`,
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope }),
+    },
+  );
+}
+
+export function publishEvent(id: string, target: "staging" | "production") {
+  return request<{
+    event: OpsEvent;
+    warnings?: string[];
+    deployed?: boolean;
+  }>(`/api/events/${encodeURIComponent(id)}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target }),
+  });
+}
+
+export function publishAllEventsPreview() {
+  return request<{
+    ok: boolean;
+    events: OpsEvent[];
+    published: Array<{ id: string; name: string; warnings: string[] }>;
+    failed: Array<{ id: string; name: string; error: string }>;
+    skipped?: Array<{ id: string; name: string }>;
+    warnings: string[];
+    deployed: boolean;
+  }>("/api/events/publish-all", {
+    method: "POST",
+  });
+}
+
+export function uploadEventImage(
+  id: string,
+  file: File,
+  role: "main" | "gallery",
+) {
+  const body = new FormData();
+  body.set("file", file);
+  body.set("role", role);
+  return request<{ event: OpsEvent }>(
+    `/api/events/${encodeURIComponent(id)}/image`,
+    {
+      method: "POST",
+      body,
+    },
+  );
+}
+
+export function clearEventImage(
+  id: string,
+  role: "main" | "gallery",
+  name = "",
+) {
+  const params = new URLSearchParams({ role });
+  if (name) params.set("name", name);
+  return request<{ event: OpsEvent }>(
+    `/api/events/${encodeURIComponent(id)}/image?${params}`,
+    { method: "DELETE" },
+  );
+}
+
+export type EventDriveFile = {
+  id: string;
+  name: string;
+  mimeType: string;
+  url: string;
+  modifiedTime: string;
+};
+
+export type EventDriveLibrary = {
+  folder: { id: string; url: string };
+  files: EventDriveFile[];
+};
+
+export function getEventDrive(id: string) {
+  return request<EventDriveLibrary>(
+    `/api/events/${encodeURIComponent(id)}/drive`,
+  );
+}
+
+export function uploadEventDriveImage(id: string, file: File) {
+  const body = new FormData();
+  body.set("file", file);
+  return request<EventDriveLibrary & { ok: boolean; file: EventDriveFile }>(
+    `/api/events/${encodeURIComponent(id)}/drive`,
+    {
+      method: "POST",
+      body,
+    },
+  );
+}
+
+export function eventDriveFileUrl(
+  eventId: string,
+  fileId: string,
+  variant: "thumb" | "full" = "thumb",
+) {
+  const params = new URLSearchParams({ variant });
+  if (variant === "thumb") params.set("size", "400");
+  return `/api/events/${encodeURIComponent(eventId)}/drive/${encodeURIComponent(fileId)}?${params}`;
+}
+
+export function updateEventOccurrence(
+  id: string,
+  date: string,
+  body: {
+    scope: "this" | "following" | "all";
+    name: string;
+    artist: string;
+    offer: string;
+    description: string;
+    time: string;
+    startTime: string;
+    endTime: string;
+    operationsNotes: string;
+    imageLinks: string[];
+  },
+) {
+  return request<{
+    event: OpsEvent;
+    occurrence: OpsEventOccurrence;
+    updated: number;
+    scope: "this" | "following" | "all";
+  }>(
+    `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function uploadEventOccurrenceImage(
+  id: string,
+  date: string,
+  file: File,
+) {
+  const body = new FormData();
+  body.set("file", file);
+  return request<{ event: OpsEvent; occurrence: OpsEventOccurrence }>(
+    `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}/image`,
+    { method: "POST", body },
+  );
+}
+
+export function clearEventOccurrenceImage(id: string, date: string) {
+  return request<{ event: OpsEvent; occurrence: OpsEventOccurrence | null }>(
+    `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}/image`,
+    { method: "DELETE" },
+  );
+}
+
+export function getOpsConfig() {
+  return request<{
+    settings: { taskRoleSocial: string; clickupEventsListId: string };
+  }>("/api/config");
+}
+
+export function saveEventTaskSettings(events: {
+  socialEmail: string;
+  clickupListId: string;
+}) {
+  return request<{
+    settings: { taskRoleSocial: string; clickupEventsListId: string };
+  }>("/api/config", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ events }),
+  });
 }

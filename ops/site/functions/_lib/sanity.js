@@ -111,3 +111,64 @@ export async function sanityUploadImage(env, dataset, bytes, { filename, content
   }
   return payload?.document ?? null;
 }
+
+/**
+ * Production writes are only a copy of a document that already exists in
+ * staging. Feature publish uses this. Everyday edits stay on staging.
+ */
+async function sanityMutateDataset(env, dataset, mutations) {
+  const token = env.SANITY_API_TOKEN?.trim();
+  if (!token) {
+    const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
+    error.status = 503;
+    throw error;
+  }
+  const projectId = sanityProjectId(env);
+  const url = `https://${projectId}.api.sanity.io/${API_VERSION}/data/mutate/${dataset}?returnIds=true`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headers(token, { "Content-Type": "application/json" }),
+    body: JSON.stringify({ mutations }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(
+      payload.error?.description || payload.message || `Sanity mutate failed (${response.status}).`,
+    );
+    error.status = 502;
+    throw error;
+  }
+  return payload;
+}
+
+export async function sanityMutateProduction(env, mutations) {
+  return sanityMutateDataset(env, "production", mutations);
+}
+
+export async function sanityUploadImageProduction(env, bytes, { filename, contentType }) {
+  const token = env.SANITY_API_TOKEN?.trim();
+  if (!token) {
+    const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
+    error.status = 503;
+    throw error;
+  }
+  const projectId = sanityProjectId(env);
+  const url = new URL(
+    `https://${projectId}.api.sanity.io/${API_VERSION}/assets/images/production`,
+  );
+  if (filename) url.searchParams.set("filename", filename);
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: headers(token, {
+      "Content-Type": contentType || "application/octet-stream",
+    }),
+    body: bytes,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.message || `Image upload failed (${response.status}).`);
+    error.status = 502;
+    throw error;
+  }
+  return payload?.document ?? null;
+}

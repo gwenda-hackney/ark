@@ -13,12 +13,14 @@
 		id = "f-method",
 		value = "",
 		placeholder = "Shake hard with ice…",
+		label = "Method",
 		disabled = false,
 		onChange,
 	}: {
 		id?: string;
 		value?: string;
 		placeholder?: string;
+		label?: string;
 		disabled?: boolean;
 		onChange?: (next: string) => void;
 	} = $props();
@@ -88,7 +90,7 @@
 					class: "surface ProseMirror",
 					role: "textbox",
 					"aria-multiline": "true",
-					"aria-label": "Method",
+					"aria-label": label,
 				},
 			},
 			onUpdate: ({ editor: next }) => emit(next),
@@ -168,7 +170,7 @@
 </script>
 
 <div class="method-editor" class:disabled>
-	<div class="toolbar" role="toolbar" aria-label="Method formatting" aria-controls={id}>
+	<div class="toolbar" role="toolbar" aria-label={`${label} formatting`} aria-controls={id}>
 		<button
 			type="button"
 			class="tool"

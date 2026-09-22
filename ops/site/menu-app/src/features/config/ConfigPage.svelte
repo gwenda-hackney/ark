@@ -1,14 +1,20 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
-	import { BusyOverlay, Card, PageHeader } from "../../ui";
+	import { BusyOverlay, Button, Card, Field, NativeSelect, PageHeader, TextField } from "../../ui";
 	import PourTargetsForm from "./PourTargetsForm.svelte";
 	import { pourSettings } from "../../lib/settings.svelte";
-	import { getMe, type AuthMe } from "../../lib/api";
+	import { getMe, getOpsConfig, getOpsUsers, saveEventTaskSettings, type AuthMe } from "../../lib/api";
+	import { toast } from "../../lib/toast.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
+	import type { OpsUser } from "../../lib/types";
 
 	const waited = !pourSettings.loaded;
 	let connection = $state<AuthMe | null>(null);
+	let users = $state<OpsUser[]>([]);
+	let socialEmail = $state("");
+	let clickupListId = $state("");
+	let savingTasks = $state(false);
 
 	onMount(() => {
 		void getMe()
@@ -18,7 +24,54 @@
 			.catch(() => {
 				connection = null;
 			});
+		void getOpsUsers()
+			.then((data) => {
+				users = (data.users || []).filter((user) => user.active !== false);
+			})
+			.catch(() => {
+				users = [];
+			});
+		void getOpsConfig()
+			.then((data) => {
+				socialEmail = data.settings?.taskRoleSocial || "";
+				clickupListId = data.settings?.clickupEventsListId || "";
+			})
+			.catch(() => {});
 	});
+
+	const socialOptions = $derived.by(() => {
+		const options = [
+			{ value: "", label: "Unassigned" },
+			...users
+				.filter((user) => user.email)
+				.map((user) => ({
+					value: user.email || "",
+					label: user.name ? `${user.name} (${user.email})` : user.email || "",
+				})),
+		];
+		if (socialEmail && !options.some((option) => option.value === socialEmail)) {
+			options.push({ value: socialEmail, label: socialEmail });
+		}
+		return options;
+	});
+
+	async function saveTasks(event: Event) {
+		event.preventDefault();
+		savingTasks = true;
+		try {
+			const data = await saveEventTaskSettings({
+				socialEmail,
+				clickupListId: clickupListId.trim(),
+			});
+			socialEmail = data.settings?.taskRoleSocial || "";
+			clickupListId = data.settings?.clickupEventsListId || "";
+			toast.ok("Task roles saved.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not save task roles.");
+		} finally {
+			savingTasks = false;
+		}
+	}
 
 	const baserowHref = $derived(
 		connection?.databaseId
@@ -85,6 +138,25 @@
 			>
 				<PourTargetsForm idPrefix="config-pour" />
 			</Card>
+
+			<Card
+				title="Event tasks"
+				subtitle="Who gets the social post, and which ClickUp list it lands in."
+			>
+				<form class="tasks" onsubmit={saveTasks}>
+					<Field label="Social" for="task-social">
+						<NativeSelect id="task-social" bind:value={socialEmail} options={socialOptions} />
+					</Field>
+					<Field
+						label="ClickUp list id"
+						for="task-list"
+						hint="The Gwenda list that receives event tasks."
+					>
+						<TextField id="task-list" bind:value={clickupListId} mono />
+					</Field>
+					<Button type="submit" busy={savingTasks} disabled={savingTasks}>Save</Button>
+				</form>
+			</Card>
 		</div>
 	{/if}
 	<BusyOverlay active={!pourSettings.loaded} label="Loading…" />
@@ -104,6 +176,12 @@
 		gap: var(--gap-lg);
 		max-width: 36rem;
 		align-content: start;
+	}
+
+	.tasks {
+		display: grid;
+		gap: var(--gap);
+		justify-items: start;
 	}
 
 	.env-grid {
