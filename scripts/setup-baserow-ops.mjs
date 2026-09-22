@@ -33,6 +33,7 @@ import {
   TABLE_USERS,
   TABLE_CONFIG,
   TABLE_POS_MENUS,
+  TABLE_MENU_PLACEMENTS,
 } from "../ops/site/functions/_lib/baserow.js";
 import { DEFAULT_POS_MENU_NAME, LEGACY_DEFAULT_POS_MENU_NAME } from "../ops/site/functions/_lib/pos-menu-store.js";
 import {
@@ -460,6 +461,60 @@ function posMenuFields() {
       },
     },
     { name: "Default", body: { name: "Default", type: "boolean" } },
+  ];
+}
+
+function menuPlacementFields(itemsTableId, sectionsTableId, posMenusTableId) {
+  return [
+    {
+      name: "Menu item",
+      body: {
+        name: "Menu item",
+        type: "link_row",
+        link_row_table_id: itemsTableId,
+        has_related_field: false,
+      },
+    },
+    {
+      name: "Channel",
+      body: {
+        name: "Channel",
+        type: "single_select",
+        select_options: [
+          { value: "print", color: "orange" },
+          { value: "digital", color: "blue" },
+          { value: "pos", color: "green" },
+        ],
+      },
+    },
+    {
+      name: "Section",
+      body: {
+        name: "Section",
+        type: "link_row",
+        link_row_table_id: sectionsTableId,
+        has_related_field: false,
+      },
+    },
+    {
+      name: "POS menu",
+      body: {
+        name: "POS menu",
+        type: "link_row",
+        link_row_table_id: posMenusTableId,
+        has_related_field: false,
+      },
+    },
+    { name: "POS screen", body: { name: "POS screen", type: "text" } },
+    {
+      name: "Order",
+      body: {
+        name: "Order",
+        type: "number",
+        number_decimal_places: 0,
+        number_negative: false,
+      },
+    },
   ];
 }
 
@@ -1020,6 +1075,94 @@ function leftoverProductUrls(row) {
   return urls;
 }
 
+async function migrateMenuPlacements(
+  apiBase,
+  jwt,
+  { items, posMenus, menuPlacements },
+) {
+  const existing = await listRows(apiBase, jwt, menuPlacements.id);
+  const covered = new Set(
+    existing
+      .map((row) => linkIdsFrom(row["Menu item"])[0])
+      .filter((id) => Number.isFinite(id)),
+  );
+  const itemRows = await listRows(apiBase, jwt, items.id);
+  const missing = itemRows.filter((item) => !covered.has(item.id));
+  if (!missing.length) {
+    console.log(`  ✓ placements already migrated (${existing.length} rows)`);
+    return;
+  }
+  const posMenuRows = await listRows(apiBase, jwt, posMenus.id);
+  const defaultPos =
+    posMenuRows.find((row) => Boolean(row.Default)) ||
+    posMenuRows.find(
+      (row) =>
+        String(row.Name || "").trim().toLowerCase() ===
+        DEFAULT_POS_MENU_NAME.toLowerCase(),
+    ) ||
+    posMenuRows[0];
+  let created = 0;
+  for (const item of missing) {
+    const itemId = item.id;
+    const sectionIds = linkIdsFrom(item.Section);
+    const sectionId = sectionIds[0] || null;
+    const onPrint = item["On print menu"] != null ? Boolean(item["On print menu"]) : true;
+    const onDigital =
+      item["On digital menu"] != null ? Boolean(item["On digital menu"]) : true;
+    const posLinks = linkIdsFrom(item["POS menus"]);
+    const screenRaw = String(item["Lightspeed menu/screen"] || "").trim();
+    const screens = screenRaw
+      ? screenRaw
+          .split(",")
+          .map((part) => part.trim().replace(/##/g, "/"))
+          .filter(Boolean)
+      : [];
+    const screen = screens[0] || "Signature Cocktails";
+
+    async function add(fields) {
+      await baserowRequest(
+        apiBase,
+        jwt,
+        `/api/database/rows/table/${menuPlacements.id}/?user_field_names=true`,
+        { method: "POST", body: JSON.stringify(fields) },
+      );
+      created += 1;
+    }
+
+    if (onPrint && sectionId) {
+      await add({
+        "Menu item": [itemId],
+        Channel: "print",
+        Section: [sectionId],
+        Order: 0,
+      });
+    }
+    if (onDigital && sectionId) {
+      await add({
+        "Menu item": [itemId],
+        Channel: "digital",
+        Section: [sectionId],
+        Order: 0,
+      });
+    }
+    const posIds = posLinks.length
+      ? posLinks
+      : defaultPos
+        ? [defaultPos.id]
+        : [];
+    for (const [index, posMenuId] of posIds.entries()) {
+      await add({
+        "Menu item": [itemId],
+        Channel: "pos",
+        "POS menu": [posMenuId],
+        "POS screen": screens[index] || screen,
+        Order: index,
+      });
+    }
+  }
+  console.log(`  + ${created} placement row(s) for ${missing.length} item(s)`);
+}
+
 async function migrateSupplierLinks(
   apiBase,
   jwt,
@@ -1185,6 +1328,13 @@ async function main() {
     tables,
     TABLE_POS_MENUS,
   );
+  const menuPlacements = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_MENU_PLACEMENTS,
+  );
 
   console.log(`Fields on ${TABLE_SECTIONS}:`);
   await ensureFields(apiBase, jwt, sections.id, sectionFields(sections.id));
@@ -1222,9 +1372,22 @@ async function main() {
   await ensureFields(apiBase, jwt, config.id, configFields());
   console.log(`Fields on ${TABLE_POS_MENUS}:`);
   await ensureFields(apiBase, jwt, posMenus.id, posMenuFields());
+  console.log(`Fields on ${TABLE_MENU_PLACEMENTS}:`);
+  await ensureFields(
+    apiBase,
+    jwt,
+    menuPlacements.id,
+    menuPlacementFields(items.id, sections.id, posMenus.id),
+  );
   console.log(`Rows on ${TABLE_POS_MENUS}:`);
   await seedFallMenu(apiBase, jwt, posMenus.id, items.id, {
     linkEmptyItems: createdItemFields.includes("POS menus"),
+  });
+  console.log(`Migrate menu → placements:`);
+  await migrateMenuPlacements(apiBase, jwt, {
+    items,
+    posMenus,
+    menuPlacements,
   });
 
   console.log(`Rows on ${TABLE_SUPPLIERS}:`);
@@ -1253,6 +1416,7 @@ async function main() {
   console.log(`  ${TABLE_USERS} → ${users.id}`);
   console.log(`  ${TABLE_CONFIG} → ${config.id}`);
   console.log(`  ${TABLE_POS_MENUS} → ${posMenus.id}`);
+  console.log(`  ${TABLE_MENU_PLACEMENTS} → ${menuPlacements.id}`);
   console.log("");
 
   const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];

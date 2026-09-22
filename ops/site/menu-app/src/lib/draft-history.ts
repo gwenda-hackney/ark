@@ -15,9 +15,10 @@ export type MenuDraft = {
 	garnish: string;
 	onDigitalMenu: boolean;
 	onPrintMenu: boolean;
-		posMenuIds: string;
-		lightspeedName: string;
-		lightspeedMenuScreen: string;
+	posMenuIds: string;
+	placements: string;
+	lightspeedName: string;
+	lightspeedMenuScreen: string;
 	description: string;
 	method: string;
 	abv: string;
@@ -54,6 +55,7 @@ export function serializeMenuDraft(row: MenuItem | null): string {
 			.map((menu) => String(menu.id))
 			.sort()
 			.join(","),
+		placements: JSON.stringify(row.placements || []),
 		lightspeedName: row.lightspeedName || "",
 		lightspeedMenuScreen: row.lightspeedMenuScreen || "",
 		description: row.description || "",

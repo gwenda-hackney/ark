@@ -71,8 +71,13 @@ export function canonicalizePath(href) {
 }
 
 /** Drink editor tabs. `details` is the default and is omitted from the URL. */
-export const MENU_DETAIL_TABS = ["details", "recipe", "analysis"];
+export const MENU_DETAIL_TABS = ["details", "menu", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
+/** Older drink tabs still resolve. */
+const MENU_TAB_ALIASES = new Map([
+  ["pos", "menu"],
+  ["recipe", "details"],
+]);
 
 function decodeSegment(segment) {
   try {
@@ -83,7 +88,9 @@ function decodeSegment(segment) {
 }
 
 export function normalizeMenuTab(tab) {
-  return MENU_TAB_IDS.has(tab) ? tab : "details";
+  const raw = String(tab || "").trim();
+  const aliased = MENU_TAB_ALIASES.get(raw) || raw;
+  return MENU_TAB_IDS.has(aliased) ? aliased : "details";
 }
 
 function withMenuTab(base, tab) {
@@ -101,7 +108,7 @@ export function parseShellPath(path) {
       .split("/")
       .filter(Boolean)
       .map(decodeSegment);
-    const tab = MENU_TAB_IDS.has(parts[1]) ? parts[1] : "details";
+    const tab = normalizeMenuTab(parts[1]);
     if (parts[0] === "new") {
       return { page: "menu", slug: null, isNew: true, tab };
     }

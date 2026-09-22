@@ -1276,6 +1276,16 @@ export function itemOnPosMenu(item, menuName) {
     .trim()
     .toLowerCase();
   if (!want) return false;
+  const posRows = (item?.placements || []).filter((row) => row.channel === "pos");
+  if (posRows.length) {
+    return posRows.some(
+      (row) =>
+        String(row.posMenuName || "")
+          .trim()
+          .toLowerCase() === want ||
+        String(row.posMenuId || "") === String(menuName || "").trim(),
+    );
+  }
   return (item?.posMenus || []).some(
     (menu) =>
       String(menu?.name || "")
@@ -1292,6 +1302,35 @@ export function menuScreenPathForMenus(item, menuNames) {
   const names = (Array.isArray(menuNames) ? menuNames : [menuNames])
     .map((name) => String(name || "").trim())
     .filter(Boolean);
+  const posRows = (item?.placements || []).filter((row) => row.channel === "pos");
+  if (posRows.length) {
+    const seen = new Set();
+    const out = [];
+    for (const row of posRows) {
+      const menu =
+        names.find(
+          (name) =>
+            String(row.posMenuName || "")
+              .trim()
+              .toLowerCase() === name.toLowerCase() ||
+            String(row.posMenuId || "") === name,
+        ) ||
+        row.posMenuName ||
+        names[0];
+      if (!menu) continue;
+      if (names.length && !names.some((name) => name.toLowerCase() === String(menu).toLowerCase())) {
+        continue;
+      }
+      const screen = parsePosScreenInput(row.posScreen);
+      if (!screen) continue;
+      const path = joinMenuScreenParts([menu, ...splitMenuScreenParts(screen)]);
+      const key = path.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(path);
+    }
+    if (out.length) return out.join(",");
+  }
   const assigned = names.filter((name) => itemOnPosMenu(item, name));
   const use = assigned.length ? assigned : names.slice(0, 1);
   const seen = new Set();
@@ -1357,6 +1396,33 @@ export function isLightspeedMenuName(name, extraMenuNames = []) {
 
 /** Screen paths stored on the drink, without a Lightspeed menu prefix. */
 export function posScreenPaths(item, extraMenuNames = []) {
+  const posRows = (item?.placements || []).filter((row) => row.channel === "pos");
+  const menuHint = Array.isArray(extraMenuNames)
+    ? String(extraMenuNames[0] || "").trim()
+    : String(extraMenuNames || "").trim();
+  if (posRows.length) {
+    const matched = menuHint
+      ? posRows.filter(
+          (row) =>
+            String(row.posMenuName || "")
+              .trim()
+              .toLowerCase() === menuHint.toLowerCase() ||
+            String(row.posMenuId || "") === menuHint,
+        )
+      : posRows;
+    const rows = matched.length ? matched : posRows;
+    const seen = new Set();
+    const out = [];
+    for (const row of rows) {
+      const path = parsePosScreenInput(row.posScreen);
+      const key = path.toLowerCase();
+      if (!path || seen.has(key)) continue;
+      seen.add(key);
+      out.push(path);
+    }
+    if (out.length) return out;
+  }
+
   const stored = String(item?.lightspeedMenuScreen || "").trim();
   const rawPaths = stored
     ? parseMenuScreenList(stored)

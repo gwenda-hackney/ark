@@ -175,6 +175,20 @@ export type PosMenu = {
   isDefault?: boolean;
 };
 
+export type PlacementChannel = "print" | "digital" | "pos";
+
+export type MenuPlacement = {
+  _id?: string;
+  id?: string;
+  channel: PlacementChannel;
+  sectionId?: string | null;
+  sectionTitle?: string;
+  posMenuId?: string | null;
+  posMenuName?: string;
+  posScreen?: string;
+  orderRank?: number;
+};
+
 export function posMenusLabel(menus?: PosMenu[] | null): string {
   const names = (menus || []).map((row) => String(row.name || "").trim()).filter(Boolean);
   if (!names.length) return "None";
@@ -330,8 +344,17 @@ export const DRINK_TYPES: { value: DrinkType; label: string; blurb: string }[] =
     },
   ];
 
-/** Where a drink appears for guests. POS can still sell it either way. */
+/** Guest channel chips. Print and/or Digital; neither = POS only. */
 export type GuestMenuPlacement = "both" | "print" | "digital" | "none";
+
+export const GUEST_MENU_CHANNELS: {
+  value: "print" | "digital";
+  label: string;
+  blurb: string;
+}[] = [
+  { value: "print", label: "Print", blurb: "Print menu chapter." },
+  { value: "digital", label: "Digital", blurb: "Website menu." },
+];
 
 export const GUEST_MENU_PLACEMENTS: {
   value: GuestMenuPlacement;
@@ -347,13 +370,34 @@ export const GUEST_MENU_PLACEMENTS: {
 export function guestMenuPlacement(item?: {
   onPrintMenu?: boolean;
   onDigitalMenu?: boolean;
+  placements?: MenuPlacement[];
 }): GuestMenuPlacement {
+  if (Array.isArray(item?.placements) && item.placements.length) {
+    const print = item.placements.some((row) => row.channel === "print");
+    const digital = item.placements.some((row) => row.channel === "digital");
+    if (print && digital) return "both";
+    if (print) return "print";
+    if (digital) return "digital";
+    return "none";
+  }
   const print = item?.onPrintMenu !== false;
   const digital = item?.onDigitalMenu !== false;
   if (print && digital) return "both";
   if (print) return "print";
   if (digital) return "digital";
   return "none";
+}
+
+export function guestChannelsOf(item?: {
+  onPrintMenu?: boolean;
+  onDigitalMenu?: boolean;
+  placements?: MenuPlacement[];
+}): Array<"print" | "digital"> {
+  const placement = guestMenuPlacement(item);
+  if (placement === "both") return ["print", "digital"];
+  if (placement === "print") return ["print"];
+  if (placement === "digital") return ["digital"];
+  return [];
 }
 
 export function guestMenuFlags(placement: GuestMenuPlacement): {
@@ -484,6 +528,8 @@ export type MenuItem = {
   onDigitalMenu?: boolean;
   /** Guest print menu. Independent of the website. Default on. */
   onPrintMenu?: boolean;
+  /** Per-channel locations (print / digital / POS). */
+  placements?: MenuPlacement[];
 	description?: string;
 	method?: string;
   abv?: string;

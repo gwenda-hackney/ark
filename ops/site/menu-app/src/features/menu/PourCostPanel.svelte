@@ -107,9 +107,12 @@
 	}
 </script>
 
-<section class="cost" aria-label="Cost and pour">
+<section class="cost" aria-label="Pour cost">
 	<div class="section-head">
-		<p class="section-title">Cost</p>
+		<p class="section-title">Pour cost</p>
+		{#if price.hasEstimates}
+			<p class="note">Includes estimates</p>
+		{/if}
 		<Button
 			variant="ghost"
 			size="xs"
@@ -266,10 +269,6 @@
 			</li>
 		{/if}
 	</ul>
-
-	{#if price.hasEstimates}
-		<p class="note">Includes estimates</p>
-	{/if}
 </section>
 
 <PourSettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
@@ -279,7 +278,7 @@
 		display: grid;
 		gap: 0.55rem;
 		min-width: 0;
-		margin-top: 0.35rem;
+		margin-top: 0.85rem;
 	}
 
 	.section-head {
@@ -292,7 +291,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		flex: 1 1 auto;
+		flex: 0 1 auto;
 		min-width: 0;
 		margin: 0;
 		font-family: var(--font-display);
@@ -304,11 +303,23 @@
 	}
 
 	.section-title::after {
-		content: "";
+		content: none;
+	}
+
+	.note {
 		flex: 1 1 auto;
-		height: 1px;
-		min-width: 1.5rem;
-		background: var(--border-strong);
+		min-width: 0;
+		margin: 0;
+		font-size: var(--text-xs);
+		letter-spacing: 0.04em;
+		line-height: 1.2;
+		color: var(--muted-foreground);
+		white-space: nowrap;
+	}
+
+	.section-head :global(button) {
+		flex: 0 0 auto;
+		margin-left: auto;
 	}
 
 	.pours {
@@ -415,14 +426,6 @@
 
 	.add {
 		padding: 0.35rem 0.45rem;
-	}
-
-	.note {
-		margin: 0;
-		font-size: var(--text-xs);
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--muted-foreground);
 	}
 
 	@media (max-width: 720px) {

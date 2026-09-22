@@ -53,7 +53,19 @@ describe("spa-path", () => {
       page: "menu",
       slug: "negroni",
       isNew: false,
-      tab: "recipe",
+      tab: "details",
+    });
+    assert.deepEqual(parseShellPath("/menu/negroni/pos"), {
+      page: "menu",
+      slug: "negroni",
+      isNew: false,
+      tab: "menu",
+    });
+    assert.deepEqual(parseShellPath("/menu/negroni/menu"), {
+      page: "menu",
+      slug: "negroni",
+      isNew: false,
+      tab: "menu",
     });
     assert.deepEqual(parseShellPath("/menu/new/analysis"), {
       page: "menu",
@@ -81,7 +93,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/menu/negroni"), "menu");
     assert.equal(shellPageKey("/menu/negroni/recipe"), "menu");
     assert.equal(menuItemPath("Espresso Martini"), "/menu/espresso-martini");
-    assert.equal(menuItemPath("Negroni", "recipe"), "/menu/negroni/recipe");
+    assert.equal(menuItemPath("Negroni", "recipe"), "/menu/negroni");
     assert.equal(menuItemPath("Negroni", "details"), "/menu/negroni");
     assert.equal(menuNewPath("analysis"), "/menu/new/analysis");
     assert.equal(menuTabPath("/menu/negroni/recipe", "analysis"), "/menu/negroni/analysis");

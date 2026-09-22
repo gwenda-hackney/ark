@@ -12,6 +12,7 @@ export function opsCatalogTables(databaseId = 9) {
     { id: 99, name: "Users", database_id: databaseId },
     { id: 88, name: "App Config", database_id: databaseId },
     { id: 77, name: "POS Menus", database_id: databaseId },
+    { id: 78, name: "Menu placements", database_id: databaseId },
   ];
 }
 

@@ -1,5 +1,5 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { deleteMenuItem, loadMenuTree, updateMenuItem } from "../../_lib/menu-store.js";
+import { deleteMenuItem, loadMenuTree, updateMenuItem, archiveMenuItem } from "../../_lib/menu-store.js";
 import { toClientItem } from "../../_lib/reconcile.js";
 
 function itemId(context) {
@@ -22,7 +22,10 @@ export const onRequestPatch = withApiHandler(async (context) => {
   if (!body || typeof body !== "object") {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
-  const item = await updateMenuItem(context.env, id, body);
+  const item =
+    body.archived === true || body.archive === true
+      ? await archiveMenuItem(context.env, id)
+      : await updateMenuItem(context.env, id, body);
   return jsonResponse({ ok: true, item: toClientItem(item) });
 });
 

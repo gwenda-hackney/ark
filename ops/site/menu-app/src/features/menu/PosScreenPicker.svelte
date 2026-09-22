@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { TextField } from "../../ui";
+	import { NativeSelect } from "../../ui";
+	import type { SelectOption } from "../../ui/types";
 	import {
 		parsePosScreenInput,
 		posScreenPaths,
@@ -16,8 +17,6 @@
 		onchange: (next: string) => void;
 	} = $props();
 
-	let draft = $state("");
-	const listId = "pos-screen-suggestions";
 	const screens = $derived(posScreenPaths({ lightspeedMenuScreen: value }));
 	const unused = $derived(
 		(suggestions || []).filter(
@@ -25,6 +24,10 @@
 				!screens.some((screen) => screen.toLowerCase() === path.toLowerCase()),
 		),
 	);
+	const addOptions = $derived.by((): SelectOption[] => [
+		{ value: "", label: "Add screen…" },
+		...unused.map((path) => ({ value: path, label: path })),
+	]);
 
 	function setScreens(next: string[]) {
 		onchange(serializePosScreens(next));
@@ -34,17 +37,16 @@
 		const path = parsePosScreenInput(raw);
 		if (!path) return;
 		setScreens([...screens, path]);
-		draft = "";
 	}
 
 	function remove(path: string) {
 		setScreens(screens.filter((screen) => screen !== path));
 	}
 
-	function onKeydown(event: KeyboardEvent) {
-		if (event.key !== "Enter") return;
-		event.preventDefault();
-		add(draft);
+	function onAdd(event: Event) {
+		const next = (event.currentTarget as HTMLSelectElement).value;
+		(event.currentTarget as HTMLSelectElement).value = "";
+		add(next);
 	}
 </script>
 
@@ -64,32 +66,20 @@
 			{/each}
 		</div>
 	{/if}
-	<TextField
-		id="f-pos-screens"
-		size="sm"
-		placeholder="Spirits/Liqueurs & Amari"
-		list={listId}
-		bind:value={draft}
-		onkeydown={onKeydown}
-		onchange={() => add(draft)}
-	/>
-	<datalist id={listId}>
-		{#each unused as path (path)}
-			<option value={path}></option>
-		{/each}
-	</datalist>
-	<p class="hint">
-		Main screen, or Main/Sub-screen. A drink can sit on more than one. Import creates a new screen in Lightspeed if it is missing.
-	</p>
-	{#if unused.length && unused.length <= 12}
-		<div class="chips suggest" role="group" aria-label="Suggested screens">
-			{#each unused as path (path)}
-				<button type="button" class="chip" onclick={() => add(path)}>
-					{path}
-				</button>
-			{/each}
-		</div>
+	{#if unused.length}
+		<NativeSelect
+			id="f-pos-screens"
+			size="sm"
+			options={addOptions}
+			value=""
+			onchange={onAdd}
+		/>
+	{:else if !screens.length}
+		<p class="hint">No known screens yet. Import a Lightspeed menu first.</p>
 	{/if}
+	<p class="hint">
+		Till screen path (Main or Main/Sub). A drink can sit on more than one.
+	</p>
 </div>
 
 <style>
