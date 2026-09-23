@@ -49,6 +49,7 @@ describe("flattenNavRoutes", () => {
 				"lightspeed-export",
 				"events-series",
 				"events-schedule",
+				"artist",
 				"web",
 				"users",
 				"config",
@@ -77,6 +78,14 @@ describe("matchActiveRoute", () => {
 			matchActiveRoute(routes, "/events/12@2026-09-25")?.id,
 			"events-schedule",
 		);
+		assert.equal(
+			matchActiveRoute(routes, "/events/12%402026-09-25")?.id,
+			"events-schedule",
+		);
+		assert.equal(matchActiveRoute(routes, "/events/new/once")?.id, "events-schedule");
+		assert.equal(matchActiveRoute(routes, "/artists")?.id, "artist");
+		assert.equal(matchActiveRoute(routes, "/artists/new")?.id, "artist");
+		assert.equal(matchActiveRoute(routes, "/artists/3")?.id, "artist");
 		assert.equal(matchActiveRoute(routes, "/web")?.id, "web");
 		assert.equal(matchActiveRoute(routes, "/")?.id, "home");
 		assert.equal(matchActiveRoute(routes, "/users")?.id, "users");

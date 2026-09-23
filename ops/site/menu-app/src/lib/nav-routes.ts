@@ -3,6 +3,7 @@ import type { NavRoute } from "../shell/types";
 /**
  * Side rail. Menu is the guest menu. Stock is inventory and suppliers.
  * Lightspeed is POS reconcile and export. Events is series and schedule.
+ * Artist is the guest whose work is hanging at Gwenda.
  */
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
@@ -42,6 +43,7 @@ export const NAV_ROUTES: NavRoute[] = [
 			{ id: "events-schedule", path: "/events/schedule", name: "Schedule", icon: "events" },
 		],
 	},
+	{ id: "artist", path: "/artists", name: "Artist", icon: "artist" },
 	{ id: "web", path: "/web", name: "Web", icon: "web" },
 	{ id: "users", path: "/users", name: "Users", icon: "users" },
 	{ id: "config", path: "/config", name: "Configuration", icon: "settings" },

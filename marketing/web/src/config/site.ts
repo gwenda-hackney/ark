@@ -33,6 +33,11 @@ export const siteConfig = {
       description:
         "Nights at Gwenda. Residencies, live music, and canalside gatherings in Hackney Wick.",
     },
+    schedule: {
+      title: "Schedule · Gwenda",
+      description:
+        "Every night at Gwenda, listed week by week. Residencies and one-off evenings in Hackney Wick.",
+    },
     menu: {
       title: "Menu · Gwenda",
       description:
@@ -102,22 +107,24 @@ export const siteConfig = {
     joinExperienceCta: "Join the experience",
     storyHeading: "Behind the Doors",
     storyLead:
-      "Canalside in Hackney Wick. Craft cocktails, Italian small plates, art, and vinyl on the decks.",
+      "Across the water from The Pirate's Hub. A terrace under the olive trees at Schwartz Wharf.",
     storyBodyPromo: [
-      "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
-      "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
+      "Italian small plates, and craft cocktails made in the house. If a DJ is playing, it is usually someone from the Wick. If there is art on the wall, it is usually by someone who lives here. Bring a weeknight if you have one.",
+      "The name comes from Guenda, an outdoor nightclub in Salento where everybody met in the summer.",
     ],
     storyClosingPromo:
-      "Who is Gwenda? We can't say. Come experience for yourself.",
+      "Friends still talk about those nights. We would like this place to be remembered the same way.",
     storyBody: [
-      "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
-      "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
+      "Italian small plates, and craft cocktails made in the house. If a DJ is playing, it is usually someone from the Wick. If there is art on the wall, it is usually by someone who lives here. Bring a weeknight if you have one.",
+      "The name comes from Guenda, an outdoor nightclub in Salento where everybody met in the summer.",
     ],
-    storyClosing: "Who is Gwenda? We can't say. Come experience for yourself.",
+    storyClosing:
+      "Friends still talk about those nights. We would like this place to be remembered the same way.",
     teamHeading: "Who we are",
     teamBody: [
-      "We already run The Pirate's Hub on this stretch of canal. Gwenda is what comes next. The canal, the studios, the late nights—we know this pocket of the Wick.",
-      "Gwenda grew up on the canal, among the artists and musicians of the Wick.",
+      "Gigi was born in Castro, on the Salento coast, and raised by the sea.",
+      "In the Wick he opened The Pirate's Hub: a room three metres by three on Fish Island. Porchetta roasted in the house. The crowd took their sandwiches to the canal.",
+      "He wanted that same community, and a kitchen big enough to cook for it. Gwenda is the larger room.",
     ],
     galleryHeading: "A glimpse within",
     gallerySubheading: "The details reveal themselves in time",

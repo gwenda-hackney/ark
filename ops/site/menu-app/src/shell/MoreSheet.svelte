@@ -2,6 +2,7 @@
 	/** Phone overflow: configuration and sign out. */
 	import { fade, fly } from "svelte/transition";
 	import Icon from "./Icon.svelte";
+	import { isEventsScheduleNavPath } from "../lib/nav-tree";
 
 	function easeOut(t: number): number {
 		return 1 - Math.pow(1 - t, 3.2);
@@ -33,15 +34,12 @@
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
 	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
 	const eventsPath = $derived(path.split("?")[0] ?? "/");
-	const onSchedule = $derived(
-		eventsPath === "/events/schedule" ||
-			eventsPath.startsWith("/events/schedule/") ||
-			eventsPath === "/events/nights" ||
-			eventsPath.startsWith("/events/nights/") ||
-			/\/events\/[^/]+@/.test(eventsPath),
-	);
+	const onSchedule = $derived(isEventsScheduleNavPath(path));
 	const onSeries = $derived(
 		(eventsPath === "/events" || eventsPath.startsWith("/events/")) && !onSchedule,
+	);
+	const onArtist = $derived(
+		eventsPath === "/artists" || eventsPath.startsWith("/artists/"),
 	);
 </script>
 
@@ -127,6 +125,19 @@
 					<span class="copy">
 						<span class="label">Schedule</span>
 						<span class="hint">Upcoming nights</span>
+					</span>
+				</a>
+				<p class="heading">Artist</p>
+				<a
+					class="row"
+					class:on={onArtist}
+					href="/artists"
+					aria-current={onArtist ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="artist" size={18} /></span>
+					<span class="copy">
+						<span class="label">Artist</span>
+						<span class="hint">Work hanging at Gwenda</span>
 					</span>
 				</a>
 				<p class="heading">Website</p>

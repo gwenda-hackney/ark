@@ -13,14 +13,25 @@ export function flattenNavRoutes(routes: NavRoute[]): NavRoute[] {
 	return leaves;
 }
 
-/** Schedule list, nights alias, or a dated occurrence editor. */
-function isEventsScheduleNavPath(path: string): boolean {
-	const p = path.split("?")[0] ?? "/";
+function decodeNavPath(path: string): string {
+	const bare = path.split("?")[0] ?? "/";
+	try {
+		return decodeURIComponent(bare);
+	} catch {
+		return bare;
+	}
+}
+
+/** Schedule list, a special event, or a dated night editor. */
+export function isEventsScheduleNavPath(path: string): boolean {
+	const p = decodeNavPath(path);
 	return (
 		p === "/events/schedule" ||
 		p.startsWith("/events/schedule/") ||
 		p === "/events/nights" ||
 		p.startsWith("/events/nights/") ||
+		p === "/events/new/once" ||
+		p.startsWith("/events/new/once/") ||
 		/^\/events\/[^/]+@/.test(p)
 	);
 }

@@ -24,6 +24,7 @@
 		sourceUrl = "",
 		crops = null as HeroFraming | null,
 		disabled = false,
+		locked = false,
 		tooltip = "",
 		onchangecrops,
 		onpickfile,
@@ -32,6 +33,7 @@
 		sourceUrl?: string;
 		crops?: HeroFraming | null;
 		disabled?: boolean;
+		locked?: boolean;
 		tooltip?: string;
 		onchangecrops: (
 			crops: HeroFraming | null,
@@ -244,6 +246,14 @@
 		sliderHeld = false;
 	}
 
+	function nudgeZoom(direction: number) {
+		if (!naturalW || !naturalH || disabled) return;
+		const zoom = HERO_ZOOM_MAX ** slider;
+		const next = Math.min(HERO_ZOOM_MAX, Math.max(1, zoom * (direction > 0 ? 1.15 : 1 / 1.15)));
+		sliderHeld = false;
+		applyZoom(next);
+	}
+
 	function resetFraming() {
 		if (!naturalW || !naturalH) return;
 		sliderHeld = false;
@@ -259,7 +269,7 @@
 
 	function onFileDragEnter(e: DragEvent) {
 		e.preventDefault();
-		if (disabled) return;
+		if (disabled || locked) return;
 		fileDropDepth += 1;
 		if (e.dataTransfer?.types.includes("Files")) fileDrop = true;
 	}
@@ -279,7 +289,7 @@
 		e.preventDefault();
 		fileDropDepth = 0;
 		fileDrop = false;
-		if (disabled) return;
+		if (disabled || locked) return;
 		const file = e.dataTransfer?.files?.[0];
 		if (file && file.type.startsWith("image/")) onpickfile(file);
 	}
@@ -302,7 +312,7 @@
 				<Tip label="Hero" {tooltip} />
 			{/if}
 		</h2>
-		{#if sourceUrl}
+		{#if sourceUrl && !locked}
 			<div class="hero-actions">
 				<label class="pick">
 					<input
@@ -321,7 +331,15 @@
 		{/if}
 	</header>
 
-	{#if !sourceUrl}
+	{#if locked}
+		{#if sourceUrl}
+			<div class="locked-preview">
+				<img src={sourceUrl} alt="" />
+			</div>
+		{:else}
+			<p class="locked-empty">No series photo</p>
+		{/if}
+	{:else if !sourceUrl}
 		<label class="empty">
 			<input
 				class="sr-only"
@@ -369,21 +387,40 @@
 					Zoom
 					<Tip
 						label="Zoom"
-						tooltip="The gold frame is the What's on card. Drag it to move. Zoom tightens the frame."
+						tooltip="Tightens the gold frame on the photo. Drag the frame to move it. Scroll over the photo to zoom too."
 					/>
 				</span>
+				<button
+					class="step"
+					type="button"
+					aria-label="Zoom out"
+					disabled={disabled || !naturalW || slider <= 0.001}
+					onclick={() => nudgeZoom(-1)}
+				>
+					−
+				</button>
 				<input
 					type="range"
 					min="0"
 					max="1"
 					step="0.001"
 					value={slider}
+					aria-label="Zoom"
 					disabled={disabled || !naturalW}
 					onpointerdown={() => (sliderHeld = true)}
 					oninput={onZoomInput}
 					onchange={releaseZoom}
 					onpointerup={releaseZoom}
 				/>
+				<button
+					class="step"
+					type="button"
+					aria-label="Zoom in"
+					disabled={disabled || !naturalW || slider >= 0.999}
+					onclick={() => nudgeZoom(1)}
+				>
+					+
+				</button>
 			</label>
 			<button class="reset" type="button" disabled={disabled || !naturalW} onclick={resetFraming}>
 				Reset
@@ -470,10 +507,38 @@
 		font-weight: 600;
 	}
 
+	.locked-preview {
+		width: 100%;
+		aspect-ratio: 16 / 10;
+		overflow: hidden;
+		border: 1px solid var(--border);
+		border-radius: 0.4rem;
+		background: #0d0d0d;
+	}
+
+	.locked-preview img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.locked-empty {
+		display: grid;
+		place-items: center;
+		width: 100%;
+		aspect-ratio: 16 / 10;
+		margin: 0;
+		border: 1px dashed var(--border);
+		border-radius: 0.4rem;
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+	}
+
 	.stage {
 		position: relative;
 		width: 100%;
-		height: min(70vh, 36rem);
+		height: min(42vh, 22rem);
 		overflow: hidden;
 		border: 1px solid var(--border);
 		border-radius: 0.4rem;
@@ -515,8 +580,8 @@
 
 	.zoom {
 		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 0.75rem;
+		grid-template-columns: auto auto minmax(6rem, 1fr) auto;
+		gap: 0.45rem;
 		align-items: center;
 		flex: 1 1 12rem;
 		font-size: var(--text-sm);
@@ -529,8 +594,32 @@
 		gap: 0.35rem;
 	}
 
-	.zoom input {
+	.zoom input[type="range"] {
 		width: 100%;
+		height: 1.25rem;
+		margin: 0;
+		accent-color: #c9a84c;
+		cursor: pointer;
+	}
+
+	.step {
+		display: grid;
+		place-items: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: 0.35rem;
+		background: var(--surface);
+		color: var(--foreground);
+		font-size: 1rem;
+		line-height: 1;
+		cursor: pointer;
+	}
+
+	.step:disabled {
+		opacity: 0.45;
+		cursor: default;
 	}
 
 	.reset {

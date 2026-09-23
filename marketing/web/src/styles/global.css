@@ -809,9 +809,9 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   transform: translate3d(0, 3.5px, 0) rotate(-45deg);
 }
 
+.site-header-menu-btn:focus,
 .site-header-menu-btn:focus-visible {
-  outline: 1px solid var(--color-gold-dim);
-  outline-offset: 4px;
+  outline: none;
 }
 
 /* Full-screen nav — same click experience on desktop and mobile. */
@@ -5283,8 +5283,94 @@ a.event-card:focus-visible .event-title {
   text-transform: uppercase;
 }
 
+.whats-on-group-tagline {
+  margin: 0.55rem 0 0;
+  max-width: 28rem;
+  color: var(--color-text-muted);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
 .whats-on-divider + li > .event-card {
   padding-top: clamp(1.25rem, 3vw, 2.25rem);
+}
+
+.schedule-inner {
+  max-width: 44rem;
+}
+
+.schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 clamp(3rem, 7vw, 6rem);
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.2rem 1.75rem;
+  align-items: baseline;
+  padding: 0.95rem 0 1.05rem;
+  color: inherit;
+  text-decoration: none;
+  -webkit-user-drag: none;
+  user-select: text;
+}
+
+.schedule-list > li + li > .schedule-row {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.schedule-list > li.whats-on-divider + li > .schedule-row {
+  border-top: none;
+  padding-top: 0.85rem;
+}
+
+.schedule-row:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.schedule-row:hover .schedule-title,
+.schedule-row:focus-visible .schedule-title {
+  color: var(--color-gold);
+}
+
+.schedule-when {
+  color: var(--color-gold);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.schedule-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.schedule-title {
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: clamp(1.65rem, 3vw, 2.15rem);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.schedule-series,
+.schedule-meta {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 560px) {
+  .schedule-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
 }
 
 .event-card-hit {
@@ -5950,6 +6036,9 @@ a.event-card:focus-visible .event-title {
 html[data-site-env="staging"]
   #whats-on-content:not([data-live="ready"]):not([data-live="static"])
   .events-list,
+html[data-site-env="staging"]
+  #schedule-content:not([data-live="ready"]):not([data-live="static"])
+  .schedule-list,
 html[data-site-env="staging"]
   main.whats-on-series-page:not([data-live="ready"]):not([data-live="static"])
   .event-media {

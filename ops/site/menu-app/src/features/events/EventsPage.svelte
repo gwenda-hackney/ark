@@ -157,6 +157,7 @@
 	let autoPublishStaging = $state(false);
 
 	let name = $state("");
+	let defaultsUnlocked = $state(false);
 	let artist = $state("");
 	let offer = $state("");
 	let shortDescription = $state("");
@@ -303,6 +304,7 @@
 		artist?: string;
 		offer?: string;
 		description?: string;
+		shortDescription?: string;
 		operationsNotes?: string;
 		imageLinks?: string[];
 		date?: string;
@@ -315,6 +317,7 @@
 			artist: String(row.artist || "").trim(),
 			offer: String(row.offer || "").trim(),
 			description: String(row.description || "").trim(),
+			shortDescription: String(row.shortDescription || "").trim(),
 			operationsNotes: String(row.operationsNotes || "").trim(),
 			imageLinks: [...(row.imageLinks || [])].map((link) => link.trim()).filter(Boolean),
 			date: row.date || "",
@@ -338,6 +341,7 @@
 					artist,
 					offer,
 					description,
+					shortDescription,
 					operationsNotes,
 					imageLinks: imageLinksText.split(/\r?\n/),
 					date: startsOn,
@@ -350,6 +354,7 @@
 					artist: overrides?.artist || current.artist,
 					offer: overrides?.offer || current.offer,
 					description: overrides?.description || current.description,
+					shortDescription: overrides?.shortDescription || "",
 					operationsNotes: overrides?.operationsNotes || current.operationsNotes,
 					imageLinks: overrides?.imageLinks?.length
 						? overrides.imageLinks
@@ -537,7 +542,9 @@
 	const isOpenSeries = $derived(
 		String(current?.repeatUnit || repeatUnit || "none").toLowerCase() === "none",
 	);
-	const typeLine = $derived(
+	const editingNight = $derived(editingOccurrence || creatingNight);
+	const showHeaderDate = $derived(creatingOnce || editingOnce);
+	const seriesRepeatLine = $derived(
 		repeatLabel({
 			repeatEvery: Number(repeatEvery) || 1,
 			repeatUnit: repeatUnit as OpsEvent["repeatUnit"],
@@ -545,14 +552,28 @@
 			monthDay: Number(monthDay) || 0,
 		}),
 	);
+	const typeLine = $derived(
+		editingNight
+			? "This night"
+			: creatingOnce || editingOnce
+				? "Special event"
+				: repeatUnit === "none" || repeatUnit === "once"
+					? "Series"
+					: `Series · ${seriesRepeatLine}`,
+	);
+	const parentSeriesName = $derived(
+		editingOccurrence
+			? String(current?.name || "").trim()
+			: creatingNight
+				? events.find((event) => event.id === attachSeriesId)?.name || ""
+				: "",
+	);
 	const headerDate = $derived(
 		occurrenceDate
 			? formatDate(occurrenceDate)
-			: previewDates[0]
-				? formatDate(previewDates[0])
-				: startsOn
-					? formatDate(startsOn)
-					: "No date",
+			: startsOn
+				? formatDate(startsOn)
+				: "No date",
 	);
 	const headerFlag = $derived(eventHeaderFlag(current?.publish, formDirty));
 	const stagingPreviewCurrent = $derived(current?.publish.preview === "current");
@@ -586,7 +607,7 @@
 				{
 					id: "schedule",
 					label: "Schedule",
-					href: eventItemPath(eventId, "schedule"),
+					href: hrefFor("schedule"),
 				},
 				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
 				{ id: "publish", label: "Publish", href: hrefFor("publish") },
@@ -817,6 +838,7 @@
 		} else {
 			heroCrops = null;
 		}
+		syncNightLocks(event, occurrence);
 	}
 
 	function blank() {
@@ -842,6 +864,7 @@
 		attachSeriesId = "";
 		warnings = [];
 		heroCrops = null;
+		defaultsUnlocked = false;
 	}
 
 	function addNightSlot() {
@@ -910,24 +933,103 @@
 		};
 	}
 
+	function seriesText(key: string): string {
+		const event = current;
+		if (!event) return "";
+		if (key === "name") return String(event.name || "").trim();
+		if (key === "artist") return String(event.artist || "").trim();
+		if (key === "offer") return String(event.offer || "").trim();
+		if (key === "shortDescription") return String(event.shortDescription || "").trim();
+		if (key === "description") return String(event.description || "").trim();
+		if (key === "startTime") return String(event.startTime || "").trim();
+		if (key === "endTime") return String(event.endTime || "").trim();
+		if (key === "operationsNotes") return String(event.operationsNotes || "").trim();
+		return "";
+	}
+
+	function lockedReadout(key: string): string {
+		const raw = seriesText(key);
+		if (!raw) return "None on the series";
+		if (key === "startTime" || key === "endTime") return formatClock(raw) || raw;
+		return raw;
+	}
+
+	function nightHasOwnCopy(
+		event: OpsEvent,
+		occurrence: OpsEvent["dates"][number] | null | undefined,
+	): boolean {
+		const overrides = occurrence?.overrides;
+		if (!overrides) return false;
+		const title = String(overrides.name || "").trim();
+		const seriesName = String(event.name || "").trim().toLowerCase();
+		return Boolean(
+			(title && title.toLowerCase() !== seriesName) ||
+				String(overrides.artist || "").trim() ||
+				String(overrides.offer || "").trim() ||
+				String(overrides.shortDescription || "").trim() ||
+				String(overrides.description || "").trim() ||
+				String(overrides.startTime || "").trim() ||
+				String(overrides.endTime || "").trim() ||
+				String(overrides.operationsNotes || "").trim() ||
+				overrides.image?.url,
+		);
+	}
+
+	function syncNightLocks(
+		event: OpsEvent,
+		occurrence: OpsEvent["dates"][number] | null | undefined,
+	) {
+		defaultsUnlocked = nightHasOwnCopy(event, occurrence);
+	}
+
+	function unlockDefaults() {
+		defaultsUnlocked = true;
+	}
+
+	async function useSeriesDefaults() {
+		if (currentOccurrence?.overrides?.image?.url) {
+			await onClearImage("main");
+			if (currentOccurrence?.overrides?.image?.url) return;
+		}
+		heroCrops = null;
+		name = seriesText("name");
+		artist = seriesText("artist");
+		offer = seriesText("offer");
+		shortDescription = "";
+		description = seriesText("description");
+		startTime = seriesText("startTime");
+		endTime = seriesText("endTime");
+		operationsNotes = seriesText("operationsNotes");
+		defaultsUnlocked = false;
+	}
+
+	/** Empty means this night keeps the series value. */
+	function nightField(key: string, value: string): string {
+		const trimmed = value.trim();
+		if (!defaultsUnlocked || trimmed.toLowerCase() === seriesText(key).toLowerCase()) {
+			return "";
+		}
+		return trimmed;
+	}
+
 	function occurrenceBody(scope: "this" | "following" | "all") {
+		const ownLinks = currentOccurrence?.overrides?.imageLinks?.length
+			? currentOccurrence.overrides.imageLinks
+			: [];
 		return {
 			scope,
 			date: startsOn,
-			seriesId: attachSeriesId || eventId,
-			name: name.trim(),
-			artist: artist.trim(),
-			offer: offer.trim(),
-			description: description.trim(),
-			shortDescription: shortDescription.trim(),
-			operationsNotes: operationsNotes.trim(),
-			imageLinks: imageLinksText
-				.split(/\r?\n/)
-				.map((link) => link.trim())
-				.filter(Boolean),
-			time: startTime && endTime ? "" : time.trim(),
-			startTime,
-			endTime,
+			seriesId: eventId,
+			name: nightField("name", name),
+			artist: nightField("artist", artist),
+			offer: nightField("offer", offer),
+			description: nightField("description", description),
+			shortDescription: nightField("shortDescription", shortDescription),
+			operationsNotes: nightField("operationsNotes", operationsNotes),
+			imageLinks: ownLinks,
+			time: !defaultsUnlocked || (startTime && endTime) ? "" : time.trim(),
+			startTime: nightField("startTime", startTime),
+			endTime: nightField("endTime", endTime),
 			heroCrops: framingUrl ? heroCrops || null : null,
 		};
 	}
@@ -1018,7 +1120,12 @@
 	$effect(() => {
 		const label = !editing
 			? ""
-			: name.trim() || (route.isNew ? "New event" : "Event");
+			: editingOccurrence && occurrenceDate
+				? [formatDate(occurrenceDate), current?.name || name.trim()]
+						.filter(Boolean)
+						.join(" · ")
+				: name.trim() ||
+					(route.isNew ? (creatingOnce ? "New event" : "New series") : "Event");
 		setCrumbLeaf(label);
 		return () => setCrumbLeaf("");
 	});
@@ -1289,7 +1396,10 @@
 			}
 			return;
 		}
-		if (!name.trim() || (!creatingNight && !startsOn && repeatUnit !== "none")) {
+		if (
+			(!editingOccurrence && !name.trim()) ||
+			(!creatingNight && !editingOccurrence && !startsOn && repeatUnit !== "none")
+		) {
 			const message = !name.trim()
 				? "Add a name."
 				: repeatUnit === "once"
@@ -1336,11 +1446,7 @@
 		}
 		skipReplaceAsk = false;
 		if (editingOccurrence) {
-			if (
-				isOpenSeries ||
-				attachSeriesId !== eventId ||
-				startsOn !== occurrenceDate
-			) {
+			if (isOpenSeries || startsOn !== occurrenceDate) {
 				await saveOccurrenceWithScope("this");
 			} else {
 				saveScopeOpen = true;
@@ -1852,18 +1958,30 @@
 				<div class="panel" class:dirty={formDirty}>
 					<header class="panel-head">
 						<div class="type-line">
+							{#if editingNight}
+								<Icon name="events" size={14} />
+							{/if}
 							<p class="eyebrow">{typeLine}</p>
-							{#if formDirty}
-								<span class="dirty-dot" title="Unsaved" aria-live="polite">
-									<span class="sr-only">Unsaved</span>
-								</span>
-							{/if}
-							{#if editingOccurrence && eventId}
-								<a class="series-link" href={eventItemPath(eventId)}>Edit series</a>
-							{/if}
 						</div>
 						<div class="head-tools">
 							<div class="toolbar-actions">
+								{#if editingOccurrence}
+									<Button
+										variant="accent"
+										size="sm"
+										type="button"
+										disabled={busy}
+										aria-label={defaultsUnlocked ? "Use series defaults" : "Override defaults"}
+										title={defaultsUnlocked ? "Use series defaults" : "Override defaults"}
+										onclick={() =>
+											defaultsUnlocked ? void useSeriesDefaults() : unlockDefaults()}
+									>
+										{#snippet icon()}
+											<Icon name={defaultsUnlocked ? "undo" : "lock"} />
+										{/snippet}
+									</Button>
+									<span class="tool-sep" aria-hidden="true"></span>
+								{/if}
 								{#if eventId && !route.isNew}
 									<Button
 										variant="outline"
@@ -1913,32 +2031,64 @@
 							</div>
 						</div>
 						<div class="title-name">
-							<input
-								class="title-input"
-								id="event-name"
-								required={!creatingNight}
-								autocomplete="off"
-								aria-label={creatingNight
-									? "Night title override"
-									: creatingOnce || editingOnce
-										? "Event name"
-										: "Series name"}
-								placeholder={creatingNight
-									? "Title override (optional)"
-									: creatingOnce || editingOnce
-										? "Event name"
-										: "Series name"}
-								bind:value={name}
-							/>
-							{#if artist.trim()}
+							{#if editingNight}
+								<div class="name-line">
+									<p class="night-headline">
+										{headerDate === "No date" ? "Pick a date" : headerDate}
+									</p>
+									<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
+								</div>
+								{#if editingOccurrence && !defaultsUnlocked}
+									<p class="locked-title">{lockedReadout("name")}</p>
+								{:else}
+									<input
+										class="title-input night-title"
+										id="event-name"
+										required={!creatingNight && !editingOccurrence}
+										autocomplete="off"
+										aria-label="Night title"
+										placeholder={creatingNight ? "Night title (optional)" : "Night title"}
+										bind:value={name}
+									/>
+								{/if}
+							{:else}
+								<div class="name-line">
+									<input
+										class="title-input"
+										id="event-name"
+										required
+										autocomplete="off"
+										aria-label={creatingOnce || editingOnce ? "Event name" : "Series name"}
+										placeholder={creatingOnce || editingOnce ? "Event name" : "Series name"}
+										bind:value={name}
+									/>
+									<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
+								</div>
+							{/if}
+							{#if (!editingOccurrence || defaultsUnlocked) && artist.trim()}
 								<p class="sub">{artist.trim()}</p>
 							{/if}
 						</div>
-						<div class="title-meta">
-							<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
-							<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
-						</div>
-						{#if route.isNew && !creatingOnce}
+						{#if showHeaderDate}
+							<div class="title-meta">
+								<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
+							</div>
+						{/if}
+						{#if editingNight}
+							<p class="head-note">
+								{#if parentSeriesName}<span>Part of {parentSeriesName}.</span>{/if}
+								<span>
+									{#if editingOccurrence && !defaultsUnlocked}
+										Times, flyer, and copy come from the series.
+									{:else}
+										Changes apply to this night only.
+									{/if}
+								</span>
+								{#if editingOccurrence && eventId}
+									<a class="series-link" href={eventItemPath(eventId)}>Edit series</a>
+								{/if}
+							</p>
+						{:else if route.isNew && !creatingOnce}
 							<div class="create-mode">
 								<p class="create-hint muted">
 									Pick a series below to add a night, or leave it empty for a new series.
@@ -1948,6 +2098,8 @@
 							<div class="create-mode">
 								<p class="create-hint muted">A special event. It does not belong to a series.</p>
 							</div>
+						{:else if !editingOnce}
+							<p class="head-note">Series defaults, shared by its nights.</p>
 						{/if}
 					</header>
 
@@ -1979,31 +2131,27 @@
 												<div
 													class="control-grid"
 													class:has-slots={!editingOccurrence}
-													class:with-series={(route.isNew || editingOccurrence) && !creatingOnce}
+													class:with-series={route.isNew && !creatingOnce}
 													class:with-date={editingOccurrence || creatingNight || creatingOnce || editingOnce}
 												>
-													{#if (route.isNew || editingOccurrence) && !creatingOnce && !editingOnce}
+													{#if route.isNew && !creatingOnce}
 														<Field
 															class="series"
 															label="Series"
 															for="event-series"
-															tooltip={route.isNew
-																? "Choose an existing series to add this night, or leave empty to create a new series."
-																: "Move this night onto another series."}
+															tooltip="Choose an existing series to add this night, or leave empty to create a new series."
 														>
 															<NativeSelect
 																id="event-series"
 																size="sm"
 																bind:value={attachSeriesId}
-																options={route.isNew
-																	? [
-																			{
-																				value: "",
-																				label: "New series",
-																			},
-																			...seriesOptions,
-																		]
-																	: seriesOptions}
+																options={[
+																	{
+																		value: "",
+																		label: "New series",
+																	},
+																	...seriesOptions,
+																]}
 															/>
 														</Field>
 													{/if}
@@ -2030,30 +2178,38 @@
 														label="Start"
 														for="event-start-time"
 														tooltip={editingOccurrence
-															? "This night only. Shown on What's on."
+															? "Shown on What's on. From the series until you override defaults."
 															: "Default start time for each night. A night can override it."}
 													>
-														<TextField
-															id="event-start-time"
-															size="sm"
-															type="time"
-															bind:value={startTime}
-														/>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value">{lockedReadout("startTime")}</p>
+														{:else}
+															<TextField
+																id="event-start-time"
+																size="sm"
+																type="time"
+																bind:value={startTime}
+															/>
+														{/if}
 													</Field>
 													<Field
 														class="end"
 														label="End"
 														for="event-end-time"
 														tooltip={editingOccurrence
-															? "This night only. Shown on What's on."
+															? "Shown on What's on. From the series until you override defaults."
 															: "Default end time for each night. A night can override it."}
 													>
-														<TextField
-															id="event-end-time"
-															size="sm"
-															type="time"
-															bind:value={endTime}
-														/>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value">{lockedReadout("endTime")}</p>
+														{:else}
+															<TextField
+																id="event-end-time"
+																size="sm"
+																type="time"
+																bind:value={endTime}
+															/>
+														{/if}
 													</Field>
 													{#if !editingOccurrence}
 														<div class="night-schedule">
@@ -2121,58 +2277,75 @@
 														label="Guest Artist"
 														for="event-artist"
 														tooltip={editingOccurrence
-															? "This night only. When set, the night is treated as a special guest edition on What's on."
+															? "From the series until you override defaults. A guest of its own is a special edition on What's on."
 															: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
 													>
-														<TextField id="event-artist" size="sm" bind:value={artist} />
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value">{lockedReadout("artist")}</p>
+														{:else}
+															<TextField id="event-artist" size="sm" bind:value={artist} />
+														{/if}
 													</Field>
 													<Field
 														class="offer"
 														label="Offer"
 														for="event-offer"
 														tooltip={editingOccurrence
-															? "This night only. Shown on What's on."
+															? "From the series until you override defaults."
 															: "Default public wording, such as a drink deal. A night can override it."}
 													>
-														<TextField
-															id="event-offer"
-															size="sm"
-															bind:value={offer}
-															placeholder="£10 Negroni"
-														/>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value">{lockedReadout("offer")}</p>
+														{:else}
+															<TextField
+																id="event-offer"
+																size="sm"
+																bind:value={offer}
+																placeholder="£10 Negroni"
+															/>
+														{/if}
 													</Field>
 													<Field
 														class="span-all"
 														label="Short description"
 														for="event-short-description"
 														tooltip={editingOccurrence
-															? "This night only. The whole sentence on the What's on card, date included if you want it."
+															? "From the series until you override defaults. The What's on card sentence."
 															: "What's on card. One or two lines on what this night is."}
 													>
-														<TextArea
-															id="event-short-description"
-															bind:value={shortDescription}
-															rows={2}
-															placeholder={editingOccurrence
-																? "On Sat 10 Oct we are excited to host…"
-																: "Card blurb…"}
-														/>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value">{lockedReadout("shortDescription")}</p>
+														{:else}
+															<TextArea
+																id="event-short-description"
+																bind:value={shortDescription}
+																rows={2}
+																placeholder={editingOccurrence
+																	? seriesText("shortDescription") ||
+																		"On Sat 10 Oct we are excited to host…"
+																	: "Card blurb…"}
+															/>
+														{/if}
 													</Field>
 													<Field
 														class="span-all"
 														label={editingOccurrence ? "Description" : "Full description"}
 														for="event-description"
 														tooltip={editingOccurrence
-															? "This night only. Leave empty to keep the series description."
+															? "From the series until you override defaults."
 															: "Series and night page. Use the short field for the What's on card."}
 													>
-														<MethodEditor
-															id="event-description"
-															value={description}
-															label="Event description"
-															placeholder="Set the scene…"
-															onChange={(next) => (description = next)}
-														/>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value prose">{lockedReadout("description")}</p>
+														{:else}
+															<MethodEditor
+																id="event-description"
+																value={description}
+																label="Event description"
+																placeholder="Set the scene…"
+																onChange={(next) => (description = next)}
+															/>
+														{/if}
 													</Field>
 													<Field
 														class="span-all"
@@ -2180,12 +2353,16 @@
 														for="event-operations-notes"
 														tooltip="Internal only. Never published to the website."
 													>
-														<TextArea
-															id="event-operations-notes"
-															bind:value={operationsNotes}
-															rows={4}
-															placeholder="Contacts, fee, setup, access, equipment…"
-														/>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value prose">{lockedReadout("operationsNotes")}</p>
+														{:else}
+															<TextArea
+																id="event-operations-notes"
+																bind:value={operationsNotes}
+																rows={4}
+																placeholder="Contacts, fee, setup, access, equipment…"
+															/>
+														{/if}
 													</Field>
 												</div>
 											</div>
@@ -2193,17 +2370,28 @@
 												{#if !eventId}
 													<p class="hint">Save before adding a photo.</p>
 												{/if}
-												<HeroImagePanel
-													sourceUrl={framingUrl}
-													crops={heroCrops}
-													disabled={busy || !eventId}
-													tooltip={editingOccurrence
-														? "This night only. What's on uses this flyer while this is the next night."
-														: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
-													onchangecrops={onHeroCropsChange}
-													onpickfile={(file) => acceptPhotoFile(file)}
-													onclear={() => onClearImage("main")}
-												/>
+												{#if editingOccurrence && !defaultsUnlocked}
+													<HeroImagePanel
+														sourceUrl={current?.mainImage?.url || ""}
+														locked
+														tooltip="Series flyer. Override defaults to give this night its own photo."
+														onchangecrops={() => undefined}
+														onpickfile={() => undefined}
+														onclear={() => undefined}
+													/>
+												{:else}
+													<HeroImagePanel
+														sourceUrl={framingUrl}
+														crops={heroCrops}
+														disabled={busy || !eventId}
+														tooltip={editingOccurrence
+															? "This night's flyer. What's on uses it while this is the next night."
+															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
+														onchangecrops={onHeroCropsChange}
+														onpickfile={(file) => acceptPhotoFile(file)}
+														onclear={() => onClearImage("main")}
+													/>
+												{/if}
 											</aside>
 										</section>
 									{:else if tab === "schedule"}
@@ -2631,7 +2819,13 @@
 							{#snippet icon()}
 								<Icon name="save" />
 							{/snippet}
-							{saving && intent === "save" ? "Saving…" : "Save"}
+							{saving && intent === "save"
+								? "Saving…"
+								: editingNight
+									? "Save this night"
+									: creatingOnce || editingOnce
+										? "Save"
+										: "Save series"}
 						</Button>
 					</footer>
 				</div>
@@ -2824,7 +3018,6 @@
 	}
 
 	.series-link {
-		margin-left: 0.65rem;
 		color: var(--primary);
 		font-size: var(--text-xs);
 		font-weight: 600;
@@ -3188,16 +3381,6 @@
 		text-overflow: ellipsis;
 	}
 
-	.dirty-dot {
-		display: inline-flex;
-		flex-shrink: 0;
-		width: 0.45rem;
-		height: 0.45rem;
-		border-radius: 50%;
-		background: var(--destructive);
-		box-shadow: 0 0 0 3px var(--destructive-wash);
-	}
-
 	.head-tools {
 		grid-column: 2;
 		grid-row: 1;
@@ -3213,6 +3396,13 @@
 		flex-shrink: 0;
 		gap: 0.25rem;
 		height: var(--control-h-sm);
+	}
+
+	.tool-sep {
+		width: 1px;
+		height: 1rem;
+		margin: 0 0.15rem;
+		background: var(--border);
 	}
 
 	.head-tools :global(.close-btn) {
@@ -3232,6 +3422,54 @@
 		align-items: stretch;
 		gap: 0.15rem;
 		min-width: 0;
+	}
+
+	.name-line {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.45rem 0.7rem;
+		min-width: 0;
+	}
+
+	.name-line .title-input {
+		flex: 0 1 auto;
+		width: auto;
+		min-width: min(100%, 10rem);
+		max-width: 100%;
+		field-sizing: content;
+	}
+
+	.night-headline {
+		margin: 0;
+		font-family: var(--font);
+		font-size: 1.85rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		line-height: 1.3;
+		color: var(--primary);
+	}
+
+	.locked-title {
+		margin: 0.15rem 0 0;
+		color: var(--foreground);
+		font-size: 1.05rem;
+		font-weight: 500;
+		line-height: 1.3;
+	}
+
+	.locked-value {
+		margin: 0;
+		min-height: var(--control-h-sm);
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+		line-height: 1.4;
+	}
+
+	.locked-value.prose {
+		white-space: pre-wrap;
+		max-height: 7.5rem;
+		overflow: auto;
 	}
 
 	.title-input {
@@ -3271,6 +3509,12 @@
 		box-shadow: 0 0 0 2px var(--ring-wash);
 	}
 
+	.title-input.night-title {
+		font-size: 1.05rem;
+		font-weight: 500;
+		letter-spacing: 0;
+	}
+
 	.title-meta {
 		grid-column: 2;
 		grid-row: 2;
@@ -3305,7 +3549,7 @@
 		display: inline-flex;
 		align-items: center;
 		width: fit-content;
-		margin: 0.28rem 0 0;
+		margin: 0;
 		padding: 0.18rem 0.5rem;
 		border-radius: var(--radius-pill);
 		font-size: var(--text-xs);
@@ -3316,10 +3560,14 @@
 		white-space: nowrap;
 	}
 
-	.status-flag.unpublished,
-	.status-flag.unsaved {
+	.status-flag.unpublished {
 		color: var(--primary-foreground);
 		background: var(--primary);
+	}
+
+	.status-flag.unsaved {
+		color: var(--destructive-foreground);
+		background: var(--destructive);
 	}
 
 	.status-flag.preview {
@@ -3341,17 +3589,21 @@
 		background: transparent;
 	}
 
-	.occurrence-note {
+	.head-note {
 		grid-column: 1 / -1;
 		grid-row: 3;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.2rem 0.65rem;
 		margin: 0;
-		padding-top: 0.4rem;
+		padding-top: 0.45rem;
 		font-size: var(--text-xs);
 		font-weight: 500;
 		letter-spacing: 0.02em;
 		line-height: 1.4;
 		color: var(--muted-foreground);
-		max-width: 36rem;
+		max-width: 40rem;
 	}
 
 	.create-mode {
@@ -3960,8 +4212,8 @@
 			display: none;
 		}
 
-		.occurrence-note {
-			grid-row: 4;
+		.head-note {
+			grid-row: 3;
 		}
 
 		.panel-head,
@@ -3984,8 +4236,13 @@
 
 	@media (max-width: 600px) {
 		.title-input,
-		.date-readout {
+		.date-readout,
+		.night-headline {
 			font-size: 1.35rem;
+		}
+
+		.title-input.night-title {
+			font-size: 1rem;
 		}
 	}
 </style>

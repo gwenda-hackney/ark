@@ -148,7 +148,11 @@ export function upcomingEventLine(identity) {
 function addDaysIso(isoDate, days) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
   if (!match) return "";
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
   date.setDate(date.getDate() + days);
   return [
     date.getFullYear(),
@@ -157,15 +161,57 @@ function addDaysIso(isoDate, days) {
   ].join("-");
 }
 
+const SCHEDULE_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** Monday of the week that contains `isoDate`. */
+function weekStartIso(isoDate) {
+  const iso = String(isoDate || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const mondayOffset = (date.getDay() + 6) % 7;
+  return addDaysIso(iso, -mondayOffset);
+}
+
+function scheduleDayMonth(isoDate, now) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
+  if (!match) return "";
+  const year = Number(match[1]);
+  const label = `${Number(match[3])} ${SCHEDULE_MONTHS[Number(match[2]) - 1]}`;
+  if (year !== now.getFullYear()) return `${label} ${year}`;
+  return label;
+}
+
+/** "This week · 21 Sep–27 Sep", then "Next week", then the range alone. */
+function scheduleWeekLabel(start, now) {
+  const today = todayIso(now);
+  const current = weekStartIso(today);
+  const next = addDaysIso(current, 7);
+  const end = addDaysIso(start, 6);
+  const range = `${scheduleDayMonth(start, now)}–${scheduleDayMonth(end, now)}`;
+  if (start === current) return `This week · ${range}`;
+  if (start === next) return `Next week · ${range}`;
+  return range;
+}
+
 /** Monday–Sunday week that contains `now`. */
 export function isCurrentWeek(isoDate, now = new Date()) {
   const iso = String(isoDate || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
-  const today = todayIso(now);
-  const [year, month, day] = today.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  const mondayOffset = (date.getDay() + 6) % 7;
-  const start = addDaysIso(today, -mondayOffset);
+  const start = weekStartIso(todayIso(now));
   const end = addDaysIso(start, 6);
   return iso >= start && iso <= end;
 }
@@ -179,7 +225,11 @@ function teaserForNight(night, seriesTitle) {
  * Scheduled series name the pictured night (hosts + date).
  * A night in the current week is "This week"; the one after is "Next".
  */
-export function seriesDiary(nights, seriesTitle, { now = new Date(), regular = false } = {}) {
+export function seriesDiary(
+  nights,
+  seriesTitle,
+  { now = new Date(), regular = false } = {},
+) {
   const ordered = (Array.isArray(nights) ? nights : [])
     .slice()
     .sort(compareNights);
@@ -544,7 +594,9 @@ function templateFromNights(seriesId, nights) {
     shortDescription: first.shortDescription || "",
     recurrence: first.recurrence || "",
     schedule: first.recurrence ? "repeating" : "manual",
-    nightSchedule: Array.isArray(first.nightSchedule) ? first.nightSchedule : [],
+    nightSchedule: Array.isArray(first.nightSchedule)
+      ? first.nightSchedule
+      : [],
     heroImageUrl: first.seriesHeroImageUrl || null,
     heroObjectPosition: first.seriesHeroObjectPosition || "",
   });
@@ -824,6 +876,99 @@ export function buildWhatsOnHome(
     nights: page,
     next:
       hasMore && last ? { after: last.date, afterId: String(last.id) } : null,
+  };
+}
+
+/**
+ * Dates a one-off takes from a residency. The residency night on that date
+ * stays in the catalog, but the public schedule shows the one-off instead.
+ */
+function displacedResidencyKeys(groups, templates) {
+  const hidden = new Set();
+  for (const [seriesId, nights] of groups) {
+    const template = templates.get(seriesId);
+    const target = String(template?.replacesSeriesId || "").trim();
+    if (!template || template.schedule !== "once" || !target) continue;
+    const residencyDates = new Set(
+      (groups.get(target) || []).map((night) => night.date),
+    );
+    for (const night of nights) {
+      if (residencyDates.has(night.date)) hidden.add(`${target}|${night.date}`);
+    }
+  }
+  return hidden;
+}
+
+function scheduleNightRow(template, night) {
+  const seriesTitle = String(
+    template.title || night.seriesTitle || night.title || "",
+  ).trim();
+  const nightTitle = String(night.title || "").trim();
+  const own = Boolean(nightTitle && !sameLabel(nightTitle, seriesTitle));
+  const artist =
+    night.isSpecialEdition && String(night.artist || "").trim()
+      ? String(night.artist).trim()
+      : "";
+  return {
+    date: night.date,
+    title: own ? nightTitle : seriesTitle || nightTitle || "Gwenda",
+    seriesTitle: own ? seriesTitle : "",
+    artist,
+    startTime: String(night.startTime || "").trim(),
+    endTime: String(night.endTime || "").trim(),
+    time: String(night.time || "").trim(),
+    href: `/whats-on/${encodeURIComponent(template.seriesId)}`,
+    seriesId: template.seriesId,
+  };
+}
+
+/**
+ * Every upcoming night, Monday weeks, chronological.
+ * What's on stays series-first. This is the full diary.
+ *
+ * @param {Array} events
+ * @param {{ now?: Date, series?: Array }} [options]
+ */
+export function buildPublicSchedule(
+  events,
+  { now = new Date(), series = [] } = {},
+) {
+  const groups = groupUpcomingBySeries(events, now);
+  const templates = resolveTemplates(series, groups);
+  const hidden = displacedResidencyKeys(groups, templates);
+  const rows = [];
+  for (const [seriesId, nights] of groups) {
+    const template = templates.get(seriesId);
+    if (!template) continue;
+    const byDate = new Map();
+    for (const night of nights) byDate.set(night.date, night);
+    for (const night of byDate.values()) {
+      if (hidden.has(`${seriesId}|${night.date}`)) continue;
+      rows.push(scheduleNightRow(template, night));
+    }
+  }
+  rows.sort(
+    (a, b) =>
+      String(a.date).localeCompare(String(b.date)) ||
+      String(a.startTime).localeCompare(String(b.startTime)) ||
+      a.title.localeCompare(b.title),
+  );
+
+  const weeks = new Map();
+  for (const row of rows) {
+    const start = weekStartIso(row.date);
+    if (!start) continue;
+    const week = weeks.get(start) || [];
+    week.push(row);
+    weeks.set(start, week);
+  }
+
+  return {
+    weeks: [...weeks].map(([start, nights]) => ({
+      id: start,
+      label: scheduleWeekLabel(start, now),
+      nights,
+    })),
   };
 }
 

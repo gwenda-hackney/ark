@@ -170,6 +170,7 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/sections"), true);
     assert.equal(isSpaDocumentPath("/users"), true);
     assert.equal(isSpaDocumentPath("/events"), true);
+    assert.equal(isSpaDocumentPath("/artists"), true);
     assert.equal(isSpaDocumentPath("/events/nights"), true);
     assert.equal(isSpaDocumentPath("/events/schedule"), true);
     assert.equal(isSpaDocumentPath("/events/new"), true);
@@ -185,6 +186,7 @@ describe("spa-path", () => {
     assert.equal(isClientNavPath("/sections"), true);
     assert.equal(isClientNavPath("/users"), true);
     assert.equal(isClientNavPath("/web"), true);
+    assert.equal(isClientNavPath("/artists"), true);
     assert.equal(isClientNavPath("/tools/cashflow"), true);
     assert.equal(isClientNavPath("/stock"), false);
     assert.equal(isClientNavPath("/stock/index.html"), false);
@@ -196,6 +198,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/sections"), "sections");
     assert.equal(shellPageKey("/users"), "users");
     assert.equal(shellPageKey("/events/12"), "events");
+    assert.equal(shellPageKey("/artists"), "artists");
     assert.equal(shellPageKey("/events/12/publish"), "events");
     assert.deepEqual(parseShellPath("/events"), {
       page: "events",
@@ -276,6 +279,7 @@ describe("spa-path", () => {
     assert.equal(eventListPath("nights"), "/events/schedule");
     assert.equal(eventListPath("schedule"), "/events/schedule");
     assert.equal(eventItemPath("12"), "/events/12");
+    assert.equal(eventItemPath("12@2026-09-25"), "/events/12@2026-09-25");
     assert.equal(eventItemPath("12", "details"), "/events/12");
     assert.equal(eventItemPath("12", "gallery"), "/events/12/gallery");
     assert.equal(eventNewPath("publish"), "/events/new/publish");
@@ -315,6 +319,24 @@ describe("spa-path", () => {
       view: "menus",
     });
     assert.deepEqual(parseShellPath("/suppliers"), { page: "suppliers" });
+    assert.deepEqual(parseShellPath("/artists"), {
+      page: "artists",
+      slug: null,
+      isNew: false,
+    });
+    assert.deepEqual(parseShellPath("/artists/new"), {
+      page: "artists",
+      slug: null,
+      isNew: true,
+    });
+    assert.deepEqual(parseShellPath("/artists/3"), {
+      page: "artists",
+      slug: "3",
+      isNew: false,
+    });
+    assert.equal(isEditorPath("/artists"), false);
+    assert.equal(isEditorPath("/artists/3"), true);
+    assert.equal(isEditorPath("/artists/new"), true);
   });
 
   it("treats drink tabs as the same editor, and list as leaving", () => {
@@ -327,6 +349,8 @@ describe("spa-path", () => {
     assert.equal(navigationLeavesEditor("/menu/ambra", "/inventory"), true);
     assert.equal(navigationLeavesEditor("/menu", "/inventory"), false);
     assert.equal(navigationLeavesEditor("/menu", "/sections"), false);
+    assert.equal(navigationLeavesEditor("/artists", "/events"), false);
+    assert.equal(navigationLeavesEditor("/artists/3", "/artists"), true);
     assert.equal(navigationLeavesEditor("/menu/ambra", "/sections"), true);
   });
 

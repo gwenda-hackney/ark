@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPublicSchedule,
   buildSeriesDetail,
   buildWhatsOnHome,
   buildWhatsOnStack,
@@ -463,9 +464,13 @@ describe("buildSeriesDetail", () => {
       "Bohemianauts",
       "Halloween",
     ]);
-    expect(detail.nights[0].description).toContain("Saturday nights by the water");
+    expect(detail.nights[0].description).toContain(
+      "Saturday nights by the water",
+    );
     expect(detail.nights[0].description).not.toBe("Vinyl until late.");
-    expect(detail.nights[1].description).toContain("The Bohemianauts, live at Gwenda.");
+    expect(detail.nights[1].description).toContain(
+      "The Bohemianauts, live at Gwenda.",
+    );
   });
 
   it("shows two upcoming nights for repeating series with guest in main", () => {
@@ -689,16 +694,21 @@ const amoSeries = {
 };
 
 function radioNights() {
-  return ["2026-09-27", "2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"].map(
-    (date) =>
-      night({
-        id: `radio-${date}`,
-        seriesId: "gwenda-radio",
-        seriesTitle: "Gwenda Radio",
-        title: "Gwenda Radio",
-        date,
-        recurrence: "Every Sunday",
-      }),
+  return [
+    "2026-09-27",
+    "2026-10-04",
+    "2026-10-11",
+    "2026-10-18",
+    "2026-10-25",
+  ].map((date) =>
+    night({
+      id: `radio-${date}`,
+      seriesId: "gwenda-radio",
+      seriesTitle: "Gwenda Radio",
+      title: "Gwenda Radio",
+      date,
+      recurrence: "Every Sunday",
+    }),
   );
 }
 
@@ -795,6 +805,100 @@ describe("one-off cards", () => {
     );
     const dates = detail.upcomingDates.map((row) => row.date);
     expect(dates).toEqual(["2026-09-27", "2026-10-04", "2026-10-18"]);
+  });
+});
+
+describe("buildPublicSchedule", () => {
+  it("lists every upcoming night in Monday weeks, and drops a replaced residency", () => {
+    const amo = night({
+      id: "amo-mas-2026-10-18",
+      seriesId: "amo-mas",
+      seriesTitle: "Amo MAS",
+      title: "Amo MAS",
+      date: "2026-10-18",
+      startTime: "16:00",
+      endTime: "20:00",
+    });
+    const named = night({
+      id: "gwenda-nights-2026-09-26",
+      seriesId: "gwenda-nights",
+      seriesTitle: "Gwenda Nights",
+      title: "Vbrave Vinyl Session",
+      date: "2026-09-26",
+      artist: "Vbrave",
+      isSpecialEdition: true,
+      startTime: "21:00",
+    });
+    const past = night({
+      id: "radio-2026-09-20",
+      seriesId: "gwenda-radio",
+      seriesTitle: "Gwenda Radio",
+      title: "Gwenda Radio",
+      date: "2026-09-20",
+      recurrence: "Every Sunday",
+    });
+    const { weeks } = buildPublicSchedule(
+      [...radioNights(), amo, named, past],
+      {
+        now,
+        series: [
+          radioSeries,
+          gwendaSeries,
+          { ...amoSeries, replacesSeriesId: "gwenda-radio" },
+        ],
+      },
+    );
+
+    expect(weeks.map((week) => week.label)).toEqual([
+      "This week · 21 Sep–27 Sep",
+      "Next week · 28 Sep–4 Oct",
+      "5 Oct–11 Oct",
+      "12 Oct–18 Oct",
+      "19 Oct–25 Oct",
+    ]);
+    const thisWeek = weeks[0].nights.map((row) => row.date);
+    expect(thisWeek).toEqual(["2026-09-26", "2026-09-27"]);
+    expect(weeks[0].nights[0]).toMatchObject({
+      title: "Vbrave Vinyl Session",
+      seriesTitle: "Gwenda Nights",
+      artist: "Vbrave",
+      href: "/whats-on/gwenda-nights",
+    });
+    const october = weeks.find((week) => week.id === "2026-10-12");
+    expect(october.nights.map((row) => row.title)).toEqual(["Amo MAS"]);
+    expect(october.nights[0].href).toBe("/whats-on/amo-mas");
+    expect(
+      weeks
+        .flatMap((week) => week.nights)
+        .some((row) => row.date === "2026-09-20"),
+    ).toBe(false);
+    expect(
+      weeks
+        .flatMap((week) => week.nights)
+        .some(
+          (row) => row.seriesId === "gwenda-radio" && row.date === "2026-10-18",
+        ),
+    ).toBe(false);
+  });
+
+  it("keeps both nights when the one-off is not a replacement", () => {
+    const amo = night({
+      id: "amo-mas-2026-10-18",
+      seriesId: "amo-mas",
+      seriesTitle: "Amo MAS",
+      title: "Amo MAS",
+      date: "2026-10-18",
+    });
+    const { weeks } = buildPublicSchedule([...radioNights(), amo], {
+      now,
+      series: [radioSeries, amoSeries],
+    });
+    const thatSunday = weeks
+      .flatMap((week) => week.nights)
+      .filter((row) => row.date === "2026-10-18")
+      .map((row) => row.seriesId)
+      .sort();
+    expect(thatSunday).toEqual(["amo-mas", "gwenda-radio"]);
   });
 });
 

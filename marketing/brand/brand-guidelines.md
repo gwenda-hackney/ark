@@ -34,7 +34,7 @@
 
 Gwenda is not a restaurant with a drinks list. Not a bar with a kitchen annex. It is an **archive salon** where food, drink, art, and sound converge. Craft cocktails, Italian small plates, natural wines, and vinyl on the decks — refined for candlelight and elevated for the lounge.
 
-The brand is deliberately, intentionally mysterious. *Who is Gwenda?* is a question, not an answer.
+The name comes from Guenda, an outdoor nightclub in Salento where everybody met in the summer. Say that, and stop. Do not invent a further backstory.
 
 | | |
 |---|---|
@@ -427,9 +427,9 @@ Gwenda's positioning is deliberately expressed as negation — it defines itself
 
 Use this framework when explaining the concept. Avoid generic hospitality language: *award-winning*, *great atmosphere*, *something for everyone*.
 
-### 6.5 "Who is Gwenda?"
+### 6.5 The name
 
-The mystery of Gwenda's identity is intentional and must be preserved in all customer-facing communications. Do not invent backstory, explain the name, or resolve the question. The answer is: *come and find out*.
+Gwenda takes its name from Guenda (Guendalina), an outdoor nightclub in Salento where everybody met in the summer. Friends still talk about those nights. Say that, and stop. Do not invent a grandmother, a myth, or any further backstory.
 
 ### 6.6 Language to use
 
@@ -482,7 +482,7 @@ Do not use "Sign up", "Subscribe", "Register", or "Book now".
 | Team heading | *Who we are* |
 | Sign-up heading | *Stay close* |
 | Sign-up subheading | *Nights ahead. Openings, gatherings, and the occasional whisper.* |
-| Closing story line | *Who is Gwenda? We can't say. Come experience for yourself.* |
+| Closing story line | *Friends still talk about those nights. We would like this place to be remembered the same way.* |
 
 ### 7.4 Establishment year
 

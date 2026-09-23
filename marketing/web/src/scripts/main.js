@@ -9,6 +9,7 @@ import { buildSectionUrl, initSectionHash } from "./section-hash.js";
 import { initMenuToc } from "./menu-toc.js";
 import { initOverlayScrollbars } from "./scrollbar.js";
 import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
+import { initSchedulePage } from "./schedule.js";
 import { initSeriesPage, initWhatsOnPage } from "./whats-on.js";
 
 /** @type {AbortController | null} */
@@ -318,6 +319,7 @@ function initPage() {
   // Page scripts do not re-run on View Transitions back-nav.
   initWhatsOnPage();
   initSeriesPage();
+  initSchedulePage();
 
   let teardownSectionHash = () => {};
   let teardownMenuToc = () => {};

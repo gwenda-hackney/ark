@@ -3,16 +3,32 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Subpage from "../components/Subpage.astro";
 import MenuDisplay from "../components/MenuDisplay.astro";
 import { siteConfig } from "../config/site";
+import { getAvailableItems } from "../data/menu";
+import { withHome } from "../lib/site-nav.js";
 import { fetchMenu } from "../lib/sanity/menu";
 
 const menu = await fetchMenu();
 const { title: pageTitle, description: pageDescription } = siteConfig.seo.menu;
+
+function chapterHasContent(section: (typeof menu.sections)[number]): boolean {
+  if (getAvailableItems(section).length > 0) return true;
+  return (section.subsections ?? []).some(
+    (sub) => getAvailableItems(sub).length > 0,
+  );
+}
+
+const menuNav = withHome(
+  menu.sections.filter(chapterHasContent).map((chapter) => ({
+    href: `#${chapter.id}`,
+    label: chapter.title,
+  })),
+);
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
   <link rel="prefetch" href="/" slot="head" />
 
-  <Subpage class="menu-page" innerClass="menu-inner" href="/#menu">
+  <Subpage class="menu-page" innerClass="menu-inner" navItems={menuNav}>
     <h1 class="visually-hidden">{pageTitle}</h1>
     <MenuDisplay menu={menu} showPrices />
   </Subpage>

@@ -36,6 +36,7 @@ import {
   TABLE_MENU_PLACEMENTS,
   TABLE_EVENTS,
   TABLE_EVENT_DATES,
+  TABLE_ARTISTS,
 } from "../ops/site/functions/_lib/baserow.js";
 import {
   DEFAULT_POS_MENU_NAME,
@@ -952,6 +953,29 @@ function eventDateFields(eventsTableId) {
   ];
 }
 
+function artistFields() {
+  return [
+    {
+      name: "Slot",
+      body: {
+        name: "Slot",
+        type: "single_select",
+        select_options: [
+          { value: "current", color: "green" },
+          { value: "next", color: "blue" },
+          { value: "previous", color: "gray" },
+        ],
+      },
+    },
+    { name: "Website", body: { name: "Website", type: "url" } },
+    { name: "Profile", body: { name: "Profile", type: "long_text" } },
+    { name: "Bio", body: { name: "Bio", type: "long_text" } },
+    { name: "Portrait", body: { name: "Portrait", type: "file" } },
+    { name: "Art", body: { name: "Art", type: "file" } },
+    { name: "Gwenda photos", body: { name: "Gwenda photos", type: "file" } },
+  ];
+}
+
 function supplierFields() {
   return [
     { name: "Website", body: { name: "Website", type: "url" } },
@@ -1665,6 +1689,15 @@ async function main() {
   await ensureFields(apiBase, jwt, events.id, eventFields());
   console.log(`Fields on ${TABLE_EVENT_DATES}:`);
   await ensureFields(apiBase, jwt, eventDates.id, eventDateFields(events.id));
+  const artists = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_ARTISTS,
+  );
+  console.log(`Fields on ${TABLE_ARTISTS}:`);
+  await ensureFields(apiBase, jwt, artists.id, artistFields());
   console.log(`Rows on ${TABLE_POS_MENUS}:`);
   await seedFallMenu(apiBase, jwt, posMenus.id, items.id, {
     linkEmptyItems: createdItemFields.includes("POS menus"),
@@ -1705,6 +1738,7 @@ async function main() {
   console.log(`  ${TABLE_MENU_PLACEMENTS} → ${menuPlacements.id}`);
   console.log(`  ${TABLE_EVENTS} → ${events.id}`);
   console.log(`  ${TABLE_EVENT_DATES} → ${eventDates.id}`);
+  console.log(`  ${TABLE_ARTISTS} → ${artists.id}`);
   console.log("");
 
   const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];
