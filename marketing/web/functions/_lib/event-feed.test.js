@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, expect, it } from "vitest";
 import { pageEventFeed } from "./event-feed.js";
 
 const now = new Date(2026, 8, 22, 15, 0, 0);
@@ -19,11 +18,8 @@ describe("pageEventFeed", () => {
 
   it("drops past nights and returns the next page cursor", () => {
     const page = pageEventFeed(events, { limit: 2, now });
-    assert.deepEqual(
-      page.events.map((event) => event.id),
-      ["jazz-1", "jazz-1-late"],
-    );
-    assert.deepEqual(page.next, { after: "2026-09-23", afterId: "jazz-1-late" });
+    expect(page.events.map((event) => event.id)).toEqual(["jazz-1", "jazz-1-late"]);
+    expect(page.next).toEqual({ after: "2026-09-23", afterId: "jazz-1-late" });
   });
 
   it("continues after the last shown night", () => {
@@ -33,10 +29,7 @@ describe("pageEventFeed", () => {
       limit: 2,
       now,
     });
-    assert.deepEqual(
-      page.events.map((event) => event.id),
-      ["jazz-2", "vinyl"],
-    );
-    assert.equal(page.next, null);
+    expect(page.events.map((event) => event.id)).toEqual(["jazz-2", "vinyl"]);
+    expect(page.next).toBeNull();
   });
 });

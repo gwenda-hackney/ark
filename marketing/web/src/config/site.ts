@@ -28,11 +28,6 @@ export const siteConfig = {
       description:
         "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art, and vinyl on the decks.",
     },
-    events: {
-      title: "What's on · Gwenda",
-      description:
-        "Nights at Gwenda. Residencies, live music, and canalside gatherings in Hackney Wick.",
-    },
     whatsOn: {
       title: "What's on · Gwenda",
       description:
