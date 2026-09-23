@@ -1,17 +1,21 @@
 <script lang="ts">
 	/**
-	 * Frame the hero for What's on: one 16×10 window.
-	 * Drag to pan, zoom to pull in more of a tall flyer. Preview = live site.
+	 * Crop the What's on card: the whole photo stays visible, and the 16×10
+	 * frame on it is exactly what the site shows. Drag the frame, zoom to tighten.
 	 */
 	import { Tip } from "../../ui";
 	import {
 		HERO_ASPECT,
+		HERO_ZOOM_MAX,
+		cardFrameFromCrop,
+		clampFrame,
+		coverFrameSize,
 		coverWindow,
-		cropFrameStyle,
 		framingFromWindow,
 		hasMeaningfulFraming,
-		normalizeCrop,
 		normalizeHeroFraming,
+		serializeHeroFraming,
+		zoomFromFrame,
 		type HeroCropRect,
 		type HeroFraming,
 	} from "./hero-crops";
@@ -23,6 +27,7 @@
 		tooltip = "",
 		onchangecrops,
 		onpickfile,
+		onclear,
 	}: {
 		sourceUrl?: string;
 		crops?: HeroFraming | null;
@@ -33,65 +38,117 @@
 			meta: { width: number; height: number },
 		) => void;
 		onpickfile: (file: File) => void;
+		onclear: () => void;
 	} = $props();
 
 	let naturalW = $state(0);
 	let naturalH = $state(0);
 	let windowCrop = $state<HeroCropRect>({ left: 0, top: 0, right: 0, bottom: 0 });
-	let frameEl = $state<HTMLDivElement | null>(null);
+	let stageEl = $state<HTMLDivElement | null>(null);
+	let stageW = $state(0);
+	let stageH = $state(0);
 	let loadedFor = $state("");
 	let dragging = $state(false);
+	let slider = $state(0);
+	let sliderHeld = $state(false);
+	let fileDrop = $state(false);
+	let fileDropDepth = 0;
 	let startX = 0;
 	let startY = 0;
 	let origin = $state<HeroCropRect>({ left: 0, top: 0, right: 0, bottom: 0 });
 
-	const cover = $derived(
-		naturalW && naturalH
-			? coverWindow(naturalW, naturalH, HERO_ASPECT, 0.5)
-			: coverWindow(16, 10, HERO_ASPECT, 0.5),
-	);
-
-	const showingFullPoster = $derived(!hasWindow(windowCrop));
-
-	/**
-	 * Zoom 0 = whole poster in the frame (letterboxed).
-	 * Zoom 1 = fill the 16×10 window (cover). Higher = tighter.
-	 */
-	const zoom = $derived.by(() => {
-		if (showingFullPoster) return 0;
-		const coverW = 1 - cover.left - cover.right;
-		const currentW = Math.max(0.05, 1 - windowCrop.left - windowCrop.right);
-		return coverW / currentW;
+	const imageBox = $derived.by(() => {
+		if (!naturalW || !naturalH || stageW < 2 || stageH < 2) {
+			return { x: 0, y: 0, w: 0, h: 0 };
+		}
+		const scale = Math.min(stageW / naturalW, stageH / naturalH);
+		const w = naturalW * scale;
+		const h = naturalH * scale;
+		return { x: (stageW - w) / 2, y: (stageH - h) / 2, w, h };
 	});
 
-	const frameStyle = $derived(
-		showingFullPoster
-			? {
-					width: "100%",
-					height: "100%",
-					left: "0%",
-					top: "0%",
-					objectFit: "contain" as const,
-				}
-			: { ...cropFrameStyle(windowCrop), objectFit: "fill" as const },
-	);
+	const cropBox = $derived.by(() => {
+		const box = imageBox;
+		if (!box.w) return { x: 0, y: 0, w: 0, h: 0 };
+		const width = Math.max(0, 1 - windowCrop.left - windowCrop.right);
+		const height = Math.max(0, 1 - windowCrop.top - windowCrop.bottom);
+		return {
+			x: box.x + windowCrop.left * box.w,
+			y: box.y + windowCrop.top * box.h,
+			w: width * box.w,
+			h: height * box.h,
+		};
+	});
+
+	let seenUrl = "";
+	let seenCropKey = "";
+	let seenSize = "";
+
+	function coverRect(): HeroCropRect {
+		const cover = coverWindow(naturalW, naturalH, HERO_ASPECT, 0.5);
+		const size = coverFrameSize(naturalW, naturalH);
+		const cx = (cover.left + (1 - cover.left - cover.right) / 2) * naturalW;
+		const cy = (cover.top + (1 - cover.top - cover.bottom) / 2) * naturalH;
+		return clampFrame(naturalW, naturalH, cx, cy, size.width, size.height);
+	}
+
+	function rectForIncoming(value: HeroFraming | null): HeroCropRect {
+		if (!naturalW || !naturalH) return { left: 0, top: 0, right: 0, bottom: 0 };
+		if (value && hasMeaningfulFraming(normalizeHeroFraming(value))) {
+			const framing = normalizeHeroFraming(value);
+			return cardFrameFromCrop(framing.crop, naturalW, naturalH, framing.hotspot);
+		}
+		return coverRect();
+	}
 
 	$effect(() => {
-		const incoming = crops;
-		if (incoming == null) {
-			if (hasWindow(windowCrop)) {
-				windowCrop = { left: 0, top: 0, right: 0, bottom: 0 };
-			}
-			return;
-		}
-		const next = normalizeHeroFraming(incoming);
-		const rect = normalizeCrop(next.crop);
-		const nextCrop = hasWindow(rect)
-			? rect
-			: { left: 0, top: 0, right: 0, bottom: 0 };
-		if (JSON.stringify(windowCrop) !== JSON.stringify(nextCrop)) {
-			windowCrop = nextCrop;
-		}
+		const el = stageEl;
+		if (!el) return;
+		const observer = new ResizeObserver((entries) => {
+			const box = entries[0]?.contentRect;
+			if (!box) return;
+			stageW = box.width;
+			stageH = box.height;
+		});
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
+
+	$effect(() => {
+		const el = stageEl;
+		if (!el) return;
+		const onWheel = (event: WheelEvent) => {
+			if (disabled || !naturalW) return;
+			event.preventDefault();
+			const zoom = HERO_ZOOM_MAX ** slider;
+			const next = Math.min(
+				HERO_ZOOM_MAX,
+				Math.max(1, zoom * (event.deltaY > 0 ? 0.92 : 1.08)),
+			);
+			applyZoom(next);
+		};
+		el.addEventListener("wheel", onWheel, { passive: false });
+		return () => el.removeEventListener("wheel", onWheel);
+	});
+
+	$effect(() => {
+		if (sliderHeld || dragging) return;
+		const url = sourceUrl;
+		const w = naturalW;
+		const h = naturalH;
+		const cropKey =
+			crops && hasMeaningfulFraming(normalizeHeroFraming(crops))
+				? serializeHeroFraming(crops)
+				: "";
+		const size = `${w}x${h}`;
+		if (url === seenUrl && cropKey === seenCropKey && size === seenSize) return;
+		seenUrl = url;
+		seenCropKey = cropKey;
+		seenSize = size;
+		if (!w || !h) return;
+		const next = rectForIncoming(crops);
+		windowCrop = next;
+		slider = zoomFromFrame(next, w, h);
 	});
 
 	$effect(() => {
@@ -110,9 +167,6 @@
 			naturalW = image.naturalWidth;
 			naturalH = image.naturalHeight;
 			loadedFor = url;
-			if (crops == null || !hasMeaningfulFraming(normalizeHeroFraming(crops))) {
-				windowCrop = { left: 0, top: 0, right: 0, bottom: 0 };
-			}
 		};
 		image.src = url;
 		return () => {
@@ -120,37 +174,35 @@
 		};
 	});
 
-	function hasWindow(rect: HeroCropRect) {
-		return Boolean(rect.left || rect.top || rect.right || rect.bottom);
-	}
-
 	function commit(rect: HeroCropRect) {
 		windowCrop = rect;
-		if (!hasWindow(rect)) {
-			onchangecrops(null, { width: naturalW, height: naturalH });
-			return;
-		}
+		if (!sliderHeld) slider = zoomFromFrame(rect, naturalW, naturalH);
 		onchangecrops(framingFromWindow(rect), {
 			width: naturalW,
 			height: naturalH,
 		});
 	}
 
-	function clampWindow(left: number, top: number, visibleW: number, visibleH: number) {
-		const maxLeft = Math.max(0, 1 - visibleW);
-		const maxTop = Math.max(0, 1 - visibleH);
-		const nextLeft = Math.min(Math.max(0, left), maxLeft);
-		const nextTop = Math.min(Math.max(0, top), maxTop);
-		return {
-			left: nextLeft,
-			top: nextTop,
-			right: 1 - visibleW - nextLeft,
-			bottom: 1 - visibleH - nextTop,
-		};
+	function applyZoom(zoom: number) {
+		const size = coverFrameSize(naturalW, naturalH);
+		const visibleW = 1 - windowCrop.left - windowCrop.right;
+		const visibleH = 1 - windowCrop.top - windowCrop.bottom;
+		const cx = (windowCrop.left + visibleW / 2) * naturalW;
+		const cy = (windowCrop.top + visibleH / 2) * naturalH;
+		commit(
+			clampFrame(
+				naturalW,
+				naturalH,
+				cx,
+				cy,
+				size.width / zoom,
+				size.height / zoom,
+			),
+		);
 	}
 
 	function onPointerDown(e: PointerEvent) {
-		if (disabled || !naturalW || showingFullPoster) return;
+		if (disabled || !naturalW || !imageBox.w) return;
 		e.preventDefault();
 		dragging = true;
 		startX = e.clientX;
@@ -160,13 +212,16 @@
 	}
 
 	function onPointerMove(e: PointerEvent) {
-		if (!dragging || !frameEl) return;
-		const frame = frameEl.getBoundingClientRect();
+		if (!dragging || !imageBox.w) return;
 		const visibleW = 1 - origin.left - origin.right;
 		const visibleH = 1 - origin.top - origin.bottom;
-		const dx = ((e.clientX - startX) / frame.width) * visibleW;
-		const dy = ((e.clientY - startY) / frame.height) * visibleH;
-		commit(clampWindow(origin.left - dx, origin.top - dy, visibleW, visibleH));
+		const dx = (e.clientX - startX) / imageBox.w;
+		const dy = (e.clientY - startY) / imageBox.h;
+		const cx = (origin.left + dx + visibleW / 2) * naturalW;
+		const cy = (origin.top + dy + visibleH / 2) * naturalH;
+		commit(
+			clampFrame(naturalW, naturalH, cx, cy, visibleW * naturalW, visibleH * naturalH),
+		);
 	}
 
 	function onPointerUp(e: PointerEvent) {
@@ -180,26 +235,19 @@
 
 	function onZoomInput(e: Event) {
 		if (!naturalW || !naturalH) return;
-		const nextZoom = Number((e.currentTarget as HTMLInputElement).value);
-		if (nextZoom <= 0.02) {
-			commit({ left: 0, top: 0, right: 0, bottom: 0 });
-			return;
-		}
-		const coverW = 1 - cover.left - cover.right;
-		const coverH = 1 - cover.top - cover.bottom;
-		const visibleW = coverW / nextZoom;
-		const visibleH = coverH / nextZoom;
-		const cx = showingFullPoster
-			? 0.5
-			: windowCrop.left + (1 - windowCrop.left - windowCrop.right) / 2;
-		const cy = showingFullPoster
-			? 0.5
-			: windowCrop.top + (1 - windowCrop.top - windowCrop.bottom) / 2;
-		commit(clampWindow(cx - visibleW / 2, cy - visibleH / 2, visibleW, visibleH));
+		sliderHeld = true;
+		slider = Math.min(1, Math.max(0, Number((e.currentTarget as HTMLInputElement).value)));
+		applyZoom(HERO_ZOOM_MAX ** slider);
+	}
+
+	function releaseZoom() {
+		sliderHeld = false;
 	}
 
 	function resetFraming() {
-		commit({ left: 0, top: 0, right: 0, bottom: 0 });
+		if (!naturalW || !naturalH) return;
+		sliderHeld = false;
+		commit(coverRect());
 	}
 
 	function onFile(e: Event) {
@@ -208,9 +256,45 @@
 		input.value = "";
 		if (file) onpickfile(file);
 	}
+
+	function onFileDragEnter(e: DragEvent) {
+		e.preventDefault();
+		if (disabled) return;
+		fileDropDepth += 1;
+		if (e.dataTransfer?.types.includes("Files")) fileDrop = true;
+	}
+
+	function onFileDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+	}
+
+	function onFileDragLeave(e: DragEvent) {
+		e.preventDefault();
+		fileDropDepth = Math.max(0, fileDropDepth - 1);
+		if (fileDropDepth === 0) fileDrop = false;
+	}
+
+	function onFileDrop(e: DragEvent) {
+		e.preventDefault();
+		fileDropDepth = 0;
+		fileDrop = false;
+		if (disabled) return;
+		const file = e.dataTransfer?.files?.[0];
+		if (file && file.type.startsWith("image/")) onpickfile(file);
+	}
 </script>
 
-<section class="hero-framing">
+<section
+	class="hero-framing"
+	class:dropping={fileDrop}
+	role="group"
+	aria-label="What's on photo"
+	ondragenter={onFileDragEnter}
+	ondragover={onFileDragOver}
+	ondragleave={onFileDragLeave}
+	ondrop={onFileDrop}
+>
 	<header class="hero-head">
 		<h2 class="section-title">
 			Hero
@@ -219,16 +303,21 @@
 			{/if}
 		</h2>
 		{#if sourceUrl}
-			<label class="pick">
-				<input
-					class="sr-only"
-					type="file"
-					accept="image/jpeg,image/png,image/webp,image/gif"
-					disabled={disabled}
-					onchange={onFile}
-				/>
-				<span class="pick-btn">Replace</span>
-			</label>
+			<div class="hero-actions">
+				<label class="pick">
+					<input
+						class="sr-only"
+						type="file"
+						accept="image/jpeg,image/png,image/webp,image/gif"
+						disabled={disabled}
+						onchange={onFile}
+					/>
+					<span class="pick-btn">Replace</span>
+				</label>
+				<button class="pick-btn remove" type="button" {disabled} onclick={onclear}>
+					Remove
+				</button>
+			</div>
 		{/if}
 	</header>
 
@@ -245,9 +334,8 @@
 		</label>
 	{:else}
 		<div
-			class="frame"
-			style:aspect-ratio={String(HERO_ASPECT)}
-			bind:this={frameEl}
+			class="stage"
+			bind:this={stageEl}
 			role="presentation"
 			onpointerdown={onPointerDown}
 			onpointermove={onPointerMove}
@@ -256,16 +344,23 @@
 		>
 			<img
 				class="source"
-				class:contain={showingFullPoster}
 				src={sourceUrl}
 				alt=""
 				draggable="false"
-				style:width={frameStyle.width}
-				style:height={frameStyle.height}
-				style:left={frameStyle.left}
-				style:top={frameStyle.top}
-				style:object-fit={frameStyle.objectFit}
+				style:left="{imageBox.x}px"
+				style:top="{imageBox.y}px"
+				style:width="{imageBox.w}px"
+				style:height="{imageBox.h}px"
 			/>
+			{#if cropBox.w > 0}
+				<div
+					class="crop-box"
+					style:left="{cropBox.x}px"
+					style:top="{cropBox.y}px"
+					style:width="{cropBox.w}px"
+					style:height="{cropBox.h}px"
+				></div>
+			{/if}
 		</div>
 
 		<div class="controls">
@@ -274,17 +369,20 @@
 					Zoom
 					<Tip
 						label="Zoom"
-						tooltip="0 shows the whole poster. Drag to pan. Higher values fill the What's on crop."
+						tooltip="The gold frame is the What's on card. Drag it to move. Zoom tightens the frame."
 					/>
 				</span>
 				<input
 					type="range"
 					min="0"
-					max="2.5"
-					step="0.01"
-					value={zoom}
+					max="1"
+					step="0.001"
+					value={slider}
 					disabled={disabled || !naturalW}
+					onpointerdown={() => (sliderHeld = true)}
 					oninput={onZoomInput}
+					onchange={releaseZoom}
+					onpointerup={releaseZoom}
 				/>
 			</label>
 			<button class="reset" type="button" disabled={disabled || !naturalW} onclick={resetFraming}>
@@ -316,6 +414,12 @@
 		font-weight: 600;
 	}
 
+	.hero-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
 	.pick {
 		display: inline-flex;
 		cursor: pointer;
@@ -329,14 +433,27 @@
 		border: 1px solid var(--border);
 		border-radius: 0.35rem;
 		background: var(--surface);
+		color: inherit;
 		font-size: var(--text-sm);
 		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.pick-btn.remove:hover:not(:disabled),
+	.pick-btn.remove:focus-visible {
+		color: var(--destructive);
+		background: var(--destructive-wash);
+	}
+
+	.pick-btn:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
 	}
 
 	.empty {
 		display: grid;
 		place-items: center;
-		width: min(100%, 36rem);
+		width: 100%;
 		aspect-ratio: 16 / 10;
 		border: 1px dashed var(--border);
 		border-radius: 0.4rem;
@@ -353,9 +470,10 @@
 		font-weight: 600;
 	}
 
-	.frame {
+	.stage {
 		position: relative;
-		width: min(100%, 36rem);
+		width: 100%;
+		height: min(70vh, 36rem);
 		overflow: hidden;
 		border: 1px solid var(--border);
 		border-radius: 0.4rem;
@@ -365,7 +483,7 @@
 		user-select: none;
 	}
 
-	.frame:active {
+	.stage:active {
 		cursor: grabbing;
 	}
 
@@ -375,8 +493,12 @@
 		pointer-events: none;
 	}
 
-	.source.contain {
-		object-fit: contain;
+	.crop-box {
+		position: absolute;
+		box-sizing: border-box;
+		border: 2px solid #c9a84c;
+		box-shadow: 0 0 0 999px rgba(13, 13, 13, 0.62);
+		pointer-events: none;
 	}
 
 	.controls {
@@ -384,7 +506,11 @@
 		flex-wrap: wrap;
 		gap: 0.75rem 1rem;
 		align-items: center;
-		max-width: 36rem;
+	}
+
+	.hero-framing.dropping .stage,
+	.hero-framing.dropping .empty {
+		border-color: var(--primary);
 	}
 
 	.zoom {

@@ -15,6 +15,7 @@ export function withApiHandler(handler) {
     const log = attachLogger(context);
     try {
       const env = await opsEnv(context);
+      if (env) env.__gwendaCalendarWarnings = [];
       const response = await handler({ ...context, env });
       log.info("api.request", {
         status: response.status,

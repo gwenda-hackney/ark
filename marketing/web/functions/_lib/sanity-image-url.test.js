@@ -5,17 +5,19 @@ import {
 } from "./sanity-image-url.js";
 
 describe("sanityCroppedUrl", () => {
-  it("adds a pixel rect from fractional crop into a 16×10 frame", () => {
+  it("delivers the 16×10 card inside the crop, without cropping it again", () => {
     const url = sanityCroppedUrl(
       "https://cdn.sanity.io/images/demo/production/hero.jpg",
       { left: 0, top: 0.2, right: 0, bottom: 0.1 },
       { width: 1000, height: 1000 },
       { width: 800, height: 500, quality: 80 },
     );
-    expect(url).toContain("rect=0%2C200%2C1000%2C700");
+    // Stored window is 1000×700. The card inside it is 1000×625.
+    expect(url).toContain("rect=0%2C238%2C1000%2C625");
     expect(url).toContain("w=800");
     expect(url).toContain("h=500");
-    expect(url).toContain("fit=crop");
+    expect(url).toContain("fit=max");
+    expect(url).not.toContain("fit=crop");
     expect(url).toContain("auto=format");
   });
 

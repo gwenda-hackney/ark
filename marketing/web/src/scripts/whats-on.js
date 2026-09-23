@@ -44,8 +44,7 @@ function eventMedia(event, eager, width = 1200) {
     caption.className = "event-media-caption";
     const kicker = document.createElement("span");
     kicker.className = "event-media-caption-kicker";
-    kicker.textContent =
-      String(event.imageCaption || "").trim() || "Hosting";
+    kicker.textContent = String(event.imageCaption || "").trim() || "Hosting";
     const who = document.createElement("span");
     who.className = "event-media-caption-name";
     who.textContent = captionName;
@@ -55,7 +54,33 @@ function eventMedia(event, eager, width = 1200) {
   return figure;
 }
 
-function teaserLine(label, isoDate, name) {
+function openHostJump(event, href) {
+  event.preventDefault();
+  event.stopPropagation();
+  window.location.assign(href);
+}
+
+function bindHostJump(line, href) {
+  const target = String(href || "").trim();
+  if (!target || line.dataset.bound === "true") return;
+  line.dataset.bound = "true";
+  line.dataset.href = target;
+  line.tabIndex = 0;
+  line.setAttribute("role", "link");
+  line.addEventListener("click", (event) => openHostJump(event, target));
+  line.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") openHostJump(event, target);
+  });
+}
+
+function bindHostJumps(root) {
+  if (!(root instanceof HTMLElement)) return;
+  for (const line of root.querySelectorAll(".event-next[data-href]")) {
+    if (line instanceof HTMLElement) bindHostJump(line, line.dataset.href);
+  }
+}
+
+function teaserLine(label, isoDate, name, href = "") {
   const line = document.createElement("p");
   line.className = "event-next";
   const kicker = document.createElement("span");
@@ -81,6 +106,7 @@ function teaserLine(label, isoDate, name) {
   who.className = "event-next-name";
   who.textContent = name;
   line.append(sepName, who);
+  if (href) bindHostJump(line, href);
   return line;
 }
 
@@ -118,7 +144,11 @@ function nightScheduleBlock(slots) {
   return block;
 }
 
-function eventDescription(description, className = "event-description", legacyTime = "") {
+function eventDescription(
+  description,
+  className = "event-description",
+  legacyTime = "",
+) {
   const wrap = document.createElement("div");
   wrap.className = className;
   for (const paragraph of eventDescriptionParagraphs(description, legacyTime)) {
@@ -201,7 +231,9 @@ function seriesCard(event, { eager = false } = {}) {
   const hostDate = String(event.hostDate || "").trim();
   const hostThisWeek = Boolean(event.hostThisWeek);
   if (hostName && !hostThisWeek) {
-    copy.appendChild(teaserLine("Coming up", hostDate, hostName));
+    copy.appendChild(
+      teaserLine("Coming up", hostDate, hostName, String(event.hostHref || "")),
+    );
   }
   if (hostThisWeek && hostName) {
     copy.appendChild(teaserLine("This week", hostDate, hostName));
@@ -253,7 +285,50 @@ function seriesCard(event, { eager = false } = {}) {
 
   card.appendChild(copy);
   item.appendChild(card);
+  item.dataset.schedule = event.schedule === "once" ? "once" : "series";
   return item;
+}
+
+function diaryLabel(text, group, lead) {
+  const item = document.createElement("li");
+  item.id = group;
+  item.className = `whats-on-divider${lead ? " whats-on-divider--lead" : ""}`;
+  item.dataset.group = group;
+  const heading = document.createElement("h2");
+  heading.className = "whats-on-group-label";
+  heading.textContent = text;
+  item.appendChild(heading);
+  return item;
+}
+
+/** Series, then a labeled break, then special events. */
+function syncDiaryLabels(list) {
+  const cards = [
+    ...list.querySelectorAll(":scope > li:not(.whats-on-divider)"),
+  ];
+  const hasSeries = cards.some((item) => item.dataset.schedule !== "once");
+  const hasSpecial = cards.some((item) => item.dataset.schedule === "once");
+  for (const label of list.querySelectorAll(":scope > .whats-on-divider")) {
+    label.remove();
+  }
+  if (!hasSpecial) return;
+  if (hasSeries) list.prepend(diaryLabel("Series", "series", true));
+  const firstSpecial = [...list.children].find(
+    (item) => item.dataset.schedule === "once",
+  );
+  if (firstSpecial) {
+    list.insertBefore(
+      diaryLabel("Special events", "special", !hasSeries),
+      firstSpecial,
+    );
+  }
+}
+
+function appendDiaryCards(list, nights, { eagerFirst = false } = {}) {
+  nights.forEach((night, index) => {
+    list.appendChild(seriesCard(night, { eager: eagerFirst && index === 0 }));
+  });
+  syncDiaryLabels(list);
 }
 
 /** Series detail (Gwenda Nights): full night card. */
@@ -354,9 +429,8 @@ async function refreshHome(content, { signal } = {}) {
   }
   empty?.setAttribute("hidden", "true");
   const list = ensureHomeList(content);
-  list.replaceChildren(
-    ...nights.map((night, index) => seriesCard(night, { eager: index === 0 })),
-  );
+  list.replaceChildren();
+  appendDiaryCards(list, nights, { eagerFirst: true });
   content.dataset.whatsOnNext = nextCursor ? JSON.stringify(nextCursor) : "";
   if (nextCursor) setupLoadMore(content, list);
 }
@@ -367,6 +441,7 @@ let homeAbort = null;
 export function initWhatsOnPage() {
   const content = document.getElementById("whats-on-content");
   if (!(content instanceof HTMLElement)) return;
+  bindHostJumps(content);
 
   homeAbort?.abort();
   homeAbort = new AbortController();
@@ -456,9 +531,11 @@ function setupLoadMore(content, list) {
       const data = await res.json();
       if (!document.contains(list)) return;
       const nights = Array.isArray(data.nights) ? data.nights : [];
-      list.append(...nights.map((night) => seriesCard(night)));
+      appendDiaryCards(list, nights);
       nextCursor = data.next || null;
-      content.dataset.whatsOnNext = nextCursor ? JSON.stringify(nextCursor) : "";
+      content.dataset.whatsOnNext = nextCursor
+        ? JSON.stringify(nextCursor)
+        : "";
       more.textContent = "";
       if (!nextCursor) more.remove();
     } catch {

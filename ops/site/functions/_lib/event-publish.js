@@ -23,6 +23,9 @@ import {
   occurrenceSlug,
   recurrenceLabel,
   resolveOccurrenceContent,
+  publishedReplacesSeries,
+  seriesDescriptionForPublish,
+  seriesShortDescriptionForPublish,
   sanityEventDocument,
   sanitySeriesDocument,
   sanitySeriesId,
@@ -166,8 +169,14 @@ function documentFromStagingSeries(doc, heroImage) {
     _type: "eventSeries",
     title: doc.title,
     slug: doc.slug,
-    schedule: doc.schedule === "repeating" ? "repeating" : "manual",
+    schedule:
+      doc.schedule === "repeating"
+        ? "repeating"
+        : doc.schedule === "once"
+          ? "once"
+          : "manual",
     recurrence: doc.recurrence || "",
+    replacesSeriesId: doc.replacesSeriesId || "",
     shortDescription: doc.shortDescription || "",
     description: doc.description,
     nightSchedule: Array.isArray(doc.nightSchedule) ? doc.nightSchedule : [],
@@ -183,7 +192,9 @@ export async function publishEventPreview(
 ) {
   const event = await getEvent(env, id);
   if (!event.name) httpError("Name is required.", 400);
-  if (!event.description)
+  const description = seriesDescriptionForPublish(event);
+  const shortDescription = seriesShortDescriptionForPublish(event);
+  if (!description)
     httpError("Description is required before publishing.", 400);
   const today = todayIso();
   const wanted = expandOccurrenceDates(event, { today });
@@ -213,10 +224,11 @@ export async function publishEventPreview(
     createOrReplace: sanitySeriesDocument({
       slug: event.slug,
       title: event.name,
-      description: event.description,
-      shortDescription: event.shortDescription || "",
+      description,
+      shortDescription,
       recurrence: recurrenceLabel(event),
       schedule: seriesScheduleMode(event),
+      replacesSeriesId: publishedReplacesSeries(event.replacesSeries),
       nightSchedule: event.nightSchedule || [],
       heroImage: seriesHero || null,
     }),

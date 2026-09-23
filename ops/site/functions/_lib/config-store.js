@@ -37,6 +37,7 @@ export const OPS_CONFIG_KEYS = {
   siteDeployWebhookUrl: "site_deploy.webhook_url",
   googleOauthClientId: "google.oauth_client_id",
   googleDriveEventsFolderId: "google.drive_events_folder_id",
+  googleCalendarId: "google.calendar_id",
   taskRoleSocial: "tasks.role.social",
   clickupEventsListId: "clickup.events_list_id",
 };

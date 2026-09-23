@@ -1,8 +1,11 @@
 import { initSignup, initSignupAnchors } from "./signup.js";
-import { initNavigationRestore, whenNavigationReady } from "./navigation-restore.js";
+import {
+  initNavigationRestore,
+  whenNavigationReady,
+} from "./navigation-restore.js";
 import { initReveal } from "./reveal.js";
 import { initHeroReveal } from "./hero-reveal.js";
-import { initSectionHash } from "./section-hash.js";
+import { buildSectionUrl, initSectionHash } from "./section-hash.js";
 import { initMenuToc } from "./menu-toc.js";
 import { initOverlayScrollbars } from "./scrollbar.js";
 import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
@@ -26,6 +29,8 @@ function initPage() {
   const menuBtn = document.getElementById("site-header-menu-btn");
   const siteNav = document.getElementById("site-header-nav");
   const hero = document.getElementById("hero");
+  const collapsedNav =
+    header?.classList.contains("site-header--collapsed") ?? false;
   const scrollTop = document.getElementById("scroll-top");
   const mobileNavQuery = window.matchMedia("(max-width: 640px)");
 
@@ -35,10 +40,21 @@ function initPage() {
   let headerHideAt = 40;
 
   function updateHeaderThresholds() {
-    if (!hero) return;
-    // Desktop: half hero. Mobile: earlier so the logo appears sooner.
-    const showRatio = mobileNavQuery.matches ? 0.2 : 0.5;
-    const showAt = hero.offsetHeight * showRatio;
+    if (hero) {
+      // Desktop: half hero. Mobile: earlier so the logo appears sooner.
+      const showRatio = mobileNavQuery.matches ? 0.2 : 0.5;
+      const showAt = hero.offsetHeight * showRatio;
+      headerShowAt = showAt;
+      headerHideAt = showAt * 0.85;
+      return;
+    }
+    if (!collapsedNav || !header) return;
+    // Slide quick links in once the page title has passed the bar.
+    const title = document.querySelector("main .section-header");
+    const titleBottom = title
+      ? title.getBoundingClientRect().bottom + window.scrollY
+      : 200;
+    const showAt = Math.max(80, titleBottom - header.offsetHeight);
     headerShowAt = showAt;
     headerHideAt = showAt * 0.85;
   }
@@ -51,11 +67,16 @@ function initPage() {
     // (avoids a different-colored strip above the full menu).
     const shouldChrome = headerScrollVisible && !navOpen;
     // Nav logo only after the hero logo is gone (same scroll mark).
-    const showLogo = !hero || headerScrollVisible;
+    // Collapsed pages have no hero logo, so the wordmark waits for scroll too.
+    const showLogo = collapsedNav
+      ? headerScrollVisible
+      : !hero || headerScrollVisible;
+    // Inline links are the desktop bar. Mobile keeps the hamburger.
+    const showInlineNav = showLogo && !mobile;
 
-    // Desktop past hero uses inline links — close overlay first so it can
+    // Desktop inline links replace the overlay. Close it first so it can
     // fade out without flashing the horizontal bar mid-dismiss.
-    if (showLogo && !mobile && navOpen) {
+    if (showInlineNav && navOpen) {
       closeSiteNav();
       return;
     }
@@ -103,7 +124,10 @@ function initPage() {
     const fadeScrollHint = () => {
       scrollHint.classList.toggle("is-faded", window.scrollY > 48);
     };
-    window.addEventListener("scroll", fadeScrollHint, { passive: true, signal });
+    window.addEventListener("scroll", fadeScrollHint, {
+      passive: true,
+      signal,
+    });
     fadeScrollHint();
   }
 
@@ -184,7 +208,8 @@ function initPage() {
       siteNav.classList.add("is-closing");
       if (navClosingTimer != null) clearTimeout(navClosingTimer);
       const onEnd = (event) => {
-        if (event.target !== siteNav || event.propertyName !== "opacity") return;
+        if (event.target !== siteNav || event.propertyName !== "opacity")
+          return;
         siteNav.removeEventListener("transitionend", onEnd);
         finishNavClosing();
       };
@@ -235,7 +260,36 @@ function initPage() {
     );
 
     siteNav.querySelectorAll("a").forEach((link) => {
-      link.addEventListener("click", closeSiteNav, { signal });
+      link.addEventListener(
+        "click",
+        (event) => {
+          // Home hash clicks are already scrolled by the capture listener.
+          if (!event.defaultPrevented) {
+            const href = link.getAttribute("href") ?? "";
+            if (href.startsWith("#") && href.length > 1) {
+              const sectionId = decodeURIComponent(href.slice(1));
+              const target = document.getElementById(sectionId);
+              if (target) {
+                event.preventDefault();
+                const nextUrl = buildSectionUrl(sectionId);
+                const currentUrl = `${location.pathname}${location.search}${location.hash}`;
+                if (nextUrl !== currentUrl) {
+                  history.replaceState(null, "", nextUrl);
+                }
+                const prefersReduced = window.matchMedia(
+                  "(prefers-reduced-motion: reduce)",
+                ).matches;
+                target.scrollIntoView({
+                  behavior: prefersReduced ? "auto" : "smooth",
+                  block: "start",
+                });
+              }
+            }
+          }
+          closeSiteNav();
+        },
+        { signal },
+      );
     });
 
     document.addEventListener(
@@ -280,7 +334,10 @@ function initPage() {
   });
 
   const signupForm = document.getElementById("signup-form");
-  if (signupForm instanceof HTMLFormElement && signupForm.dataset.gwBound !== "1") {
+  if (
+    signupForm instanceof HTMLFormElement &&
+    signupForm.dataset.gwBound !== "1"
+  ) {
     signupForm.dataset.gwBound = "1";
     initSignup(signupForm);
   }

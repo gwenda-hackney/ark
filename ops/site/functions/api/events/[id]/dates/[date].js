@@ -4,6 +4,10 @@ import {
   withApiHandler,
 } from "../../../../_lib/http.js";
 import {
+  attachCalendarWarnings,
+  syncSeriesCalendar,
+} from "../../../../_lib/event-calendar-sync.js";
+import {
   deleteOccurrences,
   ensureOccurrence,
   getEvent,
@@ -31,7 +35,11 @@ export const onRequestPut = withApiHandler(async (context) => {
     date,
     body && typeof body === "object" ? body : {},
   );
-  return jsonResponse({ ok: true, ...result }, result.created ? 201 : 200);
+  await syncSeriesCalendar(context.env, result.event);
+  return jsonResponse(
+    attachCalendarWarnings(context.env, { ok: true, ...result }),
+    result.created ? 201 : 200,
+  );
 });
 
 export const onRequestPatch = withApiHandler(async (context) => {
@@ -52,7 +60,8 @@ export const onRequestPatch = withApiHandler(async (context) => {
     }
   }
   const result = await updateOccurrenceContent(context.env, id, date, body);
-  return jsonResponse({ ok: true, ...result });
+  await syncSeriesCalendar(context.env, result.event);
+  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, ...result }));
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {
@@ -69,5 +78,8 @@ export const onRequestDelete = withApiHandler(async (context) => {
   const plan = occurrenceDeleteTargets(event, date, scope);
   const warnings = await unpublishOccurrences(context.env, plan.targets);
   const result = await deleteOccurrences(context.env, id, date, scope);
-  return jsonResponse({ ok: true, warnings, ...result });
+  if (result.event) await syncSeriesCalendar(context.env, result.event);
+  return jsonResponse(
+    attachCalendarWarnings(context.env, { ok: true, warnings, ...result }),
+  );
 });

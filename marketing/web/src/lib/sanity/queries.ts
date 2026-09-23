@@ -42,6 +42,7 @@ export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   title,
   schedule,
   recurrence,
+  replacesSeriesId,
   shortDescription,
   nightSchedule[]{ label, startTime, endTime },
   description,

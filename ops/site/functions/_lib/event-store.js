@@ -33,13 +33,23 @@ import {
   titleOverrideEchoesSeries,
   titleOverrideForSave,
 } from "./event-content.js";
-import { createEventDriveFolder, driveFolderWebUrl } from "./google-drive.js";
+import {
+  forgetCalendarOccurrences,
+  noteCalendarWarning,
+} from "./event-calendar-sync.js";
+import { calendarLinkValue } from "./google-calendar.js";
+import {
+  GALLERY_FOLDER_NAME,
+  createEventDriveFolder,
+  driveFolderWebUrl,
+  ensureNamedChildFolder,
+} from "./google-drive.js";
 import {
   parseNightSchedule,
   serializeNightSchedule,
 } from "./night-schedule.js";
 
-const REPEAT_UNITS = new Set(["none", "day", "week", "month"]);
+const REPEAT_UNITS = new Set(["none", "once", "day", "week", "month"]);
 
 function parseHeroCropsJson(raw) {
   if (!raw) return null;
@@ -203,6 +213,8 @@ export function mapEventDate(row) {
     overrides,
     isSpecialEdition: false,
     snapshots: parseSnapshots(row["Publish snapshots"]),
+    googleCalendarEventId:
+      text(row["Google calendar event id"]) || calendarLinkValue(row.Notes),
   };
 }
 
@@ -232,6 +244,7 @@ export function mapEvent(row, dates = []) {
     skippedDates: normalizeSkippedDates(row["Skipped dates"]),
     extraDates: normalizeExtraDates(row["Extra dates"]),
     slug: text(row.Slug) || seriesSlug(name),
+    replacesSeries: text(row["Replaces series"]),
     driveFolderId: text(row["Drive folder id"]),
     driveFolderUrl: driveFolderWebUrl(text(row["Drive folder id"])),
     mainImage: filesFrom(row["Main image"])[0] || null,
@@ -429,7 +442,7 @@ function fieldsFromInput(
   if (!partial || input.repeatUnit !== undefined) {
     const unit = text(input.repeatUnit || "none").toLowerCase();
     if (!REPEAT_UNITS.has(unit)) {
-      const error = new Error("Repeat must be none, day, week, or month.");
+      const error = new Error("Repeat must be none, once, day, week, or month.");
       error.status = 400;
       throw error;
     }
@@ -474,6 +487,9 @@ function fieldsFromInput(
   if (input.extraDates !== undefined) {
     fields["Extra dates"] = normalizeExtraDates(input.extraDates).join("\n");
   }
+  if (input.replacesSeries !== undefined) {
+    fields["Replaces series"] = text(input.replacesSeries);
+  }
   if (slug) fields.Slug = slug;
   const unit = fields["Repeat unit"];
   const weekdays = fields.Weekdays;
@@ -490,7 +506,7 @@ function fieldsFromInput(
     error.status = 400;
     throw error;
   }
-  if (unit && unit !== "none" && !fields["Ends on"]) {
+  if (unit && unit !== "none" && unit !== "once" && !fields["Ends on"]) {
     const error = new Error("Recurring events need an end date.");
     error.status = 400;
     throw error;
@@ -582,7 +598,7 @@ export async function getEvent(env, id) {
   return mapEvent(row, dates);
 }
 
-/** Ensure the event has a Drive library folder; create one if missing. */
+/** Ensure the event has a Drive folder; create one if missing. */
 export async function ensureEventDriveFolder(env, id) {
   const event = await getEvent(env, id);
   if (event.driveFolderId) return event;
@@ -592,6 +608,17 @@ export async function ensureEventDriveFolder(env, id) {
     "Drive folder id": folder.id,
   });
   return getEvent(env, id);
+}
+
+/** Gallery folder under the event. Hero images are not stored in Drive. */
+export async function ensureEventGalleryFolder(env, id) {
+  const event = await ensureEventDriveFolder(env, id);
+  const gallery = await ensureNamedChildFolder(
+    env,
+    event.driveFolderId,
+    GALLERY_FOLDER_NAME,
+  );
+  return { event, gallery };
 }
 
 export async function createEvent(env, input) {
@@ -656,6 +683,9 @@ export async function updateEvent(env, id, input) {
   if (input?.extraDates !== undefined) {
     merged.extraDates = input.extraDates;
   }
+  if (input?.replacesSeries !== undefined) {
+    merged.replacesSeries = input.replacesSeries;
+  }
   if (input?.name !== undefined)
     await assertUniqueName(env, tables, text(merged.name), id);
   const nightScheduleField = await nightScheduleFieldName(env);
@@ -719,11 +749,11 @@ export async function syncEventOccurrences(env, event) {
     extras.push(drop);
   }
   for (const row of extras) {
-    if (row?.id) await deleteRow(env, tables.eventDates, row.id);
+    if (row?.id) await removeOccurrence(env, row.id);
   }
   for (const [date, row] of byDate) {
     if (wanted.has(date)) continue;
-    if (row?.id) await deleteRow(env, tables.eventDates, row.id);
+    if (row?.id) await removeOccurrence(env, row.id);
     byDate.delete(date);
   }
   for (const date of wanted) {
@@ -753,7 +783,7 @@ export async function deleteEvent(env, id) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const dates = await loadDates(env, tables, id);
   for (const row of dates) {
-    await deleteRow(env, tables.eventDates, row.id);
+    await removeOccurrence(env, row.id);
   }
   await deleteRow(env, tables.events, id);
   return { id: String(id), dates: dates.map(mapEventDate) };
@@ -964,6 +994,7 @@ export async function setEventImage(
 ) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const existing = await getEvent(env, id);
+  // What's on heroes stay in Baserow. They are not copied to Drive.
   const uploaded = await uploadUserFile(env, bytes, { filename, contentType });
   if (role === "gallery") {
     const names = [
@@ -1727,5 +1758,32 @@ export async function clearOccurrenceImage(env, eventId, date) {
 
 export async function removeOccurrence(env, id) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
-  await deleteRow(env, tables.eventDates, id);
+  let warnings = [];
+  try {
+    const row = await getRow(env, tables.eventDates, id);
+    warnings = await forgetCalendarOccurrences(env, [
+      {
+        id: String(row.id),
+        date: isoDate(row.Date),
+        googleCalendarEventId:
+          text(row["Google calendar event id"]) || calendarLinkValue(row.Notes),
+      },
+    ]);
+  } catch (error) {
+    if (error?.status !== 404) {
+      warnings = [
+        noteCalendarWarning(
+          env,
+          error?.message ||
+            "Could not remove that night from Google Calendar.",
+        ),
+      ];
+    }
+  }
+  try {
+    await deleteRow(env, tables.eventDates, id);
+  } catch (error) {
+    if (error?.status !== 404) throw error;
+  }
+  return warnings;
 }

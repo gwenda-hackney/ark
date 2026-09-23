@@ -5,6 +5,9 @@
 
 export const HERO_ASPECT = 16 / 10;
 
+/** Tightest crop is this many times closer than the frame-filling crop. */
+export const HERO_ZOOM_MAX = 2.5;
+
 export type HeroCropRect = {
 	left: number;
 	top: number;
@@ -72,6 +75,111 @@ export function coverWindow(
 	const y = Math.min(1, Math.max(0, biasY));
 	const top = insetTotal * y;
 	return { left: 0, top, right: 0, bottom: insetTotal - top };
+}
+
+/** Largest 16×10 rectangle that fits inside the photo, in source pixels. */
+export function coverFrameSize(
+	imageWidth: number,
+	imageHeight: number,
+	aspect = HERO_ASPECT,
+): { width: number; height: number } {
+	const w = Math.max(1, Number(imageWidth) || 1);
+	const h = Math.max(1, Number(imageHeight) || 1);
+	if (w / h > aspect) return { width: h * aspect, height: h };
+	return { width: w, height: w / aspect };
+}
+
+/**
+ * A 16×10 window inside the photo. Center is in source pixels.
+ * The window is shifted, never stretched, so it stays inside the photo.
+ */
+export function clampFrame(
+	imageWidth: number,
+	imageHeight: number,
+	centerX: number,
+	centerY: number,
+	frameWidth: number,
+	frameHeight: number,
+	aspect = HERO_ASPECT,
+): HeroCropRect {
+	const w = Math.max(1, Number(imageWidth) || 1);
+	const h = Math.max(1, Number(imageHeight) || 1);
+	const cover = coverFrameSize(w, h, aspect);
+	let fw = Math.min(Math.max(1, frameWidth), cover.width);
+	let fh = fw / aspect;
+	if (fh > cover.height) {
+		fh = cover.height;
+		fw = fh * aspect;
+	}
+	let x = centerX - fw / 2;
+	let y = centerY - fh / 2;
+	x = Math.min(Math.max(0, x), w - fw);
+	y = Math.min(Math.max(0, y), h - fh);
+	return {
+		left: x / w,
+		top: y / h,
+		right: (w - x - fw) / w,
+		bottom: (h - y - fh) / h,
+	};
+}
+
+/**
+ * The 16×10 card inside a stored crop. Same rule as the site: fit the card
+ * inside the saved rectangle, kept on the hotspot.
+ */
+export function cardFrameFromCrop(
+	crop: HeroCropRect,
+	imageWidth: number,
+	imageHeight: number,
+	hotspot?: { x?: number; y?: number } | null,
+	aspect = HERO_ASPECT,
+): HeroCropRect {
+	const w = Math.max(1, Number(imageWidth) || 1);
+	const h = Math.max(1, Number(imageHeight) || 1);
+	const left = clamp01(crop.left);
+	const top = clamp01(crop.top);
+	const right = clamp01(crop.right);
+	const bottom = clamp01(crop.bottom);
+	const storedW = Math.max(1, w * (1 - left - right));
+	const storedH = Math.max(1, h * (1 - top - bottom));
+	const frameW = storedW / storedH > aspect ? storedH * aspect : storedW;
+	const frameH = frameW / aspect;
+	const cx =
+		hotspot && Number.isFinite(Number(hotspot.x))
+			? Number(hotspot.x) * w
+			: left * w + storedW / 2;
+	const cy =
+		hotspot && Number.isFinite(Number(hotspot.y))
+			? Number(hotspot.y) * h
+			: top * h + storedH / 2;
+	const minX = left * w;
+	const minY = top * h;
+	let x = cx - frameW / 2;
+	let y = cy - frameH / 2;
+	x = Math.min(Math.max(minX, x), minX + storedW - frameW);
+	y = Math.min(Math.max(minY, y), minY + storedH - frameH);
+	x = Math.min(Math.max(0, x), w - frameW);
+	y = Math.min(Math.max(0, y), h - frameH);
+	return {
+		left: x / w,
+		top: y / h,
+		right: (w - x - frameW) / w,
+		bottom: (h - y - frameH) / h,
+	};
+}
+
+/** Slider 0 fills the card. Slider 1 is the tightest crop. */
+export function zoomFromFrame(
+	crop: HeroCropRect,
+	imageWidth: number,
+	imageHeight: number,
+	aspect = HERO_ASPECT,
+): number {
+	const cover = coverFrameSize(imageWidth, imageHeight, aspect);
+	const visibleW = Math.max(1, (1 - crop.left - crop.right) * imageWidth);
+	const zoom = cover.width / visibleW;
+	if (!(zoom > 1) || HERO_ZOOM_MAX <= 1) return 0;
+	return Math.min(1, Math.max(0, Math.log(zoom) / Math.log(HERO_ZOOM_MAX)));
 }
 
 export function framingFromWindow(crop: HeroCropRect): HeroFraming {

@@ -158,7 +158,7 @@ export function expandOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS 
 
   const todayIsoValue = formatIsoDate(todayDate);
 
-  if (unit === "none" || unit === "") {
+  if (unit === "none" || unit === "" || unit === "once") {
     if (start < todayDate) {
       return finalizeDates([], rule, { from: todayIsoValue });
     }
@@ -246,8 +246,8 @@ export function expandSeriesOccurrenceDates(rule) {
   const start = parseIsoDate(rule?.startsOn);
   const startIso = start ? formatIsoDate(start) : "";
   const unit = String(rule?.repeatUnit || "none").trim().toLowerCase();
-  if (unit === "none" || unit === "") {
-    // Scheduled / one-off: starts on (if set) plus any extra dates.
+  if (unit === "none" || unit === "" || unit === "once") {
+    // Open series, or a single one-off night: starts on plus any extra dates.
     // Starts on may be empty for an open series with no nights yet.
     return finalizeDates(startIso ? [startIso] : [], rule, {});
   }
@@ -282,7 +282,7 @@ export function planOccurrenceMove(event, fromDate, toDate) {
     };
   }
   const unit = String(event?.repeatUnit || "none").trim().toLowerCase();
-  if (unit === "none" || unit === "") {
+  if (unit === "none" || unit === "" || unit === "once") {
     return {
       ok: true,
       unchanged: false,

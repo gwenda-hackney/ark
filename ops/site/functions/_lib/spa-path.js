@@ -214,6 +214,16 @@ export function parseShellPath(path) {
       .filter(Boolean)
       .map(decodeSegment);
     if (parts[0] === "new") {
+      if (parts[1] === "once") {
+        return {
+          page: "events",
+          slug: null,
+          isNew: true,
+          tab: normalizeEventTab(parts[2]),
+          list: null,
+          kind: "once",
+        };
+      }
       return {
         page: "events",
         slug: null,
@@ -294,8 +304,9 @@ export function eventListPath(view = "series") {
     : "/events";
 }
 
-export function eventNewPath(tab) {
-  return withEventTab("/events/new", tab);
+export function eventNewPath(tab, options = {}) {
+  const once = options === true || Boolean(options?.once);
+  return withEventTab(once ? "/events/new/once" : "/events/new", tab);
 }
 
 export function eventItemPath(id, tab) {
@@ -308,7 +319,7 @@ export function eventItemPath(id, tab) {
 export function eventTabPath(basePath, tab) {
   const parsed = parseShellPath(basePath);
   if (parsed.page !== "events") return eventListPath();
-  if (parsed.isNew) return eventNewPath(tab);
+  if (parsed.isNew) return eventNewPath(tab, { once: parsed.kind === "once" });
   if (!parsed.slug) return eventListPath();
   return eventItemPath(parsed.slug, tab);
 }
