@@ -3,7 +3,7 @@ import type { PageHelpTopic } from "../../ui/types";
 export const EVENTS_HELP: PageHelpTopic[] = [
 	{
 		title: "Series",
-		body: "Series lists every residency by weekday. Open a series to edit name, schedule, Images (What's on framing), and Publish. You can edit a series even when it has no upcoming nights.",
+		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit name, schedule, Images (What's on framing), and Publish. You can edit a series even when it has no upcoming nights.",
 	},
 	{
 		title: "Schedule",
@@ -27,18 +27,22 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Guest Artist",
-		body: "Optional. On a night, a guest of its own is treated as a special edition on What's on and labelled Guest under Nights ahead. On a series, this is the default name when a night has none.",
+		body: "Optional. On an open series night, a guest of its own shows a star on Schedule. Recurring residencies just list the guest under that night. On a series, this is the default name when a night has none.",
 	},
 	{
 		title: "Offer",
 		body: "Optional public wording for the night, such as a drink deal.",
 	},
 	{
+		title: "Night schedule",
+		body: "Optional structured slots for the night, such as Open decks or Chess. Each slot needs a label and can include start and end times. When set, What's on shows them in gold under the series.",
+	},
+	{
 		title: "Default hero",
-		body: "What's on shows the next night's flyer when that night has its own photo. The series hero is the fallback. A night flyer is for that night only. Save, then Update preview.",
+		body: "What's on shows the next night's flyer when that night has its own photo. The series hero is the fallback. A night flyer is for that night only. Save, then Update preview. The staging diary shows that on refresh.",
 	},
 	{
 		title: "Publish",
-		body: "The series is the template. Nights are what appear on the site. Update preview writes this series' upcoming nights to the preview site. Push live copies those nights to gwenda.co.uk.",
+		body: "Header Publish opens this workflow. Update preview writes the series into the staging diary, which shows on refresh without a site rebuild. Check What's on, then Push live. Publish the staging site only when you need every page rebuilt. That takes a few minutes, and the page shows its progress.",
 	},
 ];

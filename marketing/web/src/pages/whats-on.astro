@@ -3,6 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import EventImageCaption from "../components/EventImageCaption.astro";
 import EventNightSchedule from "../components/EventNightSchedule.astro";
 import Subpage from "../components/Subpage.astro";
+import { isStaging } from "../config/env";
 import { siteConfig } from "../config/site";
 import {
   eventDescriptionParagraphs,
@@ -82,7 +83,7 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
       <p>Music and late evenings by the water in {siteConfig.location.area}.</p>
     </header>
 
-    <p id="whats-on-loading" class="events-loading" hidden={hasContent}>
+    <p id="whats-on-loading" class="events-loading" hidden={hasContent && !isStaging}>
       Looking at the diary…
     </p>
     <section
@@ -120,7 +121,9 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                     href={href || "/whats-on"}
                     aria-label={[
                       event.title,
-                      event.hostName ? `hosts ${event.hostName}` : "",
+                      event.imageCaptionName
+                        ? `Hosting ${event.imageCaptionName}`
+                        : "",
                       event.hostDate
                         ? `${event.hostThisWeek ? "This week, " : ""}${formatShortEventDate(event.hostDate)}`
                         : "",
@@ -187,19 +190,23 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                       ) : null}
                     </p>
                     <h2 class="event-title">{event.title}</h2>
-                    {event.hostName ? (
-                      <p class="event-hosts">
-                        <span class="event-hosts-line">
-                          hosts <span class="event-hosts-name">{event.hostName}</span>
-                        </span>
-                        {event.hostDate && !event.hostThisWeek ? (
-                          <time
-                            class="event-hosts-date"
-                            datetime={event.hostDate}
-                          >
-                            {formatShortEventDate(event.hostDate)}
-                          </time>
+                    {event.hostName && !event.hostThisWeek ? (
+                      <p class="event-next">
+                        <span class="event-next-label">Coming up</span>
+                        {event.hostDate ? (
+                          <>
+                            <span class="event-next-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <time datetime={event.hostDate}>
+                              {formatShortEventDate(event.hostDate)}
+                            </time>
+                          </>
                         ) : null}
+                        <span class="event-next-sep" aria-hidden="true">
+                          ·
+                        </span>
+                        <span class="event-next-name">{event.hostName}</span>
                       </p>
                     ) : null}
                     {event.hostThisWeek && event.hostName ? (
@@ -221,44 +228,6 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                         <span class="event-next-name">{event.hostName}</span>
                       </p>
                     ) : null}
-                    {event.thisWeekName ? (
-                      <p class="event-next">
-                        <span class="event-next-label">This week</span>
-                        {event.thisWeekDate ? (
-                          <>
-                            <span class="event-next-sep" aria-hidden="true">
-                              ·
-                            </span>
-                            <time datetime={event.thisWeekDate}>
-                              {formatShortEventDate(event.thisWeekDate)}
-                            </time>
-                          </>
-                        ) : null}
-                        <span class="event-next-sep" aria-hidden="true">
-                          ·
-                        </span>
-                        <span class="event-next-name">{event.thisWeekName}</span>
-                      </p>
-                    ) : null}
-                    {event.upcomingName ? (
-                      <p class="event-next">
-                        <span class="event-next-label">Next</span>
-                        {event.upcomingDate ? (
-                          <>
-                            <span class="event-next-sep" aria-hidden="true">
-                              ·
-                            </span>
-                            <time datetime={event.upcomingDate}>
-                              {formatShortEventDate(event.upcomingDate)}
-                            </time>
-                          </>
-                        ) : null}
-                        <span class="event-next-sep" aria-hidden="true">
-                          ·
-                        </span>
-                        <span class="event-next-name">{event.upcomingName}</span>
-                      </p>
-                    ) : null}
                     {event.offer ? (
                       <p class="event-offer">{event.offer}</p>
                     ) : null}
@@ -272,8 +241,52 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                         )}
                       </div>
                     ) : null}
-                    {event.nightCount > 1 ? (
-                      <p class="event-more-dates">More dates →</p>
+                    {event.thisWeekName ||
+                    event.upcomingName ||
+                    event.nightCount > 1 ? (
+                      <div class="event-follow">
+                        {event.thisWeekName ? (
+                          <p class="event-next">
+                            <span class="event-next-label">This week</span>
+                            {event.thisWeekDate ? (
+                              <>
+                                <span class="event-next-sep" aria-hidden="true">
+                                  ·
+                                </span>
+                                <time datetime={event.thisWeekDate}>
+                                  {formatShortEventDate(event.thisWeekDate)}
+                                </time>
+                              </>
+                            ) : null}
+                            <span class="event-next-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <span class="event-next-name">{event.thisWeekName}</span>
+                          </p>
+                        ) : null}
+                        {event.upcomingName ? (
+                          <p class="event-next">
+                            <span class="event-next-label">Next</span>
+                            {event.upcomingDate ? (
+                              <>
+                                <span class="event-next-sep" aria-hidden="true">
+                                  ·
+                                </span>
+                                <time datetime={event.upcomingDate}>
+                                  {formatShortEventDate(event.upcomingDate)}
+                                </time>
+                              </>
+                            ) : null}
+                            <span class="event-next-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <span class="event-next-name">{event.upcomingName}</span>
+                          </p>
+                        ) : null}
+                        {event.nightCount > 1 ? (
+                          <p class="event-more-dates">More dates and info</p>
+                        ) : null}
+                      </div>
                     ) : null}
                   </article>
                   </a>
@@ -285,8 +298,4 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
       }
     </div>
   </Subpage>
-  <script>
-    import { initWhatsOnPage } from "../scripts/whats-on.js";
-    initWhatsOnPage();
-  </script>
 </BaseLayout>

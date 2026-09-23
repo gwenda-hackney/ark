@@ -3,6 +3,7 @@
  */
 import { itemSlug, namesClash } from "./item-key.js";
 import {
+  baserowFetch,
   createRow,
   deleteRow,
   getRow,
@@ -33,6 +34,10 @@ import {
   titleOverrideForSave,
 } from "./event-content.js";
 import { createEventDriveFolder, driveFolderWebUrl } from "./google-drive.js";
+import {
+  parseNightSchedule,
+  serializeNightSchedule,
+} from "./night-schedule.js";
 
 const REPEAT_UNITS = new Set(["none", "day", "week", "month"]);
 
@@ -108,15 +113,82 @@ function requireEventsTables(tables) {
   return tables;
 }
 
+/** Prefer dedicated column; fall back to unused Notes until schema sync. */
+const NIGHT_SCHEDULE_FIELD = "Night schedule";
+const NIGHT_SCHEDULE_FALLBACK = "Notes";
+const NIGHT_SCHEDULE_OVERRIDE_FIELD = "Night schedule override";
+const SHORT_DESCRIPTION_OVERRIDE_FIELD = "Short description override";
+let eventsFieldNamesCache = null;
+let eventDatesFieldNamesCache = null;
+
+async function tableFieldNames(env, tableId) {
+  const fields = await baserowFetch(
+    env,
+    `/api/database/fields/table/${tableId}/`,
+  );
+  return new Set((fields || []).map((field) => field.name));
+}
+
+async function nightScheduleFieldName(env) {
+  if (!eventsFieldNamesCache) {
+    const tables = requireEventsTables(await resolveOpsTableIds(env));
+    eventsFieldNamesCache = await tableFieldNames(env, tables.events);
+  }
+  return eventsFieldNamesCache.has(NIGHT_SCHEDULE_FIELD)
+    ? NIGHT_SCHEDULE_FIELD
+    : NIGHT_SCHEDULE_FALLBACK;
+}
+
+export async function hasShortDescriptionOverrideColumn(env) {
+  const names = await eventDateFieldNames(env);
+  return names.has(SHORT_DESCRIPTION_OVERRIDE_FIELD);
+}
+
+async function eventDateFieldNames(env) {
+  if (!eventDatesFieldNamesCache) {
+    const tables = requireEventsTables(await resolveOpsTableIds(env));
+    eventDatesFieldNamesCache = await tableFieldNames(env, tables.eventDates);
+  }
+  return eventDatesFieldNamesCache;
+}
+
+async function nightScheduleOverrideFieldName(env) {
+  const names = await eventDateFieldNames(env);
+  return names.has(NIGHT_SCHEDULE_OVERRIDE_FIELD)
+    ? NIGHT_SCHEDULE_OVERRIDE_FIELD
+    : null;
+}
+
+function readNightScheduleFromRow(row) {
+  if (Object.prototype.hasOwnProperty.call(row, NIGHT_SCHEDULE_FIELD)) {
+    const fromField = parseNightSchedule(row[NIGHT_SCHEDULE_FIELD]);
+    if (fromField.length) return fromField;
+    // Leftover JSON in Notes from before the dedicated column existed.
+    return parseNightSchedule(row[NIGHT_SCHEDULE_FALLBACK]);
+  }
+  return parseNightSchedule(row[NIGHT_SCHEDULE_FALLBACK]);
+}
+
+function readNightScheduleOverrideFromRow(row) {
+  if (Object.prototype.hasOwnProperty.call(row, NIGHT_SCHEDULE_OVERRIDE_FIELD)) {
+    const raw = row[NIGHT_SCHEDULE_OVERRIDE_FIELD];
+    if (raw == null || String(raw).trim() === "") return null;
+    return parseNightSchedule(raw);
+  }
+  return null;
+}
+
 export function mapEventDate(row) {
   const overrides = {
     name: text(row["Title override"]),
     artist: text(row["Artist override"]),
     offer: text(row["Offer override"]),
     description: text(row["Description override"]),
+    shortDescription: text(row[SHORT_DESCRIPTION_OVERRIDE_FIELD]),
     time: text(row["Time override"]),
     startTime: clockTime(row["Start time override"]),
     endTime: clockTime(row["End time override"]),
+    nightSchedule: readNightScheduleOverrideFromRow(row),
     operationsNotes: text(row["Operations notes override"]),
     imageLinks: linksFrom(row["Image links override"]),
     image: filesFrom(row["Override image"])[0] || null,
@@ -149,6 +221,7 @@ export function mapEvent(row, dates = []) {
     time: text(row.Time),
     startTime: clockTime(row["Start time"]),
     endTime: clockTime(row["End time"]),
+    nightSchedule: readNightScheduleFromRow(row),
     repeatEvery: Math.max(1, Math.floor(Number(row["Repeat every"]) || 1)),
     repeatUnit: REPEAT_UNITS.has(text(row["Repeat unit"]).toLowerCase())
       ? text(row["Repeat unit"]).toLowerCase()
@@ -263,7 +336,10 @@ export function publishState(event, dates, today = todayIso()) {
   };
 }
 
-function fieldsFromInput(input, { partial = false, slug } = {}) {
+function fieldsFromInput(
+  input,
+  { partial = false, slug, nightScheduleField = NIGHT_SCHEDULE_FIELD } = {},
+) {
   const fields = {};
   const set = (key, present, value) => {
     if (!partial || present) fields[key] = value;
@@ -311,6 +387,11 @@ function fieldsFromInput(input, { partial = false, slug } = {}) {
           : JSON.stringify(input.heroCrops);
   } else if (!partial) {
     fields["Hero crops"] = "";
+  }
+  if (input.nightSchedule !== undefined) {
+    fields[nightScheduleField] = serializeNightSchedule(input.nightSchedule);
+  } else if (!partial) {
+    fields[nightScheduleField] = "";
   }
   set("Time", input.time !== undefined, text(input.time));
   if (!partial || input.startTime !== undefined) {
@@ -518,7 +599,8 @@ export async function createEvent(env, input) {
   const name = text(input?.name);
   const slug = await assertUniqueName(env, tables, name);
   const driveFolder = await createEventDriveFolder(env, name);
-  const fields = fieldsFromInput(input || {}, { slug });
+  const nightScheduleField = await nightScheduleFieldName(env);
+  const fields = fieldsFromInput(input || {}, { slug, nightScheduleField });
   fields["Drive folder id"] = driveFolder.id;
   const row = await createRow(env, tables.events, fields);
   return syncEventOccurrences(env, mapEvent(row, []));
@@ -548,6 +630,10 @@ export async function updateEvent(env, id, input) {
       input?.imageLinks !== undefined ? input.imageLinks : current.imageLinks,
     heroCrops:
       input?.heroCrops !== undefined ? input.heroCrops : current.heroCrops,
+    nightSchedule:
+      input?.nightSchedule !== undefined
+        ? input.nightSchedule
+        : current.nightSchedule,
     startsOn: input?.startsOn !== undefined ? input.startsOn : current.startsOn,
     time: input?.time !== undefined ? input.time : current.time,
     startTime:
@@ -572,8 +658,10 @@ export async function updateEvent(env, id, input) {
   }
   if (input?.name !== undefined)
     await assertUniqueName(env, tables, text(merged.name), id);
+  const nightScheduleField = await nightScheduleFieldName(env);
   const fields = fieldsFromInput(merged, {
     slug: current.slug || seriesSlug(merged.name),
+    nightScheduleField,
   });
   const row = await updateRow(env, tables.events, id, fields);
   const dates = await loadDates(env, tables, id);
@@ -921,9 +1009,22 @@ export async function saveOccurrence(env, eventId, occurrence) {
     fields["Artist override"] = text(occurrence.overrides?.artist);
     fields["Offer override"] = text(occurrence.overrides?.offer);
     fields["Description override"] = text(occurrence.overrides?.description);
+    const dateFields = await eventDateFieldNames(env);
+    if (dateFields.has(SHORT_DESCRIPTION_OVERRIDE_FIELD)) {
+      fields[SHORT_DESCRIPTION_OVERRIDE_FIELD] = text(
+        occurrence.overrides?.shortDescription,
+      );
+    }
     fields["Time override"] = text(occurrence.overrides?.time);
     fields["Start time override"] = clockTime(occurrence.overrides?.startTime);
     fields["End time override"] = clockTime(occurrence.overrides?.endTime);
+    const overrideField = await nightScheduleOverrideFieldName(env);
+    if (overrideField) {
+      fields[overrideField] =
+        occurrence.overrides?.nightSchedule == null
+          ? ""
+          : serializeNightSchedule(occurrence.overrides.nightSchedule);
+    }
     fields["Operations notes override"] = text(
       occurrence.overrides?.operationsNotes,
     );
@@ -971,9 +1072,14 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
         artist: text(overrides.artist),
         offer: text(overrides.offer),
         description: text(overrides.description),
+        shortDescription: text(overrides.shortDescription),
         time: text(overrides.time),
         startTime: clockTime(overrides.startTime),
         endTime: clockTime(overrides.endTime),
+        nightSchedule:
+          overrides.nightSchedule == null
+            ? null
+            : parseNightSchedule(overrides.nightSchedule),
         operationsNotes: text(overrides.operationsNotes),
         imageLinks: linksFrom(overrides.imageLinks),
         image: overrides.image || existing.overrides?.image || null,
@@ -1025,6 +1131,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
       artist: text(overrides.artist),
       offer: text(overrides.offer),
       description: text(overrides.description),
+      shortDescription: text(overrides.shortDescription),
       time: text(overrides.time),
       startTime: clockTime(overrides.startTime),
       endTime: clockTime(overrides.endTime),
@@ -1083,6 +1190,11 @@ export async function assignOccurrenceToSeries(
       input?.description !== undefined
         ? input.description
         : resolved.description,
+    ),
+    shortDescription: text(
+      input?.shortDescription !== undefined
+        ? input.shortDescription
+        : resolved.shortDescription,
     ),
     operationsNotes: text(
       input?.operationsNotes !== undefined
@@ -1171,6 +1283,7 @@ function hasOccurrenceInput(overrides) {
     "artist",
     "offer",
     "description",
+    "shortDescription",
     "time",
     "startTime",
     "endTime",
@@ -1289,9 +1402,19 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
       input?.description !== undefined
         ? text(input.description)
         : current.description,
+    shortDescription:
+      input?.shortDescription !== undefined
+        ? text(input.shortDescription)
+        : current.shortDescription,
     time: input?.time !== undefined ? text(input.time) : current.time,
     startTime,
     endTime,
+    nightSchedule:
+      input?.nightSchedule !== undefined
+        ? parseNightSchedule(input.nightSchedule)
+        : occurrence.overrides?.nightSchedule != null
+          ? parseNightSchedule(occurrence.overrides.nightSchedule)
+          : null,
     operationsNotes:
       input?.operationsNotes !== undefined
         ? text(input.operationsNotes)
@@ -1320,6 +1443,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           time: content.time,
           startTime: content.startTime,
           endTime: content.endTime,
+          nightSchedule: row.overrides?.nightSchedule ?? null,
           operationsNotes: content.operationsNotes,
           imageLinks: content.imageLinks,
           // Keep a real per-night flyer only. Never bake the series main image
@@ -1337,6 +1461,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
       time: overrides.time,
       startTime: overrides.startTime,
       endTime: overrides.endTime,
+      nightSchedule: overrides.nightSchedule ?? event.nightSchedule,
       operationsNotes: overrides.operationsNotes,
       imageLinks: overrides.imageLinks,
     });
@@ -1353,6 +1478,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           time: "",
           startTime: "",
           endTime: "",
+          nightSchedule: null,
           operationsNotes: "",
           imageLinks: [],
           image: row.overrides?.image || null,
@@ -1447,6 +1573,10 @@ export async function moveOccurrence(
       input?.description !== undefined
         ? text(input.description)
         : current.description,
+    shortDescription:
+      input?.shortDescription !== undefined
+        ? text(input.shortDescription)
+        : current.shortDescription,
     time: input?.time !== undefined ? text(input.time) : current.time,
     startTime,
     endTime,

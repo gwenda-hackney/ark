@@ -5,9 +5,10 @@
 	import { BusyOverlay, Button, Card, Dialog, PageHeader } from "../../ui";
 	import {
 		getWebStatus,
-		promoteWebsite,
 		type WebStatus,
 	} from "../../lib/api";
+	import { beginSitePublish } from "../../lib/site-publish";
+	import SitePublishMonitor from "./SitePublishMonitor.svelte";
 	import { loginNext } from "../../lib/nav";
 	import { toast } from "../../lib/toast.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
@@ -68,14 +69,14 @@
 		const target = confirmTarget;
 		promoting = true;
 		try {
-			const result = await promoteWebsite(target);
+			const result = await beginSitePublish(target);
 			confirmTarget = null;
-			if (result.alreadyRunning) {
-				toast.ok("A promote is already running.");
+			if (result.status === "in_progress") {
+				toast.ok("A site publish is already running.");
 			} else if (target === "staging") {
-				toast.ok("Promote started. Staging is rebuilding from published content.");
+				toast.ok("Staging site publish started.");
 			} else {
-				toast.ok("Promote started. Staging is copying onto production.");
+				toast.ok("Production publish started. Staging is copying onto the live site.");
 			}
 			await load();
 		} catch (err) {
@@ -108,7 +109,7 @@
 					confirmTarget = "staging";
 				}}
 			>
-				Promote to staging
+				Publish staging site
 			</Button>
 			<Button
 				variant="primary"
@@ -127,6 +128,7 @@
 		<p class="error">{loadError}</p>
 	{:else if status && staging && production}
 		<div class="ready" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+			<SitePublishMonitor />
 			<Card title="Sync" subtitle="Staging against production.">
 				<ul class="rows">
 					{#each syncMetrics as metric (metric.label)}
@@ -241,14 +243,18 @@
 <Dialog
 	open={Boolean(confirmTarget)}
 	title={confirmTarget === "staging"
-		? "Promote to staging"
+		? "Publish the staging site"
 		: "Promote staging to production"}
 	onclose={() => {
 		if (!promoting) confirmTarget = null;
 	}}
 >
 	{#if confirmTarget === "staging"}
-		<p>Rebuilds the preview site from published staging documents.</p>
+		<p>
+			Rebuilds every page on the preview site from published documents. This takes a few
+			minutes. Event previews already show on What's on without this rebuild. Progress stays
+			on this page.
+		</p>
 	{:else}
 		<p>Copies staging onto production and rebuilds gwenda.co.uk.</p>
 	{/if}
@@ -273,7 +279,7 @@
 			{promoting
 				? "Promoting…"
 				: confirmTarget === "staging"
-					? "Promote to staging"
+					? "Publish staging site"
 					: "Promote to production"}
 		</Button>
 	{/snippet}

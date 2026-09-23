@@ -1,6 +1,7 @@
 /**
- * Publish one feature (events) to the preview site, then copy those documents live.
- * Menu publish calls the same staging rebuild helper.
+ * Event preview writes the staging dataset. The staging diary reads that live,
+ * so a preview does not rebuild the site. A full site publish is separate.
+ * Push live copies this event's documents onto production.
  */
 import {
   EDITORIAL_DATASET,
@@ -29,6 +30,7 @@ import {
 } from "./event-content.js";
 import {
   getEvent,
+  hasShortDescriptionOverrideColumn,
   listEvents,
   removeOccurrence,
   saveOccurrence,
@@ -147,6 +149,7 @@ function documentFromStaging(doc, heroImage, seriesHeroImage) {
     venue: doc.venue,
     ticketStart: doc.ticketStart,
     ticketEnd: doc.ticketEnd,
+    nightSchedule: Array.isArray(doc.nightSchedule) ? doc.nightSchedule : [],
     channels: doc.channels || [],
     rsvpConfirmation: doc.rsvpConfirmation,
   };
@@ -167,6 +170,7 @@ function documentFromStagingSeries(doc, heroImage) {
     recurrence: doc.recurrence || "",
     shortDescription: doc.shortDescription || "",
     description: doc.description,
+    nightSchedule: Array.isArray(doc.nightSchedule) ? doc.nightSchedule : [],
   };
   if (heroImage) next.heroImage = heroImage;
   return next;
@@ -175,7 +179,7 @@ function documentFromStagingSeries(doc, heroImage) {
 export async function publishEventPreview(
   env,
   id,
-  { deploy: triggerDeploy = true } = {},
+  { deploy: triggerDeploy = false } = {},
 ) {
   const event = await getEvent(env, id);
   if (!event.name) httpError("Name is required.", 400);
@@ -213,9 +217,30 @@ export async function publishEventPreview(
       shortDescription: event.shortDescription || "",
       recurrence: recurrenceLabel(event),
       schedule: seriesScheduleMode(event),
+      nightSchedule: event.nightSchedule || [],
       heroImage: seriesHero || null,
     }),
   });
+
+  const ownShortColumn = await hasShortDescriptionOverrideColumn(env);
+  const keptShort = new Map();
+  if (!ownShortColumn) {
+    const ids = wanted
+      .map((date) => existingByDate.get(date)?.sanityId)
+      .filter(Boolean);
+    if (ids.length) {
+      const rows =
+        (await sanityQuery(
+          env,
+          EDITORIAL_DATASET,
+          `*[_id in $ids]{ _id, shortDescription }`,
+          { ids },
+        )) || [];
+      for (const row of rows) {
+        keptShort.set(row._id, String(row.shortDescription || "").trim());
+      }
+    }
+  }
 
   for (const date of wanted) {
     const previous = existingByDate.get(date);
@@ -258,7 +283,12 @@ export async function publishEventPreview(
       title: content.title,
       date,
       description: content.description,
-      shortDescription: event.shortDescription || "",
+      shortDescription:
+        content.shortDescription ||
+        (!ownShortColumn && previous?.sanityId
+          ? keptShort.get(previous.sanityId)
+          : "") ||
+        "",
       artist: content.artist,
       offer: content.offer,
       heroImage: hero,
@@ -269,6 +299,7 @@ export async function publishEventPreview(
       time: content.time,
       startTime: content.startTime,
       endTime: content.endTime,
+      nightSchedule: content.nightSchedule || [],
       isSpecialEdition: content.isSpecialEdition,
     });
     mutations.push({ createOrReplace: doc });
@@ -389,25 +420,14 @@ export async function publishAllEventPreviews(env) {
     }
   }
 
-  let deployed = false;
-  let deploy = null;
-  if (published.length && siteEnvName(env) !== "local") {
-    try {
-      deploy = await dispatchStagingContentDeploy(env);
-      deployed = true;
-    } catch (error) {
-      warnings.push(error?.message || "Preview site rebuild did not start.");
-    }
-  }
-
   return {
     events: await listEvents(env),
     published,
     failed,
     skipped,
     warnings,
-    deployed,
-    deploy,
+    deployed: false,
+    deploy: null,
     target: "staging",
   };
 }
@@ -415,7 +435,7 @@ export async function publishAllEventPreviews(env) {
 const STAGING_EVENT_QUERY = `*[_id == $id][0]{
   _id, _type, title, slug, eventType, seriesId, series, seriesTitle, recurrence, isSpecialEdition,
   date, description, artist, venue,
-  time, offer, ticketStart, ticketEnd, channels, rsvpConfirmation,
+  time, offer, ticketStart, ticketEnd, nightSchedule, channels, rsvpConfirmation,
   heroImage {
     alt,
     crop,
@@ -431,7 +451,7 @@ const STAGING_EVENT_QUERY = `*[_id == $id][0]{
 }`;
 
 const STAGING_SERIES_QUERY = `*[_id == $id][0]{
-  _id, _type, title, slug, schedule, recurrence, shortDescription, description,
+  _id, _type, title, slug, schedule, recurrence, shortDescription, description, nightSchedule,
   heroImage {
     alt,
     crop,

@@ -36,7 +36,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-site-env={isStaging ? "staging" : "production"}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

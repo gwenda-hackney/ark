@@ -1,3 +1,4 @@
+import { diaryCacheControl } from "../../_lib/event-feed.js";
 import { buildSeriesDetail } from "../../_lib/event-series.js";
 import { fetchPublishedCatalog } from "../../_lib/sanity-events.js";
 import { jsonResponse, withApiHandler } from "../../_lib/api-handler.js";
@@ -19,6 +20,6 @@ export const onRequestGet = withApiHandler(async (context) => {
   if (!detail) return jsonResponse({ error: "Series not found." }, 404);
 
   return jsonResponse({ ok: true, series: detail }, 200, {
-    "Cache-Control": "public, max-age=60",
+    "Cache-Control": diaryCacheControl(context.env),
   });
 });

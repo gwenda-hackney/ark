@@ -1,3 +1,4 @@
+import { diaryCacheControl } from "../_lib/event-feed.js";
 import { buildWhatsOnHome } from "../_lib/event-series.js";
 import { fetchPublishedCatalog } from "../_lib/sanity-events.js";
 import { jsonResponse, withApiHandler } from "../_lib/api-handler.js";
@@ -14,6 +15,6 @@ export const onRequestGet = withApiHandler(async (context) => {
     series: seriesRecords,
   });
   return jsonResponse({ ok: true, series, nights, next }, 200, {
-    "Cache-Control": "public, max-age=60",
+    "Cache-Control": diaryCacheControl(context.env),
   });
 });

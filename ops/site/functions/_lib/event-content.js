@@ -1,4 +1,9 @@
 import { itemSlug } from "./item-key.js";
+import {
+  parseNightSchedule,
+  stableNightSchedule,
+  toSanityNightSchedule,
+} from "./night-schedule.js";
 
 export function seriesSlug(name) {
   return itemSlug(name);
@@ -133,9 +138,13 @@ export function resolveOccurrenceContent(event, occurrence) {
     description: String(
       overrides.description || event?.description || "",
     ).trim(),
+    shortDescription: String(overrides.shortDescription || "").trim(),
     time: String(overrides.time || event?.time || "").trim(),
     startTime: String(overrides.startTime || event?.startTime || "").trim(),
     endTime: String(overrides.endTime || event?.endTime || "").trim(),
+    nightSchedule: Array.isArray(overrides.nightSchedule)
+      ? stableNightSchedule(overrides.nightSchedule)
+      : stableNightSchedule(event?.nightSchedule),
     operationsNotes: String(
       overrides.operationsNotes || event?.operationsNotes || "",
     ).trim(),
@@ -229,12 +238,14 @@ export function occurrencePayload(event, occurrence) {
     time: content.time,
     startTime: content.startTime,
     endTime: content.endTime,
+    nightSchedule: content.nightSchedule,
     date,
     image: stableImageRef(content.image),
     seriesImage: stableImageRef(event?.mainImage),
     heroCrops: stableHeroFraming(event?.heroCrops),
     occurrenceHeroCrops: stableHeroFraming(row?.overrides?.heroCrops),
-    shortDescription: String(event?.shortDescription || "").trim() || null,
+    shortDescription: content.shortDescription || null,
+    seriesNightSchedule: stableNightSchedule(event?.nightSchedule),
     isSpecialEdition: content.isSpecialEdition,
     seriesId: String(event?.slug || "").trim(),
     seriesTitle: String(event?.name || "").trim(),
@@ -297,6 +308,7 @@ export function sanitySeriesDocument({
   shortDescription,
   recurrence,
   schedule,
+  nightSchedule,
   heroImage,
 }) {
   const key = String(slug || "").trim();
@@ -309,6 +321,7 @@ export function sanitySeriesDocument({
     recurrence: String(recurrence || "").trim(),
     shortDescription: String(shortDescription || "").trim(),
     description: plainToEventDescription(description),
+    nightSchedule: toSanityNightSchedule(nightSchedule),
   };
   if (heroImage) doc.heroImage = heroImage;
   return doc;
@@ -330,6 +343,7 @@ export function sanityEventDocument({
   time,
   startTime,
   endTime,
+  nightSchedule,
   isSpecialEdition,
 }) {
   const seriesKey = String(seriesId || "").trim();
@@ -351,6 +365,7 @@ export function sanityEventDocument({
     venue: "Schwartz Wharf, Hackney Wick, London E9 5AA",
     ticketStart: startTime || "17:00",
     ticketEnd: endTime || "23:00",
+    nightSchedule: toSanityNightSchedule(nightSchedule),
     channels: [],
     rsvpConfirmation: {
       subject: "You're on the list · Gwenda",
