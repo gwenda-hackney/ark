@@ -198,7 +198,8 @@ main {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 90;
+  /* Above site-header / subpage-chrome (110); below preview-banner (200). */
+  z-index: 120;
   width: var(--ribbon-fold);
   height: var(--ribbon-fold);
   overflow: hidden;
@@ -3634,41 +3635,9 @@ html.fonts-ready .thanks {
   flex-shrink: 0;
 }
 
-/* The staging corner ribbon is diagnostics, not page chrome. Keep it out of
-   the chrome rail on subpages. */
-body:has(.subpage) .staging-ribbon {
-  top: auto;
-  bottom: 0.75rem;
-  left: 0.75rem;
-  width: auto;
-  height: auto;
-  overflow: visible;
-}
-
-body:has(.subpage) .staging-ribbon::before {
-  display: none;
-}
-
-body:has(.subpage) .staging-ribbon span,
-body:has(.subpage) .staging-ribbon-share {
-  position: static;
-  width: auto;
-  transform: none;
-  padding: 0.3rem 0.55rem;
-  font-size: 0.55rem;
-  border-radius: 2px;
-  opacity: 0.65;
-  box-shadow: none;
-}
-
-body:has(.subpage) .staging-ribbon-share {
-  opacity: 0.85;
-}
-
-body:has(.subpage) .staging-ribbon-share span {
-  padding: 0;
-  opacity: 1;
-  font-size: inherit;
+/* Corner fold overlaps the back chip; nudge it clear of the ribbon. */
+body:has(.staging-ribbon) .subpage-chrome .page-back {
+  margin-left: 3.25rem;
 }
 
 .page-back {
