@@ -110,6 +110,23 @@ export function formatShortEventDate(isoDate) {
   return `${weekday} ${day} ${months[month - 1]}`;
 }
 
+/**
+ * Stamp for a night's own flyer when that night is a guest artist.
+ * Series default images stay unlabelled.
+ */
+export function guestImageCaption(night, seriesTitle = "") {
+  if (!heroUrl(night)) return null;
+  const artist = String(night?.artist || "").trim();
+  if (!artist || !night?.isSpecialEdition) return null;
+  const title = String(night.title || "").trim();
+  const series = String(seriesTitle || night.seriesTitle || "").trim();
+  const ownTitle = Boolean(title && !sameLabel(title, series));
+  return {
+    label: "Next at Gwenda",
+    name: ownTitle ? title : artist,
+  };
+}
+
 /** Named night or special guest for the home-row teaser. */
 export function upcomingEventTeaser(identity) {
   if (!identity) return null;
@@ -131,6 +148,88 @@ export function upcomingEventLine(identity) {
   if (!teaser) return "";
   const when = formatShortEventDate(teaser.date);
   return when ? `Next · ${when} · ${teaser.name}` : `Next · ${teaser.name}`;
+}
+
+function addDaysIso(isoDate, days) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
+  if (!match) return "";
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  date.setDate(date.getDate() + days);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+/** Monday–Sunday week that contains `now`. */
+export function isCurrentWeek(isoDate, now = new Date()) {
+  const iso = String(isoDate || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const today = todayIso(now);
+  const [year, month, day] = today.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const mondayOffset = (date.getDay() + 6) % 7;
+  const start = addDaysIso(today, -mondayOffset);
+  const end = addDaysIso(start, 6);
+  return iso >= start && iso <= end;
+}
+
+function teaserForNight(night, seriesTitle) {
+  return upcomingEventTeaser(nextNightIdentity([night], seriesTitle, 0));
+}
+
+/**
+ * Diary lines for a What's on series card.
+ * Scheduled series name the pictured night (hosts + date).
+ * A night in the current week is "This week"; the one after is "Next".
+ */
+export function seriesDiary(nights, seriesTitle, { now = new Date(), regular = false } = {}) {
+  const ordered = (Array.isArray(nights) ? nights : [])
+    .slice()
+    .sort(compareNights);
+  const teasers = ordered.map((night) => teaserForNight(night, seriesTitle));
+  const empty = {
+    hostName: "",
+    hostDate: "",
+    hostThisWeek: false,
+    thisWeekName: "",
+    thisWeekDate: "",
+    upcomingName: "",
+    upcomingDate: "",
+  };
+
+  if (!regular) {
+    const host = teasers[0] || null;
+    const later = teasers.slice(1).find(Boolean) || null;
+    return {
+      ...empty,
+      hostName: host?.name || "",
+      hostDate: host?.date || "",
+      hostThisWeek: Boolean(host && isCurrentWeek(host.date, now)),
+      upcomingName: later?.name || "",
+      upcomingDate: later?.date || "",
+    };
+  }
+
+  const named = teasers.filter(Boolean);
+  const first = named[0] || null;
+  if (!first) return empty;
+  if (isCurrentWeek(first.date, now)) {
+    const next = named[1] || null;
+    return {
+      ...empty,
+      thisWeekName: first.name,
+      thisWeekDate: first.date,
+      upcomingName: next?.name || "",
+      upcomingDate: next?.date || "",
+    };
+  }
+  return {
+    ...empty,
+    upcomingName: first.name,
+    upcomingDate: first.date,
+  };
 }
 
 /** First upcoming night with its own guest artist. */
@@ -189,6 +288,7 @@ function pickWhatsOnCardHero(template, nights) {
   const next = ordered[0];
   const nextUrl = heroUrl(next);
   if (nextUrl) {
+    const caption = guestImageCaption(next, template?.title || "");
     return {
       heroImageUrl: nextUrl,
       heroImage: next.heroImage || {
@@ -198,12 +298,16 @@ function pickWhatsOnCardHero(template, nights) {
       },
       heroImageAlt: next.heroImage?.alt || next.title || template?.title || "",
       heroFromDate: next.date || "",
+      imageCaption: caption?.label || "",
+      imageCaptionName: caption?.name || "",
     };
   }
   const fallback = seriesDefaultHero(template, ordered);
   return {
     ...fallback,
     heroImageAlt: fallback.heroImageAlt || template?.title || "",
+    imageCaption: "",
+    imageCaptionName: "",
   };
 }
 
@@ -388,6 +492,15 @@ function asSeriesTemplate(record) {
     recurrence: String(record.recurrence || "").trim(),
     schedule: repeating ? "repeating" : "manual",
     offer: String(record.offer || "").trim(),
+    nightSchedule: Array.isArray(record.nightSchedule)
+      ? record.nightSchedule
+          .map((slot) => ({
+            label: String(slot?.label || "").trim(),
+            startTime: String(slot?.startTime || "").trim(),
+            endTime: String(slot?.endTime || "").trim(),
+          }))
+          .filter((slot) => slot.label)
+      : [],
     heroImageUrl: record.heroImageUrl || record.heroImage?.url || null,
     heroImage: record.heroImage || null,
     heroObjectPosition:
@@ -404,6 +517,7 @@ function templateFromNights(seriesId, nights) {
     shortDescription: first.shortDescription || "",
     recurrence: first.recurrence || "",
     schedule: first.recurrence ? "repeating" : "manual",
+    nightSchedule: Array.isArray(first.nightSchedule) ? first.nightSchedule : [],
     heroImageUrl: first.seriesHeroImageUrl || null,
     heroObjectPosition: first.seriesHeroObjectPosition || "",
   });
@@ -433,6 +547,9 @@ function summarizeSeries(template, nights) {
     shortDescription,
     artist: "",
     offer: series.offer || "",
+    nightSchedule: Array.isArray(series.nightSchedule)
+      ? series.nightSchedule
+      : [],
     recurrence: series.recurrence,
     schedule: series.schedule,
     scheduleLabel,
@@ -518,7 +635,10 @@ export function buildWhatsOnStack(
       row.title,
       row.regular ? 0 : 1,
     );
-    const teaser = upcomingEventTeaser(identity);
+    const diary = seriesDiary(row.nights, row.title, {
+      now,
+      regular: row.regular,
+    });
     return {
       id: row.seriesId,
       seriesId: row.seriesId,
@@ -530,9 +650,15 @@ export function buildWhatsOnStack(
       }),
       artist: identity?.artist || "",
       upcoming: upcomingEventLine(identity),
-      upcomingDate: teaser?.date || "",
-      upcomingName: teaser?.name || "",
+      hostName: diary.hostName,
+      hostDate: diary.hostDate,
+      hostThisWeek: diary.hostThisWeek,
+      thisWeekDate: diary.thisWeekDate,
+      thisWeekName: diary.thisWeekName,
+      upcomingDate: diary.upcomingDate,
+      upcomingName: diary.upcomingName,
       offer: row.offer,
+      nightSchedule: row.nightSchedule || [],
       date: row.nextDate,
       startTime: row.startTime,
       endTime: row.endTime,
@@ -543,6 +669,8 @@ export function buildWhatsOnStack(
       weekdayRank: row.weekdayRank,
       heroImageUrl: cardHero.heroImageUrl,
       heroImage: cardHero.heroImage,
+      imageCaption: cardHero.imageCaption || "",
+      imageCaptionName: cardHero.imageCaptionName || "",
       regular: row.regular,
       richDetail: row.richDetail,
       href: row.href,
@@ -628,14 +756,19 @@ export function buildSeriesDetail(
       maxParagraphs: 3,
     },
   );
-  const pageNights = page.events.map((night) => ({
-    ...night,
-    heroImageUrl: heroUrl(night) || seriesHero,
-    description: nightPublicDescription(night, {
-      ...seriesSummary,
-      description: seriesSummary.fullDescription || seriesSummary.description,
-    }),
-  }));
+  const pageNights = page.events.map((night) => {
+    const caption = guestImageCaption(night, seriesSummary.title);
+    return {
+      ...night,
+      heroImageUrl: heroUrl(night) || seriesHero,
+      imageCaption: caption?.label || "",
+      imageCaptionName: caption?.name || "",
+      description: nightPublicDescription(night, {
+        ...seriesSummary,
+        description: seriesSummary.fullDescription || seriesSummary.description,
+      }),
+    };
+  });
 
   const nextNight = pageNights[0] || null;
   const featuredGuest =

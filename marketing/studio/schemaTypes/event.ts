@@ -198,6 +198,46 @@ export const event = defineType({
       initialValue: "23:00",
     }),
     defineField({
+      name: "nightSchedule",
+      title: "Night schedule",
+      type: "array",
+      description:
+        "Structured schedule for the night (open decks, chess, live set). Shown on What's on when present.",
+      of: [
+        defineArrayMember({
+          type: "object",
+          name: "slot",
+          fields: [
+            defineField({
+              name: "label",
+              title: "Label",
+              type: "string",
+              validation: (rule) => rule.required(),
+            }),
+            defineField({
+              name: "startTime",
+              title: "Start",
+              type: "string",
+              description: "24-hour HH:mm",
+            }),
+            defineField({
+              name: "endTime",
+              title: "End",
+              type: "string",
+              description: "24-hour HH:mm",
+            }),
+          ],
+          preview: {
+            select: { title: "label", start: "startTime", end: "endTime" },
+            prepare({ title, start, end }) {
+              const when = [start, end].filter(Boolean).join("–");
+              return { title: title || "Slot", subtitle: when || undefined };
+            },
+          },
+        }),
+      ],
+    }),
+    defineField({
       name: "rsvpConfirmation",
       title: "RSVP confirmation email",
       type: "object",

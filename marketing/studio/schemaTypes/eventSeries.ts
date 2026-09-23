@@ -58,6 +58,44 @@ export const eventSeries = defineType({
       description: "Series copy on the What's on series page.",
     }),
     defineField({
+      name: "nightSchedule",
+      title: "Night schedule",
+      type: "array",
+      description:
+        "Default schedule for nights in this series (open decks, chess, sets).",
+      of: [
+        {
+          type: "object",
+          name: "slot",
+          fields: [
+            defineField({
+              name: "label",
+              title: "Label",
+              type: "string",
+              validation: (rule) => rule.required(),
+            }),
+            defineField({
+              name: "startTime",
+              title: "Start",
+              type: "string",
+            }),
+            defineField({
+              name: "endTime",
+              title: "End",
+              type: "string",
+            }),
+          ],
+          preview: {
+            select: { title: "label", start: "startTime", end: "endTime" },
+            prepare({ title, start, end }) {
+              const when = [start, end].filter(Boolean).join("–");
+              return { title: title || "Slot", subtitle: when || undefined };
+            },
+          },
+        },
+      ],
+    }),
+    defineField({
       name: "heroImage",
       title: "Default hero",
       type: "image",

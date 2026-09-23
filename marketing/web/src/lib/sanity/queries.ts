@@ -13,6 +13,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   "endTime": ticketEnd,
   date,
   shortDescription,
+  nightSchedule[]{ label, startTime, endTime },
   description,
   heroImage {
     alt,
@@ -42,6 +43,7 @@ export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   schedule,
   recurrence,
   shortDescription,
+  nightSchedule[]{ label, startTime, endTime },
   description,
   heroImage {
     alt,

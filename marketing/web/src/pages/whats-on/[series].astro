@@ -1,5 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import EventImageCaption from "../../components/EventImageCaption.astro";
+import EventNightSchedule from "../../components/EventNightSchedule.astro";
 import Subpage from "../../components/Subpage.astro";
 import { siteConfig } from "../../config/site";
 import {
@@ -50,6 +52,11 @@ const mainDescription = featuredGuest?.description || detail.description;
 const mainArtist = featuredGuest?.artist || "";
 const mainOffer = featuredGuest?.offer || detail.offer || "";
 const mainImage = featuredGuest?.heroImageUrl || detail.heroImageUrl;
+const mainSchedule =
+  (Array.isArray(featuredGuest?.nightSchedule) &&
+  featuredGuest.nightSchedule.length
+    ? featuredGuest.nightSchedule
+    : detail.nightSchedule) || [];
 
 function eventImageUrl(
   url: string | null | undefined,
@@ -97,6 +104,23 @@ function eventImageUrl(
                 src={eventImageUrl(mainImage, 1800)}
                 alt={featuredGuest?.heroImage?.alt || detail.title}
                 loading="eager"
+                style={
+                  featuredGuest?.heroImage?.objectPosition ||
+                  featuredGuest?.heroObjectPosition ||
+                  detail.heroImage?.objectPosition ||
+                  detail.heroObjectPosition
+                    ? `object-position: ${
+                        featuredGuest?.heroImage?.objectPosition ||
+                        featuredGuest?.heroObjectPosition ||
+                        detail.heroImage?.objectPosition ||
+                        detail.heroObjectPosition
+                      }`
+                    : undefined
+                }
+              />
+              <EventImageCaption
+                label={featuredGuest?.imageCaption}
+                name={featuredGuest?.imageCaptionName}
               />
             </figure>
           ) : (
@@ -117,6 +141,7 @@ function eventImageUrl(
             {mainArtist ? (
               <p class="event-artist">Special guest · {mainArtist}</p>
             ) : null}
+            <EventNightSchedule slots={mainSchedule} />
             {mainDescription ? (
               <div class="event-description">
                 {eventDescriptionParagraphs(mainDescription).map(
@@ -171,6 +196,19 @@ function eventImageUrl(
                         src={image}
                         alt={event.heroImage?.alt || event.title}
                         loading={index === 0 ? "eager" : "lazy"}
+                        style={
+                          event.heroImage?.objectPosition ||
+                          event.heroObjectPosition
+                            ? `object-position: ${
+                                event.heroImage?.objectPosition ||
+                                event.heroObjectPosition
+                              }`
+                            : undefined
+                        }
+                      />
+                      <EventImageCaption
+                        label={event.imageCaption}
+                        name={event.imageCaptionName}
                       />
                     </figure>
                   ) : (
@@ -207,6 +245,14 @@ function eventImageUrl(
                     {event.artist ? (
                       <p class="event-artist">{event.artist}</p>
                     ) : null}
+                    <EventNightSchedule
+                      slots={
+                        Array.isArray(event.nightSchedule) &&
+                        event.nightSchedule.length
+                          ? event.nightSchedule
+                          : detail.nightSchedule
+                      }
+                    />
                     <div class="event-description">
                       {eventDescriptionParagraphs(
                         event.description,

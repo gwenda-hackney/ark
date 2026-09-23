@@ -1,0 +1,43 @@
+---
+import { formatEventSpan } from "../data/events";
+
+type NightSlot = {
+  label?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+};
+
+type Props = {
+  slots?: NightSlot[] | null;
+  class?: string;
+};
+
+const { slots = [], class: className = "" } = Astro.props as Props;
+
+const rows = (Array.isArray(slots) ? slots : [])
+  .map((slot) => {
+    const label = String(slot?.label || "").trim();
+    if (!label) return null;
+    const when = formatEventSpan(slot?.startTime, slot?.endTime);
+    return { label, when };
+  })
+  .filter((row): row is { label: string; when: string } => Boolean(row));
+---
+
+{
+  rows.length ? (
+    <div class:list={["night-schedule", className]}>
+      <p class="night-schedule-label">Schedule</p>
+      <ol class="night-schedule-list">
+        {rows.map((row) => (
+          <li>
+            {row.when ? (
+              <span class="night-schedule-time">{row.when}</span>
+            ) : null}
+            <span class="night-schedule-item">{row.label}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  ) : null
+}

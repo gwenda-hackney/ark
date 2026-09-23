@@ -38,7 +38,50 @@ function eventMedia(event, eager, width = 1200) {
     event.heroImage?.objectPosition || event.heroObjectPosition || "";
   if (position) img.style.objectPosition = position;
   figure.appendChild(img);
+  const captionName = String(event.imageCaptionName || "").trim();
+  if (captionName) {
+    const caption = document.createElement("figcaption");
+    caption.className = "event-media-caption";
+    const kicker = document.createElement("span");
+    kicker.className = "event-media-caption-kicker";
+    kicker.textContent =
+      String(event.imageCaption || "").trim() || "Next at Gwenda";
+    const who = document.createElement("span");
+    who.className = "event-media-caption-name";
+    who.textContent = captionName;
+    caption.append(kicker, who);
+    figure.appendChild(caption);
+  }
   return figure;
+}
+
+function teaserLine(label, isoDate, name) {
+  const line = document.createElement("p");
+  line.className = "event-next";
+  const kicker = document.createElement("span");
+  kicker.className = "event-next-label";
+  kicker.textContent = label;
+  line.appendChild(kicker);
+  const when = isoDate ? formatShortEventDate(isoDate) : "";
+  if (when) {
+    const sep = document.createElement("span");
+    sep.className = "event-next-sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = "·";
+    const time = document.createElement("time");
+    time.dateTime = isoDate;
+    time.textContent = when;
+    line.append(sep, time);
+  }
+  const sepName = document.createElement("span");
+  sepName.className = "event-next-sep";
+  sepName.setAttribute("aria-hidden", "true");
+  sepName.textContent = "·";
+  const who = document.createElement("span");
+  who.className = "event-next-name";
+  who.textContent = name;
+  line.append(sepName, who);
+  return line;
 }
 
 function eventDescription(description, className = "event-description", legacyTime = "") {
@@ -61,7 +104,26 @@ function seriesCard(event, { eager = false } = {}) {
   card.className = `event-card event-card--series${regular ? " event-card--regular" : ""}`;
   if (href) {
     card.href = href;
-    card.setAttribute("aria-label", event.title);
+    const captionName = String(event.imageCaptionName || "").trim();
+    const hostName = String(event.hostName || "").trim();
+    const hostDate = String(event.hostDate || "").trim();
+    const label = [
+      event.title,
+      hostName ? `hosts ${hostName}` : "",
+      hostDate
+        ? `${event.hostThisWeek ? "This week, " : ""}${formatShortEventDate(hostDate)}`
+        : "",
+      String(event.thisWeekName || "").trim()
+        ? `This week, ${event.thisWeekName}`
+        : "",
+      String(event.upcomingName || "").trim()
+        ? `Next, ${event.upcomingName}`
+        : "",
+      captionName ? `Next at Gwenda, ${captionName}` : "",
+    ]
+      .filter(Boolean)
+      .join(". ");
+    card.setAttribute("aria-label", label);
   }
 
   card.appendChild(eventMedia(event, eager, 960));
@@ -99,36 +161,46 @@ function seriesCard(event, { eager = false } = {}) {
   title.textContent = event.title;
   copy.append(date, title);
 
+  const hostName = String(event.hostName || "").trim();
+  const hostDate = String(event.hostDate || "").trim();
+  const hostThisWeek = Boolean(event.hostThisWeek);
+  if (hostName) {
+    const hosts = document.createElement("p");
+    hosts.className = "event-hosts";
+    const line = document.createElement("span");
+    line.className = "event-hosts-line";
+    line.append("hosts ");
+    const who = document.createElement("span");
+    who.className = "event-hosts-name";
+    who.textContent = hostName;
+    line.appendChild(who);
+    hosts.appendChild(line);
+    if (hostDate && !hostThisWeek) {
+      const time = document.createElement("time");
+      time.className = "event-hosts-date";
+      time.dateTime = hostDate;
+      time.textContent = formatShortEventDate(hostDate);
+      hosts.appendChild(time);
+    }
+    copy.appendChild(hosts);
+  }
+
+  if (hostThisWeek && hostName) {
+    copy.appendChild(teaserLine("This week", hostDate, hostName));
+  }
+  const thisWeekName = String(event.thisWeekName || "").trim();
+  if (thisWeekName) {
+    copy.appendChild(
+      teaserLine("This week", String(event.thisWeekDate || ""), thisWeekName),
+    );
+  }
+
   const upcomingName = String(event.upcomingName || "").trim();
   if (upcomingName) {
-    const next = document.createElement("p");
-    next.className = "event-next";
-    const label = document.createElement("span");
-    label.className = "event-next-label";
-    label.textContent = "Next";
-    next.appendChild(label);
-    const upcomingDate = String(event.upcomingDate || "").trim();
-    const when = upcomingDate ? formatShortEventDate(upcomingDate) : "";
-    if (when) {
-      const sep = document.createElement("span");
-      sep.className = "event-next-sep";
-      sep.setAttribute("aria-hidden", "true");
-      sep.textContent = "·";
-      const time = document.createElement("time");
-      time.dateTime = upcomingDate;
-      time.textContent = when;
-      next.append(sep, time);
-    }
-    const sepName = document.createElement("span");
-    sepName.className = "event-next-sep";
-    sepName.setAttribute("aria-hidden", "true");
-    sepName.textContent = "·";
-    const name = document.createElement("span");
-    name.className = "event-next-name";
-    name.textContent = upcomingName;
-    next.append(sepName, name);
-    copy.appendChild(next);
-  } else {
+    copy.appendChild(
+      teaserLine("Next", String(event.upcomingDate || ""), upcomingName),
+    );
+  } else if (!hostName && !thisWeekName) {
     const upcoming = String(event.upcoming || "").trim();
     if (upcoming) {
       const guest = document.createElement("p");
