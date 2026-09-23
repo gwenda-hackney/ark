@@ -141,6 +141,10 @@ describe("buildWhatsOnStack", () => {
     expect(stack[1].href).toBe("/whats-on/gwenda-nights");
     expect(stack[1].nightCount).toBe(3);
     expect(stack[1].heroImageUrl).toBe("https://cdn.example/vbrave.jpg");
+    expect(stack[1].hostName).toBe("Vbrave Vinyl Session");
+    expect(stack[1].hostDate).toBe("2026-10-10");
+    expect(stack[1].hostThisWeek).toBe(false);
+    expect(stack[1].thisWeekName).toBe("");
     expect(stack[1].upcoming).toBe("Next · Sat 24 Oct · The Bohemianauts");
     expect(stack[1].upcomingName).toBe("The Bohemianauts");
     expect(stack[1].upcomingDate).toBe("2026-10-24");
@@ -207,6 +211,8 @@ describe("buildWhatsOnStack", () => {
       ],
       { now, series: [gwendaSeries] },
     );
+    expect(stack[0].hostName).toBe("Vbrave Vinyl Session");
+    expect(stack[0].hostDate).toBe("2026-10-10");
     expect(stack[0].upcoming).toBe("Next · Sat 24 Oct · The Bohemianauts");
     expect(stack[0].upcoming).not.toBe("Vbrave Vinyl Session");
     expect(stack[0].artist).toBe("Rafa");
@@ -249,6 +255,134 @@ describe("buildWhatsOnStack", () => {
     expect(stack[0].heroImageUrl).toBe(
       "https://cdn.example/series-default.jpg",
     );
+    expect(stack[0].imageCaptionName).toBe("");
+    expect(stack[0].hostName).toBe("Vbrave Vinyl Session");
+    expect(stack[0].hostDate).toBe("2026-10-10");
+    expect(stack[0].upcomingName).toBe("");
+  });
+
+  it("marks a guest artist's own flyer as next at Gwenda", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "gwenda-nights-2026-10-24",
+          seriesId: "gwenda-nights",
+          seriesTitle: "Gwenda Nights",
+          title: "The Bohemianauts",
+          date: "2026-10-24",
+          artist: "Rafa",
+          isSpecialEdition: true,
+          heroImageUrl: "https://cdn.example/bohemianauts.jpg",
+        }),
+      ],
+      { now, series: [gwendaSeries] },
+    );
+    expect(stack[0].heroImageUrl).toBe("https://cdn.example/bohemianauts.jpg");
+    expect(stack[0].imageCaption).toBe("Next at Gwenda");
+    expect(stack[0].imageCaptionName).toBe("The Bohemianauts");
+  });
+
+  it("names the artist when the night title is still the series", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "negroni-2026-09-29",
+          seriesId: "negroni-night",
+          seriesTitle: "Negroni Night",
+          title: "Negroni Night",
+          date: "2026-09-29",
+          recurrence: "Every Tuesday",
+          artist: "Maya",
+          isSpecialEdition: true,
+          heroImageUrl: "https://cdn.example/maya.jpg",
+        }),
+      ],
+      { now, series: [negroniSeries] },
+    );
+    expect(stack[0].imageCaption).toBe("Next at Gwenda");
+    expect(stack[0].imageCaptionName).toBe("Maya");
+  });
+
+  it("leaves a guest without their own flyer unlabelled", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "negroni-2026-09-29",
+          seriesId: "negroni-night",
+          seriesTitle: "Negroni Night",
+          title: "Negroni Night",
+          date: "2026-09-29",
+          recurrence: "Every Tuesday",
+          artist: "Maya",
+          isSpecialEdition: true,
+        }),
+      ],
+      { now, series: [negroniSeries] },
+    );
+    expect(stack[0].imageCaption).toBe("");
+    expect(stack[0].imageCaptionName).toBe("");
+  });
+
+  it("calls a hosted night this week when it falls in the current week", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "gwenda-nights-2026-09-26",
+          seriesId: "gwenda-nights",
+          seriesTitle: "Gwenda Nights",
+          title: "Vbrave Vinyl Session",
+          date: "2026-09-26",
+        }),
+        night({
+          id: "gwenda-nights-2026-10-10",
+          seriesId: "gwenda-nights",
+          seriesTitle: "Gwenda Nights",
+          title: "The Bohemianauts",
+          date: "2026-10-10",
+          artist: "Rafa",
+          isSpecialEdition: true,
+        }),
+      ],
+      { now, series: [gwendaSeries] },
+    );
+    expect(stack[0].hostName).toBe("Vbrave Vinyl Session");
+    expect(stack[0].hostDate).toBe("2026-09-26");
+    expect(stack[0].hostThisWeek).toBe(true);
+    expect(stack[0].upcomingName).toBe("The Bohemianauts");
+    expect(stack[0].upcomingDate).toBe("2026-10-10");
+  });
+
+  it("labels a repeating guest this week, then the one after as next", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "negroni-2026-09-22",
+          seriesId: "negroni-night",
+          seriesTitle: "Negroni Night",
+          title: "Negroni Night",
+          date: "2026-09-22",
+          recurrence: "Every Tuesday",
+          artist: "Maya",
+          isSpecialEdition: true,
+        }),
+        night({
+          id: "negroni-2026-09-29",
+          seriesId: "negroni-night",
+          seriesTitle: "Negroni Night",
+          title: "Negroni Night",
+          date: "2026-09-29",
+          recurrence: "Every Tuesday",
+          artist: "Dan",
+          isSpecialEdition: true,
+        }),
+      ],
+      { now, series: [negroniSeries] },
+    );
+    expect(stack[0].hostName).toBe("");
+    expect(stack[0].thisWeekName).toBe("Special guest · Maya");
+    expect(stack[0].thisWeekDate).toBe("2026-09-22");
+    expect(stack[0].upcomingName).toBe("Special guest · Dan");
+    expect(stack[0].upcomingDate).toBe("2026-09-29");
   });
 });
 
@@ -342,7 +476,51 @@ describe("buildSeriesDetail", () => {
     expect(detail.richDetail).toBe(false);
     expect(detail.nights).toHaveLength(2);
     expect(detail.featuredGuest.artist).toBe("Maya");
+    expect(detail.featuredGuest.imageCaptionName).toBe("");
     expect(detail.upcomingDates).toHaveLength(2);
+  });
+
+  it("captions a scheduled night only when the flyer is the guest's", () => {
+    const detail = buildSeriesDetail(
+      [
+        night({
+          id: "gwenda-nights-2026-10-10",
+          seriesId: "gwenda-nights",
+          seriesTitle: "Gwenda Nights",
+          title: "Vbrave Vinyl Session",
+          date: "2026-10-10",
+          heroImageUrl: "https://cdn.example/vbrave.jpg",
+        }),
+        night({
+          id: "gwenda-nights-2026-10-24",
+          seriesId: "gwenda-nights",
+          seriesTitle: "Gwenda Nights",
+          title: "The Bohemianauts",
+          date: "2026-10-24",
+          artist: "Rafa",
+          isSpecialEdition: true,
+          heroImageUrl: "https://cdn.example/bohemianauts.jpg",
+        }),
+        night({
+          id: "gwenda-nights-2026-10-31",
+          seriesId: "gwenda-nights",
+          seriesTitle: "Gwenda Nights",
+          title: "Halloween",
+          date: "2026-10-31",
+          artist: "Saif",
+          isSpecialEdition: true,
+        }),
+      ],
+      "gwenda-nights",
+      { now, limit: 10, series: [gwendaSeries] },
+    );
+    expect(detail.nights[0].imageCaptionName).toBe("");
+    expect(detail.nights[1].imageCaption).toBe("Next at Gwenda");
+    expect(detail.nights[1].imageCaptionName).toBe("The Bohemianauts");
+    expect(detail.nights[2].heroImageUrl).toBe(
+      "https://cdn.example/series-default.jpg",
+    );
+    expect(detail.nights[2].imageCaptionName).toBe("");
   });
 });
 

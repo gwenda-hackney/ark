@@ -12,6 +12,12 @@ export type Event = {
   time?: string;
   startTime?: string;
   endTime?: string;
+  /** Structured night slots (open decks, chess, sets). */
+  nightSchedule?: Array<{
+    label: string;
+    startTime?: string;
+    endTime?: string;
+  }>;
   /** ISO date — YYYY-MM-DD */
   date: string;
   /** Card blurb on What's on. */
@@ -31,6 +37,11 @@ export type EventSeries = {
   recurrence?: string;
   schedule?: "manual" | "repeating";
   offer?: string;
+  nightSchedule?: Array<{
+    label: string;
+    startTime?: string;
+    endTime?: string;
+  }>;
   heroImageUrl?: string | null;
   heroObjectPosition?: string | null;
 };

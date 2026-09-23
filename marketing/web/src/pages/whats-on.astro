@@ -1,5 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import EventImageCaption from "../components/EventImageCaption.astro";
+import EventNightSchedule from "../components/EventNightSchedule.astro";
 import Subpage from "../components/Subpage.astro";
 import { siteConfig } from "../config/site";
 import {
@@ -116,7 +118,19 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                   <a
                     class={`event-card event-card--series${regular ? " event-card--regular" : ""}`}
                     href={href || "/whats-on"}
-                    aria-label={event.title}
+                    aria-label={[
+                      event.title,
+                      event.hostName ? `hosts ${event.hostName}` : "",
+                      event.hostDate
+                        ? `${event.hostThisWeek ? "This week, " : ""}${formatShortEventDate(event.hostDate)}`
+                        : "",
+                      event.thisWeekName
+                        ? `This week, ${event.thisWeekName}`
+                        : "",
+                      event.upcomingName ? `Next, ${event.upcomingName}` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(". ")}
                   >
                   {image ? (
                     <figure class="event-media">
@@ -126,6 +140,7 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                         alt={
                           event.heroImage?.alt ||
                           event.heroImageAlt ||
+                          event.imageCaptionName ||
                           event.title
                         }
                         loading={index === 0 ? "eager" : "lazy"}
@@ -134,6 +149,10 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                             ? `object-position: ${event.heroImage.objectPosition}`
                             : undefined
                         }
+                      />
+                      <EventImageCaption
+                        label={event.imageCaption}
+                        name={event.imageCaptionName}
                       />
                     </figure>
                   ) : (
@@ -168,6 +187,59 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                       ) : null}
                     </p>
                     <h2 class="event-title">{event.title}</h2>
+                    {event.hostName ? (
+                      <p class="event-hosts">
+                        <span class="event-hosts-line">
+                          hosts <span class="event-hosts-name">{event.hostName}</span>
+                        </span>
+                        {event.hostDate && !event.hostThisWeek ? (
+                          <time
+                            class="event-hosts-date"
+                            datetime={event.hostDate}
+                          >
+                            {formatShortEventDate(event.hostDate)}
+                          </time>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    {event.hostThisWeek && event.hostName ? (
+                      <p class="event-next">
+                        <span class="event-next-label">This week</span>
+                        {event.hostDate ? (
+                          <>
+                            <span class="event-next-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <time datetime={event.hostDate}>
+                              {formatShortEventDate(event.hostDate)}
+                            </time>
+                          </>
+                        ) : null}
+                        <span class="event-next-sep" aria-hidden="true">
+                          ·
+                        </span>
+                        <span class="event-next-name">{event.hostName}</span>
+                      </p>
+                    ) : null}
+                    {event.thisWeekName ? (
+                      <p class="event-next">
+                        <span class="event-next-label">This week</span>
+                        {event.thisWeekDate ? (
+                          <>
+                            <span class="event-next-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <time datetime={event.thisWeekDate}>
+                              {formatShortEventDate(event.thisWeekDate)}
+                            </time>
+                          </>
+                        ) : null}
+                        <span class="event-next-sep" aria-hidden="true">
+                          ·
+                        </span>
+                        <span class="event-next-name">{event.thisWeekName}</span>
+                      </p>
+                    ) : null}
                     {event.upcomingName ? (
                       <p class="event-next">
                         <span class="event-next-label">Next</span>
@@ -190,6 +262,7 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                     {event.offer ? (
                       <p class="event-offer">{event.offer}</p>
                     ) : null}
+                    <EventNightSchedule slots={event.nightSchedule} />
                     {event.description ? (
                       <div class="event-description">
                         {eventDescriptionParagraphs(event.description).map(

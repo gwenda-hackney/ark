@@ -20,6 +20,7 @@ const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") =
   "endTime": ticketEnd,
   date,
   shortDescription,
+  nightSchedule[]{ label, startTime, endTime },
   description,
   "heroAssetUrl": heroImage.asset->url,
   "heroCrop": heroImage.crop,
@@ -37,6 +38,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   schedule,
   recurrence,
   shortDescription,
+  nightSchedule[]{ label, startTime, endTime },
   description,
   "heroAssetUrl": heroImage.asset->url,
   "heroCrop": heroImage.crop,
@@ -63,6 +65,15 @@ export async function fetchPublishedEvents(env) {
       endTime: row.endTime || "",
       date: row.date,
       shortDescription: String(row.shortDescription || "").trim(),
+      nightSchedule: Array.isArray(row.nightSchedule)
+        ? row.nightSchedule
+            .map((slot) => ({
+              label: String(slot?.label || "").trim(),
+              startTime: String(slot?.startTime || "").trim(),
+              endTime: String(slot?.endTime || "").trim(),
+            }))
+            .filter((slot) => slot.label)
+        : [],
       description: portableTextToPlain(row.description),
       heroImageUrl: resolveHeroUrl(row),
       heroObjectPosition: objectPositionFromHotspot(
@@ -87,6 +98,15 @@ export async function fetchPublishedSeries(env) {
       schedule: row.schedule === "repeating" ? "repeating" : "manual",
       recurrence: row.recurrence || "",
       shortDescription: String(row.shortDescription || "").trim(),
+      nightSchedule: Array.isArray(row.nightSchedule)
+        ? row.nightSchedule
+            .map((slot) => ({
+              label: String(slot?.label || "").trim(),
+              startTime: String(slot?.startTime || "").trim(),
+              endTime: String(slot?.endTime || "").trim(),
+            }))
+            .filter((slot) => slot.label)
+        : [],
       description: portableTextToPlain(row.description),
       heroImageUrl: resolveHeroUrl(row),
       heroObjectPosition: objectPositionFromHotspot(

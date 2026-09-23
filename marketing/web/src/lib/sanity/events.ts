@@ -27,10 +27,28 @@ type SanityEvent = {
   endTime?: string | null;
   date: string;
   shortDescription?: string | null;
+  nightSchedule?: Array<{
+    label?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+  }> | null;
   description: string | PortableTextBlock[];
   heroImage?: SanityImageField;
   seriesHeroImage?: SanityImageField;
 };
+
+function mapNightSchedule(
+  value: SanityEvent["nightSchedule"],
+): Event["nightSchedule"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((slot) => ({
+      label: String(slot?.label || "").trim(),
+      startTime: String(slot?.startTime || "").trim(),
+      endTime: String(slot?.endTime || "").trim(),
+    }))
+    .filter((slot) => slot.label);
+}
 
 function mapEvent(doc: SanityEvent): Event | null {
   const description = portableTextToPlain(doc.description);
@@ -55,6 +73,7 @@ function mapEvent(doc: SanityEvent): Event | null {
     endTime: doc.endTime?.trim() || "",
     date: doc.date,
     shortDescription: doc.shortDescription?.trim() || "",
+    nightSchedule: mapNightSchedule(doc.nightSchedule),
     description,
     heroImage: hero || mapSanityImage(doc.heroImage, doc.title),
     seriesHeroImageUrl: seriesHero?.url || null,
@@ -75,6 +94,7 @@ type SanitySeries = {
   schedule?: string | null;
   recurrence?: string | null;
   shortDescription?: string | null;
+  nightSchedule?: SanityEvent["nightSchedule"];
   description?: string | PortableTextBlock[] | null;
   heroImage?: SanityImageField;
 };
@@ -88,6 +108,7 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
     schedule: doc.schedule === "repeating" ? "repeating" : "manual",
     recurrence: doc.recurrence?.trim() || "",
     shortDescription: doc.shortDescription?.trim() || "",
+    nightSchedule: mapNightSchedule(doc.nightSchedule),
     description: portableTextToPlain(doc.description || ""),
     heroImageUrl: hero?.url || null,
     heroObjectPosition: hero?.objectPosition || null,
