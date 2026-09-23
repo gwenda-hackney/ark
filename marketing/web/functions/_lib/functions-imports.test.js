@@ -13,6 +13,7 @@ const modules = [
   "../health.js",
   "../api/events.js",
   "../api/whats-on.js",
+  "../api/whats-on/schedule.js",
   "../api/whats-on/[series].js",
   "../api/auth.js",
   "../api/staging-share.js",

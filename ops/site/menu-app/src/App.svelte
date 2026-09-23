@@ -15,6 +15,7 @@
 	import UsersPage from "./features/users/UsersPage.svelte";
 	import WebPage from "./features/web/WebPage.svelte";
 	import EventsPage from "./features/events/EventsPage.svelte";
+	import ArtistsPage from "./features/artists/ArtistsPage.svelte";
 	import ToolFrame from "./features/tools/ToolFrame.svelte";
 	import { parseShellPath, shellPageKey, readPath } from "./lib/nav";
 	import { NAV_ROUTES } from "./lib/nav-routes";
@@ -80,6 +81,8 @@
 						<WebPage />
 					{:else if key === "events"}
 						<EventsPage path={current} />
+					{:else if key === "artists"}
+						<ArtistsPage path={current} />
 					{:else if key === "sections"}
 						<SectionsPage />
 					{:else if key === "config"}

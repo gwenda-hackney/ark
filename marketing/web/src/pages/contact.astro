@@ -3,8 +3,13 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Subpage from "../components/Subpage.astro";
 import { siteConfig } from "../config/site";
 import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
+import { withHome } from "../lib/site-nav.js";
 
 const { contactPage } = siteConfig.copy;
+const contactNav = withHome([
+  { href: "/list", label: contactPage.listHeading },
+  { href: formPublicPath(PLAY_FORM_SLUG), label: contactPage.playHeading },
+]);
 ---
 
 <BaseLayout
@@ -12,7 +17,11 @@ const { contactPage } = siteConfig.copy;
   description={siteConfig.seo.contact.description}
   showBooking={false}
 >
-  <Subpage class="contact-hub" innerClass="contact-hub-inner" href="/">
+  <Subpage
+    class="contact-hub"
+    innerClass="contact-hub-inner"
+    navItems={contactNav}
+  >
     <header class="contact-hub-header reveal">
       <p class="section-eyebrow">{contactPage.eyebrow}</p>
       <h1>{contactPage.heading}</h1>

@@ -1,14 +1,17 @@
 ---
 import Header, { type NavItem } from "./Header.astro";
-import SubpageChrome from "./SubpageChrome.astro";
+import { withHome } from "../lib/site-nav.js";
 
 interface Props {
   /** Extra classes on `<main>` for page-specific layout hooks. */
   class?: string;
   /** Extra classes on the inner `.container`. */
   innerClass?: string;
-  /** Back chip destination. */
+  /**
+   * @deprecated The wordmark goes home. Pass `navItems` for a page menu.
+   */
   href?: string;
+  /** @deprecated */
   label?: string;
   /** Wordmark home link. */
   homeHref?: string;
@@ -24,8 +27,8 @@ interface Props {
   /** Hide logo + back (rare). */
   showChrome?: boolean;
   /**
-   * Collapsed hamburger menu. When set, replaces the back chip with the
-   * home header chrome and these page links.
+   * This page's menu: Home, then anchors and subpages.
+   * Do not pass the home page links.
    */
   navItems?: NavItem[];
 }
@@ -33,13 +36,11 @@ interface Props {
 const {
   class: className,
   innerClass,
-  href = "/",
-  label = "← Back",
   homeHref = "/",
   layout,
   flush = false,
   showChrome = true,
-  navItems,
+  navItems = withHome(),
 } = Astro.props;
 
 const isSplit = layout === "split" || flush;
@@ -47,10 +48,8 @@ const isSplit = layout === "split" || flush;
 
 <main class:list={["subpage", isSplit && "subpage--split", className]}>
   {
-    showChrome && navItems ? (
+    showChrome ? (
       <Header items={navItems} collapsed logoHref={homeHref} />
-    ) : showChrome ? (
-      <SubpageChrome href={href} label={label} homeHref={homeHref} />
     ) : null
   }
   <slot name="aside" />

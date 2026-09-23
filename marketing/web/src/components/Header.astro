@@ -3,10 +3,13 @@ import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
 import { headerLogo } from "../lib/hero-assets";
+import { shouldReloadNavLink } from "../lib/site-nav.js";
 
 export interface NavItem {
   href: string;
   label: string;
+  /** Gold join link, same as the home menu. */
+  cta?: boolean;
 }
 
 interface Props {
@@ -59,7 +62,15 @@ const {
 <nav class="site-header-nav" id="site-header-nav">
   {
     items ? (
-      items.map((item) => <a href={item.href}>{item.label}</a>)
+      items.map((item) => (
+        <a
+          href={item.href}
+          class:list={[item.cta && "site-header-cta"]}
+          data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+        >
+          {item.label}
+        </a>
+      ))
     ) : (
       <>
         <a href="#story">Story</a>

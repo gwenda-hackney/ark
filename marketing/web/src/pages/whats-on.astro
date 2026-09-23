@@ -16,6 +16,8 @@ import {
   buildWhatsOnHome,
   formatShortEventDate,
 } from "../../functions/_lib/event-series.js";
+import { diaryGroups } from "../lib/diary-groups.js";
+import { whatsOnNavItems } from "../lib/site-nav.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 
 const { series: seriesRecords, occurrences } =
@@ -30,7 +32,15 @@ const seriesNights = nights.filter((event) => event.schedule !== "once");
 const specialNights = nights.filter((event) => event.schedule === "once");
 const diaryEntries = [
   ...(seriesNights.length && specialNights.length
-    ? [{ kind: "label" as const, id: "series", label: "Series", lead: true }]
+    ? [
+        {
+          kind: "label" as const,
+          id: diaryGroups.series.id,
+          label: diaryGroups.series.label,
+          tagline: diaryGroups.series.tagline,
+          lead: true,
+        },
+      ]
     : []),
   ...seriesNights.map((event, index) => ({
     kind: "card" as const,
@@ -41,8 +51,9 @@ const diaryEntries = [
     ? [
         {
           kind: "label" as const,
-          id: "special",
-          label: "Special events",
+          id: diaryGroups.special.id,
+          label: diaryGroups.special.label,
+          tagline: diaryGroups.special.tagline,
           lead: seriesNights.length === 0,
         },
       ]
@@ -53,13 +64,7 @@ const diaryEntries = [
     eager: seriesNights.length === 0 && index === 0,
   })),
 ];
-const showSeriesNav = seriesNights.length > 0 && specialNights.length > 0;
-const showSpecialNav = specialNights.length > 0;
-const whatsOnNav = [
-  { href: "/", label: "Back" },
-  ...(showSeriesNav ? [{ href: "#series", label: "Series" }] : []),
-  ...(showSpecialNav ? [{ href: "#special", label: "Special events" }] : []),
-];
+const whatsOnNav = whatsOnNavItems(nights);
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.whatsOn;
 
@@ -154,6 +159,7 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                     data-group={entry.id}
                   >
                     <h2 class="whats-on-group-label">{entry.label}</h2>
+                    <p class="whats-on-group-tagline">{entry.tagline}</p>
                   </li>
                 );
               }

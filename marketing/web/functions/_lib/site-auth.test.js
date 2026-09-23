@@ -63,6 +63,8 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/invite/abc123")).toBe(true);
     expect(isPublicPath("/api/whats-on")).toBe(true);
     expect(isPublicPath("/whats-on")).toBe(true);
+    expect(isPublicPath("/whats-on/schedule")).toBe(true);
+    expect(isPublicPath("/api/whats-on/schedule")).toBe(true);
     expect(isPublicPath("/whats-on/negroni-night")).toBe(true);
     expect(isPublicPath("/whats-on/negroni-night/2026-09-29")).toBe(true);
     expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01")).toBe(true);

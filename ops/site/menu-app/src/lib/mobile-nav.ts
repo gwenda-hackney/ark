@@ -64,6 +64,7 @@ export function mobileTabFor(path: string): MobileTabId {
 		page === "users" ||
 		page === "web" ||
 		page === "events" ||
+		page === "artists" ||
 		page === "lightspeed" ||
 		page === "tools"
 	)

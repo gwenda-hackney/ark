@@ -1,0 +1,166 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Subpage from "../../components/Subpage.astro";
+import { isStaging } from "../../config/env";
+import { siteConfig } from "../../config/site";
+import { formatEventSpan, getUpcomingEvents } from "../../data/events";
+import {
+  buildPublicSchedule,
+  formatShortEventDate,
+} from "../../../functions/_lib/event-series.js";
+import { scheduleNavItems } from "../../lib/site-nav.js";
+import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
+
+const { series: seriesRecords, occurrences } =
+  await fetchWhatsOnCatalog().catch(() => ({ series: [], occurrences: [] }));
+const upcomingEvents = getUpcomingEvents(occurrences);
+const { weeks } = buildPublicSchedule(occurrences, { series: seriesRecords });
+const scheduleNav = scheduleNavItems(weeks);
+const hasContent = weeks.length > 0;
+const scheduleEntries = weeks.flatMap((week, index) => [
+  {
+    kind: "label" as const,
+    id: week.id,
+    label: week.label,
+    lead: index === 0,
+  },
+  ...week.nights.map((night) => ({ kind: "night" as const, night })),
+]);
+const { title: pageTitle, description: pageDescription } =
+  siteConfig.seo.schedule;
+
+const eventSchema = upcomingEvents.slice(0, 24).map((event) => ({
+  "@type": "Event",
+  name: event.title,
+  startDate: event.date,
+  description: event.description,
+  ...(event.artist
+    ? { performer: { "@type": "Person", name: event.artist } }
+    : {}),
+  eventStatus: "https://schema.org/EventScheduled",
+  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+  location: {
+    "@type": "Place",
+    name: siteConfig.name,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: siteConfig.location.streetAddress,
+      addressLocality: siteConfig.location.addressLocality,
+      postalCode: siteConfig.location.postalCode,
+    },
+  },
+  organizer: {
+    "@type": "Organization",
+    name: siteConfig.name,
+    url: siteConfig.domain,
+  },
+}));
+
+function nightWhen(isoDate: string): string {
+  return formatShortEventDate(isoDate);
+}
+
+function nightTime(night: {
+  startTime?: string;
+  endTime?: string;
+  time?: string;
+}): string {
+  return formatEventSpan(night.startTime, night.endTime, night.time);
+}
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": eventSchema,
+    })}
+  />
+
+  <Subpage
+    class="schedule-page events-page"
+    innerClass="schedule-inner"
+    navItems={scheduleNav}
+  >
+    <header class="section-header events-header reveal">
+      <p class="section-eyebrow">Diary</p>
+      <h1>Schedule</h1>
+      <p>Every night at Gwenda, from this week on.</p>
+    </header>
+
+    <p
+      id="schedule-loading"
+      class="events-loading"
+      hidden={hasContent && !isStaging}
+    >
+      Looking at the diary…
+    </p>
+    <section
+      id="schedule-empty"
+      class="events-empty reveal"
+      hidden={hasContent}
+    >
+      <p class="events-empty-date">The diary is quiet</p>
+      <h2>Nothing announced yet</h2>
+      <p>There is always something taking shape. Check back soon.</p>
+    </section>
+
+    <div id="schedule-content">
+      {
+        scheduleEntries.length ? (
+          <ol class="schedule-list">
+            {scheduleEntries.map((entry) => {
+              if (entry.kind === "label") {
+                return (
+                  <li
+                    id={`week-${entry.id}`}
+                    class={`whats-on-divider${entry.lead ? " whats-on-divider--lead" : ""}`}
+                  >
+                    <h2 class="whats-on-group-label">{entry.label}</h2>
+                  </li>
+                );
+              }
+              const night = entry.night;
+              const when = nightWhen(night.date);
+              const time = nightTime(night);
+              return (
+                <li>
+                  <a
+                    class="schedule-row"
+                    href={night.href}
+                    aria-label={[
+                      when,
+                      night.title,
+                      night.seriesTitle,
+                      night.artist ? `Special guest, ${night.artist}` : "",
+                      time,
+                    ]
+                      .filter(Boolean)
+                      .join(". ")}
+                  >
+                    <time class="schedule-when" datetime={night.date}>
+                      {when}
+                    </time>
+                    <span class="schedule-copy">
+                      <span class="schedule-title">{night.title}</span>
+                      {night.seriesTitle ? (
+                        <span class="schedule-series">{night.seriesTitle}</span>
+                      ) : null}
+                      {night.artist ? (
+                        <span class="schedule-meta">
+                          Special guest · {night.artist}
+                        </span>
+                      ) : null}
+                      {time ? <span class="schedule-meta">{time}</span> : null}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ol>
+        ) : null
+      }
+    </div>
+  </Subpage>
+</BaseLayout>

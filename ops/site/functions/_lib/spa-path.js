@@ -36,6 +36,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/users/") ||
     p === "/events" ||
     p.startsWith("/events/") ||
+    p === "/artists" ||
+    p.startsWith("/artists/") ||
     p === "/web" ||
     p.startsWith("/web/") ||
     p === "/tools" ||
@@ -249,6 +251,16 @@ export function parseShellPath(path) {
       list: null,
     };
   }
+  if (p === "/artists") {
+    return { page: "artists", slug: null, isNew: false };
+  }
+  if (p.startsWith("/artists/")) {
+    const part = decodeSegment(p.slice("/artists/".length).split("/")[0] || "");
+    if (part === "new") {
+      return { page: "artists", slug: null, isNew: true };
+    }
+    return { page: "artists", slug: part || null, isNew: false };
+  }
   if (p === "/web" || p.startsWith("/web/")) return { page: "web" };
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
@@ -312,7 +324,13 @@ export function eventNewPath(tab, options = {}) {
 export function eventItemPath(id, tab) {
   const slug = String(id || "").trim();
   if (!slug) return eventListPath();
-  return withEventTab(`/events/${encodeURIComponent(slug)}`, tab);
+  // Keep @ literal so a night URL stays `/events/12@2026-09-25` and the rail
+  // can tell it from the series editor.
+  const encoded = slug
+    .split("@")
+    .map((part) => encodeURIComponent(part))
+    .join("@");
+  return withEventTab(`/events/${encoded}`, tab);
 }
 
 /** Event URL plus tab (`/events/12/schedule`). Unknown tabs fold to details. */
@@ -363,6 +381,11 @@ export function editorKey(path) {
     if (route.slug) return `events:${route.slug}`;
     return "events";
   }
+  if (route.page === "artists") {
+    if (route.isNew) return "artists:new";
+    if (route.slug) return `artists:${route.slug}`;
+    return "artists";
+  }
   return route.page || "home";
 }
 
@@ -383,6 +406,7 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "sections" ||
     from === "users" ||
     from === "events" ||
+    from === "artists" ||
     from === "web"
   ) {
     return false;
@@ -399,7 +423,10 @@ export function isEditorPath(path) {
   const route = parseShellPath(path);
   if (route.print) return false;
   return (
-    (route.page === "menu" || route.page === "inventory" || route.page === "events") &&
+    (route.page === "menu" ||
+      route.page === "inventory" ||
+      route.page === "events" ||
+      route.page === "artists") &&
     Boolean(route.isNew || route.slug)
   );
 }
@@ -474,7 +501,13 @@ export function shellCrumbs(
   }
   const leafLabel =
     (typeof leaf === "string" && leaf.trim()) ||
-    (route.isNew ? (route.page === "events" ? "New event" : "New item") : "");
+    (route.isNew
+      ? route.page === "events"
+        ? "New event"
+        : route.page === "artists"
+          ? "New artist"
+          : "New item"
+      : "");
   if (leafLabel && nested) crumbs.push({ label: leafLabel });
   const last = crumbs[crumbs.length - 1];
   if (last) delete last.href;

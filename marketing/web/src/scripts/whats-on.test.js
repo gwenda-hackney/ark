@@ -101,7 +101,15 @@ describe("initWhatsOnPage", () => {
     const labels = [
       ...(content?.querySelectorAll(".whats-on-group-label") || []),
     ].map((node) => node.textContent);
-    expect(labels).toEqual(["Series", "Special events"]);
+    expect(labels).toEqual(["Regular events", "Special events"]);
+    expect(
+      [...(content?.querySelectorAll(".whats-on-group-tagline") || [])].map(
+        (node) => node.textContent,
+      ),
+    ).toEqual([
+      "Nights that keep their evening, and return.",
+      "A single date, announced once.",
+    ]);
     expect(
       document.getElementById("series")?.classList.contains("whats-on-divider"),
     ).toBe(true);

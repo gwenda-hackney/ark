@@ -5,6 +5,7 @@ import {
   formatEventSpan,
 } from "../data/events";
 import { formatShortEventDate } from "../../functions/_lib/event-series.js";
+import { diaryGroups } from "../lib/diary-groups.js";
 
 function heroImageUrl(event, width) {
   const url = event.heroImageUrl || event.heroImage?.url;
@@ -289,19 +290,23 @@ function seriesCard(event, { eager = false } = {}) {
   return item;
 }
 
-function diaryLabel(text, group, lead) {
+function diaryLabel(group, lead) {
+  const copy = diaryGroups[group];
   const item = document.createElement("li");
-  item.id = group;
+  item.id = copy.id;
   item.className = `whats-on-divider${lead ? " whats-on-divider--lead" : ""}`;
-  item.dataset.group = group;
+  item.dataset.group = copy.id;
   const heading = document.createElement("h2");
   heading.className = "whats-on-group-label";
-  heading.textContent = text;
-  item.appendChild(heading);
+  heading.textContent = copy.label;
+  const tagline = document.createElement("p");
+  tagline.className = "whats-on-group-tagline";
+  tagline.textContent = copy.tagline;
+  item.append(heading, tagline);
   return item;
 }
 
-/** Series, then a labeled break, then special events. */
+/** Regular events, then a labeled break, then special events. */
 function syncDiaryLabels(list) {
   const cards = [
     ...list.querySelectorAll(":scope > li:not(.whats-on-divider)"),
@@ -312,13 +317,13 @@ function syncDiaryLabels(list) {
     label.remove();
   }
   if (!hasSpecial) return;
-  if (hasSeries) list.prepend(diaryLabel("Series", "series", true));
+  if (hasSeries) list.prepend(diaryLabel("series", true));
   const firstSpecial = [...list.children].find(
     (item) => item.dataset.schedule === "once",
   );
   if (firstSpecial) {
     list.insertBefore(
-      diaryLabel("Special events", "special", !hasSeries),
+      diaryLabel("special", !hasSeries),
       firstSpecial,
     );
   }

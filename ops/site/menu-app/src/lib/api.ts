@@ -791,6 +791,98 @@ export function getOpsConfig() {
   }>("/api/config");
 }
 
+export type ArtistSlot = "current" | "next" | "previous";
+
+export type ArtistImage = {
+  name: string;
+  label: string;
+  url: string;
+  thumb: string;
+};
+
+export type WallArtist = {
+  id: string;
+  slot: ArtistSlot;
+  name: string;
+  website: string;
+  profile: string;
+  bio: string;
+  portrait: ArtistImage | null;
+  art: ArtistImage[];
+  gwenda: ArtistImage[];
+};
+
+export type ArtistInput = {
+  name: string;
+  website: string;
+  profile: string;
+  bio: string;
+  slot: ArtistSlot;
+};
+
+export function getArtists() {
+  return request<{ artists: WallArtist[] }>("/api/artists");
+}
+
+export function getArtist(id: string) {
+  return request<{ artist: WallArtist }>(
+    `/api/artists/${encodeURIComponent(id)}`,
+  );
+}
+
+export function createArtist(body: ArtistInput) {
+  return request<{ artist: WallArtist }>("/api/artists", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateArtist(id: string, body: ArtistInput) {
+  return request<{ artist: WallArtist }>(
+    `/api/artists/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteArtist(id: string) {
+  return request<{ ok: boolean; id: string }>(
+    `/api/artists/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function uploadArtistImage(
+  id: string,
+  file: File,
+  kind: "portrait" | "art" | "gwenda",
+) {
+  const body = new FormData();
+  body.set("file", file);
+  body.set("kind", kind);
+  return request<{ artist: WallArtist }>(
+    `/api/artists/${encodeURIComponent(id)}/images`,
+    { method: "POST", body },
+  );
+}
+
+export function clearArtistImage(
+  id: string,
+  kind: "portrait" | "art" | "gwenda",
+  name = "",
+) {
+  const params = new URLSearchParams({ kind });
+  if (name) params.set("name", name);
+  return request<{ artist: WallArtist }>(
+    `/api/artists/${encodeURIComponent(id)}/images?${params}`,
+    { method: "DELETE" },
+  );
+}
+
 export function saveEventTaskSettings(events: {
   socialEmail: string;
   clickupListId: string;

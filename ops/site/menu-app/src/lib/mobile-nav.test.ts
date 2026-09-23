@@ -19,5 +19,6 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/users"), "more");
 		assert.equal(mobileTabFor("/web"), "more");
 		assert.equal(mobileTabFor("/events"), "more");
+		assert.equal(mobileTabFor("/artists"), "more");
 	});
 });

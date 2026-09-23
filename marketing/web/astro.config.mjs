@@ -18,6 +18,7 @@ import {
 } from "./functions/_lib/sanity-events.js";
 import { pageEventFeed } from "./functions/_lib/event-feed.js";
 import {
+  buildPublicSchedule,
   buildSeriesDetail,
   buildWhatsOnHome,
 } from "./functions/_lib/event-series.js";
@@ -597,6 +598,13 @@ function devWhatsOnApi() {
         const path = url.pathname.replace(/^\/+/, "").trim();
         const { occurrences, series: seriesRecords } =
           await fetchPublishedCatalog(adminEnv());
+        if (path === "schedule") {
+          sendJson(res, 200, {
+            ok: true,
+            ...buildPublicSchedule(occurrences, { series: seriesRecords }),
+          });
+          return;
+        }
         if (!path) {
           sendJson(res, 200, {
             ok: true,

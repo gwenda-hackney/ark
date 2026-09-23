@@ -2,38 +2,46 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Subpage from "../components/Subpage.astro";
 import { siteConfig } from "../config/site";
+import { withHome } from "../lib/site-nav.js";
+
+const privacyNav = withHome([
+  { href: "#who-we-are", label: "Who we are" },
+  { href: "#what-we-collect", label: "What we collect" },
+  { href: "#how-we-use-your-data", label: "How we use your data" },
+  { href: "#third-parties", label: "Third parties" },
+  { href: "#your-rights", label: "Your rights" },
+  { href: "#cookies", label: "Cookies" },
+]);
 ---
 
 <BaseLayout
   title={siteConfig.seo.privacy.title}
   description={siteConfig.seo.privacy.description}
 >
-  <Subpage class="legal-page">
+  <Subpage class="legal-page" navItems={privacyNav}>
     <h1>Privacy Policy</h1>
     <p class="legal-updated">Last updated: June 2026</p>
 
-    <section>
+    <section id="who-we-are">
       <h2>Who we are</h2>
       <p>
-        {siteConfig.name} is a canalside {
-          siteConfig.publicLabel.toLowerCase()
-        } at {siteConfig.location.address}. This website
-        is operated at{" "}
+        {siteConfig.name} is a canalside {siteConfig.publicLabel.toLowerCase()} at
+        {siteConfig.location.address}. This website is operated at{" "}
         {siteConfig.domain}.
       </p>
     </section>
 
-    <section>
+    <section id="what-we-collect">
       <h2>What we collect</h2>
       <ul>
         <li>
-          <strong>Email address</strong> when you join our list, we
-          store your email to send updates about events and nights at Gwenda.
+          <strong>Email address</strong> when you join our list, we store your email
+          to send updates about events and nights at Gwenda.
         </li>
         <li>
-          <strong>Contact form details</strong> when you apply to play or
-          write via a form on this site (name, contact details, and whatever
-          you choose to tell us). We use that to reply and plan nights.
+          <strong>Contact form details</strong> when you apply to play or write via
+          a form on this site (name, contact details, and whatever you choose to tell
+          us). We use that to reply and plan nights.
         </li>
         <li>
           <strong>Analytics data</strong> we use Cloudflare Web Analytics to understand
@@ -42,12 +50,12 @@ import { siteConfig } from "../config/site";
       </ul>
     </section>
 
-    <section>
+    <section id="how-we-use-your-data">
       <h2>How we use your data</h2>
       <p>
-        We use your email to send you information about our events,
-        nights, and offers. You can unsubscribe at any time via the link in any email
-        we send.
+        We use your email to send you information about our events, nights, and
+        offers. You can unsubscribe at any time via the link in any email we
+        send.
       </p>
       <p>
         We process your data on the basis of your consent (email sign-up) and
@@ -55,12 +63,12 @@ import { siteConfig } from "../config/site";
       </p>
     </section>
 
-    <section>
+    <section id="third-parties">
       <h2>Third parties</h2>
       <ul>
         <li>
-          <strong>Baserow</strong> stores email list sign-ups and contact form
-          submissions (including pending email confirmation) (<a
+          <strong>Baserow</strong> stores email list sign-ups and contact form submissions
+          (including pending email confirmation) (<a
             href="https://baserow.io/privacy-policy"
             target="_blank"
             rel="noopener">privacy policy</a
@@ -82,7 +90,7 @@ import { siteConfig } from "../config/site";
       </p>
     </section>
 
-    <section>
+    <section id="your-rights">
       <h2>Your rights</h2>
       <p>
         Under UK GDPR you have the right to access, correct, or delete your
@@ -91,7 +99,7 @@ import { siteConfig } from "../config/site";
       </p>
     </section>
 
-    <section>
+    <section id="cookies">
       <h2>Cookies</h2>
       <p>
         This site does not use analytics cookies. Cloudflare may set essential
