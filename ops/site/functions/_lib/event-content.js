@@ -26,6 +26,7 @@ export function seriesScheduleMode(event) {
   const unit = String(event?.repeatUnit || "none")
     .trim()
     .toLowerCase();
+  if (unit === "once") return "once";
   return unit && unit !== "none" ? "repeating" : "manual";
 }
 
@@ -128,17 +129,46 @@ export function occurrenceIsSpecialEdition(event, occurrence) {
   return artist !== String(event?.artist || "").trim();
 }
 
+function onceNightOverrides(event) {
+  if (String(event?.repeatUnit || "").toLowerCase() !== "once") return null;
+  const nights = Array.isArray(event?.dates) ? event.dates : [];
+  return nights.find((night) => night?.overrides)?.overrides || null;
+}
+
+/** Series copy, or the one night's copy when a one-off was edited as that night. */
+export function seriesDescriptionForPublish(event) {
+  const own = String(event?.description || "").trim();
+  if (own) return own;
+  return String(onceNightOverrides(event)?.description || "").trim();
+}
+
+export function seriesShortDescriptionForPublish(event) {
+  const own = String(event?.shortDescription || "").trim();
+  if (own) return own;
+  return String(onceNightOverrides(event)?.shortDescription || "").trim();
+}
+
+/** A one-off replaces a series only when this is that series slug. `keep:` means both nights stay. */
+export function publishedReplacesSeries(value) {
+  const raw = String(value || "").trim();
+  if (!raw || raw.startsWith("keep:")) return "";
+  return raw;
+}
+
 export function resolveOccurrenceContent(event, occurrence) {
   const row = occurrenceRow(event, occurrence);
   const overrides = row?.overrides || {};
+  const once = String(event?.repeatUnit || "").toLowerCase() === "once";
   return {
     title: String(overrides.name || event?.name || "").trim(),
     artist: String(overrides.artist || event?.artist || "").trim(),
     offer: String(overrides.offer || event?.offer || "").trim(),
-    description: String(
-      overrides.description || event?.description || "",
-    ).trim(),
-    shortDescription: String(overrides.shortDescription || "").trim(),
+    description: once
+      ? seriesDescriptionForPublish(event)
+      : String(overrides.description || event?.description || "").trim(),
+    shortDescription: once
+      ? seriesShortDescriptionForPublish(event)
+      : String(overrides.shortDescription || "").trim(),
     time: String(overrides.time || event?.time || "").trim(),
     startTime: String(overrides.startTime || event?.startTime || "").trim(),
     endTime: String(overrides.endTime || event?.endTime || "").trim(),
@@ -252,6 +282,9 @@ export function occurrencePayload(event, occurrence) {
     seriesDescription: String(event?.description || "").trim(),
     seriesSchedule: seriesScheduleMode(event),
     recurrenceLabel: recurrenceLabel(event),
+    ...(publishedReplacesSeries(event?.replacesSeries)
+      ? { replacesSeriesId: publishedReplacesSeries(event.replacesSeries) }
+      : {}),
   };
 }
 
@@ -274,6 +307,7 @@ export function recurrenceLabel(event) {
   const unit = String(event?.repeatUnit || "none")
     .trim()
     .toLowerCase();
+  if (unit === "once" || unit === "none" || unit === "") return "";
   if (unit === "day") return every === 1 ? "Every day" : `Every ${every} days`;
   if (unit === "week") {
     const days = (event?.weekdays || [])
@@ -308,6 +342,7 @@ export function sanitySeriesDocument({
   shortDescription,
   recurrence,
   schedule,
+  replacesSeriesId,
   nightSchedule,
   heroImage,
 }) {
@@ -317,8 +352,10 @@ export function sanitySeriesDocument({
     _type: "eventSeries",
     title: String(title || "").trim(),
     slug: { _type: "slug", current: key },
-    schedule: schedule === "repeating" ? "repeating" : "manual",
+    schedule:
+      schedule === "repeating" ? "repeating" : schedule === "once" ? "once" : "manual",
     recurrence: String(recurrence || "").trim(),
+    replacesSeriesId: String(replacesSeriesId || "").trim(),
     shortDescription: String(shortDescription || "").trim(),
     description: plainToEventDescription(description),
     nightSchedule: toSanityNightSchedule(nightSchedule),

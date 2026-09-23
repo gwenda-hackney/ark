@@ -824,6 +824,7 @@ function eventFields() {
         type: "single_select",
         select_options: [
           { value: "none", color: "gray" },
+          { value: "once", color: "yellow" },
           { value: "day", color: "blue" },
           { value: "week", color: "green" },
           { value: "month", color: "purple" },
@@ -859,6 +860,10 @@ function eventFields() {
     },
     { name: "Slug", body: { name: "Slug", type: "text" } },
     { name: "Drive folder id", body: { name: "Drive folder id", type: "text" } },
+    {
+      name: "Replaces series",
+      body: { name: "Replaces series", type: "text" },
+    },
     { name: "Main image", body: { name: "Main image", type: "file" } },
     {
       name: "Hero crops",
@@ -939,6 +944,10 @@ function eventDateFields(eventsTableId) {
     {
       name: "Publish snapshots",
       body: { name: "Publish snapshots", type: "long_text" },
+    },
+    {
+      name: "Google calendar event id",
+      body: { name: "Google calendar event id", type: "text" },
     },
   ];
 }
@@ -1227,6 +1236,18 @@ async function seedAppConfig(apiBase, jwt, configTableId) {
   await ensureRow(OPS_CONFIG_KEYS.googleOauthClientId, googleClientId, "all");
   // google.drive_events_folder_id is env-specific App Config (Events vs Events-dev).
   // Set in Baserow; do not seed from process env.
+  // Secondary calendars shared with the Drive service account.
+  // Local testing uses the dev calendar. Production uses the live one.
+  await ensureRow(
+    OPS_CONFIG_KEYS.googleCalendarId,
+    "c_48d75bc296688f9708a7fd4171ae92b0808ffc8a45c41bb4541a5840d4befce9@group.calendar.google.com",
+    "local",
+  );
+  await ensureRow(
+    OPS_CONFIG_KEYS.googleCalendarId,
+    "c_5f8cc21d86540230e430cc5d0fdb58cda525cfbf673d84b1f0bf596d401c8594@group.calendar.google.com",
+    "production",
+  );
 }
 
 async function findOrCreateSupplier(

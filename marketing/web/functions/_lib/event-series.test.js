@@ -420,6 +420,7 @@ describe("isRecurringSeries", () => {
     expect(isRecurringSeries({ schedule: "manual" })).toBe(false);
     expect(isRecurringSeries("Every Tuesday")).toBe(true);
     expect(isRecurringSeries({ schedule: "repeating" })).toBe(true);
+    expect(isRecurringSeries({ schedule: "once" })).toBe(false);
   });
 });
 
@@ -676,6 +677,124 @@ describe("nightPublicDescription", () => {
     const own =
       "A Halloween set with live band energy. Costumes welcome, dancing essential, and the bar stays open late.";
     expect(nightPublicDescription({ description: own }, series)).toBe(own);
+  });
+});
+
+const amoSeries = {
+  seriesId: "amo-mas",
+  title: "Amo MAS",
+  schedule: "once",
+  shortDescription: "A night of records.",
+  recurrence: "",
+};
+
+function radioNights() {
+  return ["2026-09-27", "2026-10-04", "2026-10-11", "2026-10-18", "2026-10-25"].map(
+    (date) =>
+      night({
+        id: `radio-${date}`,
+        seriesId: "gwenda-radio",
+        seriesTitle: "Gwenda Radio",
+        title: "Gwenda Radio",
+        date,
+        recurrence: "Every Sunday",
+      }),
+  );
+}
+
+describe("one-off cards", () => {
+  const amo = night({
+    id: "amo-mas-2026-10-18",
+    seriesId: "amo-mas",
+    seriesTitle: "Amo MAS",
+    title: "Amo MAS",
+    date: "2026-10-18",
+    shortDescription: "A night of records.",
+  });
+
+  it("lists the one-off after the residencies with its date", () => {
+    const stack = buildWhatsOnStack([...radioNights(), amo], {
+      now,
+      series: [radioSeries, amoSeries],
+    });
+    expect(stack.map((row) => row.title)).toEqual(["Gwenda Radio", "Amo MAS"]);
+    const radio = stack.find((row) => row.seriesId === "gwenda-radio");
+    const card = stack.find((row) => row.seriesId === "amo-mas");
+    expect(radio.hostName).toBe("");
+    expect(card.scheduleLabel).toBe("Sun 18 Oct");
+    expect(card.href).toBe("/whats-on/amo-mas");
+  });
+
+  it("points the residency at the one-off only when it is the replacement", () => {
+    const stack = buildWhatsOnStack([...radioNights(), amo], {
+      now,
+      series: [radioSeries, { ...amoSeries, replacesSeriesId: "gwenda-radio" }],
+    });
+    expect(stack.map((row) => row.seriesId)).toEqual([
+      "gwenda-radio",
+      "amo-mas",
+    ]);
+    const radio = stack.find((row) => row.seriesId === "gwenda-radio");
+    expect(radio.hostName).toBe("Amo MAS");
+    expect(radio.hostDate).toBe("2026-10-18");
+    expect(radio.hostHref).toBe("/whats-on/amo-mas");
+  });
+
+  it("keeps the residency when the one-off date is the next Sunday", () => {
+    const stack = buildWhatsOnStack([...radioNights(), amo], {
+      now: new Date(2026, 9, 12, 15, 0, 0),
+      series: [radioSeries, amoSeries],
+    });
+    expect(stack.map((row) => row.seriesId)).toEqual([
+      "gwenda-radio",
+      "amo-mas",
+    ]);
+    expect(stack[1].scheduleLabel).toBe("Sun 18 Oct");
+  });
+
+  it("returns the residency card after the one-off date", () => {
+    const stack = buildWhatsOnStack([...radioNights(), amo], {
+      now: new Date(2026, 9, 19, 15, 0, 0),
+      series: [radioSeries, amoSeries],
+    });
+    const titles = stack.map((row) => row.title);
+    expect(titles).toContain("Gwenda Radio");
+    expect(titles).not.toContain("Amo MAS");
+    const radio = stack.find((row) => row.seriesId === "gwenda-radio");
+    expect(radio.hostName).toBe("");
+  });
+
+  it("is the card immediately when that weekday has no residency", () => {
+    const stack = buildWhatsOnStack([amo], {
+      now,
+      series: [amoSeries],
+    });
+    expect(stack).toHaveLength(1);
+    expect(stack[0].title).toBe("Amo MAS");
+    expect(stack[0].scheduleLabel).toBe("Sun 18 Oct");
+  });
+
+  it("does not mention the one-off on the residency until it is the replacement", () => {
+    const detail = buildSeriesDetail([...radioNights(), amo], "gwenda-radio", {
+      now,
+      series: [radioSeries, amoSeries],
+    });
+    expect(detail.upcomingDates.some((row) => row.displaced)).toBe(false);
+  });
+
+  it("lists the replacement in nights ahead with the return date", () => {
+    const detail = buildSeriesDetail([...radioNights(), amo], "gwenda-radio", {
+      now,
+      series: [radioSeries, { ...amoSeries, replacesSeriesId: "gwenda-radio" }],
+    });
+    const line = detail.upcomingDates.find((row) => row.displaced);
+    expect(line.date).toBe("2026-10-18");
+    expect(line.href).toBe("/whats-on/amo-mas");
+    expect(line.line).toBe(
+      "No Gwenda Radio on Sun 18 Oct. Instead, Amo MAS. A night of records. Don't worry, Gwenda Radio will be back on Sun 25 Oct.",
+    );
+    const dates = detail.upcomingDates.map((row) => row.date);
+    expect(dates).toEqual(["2026-09-27", "2026-10-04", "2026-10-18"]);
   });
 });
 

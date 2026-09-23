@@ -219,6 +219,16 @@ describe("spa-path", () => {
       list: "schedule",
     });
     assert.equal(canonicalizePath("/events/nights"), "/events/schedule");
+    assert.deepEqual(parseShellPath("/events/new/once"), {
+      page: "events",
+      slug: null,
+      isNew: true,
+      tab: "details",
+      list: null,
+      kind: "once",
+    });
+    assert.equal(eventNewPath("details", { once: true }), "/events/new/once");
+    assert.equal(eventTabPath("/events/new/once", "gallery"), "/events/new/once/gallery");
     assert.deepEqual(parseShellPath("/events/new"), {
       page: "events",
       slug: null,

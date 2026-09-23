@@ -1,5 +1,5 @@
 import { withApiHandler } from "../../../../_lib/http.js";
-import { getEvent } from "../../../../_lib/event-store.js";
+import { ensureEventGalleryFolder } from "../../../../_lib/event-store.js";
 import {
   downloadDriveFile,
   downloadDriveThumbnail,
@@ -21,16 +21,10 @@ export const onRequestGet = withApiHandler(async (context) => {
       headers: { "Content-Type": "application/json" },
     });
   }
-  const event = await getEvent(context.env, id);
-  if (!event.driveFolderId) {
-    return new Response(JSON.stringify({ error: "Event has no Drive folder." }), {
-      status: 404,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  const { gallery } = await ensureEventGalleryFolder(context.env, id);
   const meta = await getDriveFile(context.env, fileId);
   const parents = Array.isArray(meta?.parents) ? meta.parents : [];
-  if (!parents.includes(event.driveFolderId)) {
+  if (!gallery.id || !parents.includes(gallery.id)) {
     return new Response(JSON.stringify({ error: "File not found for this event." }), {
       status: 404,
       headers: { "Content-Type": "application/json" },

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   driveFolderWebUrl,
+  findNamedFolder,
   isDriveImage,
   mapDriveImage,
   parseDriveServiceAccount,
@@ -30,6 +31,29 @@ describe("google-drive helpers", () => {
       parseDriveServiceAccount({ GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: "{" }),
       null,
     );
+  });
+
+  it("finds a gallery folder and ignores files and other folders", () => {
+    const children = [
+      {
+        id: "file",
+        name: "gallery",
+        mimeType: "image/jpeg",
+      },
+      {
+        id: "other",
+        name: "Notes",
+        mimeType: "application/vnd.google-apps.folder",
+      },
+      {
+        id: "gal",
+        name: "Gallery",
+        mimeType: "application/vnd.google-apps.folder",
+      },
+    ];
+    assert.equal(findNamedFolder(children, "gallery")?.id, "gal");
+    assert.equal(findNamedFolder(children, "missing"), null);
+    assert.equal(findNamedFolder([], "gallery"), null);
   });
 
   it("maps and filters Drive image files", () => {

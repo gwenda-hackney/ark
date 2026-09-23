@@ -4,16 +4,43 @@ import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
 import { headerLogo } from "../lib/hero-assets";
 
-interface Props {
-  features: SiteFeatures;
-  showMenuTease?: boolean;
+export interface NavItem {
+  href: string;
+  label: string;
 }
 
-const { features, showMenuTease = false } = Astro.props;
+interface Props {
+  /** Home menu. Omitted when `items` supplies a page menu. */
+  features?: SiteFeatures;
+  showMenuTease?: boolean;
+  /** Page menu. When set, replaces the home links. */
+  items?: NavItem[];
+  /**
+   * Same as home: hamburger only until scroll, then the bar, wordmark,
+   * and desktop quick links slide in.
+   */
+  collapsed?: boolean;
+  logoHref?: string;
+}
+
+const {
+  features,
+  showMenuTease = false,
+  items,
+  collapsed = false,
+  logoHref = collapsed ? "/" : "#hero",
+} = Astro.props;
 ---
 
-<header class="site-header" id="site-header">
-  <a href="#hero" class="site-header-logo" aria-label="Gwenda">
+<header
+  class:list={["site-header", collapsed && "site-header--collapsed"]}
+  id="site-header"
+>
+  <a
+    href={logoHref}
+    class="site-header-logo"
+    aria-label={collapsed ? "Gwenda home" : "Gwenda"}
+  >
     <Image {...headerLogo} alt="" class="site-header-logo-img" />
   </a>
 
@@ -30,11 +57,21 @@ const { features, showMenuTease = false } = Astro.props;
 </header>
 
 <nav class="site-header-nav" id="site-header-nav">
-  <a href="#story">Story</a>
-  {/* Dedicated /menu and /whats-on URLs help Google form organic sitelinks. */}
-  {(showMenuTease || features.showMenu) && <a href="/menu">Menu</a>}
-  {features.showTeam && <a href="#team">Who we are</a>}
-  <a href="/whats-on">What's on</a>
-  <a href="/contact">Contact</a>
-  <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>
+  {
+    items ? (
+      items.map((item) => <a href={item.href}>{item.label}</a>)
+    ) : (
+      <>
+        <a href="#story">Story</a>
+        {/* Dedicated /menu and /whats-on URLs help Google form organic sitelinks. */}
+        {(showMenuTease || features?.showMenu) && <a href="/menu">Menu</a>}
+        {features?.showTeam && <a href="#team">Who we are</a>}
+        <a href="/whats-on">What's on</a>
+        <a href="/contact">Contact</a>
+        <a href="#list" class="site-header-cta">
+          {siteConfig.copy.signupNavCta}
+        </a>
+      </>
+    )
+  }
 </nav>

@@ -617,6 +617,14 @@ a:focus-visible {
   transition: none;
 }
 
+/* Until scroll: no bar and no hairline. The hamburger sits on the page. */
+.site-header--collapsed {
+  background: transparent;
+  border-bottom: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .site-header-logo-img {
   display: block;
   height: 3.75rem;
@@ -1019,14 +1027,17 @@ body:has(.preview-banner) .site-header-nav {
     text-align: left;
     opacity: 0;
     transform: none;
-    transition: color 0.2s ease, opacity 0.2s ease;
+    transition:
+      color 0.2s ease,
+      opacity 0.2s ease;
   }
 
   .site-header.has-logo ~ .site-header-nav:not(.is-open):not(.is-closing) a {
     opacity: 1;
   }
 
-  .site-header-nav:not(.is-open):not(.is-closing) a:not(.site-header-cta)::after {
+  .site-header-nav:not(.is-open):not(.is-closing)
+    a:not(.site-header-cta)::after {
     content: "";
     position: absolute;
     left: 0;
@@ -1039,8 +1050,10 @@ body:has(.preview-banner) .site-header-nav {
     transition: transform 0.35s var(--ease-smooth);
   }
 
-  .site-header-nav:not(.is-open):not(.is-closing) a:not(.site-header-cta):hover::after,
-  .site-header-nav:not(.is-open):not(.is-closing) a:not(.site-header-cta):focus-visible::after {
+  .site-header-nav:not(.is-open):not(.is-closing)
+    a:not(.site-header-cta):hover::after,
+  .site-header-nav:not(.is-open):not(.is-closing)
+    a:not(.site-header-cta):focus-visible::after {
     transform: scaleX(1);
     transform-origin: left center;
   }
@@ -2631,7 +2644,11 @@ html.fonts-ready .thanks {
   height: 100%;
   box-sizing: border-box;
   border-radius: 2px;
-  --invite-text-soft: color-mix(in srgb, var(--color-text) 78%, var(--color-text-muted));
+  --invite-text-soft: color-mix(
+    in srgb,
+    var(--color-text) 78%,
+    var(--color-text-muted)
+  );
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   backface-visibility: hidden;
@@ -3932,11 +3949,7 @@ html.fonts-ready .thanks {
   width: 2.5rem;
   height: 1px;
   margin: 1.15rem 0 0;
-  background: linear-gradient(
-    90deg,
-    var(--color-gold-dim),
-    transparent
-  );
+  background: linear-gradient(90deg, var(--color-gold-dim), transparent);
 }
 
 .contact-header p {
@@ -4084,7 +4097,8 @@ html.fonts-ready .thanks {
 
 .contact-play-title-gold {
   color: var(--color-gold);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-gold) 75%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--color-gold) 75%, transparent);
   padding-bottom: 0.02em;
 }
 
@@ -4153,16 +4167,15 @@ html.fonts-ready .thanks {
   appearance: none;
   padding: 0.85rem 2.5rem 0.85rem 1rem;
   background-color: var(--color-bg-card);
-  background-image: linear-gradient(
-      45deg,
-      transparent 50%,
-      var(--color-gold) 50%
-    ),
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-gold) 50%),
     linear-gradient(135deg, var(--color-gold) 50%, transparent 50%);
   background-position:
     calc(100% - 1.15rem) 55%,
     calc(100% - 0.85rem) 55%;
-  background-size: 0.35rem 0.35rem, 0.35rem 0.35rem;
+  background-size:
+    0.35rem 0.35rem,
+    0.35rem 0.35rem;
   background-repeat: no-repeat;
   border: 1px solid var(--color-border);
   border-radius: 2px;
@@ -4298,11 +4311,7 @@ html.fonts-ready .thanks {
 .contact-section-rule {
   width: 2.5rem;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    var(--color-gold-dim),
-    transparent
-  );
+  background: linear-gradient(90deg, var(--color-gold-dim), transparent);
 }
 
 /* Sole spacing between fields (text, selects, chips) */
@@ -4581,7 +4590,9 @@ html.fonts-ready .thanks {
   line-height: 1.35;
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .gw-select-option:hover,
@@ -5246,6 +5257,36 @@ a.event-card:focus-visible .event-title {
   border-top: 1px solid var(--color-border-subtle);
 }
 
+.events-list > li.whats-on-divider + li {
+  border-top: none;
+}
+
+.whats-on-divider {
+  margin: 0;
+  padding: clamp(1.75rem, 4vw, 2.75rem) 0 0;
+  border-top: 1px solid var(--color-border-subtle);
+  scroll-margin-top: calc(var(--header-height) + 0.75rem);
+}
+
+.whats-on-divider--lead {
+  border-top: none;
+  padding-top: 0.25rem;
+}
+
+.whats-on-group-label {
+  margin: 0;
+  color: var(--color-gold);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.whats-on-divider + li > .event-card {
+  padding-top: clamp(1.25rem, 3vw, 2.25rem);
+}
+
 .event-card-hit {
   position: absolute;
   inset: 0;
@@ -5542,6 +5583,28 @@ a.event-card:focus-visible .event-title {
 .event-follow .event-next,
 .event-follow .event-more-dates {
   margin: 0;
+}
+
+.event-next[data-href] {
+  cursor: pointer;
+}
+
+.event-next[data-href]:hover .event-next-name {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.event-dates-instead {
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-style: italic;
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.event-dates-instead:hover {
+  color: var(--color-gold);
 }
 
 .event-next {
@@ -5884,8 +5947,12 @@ a.event-card:focus-visible .event-title {
   text-transform: uppercase;
 }
 
-html[data-site-env="staging"] #whats-on-content:not([data-live="ready"]):not([data-live="static"]) .events-list,
-html[data-site-env="staging"] main.whats-on-series-page:not([data-live="ready"]):not([data-live="static"]) .event-media {
+html[data-site-env="staging"]
+  #whats-on-content:not([data-live="ready"]):not([data-live="static"])
+  .events-list,
+html[data-site-env="staging"]
+  main.whats-on-series-page:not([data-live="ready"]):not([data-live="static"])
+  .event-media {
   visibility: hidden;
 }
 
@@ -6026,7 +6093,8 @@ html[data-site-env="staging"] main.whats-on-series-page:not([data-live="ready"])
   gap: 2.25rem;
 }
 
-.menu-section:not(.menu-section--subsection) + .menu-section:not(.menu-section--subsection),
+.menu-section:not(.menu-section--subsection)
+  + .menu-section:not(.menu-section--subsection),
 .menu-chapter + .menu-chapter,
 .menu-chapter + .menu-section:not(.menu-section--subsection),
 .menu-section:not(.menu-section--subsection) + .menu-chapter {
@@ -6146,7 +6214,8 @@ html[data-site-env="staging"] main.whats-on-series-page:not([data-live="ready"])
 .menu-item-leader {
   flex: 1;
   min-width: 1.5rem;
-  border-bottom: 1px dotted color-mix(in srgb, var(--color-gold) 28%, transparent);
+  border-bottom: 1px dotted
+    color-mix(in srgb, var(--color-gold) 28%, transparent);
   transform: translateY(-0.2em);
 }
 

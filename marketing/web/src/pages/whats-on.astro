@@ -26,6 +26,40 @@ const { nights, next } = buildWhatsOnHome(occurrences, {
   series: seriesRecords,
 });
 const hasContent = nights.length > 0;
+const seriesNights = nights.filter((event) => event.schedule !== "once");
+const specialNights = nights.filter((event) => event.schedule === "once");
+const diaryEntries = [
+  ...(seriesNights.length && specialNights.length
+    ? [{ kind: "label" as const, id: "series", label: "Series", lead: true }]
+    : []),
+  ...seriesNights.map((event, index) => ({
+    kind: "card" as const,
+    event,
+    eager: index === 0 && seriesNights.length > 0,
+  })),
+  ...(specialNights.length
+    ? [
+        {
+          kind: "label" as const,
+          id: "special",
+          label: "Special events",
+          lead: seriesNights.length === 0,
+        },
+      ]
+    : []),
+  ...specialNights.map((event, index) => ({
+    kind: "card" as const,
+    event,
+    eager: seriesNights.length === 0 && index === 0,
+  })),
+];
+const showSeriesNav = seriesNights.length > 0 && specialNights.length > 0;
+const showSpecialNav = specialNights.length > 0;
+const whatsOnNav = [
+  { href: "/", label: "Back" },
+  ...(showSeriesNav ? [{ href: "#series", label: "Series" }] : []),
+  ...(showSpecialNav ? [{ href: "#special", label: "Special events" }] : []),
+];
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.whatsOn;
 
@@ -76,14 +110,22 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
     })}
   />
 
-  <Subpage class="whats-on-page events-page" innerClass="whats-on-inner">
+  <Subpage
+    class="whats-on-page events-page"
+    innerClass="whats-on-inner"
+    navItems={whatsOnNav}
+  >
     <header class="section-header events-header reveal">
       <p class="section-eyebrow">Diary</p>
       <h1>What's on</h1>
       <p>Music and late evenings by the water in {siteConfig.location.area}.</p>
     </header>
 
-    <p id="whats-on-loading" class="events-loading" hidden={hasContent && !isStaging}>
+    <p
+      id="whats-on-loading"
+      class="events-loading"
+      hidden={hasContent && !isStaging}
+    >
       Looking at the diary…
     </p>
     <section
@@ -103,7 +145,19 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
       {
         nights.length ? (
           <ol class="events-list whats-on-series-list">
-            {nights.map((event, index) => {
+            {diaryEntries.map((entry) => {
+              if (entry.kind === "label") {
+                return (
+                  <li
+                    id={entry.id}
+                    class={`whats-on-divider${entry.lead ? " whats-on-divider--lead" : ""}`}
+                    data-group={entry.id}
+                  >
+                    <h2 class="whats-on-group-label">{entry.label}</h2>
+                  </li>
+                );
+              }
+              const event = entry.event;
               const regular = Boolean(event.regular);
               const href = String(event.href || "").trim();
               const image = eventImageUrl(event.heroImageUrl, 960);
@@ -115,7 +169,9 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                   )
                 : String(event.scheduleLabel || "").trim();
               return (
-                <li>
+                <li
+                  data-schedule={event.schedule === "once" ? "once" : "series"}
+                >
                   <a
                     class={`event-card event-card--series${regular ? " event-card--regular" : ""}`}
                     href={href || "/whats-on"}
@@ -135,160 +191,175 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                       .filter(Boolean)
                       .join(". ")}
                   >
-                  {image ? (
-                    <figure class="event-media">
-                      <img
-                        class="event-hero"
-                        src={image}
-                        alt={
-                          event.heroImage?.alt ||
-                          event.heroImageAlt ||
-                          event.imageCaptionName ||
-                          event.title
-                        }
-                        loading={index === 0 ? "eager" : "lazy"}
-                        style={
-                          event.heroImage?.objectPosition
-                            ? `object-position: ${event.heroImage.objectPosition}`
-                            : undefined
-                        }
-                      />
-                      <EventImageCaption
-                        label={event.imageCaption}
-                        name={event.imageCaptionName}
-                      />
-                    </figure>
-                  ) : (
-                    <div
-                      class="event-media event-media--empty"
-                      aria-hidden="true"
-                    >
-                      <span>Gwenda</span>
-                    </div>
-                  )}
-                  <article class="event-copy">
-                    <p class="event-date">
-                      {whenLabel ? (
-                        <span>{whenLabel}</span>
-                      ) : (
-                        <time datetime={event.date}>
-                          {formatEventDiaryDate(event.date)}
-                        </time>
-                      )}
-                      {formatEventSpan(
-                        event.startTime,
-                        event.endTime,
-                        event.time,
-                      ) ? (
-                        <span class="event-time">
-                          {formatEventSpan(
-                            event.startTime,
-                            event.endTime,
-                            event.time,
-                          )}
-                        </span>
-                      ) : null}
-                    </p>
-                    <h2 class="event-title">{event.title}</h2>
-                    {event.hostName && !event.hostThisWeek ? (
-                      <p class="event-next">
-                        <span class="event-next-label">Coming up</span>
-                        {event.hostDate ? (
-                          <>
-                            <span class="event-next-sep" aria-hidden="true">
-                              ·
-                            </span>
-                            <time datetime={event.hostDate}>
-                              {formatShortEventDate(event.hostDate)}
-                            </time>
-                          </>
-                        ) : null}
-                        <span class="event-next-sep" aria-hidden="true">
-                          ·
-                        </span>
-                        <span class="event-next-name">{event.hostName}</span>
-                      </p>
-                    ) : null}
-                    {event.hostThisWeek && event.hostName ? (
-                      <p class="event-next">
-                        <span class="event-next-label">This week</span>
-                        {event.hostDate ? (
-                          <>
-                            <span class="event-next-sep" aria-hidden="true">
-                              ·
-                            </span>
-                            <time datetime={event.hostDate}>
-                              {formatShortEventDate(event.hostDate)}
-                            </time>
-                          </>
-                        ) : null}
-                        <span class="event-next-sep" aria-hidden="true">
-                          ·
-                        </span>
-                        <span class="event-next-name">{event.hostName}</span>
-                      </p>
-                    ) : null}
-                    {event.offer ? (
-                      <p class="event-offer">{event.offer}</p>
-                    ) : null}
-                    <EventNightSchedule slots={event.nightSchedule} />
-                    {event.description ? (
-                      <div class="event-description">
-                        {eventDescriptionParagraphs(event.description).map(
-                          (paragraph) => (
-                            <p>{paragraph}</p>
-                          ),
+                    {image ? (
+                      <figure class="event-media">
+                        <img
+                          class="event-hero"
+                          src={image}
+                          alt={
+                            event.heroImage?.alt ||
+                            event.heroImageAlt ||
+                            event.imageCaptionName ||
+                            event.title
+                          }
+                          loading={entry.eager ? "eager" : "lazy"}
+                          style={
+                            event.heroImage?.objectPosition
+                              ? `object-position: ${event.heroImage.objectPosition}`
+                              : undefined
+                          }
+                        />
+                        <EventImageCaption
+                          label={event.imageCaption}
+                          name={event.imageCaptionName}
+                        />
+                      </figure>
+                    ) : (
+                      <div
+                        class="event-media event-media--empty"
+                        aria-hidden="true"
+                      >
+                        <span>Gwenda</span>
+                      </div>
+                    )}
+                    <article class="event-copy">
+                      <p class="event-date">
+                        {whenLabel ? (
+                          <span>{whenLabel}</span>
+                        ) : (
+                          <time datetime={event.date}>
+                            {formatEventDiaryDate(event.date)}
+                          </time>
                         )}
-                      </div>
-                    ) : null}
-                    {event.thisWeekName ||
-                    event.upcomingName ||
-                    event.nightCount > 1 ? (
-                      <div class="event-follow">
-                        {event.thisWeekName ? (
-                          <p class="event-next">
-                            <span class="event-next-label">This week</span>
-                            {event.thisWeekDate ? (
-                              <>
-                                <span class="event-next-sep" aria-hidden="true">
-                                  ·
-                                </span>
-                                <time datetime={event.thisWeekDate}>
-                                  {formatShortEventDate(event.thisWeekDate)}
-                                </time>
-                              </>
-                            ) : null}
-                            <span class="event-next-sep" aria-hidden="true">
-                              ·
-                            </span>
-                            <span class="event-next-name">{event.thisWeekName}</span>
-                          </p>
+                        {formatEventSpan(
+                          event.startTime,
+                          event.endTime,
+                          event.time,
+                        ) ? (
+                          <span class="event-time">
+                            {formatEventSpan(
+                              event.startTime,
+                              event.endTime,
+                              event.time,
+                            )}
+                          </span>
                         ) : null}
-                        {event.upcomingName ? (
-                          <p class="event-next">
-                            <span class="event-next-label">Next</span>
-                            {event.upcomingDate ? (
-                              <>
-                                <span class="event-next-sep" aria-hidden="true">
-                                  ·
-                                </span>
-                                <time datetime={event.upcomingDate}>
-                                  {formatShortEventDate(event.upcomingDate)}
-                                </time>
-                              </>
-                            ) : null}
-                            <span class="event-next-sep" aria-hidden="true">
-                              ·
-                            </span>
-                            <span class="event-next-name">{event.upcomingName}</span>
-                          </p>
-                        ) : null}
-                        {event.nightCount > 1 ? (
-                          <p class="event-more-dates">More dates and info</p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </article>
+                      </p>
+                      <h2 class="event-title">{event.title}</h2>
+                      {event.hostName && !event.hostThisWeek ? (
+                        <p
+                          class="event-next"
+                          data-href={event.hostHref || undefined}
+                          role={event.hostHref ? "link" : undefined}
+                          tabindex={event.hostHref ? 0 : undefined}
+                        >
+                          <span class="event-next-label">Coming up</span>
+                          {event.hostDate ? (
+                            <>
+                              <span class="event-next-sep" aria-hidden="true">
+                                ·
+                              </span>
+                              <time datetime={event.hostDate}>
+                                {formatShortEventDate(event.hostDate)}
+                              </time>
+                            </>
+                          ) : null}
+                          <span class="event-next-sep" aria-hidden="true">
+                            ·
+                          </span>
+                          <span class="event-next-name">{event.hostName}</span>
+                        </p>
+                      ) : null}
+                      {event.hostThisWeek && event.hostName ? (
+                        <p class="event-next">
+                          <span class="event-next-label">This week</span>
+                          {event.hostDate ? (
+                            <>
+                              <span class="event-next-sep" aria-hidden="true">
+                                ·
+                              </span>
+                              <time datetime={event.hostDate}>
+                                {formatShortEventDate(event.hostDate)}
+                              </time>
+                            </>
+                          ) : null}
+                          <span class="event-next-sep" aria-hidden="true">
+                            ·
+                          </span>
+                          <span class="event-next-name">{event.hostName}</span>
+                        </p>
+                      ) : null}
+                      {event.offer ? (
+                        <p class="event-offer">{event.offer}</p>
+                      ) : null}
+                      <EventNightSchedule slots={event.nightSchedule} />
+                      {event.description ? (
+                        <div class="event-description">
+                          {eventDescriptionParagraphs(event.description).map(
+                            (paragraph) => (
+                              <p>{paragraph}</p>
+                            ),
+                          )}
+                        </div>
+                      ) : null}
+                      {event.thisWeekName ||
+                      event.upcomingName ||
+                      event.nightCount > 1 ? (
+                        <div class="event-follow">
+                          {event.thisWeekName ? (
+                            <p class="event-next">
+                              <span class="event-next-label">This week</span>
+                              {event.thisWeekDate ? (
+                                <>
+                                  <span
+                                    class="event-next-sep"
+                                    aria-hidden="true"
+                                  >
+                                    ·
+                                  </span>
+                                  <time datetime={event.thisWeekDate}>
+                                    {formatShortEventDate(event.thisWeekDate)}
+                                  </time>
+                                </>
+                              ) : null}
+                              <span class="event-next-sep" aria-hidden="true">
+                                ·
+                              </span>
+                              <span class="event-next-name">
+                                {event.thisWeekName}
+                              </span>
+                            </p>
+                          ) : null}
+                          {event.upcomingName ? (
+                            <p class="event-next">
+                              <span class="event-next-label">Next</span>
+                              {event.upcomingDate ? (
+                                <>
+                                  <span
+                                    class="event-next-sep"
+                                    aria-hidden="true"
+                                  >
+                                    ·
+                                  </span>
+                                  <time datetime={event.upcomingDate}>
+                                    {formatShortEventDate(event.upcomingDate)}
+                                  </time>
+                                </>
+                              ) : null}
+                              <span class="event-next-sep" aria-hidden="true">
+                                ·
+                              </span>
+                              <span class="event-next-name">
+                                {event.upcomingName}
+                              </span>
+                            </p>
+                          ) : null}
+                          {event.nightCount > 1 ? (
+                            <p class="event-more-dates">More dates and info</p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </article>
                   </a>
                 </li>
               );

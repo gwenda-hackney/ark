@@ -35,7 +35,8 @@ export type EventSeries = {
   description: string;
   shortDescription?: string;
   recurrence?: string;
-  schedule?: "manual" | "repeating";
+  replacesSeriesId?: string;
+  schedule?: "manual" | "repeating" | "once";
   offer?: string;
   nightSchedule?: Array<{
     label: string;

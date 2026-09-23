@@ -81,11 +81,14 @@ npm run env:ops:pull -- --profile production      # fail if PRODUCTION missing
 | `sanity.dataset` | Optional default. Editorial writes always go to `staging`. Production is clone-only. |
 | `site_deploy.webhook_url` | Studio → site rebuild webhook base URL |
 | `google.oauth_client_id` | Google OAuth client id (public-ish; secret stays in SM) |
-| `google.drive_events_folder_id` | Shared Drive folder for event photos. **Env-specific**: `production` → `Events/`, `local` → `Events-dev/`. Not an env var. |
+| `google.drive_events_folder_id` | Shared Drive folder for event galleries. Hero images stay in Baserow and are not copied here. **Env-specific**: `production` → `Events/`, `local` → `Events-dev/`. Not an env var. |
+| `google.calendar_id` | Google Calendar that receives ops nights. **Env-specific**: production is the live calendar, local is the dev calendar. |
 
 Lightspeed Back Office export (`LIGHTSPEED_BO_EMAIL`, `LIGHTSPEED_BO_PASSWORD`, optional `LIGHTSPEED_BO_TOTP` / `LIGHTSPEED_OPS_EMAIL`) lives in **Ark/Ops** SM for the nest script and [Lightspeed item export](../.github/workflows/lightspeed-export.yml) Action. Do not put those on Pages or in App Config.
 
-Event image uploads use `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` in **Ark/Ops** (Pages + local). The service account must be a Content manager on the Shared Drive. Folder roots live only in App Config (`google.drive_events_folder_id` per Env).
+Gallery uploads use `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` in **Ark/Ops** (Pages + local). Each event folder holds a `gallery/` child, and that is the only place event images are written in Drive. The What's on hero stays on the event in Baserow. The service account must be a Content manager on the Shared Drive. Folder roots live only in App Config (`google.drive_events_folder_id` per Env).
+
+Ops nights are written to Google Calendar with that same service account (`gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`, calendar events scope only). The Calendar API must be enabled on GCP project `gwenda-ops`. The calendar is a secondary calendar, so Workspace **General** settings must allow outsiders to change secondary calendars, and the calendar is shared with that account as **Make changes to events**. Production reads `google.calendar_id` from App Config, and falls back to `GOOGLE_CALENDAR_ID` in `ops/site/wrangler.toml`. Local ops (`SITE_ENV=local`) uses the local App Config row, or `GOOGLE_CALENDAR_ID_LOCAL` in `.env.ops`. Saving or deleting a night updates that env's calendar. Website Publish stays separate.
 
 Do **not** put credentials in App Config.
 

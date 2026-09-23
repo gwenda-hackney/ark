@@ -16,6 +16,8 @@ GOOGLE_OAUTH_CLIENT_ID = "682046070260-n9jpt18kt29vufljre5dkfqupq7rrdlt.apps.goo
 SITE_DEPLOY_WEBHOOK_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
 SANITY_STUDIO_SITE_DEPLOY_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
 SITE_HEALTH_URL = "https://health.gwenda.co.uk"
+# Secondary calendar shared with gwenda-ops-drive. Local ops sets SITE_ENV=local and ignores this.
+GOOGLE_CALENDAR_ID = "c_5f8cc21d86540230e430cc5d0fdb58cda525cfbf673d84b1f0bf596d401c8594@group.calendar.google.com"
 
 [ai]
 binding = "AI"

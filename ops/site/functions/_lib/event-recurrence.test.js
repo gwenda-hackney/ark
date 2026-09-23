@@ -20,6 +20,21 @@ describe("expandOccurrenceDates", () => {
     );
   });
 
+  it("expands a once event to its single start date", () => {
+    assert.deepEqual(
+      expandOccurrenceDates({ startsOn: "2026-10-18", repeatUnit: "once" }, { today }),
+      ["2026-10-18"],
+    );
+    assert.deepEqual(
+      expandSeriesOccurrenceDates({ startsOn: "2026-10-18", repeatUnit: "once" }),
+      ["2026-10-18"],
+    );
+    assert.deepEqual(
+      expandOccurrenceDates({ startsOn: "2026-09-01", repeatUnit: "once" }, { today }),
+      [],
+    );
+  });
+
   it("includes a one-off beyond the 12 week window", () => {
     assert.deepEqual(
       expandOccurrenceDates({ startsOn: "2027-03-01", repeatUnit: "none" }, { today }),
@@ -199,6 +214,16 @@ describe("planOccurrenceMove", () => {
     assert.deepEqual(plan.skippedDates, ["2026-10-01"]);
     assert.deepEqual(plan.extraDates, ["2026-10-03"]);
     assert.equal(plan.startsOn, "2026-09-24");
+  });
+
+  it("moves a once event by changing starts on", () => {
+    const plan = planOccurrenceMove(
+      { startsOn: "2026-10-18", repeatUnit: "once" },
+      "2026-10-18",
+      "2026-10-25",
+    );
+    assert.equal(plan.oneOff, true);
+    assert.equal(plan.startsOn, "2026-10-25");
   });
 
   it("moves a one-off by changing starts on", () => {

@@ -1,5 +1,6 @@
 /**
- * Google Drive client for the ops event image library (Shared Drive).
+ * Google Drive client for ops event galleries (Shared Drive).
+ * Hero images stay in Baserow and are never written here.
  * Auth: service account JSON in GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON.
  */
 import { OPS_CONFIG_KEYS, getConfigString } from "./config-store.js";
@@ -9,6 +10,12 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+/** Child folder under each event folder. The only images stored in Drive. */
+export const GALLERY_FOLDER_NAME = "gallery";
+
+/** @type {Map<string, { id: string, name: string, url: string }>} */
+const namedChildFolders = new Map();
 
 /** @type {{ token: string, exp: number, key: string } | null} */
 let cachedToken = null;
@@ -208,6 +215,47 @@ export async function listDriveImages(env, parentId) {
   return children.filter(isDriveImage).map(mapDriveImage);
 }
 
+/** First immediate child folder with this name, or null. */
+export function findNamedFolder(children, name) {
+  const wanted = String(name || "").trim().toLowerCase();
+  if (!wanted) return null;
+  for (const file of children || []) {
+    if (String(file?.mimeType || "") !== FOLDER_MIME) continue;
+    if (String(file?.name || "").trim().toLowerCase() !== wanted) continue;
+    return file;
+  }
+  return null;
+}
+
+/**
+ * Find or create a named child folder. Cached for this isolate so thumbnail
+ * requests do not list the parent on every image.
+ */
+export async function ensureNamedChildFolder(env, parentId, name) {
+  const parent = String(parentId || "").trim();
+  const folderName = String(name || "").trim();
+  if (!parent || !folderName) {
+    const error = new Error("Drive parent folder and name are required.");
+    error.status = 400;
+    throw error;
+  }
+  const cacheKey = `${parent}\n${folderName.toLowerCase()}`;
+  const cached = namedChildFolders.get(cacheKey);
+  if (cached) return cached;
+  const children = await listDriveChildren(env, parent);
+  const existing = findNamedFolder(children, folderName);
+  const folder = existing?.id
+    ? {
+        id: String(existing.id),
+        name: String(existing.name || folderName),
+        url:
+          String(existing.webViewLink || "") || driveFolderWebUrl(existing.id),
+      }
+    : await createDriveFolder(env, { name: folderName, parentId: parent });
+  namedChildFolders.set(cacheKey, folder);
+  return folder;
+}
+
 export async function getDriveFile(env, fileId) {
   const id = String(fileId || "").trim();
   if (!id) return null;
@@ -399,4 +447,5 @@ export async function createEventDriveFolder(env, eventName) {
 /** @internal test helper */
 export function resetDriveTokenCacheForTests() {
   cachedToken = null;
+  namedChildFolders.clear();
 }

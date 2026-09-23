@@ -1,4 +1,5 @@
 ---
+import Header, { type NavItem } from "./Header.astro";
 import SubpageChrome from "./SubpageChrome.astro";
 
 interface Props {
@@ -22,6 +23,11 @@ interface Props {
   flush?: boolean;
   /** Hide logo + back (rare). */
   showChrome?: boolean;
+  /**
+   * Collapsed hamburger menu. When set, replaces the back chip with the
+   * home header chrome and these page links.
+   */
+  navItems?: NavItem[];
 }
 
 const {
@@ -33,6 +39,7 @@ const {
   layout,
   flush = false,
   showChrome = true,
+  navItems,
 } = Astro.props;
 
 const isSplit = layout === "split" || flush;
@@ -40,7 +47,9 @@ const isSplit = layout === "split" || flush;
 
 <main class:list={["subpage", isSplit && "subpage--split", className]}>
   {
-    showChrome ? (
+    showChrome && navItems ? (
+      <Header items={navItems} collapsed logoHref={homeHref} />
+    ) : showChrome ? (
       <SubpageChrome href={href} label={label} homeHref={homeHref} />
     ) : null
   }

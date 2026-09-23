@@ -19,14 +19,15 @@
 		Tip,
 	} from "../../ui";
 	import type { SegmentedItem } from "../../ui/types";
-	import PhotoCell from "../menu/cells/PhotoCell.svelte";
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import { EVENTS_HELP } from "./events-help";
 	import SitePublishMonitor from "../web/SitePublishMonitor.svelte";
 	import { eventHeaderFlag } from "../../lib/event-header-status";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
+	import ScheduleCalendar from "./ScheduleCalendar.svelte";
+	import ScheduleListGrid from "./ScheduleListGrid.svelte";
+	import SeriesGrid from "./SeriesGrid.svelte";
 	import {
-		HERO_ASPECT,
 		hasMeaningfulFraming,
 		normalizeHeroFraming,
 		type HeroFraming,
@@ -68,10 +69,12 @@
 	import {
 		compareSeriesByWeekday,
 		countEventScheduleRows,
+		currentScheduleMonth,
 		filterEventSchedule,
 		formatScheduleDate,
 		formatScheduleWeekday,
 		groupEventSchedule,
+		scheduleToday,
 		seriesNextNightLabel,
 		seriesWeekdayLabel,
 	} from "../../lib/event-schedule";
@@ -107,6 +110,11 @@
 	let publishing = $state("");
 	let error = $state("");
 	let warnings = $state<string[]>([]);
+
+	function applyWarnings(list?: string[]) {
+		warnings = (list || []).filter(Boolean);
+		if (warnings.length) toast.info(warnings[0]);
+	}
 	let openedKey = $state("");
 	let deleteOpen = $state(false);
 	let deleteScopeOpen = $state(false);
@@ -117,11 +125,25 @@
 	let scheduleQuery = $state("");
 	let scheduleFrom = $state("");
 	let scheduleTo = $state("");
+	const SCHEDULE_VIEW_KEY = "ops.events.scheduleView";
+	function readScheduleView(): string {
+		try {
+			return localStorage.getItem(SCHEDULE_VIEW_KEY) === "calendar" ? "calendar" : "list";
+		} catch {
+			return "list";
+		}
+	}
+	let scheduleView = $state(readScheduleView());
+	let calendarMonth = $state(currentScheduleMonth());
+	const scheduleTodayIso = scheduleToday();
+	const scheduleViewItems: SegmentedItem[] = [
+		{ id: "list", label: "List" },
+		{ id: "calendar", label: "Calendar" },
+	];
 	let discardKind = $state<"close" | "reload">("close");
-	let photoDragging = $state(false);
-	let photoDragDepth = 0;
 	let driveFiles = $state<EventDriveFile[]>([]);
 	let driveFolderUrl = $state("");
+	let driveOutsideGallery = $state(0);
 	let driveLoading = $state(false);
 	let driveUploading = $state(false);
 	let driveError = $state("");
@@ -151,6 +173,16 @@
 	let weekdays = $state<string[]>([]);
 	let monthDay = $state("");
 	let endsOn = $state("");
+	let replacesSeries = $state("");
+	let replacePrompt = $state<{
+		id: string;
+		name: string;
+		slug: string;
+		date: string;
+		skippedDates: string[];
+	} | null>(null);
+	let skipReplaceAsk = false;
+	let replacing = $state(false);
 	let current = $state<OpsEvent | null>(null);
 	let attachSeriesId = $state("");
 
@@ -161,8 +193,12 @@
 		(route as { list?: string }).list === "schedule" ? "schedule" : (route as { list?: string }).list === "series" ? "series" : null,
 	);
 	const creatingNight = $derived(route.isNew && Boolean(attachSeriesId));
+	const creatingOnce = $derived(
+		route.isNew && (route as { kind?: string }).kind === "once",
+	);
 	const seriesOptions = $derived(
 		events
+			.filter((event) => event.repeatUnit !== "once")
 			.slice()
 			.sort((a, b) => a.name.localeCompare(b.name))
 			.map((event) => ({ value: event.id, label: event.name })),
@@ -176,9 +212,14 @@
 	);
 	const occurrenceDate = $derived(occurrenceRoute?.date || "");
 	const editingOccurrence = $derived(Boolean(occurrenceDate));
+	const editingOnce = $derived(
+		!route.isNew &&
+			!editingOccurrence &&
+			String(current?.repeatUnit || repeatUnit || "").toLowerCase() === "once",
+	);
 	const listView = $derived<"series" | "schedule">(
 		routeList ??
-			(editingOccurrence
+			(editingOccurrence || creatingOnce || editingOnce
 				? "schedule"
 				: editing && !route.isNew
 					? "series"
@@ -359,7 +400,7 @@
 					startTime: "",
 					endTime: "",
 					repeatEvery: 1,
-					repeatUnit: "none",
+					repeatUnit: creatingOnce ? "once" : "none",
 					weekdays: [],
 					monthDay: 0,
 					endsOn: "",
@@ -388,6 +429,7 @@
 	const schedule = $derived(groupEventSchedule(events));
 	const eventFilterOptions = $derived(
 		[...events]
+			.filter((event) => event.repeatUnit !== "once")
 			.sort((a, b) => a.name.localeCompare(b.name))
 			.map((event) => ({ value: event.id, label: event.name })),
 	);
@@ -404,6 +446,7 @@
 	const filteredSeries = $derived.by(() => {
 		const q = seriesQuery.trim().toLowerCase();
 		return [...events]
+			.filter((event) => event.repeatUnit !== "once")
 			.filter((event) => {
 				if (!q) return true;
 				const hay = [
@@ -484,21 +527,11 @@
 		listView === "schedule" ? scheduleFiltersActive : seriesFiltersActive,
 	);
 
-	const photoUrl = $derived(
-		editingOccurrence
-			? currentOccurrence?.overrides?.image?.url || current?.mainImage?.url || ""
-			: current?.mainImage?.url || "",
-	);
 	/** Photo owned by this editor (series main, or night override). */
 	const framingUrl = $derived(
 		editingOccurrence
 			? currentOccurrence?.overrides?.image?.url || ""
 			: current?.mainImage?.url || "",
-	);
-	const canRemovePhoto = $derived(
-		editingOccurrence
-			? Boolean(currentOccurrence?.overrides?.image?.url)
-			: Boolean(current?.mainImage),
 	);
 	/** Open series (Gwenda Nights): one night at a time, no future-events scope. */
 	const isOpenSeries = $derived(
@@ -537,6 +570,16 @@
 		if (creatingNight) {
 			return [{ id: "details", label: "Details", href: hrefFor("details") }];
 		}
+		if (creatingOnce) {
+			return [{ id: "details", label: "Details", href: "/events/new/once" }];
+		}
+		if (editingOnce) {
+			return [
+				{ id: "details", label: "Details", href: hrefFor("details") },
+				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
+				{ id: "publish", label: "Publish", href: hrefFor("publish") },
+			];
+		}
 		if (editingOccurrence) {
 			return [
 				{ id: "details", label: "Details", href: hrefFor("details") },
@@ -563,6 +606,7 @@
 		weekdays?: string[];
 		monthDay?: number;
 	}): string {
+		if (event.repeatUnit === "once") return "Special event";
 		if (event.repeatUnit === "day") {
 			return event.repeatEvery === 1 ? "Every day" : `Every ${event.repeatEvery} days`;
 		}
@@ -603,6 +647,62 @@
 			month: "short",
 		});
 	}
+
+	const seriesRows = $derived.by(() =>
+		filteredSeries.map((event) => {
+			const time = seriesTimeLabel(event);
+			const guest = seriesGuestLabel(event);
+			const next = seriesNextCell(event);
+			const offer = seriesOfferLabel(event);
+			return {
+				id: event.id,
+				href: eventItemPath(event.id),
+				when: seriesWeekdayLabel(event) || repeatLabel(event),
+				photo: event.mainImage?.url || "",
+				name: event.name,
+				blurb: seriesBlurb(event),
+				detail: [time, guest, next, offer].filter(Boolean).join(" · "),
+				time,
+				guest,
+				next,
+				offer,
+				status: statusLabel(event),
+				tone: statusTone(event),
+			};
+		}),
+	);
+
+	const scheduleRows = $derived.by(() =>
+		visibleSchedule.flatMap((week) => [
+			{ kind: "week" as const, id: `week:${week.start}`, label: week.label },
+			...week.rows.map((occurrence) => {
+				const artist =
+					occurrence.occurrence?.overrides.artist || occurrence.event.artist || "";
+				const when =
+					occurrence.event.repeatUnit === "once"
+						? formatDate(occurrence.date)
+						: repeatLabel(occurrence.event);
+				return {
+					kind: "night" as const,
+					id: `${occurrence.event.id}:${occurrence.occurrence?.id || occurrence.date}`,
+					href:
+						occurrence.event.repeatUnit === "once"
+							? eventItemPath(occurrence.event.id)
+							: eventItemPath(`${occurrence.event.id}@${occurrence.date}`),
+					weekday: formatScheduleWeekday(occurrence.date),
+					dayDate: formatScheduleDate(occurrence.date),
+					photo:
+						occurrence.occurrence?.overrides.image?.url ||
+						occurrence.event.mainImage?.url ||
+						"",
+					name: occurrence.occurrence?.overrides.name || occurrence.event.name,
+					meta: artist ? `${artist} · ${when}` : when,
+					status: statusLabel(occurrence.event),
+					tone: statusTone(occurrence.event),
+				};
+			}),
+		]),
+	);
 
 	function formatClock(value: string): string {
 		const raw = String(value || "").trim();
@@ -674,10 +774,17 @@
 		name = occurrence?.overrides.name || event.name;
 		artist = occurrence?.overrides.artist || event.artist || "";
 		offer = occurrence?.overrides.offer || event.offer || "";
+		const onceNight =
+			event.repeatUnit === "once"
+				? event.dates.find((row) => row.overrides?.description || row.overrides?.shortDescription) ||
+					event.dates[0]
+				: null;
 		shortDescription = occurrence
 			? occurrence.overrides.shortDescription || ""
-			: event.shortDescription || "";
-		description = occurrence?.overrides.description || event.description || "";
+			: event.shortDescription || onceNight?.overrides.shortDescription || "";
+		description = occurrence
+			? occurrence.overrides.description || event.description || ""
+			: event.description || onceNight?.overrides.description || "";
 		nightSchedule = (event.nightSchedule || []).map((slot) => ({
 			label: slot.label || "",
 			startTime: slot.startTime || "",
@@ -699,6 +806,7 @@
 		weekdays = [...(event.weekdays || [])];
 		monthDay = event.monthDay ? String(event.monthDay) : "";
 		endsOn = event.endsOn || "";
+		replacesSeries = event.replacesSeries || "";
 		attachSeriesId = event.id;
 		if (occurrence?.overrides?.image?.url) {
 			heroCrops = normalizeHeroFraming(occurrence.overrides.heroCrops);
@@ -726,10 +834,11 @@
 		startTime = "";
 		endTime = "";
 		repeatEvery = "1";
-		repeatUnit = "none";
+		repeatUnit = creatingOnce ? "once" : "none";
 		weekdays = [];
 		monthDay = "";
 		endsOn = "";
+		replacesSeries = "";
 		attachSeriesId = "";
 		warnings = [];
 		heroCrops = null;
@@ -796,6 +905,7 @@
 			weekdays,
 			monthDay: Number(monthDay) || 0,
 			endsOn,
+			...(repeatUnit === "once" ? { replacesSeries } : {}),
 			heroCrops: heroCrops || null,
 		};
 	}
@@ -862,13 +972,43 @@
 	}
 
 	$effect(() => {
+		const view = scheduleView === "calendar" ? "calendar" : "list";
+		try {
+			localStorage.setItem(SCHEDULE_VIEW_KEY, view);
+		} catch {
+			/* Private browsing can block storage. The toggle still works. */
+		}
+	});
+
+	let appliedScheduleFrom = "";
+	$effect(() => {
+		const from = scheduleFrom;
+		if (from === appliedScheduleFrom) return;
+		appliedScheduleFrom = from;
+		if (/^\d{4}-\d{2}-\d{2}$/.test(from)) calendarMonth = from.slice(0, 7);
+	});
+
+	$effect(() => {
 		if (routeList) listOrigin = routeList;
+	});
+
+	$effect(() => {
+		if (!editingOnce || tab !== "schedule" || !eventId) return;
+		navigate(eventItemPath(eventId, "details"), { replace: true });
+	});
+
+	$effect(() => {
+		if (!editingOccurrence || !eventId || !occurrenceDate) return;
+		if (String(current?.repeatUnit || "").toLowerCase() !== "once") return;
+		navigate(eventItemPath(eventId, tab === "schedule" ? "details" : tab), {
+			replace: true,
+		});
 	});
 
 	$effect(() => {
 		if (!editing) return;
 		const canonical = route.isNew
-			? eventNewPath(route.tab || "details")
+			? eventNewPath(route.tab || "details", { once: creatingOnce })
 			: route.slug
 				? eventItemPath(route.slug, route.tab || "details")
 				: "";
@@ -970,7 +1110,9 @@
 	}
 
 	function listHomePath() {
-		return editingOccurrence ? eventListPath("schedule") : eventListPath("series");
+		return editingOccurrence || creatingOnce || editingOnce
+			? eventListPath("schedule")
+			: eventListPath("series");
 	}
 
 	function requestClose() {
@@ -1038,14 +1180,15 @@
 		intent = "delete";
 		try {
 			if (scope === "series" || !editingOccurrence || !occurrenceDate) {
-				await deleteEvent(eventId);
+				const data = await deleteEvent(eventId);
 				events = events.filter((row) => row.id !== eventId);
 				toast.ok("Event deleted.");
+				applyWarnings(data.warnings);
 				beginLeave();
 				leaveEditor(listHomePath(), { force: true });
 			} else {
 				const data = await deleteEventOccurrence(eventId, occurrenceDate, scope);
-				warnings = data.warnings || [];
+				applyWarnings(data.warnings);
 				if (data.deleted || !data.event) {
 					events = events.filter((row) => row.id !== eventId);
 					toast.ok(
@@ -1068,6 +1211,38 @@
 		} finally {
 			saving = false;
 			intent = "";
+		}
+	}
+
+	async function chooseConflict(replace: boolean) {
+		const target = replacePrompt;
+		if (!target || replacing) return;
+		const previous = replacesSeries;
+		replacePrompt = null;
+		replacing = true;
+		try {
+			if (replace) {
+				replacesSeries = target.slug;
+				const skipped = [
+					...new Set([...(target.skippedDates || []), target.date]),
+				];
+				const data = await updateEvent(target.id, { skippedDates: skipped });
+				events = events.map((row) =>
+					row.id === data.event.id ? data.event : row,
+				);
+			} else {
+				replacesSeries = `keep:${target.slug}`;
+			}
+			skipReplaceAsk = true;
+			await onSave(new Event("submit"));
+		} catch (err) {
+			replacesSeries = previous;
+			const message =
+				err instanceof Error ? err.message : "Could not cancel that night.";
+			error = message;
+			toast.error(message);
+		} finally {
+			replacing = false;
 		}
 	}
 
@@ -1101,6 +1276,7 @@
 					endTime,
 				});
 				rememberEvent(data.event, true);
+				applyWarnings(data.warnings);
 				toast.ok(data.created ? "Night added to the series." : "Night opened.");
 				navigate(eventItemPath(`${attachSeriesId}@${startsOn}`), { replace: true });
 			} catch (err) {
@@ -1116,7 +1292,9 @@
 		if (!name.trim() || (!creatingNight && !startsOn && repeatUnit !== "none")) {
 			const message = !name.trim()
 				? "Add a name."
-				: "Add a start date on Schedule.";
+				: repeatUnit === "once"
+					? "Add a date."
+					: "Add a start date on Schedule.";
 			error = message;
 			toast.error(message);
 			const target = route.isNew
@@ -1125,11 +1303,38 @@
 			if (path !== target) navigate(target);
 			return;
 		}
-		if (!editingOccurrence && repeatUnit !== "none" && !endsOn) {
+		if (
+			!editingOccurrence &&
+			repeatUnit !== "none" &&
+			repeatUnit !== "once" &&
+			!endsOn
+		) {
 			error = "Add an end date for the recurring event.";
 			toast.error(error);
 			return;
 		}
+		if (repeatUnit === "once" && !skipReplaceAsk) {
+			const hit = events.find(
+				(event) =>
+					event.id !== eventId &&
+					event.repeatUnit !== "once" &&
+					(event.dates || []).some((row) => row.date === startsOn),
+			);
+			const decided =
+				replacesSeries === hit?.slug ||
+				replacesSeries === `keep:${hit?.slug || ""}`;
+			if (hit?.slug && !decided) {
+				replacePrompt = {
+					id: hit.id,
+					name: hit.name,
+					slug: hit.slug,
+					date: startsOn,
+					skippedDates: hit.skippedDates || [],
+				};
+				return;
+			}
+		}
+		skipReplaceAsk = false;
 		if (editingOccurrence) {
 			if (
 				isOpenSeries ||
@@ -1149,12 +1354,14 @@
 			if (!eventId) {
 				const data = await createEvent(body());
 				rememberEvent(data.event, true);
-				toast.ok("Series saved.");
+				applyWarnings(data.warnings);
+				toast.ok(repeatUnit === "once" ? "Event saved." : "Series saved.");
 				navigate(eventItemPath(data.event.id, tab), { replace: true });
 			} else {
 				const payload = body();
 				const data = await updateEvent(eventId, payload);
 				rememberEvent(data.event, true);
+				applyWarnings(data.warnings);
 				if (payload.heroCrops) {
 					try {
 						await publishEvent(eventId, "staging");
@@ -1163,7 +1370,7 @@
 						toast.ok("Saved. Open Publish and Update preview to push framing.");
 					}
 				} else {
-					toast.ok("Series saved.");
+					toast.ok(repeatUnit === "once" ? "Event saved." : "Series saved.");
 				}
 			}
 		} catch (err) {
@@ -1189,6 +1396,7 @@
 				occurrenceBody(scope),
 			);
 			rememberEvent(data.event, true);
+			applyWarnings(data.warnings);
 			const movedTo = data.movedTo || "";
 			const assignedTo = String(data.assignedTo || eventId);
 			if (assignedTo !== eventId || (movedTo && movedTo !== occurrenceDate)) {
@@ -1331,12 +1539,6 @@
 		heroCrops = next && hasMeaningfulFraming(next) ? next : null;
 	}
 
-	function onPhotoInput(e: Event) {
-		const input = e.currentTarget as HTMLInputElement;
-		acceptPhotoFile(input.files?.[0]);
-		input.value = "";
-	}
-
 	async function onGalleryInput(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		const files = [...(input.files || [])];
@@ -1372,6 +1574,7 @@
 		if (!eventId) {
 			driveFiles = [];
 			driveFolderUrl = "";
+			driveOutsideGallery = 0;
 			driveError = "";
 			driveLoadedFor = "";
 			return;
@@ -1382,19 +1585,21 @@
 		try {
 			const data = await getEventDrive(eventId);
 			driveFiles = data.files || [];
-			driveFolderUrl = data.folder?.url || "";
+			driveFolderUrl = data.gallery?.url || "";
+			driveOutsideGallery = data.outsideGallery || 0;
 			driveLoadedFor = eventId;
-			if (current) {
+			if (current && data.folder?.id) {
 				current = {
 					...current,
-					driveFolderId: data.folder?.id || current.driveFolderId,
-					driveFolderUrl: data.folder?.url || current.driveFolderUrl,
+					driveFolderId: data.folder.id,
+					driveFolderUrl: data.folder.url || current.driveFolderUrl,
 				};
 			}
 		} catch (err) {
 			driveError =
-				err instanceof Error ? err.message : "Could not load Drive images.";
+				err instanceof Error ? err.message : "Could not load gallery images.";
 			driveFiles = [];
+			driveOutsideGallery = 0;
 		} finally {
 			driveLoading = false;
 		}
@@ -1411,46 +1616,25 @@
 		driveError = "";
 		try {
 			let latest = driveFiles;
+			let outside = driveOutsideGallery;
 			for (const file of files) {
 				const data = await uploadEventDriveImage(eventId, file);
 				latest = data.files || [];
-				driveFolderUrl = data.folder?.url || driveFolderUrl;
+				driveFolderUrl = data.gallery?.url || driveFolderUrl;
+				outside = data.outsideGallery || outside;
 			}
 			driveFiles = latest;
+			driveOutsideGallery = outside;
 			driveLoadedFor = eventId;
 			toast.ok(files.length === 1 ? "Image uploaded." : `${files.length} images uploaded.`);
 		} catch (err) {
 			const message =
-				err instanceof Error ? err.message : "Could not upload to Drive.";
+				err instanceof Error ? err.message : "Could not upload the gallery image.";
 			driveError = message;
 			toast.error(message);
 		} finally {
 			driveUploading = false;
 		}
-	}
-
-	function onPhotoDragEnter(e: DragEvent) {
-		e.preventDefault();
-		photoDragDepth += 1;
-		if (e.dataTransfer?.types.includes("Files")) photoDragging = true;
-	}
-
-	function onPhotoDragOver(e: DragEvent) {
-		e.preventDefault();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-	}
-
-	function onPhotoDragLeave(e: DragEvent) {
-		e.preventDefault();
-		photoDragDepth = Math.max(0, photoDragDepth - 1);
-		if (photoDragDepth === 0) photoDragging = false;
-	}
-
-	function onPhotoDrop(e: DragEvent) {
-		e.preventDefault();
-		photoDragDepth = 0;
-		photoDragging = false;
-		acceptPhotoFile(e.dataTransfer?.files?.[0]);
 	}
 
 	async function onImage(role: "main" | "gallery", file: File | null) {
@@ -1512,6 +1696,14 @@
 	>
 			<PageHeader title={listTitle}>
 				{#snippet actions()}
+					{#if listView === "schedule"}
+						<Segmented
+							bind:value={scheduleView}
+							items={scheduleViewItems}
+							size="sm"
+							ariaLabel="Schedule layout"
+						/>
+					{/if}
 					<PageHelp title={listTitle} topics={EVENTS_HELP} />
 					<Button
 						type="button"
@@ -1542,6 +1734,13 @@
 								<Icon name="plus" size={16} />
 							{/snippet}
 							New series
+						</Button>
+					{:else}
+						<Button type="button" disabled={busy} onclick={() => navigate("/events/new/once")}>
+							{#snippet icon()}
+								<Icon name="plus" size={16} />
+							{/snippet}
+							Special event
 						</Button>
 					{/if}
 				{/snippet}
@@ -1600,104 +1799,36 @@
 						Clear
 					</button>
 				</div>
+				<div class="list-main fill">
 				{#if listView === "series"}
-					<div class="series-table" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-						<div class="series-head">
-							<span>When</span>
-							<span></span>
-							<span>Series</span>
-							<span>Time</span>
-							<span>Guest</span>
-							<span>Next</span>
-							<span>Offer</span>
-							<span>Status</span>
-							<span class="row-fill" aria-hidden="true"></span>
+					{#if seriesRows.length}
+						<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+							<SeriesGrid rows={seriesRows} />
 						</div>
-						{#each filteredSeries as event (event.id)}
-							{@const blurb = seriesBlurb(event)}
-							{@const time = seriesTimeLabel(event)}
-							{@const guest = seriesGuestLabel(event)}
-							{@const next = seriesNextCell(event)}
-							{@const offer = seriesOfferLabel(event)}
-							<a class="item series-row" href={eventItemPath(event.id)}>
-								<span class="day">
-									<span class="weekday">
-										{seriesWeekdayLabel(event) || repeatLabel(event)}
-									</span>
-								</span>
-								<PhotoCell size="md" url={event.mainImage?.url || ""} alt="" />
-								<span class="copy">
-									<span class="name">{event.name}</span>
-									{#if blurb}
-										<span class="meta" title={blurb}>{blurb}</span>
-									{/if}
-									<span class="meta series-compact">
-										{[time, guest, next, offer].filter(Boolean).join(" · ")}
-									</span>
-								</span>
-								<span class="cell" title={time}>{time}</span>
-								<span class="cell" title={guest}>{guest}</span>
-								<span class="cell" title={next}>{next}</span>
-								<span class="cell" title={offer}>{offer}</span>
-								<span class="badge {statusTone(event)}">{statusLabel(event)}</span>
-								<span class="row-fill" aria-hidden="true"></span>
-							</a>
-						{:else}
-							<p class="empty">
-								{filtersActive ? "No series match these filters." : "No series yet."}
-							</p>
-						{/each}
+					{:else}
+						<p class="empty">
+							{filtersActive ? "No series match these filters." : "No series yet."}
+						</p>
+					{/if}
+				{:else if scheduleView === "calendar"}
+					<div class="calendar-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+						<ScheduleCalendar
+							weeks={visibleSchedule}
+							bind:month={calendarMonth}
+							today={scheduleTodayIso}
+							filtersActive={scheduleFiltersActive}
+						/>
+					</div>
+				{:else if scheduleRows.length}
+					<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+						<ScheduleListGrid rows={scheduleRows} />
 					</div>
 				{:else}
-					<div class="rows" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-						{#each visibleSchedule as week (week.start)}
-							<section class="week">
-								<h2 class="week-heading">{week.label}</h2>
-								<div class="week-rows">
-									{#each week.rows as occurrence (
-										`${occurrence.event.id}:${occurrence.occurrence?.id || occurrence.date}`
-									)}
-										<a
-											class="item"
-											href={eventItemPath(`${occurrence.event.id}@${occurrence.date}`)}
-										>
-											<time class="day" datetime={occurrence.date}>
-												<span class="weekday">{formatScheduleWeekday(occurrence.date)}</span>
-												<span class="day-date">{formatScheduleDate(occurrence.date)}</span>
-											</time>
-											<PhotoCell
-												size="md"
-												url={occurrence.occurrence?.overrides.image?.url ||
-													occurrence.event.mainImage?.url ||
-													""}
-												alt=""
-											/>
-											<span class="copy">
-												<span class="name">
-													{occurrence.occurrence?.overrides.name || occurrence.event.name}
-												</span>
-												<span class="meta">
-													{occurrence.occurrence?.overrides.artist || occurrence.event.artist
-														? `${occurrence.occurrence?.overrides.artist || occurrence.event.artist} · `
-														: ""}
-													{repeatLabel(occurrence.event)}
-												</span>
-											</span>
-											<span class="badge {statusTone(occurrence.event)}">
-												{statusLabel(occurrence.event)}
-											</span>
-											<span class="row-fill" aria-hidden="true"></span>
-										</a>
-									{/each}
-								</div>
-							</section>
-						{:else}
-							<p class="empty">
-								{filtersActive ? "No nights match these filters." : "No upcoming nights."}
-							</p>
-						{/each}
-					</div>
+					<p class="empty">
+						{filtersActive ? "No nights match these filters." : "No upcoming nights."}
+					</p>
 				{/if}
+				</div>
 			{/if}
 		</div>
 	{#if missing}
@@ -1719,44 +1850,7 @@
 			<EditorBackBar label={listTitle} dirty={formDirty} onback={requestClose} />
 			<div class="split split--full">
 				<div class="panel" class:dirty={formDirty}>
-					<header class="panel-head" class:no-thumb={tab === "details"}>
-						{#if tab !== "details"}
-						<div class="thumb">
-							<label
-								class="thumb-hit"
-								aria-label={photoUrl ? "Replace photo" : "Add photo"}
-								title={editingOccurrence
-									? "This night only. What's on uses this flyer while this is the next night."
-									: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
-							>
-								{#if photoUrl}
-									<img class="thumb-img" src={photoUrl} alt="" />
-								{:else}
-									<span class="thumb-empty">
-										<Icon name="upload" size={16} />
-									</span>
-								{/if}
-								<input
-									class="sr-only"
-									type="file"
-									accept="image/jpeg,image/png,image/webp,image/gif"
-									onchange={onPhotoInput}
-									disabled={!eventId}
-								/>
-							</label>
-							{#if canRemovePhoto}
-								<button
-									class="thumb-remove"
-									type="button"
-									disabled={busy}
-									aria-label="Remove photo"
-									onclick={() => onClearImage("main")}
-								>
-									<Icon name="close" size={12} />
-								</button>
-							{/if}
-						</div>
-						{/if}
+					<header class="panel-head">
 						<div class="type-line">
 							<p class="eyebrow">{typeLine}</p>
 							{#if formDirty}
@@ -1824,8 +1918,16 @@
 								id="event-name"
 								required={!creatingNight}
 								autocomplete="off"
-								aria-label={creatingNight ? "Night title override" : "Series name"}
-								placeholder={creatingNight ? "Title override (optional)" : "Series name"}
+								aria-label={creatingNight
+									? "Night title override"
+									: creatingOnce || editingOnce
+										? "Event name"
+										: "Series name"}
+								placeholder={creatingNight
+									? "Title override (optional)"
+									: creatingOnce || editingOnce
+										? "Event name"
+										: "Series name"}
 								bind:value={name}
 							/>
 							{#if artist.trim()}
@@ -1836,11 +1938,15 @@
 							<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
 							<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 						</div>
-						{#if route.isNew}
+						{#if route.isNew && !creatingOnce}
 							<div class="create-mode">
 								<p class="create-hint muted">
 									Pick a series below to add a night, or leave it empty for a new series.
 								</p>
+							</div>
+						{:else if creatingOnce}
+							<div class="create-mode">
+								<p class="create-hint muted">A special event. It does not belong to a series.</p>
 							</div>
 						{/if}
 					</header>
@@ -1873,16 +1979,16 @@
 												<div
 													class="control-grid"
 													class:has-slots={!editingOccurrence}
-													class:with-series={route.isNew || editingOccurrence}
-													class:with-date={editingOccurrence || creatingNight}
+													class:with-series={(route.isNew || editingOccurrence) && !creatingOnce}
+													class:with-date={editingOccurrence || creatingNight || creatingOnce || editingOnce}
 												>
-													{#if route.isNew || editingOccurrence}
+													{#if (route.isNew || editingOccurrence) && !creatingOnce && !editingOnce}
 														<Field
 															class="series"
 															label="Series"
 															for="event-series"
 															tooltip={route.isNew
-																? "Choose an existing series to add this night, or leave empty to create a new series or one-off event."
+																? "Choose an existing series to add this night, or leave empty to create a new series."
 																: "Move this night onto another series."}
 														>
 															<NativeSelect
@@ -1893,7 +1999,7 @@
 																	? [
 																			{
 																				value: "",
-																				label: "New series / one-off event",
+																				label: "New series",
 																			},
 																			...seriesOptions,
 																		]
@@ -1901,12 +2007,14 @@
 															/>
 														</Field>
 													{/if}
-													{#if editingOccurrence || creatingNight}
+													{#if editingOccurrence || creatingNight || creatingOnce || editingOnce}
 														<Field
 															class="when"
 															label="Date"
 															for="event-date"
-															tooltip="This night only. Series start and end stay on Schedule."
+															tooltip={creatingOnce || editingOnce
+																? "The night this event happens."
+																: "This night only. Series start and end stay on Schedule."}
 														>
 															<TextField
 																id="event-date"
@@ -1917,16 +2025,6 @@
 															/>
 														</Field>
 													{/if}
-													<Field
-														class="guest"
-														label="Guest Artist"
-														for="event-artist"
-														tooltip={editingOccurrence
-															? "This night only. When set, the night is treated as a special guest edition on What's on."
-															: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
-													>
-														<TextField id="event-artist" size="sm" bind:value={artist} />
-													</Field>
 													<Field
 														class="start"
 														label="Start"
@@ -1955,21 +2053,6 @@
 															size="sm"
 															type="time"
 															bind:value={endTime}
-														/>
-													</Field>
-													<Field
-														class="offer span-all"
-														label="Offer"
-														for="event-offer"
-														tooltip={editingOccurrence
-															? "This night only. Shown on What's on."
-															: "Default public wording, such as a drink deal. A night can override it."}
-													>
-														<TextField
-															id="event-offer"
-															size="sm"
-															bind:value={offer}
-															placeholder="£10 Negroni"
 														/>
 													</Field>
 													{#if !editingOccurrence}
@@ -2034,6 +2117,31 @@
 														</div>
 													{/if}
 													<Field
+														class="guest"
+														label="Guest Artist"
+														for="event-artist"
+														tooltip={editingOccurrence
+															? "This night only. When set, the night is treated as a special guest edition on What's on."
+															: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
+													>
+														<TextField id="event-artist" size="sm" bind:value={artist} />
+													</Field>
+													<Field
+														class="offer"
+														label="Offer"
+														for="event-offer"
+														tooltip={editingOccurrence
+															? "This night only. Shown on What's on."
+															: "Default public wording, such as a drink deal. A night can override it."}
+													>
+														<TextField
+															id="event-offer"
+															size="sm"
+															bind:value={offer}
+															placeholder="£10 Negroni"
+														/>
+													</Field>
+													<Field
 														class="span-all"
 														label="Short description"
 														for="event-short-description"
@@ -2066,71 +2174,36 @@
 															onChange={(next) => (description = next)}
 														/>
 													</Field>
+													<Field
+														class="span-all"
+														label="Operations notes"
+														for="event-operations-notes"
+														tooltip="Internal only. Never published to the website."
+													>
+														<TextArea
+															id="event-operations-notes"
+															bind:value={operationsNotes}
+															rows={4}
+															placeholder="Contacts, fee, setup, access, equipment…"
+														/>
+													</Field>
 												</div>
 											</div>
 											<aside class="details-side">
-												<figure
-													class="details-photo"
-													class:dragging={photoDragging}
-													class:empty={!photoUrl}
-													style:aspect-ratio={String(HERO_ASPECT)}
-													ondragenter={onPhotoDragEnter}
-													ondragover={onPhotoDragOver}
-													ondragleave={onPhotoDragLeave}
-													ondrop={onPhotoDrop}
-												>
-													<label
-														class="details-photo-hit"
-														aria-label={photoUrl ? "Replace photo" : "Add photo"}
-														title={editingOccurrence
-															? "This night only. What's on uses this flyer while this is the next night."
-															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
-													>
-														{#if photoUrl}
-															<img src={photoUrl} alt="" />
-														{:else}
-															<span class="details-photo-empty">
-																<Icon name="upload" size={18} />
-																Add photo
-															</span>
-														{/if}
-														<input
-															class="sr-only"
-															type="file"
-															accept="image/jpeg,image/png,image/webp,image/gif"
-															onchange={onPhotoInput}
-															disabled={!eventId}
-														/>
-													</label>
-													{#if canRemovePhoto}
-														<button
-															class="thumb-remove"
-															type="button"
-															disabled={busy}
-															aria-label="Remove photo"
-															onclick={() => onClearImage("main")}
-														>
-															<Icon name="close" size={12} />
-														</button>
-													{/if}
-													{#if photoDragging}
-														<div class="photo-drop" aria-hidden="true">
-															<span>Drop to {photoUrl ? "replace" : "add"}</span>
-														</div>
-													{/if}
-												</figure>
-												<Field
-													label="Operations notes"
-													for="event-operations-notes"
-													tooltip="Internal only. Never published to the website."
-												>
-													<TextArea
-														id="event-operations-notes"
-														bind:value={operationsNotes}
-														rows={5}
-														placeholder="Contacts, fee, setup, access, equipment…"
-													/>
-												</Field>
+												{#if !eventId}
+													<p class="hint">Save before adding a photo.</p>
+												{/if}
+												<HeroImagePanel
+													sourceUrl={framingUrl}
+													crops={heroCrops}
+													disabled={busy || !eventId}
+													tooltip={editingOccurrence
+														? "This night only. What's on uses this flyer while this is the next night."
+														: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
+													onchangecrops={onHeroCropsChange}
+													onpickfile={(file) => acceptPhotoFile(file)}
+													onclear={() => onClearImage("main")}
+												/>
 											</aside>
 										</section>
 									{:else if tab === "schedule"}
@@ -2305,23 +2378,13 @@
 											{#if !eventId}
 												<p class="hint">Save before adding images.</p>
 											{:else}
-												<HeroImagePanel
-													sourceUrl={framingUrl}
-													crops={heroCrops}
-													disabled={busy}
-													tooltip={editingOccurrence
-														? "This night only. What's on uses this flyer while this is the next night."
-														: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
-													onchangecrops={onHeroCropsChange}
-													onpickfile={(file) => void onImage("main", file)}
-												/>
 												<div class="drive-head">
 													<h2 class="section-title">
 														<span class="section-label">
-															Drive
+															Gallery
 															<Tip
-																label="Drive"
-																tooltip="Image library for this series. The Hero above is what What's on uses for framing."
+																label="Gallery"
+																tooltip="Photos stored in this event's Drive gallery. The What's on flyer is the photo on Details."
 															/>
 														</span>
 													</h2>
@@ -2330,12 +2393,19 @@
 															class="drive-link"
 															href={driveFolderUrl}
 															target="_blank"
-															rel="noreferrer">Open folder</a
+															rel="noreferrer">Open gallery</a
 														>
 													{/if}
 												</div>
 												{#if driveError}
 													<p class="error">{driveError}</p>
+												{/if}
+												{#if driveOutsideGallery > 0}
+													<p class="hint">
+														{driveOutsideGallery === 1
+															? "1 image is in the event folder, outside the gallery, so it is not shown here."
+															: `${driveOutsideGallery} images are in the event folder, outside the gallery, so they are not shown here.`}
+													</p>
 												{/if}
 												<div
 													class="drive-drop"
@@ -2416,25 +2486,27 @@
 															<h3 class="step-title">Update preview</h3>
 															<p class="step-copy">
 																{#if stagingPreviewCurrent}
-																	The staging diary has this series. Refresh What's on to check the flyer.
+																	The staging diary already has this event. Republish if What's on looks out of date.
 																{:else if current?.publish.preview === "stale"}
 																	Saved changes are not in the staging diary yet.
 																{:else}
 																	Writes this series into the staging diary. What's on shows it on refresh, without a site rebuild.
 																{/if}
 															</p>
-															{#if !stagingPreviewCurrent}
-																<Button
-																	type="button"
-																	variant="primary"
-																	size="sm"
-																	busy={publishing === "staging"}
-																	disabled={Boolean(publishing) || formDirty}
-																	onclick={() => onPublish("staging")}
-																>
-																	{publishing === "staging" ? "Updating…" : "Update preview"}
-																</Button>
-															{/if}
+															<Button
+																type="button"
+																variant={stagingPreviewCurrent ? "outline" : "primary"}
+																size="sm"
+																busy={publishing === "staging"}
+																disabled={Boolean(publishing) || formDirty}
+																onclick={() => onPublish("staging")}
+															>
+																{publishing === "staging"
+																	? "Updating…"
+																	: stagingPreviewCurrent
+																		? "Republish preview"
+																		: "Update preview"}
+															</Button>
 														</div>
 													</li>
 													<li
@@ -2520,15 +2592,15 @@
 													<p class="hint">Save before publishing.</p>
 												{/if}
 												<SitePublishMonitor showStart />
-												{#if warnings.length}
-													<ul class="warnings">
-														{#each warnings as warning (warning)}
-															<li>{warning}</li>
-														{/each}
-													</ul>
-												{/if}
 											{/if}
 										</section>
+									{/if}
+									{#if warnings.length}
+										<ul class="warnings">
+											{#each warnings as warning (warning)}
+												<li>{warning}</li>
+											{/each}
+										</ul>
 									{/if}
 									{#if error}<p class="error">{error}</p>{/if}
 								</div>
@@ -2604,6 +2676,38 @@
 						All future events
 					</Button>
 				</div>
+			</Dialog>
+
+			<Dialog
+				open={replacePrompt !== null}
+				title={replacePrompt
+					? `${formatDate(replacePrompt.date)} already has ${replacePrompt.name}`
+					: ""}
+				onclose={() => (replacePrompt = null)}
+			>
+				<p class="delete-copy">
+					Cancel that night and show {name.trim() || "this event"} instead, or keep both?
+				</p>
+				{#snippet footer()}
+					<Button
+						variant="outline"
+						size="sm"
+						type="button"
+						disabled={replacing}
+						onclick={() => void chooseConflict(false)}
+					>
+						Keep both
+					</Button>
+					<Button
+						size="sm"
+						type="button"
+						disabled={replacing}
+						busy={replacing}
+						onclick={() => void chooseConflict(true)}
+					>
+						Show {name.trim() || "this event"} instead
+					</Button>
+				{/snippet}
 			</Dialog>
 
 			<Dialog
@@ -2684,12 +2788,34 @@
 		position: absolute;
 		inset: 0;
 		z-index: 0;
-		overflow: auto;
+		overflow: hidden;
 		padding: var(--page-gutter);
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
 		background: var(--background);
+	}
+
+	.list-main {
+		flex: 1;
+		min-height: 0;
+		min-width: 0;
+		overflow: auto;
+	}
+
+	.list-main.fill {
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.grid-host,
+	.calendar-host {
+		flex: 1;
+		min-height: 0;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.list-page.parked {
@@ -2787,202 +2913,12 @@
 		margin-top: 1rem;
 	}
 
-	.rows {
-		display: grid;
-		grid-template-columns: 7.25rem auto fit-content(28rem) max-content minmax(0, 1fr);
-		column-gap: 0.75rem;
-		width: 100%;
-		min-width: 0;
-		align-content: start;
-	}
-
-	.week {
-		display: grid;
-		grid-column: 1 / -1;
-		grid-template-columns: subgrid;
-	}
-
-	.week + .week {
-		margin-top: 1.5rem;
-	}
-
-	.week-heading {
-		grid-column: 1 / -1;
-		margin: 0;
-		padding: 0.65rem 0.15rem;
-		border-bottom: 1px solid var(--border-strong);
-		color: var(--primary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		line-height: 1.3;
-		text-transform: uppercase;
-	}
-
-	.week-rows {
-		display: grid;
-		grid-column: 1 / -1;
-		grid-template-columns: subgrid;
-	}
-
-	.series-table {
-		display: grid;
-		grid-template-columns:
-			7.25rem
-			2.5rem
-			fit-content(18rem)
-			fit-content(8.75rem)
-			fit-content(10rem)
-			fit-content(16rem)
-			fit-content(10rem)
-			max-content
-			minmax(0, 1fr);
-		column-gap: 0.85rem;
-		width: 100%;
-		align-content: start;
-		overflow-x: auto;
-	}
-
-	.series-head,
-	.series-row {
-		display: grid;
-		grid-column: 1 / -1;
-		grid-template-columns: subgrid;
-		align-items: center;
-	}
-
-	.series-head {
-		column-gap: 0.85rem;
-		padding: 0.15rem 0 0.45rem;
-		border-bottom: 1px solid var(--border-strong);
-		color: var(--muted-foreground);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		line-height: 1.2;
-		text-transform: uppercase;
-	}
-
-	.series-compact {
-		display: none;
-	}
-
-	.series-table .empty {
-		grid-column: 1 / -1;
-	}
-
-	.cell {
-		min-width: 0;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		line-height: 1.3;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.item {
-		display: grid;
-		grid-column: 1 / -1;
-		grid-template-columns: subgrid;
-		align-items: center;
-		width: auto;
-		min-height: 3.35rem;
-		padding: 0.55rem 0.15rem;
-		border-bottom: 1px solid var(--border);
-		color: inherit;
-		text-decoration: none;
-	}
-
-	.series-row {
-		grid-template-columns: subgrid;
-		column-gap: 0.85rem;
-		width: auto;
-		max-width: none;
-		padding: 0.55rem 0;
-	}
-
-	.row-fill {
-		min-width: 0;
-	}
-
-	.item:hover {
-		background: color-mix(in srgb, var(--foreground) 4%, transparent);
-	}
-
-	.item:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: -2px;
-	}
-
-	.day {
-		display: flex;
-		flex-direction: column;
-		gap: 0.08rem;
-		min-width: 0;
-		font-variant-numeric: tabular-nums;
-		text-decoration: none;
-	}
-
-	.weekday {
-		color: var(--primary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.14em;
-		line-height: 1.2;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.day-date {
-		color: var(--muted-foreground);
-		font-size: var(--text-xs);
-		line-height: 1.2;
-	}
-
-	.copy {
-		display: flex;
-		flex-direction: column;
-		gap: 0.12rem;
-		min-width: 0;
-	}
-
-	.name {
-		font-weight: 500;
-		line-height: 1.3;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.meta,
-	.badge,
 	.empty,
 	.hint,
 	.status,
 	.lede {
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
-	}
-
-	.meta {
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		line-height: 1.3;
-	}
-
-	.badge.live {
-		color: var(--primary);
-	}
-
-	.badge.preview {
-		color: var(--foreground);
-	}
-
-	.badge.unpublished {
-		color: var(--primary);
-		font-weight: 700;
 	}
 
 	.missing,
@@ -3198,20 +3134,6 @@
 		pointer-events: none;
 	}
 
-	.photo-drop {
-		position: absolute;
-		inset: 0;
-		z-index: 2;
-		display: grid;
-		place-content: center;
-		pointer-events: none;
-		background: color-mix(in srgb, var(--primary) 14%, transparent);
-		color: var(--primary);
-		font-size: var(--text-md);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-	}
-
 	.panel {
 		grid-area: panel;
 		display: flex;
@@ -3231,25 +3153,9 @@
 		border-color: color-mix(in srgb, var(--destructive) 32%, var(--border));
 	}
 
-	.thumb {
-		display: block;
-		position: relative;
-		grid-column: 3;
-		grid-row: 1 / span 2;
-		width: 4.25rem;
-		height: 4.25rem;
-		justify-self: end;
-		align-self: start;
-		margin-top: 0.1rem;
-	}
-
-	.panel-head.no-thumb {
-		grid-template-columns: minmax(0, 1fr) auto;
-	}
-
 	.panel-head {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto 4.25rem;
+		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
 		column-gap: 0.85rem;
 		row-gap: 0.2rem;
@@ -3314,59 +3220,6 @@
 	}
 
 	.head-tools :global(.close-btn:hover:not(:disabled)) {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
-
-	.thumb-hit {
-		display: block;
-		width: 100%;
-		height: 100%;
-		margin: 0;
-		border-radius: var(--radius-md);
-		overflow: hidden;
-		background: var(--sunken);
-		cursor: pointer;
-	}
-
-	.thumb-img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.thumb-empty {
-		display: grid;
-		place-content: center;
-		width: 100%;
-		height: 100%;
-		color: var(--muted-foreground);
-	}
-
-	.thumb-hit:focus-within {
-		outline: 2px solid var(--ring);
-		outline-offset: 2px;
-	}
-
-	.thumb-remove {
-		position: absolute;
-		top: -0.35rem;
-		right: -0.35rem;
-		display: grid;
-		place-content: center;
-		width: 1.35rem;
-		height: 1.35rem;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-pill);
-		background: var(--card);
-		color: var(--muted-foreground);
-		cursor: pointer;
-	}
-
-	.thumb-remove:hover:not(:disabled),
-	.thumb-remove:focus-visible {
 		color: var(--destructive);
 		background: var(--destructive-wash);
 	}
@@ -3594,7 +3447,7 @@
 	.details-board {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1rem 1.35rem;
+		gap: 1.25rem 1.5rem;
 		align-items: start;
 	}
 
@@ -3604,6 +3457,10 @@
 		gap: 0.85rem;
 		align-content: start;
 		min-width: 0;
+	}
+
+	.details-side {
+		order: -1;
 	}
 
 	.control-grid {
@@ -3642,59 +3499,6 @@
 	.rule-fields > .days {
 		flex: 1 1 100%;
 		max-width: 40rem;
-	}
-
-	.details-photo {
-		position: relative;
-		margin: 0;
-		border-radius: var(--radius-md);
-		border: 1px solid var(--border);
-		overflow: hidden;
-		background: #0a0a0a;
-		min-width: 0;
-	}
-
-	.details-photo.dragging {
-		border-color: var(--primary);
-	}
-
-	.details-photo-hit {
-		display: block;
-		margin: 0;
-		width: 100%;
-		height: 100%;
-		cursor: pointer;
-	}
-
-	.details-photo img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		object-position: center;
-	}
-
-	.details-photo-empty {
-		display: grid;
-		place-content: center;
-		justify-items: center;
-		gap: 0.4rem;
-		width: 100%;
-		height: 100%;
-		min-height: 8rem;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		background: var(--sunken);
-	}
-
-	.details-photo-hit:focus-within {
-		outline: 2px solid var(--ring);
-		outline-offset: 2px;
-	}
-
-	.details-photo .thumb-remove {
-		top: 0.4rem;
-		right: 0.4rem;
 	}
 
 	.days {
@@ -3859,7 +3663,7 @@
 
 	.night-slot {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 7.25rem 7.25rem auto;
+		grid-template-columns: minmax(0, 1fr);
 		gap: 0.45rem;
 		align-items: center;
 	}
@@ -3867,6 +3671,7 @@
 	.slot-remove {
 		display: grid;
 		place-content: center;
+		justify-self: start;
 		width: 1.75rem;
 		height: 1.75rem;
 		padding: 0;
@@ -3883,23 +3688,21 @@
 		background: var(--destructive-wash);
 	}
 
-	@media (max-width: 40rem) {
-		.night-slot {
-			grid-template-columns: minmax(0, 1fr) auto;
-		}
-
-		.night-slot :global(input[type="time"]) {
-			grid-column: 1 / -1;
-		}
-	}
-
 	/*
-	  One grid: who | from | until. Slot times sit on the same tracks as the
-	  night window. Offer and the descriptions span the row.
+	  One breakpoint. Below it, the photo and every control stack.
+	  At it, the photo sits beside the form and paired fields share a row.
 	*/
-	@container event-detail (min-width: 28rem) {
+	@container event-detail (min-width: 52rem) {
+		.details-board {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		}
+
+		.details-side {
+			order: 0;
+		}
+
 		.control-grid {
-			grid-template-columns: minmax(0, 1fr) var(--time) var(--time);
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		}
 
 		.control-grid.has-slots {
@@ -3907,34 +3710,19 @@
 			margin-right: var(--gutter);
 		}
 
-		.control-grid.with-series > :global(.series) {
+		.control-grid > :global(.series),
+		.control-grid > :global(.when) {
 			grid-column: 1 / -1;
 		}
 
-		.control-grid.with-series.with-date > :global(.series) {
-			grid-column: 1;
-		}
-
-		.control-grid.with-date > :global(.when) {
-			grid-column: 1;
-			max-width: 12rem;
-		}
-
-		.control-grid.with-series.with-date > :global(.when) {
-			grid-column: 2 / -1;
-			max-width: none;
-		}
-
+		.control-grid > :global(.start),
 		.control-grid > :global(.guest) {
 			grid-column: 1;
 		}
 
-		.control-grid > :global(.start) {
+		.control-grid > :global(.end),
+		.control-grid > :global(.offer) {
 			grid-column: 2;
-		}
-
-		.control-grid > :global(.end) {
-			grid-column: 3;
 		}
 
 		.night-schedule-head {
@@ -3947,14 +3735,11 @@
 			column-gap: 0.7rem;
 		}
 
-		.night-slot :global(input[type="time"]) {
-			grid-column: auto;
-		}
-
 		.slot-remove {
 			position: absolute;
 			top: 50%;
 			right: calc(var(--gutter) * -1);
+			justify-self: auto;
 			transform: translateY(-50%);
 		}
 	}
@@ -4194,58 +3979,6 @@
 
 		.panel-foot {
 			padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
-		}
-
-		.rows,
-		.week,
-		.week-rows,
-		.series-table {
-			display: flex;
-			flex-direction: column;
-			width: 100%;
-			overflow: visible;
-		}
-
-		.series-head {
-			display: none;
-		}
-
-		.item,
-		.series-row {
-			grid-column: auto;
-			grid-template-columns: 4.75rem auto minmax(0, 1fr);
-			gap: 0.75rem;
-			width: 100%;
-			max-width: none;
-			padding: 0.55rem 0.15rem;
-		}
-
-		.series-row .cell,
-		.badge,
-		.row-fill {
-			display: none;
-		}
-
-		.series-compact {
-			display: block;
-		}
-	}
-
-	@container event-detail (min-width: 54rem) {
-		.details-board {
-			grid-template-columns: minmax(0, 1fr) minmax(24rem, 28rem);
-		}
-	}
-
-	@media (max-width: 880px) {
-		.details-main,
-		.details-side {
-			display: contents;
-		}
-
-		.details-photo {
-			order: -1;
-			max-width: 22rem;
 		}
 	}
 

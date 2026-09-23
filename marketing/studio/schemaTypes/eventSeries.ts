@@ -30,11 +30,20 @@ export const eventSeries = defineType({
       options: {
         list: [
           { title: "Manual (each night is added)", value: "manual" },
+          { title: "Special event", value: "once" },
           { title: "Repeating", value: "repeating" },
         ],
         layout: "radio",
       },
       initialValue: "manual",
+    }),
+    defineField({
+      name: "replacesSeriesId",
+      title: "Replaces series",
+      type: "string",
+      readOnly: true,
+      description:
+        "Slug of the residency this one-off stands in for. Empty when both nights stay listed.",
     }),
     defineField({
       name: "recurrence",
@@ -113,7 +122,11 @@ export const eventSeries = defineType({
     select: { title: "title", subtitle: "schedule", media: "heroImage" },
     prepare({ title, subtitle, media }) {
       const schedule =
-        subtitle === "repeating" ? "Repeating" : "Manual schedule";
+        subtitle === "repeating"
+          ? "Repeating"
+          : subtitle === "once"
+            ? "Special event"
+            : "Manual schedule";
       return { title, subtitle: schedule, media };
     },
   },

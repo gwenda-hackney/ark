@@ -3,11 +3,11 @@ import type { PageHelpTopic } from "../../ui/types";
 export const EVENTS_HELP: PageHelpTopic[] = [
 	{
 		title: "Series",
-		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit name, schedule, Images (What's on framing), and Publish. You can edit a series even when it has no upcoming nights.",
+		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit name, schedule, the What's on photo, and Publish. You can edit a series even when it has no upcoming nights.",
 	},
 	{
 		title: "Schedule",
-		body: "Schedule is the calendar of upcoming nights. Open a night for guest artist, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults.",
+		body: "Schedule lists upcoming nights by week. Calendar shows the same nights on a month grid. Open a night for guest artist, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults. Saving a series or a night also updates the Google calendar.",
 	},
 	{
 		title: "Series and nights",
@@ -15,7 +15,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Assigning to a series",
-		body: "On Details, use Series to place a night. When creating, leave it empty for a new series or one-off event, or pick a series to add the night there. When editing a night, change Series to move it onto another series.",
+		body: "On Details, use Series to place a night. When creating, leave it empty for a new series or a special event, or pick a series to add the night there. When editing a night, change Series to move it onto another series.",
 	},
 	{
 		title: "Repeating dates",
@@ -39,10 +39,14 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Default hero",
-		body: "What's on shows the next night's flyer when that night has its own photo. The series hero is the fallback. A night flyer is for that night only. Save, then Update preview. The staging diary shows that on refresh.",
+		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Save, then Update preview.",
+	},
+	{
+		title: "Gallery",
+		body: "Images is the Drive gallery for this event. Those photos are not the What's on flyer. The flyer is the photo on Details.",
 	},
 	{
 		title: "Publish",
-		body: "Header Publish opens this workflow. Update preview writes the series into the staging diary, which shows on refresh without a site rebuild. Check What's on, then Push live. Publish the staging site only when you need every page rebuilt. That takes a few minutes, and the page shows its progress.",
+		body: "Header Publish opens this workflow. Update preview writes the series into the staging diary, which shows on refresh without a site rebuild. If What's on already has the event and looks wrong, use Republish preview. Check What's on, then Push live. Publish the staging site only when you need every page rebuilt. That takes a few minutes, and the page shows its progress.",
 	},
 ];

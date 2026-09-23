@@ -157,14 +157,22 @@ function eventImageUrl(
                     <ul>
                       {detail.upcomingDates.map((night) => (
                         <li>
-                          <time datetime={night.date}>
-                            {formatEventDate(night.date)}
-                          </time>
-                          {night.isSpecialEdition && night.artist ? (
-                            <p class="event-dates-guest">
-                              Special guest · {night.artist}
-                            </p>
-                          ) : null}
+                          {night.displaced ? (
+                            <a class="event-dates-instead" href={night.href}>
+                              {night.line}
+                            </a>
+                          ) : (
+                            <>
+                              <time datetime={night.date}>
+                                {formatEventDate(night.date)}
+                              </time>
+                              {night.isSpecialEdition && night.artist ? (
+                                <p class="event-dates-guest">
+                                  Special guest · {night.artist}
+                                </p>
+                              ) : null}
+                            </>
+                          )}
                         </li>
                       ))}
                     </ul>

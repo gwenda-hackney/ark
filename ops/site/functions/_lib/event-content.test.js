@@ -5,6 +5,9 @@ import {
   plainToEventDescription,
   recurrenceLabel,
   resolveOccurrenceContent,
+  seriesDescriptionForPublish,
+  seriesScheduleMode,
+  seriesShortDescriptionForPublish,
   sanityEventDocument,
   sanitySeriesDocument,
   stableHeroFraming,
@@ -285,6 +288,112 @@ test("a flyer image alone is not a special guest night", () => {
   const content = resolveOccurrenceContent(event, occurrence);
   assert.equal(content.isSpecialEdition, false);
   assert.equal(content.image?.name, "radio.jpg");
+});
+
+test("a one-off can publish from the night description", () => {
+  const event = {
+    repeatUnit: "once",
+    description: "",
+    shortDescription: "",
+    dates: [
+      {
+        overrides: {
+          description: "Some event",
+          shortDescription: "Some event",
+        },
+      },
+    ],
+  };
+  assert.equal(seriesDescriptionForPublish(event), "Some event");
+  assert.equal(seriesShortDescriptionForPublish(event), "Some event");
+  assert.equal(
+    seriesDescriptionForPublish({ ...event, description: "Series copy" }),
+    "Series copy",
+  );
+  assert.equal(
+    seriesDescriptionForPublish({ repeatUnit: "week", description: "", dates: event.dates }),
+    "",
+  );
+  assert.equal(
+    resolveOccurrenceContent(
+      { ...event, shortDescription: "Some event test" },
+      event.dates[0],
+    ).shortDescription,
+    "Some event test",
+  );
+  assert.equal(
+    resolveOccurrenceContent(event, event.dates[0]).shortDescription,
+    "Some event",
+  );
+});
+
+test("a one-off edit marks the preview stale", async () => {
+  const { publishState } = await import("./event-store.js");
+  const event = {
+    name: "Amos Mas",
+    slug: "amos-mas",
+    repeatUnit: "once",
+    description: "Some event",
+    shortDescription: "Some event",
+    startsOn: "2026-10-18",
+    endsOn: "",
+    skippedDates: [],
+    extraDates: [],
+    replacesSeries: "",
+  };
+  const row = {
+    id: "18",
+    date: "2026-10-18",
+    sanityId: "event-amos-mas-2026-10-18",
+    overrides: {
+      description: "Some event",
+      shortDescription: "Some event",
+    },
+  };
+  const hash = occurrenceHash({ ...event, dates: [row] }, row);
+  const dates = [{ ...row, snapshots: { staging: { hash, at: "now" } } }];
+  assert.equal(publishState(event, dates, "2026-09-23").preview, "current");
+  assert.equal(
+    publishState(
+      { ...event, shortDescription: "Some event test" },
+      dates,
+      "2026-09-23",
+    ).preview,
+    "stale",
+  );
+  assert.equal(
+    publishState(
+      { ...event, replacesSeries: "gwenda-radio" },
+      dates,
+      "2026-09-23",
+    ).preview,
+    "stale",
+  );
+  assert.equal(
+    publishState({ ...event, replacesSeries: "keep:gwenda-radio" }, dates, "2026-09-23")
+      .preview,
+    "current",
+  );
+});
+
+test("a once event publishes as one night with no recurrence label", () => {
+  assert.equal(seriesScheduleMode({ repeatUnit: "once" }), "once");
+  assert.equal(recurrenceLabel({ repeatUnit: "once", startsOn: "2026-10-18" }), "");
+  const document = sanitySeriesDocument({
+    slug: "amo-mas",
+    title: "Amo MAS",
+    description: "A night of...",
+    schedule: "once",
+  });
+  assert.equal(document.schedule, "once");
+  assert.equal(document.replacesSeriesId, "");
+  const linked = sanitySeriesDocument({
+    slug: "amo-mas",
+    title: "Amo MAS",
+    schedule: "once",
+    replacesSeriesId: "gwenda-radio",
+  });
+  assert.equal(linked.replacesSeriesId, "gwenda-radio");
 });
 
 test("uses concise weekly recurrence labels", () => {

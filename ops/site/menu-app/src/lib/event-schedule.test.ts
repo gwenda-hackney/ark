@@ -6,12 +6,15 @@ import {
 	countEventScheduleRows,
 	eventWeekStart,
 	filterEventSchedule,
+	buildScheduleCalendar,
 	formatScheduleDate,
 	formatScheduleWeekday,
 	groupEventSchedule,
 	paginateEventSchedule,
+	scheduleMonthLabel,
 	seriesWeekdayLabel,
 	seriesNextNightLabel,
+	shiftScheduleMonth,
 } from "./event-schedule.ts";
 
 function event(
@@ -233,6 +236,50 @@ describe("compareSeriesByWeekday", () => {
 			],
 		);
 		assert.equal(seriesWeekdayLabel(rows[1]), "Saturday");
+	});
+});
+
+describe("buildScheduleCalendar", () => {
+	it("lays September 2026 out Monday to Sunday and places nights on their dates", () => {
+		const weeks = groupEventSchedule(
+			[
+				event("wed", "Wednesday Jazz", ["2026-09-23", "2026-09-30"]),
+				event("fri", "Music Friday", ["2026-09-25", "2026-10-02"]),
+				event("nov", "November Session", ["2026-11-06"]),
+			],
+			new Date(2026, 8, 22),
+		);
+		const calendar = buildScheduleCalendar(weeks, "2026-09");
+		assert.equal(calendar.label, "September 2026");
+		assert.equal(calendar.days.length, 35);
+		assert.deepEqual(
+			[calendar.days[0].date, calendar.days[0].inMonth],
+			["2026-08-31", false],
+		);
+		assert.deepEqual(
+			[calendar.days[1].date, calendar.days[1].inMonth],
+			["2026-09-01", true],
+		);
+		assert.equal(calendar.days[30].date, "2026-09-30");
+		assert.equal(calendar.days[34].date, "2026-10-04");
+		const jazz = calendar.days.find((day) => day.date === "2026-09-23");
+		assert.deepEqual(
+			jazz?.rows.map((row) => row.event.name),
+			["Wednesday Jazz"],
+		);
+		const spill = calendar.days.find((day) => day.date === "2026-10-02");
+		assert.equal(spill?.inMonth, false);
+		assert.equal(spill?.rows[0]?.event.id, "fri");
+		assert.equal(
+			calendar.days.some((day) => day.rows.some((row) => row.event.id === "nov")),
+			false,
+		);
+	});
+
+	it("steps across year boundaries", () => {
+		assert.equal(shiftScheduleMonth("2026-12", 1), "2027-01");
+		assert.equal(shiftScheduleMonth("2026-01", -1), "2025-12");
+		assert.equal(scheduleMonthLabel("2026-09"), "September 2026");
 	});
 });
 

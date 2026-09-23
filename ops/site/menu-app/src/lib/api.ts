@@ -535,13 +535,14 @@ export type OpsEvent = {
   startTime: string;
   endTime: string;
   repeatEvery: number;
-  repeatUnit: "none" | "day" | "week" | "month";
+  repeatUnit: "none" | "once" | "day" | "week" | "month";
   weekdays: string[];
   monthDay: number;
   endsOn: string;
   skippedDates: string[];
   extraDates: string[];
   slug: string;
+  replacesSeries: string;
   driveFolderId: string;
   driveFolderUrl: string;
   mainImage: OpsEventImage | null;
@@ -561,7 +562,7 @@ export function getEvents() {
 }
 
 export function createEvent(body: unknown) {
-  return request<{ event: OpsEvent }>("/api/events", {
+  return request<{ event: OpsEvent; warnings?: string[] }>("/api/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -569,7 +570,7 @@ export function createEvent(body: unknown) {
 }
 
 export function updateEvent(id: string, body: unknown) {
-  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}`, {
+  return request<{ event: OpsEvent; warnings?: string[] }>(`/api/events/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -673,6 +674,8 @@ export type EventDriveFile = {
 
 export type EventDriveLibrary = {
   folder: { id: string; url: string };
+  gallery: { id: string; url: string };
+  outsideGallery?: number;
   files: EventDriveFile[];
 };
 
@@ -731,6 +734,7 @@ export function updateEventOccurrence(
     movedTo?: string;
     assignedTo?: string;
     sourceDeleted?: boolean;
+    warnings?: string[];
   }>(
     `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}`,
     {
@@ -750,6 +754,7 @@ export function ensureEventOccurrence(
     event: OpsEvent;
     occurrence: OpsEventOccurrence;
     created: boolean;
+    warnings?: string[];
   }>(
     `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}`,
     {

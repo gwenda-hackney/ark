@@ -461,7 +461,12 @@ export function weekdaySlotLabel(rank) {
 export function isRecurringSeries(seriesOrRecurrence) {
   if (seriesOrRecurrence && typeof seriesOrRecurrence === "object") {
     if (seriesOrRecurrence.schedule === "repeating") return true;
-    if (seriesOrRecurrence.schedule === "manual") return false;
+    if (
+      seriesOrRecurrence.schedule === "manual" ||
+      seriesOrRecurrence.schedule === "once"
+    ) {
+      return false;
+    }
   }
   const label =
     typeof seriesOrRecurrence === "string"
@@ -499,6 +504,8 @@ function asSeriesTemplate(record) {
   ).trim();
   if (!seriesId) return null;
   const repeating = isRecurringSeries(record);
+  const schedule =
+    record.schedule === "once" ? "once" : repeating ? "repeating" : "manual";
   return {
     seriesId,
     title: String(record.title || record.seriesTitle || "").trim(),
@@ -507,7 +514,10 @@ function asSeriesTemplate(record) {
     ).trim(),
     shortDescription: String(record.shortDescription || "").trim(),
     recurrence: String(record.recurrence || "").trim(),
-    schedule: repeating ? "repeating" : "manual",
+    replacesSeriesId: String(
+      record.replacesSeriesId || record.replacesSeries || "",
+    ).trim(),
+    schedule,
     offer: String(record.offer || "").trim(),
     nightSchedule: Array.isArray(record.nightSchedule)
       ? record.nightSchedule
@@ -545,6 +555,7 @@ function summarizeSeries(template, nights) {
   const next = ordered[0];
   const series = asSeriesTemplate(template) || templateFromNights("", ordered);
   const repeating = series.schedule === "repeating";
+  const once = series.schedule === "once";
   const title = series.title || next?.seriesTitle || next?.title || "";
   const fullDescription = series.description || "";
   const shortDescription = series.shortDescription || "";
@@ -553,7 +564,9 @@ function summarizeSeries(template, nights) {
     : seriesWeekdayRankFromNights(ordered);
   const scheduleLabel = repeating
     ? series.recurrence
-    : weekdaySlotLabel(weekdayRank) || "Scheduled";
+    : once
+      ? formatShortEventDate(next?.date) || "Special event"
+      : weekdaySlotLabel(weekdayRank) || "Scheduled";
   const cardHero = seriesDefaultHero(series, ordered);
   return {
     seriesId: series.seriesId,
@@ -568,6 +581,7 @@ function summarizeSeries(template, nights) {
       ? series.nightSchedule
       : [],
     recurrence: series.recurrence,
+    replacesSeriesId: series.replacesSeriesId || "",
     schedule: series.schedule,
     scheduleLabel,
     weekdayRank,
@@ -639,11 +653,84 @@ export function buildSeriesList(
  * @param {Array} events
  * @param {{ now?: Date, series?: Array }} [options]
  */
+/**
+ * Sentence for a residency night that a one-off takes.
+ * Return date is the next published residency night after the one-off.
+ */
+export function oneOffInsteadLine({
+  seriesTitle,
+  oneOffTitle,
+  oneOffDate,
+  shortDescription = "",
+  returnDate = "",
+}) {
+  const when = formatShortEventDate(oneOffDate);
+  const title = String(oneOffTitle || "").trim();
+  const series = String(seriesTitle || "").trim();
+  const short = String(shortDescription || "").trim();
+  let line = `No ${series} on ${when}. Instead, ${title}.`;
+  if (short) {
+    line += ` ${/[.!?]$/.test(short) ? short : `${short}.`}`;
+  }
+  const back = returnDate ? formatShortEventDate(returnDate) : "";
+  if (back) line += ` Don't worry, ${series} will be back on ${back}.`;
+  return line;
+}
+
+function withOneOffComingUp(card, coming) {
+  if (!coming) return card;
+  return {
+    ...card,
+    hostName: coming.title,
+    hostDate: coming.date || coming.nextDate || "",
+    hostThisWeek: false,
+    hostHref: coming.href,
+  };
+}
+
+function asOneOffCard(card, coming) {
+  return withOneOffComingUp(
+    {
+      ...card,
+      hostName: "",
+      hostDate: "",
+      hostThisWeek: false,
+      hostHref: "",
+    },
+    coming,
+  );
+}
+
+/**
+ * Residencies stay in weekday order. One-offs are their own cards after them,
+ * dated, not folded into a weekday. A coming-up line appears only when the
+ * one-off was saved as the replacement for that series.
+ */
+function placeOneOffs(stack) {
+  const oneOffs = stack
+    .filter((row) => row.schedule === "once")
+    .sort(
+      (a, b) =>
+        String(a.date).localeCompare(String(b.date)) ||
+        a.title.localeCompare(b.title),
+    );
+  if (!oneOffs.length) return stack;
+  const series = stack
+    .filter((row) => row.schedule !== "once")
+    .map((card) => {
+      const coming = oneOffs.find(
+        (row) => row.replacesSeriesId && row.replacesSeriesId === card.seriesId,
+      );
+      return withOneOffComingUp(card, coming);
+    });
+  return [...series, ...oneOffs.map((row) => asOneOffCard(row))];
+}
+
 export function buildWhatsOnStack(
   events,
   { now = new Date(), series = [] } = {},
 ) {
-  return buildSeriesList(events, { now, series }).map((row) => {
+  const cards = buildSeriesList(events, { now, series }).map((row) => {
     const cardHero = pickWhatsOnCardHero(row, row.nights);
     // Manual series already feature night[0] (flyer + date). The teaser
     // is the night after that. Repeating residencies tease the imminent night.
@@ -692,6 +779,7 @@ export function buildWhatsOnStack(
       endTime: row.endTime,
       time: row.time,
       recurrence: row.recurrence,
+      replacesSeriesId: row.replacesSeriesId || "",
       schedule: row.schedule,
       scheduleLabel: row.scheduleLabel,
       weekdayRank: row.weekdayRank,
@@ -707,6 +795,7 @@ export function buildWhatsOnStack(
       guestEditions: [],
     };
   });
+  return placeOneOffs(cards);
 }
 
 /**
@@ -736,6 +825,65 @@ export function buildWhatsOnHome(
     next:
       hasMore && last ? { after: last.date, afterId: String(last.id) } : null,
   };
+}
+
+function oneOffDisplacements(
+  events,
+  seriesRecords,
+  seriesSummary,
+  residencyNights,
+  now,
+) {
+  const rank = seriesSummary.weekdayRank;
+  if (typeof rank !== "number" || rank < 0 || rank >= WEEKDAY_NAMES.length) {
+    return [];
+  }
+  const groups = groupUpcomingBySeries(events, now);
+  const templates = resolveTemplates(seriesRecords, groups);
+  const rows = [];
+  for (const [seriesId, grouped] of groups) {
+    if (seriesId === seriesSummary.seriesId) continue;
+    const template = templates.get(seriesId);
+    if (!template || template.schedule !== "once") continue;
+    if (template.replacesSeriesId !== seriesSummary.seriesId) continue;
+    const night = grouped[0];
+    if (!night || weekdayRankFromIso(night.date) !== rank) continue;
+    const returnNight = (residencyNights || []).find(
+      (row) => row.date > night.date,
+    );
+    rows.push({
+      date: night.date,
+      href: `/whats-on/${encodeURIComponent(seriesId)}`,
+      line: oneOffInsteadLine({
+        seriesTitle: seriesSummary.title,
+        oneOffTitle: template.title || night.title || night.seriesTitle,
+        oneOffDate: night.date,
+        shortDescription: template.shortDescription || night.shortDescription,
+        returnDate: returnNight?.date || "",
+      }),
+    });
+  }
+  return rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
+function mergeOneOffDates(rows, displacements) {
+  if (!displacements.length) return rows;
+  const merged = rows.slice();
+  for (const entry of displacements) {
+    const next = {
+      date: entry.date,
+      displaced: true,
+      href: entry.href,
+      line: entry.line,
+      artist: "",
+      title: "",
+      isSpecialEdition: false,
+    };
+    const index = merged.findIndex((row) => row.date === entry.date);
+    if (index >= 0) merged[index] = next;
+    else merged.push(next);
+  }
+  return merged.sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
 /**
@@ -803,6 +951,9 @@ export function buildSeriesDetail(
   });
 
   const nextNight = pageNights[0] || null;
+  const oneOffRows = repeating
+    ? oneOffDisplacements(events, series, seriesSummary, nights, now)
+    : [];
   const featuredGuest =
     nextNight?.isSpecialEdition && (nextNight.artist || nextNight.title)
       ? nextNight
@@ -815,17 +966,20 @@ export function buildSeriesDetail(
     next: page.next,
     richDetail,
     featuredGuest,
-    upcomingDates: pageNights.map((night) => ({
-      date: night.date,
-      artist: night.artist || "",
-      title: night.title || "",
-      isSpecialEdition: Boolean(night.isSpecialEdition),
-      startTime: night.startTime || "",
-      endTime: night.endTime || "",
-      time: night.time || "",
-      offer: night.offer || "",
-      heroImageUrl: night.heroImageUrl,
-    })),
+    upcomingDates: mergeOneOffDates(
+      pageNights.map((night) => ({
+        date: night.date,
+        artist: night.artist || "",
+        title: night.title || "",
+        isSpecialEdition: Boolean(night.isSpecialEdition),
+        startTime: night.startTime || "",
+        endTime: night.endTime || "",
+        time: night.time || "",
+        offer: night.offer || "",
+        heroImageUrl: night.heroImageUrl,
+      })),
+      oneOffRows,
+    ),
   };
 }
 

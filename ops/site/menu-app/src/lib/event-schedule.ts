@@ -293,3 +293,103 @@ export function paginateEventSchedule(
 export function countEventScheduleRows(weeks: EventScheduleWeek[]): number {
 	return weeks.reduce((total, week) => total + week.rows.length, 0);
 }
+
+/** Monday-first headings for the month grid. */
+export const SCHEDULE_WEEKDAYS = [
+	"Mon",
+	"Tue",
+	"Wed",
+	"Thu",
+	"Fri",
+	"Sat",
+	"Sun",
+] as const;
+
+export type ScheduleCalendarDay = {
+	date: string;
+	inMonth: boolean;
+	rows: EventScheduleRow[];
+};
+
+export type ScheduleCalendar = {
+	month: string;
+	label: string;
+	weekdays: readonly string[];
+	days: ScheduleCalendarDay[];
+};
+
+export function scheduleToday(now = new Date()): string {
+	return formatIsoDate(now);
+}
+
+export function currentScheduleMonth(now = new Date()): string {
+	return scheduleToday(now).slice(0, 7);
+}
+
+function parseScheduleMonth(
+	month: string,
+	now = new Date(),
+): { year: number; monthIndex: number; key: string } {
+	const match = /^(\d{4})-(\d{2})$/.exec(month);
+	const monthIndex = match ? Number(match[2]) - 1 : -1;
+	if (!match || monthIndex < 0 || monthIndex > 11) {
+		const key = currentScheduleMonth(now);
+		const [year, mon] = key.split("-").map(Number);
+		return { year, monthIndex: mon - 1, key };
+	}
+	return { year: Number(match[1]), monthIndex, key: match[0] };
+}
+
+export function scheduleMonthLabel(month: string, now = new Date()): string {
+	const parsed = parseScheduleMonth(month, now);
+	return new Date(parsed.year, parsed.monthIndex, 1).toLocaleDateString("en-GB", {
+		month: "long",
+		year: "numeric",
+	});
+}
+
+export function shiftScheduleMonth(
+	month: string,
+	delta: number,
+	now = new Date(),
+): string {
+	const parsed = parseScheduleMonth(month, now);
+	return formatIsoDate(new Date(parsed.year, parsed.monthIndex + delta, 1)).slice(0, 7);
+}
+
+/** Monday-first month grid. Nights land on their date, including leading and trailing days. */
+export function buildScheduleCalendar(
+	weeks: EventScheduleWeek[],
+	month: string,
+	now = new Date(),
+): ScheduleCalendar {
+	const parsed = parseScheduleMonth(month, now);
+	const first = new Date(parsed.year, parsed.monthIndex, 1);
+	const startOffset = (first.getDay() + 6) % 7;
+	const gridStart = addDays(first, -startOffset);
+	const daysInMonth = new Date(parsed.year, parsed.monthIndex + 1, 0).getDate();
+	const cellCount = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+	const byDate = new Map<string, EventScheduleRow[]>();
+	for (const week of weeks) {
+		for (const row of week.rows) {
+			const list = byDate.get(row.date) || [];
+			list.push(row);
+			byDate.set(row.date, list);
+		}
+	}
+	const days: ScheduleCalendarDay[] = [];
+	for (let index = 0; index < cellCount; index += 1) {
+		const date = formatIsoDate(addDays(gridStart, index));
+		days.push({
+			date,
+			inMonth: date.slice(0, 7) === parsed.key,
+			rows: byDate.get(date) || [],
+		});
+	}
+	return {
+		month: parsed.key,
+		label: scheduleMonthLabel(parsed.key, now),
+		weekdays: SCHEDULE_WEEKDAYS,
+		days,
+	};
+}

@@ -1,7 +1,8 @@
 import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
-import { ensureEventDriveFolder } from "../../../_lib/event-store.js";
+import { ensureEventGalleryFolder } from "../../../_lib/event-store.js";
 import {
-  driveFolderWebUrl,
+  isDriveImage,
+  listDriveChildren,
   listDriveImages,
   uploadDriveFile,
 } from "../../../_lib/google-drive.js";
@@ -18,22 +19,35 @@ function eventId(context) {
   return decodeURIComponent(context.params?.id || "");
 }
 
-function folderPayload(event) {
+function libraryPayload(event, gallery, files, outsideGallery = 0) {
   return {
-    id: event.driveFolderId || "",
-    url: event.driveFolderUrl || driveFolderWebUrl(event.driveFolderId),
+    folder: {
+      id: event.driveFolderId || "",
+      url: event.driveFolderUrl || "",
+    },
+    gallery: {
+      id: gallery.id || "",
+      url: gallery.url || "",
+    },
+    outsideGallery,
+    files,
   };
+}
+
+async function imagesOutsideGallery(env, event) {
+  const children = await listDriveChildren(env, event.driveFolderId);
+  return children.filter(isDriveImage).length;
 }
 
 export const onRequestGet = withApiHandler(async (context) => {
   const id = eventId(context);
   if (!id) return jsonResponse({ error: "Missing event id." }, 400);
-  const event = await ensureEventDriveFolder(context.env, id);
-  const files = await listDriveImages(context.env, event.driveFolderId);
-  return jsonResponse({
-    folder: folderPayload(event),
-    files,
-  });
+  const { event, gallery } = await ensureEventGalleryFolder(context.env, id);
+  const [files, outsideGallery] = await Promise.all([
+    listDriveImages(context.env, gallery.id),
+    imagesOutsideGallery(context.env, event),
+  ]);
+  return jsonResponse(libraryPayload(event, gallery, files, outsideGallery));
 });
 
 export const onRequestPost = withApiHandler(async (context) => {
@@ -56,18 +70,17 @@ export const onRequestPost = withApiHandler(async (context) => {
   if (bytes.byteLength > MAX_BYTES) {
     return jsonResponse({ error: "Image must be 12MB or smaller." }, 400);
   }
-  const event = await ensureEventDriveFolder(context.env, id);
+  const { event, gallery } = await ensureEventGalleryFolder(context.env, id);
   const uploaded = await uploadDriveFile(context.env, {
     name: file.name || "event.jpg",
-    parentId: event.driveFolderId,
+    parentId: gallery.id,
     bytes,
     contentType,
   });
-  const files = await listDriveImages(context.env, event.driveFolderId);
+  const files = await listDriveImages(context.env, gallery.id);
   return jsonResponse({
     ok: true,
-    folder: folderPayload(event),
     file: uploaded,
-    files,
+    ...libraryPayload(event, gallery, files),
   });
 });

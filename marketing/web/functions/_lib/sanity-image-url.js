@@ -1,13 +1,50 @@
+const HERO_ASPECT = 16 / 10;
+
+/**
+ * 16×10 card inside a stored crop, in source pixels.
+ * The site used to take that crop and fit=crop it again, which cut the card.
+ */
+export function cardFramePixels(crop, dimensions, hotspot, aspect = HERO_ASPECT) {
+  const sourceW = Number(dimensions?.width) || 0;
+  const sourceH = Number(dimensions?.height) || 0;
+  if (sourceW < 1 || sourceH < 1) return null;
+  const left = Number(crop?.left) || 0;
+  const top = Number(crop?.top) || 0;
+  const right = Number(crop?.right) || 0;
+  const bottom = Number(crop?.bottom) || 0;
+  const storedW = Math.max(1, sourceW * (1 - left - right));
+  const storedH = Math.max(1, sourceH * (1 - top - bottom));
+  const frameW = storedW / storedH > aspect ? storedH * aspect : storedW;
+  const frameH = frameW / aspect;
+  const cx = Number.isFinite(Number(hotspot?.x))
+    ? Number(hotspot.x) * sourceW
+    : left * sourceW + storedW / 2;
+  const cy = Number.isFinite(Number(hotspot?.y))
+    ? Number(hotspot.y) * sourceH
+    : top * sourceH + storedH / 2;
+  const minX = left * sourceW;
+  const minY = top * sourceH;
+  let x = Math.min(Math.max(minX, cx - frameW / 2), minX + storedW - frameW);
+  let y = Math.min(Math.max(minY, cy - frameH / 2), minY + storedH - frameH);
+  x = Math.min(Math.max(0, x), sourceW - frameW);
+  y = Math.min(Math.max(0, y), sourceH - frameH);
+  const rw = Math.max(1, Math.round(frameW));
+  const rh = Math.max(1, Math.round(rw / aspect));
+  const rx = Math.max(0, Math.min(sourceW - rw, Math.round(x)));
+  const ry = Math.max(0, Math.min(sourceH - rh, Math.round(y)));
+  return { x: rx, y: ry, w: rw, h: rh };
+}
+
 /**
  * Build a Sanity CDN URL for series heroes.
- * Without an edge crop, deliver the full image (site uses object-fit:contain).
- * With a crop, request a 16×10 fit=crop frame.
+ * Without an edge crop, deliver the full image (the card uses object-fit:cover).
+ * With a crop, deliver the 16×10 card itself, with no second crop.
  */
 export function sanityCroppedUrl(
   assetUrl,
   crop,
   dimensions,
-  { width = 1600, height = 1000, quality = 86 } = {},
+  { width = 1600, height = 1000, quality = 86, hotspot = null } = {},
 ) {
   const raw = String(assetUrl || "").trim();
   if (!raw) return null;
@@ -21,19 +58,16 @@ export function sanityCroppedUrl(
   const top = Number(crop?.top) || 0;
   const right = Number(crop?.right) || 0;
   const bottom = Number(crop?.bottom) || 0;
-  const sourceW = Number(dimensions?.width) || 0;
-  const sourceH = Number(dimensions?.height) || 0;
   const hasCrop = left > 0 || top > 0 || right > 0 || bottom > 0;
-  if (hasCrop && sourceW > 0 && sourceH > 0) {
-    const x = Math.max(0, Math.round(left * sourceW));
-    const y = Math.max(0, Math.round(top * sourceH));
-    const rw = Math.max(1, Math.round(sourceW * (1 - left - right)));
-    const rh = Math.max(1, Math.round(sourceH * (1 - top - bottom)));
-    url.searchParams.set("rect", `${x},${y},${rw},${rh}`);
+  const frame = hasCrop ? cardFramePixels(crop, dimensions, hotspot) : null;
+  if (frame) {
+    url.searchParams.set("rect", `${frame.x},${frame.y},${frame.w},${frame.h}`);
+    url.searchParams.set("w", String(width));
     if (height) url.searchParams.set("h", String(height));
-    url.searchParams.set("fit", "crop");
+    url.searchParams.set("fit", "max");
+  } else if (width) {
+    url.searchParams.set("w", String(width));
   }
-  if (width) url.searchParams.set("w", String(width));
   url.searchParams.set("auto", "format");
   url.searchParams.set("q", String(quality));
   return url.toString();
@@ -55,7 +89,9 @@ export function resolveHeroUrl(row, { width = 1600, height = 1000 } = {}) {
   const url = sanityCroppedUrl(asset, row?.heroCrop, row?.heroDimensions, {
     width,
     height,
+    hotspot: row?.heroHotspot,
   });
+  if (url && /[?&]rect=/.test(url)) return url;
   return withFocalPoint(url, row?.heroHotspot) || asset;
 }
 
@@ -68,8 +104,9 @@ export function resolveSeriesHeroUrl(row, { width = 1600, height = 1000 } = {}) 
     asset,
     row?.seriesHeroCrop,
     row?.seriesHeroDimensions,
-    { width, height },
+    { width, height, hotspot: row?.seriesHeroHotspot },
   );
+  if (url && /[?&]rect=/.test(url)) return url;
   return withFocalPoint(url, row?.seriesHeroHotspot) || asset;
 }
 

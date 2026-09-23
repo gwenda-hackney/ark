@@ -64,6 +64,58 @@ describe("initWhatsOnPage", () => {
     expect(document.getElementById("whats-on-loading")).toBeNull();
   });
 
+  it("labels special events apart from the series", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          nights: [
+            {
+              title: "Radio Gwenda",
+              href: "/whats-on/gwenda-radio",
+              date: "2026-09-27",
+              schedule: "repeating",
+              regular: true,
+              scheduleLabel: "Every Sunday",
+            },
+            {
+              title: "Amos Mas",
+              href: "/whats-on/amos-mas",
+              date: "2026-10-18",
+              schedule: "once",
+              regular: false,
+              scheduleLabel: "Sun 18 Oct",
+            },
+          ],
+          next: null,
+        }),
+      })),
+    );
+
+    initWhatsOnPage();
+    const content = document.getElementById("whats-on-content");
+    await vi.waitFor(() => {
+      expect(content?.dataset.live).toBe("ready");
+    });
+    const labels = [
+      ...(content?.querySelectorAll(".whats-on-group-label") || []),
+    ].map((node) => node.textContent);
+    expect(labels).toEqual(["Series", "Special events"]);
+    expect(
+      document.getElementById("series")?.classList.contains("whats-on-divider"),
+    ).toBe(true);
+    expect(
+      document
+        .getElementById("special")
+        ?.classList.contains("whats-on-divider"),
+    ).toBe(true);
+    const titles = [...(content?.querySelectorAll(".event-title") || [])].map(
+      (node) => node.textContent,
+    );
+    expect(titles).toEqual(["Radio Gwenda", "Amos Mas"]);
+  });
+
   it("keeps the night schedule on the card after the live refresh", async () => {
     vi.stubGlobal(
       "fetch",

@@ -37,6 +37,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   title,
   schedule,
   recurrence,
+  replacesSeriesId,
   shortDescription,
   nightSchedule[]{ label, startTime, endTime },
   description,
@@ -95,7 +96,13 @@ export async function fetchPublishedSeries(env) {
     .map((row) => ({
       seriesId: row.id,
       title: row.title,
-      schedule: row.schedule === "repeating" ? "repeating" : "manual",
+      schedule:
+        row.schedule === "repeating"
+          ? "repeating"
+          : row.schedule === "once"
+            ? "once"
+            : "manual",
+      replacesSeriesId: String(row.replacesSeriesId || "").trim(),
       recurrence: row.recurrence || "",
       shortDescription: String(row.shortDescription || "").trim(),
       nightSchedule: Array.isArray(row.nightSchedule)
