@@ -643,6 +643,7 @@ Next:
   2. Put that token in Secrets Manager as BASEROW_API_KEY (local/dev).
   3. Create a separate prod-only token for DB ${sourceDbId}; store as
        BASEROW_API_KEY_PRODUCTION and run: gh workflow run ops-secrets.yml
+       (or: npm run env:ops:pull && npm run setup:ops && npm run deploy:production -w @gwenda/ops)
   4. npm run env:ops:pull   # refresh .env.ops
   5. Local ops-dev will use BASEROW_OPS_DATABASE_ID=${databaseId}
      Production wrangler keeps ${sourceDbId}.

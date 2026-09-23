@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   expandOccurrenceDates,
   expandSeriesOccurrenceDates,
+  planOccurrenceMove,
 } from "./event-recurrence.js";
 
 const today = "2026-09-22";
@@ -131,6 +132,21 @@ describe("expandOccurrenceDates", () => {
     assert.ok(!dates.includes("2026-10-01"));
   });
 
+  it("keeps extra dates outside the weekday rule", () => {
+    const dates = expandOccurrenceDates(
+      {
+        startsOn: "2026-09-24",
+        repeatUnit: "week",
+        repeatEvery: 1,
+        weekdays: ["thu"],
+        extraDates: ["2026-09-26"],
+      },
+      { today },
+    );
+    assert.ok(dates.includes("2026-09-24"));
+    assert.ok(dates.includes("2026-09-26"));
+  });
+
   it("repeats every two months on the 15th and stops on the end date", () => {
     const dates = expandOccurrenceDates(
       {
@@ -164,5 +180,34 @@ describe("expandSeriesOccurrenceDates", () => {
         "2026-09-30",
       ],
     );
+  });
+});
+
+describe("planOccurrenceMove", () => {
+  const weekly = {
+    startsOn: "2026-09-24",
+    endsOn: "2026-12-31",
+    repeatUnit: "week",
+    weekdays: ["thu"],
+    skippedDates: [],
+    extraDates: [],
+  };
+
+  it("skips the old rule night and adds an extra when moving off-weekday", () => {
+    const plan = planOccurrenceMove(weekly, "2026-10-01", "2026-10-03");
+    assert.equal(plan.ok, true);
+    assert.deepEqual(plan.skippedDates, ["2026-10-01"]);
+    assert.deepEqual(plan.extraDates, ["2026-10-03"]);
+    assert.equal(plan.startsOn, "2026-09-24");
+  });
+
+  it("moves a one-off by changing starts on", () => {
+    const plan = planOccurrenceMove(
+      { startsOn: "2026-10-03", repeatUnit: "none" },
+      "2026-10-03",
+      "2026-10-10",
+    );
+    assert.equal(plan.oneOff, true);
+    assert.equal(plan.startsOn, "2026-10-10");
   });
 });

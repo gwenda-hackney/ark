@@ -5,8 +5,12 @@
  *
  * Loads `.env` then `.env.ark` then `.env.ops` (ops wins). Does not put
  * OPS_LOCAL_ADMIN_PW on Pages.
- * Prefer BASEROW_API_KEY_PRODUCTION for Pages (prod workspace); fall back to
- * BASEROW_API_KEY for older setups.
+ * Requires BASEROW_API_KEY_PRODUCTION (prod workspace token). Local
+ * BASEROW_API_KEY cannot see production DB 556507.
+ *
+ * Pages snapshots secrets per deployment: after this script, run
+ * `npm run deploy -w @gwenda/ops` (or deploy:production) or the new secret
+ * will not be live on operations.gwenda.co.uk.
  *
  * Usage (from repo root):
  *   npm run setup:ops
@@ -122,11 +126,14 @@ function deleteSecret(key) {
   }
 }
 
-putSecret(
-  "BASEROW_API_KEY",
-  process.env.BASEROW_API_KEY_PRODUCTION?.trim() ||
-    process.env.BASEROW_API_KEY?.trim(),
-);
+const baserowProductionKey = process.env.BASEROW_API_KEY_PRODUCTION?.trim();
+if (!baserowProductionKey) {
+  console.error(
+    "BASEROW_API_KEY_PRODUCTION is required for Pages. Refusing to fall back to the local BASEROW_API_KEY (that token cannot see production DB 556507).",
+  );
+  process.exit(1);
+}
+putSecret("BASEROW_API_KEY", baserowProductionKey);
 putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
 putSecret(
   "DEPLOY_WEBHOOK_SECRET",
@@ -180,5 +187,8 @@ for (const key of LEFTOVER_SECRET_KEYS) deleteSecret(key);
 console.log("Done. Production uses Google OAuth + Baserow Users + App Config.");
 console.log(
   "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local can keep it as an optional bypass in .env.ops.",
+);
+console.log(
+  "Redeploy required for secrets to go live: npm run deploy:production -w @gwenda/ops",
 );
 console.log("If Access still intercepts the host: npm run teardown:ops-access");

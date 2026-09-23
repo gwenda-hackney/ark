@@ -20,9 +20,10 @@ export interface EventRsvpMeta {
 
 interface Props {
   meta: EventRsvpMeta;
+  occurrenceSlug?: string;
 }
 
-const { meta } = Astro.props;
+const { meta, occurrenceSlug = "" } = Astro.props;
 ---
 
 <!doctype html>
@@ -52,7 +53,7 @@ const { meta } = Astro.props;
       href={siteConfig.brand.faviconPngPath}
     />
   </head>
-  <body>
+  <body data-occurrence-slug={occurrenceSlug}>
     <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main>
@@ -97,6 +98,7 @@ const { meta } = Astro.props;
                 </p>
                 <h1 class="invite-card-headline" id="rsvp-event-title-personal"></h1>
                 <p class="invite-card-meta" id="rsvp-event-date-personal" hidden></p>
+                <p class="event-offer" id="rsvp-event-offer-personal" hidden></p>
                 <p class="event-rsvp-venue" id="rsvp-event-venue-wrap" hidden>
                   <a
                     id="rsvp-event-maps-link"

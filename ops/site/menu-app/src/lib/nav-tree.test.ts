@@ -27,6 +27,11 @@ describe("NAV_ROUTES", () => {
 			routes[3]?.children?.map((row) => row.id),
 			["lightspeed-reconcile", "lightspeed-export"],
 		);
+		assert.equal(routes[4]?.id, "events");
+		assert.deepEqual(
+			routes[4]?.children?.map((row) => row.id),
+			["events-series", "events-schedule"],
+		);
 	});
 });
 
@@ -42,7 +47,8 @@ describe("flattenNavRoutes", () => {
 				"suppliers",
 				"lightspeed-reconcile",
 				"lightspeed-export",
-				"events",
+				"events-series",
+				"events-schedule",
 				"web",
 				"users",
 				"config",
@@ -61,8 +67,16 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/suppliers")?.id, "suppliers");
 		assert.equal(matchActiveRoute(routes, "/sections")?.id, "sections");
 		assert.equal(matchActiveRoute(routes, "/config")?.id, "config");
-		assert.equal(matchActiveRoute(routes, "/events")?.id, "events");
-		assert.equal(matchActiveRoute(routes, "/events/new")?.id, "events");
+		assert.equal(matchActiveRoute(routes, "/events")?.id, "events-series");
+		assert.equal(matchActiveRoute(routes, "/events/new")?.id, "events-series");
+		assert.equal(matchActiveRoute(routes, "/events/12")?.id, "events-series");
+		assert.equal(matchActiveRoute(routes, "/events/12/schedule")?.id, "events-series");
+		assert.equal(matchActiveRoute(routes, "/events/schedule")?.id, "events-schedule");
+		assert.equal(matchActiveRoute(routes, "/events/nights")?.id, "events-schedule");
+		assert.equal(
+			matchActiveRoute(routes, "/events/12@2026-09-25")?.id,
+			"events-schedule",
+		);
 		assert.equal(matchActiveRoute(routes, "/web")?.id, "web");
 		assert.equal(matchActiveRoute(routes, "/")?.id, "home");
 		assert.equal(matchActiveRoute(routes, "/users")?.id, "users");
@@ -95,5 +109,12 @@ describe("navGroupContains", () => {
 		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/inventory")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/users")), false);
+		const events = routes.find((row) => row.id === "events")!;
+		assert.equal(navGroupContains(events, matchActiveRoute(routes, "/events")), true);
+		assert.equal(
+			navGroupContains(events, matchActiveRoute(routes, "/events/schedule")),
+			true,
+		);
+		assert.equal(navGroupContains(events, matchActiveRoute(routes, "/web")), false);
 	});
 });

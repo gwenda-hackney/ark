@@ -84,6 +84,7 @@ export function buildCalendarTicket({
   const now = toIcsUtc(new Date());
   const start = parseTimeOnDate(date, startTime);
   const end = parseTimeOnDate(date, endTime);
+  if (start && end && end <= start) end.setDate(end.getDate() + 1);
   const summary = escapeIcsText(formatTicketTitle(title));
   const location = escapeIcsText(venue || DEFAULT_LOCATION.address);
   const attendee = guestName ? `ATTENDEE;CN=${escapeIcsText(guestName)}:MAILTO:guest@gwenda.co.uk\r\n` : "";

@@ -11,7 +11,55 @@ import { buildLabel } from "../config/build";
       aria-label={`Staging environment. Build ${buildLabel()}.`}
       title={`Build ${buildLabel()}`}
     >
-      <span>Staging</span>
+      <button
+        type="button"
+        class="staging-ribbon-share"
+        id="staging-share"
+        title="Copy a link that unlocks staging for the recipient"
+      >
+        <span data-staging-share-label>Staging</span>
+      </button>
     </div>
+  )
+}
+
+{
+  isStaging && (
+    <script>
+      const button = document.getElementById("staging-share");
+      if (button) {
+        const label = button.querySelector("[data-staging-share-label]");
+        const idle = label?.textContent || "Staging";
+        let resetTimer = 0;
+
+        function setLabel(text) {
+          if (label) label.textContent = text;
+        }
+
+        async function copyShareLink() {
+          const path = `${window.location.pathname}${window.location.search}`;
+          const response = await fetch(
+            `/api/staging-share?path=${encodeURIComponent(path)}`,
+            { credentials: "same-origin" },
+          );
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.url) {
+            throw new Error(data.error || "Could not build a share link.");
+          }
+          await navigator.clipboard.writeText(data.url);
+          setLabel("Copied");
+          window.clearTimeout(resetTimer);
+          resetTimer = window.setTimeout(() => setLabel(idle), 1600);
+        }
+
+        button.addEventListener("click", () => {
+          copyShareLink().catch(() => {
+            setLabel("Failed");
+            window.clearTimeout(resetTimer);
+            resetTimer = window.setTimeout(() => setLabel(idle), 2000);
+          });
+        });
+      }
+    </script>
   )
 }

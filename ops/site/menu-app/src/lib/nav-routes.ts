@@ -2,7 +2,7 @@ import type { NavRoute } from "../shell/types";
 
 /**
  * Side rail. Menu is the guest menu. Stock is inventory and suppliers.
- * Lightspeed is POS reconcile and export.
+ * Lightspeed is POS reconcile and export. Events is series and schedule.
  */
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
@@ -33,7 +33,15 @@ export const NAV_ROUTES: NavRoute[] = [
 			{ id: "lightspeed-export", path: "/lightspeed/export", name: "Export", icon: "upload" },
 		],
 	},
-	{ id: "events", path: "/events", name: "Events", icon: "events" },
+	{
+		id: "events",
+		name: "Events",
+		icon: "events",
+		children: [
+			{ id: "events-series", path: "/events", name: "Series", icon: "list" },
+			{ id: "events-schedule", path: "/events/schedule", name: "Schedule", icon: "events" },
+		],
+	},
 	{ id: "web", path: "/web", name: "Web", icon: "web" },
 	{ id: "users", path: "/users", name: "Users", icon: "users" },
 	{ id: "config", path: "/config", name: "Configuration", icon: "settings" },

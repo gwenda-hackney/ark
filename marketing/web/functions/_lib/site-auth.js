@@ -61,6 +61,20 @@ export function gateBypassRedirectPath(url) {
   return clean.pathname + (search ? `?${search}` : "");
 }
 
+/**
+ * Shareable staging URL with ?access= so the recipient unlocks the gate.
+ * Path must be same-origin (starts with a single /).
+ */
+export function buildGateShareUrl(origin, pathWithSearch, bypassKey) {
+  const key = String(bypassKey || "").trim();
+  const base = String(origin || "").trim().replace(/\/$/, "");
+  if (!key || !base) return "";
+  const path = safeRedirectPath(pathWithSearch || "/");
+  const url = new URL(path, `${base}/`);
+  url.searchParams.set(GATE_BYPASS_PARAM, key);
+  return url.toString();
+}
+
 export function parseCookies(header) {
   const out = {};
   if (!header) return out;
@@ -154,6 +168,10 @@ export function isPublicPath(pathname) {
     return true;
   if (pathname === "/api/events" || pathname.startsWith("/api/events/"))
     return true;
+  if (pathname === "/api/whats-on" || pathname.startsWith("/api/whats-on/"))
+    return true;
+  if (pathname === "/whats-on" || pathname === "/whats-on/") return true;
+  if (pathname.startsWith("/whats-on/")) return true;
   if (pathname === "/invite" || pathname === "/invite/") return true;
   if (pathname.startsWith("/invite/")) return true;
   if (pathname === "/events/rsvp" || pathname === "/events/rsvp/") return true;

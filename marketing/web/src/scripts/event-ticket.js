@@ -1,14 +1,22 @@
 import { formatEventWhen } from "../data/events.ts";
 
-/** `/events/<slug>/ticket?guest=<rowId>&t=<signature>` */
+/** `/whats-on/<series>/<date>/ticket` (or legacy `/events/<slug>/ticket`). */
 function parseTicketQuery() {
-  const parts = window.location.pathname.split("/").filter(Boolean);
-  if (parts[0] !== "events" || !parts[1] || parts[2] !== "ticket") return null;
   const search = new URLSearchParams(window.location.search);
   const guest = search.get("guest");
   const token = search.get("t");
   if (!guest || !token) return null;
-  return { slug: decodeURIComponent(parts[1]), guest, token };
+  const fromBody = document.body?.dataset?.occurrenceSlug?.trim();
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  let slug = fromBody || "";
+  if (!slug && parts[0] === "whats-on" && parts[1] && parts[2] && parts[3] === "ticket") {
+    slug = `${decodeURIComponent(parts[1])}-${decodeURIComponent(parts[2])}`;
+  }
+  if (!slug && parts[0] === "events" && parts[1] && parts[2] === "ticket") {
+    slug = decodeURIComponent(parts[1]);
+  }
+  if (!slug) return null;
+  return { slug, guest, token };
 }
 
 function showOnly(id) {
@@ -37,7 +45,10 @@ function renderTicket(data, queryString) {
   }
 
   if (event.date) {
-    setText("ticket-event-date", formatEventWhen(event.date, event.ticketStart, event.ticketEnd));
+    setText(
+      "ticket-event-date",
+      formatEventWhen(event.date, event.ticketStart, event.ticketEnd, event.time),
+    );
   }
 
   const venueLink = document.getElementById("ticket-venue-link");

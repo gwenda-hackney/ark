@@ -1,8 +1,12 @@
-import type { Event } from "../../types/events";
+import type { Event, EventSeries } from "../../types/events";
 import { createSanityClient } from "./client";
-import { mapSanityImage, type SanityImageField } from "./images";
+import {
+  mapSanityHeroImage,
+  mapSanityImage,
+  type SanityImageField,
+} from "./images";
 import { portableTextToPlain } from "./portable-text";
-import { EVENTS_QUERY } from "./queries";
+import { EVENTS_QUERY, SERIES_QUERY } from "./queries";
 
 type PortableTextBlock = {
   _type?: string;
@@ -12,9 +16,20 @@ type PortableTextBlock = {
 type SanityEvent = {
   id: string | null;
   title: string;
+  artist?: string | null;
+  offer?: string | null;
+  seriesId?: string | null;
+  seriesTitle?: string | null;
+  recurrence?: string | null;
+  isSpecialEdition?: boolean | null;
+  time?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   date: string;
+  shortDescription?: string | null;
   description: string | PortableTextBlock[];
   heroImage?: SanityImageField;
+  seriesHeroImage?: SanityImageField;
 };
 
 function mapEvent(doc: SanityEvent): Event | null {
@@ -23,12 +38,27 @@ function mapEvent(doc: SanityEvent): Event | null {
     return null;
   }
 
+  const seriesHero = mapSanityHeroImage(doc.seriesHeroImage, doc.title);
+  const hero = mapSanityHeroImage(doc.heroImage, doc.title);
+
   return {
     id: doc.id,
     title: doc.title,
+    artist: doc.artist?.trim() || "",
+    offer: doc.offer?.trim() || "",
+    seriesId: doc.seriesId?.trim() || doc.id,
+    seriesTitle: doc.seriesTitle?.trim() || "",
+    recurrence: doc.recurrence?.trim() || "",
+    isSpecialEdition: Boolean(doc.isSpecialEdition),
+    time: doc.time?.trim() || "",
+    startTime: doc.startTime?.trim() || "",
+    endTime: doc.endTime?.trim() || "",
     date: doc.date,
+    shortDescription: doc.shortDescription?.trim() || "",
     description,
-    heroImage: mapSanityImage(doc.heroImage, doc.title),
+    heroImage: hero || mapSanityImage(doc.heroImage, doc.title),
+    seriesHeroImageUrl: seriesHero?.url || null,
+    seriesHeroObjectPosition: seriesHero?.objectPosition || null,
   };
 }
 
@@ -36,7 +66,47 @@ export async function fetchEvents(): Promise<Event[]> {
   const client = createSanityClient();
   const docs = await client.fetch<SanityEvent[]>(EVENTS_QUERY);
 
-  return docs
-    .map(mapEvent)
-    .filter((event): event is Event => event !== null);
+  return docs.map(mapEvent).filter((event): event is Event => event !== null);
+}
+
+type SanitySeries = {
+  id: string | null;
+  title: string;
+  schedule?: string | null;
+  recurrence?: string | null;
+  shortDescription?: string | null;
+  description?: string | PortableTextBlock[] | null;
+  heroImage?: SanityImageField;
+};
+
+function mapSeries(doc: SanitySeries): EventSeries | null {
+  if (!doc.id || !doc.title) return null;
+  const hero = mapSanityHeroImage(doc.heroImage, doc.title);
+  return {
+    seriesId: doc.id,
+    title: doc.title,
+    schedule: doc.schedule === "repeating" ? "repeating" : "manual",
+    recurrence: doc.recurrence?.trim() || "",
+    shortDescription: doc.shortDescription?.trim() || "",
+    description: portableTextToPlain(doc.description || ""),
+    heroImageUrl: hero?.url || null,
+    heroObjectPosition: hero?.objectPosition || null,
+  };
+}
+
+export async function fetchSeries(): Promise<EventSeries[]> {
+  const client = createSanityClient();
+  const docs = await client.fetch<SanitySeries[]>(SERIES_QUERY);
+  return docs.map(mapSeries).filter((row): row is EventSeries => row !== null);
+}
+
+export async function fetchWhatsOnCatalog(): Promise<{
+  series: EventSeries[];
+  occurrences: Event[];
+}> {
+  const [series, occurrences] = await Promise.all([
+    fetchSeries(),
+    fetchEvents(),
+  ]);
+  return { series, occurrences };
 }

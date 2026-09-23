@@ -181,13 +181,14 @@ async function refresh(apiBase, refreshToken) {
 /**
  * Return a user JWT, from cache / refresh / env / prompt.
  * @param {string} apiBase
- * @param {{ hint?: string }} [opts]
+ * @param {{ hint?: string, forceRefresh?: boolean }} [opts]
  */
 export async function getBaserowJwt(apiBase, opts = {}) {
   const base = String(apiBase || "https://api.baserow.io").replace(/\/$/, "");
   const cached = readCache(base);
+  const forceRefresh = Boolean(opts.forceRefresh);
 
-  if (cached?.accessToken && isFresh(cached.accessToken)) {
+  if (!forceRefresh && cached?.accessToken && isFresh(cached.accessToken)) {
     console.log(
       `Using cached Baserow JWT${cached.email ? ` (${cached.email})` : ""}.`,
     );

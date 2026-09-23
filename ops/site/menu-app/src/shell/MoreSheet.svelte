@@ -32,7 +32,17 @@
 	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
 	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
-	const onEvents = $derived(path === "/events" || path.startsWith("/events/"));
+	const eventsPath = $derived(path.split("?")[0] ?? "/");
+	const onSchedule = $derived(
+		eventsPath === "/events/schedule" ||
+			eventsPath.startsWith("/events/schedule/") ||
+			eventsPath === "/events/nights" ||
+			eventsPath.startsWith("/events/nights/") ||
+			/\/events\/[^/]+@/.test(eventsPath),
+	);
+	const onSeries = $derived(
+		(eventsPath === "/events" || eventsPath.startsWith("/events/")) && !onSchedule,
+	);
 </script>
 
 {#if open}
@@ -94,19 +104,32 @@
 						<span class="hint">Guest menu chapters and groups</span>
 					</span>
 				</a>
-				<p class="heading">Website</p>
+				<p class="heading">Events</p>
 				<a
 					class="row"
-					class:on={onEvents}
+					class:on={onSeries}
 					href="/events"
-					aria-current={onEvents ? "page" : undefined}
+					aria-current={onSeries ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="list" size={18} /></span>
+					<span class="copy">
+						<span class="label">Series</span>
+						<span class="hint">Residencies and their defaults</span>
+					</span>
+				</a>
+				<a
+					class="row"
+					class:on={onSchedule}
+					href="/events/schedule"
+					aria-current={onSchedule ? "page" : undefined}
 				>
 					<span class="icon"><Icon name="events" size={18} /></span>
 					<span class="copy">
-						<span class="label">Events</span>
-						<span class="hint">Nights on the site, and the social post</span>
+						<span class="label">Schedule</span>
+						<span class="hint">Upcoming nights</span>
 					</span>
 				</a>
+				<p class="heading">Website</p>
 				<a
 					class="row"
 					class:on={onWeb}

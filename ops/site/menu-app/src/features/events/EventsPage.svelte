@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte";
-	import { fly } from "svelte/transition";
+	import { fade, fly } from "svelte/transition";
 	import { Icon } from "../../shell";
 	import {
 		BusyOverlay,
@@ -11,18 +11,31 @@
 		MultiSelect,
 		NativeSelect,
 		PageHeader,
+		PageHelp,
+		SearchField,
 		Segmented,
 		TextArea,
 		TextField,
+		Tip,
 	} from "../../ui";
 	import type { SegmentedItem } from "../../ui/types";
 	import PhotoCell from "../menu/cells/PhotoCell.svelte";
 	import MethodEditor from "../menu/MethodEditor.svelte";
+	import { EVENTS_HELP } from "./events-help";
+	import HeroImagePanel from "./HeroImagePanel.svelte";
+	import {
+		HERO_ASPECT,
+		hasMeaningfulFraming,
+		normalizeHeroFraming,
+		type HeroFraming,
+	} from "./hero-crops";
 	import {
 		clearEventImage,
+		clearEventOccurrenceImage,
 		createEvent,
 		deleteEvent,
 		deleteEventOccurrence,
+		ensureEventOccurrence,
 		eventDriveFileUrl,
 		getEventDrive,
 		getEvents,
@@ -32,12 +45,14 @@
 		updateEventOccurrence,
 		uploadEventDriveImage,
 		uploadEventImage,
+		uploadEventOccurrenceImage,
 		type EventDriveFile,
 		type OpsEvent,
 	} from "../../lib/api";
 	import {
 		editorKey,
 		eventItemPath,
+		eventListPath,
 		eventNewPath,
 		eventTabPath,
 		leaveEditor,
@@ -48,13 +63,17 @@
 	} from "../../lib/nav";
 	import { setCrumbLeaf } from "../../lib/crumbs.svelte";
 	import {
+		compareSeriesByWeekday,
+		countEventScheduleRows,
 		filterEventSchedule,
 		formatScheduleDate,
 		formatScheduleWeekday,
 		groupEventSchedule,
+		seriesNextNightLabel,
+		seriesWeekdayLabel,
 	} from "../../lib/event-schedule";
 	import { toast } from "../../lib/toast.svelte";
-	import { easeOut, flyMs } from "../../lib/motion";
+	import { easeOut, fadeMs, flyMs } from "../../lib/motion";
 	import {
 		beginLeave,
 		clearUnsavedGuard,
@@ -65,16 +84,6 @@
 		WEEKDAYS,
 		expandSeriesOccurrenceDates,
 	} from "../../../../functions/_lib/event-recurrence.js";
-
-	const PHOTO_KEY = "ops.events.photo";
-
-	function readPhotoOpen(): boolean {
-		try {
-			return localStorage.getItem(PHOTO_KEY) !== "closed";
-		} catch {
-			return true;
-		}
-	}
 
 	let { path = "/" }: { path?: string } = $props();
 
@@ -100,13 +109,14 @@
 	let deleteScopeOpen = $state(false);
 	let discardOpen = $state(false);
 	let saveScopeOpen = $state(false);
-	let listEventIds = $state<string[]>([]);
-	let listFrom = $state("");
-	let listTo = $state("");
+	let seriesQuery = $state("");
+	let scheduleEventIds = $state<string[]>([]);
+	let scheduleQuery = $state("");
+	let scheduleFrom = $state("");
+	let scheduleTo = $state("");
 	let discardKind = $state<"close" | "reload">("close");
 	let photoDragging = $state(false);
 	let photoDragDepth = 0;
-	let photoOpen = $state(readPhotoOpen());
 	let driveFiles = $state<EventDriveFile[]>([]);
 	let driveFolderUrl = $state("");
 	let driveLoading = $state(false);
@@ -118,10 +128,12 @@
 	let tabSlide = $state(1);
 	let tabPrev = "details";
 	let tabReady = false;
+	let heroCrops = $state<HeroFraming | null>(null);
 
 	let name = $state("");
 	let artist = $state("");
 	let offer = $state("");
+	let shortDescription = $state("");
 	let description = $state("");
 	let operationsNotes = $state("");
 	let imageLinksText = $state("");
@@ -135,9 +147,21 @@
 	let monthDay = $state("");
 	let endsOn = $state("");
 	let current = $state<OpsEvent | null>(null);
+	let attachSeriesId = $state("");
 
+	let listOrigin = $state<"series" | "schedule">("series");
 	const route = $derived(parseShellPath(path));
 	const editing = $derived(route.page === "events" && (route.isNew || Boolean(route.slug)));
+	const routeList = $derived(
+		(route as { list?: string }).list === "schedule" ? "schedule" : (route as { list?: string }).list === "series" ? "series" : null,
+	);
+	const creatingNight = $derived(route.isNew && Boolean(attachSeriesId));
+	const seriesOptions = $derived(
+		events
+			.slice()
+			.sort((a, b) => a.name.localeCompare(b.name))
+			.map((event) => ({ value: event.id, label: event.name })),
+	);
 	const occurrenceRoute = $derived.by(() => {
 		const match = /^([^@]+)@(\d{4}-\d{2}-\d{2})$/.exec(String(route.slug || ""));
 		return match ? { eventId: match[1], date: match[2] } : null;
@@ -147,6 +171,15 @@
 	);
 	const occurrenceDate = $derived(occurrenceRoute?.date || "");
 	const editingOccurrence = $derived(Boolean(occurrenceDate));
+	const listView = $derived<"series" | "schedule">(
+		routeList ??
+			(editingOccurrence
+				? "schedule"
+				: editing && !route.isNew
+					? "series"
+					: listOrigin),
+	);
+	const listTitle = $derived(listView === "schedule" ? "Schedule" : "Series");
 	const currentOccurrence = $derived(
 		current?.dates.find((occurrence) => occurrence.date === occurrenceDate) || null,
 	);
@@ -177,6 +210,7 @@
 		name?: string;
 		artist?: string;
 		offer?: string;
+		shortDescription?: string;
 		description?: string;
 		operationsNotes?: string;
 		imageLinks?: string[];
@@ -194,6 +228,7 @@
 			name: String(row.name || "").trim(),
 			artist: String(row.artist || "").trim(),
 			offer: String(row.offer || "").trim(),
+			shortDescription: String(row.shortDescription || "").trim(),
 			description: String(row.description || "").trim(),
 			operationsNotes: String(row.operationsNotes || "").trim(),
 			imageLinks: [...(row.imageLinks || [])].map((link) => link.trim()).filter(Boolean),
@@ -216,6 +251,7 @@
 		description?: string;
 		operationsNotes?: string;
 		imageLinks?: string[];
+		date?: string;
 		time?: string;
 		startTime?: string;
 		endTime?: string;
@@ -227,16 +263,22 @@
 			description: String(row.description || "").trim(),
 			operationsNotes: String(row.operationsNotes || "").trim(),
 			imageLinks: [...(row.imageLinks || [])].map((link) => link.trim()).filter(Boolean),
+			date: row.date || "",
 			time: String(row.time || "").trim(),
 			startTime: row.startTime || "",
 			endTime: row.endTime || "",
 		});
 	}
 
+	function cropsKey(value: HeroFraming | Record<string, unknown> | null | undefined) {
+		if (!value || !hasMeaningfulFraming(normalizeHeroFraming(value))) return "";
+		return JSON.stringify(normalizeHeroFraming(value));
+	}
+
 	const formDirty = $derived.by(() => {
 		if (editingOccurrence && current) {
 			const overrides = currentOccurrence?.overrides;
-			return (
+			const fieldsDirty =
 				occurrenceSnapshot({
 					name,
 					artist,
@@ -244,6 +286,7 @@
 					description,
 					operationsNotes,
 					imageLinks: imageLinksText.split(/\r?\n/),
+					date: startsOn,
 					time,
 					startTime,
 					endTime,
@@ -257,16 +300,21 @@
 					imageLinks: overrides?.imageLinks?.length
 						? overrides.imageLinks
 						: current.imageLinks,
+					date: occurrenceDate,
 					time: overrides?.time || current.time,
 					startTime: overrides?.startTime || current.startTime,
 					endTime: overrides?.endTime || current.endTime,
-				})
-			);
+				});
+			const cropsDirty =
+				Boolean(overrides?.image?.url) &&
+				cropsKey(heroCrops) !== cropsKey(overrides?.heroCrops);
+			return fieldsDirty || cropsDirty || attachSeriesId !== eventId;
 		}
 		const draft = fieldSnapshot({
 			name,
 			artist,
 			offer,
+			shortDescription,
 			description,
 			operationsNotes,
 			imageLinks: imageLinksText.split(/\r?\n/),
@@ -287,6 +335,7 @@
 					name: "",
 					artist: "",
 					offer: "",
+					shortDescription: "",
 					description: "",
 					operationsNotes: "",
 					imageLinks: [],
@@ -302,7 +351,10 @@
 				})
 			);
 		}
-		return draft !== fieldSnapshot(current);
+		return (
+			draft !== fieldSnapshot(current) ||
+			cropsKey(heroCrops) !== cropsKey(current.heroCrops)
+		);
 	});
 
 	const previewDates = $derived(
@@ -313,6 +365,8 @@
 			weekdays,
 			monthDay: Number(monthDay) || undefined,
 			endsOn,
+			skippedDates: current?.skippedDates,
+			extraDates: current?.extraDates,
 		}).filter((date) => date >= new Date().toISOString().slice(0, 10)),
 	);
 
@@ -324,18 +378,64 @@
 	);
 	const filteredSchedule = $derived(
 		filterEventSchedule(schedule, {
-			eventIds: listEventIds,
-			from: listFrom,
-			to: listTo,
+			eventIds: scheduleEventIds,
+			query: scheduleQuery,
+			from: scheduleFrom,
+			to: scheduleTo,
 		}),
 	);
 	const visibleSchedule = $derived(filteredSchedule);
+
+	const filteredSeries = $derived.by(() => {
+		const q = seriesQuery.trim().toLowerCase();
+		return [...events]
+			.filter((event) => {
+				if (!q) return true;
+				const hay = [event.name, event.artist, event.offer, event.description]
+					.join(" ")
+					.toLowerCase();
+				return hay.includes(q);
+			})
+			.sort(compareSeriesByWeekday);
+	});
+
+	function seriesNextLabel(event: OpsEvent): string {
+		const next = event.publish?.nextDate || event.publish?.previewDates?.[0] || "";
+		if (!next) return "No upcoming nights";
+		const night = seriesNextNightLabel(event);
+		return night ? `Next ${formatDate(next)} · ${night}` : `Next ${formatDate(next)}`;
+	}
+	const seriesFiltersActive = $derived(Boolean(seriesQuery.trim()));
+	const scheduleFiltersActive = $derived(
+		scheduleEventIds.length > 0 ||
+			Boolean(scheduleQuery.trim()) ||
+			Boolean(scheduleFrom) ||
+			Boolean(scheduleTo),
+	);
 	const filtersActive = $derived(
-		listEventIds.length > 0 || Boolean(listFrom) || Boolean(listTo),
+		listView === "schedule" ? scheduleFiltersActive : seriesFiltersActive,
 	);
 
-	const photoUrl = $derived(current?.mainImage?.url || "");
-	const canRemovePhoto = $derived(Boolean(current?.mainImage));
+	const photoUrl = $derived(
+		editingOccurrence
+			? currentOccurrence?.overrides?.image?.url || current?.mainImage?.url || ""
+			: current?.mainImage?.url || "",
+	);
+	/** Photo owned by this editor (series main, or night override). */
+	const framingUrl = $derived(
+		editingOccurrence
+			? currentOccurrence?.overrides?.image?.url || ""
+			: current?.mainImage?.url || "",
+	);
+	const canRemovePhoto = $derived(
+		editingOccurrence
+			? Boolean(currentOccurrence?.overrides?.image?.url)
+			: Boolean(current?.mainImage),
+	);
+	/** Open series (Gwenda Nights): one night at a time, no future-events scope. */
+	const isOpenSeries = $derived(
+		String(current?.repeatUnit || repeatUnit || "none").toLowerCase() === "none",
+	);
 	const typeLine = $derived(
 		repeatLabel({
 			repeatEvery: Number(repeatEvery) || 1,
@@ -362,6 +462,9 @@
 				? `/events/${encodeURIComponent(route.slug)}`
 				: "/events/new";
 		const hrefFor = (id: string) => eventTabPath(base, id);
+		if (creatingNight) {
+			return [{ id: "details", label: "Details", href: hrefFor("details") }];
+		}
 		if (editingOccurrence) {
 			return [
 				{ id: "details", label: "Details", href: hrefFor("details") },
@@ -402,14 +505,14 @@
 				? `Every month on ${day}`
 				: `Every ${event.repeatEvery} months on ${day}`;
 		}
-		return "One night";
+		return "Scheduled";
 	}
 
 	function statusLabel(event: OpsEvent): string {
 		if (event.publish.live === "current") return "Live";
-		if (event.publish.preview === "current") return "On preview";
-		if (event.publish.preview === "stale") return "Preview out of date";
-		return "Not published";
+		if (event.publish.preview === "current") return "Staging";
+		if (event.publish.preview === "stale") return "Out of date";
+		return "Unpublished";
 	}
 
 	function statusTone(event: OpsEvent | null): string {
@@ -438,6 +541,7 @@
 		name = occurrence?.overrides.name || event.name;
 		artist = occurrence?.overrides.artist || event.artist || "";
 		offer = occurrence?.overrides.offer || event.offer || "";
+		shortDescription = event.shortDescription || "";
 		description = occurrence?.overrides.description || event.description || "";
 		operationsNotes =
 			occurrence?.overrides.operationsNotes || event.operationsNotes || "";
@@ -455,6 +559,16 @@
 		weekdays = [...(event.weekdays || [])];
 		monthDay = event.monthDay ? String(event.monthDay) : "";
 		endsOn = event.endsOn || "";
+		attachSeriesId = event.id;
+		if (occurrence?.overrides?.image?.url) {
+			heroCrops = normalizeHeroFraming(occurrence.overrides.heroCrops);
+		} else if (!occurrenceDate) {
+			heroCrops = event.heroCrops
+				? normalizeHeroFraming(event.heroCrops)
+				: null;
+		} else {
+			heroCrops = null;
+		}
 	}
 
 	function blank() {
@@ -462,6 +576,7 @@
 		name = "";
 		artist = "";
 		offer = "";
+		shortDescription = "";
 		description = "";
 		operationsNotes = "";
 		imageLinksText = "";
@@ -474,7 +589,20 @@
 		weekdays = [];
 		monthDay = "";
 		endsOn = "";
+		attachSeriesId = "";
 		warnings = [];
+		heroCrops = null;
+	}
+
+	function syncHeroCropsFromEvent(event: OpsEvent) {
+		if (occurrenceDate) {
+			const occurrence = event.dates.find((row) => row.date === occurrenceDate);
+			heroCrops = occurrence?.overrides?.image?.url
+				? normalizeHeroFraming(occurrence.overrides.heroCrops)
+				: null;
+			return;
+		}
+		heroCrops = event.heroCrops ? normalizeHeroFraming(event.heroCrops) : null;
 	}
 
 	function rememberEvent(event: OpsEvent, replaceFields: boolean) {
@@ -482,7 +610,10 @@
 			? events.map((row) => (row.id === event.id ? event : row))
 			: [...events, event];
 		if (replaceFields) fill(event);
-		else current = event;
+		else {
+			current = event;
+			syncHeroCropsFromEvent(event);
+		}
 	}
 
 	function body() {
@@ -490,6 +621,7 @@
 			name: name.trim(),
 			artist: artist.trim(),
 			offer: offer.trim(),
+			shortDescription: shortDescription.trim(),
 			description: description.trim(),
 			operationsNotes: operationsNotes.trim(),
 			imageLinks: imageLinksText
@@ -505,12 +637,15 @@
 			weekdays,
 			monthDay: Number(monthDay) || 0,
 			endsOn,
+			heroCrops: heroCrops || null,
 		};
 	}
 
 	function occurrenceBody(scope: "this" | "following" | "all") {
 		return {
 			scope,
+			date: startsOn,
+			seriesId: attachSeriesId || eventId,
 			name: name.trim(),
 			artist: artist.trim(),
 			offer: offer.trim(),
@@ -523,6 +658,7 @@
 			time: startTime && endTime ? "" : time.trim(),
 			startTime,
 			endTime,
+			heroCrops: framingUrl ? heroCrops || null : null,
 		};
 	}
 
@@ -555,10 +691,19 @@
 	});
 
 	function clearListFilters() {
-		listEventIds = [];
-		listFrom = "";
-		listTo = "";
+		if (listView === "schedule") {
+			scheduleEventIds = [];
+			scheduleQuery = "";
+			scheduleFrom = "";
+			scheduleTo = "";
+			return;
+		}
+		seriesQuery = "";
 	}
+
+	$effect(() => {
+		if (routeList) listOrigin = routeList;
+	});
 
 	$effect(() => {
 		if (!editing) return;
@@ -664,6 +809,10 @@
 			: [...weekdays, day];
 	}
 
+	function listHomePath() {
+		return editingOccurrence ? eventListPath("schedule") : eventListPath("series");
+	}
+
 	function requestClose() {
 		if (busy) return;
 		if (formDirty) {
@@ -671,7 +820,7 @@
 			discardOpen = true;
 			return;
 		}
-		leaveEditor("/events");
+		leaveEditor(listHomePath());
 	}
 
 	function requestReload() {
@@ -703,12 +852,12 @@
 			navigate(pending.path, { force: true, replace: pending.replace });
 			return;
 		}
-		leaveEditor("/events", { force: true });
+		leaveEditor(listHomePath(), { force: true });
 	}
 
 	function requestDelete() {
 		if (!eventId || busy) return;
-		if (editingOccurrence && repeatUnit !== "none") {
+		if (editingOccurrence && !isOpenSeries) {
 			deleteScopeOpen = true;
 			return;
 		}
@@ -733,7 +882,7 @@
 				events = events.filter((row) => row.id !== eventId);
 				toast.ok("Event deleted.");
 				beginLeave();
-				leaveEditor("/events", { force: true });
+				leaveEditor(listHomePath(), { force: true });
 			} else {
 				const data = await deleteEventOccurrence(eventId, occurrenceDate, scope);
 				warnings = data.warnings || [];
@@ -743,13 +892,13 @@
 						scope === "this" ? "Night deleted." : "Events deleted.",
 					);
 					beginLeave();
-					leaveEditor("/events", { force: true });
+					leaveEditor(listHomePath(), { force: true });
 				} else {
 					rememberEvent(data.event, true);
 					const count = Number(data.removed) || 1;
 					toast.ok(count === 1 ? "Night deleted." : `${count} nights deleted.`);
 					beginLeave();
-					leaveEditor("/events", { force: true });
+					leaveEditor(listHomePath(), { force: true });
 				}
 			}
 		} catch (err) {
@@ -765,13 +914,53 @@
 	async function onSave(event: Event) {
 		event.preventDefault();
 		if (busy) return;
-		if (!name.trim() || !startsOn) {
-			const message = !name.trim() ? "Add a name." : "Add a start date.";
+		if (creatingNight) {
+			if (!attachSeriesId || !startsOn) {
+				const message = !attachSeriesId ? "Choose a series." : "Add a date.";
+				error = message;
+				toast.error(message);
+				return;
+			}
+			saving = true;
+			intent = "save";
+			error = "";
+			try {
+				const data = await ensureEventOccurrence(attachSeriesId, startsOn, {
+					name: name.trim(),
+					artist: artist.trim(),
+					offer: offer.trim(),
+					description: description.trim(),
+					operationsNotes: operationsNotes.trim(),
+					imageLinks: imageLinksText
+						.split(/\r?\n/)
+						.map((link) => link.trim())
+						.filter(Boolean),
+					time: startTime && endTime ? "" : time.trim(),
+					startTime,
+					endTime,
+				});
+				rememberEvent(data.event, true);
+				toast.ok(data.created ? "Night added to the series." : "Night opened.");
+				navigate(eventItemPath(`${attachSeriesId}@${startsOn}`), { replace: true });
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Could not add the night.";
+				error = message;
+				toast.error(message);
+			} finally {
+				saving = false;
+				intent = "";
+			}
+			return;
+		}
+		if (!name.trim() || (!creatingNight && !startsOn && repeatUnit !== "none")) {
+			const message = !name.trim()
+				? "Add a name."
+				: "Add a start date on Schedule.";
 			error = message;
 			toast.error(message);
 			const target = route.isNew
-				? eventNewPath("details")
-				: eventItemPath(route.slug || eventId, "details");
+				? eventNewPath(!name.trim() ? "details" : "schedule")
+				: eventItemPath(route.slug || eventId, !name.trim() ? "details" : "schedule");
 			if (path !== target) navigate(target);
 			return;
 		}
@@ -781,8 +970,15 @@
 			return;
 		}
 		if (editingOccurrence) {
-			if (repeatUnit === "none") await saveOccurrenceWithScope("this");
-			else saveScopeOpen = true;
+			if (
+				isOpenSeries ||
+				attachSeriesId !== eventId ||
+				startsOn !== occurrenceDate
+			) {
+				await saveOccurrenceWithScope("this");
+			} else {
+				saveScopeOpen = true;
+			}
 			return;
 		}
 		saving = true;
@@ -792,12 +988,22 @@
 			if (!eventId) {
 				const data = await createEvent(body());
 				rememberEvent(data.event, true);
-				toast.ok("Event saved.");
+				toast.ok("Series saved.");
 				navigate(eventItemPath(data.event.id, tab), { replace: true });
 			} else {
-				const data = await updateEvent(eventId, body());
+				const payload = body();
+				const data = await updateEvent(eventId, payload);
 				rememberEvent(data.event, true);
-				toast.ok("Event saved.");
+				if (payload.heroCrops) {
+					try {
+						await publishEvent(eventId, "staging");
+						toast.ok("Saved and updated preview with framing.");
+					} catch {
+						toast.ok("Saved. Open Publish and Update preview to push framing.");
+					}
+				} else {
+					toast.ok("Series saved.");
+				}
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not save the event.";
@@ -822,8 +1028,29 @@
 				occurrenceBody(scope),
 			);
 			rememberEvent(data.event, true);
-			const count = "updated" in data ? Number(data.updated) || 1 : 1;
-			toast.ok(count === 1 ? "Event saved." : `${count} events saved.`);
+			const movedTo = data.movedTo || "";
+			const assignedTo = String(data.assignedTo || eventId);
+			if (assignedTo !== eventId || (movedTo && movedTo !== occurrenceDate)) {
+				if (data.sourceDeleted) {
+					events = events.filter((row) => row.id !== eventId);
+				} else {
+					try {
+						const refreshed = await getEvents();
+						events = refreshed.events || events;
+					} catch {
+						/* keep local list */
+					}
+				}
+				toast.ok(assignedTo !== eventId ? "Night assigned to series." : "Night moved.");
+				beginLeave();
+				navigate(eventItemPath(`${assignedTo}@${movedTo || startsOn}`, tab), {
+					replace: true,
+					force: true,
+				});
+			} else {
+				const count = "updated" in data ? Number(data.updated) || 1 : 1;
+				toast.ok(count === 1 ? "Event saved." : `${count} events saved.`);
+			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not save the event.";
 			error = message;
@@ -894,6 +1121,10 @@
 			return;
 		}
 		void onImage("main", file);
+	}
+
+	function onHeroCropsChange(next: HeroFraming | null) {
+		heroCrops = next && hasMeaningfulFraming(next) ? next : null;
 	}
 
 	function onPhotoInput(e: Event) {
@@ -1018,24 +1249,22 @@
 		acceptPhotoFile(e.dataTransfer?.files?.[0]);
 	}
 
-	function setPhotoOpen(next: boolean) {
-		photoOpen = next;
-		try {
-			localStorage.setItem(PHOTO_KEY, next ? "open" : "closed");
-		} catch {
-			/* ignore quota / private mode */
-		}
-	}
-
 	async function onImage(role: "main" | "gallery", file: File | null) {
 		if (!file || !eventId) return;
 		saving = true;
 		intent = "image";
 		try {
-			// Hero / main photo is always the series image (every night).
-			// Per-night guest flyers are not edited from this panel.
-			const data = await uploadEventImage(eventId, file, role);
-			rememberEvent(data.event, false);
+			if (editingOccurrence && occurrenceDate && role === "main") {
+				const data = await uploadEventOccurrenceImage(
+					eventId,
+					occurrenceDate,
+					file,
+				);
+				rememberEvent(data.event, false);
+			} else {
+				const data = await uploadEventImage(eventId, file, role);
+				rememberEvent(data.event, false);
+			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not upload the image.";
 			error = message;
@@ -1051,8 +1280,13 @@
 		saving = true;
 		intent = "image";
 		try {
-			const data = await clearEventImage(eventId, role, imageName);
-			rememberEvent(data.event, false);
+			if (editingOccurrence && occurrenceDate && role === "main") {
+				const data = await clearEventOccurrenceImage(eventId, occurrenceDate);
+				rememberEvent(data.event, false);
+			} else {
+				const data = await clearEventImage(eventId, role, imageName);
+				rememberEvent(data.event, false);
+			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not remove the image.";
 			toast.error(message);
@@ -1065,96 +1299,207 @@
 </script>
 
 <div class="events-root" class:editing>
+	<!-- Keep the list mounted under the editor so week-list scroll survives open/close. -->
+	<div
+		class="list-page scrollbar-fade"
+		class:parked={editing || missing}
+		inert={editing || missing ? true : undefined}
+		aria-hidden={editing || missing ? true : undefined}
+	>
+			<PageHeader title={listTitle}>
+				{#snippet actions()}
+					<PageHelp title={listTitle} topics={EVENTS_HELP} />
+					<Button
+						type="button"
+						variant="outline"
+						disabled={busy}
+						onclick={() => void reload()}
+					>
+						{#snippet icon()}
+							<Icon name="refresh" size={16} />
+						{/snippet}
+						Refresh
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						busy={publishing === "all"}
+						disabled={busy}
+						onclick={onPublishAllPreview}
+					>
+						{#snippet icon()}
+							<Icon name="upload" size={16} />
+						{/snippet}
+						Update preview
+					</Button>
+					{#if listView === "series"}
+						<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
+							{#snippet icon()}
+								<Icon name="plus" size={16} />
+							{/snippet}
+							New series
+						</Button>
+					{/if}
+				{/snippet}
+			</PageHeader>
+			{#if error && !editing && !missing}<p class="error">{error}</p>{/if}
+			{#if events.length || (!error && !loading)}
+				<div class="list-filters">
+					<div class="filter-search">
+						<span class="filter-label">Search</span>
+						{#if listView === "series"}
+							<SearchField
+								bind:value={seriesQuery}
+								placeholder="Series name…"
+								ariaLabel="Search series"
+								count={seriesQuery.trim() ? filteredSeries.length : undefined}
+								width="100%"
+							/>
+						{:else}
+							<SearchField
+								bind:value={scheduleQuery}
+								placeholder="Name, artist, offer…"
+								ariaLabel="Search nights"
+								count={scheduleQuery.trim()
+									? countEventScheduleRows(filteredSchedule)
+									: undefined}
+								width="100%"
+							/>
+						{/if}
+					</div>
+					{#if listView === "schedule"}
+						<div class="filter-events">
+							<label class="filter-label" for="event-filter">Series name</label>
+							<MultiSelect
+								id="event-filter"
+								size="sm"
+								bind:value={scheduleEventIds}
+								options={eventFilterOptions}
+								placeholder="All series"
+							/>
+						</div>
+						<div class="filter-dates">
+							<label class="filter-label" for="event-from">From</label>
+							<TextField id="event-from" size="sm" type="date" bind:value={scheduleFrom} />
+						</div>
+						<div class="filter-dates">
+							<label class="filter-label" for="event-to">To</label>
+							<TextField id="event-to" size="sm" type="date" bind:value={scheduleTo} />
+						</div>
+					{/if}
+					<button
+						type="button"
+						class="filter-clear"
+						disabled={!filtersActive}
+						onclick={clearListFilters}
+					>
+						Clear
+					</button>
+				</div>
+				{#if listView === "series"}
+					<div class="rows" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+						<div class="week-rows">
+							{#each filteredSeries as event (event.id)}
+								<a class="item" href={eventItemPath(event.id)}>
+									<span class="day">
+										<span class="weekday">
+											{seriesWeekdayLabel(event) || repeatLabel(event)}
+										</span>
+									</span>
+									<PhotoCell size="md" url={event.mainImage?.url || ""} alt="" />
+									<span class="copy">
+										<span class="name">{event.name}</span>
+										<span class="meta">{seriesNextLabel(event)}</span>
+									</span>
+									<span class="badge {statusTone(event)}">{statusLabel(event)}</span>
+								</a>
+							{:else}
+								<p class="empty">
+									{filtersActive ? "No series match these filters." : "No series yet."}
+								</p>
+							{/each}
+						</div>
+					</div>
+				{:else}
+					<div class="rows" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+						{#each visibleSchedule as week (week.start)}
+							<section class="week">
+								<h2 class="week-heading">{week.label}</h2>
+								<div class="week-rows">
+									{#each week.rows as occurrence (
+										`${occurrence.event.id}:${occurrence.occurrence?.id || occurrence.date}`
+									)}
+										<a
+											class="item"
+											href={eventItemPath(`${occurrence.event.id}@${occurrence.date}`)}
+										>
+											<time class="day" datetime={occurrence.date}>
+												<span class="weekday">{formatScheduleWeekday(occurrence.date)}</span>
+												<span class="day-date">{formatScheduleDate(occurrence.date)}</span>
+											</time>
+											<PhotoCell
+												size="md"
+												url={occurrence.occurrence?.overrides.image?.url ||
+													occurrence.event.mainImage?.url ||
+													""}
+												alt=""
+											/>
+											<span class="copy">
+												<span class="name">
+													{occurrence.occurrence?.overrides.name || occurrence.event.name}
+												</span>
+												<span class="meta">
+													{occurrence.occurrence?.overrides.artist || occurrence.event.artist
+														? `${occurrence.occurrence?.overrides.artist || occurrence.event.artist} · `
+														: ""}
+													{repeatLabel(occurrence.event)}
+												</span>
+											</span>
+											<span class="badge {statusTone(occurrence.event)}">
+												{statusLabel(occurrence.event)}
+											</span>
+										</a>
+									{/each}
+								</div>
+							</section>
+						{:else}
+							<p class="empty">
+								{filtersActive ? "No nights match these filters." : "No upcoming nights."}
+							</p>
+						{/each}
+					</div>
+				{/if}
+			{/if}
+		</div>
 	{#if missing}
 		<div class="missing">
-			<EditorBackBar label="Events" onback={() => leaveEditor("/events")} />
+			<EditorBackBar label={listTitle} onback={() => leaveEditor(listHomePath())} />
 			<p>{error}</p>
-			<Button type="button" variant="outline" onclick={() => leaveEditor("/events")}>
-				Back to events
+			<Button type="button" variant="outline" onclick={() => leaveEditor(listHomePath())}>
+				Back to {listTitle.toLowerCase()}
 			</Button>
 		</div>
 	{:else if editing}
 		<form
 			class="editor"
 			aria-busy={busy || undefined}
+			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
+			out:fade={{ duration: fadeMs, easing: easeOut }}
 			onsubmit={onSave}
 		>
-			<EditorBackBar label="Events" dirty={formDirty} onback={requestClose} />
-			<div class="split" class:photo-collapsed={!photoOpen}>
-				<aside
-					class="hero"
-					class:dragging={photoDragging}
-					aria-hidden={!photoOpen}
-					inert={!photoOpen}
-					ondragenter={onPhotoDragEnter}
-					ondragover={onPhotoDragOver}
-					ondragleave={onPhotoDragLeave}
-					ondrop={onPhotoDrop}
-				>
-					<button
-						class="photo-collapse"
-						type="button"
-						title="Hide photo"
-						aria-label="Hide photo"
-						tabindex={photoOpen ? 0 : -1}
-						onclick={() => setPhotoOpen(false)}
-					>
-						<Icon name="chevron-right" size={16} />
-					</button>
-					{#if photoUrl}
-						<img class="hero-img" src={photoUrl} alt={name || ""} />
-						<div class="photo-hit has-photo">
-							<label class="photo-btn">
-								<Icon name="upload" size={16} />
-								Replace photo
-								<input
-									class="sr-only"
-									type="file"
-									accept="image/jpeg,image/png,image/webp,image/gif"
-									onchange={onPhotoInput}
-								/>
-							</label>
-							{#if canRemovePhoto}
-								<button
-									class="photo-btn remove"
-									type="button"
-									disabled={busy}
-									onclick={() => onClearImage("main")}
-								>
-									<Icon name="trash" size={16} />
-									Remove photo
-								</button>
-							{/if}
-						</div>
-					{:else}
-						<label class="photo-hit empty">
-							<span class="photo-btn primary">
-								<Icon name="upload" size={16} />
-								Add photo
-							</span>
-							<span class="photo-hint">
-								{eventId ? "or drop an image here" : "Save the event first"}
-							</span>
-							{#if eventId}
-								<input
-									type="file"
-									accept="image/jpeg,image/png,image/webp,image/gif"
-									onchange={onPhotoInput}
-								/>
-							{/if}
-						</label>
-					{/if}
-					{#if photoDragging}
-						<div class="photo-drop" aria-hidden="true">
-							<span>Drop to {photoUrl ? "replace" : "add"}</span>
-						</div>
-					{/if}
-				</aside>
-
+			<EditorBackBar label={listTitle} dirty={formDirty} onback={requestClose} />
+			<div class="split split--full">
 				<div class="panel" class:dirty={formDirty}>
-					<header class="panel-head">
+					<header class="panel-head" class:no-thumb={tab === "details"}>
+						{#if tab !== "details"}
 						<div class="thumb">
-							<label class="thumb-hit" aria-label={photoUrl ? "Replace photo" : "Add photo"}>
+							<label
+								class="thumb-hit"
+								aria-label={photoUrl ? "Replace photo" : "Add photo"}
+								title={editingOccurrence
+									? "This night only. What's on uses this flyer while this is the next night."
+									: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
+							>
 								{#if photoUrl}
 									<img class="thumb-img" src={photoUrl} alt="" />
 								{:else}
@@ -1182,6 +1527,7 @@
 								</button>
 							{/if}
 						</div>
+						{/if}
 						<div class="type-line">
 							<p class="eyebrow">{typeLine}</p>
 							{#if formDirty}
@@ -1189,24 +1535,13 @@
 									<span class="sr-only">Unsaved</span>
 								</span>
 							{/if}
+							{#if editingOccurrence && eventId}
+								<a class="series-link" href={eventItemPath(eventId)}>Edit series</a>
+							{/if}
 						</div>
 						<div class="head-tools">
 							<div class="toolbar-actions">
-								{#if !photoOpen}
-									<Button
-										class="photo-expand"
-										variant="ghost"
-										size="sm"
-										type="button"
-										title="Show photo"
-										aria-label="Show photo"
-										onclick={() => setPhotoOpen(true)}
-									>
-										{#snippet icon()}
-											<Icon name="chevron-right" />
-										{/snippet}
-									</Button>
-								{/if}
+								<PageHelp title="Events" topics={EVENTS_HELP} />
 								<Button
 									variant="ghost"
 									size="sm"
@@ -1239,10 +1574,10 @@
 							<input
 								class="title-input"
 								id="event-name"
-								required
+								required={!creatingNight}
 								autocomplete="off"
-								aria-label="Event name"
-								placeholder="Event name"
+								aria-label={creatingNight ? "Night title override" : "Series name"}
+								placeholder={creatingNight ? "Title override (optional)" : "Series name"}
 								bind:value={name}
 							/>
 							{#if artist.trim()}
@@ -1253,11 +1588,12 @@
 							<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
 							<p class="meta-line">{headerStatus}</p>
 						</div>
-						{#if editingOccurrence}
-							<p class="occurrence-note">
-								This night only. Open Schedule to change the series. The photo is shared by
-								every night.
-							</p>
+						{#if route.isNew}
+							<div class="create-mode">
+								<p class="create-hint muted">
+									Pick a series below to add a night, or leave it empty for a new series.
+								</p>
+							</div>
 						{/if}
 					</header>
 
@@ -1285,28 +1621,58 @@
 								>
 									{#if tab === "details"}
 										<section class="block">
+											<div class="details-top">
 											<div class="grid">
-												<Field label="Artist" for="event-artist">
-													<TextField id="event-artist" size="sm" bind:value={artist} />
-												</Field>
+												{#if route.isNew || editingOccurrence}
+													<div class="full">
+													<Field
+														label="Series"
+														for="event-series"
+														tooltip={route.isNew
+															? "Choose an existing series to add this night, or leave empty to create a new series or one-off event."
+															: "Move this night onto another series."}
+													>
+														<NativeSelect
+															id="event-series"
+															size="sm"
+															bind:value={attachSeriesId}
+															options={route.isNew
+																? [
+																		{
+																			value: "",
+																			label: "New series / one-off event",
+																		},
+																		...seriesOptions,
+																	]
+																: seriesOptions}
+														/>
+													</Field>
+													</div>
+												{/if}
+												{#if editingOccurrence || creatingNight}
+													<div class="full">
+														<Field
+															label="Date"
+															for="event-date"
+															tooltip="This night only. Series start and end stay on Schedule."
+														>
+															<TextField
+																id="event-date"
+																size="sm"
+																type="date"
+																bind:value={startsOn}
+																required
+															/>
+														</Field>
+													</div>
+												{/if}
 												<Field
-													label="Offer"
-													hint="Optional public wording, e.g. £10 Negroni"
-													for="event-offer"
+													label="Start"
+													for="event-start-time"
+													tooltip={editingOccurrence
+														? "This night only. Shown on What's on."
+														: "Default start time for each night. A night can override it."}
 												>
-													<TextField id="event-offer" size="sm" bind:value={offer} />
-												</Field>
-												<Field label={editingOccurrence ? "Date" : "Starts on"} for="event-date">
-													<TextField
-														id="event-date"
-														size="sm"
-														type="date"
-														bind:value={startsOn}
-														required
-														disabled={editingOccurrence}
-													/>
-												</Field>
-												<Field label="Start" for="event-start-time">
 													<TextField
 														id="event-start-time"
 														size="sm"
@@ -1316,8 +1682,10 @@
 												</Field>
 												<Field
 													label="End"
-													hint="Shown under the day. Extra sets go in the description."
 													for="event-end-time"
+													tooltip={editingOccurrence
+														? "This night only. Shown on What's on."
+														: "Default end time for each night. A night can override it."}
 												>
 													<TextField
 														id="event-end-time"
@@ -1326,8 +1694,106 @@
 														bind:value={endTime}
 													/>
 												</Field>
+												<Field
+													label="Guest Artist"
+													for="event-artist"
+													tooltip={editingOccurrence
+														? "This night only. When set, the night is treated as a special guest edition on What's on."
+														: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
+												>
+													<TextField id="event-artist" size="sm" bind:value={artist} />
+												</Field>
+												<Field
+													label="Offer"
+													for="event-offer"
+													tooltip={editingOccurrence
+														? "This night only. Shown on What's on."
+														: "Default public wording, such as a drink deal. A night can override it."}
+												>
+													<TextField
+														id="event-offer"
+														size="sm"
+														bind:value={offer}
+														placeholder="£10 Negroni"
+													/>
+												</Field>
+											</div>
+											<figure
+												class="details-photo"
+												class:dragging={photoDragging}
+												class:empty={!photoUrl}
+												style:aspect-ratio={String(HERO_ASPECT)}
+												ondragenter={onPhotoDragEnter}
+												ondragover={onPhotoDragOver}
+												ondragleave={onPhotoDragLeave}
+												ondrop={onPhotoDrop}
+											>
+												<label
+													class="details-photo-hit"
+													aria-label={photoUrl ? "Replace photo" : "Add photo"}
+													title={editingOccurrence
+														? "This night only. What's on uses this flyer while this is the next night."
+														: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
+												>
+													{#if photoUrl}
+														<img src={photoUrl} alt="" />
+													{:else}
+														<span class="details-photo-empty">
+															<Icon name="upload" size={18} />
+															Add photo
+														</span>
+													{/if}
+													<input
+														class="sr-only"
+														type="file"
+														accept="image/jpeg,image/png,image/webp,image/gif"
+														onchange={onPhotoInput}
+														disabled={!eventId}
+													/>
+												</label>
+												{#if canRemovePhoto}
+													<button
+														class="thumb-remove"
+														type="button"
+														disabled={busy}
+														aria-label="Remove photo"
+														onclick={() => onClearImage("main")}
+													>
+														<Icon name="close" size={12} />
+													</button>
+												{/if}
+												{#if photoDragging}
+													<div class="photo-drop" aria-hidden="true">
+														<span>Drop to {photoUrl ? "replace" : "add"}</span>
+													</div>
+												{/if}
+											</figure>
+											</div>
+											<div class="grid">
 												<div class="full">
-													<Field label="Description" for="event-description">
+													{#if !editingOccurrence}
+														<Field
+															label="Short description"
+															for="event-short-description"
+															tooltip="What's on card. One or two lines."
+														>
+															<TextArea
+																id="event-short-description"
+																bind:value={shortDescription}
+																rows={2}
+																placeholder="Card blurb…"
+															/>
+														</Field>
+													{/if}
+													<Field
+														label={editingOccurrence
+															? "Description"
+															: "Full description"}
+														for="event-description"
+														tooltip={editingOccurrence
+															? "This night only. Leave empty to keep the series description."
+															: "Series and night page. Use the short field for the What's on card."}
+													>
 														<MethodEditor
 															id="event-description"
 															value={description}
@@ -1340,8 +1806,8 @@
 												<div class="full">
 													<Field
 														label="Operations notes"
-														hint="Internal only. Never published to the website."
 														for="event-operations-notes"
+														tooltip="Internal only. Never published to the website."
 													>
 														<TextArea
 															id="event-operations-notes"
@@ -1355,13 +1821,56 @@
 										</section>
 									{:else if tab === "schedule"}
 										<section class="block">
-											<p class="lede">One rule. Daily, weekly on chosen days, or monthly.</p>
+											{#if repeatUnit === "none"}
+												<p class="hint">
+													This series does not repeat. Add each night when it is
+													scheduled (Details → Series, or New with this series
+													selected).
+												</p>
+											{/if}
 											<div class="grid">
-												<Field label="Unit" for="event-unit">
+												<Field
+													label="Starts on"
+													for="event-starts"
+													tooltip={repeatUnit === "none"
+														? "First scheduled night. Leave empty until you add a night."
+														: "First night of the series. Recurrence builds forward from here."}
+												>
+													<TextField
+														id="event-starts"
+														size="sm"
+														type="date"
+														bind:value={startsOn}
+														required={repeatUnit !== "none"}
+														disabled={editingOccurrence}
+													/>
+												</Field>
+												<Field
+													label="Ends on"
+													for="event-ends"
+													tooltip={repeatUnit === "none"
+														? "Optional. Not used when nights are scheduled one by one."
+														: "Last night of the series. Required when it repeats."}
+												>
+													<TextField
+														id="event-ends"
+														size="sm"
+														type="date"
+														bind:value={endsOn}
+														required={repeatUnit !== "none"}
+														disabled={editingOccurrence}
+													/>
+												</Field>
+												<Field
+													label="Unit"
+													for="event-unit"
+													tooltip="Weekly or monthly builds the calendar. Does not repeat is for series like Gwenda Nights, where each night is added on its own date."
+												>
 													<NativeSelect
 														id="event-unit"
 														size="sm"
 														bind:value={repeatUnit}
+														disabled={editingOccurrence}
 														options={[
 															{ value: "none", label: "Does not repeat" },
 															{ value: "day", label: "Day" },
@@ -1371,7 +1880,11 @@
 													/>
 												</Field>
 												{#if repeatUnit !== "none"}
-													<Field label="Every" for="event-every">
+													<Field
+														label="Every"
+														for="event-every"
+														tooltip="How often the pattern repeats. 1 with Week means every week."
+													>
 														<TextField
 															id="event-every"
 															size="sm"
@@ -1379,11 +1892,12 @@
 															min="1"
 															max="52"
 															bind:value={repeatEvery}
+															disabled={editingOccurrence}
 														/>
 													</Field>
 												{/if}
 												{#if repeatUnit === "week"}
-													<fieldset class="days full">
+													<fieldset class="days full" disabled={editingOccurrence}>
 														<legend>On</legend>
 														<div class="chips">
 															{#each WEEKDAYS as day (day)}
@@ -1400,7 +1914,11 @@
 													</fieldset>
 												{/if}
 												{#if repeatUnit === "month"}
-													<Field label="Day of month" for="event-month-day">
+													<Field
+														label="Day of month"
+														for="event-month-day"
+														tooltip="Which day of the month the night falls on. Leave empty to follow Starts on."
+													>
 														<TextField
 															id="event-month-day"
 															size="sm"
@@ -1408,38 +1926,37 @@
 															min="1"
 															max="31"
 															bind:value={monthDay}
+															disabled={editingOccurrence}
 															placeholder="From the start date"
 														/>
 													</Field>
 												{/if}
-												<Field
-													label="Ends on"
-													for="event-ends"
-													hint={repeatUnit === "none"
-														? "Optional for a one-night event."
-														: "Required. One editable event is created for every date."}
-												>
-													<TextField
-														id="event-ends"
-														size="sm"
-														type="date"
-														bind:value={endsOn}
-														required={repeatUnit !== "none"}
-													/>
-												</Field>
 											</div>
 											{#if previewDates.length}
-												<h2 class="section-title">Upcoming</h2>
+												<h2 class="section-title">
+													<span class="section-label">
+														Upcoming
+														<Tip
+															label="Upcoming"
+															tooltip="Nights in this window. Guest means that night has its own artist, not the series default."
+														/>
+													</span>
+												</h2>
 												<ul class="occurrences">
 													{#each previewDates as date (date)}
 														{@const occurrence = current?.dates.find((row) => row.date === date)}
 														<li class:special={occurrence?.isSpecialEdition}>
 															<div>
-																<strong>{formatDate(date)}</strong>
+																<strong>
+																	{formatDate(date)}
+																	{#if occurrence?.isSpecialEdition}
+																		<span class="occurrence-flag">Guest</span>
+																	{/if}
+																</strong>
 																{#if occurrence?.overrides.artist}
 																	<span>{occurrence.overrides.artist}</span>
 																{:else}
-																	<span>{artist || "No artist"}</span>
+																	<span>{artist || "No guest"}</span>
 																{/if}
 															</div>
 															{#if eventId}
@@ -1447,32 +1964,54 @@
 																	class="occurrence-link"
 																	href={eventItemPath(`${eventId}@${date}`)}
 																>
-																	Edit event
+																	Edit night
 																</a>
 															{/if}
 														</li>
 													{/each}
 												</ul>
 											{:else}
-												<p class="hint">No upcoming date for this rule.</p>
+												<p class="hint">
+													{repeatUnit === "none"
+														? "No nights scheduled yet."
+														: "No upcoming date for this rule."}
+												</p>
 											{/if}
 										</section>
 									{:else if tab === "gallery"}
 										<section class="block">
-											<p class="lede">
-												Event photo library in Google Drive. The website hero is set from
-												the photo beside the name.
-											</p>
 											{#if !eventId}
-												<p class="hint">Save the event before opening the library.</p>
+												<p class="hint">Save before adding images.</p>
 											{:else}
-												{#if driveFolderUrl}
-													<p class="hint">
-														<a href={driveFolderUrl} target="_blank" rel="noreferrer"
-															>Open Drive folder</a
+												<HeroImagePanel
+													sourceUrl={framingUrl}
+													crops={heroCrops}
+													disabled={busy}
+													tooltip={editingOccurrence
+														? "This night only. What's on uses this flyer while this is the next night."
+														: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
+													onchangecrops={onHeroCropsChange}
+													onpickfile={(file) => void onImage("main", file)}
+												/>
+												<div class="drive-head">
+													<h2 class="section-title">
+														<span class="section-label">
+															Drive
+															<Tip
+																label="Drive"
+																tooltip="Image library for this series. The Hero above is what What's on uses for framing."
+															/>
+														</span>
+													</h2>
+													{#if driveFolderUrl}
+														<a
+															class="drive-link"
+															href={driveFolderUrl}
+															target="_blank"
+															rel="noreferrer">Open folder</a
 														>
-													</p>
-												{/if}
+													{/if}
+												</div>
 												{#if driveError}
 													<p class="error">{driveError}</p>
 												{/if}
@@ -1486,7 +2025,7 @@
 													ondrop={onDriveDrop}
 												>
 													{#if driveLoading && !driveFiles.length}
-														<p class="hint">Loading Drive images…</p>
+														<p class="hint">Loading…</p>
 													{:else}
 														<ul class="gallery">
 															{#each driveFiles as image (image.id)}
@@ -1524,26 +2063,26 @@
 													{/if}
 													{#if driveDragging}
 														<div class="drive-drop-veil" aria-hidden="true">
-															<span>Drop images to upload</span>
+															<span>Drop to upload</span>
 														</div>
 													{/if}
 												</div>
-												<p class="hint">Drag and drop images here, or choose files.</p>
 											{/if}
 										</section>
 									{:else if tab === "publish"}
 										<section class="block">
-											<p class="lede">Preview first. Push live copies only these nights.</p>
 											{#if !eventId}
 												<p class="hint">Save the event before publishing.</p>
 											{:else}
 												<p class="status">
-													Preview: {current?.publish.preview === "current"
-														? "Up to date"
+													Preview site: {current?.publish.preview === "current"
+														? "Upcoming nights are up to date"
 														: current?.publish.preview === "stale"
-															? "Out of date"
-															: "Not published"}.
-													Live: {current?.publish.live === "current" ? "Up to date" : "Not live"}.
+															? "Upcoming nights are out of date"
+															: "Upcoming nights are not on the preview site"}.
+													Live site: {current?.publish.live === "current"
+														? "Those nights are live"
+														: "Not live"}.
 												</p>
 												<div class="publish-actions">
 													<Button
@@ -1568,6 +2107,8 @@
 												</div>
 												<p class="hint">
 													{#if formDirty}Save before publishing. {/if}
+													Update preview writes this series' upcoming nights to the preview site.
+													Push live copies those nights to gwenda.co.uk.
 													<a href="https://gwenda-staging.pages.dev/events" target="_blank" rel="noreferrer">Preview site</a>
 													·
 													<a href="https://gwenda.co.uk/events" target="_blank" rel="noreferrer">Live site</a>
@@ -1717,120 +2258,6 @@
 				{/snippet}
 			</Dialog>
 		</form>
-	{:else}
-		<div class="list-page scrollbar-fade">
-			<PageHeader title="Events" subtitle="Upcoming nights, week by week.">
-				{#snippet actions()}
-					<Button
-						type="button"
-						variant="outline"
-						disabled={busy}
-						onclick={() => void reload()}
-					>
-						{#snippet icon()}
-							<Icon name="refresh" size={16} />
-						{/snippet}
-						Refresh
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						busy={publishing === "all"}
-						disabled={busy}
-						onclick={onPublishAllPreview}
-					>
-						{#snippet icon()}
-							<Icon name="upload" size={16} />
-						{/snippet}
-						Update preview
-					</Button>
-					<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
-						{#snippet icon()}
-							<Icon name="plus" size={16} />
-						{/snippet}
-						New event
-					</Button>
-				{/snippet}
-			</PageHeader>
-			{#if error}<p class="error">{error}</p>{/if}
-			{#if !error && !loading}
-				<div class="list-filters">
-					<div class="filter-events">
-						<label class="filter-label" for="event-filter">Events</label>
-						<MultiSelect
-							id="event-filter"
-							size="sm"
-							bind:value={listEventIds}
-							options={eventFilterOptions}
-							placeholder="All events"
-						/>
-					</div>
-					<div class="filter-dates">
-						<label class="filter-label" for="event-from">From</label>
-						<TextField id="event-from" size="sm" type="date" bind:value={listFrom} />
-					</div>
-					<div class="filter-dates">
-						<label class="filter-label" for="event-to">To</label>
-						<TextField id="event-to" size="sm" type="date" bind:value={listTo} />
-					</div>
-					<button
-						type="button"
-						class="filter-clear"
-						disabled={!filtersActive}
-						onclick={clearListFilters}
-					>
-						Clear
-					</button>
-				</div>
-				<div class="rows" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-					{#each visibleSchedule as week (week.start)}
-						<section class="week">
-							<h2 class="week-heading">{week.label}</h2>
-							<div class="week-rows">
-								{#each week.rows as occurrence (
-									`${occurrence.event.id}:${occurrence.occurrence?.id || occurrence.date}`
-								)}
-									<a
-										class="item"
-										href={eventItemPath(`${occurrence.event.id}@${occurrence.date}`)}
-									>
-										<time class="day" datetime={occurrence.date}>
-											<span class="weekday">{formatScheduleWeekday(occurrence.date)}</span>
-											<span class="day-date">{formatScheduleDate(occurrence.date)}</span>
-										</time>
-										<PhotoCell
-											size="md"
-											url={occurrence.occurrence?.overrides.image?.url ||
-												occurrence.event.mainImage?.url ||
-												""}
-											alt=""
-										/>
-										<span class="copy">
-											<span class="name">
-												{occurrence.occurrence?.overrides.name || occurrence.event.name}
-											</span>
-											<span class="meta">
-												{occurrence.occurrence?.overrides.artist || occurrence.event.artist
-													? `${occurrence.occurrence?.overrides.artist || occurrence.event.artist} · `
-													: ""}
-												{repeatLabel(occurrence.event)}
-											</span>
-										</span>
-										<span class="badge {statusTone(occurrence.event)}">
-											{statusLabel(occurrence.event)}
-										</span>
-									</a>
-								{/each}
-							</div>
-						</section>
-					{:else}
-						<p class="empty">
-							{filtersActive ? "No events match these filters." : "No upcoming events."}
-						</p>
-					{/each}
-				</div>
-			{/if}
-		</div>
 	{/if}
 	<BusyOverlay active={busy} label={busyLabel} />
 </div>
@@ -1843,28 +2270,53 @@
 		flex: 1;
 		min-height: 0;
 		height: 100%;
-	}
-
-	.events-root.editing {
 		overflow: hidden;
 	}
 
 	.list-page {
-		flex: 1;
-		min-height: 0;
+		position: absolute;
+		inset: 0;
+		z-index: 0;
 		overflow: auto;
 		padding: var(--page-gutter);
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
+		background: var(--background);
+	}
+
+	.list-page.parked {
+		/* Keep the list laid out and scrolled under the detail. */
+		pointer-events: none;
+	}
+
+	.series-link {
+		margin-left: 0.65rem;
+		color: var(--primary);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.series-link:hover {
+		text-decoration: underline;
 	}
 
 	.list-filters {
 		display: grid;
-		grid-template-columns: 16rem 9.5rem 9.5rem auto;
+		grid-template-columns: minmax(12rem, 1fr) 14rem 9.5rem 9.5rem auto;
 		gap: 0.75rem;
 		align-items: end;
 		justify-content: start;
+	}
+
+	.filter-search {
+		min-width: 0;
+	}
+
+	.filter-search :global(.wrap) {
+		height: var(--control-h-sm);
 	}
 
 	.filter-label {
@@ -1905,6 +2357,7 @@
 			grid-template-columns: 1fr 1fr;
 		}
 
+		.filter-search,
 		.filter-events {
 			grid-column: 1 / -1;
 		}
@@ -1956,7 +2409,7 @@
 
 	.item {
 		display: grid;
-		grid-template-columns: 5.5rem auto minmax(0, 1fr) auto;
+		grid-template-columns: 7.25rem auto minmax(0, 1fr) auto;
 		align-items: center;
 		gap: 0.75rem;
 		min-height: 3.35rem;
@@ -1985,10 +2438,13 @@
 	}
 
 	.weekday {
-		color: var(--foreground);
-		font-size: var(--text-sm);
+		color: var(--primary);
+		font-size: var(--text-xs);
 		font-weight: 600;
+		letter-spacing: 0.14em;
 		line-height: 1.2;
+		text-transform: uppercase;
+		white-space: nowrap;
 	}
 
 	.day-date {
@@ -2037,6 +2493,14 @@
 		color: var(--foreground);
 	}
 
+	.missing,
+	.editor {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		background: var(--background);
+	}
+
 	.missing {
 		display: grid;
 		gap: 0.8rem;
@@ -2045,53 +2509,33 @@
 	}
 
 	.editor {
-		position: relative;
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
-		height: 100%;
 		overflow: hidden;
 	}
 
 	.split {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
-		grid-template-areas: "panel hero";
-		column-gap: var(--gap);
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: "panel";
+		column-gap: 0;
 		row-gap: var(--gap);
 		flex: 1;
 		min-height: 0;
 		height: 100%;
 		padding: var(--gap) var(--page-gutter) var(--gap);
-		transition:
-			grid-template-columns var(--t-slow) var(--ease),
-			column-gap var(--t-slow) var(--ease);
 	}
 
 	.hero {
-		grid-area: hero;
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-		min-height: 0;
-		height: 100%;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-xl);
-		background: var(--sunken);
-		overflow: hidden;
-		box-shadow: var(--shadow-sm);
-		opacity: 1;
-		transition:
-			opacity var(--t) var(--ease),
-			border-color var(--t-slow) var(--ease),
-			box-shadow var(--t-slow) var(--ease);
+		display: none;
 	}
 
 	.photo-collapse {
 		position: absolute;
 		top: 0.55rem;
-		left: 0.55rem;
+		right: 0.55rem;
+		left: auto;
 		z-index: 3;
 		display: grid;
 		place-content: center;
@@ -2123,18 +2567,6 @@
 		color: var(--foreground);
 		border-color: var(--border-strong, var(--border));
 		background: var(--card);
-	}
-
-	.split.photo-collapsed {
-		grid-template-columns: minmax(0, 1fr) 0%;
-		column-gap: 0;
-	}
-
-	.split.photo-collapsed .hero {
-		opacity: 0;
-		border-color: transparent;
-		box-shadow: none;
-		pointer-events: none;
 	}
 
 	.hero.dragging {
@@ -2307,9 +2739,25 @@
 		border-color: color-mix(in srgb, var(--destructive) 32%, var(--border));
 	}
 
+	.thumb {
+		display: block;
+		position: relative;
+		grid-column: 3;
+		grid-row: 1 / span 2;
+		width: 4.25rem;
+		height: 4.25rem;
+		justify-self: end;
+		align-self: start;
+		margin-top: 0.1rem;
+	}
+
+	.panel-head.no-thumb {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
 	.panel-head {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-columns: minmax(0, 1fr) auto 4.25rem;
 		align-items: start;
 		column-gap: 0.85rem;
 		row-gap: 0.2rem;
@@ -2376,53 +2824,6 @@
 	.head-tools :global(.close-btn:hover:not(:disabled)) {
 		color: var(--destructive);
 		background: var(--destructive-wash);
-	}
-
-	.thumb {
-		display: none;
-	}
-
-	.split.photo-collapsed .thumb {
-		display: block;
-		position: relative;
-		grid-column: 1;
-		grid-row: 1 / span 2;
-		width: 3.75rem;
-		height: 3.75rem;
-		align-self: start;
-		margin-top: 0.15rem;
-	}
-
-	.split.photo-collapsed .panel-head {
-		grid-template-columns: 3.75rem minmax(0, 1fr) auto;
-		column-gap: 0.7rem;
-	}
-
-	.split.photo-collapsed .type-line {
-		grid-column: 2;
-		grid-row: 1;
-	}
-
-	.split.photo-collapsed .head-tools {
-		grid-column: 3;
-		grid-row: 1;
-	}
-
-	.split.photo-collapsed .title-name {
-		grid-column: 2;
-		grid-row: 2;
-	}
-
-	.split.photo-collapsed .title-meta {
-		grid-column: 3;
-		grid-row: 2;
-		align-items: flex-end;
-		padding-top: 0.12rem;
-	}
-
-	.split.photo-collapsed .occurrence-note {
-		grid-column: 1 / -1;
-		grid-row: 3;
 	}
 
 	.thumb-hit {
@@ -2578,6 +2979,23 @@
 		max-width: 36rem;
 	}
 
+	.create-mode {
+		grid-column: 1 / -1;
+		display: grid;
+		gap: 0.45rem;
+		margin-top: 0.35rem;
+	}
+
+	.create-hint {
+		margin: 0;
+		font-size: var(--text-xs);
+		line-height: 1.4;
+	}
+
+	.create-hint.muted {
+		color: var(--muted-foreground);
+	}
+
 	.sub {
 		margin: 0;
 		font-size: var(--text);
@@ -2639,6 +3057,12 @@
 		background: var(--border-strong);
 	}
 
+	.section-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+
 	.grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
@@ -2648,6 +3072,66 @@
 
 	.full {
 		grid-column: 1 / -1;
+	}
+
+	.details-top {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+		gap: 0.85rem 1.15rem;
+		align-items: start;
+	}
+
+	.details-photo {
+		position: relative;
+		margin: 0;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border);
+		overflow: hidden;
+		background: #0a0a0a;
+		min-width: 0;
+	}
+
+	.details-photo.dragging {
+		border-color: var(--primary);
+	}
+
+	.details-photo-hit {
+		display: block;
+		margin: 0;
+		width: 100%;
+		height: 100%;
+		cursor: pointer;
+	}
+
+	.details-photo img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: center;
+	}
+
+	.details-photo-empty {
+		display: grid;
+		place-content: center;
+		justify-items: center;
+		gap: 0.4rem;
+		width: 100%;
+		height: 100%;
+		min-height: 8rem;
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+		background: var(--sunken);
+	}
+
+	.details-photo-hit:focus-within {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.details-photo .thumb-remove {
+		top: 0.4rem;
+		right: 0.4rem;
 	}
 
 	.days {
@@ -2719,6 +3203,10 @@
 	}
 
 	.occurrences strong {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.4rem 0.55rem;
 		font-size: var(--text-sm);
 		font-weight: 600;
 	}
@@ -2726,6 +3214,12 @@
 	.occurrences span {
 		color: var(--muted-foreground);
 		font-size: var(--text-xs);
+	}
+
+	.occurrences .occurrence-flag {
+		color: var(--primary);
+		font-size: var(--text-xs);
+		font-weight: 600;
 	}
 
 	.hint,
@@ -2760,6 +3254,32 @@
 		list-style: none;
 		margin: 0;
 		padding: 0;
+	}
+
+	.drive-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-top: 1.25rem;
+	}
+
+	.drive-head .section-title {
+		flex: 1 1 auto;
+		margin: 0;
+	}
+
+	.drive-link {
+		color: var(--muted-foreground);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.drive-link:hover {
+		color: var(--foreground);
+		text-decoration: underline;
 	}
 
 	.drive-drop {
@@ -2855,31 +3375,9 @@
 		font-weight: 600;
 	}
 
-	@media (max-width: 1100px) {
-		.split {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 30%);
-		}
-
-		.split.photo-collapsed {
-			grid-template-columns: minmax(0, 1fr) 0%;
-		}
-	}
-
 	@media (max-width: 900px) {
-		.split,
-		.split.photo-collapsed {
-			grid-template-columns: minmax(0, 1fr);
-			grid-template-rows: minmax(0, 1fr);
-			flex: 1;
-			min-height: 0;
+		.split {
 			padding: 0;
-			column-gap: 0;
-			row-gap: 0;
-			transition: none;
-		}
-
-		.hero {
-			display: none;
 		}
 
 		.panel {
@@ -2891,44 +3389,6 @@
 		.head-tools :global(.close-btn),
 		.head-tools :global(.photo-expand) {
 			display: none;
-		}
-
-		.thumb {
-			display: block;
-			position: relative;
-			grid-column: 1;
-			grid-row: 1 / span 2;
-			width: 3.75rem;
-			height: 3.75rem;
-			align-self: start;
-			margin-top: 0.15rem;
-		}
-
-		.panel-head {
-			grid-template-columns: 3.75rem minmax(0, 1fr) auto;
-			column-gap: 0.7rem;
-		}
-
-		.type-line {
-			grid-column: 2;
-			grid-row: 1;
-		}
-
-		.head-tools {
-			grid-column: 3;
-			grid-row: 1;
-		}
-
-		.title-name {
-			grid-column: 2 / -1;
-			grid-row: 2;
-		}
-
-		.title-meta {
-			grid-column: 1 / -1;
-			grid-row: 3;
-			align-items: flex-start;
-			padding-top: 0.35rem;
 		}
 
 		.occurrence-note {
@@ -2964,6 +3424,15 @@
 	@media (max-width: 880px) {
 		.grid {
 			grid-template-columns: 1fr;
+		}
+
+		.details-top {
+			grid-template-columns: 1fr;
+		}
+
+		.details-photo {
+			order: -1;
+			max-width: 22rem;
 		}
 	}
 

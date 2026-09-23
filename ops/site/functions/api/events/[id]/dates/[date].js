@@ -5,6 +5,7 @@ import {
 } from "../../../../_lib/http.js";
 import {
   deleteOccurrences,
+  ensureOccurrence,
   getEvent,
   occurrenceDeleteTargets,
   updateOccurrenceContent,
@@ -18,6 +19,21 @@ function params(context) {
   };
 }
 
+export const onRequestPut = withApiHandler(async (context) => {
+  const { id, date } = params(context);
+  if (!id || !date) {
+    return jsonResponse({ error: "Missing event id or occurrence date." }, 400);
+  }
+  const body = await readJsonBody(context.request).catch(() => null);
+  const result = await ensureOccurrence(
+    context.env,
+    id,
+    date,
+    body && typeof body === "object" ? body : {},
+  );
+  return jsonResponse({ ok: true, ...result }, result.created ? 201 : 200);
+});
+
 export const onRequestPatch = withApiHandler(async (context) => {
   const { id, date } = params(context);
   if (!id || !date) {
@@ -26,6 +42,14 @@ export const onRequestPatch = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
   if (!body || typeof body !== "object") {
     return jsonResponse({ error: "Invalid request." }, 400);
+  }
+  const targetSeriesId = String(body.seriesId || body.targetEventId || "").trim();
+  if (targetSeriesId && targetSeriesId !== String(id)) {
+    const event = await getEvent(context.env, id);
+    const occurrence = event.dates.find((row) => row.date === date);
+    if (occurrence) {
+      await unpublishOccurrences(context.env, [occurrence]);
+    }
   }
   const result = await updateOccurrenceContent(context.env, id, date, body);
   return jsonResponse({ ok: true, ...result });

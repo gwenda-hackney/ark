@@ -12,9 +12,10 @@ export interface EventTicketMeta {
 
 interface Props {
   meta: EventTicketMeta;
+  occurrenceSlug?: string;
 }
 
-const { meta } = Astro.props;
+const { meta, occurrenceSlug = "" } = Astro.props;
 ---
 
 <!doctype html>
@@ -34,7 +35,7 @@ const { meta } = Astro.props;
       href={siteConfig.brand.faviconPngPath}
     />
   </head>
-  <body>
+  <body data-occurrence-slug={occurrenceSlug}>
     <StagingRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main>

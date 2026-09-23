@@ -26,7 +26,9 @@ Ops uses **two Baserow workspaces** so a local token cannot see production data:
 | Env | Workspace | Database id | Token (SM) |
 |-----|-----------|-------------|------------|
 | production | `Gwenda` (`208709`) | Ops DB `556507` | `BASEROW_API_KEY_PRODUCTION` |
-| local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY` |
+| local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY_LOCAL` → `.env.ops` `BASEROW_API_KEY` |
+
+Never fall back across envs: Pages must use `_PRODUCTION`; local must use `_LOCAL`. Legacy SM key `BASEROW_API_KEY` is accepted as local-only (`npm run env:ops:pull -- --migrate-sm` copies it to `_LOCAL`).
 
 Each workspace holds the **Gwenda Ops** database and, in Dev, the staging website database.
 
@@ -51,14 +53,20 @@ Then mint/refresh scoped database tokens (script prints next steps). Local `ops-
 npm run env:ops:pull
 ```
 
-Writes local `BASEROW_API_KEY`, OAuth/session secrets, and (from Ark/Web) `SANITY_API_TOKEN` / `DEPLOY_WEBHOOK_SECRET`. Keeps `BASEROW_OPS_DATABASE_ID` for the dev clone. Also refreshes `.env.ark`.
+Writes local `BASEROW_API_KEY` (from SM `_LOCAL`), keeps `BASEROW_API_KEY_PRODUCTION` alongside for Pages, plus OAuth/session secrets and (from Ark/Web) `SANITY_API_TOKEN` / `DEPLOY_WEBHOOK_SECRET`. Keeps `BASEROW_OPS_DATABASE_ID` for the dev clone. Also refreshes `.env.ark`.
+
+```bash
+npm run env:ops:pull                              # profile=local
+npm run env:ops:pull -- --migrate-sm              # once: legacy BASEROW_API_KEY → _LOCAL
+npm run env:ops:pull -- --profile production      # fail if PRODUCTION missing
+```
 
 **Not hand-edited for production:**
 
 | Value | Where |
 |-------|--------|
 | Prod `BASEROW_OPS_DATABASE_ID` | `ops/site/wrangler.toml` `[vars]` = `556507` |
-| Prod Baserow token | SM `BASEROW_API_KEY_PRODUCTION` → Pages via `ops-secrets` |
+| Prod Baserow token | SM `BASEROW_API_KEY_PRODUCTION` → Pages `BASEROW_API_KEY` via `ops-secrets` (then redeploy) |
 | `CLOUDFLARE_ACCOUNT_ID` / CF tokens | SM Ark → `.env.ark` (GitHub still has copies for deploy jobs) |
 | `SITE_ENV` | `local` via ops-dev; `production` in wrangler `[vars]` |
 

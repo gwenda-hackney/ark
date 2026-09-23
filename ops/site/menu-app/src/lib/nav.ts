@@ -62,16 +62,17 @@ export function readPath(): string {
   const path = stripTrailingSlash(location.pathname) || "/";
   const hash = location.hash.replace(/^#/, "");
   if (path === "/" && hash.startsWith("/")) {
-    return stripTrailingSlash(hash.split("?")[0] || "/") || "/";
+    return canonicalizePath(stripTrailingSlash(hash.split("?")[0] || "/") || "/");
   }
-  return path;
+  return canonicalizePath(path);
 }
 
 export function syncCanonicalUrl(): string {
   if (typeof history === "undefined") return "/";
   const path = readPath();
   const search = location.search || "";
-  if (location.pathname !== path || location.hash) {
+  const raw = stripTrailingSlash(location.pathname) || "/";
+  if (raw !== path || location.hash) {
     history.replaceState(history.state, "", path + search);
   }
   return path;

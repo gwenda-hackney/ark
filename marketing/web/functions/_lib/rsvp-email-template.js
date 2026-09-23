@@ -87,23 +87,88 @@ export function formatEventDate(date) {
 function formatTicketTime(time) {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? "").trim());
   if (!match) return "";
-  let hours = Number.parseInt(match[1], 10);
-  const minutes = Number.parseInt(match[2], 10);
-  if (hours > 23 || minutes > 59) return "";
-  const period = hours >= 12 ? "pm" : "am";
-  hours %= 12;
+  const clock = parseClock(match[1], match[2]);
+  return clock ? formatClock(clock) : "";
+}
+
+function parseClock(hoursText, minutesText) {
+  const hours = Number.parseInt(hoursText, 10);
+  const minutes = Number.parseInt(minutesText, 10);
+  if (hours > 23 || minutes > 59) return null;
+  return { hours, minutes };
+}
+
+function formatClock(clock) {
+  const period = clock.hours >= 12 ? "pm" : "am";
+  let hours = clock.hours % 12;
   if (hours === 0) hours = 12;
-  if (minutes === 0) return `${hours}${period}`;
-  return `${hours}:${String(minutes).padStart(2, "0")}${period}`;
+  if (clock.minutes === 0) return `${hours}${period}`;
+  return `${hours}:${String(clock.minutes).padStart(2, "0")}${period}`;
+}
+
+function formatClockRange(start, end) {
+  const samePeriod = start.hours >= 12 === end.hours >= 12;
+  if (!samePeriod) return `${formatClock(start)}–${formatClock(end)}`;
+  return `${formatClock(start).replace(/(am|pm)$/, "")}–${formatClock(end)}`;
+}
+
+function formatTimePart(part) {
+  const range = /^(\d{1,2})[:.](\d{2})\s*(?:[–—-]|to)\s*(\d{1,2})[:.](\d{2})$/i.exec(
+    part.trim(),
+  );
+  if (range) {
+    const start = parseClock(range[1], range[2]);
+    const end = parseClock(range[3], range[4]);
+    if (!start || !end) return "";
+    return formatClockRange(start, end);
+  }
+  const single = /^(\d{1,2})[:.](\d{2})$/.exec(part.trim());
+  if (!single) return "";
+  const clock = parseClock(single[1], single[2]);
+  return clock ? formatClock(clock) : "";
+}
+
+function joinTimes(parts) {
+  if (parts.length <= 1) return parts[0] || "";
+  if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+function formatPublicTime(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const parts = raw
+    .split(/\s*(?:\||\/|\band\b|\bthen\b|,)\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const formatted = parts.map(formatTimePart);
+  if (parts.length && formatted.every(Boolean)) return joinTimes(formatted);
+  return raw;
+}
+
+function timeParts(value) {
+  return String(value ?? "")
+    .trim()
+    .split(/\s*(?:\||\/|\band\b|\bthen\b|,)\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function formatEventSpan(start, end, legacy) {
+  const startText = String(start || "").trim();
+  const endText = String(end || "").trim();
+  if (startText && endText) return formatPublicTime(`${startText}–${endText}`);
+  if (startText) return formatPublicTime(startText);
+  const raw = String(legacy || "").trim();
+  if (!raw || timeParts(raw).length > 1) return "";
+  return formatPublicTime(raw);
 }
 
 /** Date and door times for the confirmation email When line. */
-export function formatEventWhen(date, startTime, endTime) {
+export function formatEventWhen(date, startTime, endTime, time) {
   const datePart = formatEventDate(date);
-  const start = formatTicketTime(startTime);
-  const end = formatTicketTime(endTime);
-  if (datePart && start && end) return `${datePart}, ${start}–${end}`;
-  if (datePart && start) return `${datePart}, ${start}`;
+  const span = formatEventSpan(startTime, endTime, time);
+  if (datePart && span) return `${datePart}, ${span}`;
   return datePart;
 }
 
@@ -153,9 +218,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;");
 }
 
-function eventBlockText(title, when) {
+function eventBlockText(title, when, offer) {
   const lines = [];
   if (title) lines.push(title);
+  if (offer) lines.push(offer);
   if (when) lines.push(`When: ${when}`);
   return lines.join("\n");
 }
@@ -187,15 +253,18 @@ function bodyToHtmlParagraphs(text, { ticketUrl, modifyUrl }) {
     .join("");
 }
 
-function eventBlockHtml(title, when) {
-  if (!title && !when) return "";
+function eventBlockHtml(title, when, offer) {
+  if (!title && !when && !offer) return "";
   const titleMarkup = title
     ? `<p style="margin:0 0 0.35rem;font-family:${FONT_DISPLAY};font-size:1.35rem;font-weight:500;letter-spacing:0.03em;line-height:1.25;color:${COLORS.text};">${escapeHtml(title)}</p>`
     : "";
   const whenMarkup = when
     ? `<p style="margin:0;font-family:${FONT_BODY};font-size:1.05rem;line-height:1.65;color:${COLORS.muted};">${escapeHtml(when)}</p>`
     : "";
-  return `<div style="margin:0 0 1.25rem;padding:1rem 1.1rem;border:1px solid ${GOLD_BORDER};border-radius:2px;background:rgba(13,13,13,0.35);">${titleMarkup}${whenMarkup}</div>`;
+  const offerMarkup = offer
+    ? `<p style="margin:0 0 0.35rem;font-family:${FONT_BODY};font-size:0.95rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${COLORS.gold};">${escapeHtml(offer)}</p>`
+    : "";
+  return `<div style="margin:0 0 1.25rem;padding:1rem 1.1rem;border:1px solid ${GOLD_BORDER};border-radius:2px;background:rgba(13,13,13,0.35);">${titleMarkup}${offerMarkup}${whenMarkup}</div>`;
 }
 
 function emailFooterHtml({ year = new Date().getFullYear() } = {}) {
@@ -215,9 +284,10 @@ function emailFooterHtml({ year = new Date().getFullYear() } = {}) {
 
 export function buildConfirmationContent({ name, guests, event, inviteUrl, ticketUrl, origin }) {
   const copy = mergeRsvpConfirmation(event);
-  const when = formatEventWhen(event?.date, copy.ticketStart, copy.ticketEnd);
+  const when = formatEventWhen(event?.date, copy.ticketStart, copy.ticketEnd, event?.time);
   const title = event?.title || "The event";
-  const eventBlock = eventBlockText(title, when);
+  const offer = event?.offer?.trim() || "";
+  const eventBlock = eventBlockText(title, when, offer);
   const values = {
     name,
     guests,
@@ -248,7 +318,7 @@ export function buildConfirmationContent({ name, guests, event, inviteUrl, ticke
       ticketUrl,
       modifyUrl: inviteUrl,
     }),
-    eventBlockHtml: eventBlockHtml(title, when),
+    eventBlockHtml: eventBlockHtml(title, when, offer),
     logoUrl,
     logoCid: LOGO_CID,
     mapsUrl: VENUE_MAPS_URL,

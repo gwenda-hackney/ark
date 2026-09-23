@@ -16,9 +16,11 @@ import {
   dayBeforeIso,
   expandOccurrenceDates,
   expandSeriesOccurrenceDates,
+  normalizeExtraDates,
   normalizeSkippedDates,
   normalizeWeekdays,
   parseIsoDate,
+  planOccurrenceMove,
   todayIso,
 } from "./event-recurrence.js";
 import {
@@ -27,10 +29,23 @@ import {
   occurrenceSlug,
   resolveOccurrenceContent,
   seriesSlug,
+  titleOverrideEchoesSeries,
+  titleOverrideForSave,
 } from "./event-content.js";
 import { createEventDriveFolder, driveFolderWebUrl } from "./google-drive.js";
 
 const REPEAT_UNITS = new Set(["none", "day", "week", "month"]);
+
+function parseHeroCropsJson(raw) {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw;
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 function text(value) {
   if (typeof value === "string") return value.trim();
@@ -105,6 +120,7 @@ export function mapEventDate(row) {
     operationsNotes: text(row["Operations notes override"]),
     imageLinks: linksFrom(row["Image links override"]),
     image: filesFrom(row["Override image"])[0] || null,
+    heroCrops: parseHeroCropsJson(row["Override hero crops"]),
   };
   return {
     id: String(row.id),
@@ -125,6 +141,7 @@ export function mapEvent(row, dates = []) {
     name,
     artist: text(row.Artist),
     offer: text(row.Offer),
+    shortDescription: text(row["Short description"]),
     description: text(row.Description),
     operationsNotes: text(row["Operations notes"]),
     imageLinks: linksFrom(row["Image links"]),
@@ -140,10 +157,12 @@ export function mapEvent(row, dates = []) {
     monthDay: Math.max(0, Math.floor(Number(row["Month day"]) || 0)),
     endsOn: isoDate(row["Ends on"]),
     skippedDates: normalizeSkippedDates(row["Skipped dates"]),
+    extraDates: normalizeExtraDates(row["Extra dates"]),
     slug: text(row.Slug) || seriesSlug(name),
     driveFolderId: text(row["Drive folder id"]),
     driveFolderUrl: driveFolderWebUrl(text(row["Drive folder id"])),
     mainImage: filesFrom(row["Main image"])[0] || null,
+    heroCrops: parseHeroCropsJson(row["Hero crops"]),
     images: filesFrom(row.Images),
   };
   const occurrences = dedupeOccurrences(
@@ -200,13 +219,19 @@ export function publishState(event, dates, today = todayIso()) {
   const wanted = expandOccurrenceDates(event, { today });
   const materialized = new Set(expandSeriesOccurrenceDates(event));
   const byDate = new Map(dates.map((row) => [row.date, row]));
+  // Hash against the date row (overrides), not the bare date string. mapEvent
+  // calls this before `dates` are attached to the event object, so a string
+  // lookup via occurrenceRow(event, date) would miss night overrides and keep
+  // preview forever stale after a successful push.
+  const eventWithDates = { ...event, dates };
   const stagingCurrent =
     wanted.length > 0 &&
     wanted.every((date) => {
       const row = byDate.get(date);
       return (
         row?.sanityId &&
-        row.snapshots?.staging?.hash === occurrenceHash(event, date)
+        row.snapshots?.staging?.hash ===
+          occurrenceHash(eventWithDates, row || date)
       );
     }) &&
     !dates.some((row) => row.date >= today && !materialized.has(row.date));
@@ -214,7 +239,10 @@ export function publishState(event, dates, today = todayIso()) {
     stagingCurrent &&
     wanted.every((date) => {
       const row = byDate.get(date);
-      return row?.snapshots?.production?.hash === occurrenceHash(event, date);
+      return (
+        row?.snapshots?.production?.hash ===
+        occurrenceHash(eventWithDates, row || date)
+      );
     });
   const previewDates = wanted;
   const nextDate =
@@ -251,6 +279,11 @@ function fieldsFromInput(input, { partial = false, slug } = {}) {
   }
   set("Artist", input.artist !== undefined, text(input.artist));
   set("Offer", input.offer !== undefined, text(input.offer));
+  set(
+    "Short description",
+    input.shortDescription !== undefined,
+    text(input.shortDescription),
+  );
   set("Description", input.description !== undefined, text(input.description));
   set(
     "Operations notes",
@@ -268,6 +301,16 @@ function fieldsFromInput(input, { partial = false, slug } = {}) {
       throw error;
     }
     fields["Image links"] = links.join("\n");
+  }
+  if (input.heroCrops !== undefined) {
+    fields["Hero crops"] =
+      input.heroCrops == null || input.heroCrops === ""
+        ? ""
+        : typeof input.heroCrops === "string"
+          ? input.heroCrops
+          : JSON.stringify(input.heroCrops);
+  } else if (!partial) {
+    fields["Hero crops"] = "";
   }
   set("Time", input.time !== undefined, text(input.time));
   if (!partial || input.startTime !== undefined) {
@@ -292,12 +335,15 @@ function fieldsFromInput(input, { partial = false, slug } = {}) {
   }
   if (!partial || input.startsOn !== undefined) {
     const startsOn = isoDate(input.startsOn);
-    if (!startsOn) {
+    const unit = text(input.repeatUnit || "none").toLowerCase();
+    // Scheduled series (does not repeat) may have no nights yet. Recurring
+    // series still need a start date for the rule.
+    if (!startsOn && unit !== "none") {
       const error = new Error("Start date is required.");
       error.status = 400;
       throw error;
     }
-    fields["Starts on"] = startsOn;
+    fields["Starts on"] = startsOn || null;
   }
   if (!partial || input.repeatUnit !== undefined) {
     const unit = text(input.repeatUnit || "none").toLowerCase();
@@ -342,6 +388,10 @@ function fieldsFromInput(input, { partial = false, slug } = {}) {
     fields["Skipped dates"] = normalizeSkippedDates(input.skippedDates).join(
       "\n",
     );
+  }
+  // Only write when present so older Baserow tables without the column still save.
+  if (input.extraDates !== undefined) {
+    fields["Extra dates"] = normalizeExtraDates(input.extraDates).join("\n");
   }
   if (slug) fields.Slug = slug;
   const unit = fields["Repeat unit"];
@@ -477,10 +527,15 @@ export async function createEvent(env, input) {
 export async function updateEvent(env, id, input) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const current = await getEvent(env, id);
+  const previousName = text(current.name);
   const merged = {
     name: input?.name !== undefined ? input.name : current.name,
     artist: input?.artist !== undefined ? input.artist : current.artist,
     offer: input?.offer !== undefined ? input.offer : current.offer,
+    shortDescription:
+      input?.shortDescription !== undefined
+        ? input.shortDescription
+        : current.shortDescription,
     description:
       input?.description !== undefined
         ? input.description
@@ -491,6 +546,8 @@ export async function updateEvent(env, id, input) {
         : current.operationsNotes,
     imageLinks:
       input?.imageLinks !== undefined ? input.imageLinks : current.imageLinks,
+    heroCrops:
+      input?.heroCrops !== undefined ? input.heroCrops : current.heroCrops,
     startsOn: input?.startsOn !== undefined ? input.startsOn : current.startsOn,
     time: input?.time !== undefined ? input.time : current.time,
     startTime:
@@ -510,6 +567,9 @@ export async function updateEvent(env, id, input) {
         ? input.skippedDates
         : current.skippedDates,
   };
+  if (input?.extraDates !== undefined) {
+    merged.extraDates = input.extraDates;
+  }
   if (input?.name !== undefined)
     await assertUniqueName(env, tables, text(merged.name), id);
   const fields = fieldsFromInput(merged, {
@@ -517,7 +577,36 @@ export async function updateEvent(env, id, input) {
   });
   const row = await updateRow(env, tables.events, id, fields);
   const dates = await loadDates(env, tables, id);
-  return syncEventOccurrences(env, mapEvent(row, dates));
+  let event = mapEvent(row, dates);
+  const nextName = text(event.name);
+  if (
+    input?.name !== undefined &&
+    previousName &&
+    nextName &&
+    previousName.toLowerCase() !== nextName.toLowerCase()
+  ) {
+    event = await clearSeriesTitleEchoes(env, event, previousName);
+  }
+  return syncEventOccurrences(env, event);
+}
+
+/** Drop night title overrides that only repeated the old series name. */
+async function clearSeriesTitleEchoes(env, event, previousName) {
+  let changed = false;
+  for (const row of event.dates || []) {
+    const overrideName = text(row.overrides?.name);
+    if (!titleOverrideEchoesSeries(previousName, overrideName)) continue;
+    await saveOccurrence(env, event.id, {
+      ...row,
+      label: `${event.name} · ${row.date}`,
+      overrides: {
+        ...row.overrides,
+        name: "",
+      },
+    });
+    changed = true;
+  }
+  return changed ? getEvent(env, event.id) : event;
 }
 
 export async function syncEventOccurrences(env, event) {
@@ -601,7 +690,10 @@ export function occurrenceDeleteTargets(event, date, scope = "this") {
     String(event?.repeatUnit || "none").toLowerCase() === "none" ||
     resolved === "all"
   ) {
-    if (resolved === "all" && String(event?.repeatUnit || "none").toLowerCase() !== "none") {
+    if (
+      resolved === "all" &&
+      String(event?.repeatUnit || "none").toLowerCase() !== "none"
+    ) {
       return {
         scope: "all",
         mode: "end",
@@ -610,12 +702,44 @@ export function occurrenceDeleteTargets(event, date, scope = "this") {
         targets: (event.dates || []).filter((row) => row.date >= today),
       };
     }
+    const dates = event.dates || [];
+    // Scheduled multi-night series: remove only the targeted nights.
+    if (
+      String(event?.repeatUnit || "none").toLowerCase() === "none" &&
+      resolved === "this" &&
+      dates.length > 1
+    ) {
+      const row = dates.find((item) => item.date === normalized);
+      return {
+        scope: "this",
+        mode: "detach",
+        date: normalized,
+        endsOn: "",
+        targets: row ? [row] : [],
+      };
+    }
+    if (
+      String(event?.repeatUnit || "none").toLowerCase() === "none" &&
+      resolved === "following" &&
+      dates.some((row) => row.date > normalized)
+    ) {
+      const targets = dates.filter((row) => row.date >= normalized);
+      if (targets.length < dates.length) {
+        return {
+          scope: "following",
+          mode: "detach",
+          date: normalized,
+          endsOn: "",
+          targets,
+        };
+      }
+    }
     return {
       scope: resolved === "all" ? "all" : "this",
       mode: "series",
       date: normalized,
       endsOn: "",
-      targets: event.dates || [],
+      targets: dates,
     };
   }
   if (resolved === "following") {
@@ -646,6 +770,29 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
     return {
       deleted: true,
       event: null,
+      scope: plan.scope,
+      removed: plan.targets.length,
+      targets: plan.targets,
+    };
+  }
+
+  if (plan.mode === "detach") {
+    let series = event;
+    for (const row of plan.targets) {
+      series = (await detachOccurrenceFromSeries(env, series, row)) || null;
+      if (!series) {
+        return {
+          deleted: true,
+          event: null,
+          scope: plan.scope,
+          removed: plan.targets.length,
+          targets: plan.targets,
+        };
+      }
+    }
+    return {
+      deleted: false,
+      event: series,
       scope: plan.scope,
       removed: plan.targets.length,
       targets: plan.targets,
@@ -712,9 +859,10 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
   };
 }
 
-async function attachFiles(env, tables, id, field, entries) {
+async function attachFiles(env, tables, id, field, entries, extra = {}) {
   const row = await updateRow(env, tables.events, id, {
     [field]: entries.map((entry) => ({ name: entry.name })),
+    ...extra,
   });
   const dates = await loadDates(env, tables, id);
   return mapEvent(row, dates);
@@ -738,7 +886,9 @@ export async function setEventImage(
     ];
     return attachFiles(env, tables, id, "Images", names);
   }
-  return attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }]);
+  return attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }], {
+    "Hero crops": "",
+  });
 }
 
 export async function clearEventImage(env, id, { role, name }) {
@@ -750,7 +900,9 @@ export async function clearEventImage(env, id, { role, name }) {
       .map((image) => ({ name: image.name }));
     return attachFiles(env, tables, id, "Images", names);
   }
-  return attachFiles(env, tables, id, "Main image", []);
+  return attachFiles(env, tables, id, "Main image", [], {
+    "Hero crops": "",
+  });
 }
 
 export async function saveOccurrence(env, eventId, occurrence) {
@@ -781,6 +933,12 @@ export async function saveOccurrence(env, eventId, occurrence) {
     fields["Override image"] = occurrence.overrides?.image?.name
       ? [{ name: occurrence.overrides.image.name }]
       : [];
+    fields["Override hero crops"] =
+      occurrence.overrides?.heroCrops == null
+        ? ""
+        : typeof occurrence.overrides.heroCrops === "string"
+          ? occurrence.overrides.heroCrops
+          : JSON.stringify(occurrence.overrides.heroCrops);
   }
   if (occurrence.id) {
     return mapEventDate(
@@ -790,12 +948,251 @@ export async function saveOccurrence(env, eventId, occurrence) {
   return mapEventDate(await createRow(env, tables.eventDates, fields));
 }
 
+/** Ensure a calendar night exists on the series, even outside the recurrence rule. */
+export async function ensureOccurrence(env, eventId, date, overrides = {}) {
+  const event = await getEvent(env, eventId);
+  const normalized = isoDate(date);
+  if (!normalized) {
+    const error = new Error("Date is required.");
+    error.status = 400;
+    throw error;
+  }
+  const existing = event.dates.find((row) => row.date === normalized);
+  if (existing) {
+    if (!hasOccurrenceInput(overrides) && !overrides.image) {
+      return { event, occurrence: existing, created: false };
+    }
+    const occurrence = await saveOccurrence(env, eventId, {
+      date: normalized,
+      slug: occurrenceSlug(event.slug, normalized),
+      label: `${titleOverrideForSave(event.name, overrides.name) || event.name} · ${normalized}`,
+      overrides: {
+        name: titleOverrideForSave(event.name, overrides.name),
+        artist: text(overrides.artist),
+        offer: text(overrides.offer),
+        description: text(overrides.description),
+        time: text(overrides.time),
+        startTime: clockTime(overrides.startTime),
+        endTime: clockTime(overrides.endTime),
+        operationsNotes: text(overrides.operationsNotes),
+        imageLinks: linksFrom(overrides.imageLinks),
+        image: overrides.image || existing.overrides?.image || null,
+      },
+    });
+    return {
+      event: await getEvent(env, eventId),
+      occurrence,
+      created: false,
+    };
+  }
+  const wanted = expandSeriesOccurrenceDates(event);
+  let series = event;
+  if (!wanted.includes(normalized)) {
+    const unit = String(event.repeatUnit || "none").toLowerCase();
+    const openScheduled =
+      (unit === "none" || unit === "") && !isoDate(event.startsOn);
+    series = await updateEvent(
+      env,
+      eventId,
+      openScheduled
+        ? {
+            startsOn: normalized,
+            skippedDates: normalizeSkippedDates(event.skippedDates).filter(
+              (item) => item !== normalized,
+            ),
+          }
+        : {
+            extraDates: normalizeExtraDates([
+              ...(event.extraDates || []),
+              normalized,
+            ]),
+            skippedDates: normalizeSkippedDates(event.skippedDates).filter(
+              (item) => item !== normalized,
+            ),
+          },
+    );
+    const created = series.dates.find((row) => row.date === normalized);
+    if (created && !hasOccurrenceInput(overrides) && !overrides.image) {
+      return { event: series, occurrence: created, created: true };
+    }
+  }
+  const occurrence = await saveOccurrence(env, eventId, {
+    date: normalized,
+    slug: occurrenceSlug(series.slug, normalized),
+    label: `${titleOverrideForSave(series.name, overrides.name) || series.name} · ${normalized}`,
+    overrides: {
+      name: titleOverrideForSave(series.name, overrides.name),
+      artist: text(overrides.artist),
+      offer: text(overrides.offer),
+      description: text(overrides.description),
+      time: text(overrides.time),
+      startTime: clockTime(overrides.startTime),
+      endTime: clockTime(overrides.endTime),
+      operationsNotes: text(overrides.operationsNotes),
+      imageLinks: linksFrom(overrides.imageLinks),
+      image: overrides.image || null,
+    },
+  });
+  return {
+    event: await getEvent(env, eventId),
+    occurrence,
+    created: true,
+  };
+}
+
+/**
+ * Move a night onto another series (Baserow Events row), keeping overrides.
+ */
+export async function assignOccurrenceToSeries(
+  env,
+  fromEventId,
+  date,
+  toEventId,
+  input = {},
+) {
+  const fromId = String(fromEventId || "").trim();
+  const toId = String(toEventId || "").trim();
+  const fromDate = isoDate(date);
+  if (!fromId || !toId || !fromDate) {
+    const error = new Error("Series and date are required.");
+    error.status = 400;
+    throw error;
+  }
+  if (fromId === toId) {
+    return updateOccurrenceContent(env, fromId, fromDate, {
+      ...input,
+      scope: "this",
+    });
+  }
+
+  const fromEvent = await getEvent(env, fromId);
+  const existing = fromEvent.dates.find((row) => row.date === fromDate);
+  if (!existing) {
+    const error = new Error("Occurrence not found.");
+    error.status = 404;
+    throw error;
+  }
+
+  const resolved = resolveOccurrenceContent(fromEvent, existing);
+  const toDate = isoDate(input?.date) || fromDate;
+  const overrides = {
+    name: text(input?.name !== undefined ? input.name : resolved.name),
+    artist: text(input?.artist !== undefined ? input.artist : resolved.artist),
+    offer: text(input?.offer !== undefined ? input.offer : resolved.offer),
+    description: text(
+      input?.description !== undefined
+        ? input.description
+        : resolved.description,
+    ),
+    operationsNotes: text(
+      input?.operationsNotes !== undefined
+        ? input.operationsNotes
+        : resolved.operationsNotes,
+    ),
+    imageLinks:
+      input?.imageLinks !== undefined
+        ? linksFrom(input.imageLinks)
+        : resolved.imageLinks || [],
+    time: text(input?.time !== undefined ? input.time : resolved.time),
+    startTime: clockTime(
+      input?.startTime !== undefined ? input.startTime : resolved.startTime,
+    ),
+    endTime: clockTime(
+      input?.endTime !== undefined ? input.endTime : resolved.endTime,
+    ),
+    image: existing.overrides?.image || null,
+  };
+
+  const created = await ensureOccurrence(env, toId, toDate, overrides);
+  await detachOccurrenceFromSeries(env, fromEvent, existing);
+
+  let sourceDeleted = false;
+  try {
+    await getEvent(env, fromId);
+  } catch (error) {
+    if (error?.status === 404) sourceDeleted = true;
+    else throw error;
+  }
+
+  return {
+    event: created.event,
+    occurrence: created.occurrence,
+    assignedTo: toId,
+    movedFrom: fromDate,
+    movedTo: toDate,
+    updated: 1,
+    scope: "this",
+    sourceDeleted,
+  };
+}
+
+/** Drop one night from a series without using the public delete scopes. */
+async function detachOccurrenceFromSeries(env, event, occurrence) {
+  const date = occurrence.date;
+  if (occurrence?.id) {
+    await removeOccurrence(env, occurrence.id);
+  }
+  const remaining = (event.dates || []).filter((row) => row.date !== date);
+  const unit = String(event.repeatUnit || "none").toLowerCase();
+  if (!remaining.length) {
+    await deleteEvent(env, event.id);
+    return null;
+  }
+  if (unit === "none" || unit === "") {
+    return updateEvent(env, event.id, {
+      startsOn: remaining[0].date,
+      extraDates: remaining.slice(1).map((row) => row.date),
+      skippedDates: normalizeSkippedDates(event.skippedDates).filter(
+        (item) => item !== date,
+      ),
+    });
+  }
+  const inRule = expandSeriesOccurrenceDates({
+    ...event,
+    skippedDates: [],
+    extraDates: [],
+  }).includes(date);
+  return updateEvent(env, event.id, {
+    skippedDates: inRule
+      ? normalizeSkippedDates([...(event.skippedDates || []), date])
+      : normalizeSkippedDates(event.skippedDates).filter(
+          (item) => item !== date,
+        ),
+    extraDates: normalizeExtraDates(event.extraDates).filter(
+      (item) => item !== date,
+    ),
+  });
+}
+
+function hasOccurrenceInput(overrides) {
+  if (!overrides || typeof overrides !== "object") return false;
+  return [
+    "name",
+    "artist",
+    "offer",
+    "description",
+    "time",
+    "startTime",
+    "endTime",
+    "operationsNotes",
+    "imageLinks",
+  ].some((key) => overrides[key] !== undefined && overrides[key] !== "");
+}
+
 function requireOccurrenceDate(event, date) {
   const normalized = isoDate(date);
-  if (
-    !normalized ||
-    !expandSeriesOccurrenceDates(event).includes(normalized)
-  ) {
+  if (!normalized) {
+    const error = new Error(
+      "Choose an upcoming occurrence from this event schedule.",
+    );
+    error.status = 400;
+    throw error;
+  }
+  const allowed = new Set(expandSeriesOccurrenceDates(event));
+  for (const row of event.dates || []) {
+    if (row?.date) allowed.add(row.date);
+  }
+  if (!allowed.has(normalized)) {
     const error = new Error(
       "Choose an upcoming occurrence from this event schedule.",
     );
@@ -816,6 +1213,12 @@ async function occurrenceForDate(env, eventId, date) {
 }
 
 export async function updateOccurrenceContent(env, eventId, date, input) {
+  const targetSeriesId = String(
+    input?.seriesId || input?.targetEventId || "",
+  ).trim();
+  if (targetSeriesId && targetSeriesId !== String(eventId)) {
+    return assignOccurrenceToSeries(env, eventId, date, targetSeriesId, input);
+  }
   const {
     event,
     date: normalized,
@@ -829,6 +1232,17 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
   const scope = ["this", "following", "all"].includes(input?.scope)
     ? input.scope
     : "this";
+  const nextDate = isoDate(input?.date) || normalized;
+  if (nextDate !== normalized) {
+    if (scope !== "this") {
+      const error = new Error(
+        "Moving a night only applies to this event, not following nights.",
+      );
+      error.status = 400;
+      throw error;
+    }
+    return moveOccurrence(env, eventId, normalized, nextDate, input);
+  }
   const today = todayIso();
   const targets = event.dates.filter((row) => {
     if (scope === "this") return row.date === normalized;
@@ -836,12 +1250,12 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
     return row.date >= today;
   });
   const current = resolveOccurrenceContent(event, occurrence);
-  const startTime = input?.startTime !== undefined
-    ? clockTime(input.startTime)
-    : current.startTime;
-  const endTime = input?.endTime !== undefined
-    ? clockTime(input.endTime)
-    : current.endTime;
+  const startTime =
+    input?.startTime !== undefined
+      ? clockTime(input.startTime)
+      : current.startTime;
+  const endTime =
+    input?.endTime !== undefined ? clockTime(input.endTime) : current.endTime;
   if (input?.startTime && !startTime) {
     const error = new Error("Start time must use 24-hour HH:mm.");
     error.status = 400;
@@ -865,7 +1279,10 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
     throw error;
   }
   const overrides = {
-    name: input?.name !== undefined ? text(input.name) : current.title,
+    name: titleOverrideForSave(
+      event.name,
+      input?.name !== undefined ? text(input.name) : current.title,
+    ),
     artist: input?.artist !== undefined ? text(input.artist) : current.artist,
     offer: input?.offer !== undefined ? text(input.offer) : current.offer,
     description:
@@ -880,6 +1297,11 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
         ? text(input.operationsNotes)
         : current.operationsNotes,
     imageLinks,
+    image: occurrence.overrides?.image || null,
+    heroCrops:
+      input?.heroCrops !== undefined
+        ? input.heroCrops
+        : occurrence.overrides?.heroCrops || null,
   };
   if (scope === "all" || scope === "following") {
     const baselineCutoff = scope === "all" ? today : normalized;
@@ -891,7 +1313,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
         ...row,
         label: `${content.title || event.name} · ${row.date}`,
         overrides: {
-          name: content.title,
+          name: titleOverrideForSave(event.name, content.title),
           artist: content.artist,
           offer: content.offer,
           description: content.description,
@@ -903,11 +1325,12 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           // Keep a real per-night flyer only. Never bake the series main image
           // into Override image (that falsely creates "special guests").
           image: row.overrides?.image || null,
+          heroCrops: row.overrides?.heroCrops || null,
         },
       });
     }
     await updateEvent(env, eventId, {
-      name: overrides.name,
+      name: overrides.name || event.name,
       artist: overrides.artist,
       offer: overrides.offer,
       description: overrides.description,
@@ -933,6 +1356,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           operationsNotes: "",
           imageLinks: [],
           image: row.overrides?.image || null,
+          heroCrops: row.overrides?.heroCrops || null,
         },
       });
     }
@@ -963,6 +1387,158 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
   };
 }
 
+/** Move one night to another date without changing Starts on / Ends on. */
+export async function moveOccurrence(
+  env,
+  eventId,
+  fromDate,
+  toDate,
+  input = {},
+) {
+  const event = await getEvent(env, eventId);
+  const from = requireOccurrenceDate(event, fromDate);
+  const to = isoDate(toDate);
+  if (!to) {
+    const error = new Error("Date is not valid.");
+    error.status = 400;
+    throw error;
+  }
+  const plan = planOccurrenceMove(event, from, to);
+  if (!plan.ok) {
+    const error = new Error(plan.error || "Date is not valid.");
+    error.status = 400;
+    throw error;
+  }
+  const fromOccurrence = event.dates.find((row) => row.date === from) || null;
+  if (!fromOccurrence) {
+    const error = new Error("Occurrence not found.");
+    error.status = 404;
+    throw error;
+  }
+  const current = resolveOccurrenceContent(event, fromOccurrence);
+  const startTime =
+    input?.startTime !== undefined
+      ? clockTime(input.startTime)
+      : current.startTime;
+  const endTime =
+    input?.endTime !== undefined ? clockTime(input.endTime) : current.endTime;
+  if (input?.startTime && !startTime) {
+    const error = new Error("Start time must use 24-hour HH:mm.");
+    error.status = 400;
+    throw error;
+  }
+  if (input?.endTime && !endTime) {
+    const error = new Error("End time must use 24-hour HH:mm.");
+    error.status = 400;
+    throw error;
+  }
+  const imageLinks =
+    input?.imageLinks !== undefined
+      ? linksFrom(input.imageLinks)
+      : current.imageLinks;
+  const overrides = {
+    name: titleOverrideForSave(
+      event.name,
+      input?.name !== undefined ? text(input.name) : current.title,
+    ),
+    artist: input?.artist !== undefined ? text(input.artist) : current.artist,
+    offer: input?.offer !== undefined ? text(input.offer) : current.offer,
+    description:
+      input?.description !== undefined
+        ? text(input.description)
+        : current.description,
+    time: input?.time !== undefined ? text(input.time) : current.time,
+    startTime,
+    endTime,
+    operationsNotes:
+      input?.operationsNotes !== undefined
+        ? text(input.operationsNotes)
+        : current.operationsNotes,
+    imageLinks,
+    image: fromOccurrence.overrides?.image || null,
+  };
+
+  if (plan.unchanged) {
+    return updateOccurrenceContent(env, eventId, from, {
+      ...input,
+      date: from,
+      scope: "this",
+    });
+  }
+
+  if (plan.oneOff) {
+    await updateEvent(env, eventId, {
+      startsOn: plan.startsOn,
+      name: overrides.name || event.name,
+      artist: overrides.artist,
+      offer: overrides.offer,
+      description: overrides.description,
+      time: overrides.time,
+      startTime: overrides.startTime,
+      endTime: overrides.endTime,
+      operationsNotes: overrides.operationsNotes,
+      imageLinks: overrides.imageLinks,
+    });
+    const updated = await getEvent(env, eventId);
+    const occurrence =
+      updated.dates.find((row) => row.date === to) || updated.dates[0] || null;
+    return {
+      event: updated,
+      occurrence,
+      updated: 1,
+      scope: "this",
+      movedFrom: from,
+      movedTo: to,
+    };
+  }
+
+  const clash = event.dates.find(
+    (row) => row.date === to && String(row.id) !== String(fromOccurrence.id),
+  );
+  await updateEvent(env, eventId, {
+    skippedDates: plan.skippedDates,
+    extraDates: plan.extraDates,
+  });
+  let series = await getEvent(env, eventId);
+  let target = series.dates.find((row) => row.date === to) || clash || null;
+  if (!target) {
+    target = await saveOccurrence(env, eventId, {
+      date: to,
+      slug: occurrenceSlug(series.slug, to),
+      label: `${overrides.name || series.name} · ${to}`,
+      overrides: {
+        ...overrides,
+        image: overrides.image,
+      },
+    });
+  } else {
+    target = await saveOccurrence(env, eventId, {
+      ...target,
+      date: to,
+      slug: occurrenceSlug(series.slug, to),
+      label: `${overrides.name || series.name} · ${to}`,
+      overrides: {
+        ...target.overrides,
+        ...overrides,
+        image: overrides.image || target.overrides?.image || null,
+      },
+    });
+  }
+  const leftover = series.dates.find((row) => row.date === from);
+  if (leftover?.id) {
+    await removeOccurrence(env, leftover.id);
+  }
+  series = await getEvent(env, eventId);
+  return {
+    event: series,
+    occurrence: series.dates.find((row) => row.date === to) || target,
+    updated: 1,
+    scope: "this",
+    movedFrom: from,
+    movedTo: to,
+  };
+}
+
 export async function setOccurrenceImage(
   env,
   eventId,
@@ -985,11 +1561,13 @@ export async function setOccurrenceImage(
     overrides: {
       ...(occurrence?.overrides || {}),
       image: { name: uploaded.name, url: uploaded.url || "" },
+      heroCrops: null,
     },
   });
   if (!saved.overrides.image?.url) {
     const row = await updateRow(env, tables.eventDates, saved.id, {
       "Override image": [{ name: uploaded.name }],
+      "Override hero crops": "",
     });
     return {
       event: await getEvent(env, eventId),
@@ -1012,7 +1590,7 @@ export async function clearOccurrenceImage(env, eventId, date) {
     ...occurrence,
     date: normalized,
     label: `${event.name} · ${normalized}`,
-    overrides: { ...occurrence.overrides, image: null },
+    overrides: { ...occurrence.overrides, image: null, heroCrops: null },
   });
   return { event: await getEvent(env, eventId), occurrence: saved };
 }

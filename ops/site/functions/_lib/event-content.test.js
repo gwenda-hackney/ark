@@ -6,6 +6,11 @@ import {
   recurrenceLabel,
   resolveOccurrenceContent,
   sanityEventDocument,
+  sanitySeriesDocument,
+  stableHeroFraming,
+  stableImageRef,
+  titleOverrideEchoesSeries,
+  titleOverrideForSave,
 } from "./event-content.js";
 
 test("publishes event-specific ticket times", () => {
@@ -28,6 +33,33 @@ test("publishes event-specific ticket times", () => {
   assert.equal(document.offer, "Guest offer");
 });
 
+test("series template is a first-class sanity document", () => {
+  const document = sanitySeriesDocument({
+    slug: "gwenda-nights",
+    title: "Gwenda Nights",
+    description: "Saturday nights by the water.",
+    schedule: "manual",
+  });
+  assert.equal(document._type, "eventSeries");
+  assert.equal(document._id, "series-gwenda-nights");
+  assert.equal(document.schedule, "manual");
+  assert.equal(document.slug.current, "gwenda-nights");
+});
+
+test("title override is blank when it only echoes the series name", () => {
+  assert.equal(titleOverrideForSave("Negroni Sessions", "Negroni Sessions"), "");
+  assert.equal(titleOverrideForSave("Negroni Sessions", "negroni sessions"), "");
+  assert.equal(
+    titleOverrideForSave("Negroni Sessions", "The Bohemianauts"),
+    "The Bohemianauts",
+  );
+  assert.equal(titleOverrideEchoesSeries("Negroni Night", "Negroni Night"), true);
+  assert.equal(
+    titleOverrideEchoesSeries("Negroni Night", "Negroni Sessions"),
+    false,
+  );
+});
+
 test("ticket times affect the occurrence snapshot", () => {
   const event = {
     name: "Gwenda Nights",
@@ -40,6 +72,157 @@ test("ticket times affect the occurrence snapshot", () => {
     occurrenceHash(event, "2026-09-26"),
     occurrenceHash({ ...event, endTime: "02:00" }, "2026-09-26"),
   );
+});
+
+test("hero framing changes affect the occurrence snapshot", () => {
+  const event = {
+    name: "Gwenda Nights",
+    slug: "gwenda-nights",
+    mainImage: { url: "https://example.com/flyer.jpg" },
+    heroCrops: null,
+  };
+
+  assert.notEqual(
+    occurrenceHash(event, "2026-09-26"),
+    occurrenceHash(
+      {
+        ...event,
+        heroCrops: {
+          crop: { left: 0, top: 0.2, right: 0, bottom: 0 },
+          hotspot: { x: 0.5, y: 0.8, width: 0.2, height: 0.2 },
+        },
+      },
+      "2026-09-26",
+    ),
+  );
+});
+
+test("occurrence hash ignores Baserow signed URL tokens", () => {
+  const event = {
+    name: "Gwenda Nights",
+    slug: "gwenda-nights",
+    mainImage: {
+      name: "flyer.jpg",
+      url: "https://files.baserow.io/user_files/flyer.jpg?token=aaa",
+    },
+  };
+  assert.equal(
+    occurrenceHash(event, "2026-09-26"),
+    occurrenceHash(
+      {
+        ...event,
+        mainImage: {
+          name: "flyer.jpg",
+          url: "https://files.baserow.io/user_files/flyer.jpg?token=bbb",
+        },
+      },
+      "2026-09-26",
+    ),
+  );
+  assert.equal(stableImageRef(event.mainImage), "name:flyer.jpg");
+});
+
+test("occurrence hash ignores hero crop key order", () => {
+  const framing = {
+    crop: { left: 0, top: 0.12, right: 0, bottom: 0.4 },
+    hotspot: { x: 0.5, y: 0.4, width: 0.2, height: 0.2 },
+  };
+  const event = {
+    name: "Gwenda Nights",
+    slug: "gwenda-nights",
+    mainImage: { name: "flyer.jpg", url: "https://example.com/flyer.jpg" },
+    heroCrops: framing,
+  };
+  assert.equal(
+    occurrenceHash(event, "2026-09-26"),
+    occurrenceHash(
+      { ...event, heroCrops: { hotspot: framing.hotspot, crop: framing.crop } },
+      "2026-09-26",
+    ),
+  );
+  assert.deepEqual(
+    stableHeroFraming({ hotspot: framing.hotspot, crop: framing.crop }),
+    stableHeroFraming(framing),
+  );
+});
+
+test("publishState stays current when image URL tokens rotate", async () => {
+  const { publishState } = await import("./event-store.js");
+  const framing = {
+    crop: { left: 0, top: 0.12, right: 0, bottom: 0.4 },
+    hotspot: { x: 0.5, y: 0.4, width: 0.2, height: 0.2 },
+  };
+  const event = {
+    name: "Gwenda Nights",
+    slug: "gwenda-nights",
+    description: "Sat",
+    startTime: "17:00",
+    endTime: "01:00",
+    startsOn: "2026-09-26",
+    endsOn: "2026-09-26",
+    repeatUnit: "none",
+    skippedDates: [],
+    extraDates: [],
+    mainImage: {
+      name: "flyer.jpg",
+      url: "https://files.baserow.io/user_files/flyer.jpg?token=aaa",
+    },
+    heroCrops: framing,
+  };
+  const hash = occurrenceHash(event, "2026-09-26");
+  const dates = [
+    {
+      id: "1",
+      date: "2026-09-26",
+      sanityId: "drafts.x",
+      overrides: {},
+      snapshots: { staging: { hash, at: "2026-09-22T00:00:00.000Z" } },
+    },
+  ];
+  const rotated = {
+    ...event,
+    mainImage: {
+      name: "flyer.jpg",
+      url: "https://files.baserow.io/user_files/flyer.jpg?token=zzz",
+    },
+  };
+  assert.equal(publishState(rotated, dates, "2026-09-22").preview, "current");
+});
+
+test("publishState stays current for night title overrides (mapEvent shape)", async () => {
+  const { publishState } = await import("./event-store.js");
+  // mapEvent calls publishState(event, dates) before attaching dates to event.
+  const event = {
+    name: "Gwenda Nights",
+    slug: "gwenda-nights",
+    description: "Saturday nights.",
+    startTime: "17:00",
+    endTime: "23:00",
+    startsOn: "2026-10-10",
+    endsOn: "",
+    repeatUnit: "none",
+    skippedDates: [],
+    extraDates: [],
+    mainImage: { name: "series.png", url: "https://example.com/series.png" },
+    heroCrops: null,
+  };
+  const row = {
+    id: "118",
+    date: "2026-10-10",
+    sanityId: "event-gwenda-nights-2026-10-10",
+    overrides: {
+      name: "Vbrave Vinyl Session",
+      description: "Vinyl until late.",
+      startTime: "17:00",
+      endTime: "01:00",
+      image: { name: "vbrave.png", url: "https://example.com/vbrave.png" },
+    },
+    isSpecialEdition: false,
+  };
+  // Publish stores the hash against the occurrence row (with overrides).
+  const hash = occurrenceHash({ ...event, dates: [row] }, row);
+  const dates = [{ ...row, snapshots: { staging: { hash, at: "now" } } }];
+  assert.equal(publishState(event, dates, "2026-09-22").preview, "current");
 });
 
 test("resolves a special edition over the regular series content", () => {

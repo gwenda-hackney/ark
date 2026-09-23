@@ -1,0 +1,219 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Subpage from "../components/Subpage.astro";
+import { siteConfig } from "../config/site";
+import {
+  eventDescriptionParagraphs,
+  formatEventDiaryDate,
+  formatEventRecurrence,
+  formatEventSpan,
+  getUpcomingEvents,
+} from "../data/events";
+import {
+  buildWhatsOnHome,
+  formatShortEventDate,
+} from "../../functions/_lib/event-series.js";
+import { fetchWhatsOnCatalog } from "../lib/sanity/events";
+
+const { series: seriesRecords, occurrences } =
+  await fetchWhatsOnCatalog().catch(() => ({ series: [], occurrences: [] }));
+const upcomingEvents = getUpcomingEvents(occurrences);
+const { nights, next } = buildWhatsOnHome(occurrences, {
+  limit: 24,
+  series: seriesRecords,
+});
+const hasContent = nights.length > 0;
+const { title: pageTitle, description: pageDescription } =
+  siteConfig.seo.whatsOn || siteConfig.seo.events;
+
+function eventImageUrl(
+  url: string | null | undefined,
+  width: number,
+): string | null {
+  if (!url) return null;
+  if (/[?&](rect|fit)=/.test(url)) return url;
+  if (/[?&]w=/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
+}
+
+const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
+  "@type": "Event",
+  name: event.title,
+  startDate: event.date,
+  description: event.description,
+  ...(event.artist
+    ? { performer: { "@type": "Person", name: event.artist } }
+    : {}),
+  eventStatus: "https://schema.org/EventScheduled",
+  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+  location: {
+    "@type": "Place",
+    name: siteConfig.name,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: siteConfig.location.streetAddress,
+      addressLocality: siteConfig.location.addressLocality,
+      postalCode: siteConfig.location.postalCode,
+    },
+  },
+  organizer: {
+    "@type": "Organization",
+    name: siteConfig.name,
+    url: siteConfig.domain,
+  },
+}));
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": eventSchema,
+    })}
+  />
+
+  <Subpage class="whats-on-page events-page" innerClass="whats-on-inner">
+    <header class="section-header events-header reveal">
+      <p class="section-eyebrow">Diary</p>
+      <h1>What's on</h1>
+      <p>Music and late evenings by the water in {siteConfig.location.area}.</p>
+    </header>
+
+    <p id="whats-on-loading" class="events-loading" hidden={hasContent}>
+      Looking at the diary…
+    </p>
+    <section
+      id="whats-on-empty"
+      class="events-empty reveal"
+      hidden={hasContent}
+    >
+      <p class="events-empty-date">The diary is quiet</p>
+      <h2>Nothing announced yet</h2>
+      <p>There is always something taking shape. Check back soon.</p>
+    </section>
+
+    <div
+      id="whats-on-content"
+      data-whats-on-next={next ? JSON.stringify(next) : ""}
+    >
+      {
+        nights.length ? (
+          <ol class="events-list whats-on-series-list">
+            {nights.map((event, index) => {
+              const regular = Boolean(event.regular);
+              const href = String(event.href || "").trim();
+              const image = eventImageUrl(event.heroImageUrl, 960);
+              const whenLabel = regular
+                ? formatEventRecurrence(
+                    String(
+                      event.scheduleLabel || event.recurrence || "",
+                    ).trim(),
+                  )
+                : String(event.scheduleLabel || "").trim();
+              return (
+                <li>
+                  <a
+                    class={`event-card event-card--series${regular ? " event-card--regular" : ""}`}
+                    href={href || "/whats-on"}
+                    aria-label={event.title}
+                  >
+                  {image ? (
+                    <figure class="event-media">
+                      <img
+                        class="event-hero"
+                        src={image}
+                        alt={
+                          event.heroImage?.alt ||
+                          event.heroImageAlt ||
+                          event.title
+                        }
+                        loading={index === 0 ? "eager" : "lazy"}
+                        style={
+                          event.heroImage?.objectPosition
+                            ? `object-position: ${event.heroImage.objectPosition}`
+                            : undefined
+                        }
+                      />
+                    </figure>
+                  ) : (
+                    <div
+                      class="event-media event-media--empty"
+                      aria-hidden="true"
+                    >
+                      <span>Gwenda</span>
+                    </div>
+                  )}
+                  <article class="event-copy">
+                    <p class="event-date">
+                      {whenLabel ? (
+                        <span>{whenLabel}</span>
+                      ) : (
+                        <time datetime={event.date}>
+                          {formatEventDiaryDate(event.date)}
+                        </time>
+                      )}
+                      {formatEventSpan(
+                        event.startTime,
+                        event.endTime,
+                        event.time,
+                      ) ? (
+                        <span class="event-time">
+                          {formatEventSpan(
+                            event.startTime,
+                            event.endTime,
+                            event.time,
+                          )}
+                        </span>
+                      ) : null}
+                    </p>
+                    <h2 class="event-title">{event.title}</h2>
+                    {event.upcomingName ? (
+                      <p class="event-next">
+                        <span class="event-next-label">Next</span>
+                        {event.upcomingDate ? (
+                          <>
+                            <span class="event-next-sep" aria-hidden="true">
+                              ·
+                            </span>
+                            <time datetime={event.upcomingDate}>
+                              {formatShortEventDate(event.upcomingDate)}
+                            </time>
+                          </>
+                        ) : null}
+                        <span class="event-next-sep" aria-hidden="true">
+                          ·
+                        </span>
+                        <span class="event-next-name">{event.upcomingName}</span>
+                      </p>
+                    ) : null}
+                    {event.offer ? (
+                      <p class="event-offer">{event.offer}</p>
+                    ) : null}
+                    {event.description ? (
+                      <div class="event-description">
+                        {eventDescriptionParagraphs(event.description).map(
+                          (paragraph) => (
+                            <p>{paragraph}</p>
+                          ),
+                        )}
+                      </div>
+                    ) : null}
+                    {event.nightCount > 1 ? (
+                      <p class="event-more-dates">More dates →</p>
+                    ) : null}
+                  </article>
+                  </a>
+                </li>
+              );
+            })}
+          </ol>
+        ) : null
+      }
+    </div>
+  </Subpage>
+  <script>
+    import { initWhatsOnPage } from "../scripts/whats-on.js";
+    initWhatsOnPage();
+  </script>
+</BaseLayout>

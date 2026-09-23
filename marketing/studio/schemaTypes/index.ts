@@ -1,4 +1,5 @@
 import { event } from "./event";
+import { eventSeries } from "./eventSeries";
 import { eventDescription } from "./eventDescription";
 import { form } from "./form";
 import { formField } from "./formField";
@@ -11,6 +12,7 @@ export const schemaTypes = [
   menuSection,
   menuItem,
   eventDescription,
+  eventSeries,
   event,
   form,
   formField,
