@@ -45,7 +45,7 @@ function eventMedia(event, eager, width = 1200) {
     const kicker = document.createElement("span");
     kicker.className = "event-media-caption-kicker";
     kicker.textContent =
-      String(event.imageCaption || "").trim() || "Next at Gwenda";
+      String(event.imageCaption || "").trim() || "Hosting";
     const who = document.createElement("span");
     who.className = "event-media-caption-name";
     who.textContent = captionName;
@@ -84,6 +84,40 @@ function teaserLine(label, isoDate, name) {
   return line;
 }
 
+function nightScheduleBlock(slots) {
+  const rows = (Array.isArray(slots) ? slots : [])
+    .map((slot) => {
+      const label = String(slot?.label || "").trim();
+      if (!label) return null;
+      return {
+        label,
+        when: formatEventSpan(slot?.startTime, slot?.endTime),
+      };
+    })
+    .filter(Boolean);
+  if (!rows.length) return null;
+  const block = document.createElement("div");
+  block.className = "night-schedule";
+  const list = document.createElement("ol");
+  list.className = "night-schedule-list";
+  for (const row of rows) {
+    const item = document.createElement("li");
+    if (row.when) {
+      const time = document.createElement("span");
+      time.className = "night-schedule-time";
+      time.textContent = row.when;
+      item.appendChild(time);
+    }
+    const name = document.createElement("span");
+    name.className = "night-schedule-item";
+    name.textContent = row.label;
+    item.appendChild(name);
+    list.appendChild(item);
+  }
+  block.append(list);
+  return block;
+}
+
 function eventDescription(description, className = "event-description", legacyTime = "") {
   const wrap = document.createElement("div");
   wrap.className = className;
@@ -109,7 +143,9 @@ function seriesCard(event, { eager = false } = {}) {
     const hostDate = String(event.hostDate || "").trim();
     const label = [
       event.title,
-      hostName ? `hosts ${hostName}` : "",
+      String(event.imageCaptionName || "").trim()
+        ? `Hosting ${event.imageCaptionName}`
+        : "",
       hostDate
         ? `${event.hostThisWeek ? "This week, " : ""}${formatShortEventDate(hostDate)}`
         : "",
@@ -164,50 +200,11 @@ function seriesCard(event, { eager = false } = {}) {
   const hostName = String(event.hostName || "").trim();
   const hostDate = String(event.hostDate || "").trim();
   const hostThisWeek = Boolean(event.hostThisWeek);
-  if (hostName) {
-    const hosts = document.createElement("p");
-    hosts.className = "event-hosts";
-    const line = document.createElement("span");
-    line.className = "event-hosts-line";
-    line.append("hosts ");
-    const who = document.createElement("span");
-    who.className = "event-hosts-name";
-    who.textContent = hostName;
-    line.appendChild(who);
-    hosts.appendChild(line);
-    if (hostDate && !hostThisWeek) {
-      const time = document.createElement("time");
-      time.className = "event-hosts-date";
-      time.dateTime = hostDate;
-      time.textContent = formatShortEventDate(hostDate);
-      hosts.appendChild(time);
-    }
-    copy.appendChild(hosts);
+  if (hostName && !hostThisWeek) {
+    copy.appendChild(teaserLine("Coming up", hostDate, hostName));
   }
-
   if (hostThisWeek && hostName) {
     copy.appendChild(teaserLine("This week", hostDate, hostName));
-  }
-  const thisWeekName = String(event.thisWeekName || "").trim();
-  if (thisWeekName) {
-    copy.appendChild(
-      teaserLine("This week", String(event.thisWeekDate || ""), thisWeekName),
-    );
-  }
-
-  const upcomingName = String(event.upcomingName || "").trim();
-  if (upcomingName) {
-    copy.appendChild(
-      teaserLine("Next", String(event.upcomingDate || ""), upcomingName),
-    );
-  } else if (!hostName && !thisWeekName) {
-    const upcoming = String(event.upcoming || "").trim();
-    if (upcoming) {
-      const guest = document.createElement("p");
-      guest.className = "event-next";
-      guest.textContent = upcoming;
-      copy.appendChild(guest);
-    }
   }
 
   if (event.offer) {
@@ -217,16 +214,42 @@ function seriesCard(event, { eager = false } = {}) {
     copy.appendChild(offer);
   }
 
+  const schedule = nightScheduleBlock(event.nightSchedule);
+  if (schedule) copy.appendChild(schedule);
+
   if (event.description) {
     copy.appendChild(eventDescription(event.description));
   }
 
+  const follow = document.createElement("div");
+  follow.className = "event-follow";
+  const thisWeekName = String(event.thisWeekName || "").trim();
+  if (thisWeekName) {
+    follow.appendChild(
+      teaserLine("This week", String(event.thisWeekDate || ""), thisWeekName),
+    );
+  }
+  const upcomingName = String(event.upcomingName || "").trim();
+  if (upcomingName) {
+    follow.appendChild(
+      teaserLine("Next", String(event.upcomingDate || ""), upcomingName),
+    );
+  } else if (!hostName && !thisWeekName) {
+    const upcoming = String(event.upcoming || "").trim();
+    if (upcoming) {
+      const guest = document.createElement("p");
+      guest.className = "event-next";
+      guest.textContent = upcoming;
+      follow.appendChild(guest);
+    }
+  }
   if (Number(event.nightCount) > 1) {
     const more = document.createElement("p");
     more.className = "event-more-dates";
-    more.textContent = "More dates →";
-    copy.appendChild(more);
+    more.textContent = "More dates and info";
+    follow.appendChild(more);
   }
+  if (follow.childElementCount) copy.appendChild(follow);
 
   card.appendChild(copy);
   item.appendChild(card);
@@ -282,6 +305,22 @@ function nightCard(event, { eager = false } = {}) {
   return item;
 }
 
+/** Staging What's on reads the diary live. Production keeps the baked pages. */
+export function readsLiveDiary(env) {
+  return String(env || "") === "staging";
+}
+
+function pageSiteEnv() {
+  return document.documentElement?.dataset?.siteEnv || "";
+}
+
+function applyLiveMedia(card, event, width, eager) {
+  const media = card.querySelector(":scope > .event-media");
+  const next = eventMedia(event, eager, width);
+  if (media) media.replaceWith(next);
+  else card.prepend(next);
+}
+
 function ensureHomeList(content) {
   let list = content.querySelector(".events-list");
   if (list instanceof HTMLOListElement) return list;
@@ -291,9 +330,47 @@ function ensureHomeList(content) {
   return list;
 }
 
+async function refreshHome(content, { signal } = {}) {
+  const empty = document.getElementById("whats-on-empty");
+  const loading = document.getElementById("whats-on-loading");
+  const res = await fetch("/api/whats-on?limit=24", {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal,
+  });
+  if (signal?.aborted) return;
+  if (!res.ok) throw new Error(`What's on failed (${res.status})`);
+  const data = await res.json();
+  if (signal?.aborted) return;
+  if (!document.contains(content)) return;
+  const nights = Array.isArray(data.nights) ? data.nights : [];
+  const nextCursor = data.next || null;
+  loading?.remove();
+  if (!nights.length) {
+    empty?.removeAttribute("hidden");
+    content.replaceChildren();
+    content.dataset.whatsOnNext = "";
+    return;
+  }
+  empty?.setAttribute("hidden", "true");
+  const list = ensureHomeList(content);
+  list.replaceChildren(
+    ...nights.map((night, index) => seriesCard(night, { eager: index === 0 })),
+  );
+  content.dataset.whatsOnNext = nextCursor ? JSON.stringify(nextCursor) : "";
+  if (nextCursor) setupLoadMore(content, list);
+}
+
+/** @type {AbortController | null} */
+let homeAbort = null;
+
 export function initWhatsOnPage() {
   const content = document.getElementById("whats-on-content");
   if (!(content instanceof HTMLElement)) return;
+
+  homeAbort?.abort();
+  homeAbort = new AbortController();
+  const { signal } = homeAbort;
 
   let nextCursor = null;
   try {
@@ -306,44 +383,35 @@ export function initWhatsOnPage() {
 
   const empty = document.getElementById("whats-on-empty");
   const loading = document.getElementById("whats-on-loading");
-  loading?.remove();
-
   const hasStatic = Boolean(content.querySelector(".event-card"));
-  if (!hasStatic) {
-    void (async () => {
-      try {
-        const res = await fetch("/api/whats-on?limit=24", {
-          credentials: "same-origin",
-        });
-        if (!res.ok) throw new Error(`What's on failed (${res.status})`);
-        const data = await res.json();
-        const nights = Array.isArray(data.nights) ? data.nights : [];
-        nextCursor = data.next || null;
-        if (!nights.length) {
-          empty?.removeAttribute("hidden");
-          content.replaceChildren();
+  const live = readsLiveDiary(pageSiteEnv());
+
+  if (live || !hasStatic) {
+    if (live) content.dataset.live = "pending";
+    else loading?.remove();
+    void refreshHome(content, { signal })
+      .then(() => {
+        if (signal.aborted || !document.contains(content)) return;
+        if (live) content.dataset.live = "ready";
+      })
+      .catch((error) => {
+        if (signal.aborted || error?.name === "AbortError") return;
+        if (live && hasStatic) {
+          content.dataset.live = "static";
+          loading?.remove();
+          empty?.setAttribute("hidden", "true");
+          if (nextCursor) setupLoadMore(content, ensureHomeList(content));
           return;
         }
-        empty?.setAttribute("hidden", "true");
-        const list = ensureHomeList(content);
-        list.replaceChildren(
-          ...nights.map((night, index) =>
-            seriesCard(night, { eager: index === 0 }),
-          ),
-        );
-        content.dataset.whatsOnNext = nextCursor
-          ? JSON.stringify(nextCursor)
-          : "";
-        if (nextCursor) setupLoadMore(content, list);
-      } catch {
-        const failed = document.getElementById("whats-on-loading");
-        if (failed)
-          failed.textContent = "Could not load what's on. Please try again.";
-      }
-    })();
+        if (loading) {
+          loading.hidden = false;
+          loading.textContent = "Could not load what's on. Please try again.";
+        }
+      });
     return;
   }
 
+  loading?.remove();
   empty?.setAttribute("hidden", "true");
   if (nextCursor) {
     const list = ensureHomeList(content);
@@ -362,6 +430,8 @@ function setupLoadMore(content, list) {
   }
   if (!nextCursor) return;
 
+  document.getElementById("whats-on-more")?.remove();
+
   let loadingMore = false;
   const more = document.createElement("p");
   more.id = "whats-on-more";
@@ -370,6 +440,7 @@ function setupLoadMore(content, list) {
 
   async function loadMore() {
     if (loadingMore || !nextCursor) return;
+    if (!document.contains(content) || !document.contains(list)) return;
     loadingMore = true;
     more.textContent = "Looking further ahead…";
     try {
@@ -383,6 +454,7 @@ function setupLoadMore(content, list) {
       });
       if (!res.ok) throw new Error(`What's on failed (${res.status})`);
       const data = await res.json();
+      if (!document.contains(list)) return;
       const nights = Array.isArray(data.nights) ? data.nights : [];
       list.append(...nights.map((night) => seriesCard(night)));
       nextCursor = data.next || null;
@@ -408,9 +480,67 @@ function setupLoadMore(content, list) {
   }
 }
 
+function seriesHeroSource(detail) {
+  const guest = detail?.featuredGuest;
+  if (guest?.heroImageUrl) return guest;
+  return {
+    title: detail?.title || "",
+    heroImageUrl: detail?.heroImageUrl || "",
+    heroImage: detail?.heroImage || null,
+    heroImageAlt: detail?.heroImageAlt || detail?.title || "",
+    imageCaption: "",
+    imageCaptionName: "",
+  };
+}
+
+async function refreshSeriesDetail(page, root, { signal } = {}) {
+  const seriesId = root.dataset.seriesId || "";
+  if (!seriesId) throw new Error("Missing series.");
+  const res = await fetch(`/api/whats-on/${encodeURIComponent(seriesId)}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal,
+  });
+  if (signal?.aborted) return;
+  if (!res.ok) throw new Error(`Series failed (${res.status})`);
+  const data = await res.json();
+  if (signal?.aborted) return;
+  if (!document.contains(page) || !document.contains(root)) return;
+  const detail = data.series;
+  if (!detail) throw new Error("Series not found.");
+  const main = page.querySelector(".whats-on-series-main");
+  if (main) applyLiveMedia(main, seriesHeroSource(detail), 1800, true);
+  const list = root.querySelector(".events-list");
+  const nights = Array.isArray(detail.nights) ? detail.nights : [];
+  if (list instanceof HTMLOListElement) {
+    for (const card of list.querySelectorAll(":scope > li")) {
+      const date = card.querySelector("time")?.getAttribute("datetime") || "";
+      const night = nights.find((row) => row.date === date);
+      if (night) applyLiveMedia(card, night, 1800, false);
+    }
+  }
+  page.dataset.live = "ready";
+}
+
+/** @type {AbortController | null} */
+let seriesAbort = null;
+
 export function initSeriesPage() {
   const root = document.getElementById("series-nights");
   if (!(root instanceof HTMLElement)) return;
+  const page = document.querySelector("main.whats-on-series-page");
+
+  seriesAbort?.abort();
+  seriesAbort = new AbortController();
+  const { signal } = seriesAbort;
+
+  if (readsLiveDiary(pageSiteEnv()) && page instanceof HTMLElement) {
+    page.dataset.live = "pending";
+    void refreshSeriesDetail(page, root, { signal }).catch((error) => {
+      if (signal.aborted || error?.name === "AbortError") return;
+      if (page.dataset.live === "pending") page.dataset.live = "static";
+    });
+  }
   if (root.dataset.seriesRich !== "true") return;
   const seriesId = root.dataset.seriesId || "";
   let nextCursor = null;
@@ -423,6 +553,9 @@ export function initSeriesPage() {
   }
   if (!seriesId || !nextCursor) return;
 
+  // Avoid stacking another infinite-scroll sentinel on re-init (View Transitions).
+  document.getElementById("series-more")?.remove();
+
   let loadingMore = false;
   const list = root.querySelector(".events-list");
   if (!(list instanceof HTMLOListElement)) return;
@@ -433,7 +566,7 @@ export function initSeriesPage() {
   root.appendChild(more);
 
   async function loadMore() {
-    if (loadingMore || !nextCursor) return;
+    if (loadingMore || !nextCursor || signal.aborted) return;
     loadingMore = true;
     more.textContent = "Looking further ahead…";
     try {
@@ -444,17 +577,19 @@ export function initSeriesPage() {
       });
       const res = await fetch(
         `/api/whats-on/${encodeURIComponent(seriesId)}?${params}`,
-        { credentials: "same-origin" },
+        { credentials: "same-origin", signal },
       );
       if (!res.ok) throw new Error(`Series failed (${res.status})`);
       const data = await res.json();
+      if (signal.aborted || !document.contains(list)) return;
       const detail = data.series;
       const nights = Array.isArray(detail?.nights) ? detail.nights : [];
       list.append(...nights.map((night) => nightCard(night)));
       nextCursor = detail?.next || null;
       more.textContent = "";
       if (!nextCursor) more.remove();
-    } catch {
+    } catch (error) {
+      if (error?.name === "AbortError") return;
       more.remove();
       nextCursor = null;
     } finally {
@@ -470,5 +605,8 @@ export function initSeriesPage() {
       { rootMargin: "480px" },
     );
     observer.observe(more);
+    signal.addEventListener("abort", () => observer.disconnect(), {
+      once: true,
+    });
   }
 }

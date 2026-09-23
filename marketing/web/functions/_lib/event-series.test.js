@@ -127,9 +127,7 @@ describe("buildWhatsOnStack", () => {
       "Gwenda Nights",
       "Gwenda Radio",
     ]);
-    expect(stack[0].description).toBe(
-      "£10 NEGRONI. Tuesday nights, stirred slowly. Chess from 7.",
-    );
+    expect(stack[0].description).toBe("£10 NEGRONI.");
     expect(stack[1].regular).toBe(false);
     expect(stack[1].schedule).toBe("manual");
     expect(stack[1].description).toBe(
@@ -141,6 +139,8 @@ describe("buildWhatsOnStack", () => {
     expect(stack[1].href).toBe("/whats-on/gwenda-nights");
     expect(stack[1].nightCount).toBe(3);
     expect(stack[1].heroImageUrl).toBe("https://cdn.example/vbrave.jpg");
+    expect(stack[1].imageCaption).toBe("Hosting");
+    expect(stack[1].imageCaptionName).toBe("Vbrave Vinyl Session");
     expect(stack[1].hostName).toBe("Vbrave Vinyl Session");
     expect(stack[1].hostDate).toBe("2026-10-10");
     expect(stack[1].hostThisWeek).toBe(false);
@@ -278,7 +278,7 @@ describe("buildWhatsOnStack", () => {
       { now, series: [gwendaSeries] },
     );
     expect(stack[0].heroImageUrl).toBe("https://cdn.example/bohemianauts.jpg");
-    expect(stack[0].imageCaption).toBe("Next at Gwenda");
+    expect(stack[0].imageCaption).toBe("Hosting");
     expect(stack[0].imageCaptionName).toBe("The Bohemianauts");
   });
 
@@ -299,8 +299,8 @@ describe("buildWhatsOnStack", () => {
       ],
       { now, series: [negroniSeries] },
     );
-    expect(stack[0].imageCaption).toBe("Next at Gwenda");
-    expect(stack[0].imageCaptionName).toBe("Maya");
+    expect(stack[0].imageCaption).toBe("");
+    expect(stack[0].imageCaptionName).toBe("");
   });
 
   it("leaves a guest without their own flyer unlabelled", () => {
@@ -321,6 +321,30 @@ describe("buildWhatsOnStack", () => {
     );
     expect(stack[0].imageCaption).toBe("");
     expect(stack[0].imageCaptionName).toBe("");
+  });
+
+  it("adds the scheduled night's short description under the series line", () => {
+    const line = "On Sat 10 Oct we are excited to host Vbrave Vinyl.";
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "gwenda-nights-2026-10-10",
+          seriesId: "gwenda-nights",
+          seriesTitle: "Gwenda Nights",
+          title: "Vbrave Vinyl Session",
+          date: "2026-10-10",
+          description:
+            "Vbrave on the decks. Vinyl until late by the water, and the rest of the night.",
+          shortDescription: line,
+          heroImageUrl: "https://cdn.example/vbrave.jpg",
+        }),
+      ],
+      { now, series: [gwendaSeries] },
+    );
+    expect(stack[0].hostThisWeek).toBe(false);
+    expect(stack[0].hostName).toBe("Vbrave Vinyl Session");
+    expect(stack[0].description).toBe(`${gwendaSeries.description}\n\n${line}`);
+    expect(stack[0].description).not.toContain("Vbrave on the decks");
   });
 
   it("calls a hosted night this week when it falls in the current week", () => {
@@ -348,6 +372,9 @@ describe("buildWhatsOnStack", () => {
     expect(stack[0].hostName).toBe("Vbrave Vinyl Session");
     expect(stack[0].hostDate).toBe("2026-09-26");
     expect(stack[0].hostThisWeek).toBe(true);
+    expect(stack[0].description).toBe(
+      "Saturday nights by the water. Live music, vinyl, and guests.",
+    );
     expect(stack[0].upcomingName).toBe("The Bohemianauts");
     expect(stack[0].upcomingDate).toBe("2026-10-10");
   });
@@ -515,12 +542,12 @@ describe("buildSeriesDetail", () => {
       { now, limit: 10, series: [gwendaSeries] },
     );
     expect(detail.nights[0].imageCaptionName).toBe("");
-    expect(detail.nights[1].imageCaption).toBe("Next at Gwenda");
-    expect(detail.nights[1].imageCaptionName).toBe("The Bohemianauts");
+    expect(detail.nights[0].description).toContain(
+      "Saturday nights by the water",
+    );
     expect(detail.nights[2].heroImageUrl).toBe(
       "https://cdn.example/series-default.jpg",
     );
-    expect(detail.nights[2].imageCaptionName).toBe("");
   });
 });
 
@@ -560,6 +587,34 @@ describe("buildWhatsOnHome", () => {
 });
 
 describe("seriesMarketingCopy", () => {
+  it("does not stack a short description on the long copy", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "negroni-2026-09-29",
+          seriesId: "negroni-night",
+          seriesTitle: "Negroni Night",
+          title: "Negroni Night",
+          date: "2026-09-29",
+          recurrence: "Every Tuesday",
+        }),
+      ],
+      {
+        now,
+        series: [
+          {
+            ...negroniSeries,
+            shortDescription: "£10 Negronis. Open decks from four.",
+            description:
+              "Tuesday, stirred slowly.\n\nA £10 Negroni, open decks from four, and chess from seven.",
+          },
+        ],
+      },
+    );
+    expect(stack[0].description).toBe("£10 Negronis. Open decks from four.");
+    expect(stack[0].description).not.toContain("stirred slowly");
+  });
+
   it("keeps the lead and drops Hours / The room sections", () => {
     const copy = seriesMarketingCopy(
       [

@@ -472,7 +472,29 @@ export function promoteStagingToProduction() {
   return promoteWebsite("production");
 }
 
+export type DeployStatus = {
+  ok: boolean;
+  runId: number;
+  runUrl?: string;
+  status: string;
+  conclusion: string | null;
+  completed: boolean;
+  phase?: string;
+};
+
+export function getDeployStatus(runId: number) {
+  return request<DeployStatus>(
+    `/api/web/deploy-status?run_id=${encodeURIComponent(String(runId))}`,
+  );
+}
+
 export type OpsEventImage = { name: string; url: string };
+
+export type OpsNightScheduleSlot = {
+  label: string;
+  startTime: string;
+  endTime: string;
+};
 
 export type OpsEventOccurrence = {
   id: string;
@@ -486,9 +508,11 @@ export type OpsEventOccurrence = {
     artist: string;
     offer: string;
     description: string;
+    shortDescription: string;
     time: string;
     startTime: string;
     endTime: string;
+    nightSchedule: OpsNightScheduleSlot[] | null;
     operationsNotes: string;
     imageLinks: string[];
     image: OpsEventImage | null;
@@ -503,6 +527,7 @@ export type OpsEvent = {
   offer: string;
   description: string;
   shortDescription: string;
+  nightSchedule: OpsNightScheduleSlot[];
   operationsNotes: string;
   imageLinks: string[];
   startsOn: string;

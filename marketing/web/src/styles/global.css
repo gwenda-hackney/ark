@@ -5045,7 +5045,7 @@ html.fonts-ready .thanks {
 
 /* Detail: flyer left, copy right. Show the whole poster (no cover crop). */
 .whats-on-series-page .event-card {
-  grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.9fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: clamp(1.5rem, 3.5vw, 3rem);
   padding-block: clamp(2rem, 5vw, 3.75rem);
   align-items: start;
@@ -5071,6 +5071,10 @@ html.fonts-ready .thanks {
 }
 
 .whats-on-series-page .event-copy {
+  max-width: none;
+}
+
+.whats-on-series-page .event-title {
   max-width: none;
 }
 
@@ -5161,6 +5165,7 @@ html.fonts-ready .thanks {
 .events-header h1 {
   max-width: none;
   color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .events-header > p:last-child {
@@ -5215,6 +5220,15 @@ a.event-card {
   color: inherit;
   text-decoration: none;
   cursor: pointer;
+  /* Chromium treats a drag on a link as a URL drag unless both are set,
+     which blocks selecting the diary copy. */
+  -webkit-user-drag: none;
+  user-select: text;
+}
+
+a.event-card * {
+  -webkit-user-drag: none;
+  user-select: text;
 }
 
 a.event-card:focus-visible {
@@ -5261,7 +5275,7 @@ a.event-card:focus-visible .event-title {
 
 /* What's on home: series cards — uniform wide heroes */
 .whats-on-page .event-card--series {
-  grid-template-columns: minmax(0, 1.55fr) minmax(0, 0.85fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   gap: clamp(1.5rem, 3.5vw, 2.75rem);
   padding-block: clamp(1.85rem, 4vw, 3.25rem);
   align-items: start;
@@ -5287,7 +5301,7 @@ a.event-card:focus-visible .event-title {
 }
 
 .whats-on-page .event-card--series .event-title {
-  max-width: 14ch;
+  max-width: none;
   font-size: clamp(2.35rem, 4vw, 3.35rem);
   line-height: 1.02;
 }
@@ -5350,7 +5364,6 @@ a.event-card:focus-visible .event-title {
   margin: 0;
   padding: 0.45rem 0.7rem 0.5rem;
   background: color-mix(in srgb, var(--color-bg) 88%, transparent);
-  pointer-events: none;
 }
 
 .event-media-caption-kicker {
@@ -5504,10 +5517,31 @@ a.event-card:focus-visible .event-title {
 
 .event-hosts-date {
   display: block;
+  margin-top: 0.2rem;
   color: var(--color-gold);
+  font-family: var(--font-display);
   font-style: normal;
-  font-size: 0.95rem;
-  letter-spacing: 0.04em;
+  font-size: clamp(1.45rem, 2.6vw, 1.85rem);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.15;
+}
+
+.whats-on-page .event-next time {
+  font-size: clamp(1.2rem, 2.1vw, 1.45rem);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.event-follow {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1.25rem;
+}
+
+.event-follow .event-next,
+.event-follow .event-more-dates {
+  margin: 0;
 }
 
 .event-next {
@@ -5547,18 +5581,40 @@ a.event-card:focus-visible .event-title {
 }
 
 .event-more-dates {
+  position: relative;
+  display: inline-block;
+  width: fit-content;
   margin: 1.15rem 0 0;
-  color: var(--color-gold);
+  color: var(--color-text-muted);
   font-family: var(--font-display);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.event-more-dates::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 1px;
+  background: var(--color-gold);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.35s var(--ease-smooth);
 }
 
 .event-card--series:hover .event-more-dates,
 .event-card--series:focus-visible .event-more-dates {
-  color: var(--color-text);
+  color: var(--color-gold);
+}
+
+.event-card--series:hover .event-more-dates::after,
+.event-card--series:focus-visible .event-more-dates::after {
+  transform: scaleX(1);
+  transform-origin: left center;
 }
 
 .event-recurrence {
@@ -5569,6 +5625,16 @@ a.event-card:focus-visible .event-title {
   font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
+}
+
+.event-hosting {
+  max-width: 36rem;
+  margin: 0 0 0.95rem;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2vw, 1.4rem);
+  font-style: italic;
+  line-height: 1.4;
 }
 
 .event-description {
@@ -5717,25 +5783,6 @@ a.event-card:focus-visible .event-title {
 
 .night-schedule {
   margin: 0.35rem 0 1.15rem;
-  padding: 0.95rem 1rem 1rem;
-  border: 1px solid color-mix(in srgb, var(--color-gold) 42%, transparent);
-  background:
-    linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--color-gold) 14%, transparent),
-      color-mix(in srgb, var(--color-gold) 4%, transparent) 55%,
-      transparent
-    );
-}
-
-.night-schedule-label {
-  margin: 0 0 0.7rem;
-  color: var(--color-gold);
-  font-family: var(--font-display);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
 }
 
 .night-schedule-list {
@@ -5835,6 +5882,11 @@ a.event-card:focus-visible .event-title {
   font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
+}
+
+html[data-site-env="staging"] #whats-on-content:not([data-live="ready"]):not([data-live="static"]) .events-list,
+html[data-site-env="staging"] main.whats-on-series-page:not([data-live="ready"]):not([data-live="static"]) .event-media {
+  visibility: hidden;
 }
 
 .events-loading,

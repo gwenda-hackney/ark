@@ -1,6 +1,11 @@
 /** How many nights the events page asks for at a time. */
 export const EVENT_FEED_PAGE_SIZE = 6;
 
+/** Staging diary is a live preview. Production pages can sit in a short cache. */
+export function diaryCacheControl(env) {
+  return env?.SITE_ENV === "staging" ? "no-store" : "public, max-age=60";
+}
+
 function todayIso(now = new Date()) {
   return [
     now.getFullYear(),

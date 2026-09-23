@@ -13,6 +13,7 @@
 		for: htmlFor,
 		actions,
 		children,
+		class: className = "",
 	}: {
 		label: string;
 		hint?: string;
@@ -20,10 +21,11 @@
 		for?: string;
 		actions?: Snippet;
 		children: Snippet;
+		class?: string;
 	} = $props();
 </script>
 
-<div class="field">
+<div class="field {className}">
 	<div class="label-row">
 		<div class="label-left">
 			<label for={htmlFor}>{label}</label>

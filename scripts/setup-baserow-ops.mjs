@@ -805,6 +805,10 @@ function eventFields() {
     { name: "Start time", body: { name: "Start time", type: "text" } },
     { name: "End time", body: { name: "End time", type: "text" } },
     {
+      name: "Night schedule",
+      body: { name: "Night schedule", type: "long_text" },
+    },
+    {
       name: "Repeat every",
       body: {
         name: "Repeat every",
@@ -902,6 +906,10 @@ function eventDateFields(eventsTableId) {
       name: "Description override",
       body: { name: "Description override", type: "long_text" },
     },
+    {
+      name: "Short description override",
+      body: { name: "Short description override", type: "long_text" },
+    },
     { name: "Time override", body: { name: "Time override", type: "text" } },
     {
       name: "Start time override",
@@ -910,6 +918,10 @@ function eventDateFields(eventsTableId) {
     {
       name: "End time override",
       body: { name: "End time override", type: "text" },
+    },
+    {
+      name: "Night schedule override",
+      body: { name: "Night schedule override", type: "long_text" },
     },
     {
       name: "Operations notes override",

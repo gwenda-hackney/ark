@@ -48,3 +48,20 @@ export async function dispatchStagingContentDeploy(env) {
     body: { target: "staging" },
   });
 }
+
+/** GitHub Actions status for a site publish started by the deploy webhook. */
+export async function fetchDeployStatus(env, runId) {
+  const id = Number(runId);
+  if (!Number.isFinite(id) || id <= 0) {
+    const error = new Error("Missing deploy run.");
+    error.status = 400;
+    throw error;
+  }
+  const { baseUrl, secret } = webhookConfig(env);
+  if (!baseUrl || !secret) {
+    const error = new Error("Site deploy webhook is not configured on ops.");
+    error.status = 503;
+    throw error;
+  }
+  return webhookJson(`${baseUrl}/status?run_id=${encodeURIComponent(String(id))}`, secret);
+}

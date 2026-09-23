@@ -6,6 +6,7 @@ import { initSectionHash } from "./section-hash.js";
 import { initMenuToc } from "./menu-toc.js";
 import { initOverlayScrollbars } from "./scrollbar.js";
 import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
+import { initSeriesPage, initWhatsOnPage } from "./whats-on.js";
 
 /** @type {AbortController | null} */
 let pageAbort = null;
@@ -259,6 +260,10 @@ function initPage() {
   // Hero entrance must re-run after View Transitions — Hero.astro's module
   // script only executes the first time that page is visited in the session.
   initHeroReveal();
+  // Staging What's on hides the diary until live refresh sets data-live.
+  // Page scripts do not re-run on View Transitions back-nav.
+  initWhatsOnPage();
+  initSeriesPage();
 
   let teardownSectionHash = () => {};
   let teardownMenuToc = () => {};

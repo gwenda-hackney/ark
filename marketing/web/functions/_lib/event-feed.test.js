@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageEventFeed } from "./event-feed.js";
+import { diaryCacheControl, pageEventFeed } from "./event-feed.js";
 
 const now = new Date(2026, 8, 22, 15, 0, 0);
 
@@ -31,5 +31,12 @@ describe("pageEventFeed", () => {
     });
     expect(page.events.map((event) => event.id)).toEqual(["jazz-2", "vinyl"]);
     expect(page.next).toBeNull();
+  });
+});
+
+describe("diaryCacheControl", () => {
+  it("keeps the staging diary uncached", () => {
+    expect(diaryCacheControl({ SITE_ENV: "staging" })).toBe("no-store");
+    expect(diaryCacheControl({ SITE_ENV: "production" })).toBe("public, max-age=60");
   });
 });

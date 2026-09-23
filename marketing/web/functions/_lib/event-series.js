@@ -111,20 +111,15 @@ export function formatShortEventDate(isoDate) {
 }
 
 /**
- * Stamp for a night's own flyer when that night is a guest artist.
- * Series default images stay unlabelled.
+ * What's on image mark for a scheduled night's own flyer.
+ * The act is the night's name. Series photos stay bare.
  */
-export function guestImageCaption(night, seriesTitle = "") {
+export function hostingImageCaption(night, seriesTitle = "") {
   if (!heroUrl(night)) return null;
-  const artist = String(night?.artist || "").trim();
-  if (!artist || !night?.isSpecialEdition) return null;
-  const title = String(night.title || "").trim();
-  const series = String(seriesTitle || night.seriesTitle || "").trim();
-  const ownTitle = Boolean(title && !sameLabel(title, series));
-  return {
-    label: "Next at Gwenda",
-    name: ownTitle ? title : artist,
-  };
+  const title = String(night?.title || "").trim();
+  const series = String(seriesTitle || night?.seriesTitle || "").trim();
+  if (!title || sameLabel(title, series)) return null;
+  return { label: "Hosting", name: title };
 }
 
 /** Named night or special guest for the home-row teaser. */
@@ -288,7 +283,9 @@ function pickWhatsOnCardHero(template, nights) {
   const next = ordered[0];
   const nextUrl = heroUrl(next);
   if (nextUrl) {
-    const caption = guestImageCaption(next, template?.title || "");
+    const caption = isRecurringSeries(template)
+      ? null
+      : hostingImageCaption(next, template?.title || "");
     return {
       heroImageUrl: nextUrl,
       heroImage: next.heroImage || {
@@ -342,11 +339,7 @@ function isUtilityBlock(paragraph) {
  * Public What's on copy: lead prose only.
  * Drops ops-style sections (Hours, The room, bullet lists).
  */
-export function seriesMarketingCopy(
-  description,
-  { shortDescription, maxParagraphs = 2 } = {},
-) {
-  const short = String(shortDescription || "").trim();
+export function seriesMarketingCopy(description, { maxParagraphs = 2 } = {}) {
   const paragraphs = String(description || "")
     .split(/\n{2,}/)
     .map((part) => part.trim())
@@ -359,11 +352,35 @@ export function seriesMarketingCopy(
     if (prose.length >= maxParagraphs) break;
   }
 
-  if (!prose.length) return short;
-  if (short && !prose[0].includes(short)) {
-    return [short, ...prose].slice(0, maxParagraphs).join("\n\n");
-  }
-  return prose.slice(0, maxParagraphs).join("\n\n");
+  return prose.join("\n\n");
+}
+
+/** What's on card: the short line when it exists. Otherwise the long copy. */
+export function cardSeriesCopy(shortDescription, description, options) {
+  const short = String(shortDescription || "").trim();
+  if (short) return short;
+  return seriesMarketingCopy(description, options);
+}
+
+/**
+ * The scheduled night's own short description, when it is not just the
+ * series line copied onto the night. Editors write the whole sentence.
+ */
+export function scheduledNightShort(night, seriesShort = "") {
+  const line = String(night?.shortDescription || "").trim();
+  if (!line) return "";
+  const series = String(seriesShort || "").trim();
+  if (series && line === series) return "";
+  return line;
+}
+
+export function withScheduledNightShort(seriesCopy, night, seriesShort = "") {
+  const line = scheduledNightShort(night, seriesShort);
+  const lead = String(seriesCopy || "").trim();
+  if (!line) return lead;
+  if (!lead) return line;
+  if (lead.includes(line)) return lead;
+  return `${lead}\n\n${line}`;
 }
 
 /**
@@ -639,15 +656,26 @@ export function buildWhatsOnStack(
       now,
       regular: row.regular,
     });
+    const seriesCopy = cardSeriesCopy(
+      row.shortDescription,
+      row.fullDescription || row.description,
+      { maxParagraphs: row.regular ? 2 : 1 },
+    );
+    const featuredNight = row.regular
+      ? null
+      : row.nights.slice().sort(compareNights)[0] || null;
     return {
       id: row.seriesId,
       seriesId: row.seriesId,
       title: row.title,
       seriesTitle: row.seriesTitle,
-      description: seriesMarketingCopy(row.fullDescription || row.description, {
-        shortDescription: row.shortDescription,
-        maxParagraphs: 3,
-      }),
+      description: featuredNight
+        ? withScheduledNightShort(
+            seriesCopy,
+            featuredNight,
+            row.shortDescription,
+          )
+        : seriesCopy,
       artist: identity?.artist || "",
       upcoming: upcomingEventLine(identity),
       hostName: diary.hostName,
@@ -749,20 +777,24 @@ export function buildSeriesDetail(
     : pageEventFeed(nights, { after, afterId, limit, now });
 
   const seriesHero = seriesSummary.heroImageUrl;
-  const seriesMarketing = seriesMarketingCopy(
-    seriesSummary.fullDescription || seriesSummary.description,
-    {
-      shortDescription: seriesSummary.shortDescription,
-      maxParagraphs: 3,
-    },
-  );
+  const seriesMarketing =
+    seriesMarketingCopy(
+      seriesSummary.fullDescription || seriesSummary.description,
+      { maxParagraphs: repeating ? 3 : 2 },
+    ) || String(seriesSummary.shortDescription || "").trim();
+  const seriesLead = repeating
+    ? seriesMarketing
+    : withScheduledNightShort(
+        seriesMarketing,
+        nights[0],
+        seriesSummary.shortDescription,
+      );
   const pageNights = page.events.map((night) => {
-    const caption = guestImageCaption(night, seriesSummary.title);
     return {
       ...night,
       heroImageUrl: heroUrl(night) || seriesHero,
-      imageCaption: caption?.label || "",
-      imageCaptionName: caption?.name || "",
+      imageCaption: "",
+      imageCaptionName: "",
       description: nightPublicDescription(night, {
         ...seriesSummary,
         description: seriesSummary.fullDescription || seriesSummary.description,
@@ -778,7 +810,7 @@ export function buildSeriesDetail(
 
   return {
     ...seriesSummary,
-    description: seriesMarketing,
+    description: seriesLead,
     nights: pageNights,
     next: page.next,
     richDetail,

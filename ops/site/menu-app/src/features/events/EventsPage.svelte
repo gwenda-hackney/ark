@@ -22,6 +22,8 @@
 	import PhotoCell from "../menu/cells/PhotoCell.svelte";
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import { EVENTS_HELP } from "./events-help";
+	import SitePublishMonitor from "../web/SitePublishMonitor.svelte";
+	import { eventHeaderFlag } from "../../lib/event-header-status";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
 	import {
 		HERO_ASPECT,
@@ -48,6 +50,7 @@
 		uploadEventOccurrenceImage,
 		type EventDriveFile,
 		type OpsEvent,
+		type OpsNightScheduleSlot,
 	} from "../../lib/api";
 	import {
 		editorKey,
@@ -129,12 +132,14 @@
 	let tabPrev = "details";
 	let tabReady = false;
 	let heroCrops = $state<HeroFraming | null>(null);
+	let autoPublishStaging = $state(false);
 
 	let name = $state("");
 	let artist = $state("");
 	let offer = $state("");
 	let shortDescription = $state("");
 	let description = $state("");
+	let nightSchedule = $state<OpsNightScheduleSlot[]>([]);
 	let operationsNotes = $state("");
 	let imageLinksText = $state("");
 	let startsOn = $state("");
@@ -212,6 +217,7 @@
 		offer?: string;
 		shortDescription?: string;
 		description?: string;
+		nightSchedule?: OpsNightScheduleSlot[];
 		operationsNotes?: string;
 		imageLinks?: string[];
 		startsOn?: string;
@@ -230,6 +236,13 @@
 			offer: String(row.offer || "").trim(),
 			shortDescription: String(row.shortDescription || "").trim(),
 			description: String(row.description || "").trim(),
+			nightSchedule: (row.nightSchedule || [])
+				.map((slot) => ({
+					label: String(slot.label || "").trim(),
+					startTime: String(slot.startTime || "").trim(),
+					endTime: String(slot.endTime || "").trim(),
+				}))
+				.filter((slot) => slot.label),
 			operationsNotes: String(row.operationsNotes || "").trim(),
 			imageLinks: [...(row.imageLinks || [])].map((link) => link.trim()).filter(Boolean),
 			startsOn: row.startsOn || "",
@@ -316,6 +329,7 @@
 			offer,
 			shortDescription,
 			description,
+			nightSchedule,
 			operationsNotes,
 			imageLinks: imageLinksText.split(/\r?\n/),
 			startsOn,
@@ -337,6 +351,7 @@
 					offer: "",
 					shortDescription: "",
 					description: "",
+					nightSchedule: [],
 					operationsNotes: "",
 					imageLinks: [],
 					startsOn: "",
@@ -391,7 +406,14 @@
 		return [...events]
 			.filter((event) => {
 				if (!q) return true;
-				const hay = [event.name, event.artist, event.offer, event.description]
+				const hay = [
+					event.name,
+					event.artist,
+					event.offer,
+					event.shortDescription,
+					event.description,
+					...(event.nightSchedule || []).map((slot) => slot.label),
+				]
 					.join(" ")
 					.toLowerCase();
 				return hay.includes(q);
@@ -399,11 +421,57 @@
 			.sort(compareSeriesByWeekday);
 	});
 
-	function seriesNextLabel(event: OpsEvent): string {
-		const next = event.publish?.nextDate || event.publish?.previewDates?.[0] || "";
-		if (!next) return "No upcoming nights";
+	function seriesNextIso(event: OpsEvent): string {
+		return String(event.publish?.nextDate || event.publish?.previewDates?.[0] || "").trim();
+	}
+
+	function seriesTimeLabel(event: OpsEvent): string {
+		const start = formatClock(event.startTime);
+		const end = formatClock(event.endTime);
+		if (start && end) return `${start}–${end}`;
+		if (start) return start;
+		return String(event.time || "").trim();
+	}
+
+	function seriesGuestLabel(event: OpsEvent): string {
+		const artist = String(event.artist || "").trim();
+		if (artist) return artist;
+		const night = (event.dates || []).find((row) => row.date === seriesNextIso(event));
+		return String(night?.overrides?.artist || "").trim();
+	}
+
+	function seriesOfferLabel(event: OpsEvent): string {
+		const offer = String(event.offer || "").trim();
+		if (offer) return offer;
+		const night = (event.dates || []).find((row) => row.date === seriesNextIso(event));
+		return String(night?.overrides?.offer || "").trim();
+	}
+
+	/** Short card blurb, or night-slot labels when the blurb is empty. */
+	function seriesBlurb(event: OpsEvent): string {
+		const short = String(event.shortDescription || "").trim();
+		if (short) return short;
+		return (event.nightSchedule || [])
+			.map((slot) => String(slot.label || "").trim())
+			.filter(Boolean)
+			.join(" · ");
+	}
+
+	function formatDayMonth(iso: string): string {
+		const [year, month, day] = iso.split("-").map(Number);
+		if (!year || !month || !day) return iso;
+		return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
+			day: "numeric",
+			month: "short",
+		});
+	}
+
+	function seriesNextCell(event: OpsEvent): string {
+		const next = seriesNextIso(event);
+		if (!next) return "No nights";
 		const night = seriesNextNightLabel(event);
-		return night ? `Next ${formatDate(next)} · ${night}` : `Next ${formatDate(next)}`;
+		const date = formatDayMonth(next);
+		return night ? `${date} · ${night}` : date;
 	}
 	const seriesFiltersActive = $derived(Boolean(seriesQuery.trim()));
 	const scheduleFiltersActive = $derived(
@@ -453,7 +521,11 @@
 					? formatDate(startsOn)
 					: "No date",
 	);
-	const headerStatus = $derived(current ? statusLabel(current) : "Not saved");
+	const headerFlag = $derived(eventHeaderFlag(current?.publish, formDirty));
+	const stagingPreviewCurrent = $derived(current?.publish.preview === "current");
+	const liveCurrent = $derived(current?.publish.live === "current");
+	const stagingVerifyHref = $derived("https://gwenda-staging.pages.dev/whats-on");
+	const liveVerifyHref = $derived("https://gwenda.co.uk/whats-on");
 
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const base = route.isNew
@@ -509,17 +581,16 @@
 	}
 
 	function statusLabel(event: OpsEvent): string {
+		if (event.publish.preview !== "current") return "Unpublished";
 		if (event.publish.live === "current") return "Live";
-		if (event.publish.preview === "current") return "Staging";
-		if (event.publish.preview === "stale") return "Out of date";
-		return "Unpublished";
+		return "Staging";
 	}
 
 	function statusTone(event: OpsEvent | null): string {
 		if (!event) return "muted";
+		if (event.publish.preview !== "current") return "unpublished";
 		if (event.publish.live === "current") return "live";
-		if (event.publish.preview === "current") return "preview";
-		return "muted";
+		return "preview";
 	}
 
 	function formatDate(iso: string): string {
@@ -527,10 +598,72 @@
 		const [year, month, day] = iso.split("-").map(Number);
 		if (!year || !month || !day) return iso;
 		return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
+			weekday: "short",
 			day: "numeric",
 			month: "short",
-			year: "numeric",
 		});
+	}
+
+	function formatClock(value: string): string {
+		const raw = String(value || "").trim();
+		if (!raw) return "";
+		const match = /^(\d{1,2}):(\d{2})/.exec(raw);
+		if (!match) return raw;
+		const hour = Number(match[1]);
+		const minute = match[2];
+		if (!Number.isFinite(hour)) return raw;
+		const suffix = hour >= 12 ? "pm" : "am";
+		const twelve = hour % 12 || 12;
+		return minute === "00" ? `${twelve}${suffix}` : `${twelve}:${minute}${suffix}`;
+	}
+
+	function nightTimeLabel(occurrence: OpsEventOccurrence | undefined): string {
+		const start = formatClock(occurrence?.overrides.startTime || startTime || "");
+		const end = formatClock(occurrence?.overrides.endTime || endTime || "");
+		if (start && end) return `${start}–${end}`;
+		if (start) return `From ${start}`;
+		return String(occurrence?.overrides.time || time || "").trim();
+	}
+
+	/** Open series only. Recurring residencies are not special events. */
+	function nightIsSpecialEvent(occurrence: OpsEventOccurrence | undefined): boolean {
+		if (String(repeatUnit || "none").toLowerCase() !== "none") return false;
+		return Boolean(occurrence?.isSpecialEdition);
+	}
+
+	function nightHeadline(occurrence: OpsEventOccurrence | undefined, date: string): string {
+		const overrideName = String(occurrence?.overrides.name || "").trim();
+		const seriesName = String(name || current?.name || "").trim();
+		if (overrideName && overrideName.toLowerCase() !== seriesName.toLowerCase()) {
+			return overrideName;
+		}
+		return formatDate(date);
+	}
+
+	function nightDetailLines(
+		occurrence: OpsEventOccurrence | undefined,
+		date: string,
+	): string[] {
+		const lines: string[] = [];
+		const overrideName = String(occurrence?.overrides.name || "").trim();
+		const seriesName = String(name || current?.name || "").trim();
+		const titled =
+			overrideName && overrideName.toLowerCase() !== seriesName.toLowerCase();
+		if (titled) lines.push(formatDate(date));
+		const when = nightTimeLabel(occurrence);
+		if (when) lines.push(when);
+		const guestOverride = String(occurrence?.overrides.artist || "").trim();
+		const seriesGuest = String(artist || "").trim();
+		if (guestOverride) {
+			lines.push(`Guest · ${guestOverride}`);
+		} else if (repeatUnit !== "none" && seriesGuest) {
+			lines.push(seriesGuest);
+		} else if (repeatUnit !== "none") {
+			lines.push("Series night");
+		}
+		const nightOffer = String(occurrence?.overrides.offer || "").trim();
+		if (nightOffer) lines.push(nightOffer);
+		return lines;
 	}
 
 	function fill(event: OpsEvent) {
@@ -541,8 +674,15 @@
 		name = occurrence?.overrides.name || event.name;
 		artist = occurrence?.overrides.artist || event.artist || "";
 		offer = occurrence?.overrides.offer || event.offer || "";
-		shortDescription = event.shortDescription || "";
+		shortDescription = occurrence
+			? occurrence.overrides.shortDescription || ""
+			: event.shortDescription || "";
 		description = occurrence?.overrides.description || event.description || "";
+		nightSchedule = (event.nightSchedule || []).map((slot) => ({
+			label: slot.label || "",
+			startTime: slot.startTime || "",
+			endTime: slot.endTime || "",
+		}));
 		operationsNotes =
 			occurrence?.overrides.operationsNotes || event.operationsNotes || "";
 		imageLinksText = (
@@ -578,6 +718,7 @@
 		offer = "";
 		shortDescription = "";
 		description = "";
+		nightSchedule = [];
 		operationsNotes = "";
 		imageLinksText = "";
 		startsOn = "";
@@ -592,6 +733,17 @@
 		attachSeriesId = "";
 		warnings = [];
 		heroCrops = null;
+	}
+
+	function addNightSlot() {
+		nightSchedule = [
+			...nightSchedule,
+			{ label: "", startTime: "", endTime: "" },
+		];
+	}
+
+	function removeNightSlot(index: number) {
+		nightSchedule = nightSchedule.filter((_, i) => i !== index);
 	}
 
 	function syncHeroCropsFromEvent(event: OpsEvent) {
@@ -623,6 +775,13 @@
 			offer: offer.trim(),
 			shortDescription: shortDescription.trim(),
 			description: description.trim(),
+			nightSchedule: nightSchedule
+				.map((slot) => ({
+					label: slot.label.trim(),
+					startTime: slot.startTime,
+					endTime: slot.endTime,
+				}))
+				.filter((slot) => slot.label),
 			operationsNotes: operationsNotes.trim(),
 			imageLinks: imageLinksText
 				.split(/\r?\n/)
@@ -650,6 +809,7 @@
 			artist: artist.trim(),
 			offer: offer.trim(),
 			description: description.trim(),
+			shortDescription: shortDescription.trim(),
 			operationsNotes: operationsNotes.trim(),
 			imageLinks: imageLinksText
 				.split(/\r?\n/)
@@ -930,6 +1090,7 @@
 					artist: artist.trim(),
 					offer: offer.trim(),
 					description: description.trim(),
+					shortDescription: shortDescription.trim(),
 					operationsNotes: operationsNotes.trim(),
 					imageLinks: imageLinksText
 						.split(/\r?\n/)
@@ -1070,7 +1231,11 @@
 			const data = await publishEvent(eventId, target);
 			rememberEvent(data.event, false);
 			warnings = data.warnings || [];
-			toast.ok(target === "staging" ? "Preview updated." : "Pushed live.");
+			toast.ok(
+				target === "staging"
+					? "Preview updated. Refresh What's on to see it."
+					: "Pushed live.",
+			);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Publish failed.";
 			error = message;
@@ -1079,6 +1244,45 @@
 			publishing = "";
 		}
 	}
+
+	function publishEditorPath() {
+		if (!eventId) return "/events";
+		const slug = editingOccurrence && occurrenceDate
+			? `${eventId}@${occurrenceDate}`
+			: eventId;
+		return eventItemPath(slug, "publish");
+	}
+
+	function onHeaderPublish() {
+		if (!eventId || busy) return;
+		const alreadyOnPublish = tab === "publish";
+		if (!alreadyOnPublish) navigate(publishEditorPath());
+		if (formDirty) {
+			toast.info("Save before publishing.");
+			return;
+		}
+		if (stagingPreviewCurrent) {
+			if (!alreadyOnPublish) {
+				toast.info("Preview is current. Check What's on, then push live.");
+			}
+			return;
+		}
+		autoPublishStaging = true;
+	}
+
+	$effect(() => {
+		if (tab !== "publish" || !autoPublishStaging || busy || !eventId) return;
+		if (formDirty) {
+			autoPublishStaging = false;
+			return;
+		}
+		if (stagingPreviewCurrent) {
+			autoPublishStaging = false;
+			return;
+		}
+		autoPublishStaging = false;
+		void onPublish("staging");
+	});
 
 	async function onPublishAllPreview() {
 		if (busy) return;
@@ -1397,28 +1601,52 @@
 					</button>
 				</div>
 				{#if listView === "series"}
-					<div class="rows" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-						<div class="week-rows">
-							{#each filteredSeries as event (event.id)}
-								<a class="item" href={eventItemPath(event.id)}>
-									<span class="day">
-										<span class="weekday">
-											{seriesWeekdayLabel(event) || repeatLabel(event)}
-										</span>
-									</span>
-									<PhotoCell size="md" url={event.mainImage?.url || ""} alt="" />
-									<span class="copy">
-										<span class="name">{event.name}</span>
-										<span class="meta">{seriesNextLabel(event)}</span>
-									</span>
-									<span class="badge {statusTone(event)}">{statusLabel(event)}</span>
-								</a>
-							{:else}
-								<p class="empty">
-									{filtersActive ? "No series match these filters." : "No series yet."}
-								</p>
-							{/each}
+					<div class="series-table" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+						<div class="series-head">
+							<span>When</span>
+							<span></span>
+							<span>Series</span>
+							<span>Time</span>
+							<span>Guest</span>
+							<span>Next</span>
+							<span>Offer</span>
+							<span>Status</span>
+							<span class="row-fill" aria-hidden="true"></span>
 						</div>
+						{#each filteredSeries as event (event.id)}
+							{@const blurb = seriesBlurb(event)}
+							{@const time = seriesTimeLabel(event)}
+							{@const guest = seriesGuestLabel(event)}
+							{@const next = seriesNextCell(event)}
+							{@const offer = seriesOfferLabel(event)}
+							<a class="item series-row" href={eventItemPath(event.id)}>
+								<span class="day">
+									<span class="weekday">
+										{seriesWeekdayLabel(event) || repeatLabel(event)}
+									</span>
+								</span>
+								<PhotoCell size="md" url={event.mainImage?.url || ""} alt="" />
+								<span class="copy">
+									<span class="name">{event.name}</span>
+									{#if blurb}
+										<span class="meta" title={blurb}>{blurb}</span>
+									{/if}
+									<span class="meta series-compact">
+										{[time, guest, next, offer].filter(Boolean).join(" · ")}
+									</span>
+								</span>
+								<span class="cell" title={time}>{time}</span>
+								<span class="cell" title={guest}>{guest}</span>
+								<span class="cell" title={next}>{next}</span>
+								<span class="cell" title={offer}>{offer}</span>
+								<span class="badge {statusTone(event)}">{statusLabel(event)}</span>
+								<span class="row-fill" aria-hidden="true"></span>
+							</a>
+						{:else}
+							<p class="empty">
+								{filtersActive ? "No series match these filters." : "No series yet."}
+							</p>
+						{/each}
 					</div>
 				{:else}
 					<div class="rows" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
@@ -1458,6 +1686,7 @@
 											<span class="badge {statusTone(occurrence.event)}">
 												{statusLabel(occurrence.event)}
 											</span>
+											<span class="row-fill" aria-hidden="true"></span>
 										</a>
 									{/each}
 								</div>
@@ -1541,6 +1770,25 @@
 						</div>
 						<div class="head-tools">
 							<div class="toolbar-actions">
+								{#if eventId && !route.isNew}
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										disabled={busy}
+										busy={publishing === "staging"}
+										title={
+											formDirty
+												? "Save before publishing"
+												: stagingPreviewCurrent
+													? "Open publish. Preview is current."
+													: "Update preview"
+										}
+										onclick={onHeaderPublish}
+									>
+										Publish
+									</Button>
+								{/if}
 								<PageHelp title="Events" topics={EVENTS_HELP} />
 								<Button
 									variant="ghost"
@@ -1586,7 +1834,7 @@
 						</div>
 						<div class="title-meta">
 							<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
-							<p class="meta-line">{headerStatus}</p>
+							<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 						</div>
 						{#if route.isNew}
 							<div class="create-mode">
@@ -1620,38 +1868,42 @@
 									}}
 								>
 									{#if tab === "details"}
-										<section class="block">
-											<div class="details-top">
-											<div class="grid">
-												{#if route.isNew || editingOccurrence}
-													<div class="full">
-													<Field
-														label="Series"
-														for="event-series"
-														tooltip={route.isNew
-															? "Choose an existing series to add this night, or leave empty to create a new series or one-off event."
-															: "Move this night onto another series."}
-													>
-														<NativeSelect
-															id="event-series"
-															size="sm"
-															bind:value={attachSeriesId}
-															options={route.isNew
-																? [
-																		{
-																			value: "",
-																			label: "New series / one-off event",
-																		},
-																		...seriesOptions,
-																	]
-																: seriesOptions}
-														/>
-													</Field>
-													</div>
-												{/if}
-												{#if editingOccurrence || creatingNight}
-													<div class="full">
+										<section class="details-board">
+											<div class="details-main">
+												<div
+													class="control-grid"
+													class:has-slots={!editingOccurrence}
+													class:with-series={route.isNew || editingOccurrence}
+													class:with-date={editingOccurrence || creatingNight}
+												>
+													{#if route.isNew || editingOccurrence}
 														<Field
+															class="series"
+															label="Series"
+															for="event-series"
+															tooltip={route.isNew
+																? "Choose an existing series to add this night, or leave empty to create a new series or one-off event."
+																: "Move this night onto another series."}
+														>
+															<NativeSelect
+																id="event-series"
+																size="sm"
+																bind:value={attachSeriesId}
+																options={route.isNew
+																	? [
+																			{
+																				value: "",
+																				label: "New series / one-off event",
+																			},
+																			...seriesOptions,
+																		]
+																	: seriesOptions}
+															/>
+														</Field>
+													{/if}
+													{#if editingOccurrence || creatingNight}
+														<Field
+															class="when"
 															label="Date"
 															for="event-date"
 															tooltip="This night only. Series start and end stay on Schedule."
@@ -1664,131 +1916,143 @@
 																required
 															/>
 														</Field>
-													</div>
-												{/if}
-												<Field
-													label="Start"
-													for="event-start-time"
-													tooltip={editingOccurrence
-														? "This night only. Shown on What's on."
-														: "Default start time for each night. A night can override it."}
-												>
-													<TextField
-														id="event-start-time"
-														size="sm"
-														type="time"
-														bind:value={startTime}
-													/>
-												</Field>
-												<Field
-													label="End"
-													for="event-end-time"
-													tooltip={editingOccurrence
-														? "This night only. Shown on What's on."
-														: "Default end time for each night. A night can override it."}
-												>
-													<TextField
-														id="event-end-time"
-														size="sm"
-														type="time"
-														bind:value={endTime}
-													/>
-												</Field>
-												<Field
-													label="Guest Artist"
-													for="event-artist"
-													tooltip={editingOccurrence
-														? "This night only. When set, the night is treated as a special guest edition on What's on."
-														: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
-												>
-													<TextField id="event-artist" size="sm" bind:value={artist} />
-												</Field>
-												<Field
-													label="Offer"
-													for="event-offer"
-													tooltip={editingOccurrence
-														? "This night only. Shown on What's on."
-														: "Default public wording, such as a drink deal. A night can override it."}
-												>
-													<TextField
-														id="event-offer"
-														size="sm"
-														bind:value={offer}
-														placeholder="£10 Negroni"
-													/>
-												</Field>
-											</div>
-											<figure
-												class="details-photo"
-												class:dragging={photoDragging}
-												class:empty={!photoUrl}
-												style:aspect-ratio={String(HERO_ASPECT)}
-												ondragenter={onPhotoDragEnter}
-												ondragover={onPhotoDragOver}
-												ondragleave={onPhotoDragLeave}
-												ondrop={onPhotoDrop}
-											>
-												<label
-													class="details-photo-hit"
-													aria-label={photoUrl ? "Replace photo" : "Add photo"}
-													title={editingOccurrence
-														? "This night only. What's on uses this flyer while this is the next night."
-														: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
-												>
-													{#if photoUrl}
-														<img src={photoUrl} alt="" />
-													{:else}
-														<span class="details-photo-empty">
-															<Icon name="upload" size={18} />
-															Add photo
-														</span>
-													{/if}
-													<input
-														class="sr-only"
-														type="file"
-														accept="image/jpeg,image/png,image/webp,image/gif"
-														onchange={onPhotoInput}
-														disabled={!eventId}
-													/>
-												</label>
-												{#if canRemovePhoto}
-													<button
-														class="thumb-remove"
-														type="button"
-														disabled={busy}
-														aria-label="Remove photo"
-														onclick={() => onClearImage("main")}
-													>
-														<Icon name="close" size={12} />
-													</button>
-												{/if}
-												{#if photoDragging}
-													<div class="photo-drop" aria-hidden="true">
-														<span>Drop to {photoUrl ? "replace" : "add"}</span>
-													</div>
-												{/if}
-											</figure>
-											</div>
-											<div class="grid">
-												<div class="full">
-													{#if !editingOccurrence}
-														<Field
-															label="Short description"
-															for="event-short-description"
-															tooltip="What's on card. One or two lines."
-														>
-															<TextArea
-																id="event-short-description"
-																bind:value={shortDescription}
-																rows={2}
-																placeholder="Card blurb…"
-															/>
-														</Field>
 													{/if}
 													<Field
-														label={editingOccurrence
-															? "Description"
-															: "Full description"}
+														class="guest"
+														label="Guest Artist"
+														for="event-artist"
+														tooltip={editingOccurrence
+															? "This night only. When set, the night is treated as a special guest edition on What's on."
+															: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
+													>
+														<TextField id="event-artist" size="sm" bind:value={artist} />
+													</Field>
+													<Field
+														class="start"
+														label="Start"
+														for="event-start-time"
+														tooltip={editingOccurrence
+															? "This night only. Shown on What's on."
+															: "Default start time for each night. A night can override it."}
+													>
+														<TextField
+															id="event-start-time"
+															size="sm"
+															type="time"
+															bind:value={startTime}
+														/>
+													</Field>
+													<Field
+														class="end"
+														label="End"
+														for="event-end-time"
+														tooltip={editingOccurrence
+															? "This night only. Shown on What's on."
+															: "Default end time for each night. A night can override it."}
+													>
+														<TextField
+															id="event-end-time"
+															size="sm"
+															type="time"
+															bind:value={endTime}
+														/>
+													</Field>
+													<Field
+														class="offer span-all"
+														label="Offer"
+														for="event-offer"
+														tooltip={editingOccurrence
+															? "This night only. Shown on What's on."
+															: "Default public wording, such as a drink deal. A night can override it."}
+													>
+														<TextField
+															id="event-offer"
+															size="sm"
+															bind:value={offer}
+															placeholder="£10 Negroni"
+														/>
+													</Field>
+													{#if !editingOccurrence}
+														<div class="night-schedule">
+															<div class="night-schedule-head">
+																<span class="section-label">
+																	Night schedule
+																	<Tip
+																		label="Night schedule"
+																		tooltip="Slots inside the night, such as Open decks or Chess. Shown in gold on What's on when set."
+																	/>
+																</span>
+																<Button
+																	variant="ghost"
+																	type="button"
+																	disabled={busy}
+																	onclick={addNightSlot}
+																>
+																	Add slot
+																</Button>
+															</div>
+															{#if nightSchedule.length}
+																<ul class="night-schedule-list">
+																	{#each nightSchedule as slot, index (index)}
+																		<li class="night-slot">
+																			<TextField
+																				size="sm"
+																				placeholder="Open decks"
+																				bind:value={nightSchedule[index].label}
+																				aria-label={`Slot ${index + 1} label`}
+																			/>
+																			<TextField
+																				size="sm"
+																				type="time"
+																				bind:value={nightSchedule[index].startTime}
+																				aria-label={`Slot ${index + 1} start`}
+																			/>
+																			<TextField
+																				size="sm"
+																				type="time"
+																				bind:value={nightSchedule[index].endTime}
+																				aria-label={`Slot ${index + 1} end`}
+																			/>
+																			<button
+																				class="slot-remove"
+																				type="button"
+																				disabled={busy}
+																				aria-label={`Remove slot ${index + 1}`}
+																				onclick={() => removeNightSlot(index)}
+																			>
+																				<Icon name="close" size={12} />
+																			</button>
+																		</li>
+																	{/each}
+																</ul>
+															{:else}
+																<p class="hint night-schedule-empty">
+																	No slots yet. Add open decks, chess, sets, or whatever
+																	structures the night.
+																</p>
+															{/if}
+														</div>
+													{/if}
+													<Field
+														class="span-all"
+														label="Short description"
+														for="event-short-description"
+														tooltip={editingOccurrence
+															? "This night only. The whole sentence on the What's on card, date included if you want it."
+															: "What's on card. One or two lines on what this night is."}
+													>
+														<TextArea
+															id="event-short-description"
+															bind:value={shortDescription}
+															rows={2}
+															placeholder={editingOccurrence
+																? "On Sat 10 Oct we are excited to host…"
+																: "Card blurb…"}
+														/>
+													</Field>
+													<Field
+														class="span-all"
+														label={editingOccurrence ? "Description" : "Full description"}
 														for="event-description"
 														tooltip={editingOccurrence
 															? "This night only. Leave empty to keep the series description."
@@ -1803,21 +2067,71 @@
 														/>
 													</Field>
 												</div>
-												<div class="full">
-													<Field
-														label="Operations notes"
-														for="event-operations-notes"
-														tooltip="Internal only. Never published to the website."
-													>
-														<TextArea
-															id="event-operations-notes"
-															bind:value={operationsNotes}
-															rows={5}
-															placeholder="Contacts, fee, setup, access, equipment…"
-														/>
-													</Field>
-												</div>
 											</div>
+											<aside class="details-side">
+												<figure
+													class="details-photo"
+													class:dragging={photoDragging}
+													class:empty={!photoUrl}
+													style:aspect-ratio={String(HERO_ASPECT)}
+													ondragenter={onPhotoDragEnter}
+													ondragover={onPhotoDragOver}
+													ondragleave={onPhotoDragLeave}
+													ondrop={onPhotoDrop}
+												>
+													<label
+														class="details-photo-hit"
+														aria-label={photoUrl ? "Replace photo" : "Add photo"}
+														title={editingOccurrence
+															? "This night only. What's on uses this flyer while this is the next night."
+															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
+													>
+														{#if photoUrl}
+															<img src={photoUrl} alt="" />
+														{:else}
+															<span class="details-photo-empty">
+																<Icon name="upload" size={18} />
+																Add photo
+															</span>
+														{/if}
+														<input
+															class="sr-only"
+															type="file"
+															accept="image/jpeg,image/png,image/webp,image/gif"
+															onchange={onPhotoInput}
+															disabled={!eventId}
+														/>
+													</label>
+													{#if canRemovePhoto}
+														<button
+															class="thumb-remove"
+															type="button"
+															disabled={busy}
+															aria-label="Remove photo"
+															onclick={() => onClearImage("main")}
+														>
+															<Icon name="close" size={12} />
+														</button>
+													{/if}
+													{#if photoDragging}
+														<div class="photo-drop" aria-hidden="true">
+															<span>Drop to {photoUrl ? "replace" : "add"}</span>
+														</div>
+													{/if}
+												</figure>
+												<Field
+													label="Operations notes"
+													for="event-operations-notes"
+													tooltip="Internal only. Never published to the website."
+												>
+													<TextArea
+														id="event-operations-notes"
+														bind:value={operationsNotes}
+														rows={5}
+														placeholder="Contacts, fee, setup, access, equipment…"
+													/>
+												</Field>
+											</aside>
 										</section>
 									{:else if tab === "schedule"}
 										<section class="block">
@@ -1828,7 +2142,7 @@
 													selected).
 												</p>
 											{/if}
-											<div class="grid">
+											<div class="rule-fields">
 												<Field
 													label="Starts on"
 													for="event-starts"
@@ -1938,26 +2252,34 @@
 														Upcoming
 														<Tip
 															label="Upcoming"
-															tooltip="Nights in this window. Guest means that night has its own artist, not the series default."
+															tooltip={repeatUnit === "none"
+																? "Each night is its own date. A star marks a night with its own guest artist."
+																: "Nights from this series rule. Guest and times show when a night overrides the series defaults."}
 														/>
 													</span>
 												</h2>
 												<ul class="occurrences">
 													{#each previewDates as date (date)}
 														{@const occurrence = current?.dates.find((row) => row.date === date)}
-														<li class:special={occurrence?.isSpecialEdition}>
-															<div>
-																<strong>
-																	{formatDate(date)}
-																	{#if occurrence?.isSpecialEdition}
-																		<span class="occurrence-flag">Guest</span>
+														{@const special = nightIsSpecialEvent(occurrence)}
+														{@const details = nightDetailLines(occurrence, date)}
+														<li>
+															<div class="occurrence-main">
+																<strong class="occurrence-title">
+																	{#if special}
+																		<span
+																			class="occurrence-special"
+																			title="Special event"
+																			aria-label="Special event"
+																		>
+																			<Icon name="star" size={13} />
+																		</span>
 																	{/if}
+																	{nightHeadline(occurrence, date)}
 																</strong>
-																{#if occurrence?.overrides.artist}
-																	<span>{occurrence.overrides.artist}</span>
-																{:else}
-																	<span>{artist || "No guest"}</span>
-																{/if}
+																{#each details as line (line)}
+																	<span class="occurrence-detail">{line}</span>
+																{/each}
 															</div>
 															{#if eventId}
 																<a
@@ -2070,49 +2392,134 @@
 											{/if}
 										</section>
 									{:else if tab === "publish"}
-										<section class="block">
+										<section class="block publish-block">
 											{#if !eventId}
 												<p class="hint">Save the event before publishing.</p>
 											{:else}
-												<p class="status">
-													Preview site: {current?.publish.preview === "current"
-														? "Upcoming nights are up to date"
-														: current?.publish.preview === "stale"
-															? "Upcoming nights are out of date"
-															: "Upcoming nights are not on the preview site"}.
-													Live site: {current?.publish.live === "current"
-														? "Those nights are live"
-														: "Not live"}.
-												</p>
-												<div class="publish-actions">
-													<Button
-														type="button"
-														variant="outline"
-														size="sm"
-														busy={publishing === "staging"}
-														disabled={Boolean(publishing) || formDirty}
-														onclick={() => onPublish("staging")}
+												<ol class="publish-flow">
+													<li
+														class="publish-step"
+														class:done={stagingPreviewCurrent}
+														class:active={!stagingPreviewCurrent}
+														class:busy={publishing === "staging"}
 													>
-														Update preview
-													</Button>
-													<Button
-														type="button"
-														size="sm"
-														busy={publishing === "production"}
-														disabled={Boolean(publishing) || formDirty || current?.publish.preview !== "current"}
-														onclick={() => onPublish("production")}
+														<span class="step-mark" aria-hidden="true">
+															{#if stagingPreviewCurrent}
+																✓
+															{:else if publishing === "staging"}
+																…
+															{:else}
+																1
+															{/if}
+														</span>
+														<div class="step-body">
+															<h3 class="step-title">Update preview</h3>
+															<p class="step-copy">
+																{#if stagingPreviewCurrent}
+																	The staging diary has this series. Refresh What's on to check the flyer.
+																{:else if current?.publish.preview === "stale"}
+																	Saved changes are not in the staging diary yet.
+																{:else}
+																	Writes this series into the staging diary. What's on shows it on refresh, without a site rebuild.
+																{/if}
+															</p>
+															{#if !stagingPreviewCurrent}
+																<Button
+																	type="button"
+																	variant="primary"
+																	size="sm"
+																	busy={publishing === "staging"}
+																	disabled={Boolean(publishing) || formDirty}
+																	onclick={() => onPublish("staging")}
+																>
+																	{publishing === "staging" ? "Updating…" : "Update preview"}
+																</Button>
+															{/if}
+														</div>
+													</li>
+													<li
+														class="publish-step"
+														class:done={stagingPreviewCurrent}
+														class:locked={!stagingPreviewCurrent}
 													>
-														Push live
-													</Button>
-												</div>
-												<p class="hint">
-													{#if formDirty}Save before publishing. {/if}
-													Update preview writes this series' upcoming nights to the preview site.
-													Push live copies those nights to gwenda.co.uk.
-													<a href="https://gwenda-staging.pages.dev/events" target="_blank" rel="noreferrer">Preview site</a>
-													·
-													<a href="https://gwenda.co.uk/events" target="_blank" rel="noreferrer">Live site</a>
-												</p>
+														<span class="step-mark" aria-hidden="true">
+															{#if stagingPreviewCurrent}✓{:else}2{/if}
+														</span>
+														<div class="step-body">
+															<h3 class="step-title">Check What's on</h3>
+															<p class="step-copy">
+																{#if stagingPreviewCurrent}
+																	Open What's on and refresh. The flyer, copy, and times come from this preview.
+																{:else}
+																	Available after the preview is current.
+																{/if}
+															</p>
+															{#if stagingPreviewCurrent}
+																<a
+																	class="step-link"
+																	href={stagingVerifyHref}
+																	target="_blank"
+																	rel="noreferrer"
+																>
+																	Open What's on
+																</a>
+															{/if}
+														</div>
+													</li>
+													<li
+														class="publish-step"
+														class:done={liveCurrent}
+														class:active={stagingPreviewCurrent && !liveCurrent}
+														class:locked={!stagingPreviewCurrent}
+													>
+														<span class="step-mark" aria-hidden="true">
+															{#if liveCurrent}
+																✓
+															{:else if publishing === "production"}
+																…
+															{:else}
+																3
+															{/if}
+														</span>
+														<div class="step-body">
+															<h3 class="step-title">Push live</h3>
+															<p class="step-copy">
+																{#if liveCurrent}
+																	Live on gwenda.co.uk.
+																{:else if stagingPreviewCurrent}
+																	Copy the staging nights to the live site.
+																{:else}
+																	Unlocks after staging is current.
+																{/if}
+															</p>
+															{#if stagingPreviewCurrent && !liveCurrent}
+																<Button
+																	type="button"
+																	variant="primary"
+																	size="sm"
+																	busy={publishing === "production"}
+																	disabled={Boolean(publishing) || formDirty}
+																	onclick={() => onPublish("production")}
+																>
+																	{publishing === "production" ? "Pushing…" : "Push live"}
+																</Button>
+															{:else if liveCurrent}
+																<a
+																	class="step-link"
+																	href={liveVerifyHref}
+																	target="_blank"
+																	rel="noreferrer"
+																>
+																	Open What's on
+																</a>
+															{/if}
+														</div>
+													</li>
+												</ol>
+												{#if formDirty}
+													<p class="hint">Save before publishing.</p>
+												{/if}
+												<SitePublishMonitor showStart />
 												{#if warnings.length}
 													<ul class="warnings">
 														{#each warnings as warning (warning)}
@@ -2381,9 +2788,18 @@
 	}
 
 	.rows {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: 7.25rem auto fit-content(28rem) max-content minmax(0, 1fr);
+		column-gap: 0.75rem;
+		width: 100%;
 		min-width: 0;
+		align-content: start;
+	}
+
+	.week {
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
 	}
 
 	.week + .week {
@@ -2391,6 +2807,7 @@
 	}
 
 	.week-heading {
+		grid-column: 1 / -1;
 		margin: 0;
 		padding: 0.65rem 0.15rem;
 		border-bottom: 1px solid var(--border-strong);
@@ -2403,20 +2820,90 @@
 	}
 
 	.week-rows {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
+	}
+
+	.series-table {
+		display: grid;
+		grid-template-columns:
+			7.25rem
+			2.5rem
+			fit-content(18rem)
+			fit-content(8.75rem)
+			fit-content(10rem)
+			fit-content(16rem)
+			fit-content(10rem)
+			max-content
+			minmax(0, 1fr);
+		column-gap: 0.85rem;
+		width: 100%;
+		align-content: start;
+		overflow-x: auto;
+	}
+
+	.series-head,
+	.series-row {
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
+		align-items: center;
+	}
+
+	.series-head {
+		column-gap: 0.85rem;
+		padding: 0.15rem 0 0.45rem;
+		border-bottom: 1px solid var(--border-strong);
+		color: var(--muted-foreground);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		line-height: 1.2;
+		text-transform: uppercase;
+	}
+
+	.series-compact {
+		display: none;
+	}
+
+	.series-table .empty {
+		grid-column: 1 / -1;
+	}
+
+	.cell {
+		min-width: 0;
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+		line-height: 1.3;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.item {
 		display: grid;
-		grid-template-columns: 7.25rem auto minmax(0, 1fr) auto;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
 		align-items: center;
-		gap: 0.75rem;
+		width: auto;
 		min-height: 3.35rem;
 		padding: 0.55rem 0.15rem;
 		border-bottom: 1px solid var(--border);
 		color: inherit;
 		text-decoration: none;
+	}
+
+	.series-row {
+		grid-template-columns: subgrid;
+		column-gap: 0.85rem;
+		width: auto;
+		max-width: none;
+		padding: 0.55rem 0;
+	}
+
+	.row-fill {
+		min-width: 0;
 	}
 
 	.item:hover {
@@ -2491,6 +2978,11 @@
 
 	.badge.preview {
 		color: var(--foreground);
+	}
+
+	.badge.unpublished {
+		color: var(--primary);
+		font-weight: 700;
 	}
 
 	.missing,
@@ -2956,14 +3448,44 @@
 		font-size: 1.2rem;
 	}
 
-	.meta-line {
-		margin: 0;
+	.status-flag {
+		display: inline-flex;
+		align-items: center;
+		width: fit-content;
+		margin: 0.28rem 0 0;
+		padding: 0.18rem 0.5rem;
+		border-radius: var(--radius-pill);
 		font-size: var(--text-xs);
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		line-height: 1.2;
+		text-transform: uppercase;
+		white-space: nowrap;
+	}
+
+	.status-flag.unpublished,
+	.status-flag.unsaved {
+		color: var(--primary-foreground);
+		background: var(--primary);
+	}
+
+	.status-flag.preview {
+		color: var(--foreground);
+		background: var(--primary-wash-strong);
+	}
+
+	.status-flag.live {
+		color: var(--primary);
+		background: var(--primary-wash);
+	}
+
+	.status-flag.muted {
+		color: var(--muted-foreground);
 		font-weight: 500;
 		letter-spacing: 0.04em;
-		line-height: 1.2;
-		color: var(--muted-foreground);
-		white-space: nowrap;
+		text-transform: none;
+		padding: 0;
+		background: transparent;
 	}
 
 	.occurrence-note {
@@ -3020,6 +3542,8 @@
 	.tab-body {
 		position: relative;
 		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
+		container-type: inline-size;
+		container-name: event-detail;
 	}
 
 	.tab-panel {
@@ -3063,22 +3587,61 @@
 		gap: 0.35rem;
 	}
 
-	.grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.7rem 0.85rem;
-		align-items: start;
-	}
-
 	.full {
 		grid-column: 1 / -1;
 	}
 
-	.details-top {
+	.details-board {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
-		gap: 0.85rem 1.15rem;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 1rem 1.35rem;
 		align-items: start;
+	}
+
+	.details-main,
+	.details-side {
+		display: grid;
+		gap: 0.85rem;
+		align-content: start;
+		min-width: 0;
+	}
+
+	.control-grid {
+		--time: 8.25rem;
+		--gutter: 0rem;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0.8rem 0.7rem;
+		align-items: start;
+		min-width: 0;
+	}
+
+	.control-grid > :global(.span-all),
+	.night-schedule {
+		grid-column: 1 / -1;
+	}
+
+	.rule-fields {
+		display: grid;
+		gap: 0.7rem 0.85rem;
+		align-items: start;
+	}
+
+	.rule-fields {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-start;
+	}
+
+	.rule-fields > :global(.field) {
+		flex: 1 1 11rem;
+		max-width: 14rem;
+		min-width: min(100%, 11rem);
+	}
+
+	.rule-fields > .days {
+		flex: 1 1 100%;
+		max-width: 40rem;
 	}
 
 	.details-photo {
@@ -3154,6 +3717,96 @@
 		gap: 0.45rem;
 	}
 
+	.publish-block {
+		max-width: 36rem;
+	}
+
+	.publish-flow {
+		list-style: none;
+		display: grid;
+		gap: 0;
+		margin: 0;
+		padding: 0;
+	}
+
+	.publish-step {
+		display: grid;
+		grid-template-columns: 1.75rem minmax(0, 1fr);
+		gap: 0.85rem;
+		align-items: start;
+		padding: 1rem 0;
+		border-top: 1px solid var(--border);
+	}
+
+	.publish-step:first-child {
+		border-top: 0;
+		padding-top: 0.25rem;
+	}
+
+	.publish-step.locked {
+		opacity: 0.45;
+	}
+
+	.publish-step.busy .step-mark {
+		color: var(--primary);
+	}
+
+	.step-mark {
+		display: grid;
+		place-items: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--muted-foreground);
+		font-size: var(--text-xs);
+		font-weight: 700;
+		line-height: 1;
+	}
+
+	.publish-step.done .step-mark {
+		border-color: color-mix(in srgb, #6aab7a 55%, var(--border));
+		background: color-mix(in srgb, #6aab7a 18%, var(--surface));
+		color: #8fce9c;
+	}
+
+	.publish-step.active:not(.done) .step-mark {
+		border-color: var(--primary);
+		color: var(--primary);
+	}
+
+	.step-body {
+		display: grid;
+		gap: 0.45rem;
+		padding-top: 0.15rem;
+	}
+
+	.step-title {
+		margin: 0;
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+
+	.step-copy {
+		margin: 0;
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+		line-height: 1.45;
+	}
+
+	.step-link {
+		justify-self: start;
+		color: var(--primary);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.step-link:hover {
+		text-decoration: underline;
+	}
+
 	.chip {
 		border: 1px solid var(--border);
 		background: transparent;
@@ -3176,10 +3829,138 @@
 
 	.occurrences {
 		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+		gap: 0.55rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.night-schedule {
+		display: grid;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+
+	.night-schedule-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.night-schedule-list {
+		display: grid;
 		gap: 0.5rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	.night-slot {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 7.25rem 7.25rem auto;
+		gap: 0.45rem;
+		align-items: center;
+	}
+
+	.slot-remove {
+		display: grid;
+		place-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: var(--card);
+		color: var(--muted-foreground);
+		cursor: pointer;
+	}
+
+	.slot-remove:hover:not(:disabled),
+	.slot-remove:focus-visible {
+		color: var(--destructive);
+		background: var(--destructive-wash);
+	}
+
+	@media (max-width: 40rem) {
+		.night-slot {
+			grid-template-columns: minmax(0, 1fr) auto;
+		}
+
+		.night-slot :global(input[type="time"]) {
+			grid-column: 1 / -1;
+		}
+	}
+
+	/*
+	  One grid: who | from | until. Slot times sit on the same tracks as the
+	  night window. Offer and the descriptions span the row.
+	*/
+	@container event-detail (min-width: 28rem) {
+		.control-grid {
+			grid-template-columns: minmax(0, 1fr) var(--time) var(--time);
+		}
+
+		.control-grid.has-slots {
+			--gutter: 2.15rem;
+			margin-right: var(--gutter);
+		}
+
+		.control-grid.with-series > :global(.series) {
+			grid-column: 1 / -1;
+		}
+
+		.control-grid.with-series.with-date > :global(.series) {
+			grid-column: 1;
+		}
+
+		.control-grid.with-date > :global(.when) {
+			grid-column: 1;
+			max-width: 12rem;
+		}
+
+		.control-grid.with-series.with-date > :global(.when) {
+			grid-column: 2 / -1;
+			max-width: none;
+		}
+
+		.control-grid > :global(.guest) {
+			grid-column: 1;
+		}
+
+		.control-grid > :global(.start) {
+			grid-column: 2;
+		}
+
+		.control-grid > :global(.end) {
+			grid-column: 3;
+		}
+
+		.night-schedule-head {
+			margin-right: calc(var(--gutter) * -1);
+		}
+
+		.night-slot {
+			position: relative;
+			grid-template-columns: minmax(0, 1fr) var(--time) var(--time);
+			column-gap: 0.7rem;
+		}
+
+		.night-slot :global(input[type="time"]) {
+			grid-column: auto;
+		}
+
+		.slot-remove {
+			position: absolute;
+			top: 50%;
+			right: calc(var(--gutter) * -1);
+			transform: translateY(-50%);
+		}
+	}
+
+	.night-schedule-empty {
+		margin: 0;
 	}
 
 	.occurrences li {
@@ -3187,33 +3968,36 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 1rem;
-		padding: 0.65rem 0.75rem;
+		padding: 0.75rem 0.85rem;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
+		background: var(--surface);
 	}
 
-	.occurrences li.special {
-		border-color: var(--primary);
-		background: var(--primary-wash);
-	}
-
-	.occurrences li > div {
+	.occurrence-main {
 		display: grid;
-		gap: 0.15rem;
+		gap: 0.2rem;
+		min-width: 0;
 	}
 
-	.occurrences strong {
-		display: flex;
+	.occurrence-title {
+		display: inline-flex;
 		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.4rem 0.55rem;
+		align-items: center;
+		gap: 0.35rem;
 		font-size: var(--text-sm);
 		font-weight: 600;
 	}
 
-	.occurrences span {
+	.occurrence-special {
+		display: inline-flex;
+		color: var(--muted-foreground);
+	}
+
+	.occurrence-detail {
 		color: var(--muted-foreground);
 		font-size: var(--text-xs);
+		line-height: 1.35;
 	}
 
 	.occurrences .occurrence-flag {
@@ -3412,22 +4196,51 @@
 			padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
 		}
 
-		.item {
-			grid-template-columns: 4.75rem auto minmax(0, 1fr);
+		.rows,
+		.week,
+		.week-rows,
+		.series-table {
+			display: flex;
+			flex-direction: column;
+			width: 100%;
+			overflow: visible;
 		}
 
-		.badge {
+		.series-head {
 			display: none;
+		}
+
+		.item,
+		.series-row {
+			grid-column: auto;
+			grid-template-columns: 4.75rem auto minmax(0, 1fr);
+			gap: 0.75rem;
+			width: 100%;
+			max-width: none;
+			padding: 0.55rem 0.15rem;
+		}
+
+		.series-row .cell,
+		.badge,
+		.row-fill {
+			display: none;
+		}
+
+		.series-compact {
+			display: block;
+		}
+	}
+
+	@container event-detail (min-width: 54rem) {
+		.details-board {
+			grid-template-columns: minmax(0, 1fr) minmax(24rem, 28rem);
 		}
 	}
 
 	@media (max-width: 880px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-
-		.details-top {
-			grid-template-columns: 1fr;
+		.details-main,
+		.details-side {
+			display: contents;
 		}
 
 		.details-photo {

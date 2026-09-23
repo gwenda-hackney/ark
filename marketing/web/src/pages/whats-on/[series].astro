@@ -86,11 +86,11 @@ function eventImageUrl(
       </p>
       <h1>{detail.title}</h1>
       {
-        detail.description ? (
-          <p class="whats-on-series-lead">
-            {eventDescriptionParagraphs(detail.description)[0]}
-          </p>
-        ) : null
+        richDetail && detail.description
+          ? eventDescriptionParagraphs(detail.description).map((paragraph) => (
+              <p class="whats-on-series-lead">{paragraph}</p>
+            ))
+          : null
       }
     </header>
 
@@ -270,8 +270,4 @@ function eventImageUrl(
       }
     </div>
   </Subpage>
-  <script>
-    import { initSeriesPage } from "../../scripts/whats-on.js";
-    initSeriesPage();
-  </script>
 </BaseLayout>
