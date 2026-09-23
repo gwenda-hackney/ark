@@ -24,7 +24,7 @@ const { nights, next } = buildWhatsOnHome(occurrences, {
 });
 const hasContent = nights.length > 0;
 const { title: pageTitle, description: pageDescription } =
-  siteConfig.seo.whatsOn || siteConfig.seo.events;
+  siteConfig.seo.whatsOn;
 
 function eventImageUrl(
   url: string | null | undefined,

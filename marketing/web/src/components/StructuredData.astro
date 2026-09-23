@@ -41,11 +41,9 @@ const structuredData = {
       hasPart: [
         {
           "@type": "WebPage",
-          name: siteConfig.seo.whatsOn?.title || siteConfig.seo.events.title,
+          name: siteConfig.seo.whatsOn.title,
           url: eventsUrl,
-          description:
-            siteConfig.seo.whatsOn?.description ||
-            siteConfig.seo.events.description,
+          description: siteConfig.seo.whatsOn.description,
         },
         {
           "@type": "WebPage",
