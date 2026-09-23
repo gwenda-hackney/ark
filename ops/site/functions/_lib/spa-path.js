@@ -68,7 +68,10 @@ export function canonicalizePath(href) {
   const qIdx = raw.indexOf("?");
   const pathPart = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
   const search = qIdx >= 0 ? raw.slice(qIdx) : "";
-  const path = stripTrailingSlash(pathPart);
+  let path = stripTrailingSlash(pathPart);
+  if (path === "/events/nights" || path.startsWith("/events/nights/")) {
+    path = `/events/schedule${path.slice("/events/nights".length)}`;
+  }
   return path + search;
 }
 
@@ -195,7 +198,15 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
-  if (p === "/events") return { page: "events", slug: null, isNew: false, tab: null };
+  if (p === "/events" || p === "/events/nights" || p === "/events/schedule") {
+    return {
+      page: "events",
+      slug: null,
+      isNew: false,
+      tab: null,
+      list: p === "/events" ? "series" : "schedule",
+    };
+  }
   if (p.startsWith("/events/")) {
     const parts = p
       .slice("/events/".length)
@@ -208,6 +219,16 @@ export function parseShellPath(path) {
         slug: null,
         isNew: true,
         tab: normalizeEventTab(parts[1]),
+        list: null,
+      };
+    }
+    if (parts[0] === "nights" || parts[0] === "schedule") {
+      return {
+        page: "events",
+        slug: null,
+        isNew: false,
+        tab: null,
+        list: "schedule",
       };
     }
     return {
@@ -215,6 +236,7 @@ export function parseShellPath(path) {
       slug: parts[0] || null,
       isNew: false,
       tab: normalizeEventTab(parts[1]),
+      list: null,
     };
   }
   if (p === "/web" || p.startsWith("/web/")) return { page: "web" };
@@ -265,8 +287,11 @@ export function menuTabPath(basePath, tab) {
   return menuItemPath(parsed.slug, tab);
 }
 
-export function eventListPath() {
-  return "/events";
+/** Series index (`/events`) or schedule calendar (`/events/schedule`). */
+export function eventListPath(view = "series") {
+  return view === "nights" || view === "schedule"
+    ? "/events/schedule"
+    : "/events";
 }
 
 export function eventNewPath(tab) {

@@ -16,15 +16,28 @@ import {
 import { formatEventWhen } from "../data/events.ts";
 import { portableTextToPlain } from "../lib/sanity/portable-text.ts";
 
-/** `/events/<slug>` with the channel event password in the `?event-password=` query. */
+/** `/whats-on/<series>/<date>` (or legacy `/events/<slug>`). */
 function parseEventRsvp() {
-  const parts = window.location.pathname.split("/").filter(Boolean);
-  if (parts[0] !== "events" || !parts[1] || parts[1] === "rsvp") return null;
   const search = new URLSearchParams(window.location.search);
-  return {
-    slug: decodeURIComponent(parts[1]),
-    token: search.get("event-password") ?? search.get("key"),
-  };
+  const token = search.get("event-password") ?? search.get("key");
+  const fromBody = document.body?.dataset?.occurrenceSlug?.trim();
+  if (fromBody) {
+    return { slug: fromBody, token };
+  }
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  if (parts[0] === "whats-on" && parts[1] && parts[2] && parts[2] !== "ticket") {
+    return {
+      slug: `${decodeURIComponent(parts[1])}-${decodeURIComponent(parts[2])}`,
+      token,
+    };
+  }
+  if (parts[0] === "events" && parts[1] && parts[1] !== "rsvp") {
+    return {
+      slug: decodeURIComponent(parts[1]),
+      token,
+    };
+  }
+  return null;
 }
 
 function showOnly(id) {
@@ -69,7 +82,7 @@ function setInviteCardFront(event) {
   }
 
   if (lead && event.date) {
-    lead.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd);
+    lead.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd, event.time);
     lead.hidden = false;
   }
 }
@@ -89,8 +102,14 @@ function renderEvent(event) {
 
   const dateEl = document.getElementById("rsvp-event-date-personal");
   if (dateEl && event.date) {
-    dateEl.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd);
+    dateEl.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd, event.time);
     dateEl.hidden = false;
+  }
+
+  const offerEl = document.getElementById("rsvp-event-offer-personal");
+  if (offerEl && event.offer) {
+    offerEl.textContent = event.offer;
+    offerEl.hidden = false;
   }
 
   const venueWrap = document.getElementById("rsvp-event-venue-wrap");

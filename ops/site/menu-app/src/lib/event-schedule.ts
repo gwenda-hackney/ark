@@ -1,5 +1,9 @@
 import type { OpsEvent, OpsEventOccurrence } from "./api";
-import { expandSeriesOccurrenceDates } from "../../../functions/_lib/event-recurrence.js";
+import {
+	WEEKDAYS,
+	expandSeriesOccurrenceDates,
+	normalizeWeekdays,
+} from "../../../functions/_lib/event-recurrence.js";
 
 export type EventScheduleRow = {
 	event: OpsEvent;
@@ -121,6 +125,82 @@ export function formatScheduleWeekday(iso: string): string {
 	return parseIsoDate(iso).toLocaleDateString("en-GB", { weekday: "long" });
 }
 
+const WEEKDAY_NAMES: Record<string, string> = {
+	mon: "Monday",
+	tue: "Tuesday",
+	wed: "Wednesday",
+	thu: "Thursday",
+	fri: "Friday",
+	sat: "Saturday",
+	sun: "Sunday",
+};
+
+function weekdayIndexFromIso(iso: string): number {
+	const date = parseIsoDate(iso);
+	if (Number.isNaN(date.getTime())) return -1;
+	return (date.getDay() + 6) % 7;
+}
+
+function seriesAnchorDate(event: OpsEvent): string {
+	const dates = [
+		event.publish?.nextDate,
+		...(event.publish?.previewDates || []),
+		...(event.dates || []).map((occurrence) => occurrence.date),
+		...(event.extraDates || []),
+		event.startsOn,
+	].filter(Boolean);
+	const upcoming = dates.filter((date) => date >= formatIsoDate(new Date())).sort();
+	if (upcoming[0]) return upcoming[0];
+	return [...dates].sort()[0] || "";
+}
+
+/** Monday = 0 … Sunday = 6. Unknown days sort after Sunday. */
+export function seriesWeekdayIndex(event: OpsEvent): number {
+	const unit = String(event.repeatUnit || "none").toLowerCase();
+	if (unit === "week") {
+		const days = normalizeWeekdays(event.weekdays);
+		const index = days[0] ? WEEKDAYS.indexOf(days[0]) : -1;
+		if (index >= 0) return index;
+	}
+	const iso = seriesAnchorDate(event);
+	const index = iso ? weekdayIndexFromIso(iso) : -1;
+	return index >= 0 ? index : WEEKDAYS.length;
+}
+
+export function seriesWeekdayLabel(event: OpsEvent): string {
+	const unit = String(event.repeatUnit || "none").toLowerCase();
+	if (unit === "week") {
+		const days = normalizeWeekdays(event.weekdays)
+			.map((day) => WEEKDAY_NAMES[day] || day)
+			.filter(Boolean);
+		if (days.length) return days.join(", ");
+	}
+	const iso = seriesAnchorDate(event);
+	return iso ? formatScheduleWeekday(iso) : "";
+}
+
+export function compareSeriesByWeekday(a: OpsEvent, b: OpsEvent): number {
+	return (
+		seriesWeekdayIndex(a) - seriesWeekdayIndex(b) ||
+		a.name.localeCompare(b.name)
+	);
+}
+
+/** Distinct name or guest for the next night, if the series row should name it. */
+export function seriesNextNightLabel(event: OpsEvent): string {
+	const next = String(
+		event.publish?.nextDate || event.publish?.previewDates?.[0] || "",
+	).trim();
+	if (!next) return "";
+	const night = (event.dates || []).find((row) => row.date === next);
+	const name = String(night?.overrides?.name || "").trim();
+	const artist = String(night?.overrides?.artist || "").trim();
+	const series = String(event.name || "").trim();
+	if (name && name.toLowerCase() !== series.toLowerCase()) return name;
+	if (artist && Boolean(night?.isSpecialEdition)) return artist;
+	return "";
+}
+
 export function formatScheduleDate(iso: string): string {
 	return shortDate(iso);
 }
@@ -129,7 +209,48 @@ export type EventScheduleFilter = {
 	eventIds?: string[];
 	from?: string;
 	to?: string;
+	/** Case-insensitive match across series and night fields. */
+	query?: string;
 };
+
+function normalizeSearch(value: string): string {
+	return String(value || "")
+		.toLowerCase()
+		.normalize("NFKD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.trim();
+}
+
+function occurrenceSearchText(row: EventScheduleRow): string {
+	const overrides = row.occurrence?.overrides;
+	return [
+		row.event.name,
+		row.event.artist,
+		row.event.offer,
+		row.event.description,
+		row.event.operationsNotes,
+		row.event.slug,
+		overrides?.name,
+		overrides?.artist,
+		overrides?.offer,
+		overrides?.description,
+		overrides?.operationsNotes,
+		row.date,
+		row.occurrence?.slug,
+	]
+		.filter(Boolean)
+		.join("\n");
+}
+
+function matchesSearchQuery(row: EventScheduleRow, query: string): boolean {
+	const needle = normalizeSearch(query);
+	if (!needle) return true;
+	const haystack = normalizeSearch(occurrenceSearchText(row));
+	return needle
+		.split(/\s+/)
+		.filter(Boolean)
+		.every((token) => haystack.includes(token));
+}
 
 export function filterEventSchedule(
 	weeks: EventScheduleWeek[],
@@ -138,6 +259,7 @@ export function filterEventSchedule(
 	const ids = new Set((filter.eventIds || []).filter(Boolean));
 	const from = filter.from || "";
 	const to = filter.to || "";
+	const query = filter.query || "";
 	return weeks
 		.map((week) => ({
 			...week,
@@ -145,6 +267,7 @@ export function filterEventSchedule(
 				if (ids.size && !ids.has(row.event.id)) return false;
 				if (from && row.date < from) return false;
 				if (to && row.date > to) return false;
+				if (!matchesSearchQuery(row, query)) return false;
 				return true;
 			}),
 		}))

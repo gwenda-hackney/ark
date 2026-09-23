@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGateShareUrl,
   isAiReadingBot,
   isPublicPath,
   isUnauthenticatedCrawler,
@@ -11,6 +12,40 @@ function req(userAgent) {
     headers: { get: (name) => (name === "User-Agent" ? userAgent : "") },
   };
 }
+
+describe("buildGateShareUrl", () => {
+  it("adds the access param to the current path", () => {
+    expect(
+      buildGateShareUrl(
+        "https://gwenda-staging.pages.dev",
+        "/whats-on",
+        "secret-key",
+      ),
+    ).toBe("https://gwenda-staging.pages.dev/whats-on?access=secret-key");
+  });
+
+  it("keeps existing query params and replaces access", () => {
+    expect(
+      buildGateShareUrl(
+        "https://gwenda-staging.pages.dev",
+        "/events?x=1&access=old",
+        "secret-key",
+      ),
+    ).toBe(
+      "https://gwenda-staging.pages.dev/events?x=1&access=secret-key",
+    );
+  });
+
+  it("rejects open redirects", () => {
+    expect(
+      buildGateShareUrl(
+        "https://gwenda-staging.pages.dev",
+        "//evil.example",
+        "secret-key",
+      ),
+    ).toBe("https://gwenda-staging.pages.dev/?access=secret-key");
+  });
+});
 
 describe("isPublicPath", () => {
   it("allows stable brand assets through the staging gate", () => {
@@ -26,6 +61,10 @@ describe("isPublicPath", () => {
   it("allows invite pages, event RSVP pages, and RSVP API through the staging gate", () => {
     expect(isPublicPath("/invite/")).toBe(true);
     expect(isPublicPath("/invite/abc123")).toBe(true);
+    expect(isPublicPath("/api/whats-on")).toBe(true);
+    expect(isPublicPath("/whats-on")).toBe(true);
+    expect(isPublicPath("/whats-on/negroni-night")).toBe(true);
+    expect(isPublicPath("/whats-on/negroni-night/2026-09-29")).toBe(true);
     expect(isPublicPath("/events/a1b2c3d4e5f6789012345678abcdef01")).toBe(true);
     expect(
       isPublicPath(

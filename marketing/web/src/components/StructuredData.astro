@@ -12,7 +12,7 @@ const { url, title, description } = Astro.props;
 const { location, social, name, domain, contact, brand, seoTopics } = siteConfig;
 const logoUrl = new URL(brand.organizationLogoPath, domain).href;
 const menuUrl = new URL("/menu/", domain).href;
-const eventsUrl = new URL("/events/", domain).href;
+const eventsUrl = new URL("/whats-on/", domain).href;
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -41,9 +41,11 @@ const structuredData = {
       hasPart: [
         {
           "@type": "WebPage",
-          name: siteConfig.seo.events.title,
+          name: siteConfig.seo.whatsOn?.title || siteConfig.seo.events.title,
           url: eventsUrl,
-          description: siteConfig.seo.events.description,
+          description:
+            siteConfig.seo.whatsOn?.description ||
+            siteConfig.seo.events.description,
         },
         {
           "@type": "WebPage",

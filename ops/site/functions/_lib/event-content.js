@@ -13,6 +13,17 @@ export function sanityEventId(slug) {
   return `event-${slug}`;
 }
 
+export function sanitySeriesId(slug) {
+  return `series-${String(slug || "").trim()}`;
+}
+
+export function seriesScheduleMode(event) {
+  const unit = String(event?.repeatUnit || "none")
+    .trim()
+    .toLowerCase();
+  return unit && unit !== "none" ? "repeating" : "manual";
+}
+
 export function plainToEventDescription(text) {
   const lines = String(text || "")
     .replace(/\r\n/g, "\n")
@@ -137,8 +148,78 @@ export function resolveOccurrenceContent(event, occurrence) {
   };
 }
 
+/**
+ * Night title override, or empty when it only echoes the series name.
+ * Keeps rename free: renaming the series updates every inherited night.
+ */
+export function titleOverrideForSave(seriesName, title) {
+  const series = String(seriesName || "").trim();
+  const value = String(title || "").trim();
+  if (!value) return "";
+  if (!series) return value;
+  if (value.toLowerCase() === series.toLowerCase()) return "";
+  return value;
+}
+
+/** True when a stored title override is only the previous series name. */
+export function titleOverrideEchoesSeries(seriesName, titleOverride) {
+  const series = String(seriesName || "").trim();
+  const value = String(titleOverride || "").trim();
+  if (!series || !value) return false;
+  return value.toLowerCase() === series.toLowerCase();
+}
+
+/** Stable file identity: Baserow URLs rotate signed query tokens. */
+export function stableImageRef(image) {
+  if (!image) return "";
+  const name = String(image.name || image.visible_name || "").trim();
+  if (name) return `name:${name}`;
+  const url = String(image.url || "").trim();
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    parsed.search = "";
+    parsed.hash = "";
+    return `url:${parsed.toString()}`;
+  } catch {
+    return `url:${url.split(/[?#]/)[0]}`;
+  }
+}
+
+function roundFrac(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(Math.min(1, Math.max(0, n)) * 1e6) / 1e6;
+}
+
+/** Stable crop+hotspot shape so key order / float noise cannot keep preview stale. */
+export function stableHeroFraming(value) {
+  if (!value || typeof value !== "object") return null;
+  const source =
+    value.crop || value.main || value.card ? value : { crop: value };
+  const cropSrc = source.crop || source.main || source.card || {};
+  const left = roundFrac(cropSrc.left);
+  const top = roundFrac(cropSrc.top);
+  const right = roundFrac(cropSrc.right);
+  const bottom = roundFrac(cropSrc.bottom);
+  if (!left && !top && !right && !bottom) return null;
+  const hotspotSrc = source.hotspot || {};
+  const width = Math.max(0.05, 1 - left - right);
+  const height = Math.max(0.05, 1 - top - bottom);
+  return {
+    crop: { left, top, right, bottom },
+    hotspot: {
+      x: roundFrac(hotspotSrc.x != null ? hotspotSrc.x : left + width / 2),
+      y: roundFrac(hotspotSrc.y != null ? hotspotSrc.y : top + height / 2),
+      width: roundFrac(hotspotSrc.width) || Math.min(0.2, width),
+      height: roundFrac(hotspotSrc.height) || Math.min(0.2, height),
+    },
+  };
+}
+
 export function occurrencePayload(event, occurrence) {
   const date = typeof occurrence === "object" ? occurrence?.date : occurrence;
+  const row = occurrenceRow(event, occurrence);
   const content = resolveOccurrenceContent(event, occurrence);
   return {
     title: content.title,
@@ -149,9 +230,16 @@ export function occurrencePayload(event, occurrence) {
     startTime: content.startTime,
     endTime: content.endTime,
     date,
-    image: content.image?.url || "",
+    image: stableImageRef(content.image),
+    seriesImage: stableImageRef(event?.mainImage),
+    heroCrops: stableHeroFraming(event?.heroCrops),
+    occurrenceHeroCrops: stableHeroFraming(row?.overrides?.heroCrops),
+    shortDescription: String(event?.shortDescription || "").trim() || null,
     isSpecialEdition: content.isSpecialEdition,
     seriesId: String(event?.slug || "").trim(),
+    seriesTitle: String(event?.name || "").trim(),
+    seriesDescription: String(event?.description || "").trim(),
+    seriesSchedule: seriesScheduleMode(event),
     recurrenceLabel: recurrenceLabel(event),
   };
 }
@@ -202,33 +290,63 @@ Open your ticket link below to view your pass, add it to Apple Wallet, or save t
 
 Need to change your reply? {modify_url}`;
 
+export function sanitySeriesDocument({
+  slug,
+  title,
+  description,
+  shortDescription,
+  recurrence,
+  schedule,
+  heroImage,
+}) {
+  const key = String(slug || "").trim();
+  const doc = {
+    _id: sanitySeriesId(key),
+    _type: "eventSeries",
+    title: String(title || "").trim(),
+    slug: { _type: "slug", current: key },
+    schedule: schedule === "repeating" ? "repeating" : "manual",
+    recurrence: String(recurrence || "").trim(),
+    shortDescription: String(shortDescription || "").trim(),
+    description: plainToEventDescription(description),
+  };
+  if (heroImage) doc.heroImage = heroImage;
+  return doc;
+}
+
 export function sanityEventDocument({
   slug,
   title,
   date,
   description,
+  shortDescription,
   artist,
   offer,
   heroImage,
+  seriesHeroImage,
   seriesId,
+  seriesTitle,
   recurrence,
   time,
   startTime,
   endTime,
   isSpecialEdition,
 }) {
+  const seriesKey = String(seriesId || "").trim();
   const doc = {
     _id: sanityEventId(slug),
     _type: "event",
     title,
     slug: { _type: "slug", current: slug },
     eventType: "public",
-    seriesId,
+    seriesId: seriesKey,
+    seriesTitle: String(seriesTitle || "").trim(),
     recurrence,
     isSpecialEdition: Boolean(isSpecialEdition),
     date,
     time,
     offer,
+    shortDescription: String(shortDescription || "").trim(),
     description: plainToEventDescription(description),
     venue: "Schwartz Wharf, Hackney Wick, London E9 5AA",
     ticketStart: startTime || "17:00",
@@ -241,8 +359,12 @@ export function sanityEventDocument({
       body: RSVP_BODY,
     },
   };
+  if (seriesKey) {
+    doc.series = { _type: "reference", _ref: sanitySeriesId(seriesKey) };
+  }
   const artistText = String(artist || "").trim();
   if (artistText) doc.artist = artistText;
   if (heroImage) doc.heroImage = heroImage;
+  if (seriesHeroImage) doc.seriesHeroImage = seriesHeroImage;
   return doc;
 }

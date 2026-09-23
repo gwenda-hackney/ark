@@ -6,6 +6,7 @@ import {
   editorClosePath,
   editorReturnTo,
   eventItemPath,
+  eventListPath,
   eventNewPath,
   eventTabPath,
   inventoryItemPath,
@@ -169,6 +170,8 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/sections"), true);
     assert.equal(isSpaDocumentPath("/users"), true);
     assert.equal(isSpaDocumentPath("/events"), true);
+    assert.equal(isSpaDocumentPath("/events/nights"), true);
+    assert.equal(isSpaDocumentPath("/events/schedule"), true);
     assert.equal(isSpaDocumentPath("/events/new"), true);
     assert.equal(isSpaDocumentPath("/web"), true);
     assert.equal(isSpaDocumentPath("/tools/breakeven"), true);
@@ -199,43 +202,69 @@ describe("spa-path", () => {
       slug: null,
       isNew: false,
       tab: null,
+      list: "series",
     });
+    assert.deepEqual(parseShellPath("/events/nights"), {
+      page: "events",
+      slug: null,
+      isNew: false,
+      tab: null,
+      list: "schedule",
+    });
+    assert.deepEqual(parseShellPath("/events/schedule"), {
+      page: "events",
+      slug: null,
+      isNew: false,
+      tab: null,
+      list: "schedule",
+    });
+    assert.equal(canonicalizePath("/events/nights"), "/events/schedule");
     assert.deepEqual(parseShellPath("/events/new"), {
       page: "events",
       slug: null,
       isNew: true,
       tab: "details",
+      list: null,
     });
     assert.deepEqual(parseShellPath("/events/new/schedule"), {
       page: "events",
       slug: null,
       isNew: true,
       tab: "schedule",
+      list: null,
     });
     assert.deepEqual(parseShellPath("/events/12"), {
       page: "events",
       slug: "12",
       isNew: false,
       tab: "details",
+      list: null,
     });
     assert.deepEqual(parseShellPath("/events/12/publish"), {
       page: "events",
       slug: "12",
       isNew: false,
       tab: "publish",
+      list: null,
     });
     assert.deepEqual(parseShellPath("/events/12/gallery"), {
       page: "events",
       slug: "12",
       isNew: false,
       tab: "gallery",
+      list: null,
     });
     assert.deepEqual(parseShellPath("/events/12/bogus"), {
       page: "events",
       slug: "12",
       isNew: false,
       tab: "details",
+      list: null,
     });
+    assert.equal(eventListPath(), "/events");
+    assert.equal(eventListPath("series"), "/events");
+    assert.equal(eventListPath("nights"), "/events/schedule");
+    assert.equal(eventListPath("schedule"), "/events/schedule");
     assert.equal(eventItemPath("12"), "/events/12");
     assert.equal(eventItemPath("12", "details"), "/events/12");
     assert.equal(eventItemPath("12", "gallery"), "/events/12/gallery");
@@ -247,6 +276,8 @@ describe("spa-path", () => {
     assert.equal(isEditorPath("/events/12/gallery"), true);
     assert.equal(isEditorPath("/events/new"), true);
     assert.equal(isEditorPath("/events"), false);
+    assert.equal(isEditorPath("/events/nights"), false);
+    assert.equal(isEditorPath("/events/schedule"), false);
     assert.equal(shouldReplaceNav("/events/12", "/events/12/gallery"), true);
     assert.equal(navigationLeavesEditor("/events/12/gallery", "/events/12"), false);
     assert.equal(navigationLeavesEditor("/events/12", "/events"), true);

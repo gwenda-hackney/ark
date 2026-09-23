@@ -492,6 +492,7 @@ export type OpsEventOccurrence = {
     operationsNotes: string;
     imageLinks: string[];
     image: OpsEventImage | null;
+    heroCrops: Record<string, unknown> | null;
   };
 };
 
@@ -501,6 +502,7 @@ export type OpsEvent = {
   artist: string;
   offer: string;
   description: string;
+  shortDescription: string;
   operationsNotes: string;
   imageLinks: string[];
   startsOn: string;
@@ -513,10 +515,12 @@ export type OpsEvent = {
   monthDay: number;
   endsOn: string;
   skippedDates: string[];
+  extraDates: string[];
   slug: string;
   driveFolderId: string;
   driveFolderUrl: string;
   mainImage: OpsEventImage | null;
+  heroCrops: Record<string, unknown> | null;
   images: OpsEventImage[];
   dates: OpsEventOccurrence[];
   publish: {
@@ -680,6 +684,8 @@ export function updateEventOccurrence(
   date: string,
   body: {
     scope: "this" | "following" | "all";
+    date?: string;
+    seriesId?: string;
     name: string;
     artist: string;
     offer: string;
@@ -696,10 +702,33 @@ export function updateEventOccurrence(
     occurrence: OpsEventOccurrence;
     updated: number;
     scope: "this" | "following" | "all";
+    movedFrom?: string;
+    movedTo?: string;
+    assignedTo?: string;
+    sourceDeleted?: boolean;
   }>(
     `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}`,
     {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function ensureEventOccurrence(
+  id: string,
+  date: string,
+  body: Record<string, unknown> = {},
+) {
+  return request<{
+    event: OpsEvent;
+    occurrence: OpsEventOccurrence;
+    created: boolean;
+  }>(
+    `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}`,
+    {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     },

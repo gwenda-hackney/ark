@@ -128,6 +128,66 @@ function buildGalleryImageUrl(source: SanityImageSource): string {
     .url();
 }
 
+const HERO_WIDTH = 1600;
+const HERO_HEIGHT = 1000; // 16×10 — What's on cards and series heroes
+
+function hasImageFraming(image: NonNullable<SanityImageField>): boolean {
+  const crop = image.crop;
+  const hotspot = image.hotspot;
+  const cropped = Boolean(
+    crop &&
+      ((crop.top ?? 0) > 0.001 ||
+        (crop.bottom ?? 0) > 0.001 ||
+        (crop.left ?? 0) > 0.001 ||
+        (crop.right ?? 0) > 0.001),
+  );
+  const focused = Boolean(
+    hotspot &&
+      (Math.abs((hotspot.x ?? 0.5) - 0.5) > 0.02 ||
+        Math.abs((hotspot.y ?? 0.5) - 0.5) > 0.02),
+  );
+  return cropped || focused;
+}
+
+/** Full image scaled — site uses object-fit:contain so tall flyers keep the wordmark. */
+function buildHeroFullUrl(source: SanityImageSource): string {
+  return createBuilder()
+    .image(source)
+    .width(HERO_WIDTH)
+    .quality(86)
+    .auto("format")
+    .url();
+}
+
+/** Framed hero: Studio crop + hotspot into a 16×10 CDN crop. */
+function buildHeroFramedUrl(source: SanityImageSource): string {
+  return createBuilder()
+    .image(source)
+    .width(HERO_WIDTH)
+    .height(HERO_HEIGHT)
+    .fit("crop")
+    .quality(86)
+    .auto("format")
+    .url();
+}
+
+export function mapSanityHeroImage(
+  image: SanityImageField,
+  fallbackAlt?: string,
+): MenuItemImage | undefined {
+  const source = image ? toImageSource(image) : null;
+  if (!source || !image) return undefined;
+
+  const framed = hasImageFraming(image);
+  return {
+    url: framed ? buildHeroFramedUrl(source) : buildHeroFullUrl(source),
+    width: HERO_WIDTH,
+    height: framed ? HERO_HEIGHT : assetDimensions(image).height,
+    objectPosition: galleryObjectPosition(image),
+    alt: image.alt?.trim() || fallbackAlt,
+  };
+}
+
 export function mapSanityImage(
   image: SanityImageField,
   fallbackAlt?: string,
@@ -142,6 +202,7 @@ export function mapSanityImage(
     url,
     width,
     height,
+    objectPosition: image ? galleryObjectPosition(image) : undefined,
     alt: image?.alt?.trim() || fallbackAlt,
   };
 }

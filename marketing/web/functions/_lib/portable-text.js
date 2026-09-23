@@ -6,7 +6,10 @@ export function portableTextToPlain(value) {
   return value
     .map((block) => {
       if (block?._type !== "block" || !Array.isArray(block.children)) return "";
-      return block.children.map((child) => child?.text ?? "").join("");
+      const text = block.children.map((child) => child?.text ?? "").join("");
+      if (block.listItem === "bullet") return `• ${text}`;
+      if (block.listItem === "number") return `1. ${text}`;
+      return text;
     })
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)

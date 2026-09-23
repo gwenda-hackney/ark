@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildAppleWalletPass,
+  buildCalendarTicket,
   fetchImageBuffer,
   formatTicketTitle,
   WALLET_STRIP_SIZES,
@@ -28,6 +29,24 @@ describe("formatTicketTitle", () => {
 
   it("falls back when the title is empty", () => {
     expect(formatTicketTitle("")).toBe("Gwenda Launch Party");
+  });
+});
+
+describe("buildCalendarTicket", () => {
+  it("moves an after-midnight end time to the next day", () => {
+    const calendar = buildCalendarTicket({
+      ticketId: "gwenda-nights-1",
+      title: "Gwenda Nights",
+      date: "2026-09-26",
+      startTime: "16:00",
+      endTime: "01:30",
+    }).toString("utf8");
+
+    const start = calendar.match(/DTSTART:(\d+T\d+Z)/)?.[1];
+    const end = calendar.match(/DTEND:(\d+T\d+Z)/)?.[1];
+    expect(start).toBeTruthy();
+    expect(end).toBeTruthy();
+    expect(end > start).toBe(true);
   });
 });
 

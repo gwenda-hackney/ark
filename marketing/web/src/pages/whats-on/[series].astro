@@ -1,0 +1,231 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Subpage from "../../components/Subpage.astro";
+import { siteConfig } from "../../config/site";
+import {
+  eventDescriptionParagraphs,
+  formatEventDate,
+  formatEventDiaryDate,
+  formatEventRecurrence,
+  formatEventSpan,
+} from "../../data/events";
+import {
+  buildSeriesDetail,
+  buildSeriesList,
+} from "../../../functions/_lib/event-series.js";
+import { EVENT_FEED_PAGE_SIZE } from "../../../functions/_lib/event-feed.js";
+import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
+
+export async function getStaticPaths() {
+  try {
+    const { series, occurrences } = await fetchWhatsOnCatalog();
+    return buildSeriesList(occurrences, { series }).map((row) => ({
+      params: { series: row.seriesId },
+    }));
+  } catch (error) {
+    console.warn("What's on series paths skipped:", error);
+    return [];
+  }
+}
+
+const seriesId = Astro.params.series || "";
+const { series: seriesRecords, occurrences } =
+  await fetchWhatsOnCatalog().catch(() => ({ series: [], occurrences: [] }));
+const detail = buildSeriesDetail(occurrences, seriesId, {
+  limit: EVENT_FEED_PAGE_SIZE,
+  series: seriesRecords,
+});
+
+if (!detail) {
+  return Astro.redirect("/whats-on");
+}
+
+const pageTitle = `${detail.title} · Gwenda`;
+const pageDescription =
+  detail.description.split(/\n{2,}/)[0]?.slice(0, 155) ||
+  siteConfig.seo.whatsOn.description;
+const richDetail = Boolean(detail.richDetail);
+const featuredGuest = detail.featuredGuest;
+const mainDescription = featuredGuest?.description || detail.description;
+const mainArtist = featuredGuest?.artist || "";
+const mainOffer = featuredGuest?.offer || detail.offer || "";
+const mainImage = featuredGuest?.heroImageUrl || detail.heroImageUrl;
+
+function eventImageUrl(
+  url: string | null | undefined,
+  width: number,
+): string | null {
+  if (!url) return null;
+  if (/[?&](rect|fit)=/.test(url)) return url;
+  if (/[?&]w=/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
+}
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <Subpage
+    class={`whats-on-series-page events-page${richDetail ? " whats-on-series-page--rich" : " whats-on-series-page--recurring"}`}
+    innerClass="events-inner whats-on-series-inner"
+    href="/whats-on"
+    label="← What's on"
+  >
+    <header class="section-header events-header reveal">
+      <p class="section-eyebrow">
+        {
+          detail.scheduleLabel
+            ? formatEventRecurrence(detail.scheduleLabel)
+            : "Series"
+        }
+      </p>
+      <h1>{detail.title}</h1>
+      {
+        detail.description ? (
+          <p class="whats-on-series-lead">
+            {eventDescriptionParagraphs(detail.description)[0]}
+          </p>
+        ) : null
+      }
+    </header>
+
+    {
+      !richDetail ? (
+        <section class="whats-on-series-main event-card">
+          {eventImageUrl(mainImage, 1800) ? (
+            <figure class="event-media">
+              <img
+                class="event-hero"
+                src={eventImageUrl(mainImage, 1800)}
+                alt={featuredGuest?.heroImage?.alt || detail.title}
+                loading="eager"
+              />
+            </figure>
+          ) : (
+            <div class="event-media event-media--empty" aria-hidden="true">
+              <span>Gwenda</span>
+            </div>
+          )}
+          <article class="event-copy">
+            {detail.nextDate ? (
+              <p class="event-date">
+                <time datetime={detail.nextDate}>
+                  {formatEventDiaryDate(detail.nextDate)}
+                </time>
+              </p>
+            ) : null}
+            <h2 class="event-title">{detail.title}</h2>
+            {mainOffer ? <p class="event-offer">{mainOffer}</p> : null}
+            {mainArtist ? (
+              <p class="event-artist">Special guest · {mainArtist}</p>
+            ) : null}
+            {mainDescription ? (
+              <div class="event-description">
+                {eventDescriptionParagraphs(mainDescription).map(
+                  (paragraph) => (
+                    <p>{paragraph}</p>
+                  ),
+                )}
+              </div>
+            ) : null}
+            {detail.upcomingDates?.length ? (
+              <div class="event-dates">
+                <p class="event-dates-label">Nights ahead</p>
+                    <ul>
+                      {detail.upcomingDates.map((night) => (
+                        <li>
+                          <time datetime={night.date}>
+                            {formatEventDate(night.date)}
+                          </time>
+                          {night.isSpecialEdition && night.artist ? (
+                            <p class="event-dates-guest">
+                              Special guest · {night.artist}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+              </div>
+            ) : null}
+          </article>
+        </section>
+      ) : null
+    }
+
+    <div
+      id="series-nights"
+      data-series-id={detail.seriesId}
+      data-series-next={detail.next ? JSON.stringify(detail.next) : ""}
+      data-series-rich={richDetail ? "true" : "false"}
+      hidden={!richDetail}
+    >
+      {
+        richDetail ? (
+          <ol class="events-list">
+            {detail.nights.map((event, index) => {
+              const image = eventImageUrl(event.heroImageUrl, 1800);
+              return (
+                <li class="event-card">
+                  {image ? (
+                    <figure class="event-media">
+                      <img
+                        class="event-hero"
+                        src={image}
+                        alt={event.heroImage?.alt || event.title}
+                        loading={index === 0 ? "eager" : "lazy"}
+                      />
+                    </figure>
+                  ) : (
+                    <div
+                      class="event-media event-media--empty"
+                      aria-hidden="true"
+                    >
+                      <span>Gwenda</span>
+                    </div>
+                  )}
+                  <article class="event-copy">
+                    <p class="event-date">
+                      <time datetime={event.date}>
+                        {formatEventDiaryDate(event.date)}
+                      </time>
+                      {formatEventSpan(
+                        event.startTime,
+                        event.endTime,
+                        event.time,
+                      ) ? (
+                        <span class="event-time">
+                          {formatEventSpan(
+                            event.startTime,
+                            event.endTime,
+                            event.time,
+                          )}
+                        </span>
+                      ) : null}
+                    </p>
+                    <h2 class="event-title">{event.title}</h2>
+                    {event.offer ? (
+                      <p class="event-offer">{event.offer}</p>
+                    ) : null}
+                    {event.artist ? (
+                      <p class="event-artist">{event.artist}</p>
+                    ) : null}
+                    <div class="event-description">
+                      {eventDescriptionParagraphs(
+                        event.description,
+                        event.time,
+                      ).map((paragraph) => (
+                        <p>{paragraph}</p>
+                      ))}
+                    </div>
+                  </article>
+                </li>
+              );
+            })}
+          </ol>
+        ) : null
+      }
+    </div>
+  </Subpage>
+  <script>
+    import { initSeriesPage } from "../../scripts/whats-on.js";
+    initSeriesPage();
+  </script>
+</BaseLayout>

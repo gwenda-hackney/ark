@@ -114,6 +114,7 @@ Ops and web pulls also refresh `.env.ark`. GitHub still holds `CLOUDFLARE_API_TO
 # Requires ARK_LOCAL_BW_TOKEN in .env
 npm run env:ops:pull
 npm run env:ops:pull -- --dry-run
+npm run env:ops:pull -- --migrate-sm   # once: legacy BASEROW_API_KEY → BASEROW_API_KEY_LOCAL
 ```
 
 CI (production Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then:
@@ -122,9 +123,9 @@ CI (production Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then
 gh workflow run ops-secrets.yml
 ```
 
-That syncs SM → Cloudflare Pages secrets (including `BASEROW_API_KEY_PRODUCTION` as Pages `BASEROW_API_KEY`). **Deploy workflows do not push Pages secrets** — only `ops-secrets.yml` / `web-secrets.yml` (or a local `sync-pages-secrets` run) do.
+That syncs SM → Cloudflare Pages secrets (`BASEROW_API_KEY_PRODUCTION` as Pages `BASEROW_API_KEY`) and **redeploys** gwenda-ops (Pages snapshots secrets per deployment). Do not fall back to the local Baserow token. **Deploy workflows do not push Pages secrets** — only `ops-secrets.yml` / `web-secrets.yml` (or a local `setup:ops` + redeploy) do.
 
-Ops pull lists **Ark + Ark/Web + Ark/Ops**, then writes only ops keys to `.env.ops`. It reads marketing-owned `SANITY_API_TOKEN` and `DEPLOY_WEBHOOK_SECRET` from Ark/Web instead of duplicating them.
+Ops pull lists **Ark + Ark/Web + Ark/Ops**, then writes only ops keys to `.env.ops`. It remaps `BASEROW_API_KEY_LOCAL` → short `BASEROW_API_KEY` for local runtime and always keeps `BASEROW_API_KEY_PRODUCTION` alongside when present. It reads marketing-owned `SANITY_API_TOKEN` and `DEPLOY_WEBHOOK_SECRET` from Ark/Web instead of duplicating them.
 
 GitHub should hold only `BWS_ACCESS_TOKEN` (machine account with access to **Ark**, **Ark/Ops**, and **Ark/Web**). Cloudflare deploy credentials (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_DEV_API_TOKEN`) live in SM project **Ark** and are pulled into CI via `env:ark:pull` / `env:web:pull` / `env:ops:pull`. App secrets (`SMTP_PASSWORD`, `SITE_PASSWORD`, …) live in Ark/Web or Ark/Ops, not as duplicated GitHub secrets.
 

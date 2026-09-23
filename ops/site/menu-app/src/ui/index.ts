@@ -9,6 +9,7 @@ export { default as DataGrid } from "./DataGrid.svelte";
 export { default as Dialog } from "./Dialog.svelte";
 export { default as EditorBackBar } from "./EditorBackBar.svelte";
 export { default as Field } from "./Field.svelte";
+export { default as Tip } from "./Tip.svelte";
 export { default as HighlightText } from "./HighlightText.svelte";
 export { default as PageHeader } from "./PageHeader.svelte";
 export { default as PageHelp } from "./PageHelp.svelte";

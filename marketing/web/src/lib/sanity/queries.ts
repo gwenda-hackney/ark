@@ -2,10 +2,51 @@
 export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public"] | order(date asc) {
   "id": slug.current,
   title,
+  artist,
+  offer,
+  seriesId,
+  seriesTitle,
+  recurrence,
+  isSpecialEdition,
+  time,
+  "startTime": ticketStart,
+  "endTime": ticketEnd,
   date,
+  shortDescription,
   description,
   heroImage {
     alt,
+    crop,
+    hotspot,
+    asset->{
+      _id,
+      url,
+      metadata { dimensions { width, height } }
+    }
+  },
+  seriesHeroImage {
+    alt,
+    crop,
+    hotspot,
+    asset->{
+      _id,
+      url,
+      metadata { dimensions { width, height } }
+    }
+  }
+}`;
+
+export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
+  "id": slug.current,
+  title,
+  schedule,
+  recurrence,
+  shortDescription,
+  description,
+  heroImage {
+    alt,
+    crop,
+    hotspot,
     asset->{
       _id,
       url,
@@ -33,6 +74,8 @@ export const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug]
 export const RSVP_EVENTS_QUERY = `*[_type == "event" && defined(slug.current)] | order(date asc) {
   "slug": slug.current,
   title,
+  date,
+  seriesId,
   description,
   heroImage {
     alt,

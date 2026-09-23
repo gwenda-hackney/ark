@@ -12,12 +12,24 @@ import { subscribeEmail } from "./functions/_lib/subscribe.js";
 import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
 import { resolvePublicOrigin } from "./functions/_lib/public-origin.js";
 import { readEventPasswordFromSearchParams } from "./functions/_lib/event-password.js";
-import { fetchPublishedEvents } from "./functions/_lib/sanity-events.js";
 import {
-  verifyEventAdminRequest,
-} from "./functions/_lib/event-admin-auth.js";
-import { fetchGuestsForEvent, summarizeGuests } from "./functions/_lib/event-guests.js";
-import { fetchEventBySlug, publicEventFields } from "./functions/_lib/sanity-event.js";
+  fetchPublishedCatalog,
+  fetchPublishedEvents,
+} from "./functions/_lib/sanity-events.js";
+import { pageEventFeed } from "./functions/_lib/event-feed.js";
+import {
+  buildSeriesDetail,
+  buildWhatsOnHome,
+} from "./functions/_lib/event-series.js";
+import { verifyEventAdminRequest } from "./functions/_lib/event-admin-auth.js";
+import {
+  fetchGuestsForEvent,
+  summarizeGuests,
+} from "./functions/_lib/event-guests.js";
+import {
+  fetchEventBySlug,
+  publicEventFields,
+} from "./functions/_lib/sanity-event.js";
 import { sendEventInvites } from "./functions/_lib/invite-send.js";
 import { pickPemValue } from "./functions/_lib/env-pem.js";
 import { resolveTicket } from "./functions/_lib/ticket.js";
@@ -57,18 +69,26 @@ const subscribeEnv = () => ({
   SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
   BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
-  BASEROW_DATABASE_ID: process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
+  BASEROW_DATABASE_ID:
+    process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
   BASEROW_SUBSCRIBE_TABLE_NAME:
-    process.env.BASEROW_SUBSCRIBE_TABLE_NAME || env.BASEROW_SUBSCRIBE_TABLE_NAME,
-  SITE_ENV: process.env.SITE_ENV || (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+    process.env.BASEROW_SUBSCRIBE_TABLE_NAME ||
+    env.BASEROW_SUBSCRIBE_TABLE_NAME,
+  SITE_ENV:
+    process.env.SITE_ENV ||
+    (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
 });
 
 const rsvpEnv = () => ({
   BASEROW_API_KEY: process.env.BASEROW_API_KEY || env.BASEROW_API_KEY,
   BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
-  BASEROW_DATABASE_ID: process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
-  BASEROW_RSVP_TABLE_NAME: process.env.BASEROW_RSVP_TABLE_NAME || env.BASEROW_RSVP_TABLE_NAME,
-  SITE_ENV: process.env.SITE_ENV || (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+  BASEROW_DATABASE_ID:
+    process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
+  BASEROW_RSVP_TABLE_NAME:
+    process.env.BASEROW_RSVP_TABLE_NAME || env.BASEROW_RSVP_TABLE_NAME,
+  SITE_ENV:
+    process.env.SITE_ENV ||
+    (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
   TICKET_SECRET: process.env.TICKET_SECRET || env.TICKET_SECRET,
   EVENT_ADMIN_SECRET: process.env.EVENT_ADMIN_SECRET || env.EVENT_ADMIN_SECRET,
   SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
@@ -78,7 +98,8 @@ const rsvpEnv = () => ({
   SANITY_PERSPECTIVE: localSanityPerspective(),
   INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
   INVITE_IMAGE_URL: process.env.INVITE_IMAGE_URL || env.INVITE_IMAGE_URL,
-  INVITE_EMAIL_SUBJECT: process.env.INVITE_EMAIL_SUBJECT || env.INVITE_EMAIL_SUBJECT,
+  INVITE_EMAIL_SUBJECT:
+    process.env.INVITE_EMAIL_SUBJECT || env.INVITE_EMAIL_SUBJECT,
   INVITE_EMAIL_BODY: process.env.INVITE_EMAIL_BODY || env.INVITE_EMAIL_BODY,
   SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
@@ -88,7 +109,8 @@ const rsvpEnv = () => ({
   SMTP_FROM_EVENTS: process.env.SMTP_FROM_EVENTS || env.SMTP_FROM_EVENTS,
   APPLE_WALLET_PASS_TYPE_ID:
     process.env.APPLE_WALLET_PASS_TYPE_ID || env.APPLE_WALLET_PASS_TYPE_ID,
-  APPLE_WALLET_TEAM_ID: process.env.APPLE_WALLET_TEAM_ID || env.APPLE_WALLET_TEAM_ID,
+  APPLE_WALLET_TEAM_ID:
+    process.env.APPLE_WALLET_TEAM_ID || env.APPLE_WALLET_TEAM_ID,
   APPLE_WALLET_SIGNER_CERT: pickPemValue(
     process.env.APPLE_WALLET_SIGNER_CERT,
     env.APPLE_WALLET_SIGNER_CERT,
@@ -102,7 +124,8 @@ const rsvpEnv = () => ({
     env.APPLE_WALLET_WWDR_CERT,
   ),
   APPLE_WALLET_SIGNER_KEY_PASSPHRASE:
-    process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE || env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
+    process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE ||
+    env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
 });
 
 const adminEnv = () => ({
@@ -211,7 +234,8 @@ function devFormsApi() {
       const formsEnv = () => ({
         SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
         SANITY_PROJECT_ID:
-          process.env.SANITY_PROJECT_ID?.trim() || env.SANITY_PROJECT_ID?.trim(),
+          process.env.SANITY_PROJECT_ID?.trim() ||
+          env.SANITY_PROJECT_ID?.trim(),
         SANITY_DATASET:
           process.env.SANITY_DATASET?.trim() ||
           env.SANITY_DATASET?.trim() ||
@@ -312,7 +336,12 @@ function devFormsApi() {
             const mod = await server.ssrLoadModule(
               "/functions/api/forms/resend.js",
             );
-            await pipeFunction(req, res, mod.onRequestPost, "/api/forms/resend");
+            await pipeFunction(
+              req,
+              res,
+              mod.onRequestPost,
+              "/api/forms/resend",
+            );
             return;
           }
           if (pathOnly === "/api/forms" || pathOnly === "/api/forms/") {
@@ -348,13 +377,15 @@ function devRsvpApi() {
         const runtimeEnv = {
           ...rsvpEnv(),
           SANITY_API_TOKEN:
-            process.env.SANITY_API_TOKEN?.trim() || env.SANITY_API_TOKEN?.trim(),
+            process.env.SANITY_API_TOKEN?.trim() ||
+            env.SANITY_API_TOKEN?.trim(),
           SANITY_DATASET:
             process.env.SANITY_DATASET?.trim() ||
             env.SANITY_DATASET?.trim() ||
             "staging",
           SANITY_PROJECT_ID:
-            process.env.SANITY_PROJECT_ID?.trim() || env.SANITY_PROJECT_ID?.trim(),
+            process.env.SANITY_PROJECT_ID?.trim() ||
+            env.SANITY_PROJECT_ID?.trim(),
         };
 
         if (req.method === "GET") {
@@ -467,7 +498,9 @@ function devTicketApi() {
           heroImageUrl: event.heroImageUrl,
         });
         if (!pass) {
-          sendJson(res, 503, { error: "Apple Wallet isn't set up for this event yet." });
+          sendJson(res, 503, {
+            error: "Apple Wallet isn't set up for this event yet.",
+          });
           return;
         }
         res.statusCode = 200;
@@ -536,8 +569,58 @@ function devEventsApi() {
           next();
           return;
         }
+        const url = new URL(req.url ?? "", "http://localhost");
         const events = await fetchPublishedEvents(adminEnv());
-        sendJson(res, 200, { ok: true, events });
+        const page = pageEventFeed(events, {
+          after: url.searchParams.get("after") || "",
+          afterId: url.searchParams.get("afterId") || "",
+          limit: url.searchParams.get("limit") || "",
+        });
+        sendJson(res, 200, { ok: true, events: page.events, next: page.next });
+      });
+    },
+  };
+}
+
+/** Dev-only stub for /api/whats-on and /api/whats-on/:series */
+function devWhatsOnApi() {
+  return {
+    name: "dev-whats-on-api",
+    configureServer(server) {
+      server.middlewares.use("/api/whats-on", async (req, res, next) => {
+        if (req.method !== "GET") {
+          next();
+          return;
+        }
+        const url = new URL(req.url ?? "/", "http://localhost");
+        // Vite strips the /api/whats-on mount, so list is "/" and detail is "/:series".
+        const path = url.pathname.replace(/^\/+/, "").trim();
+        const { occurrences, series: seriesRecords } =
+          await fetchPublishedCatalog(adminEnv());
+        if (!path) {
+          sendJson(res, 200, {
+            ok: true,
+            ...buildWhatsOnHome(occurrences, {
+              after: url.searchParams.get("after") || "",
+              afterId: url.searchParams.get("afterId") || "",
+              limit: url.searchParams.get("limit") || "",
+              series: seriesRecords,
+            }),
+          });
+          return;
+        }
+        const seriesId = decodeURIComponent(path.split("/")[0] || "").trim();
+        const detail = buildSeriesDetail(occurrences, seriesId, {
+          after: url.searchParams.get("after") || "",
+          afterId: url.searchParams.get("afterId") || "",
+          limit: url.searchParams.get("limit") || "",
+          series: seriesRecords,
+        });
+        if (!detail) {
+          sendJson(res, 404, { error: "Series not found." });
+          return;
+        }
+        sendJson(res, 200, { ok: true, series: detail });
       });
     },
   };
@@ -557,7 +640,8 @@ function devEventAdminApi() {
           !verifyEventAdminRequest(
             new Request("http://localhost", {
               headers: {
-                Authorization: req.headers.authorization ?? req.headers.Authorization ?? "",
+                Authorization:
+                  req.headers.authorization ?? req.headers.Authorization ?? "",
               },
             }),
             runtimeEnv,
@@ -600,7 +684,9 @@ function devEventAdminApi() {
           sendJson(
             res,
             result.ok ? 200 : result.status,
-            result.ok ? { ok: true, slug, guests: result.guests } : { error: result.error },
+            result.ok
+              ? { ok: true, slug, guests: result.guests }
+              : { error: result.error },
           );
           return;
         }
@@ -736,6 +822,7 @@ export default defineConfig({
       devRsvpApi(),
       devTicketApi(),
       devEventsApi(),
+      devWhatsOnApi(),
       devEventAdminApi(),
       ...(gatePlugin ? [gatePlugin] : []),
     ],

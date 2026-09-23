@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { OpsEvent } from "./api.ts";
 import {
+	compareSeriesByWeekday,
 	countEventScheduleRows,
 	eventWeekStart,
 	filterEventSchedule,
@@ -9,6 +10,8 @@ import {
 	formatScheduleWeekday,
 	groupEventSchedule,
 	paginateEventSchedule,
+	seriesWeekdayLabel,
+	seriesNextNightLabel,
 } from "./event-schedule.ts";
 
 function event(
@@ -149,6 +152,33 @@ describe("filterEventSchedule", () => {
 			["2026-09-30"],
 		);
 	});
+
+	it("filters by full-text query across series and night fields", () => {
+		const weeks = groupEventSchedule(
+			[
+				{
+					...event("fri", "Music Friday", ["2026-09-25"]),
+					artist: "Guest DJ",
+				},
+				{
+					...event("hal", "Halloween", ["2026-10-31"]),
+					artist: "Saif",
+					description: "Live band.",
+				},
+			],
+			new Date(2026, 8, 22),
+		);
+		const byArtist = filterEventSchedule(weeks, { query: "saif live" });
+		assert.deepEqual(
+			byArtist.flatMap((week) => week.rows.map((row) => row.event.id)),
+			["hal"],
+		);
+		const bySeries = filterEventSchedule(weeks, { query: "music" });
+		assert.deepEqual(
+			bySeries.flatMap((week) => week.rows.map((row) => row.event.id)),
+			["fri"],
+		);
+	});
 });
 
 describe("paginateEventSchedule", () => {
@@ -167,5 +197,124 @@ describe("paginateEventSchedule", () => {
 			["wed:2026-09-23", "thu:2026-09-24"],
 		);
 		assert.equal(countEventScheduleRows(weeks), 6);
+	});
+});
+
+describe("compareSeriesByWeekday", () => {
+	it("orders series Monday to Sunday, with Gwenda Nights on Saturday", () => {
+		const rows = [
+			event("fri", "Music Friday", ["2026-09-25"]),
+			{
+				...event("gn", "Gwenda Nights", ["2026-09-26"]),
+				repeatUnit: "none",
+				weekdays: [],
+			},
+			{
+				...event("wed", "Wednesday Jazz", ["2026-09-23"]),
+				weekdays: ["wed"],
+			},
+			{
+				...event("thu", "Gwenda Selects", ["2026-09-24"]),
+				weekdays: ["thu"],
+			},
+			{
+				...event("sun", "Sunday Social", ["2026-09-27"]),
+				weekdays: ["sun"],
+			},
+		];
+		assert.deepEqual(
+			[...rows].sort(compareSeriesByWeekday).map((row) => row.name),
+			[
+				"Wednesday Jazz",
+				"Gwenda Selects",
+				"Music Friday",
+				"Gwenda Nights",
+				"Sunday Social",
+			],
+		);
+		assert.equal(seriesWeekdayLabel(rows[1]), "Saturday");
+	});
+});
+
+describe("seriesNextNightLabel", () => {
+	it("names the next night when it is not the series title", () => {
+		const row = {
+			...event("nights", "Gwenda Nights", ["2026-10-10", "2026-10-31"]),
+			dates: [
+				{
+					id: "1",
+					date: "2026-10-10",
+					slug: "vbrave",
+					sanityId: "",
+					clickupTaskId: "",
+					isSpecialEdition: false,
+					overrides: {
+						name: "Vbrave Vinyl Session",
+						artist: "",
+						offer: "",
+						description: "",
+						time: "",
+						startTime: "",
+						endTime: "",
+						operationsNotes: "",
+						imageLinks: [],
+						image: null,
+						heroCrops: null,
+					},
+				},
+			],
+		};
+		assert.equal(seriesNextNightLabel(row), "Vbrave Vinyl Session");
+	});
+
+	it("ignores a later guest when naming the next night", () => {
+		const row = {
+			...event("nights", "Gwenda Nights", ["2026-10-10", "2026-10-31"]),
+			dates: [
+				{
+					id: "1",
+					date: "2026-10-10",
+					slug: "vbrave",
+					sanityId: "",
+					clickupTaskId: "",
+					isSpecialEdition: false,
+					overrides: {
+						name: "",
+						artist: "",
+						offer: "",
+						description: "",
+						time: "",
+						startTime: "",
+						endTime: "",
+						operationsNotes: "",
+						imageLinks: [],
+						image: null,
+						heroCrops: null,
+					},
+				},
+				{
+					id: "2",
+					date: "2026-10-31",
+					slug: "halloween",
+					sanityId: "",
+					clickupTaskId: "",
+					isSpecialEdition: true,
+					overrides: {
+						name: "Halloween",
+						artist: "Saif",
+						offer: "",
+						description: "",
+						time: "",
+						startTime: "",
+						endTime: "",
+						operationsNotes: "",
+						imageLinks: [],
+						image: null,
+						heroCrops: null,
+					},
+				},
+			],
+		};
+		assert.equal(seriesNextNightLabel(row), "");
 	});
 });

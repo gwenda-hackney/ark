@@ -31,10 +31,10 @@ const { features, showMenuTease = false } = Astro.props;
 
 <nav class="site-header-nav" id="site-header-nav">
   <a href="#story">Story</a>
-  {/* Dedicated /menu and /events URLs help Google form organic sitelinks. */}
+  {/* Dedicated /menu and /whats-on URLs help Google form organic sitelinks. */}
   {(showMenuTease || features.showMenu) && <a href="/menu">Menu</a>}
   {features.showTeam && <a href="#team">Who we are</a>}
-  <a href="/events">Events</a>
+  <a href="/whats-on">What's on</a>
   <a href="/contact">Contact</a>
   <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>
 </nav>

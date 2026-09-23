@@ -782,6 +782,10 @@ function eventFields() {
   return [
     { name: "Artist", body: { name: "Artist", type: "text" } },
     { name: "Offer", body: { name: "Offer", type: "text" } },
+    {
+      name: "Short description",
+      body: { name: "Short description", type: "long_text" },
+    },
     { name: "Description", body: { name: "Description", type: "long_text" } },
     {
       name: "Operations notes",
@@ -845,9 +849,17 @@ function eventFields() {
       name: "Skipped dates",
       body: { name: "Skipped dates", type: "long_text" },
     },
+    {
+      name: "Extra dates",
+      body: { name: "Extra dates", type: "long_text" },
+    },
     { name: "Slug", body: { name: "Slug", type: "text" } },
     { name: "Drive folder id", body: { name: "Drive folder id", type: "text" } },
     { name: "Main image", body: { name: "Main image", type: "file" } },
+    {
+      name: "Hero crops",
+      body: { name: "Hero crops", type: "long_text" },
+    },
     { name: "Images", body: { name: "Images", type: "file" } },
   ];
 }
@@ -908,6 +920,10 @@ function eventDateFields(eventsTableId) {
       body: { name: "Image links override", type: "long_text" },
     },
     { name: "Override image", body: { name: "Override image", type: "file" } },
+    {
+      name: "Override hero crops",
+      body: { name: "Override hero crops", type: "long_text" },
+    },
     {
       name: "Publish snapshots",
       body: { name: "Publish snapshots", type: "long_text" },

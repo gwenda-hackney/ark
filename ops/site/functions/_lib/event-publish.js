@@ -23,6 +23,9 @@ import {
   recurrenceLabel,
   resolveOccurrenceContent,
   sanityEventDocument,
+  sanitySeriesDocument,
+  sanitySeriesId,
+  seriesScheduleMode,
 } from "./event-content.js";
 import {
   getEvent,
@@ -57,7 +60,75 @@ async function imageFromUrl(url, upload) {
   };
 }
 
-function documentFromStaging(doc, heroImage) {
+function clamp01(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(1, Math.max(0, n));
+}
+
+/** Attach Sanity crop + hotspot from ops hero framing. */
+function withImageCrop(image, framingOrCrop) {
+  if (!image || !framingOrCrop || typeof framingOrCrop !== "object")
+    return image;
+  const framing = framingOrCrop.crop
+    ? framingOrCrop
+    : { crop: framingOrCrop, hotspot: framingOrCrop.hotspot };
+  const cropSrc = framing.crop || framingOrCrop;
+  const left = clamp01(cropSrc.left);
+  const top = clamp01(cropSrc.top);
+  const right = clamp01(cropSrc.right);
+  const bottom = clamp01(cropSrc.bottom);
+  const width = Math.max(0.02, 1 - left - right);
+  const height = Math.max(0.02, 1 - top - bottom);
+  const hotspotSrc = framing.hotspot || {};
+  const hotspotWidth = clamp01(hotspotSrc.width) || Math.min(0.45, width);
+  const hotspotHeight = clamp01(hotspotSrc.height) || Math.min(0.45, height);
+  const hotspotX =
+    hotspotSrc.x != null ? clamp01(hotspotSrc.x) : left + width / 2;
+  const hotspotY =
+    hotspotSrc.y != null ? clamp01(hotspotSrc.y) : top + height / 2;
+  return {
+    ...image,
+    crop: {
+      _type: "sanity.imageCrop",
+      left,
+      top,
+      right,
+      bottom,
+    },
+    hotspot: {
+      _type: "sanity.imageHotspot",
+      x: hotspotX,
+      y: hotspotY,
+      width: hotspotWidth,
+      height: hotspotHeight,
+    },
+  };
+}
+
+function framingFromEvent(event) {
+  const raw = event?.heroCrops;
+  if (!raw || typeof raw !== "object") return null;
+  if (raw.crop || raw.hotspot) return raw;
+  // Legacy main/card → prefer main, else card
+  if (raw.main || raw.card) {
+    return { crop: raw.main || raw.card, hotspot: null };
+  }
+  return null;
+}
+
+function framingFromOccurrence(event, occurrence) {
+  const override = occurrence?.overrides?.heroCrops;
+  if (override && typeof override === "object") {
+    if (override.crop || override.hotspot) return override;
+    if (override.main || override.card) {
+      return { crop: override.main || override.card, hotspot: null };
+    }
+  }
+  return framingFromEvent(event);
+}
+
+function documentFromStaging(doc, heroImage, seriesHeroImage) {
   const next = {
     _id: doc._id,
     _type: "event",
@@ -65,11 +136,13 @@ function documentFromStaging(doc, heroImage) {
     slug: doc.slug,
     eventType: doc.eventType || "public",
     seriesId: doc.seriesId || doc.slug?.current || doc._id,
+    seriesTitle: doc.seriesTitle || "",
     recurrence: doc.recurrence || "",
     isSpecialEdition: Boolean(doc.isSpecialEdition),
     date: doc.date,
     time: doc.time || "",
     offer: doc.offer || "",
+    shortDescription: doc.shortDescription || "",
     description: doc.description,
     venue: doc.venue,
     ticketStart: doc.ticketStart,
@@ -78,6 +151,23 @@ function documentFromStaging(doc, heroImage) {
     rsvpConfirmation: doc.rsvpConfirmation,
   };
   if (doc.artist) next.artist = doc.artist;
+  if (doc.series) next.series = doc.series;
+  if (heroImage) next.heroImage = heroImage;
+  if (seriesHeroImage) next.seriesHeroImage = seriesHeroImage;
+  return next;
+}
+
+function documentFromStagingSeries(doc, heroImage) {
+  const next = {
+    _id: doc._id,
+    _type: "eventSeries",
+    title: doc.title,
+    slug: doc.slug,
+    schedule: doc.schedule === "repeating" ? "repeating" : "manual",
+    recurrence: doc.recurrence || "",
+    shortDescription: doc.shortDescription || "",
+    description: doc.description,
+  };
   if (heroImage) next.heroImage = heroImage;
   return next;
 }
@@ -99,13 +189,38 @@ export async function publishEventPreview(
   const heroByUrl = new Map();
   const occurrences = [];
   const mutations = [];
+
+  const seriesImageUrl = event.mainImage?.url || "";
+  let seriesHero;
+  if (seriesImageUrl) {
+    const uploaded = await imageFromUrl(seriesImageUrl, (bytes, meta) =>
+      sanityUploadImage(env, EDITORIAL_DATASET, bytes, meta),
+    );
+    seriesHero = withImageCrop(
+      uploaded ? { ...uploaded, alt: event.name } : uploaded,
+      framingFromEvent(event),
+    );
+    if (seriesHero && !seriesHero.alt) {
+      seriesHero = { ...seriesHero, alt: event.name };
+    }
+    heroByUrl.set(`series:${seriesImageUrl}`, seriesHero);
+  }
+  mutations.push({
+    createOrReplace: sanitySeriesDocument({
+      slug: event.slug,
+      title: event.name,
+      description: event.description,
+      shortDescription: event.shortDescription || "",
+      recurrence: recurrenceLabel(event),
+      schedule: seriesScheduleMode(event),
+      heroImage: seriesHero || null,
+    }),
+  });
+
   for (const date of wanted) {
     const previous = existingByDate.get(date);
     const hash = occurrenceHash(event, previous || date);
-    if (
-      previous?.sanityId &&
-      previous?.snapshots?.staging?.hash === hash
-    ) {
+    if (previous?.sanityId && previous?.snapshots?.staging?.hash === hash) {
       occurrences.push({
         id: previous.id,
         date: previous.date,
@@ -129,16 +244,27 @@ export async function publishEventPreview(
       );
       heroByUrl.set(imageUrl, hero);
     }
-    if (hero) hero.alt = content.title;
+    if (hero) {
+      hero = withImageCrop(
+        { ...hero, alt: content.title },
+        framingFromOccurrence(event, previous),
+      );
+    }
+    if (seriesHero && !seriesHero.alt) {
+      seriesHero = { ...seriesHero, alt: event.name || content.title };
+    }
     const doc = sanityEventDocument({
       slug,
       title: content.title,
       date,
       description: content.description,
+      shortDescription: event.shortDescription || "",
       artist: content.artist,
       offer: content.offer,
       heroImage: hero,
+      seriesHeroImage: seriesHero || null,
       seriesId: event.slug,
+      seriesTitle: event.name,
       recurrence: recurrenceLabel(event),
       time: content.time,
       startTime: content.startTime,
@@ -287,10 +413,31 @@ export async function publishAllEventPreviews(env) {
 }
 
 const STAGING_EVENT_QUERY = `*[_id == $id][0]{
-  _id, _type, title, slug, eventType, seriesId, recurrence, isSpecialEdition,
+  _id, _type, title, slug, eventType, seriesId, series, seriesTitle, recurrence, isSpecialEdition,
   date, description, artist, venue,
   time, offer, ticketStart, ticketEnd, channels, rsvpConfirmation,
-  "heroUrl": heroImage.asset->url
+  heroImage {
+    alt,
+    crop,
+    hotspot,
+    "url": asset->url
+  },
+  seriesHeroImage {
+    alt,
+    crop,
+    hotspot,
+    "url": asset->url
+  }
+}`;
+
+const STAGING_SERIES_QUERY = `*[_id == $id][0]{
+  _id, _type, title, slug, schedule, recurrence, shortDescription, description,
+  heroImage {
+    alt,
+    crop,
+    hotspot,
+    "url": asset->url
+  }
 }`;
 
 export async function publishEventLive(env, id) {
@@ -301,6 +448,40 @@ export async function publishEventLive(env, id) {
   const today = todayIso();
   const wanted = new Set(event.publish.previewDates);
   const warnings = [];
+
+  const seriesId = sanitySeriesId(event.slug);
+  const seriesDoc = await sanityQuery(
+    env,
+    EDITORIAL_DATASET,
+    STAGING_SERIES_QUERY,
+    {
+      id: seriesId,
+    },
+  );
+  if (seriesDoc?._id) {
+    let seriesHero = await imageFromUrl(
+      seriesDoc.heroImage?.url,
+      (bytes, meta) => sanityUploadImageProduction(env, bytes, meta),
+    );
+    if (seriesHero) {
+      seriesHero = withImageCrop(
+        {
+          ...seriesHero,
+          alt: seriesDoc.heroImage?.alt || event.name,
+        },
+        {
+          crop: seriesDoc.heroImage?.crop,
+          hotspot: seriesDoc.heroImage?.hotspot,
+        },
+      );
+    }
+    await sanityMutateProduction(env, [
+      { createOrReplace: documentFromStagingSeries(seriesDoc, seriesHero) },
+    ]);
+  } else {
+    warnings.push("Missing preview series document.");
+  }
+
   for (const row of event.dates) {
     if (row.date < today || !wanted.has(row.date) || !row.sanityId) continue;
     const doc = await sanityQuery(env, EDITORIAL_DATASET, STAGING_EVENT_QUERY, {
@@ -310,12 +491,39 @@ export async function publishEventLive(env, id) {
       warnings.push(`Missing preview document for ${row.date}.`);
       continue;
     }
-    const hero = await imageFromUrl(doc.heroUrl, (bytes, meta) =>
+    let hero = await imageFromUrl(doc.heroImage?.url, (bytes, meta) =>
       sanityUploadImageProduction(env, bytes, meta),
     );
-    if (hero) hero.alt = event.name;
+    if (hero) {
+      hero = withImageCrop(
+        {
+          ...hero,
+          alt: doc.heroImage?.alt || event.name,
+        },
+        {
+          crop: doc.heroImage?.crop,
+          hotspot: doc.heroImage?.hotspot,
+        },
+      );
+    }
+    let seriesHero = await imageFromUrl(
+      doc.seriesHeroImage?.url,
+      (bytes, meta) => sanityUploadImageProduction(env, bytes, meta),
+    );
+    if (seriesHero) {
+      seriesHero = withImageCrop(
+        {
+          ...seriesHero,
+          alt: doc.seriesHeroImage?.alt || event.name,
+        },
+        {
+          crop: doc.seriesHeroImage?.crop,
+          hotspot: doc.seriesHeroImage?.hotspot,
+        },
+      );
+    }
     await sanityMutateProduction(env, [
-      { createOrReplace: documentFromStaging(doc, hero) },
+      { createOrReplace: documentFromStaging(doc, hero, seriesHero) },
     ]);
     await saveOccurrence(env, id, {
       ...row,

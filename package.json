@@ -51,6 +51,7 @@
     "setup:baserow-form-submissions": "node --env-file=.env scripts/setup-baserow-form-submissions.mjs",
     "setup:baserow-ops": "node scripts/with-ops-env.mjs node scripts/setup-baserow-ops.mjs",
     "clone:baserow-ops-dev": "node scripts/with-ops-env.mjs node scripts/clone-baserow-ops-db.mjs",
+    "promote:baserow-ops-to-production": "node scripts/with-ops-env.mjs node scripts/promote-baserow-ops-to-production.mjs",
     "clone:baserow-web-dev": "node scripts/with-env.mjs node scripts/clone-baserow-web-db.mjs",
     "clone:baserow-web-staging": "node scripts/with-env.mjs node scripts/clone-baserow-web-db.mjs --target=staging",
     "seed:baserow-ops-menu": "node scripts/with-ops-env.mjs node scripts/seed-baserow-ops-menu.mjs",
