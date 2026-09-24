@@ -228,7 +228,8 @@ function initPage() {
 
   function finishNavClosing() {
     if (!siteNav?.classList.contains("is-closing")) return;
-    siteNav.classList.remove("is-closing");
+    siteNav.classList.remove("is-closing", "is-leaving");
+    document.body.classList.remove("site-nav-open");
     if (navClosingTimer != null) {
       clearTimeout(navClosingTimer);
       navClosingTimer = null;
@@ -236,19 +237,25 @@ function initPage() {
     applyHeaderVisibility();
   }
 
-  function closeSiteNav() {
+  /**
+   * @param {{ hold?: boolean }} [options]
+   * hold: keep the scrim up. Used when a link is about to change pages, so
+   * home cannot show through while the next page loads.
+   */
+  function closeSiteNav({ hold = false } = {}) {
     if (!siteNav) return;
     const wasOpen = siteNav.classList.contains("is-open");
     siteNav.classList.remove("is-open");
     menuBtn?.classList.remove("is-open");
     menuBtn?.setAttribute("aria-expanded", "false");
     menuBtn?.setAttribute("aria-label", "Open menu");
-    document.body.classList.remove("site-nav-open");
 
     if (wasOpen) {
-      // Keep overlay geometry while opacity fades so desktop inline styles
-      // cannot match :not(.is-open) and flash the horizontal bar.
+      // Keep overlay geometry while the words fade, then the scrim.
+      // Desktop inline styles must not match :not(.is-open) during that.
       siteNav.classList.add("is-closing");
+      siteNav.classList.toggle("is-leaving", hold);
+      if (hold) return;
       if (navClosingTimer != null) clearTimeout(navClosingTimer);
       const onEnd = (event) => {
         if (event.target !== siteNav || event.propertyName !== "opacity")
@@ -257,10 +264,15 @@ function initPage() {
         finishNavClosing();
       };
       siteNav.addEventListener("transitionend", onEnd);
+      const reduced = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
       navClosingTimer = setTimeout(() => {
         siteNav.removeEventListener("transitionend", onEnd);
         finishNavClosing();
-      }, 450);
+      }, reduced ? 0 : 850);
+    } else {
+      document.body.classList.remove("site-nav-open");
     }
 
     applyHeaderVisibility();
@@ -274,7 +286,7 @@ function initPage() {
           closeSiteNav();
           return;
         }
-        siteNav.classList.remove("is-closing");
+        siteNav.classList.remove("is-closing", "is-leaving");
         if (navClosingTimer != null) {
           clearTimeout(navClosingTimer);
           navClosingTimer = null;
@@ -306,9 +318,9 @@ function initPage() {
       link.addEventListener(
         "click",
         (event) => {
+          const href = link.getAttribute("href") ?? "";
           // Home hash clicks are already scrolled by the capture listener.
           if (!event.defaultPrevented) {
-            const href = link.getAttribute("href") ?? "";
             if (href.startsWith("#") && href.length > 1) {
               const sectionId = decodeURIComponent(href.slice(1));
               const target = document.getElementById(sectionId);
@@ -328,6 +340,45 @@ function initPage() {
                 });
               }
             }
+          }
+          const leavesPage =
+            Boolean(href) &&
+            !href.startsWith("#") &&
+            !href.startsWith("mailto:") &&
+            !href.startsWith("tel:");
+          const plainClick =
+            event.button === 0 &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            !event.shiftKey &&
+            !event.altKey;
+          if (
+            leavesPage &&
+            plainClick &&
+            !event.defaultPrevented &&
+            siteNav.classList.contains("is-open")
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeSiteNav({ hold: true });
+            const reduced = window.matchMedia(
+              "(prefers-reduced-motion: reduce)",
+            ).matches;
+            const go = () => {
+              if (link.hasAttribute("data-astro-reload")) {
+                location.assign(href);
+                return;
+              }
+              import("astro:transitions/client")
+                .then(({ navigate }) => navigate(href))
+                .catch(() => {
+                  siteNav.classList.remove("is-leaving");
+                  location.assign(href);
+                });
+            };
+            if (reduced) go();
+            else window.setTimeout(go, 400);
+            return;
           }
           closeSiteNav();
         },

@@ -28,6 +28,12 @@ interface Props {
    * Subpage: wordmark waits for scroll. The hamburger stays either way.
    */
   collapsed?: boolean;
+  /**
+   * Home: the hero already shows the wordmark. Mark this in the first HTML
+   * so the bar logo is hidden before paint. Adding the class from script
+   * after paint runs the slide-away transition.
+   */
+  awaitsHero?: boolean;
   logoHref?: string;
   /** Used to drop the current route from the other pages. */
   pathname?: string;
@@ -38,6 +44,7 @@ const {
   showMenuTease = false,
   items,
   collapsed = false,
+  awaitsHero = false,
   logoHref = collapsed ? "/" : "#hero",
   pathname = Astro.url.pathname,
 } = Astro.props;
@@ -61,7 +68,11 @@ const overlayOnly = pageLinks.length > 6;
 ---
 
 <header
-  class:list={["site-header", collapsed && "site-header--collapsed"]}
+  class:list={[
+    "site-header",
+    collapsed && "site-header--collapsed",
+    awaitsHero && "awaits-hero",
+  ]}
   id="site-header"
 >
   <a

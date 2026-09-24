@@ -3,6 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  initHeroReveal,
   restartEnterStaggerAuto,
   whenViewTransitionSettled,
 } from "./hero-reveal.js";
@@ -66,6 +67,43 @@ describe("hero reveal after view transitions", () => {
     // Either CSS animation restarted, or force-visible fallback applied.
     // With fonts-ready restored from document.fonts.status === loaded, restart runs.
     expect(logo.style.animation).toBe("");
+  });
+
+  function watchAnimation(logo) {
+    let animationValue = "";
+    Object.defineProperty(logo.style, "animation", {
+      configurable: true,
+      get() {
+        return animationValue;
+      },
+      set(value) {
+        animationValue = value;
+      },
+    });
+    return () => animationValue;
+  }
+
+  it("does not replay the wordmark fade on the initial load", () => {
+    document.documentElement.classList.add("fonts-ready");
+    const logo = document.querySelector(".hero-logo");
+    const animation = watchAnimation(logo);
+
+    initHeroReveal();
+
+    expect(animation()).toBe("");
+  });
+
+  it("restarts the wordmark fade after a view-transition swap", async () => {
+    document.documentElement.classList.add("fonts-ready");
+    document.getAnimations = vi.fn(() => []);
+    const logo = document.querySelector(".hero-logo");
+    const animation = watchAnimation(logo);
+
+    document.dispatchEvent(new Event("astro:after-swap"));
+    initHeroReveal();
+    await whenViewTransitionSettled();
+
+    expect(animation()).toBe("none");
   });
 
   it("resolves after two frames when no view-transition animations are running", async () => {

@@ -31,7 +31,11 @@ const { cocktailGalleryEnabled } = await fetchSiteSettings();
   )
 }
 
-<Header features={features} showMenuTease={features.showMenuTease} />
+<Header
+  features={features}
+  showMenuTease={features.showMenuTease}
+  awaitsHero
+/>
 <main>
   <Hero />
   <Story mode={mode} />

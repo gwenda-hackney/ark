@@ -173,12 +173,14 @@ html.is-scrollbar-dragging {
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  /* Same duration and ease so the two pages cross, instead of the old one
+     dropping out before the new one has arrived. */
   ::view-transition-old(root) {
-    animation: gw-page-out 0.28s var(--ease-out) both;
+    animation: gw-page-out 0.48s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
   }
 
   ::view-transition-new(root) {
-    animation: gw-page-in 0.38s var(--ease-smooth) both;
+    animation: gw-page-in 0.48s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
   }
 }
 
@@ -460,7 +462,11 @@ a:not(.btn):hover {
 }
 
 .section {
-  padding: 6rem 0;
+  --section-pad-top: 6rem;
+  padding: var(--section-pad-top) 0;
+  /* Land the first line just under the bar. Padding already offsets content
+     inside the section, so only the shortfall against the header remains. */
+  scroll-margin-top: calc(var(--header-height) + 1.25rem - var(--section-pad-top));
 }
 
 /* Buttons */
@@ -816,7 +822,8 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   pointer-events: auto;
 }
 
-/* While fading out, keep overlay layout so desktop inline rules cannot match. */
+/* While fading out, keep overlay layout so desktop inline rules cannot match.
+   Words fade first. The scrim waits until they are gone. */
 .site-header-nav.is-closing {
   inset: 0;
   top: 0;
@@ -838,6 +845,17 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   pointer-events: none;
   transform: none;
   animation: none;
+  transition:
+    opacity 0.4s var(--ease-out) 0.4s,
+    visibility 0s linear 0.8s;
+}
+
+/* Leaving for another page: words fade, scrim stays so home cannot show through
+   while the next page is loading. The page crossfade removes the scrim. */
+.site-header-nav.is-closing.is-leaving {
+  opacity: 1;
+  visibility: visible;
+  transition: none;
 }
 
 .site-header-nav a {
@@ -900,9 +918,24 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   background: var(--color-gold);
 }
 
-.site-header-nav.is-open .site-nav-label,
-.site-header-nav.is-closing .site-nav-label {
+.site-header-nav.is-open .site-nav-label {
   opacity: 1;
+}
+
+.site-header-nav.is-closing a,
+.site-header-nav.is-closing .site-nav-label {
+  opacity: 0;
+  transform: none;
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header-nav,
+  .site-header-nav.is-closing,
+  .site-header-nav a,
+  .site-nav-label {
+    transition: none;
+  }
 }
 
 .site-nav-group--site {
@@ -1464,7 +1497,8 @@ html.fonts-ready .thanks {
 
 /* Story */
 .story {
-  padding: 5rem 0;
+  --section-pad-top: 5rem;
+  padding: var(--section-pad-top) 0;
   background:
     radial-gradient(
       ellipse 90% 55% at 50% 0%,
@@ -2379,7 +2413,8 @@ html.fonts-ready .thanks {
 /* Signup */
 .signup {
   position: relative;
-  padding: 5.5rem 0 6.5rem;
+  --section-pad-top: 5.5rem;
+  padding: var(--section-pad-top) 0 6.5rem;
   background: var(--color-bg-card);
 }
 
@@ -7211,6 +7246,7 @@ html.navigation-restore #rsvp-loading {
   }
 
   .story-team {
+    --section-pad-top: 3rem;
     margin-top: 3rem;
     padding-top: 3rem;
   }
@@ -7220,11 +7256,13 @@ html.navigation-restore #rsvp-loading {
   }
 
   .menu-tease + .what-we-do {
+    --section-pad-top: 3rem;
     padding-top: 3rem;
   }
 
   .menu-tease + .story-team,
   .what-we-do + .story-team {
+    --section-pad-top: 3rem;
     margin-top: 0;
     padding-top: 3rem;
   }
