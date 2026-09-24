@@ -270,7 +270,7 @@ function initPage() {
       navClosingTimer = setTimeout(() => {
         siteNav.removeEventListener("transitionend", onEnd);
         finishNavClosing();
-      }, reduced ? 0 : 850);
+      }, reduced ? 0 : 560);
     } else {
       document.body.classList.remove("site-nav-open");
     }
@@ -377,7 +377,7 @@ function initPage() {
                 });
             };
             if (reduced) go();
-            else window.setTimeout(go, 400);
+            else window.setTimeout(go, 200);
             return;
           }
           closeSiteNav();

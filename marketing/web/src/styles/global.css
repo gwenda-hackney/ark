@@ -846,8 +846,8 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   transform: none;
   animation: none;
   transition:
-    opacity 0.4s var(--ease-out) 0.4s,
-    visibility 0s linear 0.8s;
+    opacity 0.28s var(--ease-out) 0.2s,
+    visibility 0s linear 0.48s;
 }
 
 /* Leaving for another page: words fade, scrim stays so home cannot show through
@@ -927,6 +927,7 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   opacity: 0;
   transform: none;
   transition-delay: 0s;
+  transition-duration: 0.18s;
 }
 
 @media (prefers-reduced-motion: reduce) {
