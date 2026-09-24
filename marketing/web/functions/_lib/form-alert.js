@@ -1,4 +1,5 @@
 import { createLogger, serializeError } from "./log.js";
+import { isGmailConfigured, sendGmail } from "./gmail-send.js";
 
 const ALERT_EVENTS = new Set([
   "form_store_failed",
@@ -56,25 +57,15 @@ export function formatFormAlertEmail({ event, extra = {} }) {
 
 export async function sendAlertEmail(env, { event, extra = {} }, deps = {}) {
   const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
-  const host = env.SMTP_HOST?.trim();
   const from =
     env.SMTP_FROM?.trim() || formatFromAddress(env.SMTP_USER?.trim());
-  const user = env.SMTP_USER?.trim() ?? "";
-  const password = (env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
-  if (!host || !from || !to || !user || !password) {
+  if (!from || !to || !isGmailConfigured(env)) {
     return { ok: false, error: "Alert email is not configured." };
   }
 
   const { subject, text } = formatFormAlertEmail({ event, extra });
-  const mailer = deps.nodemailer ?? (await import("nodemailer"));
-  const port = Number(env.SMTP_PORT?.trim() || "587");
-  const transport = mailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass: password },
-  });
-  await transport.sendMail({ from, to, subject, text });
+  const send = deps.sendGmail ?? sendGmail;
+  await send(env, { from, to, subject, text });
   return { ok: true };
 }
 

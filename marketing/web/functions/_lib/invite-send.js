@@ -9,6 +9,7 @@ import {
 import { ensureGuestToken, fetchGuestsForEvent } from "./event-guests.js";
 import { fetchEventHeroImageUrl } from "./sanity-event.js";
 import { resolveSmtpFrom, SMTP_PURPOSE } from "./smtp-from.js";
+import { isGmailConfigured, sendGmail } from "./gmail-send.js";
 
 const GRAPH_BASE = "https://graph.instagram.com/v21.0";
 
@@ -124,25 +125,12 @@ function inviteEmailHtml(bodyText, inviteUrl, imageUrl) {
 }
 
 export async function sendInviteEmail(env, to, subject, bodyText, inviteUrl, imageUrl) {
-  const host = env.SMTP_HOST?.trim();
   const from = resolveSmtpFrom(env, SMTP_PURPOSE.INVITES);
-  if (!host || !from) {
-    throw new Error("SMTP is not configured — use npm run event-invites -- --send locally.");
+  if (!from || !isGmailConfigured(env)) {
+    throw new Error("Mail is not configured — use npm run event-invites -- --send locally.");
   }
 
-  const nodemailer = await import("nodemailer");
-  const port = Number(env.SMTP_PORT?.trim() || "587");
-  const user = env.SMTP_USER?.trim() ?? "";
-  const password = env.SMTP_PASSWORD?.trim() ?? "";
-
-  const transport = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: user && password ? { user, pass: password } : undefined,
-  });
-
-  await transport.sendMail({
+  await sendGmail(env, {
     from,
     to,
     subject,
