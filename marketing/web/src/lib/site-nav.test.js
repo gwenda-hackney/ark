@@ -56,6 +56,7 @@ describe("artistNavItems", () => {
 describe("homeAnchorItems", () => {
   it("lists this page's sections, with the join link last", () => {
     expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.href)).toEqual([
+      "#hero",
       "#story",
       "#menu",
       "#what-we-do",
@@ -76,7 +77,7 @@ describe("homeAnchorItems", () => {
       homeAnchorItems({ showTeam: true, showGallery: true }).map(
         (item) => item.href,
       ),
-    ).toEqual(["#story", "#what-we-do", "#team", "#glimpse", "#list"]);
+    ).toEqual(["#hero", "#story", "#what-we-do", "#team", "#glimpse", "#list"]);
     expect(homeAnchorItems().some((item) => item.href === "#team")).toBe(false);
     expect(homeAnchorItems().some((item) => item.href === "#menu")).toBe(false);
   });
@@ -87,7 +88,7 @@ describe("sitePageLinks", () => {
     expect(sitePageLinks("/").map((item) => item.href)).toEqual([
       "/menu",
       "/whats-on",
-      "/artists",
+      "/artists/current",
       "/contact",
     ]);
   });
@@ -109,12 +110,22 @@ describe("sitePageLinks", () => {
     expect(
       sitePageLinks("/whats-on").some((item) => item.href === "/whats-on"),
     ).toBe(false);
+    expect(
+      sitePageLinks("/artists/current").some(
+        (item) => item.href === "/artists/current",
+      ),
+    ).toBe(false);
+    expect(
+      sitePageLinks("/artists/ada").some(
+        (item) => item.href === "/artists/current",
+      ),
+    ).toBe(true);
   });
 
   it("omits Menu when the home header does not show it", () => {
     expect(sitePageLinks("/", { showMenu: false }).map((item) => item.href)).toEqual([
       "/whats-on",
-      "/artists",
+      "/artists/current",
       "/contact",
     ]);
   });

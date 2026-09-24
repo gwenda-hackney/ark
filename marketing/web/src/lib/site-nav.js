@@ -47,6 +47,7 @@ export function homeAnchorItems({
   signupLabel = "Join the experience",
 } = {}) {
   return [
+    { href: "#hero", label: "Arrival" },
     { href: "#story", label: "Story" },
     ...(showMenu ? [{ href: "#menu", label: "What we serve" }] : []),
     { href: "#what-we-do", label: "What we do" },
@@ -68,7 +69,7 @@ export function sitePageLinks(pathname = "/", { showMenu = true } = {}) {
   return [
     ...(showMenu ? [{ href: "/menu", label: "Menu" }] : []),
     { href: "/whats-on", label: "What's on" },
-    { href: "/artists", label: "Featured artist" },
+    { href: "/artists/current", label: "Featured artist" },
     { href: "/contact", label: "Contact" },
   ].filter((item) => navPathname(item.href) !== current);
 }

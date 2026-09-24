@@ -12,7 +12,7 @@ const indexablePaths = [
   "/events/",
   "/menu/",
   "/whats-on/schedule/",
-  "/artists/",
+  "/artists/current/",
   "/acknowledgements/",
 ];
 

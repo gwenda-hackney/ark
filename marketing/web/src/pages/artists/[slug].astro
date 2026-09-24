@@ -1,0 +1,23 @@
+---
+import ArtistPage from "../../components/ArtistPage.astro";
+import { fetchFeaturedArtists } from "../../lib/featured-artist.js";
+
+export async function getStaticPaths() {
+  try {
+    const featured = await fetchFeaturedArtists();
+    return (featured.previous || [])
+      .filter((artist) => artist.slug)
+      .map((artist) => ({
+        params: { slug: artist.slug },
+        props: { artist, now: featured.current },
+      }));
+  } catch (error) {
+    console.warn("Artist archive paths skipped:", error);
+    return [];
+  }
+}
+
+const { artist, now } = Astro.props;
+---
+
+<ArtistPage artist={artist} now={now} />
