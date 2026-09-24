@@ -1,8 +1,8 @@
 name: Deploy to Cloudflare Pages
 description: Build and deploy the static site to a Cloudflare Pages project
 
-# SMTP_PASSWORD is pushed on every deploy from Bitwarden (env:web:pull).
-# Other runtime secrets stay on web-secrets.yml.
+# Runtime Pages secrets are written by sync-pages-secrets.mjs from the job env
+# (env:web:pull and env:ops:pull). secrets-profile picks staging vs production.
 
 inputs:
   pages-project:
@@ -62,8 +62,8 @@ inputs:
     description: Ops Baserow database id for the featured artist at build time
     required: false
     default: ""
-  smtp-password:
-    description: Gmail app password from Bitwarden SM. Written to Pages on deploy.
+  secrets-profile:
+    description: staging or production. Passed to sync-pages-secrets.mjs.
     required: true
 
 outputs:
@@ -128,41 +128,13 @@ runs:
           cp "marketing/web/${{ inputs.wrangler-config }}" marketing/web/wrangler.toml
         fi
 
-    - name: Sync SMTP password
+    - name: Sync Pages secrets from Bitwarden
       shell: bash
-      working-directory: marketing/web
       env:
-        SMTP_PASSWORD: ${{ inputs.smtp-password }}
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
-      run: |
-        cleaned="$(printf '%s' "$SMTP_PASSWORD" | tr -d '[:space:]')"
-        if [ "${#cleaned}" -ne 16 ]; then
-          echo "SMTP_PASSWORD must be a 16-character Google app password (got ${#cleaned})." >&2
-          exit 1
-        fi
-        for deployment_env in production preview; do
-          printf '%s' "$cleaned" | npx wrangler pages secret put SMTP_PASSWORD \
-            --project-name "$PAGES_PROJECT_NAME" \
-            --env "$deployment_env"
-        done
-
-    - name: Sync featured artist Baserow token
-      if: inputs.baserow-ops-api-key != ''
-      shell: bash
-      working-directory: marketing/web
-      env:
-        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
-        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
-        PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
-      run: |
-        for deployment_env in production preview; do
-          printf '%s' "$BASEROW_OPS_API_KEY" | npx wrangler pages secret put BASEROW_OPS_API_KEY \
-            --project-name "$PAGES_PROJECT_NAME" \
-            --env "$deployment_env"
-        done
+      run: node marketing/web/scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secrets-profile }}"
 
     - name: Deploy to Cloudflare Pages
       id: pages_deploy
