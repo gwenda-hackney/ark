@@ -1,5 +1,6 @@
 ---
 import { siteConfig } from "../config/site";
+import { artistRunLabel } from "../lib/artist-run.js";
 import { fetchFeaturedArtists } from "../lib/featured-artist.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 import {
@@ -27,6 +28,7 @@ const nextWhen = nextNight ? formatShortEventDate(nextNight.date) : "";
 
 const profile = String(artist?.profile || "").trim();
 const artistName = String(artist?.name || "").trim();
+const artistRun = artistRunLabel(artist?.startMonth, artist?.endMonth);
 const artistBody = profile
   ? /[.!?]$/.test(profile)
     ? profile
@@ -44,26 +46,26 @@ const artistBody = profile
     </header>
 
     <div class="what-we-do-grid">
-      <a class="what-we-do-path reveal" href="/whats-on">
+      <article class="what-we-do-path reveal" data-home-next>
         <h3>{copy.whatWeDoEventsHeading}</h3>
         <p>{copy.whatWeDoEventsBody}</p>
-        {
-          nextNight && nextWhen && (
-            <p class="what-we-do-next">
-              <span class="what-we-do-next-name">{nextNight.title}</span>
-              <span class="what-we-do-next-meta">{nextWhen}</span>
-            </p>
-          )
-        }
-      </a>
-      <a class="what-we-do-path reveal" href="/artists/current">
+        <p class="what-we-do-next-name">{nextNight?.title || ""}</p>
+        <p class="what-we-do-next-meta">
+          {
+            nextNight && nextWhen && (
+              <time datetime={nextNight.date}>{nextWhen}</time>
+            )
+          }
+        </p>
+        <a class="what-we-do-cta" href="/whats-on">What's on</a>
+      </article>
+      <article class="what-we-do-path reveal" data-home-artist>
         <h3>{copy.whatWeDoArtistHeading}</h3>
         <p>{artistBody}</p>
-        <p class="what-we-do-next">
-          {artistName && <span class="what-we-do-next-name">{artistName}</span>}
-          <span class="what-we-do-next-meta">{copy.whatWeDoArtistLink}</span>
-        </p>
-      </a>
+        <p class="what-we-do-next-name">{artistName}</p>
+        <p class="what-we-do-next-meta">{artistRun}</p>
+        <a class="what-we-do-cta" href="/artists/current">Featured artist</a>
+      </article>
     </div>
   </div>
 </section>

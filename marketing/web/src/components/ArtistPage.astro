@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHeader from "./PageHeader.astro";
 import Subpage from "./Subpage.astro";
 import { siteConfig } from "../config/site";
 import {
@@ -44,8 +45,12 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
               </figure>
             ) : null}
             <div class="artist-intro-copy">
-              <p class="section-eyebrow">{archived ? "Previously" : "The wall"}</p>
-              <h1>{artist.name}</h1>
+              <PageHeader
+                eyebrow={archived ? "Previously" : "The wall"}
+                title={artist.name}
+                align={artist.portrait ? "beside" : "center"}
+                animate={false}
+              />
               {artist.profile ? <p class="artist-lead">{artist.profile}</p> : null}
               <p class="artist-programme">
                 We collaborate with local artists, and give them the wall. A
@@ -163,14 +168,12 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
           ) : null}
         </>
       ) : (
-        <header class="section-header events-header artist-header reveal">
-          <p class="section-eyebrow">The wall</p>
-          <h1>Featured artist</h1>
+        <PageHeader eyebrow="The wall" title="Featured artist">
           <p>
             We collaborate with local artists, and give them the wall. A place
             to show the work, here in the room.
           </p>
-        </header>
+        </PageHeader>
         <p class="artist-lead artist-waiting">The next artist will hang here.</p>
       )
     }

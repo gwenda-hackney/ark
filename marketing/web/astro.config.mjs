@@ -22,6 +22,7 @@ import {
   buildSeriesDetail,
   buildWhatsOnHome,
 } from "./functions/_lib/event-series.js";
+import { fetchFeaturedArtists } from "./src/lib/featured-artist.js";
 import { verifyEventAdminRequest } from "./functions/_lib/event-admin-auth.js";
 import {
   fetchGuestsForEvent,
@@ -144,6 +145,11 @@ const adminEnv = () => ({
   SMTP_FROM: env.SMTP_FROM,
   INSTAGRAM_ACCESS_TOKEN: env.INSTAGRAM_ACCESS_TOKEN,
   INSTAGRAM_BUSINESS_ACCOUNT_ID: env.INSTAGRAM_BUSINESS_ACCOUNT_ID,
+  BASEROW_OPS_API_KEY:
+    process.env.BASEROW_OPS_API_KEY || env.BASEROW_OPS_API_KEY,
+  BASEROW_OPS_DATABASE_ID:
+    process.env.BASEROW_OPS_DATABASE_ID || env.BASEROW_OPS_DATABASE_ID,
+  BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
 });
 
 function sendJson(res, status, data, extraHeaders = {}) {
@@ -634,6 +640,33 @@ function devWhatsOnApi() {
   };
 }
 
+/** Dev-only stub for /api/featured-artist */
+function devFeaturedArtistApi() {
+  return {
+    name: "dev-featured-artist-api",
+    configureServer(server) {
+      server.middlewares.use("/api/featured-artist", async (req, res, next) => {
+        if (req.method !== "GET") {
+          next();
+          return;
+        }
+        const featured = await fetchFeaturedArtists(adminEnv());
+        const current = featured.current;
+        sendJson(res, 200, {
+          ok: true,
+          artist: current
+            ? {
+                name: current.name,
+                startMonth: current.startMonth || "",
+                endMonth: current.endMonth || "",
+              }
+            : null,
+        });
+      });
+    },
+  };
+}
+
 /** Dev-only stub for /api/event-admin/* */
 function devEventAdminApi() {
   return {
@@ -831,6 +864,7 @@ export default defineConfig({
       devTicketApi(),
       devEventsApi(),
       devWhatsOnApi(),
+      devFeaturedArtistApi(),
       devEventAdminApi(),
       ...(gatePlugin ? [gatePlugin] : []),
     ],

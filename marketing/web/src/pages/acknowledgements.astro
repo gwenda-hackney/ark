@@ -12,15 +12,17 @@ const { title, description } = siteConfig.seo.acknowledgements;
 <BaseLayout title={title} description={description}>
   <link rel="prefetch" href="/" slot="head" />
 
-  <Subpage class="credit-page" innerClass="credit-inner" navItems={withHome()}>
-    <header class="credit-header reveal">
-      <p class="section-eyebrow">The neighbourhood</p>
-      <h1>Acknowledgements</h1>
-      <p>
-        People from the Wick we work with. Named here so you can go and find
-        them.
-      </p>
-    </header>
+  <Subpage
+    class="credit-page"
+    innerClass="credit-inner"
+    navItems={withHome()}
+    eyebrow="The neighbourhood"
+    title="Acknowledgements"
+  >
+    <p slot="lead">
+      People from the Wick we work with. Named here so you can go and find
+      them.
+    </p>
     <CreditList items={acknowledgements} />
   </Subpage>
 </BaseLayout>

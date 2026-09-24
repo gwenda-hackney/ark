@@ -16,12 +16,10 @@ const { contactPage } = siteConfig.copy;
     class="contact-list-page"
     innerClass="contact-list-inner"
     href="/contact"
+    eyebrow={contactPage.listEyebrow}
+    title={contactPage.listHeading}
   >
-    <header class="contact-list-header reveal">
-      <p class="section-eyebrow">{contactPage.listEyebrow}</p>
-      <h1>{contactPage.listHeading}</h1>
-      <p>{contactPage.listLead}</p>
-    </header>
+    <p slot="lead">{contactPage.listLead}</p>
 
     <div class="contact-list-form reveal reveal-stagger" style="--reveal-delay: 0.1s">
       <EmailSignup mode="promo" embedded />

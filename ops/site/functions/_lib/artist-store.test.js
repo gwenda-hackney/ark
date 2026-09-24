@@ -92,6 +92,8 @@ describe("listArtists / createArtist / deleteArtist", () => {
           assert.equal(body.Slot, "current");
           assert.equal(body.Name, "New Guest");
           assert.equal(body["Artist name"], "Rita");
+          assert.equal(body["Start month"], "9");
+          assert.equal(body["End month"], "10");
           assert.equal(body.Website, "https://rita.example");
           return jsonResponse({
             id: 9,
@@ -111,7 +113,11 @@ describe("listArtists / createArtist / deleteArtist", () => {
       profile: "Painter.",
       bio: "",
       slot: "current",
+      startMonth: "September",
+      endMonth: "October",
     });
+    assert.equal(created.startMonth, "9");
+    assert.equal(created.endMonth, "10");
     assert.equal(created.id, "9");
     assert.equal(created.slot, "current");
     assert.equal(created.artistName, "Rita");

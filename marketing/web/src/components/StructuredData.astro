@@ -73,12 +73,24 @@ const structuredData = {
         {
           "@type": "SiteNavigationElement",
           position: 3,
-          name: "Events",
+          name: "What's on",
           url: eventsUrl,
         },
         {
           "@type": "SiteNavigationElement",
           position: 4,
+          name: "Featured artist",
+          url: new URL("/artists/current/", domain).href,
+        },
+        {
+          "@type": "SiteNavigationElement",
+          position: 5,
+          name: "Contact",
+          url: new URL("/contact/", domain).href,
+        },
+        {
+          "@type": "SiteNavigationElement",
+          position: 6,
           name: siteConfig.copy.signupNavCta,
           url: `${domain}/#list`,
         },

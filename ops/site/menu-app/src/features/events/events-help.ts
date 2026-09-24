@@ -7,7 +7,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Schedule",
-		body: "Schedule lists upcoming nights by week. Calendar shows the same nights on a month grid. Open a night for guest artist, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults. Saving a series or a night also updates the Google calendar.",
+		body: "Schedule lists upcoming nights by week. Calendar shows the same nights on a month grid. Open a night for guest artist, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults.",
 	},
 	{
 		title: "Series and nights",
@@ -39,11 +39,15 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Default hero",
-		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Save, then Update preview.",
+		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. The original file is also saved in that series Drive folder. Save, then Update preview.",
 	},
 	{
 		title: "Gallery",
 		body: "Images is the Drive gallery for this event. Those photos are not the What's on flyer. The flyer is the photo on Details.",
+	},
+	{
+		title: "Google Calendar",
+		body: "Saving a series or a night updates Google Calendar. Update calendar on a saved series sends the upcoming nights again without saving, and without publishing What's on. Save first if the series has unsaved edits.",
 	},
 	{
 		title: "Publish",

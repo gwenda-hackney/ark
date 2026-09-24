@@ -1,10 +1,29 @@
 import { diaryGroups } from "./diary-groups.js";
 
-const homeLink = { href: "/", label: "Home" };
-
-/** Every subpage menu starts with Home. Then this page's anchors and subpages. */
+/**
+ * This page's anchors and child pages. The wordmark goes home.
+ * Back is a separate control, so Home is not a nav item.
+ */
 export function withHome(items = []) {
-  return [homeLink, ...items];
+  return items.filter((item) => navPathname(item?.href) !== "/");
+}
+
+/**
+ * One level up, when someone opens a page with no history.
+ * `/artists` and `/events` redirect, so those parents skip the redirect.
+ *
+ * @param {string} [pathname]
+ */
+export function parentHref(pathname = "/") {
+  const path = navPathname(pathname || "/");
+  if (!path || path === "/") return "";
+  if (path === "/artists/current") return "/";
+  const parts = path.split("/").filter(Boolean);
+  if (parts[0] === "artists") return "/artists/current";
+  if (parts.length === 1) return parts[0] === "events" ? "/whats-on" : "/";
+  const parent = `/${parts.slice(0, -1).join("/")}`;
+  if (parent === "/events") return "/whats-on";
+  return parent;
 }
 
 /**
@@ -100,11 +119,11 @@ export function diarySectionFlags(nights) {
 export function whatsOnNavItems(nights = []) {
   const { showRegular, showSpecial } = diarySectionFlags(nights);
   return withHome([
-    ...(showRegular
-      ? [{ href: "#series", label: diaryGroups.series.label }]
-      : []),
     ...(showSpecial
       ? [{ href: "#special", label: diaryGroups.special.label }]
+      : []),
+    ...(showRegular
+      ? [{ href: "#series", label: diaryGroups.series.label }]
       : []),
     { href: "/whats-on/schedule", label: "Full schedule" },
   ]);

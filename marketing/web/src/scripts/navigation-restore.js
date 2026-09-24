@@ -52,6 +52,42 @@ export function settleAnimations() {
 let hooksBound = false;
 /** Set in before-preparation; survives the html class wipe during swap. */
 let pendingRestore = false;
+/** Forward visits should open at the top. A carried scroll offset lands on the last anchor. */
+let pendingScrollPin = false;
+let scrollPin = 0;
+
+/**
+ * Back/forward keeps the old offset. A new page with no hash starts at the top.
+ *
+ * @param {string | undefined} navigationType
+ * @param {string | undefined} href
+ */
+export function shouldPinScrollTop(navigationType, href) {
+  if (navigationType === "traverse") return false;
+  const value = String(href || "");
+  const hash = value.includes("#") ? value.slice(value.indexOf("#")) : "";
+  return hash.length < 2;
+}
+
+function pinScrollTop() {
+  const root = document.documentElement;
+  const previous = root.style.scrollBehavior;
+  root.style.scrollBehavior = "auto";
+  window.scrollTo(0, 0);
+  root.style.scrollBehavior = previous;
+}
+
+/** Chrome can put the previous page's offset back when the crossfade ends. */
+function scheduleScrollPin() {
+  const pin = ++scrollPin;
+  pinScrollTop();
+  const finish = () => {
+    if (pin !== scrollPin || location.hash.length > 1) return;
+    pinScrollTop();
+  };
+  requestAnimationFrame(() => requestAnimationFrame(finish));
+  window.setTimeout(finish, 560);
+}
 
 export function initNavigationRestore() {
   // Belt-and-suspenders: the inline <head> script sets this before paint, but
@@ -77,9 +113,14 @@ export function initNavigationRestore() {
   document.addEventListener("astro:before-preparation", (event) => {
     if (event.navigationType === "traverse") {
       pendingRestore = true;
+      pendingScrollPin = false;
       markRestore();
     } else {
       pendingRestore = false;
+      pendingScrollPin = shouldPinScrollTop(
+        event.navigationType,
+        event.to?.href,
+      );
       clearRestore();
     }
   });
@@ -91,6 +132,8 @@ export function initNavigationRestore() {
     if (pendingRestore) {
       markRestore();
       settleAnimations();
+    } else if (pendingScrollPin) {
+      scheduleScrollPin();
     }
   });
 }

@@ -11,6 +11,7 @@ export { default as EditorBackBar } from "./EditorBackBar.svelte";
 export { default as Field } from "./Field.svelte";
 export { default as Tip } from "./Tip.svelte";
 export { default as HighlightText } from "./HighlightText.svelte";
+export { default as PageDrawer } from "./PageDrawer.svelte";
 export { default as PageHeader } from "./PageHeader.svelte";
 export { default as PageHelp } from "./PageHelp.svelte";
 export { default as HelpDrawer } from "./HelpDrawer.svelte";

@@ -1,6 +1,7 @@
 ---
 import Header, { type NavItem } from "./Header.astro";
-import { withHome } from "../lib/site-nav.js";
+import PageHeader from "./PageHeader.astro";
+import { parentHref, withHome } from "../lib/site-nav.js";
 
 interface Props {
   /** Extra classes on `<main>` for page-specific layout hooks. */
@@ -27,10 +28,20 @@ interface Props {
   /** Hide logo + back (rare). */
   showChrome?: boolean;
   /**
-   * This page's menu: Home, then anchors and subpages.
+   * This page's menu: anchors and subpages.
    * Do not pass the home page links.
    */
   navItems?: NavItem[];
+  /** Centered page title. Omit on layouts that place the title themselves. */
+  title?: string;
+  /** Small label above the title. */
+  eyebrow?: string;
+  /**
+   * `center` for diary, menu, contact, and legal pages.
+   * `start` for a left-aligned title.
+   * `beside` for a title that sits next to a portrait.
+   */
+  titleAlign?: "center" | "start" | "beside";
 }
 
 const {
@@ -41,9 +52,13 @@ const {
   flush = false,
   showChrome = true,
   navItems = withHome(),
+  title,
+  eyebrow,
+  titleAlign = "center",
 } = Astro.props;
 
 const isSplit = layout === "split" || flush;
+const backHref = parentHref(Astro.url.pathname);
 ---
 
 <main class:list={["subpage", isSplit && "subpage--split", className]}>
@@ -59,6 +74,20 @@ const isSplit = layout === "split" || flush;
   }
   <slot name="aside" />
   <div class:list={["container", "subpage-inner", innerClass]}>
+    {
+      backHref && (
+        <a href={backHref} class="subpage-back" data-site-back>
+          Back
+        </a>
+      )
+    }
+    {
+      title ? (
+        <PageHeader title={title} eyebrow={eyebrow} align={titleAlign}>
+          <slot name="lead" />
+        </PageHeader>
+      ) : null
+    }
     <slot />
   </div>
 </main>

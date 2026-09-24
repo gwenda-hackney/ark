@@ -4,6 +4,7 @@
  * BASEROW_OPS_API_KEY (filled from .env.ops by with-env when present).
  */
 import { listArtists } from "../../../../ops/site/functions/_lib/artist-store.js";
+import { artistRunLabel } from "./artist-run.js";
 
 function text(value) {
   return String(value || "").trim();
@@ -103,6 +104,9 @@ export function publicArtist(artist) {
     gwenda: publicImages(artist.gwenda),
     slug: text(artist.slug),
     slot: text(artist.slot),
+    startMonth: text(artist.startMonth),
+    endMonth: text(artist.endMonth),
+    runLabel: artistRunLabel(artist.startMonth, artist.endMonth),
   };
 }
 

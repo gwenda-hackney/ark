@@ -55,6 +55,33 @@ export function normalizeArtistSlot(value) {
   return ARTIST_SLOTS.includes(raw) ? raw : "";
 }
 
+const MONTH_NAMES = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
+
+/** Store a month as "1"–"12". Blank stays blank. */
+export function normalizeArtistMonth(value) {
+  const raw = text(value).toLowerCase();
+  if (!raw) return "";
+  const number = Number(raw);
+  if (Number.isInteger(number) && number >= 1 && number <= 12) return String(number);
+  const index = MONTH_NAMES.findIndex(
+    (name) => name.startsWith(raw) && raw.length >= 3,
+  );
+  return index >= 0 ? String(index + 1) : "";
+}
+
 function mapFile(entry) {
   const name = text(entry?.name);
   const label = text(entry?.visible_name) || name;
@@ -84,6 +111,8 @@ export function mapArtist(row) {
     website: parseProductUrl(text(row.Website)) || "",
     profile: text(row.Profile),
     bio: text(row.Bio),
+    startMonth: normalizeArtistMonth(row["Start month"]),
+    endMonth: normalizeArtistMonth(row["End month"]),
     portrait,
     art: filesFrom(row.Art),
     gwenda: filesFrom(row["Gwenda photos"]),
@@ -118,6 +147,12 @@ function fieldsFromInput(input, { slotRequired = true } = {}) {
   }
   const slot = normalizeArtistSlot(input?.slot) || (slotRequired ? "previous" : "");
   if (!slot) fail(400, "Choose current, next, or previous.");
+  const startRaw = text(input?.startMonth);
+  const endRaw = text(input?.endMonth);
+  const startMonth = normalizeArtistMonth(startRaw);
+  const endMonth = normalizeArtistMonth(endRaw);
+  if (startRaw && !startMonth) fail(400, "Choose a start month, or leave it blank.");
+  if (endRaw && !endMonth) fail(400, "Choose an end month, or leave it blank.");
   return {
     Name: name,
     "Artist name": artistName,
@@ -125,6 +160,8 @@ function fieldsFromInput(input, { slotRequired = true } = {}) {
     Website: website,
     Profile: text(input?.profile),
     Bio: text(input?.bio),
+    "Start month": startMonth,
+    "End month": endMonth,
   };
 }
 

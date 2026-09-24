@@ -21,12 +21,10 @@ const contactNav = withHome([
     class="contact-hub"
     innerClass="contact-hub-inner"
     navItems={contactNav}
+    eyebrow={contactPage.eyebrow}
+    title={contactPage.heading}
   >
-    <header class="contact-hub-header reveal">
-      <p class="section-eyebrow">{contactPage.eyebrow}</p>
-      <h1>{contactPage.heading}</h1>
-      <p>{contactPage.lead}</p>
-    </header>
+    <p slot="lead">{contactPage.lead}</p>
 
     <div class="contact-hub-paths">
       <article

@@ -125,6 +125,22 @@ runs:
           cp "marketing/web/${{ inputs.wrangler-config }}" marketing/web/wrangler.toml
         fi
 
+    - name: Sync featured artist Baserow token
+      if: inputs.baserow-ops-api-key != ''
+      shell: bash
+      working-directory: marketing/web
+      env:
+        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
+      run: |
+        for deployment_env in production preview; do
+          printf '%s' "$BASEROW_OPS_API_KEY" | npx wrangler pages secret put BASEROW_OPS_API_KEY \
+            --project-name "$PAGES_PROJECT_NAME" \
+            --env "$deployment_env"
+        done
+
     - name: Deploy to Cloudflare Pages
       id: pages_deploy
       uses: cloudflare/wrangler-action@v3

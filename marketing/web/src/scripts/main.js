@@ -12,7 +12,7 @@ import { initOverlayScrollbars } from "./scrollbar.js";
 import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
 import { currentPageAnchorId, pageAnchorSections } from "./page-anchors.js";
 import { initSchedulePage } from "./schedule.js";
-import { initSeriesPage, initWhatsOnPage } from "./whats-on.js";
+import { initHomeNext, initSeriesPage, initWhatsOnPage } from "./whats-on.js";
 
 /** @type {AbortController | null} */
 let pageAbort = null;
@@ -23,10 +23,61 @@ initNavigationRestore();
 /**
  * Page-scoped UI. Re-runs after Astro View Transitions swap the DOM.
  */
+/** Puts the home contact rule in the gap between the two text blocks. */
+function placeHomeContactRule() {
+  const paths = document.querySelector(".signup .contact-hub-paths");
+  const rule = paths?.querySelector(".contact-hub-rule");
+  const cols = paths?.querySelectorAll(".contact-hub-path");
+  if (!(paths instanceof HTMLElement) || !(rule instanceof HTMLElement) || !cols || cols.length < 2) {
+    return;
+  }
+  if (getComputedStyle(rule).position !== "absolute") {
+    rule.style.left = "";
+    return;
+  }
+  const edge = (col, side) => {
+    let value = side === "right" ? 0 : Infinity;
+    for (const child of col.children) {
+      const box = child.getBoundingClientRect();
+      if (box.width === 0) continue;
+      value = side === "right" ? Math.max(value, box.right) : Math.min(value, box.left);
+    }
+    return value;
+  };
+  const left = edge(cols[0], "right");
+  const right = edge(cols[1], "left");
+  if (!Number.isFinite(left) || !Number.isFinite(right) || right <= left) return;
+  const origin = paths.getBoundingClientRect().left;
+  rule.style.left = `${(left + right) / 2 - origin}px`;
+}
+
 function initPage() {
   pageAbort?.abort();
   pageAbort = new AbortController();
   const { signal } = pageAbort;
+
+  document.querySelectorAll("[data-site-back]").forEach((link) => {
+    link.addEventListener(
+      "click",
+      (event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+        if (window.history.length > 1) {
+          event.preventDefault();
+          window.history.back();
+        }
+      },
+      { signal },
+    );
+  });
 
   const header = document.getElementById("site-header");
   const menuBtn = document.getElementById("site-header-menu-btn");
@@ -71,7 +122,7 @@ function initPage() {
     }
     if (!collapsedNav || !header) return;
     // Slide quick links in once the page title has passed the bar.
-    const title = document.querySelector("main .section-header");
+    const title = document.querySelector("main .page-header, main .section-header");
     const titleBottom = title
       ? title.getBoundingClientRect().bottom + window.scrollY
       : 200;
@@ -91,8 +142,9 @@ function initPage() {
     const anchorSections = pageAnchorSections(siteNav);
     const line = (header?.offsetHeight ?? 0) + 24;
     const atEnd =
+      window.scrollY > 2 &&
       window.scrollY + window.innerHeight >=
-      document.documentElement.scrollHeight - 2;
+        document.documentElement.scrollHeight - 2;
     const currentId = currentPageAnchorId(anchorSections, line, {
       atEnd,
       viewportHeight: window.innerHeight,
@@ -116,10 +168,9 @@ function initPage() {
 
   function applyHeaderVisibility() {
     if (!header) return;
-    const navOpen = siteNav?.classList.contains("is-open") ?? false;
-    // Blur chrome only after the hero — never while the overlay is open
-    // (avoids a different-colored strip above the full menu).
-    const shouldChrome = headerScrollVisible && !navOpen;
+    // Keep the scrolled hairline while the menu is open. Dropping that 1px
+    // border shifts the wordmark.
+    const shouldChrome = headerScrollVisible;
     // The wordmark stays in the bar. Page links still wait until the title
     // has passed, same mark as the frosted chrome.
     header.classList.toggle("scrolled", shouldChrome);
@@ -228,11 +279,13 @@ function initPage() {
 
   /** @type {ReturnType<typeof setTimeout> | null} */
   let navClosingTimer = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let navCoverTimer = null;
 
   function finishNavClosing() {
     if (!siteNav?.classList.contains("is-closing")) return;
     siteNav.classList.remove("is-closing", "is-leaving");
-    document.body.classList.remove("site-nav-open");
+    document.body.classList.remove("site-nav-open", "site-nav-covering");
     if (navClosingTimer != null) {
       clearTimeout(navClosingTimer);
       navClosingTimer = null;
@@ -249,6 +302,10 @@ function initPage() {
     if (!siteNav) return;
     const wasOpen = siteNav.classList.contains("is-open");
     siteNav.classList.remove("is-open");
+    if (navCoverTimer != null) {
+      clearTimeout(navCoverTimer);
+      navCoverTimer = null;
+    }
     menuBtn?.classList.remove("is-open");
     menuBtn?.setAttribute("aria-expanded", "false");
     menuBtn?.setAttribute("aria-label", "Open menu");
@@ -289,22 +346,33 @@ function initPage() {
           closeSiteNav();
           return;
         }
+        if (document.body.classList.contains("site-nav-covering")) {
+          document.body.classList.remove("site-nav-covering");
+          if (navCoverTimer != null) {
+            clearTimeout(navCoverTimer);
+            navCoverTimer = null;
+          }
+          return;
+        }
         siteNav.classList.remove("is-closing", "is-leaving");
         if (navClosingTimer != null) {
           clearTimeout(navClosingTimer);
           navClosingTimer = null;
         }
-        // Force a closed frame so opacity can animate 0 → 1 (re-open during
-        // close, or desktop parked bar, otherwise snaps with no transition).
-        void siteNav.offsetHeight;
-        requestAnimationFrame(() => {
+        // Page and header links fade first. The full menu starts after that.
+        document.body.classList.add("site-nav-covering");
+        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        navCoverTimer = setTimeout(() => {
+          navCoverTimer = null;
+          if (!document.body.classList.contains("site-nav-covering")) return;
+          void siteNav.offsetHeight;
           siteNav.classList.add("is-open");
           menuBtn.classList.add("is-open");
           menuBtn.setAttribute("aria-expanded", "true");
           menuBtn.setAttribute("aria-label", "Close menu");
           document.body.classList.add("site-nav-open");
           applyHeaderVisibility();
-        });
+        }, reduced ? 0 : 280);
       },
       { signal },
     );
@@ -317,33 +385,49 @@ function initPage() {
       { signal },
     );
 
+    /**
+     * Bar links sit outside the overlay. Native hash jumps hide the heading
+     * under the fixed bar, and do nothing when the hash is already set.
+     */
+    function scrollToPageAnchor(link, event) {
+      const href = link.getAttribute("href") ?? "";
+      if (!href.startsWith("#") || href.length < 2 || event.defaultPrevented) {
+        return false;
+      }
+      const sectionId = decodeURIComponent(href.slice(1));
+      const target = document.getElementById(sectionId);
+      if (!target) return false;
+      event.preventDefault();
+      const nextUrl = buildSectionUrl(sectionId);
+      const currentUrl = `${location.pathname}${location.search}${location.hash}`;
+      if (nextUrl !== currentUrl) replacePageUrl(nextUrl);
+      const prefersReduced = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      target.scrollIntoView({
+        behavior: prefersReduced ? "auto" : "smooth",
+        block: "start",
+      });
+      return true;
+    }
+
+    document.querySelectorAll(".site-header-bar a[href^='#']").forEach((link) => {
+      link.addEventListener(
+        "click",
+        (event) => {
+          scrollToPageAnchor(link, event);
+        },
+        { signal },
+      );
+    });
+
     siteNav.querySelectorAll("a").forEach((link) => {
       link.addEventListener(
         "click",
         (event) => {
           const href = link.getAttribute("href") ?? "";
           // Home hash clicks are already scrolled by the capture listener.
-          if (!event.defaultPrevented) {
-            if (href.startsWith("#") && href.length > 1) {
-              const sectionId = decodeURIComponent(href.slice(1));
-              const target = document.getElementById(sectionId);
-              if (target) {
-                event.preventDefault();
-                const nextUrl = buildSectionUrl(sectionId);
-                const currentUrl = `${location.pathname}${location.search}${location.hash}`;
-                if (nextUrl !== currentUrl) {
-                  replacePageUrl(nextUrl);
-                }
-                const prefersReduced = window.matchMedia(
-                  "(prefers-reduced-motion: reduce)",
-                ).matches;
-                target.scrollIntoView({
-                  behavior: prefersReduced ? "auto" : "smooth",
-                  block: "start",
-                });
-              }
-            }
-          }
+          scrollToPageAnchor(link, event);
           const leavesPage =
             Boolean(href) &&
             !href.startsWith("#") &&
@@ -420,8 +504,10 @@ function initPage() {
   // Hero entrance must re-run after View Transitions — Hero.astro's module
   // script only executes the first time that page is visited in the session.
   initHeroReveal();
-  // Local What's on hides the diary until the live read sets data-live.
+  // Baked diary paints first. The live read corrects the clock.
+  // Local hides that bake until data-live is set.
   // Page scripts do not re-run on View Transitions back-nav.
+  initHomeNext();
   initWhatsOnPage();
   initSeriesPage();
   initSchedulePage();
@@ -449,6 +535,9 @@ function initPage() {
     initSignup(signupForm);
   }
   initSignupAnchors();
+  placeHomeContactRule();
+  window.addEventListener("resize", placeHomeContactRule, { signal });
+  document.fonts?.ready.then(placeHomeContactRule);
 
   if (
     document.getElementById("contact-form") ||

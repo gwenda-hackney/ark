@@ -2,13 +2,20 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { readsLiveDiary, initWhatsOnPage } from "./whats-on.js";
+import {
+  applyHomeArtist,
+  applyHomeNext,
+  earliestDiaryNight,
+  initHomeNext,
+  readsLiveDiary,
+  initWhatsOnPage,
+} from "./whats-on.js";
 
 describe("readsLiveDiary", () => {
-  it("refreshes the diary only in local dev", () => {
+  it("refreshes the diary on every deployed site", () => {
     expect(readsLiveDiary("local")).toBe(true);
-    expect(readsLiveDiary("staging")).toBe(false);
-    expect(readsLiveDiary("production")).toBe(false);
+    expect(readsLiveDiary("staging")).toBe(true);
+    expect(readsLiveDiary("production")).toBe(true);
     expect(readsLiveDiary("")).toBe(false);
   });
 });
@@ -102,14 +109,14 @@ describe("initWhatsOnPage", () => {
     const labels = [
       ...(content?.querySelectorAll(".whats-on-group-label") || []),
     ].map((node) => node.textContent);
-    expect(labels).toEqual(["Regular events", "Special events"]);
+    expect(labels).toEqual(["Special events", "Regular events"]);
     expect(
       [...(content?.querySelectorAll(".whats-on-group-tagline") || [])].map(
         (node) => node.textContent,
       ),
     ).toEqual([
-      "Nights that keep their evening, and return.",
       "A single date, announced once.",
+      "Nights that keep their evening, and return.",
     ]);
     expect(
       document.getElementById("series")?.classList.contains("whats-on-divider"),
@@ -122,7 +129,7 @@ describe("initWhatsOnPage", () => {
     const titles = [...(content?.querySelectorAll(".event-title") || [])].map(
       (node) => node.textContent,
     );
-    expect(titles).toEqual(["Radio Gwenda", "Amos Mas"]);
+    expect(titles).toEqual(["Amos Mas", "Radio Gwenda"]);
   });
 
   it("keeps the night schedule on the card after the live refresh", async () => {
@@ -216,5 +223,89 @@ describe("initWhatsOnPage", () => {
       expect(content?.dataset.live).toBe("static");
     });
     expect(content?.querySelectorAll(".event-card")).toHaveLength(1);
+  });
+});
+
+describe("home next night", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+    delete document.documentElement.dataset.siteEnv;
+  });
+
+  it("picks the earliest dated night", () => {
+    expect(
+      earliestDiaryNight([
+        { title: "Later", date: "2026-10-02" },
+        { title: "Soon", date: "2026-09-26" },
+        { title: "", date: "2026-09-20" },
+      ])?.title,
+    ).toBe("Soon");
+  });
+
+  it("replaces the baked callout from the live diary", async () => {
+    document.documentElement.dataset.siteEnv = "production";
+    document.body.innerHTML = `
+      <article data-home-next>
+        <p class="what-we-do-next-name">Last night</p>
+        <p class="what-we-do-next-meta"><time datetime="2026-09-20">Sat 20 Sep</time></p>
+        <a class="what-we-do-cta" href="/whats-on">What's on</a>
+      </article>
+    `;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          nights: [
+            { title: "Radio Gwenda", date: "2026-09-28" },
+            { title: "Negroni Knights", date: "2026-09-30" },
+          ],
+        }),
+      })),
+    );
+
+    initHomeNext();
+    await vi.waitFor(() => {
+      expect(document.querySelector(".what-we-do-next-name")?.textContent).toBe(
+        "Radio Gwenda",
+      );
+    });
+    const meta = document.querySelector(".what-we-do-next-meta");
+    expect(meta?.textContent).toBe("Mon 28 Sep");
+    expect(meta?.querySelector("time")?.getAttribute("datetime")).toBe("2026-09-28");
+    expect(document.querySelector(".what-we-do-cta")?.nextElementSibling).toBeNull();
+  });
+
+  it("clears the night line when nothing is still ahead", () => {
+    document.body.innerHTML = `
+      <article data-home-next>
+        <p class="what-we-do-next-name">Old</p>
+        <p class="what-we-do-next-meta">Sat 20 Sep</p>
+      </article>
+    `;
+    applyHomeNext(document.querySelector("[data-home-next]"), null);
+    expect(document.querySelector(".what-we-do-next-name")?.textContent).toBe("");
+    expect(document.querySelector(".what-we-do-next-meta")?.textContent).toBe("");
+  });
+
+  it("shows the artist's months on the second line", () => {
+    document.body.innerHTML = `
+      <article data-home-artist>
+        <p class="what-we-do-next-name"></p>
+        <p class="what-we-do-next-meta"></p>
+      </article>
+    `;
+    applyHomeArtist(document.querySelector("[data-home-artist]"), {
+      name: "Rita Matos",
+      startMonth: "9",
+      endMonth: "10",
+    });
+    expect(document.querySelector(".what-we-do-next-name")?.textContent).toBe(
+      "Rita Matos",
+    );
+    expect(document.querySelector(".what-we-do-next-meta")?.textContent).toBe(
+      "Sept to Oct",
+    );
   });
 });

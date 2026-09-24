@@ -3,15 +3,16 @@ import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
 import { openingDate } from "../config/opening";
+import { Image } from "astro:assets";
 import DissolveReveal from "./DissolveReveal.astro";
-import Team from "./Team.astro";
+import room from "../assets/images/story/room-wide.png";
 
 interface Props {
   mode: SiteMode;
   showTeam?: boolean;
 }
 
-const { mode, showTeam = false } = Astro.props;
+const { mode } = Astro.props;
 const copy = getCopy(mode);
 const hasStoryBody =
   copy.storyBody.length > 0 || copy.storyClosing || copy.storyOpening;
@@ -21,6 +22,15 @@ const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 
 ---
 
 <section class="story section" id="story">
+  <figure class="story-entrance">
+    <Image
+      src={room}
+      alt="The room at Gwenda, with tables, the bar, and the GWENDA sign."
+      widths={[720, 1080, 1440]}
+      sizes="(min-width: 901px) 68vw, 100vw"
+      class="story-entrance-photo"
+    />
+  </figure>
   <div class="container">
     <a href="#hero" class="story-scroll-hint" aria-label="Back to the top">
       <span class="story-scroll-chevron" aria-hidden="true"></span>
@@ -40,7 +50,6 @@ const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 
       <div class="story-grid-left section-intro reveal">
         <h2>{siteConfig.copy.storyHeading}</h2>
         <p class="section-lead">{siteConfig.copy.storyLead}</p>
-        {showTeam && <Team heading="Where we started" />}
       </div>
       {
         hasStoryBody && (
@@ -69,7 +78,6 @@ const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 
                 {copy.storyOpening}
               </p>
             )}
-            {showTeam && <Team heading="What comes next" />}
           </div>
         )
       }

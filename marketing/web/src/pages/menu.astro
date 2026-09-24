@@ -28,8 +28,14 @@ const menuNav = withHome(
 <BaseLayout title={pageTitle} description={pageDescription}>
   <link rel="prefetch" href="/" slot="head" />
 
-  <Subpage class="menu-page" innerClass="menu-inner" navItems={menuNav}>
-    <h1 class="visually-hidden">{pageTitle}</h1>
+  <Subpage
+    class="menu-page"
+    innerClass="menu-inner"
+    navItems={menuNav}
+    eyebrow="Tabula"
+    title="Menu"
+  >
+    <p slot="lead">Craft cocktails, Italian small plates, and natural wine.</p>
     <MenuDisplay menu={menu} showPrices />
   </Subpage>
 </BaseLayout>

@@ -10,6 +10,7 @@
 		Field,
 		MultiSelect,
 		NativeSelect,
+		PageDrawer,
 		PageHeader,
 		PageHelp,
 		SearchField,
@@ -50,6 +51,7 @@
 		getEventDrive,
 		getEvents,
 		publishEvent,
+		syncEventCalendar,
 		updateEvent,
 		updateEventOccurrence,
 		uploadEventDriveImage,
@@ -113,6 +115,7 @@
 	let loading = $state(true);
 	let saving = $state(false);
 	let intent = $state<"" | "save" | "delete" | "image">("");
+	let calendarSyncing = $state(false);
 	let publishing = $state("");
 	let publishFlowOpen = $state(false);
 	let publishBatch = $state<PublishBatch | null>(null);
@@ -243,12 +246,14 @@
 	);
 	const tab = $derived(normalizeEventTab(route.tab));
 	const busy = $derived(
-		loading || saving || driveUploading || Boolean(publishing),
+		loading || saving || driveUploading || calendarSyncing || Boolean(publishing),
 	);
 	const busyLabel = $derived(
-		publishing
-			? "Publishing…"
-			: loading
+		calendarSyncing
+			? "Updating calendar…"
+			: publishing
+				? "Publishing…"
+				: loading
 					? "Loading…"
 					: driveUploading
 						? "Uploading…"
@@ -1548,6 +1553,28 @@
 		}
 	}
 
+	async function onSyncCalendar() {
+		if (!eventId || busy || formDirty) return;
+		calendarSyncing = true;
+		error = "";
+		warnings = [];
+		try {
+			const data = await syncEventCalendar(eventId);
+			rememberEvent(data.event, false);
+			warnings = (data.warnings || []).filter(Boolean);
+			if (warnings.length === 1) toast.error(warnings[0]);
+			else if (warnings.length) {
+				toast.error(`Calendar updated with ${warnings.length} warnings.`);
+			} else toast.ok("Calendar updated.");
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Could not update the calendar.";
+			error = message;
+			toast.error(message);
+		} finally {
+			calendarSyncing = false;
+		}
+	}
+
 	async function onPublish(target: "staging" | "production") {
 		if (!eventId || busy) return;
 		publishing = target;
@@ -1873,6 +1900,8 @@
 						variant="outline"
 						busy={Boolean(publishBatch)}
 						disabled={busy || Boolean(publishBatch)}
+						aria-expanded={publishFlowOpen}
+						aria-haspopup="dialog"
 						onclick={() => {
 							publishFlowOpen = true;
 						}}
@@ -2031,6 +2060,21 @@
 									<span class="tool-sep" aria-hidden="true"></span>
 								{/if}
 								{#if eventId && !route.isNew}
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										disabled={busy || formDirty}
+										busy={calendarSyncing}
+										title={
+											formDirty
+												? "Save before updating the calendar."
+												: "Send the upcoming nights for this series to Google Calendar."
+										}
+										onclick={() => void onSyncCalendar()}
+									>
+										Update calendar
+									</Button>
 									<Button
 										variant="outline"
 										size="sm"
@@ -2437,7 +2481,7 @@
 													<HeroImagePanel
 														sourceUrl={current?.mainImage?.url || ""}
 														locked
-														tooltip="Series flyer. Override defaults to give this night its own photo."
+														tooltip="Series flyer. Override defaults to give this night its own photo. The original is saved in this series Drive folder."
 														onchangecrops={() => undefined}
 														onpickfile={() => undefined}
 														onclear={() => undefined}
@@ -2448,8 +2492,8 @@
 														crops={heroCrops}
 														disabled={busy || !eventId}
 														tooltip={editingOccurrence
-															? "This night's flyer. What's on uses it while this is the next night."
-															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback."}
+															? "This night's flyer. What's on uses it while this is the next night. The original is saved in this series Drive folder."
+															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback. The original is saved in this series Drive folder."}
 														onchangecrops={onHeroCropsChange}
 														onpickfile={(file) => acceptPhotoFile(file)}
 														onclear={() => onClearImage("main")}
@@ -3027,7 +3071,13 @@
 			</Dialog>
 		</form>
 	{/if}
-	<Dialog open={publishFlowOpen} title="Publish" onclose={closePublishFlow}>
+	<PageDrawer
+		open={publishFlowOpen}
+		title="Publish"
+		closeLabel="Close publish"
+		width="min(28rem, 100%)"
+		onclose={closePublishFlow}
+	>
 		<EventsPublishFlow
 			{events}
 			batch={publishBatch}
@@ -3036,7 +3086,7 @@
 			onPreview={(republish) => void runBulkPublish("staging", republish)}
 			onLive={() => void runBulkPublish("production")}
 		/>
-	</Dialog>
+	</PageDrawer>
 	<BusyOverlay active={busy} label={busyLabel} />
 </div>
 

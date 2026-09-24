@@ -15,12 +15,29 @@ interface Props {
   pageLinks: Link[];
   siteLinks: Link[];
   pathname: string;
+  /** These links are already in the header bar, so the overlay skips them on wide screens. */
+  pageLinksInHeader?: boolean;
 }
 
-const { homeLink = null, pageLinks, siteLinks, pathname } = Astro.props;
+const {
+  homeLink = null,
+  pageLinks,
+  siteLinks,
+  pathname,
+  pageLinksInHeader = false,
+} = Astro.props;
+const pageAnchorsOnly = pageLinks.every((item) => item.href.startsWith("#"));
 ---
 
-<nav class="site-menu site-header-nav" id="site-header-nav" aria-label="Menu">
+<nav
+  class:list={[
+    "site-menu",
+    "site-header-nav",
+    pageLinksInHeader && "site-header-nav--bar",
+  ]}
+  id="site-header-nav"
+  aria-label="Menu"
+>
   {
     homeLink && (
       <a
@@ -33,8 +50,14 @@ const { homeLink = null, pageLinks, siteLinks, pathname } = Astro.props;
       </a>
     )
   }
+  {
+    pageLinks.length > 0 && (
   <div
-    class="site-nav-group site-nav-group--page"
+    class:list={[
+      "site-nav-group",
+      "site-nav-group--page",
+      pageAnchorsOnly && "site-nav-group--anchors",
+    ]}
     role="group"
     aria-labelledby="site-nav-page-label"
   >
@@ -43,7 +66,10 @@ const { homeLink = null, pageLinks, siteLinks, pathname } = Astro.props;
       pageLinks.map((item) => (
         <a
           href={item.href}
-          class:list={[item.cta && "site-header-cta"]}
+          class:list={[
+            item.cta && "site-header-cta",
+            item.href.startsWith("#") && "site-nav-anchor",
+          ]}
           data-astro-reload={shouldReloadNavLink(item.href) || undefined}
           aria-current={isCurrentNavPage(item.href, pathname) ? "page" : undefined}
         >
@@ -52,14 +78,11 @@ const { homeLink = null, pageLinks, siteLinks, pathname } = Astro.props;
       ))
     }
   </div>
+    )
+  }
   {
     siteLinks.length > 0 && (
-      <div
-        class="site-nav-group site-nav-group--site"
-        role="group"
-        aria-labelledby="site-nav-elsewhere-label"
-      >
-        <p class="site-nav-label" id="site-nav-elsewhere-label">Elsewhere</p>
+      <div class="site-nav-group site-nav-group--site">
         {
           siteLinks.map((item) => (
             <a

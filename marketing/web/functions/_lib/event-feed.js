@@ -1,7 +1,7 @@
 /** How many nights the events page asks for at a time. */
 export const EVENT_FEED_PAGE_SIZE = 6;
 
-/** Diary JSON is a short cache. The pages themselves are baked. */
+/** Diary JSON is a short cache. Pages paint the bake, then read this. */
 export function diaryCacheControl(_env) {
   return "public, max-age=60";
 }

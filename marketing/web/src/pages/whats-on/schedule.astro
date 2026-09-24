@@ -76,12 +76,13 @@ function nightTime(night: {
     })}
   />
 
-  <Subpage class="schedule-page events-page" innerClass="schedule-inner">
-    <header class="section-header events-header reveal">
-      <p class="section-eyebrow">Diary</p>
-      <h1>Schedule</h1>
-      <p>Every night at Gwenda, from this week on.</p>
-    </header>
+  <Subpage
+    class="schedule-page events-page"
+    innerClass="schedule-inner"
+    eyebrow="Diary"
+    title="Schedule"
+  >
+    <p slot="lead">Every night at Gwenda, from this week on.</p>
 
     <p
       id="schedule-loading"
