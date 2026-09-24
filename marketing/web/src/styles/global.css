@@ -214,17 +214,6 @@ main {
     visibility 0.3s;
 }
 
-.staging-ribbon::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-style: solid;
-  border-width: var(--ribbon-fold) var(--ribbon-fold) 0 0;
-  border-color: color-mix(in srgb, var(--color-gold-dark) 75%, transparent)
-    transparent transparent transparent;
-}
-
 .staging-ribbon span {
   position: absolute;
   display: block;
@@ -241,7 +230,6 @@ main {
   text-transform: uppercase;
   color: var(--color-bg);
   background: var(--color-gold);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 
 .staging-ribbon-share {
@@ -572,6 +560,26 @@ a:not(.btn):hover {
   visibility: visible;
   pointer-events: auto;
   transform: none;
+}
+
+/* A hero that already carries the wordmark keeps the bar logo until it has passed.
+   Same slide as the closed menu bar. */
+.site-header.awaits-hero .site-header-logo {
+  transform: translateY(calc(-1 * var(--header-height)));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 0.4s var(--ease-out),
+    opacity 0.4s var(--ease-out),
+    visibility 0.4s;
+}
+
+.site-header.awaits-hero.has-logo .site-header-logo {
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .site-header--invite .site-header-logo {
@@ -929,13 +937,20 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
     color 0.3s var(--ease-smooth);
 }
 
-.site-header-cta::after {
+.site-header-cta::after,
+.site-header-nav a.site-header-cta[aria-current="page"]::after,
+.site-header-nav a.site-header-cta[aria-current="location"]::after {
   display: none;
 }
 
+.site-header-nav a.site-header-cta[aria-current="page"],
+.site-header-nav a.site-header-cta[aria-current="location"] {
+  border-color: var(--color-gold);
+}
+
 /* Current section or page: the same 1px gold hairline, held in place. */
-.site-header-nav a[aria-current="page"]::after,
-.site-header-nav a[aria-current="location"]::after {
+.site-header-nav a[aria-current="page"]:not(.site-header-cta)::after,
+.site-header-nav a[aria-current="location"]:not(.site-header-cta)::after {
   content: "";
   display: block;
   position: absolute;
@@ -948,10 +963,10 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   transform-origin: left center;
 }
 
-.site-header-nav.is-open a[aria-current="page"]::after,
-.site-header-nav.is-open a[aria-current="location"]::after,
-.site-header-nav.is-closing a[aria-current="page"]::after,
-.site-header-nav.is-closing a[aria-current="location"]::after {
+.site-header-nav.is-open a[aria-current="page"]:not(.site-header-cta)::after,
+.site-header-nav.is-open a[aria-current="location"]:not(.site-header-cta)::after,
+.site-header-nav.is-closing a[aria-current="page"]:not(.site-header-cta)::after,
+.site-header-nav.is-closing a[aria-current="location"]:not(.site-header-cta)::after {
   bottom: 0.7rem;
 }
 
@@ -1077,9 +1092,10 @@ body:has(.preview-banner) .site-header-nav {
     a:not(.site-header-cta):hover::after,
   .site-header-nav:not(.is-open):not(.is-closing)
     a:not(.site-header-cta):focus-visible::after,
-  .site-header-nav:not(.is-open):not(.is-closing) a[aria-current="page"]::after,
   .site-header-nav:not(.is-open):not(.is-closing)
-    a[aria-current="location"]::after {
+    a[aria-current="page"]:not(.site-header-cta)::after,
+  .site-header-nav:not(.is-open):not(.is-closing)
+    a[aria-current="location"]:not(.site-header-cta)::after {
     content: "";
     display: block;
     transform: scaleX(1);
@@ -7249,10 +7265,6 @@ html.navigation-restore #rsvp-loading {
     width: auto;
     height: auto;
     overflow: visible;
-  }
-
-  .staging-ribbon::before {
-    display: none;
   }
 
   .staging-ribbon span,

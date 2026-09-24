@@ -1,3 +1,5 @@
+import { replacePageUrl } from "./history-state.js";
+
 /** @typedef {{ csrfToken: string, secret: string }} FormAuth */
 
 /** @type {FormAuth | null} */
@@ -635,7 +637,7 @@ function initSectionNav() {
     const section = id ? document.getElementById(id) : null;
     if (!(section instanceof HTMLElement)) return;
     section.scrollIntoView({ behavior: "smooth", block: "start" });
-    history.replaceState(null, "", `#${id}`);
+    replacePageUrl(`#${id}`);
   };
 
   const setActive = (id) => {
