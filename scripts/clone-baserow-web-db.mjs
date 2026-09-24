@@ -395,7 +395,6 @@ async function main() {
   }
 
   const destSubscribe = destByName.get("Subscribers");
-  const destRsvp = destByName.get("Event Invites");
 
   console.log(`
 Clone complete.
@@ -416,7 +415,7 @@ ${
   2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__LOCAL.
   3. npm run env:web:pull`
 }
-${destRsvp ? `  6. Studio grid: BASEROW_RSVP_GRID_URL=https://baserow.io/database/${databaseId}/table/${destRsvp.id}/\n` : ""}${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
+${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {
     console.log(`  Subscribers table id: ${destSubscribe.id}`);
   }

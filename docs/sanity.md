@@ -63,9 +63,6 @@ All local configuration lives in **repo-root `.env`**. `scripts/with-env.mjs` lo
 |-------------|--------------|
 | `SANITY_PROJECT_ID` | `SANITY_STUDIO_PROJECT_ID` |
 | `SANITY_DATASET` | `SANITY_STUDIO_DATASET` |
-| `EVENT_ADMIN_SECRET` | `SANITY_STUDIO_EVENT_ADMIN_SECRET` |
-| `EVENT_ADMIN_URL` | `SANITY_STUDIO_EVENT_ADMIN_URL` |
-| `BASEROW_RSVP_GRID_URL` | `SANITY_STUDIO_BASEROW_RSVP_URL` |
 | `DEPLOY_WEBHOOK_SECRET` | `SANITY_STUDIO_SITE_DEPLOY_SECRET` |
 
 `marketing/studio/.env.development` and `marketing/studio/.env.production` are stubs only — do not put secrets there.

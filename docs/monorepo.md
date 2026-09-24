@@ -9,7 +9,6 @@ ark/
 │   └── … Workers       ← site-deploy, Mailchimp sync, site health, Wi‑Fi portal
 ├── ops/
 │   ├── site/           ← ops Pages app (HTML tools)
-│   ├── event-invites/
 │   └── recipe-cost-webhook/
 ├── docs/
 └── scripts/
@@ -52,6 +51,5 @@ Colour changes in `marketing/web/src/config/colors.json` are included in the bra
 | `utils/subscribe-mailchimp-sync/` | `marketing/subscribe-mailchimp-sync/` |
 | `utils/wifi-captive-portal/` | `marketing/wifi-captive-portal/` |
 | `utils/recipe-cost-webhook/` | `ops/recipe-cost-webhook/` |
-| `utils/event-invites/` | `ops/event-invites/` |
 | `ops/` (Pages app at root) | `ops/site/` |
 | `deploy-staging.yml` etc. | `web.yml` / `web-promote.yml` / `studio.yml` / `workers.yml` / `apps.yml` / `sanity.yml` |

@@ -17,16 +17,12 @@ export function verifyBearerSecret(request, secret) {
   return diff === 0;
 }
 
-export function verifyEventAdminRequest(request, env) {
-  return verifyBearerSecret(request, env.EVENT_ADMIN_SECRET);
-}
-
 /** Ops → web calls (e.g. resend form emails). Per-env secret, see docs/env.md. */
 export function verifyFormsAdminRequest(request, env) {
   return verifyBearerSecret(request, env.FORMS_ADMIN_SECRET);
 }
 
-export function eventAdminUnauthorized() {
+export function adminUnauthorized() {
   return new Response(JSON.stringify({ error: "Unauthorized." }), {
     status: 401,
     headers: { "Content-Type": "application/json" },

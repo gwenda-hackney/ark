@@ -2,7 +2,6 @@ import { defineConfig } from "sanity";
 import { structureTool } from "sanity/structure";
 import { visionTool } from "@sanity/vision";
 import { siteDeployPlugin } from "./plugins/siteDeploy";
-import { eventInvitesPlugin } from "./plugins/eventInvites";
 import { schemaTypes } from "./schemaTypes";
 import { structure } from "./structure";
 
@@ -26,7 +25,6 @@ export default defineConfig({
     structureTool({ structure }),
     visionTool(),
     siteDeployPlugin(),
-    eventInvitesPlugin(),
   ],
   schema: {
     types: schemaTypes,

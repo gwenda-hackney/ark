@@ -32,7 +32,6 @@ function formVerifySecret(env) {
   return (
     env?.SUBSCRIBE_SECRET?.trim() ||
     env?.TICKET_SECRET?.trim() ||
-    env?.EVENT_ADMIN_SECRET?.trim() ||
     ""
   );
 }
