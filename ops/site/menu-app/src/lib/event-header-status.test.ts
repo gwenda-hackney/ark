@@ -3,32 +3,36 @@ import { describe, it } from "node:test";
 import { eventHeaderFlag } from "./event-header-status.ts";
 
 describe("eventHeaderFlag", () => {
-  it("flags a saved edit that is not on preview", () => {
-    assert.deepEqual(
-      eventHeaderFlag({ preview: "stale", live: "stale" }, false),
-      { label: "Unpublished changes", tone: "unpublished" },
-    );
-    assert.deepEqual(
-      eventHeaderFlag({ preview: "unpublished", live: "unpublished" }, false),
-      { label: "Unpublished changes", tone: "unpublished" },
-    );
+  it("puts unsaved edits ahead of everything", () => {
+    assert.deepEqual(eventHeaderFlag({ preview: "current", live: "current" }, true), {
+      label: "Unsaved changes",
+      tone: "unsaved",
+    });
+    assert.deepEqual(eventHeaderFlag(null, true).tone, "unsaved");
   });
 
-  it("puts unsaved edits ahead of publish state", () => {
-    assert.deepEqual(
-      eventHeaderFlag({ preview: "current", live: "current" }, true),
-      { label: "Unsaved changes", tone: "unsaved" },
-    );
+  it("flags a saved event that staging does not have", () => {
+    assert.deepEqual(eventHeaderFlag({ preview: "stale", live: "stale" }, false), {
+      label: "Not staged",
+      tone: "unpublished",
+    });
   });
 
-  it("shows preview and live once the diary matches", () => {
+  it("separates staged from live", () => {
+    assert.deepEqual(eventHeaderFlag({ preview: "current", live: "stale" }, false), {
+      label: "Staged · not live",
+      tone: "preview",
+    });
+    assert.deepEqual(eventHeaderFlag({ preview: "current", live: "current" }, false), {
+      label: "Live",
+      tone: "live",
+    });
+  });
+
+  it("never claims live from local ops", () => {
     assert.deepEqual(
-      eventHeaderFlag({ preview: "current", live: "unpublished" }, false),
-      { label: "On preview", tone: "preview" },
-    );
-    assert.deepEqual(
-      eventHeaderFlag({ preview: "current", live: "current" }, false),
-      { label: "Live", tone: "live" },
+      eventHeaderFlag({ preview: "current", live: "current" }, false, { local: true }),
+      { label: "Local preview", tone: "preview" },
     );
   });
 });

@@ -4,7 +4,7 @@ import {
   syncSeriesCalendar,
 } from "../../_lib/event-calendar-sync.js";
 import { deleteEvent, getEvent, updateEvent } from "../../_lib/event-store.js";
-import { unpublishEvent } from "../../_lib/event-publish.js";
+import { stageEvent, unpublishEvent } from "../../_lib/event-publish.js";
 
 function eventId(context) {
   return decodeURIComponent(context.params?.id || "");
@@ -24,9 +24,12 @@ export const onRequestPatch = withApiHandler(async (context) => {
   if (!body || typeof body !== "object") {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
-  const event = await updateEvent(context.env, id, body);
-  await syncSeriesCalendar(context.env, event);
-  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, event }));
+  const updated = await updateEvent(context.env, id, body);
+  await syncSeriesCalendar(context.env, updated);
+  const { event, staging } = await stageEvent(context.env, id);
+  return jsonResponse(
+    attachCalendarWarnings(context.env, { ok: true, event: event || updated, staging }),
+  );
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {

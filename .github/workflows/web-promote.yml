@@ -1,7 +1,12 @@
 name: Web promote
 
-# Manual only. Builds and deploys the release branch to gwenda.co.uk.
-# Refuses any other branch. Does not move release, and does not deploy ops.
+# Builds and deploys the release branch to gwenda.co.uk. Refuses any other
+# branch. Does not move release, and does not deploy ops.
+#
+# Content is not copied here. Ops Website > Release copies reviewed staging
+# documents onto production and then starts this workflow to rebuild. A
+# dataset clone would also carry staging drafts (local ops previews) and
+# anything nobody reviewed.
 
 run-name: promote-release-to-production
 
@@ -14,7 +19,7 @@ concurrency:
 
 jobs:
   promote:
-    name: Promote staging to live
+    name: Deploy release to live
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -52,15 +57,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Clone staging dataset onto production
-        env:
-          SANITY_PROJECT_ID: pn5yjro6
-          SANITY_DATASET_SYNC_TOKEN: ${{ secrets.SANITY_DATASET_SYNC_TOKEN }}
-        run: |
-          node scripts/sync-sanity-datasets.mjs \
-            --direction staging-to-production \
-            --confirm production
 
       - name: Compute build metadata
         id: buildmeta
@@ -143,7 +139,7 @@ jobs:
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Release promoted to production","rows":[
+            {"title":"Release deployed to production","rows":[
               ["Commit","[\\`${{ steps.sha.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.sha.outputs.sha }})"],
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Site","https://gwenda.co.uk"]

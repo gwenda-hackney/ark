@@ -32,7 +32,8 @@
 		path === "/sections" || path.startsWith("/sections/"),
 	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
-	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
+	const onRelease = $derived(path.split("?")[0] === "/web/release");
+	const onWeb = $derived((path === "/web" || path.startsWith("/web/")) && !onRelease);
 	const onForms = $derived(path === "/forms" || path.startsWith("/forms/"));
 	const eventsPath = $derived(path.split("?")[0] ?? "/");
 	const onSchedule = $derived(isEventsScheduleNavPath(path));
@@ -163,7 +164,19 @@
 					<span class="icon"><Icon name="web" size={18} /></span>
 					<span class="copy">
 						<span class="label">Web</span>
-						<span class="hint">Staging, production, and promote</span>
+						<span class="hint">Site status and health</span>
+					</span>
+				</a>
+				<a
+					class="row"
+					class:on={onRelease}
+					href="/web/release"
+					aria-current={onRelease ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="upload" size={18} /></span>
+					<span class="copy">
+						<span class="label">Release</span>
+						<span class="hint">Review staging and publish live</span>
 					</span>
 				</a>
 				<p class="heading">Ops</p>

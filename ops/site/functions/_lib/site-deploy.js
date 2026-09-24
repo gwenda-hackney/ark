@@ -1,3 +1,5 @@
+import { assertNotLocal } from "./sanity.js";
+
 /**
  * Shared preview-site rebuild. Feature publishers write Sanity, then call this.
  * Production is not a full-dataset clone. A feature copies its own documents.
@@ -37,6 +39,7 @@ export async function webhookJson(url, secret, { method = "GET", body } = {}) {
 
 /** Rebuild the preview site from the staging dataset. */
 export async function dispatchStagingContentDeploy(env) {
+  assertNotLocal(env, "Local ops cannot rebuild the hosted sites.");
   const { baseUrl, secret } = webhookConfig(env);
   if (!baseUrl || !secret) {
     const error = new Error("Site deploy webhook is not configured on ops.");
@@ -64,4 +67,22 @@ export async function fetchDeployStatus(env, runId) {
     throw error;
   }
   return webhookJson(`${baseUrl}/status?run_id=${encodeURIComponent(String(id))}`, secret);
+}
+
+/**
+ * Rebuild production from the release branch. Content is already copied
+ * document by document by the Release page; this workflow no longer clones.
+ */
+export async function dispatchProductionDeploy(env) {
+  assertNotLocal(env);
+  const { baseUrl, secret } = webhookConfig(env);
+  if (!baseUrl || !secret) {
+    const error = new Error("Site deploy webhook is not configured on ops.");
+    error.status = 503;
+    throw error;
+  }
+  return webhookJson(`${baseUrl}/promote`, secret, {
+    method: "POST",
+    body: { kind: "staging-to-production" },
+  });
 }

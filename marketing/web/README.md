@@ -38,12 +38,12 @@ Gitflow-style: `develop` is WIP, `main` is staging, production is promote-only.
 1. **Develop on `develop`** — local Studio + `npm run dev` against the staging dataset with drafts. CI verifies. There is no hosted development site.
 2. **Stage code** — merge to `main`. CI deploys gwenda-staging from **published** staging documents (drafts ignored).
 3. **Promote to staging** — publish in Studio, then ops Web or Dev Studio rebuilds gwenda-staging.
-4. **Promote to production** — ops Web clones `staging` → `production`, rebuilds live, fast-forwards `release`.
+4. **Release** — ops Website → Release copies reviewed staging documents to `production` and rebuilds live from `release`.
 5. **Feature branches** — push `marketing/web/**` (except `develop` / `release`) → branch preview on `gwenda-staging`.
 
 Do not push `release` to go live. Emergency hotfixes land on `main`, review on staging, then promote. Leave `develop` WIP alone.
 
-Schema and site code follow git. Editorial content lives in two Sanity datasets (`staging` and `production`). Production is a clean clone of staging. Baserow subscribers and RSVPs are not copied.
+Schema and site code follow git. Editorial content lives in two Sanity datasets (`staging` and `production`). Production gets staging documents through ops Website → Release. Baserow subscribers and RSVPs are not copied.
 
 ## Layout
 
