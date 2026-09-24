@@ -11,8 +11,8 @@
  * Prod Studio + live site    → production dataset (clone of staging)
  *
  * Usage (repo root):
- *   node --env-file=.env scripts/sync-sanity-datasets.mjs --direction staging-to-production --confirm production
- *   node --env-file=.env scripts/sync-sanity-datasets.mjs --direction production-to-staging --confirm staging
+ *   node scripts/with-env.mjs node scripts/sync-sanity-datasets.mjs --direction staging-to-production --confirm production
+ *   node scripts/with-env.mjs node scripts/sync-sanity-datasets.mjs --direction production-to-staging --confirm staging
  *
  * Auth: SANITY_DATASET_SYNC_TOKEN, SANITY_AUTH_TOKEN, or SANITY_API_TOKEN.
  * Export/import needs a token that can write the target (personal admin or Editor).

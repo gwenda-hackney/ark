@@ -3,7 +3,7 @@
  * Align Baserow + Sanity menu sections with the guest print tree.
  * Deletes leftover untitled Baserow sample rows. Does not rewrite recipes.
  *
- *   node --env-file=.env scripts/sync-print-menu-sections.mjs
+ *   node scripts/with-ops-env.mjs node scripts/sync-print-menu-sections.mjs
  */
 import { createClient } from "@sanity/client";
 import { LexoRank } from "lexorank";

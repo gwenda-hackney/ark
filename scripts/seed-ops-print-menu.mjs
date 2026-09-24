@@ -3,8 +3,8 @@
  * Seed Baserow Ops inventory + recipes from the print menu and bar ingredients sheet.
  *
  * Usage:
- *   node --env-file=.env scripts/seed-ops-print-menu.mjs
- *   node --env-file=.env scripts/seed-ops-print-menu.mjs --dry-run
+ *   node scripts/with-ops-env.mjs node scripts/seed-ops-print-menu.mjs
+ *   node scripts/with-ops-env.mjs node scripts/seed-ops-print-menu.mjs --dry-run
  */
 import { PRINT_MENU_CHAPTERS, PRINT_MENU_SECTION_SLUGS } from "./lib/print-menu-sections.mjs";
 import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";

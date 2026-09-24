@@ -3,13 +3,16 @@
  * Deploy Wi‑Fi captive portal Worker and sync secrets.
  *
  * Needs in repo-root .env:
- *   CLOUDFLARE_API_TOKEN, BASEROW_API_KEY, UNIFI_SITE_MANAGER_API_KEY
+ *   CLOUDFLARE_API_TOKEN (.env.ark), UNIFI_SITE_MANAGER_API_KEY (.env).
+ *   The production Website Baserow token comes from Secrets Manager.
  * Optional: UNIFI_CONSOLE_ID (defaults to wrangler.toml / known UDR console)
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { loadRepoEnv } from "./lib/load-env.mjs";
+import { loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/wifi-captive-portal");
@@ -32,25 +35,6 @@ function run(cmd, args, { cwd = ROOT, env = process.env, input, quiet = false } 
   }
   if (!quiet && result.stdout) process.stdout.write(result.stdout);
   return result.stdout ?? "";
-}
-
-function loadDotEnv() {
-  if (!existsSync(ENV_PATH)) return;
-  for (const line of readFileSync(ENV_PATH, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq < 0) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
 }
 
 function readWranglerAccountId() {
@@ -101,17 +85,24 @@ function setGhSecret(name, value) {
   console.log(`Set GitHub secret ${name}.`);
 }
 
+
+/** Production Website token (live Subscribers), from Secrets Manager. */
+function productionWebsiteBaserowKey() {
+  const { values } = loadAppSecretsFromSm("web", "production");
+  return values.get("BASEROW_API_KEY")?.trim() || "";
+}
+
 async function main() {
-  loadDotEnv();
+  loadRepoEnv();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
-  const baserowKey = process.env.BASEROW_API_KEY?.trim();
+  const baserowKey = productionWebsiteBaserowKey();
   const siteManagerKey = process.env.UNIFI_SITE_MANAGER_API_KEY?.trim();
   const consoleId =
     process.env.UNIFI_CONSOLE_ID?.trim() || readWranglerConsoleId();
 
   if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing from .env");
-  if (!baserowKey) throw new Error("BASEROW_API_KEY is missing from .env");
+  if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   if (!siteManagerKey) {
     throw new Error(
       "UNIFI_SITE_MANAGER_API_KEY is missing from .env\n" +

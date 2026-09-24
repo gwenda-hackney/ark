@@ -11,8 +11,10 @@ Notes live in the Bitwarden folder **`ark`**:
 | Bitwarden item | Folder | Seed template | Role |
 |----------------|--------|---------------|------|
 | `ark/.env.local` | `ark` | `scripts/env-templates/local.env` | Laptop / nest (default `env:pull`) |
-| `ark/.env.staging` | `ark` | `scripts/env-templates/staging.env` | Staging secrets backup |
-| `ark/.env.production` | `ark` | `scripts/env-templates/production.env` | Production secrets backup |
+| `ark/.env.staging` | `ark` | `scripts/env-templates/staging.env` | Legacy staging backup (superseded by Secrets Manager) |
+| `ark/.env.production` | `ark` | `scripts/env-templates/production.env` | Legacy production backup (superseded by Secrets Manager) |
+
+The local note holds only the SM bootstrap token (`ARK_LOCAL_BW_TOKEN`) and plain local settings (Sanity project and dataset, site flags, SMTP host and user, UniFi, Studio deploy URL). Every credential comes from Secrets Manager into `.env.ark`, `.env.web` or `.env.ops`. Do not copy those back into `.env`.
 
 `npm run env:seed` creates missing notes and moves existing ones into the `ark` folder.
 
@@ -30,23 +32,27 @@ npm run env:ark:pull      # SM Ark → .env.ark (needs ARK_LOCAL_BW_TOKEN in .en
 
 In the devcontainer, `bw-unlock` writes the session key to `/commandhistory/.bw-session` (a Docker volume). New shells and env scripts reuse it, so you should not need to unlock again until `bw-lock`, `bw logout`, or a new login. Treat that file like a decrypted vault key. Override the path with `BW_SESSION_FILE`.
 
-Fill secrets one at a time:
+Set a local setting one at a time:
 
 ```bash
-npm run env:set -- SANITY_API_TOKEN 'sk...'
+npm run env:set -- UNIFI_SITE_MANAGER_API_KEY '...'
 # App and Cloudflare secrets belong in Secrets Manager, not the note:
 npm run env:ark:push
+npm run env:web:push -- KEY
 ```
 
 Or push every non-empty key from local `.env` into the vault note:
 
 ```bash
 bw-unlock                 # skip if already unlocked in this container
-npm run env:push
+npm run env:push                 # upsert keys into the note
+npm run env:push -- --replace    # overwrite the note with .env (drops removed keys)
 ```
 
 `env:set` updates the vault note and merges into local `.env` (for `--env local`, the default).
 `env:push` only writes vault ← local (skips `BITWARDEN_EMAIL` / `BITWARDEN_PASSWORD`).
+
+Scripts that run outside `with-env.mjs` load env files through `scripts/lib/load-env.mjs` (`.env` then `.env.ark`, plus `.env.web` where needed). Production worker setup (`setup:wifi-portal`, `setup:subscribe-mailchimp-sync`, `migrate:subscribe-sync-runs`) reads the production Website Baserow token straight from Secrets Manager.
 
 ## Cloudflare tokens
 

@@ -5,9 +5,9 @@
  * Skips cocktails (Our Formulas / By the Book mixed drinks).
  *
  * Usage:
- *   node --env-file=.env scripts/fetch-ops-menu-vendor-photos.mjs
- *   node --env-file=.env scripts/fetch-ops-menu-vendor-photos.mjs --dry-run
- *   node --env-file=.env scripts/fetch-ops-menu-vendor-photos.mjs --force
+ *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs
+ *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs --dry-run
+ *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs --force
  */
 import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 

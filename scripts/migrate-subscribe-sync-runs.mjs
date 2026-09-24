@@ -16,13 +16,10 @@
  * After success, set BASEROW_SYNC_LOG_TABLE_ID in
  * marketing/subscribe-mailchimp-sync/wrangler.toml [vars] and redeploy.
  */
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
+import { loadRepoEnv } from "./lib/load-env.mjs";
+import { loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const ENV_PATH = resolve(ROOT, ".env");
 const DEFAULT_BASEROW_API = "https://api.baserow.io";
 const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
 const SYNC_RUNS_TABLE_NAME = "Subscribe sync runs";
@@ -54,25 +51,6 @@ const EXPECTED_FIELDS = [
   { name: "Ok", body: { name: "Ok", type: "boolean" } },
   { name: "Results", body: { name: "Results", type: "long_text" } },
 ];
-
-function loadDotEnv() {
-  if (!existsSync(ENV_PATH)) return;
-  for (const line of readFileSync(ENV_PATH, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq < 0) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
-}
 
 function readEnv(key) {
   return process.env[key]?.trim() || "";
@@ -183,8 +161,15 @@ async function ensureFields(apiBase, jwt, tableId) {
   }
 }
 
+
+/** Production Website token (live Subscribers), from Secrets Manager. */
+function productionWebsiteBaserowKey() {
+  const { values } = loadAppSecretsFromSm("web", "production");
+  return values.get("BASEROW_API_KEY")?.trim() || "";
+}
+
 async function main() {
-  loadDotEnv();
+  loadRepoEnv();
 
   if (process.env.CONFIRM_PRODUCTION_MIGRATE !== "1") {
     console.error(
@@ -197,9 +182,9 @@ async function main() {
     /\/$/,
     "",
   );
-  const apiKey = readEnv("BASEROW_API_KEY");
+  const apiKey = productionWebsiteBaserowKey();
   if (!apiKey) {
-    throw new Error("BASEROW_API_KEY is required (resolves prod database id).");
+    throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   }
 
   const databaseId = await resolveProductionDatabaseId(apiBase, apiKey);
