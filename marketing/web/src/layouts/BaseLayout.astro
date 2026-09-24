@@ -68,7 +68,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     }
     <SocialMeta
       title={socialTitle ?? title}
-      description={socialDescription ?? siteConfig.social.shareDescription}
+      description={socialDescription ?? description}
       url={canonicalUrl}
     />
     <StructuredData
