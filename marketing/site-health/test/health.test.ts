@@ -32,6 +32,7 @@ describe("nextHealthState", () => {
   it("reminds at most every 30 minutes while down", () => {
     const down = nextHealthState(
       {
+        ...emptyHealthState(),
         consecutiveFails: 2,
         lastAlertAt: now,
         down: true,
@@ -49,6 +50,7 @@ describe("nextHealthState", () => {
   it("sends recovery once when the site returns", () => {
     const recovered = nextHealthState(
       {
+        ...emptyHealthState(),
         consecutiveFails: 4,
         lastAlertAt: now,
         down: true,
@@ -68,6 +70,7 @@ describe("nextHealthState", () => {
   it("does not recover-alert if it was never down", () => {
     const result = nextHealthState(
       {
+        ...emptyHealthState(),
         consecutiveFails: 1,
         lastAlertAt: null,
         down: false,
