@@ -63,6 +63,8 @@ export const SECRET_OWNERS = {
     "SMTP_PASSWORD",
     "SITE_PASSWORD",
     "GATE_BYPASS_KEY",
+    "SANITY_DEPLOY_TOKEN",
+    "UNIFI_SITE_MANAGER_API_KEY",
   ],
 };
 
@@ -115,12 +117,14 @@ export const APP_SECRETS = {
       "SMTP_PASSWORD",
       "SITE_PASSWORD",
       "GATE_BYPASS_KEY",
+      "SANITY_DEPLOY_TOKEN",
+      "UNIFI_SITE_MANAGER_API_KEY",
     ],
     rename: {
       BASEROW_API_KEY: "BASEROW_WEBSITE_API_KEY",
       GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
-    pagesSkip: [],
+    pagesSkip: ["SANITY_DEPLOY_TOKEN", "UNIFI_SITE_MANAGER_API_KEY"],
     keep: [],
   },
 };

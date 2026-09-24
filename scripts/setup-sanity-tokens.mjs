@@ -4,8 +4,8 @@
  *
  * Keep-set:
  *   ark-local-editor      Editor        → Secrets Manager SANITY_API_TOKEN (.env.web / .env.ops)
- *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN (+ BW staging/prod)
- *   ark-ci-deploy-studio  Deploy Studio → GitHub SANITY_DEPLOY_TOKEN (+ BW staging/prod)
+ *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN
+ *   ark-ci-deploy-studio  Deploy Studio → GitHub + Secrets Manager SANITY_DEPLOY_TOKEN
  *   ark-ci-dataset-sync   Editor        → GitHub SANITY_DATASET_SYNC_TOKEN (dataset mirror)
  *
  * Admin auth (mint/revoke): personal Sanity CLI session (`npx sanity login`),
@@ -336,31 +336,18 @@ Requires: npx sanity login (project Administrator).`);
         SANITY_PROJECT_ID: projectId,
         SANITY_DATASET: "staging",
       };
-      const sharedCi = {
-        SANITY_PROJECT_ID: projectId,
-        SANITY_API_TOKEN: keys[KEEP.ciViewer.label],
-        SANITY_DEPLOY_TOKEN: keys[KEEP.ciDeploy.label],
-        SANITY_DATASET_SYNC_TOKEN: keys[KEEP.ciDatasetSync.label],
-      };
-
       upsertBitwardenNote(
         ENV_ITEMS.local,
         resolve(ROOT, "scripts/env-templates/local.env"),
         localUpdates,
         opts,
       );
-      upsertBitwardenNote(
-        ENV_ITEMS.staging,
-        resolve(ROOT, "scripts/env-templates/staging.env"),
-        { ...sharedCi, SANITY_DATASET: "staging" },
-        opts,
-      );
-      upsertBitwardenNote(
-        ENV_ITEMS.production,
-        resolve(ROOT, "scripts/env-templates/production.env"),
-        { ...sharedCi, SANITY_DATASET: "production" },
-        opts,
-      );
+      if (opts.dryRun) {
+        console.log("Would store SANITY_DEPLOY_TOKEN in Secrets Manager.");
+      } else if (keys[KEEP.ciDeploy.label]) {
+        upsertSmSecret({ key: "SANITY_DEPLOY_TOKEN", value: keys[KEEP.ciDeploy.label] });
+        console.log("Stored ark-ci-deploy-studio as SANITY_DEPLOY_TOKEN in Secrets Manager.");
+      }
     } catch (err) {
       console.warn(
         `\nBitwarden skipped: ${err instanceof Error ? err.message : err}\n` +

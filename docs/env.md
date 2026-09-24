@@ -2,7 +2,7 @@
 
 Local secrets live in Bitwarden (`bitwarden.eu`), not in git. Do **not** mint new Cloudflare / Sanity / Baserow tokens on every fresh clone.
 
-Vault notes live in the Bitwarden folder **`ark`**, named `ark/.env.local`, `ark/.env.staging`, and `ark/.env.production`.
+The Password Manager holds one note, `ark/.env.local`, in the Bitwarden folder **`ark`**. Staging and production secrets live only in Secrets Manager.
 
 ## Vault item names
 
@@ -11,10 +11,8 @@ Notes live in the Bitwarden folder **`ark`**:
 | Bitwarden item | Folder | Seed template | Role |
 |----------------|--------|---------------|------|
 | `ark/.env.local` | `ark` | `scripts/env-templates/local.env` | Laptop / nest (default `env:pull`) |
-| `ark/.env.staging` | `ark` | `scripts/env-templates/staging.env` | Legacy staging backup (superseded by Secrets Manager) |
-| `ark/.env.production` | `ark` | `scripts/env-templates/production.env` | Legacy production backup (superseded by Secrets Manager) |
 
-The local note holds only the SM bootstrap token (`ARK_LOCAL_BW_TOKEN`) and plain local settings (Sanity project and dataset, site flags, SMTP host and user, UniFi, Studio deploy URL). Every credential comes from Secrets Manager into `.env.ark`, `.env.web` or `.env.ops`. Do not copy those back into `.env`.
+The local note holds only the SM bootstrap token (`ARK_LOCAL_BW_TOKEN`) and plain local settings (Sanity project and dataset, site flags, SMTP host and user, UniFi console id, Studio deploy URL). Every credential comes from Secrets Manager into `.env.ark`, `.env.web` or `.env.ops`. Do not copy those back into `.env`.
 
 `npm run env:seed` creates missing notes and moves existing ones into the `ark` folder.
 
@@ -25,7 +23,7 @@ bw config server https://vault.bitwarden.eu   # once
 bw login                                      # once
 bw-unlock                                     # or: export BW_SESSION=$(bw unlock --raw)
 
-npm run env:seed          # create the three notes from templates (skip if exist)
+npm run env:seed          # create ark/.env.local from the template (skip if it exists)
 npm run env:pull          # write repo-root .env from ark/.env.local
 npm run env:ark:pull      # SM Ark → .env.ark (needs ARK_LOCAL_BW_TOKEN in .env)
 ```
@@ -35,7 +33,7 @@ In the devcontainer, `bw-unlock` writes the session key to `/commandhistory/.bw-
 Set a local setting one at a time:
 
 ```bash
-npm run env:set -- UNIFI_SITE_MANAGER_API_KEY '...'
+npm run env:set -- PUBLIC_OPENING_DATE 2026-08-01
 # App and Cloudflare secrets belong in Secrets Manager, not the note:
 npm run env:ark:push
 npm run env:web:push -- KEY
@@ -86,7 +84,6 @@ Useful flags:
 npm run env:pull -- --dry-run
 npm run env:pull -- --replace
 npm run env:seed -- --force          # reset notes from templates (destructive)
-npm run env:set -- --env staging KEY value
 ```
 
 ## What not to re-run

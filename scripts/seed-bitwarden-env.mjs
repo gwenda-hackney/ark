@@ -27,8 +27,6 @@ import {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TEMPLATES = {
   local: resolve(ROOT, "scripts/env-templates/local.env"),
-  staging: resolve(ROOT, "scripts/env-templates/staging.env"),
-  production: resolve(ROOT, "scripts/env-templates/production.env"),
 };
 
 function parseArgs(argv) {
@@ -58,9 +56,9 @@ function main() {
     console.log(`Seed Bitwarden env notes from scripts/env-templates/
 
 Usage:
-  node scripts/seed-bitwarden-env.mjs [--force] [--env local|staging|production]
+  node scripts/seed-bitwarden-env.mjs [--force] [--env local]
 
-Creates ark/.env.local, ark/.env.staging, ark/.env.production if missing
+Creates ark/.env.local if missing
 (placed in the Bitwarden folder named "ark").
 Without --force, existing items are left unchanged (still moved into "ark").`);
     return;
