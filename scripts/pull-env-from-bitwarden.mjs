@@ -10,7 +10,6 @@
  *   npm run env:pull
  *   npm run env:pull -- --dry-run
  *   npm run env:pull -- --replace
- *   npm run env:pull -- --item "ark/.env.staging"
  *
  * Auth: bw login + bw-unlock (session persists in the container)
  * Overrides: BW_ARK_ENV_ITEM, BW_SERVER, BW_SESSION, BW_PASSWORD, BW_SESSION_FILE

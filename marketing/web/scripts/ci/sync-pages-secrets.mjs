@@ -207,8 +207,9 @@ const STAGING_ONLY_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
 
 /** Every web secret from `npm run env:web:pull -- --github-env --profile <profile>`. */
 function putSharedSecrets() {
+  const skip = new Set(APP_SECRETS.web.pagesSkip);
   for (const key of APP_SECRETS.web.keys) {
-    if (STAGING_ONLY_KEYS.has(key)) continue;
+    if (STAGING_ONLY_KEYS.has(key) || skip.has(key)) continue;
     putSecret(key, process.env[key]);
   }
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);

@@ -2,12 +2,11 @@
 /**
  * Deploy Wi‑Fi captive portal Worker and sync secrets.
  *
- * Needs in repo-root .env:
- *   CLOUDFLARE_API_TOKEN (.env.ark), UNIFI_SITE_MANAGER_API_KEY (.env).
- *   The production Website Baserow token comes from Secrets Manager.
- * Optional: UNIFI_CONSOLE_ID (defaults to wrangler.toml / known UDR console)
+ * Needs CLOUDFLARE_API_TOKEN (.env.ark). UNIFI_SITE_MANAGER_API_KEY and the
+ * production Website Baserow token come from Secrets Manager.
+ * Optional: UNIFI_CONSOLE_ID in .env (defaults to wrangler.toml / known UDR console)
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -16,7 +15,6 @@ import { loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/wifi-captive-portal");
-const ENV_PATH = resolve(ROOT, ".env");
 const WRANGLER_PATH = resolve(WORKER_DIR, "wrangler.toml");
 
 function run(cmd, args, { cwd = ROOT, env = process.env, input, quiet = false } = {}) {
@@ -50,25 +48,6 @@ function readWranglerConsoleId() {
   return match?.[1] ?? "";
 }
 
-function upsertEnvLines(lines) {
-  const existing = existsSync(ENV_PATH) ? readFileSync(ENV_PATH, "utf8") : "";
-  const keys = lines.map((line) => line.split("=")[0]);
-  const filtered = existing
-    .split("\n")
-    .filter((line) => {
-      const key = line.split("=")[0]?.trim();
-      return !keys.includes(key);
-    })
-    .join("\n")
-    .replace(/\n+$/, "");
-
-  const block = `\n\n# Wi‑Fi captive portal (npm run setup:wifi-portal)\n${lines.join("\n")}\n`;
-  writeFileSync(
-    ENV_PATH,
-    filtered ? `${filtered}${block}` : `${block.trimStart()}\n`,
-  );
-}
-
 function repoSlug() {
   return run(
     "gh",
@@ -86,27 +65,29 @@ function setGhSecret(name, value) {
 }
 
 
-/** Production Website token (live Subscribers), from Secrets Manager. */
-function productionWebsiteBaserowKey() {
+/** Production Website token (live Subscribers) and UniFi key, from Secrets Manager. */
+function productionSecrets() {
   const { values } = loadAppSecretsFromSm("web", "production");
-  return values.get("BASEROW_API_KEY")?.trim() || "";
+  return {
+    baserowKey: values.get("BASEROW_API_KEY")?.trim() || "",
+    siteManagerKey: values.get("UNIFI_SITE_MANAGER_API_KEY")?.trim() || "",
+  };
 }
 
 async function main() {
   loadRepoEnv();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
-  const baserowKey = productionWebsiteBaserowKey();
-  const siteManagerKey = process.env.UNIFI_SITE_MANAGER_API_KEY?.trim();
+  const { baserowKey, siteManagerKey } = productionSecrets();
   const consoleId =
     process.env.UNIFI_CONSOLE_ID?.trim() || readWranglerConsoleId();
 
-  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing from .env");
+  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:ark:pull.");
   if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   if (!siteManagerKey) {
     throw new Error(
-      "UNIFI_SITE_MANAGER_API_KEY is missing from .env\n" +
-        "Create one at https://unifi.ui.com → Settings → API Keys",
+      "UNIFI_SITE_MANAGER_API_KEY is missing from Secrets Manager.\n" +
+        "Create one at https://unifi.ui.com → Settings → API Keys, then npm run env:web:push -- UNIFI_SITE_MANAGER_API_KEY",
     );
   }
   if (!consoleId) throw new Error("UNIFI_CONSOLE_ID is missing");
@@ -153,12 +134,6 @@ async function main() {
   }
 
   const host = "wifi.gwenda.co.uk";
-  upsertEnvLines([
-    `UNIFI_CONSOLE_ID=${consoleId}`,
-    `UNIFI_SITE_MANAGER_API_KEY=${siteManagerKey}`,
-    `WIFI_CAPTIVE_PORTAL_URL=https://${host}`,
-  ]);
-  console.log(`Updated ${ENV_PATH}.`);
 
   console.log(
     "\nDone.\n" +

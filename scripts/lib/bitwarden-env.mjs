@@ -14,10 +14,9 @@ export const DEFAULT_CONTAINER_SESSION_FILE = "/commandhistory/.bw-session";
 
 const UNLOCK_HINT = "  bw-unlock   # or: export BW_SESSION=$(bw unlock --raw)";
 
+/** Password Manager notes. Staging/production secrets live in Secrets Manager. */
 export const ENV_ITEMS = {
   local: "ark/.env.local",
-  staging: "ark/.env.staging",
-  production: "ark/.env.production",
 };
 
 export function runBw(args, { input, quiet = true } = {}) {
