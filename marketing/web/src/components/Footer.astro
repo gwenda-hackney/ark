@@ -1,8 +1,6 @@
 ---
 import type { SiteMode, SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
-import { bookingUrl } from "../config/booking";
-import { fetchSiteSettings } from "../lib/sanity/site-settings";
 import FooterSocialLink from "./FooterSocialLink.astro";
 
 interface Props {
@@ -13,7 +11,6 @@ interface Props {
 const { features } = Astro.props;
 const { social, location } = siteConfig;
 const year = new Date().getFullYear();
-const { bookingEnabled } = await fetchSiteSettings();
 
 const address = features.useShortAddress
   ? location.addressShort
@@ -26,41 +23,9 @@ const address = features.useShortAddress
       <div class="site-footer-col">
         <p class="site-footer-col-label">Explore</p>
         <ul class="site-footer-list">
-          <li><a href="#hero">Arrival</a></li>
-          <li><a href="#story">Story</a></li>
           <li><a href="/menu">Menu</a></li>
-          <li><a href="#what-we-do">What we do</a></li>
-          {
-            features.showTeam && (
-              <li>
-                <a href="#team">Who we are</a>
-              </li>
-            )
-          }
-          {
-            features.showGallery && (
-              <li>
-                <a href="#glimpse">Glimpse</a>
-              </li>
-            )
-          }
           <li><a href="/whats-on">What's on</a></li>
           <li><a href="/artists/current">Featured artist</a></li>
-          {
-            bookingEnabled && (
-              <li>
-                <a
-                  href={bookingUrl}
-                  class="booking-cta"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {siteConfig.copy.bookingCta}
-                </a>
-              </li>
-            )
-          }
-          <li><a href="#list">{siteConfig.copy.signupNavCta}</a></li>
         </ul>
       </div>
 
