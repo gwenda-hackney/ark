@@ -12,8 +12,7 @@ ark/
 │   ├── subscribe-mailchimp-sync/ ← Baserow → Mailchimp sync Worker
 │   └── wifi-captive-portal/      ← UniFi captive portal Worker
 ├── ops/                          ← internal ops Pages app
-│   ├── recipe-cost-webhook/
-│   └── event-invites/
+│   └── recipe-cost-webhook/
 ├── docs/
 ├── scripts/
 └── .github/

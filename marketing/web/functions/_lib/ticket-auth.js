@@ -16,7 +16,6 @@ function bufferToBase64Url(buf) {
 function ticketSecret(env) {
   return (
     env?.TICKET_SECRET?.trim() ||
-    env?.EVENT_ADMIN_SECRET?.trim() ||
     env?.SUBSCRIBE_SECRET?.trim() ||
     ""
   );

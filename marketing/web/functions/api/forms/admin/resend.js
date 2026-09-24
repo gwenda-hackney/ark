@@ -3,9 +3,9 @@
  * POST { rowId, kind: "notify" | "receipt" } with Bearer FORMS_ADMIN_SECRET.
  */
 import {
-  eventAdminUnauthorized,
+  adminUnauthorized,
   verifyFormsAdminRequest,
-} from "../../../_lib/event-admin-auth.js";
+} from "../../../_lib/admin-auth.js";
 import {
   sendFormNotificationEmail,
   sendFormReceiptEmail,
@@ -27,7 +27,7 @@ import { resolvePublicOrigin } from "../../../_lib/public-origin.js";
 export async function onRequestPost(context) {
   const { request, env } = context;
   if (!verifyFormsAdminRequest(request, env)) {
-    return eventAdminUnauthorized();
+    return adminUnauthorized();
   }
 
   let body;

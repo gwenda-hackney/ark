@@ -217,7 +217,6 @@ async function main() {
     console.log("Next:");
     console.log("  1. Create a database token (Settings → Database tokens) with CRUD on this table.");
     console.log("  2. Set BASEROW_API_KEY in .env.web (Gwenda Dev website token).");
-    console.log(`  3. Set BASEROW_RSVP_GRID_URL=${gridUrl} in repo-root .env`);
     console.log("");
     console.log("Runtime code resolves the table by name — no table id in .env.");
     console.log("Production: npm run setup:baserow-rsvp -- --production");

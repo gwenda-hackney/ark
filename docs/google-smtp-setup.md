@@ -4,7 +4,7 @@ Use this when wiring **RSVP confirmation emails** and **form mail** through **on
 
 Check boxes in your editor (`- [ ]` → `- [x]`), or print this page.
 
-**Related:** repo-root `.env` · `web/functions/_lib/smtp-from.js` · Sanity `form` From / Reply-To · `npm run setup:event-ops`
+**Related:** repo-root `.env` · `web/functions/_lib/smtp-from.js` · Sanity `form` From / Reply-To
 
 ---
 

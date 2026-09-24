@@ -12,8 +12,7 @@
     "marketing/wifi-captive-portal",
     "ops/site",
     "ops/site/menu-app",
-    "ops/recipe-cost-webhook",
-    "ops/event-invites"
+    "ops/recipe-cost-webhook"
   ],
   "scripts": {
     "dev": "npm run dev -w @gwenda/web",
@@ -46,8 +45,6 @@
     "env:ark:push": "node scripts/push-app-env-to-sm.mjs ark",
     "setup:sanity-tokens": "node scripts/setup-sanity-tokens.mjs",
     "sync:sanity-datasets": "node scripts/sync-sanity-datasets.mjs",
-    "setup:event-admin": "node scripts/setup-event-admin.mjs",
-    "setup:event-ops": "node --env-file=.env scripts/setup-event-ops.mjs",
     "setup:baserow-rsvp": "node --env-file=.env scripts/setup-baserow-rsvp.mjs",
     "setup:baserow-form-submissions": "node --env-file=.env scripts/setup-baserow-form-submissions.mjs",
     "setup:baserow-ops": "node scripts/with-ops-env.mjs node scripts/setup-baserow-ops.mjs",
@@ -62,7 +59,6 @@
     "enrich:ops-inventory": "node scripts/with-ops-env.mjs node scripts/enrich-ops-inventory-suppliers.mjs",
     "ingest:lwc-price-list": "node scripts/with-ops-env.mjs node scripts/ingest-lwc-price-list.mjs",
     "fetch:ops-menu-photos": "node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs",
-    "setup:instagram": "node --env-file=.env scripts/setup-instagram.mjs",
     "setup:ci-secrets": "node scripts/setup-ci-sanity-secrets.mjs",
     "setup:site-deploy": "node scripts/setup-site-deploy.mjs",
     "setup:ops": "node scripts/setup-ops-secrets.mjs",
@@ -79,7 +75,6 @@
     "wifi-portal:deploy": "node scripts/with-env.mjs npm run deploy -w @gwenda/wifi-captive-portal",
     "setup:apple-wallet:csr": "node scripts/setup-apple-wallet.mjs csr",
     "setup:apple-wallet:import": "node scripts/setup-apple-wallet.mjs import",
-    "event-invites": "node scripts/with-env.mjs npm run cli -w @gwenda/event-invites --",
     "generate:brand-assets": "npm run generate:brand-assets -w @gwenda/web",
     "sync:brand": "node .github/scripts/sync-brand-tokens.mjs",
     "test": "npm run test -w @gwenda/web",
