@@ -8,43 +8,67 @@ import type { NavRoute } from "../shell/types";
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
 	{
-		id: "menu",
-		name: "Menu",
-		icon: "menu",
+		id: "service",
+		name: "Service",
+		icon: "",
+		heading: true,
 		children: [
-			{ id: "recipes", path: "/menu", name: "Menu items", icon: "recipes" },
-			{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
+			{
+				id: "menu",
+				name: "Menu",
+				icon: "menu",
+				children: [
+					{ id: "recipes", path: "/menu", name: "Menu items", icon: "recipes" },
+					{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
+				],
+			},
+			{
+				id: "stock",
+				name: "Stock",
+				icon: "stock",
+				children: [
+					{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
+					{ id: "suppliers", path: "/suppliers", name: "Suppliers", icon: "suppliers" },
+				],
+			},
+			{
+				id: "lightspeed",
+				name: "Lightspeed",
+				icon: "lightspeed",
+				children: [
+					{ id: "lightspeed-reconcile", path: "/lightspeed", name: "Reconcile", icon: "lightspeed" },
+					{ id: "lightspeed-export", path: "/lightspeed/export", name: "Export", icon: "upload" },
+				],
+			},
 		],
 	},
 	{
-		id: "stock",
-		name: "Stock",
-		icon: "stock",
+		id: "programme",
+		name: "Programme",
+		icon: "",
+		heading: true,
 		children: [
-			{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
-			{ id: "suppliers", path: "/suppliers", name: "Suppliers", icon: "suppliers" },
+			{
+				id: "events",
+				name: "Events",
+				icon: "events",
+				children: [
+					{ id: "events-series", path: "/events", name: "Series", icon: "list" },
+					{ id: "events-schedule", path: "/events/schedule", name: "Schedule", icon: "events" },
+				],
+			},
+			{ id: "artist", path: "/artists", name: "Artist", icon: "artist" },
+			{ id: "web", path: "/web", name: "Web", icon: "web" },
 		],
 	},
 	{
-		id: "lightspeed",
-		name: "Lightspeed",
-		icon: "lightspeed",
+		id: "settings",
+		name: "Settings",
+		icon: "",
+		heading: true,
 		children: [
-			{ id: "lightspeed-reconcile", path: "/lightspeed", name: "Reconcile", icon: "lightspeed" },
-			{ id: "lightspeed-export", path: "/lightspeed/export", name: "Export", icon: "upload" },
+			{ id: "users", path: "/users", name: "Users", icon: "users" },
+			{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
 		],
 	},
-	{
-		id: "events",
-		name: "Events",
-		icon: "events",
-		children: [
-			{ id: "events-series", path: "/events", name: "Series", icon: "list" },
-			{ id: "events-schedule", path: "/events/schedule", name: "Schedule", icon: "events" },
-		],
-	},
-	{ id: "artist", path: "/artists", name: "Artist", icon: "artist" },
-	{ id: "web", path: "/web", name: "Web", icon: "web" },
-	{ id: "users", path: "/users", name: "Users", icon: "users" },
-	{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
 ];

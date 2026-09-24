@@ -10,27 +10,48 @@ import { NAV_ROUTES } from "./nav-routes.ts";
 const routes = NAV_ROUTES;
 
 describe("NAV_ROUTES", () => {
-	it("puts Menu, Stock, then Lightspeed after Dashboard", () => {
+	it("puts Menu, Stock, and Lightspeed under a Service header", () => {
 		assert.equal(routes[0]?.id, "home");
-		assert.equal(routes[1]?.id, "menu");
+		const service = routes[1];
+		assert.equal(service?.id, "service");
+		assert.equal(service?.heading, true);
+		assert.equal(service?.name, "Service");
 		assert.deepEqual(
-			routes[1]?.children?.map((row) => row.id),
+			service?.children?.map((row) => row.id),
+			["menu", "stock", "lightspeed"],
+		);
+		const menu = service?.children?.find((row) => row.id === "menu");
+		const stock = service?.children?.find((row) => row.id === "stock");
+		const lightspeed = service?.children?.find((row) => row.id === "lightspeed");
+		assert.deepEqual(
+			menu?.children?.map((row) => row.id),
 			["recipes", "sections"],
 		);
-		assert.equal(routes[2]?.id, "stock");
 		assert.deepEqual(
-			routes[2]?.children?.map((row) => row.id),
+			stock?.children?.map((row) => row.id),
 			["inventory", "suppliers"],
 		);
-		assert.equal(routes[3]?.id, "lightspeed");
 		assert.deepEqual(
-			routes[3]?.children?.map((row) => row.id),
+			lightspeed?.children?.map((row) => row.id),
 			["lightspeed-reconcile", "lightspeed-export"],
 		);
-		assert.equal(routes[4]?.id, "events");
+		const programme = routes[2];
+		assert.equal(programme?.id, "programme");
+		assert.equal(programme?.heading, true);
 		assert.deepEqual(
-			routes[4]?.children?.map((row) => row.id),
+			programme?.children?.map((row) => row.id),
+			["events", "artist", "web"],
+		);
+		assert.deepEqual(
+			programme?.children?.find((row) => row.id === "events")?.children?.map((row) => row.id),
 			["events-series", "events-schedule"],
+		);
+		const settings = routes[3];
+		assert.equal(settings?.id, "settings");
+		assert.equal(settings?.heading, true);
+		assert.deepEqual(
+			settings?.children?.map((row) => row.id),
+			["users", "config"],
 		);
 	});
 });
@@ -100,9 +121,10 @@ describe("matchActiveRoute", () => {
 
 describe("navGroupContains", () => {
 	it("puts menu under Menu, inventory under Stock, reconcile under Lightspeed", () => {
-		const stock = routes.find((row) => row.id === "stock")!;
-		const menu = routes.find((row) => row.id === "menu")!;
-		const lightspeed = routes.find((row) => row.id === "lightspeed")!;
+		const service = routes.find((row) => row.id === "service")!;
+		const stock = service.children?.find((row) => row.id === "stock")!;
+		const menu = service.children?.find((row) => row.id === "menu")!;
+		const lightspeed = service.children?.find((row) => row.id === "lightspeed")!;
 		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/menu")), true);
 		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/sections")), true);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/menu")), false);
@@ -118,7 +140,9 @@ describe("navGroupContains", () => {
 		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/inventory")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/users")), false);
-		const events = routes.find((row) => row.id === "events")!;
+		const events = routes
+			.find((row) => row.id === "programme")
+			?.children?.find((row) => row.id === "events")!;
 		assert.equal(navGroupContains(events, matchActiveRoute(routes, "/events")), true);
 		assert.equal(
 			navGroupContains(events, matchActiveRoute(routes, "/events/schedule")),
