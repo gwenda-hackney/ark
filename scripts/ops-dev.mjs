@@ -35,7 +35,6 @@ const DEV_VAR_KEYS = [
   "BASEROW_OPS_DATABASE_ID",
   "SANITY_API_TOKEN",
   "DEPLOY_WEBHOOK_SECRET",
-  "SANITY_STUDIO_SITE_DEPLOY_SECRET",
   "FORMS_ADMIN_SECRET",
   // Optional env overrides (normally config database):
   "SANITY_PROJECT_ID",

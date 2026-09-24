@@ -4,7 +4,7 @@
  * from the same chapter structure as marketing/studio/scripts/seed-menu.mjs.
  *
  * Usage:
- *   node --env-file=.env scripts/seed-baserow-ops-menu.mjs
+ *   node scripts/with-ops-env.mjs node scripts/seed-baserow-ops-menu.mjs
  */
 import { createClient } from "@sanity/client";
 import { PRINT_MENU_CHAPTERS } from "./lib/print-menu-sections.mjs";
