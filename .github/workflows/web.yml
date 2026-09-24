@@ -129,6 +129,11 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env
 
+      - name: Pull production ops Baserow for the artist build
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env --profile production
+
       - name: Deploy
         uses: ./.github/actions/deploy-pages
         with:
@@ -146,6 +151,8 @@ jobs:
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: staging
+          baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
+          baserow-ops-database-id: "556507"
 
       - name: Smoke test
         env:
