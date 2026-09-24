@@ -128,7 +128,7 @@
 						<span class="hint">Upcoming nights</span>
 					</span>
 				</a>
-				<p class="heading">Artist</p>
+				<p class="heading">Artists</p>
 				<a
 					class="row"
 					class:on={onArtist}
@@ -139,6 +139,18 @@
 					<span class="copy">
 						<span class="label">Artist</span>
 						<span class="hint">Work hanging at Gwenda</span>
+					</span>
+				</a>
+				<a
+					class="row"
+					class:on={onForms}
+					href="/forms"
+					aria-current={onForms ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="forms" size={18} /></span>
+					<span class="copy">
+						<span class="label">Play applications</span>
+						<span class="hint">Artists who applied to play</span>
 					</span>
 				</a>
 				<p class="heading">Website</p>
@@ -152,18 +164,6 @@
 					<span class="copy">
 						<span class="label">Web</span>
 						<span class="hint">Staging, production, and promote</span>
-					</span>
-				</a>
-				<a
-					class="row"
-					class:on={onForms}
-					href="/forms"
-					aria-current={onForms ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="forms" size={18} /></span>
-					<span class="copy">
-						<span class="label">Forms</span>
-						<span class="hint">People who wrote in</span>
 					</span>
 				</a>
 				<p class="heading">Ops</p>
