@@ -1,6 +1,6 @@
 name: Web
 
-# Marketing site: staging from main, branch previews, and staging content deploys.
+# Marketing site: staging from main, branch previews, and a release preview.
 # Promote to live is web-promote.yml (copy staging onto production).
 
 run-name: >-
@@ -30,6 +30,7 @@ on:
           - auto
           - staging-content
           - promote-dev-to-staging
+          - production-preview
   repository_dispatch:
     types: [content-deploy-staging, promote-dev-to-staging]
 
@@ -52,6 +53,8 @@ jobs:
             ACTION="${{ inputs.action }}"
             if [ "$ACTION" = "staging-content" ] || [ "$ACTION" = "promote-dev-to-staging" ]; then
               MODE=staging-content
+            elif [ "$ACTION" = "production-preview" ]; then
+              MODE=production-preview
             elif [ "$ACTION" = "auto" ]; then
               case "${{ github.ref_name }}" in
                 main) MODE=staging-code ;;
@@ -153,6 +156,7 @@ jobs:
           sanity-dataset: staging
           baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
           baserow-ops-database-id: "556507"
+          smtp-password: ${{ env.SMTP_PASSWORD }}
 
       - name: Smoke test
         env:
@@ -168,6 +172,94 @@ jobs:
               ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
               ["Site","https://gwenda-staging.pages.dev"],
               ["Mode","`${{ needs.resolve.outputs.mode }}`"]
+            ]}
+
+  deploy-production-preview:
+    name: Deploy production preview
+    needs: [resolve, verify]
+    if: needs.resolve.outputs.mode == 'production-preview'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: web-production-preview
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: production-preview
+      url: https://release-preview.gwenda-blue.pages.dev
+    steps:
+      - name: Require the release branch
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/release" ]; then
+            echo "Production preview deploys only from release (got ${{ github.ref_name }})." >&2
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compute build metadata
+        id: buildmeta
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
+        env:
+          GITHUB_REF_NAME: release
+          GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
+
+      - name: Pull web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:web:pull -- --github-env --profile production
+
+      - name: Pull production ops Baserow for the artist build
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env --profile production
+
+      - name: Deploy preview
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda
+          pages-production-branch: release
+          deploy-branch: release-preview
+          wrangler-config: wrangler.toml
+          public-is-staging: "false"
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
+          build-version: ${{ steps.buildmeta.outputs.version }}
+          build-sha: ${{ steps.buildmeta.outputs.sha }}
+          build-ref: ${{ steps.buildmeta.outputs.ref }}
+          build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          sanity-api-token: ${{ env.SANITY_API_TOKEN }}
+          sanity-dataset: staging
+          baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
+          baserow-ops-database-id: "556507"
+          smtp-password: ${{ env.SMTP_PASSWORD }}
+
+      - name: Smoke test preview
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://release-preview.gwenda-blue.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      - name: Deployment summary
+        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
+        env:
+          DEPLOY_SUMMARY_JSON: >-
+            {"title":"Production preview ready","rows":[
+              ["Preview","[https://release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev)"],
+              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
+              ["Live site","unchanged"]
             ]}
 
   deploy-branch-preview:
@@ -234,6 +326,7 @@ jobs:
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: staging
+          smtp-password: ${{ env.SMTP_PASSWORD }}
 
       - name: Resolve preview URL
         id: preview_url

@@ -96,6 +96,7 @@ jobs:
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: production
+          smtp-password: ${{ env.SMTP_PASSWORD }}
           baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
           baserow-ops-database-id: "556507"
 
