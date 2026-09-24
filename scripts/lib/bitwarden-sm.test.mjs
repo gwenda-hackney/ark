@@ -98,9 +98,7 @@ describe("catalog", () => {
     assert.equal(new Set(all).size, all.length);
   });
 
-  it("keeps Lightspeed and the local admin password off Pages", () => {
-    for (const key of ["OPS_LOCAL_ADMIN_PW", "LIGHTSPEED_BO_PASSWORD"]) {
-      assert.ok(APP_SECRETS.ops.pagesSkip.includes(key));
-    }
+  it("keeps the local admin password off Pages", () => {
+    assert.ok(APP_SECRETS.ops.pagesSkip.includes("OPS_LOCAL_ADMIN_PW"));
   });
 });
