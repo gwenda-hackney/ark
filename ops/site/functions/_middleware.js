@@ -1,20 +1,15 @@
 /**
  * Protects the ops Pages project.
- * Google OAuth (local + production); optional OPS_LOCAL_ADMIN_PW + OPS_BYPASS_KEY.
+ * Google OAuth (local + production); optional OPS_LOCAL_ADMIN_PW.
  */
 import {
   authMisconfiguredResponse,
-  buildAuthCookie,
-  createPasswordToken,
   gateRedirectPath,
   isProtectedApiPath,
   isPublicPath,
   isRequestAuthed,
-  isSecureOrigin,
-  matchesSecret,
   opsUserForbiddenResponse,
   relativeRedirect,
-  requestOrigin,
   resolveAuth,
   resolveSessionEmail,
   safeRedirectPath,
@@ -41,28 +36,7 @@ async function handleRequest(context) {
   if (auth.kind === "misconfigured") return authMisconfiguredResponse();
 
   const url = new URL(context.request.url);
-  const bypassKey = env.OPS_BYPASS_KEY;
-  const accessParam = url.searchParams.get("access");
-
   const authed = await isRequestAuthed(auth, context.request);
-
-  if (
-    auth.password &&
-    bypassKey &&
-    accessParam &&
-    matchesSecret(accessParam, bypassKey)
-  ) {
-    const clean = new URL(url);
-    clean.searchParams.delete("access");
-    const headers = { Location: clean.pathname + clean.search };
-    if (!authed) {
-      headers["Set-Cookie"] = buildAuthCookie(
-        await createPasswordToken(auth.password),
-        { secure: isSecureOrigin(requestOrigin(context.request)) },
-      );
-    }
-    return new Response(null, { status: 302, headers });
-  }
 
   if (isPublicPath(url.pathname)) {
     if ((url.pathname === "/gate" || url.pathname === "/gate/") && authed) {
