@@ -135,8 +135,6 @@ Then mint/refresh scoped database tokens (script prints next steps). Local `ops-
 
 **Ops table ids are not configured.** Names are resolved from the Baserow catalog.
 
-Lightspeed Back Office export (`LIGHTSPEED_BO_EMAIL`, `LIGHTSPEED_BO_PASSWORD`, optional `LIGHTSPEED_BO_TOTP` / `LIGHTSPEED_OPS_EMAIL`) belongs in **Ark/Ops** for the nest script and [Lightspeed item export](../.github/workflows/lightspeed-export.yml) Action. They are not synced to Pages.
-
 Gallery uploads and ops nights on Google Calendar use SM `GOOGLE_SERVICE_ACCOUNT_JSON` (runtime `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`, account `gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`). Each event folder holds a `gallery/` child, the only place event images are written in Drive; the What's on hero stays on the event in Baserow. The service account must be a Content manager on the Shared Drive and have **Make changes to events** on the calendar. Local ops can still override the calendar with `GOOGLE_CALENDAR_ID_LOCAL` in `.env.ops`.
 
 ## Marketing Baserow workspaces
