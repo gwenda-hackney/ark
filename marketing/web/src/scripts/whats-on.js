@@ -403,9 +403,9 @@ function nightCard(event, { eager = false } = {}) {
   return item;
 }
 
-/** Staging What's on reads the diary live. Production keeps the baked pages. */
+/** Local dev reads the diary live. Staging and production keep the baked pages. */
 export function readsLiveDiary(env) {
-  return String(env || "") === "staging";
+  return String(env || "") === "local";
 }
 
 function pageSiteEnv() {

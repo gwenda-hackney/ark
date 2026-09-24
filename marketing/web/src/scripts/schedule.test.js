@@ -45,7 +45,7 @@ describe("renderScheduleList", () => {
 
 describe("initSchedulePage", () => {
   beforeEach(() => {
-    document.documentElement.dataset.siteEnv = "staging";
+    document.documentElement.dataset.siteEnv = "local";
     document.body.innerHTML = `
       <p id="schedule-loading">Looking at the diary…</p>
       <section id="schedule-empty" hidden></section>
@@ -63,7 +63,7 @@ describe("initSchedulePage", () => {
     delete document.documentElement.dataset.siteEnv;
   });
 
-  it("replaces the baked list with the live schedule on staging", async () => {
+  it("replaces the baked list with the live schedule in local dev", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
