@@ -40,7 +40,15 @@ describe("NAV_ROUTES", () => {
 		assert.equal(programme?.heading, true);
 		assert.deepEqual(
 			programme?.children?.map((row) => row.id),
-			["events", "artist", "web", "forms"],
+			["events", "artists", "website"],
+		);
+		assert.deepEqual(
+			programme?.children?.find((row) => row.id === "artists")?.children?.map((row) => row.id),
+			["artist", "forms"],
+		);
+		assert.deepEqual(
+			programme?.children?.find((row) => row.id === "website")?.children?.map((row) => row.id),
+			["web"],
 		);
 		assert.deepEqual(
 			programme?.children?.find((row) => row.id === "events")?.children?.map((row) => row.id),
@@ -71,8 +79,8 @@ describe("flattenNavRoutes", () => {
 				"events-series",
 				"events-schedule",
 				"artist",
-				"web",
 				"forms",
+				"web",
 				"users",
 				"config",
 			],
