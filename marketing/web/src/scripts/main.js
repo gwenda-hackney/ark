@@ -31,6 +31,9 @@ function initPage() {
   const header = document.getElementById("site-header");
   const menuBtn = document.getElementById("site-header-menu-btn");
   const siteNav = document.getElementById("site-header-nav");
+  if (siteNav && !siteNav.classList.contains("is-open")) {
+    document.body.classList.remove("site-nav-open");
+  }
   const hero = document.getElementById("hero");
   const collapsedNav =
     header?.classList.contains("site-header--collapsed") ?? false;
@@ -94,8 +97,8 @@ function initPage() {
       atEnd,
       viewportHeight: window.innerHeight,
     });
-    for (const link of siteNav.querySelectorAll(
-      ".site-nav-group--page a[href^='#']",
+    for (const link of document.querySelectorAll(
+      "#site-header-nav .site-nav-group--page a[href^='#'], .site-header-bar a[href^='#']",
     )) {
       const href = link.getAttribute("href") ?? "";
       const id = href.startsWith("#") ? decodeURIComponent(href.slice(1)) : "";
