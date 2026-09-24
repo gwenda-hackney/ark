@@ -156,7 +156,7 @@ jobs:
           sanity-dataset: staging
           baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
           baserow-ops-database-id: "556507"
-          smtp-password: ${{ env.SMTP_PASSWORD }}
+          secrets-profile: staging
 
       - name: Smoke test
         env:
@@ -247,7 +247,7 @@ jobs:
           sanity-dataset: staging
           baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
           baserow-ops-database-id: "556507"
-          smtp-password: ${{ env.SMTP_PASSWORD }}
+          secrets-profile: production
 
       - name: Smoke test preview
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://release-preview.gwenda-blue.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
@@ -326,7 +326,7 @@ jobs:
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: staging
-          smtp-password: ${{ env.SMTP_PASSWORD }}
+          secrets-profile: staging
 
       - name: Resolve preview URL
         id: preview_url
