@@ -6724,13 +6724,13 @@ a.event-card:focus-visible .event-title,
   text-transform: uppercase;
 }
 
-html[data-site-env="staging"]
+html[data-site-env="local"]
   #whats-on-content:not([data-live="ready"]):not([data-live="static"])
   .events-list,
-html[data-site-env="staging"]
+html[data-site-env="local"]
   #schedule-content:not([data-live="ready"]):not([data-live="static"])
   .schedule-list,
-html[data-site-env="staging"]
+html[data-site-env="local"]
   main.whats-on-series-page:not([data-live="ready"]):not([data-live="static"])
   .event-media {
   visibility: hidden;

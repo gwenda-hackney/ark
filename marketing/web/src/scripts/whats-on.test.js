@@ -5,8 +5,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { readsLiveDiary, initWhatsOnPage } from "./whats-on.js";
 
 describe("readsLiveDiary", () => {
-  it("refreshes the diary only on staging", () => {
-    expect(readsLiveDiary("staging")).toBe(true);
+  it("refreshes the diary only in local dev", () => {
+    expect(readsLiveDiary("local")).toBe(true);
+    expect(readsLiveDiary("staging")).toBe(false);
     expect(readsLiveDiary("production")).toBe(false);
     expect(readsLiveDiary("")).toBe(false);
   });
@@ -14,7 +15,7 @@ describe("readsLiveDiary", () => {
 
 describe("initWhatsOnPage", () => {
   beforeEach(() => {
-    document.documentElement.dataset.siteEnv = "staging";
+    document.documentElement.dataset.siteEnv = "local";
     document.body.innerHTML = `
       <p id="whats-on-loading">Looking at the diary…</p>
       <section id="whats-on-empty" hidden></section>
@@ -32,7 +33,7 @@ describe("initWhatsOnPage", () => {
     delete document.documentElement.dataset.siteEnv;
   });
 
-  it("marks the diary live-ready after a staging refresh", async () => {
+  it("marks the diary live-ready after a local refresh", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({

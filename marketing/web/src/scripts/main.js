@@ -366,7 +366,7 @@ function initPage() {
   // Hero entrance must re-run after View Transitions — Hero.astro's module
   // script only executes the first time that page is visited in the session.
   initHeroReveal();
-  // Staging What's on hides the diary until live refresh sets data-live.
+  // Local What's on hides the diary until the live read sets data-live.
   // Page scripts do not re-run on View Transitions back-nav.
   initWhatsOnPage();
   initSeriesPage();
