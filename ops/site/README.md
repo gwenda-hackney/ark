@@ -43,6 +43,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/suppliers` | Wholesaler catalog (Stock) |
 | `/sections` | Guest menu sections |
 | `/web` | Website staging vs production, health, promote |
+| `/forms` | People who submitted a site form |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow App Config) |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |

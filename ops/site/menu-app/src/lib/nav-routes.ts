@@ -59,6 +59,7 @@ export const NAV_ROUTES: NavRoute[] = [
 			},
 			{ id: "artist", path: "/artists", name: "Artist", icon: "artist" },
 			{ id: "web", path: "/web", name: "Web", icon: "web" },
+			{ id: "forms", path: "/forms", name: "Forms", icon: "forms" },
 		],
 	},
 	{

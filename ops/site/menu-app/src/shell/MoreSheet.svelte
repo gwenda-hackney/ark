@@ -33,6 +33,7 @@
 	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
 	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
+	const onForms = $derived(path === "/forms" || path.startsWith("/forms/"));
 	const eventsPath = $derived(path.split("?")[0] ?? "/");
 	const onSchedule = $derived(isEventsScheduleNavPath(path));
 	const onSeries = $derived(
@@ -151,6 +152,18 @@
 					<span class="copy">
 						<span class="label">Web</span>
 						<span class="hint">Staging, production, and promote</span>
+					</span>
+				</a>
+				<a
+					class="row"
+					class:on={onForms}
+					href="/forms"
+					aria-current={onForms ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="forms" size={18} /></span>
+					<span class="copy">
+						<span class="label">Forms</span>
+						<span class="hint">People who wrote in</span>
 					</span>
 				</a>
 				<p class="heading">Ops</p>

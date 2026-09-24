@@ -123,6 +123,8 @@ gh workflow run web-secrets.yml -f profile=production
 
 SM `BASEROW_API_KEY_MARKETING` is the Gwenda Dev website token (local). Staging Pages uses `BASEROW_API_KEY_MARKETING_STAGING` when present. Production Pages and Mailchimp use `BASEROW_API_KEY_MARKETING_PRODUCTION`. Do not copy subscriber or RSVP rows from staging to production.
 
+Ops `/forms` reads Form Submissions with that same token, written as `BASEROW_WEBSITE_API_KEY` by `npm run env:ops:pull` (local: `BASEROW_API_KEY_MARKETING`, Pages: `BASEROW_API_KEY_MARKETING_PRODUCTION`). It is not a separate Secrets Manager key.
+
 SMTP host/port/user remain in marketing wrangler `[vars]`. Form From / Reply-To / notify addresses live on the Sanity `form` document. Only `SMTP_PASSWORD` is a Secrets Manager / Pages secret.
 
 ## Bitwarden Secrets Manager

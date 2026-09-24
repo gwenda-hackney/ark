@@ -87,6 +87,9 @@ export function restartEnterStaggerAuto() {
   window.setTimeout(() => {
     document.querySelectorAll(".enter-stagger--auto").forEach((el) => {
       if (!(el instanceof HTMLElement)) return;
+      if (el.classList.contains("hero-logo") && !el.classList.contains("is-decoded")) {
+        return;
+      }
       if (Number.parseFloat(getComputedStyle(el).opacity) < 0.05) {
         el.style.opacity = "1";
         el.style.transform = "none";
@@ -103,12 +106,23 @@ document.addEventListener("astro:after-swap", () => {
   restartStaggerOnNextReveal = true;
 });
 
+function whenHeroLogoDecoded() {
+  const logo = document.querySelector(".hero-logo");
+  if (!(logo instanceof HTMLImageElement)) return Promise.resolve(null);
+  return whenImageReady(logo).then(() => logo);
+}
+
 export function initHeroReveal() {
+  const logoReady = whenHeroLogoDecoded();
+
   if (restartStaggerOnNextReveal) {
     restartStaggerOnNextReveal = false;
-    void whenViewTransitionSettled().then(() => {
+    void Promise.all([whenViewTransitionSettled(), logoReady]).then(([, logo]) => {
+      logo?.classList.add("is-decoded");
       restartEnterStaggerAuto();
     });
+  } else {
+    void logoReady.then((logo) => logo?.classList.add("is-decoded"));
   }
 
   const img = document.querySelector(".hero-media .hero-image");

@@ -177,6 +177,30 @@ describe("ops Baserow env split", () => {
     assert.equal(picked.get("SANITY_API_TOKEN"), "sanity");
   });
 
+  it("maps the Dev website token onto BASEROW_WEBSITE_API_KEY for local ops", () => {
+    const picked = pickOpsSecrets(
+      new Map([
+        [OPS_BASEROW_SM_KEY_LOCAL, "local-token"],
+        ["BASEROW_API_KEY_MARKETING", "dev-web"],
+        ["BASEROW_API_KEY_MARKETING_PRODUCTION", "prod-web"],
+      ]),
+      { profile: "local" },
+    );
+    assert.equal(picked.get("BASEROW_WEBSITE_API_KEY"), "dev-web");
+  });
+
+  it("maps the production website token for Pages", () => {
+    const picked = pickOpsSecrets(
+      new Map([
+        [OPS_BASEROW_SM_KEY_PRODUCTION, "prod-token"],
+        ["BASEROW_API_KEY_MARKETING", "dev-web"],
+        ["BASEROW_API_KEY_MARKETING_PRODUCTION", "prod-web"],
+      ]),
+      { profile: "production" },
+    );
+    assert.equal(picked.get("BASEROW_WEBSITE_API_KEY"), "prod-web");
+  });
+
   it("pickOpsSecrets production profile does not use local token", () => {
     const picked = pickOpsSecrets(
       new Map([

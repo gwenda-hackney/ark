@@ -40,6 +40,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/artists/") ||
     p === "/web" ||
     p.startsWith("/web/") ||
+    p === "/forms" ||
+    p.startsWith("/forms/") ||
     p === "/tools" ||
     p.startsWith("/tools/")
   );
@@ -262,6 +264,11 @@ export function parseShellPath(path) {
     return { page: "artists", slug: part || null, isNew: false };
   }
   if (p === "/web" || p.startsWith("/web/")) return { page: "web" };
+  if (p === "/forms") return { page: "forms", slug: null };
+  if (p.startsWith("/forms/")) {
+    const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
+    return { page: "forms", slug: part || null };
+  }
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
   if (p === "/tools" || p.startsWith("/tools/")) {
@@ -407,7 +414,8 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "users" ||
     from === "events" ||
     from === "artists" ||
-    from === "web"
+    from === "web" ||
+    from === "forms"
   ) {
     return false;
   }

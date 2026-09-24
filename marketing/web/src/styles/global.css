@@ -1484,6 +1484,13 @@ html.fonts-ready .hero-logo.enter-stagger--auto {
   --enter-delay: 0.25s;
 }
 
+/* Stay blank until the wordmark file has pixels. Starting the fade on an
+   empty image lets the mark pop in halfway through. */
+html.fonts-ready:not(.navigation-restore) .hero-logo.enter-stagger--auto:not(.is-decoded) {
+  animation: none;
+  opacity: 0;
+}
+
 html.fonts-ready .hero-location.enter-stagger--auto {
   --enter-delay: 0.5s;
 }

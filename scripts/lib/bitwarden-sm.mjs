@@ -75,6 +75,7 @@ export const OPS_ENV_SECRET_KEYS = [
   "LIGHTSPEED_OPS_EMAIL",
   "SANITY_API_TOKEN",
   "DEPLOY_WEBHOOK_SECRET",
+  "BASEROW_WEBSITE_API_KEY",
 ];
 
 /** SM key names for ops Baserow (suffix = env; never fall back across envs). */
@@ -90,6 +91,9 @@ export const OPS_BASEROW_SM_KEY_LEGACY = "BASEROW_API_KEY";
  *   BASEROW_API_KEY_MARKETING_STAGING      Website Staging DB (staging Pages)
  *   BASEROW_API_KEY_MARKETING_PRODUCTION   Gwenda production website DB
  * Ops uses BASEROW_API_KEY_LOCAL / BASEROW_API_KEY_PRODUCTION (not marketing).
+ * Ops `/forms` reads Form Submissions with BASEROW_WEBSITE_API_KEY, remapped
+ * from the matching marketing token (local: BASEROW_API_KEY_MARKETING,
+ * production: BASEROW_API_KEY_MARKETING_PRODUCTION). Not a separate SM secret.
  * Apple Wallet PEMs stay in GitHub / Password Manager for now.
  */
 export const WEB_ENV_SECRET_KEYS = [
@@ -412,6 +416,13 @@ export function pickOpsSecrets(allSecrets, { profile = "local" } = {}) {
 
   const resolved = resolveOpsBaserowToken(allSecrets, profile);
   if (resolved) out.set("BASEROW_API_KEY", resolved);
+
+  const websiteKey =
+    profile === "production"
+      ? "BASEROW_API_KEY_MARKETING_PRODUCTION"
+      : "BASEROW_API_KEY_MARKETING";
+  const website = String(allSecrets.get(websiteKey) ?? "").trim();
+  if (website) out.set("BASEROW_WEBSITE_API_KEY", website);
 
   const production = String(
     allSecrets.get(OPS_BASEROW_SM_KEY_PRODUCTION) ?? "",

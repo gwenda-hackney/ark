@@ -14,6 +14,7 @@
 	import SectionsPage from "./features/menu/SectionsPage.svelte";
 	import UsersPage from "./features/users/UsersPage.svelte";
 	import WebPage from "./features/web/WebPage.svelte";
+	import FormsPage from "./features/forms/FormsPage.svelte";
 	import EventsPage from "./features/events/EventsPage.svelte";
 	import ArtistsPage from "./features/artists/ArtistsPage.svelte";
 	import ToolFrame from "./features/tools/ToolFrame.svelte";
@@ -55,7 +56,7 @@
 			<svelte:boundary onerror={onPageError}>
 				<div
 					class="page"
-					class:fill={key === "menu" || key === "inventory" || key === "tools" || key === "events"}
+					class:fill={key === "menu" || key === "inventory" || key === "tools" || key === "events" || key === "forms"}
 					in:fly={{ y: print ? 0 : 10, duration: print ? 0 : flyMs, easing: easeOut }}
 					out:fade={{ duration: print ? 0 : fadeMs, easing: easeOut }}
 				>
@@ -79,6 +80,8 @@
 						<UsersPage />
 					{:else if key === "web"}
 						<WebPage />
+					{:else if key === "forms"}
+						<FormsPage path={current} />
 					{:else if key === "events"}
 						<EventsPage path={current} />
 					{:else if key === "artists"}
@@ -140,7 +143,8 @@
 
 	.page.fill :global(.workbench),
 	.page.fill :global(.frame),
-	.page.fill :global(.events-root) {
+	.page.fill :global(.events-root),
+	.page.fill :global(.forms-root) {
 		flex: 1;
 		min-height: 0;
 	}
