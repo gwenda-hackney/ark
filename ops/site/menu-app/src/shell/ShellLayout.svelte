@@ -269,8 +269,17 @@
 		</div>
 
 		<nav class="nav scrollbar-fade">
-			{#each routes as item (item.id)}
-				{#if item.children?.length}
+			{#snippet navEntry(item: NavRoute)}
+				{#if item.heading && item.children?.length}
+					<div class="nav-section">
+						{#if open}
+							<p class="nav-section-label">{item.name}</p>
+						{/if}
+						{#each item.children as child (child.id)}
+							{@render navEntry(child)}
+						{/each}
+					</div>
+				{:else if item.children?.length}
 					{@const inGroup = navGroupContains(item, active)}
 					{@const groupHref = collapsedGroupHref(item)}
 					{@const groupOpen = isGroupExpanded(item.id)}
@@ -397,6 +406,9 @@
 						<span class="tip" aria-hidden="true">{item.name}</span>
 					</a>
 				{/if}
+			{/snippet}
+			{#each routes as item (item.id)}
+				{@render navEntry(item)}
 			{/each}
 		</nav>
 
@@ -619,6 +631,26 @@
 	.shell:not(.open) .rail,
 	.shell:not(.open) .nav {
 		overflow: visible;
+	}
+
+	.nav-section {
+		display: flex;
+		flex-direction: column;
+		gap: 0.0625rem;
+	}
+
+	.open .nav-section {
+		margin-top: 0.85rem;
+		margin-bottom: 0.35rem;
+	}
+
+	.nav-section-label {
+		margin: 0.15rem 0 0.3rem 0.7rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--subtle-foreground);
 	}
 
 	.nav-group {
