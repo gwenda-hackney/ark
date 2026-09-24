@@ -67,13 +67,25 @@ jobs:
               ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"]
             ]}
 
+  refuse-production-from-other-branches:
+    name: Refuse production Studio off release
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && inputs.target == 'production'
+      && github.ref_name != 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail
+        run: |
+          echo "Production Studio deploys only from the release branch (got ${{ github.ref_name }})." >&2
+          exit 1
+
   deploy-production:
     name: Deploy production Studio
     if: >-
-      (github.event_name == 'push' && github.ref_name == 'release')
-      || (github.event_name == 'workflow_dispatch'
-          && (inputs.target == 'production'
-              || (inputs.target == 'auto' && github.ref_name == 'release')))
+      github.event_name == 'workflow_dispatch'
+      && github.ref_name == 'release'
+      && (inputs.target == 'production' || inputs.target == 'auto')
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -160,9 +160,9 @@ Do not edit the production dataset directly.
 
 | | Code | Content |
 |---|---|---|
-| Trigger | Merge to `main` / ops promote | Publish, then promote to staging, then promote to production |
+| Trigger | Staging: merge to `main`. Live: manual workflow from `release` | Publish, then rebuild staging, then Web promote from `release` |
 | Staging | Push to `main` | Rebuild from published `staging` documents (drafts ignored) |
-| Production | Ops Web promote | Copy `staging` → `production`, then production build |
+| Production | Manual [Web promote](../.github/workflows/web-promote.yml) from `release` | That same run copies `staging` → `production`, then builds |
 
 ### Infrastructure
 
@@ -175,7 +175,7 @@ Worker: `marketing/site-deploy-webhook/` validates a shared secret, then dispatc
 | Endpoint | Role |
 |---|---|
 | `POST /deploy` | Staging site rebuild from published staging documents (`target: staging`) |
-| `POST /promote` | `staging-to-production` (clone then live build). Legacy `development-to-staging` still rebuilds staging. |
+| `POST /promote` | Dispatch [Web promote](../.github/workflows/web-promote.yml) on `release` (clone then live build). Fails if that branch is not the one selected. Legacy `development-to-staging` still rebuilds staging. |
 | `GET /status?run_id=` | Poll a run |
 
 **Automated setup** (agents and developers — uses `.env` + `gh`):

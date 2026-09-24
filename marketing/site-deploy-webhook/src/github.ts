@@ -16,7 +16,8 @@ const CONTENT_RUN_NAMES: Record<DeployTarget, string[]> = {
 
 const WORKFLOW_REFS: Record<DeployTarget, string> = {
   staging: "main",
-  // Workflow definition from main; jobs still checkout `release` for site code.
+  // Content rebuilds of the marketing site use main. Live promotion is
+  // dispatchStagingPromote, which always selects release.
   production: "main",
 };
 
@@ -175,7 +176,7 @@ export async function dispatchStagingPromote(env: Env): Promise<WorkflowRun> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ref: "main",
+        ref: "release",
       }),
     },
   );

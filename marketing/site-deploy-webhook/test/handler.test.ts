@@ -256,7 +256,7 @@ describe("github integration", () => {
     vi.unstubAllGlobals();
   });
 
-  it("dispatches promote from main without a preview id", async () => {
+  it("dispatches promote from release without a preview id", async () => {
     vi.resetModules();
     vi.stubGlobal(
       "fetch",
@@ -291,7 +291,7 @@ describe("github integration", () => {
     ).mock.calls[0] as [string, RequestInit];
     expect(dispatchUrl).toContain("web-promote.yml");
     const body = JSON.parse(String(dispatchInit.body));
-    expect(body.ref).toBe("main");
+    expect(body.ref).toBe("release");
 
     vi.unstubAllGlobals();
   });

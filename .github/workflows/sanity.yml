@@ -29,6 +29,14 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Require release before overwriting production
+        if: inputs.direction == 'staging-to-production'
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/release" ]; then
+            echo "Copying staging onto the production dataset only runs from the release branch (got ${{ github.ref_name }})." >&2
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
