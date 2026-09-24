@@ -38,10 +38,18 @@ function publicImages(files) {
     .filter(Boolean);
 }
 
+/** Short name for "From {name}". Uses Artist name, or the first word of the full name. */
+export function artistShortName(artist) {
+  const given = text(artist?.artistName);
+  if (given) return given;
+  return text(artist?.name).split(/\s+/)[0] || "";
+}
+
 export function publicArtist(artist) {
   if (!artist || !text(artist.name)) return null;
   return {
     name: text(artist.name),
+    artistName: artistShortName(artist),
     website: text(artist.website),
     profile: text(artist.profile),
     bio: text(artist.bio),

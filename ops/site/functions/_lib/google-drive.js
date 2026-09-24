@@ -197,17 +197,25 @@ export async function listDriveChildren(env, parentId) {
   const id = String(parentId || "").trim();
   if (!id) return [];
   const q = `'${id.replace(/'/g, "\\'")}' in parents and trashed = false`;
-  const payload = await driveFetch(env, "/files", {
-    query: {
-      q,
-      includeItemsFromAllDrives: "true",
-      fields:
-        "files(id,name,mimeType,webViewLink,thumbnailLink,modifiedTime)",
-      pageSize: "200",
-      orderBy: "folder,name_natural",
-    },
-  });
-  return Array.isArray(payload.files) ? payload.files : [];
+  const files = [];
+  let pageToken = "";
+  for (;;) {
+    const payload = await driveFetch(env, "/files", {
+      query: {
+        q,
+        includeItemsFromAllDrives: "true",
+        fields:
+          "nextPageToken,files(id,name,mimeType,webViewLink,thumbnailLink,modifiedTime)",
+        pageSize: "200",
+        orderBy: "folder,name_natural",
+        pageToken,
+      },
+    });
+    if (Array.isArray(payload.files)) files.push(...payload.files);
+    pageToken = String(payload.nextPageToken || "");
+    if (!pageToken || files.length > 5000) break;
+  }
+  return files;
 }
 
 export async function listDriveImages(env, parentId) {
@@ -225,6 +233,25 @@ export function findNamedFolder(children, name) {
     return file;
   }
   return null;
+}
+
+/**
+ * An unreferenced folder with this name, newest first.
+ * `takenIds` are folders already stored on an event.
+ */
+export function pickReusableDriveFolder(children, name, takenIds = []) {
+  const wanted = String(name || "").trim().toLowerCase();
+  if (!wanted) return null;
+  const taken = new Set((takenIds || []).map((id) => String(id || "").trim()).filter(Boolean));
+  const matches = (children || []).filter((file) => {
+    if (String(file?.mimeType || "") !== FOLDER_MIME) return false;
+    if (String(file?.name || "").trim().toLowerCase() !== wanted) return false;
+    return !taken.has(String(file?.id || ""));
+  });
+  matches.sort((a, b) =>
+    String(b?.modifiedTime || "").localeCompare(String(a?.modifiedTime || "")),
+  );
+  return matches[0] || null;
 }
 
 /**
@@ -398,6 +425,71 @@ export async function uploadDriveFile(
   return mapDriveImage(payload);
 }
 
+export async function trashDriveFile(env, fileId) {
+  const id = String(fileId || "").trim();
+  if (!id) return;
+  try {
+    await driveFetch(env, `/files/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      query: { fields: "id,trashed" },
+      body: { trashed: true },
+    });
+  } catch (error) {
+    if (error?.status === 404) return;
+    throw error;
+  }
+}
+
+export async function untrashDriveFile(env, fileId) {
+  const id = String(fileId || "").trim();
+  if (!id) return;
+  await driveFetch(env, `/files/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    query: { fields: "id,trashed" },
+    body: { trashed: false },
+  });
+}
+
+export async function renameDriveFile(env, fileId, name) {
+  const id = String(fileId || "").trim();
+  const next = String(name || "").trim();
+  if (!id || !next) {
+    const error = new Error("Drive file id and name are required.");
+    error.status = 400;
+    throw error;
+  }
+  const renamed = await driveFetch(env, `/files/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    query: { fields: "id,name,mimeType,webViewLink" },
+    body: { name: next },
+  });
+  return {
+    id: String(renamed.id || id),
+    name: String(renamed.name || next),
+    url: String(renamed.webViewLink || "") || driveFolderWebUrl(renamed.id || id),
+  };
+}
+
+/** Move a file to another folder in the same drive. */
+export async function moveDriveFile(env, fileId, { addParentId, removeParentId }) {
+  const id = String(fileId || "").trim();
+  const add = String(addParentId || "").trim();
+  const remove = String(removeParentId || "").trim();
+  if (!id || !add || !remove) {
+    const error = new Error("Drive file id and parent folders are required.");
+    error.status = 400;
+    throw error;
+  }
+  return driveFetch(env, `/files/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    query: {
+      addParents: add,
+      removeParents: remove,
+      fields: "id,name,parents",
+    },
+  });
+}
+
 /**
  * Create a folder under parent. Drive allows duplicate names; callers should
  * store the returned id as the event pointer.
@@ -431,8 +523,17 @@ export async function createDriveFolder(env, { name, parentId }) {
   };
 }
 
-/** Create the event's library folder under the configured Events root. */
-export async function createEventDriveFolder(env, eventName) {
+/**
+ * Event library folder under the configured Events root.
+ * Reuses an unreferenced folder of the same name so a deleted event
+ * does not leave a twin behind when the name is used again.
+ * `takenFolderIds` are folders already stored on other events.
+ */
+export async function createEventDriveFolder(
+  env,
+  eventName,
+  { takenFolderIds = [] } = {},
+) {
   const rootId = await driveEventsRootFolderId(env);
   if (!rootId) {
     const error = new Error(
@@ -441,7 +542,21 @@ export async function createEventDriveFolder(env, eventName) {
     error.status = 503;
     throw error;
   }
-  return createDriveFolder(env, { name: eventName, parentId: rootId });
+  const children = await listDriveChildren(env, rootId);
+  const existing = pickReusableDriveFolder(children, eventName, takenFolderIds);
+  if (existing?.id) {
+    return {
+      id: String(existing.id),
+      name: String(existing.name || eventName),
+      url: String(existing.webViewLink || "") || driveFolderWebUrl(existing.id),
+      reused: true,
+    };
+  }
+  const created = await createDriveFolder(env, {
+    name: eventName,
+    parentId: rootId,
+  });
+  return { ...created, reused: false };
 }
 
 /** @internal test helper */

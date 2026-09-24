@@ -80,6 +80,7 @@ export function mapArtist(row) {
     id: String(row.id),
     slot,
     name: text(row.Name),
+    artistName: text(row["Artist name"]),
     website: parseProductUrl(text(row.Website)) || "",
     profile: text(row.Profile),
     bio: text(row.Bio),
@@ -106,6 +107,10 @@ function fieldsFromInput(input, { slotRequired = true } = {}) {
   const name = text(input?.name);
   if (!name) fail(400, "Enter the artist's name.");
   if (name.length > 200) fail(400, "Name must be 200 characters or fewer.");
+  const artistName = text(input?.artistName);
+  if (artistName.length > 80) {
+    fail(400, "Artist name must be 80 characters or fewer.");
+  }
   const websiteRaw = text(input?.website);
   const website = normalizeWebsite(websiteRaw);
   if (websiteRaw && !website) {
@@ -115,6 +120,7 @@ function fieldsFromInput(input, { slotRequired = true } = {}) {
   if (!slot) fail(400, "Choose current, next, or previous.");
   return {
     Name: name,
+    "Artist name": artistName,
     Slot: slot,
     Website: website,
     Profile: text(input?.profile),

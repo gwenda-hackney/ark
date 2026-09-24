@@ -43,6 +43,9 @@ import {
   createEventDriveFolder,
   driveFolderWebUrl,
   ensureNamedChildFolder,
+  renameDriveFile,
+  trashDriveFile,
+  untrashDriveFile,
 } from "./google-drive.js";
 import {
   parseNightSchedule,
@@ -623,12 +626,25 @@ export async function getEvent(env, id) {
   return mapEvent(row, dates);
 }
 
+async function takenDriveFolderIds(env, tables, exceptId = "") {
+  const rows = await listAllRows(env, tables.events);
+  const ids = [];
+  for (const row of rows) {
+    if (String(row.id) === String(exceptId)) continue;
+    const folderId = text(row["Drive folder id"]);
+    if (folderId) ids.push(folderId);
+  }
+  return ids;
+}
+
 /** Ensure the event has a Drive folder; create one if missing. */
 export async function ensureEventDriveFolder(env, id) {
   const event = await getEvent(env, id);
   if (event.driveFolderId) return event;
-  const folder = await createEventDriveFolder(env, event.name || "Event");
   const tables = requireEventsTables(await resolveOpsTableIds(env));
+  const folder = await createEventDriveFolder(env, event.name || "Event", {
+    takenFolderIds: await takenDriveFolderIds(env, tables, id),
+  });
   await updateRow(env, tables.events, id, {
     "Drive folder id": folder.id,
   });
@@ -650,12 +666,26 @@ export async function createEvent(env, input) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const name = text(input?.name);
   const slug = await assertUniqueName(env, tables, name);
-  const driveFolder = await createEventDriveFolder(env, name);
+  const driveFolder = await createEventDriveFolder(env, name, {
+    takenFolderIds: await takenDriveFolderIds(env, tables),
+  });
   const nightScheduleField = await nightScheduleFieldName(env);
   const fields = fieldsFromInput(input || {}, { slug, nightScheduleField });
   assignPageLink(fields, input?.pageUrl);
   fields["Drive folder id"] = driveFolder.id;
-  const row = await createRow(env, tables.events, fields);
+  let row;
+  try {
+    row = await createRow(env, tables.events, fields);
+  } catch (error) {
+    if (!driveFolder.reused && driveFolder.id) {
+      try {
+        await trashDriveFile(env, driveFolder.id);
+      } catch {
+        /* keep the Baserow error */
+      }
+    }
+    throw error;
+  }
   return syncEventOccurrences(env, mapEvent(row, []));
 }
 
@@ -721,16 +751,31 @@ export async function updateEvent(env, id, input) {
     nightScheduleField,
   });
   assignPageLink(fields, merged.pageUrl);
-  const row = await updateRow(env, tables.events, id, fields);
-  const dates = await loadDates(env, tables, id);
-  let event = mapEvent(row, dates);
-  const nextName = text(event.name);
-  if (
+  const nextName = text(merged.name);
+  const nameChanged =
     input?.name !== undefined &&
     previousName &&
     nextName &&
-    previousName.toLowerCase() !== nextName.toLowerCase()
-  ) {
+    previousName.toLowerCase() !== nextName.toLowerCase();
+  if (nameChanged && current.driveFolderId) {
+    await renameDriveFile(env, current.driveFolderId, nextName);
+  }
+  let row;
+  try {
+    row = await updateRow(env, tables.events, id, fields);
+  } catch (error) {
+    if (nameChanged && current.driveFolderId) {
+      try {
+        await renameDriveFile(env, current.driveFolderId, previousName);
+      } catch {
+        /* keep the Baserow error */
+      }
+    }
+    throw error;
+  }
+  const dates = await loadDates(env, tables, id);
+  let event = mapEvent(row, dates);
+  if (nameChanged) {
     event = await clearSeriesTitleEchoes(env, event, previousName);
   }
   return syncEventOccurrences(env, event);
@@ -809,11 +854,25 @@ export async function syncEventOccurrences(env, event) {
 
 export async function deleteEvent(env, id) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const dates = await loadDates(env, tables, id);
-  for (const row of dates) {
-    await removeOccurrence(env, row.id);
+  const event = await getEvent(env, id);
+  const dates = event.dates || [];
+  const folderId = event.driveFolderId;
+  if (folderId) await trashDriveFile(env, folderId);
+  try {
+    for (const row of dates) {
+      if (row?.id) await removeOccurrence(env, row.id);
+    }
+    await deleteRow(env, tables.events, id);
+  } catch (error) {
+    if (folderId) {
+      try {
+        await untrashDriveFile(env, folderId);
+      } catch {
+        /* keep the Baserow error */
+      }
+    }
+    throw error;
   }
-  await deleteRow(env, tables.events, id);
   return { id: String(id), dates: dates.map(mapEventDate) };
 }
 

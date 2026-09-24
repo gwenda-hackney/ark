@@ -13,7 +13,6 @@ const featured = await fetchFeaturedArtists();
 const artist = featured.current;
 const next = featured.next;
 const works = (artist?.art || []).slice(0, 3);
-const givenName = artist?.name?.trim().split(/\s+/)[0] || "";
 const pageTitle = artist
   ? `${artist.name} · Gwenda`
   : siteConfig.seo.artists.title;
@@ -88,7 +87,7 @@ const navItems = artistNavItems(
             <section class="artist-section" id="work">
               <header class="artist-section-header">
                 <p class="section-eyebrow">More</p>
-                <h2>From {artist.name}</h2>
+                <h2>From {artist.artistName}</h2>
               </header>
               <ul
                 class:list={[
@@ -116,7 +115,7 @@ const navItems = artistNavItems(
               </ul>
               {artist.website ? (
                 <p class="artist-more">
-                  A sample from {givenName}'s latest work. The rest is at{" "}
+                  A sample from {artist.artistName}'s latest work. The rest is at{" "}
                   <a href={artist.website} target="_blank" rel="noreferrer">{websiteLabel(artist.website)}</a>.
                 </p>
               ) : null}

@@ -805,6 +805,7 @@ export type WallArtist = {
   id: string;
   slot: ArtistSlot;
   name: string;
+  artistName: string;
   website: string;
   profile: string;
   bio: string;
@@ -815,6 +816,7 @@ export type WallArtist = {
 
 export type ArtistInput = {
   name: string;
+  artistName: string;
   website: string;
   profile: string;
   bio: string;

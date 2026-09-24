@@ -189,6 +189,18 @@ html.is-scrollbar-dragging {
   }
 }
 
+/* The ribbon is fixed chrome. Leave it out of the page crossfade. */
+::view-transition-group(staging-ribbon) {
+  animation: none;
+  z-index: 130;
+}
+
+::view-transition-old(staging-ribbon),
+::view-transition-new(staging-ribbon) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 main {
   width: 100%;
 }
@@ -205,6 +217,9 @@ main {
   left: 0;
   /* Above site-header / subpage-chrome (110); below preview-banner (200). */
   z-index: 130;
+  /* Stay painted across view transitions. A fixed corner inside the root
+     snapshot is dropped on some client navigations until a full reload. */
+  view-transition-name: staging-ribbon;
   width: var(--ribbon-fold);
   height: var(--ribbon-fold);
   overflow: hidden;

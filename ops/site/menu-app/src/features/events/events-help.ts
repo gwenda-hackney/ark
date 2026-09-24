@@ -47,6 +47,6 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Publish",
-		body: "Header Publish opens this workflow. Update preview writes the series into the staging diary, which shows on refresh without a site rebuild. If What's on already has the event and looks wrong, use Republish preview. Check What's on, then Push live. Publish the staging site only when you need every page rebuilt. That takes a few minutes, and the page shows its progress.",
+		body: "Header Publish opens this workflow for one series. Update preview on Series or Schedule opens the same steps for every series: how many still need a preview, a link to staging What's on, then Push live. The button counts whatever step is left. Update preview writes the staging diary, which shows on refresh without a site rebuild. If What's on already has the event and looks wrong, use Republish preview. Publish the staging site only when you need every page rebuilt. That takes a few minutes, and the page shows its progress.",
 	},
 ];
