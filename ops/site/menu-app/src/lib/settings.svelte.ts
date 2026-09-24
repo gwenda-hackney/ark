@@ -1,5 +1,5 @@
 /**
- * House pour-cost targets from Baserow App Config (via /api/config).
+ * House pour-cost targets from the Baserow config database (via /api/config).
  * Defaults match the drink-type model until the first successful load.
  */
 import {

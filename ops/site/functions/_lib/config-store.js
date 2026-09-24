@@ -1,19 +1,25 @@
 /**
- * Runtime non-secret config from Baserow "App Config".
- * Bootstrap still needs BASEROW_API_KEY (+ optional database id / SITE_ENV).
- * Secrets never belong in this table.
+ * Ops runtime non-secret config (Baserow "Gwenda Config", Service = ops).
+ * Resolution rules live in shared/config-db.js. Secrets never belong here.
  */
+import {
+  CONFIG_CACHE_TTL_MS,
+  configEnvName,
+  getConfigString as getSharedConfigString,
+  getConfigValues as getSharedConfigValues,
+  resetConfigCacheForTests,
+  setConfigValue,
+  valuesFromRows,
+} from "../../../../shared/config-db.js";
 import {
   OPS_DATABASE_NAME,
   OPS_PRODUCTION_DATABASE_ID,
-  createRow,
-  listAllRows,
   opsDatabaseId,
-  resolveConfigTableId,
-  updateRow,
 } from "./baserow.js";
 
-export const CONFIG_CACHE_TTL_MS = 60_000;
+export { CONFIG_CACHE_TTL_MS, resetConfigCacheForTests, valuesFromRows };
+
+const SERVICE = "ops";
 
 export const POUR_TARGET_KEYS = {
   cocktail: "pour_target.cocktail",
@@ -30,7 +36,7 @@ export const DEFAULT_POUR_TARGETS = {
   packaged: 25,
 };
 
-/** Non-secret ops settings (App Config Name column). */
+/** Non-secret ops settings (config Name column). */
 export const OPS_CONFIG_KEYS = {
   sanityProjectId: "sanity.project_id",
   sanityDataset: "sanity.dataset",
@@ -40,31 +46,14 @@ export const OPS_CONFIG_KEYS = {
   googleCalendarId: "google.calendar_id",
   taskRoleSocial: "tasks.role.social",
   clickupEventsListId: "clickup.events_list_id",
+  webOrigin: "web.origin",
 };
 
 export const DEFAULT_SANITY_PROJECT_ID = "pn5yjro6";
 
 const DRINK_TYPES = Object.keys(POUR_TARGET_KEYS);
 
-let cache = { key: "", at: 0, rows: null };
-
-export function resetConfigCacheForTests() {
-  cache = { key: "", at: 0, rows: null };
-}
-
-function bustConfigCache() {
-  cache = { key: "", at: 0, rows: null };
-}
-
-export function siteEnvName(env = {}) {
-  const raw = String(env.SITE_ENV || env.PUBLIC_IS_STAGING || "")
-    .trim()
-    .toLowerCase();
-  if (raw === "true" || raw === "staging") return "staging";
-  if (raw === "local" || raw === "development" || raw === "dev") return "local";
-  if (raw === "production" || raw === "prod") return "production";
-  return raw || "production";
-}
+export const siteEnvName = configEnvName;
 
 /** Human labels for shell chrome (which Baserow world this request hits). */
 export function opsConnectionInfo(env = {}) {
@@ -101,51 +90,6 @@ export function opsConnectionInfo(env = {}) {
   };
 }
 
-function text(value) {
-  if (typeof value === "string") return value.trim();
-  if (value == null) return "";
-  if (typeof value === "object" && value.value != null) {
-    return String(value.value).trim();
-  }
-  return String(value).trim();
-}
-
-function selectValue(value) {
-  return text(value).toLowerCase() || "all";
-}
-
-function specificityScore(row, envName, service) {
-  const rowEnv = selectValue(row.Env);
-  const rowService = selectValue(row.Service);
-  if (rowEnv !== "all" && rowEnv !== envName) return -1;
-  if (rowService !== "all" && service && rowService !== service) return -1;
-  let score = 0;
-  if (rowEnv === envName) score += 2;
-  if (service && rowService === service) score += 1;
-  return score;
-}
-
-/**
- * Collapse App Config rows into a flat key → value map for this env/service.
- * More specific Env/Service wins over `all`.
- */
-export function valuesFromRows(rows, envName, service = "ops") {
-  const best = new Map();
-  for (const row of rows || []) {
-    const key = text(row.Name) || text(row.Key);
-    if (!key) continue;
-    const score = specificityScore(row, envName, service);
-    if (score < 0) continue;
-    const prev = best.get(key);
-    if (!prev || score > prev.score) {
-      best.set(key, { score, value: text(row.Value), row });
-    }
-  }
-  const values = {};
-  for (const [key, entry] of best) values[key] = entry.value;
-  return values;
-}
-
 export function clampPourTarget(value) {
   const n =
     typeof value === "number"
@@ -174,72 +118,29 @@ export function pourTargetsFromValues(values) {
   return normalizePourTargets(partial);
 }
 
-function requireConfigTableId(tableId) {
-  if (!tableId) {
-    const error = new Error(
-      'Baserow table "App Config" not found. Run npm run setup:baserow-ops.',
-    );
-    error.status = 503;
-    throw error;
-  }
-  return tableId;
+/** Flat key/value map for ops in this env. */
+export async function getConfigValues(env) {
+  return getSharedConfigValues(env, SERVICE);
 }
 
-async function loadConfigRows(env) {
-  const tableId = await resolveConfigTableId(env);
-  if (!tableId) return { tableId: "", rows: [] };
-
-  const cacheKey = `${tableId}|${siteEnvName(env)}`;
-  if (cache.rows && cache.key === cacheKey && Date.now() - cache.at < CONFIG_CACHE_TTL_MS) {
-    return { tableId, rows: cache.rows };
-  }
-  const rows = await listAllRows(env, tableId);
-  cache = { key: cacheKey, at: Date.now(), rows };
-  return { tableId, rows };
+/** One ops value, or "" when unset / config unavailable. */
+export async function getConfigString(env, key) {
+  return getSharedConfigString(env, SERVICE, key);
 }
 
-/** Flat key/value map. Missing table → empty map (callers apply defaults). */
-export async function getConfigValues(env, { service = "ops" } = {}) {
-  const { rows } = await loadConfigRows(env);
-  return valuesFromRows(rows, siteEnvName(env), service);
-}
-
-export async function getConfigString(env, key, { service = "ops" } = {}) {
-  try {
-    const values = await getConfigValues(env, { service });
-    return values[key]?.trim() || "";
-  } catch (error) {
-    if (error?.status === 503) return "";
-    throw error;
-  }
+/** Write this env's ops row for `key`. */
+export async function setConfigString(env, key, value) {
+  await setConfigValue(env, SERVICE, key, value);
 }
 
 /**
- * Create or patch one App Config row. Env=all + Service=ops unless overridden.
- */
-export async function setConfigString(
-  env,
-  key,
-  value,
-  { envName = "all", service = "ops" } = {},
-) {
-  const tableId = requireConfigTableId(await resolveConfigTableId(env));
-  const loaded = await loadConfigRows(env);
-  await upsertConfigValue(env, tableId, loaded.rows || [], key, value, {
-    envName,
-    service,
-  });
-  bustConfigCache();
-}
-
-/**
- * Merge App Config into a plain env-like object.
+ * Merge config into a plain env-like object.
  * Binding/env values win when already set (bootstrap + secrets stay authoritative).
  */
 export async function applyOpsAppConfig(env = {}) {
   let values = {};
   try {
-    values = await getConfigValues(env, { service: "ops" });
+    values = await getConfigValues(env);
   } catch (error) {
     if (error?.status !== 503) throw error;
   }
@@ -264,73 +165,29 @@ export async function applyOpsAppConfig(env = {}) {
       "GOOGLE_OAUTH_CLIENT_ID",
       OPS_CONFIG_KEYS.googleOauthClientId,
     ),
+    WEB_ORIGIN: pick("WEB_ORIGIN", OPS_CONFIG_KEYS.webOrigin),
   };
 }
 
 /** Pour-cost targets for ops. Missing/invalid config → built-in defaults. */
 export async function getPourTargets(env) {
   try {
-    const values = await getConfigValues(env, { service: "ops" });
-    return pourTargetsFromValues(values);
+    return pourTargetsFromValues(await getConfigValues(env));
   } catch (error) {
     if (error?.status === 503) return { ...DEFAULT_POUR_TARGETS };
     throw error;
   }
 }
 
-async function upsertConfigValue(env, tableId, rows, key, value, { envName, service }) {
-  const wantEnv = envName || "all";
-  const wantService = service || "ops";
-  const match = (rows || []).find((row) => {
-    const name = text(row.Name) || text(row.Key);
-    return (
-      name === key &&
-      selectValue(row.Env) === wantEnv &&
-      selectValue(row.Service) === wantService
-    );
-  });
-  const fields = {
-    Name: key,
-    Value: String(value),
-    Env: wantEnv,
-    Service: wantService,
-  };
-  if (match) {
-    const row = await updateRow(env, tableId, match.id, fields);
-    return row;
-  }
-  return createRow(env, tableId, fields);
-}
-
-/**
- * Persist pour targets (creates or patches App Config rows).
- * Uses Env=all + Service=ops so every ops environment shares house targets.
- */
+/** Persist pour targets as this env's rows. */
 export async function setPourTargets(env, partial) {
-  const tableId = requireConfigTableId(await resolveConfigTableId(env));
-  const loaded = await loadConfigRows(env);
-  const rows = [...(loaded.rows || [])];
   const next = normalizePourTargets({
     ...(await getPourTargets(env)),
     ...partial,
   });
   for (const type of DRINK_TYPES) {
-    const row = await upsertConfigValue(
-      env,
-      tableId,
-      rows,
-      POUR_TARGET_KEYS[type],
-      next[type],
-      {
-        envName: "all",
-        service: "ops",
-      },
-    );
-    const idx = rows.findIndex((item) => String(item.id) === String(row.id));
-    if (idx >= 0) rows[idx] = row;
-    else rows.push(row);
+    await setConfigString(env, POUR_TARGET_KEYS[type], next[type]);
   }
-  bustConfigCache();
   return next;
 }
 

@@ -352,11 +352,28 @@ export type FormSubmission = {
   status: string;
   submittedAt: string;
   current: boolean;
+  /** ISO time the ops notification went out, or "" if never. */
+  notifySentAt: string;
+  /** ISO time the applicant receipt went out, or "" if never. */
+  receiptSentAt: string;
   answers: FormAnswer[];
 };
 
+export type FormEmailKind = "notify" | "receipt";
+
 export function getFormSubmissions() {
   return request<{ submissions: FormSubmission[] }>("/api/forms");
+}
+
+export function resendFormEmail(id: string, kind: FormEmailKind) {
+  return request<{ ok: true; sentAt?: string | null; dryRun?: boolean; warning?: string }>(
+    `/api/forms/${encodeURIComponent(id)}/resend`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind }),
+    },
+  );
 }
 
 export function getOpsUsers() {

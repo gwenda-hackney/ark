@@ -18,7 +18,6 @@ import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   OPS_PRODUCTION_DATABASE_ID,
-  TABLE_CONFIG,
   TABLE_EVENT_DATES,
   TABLE_ARTISTS,
   TABLE_EVENTS,
@@ -46,7 +45,6 @@ const TABLE_ORDER = [
   TABLE_ITEMS,
   TABLE_INGREDIENTS,
   TABLE_USERS,
-  TABLE_CONFIG,
   TABLE_POS_MENUS,
   TABLE_MENU_PLACEMENTS,
   TABLE_EVENTS,

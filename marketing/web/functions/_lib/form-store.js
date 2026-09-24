@@ -9,6 +9,12 @@ async function reportStoreFailure(env, extra) {
 export const FORM_STATUS_PENDING = "Pending";
 export const FORM_STATUS_VERIFIED = "Verified";
 
+/** Datetime columns stamped after each real (non dry-run) send. */
+export const FORM_EMAIL_SENT_FIELDS = {
+  notify: "Notify Sent",
+  receipt: "Receipt Sent",
+};
+
 function selectValue(field) {
   if (field == null) return "";
   if (typeof field === "string") return field;
@@ -520,4 +526,39 @@ export async function markFormSubmissionVerified(env, rowId, expectedEmail) {
     formTitle,
     submittedAt,
   };
+}
+
+/**
+ * Stamp the row after an email actually went out (one column per email kind).
+ * @param {"notify" | "receipt"} kind
+ * @returns {Promise<{ ok: true, sentAt: string } | { ok: false, error: string }>}
+ */
+export async function markFormSubmissionEmailSent(env, rowId, kind, sentAt) {
+  const field = FORM_EMAIL_SENT_FIELDS[kind];
+  const id = String(rowId ?? "").trim();
+  if (!field || !id) return { ok: false, error: "Missing submission." };
+
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+
+  const when = sentAt || new Date().toISOString();
+  const upstream = await fetch(resolved.rowUrl(id), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Token ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ [field]: when }),
+  });
+
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => "");
+    await reportStoreFailure(env, {
+      op: `mark_${kind}_sent`,
+      status: upstream.status,
+      detail: detail.slice(0, 300),
+    });
+    return { ok: false, error: "Could not mark email sent." };
+  }
+  return { ok: true, sentAt: when };
 }

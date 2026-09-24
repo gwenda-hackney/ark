@@ -8,8 +8,8 @@
  * Usage:
  *   npm run setup:baserow-ops
  *
- * Also creates the Users table (Email + Active) and App Config (runtime
- * non-secret settings such as pour-cost targets). Optional one-time Users seed
+ * Also creates the Users table (Email + Active). Runtime settings live in the
+ * separate config database (npm run setup:baserow-config). Optional one-time Users seed
  * from OPS_ALLOWED_EMAILS if that leftover is still in .env. After that, add
  * people in Baserow, not env.
  *
@@ -31,7 +31,6 @@ import {
   TABLE_SECTIONS,
   TABLE_SUPPLIERS,
   TABLE_USERS,
-  TABLE_CONFIG,
   TABLE_POS_MENUS,
   TABLE_MENU_PLACEMENTS,
   TABLE_EVENTS,
@@ -42,12 +41,6 @@ import {
   DEFAULT_POS_MENU_NAME,
   LEGACY_DEFAULT_POS_MENU_NAME,
 } from "../ops/site/functions/_lib/pos-menu-store.js";
-import {
-  DEFAULT_POUR_TARGETS,
-  DEFAULT_SANITY_PROJECT_ID,
-  OPS_CONFIG_KEYS,
-  POUR_TARGET_KEYS,
-} from "../ops/site/functions/_lib/config-store.js";
 import { parseEmailList } from "./lib/parse-email-list.mjs";
 import {
   looksLikeOnlyUrls,
@@ -994,38 +987,6 @@ function userFields() {
   ];
 }
 
-function configFields() {
-  return [
-    { name: "Value", body: { name: "Value", type: "text" } },
-    {
-      name: "Env",
-      body: {
-        name: "Env",
-        type: "single_select",
-        select_options: [
-          { value: "all", color: "dark-gray" },
-          { value: "local", color: "blue" },
-          { value: "staging", color: "orange" },
-          { value: "production", color: "green" },
-        ],
-      },
-    },
-    {
-      name: "Service",
-      body: {
-        name: "Service",
-        type: "single_select",
-        select_options: [
-          { value: "all", color: "dark-gray" },
-          { value: "ops", color: "purple" },
-          { value: "web", color: "cyan" },
-          { value: "workers", color: "yellow" },
-        ],
-      },
-    },
-  ];
-}
-
 function inventorySupplierFields(inventoryTableId, suppliersTableId) {
   return [
     {
@@ -1187,95 +1148,6 @@ async function seedUsers(apiBase, jwt, usersTableId) {
     byEmail.add(email);
     console.log(`  + ${email}`);
   }
-}
-
-async function seedAppConfig(apiBase, jwt, configTableId) {
-  const existing = await listRows(apiBase, jwt, configTableId);
-  const byKey = new Map();
-  for (const row of existing) {
-    const key = String(row.Name || "").trim();
-    const env = String(row.Env?.value || row.Env || "all")
-      .trim()
-      .toLowerCase();
-    const service = String(row.Service?.value || row.Service || "all")
-      .trim()
-      .toLowerCase();
-    if (key) byKey.set(`${key}|${env}|${service}`, row);
-  }
-
-  async function ensureRow(key, value, envName, service = "ops") {
-    if (!value) return;
-    const mapKey = `${key}|${envName}|${service}`;
-    if (byKey.has(mapKey)) {
-      console.log(`  ✓ ${key} (${envName})`);
-      return;
-    }
-    await baserowRequest(
-      apiBase,
-      jwt,
-      `/api/database/rows/table/${configTableId}/?user_field_names=true`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          Name: key,
-          Value: String(value),
-          Env: envName,
-          Service: service,
-        }),
-      },
-    );
-    byKey.set(mapKey, true);
-    const shown =
-      key.includes("secret") ||
-      key.includes("token") ||
-      key.includes("password")
-        ? "(set)"
-        : String(value).length > 48
-          ? `${String(value).slice(0, 24)}…`
-          : value;
-    console.log(`  + ${key}=${shown} (${envName})`);
-  }
-
-  for (const [type, key] of Object.entries(POUR_TARGET_KEYS)) {
-    await ensureRow(key, DEFAULT_POUR_TARGETS[type], "all");
-  }
-
-  await ensureRow(
-    OPS_CONFIG_KEYS.sanityProjectId,
-    readEnv("SANITY_PROJECT_ID") || DEFAULT_SANITY_PROJECT_ID,
-    "all",
-  );
-  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "staging", "local");
-  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "staging", "staging");
-  await ensureRow(OPS_CONFIG_KEYS.sanityDataset, "production", "production");
-
-  const webhook =
-    readEnv("SITE_DEPLOY_WEBHOOK_URL") ||
-    readEnv("SANITY_STUDIO_SITE_DEPLOY_URL");
-  if (webhook) {
-    await ensureRow(OPS_CONFIG_KEYS.siteDeployWebhookUrl, webhook, "all");
-  } else {
-    console.log(
-      "  (skip site_deploy.webhook_url — set SITE_DEPLOY_WEBHOOK_URL in .env)",
-    );
-  }
-
-  const googleClientId = readEnv("GOOGLE_OAUTH_CLIENT_ID");
-  await ensureRow(OPS_CONFIG_KEYS.googleOauthClientId, googleClientId, "all");
-  // google.drive_events_folder_id is env-specific App Config (Events vs Events-dev).
-  // Set in Baserow; do not seed from process env.
-  // Secondary calendars shared with the Drive service account.
-  // Local testing uses the dev calendar. Production uses the live one.
-  await ensureRow(
-    OPS_CONFIG_KEYS.googleCalendarId,
-    "c_48d75bc296688f9708a7fd4171ae92b0808ffc8a45c41bb4541a5840d4befce9@group.calendar.google.com",
-    "local",
-  );
-  await ensureRow(
-    OPS_CONFIG_KEYS.googleCalendarId,
-    "c_5f8cc21d86540230e430cc5d0fdb58cda525cfbf673d84b1f0bf596d401c8594@group.calendar.google.com",
-    "production",
-  );
 }
 
 async function findOrCreateSupplier(
@@ -1610,13 +1482,6 @@ async function main() {
     tables,
     TABLE_USERS,
   );
-  const config = await findOrCreateTable(
-    apiBase,
-    jwt,
-    databaseId,
-    tables,
-    TABLE_CONFIG,
-  );
   const posMenus = await findOrCreateTable(
     apiBase,
     jwt,
@@ -1664,8 +1529,6 @@ async function main() {
   );
   console.log(`Fields on ${TABLE_USERS}:`);
   await ensureFields(apiBase, jwt, users.id, userFields());
-  console.log(`Fields on ${TABLE_CONFIG}:`);
-  await ensureFields(apiBase, jwt, config.id, configFields());
   console.log(`Fields on ${TABLE_POS_MENUS}:`);
   await ensureFields(apiBase, jwt, posMenus.id, posMenuFields());
   console.log(`Fields on ${TABLE_MENU_PLACEMENTS}:`);
@@ -1717,8 +1580,6 @@ async function main() {
   const supplierByName = await seedSuppliers(apiBase, jwt, suppliers.id);
   console.log(`Rows on ${TABLE_USERS}:`);
   await seedUsers(apiBase, jwt, users.id);
-  console.log(`Rows on ${TABLE_CONFIG}:`);
-  await seedAppConfig(apiBase, jwt, config.id);
   console.log(`Migrate inventory → supplier links:`);
   await migrateSupplierLinks(
     apiBase,
@@ -1737,7 +1598,6 @@ async function main() {
   console.log(`  ${TABLE_INVENTORY_SUPPLIERS} → ${inventorySuppliers.id}`);
   console.log(`  ${TABLE_INGREDIENTS} → ${ingredients.id}`);
   console.log(`  ${TABLE_USERS} → ${users.id}`);
-  console.log(`  ${TABLE_CONFIG} → ${config.id}`);
   console.log(`  ${TABLE_POS_MENUS} → ${posMenus.id}`);
   console.log(`  ${TABLE_MENU_PLACEMENTS} → ${menuPlacements.id}`);
   console.log(`  ${TABLE_EVENTS} → ${events.id}`);

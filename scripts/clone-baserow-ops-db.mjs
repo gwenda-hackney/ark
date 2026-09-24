@@ -23,7 +23,6 @@ import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   OPS_DATABASE_NAME,
-  TABLE_CONFIG,
   TABLE_INGREDIENTS,
   TABLE_INVENTORY,
   TABLE_INVENTORY_SUPPLIERS,
@@ -49,7 +48,6 @@ const TABLE_ORDER = [
   TABLE_ITEMS,
   TABLE_INGREDIENTS,
   TABLE_USERS,
-  TABLE_CONFIG,
 ];
 
 /** Link fields that are reverse relations (created automatically). Skip creating. */
@@ -375,11 +373,6 @@ function writeLocalDevHints({ workspaceId, databaseId }) {
     console.log(`Wrote ${opsEnvPath}`);
   }
 
-  const hintPath = resolve(ROOT, "scripts/env-templates/ops.local.env");
-  if (existsSync(hintPath)) {
-    // Template stays empty; docs explain filling after clone.
-  }
-
   writeFileSync(
     resolve(ROOT, ".baserow-ops-dev.json"),
     `${JSON.stringify(
@@ -640,10 +633,9 @@ Clone complete.
 Next:
   1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this Ops database.
-  2. Put that token in Secrets Manager as BASEROW_API_KEY (local/dev).
-  3. Create a separate prod-only token for DB ${sourceDbId}; store as
-       BASEROW_API_KEY_PRODUCTION and run: gh workflow run ops-secrets.yml
-       (or: npm run env:ops:pull && npm run setup:ops && npm run deploy:production -w @gwenda/ops)
+  2. Put that token in Secrets Manager as BASEROW_OPS_API_KEY__LOCAL.
+  3. The prod-only token for DB ${sourceDbId} is BASEROW_OPS_API_KEY__PRODUCTION
+       (Pages: gh workflow run ops-secrets.yml).
   4. npm run env:ops:pull   # refresh .env.ops
   5. Local ops-dev will use BASEROW_OPS_DATABASE_ID=${databaseId}
      Production wrangler keeps ${sourceDbId}.

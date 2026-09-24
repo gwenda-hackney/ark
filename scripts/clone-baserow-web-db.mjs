@@ -409,15 +409,12 @@ ${
   staging
     ? `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this website database (${databaseId}).
-  2. Put that token in Secrets Manager as BASEROW_API_KEY_MARKETING_STAGING.
-  3. gh workflow run web-secrets.yml -f profile=staging
-  4. Local stays on BASEROW_API_KEY_MARKETING (Gwenda Dev).`
-    : `  1. Copy the current SM key BASEROW_API_KEY_MARKETING → BASEROW_API_KEY_MARKETING_PRODUCTION
-     (keep production + Mailchimp on workspace Gwenda).
-  2. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
+  2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__STAGING.
+  3. gh workflow run web-secrets.yml -f profile=staging`
+    : `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this website database (${databaseId}).
-  3. Put that token in Secrets Manager as BASEROW_API_KEY_MARKETING (local).
-  4. npm run env:web:pull`
+  2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__LOCAL.
+  3. npm run env:web:pull`
 }
 ${destRsvp ? `  6. Studio grid: BASEROW_RSVP_GRID_URL=https://baserow.io/database/${databaseId}/table/${destRsvp.id}/\n` : ""}${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {

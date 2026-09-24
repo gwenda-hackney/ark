@@ -4,20 +4,108 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 
 | Layer | Store | Examples |
 |-------|--------|----------|
-| Secrets | Bitwarden Secrets Manager → `.env.ark` / `.env.ops` / `.env.web` / CF secrets | API tokens, passwords, signing keys |
+| Secrets | Bitwarden Secrets Manager → `.env.ark` / `.env.ops` / `.env.web` / Cloudflare Pages secrets | API tokens, passwords, signing keys |
 | Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, SMTP host |
-| Runtime non-secret config | Baserow **App Config** (ops first) | Pour targets, Sanity project/dataset, deploy webhook URL, Google OAuth **client id** |
+| Runtime non-secret config | Baserow **Gwenda Config** database (one table, profiled by Env + Service) | Pour targets, Sanity project/dataset, dev notify inbox, web origin for ops |
 | Marketing product flags | Sanity `siteSettings` | Booking / gallery toggles |
 
 | File | Role |
 |------|------|
 | `.env` | Shared bootstrap + Password Manager leftovers + `ARK_LOCAL_BW_TOKEN` |
-| `.env.ark` | Org Cloudflare tokens from Secrets Manager (`npm run env:ark:pull`) |
-| `.env.ops` | Ops runtime secrets from Secrets Manager (`npm run env:ops:pull`) |
-| `.env.web` | Marketing runtime secrets from Secrets Manager (`npm run env:web:pull`) |
+| `.env.ark` | Org Cloudflare tokens (`npm run env:ark:pull`) |
+| `.env.ops` | Ops runtime secrets (`npm run env:ops:pull`) |
+| `.env.web` | Marketing runtime secrets (`npm run env:web:pull`) |
 
 Ops scripts and `npm run dev -w @gwenda/ops` load `.env` then `.env.ark` then `.env.ops` (ops wins).
 Marketing / Studio via `with-env` load `.env` then `.env.ark` then `.env.web` (web wins).
+
+## Secrets: one naming rule
+
+Bitwarden Secrets Manager has no per-env secrets, so env is encoded in the name:
+
+| SM name | Meaning |
+|---------|---------|
+| `NAME` | Shared by every env |
+| `NAME__LOCAL` / `NAME__STAGING` / `NAME__PRODUCTION` | Override for that env. Wins over `NAME`. |
+
+A pull for env `E` lists every SM project, keeps `NAME` and `NAME__E`, and lets the override win. That is the whole merge. Per-env credentials (Baserow tokens, `FORMS_ADMIN_SECRET`) have **no** shared `NAME`, so a missing override is reported as missing instead of silently using another env's value.
+
+Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). When a runtime key differs from the SM name, the manifest renames it:
+
+| App | Runtime key | SM name |
+|-----|-------------|---------|
+| ops | `BASEROW_API_KEY` | `BASEROW_OPS_API_KEY__<ENV>` |
+| ops | `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` | `GOOGLE_SERVICE_ACCOUNT_JSON` |
+| web | `BASEROW_API_KEY` | `BASEROW_WEBSITE_API_KEY__<ENV>` |
+| web | `GMAIL_SERVICE_ACCOUNT_JSON` | `GOOGLE_SERVICE_ACCOUNT_JSON` |
+
+Everything else uses the same name at runtime and in SM. The same manifest drives local pulls (`env:<app>:pull`), CI pulls (`--github-env`) and the Cloudflare Pages sync (`setup:ops`, `sync-pages-secrets.mjs`), so there is one list to edit.
+
+Projects only record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two.
+
+| Project | Id | Owns |
+|---------|----|------|
+| **Ark** | `b9de9355-0a8f-45e7-b5fe-b4ca00eff281` | Cloudflare tokens, `BASEROW_CONFIG_API_KEY` |
+| **Ark/Ops** | `ea9095b4-8226-4dec-96c3-b4c8008b0b6b` | `BASEROW_OPS_API_KEY__*`, Google service account + OAuth secret, ops session/bypass, Lightspeed |
+| **Ark/Web** | `d7881774-3a4c-4603-97e3-b4c8010fd860` | `BASEROW_WEBSITE_API_KEY__*`, `FORMS_ADMIN_SECRET__*`, Sanity, deploy webhook, subscribe, SMTP, site gate, Instagram |
+
+Override project ids with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
+
+```bash
+npm run env:ops:pull                          # env=local → .env.ops
+npm run env:web:pull -- --env staging --dry-run
+npm run env:web:push -- FORMS_ADMIN_SECRET    # .env.web → SM (shared name unless --profile)
+npm run env:web:push -- --profile local FORMS_ADMIN_SECRET   # → FORMS_ADMIN_SECRET__LOCAL
+```
+
+Machine accounts: `ark-local` (read/write), `ark-ci` (read), both with access to all three projects. Local bootstrap is `ARK_LOCAL_BW_TOKEN` in shared `.env`; CI uses repo secret `BWS_ACCESS_TOKEN`. Do not mirror app secrets into GitHub.
+
+Sync to Cloudflare Pages (manual, after rotation):
+
+```bash
+gh workflow run ops-secrets.yml                     # production ops
+gh workflow run web-secrets.yml -f profile=staging
+gh workflow run web-secrets.yml -f profile=production
+```
+
+Deploy workflows (`web.yml`, `web-promote.yml`) ship code only. They do not push Pages secrets.
+
+## Runtime config: Gwenda Config database
+
+Non-secret settings live in one Baserow database, **Gwenda Config** (`569392`, table `Config`, workspace `Gwenda`). It sits outside the Ops and Website databases, so cloning or promoting data between envs (for example prod Ops → dev Ops) never copies config.
+
+| Column | Values |
+|--------|--------|
+| Name | Dotted key, e.g. `forms.notify_email` |
+| Value | String |
+| Env | `all`, `local`, `staging`, `production` |
+| Service | `all`, `ops`, `web` |
+
+For a given env and service the most specific row wins: a matching Env beats a matching Service, which beats `all`. Resolution lives in `shared/config-db.js` and is used by ops (`Service=ops`) and marketing Pages Functions (`Service=web`). Values are cached for 60 seconds per isolate.
+
+A runtime's env comes from `SITE_ENV` (or `PUBLIC_IS_STAGING`). Local ops (`ops-dev`) and local Astro forms set `SITE_ENV=local`; hosted sites set it in wrangler `[vars]`. When a runtime writes (e.g. ops `/config` pour targets) it only creates or updates **its own Env** row, never `all` or another env.
+
+Every env reads with the same token, SM `BASEROW_CONFIG_API_KEY` (Ark, shared). It can only see this database. If it is missing, readers fall back to code defaults and env vars.
+
+| Key | Env / Service | Meaning |
+|-----|---------------|---------|
+| `pour_target.*` | all, then per env / ops | House pour-cost % by drink type. Seeded as `all`; saving at ops `/config` writes that env's row. |
+| `sanity.project_id` | all / all | Sanity project |
+| `sanity.dataset` | per env / ops | Default dataset. Editorial writes always go to `staging`. |
+| `site_deploy.webhook_url` | all / ops | Studio → site rebuild webhook base URL |
+| `google.oauth_client_id` | all / ops | Google OAuth client id (secret stays in SM) |
+| `google.drive_events_folder_id` | local, production / ops | Shared Drive folder for event galleries (`Events-dev/` vs `Events/`) |
+| `google.calendar_id` | local, production / ops | Calendar that receives ops nights (dev vs live) |
+| `lightspeed.archive_skus` | per env / ops | Lightspeed SKUs archived from the ops stock view |
+| `web.origin` | local, production / ops | Marketing site ops calls for form resends |
+| `forms.notify_email` | local, staging / web | Sends every form notification here instead of the Sanity form's address. Production has no row, so it uses the form's own notify address. |
+
+Do **not** put credentials here.
+
+```bash
+npm run setup:baserow-config            # create/repair DB, table, fields, seed rows (JWT)
+npm run setup:baserow-config -- --token # also mint the read/write token into SM
+```
 
 ## Ops Baserow workspaces
 
@@ -25,79 +113,31 @@ Ops uses **two Baserow workspaces** so a local token cannot see production data:
 
 | Env | Workspace | Database id | Token (SM) |
 |-----|-----------|-------------|------------|
-| production | `Gwenda` (`208709`) | Ops DB `556507` | `BASEROW_API_KEY_PRODUCTION` |
-| local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY_LOCAL` → `.env.ops` `BASEROW_API_KEY` |
+| production | `Gwenda` (`208709`) | Ops DB `556507` | `BASEROW_OPS_API_KEY__PRODUCTION` |
+| local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_OPS_API_KEY__LOCAL` |
 
-Never fall back across envs: Pages must use `_PRODUCTION`; local must use `_LOCAL`. Legacy SM key `BASEROW_API_KEY` is accepted as local-only (`npm run env:ops:pull -- --migrate-sm` copies it to `_LOCAL`).
-
-Each workspace holds the **Gwenda Ops** database and, in Dev, the staging website database.
-
-Second workspace is Free ($0; 3k rows). Clone once:
+Staging web reads the production Ops DB for artists, so `BASEROW_OPS_API_KEY__STAGING` holds the production Ops token.
 
 ```bash
 npm run clone:baserow-ops-dev          # or --force to wipe+recopy
 npm run clone:baserow-web-dev          # staging website DB into the same workspace
 ```
 
-Then mint/refresh scoped database tokens (script prints next steps). Local `ops-dev` **refuses** to start if `BASEROW_OPS_DATABASE_ID` is still the production id.
-
-## Ops bootstrap
-
-**Shared `.env`:**
-
-- `ARK_LOCAL_BW_TOKEN` — ark-local machine-account access token (only local SM bootstrap)
-
-**`.env.ops` (from SM + clone metadata):**
-
-```bash
-npm run env:ops:pull
-```
-
-Writes local `BASEROW_API_KEY` (from SM `_LOCAL`), keeps `BASEROW_API_KEY_PRODUCTION` alongside for Pages, plus OAuth/session secrets and (from Ark/Web) `SANITY_API_TOKEN` / `DEPLOY_WEBHOOK_SECRET`. Keeps `BASEROW_OPS_DATABASE_ID` for the dev clone. Also refreshes `.env.ark`.
-
-```bash
-npm run env:ops:pull                              # profile=local
-npm run env:ops:pull -- --migrate-sm              # once: legacy BASEROW_API_KEY → _LOCAL
-npm run env:ops:pull -- --profile production      # fail if PRODUCTION missing
-```
+Then mint/refresh scoped database tokens (script prints next steps). Local `ops-dev` **refuses** to start if `BASEROW_OPS_DATABASE_ID` is still the production id. Clone and promote scripts do not touch config (it is in its own database).
 
 **Not hand-edited for production:**
 
 | Value | Where |
 |-------|--------|
 | Prod `BASEROW_OPS_DATABASE_ID` | `ops/site/wrangler.toml` `[vars]` = `556507` |
-| Prod Baserow token | SM `BASEROW_API_KEY_PRODUCTION` → Pages `BASEROW_API_KEY` via `ops-secrets` (then redeploy) |
-| `CLOUDFLARE_ACCOUNT_ID` / CF tokens | SM Ark → `.env.ark` (GitHub still has copies for deploy jobs) |
+| Prod secrets | SM → Pages via `ops-secrets.yml` (then redeploy) |
 | `SITE_ENV` | `local` via ops-dev; `production` in wrangler `[vars]` |
 
 **Ops table ids are not configured.** Names are resolved from the Baserow catalog.
 
-**Ops plain settings** (not secrets) come from App Config:
+Lightspeed Back Office export (`LIGHTSPEED_BO_EMAIL`, `LIGHTSPEED_BO_PASSWORD`, optional `LIGHTSPEED_BO_TOTP` / `LIGHTSPEED_OPS_EMAIL`) belongs in **Ark/Ops** for the nest script and [Lightspeed item export](../.github/workflows/lightspeed-export.yml) Action. They are not synced to Pages.
 
-| Key | Meaning |
-|-----|---------|
-| `pour_target.*` | House pour-cost % by drink type |
-| `sanity.project_id` | Sanity project |
-| `sanity.dataset` | Optional default. Editorial writes always go to `staging`. Production is clone-only. |
-| `site_deploy.webhook_url` | Studio → site rebuild webhook base URL |
-| `google.oauth_client_id` | Google OAuth client id (public-ish; secret stays in SM) |
-| `google.drive_events_folder_id` | Shared Drive folder for event galleries. Hero images stay in Baserow and are not copied here. **Env-specific**: `production` → `Events/`, `local` → `Events-dev/`. Not an env var. |
-| `google.calendar_id` | Google Calendar that receives ops nights. **Env-specific**: production is the live calendar, local is the dev calendar. |
-
-Lightspeed Back Office export (`LIGHTSPEED_BO_EMAIL`, `LIGHTSPEED_BO_PASSWORD`, optional `LIGHTSPEED_BO_TOTP` / `LIGHTSPEED_OPS_EMAIL`) lives in **Ark/Ops** SM for the nest script and [Lightspeed item export](../.github/workflows/lightspeed-export.yml) Action. Do not put those on Pages or in App Config.
-
-Gallery uploads use `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` in **Ark/Ops** (Pages + local). Each event folder holds a `gallery/` child, and that is the only place event images are written in Drive. The What's on hero stays on the event in Baserow. The service account must be a Content manager on the Shared Drive. Folder roots live only in App Config (`google.drive_events_folder_id` per Env).
-
-Ops nights are written to Google Calendar with that same service account (`gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`, calendar events scope only). The Calendar API must be enabled on GCP project `gwenda-ops`. The calendar is a secondary calendar, so Workspace **General** settings must allow outsiders to change secondary calendars, and the calendar is shared with that account as **Make changes to events**. Production reads `google.calendar_id` from App Config, and falls back to `GOOGLE_CALENDAR_ID` in `ops/site/wrangler.toml`. Local ops (`SITE_ENV=local`) uses the local App Config row, or `GOOGLE_CALENDAR_ID_LOCAL` in `.env.ops`. Saving or deleting a night updates that env's calendar. Website Publish stays separate.
-
-Do **not** put credentials in App Config.
-
-```bash
-npm run clone:baserow-ops-dev                    # once: Free workspace + data copy
-npm run env:ops:pull                             # SM → .env.ops (local key)
-npm run setup:baserow-ops                        # seed/repair App Config (JWT)
-gh workflow run ops-secrets.yml                  # SM prod key → Pages
-```
+Gallery uploads and ops nights on Google Calendar use SM `GOOGLE_SERVICE_ACCOUNT_JSON` (runtime `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`, account `gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`). Each event folder holds a `gallery/` child, the only place event images are written in Drive; the What's on hero stays on the event in Baserow. The service account must be a Content manager on the Shared Drive and have **Make changes to events** on the calendar. Local ops can still override the calendar with `GOOGLE_CALENDAR_ID_LOCAL` in `.env.ops`.
 
 ## Marketing Baserow workspaces
 
@@ -105,49 +145,24 @@ Marketing uses the same two workspaces so a local/staging token cannot see live 
 
 | Env | Workspace | Database id | Token (SM) |
 |-----|-----------|-------------|------------|
-| production | `Gwenda` (`208709`) | Website DB `461843` | `BASEROW_API_KEY_MARKETING_PRODUCTION` |
-| staging | `Gwenda` (`208709`) | Website Staging `564496` | `BASEROW_API_KEY_MARKETING_STAGING` (falls back to `BASEROW_API_KEY_MARKETING` until minted) |
-| local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_API_KEY_MARKETING` |
+| production | `Gwenda` (`208709`) | Website DB `461843` | `BASEROW_WEBSITE_API_KEY__PRODUCTION` |
+| staging | `Gwenda` (`208709`) | Website Staging `564496` | `BASEROW_WEBSITE_API_KEY__STAGING` |
+| local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_WEBSITE_API_KEY__LOCAL` |
 
-Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). The marketing token is scoped to that env's Website database, so runtime does not need a numeric database id. `BASEROW_DATABASE_ID` is optional (only if a token can see more than one table with the same name). Studio's RSVP grid URL still uses Baserow's numeric UI path.
+Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). The token is scoped to that env's Website database, so runtime does not need a numeric database id. Do not copy subscriber or RSVP rows from staging to production.
+
+Ops `/forms` reads the same Form Submissions table with runtime `BASEROW_WEBSITE_API_KEY` (same SM key, same env).
 
 ```bash
 npm run clone:baserow-web-dev                    # once: copy website DB into Gwenda Dev
 npm run clone:baserow-web-staging                # once: Website Staging in the paid Gwenda workspace
-npm run env:web:push                             # seed SM from filled .env keys (once)
-npm run env:web:pull                             # SM → .env.web (Dev website key)
 npm run setup:baserow-form-submissions           # create/repair Form Submissions table (JWT)
-gh workflow run web-secrets.yml -f profile=staging
-gh workflow run web-secrets.yml -f profile=production
 ```
 
-SM `BASEROW_API_KEY_MARKETING` is the Gwenda Dev website token (local). Staging Pages uses `BASEROW_API_KEY_MARKETING_STAGING` when present. Production Pages and Mailchimp use `BASEROW_API_KEY_MARKETING_PRODUCTION`. Do not copy subscriber or RSVP rows from staging to production.
+## Form mail
 
-Ops `/forms` reads Form Submissions with that same token, written as `BASEROW_WEBSITE_API_KEY` by `npm run env:ops:pull` (local: `BASEROW_API_KEY_MARKETING`, Pages: `BASEROW_API_KEY_MARKETING_PRODUCTION`). It is not a separate Secrets Manager key.
+Mail goes out through the Gmail API as `GMAIL_SERVICE_ACCOUNT_JSON` (domain-wide delegation). SMTP host/port/user stay in wrangler `[vars]`. Form From / Reply-To / notify addresses live on the Sanity `form` document; `forms.notify_email` in config overrides the notify address per env (dev inbox locally and on staging).
 
-SMTP host/port/user remain in marketing wrangler `[vars]`. Form From / Reply-To / notify addresses live on the Sanity `form` document. Only `SMTP_PASSWORD` is a Secrets Manager / Pages secret.
+Each submission sends two emails: a **notification** to the team and a **receipt** to the applicant. After each one actually goes out (not a local dry run) the row is stamped in `Notify Sent` / `Receipt Sent`.
 
-## Bitwarden Secrets Manager
-
-Each secret lives in **one** owning project. Ops pull may **read** web-owned keys it consumes (`SANITY_API_TOKEN`, `DEPLOY_WEBHOOK_SECRET`). Do not copy those into Ark/Ops.
-
-| Project | Id | Owns | Used by |
-|---------|----|------|---------|
-| **Ark** | `b9de9355-0a8f-45e7-b5fe-b4ca00eff281` | `CLOUDFLARE_DEV_API_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `npm run env:ark:pull` / `env:ark:push`; also refreshed by ops/web pull |
-| **Ark/Ops** | `ea9095b4-8226-4dec-96c3-b4c8008b0b6b` | Ops Baserow + OAuth/session | `npm run env:ops:pull` · `ops-secrets.yml` |
-| **Ark/Web** | `d7881774-3a4c-4603-97e3-b4c8010fd860` | Marketing (Sanity, deploy webhook, SMTP, subscribe, …) | `npm run env:web:pull` / `env:web:push` · `web-secrets.yml` |
-
-Override with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
-
-1. Machine accounts: `ark-local` (read/write), `ark-ci` (read). Grant each account access to **Ark**, **Ark/Ops**, and **Ark/Web**.
-2. Access tokens: `ark-local-devcontainer`, `ark-ci-github-actions`.
-3. Local: `ARK_LOCAL_BW_TOKEN` in shared `.env`, then `npm run env:ark:pull` / `env:ops:pull` / `env:web:pull`.
-4. CI: store `BWS_ACCESS_TOKEN` as a **repo** GitHub secret (prefer ark-ci; must reach all three projects). Do **not** mirror Cloudflare or app secrets into GitHub; pull them from SM in the job.
-5. Sync to Cloudflare Pages (manual / after rotation):
-
-```bash
-gh workflow run ops-secrets.yml
-gh workflow run web-secrets.yml -f profile=production
-```
-
-Deploy workflows (`web.yml`, `web-promote.yml`) ship code only. They do not push Pages secrets.
+Ops `/forms` shows both stamps and can send or resend either email. Ops calls `POST {web.origin}/api/forms/admin/resend` with `{ rowId, kind: "notify" | "receipt" }` and `Authorization: Bearer FORMS_ADMIN_SECRET`. The site re-renders the email from the stored row and the Sanity form, sends it, and stamps the row. `FORMS_ADMIN_SECRET` is per env (`__LOCAL`, `__STAGING`, `__PRODUCTION`), and ops and web read the same one for their env.

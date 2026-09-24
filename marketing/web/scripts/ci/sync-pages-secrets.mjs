@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { APP_SECRETS } from "../../../../scripts/lib/bitwarden-sm.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(scriptDir, "../..");
@@ -201,23 +202,15 @@ async function putPlainSmtpVars() {
   }
 }
 
+/** Staging-gate secrets: put on staging, removed from production. */
+const STAGING_ONLY_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
+
+/** Every web secret from `npm run env:web:pull -- --github-env --profile <profile>`. */
 function putSharedSecrets() {
-  putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
-  putSecret(
-    "BASEROW_OPS_API_KEY",
-    process.env.BASEROW_OPS_API_KEY || process.env.BASEROW_API_KEY_PRODUCTION,
-  );
-  putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
-  putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
-  putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
-  // Gmail app passwords are often pasted with spaces; store the 16-char form.
-  const smtpPassword = (process.env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
-  putSecret("SMTP_PASSWORD", smtpPassword);
-  // Site mail goes through the Gmail API with the ops service account (delegated gmail.send).
-  putSecret(
-    "GMAIL_SERVICE_ACCOUNT_JSON",
-    process.env.GMAIL_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,
-  );
+  for (const key of APP_SECRETS.web.keys) {
+    if (STAGING_ONLY_KEYS.has(key)) continue;
+    putSecret(key, process.env[key]);
+  }
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
   putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
   putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
@@ -227,8 +220,6 @@ function putSharedSecrets() {
     "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
     process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
   );
-  putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
-  putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
 }
 
 const profiles = {
@@ -237,14 +228,11 @@ const profiles = {
       console.error("SITE_PASSWORD is required for staging deploys.");
       process.exit(1);
     }
-    putSecret("SITE_PASSWORD", process.env.SITE_PASSWORD);
-    putSecret("GATE_BYPASS_KEY", process.env.GATE_BYPASS_KEY);
+    for (const key of STAGING_ONLY_KEYS) putSecret(key, process.env[key]);
     putSharedSecrets();
   },
   production: () => {
-    for (const key of ["SITE_PASSWORD", "GATE_BYPASS_KEY"]) {
-      deleteSecret(key);
-    }
+    for (const key of STAGING_ONLY_KEYS) deleteSecret(key);
     putSharedSecrets();
   },
 };
