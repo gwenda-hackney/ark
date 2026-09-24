@@ -56,16 +56,17 @@ describe("artistNavItems", () => {
 describe("homeAnchorItems", () => {
   it("lists this page's sections, with the join link last", () => {
     expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.href)).toEqual([
-      "#hero",
       "#story",
       "#menu",
       "#what-we-do",
-      "#team",
       "#list",
     ]);
-    expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.label)).toContain(
-      "What we serve",
-    );
+    expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.label)).toEqual([
+      "Behind the doors",
+      "Menu",
+      "What's on",
+      "Join the experience",
+    ]);
     expect(homeAnchorItems({ showTeam: true }).at(-1)).toMatchObject({
       href: "#list",
       cta: true,
@@ -77,8 +78,10 @@ describe("homeAnchorItems", () => {
       homeAnchorItems({ showTeam: true, showGallery: true }).map(
         (item) => item.href,
       ),
-    ).toEqual(["#hero", "#story", "#what-we-do", "#team", "#glimpse", "#list"]);
-    expect(homeAnchorItems().some((item) => item.href === "#team")).toBe(false);
+    ).toEqual(["#story", "#what-we-do", "#glimpse", "#list"]);
+    expect(homeAnchorItems({ showTeam: true }).some((item) => item.href === "#team")).toBe(
+      false,
+    );
     expect(homeAnchorItems().some((item) => item.href === "#menu")).toBe(false);
   });
 });

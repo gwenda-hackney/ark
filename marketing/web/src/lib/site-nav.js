@@ -38,20 +38,17 @@ export function isCurrentNavPage(href, pathname) {
 /**
  * Home's own sections. Hashes stay on this page.
  *
- * @param {{ showMenu?: boolean, showTeam?: boolean, showGallery?: boolean, signupLabel?: string }} [options]
+ * @param {{ showMenu?: boolean, showGallery?: boolean, signupLabel?: string }} [options]
  */
 export function homeAnchorItems({
   showMenu = false,
-  showTeam = false,
   showGallery = false,
   signupLabel = "Join the experience",
 } = {}) {
   return [
-    { href: "#hero", label: "Arrival" },
-    { href: "#story", label: "Story" },
-    ...(showMenu ? [{ href: "#menu", label: "What we serve" }] : []),
-    { href: "#what-we-do", label: "What we do" },
-    ...(showTeam ? [{ href: "#team", label: "Who we are" }] : []),
+    { href: "#story", label: "Behind the doors" },
+    ...(showMenu ? [{ href: "#menu", label: "Menu" }] : []),
+    { href: "#what-we-do", label: "What's on" },
     ...(showGallery ? [{ href: "#glimpse", label: "Glimpse" }] : []),
     { href: "#list", label: signupLabel, cta: true },
   ];

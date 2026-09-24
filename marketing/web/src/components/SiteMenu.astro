@@ -1,0 +1,79 @@
+---
+import {
+  isCurrentNavPage,
+  shouldReloadNavLink,
+} from "../lib/site-nav.js";
+
+interface Link {
+  href: string;
+  label: string;
+  cta?: boolean;
+}
+
+interface Props {
+  homeLink?: Link | null;
+  pageLinks: Link[];
+  siteLinks: Link[];
+  pathname: string;
+}
+
+const { homeLink = null, pageLinks, siteLinks, pathname } = Astro.props;
+---
+
+<nav class="site-menu site-header-nav" id="site-header-nav" aria-label="Menu">
+  {
+    homeLink && (
+      <a
+        href={homeLink.href}
+        class="site-nav-home"
+        data-astro-reload={shouldReloadNavLink(homeLink.href) || undefined}
+        aria-current={isCurrentNavPage(homeLink.href, pathname) ? "page" : undefined}
+      >
+        {homeLink.label}
+      </a>
+    )
+  }
+  <div
+    class="site-nav-group site-nav-group--page"
+    role="group"
+    aria-labelledby="site-nav-page-label"
+  >
+    <p class="site-nav-label is-current" id="site-nav-page-label">This page</p>
+    {
+      pageLinks.map((item) => (
+        <a
+          href={item.href}
+          class:list={[item.cta && "site-header-cta"]}
+          data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+          aria-current={isCurrentNavPage(item.href, pathname) ? "page" : undefined}
+        >
+          {item.label}
+        </a>
+      ))
+    }
+  </div>
+  {
+    siteLinks.length > 0 && (
+      <div
+        class="site-nav-group site-nav-group--site"
+        role="group"
+        aria-labelledby="site-nav-elsewhere-label"
+      >
+        <p class="site-nav-label" id="site-nav-elsewhere-label">Elsewhere</p>
+        {
+          siteLinks.map((item) => (
+            <a
+              href={item.href}
+              data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+              aria-current={
+                isCurrentNavPage(item.href, pathname) ? "page" : undefined
+              }
+            >
+              {item.label}
+            </a>
+          ))
+        }
+      </div>
+    )
+  }
+</nav>

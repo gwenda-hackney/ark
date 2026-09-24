@@ -3,6 +3,7 @@ import { Image } from "astro:assets";
 import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
+import { bookingUrl } from "../config/booking";
 import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
 import { headerLogo } from "../lib/hero-assets";
 
@@ -109,10 +110,17 @@ const sectionClass = embedded ? "signup section signup--embedded" : "signup sect
             class="contact-hub-path reveal reveal-stagger"
             style="--reveal-delay: 0.08s"
           >
-            <p class="contact-hub-path-eyebrow">{contactPage.listEyebrow}</p>
-            <h2>{contactPage.listHeading}</h2>
-            <p>{contactPage.listLead}</p>
-            <a href="/join-list" class="btn btn-primary">{contactPage.listCta}</a>
+            <p class="contact-hub-path-eyebrow">{siteConfig.copy.bookTableEyebrow}</p>
+            <h2>{siteConfig.copy.bookTableHeading}</h2>
+            <p>{siteConfig.copy.bookTableLead}</p>
+            <a
+              href={bookingUrl}
+              class="btn btn-primary"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {siteConfig.copy.bookingCta}
+            </a>
           </article>
 
           <div class="contact-hub-rule" aria-hidden="true" />

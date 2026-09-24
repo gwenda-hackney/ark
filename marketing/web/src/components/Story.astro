@@ -4,12 +4,14 @@ import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
 import { openingDate } from "../config/opening";
 import DissolveReveal from "./DissolveReveal.astro";
+import Team from "./Team.astro";
 
 interface Props {
   mode: SiteMode;
+  showTeam?: boolean;
 }
 
-const { mode } = Astro.props;
+const { mode, showTeam = false } = Astro.props;
 const copy = getCopy(mode);
 const hasStoryBody =
   copy.storyBody.length > 0 || copy.storyClosing || copy.storyOpening;
@@ -20,6 +22,9 @@ const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 
 
 <section class="story section" id="story">
   <div class="container">
+    <a href="#hero" class="story-scroll-hint" aria-label="Back to the top">
+      <span class="story-scroll-chevron" aria-hidden="true"></span>
+    </a>
     <div class="story-grid story-grid--split">
       <p
         class="section-eyebrow story-grid-eyebrow dissolve-reveal-eyebrow reveal"
@@ -35,6 +40,7 @@ const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 
       <div class="story-grid-left section-intro reveal">
         <h2>{siteConfig.copy.storyHeading}</h2>
         <p class="section-lead">{siteConfig.copy.storyLead}</p>
+        {showTeam && <Team heading="Where we started" />}
       </div>
       {
         hasStoryBody && (
@@ -63,6 +69,7 @@ const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 
                 {copy.storyOpening}
               </p>
             )}
+            {showTeam && <Team heading="What comes next" />}
           </div>
         )
       }

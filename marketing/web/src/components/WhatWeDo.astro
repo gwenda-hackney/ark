@@ -24,16 +24,13 @@ const nextNight = nights
   .slice()
   .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
 const nextWhen = nextNight ? formatShortEventDate(nextNight.date) : "";
-const eventsBody =
-  nextNight && nextWhen
-    ? `${copy.whatWeDoEventsBody} Next, ${nextNight.title}. ${nextWhen}.`
-    : copy.whatWeDoEventsBody;
 
 const profile = String(artist?.profile || "").trim();
-const artistBody = artist?.name
-  ? profile && profile.length <= 160
-    ? `${artist.name} has the wall. ${/[.!?]$/.test(profile) ? profile : `${profile}.`}`
-    : `${artist.name} has the wall.`
+const artistName = String(artist?.name || "").trim();
+const artistBody = profile
+  ? /[.!?]$/.test(profile)
+    ? profile
+    : `${profile}.`
   : copy.whatWeDoArtistBody;
 ---
 
@@ -47,15 +44,25 @@ const artistBody = artist?.name
     </header>
 
     <div class="what-we-do-grid">
-      <a class="what-we-do-card reveal" href="/whats-on">
+      <a class="what-we-do-path reveal" href="/whats-on">
         <h3>{copy.whatWeDoEventsHeading}</h3>
-        <p>{eventsBody}</p>
-        <span class="what-we-do-card-cta">{copy.whatWeDoEventsLink}</span>
+        <p>{copy.whatWeDoEventsBody}</p>
+        {
+          nextNight && nextWhen && (
+            <p class="what-we-do-next">
+              <span class="what-we-do-next-name">{nextNight.title}</span>
+              <span class="what-we-do-next-meta">{nextWhen}</span>
+            </p>
+          )
+        }
       </a>
-      <a class="what-we-do-card reveal" href="/artists/current">
+      <a class="what-we-do-path reveal" href="/artists/current">
         <h3>{copy.whatWeDoArtistHeading}</h3>
         <p>{artistBody}</p>
-        <span class="what-we-do-card-cta">{copy.whatWeDoArtistLink}</span>
+        <p class="what-we-do-next">
+          {artistName && <span class="what-we-do-next-name">{artistName}</span>}
+          <span class="what-we-do-next-meta">{copy.whatWeDoArtistLink}</span>
+        </p>
       </a>
     </div>
   </div>
