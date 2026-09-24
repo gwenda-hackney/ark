@@ -5,6 +5,7 @@ import {
 } from "./navigation-restore.js";
 import { initReveal } from "./reveal.js";
 import { initHeroReveal } from "./hero-reveal.js";
+import { replacePageUrl } from "./history-state.js";
 import { buildSectionUrl, initSectionHash } from "./section-hash.js";
 import { initMenuToc } from "./menu-toc.js";
 import { initOverlayScrollbars } from "./scrollbar.js";
@@ -43,9 +44,22 @@ function initPage() {
   let headerShowAt = 120;
   let headerHideAt = 40;
 
+  const heroHasLogo = Boolean(hero?.querySelector(".hero-logo"));
+  if (heroHasLogo) header?.classList.add("awaits-hero");
+
   function updateHeaderThresholds() {
+    if (hero && heroHasLogo) {
+      // The hero already shows the wordmark. Bring the bar logo in once
+      // that hero has passed the bar.
+      const showAt = Math.max(
+        0,
+        hero.offsetTop + hero.offsetHeight - (header?.offsetHeight ?? 0),
+      );
+      headerShowAt = showAt;
+      headerHideAt = showAt * 0.92;
+      return;
+    }
     if (hero) {
-      // Desktop: half hero. Mobile: earlier so the logo appears sooner.
       const showRatio = mobileNavQuery.matches ? 0.2 : 0.5;
       const showAt = hero.offsetHeight * showRatio;
       headerShowAt = showAt;
@@ -303,7 +317,7 @@ function initPage() {
                 const nextUrl = buildSectionUrl(sectionId);
                 const currentUrl = `${location.pathname}${location.search}${location.hash}`;
                 if (nextUrl !== currentUrl) {
-                  history.replaceState(null, "", nextUrl);
+                  replacePageUrl(nextUrl);
                 }
                 const prefersReduced = window.matchMedia(
                   "(prefers-reduced-motion: reduce)",

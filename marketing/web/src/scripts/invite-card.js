@@ -3,6 +3,7 @@ import {
   revealEnterScene,
   shouldSkipEntranceMotion,
 } from "./entrance-motion.js";
+import { pushPageState } from "./history-state.js";
 
 const INVITE_HISTORY_STATE = { inviteCard: "open" };
 
@@ -170,7 +171,7 @@ export function resetInviteCardMotionForTests() {
 
 function pushInviteHistory() {
   if (inviteHistoryActive()) return;
-  window.history.pushState(INVITE_HISTORY_STATE, "", window.location.href);
+  pushPageState(INVITE_HISTORY_STATE, window.location.href);
 }
 
 function handlePopState(event) {

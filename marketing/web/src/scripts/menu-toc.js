@@ -2,6 +2,8 @@
  * Menu page chapter TOC: smooth-scroll jumps + scroll-spy active state.
  */
 
+import { replacePageUrl } from "./history-state.js";
+
 /**
  * @param {string | null | undefined} sectionId
  */
@@ -18,7 +20,7 @@ function syncHash(sectionId) {
   const nextUrl = buildMenuSectionUrl(sectionId);
   const currentUrl = `${location.pathname}${location.search}${location.hash}`;
   if (nextUrl === currentUrl) return;
-  history.replaceState(null, "", nextUrl);
+  replacePageUrl(nextUrl);
 }
 
 /**
