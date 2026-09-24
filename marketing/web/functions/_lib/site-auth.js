@@ -172,6 +172,7 @@ export function isPublicPath(pathname) {
     return true;
   if (pathname === "/whats-on" || pathname === "/whats-on/") return true;
   if (pathname.startsWith("/whats-on/")) return true;
+  if (pathname === "/artists" || pathname === "/artists/") return true;
   if (pathname === "/invite" || pathname === "/invite/") return true;
   if (pathname.startsWith("/invite/")) return true;
   if (pathname === "/events/rsvp" || pathname === "/events/rsvp/") return true;

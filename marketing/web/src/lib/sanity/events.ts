@@ -18,6 +18,7 @@ type SanityEvent = {
   title: string;
   artist?: string | null;
   offer?: string | null;
+  pageUrl?: string | null;
   seriesId?: string | null;
   seriesTitle?: string | null;
   recurrence?: string | null;
@@ -64,6 +65,7 @@ function mapEvent(doc: SanityEvent): Event | null {
     title: doc.title,
     artist: doc.artist?.trim() || "",
     offer: doc.offer?.trim() || "",
+    pageUrl: doc.pageUrl?.trim() || "",
     seriesId: doc.seriesId?.trim() || doc.id,
     seriesTitle: doc.seriesTitle?.trim() || "",
     recurrence: doc.recurrence?.trim() || "",

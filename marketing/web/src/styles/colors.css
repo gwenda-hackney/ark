@@ -24,8 +24,4 @@
   --color-gold-dim: color-mix(in srgb, var(--color-gold) 35%, transparent);
   --color-border: color-mix(in srgb, var(--color-gold) 10%, transparent);
   --color-border-subtle: color-mix(in srgb, var(--color-gold) 6%, transparent);
-  --color-focus-ring:
-    0 0 0 1px color-mix(in srgb, var(--color-gold) 50%, transparent),
-    0 0 0 4px color-mix(in srgb, var(--color-gold) 14%, transparent);
-  --focus-ring: var(--color-focus-ring);
 }

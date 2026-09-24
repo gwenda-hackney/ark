@@ -26,6 +26,7 @@ function night(partial) {
     shortDescription: partial.shortDescription || "",
     heroImageUrl: partial.heroImageUrl || null,
     artist: partial.artist || "",
+    pageUrl: partial.pageUrl || "",
   };
 }
 
@@ -733,6 +734,21 @@ describe("one-off cards", () => {
     expect(radio.hostName).toBe("");
     expect(card.scheduleLabel).toBe("Sun 18 Oct");
     expect(card.href).toBe("/whats-on/amo-mas");
+  });
+
+  it("puts their page on the diary card when one is set", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          ...amo,
+          pageUrl: "https://partiful.com/e/example",
+        }),
+      ],
+      { now, series: [amoSeries] },
+    );
+    expect(stack[0].pageUrl).toBe("https://partiful.com/e/example");
+    const plain = buildWhatsOnStack([amo], { now, series: [amoSeries] });
+    expect(plain[0].pageUrl).toBe("");
   });
 
   it("points the residency at the one-off only when it is the replacement", () => {

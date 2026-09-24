@@ -53,6 +53,16 @@ export const siteConfig = {
       description:
         "Join the list or apply to play at Gwenda in Hackney Wick.",
     },
+    artists: {
+      title: "Featured artist · Gwenda",
+      description:
+        "We collaborate with local artists and give them the wall at Gwenda, a canalside ristobar in Hackney Wick.",
+    },
+    acknowledgements: {
+      title: "Acknowledgements · Gwenda",
+      description:
+        "People from the Wick we work with. Named here so you can go and find them.",
+    },
   },
   /** Topics for schema.org knowsAbout (helps Google associate the venue). */
   seoTopics: [
@@ -121,16 +131,46 @@ export const siteConfig = {
     storyClosing:
       "Friends still talk about those nights. We would like this place to be remembered the same way.",
     teamHeading: "Who we are",
-    teamBody: [
-      "Gigi was born in Castro, on the Salento coast, and raised by the sea.",
-      "In the Wick he opened The Pirate's Hub: a room three metres by three on Fish Island. Porchetta roasted in the house. The crowd took their sandwiches to the canal.",
-      "He wanted that same community, and a kitchen big enough to cook for it. Gwenda is the larger room.",
+    teamSections: [
+      {
+        heading: "Where we started",
+        paragraphs: [
+          "We already run The Pirate's Hub on this stretch of canal. Gigi opened it on Fish Island: a room three metres by three. Porchetta roasted in the house. The crowd took their sandwiches to the canal.",
+          "Gigi was born in Castro, on the Salento coast, and raised by the sea. He wanted that same gathering, and a kitchen big enough to cook for it.",
+        ],
+      },
+      {
+        heading: "What comes next",
+        paragraphs: [
+          "Gwenda is the next room on this canal, among the artists and musicians of the Wick. The studios, the late nights. We know this pocket of the Wick.",
+        ],
+      },
+      {
+        heading: "The Wick",
+        paragraphs: [
+          "The nights are played by people from here. The wall is for artists who live here. The room is for the Wick: artists, selectors, musicians, and performers.",
+        ],
+        showLinks: true,
+      },
     ],
     galleryHeading: "A glimpse within",
     gallerySubheading: "The details reveal themselves in time",
     menuTeaseHeading: "What we serve",
     menuTeaseLead:
       "Signature cocktails, hand-crafted in-house, elevated for the lounge.",
+    whatWeDoEyebrow: "The room",
+    whatWeDoHeading: "What we do",
+    whatWeDoLead:
+      "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
+    whatWeDoBody:
+      "Artists take the wall, selectors take the decks, and musicians take the room.",
+    whatWeDoEventsHeading: "Events",
+    whatWeDoEventsBody: "Residencies, live sets, and nights on the canal.",
+    whatWeDoEventsLink: "What's on",
+    whatWeDoArtistHeading: "Featured artist",
+    whatWeDoArtistBody:
+      "Local artists take the wall. The work stays in the room.",
+    whatWeDoArtistLink: "The wall",
     menuTeaseComingSoon: "Coming soon",
     signupHeading: "Stay close",
     signupNavCta: "Join the experience",

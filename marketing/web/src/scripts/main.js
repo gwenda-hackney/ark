@@ -9,6 +9,7 @@ import { buildSectionUrl, initSectionHash } from "./section-hash.js";
 import { initMenuToc } from "./menu-toc.js";
 import { initOverlayScrollbars } from "./scrollbar.js";
 import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
+import { currentPageAnchorId, pageAnchorSections } from "./page-anchors.js";
 import { initSchedulePage } from "./schedule.js";
 import { initSeriesPage, initWhatsOnPage } from "./whats-on.js";
 
@@ -34,6 +35,8 @@ function initPage() {
     header?.classList.contains("site-header--collapsed") ?? false;
   const scrollTop = document.getElementById("scroll-top");
   const mobileNavQuery = window.matchMedia("(max-width: 640px)");
+  /** Matches the CSS bar breakpoint (min-width: 1100px). */
+  const navBarQuery = window.matchMedia("(max-width: 1099px)");
 
   let scrollTicking = false;
   let headerScrollVisible = false;
@@ -60,30 +63,50 @@ function initPage() {
     headerHideAt = showAt * 0.85;
   }
 
+  /**
+   * Underline the section that has reached the bar. Does not write the hash.
+   * In the hero, before any section arrives, nothing is current.
+   * Targets are read from the document each time: the diary replaces its
+   * headings after the first paint.
+   */
+  function updateCurrentSection() {
+    if (!siteNav) return;
+    const anchorSections = pageAnchorSections(siteNav);
+    const line = (header?.offsetHeight ?? 0) + 24;
+    const atEnd =
+      window.scrollY + window.innerHeight >=
+      document.documentElement.scrollHeight - 2;
+    const currentId = currentPageAnchorId(anchorSections, line, {
+      atEnd,
+      viewportHeight: window.innerHeight,
+    });
+    for (const link of siteNav.querySelectorAll(
+      ".site-nav-group--page a[href^='#']",
+    )) {
+      const href = link.getAttribute("href") ?? "";
+      const id = href.startsWith("#") ? decodeURIComponent(href.slice(1)) : "";
+      const active = currentId != null && id === currentId;
+      if (active) link.setAttribute("aria-current", "location");
+      else if (link.getAttribute("aria-current") === "location") {
+        link.removeAttribute("aria-current");
+      }
+    }
+    const pageLabel = siteNav.querySelector(".site-nav-group--page .site-nav-label");
+    if (pageLabel) {
+      pageLabel.classList.toggle("is-current", currentId == null);
+    }
+  }
+
   function applyHeaderVisibility() {
     if (!header) return;
-    const mobile = mobileNavQuery.matches;
     const navOpen = siteNav?.classList.contains("is-open") ?? false;
     // Blur chrome only after the hero — never while the overlay is open
     // (avoids a different-colored strip above the full menu).
     const shouldChrome = headerScrollVisible && !navOpen;
-    // Nav logo only after the hero logo is gone (same scroll mark).
-    // Collapsed pages have no hero logo, so the wordmark waits for scroll too.
-    const showLogo = collapsedNav
-      ? headerScrollVisible
-      : !hero || headerScrollVisible;
-    // Inline links are the desktop bar. Mobile keeps the hamburger.
-    const showInlineNav = showLogo && !mobile;
-
-    // Desktop inline links replace the overlay. Close it first so it can
-    // fade out without flashing the horizontal bar mid-dismiss.
-    if (showInlineNav && navOpen) {
-      closeSiteNav();
-      return;
-    }
-
+    // The wordmark stays in the bar. Page links still wait until the title
+    // has passed, same mark as the frosted chrome.
     header.classList.toggle("scrolled", shouldChrome);
-    header.classList.toggle("has-logo", showLogo);
+    header.classList.toggle("has-logo", headerScrollVisible);
   }
 
   function onScrollFrame() {
@@ -91,6 +114,7 @@ function initPage() {
     if (!headerScrollVisible && y > headerShowAt) headerScrollVisible = true;
     if (headerScrollVisible && y < headerHideAt) headerScrollVisible = false;
     applyHeaderVisibility();
+    updateCurrentSection();
     scrollTicking = false;
   }
 
@@ -114,6 +138,10 @@ function initPage() {
     },
     { passive: true, signal },
   );
+
+  document.addEventListener("gwenda:page-anchors", () => onScrollFrame(), {
+    signal,
+  });
 
   if (header) {
     whenNavigationReady(() => onScrollFrame());
@@ -302,6 +330,15 @@ function initPage() {
     );
 
     mobileNavQuery.addEventListener(
+      "change",
+      () => {
+        closeSiteNav();
+        onScrollFrame();
+      },
+      { signal },
+    );
+
+    navBarQuery.addEventListener(
       "change",
       () => {
         closeSiteNav();

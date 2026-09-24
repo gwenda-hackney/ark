@@ -132,15 +132,16 @@ export async function fetchMenuTeaseCocktails(): Promise<MenuTeaseCocktail[]> {
 
   return cocktailItems
     .map((item): MenuTeaseCocktail | null => {
-      if (!item.id || !item.name) return null;
+      if (!item.id) return null;
 
-      const image = mapSanityGalleryImage(item.image, item.name);
+      const name = item.name?.trim() || "";
+      const image = mapSanityGalleryImage(item.image, name || item.image?.alt || undefined);
 
       if (!image) return null;
 
       return {
         id: item.id,
-        name: item.name,
+        name,
         description: item.description?.trim() || undefined,
         price: item.price?.trim() || undefined,
         priceAlt: item.priceAlt?.trim() || undefined,

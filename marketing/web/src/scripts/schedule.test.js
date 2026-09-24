@@ -107,5 +107,6 @@ describe("initSchedulePage", () => {
     expect(document.querySelector(".schedule-meta")?.textContent).toBe(
       "Special guest · Ada",
     );
+    expect(document.querySelector(".schedule-time")?.textContent).toBe("7pm");
   });
 });

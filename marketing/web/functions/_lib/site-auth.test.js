@@ -63,6 +63,8 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/invite/abc123")).toBe(true);
     expect(isPublicPath("/api/whats-on")).toBe(true);
     expect(isPublicPath("/whats-on")).toBe(true);
+    expect(isPublicPath("/artists")).toBe(true);
+    expect(isPublicPath("/artists/")).toBe(true);
     expect(isPublicPath("/whats-on/schedule")).toBe(true);
     expect(isPublicPath("/api/whats-on/schedule")).toBe(true);
     expect(isPublicPath("/whats-on/negroni-night")).toBe(true);

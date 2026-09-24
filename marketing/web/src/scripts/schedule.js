@@ -68,8 +68,8 @@ export function renderScheduleList(list, weeks) {
         appendText(copy, "schedule-series", night.seriesTitle);
       if (artist)
         appendText(copy, "schedule-meta", `Special guest · ${artist}`);
-      if (time) appendText(copy, "schedule-meta", time);
       link.appendChild(copy);
+      if (time) appendText(link, "schedule-time", time);
       item.appendChild(link);
       list.appendChild(item);
     }

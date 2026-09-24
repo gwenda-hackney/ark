@@ -75,6 +75,29 @@ function isoDate(value) {
   return parseIsoDate(raw) ? raw : "";
 }
 
+/** Empty is allowed. Anything else must be an http(s) URL. */
+export function normalizePageUrl(value) {
+  const raw = text(value);
+  if (!raw) return "";
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    parsed = null;
+  }
+  if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
+    const error = new Error("Page link must start with http:// or https://.");
+    error.status = 400;
+    throw error;
+  }
+  return parsed.toString();
+}
+
+function assignPageLink(fields, value) {
+  if (!eventsFieldNamesCache?.has(PAGE_LINK_FIELD)) return;
+  fields[PAGE_LINK_FIELD] = normalizePageUrl(value);
+}
+
 function clockTime(value) {
   const raw = text(value);
   if (!raw) return "";
@@ -124,6 +147,7 @@ function requireEventsTables(tables) {
 }
 
 /** Prefer dedicated column; fall back to unused Notes until schema sync. */
+const PAGE_LINK_FIELD = "Page link";
 const NIGHT_SCHEDULE_FIELD = "Night schedule";
 const NIGHT_SCHEDULE_FALLBACK = "Notes";
 const NIGHT_SCHEDULE_OVERRIDE_FIELD = "Night schedule override";
@@ -225,6 +249,7 @@ export function mapEvent(row, dates = []) {
     name,
     artist: text(row.Artist),
     offer: text(row.Offer),
+    pageUrl: text(row["Page link"]),
     shortDescription: text(row["Short description"]),
     description: text(row.Description),
     operationsNotes: text(row["Operations notes"]),
@@ -628,6 +653,7 @@ export async function createEvent(env, input) {
   const driveFolder = await createEventDriveFolder(env, name);
   const nightScheduleField = await nightScheduleFieldName(env);
   const fields = fieldsFromInput(input || {}, { slug, nightScheduleField });
+  assignPageLink(fields, input?.pageUrl);
   fields["Drive folder id"] = driveFolder.id;
   const row = await createRow(env, tables.events, fields);
   return syncEventOccurrences(env, mapEvent(row, []));
@@ -641,6 +667,7 @@ export async function updateEvent(env, id, input) {
     name: input?.name !== undefined ? input.name : current.name,
     artist: input?.artist !== undefined ? input.artist : current.artist,
     offer: input?.offer !== undefined ? input.offer : current.offer,
+    pageUrl: input?.pageUrl !== undefined ? input.pageUrl : current.pageUrl,
     shortDescription:
       input?.shortDescription !== undefined
         ? input.shortDescription
@@ -693,6 +720,7 @@ export async function updateEvent(env, id, input) {
     slug: current.slug || seriesSlug(merged.name),
     nightScheduleField,
   });
+  assignPageLink(fields, merged.pageUrl);
   const row = await updateRow(env, tables.events, id, fields);
   const dates = await loadDates(env, tables, id);
   let event = mapEvent(row, dates);

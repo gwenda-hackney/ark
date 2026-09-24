@@ -160,6 +160,7 @@
 	let defaultsUnlocked = $state(false);
 	let artist = $state("");
 	let offer = $state("");
+	let pageUrl = $state("");
 	let shortDescription = $state("");
 	let description = $state("");
 	let nightSchedule = $state<OpsNightScheduleSlot[]>([]);
@@ -795,6 +796,7 @@
 		name = occurrence?.overrides.name || event.name;
 		artist = occurrence?.overrides.artist || event.artist || "";
 		offer = occurrence?.overrides.offer || event.offer || "";
+		pageUrl = event.pageUrl || "";
 		const onceNight =
 			event.repeatUnit === "once"
 				? event.dates.find((row) => row.overrides?.description || row.overrides?.shortDescription) ||
@@ -846,6 +848,7 @@
 		name = "";
 		artist = "";
 		offer = "";
+		pageUrl = "";
 		shortDescription = "";
 		description = "";
 		nightSchedule = [];
@@ -905,6 +908,7 @@
 			name: name.trim(),
 			artist: artist.trim(),
 			offer: offer.trim(),
+			pageUrl: pageUrl.trim(),
 			shortDescription: shortDescription.trim(),
 			description: description.trim(),
 			nightSchedule: nightSchedule
@@ -2305,6 +2309,21 @@
 															/>
 														{/if}
 													</Field>
+													{#if !editingOccurrence}
+														<Field
+															class="span-all"
+															label="Page link"
+															for="event-page-url"
+															tooltip="Optional. Their own page. Shown on the event when it is set."
+														>
+															<TextField
+																id="event-page-url"
+																size="sm"
+																bind:value={pageUrl}
+																placeholder="https://"
+															/>
+														</Field>
+													{/if}
 													<Field
 														class="span-all"
 														label="Short description"

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  scheduleNavItems,
+  artistNavItems,
+  homeAnchorItems,
   shouldReloadNavLink,
+  sitePageLinks,
   whatsOnNavItems,
   withHome,
 } from "./site-nav.js";
@@ -13,7 +15,7 @@ const nights = [
 
 describe("withHome", () => {
   it("starts every subpage menu at home", () => {
-    expect(withHome([{ href: "/list", label: "Stay close" }])[0]).toEqual({
+    expect(withHome([{ href: "/join-list", label: "Stay close" }])[0]).toEqual({
       href: "/",
       label: "Home",
     });
@@ -37,18 +39,84 @@ describe("whatsOnNavItems", () => {
   });
 });
 
-describe("scheduleNavItems", () => {
-  it("lists week anchors on this page, not the what's on menu", () => {
-    const items = scheduleNavItems([
-      { id: "2026-09-21", label: "This week · 21 Sep–27 Sep" },
-      { id: "2026-09-28", label: "Next week · 28 Sep–4 Oct" },
-    ]);
-    expect(items.map((item) => item.href)).toEqual([
+describe("artistNavItems", () => {
+  it("lists galleries only when that artist has pictures", () => {
+    expect(artistNavItems({ art: [], gwenda: [] }).map((item) => item.href)).toEqual([
       "/",
-      "#week-2026-09-21",
-      "#week-2026-09-28",
     ]);
-    expect(items.some((item) => item.href.includes("/whats-on"))).toBe(false);
+    expect(
+      artistNavItems({
+        art: [{ url: "https://files.example/work.jpg" }],
+        gwenda: [{ url: "https://files.example/room.jpg" }],
+      }).map((item) => item.label),
+    ).toEqual(["Home", "At Gwenda", "More"]);
+  });
+});
+
+describe("homeAnchorItems", () => {
+  it("lists this page's sections, with the join link last", () => {
+    expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.href)).toEqual([
+      "#story",
+      "#menu",
+      "#what-we-do",
+      "#team",
+      "#list",
+    ]);
+    expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.label)).toContain(
+      "What we serve",
+    );
+    expect(homeAnchorItems({ showTeam: true }).at(-1)).toMatchObject({
+      href: "#list",
+      cta: true,
+    });
+  });
+
+  it("adds the gallery anchor only when that section is on the page", () => {
+    expect(
+      homeAnchorItems({ showTeam: true, showGallery: true }).map(
+        (item) => item.href,
+      ),
+    ).toEqual(["#story", "#what-we-do", "#team", "#glimpse", "#list"]);
+    expect(homeAnchorItems().some((item) => item.href === "#team")).toBe(false);
+    expect(homeAnchorItems().some((item) => item.href === "#menu")).toBe(false);
+  });
+});
+
+describe("sitePageLinks", () => {
+  it("lists every subpage from home", () => {
+    expect(sitePageLinks("/").map((item) => item.href)).toEqual([
+      "/menu",
+      "/whats-on",
+      "/artists",
+      "/contact",
+    ]);
+  });
+
+  it("drops the page you are on, and keeps the parent of a child route", () => {
+    expect(sitePageLinks("/menu").map((item) => item.label)).toEqual([
+      "What's on",
+      "Featured artist",
+      "Contact",
+    ]);
+    expect(sitePageLinks("/menu/").some((item) => item.href === "/menu")).toBe(
+      false,
+    );
+    expect(
+      sitePageLinks("/whats-on/schedule").some(
+        (item) => item.href === "/whats-on",
+      ),
+    ).toBe(true);
+    expect(
+      sitePageLinks("/whats-on").some((item) => item.href === "/whats-on"),
+    ).toBe(false);
+  });
+
+  it("omits Menu when the home header does not show it", () => {
+    expect(sitePageLinks("/", { showMenu: false }).map((item) => item.href)).toEqual([
+      "/whats-on",
+      "/artists",
+      "/contact",
+    ]);
   });
 });
 

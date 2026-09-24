@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { normalizePageUrl } from "./event-store.js";
 import {
   occurrenceHash,
   plainToEventDescription,
@@ -15,6 +16,15 @@ import {
   titleOverrideEchoesSeries,
   titleOverrideForSave,
 } from "./event-content.js";
+
+test("page link is an optional http address", () => {
+  assert.equal(normalizePageUrl(""), "");
+  assert.equal(
+    normalizePageUrl("https://partiful.com/e/example"),
+    "https://partiful.com/e/example",
+  );
+  assert.throws(() => normalizePageUrl("partiful.com"), /http/);
+});
 
 test("publishes event-specific ticket times", () => {
   const document = sanityEventDocument({
@@ -32,6 +42,38 @@ test("publishes event-specific ticket times", () => {
 
   assert.equal(document.ticketStart, "16:00");
   assert.equal(document.ticketEnd, "01:30");
+  assert.equal(
+    sanityEventDocument({
+      slug: "amo-mas-2026-10-18",
+      title: "Amo más",
+      date: "2026-10-18",
+      description: "From four.",
+      seriesId: "amo-mas",
+      pageUrl: "https://partiful.com/e/example",
+    }).pageUrl,
+    "https://partiful.com/e/example",
+  );
+  assert.equal(
+    sanityEventDocument({
+      slug: "amo-mas-2026-10-18",
+      title: "Amo más",
+      date: "2026-10-18",
+      description: "From four.",
+      seriesId: "amo-mas",
+    }).pageUrl,
+    "",
+  );
+  assert.equal(
+    sanityEventDocument({
+      slug: "amo-mas-2026-10-18",
+      title: "Amo más",
+      date: "2026-10-18",
+      description: "From four.",
+      seriesId: "amo-mas",
+      startTime: "16:00",
+    }).ticketEnd,
+    "",
+  );
   assert.equal(document.time, "From 4pm");
   assert.equal(document.offer, "Guest offer");
 });
@@ -250,6 +292,7 @@ test("resolves a special edition over the regular series content", () => {
     title: "Jazz night",
     artist: "Guest Quartet",
     offer: "£8 after 9pm",
+    pageUrl: "",
     description: "A guest set and late jam.",
     shortDescription: "",
     time: "",

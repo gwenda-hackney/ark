@@ -147,6 +147,7 @@ function documentFromStaging(doc, heroImage, seriesHeroImage) {
     date: doc.date,
     time: doc.time || "",
     offer: doc.offer || "",
+    pageUrl: doc.pageUrl || "",
     shortDescription: doc.shortDescription || "",
     description: doc.description,
     venue: doc.venue,
@@ -303,6 +304,7 @@ export async function publishEventPreview(
         "",
       artist: content.artist,
       offer: content.offer,
+      pageUrl: content.pageUrl,
       heroImage: hero,
       seriesHeroImage: seriesHero || null,
       seriesId: event.slug,
@@ -447,7 +449,7 @@ export async function publishAllEventPreviews(env) {
 const STAGING_EVENT_QUERY = `*[_id == $id][0]{
   _id, _type, title, slug, eventType, seriesId, series, seriesTitle, recurrence, isSpecialEdition,
   date, description, artist, venue,
-  time, offer, ticketStart, ticketEnd, nightSchedule, channels, rsvpConfirmation,
+  time, offer, pageUrl, ticketStart, ticketEnd, nightSchedule, channels, rsvpConfirmation,
   heroImage {
     alt,
     crop,

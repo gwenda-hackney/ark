@@ -1,22 +1,42 @@
 ---
 import { siteConfig } from "../config/site";
+import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
 ---
 
 <section class="story-team section" id="team">
   <div class="container">
     <div class="story-team-grid">
-      <div class="story-team-inner section-intro reveal">
-        <p class="section-eyebrow">The team</p>
+      <p class="section-eyebrow story-team-eyebrow reveal">The team</p>
+      <div class="story-team-lead section-intro reveal">
         <h2>{siteConfig.copy.teamHeading}</h2>
-        <div class="story-body">
-          {siteConfig.copy.teamBody.map((paragraph) => <p>{paragraph}</p>)}
-        </div>
-        <p class="join-cta-footer">
-          <a href="#list" class="btn btn-primary"
-            >{siteConfig.copy.joinExperienceCta}</a
-          >
-        </p>
       </div>
+      <div class="story-team-blocks">
+        {
+          siteConfig.copy.teamSections.map((section) => (
+            <article class="story-team-block reveal">
+              <h3>{section.heading}</h3>
+              {section.paragraphs.map((paragraph, index) => (
+                <p>
+                  {paragraph}
+                  {section.showLinks && index === section.paragraphs.length - 1 && (
+                    <>
+                      {" "}
+                      See <a href="/whats-on">What's on</a>, and the{" "}
+                      <a href="/artists">featured artist</a>. If that is you,{" "}
+                      <a href={formPublicPath(PLAY_FORM_SLUG)}>write to us</a>.
+                    </>
+                  )}
+                </p>
+              ))}
+            </article>
+          ))
+        }
+      </div>
+      <p class="join-cta-footer reveal">
+        <a href="#list" class="btn btn-primary"
+          >{siteConfig.copy.joinExperienceCta}</a
+        >
+      </p>
     </div>
   </div>
 </section>

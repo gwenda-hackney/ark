@@ -4,6 +4,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   title,
   artist,
   offer,
+  pageUrl,
   seriesId,
   seriesTitle,
   recurrence,

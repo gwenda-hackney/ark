@@ -7,7 +7,7 @@ import { withHome } from "../lib/site-nav.js";
 
 const { contactPage } = siteConfig.copy;
 const contactNav = withHome([
-  { href: "/list", label: contactPage.listHeading },
+  { href: "/join-list", label: contactPage.listHeading },
   { href: formPublicPath(PLAY_FORM_SLUG), label: contactPage.playHeading },
 ]);
 ---
@@ -36,7 +36,7 @@ const contactNav = withHome([
         <p class="contact-hub-path-eyebrow">{contactPage.listEyebrow}</p>
         <h2>{contactPage.listHeading}</h2>
         <p>{contactPage.listLead}</p>
-        <a href="/list" class="btn btn-primary">{contactPage.listCta}</a>
+        <a href="/join-list" class="btn btn-primary">{contactPage.listCta}</a>
       </article>
 
       <div class="contact-hub-rule" aria-hidden="true"></div>

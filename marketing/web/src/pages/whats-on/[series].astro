@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import EventImageCaption from "../../components/EventImageCaption.astro";
 import EventNightSchedule from "../../components/EventNightSchedule.astro";
+import EventPageLink from "../../components/EventPageLink.astro";
 import Subpage from "../../components/Subpage.astro";
 import { siteConfig } from "../../config/site";
 import {
@@ -149,6 +150,7 @@ function eventImageUrl(
                 )}
               </div>
             ) : null}
+            <EventPageLink url={detail.nights?.[0]?.pageUrl} />
             {detail.upcomingDates?.length ? (
               <div class="event-dates">
                 <p class="event-dates-label">Nights ahead</p>
@@ -267,6 +269,7 @@ function eventImageUrl(
                         <p>{paragraph}</p>
                       ))}
                     </div>
+                    <EventPageLink url={event.pageUrl} />
                   </article>
                 </li>
               );

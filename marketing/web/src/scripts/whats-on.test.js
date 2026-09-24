@@ -160,6 +160,45 @@ describe("initWhatsOnPage", () => {
     expect(text).toContain("4–10pm");
   });
 
+  it("puts their page on the card without nesting it in the diary link", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          nights: [
+            {
+              title: "Amo más",
+              href: "/whats-on/amo-mas",
+              date: "2026-10-18",
+              description: "Sunday, from four.",
+              schedule: "once",
+              scheduleLabel: "Sun 18 Oct",
+              pageUrl: "https://partiful.com/e/example",
+            },
+          ],
+          next: null,
+        }),
+      })),
+    );
+
+    initWhatsOnPage();
+    const content = document.getElementById("whats-on-content");
+    await vi.waitFor(() => {
+      expect(content?.dataset.live).toBe("ready");
+    });
+    const card = content?.querySelector(".event-card");
+    expect(card?.tagName).toBe("DIV");
+    expect(card?.querySelector(".event-card-hit")?.getAttribute("href")).toBe(
+      "/whats-on/amo-mas",
+    );
+    const page = card?.querySelector(".event-page-link a");
+    expect(page?.textContent).toBe("Partiful");
+    expect(page?.getAttribute("href")).toBe("https://partiful.com/e/example");
+    expect(page?.getAttribute("target")).toBe("_blank");
+    expect(card?.querySelector("a.event-card")).toBeNull();
+  });
+
   it("falls back to static cards when the live fetch fails", async () => {
     vi.stubGlobal(
       "fetch",

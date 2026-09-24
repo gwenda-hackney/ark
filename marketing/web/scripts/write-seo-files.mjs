@@ -12,6 +12,8 @@ const indexablePaths = [
   "/events/",
   "/menu/",
   "/whats-on/schedule/",
+  "/artists/",
+  "/acknowledgements/",
 ];
 
 /** Well-known AI crawlers and browsing agents (explicit Allow in robots.txt). */
