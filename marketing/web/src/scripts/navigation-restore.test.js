@@ -2,7 +2,10 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { isRestoredNavigation } from "./navigation-restore.js";
+import {
+  isRestoredNavigation,
+  shouldPinScrollTop,
+} from "./navigation-restore.js";
 import { shouldSkipRevealAnimation } from "./reveal.js";
 
 describe("navigation restore helpers", () => {
@@ -32,5 +35,14 @@ describe("navigation restore helpers", () => {
     performance.getEntriesByType.mockReturnValue([{ type: "navigate" }]);
     expect(isRestoredNavigation()).toBe(false);
     expect(shouldSkipRevealAnimation()).toBe(false);
+  });
+
+  it("opens a new page at the top and keeps a restored offset", () => {
+    expect(shouldPinScrollTop("push", "https://gwenda.test/artists/current")).toBe(
+      true,
+    );
+    expect(shouldPinScrollTop("replace", "/artists/current")).toBe(true);
+    expect(shouldPinScrollTop("traverse", "/artists/current")).toBe(false);
+    expect(shouldPinScrollTop("push", "/whats-on#series")).toBe(false);
   });
 });

@@ -1,7 +1,6 @@
 <script lang="ts">
 	/**
-	 * Analysis tab: overview numbers first, then a single issues list,
-	 * then optional detail (balance / house) and AI reading.
+	 * Analysis tab: issues first, then overview numbers, detail, and AI.
 	 */
 	import { Button } from "../../ui";
 	import { formatAbv } from "../../lib/abv";
@@ -21,7 +20,6 @@
 	} from "../../lib/cost";
 	import { formatGbp, hasRecipe } from "../../lib/types";
 	import { Icon } from "../../shell";
-	import PourSettingsDialog from "./PourSettingsDialog.svelte";
 	import InventoryLink from "./cells/InventoryLink.svelte";
 
 	let {
@@ -43,8 +41,6 @@
 		canAnalyze?: boolean;
 		onanalyze: () => void;
 	} = $props();
-
-	let settingsOpen = $state(false);
 
 	const KIND_LABELS: Record<KindMlKey, string> = {
 		liquor: "Spirit",
@@ -158,23 +154,28 @@
 
 {#if analysis}
 	<div class="page">
-		<header class="toolbar">
-			<p class="kicker">Overview</p>
-			<Button
-				variant="ghost"
-				size="sm"
-				type="button"
-				aria-label="Pour cost settings"
-				title="Pour targets"
-				onclick={() => (settingsOpen = true)}
-			>
-				{#snippet icon()}
-					<Icon name="settings" size={15} />
-				{/snippet}
-			</Button>
-		</header>
+		<section class="block" aria-label="Issues">
+			<p class="section-title">Issues</p>
+			{#if issues.length}
+				<ul class="issues">
+					{#each issues as flag (flag.id)}
+						<li class={flagClass(flag)}>
+							{#if flag.severity === "critical" || flag.kind === "missing" || flag.severity === "warning"}
+								<span class="gap-icon" aria-hidden="true">
+									<Icon name="alert" size={16} />
+								</span>
+							{/if}
+							{@render flagCopy(flag)}
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="muted ok-line">Nothing to fix on this drink.</p>
+			{/if}
+		</section>
 
 		<section class="block" aria-label="Overview">
+			<p class="section-title">Overview</p>
 			{#if analysis.volumeMl != null}
 				<div class="stats" aria-label="Spec">
 					<div class="stat">
@@ -285,30 +286,10 @@
 				{:else if !price.lines.length}
 					<p class="muted">
 						{isCocktail
-							? "Add recipe lines on the Recipe tab to cost this drink."
-							: "Link stock on the Serve tab to cost this drink."}
+							? "Add recipe lines on Build to cost this drink."
+							: "Link stock on Build to cost this drink."}
 					</p>
 				{/if}
-			{/if}
-		</section>
-
-		<section class="block" aria-label="Issues">
-			<p class="section-title">Issues</p>
-			{#if issues.length}
-				<ul class="issues">
-					{#each issues as flag (flag.id)}
-						<li class={flagClass(flag)}>
-							{#if flag.severity === "critical" || flag.kind === "missing" || flag.severity === "warning"}
-								<span class="gap-icon" aria-hidden="true">
-									<Icon name="alert" size={16} />
-								</span>
-							{/if}
-							{@render flagCopy(flag)}
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="muted ok-line">Nothing to fix on this drink.</p>
 			{/if}
 		</section>
 
@@ -465,7 +446,7 @@
 					{#if !canAnalyze}
 						{isCocktail
 							? "Add recipe volumes or stock costs before asking for a reading."
-							: "Link stock on the Serve tab and set a price before asking for a reading."}
+							: "Link stock on Build and set a price before asking for a reading."}
 					{:else}
 						A short note on this drink, separate from the numbers above. It will not invent volumes or ABV.
 					{/if}
@@ -477,30 +458,11 @@
 	<p class="muted">Open a drink to analyse it.</p>
 {/if}
 
-<PourSettingsDialog open={settingsOpen} onclose={() => (settingsOpen = false)} />
-
 <style>
 	.page {
 		display: grid;
 		gap: 1.5rem;
 		padding-bottom: 0.5rem;
-	}
-
-	.toolbar {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-	}
-
-	.kicker {
-		flex: 1;
-		min-width: 0;
-		margin: 0;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--primary);
 	}
 
 	.stats,

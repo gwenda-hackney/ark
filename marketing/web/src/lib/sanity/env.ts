@@ -3,14 +3,27 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_PROJECT_ID = "pn5yjro6";
-/** Local dev default — CI sets SANITY_DATASET per environment (development on staging, production on live). */
-const DEFAULT_DATASET = "development";
+/** Local dev default. CI / wrangler sets SANITY_DATASET per environment. */
+const DEFAULT_DATASET = "staging";
 
 export type SanityConfig = {
   projectId: string;
   dataset: string;
   token: string;
 };
+
+export type SanityPerspective = "published" | "previewDrafts";
+
+/** Local `astro dev` overlays drafts. Staging/production builds stay published. */
+export function sanityPerspective(input: {
+  perspective?: string;
+  dev?: boolean;
+} = {}): SanityPerspective {
+  const explicit = (input.perspective ?? "").trim();
+  if (explicit === "published" || explicit === "previewDrafts") return explicit;
+  if (input.dev) return "previewDrafts";
+  return "published";
+}
 
 function findRepoRoot(): string {
   const candidates = [

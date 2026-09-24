@@ -3,17 +3,89 @@ import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
 import { headerLogo } from "../lib/hero-assets";
+import SiteMenu from "./SiteMenu.astro";
+import {
+  homeAnchorItems,
+  isCurrentNavPage,
+  navPathname,
+  shouldReloadNavLink,
+  sitePageLinks,
+} from "../lib/site-nav.js";
 
-interface Props {
-  features: SiteFeatures;
-  showMenuTease?: boolean;
+export interface NavItem {
+  href: string;
+  label: string;
+  /** Gold join link, same as the home menu. */
+  cta?: boolean;
 }
 
-const { features, showMenuTease = false } = Astro.props;
+interface Props {
+  /** Home sections. Omitted when `items` supplies this page's menu. */
+  features?: SiteFeatures;
+  showMenuTease?: boolean;
+  /** This page's anchors and child pages. Home is the wordmark. */
+  items?: NavItem[];
+  /**
+   * Subpage: wordmark waits for scroll. The hamburger stays either way.
+   */
+  collapsed?: boolean;
+  /**
+   * Home: the hero already shows the wordmark. Mark this in the first HTML
+   * so the bar logo is hidden before paint. Adding the class from script
+   * after paint runs the slide-away transition.
+   */
+  awaitsHero?: boolean;
+  logoHref?: string;
+  /** Used to drop the current route from the other pages. */
+  pathname?: string;
+}
+
+const {
+  features,
+  showMenuTease = false,
+  items,
+  collapsed = false,
+  awaitsHero = false,
+  logoHref = collapsed ? "/" : "#hero",
+  pathname = Astro.url.pathname,
+} = Astro.props;
+
+const showMenuLink = items
+  ? true
+  : Boolean(showMenuTease || features?.showMenu);
+const pageLinks =
+  items ??
+  homeAnchorItems({
+    showMenu: Boolean(showMenuTease),
+    showGallery: Boolean(features?.showGallery),
+    signupLabel: siteConfig.copy.signupNavCta,
+  });
+const homeLink = pageLinks.find((item) => navPathname(item.href) === "/");
+const thisPageLinks = pageLinks.filter((item) => item !== homeLink);
+const pagePaths = new Set(
+  pageLinks.map((item) => navPathname(item.href)).filter(Boolean),
+);
+const siteLinks = sitePageLinks(pathname, { showMenu: showMenuLink }).filter(
+  (item) => !pagePaths.has(navPathname(item.href)),
+);
+/** A long chapter list never fits beside the wordmark. Keep the hamburger. */
+const overlayOnly = pageLinks.length > 6;
 ---
 
-<header class="site-header" id="site-header">
-  <a href="#hero" class="site-header-logo" aria-label="Gwenda">
+<header
+  class:list={[
+    "site-header",
+    collapsed && "site-header--collapsed",
+    awaitsHero && "awaits-hero",
+    !overlayOnly && siteLinks.length === 0 && "site-header--bar-only",
+  ]}
+  id="site-header"
+>
+  <a
+    href={logoHref}
+    class="site-header-logo"
+    aria-label={collapsed ? "Gwenda home" : "Gwenda"}
+  >
     <Image {...headerLogo} alt="" class="site-header-logo-img" />
   </a>
 
@@ -27,14 +99,30 @@ const { features, showMenuTease = false } = Astro.props;
   >
     <span class="site-header-menu-icon" aria-hidden="true"></span>
   </button>
+  {
+    !overlayOnly && thisPageLinks.length > 0 && (
+      <nav class="site-header-bar" aria-label="This page">
+        {
+          thisPageLinks.map((item) => (
+            <a
+              href={item.href}
+              class:list={[item.cta && "site-header-cta"]}
+              data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+              aria-current={isCurrentNavPage(item.href, pathname) ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          ))
+        }
+      </nav>
+    )
+  }
 </header>
 
-<nav class="site-header-nav" id="site-header-nav">
-  <a href="#story">Story</a>
-  {/* Dedicated /menu and /events URLs help Google form organic sitelinks. */}
-  {(showMenuTease || features.showMenu) && <a href="/menu">Menu</a>}
-  {features.showTeam && <a href="#team">Who we are</a>}
-  <a href="/events">Events</a>
-  <a href="/contact">Contact</a>
-  <a href="#list" class="site-header-cta">{siteConfig.copy.signupNavCta}</a>
-</nav>
+<SiteMenu
+  homeLink={{ href: "/", label: "Home" }}
+  pageLinks={thisPageLinks}
+  siteLinks={siteLinks}
+  pathname={pathname}
+  pageLinksInHeader={!overlayOnly}
+/>

@@ -155,6 +155,18 @@ export function recipeSearchFields(
 			inGrid: false,
 		},
 		{
+			key: "posMenus",
+			label: "POS menus",
+			value: (item.posMenus || []).map((row) => row.name).join(" · "),
+			inGrid: true,
+		},
+		{
+			key: "posScreens",
+			label: "POS screens",
+			value: String(item.lightspeedMenuScreen || ""),
+			inGrid: true,
+		},
+		{
 			key: "section",
 			label: "Section",
 			value: String(section || ""),

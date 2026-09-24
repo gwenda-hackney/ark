@@ -3,8 +3,13 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Subpage from "../components/Subpage.astro";
 import { siteConfig } from "../config/site";
 import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
+import { withHome } from "../lib/site-nav.js";
 
 const { contactPage } = siteConfig.copy;
+const contactNav = withHome([
+  { href: "/join-list", label: contactPage.listHeading },
+  { href: formPublicPath(PLAY_FORM_SLUG), label: contactPage.playHeading },
+]);
 ---
 
 <BaseLayout
@@ -12,12 +17,14 @@ const { contactPage } = siteConfig.copy;
   description={siteConfig.seo.contact.description}
   showBooking={false}
 >
-  <Subpage class="contact-hub" innerClass="contact-hub-inner" href="/">
-    <header class="contact-hub-header reveal">
-      <p class="section-eyebrow">{contactPage.eyebrow}</p>
-      <h1>{contactPage.heading}</h1>
-      <p>{contactPage.lead}</p>
-    </header>
+  <Subpage
+    class="contact-hub"
+    innerClass="contact-hub-inner"
+    navItems={contactNav}
+    eyebrow={contactPage.eyebrow}
+    title={contactPage.heading}
+  >
+    <p slot="lead">{contactPage.lead}</p>
 
     <div class="contact-hub-paths">
       <article
@@ -27,7 +34,7 @@ const { contactPage } = siteConfig.copy;
         <p class="contact-hub-path-eyebrow">{contactPage.listEyebrow}</p>
         <h2>{contactPage.listHeading}</h2>
         <p>{contactPage.listLead}</p>
-        <a href="/list" class="btn btn-primary">{contactPage.listCta}</a>
+        <a href="/join-list" class="btn btn-primary">{contactPage.listCta}</a>
       </article>
 
       <div class="contact-hub-rule" aria-hidden="true"></div>

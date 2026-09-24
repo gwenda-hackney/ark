@@ -1,6 +1,7 @@
 ---
 import { Image } from "astro:assets";
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import PageHeader from "../../components/PageHeader.astro";
 import Subpage from "../../components/Subpage.astro";
 import ContactForm from "../../components/ContactForm.astro";
 import { siteConfig } from "../../config/site";
@@ -73,23 +74,31 @@ const showEyebrow =
     }
 
     <div id="contact-panel" class="contact-panel">
-      <header class="contact-header reveal">
-        {
-          showTurntable ? (
+      {
+        showTurntable ? (
+          <header class="page-header page-header--start contact-header reveal">
             <h1 class="contact-play-title">
               <span class="contact-play-title-gold">Play</span>
               <span class="contact-play-title-at"> at </span>
               <span class="contact-play-title-name">Gwenda</span>
             </h1>
-          ) : (
-            <>
-              {showEyebrow ? <p class="section-eyebrow">{eyebrow}</p> : null}
-              <h1>{heading}</h1>
-            </>
-          )
-        }
-        {form.intro ? <p>{form.intro}</p> : null}
-      </header>
+            {form.intro ? (
+              <div class="page-header-lead">
+                <p>{form.intro}</p>
+              </div>
+            ) : null}
+          </header>
+        ) : (
+          <PageHeader
+            class="contact-header"
+            eyebrow={showEyebrow ? eyebrow : undefined}
+            title={heading}
+            align="start"
+          >
+            {form.intro ? <p>{form.intro}</p> : null}
+          </PageHeader>
+        )
+      }
 
       <ContactForm form={form} />
     </div>

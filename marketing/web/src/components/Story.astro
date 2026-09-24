@@ -3,10 +3,13 @@ import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
 import { openingDate } from "../config/opening";
+import { Image } from "astro:assets";
 import DissolveReveal from "./DissolveReveal.astro";
+import room from "../assets/images/story/room-wide.png";
 
 interface Props {
   mode: SiteMode;
+  showTeam?: boolean;
 }
 
 const { mode } = Astro.props;
@@ -19,7 +22,19 @@ const openingRevealDelay = `${(copy.storyBody.length + (copy.storyClosing ? 1 : 
 ---
 
 <section class="story section" id="story">
+  <figure class="story-entrance">
+    <Image
+      src={room}
+      alt="The room at Gwenda, with tables, the bar, and the GWENDA sign."
+      widths={[720, 1080, 1440]}
+      sizes="(min-width: 901px) 68vw, 100vw"
+      class="story-entrance-photo"
+    />
+  </figure>
   <div class="container">
+    <a href="#hero" class="story-scroll-hint" aria-label="Back to the top">
+      <span class="story-scroll-chevron" aria-hidden="true"></span>
+    </a>
     <div class="story-grid story-grid--split">
       <p
         class="section-eyebrow story-grid-eyebrow dissolve-reveal-eyebrow reveal"

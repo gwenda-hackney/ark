@@ -1,7 +1,7 @@
 name: Sanity
 
-# Mirror CMS content between staging (development) and production datasets.
-# Does not rebuild or promote the website — run a content deploy afterwards.
+# Mirror staging ↔ production datasets.
+# Does not rebuild the website. Rebuild staging or promote to production afterwards.
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
           - staging-to-production
           - production-to-staging
       confirm_target:
-        description: Type the target dataset to overwrite (development or production)
+        description: Type the target dataset to overwrite (staging or production)
         required: true
         type: string
 
@@ -29,6 +29,14 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Require release before overwriting production
+        if: inputs.direction == 'staging-to-production'
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/release" ]; then
+            echo "Copying staging onto the production dataset only runs from the release branch (got ${{ github.ref_name }})." >&2
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -37,12 +45,12 @@ jobs:
         run: |
           case "${{ inputs.direction }}" in
             staging-to-production)
-              echo "source=development" >> "$GITHUB_OUTPUT"
+              echo "source=staging" >> "$GITHUB_OUTPUT"
               echo "target=production" >> "$GITHUB_OUTPUT"
               ;;
             production-to-staging)
               echo "source=production" >> "$GITHUB_OUTPUT"
-              echo "target=development" >> "$GITHUB_OUTPUT"
+              echo "target=staging" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "Unknown direction" >&2
@@ -90,10 +98,10 @@ jobs:
             echo "- Source: \`${{ steps.datasets.outputs.source }}\`"
             echo "- Target overwritten: \`${{ steps.datasets.outputs.target }}\`"
             echo ""
-            echo "CMS datasets are mirrored. Sites still serve the previous build until a **content deploy**."
+            echo "CMS datasets are mirrored. Sites still serve the previous build until a rebuild or ops promote."
             if [ "${{ inputs.direction }}" = "staging-to-production" ]; then
-              echo "Next: Production Studio → Deploy preview → Promote to live (or run Web with action=production-content)."
+              echo "Next: ops Web → Promote staging to production (clone already done; rebuild live)."
             else
-              echo "Next: Development Studio → Deploy to staging (or run Web with action=staging-content)."
+              echo "Next: publish in Studio, rebuild gwenda-staging, review, then promote to production."
             fi
           } >> "$GITHUB_STEP_SUMMARY"

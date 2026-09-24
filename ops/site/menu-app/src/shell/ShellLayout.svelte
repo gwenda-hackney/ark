@@ -13,6 +13,7 @@
 		interceptClientNav,
 		listen,
 		navigate,
+		parseShellPath,
 		readPath,
 		shellCrumbs,
 		syncCanonicalUrl,
@@ -21,10 +22,8 @@
 	import {
 		MOBILE_TABS,
 		hideShellChrome,
-		isStockListPath,
 		mobileTabFor,
 		rememberStockPath,
-		stockSwitchValue,
 		tabHref,
 		type MobileTabId,
 	} from "../lib/mobile-nav";
@@ -60,13 +59,13 @@
 	function readExpandedGroups(): Record<string, boolean> {
 		try {
 			const raw = localStorage.getItem(GROUP_KEY);
-			if (!raw) return { stock: true, menu: true };
+			if (!raw) return { stock: true, menu: true, lightspeed: true };
 			const parsed = JSON.parse(raw) as Record<string, boolean>;
 			return parsed && typeof parsed === "object"
-				? { stock: true, menu: true, ...parsed }
-				: { stock: true, menu: true };
+				? { stock: true, menu: true, lightspeed: true, ...parsed }
+				: { stock: true, menu: true, lightspeed: true };
 		} catch {
-			return { stock: true, menu: true };
+			return { stock: true, menu: true, lightspeed: true };
 		}
 	}
 
@@ -99,9 +98,6 @@
 	const envSummary = $derived(
 		!me ? "" : me.databaseId ? `${me.envLabel} · ${me.databaseId}` : me.envLabel,
 	);
-	const showEnvBanner = $derived(
-		Boolean(me && (me.siteEnv !== "production" || me.risk)),
-	);
 	const envBannerText = $derived(
 		!me
 			? ""
@@ -128,11 +124,13 @@
 	});
 
 	const editorChrome = $derived(hideShellChrome(path));
+	const printBook = $derived(Boolean(parseShellPath(path).print));
 	const showTabs = $derived(phone.matches && !editorChrome);
-	const showStockSwitch = $derived(phone.matches && isStockListPath(path));
-	const showTopbar = $derived(!phone.matches || showStockSwitch);
+	const showTopbar = $derived(!printBook && !phone.matches);
+	const showEnvBanner = $derived(
+		!printBook && Boolean(me && (me.siteEnv !== "production" || me.risk)),
+	);
 	const currentTab = $derived(moreOpen ? "more" : mobileTabFor(path));
-	const stockValue = $derived(stockSwitchValue(path));
 
 	const active = $derived(matchActiveRoute(routes, path));
 
@@ -171,6 +169,7 @@
 
 	function collapsedGroupHref(item: NavRoute): string {
 		if (item.id === "stock") return tabHref("stock");
+		if (item.id === "lightspeed") return "/lightspeed";
 		const child = item.children?.find((row) => row.path);
 		return child?.path || "/";
 	}
@@ -227,6 +226,12 @@
 		moreOpen = false;
 	});
 
+	/** Apply before paint so print routes do not flash rail / env banner. */
+	$effect.pre(() => {
+		if (typeof document === "undefined") return;
+		document.documentElement.classList.toggle("print-book", printBook);
+	});
+
 	$effect(() => {
 		if (!phone.matches || editorChrome) moreOpen = false;
 	});
@@ -264,8 +269,17 @@
 		</div>
 
 		<nav class="nav scrollbar-fade">
-			{#each routes as item (item.id)}
-				{#if item.children?.length}
+			{#snippet navEntry(item: NavRoute)}
+				{#if item.heading && item.children?.length}
+					<div class="nav-section">
+						{#if open}
+							<p class="nav-section-label">{item.name}</p>
+						{/if}
+						{#each item.children as child (child.id)}
+							{@render navEntry(child)}
+						{/each}
+					</div>
+				{:else if item.children?.length}
 					{@const inGroup = navGroupContains(item, active)}
 					{@const groupHref = collapsedGroupHref(item)}
 					{@const groupOpen = isGroupExpanded(item.id)}
@@ -296,6 +310,23 @@
 							>
 								<div class="nav-children-inner">
 									{#each item.children as child (child.id)}
+										{#if child.children?.length}
+											<p class="nav-sub-label">{child.name}</p>
+											{#each child.children as leaf (leaf.id)}
+												{@const on = active?.id === leaf.id}
+												{@const href = leaf.path || "/"}
+												<a
+													class="nav-item nested deep"
+													class:on
+													href={href}
+													aria-current={on ? "page" : undefined}
+													tabindex={groupOpen ? undefined : -1}
+													onclick={(e) => onLeafClick(e, href)}
+												>
+													<span class="nav-label">{leaf.name}</span>
+												</a>
+											{/each}
+										{:else}
 										{@const on = active?.id === child.id}
 										{@const href = child.path || "/"}
 										<a
@@ -306,9 +337,9 @@
 											tabindex={groupOpen ? undefined : -1}
 											onclick={(e) => onLeafClick(e, href)}
 										>
-											<span class="nav-icon"><Icon name={child.icon} size={17} /></span>
 											<span class="nav-label">{child.name}</span>
 										</a>
+										{/if}
 									{/each}
 								</div>
 							</div>
@@ -327,6 +358,22 @@
 							<nav class="flyout" aria-label={item.name}>
 								<div class="flyout-card">
 									{#each item.children as child (child.id)}
+										{#if child.children?.length}
+											<p class="flyout-label">{child.name}</p>
+											{#each child.children as leaf (leaf.id)}
+												{@const on = active?.id === leaf.id}
+												{@const href = leaf.path || "/"}
+												<a
+													class="flyout-link"
+													href={href}
+													aria-current={on ? "page" : undefined}
+													onclick={(e) => onLeafClick(e, href)}
+												>
+													<span class="nav-icon"><Icon name={leaf.icon} size={16} /></span>
+													{leaf.name}
+												</a>
+											{/each}
+										{:else}
 										{@const on = active?.id === child.id}
 										{@const href = child.path || "/"}
 										<a
@@ -338,6 +385,7 @@
 											<span class="nav-icon"><Icon name={child.icon} size={16} /></span>
 											{child.name}
 										</a>
+										{/if}
 									{/each}
 								</div>
 							</nav>
@@ -358,6 +406,9 @@
 						<span class="tip" aria-hidden="true">{item.name}</span>
 					</a>
 				{/if}
+			{/snippet}
+			{#each routes as item (item.id)}
+				{@render navEntry(item)}
 			{/each}
 		</nav>
 
@@ -411,43 +462,22 @@
 	<div class="main">
 		{#if showTopbar}
 			<header class="topbar">
-				{#if showStockSwitch}
-					<nav class="stock-switch" aria-label="Stock section">
-						<a
-							class="stock-link"
-							class:on={stockValue === "menu"}
-							href="/menu"
-							aria-current={stockValue === "menu" ? "page" : undefined}
-						>
-							Recipes
-						</a>
-						<a
-							class="stock-link"
-							class:on={stockValue === "inventory"}
-							href="/inventory"
-							aria-current={stockValue === "inventory" ? "page" : undefined}
-						>
-							Inventory
-						</a>
-					</nav>
-				{:else if !phone.matches}
-					<nav class="crumbs" aria-label="Breadcrumb">
-						<ol>
-							{#each crumbs as crumb, index (crumb.label + String(crumb.href || "") + index)}
-								<li>
-									{#if index > 0}
-										<span class="sep" aria-hidden="true">/</span>
-									{/if}
-									{#if crumb.href}
-										<a class="crumb-link" href={crumb.href}>{crumb.label}</a>
-									{:else}
-										<span class="route" aria-current="page">{crumb.label}</span>
-									{/if}
-								</li>
-							{/each}
-						</ol>
-					</nav>
-				{/if}
+				<nav class="crumbs" aria-label="Breadcrumb">
+					<ol>
+						{#each crumbs as crumb, index (crumb.label + String(crumb.href || "") + index)}
+							<li>
+								{#if index > 0}
+									<span class="sep" aria-hidden="true">/</span>
+								{/if}
+								{#if crumb.href}
+									<a class="crumb-link" href={crumb.href}>{crumb.label}</a>
+								{:else}
+									<span class="route" aria-current="page">{crumb.label}</span>
+								{/if}
+							</li>
+						{/each}
+					</ol>
+				</nav>
 			</header>
 		{/if}
 
@@ -529,6 +559,7 @@
 	.brand {
 		display: flex;
 		align-items: center;
+		flex-shrink: 0;
 		gap: 0.625rem;
 		height: var(--topbar-h);
 		padding: 0 0.25rem;
@@ -593,6 +624,8 @@
 		padding-top: 0.25rem;
 		overflow-y: auto;
 		overflow-x: hidden;
+		scrollbar-gutter: stable;
+		margin-right: calc(-1 * var(--scrollbar-size));
 	}
 
 	.shell:not(.open) .rail,
@@ -600,11 +633,32 @@
 		overflow: visible;
 	}
 
+	.nav-section {
+		display: flex;
+		flex-direction: column;
+		gap: 0.0625rem;
+	}
+
+	.open .nav-section {
+		margin-top: 0.85rem;
+		margin-bottom: 0.35rem;
+	}
+
+	.nav-section-label {
+		margin: 0.15rem 0 0.3rem 0.7rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--subtle-foreground);
+	}
+
 	.nav-group {
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		gap: 0.125rem;
+		flex-shrink: 0;
+		gap: 0.0625rem;
 	}
 
 	.nav-children {
@@ -629,22 +683,58 @@
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
-		gap: 0.125rem;
-		padding: 0 0 0.35rem 0.35rem;
+		gap: 0.0625rem;
+		padding: 0 0 0.15rem;
+	}
+
+	.nav-group.expanded .nav-children-inner {
+		min-height: min-content;
 	}
 
 	.nav-item.nested {
-		height: 2.45rem;
+		height: 2.25rem;
+		min-height: 2.25rem;
+		padding-left: 2.7rem;
+		padding-right: 0.7rem;
+		border-radius: var(--radius-sm);
+		color: var(--muted-foreground);
 		font-size: var(--text-sm);
+		font-weight: 450;
+	}
+
+	.nav-item.nested.deep {
+		height: 2.15rem;
+		min-height: 2.15rem;
+		padding-left: 3.35rem;
+	}
+
+	.nav-sub-label {
+		flex-shrink: 0;
+		margin: 0.35rem 0 0.05rem 0.4rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+		color: var(--subtle-foreground);
+	}
+
+	.flyout-label {
+		flex-shrink: 0;
+		margin: 0.45rem 0 0.1rem 0.55rem;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--subtle-foreground);
 	}
 
 	.nav-item.group-label {
 		cursor: pointer;
-		color: var(--subtle-foreground);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+		font-size: var(--text);
+		font-weight: 500;
+		letter-spacing: 0;
+		text-transform: none;
 	}
 
 	.nav-item.group-label:hover {
@@ -660,10 +750,6 @@
 	.nav-item.group-label.in:hover {
 		color: var(--primary);
 		background: var(--accent);
-	}
-
-	.nav-item.group-label.open {
-		color: var(--foreground);
 	}
 
 	.nav-item.group-label.in.open {
@@ -762,6 +848,7 @@
 	.rail-foot {
 		display: flex;
 		flex-direction: column;
+		flex-shrink: 0;
 		gap: 0.1875rem;
 		padding-top: 0.5rem;
 		border-top: 1px solid var(--border);
@@ -785,13 +872,19 @@
 		font-weight: 500;
 	}
 
+	.nav > a.nav-item {
+		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+	}
+
 	.nav-item {
 		position: relative;
 		display: flex;
 		align-items: center;
+		flex-shrink: 0;
 		gap: 0.75rem;
 		width: 100%;
 		height: 2.75rem;
+		min-height: 2.75rem;
 		padding: 0 0.6875rem;
 		border: none;
 		border-radius: var(--radius-md);
@@ -1089,39 +1182,6 @@
 
 	.tabs {
 		display: none;
-	}
-
-	.stock-switch {
-		display: flex;
-		align-items: stretch;
-		width: 100%;
-		height: 100%;
-	}
-
-	.stock-link {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex: 1;
-		height: 100%;
-		padding: 0 0.5rem;
-		border-bottom: 2px solid transparent;
-		color: var(--muted-foreground);
-		font-size: var(--text-md);
-		font-weight: 500;
-		letter-spacing: -0.01em;
-		text-decoration: none;
-	}
-
-	.stock-link.on {
-		color: var(--foreground);
-		font-weight: 600;
-		border-bottom-color: var(--primary);
-	}
-
-	.stock-link:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: -4px;
 	}
 
 	/* Keep in sync with SHELL_MOBILE_MAX_PX. */

@@ -1,0 +1,71 @@
+---
+import { siteConfig } from "../config/site";
+import { artistRunLabel } from "../lib/artist-run.js";
+import { fetchFeaturedArtists } from "../lib/featured-artist.js";
+import { fetchWhatsOnCatalog } from "../lib/sanity/events";
+import {
+  buildWhatsOnHome,
+  formatShortEventDate,
+} from "../../functions/_lib/event-series.js";
+
+const { copy } = siteConfig;
+const featured = await fetchFeaturedArtists();
+const artist = featured.current;
+
+const catalog = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+const { nights } = buildWhatsOnHome(catalog.occurrences, {
+  limit: 12,
+  series: catalog.series,
+});
+const nextNight = nights
+  .filter((night) => night?.title && night?.date)
+  .slice()
+  .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
+const nextWhen = nextNight ? formatShortEventDate(nextNight.date) : "";
+
+const profile = String(artist?.profile || "").trim();
+const artistName = String(artist?.name || "").trim();
+const artistRun = artistRunLabel(artist?.startMonth, artist?.endMonth);
+const artistBody = profile
+  ? /[.!?]$/.test(profile)
+    ? profile
+    : `${profile}.`
+  : copy.whatWeDoArtistBody;
+---
+
+<section class="what-we-do section" id="what-we-do">
+  <div class="container">
+    <header class="section-intro what-we-do-header reveal">
+      <p class="section-eyebrow">{copy.whatWeDoEyebrow}</p>
+      <h2>{copy.whatWeDoHeading}</h2>
+      <p class="section-lead">{copy.whatWeDoLead}</p>
+      <p class="what-we-do-body">{copy.whatWeDoBody}</p>
+    </header>
+
+    <div class="what-we-do-grid">
+      <article class="what-we-do-path reveal" data-home-next>
+        <h3>{copy.whatWeDoEventsHeading}</h3>
+        <p>{copy.whatWeDoEventsBody}</p>
+        <p class="what-we-do-next-name">{nextNight?.title || ""}</p>
+        <p class="what-we-do-next-meta">
+          {
+            nextNight && nextWhen && (
+              <time datetime={nextNight.date}>{nextWhen}</time>
+            )
+          }
+        </p>
+        <a class="what-we-do-cta" href="/whats-on">What's on</a>
+      </article>
+      <article class="what-we-do-path reveal" data-home-artist>
+        <h3>{copy.whatWeDoArtistHeading}</h3>
+        <p>{artistBody}</p>
+        <p class="what-we-do-next-name">{artistName}</p>
+        <p class="what-we-do-next-meta">{artistRun}</p>
+        <a class="what-we-do-cta" href="/artists/current">Featured artist</a>
+      </article>
+    </div>
+  </div>
+</section>

@@ -11,6 +11,8 @@ type PortableTextBlock = {
 type SanityRsvpEvent = {
   slug: string | null;
   title: string;
+  date?: string | null;
+  seriesId?: string | null;
   description: string | PortableTextBlock[];
   heroImage?: SanityImageField;
 };
@@ -18,6 +20,8 @@ type SanityRsvpEvent = {
 export type RsvpEventPage = {
   slug: string;
   title: string;
+  date: string;
+  seriesId: string;
   description: string;
   socialImage?: {
     url: string;
@@ -33,13 +37,16 @@ export type RsvpEventPage = {
 function mapRsvpEventPage(doc: SanityRsvpEvent): RsvpEventPage | null {
   const slug = doc.slug?.trim();
   const description = portableTextToPlain(doc.description);
-  if (!slug || !doc.title?.trim() || !description) return null;
+  const date = String(doc.date || "").trim();
+  if (!slug || !doc.title?.trim() || !description || !date) return null;
 
   const socialImage = mapSanitySocialPreviewImage(doc.heroImage, doc.title);
 
   return {
     slug,
     title: doc.title.trim(),
+    date,
+    seriesId: String(doc.seriesId || "").trim() || slug,
     description,
     socialImage: socialImage
       ? {

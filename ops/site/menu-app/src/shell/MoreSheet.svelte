@@ -2,6 +2,7 @@
 	/** Phone overflow: configuration and sign out. */
 	import { fade, fly } from "svelte/transition";
 	import Icon from "./Icon.svelte";
+	import { isEventsScheduleNavPath } from "../lib/nav-tree";
 
 	function easeOut(t: number): number {
 		return 1 - Math.pow(1 - t, 3.2);
@@ -26,10 +27,20 @@
 	} = $props();
 
 	const onConfig = $derived(path === "/config" || path.startsWith("/config/"));
+	const onMenu = $derived(path === "/menu" || path.startsWith("/menu/"));
 	const onSections = $derived(
 		path === "/sections" || path.startsWith("/sections/"),
 	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
+	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
+	const eventsPath = $derived(path.split("?")[0] ?? "/");
+	const onSchedule = $derived(isEventsScheduleNavPath(path));
+	const onSeries = $derived(
+		(eventsPath === "/events" || eventsPath.startsWith("/events/")) && !onSchedule,
+	);
+	const onArtist = $derived(
+		eventsPath === "/artists" || eventsPath.startsWith("/artists/"),
+	);
 </script>
 
 {#if open}
@@ -51,7 +62,34 @@
 		>
 			<div class="grab" aria-hidden="true"></div>
 			<nav class="links">
+				<p class="heading">Lightspeed</p>
+				<a class="row" href="/lightspeed">
+					<span class="icon"><Icon name="lightspeed" size={18} /></span>
+					<span class="copy">
+						<span class="label">Reconcile</span>
+						<span class="hint">Match a Lightspeed item list</span>
+					</span>
+				</a>
+				<a class="row" href="/lightspeed/export">
+					<span class="icon"><Icon name="upload" size={18} /></span>
+					<span class="copy">
+						<span class="label">Export</span>
+						<span class="hint">Item import for Lightspeed</span>
+					</span>
+				</a>
 				<p class="heading">Menu</p>
+				<a
+					class="row"
+					class:on={onMenu}
+					href="/menu"
+					aria-current={onMenu ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="recipes" size={18} /></span>
+					<span class="copy">
+						<span class="label">Menu items</span>
+						<span class="hint">Drinks on the guest menu</span>
+					</span>
+				</a>
 				<a
 					class="row"
 					class:on={onSections}
@@ -62,6 +100,57 @@
 					<span class="copy">
 						<span class="label">Sections</span>
 						<span class="hint">Guest menu chapters and groups</span>
+					</span>
+				</a>
+				<p class="heading">Events</p>
+				<a
+					class="row"
+					class:on={onSeries}
+					href="/events"
+					aria-current={onSeries ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="list" size={18} /></span>
+					<span class="copy">
+						<span class="label">Series</span>
+						<span class="hint">Residencies and their defaults</span>
+					</span>
+				</a>
+				<a
+					class="row"
+					class:on={onSchedule}
+					href="/events/schedule"
+					aria-current={onSchedule ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="events" size={18} /></span>
+					<span class="copy">
+						<span class="label">Schedule</span>
+						<span class="hint">Upcoming nights</span>
+					</span>
+				</a>
+				<p class="heading">Artist</p>
+				<a
+					class="row"
+					class:on={onArtist}
+					href="/artists"
+					aria-current={onArtist ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="artist" size={18} /></span>
+					<span class="copy">
+						<span class="label">Artist</span>
+						<span class="hint">Work hanging at Gwenda</span>
+					</span>
+				</a>
+				<p class="heading">Website</p>
+				<a
+					class="row"
+					class:on={onWeb}
+					href="/web"
+					aria-current={onWeb ? "page" : undefined}
+				>
+					<span class="icon"><Icon name="web" size={18} /></span>
+					<span class="copy">
+						<span class="label">Web</span>
+						<span class="hint">Staging, production, and promote</span>
 					</span>
 				</a>
 				<p class="heading">Ops</p>

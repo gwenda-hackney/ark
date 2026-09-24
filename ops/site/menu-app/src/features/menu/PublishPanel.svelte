@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Button, BusyOverlay, Field, NativeSelect } from "../../ui";
-	import type { SelectOption } from "../../ui/types";
+	import { Button, BusyOverlay } from "../../ui";
 	import {
 		formatPublishDiff,
 		groupItemsForPublish,
@@ -26,16 +25,7 @@
 		onclose: () => void;
 	} = $props();
 
-	const publishOptions: SelectOption[] = [
-		{ value: "staging", label: "Preview site" },
-		{ value: "production", label: "Live website" },
-	];
-
-	const actionLabel = $derived(
-		publishTarget === "production"
-			? "Update live website"
-			: "Update preview site",
-	);
+	const actionLabel = "Update preview site";
 
 	const groups = $derived(groupItemsForPublish(items, publishTarget));
 	const pending = $derived(groups.unpublished.length + groups.missing.length);
@@ -64,35 +54,14 @@
 
 	<div class="body scrollbar-fade">
 		<p class="lede">
-			Push your saved menu changes to the website so guests can see them.
+			Push saved menu changes into the staging dataset, then rebuild the
+			preview site. Drafts in Studio are not included until you publish them.
 		</p>
 
-		<Field label="Where" for="publish-target">
-			<NativeSelect
-				id="publish-target"
-				size="sm"
-				options={publishOptions}
-				value={publishTarget}
-				disabled={busy}
-				onchange={(e) => {
-					publishTarget = (e.currentTarget as HTMLSelectElement)
-						.value as PublishTarget;
-					localStorage.setItem("gwenda-ops-menu-publish", publishTarget);
-				}}
-			/>
-		</Field>
-
-		{#if publishTarget === "staging"}
-			<p class="note">
-				Updates the preview site only. Use this to check the menu before it
-				goes live.
-			</p>
-		{:else}
-			<p class="note warn">
-				Updates the live website. Check names and prices look right before you
-				continue.
-			</p>
-		{/if}
+		<p class="note">
+			Writes the staging dataset, then rebuilds the preview site. Production is
+			a copy of staging, promoted from Web.
+		</p>
 
 		<div class="status">
 			<p class="status-lead">

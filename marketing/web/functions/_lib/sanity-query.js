@@ -3,8 +3,18 @@ const API_VERSION = "v2025-01-01";
 
 export function sanityDatasetForEnv(env = {}) {
   if (env.SANITY_DATASET?.trim()) return env.SANITY_DATASET.trim();
-  if (env.SITE_ENV === "staging") return "development";
+  if (env.SITE_ENV === "staging") return "staging";
   return "production";
+}
+
+/** Hosted staging/production ignore drafts. Local SITE_ENV can overlay them. */
+export function sanityPerspectiveForEnv(env = {}) {
+  const explicit = env.SANITY_PERSPECTIVE?.trim();
+  if (explicit === "published" || explicit === "previewDrafts") return explicit;
+  if (env.SITE_ENV === "local" || env.SITE_ENV === "development") {
+    return "previewDrafts";
+  }
+  return "published";
 }
 
 export function sanityProjectId(env = {}) {
@@ -19,6 +29,7 @@ export async function sanityQuery(env, query, params = {}) {
   const host = token ? "api.sanity.io" : "apicdn.sanity.io";
   const url = new URL(`https://${projectId}.${host}/${API_VERSION}/data/query/${dataset}`);
   url.searchParams.set("query", query);
+  url.searchParams.set("perspective", sanityPerspectiveForEnv(env));
   for (const [key, value] of Object.entries(params)) {
     // Sanity requires GROQ params as `$name` query-string keys.
     const paramKey = key.startsWith("$") ? key : `$${key}`;

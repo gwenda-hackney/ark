@@ -13,6 +13,29 @@ export function flattenNavRoutes(routes: NavRoute[]): NavRoute[] {
 	return leaves;
 }
 
+function decodeNavPath(path: string): string {
+	const bare = path.split("?")[0] ?? "/";
+	try {
+		return decodeURIComponent(bare);
+	} catch {
+		return bare;
+	}
+}
+
+/** Schedule list, a special event, or a dated night editor. */
+export function isEventsScheduleNavPath(path: string): boolean {
+	const p = decodeNavPath(path);
+	return (
+		p === "/events/schedule" ||
+		p.startsWith("/events/schedule/") ||
+		p === "/events/nights" ||
+		p.startsWith("/events/nights/") ||
+		p === "/events/new/once" ||
+		p.startsWith("/events/new/once/") ||
+		/^\/events\/[^/]+@/.test(p)
+	);
+}
+
 /** Longest matching leaf for the current path. */
 export function matchActiveRoute(
 	routes: NavRoute[],
@@ -20,6 +43,9 @@ export function matchActiveRoute(
 ): NavRoute | null {
 	const withoutQuery = path.split("?")[0] ?? "/";
 	const leaves = flattenNavRoutes(routes);
+	if (isEventsScheduleNavPath(withoutQuery)) {
+		return leaves.find((n) => n.id === "events-schedule") ?? null;
+	}
 	const exact = leaves.find((n) => n.path === withoutQuery);
 	if (exact) return exact;
 	const ranked = leaves

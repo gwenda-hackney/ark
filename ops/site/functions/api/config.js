@@ -1,8 +1,10 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../_lib/http.js";
 import {
+  OPS_CONFIG_KEYS,
   getConfigValues,
   getPourTargets,
   resetPourTargets,
+  setConfigString,
   setPourTargets,
 } from "../_lib/config-store.js";
 
@@ -19,6 +21,8 @@ export const onRequestGet = withApiHandler(async (context) => {
       sanityDataset: values["sanity.dataset"] || null,
       siteDeployWebhookUrl: values["site_deploy.webhook_url"] || null,
       googleOauthClientId: values["google.oauth_client_id"] || null,
+      taskRoleSocial: values[OPS_CONFIG_KEYS.taskRoleSocial] || "",
+      clickupEventsListId: values[OPS_CONFIG_KEYS.clickupEventsListId] || "",
     },
   });
 });
@@ -31,6 +35,30 @@ export const onRequestPatch = withApiHandler(async (context) => {
   if (body.reset === true) {
     const pourTargets = await resetPourTargets(context.env);
     return jsonResponse({ ok: true, pourTargets });
+  }
+  if (body.events && typeof body.events === "object") {
+    if (body.events.socialEmail !== undefined) {
+      await setConfigString(
+        context.env,
+        OPS_CONFIG_KEYS.taskRoleSocial,
+        String(body.events.socialEmail || "").trim(),
+      );
+    }
+    if (body.events.clickupListId !== undefined) {
+      await setConfigString(
+        context.env,
+        OPS_CONFIG_KEYS.clickupEventsListId,
+        String(body.events.clickupListId || "").trim(),
+      );
+    }
+    const values = await getConfigValues(context.env, { service: "ops" });
+    return jsonResponse({
+      ok: true,
+      settings: {
+        taskRoleSocial: values[OPS_CONFIG_KEYS.taskRoleSocial] || "",
+        clickupEventsListId: values[OPS_CONFIG_KEYS.clickupEventsListId] || "",
+      },
+    });
   }
   if (!body.pourTargets || typeof body.pourTargets !== "object") {
     return jsonResponse({ error: "Expected pourTargets." }, 400);

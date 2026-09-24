@@ -1,50 +1,27 @@
 ---
-import EventRsvpPage from "../../components/EventRsvpPage.astro";
-import { isStaging } from "../../config/env";
-import { siteConfig } from "../../config/site";
-import {
-  fetchRsvpEventPages,
-  socialDescription,
-  type RsvpEventPage,
-} from "../../lib/sanity/rsvp-events";
+import { fetchRsvpEventPages } from "../../lib/sanity/rsvp-events";
+import { parseOccurrenceSlug } from "../../../functions/_lib/event-series.js";
 
 export async function getStaticPaths() {
   try {
     const events = await fetchRsvpEventPages();
-    return events.map((event) => ({
-      params: { slug: event.slug },
-      props: { event },
-    }));
+    return events.map((event) => {
+      const parsed = parseOccurrenceSlug(event.slug);
+      const target = parsed
+        ? `/whats-on/${parsed.seriesId}/${parsed.date}`
+        : `/whats-on/${event.seriesId || event.slug}`;
+      return {
+        params: { slug: event.slug },
+        props: { target },
+      };
+    });
   } catch (error) {
-    console.warn("RSVP static paths skipped — could not fetch events from Sanity:", error);
+    console.warn("Legacy event redirects skipped:", error);
     return [];
   }
 }
 
-interface Props {
-  event: RsvpEventPage;
-}
-
-const { event } = Astro.props;
-const siteOrigin = isStaging
-  ? "https://gwenda-staging.pages.dev"
-  : siteConfig.domain;
-const pageUrl = `${siteOrigin}/events/${event.slug}`;
-const pageTitle = `${event.title} · Gwenda`;
-const pageDescription = socialDescription(event.description);
+const { target } = Astro.props;
+const search = Astro.url.search || "";
+return Astro.redirect(`${target}${search}`, 301);
 ---
-
-<EventRsvpPage
-  meta={{
-    title: pageTitle,
-    description: pageDescription,
-    url: pageUrl,
-    image: event.socialImage
-      ? `${siteOrigin}${event.socialImage.publicPath}`
-      : undefined,
-    imageWidth: event.socialImage?.width,
-    imageHeight: event.socialImage?.height,
-    imageType: event.socialImage?.type,
-    imageAlt: event.socialImage?.alt,
-  }}
-/>

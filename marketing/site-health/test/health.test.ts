@@ -11,7 +11,7 @@ import {
   probeSite,
   REMIND_AFTER_MS,
 } from "../src/health";
-import { runHealthCheck } from "../src/index";
+import { runHealthCheck, isStatusAuthorized } from "../src/index";
 import type { Env, ProbeResult } from "../src/types";
 
 describe("nextHealthState", () => {
@@ -61,6 +61,7 @@ describe("nextHealthState", () => {
     expect(recovered.state).toEqual({
       ...emptyHealthState(),
       healthEndpointSeen: true,
+      lastCheckedAt: now + 60_000,
     });
   });
 
@@ -94,9 +95,45 @@ describe("probes", () => {
     expect(healthPayloadLooksHealthy({ ok: true, service: "gwenda" })).toBe(
       true,
     );
+    expect(
+      healthPayloadLooksHealthy({
+        ok: true,
+        service: "gwenda",
+        env: "staging",
+        dataset: "staging",
+        commit: "abc",
+      }),
+    ).toBe(true);
     expect(healthPayloadLooksHealthy({ ok: true, service: "other" })).toBe(
       false,
     );
+  });
+
+  it("skips the homepage when requireHome is false", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (String(url).endsWith("/health")) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            service: "gwenda",
+            env: "staging",
+            dataset: "staging",
+            commit: "abc1234",
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("gate", { status: 401 });
+    }) as unknown as typeof fetch;
+
+    const result = await probeSite(
+      "https://gwenda-staging.pages.dev",
+      fetchImpl,
+      { requireHome: false },
+    );
+    expect(result.ok).toBe(true);
+    expect(result.commit).toBe("abc1234");
+    expect(result.checks.find((c) => c.name === "home")).toBeUndefined();
   });
 
   it("fails when /health is not ok", async () => {
@@ -234,5 +271,24 @@ describe("runHealthCheck", () => {
     });
     expect(sendAlert).toHaveBeenCalledTimes(2);
     expect(alerts[1]).toBe("recovery");
+  });
+});
+
+describe("isStatusAuthorized", () => {
+  it("allows unauthenticated reads when no token is configured", () => {
+    const request = new Request("https://health.gwenda.co.uk/status");
+    expect(isStatusAuthorized(request, { HEALTH_STATUS_TOKEN: "" } as Env)).toBe(
+      true,
+    );
+  });
+
+  it("requires a matching bearer token when configured", () => {
+    const env = { HEALTH_STATUS_TOKEN: "secret" } as Env;
+    const denied = new Request("https://health.gwenda.co.uk/status");
+    const allowed = new Request("https://health.gwenda.co.uk/status", {
+      headers: { Authorization: "Bearer secret" },
+    });
+    expect(isStatusAuthorized(denied, env)).toBe(false);
+    expect(isStatusAuthorized(allowed, env)).toBe(true);
   });
 });

@@ -3,96 +3,139 @@ import { Image } from "astro:assets";
 import type { SiteMode } from "../types/features";
 import { siteConfig } from "../config/site";
 import { getCopy } from "../config/copy";
+import { bookingUrl } from "../config/booking";
+import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
 import { headerLogo } from "../lib/hero-assets";
 
 interface Props {
   mode: SiteMode;
-  /** Compact layout for embedding on /contact (no home #list anchor). */
+  /** Compact layout for embedding on /join-list (no home #list anchor). */
   embedded?: boolean;
 }
 
 const { mode, embedded = false } = Astro.props;
 const copy = getCopy(mode);
+const { contactPage } = siteConfig.copy;
+const playHref = formPublicPath(PLAY_FORM_SLUG);
 const sectionClass = embedded ? "signup section signup--embedded" : "signup section";
 ---
 
 <section class={sectionClass} id={embedded ? undefined : "list"}>
-  <div class="container signup-inner">
-    <div class="signup-stage">
-      <div class="signup-panel" id="signup-panel">
-        <header class="section-header reveal">
-          <p class="section-eyebrow">{copy.signupEyebrow}</p>
-          <h2>{copy.signupHeading}</h2>
-          <p>{copy.signupSubheading}</p>
-        </header>
+  <div
+    class:list={[
+      "container",
+      embedded ? "signup-inner" : "contact-hub-inner",
+    ]}
+  >
+    {
+      embedded ? (
+        <div class="signup-stage">
+          <div class="signup-panel" id="signup-panel">
+            <header class="section-header reveal">
+              <p class="section-eyebrow">{copy.signupEyebrow}</p>
+              <h2>{copy.signupHeading}</h2>
+              <p>{copy.signupSubheading}</p>
+            </header>
 
-        <form
-          class="signup-form reveal reveal-stagger"
-          id="signup-form"
-          style="--reveal-delay: 0.14s"
-          novalidate
-        >
-          <div class="signup-field">
-            <label for="email" class="visually-hidden">Email address</label>
-            <input
-              type="email"
-              name="email"
-              id="email"
-              placeholder="your@email.com"
-              required
-              autocomplete="email"
-              inputmode="email"
-              spellcheck="false"
-            />
-            <button type="submit" class="btn btn-primary">
-              {siteConfig.copy.signupButton}
-            </button>
+            <form
+              class="signup-form reveal reveal-stagger"
+              id="signup-form"
+              style="--reveal-delay: 0.14s"
+              novalidate
+            >
+              <div class="signup-field">
+                <label for="email" class="visually-hidden">Email address</label>
+                <input
+                  type="email"
+                  name="email"
+                  id="email"
+                  placeholder="your@email.com"
+                  required
+                  autocomplete="email"
+                  inputmode="email"
+                  spellcheck="false"
+                />
+                <button type="submit" class="btn btn-primary">
+                  {siteConfig.copy.signupButton}
+                </button>
+              </div>
+
+              <label class="signup-consent">
+                <input type="checkbox" name="consent" id="consent" required />
+                <span>{siteConfig.copy.signupConsent}</span>
+              </label>
+
+              <input type="hidden" name="tag" value="prelaunch" />
+
+              <div class="visually-hidden" aria-hidden="true">
+                <label for="website">Website</label>
+                <input
+                  type="text"
+                  name="website"
+                  id="website"
+                  tabindex="-1"
+                  autocomplete="off"
+                />
+              </div>
+
+              <p
+                class="signup-error"
+                id="signup-error"
+                role="alert"
+                aria-live="polite"
+              />
+            </form>
           </div>
 
-          <label class="signup-consent">
-            <input type="checkbox" name="consent" id="consent" required />
-            <span>{siteConfig.copy.signupConsent}</span>
-          </label>
-
-          <input type="hidden" name="tag" value="prelaunch" />
-
-          <div class="visually-hidden" aria-hidden="true">
-            <label for="website">Website</label>
-            <input
-              type="text"
-              name="website"
-              id="website"
-              tabindex="-1"
-              autocomplete="off"
+          <div class="signup-confirm" id="signup-confirm" aria-hidden="true">
+            <Image
+              {...headerLogo}
+              alt="Gwenda"
+              class="signup-confirm-logo"
+              loading="lazy"
             />
+            <p class="signup-confirm-eyebrow">Thank you</p>
+            <h2 class="signup-confirm-title">
+              {siteConfig.copy.signupSuccessTitle}
+            </h2>
+            <p class="signup-confirm-lead">{siteConfig.copy.signupSuccessLead}</p>
+            <a href="/#hero" class="btn btn-primary signup-confirm-back">
+              {siteConfig.copy.signupSuccessBack}
+            </a>
           </div>
-
-          <p
-            class="signup-error"
-            id="signup-error"
-            role="alert"
-            aria-live="polite"
+        </div>
+      ) : (
+        <div class="contact-hub-paths">
+          <article
+            class="contact-hub-path reveal reveal-stagger"
+            style="--reveal-delay: 0.08s"
           >
-          </p>
-        </form>
-      </div>
+            <p class="contact-hub-path-eyebrow">{siteConfig.copy.bookTableEyebrow}</p>
+            <h2>{siteConfig.copy.bookTableHeading}</h2>
+            <p>{siteConfig.copy.bookTableLead}</p>
+            <a
+              href={bookingUrl}
+              class="btn btn-primary"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {siteConfig.copy.bookingCta}
+            </a>
+          </article>
 
-      <div class="signup-confirm" id="signup-confirm" aria-hidden="true">
-        <Image
-          {...headerLogo}
-          alt="Gwenda"
-          class="signup-confirm-logo"
-          loading="lazy"
-        />
-        <p class="signup-confirm-eyebrow">Thank you</p>
-        <h2 class="signup-confirm-title">
-          {siteConfig.copy.signupSuccessTitle}
-        </h2>
-        <p class="signup-confirm-lead">{siteConfig.copy.signupSuccessLead}</p>
-        <a href="/#hero" class="btn btn-primary signup-confirm-back">
-          {siteConfig.copy.signupSuccessBack}
-        </a>
-      </div>
-    </div>
+          <div class="contact-hub-rule" aria-hidden="true" />
+
+          <article
+            class="contact-hub-path reveal reveal-stagger"
+            style="--reveal-delay: 0.16s"
+          >
+            <p class="contact-hub-path-eyebrow">{contactPage.playEyebrow}</p>
+            <h2>{contactPage.playHeading}</h2>
+            <p>{contactPage.playLead}</p>
+            <a href={playHref} class="btn btn-ghost">{contactPage.playCta}</a>
+          </article>
+        </div>
+      )
+    }
   </div>
 </section>

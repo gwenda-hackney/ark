@@ -50,8 +50,8 @@ function deriveStudioEnv() {
   if (activeEnv === "production") {
     setEnvIfMissing("SANITY_STUDIO_DATASET", "production");
     setEnvIfMissing("SANITY_STUDIO_HOSTNAME", "gwenda");
-  } else if (activeEnv === "development") {
-    setEnvIfMissing("SANITY_STUDIO_DATASET", "development");
+  } else if (activeEnv === "staging" || activeEnv === "development") {
+    setEnvIfMissing("SANITY_STUDIO_DATASET", "staging");
     setEnvIfMissing("SANITY_STUDIO_HOSTNAME", "gwenda-dev");
   } else {
     copyEnvIfMissing("SANITY_STUDIO_DATASET", "SANITY_DATASET");
@@ -59,7 +59,7 @@ function deriveStudioEnv() {
       const dataset =
         process.env.SANITY_STUDIO_DATASET?.trim() ||
         process.env.SANITY_DATASET?.trim() ||
-        "development";
+        "staging";
       setEnvIfMissing(
         "SANITY_STUDIO_HOSTNAME",
         dataset === "production" ? "gwenda" : "gwenda-dev",
@@ -79,6 +79,17 @@ applyDotEnv(envPath, { override: false });
 applyDotEnv(arkEnvPath, { override: true });
 if (applyDotEnv(webEnvPath, { override: true })) {
   // Quiet: web secrets override shared .env / .env.ark (same pattern as ops).
+}
+
+// Ops Baserow is a different token from the marketing site. Keep it on its
+// own name so the website can read the wall artist without replacing BASEROW_API_KEY.
+const opsEnvPath = join(root, ".env.ops");
+if (existsSync(opsEnvPath)) {
+  const opsEnv = Object.fromEntries(
+    parseDotEnv(readFileSync(opsEnvPath, "utf8")),
+  );
+  setEnvIfMissing("BASEROW_OPS_API_KEY", opsEnv.BASEROW_API_KEY);
+  setEnvIfMissing("BASEROW_OPS_DATABASE_ID", opsEnv.BASEROW_OPS_DATABASE_ID);
 }
 
 deriveStudioEnv();

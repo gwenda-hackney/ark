@@ -51,7 +51,7 @@ h4 {
 	font-family: var(--font-display);
 	font-weight: 600;
 	line-height: 1.2;
-	letter-spacing: 0.02em;
+	letter-spacing: -0.02em;
 	color: var(--foreground);
 }
 
@@ -133,12 +133,22 @@ svg {
   DevExpress-style overlay: thin square thumb, no stepper arrows, transparent
   track. Colour is muted ink, not black and not the OS chrome. Reveal only on
   the scroller under the pointer so ancestors stay clean.
+
+  Page scrollers use `.scrollbar-fade` (and AG Grid viewports). They always
+  reserve a stable gutter so a thumb appearing or overflow flipping never
+  shifts the layout. Do not set scrollbar-gutter on `*` — that fights this.
 */
 
 * {
 	scrollbar-width: thin;
 	scrollbar-color: transparent transparent;
-	scrollbar-gutter: auto;
+}
+
+.scrollbar-fade,
+.ag-body-viewport,
+.ag-center-cols-viewport,
+.ag-body-horizontal-scroll-viewport {
+	scrollbar-gutter: stable;
 }
 
 ::-webkit-scrollbar {

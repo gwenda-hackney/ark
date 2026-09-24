@@ -18,7 +18,7 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
 const imageDir = resolve(repoRoot, "marketing/web/src/assets/images/cocktails");
 
-const dataset = process.env.SANITY_DATASET || "development";
+const dataset = process.env.SANITY_DATASET || "staging";
 const projectId = process.env.SANITY_PROJECT_ID || "pn5yjro6";
 const token = process.env.SANITY_API_TOKEN;
 
@@ -228,7 +228,7 @@ const HIGHBALL = [
   { name: "Moscow Mule", price: "10" },
   { name: "Gin and Tonic", price: "8" },
   { name: "Rum and Coke", price: "8" },
-  { name: "Vodka Red Bull", price: "8" },
+  { name: "Vodka Energy", price: "8" },
   { name: "Vodka Lemon", price: "8" },
 ];
 

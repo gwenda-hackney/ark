@@ -142,6 +142,23 @@
 
 /* ─── Spec book print ────────────────────────────────────────────────────── */
 
+/* Screen: hide shell chrome as soon as the path is a print book (before SpecBook mounts). */
+html.print-book .rail,
+html.print-book .topbar,
+html.print-book .env-banner,
+html.print-book .tabs {
+	display: none !important;
+}
+
+html.print-book .shell {
+	grid-template-columns: minmax(0, 1fr) !important;
+}
+
+html.print-book .shell .main {
+	margin: 0 !important;
+	padding: 0 !important;
+}
+
 @media print {
 	@page {
 		size: 210mm 297mm;
@@ -161,17 +178,21 @@
 	html.print-book .shell,
 	html.print-book .shell .main,
 	html.print-book .shell .content,
-	html.print-book .page.menu {
+	html.print-book .page.menu,
+	html.print-book .book-wrap {
 		display: block !important;
 		height: auto !important;
 		min-height: 0 !important;
 		overflow: visible !important;
 		grid-template-columns: none !important;
 		grid-template-rows: none !important;
+		padding: 0 !important;
+		margin: 0 !important;
 	}
 
 	html.print-book .rail,
 	html.print-book .topbar,
+	html.print-book .env-banner,
 	html.print-book .no-print {
 		display: none !important;
 	}

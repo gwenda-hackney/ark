@@ -10,13 +10,14 @@ const CONTENT_ACTION: Record<DeployTarget, string> = {
 
 /** Also accept legacy repository_dispatch action names in run-name. */
 const CONTENT_RUN_NAMES: Record<DeployTarget, string[]> = {
-  staging: ["staging-content", "content-deploy-staging"],
+  staging: ["staging-content", "content-deploy-staging", "promote-dev-to-staging"],
   production: ["production-content", "content-deploy-production"],
 };
 
 const WORKFLOW_REFS: Record<DeployTarget, string> = {
   staging: "main",
-  // Workflow definition from main; jobs still checkout `release` for site code.
+  // Content rebuilds of the marketing site use main. Live promotion is
+  // dispatchStagingPromote, which always selects release.
   production: "main",
 };
 
@@ -82,14 +83,11 @@ export function isProductionContentPreviewRun(run: WorkflowRun): boolean {
 
 export function isProductionContentPromoteRun(run: WorkflowRun): boolean {
   const path = run.path ?? "";
-  if (
-    !path.endsWith(PROMOTE_WORKFLOW_FILE) &&
-    !path.includes(`/${PROMOTE_WORKFLOW_FILE}`)
-  ) {
-    return false;
-  }
-  const name = runName(run);
-  return name === "promote-content" || name.includes("promote-content");
+  return (
+    Boolean(path) &&
+    (path.endsWith(PROMOTE_WORKFLOW_FILE) ||
+      path.includes(`/${PROMOTE_WORKFLOW_FILE}`))
+  );
 }
 
 function pickMatchingRun(
@@ -170,10 +168,7 @@ export async function dispatchContentDeploy(
   return latest;
 }
 
-export async function dispatchContentPromote(
-  env: Env,
-  previewRunId: number,
-): Promise<WorkflowRun> {
+export async function dispatchStagingPromote(env: Env): Promise<WorkflowRun> {
   const res = await githubFetch(
     env,
     `/actions/workflows/${PROMOTE_WORKFLOW_FILE}/dispatches`,
@@ -181,11 +176,7 @@ export async function dispatchContentPromote(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ref: "main",
-        inputs: {
-          kind: "content",
-          preview_run_id: String(previewRunId),
-        },
+        ref: "release",
       }),
     },
   );
@@ -205,6 +196,13 @@ export async function dispatchContentPromote(
     throw new Error("Promote dispatched but workflow run could not be resolved");
   }
   return latest;
+}
+
+export async function dispatchContentPromote(
+  env: Env,
+  _previewRunId?: number,
+): Promise<WorkflowRun> {
+  return dispatchStagingPromote(env);
 }
 
 async function getLatestRun(

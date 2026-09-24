@@ -17,3 +17,9 @@ export type SegmentedItem = {
 	/** When set, the tab is a real link so the active section can be shared. */
 	href?: string;
 };
+
+/** One control (or group of controls) explained in a page help drawer. */
+export type PageHelpTopic = {
+	title: string;
+	body: string;
+};

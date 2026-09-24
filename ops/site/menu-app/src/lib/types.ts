@@ -99,6 +99,8 @@ export type InventoryItem = {
   countedAt?: string;
 };
 
+export type LightspeedStatus = "matched" | "mismatch" | "missing";
+
 export type LightspeedCsvRow = {
   key?: string;
   sku?: string;
@@ -106,19 +108,30 @@ export type LightspeedCsvRow = {
   quantity?: number | null;
   unit?: string;
   type?: string;
-  canCreate?: boolean;
+  accountingGroup?: string;
+  defaultPrice?: number | null;
+  menuScreen?: string;
+  statisticsGroup?: string;
+  buttonName?: string;
+  suggestedDrinkType?: DrinkType;
+  suggestedPrice?: string;
+  role?: "sellable" | "stock" | "system";
+  packageContent?: string | number;
 };
 
 export type LightspeedOpsRow = {
   id?: string;
   name?: string;
-  fullName?: string;
-  kind?: InventoryKind;
+  drinkType?: DrinkType;
+  price?: string;
   lightspeedSku?: string;
-  actualQty?: number;
-  actualUnit?: string;
-  countedAt?: string;
-  active?: boolean;
+  lightspeedName?: string;
+  lightspeedMenuScreen?: string;
+  lightspeedStatus?: LightspeedStatus;
+  section?: {
+    title?: string;
+    parentTitle?: string;
+  };
 };
 
 export type LightspeedMatchRow = {
@@ -130,14 +143,67 @@ export type LightspeedMatchRow = {
 export type LightspeedPreview = {
   ok?: boolean;
   applied?: boolean;
-  countedAt?: string;
+  menuName?: string;
   matched: LightspeedMatchRow[];
   conflicts: LightspeedMatchRow[];
+  altServes?: LightspeedMatchRow[];
   lightspeedOnly: LightspeedCsvRow[];
+  stockMatched?: LightspeedMatchRow[];
+  stockOnly?: LightspeedCsvRow[];
+  stockOpsOnly?: LightspeedOpsRow[];
+  systemOnly?: LightspeedCsvRow[];
+  archive: LightspeedCsvRow[];
   opsOnly: LightspeedOpsRow[];
   itemImportCsv?: string;
-  created?: InventoryItem[];
+  menuLayoutCsv?: string;
+  archiveSkuCsv?: string;
 };
+
+export function lightspeedStatusLabel(
+  status: LightspeedStatus | string | undefined,
+): string {
+  if (status === "matched") return "Match";
+  if (status === "mismatch") return "Name mismatch";
+  if (status === "missing") return "Missing from POS";
+  return "";
+}
+
+export type PosMenu = {
+  id: string;
+  name: string;
+  orderRank?: number;
+  isDefault?: boolean;
+};
+
+export type PlacementChannel = "print" | "digital" | "pos";
+
+export type MenuPlacement = {
+  _id?: string;
+  id?: string;
+  channel: PlacementChannel;
+  sectionId?: string | null;
+  sectionTitle?: string;
+  posMenuId?: string | null;
+  posMenuName?: string;
+  posScreen?: string;
+  orderRank?: number;
+};
+
+export function posMenusLabel(menus?: PosMenu[] | null): string {
+  const names = (menus || []).map((row) => String(row.name || "").trim()).filter(Boolean);
+  if (!names.length) return "None";
+  return names.join(" · ");
+}
+
+export function posMenuIdsOf(item?: { posMenus?: PosMenu[] | null } | null): string[] {
+  return (item?.posMenus || []).map((row) => String(row.id)).filter(Boolean);
+}
+
+export function defaultPosMenus(menus?: PosMenu[] | null): PosMenu[] {
+  const list = Array.isArray(menus) ? menus : [];
+  const marked = list.filter((row) => row.isDefault);
+  return marked.length ? marked : list.slice(0, 1);
+}
 
 /** Who may sign in to ops (Baserow Users). */
 export type OpsUser = {
@@ -173,7 +239,7 @@ export function skuFromProductUrl(url: string | undefined): string {
 }
 
 /** How the drink is served and configured in ops. */
-export type DrinkType = "cocktail" | "pour" | "beer" | "packaged";
+export type DrinkType = "cocktail" | "pour" | "beer" | "packaged" | "postmix";
 
 /**
  * Cocktail build / family. Independent of menu section placement
@@ -271,7 +337,101 @@ export const DRINK_TYPES: { value: DrinkType; label: string; blurb: string }[] =
       label: "Packaged",
       blurb: "Bottled or canned as sold. One unit price.",
     },
+    {
+      value: "postmix",
+      label: "Postmix",
+      blurb: "Bag-in-box soft drink. Pint and half-pint prices.",
+    },
   ];
+
+/** Guest channel chips. Print and/or Digital; neither = POS only. */
+export type GuestMenuPlacement = "both" | "print" | "digital" | "none";
+
+export const GUEST_MENU_CHANNELS: {
+  value: "print" | "digital";
+  label: string;
+  blurb: string;
+}[] = [
+  { value: "print", label: "Print", blurb: "Print menu chapter." },
+  { value: "digital", label: "Digital", blurb: "Website menu." },
+];
+
+export const GUEST_MENU_PLACEMENTS: {
+  value: GuestMenuPlacement;
+  label: string;
+  blurb: string;
+}[] = [
+  { value: "both", label: "Both", blurb: "Print menu and website." },
+  { value: "print", label: "Print", blurb: "Print menu only." },
+  { value: "digital", label: "Digital", blurb: "Website only." },
+  { value: "none", label: "POS only", blurb: "Till only. Not on print or the website." },
+];
+
+export function guestMenuPlacement(item?: {
+  onPrintMenu?: boolean;
+  onDigitalMenu?: boolean;
+  placements?: MenuPlacement[];
+}): GuestMenuPlacement {
+  if (Array.isArray(item?.placements) && item.placements.length) {
+    const print = item.placements.some((row) => row.channel === "print");
+    const digital = item.placements.some((row) => row.channel === "digital");
+    if (print && digital) return "both";
+    if (print) return "print";
+    if (digital) return "digital";
+    return "none";
+  }
+  const print = item?.onPrintMenu !== false;
+  const digital = item?.onDigitalMenu !== false;
+  if (print && digital) return "both";
+  if (print) return "print";
+  if (digital) return "digital";
+  return "none";
+}
+
+export function guestChannelsOf(item?: {
+  onPrintMenu?: boolean;
+  onDigitalMenu?: boolean;
+  placements?: MenuPlacement[];
+}): Array<"print" | "digital"> {
+  const placement = guestMenuPlacement(item);
+  if (placement === "both") return ["print", "digital"];
+  if (placement === "print") return ["print"];
+  if (placement === "digital") return ["digital"];
+  return [];
+}
+
+export function guestMenuFlags(placement: GuestMenuPlacement): {
+  onPrintMenu: boolean;
+  onDigitalMenu: boolean;
+} {
+  if (placement === "print") return { onPrintMenu: true, onDigitalMenu: false };
+  if (placement === "digital") return { onPrintMenu: false, onDigitalMenu: true };
+  if (placement === "none") return { onPrintMenu: false, onDigitalMenu: false };
+  return { onPrintMenu: true, onDigitalMenu: true };
+}
+
+export function guestMenuLabel(
+  placement: GuestMenuPlacement | string | undefined,
+): string {
+  if (placement === "print") return "Print";
+  if (placement === "digital") return "Digital";
+  if (placement === "none") return "POS only";
+  if (placement === "both") return "Both";
+  return "";
+}
+
+export function asGuestMenuPlacement(value: string | undefined): GuestMenuPlacement {
+  if (value === "print" || value === "digital" || value === "none" || value === "both") {
+    return value;
+  }
+  return "both";
+}
+
+export function guestMenuBlurb(placement: GuestMenuPlacement | string | undefined): string {
+  return (
+    GUEST_MENU_PLACEMENTS.find((row) => row.value === placement)?.blurb || ""
+  );
+}
 
 /**
  * Target pour cost as a percent of selling price, keyed by drink type.
@@ -284,6 +444,7 @@ export const DEFAULT_POUR_TARGETS: PourTargetMap = {
   pour: 18,
   beer: 22,
   packaged: 25,
+  postmix: 15,
 };
 
 export const POUR_TARGET_META: Record<
@@ -305,6 +466,10 @@ export const POUR_TARGET_META: Record<
   packaged: {
     label: "Packaged",
     blurb: "Bottle or can as sold. Higher than a cocktail because you are selling the whole unit.",
+  },
+  postmix: {
+    label: "Postmix",
+    blurb: "Bag-in-box soft drink. Target is usually lower than bottled softs.",
   },
 };
 
@@ -361,6 +526,10 @@ export type MenuItem = {
   ice?: string;
   garnish?: string;
   onDigitalMenu?: boolean;
+  /** Guest print menu. Independent of the website. Default on. */
+  onPrintMenu?: boolean;
+  /** Per-channel locations (print / digital / POS). */
+  placements?: MenuPlacement[];
 	description?: string;
 	method?: string;
   abv?: string;
@@ -379,6 +548,18 @@ export type MenuItem = {
     asset?: { url?: string };
   };
   publish?: ItemPublishState;
+  /** POS item SKU in Lightspeed K-Series. */
+  lightspeedSku?: string;
+  /** SKU for the alt serve button (double / half pint). */
+  lightspeedSkuAlt?: string;
+  /** Short till / button name in Lightspeed (e.g. Baladin IPA). Empty = use drink name. */
+  lightspeedName?: string;
+  /** POS Menu/Screen from Lightspeed, e.g. Gwenda/Spirits/Liqueurs & Amari. */
+  lightspeedMenuScreen?: string;
+  /** Last reconcile against the POS item list. */
+  lightspeedStatus?: LightspeedStatus;
+  /** Lightspeed menus this drink appears on. */
+  posMenus?: PosMenu[];
 };
 
 export type MenuSection = {
@@ -555,7 +736,9 @@ export function normalizeDrinkType(value: unknown): DrinkType {
   const raw = String(value || "")
     .trim()
     .toLowerCase();
-  if (raw === "pour" || raw === "beer" || raw === "packaged") return raw;
+  if (raw === "pour" || raw === "beer" || raw === "packaged" || raw === "postmix") {
+    return raw;
+  }
   return "cocktail";
 }
 
@@ -584,6 +767,7 @@ export function defaultServeQuantity(
 ): { quantity: number; unit: "ml" } | null {
   switch (normalizeDrinkType(type)) {
     case "beer":
+    case "postmix":
       return { quantity: UK_PINT_ML, unit: "ml" };
     case "pour":
       return { quantity: SINGLE_POUR_ML, unit: "ml" };
@@ -600,6 +784,7 @@ export function priceLabels(type: DrinkType | undefined): {
     case "pour":
       return { primary: "Single", alt: "Double" };
     case "beer":
+    case "postmix":
       return { primary: "Pint", alt: "Half pint" };
     case "packaged":
       return { primary: "Price" };

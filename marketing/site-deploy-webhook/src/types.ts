@@ -11,6 +11,7 @@ export type DeployRequest = {
 };
 
 export type PromoteRequest = {
+  kind?: string;
   previewRunId?: number | string;
 };
 

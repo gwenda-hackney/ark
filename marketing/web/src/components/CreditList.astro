@@ -1,0 +1,40 @@
+---
+interface Item {
+  name: string;
+  href?: string;
+  note?: string;
+}
+
+interface Props {
+  items: Item[];
+}
+
+const { items } = Astro.props;
+---
+
+{
+  items.length > 0 && (
+    <ul class="credit-list">
+      {items.map((item) => {
+        const external = Boolean(item.href && /^https?:\/\//i.test(item.href));
+        return (
+          <li>
+            {item.href ? (
+              <a
+                class="credit-name"
+                href={item.href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
+              >
+                {item.name}
+              </a>
+            ) : (
+              <p class="credit-name">{item.name}</p>
+            )}
+            {item.note ? <p class="credit-note">{item.note}</p> : null}
+          </li>
+        );
+      })}
+    </ul>
+  )
+}

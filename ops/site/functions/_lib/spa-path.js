@@ -34,6 +34,12 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/sections/") ||
     p === "/users" ||
     p.startsWith("/users/") ||
+    p === "/events" ||
+    p.startsWith("/events/") ||
+    p === "/artists" ||
+    p.startsWith("/artists/") ||
+    p === "/web" ||
+    p.startsWith("/web/") ||
     p === "/tools" ||
     p.startsWith("/tools/")
   );
@@ -64,13 +70,35 @@ export function canonicalizePath(href) {
   const qIdx = raw.indexOf("?");
   const pathPart = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
   const search = qIdx >= 0 ? raw.slice(qIdx) : "";
-  const path = stripTrailingSlash(pathPart);
+  let path = stripTrailingSlash(pathPart);
+  if (path === "/events/nights" || path.startsWith("/events/nights/")) {
+    path = `/events/schedule${path.slice("/events/nights".length)}`;
+  }
   return path + search;
 }
 
-/** Drink editor tabs. `details` is the default and is omitted from the URL. */
-export const MENU_DETAIL_TABS = ["details", "recipe", "analysis"];
+/** Drink editor tabs. `details` is the default (Build) and is omitted from the URL. */
+export const MENU_DETAIL_TABS = ["details", "menu", "cost", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
+/** Event editor tabs. `details` is the default and is omitted from the URL. */
+export const EVENT_DETAIL_TABS = ["details", "schedule", "gallery", "publish"];
+const EVENT_TAB_IDS = new Set(EVENT_DETAIL_TABS);
+/** Older drink tabs still resolve. */
+const MENU_TAB_ALIASES = new Map([
+  ["pos", "menu"],
+  ["recipe", "details"],
+]);
+
+/** Spec book type filters (`/menu/print`, `/menu/print/beer`). */
+export const MENU_PRINT_FILTERS = [
+  "all",
+  "cocktail",
+  "pour",
+  "beer",
+  "packaged",
+  "postmix",
+];
+const MENU_PRINT_FILTER_IDS = new Set(MENU_PRINT_FILTERS);
 
 function decodeSegment(segment) {
   try {
@@ -81,11 +109,28 @@ function decodeSegment(segment) {
 }
 
 export function normalizeMenuTab(tab) {
-  return MENU_TAB_IDS.has(tab) ? tab : "details";
+  const raw = String(tab || "").trim();
+  const aliased = MENU_TAB_ALIASES.get(raw) || raw;
+  return MENU_TAB_IDS.has(aliased) ? aliased : "details";
+}
+
+export function normalizePrintFilter(filter) {
+  const raw = String(filter || "").trim().toLowerCase();
+  return MENU_PRINT_FILTER_IDS.has(raw) ? raw : "cocktail";
 }
 
 function withMenuTab(base, tab) {
   const id = normalizeMenuTab(tab);
+  return id === "details" ? base : `${base}/${id}`;
+}
+
+export function normalizeEventTab(tab) {
+  const raw = String(tab || "").trim();
+  return EVENT_TAB_IDS.has(raw) ? raw : "details";
+}
+
+function withEventTab(base, tab) {
+  const id = normalizeEventTab(tab);
   return id === "details" ? base : `${base}/${id}`;
 }
 
@@ -99,10 +144,31 @@ export function parseShellPath(path) {
       .split("/")
       .filter(Boolean)
       .map(decodeSegment);
-    const tab = MENU_TAB_IDS.has(parts[1]) ? parts[1] : "details";
+    if (parts[0] === "print") {
+      return {
+        page: "menu",
+        slug: null,
+        isNew: false,
+        tab: null,
+        print: true,
+        printFilter: normalizePrintFilter(parts[1]),
+      };
+    }
     if (parts[0] === "new") {
+      const tab = normalizeMenuTab(parts[1]);
       return { page: "menu", slug: null, isNew: true, tab };
     }
+    if (parts[1] === "print") {
+      return {
+        page: "menu",
+        slug: parts[0] || null,
+        isNew: false,
+        tab: null,
+        print: true,
+        printFilter: "all",
+      };
+    }
+    const tab = normalizeMenuTab(parts[1]);
     return {
       page: "menu",
       slug: parts[0] || null,
@@ -124,12 +190,78 @@ export function parseShellPath(path) {
     };
   }
   if (p === "/lightspeed" || p.startsWith("/lightspeed/")) {
-    return { page: "lightspeed" };
+    const rest = p === "/lightspeed" ? "" : p.slice("/lightspeed/".length);
+    return {
+      page: "lightspeed",
+      view: rest === "export" ? "export" : rest === "menus" ? "menus" : "reconcile",
+    };
   }
   if (p === "/suppliers" || p.startsWith("/suppliers/")) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
+  if (p === "/events" || p === "/events/nights" || p === "/events/schedule") {
+    return {
+      page: "events",
+      slug: null,
+      isNew: false,
+      tab: null,
+      list: p === "/events" ? "series" : "schedule",
+    };
+  }
+  if (p.startsWith("/events/")) {
+    const parts = p
+      .slice("/events/".length)
+      .split("/")
+      .filter(Boolean)
+      .map(decodeSegment);
+    if (parts[0] === "new") {
+      if (parts[1] === "once") {
+        return {
+          page: "events",
+          slug: null,
+          isNew: true,
+          tab: normalizeEventTab(parts[2]),
+          list: null,
+          kind: "once",
+        };
+      }
+      return {
+        page: "events",
+        slug: null,
+        isNew: true,
+        tab: normalizeEventTab(parts[1]),
+        list: null,
+      };
+    }
+    if (parts[0] === "nights" || parts[0] === "schedule") {
+      return {
+        page: "events",
+        slug: null,
+        isNew: false,
+        tab: null,
+        list: "schedule",
+      };
+    }
+    return {
+      page: "events",
+      slug: parts[0] || null,
+      isNew: false,
+      tab: normalizeEventTab(parts[1]),
+      list: null,
+    };
+  }
+  if (p === "/artists") {
+    return { page: "artists", slug: null, isNew: false };
+  }
+  if (p.startsWith("/artists/")) {
+    const part = decodeSegment(p.slice("/artists/".length).split("/")[0] || "");
+    if (part === "new") {
+      return { page: "artists", slug: null, isNew: true };
+    }
+    return { page: "artists", slug: part || null, isNew: false };
+  }
+  if (p === "/web" || p.startsWith("/web/")) return { page: "web" };
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
   if (p === "/tools" || p.startsWith("/tools/")) {
@@ -145,6 +277,19 @@ export function menuListPath() {
   return "/menu";
 }
 
+/** Spec book. Default filter (`cocktail`) is omitted from the URL. */
+export function menuPrintPath(filter) {
+  const id = normalizePrintFilter(filter);
+  return id === "cocktail" ? "/menu/print" : `/menu/print/${id}`;
+}
+
+/** Single-drink spec sheet (`/menu/negroni/print`). */
+export function menuItemPrintPath(name) {
+  const slug = itemSlug(name);
+  if (!slug) return menuPrintPath();
+  return `/menu/${encodeURIComponent(slug)}/print`;
+}
+
 export function menuNewPath(tab) {
   return withMenuTab("/menu/new", tab);
 }
@@ -155,13 +300,46 @@ export function menuItemPath(name, tab) {
   return withMenuTab(`/menu/${encodeURIComponent(slug)}`, tab);
 }
 
-/** Drink URL plus tab (`/menu/negroni/recipe`). Unknown tabs fold to details. */
+/** Drink URL plus tab (`/menu/negroni/cost`). Unknown tabs fold to details. */
 export function menuTabPath(basePath, tab) {
   const parsed = parseShellPath(basePath);
   if (parsed.page !== "menu") return menuListPath();
   if (parsed.isNew) return menuNewPath(tab);
   if (!parsed.slug) return menuListPath();
   return menuItemPath(parsed.slug, tab);
+}
+
+/** Series index (`/events`) or schedule calendar (`/events/schedule`). */
+export function eventListPath(view = "series") {
+  return view === "nights" || view === "schedule"
+    ? "/events/schedule"
+    : "/events";
+}
+
+export function eventNewPath(tab, options = {}) {
+  const once = options === true || Boolean(options?.once);
+  return withEventTab(once ? "/events/new/once" : "/events/new", tab);
+}
+
+export function eventItemPath(id, tab) {
+  const slug = String(id || "").trim();
+  if (!slug) return eventListPath();
+  // Keep @ literal so a night URL stays `/events/12@2026-09-25` and the rail
+  // can tell it from the series editor.
+  const encoded = slug
+    .split("@")
+    .map((part) => encodeURIComponent(part))
+    .join("@");
+  return withEventTab(`/events/${encoded}`, tab);
+}
+
+/** Event URL plus tab (`/events/12/schedule`). Unknown tabs fold to details. */
+export function eventTabPath(basePath, tab) {
+  const parsed = parseShellPath(basePath);
+  if (parsed.page !== "events") return eventListPath();
+  if (parsed.isNew) return eventNewPath(tab, { once: parsed.kind === "once" });
+  if (!parsed.slug) return eventListPath();
+  return eventItemPath(parsed.slug, tab);
 }
 
 export function inventoryListPath() {
@@ -198,6 +376,16 @@ export function editorKey(path) {
     if (route.slug) return `inventory:${route.slug}`;
     return "inventory";
   }
+  if (route.page === "events") {
+    if (route.isNew) return "events:new";
+    if (route.slug) return `events:${route.slug}`;
+    return "events";
+  }
+  if (route.page === "artists") {
+    if (route.isNew) return "artists:new";
+    if (route.slug) return `artists:${route.slug}`;
+    return "artists";
+  }
   return route.page || "home";
 }
 
@@ -216,7 +404,10 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "cashflow" ||
     from === "config" ||
     from === "sections" ||
-    from === "users"
+    from === "users" ||
+    from === "events" ||
+    from === "artists" ||
+    from === "web"
   ) {
     return false;
   }
@@ -227,11 +418,15 @@ function pathOnly(path) {
   return stripTrailingSlash(String(path || "/").split("?")[0] || "/") || "/";
 }
 
-/** Recipe / inventory detail (including `/menu/new`). Lists and dashboard are not. */
+/** Recipe, inventory, and event detail (including `/menu/new`). Lists and print book are not. */
 export function isEditorPath(path) {
   const route = parseShellPath(path);
+  if (route.print) return false;
   return (
-    (route.page === "menu" || route.page === "inventory") &&
+    (route.page === "menu" ||
+      route.page === "inventory" ||
+      route.page === "events" ||
+      route.page === "artists") &&
     Boolean(route.isNew || route.slug)
   );
 }
@@ -295,7 +490,7 @@ export function shellCrumbs(
   } = {},
 ) {
   const route = parseShellPath(path);
-  const nested = Boolean(route.isNew || route.slug);
+  const nested = Boolean(route.isNew || route.slug || route.print);
   const crumbs = [{ label: homeLabel, href: "/" }];
   if (route.page !== "home" && sectionLabel) {
     const crumb = { label: sectionLabel };
@@ -306,7 +501,13 @@ export function shellCrumbs(
   }
   const leafLabel =
     (typeof leaf === "string" && leaf.trim()) ||
-    (route.isNew ? "New item" : "");
+    (route.isNew
+      ? route.page === "events"
+        ? "New event"
+        : route.page === "artists"
+          ? "New artist"
+          : "New item"
+      : "");
   if (leafLabel && nested) crumbs.push({ label: leafLabel });
   const last = crumbs[crumbs.length - 1];
   if (last) delete last.href;

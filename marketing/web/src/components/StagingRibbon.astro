@@ -1,6 +1,13 @@
 ---
 import { isStaging } from "../config/env";
 import { buildLabel } from "../config/build";
+
+interface Props {
+  /** Passwordless share is only for people already inside the site. */
+  share?: boolean;
+}
+
+const { share = true } = Astro.props;
 ---
 
 {
@@ -11,7 +18,30 @@ import { buildLabel } from "../config/build";
       aria-label={`Staging environment. Build ${buildLabel()}.`}
       title={`Build ${buildLabel()}`}
     >
-      <span>Staging</span>
+      {share ? (
+        <button
+          type="button"
+          class="staging-ribbon-share"
+          id="staging-share"
+          title="Copy a link that unlocks staging for the recipient"
+        >
+          <span data-staging-share-label>Staging</span>
+        </button>
+      ) : (
+        <span>Staging</span>
+      )}
     </div>
   )
 }
+
+<script>
+  // Keep this script a direct child of the component. Astro does not bundle
+  // a <script> nested in {isStaging && ...}; the import is then sent raw
+  // and the share click never runs.
+  import { initStagingShare } from "../scripts/staging-share.js";
+
+  if (import.meta.env.PUBLIC_IS_STAGING === "true") {
+    initStagingShare();
+    document.addEventListener("astro:page-load", initStagingShare);
+  }
+</script>

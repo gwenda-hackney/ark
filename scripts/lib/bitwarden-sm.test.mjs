@@ -2,14 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   ARK_ENV_SECRET_KEYS,
+  OPS_BASEROW_SM_KEY_LOCAL,
+  OPS_BASEROW_SM_KEY_PRODUCTION,
   OPS_CONSUMES_WEB_SECRET_KEYS,
   OPS_ENV_SECRET_KEYS,
   WEB_ENV_SECRET_KEYS,
   formatArkEnv,
   mergeSmSecretMaps,
+  opsBaserowSmKey,
   pickArkSecrets,
   pickOpsSecrets,
   pickWebSecrets,
+  resolveOpsBaserowToken,
 } from "./bitwarden-sm.mjs";
 
 describe("SM key ownership", () => {
@@ -27,6 +31,9 @@ describe("SM key ownership", () => {
     }
     assert.equal(ARK_ENV_SECRET_KEYS.includes("BASEROW_API_KEY"), false);
     assert.equal(ARK_ENV_SECRET_KEYS.includes("SANITY_API_TOKEN"), false);
+    assert.equal(WEB_ENV_SECRET_KEYS.includes("LIGHTSPEED_BO_PASSWORD"), false);
+    assert.ok(OPS_ENV_SECRET_KEYS.includes("LIGHTSPEED_BO_EMAIL"));
+    assert.ok(OPS_ENV_SECRET_KEYS.includes("LIGHTSPEED_BO_PASSWORD"));
   });
 });
 
@@ -97,6 +104,89 @@ describe("pick helpers", () => {
     );
     assert.equal(picked.get("BASEROW_API_KEY"), "mkt");
     assert.equal(picked.get("DEPLOY_WEBHOOK_SECRET"), "hook");
+  });
+
+  it("prefers the staging Baserow token when present", () => {
+    const picked = pickWebSecrets(
+      new Map([
+        ["BASEROW_API_KEY_MARKETING", "dev"],
+        ["BASEROW_API_KEY_MARKETING_STAGING", "stage"],
+      ]),
+      { profile: "staging" },
+    );
+    assert.equal(picked.get("BASEROW_API_KEY"), "stage");
+  });
+
+  it("keeps local pulls on the Dev website token", () => {
+    const picked = pickWebSecrets(
+      new Map([
+        ["BASEROW_API_KEY_MARKETING", "dev"],
+        ["BASEROW_API_KEY_MARKETING_STAGING", "stage"],
+      ]),
+      { profile: "local" },
+    );
+    assert.equal(picked.get("BASEROW_API_KEY"), "dev");
+  });
+});
+
+describe("ops Baserow env split", () => {
+  it("maps profile to suffixed SM keys", () => {
+    assert.equal(opsBaserowSmKey("local"), OPS_BASEROW_SM_KEY_LOCAL);
+    assert.equal(opsBaserowSmKey("production"), OPS_BASEROW_SM_KEY_PRODUCTION);
+  });
+
+  it("resolves local from BASEROW_API_KEY_LOCAL and never from PRODUCTION", () => {
+    const all = new Map([
+      [OPS_BASEROW_SM_KEY_LOCAL, "local-token"],
+      [OPS_BASEROW_SM_KEY_PRODUCTION, "prod-token"],
+      ["BASEROW_API_KEY", "legacy-token"],
+    ]);
+    assert.equal(resolveOpsBaserowToken(all, "local"), "local-token");
+    assert.equal(resolveOpsBaserowToken(all, "production"), "prod-token");
+  });
+
+  it("accepts legacy bare BASEROW_API_KEY as local only", () => {
+    const all = new Map([
+      ["BASEROW_API_KEY", "legacy-token"],
+      [OPS_BASEROW_SM_KEY_PRODUCTION, "prod-token"],
+    ]);
+    assert.equal(resolveOpsBaserowToken(all, "local"), "legacy-token");
+    assert.equal(resolveOpsBaserowToken(all, "production"), "prod-token");
+  });
+
+  it("does not fall back production ← local", () => {
+    const all = new Map([
+      [OPS_BASEROW_SM_KEY_LOCAL, "local-token"],
+      ["BASEROW_API_KEY", "legacy-token"],
+    ]);
+    assert.equal(resolveOpsBaserowToken(all, "production"), "");
+  });
+
+  it("pickOpsSecrets remaps local token and keeps PRODUCTION alongside", () => {
+    const picked = pickOpsSecrets(
+      new Map([
+        [OPS_BASEROW_SM_KEY_LOCAL, "local-token"],
+        [OPS_BASEROW_SM_KEY_PRODUCTION, "prod-token"],
+        ["SANITY_API_TOKEN", "sanity"],
+      ]),
+      { profile: "local" },
+    );
+    assert.equal(picked.get("BASEROW_API_KEY"), "local-token");
+    assert.equal(picked.get(OPS_BASEROW_SM_KEY_PRODUCTION), "prod-token");
+    assert.equal(picked.get(OPS_BASEROW_SM_KEY_LOCAL), "local-token");
+    assert.equal(picked.get("SANITY_API_TOKEN"), "sanity");
+  });
+
+  it("pickOpsSecrets production profile does not use local token", () => {
+    const picked = pickOpsSecrets(
+      new Map([
+        [OPS_BASEROW_SM_KEY_LOCAL, "local-token"],
+        [OPS_BASEROW_SM_KEY_PRODUCTION, "prod-token"],
+      ]),
+      { profile: "production" },
+    );
+    assert.equal(picked.get("BASEROW_API_KEY"), "prod-token");
+    assert.equal(picked.get(OPS_BASEROW_SM_KEY_PRODUCTION), "prod-token");
   });
 });
 

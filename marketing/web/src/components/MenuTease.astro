@@ -3,14 +3,19 @@ import { siteConfig } from "../config/site";
 import MenuTeaseCocktails from "./MenuTeaseCocktails.astro";
 import DissolveReveal from "./DissolveReveal.astro";
 import { fetchMenuTeaseCocktails } from "../lib/sanity/menu";
+import type { MenuTeaseCocktail } from "../data/menu-tease";
 
 interface Props {
   /** When false, keep the section but hide cocktail images (coming soon). */
   showCocktailImages?: boolean;
+  /** Stand-in photos for a local look. Homepage leaves this unset and reads Sanity. */
+  cocktails?: MenuTeaseCocktail[];
 }
 
-const { showCocktailImages = true } = Astro.props;
-const cocktails = showCocktailImages ? await fetchMenuTeaseCocktails() : [];
+const { showCocktailImages = true, cocktails: cocktailsOverride } = Astro.props;
+const cocktails =
+  cocktailsOverride ??
+  (showCocktailImages ? await fetchMenuTeaseCocktails() : []);
 ---
 
 <section class="menu-tease section" id="menu">

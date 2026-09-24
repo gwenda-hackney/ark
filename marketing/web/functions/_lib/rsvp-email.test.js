@@ -34,7 +34,7 @@ describe("guestLine", () => {
 describe("formatEventWhen", () => {
   it("includes the date and ticket times", () => {
     expect(formatEventWhen("2026-08-15", "17:00", "23:00")).toContain("15 August 2026");
-    expect(formatEventWhen("2026-08-15", "17:00", "23:00")).toMatch(/5pm/i);
+    expect(formatEventWhen("2026-08-15", "17:00", "23:00")).toMatch(/5–11pm/);
   });
 });
 

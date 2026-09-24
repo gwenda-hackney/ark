@@ -1,12 +1,19 @@
 import { sendHealthAlert } from "./alert";
 import {
   interpretProbe,
+  lastErrorFromProbe,
+  monitoredSites,
   nextHealthState,
   parseHealthState,
   probeSite,
-  STATE_KEY,
+  stateKeyFor,
 } from "./health";
-import type { Env, ProbeResult } from "./types";
+import type { Env, HealthState, ProbeResult, SiteId } from "./types";
+
+async function readState(env: Env, id: SiteId): Promise<HealthState> {
+  const raw = await env.HEALTH_STATE.get(stateKeyFor(id));
+  return parseHealthState(raw);
+}
 
 export async function runHealthCheck(
   env: Env,
@@ -14,12 +21,22 @@ export async function runHealthCheck(
     probe?: typeof probeSite;
     sendAlert?: typeof sendHealthAlert;
     now?: number;
+    siteId?: SiteId;
+    siteUrl?: string;
+    requireHome?: boolean;
+    alert?: boolean;
   } = {},
 ): Promise<{ ok: boolean; alert: string | null; probe: ProbeResult }> {
-  const siteUrl = env.SITE_URL?.trim() || "https://gwenda.co.uk";
-  const probe = await (deps.probe ?? probeSite)(siteUrl);
-  const raw = await env.HEALTH_STATE.get(STATE_KEY);
-  const previous = parseHealthState(raw);
+  const siteId = deps.siteId || "production";
+  const siteUrl =
+    deps.siteUrl ||
+    (siteId === "staging"
+      ? env.STAGING_SITE_URL?.trim() || "https://gwenda-staging.pages.dev"
+      : env.SITE_URL?.trim() || "https://gwenda.co.uk");
+  const requireHome = deps.requireHome ?? siteId !== "staging";
+  const shouldAlert = deps.alert ?? siteId === "production";
+  const probe = await (deps.probe ?? probeSite)(siteUrl, fetch, { requireHome });
+  const previous = await readState(env, siteId);
   const interpreted = interpretProbe(probe, previous.healthEndpointSeen);
   const now = deps.now ?? Date.now();
   const { state, alert } = nextHealthState(
@@ -28,15 +45,22 @@ export async function runHealthCheck(
     interpreted.ok,
     interpreted.healthEndpointSeen,
   );
-  await env.HEALTH_STATE.put(STATE_KEY, JSON.stringify(state));
+  const stored: HealthState = {
+    ...state,
+    lastCheckedAt: now,
+    lastError: interpreted.ok ? null : lastErrorFromProbe(probe),
+    lastProbe: probe,
+  };
+  await env.HEALTH_STATE.put(stateKeyFor(siteId), JSON.stringify(stored));
 
-  if (alert) {
+  if (alert && shouldAlert) {
     const send = deps.sendAlert ?? sendHealthAlert;
-    const mailed = await send(env, alert, probe);
+    const mailed = await send(env, alert, probe, siteUrl);
     if (!mailed.ok) {
       console.error(
         JSON.stringify({
           event: "site_health_alert_failed",
+          site: siteId,
           alert,
           error: mailed.error || "unknown",
         }),
@@ -47,20 +71,71 @@ export async function runHealthCheck(
   console.log(
     JSON.stringify({
       event: "site_health_check",
+      site: siteId,
       ok: interpreted.ok,
-      alert,
-      consecutiveFails: state.consecutiveFails,
-      down: state.down,
-      healthEndpointSeen: state.healthEndpointSeen,
+      alert: shouldAlert ? alert : null,
+      consecutiveFails: stored.consecutiveFails,
+      down: stored.down,
+      healthEndpointSeen: stored.healthEndpointSeen,
       checks: probe.checks,
     }),
   );
 
-  return { ok: interpreted.ok, alert, probe };
+  return { ok: interpreted.ok, alert: shouldAlert ? alert : null, probe };
+}
+
+export async function runAllHealthChecks(
+  env: Env,
+  deps: {
+    probe?: typeof probeSite;
+    sendAlert?: typeof sendHealthAlert;
+    now?: number;
+  } = {},
+): Promise<void> {
+  for (const site of monitoredSites(env)) {
+    await runHealthCheck(env, {
+      ...deps,
+      siteId: site.id,
+      siteUrl: site.url,
+      requireHome: site.requireHome,
+      alert: site.alert,
+    });
+  }
+}
+
+export async function statusPayload(env: Env): Promise<Record<string, unknown>> {
+  const sites: Record<string, unknown> = {};
+  for (const site of monitoredSites(env)) {
+    const state = await readState(env, site.id);
+    sites[site.id] = {
+      id: site.id,
+      url: site.url,
+      ok: !state.down,
+      down: state.down,
+      consecutiveFails: state.consecutiveFails,
+      lastCheckedAt: state.lastCheckedAt,
+      lastError: state.lastError,
+      lastProbe: state.lastProbe,
+      healthEndpointSeen: state.healthEndpointSeen,
+    };
+  }
+  return {
+    ok: true,
+    service: "gwenda-site-health",
+    sites,
+  };
 }
 
 function json(body: Record<string, unknown>, status = 200): Response {
   return Response.json(body, { status });
+}
+
+export function isStatusAuthorized(request: Request, env: Env): boolean {
+  const token = env.HEALTH_STATUS_TOKEN?.trim();
+  if (!token) return true;
+  const header = request.headers.get("Authorization") || "";
+  const bearer = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  return Boolean(bearer && bearer === token);
 }
 
 export default {
@@ -69,7 +144,7 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ): Promise<void> {
-    await runHealthCheck(env);
+    await runAllHealthChecks(env);
   },
 
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -79,13 +154,24 @@ export default {
       return json({ ok: true, service: "gwenda-site-health" });
     }
 
+    if (request.method === "GET" && url.pathname === "/status") {
+      if (!isStatusAuthorized(request, env)) {
+        return json({ error: "Unauthorized" }, 401);
+      }
+      return json(await statusPayload(env));
+    }
+
     if (request.method === "GET" && url.pathname === "/") {
       return json({
         ok: true,
         service: "gwenda-site-health",
         cron: "*/5 * * * *",
-        site: env.SITE_URL || "https://gwenda.co.uk",
+        sites: monitoredSites(env).map((site) => ({
+          id: site.id,
+          url: site.url,
+        })),
         health: "GET /health",
+        status: "GET /status",
       });
     }
 

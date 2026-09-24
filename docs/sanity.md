@@ -1,48 +1,40 @@
 # Sanity CMS
 
-Sanity is Gwenda's **editorial layer** — website data and copy that editors own, distinct from site code in git. The static site reads published documents at build time; **Deploy site** in Studio triggers a rebuild.
+Sanity is Gwenda's **editorial layer**: website data and copy that editors own, distinct from site code in git.
 
-Only part of gwenda.co.uk is CMS-backed today. Schema and queries grow as more content moves out of the repo (`marketing/studio/schemaTypes/`, `marketing/web/src/lib/sanity/`).
-
-Project `pn5yjro6` on [sanity.io/manage](https://www.sanity.io/manage).
+One project (`pn5yjro6`) on [sanity.io/manage](https://www.sanity.io/manage). Two hosted Studios. Two datasets (`staging` and `production`). Growth includes two datasets per project.
 
 ## Environments
 
-| | Git branch | Website | Sanity dataset | Hosted Studio |
-|---|------------|---------|----------------|---------------|
-| **Local dev** | — | `npm run dev` | `development` | `npm run studio` (localhost) |
-| **Staging** | `main` | gwenda-staging.pages.dev | **`development`** | https://gwenda-dev.sanity.studio |
-| **Production** | `release` | gwenda.co.uk | **`production`** | https://gwenda.sanity.studio |
+| | Git branch | Website | Sanity dataset | Perspective | Studio |
+|---|------------|---------|----------------|-------------|--------|
+| **Local** | `develop` (WIP) | `npm run dev` | **`staging`** | drafts overlay | localhost Studio |
+| **Staging** | `main` | gwenda-staging.pages.dev | **`staging`** | published only | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) (edit here; review the site) |
+| **Production** | promote only (`release` pointer) | gwenda.co.uk | **`production`** (clone of staging) | published only | [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema; do not edit live content) |
 
-Schema and query changes flow **main → staging (dev dataset) → release → live (prod dataset)**. Content is promoted separately when ready.
+Local Studio and `npm run dev` work against the staging dataset with drafts visible. The hosted staging **site** ignores drafts. Production is a clean copy of staging, then a production build.
 
 ## Workflow
 
-1. **Develop on `main`** — edit schema in `marketing/studio/`, seed/test content in the **development** dataset, push to `main`.
-2. **CI on `main`** deploys:
-   - **Staging site** — builds against **development** dataset (preview structural + content changes)
-   - **Development Studio** — https://gwenda-dev.sanity.studio (edit dev content/schema in hosted UI)
-3. **Promote to production** — merge `main` → `release`, push:
-   - **Live site** builds against **production** dataset
-   - **Production Studio** — run manually when schema is ready:
-     ```bash
-     npm run studio:deploy
-     ```
-   - **Production content** — edit in prod Studio or `npm run studio:seed:production` (one-off)
+1. **Local** — `npm run studio` and `npm run dev` on `develop`. Leave WIP as drafts. CI verifies. There is no hosted development site.
+2. **Publish**, then **promote to staging** — rebuilds gwenda-staging from published staging documents (and deploys `main` site code).
+3. **Review** https://gwenda-staging.pages.dev.
+4. **Promote to production** — clone **staging** onto **production**, then build and deploy gwenda.co.uk.
 
-Local `.env` always uses `SANITY_DATASET=development` — same sandbox as staging.
+Local `.env` uses `SANITY_DATASET=staging`. Do not edit the production dataset in Studio.
 
 ## Tokens
 
 Sanity **robot / API tokens** on this plan are **Viewer**, **Editor**, and **Deploy Studio**. There is no **Developer** robot role in the manage UI (Developer is a human user role on Growth+).
 
-**Keep-set (exactly three robots):**
+**Keep-set:**
 
 | Label | Role | Where | Used for |
 |-------|------|-------|----------|
 | `ark-local-editor` | **Editor** | Bitwarden `ark/.env.local` + repo `.env` as `SANITY_API_TOKEN` | Local Studio, seeds. **Never** GitHub. |
 | `ark-ci-viewer` | **Viewer** | GitHub `SANITY_API_TOKEN` | Site builds / content deploys |
 | `ark-ci-deploy-studio` | **Deploy Studio** | GitHub `SANITY_DEPLOY_TOKEN` | Hosted Studio deploys |
+| `ark-ci-dataset-sync` | **Editor** | GitHub `SANITY_DATASET_SYNC_TOKEN` | Clone staging → production |
 
 Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity login`), not the local Editor robot:
 
@@ -59,7 +51,7 @@ npm run setup:sanity-tokens
 
 ```bash
 SANITY_PROJECT_ID=pn5yjro6
-SANITY_DATASET=development
+SANITY_DATASET=staging
 SANITY_API_TOKEN=sk...   # ark-local-editor (Editor robot)
 ```
 
@@ -80,35 +72,32 @@ All local configuration lives in **repo-root `.env`**. `scripts/with-env.mjs` lo
 
 | Command | Dataset / hostname |
 |---------|-------------------|
-| `npm run studio` | from root `SANITY_DATASET` (default `development`) |
-| `npm run studio:deploy:dev` | `development` → gwenda-dev.sanity.studio |
+| `npm run studio` | `staging` → localhost:3333 (drafts in `npm run dev`) |
+| `npm run studio:deploy:dev` | `staging` → gwenda-dev.sanity.studio (main CI) |
+| `npm run studio:deploy:staging` | alias of `studio:deploy:dev` |
 | `npm run studio:deploy` | `production` → gwenda.sanity.studio |
 
 Hosted Studio deploys get extra vars from GitHub Actions secrets (see `studio.yml`).
 
 ## First-time setup
 
-```bash
-npm run studio:dataset:create -- development --visibility private
-npx sanity login
-```
+The project already has `staging` and `production`. Growth allows two datasets. Do not create a third.
 
 Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:web:pull`. See [docs/env.md](env.md).
 
 ## Local commands
 
 ```bash
-npm run studio              # localhost Studio → development
-npm run dev                 # site → development dataset
-npm run studio:deploy:dev   # hosted dev Studio (same as main CI)
-npm run studio:deploy       # hosted prod Studio (editors)
-npm run studio:seed:dev     # seed development menu
+npm run studio              # localhost Studio → staging dataset
+npm run dev                 # site → staging dataset, drafts overlay
+npm run studio:deploy:dev   # hosted Dev Studio (main CI)
+npm run studio:seed:dev     # seed staging menu
 npm run studio:seed:production   # seed production menu (one-off, CONFIRM built in)
 ```
 
 ## Schema + content
 
-Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in Sanity datasets — development and production are independent until you copy or re-enter.
+Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in two datasets: **staging** (local Studio, Dev Studio, ops writes, staging site) and **production** (clone of staging, live site). Do not edit production in Studio.
 
 ### Menu seed
 
@@ -119,79 +108,75 @@ npm run studio:seed:production   # requires Editor token in .env
 
 Idempotent — updates by slug/name.
 
-## Mirror datasets (staging ↔ production)
+## Mirror datasets
 
-Sanity **development** and **production** datasets stay independent until you mirror them.
+`npm run sync:sanity-datasets` prefers **Cloud Clone** when the plan allows it. On this project it usually falls back to **export → import `--replace` → delete orphans**.
 
 GitHub → Actions → **Sanity** (`sanity.yml`, workflow_dispatch):
 
 | Direction | Overwrites |
 |-----------|------------|
-| `staging-to-production` | `production` |
-| `production-to-staging` | `development` |
+| `staging-to-production` | `production` (from `staging`) |
+| `production-to-staging` | `staging` (from `production`) |
 
-You must type the target dataset name in `confirm_target`. Uses secret `SANITY_DATASET_SYNC_TOKEN` (Editor robot from `npm run setup:sanity-tokens`).
+You must type the target dataset name in `confirm_target`. Uses secret `SANITY_DATASET_SYNC_TOKEN` when Cloud Clone works; export/import needs a token that can write the target.
 
-This only updates the CMS. Rebuild the site afterwards (Studio **Deploy site**, or `deploy-*-content` workflows).
+This only updates the CMS. Promote from ops or Dev Studio to rebuild the matching site.
 
 Locally:
 
 ```bash
 npm run sync:sanity-datasets -- --direction staging-to-production --confirm production
-npm run sync:sanity-datasets -- --direction production-to-staging --confirm development
+npm run sync:sanity-datasets -- --direction production-to-staging --confirm staging
 ```
 
 ## Content vs code
 
 | What | Promotes via |
 |------|----------------|
-| Schema + queries | git → main (staging/dev) → release (live/prod) |
-| Dev Studio deploy | push `marketing/studio/**` to `main` |
-| Prod Studio deploy | `npm run studio:deploy` when schema ready |
-| Dev content | stays in `development` until copied to prod |
-| Prod content | editors publish in prod Studio |
+| Schema + queries | git `develop` → `main` (staging) → ops promote (live) |
+| Dev Studio | push `marketing/studio/**` to `main` |
+| Prod Studio | ops promote (or `npm run studio:deploy`) |
+| Staging content | publish in Studio, then rebuild gwenda-staging |
+| Production content | clone only (`staging` → `production`), then production build |
 | Dataset mirror | GitHub **Sanity** workflow (`sanity.yml`) |
-| **Site content (published)** | **Studio → Deploy site** (see below) |
+| **Site rebuild** | Promote to staging (published content), or ops Web promote to production |
 
 ## Deploy published content to the website
 
-The static site reads **published** Sanity documents at build time. Publishing a document in Studio updates the CMS only — the live website updates when you deploy.
+The static site reads **published** Sanity documents at build time. `npm run dev` overlays drafts so you can preview WIP without publishing. Publishing a document does not update gwenda-staging until the next staging rebuild.
 
 ### Editor workflow
 
-1. Edit documents in Studio. Use per-document **Publish** when a piece of content is ready.
-2. Leave work-in-progress as **drafts** — they are held back and never included in a deploy.
-3. Open **Deploy site** in the Studio toolbar.
-4. **Development Studio:** click **Deploy to staging** (straight to staging).
-5. **Production Studio:**
-   1. Click **Deploy preview** (builds published production content to the production preview URL).
-   2. Review the preview link in Studio.
-   3. Click **Promote to live** (ships that exact build to gwenda.co.uk).
+1. Edit in **Dev Studio** or local Studio. Leave WIP as drafts. `npm run dev` shows those drafts.
+2. Publish when the copy is ready for the review site.
+3. Rebuild staging (ops Web / Dev Studio promote, or merge to `main`). Staging ignores drafts.
+4. Review https://gwenda-staging.pages.dev.
+5. Ops **Web** → **Promote to production**.
 
-Staging is one step. Production content uses the same preview → promote gate as code deploys, so live only updates after review.
+Do not edit the production dataset directly.
 
 ### Code vs content deploys
 
-| | Code (developers) | Content (editors) |
+| | Code | Content |
 |---|---|---|
-| Trigger | Push to `main` / `release` | Studio **Deploy site** button |
-| Staging | Push to `main` | Dev Studio → Deploy to staging |
-| Production gate | Preview → manual promote | Prod Studio → Deploy preview → Promote to live |
-| GitHub workflows | `web.yml` + `web-promote.yml` (`kind=code`) | `web.yml` (content actions) + `web-promote.yml` (`kind=content`) |
+| Trigger | Staging: merge to `main`. Live: manual workflow from `release` | Publish, then rebuild staging, then Web promote from `release` |
+| Staging | Push to `main` | Rebuild from published `staging` documents (drafts ignored) |
+| Production | Manual [Web promote](../.github/workflows/web-promote.yml) from `release` | That same run copies `staging` → `production`, then builds |
 
 ### Infrastructure
 
 ```
-Studio (browser) → gwenda-site-deploy-webhook (Worker) → GitHub Actions → Cloudflare Pages
+Ops Web or Studio → gwenda-site-deploy-webhook (Worker) → GitHub Actions → Cloudflare Pages
 ```
 
-Worker: `marketing/site-deploy-webhook/` validates a shared secret, then dispatches content deploy (and production promote) workflows.
+Worker: `marketing/site-deploy-webhook/` validates a shared secret, then dispatches staging rebuild (`web.yml`) and staging-to-production (`web-promote.yml`).
 
 | Endpoint | Role |
 |---|---|
-| `POST /deploy` | Staging deploy, or production **preview** |
-| `POST /promote` | Production **promote** (body: `{ previewRunId }`) |
-| `GET /status?run_id=` | Poll run; production preview success includes `previewUrl` |
+| `POST /deploy` | Staging site rebuild from published staging documents (`target: staging`) |
+| `POST /promote` | Dispatch [Web promote](../.github/workflows/web-promote.yml) on `release` (clone then live build). Fails if that branch is not the one selected. Legacy `development-to-staging` still rebuilds staging. |
+| `GET /status?run_id=` | Poll a run |
 
 **Automated setup** (agents and developers — uses `.env` + `gh`):
 

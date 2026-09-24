@@ -3,6 +3,11 @@ export type GalleryLayout = {
   count: number;
   /** True when tiles are positioned via named grid areas (a, b, c…). */
   usesAreas: boolean;
+  /**
+   * Few photos: one row of equal portrait tiles.
+   * Masonry starts once there are enough frames to vary.
+   */
+  equalTiles: boolean;
   columnsDesktop: number;
   rowsDesktop: number;
   areasDesktop: string;
@@ -12,15 +17,18 @@ export type GalleryLayout = {
 
 const AREA_LETTERS = "abcdefgh";
 
+type DesktopMap = { cols: number; rows: string[]; equal?: boolean };
+
 /**
- * Hand-tuned masonry maps — varied tile widths and heights, no empty cells.
- * Each string row lists the area letter occupying each column of that grid row.
+ * Hand-tuned maps. One to three photos share one row of equal tiles so a
+ * portrait stays a portrait. From four up, varied widths and heights, no
+ * empty cells. Each string row lists the area letter in that grid column.
  * Mobile uses a simple vertical list (see global.css); maps are desktop-only.
  */
-const DESKTOP_MAPS: Record<number, { cols: number; rows: string[] }> = {
-  1: { cols: 1, rows: ["a"] },
-  2: { cols: 3, rows: ["a a b", "a a b"] },
-  3: { cols: 3, rows: ["a a b", "a a b", "c c c", "c c c"] },
+const DESKTOP_MAPS: Record<number, DesktopMap> = {
+  1: { cols: 1, rows: ["a"], equal: true },
+  2: { cols: 2, rows: ["a b"], equal: true },
+  3: { cols: 3, rows: ["a b c"], equal: true },
   4: {
     cols: 5,
     rows: [
@@ -52,6 +60,7 @@ export function getGalleryLayout(count: number): GalleryLayout {
     return {
       count: 0,
       usesAreas: false,
+      equalTiles: false,
       columnsDesktop: 4,
       rowsDesktop: 1,
       areasDesktop: "",
@@ -64,6 +73,7 @@ export function getGalleryLayout(count: number): GalleryLayout {
     return {
       count,
       usesAreas: true,
+      equalTiles: desktop.equal === true,
       columnsDesktop: desktop.cols,
       rowsDesktop: desktop.rows.length,
       areasDesktop: areasString(desktop.rows),
@@ -75,6 +85,7 @@ export function getGalleryLayout(count: number): GalleryLayout {
   return {
     count,
     usesAreas: false,
+    equalTiles: false,
     columnsDesktop: 4,
     rowsDesktop: 0,
     areasDesktop: "",

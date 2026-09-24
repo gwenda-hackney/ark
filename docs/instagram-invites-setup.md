@@ -194,10 +194,11 @@ You should see in Business settings:
 
 ## E. Sanity event (staging)
 
-- [ ] Event in **development** dataset: slug `private-launch-party`  
+- [ ] Event in the **staging** dataset: slug `private-launch-party`  
   ```
   [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) → Events
   ```
+  Publish, then rebuild staging before checking gwenda-staging.
 
 - [ ] Event has a **hero image** (used in DM + RSVP page)
 

@@ -1,6 +1,3 @@
-import { baserowFetch, updateRow } from "./baserow.js";
-import { flattenMenuSections } from "./menu-sections.js";
-import { loadMenuTree } from "./menu-store.js";
 import {
   PUBLISH_SNAPSHOTS_FIELD,
   photoFingerprint,
@@ -10,6 +7,13 @@ import {
   serializePublishSnapshots,
   websiteProjection,
 } from "./reconcile.js";
+import {
+  digitalSectionId,
+  hasDigitalPlacement,
+} from "./menu-placements.js";
+import { flattenMenuSections } from "./menu-sections.js";
+import { loadMenuTree } from "./menu-store.js";
+import { baserowFetch, updateRow } from "./baserow.js";
 import {
   sanityDataset,
   sanityMutate,
@@ -235,9 +239,41 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
   const { items, sections, tables } = await loadMenuTree(env);
   await assertPublishSnapshotsField(env, tables.items);
 
+  const publishable = items.filter((item) =>
+    Array.isArray(item.placements) && item.placements.length
+      ? hasDigitalPlacement(item)
+      : item.onDigitalMenu !== false,
+  );
+  const digitalSectionIds = new Set(
+    publishable
+      .map((item) => digitalSectionId(item) || item.sectionId || item.section?._id)
+      .filter(Boolean)
+      .map(String),
+  );
+  const flat = flattenMenuSections(sections);
+  const sectionsForPublish = flat.filter(
+    (section) =>
+      digitalSectionIds.has(String(section._id)) ||
+      flat.some(
+        (child) =>
+          digitalSectionIds.has(String(child._id)) &&
+          String(child.parentId) === String(section._id),
+      ),
+  );
+  // Include ancestors of digital sections so Sanity parents exist.
+  const withAncestors = new Map(sectionsForPublish.map((s) => [String(s._id), s]));
+  for (const section of sectionsForPublish) {
+    let parentId = section.parentId;
+    while (parentId && !withAncestors.has(String(parentId))) {
+      const parent = flat.find((row) => String(row._id) === String(parentId));
+      if (!parent) break;
+      withAncestors.set(String(parent._id), parent);
+      parentId = parent.parentId;
+    }
+  }
+
   const { byBaserowId: sectionIds, writes: sectionWrites } =
-    await ensureSanitySections(env, dataset, tables, sections);
-  const publishable = items.filter((item) => item.onDigitalMenu !== false);
+    await ensureSanitySections(env, dataset, tables, [...withAncestors.values()]);
 
   const created = [];
   const synced = [];
@@ -245,7 +281,9 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
   const missing = [];
 
   for (const item of publishable) {
-    const baserowSectionId = String(item.sectionId || item.section?._id || "");
+    const baserowSectionId = String(
+      digitalSectionId(item) || item.sectionId || item.section?._id || "",
+    );
     const sanitySectionId = baserowSectionId
       ? sectionIds.get(baserowSectionId)
       : null;
@@ -323,4 +361,25 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
   }
 
   return { dataset, created, synced, unchanged, missing, sectionWrites };
+}
+
+/** After a staging → production promote, mark live snapshots as matching staging. */
+export async function copyStagingSnapshotsToProduction(env) {
+  const { items, tables } = await loadMenuTree(env);
+  let copied = 0;
+  for (const item of items) {
+    const staging = item.publishSnapshots?.staging;
+    if (!staging) continue;
+    const next = recordTargetSnapshot(
+      item.publishSnapshots,
+      "production",
+      staging.payload || {},
+    );
+    if (staging.hash) next.production.hash = staging.hash;
+    await updateRow(env, tables.items, item._id, {
+      [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(next),
+    });
+    copied += 1;
+  }
+  return { copied };
 }

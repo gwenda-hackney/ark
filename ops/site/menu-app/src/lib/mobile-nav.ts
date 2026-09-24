@@ -12,7 +12,7 @@ export type MobileTab = {
 
 export const MOBILE_TABS: MobileTab[] = [
 	{ id: "home", label: "Home", icon: "home", path: "/" },
-	{ id: "stock", label: "Stock", icon: "stock", path: "/menu" },
+	{ id: "stock", label: "Stock", icon: "stock", path: "/inventory" },
 	{ id: "more", label: "More", icon: "more", path: "/config" },
 ];
 
@@ -56,46 +56,42 @@ export function toolFrameFor(path: string): (typeof TOOL_FRAMES)[ToolId] {
 
 export function mobileTabFor(path: string): MobileTabId {
 	const page = parseShellPath(path).page;
-	if (page === "menu" || page === "inventory" || page === "lightspeed" || page === "suppliers")
-		return "stock";
-	if (page === "config" || page === "sections" || page === "users" || page === "tools")
+	if (page === "inventory" || page === "suppliers") return "stock";
+	if (
+		page === "config" ||
+		page === "menu" ||
+		page === "sections" ||
+		page === "users" ||
+		page === "web" ||
+		page === "events" ||
+		page === "artists" ||
+		page === "lightspeed" ||
+		page === "tools"
+	)
 		return "more";
 	return "home";
 }
 
-export function isStockListPath(path: string): boolean {
-	const route = parseShellPath(path);
-	return (
-		(route.page === "menu" || route.page === "inventory") &&
-		!route.isNew &&
-		!route.slug
-	);
-}
-
-export function stockSwitchValue(path: string): "menu" | "inventory" {
-	return parseShellPath(path).page === "inventory" ? "inventory" : "menu";
-}
-
 export function hideShellChrome(path: string): boolean {
-	return isEditorPath(path);
+	const route = parseShellPath(path);
+	return Boolean(route.print) || isEditorPath(path);
 }
 
 export function readStockPath(): string {
 	try {
 		const value = localStorage.getItem(STOCK_PATH_KEY);
-		if (value === "/inventory" || value === "/menu") return value;
+		if (value === "/inventory") return value;
 	} catch {
 		/* ignore */
 	}
-	return "/menu";
+	return "/inventory";
 }
 
 export function rememberStockPath(path: string): void {
 	const page = parseShellPath(path).page;
-	if (page !== "menu" && page !== "inventory") return;
-	const stored = page === "inventory" ? "/inventory" : "/menu";
+	if (page !== "inventory") return;
 	try {
-		localStorage.setItem(STOCK_PATH_KEY, stored);
+		localStorage.setItem(STOCK_PATH_KEY, "/inventory");
 	} catch {
 		/* ignore */
 	}

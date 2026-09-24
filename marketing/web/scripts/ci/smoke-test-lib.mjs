@@ -23,8 +23,8 @@ export function assertHomePageHealthy(html) {
   if (!/<title>\s*Gwenda/i.test(html)) {
     throw new Error("Homepage missing expected <title>");
   }
-  if (!/id=["']signup-form["']/i.test(html)) {
-    throw new Error("Homepage missing expected signup form");
+  if (!/href=["']\/join-list["']/i.test(html)) {
+    throw new Error("Homepage missing the list path");
   }
 }
 

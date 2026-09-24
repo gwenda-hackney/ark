@@ -69,17 +69,24 @@ const INVENTORY = [
   // Liquor
   { name: "Roku Gin", kind: "liquor", defaultUnit: "ml", abv: "43", estimatedCost: 25 },
   { name: "Arboretum Gin", kind: "liquor", defaultUnit: "ml" },
+  { name: "Arboretum Pink Gin", kind: "liquor", defaultUnit: "ml", abv: "37.5", estimatedCost: 14.31 },
   { name: "Renegade Gin", kind: "liquor", defaultUnit: "ml" },
   { name: "42 Below Vodka", kind: "liquor", defaultUnit: "ml" },
   { name: "Moonshine Vodka", kind: "liquor", defaultUnit: "ml" },
+  { name: "Moonshine Vanilla Vodka", kind: "liquor", defaultUnit: "ml", abv: "37.5", estimatedCost: 14.5 },
+  { name: "AU Vodka", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 22.9 },
   { name: "Buen Amigo Silver Tequila", kind: "liquor", defaultUnit: "ml" },
+  { name: "Rooster Rojo Blanco Tequila", kind: "liquor", defaultUnit: "ml", abv: "38", estimatedCost: 21.1 },
   { name: "Bandero Premium Blanco", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 40.12 },
   { name: "Cazadores Reposado Tequila", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 30.12 },
   { name: "Astral Tequila Blanco", kind: "liquor", defaultUnit: "ml", abv: "38", estimatedCost: 28.99 },
   { name: "Ilegal Joven Mezcal", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 48.9 },
   { name: "Ojo de Dios Mezcal Joven", kind: "liquor", defaultUnit: "ml", abv: "42", estimatedCost: 38.75 },
   { name: "Appleton Estate Signature Rum", kind: "liquor", defaultUnit: "ml" },
+  { name: "Juan de la Costa White Rum", kind: "liquor", defaultUnit: "ml", abv: "37.5", estimatedCost: 14.54 },
+  { name: "Juan de la Costa Dark Rum", kind: "liquor", defaultUnit: "ml", abv: "37.5", estimatedCost: 15.51 },
   { name: "Juan de la Costa Spiced Rum", kind: "liquor", defaultUnit: "ml" },
+  { name: "Admiral's Old J Spiced Rum", kind: "liquor", defaultUnit: "ml", abv: "35", estimatedCost: 19.99 },
   { name: "El Dorado 12 Year Old Rum", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 50.35 },
   { name: "Admiral's Old J Tiki Fire Spiced Rum", kind: "liquor", defaultUnit: "ml", abv: "35", estimatedCost: 37.94 },
   { name: "Bacardi Reserva Ocho Rum", kind: "liquor", defaultUnit: "ml", abv: "40", estimatedCost: 38.31 },
@@ -99,6 +106,7 @@ const INVENTORY = [
   { name: "Campari", kind: "liqueur", defaultUnit: "ml" },
   { name: "Aperol", kind: "liqueur", defaultUnit: "ml" },
   { name: "Amaro Montenegro", kind: "liqueur", defaultUnit: "ml", abv: "23", estimatedCost: 29.08 },
+  { name: "Paixão Coffee", kind: "liqueur", defaultUnit: "ml", abv: "17", estimatedCost: 11.05 },
   { name: "Amaro Lucano", kind: "liqueur", defaultUnit: "ml" },
   { name: "Vecchio Amaro del Capo", kind: "liqueur", defaultUnit: "ml" },
   { name: "Martini Riserva Speciale Bitter", kind: "liqueur", defaultUnit: "ml" },
@@ -111,24 +119,8 @@ const INVENTORY = [
   { name: "Narano Bitter Orange", kind: "liqueur", defaultUnit: "ml" },
   { name: "Sambuca Molinari", kind: "liqueur", defaultUnit: "ml" },
   { name: "Mirto Rosso", kind: "liqueur", defaultUnit: "ml" },
-  { name: "Spinello Spritz", kind: "liqueur", defaultUnit: "ml" },
+  { name: "Spinello", kind: "liqueur", defaultUnit: "ml", matchNames: ["Spinello Spritz"] },
   { name: "Limoncello", kind: "liqueur", defaultUnit: "ml" },
-  {
-    name: "Sombrero Crema de Plátano y Tequila",
-    fullName: "Sombrero Mexicano banana cream liqueur with tequila",
-    kind: "liqueur",
-    defaultUnit: "ml",
-    abv: "15",
-    estimatedCost: 15.98,
-  },
-  {
-    name: "Sombrero Crema de Maracuyá",
-    fullName: "Sombrero Mexicano passion fruit cream liqueur with tequila",
-    kind: "liqueur",
-    defaultUnit: "ml",
-    abv: "15",
-    estimatedCost: 15.98,
-  },
   // Bitters
   { name: "Angostura Bitters", kind: "bitter", defaultUnit: "dash" },
   // Syrups
@@ -157,10 +149,10 @@ const INVENTORY = [
   { name: "Tonic water", kind: "mixer", defaultUnit: "ml" },
   { name: "Coca-Cola", kind: "mixer", defaultUnit: "ml" },
   { name: "Lemon soda", kind: "mixer", defaultUnit: "ml" },
-  { name: "Red Bull", kind: "mixer", defaultUnit: "ml" },
+  { name: "Monster Energy Drink", kind: "mixer", defaultUnit: "ml" },
   { name: "Ginger beer", kind: "mixer", defaultUnit: "ml" },
   { name: "Prosecco", kind: "wine", defaultUnit: "ml" },
-  { name: "Red wine", kind: "wine", defaultUnit: "ml" },
+  { name: "Terre Forti Sangiovese", kind: "wine", defaultUnit: "ml", abv: "12.5" },
   // Beer
   { name: "Menabrea Bionda Lager", kind: "beer", defaultUnit: "each" },
   { name: "Baladin Nazionale Blonde Ale", kind: "beer", defaultUnit: "each" },
@@ -372,7 +364,7 @@ const MENU_UPDATES = [
       inv("Strawberry syrup", 20, "ml"),
       inv("Chilli powder", 1, "pinch"),
       inv("Lime juice", 15, "ml"),
-      inv("Red wine", 20, "ml"),
+      inv("Terre Forti Sangiovese", 20, "ml"),
     ],
   },
   {
@@ -510,7 +502,7 @@ const MENU_UPDATES = [
     matchNames: ["Hugo Spritz"],
     name: "Hugo Spritz",
     sectionSlug: "spritz",
-    price: "9",
+    price: "10",
     drinkType: "cocktail",
     ingredients: [
       inv("St-Germain", 30, "ml"),
@@ -523,7 +515,7 @@ const MENU_UPDATES = [
     matchNames: ["Limoncello Spritz"],
     name: "Limoncello Spritz",
     sectionSlug: "spritz",
-    price: "9",
+    price: "10",
     drinkType: "cocktail",
     ingredients: [
       inv("Limoncello", 50, "ml"),
@@ -538,7 +530,7 @@ const MENU_UPDATES = [
     price: "9",
     drinkType: "cocktail",
     ingredients: [
-      inv("Spinello Spritz", 80, "ml"),
+      inv("Spinello", 80, "ml"),
       inv("Tonic water", 80, "ml"),
     ],
   },
@@ -548,7 +540,7 @@ const MENU_UPDATES = [
     matchNames: ["Negroni"],
     name: "Negroni",
     sectionSlug: "negroni",
-    price: "10",
+    price: "9",
     drinkType: "cocktail",
     ingredients: [
       inv("Arboretum Gin", 30, "ml"),
@@ -572,7 +564,7 @@ const MENU_UPDATES = [
     matchNames: ["Negroni Sbagliato"],
     name: "Negroni Sbagliato",
     sectionSlug: "negroni",
-    price: "10",
+    price: "9",
     drinkType: "cocktail",
     ingredients: [
       inv("Campari", 30, "ml"),
@@ -651,7 +643,7 @@ const MENU_UPDATES = [
     ],
   },
 
-  // ── Highball (8/10 = 25ml / 35ml) ──
+  // ── Highball (POS only · not on print or digital) ──
   {
     matchNames: ["Moscow Mule"],
     name: "Moscow Mule",
@@ -659,6 +651,7 @@ const MENU_UPDATES = [
     price: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     ingredients: [
       inv("Moonshine Vodka", 50, "ml"),
       inv("Ginger beer", 120, "ml"),
@@ -673,6 +666,7 @@ const MENU_UPDATES = [
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     description: "Arboretum gin, tonic. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
@@ -688,6 +682,7 @@ const MENU_UPDATES = [
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     description: "Juan de la Costa spiced rum, Coca-Cola. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
@@ -696,18 +691,19 @@ const MENU_UPDATES = [
     ],
   },
   {
-    matchNames: ["Vodka Red Bull"],
-    name: "Vodka Red Bull",
+    matchNames: ["Vodka Energy", "Vodka Red Bull"],
+    name: "Vodka Energy",
     sectionSlug: "highball",
     price: "8",
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
-    description: "Moonshine vodka, Red Bull. 25ml / 35ml",
+    onPrintMenu: false,
+    description: "Moonshine vodka, Monster Energy. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
       inv("Moonshine Vodka", 25, "ml"),
-      inv("Red Bull", 150, "ml"),
+      inv("Monster Energy Drink", 150, "ml"),
     ],
   },
   {
@@ -718,6 +714,7 @@ const MENU_UPDATES = [
     priceAlt: "10",
     drinkType: "cocktail",
     onDigitalMenu: false,
+    onPrintMenu: false,
     description: "Moonshine vodka, lemon soda. 25ml / 35ml",
     lockDescription: true,
     ingredients: [
@@ -768,6 +765,7 @@ const MENU_UPDATES = [
     name: "Gwenda Pilsner",
     sectionSlug: "draught-beer",
     price: "6.5",
+    priceAlt: "3.5",
     drinkType: "beer",
     ingredients: [inv("Gwenda Pilsner", UK_PINT_ML, "ml")],
   },
@@ -776,6 +774,7 @@ const MENU_UPDATES = [
     name: "Tiny Rebel IPA",
     sectionSlug: "draught-beer",
     price: "7",
+    priceAlt: "4",
     drinkType: "beer",
     ingredients: [inv("Tiny Rebel IPA", UK_PINT_ML, "ml")],
   },
@@ -784,6 +783,7 @@ const MENU_UPDATES = [
     name: "Caffrey's Black Stout",
     sectionSlug: "draught-beer",
     price: "7.5",
+    priceAlt: "4",
     drinkType: "beer",
     ingredients: [inv("Caffrey's Black Stout", UK_PINT_ML, "ml")],
   },
@@ -871,6 +871,7 @@ const MENU_UPDATES = [
     price: "8",
     drinkType: "pour",
     onDigitalMenu: false,
+    onPrintMenu: false,
     order: 1,
     ingredients: [inv("Jameson Black Barrel", 25, "ml")],
   },
@@ -946,32 +947,6 @@ const MENU_UPDATES = [
     order: 5,
     ingredients: [inv("Pernod Absinthe Supérieure", 25, "ml")],
   },
-  {
-    matchNames: [
-      "Sombrero Crema de Plátano y Tequila",
-      "Sombrero Mexicano Banana Cream Liquor With Tequila",
-    ],
-    name: "Sombrero Crema de Plátano y Tequila",
-    sectionSlug: "amaro-digestivi",
-    price: "6",
-    drinkType: "pour",
-    onDigitalMenu: false,
-    order: 6,
-    ingredients: [inv("Sombrero Crema de Plátano y Tequila", 25, "ml")],
-  },
-  {
-    matchNames: [
-      "Sombrero Crema de Maracuyá",
-      "Sombrero Mexicano Passion Fruit Cream Liquor With Tequila",
-    ],
-    name: "Sombrero Crema de Maracuyá",
-    sectionSlug: "amaro-digestivi",
-    price: "6",
-    drinkType: "pour",
-    onDigitalMenu: false,
-    order: 7,
-    ingredients: [inv("Sombrero Crema de Maracuyá", 25, "ml")],
-  },
 
   // Remove obsolete Cabinet lines
   {
@@ -1030,7 +1005,11 @@ async function ensureInventory(existing) {
     if (item.abv) fields.ABV = item.abv;
     if (item.fullName) fields["Full name"] = item.fullName;
     if (item.estimatedCost != null) fields["Estimated cost"] = item.estimatedCost;
-    const hit = byName.get(key);
+    const hit =
+      byName.get(key) ||
+      (item.matchNames || [])
+        .map((alias) => byName.get(String(alias).trim().toLowerCase()))
+        .find(Boolean);
     if (hit) {
       if (!dryRun) {
         await baserow(

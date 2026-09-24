@@ -1,30 +1,74 @@
 import type { NavRoute } from "../shell/types";
 
 /**
- * Side rail. Stock is bar stock (recipes + inventory). Menu is the guest
- * menu: sections now, a visual website layout later.
+ * Side rail. Menu is the guest menu. Stock is inventory and suppliers.
+ * Lightspeed is POS reconcile and export. Events is series and schedule.
+ * Artist is the guest whose work is hanging at Gwenda.
  */
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
 	{
-		id: "stock",
-		name: "Stock",
-		icon: "stock",
+		id: "service",
+		name: "Service",
+		icon: "",
+		heading: true,
 		children: [
-			{ id: "recipes", path: "/menu", name: "Recipes", icon: "recipes" },
-			{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
-			{ id: "suppliers", path: "/suppliers", name: "Suppliers", icon: "suppliers" },
-			{ id: "lightspeed", path: "/lightspeed", name: "Lightspeed", icon: "lightspeed" },
+			{
+				id: "menu",
+				name: "Menu",
+				icon: "menu",
+				children: [
+					{ id: "recipes", path: "/menu", name: "Menu items", icon: "recipes" },
+					{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
+				],
+			},
+			{
+				id: "stock",
+				name: "Stock",
+				icon: "stock",
+				children: [
+					{ id: "inventory", path: "/inventory", name: "Inventory", icon: "inventory" },
+					{ id: "suppliers", path: "/suppliers", name: "Suppliers", icon: "suppliers" },
+				],
+			},
+			{
+				id: "lightspeed",
+				name: "Lightspeed",
+				icon: "lightspeed",
+				children: [
+					{ id: "lightspeed-reconcile", path: "/lightspeed", name: "Reconcile", icon: "lightspeed" },
+					{ id: "lightspeed-export", path: "/lightspeed/export", name: "Export", icon: "upload" },
+				],
+			},
 		],
 	},
 	{
-		id: "menu",
-		name: "Menu",
-		icon: "menu",
+		id: "programme",
+		name: "Programme",
+		icon: "",
+		heading: true,
 		children: [
-			{ id: "sections", path: "/sections", name: "Sections", icon: "list" },
+			{
+				id: "events",
+				name: "Events",
+				icon: "events",
+				children: [
+					{ id: "events-series", path: "/events", name: "Series", icon: "list" },
+					{ id: "events-schedule", path: "/events/schedule", name: "Schedule", icon: "events" },
+				],
+			},
+			{ id: "artist", path: "/artists", name: "Artist", icon: "artist" },
+			{ id: "web", path: "/web", name: "Web", icon: "web" },
 		],
 	},
-	{ id: "users", path: "/users", name: "Users", icon: "users" },
-	{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
+	{
+		id: "settings",
+		name: "Settings",
+		icon: "",
+		heading: true,
+		children: [
+			{ id: "users", path: "/users", name: "Users", icon: "users" },
+			{ id: "config", path: "/config", name: "Configuration", icon: "settings" },
+		],
+	},
 ];

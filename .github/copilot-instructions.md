@@ -6,22 +6,25 @@ Repository custom instructions for GitHub Copilot and coding agents working on t
 
 Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4** static output deployed to **Cloudflare Pages** with **Pages Functions** for server logic.
 
-| Environment | Branch    | Cloudflare Pages project | URL                            |
-| ----------- | --------- | ------------------------ | ------------------------------ |
-| Staging     | `main`    | `gwenda-staging`         | https://gwenda-staging.pages.dev |
-| Production  | `release` | `gwenda`                 | https://gwenda.co.uk           |
+| Environment | Branch    | Cloudflare Pages project | URL                            | Sanity dataset | Perspective | Studio |
+| ----------- | --------- | ------------------------ | ------------------------------ | -------------- | ----------- | ------ |
+| Local       | `develop` | local `npm run dev`      | http://localhost:4321          | `staging`      | drafts      | localhost Studio |
+| Staging     | `main`    | `gwenda-staging`         | https://gwenda-staging.pages.dev | `staging`    | published   | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) |
+| Production  | promote (`release` pointer) | `gwenda` | https://gwenda.co.uk | `production` (clone of staging) | published | [gwenda.sanity.studio](https://gwenda.sanity.studio) |
+
+Two datasets only (`staging` + `production`). Local Studio and `npm run dev` share staging with a drafts overlay. Hosted builds ignore drafts.
 
 ## Branch flow
 
-- Develop on **`main`** → [Web](workflows/web.yml): verify → staging deploy → smoke test.
-- **Production requires explicit authorization.** Do not merge `main` into `release`, push to `release`, open a production deploy PR, or run production deploy steps unless the user clearly asks (e.g. “deploy to production”, “push release”). Default after changes: commit and push **`main`** only, then verify staging.
-- When authorized: merge `main` into **`release`**, push → [Web](workflows/web.yml) production preview → smoke test. After reviewing the preview, run [Web promote](workflows/web-promote.yml) with `kind=code` → live deploy → CalVer tag.
+- Develop on **`develop`** → [Web](workflows/web.yml) verify only. No hosted development site. Work in local Studio; leave WIP as drafts.
+- Merge to **`main`** → verify → staging deploy from published staging → smoke test.
+- **Promote to staging** (ops Web / Dev Studio) rebuilds gwenda-staging from published documents.
+- **Production requires explicit authorization.** Do not promote to live unless the user clearly asks. Default after changes: commit and push **`develop`** (or merge to `main` for staging), then verify staging.
+- Live website, ops, brand, and production Studio each promote on their own manual workflow, and only from **`release`**. `main` deploys staging and previews. Merging to `release` does not deploy production.
+- Website: [Web promote](workflows/web-promote.yml) on `release` clones Sanity `staging` → `production` and deploys gwenda.co.uk. It does not move `release`.
+- Ops: [Apps](workflows/apps.yml) workflow dispatch, app `ops`, target production, branch `release`. Pushing `main` does not update gwenda-ops.
 
-**Production manual gate:** Promotion is a separate `workflow_dispatch` workflow (private repos cannot use GitHub Environment required reviewers without Enterprise). Preview URL is the `release-preview` branch alias from the deploy step (currently `https://release-preview.gwenda-blue.pages.dev`).
-
-There is no separate CI workflow. Quality gates run on every push to `main`; a PR into `release` promotes already-verified code.
-
-Do not push directly to `release` without going through `main` first.
+**Production manual gate:** Run the workflow from the `release` branch. A dispatch from `main` fails. This private repo cannot enable GitHub branch protection, so the workflows enforce the branch check themselves.
 
 ## Architecture
 
@@ -81,7 +84,7 @@ dist/          Build output (gitignored)
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
 ## What not to do
 
-- **Do not deploy to production without explicit user authorization** — no merges/pushes to `release`, no production workflow triggers, no manual prod Cloudflare deploys unless the user asks.
+- **Do not deploy to production without explicit user authorization** — no ops promote, no production workflow triggers, no manual prod Cloudflare deploys unless the user asks.
 - Do not add a `public/` folder for assets — use `src/assets/` imports.
 - Do not reintroduce a standalone CI workflow on `main` — verify already runs inside Deploy staging.
 - Do not reattach `staging.gwenda.co.uk` without explicit request — staging uses `pages.dev` to stay out of prod analytics.

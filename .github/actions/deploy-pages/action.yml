@@ -52,8 +52,16 @@ inputs:
     description: SANITY_API_TOKEN — CI token for build-time CMS fetch (from Bitwarden SM)
     required: false
   sanity-dataset:
-    description: Sanity dataset for build-time CMS fetch (development or production)
+    description: Sanity dataset for build-time CMS fetch (staging or production)
     required: true
+  baserow-ops-api-key:
+    description: Ops Baserow token for the featured artist at build time
+    required: false
+    default: ""
+  baserow-ops-database-id:
+    description: Ops Baserow database id for the featured artist at build time
+    required: false
+    default: ""
 
 outputs:
   deployment-url:
@@ -80,6 +88,8 @@ runs:
         SANITY_PROJECT_ID: pn5yjro6
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
+        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
+        BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}
 
     - name: Ensure dist exists
       if: inputs.skip-build == 'true'
@@ -114,6 +124,22 @@ runs:
         if [ "${{ inputs.wrangler-config }}" != wrangler.toml ]; then
           cp "marketing/web/${{ inputs.wrangler-config }}" marketing/web/wrangler.toml
         fi
+
+    - name: Sync featured artist Baserow token
+      if: inputs.baserow-ops-api-key != ''
+      shell: bash
+      working-directory: marketing/web
+      env:
+        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
+      run: |
+        for deployment_env in production preview; do
+          printf '%s' "$BASEROW_OPS_API_KEY" | npx wrangler pages secret put BASEROW_OPS_API_KEY \
+            --project-name "$PAGES_PROJECT_NAME" \
+            --env "$deployment_env"
+        done
 
     - name: Deploy to Cloudflare Pages
       id: pages_deploy

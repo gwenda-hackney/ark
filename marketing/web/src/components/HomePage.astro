@@ -6,7 +6,7 @@ import Header from "./Header.astro";
 import Hero from "./Hero.astro";
 import Story from "./Story.astro";
 import MenuTease from "./MenuTease.astro";
-import Team from "./Team.astro";
+import WhatWeDo from "./WhatWeDo.astro";
 import TeaserGallery from "./TeaserGallery.astro";
 import EmailSignup from "./EmailSignup.astro";
 import Footer from "./Footer.astro";
@@ -30,14 +30,18 @@ const { cocktailGalleryEnabled } = await fetchSiteSettings();
   )
 }
 
-<Header features={features} showMenuTease={features.showMenuTease} />
+<Header
+  features={features}
+  showMenuTease={features.showMenuTease}
+  awaitsHero
+/>
 <main>
   <Hero />
-  <Story mode={mode} />
+  <Story mode={mode} showTeam={features.showTeam} />
   {features.showMenuTease && (
     <MenuTease showCocktailImages={cocktailGalleryEnabled} />
   )}
-  {features.showTeam && <Team />}
+  <WhatWeDo />
   {features.showGallery && <TeaserGallery features={features} />}
   <EmailSignup mode={mode} />
   <Menu features={features} />

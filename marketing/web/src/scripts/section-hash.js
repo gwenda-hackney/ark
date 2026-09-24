@@ -7,6 +7,8 @@
  * browser's scroll restoration and causes visible flicker.
  */
 
+import { replacePageUrl } from "./history-state.js";
+
 /** @param {string | null | undefined} sectionId */
 export function buildSectionUrl(sectionId) {
   const base = `${location.pathname}${location.search}`;
@@ -20,7 +22,7 @@ function syncHash(sectionId) {
 
   if (nextUrl === currentUrl) return;
 
-  history.replaceState(null, "", nextUrl);
+  replacePageUrl(nextUrl);
 }
 
 /**

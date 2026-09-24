@@ -107,7 +107,22 @@ async function serveSpaIndex(context) {
   url.hash = "";
   const assets = context.env?.ASSETS;
   if (assets && typeof assets.fetch === "function") {
-    return assets.fetch(new Request(url.toString(), context.request));
+    // Follow asset pretty-URL redirects server-side. Returning a 308 to `/`
+    // for `/events` (and other shell paths) boots the SPA on home instead.
+    let response = await assets.fetch(new Request(url.toString(), context.request));
+    for (let hop = 0; hop < 3 && response.status >= 300 && response.status < 400; hop += 1) {
+      const location = response.headers.get("Location");
+      if (!location) break;
+      const next = new URL(location, url);
+      next.search = "";
+      next.hash = "";
+      response = await assets.fetch(new Request(next.toString(), context.request));
+    }
+    if (!response.ok) return response;
+    return new Response(response.body, {
+      status: 200,
+      headers: response.headers,
+    });
   }
   return context.next();
 }

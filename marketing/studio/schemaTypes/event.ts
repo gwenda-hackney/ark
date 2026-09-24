@@ -30,6 +30,60 @@ export const event = defineType({
       validation: (rule) => rule.required(),
     }),
     defineField({
+      name: "artist",
+      title: "Artist",
+      type: "string",
+      description: "Shown on the public events list.",
+    }),
+    defineField({
+      name: "offer",
+      title: "Offer",
+      type: "string",
+      description: "Optional public wording, e.g. £10 Negroni.",
+    }),
+    defineField({
+      name: "series",
+      title: "Series",
+      type: "reference",
+      to: [{ type: "eventSeries" }],
+      readOnly: true,
+      description:
+        "Parent series template. This document is one scheduled night.",
+    }),
+    defineField({
+      name: "seriesId",
+      title: "Series id",
+      type: "string",
+      readOnly: true,
+      hidden: true,
+      description: "Set by ops. Slug of the parent series.",
+    }),
+    defineField({
+      name: "seriesTitle",
+      title: "Series title",
+      type: "string",
+      readOnly: true,
+      hidden: true,
+      description:
+        "Set by ops. Display name for the series on the public website.",
+    }),
+    defineField({
+      name: "recurrence",
+      title: "Repeats",
+      type: "string",
+      readOnly: true,
+      description: "Set by ops, e.g. Every Thursday.",
+    }),
+    defineField({
+      name: "isSpecialEdition",
+      title: "Special edition",
+      type: "boolean",
+      readOnly: true,
+      hidden: true,
+      description:
+        "Set by ops when this date has a special guest or custom content.",
+    }),
+    defineField({
       name: "slug",
       title: "Slug",
       type: "slug",
@@ -43,7 +97,7 @@ export const event = defineType({
       title: "Invite channels",
       type: "array",
       description:
-        "Each channel is a shareable invite link that also records where an RSVP came from (e.g. \"Dan - WhatsApp\"). Add one per person or place you send the invite. A valid channel link is required to open the RSVP page.",
+        'Each channel is a shareable invite link that also records where an RSVP came from (e.g. "Dan - WhatsApp"). Add one per person or place you send the invite. A valid channel link is required to open the RSVP page.',
       of: [
         defineArrayMember({
           type: "object",
@@ -100,10 +154,33 @@ export const event = defineType({
       validation: (rule) => rule.required(),
     }),
     defineField({
+      name: "time",
+      title: "Public time",
+      type: "string",
+      description:
+        "Leave this empty when start and end are set. Extra sets belong in the description.",
+    }),
+    defineField({
+      name: "pageUrl",
+      title: "Page link",
+      type: "url",
+      readOnly: true,
+      description:
+        "Set by ops. Their page, shown on the event when present.",
+    }),
+    defineField({
+      name: "shortDescription",
+      title: "Short description",
+      type: "text",
+      rows: 3,
+      description: "Card blurb on What's on. Keep it to one or two lines.",
+    }),
+    defineField({
       name: "description",
       title: "Description",
       type: "eventDescription",
-      description: "Shown on the RSVP page. Press Enter for a new paragraph.",
+      description:
+        "Full copy on the series / night page and RSVP. Press Enter for a new paragraph.",
       validation: (rule) => rule.required(),
     }),
     defineField({
@@ -117,7 +194,8 @@ export const event = defineType({
       name: "ticketStart",
       title: "Ticket start time",
       type: "string",
-      description: "24-hour time on the event date for calendar and wallet tickets, e.g. 17:00.",
+      description:
+        "24-hour time on the event date for calendar and wallet tickets, e.g. 17:00.",
       initialValue: "17:00",
     }),
     defineField({
@@ -126,6 +204,46 @@ export const event = defineType({
       type: "string",
       description: "24-hour time on the event date, e.g. 23:00.",
       initialValue: "23:00",
+    }),
+    defineField({
+      name: "nightSchedule",
+      title: "Night schedule",
+      type: "array",
+      description:
+        "Structured schedule for the night (open decks, chess, live set). Shown on What's on when present.",
+      of: [
+        defineArrayMember({
+          type: "object",
+          name: "slot",
+          fields: [
+            defineField({
+              name: "label",
+              title: "Label",
+              type: "string",
+              validation: (rule) => rule.required(),
+            }),
+            defineField({
+              name: "startTime",
+              title: "Start",
+              type: "string",
+              description: "24-hour HH:mm",
+            }),
+            defineField({
+              name: "endTime",
+              title: "End",
+              type: "string",
+              description: "24-hour HH:mm",
+            }),
+          ],
+          preview: {
+            select: { title: "label", start: "startTime", end: "endTime" },
+            prepare({ title, start, end }) {
+              const when = [start, end].filter(Boolean).join("–");
+              return { title: title || "Slot", subtitle: when || undefined };
+            },
+          },
+        }),
+      ],
     }),
     defineField({
       name: "rsvpConfirmation",
@@ -193,11 +311,29 @@ Need to change your reply? {modify_url}`,
         }),
       ],
     }),
+    defineField({
+      name: "seriesHeroImage",
+      title: "Series default hero",
+      type: "image",
+      readOnly: true,
+      hidden: true,
+      description:
+        "Set by ops from the series Main image. Used on What's on when a night has no flyer.",
+      options: { hotspot: true },
+      fields: [
+        defineField({
+          name: "alt",
+          type: "string",
+          title: "Alternative text",
+        }),
+      ],
+    }),
   ],
   preview: {
     select: { title: "title", subtitle: "eventType", media: "heroImage" },
     prepare({ title, subtitle, media }) {
-      const typeLabel = subtitle === "private" ? "Private event" : "Public event";
+      const typeLabel =
+        subtitle === "private" ? "Private event" : "Public event";
       return { title, subtitle: typeLabel, media };
     },
   },

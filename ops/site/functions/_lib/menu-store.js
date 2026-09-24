@@ -24,7 +24,19 @@ import {
 } from "./menu.js";
 import { assertUniqueItemName, itemSlug } from "./item-key.js";
 import { parsePublishSnapshots } from "./reconcile.js";
+import { normalizeLightspeedStatus } from "./lightspeed-stock.js";
 import { flattenMenuSections, nestMenuSections } from "./menu-sections.js";
+import {
+  listPosMenus,
+  mapPosMenuLinks,
+} from "./pos-menu-store.js";
+import {
+  attachPlacements,
+  applyPlacementDerivedFields,
+  legacyFieldsFromPlacements,
+  replaceMenuPlacements,
+  resolvePlacementsForWrite,
+} from "./menu-placements.js";
 import {
   ANALYSIS_NOTE_FIELD,
   parseStoredAnalyzeNote,
@@ -54,7 +66,9 @@ function selectValue(value) {
 
 function normalizeDrinkType(value) {
   const raw = selectValue(value).toLowerCase();
-  if (raw === "pour" || raw === "beer" || raw === "packaged") return raw;
+  if (raw === "pour" || raw === "beer" || raw === "packaged" || raw === "postmix") {
+    return raw;
+  }
   return "cocktail";
 }
 
@@ -129,7 +143,14 @@ function mapItem(row) {
     sectionId: linkValue(row.Section) != null ? String(linkValue(row.Section)) : null,
     sanityId: text(row["Sanity ID"]) || undefined,
     onDigitalMenu: row["On digital menu"] == null ? true : boolField(row["On digital menu"]),
+    onPrintMenu: row["On print menu"] == null ? true : boolField(row["On print menu"]),
     publishSnapshots: parsePublishSnapshots(row["Publish snapshots"]),
+    lightspeedSku: text(row["Lightspeed SKU"]) || undefined,
+    lightspeedSkuAlt: text(row["Lightspeed SKU alt"]) || undefined,
+    lightspeedName: text(row["Lightspeed name"]) || undefined,
+    lightspeedMenuScreen: text(row["Lightspeed menu/screen"]) || undefined,
+    lightspeedStatus: normalizeLightspeedStatus(row["Lightspeed status"]) || undefined,
+    posMenus: mapPosMenuLinks(row["POS menus"]),
     analysisNote: parseStoredAnalyzeNote(row[ANALYSIS_NOTE_FIELD]),
     image: photo
       ? {
@@ -143,10 +164,13 @@ function mapItem(row) {
 
 export async function loadMenuTree(env) {
   const tables = await resolveOpsTableIds(env);
-  const [sectionRows, itemRows, ingredientRows] = await Promise.all([
+  const [sectionRows, itemRows, ingredientRows, placementRows] = await Promise.all([
     listAllRows(env, tables.sections),
     listAllRows(env, tables.items),
     listAllRows(env, tables.ingredients),
+    tables.menuPlacements
+      ? listAllRows(env, tables.menuPlacements)
+      : Promise.resolve([]),
   ]);
 
   const sections = sectionRows
@@ -173,11 +197,25 @@ export async function loadMenuTree(env) {
     list.sort((a, b) => a.order - b.order || a.id - b.id);
   }
 
-  const items = itemRows
+  let items = itemRows
     .map(mapItem)
     .filter((item) => Boolean(item.name))
     .sort((a, b) => a.orderRank - b.orderRank);
+  items = attachPlacements(items, placementRows);
+  const posMenuIndex = tables.posMenus
+    ? new Map(
+        (await listPosMenus(env)).map((menu) => [String(menu.id), menu]),
+      )
+    : new Map();
   for (const item of items) {
+    if (posMenuIndex.size && item.placements?.length) {
+      item.placements = item.placements.map((row) => {
+        if (row.channel !== "pos" || row.posMenuName) return row;
+        const menu = posMenuIndex.get(String(row.posMenuId));
+        return menu ? { ...row, posMenuName: menu.name } : row;
+      });
+      Object.assign(item, applyPlacementDerivedFields(item));
+    }
     item.ingredients = ingredientsByItem.get(item._id) || [];
     const section = item.sectionId ? byId.get(item.sectionId) : null;
     if (section) {
@@ -215,7 +253,13 @@ function drinkMetricsFields(drinkType, ingredients, inventoryById) {
   };
 }
 
-function itemFieldsFromInput(input) {
+function boolInput(value, fallback = true) {
+  if (value == null) return fallback;
+  if (value === false || value === "false") return false;
+  return value === true || value === "true";
+}
+
+function itemFieldsFromInput(input, { requireSection = true } = {}) {
   const name = text(input.name);
   if (!name) {
     const error = new Error("Name is required.");
@@ -223,7 +267,8 @@ function itemFieldsFromInput(input) {
     throw error;
   }
   const sectionId = Number(input.sectionId);
-  if (!Number.isFinite(sectionId)) {
+  const hasSection = Number.isFinite(sectionId) && sectionId > 0;
+  if (requireSection && !hasSection) {
     const error = new Error("Section is required.");
     error.status = 400;
     throw error;
@@ -235,7 +280,7 @@ function itemFieldsFromInput(input) {
 
   return {
     Name: name,
-    Section: [sectionId],
+    ...(hasSection ? { Section: [sectionId] } : {}),
     "Menu line": text(input.description) || "",
     "Lock menu line": false,
     Price: text(input.price),
@@ -252,11 +297,24 @@ function itemFieldsFromInput(input) {
     Volume: text(input.volume),
     Producer: text(input.producer),
     Order: parseQuantity(input.orderRank) ?? 0,
-    "On digital menu":
-      input.onDigitalMenu == null
-        ? true
-        : input.onDigitalMenu === true || input.onDigitalMenu === "true",
+    "On digital menu": boolInput(input.onDigitalMenu, true),
+    "On print menu": boolInput(input.onPrintMenu, true),
     ...(text(input.sanityId) ? { "Sanity ID": text(input.sanityId) } : {}),
+    ...(text(input.lightspeedSku)
+      ? { "Lightspeed SKU": text(input.lightspeedSku) }
+      : {}),
+    ...(text(input.lightspeedSkuAlt)
+      ? { "Lightspeed SKU alt": text(input.lightspeedSkuAlt) }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(input, "lightspeedName")
+      ? { "Lightspeed name": text(input.lightspeedName) }
+      : {}),
+    ...(Object.prototype.hasOwnProperty.call(input, "lightspeedMenuScreen")
+      ? { "Lightspeed menu/screen": text(input.lightspeedMenuScreen) }
+      : {}),
+    ...(normalizeLightspeedStatus(input.lightspeedStatus)
+      ? { "Lightspeed status": normalizeLightspeedStatus(input.lightspeedStatus) }
+      : {}),
     ...(Object.prototype.hasOwnProperty.call(input, "analysisNote")
       ? { [ANALYSIS_NOTE_FIELD]: serializeAnalyzeNote(input.analysisNote) }
       : {}),
@@ -368,7 +426,24 @@ export async function createMenuItem(env, input) {
   const tables = await resolveOpsTableIds(env);
   const ingredients = normalizeIngredients(input.ingredients);
   const inventoryById = await loadInventoryAbvMap(env, tables);
-  const fields = itemFieldsFromInput(input);
+  const posMenus = tables.posMenus ? await listPosMenus(env) : [];
+  const placements = resolvePlacementsForWrite(input, {
+    defaultPosMenus: posMenus,
+  });
+  const derived = applyPlacementDerivedFields({ ...input, placements });
+  const payload = {
+    ...input,
+    ...derived,
+    sectionId: derived.sectionId || input.sectionId,
+    posMenuIds: (derived.posMenus || []).map((menu) => menu.id),
+  };
+  const hasGuest = placements.some(
+    (row) => row.channel === "print" || row.channel === "digital",
+  );
+  const fields = {
+    ...itemFieldsFromInput(payload, { requireSection: hasGuest }),
+    ...legacyFieldsFromPlacements(placements, tables),
+  };
   const siblings = await listAllRows(env, tables.items);
   assertUniqueItemName(
     siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
@@ -388,9 +463,24 @@ export async function createMenuItem(env, input) {
   }
   const row = await createRow(env, tables.items, fields);
   const savedIngredients = await replaceIngredients(env, tables, row.id, ingredients);
-  const item = mapItem(row);
-  item.ingredients = savedIngredients;
-  item.sectionId = String(linkValue(row.Section) ?? input.sectionId);
+  const savedPlacements = await replaceMenuPlacements(
+    env,
+    tables,
+    row.id,
+    placements,
+  );
+  const item = applyPlacementDerivedFields({
+    ...mapItem(row),
+    ingredients: savedIngredients,
+    placements: savedPlacements,
+  });
+  item.sectionId = item.sectionId
+    ? String(item.sectionId)
+    : linkValue(row.Section) != null
+      ? String(linkValue(row.Section))
+      : input.sectionId
+        ? String(input.sectionId)
+        : null;
   return item;
 }
 
@@ -402,14 +492,45 @@ export async function updateMenuItem(env, itemId, input) {
     error.status = 404;
     throw error;
   }
+  const existingMapped = mapItem(existing);
+  if (tables.menuPlacements) {
+    const placementRows = await listAllRows(env, tables.menuPlacements, {
+      filters: linkHasQuery("Menu item", itemId),
+    });
+    Object.assign(
+      existingMapped,
+      attachPlacements([existingMapped], placementRows)[0],
+    );
+  }
   const ingredients = normalizeIngredients(input.ingredients);
   const inventoryById = await loadInventoryAbvMap(env, tables);
-  const fields = itemFieldsFromInput(
-    {
-      ...input,
-      sectionId: input.sectionId || linkValue(existing.Section),
-    },
+  const posMenus = tables.posMenus ? await listPosMenus(env) : [];
+  const placements = resolvePlacementsForWrite(input, {
+    existingItem: existingMapped,
+    defaultPosMenus: posMenus,
+  });
+  const derived = applyPlacementDerivedFields({
+    ...existingMapped,
+    ...input,
+    placements,
+  });
+  const payload = {
+    ...existingMapped,
+    ...input,
+    ...derived,
+    sectionId:
+      derived.sectionId ||
+      input.sectionId ||
+      linkValue(existing.Section),
+    posMenuIds: (derived.posMenus || []).map((menu) => menu.id),
+  };
+  const hasGuest = placements.some(
+    (row) => row.channel === "print" || row.channel === "digital",
   );
+  const fields = {
+    ...itemFieldsFromInput(payload, { requireSection: hasGuest }),
+    ...legacyFieldsFromPlacements(placements, tables),
+  };
   Object.assign(
     fields,
     drinkMetricsFields(fields["Drink type"], ingredients, inventoryById),
@@ -422,10 +543,17 @@ export async function updateMenuItem(env, itemId, input) {
   );
   const row = await updateRow(env, tables.items, itemId, fields);
   const savedIngredients = await replaceIngredients(env, tables, itemId, ingredients);
-  const item = mapItem(row);
-  item.ingredients = savedIngredients;
-  item.sectionId = String(linkValue(row.Section) ?? input.sectionId);
-  return item;
+  const savedPlacements = await replaceMenuPlacements(
+    env,
+    tables,
+    itemId,
+    placements,
+  );
+  return applyPlacementDerivedFields({
+    ...mapItem(row),
+    ingredients: savedIngredients,
+    placements: savedPlacements,
+  });
 }
 
 /**
@@ -491,8 +619,23 @@ export async function deleteMenuItem(env, itemId) {
     tables.ingredients,
     mine.map((row) => row.id),
   );
+  if (tables.menuPlacements) {
+    const placementRows = await listAllRows(env, tables.menuPlacements, {
+      filters: linkHasQuery("Menu item", itemId),
+    });
+    await deleteRowsInOrder(
+      env,
+      tables.menuPlacements,
+      placementRows.map((row) => row.id),
+    );
+  }
   await deleteRow(env, tables.items, itemId);
   return { id: String(itemId) };
+}
+
+/** Clear guest + POS placements (off till and off guest menus). */
+export async function archiveMenuItem(env, itemId) {
+  return updateMenuItem(env, itemId, { archived: true, placements: [] });
 }
 
 export async function setMenuItemPhoto(env, itemId, bytes, { filename, contentType, alt }) {
@@ -676,5 +819,42 @@ export async function deleteMenuSection(env, sectionId) {
   }
   await deleteRow(env, tables.sections, sectionId);
   return { id: String(sectionId) };
+}
+
+function lightspeedMenuFields(patch) {
+  const sku = text(patch?.lightspeedSku);
+  const skuAlt = text(patch?.lightspeedSkuAlt);
+  const name = text(patch?.lightspeedName);
+  const status = normalizeLightspeedStatus(patch?.lightspeedStatus);
+  const fields = {};
+  if (sku) fields["Lightspeed SKU"] = sku;
+  if (skuAlt) fields["Lightspeed SKU alt"] = skuAlt;
+  if (Object.prototype.hasOwnProperty.call(patch || {}, "lightspeedName")) {
+    fields["Lightspeed name"] = name;
+  }
+  if (Object.prototype.hasOwnProperty.call(patch || {}, "lightspeedMenuScreen")) {
+    fields["Lightspeed menu/screen"] = text(patch.lightspeedMenuScreen);
+  }
+  if (status) fields["Lightspeed status"] = status;
+  if (patch?.adoptName) {
+    const drinkName = text(patch.name || patch.lightspeedName);
+    if (drinkName) fields.Name = drinkName;
+  }
+  return fields;
+}
+
+/** Write Lightspeed SKU and match status onto Menu Items. */
+export async function applyLightspeedMenuMatch(env, patches) {
+  const tables = await resolveOpsTableIds(env);
+  const updated = [];
+  for (const patch of patches || []) {
+    const id = text(String(patch.id ?? patch._id ?? ""));
+    if (!id) continue;
+    const fields = lightspeedMenuFields(patch);
+    if (!Object.keys(fields).length) continue;
+    const row = await updateRow(env, tables.items, id, fields);
+    updated.push(mapItem(row));
+  }
+  return updated;
 }
 

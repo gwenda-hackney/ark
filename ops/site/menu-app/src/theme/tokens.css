@@ -43,8 +43,9 @@
   --t-slow: 320ms;
 
   /* ─── Type ───────────────────────────────────────────────────────────── */
-  --font-display: "Cormorant Garamond", Georgia, serif;
+  /* Ops is a tool UI: Roboto only. Cormorant / Lora stay on the marketing site. */
   --font: "Roboto", system-ui, sans-serif;
+  --font-display: var(--font);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --text-xs: 0.75rem; /* 12px — hints, meta */
   --text-sm: 0.8125rem; /* 13px — field labels */

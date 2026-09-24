@@ -1,32 +1,20 @@
 name: Web promote
 
-# Promote a production preview (code or content) to live gwenda.co.uk.
+# Manual only. Builds and deploys the release branch to gwenda.co.uk.
+# Refuses any other branch. Does not move release, and does not deploy ops.
 
-run-name: promote-${{ inputs.kind }}
+run-name: promote-release-to-production
 
 on:
   workflow_dispatch:
-    inputs:
-      kind:
-        description: Promote kind
-        required: true
-        type: choice
-        default: code
-        options:
-          - code
-          - content
-      preview_run_id:
-        description: Content preview run ID (required when kind=content)
-        required: false
-        type: string
 
 concurrency:
-  group: web-promote-${{ inputs.kind }}
+  group: web-promote-staging-to-production
   cancel-in-progress: false
 
 jobs:
   promote:
-    name: Promote ${{ inputs.kind }} to live
+    name: Promote staging to live
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -36,11 +24,10 @@ jobs:
       name: production
       url: https://gwenda.co.uk
     steps:
-      - name: Require content preview_run_id
-        if: inputs.kind == 'content'
+      - name: Require the release branch
         run: |
-          if [ -z "${{ inputs.preview_run_id }}" ]; then
-            echo "preview_run_id is required when kind=content" >&2
+          if [ "${{ github.ref }}" != "refs/heads/release" ]; then
+            echo "The live website promotes only from the release branch (got ${{ github.ref_name }})." >&2
             exit 1
           fi
 
@@ -48,45 +35,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: release
+          fetch-depth: 0
 
-      - name: Resolve release HEAD
-        if: inputs.kind == 'code'
-        id: release
+      - name: Resolve release SHA
+        id: sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Verify code preview
-        if: inputs.kind == 'code'
-        id: code_preview
-        run: cd marketing/web && node scripts/ci/verify-previewed-release.mjs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_SHA: ${{ steps.release.outputs.sha }}
-
-      - name: Verify content preview
-        if: inputs.kind == 'content'
-        id: content_preview
-        run: cd marketing/web && node scripts/ci/verify-content-preview.mjs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREVIEW_RUN_ID: ${{ inputs.preview_run_id }}
-
-      - name: Download code preview dist
-        if: inputs.kind == 'code'
-        uses: actions/download-artifact@v4
-        with:
-          name: production-dist
-          run-id: ${{ steps.code_preview.outputs.preview-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: marketing/web/dist
-
-      - name: Download content preview dist
-        if: inputs.kind == 'content'
-        uses: actions/download-artifact@v4
-        with:
-          name: production-content-dist
-          run-id: ${{ inputs.preview_run_id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: marketing/web/dist
 
       - name: Enable Corepack
         run: corepack enable
@@ -100,34 +53,51 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Clone staging dataset onto production
+        env:
+          SANITY_PROJECT_ID: pn5yjro6
+          SANITY_DATASET_SYNC_TOKEN: ${{ secrets.SANITY_DATASET_SYNC_TOKEN }}
+        run: |
+          node scripts/sync-sanity-datasets.mjs \
+            --direction staging-to-production \
+            --confirm production
+
       - name: Compute build metadata
         id: buildmeta
         run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
         env:
           GITHUB_REF_NAME: release
-          BUILD_COMMIT_SHA: ${{ inputs.kind == 'code' && steps.code_preview.outputs.sha || steps.content_preview.outputs.sha }}
+          BUILD_COMMIT_SHA: ${{ steps.sha.outputs.sha }}
 
-      - name: Pull Ark secrets from Bitwarden SM
+      - name: Pull web secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:ark:pull -- --github-env
+        run: npm run env:web:pull -- --github-env --profile production
 
-      - name: Deploy previewed dist to production branch
+      - name: Pull production ops Baserow for the artist build
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env --profile production
+
+      - name: Deploy production
         uses: ./.github/actions/deploy-pages
         with:
           pages-project: gwenda
           pages-production-branch: release
           deploy-branch: release
           wrangler-config: wrangler.toml
-          skip-build: "true"
           public-is-staging: "false"
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
           build-ref: ${{ steps.buildmeta.outputs.ref }}
           build-time: ${{ steps.buildmeta.outputs.time }}
           cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: production
+          baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
+          baserow-ops-database-id: "556507"
 
       - name: Ensure apex custom domain
         run: cd marketing/web && node scripts/ensure-pages-domain.mjs
@@ -160,8 +130,17 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
+      - name: Deploy production Studio
+        run: npm run studio:deploy
+        env:
+          SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
+          SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
+          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
+          EVENT_ADMIN_URL: https://gwenda.co.uk
+          EVENT_ADMIN_SECRET: ${{ secrets.EVENT_ADMIN_SECRET }}
+          BASEROW_RSVP_GRID_URL: ${{ vars.BASEROW_RSVP_GRID_URL }}
+
       - name: Tag production release
-        if: inputs.kind == 'code'
         run: cd marketing/web && node scripts/ci/tag-production-release.mjs
         env:
           RELEASE_VERSION: ${{ steps.buildmeta.outputs.version }}
@@ -170,8 +149,8 @@ jobs:
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"${{ inputs.kind == 'content' && 'Production content promoted to live' || 'Production deployed' }}","rows":[
-              ["Kind","`${{ inputs.kind }}`"],
+            {"title":"Release promoted to production","rows":[
+              ["Commit","[\\`${{ steps.sha.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.sha.outputs.sha }})"],
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Site","https://gwenda.co.uk"]
             ]}

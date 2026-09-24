@@ -222,7 +222,7 @@ async function main() {
   }
 
   if (flags.has("--seed-events-dev")) {
-    console.log("\nSeeding development events…");
+    console.log("\nSeeding staging events…");
     run("npm", ["run", "studio:seed:events:dev"], { quiet: false });
   }
 

@@ -75,9 +75,9 @@ console.error(
     `  coming soon placeholder: ${hasComingSoon}`,
     `  menu page empty: ${menuEmpty}`,
     "",
-    "Staging builds use the development dataset (gwenda-dev.sanity.studio).",
+    "Staging builds use the staging dataset. Drafts are ignored.",
     "Set GitHub secret SANITY_API_TOKEN to a Viewer token (separate from SANITY_DEPLOY_TOKEN).",
-    "Seed or publish menu content: npm run studio:seed:dev",
+    "Seed staging, then rebuild: npm run studio:seed:dev",
   ].join("\n"),
 );
 process.exit(1);

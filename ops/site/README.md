@@ -31,15 +31,18 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | Route | Content |
 |-------|---------|
 | `/` | Overview |
-| `/menu` | Recipes (Stock) |
+| `/menu` | Menu items (Stock) |
 | `/menu/new` | New recipe |
 | `/menu/:name` | Recipe detail (`/menu/negroni`) |
 | `/inventory` | Inventory (Stock) |
 | `/inventory/new` | New inventory item |
 | `/inventory/:name` | Inventory item detail |
-| `/lightspeed` | Lightspeed count reconcile (Stock) |
+| `/lightspeed` | Lightspeed POS reconcile (Stock) |
+| `/lightspeed/export` | Lightspeed POS export (Stock) |
+| `/lightspeed/menus` | Lightspeed POS menus (Stock) |
 | `/suppliers` | Wholesaler catalog (Stock) |
 | `/sections` | Guest menu sections |
+| `/web` | Website staging vs production, health, promote |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow App Config) |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |
@@ -80,6 +83,9 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Data | Store |
 |------|--------|
 | Recipes, ingredients, method, glass, garnish, ops photos | **Baserow** `Menu Items` + `Ingredients` |
+| Where a drink appears (print / digital / POS) | **Baserow** `Menu placements` (channel + section or POS menu/screen). Legacy Section / On print / On digital / POS menus fields are mirrored for compatibility. |
+| Lightspeed menus catalog (Fall 2026, Gwenda, …) | **Baserow** `POS Menus`. Manage at `/lightspeed/menus`. |
+| Lightspeed till screen path | **Baserow** `Menu placements` POS screen (also mirrored on Menu Items `Lightspeed menu/screen`). |
 | Menu chapters and groups (Our Formulas, Spritz, Draught Beer…) | **Baserow** `Menu Sections` (parent + order). Nested tree on `GET /api/menu`. Edit in the menu **Sections** panel. |
 | Bar stock / ABV catalog | **Baserow** `Inventory` |
 | Wholesalers, product pages, and pack prices | **Baserow** `Suppliers` plus junction `Inventory suppliers` (SKU, pack, trade price, product URL) |
@@ -88,7 +94,7 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into Sanity `menuItem` documents. It matches by stored Sanity ID or name, creates missing sections/items, then triggers the site rebuild webhook (staging → `gwenda-staging.pages.dev`).
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, then rebuilds `gwenda-staging.pages.dev`. Production is a clone of staging from ops Web. Do not edit production in Studio.
 
 ## Local
 
@@ -126,3 +132,21 @@ They load inside the shell via iframe; direct URLs still work.
 npm run deploy -w @gwenda/ops
 # or CI via apps.yml
 ```
+
+## Lightspeed item-list export (headless)
+
+Ops still matches a **Lightspeed formatted** CSV from Back Office (`Menu` → `Item list` → `Export`). The browser job only downloads that file. It does not stamp SKUs, import items, or archive.
+
+```bash
+npm run lightspeed:export -w @gwenda/ops -- --probe
+npm run lightspeed:export -w @gwenda/ops -- --headed --repeat 2
+npm run lightspeed:export -w @gwenda/ops -- --check-file ops/site/functions/_lib/fixtures/lightspeed-item-library.csv
+```
+
+Credentials live in Secrets Manager as `LIGHTSPEED_BO_EMAIL` / `LIGHTSPEED_BO_PASSWORD` (optional `LIGHTSPEED_BO_TOTP`). Use a dedicated non-owner Back Office user, not the till owner. `npm run env:ops:pull` writes them into `.env.ops`. They are not Cloudflare Pages secrets.
+
+CI: [Lightspeed item export](../../.github/workflows/lightspeed-export.yml) (`workflow_dispatch`). `--preview` POSTs the CSV to `/api/inventory/lightspeed` as `preview` only. That needs `LIGHTSPEED_OPS_EMAIL` on the ops Users list plus `OPS_SESSION_SECRET`.
+
+The live login form uses Cloudflare Turnstile. If that challenge does not auto-pass (common on GitHub-hosted runners), run `--headed` on the nest instead of scheduling the Action.
+
+If the script exits **2** (SSO, 2FA without a stored TOTP, or captcha), stop. The stable path is the paid K-Series **Items GET**, not more browser automation.

@@ -2,6 +2,7 @@
 	/**
 	 * Right-hand drawer with backdrop. Portaled to body so it is not clipped
 	 * by editor overflow. Escape and backdrop click close.
+	 * At the shell mobile breakpoint the panel covers the page.
 	 */
 	import type { Snippet } from "svelte";
 	import { fade, fly } from "svelte/transition";
@@ -98,9 +99,19 @@
 		padding-bottom: env(safe-area-inset-bottom, 0px);
 	}
 
-	@media (max-width: 720px) {
+	/* Keep in sync with SHELL_MOBILE_MAX_PX. Full-page sheet, no side gutter. */
+	@media (max-width: 900px) {
 		.root {
-			grid-template-columns: 0 minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.backdrop {
+			display: none;
+		}
+
+		.panel {
+			border-left: 0;
+			padding-top: env(safe-area-inset-top, 0px);
 		}
 	}
 </style>

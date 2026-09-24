@@ -10,6 +10,10 @@
  * without changing the status model the UI already understands.
  */
 import { flattenIngredientsForMenu } from "./menu.js";
+import {
+  digitalSectionId,
+  hasDigitalPlacement,
+} from "./menu-placements.js";
 
 export const PUBLISH_SNAPSHOTS_FIELD = "Publish snapshots";
 
@@ -100,6 +104,11 @@ export function guestPackagedMeta(item) {
 /** Guest-facing payload for marketing site Sanity docs. */
 export function websiteProjection(item) {
   const packaged = guestPackagedMeta(item);
+  const digitalSection = digitalSectionId(item);
+  const onDigital =
+    Array.isArray(item?.placements) && item.placements.length
+      ? hasDigitalPlacement(item)
+      : item?.onDigitalMenu !== false;
   return {
     name: text(item?.name),
     description: guestDescription(item),
@@ -111,10 +120,25 @@ export function websiteProjection(item) {
     volume: packaged.volume,
     producer: packaged.producer,
     // Baserow section row id — detects moves; Sanity ref is resolved at publish.
-    sectionId: text(item?.sectionId || item?.section?._id),
-    onDigitalMenu: item?.onDigitalMenu !== false,
+    sectionId: text(digitalSection || item?.sectionId || item?.section?._id),
+    onDigitalMenu: onDigital,
     photo: photoFingerprint(item),
   };
+}
+
+/** Snapshots may still hold cocktail ABV/volume from before packaged-only meta. */
+export function normalizeWebsitePayload(payload) {
+  const next = payload && typeof payload === "object" ? { ...payload } : {};
+  const packaged = guestPackagedMeta({
+    drinkType: next.drinkType,
+    abv: next.abv,
+    volume: next.volume,
+    producer: next.producer,
+  });
+  next.abv = packaged.abv;
+  next.volume = packaged.volume;
+  next.producer = packaged.producer;
+  return next;
 }
 
 function canonicalValue(value) {
@@ -134,12 +158,15 @@ export function projectionHash(payload) {
 }
 
 export function projectionsEqual(a, b) {
-  return projectionHash(a) === projectionHash(b);
+  return (
+    projectionHash(normalizeWebsitePayload(a)) ===
+    projectionHash(normalizeWebsitePayload(b))
+  );
 }
 
 export function changedFields(current, previous) {
-  const left = current && typeof current === "object" ? current : {};
-  const right = previous && typeof previous === "object" ? previous : {};
+  const left = normalizeWebsitePayload(current);
+  const right = normalizeWebsitePayload(previous);
   return WEBSITE_FIELDS.filter((field) => {
     const a = left[field];
     const b = right[field];
@@ -254,7 +281,7 @@ export function websiteTargetStatus(item, target) {
     // already be on the website (seeded or published before snapshots).
     return { status: "unknown" };
   }
-  if (projectionsEqual(payload, snap.payload) || snap.hash === projectionHash(payload)) {
+  if (projectionsEqual(payload, snap.payload)) {
     return { status: "published" };
   }
   return {

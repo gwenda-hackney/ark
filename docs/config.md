@@ -26,7 +26,9 @@ Ops uses **two Baserow workspaces** so a local token cannot see production data:
 | Env | Workspace | Database id | Token (SM) |
 |-----|-----------|-------------|------------|
 | production | `Gwenda` (`208709`) | Ops DB `556507` | `BASEROW_API_KEY_PRODUCTION` |
-| local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY` |
+| local | `Gwenda Dev` (Free) | Ops clone (see `.baserow-ops-dev.json`) | `BASEROW_API_KEY_LOCAL` → `.env.ops` `BASEROW_API_KEY` |
+
+Never fall back across envs: Pages must use `_PRODUCTION`; local must use `_LOCAL`. Legacy SM key `BASEROW_API_KEY` is accepted as local-only (`npm run env:ops:pull -- --migrate-sm` copies it to `_LOCAL`).
 
 Each workspace holds the **Gwenda Ops** database and, in Dev, the staging website database.
 
@@ -51,14 +53,20 @@ Then mint/refresh scoped database tokens (script prints next steps). Local `ops-
 npm run env:ops:pull
 ```
 
-Writes local `BASEROW_API_KEY`, OAuth/session secrets, and (from Ark/Web) `SANITY_API_TOKEN` / `DEPLOY_WEBHOOK_SECRET`. Keeps `BASEROW_OPS_DATABASE_ID` for the dev clone. Also refreshes `.env.ark`.
+Writes local `BASEROW_API_KEY` (from SM `_LOCAL`), keeps `BASEROW_API_KEY_PRODUCTION` alongside for Pages, plus OAuth/session secrets and (from Ark/Web) `SANITY_API_TOKEN` / `DEPLOY_WEBHOOK_SECRET`. Keeps `BASEROW_OPS_DATABASE_ID` for the dev clone. Also refreshes `.env.ark`.
+
+```bash
+npm run env:ops:pull                              # profile=local
+npm run env:ops:pull -- --migrate-sm              # once: legacy BASEROW_API_KEY → _LOCAL
+npm run env:ops:pull -- --profile production      # fail if PRODUCTION missing
+```
 
 **Not hand-edited for production:**
 
 | Value | Where |
 |-------|--------|
 | Prod `BASEROW_OPS_DATABASE_ID` | `ops/site/wrangler.toml` `[vars]` = `556507` |
-| Prod Baserow token | SM `BASEROW_API_KEY_PRODUCTION` → Pages via `ops-secrets` |
+| Prod Baserow token | SM `BASEROW_API_KEY_PRODUCTION` → Pages `BASEROW_API_KEY` via `ops-secrets` (then redeploy) |
 | `CLOUDFLARE_ACCOUNT_ID` / CF tokens | SM Ark → `.env.ark` (GitHub still has copies for deploy jobs) |
 | `SITE_ENV` | `local` via ops-dev; `production` in wrangler `[vars]` |
 
@@ -70,9 +78,17 @@ Writes local `BASEROW_API_KEY`, OAuth/session secrets, and (from Ark/Web) `SANIT
 |-----|---------|
 | `pour_target.*` | House pour-cost % by drink type |
 | `sanity.project_id` | Sanity project |
-| `sanity.dataset` | Per-env dataset (`local`/`staging` → development, `production` → production) |
+| `sanity.dataset` | Optional default. Editorial writes always go to `staging`. Production is clone-only. |
 | `site_deploy.webhook_url` | Studio → site rebuild webhook base URL |
 | `google.oauth_client_id` | Google OAuth client id (public-ish; secret stays in SM) |
+| `google.drive_events_folder_id` | Shared Drive folder for event galleries. Hero images stay in Baserow and are not copied here. **Env-specific**: `production` → `Events/`, `local` → `Events-dev/`. Not an env var. |
+| `google.calendar_id` | Google Calendar that receives ops nights. **Env-specific**: production is the live calendar, local is the dev calendar. |
+
+Lightspeed Back Office export (`LIGHTSPEED_BO_EMAIL`, `LIGHTSPEED_BO_PASSWORD`, optional `LIGHTSPEED_BO_TOTP` / `LIGHTSPEED_OPS_EMAIL`) lives in **Ark/Ops** SM for the nest script and [Lightspeed item export](../.github/workflows/lightspeed-export.yml) Action. Do not put those on Pages or in App Config.
+
+Gallery uploads use `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` in **Ark/Ops** (Pages + local). Each event folder holds a `gallery/` child, and that is the only place event images are written in Drive. The What's on hero stays on the event in Baserow. The service account must be a Content manager on the Shared Drive. Folder roots live only in App Config (`google.drive_events_folder_id` per Env).
+
+Ops nights are written to Google Calendar with that same service account (`gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`, calendar events scope only). The Calendar API must be enabled on GCP project `gwenda-ops`. The calendar is a secondary calendar, so Workspace **General** settings must allow outsiders to change secondary calendars, and the calendar is shared with that account as **Make changes to events**. Production reads `google.calendar_id` from App Config, and falls back to `GOOGLE_CALENDAR_ID` in `ops/site/wrangler.toml`. Local ops (`SITE_ENV=local`) uses the local App Config row, or `GOOGLE_CALENDAR_ID_LOCAL` in `.env.ops`. Saving or deleting a night updates that env's calendar. Website Publish stays separate.
 
 Do **not** put credentials in App Config.
 
@@ -90,12 +106,14 @@ Marketing uses the same two workspaces so a local/staging token cannot see live 
 | Env | Workspace | Database id | Token (SM) |
 |-----|-----------|-------------|------------|
 | production | `Gwenda` (`208709`) | Website DB `461843` | `BASEROW_API_KEY_MARKETING_PRODUCTION` |
-| staging + local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_API_KEY_MARKETING` |
+| staging | `Gwenda` (`208709`) | Website Staging `564496` | `BASEROW_API_KEY_MARKETING_STAGING` (falls back to `BASEROW_API_KEY_MARKETING` until minted) |
+| local | `Gwenda Dev` (Free) | Website clone (see `.baserow-web-dev.json`) | `BASEROW_API_KEY_MARKETING` |
 
 Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribers`, `Event Invites`, `Form Submissions`). The marketing token is scoped to that env's Website database, so runtime does not need a numeric database id. `BASEROW_DATABASE_ID` is optional (only if a token can see more than one table with the same name). Studio's RSVP grid URL still uses Baserow's numeric UI path.
 
 ```bash
-npm run clone:baserow-web-dev                    # once: copy staging website DB into Gwenda Dev
+npm run clone:baserow-web-dev                    # once: copy website DB into Gwenda Dev
+npm run clone:baserow-web-staging                # once: Website Staging in the paid Gwenda workspace
 npm run env:web:push                             # seed SM from filled .env keys (once)
 npm run env:web:pull                             # SM → .env.web (Dev website key)
 npm run setup:baserow-form-submissions           # create/repair Form Submissions table (JWT)
@@ -103,7 +121,7 @@ gh workflow run web-secrets.yml -f profile=staging
 gh workflow run web-secrets.yml -f profile=production
 ```
 
-SM `BASEROW_API_KEY_MARKETING` is the Gwenda Dev website token (local + staging Pages). Production Pages and Mailchimp use `BASEROW_API_KEY_MARKETING_PRODUCTION`. Ops Free-workspace `BASEROW_API_KEY` cannot see Subscribers. Apple Wallet PEMs stay on GitHub for now.
+SM `BASEROW_API_KEY_MARKETING` is the Gwenda Dev website token (local). Staging Pages uses `BASEROW_API_KEY_MARKETING_STAGING` when present. Production Pages and Mailchimp use `BASEROW_API_KEY_MARKETING_PRODUCTION`. Do not copy subscriber or RSVP rows from staging to production.
 
 SMTP host/port/user remain in marketing wrangler `[vars]`. Form From / Reply-To / notify addresses live on the Sanity `form` document. Only `SMTP_PASSWORD` is a Secrets Manager / Pages secret.
 

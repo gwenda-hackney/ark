@@ -38,8 +38,9 @@
   --t-slow: 320ms;
 
   /* ─── Type ───────────────────────────────────────────────────────────── */
-  --font-display: "Cormorant Garamond", Georgia, serif;
-  --font: "Lora", Georgia, serif;
+  /* Ops tool UI: Roboto only. Brand serifs are marketing-only. */
+  --font: "Roboto", system-ui, sans-serif;
+  --font-display: var(--font);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* ─── Gwenda dark palette (semantic) ─────────────────────────────────── */

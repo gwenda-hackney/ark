@@ -6,7 +6,15 @@ const domain = "https://gwenda.co.uk";
 const isStaging = process.env.PUBLIC_IS_STAGING === "true";
 
 /** Public pages that should appear in search indexes. */
-const indexablePaths = ["/", "/privacy/", "/events/", "/menu/"];
+const indexablePaths = [
+  "/",
+  "/privacy/",
+  "/events/",
+  "/menu/",
+  "/whats-on/schedule/",
+  "/artists/current/",
+  "/acknowledgements/",
+];
 
 /** Well-known AI crawlers and browsing agents (explicit Allow in robots.txt). */
 const AI_BOT_AGENTS = [
@@ -35,7 +43,7 @@ const AI_BOT_AGENTS = [
   "YouBot",
 ];
 
-const DISALLOWED_PATHS = ["/gate/", "/preview/", "/thanks/", "/api/"];
+const DISALLOWED_PATHS = ["/gate/", "/preview/", "/thanks/", "/about/", "/api/"];
 
 function buildRobotsTxt({ includeSitemap }) {
   const signal = "Content-Signal: search=yes,ai-input=yes,ai-train=yes";

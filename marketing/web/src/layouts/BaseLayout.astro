@@ -19,6 +19,8 @@ interface Props {
   socialDescription?: string;
   /** Floating Book a table CTA. Off on form pages. */
   showBooking?: boolean;
+  /** Keep draft look-pages out of search results. */
+  noindex?: boolean;
 }
 
 const {
@@ -27,6 +29,7 @@ const {
   socialTitle,
   socialDescription,
   showBooking = true,
+  noindex = false,
 } = Astro.props;
 
 const siteOrigin = isStaging
@@ -36,7 +39,10 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 ---
 
 <!doctype html>
-<html lang="en">
+<html
+  lang="en"
+  data-site-env={import.meta.env.DEV ? "local" : isStaging ? "staging" : "production"}
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -54,7 +60,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
       content={`${siteConfig.location.geo.latitude}, ${siteConfig.location.geo.longitude}`}
     />
     {
-      isStaging ? (
+      isStaging || noindex ? (
         <meta name="robots" content="noindex, nofollow" />
       ) : (
         <meta name="robots" content="index, follow" />
@@ -62,7 +68,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     }
     <SocialMeta
       title={socialTitle ?? title}
-      description={socialDescription ?? siteConfig.social.shareDescription}
+      description={socialDescription ?? description}
       url={canonicalUrl}
     />
     <StructuredData

@@ -350,7 +350,7 @@ Requires: npx sanity login (project Administrator).`);
 
       const localUpdates = {
         SANITY_PROJECT_ID: projectId,
-        SANITY_DATASET: "development",
+        SANITY_DATASET: "staging",
         SANITY_API_TOKEN: keys[KEEP.localEditor.label],
       };
       const sharedCi = {
@@ -369,7 +369,7 @@ Requires: npx sanity login (project Administrator).`);
       upsertBitwardenNote(
         ENV_ITEMS.staging,
         resolve(ROOT, "scripts/env-templates/staging.env"),
-        { ...sharedCi, SANITY_DATASET: "development" },
+        { ...sharedCi, SANITY_DATASET: "staging" },
         opts,
       );
       upsertBitwardenNote(
@@ -390,7 +390,7 @@ Requires: npx sanity login (project Administrator).`);
   if (!opts.dryRun && keys[KEEP.localEditor.label]?.startsWith("sk")) {
     const secrets = new Map([
       ["SANITY_PROJECT_ID", projectId],
-      ["SANITY_DATASET", "development"],
+      ["SANITY_DATASET", "staging"],
       ["SANITY_API_TOKEN", keys[KEEP.localEditor.label]],
     ]);
     writeLocalEnv(secrets);

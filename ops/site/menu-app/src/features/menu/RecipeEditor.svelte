@@ -18,6 +18,7 @@
 		DRINK_TYPES,
 		GLASSWARE,
 		ICE_OPTIONS,
+		defaultPosMenus,
 		defaultServeQuantity,
 		drinkTypeLabel,
 		flattenIngredientsForMenu,
@@ -25,16 +26,14 @@
 		hasRecipe,
 		normalizeCocktailType,
 		normalizeDrinkType,
-		serveTabLabel,
-		publishFieldLabel,
-		publishHint,
-		formatPublishDiff,
 		type CocktailType,
 		type DrinkType,
 		type Ingredient,
 		type InventoryItem,
 		type MenuItem,
+		type MenuPlacement,
 		type MenuSection,
+		type PosMenu,
 	} from "../../lib/types";
 	import { flattenMenuSections, sectionPathLabel } from "../../lib/menu-sections";
 	import {
@@ -54,7 +53,6 @@
 	import {
 		marginTone,
 		recipePriceAnalysis,
-		snapGbp,
 	} from "../../lib/cost";
 	import { pourSettings } from "../../lib/settings.svelte";
 	import { namesClash } from "../../../../functions/_lib/spa-path.js";
@@ -79,8 +77,14 @@
 	import { Icon } from "../../shell";
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
+	import MethodEditor from "./MethodEditor.svelte";
 	import PourCostPanel from "./PourCostPanel.svelte";
 	import RecipeAnalysisPanel from "./RecipeAnalysisPanel.svelte";
+	import MenuPlacementsTable from "./MenuPlacementsTable.svelte";
+	import {
+		collectPosScreenSuggestions,
+		defaultPosScreenForItem,
+	} from "../../../../functions/_lib/lightspeed-stock.js";
 
 	const PHOTO_KEY = "ops.menu.photo";
 
@@ -97,10 +101,12 @@
 		sections,
 		inventory = $bindable([] as InventoryItem[]),
 		menuItems = [] as MenuItem[],
+		posMenus = [] as PosMenu[],
 		busy = false,
 		busyLabel = "Working…",
 		cleanToken = 0,
 		onsave,
+		onprint,
 		ondelete,
 		onphoto,
 		onphotoremove,
@@ -114,6 +120,7 @@
 		sections: MenuSection[];
 		inventory?: InventoryItem[];
 		menuItems?: MenuItem[];
+		posMenus?: PosMenu[];
 		busy?: boolean;
 		busyLabel?: string;
 		/** Bumped after a successful save so Close no longer prompts. */
@@ -121,6 +128,7 @@
 		tab?: string;
 		tabBase?: string;
 		onsave: () => void | Promise<void>;
+		onprint?: () => void | Promise<void>;
 		ondelete: () => void | Promise<void>;
 		onphoto: (file: File) => void | Promise<void>;
 		onphotoremove: () => void | Promise<void>;
@@ -146,15 +154,17 @@
 	let restoring = false;
 	let aiError = $state("");
 	let aiBusy = $state(false);
-	let pourDraft = $state("");
-	let pourFocused = $state(false);
+
+	const screenSuggestions = $derived(
+		collectPosScreenSuggestions(menuItems, (posMenus || []).map((menu) => menu.name)),
+	);
 
 	function easeOut(t: number): number {
 		return 1 - Math.pow(1 - t, 3.2);
 	}
 
 	function onTabChange(id: string) {
-		const order = ["details", "recipe", "analysis"];
+		const order = ["details", "menu", "cost", "analysis"];
 		const from = order.indexOf(tabPrev);
 		const to = order.indexOf(id);
 		if (from >= 0 && to >= 0 && from !== to) {
@@ -179,7 +189,27 @@
 		const nextIngredients = (draft.ingredients || []).map((ing) => ({
 			...ing,
 		}));
-		item = { ...item, ...draft, ingredients: nextIngredients };
+		const { posMenuIds, placements: draftPlacements, ingredients: _ings, ...rest } =
+			draft as typeof draft & { placements?: string };
+		const ids = new Set(String(posMenuIds || "").split(",").filter(Boolean));
+		const nextPosMenus = (posMenus || []).filter((menu) =>
+			ids.has(String(menu.id)),
+		);
+		let nextPlacements = item.placements || [];
+		if (draftPlacements) {
+			try {
+				nextPlacements = JSON.parse(draftPlacements) as MenuPlacement[];
+			} catch {
+				/* keep */
+			}
+		}
+		item = {
+			...item,
+			...rest,
+			posMenus: nextPosMenus,
+			placements: nextPlacements,
+			ingredients: nextIngredients,
+		};
 		ingredients = nextIngredients;
 		restoring = false;
 	}
@@ -257,17 +287,10 @@
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const hrefFor = (id: string) => menuTabPath(tabBase, id);
 		return [
-			{ id: "details", label: "Details", href: hrefFor("details") },
-			{
-				id: "recipe",
-				label: serveTabLabel(drinkType),
-				href: hrefFor("recipe"),
-			},
-			{
-				id: "analysis",
-				label: "Analysis",
-				href: hrefFor("analysis"),
-			},
+			{ id: "details", label: "Build", href: hrefFor("details") },
+			{ id: "menu", label: "Menu", href: hrefFor("menu") },
+			{ id: "cost", label: "Cost", href: hrefFor("cost") },
+			{ id: "analysis", label: "Analysis", href: hrefFor("analysis") },
 		];
 	});
 
@@ -311,8 +334,6 @@
 			history = emptyDraftHistory();
 			aiError = "";
 			aiBusy = false;
-			pourFocused = false;
-			pourDraft = "";
 			clearUnsavedGuard();
 			return;
 		}
@@ -325,8 +346,6 @@
 		discardOpen = false;
 		aiError = "";
 		aiBusy = false;
-		pourFocused = false;
-		pourDraft = "";
 	});
 
 	$effect(() => {
@@ -493,31 +512,57 @@
 		item = { ...item, [field]: value };
 	}
 
-	function pourText(value: number | null | undefined): string {
-		if (value == null || !Number.isFinite(value)) return "";
-		const rounded = Math.round(value * 10) / 10;
-		return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+	function setPlacements(next: MenuPlacement[]) {
+		if (!item) return;
+		remember("placements");
+		const ensured = ensurePosPlacements(next);
+		const print = ensured.find((row) => row.channel === "print");
+		const digital = ensured.find((row) => row.channel === "digital");
+		const pos = ensured.filter((row) => row.channel === "pos");
+		item = {
+			...item,
+			placements: ensured,
+			onPrintMenu: Boolean(print),
+			onDigitalMenu: Boolean(digital),
+			sectionId: print?.sectionId || digital?.sectionId || item.sectionId,
+			posMenus: pos
+				.map((row) => {
+					const menu = (posMenus || []).find(
+						(entry) => String(entry.id) === String(row.posMenuId),
+					);
+					return menu
+						? { id: String(menu.id), name: menu.name }
+						: row.posMenuId
+							? { id: String(row.posMenuId), name: row.posMenuName || "" }
+							: null;
+				})
+				.filter(Boolean) as PosMenu[],
+			lightspeedMenuScreen: [
+				...new Set(pos.map((row) => row.posScreen).filter(Boolean)),
+			].join(","),
+		};
 	}
 
-	function priceFieldText(value: number): string {
-		return Number.isInteger(value) ? String(value) : value.toFixed(1);
-	}
-
-	function commitHeaderPour() {
-		pourFocused = false;
-		const cost = primaryServe?.drinkCost;
-		const n = Number(String(pourDraft).replace(/%/g, "").trim());
-		if (
-			cost == null ||
-			cost <= 0 ||
-			!Number.isFinite(n) ||
-			n <= 0 ||
-			n >= 100
-		) {
-			pourDraft = pourText(primaryServe?.pourCost);
-			return;
-		}
-		patch("price", priceFieldText(snapGbp(cost / (n / 100))));
+	function ensurePosPlacements(list: MenuPlacement[]): MenuPlacement[] {
+		const hasGuest = list.some(
+			(row) => row.channel === "print" || row.channel === "digital",
+		);
+		const hasPos = list.some((row) => row.channel === "pos");
+		if (!hasGuest || hasPos) return list;
+		const defaults = defaultPosMenus(posMenus);
+		const screen =
+			defaultPosScreenForItem(item) ||
+			screenSuggestions[0] ||
+			"Signature Cocktails";
+		return [
+			...list,
+			...defaults.map((menu) => ({
+				channel: "pos" as const,
+				posMenuId: String(menu.id),
+				posMenuName: menu.name,
+				posScreen: screen,
+			})),
+		];
 	}
 
 	function setDrinkType(next: DrinkType) {
@@ -608,15 +653,17 @@
 			.filter(Boolean)
 			.join(" · "),
 	);
-	const canSetPour = $derived(
-		primaryServe?.drinkCost != null && primaryServe.drinkCost > 0,
-	);
+	const headerPourLabel = $derived.by(() => {
+		const value = primaryServe?.pourCost;
+		if (value == null || !Number.isFinite(value)) return "";
+		const rounded = Math.round(value * 10) / 10;
+		const text = Number.isInteger(rounded)
+			? String(rounded)
+			: rounded.toFixed(1);
+		return `${text}% pour`;
+	});
 	const priceFieldLabel = $derived(primaryServe?.label || "Price");
 
-	$effect(() => {
-		if (pourFocused) return;
-		pourDraft = pourText(primaryServe?.pourCost);
-	});
 	const canAnalyze = $derived(
 		Boolean(
 			analysis &&
@@ -731,7 +778,7 @@
 					tabindex={photoOpen ? 0 : -1}
 					onclick={() => setPhotoOpen(false)}
 				>
-					<Icon name="chevron-left" size={16} />
+					<Icon name="chevron-right" size={16} />
 				</button>
 				{#if photoUrl}
 					<img
@@ -844,6 +891,21 @@
 									{/snippet}
 								</Button>
 							{/if}
+							{#if item._id && item.name?.trim()}
+								<Button
+									variant="ghost"
+									size="sm"
+									type="button"
+									disabled={busy}
+									title="Print recipe"
+									aria-label="Print recipe"
+									onclick={() => void onprint?.()}
+								>
+									{#snippet icon()}
+										<Icon name="print" size={15} />
+									{/snippet}
+								</Button>
+							{/if}
 							<Button
 								variant="ghost"
 								size="sm"
@@ -926,65 +988,35 @@
 								<span class="price-alt tnum">/ {item.priceAlt}</span>
 							{/if}
 						</div>
-						<label class="pour-row">
-							<span class="sr-only">{priceFieldLabel} pour cost</span>
-							<input
-								class="pour-input tnum"
-								id="f-pour"
+						{#if headerPourLabel}
+							<p
+								class="pour-readout tnum"
 								class:up={headerPourTone === "up"}
 								class:down={headerPourTone === "down"}
 								class:loss={headerPourTone === "loss"}
-								class:muted={headerPourTone === "muted" ||
-									primaryServe?.pourCost == null}
-								inputmode="decimal"
-								autocomplete="off"
-								disabled={!canSetPour}
-								placeholder={canSetPour ? "" : "n/a"}
-								title={canSetPour
-									? `Pour cost. Type a percent to set the ${priceFieldLabel.toLowerCase()} price.`
-									: "Need a drink cost before pour can be set."}
-								value={pourDraft}
-								onfocus={() => (pourFocused = true)}
-								oninput={(e) =>
-									(pourDraft = (
-										e.currentTarget as HTMLInputElement
-									).value)}
-								onblur={commitHeaderPour}
-								onkeydown={(e) => {
-									if (e.key === "Enter") {
-										e.preventDefault();
-										commitHeaderPour();
-										(e.currentTarget as HTMLInputElement).blur();
-									}
-									if (e.key === "Escape") {
-										e.preventDefault();
-										pourFocused = false;
-										pourDraft = pourText(primaryServe?.pourCost);
-										(e.currentTarget as HTMLInputElement).blur();
-									}
-								}}
-							/>
-							{#if canSetPour || pourDraft}
-								<span class="pour-suffix" aria-hidden="true">%</span>
-							{/if}
-						</label>
+								class:muted={headerPourTone === "muted"}
+								title="Pour cost from recipe cost and sell price"
+							>
+								{headerPourLabel}
+							</p>
+						{/if}
 						{#if headerMeta}
 							<p class="meta-line tnum">{headerMeta}</p>
 						{/if}
 					</div>
 				</header>
 
-				<div class="tab-scroll scrollbar-fade">
-					<div class="tabs">
-						<Segmented
-							value={tab}
-							items={tabs}
-							tone="soft"
-							size="sm"
-							ariaLabel="Drink sections"
-						/>
-					</div>
+				<div class="tabs">
+					<Segmented
+						value={tab}
+						items={tabs}
+						tone="soft"
+						size="sm"
+						ariaLabel="Drink sections"
+					/>
+				</div>
 
+				<div class="tab-scroll scrollbar-fade">
 					<div class="tab-body">
 					{#key tab}
 						<div
@@ -998,7 +1030,7 @@
 						>
 					{#if tab === "details"}
 						<section class="block">
-							<div class="grid">
+							<div class="grid identity">
 								<Field label="Drink type" for="f-drink-type">
 									<NativeSelect
 										id="f-drink-type"
@@ -1032,29 +1064,7 @@
 												)}
 										/>
 									</Field>
-								{/if}
-								<Field label="Section" for="f-section">
-									<NativeSelect
-										id="f-section"
-										size="sm"
-										options={sectionOptions}
-										value={item.sectionId ||
-											item.section?._ref ||
-											item.section?._id ||
-											""}
-										onchange={(e) =>
-											patch(
-												"sectionId",
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								</Field>
-							</div>
-						</section>
-
-						{#if !showRecipe}
-							<section class="block">
-								<div class="grid">
+								{:else}
 									<Field label="Producer" for="f-producer-d">
 										<TextField
 											id="f-producer-d"
@@ -1067,6 +1077,75 @@
 												)}
 										/>
 									</Field>
+								{/if}
+								<div class="notes">
+									<Field
+										label="Tasting note"
+										for="f-notes"
+										tooltip="Short line under the name."
+									>
+										<TextField
+											id="f-notes"
+											size="sm"
+											value={item.notes || ""}
+											placeholder="e.g. Floral fizz"
+											oninput={(e) =>
+												patch(
+													"notes",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+								</div>
+								{#if showRecipe}
+									<Field
+										label="ABV"
+										for="f-abv"
+										tooltip="From inventory for linked ingredients. Override or recalculate after stock ABV changes."
+									>
+										{#snippet actions()}
+											<Button
+												variant="ghost"
+												size="xs"
+												type="button"
+												aria-label="Recalculate from recipe"
+												title="Recalculate ABV and volume from recipe"
+												disabled={!canRecalcRecipe}
+												onclick={recalculateRecipeMetrics}
+											>
+												{#snippet icon()}
+													<Icon name="refresh" />
+												{/snippet}
+											</Button>
+										{/snippet}
+										<TextField
+											id="f-abv"
+											size="sm"
+											value={item.abv || ""}
+											oninput={(e) =>
+												patch(
+													"abv",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+									<Field
+										label="Volume"
+										for="f-volume"
+										tooltip="From recipe volumes. Override or recalculate with ABV after stock changes."
+									>
+										<TextField
+											id="f-volume"
+											size="sm"
+											value={item.volume || ""}
+											oninput={(e) =>
+												patch(
+													"volume",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+								{:else}
 									<Field label="ABV" for="f-abv-d">
 										<TextField
 											id="f-abv-d"
@@ -1079,185 +1158,22 @@
 												)}
 										/>
 									</Field>
-									<div class="full">
-										<Field label="Volume" for="f-volume-d">
-											<TextField
-												id="f-volume-d"
-												size="sm"
-												value={item.volume || ""}
-												oninput={(e) =>
-													patch(
-														"volume",
-														(e.currentTarget as HTMLInputElement)
-															.value,
-													)}
-											/>
-										</Field>
-									</div>
-								</div>
-							</section>
-						{/if}
-
-						<section class="block">
-							<p class="section-title">Menu</p>
-							<div class="grid">
-								<div class="full">
-									<label class="switch">
-										<input
-											id="f-on-menu"
-											type="checkbox"
-											checked={item.onDigitalMenu !== false}
-											onchange={(e) =>
-												patch(
-													"onDigitalMenu",
-													(e.currentTarget as HTMLInputElement)
-														.checked,
-												)}
-										/>
-										<span class="switch-ui" aria-hidden="true"></span>
-										<span class="switch-label">
-											{item.onDigitalMenu !== false
-												? "Visible On Website"
-												: "Not Visible on Website"}
-										</span>
-									</label>
-									{#if item.onDigitalMenu === false}
-										<p class="hint">
-											Not on the digital menu. Preview and live stay as they
-											are until you turn this on and publish.
-										</p>
-									{:else}
-										<p class="hint">{publishHint(item.publish)}</p>
-										{#if item.publish?.staging?.diff?.length || item.publish?.production?.diff?.length}
-											<ul class="publish-diff">
-												{#each item.publish?.staging?.diff || [] as change (`staging-${change.field}`)}
-													<li>
-														Preview · {publishFieldLabel(change.field)}:
-														{formatPublishDiff(change)}
-													</li>
-												{/each}
-												{#each item.publish?.production?.diff || [] as change (`live-${change.field}`)}
-													<li>
-														Live · {publishFieldLabel(change.field)}:
-														{formatPublishDiff(change)}
-													</li>
-												{/each}
-											</ul>
-										{/if}
-									{/if}
-								</div>
-								<div class="full">
-									<Field
-										label="Tasting note"
-										for="f-notes"
-										tooltip="Short line under the name on the website menu."
-									>
+									<Field label="Volume" for="f-volume-d">
 										<TextField
-											id="f-notes"
+											id="f-volume-d"
 											size="sm"
-											value={item.notes || ""}
+											value={item.volume || ""}
 											oninput={(e) =>
 												patch(
-													"notes",
+													"volume",
 													(e.currentTarget as HTMLInputElement).value,
 												)}
 										/>
 									</Field>
-								</div>
-								<div class="full">
-									<Field
-										label="Menu description"
-										for="f-description"
-										tooltip="Longer description guests see on the website menu."
-									>
-										{#snippet actions()}
-										{#if showRecipe}
-											<Button
-												variant="ghost"
-												size="xs"
-												type="button"
-												aria-label="Create from ingredients"
-												title="Create from ingredients"
-												disabled={!flattenIngredientsForMenu(
-													ingredients,
-												)}
-												onclick={createMenuLineFromIngredients}
-											>
-												{#snippet icon()}
-													<Icon name="from-list" size={14} />
-												{/snippet}
-											</Button>
-										{/if}
-									{/snippet}
-										<TextArea
-											id="f-description"
-											rows={4}
-											value={item.description || ""}
-											oninput={(e) =>
-												patch(
-													"description",
-													(e.currentTarget as HTMLTextAreaElement)
-														.value,
-												)}
-										/>
-									</Field>
-								</div>
+								{/if}
 							</div>
 						</section>
-					{:else if tab === "recipe"}
-						{#if showRecipe}
-						<section class="block">
-							<div class="grid">
-								<Field
-									label="ABV"
-									for="f-abv"
-									tooltip="From inventory for linked ingredients. Recalculate after stock ABV changes."
-								>
-									{#snippet actions()}
-										<Button
-											variant="ghost"
-											size="xs"
-											type="button"
-											aria-label="Recalculate from recipe"
-											title="Recalculate ABV and volume from recipe"
-											disabled={!canRecalcRecipe}
-											onclick={recalculateRecipeMetrics}
-										>
-											{#snippet icon()}
-												<Icon name="refresh" />
-											{/snippet}
-										</Button>
-									{/snippet}
-									<TextField
-										id="f-abv"
-										size="sm"
-										value={item.abv || ""}
-										oninput={(e) =>
-											patch(
-												"abv",
-												(e.currentTarget as HTMLInputElement).value,
-											)}
-									/>
-								</Field>
-								<Field
-									label="Volume"
-									for="f-volume"
-									tooltip="From recipe volumes. Recalculate with ABV after stock changes."
-								>
-									<TextField
-										id="f-volume"
-										size="sm"
-										value={item.volume || ""}
-										oninput={(e) =>
-											patch(
-												"volume",
-												(e.currentTarget as HTMLInputElement).value,
-											)}
-									/>
-								</Field>
-							</div>
-						</section>
-						{/if}
+
 						<section class="block">
 							<div class="section-head">
 								<p class="section-title">{showRecipe ? "Ingredients" : "Serve"}</p>
@@ -1279,79 +1195,100 @@
 								bind:inventory
 								onChange={onIngredientsChange}
 							/>
-							{#if priceLive}
-								<PourCostPanel
-									price={priceLive}
-									priceValue={item.price || ""}
-									priceAltValue={item.priceAlt || ""}
-									onprice={(value) => patch("price", value)}
-									onpricealt={(value) => patch("priceAlt", value)}
-								/>
+							{#if showRecipe}
+								<div class="method-field">
+									<Field label="Method" for="f-method">
+										<MethodEditor
+											id="f-method"
+											value={item.method || ""}
+											onChange={(next) => patch("method", next)}
+										/>
+									</Field>
+									<div class="grid serve-fields">
+										<Field label="Glassware" for="f-glass">
+											<NativeSelect
+												id="f-glass"
+												size="sm"
+												options={glassOptions}
+												value={item.glassware || ""}
+												onchange={(e) =>
+													patch(
+														"glassware",
+														(e.currentTarget as HTMLSelectElement)
+															.value,
+													)}
+											/>
+										</Field>
+										<Field label="Ice" for="f-ice">
+											<NativeSelect
+												id="f-ice"
+												size="sm"
+												options={iceOptions}
+												value={item.ice || ""}
+												onchange={(e) =>
+													patch(
+														"ice",
+														(e.currentTarget as HTMLSelectElement)
+															.value,
+													)}
+											/>
+										</Field>
+										<div class="full">
+											<Field label="Garnish" for="f-garnish">
+												<TextField
+													id="f-garnish"
+													size="sm"
+													value={item.garnish || ""}
+													oninput={(e) =>
+														patch(
+															"garnish",
+															(e.currentTarget as HTMLInputElement)
+																.value,
+														)}
+												/>
+											</Field>
+										</div>
+									</div>
+								</div>
 							{/if}
 						</section>
-						{#if showRecipe}
+
 						<section class="block">
-							<Field label="Method" for="f-method">
+							<p class="section-title">Guest line</p>
+							<Field
+								label="Description"
+								for="f-description"
+								tooltip="Ingredient line or longer blurb on the guest menu."
+							>
+								{#snippet actions()}
+								{#if showRecipe}
+									<Button
+										variant="ghost"
+										size="xs"
+										type="button"
+										aria-label="Create from ingredients"
+										title="Create from ingredients"
+										disabled={!flattenIngredientsForMenu(ingredients)}
+										onclick={createMenuLineFromIngredients}
+									>
+										{#snippet icon()}
+											<Icon name="from-list" size={14} />
+										{/snippet}
+									</Button>
+								{/if}
+							{/snippet}
 								<TextArea
-									id="f-method"
-									rows={4}
-									value={item.method || ""}
+									id="f-description"
+									rows={3}
+									value={item.description || ""}
 									oninput={(e) =>
 										patch(
-											"method",
+											"description",
 											(e.currentTarget as HTMLTextAreaElement).value,
 										)}
 								/>
 							</Field>
 						</section>
-						{/if}
-						{#if showRecipe}
-						<section class="block">
-							<p class="section-title">Serving</p>
-							<div class="grid">
-								<Field label="Glassware" for="f-glass">
-									<NativeSelect
-										id="f-glass"
-										size="sm"
-										options={glassOptions}
-										value={item.glassware || ""}
-										onchange={(e) =>
-											patch(
-												"glassware",
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								</Field>
-								<Field label="Ice" for="f-ice">
-									<NativeSelect
-										id="f-ice"
-										size="sm"
-										options={iceOptions}
-										value={item.ice || ""}
-										onchange={(e) =>
-											patch(
-												"ice",
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								</Field>
-								<div class="full">
-									<Field label="Garnish" for="f-garnish">
-										<TextField
-											id="f-garnish"
-											size="sm"
-											value={item.garnish || ""}
-											oninput={(e) =>
-												patch(
-													"garnish",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-							</div>
-						</section>
-						{/if}
 
 						<Dialog
 							open={addIngredientOpen}
@@ -1375,6 +1312,60 @@
 								</Button>
 							{/snippet}
 						</Dialog>
+					{:else if tab === "menu"}
+						<section class="block">
+							<p class="section-title">Menus</p>
+							<p class="lede-hint">Print, digital, and POS placements.</p>
+							<div class="grid">
+								<div class="full">
+									<Field
+										label="Till button name"
+										for="f-pos-name"
+										tooltip="Short name on the POS button. Leave blank to use the drink name. Serve sizes are added on export."
+									>
+										<TextField
+											id="f-pos-name"
+											size="sm"
+											value={item.lightspeedName || ""}
+											placeholder={item.name || "Same as drink name"}
+											oninput={(e) =>
+												patch(
+													"lightspeedName",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+								</div>
+								<div class="full">
+									<MenuPlacementsTable
+										menus={posMenus}
+										placements={item.placements || []}
+										sectionOptions={sectionOptions}
+										screenSuggestions={screenSuggestions}
+										defaultSectionId={item.sectionId || ""}
+										onchange={setPlacements}
+									/>
+								</div>
+							</div>
+						</section>
+					{:else if tab === "cost"}
+						<section class="block">
+							{#if priceLive}
+								<PourCostPanel
+									price={priceLive}
+									priceValue={item.price || ""}
+									priceAltValue={item.priceAlt || ""}
+									onpricealt={(value) => patch("priceAlt", value)}
+								/>
+							{:else}
+								<p class="section-title">Pour cost</p>
+								<p class="lede-hint">
+									{showRecipe
+										? "Add ingredients on Build to cost this drink."
+										: "Link stock on Build to cost this drink."}
+								</p>
+							{/if}
+						</section>
 					{:else if tab === "analysis"}
 						<RecipeAnalysisPanel
 							{analysis}
@@ -1496,11 +1487,13 @@
 		flex-direction: column;
 		min-height: 0;
 		height: 100%;
+		overflow: hidden;
 	}
 
 	.split {
 		display: grid;
-		grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
+		grid-template-areas: "panel hero";
 		column-gap: var(--gap);
 		row-gap: var(--gap);
 		flex: 1;
@@ -1513,6 +1506,7 @@
 	}
 
 	.hero {
+		grid-area: hero;
 		position: relative;
 		display: flex;
 		flex-direction: column;
@@ -1534,7 +1528,7 @@
 	.photo-collapse {
 		position: absolute;
 		top: 0.55rem;
-		right: 0.55rem;
+		left: 0.55rem;
 		z-index: 3;
 		display: grid;
 		place-content: center;
@@ -1569,7 +1563,7 @@
 	}
 
 	.split.photo-collapsed {
-		grid-template-columns: 0% minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) 0%;
 		column-gap: 0;
 	}
 
@@ -1773,6 +1767,7 @@
 	}
 
 	.panel {
+		grid-area: panel;
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
@@ -1796,7 +1791,8 @@
 		align-items: start;
 		column-gap: 0.85rem;
 		row-gap: 0.2rem;
-		padding: 0.45rem var(--card-pad) 0.65rem;
+		flex-shrink: 0;
+		padding: 0.55rem var(--card-pad-lg) 0.75rem;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -1861,7 +1857,7 @@
 	}
 
 	.split.photo-collapsed .price-row,
-	.split.photo-collapsed .pour-row {
+	.split.photo-collapsed .pour-readout {
 		justify-content: flex-start;
 	}
 
@@ -1980,17 +1976,12 @@
 		padding-top: 0.12rem;
 	}
 
-	.price-row,
-	.pour-row {
+	.price-row {
 		display: flex;
 		align-items: baseline;
 		justify-content: flex-end;
 		gap: 0.35rem;
 		min-width: 0;
-	}
-
-	.pour-row {
-		cursor: text;
 	}
 
 	.price-edit,
@@ -2047,84 +2038,46 @@
 		white-space: nowrap;
 	}
 
-	.price-edit:hover,
-	.pour-input:hover:not(:disabled) {
+	.price-edit:hover {
 		border-color: var(--border);
 	}
 
-	.price-edit:focus-within,
-	.pour-input:focus {
+	.price-edit:focus-within {
 		border-color: var(--ring);
 		background: var(--sunken);
 		box-shadow: 0 0 0 2px var(--ring-wash);
 	}
 
-	.pour-input {
-		width: 4.6ch;
-		min-width: 3.2ch;
-		max-width: 6.5ch;
-		box-sizing: content-box;
-		padding: 0.04em 0.2rem 0.1em;
-		margin: 0;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
-		color: var(--foreground);
-		font-family: var(--font);
-		font-size: clamp(1.15rem, 1.8vw, 1.4rem);
-		font-weight: 600;
-		letter-spacing: 0.02em;
-		line-height: 1.2;
-		text-align: right;
-		outline: none;
-		font-variant-numeric: tabular-nums;
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
-	}
-
 	.price-input::-webkit-outer-spin-button,
-	.price-input::-webkit-inner-spin-button,
-	.pour-input::-webkit-outer-spin-button,
-	.pour-input::-webkit-inner-spin-button {
+	.price-input::-webkit-inner-spin-button {
 		appearance: none;
 		margin: 0;
 	}
 
-	.pour-input.up {
+	.pour-readout {
+		margin: 0;
+		font-family: var(--font);
+		font-size: clamp(1.05rem, 1.6vw, 1.2rem);
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		line-height: 1.25;
+		color: var(--foreground);
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.pour-readout.up {
 		color: var(--up);
 	}
 
-	.pour-input.down,
-	.pour-input.loss {
+	.pour-readout.down,
+	.pour-readout.loss {
 		color: var(--down);
 	}
 
-	.pour-input.muted,
-	.pour-input:disabled {
+	.pour-readout.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
-	}
-
-	.pour-suffix {
-		font-size: clamp(1.15rem, 1.8vw, 1.4rem);
-		font-weight: 600;
-		color: inherit;
-	}
-
-	.pour-row:has(.pour-input.up) .pour-suffix {
-		color: var(--up);
-	}
-
-	.pour-row:has(.pour-input.down) .pour-suffix,
-	.pour-row:has(.pour-input.loss) .pour-suffix {
-		color: var(--down);
-	}
-
-	.pour-row:has(.pour-input.muted) .pour-suffix,
-	.pour-row:has(.pour-input:disabled) .pour-suffix {
-		color: var(--muted-foreground);
 	}
 
 	.meta-line {
@@ -2150,8 +2103,9 @@
 		align-items: center;
 		justify-content: flex-end;
 		gap: 0.5rem;
+		flex-shrink: 0;
 		margin-top: auto;
-		padding: 0.55rem var(--card-pad) 0.75rem;
+		padding: 0.65rem var(--card-pad-lg) 0.85rem;
 		border-top: 1px solid var(--border);
 	}
 
@@ -2171,10 +2125,8 @@
 	}
 
 	.tabs {
-		position: sticky;
-		top: 0;
-		z-index: 2;
-		padding: 0.55rem var(--card-pad) 0;
+		flex-shrink: 0;
+		padding: 0.65rem var(--card-pad-lg) 0.35rem;
 		background: var(--card);
 		border-bottom: 1px solid var(--border);
 	}
@@ -2184,15 +2136,16 @@
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
+		overscroll-behavior: contain;
 	}
 
 	.tab-body {
 		position: relative;
-		padding: 0.35rem var(--card-pad) var(--card-pad);
+		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
 	}
 
 	.tab-panel {
-		min-height: 100%;
+		min-width: 0;
 	}
 
 	.block {
@@ -2245,7 +2198,8 @@
 		align-items: start;
 	}
 
-	.grid.three {
+	.grid.three,
+	.grid.identity {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
 
@@ -2253,10 +2207,27 @@
 		grid-column: 1 / -1;
 	}
 
+	.method-field {
+		display: grid;
+		gap: 0.7rem;
+		margin-top: 0.85rem;
+	}
+
+	.serve-fields {
+		margin-top: 0;
+	}
+
 	.hint {
 		margin: 0.15rem 0 0;
 		font-size: var(--text);
 		line-height: 1.4;
+		color: var(--muted-foreground);
+	}
+
+	.lede-hint {
+		margin: -0.25rem 0 0.75rem;
+		font-size: var(--text-sm);
+		line-height: 1.45;
 		color: var(--muted-foreground);
 	}
 
@@ -2271,81 +2242,22 @@
 		color: var(--muted-foreground);
 	}
 
-	.switch {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.75rem;
-		min-height: var(--control-h-sm);
-		cursor: pointer;
-		user-select: none;
-	}
-
-	.switch input {
-		position: absolute;
-		opacity: 0;
-		width: 1px;
-		height: 1px;
-		margin: 0;
-		pointer-events: none;
-	}
-
-	.switch-ui {
-		position: relative;
-		width: 2.5rem;
-		height: 1.4rem;
-		flex-shrink: 0;
-		border-radius: var(--radius-pill);
-		background: var(--muted);
-		border: 1px solid var(--border-strong);
-		transition:
-			background-color var(--t-fast) var(--ease-in-out),
-			border-color var(--t-fast) var(--ease-in-out);
-	}
-
-	.switch-ui::after {
-		content: "";
-		position: absolute;
-		top: 0.15rem;
-		left: 0.15rem;
-		width: 1rem;
-		height: 1rem;
-		border-radius: 50%;
-		background: var(--foreground);
-		transition: transform var(--t-fast) var(--ease);
-	}
-
-	.switch input:checked + .switch-ui {
-		background: var(--primary);
-		border-color: var(--primary);
-	}
-
-	.switch input:checked + .switch-ui::after {
-		transform: translateX(1.05rem);
-		background: var(--primary-foreground);
-	}
-
-	.switch input:focus-visible + .switch-ui {
-		outline: 2px solid var(--primary);
-		outline-offset: 2px;
-	}
-
-	.switch-label {
-		font-size: var(--text);
-		font-weight: 500;
-		color: var(--foreground);
-	}
-
 	@media (max-width: 1100px) {
 		.split {
-			grid-template-columns: minmax(0, 36%) minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr) minmax(0, 30%);
 		}
 
 		.split.photo-collapsed {
-			grid-template-columns: 0% minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr) 0%;
 		}
 
-		.grid.three {
+		.grid.three,
+		.grid.identity {
 			grid-template-columns: 1fr 1fr;
+		}
+
+		.grid.identity .notes {
+			grid-column: 1 / -1;
 		}
 	}
 
@@ -2354,11 +2266,16 @@
 		.split.photo-collapsed {
 			grid-template-columns: minmax(0, 1fr);
 			grid-template-rows: minmax(0, 1fr);
-			height: auto;
+			flex: 1;
+			min-height: 0;
 			padding: 0;
 			column-gap: 0;
 			row-gap: 0;
 			transition: none;
+		}
+
+		.panel {
+			min-height: 0;
 		}
 
 		.hero {
@@ -2419,15 +2336,34 @@
 		}
 
 		.price-row,
-		.pour-row {
+		.pour-readout {
 			justify-content: flex-start;
+			text-align: left;
+		}
+
+		.panel-head,
+		.tabs,
+		.tab-body,
+		.panel-foot {
+			padding-left: max(var(--page-gutter), 1.125rem);
+			padding-right: max(var(--page-gutter), 1.125rem);
+		}
+
+		.tab-body {
+			padding-top: 1rem;
+			padding-bottom: max(var(--page-gutter), 1.125rem);
+		}
+
+		.panel-foot {
+			padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
 		}
 	}
 
 	@media (max-width: 880px) {
 		.split {
 			grid-template-columns: 1fr;
-			height: auto;
+			flex: 1;
+			min-height: 0;
 			padding: 0;
 			gap: 0;
 		}
@@ -2443,7 +2379,8 @@
 		}
 
 		.grid,
-		.grid.three {
+		.grid.three,
+		.grid.identity {
 			grid-template-columns: 1fr;
 		}
 	}

@@ -63,7 +63,7 @@ describe("initSectionHash", () => {
     expect(scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ behavior: "smooth", block: "start" }),
     );
-    expect(replaceState).toHaveBeenCalledWith(null, "", "/#menu");
+    expect(replaceState).toHaveBeenCalledWith(history.state, "", "/#menu");
   });
 
   it("smooth-scrolls even when the hash already matches", () => {
@@ -81,6 +81,23 @@ describe("initSectionHash", () => {
     expect(scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ behavior: "smooth" }),
     );
+  });
+
+  it("keeps the view-transition history index when the hash changes", () => {
+    const routerState = { index: 2, scrollX: 0, scrollY: 40 };
+    window.history.replaceState(routerState, "", "/#story");
+    const menu = document.getElementById("menu");
+    if (menu) menu.scrollIntoView = vi.fn();
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    initSectionHash();
+    replaceState.mockClear();
+
+    document.getElementById("menu-link")?.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+
+    expect(replaceState).toHaveBeenCalledWith(routerState, "", "/#menu");
+    expect(history.state).toMatchObject({ index: 2 });
   });
 
   it("does not observe scroll or rewrite the hash on its own", () => {

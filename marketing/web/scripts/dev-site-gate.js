@@ -1,6 +1,7 @@
 import {
   AUTH_COOKIE_NAME,
   buildAuthCookie,
+  buildGateShareUrl,
   createAuthToken,
   gateBypassRedirectPath,
   isPublicPath,
@@ -64,6 +65,40 @@ export function devSiteGate({ password, bypassKey } = {}) {
         res.end();
         return;
       }
+    }
+
+    if (url.pathname === "/api/staging-share") {
+      const send = (status, body) => {
+        res.statusCode = status;
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(JSON.stringify(body));
+      };
+      if (req.method !== "GET") {
+        send(405, { error: "Method not allowed." });
+        return;
+      }
+      if (!authed) {
+        send(401, { error: "Unlock the gate first." });
+        return;
+      }
+      if (!bypassKey) {
+        send(503, { error: "Share links are not configured." });
+        return;
+      }
+      const path = safeRedirectPath(url.searchParams.get("path") || "/");
+      const host = req.headers.host || url.host;
+      const shareUrl = buildGateShareUrl(
+        `http://${host}`,
+        path,
+        bypassKey,
+      );
+      if (!shareUrl) {
+        send(500, { error: "Could not build a share link." });
+        return;
+      }
+      send(200, { url: shareUrl, path });
+      return;
     }
 
     if (url.pathname === "/api/auth" && req.method === "POST") {

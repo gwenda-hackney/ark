@@ -5,8 +5,8 @@
 	import Icon from "../../shell/Icon.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
 	import * as api from "../../lib/api";
+	import type { WebStatus } from "../../lib/api";
 	import {
-		clampPercent,
 		issueHeat,
 		marginAgainstTargetHeat,
 		marginHeat,
@@ -22,11 +22,17 @@
 	import { formatPourPercent } from "../../lib/cost";
 	import { loginNext } from "../../lib/nav";
 	import { pourSettings } from "../../lib/settings.svelte";
-	import { INVENTORY_KINDS } from "../../lib/types";
 	import type { InventoryItem, MenuSection } from "../../lib/types";
+	import {
+		buildSyncMetrics,
+		formatWhen,
+		healthLabel,
+		healthTone,
+	} from "../../lib/web-metrics";
 
 	let sections = $state<MenuSection[]>([]);
 	let inventory = $state<InventoryItem[]>([]);
+	let webStatus = $state<WebStatus | null>(null);
 	let loaded = $state(false);
 	let loadError = $state("");
 
@@ -39,10 +45,6 @@
 			pourSettings.targets,
 		);
 	});
-
-	function kindLabel(kind: string): string {
-		return INVENTORY_KINDS.find((row) => row.value === kind)?.label || kind;
-	}
 
 	function signedPercent(value: number | null | undefined): string {
 		if (value == null) return "";
@@ -113,11 +115,24 @@
 			: 1,
 	);
 
+	const stagingEnv = $derived(webStatus?.environments.staging ?? null);
+	const productionEnv = $derived(webStatus?.environments.production ?? null);
+	const syncMetrics = $derived(
+		stagingEnv && productionEnv
+			? buildSyncMetrics(stagingEnv, productionEnv)
+			: [],
+	);
+
+	const prodHealth = $derived(productionEnv?.health ?? null);
+	const prodHealthTone = $derived(healthTone(productionEnv));
+	const prodHealthLabel = $derived(healthLabel(productionEnv));
+
 	onMount(() => {
-		Promise.all([api.getMenu(), api.getInventory(false)])
-			.then(([menuData, inventoryData]) => {
+		Promise.all([api.getMenu(), api.getInventory(false), api.getWebStatus().catch(() => null)])
+			.then(([menuData, inventoryData, web]) => {
 				sections = menuData.sections || [];
 				inventory = inventoryData.items || [];
+				webStatus = web;
 				loadError = "";
 			})
 			.catch((err) => {
@@ -138,7 +153,7 @@
 <div class="dash scrollbar-fade">
 	<PageHeader
 		title="Dashboard"
-		subtitle="Critical issues, warnings, gross margin, and stock that still sits on estimates."
+		subtitle="Stock that needs a look, then how the website is syncing and whether it is up."
 	/>
 
 	{#if loadError}
@@ -148,136 +163,8 @@
 			class="ready"
 			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
 		>
-		<div class="stats">
-			<div class="stat heat-{recipeTone}">
-				<p class="kicker">Recipe issues</p>
-					<div class="pair">
-						<div
-							class="fig"
-							class:down={summary.recipesWithCritical > 0}
-							class:up={summary.recipesWithCritical === 0 && summary.recipesWithWarning === 0}
-						>
-							<p class="value tnum">{summary.recipesWithCritical}</p>
-							<p class="fig-label">Critical</p>
-						</div>
-						<div
-							class="fig"
-							class:warn={summary.recipesWithWarning > 0}
-							class:up={summary.recipesWithWarning === 0 && summary.recipesWithCritical === 0}
-						>
-							<p class="value tnum">{summary.recipesWithWarning}</p>
-							<p class="fig-label">Warnings</p>
-						</div>
-					</div>
-					<div
-						class="meter"
-						aria-hidden="true"
-						title="{summary.recipesWithIssues} of {summary.recipeCount} drinks have issues"
-					>
-						<span
-							class="fill down"
-							style:width="{share(summary.recipesWithCritical, summary.recipeCount)}%"
-						></span>
-						<span
-							class="fill warn"
-							style:width="{share(
-								Math.max(0, summary.recipesWithIssues - summary.recipesWithCritical),
-								summary.recipeCount,
-							)}%"
-						></span>
-					</div>
-					<p class="hint">
-						{#if summary.recipeCount === 0}
-							No drinks on the menu yet.
-						{:else if summary.recipesWithIssues === 0}
-							None of {summary.recipeCount}
-							{summary.recipeCount === 1 ? "drink has" : "drinks have"} an issue.
-						{:else}
-							{summary.recipesWithIssues} of {summary.recipeCount}
-							{summary.recipeCount === 1 ? "drink needs" : "drinks need"} a look.
-						{/if}
-					</p>
-			</div>
-
-			<div class="stat {summary.avgGrossMargin != null ? `heat-${gmHeat}` : ''}">
-				<p class="kicker">Gross margin</p>
-				{#if summary.avgGrossMargin == null || summary.avgTargetMargin == null}
-					<p class="value tnum muted">n/a</p>
-					<p class="hint">
-						Need a complete cost and a menu price to read margin.
-					</p>
-				{:else}
-					{@const delta = summary.marginVsTarget}
-					{@const tone = gmValueTone(summary.avgGrossMargin, delta)}
-					<p class="value tnum {tone}">{formatPourPercent(summary.avgGrossMargin)}</p>
-					<div
-						class="meter target-meter"
-						title="House target {formatPourPercent(summary.avgTargetMargin)}"
-					>
-						<span
-							class="fill {tone}"
-							style:width="{clampPercent(summary.avgGrossMargin)}%"
-						></span>
-						<span
-							class="mark"
-							style:left="{clampPercent(summary.avgTargetMargin)}%"
-						></span>
-					</div>
-					<p class="hint {tone}">
-						{#if delta == null}
-							House target {formatPourPercent(summary.avgTargetMargin)}.
-						{:else}
-							{gmVerdict(delta, summary.avgTargetMargin)}.
-						{/if}
-						{summary.recipesPriced}
-						{summary.recipesPriced === 1 ? "drink" : "drinks"} priced.
-					</p>
-				{/if}
-			</div>
-
-			<div class="stat">
-				<p class="kicker">Pour cost</p>
-				{#if summary.recipesPriced === 0}
-					<p class="value tnum muted">n/a</p>
-					<p class="hint">No drinks have a complete pour-cost reading yet.</p>
-				{:else}
-					<p
-						class="value tnum"
-						class:down={summary.overTarget > 0}
-						class:up={summary.overTarget === 0}
-					>
-						{summary.overTarget}
-					</p>
-					<p class="hint">
-						{summary.overTarget} over target · {summary.onTarget} on · {summary.underTarget} under.
-					</p>
-				{/if}
-			</div>
-
-			<div class="stat">
-				<p class="kicker">Estimated stock</p>
-					<p
-						class="value tnum"
-						class:down={summary.inventoryEstimated > 0}
-						class:up={summary.inventoryEstimated === 0 && summary.inventoryCount > 0}
-					>
-						{summary.inventoryEstimated}
-					</p>
-					<p class="hint">
-						{#if summary.inventoryCount === 0}
-							No inventory items yet.
-						{:else if summary.inventoryEstimated === 0}
-							All {summary.inventoryCount} items have a trade price.
-						{:else}
-							{summary.inventoryEstimated} of {summary.inventoryCount} items have no trade price.
-							{#if summary.inventoryItemEstimates}
-								{" "}{summary.inventoryItemEstimates} carry a stand-in pack cost.
-							{/if}
-						{/if}
-					</p>
-			</div>
-		</div>
-
+		<section class="section" aria-labelledby="dash-stock">
+			<h2 class="section-kicker" id="dash-stock">Stock</h2>
 		<div class="panels">
 			<Card
 				fill
@@ -352,7 +239,7 @@
 						</ul>
 						{#if summary.flaggedRecipes.length > 8}
 							<p class="more">
-								{summary.flaggedRecipes.length - 8} more on Recipes.
+								{summary.flaggedRecipes.length - 8} more on Menu items.
 							</p>
 						{/if}
 					{:else}
@@ -360,7 +247,7 @@
 					{/if}
 				{#snippet footer()}
 					<a class="go" href="/menu">
-						Recipes
+						Menu items
 						<Icon name="chevron-right" size={16} />
 					</a>
 				{/snippet}
@@ -368,11 +255,19 @@
 
 			<Card
 				fill
-				class="heat-{marginTone}"
-				title="Margin outliers"
-				subtitle="Drinks over the house pour-cost target. Negative margin is a drink sold below cost."
+				class={summary.avgGrossMargin != null ? `heat-${gmHeat}` : `heat-${marginTone}`}
+				title="Margin"
+				subtitle="Average gross margin against the house target, then drinks that miss it."
 			>
 					<div class="pair">
+						<div class="fig {gmValueTone(summary.avgGrossMargin, summary.marginVsTarget)}">
+							<p class="value tnum">
+								{summary.avgGrossMargin == null
+									? "n/a"
+									: formatPourPercent(summary.avgGrossMargin)}
+							</p>
+							<p class="fig-label">Gross margin</p>
+						</div>
 						<div
 							class="fig"
 							class:down={summary.overTarget > 0}
@@ -383,24 +278,19 @@
 							</p>
 							<p class="fig-label">Over target</p>
 						</div>
-						<div
-							class="fig"
-							class:loss={summary.lowestMargin != null && summary.lowestMargin < 0}
-							class:down={summary.lowestMargin != null &&
-								summary.lowestMargin >= 0 &&
-								summary.overTarget > 0}
-							class:up={summary.lowestMargin != null &&
-								summary.overTarget === 0 &&
-								summary.lowestMargin >= 0}
-						>
-							<p class="value tnum">
-								{summary.lowestMargin == null
-									? "n/a"
-									: formatPourPercent(summary.lowestMargin)}
-							</p>
-							<p class="fig-label">Lowest margin</p>
-						</div>
 					</div>
+					{#if summary.avgGrossMargin != null && summary.avgTargetMargin != null}
+						{@const delta = summary.marginVsTarget}
+						{@const tone = gmValueTone(summary.avgGrossMargin, delta)}
+						<p class="hint {tone}">
+							{#if delta == null}
+								House target {formatPourPercent(summary.avgTargetMargin)}.
+							{:else}
+								{gmVerdict(delta, summary.avgTargetMargin)}.
+							{/if}
+							{summary.overTarget} over · {summary.onTarget} on · {summary.underTarget} under.
+						</p>
+					{/if}
 					<div
 						class="meter"
 						aria-hidden="true"
@@ -452,46 +342,75 @@
 					</a>
 				{/snippet}
 			</Card>
-
-			<Card
-				fill
-				title="Estimated inventory"
-				subtitle="Active stock with no supplier trade price. Recipe costs for these lines are stand-ins."
-			>
-				{#if summary.estimatedStock.length}
-					<ul class="list scrollbar-fade">
-						{#each summary.estimatedStock.slice(0, 10) as row (row.id)}
-							<li>
-								<div class="row-top">
-									<a class="name" href={row.href}>{row.name}</a>
-									<span class="meta">
-										{kindLabel(row.kind)}
-										{#if row.hasItemEstimate}
-											{" "}· item estimate
-										{:else}
-											{" "}· kind estimate
-										{/if}
-									</span>
-								</div>
-							</li>
-						{/each}
-					</ul>
-					{#if summary.estimatedStock.length > 10}
-						<p class="more">
-							{summary.estimatedStock.length - 10} more on Inventory.
-						</p>
-					{/if}
-				{:else}
-					<p class="empty">Every active item has a trade price.</p>
-				{/if}
-				{#snippet footer()}
-					<a class="go" href="/inventory">
-						Inventory
-						<Icon name="chevron-right" size={16} />
-					</a>
-				{/snippet}
-			</Card>
 		</div>
+		</section>
+
+		<section class="section" aria-labelledby="dash-web">
+			<h2 class="section-kicker" id="dash-web">Web</h2>
+			<div class="panels web">
+				<Card
+					fill
+					title="Sync"
+					subtitle="Staging against production."
+				>
+					{#if !webStatus || !stagingEnv || !productionEnv}
+						<p class="empty">Website status did not load.</p>
+					{:else}
+						<div class="metrics">
+							{#each syncMetrics as metric (metric.label)}
+								<div class="metric" title={metric.title}>
+									<p class="metric-label">{metric.label}</p>
+									<p class="metric-value tnum {metric.tone}">{metric.value}</p>
+								</div>
+							{/each}
+						</div>
+					{/if}
+					{#snippet footer()}
+						<a class="go" href="/web">
+							Web
+							<Icon name="chevron-right" size={16} />
+						</a>
+					{/snippet}
+				</Card>
+
+				<Card
+					fill
+					title="Health"
+					subtitle="Production only. Staging is a preview."
+				>
+					{#if !productionEnv}
+						<p class="empty">Website status did not load.</p>
+					{:else}
+						<p class="health-mark {prodHealthTone}">{prodHealthLabel}</p>
+						<p class="health-site">
+							{#if productionEnv.siteUrl}
+								<a href={productionEnv.siteUrl} target="_blank" rel="noreferrer">
+									{productionEnv.siteUrl.replace(/^https:\/\//, "")}
+								</a>
+							{:else}
+								gwenda.co.uk
+							{/if}
+						</p>
+						<p class="hint">
+							Last check {formatWhen(prodHealth?.lastCheckedAt)}.
+							{#if prodHealth?.consecutiveFails}
+								{" "}{prodHealth.consecutiveFails} failed
+								{prodHealth.consecutiveFails === 1 ? "check" : "checks"} in a row.
+							{/if}
+						</p>
+						{#if prodHealth?.lastError}
+							<p class="hint down">{prodHealth.lastError}</p>
+						{/if}
+					{/if}
+					{#snippet footer()}
+						<a class="go" href="/web">
+							Web
+							<Icon name="chevron-right" size={16} />
+						</a>
+					{/snippet}
+				</Card>
+			</div>
+		</section>
 		</div>
 	{/if}
 	<BusyOverlay active={!ready && !loadError} label="Loading…" />
@@ -512,57 +431,22 @@
 		min-height: 0;
 	}
 
+	.section + .section {
+		margin-top: var(--gap-lg);
+	}
+
+	.section-kicker {
+		margin: 0 0 var(--gap);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
 	.error {
 		margin: 0;
 		color: var(--destructive);
-	}
-
-	.stats {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: var(--gap);
-		margin-bottom: var(--gap-lg);
-	}
-
-	.stat {
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-		height: 12.5rem;
-		padding: var(--card-pad);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-xl);
-		background: var(--card);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.stat.heat-ok {
-		border-color: color-mix(in srgb, var(--up) 32%, var(--border));
-		background: linear-gradient(
-			165deg,
-			color-mix(in srgb, var(--up) 14%, transparent),
-			var(--card) 72%
-		);
-	}
-
-	.stat.heat-caution {
-		border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
-		background: linear-gradient(165deg, var(--primary-wash), var(--card) 72%);
-	}
-
-	.stat.heat-mild,
-	.stat.heat-bad,
-	.stat.heat-severe {
-		border-color: color-mix(in srgb, var(--down) 28%, var(--border));
-	}
-
-	.stat.heat-bad,
-	.stat.heat-severe {
-		background: linear-gradient(165deg, var(--destructive-wash), var(--card) 70%);
-	}
-
-	.stat.heat-severe {
-		border-color: color-mix(in srgb, var(--down) 55%, transparent);
 	}
 
 	.pair {
@@ -594,21 +478,6 @@
 		border-radius: var(--radius-pill);
 		background: color-mix(in srgb, var(--foreground) 8%, transparent);
 		overflow: hidden;
-	}
-
-	.mark {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		width: 2px;
-		margin-left: -1px;
-		background: var(--foreground);
-		box-shadow: 0 0 0 1px var(--card);
-		pointer-events: none;
-	}
-
-	.target-meter {
-		height: 0.55rem;
 	}
 
 	.fill {
@@ -691,9 +560,97 @@
 		min-height: 0;
 	}
 
-	.panels :global(.card.heat-caution) {
-		border-color: color-mix(in srgb, var(--primary) 38%, var(--border));
-		background: linear-gradient(165deg, var(--primary-wash), var(--card) 58%);
+	.panels.web {
+		grid-auto-rows: auto;
+	}
+
+	.metrics {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--gap);
+	}
+
+	.metric-label {
+		margin: 0;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
+	.metric-value {
+		margin: 0.35rem 0 0;
+		font-family: var(--font-display);
+		font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+		font-weight: 600;
+		letter-spacing: -0.03em;
+		line-height: 1.15;
+		overflow-wrap: anywhere;
+	}
+
+	.metric-value.up {
+		color: var(--up);
+	}
+
+	.metric-value.gold {
+		color: var(--primary);
+	}
+
+	.metric-value.down {
+		color: var(--down);
+	}
+
+	.metric-value.muted {
+		color: var(--muted-foreground);
+	}
+
+	.metric-value.warn {
+		color: var(--primary);
+	}
+
+	.metric-value.up {
+		color: var(--up);
+	}
+
+	.metric-value.down {
+		color: var(--down);
+	}
+
+	.metric-value.muted {
+		color: var(--muted-foreground);
+	}
+
+	.health-mark {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: clamp(2.5rem, 4vw, 3.4rem);
+		font-weight: 600;
+		letter-spacing: -0.04em;
+		line-height: 1;
+	}
+
+	.health-site {
+		margin: 0.45rem 0 0;
+		font-size: var(--text);
+	}
+
+	.health-site a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.health-site a:hover {
+		color: var(--primary);
+	}
+
+	.panels :global(.card.heat-ok) {
+		border-color: color-mix(in srgb, var(--up) 32%, var(--border));
+		background: linear-gradient(
+			165deg,
+			color-mix(in srgb, var(--up) 14%, transparent),
+			var(--card) 72%
+		);
 	}
 
 	.panels :global(.card.heat-bad),
@@ -704,10 +661,6 @@
 
 	.panels :global(.card.heat-severe) {
 		border-color: color-mix(in srgb, var(--down) 58%, transparent);
-	}
-
-	.panels :global(.card:last-child) {
-		grid-column: 1 / -1;
 	}
 
 	.panels :global(.subtitle) {
@@ -848,20 +801,10 @@
 		text-decoration: none;
 	}
 
-	@media (max-width: 1100px) {
-		.stats {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-	}
-
 	@media (max-width: 720px) {
-		.stats,
-		.panels {
+		.panels,
+		.metrics {
 			grid-template-columns: 1fr;
-		}
-
-		.panels :global(.card:last-child) {
-			grid-column: auto;
 		}
 	}
 </style>

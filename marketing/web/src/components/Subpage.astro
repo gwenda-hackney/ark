@@ -1,13 +1,18 @@
 ---
-import SubpageChrome from "./SubpageChrome.astro";
+import Header, { type NavItem } from "./Header.astro";
+import PageHeader from "./PageHeader.astro";
+import { parentHref, withHome } from "../lib/site-nav.js";
 
 interface Props {
   /** Extra classes on `<main>` for page-specific layout hooks. */
   class?: string;
   /** Extra classes on the inner `.container`. */
   innerClass?: string;
-  /** Back chip destination. */
+  /**
+   * @deprecated The wordmark goes home. Pass `navItems` for a page menu.
+   */
   href?: string;
+  /** @deprecated */
   label?: string;
   /** Wordmark home link. */
   homeHref?: string;
@@ -22,30 +27,67 @@ interface Props {
   flush?: boolean;
   /** Hide logo + back (rare). */
   showChrome?: boolean;
+  /**
+   * This page's menu: anchors and subpages.
+   * Do not pass the home page links.
+   */
+  navItems?: NavItem[];
+  /** Centered page title. Omit on layouts that place the title themselves. */
+  title?: string;
+  /** Small label above the title. */
+  eyebrow?: string;
+  /**
+   * `center` for diary, menu, contact, and legal pages.
+   * `start` for a left-aligned title.
+   * `beside` for a title that sits next to a portrait.
+   */
+  titleAlign?: "center" | "start" | "beside";
 }
 
 const {
   class: className,
   innerClass,
-  href = "/",
-  label = "← Back",
   homeHref = "/",
   layout,
   flush = false,
   showChrome = true,
+  navItems = withHome(),
+  title,
+  eyebrow,
+  titleAlign = "center",
 } = Astro.props;
 
 const isSplit = layout === "split" || flush;
+const backHref = parentHref(Astro.url.pathname);
 ---
 
 <main class:list={["subpage", isSplit && "subpage--split", className]}>
   {
     showChrome ? (
-      <SubpageChrome href={href} label={label} homeHref={homeHref} />
+      <Header
+        items={navItems}
+        collapsed
+        logoHref={homeHref}
+        pathname={Astro.url.pathname}
+      />
     ) : null
   }
   <slot name="aside" />
   <div class:list={["container", "subpage-inner", innerClass]}>
+    {
+      backHref && (
+        <a href={backHref} class="subpage-back" data-site-back>
+          Back
+        </a>
+      )
+    }
+    {
+      title ? (
+        <PageHeader title={title} eyebrow={eyebrow} align={titleAlign}>
+          <slot name="lead" />
+        </PageHeader>
+      ) : null
+    }
     <slot />
   </div>
 </main>

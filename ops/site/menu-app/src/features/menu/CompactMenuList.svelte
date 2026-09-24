@@ -77,7 +77,20 @@
 							</span>
 						{:else}
 							<span class="meta">
-								{[row._typeLabel, row._categoryLabel]
+								{[
+									row._typeLabel,
+									row._categoryLabel,
+									row._posLabel !== "—" ? row._posLabel : "",
+									row._posMenusLabel && row._posMenusLabel !== "None"
+										? row._posMenusLabel
+										: "",
+									row._posScreensLabel && row._posScreensLabel !== "None"
+										? row._posScreensLabel
+										: "",
+									row._guestPlacement && row._guestPlacement !== "both"
+										? row._guestLabel
+										: "",
+								]
 									.filter((part) => part && part !== "—")
 									.join(" · ") || row._typeLabel}
 							</span>

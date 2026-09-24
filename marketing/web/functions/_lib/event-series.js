@@ -1,0 +1,1141 @@
+/**
+ * Public what's-on is series-first.
+ * A series is a template (name, copy, default image, optional recurrence).
+ * Occurrences are nights scheduled into that series, each with its own
+ * date and optional image/description overrides.
+ * Recurrence is optional. Gwenda Nights is still a series.
+ */
+
+import { pageEventFeed } from "./event-feed.js";
+
+const WEEKDAY_NAMES = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+function todayIso(now = new Date()) {
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function heroUrl(event) {
+  return (
+    String(event?.heroImageUrl || event?.heroImage?.url || "").trim() || null
+  );
+}
+
+function seriesKey(event) {
+  return String(event?.seriesId || event?.id || "").trim();
+}
+
+function compareNights(a, b) {
+  return (
+    String(a.date).localeCompare(String(b.date)) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+}
+
+/** Strip residency suffixes so "Negroni Night" matches "Negroni Sessions". */
+function normalizeLabel(text) {
+  return String(text || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\b(nights?|sessions?|editions?)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function sameLabel(a, b) {
+  const left = normalizeLabel(a);
+  const right = normalizeLabel(b);
+  return Boolean(left && right && left === right);
+}
+
+/**
+ * Public identity for a night in the series queue, if it is more than the
+ * series name. `index` 0 is the next night; 1 is the one after, and so on.
+ */
+export function nextNightIdentity(nights, seriesTitle = "", index = 0) {
+  const ordered = (Array.isArray(nights) ? nights : [])
+    .slice()
+    .sort(compareNights);
+  const night = ordered[Math.max(0, Math.floor(Number(index) || 0))];
+  if (!night) return null;
+  const title = String(night.title || "").trim();
+  const artist = String(night.artist || "").trim();
+  const series = String(seriesTitle || "").trim();
+  const ownTitle = Boolean(title && !sameLabel(title, series));
+  const guest = Boolean(artist && night.isSpecialEdition);
+  if (!ownTitle && !guest) return null;
+  return {
+    date: String(night.date || ""),
+    title: ownTitle ? title : "",
+    artist: guest ? artist : "",
+  };
+}
+
+/** Short calendar date for teasers: Sat 24 Oct */
+export function formatShortEventDate(isoDate) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return "";
+  const weekday = ["Sun", "Mon", "Tues", "Wed", "Thur", "Fri", "Sat"][
+    date.getDay()
+  ];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  return `${weekday} ${day} ${months[month - 1]}`;
+}
+
+/**
+ * What's on image mark for a scheduled night's own flyer.
+ * The act is the night's name. Series photos stay bare.
+ */
+export function hostingImageCaption(night, seriesTitle = "") {
+  if (!heroUrl(night)) return null;
+  const title = String(night?.title || "").trim();
+  const series = String(seriesTitle || night?.seriesTitle || "").trim();
+  if (!title || sameLabel(title, series)) return null;
+  return { label: "Hosting", name: title };
+}
+
+/** Named night or special guest for the home-row teaser. */
+export function upcomingEventTeaser(identity) {
+  if (!identity) return null;
+  if (identity.title) {
+    return { date: identity.date || "", name: identity.title };
+  }
+  if (identity.artist) {
+    return {
+      date: identity.date || "",
+      name: `Special guest · ${identity.artist}`,
+    };
+  }
+  return null;
+}
+
+/** Home-row line: Next · Sat 24 Oct · night name. */
+export function upcomingEventLine(identity) {
+  const teaser = upcomingEventTeaser(identity);
+  if (!teaser) return "";
+  const when = formatShortEventDate(teaser.date);
+  return when ? `Next · ${when} · ${teaser.name}` : `Next · ${teaser.name}`;
+}
+
+function addDaysIso(isoDate, days) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
+  if (!match) return "";
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
+  date.setDate(date.getDate() + days);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+const SCHEDULE_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** Monday of the week that contains `isoDate`. */
+function weekStartIso(isoDate) {
+  const iso = String(isoDate || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const mondayOffset = (date.getDay() + 6) % 7;
+  return addDaysIso(iso, -mondayOffset);
+}
+
+function scheduleDayMonth(isoDate, now) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
+  if (!match) return "";
+  const year = Number(match[1]);
+  const label = `${Number(match[3])} ${SCHEDULE_MONTHS[Number(match[2]) - 1]}`;
+  if (year !== now.getFullYear()) return `${label} ${year}`;
+  return label;
+}
+
+/** "This week · 21 Sep–27 Sep", then "Next week", then the range alone. */
+function scheduleWeekLabel(start, now) {
+  const today = todayIso(now);
+  const current = weekStartIso(today);
+  const next = addDaysIso(current, 7);
+  const end = addDaysIso(start, 6);
+  const range = `${scheduleDayMonth(start, now)}–${scheduleDayMonth(end, now)}`;
+  if (start === current) return `This week · ${range}`;
+  if (start === next) return `Next week · ${range}`;
+  return range;
+}
+
+/** Monday–Sunday week that contains `now`. */
+export function isCurrentWeek(isoDate, now = new Date()) {
+  const iso = String(isoDate || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const start = weekStartIso(todayIso(now));
+  const end = addDaysIso(start, 6);
+  return iso >= start && iso <= end;
+}
+
+function teaserForNight(night, seriesTitle) {
+  return upcomingEventTeaser(nextNightIdentity([night], seriesTitle, 0));
+}
+
+/**
+ * Diary lines for a What's on series card.
+ * Scheduled series name the pictured night (hosts + date).
+ * A night in the current week is "This week"; the one after is "Next".
+ */
+export function seriesDiary(
+  nights,
+  seriesTitle,
+  { now = new Date(), regular = false } = {},
+) {
+  const ordered = (Array.isArray(nights) ? nights : [])
+    .slice()
+    .sort(compareNights);
+  const teasers = ordered.map((night) => teaserForNight(night, seriesTitle));
+  const empty = {
+    hostName: "",
+    hostDate: "",
+    hostThisWeek: false,
+    thisWeekName: "",
+    thisWeekDate: "",
+    upcomingName: "",
+    upcomingDate: "",
+  };
+
+  if (!regular) {
+    const host = teasers[0] || null;
+    const later = teasers.slice(1).find(Boolean) || null;
+    return {
+      ...empty,
+      hostName: host?.name || "",
+      hostDate: host?.date || "",
+      hostThisWeek: Boolean(host && isCurrentWeek(host.date, now)),
+      upcomingName: later?.name || "",
+      upcomingDate: later?.date || "",
+    };
+  }
+
+  const named = teasers.filter(Boolean);
+  const first = named[0] || null;
+  if (!first) return empty;
+  if (isCurrentWeek(first.date, now)) {
+    const next = named[1] || null;
+    return {
+      ...empty,
+      thisWeekName: first.name,
+      thisWeekDate: first.date,
+      upcomingName: next?.name || "",
+      upcomingDate: next?.date || "",
+    };
+  }
+  return {
+    ...empty,
+    upcomingName: first.name,
+    upcomingDate: first.date,
+  };
+}
+
+/** First upcoming night with its own guest artist. */
+export function nextSpecialGuest(nights) {
+  const identity = nextNightIdentity(nights);
+  if (!identity?.artist) return null;
+  return { artist: identity.artist, date: identity.date };
+}
+
+function seriesDefaultHero(template, nights) {
+  const templateUrl = String(template?.heroImageUrl || "").trim();
+  if (templateUrl) {
+    return {
+      heroImageUrl: templateUrl,
+      heroImage: template.heroImage || {
+        url: templateUrl,
+        alt: template.title || "",
+        objectPosition: template.heroObjectPosition || undefined,
+      },
+      heroImageAlt: template.title || "",
+      heroFromDate: "",
+    };
+  }
+  const ordered = (Array.isArray(nights) ? nights : [])
+    .slice()
+    .sort(compareNights);
+  for (const night of ordered) {
+    const seriesUrl = String(night?.seriesHeroImageUrl || "").trim();
+    if (!seriesUrl) continue;
+    return {
+      heroImageUrl: seriesUrl,
+      heroImage: {
+        url: seriesUrl,
+        alt: night.seriesTitle || night.title || "",
+        objectPosition: night.seriesHeroObjectPosition || undefined,
+      },
+      heroImageAlt: night.seriesTitle || night.title || "",
+      heroFromDate: "",
+    };
+  }
+  return {
+    heroImageUrl: null,
+    heroImage: null,
+    heroImageAlt: "",
+    heroFromDate: "",
+  };
+}
+
+/**
+ * What's on card: next night's flyer. Series default only if there is no next night.
+ */
+function pickWhatsOnCardHero(template, nights) {
+  const ordered = (Array.isArray(nights) ? nights : [])
+    .slice()
+    .sort(compareNights);
+  const next = ordered[0];
+  const nextUrl = heroUrl(next);
+  if (nextUrl) {
+    const caption = isRecurringSeries(template)
+      ? null
+      : hostingImageCaption(next, template?.title || "");
+    return {
+      heroImageUrl: nextUrl,
+      heroImage: next.heroImage || {
+        url: nextUrl,
+        alt: next.title || template?.title || "",
+        objectPosition: next.heroObjectPosition || undefined,
+      },
+      heroImageAlt: next.heroImage?.alt || next.title || template?.title || "",
+      heroFromDate: next.date || "",
+      imageCaption: caption?.label || "",
+      imageCaptionName: caption?.name || "",
+    };
+  }
+  const fallback = seriesDefaultHero(template, ordered);
+  return {
+    ...fallback,
+    heroImageAlt: fallback.heroImageAlt || template?.title || "",
+    imageCaption: "",
+    imageCaptionName: "",
+  };
+}
+
+function leadParagraph(description) {
+  const text = String(description || "").trim();
+  if (!text) return "";
+  return text.split(/\n{2,}/)[0]?.trim() || text;
+}
+
+/** Card blurb: explicit short copy, else the first sentence of the full description. */
+export function shortSeriesBlurb(description, { shortDescription } = {}) {
+  const short = String(shortDescription || "").trim();
+  if (short) return short;
+  const lead = leadParagraph(description);
+  if (!lead) return "";
+  return lead.split(/(?<=[.!?])\s+/)[0]?.trim() || lead;
+}
+
+/** True for CMS section titles and bullet blocks (Hours, The room, lists). */
+function isUtilityBlock(paragraph) {
+  const text = String(paragraph || "").trim();
+  if (!text) return true;
+  if (/^[•\-*]/.test(text) || /\n[•\-*]\s/.test(text)) return true;
+  // Short heading without sentence punctuation: "Hours", "The room"
+  if (!/[.!?…]/.test(text) && text.length <= 40 && !text.includes("\n")) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Public What's on copy: lead prose only.
+ * Drops ops-style sections (Hours, The room, bullet lists).
+ */
+export function seriesMarketingCopy(description, { maxParagraphs = 2 } = {}) {
+  const paragraphs = String(description || "")
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const prose = [];
+  for (const paragraph of paragraphs) {
+    if (isUtilityBlock(paragraph)) break;
+    prose.push(paragraph);
+    if (prose.length >= maxParagraphs) break;
+  }
+
+  return prose.join("\n\n");
+}
+
+/** What's on card: the short line when it exists. Otherwise the long copy. */
+export function cardSeriesCopy(shortDescription, description, options) {
+  const short = String(shortDescription || "").trim();
+  if (short) return short;
+  return seriesMarketingCopy(description, options);
+}
+
+/**
+ * The scheduled night's own short description, when it is not just the
+ * series line copied onto the night. Editors write the whole sentence.
+ */
+export function scheduledNightShort(night, seriesShort = "") {
+  const line = String(night?.shortDescription || "").trim();
+  if (!line) return "";
+  const series = String(seriesShort || "").trim();
+  if (series && line === series) return "";
+  return line;
+}
+
+export function withScheduledNightShort(seriesCopy, night, seriesShort = "") {
+  const line = scheduledNightShort(night, seriesShort);
+  const lead = String(seriesCopy || "").trim();
+  if (!line) return lead;
+  if (!lead) return line;
+  if (lead.includes(line)) return lead;
+  return `${lead}\n\n${line}`;
+}
+
+/**
+ * Per-night copy on a series page. Thin stubs fall back to the series
+ * marketing description so each event card still reads as a real night.
+ */
+export function nightPublicDescription(night, series = {}) {
+  const own = String(night?.description || "").trim();
+  // No shortDescription here: the series header already carries the tagline.
+  const marketing = seriesMarketingCopy(
+    series.fullDescription || series.description || "",
+    { maxParagraphs: 2 },
+  );
+  if (!own) return marketing;
+  if (!marketing) return own;
+  if (own.length >= 80) return own;
+  if (own.length < 50) {
+    if (marketing.includes(own)) return marketing;
+    if (own.length >= 24 && /[.!]/.test(own)) {
+      const lead = marketing.split(/\n{2,}/)[0] || marketing;
+      return `${own}\n\n${lead}`;
+    }
+    return marketing;
+  }
+  return own;
+}
+
+function weekdayRankFromIso(isoDate) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDate || "").trim());
+  if (!match) return WEEKDAY_NAMES.length;
+  const date = new Date(
+    Number(match[1]),
+    Number(match[2]) - 1,
+    Number(match[3]),
+  );
+  if (Number.isNaN(date.getTime())) return WEEKDAY_NAMES.length;
+  return (date.getDay() + 6) % 7; // Monday = 0
+}
+
+/** Dominant weekday across nights (open series like Gwenda Nights → Saturday). */
+export function seriesWeekdayRankFromNights(nights) {
+  const counts = new Map();
+  for (const night of Array.isArray(nights) ? nights : []) {
+    const rank = weekdayRankFromIso(night?.date);
+    if (rank >= WEEKDAY_NAMES.length) continue;
+    counts.set(rank, (counts.get(rank) || 0) + 1);
+  }
+  let best = WEEKDAY_NAMES.length;
+  let bestCount = 0;
+  for (const [rank, count] of counts) {
+    if (count > bestCount || (count === bestCount && rank < best)) {
+      best = rank;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/** Monday is 0. Daily residencies come first. */
+export function eventWeekdayRank(recurrence) {
+  const text = String(recurrence || "").toLowerCase();
+  if (/\bevery day\b/.test(text)) return -1;
+  let rank = WEEKDAY_NAMES.length;
+  for (let index = 0; index < WEEKDAY_NAMES.length; index += 1) {
+    if (text.includes(WEEKDAY_NAMES[index])) rank = Math.min(rank, index);
+  }
+  return rank;
+}
+
+/** Label for a weekday slot, e.g. Saturdays. Not "Every …". */
+export function weekdaySlotLabel(rank) {
+  if (rank < 0 || rank >= WEEKDAY_NAMES.length) return "";
+  const name = WEEKDAY_NAMES[rank];
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)}s`;
+}
+
+/** Repeating auto-schedule, not "is this a series". */
+export function isRecurringSeries(seriesOrRecurrence) {
+  if (seriesOrRecurrence && typeof seriesOrRecurrence === "object") {
+    if (seriesOrRecurrence.schedule === "repeating") return true;
+    if (
+      seriesOrRecurrence.schedule === "manual" ||
+      seriesOrRecurrence.schedule === "once"
+    ) {
+      return false;
+    }
+  }
+  const label =
+    typeof seriesOrRecurrence === "string"
+      ? seriesOrRecurrence
+      : String(seriesOrRecurrence?.recurrence || "").trim();
+  return Boolean(label) && !/^scheduled$/i.test(label);
+}
+
+/** Manual series list each scheduled night as its own card under the series. */
+export function seriesUsesRichDetail(series) {
+  return !isRecurringSeries(series);
+}
+
+function groupUpcomingBySeries(events, now = new Date()) {
+  const today = todayIso(now);
+  const upcoming = (Array.isArray(events) ? events : [])
+    .filter((event) => event?.date && event.date >= today)
+    .slice()
+    .sort(compareNights);
+
+  const groups = new Map();
+  for (const event of upcoming) {
+    const key = seriesKey(event);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(event);
+  }
+  return groups;
+}
+
+function asSeriesTemplate(record) {
+  if (!record) return null;
+  const seriesId = String(
+    record.seriesId || record.slug || record.id || "",
+  ).trim();
+  if (!seriesId) return null;
+  const repeating = isRecurringSeries(record);
+  const schedule =
+    record.schedule === "once" ? "once" : repeating ? "repeating" : "manual";
+  return {
+    seriesId,
+    title: String(record.title || record.seriesTitle || "").trim(),
+    description: String(
+      record.description || record.fullDescription || "",
+    ).trim(),
+    shortDescription: String(record.shortDescription || "").trim(),
+    recurrence: String(record.recurrence || "").trim(),
+    replacesSeriesId: String(
+      record.replacesSeriesId || record.replacesSeries || "",
+    ).trim(),
+    schedule,
+    offer: String(record.offer || "").trim(),
+    nightSchedule: Array.isArray(record.nightSchedule)
+      ? record.nightSchedule
+          .map((slot) => ({
+            label: String(slot?.label || "").trim(),
+            startTime: String(slot?.startTime || "").trim(),
+            endTime: String(slot?.endTime || "").trim(),
+          }))
+          .filter((slot) => slot.label)
+      : [],
+    heroImageUrl: record.heroImageUrl || record.heroImage?.url || null,
+    heroImage: record.heroImage || null,
+    heroObjectPosition:
+      record.heroObjectPosition || record.heroImage?.objectPosition || "",
+  };
+}
+
+function templateFromNights(seriesId, nights) {
+  const first = nights[0] || {};
+  return asSeriesTemplate({
+    seriesId,
+    title: first.seriesTitle || "",
+    description: "",
+    shortDescription: first.shortDescription || "",
+    recurrence: first.recurrence || "",
+    schedule: first.recurrence ? "repeating" : "manual",
+    nightSchedule: Array.isArray(first.nightSchedule)
+      ? first.nightSchedule
+      : [],
+    heroImageUrl: first.seriesHeroImageUrl || null,
+    heroObjectPosition: first.seriesHeroObjectPosition || "",
+  });
+}
+
+function summarizeSeries(template, nights) {
+  const ordered = nights.slice().sort(compareNights);
+  const next = ordered[0];
+  const series = asSeriesTemplate(template) || templateFromNights("", ordered);
+  const repeating = series.schedule === "repeating";
+  const once = series.schedule === "once";
+  const title = series.title || next?.seriesTitle || next?.title || "";
+  const fullDescription = series.description || "";
+  const shortDescription = series.shortDescription || "";
+  const weekdayRank = repeating
+    ? eventWeekdayRank(series.recurrence)
+    : seriesWeekdayRankFromNights(ordered);
+  const scheduleLabel = repeating
+    ? series.recurrence
+    : once
+      ? formatShortEventDate(next?.date) || "Special event"
+      : weekdaySlotLabel(weekdayRank) || "Scheduled";
+  const cardHero = seriesDefaultHero(series, ordered);
+  return {
+    seriesId: series.seriesId,
+    title,
+    seriesTitle: title,
+    description: shortSeriesBlurb(fullDescription, { shortDescription }),
+    fullDescription,
+    shortDescription,
+    artist: "",
+    offer: series.offer || "",
+    nightSchedule: Array.isArray(series.nightSchedule)
+      ? series.nightSchedule
+      : [],
+    recurrence: series.recurrence,
+    replacesSeriesId: series.replacesSeriesId || "",
+    schedule: series.schedule,
+    scheduleLabel,
+    weekdayRank,
+    nextDate: next?.date || "",
+    startTime: next?.startTime || "",
+    endTime: next?.endTime || "",
+    time: next?.time || "",
+    nightCount: ordered.length,
+    heroImageUrl: cardHero.heroImageUrl,
+    heroImage: cardHero.heroImage,
+    heroImageAlt: cardHero.heroImageAlt || title,
+    heroFromDate: cardHero.heroFromDate,
+    nights: ordered,
+    regular: repeating,
+    richDetail: !repeating,
+    href: `/whats-on/${encodeURIComponent(series.seriesId)}`,
+  };
+}
+
+function compareSeries(a, b) {
+  const aRank =
+    typeof a.weekdayRank === "number"
+      ? a.weekdayRank
+      : eventWeekdayRank(a.recurrence);
+  const bRank =
+    typeof b.weekdayRank === "number"
+      ? b.weekdayRank
+      : eventWeekdayRank(b.recurrence);
+  return aRank - bRank || a.title.localeCompare(b.title);
+}
+
+function resolveTemplates(seriesRecords, groups) {
+  const templates = new Map();
+  for (const record of seriesRecords || []) {
+    const template = asSeriesTemplate(record);
+    if (template) templates.set(template.seriesId, template);
+  }
+  for (const [seriesId, nights] of groups) {
+    if (templates.has(seriesId)) continue;
+    const fallback = templateFromNights(seriesId, nights);
+    if (fallback) templates.set(seriesId, fallback);
+  }
+  return templates;
+}
+
+/**
+ * @param {Array} events
+ * @param {{ now?: Date, series?: Array }} [options]
+ */
+export function buildSeriesList(
+  events,
+  { now = new Date(), series = [] } = {},
+) {
+  const groups = groupUpcomingBySeries(events, now);
+  const templates = resolveTemplates(series, groups);
+  const rows = [];
+  for (const [seriesId, nights] of groups) {
+    const template = templates.get(seriesId);
+    if (!template) continue;
+    const { nights: _nights, ...summary } = summarizeSeries(template, nights);
+    rows.push({ ...summary, nights });
+  }
+  return rows.sort(compareSeries);
+}
+
+/**
+ * Home diary: one basic, clickable card per series.
+ *
+ * @param {Array} events
+ * @param {{ now?: Date, series?: Array }} [options]
+ */
+/**
+ * Sentence for a residency night that a one-off takes.
+ * Return date is the next published residency night after the one-off.
+ */
+export function oneOffInsteadLine({
+  seriesTitle,
+  oneOffTitle,
+  oneOffDate,
+  shortDescription = "",
+  returnDate = "",
+}) {
+  const when = formatShortEventDate(oneOffDate);
+  const title = String(oneOffTitle || "").trim();
+  const series = String(seriesTitle || "").trim();
+  const short = String(shortDescription || "").trim();
+  let line = `No ${series} on ${when}. Instead, ${title}.`;
+  if (short) {
+    line += ` ${/[.!?]$/.test(short) ? short : `${short}.`}`;
+  }
+  const back = returnDate ? formatShortEventDate(returnDate) : "";
+  if (back) line += ` Don't worry, ${series} will be back on ${back}.`;
+  return line;
+}
+
+function withOneOffComingUp(card, coming) {
+  if (!coming) return card;
+  return {
+    ...card,
+    hostName: coming.title,
+    hostDate: coming.date || coming.nextDate || "",
+    hostThisWeek: false,
+    hostHref: coming.href,
+  };
+}
+
+function asOneOffCard(card, coming) {
+  return withOneOffComingUp(
+    {
+      ...card,
+      hostName: "",
+      hostDate: "",
+      hostThisWeek: false,
+      hostHref: "",
+    },
+    coming,
+  );
+}
+
+/**
+ * Residencies stay in weekday order. One-offs are their own cards after them,
+ * dated, not folded into a weekday. A coming-up line appears only when the
+ * one-off was saved as the replacement for that series.
+ */
+function placeOneOffs(stack) {
+  const oneOffs = stack
+    .filter((row) => row.schedule === "once")
+    .sort(
+      (a, b) =>
+        String(a.date).localeCompare(String(b.date)) ||
+        a.title.localeCompare(b.title),
+    );
+  if (!oneOffs.length) return stack;
+  const series = stack
+    .filter((row) => row.schedule !== "once")
+    .map((card) => {
+      const coming = oneOffs.find(
+        (row) => row.replacesSeriesId && row.replacesSeriesId === card.seriesId,
+      );
+      return withOneOffComingUp(card, coming);
+    });
+  return [...series, ...oneOffs.map((row) => asOneOffCard(row))];
+}
+
+export function buildWhatsOnStack(
+  events,
+  { now = new Date(), series = [] } = {},
+) {
+  const cards = buildSeriesList(events, { now, series }).map((row) => {
+    const cardHero = pickWhatsOnCardHero(row, row.nights);
+    // Manual series already feature night[0] (flyer + date). The teaser
+    // is the night after that. Repeating residencies tease the imminent night.
+    const identity = nextNightIdentity(
+      row.nights,
+      row.title,
+      row.regular ? 0 : 1,
+    );
+    const diary = seriesDiary(row.nights, row.title, {
+      now,
+      regular: row.regular,
+    });
+    const seriesCopy = cardSeriesCopy(
+      row.shortDescription,
+      row.fullDescription || row.description,
+      { maxParagraphs: row.regular ? 2 : 1 },
+    );
+    const featuredNight = row.regular
+      ? null
+      : row.nights.slice().sort(compareNights)[0] || null;
+    return {
+      id: row.seriesId,
+      seriesId: row.seriesId,
+      title: row.title,
+      seriesTitle: row.seriesTitle,
+      description: featuredNight
+        ? withScheduledNightShort(
+            seriesCopy,
+            featuredNight,
+            row.shortDescription,
+          )
+        : seriesCopy,
+      artist: identity?.artist || "",
+      upcoming: upcomingEventLine(identity),
+      hostName: diary.hostName,
+      hostDate: diary.hostDate,
+      hostThisWeek: diary.hostThisWeek,
+      thisWeekDate: diary.thisWeekDate,
+      thisWeekName: diary.thisWeekName,
+      upcomingDate: diary.upcomingDate,
+      upcomingName: diary.upcomingName,
+      offer: row.offer,
+      pageUrl: String(
+        (row.nights || []).find((night) => String(night.pageUrl || "").trim())
+          ?.pageUrl || "",
+      ).trim(),
+      nightSchedule: row.nightSchedule || [],
+      date: row.nextDate,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      time: row.time,
+      recurrence: row.recurrence,
+      replacesSeriesId: row.replacesSeriesId || "",
+      schedule: row.schedule,
+      scheduleLabel: row.scheduleLabel,
+      weekdayRank: row.weekdayRank,
+      heroImageUrl: cardHero.heroImageUrl,
+      heroImage: cardHero.heroImage,
+      imageCaption: cardHero.imageCaption || "",
+      imageCaptionName: cardHero.imageCaptionName || "",
+      regular: row.regular,
+      richDetail: row.richDetail,
+      href: row.href,
+      nightCount: row.nightCount,
+      dates: row.nights.map((night) => night.date).slice(0, 3),
+      guestEditions: [],
+    };
+  });
+  return placeOneOffs(cards);
+}
+
+/**
+ * @param {Array} events
+ * @param {{ now?: Date, after?: string, afterId?: string, limit?: number|string, series?: Array }} [options]
+ */
+export function buildWhatsOnHome(
+  events,
+  { now = new Date(), after = "", afterId = "", limit, series = [] } = {},
+) {
+  const stack = buildWhatsOnStack(events, { now, series });
+  const size = Math.min(24, Math.max(1, Math.floor(Number(limit) || 24)));
+  let start = 0;
+  if (after || afterId) {
+    const cursorId = String(afterId || after || "");
+    const index = stack.findIndex(
+      (row) => String(row.id) === cursorId || String(row.seriesId) === cursorId,
+    );
+    start = index >= 0 ? index + 1 : 0;
+  }
+  const page = stack.slice(start, start + size);
+  const last = page[page.length - 1];
+  const hasMore = start + page.length < stack.length;
+  return {
+    series: page,
+    nights: page,
+    next:
+      hasMore && last ? { after: last.date, afterId: String(last.id) } : null,
+  };
+}
+
+/**
+ * Dates a one-off takes from a residency. The residency night on that date
+ * stays in the catalog, but the public schedule shows the one-off instead.
+ */
+function displacedResidencyKeys(groups, templates) {
+  const hidden = new Set();
+  for (const [seriesId, nights] of groups) {
+    const template = templates.get(seriesId);
+    const target = String(template?.replacesSeriesId || "").trim();
+    if (!template || template.schedule !== "once" || !target) continue;
+    const residencyDates = new Set(
+      (groups.get(target) || []).map((night) => night.date),
+    );
+    for (const night of nights) {
+      if (residencyDates.has(night.date)) hidden.add(`${target}|${night.date}`);
+    }
+  }
+  return hidden;
+}
+
+function scheduleNightRow(template, night) {
+  const seriesTitle = String(
+    template.title || night.seriesTitle || night.title || "",
+  ).trim();
+  const nightTitle = String(night.title || "").trim();
+  const own = Boolean(nightTitle && !sameLabel(nightTitle, seriesTitle));
+  const artist =
+    night.isSpecialEdition && String(night.artist || "").trim()
+      ? String(night.artist).trim()
+      : "";
+  return {
+    date: night.date,
+    title: own ? nightTitle : seriesTitle || nightTitle || "Gwenda",
+    seriesTitle: own ? seriesTitle : "",
+    artist,
+    startTime: String(night.startTime || "").trim(),
+    endTime: String(night.endTime || "").trim(),
+    time: String(night.time || "").trim(),
+    href: `/whats-on/${encodeURIComponent(template.seriesId)}`,
+    seriesId: template.seriesId,
+  };
+}
+
+/**
+ * Every upcoming night, Monday weeks, chronological.
+ * What's on stays series-first. This is the full diary.
+ *
+ * @param {Array} events
+ * @param {{ now?: Date, series?: Array }} [options]
+ */
+export function buildPublicSchedule(
+  events,
+  { now = new Date(), series = [] } = {},
+) {
+  const groups = groupUpcomingBySeries(events, now);
+  const templates = resolveTemplates(series, groups);
+  const hidden = displacedResidencyKeys(groups, templates);
+  const rows = [];
+  for (const [seriesId, nights] of groups) {
+    const template = templates.get(seriesId);
+    if (!template) continue;
+    const byDate = new Map();
+    for (const night of nights) byDate.set(night.date, night);
+    for (const night of byDate.values()) {
+      if (hidden.has(`${seriesId}|${night.date}`)) continue;
+      rows.push(scheduleNightRow(template, night));
+    }
+  }
+  rows.sort(
+    (a, b) =>
+      String(a.date).localeCompare(String(b.date)) ||
+      String(a.startTime).localeCompare(String(b.startTime)) ||
+      a.title.localeCompare(b.title),
+  );
+
+  const weeks = new Map();
+  for (const row of rows) {
+    const start = weekStartIso(row.date);
+    if (!start) continue;
+    const week = weeks.get(start) || [];
+    week.push(row);
+    weeks.set(start, week);
+  }
+
+  return {
+    weeks: [...weeks].map(([start, nights]) => ({
+      id: start,
+      label: scheduleWeekLabel(start, now),
+      nights,
+    })),
+  };
+}
+
+function oneOffDisplacements(
+  events,
+  seriesRecords,
+  seriesSummary,
+  residencyNights,
+  now,
+) {
+  const rank = seriesSummary.weekdayRank;
+  if (typeof rank !== "number" || rank < 0 || rank >= WEEKDAY_NAMES.length) {
+    return [];
+  }
+  const groups = groupUpcomingBySeries(events, now);
+  const templates = resolveTemplates(seriesRecords, groups);
+  const rows = [];
+  for (const [seriesId, grouped] of groups) {
+    if (seriesId === seriesSummary.seriesId) continue;
+    const template = templates.get(seriesId);
+    if (!template || template.schedule !== "once") continue;
+    if (template.replacesSeriesId !== seriesSummary.seriesId) continue;
+    const night = grouped[0];
+    if (!night || weekdayRankFromIso(night.date) !== rank) continue;
+    const returnNight = (residencyNights || []).find(
+      (row) => row.date > night.date,
+    );
+    rows.push({
+      date: night.date,
+      href: `/whats-on/${encodeURIComponent(seriesId)}`,
+      line: oneOffInsteadLine({
+        seriesTitle: seriesSummary.title,
+        oneOffTitle: template.title || night.title || night.seriesTitle,
+        oneOffDate: night.date,
+        shortDescription: template.shortDescription || night.shortDescription,
+        returnDate: returnNight?.date || "",
+      }),
+    });
+  }
+  return rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
+function mergeOneOffDates(rows, displacements) {
+  if (!displacements.length) return rows;
+  const merged = rows.slice();
+  for (const entry of displacements) {
+    const next = {
+      date: entry.date,
+      displaced: true,
+      href: entry.href,
+      line: entry.line,
+      artist: "",
+      title: "",
+      isSpecialEdition: false,
+    };
+    const index = merged.findIndex((row) => row.date === entry.date);
+    if (index >= 0) merged[index] = next;
+    else merged.push(next);
+  }
+  return merged.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
+/**
+ * @param {Array} events
+ * @param {string} seriesId
+ * @param {{ now?: Date, after?: string, afterId?: string, limit?: number|string, series?: Array }} [options]
+ */
+export function buildSeriesDetail(
+  events,
+  seriesId,
+  { now = new Date(), after = "", afterId = "", limit, series = [] } = {},
+) {
+  const key = String(seriesId || "").trim();
+  if (!key) return null;
+
+  const nights = (groupUpcomingBySeries(events, now).get(key) || [])
+    .slice()
+    .sort(compareNights)
+    .map((event) => ({
+      ...event,
+      seriesId: key,
+      heroImageUrl: heroUrl(event),
+    }));
+
+  if (!nights.length) return null;
+
+  const templates = resolveTemplates(series, new Map([[key, nights]]));
+  const template = templates.get(key);
+  if (!template) return null;
+
+  const summary = summarizeSeries(template, nights);
+  const { nights: _grouped, ...seriesSummary } = summary;
+  const repeating = seriesSummary.schedule === "repeating";
+  const richDetail = !repeating;
+
+  const detailNights = repeating ? nights.slice(0, 2) : nights;
+  const page = repeating
+    ? { events: detailNights, next: null }
+    : pageEventFeed(nights, { after, afterId, limit, now });
+
+  const seriesHero = seriesSummary.heroImageUrl;
+  const seriesMarketing =
+    seriesMarketingCopy(
+      seriesSummary.fullDescription || seriesSummary.description,
+      { maxParagraphs: repeating ? 3 : 2 },
+    ) || String(seriesSummary.shortDescription || "").trim();
+  const seriesLead = repeating
+    ? seriesMarketing
+    : withScheduledNightShort(
+        seriesMarketing,
+        nights[0],
+        seriesSummary.shortDescription,
+      );
+  const pageNights = page.events.map((night) => {
+    return {
+      ...night,
+      heroImageUrl: heroUrl(night) || seriesHero,
+      imageCaption: "",
+      imageCaptionName: "",
+      description: nightPublicDescription(night, {
+        ...seriesSummary,
+        description: seriesSummary.fullDescription || seriesSummary.description,
+      }),
+    };
+  });
+
+  const nextNight = pageNights[0] || null;
+  const oneOffRows = repeating
+    ? oneOffDisplacements(events, series, seriesSummary, nights, now)
+    : [];
+  const featuredGuest =
+    nextNight?.isSpecialEdition && (nextNight.artist || nextNight.title)
+      ? nextNight
+      : null;
+
+  return {
+    ...seriesSummary,
+    description: seriesLead,
+    nights: pageNights,
+    next: page.next,
+    richDetail,
+    featuredGuest,
+    upcomingDates: mergeOneOffDates(
+      pageNights.map((night) => ({
+        date: night.date,
+        artist: night.artist || "",
+        title: night.title || "",
+        isSpecialEdition: Boolean(night.isSpecialEdition),
+        startTime: night.startTime || "",
+        endTime: night.endTime || "",
+        time: night.time || "",
+        offer: night.offer || "",
+        heroImageUrl: night.heroImageUrl,
+      })),
+      oneOffRows,
+    ),
+  };
+}
+
+/** Parse `{series}-{YYYY-MM-DD}` occurrence slugs used by Sanity. */
+export function parseOccurrenceSlug(slug) {
+  const raw = String(slug || "").trim();
+  const match = /^(.+)-(\d{4}-\d{2}-\d{2})$/.exec(raw);
+  if (!match) return null;
+  return { seriesId: match[1], date: match[2] };
+}

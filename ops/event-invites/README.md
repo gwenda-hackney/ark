@@ -116,7 +116,7 @@ npm run event-invites -- --event-slug private-launch-party --source clickup --dr
 ```
 
 
-The development dataset is private. Staging Pages needs `SANITY_API_TOKEN` (Viewer) synced as a Cloudflare secret — handled by deploy workflows.
+Event copy lives in the staging dataset. Local `npm run dev` overlays drafts. Staging Pages need `SANITY_API_TOKEN` (Viewer) as a Cloudflare secret — handled by deploy workflows. Publish, then rebuild staging before checking gwenda-staging.
 
 ## Website
 

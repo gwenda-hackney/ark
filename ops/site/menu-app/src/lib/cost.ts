@@ -174,6 +174,7 @@ export type ServePourReading = {
 export function altCostFactor(drinkType: DrinkType | undefined): number | null {
 	switch (normalizeDrinkType(drinkType)) {
 		case "beer":
+		case "postmix":
 			return 0.5;
 		case "packaged":
 			return null;
@@ -515,6 +516,27 @@ export function pickPricedSupplier(
 		)
 		.sort((a, b) => a.price - b.price);
 	return priced[0]?.entry || null;
+}
+
+export type PriceBasis = "trade" | "item-estimate" | "kind-estimate";
+
+/** How recipe cost is sourced when this stock line has no trade price. */
+export function priceBasis(
+	item: InventoryItem | null | undefined,
+): PriceBasis {
+	if (pickPricedSupplier(item)) return "trade";
+	const itemEst = parseGbp(item?.estimatedCost);
+	if (itemEst != null && itemEst > 0) return "item-estimate";
+	return "kind-estimate";
+}
+
+export function priceBasisLabel(
+	item: InventoryItem | null | undefined,
+): string {
+	const basis = priceBasis(item);
+	if (basis === "trade") return "Trade";
+	if (basis === "item-estimate") return "Item estimate";
+	return "Kind estimate";
 }
 
 function parseQty(value: unknown): number | null {

@@ -33,6 +33,7 @@
 		formatGbp,
 		type InventoryItem,
 	} from "../../lib/types";
+	import { priceBasisLabel } from "../../lib/cost";
 	import InventoryEditor from "./InventoryEditor.svelte";
 	import CompactInventoryList from "./CompactInventoryList.svelte";
 	import NameCell from "./cells/NameCell.svelte";
@@ -370,6 +371,27 @@
 				return priced?.price ?? null;
 			},
 			valueFormatter: (p) => formatGbp(p.value),
+		},
+		{
+			headerName: "Cost basis",
+			colId: "priceBasis",
+			minWidth: 148,
+			maxWidth: 168,
+			flex: 0,
+			filter: "agTextColumnFilter",
+			suppressHeaderMenuButton: false,
+			filterParams: {
+				filterOptions: ["contains", "equals"],
+				defaultOption: "contains",
+				maxNumConditions: 1,
+				buttons: ["reset"],
+			},
+			valueGetter: (p) => priceBasisLabel(p.data),
+			cellClass: (p) => {
+				if (p.value === "Item estimate") return "gold";
+				if (p.value === "Kind estimate") return "down";
+				return "";
+			},
 		},
 		{
 			headerName: "Notes",

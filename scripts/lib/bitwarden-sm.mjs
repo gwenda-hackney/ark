@@ -55,23 +55,41 @@ export const OPS_CONSUMES_WEB_SECRET_KEYS = [
 /**
  * Secret keys written to `.env.ops` for local ops.
  * SANITY_API_TOKEN and DEPLOY_WEBHOOK_SECRET are owned by Ark/Web.
+ *
+ * `BASEROW_API_KEY` in `.env.ops` is always the *resolved* local/dev token.
+ * SM stores dual-env ops Baserow tokens as:
+ *   BASEROW_API_KEY_LOCAL        Gwenda Dev Ops DB (local)
+ *   BASEROW_API_KEY_PRODUCTION   Gwenda production Ops DB (Pages)
+ * Legacy SM key `BASEROW_API_KEY` is treated as LOCAL only (never for Pages).
  */
 export const OPS_ENV_SECRET_KEYS = [
   "BASEROW_API_KEY",
   "GOOGLE_OAUTH_CLIENT_SECRET",
+  "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
   "OPS_SESSION_SECRET",
   "OPS_LOCAL_ADMIN_PW",
   "OPS_BYPASS_KEY",
+  "LIGHTSPEED_BO_EMAIL",
+  "LIGHTSPEED_BO_PASSWORD",
+  "LIGHTSPEED_BO_TOTP",
+  "LIGHTSPEED_OPS_EMAIL",
   "SANITY_API_TOKEN",
   "DEPLOY_WEBHOOK_SECRET",
 ];
 
+/** SM key names for ops Baserow (suffix = env; never fall back across envs). */
+export const OPS_BASEROW_SM_KEY_LOCAL = "BASEROW_API_KEY_LOCAL";
+export const OPS_BASEROW_SM_KEY_PRODUCTION = "BASEROW_API_KEY_PRODUCTION";
+/** @deprecated Prefer BASEROW_API_KEY_LOCAL. Still accepted as local-only. */
+export const OPS_BASEROW_SM_KEY_LEGACY = "BASEROW_API_KEY";
+
 /**
  * Secret keys written to `.env.web` for local marketing web.
  * SM stores marketing Baserow tokens as:
- *   BASEROW_API_KEY_MARKETING              Gwenda Dev website DB (local + staging)
+ *   BASEROW_API_KEY_MARKETING              Gwenda Dev website DB (local)
+ *   BASEROW_API_KEY_MARKETING_STAGING      Website Staging DB (staging Pages)
  *   BASEROW_API_KEY_MARKETING_PRODUCTION   Gwenda production website DB
- * (ops BASEROW_API_KEY is Free-workspace Ops only).
+ * Ops uses BASEROW_API_KEY_LOCAL / BASEROW_API_KEY_PRODUCTION (not marketing).
  * Apple Wallet PEMs stay in GitHub / Password Manager for now.
  */
 export const WEB_ENV_SECRET_KEYS = [
@@ -90,6 +108,7 @@ export const WEB_ENV_SECRET_KEYS = [
 /** SM key remapped when writing `.env.web` / Pages env (local + staging). */
 export const WEB_SM_KEY_ALIASES = {
   BASEROW_API_KEY_MARKETING: "BASEROW_API_KEY",
+  BASEROW_API_KEY_MARKETING_STAGING: "BASEROW_API_KEY",
 };
 
 /** SM key remapped for production Pages / Mailchimp. */
@@ -98,9 +117,38 @@ export const WEB_PRODUCTION_SM_KEY_ALIASES = {
 };
 
 export function webBaserowSmKey(profile = "staging") {
-  return profile === "production"
-    ? "BASEROW_API_KEY_MARKETING_PRODUCTION"
-    : "BASEROW_API_KEY_MARKETING";
+  if (profile === "production") return "BASEROW_API_KEY_MARKETING_PRODUCTION";
+  if (profile === "local" || profile === "development") {
+    return "BASEROW_API_KEY_MARKETING";
+  }
+  return "BASEROW_API_KEY_MARKETING_STAGING";
+}
+
+/**
+ * Canonical SM key for ops Baserow for a pull/deploy profile.
+ * @param {"local" | "development" | "production"} [profile]
+ */
+export function opsBaserowSmKey(profile = "local") {
+  if (profile === "production") return OPS_BASEROW_SM_KEY_PRODUCTION;
+  return OPS_BASEROW_SM_KEY_LOCAL;
+}
+
+/**
+ * Resolve the ops Baserow token for a profile from SM.
+ * Never cross-falls back: production never uses local, local never uses production.
+ * Local may read legacy SM key `BASEROW_API_KEY` when `_LOCAL` is unset.
+ * @param {Map<string, string>} allSecrets
+ * @param {"local" | "development" | "production"} [profile]
+ * @returns {string}
+ */
+export function resolveOpsBaserowToken(allSecrets, profile = "local") {
+  const preferred = opsBaserowSmKey(profile);
+  const primary = String(allSecrets.get(preferred) ?? "").trim();
+  if (primary) return primary;
+  if (profile === "local" || profile === "development") {
+    return String(allSecrets.get(OPS_BASEROW_SM_KEY_LEGACY) ?? "").trim();
+  }
+  return "";
 }
 
 const BWS_VERSION = "2.1.0";
@@ -346,11 +394,35 @@ export function writeArkEnvFile(path, allSecrets, { dryRun = false } = {}) {
   return { wrote: !dryRun, filled, content };
 }
 
-export function pickOpsSecrets(allSecrets) {
+/**
+ * Resolve ops secrets from SM.
+ * Remaps the profile Baserow token onto short `BASEROW_API_KEY` for runtime.
+ * Always attaches `BASEROW_API_KEY_PRODUCTION` when present (Pages / CI), without
+ * using it as the local runtime key.
+ * @param {Map<string, string>} allSecrets
+ * @param {{ profile?: "local" | "development" | "production" }} [opts]
+ * @returns {Map<string, string>}
+ */
+export function pickOpsSecrets(allSecrets, { profile = "local" } = {}) {
   const out = new Map();
   for (const key of OPS_ENV_SECRET_KEYS) {
+    if (key === "BASEROW_API_KEY") continue;
     if (allSecrets.has(key)) out.set(key, allSecrets.get(key) ?? "");
   }
+
+  const resolved = resolveOpsBaserowToken(allSecrets, profile);
+  if (resolved) out.set("BASEROW_API_KEY", resolved);
+
+  const production = String(
+    allSecrets.get(OPS_BASEROW_SM_KEY_PRODUCTION) ?? "",
+  ).trim();
+  if (production) out.set(OPS_BASEROW_SM_KEY_PRODUCTION, production);
+
+  const localCanonical = String(
+    allSecrets.get(OPS_BASEROW_SM_KEY_LOCAL) ?? "",
+  ).trim();
+  if (localCanonical) out.set(OPS_BASEROW_SM_KEY_LOCAL, localCanonical);
+
   return out;
 }
 
@@ -365,7 +437,9 @@ export function pickWebSecrets(allSecrets, { profile = "staging" } = {}) {
   const aliases =
     profile === "production"
       ? WEB_PRODUCTION_SM_KEY_ALIASES
-      : WEB_SM_KEY_ALIASES;
+      : profile === "local" || profile === "development"
+        ? { BASEROW_API_KEY_MARKETING: "BASEROW_API_KEY" }
+        : WEB_SM_KEY_ALIASES;
   for (const [smKey, localKey] of Object.entries(aliases)) {
     const value = allSecrets.get(smKey);
     if (value != null && String(value).trim()) {
@@ -411,6 +485,32 @@ export function upsertSmSecret({
   if (note) args.push("--note", note);
   runBws(args, { accessToken: token, serverUrl });
   return "created";
+}
+
+/**
+ * Ensure SM has BASEROW_API_KEY_LOCAL. If only the legacy bare BASEROW_API_KEY
+ * exists, copy it to _LOCAL (does not delete the legacy key).
+ * @returns {"created" | "updated" | "unchanged" | "skipped"}
+ */
+export function ensureOpsBaserowLocalSmKey({
+  allSecrets,
+  accessToken,
+  serverUrl,
+  projectId = resolveOpsProjectId(),
+} = {}) {
+  const secrets = allSecrets || new Map();
+  const local = String(secrets.get(OPS_BASEROW_SM_KEY_LOCAL) ?? "").trim();
+  if (local) return "unchanged";
+  const legacy = String(secrets.get(OPS_BASEROW_SM_KEY_LEGACY) ?? "").trim();
+  if (!legacy) return "skipped";
+  return upsertSmSecret({
+    key: OPS_BASEROW_SM_KEY_LOCAL,
+    value: legacy,
+    accessToken,
+    serverUrl,
+    projectId,
+    note: "Gwenda Dev Ops DB token (renamed from BASEROW_API_KEY). Pages uses BASEROW_API_KEY_PRODUCTION.",
+  });
 }
 
 /** Delete a secret by key within a project. @returns {boolean} true if deleted */

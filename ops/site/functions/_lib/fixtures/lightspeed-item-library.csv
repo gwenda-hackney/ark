@@ -1,0 +1,8 @@
+SKU;Name;Parent SKU;Min - Max;Type;Default price;Extra price;Accounting group;Menu/Screen;Button name;Button color;Button style;Barcode;Cost price;Package content (stock management);Package unit (stock management);Weight;Tare (grams, selling by weight);Sharing status;Docket name;Course;Statistics group;Production instruction
+190;spritz;;0-1;modifier group;0.0;;;;spritz;BLUE;Accent;;;;;;;LOCAL;;;;
+SVC1;Service charge 12.5%;;;item;12.5%;;Misc;;Service charge 12.5%;BLUE;Accent;;;;;;;SHARED;;;;
+869e0jt3n;Basil;;;item;0.0;;Food;;Basil;GREEN;Accent;;;;;;;LOCAL;;;Drinks/Ingredients;
+103;Gwenda;;;item;13.0;;Cocktails;Gwenda/Signature Cocktails;Gwenda;BLUE;Accent;;;;;;;LOCAL;;;default/Cocktails;
+114;Negroni;;;item;10.0;;Cocktails;Gwenda/Classic Cocktails/Bitter;Negroni;BLUE;Accent;;;;;;;LOCAL;;;default/Cocktails;
+869e0jtfx;Jameson Irish Whiskey;;;item;5.5;;Alcoholic Drinks;Gwenda/Spirits/Whiskey & Brandy;Jameson (25ml);BLUE;Accent;;;;;;;LOCAL;;;Drinks/Spirits;
+HOUSEGIN;Tanqueray;;;item;0.0;;Alcoholic Drinks;;Tanqueray;BLUE;Accent;;;;;;;LOCAL;;;Drinks/Spirits;

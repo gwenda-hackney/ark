@@ -14,7 +14,7 @@ interface Props {
 const { href = "/", label = "← Back", homeHref = "/" } = Astro.props;
 ---
 
-<div class="subpage-chrome">
+<header class="subpage-chrome">
   <BackLink href={href} label={label} />
   <a href={homeHref} class="subpage-chrome-logo" aria-label="Gwenda home">
     <Image
@@ -24,4 +24,4 @@ const { href = "/", label = "← Back", homeHref = "/" } = Astro.props;
       loading="eager"
     />
   </a>
-</div>
+</header>

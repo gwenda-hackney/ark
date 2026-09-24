@@ -5,16 +5,22 @@
  * Lists Ark + Ark/Web + Ark/Ops, then keeps OPS_ENV_SECRET_KEYS (including
  * web-owned SANITY_API_TOKEN and DEPLOY_WEBHOOK_SECRET). Also refreshes `.env.ark`.
  *
+ * SM stores ops Baserow tokens by env (no cross-env fallback):
+ *   BASEROW_API_KEY_LOCAL        → local `.env.ops` BASEROW_API_KEY (Gwenda Dev)
+ *   BASEROW_API_KEY_PRODUCTION   → Pages BASEROW_API_KEY (ops-secrets / setup:ops)
+ * Legacy SM `BASEROW_API_KEY` is accepted as LOCAL only.
+ *
  * Bootstrap (shared `.env` only):
  *   ARK_LOCAL_BW_TOKEN   machine-account access token (ark-local)
  *
  * CI uses BWS_ACCESS_TOKEN (ark-ci), then:
- *   npm run env:ops:pull -- --github-env   # before setup:ops in ops-secrets.yml
+ *   npm run env:ops:pull -- --github-env --profile production
  *
  *   npm run env:ops:pull
  *   npm run env:ops:pull -- --dry-run
  *   npm run env:ops:pull -- --env-only
- *   npm run env:ops:pull -- --github-env
+ *   npm run env:ops:pull -- --github-env --profile production
+ *   npm run env:ops:pull -- --migrate-sm   # copy legacy BASEROW_API_KEY → _LOCAL
  */
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -22,9 +28,14 @@ import { fileURLToPath } from "node:url";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   ARK_ENV_SECRET_KEYS,
+  OPS_BASEROW_SM_KEY_LOCAL,
+  OPS_BASEROW_SM_KEY_PRODUCTION,
   OPS_ENV_SECRET_KEYS,
+  ensureOpsBaserowLocalSmKey,
   listMergedOpsSecrets,
+  opsBaserowSmKey,
   pickOpsSecrets,
+  resolveOpsBaserowToken,
   resolveSmAccessToken,
   writeArkEnvFile,
 } from "./lib/bitwarden-sm.mjs";
@@ -40,13 +51,32 @@ function loadDotEnv(path) {
 }
 
 function parseArgs(argv) {
-  const out = { dryRun: false, envOnly: false, githubEnv: false };
-  for (const arg of argv) {
+  const out = {
+    dryRun: false,
+    envOnly: false,
+    githubEnv: false,
+    migrateSm: false,
+    profile: null,
+  };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
     if (arg === "--dry-run") out.dryRun = true;
     else if (arg === "--env-only") out.envOnly = true;
     else if (arg === "--github-env") out.githubEnv = true;
-    else if (arg === "--help" || arg === "-h") out.help = true;
+    else if (arg === "--migrate-sm") out.migrateSm = true;
+    else if (arg === "--profile" || arg === "--env") {
+      const value = argv[i + 1];
+      if (value !== "local" && value !== "development" && value !== "production") {
+        throw new Error(`${arg} must be local or production`);
+      }
+      out.profile = value === "development" ? "local" : value;
+      i += 1;
+    } else if (arg === "--help" || arg === "-h") out.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
+  }
+  if (!out.profile) {
+    // Pages/CI sync must resolve production; laptop pull stays local.
+    out.profile = out.githubEnv ? "production" : "local";
   }
   return out;
 }
@@ -58,10 +88,20 @@ function formatOpsEnv(values, extras = new Map()) {
     "# SANITY_API_TOKEN and DEPLOY_WEBHOOK_SECRET are owned by Ark/Web; ops reads them.",
     "# Plain ops settings → Baserow App Config (docs/config.md).",
     "# BASEROW_OPS_DATABASE_ID is the local/dev Ops DB (not production).",
+    "# BASEROW_API_KEY = local (SM BASEROW_API_KEY_LOCAL). Never use for Pages.",
+    "# BASEROW_API_KEY_PRODUCTION → Pages via npm run setup:ops / ops-secrets.yml.",
     "",
   ];
   for (const key of OPS_ENV_SECRET_KEYS) {
     lines.push(`${key}=${values.get(key) ?? ""}`);
+  }
+  const productionKey = values.get(OPS_BASEROW_SM_KEY_PRODUCTION) ?? "";
+  if (productionKey) {
+    lines.push(`${OPS_BASEROW_SM_KEY_PRODUCTION}=${productionKey}`);
+  }
+  const localCanonical = values.get(OPS_BASEROW_SM_KEY_LOCAL) ?? "";
+  if (localCanonical) {
+    lines.push(`${OPS_BASEROW_SM_KEY_LOCAL}=${localCanonical}`);
   }
   for (const key of ["BASEROW_OPS_DATABASE_ID", "BASEROW_OPS_DEV_WORKSPACE_ID"]) {
     const value = extras.get(key) ?? values.get(key) ?? "";
@@ -70,40 +110,34 @@ function formatOpsEnv(values, extras = new Map()) {
   return `${lines.join("\n")}\n`;
 }
 
-/** GitHub Actions multiline env file syntax. */
-function appendGithubEnv(fromSm) {
+/**
+ * GitHub Actions multiline env for ops-secrets → Pages.
+ * Exposes BASEROW_API_KEY_PRODUCTION only (never the local token as Pages key).
+ */
+function appendGithubEnv(fromSm, allSecrets) {
   const path = process.env.GITHUB_ENV?.trim();
   if (!path) {
     throw new Error("--github-env requires GITHUB_ENV (GitHub Actions only).");
   }
+  const production = resolveOpsBaserowToken(allSecrets, "production");
+  if (!production) {
+    throw new Error(
+      `${OPS_BASEROW_SM_KEY_PRODUCTION} is required for Pages. Add it in Ark/Ops SM; refusing to use the local Baserow token.`,
+    );
+  }
+
   let n = 0;
   const keys = [
     ...ARK_ENV_SECRET_KEYS,
     ...OPS_ENV_SECRET_KEYS.filter((key) => key !== "BASEROW_API_KEY"),
-    // Pages must get the prod-scoped Baserow token, not the local/dev one.
-    "BASEROW_API_KEY_PRODUCTION",
-    "BASEROW_API_KEY",
+    OPS_BASEROW_SM_KEY_PRODUCTION,
   ];
   const seen = new Set();
   for (const key of keys) {
     if (seen.has(key)) continue;
     seen.add(key);
-    let value = fromSm.get(key);
-    if (key === "BASEROW_API_KEY_PRODUCTION" && value?.trim()) {
-      // Expose as BASEROW_API_KEY for setup-ops-secrets putSecret fallback chain.
-      process.stdout.write(`::add-mask::${String(value)}\n`);
-      appendFileSync(
-        path,
-        `BASEROW_API_KEY_PRODUCTION<<BW_EOF\n${value}\nBW_EOF\n`,
-      );
-      n += 1;
-      continue;
-    }
-    if (key === "BASEROW_API_KEY") {
-      // Only use generic BASEROW_API_KEY if production key was missing.
-      if (fromSm.get("BASEROW_API_KEY_PRODUCTION")?.trim()) continue;
-      value = fromSm.get("BASEROW_API_KEY");
-    }
+    let value = fromSm.get(key) ?? allSecrets.get(key);
+    if (key === OPS_BASEROW_SM_KEY_PRODUCTION) value = production;
     if (value == null || !String(value).trim()) continue;
     if (key === "OPS_LOCAL_ADMIN_PW") continue;
     process.stdout.write(`::add-mask::${String(value)}\n`);
@@ -122,11 +156,14 @@ function main() {
     process.exit(1);
   }
   if (opts.help) {
-    console.log(`Usage: node scripts/pull-ops-env-from-sm.mjs [--dry-run] [--env-only] [--github-env]
+    console.log(`Usage: node scripts/pull-ops-env-from-sm.mjs [options]
 
   --dry-run      List keys that would sync (no write, no values)
   --env-only     Print KEY=value lines to stdout; do not write .env.ops
-  --github-env   Append filled secrets to $GITHUB_ENV (skips OPS_LOCAL_ADMIN_PW)
+  --github-env   Append filled secrets to $GITHUB_ENV (Pages sync; requires PRODUCTION)
+  --profile|--env local|production
+                 local (default laptop) or production (default with --github-env)
+  --migrate-sm   Copy legacy SM BASEROW_API_KEY → BASEROW_API_KEY_LOCAL when missing
 `);
     return;
   }
@@ -144,8 +181,23 @@ function main() {
     process.exit(1);
   }
 
-  const all = listMergedOpsSecrets({ accessToken: token });
-  const fromSm = pickOpsSecrets(all);
+  let all = listMergedOpsSecrets({ accessToken: token });
+
+  if (opts.migrateSm && !opts.dryRun) {
+    const result = ensureOpsBaserowLocalSmKey({ allSecrets: all, accessToken: token });
+    if (result === "created" || result === "updated") {
+      console.log(`SM ${OPS_BASEROW_SM_KEY_LOCAL}: ${result} from legacy BASEROW_API_KEY.`);
+      all = listMergedOpsSecrets({ accessToken: token });
+    } else if (result === "skipped") {
+      console.log(
+        `SM migrate skipped: neither ${OPS_BASEROW_SM_KEY_LOCAL} nor legacy BASEROW_API_KEY found.`,
+      );
+    } else {
+      console.log(`SM ${OPS_BASEROW_SM_KEY_LOCAL}: already present.`);
+    }
+  }
+
+  const fromSm = pickOpsSecrets(all, { profile: opts.profile });
   const existing = loadDotEnv(OPS_ENV_PATH);
   const ops = new Map();
   for (const key of OPS_ENV_SECRET_KEYS) {
@@ -157,20 +209,51 @@ function main() {
       ops.set(key, fromSm.get(key) ?? "");
     }
   }
-  const missing = OPS_ENV_SECRET_KEYS.filter((key) => !fromSm.has(key));
-  const fromSmFilled = OPS_ENV_SECRET_KEYS.filter(
-    (key) => fromSm.has(key) && String(fromSm.get(key) ?? "").trim(),
-  );
+  // Always carry production (and canonical local) into .env.ops when SM has them,
+  // so setup:ops can read PRODUCTION without a separate profile pull.
+  for (const key of [OPS_BASEROW_SM_KEY_PRODUCTION, OPS_BASEROW_SM_KEY_LOCAL]) {
+    const value = fromSm.get(key) ?? all.get(key);
+    if (String(value ?? "").trim()) ops.set(key, value);
+    else if (existing.has(key) && String(existing.get(key) ?? "").trim()) {
+      ops.set(key, existing.get(key));
+    }
+  }
+
+  const missing = OPS_ENV_SECRET_KEYS.filter((key) => {
+    if (key === "BASEROW_API_KEY") {
+      return !resolveOpsBaserowToken(all, opts.profile);
+    }
+    return !fromSm.has(key) || !String(fromSm.get(key) ?? "").trim();
+  });
+  const fromSmFilled = [
+    ...OPS_ENV_SECRET_KEYS.filter(
+      (key) => fromSm.has(key) && String(fromSm.get(key) ?? "").trim(),
+    ),
+    ...[OPS_BASEROW_SM_KEY_PRODUCTION, OPS_BASEROW_SM_KEY_LOCAL].filter(
+      (key) => String(ops.get(key) ?? "").trim(),
+    ),
+  ];
+
+  if (opts.profile === "production" && !resolveOpsBaserowToken(all, "production")) {
+    console.error(
+      `${OPS_BASEROW_SM_KEY_PRODUCTION} is required for profile=production. No fallback to local.`,
+    );
+    process.exit(1);
+  }
 
   if (opts.dryRun) {
     console.log(`Would write ${OPS_ENV_PATH}`);
+    console.log(`Profile: ${opts.profile} (Baserow SM ${opsBaserowSmKey(opts.profile)})`);
     console.log(`From SM: ${fromSmFilled.join(", ") || "(none)"}`);
     if (missing.length) {
       console.log(`Missing in SM (keep local if present): ${missing.join(", ")}`);
     }
     const ignored = [...all.keys()].filter(
       (k) =>
-        !OPS_ENV_SECRET_KEYS.includes(k) && !ARK_ENV_SECRET_KEYS.includes(k),
+        !OPS_ENV_SECRET_KEYS.includes(k) &&
+        !ARK_ENV_SECRET_KEYS.includes(k) &&
+        k !== OPS_BASEROW_SM_KEY_LOCAL &&
+        k !== OPS_BASEROW_SM_KEY_PRODUCTION,
     );
     if (ignored.length) {
       console.log(`SM keys not written to .env.ops: ${ignored.join(", ")}`);
@@ -181,8 +264,10 @@ function main() {
   }
 
   if (opts.githubEnv) {
-    const n = appendGithubEnv(all);
-    console.log(`Appended ${n} secrets to GITHUB_ENV (from SM).`);
+    const n = appendGithubEnv(fromSm, all);
+    console.log(
+      `Appended ${n} secrets to GITHUB_ENV (profile=${opts.profile}, Baserow ${opsBaserowSmKey("production")} → Pages).`,
+    );
     return;
   }
 
@@ -192,16 +277,18 @@ function main() {
       if (value == null || !String(value).trim()) continue;
       process.stdout.write(`${key}=${value}\n`);
     }
+    const production = ops.get(OPS_BASEROW_SM_KEY_PRODUCTION);
+    if (String(production ?? "").trim()) {
+      process.stdout.write(`${OPS_BASEROW_SM_KEY_PRODUCTION}=${production}\n`);
+    }
     return;
   }
 
-  writeFileSync(
-    OPS_ENV_PATH,
-    formatOpsEnv(ops, existing),
-  );
+  writeFileSync(OPS_ENV_PATH, formatOpsEnv(ops, existing));
   const arkWrite = writeArkEnvFile(ARK_ENV_PATH, all);
   console.log(`Wrote ${OPS_ENV_PATH}`);
   console.log(`Wrote ${ARK_ENV_PATH}`);
+  console.log(`Profile: ${opts.profile} (Baserow SM ${opsBaserowSmKey(opts.profile)})`);
   console.log(`Synced from SM: ${fromSmFilled.join(", ") || "(none)"}`);
   if (arkWrite.filled.length) {
     console.log(`Ark Cloudflare from SM: ${arkWrite.filled.join(", ")}`);
@@ -216,6 +303,14 @@ function main() {
   if (missing.length) {
     console.log(
       `Not in SM yet: ${missing.join(", ")}. Add them in Secrets Manager when ready.`,
+    );
+  }
+  if (
+    !String(all.get(OPS_BASEROW_SM_KEY_LOCAL) ?? "").trim() &&
+    String(all.get("BASEROW_API_KEY") ?? "").trim()
+  ) {
+    console.log(
+      `Note: SM still has legacy BASEROW_API_KEY. Run: npm run env:ops:pull -- --migrate-sm`,
     );
   }
 }

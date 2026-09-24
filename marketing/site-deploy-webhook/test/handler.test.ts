@@ -74,18 +74,98 @@ describe("handleDeploy", () => {
     const result = await handleDeploy(request, env);
     expect(result.status).toBe(400);
   });
+
+  it("refuses production deploys", async () => {
+    const request = new Request("https://example.com/deploy", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-secret" },
+      body: JSON.stringify({ target: "production" }),
+    });
+    const result = await handleDeploy(request, env);
+    expect(result.status).toBe(400);
+    expect(String(result.body.error)).toContain("promoting staging");
+  });
 });
 
 describe("handlePromote", () => {
-  it("returns 400 without previewRunId", async () => {
+  it("treats legacy development-to-staging as a staging rebuild", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ workflow_runs: [] })),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              workflow_runs: [
+                {
+                  id: 66,
+                  status: "in_progress",
+                  conclusion: null,
+                  html_url: "https://github.com/run/66",
+                  path: ".github/workflows/web.yml",
+                  name: "staging-content",
+                  display_title: "staging-content",
+                },
+              ],
+            }),
+          ),
+        ),
+    );
+
     const request = new Request("https://example.com/promote", {
       method: "POST",
       headers: { Authorization: "Bearer test-secret" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ kind: "development-to-staging" }),
     });
-
     const result = await handlePromote(request, env);
-    expect(result.status).toBe(400);
+    expect(result.status).toBe(202);
+    expect(result.body.target).toBe("staging");
+    expect(result.body.kind).toBe("staging-content");
+    expect(result.body.runId).toBe(66);
+    vi.unstubAllGlobals();
+  });
+
+  it("dispatches staging-to-production without a preview run", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ workflow_runs: [] })),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              workflow_runs: [
+                {
+                  id: 88,
+                  status: "in_progress",
+                  conclusion: null,
+                  html_url: "https://github.com/run/88",
+                  path: ".github/workflows/web-promote.yml",
+                  name: "promote-staging-to-production",
+                  display_title: "promote-staging-to-production",
+                },
+              ],
+            }),
+          ),
+        ),
+    );
+
+    const request = new Request("https://example.com/promote", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-secret" },
+      body: JSON.stringify({ kind: "staging-to-production" }),
+    });
+    const result = await handlePromote(request, env);
+    expect(result.status).toBe(202);
+    expect(result.body.runId).toBe(88);
+    vi.unstubAllGlobals();
   });
 });
 
@@ -176,7 +256,7 @@ describe("github integration", () => {
     vi.unstubAllGlobals();
   });
 
-  it("dispatches promote with kind=content and preview_run_id", async () => {
+  it("dispatches promote from release without a preview id", async () => {
     vi.resetModules();
     vi.stubGlobal(
       "fetch",
@@ -193,8 +273,8 @@ describe("github integration", () => {
                   conclusion: null,
                   html_url: "https://github.com/run/77",
                   path: ".github/workflows/web-promote.yml",
-                  name: "promote-content",
-                  display_title: "promote-content",
+                  name: "promote-staging-to-production",
+                  display_title: "promote-staging-to-production",
                 },
               ],
             }),
@@ -202,8 +282,8 @@ describe("github integration", () => {
         ),
     );
 
-    const { dispatchContentPromote } = await import("../src/github");
-    const run = await dispatchContentPromote(env, 55);
+    const { dispatchStagingPromote } = await import("../src/github");
+    const run = await dispatchStagingPromote(env);
     expect(run.id).toBe(77);
 
     const [dispatchUrl, dispatchInit] = (
@@ -211,8 +291,7 @@ describe("github integration", () => {
     ).mock.calls[0] as [string, RequestInit];
     expect(dispatchUrl).toContain("web-promote.yml");
     const body = JSON.parse(String(dispatchInit.body));
-    expect(body.inputs.kind).toBe("content");
-    expect(body.inputs.preview_run_id).toBe("55");
+    expect(body.ref).toBe("release");
 
     vi.unstubAllGlobals();
   });

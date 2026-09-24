@@ -58,7 +58,7 @@
 		white-space: nowrap;
 		color: inherit;
 		font: inherit;
-		font-weight: 500;
+		font-weight: inherit;
 		text-decoration: none;
 		line-height: 1.3;
 	}
