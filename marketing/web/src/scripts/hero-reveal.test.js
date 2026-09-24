@@ -102,8 +102,31 @@ describe("hero reveal after view transitions", () => {
     document.dispatchEvent(new Event("astro:after-swap"));
     initHeroReveal();
     await whenViewTransitionSettled();
+    await Promise.resolve();
 
+    expect(logo.classList.contains("is-decoded")).toBe(true);
     expect(animation()).toBe("none");
+  });
+
+  it("holds the wordmark until its image has decoded", async () => {
+    document.documentElement.classList.add("fonts-ready");
+    const logo = document.querySelector(".hero-logo");
+    let finishDecode;
+    logo.decode = () =>
+      new Promise((resolve) => {
+        finishDecode = resolve;
+      });
+    Object.defineProperty(logo, "complete", { value: true });
+
+    initHeroReveal();
+    await Promise.resolve();
+    expect(logo.classList.contains("is-decoded")).toBe(false);
+
+    finishDecode();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(logo.classList.contains("is-decoded")).toBe(true);
   });
 
   it("resolves after two frames when no view-transition animations are running", async () => {

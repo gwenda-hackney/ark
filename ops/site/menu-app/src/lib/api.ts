@@ -337,6 +337,28 @@ export function deleteSupplier(id: string) {
   });
 }
 
+export type FormAnswer = {
+  key: string;
+  label: string;
+  value: string;
+};
+
+export type FormSubmission = {
+  id: string;
+  formSlug: string;
+  formTitle: string;
+  email: string;
+  name: string;
+  status: string;
+  submittedAt: string;
+  current: boolean;
+  answers: FormAnswer[];
+};
+
+export function getFormSubmissions() {
+  return request<{ submissions: FormSubmission[] }>("/api/forms");
+}
+
 export function getOpsUsers() {
   return coalesce("users", () =>
     request<{ users: import("./types").OpsUser[] }>("/api/users"),

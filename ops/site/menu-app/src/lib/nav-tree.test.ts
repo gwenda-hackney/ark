@@ -40,7 +40,7 @@ describe("NAV_ROUTES", () => {
 		assert.equal(programme?.heading, true);
 		assert.deepEqual(
 			programme?.children?.map((row) => row.id),
-			["events", "artist", "web"],
+			["events", "artist", "web", "forms"],
 		);
 		assert.deepEqual(
 			programme?.children?.find((row) => row.id === "events")?.children?.map((row) => row.id),
@@ -72,6 +72,7 @@ describe("flattenNavRoutes", () => {
 				"events-schedule",
 				"artist",
 				"web",
+				"forms",
 				"users",
 				"config",
 			],
@@ -108,6 +109,7 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/artists/new")?.id, "artist");
 		assert.equal(matchActiveRoute(routes, "/artists/3")?.id, "artist");
 		assert.equal(matchActiveRoute(routes, "/web")?.id, "web");
+		assert.equal(matchActiveRoute(routes, "/forms")?.id, "forms");
 		assert.equal(matchActiveRoute(routes, "/")?.id, "home");
 		assert.equal(matchActiveRoute(routes, "/users")?.id, "users");
 	});

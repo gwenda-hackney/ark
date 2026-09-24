@@ -134,6 +134,7 @@ if (!baserowProductionKey) {
   process.exit(1);
 }
 putSecret("BASEROW_API_KEY", baserowProductionKey);
+putSecret("BASEROW_WEBSITE_API_KEY", process.env.BASEROW_WEBSITE_API_KEY);
 putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
 putSecret(
   "DEPLOY_WEBHOOK_SECRET",
