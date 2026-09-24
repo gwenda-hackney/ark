@@ -525,6 +525,7 @@ export type OpsEvent = {
   name: string;
   artist: string;
   offer: string;
+  pageUrl: string;
   description: string;
   shortDescription: string;
   nightSchedule: OpsNightScheduleSlot[];

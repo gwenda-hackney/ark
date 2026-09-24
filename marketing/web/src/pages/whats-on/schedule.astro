@@ -8,14 +8,12 @@ import {
   buildPublicSchedule,
   formatShortEventDate,
 } from "../../../functions/_lib/event-series.js";
-import { scheduleNavItems } from "../../lib/site-nav.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 
 const { series: seriesRecords, occurrences } =
   await fetchWhatsOnCatalog().catch(() => ({ series: [], occurrences: [] }));
 const upcomingEvents = getUpcomingEvents(occurrences);
 const { weeks } = buildPublicSchedule(occurrences, { series: seriesRecords });
-const scheduleNav = scheduleNavItems(weeks);
 const hasContent = weeks.length > 0;
 const scheduleEntries = weeks.flatMap((week, index) => [
   {
@@ -78,11 +76,7 @@ function nightTime(night: {
     })}
   />
 
-  <Subpage
-    class="schedule-page events-page"
-    innerClass="schedule-inner"
-    navItems={scheduleNav}
-  >
+  <Subpage class="schedule-page events-page" innerClass="schedule-inner">
     <header class="section-header events-header reveal">
       <p class="section-eyebrow">Diary</p>
       <h1>Schedule</h1>
@@ -152,8 +146,8 @@ function nightTime(night: {
                           Special guest · {night.artist}
                         </span>
                       ) : null}
-                      {time ? <span class="schedule-meta">{time}</span> : null}
                     </span>
+                    {time ? <span class="schedule-time">{time}</span> : null}
                   </a>
                 </li>
               );

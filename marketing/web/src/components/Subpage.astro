@@ -49,7 +49,12 @@ const isSplit = layout === "split" || flush;
 <main class:list={["subpage", isSplit && "subpage--split", className]}>
   {
     showChrome ? (
-      <Header items={navItems} collapsed logoHref={homeHref} />
+      <Header
+        items={navItems}
+        collapsed
+        logoHref={homeHref}
+        pathname={Astro.url.pathname}
+      />
     ) : null
   }
   <slot name="aside" />

@@ -1,0 +1,62 @@
+---
+import { siteConfig } from "../config/site";
+import { fetchFeaturedArtists } from "../lib/featured-artist.js";
+import { fetchWhatsOnCatalog } from "../lib/sanity/events";
+import {
+  buildWhatsOnHome,
+  formatShortEventDate,
+} from "../../functions/_lib/event-series.js";
+
+const { copy } = siteConfig;
+const featured = await fetchFeaturedArtists();
+const artist = featured.current;
+
+const catalog = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+const { nights } = buildWhatsOnHome(catalog.occurrences, {
+  limit: 12,
+  series: catalog.series,
+});
+const nextNight = nights
+  .filter((night) => night?.title && night?.date)
+  .slice()
+  .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
+const nextWhen = nextNight ? formatShortEventDate(nextNight.date) : "";
+const eventsBody =
+  nextNight && nextWhen
+    ? `${copy.whatWeDoEventsBody} Next, ${nextNight.title}. ${nextWhen}.`
+    : copy.whatWeDoEventsBody;
+
+const profile = String(artist?.profile || "").trim();
+const artistBody = artist?.name
+  ? profile && profile.length <= 160
+    ? `${artist.name} has the wall. ${/[.!?]$/.test(profile) ? profile : `${profile}.`}`
+    : `${artist.name} has the wall.`
+  : copy.whatWeDoArtistBody;
+---
+
+<section class="what-we-do section" id="what-we-do">
+  <div class="container">
+    <header class="section-intro what-we-do-header reveal">
+      <p class="section-eyebrow">{copy.whatWeDoEyebrow}</p>
+      <h2>{copy.whatWeDoHeading}</h2>
+      <p class="section-lead">{copy.whatWeDoLead}</p>
+      <p class="what-we-do-body">{copy.whatWeDoBody}</p>
+    </header>
+
+    <div class="what-we-do-grid">
+      <a class="what-we-do-card reveal" href="/whats-on">
+        <h3>{copy.whatWeDoEventsHeading}</h3>
+        <p>{eventsBody}</p>
+        <span class="what-we-do-card-cta">{copy.whatWeDoEventsLink}</span>
+      </a>
+      <a class="what-we-do-card reveal" href="/artists">
+        <h3>{copy.whatWeDoArtistHeading}</h3>
+        <p>{artistBody}</p>
+        <span class="what-we-do-card-cta">{copy.whatWeDoArtistLink}</span>
+      </a>
+    </div>
+  </div>
+</section>

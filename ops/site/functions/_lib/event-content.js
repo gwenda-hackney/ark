@@ -163,6 +163,7 @@ export function resolveOccurrenceContent(event, occurrence) {
     title: String(overrides.name || event?.name || "").trim(),
     artist: String(overrides.artist || event?.artist || "").trim(),
     offer: String(overrides.offer || event?.offer || "").trim(),
+    pageUrl: String(event?.pageUrl || "").trim(),
     description: once
       ? seriesDescriptionForPublish(event)
       : String(overrides.description || event?.description || "").trim(),
@@ -264,6 +265,7 @@ export function occurrencePayload(event, occurrence) {
     title: content.title,
     artist: content.artist,
     offer: content.offer,
+    pageUrl: content.pageUrl,
     description: content.description,
     time: content.time,
     startTime: content.startTime,
@@ -372,6 +374,7 @@ export function sanityEventDocument({
   shortDescription,
   artist,
   offer,
+  pageUrl,
   heroImage,
   seriesHeroImage,
   seriesId,
@@ -397,11 +400,12 @@ export function sanityEventDocument({
     date,
     time,
     offer,
+    pageUrl: String(pageUrl || "").trim(),
     shortDescription: String(shortDescription || "").trim(),
     description: plainToEventDescription(description),
     venue: "Schwartz Wharf, Hackney Wick, London E9 5AA",
     ticketStart: startTime || "17:00",
-    ticketEnd: endTime || "23:00",
+    ticketEnd: endTime || "",
     nightSchedule: toSanityNightSchedule(nightSchedule),
     channels: [],
     rsvpConfirmation: {

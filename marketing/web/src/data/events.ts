@@ -17,6 +17,25 @@ export type EventsPageModel = {
   datedEvents: Event[];
 };
 
+/** Their page, when the URL is a real http(s) link. The label is the site name. */
+export function eventPageLink(
+  value: string | null | undefined,
+): { href: string; label: string } | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  const host = url.hostname.replace(/^www\./i, "");
+  const name = host.split(".")[0] || host;
+  const label = name ? name.charAt(0).toUpperCase() + name.slice(1) : host;
+  return { href: url.toString(), label };
+}
+
 export function formatEventDate(isoDate: string): string {
   const [year, month, day] = isoDate.split("-").map(Number);
   const date = new Date(year, month - 1, day);

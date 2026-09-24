@@ -783,6 +783,7 @@ function eventFields() {
   return [
     { name: "Artist", body: { name: "Artist", type: "text" } },
     { name: "Offer", body: { name: "Offer", type: "text" } },
+    { name: "Page link", body: { name: "Page link", type: "url" } },
     {
       name: "Short description",
       body: { name: "Short description", type: "long_text" },

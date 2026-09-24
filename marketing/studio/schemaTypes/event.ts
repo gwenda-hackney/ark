@@ -161,6 +161,14 @@ export const event = defineType({
         "Leave this empty when start and end are set. Extra sets belong in the description.",
     }),
     defineField({
+      name: "pageUrl",
+      title: "Page link",
+      type: "url",
+      readOnly: true,
+      description:
+        "Set by ops. Their page, shown on the event when present.",
+    }),
+    defineField({
       name: "shortDescription",
       title: "Short description",
       type: "text",

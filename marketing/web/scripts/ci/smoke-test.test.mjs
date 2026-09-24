@@ -22,7 +22,7 @@ describe("assertHomePageHealthy", () => {
   it("accepts a normal homepage", () => {
     expect(() =>
       assertHomePageHealthy(
-        "<title>Gwenda | Ristobar</title><form id=\"signup-form\"></form>",
+        "<title>Gwenda | Ristobar</title><a href=\"/join-list\">Stay in touch</a>",
       ),
     ).not.toThrow();
   });

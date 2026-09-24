@@ -81,6 +81,17 @@ if (applyDotEnv(webEnvPath, { override: true })) {
   // Quiet: web secrets override shared .env / .env.ark (same pattern as ops).
 }
 
+// Ops Baserow is a different token from the marketing site. Keep it on its
+// own name so the website can read the wall artist without replacing BASEROW_API_KEY.
+const opsEnvPath = join(root, ".env.ops");
+if (existsSync(opsEnvPath)) {
+  const opsEnv = Object.fromEntries(
+    parseDotEnv(readFileSync(opsEnvPath, "utf8")),
+  );
+  setEnvIfMissing("BASEROW_OPS_API_KEY", opsEnv.BASEROW_API_KEY);
+  setEnvIfMissing("BASEROW_OPS_DATABASE_ID", opsEnv.BASEROW_OPS_DATABASE_ID);
+}
+
 deriveStudioEnv();
 
 // Sanity CLI (`sanity deploy`) reads SANITY_AUTH_TOKEN.

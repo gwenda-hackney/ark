@@ -3,7 +3,13 @@ import { Image } from "astro:assets";
 import type { SiteFeatures } from "../types/features";
 import { siteConfig } from "../config/site";
 import { headerLogo } from "../lib/hero-assets";
-import { shouldReloadNavLink } from "../lib/site-nav.js";
+import {
+  homeAnchorItems,
+  isCurrentNavPage,
+  navPathname,
+  shouldReloadNavLink,
+  sitePageLinks,
+} from "../lib/site-nav.js";
 
 export interface NavItem {
   href: string;
@@ -13,17 +19,18 @@ export interface NavItem {
 }
 
 interface Props {
-  /** Home menu. Omitted when `items` supplies a page menu. */
+  /** Home sections. Omitted when `items` supplies this page's menu. */
   features?: SiteFeatures;
   showMenuTease?: boolean;
-  /** Page menu. When set, replaces the home links. */
+  /** This page: Home, then anchors and child pages. */
   items?: NavItem[];
   /**
-   * Same as home: hamburger only until scroll, then the bar, wordmark,
-   * and desktop quick links slide in.
+   * Subpage: wordmark waits for scroll. The hamburger stays either way.
    */
   collapsed?: boolean;
   logoHref?: string;
+  /** Used to drop the current route from the other pages. */
+  pathname?: string;
 }
 
 const {
@@ -32,7 +39,25 @@ const {
   items,
   collapsed = false,
   logoHref = collapsed ? "/" : "#hero",
+  pathname = Astro.url.pathname,
 } = Astro.props;
+
+const showMenuLink = items
+  ? true
+  : Boolean(showMenuTease || features?.showMenu);
+const pageLinks =
+  items ??
+  homeAnchorItems({
+    showMenu: Boolean(showMenuTease),
+    showTeam: Boolean(features?.showTeam),
+    showGallery: Boolean(features?.showGallery),
+    signupLabel: siteConfig.copy.signupNavCta,
+  });
+const homeLink = pageLinks.find((item) => navPathname(item.href) === "/");
+const thisPageLinks = pageLinks.filter((item) => item !== homeLink);
+const siteLinks = sitePageLinks(pathname, { showMenu: showMenuLink });
+/** A long chapter list never fits beside the wordmark. Keep the hamburger. */
+const overlayOnly = pageLinks.length > 6;
 ---
 
 <header
@@ -59,30 +84,64 @@ const {
   </button>
 </header>
 
-<nav class="site-header-nav" id="site-header-nav">
+<nav
+  class:list={["site-header-nav", overlayOnly && "site-header-nav--overlay-only"]}
+  id="site-header-nav"
+  aria-label="Menu"
+>
   {
-    items ? (
-      items.map((item) => (
+    homeLink && (
+      <a
+        href={homeLink.href}
+        class="site-nav-home"
+        data-astro-reload={shouldReloadNavLink(homeLink.href) || undefined}
+        aria-current={isCurrentNavPage(homeLink.href, pathname) ? "page" : undefined}
+      >
+        {homeLink.label}
+      </a>
+    )
+  }
+  <div
+    class="site-nav-group site-nav-group--page"
+    role="group"
+    aria-labelledby="site-nav-page-label"
+  >
+    <p class="site-nav-label is-current" id="site-nav-page-label">This page</p>
+    {
+      thisPageLinks.map((item) => (
         <a
           href={item.href}
           class:list={[item.cta && "site-header-cta"]}
           data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+          aria-current={isCurrentNavPage(item.href, pathname) ? "page" : undefined}
         >
           {item.label}
         </a>
       ))
-    ) : (
-      <>
-        <a href="#story">Story</a>
-        {/* Dedicated /menu and /whats-on URLs help Google form organic sitelinks. */}
-        {(showMenuTease || features?.showMenu) && <a href="/menu">Menu</a>}
-        {features?.showTeam && <a href="#team">Who we are</a>}
-        <a href="/whats-on">What's on</a>
-        <a href="/contact">Contact</a>
-        <a href="#list" class="site-header-cta">
-          {siteConfig.copy.signupNavCta}
-        </a>
-      </>
+    }
+  </div>
+  {
+    siteLinks.length > 0 && (
+      <div
+        class="site-nav-group site-nav-group--site"
+        role="group"
+        aria-labelledby="site-nav-elsewhere-label"
+      >
+        <p class="site-nav-label" id="site-nav-elsewhere-label">Elsewhere</p>
+        {
+          siteLinks.map((item) => (
+            <a
+              href={item.href}
+              data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+              aria-current={
+                isCurrentNavPage(item.href, pathname) ? "page" : undefined
+              }
+            >
+              {item.label}
+            </a>
+          ))
+        }
+      </div>
     )
   }
 </nav>

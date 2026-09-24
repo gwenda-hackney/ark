@@ -19,6 +19,8 @@ interface Props {
   socialDescription?: string;
   /** Floating Book a table CTA. Off on form pages. */
   showBooking?: boolean;
+  /** Keep draft look-pages out of search results. */
+  noindex?: boolean;
 }
 
 const {
@@ -27,6 +29,7 @@ const {
   socialTitle,
   socialDescription,
   showBooking = true,
+  noindex = false,
 } = Astro.props;
 
 const siteOrigin = isStaging
@@ -54,7 +57,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
       content={`${siteConfig.location.geo.latitude}, ${siteConfig.location.geo.longitude}`}
     />
     {
-      isStaging ? (
+      isStaging || noindex ? (
         <meta name="robots" content="noindex, nofollow" />
       ) : (
         <meta name="robots" content="index, follow" />

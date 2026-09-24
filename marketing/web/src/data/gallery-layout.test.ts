@@ -7,9 +7,26 @@ import {
 } from "./gallery-layout";
 
 describe("getGalleryLayout", () => {
+  it("puts one, two, and three photos in one row of equal tiles", () => {
+    for (const count of [1, 2, 3]) {
+      const layout = getGalleryLayout(count);
+      expect(layout.equalTiles).toBe(true);
+      expect(layout.columnsDesktop).toBe(count);
+      expect(layout.rowsDesktop).toBe(1);
+      for (let index = 0; index < count; index++) {
+        expect(getGalleryTileSpan(layout, index)).toEqual({ cols: 1, rows: 1 });
+      }
+    }
+
+    expect(galleryContainerVars(getGalleryLayout(3))).toContain(
+      'grid-template-areas:"a b c"',
+    );
+  });
+
   it("positions four cocktails with named areas and varied tile spans", () => {
     const layout = getGalleryLayout(4);
     expect(layout.usesAreas).toBe(true);
+    expect(layout.equalTiles).toBe(false);
     expect(layout.tileAreas).toEqual(["a", "b", "c", "d"]);
     expect(getGalleryTileSpan(layout, 0)).toEqual({ cols: 3, rows: 3 });
     expect(getGalleryTileSpan(layout, 1)).toEqual({ cols: 2, rows: 2 });

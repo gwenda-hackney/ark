@@ -1,0 +1,26 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Subpage from "../components/Subpage.astro";
+import CreditList from "../components/CreditList.astro";
+import { siteConfig } from "../config/site";
+import { acknowledgements } from "../data/acknowledgements.js";
+import { withHome } from "../lib/site-nav.js";
+
+const { title, description } = siteConfig.seo.acknowledgements;
+---
+
+<BaseLayout title={title} description={description}>
+  <link rel="prefetch" href="/" slot="head" />
+
+  <Subpage class="credit-page" innerClass="credit-inner" navItems={withHome()}>
+    <header class="credit-header reveal">
+      <p class="section-eyebrow">The neighbourhood</p>
+      <h1>Acknowledgements</h1>
+      <p>
+        People from the Wick we work with. Named here so you can go and find
+        them.
+      </p>
+    </header>
+    <CreditList items={acknowledgements} />
+  </Subpage>
+</BaseLayout>

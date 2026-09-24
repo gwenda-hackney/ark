@@ -1,6 +1,13 @@
 ---
 import { isStaging } from "../config/env";
 import { buildLabel } from "../config/build";
+
+interface Props {
+  /** Passwordless share is only for people already inside the site. */
+  share?: boolean;
+}
+
+const { share = true } = Astro.props;
 ---
 
 {
@@ -11,14 +18,18 @@ import { buildLabel } from "../config/build";
       aria-label={`Staging environment. Build ${buildLabel()}.`}
       title={`Build ${buildLabel()}`}
     >
-      <button
-        type="button"
-        class="staging-ribbon-share"
-        id="staging-share"
-        title="Copy a link that unlocks staging for the recipient"
-      >
-        <span data-staging-share-label>Staging</span>
-      </button>
+      {share ? (
+        <button
+          type="button"
+          class="staging-ribbon-share"
+          id="staging-share"
+          title="Copy a link that unlocks staging for the recipient"
+        >
+          <span data-staging-share-label>Staging</span>
+        </button>
+      ) : (
+        <span>Staging</span>
+      )}
     </div>
   )
 }
@@ -38,15 +49,29 @@ import { buildLabel } from "../config/build";
 
         async function copyShareLink() {
           const path = `${window.location.pathname}${window.location.search}`;
-          const response = await fetch(
+          const pending = fetch(
             `/api/staging-share?path=${encodeURIComponent(path)}`,
             { credentials: "same-origin" },
-          );
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || !data.url) {
-            throw new Error(data.error || "Could not build a share link.");
+          ).then(async (response) => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.url) {
+              throw new Error(data.error || "Could not build a share link.");
+            }
+            return data.url;
+          });
+
+          if (navigator.clipboard?.write && window.ClipboardItem) {
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                "text/plain": pending.then(
+                  (url) => new Blob([url], { type: "text/plain" }),
+                ),
+              }),
+            ]);
+          } else {
+            await navigator.clipboard.writeText(await pending);
           }
-          await navigator.clipboard.writeText(data.url);
+
           setLabel("Copied");
           window.clearTimeout(resetTimer);
           resetTimer = window.setTimeout(() => setLabel(idle), 1600);

@@ -1,5 +1,6 @@
 import {
   eventDescriptionParagraphs,
+  eventPageLink,
   formatEventDiaryDate,
   formatEventRecurrence,
   formatEventSpan,
@@ -160,36 +161,54 @@ function eventDescription(
   return wrap;
 }
 
+function appendPageLink(parent, url) {
+  const link = eventPageLink(url);
+  if (!link) return;
+  const line = document.createElement("p");
+  line.className = "event-page-link";
+  const anchor = document.createElement("a");
+  anchor.href = link.href;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  anchor.textContent = link.label;
+  line.appendChild(anchor);
+  parent.appendChild(line);
+}
+
 /** Home: one basic series card. */
 function seriesCard(event, { eager = false } = {}) {
   const regular = Boolean(event.regular);
   const href = String(event.href || "").trim();
+  const external = eventPageLink(event.pageUrl);
   const item = document.createElement("li");
-  const card = document.createElement(href ? "a" : "div");
-  card.className = `event-card event-card--series${regular ? " event-card--regular" : ""}`;
-  if (href) {
+  const card = document.createElement(external ? "div" : href ? "a" : "div");
+  card.className = `event-card event-card--series${external ? " event-card--linked" : ""}${regular ? " event-card--regular" : ""}`;
+  const captionName = String(event.imageCaptionName || "").trim();
+  const hostDate = String(event.hostDate || "").trim();
+  const label = [
+    event.title,
+    captionName ? `Hosting ${captionName}` : "",
+    hostDate
+      ? `${event.hostThisWeek ? "This week, " : ""}${formatShortEventDate(hostDate)}`
+      : "",
+    String(event.thisWeekName || "").trim()
+      ? `This week, ${event.thisWeekName}`
+      : "",
+    String(event.upcomingName || "").trim()
+      ? `Next, ${event.upcomingName}`
+      : "",
+    captionName ? `Next at Gwenda, ${captionName}` : "",
+  ]
+    .filter(Boolean)
+    .join(". ");
+  if (external && href) {
+    const hit = document.createElement("a");
+    hit.className = "event-card-hit";
+    hit.href = href;
+    hit.setAttribute("aria-label", label);
+    card.appendChild(hit);
+  } else if (href) {
     card.href = href;
-    const captionName = String(event.imageCaptionName || "").trim();
-    const hostName = String(event.hostName || "").trim();
-    const hostDate = String(event.hostDate || "").trim();
-    const label = [
-      event.title,
-      String(event.imageCaptionName || "").trim()
-        ? `Hosting ${event.imageCaptionName}`
-        : "",
-      hostDate
-        ? `${event.hostThisWeek ? "This week, " : ""}${formatShortEventDate(hostDate)}`
-        : "",
-      String(event.thisWeekName || "").trim()
-        ? `This week, ${event.thisWeekName}`
-        : "",
-      String(event.upcomingName || "").trim()
-        ? `Next, ${event.upcomingName}`
-        : "",
-      captionName ? `Next at Gwenda, ${captionName}` : "",
-    ]
-      .filter(Boolean)
-      .join(". ");
     card.setAttribute("aria-label", label);
   }
 
@@ -229,7 +248,6 @@ function seriesCard(event, { eager = false } = {}) {
   copy.append(date, title);
 
   const hostName = String(event.hostName || "").trim();
-  const hostDate = String(event.hostDate || "").trim();
   const hostThisWeek = Boolean(event.hostThisWeek);
   if (hostName && !hostThisWeek) {
     copy.appendChild(
@@ -253,6 +271,7 @@ function seriesCard(event, { eager = false } = {}) {
   if (event.description) {
     copy.appendChild(eventDescription(event.description));
   }
+  appendPageLink(copy, event.pageUrl);
 
   const follow = document.createElement("div");
   follow.className = "event-follow";
@@ -316,17 +335,16 @@ function syncDiaryLabels(list) {
   for (const label of list.querySelectorAll(":scope > .whats-on-divider")) {
     label.remove();
   }
-  if (!hasSpecial) return;
-  if (hasSeries) list.prepend(diaryLabel("series", true));
-  const firstSpecial = [...list.children].find(
-    (item) => item.dataset.schedule === "once",
-  );
-  if (firstSpecial) {
-    list.insertBefore(
-      diaryLabel("special", !hasSeries),
-      firstSpecial,
+  if (hasSpecial) {
+    if (hasSeries) list.prepend(diaryLabel("series", true));
+    const firstSpecial = [...list.children].find(
+      (item) => item.dataset.schedule === "once",
     );
+    if (firstSpecial) {
+      list.insertBefore(diaryLabel("special", !hasSeries), firstSpecial);
+    }
   }
+  document.dispatchEvent(new Event("gwenda:page-anchors"));
 }
 
 function appendDiaryCards(list, nights, { eagerFirst = false } = {}) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  eventPageLink,
   buildEventsPageModel,
   buildEventsStack,
   eventDescriptionParagraphs,
@@ -36,6 +37,20 @@ const sampleEvents: Event[] = [
     description: "Seasonal menu.",
   },
 ];
+
+describe("eventPageLink", () => {
+  it("names the site when a page is set", () => {
+    expect(eventPageLink("https://partiful.com/e/Goj3NNw3Up68TjUxYaoT")).toEqual({
+      href: "https://partiful.com/e/Goj3NNw3Up68TjUxYaoT",
+      label: "Partiful",
+    });
+  });
+
+  it("stays hidden when there is no page", () => {
+    expect(eventPageLink("")).toBeNull();
+    expect(eventPageLink("javascript:alert(1)")).toBeNull();
+  });
+});
 
 describe("formatEventDate", () => {
   it("formats ISO dates in en-GB long form", () => {

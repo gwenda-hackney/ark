@@ -5,6 +5,8 @@ export type Event = {
   title: string;
   artist?: string;
   offer?: string;
+  /** Their page, when they provided one. */
+  pageUrl?: string;
   seriesId?: string;
   seriesTitle?: string;
   recurrence?: string;

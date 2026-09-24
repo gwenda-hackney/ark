@@ -825,6 +825,10 @@ export function buildWhatsOnStack(
       upcomingDate: diary.upcomingDate,
       upcomingName: diary.upcomingName,
       offer: row.offer,
+      pageUrl: String(
+        (row.nights || []).find((night) => String(night.pageUrl || "").trim())
+          ?.pageUrl || "",
+      ).trim(),
       nightSchedule: row.nightSchedule || [],
       date: row.nextDate,
       startTime: row.startTime,

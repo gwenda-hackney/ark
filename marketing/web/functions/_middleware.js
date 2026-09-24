@@ -63,6 +63,8 @@ export async function onRequest(context) {
 
   if (authed) return context.next();
 
+  if (url.pathname === "/api/staging-share") return context.next();
+
   const gateUrl = new URL("/gate", url.origin);
   const next = url.pathname + url.search;
   if (next !== "/") gateUrl.searchParams.set("next", next);

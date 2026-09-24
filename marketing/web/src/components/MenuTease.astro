@@ -3,14 +3,19 @@ import { siteConfig } from "../config/site";
 import MenuTeaseCocktails from "./MenuTeaseCocktails.astro";
 import DissolveReveal from "./DissolveReveal.astro";
 import { fetchMenuTeaseCocktails } from "../lib/sanity/menu";
+import type { MenuTeaseCocktail } from "../data/menu-tease";
 
 interface Props {
   /** When false, keep the section but hide cocktail images (coming soon). */
   showCocktailImages?: boolean;
+  /** Stand-in photos for a local look. Homepage leaves this unset and reads Sanity. */
+  cocktails?: MenuTeaseCocktail[];
 }
 
-const { showCocktailImages = true } = Astro.props;
-const cocktails = showCocktailImages ? await fetchMenuTeaseCocktails() : [];
+const { showCocktailImages = true, cocktails: cocktailsOverride } = Astro.props;
+const cocktails =
+  cocktailsOverride ??
+  (showCocktailImages ? await fetchMenuTeaseCocktails() : []);
 ---
 
 <section class="menu-tease section" id="menu">
@@ -25,7 +30,13 @@ const cocktails = showCocktailImages ? await fetchMenuTeaseCocktails() : [];
         />
       </p>
       <h2>{siteConfig.copy.menuTeaseHeading}</h2>
-      <p class="section-lead">{siteConfig.copy.menuTeaseLead}</p>
+      <p class="section-lead">
+        {siteConfig.copy.menuTeaseLead} The food menu launches soon. Come back
+        for updates, <a href="/join-list">join the list</a>, or follow on <a
+          href={siteConfig.social.instagram}
+          target="_blank"
+          rel="noreferrer">Instagram</a>.
+      </p>
     </header>
   </div>
 
