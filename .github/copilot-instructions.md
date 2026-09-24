@@ -20,9 +20,11 @@ Two datasets only (`staging` + `production`). Local Studio and `npm run dev` sha
 - Merge to **`main`** → verify → staging deploy from published staging → smoke test.
 - **Promote to staging** (ops Web / Dev Studio) rebuilds gwenda-staging from published documents.
 - **Production requires explicit authorization.** Do not promote to live unless the user clearly asks. Default after changes: commit and push **`develop`** (or merge to `main` for staging), then verify staging.
-- When authorized: ops Web → Promote staging to production, which runs [Web promote](workflows/web-promote.yml): clone Sanity `staging` → `production`, rebuild from the staging SHA, deploy gwenda.co.uk, fast-forward `release`.
+- Live website, ops, brand, and production Studio each promote on their own manual workflow, and only from **`release`**. `main` deploys staging and previews. Merging to `release` does not deploy production.
+- Website: [Web promote](workflows/web-promote.yml) on `release` clones Sanity `staging` → `production` and deploys gwenda.co.uk. It does not move `release`.
+- Ops: [Apps](workflows/apps.yml) workflow dispatch, app `ops`, target production, branch `release`. Pushing `main` does not update gwenda-ops.
 
-**Production manual gate:** Promotion is a separate `workflow_dispatch` workflow (private repos cannot use GitHub Environment required reviewers without Enterprise). Trigger from ops, not by pushing `release`.
+**Production manual gate:** Run the workflow from the `release` branch. A dispatch from `main` fails. This private repo cannot enable GitHub branch protection, so the workflows enforce the branch check themselves.
 
 ## Architecture
 

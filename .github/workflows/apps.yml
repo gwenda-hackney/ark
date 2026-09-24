@@ -70,15 +70,28 @@ jobs:
             echo "ops=${{ steps.filter.outputs.ops }}" >> "$GITHUB_OUTPUT"
           fi
 
+  refuse-production-from-other-branches:
+    name: Refuse production off release
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && inputs.deploy_target == 'production'
+      && github.ref_name != 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail
+        run: |
+          echo "Brand and ops production deploys only run from the release branch (got ${{ github.ref_name }})." >&2
+          exit 1
+
   brand-production:
     name: Deploy brand (production)
     needs: changes
     if: >-
-      needs.changes.outputs.brand == 'true' && (
-      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'release'))
-      || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production'
-          && (github.ref_name == 'main' || github.ref_name == 'release'))
-      )
+      needs.changes.outputs.brand == 'true'
+      && github.event_name == 'workflow_dispatch'
+      && inputs.deploy_target == 'production'
+      && github.ref_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -236,18 +249,17 @@ jobs:
               ["Pages branch","`${{ steps.branch.outputs.name }}`"],
               ["Git branch","`${{ github.ref_name }}`"],
               ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"],
-              ["Production","Unchanged — merge to `main` to update [brand.gwenda.co.uk](https://brand.gwenda.co.uk)"]
+              ["Production","Unchanged — run Apps from `release` with target production to update [brand.gwenda.co.uk](https://brand.gwenda.co.uk)"]
             ]}
 
   ops-production:
     name: Deploy ops (production)
     needs: changes
     if: >-
-      needs.changes.outputs.ops == 'true' && (
-      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'release'))
-      || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'production'
-          && (github.ref_name == 'main' || github.ref_name == 'release'))
-      )
+      needs.changes.outputs.ops == 'true'
+      && github.event_name == 'workflow_dispatch'
+      && inputs.deploy_target == 'production'
+      && github.ref_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -386,5 +398,5 @@ jobs:
               ["Pages branch","`${{ steps.branch.outputs.name }}`"],
               ["Git branch","`${{ github.ref_name }}`"],
               ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"],
-              ["Production","Unchanged — merge to `main` to update [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)"]
+              ["Production","Unchanged — run Apps from `release` with target production to update [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)"]
             ]}

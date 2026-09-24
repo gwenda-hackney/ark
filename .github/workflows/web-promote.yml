@@ -1,9 +1,9 @@
 name: Web promote
 
-# Copy staging onto production: clone the staging dataset, rebuild from main SHA,
-# deploy gwenda.co.uk, fast-forward the release pointer.
+# Manual only. Builds and deploys the release branch to gwenda.co.uk.
+# Refuses any other branch. Does not move release, and does not deploy ops.
 
-run-name: promote-staging-to-production
+run-name: promote-release-to-production
 
 on:
   workflow_dispatch:
@@ -24,13 +24,20 @@ jobs:
       name: production
       url: https://gwenda.co.uk
     steps:
-      - name: Checkout main
+      - name: Require the release branch
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/release" ]; then
+            echo "The live website promotes only from the release branch (got ${{ github.ref_name }})." >&2
+            exit 1
+          fi
+
+      - name: Checkout release
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: release
           fetch-depth: 0
 
-      - name: Resolve staging SHA
+      - name: Resolve release SHA
         id: sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -123,11 +130,6 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
-      - name: Fast-forward release pointer
-        run: |
-          git checkout -B release
-          git push origin release
-
       - name: Deploy production Studio
         run: npm run studio:deploy
         env:
@@ -147,7 +149,7 @@ jobs:
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Staging promoted to production","rows":[
+            {"title":"Release promoted to production","rows":[
               ["Commit","[\\`${{ steps.sha.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.sha.outputs.sha }})"],
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Site","https://gwenda.co.uk"]
