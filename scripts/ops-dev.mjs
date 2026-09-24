@@ -24,7 +24,6 @@ const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
 /** Secrets + config fills written into .dev.vars. */
 const DEV_VAR_KEYS = [
   "OPS_LOCAL_ADMIN_PW",
-  "OPS_BYPASS_KEY",
   "OPS_SESSION_SECRET",
   "GOOGLE_OAUTH_CLIENT_ID",
   "GOOGLE_OAUTH_CLIENT_SECRET",

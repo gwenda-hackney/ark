@@ -1,8 +1,7 @@
 /**
  * Ops auth: Google OAuth (local + production) with optional local admin password.
  * Membership is Baserow Users. No Cloudflare Access.
- * OPS_LOCAL_ADMIN_PW is a local-only gate (conceptually a local admin account);
- * optional OPS_BYPASS_KEY accepts ?access=… as a magic-link into that session.
+ * OPS_LOCAL_ADMIN_PW is a local-only gate (conceptually a local admin account).
  */
 import { canonicalizePath } from "./spa-path.js";
 
