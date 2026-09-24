@@ -10,7 +10,6 @@
 		Field,
 		MultiSelect,
 		NativeSelect,
-		PageDrawer,
 		PageHeader,
 		PageHelp,
 		SearchField,
@@ -22,13 +21,10 @@
 	import type { SegmentedItem } from "../../ui/types";
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import { EVENTS_HELP } from "./events-help";
-	import SitePublishMonitor from "../web/SitePublishMonitor.svelte";
-	import EventsPublishFlow, { type PublishBatch } from "./EventsPublishFlow.svelte";
 	import { eventHeaderFlag } from "../../lib/event-header-status";
 	import {
-		bulkPublishButtonLabel,
-		eventsNeedingLive,
-		eventsNeedingPreview,
+		eventsAwaitingRelease,
+		eventsNotStaged,
 		seriesCount,
 	} from "../../lib/event-publish-queue";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
@@ -50,7 +46,9 @@
 		eventDriveFileUrl,
 		getEventDrive,
 		getEvents,
-		publishEvent,
+		getMe,
+		publishAllEventsPreview,
+		restageEvent,
 		syncEventCalendar,
 		updateEvent,
 		updateEventOccurrence,
@@ -58,6 +56,7 @@
 		uploadEventImage,
 		uploadEventOccurrenceImage,
 		type EventDriveFile,
+		type EventStaging,
 		type OpsEvent,
 		type OpsNightScheduleSlot,
 	} from "../../lib/api";
@@ -117,16 +116,31 @@
 	let intent = $state<"" | "save" | "delete" | "image">("");
 	let calendarSyncing = $state(false);
 	let publishing = $state("");
-	let publishFlowOpen = $state(false);
-	let publishBatch = $state<PublishBatch | null>(null);
-	let publishFlowError = $state("");
-	let publishFlowWarnings = $state<string[]>([]);
+	/** Local ops stages drafts for the local site and never releases. */
+	let localOps = $state(false);
+	let stagingAll = $state(false);
 	let error = $state("");
 	let warnings = $state<string[]>([]);
 
 	function applyWarnings(list?: string[]) {
 		warnings = (list || []).filter(Boolean);
 		if (warnings.length) toast.info(warnings[0]);
+	}
+
+	/** Saving stages. Say what happened to staging, without failing the save. */
+	function noteStaging(staging: EventStaging | undefined, saved: string) {
+		if (!staging) {
+			toast.ok(saved);
+			return;
+		}
+		if (!staging.ok) {
+			toast.error(`${saved} Not staged: ${staging.error || "staging failed."}`);
+			return;
+		}
+		if (staging.warnings?.length) applyWarnings(staging.warnings);
+		if (staging.local) toast.ok(`${saved} Local preview updated.`);
+		else if (staging.deployed) toast.ok(`${saved} Staged. Staging is rebuilding for the new pages.`);
+		else toast.ok(`${saved} Staged.`);
 	}
 	let openedKey = $state("");
 	let deleteOpen = $state(false);
@@ -167,7 +181,6 @@
 	let tabPrev = "details";
 	let tabReady = false;
 	let heroCrops = $state<HeroFraming | null>(null);
-	let autoPublishStaging = $state(false);
 
 	let name = $state("");
 	let defaultsUnlocked = $state(false);
@@ -589,11 +602,13 @@
 				? formatDate(startsOn)
 				: "No date",
 	);
-	const headerFlag = $derived(eventHeaderFlag(current?.publish, formDirty));
+	const headerFlag = $derived(
+		eventHeaderFlag(current?.publish, formDirty, { local: localOps }),
+	);
 	const stagingPreviewCurrent = $derived(current?.publish.preview === "current");
 	const liveCurrent = $derived(current?.publish.live === "current");
-	const stagingVerifyHref = $derived("https://gwenda-staging.pages.dev/whats-on");
-	const liveVerifyHref = $derived("https://gwenda.co.uk/whats-on");
+	const notStaged = $derived(eventsNotStaged(events));
+	const awaitingRelease = $derived(eventsAwaitingRelease(events));
 
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const base = route.isNew
@@ -612,7 +627,6 @@
 			return [
 				{ id: "details", label: "Details", href: hrefFor("details") },
 				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
-				{ id: "publish", label: "Publish", href: hrefFor("publish") },
 			];
 		}
 		if (editingOccurrence) {
@@ -624,14 +638,12 @@
 					href: hrefFor("schedule"),
 				},
 				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
-				{ id: "publish", label: "Publish", href: hrefFor("publish") },
 			];
 		}
 		return [
 			{ id: "details", label: "Details", href: hrefFor("details") },
 			{ id: "schedule", label: "Schedule", href: hrefFor("schedule") },
 			{ id: "gallery", label: "Images", href: hrefFor("gallery") },
-			{ id: "publish", label: "Publish", href: hrefFor("publish") },
 		];
 	});
 
@@ -660,9 +672,10 @@
 	}
 
 	function statusLabel(event: OpsEvent): string {
-		if (event.publish.preview !== "current") return "Unpublished";
+		if (event.publish.preview !== "current") return "Not staged";
+		if (localOps) return "Local preview";
 		if (event.publish.live === "current") return "Live";
-		return "Staging";
+		return "Staged";
 	}
 
 	function statusTone(event: OpsEvent | null): string {
@@ -1077,6 +1090,11 @@
 
 	onMount(() => {
 		void reload();
+		getMe()
+			.then((me) => {
+				localOps = me.siteEnv === "local";
+			})
+			.catch(() => undefined);
 	});
 
 	function clearListFilters() {
@@ -1179,7 +1197,7 @@
 			tabReady = true;
 			return;
 		}
-		const order = ["details", "schedule", "gallery", "publish"];
+		const order = ["details", "schedule", "gallery"];
 		const from = order.indexOf(tabPrev);
 		const to = order.indexOf(id);
 		if (from >= 0 && to >= 0 && from !== to) tabSlide = to > from ? 1 : -1;
@@ -1478,23 +1496,13 @@
 				const data = await createEvent(body());
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
-				toast.ok(repeatUnit === "once" ? "Event saved." : "Series saved.");
+				noteStaging(data.staging, repeatUnit === "once" ? "Event saved." : "Series saved.");
 				navigate(eventItemPath(data.event.id, tab), { replace: true });
 			} else {
-				const payload = body();
-				const data = await updateEvent(eventId, payload);
+				const data = await updateEvent(eventId, body());
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
-				if (payload.heroCrops) {
-					try {
-						await publishEvent(eventId, "staging");
-						toast.ok("Saved and updated preview with framing.");
-					} catch {
-						toast.ok("Saved. Open Publish and Update preview to push framing.");
-					}
-				} else {
-					toast.ok(repeatUnit === "once" ? "Event saved." : "Series saved.");
-				}
+				noteStaging(data.staging, repeatUnit === "once" ? "Event saved." : "Series saved.");
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not save the event.";
@@ -1541,7 +1549,7 @@
 				});
 			} else {
 				const count = "updated" in data ? Number(data.updated) || 1 : 1;
-				toast.ok(count === 1 ? "Event saved." : `${count} events saved.`);
+				noteStaging(data.staging, count === 1 ? "Event saved." : `${count} events saved.`);
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not save the event.";
@@ -1575,22 +1583,19 @@
 		}
 	}
 
-	async function onPublish(target: "staging" | "production") {
+	/** Retry staging. Saving stages, so this is only for a failed or older stage. */
+	async function onRestage() {
 		if (!eventId || busy) return;
-		publishing = target;
+		publishing = "staging";
 		error = "";
 		warnings = [];
 		try {
-			const data = await publishEvent(eventId, target);
+			const data = await restageEvent(eventId);
 			rememberEvent(data.event, false);
 			warnings = data.warnings || [];
-			toast.ok(
-				target === "staging"
-					? "Preview updated. Refresh What's on to see it."
-					: "Pushed live.",
-			);
+			toast.ok(localOps ? "Local preview updated." : "Staged.");
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Publish failed.";
+			const message = err instanceof Error ? err.message : "Could not stage.";
 			error = message;
 			toast.error(message);
 		} finally {
@@ -1598,110 +1603,34 @@
 		}
 	}
 
-	function publishEditorPath() {
-		if (!eventId) return "/events";
-		const slug = editingOccurrence && occurrenceDate
-			? `${eventId}@${occurrenceDate}`
-			: eventId;
-		return eventItemPath(slug, "publish");
+	/** Production changes only from Website > Release, filtered to this series. */
+	function openRelease() {
+		const slug = String(current?.slug || "").trim();
+		navigate(slug ? `/web/release?q=${encodeURIComponent(slug)}` : "/web/release");
 	}
 
-	function onHeaderPublish() {
-		if (!eventId || busy) return;
-		const alreadyOnPublish = tab === "publish";
-		if (!alreadyOnPublish) navigate(publishEditorPath());
-		if (formDirty) {
-			toast.info("Save before publishing.");
-			return;
-		}
-		if (stagingPreviewCurrent) {
-			if (!alreadyOnPublish) {
-				toast.info("Preview is current. Check What's on, then push live.");
-			}
-			return;
-		}
-		autoPublishStaging = true;
-	}
-
-	$effect(() => {
-		if (tab !== "publish" || !autoPublishStaging || busy || !eventId) return;
-		if (formDirty) {
-			autoPublishStaging = false;
-			return;
-		}
-		if (stagingPreviewCurrent) {
-			autoPublishStaging = false;
-			return;
-		}
-		autoPublishStaging = false;
-		void onPublish("staging");
-	});
-
-	function closePublishFlow() {
-		if (publishBatch) return;
-		publishFlowOpen = false;
-	}
-
-	async function runBulkPublish(target: "staging" | "production", republish = false) {
-		if (publishBatch || busy) return;
-		const source = (
-			target === "production"
-				? eventsNeedingLive(events)
-				: republish
-					? events
-					: eventsNeedingPreview(events)
-		).slice();
-		if (!source.length) {
-			toast.info(
-				target === "production"
-					? "Nothing is waiting to go live."
-					: "Preview is already up to date.",
-			);
-			return;
-		}
-		publishFlowError = "";
-		publishFlowWarnings = [];
-		const failed: string[] = [];
-		const notes: string[] = [];
-		publishBatch = {
-			target,
-			index: 1,
-			total: source.length,
-			name: source[0]?.name || "series",
-		};
+	async function stageAll() {
+		if (stagingAll || busy || !notStaged.length) return;
+		stagingAll = true;
 		try {
-			for (let index = 0; index < source.length; index += 1) {
-				const item = source[index];
-				publishBatch = {
-					target,
-					index: index + 1,
-					total: source.length,
-					name: item.name || "Untitled",
-				};
-				try {
-					const data = await publishEvent(item.id, target);
-					events = events.map((row) => (row.id === data.event.id ? data.event : row));
-					for (const warning of data.warnings || []) {
-						notes.push(`${item.name}: ${warning}`);
-					}
-				} catch {
-					failed.push(item.name || "Untitled");
-				}
-			}
-			publishFlowWarnings = notes;
-			if (failed.length) {
-				publishFlowError =
-					target === "production"
-						? `Could not push live: ${failed.join(", ")}.`
-						: `Could not update preview for: ${failed.join(", ")}.`;
-				toast.error(publishFlowError);
-			} else if (target === "staging") {
-				toast.ok(`Preview updated for ${seriesCount(source.length)}.`);
+			const data = await publishAllEventsPreview();
+			events = data.events || events;
+			if (data.failed.length) {
+				toast.error(
+					`Could not stage ${data.failed.map((row) => `${row.name} (${row.error})`).join(", ")}.`,
+				);
 			} else {
-				toast.ok(`Pushed ${seriesCount(source.length)} live.`);
+				toast.ok(
+					localOps
+						? `Local preview updated for ${seriesCount(data.published.length)}.`
+						: `Staged ${seriesCount(data.published.length)}.`,
+				);
 			}
+			if (data.warnings.length) warnings = data.warnings;
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not stage.");
 		} finally {
-			publishBatch = null;
+			stagingAll = false;
 		}
 	}
 
@@ -1828,9 +1757,11 @@
 					file,
 				);
 				rememberEvent(data.event, false);
+				noteStaging((data as { staging?: EventStaging }).staging, "Photo saved.");
 			} else {
 				const data = await uploadEventImage(eventId, file, role);
 				rememberEvent(data.event, false);
+				if (role === "main") noteStaging(data.staging, "Photo saved.");
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not upload the image.";
@@ -1850,9 +1781,13 @@
 			if (editingOccurrence && occurrenceDate && role === "main") {
 				const data = await clearEventOccurrenceImage(eventId, occurrenceDate);
 				rememberEvent(data.event, false);
+				noteStaging((data as { staging?: EventStaging }).staging, "Photo removed.");
 			} else {
 				const data = await clearEventImage(eventId, role, imageName);
 				rememberEvent(data.event, false);
+				if (role === "main") {
+					noteStaging((data as { staging?: EventStaging }).staging, "Photo removed.");
+				}
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not remove the image.";
@@ -1895,22 +1830,32 @@
 						{/snippet}
 						Refresh
 					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						busy={Boolean(publishBatch)}
-						disabled={busy || Boolean(publishBatch)}
-						aria-expanded={publishFlowOpen}
-						aria-haspopup="dialog"
-						onclick={() => {
-							publishFlowOpen = true;
-						}}
-					>
-						{#snippet icon()}
-							<Icon name="upload" size={16} />
-						{/snippet}
-						{bulkPublishButtonLabel(events)}
-					</Button>
+					{#if notStaged.length}
+						<Button
+							type="button"
+							variant="outline"
+							busy={stagingAll}
+							disabled={busy || stagingAll}
+							title="These were saved before saving staged automatically, or staging failed."
+							onclick={() => void stageAll()}
+						>
+							{#snippet icon()}
+								<Icon name="upload" size={16} />
+							{/snippet}
+							Stage {seriesCount(notStaged.length)}
+						</Button>
+					{/if}
+					{#if !localOps}
+						<Button
+							type="button"
+							variant="outline"
+							disabled={busy}
+							title="Compare staging with the live site and publish."
+							onclick={() => navigate("/web/release")}
+						>
+							Release{awaitingRelease.length ? ` (${awaitingRelease.length})` : ""}
+						</Button>
+					{/if}
 					{#if listView === "series"}
 						<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
 							{#snippet icon()}
@@ -2075,23 +2020,34 @@
 									>
 										Update calendar
 									</Button>
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										disabled={busy}
-										busy={publishing === "staging"}
-										title={
-											formDirty
-												? "Save before publishing"
-												: stagingPreviewCurrent
-													? "Open publish. Preview is current."
-													: "Update preview"
-										}
-										onclick={onHeaderPublish}
-									>
-										Publish
-									</Button>
+									{#if !formDirty && !stagingPreviewCurrent}
+										<Button
+											variant="outline"
+											size="sm"
+											type="button"
+											disabled={busy}
+											busy={publishing === "staging"}
+											title="Saving stages automatically. This retries."
+											onclick={() => void onRestage()}
+										>
+											Stage
+										</Button>
+									{:else if !localOps}
+										<Button
+											variant="outline"
+											size="sm"
+											type="button"
+											disabled={busy || formDirty}
+											title={formDirty
+												? "Save first. Saving stages the event."
+												: liveCurrent
+													? "Live. Open Release to compare staging with the live site."
+													: "On staging. Review the release, then publish it live."}
+											onclick={openRelease}
+										>
+											Review release
+										</Button>
+									{/if}
 								{/if}
 								<PageHelp title="Events" topics={EVENTS_HELP} />
 								<Button
@@ -2756,139 +2712,6 @@
 												</div>
 											{/if}
 										</section>
-									{:else if tab === "publish"}
-										<section class="block publish-block">
-											{#if !eventId}
-												<p class="hint">Save the event before publishing.</p>
-											{:else}
-												<ol class="publish-flow">
-													<li
-														class="publish-step"
-														class:done={stagingPreviewCurrent}
-														class:active={!stagingPreviewCurrent}
-														class:busy={publishing === "staging"}
-													>
-														<span class="step-mark" aria-hidden="true">
-															{#if stagingPreviewCurrent}
-																✓
-															{:else if publishing === "staging"}
-																…
-															{:else}
-																1
-															{/if}
-														</span>
-														<div class="step-body">
-															<h3 class="step-title">Update preview</h3>
-															<p class="step-copy">
-																{#if stagingPreviewCurrent}
-																	The staging diary already has this event. Republish if What's on looks out of date.
-																{:else if current?.publish.preview === "stale"}
-																	Saved changes are not in the staging diary yet.
-																{:else}
-																	Writes this series into the staging diary. What's on shows it on refresh, without a site rebuild.
-																{/if}
-															</p>
-															<Button
-																type="button"
-																variant={stagingPreviewCurrent ? "outline" : "primary"}
-																size="sm"
-																busy={publishing === "staging"}
-																disabled={Boolean(publishing) || formDirty}
-																onclick={() => onPublish("staging")}
-															>
-																{publishing === "staging"
-																	? "Updating…"
-																	: stagingPreviewCurrent
-																		? "Republish preview"
-																		: "Update preview"}
-															</Button>
-														</div>
-													</li>
-													<li
-														class="publish-step"
-														class:done={stagingPreviewCurrent}
-														class:locked={!stagingPreviewCurrent}
-													>
-														<span class="step-mark" aria-hidden="true">
-															{#if stagingPreviewCurrent}✓{:else}2{/if}
-														</span>
-														<div class="step-body">
-															<h3 class="step-title">Check What's on</h3>
-															<p class="step-copy">
-																{#if stagingPreviewCurrent}
-																	Open What's on and refresh. The flyer, copy, and times come from this preview.
-																{:else}
-																	Available after the preview is current.
-																{/if}
-															</p>
-															{#if stagingPreviewCurrent}
-																<a
-																	class="step-link"
-																	href={stagingVerifyHref}
-																	target="_blank"
-																	rel="noreferrer"
-																>
-																	Open What's on
-																</a>
-															{/if}
-														</div>
-													</li>
-													<li
-														class="publish-step"
-														class:done={liveCurrent}
-														class:active={stagingPreviewCurrent && !liveCurrent}
-														class:locked={!stagingPreviewCurrent}
-													>
-														<span class="step-mark" aria-hidden="true">
-															{#if liveCurrent}
-																✓
-															{:else if publishing === "production"}
-																…
-															{:else}
-																3
-															{/if}
-														</span>
-														<div class="step-body">
-															<h3 class="step-title">Push live</h3>
-															<p class="step-copy">
-																{#if liveCurrent}
-																	Live on gwenda.co.uk.
-																{:else if stagingPreviewCurrent}
-																	Copy the staging nights to the live site.
-																{:else}
-																	Unlocks after staging is current.
-																{/if}
-															</p>
-															{#if stagingPreviewCurrent && !liveCurrent}
-																<Button
-																	type="button"
-																	variant="primary"
-																	size="sm"
-																	busy={publishing === "production"}
-																	disabled={Boolean(publishing) || formDirty}
-																	onclick={() => onPublish("production")}
-																>
-																	{publishing === "production" ? "Pushing…" : "Push live"}
-																</Button>
-															{:else if liveCurrent}
-																<a
-																	class="step-link"
-																	href={liveVerifyHref}
-																	target="_blank"
-																	rel="noreferrer"
-																>
-																	Open What's on
-																</a>
-															{/if}
-														</div>
-													</li>
-												</ol>
-												{#if formDirty}
-													<p class="hint">Save before publishing.</p>
-												{/if}
-												<SitePublishMonitor showStart />
-											{/if}
-										</section>
 									{/if}
 									{#if warnings.length}
 										<ul class="warnings">
@@ -3071,22 +2894,6 @@
 			</Dialog>
 		</form>
 	{/if}
-	<PageDrawer
-		open={publishFlowOpen}
-		title="Publish"
-		closeLabel="Close publish"
-		width="min(28rem, 100%)"
-		onclose={closePublishFlow}
-	>
-		<EventsPublishFlow
-			{events}
-			batch={publishBatch}
-			error={publishFlowError}
-			warnings={publishFlowWarnings}
-			onPreview={(republish) => void runBulkPublish("staging", republish)}
-			onLive={() => void runBulkPublish("production")}
-		/>
-	</PageDrawer>
 	<BusyOverlay active={busy} label={busyLabel} />
 </div>
 
@@ -3889,101 +3696,10 @@
 		color: var(--muted-foreground);
 	}
 
-	.chips,
-	.publish-actions {
+	.chips {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.45rem;
-	}
-
-	.publish-block {
-		max-width: 36rem;
-	}
-
-	.publish-flow {
-		list-style: none;
-		display: grid;
-		gap: 0;
-		margin: 0;
-		padding: 0;
-	}
-
-	.publish-step {
-		display: grid;
-		grid-template-columns: 1.75rem minmax(0, 1fr);
-		gap: 0.85rem;
-		align-items: start;
-		padding: 1rem 0;
-		border-top: 1px solid var(--border);
-	}
-
-	.publish-step:first-child {
-		border-top: 0;
-		padding-top: 0.25rem;
-	}
-
-	.publish-step.locked {
-		opacity: 0.45;
-	}
-
-	.publish-step.busy .step-mark {
-		color: var(--primary);
-	}
-
-	.step-mark {
-		display: grid;
-		place-items: center;
-		width: 1.75rem;
-		height: 1.75rem;
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		background: var(--surface);
-		color: var(--muted-foreground);
-		font-size: var(--text-xs);
-		font-weight: 700;
-		line-height: 1;
-	}
-
-	.publish-step.done .step-mark {
-		border-color: color-mix(in srgb, #6aab7a 55%, var(--border));
-		background: color-mix(in srgb, #6aab7a 18%, var(--surface));
-		color: #8fce9c;
-	}
-
-	.publish-step.active:not(.done) .step-mark {
-		border-color: var(--primary);
-		color: var(--primary);
-	}
-
-	.step-body {
-		display: grid;
-		gap: 0.45rem;
-		padding-top: 0.15rem;
-	}
-
-	.step-title {
-		margin: 0;
-		font-size: var(--text-sm);
-		font-weight: 600;
-	}
-
-	.step-copy {
-		margin: 0;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		line-height: 1.45;
-	}
-
-	.step-link {
-		justify-self: start;
-		color: var(--primary);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		text-decoration: none;
-	}
-
-	.step-link:hover {
-		text-decoration: underline;
 	}
 
 	.chip {

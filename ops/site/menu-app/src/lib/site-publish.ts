@@ -34,9 +34,8 @@ export function writeSitePublish(run: SitePublishRun | null): SitePublishRun | n
   return run;
 }
 
-export async function beginSitePublish(
-  target: "staging" | "production",
-): Promise<SitePublishRun> {
+/** Rebuild staging. Production rebuilds come from a Release publish. */
+export async function beginSitePublish(target: "staging"): Promise<SitePublishRun> {
   const result = await promoteWebsite(target);
   if (!result.runId) {
     throw new Error(result.error || "Site publish did not start.");

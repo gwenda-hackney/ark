@@ -1,7 +1,7 @@
 name: Web
 
 # Marketing site: staging from main, branch previews, and a release preview.
-# Promote to live is web-promote.yml (copy staging onto production).
+# Live deploys are web-promote.yml (build release; content comes from ops Release).
 
 run-name: >-
   ${{

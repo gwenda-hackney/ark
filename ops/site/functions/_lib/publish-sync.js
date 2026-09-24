@@ -363,13 +363,17 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
   return { dataset, created, synced, unchanged, missing, sectionWrites };
 }
 
-/** After a staging → production promote, mark live snapshots as matching staging. */
-export async function copyStagingSnapshotsToProduction(env) {
+/**
+ * After a release, mark live snapshots as matching staging. Pass `sanityIds`
+ * to limit it to the menu items that were actually published.
+ */
+export async function copyStagingSnapshotsToProduction(env, { sanityIds } = {}) {
   const { items, tables } = await loadMenuTree(env);
   let copied = 0;
   for (const item of items) {
     const staging = item.publishSnapshots?.staging;
     if (!staging) continue;
+    if (sanityIds && !sanityIds.has(item.sanityId)) continue;
     const next = recordTargetSnapshot(
       item.publishSnapshots,
       "production",

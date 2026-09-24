@@ -1,4 +1,5 @@
 import { jsonResponse, withApiHandler } from "../../../../../_lib/http.js";
+import { stageEvent } from "../../../../../_lib/event-publish.js";
 import {
   clearOccurrenceImage,
   setOccurrenceImage,
@@ -45,7 +46,13 @@ export const onRequestPost = withApiHandler(async (context) => {
     filename: file.name || "event-guest.jpg",
     contentType,
   });
-  return jsonResponse({ ok: true, ...result });
+  const staged = await stageEvent(context.env, id);
+  return jsonResponse({
+    ok: true,
+    ...result,
+    event: staged.event || result.event,
+    staging: staged.staging,
+  });
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {
@@ -54,5 +61,11 @@ export const onRequestDelete = withApiHandler(async (context) => {
     return jsonResponse({ error: "Missing event id or occurrence date." }, 400);
   }
   const result = await clearOccurrenceImage(context.env, id, date);
-  return jsonResponse({ ok: true, ...result });
+  const staged = await stageEvent(context.env, id);
+  return jsonResponse({
+    ok: true,
+    ...result,
+    event: staged.event || result.event,
+    staging: staged.staging,
+  });
 });

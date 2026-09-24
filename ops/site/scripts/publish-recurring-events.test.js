@@ -107,3 +107,38 @@ test("dry run never calls either publisher", async () => {
   assert.equal(calls, 0);
   assert.equal(results[0].published, false);
 });
+
+test("publishes preview then this series' documents, and rebuilds once", async () => {
+  const first = recurringEvent();
+  first.dates = [publishedRow(first, "2026-09-26")];
+  const second = recurringEvent({ id: "8", slug: "gwenda-sundays" });
+  second.dates = [publishedRow(second, "2026-09-26")];
+  const calls = [];
+
+  const results = await publishRecurringEvents(
+    {},
+    {
+      loadEvents: async () => [first, second],
+      publishPreview: async (_env, id, options) => {
+        calls.push(["preview", id, options?.deploy]);
+        return { warnings: [] };
+      },
+      publishLive: async (_env, event, dates) => {
+        calls.push(["live", event.id, dates.length > 0]);
+        return { warnings: [] };
+      },
+      rebuildLive: async () => {
+        calls.push(["rebuild"]);
+      },
+    },
+  );
+
+  assert.equal(results.filter((result) => result.published).length, 2);
+  assert.deepEqual(calls, [
+    ["preview", "7", false],
+    ["live", "7", true],
+    ["preview", "8", false],
+    ["live", "8", true],
+    ["rebuild"],
+  ]);
+});

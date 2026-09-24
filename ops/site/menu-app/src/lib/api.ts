@@ -492,7 +492,8 @@ export function getWebStatus() {
   return coalesce("web-status", () => request<WebStatus>("/api/web/status"));
 }
 
-export function promoteWebsite(target: "staging" | "production") {
+/** Rebuild the staging site. Production is published from Website > Release. */
+export function promoteWebsite(target: "staging") {
   return request<{
     ok: boolean;
     kind?: string;
@@ -507,8 +508,50 @@ export function promoteWebsite(target: "staging" | "production") {
   });
 }
 
-export function promoteStagingToProduction() {
-  return promoteWebsite("production");
+export type ReleaseField = {
+  key: string;
+  label: string;
+  staging: string;
+  production: string;
+  detailOnly: boolean;
+};
+
+export type ReleaseEntry = {
+  id: string;
+  type: string;
+  typeLabel: string;
+  label: string;
+  change: "added" | "changed" | "removed";
+  fields: ReleaseField[];
+  refs: string[];
+};
+
+export type ReleaseDiff = {
+  ok: boolean;
+  /** Local ops can look but never publish. */
+  local: boolean;
+  entries: ReleaseEntry[];
+  counts: { added: number; changed: number; removed: number };
+};
+
+export function getReleaseDiff() {
+  return request<ReleaseDiff>("/api/web/release");
+}
+
+export function publishRelease(ids: string[] | null) {
+  return request<{
+    ok: boolean;
+    written: string[];
+    deleted: string[];
+    included: string[];
+    assetsCopied: number;
+    warnings: string[];
+    deploy: { runId?: number; runUrl?: string; alreadyRunning?: boolean } | null;
+  }>("/api/web/release", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm: "production", ...(ids ? { ids } : {}) }),
+  });
 }
 
 export type DeployStatus = {
@@ -528,6 +571,16 @@ export function getDeployStatus(runId: number) {
 }
 
 export type OpsEventImage = { name: string; url: string };
+
+/** What happened to staging after a save. Saving never fails because of it. */
+export type EventStaging = {
+  ok: boolean;
+  /** Local ops staged a draft for the local site only. */
+  local: boolean;
+  error?: string;
+  warnings: string[];
+  deployed?: boolean;
+};
 
 export type OpsNightScheduleSlot = {
   label: string;
@@ -602,7 +655,7 @@ export function getEvents() {
 }
 
 export function createEvent(body: unknown) {
-  return request<{ event: OpsEvent; warnings?: string[] }>("/api/events", {
+  return request<{ event: OpsEvent; warnings?: string[]; staging?: EventStaging }>("/api/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -610,7 +663,7 @@ export function createEvent(body: unknown) {
 }
 
 export function updateEvent(id: string, body: unknown) {
-  return request<{ event: OpsEvent; warnings?: string[] }>(`/api/events/${encodeURIComponent(id)}`, {
+  return request<{ event: OpsEvent; warnings?: string[]; staging?: EventStaging }>(`/api/events/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -655,7 +708,8 @@ export function syncEventCalendar(id: string) {
   );
 }
 
-export function publishEvent(id: string, target: "staging" | "production") {
+/** Stage again without editing. Saving already stages. */
+export function restageEvent(id: string) {
   return request<{
     event: OpsEvent;
     warnings?: string[];
@@ -663,7 +717,7 @@ export function publishEvent(id: string, target: "staging" | "production") {
   }>(`/api/events/${encodeURIComponent(id)}/publish`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target }),
+    body: JSON.stringify({ target: "staging" }),
   });
 }
 
@@ -689,7 +743,7 @@ export function uploadEventImage(
   const body = new FormData();
   body.set("file", file);
   body.set("role", role);
-  return request<{ event: OpsEvent }>(
+  return request<{ event: OpsEvent; staging?: EventStaging }>(
     `/api/events/${encodeURIComponent(id)}/image`,
     {
       method: "POST",
@@ -774,6 +828,7 @@ export function updateEventOccurrence(
 ) {
   return request<{
     event: OpsEvent;
+    staging?: EventStaging;
     occurrence: OpsEventOccurrence;
     updated: number;
     scope: "this" | "following" | "all";
@@ -799,6 +854,7 @@ export function ensureEventOccurrence(
 ) {
   return request<{
     event: OpsEvent;
+    staging?: EventStaging;
     occurrence: OpsEventOccurrence;
     created: boolean;
     warnings?: string[];

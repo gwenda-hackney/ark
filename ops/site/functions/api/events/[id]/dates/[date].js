@@ -14,7 +14,7 @@ import {
   occurrenceDeleteTargets,
   updateOccurrenceContent,
 } from "../../../../_lib/event-store.js";
-import { unpublishOccurrences } from "../../../../_lib/event-publish.js";
+import { stageEvent, unpublishOccurrences } from "../../../../_lib/event-publish.js";
 
 function params(context) {
   return {
@@ -36,8 +36,14 @@ export const onRequestPut = withApiHandler(async (context) => {
     body && typeof body === "object" ? body : {},
   );
   await syncSeriesCalendar(context.env, result.event);
+  const staged = await stageEvent(context.env, id);
   return jsonResponse(
-    attachCalendarWarnings(context.env, { ok: true, ...result }),
+    attachCalendarWarnings(context.env, {
+      ok: true,
+      ...result,
+      event: staged.event || result.event,
+      staging: staged.staging,
+    }),
     result.created ? 201 : 200,
   );
 });
@@ -61,7 +67,17 @@ export const onRequestPatch = withApiHandler(async (context) => {
   }
   const result = await updateOccurrenceContent(context.env, id, date, body);
   await syncSeriesCalendar(context.env, result.event);
-  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, ...result }));
+  const ownerId = String(result.event?.id || id);
+  if (targetSeriesId && ownerId !== String(id)) await stageEvent(context.env, id);
+  const staged = await stageEvent(context.env, ownerId);
+  return jsonResponse(
+    attachCalendarWarnings(context.env, {
+      ok: true,
+      ...result,
+      event: staged.event || result.event,
+      staging: staged.staging,
+    }),
+  );
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {

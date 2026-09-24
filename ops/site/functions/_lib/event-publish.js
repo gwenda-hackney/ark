@@ -1,15 +1,14 @@
 /**
- * Event preview writes the staging dataset. The staging diary reads that live,
- * so a preview does not rebuild the site. A full site publish is separate.
- * Push live copies this event's documents onto production.
+ * Saving an event stages it: its series and nights are written to the staging
+ * dataset. What's on reads that live; new or removed pages rebuild staging.
+ * Production only changes from Website > Release, never from here.
+ * Local ops writes drafts instead (see sanity.js), so dev never touches staging.
  */
 import {
   EDITORIAL_DATASET,
   sanityMutate,
-  sanityMutateProduction,
   sanityQuery,
   sanityUploadImage,
-  sanityUploadImageProduction,
 } from "./sanity.js";
 import { siteEnvName } from "./config-store.js";
 import { dispatchStagingContentDeploy } from "./site-deploy.js";
@@ -133,65 +132,14 @@ function framingFromOccurrence(event, occurrence) {
   return framingFromEvent(event);
 }
 
-function documentFromStaging(doc, heroImage, seriesHeroImage) {
-  const next = {
-    _id: doc._id,
-    _type: "event",
-    title: doc.title,
-    slug: doc.slug,
-    eventType: doc.eventType || "public",
-    seriesId: doc.seriesId || doc.slug?.current || doc._id,
-    seriesTitle: doc.seriesTitle || "",
-    recurrence: doc.recurrence || "",
-    isSpecialEdition: Boolean(doc.isSpecialEdition),
-    date: doc.date,
-    time: doc.time || "",
-    offer: doc.offer || "",
-    pageUrl: doc.pageUrl || "",
-    shortDescription: doc.shortDescription || "",
-    description: doc.description,
-    venue: doc.venue,
-    ticketStart: doc.ticketStart,
-    ticketEnd: doc.ticketEnd,
-    nightSchedule: Array.isArray(doc.nightSchedule) ? doc.nightSchedule : [],
-    channels: doc.channels || [],
-    rsvpConfirmation: doc.rsvpConfirmation,
-  };
-  if (doc.artist) next.artist = doc.artist;
-  if (doc.series) next.series = doc.series;
-  if (heroImage) next.heroImage = heroImage;
-  if (seriesHeroImage) next.seriesHeroImage = seriesHeroImage;
-  return next;
-}
-
-function documentFromStagingSeries(doc, heroImage) {
-  const next = {
-    _id: doc._id,
-    _type: "eventSeries",
-    title: doc.title,
-    slug: doc.slug,
-    schedule:
-      doc.schedule === "repeating"
-        ? "repeating"
-        : doc.schedule === "once"
-          ? "once"
-          : "manual",
-    recurrence: doc.recurrence || "",
-    replacesSeriesId: doc.replacesSeriesId || "",
-    shortDescription: doc.shortDescription || "",
-    description: doc.description,
-    nightSchedule: Array.isArray(doc.nightSchedule) ? doc.nightSchedule : [],
-  };
-  if (heroImage) next.heroImage = heroImage;
-  return next;
-}
-
 export async function publishEventPreview(
   env,
   id,
-  { deploy: triggerDeploy = false } = {},
+  { deploy: allowDeploy = true } = {},
 ) {
   const event = await getEvent(env, id);
+  // Series and night pages are built ahead of time; the diary is read live.
+  let pagesChanged = !event.dates.some((row) => row.snapshots?.staging);
   if (!event.name) httpError("Name is required.", 400);
   const description = seriesDescriptionForPublish(event);
   const shortDescription = seriesShortDescriptionForPublish(event);
@@ -272,6 +220,7 @@ export async function publishEventPreview(
       });
       continue;
     }
+    if (!previous?.sanityId) pagesChanged = true;
     const content = resolveOccurrenceContent(event, previous || date);
     const slug = occurrenceSlug(event.slug, date);
     const imageUrl = content.image?.url || "";
@@ -344,29 +293,9 @@ export async function publishEventPreview(
   const drop = event.dates.filter(
     (row) => row.date >= today && !materialized.has(row.date),
   );
+  if (drop.length) pagesChanged = true;
+  warnings.push(...(await unpublishOccurrences(env, drop)));
   for (const row of drop) {
-    if (row.sanityId) {
-      try {
-        await sanityMutate(env, EDITORIAL_DATASET, [
-          { delete: { id: row.sanityId } },
-        ]);
-      } catch (error) {
-        warnings.push(
-          error?.message ||
-            `Could not remove ${row.date} from the preview site.`,
-        );
-      }
-      if (row.snapshots?.production?.hash) {
-        try {
-          await sanityMutateProduction(env, [{ delete: { id: row.sanityId } }]);
-        } catch (error) {
-          warnings.push(
-            error?.message ||
-              `Could not remove ${row.date} from the live site.`,
-          );
-        }
-      }
-    }
     if (row.id) await removeOccurrence(env, row.id);
   }
 
@@ -381,7 +310,7 @@ export async function publishEventPreview(
 
   let deployed = false;
   let deploy = null;
-  if (triggerDeploy && siteEnvName(env) !== "local") {
+  if (allowDeploy && pagesChanged && siteEnvName(env) !== "local") {
     try {
       deploy = await dispatchStagingContentDeploy(env);
       deployed = true;
@@ -395,8 +324,39 @@ export async function publishEventPreview(
     warnings,
     deployed,
     deploy,
+    pagesChanged,
     target: "staging",
   };
+}
+
+/**
+ * Stage after a save. A save always succeeds on its own; staging problems
+ * (no description yet, no upcoming date) come back as `staging.error`.
+ */
+export async function stageEvent(env, id) {
+  try {
+    const result = await publishEventPreview(env, id);
+    return {
+      event: result.event,
+      staging: {
+        ok: true,
+        local: siteEnvName(env) === "local",
+        warnings: result.warnings,
+        deployed: result.deployed,
+        deploy: result.deploy,
+      },
+    };
+  } catch (error) {
+    return {
+      event: null,
+      staging: {
+        ok: false,
+        local: siteEnvName(env) === "local",
+        error: error?.message || "Could not stage this event.",
+        warnings: [],
+      },
+    };
+  }
 }
 
 export async function publishAllEventPreviews(env) {
@@ -405,6 +365,7 @@ export async function publishAllEventPreviews(env) {
   const failed = [];
   const skipped = [];
   const warnings = [];
+  let pagesChanged = false;
 
   for (const event of source) {
     if (event.publish?.preview === "current") {
@@ -415,6 +376,7 @@ export async function publishAllEventPreviews(env) {
       const result = await publishEventPreview(env, event.id, {
         deploy: false,
       });
+      if (result.pagesChanged) pagesChanged = true;
       published.push({
         id: event.id,
         name: event.name,
@@ -434,151 +396,30 @@ export async function publishAllEventPreviews(env) {
     }
   }
 
+  let deployed = false;
+  let deploy = null;
+  if (pagesChanged && siteEnvName(env) !== "local") {
+    try {
+      deploy = await dispatchStagingContentDeploy(env);
+      deployed = true;
+    } catch (error) {
+      warnings.push(error?.message || "Staging site rebuild did not start.");
+    }
+  }
+
   return {
     events: await listEvents(env),
     published,
     failed,
     skipped,
     warnings,
-    deployed: false,
-    deploy: null,
+    deployed,
+    deploy,
     target: "staging",
   };
 }
 
-const STAGING_EVENT_QUERY = `*[_id == $id][0]{
-  _id, _type, title, slug, eventType, seriesId, series, seriesTitle, recurrence, isSpecialEdition,
-  date, description, artist, venue,
-  time, offer, pageUrl, ticketStart, ticketEnd, nightSchedule, channels, rsvpConfirmation,
-  heroImage {
-    alt,
-    crop,
-    hotspot,
-    "url": asset->url
-  },
-  seriesHeroImage {
-    alt,
-    crop,
-    hotspot,
-    "url": asset->url
-  }
-}`;
-
-const STAGING_SERIES_QUERY = `*[_id == $id][0]{
-  _id, _type, title, slug, schedule, recurrence, shortDescription, description, nightSchedule,
-  heroImage {
-    alt,
-    crop,
-    hotspot,
-    "url": asset->url
-  }
-}`;
-
-export async function publishEventLive(env, id) {
-  const event = await getEvent(env, id);
-  if (event.publish.preview !== "current") {
-    httpError("Update the preview site before pushing live.", 409);
-  }
-  const today = todayIso();
-  const wanted = new Set(event.publish.previewDates);
-  const warnings = [];
-
-  const seriesId = sanitySeriesId(event.slug);
-  const seriesDoc = await sanityQuery(
-    env,
-    EDITORIAL_DATASET,
-    STAGING_SERIES_QUERY,
-    {
-      id: seriesId,
-    },
-  );
-  if (seriesDoc?._id) {
-    let seriesHero = await imageFromUrl(
-      seriesDoc.heroImage?.url,
-      (bytes, meta) => sanityUploadImageProduction(env, bytes, meta),
-    );
-    if (seriesHero) {
-      seriesHero = withImageCrop(
-        {
-          ...seriesHero,
-          alt: seriesDoc.heroImage?.alt || event.name,
-        },
-        {
-          crop: seriesDoc.heroImage?.crop,
-          hotspot: seriesDoc.heroImage?.hotspot,
-        },
-      );
-    }
-    await sanityMutateProduction(env, [
-      { createOrReplace: documentFromStagingSeries(seriesDoc, seriesHero) },
-    ]);
-  } else {
-    warnings.push("Missing preview series document.");
-  }
-
-  for (const row of event.dates) {
-    if (row.date < today || !wanted.has(row.date) || !row.sanityId) continue;
-    const doc = await sanityQuery(env, EDITORIAL_DATASET, STAGING_EVENT_QUERY, {
-      id: row.sanityId,
-    });
-    if (!doc?._id) {
-      warnings.push(`Missing preview document for ${row.date}.`);
-      continue;
-    }
-    let hero = await imageFromUrl(doc.heroImage?.url, (bytes, meta) =>
-      sanityUploadImageProduction(env, bytes, meta),
-    );
-    if (hero) {
-      hero = withImageCrop(
-        {
-          ...hero,
-          alt: doc.heroImage?.alt || event.name,
-        },
-        {
-          crop: doc.heroImage?.crop,
-          hotspot: doc.heroImage?.hotspot,
-        },
-      );
-    }
-    let seriesHero = await imageFromUrl(
-      doc.seriesHeroImage?.url,
-      (bytes, meta) => sanityUploadImageProduction(env, bytes, meta),
-    );
-    if (seriesHero) {
-      seriesHero = withImageCrop(
-        {
-          ...seriesHero,
-          alt: doc.seriesHeroImage?.alt || event.name,
-        },
-        {
-          crop: doc.seriesHeroImage?.crop,
-          hotspot: doc.seriesHeroImage?.hotspot,
-        },
-      );
-    }
-    await sanityMutateProduction(env, [
-      { createOrReplace: documentFromStaging(doc, hero, seriesHero) },
-    ]);
-    await saveOccurrence(env, id, {
-      ...row,
-      label: `${event.name} · ${row.date}`,
-      snapshots: {
-        ...row.snapshots,
-        production: {
-          hash: occurrenceHash(event, row),
-          at: new Date().toISOString(),
-        },
-      },
-    });
-  }
-  return {
-    event: await getEvent(env, id),
-    warnings,
-    deployed: false,
-    target: "production",
-  };
-}
-
+/** Removes from staging only. Website > Release carries the removal to production. */
 export async function unpublishEvent(env, event) {
   return unpublishOccurrences(env, event?.dates || []);
 }
@@ -593,17 +434,8 @@ export async function unpublishOccurrences(env, rows) {
       ]);
     } catch (error) {
       warnings.push(
-        error?.message || `Could not remove ${row.date} from the preview site.`,
+        error?.message || `Could not remove ${row.date} from staging.`,
       );
-    }
-    if (row.snapshots?.production?.hash) {
-      try {
-        await sanityMutateProduction(env, [{ delete: { id: row.sanityId } }]);
-      } catch (error) {
-        warnings.push(
-          error?.message || `Could not remove ${row.date} from the live site.`,
-        );
-      }
     }
   }
   return warnings;

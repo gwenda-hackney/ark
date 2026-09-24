@@ -8,20 +8,20 @@ export type HeaderFlag = {
   tone: "unsaved" | "unpublished" | "preview" | "live" | "muted";
 };
 
-/** Header state for an event. Unsaved wins, then anything not yet on preview. */
+/**
+ * One status for the event header. Saving stages, so "Not staged" only shows
+ * when staging failed (for example, no description yet). Local ops stages
+ * drafts that only the local site shows.
+ */
 export function eventHeaderFlag(
   publish: EventPublishState | null | undefined,
   dirty: boolean,
+  { local = false }: { local?: boolean } = {},
 ): HeaderFlag {
-  if (!publish) {
-    return dirty
-      ? { label: "Unsaved changes", tone: "unsaved" }
-      : { label: "Not saved", tone: "muted" };
-  }
   if (dirty) return { label: "Unsaved changes", tone: "unsaved" };
-  if (publish.preview !== "current") {
-    return { label: "Unpublished changes", tone: "unpublished" };
-  }
+  if (!publish) return { label: "Not saved", tone: "muted" };
+  if (publish.preview !== "current") return { label: "Not staged", tone: "unpublished" };
+  if (local) return { label: "Local preview", tone: "preview" };
   if (publish.live === "current") return { label: "Live", tone: "live" };
-  return { label: "On preview", tone: "preview" };
+  return { label: "Staged · not live", tone: "preview" };
 }

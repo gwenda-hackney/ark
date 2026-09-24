@@ -9,7 +9,7 @@
 	} from "../../lib/api";
 	import { beginSitePublish } from "../../lib/site-publish";
 	import SitePublishMonitor from "./SitePublishMonitor.svelte";
-	import { loginNext } from "../../lib/nav";
+	import { loginNext, navigate } from "../../lib/nav";
 	import { toast } from "../../lib/toast.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
 	import {
@@ -26,7 +26,7 @@
 	let loaded = $state(false);
 	let loadError = $state("");
 	let promoting = $state(false);
-	let confirmTarget = $state<"staging" | "production" | null>(null);
+	let confirmTarget = $state<"staging" | null>(null);
 
 	const staging = $derived(status?.environments.staging ?? null);
 	const production = $derived(status?.environments.production ?? null);
@@ -73,10 +73,8 @@
 			confirmTarget = null;
 			if (result.status === "in_progress") {
 				toast.ok("A site publish is already running.");
-			} else if (target === "staging") {
-				toast.ok("Staging site publish started.");
 			} else {
-				toast.ok("Production publish started. Staging is copying onto the live site.");
+				toast.ok("Staging site rebuild started.");
 			}
 			await load();
 		} catch (err) {
@@ -90,7 +88,7 @@
 <div class="page scrollbar-fade">
 	<PageHeader
 		title="Web"
-		subtitle="Publish to staging, review, then promote to production."
+		subtitle="What staging and the live site are running. Publish from Release."
 	>
 		{#snippet actions()}
 			<Button
@@ -109,17 +107,10 @@
 					confirmTarget = "staging";
 				}}
 			>
-				Publish staging site
+				Rebuild staging
 			</Button>
-			<Button
-				variant="primary"
-				size="sm"
-				disabled={!loaded || !status || promoting}
-				onclick={() => {
-					confirmTarget = "production";
-				}}
-			>
-				Promote to production
+			<Button variant="primary" size="sm" onclick={() => navigate("/web/release")}>
+				Review release
 			</Button>
 		{/snippet}
 	</PageHeader>
@@ -242,22 +233,16 @@
 
 <Dialog
 	open={Boolean(confirmTarget)}
-	title={confirmTarget === "staging"
-		? "Publish the staging site"
-		: "Promote staging to production"}
+	title="Rebuild the staging site"
 	onclose={() => {
 		if (!promoting) confirmTarget = null;
 	}}
 >
-	{#if confirmTarget === "staging"}
-		<p>
-			Rebuilds every page on the preview site from published documents. This takes a few
-			minutes. Event previews already show on What's on without this rebuild. Progress stays
-			on this page.
-		</p>
-	{:else}
-		<p>Copies staging onto production and rebuilds gwenda.co.uk.</p>
-	{/if}
+	<p>
+		Rebuilds every page on gwenda-staging from staged content. Saving an event already
+		rebuilds staging when it adds or removes pages, so you rarely need this. It takes a few
+		minutes, and progress stays on this page.
+	</p>
 	{#snippet footer()}
 		<Button
 			variant="outline"
@@ -276,11 +261,7 @@
 			disabled={promoting}
 			onclick={() => void promote()}
 		>
-			{promoting
-				? "Promoting…"
-				: confirmTarget === "staging"
-					? "Publish staging site"
-					: "Promote to production"}
+			{promoting ? "Starting…" : "Rebuild staging"}
 		</Button>
 	{/snippet}
 </Dialog>

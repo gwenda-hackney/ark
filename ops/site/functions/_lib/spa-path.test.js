@@ -255,11 +255,12 @@ describe("spa-path", () => {
       tab: "details",
       list: null,
     });
+    // Publishing moved to Website > Release; old links open details.
     assert.deepEqual(parseShellPath("/events/12/publish"), {
       page: "events",
       slug: "12",
       isNew: false,
-      tab: "publish",
+      tab: "details",
       list: null,
     });
     assert.deepEqual(parseShellPath("/events/12/gallery"), {
@@ -284,7 +285,7 @@ describe("spa-path", () => {
     assert.equal(eventItemPath("12@2026-09-25"), "/events/12@2026-09-25");
     assert.equal(eventItemPath("12", "details"), "/events/12");
     assert.equal(eventItemPath("12", "gallery"), "/events/12/gallery");
-    assert.equal(eventNewPath("publish"), "/events/new/publish");
+    assert.equal(eventNewPath("gallery"), "/events/new/gallery");
     assert.equal(eventTabPath("/events/12/schedule", "gallery"), "/events/12/gallery");
     assert.equal(editorKey("/events/12/publish"), "events:12");
     assert.equal(editorKey("/events/new/schedule"), "events:new");

@@ -1,15 +1,32 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
-import { occurrenceHash } from "../functions/_lib/event-content.js";
+import { occurrenceHash, sanitySeriesId } from "../functions/_lib/event-content.js";
 import {
   expandOccurrenceDates,
   todayIso,
 } from "../functions/_lib/event-recurrence.js";
-import {
-  publishEventLive,
-  publishEventPreview,
-} from "../functions/_lib/event-publish.js";
-import { listEvents } from "../functions/_lib/event-store.js";
+import { publishEventPreview } from "../functions/_lib/event-publish.js";
+import { getEvent, listEvents } from "../functions/_lib/event-store.js";
+import { markReleasedInOps, publishRelease } from "../functions/_lib/release.js";
+import { dispatchProductionDeploy } from "../functions/_lib/site-deploy.js";
+
+/**
+ * Release only this series' own documents. Its content is unchanged (the plan
+ * skips series with pending edits), so nothing unreviewed goes live.
+ */
+async function releaseSeries(env, event, dates) {
+  const fresh = await getEvent(env, event.id);
+  const wanted = new Set(dates);
+  const ids = [
+    sanitySeriesId(fresh.slug),
+    ...fresh.dates
+      .filter((row) => wanted.has(row.date) && row.sanityId)
+      .map((row) => row.sanityId),
+  ];
+  const result = await publishRelease(env, { ids });
+  await markReleasedInOps(env, result.written);
+  return result;
+}
 
 export function parseArgs(argv) {
   const options = { dryRun: false };
@@ -73,7 +90,8 @@ export async function publishRecurringEvents(
     dryRun = false,
     loadEvents = listEvents,
     publishPreview = publishEventPreview,
-    publishLive = publishEventLive,
+    publishLive = releaseSeries,
+    rebuildLive = dispatchProductionDeploy,
   } = {},
 ) {
   const plans = planRecurringPublishes(await loadEvents(env));
@@ -85,13 +103,25 @@ export async function publishRecurringEvents(
       continue;
     }
 
-    const preview = await publishPreview(env, plan.event.id);
-    const live = await publishLive(env, plan.event.id);
+    const preview = await publishPreview(env, plan.event.id, { deploy: false });
+    const live = await publishLive(env, plan.event, plan.missing);
     results.push({
       ...plan,
       published: true,
       warnings: [...(preview.warnings || []), ...(live.warnings || [])],
     });
+  }
+
+  // New nights have their own pages, so the live site needs one rebuild.
+  const published = results.find((result) => result.published);
+  if (published) {
+    try {
+      await rebuildLive(env);
+    } catch (error) {
+      published.warnings.push(
+        `Live site rebuild did not start: ${error?.message || "unknown error"}`,
+      );
+    }
   }
 
   return results;
