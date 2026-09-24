@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { clearBaserowTableIdCache, FORM_SUBMISSIONS_TABLE_NAME } from "./baserow.js";
-import { findFormSubmissionByEmail, storeFormSubmission } from "./form-store.js";
+import {
+  clearBaserowTableIdCache,
+  FORM_SUBMISSIONS_TABLE_NAME,
+} from "./baserow.js";
+import {
+  findFormSubmissionByEmail,
+  markFormSubmissionEmailSent,
+  storeFormSubmission,
+} from "./form-store.js";
 
 describe("storeFormSubmission", () => {
   afterEach(() => {
@@ -319,7 +326,11 @@ describe("findFormSubmissionByEmail", () => {
       if (method === "PATCH") {
         expect(String(url)).toContain("/13/");
         expect(JSON.parse(init.body)).toEqual({ Current: false });
-        return { ok: true, json: async () => ({ id: 13 }), text: async () => "" };
+        return {
+          ok: true,
+          json: async () => ({ id: 13 }),
+          text: async () => "",
+        };
       }
 
       expect(method).toBe("POST");
@@ -366,5 +377,62 @@ describe("findFormSubmissionByEmail", () => {
     ]);
     expect(calls.some((call) => call.method === "PATCH")).toBe(true);
     expect(calls.some((call) => call.method === "POST")).toBe(true);
+  });
+});
+
+describe("markFormSubmissionEmailSent", () => {
+  afterEach(() => {
+    clearBaserowTableIdCache();
+    vi.unstubAllGlobals();
+  });
+
+  it("PATCHes the matching sent column", async () => {
+    const patches = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url, init) => {
+        if (String(url).includes("/all-tables/")) {
+          return {
+            ok: true,
+            json: async () => [
+              { id: 77, name: FORM_SUBMISSIONS_TABLE_NAME, database_id: 1 },
+            ],
+          };
+        }
+        patches.push({
+          url: String(url),
+          method: init.method,
+          body: JSON.parse(init.body),
+        });
+        return { ok: true, json: async () => ({}), text: async () => "" };
+      }),
+    );
+
+    const result = await markFormSubmissionEmailSent(
+      { BASEROW_API_KEY: "test-token" },
+      "501",
+      "receipt",
+      "2026-09-24T10:00:00.000Z",
+    );
+
+    expect(result).toEqual({ ok: true, sentAt: "2026-09-24T10:00:00.000Z" });
+    expect(patches).toHaveLength(1);
+    expect(patches[0].method).toBe("PATCH");
+    expect(patches[0].url).toContain("/77/501/");
+    expect(patches[0].body).toEqual({
+      "Receipt Sent": "2026-09-24T10:00:00.000Z",
+    });
+  });
+
+  it("rejects unknown kinds without calling Baserow", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await markFormSubmissionEmailSent(
+      { BASEROW_API_KEY: "test-token" },
+      "501",
+      "other",
+    );
+    expect(result.ok).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

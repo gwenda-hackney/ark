@@ -74,10 +74,6 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile production
 
-      - name: Pull production ops Baserow for the artist build
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:ops:pull -- --github-env --profile production
 
       - name: Deploy production
         uses: ./.github/actions/deploy-pages
@@ -97,7 +93,7 @@ jobs:
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: production
           secrets-profile: production
-          baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
+          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "556507"
 
       - name: Ensure apex custom domain

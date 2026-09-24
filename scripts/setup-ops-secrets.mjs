@@ -1,12 +1,10 @@
 /**
- * Set Cloudflare Pages secrets for gwenda-ops (Baserow, Google OAuth, publish).
- * Plain ops settings (Sanity project/dataset, deploy webhook URL, OAuth client id)
- * live in Baserow App Config. Table ids are resolved by name.
+ * Set Cloudflare Pages secrets for gwenda-ops from Secrets Manager (env=production).
+ * Keys come from APP_SECRETS.ops (minus pagesSkip). Plain settings live in the
+ * Baserow config database (docs/config.md).
  *
- * Loads `.env` then `.env.ark` then `.env.ops` (ops wins). Does not put
- * OPS_LOCAL_ADMIN_PW on Pages.
- * Requires BASEROW_API_KEY_PRODUCTION (prod workspace token). Local
- * BASEROW_API_KEY cannot see production DB 556507.
+ * Needs ARK_LOCAL_BW_TOKEN (local .env) or BWS_ACCESS_TOKEN (CI), plus a
+ * Cloudflare token from `.env.ark` / the job env.
  *
  * Pages snapshots secrets per deployment: after this script, run
  * `npm run deploy -w @gwenda/ops` (or deploy:production) or the new secret
@@ -20,6 +18,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
+import { APP_SECRETS, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -35,7 +34,6 @@ function loadEnvFile(path, { override = false } = {}) {
 
 loadEnvFile(resolve(rootDir, ".env"), { override: false });
 loadEnvFile(resolve(rootDir, ".env.ark"), { override: true });
-loadEnvFile(resolve(rootDir, ".env.ops"), { override: true });
 
 function findWrangler() {
   for (const base of [opsDir, rootDir]) {
@@ -126,28 +124,16 @@ function deleteSecret(key) {
   }
 }
 
-const baserowProductionKey = process.env.BASEROW_API_KEY_PRODUCTION?.trim();
-if (!baserowProductionKey) {
-  console.error(
-    "BASEROW_API_KEY_PRODUCTION is required for Pages. Refusing to fall back to the local BASEROW_API_KEY (that token cannot see production DB 556507).",
-  );
+const { values, missing } = loadAppSecretsFromSm("ops", "production");
+if (!values.get("BASEROW_API_KEY")) {
+  console.error("SM BASEROW_OPS_API_KEY__PRODUCTION is required for Pages.");
   process.exit(1);
 }
-putSecret("BASEROW_API_KEY", baserowProductionKey);
-putSecret("BASEROW_WEBSITE_API_KEY", process.env.BASEROW_WEBSITE_API_KEY);
-putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
-putSecret(
-  "DEPLOY_WEBHOOK_SECRET",
-  process.env.DEPLOY_WEBHOOK_SECRET || process.env.SANITY_STUDIO_SITE_DEPLOY_SECRET,
-);
-putSecret("OPS_BYPASS_KEY", process.env.OPS_BYPASS_KEY);
-putSecret("GOOGLE_OAUTH_CLIENT_SECRET", process.env.GOOGLE_OAUTH_CLIENT_SECRET);
-putSecret(
-  "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
-  process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,
-);
-putSecret("OPS_SESSION_SECRET", process.env.OPS_SESSION_SECRET);
-// LIGHTSPEED_BO_* stay in SM / GitHub for the export Action. Do not put them on Pages.
+const skip = new Set(APP_SECRETS.ops.pagesSkip);
+for (const key of APP_SECRETS.ops.keys) {
+  if (!skip.has(key)) putSecret(key, values.get(key));
+}
+if (missing.length) console.log(`Not in SM (left as-is on Pages): ${missing.join(", ")}`);
 
 const LEFTOVER_SECRET_KEYS = [
   "BASEROW_OPS_DATABASE_ID",
@@ -180,12 +166,9 @@ const LEFTOVER_SECRET_KEYS = [
   "OPS_PASSWORD",
 ];
 
-console.log(
-  "Ops plain config (Sanity ids, webhook URL, OAuth client id) lives in Baserow App Config.",
-);
 for (const key of LEFTOVER_SECRET_KEYS) deleteSecret(key);
 
-console.log("Done. Production uses Google OAuth + Baserow Users + App Config.");
+console.log("Done. Plain ops settings live in the Baserow config database.");
 console.log(
   "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local can keep it as an optional bypass in .env.ops.",
 );

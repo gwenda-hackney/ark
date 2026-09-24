@@ -2,7 +2,7 @@ name: Deploy to Cloudflare Pages
 description: Build and deploy the static site to a Cloudflare Pages project
 
 # Runtime Pages secrets are written by sync-pages-secrets.mjs from the job env
-# (env:web:pull and env:ops:pull). secrets-profile picks staging vs production.
+# (env:web:pull). secrets-profile picks staging vs production.
 
 inputs:
   pages-project:

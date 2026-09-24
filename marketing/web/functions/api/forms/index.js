@@ -9,6 +9,7 @@ import {
 } from "../../_lib/form-email.js";
 import {
   FORM_STATUS_VERIFIED,
+  markFormSubmissionEmailSent,
   upsertFormSubmission,
 } from "../../_lib/form-store.js";
 import { reportFormError } from "../../_lib/form-alert.js";
@@ -151,6 +152,9 @@ export async function onRequestPost(context) {
       changes: updated ? changes : undefined,
       updated,
     });
+    if (sent.ok && !sent.dryRun) {
+      await markFormSubmissionEmailSent(context.env, rowId, "notify");
+    }
     if (!sent.ok && !sent.skipped) {
       await reportFormError(context.env, "form_notify_failed_after_store", {
         ...requestFields(context.request),
@@ -174,6 +178,9 @@ export async function onRequestPost(context) {
       editUrl,
       updated,
     });
+    if (receipt.ok && !receipt.dryRun) {
+      await markFormSubmissionEmailSent(context.env, rowId, "receipt");
+    }
     if (!receipt.ok && !receipt.skipped && !receipt.dryRun) {
       await reportFormError(context.env, "form_receipt_failed_after_store", {
         ...requestFields(context.request),

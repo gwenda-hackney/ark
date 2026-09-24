@@ -45,7 +45,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/web` | Website staging vs production, health, promote |
 | `/forms` | People who submitted a site form |
 | `/users` | Who may sign in |
-| `/config` | House pour-cost targets (Baserow App Config) |
+| `/config` | House pour-cost targets (Baserow config database) |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |
 | `/breakeven` | Breakeven (iframe) |
 | `/cashflow` | Cashflow (iframe) |
@@ -91,7 +91,7 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Bar stock / ABV catalog | **Baserow** `Inventory` |
 | Wholesalers, product pages, and pack prices | **Baserow** `Suppliers` plus junction `Inventory suppliers` (SKU, pack, trade price, product URL) |
 | Who may sign in to ops | **Baserow** `Users` (Email, Active). Manage in the app at `/users`, or in Baserow. |
-| House pour-cost targets and other non-secret knobs | **Baserow** `App Config` (Name, Value, Env, Service). Edit in the app at `/config`. |
+| House pour-cost targets and other non-secret knobs | **Baserow** `Gwenda Config` database (Name, Value, Env, Service), shared with the website and never copied with Ops data. Edit pour targets at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
@@ -108,13 +108,14 @@ npm run dev -w @gwenda/ops
 
 TODO: `:8788` still serves the built SPA, so both ports show a UI. Prefer Wrangler proxying the shell back to Vite so local UI is only the live HMR app.
 
-Requires `BASEROW_API_KEY` plus Google OAuth secrets in **`.env.ops`** (or `.env`). `SANITY_API_TOKEN` and `DEPLOY_WEBHOOK_SECRET` are owned by Ark/Web; ops pull copies them into `.env.ops`. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets) load from Baserow **App Config**. See [docs/config.md](../../docs/config.md).
+Secrets come from **`.env.ops`** (`npm run env:ops:pull`, env `local`). Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
 
 ```bash
-cp scripts/env-templates/ops.local.env .env.ops   # if missing
-npm run setup:baserow-ops
+npm run env:ops:pull
 npm run dev -w @gwenda/ops
 ```
+
+Resending form emails from `/forms` locally calls the marketing dev server (`web.origin` = `http://localhost:4321`), so run `npm run dev -w @gwenda/web` too.
 
 Build:
 

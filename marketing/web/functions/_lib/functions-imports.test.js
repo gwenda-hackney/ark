@@ -1,6 +1,6 @@
 /**
- * Guardrail: every Pages Function dependency must resolve inside web/functions.
- * Catches broken cross-repo imports before deploy.
+ * Guardrail: every Pages Function dependency must resolve (inside web/functions
+ * or the repo-level shared/ folder). Catches broken imports before deploy.
  */
 import { describe, expect, it } from "vitest";
 
@@ -10,6 +10,7 @@ const modules = [
   "../api/forms/index.js",
   "../api/forms/verify.js",
   "../api/forms/resend.js",
+  "../api/forms/admin/resend.js",
   "../health.js",
   "../api/events.js",
   "../api/whats-on.js",

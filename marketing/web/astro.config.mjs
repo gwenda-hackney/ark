@@ -257,9 +257,19 @@ function devFormsApi() {
         BASEROW_FORM_SUBMISSIONS_TABLE_NAME:
           process.env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME ||
           env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME,
+        BASEROW_CONFIG_API_KEY:
+          process.env.BASEROW_CONFIG_API_KEY || env.BASEROW_CONFIG_API_KEY,
+        FORMS_ADMIN_SECRET:
+          process.env.FORMS_ADMIN_SECRET || env.FORMS_ADMIN_SECRET,
+        GMAIL_SERVICE_ACCOUNT_JSON:
+          process.env.GMAIL_SERVICE_ACCOUNT_JSON ||
+          env.GMAIL_SERVICE_ACCOUNT_JSON,
+        // Unset must not fall through to production config rows.
         SITE_ENV:
           process.env.SITE_ENV ||
-          (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+          (env.PUBLIC_IS_STAGING === "true"
+            ? "staging"
+            : env.SITE_ENV || "local"),
         SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
         SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
         SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
@@ -348,6 +358,18 @@ function devFormsApi() {
               res,
               mod.onRequestPost,
               "/api/forms/resend",
+            );
+            return;
+          }
+          if (pathOnly === "/api/forms/admin/resend" && req.method === "POST") {
+            const mod = await server.ssrLoadModule(
+              "/functions/api/forms/admin/resend.js",
+            );
+            await pipeFunction(
+              req,
+              res,
+              mod.onRequestPost,
+              "/api/forms/admin/resend",
             );
             return;
           }

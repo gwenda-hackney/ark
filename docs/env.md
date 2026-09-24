@@ -34,7 +34,7 @@ Fill secrets one at a time:
 
 ```bash
 npm run env:set -- SANITY_API_TOKEN 'sk...'
-# Cloudflare org tokens: put them in SM Ark (not only the Password Manager note):
+# App and Cloudflare secrets belong in Secrets Manager, not the note:
 npm run env:ark:push
 ```
 
@@ -93,7 +93,7 @@ If staging/production already work, skip `setup:ci-secrets` / `setup:site-deploy
 |------|---------|
 | `ark/.env` (file) ← item `ark/.env.local` | Shared local + `ARK_LOCAL_BW_TOKEN` (SM bootstrap) |
 | `.env.ark` | Org Cloudflare from Secrets Manager (`npm run env:ark:pull`) |
-| `.env.ops` | Ops secrets from Secrets Manager (`npm run env:ops:pull`; also reads web-owned Sanity / deploy webhook) |
+| `.env.ops` | Ops secrets from Secrets Manager (`npm run env:ops:pull`) |
 | `.env.web` | Marketing secrets from Secrets Manager (`npm run env:web:pull`) |
 | Nest `.env` (`~/dev/gwenda/.env`) | Workspace tools (e.g. ClickUp). Separate. |
 
@@ -101,56 +101,49 @@ If staging/production already work, skip `setup:ci-secrets` / `setup:site-deploy
 
 ```bash
 # Requires ARK_LOCAL_BW_TOKEN in .env
-npm run env:ark:push          # once: copy filled Cloudflare keys from .env → Ark
+npm run env:ark:push          # copy filled Cloudflare keys from .env.ark / .env → Ark
 npm run env:ark:pull          # Ark → .env.ark
 npm run env:ark:pull -- --dry-run
 ```
 
 Ops and web pulls also refresh `.env.ark`. GitHub still holds `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` for deploy workflows that never talk to Secrets Manager.
 
-## Ops Secrets Manager pull
+## Secrets Manager pulls
+
+Naming rule, manifests and project ownership: see [config.md](./config.md#secrets-one-naming-rule). In short, SM holds `NAME` (shared) and `NAME__LOCAL` / `__STAGING` / `__PRODUCTION` (override), and a pull for one env merges them with the override winning.
 
 ```bash
 # Requires ARK_LOCAL_BW_TOKEN in .env
-npm run env:ops:pull
-npm run env:ops:pull -- --dry-run
-npm run env:ops:pull -- --migrate-sm   # once: legacy BASEROW_API_KEY → BASEROW_API_KEY_LOCAL
+npm run env:ark:pull                     # Ark → .env.ark
+npm run env:ops:pull                     # env=local → .env.ops (+ .env.ark)
+npm run env:web:pull                     # env=local → .env.web (+ .env.ark)
+npm run env:web:pull -- --env staging --dry-run
 ```
 
-CI (production Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then:
+Every pull lists **Ark + Ark/Ops + Ark/Web** and writes only the keys in that app's manifest. Missing keys are written as comments naming the SM keys it looked for. `.env.ops` keeps local-only `BASEROW_OPS_DATABASE_ID` / `BASEROW_OPS_DEV_WORKSPACE_ID` from the previous file.
+
+Push a filled value back (to the owning project, under its SM name):
 
 ```bash
-gh workflow run ops-secrets.yml
+npm run env:web:push -- SUBSCRIBE_SECRET                     # shared NAME
+npm run env:ops:push -- --profile local BASEROW_API_KEY      # BASEROW_OPS_API_KEY__LOCAL
 ```
 
-That syncs SM → Cloudflare Pages secrets (`BASEROW_API_KEY_PRODUCTION` as Pages `BASEROW_API_KEY`) and **redeploys** gwenda-ops (Pages snapshots secrets per deployment). Do not fall back to the local Baserow token. **Deploy workflows do not push Pages secrets** — only `ops-secrets.yml` / `web-secrets.yml` (or a local `setup:ops` + redeploy) do.
+Keys that already have env overrides in SM are skipped unless `--profile` is given, so a local token never becomes the shared value.
 
-Ops pull lists **Ark + Ark/Web + Ark/Ops**, then writes only ops keys to `.env.ops`. It remaps `BASEROW_API_KEY_LOCAL` → short `BASEROW_API_KEY` for local runtime and always keeps `BASEROW_API_KEY_PRODUCTION` alongside when present. It reads marketing-owned `SANITY_API_TOKEN` and `DEPLOY_WEBHOOK_SECRET` from Ark/Web instead of duplicating them. It also maps the matching marketing Baserow token onto `BASEROW_WEBSITE_API_KEY` so ops can list form submissions.
-
-GitHub should hold only `BWS_ACCESS_TOKEN` (machine account with access to **Ark**, **Ark/Ops**, and **Ark/Web**). Cloudflare deploy credentials (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_DEV_API_TOKEN`) live in SM project **Ark** and are pulled into CI via `env:ark:pull` / `env:web:pull` / `env:ops:pull`. App secrets (`SMTP_PASSWORD`, `SITE_PASSWORD`, …) live in Ark/Web or Ark/Ops, not as duplicated GitHub secrets.
-
-Ops local vs prod Baserow workspaces: see [config.md](./config.md#ops-baserow-workspaces).
-
-## Marketing Secrets Manager pull
-
-Uses **Ark/Web** (plus org **Ark** for Cloudflare). Sanity and the deploy webhook are marketing-owned; ops pull reads those two keys.
+CI (Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then:
 
 ```bash
-npm run env:web:push          # once: copy filled marketing keys from .env → Ark/Web
-npm run env:web:pull          # Ark + Ark/Web → .env.web (and .env.ark)
-npm run env:web:pull -- --dry-run
-```
-
-CI:
-
-```bash
+gh workflow run ops-secrets.yml                      # production ops, then redeploy
 gh workflow run web-secrets.yml -f profile=staging
 gh workflow run web-secrets.yml -f profile=production
 ```
 
-`web.yml` deploys code only. It may pull Ark/Web into the job env for build-time `SANITY_API_TOKEN` and smoke-test `GATE_BYPASS_KEY`, but it does **not** write those values to Cloudflare Pages. Rotate runtime secrets with `web-secrets.yml` (or local sync).
+Pages snapshots secrets per deployment, so a secret-only change needs a redeploy. **Deploy workflows do not push Pages secrets**; only `ops-secrets.yml` / `web-secrets.yml` (or a local `npm run setup:ops` + redeploy) do. `web.yml` may pull Ark/Web into the job env for the build (`SANITY_API_TOKEN`, `BASEROW_OPS_API_KEY` for artists, `GATE_BYPASS_KEY` smoke test) but never writes them to Cloudflare.
 
-Uses SM `BASEROW_API_KEY_MARKETING` for staging Pages (Gwenda Dev website) and `BASEROW_API_KEY_MARKETING_PRODUCTION` for production Pages (not the ops Free-workspace token).
+GitHub holds only `BWS_ACCESS_TOKEN` plus the Cloudflare deploy copies (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) for jobs that never talk to Secrets Manager.
+
+Baserow workspaces and tokens per env: see [config.md](./config.md#ops-baserow-workspaces).
 
 ## SMTP (form + invite mail)
 
@@ -195,4 +188,4 @@ That creates the KV namespace, deploys the Worker on `health.gwenda.co.uk`, and 
 
 ## Secrets vs config
 
-Bitwarden is for **credentials** only. Ops plain config belongs in Baserow **App Config**. Marketing tables (`Subscribers`, `Event Invites`, `Form Submissions`) are resolved by name; database id stays in wrangler `[vars]`. See [config.md](./config.md).
+Bitwarden is for **credentials** only. Plain settings for ops and web belong in the Baserow **Gwenda Config** database (profiled by Env and Service, never copied with Ops or Website data). Marketing tables (`Subscribers`, `Event Invites`, `Form Submissions`) are resolved by name. See [config.md](./config.md#runtime-config-gwenda-config-database).

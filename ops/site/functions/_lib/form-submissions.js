@@ -92,8 +92,14 @@ export function mapFormSubmission(row) {
     status: selectValue(row?.Status),
     submittedAt: typeof row?.Submitted === "string" ? row.Submitted : "",
     current: isCurrentRow(row),
+    notifySentAt: dateValue(row?.["Notify Sent"]),
+    receiptSentAt: dateValue(row?.["Receipt Sent"]),
     answers,
   };
+}
+
+function dateValue(value) {
+  return typeof value === "string" ? value : "";
 }
 
 async function resolveTableId(env) {
@@ -130,4 +136,57 @@ export async function listFormSubmissions(env) {
     .map(mapFormSubmission)
     .filter((row) => row.id && row.current)
     .sort((a, b) => submittedTime(b.submittedAt) - submittedTime(a.submittedAt));
+}
+
+export const FORM_EMAIL_KINDS = ["notify", "receipt"];
+
+function httpError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+/**
+ * Ask the website to resend one email for a submission. The site renders it
+ * from the stored row + Sanity form, sends it, and stamps the Sent column.
+ * @param {"notify" | "receipt"} kind
+ * @returns {Promise<{ ok: true, sentAt?: string | null, dryRun?: boolean, warning?: string }>}
+ */
+export async function resendFormEmail(env, rowId, kind) {
+  if (!FORM_EMAIL_KINDS.includes(kind)) {
+    throw httpError("kind must be notify or receipt.", 400);
+  }
+  const origin = env.WEB_ORIGIN?.trim().replace(/\/$/, "");
+  if (!origin) {
+    throw httpError("web.origin is not set in the config database.", 503);
+  }
+  const secret = env.FORMS_ADMIN_SECRET?.trim();
+  if (!secret) {
+    throw httpError("FORMS_ADMIN_SECRET is not configured. Run npm run env:ops:pull.", 503);
+  }
+
+  let response;
+  try {
+    response = await fetch(`${origin}/api/forms/admin/resend`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ rowId: String(rowId), kind }),
+    });
+  } catch (error) {
+    throw httpError(
+      `Could not reach the website at ${origin} (${error instanceof Error ? error.message : error}).`,
+      502,
+    );
+  }
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw httpError(
+      body?.error || `Website resend failed (${response.status}).`,
+      response.status === 401 || response.status >= 500 ? 502 : response.status,
+    );
+  }
+  return body ?? { ok: true };
 }

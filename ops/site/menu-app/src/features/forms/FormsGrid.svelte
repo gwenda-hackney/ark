@@ -40,7 +40,23 @@
 			minWidth: 160,
 			valueFormatter: (p) => (p.value ? formatWhen(String(p.value)) : ""),
 		},
+		sentColumn("Notified", "notifySentAt"),
+		sentColumn("Receipt", "receiptSentAt"),
 	];
+
+	function sentColumn(
+		headerName: string,
+		field: "notifySentAt" | "receiptSentAt",
+	): ColDef<FormSubmission> {
+		return {
+			headerName,
+			field,
+			width: 150,
+			minWidth: 110,
+			valueFormatter: (p) => (p.value ? formatWhen(String(p.value)) : "Not sent"),
+			cellClass: (p) => (p.value ? "" : "not-sent"),
+		};
+	}
 
 	function openRow(event: RowClickedEvent<FormSubmission>) {
 		if (hasRangeSelection()) return;
@@ -72,5 +88,9 @@
 
 	.frame :global(.ag-row) {
 		cursor: pointer;
+	}
+
+	.frame :global(.not-sent) {
+		color: var(--destructive, #c97a7a);
 	}
 </style>

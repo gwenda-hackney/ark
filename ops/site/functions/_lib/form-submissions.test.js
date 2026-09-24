@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
 import { resetBaserowClientForTests } from "./baserow.js";
-import { listFormSubmissions, mapFormSubmission } from "./form-submissions.js";
+import {
+  listFormSubmissions,
+  mapFormSubmission,
+  resendFormEmail,
+} from "./form-submissions.js";
 import { jsonResponse } from "./test-baserow-mock.js";
 
 afterEach(() => {
@@ -42,6 +46,61 @@ describe("mapFormSubmission", () => {
   it("treats a missing Current flag as current", () => {
     assert.equal(mapFormSubmission({ id: 1, Current: false }).current, false);
     assert.equal(mapFormSubmission({ id: 1 }).current, true);
+  });
+
+  it("exposes the email sent stamps", () => {
+    const mapped = mapFormSubmission({
+      id: 1,
+      "Notify Sent": "2026-09-24T10:00:00Z",
+      "Receipt Sent": null,
+    });
+    assert.equal(mapped.notifySentAt, "2026-09-24T10:00:00Z");
+    assert.equal(mapped.receiptSentAt, "");
+  });
+});
+
+describe("resendFormEmail", () => {
+  const resendEnv = {
+    WEB_ORIGIN: "http://localhost:4321/",
+    FORMS_ADMIN_SECRET: "s3cret",
+  };
+
+  it("posts to the website admin endpoint with the bearer secret", async () => {
+    const calls = [];
+    mock.method(globalThis, "fetch", async (url, init) => {
+      calls.push({ url: String(url), init });
+      return jsonResponse({ ok: true, sentAt: "2026-09-24T10:00:00Z" });
+    });
+    const result = await resendFormEmail(resendEnv, "501", "receipt");
+    assert.deepEqual(result, { ok: true, sentAt: "2026-09-24T10:00:00Z" });
+    assert.equal(calls[0].url, "http://localhost:4321/api/forms/admin/resend");
+    assert.equal(calls[0].init.headers.Authorization, "Bearer s3cret");
+    assert.deepEqual(JSON.parse(calls[0].init.body), { rowId: "501", kind: "receipt" });
+  });
+
+  it("rejects unknown kinds and missing config before calling out", async () => {
+    mock.method(globalThis, "fetch", async () => {
+      throw new Error("should not fetch");
+    });
+    await assert.rejects(resendFormEmail(resendEnv, "1", "verify"), { status: 400 });
+    await assert.rejects(
+      resendFormEmail({ FORMS_ADMIN_SECRET: "s" }, "1", "notify"),
+      /web\.origin/,
+    );
+    await assert.rejects(
+      resendFormEmail({ WEB_ORIGIN: "http://x" }, "1", "notify"),
+      /FORMS_ADMIN_SECRET/,
+    );
+  });
+
+  it("surfaces the website error", async () => {
+    mock.method(globalThis, "fetch", async () =>
+      jsonResponse({ error: "Email is not configured." }, 502),
+    );
+    await assert.rejects(resendFormEmail(resendEnv, "1", "notify"), {
+      status: 502,
+      message: "Email is not configured.",
+    });
   });
 });
 

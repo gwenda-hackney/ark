@@ -10,7 +10,6 @@ export const TABLE_INVENTORY = "Inventory";
 export const TABLE_SUPPLIERS = "Suppliers";
 export const TABLE_INVENTORY_SUPPLIERS = "Inventory suppliers";
 export const TABLE_USERS = "Users";
-export const TABLE_CONFIG = "App Config";
 export const TABLE_POS_MENUS = "POS Menus";
 export const TABLE_MENU_PLACEMENTS = "Menu placements";
 export const TABLE_EVENTS = "Events";
@@ -197,7 +196,6 @@ export const OPS_TABLE_SPECS = [
   { key: "suppliers", name: TABLE_SUPPLIERS, required: false },
   { key: "inventorySuppliers", name: TABLE_INVENTORY_SUPPLIERS, required: false },
   { key: "users", name: TABLE_USERS, required: false },
-  { key: "config", name: TABLE_CONFIG, required: false },
   { key: "posMenus", name: TABLE_POS_MENUS, required: false },
   { key: "menuPlacements", name: TABLE_MENU_PLACEMENTS, required: false },
   { key: "events", name: TABLE_EVENTS, required: false },
@@ -297,12 +295,6 @@ export async function resolveOpsTableIds(env) {
   tableIdCacheKey = cacheKey;
   tableIdCacheAt = Date.now();
   return resolved;
-}
-
-/** App Config table id (name lookup via the shared Ops catalog cache). */
-export async function resolveConfigTableId(env) {
-  const tables = await resolveOpsTableIds(env);
-  return tables.config || "";
 }
 
 /** Query params that list only rows linked to `rowId` on `fieldName`. */

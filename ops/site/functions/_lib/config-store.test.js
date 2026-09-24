@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 const tableEnv = {
-  BASEROW_API_KEY: "token",
+  BASEROW_CONFIG_API_KEY: "config-token",
   SITE_ENV: "staging",
 };
 
@@ -59,7 +59,7 @@ describe("pourTargetsFromValues", () => {
 });
 
 describe("getPourTargets", () => {
-  it("reads App Config rows for ops", async () => {
+  it("reads config rows for ops", async () => {
     mock.method(
       globalThis,
       "fetch",
@@ -84,6 +84,13 @@ describe("getPourTargets", () => {
     });
   });
 
+  it("returns defaults without a config token", async () => {
+    mock.method(globalThis, "fetch", async () => {
+      throw new Error("should not fetch");
+    });
+    assert.deepEqual(await getPourTargets({ SITE_ENV: "local" }), DEFAULT_POUR_TARGETS);
+  });
+
   it("returns defaults when the config table is missing", async () => {
     mock.method(globalThis, "fetch", async (input) => {
       const url = String(input);
@@ -101,7 +108,7 @@ describe("getPourTargets", () => {
 });
 
 describe("applyOpsAppConfig", () => {
-  it("fills missing plain settings from App Config", async () => {
+  it("fills missing plain settings from config", async () => {
     const { applyOpsAppConfig } = await import("./config-store.js");
     mock.method(
       globalThis,
@@ -127,14 +134,14 @@ describe("applyOpsAppConfig", () => {
         }),
       ),
     );
-    const env = await applyOpsAppConfig({ BASEROW_API_KEY: "token", SITE_ENV: "local" });
+    const env = await applyOpsAppConfig({ BASEROW_CONFIG_API_KEY: "config-token", SITE_ENV: "local" });
     assert.equal(env.SANITY_PROJECT_ID, "pn5yjro6");
     assert.equal(env.GOOGLE_OAUTH_CLIENT_ID, "client.apps.googleusercontent.com");
   });
 });
 
 describe("setPourTargets", () => {
-  it("creates missing pour-target rows", async () => {
+  it("creates this env's pour-target rows, never Env=all", async () => {
     const posts = [];
     mock.method(
       globalThis,
@@ -155,7 +162,7 @@ describe("setPourTargets", () => {
     assert.equal(posts.length, 4);
     assert.equal(posts[0].Name, "pour_target.cocktail");
     assert.equal(posts[0].Value, "21");
-    assert.equal(posts[0].Env, "all");
+    assert.equal(posts[0].Env, "staging");
     assert.equal(posts[0].Service, "ops");
   });
 });

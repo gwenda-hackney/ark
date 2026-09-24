@@ -11,7 +11,7 @@ import {
 export const onRequestGet = withApiHandler(async (context) => {
   const [pourTargets, values] = await Promise.all([
     getPourTargets(context.env),
-    getConfigValues(context.env, { service: "ops" }),
+    getConfigValues(context.env),
   ]);
   return jsonResponse({
     pourTargets,
@@ -51,7 +51,7 @@ export const onRequestPatch = withApiHandler(async (context) => {
         String(body.events.clickupListId || "").trim(),
       );
     }
-    const values = await getConfigValues(context.env, { service: "ops" });
+    const values = await getConfigValues(context.env);
     return jsonResponse({
       ok: true,
       settings: {

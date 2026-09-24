@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { onDestroy, onMount } from "svelte";
 	import { BusyOverlay, Button, NativeSelect, PageHeader, SearchField } from "../../ui";
-	import { getFormSubmissions, type FormSubmission } from "../../lib/api";
+	import {
+		getFormSubmissions,
+		resendFormEmail,
+		type FormEmailKind,
+		type FormSubmission,
+	} from "../../lib/api";
 	import { setCrumbLeaf } from "../../lib/crumbs.svelte";
 	import { loginNext, navigate, parseShellPath } from "../../lib/nav";
 	import { formatWhen } from "../../lib/web-metrics";
@@ -17,6 +22,14 @@
 	let error = $state("");
 	let query = $state("");
 	let formFilter = $state("");
+	let sending = $state<FormEmailKind | null>(null);
+	let mailNote = $state("");
+	let mailError = $state("");
+
+	const EMAILS: { kind: FormEmailKind; label: string; field: "notifySentAt" | "receiptSentAt" }[] = [
+		{ kind: "notify", label: "Team notification", field: "notifySentAt" },
+		{ kind: "receipt", label: "Receipt to applicant", field: "receiptSentAt" },
+	];
 
 	const selected = $derived(rows.find((row) => row.id === openId) ?? null);
 
@@ -64,6 +77,34 @@
 			Boolean(field?.value),
 		);
 	});
+
+	$effect(() => {
+		void openId;
+		mailNote = "";
+		mailError = "";
+	});
+
+	async function resend(row: FormSubmission, kind: FormEmailKind) {
+		if (sending) return;
+		sending = kind;
+		mailNote = "";
+		mailError = "";
+		try {
+			const result = await resendFormEmail(row.id, kind);
+			if (result.dryRun) {
+				mailNote = "Dry run: mail is not configured here, so nothing was sent.";
+				return;
+			}
+			const field = kind === "notify" ? "notifySentAt" : "receiptSentAt";
+			const sentAt = result.sentAt || new Date().toISOString();
+			rows = rows.map((item) => (item.id === row.id ? { ...item, [field]: sentAt } : item));
+			mailNote = result.warning ? `Sent, but ${result.warning.toLowerCase()}` : "Sent.";
+		} catch (err) {
+			mailError = err instanceof Error ? err.message : "Could not resend.";
+		} finally {
+			sending = null;
+		}
+	}
 
 	function personLabel(row: FormSubmission): string {
 		return row.name || row.email || "Submission";
@@ -119,6 +160,36 @@
 			{:else if !loading && !selected}
 				<p class="muted">That submission is not in the current list.</p>
 			{:else if selected}
+				<section class="emails" aria-label="Emails">
+					<h2>Emails</h2>
+					<ul>
+						{#each EMAILS as email (email.kind)}
+							{@const sentAt = selected[email.field]}
+							<li>
+								<div>
+									<span class="email-label">{email.label}</span>
+									<span class={sentAt ? "sent" : "not-sent"}>
+										{sentAt ? `Sent ${formatWhen(sentAt)}` : "Not sent"}
+									</span>
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									type="button"
+									disabled={sending !== null}
+									onclick={() => resend(selected, email.kind)}
+								>
+									{sending === email.kind ? "Sending…" : sentAt ? "Resend" : "Send"}
+								</Button>
+							</li>
+						{/each}
+					</ul>
+					{#if mailError}
+						<p class="error">{mailError}</p>
+					{:else if mailNote}
+						<p class="muted">{mailNote}</p>
+					{/if}
+				</section>
 				<dl class="answers">
 					{#each detailFields as field (field.key)}
 						<div>
@@ -210,6 +281,55 @@
 		margin: 0;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
+	}
+
+	.emails {
+		display: grid;
+		gap: 0.6rem;
+		padding-bottom: var(--gap);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.emails h2 {
+		margin: 0;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
+	.emails ul {
+		display: grid;
+		gap: 0.5rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.emails li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--gap);
+	}
+
+	.emails li > div {
+		display: grid;
+		gap: 0.1rem;
+		font-size: var(--text-sm);
+	}
+
+	.email-label {
+		font-weight: 500;
+	}
+
+	.sent {
+		color: var(--muted-foreground);
+	}
+
+	.not-sent {
+		color: var(--destructive, #c97a7a);
 	}
 
 	.answers {

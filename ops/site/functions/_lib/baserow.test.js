@@ -153,7 +153,6 @@ describe("resolveOpsTableIds", () => {
         { id: 15, name: "Suppliers", database_id: 9 },
         { id: 16, name: "Inventory suppliers", database_id: 9 },
         { id: 17, name: "Users", database_id: 9 },
-        { id: 18, name: "App Config", database_id: 9 },
         { id: 99, name: "Menu Items", database_id: 8 },
       ]),
     );
@@ -164,7 +163,6 @@ describe("resolveOpsTableIds", () => {
     assert.equal(first.sections, "11");
     assert.equal(first.inventorySuppliers, "16");
     assert.equal(first.users, "17");
-    assert.equal(first.config, "18");
     assert.equal(second, first);
     assert.equal(fetchMock.mock.callCount(), 1);
   });
