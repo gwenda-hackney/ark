@@ -9,6 +9,7 @@ import {
   LOGO_CID,
 } from "./rsvp-email-template.js";
 import { fetchImageBuffer } from "./rsvp-tickets.js";
+import { isGmailConfigured, sendGmail } from "./gmail-send.js";
 import {
   EVENTS_NO_REPLY_HEADERS,
   resolveSmtpFrom,
@@ -23,10 +24,9 @@ export async function sendRsvpConfirmationEmail(
   env,
   { to, name, guests, event, inviteUrl, ticketUrl, origin, ticketId },
 ) {
-  const host = env.SMTP_HOST?.trim();
   const from = resolveSmtpFrom(env, SMTP_PURPOSE.EVENTS);
   const recipient = to?.trim();
-  if (!host || !from || !recipient) {
+  if (!from || !recipient || !isGmailConfigured(env)) {
     return { ok: false, skipped: true };
   }
 
@@ -53,19 +53,7 @@ export async function sendRsvpConfirmationEmail(
     });
   }
 
-  const nodemailer = await import("nodemailer");
-  const port = Number(env.SMTP_PORT?.trim() || "587");
-  const user = env.SMTP_USER?.trim() ?? "";
-  const password = env.SMTP_PASSWORD?.trim() ?? "";
-
-  const transport = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: user && password ? { user, pass: password } : undefined,
-  });
-
-  await transport.sendMail({
+  await sendGmail(env, {
     from,
     to: recipient,
     subject: content.subject,

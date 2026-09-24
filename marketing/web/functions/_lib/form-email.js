@@ -1,5 +1,6 @@
 import { resolveSmtpFrom, SMTP_PURPOSE } from "./smtp-from.js";
 import { reportFormError } from "./form-alert.js";
+import { isGmailConfigured, sendGmail } from "./gmail-send.js";
 import { createLogger } from "./log.js";
 import {
   formatFormEmail,
@@ -20,13 +21,12 @@ import {
 const LOGO_URL = `${SITE_DOMAIN}/brand/logo-email.png`;
 const log = createLogger();
 
-function smtpSkipFields(host, from, to, user, password) {
+function mailSkipFields(env, from, to) {
   return {
-    hasHost: Boolean(host),
     hasFrom: Boolean(from),
     hasTo: Boolean(to),
-    hasUser: Boolean(user),
-    hasPassword: Boolean(password),
+    hasSender: Boolean(env.SMTP_USER?.trim()),
+    hasServiceAccount: Boolean(env.GMAIL_SERVICE_ACCOUNT_JSON?.trim()),
   };
 }
 
@@ -94,7 +94,6 @@ export async function sendFormNotificationEmail(
   env,
   { form, answers, changes, updated = false },
 ) {
-  const host = env.SMTP_HOST?.trim();
   const to = form?.notifyEmail?.trim();
   const from = resolveFormNotifyFrom(env, form, to);
   const isUpdate =
@@ -102,10 +101,7 @@ export async function sendFormNotificationEmail(
   const subject = formatFormNotifySubject(form, answers, { updated: isUpdate });
   const submitter = replyToFromAnswers(answers);
   const replyTo = submitter || resolveFormReplyTo(form);
-  const user = env.SMTP_USER?.trim() ?? "";
-  // Gmail app passwords are often pasted with spaces; SMTP auth wants the 16 chars.
-  const password = (env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
-  const smtpReady = Boolean(host && from && to && user && password);
+  const mailReady = Boolean(from && to && isGmailConfigured(env));
   const siteEnv = env.SITE_ENV?.trim();
   const isDeployed = siteEnv === "staging" || siteEnv === "production";
 
@@ -145,7 +141,7 @@ export async function sendFormNotificationEmail(
     return { ok: false, skipped: true, error: "No notify address configured." };
   }
 
-  if (!smtpReady) {
+  if (!mailReady) {
     if (!isDeployed) {
       log.info(
         `[form email dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"} subject=${subject}`,
@@ -155,23 +151,13 @@ export async function sendFormNotificationEmail(
     await reportFormError(env, "form_notify_email_skipped", {
       reason: "smtp_not_configured",
       slug: form?.slug ?? "",
-      ...smtpSkipFields(host, from, to, user, password),
+      ...mailSkipFields(env, from, to),
     });
     return { ok: false, skipped: true, error: "Email is not configured." };
   }
 
   try {
-    const nodemailer = await import("nodemailer");
-    const port = Number(env.SMTP_PORT?.trim() || "587");
-
-    const transport = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass: password },
-    });
-
-    await transport.sendMail({
+    await sendGmail(env, {
       from,
       to,
       replyTo,
@@ -198,8 +184,7 @@ export async function sendFormNotificationEmail(
       error: message,
       from,
       to,
-      host,
-      user,
+      sender: env.SMTP_USER?.trim() ?? "",
       slug: form?.slug ?? "",
     });
     return { ok: false, error: message };
@@ -214,15 +199,12 @@ export async function sendFormReceiptEmail(
   env,
   { form, answers, email, editUrl, updated = false },
 ) {
-  const host = env.SMTP_HOST?.trim();
   const to = String(email ?? "")
     .trim()
     .toLowerCase();
   const from = resolveFormFrom(env, form);
   const replyTo = resolveFormReplyTo(form);
-  const user = env.SMTP_USER?.trim() ?? "";
-  const password = (env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
-  const smtpReady = Boolean(host && from && to && user && password);
+  const mailReady = Boolean(from && to && isGmailConfigured(env));
   const siteEnv = env.SITE_ENV?.trim();
   const isDeployed = siteEnv === "staging" || siteEnv === "production";
 
@@ -258,7 +240,7 @@ export async function sendFormReceiptEmail(
     });
   }
 
-  if (!smtpReady) {
+  if (!mailReady) {
     if (!isDeployed) {
       log.info(
         `[form receipt dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"} subject=${subject}`,
@@ -268,23 +250,13 @@ export async function sendFormReceiptEmail(
     await reportFormError(env, "form_receipt_email_skipped", {
       reason: "smtp_not_configured",
       slug: form?.slug ?? "",
-      ...smtpSkipFields(host, from, to, user, password),
+      ...mailSkipFields(env, from, to),
     });
     return { ok: false, skipped: true, error: "Email is not configured." };
   }
 
   try {
-    const nodemailer = await import("nodemailer");
-    const port = Number(env.SMTP_PORT?.trim() || "587");
-
-    const transport = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass: password },
-    });
-
-    await transport.sendMail({
+    await sendGmail(env, {
       from,
       to,
       replyTo,
@@ -309,8 +281,7 @@ export async function sendFormReceiptEmail(
       error: message,
       from,
       to,
-      host,
-      user,
+      sender: env.SMTP_USER?.trim() ?? "",
       slug: form?.slug ?? "",
     });
     return { ok: false, error: message };
