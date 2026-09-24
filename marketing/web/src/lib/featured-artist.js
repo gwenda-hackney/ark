@@ -38,6 +38,51 @@ function publicImages(files) {
     .filter(Boolean);
 }
 
+const RESERVED_ARTIST_SLUGS = new Set(["current", "next"]);
+
+/** Public path segment. `current` and `next` stay reserved for the live pages. */
+export function slugifyArtistName(name) {
+  return text(name)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60)
+    .replace(/-+$/g, "");
+}
+
+/** Stable slugs from the name. A clash, or a reserved word, takes the row id. */
+export function withArtistSlugs(artists) {
+  const list = Array.isArray(artists) ? artists : [];
+  const used = new Set(RESERVED_ARTIST_SLUGS);
+  return list.map((artist) => {
+    if (!artist || !text(artist.name)) return artist;
+    const base = slugifyArtistName(artist.name) || "artist";
+    let slug = base;
+    if (used.has(slug)) {
+      const id = text(artist.id) || "2";
+      slug = `${base}-${id}`;
+      let n = 2;
+      while (used.has(slug)) {
+        slug = `${base}-${id}-${n}`;
+        n += 1;
+      }
+    }
+    used.add(slug);
+    return { ...artist, slug };
+  });
+}
+
+/** `/artists/current` while they hold the wall. Archive pages keep the name slug. */
+export function artistPagePath(artist) {
+  if (artist?.slot === "current") return "/artists/current";
+  const slug = text(artist?.slug);
+  if (!slug || RESERVED_ARTIST_SLUGS.has(slug)) return "";
+  return `/artists/${slug}`;
+}
+
 /** Short name for "From {name}". Uses Artist name, or the first word of the full name. */
 export function artistShortName(artist) {
   const given = text(artist?.artistName);
@@ -56,14 +101,21 @@ export function publicArtist(artist) {
     portrait: imageUrl(artist.portrait),
     art: publicImages(artist.art),
     gwenda: publicImages(artist.gwenda),
+    slug: text(artist.slug),
+    slot: text(artist.slot),
   };
 }
 
 export function featuredFromArtists(artists) {
-  const list = Array.isArray(artists) ? artists : [];
+  const list = withArtistSlugs(Array.isArray(artists) ? artists : []);
+  const publish = (artist) => publicArtist(artist);
   return {
-    current: publicArtist(list.find((artist) => artist?.slot === "current")),
-    next: publicArtist(list.find((artist) => artist?.slot === "next")),
+    current: publish(list.find((artist) => artist?.slot === "current")),
+    next: publish(list.find((artist) => artist?.slot === "next")),
+    previous: list
+      .filter((artist) => artist?.slot === "previous")
+      .map(publish)
+      .filter(Boolean),
   };
 }
 
@@ -84,7 +136,7 @@ export function websiteLabel(url) {
 
 export async function fetchFeaturedArtists(env = process.env) {
   const readEnv = opsArtistEnv(env);
-  if (!readEnv) return { current: null, next: null };
+  if (!readEnv) return { current: null, next: null, previous: [] };
   try {
     return featuredFromArtists(await listArtists(readEnv));
   } catch (error) {
@@ -92,6 +144,6 @@ export async function fetchFeaturedArtists(env = process.env) {
       "Featured artist unavailable:",
       error instanceof Error ? error.message : error,
     );
-    return { current: null, next: null };
+    return { current: null, next: null, previous: [] };
   }
 }

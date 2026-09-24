@@ -1,0 +1,12 @@
+---
+import ArtistPage from "../../components/ArtistPage.astro";
+import { fetchFeaturedArtists } from "../../lib/featured-artist.js";
+
+const featured = await fetchFeaturedArtists();
+---
+
+<ArtistPage
+  artist={featured.current}
+  next={featured.next}
+  previous={featured.previous}
+/>

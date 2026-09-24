@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  artistPagePath,
   bioParagraphs,
   featuredFromArtists,
   opsArtistEnv,
@@ -65,6 +66,8 @@ describe("featuredFromArtists", () => {
       },
     ]);
     expect(featured.current.name).toBe("Rita Matos");
+    expect(featured.current.slug).toBe("rita-matos");
+    expect(artistPagePath(featured.current)).toBe("/artists/current");
     expect(featured.current.artistName).toBe("Rita");
     expect(featured.current.portrait).toBe("https://files.example/face.jpg");
     expect(featured.current.art).toEqual([
@@ -77,6 +80,17 @@ describe("featuredFromArtists", () => {
     expect(featured.current.name).not.toMatch(/secret/);
     expect(featured.next.name).toBe("Jo");
     expect(featured.next.artistName).toBe("Jo");
+    expect(featured.previous.map((artist) => artist.slug)).toEqual(["ada"]);
+    expect(artistPagePath(featured.previous[0])).toBe("/artists/ada");
+    expect(
+      artistPagePath(
+        featuredFromArtists([
+          { id: "9", slot: "previous", name: "Current", profile: "", bio: "" },
+          { id: "4", slot: "previous", name: "Ada", profile: "", bio: "" },
+          { id: "8", slot: "previous", name: "Ada", profile: "", bio: "" },
+        ]).previous[0],
+      ),
+    ).toBe("/artists/current-9");
     expect(publicArtist({ name: "  " })).toBeNull();
     expect(
       publicArtist({ name: "Rita Matos", artistName: "  " })?.artistName,
