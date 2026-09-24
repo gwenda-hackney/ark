@@ -40,6 +40,7 @@ describe("mapArtist / orderArtists", () => {
     const ada = mapArtist(row({ id: 8, Name: "Ada", Slot: "previous" }));
     const bea = mapArtist(row({ id: 6, Name: "Bea", Slot: { value: "previous" } }));
     assert.equal(current.slot, "current");
+    assert.equal(current.artistName, "");
     assert.equal(next.website, "");
     const ordered = orderArtists([bea, ada, next, current, mapArtist({ id: 3 })]);
     assert.deepEqual(
@@ -89,6 +90,8 @@ describe("listArtists / createArtist / deleteArtist", () => {
         if (method === "POST") {
           const body = JSON.parse(init.body);
           assert.equal(body.Slot, "current");
+          assert.equal(body.Name, "New Guest");
+          assert.equal(body["Artist name"], "Rita");
           assert.equal(body.Website, "https://rita.example");
           return jsonResponse({
             id: 9,
@@ -103,6 +106,7 @@ describe("listArtists / createArtist / deleteArtist", () => {
     );
     const created = await createArtist(tableEnv, {
       name: "New Guest",
+      artistName: "Rita",
       website: "rita.example",
       profile: "Painter.",
       bio: "",
@@ -110,6 +114,7 @@ describe("listArtists / createArtist / deleteArtist", () => {
     });
     assert.equal(created.id, "9");
     assert.equal(created.slot, "current");
+    assert.equal(created.artistName, "Rita");
     assert.deepEqual(patches, [{ Slot: "previous" }]);
   });
 

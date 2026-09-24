@@ -22,7 +22,14 @@
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import { EVENTS_HELP } from "./events-help";
 	import SitePublishMonitor from "../web/SitePublishMonitor.svelte";
+	import EventsPublishFlow, { type PublishBatch } from "./EventsPublishFlow.svelte";
 	import { eventHeaderFlag } from "../../lib/event-header-status";
+	import {
+		bulkPublishButtonLabel,
+		eventsNeedingLive,
+		eventsNeedingPreview,
+		seriesCount,
+	} from "../../lib/event-publish-queue";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
@@ -42,7 +49,6 @@
 		eventDriveFileUrl,
 		getEventDrive,
 		getEvents,
-		publishAllEventsPreview,
 		publishEvent,
 		updateEvent,
 		updateEventOccurrence,
@@ -108,6 +114,10 @@
 	let saving = $state(false);
 	let intent = $state<"" | "save" | "delete" | "image">("");
 	let publishing = $state("");
+	let publishFlowOpen = $state(false);
+	let publishBatch = $state<PublishBatch | null>(null);
+	let publishFlowError = $state("");
+	let publishFlowWarnings = $state<string[]>([]);
 	let error = $state("");
 	let warnings = $state<string[]>([]);
 
@@ -236,11 +246,9 @@
 		loading || saving || driveUploading || Boolean(publishing),
 	);
 	const busyLabel = $derived(
-		publishing === "all"
-			? "Updating all previews…"
-			: publishing
-				? "Publishing…"
-				: loading
+		publishing
+			? "Publishing…"
+			: loading
 					? "Loading…"
 					: driveUploading
 						? "Uploading…"
@@ -1602,37 +1610,71 @@
 		void onPublish("staging");
 	});
 
-	async function onPublishAllPreview() {
-		if (busy) return;
-		publishing = "all";
-		error = "";
-		warnings = [];
+	function closePublishFlow() {
+		if (publishBatch) return;
+		publishFlowOpen = false;
+	}
+
+	async function runBulkPublish(target: "staging" | "production", republish = false) {
+		if (publishBatch || busy) return;
+		const source = (
+			target === "production"
+				? eventsNeedingLive(events)
+				: republish
+					? events
+					: eventsNeedingPreview(events)
+		).slice();
+		if (!source.length) {
+			toast.info(
+				target === "production"
+					? "Nothing is waiting to go live."
+					: "Preview is already up to date.",
+			);
+			return;
+		}
+		publishFlowError = "";
+		publishFlowWarnings = [];
+		const failed: string[] = [];
+		const notes: string[] = [];
+		publishBatch = {
+			target,
+			index: 1,
+			total: source.length,
+			name: source[0]?.name || "series",
+		};
 		try {
-			const data = await publishAllEventsPreview();
-			events = data.events || [];
-			warnings = data.warnings || [];
-			if (data.failed.length) {
-				const names = data.failed.map((failure) => failure.name).join(", ");
-				error = `Could not update preview for: ${names}.`;
-				toast.error(error);
-			} else if (data.published.length) {
-				const skip = Array.isArray(data.skipped) ? data.skipped.length : 0;
-				toast.ok(
-					skip
-						? `Preview updated for ${data.published.length} events (${skip} already current).`
-						: `Preview updated for ${data.published.length} events.`,
-				);
-			} else if (Array.isArray(data.skipped) && data.skipped.length) {
-				toast.info("Preview is already up to date.");
-			} else {
-				toast.info("There are no events to publish.");
+			for (let index = 0; index < source.length; index += 1) {
+				const item = source[index];
+				publishBatch = {
+					target,
+					index: index + 1,
+					total: source.length,
+					name: item.name || "Untitled",
+				};
+				try {
+					const data = await publishEvent(item.id, target);
+					events = events.map((row) => (row.id === data.event.id ? data.event : row));
+					for (const warning of data.warnings || []) {
+						notes.push(`${item.name}: ${warning}`);
+					}
+				} catch {
+					failed.push(item.name || "Untitled");
+				}
 			}
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Could not update event preview.";
-			error = message;
-			toast.error(message);
+			publishFlowWarnings = notes;
+			if (failed.length) {
+				publishFlowError =
+					target === "production"
+						? `Could not push live: ${failed.join(", ")}.`
+						: `Could not update preview for: ${failed.join(", ")}.`;
+				toast.error(publishFlowError);
+			} else if (target === "staging") {
+				toast.ok(`Preview updated for ${seriesCount(source.length)}.`);
+			} else {
+				toast.ok(`Pushed ${seriesCount(source.length)} live.`);
+			}
 		} finally {
-			publishing = "";
+			publishBatch = null;
 		}
 	}
 
@@ -1829,14 +1871,16 @@
 					<Button
 						type="button"
 						variant="outline"
-						busy={publishing === "all"}
-						disabled={busy}
-						onclick={onPublishAllPreview}
+						busy={Boolean(publishBatch)}
+						disabled={busy || Boolean(publishBatch)}
+						onclick={() => {
+							publishFlowOpen = true;
+						}}
 					>
 						{#snippet icon()}
 							<Icon name="upload" size={16} />
 						{/snippet}
-						Update preview
+						{bulkPublishButtonLabel(events)}
 					</Button>
 					{#if listView === "series"}
 						<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
@@ -2983,6 +3027,16 @@
 			</Dialog>
 		</form>
 	{/if}
+	<Dialog open={publishFlowOpen} title="Publish" onclose={closePublishFlow}>
+		<EventsPublishFlow
+			{events}
+			batch={publishBatch}
+			error={publishFlowError}
+			warnings={publishFlowWarnings}
+			onPreview={(republish) => void runBulkPublish("staging", republish)}
+			onLive={() => void runBulkPublish("production")}
+		/>
+	</Dialog>
 	<BusyOverlay active={busy} label={busyLabel} />
 </div>
 

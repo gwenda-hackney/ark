@@ -6,6 +6,7 @@ import {
   isDriveImage,
   mapDriveImage,
   parseDriveServiceAccount,
+  pickReusableDriveFolder,
 } from "./google-drive.js";
 
 describe("google-drive helpers", () => {
@@ -54,6 +55,19 @@ describe("google-drive helpers", () => {
     assert.equal(findNamedFolder(children, "gallery")?.id, "gal");
     assert.equal(findNamedFolder(children, "missing"), null);
     assert.equal(findNamedFolder([], "gallery"), null);
+  });
+
+  it("reuses an unreferenced folder and skips folders already on an event", () => {
+    const folder = "application/vnd.google-apps.folder";
+    const children = [
+      { id: "old", name: "Jazz", mimeType: folder, modifiedTime: "2026-09-22T14:00:00.000Z" },
+      { id: "new", name: "Jazz", mimeType: folder, modifiedTime: "2026-09-22T15:00:00.000Z" },
+      { id: "kept", name: "Jazz", mimeType: folder, modifiedTime: "2026-09-22T16:00:00.000Z" },
+      { id: "file", name: "Jazz", mimeType: "image/jpeg", modifiedTime: "2026-09-22T17:00:00.000Z" },
+    ];
+    assert.equal(pickReusableDriveFolder(children, "jazz", ["kept"])?.id, "new");
+    assert.equal(pickReusableDriveFolder(children, "missing", []), null);
+    assert.equal(pickReusableDriveFolder(children, "Jazz", ["old", "new", "kept"]), null);
   });
 
   it("maps and filters Drive image files", () => {

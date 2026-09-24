@@ -39,6 +39,7 @@ describe("featuredFromArtists", () => {
       {
         slot: "current",
         name: "Rita Matos",
+        artistName: "Rita",
         website: "https://www.ritamatosart.com/",
         profile: "London painter.",
         bio: "First line.\n\nSecond line.",
@@ -64,6 +65,7 @@ describe("featuredFromArtists", () => {
       },
     ]);
     expect(featured.current.name).toBe("Rita Matos");
+    expect(featured.current.artistName).toBe("Rita");
     expect(featured.current.portrait).toBe("https://files.example/face.jpg");
     expect(featured.current.art).toEqual([
       {
@@ -74,7 +76,11 @@ describe("featuredFromArtists", () => {
     expect(featured.current.gwenda).toEqual([]);
     expect(featured.current.name).not.toMatch(/secret/);
     expect(featured.next.name).toBe("Jo");
+    expect(featured.next.artistName).toBe("Jo");
     expect(publicArtist({ name: "  " })).toBeNull();
+    expect(
+      publicArtist({ name: "Rita Matos", artistName: "  " })?.artistName,
+    ).toBe("Rita");
   });
 });
 

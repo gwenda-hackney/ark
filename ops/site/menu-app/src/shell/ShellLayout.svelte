@@ -314,7 +314,6 @@
 													tabindex={groupOpen ? undefined : -1}
 													onclick={(e) => onLeafClick(e, href)}
 												>
-													<span class="nav-icon"><Icon name={leaf.icon} size={16} /></span>
 													<span class="nav-label">{leaf.name}</span>
 												</a>
 											{/each}
@@ -329,7 +328,6 @@
 											tabindex={groupOpen ? undefined : -1}
 											onclick={(e) => onLeafClick(e, href)}
 										>
-											<span class="nav-icon"><Icon name={child.icon} size={17} /></span>
 											<span class="nav-label">{child.name}</span>
 										</a>
 										{/if}
@@ -628,7 +626,7 @@
 		display: flex;
 		flex-direction: column;
 		flex-shrink: 0;
-		gap: 0.125rem;
+		gap: 0.0625rem;
 	}
 
 	.nav-children {
@@ -653,8 +651,8 @@
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
-		gap: 0.125rem;
-		padding: 0 0 0.35rem 0.35rem;
+		gap: 0.0625rem;
+		padding: 0 0 0.15rem;
 	}
 
 	.nav-group.expanded .nav-children-inner {
@@ -662,21 +660,35 @@
 	}
 
 	.nav-item.nested {
-		height: 2.45rem;
-		min-height: 2.45rem;
+		height: 2.25rem;
+		min-height: 2.25rem;
+		padding-left: 2.7rem;
+		padding-right: 0.7rem;
+		border-radius: var(--radius-sm);
+		color: var(--muted-foreground);
 		font-size: var(--text-sm);
+		font-weight: 450;
 	}
 
 	.nav-item.nested.deep {
-		height: 2.2rem;
-		min-height: 2.2rem;
-		padding-left: 0.85rem;
+		height: 2.15rem;
+		min-height: 2.15rem;
+		padding-left: 3.35rem;
 	}
 
-	.nav-sub-label,
+	.nav-sub-label {
+		flex-shrink: 0;
+		margin: 0.35rem 0 0.05rem 0.4rem;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+		color: var(--subtle-foreground);
+	}
+
 	.flyout-label {
 		flex-shrink: 0;
-		margin: 0.45rem 0 0.1rem 0.85rem;
+		margin: 0.45rem 0 0.1rem 0.55rem;
 		font-size: var(--text-xs);
 		font-weight: 600;
 		letter-spacing: 0.06em;
@@ -686,11 +698,11 @@
 
 	.nav-item.group-label {
 		cursor: pointer;
-		color: var(--subtle-foreground);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
+		font-size: var(--text);
+		font-weight: 500;
+		letter-spacing: 0;
+		text-transform: none;
 	}
 
 	.nav-item.group-label:hover {
@@ -706,10 +718,6 @@
 	.nav-item.group-label.in:hover {
 		color: var(--primary);
 		background: var(--accent);
-	}
-
-	.nav-item.group-label.open {
-		color: var(--foreground);
 	}
 
 	.nav-item.group-label.in.open {
@@ -830,6 +838,10 @@
 		white-space: nowrap;
 		font-size: var(--text-xs);
 		font-weight: 500;
+	}
+
+	.nav > a.nav-item {
+		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
 	}
 
 	.nav-item {

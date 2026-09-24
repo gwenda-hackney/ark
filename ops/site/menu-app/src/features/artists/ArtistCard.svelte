@@ -42,6 +42,7 @@
 	let error = $state("");
 	let persisted = $state<WallArtist | null>(null);
 	let name = $state("");
+	let artistName = $state("");
 	let website = $state("");
 	let profile = $state("");
 	let bio = $state("");
@@ -110,6 +111,7 @@
 
 	const dirty = $derived(
 		name !== (persisted?.name || "") ||
+			artistName !== (persisted?.artistName || "") ||
 			website !== (persisted?.website || "") ||
 			profile !== (persisted?.profile || "") ||
 			bio !== (persisted?.bio || "") ||
@@ -146,6 +148,7 @@
 	function apply(row: WallArtist | null) {
 		persisted = row;
 		name = row?.name || "";
+		artistName = row?.artistName || "";
 		website = row?.website || "";
 		profile = row?.profile || "";
 		bio = row?.bio || "";
@@ -186,6 +189,7 @@
 		error = "";
 		const body = {
 			name: name.trim(),
+			artistName: artistName.trim(),
 			website: website.trim(),
 			profile: profile.trim(),
 			bio: bio.trim(),
@@ -349,8 +353,8 @@
 						id="artist-name"
 						required
 						autocomplete="off"
-						aria-label="Artist name"
-						placeholder="Artist name"
+						aria-label="Full name"
+						placeholder="Full name"
 						bind:value={name}
 					/>
 				</div>
@@ -361,6 +365,20 @@
 					<section class="details-board">
 						<div class="details-main">
 							<div class="control-grid">
+								<Field
+									class="span-all"
+									label="Artist name"
+									for="artist-short-name"
+									tooltip="The first name in the From section on their page. Leave blank to use the first word of the full name."
+								>
+									<TextField
+										id="artist-short-name"
+										size="sm"
+										bind:value={artistName}
+										placeholder={name.trim().split(/\s+/)[0] || "First name"}
+										autocomplete="off"
+									/>
+								</Field>
 								<Field
 									label="Place"
 									tooltip="Current is on the wall. Next is lined up. Previous has already hung here. Only one current and one next: saving that badge moves the artist who had it to previous."
