@@ -1,0 +1,29 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Subpage from "../components/Subpage.astro";
+import { siteConfig } from "../config/site";
+import { withHome } from "../lib/site-nav.js";
+
+const sections = siteConfig.copy.teamSections.filter((section) => section.aside);
+const { title, description } = siteConfig.seo.about;
+---
+
+<BaseLayout title={title} description={description} noindex>
+  <Subpage
+    class="legal-page"
+    navItems={withHome()}
+    eyebrow="The house"
+    title="About"
+  >
+    {
+      sections.map((section) => (
+        <section>
+          <h2>{section.heading}</h2>
+          {section.paragraphs.map((paragraph) => (
+            <p>{paragraph}</p>
+          ))}
+        </section>
+      ))
+    }
+  </Subpage>
+</BaseLayout>

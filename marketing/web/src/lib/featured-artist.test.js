@@ -41,6 +41,8 @@ describe("featuredFromArtists", () => {
         slot: "current",
         name: "Rita Matos",
         artistName: "Rita",
+        startMonth: "9",
+        endMonth: "10",
         website: "https://www.ritamatosart.com/",
         profile: "London painter.",
         bio: "First line.\n\nSecond line.",
@@ -69,6 +71,7 @@ describe("featuredFromArtists", () => {
     expect(featured.current.slug).toBe("rita-matos");
     expect(artistPagePath(featured.current)).toBe("/artists/current");
     expect(featured.current.artistName).toBe("Rita");
+    expect(featured.current.runLabel).toBe("Sept to Oct");
     expect(featured.current.portrait).toBe("https://files.example/face.jpg");
     expect(featured.current.art).toEqual([
       {

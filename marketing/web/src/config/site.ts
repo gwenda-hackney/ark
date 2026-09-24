@@ -63,6 +63,11 @@ export const siteConfig = {
       description:
         "People from the Wick we work with. Named here so you can go and find them.",
     },
+    about: {
+      title: "About · Gwenda",
+      description:
+        "Where Gwenda started. Gigi, The Pirate's Hub, and a name from a summer nightclub in Salento.",
+    },
   },
   /** Topics for schema.org knowsAbout (helps Google associate the venue). */
   seoTopics: [
@@ -116,39 +121,44 @@ export const siteConfig = {
     bookingCta: "Book a table",
     storyHeading: "Behind the Doors",
     storyLead:
-      "Across the water from The Pirate's Hub. A terrace under the olive trees at Schwartz Wharf.",
+      "Canalside in Hackney Wick. Craft cocktails, Italian small plates, art, and vinyl on the decks.",
     storyBodyPromo: [
-      "Italian small plates, and craft cocktails made in the house. If a DJ is playing, it is usually someone from the Wick. If there is art on the wall, it is usually by someone who lives here. Bring a weeknight if you have one.",
-      "The name comes from Guenda, an outdoor nightclub in Salento where everybody met in the summer.",
+      "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
     ],
-    storyClosingPromo:
-      "Friends still talk about those nights. We would like this place to be remembered the same way.",
+    storyClosingPromo: "Who is Gwenda? We can't say. Come experience for yourself.",
     storyBody: [
-      "Italian small plates, and craft cocktails made in the house. If a DJ is playing, it is usually someone from the Wick. If there is art on the wall, it is usually by someone who lives here. Bring a weeknight if you have one.",
-      "The name comes from Guenda, an outdoor nightclub in Salento where everybody met in the summer.",
+      "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
     ],
-    storyClosing:
-      "Friends still talk about those nights. We would like this place to be remembered the same way.",
+    storyClosing: "Who is Gwenda? We can't say. Come experience for yourself.",
     teamHeading: "Who we are",
     teamSections: [
       {
         heading: "Where we started",
-        aside: false,
+        /** Lives on /about, which is not published yet. */
+        aside: true,
         paragraphs: [
-          "We already run The Pirate's Hub on this stretch of canal. Gigi opened it on Fish Island: a room three metres by three. Porchetta roasted in the house. The crowd took their sandwiches to the canal.",
-          "Gigi was born in Castro, on the Salento coast, and raised by the sea. He wanted that same gathering, and a kitchen big enough to cook for it.",
+          "Gigi already runs The Pirate's Hub on this canal. A room three metres by three on Fish Island, porchetta from the house, sandwiches taken down to the water.",
+          "Born in Castro, on the Salento coast. He wanted that gathering again, and a kitchen big enough to cook for it.",
         ],
       },
       {
         heading: "What comes next",
-        aside: false,
+        aside: true,
         paragraphs: [
-          "Gwenda is the next room on this canal, among the artists and musicians of the Wick. The studios, the late nights. We know this pocket of the Wick.",
+          "Gwenda is the next room on this canal, among the artists and musicians of the Wick.",
+        ],
+      },
+      {
+        heading: "The name",
+        aside: true,
+        paragraphs: [
+          "The name comes from Guenda, a summer nightclub in Salento where everybody met.",
+          "Friends still talk about those nights. We would like this place to be remembered the same way.",
         ],
       },
       {
         heading: "The Wick",
-        /** Held out of the page until it has a home. */
+        /** On /about, which is not published yet. */
         aside: true,
         paragraphs: [
           "The nights are played by people from here. The wall is for artists who live here. The room is for the Wick: artists, selectors, musicians, and performers.",
@@ -166,12 +176,11 @@ export const siteConfig = {
       "Not a restaurant with a drinks list. Not a bar with a kitchen annex. An archive salon where food, drink, art, and sound converge.",
     whatWeDoBody:
       "Artists take the wall, selectors take the decks, and musicians take the room.",
-    whatWeDoEventsHeading: "Diary",
+    whatWeDoEventsHeading: "Events",
     whatWeDoEventsBody: "Residencies, live sets, and nights on the canal.",
     whatWeDoArtistHeading: "Featured artist",
     whatWeDoArtistBody:
       "Local artists take the wall. The work stays in the room.",
-    whatWeDoArtistLink: "The wall",
     menuTeaseComingSoon: "Coming soon",
     bookTableEyebrow: "The table",
     bookTableHeading: "Book a table",

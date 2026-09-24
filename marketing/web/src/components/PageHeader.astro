@@ -1,0 +1,41 @@
+---
+interface Props {
+  eyebrow?: string;
+  title: string;
+  /**
+   * `center` is the subpage title.
+   * `start` is a left-aligned editorial title (contact forms).
+   * `beside` is centered until the portrait column, then left (featured artist).
+   */
+  align?: "center" | "start" | "beside";
+  as?: "h1" | "h2";
+  /** Skip the entrance animation when a parent already reveals. */
+  animate?: boolean;
+  class?: string;
+}
+
+const {
+  eyebrow,
+  title,
+  align = "center",
+  as: Tag = "h1",
+  animate = true,
+  class: className,
+} = Astro.props;
+---
+
+<header
+  class:list={[
+    "page-header",
+    align === "start" && "page-header--start",
+    align === "beside" && "page-header--beside",
+    animate && "reveal",
+    className,
+  ]}
+>
+  {eyebrow ? <p class="section-eyebrow">{eyebrow}</p> : null}
+  <Tag class="page-header-title">{title}</Tag>
+  <div class="page-header-lead">
+    <slot />
+  </div>
+</header>

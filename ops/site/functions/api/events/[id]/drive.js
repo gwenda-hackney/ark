@@ -2,6 +2,7 @@ import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
 import { ensureEventGalleryFolder } from "../../../_lib/event-store.js";
 import {
   isDriveImage,
+  isHeroDriveFileName,
   listDriveChildren,
   listDriveImages,
   uploadDriveFile,
@@ -36,7 +37,9 @@ function libraryPayload(event, gallery, files, outsideGallery = 0) {
 
 async function imagesOutsideGallery(env, event) {
   const children = await listDriveChildren(env, event.driveFolderId);
-  return children.filter(isDriveImage).length;
+  return children.filter(
+    (file) => isDriveImage(file) && !isHeroDriveFileName(file?.name),
+  ).length;
 }
 
 export const onRequestGet = withApiHandler(async (context) => {

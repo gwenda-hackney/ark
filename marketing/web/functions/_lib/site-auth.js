@@ -170,6 +170,7 @@ export function isPublicPath(pathname) {
     return true;
   if (pathname === "/api/whats-on" || pathname.startsWith("/api/whats-on/"))
     return true;
+  if (pathname === "/api/featured-artist") return true;
   if (pathname === "/whats-on" || pathname === "/whats-on/") return true;
   if (pathname.startsWith("/whats-on/")) return true;
   if (pathname === "/artists" || pathname === "/artists/") return true;

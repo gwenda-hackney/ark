@@ -203,6 +203,10 @@ async function putPlainSmtpVars() {
 
 function putSharedSecrets() {
   putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
+  putSecret(
+    "BASEROW_OPS_API_KEY",
+    process.env.BASEROW_OPS_API_KEY || process.env.BASEROW_API_KEY_PRODUCTION,
+  );
   putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
   putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
   putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);

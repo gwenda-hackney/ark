@@ -17,7 +17,9 @@ const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
     innerClass="contact-verify"
     href="/contact"
   >
-    <h1 id="edit-title">Opening…</h1>
+    <header class="page-header">
+      <h1 class="page-header-title" id="edit-title">Opening…</h1>
+    </header>
     <p id="edit-message">One moment while we prepare your application.</p>
     <p class="contact-error" id="edit-error" role="alert" hidden></p>
     <a href={defaultRetryHref} class="btn btn-ghost" id="edit-retry" hidden

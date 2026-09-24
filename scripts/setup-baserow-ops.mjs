@@ -969,6 +969,8 @@ function artistFields() {
       },
     },
     { name: "Artist name", body: { name: "Artist name", type: "text" } },
+    { name: "Start month", body: { name: "Start month", type: "text" } },
+    { name: "End month", body: { name: "End month", type: "text" } },
     { name: "Website", body: { name: "Website", type: "url" } },
     { name: "Profile", body: { name: "Profile", type: "long_text" } },
     { name: "Bio", body: { name: "Bio", type: "long_text" } },

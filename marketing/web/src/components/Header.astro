@@ -23,7 +23,7 @@ interface Props {
   /** Home sections. Omitted when `items` supplies this page's menu. */
   features?: SiteFeatures;
   showMenuTease?: boolean;
-  /** This page: Home, then anchors and child pages. */
+  /** This page's anchors and child pages. Home is the wordmark. */
   items?: NavItem[];
   /**
    * Subpage: wordmark waits for scroll. The hamburger stays either way.
@@ -62,9 +62,11 @@ const pageLinks =
   });
 const homeLink = pageLinks.find((item) => navPathname(item.href) === "/");
 const thisPageLinks = pageLinks.filter((item) => item !== homeLink);
-const pageLabels = new Set(pageLinks.map((item) => item.label));
+const pagePaths = new Set(
+  pageLinks.map((item) => navPathname(item.href)).filter(Boolean),
+);
 const siteLinks = sitePageLinks(pathname, { showMenu: showMenuLink }).filter(
-  (item) => !pageLabels.has(item.label),
+  (item) => !pagePaths.has(navPathname(item.href)),
 );
 /** A long chapter list never fits beside the wordmark. Keep the hamburger. */
 const overlayOnly = pageLinks.length > 6;
@@ -75,6 +77,7 @@ const overlayOnly = pageLinks.length > 6;
     "site-header",
     collapsed && "site-header--collapsed",
     awaitsHero && "awaits-hero",
+    !overlayOnly && siteLinks.length === 0 && "site-header--bar-only",
   ]}
   id="site-header"
 >
@@ -97,19 +100,8 @@ const overlayOnly = pageLinks.length > 6;
     <span class="site-header-menu-icon" aria-hidden="true"></span>
   </button>
   {
-    !overlayOnly && (
+    !overlayOnly && thisPageLinks.length > 0 && (
       <nav class="site-header-bar" aria-label="This page">
-        {
-          homeLink && (
-            <a
-              href={homeLink.href}
-              data-astro-reload={shouldReloadNavLink(homeLink.href) || undefined}
-              aria-current={isCurrentNavPage(homeLink.href, pathname) ? "page" : undefined}
-            >
-              {homeLink.label}
-            </a>
-          )
-        }
         {
           thisPageLinks.map((item) => (
             <a
@@ -128,8 +120,9 @@ const overlayOnly = pageLinks.length > 6;
 </header>
 
 <SiteMenu
-  homeLink={homeLink}
+  homeLink={{ href: "/", label: "Home" }}
   pageLinks={thisPageLinks}
   siteLinks={siteLinks}
   pathname={pathname}
+  pageLinksInHeader={!overlayOnly}
 />

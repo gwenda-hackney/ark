@@ -1,11 +1,13 @@
 import {
   eventDescriptionParagraphs,
   eventPageLink,
+  formatEventDate,
   formatEventDiaryDate,
   formatEventRecurrence,
   formatEventSpan,
 } from "../data/events";
 import { formatShortEventDate } from "../../functions/_lib/event-series.js";
+import { artistRunLabel } from "../lib/artist-run.js";
 import { diaryGroups } from "../lib/diary-groups.js";
 
 function heroImageUrl(event, width) {
@@ -325,24 +327,25 @@ function diaryLabel(group, lead) {
   return item;
 }
 
-/** Regular events, then a labeled break, then special events. */
+/** Special events first, then regular nights. Headers only when a special is listed. */
 function syncDiaryLabels(list) {
   const cards = [
     ...list.querySelectorAll(":scope > li:not(.whats-on-divider)"),
   ];
-  const hasSeries = cards.some((item) => item.dataset.schedule !== "once");
-  const hasSpecial = cards.some((item) => item.dataset.schedule === "once");
+  const special = cards.filter((item) => item.dataset.schedule === "once");
+  const series = cards.filter((item) => item.dataset.schedule !== "once");
   for (const label of list.querySelectorAll(":scope > .whats-on-divider")) {
     label.remove();
   }
-  if (hasSpecial) {
-    if (hasSeries) list.prepend(diaryLabel("series", true));
-    const firstSpecial = [...list.children].find(
-      (item) => item.dataset.schedule === "once",
-    );
-    if (firstSpecial) {
-      list.insertBefore(diaryLabel("special", !hasSeries), firstSpecial);
+  if (special.length) {
+    const lead = diaryLabel("special", true);
+    list.prepend(lead);
+    let anchor = lead;
+    for (const card of special) {
+      anchor.after(card);
+      anchor = card;
     }
+    if (series[0]) series[0].before(diaryLabel("series", false));
   }
   document.dispatchEvent(new Event("gwenda:page-anchors"));
 }
@@ -395,17 +398,120 @@ function nightCard(event, { eager = false } = {}) {
     copy.appendChild(artist);
   }
 
+  const slots =
+    Array.isArray(event.nightSchedule) && event.nightSchedule.length
+      ? event.nightSchedule
+      : event.seriesNightSchedule;
+  const schedule = nightScheduleBlock(slots);
+  if (schedule) copy.appendChild(schedule);
+
   copy.appendChild(
     eventDescription(event.description, "event-description", event.time),
   );
+  appendPageLink(copy, event.pageUrl);
 
   item.appendChild(copy);
   return item;
 }
 
-/** Local dev reads the diary live. Staging and production keep the baked pages. */
+/**
+ * The diary is baked into the HTML, then read again from /api/whats-on so
+ * "next", "this week", and past nights follow the clock between rebuilds.
+ */
 export function readsLiveDiary(env) {
-  return String(env || "") === "local";
+  const site = String(env || "");
+  return site === "local" || site === "staging" || site === "production";
+}
+
+/** Earliest diary card that still has a title and a date. */
+export function earliestDiaryNight(nights) {
+  return (
+    (Array.isArray(nights) ? nights : [])
+      .filter((night) => night?.title && night?.date)
+      .slice()
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0] || null
+  );
+}
+
+function fillHomeLine(path, title, metaText, isoDate = "") {
+  if (!(path instanceof HTMLElement)) return;
+  const name = path.querySelector(".what-we-do-next-name");
+  const meta = path.querySelector(".what-we-do-next-meta");
+  if (name) name.textContent = title || "";
+  if (!(meta instanceof HTMLElement)) return;
+  meta.replaceChildren();
+  if (!metaText) return;
+  if (isoDate) {
+    const time = document.createElement("time");
+    time.dateTime = isoDate;
+    time.textContent = metaText;
+    meta.appendChild(time);
+    return;
+  }
+  meta.textContent = metaText;
+}
+
+/** Home What's on path: the next night, or a blank line once the diary is quiet. */
+export function applyHomeNext(path, night) {
+  const when = night?.date ? formatShortEventDate(night.date) : "";
+  const title = night?.title && when ? night.title : "";
+  fillHomeLine(path, title, title ? when : "", title ? night.date : "");
+}
+
+/** Home artist path: their name, and the months they are on the wall. */
+export function applyHomeArtist(path, artist) {
+  const who = String(artist?.name || "").trim();
+  fillHomeLine(path, who, artistRunLabel(artist?.startMonth, artist?.endMonth));
+}
+
+/** @type {AbortController | null} */
+let homeNextAbort = null;
+
+export function initHomeNext() {
+  const path = document.querySelector("[data-home-next]");
+  if (!(path instanceof HTMLElement)) return;
+  if (!readsLiveDiary(pageSiteEnv())) return;
+
+  homeNextAbort?.abort();
+  homeNextAbort = new AbortController();
+  const { signal } = homeNextAbort;
+
+  const artistPath = document.querySelector("[data-home-artist]");
+
+  void fetch("/api/whats-on?limit=24", {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`What's on failed (${res.status})`);
+      return res.json();
+    })
+    .then((data) => {
+      if (signal.aborted || !document.contains(path)) return;
+      applyHomeNext(path, earliestDiaryNight(data.nights));
+    })
+    .catch((error) => {
+      if (signal.aborted || error?.name === "AbortError") return;
+    });
+
+  if (!(artistPath instanceof HTMLElement)) return;
+  void fetch("/api/featured-artist", {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`Featured artist failed (${res.status})`);
+      return res.json();
+    })
+    .then((data) => {
+      if (signal.aborted || !document.contains(artistPath)) return;
+      applyHomeArtist(artistPath, data.artist);
+    })
+    .catch((error) => {
+      if (signal.aborted || error?.name === "AbortError") return;
+    });
 }
 
 function pageSiteEnv() {
@@ -593,6 +699,104 @@ function seriesHeroSource(detail) {
   };
 }
 
+function upcomingDatesBlock(dates) {
+  const block = document.createElement("div");
+  block.className = "event-dates";
+  const label = document.createElement("p");
+  label.className = "event-dates-label";
+  label.textContent = "Nights ahead";
+  const list = document.createElement("ul");
+  for (const night of dates) {
+    const item = document.createElement("li");
+    if (night.displaced && night.href) {
+      const link = document.createElement("a");
+      link.className = "event-dates-instead";
+      link.href = night.href;
+      link.textContent = night.line || "";
+      item.appendChild(link);
+    } else if (night.date) {
+      const when = document.createElement("time");
+      when.dateTime = night.date;
+      when.textContent = formatEventDate(night.date);
+      item.appendChild(when);
+      const artist = String(night.artist || "").trim();
+      if (night.isSpecialEdition && artist) {
+        const guest = document.createElement("p");
+        guest.className = "event-dates-guest";
+        guest.textContent = `Special guest · ${artist}`;
+        item.appendChild(guest);
+      }
+    }
+    if (item.childElementCount) list.appendChild(item);
+  }
+  block.append(label, list);
+  return block;
+}
+
+function applyRecurringSeriesCopy(main, detail) {
+  const copy = main.querySelector(".event-copy");
+  if (!(copy instanceof HTMLElement)) return;
+  const guest = detail.featuredGuest;
+  const nextDate = String(detail.nextDate || guest?.date || "").trim();
+  const offer = String(guest?.offer || detail.offer || "").trim();
+  const artist = String(guest?.artist || "").trim();
+  const description = String(guest?.description || detail.description || "");
+  const slots =
+    Array.isArray(guest?.nightSchedule) && guest.nightSchedule.length
+      ? guest.nightSchedule
+      : detail.nightSchedule;
+  const pageUrl = guest?.pageUrl || detail.nights?.[0]?.pageUrl || "";
+  const title = String(detail.title || copy.querySelector(".event-title")?.textContent || "");
+
+  copy.replaceChildren();
+  if (nextDate) {
+    const date = document.createElement("p");
+    date.className = "event-date";
+    const when = document.createElement("time");
+    when.dateTime = nextDate;
+    when.textContent = formatEventDiaryDate(nextDate);
+    date.appendChild(when);
+    const span = formatEventSpan(
+      guest?.startTime || detail.startTime,
+      guest?.endTime || detail.endTime,
+      guest?.time || detail.time,
+    );
+    if (span) {
+      const time = document.createElement("span");
+      time.className = "event-time";
+      time.textContent = span;
+      date.appendChild(time);
+    }
+    copy.appendChild(date);
+  }
+  const heading = document.createElement("h2");
+  heading.className = "event-title";
+  heading.textContent = title;
+  copy.appendChild(heading);
+  if (offer) {
+    const offerLine = document.createElement("p");
+    offerLine.className = "event-offer";
+    offerLine.textContent = offer;
+    copy.appendChild(offerLine);
+  }
+  if (artist) {
+    const guestLine = document.createElement("p");
+    guestLine.className = "event-artist";
+    guestLine.textContent = `Special guest · ${artist}`;
+    copy.appendChild(guestLine);
+  }
+  const schedule = nightScheduleBlock(slots);
+  if (schedule) copy.appendChild(schedule);
+  if (description.trim()) copy.appendChild(eventDescription(description));
+  appendPageLink(copy, pageUrl);
+  const dates = Array.isArray(detail.upcomingDates) ? detail.upcomingDates : [];
+  if (dates.length) copy.appendChild(upcomingDatesBlock(dates));
+}
+
+function withSeriesSchedule(night, detail) {
+  return { ...night, seriesNightSchedule: detail?.nightSchedule || [] };
+}
+
 async function refreshSeriesDetail(page, root, { signal } = {}) {
   const seriesId = root.dataset.seriesId || "";
   if (!seriesId) throw new Error("Missing series.");
@@ -602,6 +806,10 @@ async function refreshSeriesDetail(page, root, { signal } = {}) {
     signal,
   });
   if (signal?.aborted) return;
+  if (res.status === 404) {
+    window.location.assign("/whats-on");
+    return;
+  }
   if (!res.ok) throw new Error(`Series failed (${res.status})`);
   const data = await res.json();
   if (signal?.aborted) return;
@@ -609,16 +817,20 @@ async function refreshSeriesDetail(page, root, { signal } = {}) {
   const detail = data.series;
   if (!detail) throw new Error("Series not found.");
   const main = page.querySelector(".whats-on-series-main");
-  if (main) applyLiveMedia(main, seriesHeroSource(detail), 1800, true);
+  if (main) {
+    applyLiveMedia(main, seriesHeroSource(detail), 1800, true);
+    applyRecurringSeriesCopy(main, detail);
+  }
   const list = root.querySelector(".events-list");
   const nights = Array.isArray(detail.nights) ? detail.nights : [];
-  if (list instanceof HTMLOListElement) {
-    for (const card of list.querySelectorAll(":scope > li")) {
-      const date = card.querySelector("time")?.getAttribute("datetime") || "";
-      const night = nights.find((row) => row.date === date);
-      if (night) applyLiveMedia(card, night, 1800, false);
-    }
+  if (list instanceof HTMLOListElement && root.dataset.seriesRich === "true") {
+    list.replaceChildren(
+      ...nights.map((night, index) =>
+        nightCard(withSeriesSchedule(night, detail), { eager: index === 0 }),
+      ),
+    );
   }
+  root.dataset.seriesNext = detail.next ? JSON.stringify(detail.next) : "";
   page.dataset.live = "ready";
 }
 
@@ -634,13 +846,24 @@ export function initSeriesPage() {
   seriesAbort = new AbortController();
   const { signal } = seriesAbort;
 
-  if (readsLiveDiary(pageSiteEnv()) && page instanceof HTMLElement) {
-    page.dataset.live = "pending";
-    void refreshSeriesDetail(page, root, { signal }).catch((error) => {
-      if (signal.aborted || error?.name === "AbortError") return;
-      if (page.dataset.live === "pending") page.dataset.live = "static";
-    });
-  }
+  const live = readsLiveDiary(pageSiteEnv()) && page instanceof HTMLElement;
+  if (live) page.dataset.live = "pending";
+
+  void (async () => {
+    if (live) {
+      try {
+        await refreshSeriesDetail(page, root, { signal });
+      } catch (error) {
+        if (signal.aborted || error?.name === "AbortError") return;
+        if (page.dataset.live === "pending") page.dataset.live = "static";
+      }
+    }
+    if (signal.aborted || !document.contains(root)) return;
+    setupSeriesLoadMore(root, signal);
+  })();
+}
+
+function setupSeriesLoadMore(root, signal) {
   if (root.dataset.seriesRich !== "true") return;
   const seriesId = root.dataset.seriesId || "";
   let nextCursor = null;
@@ -684,7 +907,9 @@ export function initSeriesPage() {
       if (signal.aborted || !document.contains(list)) return;
       const detail = data.series;
       const nights = Array.isArray(detail?.nights) ? detail.nights : [];
-      list.append(...nights.map((night) => nightCard(night)));
+      list.append(
+        ...nights.map((night) => nightCard(withSeriesSchedule(night, detail))),
+      );
       nextCursor = detail?.next || null;
       more.textContent = "";
       if (!nextCursor) more.remove();

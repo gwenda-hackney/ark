@@ -74,24 +74,22 @@ function eventImageUrl(
   <Subpage
     class={`whats-on-series-page events-page${richDetail ? " whats-on-series-page--rich" : " whats-on-series-page--recurring"}`}
     innerClass="events-inner whats-on-series-inner"
+    eyebrow={
+      detail.scheduleLabel
+        ? formatEventRecurrence(detail.scheduleLabel)
+        : "Regular events"
+    }
+    title={detail.title}
   >
-    <header class="section-header events-header reveal">
-      <p class="section-eyebrow">
-        {
-          detail.scheduleLabel
-            ? formatEventRecurrence(detail.scheduleLabel)
-            : "Regular events"
-        }
-      </p>
-      <h1>{detail.title}</h1>
+    <Fragment slot="lead">
       {
         richDetail && detail.description
           ? eventDescriptionParagraphs(detail.description).map((paragraph) => (
-              <p class="whats-on-series-lead">{paragraph}</p>
+              <p>{paragraph}</p>
             ))
           : null
       }
-    </header>
+    </Fragment>
 
     {
       !richDetail ? (

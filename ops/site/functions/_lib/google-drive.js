@@ -1,6 +1,7 @@
 /**
- * Google Drive client for ops event galleries (Shared Drive).
- * Hero images stay in Baserow and are never written here.
+ * Google Drive client for ops series folders (Shared Drive).
+ * Gallery photos live in a gallery folder. A copy of the hero sits in
+ * the series folder itself.
  * Auth: service account JSON in GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON.
  */
 import { OPS_CONFIG_KEYS, getConfigString } from "./config-store.js";
@@ -11,8 +12,58 @@ const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
-/** Child folder under each event folder. The only images stored in Drive. */
+/** Child folder under each series folder. Gallery photos live here. */
 export const GALLERY_FOLDER_NAME = "gallery";
+
+const HERO_EXT = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+/** File extension for a hero copy. jpeg is stored as jpg. */
+export function heroFileExtension(filename, contentType = "") {
+  const fromName = /\.([a-z0-9]{1,8})$/i.exec(String(filename || "").trim());
+  const named = fromName?.[1]?.toLowerCase() || "";
+  if (named === "jpeg" || named === "jpg") return "jpg";
+  if (HERO_EXT[named] && named !== "jpeg") return named;
+  const type = String(contentType || "").split(";")[0].trim().toLowerCase();
+  if (type === "image/png") return "png";
+  if (type === "image/webp") return "webp";
+  if (type === "image/gif") return "gif";
+  return "jpg";
+}
+
+/** Series flyer in the series Drive folder: hero.jpg */
+export function seriesHeroDriveName(filename, contentType = "") {
+  return `hero.${heroFileExtension(filename, contentType)}`;
+}
+
+/** Night flyer in the series Drive folder: hero-YYYY-MM-DD.jpg */
+export function occurrenceHeroDriveName(date, filename, contentType = "") {
+  const day = String(date || "").slice(0, 10);
+  return `hero-${day}.${heroFileExtension(filename, contentType)}`;
+}
+
+export function isSeriesHeroDriveName(name) {
+  return /^hero\.(jpg|png|webp|gif)$/i.test(String(name || "").trim());
+}
+
+export function isOccurrenceHeroDriveName(name, date = "") {
+  const match = /^hero-(\d{4}-\d{2}-\d{2})\.(jpg|png|webp|gif)$/i.exec(
+    String(name || "").trim(),
+  );
+  if (!match) return false;
+  const day = String(date || "").slice(0, 10);
+  return day ? match[1] === day : true;
+}
+
+/** Series or night hero copy. These sit beside the gallery folder. */
+export function isHeroDriveFileName(name) {
+  return isSeriesHeroDriveName(name) || isOccurrenceHeroDriveName(name);
+}
 
 /** @type {Map<string, { id: string, name: string, url: string }>} */
 const namedChildFolders = new Map();

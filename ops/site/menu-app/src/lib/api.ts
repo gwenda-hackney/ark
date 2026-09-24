@@ -609,6 +609,13 @@ export function deleteEventOccurrence(
   );
 }
 
+export function syncEventCalendar(id: string) {
+  return request<{ event: OpsEvent; warnings?: string[] }>(
+    `/api/events/${encodeURIComponent(id)}/calendar-sync`,
+    { method: "POST" },
+  );
+}
+
 export function publishEvent(id: string, target: "staging" | "production") {
   return request<{
     event: OpsEvent;
@@ -809,6 +816,8 @@ export type WallArtist = {
   website: string;
   profile: string;
   bio: string;
+  startMonth: string;
+  endMonth: string;
   portrait: ArtistImage | null;
   art: ArtistImage[];
   gwenda: ArtistImage[];
@@ -821,6 +830,8 @@ export type ArtistInput = {
   profile: string;
   bio: string;
   slot: ArtistSlot;
+  startMonth: string;
+  endMonth: string;
 };
 
 export function getArtists() {

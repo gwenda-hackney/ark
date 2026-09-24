@@ -21,22 +21,6 @@ const hasContent = nights.length > 0;
 const seriesNights = nights.filter((event) => event.schedule !== "once");
 const specialNights = nights.filter((event) => event.schedule === "once");
 const diaryEntries = [
-  ...(seriesNights.length && specialNights.length
-    ? [
-        {
-          kind: "label" as const,
-          id: diaryGroups.series.id,
-          label: diaryGroups.series.label,
-          tagline: diaryGroups.series.tagline,
-          lead: true,
-        },
-      ]
-    : []),
-  ...seriesNights.map((event, index) => ({
-    kind: "card" as const,
-    event,
-    eager: index === 0 && seriesNights.length > 0,
-  })),
   ...(specialNights.length
     ? [
         {
@@ -44,14 +28,30 @@ const diaryEntries = [
           id: diaryGroups.special.id,
           label: diaryGroups.special.label,
           tagline: diaryGroups.special.tagline,
-          lead: seriesNights.length === 0,
+          lead: true,
         },
       ]
     : []),
   ...specialNights.map((event, index) => ({
     kind: "card" as const,
     event,
-    eager: seriesNights.length === 0 && index === 0,
+    eager: index === 0,
+  })),
+  ...(seriesNights.length && specialNights.length
+    ? [
+        {
+          kind: "label" as const,
+          id: diaryGroups.series.id,
+          label: diaryGroups.series.label,
+          tagline: diaryGroups.series.tagline,
+          lead: false,
+        },
+      ]
+    : []),
+  ...seriesNights.map((event) => ({
+    kind: "card" as const,
+    event,
+    eager: false,
   })),
 ];
 const whatsOnNav = whatsOnNavItems(nights);
@@ -109,12 +109,12 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
     class="whats-on-page events-page"
     innerClass="whats-on-inner"
     navItems={whatsOnNav}
+    eyebrow="Diary"
+    title="What's on"
   >
-    <header class="section-header events-header reveal">
-      <p class="section-eyebrow">Diary</p>
-      <h1>What's on</h1>
-      <p>Music and late evenings by the water in {siteConfig.location.area}.</p>
-    </header>
+    <p slot="lead">
+      Music and late evenings by the water in {siteConfig.location.area}.
+    </p>
 
     <p
       id="whats-on-loading"

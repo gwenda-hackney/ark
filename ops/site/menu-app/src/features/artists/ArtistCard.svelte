@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { Icon } from "../../shell";
-	import { Button, EditorBackBar, Field, Segmented, TextArea, TextField, Tip } from "../../ui";
+	import { Button, EditorBackBar, Field, NativeSelect, Segmented, TextArea, TextField, Tip } from "../../ui";
 	import {
 		clearArtistImage,
 		createArtist,
@@ -36,6 +36,22 @@
 		{ id: "previous", label: "Previous" },
 	];
 
+	const monthOptions = [
+		{ value: "", label: "Month" },
+		{ value: "1", label: "January" },
+		{ value: "2", label: "February" },
+		{ value: "3", label: "March" },
+		{ value: "4", label: "April" },
+		{ value: "5", label: "May" },
+		{ value: "6", label: "June" },
+		{ value: "7", label: "July" },
+		{ value: "8", label: "August" },
+		{ value: "9", label: "September" },
+		{ value: "10", label: "October" },
+		{ value: "11", label: "November" },
+		{ value: "12", label: "December" },
+	];
+
 	let saving = $state(false);
 	let removing = $state(false);
 	let uploading = $state("");
@@ -46,6 +62,8 @@
 	let website = $state("");
 	let profile = $state("");
 	let bio = $state("");
+	let startMonth = $state("");
+	let endMonth = $state("");
 	let slot = $state<ArtistSlot>("previous");
 	let portrait = $state<ArtistImage | null>(null);
 	let art = $state<ArtistImage[]>([]);
@@ -115,6 +133,8 @@
 			website !== (persisted?.website || "") ||
 			profile !== (persisted?.profile || "") ||
 			bio !== (persisted?.bio || "") ||
+			startMonth !== (persisted?.startMonth || "") ||
+			endMonth !== (persisted?.endMonth || "") ||
 			slot !== (persisted?.slot || "previous"),
 	);
 
@@ -152,6 +172,8 @@
 		website = row?.website || "";
 		profile = row?.profile || "";
 		bio = row?.bio || "";
+		startMonth = row?.startMonth || "";
+		endMonth = row?.endMonth || "";
 		slot = row?.slot || "previous";
 		portrait = row?.portrait || null;
 		art = row?.art || [];
@@ -194,6 +216,8 @@
 			profile: profile.trim(),
 			bio: bio.trim(),
 			slot,
+			startMonth,
+			endMonth,
 		};
 		try {
 			if (persisted) {
@@ -378,6 +402,25 @@
 										placeholder={name.trim().split(/\s+/)[0] || "First name"}
 										autocomplete="off"
 									/>
+								</Field>
+								<Field
+									label="On the wall"
+									tooltip="The months this artist is up. The home page shows them under the name, as Sept to Oct."
+								>
+									<div class="months">
+										<NativeSelect
+											id="artist-start-month"
+											bind:value={startMonth}
+											options={monthOptions}
+											size="sm"
+										/>
+										<NativeSelect
+											id="artist-end-month"
+											bind:value={endMonth}
+											options={monthOptions}
+											size="sm"
+										/>
+									</div>
 								</Field>
 								<Field
 									label="Place"
@@ -817,6 +860,12 @@
 		display: grid;
 		gap: 0.35rem;
 		min-width: 0;
+	}
+
+	.months {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.5rem;
 	}
 
 	.site {
