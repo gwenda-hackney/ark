@@ -4,6 +4,9 @@
  *
  * Must run on every `astro:page-load` — View Transitions reuses the module,
  * so a one-shot call from Hero.astro never re-fires when returning home.
+ * The wordmark stagger itself only restarts after a swap. `initPage` also
+ * runs on the first paint and again on `window` `load`, and replaying the
+ * fade on that second call blinks the logo.
  *
  * Astro swaps wipe `html.fonts-ready` (see navigation-restore.js). After that
  * is restored, restart CSS stagger — and wait until view-transition page fades
@@ -93,10 +96,20 @@ export function restartEnterStaggerAuto() {
   }, 1100);
 }
 
+/** Set on swap; consumed by the next reveal so a full load does not replay. */
+let restartStaggerOnNextReveal = false;
+
+document.addEventListener("astro:after-swap", () => {
+  restartStaggerOnNextReveal = true;
+});
+
 export function initHeroReveal() {
-  void whenViewTransitionSettled().then(() => {
-    restartEnterStaggerAuto();
-  });
+  if (restartStaggerOnNextReveal) {
+    restartStaggerOnNextReveal = false;
+    void whenViewTransitionSettled().then(() => {
+      restartEnterStaggerAuto();
+    });
+  }
 
   const img = document.querySelector(".hero-media .hero-image");
   const media = img?.closest(".hero-media");

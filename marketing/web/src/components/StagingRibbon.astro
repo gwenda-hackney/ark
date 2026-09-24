@@ -34,13 +34,14 @@ const { share = true } = Astro.props;
   )
 }
 
-{
-  isStaging && (
-    <script>
-      import { initStagingShare } from "../scripts/staging-share.js";
+<script>
+  // Keep this script a direct child of the component. Astro does not bundle
+  // a <script> nested in {isStaging && ...}; the import is then sent raw
+  // and the share click never runs.
+  import { initStagingShare } from "../scripts/staging-share.js";
 
-      initStagingShare();
-      document.addEventListener("astro:page-load", initStagingShare);
-    </script>
-  )
-}
+  if (import.meta.env.PUBLIC_IS_STAGING === "true") {
+    initStagingShare();
+    document.addEventListener("astro:page-load", initStagingShare);
+  }
+</script>
