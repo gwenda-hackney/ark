@@ -68,22 +68,22 @@ export const SECRET_OWNERS = {
   ],
 };
 
+/** Local secrets file, written by `npm run env:secrets:pull` under SM names. */
+export const LOCAL_SECRETS_FILE = ".env.secrets";
+
 /**
- * Runtime keys each app gets, in file order. Runtime name = SM name except
- * `rename` (runtime → SM), where an app reads a shared secret under its own name.
- * `pagesSkip` stays out of Cloudflare Pages (local tools / Actions only).
- * `keep` are non-secret lines preserved from the existing env file.
+ * Runtime keys each app gets. Runtime name = SM name except `rename`
+ * (runtime → SM), where an app reads a secret under its own name. Locally the
+ * rename is applied by scripts/lib/load-env.mjs; CI gets runtime names from
+ * `--github-env`. `pagesSkip` stays out of Cloudflare Pages.
  */
 export const APP_SECRETS = {
   ark: {
-    file: ".env.ark",
     keys: ["CLOUDFLARE_DEV_API_TOKEN", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
     rename: {},
     pagesSkip: [],
-    keep: [],
   },
   ops: {
-    file: ".env.ops",
     keys: [
       "BASEROW_API_KEY",
       "BASEROW_WEBSITE_API_KEY",
@@ -101,10 +101,8 @@ export const APP_SECRETS = {
       GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
     pagesSkip: ["OPS_LOCAL_ADMIN_PW"],
-    keep: ["BASEROW_OPS_DATABASE_ID", "BASEROW_OPS_DEV_WORKSPACE_ID"],
   },
   web: {
-    file: ".env.web",
     keys: [
       "BASEROW_API_KEY",
       "BASEROW_OPS_API_KEY",
@@ -125,9 +123,20 @@ export const APP_SECRETS = {
       GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
     pagesSkip: ["SANITY_DEPLOY_TOKEN", "UNIFI_SITE_MANAGER_API_KEY"],
-    keep: [],
   },
 };
+
+/** Every SM secret name some app uses, in manifest order (for the local file). */
+export function localSecretNames() {
+  const names = [];
+  for (const app of Object.keys(APP_SECRETS)) {
+    for (const key of APP_SECRETS[app].keys) {
+      const smName = smNameFor(app, key);
+      if (!names.includes(smName)) names.push(smName);
+    }
+  }
+  return names;
+}
 
 export function appSecrets(app) {
   const spec = APP_SECRETS[app];

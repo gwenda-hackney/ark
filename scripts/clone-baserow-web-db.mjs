@@ -22,7 +22,6 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   fieldCreateBody,
   findOrCreateDatabase,
@@ -34,6 +33,7 @@ import {
   remapRowPayload,
   wipeTableRows,
 } from "./lib/baserow-clone.mjs";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
@@ -45,16 +45,6 @@ const STAGING_META_PATH = resolve(ROOT, ".baserow-web-staging.json");
 const OPS_META_PATH = resolve(ROOT, ".baserow-ops-dev.json");
 const GWENDA_WORKSPACE_ID = "208709";
 const STAGING_DATABASE_NAME = "Website Staging";
-
-function loadEnvFiles() {
-  for (const name of [".env", ".env.web"]) {
-    const path = resolve(ROOT, name);
-    if (!existsSync(path)) continue;
-    for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-      if (!process.env[key]) process.env[key] = value;
-    }
-  }
-}
 
 function readEnv(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
@@ -133,7 +123,7 @@ function writeLocalDevHints({ workspaceId, databaseId, databaseName, sourceDbId 
 }
 
 async function main() {
-  loadEnvFiles();
+  loadRepoEnv({ app: "web" });
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
     console.log(`Usage: node scripts/clone-baserow-web-db.mjs [--dry-run] [--force] [--target=dev|staging]`);
@@ -413,7 +403,7 @@ ${
     : `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this website database (${databaseId}).
   2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__LOCAL.
-  3. npm run env:web:pull`
+  3. npm run env:secrets:pull`
 }
 ${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {

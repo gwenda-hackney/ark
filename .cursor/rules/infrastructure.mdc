@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Infrastructure — agent capabilities
 
-When `ark/.env` and `gh` are present, configure Gwenda infrastructure without asking the user to run Wrangler or `gh secret set` by hand. On a fresh nest: unlock Bitwarden (`bw-unlock`, or `export BW_SESSION=$(bw unlock --raw)`), run `npm run env:pull`, and `gh auth login` if needed. The env scripts persist `BW_SESSION` to `/commandhistory/.bw-session` in the devcontainer so later shells do not need a new unlock. Cloudflare and GitHub will not give secret values back.
+When `ark/.env` and `gh` are present, configure Gwenda infrastructure without asking the user to run Wrangler or `gh secret set` by hand. On a fresh nest: unlock Bitwarden (`bw-unlock`, or `export BW_SESSION=$(bw unlock --raw)`), run `npm run env:pull` then `npm run env:secrets:pull`, and `gh auth login` if needed. The env scripts persist `BW_SESSION` to `/commandhistory/.bw-session` in the devcontainer so later shells do not need a new unlock. Cloudflare and GitHub will not give secret values back.
 
 This checkout often sits inside the **Gwenda nest** (`~/dev/gwenda`, or `/workspaces/gwenda` in a Codespace). Sibling `founders/`, `marketing/`, `operations/`, and `gwenda-mydrive/` are rclone FUSE mounts (workspace symlinks to `~/dev/mnt/gwenda/`). Nest `work/` is a flat local scratch pad for the file you are editing (export with `md-to-gdoc FILE.md remote:path` after confirmation). Shared Drive: `founders/`, `marketing/`, `operations/`. ClickUp keys may live in the nest `.env`, not `ark/.env`. Workspace map: nest `AGENTS.md`.
 
@@ -13,8 +13,8 @@ This checkout often sits inside the **Gwenda nest** (`~/dev/gwenda`, or `/worksp
 
 | Source | What it provides |
 |--------|------------------|
-| Bitwarden (`bitwarden.eu`) | Source of truth for local secrets. Password Manager note `ark/.env.local` (Notes = dotenv) via `env:pull`. Secrets Manager projects **Ark** (Cloudflare), **Ark/Ops**, **Ark/Web** via `env:ark:pull` / `env:ops:pull` / `env:web:pull`. |
-| `ark/.env` (gitignored) | SM bootstrap `ARK_LOCAL_BW_TOKEN`, Editor `SANITY_API_TOKEN` leftovers, `SANITY_PROJECT_ID=pn5yjro6`. Cloudflare org tokens prefer `.env.ark` after `env:ark:pull`. |
+| Bitwarden (`bitwarden.eu`) | Source of truth for local secrets. Password Manager note `ark/.env.local` (Notes = dotenv) via `env:pull`. Secrets Manager projects **Ark** (Cloudflare), **Ark/Ops**, **Ark/Web** via `npm run env:secrets:pull` → `.env.secrets` (every secret once, under its SM name). |
+| `ark/.env` (gitignored) | SM bootstrap `ARK_LOCAL_BW_TOKEN` plus plain local settings (`SANITY_PROJECT_ID=pn5yjro6`, site flags, local Ops DB id). No credentials. |
 | Nest `.env` (`~/dev/gwenda/.env` or `/workspaces/gwenda/.env`) | Workspace tools (e.g. ClickUp). Not a substitute for `ark/.env`. |
 | `gh` CLI | When logged in as the repo owner: `repo` + `workflow`. Use `gh secret set`, `gh workflow run`, `gh variable list`. **Not always authenticated** in a new Codespace. |
 | GitHub Actions secrets / Cloudflare Pages secrets | Set via `gh secret set` or `wrangler pages secret put`. **Never readable after write** (names only). |
@@ -46,7 +46,7 @@ Do not ask the user to manually `gh secret set` deploy secrets or edit Worker UR
 
 ## Cloudflare
 
-Use `CLOUDFLARE_DEV_API_TOKEN` from `.env.ark` (after `npm run env:ark:pull`; legacy leftovers may still be in `.env`) and `account_id` from `marketing/*/wrangler.toml` or `ops/*/wrangler.toml` for Worker deploys. GitHub CI still uses secret `CLOUDFLARE_API_TOKEN`. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
+Use `CLOUDFLARE_DEV_API_TOKEN` from `.env.secrets` (after `npm run env:secrets:pull`) and `account_id` from `marketing/*/wrangler.toml` or `ops/*/wrangler.toml` for Worker deploys. GitHub CI still uses secret `CLOUDFLARE_API_TOKEN`. `CLOUDFLARE_ACCOUNT_ID` is also in GitHub secrets for CI.
 
 ## After setup
 

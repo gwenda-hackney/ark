@@ -15,7 +15,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   OPS_PRODUCTION_DATABASE_ID,
   TABLE_EVENT_DATES,
@@ -31,6 +30,7 @@ import {
   TABLE_SUPPLIERS,
   TABLE_USERS,
 } from "../ops/site/functions/_lib/baserow.js";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
@@ -57,16 +57,6 @@ const SKIP_LINK_CREATE = new Set([
   `${TABLE_SUPPLIERS}|Inventory suppliers`,
   `${TABLE_EVENTS}|Event dates`,
 ]);
-
-function loadEnvFiles() {
-  for (const name of [".env", ".env.ops", ".env.ark"]) {
-    const path = resolve(ROOT, name);
-    if (!existsSync(path)) continue;
-    for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-      if (!process.env[key]) process.env[key] = value;
-    }
-  }
-}
 
 function readEnv(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
@@ -373,7 +363,7 @@ async function syncSelectOptions(apiBase, jwt, sourceFields, destFields) {
 }
 
 async function main() {
-  loadEnvFiles();
+  loadRepoEnv({ app: "ops" });
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
     console.log(`Usage:

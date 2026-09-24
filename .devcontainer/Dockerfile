@@ -39,7 +39,7 @@ RUN python3 -m pip install --break-system-packages --no-cache-dir \
 # Bitwarden CLI — npm run env:pull (EU vault → repo-root .env)
 RUN npm install -g @bitwarden/cli@2026.8.0 --allow-scripts=core-js
 
-# Secrets Manager CLI — npm run env:ops:pull (SM → .env.ops). Script can also self-install.
+# Secrets Manager CLI — npm run env:secrets:pull (SM → .env.secrets). Script can also self-install.
 RUN curl -sL -o /tmp/bws.zip \
       "https://github.com/bitwarden/sdk-sm/releases/download/bws-v2.1.0/bws-x86_64-unknown-linux-gnu-2.1.0.zip" \
     && unzip -o -j /tmp/bws.zip bws -d /usr/local/bin \

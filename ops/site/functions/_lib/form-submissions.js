@@ -25,7 +25,7 @@ function websiteEnv(env) {
   const key = env.BASEROW_WEBSITE_API_KEY?.trim();
   if (!key) {
     const error = new Error(
-      "BASEROW_WEBSITE_API_KEY is not configured. Run npm run env:ops:pull.",
+      "BASEROW_WEBSITE_API_KEY is not configured. Run npm run env:secrets:pull.",
     );
     error.status = 503;
     throw error;
@@ -162,7 +162,7 @@ export async function resendFormEmail(env, rowId, kind) {
   }
   const secret = env.FORMS_ADMIN_SECRET?.trim();
   if (!secret) {
-    throw httpError("FORMS_ADMIN_SECRET is not configured. Run npm run env:ops:pull.", 503);
+    throw httpError("FORMS_ADMIN_SECRET is not configured. Run npm run env:secrets:pull.", 503);
   }
 
   let response;

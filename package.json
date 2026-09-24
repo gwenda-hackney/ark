@@ -37,6 +37,7 @@
     "env:push": "node scripts/push-env-to-bitwarden.mjs",
     "env:seed": "node scripts/seed-bitwarden-env.mjs",
     "env:set": "node scripts/set-bitwarden-env.mjs",
+    "env:secrets:pull": "node scripts/pull-app-env-from-sm.mjs",
     "env:ops:pull": "node scripts/pull-app-env-from-sm.mjs ops",
     "env:ops:push": "node scripts/push-app-env-to-sm.mjs ops",
     "env:web:pull": "node scripts/pull-app-env-from-sm.mjs web",

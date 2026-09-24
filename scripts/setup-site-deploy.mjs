@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * One-shot setup for Studio → site content deploy:
- *   - generate DEPLOY_WEBHOOK_SECRET (or reuse from .env.web) and store it in Secrets Manager
+ *   - generate DEPLOY_WEBHOOK_SECRET (or reuse from .env.secrets) and store it in Secrets Manager
  *   - push GitHub secrets (DEPLOY_WEBHOOK_SECRET, DISPATCH_TOKEN, SANITY_STUDIO_SITE_DEPLOY_URL)
  *   - deploy gwenda-site-deploy-webhook Worker + sync Worker secrets
  *   - write SANITY_STUDIO_SITE_DEPLOY_URL into repo-root .env for local Studio
@@ -10,7 +10,7 @@
  *   npm run setup:site-deploy
  *
  * Requires:
- *   - .env.ark with CLOUDFLARE_API_TOKEN (npm run env:ark:pull)
+ *   - .env.secrets with CLOUDFLARE_API_TOKEN (npm run env:secrets:pull)
  *   - gh authenticated with repo + workflow scope (gh auth login)
  */
 import { randomBytes } from "node:crypto";
@@ -182,12 +182,12 @@ function deployHostedDevStudio({ deploySecret, workerUrl, deployStudioToken }) {
 }
 
 async function main() {
-  loadRepoEnv([".env", ".env.ark", ".env.web"]);
+  loadRepoEnv();
   assertGhAuth();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (!cloudflareToken) {
-    throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:ark:pull.");
+    throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:secrets:pull.");
   }
 
   let deploySecret = process.env.DEPLOY_WEBHOOK_SECRET?.trim();
@@ -195,7 +195,7 @@ async function main() {
     deploySecret = randomBytes(32).toString("hex");
     console.log("Generated DEPLOY_WEBHOOK_SECRET.");
   } else {
-    console.log("Reusing DEPLOY_WEBHOOK_SECRET from .env.web.");
+    console.log("Reusing DEPLOY_WEBHOOK_SECRET from .env.secrets.");
   }
 
   const dispatchToken = run("gh", ["auth", "token"], { quiet: true }).trim();
@@ -245,7 +245,7 @@ async function main() {
   setGhSecret("SANITY_STUDIO_SITE_DEPLOY_URL", workerUrl);
 
   if (upsertSmSecret({ key: "DEPLOY_WEBHOOK_SECRET", value: deploySecret }) !== "unchanged") {
-    console.log("Stored DEPLOY_WEBHOOK_SECRET in Secrets Manager. Run npm run env:web:pull.");
+    console.log("Stored DEPLOY_WEBHOOK_SECRET in Secrets Manager. Run npm run env:secrets:pull.");
   }
   writeSiteDeployEnvLines([`SANITY_STUDIO_SITE_DEPLOY_URL=${workerUrl}`]);
   console.log(`Updated ${ENV_PATH} with the site deploy URL.`);

@@ -20,7 +20,6 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   OPS_DATABASE_NAME,
   TABLE_INGREDIENTS,
@@ -31,6 +30,7 @@ import {
   TABLE_SUPPLIERS,
   TABLE_USERS,
 } from "../ops/site/functions/_lib/baserow.js";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
@@ -55,16 +55,6 @@ const SKIP_LINK_CREATE = new Set([
   `${TABLE_INVENTORY}|Inventory suppliers`,
   `${TABLE_SUPPLIERS}|Inventory suppliers`,
 ]);
-
-function loadEnvFiles() {
-  for (const name of [".env", ".env.ops"]) {
-    const path = resolve(ROOT, name);
-    if (!existsSync(path)) continue;
-    for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-      if (!process.env[key]) process.env[key] = value;
-    }
-  }
-}
 
 function readEnv(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
@@ -348,7 +338,7 @@ async function findOrCreateDatabase(apiBase, jwt, workspaceId, name, dryRun) {
 }
 
 function writeLocalDevHints({ workspaceId, databaseId }) {
-  const opsEnvPath = resolve(ROOT, ".env.ops");
+  const opsEnvPath = resolve(ROOT, ".env");
   const lines = [
     "",
     `# Set after clone:baserow-ops-dev (${new Date().toISOString().slice(0, 10)})`,
@@ -368,7 +358,7 @@ function writeLocalDevHints({ workspaceId, databaseId }) {
   } else {
     writeFileSync(
       opsEnvPath,
-      `# Ops secrets + local Ops DB id (from clone)\nBASEROW_OPS_DATABASE_ID=${databaseId}\nBASEROW_OPS_DEV_WORKSPACE_ID=${workspaceId}\n`,
+      `# Local Ops DB id (from clone)\nBASEROW_OPS_DATABASE_ID=${databaseId}\nBASEROW_OPS_DEV_WORKSPACE_ID=${workspaceId}\n`,
     );
     console.log(`Wrote ${opsEnvPath}`);
   }
@@ -392,7 +382,7 @@ function writeLocalDevHints({ workspaceId, databaseId }) {
 }
 
 async function main() {
-  loadEnvFiles();
+  loadRepoEnv({ app: "ops" });
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
     console.log(`Usage: node scripts/clone-baserow-ops-db.mjs [--dry-run] [--force]`);
@@ -636,7 +626,7 @@ Next:
   2. Put that token in Secrets Manager as BASEROW_OPS_API_KEY__LOCAL.
   3. The prod-only token for DB ${sourceDbId} is BASEROW_OPS_API_KEY__PRODUCTION
        (Pages: gh workflow run ops-secrets.yml).
-  4. npm run env:ops:pull   # refresh .env.ops
+  4. npm run env:push       # save the new Ops DB id to the Bitwarden note
   5. Local ops-dev will use BASEROW_OPS_DATABASE_ID=${databaseId}
      Production wrangler keeps ${sourceDbId}.
 ${skippedPhotos ? `\n  Note: ${skippedPhotos} Photo file(s) were not copied. Re-run fetch:ops-menu-photos on the dev DB if needed.\n` : ""}`);

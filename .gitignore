@@ -8,6 +8,8 @@ node_modules/
 .env.web.bak
 .env.ark
 .env.ark.bak
+.env.secrets
+.env.secrets.bak
 .baserow-jwt.json
 .baserow-ops-dev.json
 .baserow-web-dev.json

@@ -3,7 +3,7 @@
  * Deploy Baserow → Mailchimp subscribe sync Worker and sync secrets.
  *
  * Needs in repo-root .env:
- *   CLOUDFLARE_API_TOKEN (.env.ark), MAILCHIMP_API_KEY (.env).
+ *   CLOUDFLARE_API_TOKEN (.env.secrets), MAILCHIMP_API_KEY (.env).
  *   The production Website Baserow token comes from Secrets Manager.
  * Optional: MAILCHIMP_AUDIENCE_ID, SUBSCRIBE_MAILCHIMP_SYNC_SECRET
  */

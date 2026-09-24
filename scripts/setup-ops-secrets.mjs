@@ -4,7 +4,7 @@
  * Baserow config database (docs/config.md).
  *
  * Needs ARK_LOCAL_BW_TOKEN (local .env) or BWS_ACCESS_TOKEN (CI), plus a
- * Cloudflare token from `.env.ark` / the job env.
+ * Cloudflare token from `.env.secrets` / the job env.
  *
  * Pages snapshots secrets per deployment: after this script, run
  * `npm run deploy -w @gwenda/ops` (or deploy:production) or the new secret
@@ -14,26 +14,18 @@
  *   npm run setup:ops
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
 import { APP_SECRETS, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(scriptDir, "..");
 const opsDir = join(rootDir, "ops/site");
 
-function loadEnvFile(path, { override = false } = {}) {
-  if (!existsSync(path)) return;
-  for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-    if (override || !process.env[key]) process.env[key] = value;
-  }
-}
-
-loadEnvFile(resolve(rootDir, ".env"), { override: false });
-loadEnvFile(resolve(rootDir, ".env.ark"), { override: true });
+loadRepoEnv({ override: true });
 
 function findWrangler() {
   for (const base of [opsDir, rootDir]) {
@@ -170,7 +162,7 @@ for (const key of LEFTOVER_SECRET_KEYS) deleteSecret(key);
 
 console.log("Done. Plain ops settings live in the Baserow config database.");
 console.log(
-  "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local can keep it as an optional bypass in .env.ops.",
+  "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local keeps it in Secrets Manager (.env.secrets).",
 );
 console.log(
   "Redeploy required for secrets to go live: npm run deploy:production -w @gwenda/ops",

@@ -56,6 +56,6 @@ if [ -d "/home/node/.config/Bitwarden CLI" ]; then
 fi
 if command -v bw >/dev/null 2>&1; then
   echo "Secrets: bw login && bw-unlock && npm run env:seed && npm run env:pull"
-  echo "         then npm run env:ark:pull && npm run env:web:pull && npm run env:ops:pull"
+  echo "         then npm run env:secrets:pull"
   echo "         (session persists in this container; see docs/env.md)"
 fi

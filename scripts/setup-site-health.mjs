@@ -5,28 +5,20 @@
  * Usage:
  *   npm run setup:site-health
  *
- * Needs in repo-root .env / .env.web:
+ * Needs in .env.secrets (npm run env:secrets:pull):
  *   CLOUDFLARE_DEV_API_TOKEN (or CLOUDFLARE_API_TOKEN), SMTP_PASSWORD
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/site-health");
 const WRANGLER_PATH = resolve(WORKER_DIR, "wrangler.toml");
 const KV_TITLE = "gwenda-site-health-HEALTH_STATE";
-
-function loadEnvFile(path, { override = false } = {}) {
-  if (!existsSync(path)) return;
-  for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-    if (!value) continue;
-    if (override || !process.env[key]) process.env[key] = value;
-  }
-}
 
 function run(
   cmd,
@@ -131,20 +123,18 @@ function ensureKvNamespace(wranglerEnv) {
 }
 
 function main() {
-  loadEnvFile(resolve(ROOT, ".env"));
-  loadEnvFile(resolve(ROOT, ".env.ark"), { override: true });
-  loadEnvFile(resolve(ROOT, ".env.web"), { override: true });
+  loadRepoEnv({ override: true });
 
   const cloudflareToken =
     process.env.CLOUDFLARE_API_TOKEN?.trim() || resolveCloudflareDevToken();
   const smtpPassword = (process.env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
   if (!cloudflareToken) {
     throw new Error(
-      "CLOUDFLARE_API_TOKEN (or CLOUDFLARE_DEV_API_TOKEN) is missing from .env / .env.ark",
+      "CLOUDFLARE_API_TOKEN (or CLOUDFLARE_DEV_API_TOKEN) is missing. Run npm run env:secrets:pull.",
     );
   }
   if (!smtpPassword) {
-    throw new Error("SMTP_PASSWORD is missing from .env / .env.web");
+    throw new Error("SMTP_PASSWORD is missing. Run npm run env:secrets:pull.");
   }
 
   const accountId = readWranglerAccountId();

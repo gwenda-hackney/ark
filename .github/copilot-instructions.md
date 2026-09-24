@@ -77,7 +77,7 @@ dist/          Build output (gitignored)
 
 ## Configuration
 
-- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`), then `env:ark:pull` / `env:ops:pull` / `env:web:pull`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
+- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:secrets:pull` (one `.env.secrets` under SM names; `with-env` / `with-ops-env` map them per app). See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
 - Staging gate: `SITE_PASSWORD` (Bitwarden Ark/Web → Cloudflare Pages via `web-secrets.yml`).
 - Secrets in Bitwarden SM follow one rule: `NAME` is shared, `NAME__LOCAL` / `__STAGING` / `__PRODUCTION` overrides it for that env. Per-app key lists and renames live in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). Do not add fallbacks across envs.
 - Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (runtime name; SM `BASEROW_WEBSITE_API_KEY__<ENV>`). Subscribe, Event Invites, and Form Submissions tables are resolved by name. The token selects the Website database.
