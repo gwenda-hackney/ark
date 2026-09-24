@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Push filled secrets from an app env file (then `.env`) into Secrets Manager.
- * Each key goes to its owning project under its SM name.
+ * Push filled secrets into Secrets Manager. Values come from `.env.secrets`
+ * (SM names), or from the shell for keys named on the command line. Each key goes to its owning project under its SM name.
+ * Keys may be given as the app's runtime name or the SM name.
  *
  *   npm run env:web:push -- --dry-run
  *   npm run env:web:push -- SUBSCRIBE_SECRET          # shared value
+ *   NEW_SECRET=... npm run env:web:push -- NEW_SECRET  # value from the shell
  *   npm run env:ops:push -- --profile local BASEROW_API_KEY   # BASEROW_OPS_API_KEY__LOCAL
  *
  * Without --profile a key is pushed as the shared NAME. Keys that already have
@@ -17,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   APP_SECRETS,
+  LOCAL_SECRETS_FILE,
   appSecrets,
   envSecretKey,
   listAllSmSecrets,
@@ -59,8 +62,8 @@ function main() {
     return;
   }
 
-  const shared = loadDotEnv(resolve(root, ".env"));
-  for (const [key, value] of shared) {
+  const shell = new Map(Object.entries(process.env));
+  for (const [key, value] of loadDotEnv(resolve(root, ".env"))) {
     if (!process.env[key]) process.env[key] = value;
   }
   const accessToken = resolveSmAccessToken();
@@ -70,7 +73,9 @@ function main() {
   }
 
   const spec = APP_SECRETS[opts.app];
-  const local = loadDotEnv(resolve(root, spec.file));
+  const local = loadDotEnv(resolve(root, LOCAL_SECRETS_FILE));
+  const runtimeFor = (key) =>
+    spec.keys.includes(key) ? key : spec.keys.find((k) => smNameFor(opts.app, k) === key);
   const existingKeys = [...listAllSmSecrets({ accessToken }).keys()];
   const hasOverrides = (name) =>
     existingKeys.some((key) => {
@@ -79,14 +84,16 @@ function main() {
     });
 
   const keys = opts.only.length ? opts.only : spec.keys;
-  for (const key of keys) {
-    if (!spec.keys.includes(key)) {
-      console.log(`skip ${key}: not an ${opts.app} secret`);
+  for (const arg of keys) {
+    const key = runtimeFor(arg);
+    if (!key) {
+      console.log(`skip ${arg}: not an ${opts.app} secret`);
       continue;
     }
-    const value = String(local.get(key) ?? shared.get(key) ?? "").trim();
-    if (!value) continue;
     const smName = smNameFor(opts.app, key);
+    const fromShell = opts.only.length ? shell.get(arg) : undefined;
+    const value = String(fromShell ?? local.get(smName) ?? "").trim();
+    if (!value) continue;
     if (!ownerOf(smName)) {
       console.log(`skip ${key}: ${smName} has no owning project`);
       continue;

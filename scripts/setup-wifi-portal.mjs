@@ -2,7 +2,7 @@
 /**
  * Deploy Wi‑Fi captive portal Worker and sync secrets.
  *
- * Needs CLOUDFLARE_API_TOKEN (.env.ark). UNIFI_SITE_MANAGER_API_KEY and the
+ * Needs CLOUDFLARE_API_TOKEN (.env.secrets). UNIFI_SITE_MANAGER_API_KEY and the
  * production Website Baserow token come from Secrets Manager.
  * Optional: UNIFI_CONSOLE_ID in .env (defaults to wrangler.toml / known UDR console)
  */
@@ -82,7 +82,7 @@ async function main() {
   const consoleId =
     process.env.UNIFI_CONSOLE_ID?.trim() || readWranglerConsoleId();
 
-  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:ark:pull.");
+  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:secrets:pull.");
   if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   if (!siteManagerKey) {
     throw new Error(

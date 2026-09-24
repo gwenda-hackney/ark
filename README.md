@@ -23,8 +23,7 @@ ark/
 ```bash
 npm install
 npm run env:pull          # Bitwarden Password Manager → .env (bw-unlock once per container)
-npm run env:ark:pull      # SM Ark → .env.ark (Cloudflare)
-npm run env:web:pull      # SM Ark/Web → .env.web
+npm run env:secrets:pull  # Secrets Manager → .env.secrets (all app secrets)
 npm run dev               # marketing site → http://localhost:4321
 npm run studio            # Sanity Studio → http://localhost:3333
 ```

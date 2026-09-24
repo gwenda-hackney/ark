@@ -3,7 +3,7 @@
  * Clean Sanity robot tokens to a fixed keep-set, sync GitHub + Bitwarden.
  *
  * Keep-set:
- *   ark-local-editor      Editor        → Secrets Manager SANITY_API_TOKEN (.env.web / .env.ops)
+ *   ark-local-editor      Editor        → Secrets Manager SANITY_API_TOKEN (.env.secrets)
  *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN
  *   ark-ci-deploy-studio  Deploy Studio → GitHub + Secrets Manager SANITY_DEPLOY_TOKEN
  *   ark-ci-dataset-sync   Editor        → GitHub SANITY_DATASET_SYNC_TOKEN (dataset mirror)
@@ -365,7 +365,7 @@ Requires: npx sanity login (project Administrator).`);
     writeLocalEnv(secrets);
     upsertSmSecret({ key: "SANITY_API_TOKEN", value: keys[KEEP.localEditor.label] });
     console.log(
-      "Stored ark-local-editor as SANITY_API_TOKEN in Secrets Manager. Run npm run env:web:pull and env:ops:pull.",
+      "Stored ark-local-editor as SANITY_API_TOKEN in Secrets Manager. Run npm run env:secrets:pull.",
     );
   }
 

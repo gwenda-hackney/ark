@@ -216,7 +216,7 @@ async function main() {
   } else {
     console.log("Next:");
     console.log("  1. Create a database token (Settings → Database tokens) with CRUD on this table.");
-    console.log("  2. Set BASEROW_API_KEY in .env.web (Gwenda Dev website token).");
+    console.log("  2. Set BASEROW_WEBSITE_API_KEY__LOCAL in Secrets Manager (Gwenda Dev website token), then npm run env:secrets:pull.");
     console.log("");
     console.log("Runtime code resolves the table by name — no table id in .env.");
     console.log("Production: npm run setup:baserow-rsvp -- --production");

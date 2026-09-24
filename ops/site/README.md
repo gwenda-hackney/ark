@@ -108,10 +108,10 @@ npm run dev -w @gwenda/ops
 
 TODO: `:8788` still serves the built SPA, so both ports show a UI. Prefer Wrangler proxying the shell back to Vite so local UI is only the live HMR app.
 
-Secrets come from **`.env.ops`** (`npm run env:ops:pull`, env `local`). Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
+Secrets come from **`.env.secrets`** (`npm run env:secrets:pull`, env `local`), mapped to ops runtime names by `ops-dev` / `with-ops-env`. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
 
 ```bash
-npm run env:ops:pull
+npm run env:secrets:pull
 npm run dev -w @gwenda/ops
 ```
 

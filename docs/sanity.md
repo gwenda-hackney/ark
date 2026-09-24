@@ -33,7 +33,7 @@ Sanity **robot / API tokens** on this plan are **Viewer**, **Editor**, and **Dep
 |-------|------|-------|----------|
 | `ark-local-editor` | **Editor** | Bitwarden `ark/.env.local` + repo `.env` as `SANITY_API_TOKEN` | Local Studio, seeds. **Never** GitHub. |
 | `ark-ci-viewer` | **Viewer** | GitHub `SANITY_API_TOKEN` | Site builds / content deploys |
-| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub + SM `SANITY_DEPLOY_TOKEN` (`.env.web`) | Hosted Studio deploys |
+| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub + SM `SANITY_DEPLOY_TOKEN` (`.env.secrets`) | Hosted Studio deploys |
 | `ark-ci-dataset-sync` | **Editor** | GitHub `SANITY_DATASET_SYNC_TOKEN` | Clone staging → production |
 
 Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity login`), not the local Editor robot:
@@ -80,7 +80,7 @@ Hosted Studio deploys get extra vars from GitHub Actions secrets (see `studio.ym
 
 The project already has `staging` and `production`. Growth allows two datasets. Do not create a third.
 
-Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:web:pull`. See [docs/env.md](env.md).
+Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:secrets:pull`. See [docs/env.md](env.md).
 
 ## Local commands
 
@@ -196,6 +196,6 @@ Local Studio reads deploy vars from `.env` via `scripts/with-env.mjs`. Hosted St
 Production hosted Studio after setup:
 
 ```bash
-npm run studio:deploy   # uses SANITY_DEPLOY_TOKEN (CI secret, or .env.web locally)
+npm run studio:deploy   # uses SANITY_DEPLOY_TOKEN (CI secret, or .env.secrets locally)
 ```
 

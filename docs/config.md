@@ -4,20 +4,17 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 
 | Layer | Store | Examples |
 |-------|--------|----------|
-| Secrets | Bitwarden Secrets Manager → `.env.ark` / `.env.ops` / `.env.web` / Cloudflare Pages secrets | API tokens, passwords, signing keys |
+| Secrets | Bitwarden Secrets Manager → `.env.secrets` / Cloudflare Pages secrets | API tokens, passwords, signing keys |
 | Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, SMTP host |
 | Runtime non-secret config | Baserow **Gwenda Config** database (one table, profiled by Env + Service) | Pour targets, Sanity project/dataset, dev notify inbox, web origin for ops |
 | Marketing product flags | Sanity `siteSettings` | Booking / gallery toggles |
 
 | File | Role |
 |------|------|
-| `.env` | Shared bootstrap + Password Manager leftovers + `ARK_LOCAL_BW_TOKEN` |
-| `.env.ark` | Org Cloudflare tokens (`npm run env:ark:pull`) |
-| `.env.ops` | Ops runtime secrets (`npm run env:ops:pull`) |
-| `.env.web` | Marketing runtime secrets (`npm run env:web:pull`) |
+| `.env` | `ARK_LOCAL_BW_TOKEN` + plain local settings (Password Manager note `ark/.env.local`) |
+| `.env.secrets` | Every app secret under its SM name (`npm run env:secrets:pull`) |
 
-Ops scripts and `npm run dev -w @gwenda/ops` load `.env` then `.env.ark` then `.env.ops` (ops wins).
-Marketing / Studio via `with-env` load `.env` then `.env.ark` then `.env.web` (web wins).
+Everything loads through `scripts/lib/load-env.mjs`: `.env`, then `.env.secrets`, then the app's runtime names from the rename table below. Marketing / Studio (`with-env`) get web names; ops scripts and `npm run dev -w @gwenda/ops` (`with-ops-env`, `ops-dev`) get ops names.
 
 ## Secrets: one naming rule
 
@@ -30,7 +27,7 @@ Bitwarden Secrets Manager has no per-env secrets, so env is encoded in the name:
 
 A pull for env `E` lists every SM project, keeps `NAME` and `NAME__E`, and lets the override win. That is the whole merge. Per-env credentials (Baserow tokens, `FORMS_ADMIN_SECRET`) have **no** shared `NAME`, so a missing override is reported as missing instead of silently using another env's value.
 
-Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). When a runtime key differs from the SM name, the manifest renames it:
+Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). When a runtime key differs from the SM name, the manifest renames it (locally in `load-env.mjs`, in CI via `--github-env`):
 
 | App | Runtime key | SM name |
 |-----|-------------|---------|
@@ -52,9 +49,9 @@ Projects only record ownership (`SECRET_OWNERS`). A key must live in exactly one
 Override project ids with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
 
 ```bash
-npm run env:ops:pull                          # env=local → .env.ops
-npm run env:web:pull -- --env staging --dry-run
-npm run env:web:push -- FORMS_ADMIN_SECRET    # .env.web → SM (shared name unless --profile)
+npm run env:secrets:pull                      # env=local → .env.secrets
+npm run env:secrets:pull -- --env staging --dry-run
+npm run env:web:push -- FORMS_ADMIN_SECRET    # .env.secrets → SM (shared name unless --profile)
 npm run env:web:push -- --profile local FORMS_ADMIN_SECRET   # → FORMS_ADMIN_SECRET__LOCAL
 ```
 
@@ -135,7 +132,7 @@ Then mint/refresh scoped database tokens (script prints next steps). Local `ops-
 
 **Ops table ids are not configured.** Names are resolved from the Baserow catalog.
 
-Gallery uploads and ops nights on Google Calendar use SM `GOOGLE_SERVICE_ACCOUNT_JSON` (runtime `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`, account `gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`). Each event folder holds a `gallery/` child, the only place event images are written in Drive; the What's on hero stays on the event in Baserow. The service account must be a Content manager on the Shared Drive and have **Make changes to events** on the calendar. Local ops can still override the calendar with `GOOGLE_CALENDAR_ID_LOCAL` in `.env.ops`.
+Gallery uploads and ops nights on Google Calendar use SM `GOOGLE_SERVICE_ACCOUNT_JSON` (runtime `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`, account `gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`). Each event folder holds a `gallery/` child, the only place event images are written in Drive; the What's on hero stays on the event in Baserow. The service account must be a Content manager on the Shared Drive and have **Make changes to events** on the calendar. Local ops can still override the calendar with `GOOGLE_CALENDAR_ID_LOCAL` in `.env`.
 
 ## Marketing Baserow workspaces
 
