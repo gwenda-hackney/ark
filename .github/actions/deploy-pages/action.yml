@@ -54,6 +54,14 @@ inputs:
   sanity-dataset:
     description: Sanity dataset for build-time CMS fetch (staging or production)
     required: true
+  baserow-ops-api-key:
+    description: Ops Baserow token for the featured artist at build time
+    required: false
+    default: ""
+  baserow-ops-database-id:
+    description: Ops Baserow database id for the featured artist at build time
+    required: false
+    default: ""
 
 outputs:
   deployment-url:
@@ -80,6 +88,8 @@ runs:
         SANITY_PROJECT_ID: pn5yjro6
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
+        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
+        BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}
 
     - name: Ensure dist exists
       if: inputs.skip-build == 'true'
