@@ -1,4 +1,5 @@
 import { resolveFormFrom, resolveFormReplyTo } from "./form-email.js";
+import { isGmailConfigured, sendGmail } from "./gmail-send.js";
 import { reportFormError } from "./form-alert.js";
 import { createLogger } from "./log.js";
 import {
@@ -178,16 +179,12 @@ export async function sendFormVerifyEmail(
   env,
   { form, email, rowId, requestUrl, updated = false },
 ) {
-  const host = env.SMTP_HOST?.trim();
   const from = resolveFormFrom(env, form);
   const replyTo = resolveFormReplyTo(form);
   const to = String(email ?? "")
     .trim()
     .toLowerCase();
-  const user = env.SMTP_USER?.trim() ?? "";
-  // Gmail app passwords are often pasted with spaces; SMTP auth wants the 16 chars.
-  const password = (env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
-  const smtpReady = Boolean(host && from && to && user && password);
+  const mailReady = Boolean(from && to && isGmailConfigured(env));
   const siteEnv = env.SITE_ENV?.trim();
   const isDeployed = siteEnv === "staging" || siteEnv === "production";
 
@@ -229,7 +226,7 @@ export async function sendFormVerifyEmail(
     });
   }
 
-  if (!smtpReady) {
+  if (!mailReady) {
     if (!isDeployed) {
       log.info(
         `[form verify dry-run] to=${to || "(missing)"} from=${from || "(missing)"} replyTo=${replyTo || "(none)"}`,
@@ -238,28 +235,17 @@ export async function sendFormVerifyEmail(
     }
     await reportFormError(env, "form_verify_email_skipped", {
       reason: "smtp_not_configured",
-      hasHost: Boolean(host),
       hasFrom: Boolean(from),
       hasTo: Boolean(to),
-      hasUser: Boolean(user),
-      hasPassword: Boolean(password),
+      hasSender: Boolean(env.SMTP_USER?.trim()),
+      hasServiceAccount: Boolean(env.GMAIL_SERVICE_ACCOUNT_JSON?.trim()),
       slug: form?.slug ?? "",
     });
     return { ok: false, skipped: true, error: "Email is not configured." };
   }
 
   try {
-    const nodemailer = await import("nodemailer");
-    const port = Number(env.SMTP_PORT?.trim() || "587");
-
-    const transport = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass: password },
-    });
-
-    await transport.sendMail({
+    await sendGmail(env, {
       from,
       to,
       replyTo,
@@ -286,8 +272,7 @@ export async function sendFormVerifyEmail(
       error: message,
       from,
       to,
-      host,
-      user,
+      sender: env.SMTP_USER?.trim() ?? "",
       slug: form?.slug ?? "",
     });
     return { ok: false, error: message };

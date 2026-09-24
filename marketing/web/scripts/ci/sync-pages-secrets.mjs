@@ -213,6 +213,11 @@ function putSharedSecrets() {
   // Gmail app passwords are often pasted with spaces; store the 16-char form.
   const smtpPassword = (process.env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
   putSecret("SMTP_PASSWORD", smtpPassword);
+  // Site mail goes through the Gmail API with the ops service account (delegated gmail.send).
+  putSecret(
+    "GMAIL_SERVICE_ACCOUNT_JSON",
+    process.env.GMAIL_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,
+  );
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
   putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
   putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
