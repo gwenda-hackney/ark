@@ -40,6 +40,8 @@ export function isSpaDocumentPath(pathname) {
     p.startsWith("/artists/") ||
     p === "/web" ||
     p.startsWith("/web/") ||
+    p === "/forms" ||
+    p.startsWith("/forms/") ||
     p === "/tools" ||
     p.startsWith("/tools/")
   );
@@ -81,7 +83,8 @@ export function canonicalizePath(href) {
 export const MENU_DETAIL_TABS = ["details", "menu", "cost", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
 /** Event editor tabs. `details` is the default and is omitted from the URL. */
-export const EVENT_DETAIL_TABS = ["details", "schedule", "gallery", "publish"];
+/** Publishing moved to Website > Staging → live; old /publish links land on details. */
+export const EVENT_DETAIL_TABS = ["details", "schedule", "gallery"];
 const EVENT_TAB_IDS = new Set(EVENT_DETAIL_TABS);
 /** Older drink tabs still resolve. */
 const MENU_TAB_ALIASES = new Map([
@@ -261,7 +264,15 @@ export function parseShellPath(path) {
     }
     return { page: "artists", slug: part || null, isNew: false };
   }
-  if (p === "/web" || p.startsWith("/web/")) return { page: "web" };
+  if (p === "/web/dev") return { page: "web", view: "dev" };
+  // Old link to the release page: the Website page covers it now.
+  if (p === "/web/release") return { page: "web", view: null };
+  if (p === "/web" || p.startsWith("/web/")) return { page: "web", view: null };
+  if (p === "/forms") return { page: "forms", slug: null };
+  if (p.startsWith("/forms/")) {
+    const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
+    return { page: "forms", slug: part || null };
+  }
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
   if (p === "/tools" || p.startsWith("/tools/")) {
@@ -407,7 +418,8 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "users" ||
     from === "events" ||
     from === "artists" ||
-    from === "web"
+    from === "web" ||
+    from === "forms"
   ) {
     return false;
   }

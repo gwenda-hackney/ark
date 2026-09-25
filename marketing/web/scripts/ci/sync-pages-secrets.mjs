@@ -6,11 +6,20 @@
  * Usage:
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda --profile production
+ *   ... --if-changed   skip when nothing changed since the last sync (deploys)
+ *
+ * Every wrangler call takes a second or two, so a full sync is ~1 minute.
+ * Pages keeps secrets across deployments, so deploys pass --if-changed: the
+ * planned puts and deletes are fingerprinted and compared with the fingerprint
+ * saved after the last sync (Gwenda Config, web.pages_secrets_fingerprint).
  */
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { APP_SECRETS } from "../../../../scripts/lib/bitwarden-sm.mjs";
+import { getConfigValueFor, setConfigValueFor } from "../../../../shared/config-db.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(scriptDir, "../..");
@@ -39,6 +48,8 @@ function getArg(name) {
 
 const project = getArg("--project") || process.env.PAGES_PROJECT_NAME;
 const profile = getArg("--profile");
+const ifChanged = args.includes("--if-changed");
+const FINGERPRINT_KEY = "web.pages_secrets_fingerprint";
 
 if (!project || !profile) {
   console.error(
@@ -55,6 +66,9 @@ const wranglerEnv = {
 
 /** Pages Functions secrets are scoped per deployment environment. Preview branch deploys need preview secrets. */
 const deploymentEnvs = ["production", "preview"];
+
+/** Planned changes; nothing touches Cloudflare until the plan runs. */
+const plan = [];
 
 function putSecret(key, value) {
   if (!value) {
@@ -74,6 +88,10 @@ function putSecret(key, value) {
     }
     value = cleaned;
   }
+  plan.push({ op: "put", key, value });
+}
+
+function applyPut(key, value) {
   for (const deploymentEnv of deploymentEnvs) {
     const result = spawnSync(
       process.execPath,
@@ -104,6 +122,10 @@ function putSecret(key, value) {
 }
 
 function deleteSecret(key) {
+  plan.push({ op: "delete", key });
+}
+
+function applyDelete(key) {
   for (const deploymentEnv of deploymentEnvs) {
     const result = spawnSync(
       process.execPath,
@@ -201,23 +223,16 @@ async function putPlainSmtpVars() {
   }
 }
 
+/** Staging-gate secrets: put on staging, removed from production. */
+const STAGING_ONLY_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
+
+/** Every web secret from `npm run env:web:pull -- --github-env --profile <profile>`. */
 function putSharedSecrets() {
-  putSecret("BASEROW_API_KEY", process.env.BASEROW_API_KEY);
-  putSecret(
-    "BASEROW_OPS_API_KEY",
-    process.env.BASEROW_OPS_API_KEY || process.env.BASEROW_API_KEY_PRODUCTION,
-  );
-  putSecret("SUBSCRIBE_SECRET", process.env.SUBSCRIBE_SECRET);
-  putSecret("EVENT_ADMIN_SECRET", process.env.EVENT_ADMIN_SECRET);
-  putSecret("SANITY_API_TOKEN", process.env.SANITY_API_TOKEN);
-  // Gmail app passwords are often pasted with spaces; store the 16-char form.
-  const smtpPassword = (process.env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
-  putSecret("SMTP_PASSWORD", smtpPassword);
-  // Site mail goes through the Gmail API with the ops service account (delegated gmail.send).
-  putSecret(
-    "GMAIL_SERVICE_ACCOUNT_JSON",
-    process.env.GMAIL_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON,
-  );
+  const skip = new Set(APP_SECRETS.web.pagesSkip);
+  for (const key of APP_SECRETS.web.keys) {
+    if (STAGING_ONLY_KEYS.has(key) || skip.has(key)) continue;
+    putSecret(key, process.env[key]);
+  }
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
   putSecret("APPLE_WALLET_TEAM_ID", process.env.APPLE_WALLET_TEAM_ID);
   putSecret("APPLE_WALLET_SIGNER_CERT", process.env.APPLE_WALLET_SIGNER_CERT);
@@ -227,8 +242,6 @@ function putSharedSecrets() {
     "APPLE_WALLET_SIGNER_KEY_PASSPHRASE",
     process.env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
   );
-  putSecret("INSTAGRAM_ACCESS_TOKEN", process.env.INSTAGRAM_ACCESS_TOKEN);
-  putSecret("INSTAGRAM_BUSINESS_ACCOUNT_ID", process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
 }
 
 const profiles = {
@@ -237,14 +250,11 @@ const profiles = {
       console.error("SITE_PASSWORD is required for staging deploys.");
       process.exit(1);
     }
-    putSecret("SITE_PASSWORD", process.env.SITE_PASSWORD);
-    putSecret("GATE_BYPASS_KEY", process.env.GATE_BYPASS_KEY);
+    for (const key of STAGING_ONLY_KEYS) putSecret(key, process.env[key]);
     putSharedSecrets();
   },
   production: () => {
-    for (const key of ["SITE_PASSWORD", "GATE_BYPASS_KEY"]) {
-      deleteSecret(key);
-    }
+    for (const key of STAGING_ONLY_KEYS) deleteSecret(key);
     putSharedSecrets();
   },
 };
@@ -256,9 +266,50 @@ if (!run) {
 }
 
 run();
-await putPlainSmtpVars();
+for (const key of LEFTOVER_CONFIG_SECRET_KEYS) deleteSecret(key);
 
+/** Values are hashed, never stored. Any change to keys, values or targets changes it. */
+const fingerprint = createHash("sha256")
+  .update(
+    JSON.stringify({
+      project,
+      profile,
+      deploymentEnvs,
+      smtp: SMTP_PLAIN_VARS,
+      plan: plan.map((step) => [
+        step.op,
+        step.key,
+        step.value == null ? "" : createHash("sha256").update(step.value).digest("hex"),
+      ]),
+    }),
+  )
+  .digest("hex");
+
+async function storedFingerprint() {
+  try {
+    return await getConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile);
+  } catch (error) {
+    console.warn(`Could not read the last secret fingerprint (${error.message}); syncing.`);
+    return "";
+  }
+}
+
+if (ifChanged && (await storedFingerprint()) === fingerprint) {
+  console.log(`Pages secrets for ${project} (${profile}) unchanged since the last sync; skipped.`);
+  process.exit(0);
+}
+
+for (const step of plan) {
+  if (step.op === "put") applyPut(step.key, step.value);
+  else applyDelete(step.key);
+}
+await putPlainSmtpVars();
 console.log(
   "Plain SMTP host/port/user are project vars; only SMTP_PASSWORD is a Pages secret. Form From/Reply-To live in Sanity.",
 );
-for (const key of LEFTOVER_CONFIG_SECRET_KEYS) deleteSecret(key);
+
+try {
+  await setConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile, fingerprint);
+} catch (error) {
+  console.warn(`Synced, but could not save the fingerprint (${error.message}); the next deploy syncs again.`);
+}

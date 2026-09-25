@@ -23,16 +23,7 @@ import {
   buildWhatsOnHome,
 } from "./functions/_lib/event-series.js";
 import { fetchFeaturedArtists } from "./src/lib/featured-artist.js";
-import { verifyEventAdminRequest } from "./functions/_lib/event-admin-auth.js";
-import {
-  fetchGuestsForEvent,
-  summarizeGuests,
-} from "./functions/_lib/event-guests.js";
-import {
-  fetchEventBySlug,
-  publicEventFields,
-} from "./functions/_lib/sanity-event.js";
-import { sendEventInvites } from "./functions/_lib/invite-send.js";
+import { publicEventFields } from "./functions/_lib/sanity-event.js";
 import { pickPemValue } from "./functions/_lib/env-pem.js";
 import { resolveTicket } from "./functions/_lib/ticket.js";
 import {
@@ -92,7 +83,6 @@ const rsvpEnv = () => ({
     process.env.SITE_ENV ||
     (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
   TICKET_SECRET: process.env.TICKET_SECRET || env.TICKET_SECRET,
-  EVENT_ADMIN_SECRET: process.env.EVENT_ADMIN_SECRET || env.EVENT_ADMIN_SECRET,
   SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
   SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "staging",
@@ -100,9 +90,6 @@ const rsvpEnv = () => ({
   SANITY_PERSPECTIVE: localSanityPerspective(),
   INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
   INVITE_IMAGE_URL: process.env.INVITE_IMAGE_URL || env.INVITE_IMAGE_URL,
-  INVITE_EMAIL_SUBJECT:
-    process.env.INVITE_EMAIL_SUBJECT || env.INVITE_EMAIL_SUBJECT,
-  INVITE_EMAIL_BODY: process.env.INVITE_EMAIL_BODY || env.INVITE_EMAIL_BODY,
   SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
   SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
@@ -130,21 +117,15 @@ const rsvpEnv = () => ({
     env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE,
 });
 
-const adminEnv = () => ({
+const devApiEnv = () => ({
   ...rsvpEnv(),
-  EVENT_ADMIN_SECRET: env.EVENT_ADMIN_SECRET,
   INVITE_BASE_URL: env.INVITE_BASE_URL,
   INVITE_IMAGE_URL: env.INVITE_IMAGE_URL,
-  INVITE_EMAIL_SUBJECT: env.INVITE_EMAIL_SUBJECT,
-  INVITE_EMAIL_BODY: env.INVITE_EMAIL_BODY,
-  INVITE_INSTAGRAM_MESSAGE: env.INVITE_INSTAGRAM_MESSAGE,
   SMTP_HOST: env.SMTP_HOST,
   SMTP_PORT: env.SMTP_PORT,
   SMTP_USER: env.SMTP_USER,
   SMTP_PASSWORD: env.SMTP_PASSWORD,
   SMTP_FROM: env.SMTP_FROM,
-  INSTAGRAM_ACCESS_TOKEN: env.INSTAGRAM_ACCESS_TOKEN,
-  INSTAGRAM_BUSINESS_ACCOUNT_ID: env.INSTAGRAM_BUSINESS_ACCOUNT_ID,
   BASEROW_OPS_API_KEY:
     process.env.BASEROW_OPS_API_KEY || env.BASEROW_OPS_API_KEY,
   BASEROW_OPS_DATABASE_ID:
@@ -257,9 +238,19 @@ function devFormsApi() {
         BASEROW_FORM_SUBMISSIONS_TABLE_NAME:
           process.env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME ||
           env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME,
+        BASEROW_CONFIG_API_KEY:
+          process.env.BASEROW_CONFIG_API_KEY || env.BASEROW_CONFIG_API_KEY,
+        FORMS_ADMIN_SECRET:
+          process.env.FORMS_ADMIN_SECRET || env.FORMS_ADMIN_SECRET,
+        GMAIL_SERVICE_ACCOUNT_JSON:
+          process.env.GMAIL_SERVICE_ACCOUNT_JSON ||
+          env.GMAIL_SERVICE_ACCOUNT_JSON,
+        // Unset must not fall through to production config rows.
         SITE_ENV:
           process.env.SITE_ENV ||
-          (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+          (env.PUBLIC_IS_STAGING === "true"
+            ? "staging"
+            : env.SITE_ENV || "local"),
         SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
         SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
         SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
@@ -348,6 +339,18 @@ function devFormsApi() {
               res,
               mod.onRequestPost,
               "/api/forms/resend",
+            );
+            return;
+          }
+          if (pathOnly === "/api/forms/admin/resend" && req.method === "POST") {
+            const mod = await server.ssrLoadModule(
+              "/functions/api/forms/admin/resend.js",
+            );
+            await pipeFunction(
+              req,
+              res,
+              mod.onRequestPost,
+              "/api/forms/admin/resend",
             );
             return;
           }
@@ -577,7 +580,7 @@ function devEventsApi() {
           return;
         }
         const url = new URL(req.url ?? "", "http://localhost");
-        const events = await fetchPublishedEvents(adminEnv());
+        const events = await fetchPublishedEvents(devApiEnv());
         const page = pageEventFeed(events, {
           after: url.searchParams.get("after") || "",
           afterId: url.searchParams.get("afterId") || "",
@@ -603,7 +606,7 @@ function devWhatsOnApi() {
         // Vite strips the /api/whats-on mount, so list is "/" and detail is "/:series".
         const path = url.pathname.replace(/^\/+/, "").trim();
         const { occurrences, series: seriesRecords } =
-          await fetchPublishedCatalog(adminEnv());
+          await fetchPublishedCatalog(devApiEnv());
         if (path === "schedule") {
           sendJson(res, 200, {
             ok: true,
@@ -650,7 +653,7 @@ function devFeaturedArtistApi() {
           next();
           return;
         }
-        const featured = await fetchFeaturedArtists(adminEnv());
+        const featured = await fetchFeaturedArtists(devApiEnv());
         const current = featured.current;
         sendJson(res, 200, {
           ok: true,
@@ -662,107 +665,6 @@ function devFeaturedArtistApi() {
               }
             : null,
         });
-      });
-    },
-  };
-}
-
-/** Dev-only stub for /api/event-admin/* */
-function devEventAdminApi() {
-  return {
-    name: "dev-event-admin-api",
-    configureServer(server) {
-      server.middlewares.use("/api/event-admin", async (req, res, next) => {
-        const runtimeEnv = adminEnv();
-        const url = new URL(req.url ?? "", "http://localhost");
-        const path = url.pathname.replace(/^\/api\/event-admin\/?/, "");
-
-        if (
-          !verifyEventAdminRequest(
-            new Request("http://localhost", {
-              headers: {
-                Authorization:
-                  req.headers.authorization ?? req.headers.Authorization ?? "",
-              },
-            }),
-            runtimeEnv,
-          )
-        ) {
-          sendJson(res, 401, { error: "Unauthorized." });
-          return;
-        }
-
-        if (path === "summary" && req.method === "GET") {
-          const slug = url.searchParams.get("slug");
-          if (!slug) {
-            sendJson(res, 400, { error: "Missing slug." });
-            return;
-          }
-          const [event, guestsResult] = await Promise.all([
-            fetchEventBySlug(runtimeEnv, slug),
-            fetchGuestsForEvent(runtimeEnv, slug),
-          ]);
-          if (!guestsResult.ok) {
-            sendJson(res, guestsResult.status, { error: guestsResult.error });
-            return;
-          }
-          sendJson(res, 200, {
-            ok: true,
-            slug,
-            event,
-            summary: summarizeGuests(guestsResult.guests),
-          });
-          return;
-        }
-
-        if (path === "guests" && req.method === "GET") {
-          const slug = url.searchParams.get("slug");
-          if (!slug) {
-            sendJson(res, 400, { error: "Missing slug." });
-            return;
-          }
-          const result = await fetchGuestsForEvent(runtimeEnv, slug);
-          sendJson(
-            res,
-            result.ok ? 200 : result.status,
-            result.ok
-              ? { ok: true, slug, guests: result.guests }
-              : { error: result.error },
-          );
-          return;
-        }
-
-        if (path === "send" && req.method === "POST") {
-          let rawBody = "";
-          req.on("data", (chunk) => {
-            rawBody += chunk;
-          });
-          req.on("end", async () => {
-            try {
-              const payload = JSON.parse(rawBody);
-              const slug = payload?.slug?.trim();
-              if (!slug) {
-                sendJson(res, 400, { error: "Missing slug." });
-                return;
-              }
-              const result = await sendEventInvites(runtimeEnv, slug, {
-                dryRun: Boolean(payload?.dryRun),
-              });
-              sendJson(
-                res,
-                result.ok ? 200 : result.status,
-                result.ok ? result : { error: result.error },
-              );
-            } catch (error) {
-              sendJson(res, 502, {
-                error: error instanceof Error ? error.message : "Send failed.",
-              });
-            }
-          });
-          return;
-        }
-
-        next();
       });
     },
   };
@@ -865,7 +767,6 @@ export default defineConfig({
       devEventsApi(),
       devWhatsOnApi(),
       devFeaturedArtistApi(),
-      devEventAdminApi(),
       ...(gatePlugin ? [gatePlugin] : []),
     ],
   },

@@ -1,7 +1,7 @@
 name: Web
 
 # Marketing site: staging from main, branch previews, and a release preview.
-# Promote to live is web-promote.yml (copy staging onto production).
+# Live deploys are web-promote.yml (build release; content comes from ops Release).
 
 run-name: >-
   ${{
@@ -118,7 +118,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Compute build metadata
         id: buildmeta
@@ -132,10 +132,6 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env
 
-      - name: Pull production ops Baserow for the artist build
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:ops:pull -- --github-env --profile production
 
       - name: Deploy
         uses: ./.github/actions/deploy-pages
@@ -154,9 +150,10 @@ jobs:
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: staging
-          baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
+          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "556507"
           secrets-profile: staging
+          snapshot-site: staging
 
       - name: Smoke test
         env:
@@ -209,7 +206,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Compute build metadata
         id: buildmeta
@@ -223,10 +220,6 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile production
 
-      - name: Pull production ops Baserow for the artist build
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:ops:pull -- --github-env --profile production
 
       - name: Deploy preview
         uses: ./.github/actions/deploy-pages
@@ -245,7 +238,7 @@ jobs:
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: staging
-          baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
+          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "556507"
           secrets-profile: production
 
@@ -286,7 +279,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Resolve Pages preview branch
         id: branch

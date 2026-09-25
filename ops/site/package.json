@@ -7,16 +7,14 @@
   "scripts": {
     "dev": "node ../../scripts/ops-dev.mjs",
     "build": "npm run build -w @gwenda/ops-menu",
-    "test": "node --test functions/_lib/*.test.js scripts/*.test.js menu-app/src/lib/*.test.ts menu-app/src/features/events/hero-crops.test.ts ../../scripts/lib/cloudflare-tokens.test.mjs ../../scripts/lib/bitwarden-sm.test.mjs",
+    "test": "node --test functions/_lib/*.test.js scripts/*.test.js menu-app/src/lib/*.test.ts menu-app/src/features/events/hero-crops.test.ts ../../scripts/lib/cloudflare-tokens.test.mjs ../../scripts/lib/bitwarden-sm.test.mjs ../../shared/*.test.js",
     "events:roll": "node ../../scripts/with-ops-env.mjs node scripts/publish-recurring-events.mjs",
-    "lightspeed:export": "node ../../scripts/with-ops-env.mjs node scripts/lightspeed-item-export.mjs",
     "sync": "node scripts/sync-from-mydrive.mjs",
     "deploy": "npm run build && wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
     "deploy:production": "npm run build && wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
     "deploy:preview": "npm run build && wrangler pages deploy src --project-name gwenda-ops --commit-dirty=true"
   },
   "devDependencies": {
-    "playwright": "^1.63.0",
     "wrangler": "^4.98.0"
   }
 }

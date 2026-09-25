@@ -1,7 +1,7 @@
 /**
  * The artist on the wall, read from Ops Baserow.
  * Marketing's own Baserow token cannot see that database, so this uses
- * BASEROW_OPS_API_KEY (filled from .env.ops by with-env when present).
+ * BASEROW_OPS_API_KEY (from .env.secrets via with-env).
  */
 import { listArtists } from "../../../../ops/site/functions/_lib/artist-store.js";
 import { artistRunLabel } from "./artist-run.js";

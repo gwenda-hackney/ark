@@ -3,9 +3,9 @@
  * Clean Sanity robot tokens to a fixed keep-set, sync GitHub + Bitwarden.
  *
  * Keep-set:
- *   ark-local-editor      Editor        → Bitwarden ark/.env.local + repo .env
- *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN (+ BW staging/prod)
- *   ark-ci-deploy-studio  Deploy Studio → GitHub SANITY_DEPLOY_TOKEN (+ BW staging/prod)
+ *   ark-local-editor      Editor        → Secrets Manager SANITY_API_TOKEN (.env.secrets)
+ *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN
+ *   ark-ci-deploy-studio  Deploy Studio → GitHub + Secrets Manager SANITY_DEPLOY_TOKEN
  *   ark-ci-dataset-sync   Editor        → GitHub SANITY_DATASET_SYNC_TOKEN (dataset mirror)
  *
  * Admin auth (mint/revoke): personal Sanity CLI session (`npx sanity login`),
@@ -34,8 +34,11 @@ import {
   updateItemNotes,
   upsertDotEnvKey,
 } from "./lib/bitwarden-env.mjs";
+import { upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const API_VERSION = "v2025-08-18";
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");
 const LOCAL_TEMPLATE = resolve(ROOT, "scripts/env-templates/local.env");
@@ -79,25 +82,6 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${arg}`);
   }
   return out;
-}
-
-function loadDotEnv() {
-  if (!existsSync(ENV_PATH)) return;
-  for (const line of readFileSync(ENV_PATH, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
 }
 
 function run(command, args, { input, quiet = false, cwd = ROOT } = {}) {
@@ -285,7 +269,7 @@ Requires: npx sanity login (project Administrator).`);
     return;
   }
 
-  loadDotEnv();
+  loadRepoEnv();
   const projectId = process.env.SANITY_PROJECT_ID?.trim() || PROJECT_ID_DEFAULT;
   const adminToken = resolveAdminToken();
 
@@ -351,33 +335,19 @@ Requires: npx sanity login (project Administrator).`);
       const localUpdates = {
         SANITY_PROJECT_ID: projectId,
         SANITY_DATASET: "staging",
-        SANITY_API_TOKEN: keys[KEEP.localEditor.label],
       };
-      const sharedCi = {
-        SANITY_PROJECT_ID: projectId,
-        SANITY_API_TOKEN: keys[KEEP.ciViewer.label],
-        SANITY_DEPLOY_TOKEN: keys[KEEP.ciDeploy.label],
-        SANITY_DATASET_SYNC_TOKEN: keys[KEEP.ciDatasetSync.label],
-      };
-
       upsertBitwardenNote(
         ENV_ITEMS.local,
         resolve(ROOT, "scripts/env-templates/local.env"),
         localUpdates,
         opts,
       );
-      upsertBitwardenNote(
-        ENV_ITEMS.staging,
-        resolve(ROOT, "scripts/env-templates/staging.env"),
-        { ...sharedCi, SANITY_DATASET: "staging" },
-        opts,
-      );
-      upsertBitwardenNote(
-        ENV_ITEMS.production,
-        resolve(ROOT, "scripts/env-templates/production.env"),
-        { ...sharedCi, SANITY_DATASET: "production" },
-        opts,
-      );
+      if (opts.dryRun) {
+        console.log("Would store SANITY_DEPLOY_TOKEN in Secrets Manager.");
+      } else if (keys[KEEP.ciDeploy.label]) {
+        upsertSmSecret({ key: "SANITY_DEPLOY_TOKEN", value: keys[KEEP.ciDeploy.label] });
+        console.log("Stored ark-ci-deploy-studio as SANITY_DEPLOY_TOKEN in Secrets Manager.");
+      }
     } catch (err) {
       console.warn(
         `\nBitwarden skipped: ${err instanceof Error ? err.message : err}\n` +
@@ -391,10 +361,12 @@ Requires: npx sanity login (project Administrator).`);
     const secrets = new Map([
       ["SANITY_PROJECT_ID", projectId],
       ["SANITY_DATASET", "staging"],
-      ["SANITY_API_TOKEN", keys[KEEP.localEditor.label]],
     ]);
     writeLocalEnv(secrets);
-    console.log(`Updated ${ENV_PATH} with ark-local-editor.`);
+    upsertSmSecret({ key: "SANITY_API_TOKEN", value: keys[KEEP.localEditor.label] });
+    console.log(
+      "Stored ark-local-editor as SANITY_API_TOKEN in Secrets Manager. Run npm run env:secrets:pull.",
+    );
   }
 
   if (!opts.dryRun) {

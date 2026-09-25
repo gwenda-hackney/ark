@@ -1,7 +1,12 @@
 name: Web promote
 
-# Manual only. Builds and deploys the release branch to gwenda.co.uk.
-# Refuses any other branch. Does not move release, and does not deploy ops.
+# Builds and deploys the release branch to gwenda.co.uk. Refuses any other
+# branch. Does not move release, and does not deploy ops.
+#
+# Content is not copied here. Ops Website > Staging → live copies reviewed staging
+# documents onto production and then starts this workflow to rebuild. A
+# dataset clone would also carry staging drafts (local ops previews) and
+# anything nobody reviewed.
 
 run-name: promote-release-to-production
 
@@ -14,7 +19,7 @@ concurrency:
 
 jobs:
   promote:
-    name: Promote staging to live
+    name: Deploy release to live
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -51,16 +56,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Clone staging dataset onto production
-        env:
-          SANITY_PROJECT_ID: pn5yjro6
-          SANITY_DATASET_SYNC_TOKEN: ${{ secrets.SANITY_DATASET_SYNC_TOKEN }}
-        run: |
-          node scripts/sync-sanity-datasets.mjs \
-            --direction staging-to-production \
-            --confirm production
+        uses: ./.github/actions/npm-install
 
       - name: Compute build metadata
         id: buildmeta
@@ -74,10 +70,6 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile production
 
-      - name: Pull production ops Baserow for the artist build
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:ops:pull -- --github-env --profile production
 
       - name: Deploy production
         uses: ./.github/actions/deploy-pages
@@ -97,7 +89,8 @@ jobs:
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: production
           secrets-profile: production
-          baserow-ops-api-key: ${{ env.BASEROW_API_KEY_PRODUCTION }}
+          snapshot-site: production
+          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "556507"
 
       - name: Ensure apex custom domain
@@ -131,15 +124,25 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
+      # Studio only needs redeploying when its code changed (~30s otherwise).
+      - name: Did Studio change since the last release?
+        id: studio
+        run: |
+          last=$(git describe --tags --abbrev=0 --match '20*' HEAD^ 2>/dev/null || true)
+          if [ -z "$last" ] || ! git diff --quiet "$last" HEAD -- marketing/studio package-lock.json; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Studio unchanged since $last; skipping its deploy."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy production Studio
+        if: steps.studio.outputs.changed == 'true'
         run: npm run studio:deploy
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
           SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
           DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
-          EVENT_ADMIN_URL: https://gwenda.co.uk
-          EVENT_ADMIN_SECRET: ${{ secrets.EVENT_ADMIN_SECRET }}
-          BASEROW_RSVP_GRID_URL: ${{ vars.BASEROW_RSVP_GRID_URL }}
 
       - name: Tag production release
         run: cd marketing/web && node scripts/ci/tag-production-release.mjs
@@ -150,7 +153,7 @@ jobs:
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Release promoted to production","rows":[
+            {"title":"Release deployed to production","rows":[
               ["Commit","[\\`${{ steps.sha.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.sha.outputs.sha }})"],
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Site","https://gwenda.co.uk"]

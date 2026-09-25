@@ -3,7 +3,7 @@ import type { PageHelpTopic } from "../../ui/types";
 export const EVENTS_HELP: PageHelpTopic[] = [
 	{
 		title: "Series",
-		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit name, schedule, the What's on photo, and Publish. You can edit a series even when it has no upcoming nights.",
+		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit name, schedule, and the What's on photo. You can edit a series even when it has no upcoming nights.",
 	},
 	{
 		title: "Schedule",
@@ -39,7 +39,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Default hero",
-		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. The original file is also saved in that series Drive folder. Save, then Update preview.",
+		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. The original file is also saved in that series Drive folder. Saving stages the new framing.",
 	},
 	{
 		title: "Gallery",
@@ -47,10 +47,10 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Google Calendar",
-		body: "Saving a series or a night updates Google Calendar. Update calendar on a saved series sends the upcoming nights again without saving, and without publishing What's on. Save first if the series has unsaved edits.",
+		body: "Saving a series or a night updates Google Calendar. Update calendar on a saved series sends the upcoming nights again without saving. Save first if the series has unsaved edits.",
 	},
 	{
-		title: "Publish",
-		body: "Header Publish opens this workflow for one series. Update preview on Series or Schedule opens the same steps for every series: how many still need a preview, a link to staging What's on, then Push live. The button counts whatever step is left. Update preview writes the staging diary, which shows on refresh without a site rebuild. If What's on already has the event and looks wrong, use Republish preview. Publish the staging site only when you need every page rebuilt. That takes a few minutes, and the page shows its progress.",
+		title: "Preview site and website",
+		body: "Saving puts the event on the preview site (gwenda-staging), so you can check it there. When it's ready, press Put on website: you'll see what changes, then it goes on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
 	},
 ];

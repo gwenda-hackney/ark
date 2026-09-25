@@ -6,6 +6,7 @@ import {
 	navGroupContains,
 } from "./nav-tree.ts";
 import { NAV_ROUTES } from "./nav-routes.ts";
+import { visibleRoutes } from "./nav-tree.ts";
 
 const routes = NAV_ROUTES;
 
@@ -40,8 +41,13 @@ describe("NAV_ROUTES", () => {
 		assert.equal(programme?.heading, true);
 		assert.deepEqual(
 			programme?.children?.map((row) => row.id),
-			["events", "artist", "web"],
+			["events", "artists", "web"],
 		);
+		assert.deepEqual(
+			programme?.children?.find((row) => row.id === "artists")?.children?.map((row) => row.id),
+			["artist", "forms"],
+		);
+		assert.equal(programme?.children?.find((row) => row.id === "web")?.badge, "website");
 		assert.deepEqual(
 			programme?.children?.find((row) => row.id === "events")?.children?.map((row) => row.id),
 			["events-series", "events-schedule"],
@@ -51,7 +57,7 @@ describe("NAV_ROUTES", () => {
 		assert.equal(settings?.heading, true);
 		assert.deepEqual(
 			settings?.children?.map((row) => row.id),
-			["users", "config"],
+			["users", "config", "dev-tools"],
 		);
 	});
 });
@@ -71,9 +77,11 @@ describe("flattenNavRoutes", () => {
 				"events-series",
 				"events-schedule",
 				"artist",
+				"forms",
 				"web",
 				"users",
 				"config",
+				"dev-tools",
 			],
 		);
 	});
@@ -108,6 +116,7 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/artists/new")?.id, "artist");
 		assert.equal(matchActiveRoute(routes, "/artists/3")?.id, "artist");
 		assert.equal(matchActiveRoute(routes, "/web")?.id, "web");
+		assert.equal(matchActiveRoute(routes, "/forms")?.id, "forms");
 		assert.equal(matchActiveRoute(routes, "/")?.id, "home");
 		assert.equal(matchActiveRoute(routes, "/users")?.id, "users");
 	});
@@ -149,5 +158,14 @@ describe("navGroupContains", () => {
 			true,
 		);
 		assert.equal(navGroupContains(events, matchActiveRoute(routes, "/web")), false);
+	});
+});
+
+describe("visibleRoutes", () => {
+	it("hides developer tools from non-admins", () => {
+		const ids = (list: typeof routes) =>
+			list.find((row) => row.id === "settings")?.children?.map((row) => row.id);
+		assert.deepEqual(ids(visibleRoutes(routes, false)), ["users", "config"]);
+		assert.deepEqual(ids(visibleRoutes(routes, true)), ["users", "config", "dev-tools"]);
 	});
 });

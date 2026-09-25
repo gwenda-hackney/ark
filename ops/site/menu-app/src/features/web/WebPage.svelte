@@ -1,55 +1,130 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	/**
+	 * Website, for editors: is gwenda.co.uk up to date, and what is about to
+	 * change. Plain words only; developer tools live on their own admin page.
+	 *
+	 *  1. The website: up to date, updating, or "N changes will appear at 3:40".
+	 *     It updates by itself once edits go quiet; "Update website now" skips the wait.
+	 *  2. Saved but not on the website yet: things saved in ops (or Studio) that
+	 *     nobody has put on the website. Put one, or all, on the website.
+	 */
+	import { onDestroy, onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../../shell";
-	import { BusyOverlay, Button, Card, Dialog, PageHeader } from "../../ui";
+	import { BusyOverlay, Button, Dialog, PageHeader } from "../../ui";
 	import {
-		getWebStatus,
-		type WebStatus,
+		getMe,
+		getReleaseDiff,
+		publishRelease,
+		updateSiteNow,
+		type ReleaseEntry,
+		type SitePendingItem,
+		type SiteStatus,
 	} from "../../lib/api";
-	import { beginSitePublish } from "../../lib/site-publish";
-	import SitePublishMonitor from "./SitePublishMonitor.svelte";
-	import { loginNext } from "../../lib/nav";
-	import { toast } from "../../lib/toast.svelte";
+	import { loginNext, navigate } from "../../lib/nav";
 	import { easeOut, flyMs } from "../../lib/motion";
-	import {
-		buildSyncMetrics,
-		formatWhen,
-		healthLabel,
-		healthTone,
-		shortCommit,
-		siteHost,
-		type MetricTone,
-	} from "../../lib/web-metrics";
+	import { toast } from "../../lib/toast.svelte";
+	import { getSitePendingState, refreshSitePending } from "../../lib/site-pending.svelte";
 
-	let status = $state<WebStatus | null>(null);
+	let unpublished = $state<ReleaseEntry[]>([]);
 	let loaded = $state(false);
 	let loadError = $state("");
-	let promoting = $state(false);
-	let confirmTarget = $state<"staging" | "production" | null>(null);
+	let local = $state(false);
+	let isAdmin = $state(false);
+	let working = $state("");
+	let confirmAll = $state(false);
+	let timer: ReturnType<typeof setInterval> | null = null;
 
-	const staging = $derived(status?.environments.staging ?? null);
-	const production = $derived(status?.environments.production ?? null);
-	const syncMetrics = $derived(
-		staging && production ? buildSyncMetrics(staging, production) : [],
-	);
-	const prodTone = $derived(healthTone(production));
-	const stagingTone = $derived(healthTone(staging));
+	const pendingState = $derived(getSitePendingState());
+	const live = $derived(pendingState.production);
+	const preview = $derived(pendingState.staging);
 
-	function toneIcon(tone: MetricTone): string {
-		if (tone === "up") return "check";
-		if (tone === "down") return "x-circle";
-		if (tone === "warn") return "alert";
-		return "help";
+	function clock(iso: string | null): string {
+		if (!iso) return "";
+		return new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" });
 	}
 
-	async function load() {
+	function when(iso: string | null): string {
+		if (!iso) return "";
+		const date = new Date(iso);
+		const today = new Date();
+		const sameDay = date.toDateString() === today.toDateString();
+		return sameDay
+			? `today at ${clock(iso)}`
+			: date.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+	}
+
+	function changeWord(change: string): string {
+		if (change === "added") return "New";
+		if (change === "removed") return "Removed";
+		return "Changed";
+	}
+
+	function itemLabel(item: SitePendingItem): string {
+		return item.kind === "artist" ? `Artist: ${item.label}` : item.label;
+	}
+
+	function changes(count: number): string {
+		return count === 1 ? "1 change" : `${count} changes`;
+	}
+
+	type Tone = "ok" | "waiting" | "updating" | "failed" | "unknown";
+
+	function statusOf(site: SiteStatus | null): { tone: Tone; title: string; note: string } {
+		if (!site) return { tone: "unknown", title: "Checking the website…", note: "" };
+		if (site.needsHelp) {
+			return {
+				tone: "failed",
+				title: "The website didn't update",
+				note: "We tried twice. Press Try again. If it still doesn't work, tell Dan.",
+			};
+		}
+		if (site.failed && !site.updating) {
+			return {
+				tone: "failed",
+				title: "The website didn't update",
+				note: `We'll try again by itself${site.autoUpdateAt ? ` at about ${clock(site.autoUpdateAt)}` : " soon"}.`,
+			};
+		}
+		if (site.updating) {
+			return {
+				tone: "updating",
+				title: "The website is updating",
+				note: "This usually takes about a minute. You can keep working.",
+			};
+		}
+		if (!site.known) {
+			return {
+				tone: "unknown",
+				title: "Not tracked yet",
+				note: "Changes are tracked from the next website update.",
+			};
+		}
+		if (site.items.length) {
+			return {
+				tone: "waiting",
+				title: `${changes(site.items.length)} will appear on the website${site.autoUpdateAt ? ` at about ${clock(site.autoUpdateAt)}` : " soon"}`,
+				note: "The What's on list already shows them. Event and artist pages update then.",
+			};
+		}
+		return {
+			tone: "ok",
+			title: "The website is up to date",
+			note: site.builtAt ? `Last updated ${when(site.builtAt)}.` : "",
+		};
+	}
+
+	const liveStatus = $derived(statusOf(live));
+	const previewStatus = $derived(statusOf(preview));
+
+	async function loadUnpublished() {
 		try {
-			status = await getWebStatus();
+			const diff = await getReleaseDiff();
+			unpublished = diff.entries;
+			local = diff.local;
 			loadError = "";
 		} catch (err) {
-			const message =
-				err instanceof Error ? err.message : "Failed to load website status.";
+			const message = err instanceof Error ? err.message : "Could not check the website.";
 			if (message.startsWith("auth:")) {
 				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/web"))}`;
 				return;
@@ -60,230 +135,221 @@
 		}
 	}
 
+	async function refreshAll() {
+		await Promise.all([loadUnpublished(), refreshSitePending()]);
+	}
+
 	onMount(() => {
-		void load();
+		void refreshAll();
+		getMe()
+			.then((me) => (isAdmin = Boolean(me.isAdmin)))
+			.catch(() => undefined);
+		// Faster while this page is open, so "updating" turns into "up to date".
+		timer = setInterval(() => void refreshSitePending(), 15_000);
 	});
 
-	async function promote() {
-		if (promoting || !confirmTarget) return;
-		const target = confirmTarget;
-		promoting = true;
+	onDestroy(() => {
+		if (timer) clearInterval(timer);
+	});
+
+	async function updateNow(site: "production" | "staging") {
+		if (working) return;
+		working = `update-${site}`;
 		try {
-			const result = await beginSitePublish(target);
-			confirmTarget = null;
-			if (result.status === "in_progress") {
-				toast.ok("A site publish is already running.");
-			} else if (target === "staging") {
-				toast.ok("Staging site publish started.");
-			} else {
-				toast.ok("Production publish started. Staging is copying onto the live site.");
-			}
-			await load();
+			await updateSiteNow(site);
+			await refreshSitePending();
+			toast.ok(site === "production" ? "Updating the website now." : "Updating the preview site now.");
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not promote.");
+			toast.error(err instanceof Error ? err.message : "Could not start the update.");
 		} finally {
-			promoting = false;
+			working = "";
+		}
+	}
+
+	async function putOnWebsite(ids: string[] | null) {
+		if (working) return;
+		working = ids ? `put-${ids[0]}` : "put-all";
+		try {
+			const result = await publishRelease(ids);
+			confirmAll = false;
+			for (const warning of result.warnings) toast.info(warning);
+			toast.ok(
+				ids
+					? "On the website. Its page updates in a few minutes."
+					: "Everything is on the website. Pages update in a few minutes.",
+			);
+			await refreshAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not put that on the website.");
+		} finally {
+			working = "";
 		}
 	}
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader
-		title="Web"
-		subtitle="Publish to staging, review, then promote to production."
-	>
+	<PageHeader title="Website" subtitle="What gwenda.co.uk shows, and what is about to change.">
 		{#snippet actions()}
-			<Button
-				variant="outline"
-				size="sm"
-				disabled={!loaded || promoting}
-				onclick={() => void load()}
-			>
-				Refresh
-			</Button>
-			<Button
-				variant="outline"
-				size="sm"
-				disabled={!loaded || !status || promoting}
-				onclick={() => {
-					confirmTarget = "staging";
-				}}
-			>
-				Publish staging site
-			</Button>
-			<Button
-				variant="primary"
-				size="sm"
-				disabled={!loaded || !status || promoting}
-				onclick={() => {
-					confirmTarget = "production";
-				}}
-			>
-				Promote to production
-			</Button>
+			{#if isAdmin}
+				<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>Developer tools</Button>
+			{/if}
 		{/snippet}
 	</PageHeader>
 
 	{#if loadError}
 		<p class="error">{loadError}</p>
-	{:else if status && staging && production}
+	{:else if loaded}
 		<div class="ready" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-			<SitePublishMonitor />
-			<Card title="Sync" subtitle="Staging against production.">
-				<ul class="rows">
-					{#each syncMetrics as metric (metric.label)}
-						<li class="row" title={metric.title}>
-							<span class="label">{metric.label}</span>
-							<span class="value {metric.tone}">{metric.value}</span>
-							<span class="mark {metric.tone}" aria-hidden="true">
-								<Icon name={toneIcon(metric.tone)} size={16} />
-							</span>
+			{#if local}
+				<p class="banner">
+					<Icon name="lock" size={16} />
+					<span>This is the test copy of ops. It can't change the website.</span>
+				</p>
+			{/if}
+
+			<!-- 1. The website -->
+			<section class="status {liveStatus.tone}" aria-live="polite">
+				<span class="status-icon" aria-hidden="true">
+					<Icon
+						name={liveStatus.tone === "ok"
+							? "check"
+							: liveStatus.tone === "failed"
+								? "alert"
+								: liveStatus.tone === "updating"
+									? "refresh"
+									: "web"}
+						size={24}
+					/>
+				</span>
+				<div class="status-copy">
+					<h2>{liveStatus.title}</h2>
+					{#if liveStatus.note}<p>{liveStatus.note}</p>{/if}
+					<a class="site-link" href="https://gwenda.co.uk" target="_blank" rel="noreferrer">
+						Open gwenda.co.uk <Icon name="external-link" size={12} />
+					</a>
+				</div>
+				{#if !local && live && (live.items.length || live.failed || !live.known) && !live.updating}
+					<Button
+						variant={liveStatus.tone === "failed" ? "primary" : "outline"}
+						busy={working === "update-production"}
+						disabled={Boolean(working)}
+						onclick={() => void updateNow("production")}
+					>
+						{liveStatus.tone === "failed" ? "Try again" : "Update website now"}
+					</Button>
+				{/if}
+			</section>
+
+			{#if live?.items.length}
+				<ul class="list">
+					{#each live.items as item (item.kind + item.id)}
+						<li>
+							<span class="word {item.change}">{changeWord(item.change)}</span>
+							<span class="name">{itemLabel(item)}</span>
 						</li>
 					{/each}
-					<li class="row">
-						<span class="label">Health</span>
-						<span class="value {prodTone}">
-							{healthLabel(production)}
-							<span class="meta">· {formatWhen(production.health.lastCheckedAt)}</span>
-						</span>
-						<span class="mark {prodTone}" aria-hidden="true">
-							<Icon name={toneIcon(prodTone)} size={16} />
-						</span>
-					</li>
 				</ul>
-				{#if production.health.lastError}
-					<p class="note down">{production.health.lastError}</p>
-				{/if}
-			</Card>
+			{/if}
 
-			<Card title="Sites" subtitle="What each environment is running.">
-				<table class="compare">
-					<thead>
-						<tr>
-							<th></th>
-							<th>Staging</th>
-							<th>Production</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<th scope="row">Site</th>
-							<td>
-								{#if staging.siteUrl}
-									<a href={staging.siteUrl} target="_blank" rel="noreferrer">
-										{siteHost(staging.siteUrl)}
-										<Icon name="external-link" size={12} />
-									</a>
-								{:else}
-									—
-								{/if}
-							</td>
-							<td>
-								{#if production.siteUrl}
-									<a href={production.siteUrl} target="_blank" rel="noreferrer">
-										{siteHost(production.siteUrl)}
-										<Icon name="external-link" size={12} />
-									</a>
-								{:else}
-									—
-								{/if}
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">Branch</th>
-							<td class="mono">{staging.git}</td>
-							<td class="mono">{production.git}</td>
-						</tr>
-						<tr>
-							<th scope="row">Code</th>
-							<td class="mono">{shortCommit(staging.code.commit)}</td>
-							<td class="mono">{shortCommit(production.code.commit)}</td>
-						</tr>
-						<tr>
-							<th scope="row">Docs</th>
-							<td class="tnum">{staging.content.count}</td>
-							<td class="tnum">{production.content.count}</td>
-						</tr>
-						<tr>
-							<th scope="row">Updated</th>
-							<td>{formatWhen(staging.content.updatedAt)}</td>
-							<td>{formatWhen(production.content.updatedAt)}</td>
-						</tr>
-						<tr>
-							<th scope="row">Health</th>
-							<td>
-								<span class="inline {stagingTone}">
-									<Icon name={toneIcon(stagingTone)} size={14} />
-									{healthLabel(staging)}
-								</span>
-							</td>
-							<td>
-								<span class="inline {prodTone}">
-									<Icon name={toneIcon(prodTone)} size={14} />
-									{healthLabel(production)}
-								</span>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-				{#if staging.code.error || staging.content.error || production.code.error || production.content.error}
-					<p class="note down">
-						{staging.code.error ||
-							staging.content.error ||
-							production.code.error ||
-							production.content.error}
+			<!-- 2. Saved but not on the website -->
+			<section class="card" aria-labelledby="unpublished-title">
+				<header class="card-head">
+					<h2 id="unpublished-title">Saved, but not on the website yet</h2>
+					{#if unpublished.length && !local}
+						<Button variant="primary" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = true)}>
+							Put all on the website
+						</Button>
+					{/if}
+				</header>
+				{#if !unpublished.length}
+					<p class="muted">Nothing. Everything you've saved is on the website.</p>
+				{:else}
+					<p class="muted">
+						These are on the preview site but not on the website. Put them on one at a time, or all
+						together.
 					</p>
+					<ul class="list">
+						{#each unpublished as entry (entry.id)}
+							<li>
+								<span class="word {entry.change === 'removed' ? 'removed' : entry.change}">
+									{entry.change === "removed" ? "Remove" : changeWord(entry.change)}
+								</span>
+								<span class="name">{entry.label}</span>
+								{#if !local}
+									<Button
+										variant="outline"
+										size="sm"
+										busy={working === `put-${entry.id}`}
+										disabled={Boolean(working)}
+										onclick={() => void putOnWebsite([entry.id])}
+									>
+										{entry.change === "removed" ? "Take off website" : "Put on website"}
+									</Button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
 				{/if}
-			</Card>
+			</section>
+
+			<!-- Preview site, small -->
+			<section class="preview" aria-label="Preview site">
+				<span class="dot {previewStatus.tone}" aria-hidden="true"></span>
+				<p>
+					<strong>Preview site:</strong>
+					{previewStatus.tone === "ok"
+						? "up to date."
+						: previewStatus.tone === "updating"
+							? "updating."
+							: previewStatus.tone === "failed"
+								? "didn't update."
+								: preview?.items.length
+									? `${changes(preview.items.length)} will show there${preview.autoUpdateAt ? ` at about ${clock(preview.autoUpdateAt)}` : " soon"}.`
+									: "checking…"}
+					<a href="https://gwenda-staging.pages.dev" target="_blank" rel="noreferrer">Open preview site</a>
+				</p>
+				{#if !local && preview && (preview.items.length || preview.failed) && !preview.updating}
+					<button
+						type="button"
+						class="link"
+						disabled={Boolean(working)}
+						onclick={() => void updateNow("staging")}
+					>
+						Update it now
+					</button>
+				{/if}
+			</section>
 		</div>
 	{/if}
-	<BusyOverlay active={!loaded && !loadError} label="Loading…" />
-</div>
 
-<Dialog
-	open={Boolean(confirmTarget)}
-	title={confirmTarget === "staging"
-		? "Publish the staging site"
-		: "Promote staging to production"}
-	onclose={() => {
-		if (!promoting) confirmTarget = null;
-	}}
->
-	{#if confirmTarget === "staging"}
-		<p>
-			Rebuilds every page on the preview site from published documents. This takes a few
-			minutes. Event previews already show on What's on without this rebuild. Progress stays
-			on this page.
+	<Dialog
+		open={confirmAll}
+		title="Put everything on the website?"
+		onclose={() => {
+			if (!working) confirmAll = false;
+		}}
+	>
+		<p class="dialog-copy">
+			{changes(unpublished.length)} will change the website for everyone. The What's on list
+			updates straight away; event pages follow in a few minutes.
 		</p>
-	{:else}
-		<p>Copies staging onto production and rebuilds gwenda.co.uk.</p>
-	{/if}
-	{#snippet footer()}
-		<Button
-			variant="outline"
-			size="sm"
-			disabled={promoting}
-			onclick={() => {
-				confirmTarget = null;
-			}}
-		>
-			Cancel
-		</Button>
-		<Button
-			variant="primary"
-			size="sm"
-			busy={promoting}
-			disabled={promoting}
-			onclick={() => void promote()}
-		>
-			{promoting
-				? "Promoting…"
-				: confirmTarget === "staging"
-					? "Publish staging site"
-					: "Promote to production"}
-		</Button>
-	{/snippet}
-</Dialog>
+		<ul class="dialog-list">
+			{#each unpublished.slice(0, 8) as entry (entry.id)}
+				<li>{entry.change === "removed" ? "Remove" : changeWord(entry.change)}: {entry.label}</li>
+			{/each}
+			{#if unpublished.length > 8}<li>and {unpublished.length - 8} more</li>{/if}
+		</ul>
+		{#snippet footer()}
+			<Button variant="outline" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = false)}>
+				Cancel
+			</Button>
+			<Button variant="primary" size="sm" busy={working === "put-all"} onclick={() => void putOnWebsite(null)}>
+				Put on website
+			</Button>
+		{/snippet}
+	</Dialog>
+	<BusyOverlay active={!loaded} label="Checking the website…" />
+</div>
 
 <style>
 	.page {
@@ -298,7 +364,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
-		max-width: 52rem;
+		max-width: 44rem;
 	}
 
 	.error {
@@ -306,175 +372,256 @@
 		color: var(--destructive);
 	}
 
-	.rows {
-		list-style: none;
+	.muted {
 		margin: 0;
-		padding: 0;
-		display: grid;
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+		line-height: 1.5;
 	}
 
-	.row {
-		display: grid;
-		grid-template-columns: 8.5rem minmax(0, 1fr) 1.25rem;
+	.banner {
+		display: flex;
+		gap: 0.6rem;
 		align-items: center;
-		gap: 0.75rem;
-		padding: 0.55rem 0;
-		border-bottom: 1px solid var(--border);
+		margin: 0;
+		padding: 0.75rem 0.9rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--primary-wash);
 		font-size: var(--text-sm);
 	}
 
-	.row:last-child {
-		border-bottom: 0;
-		padding-bottom: 0;
-	}
-
-	.row:first-child {
-		padding-top: 0;
-	}
-
-	.label {
-		color: var(--muted-foreground);
-		font-weight: 500;
-	}
-
-	.value {
-		min-width: 0;
-		font-weight: 600;
-		letter-spacing: -0.01em;
-	}
-
-	.value .meta {
-		font-weight: 500;
-		color: var(--muted-foreground);
-	}
-
-	.mark {
-		display: inline-flex;
+	/* The website: one big, calm status */
+	.status {
+		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		justify-content: center;
+		gap: 1rem 1.25rem;
+		padding: 1.25rem 1.35rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-xl);
+		background: var(--card);
 	}
 
-	.value.up,
-	.mark.up,
-	.inline.up {
+	.status-icon {
+		display: grid;
+		place-items: center;
+		width: 3rem;
+		height: 3rem;
+		border-radius: 50%;
+		background: var(--muted);
+		color: var(--muted-foreground);
+	}
+
+	.status.ok .status-icon {
+		background: color-mix(in srgb, var(--up) 16%, transparent);
 		color: var(--up);
 	}
 
-	.value.warn,
-	.mark.warn,
-	.inline.warn {
+	.status.waiting,
+	.status.updating {
+		border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+	}
+
+	.status.waiting .status-icon,
+	.status.updating .status-icon {
+		background: var(--primary-wash);
 		color: var(--primary);
 	}
 
-	.value.down,
-	.mark.down,
-	.inline.down,
-	.note.down {
-		color: var(--down);
+	.status.updating .status-icon :global(svg) {
+		animation: spin 1.4s linear infinite;
 	}
 
-	.value.muted,
-	.mark.muted,
-	.inline.muted {
-		color: var(--muted-foreground);
+	.status.failed {
+		border-color: color-mix(in srgb, var(--destructive) 55%, var(--border));
 	}
 
-	.inline {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
+	.status.failed .status-icon {
+		background: var(--destructive-wash);
+		color: var(--destructive);
+	}
+
+	.status-copy {
+		display: grid;
+		flex: 1 1 16rem;
+		gap: 0.3rem;
+		min-width: 0;
+	}
+
+	.status-copy h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.35rem;
 		font-weight: 600;
+		line-height: 1.25;
 	}
 
-	.compare {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: var(--text-sm);
-	}
-
-	.compare th,
-	.compare td {
-		padding: 0.5rem 0.65rem;
-		text-align: left;
-		vertical-align: top;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.compare thead th {
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
+	.status-copy p {
+		margin: 0;
 		color: var(--muted-foreground);
-	}
-
-	.compare tbody th {
-		width: 5.5rem;
-		padding-left: 0;
-		font-weight: 500;
-		color: var(--muted-foreground);
-	}
-
-	.compare tbody td:last-child {
-		padding-right: 0;
-	}
-
-	.compare tbody tr:last-child th,
-	.compare tbody tr:last-child td {
-		border-bottom: 0;
-	}
-
-	.compare a {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
-		color: inherit;
-		text-decoration: none;
-		word-break: break-all;
-	}
-
-	.compare a:hover {
-		color: var(--primary);
-	}
-
-	.mono {
-		font-family: var(--font-mono);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.note {
-		margin: 0.75rem 0 0;
-		font-size: var(--text-sm);
 		line-height: 1.45;
+	}
+
+	.site-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		width: fit-content;
+		color: var(--primary);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	/* Lists of changes */
+	.card {
+		display: grid;
+		gap: 0.75rem;
+		padding: 1.1rem 1.2rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--card);
+	}
+
+	.card-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem 1rem;
+	}
+
+	.card-head h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: var(--text-md);
+		font-weight: 600;
+	}
+
+	.list {
+		display: grid;
+		gap: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--background);
+	}
+
+	.list li {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		min-height: 3rem;
+		padding: 0.5rem 0.9rem;
+	}
+
+	.list li + li {
+		border-top: 1px solid var(--border);
+	}
+
+	.word {
+		flex-shrink: 0;
+		width: 4.5rem;
+		font-size: var(--text-xs);
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--primary);
+	}
+
+	.word.added {
+		color: var(--up);
+	}
+
+	.word.removed {
+		color: var(--destructive);
+	}
+
+	.name {
+		flex: 1;
+		min-width: 0;
+		font-size: 1rem;
+		overflow-wrap: anywhere;
+	}
+
+	/* Preview site: one quiet line */
+	.preview {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem 0.75rem;
 		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+	}
+
+	.preview p {
+		margin: 0;
+	}
+
+	.preview a,
+	.link {
+		color: var(--primary);
+		font-weight: 600;
+	}
+
+	.link {
+		padding: 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.dot {
+		width: 0.6rem;
+		height: 0.6rem;
+		border-radius: 50%;
+		background: var(--muted-foreground);
+	}
+
+	.dot.ok {
+		background: var(--up);
+	}
+
+	.dot.waiting,
+	.dot.updating {
+		background: var(--primary);
+	}
+
+	.dot.failed {
+		background: var(--destructive);
+	}
+
+	.dialog-copy {
+		margin: 0;
+		line-height: 1.5;
+	}
+
+	.dialog-list {
+		margin: 0.75rem 0 0;
+		padding-left: 1.1rem;
+		line-height: 1.6;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.status.updating .status-icon :global(svg) {
+			animation: none;
+		}
 	}
 
 	@media (max-width: 640px) {
-		.row {
-			grid-template-columns: 1fr auto;
-			grid-template-areas:
-				"label mark"
-				"value mark";
-			gap: 0.15rem 0.75rem;
-		}
-
-		.label {
-			grid-area: label;
-		}
-
-		.value {
-			grid-area: value;
-		}
-
-		.mark {
-			grid-area: mark;
-			align-self: center;
-		}
-
-		.compare thead th:nth-child(2),
-		.compare thead th:nth-child(3),
-		.compare td {
-			font-size: var(--text-xs);
+		.list li {
+			flex-wrap: wrap;
 		}
 	}
 </style>

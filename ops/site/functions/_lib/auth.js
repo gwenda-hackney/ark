@@ -1,8 +1,7 @@
 /**
  * Ops auth: Google OAuth (local + production) with optional local admin password.
  * Membership is Baserow Users. No Cloudflare Access.
- * OPS_LOCAL_ADMIN_PW is a local-only gate (conceptually a local admin account);
- * optional OPS_BYPASS_KEY accepts ?access=… as a magic-link into that session.
+ * OPS_LOCAL_ADMIN_PW is a local-only gate (conceptually a local admin account).
  */
 import { canonicalizePath } from "./spa-path.js";
 
@@ -231,6 +230,8 @@ export function isPublicPath(pathname) {
   if (p === "/robots.txt") return true;
   if (p === "/favicon.ico" || p === "/favicon.svg") return true;
   if (p === "/api/auth" || p.startsWith("/api/auth/")) return true;
+  // Scheduler tick from the site-deploy webhook; checks its own bearer secret.
+  if (p === "/api/web/tick") return true;
   return false;
 }
 

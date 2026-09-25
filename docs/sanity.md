@@ -2,7 +2,7 @@
 
 Sanity is Gwenda's **editorial layer**: website data and copy that editors own, distinct from site code in git.
 
-One project (`pn5yjro6`) on [sanity.io/manage](https://www.sanity.io/manage). Two hosted Studios. Two datasets (`staging` and `production`). Growth includes two datasets per project.
+One project (`pn5yjro6`) on [sanity.io/manage](https://www.sanity.io/manage). Two hosted Studios. Two datasets (`staging` and `production`). The project is on the **Free** plan, which allows two datasets and no more, so there is no development dataset: local work uses drafts in `staging`.
 
 ## Environments
 
@@ -10,16 +10,41 @@ One project (`pn5yjro6`) on [sanity.io/manage](https://www.sanity.io/manage). Tw
 |---|------------|---------|----------------|-------------|--------|
 | **Local** | `develop` (WIP) | `npm run dev` | **`staging`** | drafts overlay | localhost Studio |
 | **Staging** | `main` | gwenda-staging.pages.dev | **`staging`** | published only | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) (edit here; review the site) |
-| **Production** | promote only (`release` pointer) | gwenda.co.uk | **`production`** (clone of staging) | published only | [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema; do not edit live content) |
+| **Production** | promote only (`release` pointer) | gwenda.co.uk | **`production`** (copied from staging by ops Release) | published only | [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema; do not edit live content) |
 
-Local Studio and `npm run dev` work against the staging dataset with drafts visible. The hosted staging **site** ignores drafts. Production is a clean copy of staging, then a production build.
+Local Studio and `npm run dev` work against the staging dataset with drafts visible. The hosted staging **site** ignores drafts. Production gets the published staging documents you choose in ops **Website → Staging → live**, then a production build.
 
 ## Workflow
 
 1. **Local** — `npm run studio` and `npm run dev` on `develop`. Leave WIP as drafts. CI verifies. There is no hosted development site.
 2. **Publish**, then **promote to staging** — rebuilds gwenda-staging from published staging documents (and deploys `main` site code).
 3. **Review** https://gwenda-staging.pages.dev.
-4. **Promote to production** — clone **staging** onto **production**, then build and deploy gwenda.co.uk.
+4. **Publish live** — ops **Website → Staging → live** diffs published staging against production, copies what you pick (or everything), then rebuilds gwenda.co.uk.
+
+### Publishing from ops (editor flow)
+
+The ops editor is not technical, so ops uses plain words: *preview site* (gwenda-staging) and *website* (gwenda.co.uk).
+
+1. **Save** an event: it goes on the preview site (published in `staging`).
+2. **Put on website** (event header): shows what changes in plain words, then puts that event on the preview site and copies only its documents (series, nights, removed nights, and anything they reference that changed) to `production`. Skipping the preview check is allowed.
+3. **Delete** asks "Also take it off the website now?" when the event is on the website.
+4. The **Website** page (menu, with a badge) shows whether gwenda.co.uk is up to date, what is waiting, and anything saved but not put on the website ("Put all on the website").
+
+**Builds are batched.** Putting something on the website changes the data at once (What's on reads it live), but static pages (night, series, artist pages) wait for a build. Each build records a snapshot of what it was made from (`scripts/site-build-snapshot.mjs`, config key `site.build_snapshot`, Service `web`, Env = site). Ops compares current data with it: that is the badge count. The site-deploy webhook's cron calls ops `/api/web/tick` every 5 minutes; a site with pending changes and **10 quiet minutes** gets one build. One automatic retry after a failure, then the page asks the editor to press *Try again*. *Update website now* skips the wait. Scheduler state: config key `site.auto_update` (Service `ops`).
+
+### Developer tools (admins)
+
+Settings → Developer tools (`/web/dev`), for emails listed in config `ops.admin_emails` (Service `ops`; everyone in local ops):
+
+- **Content**: published documents that differ, field by field; copy either way (publish to live, or reset staging from live).
+- **Code**: commits on staging that live lacks (webhook `/compare`). Code ships when `release` moves.
+- **Databases**: Baserow production vs its copies (Ops 556507 vs Gwenda Dev 560292; Website 461843 vs Website Staging 564496), table by table; **Copy production over it** runs `baserow-copy.yml`.
+
+### Ops events and local ops
+
+- **Hosted ops:** saving an event stages it (writes its series and nights to `staging`, published). What's on on gwenda-staging reads that live; the rest of the preview site updates after 10 quiet minutes. The website changes only through Put on website or the Website page.
+- **Local ops** (`SITE_ENV=local`): saving writes **drafts** in `staging`, which only the local site shows (`previewDrafts`). Local ops cannot write published staging documents, production, or trigger any deploy (the server returns 403). Studio cannot publish or delete `event` / `eventSeries` documents, so a local draft can never be pushed to staging from Studio; use Discard to clear one.
+- A removal cannot be previewed locally: deleting a night in local ops only drops its draft.
 
 Local `.env` uses `SANITY_DATASET=staging`. Do not edit the production dataset in Studio.
 
@@ -33,8 +58,8 @@ Sanity **robot / API tokens** on this plan are **Viewer**, **Editor**, and **Dep
 |-------|------|-------|----------|
 | `ark-local-editor` | **Editor** | Bitwarden `ark/.env.local` + repo `.env` as `SANITY_API_TOKEN` | Local Studio, seeds. **Never** GitHub. |
 | `ark-ci-viewer` | **Viewer** | GitHub `SANITY_API_TOKEN` | Site builds / content deploys |
-| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub `SANITY_DEPLOY_TOKEN` | Hosted Studio deploys |
-| `ark-ci-dataset-sync` | **Editor** | GitHub `SANITY_DATASET_SYNC_TOKEN` | Clone staging → production |
+| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub + SM `SANITY_DEPLOY_TOKEN` (`.env.secrets`) | Hosted Studio deploys |
+| `ark-ci-dataset-sync` | **Editor** | GitHub `SANITY_DATASET_SYNC_TOKEN` | Manual dataset mirror (`sanity.yml`) |
 
 Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity login`), not the local Editor robot:
 
@@ -63,9 +88,6 @@ All local configuration lives in **repo-root `.env`**. `scripts/with-env.mjs` lo
 |-------------|--------------|
 | `SANITY_PROJECT_ID` | `SANITY_STUDIO_PROJECT_ID` |
 | `SANITY_DATASET` | `SANITY_STUDIO_DATASET` |
-| `EVENT_ADMIN_SECRET` | `SANITY_STUDIO_EVENT_ADMIN_SECRET` |
-| `EVENT_ADMIN_URL` | `SANITY_STUDIO_EVENT_ADMIN_URL` |
-| `BASEROW_RSVP_GRID_URL` | `SANITY_STUDIO_BASEROW_RSVP_URL` |
 | `DEPLOY_WEBHOOK_SECRET` | `SANITY_STUDIO_SITE_DEPLOY_SECRET` |
 
 `marketing/studio/.env.development` and `marketing/studio/.env.production` are stubs only — do not put secrets there.
@@ -83,7 +105,7 @@ Hosted Studio deploys get extra vars from GitHub Actions secrets (see `studio.ym
 
 The project already has `staging` and `production`. Growth allows two datasets. Do not create a third.
 
-Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:web:pull`. See [docs/env.md](env.md).
+Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:secrets:pull`. See [docs/env.md](env.md).
 
 ## Local commands
 
@@ -97,7 +119,7 @@ npm run studio:seed:production   # seed production menu (one-off, CONFIRM built 
 
 ## Schema + content
 
-Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in two datasets: **staging** (local Studio, Dev Studio, ops writes, staging site) and **production** (clone of staging, live site). Do not edit production in Studio.
+Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in two datasets: **staging** (local Studio, Dev Studio, ops writes, staging site) and **production** (published staging documents copied from ops Website → Staging → live, live site). Do not edit production in Studio.
 
 ### Menu seed
 
@@ -138,9 +160,9 @@ npm run sync:sanity-datasets -- --direction production-to-staging --confirm stag
 | Dev Studio | push `marketing/studio/**` to `main` |
 | Prod Studio | ops promote (or `npm run studio:deploy`) |
 | Staging content | publish in Studio, then rebuild gwenda-staging |
-| Production content | clone only (`staging` → `production`), then production build |
+| Production content | ops Website → Staging → live (document copy), then production build |
 | Dataset mirror | GitHub **Sanity** workflow (`sanity.yml`) |
-| **Site rebuild** | Promote to staging (published content), or ops Web promote to production |
+| **Site rebuild** | Staging: automatic after event saves that add pages, or ops Website → Rebuild staging. Live: automatic after publishing from Staging → live |
 
 ## Deploy published content to the website
 
@@ -152,7 +174,7 @@ The static site reads **published** Sanity documents at build time. `npm run dev
 2. Publish when the copy is ready for the review site.
 3. Rebuild staging (ops Web / Dev Studio promote, or merge to `main`). Staging ignores drafts.
 4. Review https://gwenda-staging.pages.dev.
-5. Ops **Web** → **Promote to production**.
+5. Ops **Website → Staging → live**: review the diff, then publish all or selected changes.
 
 Do not edit the production dataset directly.
 
@@ -160,7 +182,7 @@ Do not edit the production dataset directly.
 
 | | Code | Content |
 |---|---|---|
-| Trigger | Staging: merge to `main`. Live: manual workflow from `release` | Publish, then rebuild staging, then Web promote from `release` |
+| Trigger | Staging: merge to `main`. Live: manual workflow from `release` | Publish (or save in ops), then Website → Staging → live |
 | Staging | Push to `main` | Rebuild from published `staging` documents (drafts ignored) |
 | Production | Manual [Web promote](../.github/workflows/web-promote.yml) from `release` | That same run copies `staging` → `production`, then builds |
 
@@ -199,6 +221,6 @@ Local Studio reads deploy vars from `.env` via `scripts/with-env.mjs`. Hosted St
 Production hosted Studio after setup:
 
 ```bash
-npm run studio:deploy   # uses SANITY_DEPLOY_TOKEN (CI secret or local)
+npm run studio:deploy   # uses SANITY_DEPLOY_TOKEN (CI secret, or .env.secrets locally)
 ```
 

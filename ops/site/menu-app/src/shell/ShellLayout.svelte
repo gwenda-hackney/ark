@@ -20,14 +20,15 @@
 	} from "../lib/nav";
 	import { crumbLeaf } from "../lib/crumbs.svelte";
 	import {
-		MOBILE_TABS,
 		hideShellChrome,
 		mobileTabFor,
-		rememberStockPath,
+		mobileTabs,
+		sheetSections,
 		tabHref,
 		type MobileTabId,
 	} from "../lib/mobile-nav";
-	import { matchActiveRoute, navGroupContains } from "../lib/nav-tree";
+	import { matchActiveRoute, navGroupContains, visibleRoutes } from "../lib/nav-tree";
+	import { startSitePendingPolling, websiteBadge } from "../lib/site-pending.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../lib/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
@@ -72,7 +73,8 @@
 	/** Expanded by default — labels visible unless the user collapses the rail. */
 	let open = $state(readRail());
 	let expandedGroups = $state<Record<string, boolean>>(readExpandedGroups());
-	let moreOpen = $state(false);
+	/** Bottom tab whose sheet is open, if any. */
+	let sheet = $state<MobileTabId | null>(null);
 	let me = $state<AuthMe | null>(null);
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
@@ -121,7 +123,19 @@
 			.catch(() => {
 				me = null;
 			});
+		return startSitePendingPolling();
 	});
+
+	const shownRoutes = $derived(visibleRoutes(routes, Boolean(me?.isAdmin)));
+	const badge = $derived(websiteBadge());
+
+	function badgeTitle(tone: string, count: number): string {
+		if (tone === "failed") return "The website didn't update. Open Website for details.";
+		if (tone === "updating") return "The website is updating.";
+		return count === 1
+			? "1 change will appear on the website soon."
+			: `${count} changes will appear on the website soon.`;
+	}
 
 	const editorChrome = $derived(hideShellChrome(path));
 	const printBook = $derived(Boolean(parseShellPath(path).print));
@@ -130,9 +144,11 @@
 	const showEnvBanner = $derived(
 		!printBook && Boolean(me && (me.siteEnv !== "production" || me.risk)),
 	);
-	const currentTab = $derived(moreOpen ? "more" : mobileTabFor(path));
 
 	const active = $derived(matchActiveRoute(routes, path));
+	const tabs = $derived(mobileTabs(shownRoutes));
+	const currentTab = $derived(sheet ?? mobileTabFor(path, routes));
+	const sheetTab = $derived(tabs.find((row) => row.id === sheet) ?? null);
 
 	const mark = $derived(brandTitle.trim().charAt(0).toUpperCase() || "G");
 
@@ -146,7 +162,7 @@
 	);
 
 	function go(next: string): void {
-		moreOpen = false;
+		sheet = null;
 		navigate(next);
 		path = readPath();
 	}
@@ -168,7 +184,6 @@
 	}
 
 	function collapsedGroupHref(item: NavRoute): string {
-		if (item.id === "stock") return tabHref("stock");
 		if (item.id === "lightspeed") return "/lightspeed";
 		const child = item.children?.find((row) => row.path);
 		return child?.path || "/";
@@ -205,11 +220,12 @@
 			return;
 		}
 		event.preventDefault();
-		if (id === "more") {
-			moreOpen = !moreOpen;
+		const tab = tabs.find((row) => row.id === id);
+		if (tab?.path) {
+			go(tab.path);
 			return;
 		}
-		go(tabHref(id));
+		sheet = sheet === id ? null : id;
 	}
 
 	function toggleRail(): void {
@@ -222,8 +238,8 @@
 	}
 
 	$effect(() => {
-		rememberStockPath(path);
-		moreOpen = false;
+		void path;
+		sheet = null;
 	});
 
 	/** Apply before paint so print routes do not flash rail / env banner. */
@@ -233,7 +249,7 @@
 	});
 
 	$effect(() => {
-		if (!phone.matches || editorChrome) moreOpen = false;
+		if (!phone.matches || editorChrome) sheet = null;
 	});
 
 	$effect(() => {
@@ -403,11 +419,20 @@
 					>
 						<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
 						<span class="nav-label">{item.name}</span>
+						{#if item.badge === "website" && badge}
+							<span
+								class="nav-badge {badge.tone}"
+								title={badgeTitle(badge.tone, badge.count)}
+								aria-label={badgeTitle(badge.tone, badge.count)}
+							>
+								{badge.tone === "failed" ? "!" : badge.count}
+							</span>
+						{/if}
 						<span class="tip" aria-hidden="true">{item.name}</span>
 					</a>
 				{/if}
 			{/snippet}
-			{#each routes as item (item.id)}
+			{#each shownRoutes as item (item.id)}
 				{@render navEntry(item)}
 			{/each}
 		</nav>
@@ -499,17 +524,27 @@
 
 	{#if showTabs}
 		<nav class="tabs" aria-label="Primary">
-			{#each MOBILE_TABS as item (item.id)}
+			{#each tabs as item (item.id)}
 				{@const on = currentTab === item.id}
 				<a
 					class="tab"
 					class:on
-					href={item.id === "more" ? "/config" : tabHref(item.id)}
-					aria-current={on && item.id !== "more" ? "page" : undefined}
-					aria-expanded={item.id === "more" ? moreOpen : undefined}
+					href={tabHref(item.id, shownRoutes)}
+					aria-current={on && item.path ? "page" : undefined}
+					aria-expanded={item.path ? undefined : sheet === item.id}
 					onclick={(e) => onTab(item.id, e)}
 				>
-					<span class="tab-icon"><Icon name={item.icon} size={20} /></span>
+					<span class="tab-icon">
+						<Icon name={item.icon} size={20} />
+						{#if item.id === "web" && badge}
+							<span
+								class="tab-badge {badge.tone}"
+								aria-label={badgeTitle(badge.tone, badge.count)}
+							>
+								{badge.tone === "failed" ? "!" : badge.count}
+							</span>
+						{/if}
+					</span>
 					<span class="tab-label">{item.label}</span>
 				</a>
 			{/each}
@@ -517,13 +552,17 @@
 	{/if}
 
 	<MoreSheet
-		open={moreOpen}
-		{path}
+		open={Boolean(sheetTab)}
+		label={sheetTab?.label || "More"}
+		sections={sheet ? sheetSections(sheet, shownRoutes) : []}
+		{active}
+		account={sheet === "more"}
+		onnavigate={onLeafClick}
 		email={sessionLabel}
 		{envSummary}
 		{envDetail}
 		envRisk={Boolean(me?.risk)}
-		onclose={() => (moreOpen = false)}
+		onclose={() => (sheet = null)}
 	/>
 </div>
 
@@ -1005,6 +1044,45 @@
 		opacity: 1;
 	}
 
+	/* "Waiting for the website" count on the Website item. */
+	.nav-badge {
+		display: inline-grid;
+		place-items: center;
+		flex-shrink: 0;
+		min-width: 1.25rem;
+		height: 1.25rem;
+		margin-left: auto;
+		padding: 0 0.35rem;
+		border-radius: var(--radius-pill);
+		background: var(--primary);
+		color: var(--primary-foreground);
+		font-size: 0.7rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		line-height: 1;
+	}
+
+	/* Collapsed rail: a small count on the icon instead of beside the label. */
+	.shell:not(.open) .nav-badge {
+		position: absolute;
+		top: 0.3rem;
+		left: 1.55rem;
+		min-width: 1rem;
+		height: 1rem;
+		padding: 0 0.25rem;
+		font-size: 0.6rem;
+	}
+
+	.nav-badge.updating {
+		background: var(--primary-wash-strong, var(--primary-wash));
+		color: var(--primary);
+	}
+
+	.nav-badge.failed {
+		background: var(--destructive);
+		color: var(--destructive-foreground, #fff);
+	}
+
 	.tip {
 		position: absolute;
 		left: calc(100% + 0.625rem);
@@ -1224,7 +1302,7 @@
 
 		.tabs {
 			display: grid;
-			grid-template-columns: repeat(3, minmax(0, 1fr));
+			grid-template-columns: repeat(5, minmax(0, 1fr));
 			align-items: start;
 			height: var(--bottom-nav-h);
 			padding: 0.35rem 0.4rem env(safe-area-inset-bottom, 0px);
@@ -1258,7 +1336,36 @@
 		}
 
 		.tab-icon {
+			position: relative;
 			display: inline-flex;
+		}
+
+		.tab-badge {
+			position: absolute;
+			top: -0.3rem;
+			left: calc(100% - 0.45rem);
+			display: inline-grid;
+			place-items: center;
+			min-width: 1rem;
+			height: 1rem;
+			padding: 0 0.25rem;
+			border-radius: var(--radius-pill);
+			background: var(--primary);
+			color: var(--primary-foreground);
+			font-size: 0.6rem;
+			font-weight: 700;
+			font-variant-numeric: tabular-nums;
+			line-height: 1;
+		}
+
+		.tab-badge.updating {
+			background: var(--primary-wash-strong, var(--primary-wash));
+			color: var(--primary);
+		}
+
+		.tab-badge.failed {
+			background: var(--destructive);
+			color: var(--destructive-foreground, #fff);
 		}
 
 		.tab-label {

@@ -76,7 +76,7 @@ export async function handleDeploy(
       status: 400,
       body: {
         error:
-          "Production is updated by promoting staging. Use POST /promote from ops.",
+          "Production is published from ops Website > Release, which calls POST /promote.",
       },
     };
   }
@@ -88,7 +88,7 @@ export async function handleDeploy(
       body: {
         ok: true,
         target,
-        phase: target === "production" ? "preview" : "deploy",
+        phase: "deploy",
         alreadyRunning: true,
         runId: inProgress.id,
         runUrl: inProgress.html_url,
@@ -103,7 +103,7 @@ export async function handleDeploy(
     body: {
       ok: true,
       target,
-      phase: target === "production" ? "preview" : "deploy",
+      phase: "deploy",
       runId: run.id,
       runUrl: run.html_url,
       status: run.status,

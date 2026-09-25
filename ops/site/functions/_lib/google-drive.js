@@ -588,7 +588,7 @@ export async function createEventDriveFolder(
   const rootId = await driveEventsRootFolderId(env);
   if (!rootId) {
     const error = new Error(
-      "google.drive_events_folder_id is not set in App Config.",
+      "google.drive_events_folder_id is not set in the config database.",
     );
     error.status = 503;
     throw error;

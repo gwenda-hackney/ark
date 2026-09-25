@@ -1,0 +1,77 @@
+name: Baserow copy
+
+# Copy a production Baserow database over its non-production copy, from the
+# ops Website page (via the site-deploy webhook) or by hand. Production is
+# only read. The copy keeps its database id: tables are reused, rows wiped
+# and re-copied (--force). File values (photos) are not copied.
+#
+#   ops-dev          production Ops DB (556507) → Gwenda Dev copy (local ops)
+#   website-staging  production Website DB (461843) → Website Staging
+#
+# Needs BASEROW_JWT_EMAIL / BASEROW_JWT_PASSWORD in Bitwarden SM: the clone
+# scripts log in to Baserow to create any missing tables and columns.
+
+run-name: baserow-copy-${{ inputs.target }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which copy to overwrite from production
+        required: true
+        type: choice
+        options:
+          - ops-dev
+          - website-staging
+
+concurrency:
+  group: baserow-copy-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    name: Copy production → ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Pull production ops secrets
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env
+
+      - name: Baserow login
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      - name: Copy Ops DB to the Gwenda Dev copy
+        if: inputs.target == 'ops-dev'
+        env:
+          BASEROW_OPS_CLONE_SOURCE_ID: "556507"
+        run: node scripts/clone-baserow-ops-db.mjs --force
+
+      - name: Copy Website DB to Website Staging
+        if: inputs.target == 'website-staging'
+        env:
+          BASEROW_WEB_CLONE_SOURCE_ID: "461843"
+        run: node scripts/clone-baserow-web-db.mjs --target=staging --force
+
+      - name: Summary
+        run: |
+          {
+            echo "### Baserow copy: ${{ inputs.target }}"
+            echo "Production was read, not changed. The copy's rows were replaced."
+          } >> "$GITHUB_STEP_SUMMARY"

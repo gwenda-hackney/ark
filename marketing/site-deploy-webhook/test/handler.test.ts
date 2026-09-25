@@ -83,7 +83,7 @@ describe("handleDeploy", () => {
     });
     const result = await handleDeploy(request, env);
     expect(result.status).toBe(400);
-    expect(String(result.body.error)).toContain("promoting staging");
+    expect(String(result.body.error)).toContain("Website > Release");
   });
 });
 

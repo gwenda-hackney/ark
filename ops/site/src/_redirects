@@ -25,6 +25,9 @@
 /web /index.html 200
 /web/ /index.html 200
 /web/* /index.html 200
+/forms /index.html 200
+/forms/ /index.html 200
+/forms/* /index.html 200
 /tools /index.html 200
 /tools/ /index.html 200
 /tools/* /index.html 200

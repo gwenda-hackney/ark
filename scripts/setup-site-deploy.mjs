@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
  * One-shot setup for Studio → site content deploy:
- *   - generate DEPLOY_WEBHOOK_SECRET (or reuse from .env)
+ *   - generate DEPLOY_WEBHOOK_SECRET (or reuse from .env.secrets) and store it in Secrets Manager
  *   - push GitHub secrets (DEPLOY_WEBHOOK_SECRET, DISPATCH_TOKEN, SANITY_STUDIO_SITE_DEPLOY_URL)
  *   - deploy gwenda-site-deploy-webhook Worker + sync Worker secrets
- *   - write SANITY_STUDIO_SITE_DEPLOY_* into repo-root .env for local Studio
+ *   - write SANITY_STUDIO_SITE_DEPLOY_URL into repo-root .env for local Studio
  *
  * Usage:
  *   npm run setup:site-deploy
  *
  * Requires:
- *   - .env with CLOUDFLARE_API_TOKEN (and optionally DEPLOY_WEBHOOK_SECRET)
+ *   - .env.secrets with CLOUDFLARE_API_TOKEN (npm run env:secrets:pull)
  *   - gh authenticated with repo + workflow scope (gh auth login)
  */
 import { randomBytes } from "node:crypto";
@@ -18,35 +18,13 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadRepoEnv } from "./lib/load-env.mjs";
+import { upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");
 const WORKER_DIR = resolve(ROOT, "marketing/site-deploy-webhook");
 const WORKER_NAME = "gwenda-site-deploy-webhook";
-
-function loadDotEnv() {
-  if (!existsSync(ENV_PATH)) {
-    throw new Error(`Missing ${ENV_PATH} — add CLOUDFLARE_API_TOKEN first.`);
-  }
-
-  for (const line of readFileSync(ENV_PATH, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) {
-      process.env[key] = value;
-    }
-  }
-}
 
 function run(command, args, { input, env, cwd = ROOT, quiet = false } = {}) {
   const result = spawnSync(command, args, {
@@ -204,12 +182,12 @@ function deployHostedDevStudio({ deploySecret, workerUrl, deployStudioToken }) {
 }
 
 async function main() {
-  loadDotEnv();
+  loadRepoEnv();
   assertGhAuth();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (!cloudflareToken) {
-    throw new Error("CLOUDFLARE_API_TOKEN is missing from .env.");
+    throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:secrets:pull.");
   }
 
   let deploySecret = process.env.DEPLOY_WEBHOOK_SECRET?.trim();
@@ -217,7 +195,7 @@ async function main() {
     deploySecret = randomBytes(32).toString("hex");
     console.log("Generated DEPLOY_WEBHOOK_SECRET.");
   } else {
-    console.log("Reusing DEPLOY_WEBHOOK_SECRET from .env.");
+    console.log("Reusing DEPLOY_WEBHOOK_SECRET from .env.secrets.");
   }
 
   const dispatchToken = run("gh", ["auth", "token"], { quiet: true }).trim();
@@ -266,12 +244,11 @@ async function main() {
 
   setGhSecret("SANITY_STUDIO_SITE_DEPLOY_URL", workerUrl);
 
-  writeSiteDeployEnvLines([
-    `DEPLOY_WEBHOOK_SECRET=${deploySecret}`,
-    `SANITY_STUDIO_SITE_DEPLOY_URL=${workerUrl}`,
-    `SANITY_STUDIO_SITE_DEPLOY_SECRET=${deploySecret}`,
-  ]);
-  console.log(`Updated ${ENV_PATH} with site deploy vars.`);
+  if (upsertSmSecret({ key: "DEPLOY_WEBHOOK_SECRET", value: deploySecret }) !== "unchanged") {
+    console.log("Stored DEPLOY_WEBHOOK_SECRET in Secrets Manager. Run npm run env:secrets:pull.");
+  }
+  writeSiteDeployEnvLines([`SANITY_STUDIO_SITE_DEPLOY_URL=${workerUrl}`]);
+  console.log(`Updated ${ENV_PATH} with the site deploy URL.`);
 
   const projectIdRaw = process.env.SANITY_PROJECT_ID?.trim();
   const projectId = projectIdRaw && /^[a-z0-9]+$/.test(projectIdRaw) && projectIdRaw.length <= 12

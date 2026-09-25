@@ -11,10 +11,11 @@
  * Prod Studio + live site    → production dataset (clone of staging)
  *
  * Usage (repo root):
- *   node --env-file=.env scripts/sync-sanity-datasets.mjs --direction staging-to-production --confirm production
- *   node --env-file=.env scripts/sync-sanity-datasets.mjs --direction production-to-staging --confirm staging
+ *   node scripts/with-env.mjs node scripts/sync-sanity-datasets.mjs --direction staging-to-production --confirm production
+ *   node scripts/with-env.mjs node scripts/sync-sanity-datasets.mjs --direction production-to-staging --confirm staging
  *
- * Auth: SANITY_DATASET_SYNC_TOKEN, SANITY_AUTH_TOKEN, or SANITY_API_TOKEN.
+ * Auth: SANITY_DATASET_SYNC_TOKEN, SANITY_API_TOKEN (Editor), or SANITY_AUTH_TOKEN.
+ * with-env maps SANITY_AUTH_TOKEN to the Deploy Studio token, which cannot export datasets.
  * Export/import needs a token that can write the target (personal admin or Editor).
  */
 import { spawnSync } from "node:child_process";
@@ -65,11 +66,11 @@ function parseArgs(argv) {
 function resolveToken() {
   const token =
     process.env.SANITY_DATASET_SYNC_TOKEN?.trim() ||
-    process.env.SANITY_AUTH_TOKEN?.trim() ||
-    process.env.SANITY_API_TOKEN?.trim();
+    process.env.SANITY_API_TOKEN?.trim() ||
+    process.env.SANITY_AUTH_TOKEN?.trim();
   if (!token) {
     throw new Error(
-      "Missing Sanity token. Set SANITY_DATASET_SYNC_TOKEN (preferred), SANITY_AUTH_TOKEN, or SANITY_API_TOKEN.",
+      "Missing Sanity token. Set SANITY_DATASET_SYNC_TOKEN (preferred), SANITY_API_TOKEN, or SANITY_AUTH_TOKEN.",
     );
   }
   return token;

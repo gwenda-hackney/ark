@@ -4,36 +4,13 @@
  *
  * Usage: npm run teardown:ops-access
  */
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const ENV_PATH = resolve(ROOT, ".env");
 
 const APP_NAMES = ["Gwenda ops", "Gwenda ops previews"];
 const APP_DOMAINS = ["gwenda-ops.pages.dev", "*.gwenda-ops.pages.dev"];
 const IDP_NAME = "Google";
-
-function loadDotEnv() {
-  if (!existsSync(ENV_PATH)) return;
-  for (const line of readFileSync(ENV_PATH, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
-}
 
 async function cf(accountId, token, path, { method = "GET", body } = {}) {
   const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
@@ -101,7 +78,7 @@ function matchesApp(app) {
 }
 
 try {
-  loadDotEnv();
+  loadRepoEnv();
   const token = resolveCloudflareDevToken();
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   if (!token || !accountId) {

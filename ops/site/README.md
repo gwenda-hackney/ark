@@ -43,8 +43,9 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/suppliers` | Wholesaler catalog (Stock) |
 | `/sections` | Guest menu sections |
 | `/web` | Website staging vs production, health, promote |
+| `/forms` | People who submitted a site form |
 | `/users` | Who may sign in |
-| `/config` | House pour-cost targets (Baserow App Config) |
+| `/config` | House pour-cost targets (Baserow config database) |
 | `/stock` | Prices & stock (iframe → `/stock/index.html`) |
 | `/breakeven` | Breakeven (iframe) |
 | `/cashflow` | Cashflow (iframe) |
@@ -90,11 +91,11 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Bar stock / ABV catalog | **Baserow** `Inventory` |
 | Wholesalers, product pages, and pack prices | **Baserow** `Suppliers` plus junction `Inventory suppliers` (SKU, pack, trade price, product URL) |
 | Who may sign in to ops | **Baserow** `Users` (Email, Active). Manage in the app at `/users`, or in Baserow. |
-| House pour-cost targets and other non-secret knobs | **Baserow** `App Config` (Name, Value, Env, Service). Edit in the app at `/config`. |
+| House pour-cost targets and other non-secret knobs | **Baserow** `Gwenda Config` database (Name, Value, Env, Service), shared with the website and never copied with Ops data. Edit pour targets at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, then rebuilds `gwenda-staging.pages.dev`. Production is a clone of staging from ops Web. Do not edit production in Studio.
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, then rebuilds `gwenda-staging.pages.dev`. Production gets these documents from ops Website → Staging → live. In local ops this writes drafts only the local site shows. Do not edit production in Studio.
 
 ## Local
 
@@ -107,13 +108,14 @@ npm run dev -w @gwenda/ops
 
 TODO: `:8788` still serves the built SPA, so both ports show a UI. Prefer Wrangler proxying the shell back to Vite so local UI is only the live HMR app.
 
-Requires `BASEROW_API_KEY` plus Google OAuth secrets in **`.env.ops`** (or `.env`). `SANITY_API_TOKEN` and `DEPLOY_WEBHOOK_SECRET` are owned by Ark/Web; ops pull copies them into `.env.ops`. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets) load from Baserow **App Config**. See [docs/config.md](../../docs/config.md).
+Secrets come from **`.env.secrets`** (`npm run env:secrets:pull`, env `local`), mapped to ops runtime names by `ops-dev` / `with-ops-env`. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
 
 ```bash
-cp scripts/env-templates/ops.local.env .env.ops   # if missing
-npm run setup:baserow-ops
+npm run env:secrets:pull
 npm run dev -w @gwenda/ops
 ```
+
+Resending form emails from `/forms` locally calls the marketing dev server (`web.origin` = `http://localhost:4321`), so run `npm run dev -w @gwenda/web` too.
 
 Build:
 
@@ -133,20 +135,6 @@ npm run deploy -w @gwenda/ops
 # or CI via apps.yml
 ```
 
-## Lightspeed item-list export (headless)
+## Lightspeed item list
 
-Ops still matches a **Lightspeed formatted** CSV from Back Office (`Menu` → `Item list` → `Export`). The browser job only downloads that file. It does not stamp SKUs, import items, or archive.
-
-```bash
-npm run lightspeed:export -w @gwenda/ops -- --probe
-npm run lightspeed:export -w @gwenda/ops -- --headed --repeat 2
-npm run lightspeed:export -w @gwenda/ops -- --check-file ops/site/functions/_lib/fixtures/lightspeed-item-library.csv
-```
-
-Credentials live in Secrets Manager as `LIGHTSPEED_BO_EMAIL` / `LIGHTSPEED_BO_PASSWORD` (optional `LIGHTSPEED_BO_TOTP`). Use a dedicated non-owner Back Office user, not the till owner. `npm run env:ops:pull` writes them into `.env.ops`. They are not Cloudflare Pages secrets.
-
-CI: [Lightspeed item export](../../.github/workflows/lightspeed-export.yml) (`workflow_dispatch`). `--preview` POSTs the CSV to `/api/inventory/lightspeed` as `preview` only. That needs `LIGHTSPEED_OPS_EMAIL` on the ops Users list plus `OPS_SESSION_SECRET`.
-
-The live login form uses Cloudflare Turnstile. If that challenge does not auto-pass (common on GitHub-hosted runners), run `--headed` on the nest instead of scheduling the Action.
-
-If the script exits **2** (SSO, 2FA without a stored TOTP, or captcha), stop. The stable path is the paid K-Series **Items GET**, not more browser automation.
+Ops matches a **Lightspeed formatted** CSV exported by hand from Back Office (`Menu` → `Item list` → `Export`) and uploaded at `/lightspeed`. Downloading it with a headless browser does not work: the Back Office login is behind Cloudflare Turnstile. That spike lives on the `archive/lightspeed-headless-export` branch. The durable route is the K-Series Items API.

@@ -6,6 +6,7 @@ import {
 } from "../../_lib/auth.js";
 import { opsConnectionInfo } from "../../_lib/config-store.js";
 import { opsEnv } from "../../_lib/ops-env.js";
+import { isOpsAdmin } from "../../_lib/admin.js";
 
 /** Current session identity and Baserow connection for the shell. */
 export async function onRequestGet(context) {
@@ -33,6 +34,7 @@ export async function onRequestGet(context) {
       databaseLabel: connection.databaseLabel,
       isProductionDb: connection.isProductionDb,
       risk: connection.risk,
+      isAdmin: await isOpsAdmin(env, email).catch(() => false),
     }),
     {
       status: 200,

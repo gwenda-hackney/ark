@@ -2,18 +2,19 @@
 /**
  * Deploy Wi‑Fi captive portal Worker and sync secrets.
  *
- * Needs in repo-root .env:
- *   CLOUDFLARE_API_TOKEN, BASEROW_API_KEY, UNIFI_SITE_MANAGER_API_KEY
- * Optional: UNIFI_CONSOLE_ID (defaults to wrangler.toml / known UDR console)
+ * Needs CLOUDFLARE_API_TOKEN (.env.secrets). UNIFI_SITE_MANAGER_API_KEY and the
+ * production Website Baserow token come from Secrets Manager.
+ * Optional: UNIFI_CONSOLE_ID in .env (defaults to wrangler.toml / known UDR console)
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { loadRepoEnv } from "./lib/load-env.mjs";
+import { loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/wifi-captive-portal");
-const ENV_PATH = resolve(ROOT, ".env");
 const WRANGLER_PATH = resolve(WORKER_DIR, "wrangler.toml");
 
 function run(cmd, args, { cwd = ROOT, env = process.env, input, quiet = false } = {}) {
@@ -34,25 +35,6 @@ function run(cmd, args, { cwd = ROOT, env = process.env, input, quiet = false } 
   return result.stdout ?? "";
 }
 
-function loadDotEnv() {
-  if (!existsSync(ENV_PATH)) return;
-  for (const line of readFileSync(ENV_PATH, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq < 0) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
-}
-
 function readWranglerAccountId() {
   const toml = readFileSync(WRANGLER_PATH, "utf8");
   const match = toml.match(/^account_id\s*=\s*"([^"]+)"/m);
@@ -64,25 +46,6 @@ function readWranglerConsoleId() {
   const toml = readFileSync(WRANGLER_PATH, "utf8");
   const match = toml.match(/^UNIFI_CONSOLE_ID\s*=\s*"([^"]+)"/m);
   return match?.[1] ?? "";
-}
-
-function upsertEnvLines(lines) {
-  const existing = existsSync(ENV_PATH) ? readFileSync(ENV_PATH, "utf8") : "";
-  const keys = lines.map((line) => line.split("=")[0]);
-  const filtered = existing
-    .split("\n")
-    .filter((line) => {
-      const key = line.split("=")[0]?.trim();
-      return !keys.includes(key);
-    })
-    .join("\n")
-    .replace(/\n+$/, "");
-
-  const block = `\n\n# Wi‑Fi captive portal (npm run setup:wifi-portal)\n${lines.join("\n")}\n`;
-  writeFileSync(
-    ENV_PATH,
-    filtered ? `${filtered}${block}` : `${block.trimStart()}\n`,
-  );
 }
 
 function repoSlug() {
@@ -101,21 +64,30 @@ function setGhSecret(name, value) {
   console.log(`Set GitHub secret ${name}.`);
 }
 
+
+/** Production Website token (live Subscribers) and UniFi key, from Secrets Manager. */
+function productionSecrets() {
+  const { values } = loadAppSecretsFromSm("web", "production");
+  return {
+    baserowKey: values.get("BASEROW_API_KEY")?.trim() || "",
+    siteManagerKey: values.get("UNIFI_SITE_MANAGER_API_KEY")?.trim() || "",
+  };
+}
+
 async function main() {
-  loadDotEnv();
+  loadRepoEnv();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
-  const baserowKey = process.env.BASEROW_API_KEY?.trim();
-  const siteManagerKey = process.env.UNIFI_SITE_MANAGER_API_KEY?.trim();
+  const { baserowKey, siteManagerKey } = productionSecrets();
   const consoleId =
     process.env.UNIFI_CONSOLE_ID?.trim() || readWranglerConsoleId();
 
-  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing from .env");
-  if (!baserowKey) throw new Error("BASEROW_API_KEY is missing from .env");
+  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:secrets:pull.");
+  if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   if (!siteManagerKey) {
     throw new Error(
-      "UNIFI_SITE_MANAGER_API_KEY is missing from .env\n" +
-        "Create one at https://unifi.ui.com → Settings → API Keys",
+      "UNIFI_SITE_MANAGER_API_KEY is missing from Secrets Manager.\n" +
+        "Create one at https://unifi.ui.com → Settings → API Keys, then npm run env:web:push -- UNIFI_SITE_MANAGER_API_KEY",
     );
   }
   if (!consoleId) throw new Error("UNIFI_CONSOLE_ID is missing");
@@ -162,12 +134,6 @@ async function main() {
   }
 
   const host = "wifi.gwenda.co.uk";
-  upsertEnvLines([
-    `UNIFI_CONSOLE_ID=${consoleId}`,
-    `UNIFI_SITE_MANAGER_API_KEY=${siteManagerKey}`,
-    `WIFI_CAPTIVE_PORTAL_URL=https://${host}`,
-  ]);
-  console.log(`Updated ${ENV_PATH}.`);
 
   console.log(
     "\nDone.\n" +

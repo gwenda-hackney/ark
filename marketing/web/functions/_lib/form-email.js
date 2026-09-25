@@ -2,6 +2,7 @@ import { resolveSmtpFrom, SMTP_PURPOSE } from "./smtp-from.js";
 import { reportFormError } from "./form-alert.js";
 import { isGmailConfigured, sendGmail } from "./gmail-send.js";
 import { createLogger } from "./log.js";
+import { resolveFormNotifyTo } from "./web-config.js";
 import {
   formatFormEmail,
   formatFormNotifyHtml,
@@ -88,13 +89,13 @@ export function resolveFormReplyTo(form) {
 /**
  * Email a form submission to the form's notify address (e.g. play@).
  * Reply-To is the applicant when we have their email, so ops can reply directly.
- * @returns {Promise<{ ok: true, dryRun?: boolean } | { ok: false, skipped?: boolean, error?: string }>}
+ * @returns {Promise<{ ok: true, to?: string, dryRun?: boolean } | { ok: false, skipped?: boolean, error?: string }>}
  */
 export async function sendFormNotificationEmail(
   env,
   { form, answers, changes, updated = false },
 ) {
-  const to = form?.notifyEmail?.trim();
+  const to = await resolveFormNotifyTo(env, form);
   const from = resolveFormNotifyFrom(env, form, to);
   const isUpdate =
     Boolean(updated) || (Array.isArray(changes) && changes.length > 0);
@@ -177,7 +178,7 @@ export async function sendFormNotificationEmail(
       answerCount: (answers ?? []).filter((row) => row?.value).length,
     });
 
-    return { ok: true };
+    return { ok: true, to };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.event("error", "form_notify_email_failed", {

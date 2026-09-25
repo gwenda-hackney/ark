@@ -3,7 +3,6 @@ import { siteEnvName } from "../../_lib/config-store.js";
 import { deployTargetForEnv } from "../../_lib/menu.js";
 import { syncOpsMenuToSanity } from "../../_lib/publish-sync.js";
 import {
-  dispatchStagingContentDeploy,
   webhookConfig,
   webhookJson,
 } from "../../_lib/site-deploy.js";
@@ -16,7 +15,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   );
   if (target === "production") {
     return jsonResponse(
-      { error: "Production is updated by promoting staging from Web." },
+      { error: "Production is published from Website > Staging → live." },
       400,
     );
   }
@@ -31,37 +30,20 @@ export const onRequestPost = withApiHandler(async (context) => {
   const action = body?.action === "promote" ? "promote" : "deploy";
   if (action === "promote") {
     return jsonResponse(
-      { error: "Promote staging from the Web page, not from recipe publish." },
+      { error: "Publish to production from Website > Staging → live." },
       400,
     );
   }
 
   const sync = await syncOpsMenuToSanity(context.env, { target: "staging" });
-  const changed =
-    (sync.synced?.length || 0) +
-    (sync.created?.length || 0) +
-    (sync.sectionWrites || 0);
-  if (!changed || target === "development") {
-    return jsonResponse({
-      ok: true,
-      target,
-      dataset: "staging",
-      sync,
-      deployed: false,
-    });
-  }
-  const result = await dispatchStagingContentDeploy(context.env);
-  return jsonResponse(
-    {
-      ok: true,
-      target,
-      dataset: "staging",
-      sync,
-      deployed: true,
-      ...result,
-    },
-    202,
-  );
+  // The preview site updates on its own once edits go quiet (site-pending.js).
+  return jsonResponse({
+    ok: true,
+    target,
+    dataset: "staging",
+    sync,
+    deployed: false,
+  });
 });
 
 export const onRequestGet = withApiHandler(async (context) => {

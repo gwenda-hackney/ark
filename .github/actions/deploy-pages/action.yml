@@ -2,7 +2,7 @@ name: Deploy to Cloudflare Pages
 description: Build and deploy the static site to a Cloudflare Pages project
 
 # Runtime Pages secrets are written by sync-pages-secrets.mjs from the job env
-# (env:web:pull and env:ops:pull). secrets-profile picks staging vs production.
+# (env:web:pull). secrets-profile picks staging vs production.
 
 inputs:
   pages-project:
@@ -62,6 +62,12 @@ inputs:
     description: Ops Baserow database id for the featured artist at build time
     required: false
     default: ""
+  snapshot-site:
+    description: >
+      staging or production to record what this build was made from (ops shows
+      changes made since as "waiting for the website"). Empty for previews.
+    required: false
+    default: ""
   secrets-profile:
     description: staging or production. Passed to sync-pages-secrets.mjs.
     required: true
@@ -77,6 +83,18 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Capture content snapshot
+      if: inputs.snapshot-site != '' && inputs.skip-build != 'true'
+      shell: bash
+      run: node scripts/site-build-snapshot.mjs capture --out "$RUNNER_TEMP/site-snapshot.json"
+      env:
+        SANITY_PROJECT_ID: pn5yjro6
+        SANITY_DATASET: ${{ inputs.sanity-dataset }}
+        SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
+        BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
+        BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}
+        BUILD_SHA: ${{ inputs.build-sha }}
+
     - name: Build
       if: inputs.skip-build != 'true'
       shell: bash
@@ -134,7 +152,7 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
-      run: node marketing/web/scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secrets-profile }}"
+      run: node marketing/web/scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secrets-profile }}" --if-changed
 
     - name: Deploy to Cloudflare Pages
       id: pages_deploy
@@ -144,3 +162,8 @@ runs:
         accountId: ${{ inputs.cloudflare-account-id }}
         command: pages deploy dist --project-name=${{ inputs.pages-project }} --commit-hash=${{ inputs.build-sha }} --branch=${{ inputs.deploy-branch }}
         workingDirectory: marketing/web
+
+    - name: Save content snapshot
+      if: inputs.snapshot-site != '' && inputs.skip-build != 'true'
+      shell: bash
+      run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}"

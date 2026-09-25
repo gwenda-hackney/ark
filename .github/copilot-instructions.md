@@ -10,7 +10,7 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 | ----------- | --------- | ------------------------ | ------------------------------ | -------------- | ----------- | ------ |
 | Local       | `develop` | local `npm run dev`      | http://localhost:4321          | `staging`      | drafts      | localhost Studio |
 | Staging     | `main`    | `gwenda-staging`         | https://gwenda-staging.pages.dev | `staging`    | published   | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) |
-| Production  | promote (`release` pointer) | `gwenda` | https://gwenda.co.uk | `production` (clone of staging) | published | [gwenda.sanity.studio](https://gwenda.sanity.studio) |
+| Production  | promote (`release` pointer) | `gwenda` | https://gwenda.co.uk | `production` (copied by ops Release) | published | [gwenda.sanity.studio](https://gwenda.sanity.studio) |
 
 Two datasets only (`staging` + `production`). Local Studio and `npm run dev` share staging with a drafts overlay. Hosted builds ignore drafts.
 
@@ -77,10 +77,11 @@ dist/          Build output (gitignored)
 
 ## Configuration
 
-- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`), then `env:ark:pull` / `env:ops:pull` / `env:web:pull`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
+- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:secrets:pull` (one `.env.secrets` under SM names; `with-env` / `with-ops-env` map them per app). See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
 - Staging gate: `SITE_PASSWORD` (Bitwarden Ark/Web → Cloudflare Pages via `web-secrets.yml`).
-- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (Pages secrets from SM; staging uses Dev website token, production uses `BASEROW_API_KEY_MARKETING_PRODUCTION`). Subscribe, Event Invites, and Form Submissions tables are resolved by name. The token selects the Website database.
-- Ops runtime knobs (pour-cost targets): Baserow **App Config** via `/api/config`. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
+- Secrets in Bitwarden SM follow one rule: `NAME` is shared, `NAME__LOCAL` / `__STAGING` / `__PRODUCTION` overrides it for that env. Per-app key lists and renames live in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). Do not add fallbacks across envs.
+- Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (runtime name; SM `BASEROW_WEBSITE_API_KEY__<ENV>`). Subscribe, Event Invites, and Form Submissions tables are resolved by name. The token selects the Website database.
+- Runtime non-secret config (pour targets, `forms.notify_email`, `web.origin`, Sanity dataset…): Baserow **Gwenda Config** database, read via `shared/config-db.js` with `BASEROW_CONFIG_API_KEY`. Rows are profiled by Env and Service; a runtime only writes its own Env rows. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
 ## What not to do
 

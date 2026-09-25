@@ -1,6 +1,16 @@
 /**
- * Bitwarden Secrets Manager (bws) helpers for ops credential sync.
- * Password Manager (`bw` / env:pull) stays separate — this is machine-account access.
+ * Bitwarden Secrets Manager (bws) for app secrets.
+ * Password Manager (`bw` / env:pull) stays separate. This is machine-account access.
+ *
+ * One rule for every secret:
+ *   NAME              shared value (all envs)
+ *   NAME__LOCAL       override for local
+ *   NAME__STAGING     override for staging
+ *   NAME__PRODUCTION  override for production
+ * The env override wins. Secrets that must differ per env (Baserow tokens) have
+ * no shared NAME, so a missing override is reported instead of falling back.
+ *
+ * Projects (Ark, Ark/Ops, Ark/Web) only record ownership. Pulls merge all three.
  */
 import { spawnSync } from "node:child_process";
 import {
@@ -8,147 +18,206 @@ import {
   existsSync,
   mkdirSync,
   unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 export const DEFAULT_SM_SERVER = "https://vault.bitwarden.eu";
 
-/** Gwenda org Secrets Manager project (Cloudflare tooling). */
 export const DEFAULT_ARK_PROJECT_ID = "b9de9355-0a8f-45e7-b5fe-b4ca00eff281";
-
-/** Gwenda ops Secrets Manager project (machine accounts ark-local / ark-ci). */
 export const DEFAULT_OPS_PROJECT_ID = "ea9095b4-8226-4dec-96c3-b4c8008b0b6b";
-
-/** Gwenda marketing web Secrets Manager project (`Ark/Web`). */
 export const DEFAULT_WEB_PROJECT_ID = "d7881774-3a4c-4603-97e3-b4c8010fd860";
 
-export function resolveArkProjectId(env = process.env) {
-  return env.BWS_ARK_PROJECT_ID?.trim() || DEFAULT_ARK_PROJECT_ID;
+export const SECRET_ENVS = ["local", "staging", "production"];
+export const ENV_OVERRIDE_SEPARATOR = "__";
+
+export function resolveProjectIds(env = process.env) {
+  return {
+    ark: env.BWS_ARK_PROJECT_ID?.trim() || DEFAULT_ARK_PROJECT_ID,
+    ops: env.BWS_OPS_PROJECT_ID?.trim() || DEFAULT_OPS_PROJECT_ID,
+    web: env.BWS_WEB_PROJECT_ID?.trim() || DEFAULT_WEB_PROJECT_ID,
+  };
 }
 
-export function resolveOpsProjectId(env = process.env) {
-  return env.BWS_OPS_PROJECT_ID?.trim() || DEFAULT_OPS_PROJECT_ID;
-}
-
-export function resolveWebProjectId(env = process.env) {
-  return env.BWS_WEB_PROJECT_ID?.trim() || DEFAULT_WEB_PROJECT_ID;
-}
-
-/** Org Cloudflare keys written to `.env.ark` (`npm run env:ark:pull`). */
-export const ARK_ENV_SECRET_KEYS = [
-  "CLOUDFLARE_DEV_API_TOKEN",
-  "CLOUDFLARE_API_TOKEN",
-  "CLOUDFLARE_ACCOUNT_ID",
-];
-
-/**
- * Web-owned keys that ops pull still copies into `.env.ops`.
- * Ownership stays Ark/Web; ops is allowed to read them.
- */
-export const OPS_CONSUMES_WEB_SECRET_KEYS = [
-  "SANITY_API_TOKEN",
-  "DEPLOY_WEBHOOK_SECRET",
-];
-
-/**
- * Secret keys written to `.env.ops` for local ops.
- * SANITY_API_TOKEN and DEPLOY_WEBHOOK_SECRET are owned by Ark/Web.
- *
- * `BASEROW_API_KEY` in `.env.ops` is always the *resolved* local/dev token.
- * SM stores dual-env ops Baserow tokens as:
- *   BASEROW_API_KEY_LOCAL        Gwenda Dev Ops DB (local)
- *   BASEROW_API_KEY_PRODUCTION   Gwenda production Ops DB (Pages)
- * Legacy SM key `BASEROW_API_KEY` is treated as LOCAL only (never for Pages).
- */
-export const OPS_ENV_SECRET_KEYS = [
-  "BASEROW_API_KEY",
-  "GOOGLE_OAUTH_CLIENT_SECRET",
-  "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
-  "OPS_SESSION_SECRET",
-  "OPS_LOCAL_ADMIN_PW",
-  "OPS_BYPASS_KEY",
-  "LIGHTSPEED_BO_EMAIL",
-  "LIGHTSPEED_BO_PASSWORD",
-  "LIGHTSPEED_BO_TOTP",
-  "LIGHTSPEED_OPS_EMAIL",
-  "SANITY_API_TOKEN",
-  "DEPLOY_WEBHOOK_SECRET",
-];
-
-/** SM key names for ops Baserow (suffix = env; never fall back across envs). */
-export const OPS_BASEROW_SM_KEY_LOCAL = "BASEROW_API_KEY_LOCAL";
-export const OPS_BASEROW_SM_KEY_PRODUCTION = "BASEROW_API_KEY_PRODUCTION";
-/** @deprecated Prefer BASEROW_API_KEY_LOCAL. Still accepted as local-only. */
-export const OPS_BASEROW_SM_KEY_LEGACY = "BASEROW_API_KEY";
-
-/**
- * Secret keys written to `.env.web` for local marketing web.
- * SM stores marketing Baserow tokens as:
- *   BASEROW_API_KEY_MARKETING              Gwenda Dev website DB (local)
- *   BASEROW_API_KEY_MARKETING_STAGING      Website Staging DB (staging Pages)
- *   BASEROW_API_KEY_MARKETING_PRODUCTION   Gwenda production website DB
- * Ops uses BASEROW_API_KEY_LOCAL / BASEROW_API_KEY_PRODUCTION (not marketing).
- * Apple Wallet PEMs stay in GitHub / Password Manager for now.
- */
-export const WEB_ENV_SECRET_KEYS = [
-  "BASEROW_API_KEY",
-  "SUBSCRIBE_SECRET",
-  "EVENT_ADMIN_SECRET",
-  "SANITY_API_TOKEN",
-  "DEPLOY_WEBHOOK_SECRET",
-  "SMTP_PASSWORD",
-  "SITE_PASSWORD",
-  "GATE_BYPASS_KEY",
-  "INSTAGRAM_ACCESS_TOKEN",
-  "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-];
-
-/** SM key remapped when writing `.env.web` / Pages env (local + staging). */
-export const WEB_SM_KEY_ALIASES = {
-  BASEROW_API_KEY_MARKETING: "BASEROW_API_KEY",
-  BASEROW_API_KEY_MARKETING_STAGING: "BASEROW_API_KEY",
+/** Owning SM project for each secret base name. */
+export const SECRET_OWNERS = {
+  ark: [
+    "CLOUDFLARE_DEV_API_TOKEN",
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "BASEROW_CONFIG_API_KEY",
+  ],
+  ops: [
+    "BASEROW_OPS_API_KEY",
+    "BASEROW_OPS_DEV_API_KEY",
+    "GOOGLE_SERVICE_ACCOUNT_JSON",
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    "OPS_SESSION_SECRET",
+    "OPS_LOCAL_ADMIN_PW",
+  ],
+  web: [
+    "BASEROW_WEBSITE_API_KEY",
+    "FORMS_ADMIN_SECRET",
+    "SANITY_API_TOKEN",
+    "DEPLOY_WEBHOOK_SECRET",
+    "SUBSCRIBE_SECRET",
+    "SMTP_PASSWORD",
+    "SITE_PASSWORD",
+    "GATE_BYPASS_KEY",
+    "SANITY_DEPLOY_TOKEN",
+    "UNIFI_SITE_MANAGER_API_KEY",
+  ],
 };
 
-/** SM key remapped for production Pages / Mailchimp. */
-export const WEB_PRODUCTION_SM_KEY_ALIASES = {
-  BASEROW_API_KEY_MARKETING_PRODUCTION: "BASEROW_API_KEY",
+/** Local secrets file, written by `npm run env:secrets:pull` under SM names. */
+export const LOCAL_SECRETS_FILE = ".env.secrets";
+
+/**
+ * Runtime keys each app gets. Runtime name = SM name except `rename`
+ * (runtime → SM), where an app reads a secret under its own name. Locally the
+ * rename is applied by scripts/lib/load-env.mjs; CI gets runtime names from
+ * `--github-env`. `pagesSkip` stays out of Cloudflare Pages.
+ */
+export const APP_SECRETS = {
+  ark: {
+    keys: ["CLOUDFLARE_DEV_API_TOKEN", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
+    rename: {},
+    pagesSkip: [],
+  },
+  ops: {
+    keys: [
+      "BASEROW_API_KEY",
+      // Gwenda Dev copy of the Ops DB, so the Website page can compare it.
+      "BASEROW_OPS_DEV_API_KEY",
+      "BASEROW_WEBSITE_API_KEY",
+      "BASEROW_CONFIG_API_KEY",
+      "GOOGLE_OAUTH_CLIENT_SECRET",
+      "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
+      "OPS_SESSION_SECRET",
+      "OPS_LOCAL_ADMIN_PW",
+      "SANITY_API_TOKEN",
+      "DEPLOY_WEBHOOK_SECRET",
+      "FORMS_ADMIN_SECRET",
+    ],
+    rename: {
+      BASEROW_API_KEY: "BASEROW_OPS_API_KEY",
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
+    },
+    pagesSkip: ["OPS_LOCAL_ADMIN_PW"],
+  },
+  web: {
+    keys: [
+      "BASEROW_API_KEY",
+      "BASEROW_OPS_API_KEY",
+      "BASEROW_CONFIG_API_KEY",
+      "SUBSCRIBE_SECRET",
+      "FORMS_ADMIN_SECRET",
+      "SANITY_API_TOKEN",
+      "DEPLOY_WEBHOOK_SECRET",
+      "GMAIL_SERVICE_ACCOUNT_JSON",
+      "SMTP_PASSWORD",
+      "SITE_PASSWORD",
+      "GATE_BYPASS_KEY",
+      "SANITY_DEPLOY_TOKEN",
+      "UNIFI_SITE_MANAGER_API_KEY",
+    ],
+    rename: {
+      BASEROW_API_KEY: "BASEROW_WEBSITE_API_KEY",
+      GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
+    },
+    pagesSkip: ["SANITY_DEPLOY_TOKEN", "UNIFI_SITE_MANAGER_API_KEY"],
+  },
 };
 
-export function webBaserowSmKey(profile = "staging") {
-  if (profile === "production") return "BASEROW_API_KEY_MARKETING_PRODUCTION";
-  if (profile === "local" || profile === "development") {
-    return "BASEROW_API_KEY_MARKETING";
+/** Every SM secret name some app uses, in manifest order (for the local file). */
+export function localSecretNames() {
+  const names = [];
+  for (const app of Object.keys(APP_SECRETS)) {
+    for (const key of APP_SECRETS[app].keys) {
+      const smName = smNameFor(app, key);
+      if (!names.includes(smName)) names.push(smName);
+    }
   }
-  return "BASEROW_API_KEY_MARKETING_STAGING";
+  return names;
+}
+
+export function appSecrets(app) {
+  const spec = APP_SECRETS[app];
+  if (!spec) {
+    throw new Error(`Unknown app "${app}". Use one of: ${Object.keys(APP_SECRETS).join(", ")}.`);
+  }
+  return spec;
+}
+
+export function smNameFor(app, runtimeKey) {
+  return appSecrets(app).rename[runtimeKey] || runtimeKey;
+}
+
+export function ownerOf(smName) {
+  for (const [project, names] of Object.entries(SECRET_OWNERS)) {
+    if (names.includes(smName)) return project;
+  }
+  return null;
+}
+
+export function normalizeSecretEnv(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "development" || raw === "dev") return "local";
+  if (raw === "prod") return "production";
+  if (!SECRET_ENVS.includes(raw)) {
+    throw new Error(`Unknown env "${value}". Use one of: ${SECRET_ENVS.join(", ")}.`);
+  }
+  return raw;
+}
+
+/** Split `NAME__ENV` into base name + env (env is null for shared names). */
+export function parseSecretKey(key) {
+  const idx = key.lastIndexOf(ENV_OVERRIDE_SEPARATOR);
+  if (idx > 0) {
+    const env = key.slice(idx + ENV_OVERRIDE_SEPARATOR.length).toLowerCase();
+    if (SECRET_ENVS.includes(env)) return { name: key.slice(0, idx), env };
+  }
+  return { name: key, env: null };
+}
+
+export function envSecretKey(name, env) {
+  return env ? `${name}${ENV_OVERRIDE_SEPARATOR}${env.toUpperCase()}` : name;
 }
 
 /**
- * Canonical SM key for ops Baserow for a pull/deploy profile.
- * @param {"local" | "development" | "production"} [profile]
+ * Collapse raw SM keys for one env: `NAME__ENV` beats `NAME`.
+ * Overrides for other envs are dropped.
+ * @param {Map<string, string>} raw
+ * @param {string} env
+ * @returns {Map<string, string>} base name → value
  */
-export function opsBaserowSmKey(profile = "local") {
-  if (profile === "production") return OPS_BASEROW_SM_KEY_PRODUCTION;
-  return OPS_BASEROW_SM_KEY_LOCAL;
+export function resolveSecretsForEnv(raw, env) {
+  const target = normalizeSecretEnv(env);
+  const shared = new Map();
+  const overrides = new Map();
+  for (const [key, value] of raw) {
+    if (!String(value ?? "").trim()) continue;
+    const parsed = parseSecretKey(key);
+    if (parsed.env === null) shared.set(parsed.name, value);
+    else if (parsed.env === target) overrides.set(parsed.name, value);
+  }
+  return new Map([...shared, ...overrides]);
 }
 
 /**
- * Resolve the ops Baserow token for a profile from SM.
- * Never cross-falls back: production never uses local, local never uses production.
- * Local may read legacy SM key `BASEROW_API_KEY` when `_LOCAL` is unset.
- * @param {Map<string, string>} allSecrets
- * @param {"local" | "development" | "production"} [profile]
- * @returns {string}
+ * Runtime env for an app: resolved SM values under the app's runtime names.
+ * @returns {{ values: Map<string, string>, missing: string[] }}
  */
-export function resolveOpsBaserowToken(allSecrets, profile = "local") {
-  const preferred = opsBaserowSmKey(profile);
-  const primary = String(allSecrets.get(preferred) ?? "").trim();
-  if (primary) return primary;
-  if (profile === "local" || profile === "development") {
-    return String(allSecrets.get(OPS_BASEROW_SM_KEY_LEGACY) ?? "").trim();
+export function pickAppSecrets(app, resolved) {
+  const spec = appSecrets(app);
+  const values = new Map();
+  const missing = [];
+  for (const key of spec.keys) {
+    const value = resolved.get(smNameFor(app, key));
+    if (value == null || !String(value).trim()) missing.push(key);
+    else values.set(key, String(value));
   }
-  return "";
+  return { values, missing };
 }
 
 const BWS_VERSION = "2.1.0";
@@ -212,10 +281,10 @@ export function ensureBwsInstalled() {
 
 export function runBws(args, { accessToken, serverUrl } = {}) {
   const bin = ensureBwsInstalled();
-  const token = accessToken || process.env.BWS_ACCESS_TOKEN?.trim() || "";
+  const token = accessToken || resolveSmAccessToken();
   if (!token) {
     throw new Error(
-      "Missing Secrets Manager access token. Set ARK_LOCAL_BW_TOKEN in .env (local) or BWS_ACCESS_TOKEN / ARK_CI_BW_TOKEN (CI).",
+      "Missing Secrets Manager access token. Set ARK_LOCAL_BW_TOKEN in .env (local) or BWS_ACCESS_TOKEN (CI).",
     );
   }
   const server = (
@@ -253,33 +322,10 @@ export function resolveSmAccessToken(env = process.env) {
   );
 }
 
-/**
- * @returns {Map<string, string>} key → value for secrets the machine account can read
- */
-export function listSmSecrets({
-  accessToken,
-  serverUrl,
-  projectId = resolveOpsProjectId(),
-} = {}) {
-  const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
-  const map = new Map();
-  for (const [key, entry] of entries) {
-    map.set(key, entry.value);
-  }
-  return map;
-}
-
-/**
- * @returns {Map<string, { id: string, value: string }>}
- */
-export function listSmSecretEntries({
-  accessToken,
-  serverUrl,
-  projectId = resolveOpsProjectId(),
-} = {}) {
-  const token = accessToken || resolveSmAccessToken();
-  const args = projectId ? ["secret", "list", projectId] : ["secret", "list"];
-  const rows = runBws(args, { accessToken: token, serverUrl });
+/** @returns {Map<string, { id: string, value: string }>} */
+export function listSmSecretEntries({ accessToken, serverUrl, projectId } = {}) {
+  if (!projectId) throw new Error("listSmSecretEntries requires projectId");
+  const rows = runBws(["secret", "list", projectId], { accessToken, serverUrl });
   if (!Array.isArray(rows)) {
     throw new Error("Unexpected bws secret list response");
   }
@@ -296,236 +342,76 @@ export function listSmSecretEntries({
 }
 
 /**
- * Merge secret maps. Later maps win.
- * @param {Map<string, string>[]} maps
- * @param {{ onConflict?: (key: string) => void }} [opts]
+ * Raw keys from every project. A key must live in one project only.
+ * @returns {Map<string, string>}
  */
-export function mergeSmSecretMaps(maps, { onConflict } = {}) {
+export function listAllSmSecrets({ accessToken, serverUrl } = {}) {
   const out = new Map();
-  for (const map of maps) {
-    if (!map) continue;
-    for (const [key, value] of map) {
-      if (out.has(key) && out.get(key) !== value) {
-        onConflict?.(key);
+  const seenIn = new Map();
+  for (const [project, projectId] of Object.entries(resolveProjectIds())) {
+    const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
+    for (const [key, entry] of entries) {
+      if (seenIn.has(key)) {
+        throw new Error(
+          `SM key ${key} exists in both ${seenIn.get(key)} and ${project}. Keep it in one project.`,
+        );
       }
-      out.set(key, value);
+      seenIn.set(key, project);
+      out.set(key, entry.value);
     }
   }
   return out;
 }
 
-export function warnSmKeyConflict(key) {
-  console.warn(
-    `SM key ${key} exists in more than one project with different values; later project wins.`,
-  );
-}
-
 /**
- * List secrets from each project and merge (later project ids win).
- * @returns {Map<string, string>}
+ * Resolve an app's runtime secrets for one env straight from SM.
+ * @returns {{ values: Map<string, string>, missing: string[], raw: Map<string, string> }}
  */
-export function listSmSecretsFromProjects({
-  accessToken,
-  serverUrl,
-  projectIds = [],
-  onConflict = warnSmKeyConflict,
-} = {}) {
-  const maps = [];
-  for (const projectId of projectIds.filter(Boolean)) {
-    try {
-      maps.push(listSmSecrets({ accessToken, serverUrl, projectId }));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`Skipping SM project ${projectId}: ${message}`);
-    }
-  }
-  return mergeSmSecretMaps(maps, { onConflict });
-}
-
-export function listMergedOpsSecrets({ accessToken, serverUrl, onConflict } = {}) {
-  return listSmSecretsFromProjects({
-    accessToken,
-    serverUrl,
-    projectIds: [
-      resolveArkProjectId(),
-      resolveWebProjectId(),
-      resolveOpsProjectId(),
-    ],
-    onConflict,
-  });
-}
-
-export function listMergedWebSecrets({ accessToken, serverUrl, onConflict } = {}) {
-  return listSmSecretsFromProjects({
-    accessToken,
-    serverUrl,
-    projectIds: [resolveArkProjectId(), resolveWebProjectId()],
-    onConflict,
-  });
-}
-
-export function pickArkSecrets(allSecrets) {
-  const out = new Map();
-  for (const key of ARK_ENV_SECRET_KEYS) {
-    if (allSecrets.has(key)) out.set(key, allSecrets.get(key) ?? "");
-  }
-  return out;
-}
-
-export function formatArkEnv(values) {
-  const lines = [
-    "# Generated by npm run env:ark:pull from Bitwarden Secrets Manager (Ark).",
-    "# Do not commit. Org Cloudflare tokens. Bootstrap token lives in .env (ARK_LOCAL_BW_TOKEN).",
-    "",
-  ];
-  for (const key of ARK_ENV_SECRET_KEYS) {
-    lines.push(`${key}=${values.get(key) ?? ""}`);
-  }
-  return `${lines.join("\n")}\n`;
-}
-
-export function writeArkEnvFile(path, allSecrets, { dryRun = false } = {}) {
-  const ark = pickArkSecrets(allSecrets);
-  const filled = ARK_ENV_SECRET_KEYS.filter(
-    (key) => String(ark.get(key) ?? "").trim(),
-  );
-  const content = formatArkEnv(ark);
-  if (!dryRun) writeFileSync(path, content);
-  return { wrote: !dryRun, filled, content };
+export function loadAppSecretsFromSm(app, env, { accessToken, serverUrl } = {}) {
+  const raw = listAllSmSecrets({ accessToken, serverUrl });
+  const picked = pickAppSecrets(app, resolveSecretsForEnv(raw, env));
+  return { ...picked, raw };
 }
 
 /**
- * Resolve ops secrets from SM.
- * Remaps the profile Baserow token onto short `BASEROW_API_KEY` for runtime.
- * Always attaches `BASEROW_API_KEY_PRODUCTION` when present (Pages / CI), without
- * using it as the local runtime key.
- * @param {Map<string, string>} allSecrets
- * @param {{ profile?: "local" | "development" | "production" }} [opts]
- * @returns {Map<string, string>}
- */
-export function pickOpsSecrets(allSecrets, { profile = "local" } = {}) {
-  const out = new Map();
-  for (const key of OPS_ENV_SECRET_KEYS) {
-    if (key === "BASEROW_API_KEY") continue;
-    if (allSecrets.has(key)) out.set(key, allSecrets.get(key) ?? "");
-  }
-
-  const resolved = resolveOpsBaserowToken(allSecrets, profile);
-  if (resolved) out.set("BASEROW_API_KEY", resolved);
-
-  const production = String(
-    allSecrets.get(OPS_BASEROW_SM_KEY_PRODUCTION) ?? "",
-  ).trim();
-  if (production) out.set(OPS_BASEROW_SM_KEY_PRODUCTION, production);
-
-  const localCanonical = String(
-    allSecrets.get(OPS_BASEROW_SM_KEY_LOCAL) ?? "",
-  ).trim();
-  if (localCanonical) out.set(OPS_BASEROW_SM_KEY_LOCAL, localCanonical);
-
-  return out;
-}
-
-/**
- * Resolve marketing web secrets from SM (applies Baserow key alias for profile).
- * @param {Map<string, string>} allSecrets
- * @param {{ profile?: "staging" | "production" }} [opts]
- * @returns {Map<string, string>} local key → value
- */
-export function pickWebSecrets(allSecrets, { profile = "staging" } = {}) {
-  const out = new Map();
-  const aliases =
-    profile === "production"
-      ? WEB_PRODUCTION_SM_KEY_ALIASES
-      : profile === "local" || profile === "development"
-        ? { BASEROW_API_KEY_MARKETING: "BASEROW_API_KEY" }
-        : WEB_SM_KEY_ALIASES;
-  for (const [smKey, localKey] of Object.entries(aliases)) {
-    const value = allSecrets.get(smKey);
-    if (value != null && String(value).trim()) {
-      out.set(localKey, value);
-    }
-  }
-  for (const key of WEB_ENV_SECRET_KEYS) {
-    if (out.has(key)) continue;
-    if (allSecrets.has(key)) out.set(key, allSecrets.get(key) ?? "");
-  }
-  return out;
-}
-
-/**
- * Create or update a secret in Secrets Manager.
+ * Create or update a secret in its owning project.
  * @returns {"created" | "updated" | "unchanged"}
  */
-export function upsertSmSecret({
-  key,
-  value,
-  accessToken,
-  serverUrl,
-  projectId = resolveOpsProjectId(),
-  note,
-} = {}) {
+export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}) {
   const trimmedKey = String(key || "").trim();
   const trimmedValue = value == null ? "" : String(value);
   if (!trimmedKey) throw new Error("upsertSmSecret requires key");
   if (!trimmedValue.trim()) throw new Error(`upsertSmSecret ${trimmedKey}: empty value`);
-  if (!projectId) throw new Error("upsertSmSecret requires projectId");
+  const owner = ownerOf(parseSecretKey(trimmedKey).name);
+  if (!owner) {
+    throw new Error(`${trimmedKey} has no owning project. Add it to SECRET_OWNERS first.`);
+  }
+  const projectId = resolveProjectIds()[owner];
 
-  const token = accessToken || resolveSmAccessToken();
-  const entries = listSmSecretEntries({ accessToken: token, serverUrl, projectId });
+  const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
   const existing = entries.get(trimmedKey);
   if (existing?.id) {
     if (existing.value === trimmedValue) return "unchanged";
     const args = ["secret", "edit", existing.id, "--value", trimmedValue];
     if (note) args.push("--note", note);
-    runBws(args, { accessToken: token, serverUrl });
+    runBws(args, { accessToken, serverUrl });
     return "updated";
   }
   const args = ["secret", "create", trimmedKey, trimmedValue, projectId];
   if (note) args.push("--note", note);
-  runBws(args, { accessToken: token, serverUrl });
+  runBws(args, { accessToken, serverUrl });
   return "created";
 }
 
-/**
- * Ensure SM has BASEROW_API_KEY_LOCAL. If only the legacy bare BASEROW_API_KEY
- * exists, copy it to _LOCAL (does not delete the legacy key).
- * @returns {"created" | "updated" | "unchanged" | "skipped"}
- */
-export function ensureOpsBaserowLocalSmKey({
-  allSecrets,
-  accessToken,
-  serverUrl,
-  projectId = resolveOpsProjectId(),
-} = {}) {
-  const secrets = allSecrets || new Map();
-  const local = String(secrets.get(OPS_BASEROW_SM_KEY_LOCAL) ?? "").trim();
-  if (local) return "unchanged";
-  const legacy = String(secrets.get(OPS_BASEROW_SM_KEY_LEGACY) ?? "").trim();
-  if (!legacy) return "skipped";
-  return upsertSmSecret({
-    key: OPS_BASEROW_SM_KEY_LOCAL,
-    value: legacy,
-    accessToken,
-    serverUrl,
-    projectId,
-    note: "Gwenda Dev Ops DB token (renamed from BASEROW_API_KEY). Pages uses BASEROW_API_KEY_PRODUCTION.",
-  });
-}
-
-/** Delete a secret by key within a project. @returns {boolean} true if deleted */
-export function deleteSmSecretByKey({
-  key,
-  accessToken,
-  serverUrl,
-  projectId = resolveOpsProjectId(),
-} = {}) {
+/** Delete a secret by key from whichever project holds it. @returns {boolean} */
+export function deleteSmSecretByKey({ key, accessToken, serverUrl } = {}) {
   const trimmedKey = String(key || "").trim();
   if (!trimmedKey) throw new Error("deleteSmSecretByKey requires key");
-  const token = accessToken || resolveSmAccessToken();
-  const entries = listSmSecretEntries({ accessToken: token, serverUrl, projectId });
-  const existing = entries.get(trimmedKey);
-  if (!existing?.id) return false;
-  runBws(["secret", "delete", existing.id], { accessToken: token, serverUrl });
-  return true;
+  for (const projectId of Object.values(resolveProjectIds())) {
+    const existing = listSmSecretEntries({ accessToken, serverUrl, projectId }).get(trimmedKey);
+    if (!existing?.id) continue;
+    runBws(["secret", "delete", existing.id], { accessToken, serverUrl });
+    return true;
+  }
+  return false;
 }

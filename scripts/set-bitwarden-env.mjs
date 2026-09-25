@@ -4,7 +4,6 @@
  *
  * Usage:
  *   npm run env:set -- SANITY_API_TOKEN 'sk...'
- *   npm run env:set -- --env staging SITE_PASSWORD '...'
  *   npm run env:set -- --no-pull CLOUDFLARE_API_TOKEN '...'
  */
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";

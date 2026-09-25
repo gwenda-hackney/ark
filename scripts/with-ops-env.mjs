@@ -1,28 +1,15 @@
 #!/usr/bin/env node
 /**
- * Run a command after loading repo-root `.env`, `.env.ark`, then `.env.ops`
- * (ops wins). Missing files are skipped so CI can inject secrets another way.
+ * Run a command with the ops app env: repo-root `.env` plus `.env.secrets`
+ * under ops runtime names. Missing files are skipped so CI can inject secrets
+ * another way.
  *
  *   node scripts/with-ops-env.mjs node scripts/setup-baserow-ops.mjs
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-
-function loadEnvFile(path, { override = false } = {}) {
-  if (!existsSync(path)) return;
-  for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-    if (override || !process.env[key]) process.env[key] = value;
-  }
-}
-
-loadEnvFile(join(root, ".env"), { override: false });
-loadEnvFile(join(root, ".env.ark"), { override: true });
-loadEnvFile(join(root, ".env.ops"), { override: true });
+loadRepoEnv({ app: "ops", override: true });
 
 const args = process.argv.slice(2);
 if (!args.length) {

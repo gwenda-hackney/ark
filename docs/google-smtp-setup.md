@@ -4,7 +4,7 @@ Use this when wiring **RSVP confirmation emails** and **form mail** through **on
 
 Check boxes in your editor (`- [ ]` → `- [x]`), or print this page.
 
-**Related:** repo-root `.env` · `web/functions/_lib/smtp-from.js` · Sanity `form` From / Reply-To · `npm run setup:event-ops`
+**Related:** repo-root `.env` · `web/functions/_lib/smtp-from.js` · Sanity `form` From / Reply-To
 
 ---
 
@@ -109,13 +109,13 @@ Do **not** put your normal Google password in `.env`. Use the App Password only.
 
 | Value | Where |
 |-------|--------|
-| `SMTP_PASSWORD` | Secrets Manager → `.env.web` / Pages secret (`npm run env:web:push`) |
+| `SMTP_PASSWORD` | Secrets Manager → `.env.secrets` / Pages secret (`npm run env:web:push`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` | Wrangler `[vars]` (and local `.env` for overrides) |
 | Form From / Reply-To / notify | Sanity form fields (`play@gwenda.co.uk`) |
 | Ops alerts | Wrangler `ALERT_EMAIL` (`alerts@gwenda.co.uk`) |
 | RSVP From | Wrangler `SMTP_FROM_EVENTS` |
 
-In repo-root `.env` / `.env.web`, only the password needs to be filled for Secrets Manager:
+In Secrets Manager (pulled to `.env.secrets`), only the password needs to be filled for Secrets Manager:
 
 ```bash
 SMTP_PASSWORD=your-16-char-app-password

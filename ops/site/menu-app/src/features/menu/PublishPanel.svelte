@@ -60,7 +60,7 @@
 
 		<p class="note">
 			Writes the staging dataset, then rebuilds the preview site. Production is
-			a copy of staging, promoted from Web.
+			updated from Website → Staging → live after you review it.
 		</p>
 
 		<div class="status">

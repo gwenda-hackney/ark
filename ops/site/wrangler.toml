@@ -3,9 +3,9 @@ pages_build_output_dir = "src"
 compatibility_date = "2026-07-01"
 
 # Table ids are resolved at runtime by name from the Baserow catalog.
-# Production Ops DB only. Local uses BASEROW_OPS_DATABASE_ID from .env.ops / .dev.vars
+# Production Ops DB only. Local uses BASEROW_OPS_DATABASE_ID from .env / .dev.vars
 # (Gwenda Dev workspace clone). BASEROW_API_KEY stays a Pages secret (prod token).
-# Non-secret knobs live in Baserow App Config.
+# Non-secret knobs live in the Baserow config database (docs/config.md).
 [vars]
 SITE_ENV = "production"
 SANITY_PROJECT_ID = "pn5yjro6"

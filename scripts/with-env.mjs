@@ -1,41 +1,19 @@
 #!/usr/bin/env node
 /**
- * Run a command after loading repo-root `.env`, `.env.ark`, then `.env.web`.
- * Skips missing files so CI can inject env vars via workflow secrets instead.
- *
- * Load order: `.env` then `.env.ark` then `.env.web` (web wins). Marketing
- * secrets come from Secrets Manager via `npm run env:web:pull`. Org Cloudflare
- * comes from `env:ark:pull`. Studio, web, and CLI share this loader; root names
- * map to SANITY_STUDIO_* aliases (see deriveStudioEnv).
+ * Run a command with the web app env: repo-root `.env` plus `.env.secrets`
+ * (`npm run env:secrets:pull`) under web runtime names. Missing files are
+ * skipped so CI can inject env vars via workflow secrets instead. Studio, web,
+ * and CLI share this loader; root names map to SANITY_STUDIO_* aliases (see
+ * deriveStudioEnv).
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
-
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const envPath = join(root, ".env");
-const arkEnvPath = join(root, ".env.ark");
-const webEnvPath = join(root, ".env.web");
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 function setEnvIfMissing(key, value) {
   // Treat empty string as unset so a blank shell export does not block .env.
   if (value !== undefined && value !== "" && !process.env[key]) {
     process.env[key] = value;
   }
-}
-
-function applyDotEnv(path, { override = false } = {}) {
-  if (!existsSync(path)) return false;
-  for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-    if (override) {
-      if (value !== undefined && value !== "") process.env[key] = value;
-    } else {
-      setEnvIfMissing(key, value);
-    }
-  }
-  return true;
 }
 
 function copyEnvIfMissing(target, source) {
@@ -68,29 +46,11 @@ function deriveStudioEnv() {
   }
 
   copyEnvIfMissing("SANITY_STUDIO_PROJECT_ID", "SANITY_PROJECT_ID");
-  copyEnvIfMissing("SANITY_STUDIO_EVENT_ADMIN_SECRET", "EVENT_ADMIN_SECRET");
-  copyEnvIfMissing("SANITY_STUDIO_EVENT_ADMIN_URL", "EVENT_ADMIN_URL");
-  copyEnvIfMissing("SANITY_STUDIO_BASEROW_RSVP_URL", "BASEROW_RSVP_GRID_URL");
   copyEnvIfMissing("SANITY_STUDIO_SITE_DEPLOY_SECRET", "DEPLOY_WEBHOOK_SECRET");
   copyEnvIfMissing("SANITY_STUDIO_SITE_DEPLOY_URL", "SITE_DEPLOY_WEBHOOK_URL");
 }
 
-applyDotEnv(envPath, { override: false });
-applyDotEnv(arkEnvPath, { override: true });
-if (applyDotEnv(webEnvPath, { override: true })) {
-  // Quiet: web secrets override shared .env / .env.ark (same pattern as ops).
-}
-
-// Ops Baserow is a different token from the marketing site. Keep it on its
-// own name so the website can read the wall artist without replacing BASEROW_API_KEY.
-const opsEnvPath = join(root, ".env.ops");
-if (existsSync(opsEnvPath)) {
-  const opsEnv = Object.fromEntries(
-    parseDotEnv(readFileSync(opsEnvPath, "utf8")),
-  );
-  setEnvIfMissing("BASEROW_OPS_API_KEY", opsEnv.BASEROW_API_KEY);
-  setEnvIfMissing("BASEROW_OPS_DATABASE_ID", opsEnv.BASEROW_OPS_DATABASE_ID);
-}
+loadRepoEnv({ app: "web", override: true });
 
 deriveStudioEnv();
 

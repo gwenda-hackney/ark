@@ -4,8 +4,8 @@
  * and pull ABV from those pages (Hills Prospect embeds AddFil_…_ABV).
  *
  * Usage:
- *   node --env-file=.env scripts/enrich-ops-inventory-suppliers.mjs
- *   node --env-file=.env scripts/enrich-ops-inventory-suppliers.mjs --dry-run
+ *   node scripts/with-ops-env.mjs node scripts/enrich-ops-inventory-suppliers.mjs
+ *   node scripts/with-ops-env.mjs node scripts/enrich-ops-inventory-suppliers.mjs --dry-run
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";

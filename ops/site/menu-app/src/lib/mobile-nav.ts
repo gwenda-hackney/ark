@@ -1,22 +1,92 @@
 import { isEditorPath, parseShellPath } from "../../../functions/_lib/spa-path.js";
+import type { NavRoute } from "../shell/types";
+import { NAV_ROUTES } from "./nav-routes.ts";
+import { flattenNavRoutes, matchActiveRoute } from "./nav-tree.ts";
 
-export type MobileTabId = "home" | "stock" | "more";
+/**
+ * Phone tab bar, built from the side rail so the two never drift apart.
+ * Home and Website go straight to their page. Service and Programme open a
+ * sheet listing that rail section. More lists every other section.
+ */
+export type MobileTabId = "home" | "service" | "programme" | "web" | "more";
 
 export type MobileTab = {
 	id: MobileTabId;
 	label: string;
 	icon: string;
-	/** Fallback href when the tab is a real destination. */
-	path: string;
+	/** Set on tabs that are a page. Tabs without a path open a sheet. */
+	path?: string;
 };
 
-export const MOBILE_TABS: MobileTab[] = [
-	{ id: "home", label: "Home", icon: "home", path: "/" },
-	{ id: "stock", label: "Stock", icon: "stock", path: "/inventory" },
-	{ id: "more", label: "More", icon: "more", path: "/config" },
-];
+/** Rail leaves with a tab of their own, left out of every sheet. */
+const PAGE_TABS: MobileTabId[] = ["home", "web"];
+/** Rail sections with a tab of their own. */
+const SECTION_TABS: MobileTabId[] = ["service", "programme"];
 
-const STOCK_PATH_KEY = "ops.stock-path";
+function routeName(routes: NavRoute[], id: string, fallback: string): string {
+	return flattenAll(routes).find((row) => row.id === id)?.name || fallback;
+}
+
+function flattenAll(routes: NavRoute[]): NavRoute[] {
+	return routes.flatMap((row) => [row, ...flattenAll(row.children || [])]);
+}
+
+export function mobileTabs(routes: NavRoute[] = NAV_ROUTES): MobileTab[] {
+	return [
+		{ id: "home", label: "Home", icon: "home", path: "/" },
+		{ id: "service", label: routeName(routes, "service", "Service"), icon: "menu" },
+		{ id: "programme", label: routeName(routes, "programme", "Programme"), icon: "events" },
+		{ id: "web", label: routeName(routes, "web", "Website"), icon: "web", path: "/web" },
+		{ id: "more", label: "More", icon: "more" },
+	];
+}
+
+function withoutPageTabs(routes: NavRoute[]): NavRoute[] {
+	const out: NavRoute[] = [];
+	for (const row of routes) {
+		if ((PAGE_TABS as string[]).includes(row.id)) continue;
+		if (row.children?.length) {
+			const children = withoutPageTabs(row.children);
+			if (children.length) out.push({ ...row, children });
+		} else {
+			out.push(row);
+		}
+	}
+	return out;
+}
+
+/** Rail sections listed in a tab's sheet. Empty for tabs that are a page. */
+export function sheetSections(id: MobileTabId, routes: NavRoute[] = NAV_ROUTES): NavRoute[] {
+	const rest = withoutPageTabs(routes);
+	if ((SECTION_TABS as string[]).includes(id)) return rest.filter((row) => row.id === id);
+	if (id === "more") return rest.filter((row) => !(SECTION_TABS as string[]).includes(row.id));
+	return [];
+}
+
+/** First page in a tab, for its plain link. */
+export function tabHref(id: MobileTabId, routes: NavRoute[] = NAV_ROUTES): string {
+	const tab = mobileTabs(routes).find((row) => row.id === id);
+	if (tab?.path) return tab.path;
+	return flattenNavRoutes(sheetSections(id, routes))[0]?.path || "/";
+}
+
+export function mobileTabFor(path: string, routes: NavRoute[] = NAV_ROUTES): MobileTabId {
+	const leaf = matchActiveRoute(routes, path);
+	if (!leaf) return "more";
+	if ((PAGE_TABS as string[]).includes(leaf.id)) return leaf.id as MobileTabId;
+	const section = routes.find((row) =>
+		flattenNavRoutes([row]).some((child) => child.id === leaf.id),
+	);
+	if (section && (SECTION_TABS as string[]).includes(section.id)) {
+		return section.id as MobileTabId;
+	}
+	return "more";
+}
+
+export function hideShellChrome(path: string): boolean {
+	const route = parseShellPath(path);
+	return Boolean(route.print) || isEditorPath(path);
+}
 
 export type ToolId = "breakeven" | "cashflow" | "stock";
 
@@ -52,53 +122,4 @@ export function toolFrameFor(path: string): (typeof TOOL_FRAMES)[ToolId] {
 	const route = parseShellPath(path);
 	const id = isToolId(route.tool) ? route.tool : "breakeven";
 	return TOOL_FRAMES[id];
-}
-
-export function mobileTabFor(path: string): MobileTabId {
-	const page = parseShellPath(path).page;
-	if (page === "inventory" || page === "suppliers") return "stock";
-	if (
-		page === "config" ||
-		page === "menu" ||
-		page === "sections" ||
-		page === "users" ||
-		page === "web" ||
-		page === "events" ||
-		page === "artists" ||
-		page === "lightspeed" ||
-		page === "tools"
-	)
-		return "more";
-	return "home";
-}
-
-export function hideShellChrome(path: string): boolean {
-	const route = parseShellPath(path);
-	return Boolean(route.print) || isEditorPath(path);
-}
-
-export function readStockPath(): string {
-	try {
-		const value = localStorage.getItem(STOCK_PATH_KEY);
-		if (value === "/inventory") return value;
-	} catch {
-		/* ignore */
-	}
-	return "/inventory";
-}
-
-export function rememberStockPath(path: string): void {
-	const page = parseShellPath(path).page;
-	if (page !== "inventory") return;
-	try {
-		localStorage.setItem(STOCK_PATH_KEY, "/inventory");
-	} catch {
-		/* ignore */
-	}
-}
-
-export function tabHref(id: MobileTabId): string {
-	if (id === "stock") return readStockPath();
-	if (id === "more") return "/config";
-	return "/";
 }

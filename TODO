@@ -6,7 +6,7 @@
  - [ ] Review / tidy `ops/site/functions/api/inventory/lightspeed.js` — one handler for preview/save/archive/link/add/stamp-skus; messy, needs a proper split and pass
 
 
-~~configuration screen for common configs - target pour cost, etc.~~ → `/config` + Baserow App Config
+~~configuration screen for common configs - target pour cost, etc.~~ → `/config` + Baserow Gwenda Config
 
 - [ ] Redeploy hosted Studio after `DEPLOY_WEBHOOK_SECRET` rotation (Studio still has old `SANITY_STUDIO_SITE_DEPLOY_SECRET`; Worker/GitHub/local already updated)
 

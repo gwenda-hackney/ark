@@ -8,6 +8,8 @@ node_modules/
 .env.web.bak
 .env.ark
 .env.ark.bak
+.env.secrets
+.env.secrets.bak
 .baserow-jwt.json
 .baserow-ops-dev.json
 .baserow-web-dev.json
@@ -30,7 +32,6 @@ ops/site/src/_app/
 ops/site/src/index.html
 
 ops/site/menu-app/node_modules/
-ops/site/scripts/.lightspeed-export/
 .astro/
 /src/env.d.ts
 ops/**/.venv/

@@ -1,46 +1,63 @@
 <script lang="ts">
-	/** Phone overflow: configuration and sign out. */
+	/**
+	 * Phone sheet for one bottom tab. Lists the rail sections it is given, so it
+	 * always matches the side nav. More also shows the signed-in account.
+	 */
 	import { fade, fly } from "svelte/transition";
 	import Icon from "./Icon.svelte";
-	import { isEventsScheduleNavPath } from "../lib/nav-tree";
+	import type { NavRoute } from "./types";
 
 	function easeOut(t: number): number {
 		return 1 - Math.pow(1 - t, 3.2);
 	}
 
+	type Group = { id: string; name: string; rows: NavRoute[] };
+
 	let {
 		open = false,
-		path = "/",
+		label = "More",
+		sections = [],
+		active = null,
+		account = false,
 		email = "",
 		envSummary = "",
 		envDetail = "",
 		envRisk = false,
+		onnavigate,
 		onclose,
 	}: {
 		open?: boolean;
-		path?: string;
+		label?: string;
+		sections?: NavRoute[];
+		active?: NavRoute | null;
+		/** Show the environment, signed-in email and Sign out. */
+		account?: boolean;
 		email?: string;
 		envSummary?: string;
 		envDetail?: string;
 		envRisk?: boolean;
+		onnavigate: (event: MouseEvent, href: string) => void;
 		onclose: () => void;
 	} = $props();
 
-	const onConfig = $derived(path === "/config" || path.startsWith("/config/"));
-	const onMenu = $derived(path === "/menu" || path.startsWith("/menu/"));
-	const onSections = $derived(
-		path === "/sections" || path.startsWith("/sections/"),
-	);
-	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
-	const onWeb = $derived(path === "/web" || path.startsWith("/web/"));
-	const eventsPath = $derived(path.split("?")[0] ?? "/");
-	const onSchedule = $derived(isEventsScheduleNavPath(path));
-	const onSeries = $derived(
-		(eventsPath === "/events" || eventsPath.startsWith("/events/")) && !onSchedule,
-	);
-	const onArtist = $derived(
-		eventsPath === "/artists" || eventsPath.startsWith("/artists/"),
-	);
+	/** Sub-groups (Menu, Stock…) get their own heading; loose pages sit under the section name. */
+	const groups = $derived.by(() => {
+		const out: Group[] = [];
+		for (const section of sections) {
+			const loose: NavRoute[] = [];
+			const nested: Group[] = [];
+			for (const child of section.children || [section]) {
+				if (child.children?.length) {
+					nested.push({ id: child.id, name: child.name, rows: child.children });
+				} else if (child.path) {
+					loose.push(child);
+				}
+			}
+			if (loose.length) out.push({ id: section.id, name: section.name, rows: loose });
+			out.push(...nested);
+		}
+		return out;
+	});
 </script>
 
 {#if open}
@@ -56,159 +73,67 @@
 			class="sheet"
 			role="dialog"
 			aria-modal="true"
-			aria-label="More"
+			aria-label={label}
 			in:fly={{ y: 28, duration: 280, easing: easeOut }}
 			out:fly={{ y: 20, duration: 180, easing: easeOut }}
 		>
 			<div class="grab" aria-hidden="true"></div>
-			<nav class="links">
-				<p class="heading">Lightspeed</p>
-				<a class="row" href="/lightspeed">
-					<span class="icon"><Icon name="lightspeed" size={18} /></span>
-					<span class="copy">
-						<span class="label">Reconcile</span>
-						<span class="hint">Match a Lightspeed item list</span>
-					</span>
-				</a>
-				<a class="row" href="/lightspeed/export">
-					<span class="icon"><Icon name="upload" size={18} /></span>
-					<span class="copy">
-						<span class="label">Export</span>
-						<span class="hint">Item import for Lightspeed</span>
-					</span>
-				</a>
-				<p class="heading">Menu</p>
-				<a
-					class="row"
-					class:on={onMenu}
-					href="/menu"
-					aria-current={onMenu ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="recipes" size={18} /></span>
-					<span class="copy">
-						<span class="label">Menu items</span>
-						<span class="hint">Drinks on the guest menu</span>
-					</span>
-				</a>
-				<a
-					class="row"
-					class:on={onSections}
-					href="/sections"
-					aria-current={onSections ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="list" size={18} /></span>
-					<span class="copy">
-						<span class="label">Sections</span>
-						<span class="hint">Guest menu chapters and groups</span>
-					</span>
-				</a>
-				<p class="heading">Events</p>
-				<a
-					class="row"
-					class:on={onSeries}
-					href="/events"
-					aria-current={onSeries ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="list" size={18} /></span>
-					<span class="copy">
-						<span class="label">Series</span>
-						<span class="hint">Residencies and their defaults</span>
-					</span>
-				</a>
-				<a
-					class="row"
-					class:on={onSchedule}
-					href="/events/schedule"
-					aria-current={onSchedule ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="events" size={18} /></span>
-					<span class="copy">
-						<span class="label">Schedule</span>
-						<span class="hint">Upcoming nights</span>
-					</span>
-				</a>
-				<p class="heading">Artist</p>
-				<a
-					class="row"
-					class:on={onArtist}
-					href="/artists"
-					aria-current={onArtist ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="artist" size={18} /></span>
-					<span class="copy">
-						<span class="label">Artist</span>
-						<span class="hint">Work hanging at Gwenda</span>
-					</span>
-				</a>
-				<p class="heading">Website</p>
-				<a
-					class="row"
-					class:on={onWeb}
-					href="/web"
-					aria-current={onWeb ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="web" size={18} /></span>
-					<span class="copy">
-						<span class="label">Web</span>
-						<span class="hint">Staging, production, and promote</span>
-					</span>
-				</a>
-				<p class="heading">Ops</p>
-				<a
-					class="row"
-					class:on={onUsers}
-					href="/users"
-					aria-current={onUsers ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="users" size={18} /></span>
-					<span class="copy">
-						<span class="label">Users</span>
-						<span class="hint">Who may sign in</span>
-					</span>
-				</a>
-				<a
-					class="row"
-					class:on={onConfig}
-					href="/config"
-					aria-current={onConfig ? "page" : undefined}
-				>
-					<span class="icon"><Icon name="settings" size={18} /></span>
-					<span class="copy">
-						<span class="label">Configuration</span>
-						<span class="hint">Pour cost targets</span>
-					</span>
-				</a>
-			</nav>
-			{#if envSummary}
-				<div
-					class="row session env"
-					class:risk={envRisk}
-					title={envDetail || envSummary}
-				>
-					<span class="icon"><Icon name="settings" size={18} /></span>
-					<span class="copy">
-						<span class="label">{envSummary}</span>
-						<span class="hint"
-							>{envRisk ? "Check Baserow target" : "Connected environment"}</span
+			<nav class="links scrollbar-fade" aria-label={label}>
+				{#each groups as group (group.id)}
+					<p class="heading">{group.name}</p>
+					{#each group.rows as row (row.id)}
+						{@const on = active?.id === row.id}
+						{@const href = row.path || "/"}
+						<a
+							class="row"
+							class:on
+							{href}
+							aria-current={on ? "page" : undefined}
+							onclick={(e) => onnavigate(e, href)}
 						>
-					</span>
-				</div>
-			{/if}
-			{#if email}
-				<div class="row session" title={email}>
-					<span class="icon"><Icon name="users" size={18} /></span>
+							<span class="icon"><Icon name={row.icon} size={18} /></span>
+							<span class="copy">
+								<span class="label">{row.name}</span>
+								{#if row.hint}
+									<span class="hint">{row.hint}</span>
+								{/if}
+							</span>
+						</a>
+					{/each}
+				{/each}
+			</nav>
+			{#if account}
+				{#if envSummary}
+					<div
+						class="row session env"
+						class:risk={envRisk}
+						title={envDetail || envSummary}
+					>
+						<span class="icon"><Icon name="settings" size={18} /></span>
+						<span class="copy">
+							<span class="label">{envSummary}</span>
+							<span class="hint"
+								>{envRisk ? "Check Baserow target" : "Connected environment"}</span
+							>
+						</span>
+					</div>
+				{/if}
+				{#if email}
+					<div class="row session" title={email}>
+						<span class="icon"><Icon name="users" size={18} /></span>
+						<span class="copy">
+							<span class="label">{email}</span>
+							<span class="hint">Signed in</span>
+						</span>
+					</div>
+				{/if}
+				<a class="row signout" href="/api/auth/logout">
+					<span class="icon"><Icon name="logout" size={18} /></span>
 					<span class="copy">
-						<span class="label">{email}</span>
-						<span class="hint">Signed in</span>
+						<span class="label">Sign out</span>
 					</span>
-				</div>
+				</a>
 			{/if}
-			<a class="row signout" href="/api/auth/logout">
-				<span class="icon"><Icon name="logout" size={18} /></span>
-				<span class="copy">
-					<span class="label">Sign out</span>
-				</span>
-			</a>
 		</div>
 	</div>
 {/if}
@@ -261,6 +186,9 @@
 	.links {
 		display: grid;
 		gap: 0.125rem;
+		max-height: calc(100dvh - var(--bottom-nav-h) - 5rem);
+		overflow-y: auto;
+		overscroll-behavior: contain;
 	}
 
 	.heading {

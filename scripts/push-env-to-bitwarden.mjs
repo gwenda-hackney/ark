@@ -28,9 +28,10 @@ const ENV_PATH = resolve(ROOT, ".env");
 const SKIP = new Set(["BITWARDEN_EMAIL", "BITWARDEN_PASSWORD", "BW_SESSION", "BW_PASSWORD"]);
 
 function parseArgs(argv) {
-  const out = { dryRun: false };
+  const out = { dryRun: false, replace: false };
   for (const arg of argv) {
     if (arg === "--dry-run") out.dryRun = true;
+    else if (arg === "--replace") out.replace = true;
     else if (arg === "--help" || arg === "-h") out.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -62,7 +63,9 @@ function main() {
     console.log(`Push filled keys from ${ENV_PATH} into Bitwarden ${DEFAULT_LOCAL_ITEM}
 
 Usage:
-  node scripts/push-env-to-bitwarden.mjs [--dry-run]`);
+  node scripts/push-env-to-bitwarden.mjs [--dry-run] [--replace]
+
+  --replace  Overwrite the note with .env as-is (drops keys no longer in .env).`);
     return;
   }
 
@@ -76,17 +79,25 @@ Usage:
     throw new Error(`Missing Bitwarden item "${DEFAULT_LOCAL_ITEM}". Run: npm run env:seed`);
   }
 
-  const local = parseEnv(readFileSync(ENV_PATH, "utf8"));
-  let notes = item.notes || "";
+  const text = readFileSync(ENV_PATH, "utf8");
+  const local = parseEnv(text);
+  let notes = opts.replace
+    ? text
+        .split("\n")
+        .filter((line) => !SKIP.has(line.split("=")[0]?.trim()))
+        .join("\n")
+    : item.notes || "";
   const updated = [];
   for (const [key, value] of local) {
     if (SKIP.has(key)) continue;
-    notes = upsertDotEnvKey(notes, key, value);
+    if (!opts.replace) notes = upsertDotEnvKey(notes, key, value);
     updated.push(key);
   }
 
   if (opts.dryRun) {
-    console.log(`Would update ${updated.length} keys on ${DEFAULT_LOCAL_ITEM}:`);
+    console.log(
+      `Would ${opts.replace ? "replace" : "update"} ${DEFAULT_LOCAL_ITEM} with ${updated.length} keys:`,
+    );
     for (const key of updated.sort()) console.log(`  ${key}`);
     return;
   }

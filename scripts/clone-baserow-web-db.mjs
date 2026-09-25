@@ -9,10 +9,10 @@
  * values are skipped; empty file columns are still created.
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
- * Source rows use the same JWT (must see database 465058).
+ * Source rows use the same JWT (must see database 461843).
  *
  * Env overrides:
- *   BASEROW_WEB_CLONE_SOURCE_ID          source DB (default 465058)
+ *   BASEROW_WEB_CLONE_SOURCE_ID          source DB (default 461843)
  *   BASEROW_WEB_DEV_WORKSPACE_NAME       (default "Gwenda Dev")
  *   BASEROW_WEB_DEV_WORKSPACE_ID         (default from .baserow-ops-dev.json)
  *   BASEROW_WEB_DEV_DATABASE_NAME        (default "Website")
@@ -22,7 +22,6 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   fieldCreateBody,
   findOrCreateDatabase,
@@ -34,10 +33,11 @@ import {
   remapRowPayload,
   wipeTableRows,
 } from "./lib/baserow-clone.mjs";
+import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
-const DEFAULT_SOURCE_DB = "465058";
+const DEFAULT_SOURCE_DB = "461843";
 const DEV_WORKSPACE_NAME = "Gwenda Dev";
 const DEFAULT_DATABASE_NAME = "Website";
 const META_PATH = resolve(ROOT, ".baserow-web-dev.json");
@@ -45,16 +45,6 @@ const STAGING_META_PATH = resolve(ROOT, ".baserow-web-staging.json");
 const OPS_META_PATH = resolve(ROOT, ".baserow-ops-dev.json");
 const GWENDA_WORKSPACE_ID = "208709";
 const STAGING_DATABASE_NAME = "Website Staging";
-
-function loadEnvFiles() {
-  for (const name of [".env", ".env.web"]) {
-    const path = resolve(ROOT, name);
-    if (!existsSync(path)) continue;
-    for (const [key, value] of parseDotEnv(readFileSync(path, "utf8"))) {
-      if (!process.env[key]) process.env[key] = value;
-    }
-  }
-}
 
 function readEnv(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
@@ -133,7 +123,7 @@ function writeLocalDevHints({ workspaceId, databaseId, databaseName, sourceDbId 
 }
 
 async function main() {
-  loadEnvFiles();
+  loadRepoEnv({ app: "web" });
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
     console.log(`Usage: node scripts/clone-baserow-web-db.mjs [--dry-run] [--force] [--target=dev|staging]`);
@@ -395,7 +385,6 @@ async function main() {
   }
 
   const destSubscribe = destByName.get("Subscribers");
-  const destRsvp = destByName.get("Event Invites");
 
   console.log(`
 Clone complete.
@@ -409,17 +398,14 @@ ${
   staging
     ? `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this website database (${databaseId}).
-  2. Put that token in Secrets Manager as BASEROW_API_KEY_MARKETING_STAGING.
-  3. gh workflow run web-secrets.yml -f profile=staging
-  4. Local stays on BASEROW_API_KEY_MARKETING (Gwenda Dev).`
-    : `  1. Copy the current SM key BASEROW_API_KEY_MARKETING → BASEROW_API_KEY_MARKETING_PRODUCTION
-     (keep production + Mailchimp on workspace Gwenda).
-  2. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
+  2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__STAGING.
+  3. gh workflow run web-secrets.yml -f profile=staging`
+    : `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this website database (${databaseId}).
-  3. Put that token in Secrets Manager as BASEROW_API_KEY_MARKETING (local).
-  4. npm run env:web:pull`
+  2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__LOCAL.
+  3. npm run env:secrets:pull`
 }
-${destRsvp ? `  6. Studio grid: BASEROW_RSVP_GRID_URL=https://baserow.io/database/${databaseId}/table/${destRsvp.id}/\n` : ""}${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
+${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {
     console.log(`  Subscribers table id: ${destSubscribe.id}`);
   }

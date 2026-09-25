@@ -51,6 +51,8 @@ export type AuthMe = {
   databaseLabel: string;
   isProductionDb: boolean;
   risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
+  /** Sees developer tools. Always true in local ops. */
+  isAdmin?: boolean;
 };
 
 export function getMe() {
@@ -337,6 +339,45 @@ export function deleteSupplier(id: string) {
   });
 }
 
+export type FormAnswer = {
+  key: string;
+  label: string;
+  value: string;
+};
+
+export type FormSubmission = {
+  id: string;
+  formSlug: string;
+  formTitle: string;
+  email: string;
+  name: string;
+  status: string;
+  submittedAt: string;
+  current: boolean;
+  /** ISO time the ops notification went out, or "" if never. */
+  notifySentAt: string;
+  /** ISO time the applicant receipt went out, or "" if never. */
+  receiptSentAt: string;
+  answers: FormAnswer[];
+};
+
+export type FormEmailKind = "notify" | "receipt";
+
+export function getFormSubmissions() {
+  return request<{ submissions: FormSubmission[] }>("/api/forms");
+}
+
+export function resendFormEmail(id: string, kind: FormEmailKind) {
+  return request<{ ok: true; sentAt?: string | null; dryRun?: boolean; warning?: string }>(
+    `/api/forms/${encodeURIComponent(id)}/resend`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind }),
+    },
+  );
+}
+
 export function getOpsUsers() {
   return coalesce("users", () =>
     request<{ users: import("./types").OpsUser[] }>("/api/users"),
@@ -453,7 +494,8 @@ export function getWebStatus() {
   return coalesce("web-status", () => request<WebStatus>("/api/web/status"));
 }
 
-export function promoteWebsite(target: "staging" | "production") {
+/** Rebuild the staging site. The live site is published from Website > Staging → live. */
+export function promoteWebsite(target: "staging") {
   return request<{
     ok: boolean;
     kind?: string;
@@ -468,8 +510,152 @@ export function promoteWebsite(target: "staging" | "production") {
   });
 }
 
-export function promoteStagingToProduction() {
-  return promoteWebsite("production");
+export type ReleaseField = {
+  key: string;
+  label: string;
+  staging: string;
+  production: string;
+  detailOnly: boolean;
+};
+
+export type ReleaseEntry = {
+  id: string;
+  type: string;
+  typeLabel: string;
+  label: string;
+  change: "added" | "changed" | "removed";
+  fields: ReleaseField[];
+  refs: string[];
+};
+
+export type ReleaseDiff = {
+  ok: boolean;
+  /** Local ops can look but never publish. */
+  local: boolean;
+  entries: ReleaseEntry[];
+  counts: { added: number; changed: number; removed: number };
+};
+
+export function getReleaseDiff() {
+  return request<ReleaseDiff>("/api/web/release");
+}
+
+export type CodeDiff = {
+  ok: boolean;
+  staging: string | null;
+  live: string | null;
+  /** null when a site's version is unknown. */
+  same: boolean | null;
+  aheadBy?: number;
+  behindBy?: number;
+  url?: string;
+  files?: number;
+  commits: { sha: string; url: string; message: string; author: string; date: string }[];
+  error?: string;
+};
+
+export type SitePendingItem = {
+  kind: "document" | "artist";
+  id: string;
+  change: "added" | "changed" | "removed";
+  label: string;
+  type: string;
+};
+
+/** One site's "waiting to show on the website" state. */
+export type SiteStatus = {
+  site: "production" | "staging";
+  /** False until the first build after this feature records a snapshot. */
+  known: boolean;
+  builtAt: string | null;
+  items: SitePendingItem[];
+  updating: boolean;
+  runUrl: string;
+  failed: boolean;
+  needsHelp: boolean;
+  lastError: string;
+  autoUpdateAt: string | null;
+};
+
+export function getSitePending() {
+  return coalesce("site-pending", () =>
+    request<{ ok: boolean; local: boolean; production: SiteStatus; staging: SiteStatus }>(
+      "/api/web/pending",
+    ),
+  );
+}
+
+export function updateSiteNow(site: "production" | "staging" = "production") {
+  return request<{ ok: boolean; status: SiteStatus }>("/api/web/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ site }),
+  });
+}
+
+export function getCodeDiff() {
+  return request<CodeDiff>("/api/web/code");
+}
+
+export type DbTableDiff = {
+  name: string;
+  status: "same" | "different" | "missing" | "extra";
+  sourceRows: number;
+  targetRows: number;
+  sourceOnly: number;
+  targetOnly: number;
+  missingColumns: string[];
+  extraColumns: string[];
+};
+
+export type DbPairDiff = {
+  ok: boolean;
+  id: "ops" | "website";
+  label: string;
+  copyLabel: string;
+  source: { label: string; databaseId: string };
+  target: { label: string; databaseId: string };
+  inSync: boolean;
+  tables: DbTableDiff[];
+  checkedAt: string;
+};
+
+export function getDbPairDiff(pair: "ops" | "website") {
+  return request<DbPairDiff>(`/api/web/databases?pair=${pair}`);
+}
+
+export function copyDbPair(pair: "ops" | "website") {
+  return request<{ ok: boolean; runId?: number | null; runUrl?: string; status?: string }>(
+    "/api/web/databases",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pair, confirm: pair }),
+    },
+  );
+}
+
+export function publishRelease(
+  ids: string[] | null,
+  direction: "to-production" | "to-staging" = "to-production",
+) {
+  return request<{
+    ok: boolean;
+    written: string[];
+    deleted: string[];
+    included: string[];
+    assetsCopied: number;
+    warnings: string[];
+    deploy: { runId?: number; runUrl?: string; alreadyRunning?: boolean } | null;
+  }>("/api/web/release", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      confirm: direction === "to-staging" ? "staging" : "production",
+      direction,
+      ...(ids ? { ids } : {}),
+    }),
+  });
 }
 
 export type DeployStatus = {
@@ -489,6 +675,16 @@ export function getDeployStatus(runId: number) {
 }
 
 export type OpsEventImage = { name: string; url: string };
+
+/** What happened to staging after a save. Saving never fails because of it. */
+export type EventStaging = {
+  ok: boolean;
+  /** Local ops staged a draft for the local site only. */
+  local: boolean;
+  error?: string;
+  warnings: string[];
+  deployed?: boolean;
+};
 
 export type OpsNightScheduleSlot = {
   label: string;
@@ -563,7 +759,7 @@ export function getEvents() {
 }
 
 export function createEvent(body: unknown) {
-  return request<{ event: OpsEvent; warnings?: string[] }>("/api/events", {
+  return request<{ event: OpsEvent; warnings?: string[]; staging?: EventStaging }>("/api/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -571,18 +767,20 @@ export function createEvent(body: unknown) {
 }
 
 export function updateEvent(id: string, body: unknown) {
-  return request<{ event: OpsEvent; warnings?: string[] }>(`/api/events/${encodeURIComponent(id)}`, {
+  return request<{ event: OpsEvent; warnings?: string[]; staging?: EventStaging }>(`/api/events/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-export function deleteEvent(id: string) {
+export function deleteEvent(id: string, { alsoWebsite = false } = {}) {
   return request<{ ok: boolean; warnings?: string[] }>(
     `/api/events/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alsoWebsite }),
     },
   );
 }
@@ -591,6 +789,7 @@ export function deleteEventOccurrence(
   id: string,
   date: string,
   scope: "this" | "following" | "all",
+  { alsoWebsite = false } = {},
 ) {
   return request<{
     ok: boolean;
@@ -604,7 +803,7 @@ export function deleteEventOccurrence(
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope }),
+      body: JSON.stringify({ scope, alsoWebsite }),
     },
   );
 }
@@ -616,7 +815,30 @@ export function syncEventCalendar(id: string) {
   );
 }
 
-export function publishEvent(id: string, target: "staging" | "production") {
+/** What "Put on website" would change for this event. */
+export function getEventWebsitePreview(id: string) {
+  return request<{ ok: boolean; entries: ReleaseEntry[]; included: string[] }>(
+    `/api/events/${encodeURIComponent(id)}/publish`,
+  );
+}
+
+/** Put this event (and only this event) on the website. */
+export function putEventOnWebsite(id: string) {
+  return request<{
+    ok: boolean;
+    event: OpsEvent;
+    written: string[];
+    deleted: string[];
+    warnings: string[];
+  }>(`/api/events/${encodeURIComponent(id)}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target: "production", confirm: "production" }),
+  });
+}
+
+/** Stage again without editing. Saving already stages. */
+export function restageEvent(id: string) {
   return request<{
     event: OpsEvent;
     warnings?: string[];
@@ -624,7 +846,7 @@ export function publishEvent(id: string, target: "staging" | "production") {
   }>(`/api/events/${encodeURIComponent(id)}/publish`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target }),
+    body: JSON.stringify({ target: "staging" }),
   });
 }
 
@@ -650,7 +872,7 @@ export function uploadEventImage(
   const body = new FormData();
   body.set("file", file);
   body.set("role", role);
-  return request<{ event: OpsEvent }>(
+  return request<{ event: OpsEvent; staging?: EventStaging }>(
     `/api/events/${encodeURIComponent(id)}/image`,
     {
       method: "POST",
@@ -735,6 +957,7 @@ export function updateEventOccurrence(
 ) {
   return request<{
     event: OpsEvent;
+    staging?: EventStaging;
     occurrence: OpsEventOccurrence;
     updated: number;
     scope: "this" | "following" | "all";
@@ -760,6 +983,7 @@ export function ensureEventOccurrence(
 ) {
   return request<{
     event: OpsEvent;
+    staging?: EventStaging;
     occurrence: OpsEventOccurrence;
     created: boolean;
     warnings?: string[];

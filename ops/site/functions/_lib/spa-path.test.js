@@ -175,6 +175,7 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/events/schedule"), true);
     assert.equal(isSpaDocumentPath("/events/new"), true);
     assert.equal(isSpaDocumentPath("/web"), true);
+    assert.equal(isSpaDocumentPath("/forms"), true);
     assert.equal(isSpaDocumentPath("/tools/breakeven"), true);
     assert.equal(isSpaDocumentPath("/stock"), false);
     assert.equal(isSpaDocumentPath("/api/menu"), false);
@@ -186,6 +187,7 @@ describe("spa-path", () => {
     assert.equal(isClientNavPath("/sections"), true);
     assert.equal(isClientNavPath("/users"), true);
     assert.equal(isClientNavPath("/web"), true);
+    assert.equal(isClientNavPath("/forms"), true);
     assert.equal(isClientNavPath("/artists"), true);
     assert.equal(isClientNavPath("/tools/cashflow"), true);
     assert.equal(isClientNavPath("/stock"), false);
@@ -253,11 +255,12 @@ describe("spa-path", () => {
       tab: "details",
       list: null,
     });
+    // Publishing moved to Website > Staging → live; old links open details.
     assert.deepEqual(parseShellPath("/events/12/publish"), {
       page: "events",
       slug: "12",
       isNew: false,
-      tab: "publish",
+      tab: "details",
       list: null,
     });
     assert.deepEqual(parseShellPath("/events/12/gallery"), {
@@ -282,7 +285,7 @@ describe("spa-path", () => {
     assert.equal(eventItemPath("12@2026-09-25"), "/events/12@2026-09-25");
     assert.equal(eventItemPath("12", "details"), "/events/12");
     assert.equal(eventItemPath("12", "gallery"), "/events/12/gallery");
-    assert.equal(eventNewPath("publish"), "/events/new/publish");
+    assert.equal(eventNewPath("gallery"), "/events/new/gallery");
     assert.equal(eventTabPath("/events/12/schedule", "gallery"), "/events/12/gallery");
     assert.equal(editorKey("/events/12/publish"), "events:12");
     assert.equal(editorKey("/events/new/schedule"), "events:new");
@@ -296,6 +299,9 @@ describe("spa-path", () => {
     assert.equal(navigationLeavesEditor("/events/12/gallery", "/events/12"), false);
     assert.equal(navigationLeavesEditor("/events/12", "/events"), true);
     assert.equal(shellPageKey("/web"), "web");
+    assert.equal(shellPageKey("/forms"), "forms");
+    assert.equal(shellPageKey("/forms/12"), "forms");
+    assert.deepEqual(parseShellPath("/forms/12"), { page: "forms", slug: "12" });
     assert.equal(shellPageKey("/tools/breakeven"), "tools");
     assert.deepEqual(parseShellPath("/tools/stock"), {
       page: "tools",
