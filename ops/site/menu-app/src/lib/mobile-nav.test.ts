@@ -5,10 +5,10 @@ import { NAV_ROUTES } from "./nav-routes.ts";
 import { flattenNavRoutes } from "./nav-tree.ts";
 
 describe("mobileTabs", () => {
-	it("follows the side rail: Home, Service, Programme, Website, More", () => {
+	it("keeps the bar to Home, Service, Programme, More", () => {
 		assert.deepEqual(
 			mobileTabs().map((tab) => tab.label),
-			["Home", "Service", "Programme", "Website", "More"],
+			["Home", "Service", "Programme", "More"],
 		);
 	});
 });
@@ -28,8 +28,8 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/forms"), "programme");
 	});
 
-	it("gives Website its own tab and puts settings on More", () => {
-		assert.equal(mobileTabFor("/web"), "web");
+	it("puts Website and settings on More", () => {
+		assert.equal(mobileTabFor("/web"), "more");
 		assert.equal(mobileTabFor("/web/dev"), "more");
 		assert.equal(mobileTabFor("/users"), "more");
 		assert.equal(mobileTabFor("/config"), "more");
@@ -43,7 +43,6 @@ describe("sheetSections", () => {
 	it("lists every rail page exactly once across the tabs", () => {
 		const listed = [
 			"home",
-			"web",
 			...ids("service"),
 			...ids("programme"),
 			...ids("more"),
@@ -54,10 +53,11 @@ describe("sheetSections", () => {
 		assert.deepEqual(listed, rail);
 	});
 
-	it("keeps Website out of the Programme sheet", () => {
+	it("lists Website first on More, not in the Programme sheet", () => {
 		assert.ok(!ids("programme").includes("web"));
+		assert.equal(ids("more")[0], "web");
 		assert.deepEqual(ids("home"), []);
 		assert.equal(tabHref("service"), "/menu");
-		assert.equal(tabHref("more"), "/users");
+		assert.equal(tabHref("more"), "/web");
 	});
 });

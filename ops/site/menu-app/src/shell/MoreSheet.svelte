@@ -19,6 +19,7 @@
 		sections = [],
 		active = null,
 		account = false,
+		badge = null,
 		email = "",
 		envSummary = "",
 		envDetail = "",
@@ -32,6 +33,8 @@
 		active?: NavRoute | null;
 		/** Show the environment, signed-in email and Sign out. */
 		account?: boolean;
+		/** Website count, shown on the row with `badge: "website"`. */
+		badge?: { tone: string; count: number; title: string } | null;
 		email?: string;
 		envSummary?: string;
 		envDetail?: string;
@@ -98,6 +101,11 @@
 									<span class="hint">{row.hint}</span>
 								{/if}
 							</span>
+							{#if row.badge === "website" && badge}
+								<span class="badge {badge.tone}" title={badge.title} aria-label={badge.title}>
+									{badge.tone === "failed" ? "!" : badge.count}
+								</span>
+							{/if}
 						</a>
 					{/each}
 				{/each}
@@ -249,6 +257,32 @@
 	.hint {
 		font-size: var(--text-xs);
 		color: var(--muted-foreground);
+	}
+
+	.badge {
+		display: inline-grid;
+		place-items: center;
+		min-width: 1.35rem;
+		height: 1.35rem;
+		margin-left: auto;
+		padding: 0 0.4rem;
+		border-radius: var(--radius-pill);
+		background: var(--primary);
+		color: var(--primary-foreground);
+		font-size: var(--text-xs);
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		line-height: 1;
+	}
+
+	.badge.updating {
+		background: var(--primary-wash-strong, var(--primary-wash));
+		color: var(--primary);
+	}
+
+	.badge.failed {
+		background: var(--destructive);
+		color: var(--destructive-foreground, #fff);
 	}
 
 	.row.on .hint {

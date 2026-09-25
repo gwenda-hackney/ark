@@ -55,6 +55,9 @@ export default defineConfig({
       "/stock": pagesProxy(),
       "/breakeven": pagesProxy(),
       "/cashflow": pagesProxy(),
+      "/favicon.ico": pagesProxy(),
+      "/favicon.png": pagesProxy(),
+      "/apple-touch-icon.png": pagesProxy(),
     },
   },
   build: {
