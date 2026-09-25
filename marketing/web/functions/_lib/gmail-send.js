@@ -111,7 +111,7 @@ async function mintAccessToken(account, subject) {
   };
 }
 
-async function gmailAccessToken(env) {
+export async function gmailAccessToken(env) {
   const account = parseGmailServiceAccount(env);
   const subject = gmailSender(env);
   if (!account || !subject) {
