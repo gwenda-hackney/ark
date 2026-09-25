@@ -2,6 +2,8 @@
 /**
  * Create or repair the Baserow "Gwenda Config" database (workspace Gwenda).
  * See shared/config.js (the config service) for how settings resolve.
+ * Additive only (safe before a deploy): removing rows the running code may
+ * still read happens after the deploy, in scripts/config-post-deploy.mjs.
  *
  *   npm run setup:baserow-config            # database, table, fields, seed rows
  *   npm run setup:baserow-config -- --token # also mint BASEROW_CONFIG_API_KEY → SM (Ark)
@@ -43,8 +45,7 @@ const SEED_ROWS = [
   ["forms.notify_email", NONPROD_NOTIFY, "staging", "web", "Form notifications outside production"],
 ];
 
-/** Settings that used to be rows: worked out now (web.origin) or unused (sanity.dataset). */
-const RETIRED_KEYS = new Set(["web.origin", "sanity.dataset"]);
+
 
 const SELECT = (values) =>
   values.map((value, i) => ({
@@ -146,14 +147,6 @@ async function ensureEnvOptions(jwt, tableId) {
   });
 }
 
-async function removeRetiredRows(jwt, tableId) {
-  for (const row of await listRows(jwt, tableId)) {
-    if (!RETIRED_KEYS.has(row.Name)) continue;
-    console.log(`- ${row.Name} (${row.Env?.value || "all"}/${row.Service?.value || "all"})`);
-    await request(jwt, `/api/database/rows/table/${tableId}/${row.id}/`, { method: "DELETE" });
-  }
-}
-
 async function listRows(jwt, tableId) {
   const body = await request(jwt, `/api/database/rows/table/${tableId}/?user_field_names=true&size=200`);
   return body.results || [];
@@ -189,14 +182,14 @@ async function mintToken(jwt, databaseId) {
   await request(jwt, `/api/database/tokens/${token.id}/`, {
     method: "PATCH",
     body: JSON.stringify({
-      permissions: { create: scoped, read: scoped, update: scoped, delete: false },
+      permissions: { create: scoped, read: scoped, update: scoped, delete: scoped },
     }),
   });
   const result = upsertSmSecret({
     key: "BASEROW_CONFIG_API_KEY",
     value: token.key,
     accessToken,
-    note: `Baserow token "${TOKEN_NAME}": read/create/update on ${CONFIG_DATABASE_NAME} only. All envs.`,
+    note: `Baserow token "${TOKEN_NAME}": read/create/update/delete on ${CONFIG_DATABASE_NAME} only. All envs.`,
   });
   console.log(`SM BASEROW_CONFIG_API_KEY: ${result}`);
 }
@@ -209,7 +202,6 @@ async function main() {
   await ensureFields(jwt, table.id);
   await ensureEnvOptions(jwt, table.id);
   await seedRows(jwt, table.id);
-  await removeRetiredRows(jwt, table.id);
   // Keep the service's list of settings honest: every seeded key is known.
   for (const [Name] of SEED_ROWS) {
     if (!SETTINGS[Name]) console.warn(`! ${Name} is seeded but not in shared/config.js SETTINGS`);

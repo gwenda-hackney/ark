@@ -206,6 +206,18 @@ export async function getConfigValueFor(env, service, key, envName) {
   return match ? text(match.Value) : "";
 }
 
+/** Delete every row named `key` (any Env / Service). Returns how many. */
+export async function deleteConfigRows(env, key) {
+  const api = client(env);
+  const tableId = await configTableId(api);
+  const rows = (await listRows(api, tableId)).filter((row) => text(row.Name) === key);
+  for (const row of rows) {
+    await api.call(`/api/database/rows/table/${tableId}/${row.id}/`, { method: "DELETE" });
+  }
+  if (rows.length) cache.delete(api.apiKey);
+  return rows.length;
+}
+
 /** Create or update the exact row for one env + service. */
 export async function setConfigValueFor(env, service, key, envName, value) {
   const api = client(env);

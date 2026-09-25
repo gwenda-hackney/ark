@@ -45,7 +45,15 @@ describe("config service", () => {
     )
       .split("\n")
       .filter(Boolean)
-      .filter((file) => !["shared/config.js", "shared/site-urls.js", "shared/config-db.test.js"].includes(file));
+      .filter(
+        (file) =>
+          ![
+            "shared/config.js",
+            "shared/site-urls.js",
+            "shared/config-db.test.js",
+            "shared/config.test.js",
+          ].includes(file),
+      );
     assert.deepEqual(hits, []);
   });
 
