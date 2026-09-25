@@ -151,3 +151,14 @@ test("to-staging copies production onto staging and deletes staging-only documen
     (error) => error.status === 400,
   );
 });
+
+test("publish all reports every source document as in sync; a selection does not", async () => {
+  const docs = [series(), night("2026-10-03")];
+  const query = async (_env, _dataset, q) => (q.startsWith("*[_id in $ids]") ? [] : docs);
+  const deps = { query, mutate: async () => {}, upload: async () => ({}) };
+  const all = await publishRelease({ SITE_ENV: "production" }, {}, deps);
+  assert.deepEqual(all.inSync, ["series-nights", "event-nights-2026-10-03"]);
+  assert.deepEqual(all.written, []);
+  const some = await publishRelease({ SITE_ENV: "production" }, { ids: ["series-nights"] }, deps);
+  assert.equal(some.inSync, null);
+});
