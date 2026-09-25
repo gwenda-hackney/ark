@@ -6,6 +6,7 @@
 	 *   Databases Baserow production vs its copies. Production may drift; copy it over to debug.
 	 */
 	import { onDestroy, onMount } from "svelte";
+	import { getSitePendingState } from "../../lib/site-pending.svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../../shell";
 	import { BusyOverlay, Button, Dialog, PageHeader, SearchField } from "../../ui";
@@ -294,6 +295,8 @@
 			toast.error(err instanceof Error ? err.message : "Could not rebuild staging.");
 		}
 	}
+	/** This environment's website and preview (dev ops: the dev website). */
+	const siteUrls = $derived(getSitePendingState().urls);
 </script>
 
 {#snippet site(label: string, env: WebEnvStatus | null, fallbackUrl: string)}
@@ -352,9 +355,9 @@
 	{:else if diff}
 		<div class="ready" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 			<section class="flow" aria-label="Sites">
-				{@render site("Staging", staging, "https://gwenda-staging.pages.dev")}
+				{@render site("Staging", staging, siteUrls.preview)}
 				<div class="arrow"><Icon name="chevron-right" size={22} /></div>
-				{@render site("Live", live, "https://gwenda.co.uk")}
+				{@render site("Live", live, siteUrls.live)}
 			</section>
 
 			{#if local}

@@ -12,6 +12,7 @@
  *
  * Usage (from repo root):
  *   npm run setup:ops
+ *   node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env local   # dev ops
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -41,7 +42,18 @@ if (!wrangler) {
   process.exit(1);
 }
 
-const project = "gwenda-ops";
+function argValue(name, fallback) {
+  const i = process.argv.indexOf(name);
+  return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
+}
+
+/** Prod ops by default; dev ops is gwenda-ops-dev with the "local" (dev) secrets. */
+const project = argValue("--project", "gwenda-ops");
+const secretEnv = argValue("--env", "production");
+if (project === "gwenda-ops" && secretEnv !== "production") {
+  console.error("gwenda-ops only takes production secrets.");
+  process.exit(1);
+}
 const deploymentEnvs = ["production", "preview"];
 const wranglerEnv = {
   ...process.env,
@@ -116,9 +128,9 @@ function deleteSecret(key) {
   }
 }
 
-const { values, missing } = loadAppSecretsFromSm("ops", "production");
+const { values, missing } = loadAppSecretsFromSm("ops", secretEnv);
 if (!values.get("BASEROW_API_KEY")) {
-  console.error("SM BASEROW_OPS_API_KEY__PRODUCTION is required for Pages.");
+  console.error(`SM BASEROW_OPS_API_KEY__${secretEnv.toUpperCase()} is required for Pages.`);
   process.exit(1);
 }
 const skip = new Set(APP_SECRETS.ops.pagesSkip);

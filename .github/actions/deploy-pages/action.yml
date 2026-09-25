@@ -54,6 +54,22 @@ inputs:
   sanity-dataset:
     description: Sanity dataset for build-time CMS fetch (staging or production)
     required: true
+  sanity-project-id:
+    description: Sanity project (the real one, or gwscpagy for the dev website)
+    required: false
+    default: pn5yjro6
+  env-label:
+    description: Ribbon text for a non-live build (PUBLIC_ENV_LABEL). Empty = default.
+    required: false
+    default: ""
+  site-origin:
+    description: Public address of a non-live build (PUBLIC_SITE_ORIGIN). Empty = gwenda-staging.
+    required: false
+    default: ""
+  snapshot-environment:
+    description: prod or dev. Which environment's build snapshot to record.
+    required: false
+    default: prod
   baserow-ops-api-key:
     description: Ops Baserow token for the featured artist at build time
     required: false
@@ -69,7 +85,7 @@ inputs:
     required: false
     default: ""
   secrets-profile:
-    description: staging or production. Passed to sync-pages-secrets.mjs.
+    description: staging, production or dev. Passed to sync-pages-secrets.mjs.
     required: true
 
 outputs:
@@ -88,7 +104,7 @@ runs:
       shell: bash
       run: node scripts/site-build-snapshot.mjs capture --out "$RUNNER_TEMP/site-snapshot.json"
       env:
-        SANITY_PROJECT_ID: pn5yjro6
+        SANITY_PROJECT_ID: ${{ inputs.sanity-project-id }}
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
@@ -106,7 +122,9 @@ runs:
         PUBLIC_BUILD_TIME: ${{ inputs.build-time }}
         PUBLIC_BUILD_VERSION: ${{ inputs.build-version }}
         PUBLIC_OPENING_DATE: ${{ inputs.public-opening-date }}
-        SANITY_PROJECT_ID: pn5yjro6
+        PUBLIC_ENV_LABEL: ${{ inputs.env-label }}
+        PUBLIC_SITE_ORIGIN: ${{ inputs.site-origin }}
+        SANITY_PROJECT_ID: ${{ inputs.sanity-project-id }}
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
@@ -166,4 +184,4 @@ runs:
     - name: Save content snapshot
       if: inputs.snapshot-site != '' && inputs.skip-build != 'true'
       shell: bash
-      run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}"
+      run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}" --environment "${{ inputs.snapshot-environment }}"

@@ -9,6 +9,7 @@ import {
   PRODUCTION_CONTENT_PREVIEW_URL,
 } from "./github";
 import type {
+  ContentTarget,
   DeployRequest,
   DeployTarget,
   Env,
@@ -38,6 +39,33 @@ export function parseDeployTarget(body: DeployRequest | null): DeployTarget | nu
   return VALID_TARGETS.has(target as DeployTarget) ? (target as DeployTarget) : null;
 }
 
+/** Dev ops asks for the dev website; anything else is prod. */
+export function isDevRequest(body: { env?: unknown } | null): boolean {
+  return body?.env === "dev";
+}
+
+/** Build the dev website (gwenda-web-dev) from main, once at a time. */
+async function devContentBuild(
+  env: Env,
+  target: Extract<ContentTarget, "dev-staging" | "dev-production">,
+  phase: "deploy" | "promote",
+): Promise<HandlerResult> {
+  const inProgress = await findInProgressRun(env, target);
+  const run = inProgress ?? (await dispatchContentDeploy(env, target));
+  return {
+    status: 202,
+    body: {
+      ok: true,
+      target,
+      phase,
+      ...(inProgress ? { alreadyRunning: true } : {}),
+      runId: run.id,
+      runUrl: run.html_url,
+      status: run.status,
+    },
+  };
+}
+
 export function parsePreviewRunId(body: PromoteRequest | null): number | null {
   const raw = body?.previewRunId;
   const runId = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
@@ -65,6 +93,9 @@ export async function handleDeploy(
   }
 
   const target = parseDeployTarget(body);
+  if (target === "staging" && isDevRequest(body)) {
+    return devContentBuild(env, "dev-staging", "deploy");
+  }
   if (!target) {
     return {
       status: 400,
@@ -134,6 +165,11 @@ export async function handlePromote(
     body = (await request.json()) as PromoteRequest;
   } catch {
     body = null;
+  }
+
+  // Dev ops "Update website now": rebuild the dev website, never gwenda.co.uk.
+  if (isDevRequest(body)) {
+    return devContentBuild(env, "dev-production", "promote");
   }
 
   const kind = parsePromoteKind(body);

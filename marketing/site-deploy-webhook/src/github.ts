@@ -1,24 +1,31 @@
-import type { DeployTarget, Env, WorkflowRun } from "./types";
+import type { ContentTarget, Env, WorkflowRun } from "./types";
 
 const WEB_WORKFLOW_FILE = "web.yml";
 const PROMOTE_WORKFLOW_FILE = "web-promote.yml";
 
-const CONTENT_ACTION: Record<DeployTarget, string> = {
+const CONTENT_ACTION: Record<ContentTarget, string> = {
   staging: "staging-content",
   production: "production-content",
+  "dev-staging": "dev-preview",
+  "dev-production": "dev-live",
 };
 
 /** Also accept legacy repository_dispatch action names in run-name. */
-const CONTENT_RUN_NAMES: Record<DeployTarget, string[]> = {
+const CONTENT_RUN_NAMES: Record<ContentTarget, string[]> = {
   staging: ["staging-content", "content-deploy-staging", "promote-dev-to-staging"],
   production: ["production-content", "content-deploy-production"],
+  "dev-staging": ["dev-preview"],
+  "dev-production": ["dev-live"],
 };
 
-const WORKFLOW_REFS: Record<DeployTarget, string> = {
+const WORKFLOW_REFS: Record<ContentTarget, string> = {
   staging: "main",
   // Content rebuilds of the marketing site use main. Live promotion is
   // dispatchStagingPromote, which always selects release.
   production: "main",
+  // The dev website runs the code on main, like prod's preview.
+  "dev-staging": "main",
+  "dev-production": "main",
 };
 
 /** Stable Pages alias for production content (and code) previews. */
@@ -50,15 +57,15 @@ export async function githubFetch(
   });
 }
 
-export function workflowFileForTarget(_target: DeployTarget): string {
+export function workflowFileForTarget(_target: ContentTarget): string {
   return WEB_WORKFLOW_FILE;
 }
 
-export function refForTarget(target: DeployTarget): string {
+export function refForTarget(target: ContentTarget): string {
   return WORKFLOW_REFS[target];
 }
 
-export function contentActionForTarget(target: DeployTarget): string {
+export function contentActionForTarget(target: ContentTarget): string {
   return CONTENT_ACTION[target];
 }
 
@@ -66,7 +73,7 @@ function runName(run: WorkflowRun): string {
   return String(run.display_title || run.name || "").trim();
 }
 
-export function isContentRunForTarget(run: WorkflowRun, target: DeployTarget): boolean {
+export function isContentRunForTarget(run: WorkflowRun, target: ContentTarget): boolean {
   const path = run.path ?? "";
   if (!path.endsWith(WEB_WORKFLOW_FILE) && !path.includes(`/${WEB_WORKFLOW_FILE}`)) {
     return false;
@@ -92,7 +99,7 @@ export function isProductionContentPromoteRun(run: WorkflowRun): boolean {
 
 function pickMatchingRun(
   runs: WorkflowRun[] | undefined,
-  target: DeployTarget,
+  target: ContentTarget,
 ): WorkflowRun | null {
   if (!runs?.length) return null;
   return runs.find((run) => isContentRunForTarget(run, target)) ?? null;
@@ -100,7 +107,7 @@ function pickMatchingRun(
 
 export async function findInProgressRun(
   env: Env,
-  target: DeployTarget,
+  target: ContentTarget,
 ): Promise<WorkflowRun | null> {
   const res = await githubFetch(
     env,
@@ -136,7 +143,7 @@ export async function findInProgressPromoteRun(
 
 export async function dispatchContentDeploy(
   env: Env,
-  target: DeployTarget,
+  target: ContentTarget,
 ): Promise<WorkflowRun> {
   const ref = refForTarget(target);
   const action = contentActionForTarget(target);
@@ -207,7 +214,7 @@ export async function dispatchContentPromote(
 
 async function getLatestRun(
   env: Env,
-  target: DeployTarget,
+  target: ContentTarget,
 ): Promise<WorkflowRun | null> {
   const res = await githubFetch(
     env,

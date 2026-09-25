@@ -199,6 +199,9 @@
 	}
 
 	const jobs = $derived(getWebsiteJobsState().jobs);
+	/** This environment's website (dev ops links to the dev website). */
+	const siteUrls = $derived(getSitePendingState().urls);
+	const siteHost = $derived(new URL(siteUrls.live).host);
 
 	async function retryJob(id: string) {
 		if (working) return;
@@ -287,8 +290,8 @@
 				<div class="status-copy">
 					<h2>{liveStatus.title}</h2>
 					{#if liveStatus.note}<p>{liveStatus.note}</p>{/if}
-					<a class="site-link" href="https://gwenda.co.uk" target="_blank" rel="noreferrer">
-						Open gwenda.co.uk <Icon name="external-link" size={12} />
+					<a class="site-link" href={siteUrls.live} target="_blank" rel="noreferrer">
+						Open {siteHost} <Icon name="external-link" size={12} />
 					</a>
 				</div>
 				{#if !local && live && (live.items.length || live.failed || !live.known) && !live.updating}
@@ -400,7 +403,7 @@
 								: preview?.items.length
 									? `${changes(preview.items.length)} will show there${preview.autoUpdateAt ? ` at about ${clock(preview.autoUpdateAt)}` : " soon"}.`
 									: "checking…"}
-					<a href="https://gwenda-staging.pages.dev" target="_blank" rel="noreferrer">Open preview site</a>
+					<a href={siteUrls.preview} target="_blank" rel="noreferrer">Open preview site</a>
 				</p>
 				{#if !local && preview && (preview.items.length || preview.failed) && !preview.updating}
 					<button

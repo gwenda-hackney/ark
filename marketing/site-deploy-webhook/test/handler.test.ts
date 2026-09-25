@@ -296,3 +296,59 @@ describe("github integration", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("dev website builds", () => {
+  function devRun(id: number, title: string) {
+    return {
+      id,
+      status: "in_progress",
+      conclusion: null,
+      html_url: `https://github.com/run/${id}`,
+      path: ".github/workflows/web.yml",
+      name: title,
+      display_title: title,
+    };
+  }
+
+  it("dev ops' Update website now rebuilds the dev site from main, never promotes", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [] })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [devRun(77, "dev-live")] })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = new Request("https://example.com/promote", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-secret" },
+      body: JSON.stringify({ kind: "staging-to-production", env: "dev" }),
+    });
+    const result = await handlePromote(request, env);
+    expect(result.status).toBe(202);
+    expect(result.body.target).toBe("dev-production");
+    expect(result.body.runId).toBe(77);
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(String(url)).toContain("/actions/workflows/web.yml/dispatches");
+    expect(JSON.parse(String(init.body))).toEqual({ ref: "main", inputs: { action: "dev-live" } });
+    vi.unstubAllGlobals();
+  });
+
+  it("a dev preview rebuild joins one already running", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(
+        new Response(JSON.stringify({ workflow_runs: [devRun(78, "dev-preview")] })),
+      ),
+    );
+    const request = new Request("https://example.com/deploy", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-secret" },
+      body: JSON.stringify({ target: "staging", env: "dev" }),
+    });
+    const result = await handleDeploy(request, env);
+    expect(result.body.target).toBe("dev-staging");
+    expect(result.body.alreadyRunning).toBe(true);
+    expect(result.body.runId).toBe(78);
+    vi.unstubAllGlobals();
+  });
+});
