@@ -536,7 +536,7 @@
 				>
 					<span class="tab-icon">
 						<Icon name={item.icon} size={20} />
-						{#if item.id === "web" && badge}
+						{#if item.id === "more" && badge}
 							<span
 								class="tab-badge {badge.tone}"
 								aria-label={badgeTitle(badge.tone, badge.count)}
@@ -557,6 +557,7 @@
 		sections={sheet ? sheetSections(sheet, shownRoutes) : []}
 		{active}
 		account={sheet === "more"}
+		badge={badge ? { ...badge, title: badgeTitle(badge.tone, badge.count) } : null}
 		onnavigate={onLeafClick}
 		email={sessionLabel}
 		{envSummary}
@@ -1302,7 +1303,8 @@
 
 		.tabs {
 			display: grid;
-			grid-template-columns: repeat(5, minmax(0, 1fr));
+			grid-auto-columns: minmax(0, 1fr);
+			grid-auto-flow: column;
 			align-items: start;
 			height: var(--bottom-nav-h);
 			padding: 0.35rem 0.4rem env(safe-area-inset-bottom, 0px);

@@ -30,6 +30,9 @@
 		{
 			headerName: "Status",
 			field: "status",
+			// Email verification was dropped, so status no longer means anything.
+			// Kept hidden in case a manual review status comes back here.
+			hide: true,
 			width: 120,
 			minWidth: 96,
 		},

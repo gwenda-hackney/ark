@@ -69,7 +69,10 @@ export async function runFormSmoke(env, { slug = SMOKE_FORM_SLUG, requestUrl = "
     if (!notify.ok || notify.dryRun) {
       throw new Error(`Team email failed: ${notify.error || (notify.dryRun ? "dry run" : "unknown")}`);
     }
-    await markFormSubmissionEmailSent(env, rowId, "notify");
+    const notifyMarked = await markFormSubmissionEmailSent(env, rowId, "notify");
+    if (!notifyMarked?.ok) {
+      throw new Error(`Recording the team email on the row failed: ${notifyMarked?.error || "unknown"}`);
+    }
 
     const origin = resolvePublicOrigin(new URL(requestUrl).origin, env).replace(/\/$/, "");
     const receipt = await sendFormReceiptEmail(env, {
@@ -81,7 +84,10 @@ export async function runFormSmoke(env, { slug = SMOKE_FORM_SLUG, requestUrl = "
     if (!receipt.ok || receipt.dryRun) {
       throw new Error(`Applicant email failed: ${receipt.error || (receipt.dryRun ? "dry run" : "unknown")}`);
     }
-    await markFormSubmissionEmailSent(env, rowId, "receipt");
+    const receiptMarked = await markFormSubmissionEmailSent(env, rowId, "receipt");
+    if (!receiptMarked?.ok) {
+      throw new Error(`Recording the applicant email on the row failed: ${receiptMarked?.error || "unknown"}`);
+    }
 
     const row = await fetchFormSubmissionRow(env, rowId);
     if (row && typeof row === "object" && "ok" in row && !row.ok) {
