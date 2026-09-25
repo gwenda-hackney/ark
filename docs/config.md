@@ -95,7 +95,7 @@ Every env reads with the same token, SM `BASEROW_CONFIG_API_KEY` (Ark, shared). 
 | `google.calendar_id` | local, production / ops | Calendar that receives ops nights (dev vs live) |
 | `lightspeed.archive_skus` | per env / ops | Lightspeed SKUs archived from the ops stock view |
 | `web.origin` | local, production / ops | Marketing site ops calls for form resends |
-| `forms.notify_email` | local, staging / web | Sends every form notification here instead of the Sanity form's address. Production has no row, so it uses the form's own notify address. |
+| `forms.notify_email` | local, staging / web | Sends every form notification here instead of the Sanity form's address. Required outside production (no row means no email). Production has no row, so it uses the form's own notify address. The hosted dev website overrides it with `FORMS_NOTIFY_EMAIL` (alerts@) in `wrangler.dev.toml`. |
 
 Do **not** put credentials here.
 

@@ -27,12 +27,16 @@ export async function webConfigString(env, key) {
 
 /**
  * Who gets a form's notification. Prod: the Sanity form's own address (an
- * env override still wins). Everywhere else the forms.notify_email override
- * is required: copied content carries real inboxes (play@), so without the
+ * env override still wins). Everywhere else FORMS_NOTIFY_EMAIL (a hosted
+ * site's wrangler var) or the forms.notify_email setting is required: copied content carries real inboxes (play@), so without the
  * setting nothing is sent (the caller keeps the submission and logs why).
  */
 export async function resolveFormNotifyTo(env, form) {
   if (configEnvName(env) !== "production") {
+    // A hosted site's own setting wins: the dev website sends to alerts@,
+    // while a developer's machine (same "local" config rows) uses their inbox.
+    const fromSite = String(env.FORMS_NOTIFY_EMAIL || "").trim();
+    if (fromSite) return fromSite;
     let override = "";
     try {
       override = (await getConfigString(env, "web", WEB_CONFIG_KEYS.formsNotifyEmail)).trim();
