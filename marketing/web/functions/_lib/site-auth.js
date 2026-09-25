@@ -150,6 +150,8 @@ export function isPublicPath(pathname) {
   if (pathname === "/gate" || pathname === "/gate/") return true;
   if (pathname === "/thanks" || pathname === "/thanks/") return true;
   if (pathname === "/health" || pathname === "/health/") return true;
+  // Deep health checks its own bearer secret (post-deploy smoke test).
+  if (pathname === "/api/health/deep") return true;
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/"))
     return true;
   if (pathname === "/api/subscribe") return true;
