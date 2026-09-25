@@ -612,10 +612,10 @@ export function websiteStatusFor(event, staging, production) {
   return "current";
 }
 
-/** Replace publish.live with the real-data answer. Local ops keeps its own. */
+/** Replace publish.live with the real-data answer. */
 export async function withWebsiteStatus(env, events, { query = sanityQuery } = {}) {
   const list = (Array.isArray(events) ? events : [events]).filter(Boolean);
-  if (!list.length || siteEnvName(env) === "local") return events;
+  if (!list.length) return events;
   let staging;
   let production;
   try {

@@ -18,7 +18,7 @@ import {
   removeEventFromWebsite,
   unpublishOccurrences,
 } from "../../../../_lib/event-publish.js";
-import { isLocalOps } from "../../../../_lib/sanity.js";
+import { canChangeWebsite } from "../../../../_lib/sanity.js";
 
 function params(context) {
   return {
@@ -77,7 +77,7 @@ export const onRequestDelete = withApiHandler(async (context) => {
   ).trim();
   const event = await getEvent(context.env, id);
   const plan = occurrenceDeleteTargets(event, date, scope);
-  const offWebsite = Boolean(body?.alsoWebsite) && !isLocalOps(context.env);
+  const offWebsite = Boolean(body?.alsoWebsite) && canChangeWebsite(context.env);
   const warnings = offWebsite
     ? await removeEventFromWebsite(context.env, event, plan.targets)
     : [];

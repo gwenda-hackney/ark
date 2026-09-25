@@ -6,7 +6,7 @@ import {
   putEventOnWebsite,
   withWebsiteStatus,
 } from "../../../_lib/event-publish.js";
-import { assertNotLocal } from "../../../_lib/sanity.js";
+import { assertSanityWritable } from "../../../_lib/sanity.js";
 
 function eventId(context) {
   return decodeURIComponent(context.params?.id || "");
@@ -29,7 +29,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   if (!id) return jsonResponse({ error: "Missing event id." }, 400);
   const body = await readJsonBody(context.request).catch(() => null);
   if (body?.target === "production") {
-    assertNotLocal(context.env, "Local ops cannot put events on the website.");
+    assertSanityWritable(context.env);
     if (body.confirm !== "production") {
       return jsonResponse({ error: 'Send confirm: "production".' }, 400);
     }

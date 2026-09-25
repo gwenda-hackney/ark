@@ -10,7 +10,7 @@
  */
 import {
   EDITORIAL_DATASET,
-  assertNotLocal,
+  assertSanityWritable,
   sanityMutate,
   sanityMutateProduction,
   sanityQuery,
@@ -326,7 +326,7 @@ export async function publishRelease(
     fetchImpl = fetch,
   } = {},
 ) {
-  assertNotLocal(env, "Local ops cannot publish or reset the hosted sites.");
+  assertSanityWritable(env);
   const direction = directionFor(directionName);
   const toStaging = direction.target === EDITORIAL_DATASET;
   const write =

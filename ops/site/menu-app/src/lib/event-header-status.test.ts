@@ -36,15 +36,4 @@ describe("eventHeaderFlag", () => {
       tone: "live",
     });
   });
-
-  it("local ops talks about its local preview only", () => {
-    assert.equal(
-      eventHeaderFlag({ preview: "current", live: "current" }, false, { local: true }).label,
-      "Local preview",
-    );
-    assert.equal(
-      eventHeaderFlag({ preview: "stale", live: "current" }, false, { local: true }).label,
-      "Not in local preview",
-    );
-  });
 });

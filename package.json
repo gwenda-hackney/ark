@@ -19,6 +19,7 @@
     "build": "npm run build -w @gwenda/web",
     "preview": "npm run preview -w @gwenda/web",
     "studio": "npm run dev -w @gwenda/studio",
+    "sanity:dev:refresh": "node scripts/sanity-dev-refresh.mjs",
     "studio:deploy": "SANITY_ACTIVE_ENV=production npm run deploy -w @gwenda/studio",
     "studio:deploy:staging": "SANITY_ACTIVE_ENV=staging npm run deploy -w @gwenda/studio",
     "studio:deploy:dev": "SANITY_ACTIVE_ENV=development npm run deploy -w @gwenda/studio",

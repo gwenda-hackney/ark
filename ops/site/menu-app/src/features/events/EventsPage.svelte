@@ -22,10 +22,6 @@
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import { EVENTS_HELP } from "./events-help";
 	import { eventHeaderFlag } from "../../lib/event-header-status";
-	import {
-		eventsNotStaged,
-		seriesCount,
-	} from "../../lib/event-publish-queue";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
 	import {
 		onWebsiteJobEvent,
@@ -54,9 +50,7 @@
 		getEventDrive,
 		getEvents,
 		getMe,
-		publishAllEventsPreview,
 		putEventOnWebsite,
-		restageEvent,
 		syncEventCalendar,
 		updateEvent,
 		updateEventOccurrence,
@@ -123,10 +117,8 @@
 	let saving = $state(false);
 	let intent = $state<"" | "save" | "delete" | "image">("");
 	let calendarSyncing = $state(false);
-	let publishing = $state("");
 	/** Local ops stages drafts for the local site and never releases. */
 	let localOps = $state(false);
-	let stagingAll = $state(false);
 	let error = $state("");
 	let warnings = $state<string[]>([]);
 
@@ -281,22 +273,20 @@
 	);
 	const tab = $derived(normalizeEventTab(route.tab));
 	const busy = $derived(
-		loading || saving || driveUploading || calendarSyncing || Boolean(publishing),
+		loading || saving || driveUploading || calendarSyncing,
 	);
 	const busyLabel = $derived(
 		calendarSyncing
 			? "Updating calendar…"
-			: publishing
-				? "Publishing…"
-				: loading
-					? "Loading…"
-					: driveUploading
-						? "Uploading…"
-						: intent === "delete"
-							? "Deleting…"
-							: intent === "image"
-								? "Updating photo…"
-								: "Saving…",
+			: loading
+				? "Loading…"
+				: driveUploading
+					? "Uploading…"
+					: intent === "delete"
+						? "Deleting…"
+						: intent === "image"
+							? "Updating photo…"
+							: "Saving…",
 	);
 	const missing = $derived(
 		editing && !route.isNew && !loading && !current && Boolean(error),
@@ -628,13 +618,10 @@
 	const websiteJob = $derived(websiteJobFor(current?.id));
 	const headerFlag = $derived(
 		eventHeaderFlag(current?.publish, formDirty, {
-			local: localOps,
 			job: websiteJob?.state ?? null,
 		}),
 	);
-	const stagingPreviewCurrent = $derived(current?.publish.preview === "current");
 	const liveCurrent = $derived(current?.publish.live === "current");
-	const notStaged = $derived(eventsNotStaged(events));
 
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const base = route.isNew
@@ -698,7 +685,6 @@
 	}
 
 	function statusLabel(event: OpsEvent): string {
-		if (localOps) return event.publish.preview === "current" ? "Local preview" : "Not in local preview";
 		if (event.publish.live === "current") return "On website";
 		return "Not on website yet";
 	}
@@ -1330,7 +1316,7 @@
 	/** Delete asks whether to take it off gwenda.co.uk too (only if it is there). */
 	let alsoWebsite = $state(true);
 	const onWebsite = $derived(
-		!localOps && Boolean(current?.publish) && current?.publish.live !== "unpublished",
+		Boolean(current?.publish) && current?.publish.live !== "unpublished",
 	);
 
 	function requestDelete() {
@@ -1629,25 +1615,6 @@
 		}
 	}
 
-	/** Retry staging. Saving stages, so this is only for a failed or older stage. */
-	async function onRestage() {
-		if (!eventId || busy) return;
-		publishing = "staging";
-		error = "";
-		warnings = [];
-		try {
-			const data = await restageEvent(eventId);
-			rememberEvent(data.event, false);
-			warnings = data.warnings || [];
-			toast.ok(localOps ? "Local preview updated." : "It's on the preview site.");
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Could not stage.";
-			error = message;
-			toast.error(message);
-		} finally {
-			publishing = "";
-		}
-	}
 
 	/** "Update website": confirm, then publish just this event. */
 	let putOpen = $state(false);
@@ -1695,30 +1662,6 @@
 		}
 	}
 
-	async function stageAll() {
-		if (stagingAll || busy || !notStaged.length) return;
-		stagingAll = true;
-		try {
-			const data = await publishAllEventsPreview();
-			events = data.events || events;
-			if (data.failed.length) {
-				toast.error(
-					`Could not stage ${data.failed.map((row) => `${row.name} (${row.error})`).join(", ")}.`,
-				);
-			} else {
-				toast.ok(
-					localOps
-						? `Local preview updated for ${seriesCount(data.published.length)}.`
-						: `${seriesCount(data.published.length)} put on the preview site.`,
-				);
-			}
-			if (data.warnings.length) warnings = data.warnings;
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not stage.");
-		} finally {
-			stagingAll = false;
-		}
-	}
 
 	function clearPendingPhoto() {
 		if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
@@ -1942,21 +1885,6 @@
 						{/snippet}
 						Refresh
 					</Button>
-					{#if localOps && notStaged.length}
-						<Button
-							type="button"
-							variant="outline"
-							busy={stagingAll}
-							disabled={busy || stagingAll}
-							title="Some events aren't in your local preview. This puts them there."
-							onclick={() => void stageAll()}
-						>
-							{#snippet icon()}
-								<Icon name="upload" size={16} />
-							{/snippet}
-							Update local preview ({notStaged.length})
-						</Button>
-					{/if}
 					{#if listView === "series"}
 						<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
 							{#snippet icon()}
@@ -2121,30 +2049,7 @@
 									>
 										Update calendar
 									</Button>
-									{#if localOps && !formDirty && !stagingPreviewCurrent}
-										<Button
-											variant="outline"
-											size="sm"
-											type="button"
-											disabled={busy}
-											busy={publishing === "staging"}
-											title="Saving normally does this. Try again if it didn't work."
-											onclick={() => void onRestage()}
-										>
-											Update local preview
-										</Button>
-									{:else if localOps}
-										<!-- Shown, never usable: the test copy must not change the real website. -->
-										<Button
-											variant="primary"
-											size="sm"
-											type="button"
-											disabled
-											title="This is the test copy of ops. Update website works in the real ops app."
-										>
-											Update website
-										</Button>
-									{:else if !liveCurrent}
+									{#if !liveCurrent}
 										<Button
 											variant="primary"
 											size="sm"
@@ -2259,8 +2164,8 @@
 						{/if}
 						{#if localOps && eventId}
 							<p class="head-note local-note">
-								Test copy of ops: saving updates your local preview only. Update website works in the
-								real ops app.
+								Test copy of ops: Save and Update website change the Gwenda Dev copy of the website,
+								never gwenda.co.uk.
 							</p>
 						{/if}
 					</header>

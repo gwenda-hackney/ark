@@ -2,17 +2,20 @@
 
 Sanity is Gwenda's **editorial layer**: website data and copy that editors own, distinct from site code in git.
 
-One project (`pn5yjro6`) on [sanity.io/manage](https://www.sanity.io/manage). Two hosted Studios. Two datasets (`staging` and `production`). The project is on the **Free** plan, which allows two datasets and no more, so there is no development dataset: local work uses drafts in `staging`.
+Two projects on [sanity.io/manage](https://www.sanity.io/manage), both on the **Free** plan (two datasets each, `staging` and `production`):
+
+- **Gwenda Web** (`pn5yjro6`): the real website. Two hosted Studios.
+- **Gwenda Dev** (`gwscpagy`): a copy for local work. Local ops, the local site and local Studio use it, so local testing runs exactly the hosted flow (Save, then Update website) and can never reach gwenda.co.uk. Refresh it from the real project with `npm run sanity:dev:refresh` (your personal `npx sanity login`; the real project is only read).
 
 ## Environments
 
 | | Git branch | Website | Sanity dataset | Perspective | Studio |
 |---|------------|---------|----------------|-------------|--------|
-| **Local** | `develop` (WIP) | `npm run dev` | **`staging`** | drafts overlay | localhost Studio |
+| **Local** | `develop` (WIP) | `npm run dev` (preview) / `npm run dev:website -w @gwenda/web` (website, :4322) | Gwenda Dev **`staging`** / **`production`** | drafts overlay / published | localhost Studio (Gwenda Dev) |
 | **Staging** | `main` | gwenda-staging.pages.dev | **`staging`** | published only | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) (edit here; review the site) |
 | **Production** | promote only (`release` pointer) | gwenda.co.uk | **`production`** (copied from staging by ops Release) | published only | [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema; do not edit live content) |
 
-Local Studio and `npm run dev` work against the staging dataset with drafts visible. The hosted staging **site** ignores drafts. Production gets the published staging documents you choose in ops **Website → Staging → live**, then a production build.
+Local Studio and `npm run dev` work against Gwenda Dev's staging dataset with drafts visible; `dev:website` shows Gwenda Dev's production dataset, which local ops' Update website writes. The hosted staging **site** ignores drafts. Production gets the published staging documents you choose in ops **Website → Staging → live**, then a production build.
 
 ## Workflow
 
@@ -49,10 +52,9 @@ Settings → Developer tools (`/web/dev`), for emails listed in config `ops.admi
 ### Ops events and local ops
 
 - **Hosted ops:** saving an event stages it (writes its series and nights to `staging`, published). What's on on gwenda-staging reads that live; the rest of the preview site updates after 10 quiet minutes. The website changes only through Put on website or the Website page.
-- **Local ops** (`SITE_ENV=local`): saving writes **drafts** in `staging`, which only the local site shows (`previewDrafts`). Local ops cannot write published staging documents, production, or trigger any deploy (the server returns 403). Studio cannot publish or delete `event` / `eventSeries` documents, so a local draft can never be pushed to staging from Studio; use Discard to clear one.
-- A removal cannot be previewed locally: deleting a night in local ops only drops its draft.
+- **Local ops** (`SITE_ENV=local`) works exactly like hosted ops, in **Gwenda Dev**: Save writes published `staging`, Update website copies to Gwenda Dev `production`. It refuses to write the real project (403), and it never starts GitHub builds or database copies. `npm run dev -w @gwenda/ops` sets the dev project and warns if `SANITY_API_TOKEN` can't open it (the token is `SANITY_API_TOKEN__LOCAL` in Secrets Manager). `npm run dev:live -w @gwenda/ops` is the real project and production data.
 
-Local `.env` uses `SANITY_DATASET=staging`. Do not edit the production dataset in Studio.
+Local `.env` uses `SANITY_PROJECT_ID=gwscpagy` and `SANITY_DATASET=staging`. Do not edit the real production dataset in Studio.
 
 ## Tokens
 
@@ -81,9 +83,9 @@ npm run setup:sanity-tokens
 ### Local `.env`
 
 ```bash
-SANITY_PROJECT_ID=pn5yjro6
+SANITY_PROJECT_ID=gwscpagy   # Gwenda Dev
 SANITY_DATASET=staging
-SANITY_API_TOKEN=sk...   # ark-local-editor (Editor robot)
+# SANITY_API_TOKEN comes from .env.secrets: SANITY_API_TOKEN__LOCAL (Gwenda Dev Editor robot)
 ```
 
 ## Studio env files
@@ -176,7 +178,7 @@ The static site reads **published** Sanity documents at build time. `npm run dev
 
 ### Editor workflow
 
-1. Edit in **Dev Studio** or local Studio. Leave WIP as drafts. `npm run dev` shows those drafts.
+1. Edit in **Dev Studio** (real staging). Leave WIP as drafts. Local Studio and `npm run dev` use the Gwenda Dev copy, so try changes there first.
 2. Publish when the copy is ready for the review site.
 3. Rebuild staging (ops Web / Dev Studio promote, or merge to `main`). Staging ignores drafts.
 4. Review https://gwenda-staging.pages.dev.
