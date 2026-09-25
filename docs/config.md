@@ -108,7 +108,7 @@ npm run setup:baserow-config            # create/repair DB, table, fields, seed 
 npm run setup:baserow-config -- --token # also mint the read/write token into SM
 ```
 
-**Breaking config changes happen after the deploy.** The code still running may read a row until the new code is live. So: add what both versions need first (`setup:baserow-config` only adds), deploy, then remove the old. Retired settings are listed in `RETIRED_SETTINGS` (`shared/config.js`); `scripts/config-post-deploy.mjs` removes their rows, and CI runs it after the prod ops deploy (`apps.yml`).
+**Breaking config changes happen after the deploy.** The code still running may read a row until the new code is live. So: add what both versions need first (`setup:baserow-config` only adds), deploy, then remove the old. Retired settings are listed in `RETIRED_SETTINGS` (`shared/config.js`); `migrations/config-retired-settings.mjs` removes their rows after the production ops deploy (see [migrations](migrations.md)).
 
 ### Machine state in Gwenda Config
 
@@ -179,4 +179,4 @@ Each submission sends two emails: a **notification** to the team and a **receipt
 
 The code that renders and sends both emails lives in `shared/forms/` and is used by both apps. Ops `/forms` shows both stamps and can send or resend either email itself: it reads the row, loads the form from the live site's Sanity dataset (published only), sends through the same Gmail mailbox (`GMAIL_SERVICE_ACCOUNT_JSON`, `SMTP_USER` in ops' wrangler `[vars]`), and stamps the row. Ops never calls the website.
 
-The receipt's "change your application" link is signed with the website's secret. The site saves the finished link in the row's `Edit Link` column when it stores the submission, so ops can resend a receipt without the secret or the website's address. Rows stored before that column existed link to the form's page on gwenda.co.uk instead.
+The receipt's "change your application" link is signed with the website's secret. The site saves the finished link in the row's `Edit Link` column when it stores the submission, so ops can resend a receipt without the secret or the website's address. The column is added by a pre-deploy [migration](migrations.md); until it exists the site skips saving. Rows without a link get a link to the form's page on gwenda.co.uk instead.

@@ -261,6 +261,16 @@ jobs:
       - name: Brand colour tokens in sync
         run: npm run sync:brand -- --check
 
+      # Baserow schema changes need a user login (database tokens only touch rows).
+      - name: Baserow login for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # Additive only, so the website still running keeps working (scripts/lib/migrations.mjs).
+      - name: Migrations before deploy
+        run: node scripts/migrate.mjs --app web --phase pre --env dev
+
       - name: Deploy
         uses: ./.github/actions/deploy-pages
         with:
@@ -291,6 +301,10 @@ jobs:
         env:
           SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url "${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      # The new code is live: remove what only the old code used.
+      - name: Migrations after deploy
+        run: node scripts/migrate.mjs --app web --phase post --env dev
 
   deploy-production-preview:
     name: Deploy production preview
@@ -347,6 +361,16 @@ jobs:
 
       - name: Brand colour tokens in sync
         run: npm run sync:brand -- --check
+
+      # Baserow schema changes need a user login (database tokens only touch rows).
+      - name: Baserow login for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # Additive only, so the website still running keeps working (scripts/lib/migrations.mjs).
+      - name: Migrations before deploy
+        run: node scripts/migrate.mjs --app web --phase pre --env production
 
       - name: Deploy preview
         uses: ./.github/actions/deploy-pages
