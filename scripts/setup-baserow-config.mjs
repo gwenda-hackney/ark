@@ -3,7 +3,7 @@
  * Create or repair the Baserow "Gwenda Config" database (workspace Gwenda).
  * See shared/config.js (the config service) for how settings resolve.
  * Additive only (safe before a deploy): removing rows the running code may
- * still read happens after the deploy, in scripts/config-post-deploy.mjs.
+ * still read happens after the deploy (migrations/config-retired-settings.mjs).
  *
  *   npm run setup:baserow-config            # database, table, fields, seed rows
  *   npm run setup:baserow-config -- --token # also mint BASEROW_CONFIG_API_KEY → SM (Ark)

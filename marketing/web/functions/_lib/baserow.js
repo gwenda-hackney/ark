@@ -193,6 +193,7 @@ export async function baserowFormSubmissionRowsUrl(env) {
     ok: true,
     apiKey,
     tableId,
+    fieldsUrl: `${apiBase}/api/database/fields/table/${tableId}/`,
     rowsUrl: `${apiBase}/api/database/rows/table/${tableId}/?user_field_names=true`,
     rowUrl: (rowId) =>
       `${apiBase}/api/database/rows/table/${tableId}/${rowId}/?user_field_names=true`,

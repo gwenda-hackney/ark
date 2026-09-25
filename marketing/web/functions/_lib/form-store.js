@@ -1,5 +1,6 @@
 import { baserowFormSubmissionRowsUrl } from "./baserow.js";
 import { reportFormError } from "../../../../shared/forms/form-alert.js";
+import { log } from "../../../../shared/log.js";
 import { diffFormAnswers } from "./form-submit.js";
 import { replyToFromAnswers } from "../../../../shared/forms/format.js";
 import {
@@ -581,6 +582,26 @@ export async function markFormSubmissionEmailSent(env, rowId, kind, sentAt) {
   return { ok: true, sentAt: when };
 }
 
+/** Set once the Edit Link column is seen, so later saves skip the check. */
+let editLinkColumnSeen = false;
+
+export function resetEditLinkColumnForTests() {
+  editLinkColumnSeen = false;
+}
+
+/** The column arrives by a pre-deploy migration; a database without it yet is fine. */
+async function hasEditLinkColumn(resolved) {
+  if (editLinkColumnSeen) return true;
+  const upstream = await fetch(resolved.fieldsUrl, {
+    headers: { Authorization: `Token ${resolved.apiKey}` },
+  });
+  if (!upstream.ok) return false;
+  const fields = await upstream.json().catch(() => []);
+  editLinkColumnSeen =
+    Array.isArray(fields) && fields.some((field) => field?.name === FORM_EDIT_LINK_FIELD);
+  return editLinkColumnSeen;
+}
+
 /**
  * Save the receipt's edit link on the row, so ops can resend the receipt
  * without the signing secret or this site's address. Best effort: a missing
@@ -592,6 +613,10 @@ export async function saveFormEditLink(env, rowId, editUrl) {
 
   const resolved = await baserowFormSubmissionRowsUrl(env);
   if (!resolved.ok) return resolved;
+  if (!(await hasEditLinkColumn(resolved))) {
+    log.event("warn", "form_edit_link_column_missing", { rowId: id });
+    return { ok: false, skipped: true, error: "No Edit Link column yet." };
+  }
 
   const upstream = await fetch(resolved.rowUrl(id), {
     method: "PATCH",

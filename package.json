@@ -29,6 +29,7 @@
     "preview:refresh:baserow-web": "node scripts/with-env.mjs node scripts/clone-baserow-web-db.mjs --target=staging --force",
     "studio:deploy:prod": "SANITY_ACTIVE_ENV=production npm run deploy -w @gwenda/studio",
     "studio:deploy:preview": "SANITY_ACTIVE_ENV=staging npm run deploy -w @gwenda/studio",
+    "migrate": "node scripts/migrate.mjs",
     "env:pull": "node scripts/pull-env-from-bitwarden.mjs",
     "env:push": "node scripts/push-env-to-bitwarden.mjs",
     "env:seed": "node scripts/seed-bitwarden-env.mjs",

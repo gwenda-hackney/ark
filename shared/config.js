@@ -44,7 +44,7 @@ export {
 
 /**
  * Settings that code no longer reads. Their rows are removed after a deploy
- * (scripts/config-post-deploy.mjs, run by CI once the new code is live),
+ * (migrations/config-retired-settings.mjs, run by CI once the new code is live),
  * never before: the code still running may read them until then.
  */
 export const RETIRED_SETTINGS = ["web.origin", "sanity.dataset", "web.pages_secrets_fingerprint"];
