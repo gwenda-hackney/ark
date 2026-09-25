@@ -218,6 +218,19 @@ export async function sanityUploadAsset(env, dataset, kind, bytes, { filename, c
 }
 
 /**
+ * Give a staging photo the name ops looks it up by. Sanity hands back an
+ * existing asset when the bytes match, keeping its old name. Skipped in local
+ * ops: patches there become drafts, and an asset must not have one.
+ */
+export async function sanityRenameImageAsset(env, dataset, assetId, filename) {
+  assertEditorialDataset(dataset);
+  if (isLocalOps(env) || !assetId || !filename) return;
+  await sanityMutateDataset(env, dataset, [
+    { patch: { id: assetId, set: { originalFilename: filename } } },
+  ]);
+}
+
+/**
  * Production writes are only a copy of a document that already exists in
  * staging. Feature publish uses this. Everyday edits stay on staging.
  */

@@ -10,6 +10,7 @@ import {
   sanityMutate,
   sanityMutateProduction,
   sanityQuery,
+  sanityRenameImageAsset,
   sanityUploadImage,
 } from "./sanity.js";
 import {
@@ -53,7 +54,40 @@ function httpError(message, status) {
   throw error;
 }
 
-async function imageFromUrl(url, upload) {
+/** Sanity filename for an ops photo: Baserow file names are unique per upload. */
+function assetFilename(image) {
+  const name = String(image?.name || "").trim();
+  return name ? `ops-${name}` : "";
+}
+
+function imageRef(assetId) {
+  return {
+    _type: "image",
+    alt: "",
+    asset: { _type: "reference", _ref: assetId },
+  };
+}
+
+/**
+ * Photos already in Sanity, by ops filename, so saves reuse them instead of
+ * downloading and uploading the same bytes again. One query for all of them.
+ */
+export async function existingImageAssets(env, images) {
+  const names = [...new Set(images.map(assetFilename).filter(Boolean))];
+  const found = new Map();
+  if (!names.length) return found;
+  const rows =
+    (await sanityQuery(
+      env,
+      EDITORIAL_DATASET,
+      `*[_type == "sanity.imageAsset" && originalFilename in $names]{ _id, originalFilename }`,
+      { names },
+    )) || [];
+  for (const row of rows) found.set(row.originalFilename, row._id);
+  return found;
+}
+
+async function imageFromUrl(url, upload, filename = "event.jpg") {
   if (!url) return undefined;
   const response = await fetch(url, {
     signal: AbortSignal.timeout(45_000),
@@ -63,13 +97,32 @@ async function imageFromUrl(url, upload) {
   }
   const bytes = await response.arrayBuffer();
   const contentType = response.headers.get("content-type") || "image/jpeg";
-  const asset = await upload(bytes, { filename: "event.jpg", contentType });
+  const asset = await upload(bytes, { filename, contentType });
   if (!asset?._id) return undefined;
-  return {
-    _type: "image",
-    alt: "",
-    asset: { _type: "reference", _ref: asset._id },
-  };
+  return { ...imageRef(asset._id), originalFilename: asset.originalFilename };
+}
+
+/** Sanity image for an ops photo: reuse the uploaded asset, else upload once. */
+export async function heroImage(env, image, known) {
+  const url = String(image?.url || "").trim();
+  if (!url) return undefined;
+  const filename = assetFilename(image);
+  const assetId = filename ? known.get(filename) : "";
+  if (assetId) return imageRef(assetId);
+  const hero = await imageFromUrl(
+    url,
+    (bytes, meta) => sanityUploadImage(env, EDITORIAL_DATASET, bytes, meta),
+    filename || "event.jpg",
+  );
+  if (!hero) return hero;
+  const { originalFilename, ...uploaded } = hero;
+  if (filename) {
+    known.set(filename, uploaded.asset._ref);
+    if (originalFilename !== filename) {
+      await sanityRenameImageAsset(env, EDITORIAL_DATASET, uploaded.asset._ref, filename);
+    }
+  }
+  return uploaded;
 }
 
 function clamp01(value) {
@@ -162,12 +215,16 @@ export async function publishEventPreview(
   const occurrences = [];
   const mutations = [];
 
+  const knownAssets = await existingImageAssets(env, [
+    event.mainImage,
+    ...wanted.map(
+      (date) => resolveOccurrenceContent(event, existingByDate.get(date) || date).image,
+    ),
+  ]);
   const seriesImageUrl = event.mainImage?.url || "";
   let seriesHero;
   if (seriesImageUrl) {
-    const uploaded = await imageFromUrl(seriesImageUrl, (bytes, meta) =>
-      sanityUploadImage(env, EDITORIAL_DATASET, bytes, meta),
-    );
+    const uploaded = await heroImage(env, event.mainImage, knownAssets);
     seriesHero = withImageCrop(
       uploaded ? { ...uploaded, alt: event.name } : uploaded,
       framingFromEvent(event),
@@ -237,9 +294,7 @@ export async function publishEventPreview(
     const imageUrl = content.image?.url || "";
     let hero = heroByUrl.get(imageUrl);
     if (imageUrl && !heroByUrl.has(imageUrl)) {
-      hero = await imageFromUrl(imageUrl, (bytes, meta) =>
-        sanityUploadImage(env, EDITORIAL_DATASET, bytes, meta),
-      );
+      hero = await heroImage(env, content.image, knownAssets);
       heroByUrl.set(imageUrl, hero);
     }
     if (hero) {
