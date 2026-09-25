@@ -800,9 +800,9 @@ export function buildWhatsOnStack(
       row.fullDescription || row.description,
       { maxParagraphs: row.regular ? 2 : 1 },
     );
-    const featuredNight = row.regular
-      ? null
-      : row.nights.slice().sort(compareNights)[0] || null;
+    // The next night's own line (e.g. "This Friday: guest DJ") follows the
+    // series copy, for weekly residencies as well as one-offs.
+    const featuredNight = row.nights.slice().sort(compareNights)[0] || null;
     return {
       id: row.seriesId,
       seriesId: row.seriesId,
@@ -1125,6 +1125,7 @@ export function buildSeriesDetail(
         endTime: night.endTime || "",
         time: night.time || "",
         offer: night.offer || "",
+        note: scheduledNightShort(night, seriesSummary.shortDescription),
         heroImageUrl: night.heroImageUrl,
       })),
       oneOffRows,
