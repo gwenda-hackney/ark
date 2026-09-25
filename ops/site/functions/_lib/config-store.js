@@ -53,7 +53,7 @@ export const DEFAULT_SANITY_PROJECT_ID = "pn5yjro6";
 
 const DRINK_TYPES = Object.keys(POUR_TARGET_KEYS);
 
-/** dev, staging or production (a developer's machine is dev). */
+/** dev or production (a developer's machine is dev). */
 export const siteEnvName = environmentOf;
 
 /** Human labels for shell chrome (which Baserow world this request hits). */
@@ -66,11 +66,9 @@ export function opsConnectionInfo(env = {}) {
       ? isLocalMachine(env)
         ? "Dev · this machine"
         : "Dev"
-      : siteEnv === "staging"
-        ? "Staging"
-        : siteEnv === "production"
-          ? "Production"
-          : siteEnv;
+      : siteEnv === "production"
+        ? "Production"
+        : siteEnv;
   const databaseLabel = !databaseId
     ? "Baserow Ops (auto)"
     : isProductionDb

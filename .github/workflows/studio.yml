@@ -1,75 +1,16 @@
 name: Studio
 
+# The hosted Studio (gwenda.sanity.studio) edits drafts in the real project's
+# one dataset; ops publishes them. It deploys with the release: web-promote.yml
+# redeploys it when its code changed, and this runs it by hand from release.
+
 on:
-  push:
-    paths:
-      - "marketing/studio/**"
-      - ".github/workflows/studio.yml"
   workflow_dispatch:
-    inputs:
-      target:
-        description: Studio target
-        required: true
-        type: choice
-        default: auto
-        options:
-          - auto
-          - staging
-          - production
 
 jobs:
-  deploy-staging:
-    name: Deploy Dev Studio
-    if: >-
-      (github.event_name == 'push' && github.ref_name == 'main')
-      || (github.event_name == 'workflow_dispatch'
-          && (inputs.target == 'staging'
-              || (inputs.target == 'auto' && github.ref_name == 'main')))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    environment:
-      name: studio-staging
-      url: https://gwenda-dev.sanity.studio
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "npm"
-
-      - name: Install dependencies
-        uses: ./.github/actions/npm-install
-
-      - name: Deploy hosted Studio (dev)
-        run: npm run studio:deploy:preview
-        env:
-          SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
-          SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
-          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
-
-      - name: Deployment summary
-        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
-        env:
-          DEPLOY_SUMMARY_JSON: >-
-            {"title":"Dev Studio deployed","rows":[
-              ["Studio","https://gwenda-dev.sanity.studio"],
-              ["Dataset","staging"],
-              ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"]
-            ]}
-
   refuse-production-from-other-branches:
     name: Refuse production Studio off release
-    if: >-
-      github.event_name == 'workflow_dispatch'
-      && inputs.target == 'production'
-      && github.ref_name != 'release'
+    if: github.ref_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - name: Fail
@@ -79,10 +20,7 @@ jobs:
 
   deploy-production:
     name: Deploy production Studio
-    if: >-
-      github.event_name == 'workflow_dispatch'
-      && github.ref_name == 'release'
-      && (inputs.target == 'production' || inputs.target == 'auto')
+    if: github.ref_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -106,11 +44,9 @@ jobs:
         uses: ./.github/actions/npm-install
 
       - name: Deploy hosted Studio (production)
-        run: npm run studio:deploy:prod
+        run: npm run studio:deploy
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
-          SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
-          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
 
       - name: Deployment summary
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs

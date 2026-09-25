@@ -9,7 +9,7 @@ export function shortSha(sha = buildSha): string {
   return sha ? sha.slice(0, 7) : "";
 }
 
-/** Human-readable label for staging UI / support checks. */
+/** Human-readable label for preview UI / support checks. */
 export function buildLabel(): string {
   if (!buildSha) return "local dev";
 

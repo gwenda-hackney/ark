@@ -3,34 +3,22 @@ import type { ContentTarget, Env, WorkflowRun } from "./types";
 const WEB_WORKFLOW_FILE = "web.yml";
 const PROMOTE_WORKFLOW_FILE = "web-promote.yml";
 
+/** web.yml `action` input per target; the run is named after it. */
 const CONTENT_ACTION: Record<ContentTarget, string> = {
-  staging: "staging-content",
-  production: "production-content",
-  "dev-staging": "dev-preview",
-  "dev-production": "dev-live",
+  preview: "preview",
+  "dev-preview": "dev-preview",
+  "dev-live": "dev-live",
 };
 
-/** Also accept legacy repository_dispatch action names in run-name. */
-const CONTENT_RUN_NAMES: Record<ContentTarget, string[]> = {
-  staging: ["staging-content", "content-deploy-staging", "promote-dev-to-staging"],
-  production: ["production-content", "content-deploy-production"],
-  "dev-staging": ["dev-preview"],
-  "dev-production": ["dev-live"],
-};
+/**
+ * web.yml from main runs every content build. The dev website builds main's
+ * code; the preview job checks out release itself. Live promotion is
+ * dispatchLivePromote, which always selects release.
+ */
+const WORKFLOW_REF = "main";
 
-const WORKFLOW_REFS: Record<ContentTarget, string> = {
-  staging: "main",
-  // Content rebuilds of the marketing site use main. Live promotion is
-  // dispatchStagingPromote, which always selects release.
-  production: "main",
-  // The dev website runs the code on main, like prod's preview.
-  "dev-staging": "main",
-  "dev-production": "main",
-};
-
-/** Stable Pages alias for production content (and code) previews. */
-export const PRODUCTION_CONTENT_PREVIEW_URL =
-  "https://release-preview.gwenda-blue.pages.dev";
+/** Prod's preview: the "preview" branch of the gwenda Pages project. */
+export const PRODUCTION_CONTENT_PREVIEW_URL = "https://preview.gwenda-blue.pages.dev";
 
 type GitHubRequestInit = RequestInit;
 
@@ -61,8 +49,8 @@ export function workflowFileForTarget(_target: ContentTarget): string {
   return WEB_WORKFLOW_FILE;
 }
 
-export function refForTarget(target: ContentTarget): string {
-  return WORKFLOW_REFS[target];
+export function refForTarget(_target: ContentTarget): string {
+  return WORKFLOW_REF;
 }
 
 export function contentActionForTarget(target: ContentTarget): string {
@@ -78,14 +66,11 @@ export function isContentRunForTarget(run: WorkflowRun, target: ContentTarget): 
   if (!path.endsWith(WEB_WORKFLOW_FILE) && !path.includes(`/${WEB_WORKFLOW_FILE}`)) {
     return false;
   }
-  const name = runName(run);
-  return CONTENT_RUN_NAMES[target].some(
-    (expected) => name === expected || name.includes(expected),
-  );
+  return runName(run) === CONTENT_ACTION[target];
 }
 
 export function isProductionContentPreviewRun(run: WorkflowRun): boolean {
-  return isContentRunForTarget(run, "production");
+  return isContentRunForTarget(run, "preview");
 }
 
 export function isProductionContentPromoteRun(run: WorkflowRun): boolean {
@@ -175,7 +160,7 @@ export async function dispatchContentDeploy(
   return latest;
 }
 
-export async function dispatchStagingPromote(env: Env): Promise<WorkflowRun> {
+export async function dispatchLivePromote(env: Env): Promise<WorkflowRun> {
   const res = await githubFetch(
     env,
     `/actions/workflows/${PROMOTE_WORKFLOW_FILE}/dispatches`,
@@ -209,7 +194,7 @@ export async function dispatchContentPromote(
   env: Env,
   _previewRunId?: number,
 ): Promise<WorkflowRun> {
-  return dispatchStagingPromote(env);
+  return dispatchLivePromote(env);
 }
 
 async function getLatestRun(

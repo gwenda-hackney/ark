@@ -18,10 +18,15 @@ const night = (date, extra = {}) => ({
   ...extra,
 });
 
-test("fingerprints ignore revisions, timestamps and key order", () => {
+test("fingerprints ignore revisions, timestamps, draft markers and key order", () => {
   assert.equal(
     documentFingerprint(night("2026-10-03")),
     documentFingerprint({ date: "2026-10-03", title: "Gwenda Nights", _type: "event", _id: "event-nights-2026-10-03", _rev: "r9" }),
+  );
+  // A draft read through the preview matches its published copy when unchanged.
+  assert.equal(
+    documentFingerprint(night("2026-10-03")),
+    documentFingerprint(night("2026-10-03", { _originalId: "drafts.event-nights-2026-10-03" })),
   );
   assert.notEqual(
     documentFingerprint(night("2026-10-03")),

@@ -185,7 +185,7 @@ export async function sendFormVerifyEmail(
     .toLowerCase();
   const mailReady = Boolean(from && to && isGmailConfigured(env));
   const siteEnv = env.SITE_ENV?.trim();
-  const isDeployed = siteEnv === "staging" || siteEnv === "production";
+  const isDeployed = siteEnv === "production";
 
   const token = await createFormVerifyToken(env, {
     rowId,

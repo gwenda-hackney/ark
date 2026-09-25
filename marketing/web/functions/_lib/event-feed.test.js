@@ -35,8 +35,8 @@ describe("pageEventFeed", () => {
 });
 
 describe("diaryCacheControl", () => {
-  it("caches the diary the same way on staging and production", () => {
-    expect(diaryCacheControl({ SITE_ENV: "staging" })).toBe("public, max-age=60");
+  it("caches the diary the same way on dev and production", () => {
+    expect(diaryCacheControl({ SITE_ENV: "dev" })).toBe("public, max-age=60");
     expect(diaryCacheControl({ SITE_ENV: "production" })).toBe("public, max-age=60");
   });
 });

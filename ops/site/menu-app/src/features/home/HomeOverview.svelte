@@ -115,11 +115,11 @@
 			: 1,
 	);
 
-	const stagingEnv = $derived(webStatus?.environments.staging ?? null);
+	const previewEnv = $derived(webStatus?.environments.preview ?? null);
 	const productionEnv = $derived(webStatus?.environments.production ?? null);
 	const syncMetrics = $derived(
-		stagingEnv && productionEnv
-			? buildSyncMetrics(stagingEnv, productionEnv)
+		previewEnv && productionEnv
+			? buildSyncMetrics(previewEnv, productionEnv)
 			: [],
 	);
 
@@ -351,9 +351,9 @@
 				<Card
 					fill
 					title="Sync"
-					subtitle="Staging against production."
+					subtitle="Preview against production."
 				>
-					{#if !webStatus || !stagingEnv || !productionEnv}
+					{#if !webStatus || !previewEnv || !productionEnv}
 						<p class="empty">Website status did not load.</p>
 					{:else}
 						<div class="metrics">
@@ -376,7 +376,7 @@
 				<Card
 					fill
 					title="Health"
-					subtitle="Production only. Staging is a preview."
+					subtitle="Production only."
 				>
 					{#if !productionEnv}
 						<p class="empty">Website status did not load.</p>

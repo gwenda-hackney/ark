@@ -1,6 +1,6 @@
 import {
   dispatchContentDeploy,
-  dispatchStagingPromote,
+  dispatchLivePromote,
   findInProgressPromoteRun,
   findInProgressRun,
   getRunStatus,
@@ -17,7 +17,7 @@ import type {
   PromoteRequest,
 } from "./types";
 
-const VALID_TARGETS = new Set<DeployTarget>(["staging", "production"]);
+const VALID_TARGETS = new Set<DeployTarget>(["preview", "staging", "production"]);
 
 export function extractBearerSecret(request: Request): string | null {
   const header = request.headers.get("Authorization");
@@ -44,10 +44,10 @@ export function isDevRequest(body: { env?: unknown } | null): boolean {
   return body?.env === "dev";
 }
 
-/** Build the dev website (gwenda-web-dev) from main, once at a time. */
-async function devContentBuild(
+/** One web.yml content build at a time: join a running one, else start it. */
+async function contentBuild(
   env: Env,
-  target: Extract<ContentTarget, "dev-staging" | "dev-production">,
+  target: ContentTarget,
   phase: "deploy" | "promote",
 ): Promise<HandlerResult> {
   const inProgress = await findInProgressRun(env, target);
@@ -93,13 +93,10 @@ export async function handleDeploy(
   }
 
   const target = parseDeployTarget(body);
-  if (target === "staging" && isDevRequest(body)) {
-    return devContentBuild(env, "dev-staging", "deploy");
-  }
   if (!target) {
     return {
       status: 400,
-      body: { error: 'Missing or invalid "target". Use "staging".' },
+      body: { error: 'Missing or invalid "target". Use "preview".' },
     };
   }
   if (target === "production") {
@@ -111,41 +108,14 @@ export async function handleDeploy(
       },
     };
   }
-
-  const inProgress = await findInProgressRun(env, target);
-  if (inProgress) {
-    return {
-      status: 202,
-      body: {
-        ok: true,
-        target,
-        phase: "deploy",
-        alreadyRunning: true,
-        runId: inProgress.id,
-        runUrl: inProgress.html_url,
-        status: inProgress.status,
-      },
-    };
+  if (isDevRequest(body)) return contentBuild(env, "dev-preview", "deploy");
+  // Prod ops from before the preview moved onto drafts still asks for the
+  // old staging site. Nothing builds it any more; the preview follows once
+  // that release is replaced.
+  if (target === "staging") {
+    return { status: 202, body: { ok: true, target, phase: "deploy", skipped: "retired" } };
   }
-
-  const run = await dispatchContentDeploy(env, target);
-  return {
-    status: 202,
-    body: {
-      ok: true,
-      target,
-      phase: "deploy",
-      runId: run.id,
-      runUrl: run.html_url,
-      status: run.status,
-    },
-  };
-}
-
-export function parsePromoteKind(body: PromoteRequest | null): string {
-  const kind = body?.kind;
-  if (kind === "development-to-staging") return kind;
-  return "staging-to-production";
+  return contentBuild(env, "preview", "deploy");
 }
 
 export async function handlePromote(
@@ -169,42 +139,7 @@ export async function handlePromote(
 
   // Dev ops "Update website now": rebuild the dev website, never gwenda.co.uk.
   if (isDevRequest(body)) {
-    return devContentBuild(env, "dev-production", "promote");
-  }
-
-  const kind = parsePromoteKind(body);
-  const toStaging = kind === "development-to-staging";
-
-  if (toStaging) {
-    const inProgressStaging = await findInProgressRun(env, "staging");
-    if (inProgressStaging) {
-      return {
-        status: 202,
-        body: {
-          ok: true,
-          target: "staging",
-          phase: "deploy",
-          kind,
-          alreadyRunning: true,
-          runId: inProgressStaging.id,
-          runUrl: inProgressStaging.html_url,
-          status: inProgressStaging.status,
-        },
-      };
-    }
-    const run = await dispatchContentDeploy(env, "staging");
-    return {
-      status: 202,
-      body: {
-        ok: true,
-        target: "staging",
-        phase: "deploy",
-        kind: "staging-content",
-        runId: run.id,
-        runUrl: run.html_url,
-        status: run.status,
-      },
-    };
+    return contentBuild(env, "dev-live", "promote");
   }
 
   const inProgress = await findInProgressPromoteRun(env);
@@ -223,14 +158,14 @@ export async function handlePromote(
     };
   }
 
-  const run = await dispatchStagingPromote(env);
+  const run = await dispatchLivePromote(env);
   return {
     status: 202,
     body: {
       ok: true,
       target: "production",
       phase: "promote",
-      kind: body?.kind || "staging-to-production",
+      kind: body?.kind || "to-production",
       runId: run.id,
       runUrl: run.html_url,
       status: run.status,

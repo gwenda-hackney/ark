@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Subpage from "../../components/Subpage.astro";
-import { isStaging } from "../../config/env";
+import { isPreview } from "../../config/env";
 import { siteConfig } from "../../config/site";
 import { formatEventSpan, getUpcomingEvents } from "../../data/events";
 import {
@@ -87,7 +87,7 @@ function nightTime(night: {
     <p
       id="schedule-loading"
       class="events-loading"
-      hidden={hasContent && !isStaging}
+      hidden={hasContent && !isPreview}
     >
       Looking at the diary…
     </p>

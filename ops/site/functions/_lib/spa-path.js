@@ -83,7 +83,7 @@ export function canonicalizePath(href) {
 export const MENU_DETAIL_TABS = ["details", "menu", "cost", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
 /** Event editor tabs. `details` is the default and is omitted from the URL. */
-/** Publishing moved to Website > Staging → live; old /publish links land on details. */
+/** Publishing moved to Website > Preview → live; old /publish links land on details. */
 export const EVENT_DETAIL_TABS = ["details", "schedule", "gallery"];
 const EVENT_TAB_IDS = new Set(EVENT_DETAIL_TABS);
 /** Older drink tabs still resolve. */

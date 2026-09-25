@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Create (or repair) the Event Invites Baserow table for local dev + staging.
+ * Create (or repair) the Event Invites Baserow table (dev, or production with its own token).
  *
  * Database tokens only allow row CRUD. Creating tables/fields requires a short-lived
  * JWT from POST /api/user/token-auth/ (Admin or Builder on the workspace).
  *
- * Dev and gwenda-staging share Gwenda Dev / Website. Production tables
+ * Both dev sites share Gwenda Dev / Website. Production tables
  * are created separately when you promote.
  *
  * Usage:

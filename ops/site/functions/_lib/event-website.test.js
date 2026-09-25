@@ -21,7 +21,7 @@ test("an event's documents: series, nights on either side, and ops rows", async 
     "event-jazz-2026-10-13",
     "series-jazz",
   ]);
-  assert.deepEqual(seen.map((row) => row[0]).sort(), ["production", "staging"]);
+  assert.deepEqual(seen.map((row) => row[0]).sort(), ["preview", "production"]);
   assert.equal(seen[0][2], "series-jazz");
 });
 
@@ -33,22 +33,22 @@ const night = (date, extra = {}) => ({ _id: `event-negroni-${date}`, _type: "eve
 const negroni = { slug: "negroni", publish: { live: "current" } };
 
 test("a series short-description change makes the event out of date", () => {
-  const staging = docs(series("£8 Negronis"), night("2026-09-29"));
+  const preview = docs(series("£8 Negronis"), night("2026-09-29"));
   const production = docs({ ...series("£10 Negronis"), _rev: "b" }, night("2026-09-29"));
-  assert.equal(websiteStatusFor(negroni, staging, production), "stale");
+  assert.equal(websiteStatusFor(negroni, preview, production), "stale");
 });
 
 test("identical documents (revisions aside) are on the website", () => {
-  const staging = docs(series("£8"), night("2026-09-29"));
+  const preview = docs(series("£8"), night("2026-09-29"));
   const production = docs({ ...series("£8"), _rev: "zzz", _updatedAt: "x" }, night("2026-09-29"));
-  assert.equal(websiteStatusFor(negroni, staging, production), "current");
+  assert.equal(websiteStatusFor(negroni, preview, production), "current");
 });
 
 test("nothing live is unpublished; a night only on one side is stale", () => {
-  const staging = docs(series("£8"), night("2026-09-29"), night("2026-10-06"));
-  assert.equal(websiteStatusFor(negroni, staging, docs()), "unpublished");
+  const preview = docs(series("£8"), night("2026-09-29"), night("2026-10-06"));
+  assert.equal(websiteStatusFor(negroni, preview, docs()), "unpublished");
   assert.equal(
-    websiteStatusFor(negroni, staging, docs(series("£8"), night("2026-09-29"))),
+    websiteStatusFor(negroni, preview, docs(series("£8"), night("2026-09-29"))),
     "stale",
   );
 });

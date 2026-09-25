@@ -75,9 +75,9 @@ console.error(
     `  coming soon placeholder: ${hasComingSoon}`,
     `  menu page empty: ${menuEmpty}`,
     "",
-    "Staging builds use the staging dataset. Drafts are ignored.",
+    "Preview builds use the preview dataset. Drafts are ignored.",
     "Set GitHub secret SANITY_API_TOKEN to a Viewer token (separate from SANITY_DEPLOY_TOKEN).",
-    "Check the staging dataset has content, then rebuild.",
+    "Check the preview dataset has content, then rebuild.",
   ].join("\n"),
 );
 process.exit(1);

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * One-shot setup for Studio → site content deploy:
+ * One-shot setup for the site deploy webhook (ops → site rebuilds):
  *   - generate DEPLOY_WEBHOOK_SECRET (or reuse from .env.secrets) and store it in Secrets Manager
  *   - push GitHub secrets (DEPLOY_WEBHOOK_SECRET, DISPATCH_TOKEN, SANITY_STUDIO_SITE_DEPLOY_URL)
  *   - deploy gwenda-site-deploy-webhook Worker + sync Worker secrets
- *   - write SANITY_STUDIO_SITE_DEPLOY_URL into repo-root .env for local Studio
+ *   - write SANITY_STUDIO_SITE_DEPLOY_URL into repo-root .env (local ops reads it as the webhook URL)
  *
  * Usage:
  *   npm run setup:site-deploy
@@ -92,95 +92,6 @@ function writeSiteDeployEnvLines(lines) {
   writeFileSync(ENV_PATH, filtered ? `${filtered}${block}` : `${block.trimStart()}\n`);
 }
 
-const API_VERSION = "v2025-08-18";
-const DEPLOY_STUDIO_LABEL = "ark-ci-deploy-studio";
-
-async function sanityRequest(path, { method = "GET", body, adminToken, projectId }) {
-  const res = await fetch(`https://api.sanity.io/${API_VERSION}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${adminToken}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const text = await res.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-
-  if (!res.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String(data.message)
-        : text || res.statusText;
-    throw new Error(`Sanity API ${method} ${path} → ${res.status}: ${message}`);
-  }
-
-  return data;
-}
-
-async function createDeployStudioToken(projectId, adminToken) {
-  const tokens = await sanityRequest(`/projects/${projectId}/tokens`, { adminToken, projectId });
-  for (const token of tokens.filter((entry) => entry.label === DEPLOY_STUDIO_LABEL)) {
-    await sanityRequest(`/projects/${projectId}/tokens/${token.id}`, {
-      method: "DELETE",
-      adminToken,
-      projectId,
-    });
-  }
-
-  const created = await sanityRequest(`/projects/${projectId}/tokens`, {
-    method: "POST",
-    adminToken,
-    projectId,
-    body: { label: DEPLOY_STUDIO_LABEL, roleName: "deploy-studio" },
-  });
-
-  const key = created?.key;
-  if (typeof key !== "string" || !key.startsWith("sk")) {
-    throw new Error("Sanity did not return a deploy-studio token key.");
-  }
-
-  return key;
-}
-
-function resolvePersonalSanityToken() {
-  const fromEnv = process.env.SANITY_AUTH_TOKEN?.trim();
-  if (fromEnv) return fromEnv;
-  const studioDir = resolve(ROOT, "studio");
-  const out = run("npx", ["sanity", "debug", "--secrets"], {
-    cwd: studioDir,
-    quiet: true,
-  });
-  const match = out.match(/Auth token:\s+(\S+)/);
-  if (!match) {
-    throw new Error(
-      "Need a Deploy Studio token or personal Sanity login.\n" +
-        "  Set SANITY_DEPLOY_TOKEN in .env, or run: npx sanity login",
-    );
-  }
-  return match[1];
-}
-
-
-function deployHostedDevStudio({ deploySecret, workerUrl, deployStudioToken }) {
-  console.log("Deploying hosted development Studio with site deploy config…");
-  run("npm", ["run", "studio:deploy:dev"], {
-    env: {
-      SANITY_ACTIVE_ENV: "development",
-      SANITY_DEPLOY_TOKEN: deployStudioToken,
-      SANITY_AUTH_TOKEN: deployStudioToken,
-      SANITY_STUDIO_SITE_DEPLOY_URL: workerUrl,
-      SANITY_STUDIO_SITE_DEPLOY_SECRET: deploySecret,
-    },
-  });
-}
-
 async function main() {
   loadRepoEnv();
   assertGhAuth();
@@ -250,29 +161,9 @@ async function main() {
   writeSiteDeployEnvLines([`SANITY_STUDIO_SITE_DEPLOY_URL=${workerUrl}`]);
   console.log(`Updated ${ENV_PATH} with the site deploy URL.`);
 
-  const projectIdRaw = process.env.SANITY_PROJECT_ID?.trim();
-  const projectId = projectIdRaw && /^[a-z0-9]+$/.test(projectIdRaw) && projectIdRaw.length <= 12
-    ? projectIdRaw
-    : "pn5yjro6";
-
-  let deployStudioToken = process.env.SANITY_DEPLOY_TOKEN?.trim();
-  if (deployStudioToken) {
-    console.log("Reusing SANITY_DEPLOY_TOKEN from .env for hosted Studio deploy.");
-  } else {
-    console.log(
-      "SANITY_DEPLOY_TOKEN missing — minting ark-ci-deploy-studio via personal Sanity login…",
-    );
-    const personalToken = resolvePersonalSanityToken();
-    deployStudioToken = await createDeployStudioToken(projectId, personalToken);
-  }
-  deployHostedDevStudio({ deploySecret, workerUrl, deployStudioToken });
-
   console.log(
     "\nDone.\n" +
-      "- Local Studio: restart `npm run studio:dev` (with-env loads .env).\n" +
-      "- Hosted dev Studio: redeployed with site deploy config.\n" +
-      "- Content deploy button: works after site-deploy workflows are on `main` (push pending commits).\n" +
-      "- Production Studio: `npm run studio:deploy:prod` when ready.",
+      "- Ops starts preview and live rebuilds through this webhook once the workflows are on `main`.",
   );
 }
 

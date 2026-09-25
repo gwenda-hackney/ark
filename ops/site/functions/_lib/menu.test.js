@@ -11,34 +11,14 @@ import {
   parseIngredientLine,
   resolveIngredientAbv,
 } from "./menu.js";
-import { sanityDataset, sanityMutate, sanityUploadImage } from "./sanity.js";
 
 describe("deployTargetForEnv", () => {
-  it("maps production, staging, development, and local default", () => {
+  it("maps production, preview, development, and local default", () => {
     assert.equal(deployTargetForEnv("production"), "production");
-    assert.equal(deployTargetForEnv("staging"), "staging");
+    assert.equal(deployTargetForEnv("preview"), "preview");
     assert.equal(deployTargetForEnv("development"), "development");
-    assert.equal(deployTargetForEnv(""), "staging");
+    assert.equal(deployTargetForEnv(""), "preview");
     assert.equal(deployTargetForEnv("", "local"), "development");
-  });
-});
-
-describe("sanityDataset", () => {
-  it("maps editorial writes onto staging; production is clone-only", () => {
-    assert.equal(sanityDataset({}, "production"), "production");
-    assert.equal(sanityDataset({}, "staging"), "staging");
-    assert.equal(sanityDataset({}, "development"), "staging");
-  });
-});
-
-describe("editorial write lock", () => {
-  it("refuses mutate and upload on production", async () => {
-    await assert.rejects(() => sanityMutate({}, "production", []), /staging dataset/);
-    await assert.rejects(() => sanityMutate({}, "development", []), /staging dataset/);
-    await assert.rejects(
-      () => sanityUploadImage({}, "production", new Uint8Array(), { filename: "x.png" }),
-      /staging dataset/,
-    );
   });
 });
 

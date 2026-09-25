@@ -5,10 +5,8 @@ import {
 import { deleteEvent, getEvent, updateEvent } from "../../_lib/event-store.js";
 import {
   removeEventFromWebsite,
-  unpublishEvent,
   withWebsiteStatus,
 } from "../../_lib/event-publish.js";
-import { canChangeWebsite } from "../../_lib/sanity.js";
 
 function eventId(context) {
   return decodeURIComponent(context.params?.id || "");
@@ -37,13 +35,10 @@ export const onRequestPatch = withApiHandler(async (context) => {
 export const onRequestDelete = withApiHandler(async (context) => {
   const id = eventId(context);
   if (!id) return jsonResponse({ error: "Missing event id." }, 400);
-  const body = await readJsonBody(context.request).catch(() => null);
   const event = await getEvent(context.env, id);
-  // "Also take it off the website now": otherwise it stays live until the
-  // Website page publishes the removal.
-  const offWebsite = Boolean(body?.alsoWebsite) && canChangeWebsite(context.env);
-  const warnings = offWebsite ? await removeEventFromWebsite(context.env, event) : [];
-  warnings.push(...(await unpublishEvent(context.env, event)));
+  // Deleting takes it off the preview and the website together: every
+  // document of the series, including nights removed in ops but still live.
+  const warnings = await removeEventFromWebsite(context.env, event);
   await deleteEvent(context.env, id);
   return jsonResponse(
     attachCalendarWarnings(context.env, { ok: true, id, warnings }),

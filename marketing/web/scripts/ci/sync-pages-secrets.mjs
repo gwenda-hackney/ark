@@ -4,7 +4,6 @@
  * [vars] or code defaults — not Pages secrets.
  *
  * Usage:
- *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda --profile production
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-web-dev --profile dev
  *
@@ -26,13 +25,13 @@ const profile = getArg("--profile");
 
 if (!project || !profile) {
   console.error(
-    "Usage: sync-pages-secrets.mjs --project NAME --profile staging|production|dev",
+    "Usage: sync-pages-secrets.mjs --project NAME --profile production|dev",
   );
   process.exit(1);
 }
 
 const secrets = {};
-const remove = [];
+const previewSecrets = {};
 
 function putSecret(key, value) {
   if (!value) {
@@ -63,14 +62,14 @@ const SMTP_PLAIN_VARS = {
   SMTP_FROM_EVENTS: "Gwenda Events <events@gwenda.co.uk>",
 };
 
-/** Staging-gate secrets: put on staging, removed from production. */
-const STAGING_ONLY_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
+/** The password gate: on every preview, never on the live site. */
+const GATE_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
 
 /** Every web secret from `npm run env:web:pull -- --github-env --profile <profile>`. */
 function putSharedSecrets() {
   const skip = new Set(APP_SECRETS.web.pagesSkip);
   for (const key of APP_SECRETS.web.keys) {
-    if (STAGING_ONLY_KEYS.has(key) || skip.has(key)) continue;
+    if (GATE_KEYS.has(key) || skip.has(key)) continue;
     putSecret(key, process.env[key]);
   }
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
@@ -85,26 +84,25 @@ function putSharedSecrets() {
 }
 
 const profiles = {
-  staging: () => {
-    if (!process.env.SITE_PASSWORD) {
-      console.error("SITE_PASSWORD is required for staging deploys.");
-      process.exit(1);
-    }
-    for (const key of STAGING_ONLY_KEYS) putSecret(key, process.env[key]);
-    putSharedSecrets();
-  },
+  // The live site is open; its preview (the project's preview environment)
+  // is gated. Without a password the preview refuses visitors (site-auth.js).
   production: () => {
-    remove.push(...STAGING_ONLY_KEYS);
+    if (!process.env.SITE_PASSWORD) {
+      console.warn("SITE_PASSWORD is empty: the preview stays closed until it is set.");
+    }
+    for (const key of GATE_KEYS) {
+      if (process.env[key]) previewSecrets[key] = process.env[key];
+    }
     putSharedSecrets();
   },
-  // Like staging: gated. Form notifications go to the dev inbox
-  // (forms.notify_email for Env=local), never the form's real address.
+  // Both dev sites are gated. Form notifications go to the dev inbox
+  // (forms.notify_email for Env=dev), never the form's real address.
   dev: () => {
     if (!process.env.SITE_PASSWORD) {
       console.error("SITE_PASSWORD is required for dev deploys.");
       process.exit(1);
     }
-    for (const key of STAGING_ONLY_KEYS) putSecret(key, process.env[key]);
+    for (const key of GATE_KEYS) putSecret(key, process.env[key]);
     putSharedSecrets();
   },
 };
@@ -124,9 +122,12 @@ try {
     project,
     secrets,
     plain: SMTP_PLAIN_VARS,
-    remove,
+    previewSecrets,
   });
   console.log(`Set ${done.secrets.length} secrets on ${project} (production, preview): ${done.secrets.join(", ")}.`);
+  if (done.previewSecrets.length) {
+    console.log(`Set ${done.previewSecrets.join(", ")} on ${project} (preview only).`);
+  }
   for (const key of done.removed) console.log(`Removed secret ${key} from ${project}.`);
   console.log(
     "Plain SMTP host/port/user are project vars; only SMTP_PASSWORD is a Pages secret. Form From/Reply-To live in Sanity.",

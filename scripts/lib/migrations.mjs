@@ -41,6 +41,11 @@ export const DATABASES = {
     dev: ["Gwenda Dev", "Gwenda Ops"],
     production: ["Gwenda", "Gwenda Ops"],
   },
+  // One config database serves every environment (shared/config.js).
+  config: {
+    dev: ["Gwenda", "Gwenda Config"],
+    production: ["Gwenda", "Gwenda Config"],
+  },
 };
 
 /** Check a migration module's exports; returns it with its name. */
@@ -105,6 +110,18 @@ export function baserowDatabase({ apiBase, jwt, databaseId, label, request = jwt
         if ((await fields(tableName)).some((f) => f.name === body.name)) return "exists";
         throw error;
       }
+      return "created";
+    },
+    /** Add a choice to a single-select column unless it has it. Returns what happened. */
+    async ensureSelectOption(tableName, fieldName, value) {
+      const field = (await fields(tableName)).find((f) => f.name === fieldName);
+      if (!field) throw new Error(`${label}: column "${fieldName}" not found in "${tableName}".`);
+      const options = field.select_options || [];
+      if (options.some((option) => option.value === value)) return "exists";
+      await call(`/api/database/fields/${field.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ select_options: [...options, { value, color: "light-blue" }] }),
+      });
       return "created";
     },
     /** Remove a column if it's there. Post-deploy only. */

@@ -1,5 +1,5 @@
 ---
-import { isStaging } from "../config/env";
+import { isPreview } from "../config/env";
 import { buildLabel } from "../config/build";
 
 interface Props {
@@ -11,23 +11,23 @@ const { share = true } = Astro.props;
 
 /**
  * Which environment this is. Hosted builds set PUBLIC_ENV_LABEL (the dev
- * website says "Dev" / "Dev · preview"); gwenda-staging is prod's preview
- * (docs/sanity.md). A local dev server shows the Gwenda Dev copy, its live
- * dataset under `npm run web:dev:live`.
+ * website says "Dev" / "Dev · preview"); prod's preview says "Preview"
+ * (docs/sanity.md). A local dev server shows the Gwenda Dev copy, published
+ * only under `npm run web:dev:live`.
  */
 const envLabel =
   import.meta.env.PUBLIC_ENV_LABEL ||
   (import.meta.env.DEV
-    ? process.env.SANITY_DATASET === "production"
+    ? process.env.SANITY_PERSPECTIVE === "published"
       ? "Dev · live"
       : "Dev"
     : "Preview");
 ---
 
 {
-  isStaging && (
+  isPreview && (
     <div
-      class="staging-ribbon"
+      class="preview-ribbon"
       role="status"
       aria-label={`${envLabel} environment. Build ${buildLabel()}.`}
       title={`Build ${buildLabel()}`}
@@ -35,12 +35,12 @@ const envLabel =
       {share ? (
         <button
           type="button"
-          class="staging-ribbon-share"
-          id="staging-share"
+          class="preview-ribbon-share"
+          id="preview-share"
           data-env-label={envLabel}
           title="Copy a link that unlocks this site for the recipient"
         >
-          <span data-staging-share-label>{envLabel}</span>
+          <span data-preview-share-label>{envLabel}</span>
         </button>
       ) : (
         <span>{envLabel}</span>
@@ -51,12 +51,12 @@ const envLabel =
 
 <script>
   // Keep this script a direct child of the component. Astro does not bundle
-  // a <script> nested in {isStaging && ...}; the import is then sent raw
+  // a <script> nested in {isPreview && ...}; the import is then sent raw
   // and the share click never runs.
-  import { initStagingShare } from "../scripts/staging-share.js";
+  import { initPreviewShare } from "../scripts/preview-share.js";
 
-  if (import.meta.env.PUBLIC_IS_STAGING === "true") {
-    initStagingShare();
-    document.addEventListener("astro:page-load", initStagingShare);
+  if (import.meta.env.PUBLIC_IS_PREVIEW === "true") {
+    initPreviewShare();
+    document.addEventListener("astro:page-load", initPreviewShare);
   }
 </script>

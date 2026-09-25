@@ -1,6 +1,6 @@
 # Cloudflare Pages — the dev website (gwenda-web-dev), built from the Gwenda
-# Dev Sanity copy for dev ops. main branch = live (production dataset);
-# the "preview" branch = preview (staging dataset). Password-gated like
+# Dev Sanity copy for dev ops. main branch = live (published documents);
+# the "preview" branch = preview (drafts over published). Password-gated like
 # prod's preview. Form notifications go to alerts@ (config forms.notify_email),
 # never the form's real address copied from prod.
 name = "gwenda-web-dev"
@@ -23,8 +23,10 @@ INVITE_IMAGE_URL = "https://gwenda.co.uk/images/event-invite.jpg"
 
 [env.preview.vars]
 SITE_ENV = "dev"
+SITE_PREVIEW = "true"
 SANITY_PROJECT_ID = "gwscpagy"
-SANITY_DATASET = "staging"
+SANITY_DATASET = "production"
+SANITY_PERSPECTIVE = "previewDrafts"
 BASEROW_OPS_DATABASE_ID = "560292"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"

@@ -6,8 +6,8 @@ export function buildEnvironment(env) {
 }
 
 /**
- * Shared preview-site rebuild. Feature publishers write Sanity, then call this.
- * Production is not a full-dataset clone. A feature copies its own documents.
+ * Site rebuilds go through the deploy webhook, which starts the GitHub
+ * workflows: the preview from the drafts, the live site from what is published.
  */
 
 export function webhookConfig(env) {
@@ -42,8 +42,8 @@ export async function webhookJson(url, secret, { method = "GET", body } = {}) {
   return payload;
 }
 
-/** Rebuild the preview site from the staging dataset. */
-export async function dispatchStagingContentDeploy(env) {
+/** Rebuild the preview site: drafts over published. */
+export async function dispatchPreviewDeploy(env) {
   assertNotLocal(env, "Local ops cannot rebuild the hosted sites.");
   const { baseUrl, secret } = webhookConfig(env);
   if (!baseUrl || !secret) {
@@ -53,7 +53,7 @@ export async function dispatchStagingContentDeploy(env) {
   }
   return webhookJson(`${baseUrl}/deploy`, secret, {
     method: "POST",
-    body: { target: "staging", env: buildEnvironment(env) },
+    body: { target: "preview", env: buildEnvironment(env) },
   });
 }
 
@@ -74,10 +74,7 @@ export async function fetchDeployStatus(env, runId) {
   return webhookJson(`${baseUrl}/status?run_id=${encodeURIComponent(String(id))}`, secret);
 }
 
-/**
- * Rebuild production from the release branch. Content is already copied
- * document by document by the Release page; this workflow no longer clones.
- */
+/** Rebuild the live site from the release branch and published documents. */
 export async function dispatchProductionDeploy(env) {
   assertNotLocal(env);
   const { baseUrl, secret } = webhookConfig(env);
@@ -88,11 +85,11 @@ export async function dispatchProductionDeploy(env) {
   }
   return webhookJson(`${baseUrl}/promote`, secret, {
     method: "POST",
-    body: { kind: "staging-to-production", env: buildEnvironment(env) },
+    body: { kind: "to-production", env: buildEnvironment(env) },
   });
 }
 
-/** Commits on staging that live does not have, via the webhook's GitHub token. */
+/** Commits on the preview that live does not have, via the webhook's GitHub token. */
 export async function compareCode(env, { base, head }) {
   const { baseUrl, secret } = webhookConfig(env);
   if (!baseUrl || !secret) {
@@ -104,7 +101,7 @@ export async function compareCode(env, { base, head }) {
   return webhookJson(`${baseUrl}/compare?${query}`, secret);
 }
 
-/** Start the Baserow copy workflow: production → ops-dev or website-staging. */
+/** Start the Baserow copy workflow: production → ops-dev or website-dev. */
 export async function dispatchBaserowCopy(env, target) {
   assertNotLocal(env, "Local ops cannot start a database copy.");
   const { baseUrl, secret } = webhookConfig(env);

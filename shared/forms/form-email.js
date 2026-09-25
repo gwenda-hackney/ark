@@ -109,7 +109,7 @@ export async function sendFormNotificationEmail(
   const replyTo = submitter || resolveFormReplyTo(form);
   const mailReady = Boolean(from && to && isGmailConfigured(env));
   const siteEnv = env.SITE_ENV?.trim();
-  const isDeployed = siteEnv === "staging" || siteEnv === "production";
+  const isDeployed = siteEnv === "production";
 
   const logoBuffer = await fetchImageBuffer(LOGO_URL);
   const text = formatFormEmail({
@@ -212,7 +212,7 @@ export async function sendFormReceiptEmail(
   const replyTo = resolveFormReplyTo(form);
   const mailReady = Boolean(from && to && isGmailConfigured(env));
   const siteEnv = env.SITE_ENV?.trim();
-  const isDeployed = siteEnv === "staging" || siteEnv === "production";
+  const isDeployed = siteEnv === "production";
 
   const subject = formatFormReceiptSubject(form, { updated });
 

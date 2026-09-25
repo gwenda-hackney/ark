@@ -3,7 +3,6 @@
  * Clone the marketing website Baserow database.
  *
  *   npm run dev:refresh:baserow-web        Gwenda Dev (local)
- *   npm run preview:refresh:baserow-web    Website Staging in paid Gwenda workspace
  *
  * Recreates every table/field, copies rows with link remapping. File field
  * values are skipped; empty file columns are still created.
@@ -16,7 +15,6 @@
  *   BASEROW_WEB_DEV_WORKSPACE_NAME       (default "Gwenda Dev")
  *   BASEROW_WEB_DEV_WORKSPACE_ID         (default from .baserow-ops-dev.json)
  *   BASEROW_WEB_DEV_DATABASE_NAME        (default "Website")
- *   BASEROW_WEB_STAGING_WORKSPACE_ID     (default paid Gwenda 208709)
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -41,22 +39,18 @@ const DEFAULT_SOURCE_DB = "461843";
 const DEV_WORKSPACE_NAME = "Gwenda Dev";
 const DEFAULT_DATABASE_NAME = "Website";
 const META_PATH = resolve(ROOT, ".baserow-web-dev.json");
-const STAGING_META_PATH = resolve(ROOT, ".baserow-web-staging.json");
 const OPS_META_PATH = resolve(ROOT, ".baserow-ops-dev.json");
-const GWENDA_WORKSPACE_ID = "208709";
-const STAGING_DATABASE_NAME = "Website Staging";
 
 function readEnv(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
 }
 
 function parseArgs(argv) {
-  const out = { dryRun: false, force: false, target: "dev" };
+  const out = { dryRun: false, force: false };
   for (const arg of argv) {
     if (arg === "--dry-run") out.dryRun = true;
     else if (arg === "--force") out.force = true;
-    else if (arg === "--target=staging" || arg === "--staging") out.target = "staging";
-    else if (arg === "--target=dev" || arg === "--dev") out.target = "dev";
+    else if (arg === "--target=dev" || arg === "--dev") continue;
     else if (arg === "--help" || arg === "-h") out.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
@@ -126,22 +120,13 @@ async function main() {
   loadRepoEnv({ app: "web" });
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(`Usage: node scripts/clone-baserow-web-db.mjs [--dry-run] [--force] [--target=dev|staging]`);
+    console.log(`Usage: node scripts/clone-baserow-web-db.mjs [--dry-run] [--force]`);
     return;
   }
 
-  const staging = opts.target === "staging";
   const apiBase = readEnv("BASEROW_API_URL", DEFAULT_API).replace(/\/$/, "");
-  const devMeta = readJson(META_PATH);
-  const sourceDbId = staging
-    ? readEnv(
-        "BASEROW_WEB_CLONE_SOURCE_ID",
-        devMeta?.databaseId || DEFAULT_SOURCE_DB,
-      )
-    : readEnv("BASEROW_WEB_CLONE_SOURCE_ID", DEFAULT_SOURCE_DB);
-  const workspaceName = staging
-    ? readEnv("BASEROW_WEB_STAGING_WORKSPACE_NAME", "Gwenda")
-    : readEnv("BASEROW_WEB_DEV_WORKSPACE_NAME", DEV_WORKSPACE_NAME);
+  const sourceDbId = readEnv("BASEROW_WEB_CLONE_SOURCE_ID", DEFAULT_SOURCE_DB);
+  const workspaceName = readEnv("BASEROW_WEB_DEV_WORKSPACE_NAME", DEV_WORKSPACE_NAME);
 
   console.log(`Source website database: ${sourceDbId}`);
   console.log(`Target workspace name: ${workspaceName}`);
@@ -177,9 +162,7 @@ async function main() {
 
   const ordered = orderTables(sourceTables, sourceFieldsByTableId);
   const sourceName = await resolveSourceName(apiBase, jwt, sourceDbId);
-  const destName = staging
-    ? readEnv("BASEROW_WEB_STAGING_DATABASE_NAME", STAGING_DATABASE_NAME)
-    : readEnv("BASEROW_WEB_DEV_DATABASE_NAME", DEFAULT_DATABASE_NAME);
+  const destName = readEnv("BASEROW_WEB_DEV_DATABASE_NAME", DEFAULT_DATABASE_NAME);
   const totalRows = [...rowCounts.values()].reduce((sum, n) => sum + n, 0);
 
   console.log(`Source database name: ${sourceName}`);
@@ -191,17 +174,11 @@ async function main() {
       `  ${table.name} (id ${table.id}, ${fields.length} fields, ${rowCounts.get(String(table.id))} rows)`,
     );
   }
-  console.log(
-    staging
-      ? `\nStaging clone goes into the paid Gwenda workspace.`
-      : `\nFree workspace row cap is 3000 (shared with Ops). This clone is ${totalRows} rows.`,
-  );
+  console.log(`\nFree workspace row cap is 3000 (shared with Ops). This clone is ${totalRows} rows.`);
 
   if (opts.dryRun) return;
 
-  const workspaceId = staging
-    ? readEnv("BASEROW_WEB_STAGING_WORKSPACE_ID", GWENDA_WORKSPACE_ID)
-    : await resolveWorkspaceId(apiBase, jwt, workspaceName);
+  const workspaceId = await resolveWorkspaceId(apiBase, jwt, workspaceName);
   const databaseId = await findOrCreateDatabase(apiBase, jwt, workspaceId, destName);
 
   let destTables = await jwtRequest(
@@ -358,31 +335,12 @@ async function main() {
     console.log(`  copied ${rows.length}`);
   }
 
-  if (staging) {
-    writeFileSync(
-      STAGING_META_PATH,
-      `${JSON.stringify(
-        {
-          workspaceId,
-          databaseId,
-          workspaceName,
-          databaseName: destName,
-          sourceDatabaseId: sourceDbId,
-          clonedAt: new Date().toISOString(),
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    console.log(`Wrote ${STAGING_META_PATH}`);
-  } else {
-    writeLocalDevHints({
-      workspaceId,
-      databaseId,
-      databaseName: destName,
-      sourceDbId,
-    });
-  }
+  writeLocalDevHints({
+    workspaceId,
+    databaseId,
+    databaseName: destName,
+    sourceDbId,
+  });
 
   const destSubscribe = destByName.get("Subscribers");
 
@@ -394,17 +352,10 @@ Clone complete.
   Source:     ${sourceDbId}
 
 Next:
-${
-  staging
-    ? `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
-       Create a token with access ONLY to this website database (${databaseId}).
-  2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__STAGING.
-  3. gh workflow run web-secrets.yml -f profile=staging`
-    : `  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
-       Create a token with access ONLY to this website database (${databaseId}).
+  1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
+     Create a token with access ONLY to this website database (${databaseId}).
   2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__LOCAL.
-  3. npm run env:secrets:pull`
-}
+  3. npm run env:secrets:pull
 ${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {
     console.log(`  Subscribers table id: ${destSubscribe.id}`);

@@ -7,8 +7,8 @@
  *      value from .env. `required` ones must be set; `npm run env:pull` writes
  *      a placeholder so a fresh machine fails loudly until the developer fills
  *      it in (e.g. their email for form notifications).
- *   2. The Gwenda Config database: this environment's row (dev, staging or
- *      production; a developer's machine reads dev), else the "all" row.
+ *   2. The Gwenda Config database: this environment's row (dev or production;
+ *      a developer's machine reads dev), else the "all" row.
  *
  * Machine state (build snapshots, scheduler state, secret fingerprints) also
  * lives in the config database; readState/writeState are its only doors.
@@ -18,6 +18,7 @@ import {
   CONFIG_DATABASE_NAME,
   CONFIG_ENVS,
   CONFIG_TABLE_NAME,
+  deleteConfigEnvRows,
   deleteConfigRows,
   environmentOf,
   getConfigValueFor,
@@ -54,6 +55,11 @@ export async function removeRetiredSettings(env) {
   const removed = {};
   for (const key of RETIRED_SETTINGS) removed[key] = await deleteConfigRows(env, key);
   return removed;
+}
+
+/** Remove every row of an Env no code uses any more. Post-deploy only. */
+export async function removeRetiredEnv(env, envName) {
+  return deleteConfigEnvRows(env, envName);
 }
 
 /** Written by env:pull for local-only settings a developer must fill in. */

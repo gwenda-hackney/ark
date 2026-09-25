@@ -357,10 +357,10 @@ export function deployTargetForEnv(value, siteEnv) {
   const raw = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (raw === "production") return "production";
   if (raw === "development") return "development";
-  if (raw === "staging") return "staging";
+  if (raw === "preview") return "preview";
   const env = typeof siteEnv === "string" ? siteEnv.trim().toLowerCase() : "";
   if (env === "local" || env === "development" || env === "dev") {
     return "development";
   }
-  return "staging";
+  return "preview";
 }

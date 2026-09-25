@@ -2,7 +2,7 @@
 import "../styles/global.css";
 import { Image } from "astro:assets";
 import Fonts from "../components/Fonts.astro";
-import StagingRibbon from "../components/StagingRibbon.astro";
+import PreviewRibbon from "../components/PreviewRibbon.astro";
 import { siteConfig } from "../config/site";
 import { compactLogo } from "../lib/hero-assets";
 ---
@@ -24,7 +24,7 @@ import { compactLogo } from "../lib/hero-assets";
     />
   </head>
   <body class="thanks-page">
-    <StagingRibbon />
+    <PreviewRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main class="thanks">
       <Image

@@ -1,10 +1,14 @@
-export type DeployTarget = "staging" | "production";
+/**
+ * What ops asks /deploy to rebuild. "staging" is the name ops used before the
+ * preview moved onto drafts; prod ops still on that release sends it.
+ */
+export type DeployTarget = "preview" | "staging" | "production";
 
 /**
- * A web.yml content build. The dev targets rebuild the dev website
- * (gwenda-web-dev) from the Gwenda Dev copy, for dev ops.
+ * A web.yml content build: prod's preview, or one of the dev website's sites
+ * (gwenda-web-dev, from the Gwenda Dev copy) for dev ops.
  */
-export type ContentTarget = DeployTarget | "dev-staging" | "dev-production";
+export type ContentTarget = "preview" | "dev-preview" | "dev-live";
 
 /** Which environment's website a request is for (ops sends "dev" from dev ops). */
 export type SiteEnvironment = "prod" | "dev";

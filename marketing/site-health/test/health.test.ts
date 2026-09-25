@@ -102,8 +102,8 @@ describe("probes", () => {
       healthPayloadLooksHealthy({
         ok: true,
         service: "gwenda",
-        env: "staging",
-        dataset: "staging",
+        env: "preview",
+        dataset: "preview",
         commit: "abc",
       }),
     ).toBe(true);
@@ -119,8 +119,8 @@ describe("probes", () => {
           JSON.stringify({
             ok: true,
             service: "gwenda",
-            env: "staging",
-            dataset: "staging",
+            env: "preview",
+            dataset: "preview",
             commit: "abc1234",
           }),
           { status: 200 },
@@ -130,7 +130,7 @@ describe("probes", () => {
     }) as unknown as typeof fetch;
 
     const result = await probeSite(
-      "https://gwenda-staging.pages.dev",
+      "https://preview.gwenda-blue.pages.dev",
       fetchImpl,
       { requireHome: false },
     );

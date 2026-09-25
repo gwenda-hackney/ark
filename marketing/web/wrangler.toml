@@ -1,4 +1,6 @@
-# Cloudflare Pages — production project (gwenda).
+# Cloudflare Pages — the website (gwenda). The release branch is the live site;
+# the "preview" branch is its preview: drafts over published, password-gated.
+# Everything else is the same environment, so preview forms behave like live.
 # Vars sync on deploy via wrangler pages deploy (replaces ensure-pages-env.mjs).
 # Secrets: scripts/ci/sync-pages-secrets.mjs (not stored in repo).
 name = "gwenda"
@@ -19,9 +21,12 @@ ALERT_EMAIL = "alerts@gwenda.co.uk"
 INVITE_BASE_URL = "https://gwenda.co.uk"
 INVITE_IMAGE_URL = "https://gwenda.co.uk/images/event-invite.jpg"
 
-# Preview branch deploys (e.g. release-preview) use the same runtime as production.
 [env.preview.vars]
 SITE_ENV = "production"
+SITE_PREVIEW = "true"
+SANITY_PROJECT_ID = "pn5yjro6"
+SANITY_DATASET = "production"
+SANITY_PERSPECTIVE = "previewDrafts"
 BASEROW_OPS_DATABASE_ID = "556507"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"

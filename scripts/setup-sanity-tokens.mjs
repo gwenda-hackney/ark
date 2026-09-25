@@ -6,7 +6,6 @@
  *   ark-local-editor      Editor        → Secrets Manager SANITY_API_TOKEN (.env.secrets)
  *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN
  *   ark-ci-deploy-studio  Deploy Studio → GitHub + Secrets Manager SANITY_DEPLOY_TOKEN
- *   ark-ci-dataset-sync   Editor        → GitHub SANITY_DATASET_SYNC_TOKEN (dataset mirror)
  *
  * Admin auth (mint/revoke): personal Sanity CLI session (`npx sanity login`),
  * or SANITY_AUTH_TOKEN env. Do not store the personal token in Bitwarden.
@@ -61,12 +60,6 @@ const KEEP = {
     roleName: "deploy-studio",
     ghSecret: "SANITY_DEPLOY_TOKEN",
     envKey: "SANITY_DEPLOY_TOKEN",
-  },
-  ciDatasetSync: {
-    label: "ark-ci-dataset-sync",
-    roleName: "editor",
-    ghSecret: "SANITY_DATASET_SYNC_TOKEN",
-    envKey: "SANITY_DATASET_SYNC_TOKEN",
   },
 };
 
@@ -316,12 +309,11 @@ Requires: npx sanity login (project Administrator).`);
       );
     } else if (opts.dryRun) {
       console.log(
-        "Would set GitHub secrets SANITY_API_TOKEN, SANITY_DEPLOY_TOKEN, SANITY_DATASET_SYNC_TOKEN.",
+        "Would set GitHub secrets SANITY_API_TOKEN, SANITY_DEPLOY_TOKEN.",
       );
     } else {
       setGhSecret(KEEP.ciViewer.ghSecret, keys[KEEP.ciViewer.label]);
       setGhSecret(KEEP.ciDeploy.ghSecret, keys[KEEP.ciDeploy.label]);
-      setGhSecret(KEEP.ciDatasetSync.ghSecret, keys[KEEP.ciDatasetSync.label]);
     }
   }
 
@@ -334,7 +326,7 @@ Requires: npx sanity login (project Administrator).`);
 
       const localUpdates = {
         SANITY_PROJECT_ID: projectId,
-        SANITY_DATASET: "staging",
+        SANITY_DATASET: "production",
       };
       upsertBitwardenNote(
         ENV_ITEMS.local,
@@ -360,7 +352,7 @@ Requires: npx sanity login (project Administrator).`);
   if (!opts.dryRun && keys[KEEP.localEditor.label]?.startsWith("sk")) {
     const secrets = new Map([
       ["SANITY_PROJECT_ID", projectId],
-      ["SANITY_DATASET", "staging"],
+      ["SANITY_DATASET", "production"],
     ]);
     writeLocalEnv(secrets);
     upsertSmSecret({ key: "SANITY_API_TOKEN", value: keys[KEEP.localEditor.label] });

@@ -1,5 +1,5 @@
 /**
- * Password-protects staging (SITE_ENV=staging). Production (SITE_ENV=production) is always public.
+ * Password-protects a preview (SITE_PREVIEW=true) and the dev website. The live site is always public.
  * Unauthenticated visitors are sent to /gate (themed login) instead of browser basic auth.
  * Optional GATE_BYPASS_KEY accepts ?access=<key> to set the gate cookie and strip the param.
  */
@@ -63,7 +63,7 @@ export async function onRequest(context) {
 
   if (authed) return context.next();
 
-  if (url.pathname === "/api/staging-share") return context.next();
+  if (url.pathname === "/api/preview-share") return context.next();
 
   const gateUrl = new URL("/gate", url.origin);
   const next = url.pathname + url.search;

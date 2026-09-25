@@ -30,11 +30,11 @@ npm run ops:dev               # ops, dev copy → http://localhost:5174
 npm run studio:dev            # Sanity Studio, dev copy → http://localhost:3333
 ```
 
-Commands say which environment they touch: `dev` is your copy, `prod` is the real thing (`ops:prod` runs ops locally on real data). gwenda-staging is prod's preview. See [docs/sanity.md](docs/sanity.md#environments).
+Commands say which environment they touch: `dev` is your copy, `prod` is the real thing (`ops:prod` runs ops locally on real data). See [docs/sanity.md](docs/sanity.md#environments).
 
 ## Environments
 
-There are two environments. Each is a complete, separate copy: its own ops app, websites, CMS and databases.
+There are two environments, built the same way. Each is a complete, separate copy: its own ops app, website, CMS (one Sanity dataset) and databases.
 
 - **Prod** is the real thing. Guests see it.
 - **Dev** is for testing. Nothing done there can reach gwenda.co.uk.
@@ -42,27 +42,24 @@ There are two environments. Each is a complete, separate copy: its own ops app, 
 **Live and preview.** Each environment's website comes in two versions:
 
 - **Live**: what visitors see.
-- **Preview**: event changes saved in ops but not yet sent with **Update website**. Password-protected.
+- **Preview**: the same site showing changes saved in ops or Studio (Sanity drafts) but not yet published with **Update website**. Password-protected. Otherwise it is the live environment: forms on prod's preview are real submissions.
 
-**Code** on `main` runs in dev and on prod's preview. Code on `release` is what goes live. **Data** only moves by copying: `npm run dev:refresh` copies prod into dev.
+**Code** on `main` runs in dev. Code on `release` runs prod's preview, and goes live with Web promote. **Data** only moves by copying: `npm run dev:refresh` copies prod into dev.
 
 ### Prod
 
 **Websites**
 - Live: [gwenda.co.uk](https://gwenda.co.uk)
-- Preview: [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) (ribbon says "Preview")
-- Next release, before it goes live: [release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev)
+- Preview: [preview.gwenda-blue.pages.dev](https://preview.gwenda-blue.pages.dev) (ribbon says "Preview"): the `release` code on drafts
 
 **Ops:** [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)
 
 **CMS:** Sanity project "Gwenda Web" (`pn5yjro6`), [manage](https://www.sanity.io/manage/project/pn5yjro6)
-- Studio for preview content: [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) (the name is older than the dev environment; this is prod)
-- Studio for live content: [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema only; don't edit live content)
+- Studio: [gwenda.sanity.studio](https://gwenda.sanity.studio). It saves drafts only; ops publishes.
 
 **Databases:** Baserow workspace "Gwenda", [dashboard](https://baserow.io/dashboard)
 - Ops: `556507`
 - Website: `461843`
-- Website, preview forms: `564496`
 
 **Other:** [brand.gwenda.co.uk](https://brand.gwenda.co.uk) (brand guidelines), [health.gwenda.co.uk](https://health.gwenda.co.uk) (site health)
 

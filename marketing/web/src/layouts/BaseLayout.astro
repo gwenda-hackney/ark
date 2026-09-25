@@ -2,11 +2,11 @@
 import { ViewTransitions } from "astro:transitions";
 import "../styles/global.css";
 import { siteConfig } from "../config/site";
-import { isStaging, stagingOrigin } from "../config/env";
+import { isPreview, previewOrigin } from "../config/env";
 import SocialMeta from "../components/SocialMeta.astro";
 import StructuredData from "../components/StructuredData.astro";
 import Fonts from "../components/Fonts.astro";
-import StagingRibbon from "../components/StagingRibbon.astro";
+import PreviewRibbon from "../components/PreviewRibbon.astro";
 import BookingButton from "../components/BookingButton.astro";
 import { colors } from "../config/colors";
 
@@ -32,8 +32,8 @@ const {
   noindex = false,
 } = Astro.props;
 
-const siteOrigin = isStaging
-  ? stagingOrigin
+const siteOrigin = isPreview
+  ? previewOrigin
   : siteConfig.domain;
 const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 ---
@@ -41,7 +41,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 <!doctype html>
 <html
   lang="en"
-  data-site-env={import.meta.env.DEV ? "local" : isStaging ? "staging" : "production"}
+  data-site-env={import.meta.env.DEV ? "local" : isPreview ? "preview" : "production"}
 >
   <head>
     <meta charset="UTF-8" />
@@ -60,7 +60,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
       content={`${siteConfig.location.geo.latitude}, ${siteConfig.location.geo.longitude}`}
     />
     {
-      isStaging || noindex ? (
+      isPreview || noindex ? (
         <meta name="robots" content="noindex, nofollow" />
       ) : (
         <meta name="robots" content="index, follow" />
@@ -109,7 +109,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
     <slot name="head" />
   </head>
   <body>
-    <StagingRibbon />
+    <PreviewRibbon />
     <div class="grain" aria-hidden="true"></div>
     <slot />
     {showBooking ? <BookingButton variant="float" /> : null}

@@ -2,7 +2,7 @@ import { environmentOf, isLocalMachine } from "../../../../shared/config.js";
 
 /** The real website's project. */
 export const REAL_SANITY_PROJECT_ID = "pn5yjro6";
-/** Free copy for local work, same two datasets (docs/sanity.md). */
+/** Free copy for local work, set up the same way (docs/sanity.md). */
 export const DEV_SANITY_PROJECT_ID = "gwscpagy";
 const DEFAULT_PROJECT_ID = REAL_SANITY_PROJECT_ID;
 const API_VERSION = "v2025-01-01";
@@ -16,12 +16,26 @@ export function usesDevSanity(env = {}) {
   return sanityProjectId(env) !== REAL_SANITY_PROJECT_ID;
 }
 
-/** Dataset ops may write. Production is clone-only. */
-export const EDITORIAL_DATASET = "staging";
+/**
+ * Each environment has one dataset. Ops and Studio edit drafts; publishing
+ * turns a draft into the document the website shows (release.js).
+ */
+export const DATASET = "production";
 
-export function sanityDataset(env = {}, target = "staging") {
-  if (target === "production") return "production";
-  return EDITORIAL_DATASET;
+/**
+ * How ops reads the dataset: `preview` as the preview site shows it (drafts
+ * over published), `production` as the live site does (published only).
+ * `raw` sees drafts and published side by side, by their own ids.
+ */
+export const PREVIEW = "preview";
+const PERSPECTIVES = { preview: "previewDrafts", production: "published", raw: "raw" };
+
+export function draftId(id) {
+  return id.startsWith("drafts.") ? id : `drafts.${id}`;
+}
+
+export function publishedId(id) {
+  return String(id).replace(/^drafts\./, "");
 }
 
 /** The dev environment (hosted or a developer's machine): dev Ops DB, Gwenda Dev Sanity. */
@@ -55,21 +69,6 @@ export function assertSanityWritable(env) {
   throw error;
 }
 
-/** "Update website" and "take it off the website" work here. */
-export function canChangeWebsite(env) {
-  return !isLocalOps(env) || usesDevSanity(env);
-}
-
-function assertEditorialDataset(dataset) {
-  if (dataset !== EDITORIAL_DATASET) {
-    const error = new Error(
-      "Ops can only write the staging dataset. Production is updated by clone.",
-    );
-    error.status = 400;
-    throw error;
-  }
-}
-
 function headers(token, extra = {}) {
   return {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -77,8 +76,14 @@ function headers(token, extra = {}) {
   };
 }
 
-/** `perspective: "published"` reads what the website shows (no drafts). */
-export async function sanityQuery(env, dataset, query, params = {}, { perspective } = {}) {
+/** Read one view of the dataset: "preview", "production" or "raw". */
+export async function sanityQuery(env, view, query, params = {}) {
+  const perspective = PERSPECTIVES[view];
+  if (!perspective) {
+    const error = new Error(`Unknown Sanity view "${view}".`);
+    error.status = 500;
+    throw error;
+  }
   const token = env.SANITY_API_TOKEN?.trim();
   if (!token) {
     const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
@@ -87,10 +92,10 @@ export async function sanityQuery(env, dataset, query, params = {}, { perspectiv
   }
   const projectId = sanityProjectId(env);
   const url = new URL(
-    `https://${projectId}.api.sanity.io/${API_VERSION}/data/query/${dataset}`,
+    `https://${projectId}.api.sanity.io/${API_VERSION}/data/query/${DATASET}`,
   );
   url.searchParams.set("query", query);
-  if (perspective) url.searchParams.set("perspective", perspective);
+  url.searchParams.set("perspective", perspective);
   for (const [key, value] of Object.entries(params)) {
     // Sanity requires GROQ params as `$name` query-string keys.
     const paramKey = key.startsWith("$") ? key : `$${key}`;
@@ -106,41 +111,72 @@ export async function sanityQuery(env, dataset, query, params = {}, { perspectiv
   return payload?.result ?? null;
 }
 
-export async function sanityMutate(env, dataset, mutations) {
-  assertEditorialDataset(dataset);
+const SYSTEM_KEYS = new Set(["_rev", "_updatedAt", "_createdAt", "_originalId"]);
+
+function withoutSystemKeys(doc) {
+  const out = {};
+  for (const [key, value] of Object.entries(doc || {})) {
+    if (!SYSTEM_KEYS.has(key)) out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Ops' writes as draft writes. Creates and replaces land on the draft; a patch
+ * first copies the published document into a draft if there is none yet
+ * (`existing` holds both, raw). A delete removes the draft and the published
+ * document: taking something away goes straight to the website.
+ */
+export function draftMutations(mutations, existing = [], newId = () => crypto.randomUUID()) {
+  const byId = new Map(existing.map((doc) => [doc._id, doc]));
+  const out = [];
+  for (const mutation of mutations) {
+    const [kind, body] = Object.entries(mutation)[0] || [];
+    if (kind === "create" || kind === "createOrReplace" || kind === "createIfNotExists") {
+      const id = body._id ? publishedId(body._id) : newId();
+      out.push({ [kind]: { ...body, _id: draftId(id) } });
+    } else if (kind === "patch") {
+      const id = publishedId(body.id);
+      if (!byId.has(draftId(id)) && byId.has(id)) {
+        out.push({ createIfNotExists: { ...withoutSystemKeys(byId.get(id)), _id: draftId(id) } });
+      }
+      out.push({ patch: { ...body, id: draftId(id) } });
+    } else if (kind === "delete") {
+      const id = publishedId(body.id);
+      out.push({ delete: { id: draftId(id) } }, { delete: { id } });
+    } else {
+      const error = new Error(`Ops cannot send a "${kind}" mutation.`);
+      error.status = 500;
+      throw error;
+    }
+  }
+  return out;
+}
+
+/**
+ * Save for the preview: every write becomes a draft (draftMutations). Result
+ * ids are the documents' own ids, never "drafts.…", so Baserow links stay put.
+ */
+export async function sanityMutate(env, mutations, { query = sanityQuery, send = sanityMutatePublished } = {}) {
   assertSanityWritable(env);
   if (!mutations.length) return { results: [] };
-  const token = env.SANITY_API_TOKEN?.trim();
-  if (!token) {
-    const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
-    error.status = 503;
-    throw error;
-  }
-  const projectId = sanityProjectId(env);
-  const url = `https://${projectId}.api.sanity.io/${API_VERSION}/data/mutate/${dataset}?returnIds=true`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: headers(token, { "Content-Type": "application/json" }),
-    body: JSON.stringify({ mutations }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(
-      payload.error?.description || payload.message || `Sanity mutate failed (${response.status}).`,
-    );
-    error.status = 502;
-    throw error;
-  }
-  return payload;
+  const patched = mutations.filter((m) => m.patch).map((m) => publishedId(m.patch.id));
+  const existing = patched.length
+    ? await query(env, "raw", "*[_id in $ids]", { ids: [...patched, ...patched.map(draftId)] })
+    : [];
+  const payload = await send(env, draftMutations(mutations, existing || []));
+  return {
+    ...payload,
+    results: (payload?.results || []).map((row) => ({ ...row, id: publishedId(row.id) })),
+  };
 }
 
-export async function sanityUploadImage(env, dataset, bytes, meta) {
-  return sanityUploadAsset(env, dataset, "images", bytes, meta);
+export async function sanityUploadImage(env, bytes, meta) {
+  return sanityUploadAsset(env, "images", bytes, meta);
 }
 
-/** Upload an image or file asset to the staging dataset. */
-export async function sanityUploadAsset(env, dataset, kind, bytes, { filename, contentType } = {}) {
-  assertEditorialDataset(dataset);
+/** Upload an image or file asset. Assets have no drafts: the preview and the website share them. */
+export async function sanityUploadAsset(env, kind, bytes, { filename, contentType } = {}) {
   assertSanityWritable(env);
   const token = env.SANITY_API_TOKEN?.trim();
   if (!token) {
@@ -150,7 +186,7 @@ export async function sanityUploadAsset(env, dataset, kind, bytes, { filename, c
   }
   const projectId = sanityProjectId(env);
   const url = new URL(
-    `https://${projectId}.api.sanity.io/${API_VERSION}/assets/${kind === "files" ? "files" : "images"}/${dataset}`,
+    `https://${projectId}.api.sanity.io/${API_VERSION}/assets/${kind === "files" ? "files" : "images"}/${DATASET}`,
   );
   if (filename) url.searchParams.set("filename", filename);
   const response = await fetch(url.toString(), {
@@ -170,23 +206,24 @@ export async function sanityUploadAsset(env, dataset, kind, bytes, { filename, c
 }
 
 /**
- * Give a staging photo the name ops looks it up by. Sanity hands back an
+ * Give an uploaded photo the name ops looks it up by. Sanity hands back an
  * existing asset when the bytes match, keeping its old name.
  */
-export async function sanityRenameImageAsset(env, dataset, assetId, filename) {
-  assertEditorialDataset(dataset);
+export async function sanityRenameImageAsset(env, assetId, filename) {
   if (!assetId || !filename) return;
-  await sanityMutateDataset(env, dataset, [
+  await sanityMutatePublished(env, [
     { patch: { id: assetId, set: { originalFilename: filename } } },
   ]);
 }
 
 /**
- * Production writes are only a copy of a document that already exists in
- * staging. Feature publish uses this. Everyday edits stay on staging.
+ * Send mutations exactly as given, drafts or not. Publishing and discarding
+ * drafts (release.js) and asset renames use this; everyday saves go through
+ * sanityMutate.
  */
-async function sanityMutateDataset(env, dataset, mutations) {
+export async function sanityMutatePublished(env, mutations) {
   assertSanityWritable(env);
+  if (!mutations.length) return { results: [] };
   const token = env.SANITY_API_TOKEN?.trim();
   if (!token) {
     const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
@@ -194,7 +231,7 @@ async function sanityMutateDataset(env, dataset, mutations) {
     throw error;
   }
   const projectId = sanityProjectId(env);
-  const url = `https://${projectId}.api.sanity.io/${API_VERSION}/data/mutate/${dataset}?returnIds=true`;
+  const url = `https://${projectId}.api.sanity.io/${API_VERSION}/data/mutate/${DATASET}?returnIds=true`;
   const response = await fetch(url, {
     method: "POST",
     headers: headers(token, { "Content-Type": "application/json" }),
@@ -209,42 +246,4 @@ async function sanityMutateDataset(env, dataset, mutations) {
     throw error;
   }
   return payload;
-}
-
-export async function sanityMutateProduction(env, mutations) {
-  return sanityMutateDataset(env, "production", mutations);
-}
-
-export async function sanityUploadImageProduction(env, bytes, meta) {
-  return sanityUploadAssetProduction(env, "images", bytes, meta);
-}
-
-/** Upload an image or file asset to production. Asset ids are content hashes, so they match staging. */
-export async function sanityUploadAssetProduction(env, kind, bytes, { filename, contentType } = {}) {
-  assertSanityWritable(env);
-  const token = env.SANITY_API_TOKEN?.trim();
-  if (!token) {
-    const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
-    error.status = 503;
-    throw error;
-  }
-  const projectId = sanityProjectId(env);
-  const url = new URL(
-    `https://${projectId}.api.sanity.io/${API_VERSION}/assets/${kind === "files" ? "files" : "images"}/production`,
-  );
-  if (filename) url.searchParams.set("filename", filename);
-  const response = await fetch(url.toString(), {
-    method: "POST",
-    headers: headers(token, {
-      "Content-Type": contentType || "application/octet-stream",
-    }),
-    body: bytes,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload.message || `Asset upload failed (${response.status}).`);
-    error.status = 502;
-    throw error;
-  }
-  return payload?.document ?? null;
 }

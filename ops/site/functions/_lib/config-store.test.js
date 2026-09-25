@@ -20,13 +20,12 @@ afterEach(() => {
 
 const tableEnv = {
   BASEROW_CONFIG_API_KEY: "config-token",
-  SITE_ENV: "staging",
+  SITE_ENV: "dev",
 };
 
 describe("siteEnvName", () => {
-  it("normalizes staging and local aliases", () => {
-    assert.equal(siteEnvName({ SITE_ENV: "staging" }), "staging");
-    assert.equal(siteEnvName({ PUBLIC_IS_STAGING: "true" }), "staging");
+  it("normalizes local aliases", () => {
+    assert.equal(siteEnvName({ SITE_ENV: "local" }), "dev");
     assert.equal(siteEnvName({ SITE_ENV: "dev" }), "dev");
     assert.equal(siteEnvName({}), "production");
   });
@@ -37,10 +36,10 @@ describe("valuesFromRows", () => {
     const values = valuesFromRows(
       [
         { Name: "pour_target.cocktail", Value: "20", Env: "all", Service: "ops" },
-        { Name: "pour_target.cocktail", Value: "22", Env: "staging", Service: "ops" },
+        { Name: "pour_target.cocktail", Value: "22", Env: "dev", Service: "ops" },
         { Name: "other", Value: "x", Env: "production", Service: "ops" },
       ],
-      "staging",
+      "dev",
       "ops",
     );
     assert.equal(values["pour_target.cocktail"], "22");
@@ -162,7 +161,7 @@ describe("setPourTargets", () => {
     assert.equal(posts.length, 4);
     assert.equal(posts[0].Name, "pour_target.cocktail");
     assert.equal(posts[0].Value, "21");
-    assert.equal(posts[0].Env, "staging");
+    assert.equal(posts[0].Env, "dev");
     assert.equal(posts[0].Service, "ops");
   });
 });

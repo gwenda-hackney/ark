@@ -9,16 +9,19 @@ export const PAGES_DEPLOYMENT_ENVS = ["production", "preview"];
 
 /**
  * The PATCH body. `secrets` and `plain` are { KEY: value } (empty values are
- * left alone). `remove` deletes a key only where it is a secret: plain vars
- * come from wrangler.toml [vars] and are not ours to delete.
+ * left alone). `previewSecrets` go on the preview environment only and are
+ * removed from production (the preview's password gate). `remove` deletes a
+ * key only where it is a secret: plain vars come from wrangler.toml [vars]
+ * and are not ours to delete.
  */
-export function pagesVarsPatch({ current = {}, secrets = {}, plain = {}, remove = [] }) {
+export function pagesVarsPatch({ current = {}, secrets = {}, plain = {}, remove = [], previewSecrets = {} }) {
   const deploymentConfigs = {};
   const removed = [];
   for (const deploymentEnv of PAGES_DEPLOYMENT_ENVS) {
     const existing = current[deploymentEnv]?.env_vars || {};
     const envVars = {};
-    for (const key of remove) {
+    const drop = deploymentEnv === "production" ? [...remove, ...Object.keys(previewSecrets)] : remove;
+    for (const key of drop) {
       if (existing[key]?.type === "secret_text") {
         envVars[key] = null;
         removed.push(`${key} (${deploymentEnv})`);
@@ -27,7 +30,8 @@ export function pagesVarsPatch({ current = {}, secrets = {}, plain = {}, remove 
     for (const [key, value] of Object.entries(plain)) {
       if (value) envVars[key] = { type: "plain_text", value: String(value) };
     }
-    for (const [key, value] of Object.entries(secrets)) {
+    const envSecrets = deploymentEnv === "preview" ? { ...secrets, ...previewSecrets } : secrets;
+    for (const [key, value] of Object.entries(envSecrets)) {
       if (value) envVars[key] = { type: "secret_text", value: String(value) };
     }
     deploymentConfigs[deploymentEnv] = { env_vars: envVars };
@@ -43,6 +47,7 @@ export async function applyPagesVars({
   secrets = {},
   plain = {},
   remove = [],
+  previewSecrets = {},
   fetchImpl = fetch,
 }) {
   if (!accountId || !token) {
@@ -52,7 +57,7 @@ export async function applyPagesVars({
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
   let current = {};
-  if (remove.length) {
+  if (remove.length || Object.keys(previewSecrets).length) {
     const got = await fetchImpl(url, { headers });
     const data = await got.json().catch(() => ({}));
     if (!got.ok || !data.success) {
@@ -61,7 +66,7 @@ export async function applyPagesVars({
     current = data.result?.deployment_configs || {};
   }
 
-  const { body, removed } = pagesVarsPatch({ current, secrets, plain, remove });
+  const { body, removed } = pagesVarsPatch({ current, secrets, plain, remove, previewSecrets });
   const res = await fetchImpl(url, { method: "PATCH", headers, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.success) {
@@ -69,6 +74,7 @@ export async function applyPagesVars({
   }
   return {
     secrets: Object.keys(secrets).filter((key) => secrets[key]),
+    previewSecrets: Object.keys(previewSecrets).filter((key) => previewSecrets[key]),
     plain: Object.keys(plain).filter((key) => plain[key]),
     removed,
   };

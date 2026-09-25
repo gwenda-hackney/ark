@@ -230,10 +230,10 @@ export async function verifyFormResendToken(env, { rowId, slug, token }) {
   return matchesToken(String(token).trim(), expected);
 }
 
-/** Public origin for verify links: real host in staging/prod, request origin locally. */
+/** Public origin for verify links: real host in production and its preview, request origin locally. */
 export function formVerifyOrigin(requestUrl, env) {
   const siteEnv = env?.SITE_ENV?.trim();
-  if (siteEnv === "staging" || siteEnv === "production") {
+  if (siteEnv === "production") {
     return resolvePublicOrigin(requestUrl, env);
   }
   try {

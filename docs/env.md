@@ -2,7 +2,7 @@
 
 Local secrets live in Bitwarden (`bitwarden.eu`), not in git. Do **not** mint new Cloudflare / Sanity / Baserow tokens on every fresh clone.
 
-The Password Manager holds one note, `ark/.env.local`, in the Bitwarden folder **`ark`**. Staging and production secrets live only in Secrets Manager.
+The Password Manager holds one note, `ark/.env.local`, in the Bitwarden folder **`ark`**. Production secrets live only in Secrets Manager.
 
 ## Vault item names
 
@@ -86,7 +86,7 @@ npm run env:seed -- --force          # reset notes from templates (destructive)
 
 ## What not to re-run
 
-If staging/production already work, skip `setup:ci-secrets` / `setup:site-deploy` on clone. Those create or rotate CI/Worker secrets. Use them only for first-time wiring or repair.
+If production already works, skip `setup:ci-secrets` / `setup:site-deploy` on clone. Those create or rotate CI/Worker secrets. Use them only for first-time wiring or repair.
 
 ## Nest vs ark
 
@@ -108,12 +108,12 @@ GitHub still holds `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` for deploy w
 
 ## Secrets Manager pulls
 
-Naming rule, manifests and project ownership: see [config.md](./config.md#secrets-one-naming-rule). In short, SM holds `NAME` (shared) and `NAME__LOCAL` / `__STAGING` / `__PRODUCTION` (override), and a pull for one env merges them with the override winning.
+Naming rule, manifests and project ownership: see [config.md](./config.md#secrets-one-naming-rule). In short, SM holds `NAME` (shared) and `NAME__LOCAL` / `__PRODUCTION` (override), and a pull for one env merges them with the override winning.
 
 ```bash
 # Requires ARK_LOCAL_BW_TOKEN in .env
 npm run env:secrets:pull                          # env=local → .env.secrets
-npm run env:secrets:pull -- --env staging --dry-run
+npm run env:secrets:pull -- --env production --dry-run
 ```
 
 The pull lists **Ark + Ark/Ops + Ark/Web** and writes every secret any app uses once, under its SM name (for example `BASEROW_OPS_API_KEY` and `BASEROW_WEBSITE_API_KEY`, never a bare `BASEROW_API_KEY`). Missing keys are written as comments naming the SM keys it looked for. The app wrappers map SM names to runtime names from the `APP_SECRETS` rename table, so web sees `BASEROW_API_KEY` as the website token and ops sees it as the ops token.
@@ -136,8 +136,8 @@ CI (Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then:
 
 ```bash
 gh workflow run ops-secrets.yml                      # production ops, then redeploy
-gh workflow run web-secrets.yml -f profile=staging
-gh workflow run web-secrets.yml -f profile=production
+gh workflow run web-secrets.yml -f profile=production  # gwenda (live + preview)
+gh workflow run web-secrets.yml -f profile=dev         # gwenda-web-dev
 ```
 
 Pages snapshots secrets per deployment, so a secret-only change needs a redeploy. **Deploy workflows do not push Pages secrets**; only `ops-secrets.yml` / `web-secrets.yml` (or a local `npm run setup:ops` + redeploy) do. `web.yml` may pull Ark/Web into the job env for the build (`SANITY_API_TOKEN`, `BASEROW_OPS_API_KEY` for artists, `GATE_BYPASS_KEY` smoke test) but never writes them to Cloudflare.
@@ -163,8 +163,8 @@ After rotating the app password, store it in Ark/Web (`SMTP_PASSWORD`), then syn
 
 ```bash
 SMTP_PASSWORD='...' npm run env:web:push -- SMTP_PASSWORD
-node marketing/web/scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
-# or: gh workflow run web-secrets.yml -f profile=staging
+gh workflow run web-secrets.yml -f profile=production
+gh workflow run web-secrets.yml -f profile=dev
 ```
 
 Redeploy if form mail still 502s after a secret-only change that also touched host/user vars.
@@ -184,9 +184,9 @@ Standalone Workers can persist logs with `[observability] enabled = true`. `gwen
 
 ## Site health
 
-`GET /health` on the marketing site returns `{ ok: true, service: "gwenda", env, dataset, commit }` (liveness plus build metadata). Staging gate allows it without a password.
+`GET /health` on the marketing site returns `{ ok: true, service: "gwenda", env, dataset, commit }` (liveness plus build metadata). The preview's password gate allows it without a password.
 
-`gwenda-site-health` (cron every 5 minutes) probes production and staging. Production still emails `alerts@gwenda.co.uk` after two consecutive failures. Staging failures show in ops Web. Authenticated `GET https://health.gwenda.co.uk/status` returns the last probe for both sites (Bearer `HEALTH_STATUS_TOKEN` when that Worker secret is set). First-time wiring:
+`gwenda-site-health` (cron every 5 minutes) probes the live site and prod's preview. The live site emails `alerts@gwenda.co.uk` after two consecutive failures. Preview failures show in ops Web. Authenticated `GET https://health.gwenda.co.uk/status` returns the last probe for both sites (Bearer `HEALTH_STATUS_TOKEN` when that Worker secret is set). First-time wiring:
 
 ```
 npm run setup:site-health

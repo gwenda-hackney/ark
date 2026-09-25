@@ -53,7 +53,7 @@
 
 	const pendingState = $derived(getSitePendingState());
 	const live = $derived(pendingState.production);
-	const preview = $derived(pendingState.staging);
+	const preview = $derived(pendingState.preview);
 
 	function clock(iso: string | null): string {
 		if (!iso) return "";
@@ -184,7 +184,7 @@
 		if (timer) clearInterval(timer);
 	});
 
-	async function updateNow(site: "production" | "staging") {
+	async function updateNow(site: "production" | "preview") {
 		if (working) return;
 		working = `update-${site}`;
 		try {
@@ -410,7 +410,7 @@
 						type="button"
 						class="link"
 						disabled={Boolean(working)}
-						onclick={() => void updateNow("staging")}
+						onclick={() => void updateNow("preview")}
 					>
 						Update it now
 					</button>

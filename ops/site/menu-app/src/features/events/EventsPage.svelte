@@ -1313,15 +1313,13 @@
 		leaveEditor(listHomePath(), { force: true });
 	}
 
-	/** Delete asks whether to take it off gwenda.co.uk too (only if it is there). */
-	let alsoWebsite = $state(true);
+	/** Deleting takes it off gwenda.co.uk too; the dialog says so when it is there. */
 	const onWebsite = $derived(
 		Boolean(current?.publish) && current?.publish.live !== "unpublished",
 	);
 
 	function requestDelete() {
 		if (!eventId || busy) return;
-		alsoWebsite = true;
 		if (editingOccurrence && !isOpenSeries) {
 			deleteScopeOpen = true;
 			return;
@@ -1343,18 +1341,15 @@
 		intent = "delete";
 		try {
 			if (scope === "series" || !editingOccurrence || !occurrenceDate) {
-				const offWebsite = onWebsite && alsoWebsite;
-				const data = await deleteEvent(eventId, { alsoWebsite: offWebsite });
+				const data = await deleteEvent(eventId);
 				events = events.filter((row) => row.id !== eventId);
-				toast.ok(offWebsite ? "Event deleted and taken off the website." : "Event deleted.");
+				toast.ok(onWebsite ? "Event deleted and taken off the website." : "Event deleted.");
 				void refreshSitePending();
 				applyWarnings(data.warnings);
 				beginLeave();
 				leaveEditor(listHomePath(), { force: true });
 			} else {
-				const data = await deleteEventOccurrence(eventId, occurrenceDate, scope, {
-					alsoWebsite: onWebsite && alsoWebsite,
-				});
+				const data = await deleteEventOccurrence(eventId, occurrenceDate, scope);
 				applyWarnings(data.warnings);
 				void refreshSitePending();
 				if (data.deleted || !data.event) {
@@ -2881,10 +2876,7 @@
 					Choose how widely to delete. Past events will not be changed.
 				</p>
 				{#if onWebsite}
-					<label class="also-website">
-						<input type="checkbox" bind:checked={alsoWebsite} />
-						<span>Also take it off the website now</span>
-					</label>
+					<p class="also-website">It comes off the website too, straight away.</p>
 				{/if}
 				<div class="scope-options">
 					<Button
@@ -2921,10 +2913,7 @@
 					{repeatUnit !== "none" ? " and its recurrence" : ""}? This cannot be undone.
 				</p>
 				{#if onWebsite}
-					<label class="also-website">
-						<input type="checkbox" bind:checked={alsoWebsite} />
-						<span>Also take it off the website now</span>
-					</label>
+					<p class="also-website">It comes off the website too, straight away.</p>
 				{/if}
 				{#snippet footer()}
 					<Button variant="outline" size="sm" type="button" disabled={busy} onclick={cancelDelete}>
@@ -4133,18 +4122,8 @@
 	}
 
 	.also-website {
-		display: flex;
-		align-items: center;
-		gap: 0.55rem;
-		margin-top: 0.85rem;
+		margin: 0.85rem 0 0;
 		font-size: var(--text-sm);
-		cursor: pointer;
-	}
-
-	.also-website input {
-		width: 1.1rem;
-		height: 1.1rem;
-		accent-color: var(--primary);
 	}
 
 	.put-error {

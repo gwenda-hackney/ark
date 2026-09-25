@@ -1,5 +1,5 @@
 /**
- * Authenticated staging helper: returns a share URL with ?access= for the
+ * Authenticated preview helper: returns a share URL with ?access= for the
  * current path. Keeps GATE_BYPASS_KEY out of static HTML (crawlers can hit
  * public routes without the gate cookie).
  */
@@ -17,7 +17,7 @@ export async function onRequestGet(context) {
   const gate = resolveGate(context.env);
   if (gate.kind === "misconfigured") return gateMisconfiguredResponse();
   if (gate.kind === "open") {
-    return json({ error: "Share links are only for the gated staging site." }, 404);
+    return json({ error: "Share links are only for the gated preview site." }, 404);
   }
 
   const bypassKey = String(context.env.GATE_BYPASS_KEY || "").trim();

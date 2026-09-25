@@ -1,7 +1,7 @@
 export interface Env {
   HEALTH_STATE: KVNamespace;
   SITE_URL: string;
-  STAGING_SITE_URL?: string;
+  PREVIEW_SITE_URL?: string;
   ALERT_EMAIL: string;
   SMTP_HOST: string;
   SMTP_PORT: string;
@@ -10,7 +10,7 @@ export interface Env {
   HEALTH_STATUS_TOKEN?: string;
 }
 
-export type SiteId = "production" | "staging";
+export type SiteId = "production" | "preview";
 
 export type HealthState = {
   consecutiveFails: number;

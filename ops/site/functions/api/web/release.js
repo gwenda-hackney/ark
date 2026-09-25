@@ -7,26 +7,26 @@ import {
   publishRelease,
 } from "../../_lib/release.js";
 
-/** Staging vs production, published documents only. */
+/** The preview (drafts over published) vs what the website shows. */
 export const onRequestGet = withApiHandler(async (context) => {
   const diff = await getReleaseDiff(context.env);
   return jsonResponse({ ok: true, local: runsOnMachine(context.env), ...diff });
 });
 
 /**
- * Publish to production: `{ confirm: "production", ids?: string[] }`.
- * Reset staging from live: `{ confirm: "staging", direction: "to-staging" }`.
- * Without ids, everything that differs is copied. The site itself updates
- * once edits go quiet (site-pending.js), so several publishes share one build.
+ * Publish drafts: `{ confirm: "production", ids?: string[] }`.
+ * Discard drafts: `{ confirm: "preview", direction: "discard" }`.
+ * Without ids, everything that differs. The site itself updates once edits
+ * go quiet (site-pending.js), so several publishes share one build.
  */
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
-  const direction = body?.direction === "to-staging" ? "to-staging" : "to-production";
-  // Resetting the preview site from live is a developer tool.
-  if (direction === "to-staging") await requireAdmin(context.env, context.request);
-  const expected = direction === "to-staging" ? "staging" : "production";
+  const direction = body?.direction === "discard" ? "discard" : "to-production";
+  // Throwing away preview changes is a developer tool.
+  if (direction === "discard") await requireAdmin(context.env, context.request);
+  const expected = direction === "discard" ? "preview" : "production";
   if (body?.confirm !== expected) {
-    return jsonResponse({ error: `Send confirm: "${expected}" to overwrite ${expected}.` }, 400);
+    return jsonResponse({ error: `Send confirm: "${expected}" to change the ${expected}.` }, 400);
   }
   const ids = Array.isArray(body.ids)
     ? body.ids.map((id) => String(id || "").trim()).filter(Boolean)

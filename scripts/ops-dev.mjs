@@ -9,8 +9,8 @@
  *   npm run ops:prod    debug against PRODUCTION (see below)
  *
  * Plain `dev` works exactly like hosted ops (Save, Update website) against
- * copies: the dev Ops DB and the Gwenda Dev Sanity project (its own staging
- * and production datasets). Nothing it does can reach gwenda.co.uk. Refresh
+ * copies: the dev Ops DB and the Gwenda Dev Sanity project (drafts and
+ * published, like the real one). Nothing it does can reach gwenda.co.uk. Refresh
  * the copy with `npm run dev:refresh:sanity`.
  *
  * --live runs the same local app with production powers: production Ops DB,

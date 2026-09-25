@@ -420,7 +420,7 @@ function nightCard(event, { eager = false } = {}) {
  */
 export function readsLiveDiary(env) {
   const site = String(env || "");
-  return site === "local" || site === "staging" || site === "production";
+  return site === "local" || site === "preview" || site === "production";
 }
 
 /** Earliest diary card that still has a title and a date. */

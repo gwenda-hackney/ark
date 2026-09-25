@@ -136,13 +136,18 @@ function linksFrom(value) {
 
 function parseSnapshots(value) {
   if (!value) return {};
-  if (typeof value === "object") return value;
-  try {
-    const parsed = JSON.parse(String(value));
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
+  let parsed = value;
+  if (typeof value !== "object") {
+    try {
+      parsed = JSON.parse(String(value));
+    } catch {
+      return {};
+    }
   }
+  if (!parsed || typeof parsed !== "object") return {};
+  // Rows saved before the preview moved onto drafts call it "staging".
+  const { staging, ...rest } = parsed;
+  return staging && !rest.preview ? { ...rest, preview: staging } : rest;
 }
 
 function requireEventsTables(tables) {
@@ -304,7 +309,7 @@ export function mapEvent(row, dates = []) {
 
 function occurrenceRank(row) {
   let score = 0;
-  if (row?.snapshots?.staging) score += 2;
+  if (row?.snapshots?.preview) score += 2;
   if (row?.snapshots?.production) score += 2;
   if (row?.isSpecialEdition) score += 4;
   if (row?.overrides?.image) score += 2;
@@ -345,19 +350,19 @@ export function publishState(event, dates, today = todayIso()) {
   // lookup via occurrenceRow(event, date) would miss night overrides and keep
   // preview forever stale after a successful push.
   const eventWithDates = { ...event, dates };
-  const stagingCurrent =
+  const previewCurrent =
     wanted.length > 0 &&
     wanted.every((date) => {
       const row = byDate.get(date);
       return (
         row?.sanityId &&
-        row.snapshots?.staging?.hash ===
+        row.snapshots?.preview?.hash ===
           occurrenceHash(eventWithDates, row || date)
       );
     }) &&
     !dates.some((row) => row.date >= today && !materialized.has(row.date));
   const liveCurrent =
-    stagingCurrent &&
+    previewCurrent &&
     wanted.every((date) => {
       const row = byDate.get(date);
       return (
@@ -369,9 +374,9 @@ export function publishState(event, dates, today = todayIso()) {
   const nextDate =
     previewDates[0] || dates.find((row) => row.date >= today)?.date || "";
   return {
-    preview: stagingCurrent
+    preview: previewCurrent
       ? "current"
-      : dates.some((row) => row.snapshots?.staging)
+      : dates.some((row) => row.snapshots?.preview)
         ? "stale"
         : "unpublished",
     live: liveCurrent
