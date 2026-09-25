@@ -282,6 +282,7 @@ export function occurrencePayload(event, occurrence) {
     seriesId: String(event?.slug || "").trim(),
     seriesTitle: String(event?.name || "").trim(),
     seriesDescription: String(event?.description || "").trim(),
+    seriesShortDescription: String(event?.shortDescription || "").trim(),
     seriesSchedule: seriesScheduleMode(event),
     recurrenceLabel: recurrenceLabel(event),
     ...(publishedReplacesSeries(event?.replacesSeries)

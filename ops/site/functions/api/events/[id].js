@@ -8,6 +8,7 @@ import {
   removeEventFromWebsite,
   stageEvent,
   unpublishEvent,
+  withWebsiteStatus,
 } from "../../_lib/event-publish.js";
 import { isLocalOps } from "../../_lib/sanity.js";
 
@@ -18,7 +19,7 @@ function eventId(context) {
 export const onRequestGet = withApiHandler(async (context) => {
   const id = eventId(context);
   if (!id) return jsonResponse({ error: "Missing event id." }, 400);
-  const event = await getEvent(context.env, id);
+  const event = await withWebsiteStatus(context.env, await getEvent(context.env, id));
   return jsonResponse({ event });
 });
 

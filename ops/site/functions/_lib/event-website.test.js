@@ -24,3 +24,35 @@ test("an event's documents: series, nights on either side, and ops rows", async 
   assert.deepEqual(seen.map((row) => row[0]).sort(), ["production", "staging"]);
   assert.equal(seen[0][2], "series-jazz");
 });
+
+import { websiteStatusFor } from "./event-publish.js";
+
+const docs = (...rows) => new Map(rows.map((row) => [row._id, row]));
+const series = (short) => ({ _id: "series-negroni", _type: "eventSeries", _rev: "a", shortDescription: short });
+const night = (date, extra = {}) => ({ _id: `event-negroni-${date}`, _type: "event", seriesId: "negroni", date, ...extra });
+const negroni = { slug: "negroni", publish: { live: "current" } };
+
+test("a series short-description change makes the event out of date", () => {
+  const staging = docs(series("£8 Negronis"), night("2026-09-29"));
+  const production = docs({ ...series("£10 Negronis"), _rev: "b" }, night("2026-09-29"));
+  assert.equal(websiteStatusFor(negroni, staging, production), "stale");
+});
+
+test("identical documents (revisions aside) are on the website", () => {
+  const staging = docs(series("£8"), night("2026-09-29"));
+  const production = docs({ ...series("£8"), _rev: "zzz", _updatedAt: "x" }, night("2026-09-29"));
+  assert.equal(websiteStatusFor(negroni, staging, production), "current");
+});
+
+test("nothing live is unpublished; a night only on one side is stale", () => {
+  const staging = docs(series("£8"), night("2026-09-29"), night("2026-10-06"));
+  assert.equal(websiteStatusFor(negroni, staging, docs()), "unpublished");
+  assert.equal(
+    websiteStatusFor(negroni, staging, docs(series("£8"), night("2026-09-29"))),
+    "stale",
+  );
+});
+
+test("not staged at all keeps ops' own answer", () => {
+  assert.equal(websiteStatusFor(negroni, docs(), docs(series("x"))), "current");
+});

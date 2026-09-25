@@ -1,10 +1,10 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
 import { attachCalendarWarnings, syncSeriesCalendar } from "../../_lib/event-calendar-sync.js";
 import { createEvent, listEvents } from "../../_lib/event-store.js";
-import { stageEvent } from "../../_lib/event-publish.js";
+import { stageEvent, withWebsiteStatus } from "../../_lib/event-publish.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
-  const events = await listEvents(context.env);
+  const events = await withWebsiteStatus(context.env, await listEvents(context.env));
   return jsonResponse({ events });
 });
 

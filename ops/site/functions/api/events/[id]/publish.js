@@ -4,6 +4,7 @@ import {
   previewEventOnWebsite,
   publishEventPreview,
   putEventOnWebsite,
+  withWebsiteStatus,
 } from "../../../_lib/event-publish.js";
 import { assertNotLocal } from "../../../_lib/sanity.js";
 
@@ -36,5 +37,6 @@ export const onRequestPost = withApiHandler(async (context) => {
     return jsonResponse(attachCalendarWarnings(context.env, { ok: true, ...result }));
   }
   const result = await publishEventPreview(context.env, id);
-  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, ...result }));
+  const event = await withWebsiteStatus(context.env, result.event);
+  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, ...result, event }));
 });
