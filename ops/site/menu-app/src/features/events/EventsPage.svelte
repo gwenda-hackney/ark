@@ -195,6 +195,9 @@
 	let tabPrev = "details";
 	let tabReady = false;
 	let heroCrops = $state<HeroFraming | null>(null);
+	/** Photo picked on a new event: shown now, uploaded right after the first save. */
+	let pendingPhoto = $state<File | null>(null);
+	let pendingPhotoUrl = $state("");
 
 	let name = $state("");
 	let defaultsUnlocked = $state(false);
@@ -575,9 +578,10 @@
 
 	/** Photo owned by this editor (series main, or night override). */
 	const framingUrl = $derived(
-		editingOccurrence
-			? currentOccurrence?.overrides?.image?.url || ""
-			: current?.mainImage?.url || "",
+		pendingPhotoUrl ||
+			(editingOccurrence
+				? currentOccurrence?.overrides?.image?.url || ""
+				: current?.mainImage?.url || ""),
 	);
 	/** Open series (Gwenda Nights): one night at a time, no future-events scope. */
 	const isOpenSeries = $derived(
@@ -887,6 +891,7 @@
 
 	function blank() {
 		current = null;
+		clearPendingPhoto();
 		name = "";
 		artist = "";
 		offer = "";
@@ -1449,6 +1454,7 @@
 				});
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
+				await uploadPendingPhoto(String(data.event?.id || attachSeriesId), startsOn);
 				// A new night on an existing series: stage that series.
 				await stageAfterSave(String(data.event?.id || attachSeriesId), "");
 				toast.ok(data.created ? "Night added to the series." : "Night opened.");
@@ -1528,6 +1534,7 @@
 				const data = await createEvent(body());
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
+				await uploadPendingPhoto(String(data.event.id));
 				await stageAfterSave(String(data.event.id), repeatUnit === "once" ? "Event saved." : "Series saved.");
 				navigate(eventItemPath(data.event.id, tab), { replace: true });
 			} else {
@@ -1708,13 +1715,39 @@
 		}
 	}
 
+	function clearPendingPhoto() {
+		if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+		pendingPhoto = null;
+		pendingPhotoUrl = "";
+	}
+
 	function acceptPhotoFile(file: File | undefined | null) {
 		if (!file || !file.type.startsWith("image/")) return;
-		if (!eventId) {
-			toast.error("Save the event before adding a photo.");
-			return;
+		void preparePhoto(file).then((ready) => {
+			if (!ready) return;
+			if (eventId) return onImage("main", ready);
+			// Not saved yet: hold it and show it; Save uploads it.
+			clearPendingPhoto();
+			pendingPhoto = ready;
+			pendingPhotoUrl = URL.createObjectURL(ready);
+		});
+	}
+
+	/** After the first save of a new event or night: upload the photo picked before it. */
+	async function uploadPendingPhoto(id: string, nightDate = "") {
+		const photo = pendingPhoto;
+		clearPendingPhoto();
+		if (!photo || !id) return;
+		try {
+			const data = nightDate
+				? await uploadEventOccurrenceImage(id, nightDate, photo)
+				: await uploadEventImage(id, photo, "main");
+			rememberEvent(data.event, false);
+		} catch (err) {
+			toast.error(
+				`Saved, but the photo didn't upload: ${err instanceof Error ? err.message : "something went wrong."} Add it again.`,
+			);
 		}
-		void preparePhoto(file).then((ready) => onImage("main", ready));
 	}
 
 	function onHeroCropsChange(next: HeroFraming | null) {
@@ -2522,13 +2555,14 @@
 													<HeroImagePanel
 														sourceUrl={framingUrl}
 														crops={heroCrops}
-														disabled={busy || !eventId}
+														disabled={busy}
 														tooltip={editingOccurrence
 															? "This night's flyer. What's on uses it while this is the next night. The original is saved in this series Drive folder."
 															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback. The original is saved in this series Drive folder."}
 														onchangecrops={onHeroCropsChange}
 														onpickfile={(file) => acceptPhotoFile(file)}
-														onclear={() => onClearImage("main")}
+														onclear={() =>
+															pendingPhoto ? clearPendingPhoto() : void onClearImage("main")}
 													/>
 												{/if}
 											</aside>
