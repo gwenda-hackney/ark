@@ -51,6 +51,6 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Staging and release",
-		body: "Saving a series or a night stages it: gwenda-staging's What's on shows it on refresh, and staging rebuilds by itself when new pages appear. The header says Staged · not live until it is published. Review release opens Website > Release filtered to this series, where you compare staging with the live site and publish. The live site only changes from Release. If saving could not stage (for example, no description yet), the header says Not staged and Stage retries. In local ops, saving updates a draft only your local site shows; nothing reaches staging or the live site.",
+		body: "Saving a series or a night stages it: gwenda-staging's What's on shows it on refresh, and staging rebuilds by itself when new pages appear. The header says Staged · not live until it is published. Publish live… opens Website > Staging → live filtered to this series, where you compare staging with the live site and publish. The live site only changes from there. If saving could not stage (for example, no description yet), the header says Not staged and Stage retries. In local ops, saving updates a draft only your local site shows; nothing reaches staging or the live site.",
 	},
 ];

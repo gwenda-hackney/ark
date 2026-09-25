@@ -32,8 +32,7 @@
 		path === "/sections" || path.startsWith("/sections/"),
 	);
 	const onUsers = $derived(path === "/users" || path.startsWith("/users/"));
-	const onRelease = $derived(path.split("?")[0] === "/web/release");
-	const onWeb = $derived((path === "/web" || path.startsWith("/web/")) && !onRelease);
+	const onWeb = $derived(path === "/web" || path.startsWith("/web/") || path.startsWith("/web?"));
 	const onForms = $derived(path === "/forms" || path.startsWith("/forms/"));
 	const eventsPath = $derived(path.split("?")[0] ?? "/");
 	const onSchedule = $derived(isEventsScheduleNavPath(path));
@@ -138,7 +137,7 @@
 				>
 					<span class="icon"><Icon name="artist" size={18} /></span>
 					<span class="copy">
-						<span class="label">Artist</span>
+						<span class="label">Featured Artist</span>
 						<span class="hint">Work hanging at Gwenda</span>
 					</span>
 				</a>
@@ -161,22 +160,10 @@
 					href="/web"
 					aria-current={onWeb ? "page" : undefined}
 				>
-					<span class="icon"><Icon name="web" size={18} /></span>
-					<span class="copy">
-						<span class="label">Web</span>
-						<span class="hint">Site status and health</span>
-					</span>
-				</a>
-				<a
-					class="row"
-					class:on={onRelease}
-					href="/web/release"
-					aria-current={onRelease ? "page" : undefined}
-				>
 					<span class="icon"><Icon name="upload" size={18} /></span>
 					<span class="copy">
-						<span class="label">Release</span>
-						<span class="hint">Review staging and publish live</span>
+						<span class="label">Staging → live</span>
+						<span class="hint">See what's waiting and publish it</span>
 					</span>
 				</a>
 				<p class="heading">Ops</p>

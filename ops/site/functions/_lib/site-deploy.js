@@ -86,3 +86,30 @@ export async function dispatchProductionDeploy(env) {
     body: { kind: "staging-to-production" },
   });
 }
+
+/** Commits on staging that live does not have, via the webhook's GitHub token. */
+export async function compareCode(env, { base, head }) {
+  const { baseUrl, secret } = webhookConfig(env);
+  if (!baseUrl || !secret) {
+    const error = new Error("Site deploy webhook is not configured on ops.");
+    error.status = 503;
+    throw error;
+  }
+  const query = new URLSearchParams({ base, head });
+  return webhookJson(`${baseUrl}/compare?${query}`, secret);
+}
+
+/** Start the Baserow copy workflow: production → ops-dev or website-staging. */
+export async function dispatchBaserowCopy(env, target) {
+  assertNotLocal(env, "Local ops cannot start a database copy.");
+  const { baseUrl, secret } = webhookConfig(env);
+  if (!baseUrl || !secret) {
+    const error = new Error("Site deploy webhook is not configured on ops.");
+    error.status = 503;
+    throw error;
+  }
+  return webhookJson(`${baseUrl}/baserow-copy`, secret, {
+    method: "POST",
+    body: { target },
+  });
+}

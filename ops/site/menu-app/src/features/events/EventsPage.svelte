@@ -1603,10 +1603,10 @@
 		}
 	}
 
-	/** Production changes only from Website > Release, filtered to this series. */
+	/** The live site changes only from Website > Staging → live, filtered to this series. */
 	function openRelease() {
 		const slug = String(current?.slug || "").trim();
-		navigate(slug ? `/web/release?q=${encodeURIComponent(slug)}` : "/web/release");
+		navigate(slug ? `/web?q=${encodeURIComponent(slug)}` : "/web");
 	}
 
 	async function stageAll() {
@@ -1851,9 +1851,9 @@
 							variant="outline"
 							disabled={busy}
 							title="Compare staging with the live site and publish."
-							onclick={() => navigate("/web/release")}
+							onclick={() => navigate("/web")}
 						>
-							Release{awaitingRelease.length ? ` (${awaitingRelease.length})` : ""}
+							{awaitingRelease.length ? `Publish live (${awaitingRelease.length})…` : "Staging → live"}
 						</Button>
 					{/if}
 					{#if listView === "series"}
@@ -2041,11 +2041,11 @@
 											title={formDirty
 												? "Save first. Saving stages the event."
 												: liveCurrent
-													? "Live. Open Release to compare staging with the live site."
-													: "On staging. Review the release, then publish it live."}
+													? "Live. Open Staging → live to compare the two sites."
+													: "On staging. Review it, then publish it live."}
 											onclick={openRelease}
 										>
-											Review release
+											Publish live…
 										</Button>
 									{/if}
 								{/if}

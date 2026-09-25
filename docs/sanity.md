@@ -12,18 +12,26 @@ One project (`pn5yjro6`) on [sanity.io/manage](https://www.sanity.io/manage). Tw
 | **Staging** | `main` | gwenda-staging.pages.dev | **`staging`** | published only | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) (edit here; review the site) |
 | **Production** | promote only (`release` pointer) | gwenda.co.uk | **`production`** (copied from staging by ops Release) | published only | [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema; do not edit live content) |
 
-Local Studio and `npm run dev` work against the staging dataset with drafts visible. The hosted staging **site** ignores drafts. Production gets the published staging documents you choose in ops **Website → Release**, then a production build.
+Local Studio and `npm run dev` work against the staging dataset with drafts visible. The hosted staging **site** ignores drafts. Production gets the published staging documents you choose in ops **Website → Staging → live**, then a production build.
 
 ## Workflow
 
 1. **Local** — `npm run studio` and `npm run dev` on `develop`. Leave WIP as drafts. CI verifies. There is no hosted development site.
 2. **Publish**, then **promote to staging** — rebuilds gwenda-staging from published staging documents (and deploys `main` site code).
 3. **Review** https://gwenda-staging.pages.dev.
-4. **Release** — ops **Website → Release** diffs published staging against production, copies what you pick (or everything), then rebuilds gwenda.co.uk.
+4. **Publish live** — ops **Website → Staging → live** diffs published staging against production, copies what you pick (or everything), then rebuilds gwenda.co.uk.
+
+### Ops Website page (Staging → live)
+
+One page compares staging with live in three sections:
+
+- **Content**: published Sanity documents that differ, with a field-level diff. **Publish to live** copies staging → production (then rebuilds live); **Reset staging from live** copies production → staging (then rebuilds staging). Both work on all documents or the ones you tick.
+- **Code**: the commit each site runs, and the commits on staging that live lacks (via the site-deploy webhook's `/compare`). Code ships when `release` moves, not from this page.
+- **Databases**: Baserow production vs its copies, table by table (production Ops DB 556507 vs the Gwenda Dev copy 560292; production Website DB 461843 vs Website Staging 564496). Rows are compared by value, so ids and empty-vs-null differences don't count. **Copy production over it** runs `.github/workflows/baserow-copy.yml` through the webhook's `/baserow-copy`; production is only read.
 
 ### Ops events and local ops
 
-- **Hosted ops:** saving an event stages it (writes its series and nights to `staging`, published). What's on on gwenda-staging reads that live; staging rebuilds itself when new series or night pages appear. The live site changes only from Release.
+- **Hosted ops:** saving an event stages it (writes its series and nights to `staging`, published). What's on on gwenda-staging reads that live; staging rebuilds itself when new series or night pages appear. The live site changes only from ops Website → Staging → live.
 - **Local ops** (`SITE_ENV=local`): saving writes **drafts** in `staging`, which only the local site shows (`previewDrafts`). Local ops cannot write published staging documents, production, or trigger any deploy (the server returns 403). Studio cannot publish or delete `event` / `eventSeries` documents, so a local draft can never be pushed to staging from Studio; use Discard to clear one.
 - A removal cannot be previewed locally: deleting a night in local ops only drops its draft.
 
@@ -100,7 +108,7 @@ npm run studio:seed:production   # seed production menu (one-off, CONFIRM built 
 
 ## Schema + content
 
-Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in two datasets: **staging** (local Studio, Dev Studio, ops writes, staging site) and **production** (published staging documents copied by ops Release, live site). Do not edit production in Studio.
+Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in two datasets: **staging** (local Studio, Dev Studio, ops writes, staging site) and **production** (published staging documents copied from ops Website → Staging → live, live site). Do not edit production in Studio.
 
 ### Menu seed
 
@@ -141,9 +149,9 @@ npm run sync:sanity-datasets -- --direction production-to-staging --confirm stag
 | Dev Studio | push `marketing/studio/**` to `main` |
 | Prod Studio | ops promote (or `npm run studio:deploy`) |
 | Staging content | publish in Studio, then rebuild gwenda-staging |
-| Production content | ops Website → Release (document copy), then production build |
+| Production content | ops Website → Staging → live (document copy), then production build |
 | Dataset mirror | GitHub **Sanity** workflow (`sanity.yml`) |
-| **Site rebuild** | Staging: automatic after event saves that add pages, or ops Web → Rebuild staging. Live: automatic after a Release publish |
+| **Site rebuild** | Staging: automatic after event saves that add pages, or ops Website → Rebuild staging. Live: automatic after publishing from Staging → live |
 
 ## Deploy published content to the website
 
@@ -155,7 +163,7 @@ The static site reads **published** Sanity documents at build time. `npm run dev
 2. Publish when the copy is ready for the review site.
 3. Rebuild staging (ops Web / Dev Studio promote, or merge to `main`). Staging ignores drafts.
 4. Review https://gwenda-staging.pages.dev.
-5. Ops **Website → Release**: review the diff, then publish all or selected changes.
+5. Ops **Website → Staging → live**: review the diff, then publish all or selected changes.
 
 Do not edit the production dataset directly.
 
@@ -163,7 +171,7 @@ Do not edit the production dataset directly.
 
 | | Code | Content |
 |---|---|---|
-| Trigger | Staging: merge to `main`. Live: manual workflow from `release` | Publish (or save in ops), then Website → Release |
+| Trigger | Staging: merge to `main`. Live: manual workflow from `release` | Publish (or save in ops), then Website → Staging → live |
 | Staging | Push to `main` | Rebuild from published `staging` documents (drafts ignored) |
 | Production | Manual [Web promote](../.github/workflows/web-promote.yml) from `release` | That same run copies `staging` → `production`, then builds |
 

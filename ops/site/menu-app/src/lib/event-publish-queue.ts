@@ -13,7 +13,7 @@ export function eventsNotStaged<T extends PublishWorkEvent>(events: T[]): T[] {
   return events.filter((event) => event.publish.preview !== "current");
 }
 
-/** On staging and waiting for Website > Release. */
+/** On staging and waiting to be published from Website > Staging → live. */
 export function eventsAwaitingRelease<T extends PublishWorkEvent>(events: T[]): T[] {
   return events.filter(
     (event) => event.publish.preview === "current" && event.publish.live !== "current",

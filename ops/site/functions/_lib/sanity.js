@@ -183,7 +183,12 @@ export async function sanityMutate(env, dataset, mutations) {
   return payload;
 }
 
-export async function sanityUploadImage(env, dataset, bytes, { filename, contentType }) {
+export async function sanityUploadImage(env, dataset, bytes, meta) {
+  return sanityUploadAsset(env, dataset, "images", bytes, meta);
+}
+
+/** Upload an image or file asset to the staging dataset. */
+export async function sanityUploadAsset(env, dataset, kind, bytes, { filename, contentType } = {}) {
   assertEditorialDataset(dataset);
   const token = env.SANITY_API_TOKEN?.trim();
   if (!token) {
@@ -193,7 +198,7 @@ export async function sanityUploadImage(env, dataset, bytes, { filename, content
   }
   const projectId = sanityProjectId(env);
   const url = new URL(
-    `https://${projectId}.api.sanity.io/${API_VERSION}/assets/images/${dataset}`,
+    `https://${projectId}.api.sanity.io/${API_VERSION}/assets/${kind === "files" ? "files" : "images"}/${dataset}`,
   );
   if (filename) url.searchParams.set("filename", filename);
   const response = await fetch(url.toString(), {

@@ -146,6 +146,13 @@ GitHub holds only `BWS_ACCESS_TOKEN` plus the Cloudflare deploy copies (`CLOUDFL
 
 Baserow workspaces and tokens per env: see [config.md](./config.md#ops-baserow-workspaces).
 
+### Script-only credentials
+
+Some secrets are for scripts, not app runtimes, so they are not in `APP_SECRETS`. CI exports them with `node scripts/sm-export.mjs NAME ...` (masked).
+
+- `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (Ark/Ops): Baserow login for the clone scripts, which create tables and columns. **Required by `baserow-copy.yml`** (ops Website → Databases → Copy production over it). Prefer a dedicated Baserow user that can see production and the copies.
+- `BASEROW_OPS_DEV_API_KEY` (Ark/Ops, also an ops runtime key): token for the Gwenda Dev copy of the Ops DB, so hosted ops can compare it with production. Same value as `BASEROW_OPS_API_KEY__LOCAL`.
+
 ## SMTP (form + invite mail)
 
 `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` are plain Pages project vars (wrangler `[vars]` and `sync-pages-secrets.mjs`). Only `SMTP_PASSWORD` is a Pages secret (Ark/Web SM).

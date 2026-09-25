@@ -4,8 +4,8 @@ import type { NavRoute } from "../shell/types";
  * Side rail. Menu is the guest menu. Stock is inventory and suppliers.
  * Lightspeed is POS reconcile and export. Events is series and schedule.
  * Artists holds the artist whose work is hanging at Gwenda and play applications
- * (the website's play form). Website is site status and Release, the only
- * way content reaches the live site.
+ * (the website's play form). Website > Staging → live compares the two sites
+ * and is the only way content reaches the live site.
  */
 export const NAV_ROUTES: NavRoute[] = [
 	{ id: "home", path: "/", name: "Dashboard", icon: "home" },
@@ -64,7 +64,7 @@ export const NAV_ROUTES: NavRoute[] = [
 				name: "Artists",
 				icon: "artist",
 				children: [
-					{ id: "artist", path: "/artists", name: "Artist", icon: "artist" },
+					{ id: "artist", path: "/artists", name: "Featured Artist", icon: "artist" },
 					{ id: "forms", path: "/forms", name: "Play applications", icon: "forms" },
 				],
 			},
@@ -72,10 +72,7 @@ export const NAV_ROUTES: NavRoute[] = [
 				id: "website",
 				name: "Website",
 				icon: "web",
-				children: [
-					{ id: "web", path: "/web", name: "Web", icon: "web" },
-					{ id: "release", path: "/web/release", name: "Release", icon: "upload" },
-				],
+				children: [{ id: "web", path: "/web", name: "Staging → live", icon: "upload" }],
 			},
 		],
 	},

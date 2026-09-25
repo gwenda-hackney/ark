@@ -9,10 +9,10 @@
  * values are skipped; empty file columns are still created.
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
- * Source rows use the same JWT (must see database 465058).
+ * Source rows use the same JWT (must see database 461843).
  *
  * Env overrides:
- *   BASEROW_WEB_CLONE_SOURCE_ID          source DB (default 465058)
+ *   BASEROW_WEB_CLONE_SOURCE_ID          source DB (default 461843)
  *   BASEROW_WEB_DEV_WORKSPACE_NAME       (default "Gwenda Dev")
  *   BASEROW_WEB_DEV_WORKSPACE_ID         (default from .baserow-ops-dev.json)
  *   BASEROW_WEB_DEV_DATABASE_NAME        (default "Website")
@@ -37,7 +37,7 @@ import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
-const DEFAULT_SOURCE_DB = "465058";
+const DEFAULT_SOURCE_DB = "461843";
 const DEV_WORKSPACE_NAME = "Gwenda Dev";
 const DEFAULT_DATABASE_NAME = "Website";
 const META_PATH = resolve(ROOT, ".baserow-web-dev.json");

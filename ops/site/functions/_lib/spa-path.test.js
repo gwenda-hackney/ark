@@ -255,7 +255,7 @@ describe("spa-path", () => {
       tab: "details",
       list: null,
     });
-    // Publishing moved to Website > Release; old links open details.
+    // Publishing moved to Website > Staging → live; old links open details.
     assert.deepEqual(parseShellPath("/events/12/publish"), {
       page: "events",
       slug: "12",

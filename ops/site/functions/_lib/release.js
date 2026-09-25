@@ -1,5 +1,6 @@
 /**
- * Website release: staging → production, document by document.
+ * Website release: staging → production, document by document. The same
+ * engine runs the other way (production → staging) to reset staging.
  *
  * The diff compares published documents only. Drafts (including local ops
  * previews) never reach production. Publishing copies the chosen documents,
@@ -10,8 +11,10 @@
 import {
   EDITORIAL_DATASET,
   assertNotLocal,
+  sanityMutate,
   sanityMutateProduction,
   sanityQuery,
+  sanityUploadAsset,
   sanityUploadAssetProduction,
 } from "./sanity.js";
 import { listEvents, saveOccurrence } from "./event-store.js";
@@ -248,22 +251,50 @@ function remapAssets(value, map) {
   return out;
 }
 
-async function copyMissingAssets(env, docs, { query, upload, fetchImpl }) {
+/** Where documents come from and go to, and how to write the target. */
+export const DIRECTIONS = {
+  "to-production": {
+    source: EDITORIAL_DATASET,
+    target: "production",
+    sourceLabel: "staging",
+    targetLabel: "the live site",
+  },
+  "to-staging": {
+    source: "production",
+    target: EDITORIAL_DATASET,
+    sourceLabel: "the live site",
+    targetLabel: "staging",
+  },
+};
+
+function directionFor(value) {
+  const direction = DIRECTIONS[value || "to-production"];
+  if (!direction) {
+    const error = new Error('direction must be "to-production" or "to-staging".');
+    error.status = 400;
+    throw error;
+  }
+  return direction;
+}
+
+async function copyMissingAssets(env, docs, { query, upload, fetchImpl, direction }) {
   const wanted = new Set();
   for (const doc of docs) for (const ref of collectRefs(doc).assets) wanted.add(ref);
   const map = new Map();
   if (!wanted.size) return { map, copied: 0 };
   const ids = [...wanted];
-  const present = new Set((await query(env, "production", `*[_id in $ids]._id`, { ids })) || []);
+  const present = new Set((await query(env, direction.target, `*[_id in $ids]._id`, { ids })) || []);
   const missing = ids.filter((id) => !present.has(id));
   if (!missing.length) return { map, copied: 0 };
-  const sources = (await query(env, EDITORIAL_DATASET, ASSET_QUERY, { ids: missing })) || [];
+  const sources = (await query(env, direction.source, ASSET_QUERY, { ids: missing })) || [];
   let copied = 0;
   for (const asset of sources) {
     if (!asset?.url) continue;
     const response = await fetchImpl(asset.url, { signal: AbortSignal.timeout(45_000) });
     if (!response.ok) {
-      const error = new Error(`Could not read ${asset.originalFilename || asset._id} from staging.`);
+      const error = new Error(
+        `Could not read ${asset.originalFilename || asset._id} from ${direction.sourceLabel}.`,
+      );
       error.status = 502;
       throw error;
     }
@@ -280,31 +311,50 @@ async function copyMissingAssets(env, docs, { query, upload, fetchImpl }) {
 }
 
 /**
- * Copy staging onto production. `ids` limits it to chosen documents; omit to
- * publish everything that differs. The diff is recomputed here, never trusted
- * from the browser.
+ * Copy one dataset onto the other. Default: staging onto production.
+ * `direction: "to-staging"` copies production back onto staging. `ids` limits
+ * it to chosen documents; omit to copy everything that differs. The diff is
+ * recomputed here, never trusted from the browser.
  */
 export async function publishRelease(
   env,
-  { ids = null } = {},
+  { ids = null, direction: directionName = "to-production" } = {},
   {
     query = sanityQuery,
-    mutate = sanityMutateProduction,
-    upload = sanityUploadAssetProduction,
+    mutate = null,
+    upload = null,
     fetchImpl = fetch,
   } = {},
 ) {
-  assertNotLocal(env, "Local ops cannot publish to the live site.");
+  assertNotLocal(env, "Local ops cannot publish or reset the hosted sites.");
+  const direction = directionFor(directionName);
+  const toStaging = direction.target === EDITORIAL_DATASET;
+  const write =
+    mutate ||
+    (toStaging
+      ? (e, batch) => sanityMutate(e, EDITORIAL_DATASET, batch)
+      : sanityMutateProduction);
+  const put =
+    upload ||
+    (toStaging
+      ? (e, kind, bytes, meta) => sanityUploadAsset(e, EDITORIAL_DATASET, kind, bytes, meta)
+      : sanityUploadAssetProduction);
   const { staging, production } = await loadDatasets(env, query);
-  const entries = computeReleaseDiff(staging, production);
+  const [sourceDocs, targetDocs] = toStaging ? [production, staging] : [staging, production];
+  const entries = computeReleaseDiff(sourceDocs, targetDocs);
   const plan = planRelease(entries, ids);
-  const stagingById = new Map(staging.map((doc) => [doc._id, doc]));
-  const docs = plan.writes.map((id) => releaseDocument(stagingById.get(id)));
+  const sourceById = new Map(sourceDocs.map((doc) => [doc._id, doc]));
+  const docs = plan.writes.map((id) => releaseDocument(sourceById.get(id)));
 
-  const assets = await copyMissingAssets(env, docs, { query, upload, fetchImpl });
+  const assets = await copyMissingAssets(env, docs, {
+    query,
+    upload: put,
+    fetchImpl,
+    direction,
+  });
   const mutations = docs.map((doc) => ({ createOrReplace: remapAssets(doc, assets.map) }));
   for (let i = 0; i < mutations.length; i += 50) {
-    await mutate(env, mutations.slice(i, i + 50));
+    await write(env, mutations.slice(i, i + 50));
   }
 
   const warnings = [];
@@ -312,16 +362,17 @@ export async function publishRelease(
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   for (const id of plan.deletes) {
     try {
-      await mutate(env, [{ delete: { id } }]);
+      await write(env, [{ delete: { id } }]);
       deleted.push(id);
     } catch (error) {
       warnings.push(
-        `${byId.get(id)?.label || id} was not removed: ${error?.message || "still in use on the live site."}`,
+        `${byId.get(id)?.label || id} was not removed: ${error?.message || `still in use on ${direction.targetLabel}.`}`,
       );
     }
   }
 
   return {
+    direction: directionName,
     written: plan.writes,
     deleted,
     included: plan.included,

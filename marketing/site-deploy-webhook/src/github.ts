@@ -27,7 +27,7 @@ export const PRODUCTION_CONTENT_PREVIEW_URL =
 
 type GitHubRequestInit = RequestInit;
 
-async function githubFetch(
+export async function githubFetch(
   env: Env,
   path: string,
   init: GitHubRequestInit = {},
