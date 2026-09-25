@@ -21,33 +21,13 @@ function copyEnvIfMissing(target, source) {
   if (value) setEnvIfMissing(target, value);
 }
 
-/** One repo-root .env — map shared names to Sanity Studio build-time vars. */
+/**
+ * One repo-root .env — map shared names to Sanity Studio build-time vars. The
+ * project picks the Studio (sanity.cli.ts); each project has one dataset.
+ */
 function deriveStudioEnv() {
-  const activeEnv = process.env.SANITY_ACTIVE_ENV?.trim();
-
-  if (activeEnv === "production") {
-    setEnvIfMissing("SANITY_STUDIO_DATASET", "production");
-    setEnvIfMissing("SANITY_STUDIO_HOSTNAME", "gwenda");
-  } else if (activeEnv === "staging" || activeEnv === "development") {
-    setEnvIfMissing("SANITY_STUDIO_DATASET", "staging");
-    setEnvIfMissing("SANITY_STUDIO_HOSTNAME", "gwenda-dev");
-  } else {
-    copyEnvIfMissing("SANITY_STUDIO_DATASET", "SANITY_DATASET");
-    if (!process.env.SANITY_STUDIO_HOSTNAME?.trim()) {
-      const dataset =
-        process.env.SANITY_STUDIO_DATASET?.trim() ||
-        process.env.SANITY_DATASET?.trim() ||
-        "staging";
-      setEnvIfMissing(
-        "SANITY_STUDIO_HOSTNAME",
-        dataset === "production" ? "gwenda" : "gwenda-dev",
-      );
-    }
-  }
-
   copyEnvIfMissing("SANITY_STUDIO_PROJECT_ID", "SANITY_PROJECT_ID");
-  copyEnvIfMissing("SANITY_STUDIO_SITE_DEPLOY_SECRET", "DEPLOY_WEBHOOK_SECRET");
-  copyEnvIfMissing("SANITY_STUDIO_SITE_DEPLOY_URL", "SITE_DEPLOY_WEBHOOK_URL");
+  copyEnvIfMissing("SANITY_STUDIO_DATASET", "SANITY_DATASET");
 }
 
 loadRepoEnv({ app: "web", override: true });

@@ -22,7 +22,7 @@ export const onRequestGet = withApiHandler(async (context) => {
 
 /**
  * `{ target: "production", confirm: "production" }` puts this event on the
- * website (staging first, then only its documents live). Otherwise re-stages.
+ * website (preview first, then only its documents live). Otherwise re-stages.
  */
 export const onRequestPost = withApiHandler(async (context) => {
   const id = eventId(context);

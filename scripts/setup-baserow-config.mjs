@@ -26,7 +26,7 @@ import { listAllSmSecrets, resolveSmAccessToken, upsertSmSecret } from "./lib/bi
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const API = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\/$/, "");
-/** Paid Gwenda workspace (production + staging data live here too). */
+/** Paid Gwenda workspace (production data lives here too). */
 const WORKSPACE_ID = process.env.BASEROW_CONFIG_WORKSPACE_ID?.trim() || "208709";
 const TOKEN_NAME = "gwenda-config";
 
@@ -42,7 +42,6 @@ const SEED_ROWS = [
   ["sanity.project_id", "pn5yjro6", "all", "all", ""],
   ["sanity.project_id", "gwscpagy", "dev", "all", "Gwenda Dev copy"],
   ["forms.notify_email", NONPROD_NOTIFY, "dev", "web", "Form notifications outside production"],
-  ["forms.notify_email", NONPROD_NOTIFY, "staging", "web", "Form notifications outside production"],
 ];
 
 

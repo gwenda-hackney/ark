@@ -6,7 +6,7 @@
  *     Before the build. Reads SANITY_DATASET with SANITY_API_TOKEN, and the
  *     Artists table with BASEROW_OPS_API_KEY + BASEROW_OPS_DATABASE_ID.
  *
- *   node scripts/site-build-snapshot.mjs save --in FILE --site staging|production [--environment dev|prod]
+ *   node scripts/site-build-snapshot.mjs save --in FILE --site preview|production [--environment dev|prod]
  *     After a successful deploy. Writes Gwenda Config (BASEROW_CONFIG_API_KEY).
  *
  * Capturing first means edits made during the build still count as pending.
@@ -38,7 +38,11 @@ async function sanityDocs() {
   const token = process.env.SANITY_API_TOKEN || fail("SANITY_API_TOKEN is required.");
   const url = new URL(`https://${projectId}.api.sanity.io/v2025-01-01/data/query/${dataset}`);
   url.searchParams.set("query", SNAPSHOT_DOCS_QUERY);
-  url.searchParams.set("perspective", "published");
+  // What the build showed: the preview reads drafts over published.
+  url.searchParams.set(
+    "perspective",
+    process.env.SANITY_PERSPECTIVE === "previewDrafts" ? "previewDrafts" : "published",
+  );
   const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) fail(`Sanity query failed (${response.status}).`);
   return (await response.json()).result || [];
@@ -69,7 +73,7 @@ if (command === "capture") {
 } else if (command === "save") {
   const input = arg("--in") || fail("save needs --in FILE");
   const site = arg("--site");
-  if (site !== "staging" && site !== "production") fail("--site must be staging or production");
+  if (site !== "preview" && site !== "production") fail("--site must be preview or production");
   const snapshot = parseSnapshot(readFileSync(input, "utf8")) || fail("Snapshot file is not valid.");
   const environment = arg("--environment") || "prod";
   if (environment !== "dev" && environment !== "prod") fail("--environment must be dev or prod");
@@ -77,6 +81,6 @@ if (command === "capture") {
   console.log(`Saved the ${site} build snapshot (${snapshot.at}).`);
 } else {
   fail(
-    "Usage: site-build-snapshot.mjs capture --out FILE | save --in FILE --site staging|production [--environment dev|prod]",
+    "Usage: site-build-snapshot.mjs capture --out FILE | save --in FILE --site preview|production [--environment dev|prod]",
   );
 }

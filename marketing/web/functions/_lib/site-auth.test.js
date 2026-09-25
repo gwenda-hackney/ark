@@ -5,6 +5,7 @@ import {
   isPublicPath,
   isUnauthenticatedCrawler,
   matchesSecret,
+  resolveGate,
 } from "./site-auth.js";
 
 function req(userAgent) {
@@ -17,38 +18,38 @@ describe("buildGateShareUrl", () => {
   it("adds the access param to the current path", () => {
     expect(
       buildGateShareUrl(
-        "https://gwenda-staging.pages.dev",
+        "https://preview.gwenda-blue.pages.dev",
         "/whats-on",
         "secret-key",
       ),
-    ).toBe("https://gwenda-staging.pages.dev/whats-on?access=secret-key");
+    ).toBe("https://preview.gwenda-blue.pages.dev/whats-on?access=secret-key");
   });
 
   it("keeps existing query params and replaces access", () => {
     expect(
       buildGateShareUrl(
-        "https://gwenda-staging.pages.dev",
+        "https://preview.gwenda-blue.pages.dev",
         "/events?x=1&access=old",
         "secret-key",
       ),
     ).toBe(
-      "https://gwenda-staging.pages.dev/events?x=1&access=secret-key",
+      "https://preview.gwenda-blue.pages.dev/events?x=1&access=secret-key",
     );
   });
 
   it("rejects open redirects", () => {
     expect(
       buildGateShareUrl(
-        "https://gwenda-staging.pages.dev",
+        "https://preview.gwenda-blue.pages.dev",
         "//evil.example",
         "secret-key",
       ),
-    ).toBe("https://gwenda-staging.pages.dev/?access=secret-key");
+    ).toBe("https://preview.gwenda-blue.pages.dev/?access=secret-key");
   });
 });
 
 describe("isPublicPath", () => {
-  it("allows stable brand assets through the staging gate", () => {
+  it("allows stable brand assets through the preview gate", () => {
     expect(isPublicPath("/favicon.ico")).toBe(true);
     expect(isPublicPath("/health")).toBe(true);
     expect(isPublicPath("/health/")).toBe(true);
@@ -58,7 +59,7 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/og/events/private-launch-party.jpg")).toBe(true);
   });
 
-  it("allows invite pages, event RSVP pages, and RSVP API through the staging gate", () => {
+  it("allows invite pages, event RSVP pages, and RSVP API through the preview gate", () => {
     expect(isPublicPath("/invite/")).toBe(true);
     expect(isPublicPath("/invite/abc123")).toBe(true);
     expect(isPublicPath("/api/whats-on")).toBe(true);
@@ -134,10 +135,32 @@ describe("isAiReadingBot", () => {
 });
 
 describe("isUnauthenticatedCrawler", () => {
-  it("allows search and AI bots through the staging gate", () => {
+  it("allows search and AI bots through the preview gate", () => {
     expect(
       isUnauthenticatedCrawler(req("Mozilla/5.0 (compatible; Googlebot/2.1)")),
     ).toBe(true);
     expect(isUnauthenticatedCrawler(req("GPTBot/1.0"))).toBe(true);
+  });
+});
+
+describe("resolveGate", () => {
+  it("leaves the live site open, password or not", () => {
+    expect(resolveGate({ SITE_ENV: "production" })).toEqual({ kind: "open" });
+    expect(resolveGate({ SITE_ENV: "production", SITE_PASSWORD: "pw" })).toEqual({ kind: "open" });
+  });
+
+  it("gates a preview even though it runs as production", () => {
+    expect(resolveGate({ SITE_ENV: "production", SITE_PREVIEW: "true", SITE_PASSWORD: "pw" })).toEqual({
+      kind: "gated",
+      password: "pw",
+    });
+  });
+
+  it("refuses a preview without a password rather than opening it", () => {
+    expect(resolveGate({ SITE_ENV: "production", SITE_PREVIEW: "true" })).toEqual({ kind: "misconfigured" });
+  });
+
+  it("gates the dev website when it has a password", () => {
+    expect(resolveGate({ SITE_ENV: "dev", SITE_PASSWORD: "pw" }).kind).toBe("gated");
   });
 });

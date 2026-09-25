@@ -68,9 +68,9 @@
 	let query = $state("");
 	let publishTarget = $state<PublishTarget>(
 		localStorage.getItem("gwenda-ops-menu-publish") === "production"
-			? "staging"
+			? "preview"
 			: ((localStorage.getItem("gwenda-ops-menu-publish") as PublishTarget) ||
-				"staging"),
+				"preview"),
 	);
 	let loadError = $state("");
 	let busy = $state(true);
@@ -414,7 +414,7 @@
 		try {
 			busy = true;
 			busyLabel = "Updating website…";
-			const data = await api.publishMenu("staging");
+			const data = await api.publishMenu("preview");
 			await loadMenu();
 			if (selectedId && detailOpen) {
 				item = findById(selectedId) || item;

@@ -179,7 +179,7 @@ export async function resendFormEmail(env, rowId, kind) {
   const slug = String(row?.["Form Slug"] ?? "").trim();
   // The form as the live site shows it (drafts never reach the website).
   const form = slug
-    ? await sanityQuery(env, "production", FORM_QUERY, { slug }, { perspective: "published" })
+    ? await sanityQuery(env, "production", FORM_QUERY, { slug })
     : null;
   if (!form) throw httpError(`Form "${slug}" is not in Sanity.`, 404);
   const answers = parseEntries(row);

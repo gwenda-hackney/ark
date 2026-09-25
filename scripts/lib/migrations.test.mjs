@@ -37,6 +37,11 @@ function fakeBaserow(columns, { failCreate = null } = {}) {
       return {};
     }
     if (path === "/api/database/fields/table/42/") return columns.map((c) => ({ ...c }));
+    if (path.startsWith("/api/database/fields/") && init.method === "PATCH") {
+      const id = Number(path.split("/")[4]);
+      Object.assign(columns.find((c) => c.id === id), JSON.parse(init.body));
+      return {};
+    }
     if (path.startsWith("/api/database/fields/") && init.method === "DELETE") {
       const id = Number(path.split("/")[4]);
       columns.splice(columns.findIndex((c) => c.id === id), 1);
@@ -82,6 +87,14 @@ describe("baserowDatabase", () => {
     assert.equal(await database.removeField("Form Submissions", "Old"), "absent");
   });
 
+  it("adds a choice to a single-select column once", async () => {
+    const columns = [{ id: 4, name: "Env", select_options: [{ id: 1, value: "dev" }] }];
+    const { database } = db(columns);
+    assert.equal(await database.ensureSelectOption("Form Submissions", "Env", "preview"), "created");
+    assert.equal(await database.ensureSelectOption("Form Submissions", "Env", "preview"), "exists");
+    assert.deepEqual(columns[0].select_options.map((o) => o.value), ["dev", "preview"]);
+  });
+
   it("names a missing table", async () => {
     const { database } = db([]);
     await assert.rejects(database.fields("Nope"), /Website: table "Nope" not found/);
@@ -105,6 +118,7 @@ describe("openDatabase", () => {
   it("maps every environment for both databases", () => {
     assert.deepEqual(Object.keys(DATABASES.website), ENVS);
     assert.deepEqual(Object.keys(DATABASES.ops), ENVS);
+    assert.deepEqual(Object.keys(DATABASES.config), ENVS);
   });
 });
 

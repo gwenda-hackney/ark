@@ -29,6 +29,27 @@ describe("pages vars", () => {
     assert.deepEqual(removed, ["OLD (production)"]);
   });
 
+  it("puts preview secrets on the preview only and takes them off production", () => {
+    const current = {
+      production: { env_vars: { SITE_PASSWORD: { type: "secret_text" } } },
+      preview: { env_vars: {} },
+    };
+    const { body, removed } = pagesVarsPatch({
+      current,
+      secrets: { A: "1" },
+      previewSecrets: { SITE_PASSWORD: "pw" },
+    });
+    assert.deepEqual(body.deployment_configs.production.env_vars, {
+      SITE_PASSWORD: null,
+      A: { type: "secret_text", value: "1" },
+    });
+    assert.deepEqual(body.deployment_configs.preview.env_vars, {
+      A: { type: "secret_text", value: "1" },
+      SITE_PASSWORD: { type: "secret_text", value: "pw" },
+    });
+    assert.deepEqual(removed, ["SITE_PASSWORD (production)"]);
+  });
+
   it("sends one PATCH, and reads the project first only when removing", async () => {
     const calls = [];
     const fetchImpl = async (url, init = {}) => {

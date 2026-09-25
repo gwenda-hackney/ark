@@ -192,13 +192,13 @@ html.is-scrollbar-dragging {
 }
 
 /* The ribbon is fixed chrome. Leave it out of the page crossfade. */
-::view-transition-group(staging-ribbon) {
+::view-transition-group(preview-ribbon) {
   animation: none;
   z-index: 130;
 }
 
-::view-transition-old(staging-ribbon),
-::view-transition-new(staging-ribbon) {
+::view-transition-old(preview-ribbon),
+::view-transition-new(preview-ribbon) {
   animation: none;
   mix-blend-mode: normal;
 }
@@ -212,7 +212,7 @@ main {
   color: var(--color-text);
 }
 
-.staging-ribbon {
+.preview-ribbon {
   --ribbon-fold: 5.5rem;
   position: fixed;
   top: 0;
@@ -221,7 +221,7 @@ main {
   z-index: 130;
   /* Stay painted across view transitions. A fixed corner inside the root
      snapshot is dropped on some client navigations until a full reload. */
-  view-transition-name: staging-ribbon;
+  view-transition-name: preview-ribbon;
   width: var(--ribbon-fold);
   height: var(--ribbon-fold);
   overflow: hidden;
@@ -231,7 +231,7 @@ main {
     visibility 0.3s;
 }
 
-.staging-ribbon span {
+.preview-ribbon span {
   position: absolute;
   display: block;
   width: 8.5rem;
@@ -249,7 +249,7 @@ main {
   background: var(--color-gold);
 }
 
-.staging-ribbon-share {
+.preview-ribbon-share {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -271,12 +271,12 @@ main {
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
-.staging-ribbon-share:hover,
-.staging-ribbon-share:focus-visible {
+.preview-ribbon-share:hover,
+.preview-ribbon-share:focus-visible {
   filter: brightness(1.08);
 }
 
-.staging-ribbon-share span {
+.preview-ribbon-share span {
   pointer-events: none;
 }
 
@@ -1191,7 +1191,7 @@ body.site-nav-open .site-header {
   -webkit-backdrop-filter: none;
 }
 
-body.site-nav-open .staging-ribbon {
+body.site-nav-open .preview-ribbon {
   opacity: 0;
   visibility: hidden;
 }
@@ -4172,7 +4172,7 @@ html.fonts-ready .thanks {
 
 /* Corner fold overlaps the back chip; nudge it clear of the ribbon (desktop). */
 @media (min-width: 641px) {
-  body:has(.staging-ribbon) .subpage-chrome .page-back {
+  body:has(.preview-ribbon) .subpage-chrome .page-back {
     margin-left: 3.25rem;
   }
 }
@@ -7761,7 +7761,7 @@ html.navigation-restore #rsvp-loading {
     height: 2.35rem;
   }
 
-  .staging-ribbon {
+  .preview-ribbon {
     top: auto;
     bottom: 0.75rem;
     left: 0.75rem;
@@ -7771,8 +7771,8 @@ html.navigation-restore #rsvp-loading {
     overflow: visible;
   }
 
-  .staging-ribbon span,
-  .staging-ribbon-share {
+  .preview-ribbon span,
+  .preview-ribbon-share {
     position: static;
     width: auto;
     transform: none;
@@ -7784,7 +7784,7 @@ html.navigation-restore #rsvp-loading {
     box-shadow: none;
   }
 
-  .staging-ribbon-share {
+  .preview-ribbon-share {
     position: static;
     inset: auto;
     width: auto;
@@ -7794,7 +7794,7 @@ html.navigation-restore #rsvp-loading {
     opacity: 0.85;
   }
 
-  .staging-ribbon-share span {
+  .preview-ribbon-share span {
     padding: 0;
     opacity: 1;
     font-size: inherit;

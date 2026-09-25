@@ -5,8 +5,8 @@ name: Baserow copy
 # only read. The copy keeps its database id: tables are reused, rows wiped
 # and re-copied (--force). File values (photos) are not copied.
 #
-#   ops-dev          production Ops DB (556507) → Gwenda Dev copy (local ops)
-#   website-staging  production Website DB (461843) → Website Staging
+#   ops-dev          production Ops DB (556507) → Gwenda Dev copy (dev ops)
+#   website-dev      production Website DB (461843) → Gwenda Dev copy (dev website)
 #
 # Needs BASEROW_JWT_EMAIL / BASEROW_JWT_PASSWORD in Bitwarden SM: the clone
 # scripts log in to Baserow to create any missing tables and columns.
@@ -22,7 +22,7 @@ on:
         type: choice
         options:
           - ops-dev
-          - website-staging
+          - website-dev
 
 concurrency:
   group: baserow-copy-${{ inputs.target }}
@@ -63,11 +63,11 @@ jobs:
           BASEROW_OPS_CLONE_SOURCE_ID: "556507"
         run: node scripts/clone-baserow-ops-db.mjs --force
 
-      - name: Copy Website DB to Website Staging
-        if: inputs.target == 'website-staging'
+      - name: Copy Website DB to the Gwenda Dev copy
+        if: inputs.target == 'website-dev'
         env:
           BASEROW_WEB_CLONE_SOURCE_ID: "461843"
-        run: node scripts/clone-baserow-web-db.mjs --target=staging --force
+        run: node scripts/clone-baserow-web-db.mjs --force
 
       - name: Summary
         run: |

@@ -14,7 +14,6 @@
 
 	const ENV_LABELS: Record<string, string> = {
 		dev: "Dev",
-		staging: "Prod preview",
 		production: "Prod",
 	};
 

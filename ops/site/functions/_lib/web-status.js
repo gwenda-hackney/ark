@@ -1,17 +1,17 @@
 /**
  * Website environment status: code SHA, Sanity content fingerprint, health.
- * Ops compares hosted staging to production. Local/dev is branch work.
+ * Ops compares hosted preview to production. Local/dev is branch work.
  */
 
 export const SITE_HEALTH_URL = "https://health.gwenda.co.uk";
 
 export const WEB_ENVIRONMENTS = {
-  staging: {
-    id: "staging",
-    label: "Staging",
+  preview: {
+    id: "preview",
+    label: "Preview",
     hosted: true,
-    siteUrl: "https://gwenda-staging.pages.dev",
-    dataset: "staging",
+    siteUrl: "https://preview.gwenda-blue.pages.dev",
+    dataset: "preview",
     git: "main",
   },
   production: {
@@ -72,15 +72,15 @@ export function hashString(value) {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
-export function driftBetween(staging, production) {
-  const stagingCommit = staging?.code?.commit || null;
+export function driftBetween(preview, production) {
+  const previewCommit = preview?.code?.commit || null;
   const productionCommit = production?.code?.commit || null;
-  const stagingHash = staging?.content?.hash || null;
+  const previewHash = preview?.content?.hash || null;
   const productionHash = production?.content?.hash || null;
-  const haveCode = Boolean(stagingCommit && productionCommit);
-  const haveContent = Boolean(stagingHash && productionHash);
-  const codeAhead = haveCode && stagingCommit !== productionCommit;
-  const contentAhead = haveContent && stagingHash !== productionHash;
+  const haveCode = Boolean(previewCommit && productionCommit);
+  const haveContent = Boolean(previewHash && productionHash);
+  const codeAhead = haveCode && previewCommit !== productionCommit;
+  const contentAhead = haveContent && previewHash !== productionHash;
   const inSync = haveCode && haveContent && !codeAhead && !contentAhead;
   return {
     inSync,
@@ -90,7 +90,7 @@ export function driftBetween(staging, production) {
   };
 }
 
-export function driftLabel(drift, from = "Staging", to = "production") {
+export function driftLabel(drift, from = "Preview", to = "production") {
   if (!drift) return "Status unknown";
   if (drift.inSync) return `${from} matches ${to}`;
   if (drift.unknown && !drift.codeAhead && !drift.contentAhead) {
@@ -163,7 +163,7 @@ export async function fetchContentFingerprint(env, dataset, sanityQuery) {
 }
 
 export function emptyEnvStatus(id) {
-  const meta = WEB_ENVIRONMENTS[id] || WEB_ENVIRONMENTS.staging;
+  const meta = WEB_ENVIRONMENTS[id] || WEB_ENVIRONMENTS.preview;
   return {
     id: meta.id,
     label: meta.label,
@@ -226,19 +226,19 @@ export async function collectWebStatus(env, deps = {}) {
   const sanityQuery = deps.sanityQuery;
   const healthUrl = (env.SITE_HEALTH_URL || SITE_HEALTH_URL).replace(/\/$/, "");
 
-  let staging = emptyEnvStatus("staging");
+  let preview = emptyEnvStatus("preview");
   let production = emptyEnvStatus("production");
 
   const liveJobs = [
-    fetchSiteHealth(WEB_ENVIRONMENTS.staging.siteUrl + "/health", fetchImpl)
+    fetchSiteHealth(WEB_ENVIRONMENTS.preview.siteUrl + "/health", fetchImpl)
       .then((live) => {
-        staging = applyLiveHealth(staging, live);
+        preview = applyLiveHealth(preview, live);
       })
       .catch((error) => {
-        staging = withError(
-          staging,
+        preview = withError(
+          preview,
           "code",
-          error instanceof Error ? error.message : "Could not read staging health.",
+          error instanceof Error ? error.message : "Could not read preview health.",
         );
       }),
     fetchSiteHealth(WEB_ENVIRONMENTS.production.siteUrl + "/health", fetchImpl)
@@ -261,22 +261,22 @@ export async function collectWebStatus(env, deps = {}) {
   )
     .then((monitor) => {
       const sites = monitor?.sites || {};
-      staging = applyMonitorHealth(staging, sites.staging);
+      preview = applyMonitorHealth(preview, sites.preview);
       production = applyMonitorHealth(production, sites.production);
     })
     .catch(() => {});
 
   const contentJobs = sanityQuery
     ? [
-        fetchContentFingerprint(env, WEB_ENVIRONMENTS.staging.dataset, sanityQuery)
+        fetchContentFingerprint(env, WEB_ENVIRONMENTS.preview.dataset, sanityQuery)
           .then((fp) => {
-            staging = applyFingerprint(staging, fp);
+            preview = applyFingerprint(preview, fp);
           })
           .catch((error) => {
-            staging = withError(
-              staging,
+            preview = withError(
+              preview,
               "content",
-              error instanceof Error ? error.message : "Could not read staging content.",
+              error instanceof Error ? error.message : "Could not read preview content.",
             );
           }),
         fetchContentFingerprint(
@@ -301,21 +301,21 @@ export async function collectWebStatus(env, deps = {}) {
 
   await Promise.all([...liveJobs, monitorJob, ...contentJobs]);
 
-  const drift = driftBetween(staging, production);
+  const drift = driftBetween(preview, production);
   const lastError =
     production.health.lastError ||
-    staging.health.lastError ||
+    preview.health.lastError ||
     production.code.error ||
-    staging.code.error ||
+    preview.code.error ||
     null;
 
   return {
-    environments: { staging, production },
+    environments: { preview, production },
     drift,
     driftLabel: driftLabel(drift),
     lastError,
     promote: {
-      toStaging: true,
+      toPreview: true,
       toProduction: true,
     },
   };

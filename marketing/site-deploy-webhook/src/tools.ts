@@ -1,6 +1,6 @@
 /**
- * Ops Website page helpers: compare the code staging and live run, and start
- * a Baserow copy (production → dev/staging). Both need the GitHub token only
+ * Ops Website page helpers: compare the code the preview and live run, and start
+ * a Baserow copy (production → dev). Both need the GitHub token only
  * this worker holds.
  */
 import { githubFetch } from "./github";
@@ -8,7 +8,7 @@ import { isAuthorized } from "./handler";
 import type { Env, HandlerResult, WorkflowRun } from "./types";
 
 export const BASEROW_COPY_WORKFLOW_FILE = "baserow-copy.yml";
-export const BASEROW_COPY_TARGETS = new Set(["ops-dev", "website-staging"]);
+export const BASEROW_COPY_TARGETS = new Set(["ops-dev", "website-dev"]);
 
 const SHA = /^[0-9a-f]{7,40}$/i;
 
@@ -18,7 +18,7 @@ type CompareCommit = {
   commit: { message: string; author?: { name?: string; date?: string } };
 };
 
-/** GET /compare?base=<live sha>&head=<staging sha> */
+/** GET /compare?base=<live sha>&head=<preview sha> */
 export async function handleCompare(request: Request, env: Env): Promise<HandlerResult> {
   if (!isAuthorized(request, env)) return { status: 401, body: { error: "Unauthorized" } };
   const url = new URL(request.url);
@@ -80,7 +80,7 @@ async function latestCopyRun(env: Env, after: number): Promise<WorkflowRun | nul
   );
 }
 
-/** POST /baserow-copy { target: "ops-dev" | "website-staging" } */
+/** POST /baserow-copy { target: "ops-dev" | "website-dev" } */
 export async function handleBaserowCopy(request: Request, env: Env): Promise<HandlerResult> {
   if (!isAuthorized(request, env)) return { status: 401, body: { error: "Unauthorized" } };
   let body: { target?: string } | null = null;
@@ -91,7 +91,7 @@ export async function handleBaserowCopy(request: Request, env: Env): Promise<Han
   }
   const target = String(body?.target || "");
   if (!BASEROW_COPY_TARGETS.has(target)) {
-    return { status: 400, body: { error: 'target must be "ops-dev" or "website-staging".' } };
+    return { status: 400, body: { error: 'target must be "ops-dev" or "website-dev".' } };
   }
   const started = Date.now();
   const res = await githubFetch(env, `/actions/workflows/${BASEROW_COPY_WORKFLOW_FILE}/dispatches`, {

@@ -1,8 +1,8 @@
 /**
  * Baserow database drift: production against its non-production copy.
  *
- * Ops: production Ops DB vs the Gwenda Dev copy that local ops uses.
- * Website: production Website DB vs Website Staging (gwenda-staging).
+ * Ops: production Ops DB vs the Gwenda Dev copy that dev ops uses.
+ * Website: production Website DB vs the Gwenda Dev copy the dev website uses.
  *
  * Production is expected to move on (new orders, stock, sign-ups). This only
  * answers "is the copy still the same as production?" per table: the columns,
@@ -38,16 +38,17 @@ export function databasePairs(env = {}) {
     website: {
       id: "website",
       label: "Website",
-      copyLabel: "Website Staging (gwenda-staging)",
+      copyLabel: "Gwenda Dev copy (dev website)",
       source: {
         label: "Production",
         databaseId: env.BASEROW_WEBSITE_DATABASE_ID_PRODUCTION || "461843",
         token: opsToken,
       },
+      // The dev copy lives in the Gwenda Dev workspace, like the Ops copy.
       target: {
-        label: "Staging",
-        databaseId: env.BASEROW_WEBSITE_DATABASE_ID_STAGING || "564496",
-        token: opsToken,
+        label: "Dev copy",
+        databaseId: env.BASEROW_WEBSITE_DEV_DATABASE_ID || "563090",
+        token: env.BASEROW_OPS_DEV_API_KEY || "",
       },
       ignoreTables: [],
     },

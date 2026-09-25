@@ -38,10 +38,10 @@ function env(
 }
 
 describe("buildSyncMetrics", () => {
-	it("flags staging ahead with a duration value", () => {
+	it("flags preview ahead with a duration value", () => {
 		const metrics = buildSyncMetrics(
 			env({
-				id: "staging",
+				id: "preview",
 				code: { commit: "aaaaaaaa", env: null, dataset: null, error: null },
 				content: {
 					hash: "hash-a",
@@ -62,7 +62,7 @@ describe("buildSyncMetrics", () => {
 				},
 			}),
 		);
-		assert.equal(metrics[0]?.label, "Staging ahead");
+		assert.equal(metrics[0]?.label, "Preview ahead");
 		assert.equal(metrics[0]?.tone, "warn");
 		assert.equal(metrics[1]?.value, "105");
 		assert.equal(metrics[1]?.tone, "up");

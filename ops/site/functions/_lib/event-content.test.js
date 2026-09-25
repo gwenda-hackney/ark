@@ -221,7 +221,7 @@ test("publishState stays current when image URL tokens rotate", async () => {
       date: "2026-09-26",
       sanityId: "drafts.x",
       overrides: {},
-      snapshots: { staging: { hash, at: "2026-09-22T00:00:00.000Z" } },
+      snapshots: { preview: { hash, at: "2026-09-22T00:00:00.000Z" } },
     },
   ];
   const rotated = {
@@ -266,7 +266,7 @@ test("publishState stays current for night title overrides (mapEvent shape)", as
   };
   // Publish stores the hash against the occurrence row (with overrides).
   const hash = occurrenceHash({ ...event, dates: [row] }, row);
-  const dates = [{ ...row, snapshots: { staging: { hash, at: "now" } } }];
+  const dates = [{ ...row, snapshots: { preview: { hash, at: "now" } } }];
   assert.equal(publishState(event, dates, "2026-09-22").preview, "current");
 });
 
@@ -394,7 +394,7 @@ test("a one-off edit marks the preview stale", async () => {
     },
   };
   const hash = occurrenceHash({ ...event, dates: [row] }, row);
-  const dates = [{ ...row, snapshots: { staging: { hash, at: "now" } } }];
+  const dates = [{ ...row, snapshots: { preview: { hash, at: "now" } } }];
   assert.equal(publishState(event, dates, "2026-09-23").preview, "current");
   assert.equal(
     publishState(

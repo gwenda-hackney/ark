@@ -7,6 +7,7 @@ import {
   LOCAL_PLACEHOLDER,
   getSetting,
   missingLocalSettings,
+  removeRetiredEnv,
   resetConfigCacheForTests,
 } from "./config.js";
 
@@ -74,4 +75,33 @@ describe("config service", () => {
       );
       assert.deepEqual(missingLocalSettings({ SITE_ENV: "dev" }), []);
     }));
+
+  it("retiring an Env removes its settings and machine state, nothing else", async () => {
+    const rows = [
+      { id: 1, ...row("forms.notify_email", "alerts@gwenda.co.uk", "staging", "web") },
+      { id: 2, ...row("forms.notify_email", "alerts@gwenda.co.uk", "dev", "web") },
+      { id: 3, ...row("site.build_snapshot", "{}", "staging", "web") },
+    ];
+    const deleted = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = async (url, init = {}) => {
+      if (init.method === "DELETE") {
+        deleted.push(Number(String(url).match(/\/(\d+)\/$/)[1]));
+        return new Response(null, { status: 204 });
+      }
+      if (String(url).includes("/all-tables/")) {
+        return new Response(JSON.stringify([{ id: 5, name: "Config", database_id: 1 }]));
+      }
+      return new Response(JSON.stringify({ results: rows, next: null }));
+    };
+    resetConfigCacheForTests();
+    try {
+      const removed = await removeRetiredEnv({ BASEROW_CONFIG_API_KEY: "k" }, "staging");
+      assert.deepEqual(deleted, [1, 3]);
+      assert.equal(removed, 2);
+    } finally {
+      globalThis.fetch = original;
+      resetConfigCacheForTests();
+    }
+  });
 });

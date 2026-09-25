@@ -44,22 +44,22 @@ export function durationLabel(ms: number): string | null {
 }
 
 export function updatedGap(
-	stagingAt: string | null,
+	previewAt: string | null,
 	productionAt: string | null,
 ): string | null {
-	if (!stagingAt || !productionAt) return null;
-	const delta = new Date(stagingAt).getTime() - new Date(productionAt).getTime();
+	if (!previewAt || !productionAt) return null;
+	const delta = new Date(previewAt).getTime() - new Date(productionAt).getTime();
 	if (!Number.isFinite(delta)) return null;
 	return durationLabel(Math.abs(delta));
 }
 
 export function buildSyncMetrics(
-	staging: WebEnvStatus,
+	preview: WebEnvStatus,
 	production: WebEnvStatus,
 ): SyncMetric[] {
-	const left = staging.content;
+	const left = preview.content;
 	const right = production.content;
-	const contentTitle = `Staging updated ${formatWhen(left.updatedAt)}. Production updated ${formatWhen(right.updatedAt)}.`;
+	const contentTitle = `Preview updated ${formatWhen(left.updatedAt)}. Production updated ${formatWhen(right.updatedAt)}.`;
 	let content: SyncMetric;
 	if (left.error || right.error) {
 		content = {
@@ -85,12 +85,12 @@ export function buildSyncMetrics(
 	} else {
 		const leftAt = left.updatedAt ? new Date(left.updatedAt).getTime() : Number.NaN;
 		const rightAt = right.updatedAt ? new Date(right.updatedAt).getTime() : Number.NaN;
-		const stagingNewer = leftAt > rightAt;
+		const previewNewer = leftAt > rightAt;
 		const productionNewer =
 			Number.isFinite(leftAt) && Number.isFinite(rightAt) && leftAt < rightAt;
 		content = {
-			label: stagingNewer
-				? "Staging ahead"
+			label: previewNewer
+				? "Preview ahead"
 				: productionNewer
 					? "Production ahead"
 					: "Revisions differ",
@@ -107,39 +107,39 @@ export function buildSyncMetrics(
 		tone: sameCount ? "up" : "warn",
 		title: sameCount
 			? `${left.count} documents on both sites.`
-			: `Staging ${left.count}. Production ${right.count}.`,
+			: `Preview ${left.count}. Production ${right.count}.`,
 	};
 
-	const stagingCommit = staging.code.commit;
+	const previewCommit = preview.code.commit;
 	const productionCommit = production.code.commit;
 	let code: SyncMetric;
-	if (staging.code.error || production.code.error) {
+	if (preview.code.error || production.code.error) {
 		code = {
 			label: "Code",
 			value: "Error",
 			tone: "down",
-			title: staging.code.error || production.code.error || "Could not read code.",
+			title: preview.code.error || production.code.error || "Could not read code.",
 		};
-	} else if (!stagingCommit || !productionCommit) {
+	} else if (!previewCommit || !productionCommit) {
 		code = {
 			label: "Code",
 			value: "Unknown",
 			tone: "muted",
 			title: "Could not read one of the commits.",
 		};
-	} else if (stagingCommit === productionCommit) {
+	} else if (previewCommit === productionCommit) {
 		code = {
 			label: "Code",
-			value: shortCommit(stagingCommit),
+			value: shortCommit(previewCommit),
 			tone: "up",
-			title: "Same commit on staging and production.",
+			title: "Same commit on preview and production.",
 		};
 	} else {
 		code = {
 			label: "Code",
 			value: "Differs",
 			tone: "warn",
-			title: `Staging ${shortCommit(stagingCommit)}. Production ${shortCommit(productionCommit)}.`,
+			title: `Preview ${shortCommit(previewCommit)}. Production ${shortCommit(productionCommit)}.`,
 		};
 	}
 

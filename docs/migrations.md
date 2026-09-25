@@ -25,7 +25,7 @@ export async function up({ env, database, processEnv, log }) {
 }
 ```
 
-`database(key)` opens this environment's database (`scripts/lib/migrations.mjs` `DATABASES`): `website` or `ops`, in `dev` (Gwenda Dev) or `production` (Gwenda). It offers `ensureField`, `removeField` and `fields`. Anything else can call the Baserow API with the same login.
+`database(key)` opens this environment's database (`scripts/lib/migrations.mjs` `DATABASES`): `website` or `ops`, in `dev` (Gwenda Dev) or `production` (Gwenda), or `config`, the one Gwenda Config database every environment shares. It offers `ensureField`, `ensureSelectOption`, `removeField` and `fields`. Anything else can call the Baserow API with the same login.
 
 Pick `app` by which deploy the change belongs to: the app whose new code needs it (pre) or whose old code last used it (post).
 
@@ -40,7 +40,7 @@ Code that uses a new column should cope without it (see `saveFormEditLink` in `m
 | Deploy | pre | post |
 |--------|-----|------|
 | Website, dev (`web.yml`) | dev | dev |
-| Website, production preview (`web.yml`) | production | — (production code isn't live yet) |
+| Website, prod's preview (`web.yml`, release) | production | — (the live site still runs the old code) |
 | Website, production (`web-promote.yml`) | production | production |
 | Ops, dev and production (`apps.yml`) | its env | its env |
 

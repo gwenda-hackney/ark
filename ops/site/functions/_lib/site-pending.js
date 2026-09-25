@@ -17,15 +17,15 @@ import {
 } from "../../../../shared/site-snapshot.js";
 import { readState as readConfigState, writeState as writeConfigState } from "../../../../shared/config.js";
 import { listArtists } from "./artist-store.js";
-import { EDITORIAL_DATASET, sanityQuery } from "./sanity.js";
+import { PREVIEW, sanityQuery } from "./sanity.js";
 import {
   buildEnvironment,
   dispatchProductionDeploy,
-  dispatchStagingContentDeploy,
+  dispatchPreviewDeploy,
   fetchDeployStatus,
 } from "./site-deploy.js";
 
-export const SITES = ["production", "staging"];
+export const SITES = ["production", "preview"];
 export const QUIET_MS = 10 * 60 * 1000;
 const STATE_KEY = "site.auto_update";
 
@@ -35,7 +35,8 @@ function stateKey(env) {
 }
 const MAX_AUTO_FAILURES = 2;
 
-const DATASETS = { production: "production", staging: EDITORIAL_DATASET };
+/** How each site reads Sanity: "preview" is the preview site. */
+const VIEWS = { production: "production", preview: PREVIEW };
 
 function emptyState() {
   return {
@@ -74,7 +75,7 @@ export async function computePending(
 ) {
   const [snapshotText, docs, artistRows] = await Promise.all([
     read(env, "web", snapshotConfigKey(buildEnvironment(env)), site).catch(() => ""),
-    query(env, DATASETS[site], SNAPSHOT_DOCS_QUERY),
+    query(env, VIEWS[site], SNAPSHOT_DOCS_QUERY),
     artists(env).catch(() => []),
   ]);
   return pendingSince(parseSnapshot(snapshotText), { docs: docs || [], artists: artistRows });
@@ -121,7 +122,7 @@ export function decide(state, pending, { now, run = null }) {
 }
 
 function dispatcherFor(site) {
-  return site === "production" ? dispatchProductionDeploy : dispatchStagingContentDeploy;
+  return site === "production" ? dispatchProductionDeploy : dispatchPreviewDeploy;
 }
 
 async function startBuild(env, site, state, now, dispatch) {

@@ -24,25 +24,25 @@ describe("groupItemsForPublish", () => {
 	it("splits drinks by the selected target", () => {
 		const items = [
 			item("Gwenda", {
-				staging: { status: "unpublished", changed: ["price"] },
+				preview: { status: "unpublished", changed: ["price"] },
 				production: { status: "unknown" },
 			}),
 			item("Negroni", {
-				staging: { status: "published" },
+				preview: { status: "published" },
 				production: { status: "missing" },
 			}),
 			item("House lager", {
-				staging: { status: "excluded" },
+				preview: { status: "excluded" },
 				production: { status: "excluded" },
 			}),
 		];
-		const staging = groupItemsForPublish(items, "staging");
-		assert.equal(staging.unpublished.length, 1);
-		assert.equal(staging.unpublished[0].name, "Gwenda");
-		assert.deepEqual(staging.unpublished[0].changed, ["price"]);
-		assert.equal(staging.published.length, 1);
-		assert.equal(staging.excluded.length, 1);
-		assert.equal(staging.missing.length, 0);
+		const preview = groupItemsForPublish(items, "preview");
+		assert.equal(preview.unpublished.length, 1);
+		assert.equal(preview.unpublished[0].name, "Gwenda");
+		assert.deepEqual(preview.unpublished[0].changed, ["price"]);
+		assert.equal(preview.published.length, 1);
+		assert.equal(preview.excluded.length, 1);
+		assert.equal(preview.missing.length, 0);
 
 		const live = groupItemsForPublish(items, "production");
 		assert.equal(live.unknown.length, 1);
@@ -54,14 +54,14 @@ describe("publish labels", () => {
 	it("treats a missing snapshot as on-site, not unpublished", () => {
 		assert.equal(
 			publishNeedsSync({
-				staging: { status: "unknown" },
+				preview: { status: "unknown" },
 				production: { status: "unknown" },
 			}),
 			false,
 		);
 		assert.equal(
 			publishHint({
-				staging: { status: "unknown" },
+				preview: { status: "unknown" },
 				production: { status: "unknown" },
 			}),
 			"Preview site: no recorded snapshot yet. Live website: no recorded snapshot yet.",
@@ -70,7 +70,7 @@ describe("publish labels", () => {
 
 	it("summarises unpublished changes as a count, not a split cell", () => {
 		const publish = {
-			staging: { status: "unpublished" as const, changed: ["price", "notes"] },
+			preview: { status: "unpublished" as const, changed: ["price", "notes"] },
 			production: { status: "published" as const },
 		};
 		assert.equal(publishNeedsSync(publish), true);
@@ -87,21 +87,21 @@ describe("publish labels", () => {
 	it("marks a drink not live when the live website is behind", () => {
 		assert.equal(
 			publishNotLive({
-				staging: { status: "published" },
+				preview: { status: "published" },
 				production: { status: "unpublished", changed: ["price"] },
 			}),
 			true,
 		);
 		assert.equal(
 			publishLiveLabel({
-				staging: { status: "published" },
+				preview: { status: "published" },
 				production: { status: "unpublished", changed: ["price"] },
 			}),
 			"Not live · price",
 		);
 		assert.equal(
 			publishLiveLabel({
-				staging: { status: "published" },
+				preview: { status: "published" },
 				production: { status: "missing" },
 			}),
 			"Not on the live website",
@@ -111,20 +111,20 @@ describe("publish labels", () => {
 	it("counts drinks that still need a website update", () => {
 		const items = [
 			item("Gwenda", {
-				staging: { status: "unknown" },
+				preview: { status: "unknown" },
 				production: { status: "unknown" },
 			}),
 			item("Negroni", {
-				staging: { status: "unpublished", changed: ["price"] },
+				preview: { status: "unpublished", changed: ["price"] },
 				production: { status: "published" },
 			}),
 			item("House lager", {
-				staging: { status: "missing" },
+				preview: { status: "missing" },
 				production: { status: "missing" },
 			}),
 		];
 		assert.equal(publishPendingCount(items), 2);
-		assert.equal(publishPendingCount(items, "staging"), 2);
+		assert.equal(publishPendingCount(items, "preview"), 2);
 		assert.equal(publishPendingCount(items, "production"), 1);
 	});
 

@@ -9,7 +9,7 @@ describe("siteEnvName", () => {
     assert.equal(siteEnvName({ SITE_ENV: "dev" }), "dev");
     assert.equal(siteEnvName({ SITE_ENV: "production" }), "production");
     assert.equal(siteEnvName({ SITE_ENV: "prod" }), "production");
-    assert.equal(siteEnvName({ SITE_ENV: "staging" }), "staging");
+    assert.equal(siteEnvName({ SITE_ENV: "local" }), "dev");
     assert.equal(siteEnvName({}), "production");
   });
 });

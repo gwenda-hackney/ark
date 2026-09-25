@@ -3,27 +3,27 @@ import { describe, it } from "node:test";
 import { sitePublishPhaseLabel } from "./site-publish-status.ts";
 
 describe("sitePublishPhaseLabel", () => {
-  it("names a queued staging rebuild", () => {
+  it("names a queued preview rebuild", () => {
     assert.equal(
       sitePublishPhaseLabel({
-        target: "staging",
+        target: "preview",
         status: "queued",
         conclusion: null,
         completed: false,
       }),
-      "Staging publish is queued.",
+      "Preview publish is queued.",
     );
   });
 
   it("names an in-progress rebuild", () => {
     assert.equal(
       sitePublishPhaseLabel({
-        target: "staging",
+        target: "preview",
         status: "in_progress",
         conclusion: null,
         completed: false,
       }),
-      "Staging site is building.",
+      "Preview site is building.",
     );
   });
 
@@ -42,12 +42,12 @@ describe("sitePublishPhaseLabel", () => {
   it("names a failed publish", () => {
     assert.equal(
       sitePublishPhaseLabel({
-        target: "staging",
+        target: "preview",
         status: "completed",
         conclusion: "failure",
         completed: true,
       }),
-      "Staging publish failed.",
+      "Preview publish failed.",
     );
   });
 });

@@ -1,17 +1,20 @@
 const DEFAULT_PROJECT_ID = "pn5yjro6";
 const API_VERSION = "v2025-01-01";
 
+/** Each environment has one dataset; the preview is its drafts. */
 export function sanityDatasetForEnv(env = {}) {
-  if (env.SANITY_DATASET?.trim()) return env.SANITY_DATASET.trim();
-  if (env.SITE_ENV === "staging") return "staging";
-  return "production";
+  return env.SANITY_DATASET?.trim() || "production";
 }
 
-/** Hosted staging/production ignore drafts. Local SITE_ENV can overlay them. */
+/**
+ * The live site shows published documents; the preview site and a local dev
+ * server show drafts over them. Deploys set SANITY_PERSPECTIVE explicitly.
+ */
 export function sanityPerspectiveForEnv(env = {}) {
   const explicit = env.SANITY_PERSPECTIVE?.trim();
   if (explicit === "published" || explicit === "previewDrafts") return explicit;
-  if (env.SITE_ENV === "local" || env.SITE_ENV === "development") {
+  const siteEnv = env.SITE_ENV?.trim();
+  if (siteEnv === "preview" || siteEnv === "local" || siteEnv === "development") {
     return "previewDrafts";
   }
   return "published";

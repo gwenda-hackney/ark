@@ -2,7 +2,9 @@ name: Deploy to Cloudflare Pages
 description: Build and deploy the static site to a Cloudflare Pages project
 
 # Runtime Pages secrets are written by sync-pages-secrets.mjs from the job env
-# (env:web:pull). secrets-profile picks staging vs production.
+# (env:web:pull). secrets-profile picks production vs dev. A deploy-branch
+# other than the project's production branch is its preview (wrangler
+# [env.preview.vars]: drafts shown, password gate).
 
 inputs:
   pages-project:
@@ -22,8 +24,8 @@ inputs:
     description: Deploy existing dist/ only (no npm run build)
     required: false
     default: "false"
-  public-is-staging:
-    description: Set PUBLIC_IS_STAGING=true for staging builds
+  public-is-preview:
+    description: Set PUBLIC_IS_PREVIEW=true for a preview or the dev website
     required: false
     default: "false"
   public-opening-date:
@@ -52,8 +54,13 @@ inputs:
     description: SANITY_API_TOKEN — CI token for build-time CMS fetch (from Bitwarden SM)
     required: false
   sanity-dataset:
-    description: Sanity dataset for build-time CMS fetch (staging or production)
-    required: true
+    description: Sanity dataset for build-time CMS fetch (each project has one, production)
+    required: false
+    default: production
+  sanity-perspective:
+    description: published for a live site, previewDrafts for a preview (drafts over published)
+    required: false
+    default: published
   sanity-project-id:
     description: Sanity project (the real one, or gwscpagy for the dev website)
     required: false
@@ -63,7 +70,7 @@ inputs:
     required: false
     default: ""
   site-origin:
-    description: Public address of a non-live build (PUBLIC_SITE_ORIGIN). Empty = gwenda-staging.
+    description: Public address of a non-live build (PUBLIC_SITE_ORIGIN). Empty = prod's preview.
     required: false
     default: ""
   snapshot-environment:
@@ -80,12 +87,13 @@ inputs:
     default: ""
   snapshot-site:
     description: >
-      staging or production to record what this build was made from (ops shows
-      changes made since as "waiting for the website"). Empty for previews.
+      preview or production to record what this build was made
+      from (ops shows changes made since as "waiting for the website"). Empty
+      for branch previews.
     required: false
     default: ""
   secrets-profile:
-    description: staging, production or dev. Passed to sync-pages-secrets.mjs.
+    description: production or dev. Passed to sync-pages-secrets.mjs.
     required: true
 
 outputs:
@@ -106,6 +114,7 @@ runs:
       env:
         SANITY_PROJECT_ID: ${{ inputs.sanity-project-id }}
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
+        SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
         BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}
@@ -116,7 +125,7 @@ runs:
       shell: bash
       run: cd marketing/web && npm run build
       env:
-        PUBLIC_IS_STAGING: ${{ inputs.public-is-staging }}
+        PUBLIC_IS_PREVIEW: ${{ inputs.public-is-preview }}
         PUBLIC_BUILD_SHA: ${{ inputs.build-sha }}
         PUBLIC_BUILD_REF: ${{ inputs.build-ref }}
         PUBLIC_BUILD_TIME: ${{ inputs.build-time }}
@@ -126,6 +135,7 @@ runs:
         PUBLIC_SITE_ORIGIN: ${{ inputs.site-origin }}
         SANITY_PROJECT_ID: ${{ inputs.sanity-project-id }}
         SANITY_DATASET: ${{ inputs.sanity-dataset }}
+        SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
         BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}

@@ -140,11 +140,11 @@ export function healthPayloadLooksHealthy(data: unknown): boolean {
 
 export function monitoredSites(env: {
   SITE_URL?: string;
-  STAGING_SITE_URL?: string;
+  PREVIEW_SITE_URL?: string;
 }): MonitoredSite[] {
   const productionUrl = env.SITE_URL?.trim() || "https://gwenda.co.uk";
-  const stagingUrl =
-    env.STAGING_SITE_URL?.trim() || "https://gwenda-staging.pages.dev";
+  const previewUrl =
+    env.PREVIEW_SITE_URL?.trim() || "https://preview.gwenda-blue.pages.dev";
   return [
     {
       id: "production",
@@ -153,8 +153,8 @@ export function monitoredSites(env: {
       alert: true,
     },
     {
-      id: "staging",
-      url: stagingUrl,
+      id: "preview",
+      url: previewUrl,
       requireHome: false,
       alert: false,
     },

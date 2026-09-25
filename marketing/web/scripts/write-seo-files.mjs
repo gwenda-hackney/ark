@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 const distDir = resolve(process.cwd(), "dist");
 const domain = "https://gwenda.co.uk";
-const isStaging = process.env.PUBLIC_IS_STAGING === "true";
+const isPreview = process.env.PUBLIC_IS_PREVIEW === "true";
 
 /** Public pages that should appear in search indexes. */
 const indexablePaths = [
@@ -76,15 +76,15 @@ function buildRobotsTxt({ includeSitemap }) {
   return `${lines.join("\n").trim()}\n`;
 }
 
-const robots = buildRobotsTxt({ includeSitemap: !isStaging });
+const robots = buildRobotsTxt({ includeSitemap: !isPreview });
 
 writeFileSync(resolve(distDir, "robots.txt"), robots);
 console.log(
-  `Wrote dist/robots.txt (${isStaging ? "staging — HTML noindex" : "production"})`,
+  `Wrote dist/robots.txt (${isPreview ? "preview — HTML noindex" : "production"})`,
 );
 
-if (isStaging) {
-  console.log("Skipping sitemap.xml on staging.");
+if (isPreview) {
+  console.log("Skipping sitemap.xml on preview.");
   process.exit(0);
 }
 

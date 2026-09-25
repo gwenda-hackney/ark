@@ -26,7 +26,8 @@ function stubFetch(handler) {
 describe("event photos on the website", () => {
   it("reuses a photo already in Sanity without downloading it", async () => {
     const calls = stubFetch((url) => {
-      assert.match(url, /\/data\/query\/staging/);
+      // The preview: drafts over published, in the one dataset.
+      assert.match(url, /\/data\/query\/production\?.*perspective=previewDrafts/);
       return json({ result: [{ _id: "image-abc-1x1-jpg", originalFilename: "ops-abc123_flyer.jpg" }] });
     });
     const known = await existingImageAssets(env, [photo, photo, null]);
@@ -38,10 +39,10 @@ describe("event photos on the website", () => {
   it("uploads a new photo once and names an existing match so it is found next time", async () => {
     const calls = stubFetch((url) => {
       if (url.startsWith("https://files.example/")) return new Response("bytes");
-      if (url.includes("/assets/images/staging")) {
+      if (url.includes("/assets/images/production")) {
         return json({ document: { _id: "image-old-1x1-jpg", originalFilename: "event.jpg" } });
       }
-      if (url.includes("/data/mutate/staging")) return json({ results: [] });
+      if (url.includes("/data/mutate/production")) return json({ results: [] });
       throw new Error(`unexpected ${url}`);
     });
     const known = new Map();

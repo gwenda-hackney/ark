@@ -24,16 +24,15 @@ Reads `marketing/web/src/config/colors.json`, updates `marketing/brand/src/index
 
 ## Deploy workflows
 
-Seven workflow files under `.github/workflows/`:
+The main deploy workflows under `.github/workflows/`:
 
 | Workflow | Role |
 |----------|------|
-| `web.yml` | Staging (`main`), verify-only (`develop`), branch previews, staging content rebuild |
-| `web-promote.yml` | Copy staging onto production (Sanity clone + rebuild) |
-| `studio.yml` | Hosted Studios: Dev Studio on `main`, Prod Studio on promote |
+| `web.yml` | Dev website (`main`), prod's preview (`release`, and ops content rebuilds), verify-only (`develop`), branch previews on the dev website |
+| `web-promote.yml` | Live site from `release` and published documents |
+| `studio.yml` | Hosted Studio by hand from `release` (Web promote also redeploys it) |
 | `workers.yml` | site-deploy-webhook, Mailchimp sync, site-health, recipe-cost |
 | `apps.yml` | Brand guidelines + ops Pages |
-| `sanity.yml` | Mirror `staging` ↔ `production` datasets |
 | `verify.yml` | Reusable build/test (called by `web.yml`) |
 
 Root `package.json` alone should not trigger Worker deploys.
@@ -52,4 +51,4 @@ Colour changes in `marketing/web/src/config/colors.json` are included in the bra
 | `utils/wifi-captive-portal/` | `marketing/wifi-captive-portal/` |
 | `utils/recipe-cost-webhook/` | `ops/recipe-cost-webhook/` |
 | `ops/` (Pages app at root) | `ops/site/` |
-| `deploy-staging.yml` etc. | `web.yml` / `web-promote.yml` / `studio.yml` / `workers.yml` / `apps.yml` / `sanity.yml` |
+| `deploy-staging.yml` etc. | `web.yml` / `web-promote.yml` / `studio.yml` / `workers.yml` / `apps.yml` |

@@ -42,7 +42,7 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/lightspeed/menus` | Lightspeed POS menus (Stock) |
 | `/suppliers` | Wholesaler catalog (Stock) |
 | `/sections` | Guest menu sections |
-| `/web` | Website staging vs production, health, promote |
+| `/web` | The website and its preview: what is waiting, health, publish |
 | `/forms` | People who submitted a site form |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow config database) |
@@ -95,7 +95,7 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, and gwenda-staging rebuilds once edits go quiet. Production gets these documents from ops Website → Staging → live. In local ops this writes the Gwenda Dev copy instead. Do not edit production in Studio.
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into Sanity as **drafts**. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
 
 ## Local
 
@@ -115,7 +115,7 @@ npm run env:secrets:pull
 npm run ops:dev
 ```
 
-Local ops works exactly like hosted ops, against copies: the dev Ops DB and the **Gwenda Dev** Sanity project. Save writes its staging dataset; Update website writes its production dataset. See the result with `npm run web:dev` (preview) or `npm run web:dev:live` (website, port 4322). Nothing reaches gwenda.co.uk, and site builds only run hosted. Refresh the copy with `npm run dev:refresh:sanity`. See [docs/sanity.md](../../docs/sanity.md).
+Local ops works exactly like hosted ops, against copies: the dev Ops DB and the **Gwenda Dev** Sanity project. Save writes drafts; Update website publishes them. See the result with `npm run web:dev` (preview) or `npm run web:dev:live` (website, port 4322). Nothing reaches gwenda.co.uk, and site builds only run hosted. Refresh the copy with `npm run dev:refresh:sanity`. See [docs/sanity.md](../../docs/sanity.md).
 
 ### Debugging production locally (`ops:prod`)
 

@@ -2,7 +2,7 @@
 import "../styles/global.css";
 import SocialMeta from "./SocialMeta.astro";
 import Fonts from "./Fonts.astro";
-import StagingRibbon from "./StagingRibbon.astro";
+import PreviewRibbon from "./PreviewRibbon.astro";
 import InviteFlipCardShell from "./InviteFlipCardShell.astro";
 import RsvpPersonalForm from "./RsvpPersonalForm.astro";
 import { siteConfig } from "../config/site";
@@ -54,7 +54,7 @@ const { meta, occurrenceSlug = "" } = Astro.props;
     />
   </head>
   <body data-occurrence-slug={occurrenceSlug}>
-    <StagingRibbon />
+    <PreviewRibbon />
     <div class="grain" aria-hidden="true"></div>
     <main>
       <section class="event-rsvp event-rsvp--viewport section">

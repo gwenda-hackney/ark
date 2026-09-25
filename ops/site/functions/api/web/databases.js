@@ -3,7 +3,7 @@ import { requireAdmin } from "../../_lib/admin.js";
 import { compareDatabasePair, databasePairs } from "../../_lib/db-diff.js";
 import { dispatchBaserowCopy } from "../../_lib/site-deploy.js";
 
-const COPY_TARGETS = { ops: "ops-dev", website: "website-staging" };
+const COPY_TARGETS = { ops: "ops-dev", website: "website-dev" };
 
 /** GET ?pair=ops|website compares one pair; without it, lists the pairs. */
 export const onRequestGet = withApiHandler(async (context) => {

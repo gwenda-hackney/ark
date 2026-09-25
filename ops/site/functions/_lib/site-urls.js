@@ -12,5 +12,5 @@ export function siteUrls(env = {}) {
       preview: "https://preview.gwenda-web-dev.pages.dev",
     };
   }
-  return { live: "https://gwenda.co.uk", preview: "https://gwenda-staging.pages.dev" };
+  return { live: "https://gwenda.co.uk", preview: "https://preview.gwenda-blue.pages.dev" };
 }

@@ -10,13 +10,13 @@ const row = (Name, Value, Env = "all", Service = "all") => ({
 });
 
 describe("environmentOf", () => {
-  it("maps SITE_ENV and the staging flag", () => {
+  it("maps SITE_ENV", () => {
     assert.equal(environmentOf({ SITE_ENV: "local" }), "dev");
     assert.equal(environmentOf({ SITE_ENV: "dev" }), "dev");
     assert.equal(isLocalMachine({ SITE_ENV: "local" }), true);
     assert.equal(isLocalMachine({ SITE_ENV: "dev" }), false);
-    assert.equal(environmentOf({ SITE_ENV: "staging" }), "staging");
-    assert.equal(environmentOf({ PUBLIC_IS_STAGING: "true" }), "staging");
+    // The preview build flag is not an environment: prod's preview is production.
+    assert.equal(environmentOf({ PUBLIC_IS_PREVIEW: "true" }), "production");
     assert.equal(environmentOf({ SITE_ENV: "production" }), "production");
     assert.equal(environmentOf({}), "production");
   });

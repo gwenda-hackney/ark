@@ -18,15 +18,15 @@ describe("parseSiteHealthPayload", () => {
       parseSiteHealthPayload({
         ok: true,
         service: "gwenda",
-        env: "staging",
-        dataset: "staging",
+        env: "preview",
+        dataset: "preview",
         commit: "abc1234",
       }),
       {
         ok: true,
         service: "gwenda",
-        env: "staging",
-        dataset: "staging",
+        env: "preview",
+        dataset: "preview",
         commit: "abc1234",
       },
     );
@@ -82,10 +82,10 @@ describe("driftBetween", () => {
       ).contentAhead,
       true,
     );
-    assert.equal(driftLabel({ inSync: true }), "Staging matches production");
+    assert.equal(driftLabel({ inSync: true }), "Preview matches production");
     assert.equal(
       driftLabel({ codeAhead: true, contentAhead: true }),
-      "Staging is code ahead and content ahead",
+      "Preview is code ahead and content ahead",
     );
   });
 });
@@ -106,13 +106,13 @@ describe("collectWebStatus", () => {
   it("aggregates live health, monitor state, and Sanity fingerprints", async () => {
     const fetchImpl = async (url) => {
       const href = String(url);
-      if (href.includes("gwenda-staging") && href.endsWith("/health")) {
+      if (href.includes("preview.gwenda-blue") && href.endsWith("/health")) {
         return new Response(
           JSON.stringify({
             ok: true,
             service: "gwenda",
-            env: "staging",
-            dataset: "staging",
+            env: "preview",
+            dataset: "preview",
             commit: "stage1",
           }),
         );
@@ -133,7 +133,7 @@ describe("collectWebStatus", () => {
           JSON.stringify({
             ok: true,
             sites: {
-              staging: { down: false, ok: true, lastCheckedAt: 100 },
+              preview: { down: false, ok: true, lastCheckedAt: 100 },
               production: {
                 down: true,
                 ok: false,
@@ -147,25 +147,25 @@ describe("collectWebStatus", () => {
       return new Response(JSON.stringify({ error: "nope" }), { status: 404 });
     };
 
-    async function sanityQuery(_env, dataset) {
-      if (dataset === "staging") {
+    async function sanityQuery(_env, view) {
+      if (view === "preview") {
         return [{ _id: "a", _rev: "1", _updatedAt: "2026-01-02T00:00:00Z" }];
       }
-      if (dataset === "production") {
+      if (view === "production") {
         return [{ _id: "a", _rev: "0", _updatedAt: "2026-01-01T00:00:00Z" }];
       }
       return [];
     }
 
     const status = await collectWebStatus({}, { fetchImpl, sanityQuery });
-    assert.equal(status.environments.staging.code.commit, "stage1");
+    assert.equal(status.environments.preview.code.commit, "stage1");
     assert.equal(status.environments.production.code.commit, "prod1");
-    assert.equal(status.environments.staging.dataset, "staging");
+    assert.equal(status.environments.preview.dataset, "preview");
     assert.equal(status.environments.development, undefined);
     assert.equal(status.drift.codeAhead, true);
     assert.equal(status.drift.contentAhead, true);
     assert.equal(status.devDrift, undefined);
-    assert.equal(status.promote.toStaging, true);
+    assert.equal(status.promote.toPreview, true);
     assert.equal(status.promote.toProduction, true);
     assert.equal(status.environments.production.health.down, true);
     assert.equal(status.lastError, "health: HTTP 502");
@@ -174,12 +174,12 @@ describe("collectWebStatus", () => {
 
 describe("empty env helpers", () => {
   it("fills live health onto an empty status", () => {
-    const next = applyLiveHealth(emptyEnvStatus("staging"), {
+    const next = applyLiveHealth(emptyEnvStatus("preview"), {
       commit: "abc",
-      env: "staging",
-      dataset: "staging",
+      env: "preview",
+      dataset: "preview",
     });
-    assert.equal(emptyEnvStatus("staging").dataset, "staging");
+    assert.equal(emptyEnvStatus("preview").dataset, "preview");
     assert.equal(next.code.commit, "abc");
     const fingerprinted = applyFingerprint(next, {
       hash: "deadbeef",

@@ -1,14 +1,13 @@
 /**
- * Saving an event stages it: its series and nights are written to the staging
- * dataset. What's on reads that live; the rest of the preview site updates on
- * its own once edits go quiet (site-pending.js).
- * Production only changes from Website > Staging → live, never from here.
- * Local ops writes drafts instead (see sanity.js), so dev never touches staging.
+ * Saving an event stages it: its series and nights are written as drafts.
+ * What's on on the preview site reads them live; the rest of the preview site
+ * updates on its own once edits go quiet (site-pending.js).
+ * The website only changes when the drafts are published (Put on website,
+ * or Website > Preview → live). Removing a night takes it off both at once.
  */
 import {
-  EDITORIAL_DATASET,
+  PREVIEW,
   sanityMutate,
-  sanityMutateProduction,
   sanityQuery,
   sanityRenameImageAsset,
   sanityUploadImage,
@@ -79,7 +78,7 @@ export async function existingImageAssets(env, images) {
   const rows =
     (await sanityQuery(
       env,
-      EDITORIAL_DATASET,
+      PREVIEW,
       `*[_type == "sanity.imageAsset" && originalFilename in $names]{ _id, originalFilename }`,
       { names },
     )) || [];
@@ -111,7 +110,7 @@ export async function heroImage(env, image, known) {
   if (assetId) return imageRef(assetId);
   const hero = await imageFromUrl(
     url,
-    (bytes, meta) => sanityUploadImage(env, EDITORIAL_DATASET, bytes, meta),
+    (bytes, meta) => sanityUploadImage(env, bytes, meta),
     filename || "event.jpg",
   );
   if (!hero) return hero;
@@ -119,7 +118,7 @@ export async function heroImage(env, image, known) {
   if (filename) {
     known.set(filename, uploaded.asset._ref);
     if (originalFilename !== filename) {
-      await sanityRenameImageAsset(env, EDITORIAL_DATASET, uploaded.asset._ref, filename);
+      await sanityRenameImageAsset(env, uploaded.asset._ref, filename);
     }
   }
   return uploaded;
@@ -200,7 +199,7 @@ export async function publishEventPreview(
 ) {
   const event = await getEvent(env, id);
   // Series and night pages are built ahead of time; the diary is read live.
-  let pagesChanged = !event.dates.some((row) => row.snapshots?.staging);
+  let pagesChanged = !event.dates.some((row) => row.snapshots?.preview);
   if (!event.name) httpError("Name is required.", 400);
   const description = seriesDescriptionForPublish(event);
   const shortDescription = seriesShortDescriptionForPublish(event);
@@ -258,7 +257,7 @@ export async function publishEventPreview(
       const rows =
         (await sanityQuery(
           env,
-          EDITORIAL_DATASET,
+          PREVIEW,
           `*[_id in $ids]{ _id, shortDescription }`,
           { ids },
         )) || [];
@@ -271,7 +270,7 @@ export async function publishEventPreview(
   for (const date of wanted) {
     const previous = existingByDate.get(date);
     const hash = occurrenceHash(event, previous || date);
-    if (previous?.sanityId && previous?.snapshots?.staging?.hash === hash) {
+    if (previous?.sanityId && previous?.snapshots?.preview?.hash === hash) {
       occurrences.push({
         // Nothing to write back unless its ClickUp task changes below.
         unchanged: true,
@@ -343,7 +342,7 @@ export async function publishEventPreview(
       isSpecialEdition: content.isSpecialEdition,
       snapshots: {
         ...(previous?.snapshots || {}),
-        staging: {
+        preview: {
           hash,
           at: new Date().toISOString(),
         },
@@ -351,7 +350,7 @@ export async function publishEventPreview(
     });
   }
   for (let i = 0; i < mutations.length; i += 25) {
-    await sanityMutate(env, EDITORIAL_DATASET, mutations.slice(i, i + 25));
+    await sanityMutate(env, mutations.slice(i, i + 25));
   }
 
   const warnings = [];
@@ -389,20 +388,20 @@ export async function publishEventPreview(
     deployed,
     deploy,
     pagesChanged,
-    target: "staging",
+    target: "preview",
   };
 }
 
 /**
- * Stage after a save. A save always succeeds on its own; staging problems
- * (no description yet, no upcoming date) come back as `staging.error`.
+ * Stage after a save. A save always succeeds on its own; preview problems
+ * (no description yet, no upcoming date) come back as `preview.error`.
  */
 export async function stageEvent(env, id) {
   try {
     const result = await publishEventPreview(env, id);
     return {
       event: await withWebsiteStatus(env, result.event),
-      staging: {
+      preview: {
         ok: true,
         local: siteEnvName(env) === "dev",
         warnings: result.warnings,
@@ -413,7 +412,7 @@ export async function stageEvent(env, id) {
   } catch (error) {
     return {
       event: null,
-      staging: {
+      preview: {
         ok: false,
         local: siteEnvName(env) === "dev",
         error: error?.message || "Could not stage this event.",
@@ -471,36 +470,20 @@ export async function publishAllEventPreviews(env) {
     warnings,
     deployed,
     deploy,
-    target: "staging",
+    target: "preview",
   };
 }
 
-/** Removes from staging only. Website > Staging → live carries the removal to production. */
-export async function unpublishEvent(env, event) {
-  const warnings = await unpublishOccurrences(env, event?.dates || []);
-  if (event?.slug) {
-    try {
-      await sanityMutate(env, EDITORIAL_DATASET, [
-        { delete: { id: sanitySeriesId(event.slug) } },
-      ]);
-    } catch (error) {
-      warnings.push(error?.message || "Could not remove the series from staging.");
-    }
-  }
-  return warnings;
-}
-
+/** Takes nights off the preview and the website together. */
 export async function unpublishOccurrences(env, rows) {
   const warnings = [];
   for (const row of rows || []) {
     if (!row?.sanityId) continue;
     try {
-      await sanityMutate(env, EDITORIAL_DATASET, [
-        { delete: { id: row.sanityId } },
-      ]);
+      await sanityMutate(env, [{ delete: { id: row.sanityId } }]);
     } catch (error) {
       warnings.push(
-        error?.message || `Could not remove ${row.date} from staging.`,
+        error?.message || `Could not take ${row.date} off the website.`,
       );
     }
   }
@@ -515,11 +498,11 @@ export async function eventDocumentIds(env, event, { query = sanityQuery } = {})
   const seriesId = sanitySeriesId(event.slug);
   const groq = `*[!(_id in path("drafts.**")) && (_id == $seriesId || (_type == "event" && seriesId == $slug))]._id`;
   const params = { seriesId, slug: event.slug };
-  const [staging, production] = await Promise.all([
-    query(env, EDITORIAL_DATASET, groq, params),
+  const [preview, production] = await Promise.all([
+    query(env, PREVIEW, groq, params),
     query(env, "production", groq, params),
   ]);
-  const ids = new Set([seriesId, ...(staging || []), ...(production || [])]);
+  const ids = new Set([seriesId, ...(preview || []), ...(production || [])]);
   for (const row of event.dates || []) if (row.sanityId) ids.add(row.sanityId);
   return [...ids];
 }
@@ -539,12 +522,12 @@ export async function previewEventOnWebsite(env, id) {
 }
 
 /**
- * "Update website" for one event: bring staging up to date from ops, then
- * copy only this event's documents (and anything they need) to production.
+ * "Update website" for one event: bring the drafts up to date from ops, then
+ * publish only this event's documents (and anything they need).
  * The site pages follow on the next automatic update.
  */
 export async function putEventOnWebsite(env, id) {
-  // Saving already staged it; only stage again if staging is behind ops.
+  // Saving already staged it; only stage again if the drafts are behind ops.
   const current = await getEvent(env, id);
   const staged =
     current.publish?.preview === "current"
@@ -569,7 +552,7 @@ export async function putEventOnWebsite(env, id) {
   };
 }
 
-/** Take an event's documents off the live site (delete with "also take it off the website"). */
+/** Take an event's documents off the live site and the preview (delete with "also take it off the website"). */
 export async function removeEventFromWebsite(env, event, rows = null) {
   const ids = rows
     ? rows.map((row) => row.sanityId).filter(Boolean)
@@ -577,7 +560,7 @@ export async function removeEventFromWebsite(env, event, rows = null) {
   const warnings = [];
   for (const docId of ids) {
     try {
-      await sanityMutateProduction(env, [{ delete: { id: docId } }]);
+      await sanityMutate(env, [{ delete: { id: docId } }]);
     } catch (error) {
       warnings.push(`Could not take ${docId} off the website: ${error?.message || "unknown error"}.`);
     }
@@ -589,23 +572,23 @@ const EVENT_DOCS_QUERY = `*[_type in ["eventSeries", "event"] && !(_id in path("
 
 /**
  * "Is this event on the website?" from the real data: every one of its
- * documents (series + nights) on staging, which saving keeps in step with
- * ops, compared with production. Fingerprints in ops only cover the fields
+ * documents (series + nights) on the preview, which saving keeps in step
+ * with ops, compared with what the website shows. Fingerprints in ops only cover the fields
  * someone remembered to list; this cannot miss one.
  *  - nothing staged yet: keep ops' own answer
  *  - nothing live: "unpublished"
  *  - any document added, removed or different: "stale"
  */
-export function websiteStatusFor(event, staging, production) {
+export function websiteStatusFor(event, preview, production) {
   const seriesId = sanitySeriesId(event.slug);
   const belongs = (doc) =>
     doc._id === seriesId || (doc._type === "event" && doc.seriesId === event.slug);
-  const onStaging = [...staging.values()].filter(belongs);
-  if (!onStaging.length) return event.publish?.live || "unpublished";
+  const onPreview = [...preview.values()].filter(belongs);
+  if (!onPreview.length) return event.publish?.live || "unpublished";
   const live = [...production.values()].filter(belongs);
   if (!live.length) return "unpublished";
-  if (live.length !== onStaging.length) return "stale";
-  for (const doc of onStaging) {
+  if (live.length !== onPreview.length) return "stale";
+  for (const doc of onPreview) {
     const other = production.get(doc._id);
     if (!other || documentFingerprint(other) !== documentFingerprint(doc)) return "stale";
   }
@@ -616,21 +599,21 @@ export function websiteStatusFor(event, staging, production) {
 export async function withWebsiteStatus(env, events, { query = sanityQuery } = {}) {
   const list = (Array.isArray(events) ? events : [events]).filter(Boolean);
   if (!list.length) return events;
-  let staging;
+  let preview;
   let production;
   try {
-    const [stagingDocs, productionDocs] = await Promise.all([
-      query(env, EDITORIAL_DATASET, EVENT_DOCS_QUERY),
+    const [previewDocs, productionDocs] = await Promise.all([
+      query(env, PREVIEW, EVENT_DOCS_QUERY),
       query(env, "production", EVENT_DOCS_QUERY),
     ]);
-    staging = new Map((stagingDocs || []).map((doc) => [doc._id, doc]));
+    preview = new Map((previewDocs || []).map((doc) => [doc._id, doc]));
     production = new Map((productionDocs || []).map((doc) => [doc._id, doc]));
   } catch {
     return events; // Sanity unreachable: ops' own status is better than none.
   }
   const apply = (event) => ({
     ...event,
-    publish: { ...event.publish, live: websiteStatusFor(event, staging, production) },
+    publish: { ...event.publish, live: websiteStatusFor(event, preview, production) },
   });
   return Array.isArray(events) ? list.map(apply) : apply(events);
 }

@@ -289,7 +289,7 @@ export function cocktailTypeFromSectionSlug(slug: unknown): CocktailType | "" {
 	return normalizeCocktailType(raw);
 }
 
-export type PublishTarget = "staging" | "production";
+export type PublishTarget = "preview" | "production";
 
 export type PublishStatus =
   | "excluded"
@@ -311,7 +311,7 @@ export type TargetPublishState = {
 };
 
 export type ItemPublishState = {
-  staging?: TargetPublishState;
+  preview?: TargetPublishState;
   production?: TargetPublishState;
 };
 
@@ -614,7 +614,7 @@ export function targetNeedsSync(state: TargetPublishState | undefined): boolean 
 }
 
 export function publishNeedsSync(publish?: ItemPublishState): boolean {
-  return targetNeedsSync(publish?.staging) || targetNeedsSync(publish?.production);
+  return targetNeedsSync(publish?.preview) || targetNeedsSync(publish?.production);
 }
 
 /** True when the live website is missing this drink or is behind ops. */
@@ -624,7 +624,7 @@ export function publishNotLive(publish?: ItemPublishState): boolean {
 
 export function publishChangeCount(publish?: ItemPublishState): number {
   return new Set([
-    ...(publish?.staging?.changed || []),
+    ...(publish?.preview?.changed || []),
     ...(publish?.production?.changed || []),
   ]).size;
 }
@@ -661,7 +661,7 @@ export function publishTargetPhrase(
 }
 
 export function publishHint(publish?: ItemPublishState): string {
-  return `Preview site: ${publishTargetPhrase(publish?.staging)}. Live website: ${publishTargetPhrase(publish?.production)}.`;
+  return `Preview site: ${publishTargetPhrase(publish?.preview)}. Live website: ${publishTargetPhrase(publish?.production)}.`;
 }
 
 export function publishSyncLabel(publish?: ItemPublishState): string {

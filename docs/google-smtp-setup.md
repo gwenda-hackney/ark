@@ -157,17 +157,17 @@ The RSVP is saved even if email fails (best-effort). Check the terminal for `RSV
 
 ---
 
-## D. Staging and production
+## D. Hosted sites
 
 Secrets are synced to Cloudflare Pages via `web/scripts/ci/sync-pages-secrets.mjs` (only `SMTP_PASSWORD` among SMTP keys).
 
 ```bash
 npm run env:web:push
-gh workflow run web-secrets.yml -f profile=staging
 gh workflow run web-secrets.yml -f profile=production
+gh workflow run web-secrets.yml -f profile=dev
 ```
 
-Redeploy staging or production so Pages Functions pick up the new secret. Wrangler `[vars]` (host/user) update on deploy.
+Redeploy the site so Pages Functions pick up the new secret. Wrangler `[vars]` (host/user) update on deploy.
 
 ---
 
@@ -193,7 +193,7 @@ So confirmations do not land in spam:
 | “Invalid login”               | App Password (not normal password). 2FA on `SMTP_USER`.                                                                                                                   |
 | “Sender address rejected”     | Confirm `events@` is an **Admin alias**, or `play@` group allows send-as from `notifications@`.                                                                         |
 | App Passwords missing         | 2FA not enabled, or admin disabled App Passwords for the org.                                                                                                             |
-| Works locally, not on staging | SM + `web-secrets` workflow + redeploy.                                                                                                                                   |
+| Works locally, not hosted     | SM + `web-secrets` workflow + redeploy.                                                                                                                                   |
 
 
 ### App Passwords disabled by admin?
@@ -222,10 +222,10 @@ npm run setup:apple-wallet:import -- ~/Downloads/pass.cer
 
 Restart `npm run web:dev`. RSVP Yes should attach `gwenda-ticket.pkpass` alongside the calendar file.
 
-For staging/production, sync secrets after `.env` is populated:
+For the hosted sites, sync secrets after `.env` is populated:
 
 ```bash
-node web/scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
+gh workflow run web-secrets.yml -f profile=production
 ```
 
 Requires an Apple Developer Pass Type ID and signing certificate.

@@ -5,15 +5,15 @@ import { siteUrls } from "../../_lib/site-urls.js";
 
 /** Changes waiting for each site's next update, for the Website page and menu badge. */
 export const onRequestGet = withApiHandler(async (context) => {
-  const [production, staging] = await Promise.all([
+  const [production, preview] = await Promise.all([
     siteStatus(context.env, "production"),
-    siteStatus(context.env, "staging"),
+    siteStatus(context.env, "preview"),
   ]);
   return jsonResponse({
     ok: true,
     local: runsOnMachine(context.env),
     urls: siteUrls(context.env),
     production,
-    staging,
+    preview,
   });
 });

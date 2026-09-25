@@ -22,11 +22,11 @@ describe("website jobs", () => {
     assert.equal(calendarNightsBehind(series("1"), "2099-02-01"), 0);
   });
 
-  it("an event needs work when staging or the calendar is behind", () => {
+  it("an event needs work when preview or the calendar is behind", () => {
     assert.equal(prepNeeded(series("1"), { calendar: false }), null);
     assert.deepEqual(prepNeeded(series("1", { preview: "stale" }), { calendar: false }), {
       calendarBehind: 0,
-      staging: true,
+      preview: true,
     });
     assert.equal(prepNeeded(series("1"), { calendar: true }).calendarBehind, 1);
     // Nothing upcoming: nothing to do.

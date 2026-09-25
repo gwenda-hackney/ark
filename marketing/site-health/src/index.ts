@@ -30,10 +30,10 @@ export async function runHealthCheck(
   const siteId = deps.siteId || "production";
   const siteUrl =
     deps.siteUrl ||
-    (siteId === "staging"
-      ? env.STAGING_SITE_URL?.trim() || "https://gwenda-staging.pages.dev"
+    (siteId === "preview"
+      ? env.PREVIEW_SITE_URL?.trim() || "https://preview.gwenda-blue.pages.dev"
       : env.SITE_URL?.trim() || "https://gwenda.co.uk");
-  const requireHome = deps.requireHome ?? siteId !== "staging";
+  const requireHome = deps.requireHome ?? siteId !== "preview";
   const shouldAlert = deps.alert ?? siteId === "production";
   const probe = await (deps.probe ?? probeSite)(siteUrl, fetch, { requireHome });
   const previous = await readState(env, siteId);
