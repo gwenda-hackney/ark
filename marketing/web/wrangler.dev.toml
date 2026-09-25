@@ -1,7 +1,8 @@
 # Cloudflare Pages — the dev website (gwenda-web-dev), built from the Gwenda
 # Dev Sanity copy for dev ops. main branch = live (production dataset);
 # the "preview" branch = preview (staging dataset). Password-gated like
-# prod's preview. No mail secrets are set, so form emails are dry-run logs.
+# prod's preview. Form notifications go to the dev inbox (config
+# forms.notify_email, Env=local), never the form's real address.
 name = "gwenda-web-dev"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]

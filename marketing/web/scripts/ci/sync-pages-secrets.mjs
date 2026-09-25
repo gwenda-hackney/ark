@@ -227,18 +227,11 @@ async function putPlainSmtpVars() {
 /** Staging-gate secrets: put on staging, removed from production. */
 const STAGING_ONLY_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
 
-/**
- * Mail credentials. The dev website never has them, so its form emails stay
- * dry-run logs (form-email.js) instead of reaching play@ from copied content.
- */
-const MAIL_KEYS = new Set(["GMAIL_SERVICE_ACCOUNT_JSON", "SMTP_PASSWORD"]);
-
 /** Every web secret from `npm run env:web:pull -- --github-env --profile <profile>`. */
-function putSharedSecrets({ mail = true } = {}) {
+function putSharedSecrets() {
   const skip = new Set(APP_SECRETS.web.pagesSkip);
   for (const key of APP_SECRETS.web.keys) {
     if (STAGING_ONLY_KEYS.has(key) || skip.has(key)) continue;
-    if (!mail && MAIL_KEYS.has(key)) continue;
     putSecret(key, process.env[key]);
   }
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
@@ -265,14 +258,15 @@ const profiles = {
     for (const key of STAGING_ONLY_KEYS) deleteSecret(key);
     putSharedSecrets();
   },
+  // Like staging: gated. Form notifications go to the dev inbox
+  // (forms.notify_email for Env=local), never the form's real address.
   dev: () => {
     if (!process.env.SITE_PASSWORD) {
       console.error("SITE_PASSWORD is required for dev deploys.");
       process.exit(1);
     }
     for (const key of STAGING_ONLY_KEYS) putSecret(key, process.env[key]);
-    putSharedSecrets({ mail: false });
-    for (const key of MAIL_KEYS) deleteSecret(key);
+    putSharedSecrets();
   },
 };
 
