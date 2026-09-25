@@ -89,7 +89,7 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-      - run: npm ci
+      - uses: ./.github/actions/npm-install
       - name: Pull Ark secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
@@ -127,7 +127,7 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-      - run: npm ci
+      - uses: ./.github/actions/npm-install
       - name: Pull Ark secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
@@ -167,7 +167,7 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-      - run: npm ci
+      - uses: ./.github/actions/npm-install
       - name: Pull Ark secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
@@ -212,7 +212,7 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-      - run: npm ci
+      - uses: ./.github/actions/npm-install
       - name: Pull Ark secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
