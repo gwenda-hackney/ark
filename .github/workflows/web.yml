@@ -106,8 +106,10 @@ jobs:
           echo "dataset=$DATASET" >> "$GITHUB_OUTPUT"
           echo "Resolved mode=$MODE dataset=$DATASET"
 
+  # Deploy jobs build, check and test themselves; this is the develop-branch check.
   verify:
     needs: resolve
+    if: needs.resolve.outputs.mode == 'verify-only'
     uses: ./.github/workflows/verify.yml
     secrets: inherit
     with:
@@ -115,7 +117,7 @@ jobs:
 
   deploy-staging:
     name: Deploy staging
-    needs: [resolve, verify]
+    needs: resolve
     if: needs.resolve.outputs.mode == 'staging-code' || needs.resolve.outputs.mode == 'staging-content'
     runs-on: ubuntu-latest
     concurrency:
@@ -158,6 +160,12 @@ jobs:
         run: npm run env:web:pull -- --github-env
 
 
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
+
       - name: Deploy
         uses: ./.github/actions/deploy-pages
         with:
@@ -199,7 +207,7 @@ jobs:
 
   deploy-dev:
     name: Deploy dev website (${{ matrix.site }})
-    needs: [resolve, verify]
+    needs: resolve
     if: needs.resolve.outputs.dev_sites != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -247,6 +255,12 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile local
 
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
+
       - name: Deploy
         uses: ./.github/actions/deploy-pages
         with:
@@ -280,7 +294,7 @@ jobs:
 
   deploy-production-preview:
     name: Deploy production preview
-    needs: [resolve, verify]
+    needs: resolve
     if: needs.resolve.outputs.mode == 'production-preview'
     runs-on: ubuntu-latest
     concurrency:
@@ -328,6 +342,12 @@ jobs:
         run: npm run env:web:pull -- --github-env --profile production
 
 
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
+
       - name: Deploy preview
         uses: ./.github/actions/deploy-pages
         with:
@@ -366,7 +386,7 @@ jobs:
 
   deploy-branch-preview:
     name: Deploy branch preview
-    needs: [resolve, verify]
+    needs: resolve
     if: needs.resolve.outputs.mode == 'branch-preview'
     runs-on: ubuntu-latest
     permissions:
@@ -409,6 +429,12 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env
+
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
 
       - name: Deploy preview
         id: deploy
