@@ -1,6 +1,6 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
 import { requireAdmin } from "../../_lib/admin.js";
-import { isLocalOps } from "../../_lib/sanity.js";
+import { runsOnMachine } from "../../_lib/sanity.js";
 import {
   getReleaseDiff,
   markReleasedInOps,
@@ -10,7 +10,7 @@ import {
 /** Staging vs production, published documents only. */
 export const onRequestGet = withApiHandler(async (context) => {
   const diff = await getReleaseDiff(context.env);
-  return jsonResponse({ ok: true, local: isLocalOps(context.env), ...diff });
+  return jsonResponse({ ok: true, local: runsOnMachine(context.env), ...diff });
 });
 
 /**

@@ -10,15 +10,18 @@ interface Props {
 const { share = true } = Astro.props;
 
 /**
- * Which environment this is. gwenda-staging is prod's preview (docs/sanity.md);
- * a local dev server shows the Gwenda Dev copy, its live dataset under
- * `npm run web:dev:live`.
+ * Which environment this is. Hosted builds set PUBLIC_ENV_LABEL (the dev
+ * website says "Dev" / "Dev · preview"); gwenda-staging is prod's preview
+ * (docs/sanity.md). A local dev server shows the Gwenda Dev copy, its live
+ * dataset under `npm run web:dev:live`.
  */
-const envLabel = import.meta.env.DEV
-  ? process.env.SANITY_DATASET === "production"
-    ? "Dev · live"
-    : "Dev"
-  : "Preview";
+const envLabel =
+  import.meta.env.PUBLIC_ENV_LABEL ||
+  (import.meta.env.DEV
+    ? process.env.SANITY_DATASET === "production"
+      ? "Dev · live"
+      : "Dev"
+    : "Preview");
 ---
 
 {

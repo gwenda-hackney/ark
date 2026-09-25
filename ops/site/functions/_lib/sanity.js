@@ -24,14 +24,25 @@ export function sanityDataset(env = {}, target = "staging") {
   return EDITORIAL_DATASET;
 }
 
-/** Local ops works on copies: the dev Ops DB and the Gwenda Dev Sanity project. */
+/**
+ * The dev environment: the dev Ops DB and the Gwenda Dev Sanity project.
+ * Config calls it "local" (shared/config-db.js maps SITE_ENV=dev to it).
+ */
 export function isLocalOps(env = {}) {
   return configEnvName(env) === "local";
 }
 
+/**
+ * Ops on someone's machine (npm run ops:dev). Hosted dev ops
+ * (gwenda-ops-dev, OPS_HOSTED=1) is the same dev environment, but hosted.
+ */
+export function runsOnMachine(env = {}) {
+  return isLocalOps(env) && String(env.OPS_HOSTED || "").trim() !== "1";
+}
+
 /** For things that only exist hosted (GitHub builds, database copies). */
 export function assertNotLocal(env, message = "Local ops cannot change the live site.") {
-  if (!isLocalOps(env)) return;
+  if (!runsOnMachine(env)) return;
   const error = new Error(message);
   error.status = 403;
   throw error;

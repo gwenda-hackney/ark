@@ -6,6 +6,7 @@
  * Usage:
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda --profile production
+ *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-web-dev --profile dev
  *   ... --if-changed   skip when nothing changed since the last sync (deploys)
  *
  * Every wrangler call takes a second or two, so a full sync is ~1 minute.
@@ -53,7 +54,7 @@ const FINGERPRINT_KEY = "web.pages_secrets_fingerprint";
 
 if (!project || !profile) {
   console.error(
-    "Usage: sync-pages-secrets.mjs --project NAME --profile staging|production",
+    "Usage: sync-pages-secrets.mjs --project NAME --profile staging|production|dev",
   );
   process.exit(1);
 }
@@ -226,11 +227,18 @@ async function putPlainSmtpVars() {
 /** Staging-gate secrets: put on staging, removed from production. */
 const STAGING_ONLY_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
 
+/**
+ * Mail credentials. The dev website never has them, so its form emails stay
+ * dry-run logs (form-email.js) instead of reaching play@ from copied content.
+ */
+const MAIL_KEYS = new Set(["GMAIL_SERVICE_ACCOUNT_JSON", "SMTP_PASSWORD"]);
+
 /** Every web secret from `npm run env:web:pull -- --github-env --profile <profile>`. */
-function putSharedSecrets() {
+function putSharedSecrets({ mail = true } = {}) {
   const skip = new Set(APP_SECRETS.web.pagesSkip);
   for (const key of APP_SECRETS.web.keys) {
     if (STAGING_ONLY_KEYS.has(key) || skip.has(key)) continue;
+    if (!mail && MAIL_KEYS.has(key)) continue;
     putSecret(key, process.env[key]);
   }
   putSecret("APPLE_WALLET_PASS_TYPE_ID", process.env.APPLE_WALLET_PASS_TYPE_ID);
@@ -256,6 +264,15 @@ const profiles = {
   production: () => {
     for (const key of STAGING_ONLY_KEYS) deleteSecret(key);
     putSharedSecrets();
+  },
+  dev: () => {
+    if (!process.env.SITE_PASSWORD) {
+      console.error("SITE_PASSWORD is required for dev deploys.");
+      process.exit(1);
+    }
+    for (const key of STAGING_ONLY_KEYS) putSecret(key, process.env[key]);
+    putSharedSecrets({ mail: false });
+    for (const key of MAIL_KEYS) deleteSecret(key);
   },
 };
 
@@ -285,9 +302,12 @@ const fingerprint = createHash("sha256")
   )
   .digest("hex");
 
+/** Config Env for this profile's fingerprint row: the dev environment is "local" in config. */
+const fingerprintEnv = profile === "dev" ? "local" : profile;
+
 async function storedFingerprint() {
   try {
-    return await getConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile);
+    return await getConfigValueFor(process.env, "web", FINGERPRINT_KEY, fingerprintEnv);
   } catch (error) {
     console.warn(`Could not read the last secret fingerprint (${error.message}); syncing.`);
     return "";
@@ -309,7 +329,7 @@ console.log(
 );
 
 try {
-  await setConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile, fingerprint);
+  await setConfigValueFor(process.env, "web", FINGERPRINT_KEY, fingerprintEnv, fingerprint);
 } catch (error) {
   console.warn(`Synced, but could not save the fingerprint (${error.message}); the next deploy syncs again.`);
 }

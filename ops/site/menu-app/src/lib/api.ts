@@ -579,7 +579,14 @@ export type SiteStatus = {
 
 export function getSitePending() {
   return coalesce("site-pending", () =>
-    request<{ ok: boolean; local: boolean; production: SiteStatus; staging: SiteStatus }>(
+    request<{
+      ok: boolean;
+      local: boolean;
+      /** This environment's website and preview (dev ops: the dev website). */
+      urls?: { live: string; preview: string };
+      production: SiteStatus;
+      staging: SiteStatus;
+    }>(
       "/api/web/pending",
     ),
   );

@@ -1,6 +1,6 @@
 ---
 import EventRsvpPage from "../../../components/EventRsvpPage.astro";
-import { isStaging } from "../../../config/env";
+import { isStaging, stagingOrigin } from "../../../config/env";
 import { siteConfig } from "../../../config/site";
 import {
   fetchRsvpEventPages,
@@ -36,7 +36,7 @@ const { event, occurrenceSlug } = Astro.props;
 const series = Astro.params.series || "";
 const date = Astro.params.date || "";
 const siteOrigin = isStaging
-  ? "https://gwenda-staging.pages.dev"
+  ? stagingOrigin
   : siteConfig.domain;
 const pageUrl = `${siteOrigin}/whats-on/${series}/${date}`;
 const pageTitle = `${event.title} · Gwenda`;

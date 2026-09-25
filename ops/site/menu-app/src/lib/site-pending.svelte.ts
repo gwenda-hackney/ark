@@ -8,9 +8,13 @@ type State = {
 	production: SiteStatus | null;
 	staging: SiteStatus | null;
 	local: boolean;
+	/** This environment's website and preview addresses. */
+	urls: { live: string; preview: string };
 };
 
-let state = $state<State>({ production: null, staging: null, local: false });
+const PROD_URLS = { live: "https://gwenda.co.uk", preview: "https://gwenda-staging.pages.dev" };
+
+let state = $state<State>({ production: null, staging: null, local: false, urls: PROD_URLS });
 let timer: ReturnType<typeof setInterval> | null = null;
 
 export function getSitePendingState(): State {
@@ -29,7 +33,12 @@ export function websiteBadge(): { count: number; tone: "waiting" | "updating" | 
 export async function refreshSitePending(): Promise<void> {
 	try {
 		const next = await getSitePending();
-		state = { production: next.production, staging: next.staging, local: next.local };
+		state = {
+			production: next.production,
+			staging: next.staging,
+			local: next.local,
+			urls: next.urls || PROD_URLS,
+		};
 	} catch {
 		/* keep the last known state; the badge is a hint */
 	}

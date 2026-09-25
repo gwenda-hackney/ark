@@ -2,7 +2,7 @@
 import { ViewTransitions } from "astro:transitions";
 import "../styles/global.css";
 import { siteConfig } from "../config/site";
-import { isStaging } from "../config/env";
+import { isStaging, stagingOrigin } from "../config/env";
 import SocialMeta from "../components/SocialMeta.astro";
 import StructuredData from "../components/StructuredData.astro";
 import Fonts from "../components/Fonts.astro";
@@ -33,7 +33,7 @@ const {
 } = Astro.props;
 
 const siteOrigin = isStaging
-  ? "https://gwenda-staging.pages.dev"
+  ? stagingOrigin
   : siteConfig.domain;
 const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 ---

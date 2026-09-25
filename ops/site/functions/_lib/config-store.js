@@ -62,7 +62,9 @@ export function opsConnectionInfo(env = {}) {
   const isProductionDb = databaseId === OPS_PRODUCTION_DATABASE_ID;
   const envLabel =
     siteEnv === "local"
-      ? "Local"
+      ? String(env.OPS_HOSTED || "") === "1"
+        ? "Dev"
+        : "Dev · this machine"
       : siteEnv === "staging"
         ? "Staging"
         : siteEnv === "production"

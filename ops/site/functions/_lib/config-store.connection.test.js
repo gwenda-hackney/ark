@@ -20,7 +20,11 @@ describe("opsConnectionInfo", () => {
       SITE_ENV: "local",
       BASEROW_OPS_DATABASE_ID: "560292",
     });
-    assert.equal(info.envLabel, "Local");
+    assert.equal(info.envLabel, "Dev · this machine");
+    assert.equal(
+      opsConnectionInfo({ SITE_ENV: "dev", OPS_HOSTED: "1", BASEROW_OPS_DATABASE_ID: "560292" }).envLabel,
+      "Dev",
+    );
     assert.equal(info.databaseId, "560292");
     assert.equal(info.isProductionDb, false);
     assert.equal(info.databaseLabel, "Gwenda Ops (dev)");

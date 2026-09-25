@@ -1,5 +1,5 @@
 import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { isLocalOps } from "../../_lib/sanity.js";
+import { runsOnMachine } from "../../_lib/sanity.js";
 import { autoUpdateTick } from "../../_lib/site-pending.js";
 import { runWebsiteJob } from "../../_lib/website-jobs.js";
 
@@ -23,7 +23,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   const secret = String(context.env.DEPLOY_WEBHOOK_SECRET || "").trim();
   if (!sameSecret(token, secret)) return jsonResponse({ error: "Unauthorized" }, 401);
-  if (isLocalOps(context.env)) return jsonResponse({ ok: true, skipped: "local" });
+  if (runsOnMachine(context.env)) return jsonResponse({ ok: true, skipped: "local" });
   const url = new URL(context.request.url);
   if (url.searchParams.get("step") === "jobs") {
     return jsonResponse({ ok: true, job: await runWebsiteJob(context.env) });
