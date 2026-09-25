@@ -21,6 +21,12 @@ Local Studio and `npm run dev` work against the staging dataset with drafts visi
 3. **Review** https://gwenda-staging.pages.dev.
 4. **Publish live** — ops **Website → Staging → live** diffs published staging against production, copies what you pick (or everything), then rebuilds gwenda.co.uk.
 
+### Website code releases
+
+1. Merge to `main`: CI deploys gwenda-staging and runs the deep smoke test (databases, config, Gmail login).
+2. Merge `main` into `release`: CI builds the **production preview** (https://release-preview.gwenda-blue.pages.dev, live settings) and runs the deep smoke test, sending a test email to alerts@gwenda.co.uk.
+3. Check the preview, then run **Web promote** by hand to put it live (it rebuilds from `release` and runs the same checks).
+
 ### Publishing from ops (editor flow)
 
 The ops editor is not technical, so ops uses plain words: *preview site* (gwenda-staging) and *website* (gwenda.co.uk).
