@@ -14,7 +14,12 @@ import {
   occurrenceDeleteTargets,
   updateOccurrenceContent,
 } from "../../../../_lib/event-store.js";
-import { stageEvent, unpublishOccurrences } from "../../../../_lib/event-publish.js";
+import {
+  removeEventFromWebsite,
+  stageEvent,
+  unpublishOccurrences,
+} from "../../../../_lib/event-publish.js";
+import { isLocalOps } from "../../../../_lib/sanity.js";
 
 function params(context) {
   return {
@@ -92,7 +97,11 @@ export const onRequestDelete = withApiHandler(async (context) => {
   ).trim();
   const event = await getEvent(context.env, id);
   const plan = occurrenceDeleteTargets(event, date, scope);
-  const warnings = await unpublishOccurrences(context.env, plan.targets);
+  const offWebsite = Boolean(body?.alsoWebsite) && !isLocalOps(context.env);
+  const warnings = offWebsite
+    ? await removeEventFromWebsite(context.env, event, plan.targets)
+    : [];
+  warnings.push(...(await unpublishOccurrences(context.env, plan.targets)));
   const result = await deleteOccurrences(context.env, id, date, scope);
   if (result.event) await syncSeriesCalendar(context.env, result.event);
   return jsonResponse(

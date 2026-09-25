@@ -230,6 +230,8 @@ export function isPublicPath(pathname) {
   if (p === "/robots.txt") return true;
   if (p === "/favicon.ico" || p === "/favicon.svg") return true;
   if (p === "/api/auth" || p.startsWith("/api/auth/")) return true;
+  // Scheduler tick from the site-deploy webhook; checks its own bearer secret.
+  if (p === "/api/web/tick") return true;
   return false;
 }
 

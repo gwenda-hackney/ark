@@ -51,6 +51,8 @@ export type AuthMe = {
   databaseLabel: string;
   isProductionDb: boolean;
   risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
+  /** Sees developer tools. Always true in local ops. */
+  isAdmin?: boolean;
 };
 
 export function getMe() {
@@ -552,6 +554,45 @@ export type CodeDiff = {
   error?: string;
 };
 
+export type SitePendingItem = {
+  kind: "document" | "artist";
+  id: string;
+  change: "added" | "changed" | "removed";
+  label: string;
+  type: string;
+};
+
+/** One site's "waiting to show on the website" state. */
+export type SiteStatus = {
+  site: "production" | "staging";
+  /** False until the first build after this feature records a snapshot. */
+  known: boolean;
+  builtAt: string | null;
+  items: SitePendingItem[];
+  updating: boolean;
+  runUrl: string;
+  failed: boolean;
+  needsHelp: boolean;
+  lastError: string;
+  autoUpdateAt: string | null;
+};
+
+export function getSitePending() {
+  return coalesce("site-pending", () =>
+    request<{ ok: boolean; local: boolean; production: SiteStatus; staging: SiteStatus }>(
+      "/api/web/pending",
+    ),
+  );
+}
+
+export function updateSiteNow(site: "production" | "staging" = "production") {
+  return request<{ ok: boolean; status: SiteStatus }>("/api/web/update", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ site }),
+  });
+}
+
 export function getCodeDiff() {
   return request<CodeDiff>("/api/web/code");
 }
@@ -733,11 +774,13 @@ export function updateEvent(id: string, body: unknown) {
   });
 }
 
-export function deleteEvent(id: string) {
+export function deleteEvent(id: string, { alsoWebsite = false } = {}) {
   return request<{ ok: boolean; warnings?: string[] }>(
     `/api/events/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alsoWebsite }),
     },
   );
 }
@@ -746,6 +789,7 @@ export function deleteEventOccurrence(
   id: string,
   date: string,
   scope: "this" | "following" | "all",
+  { alsoWebsite = false } = {},
 ) {
   return request<{
     ok: boolean;
@@ -759,7 +803,7 @@ export function deleteEventOccurrence(
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope }),
+      body: JSON.stringify({ scope, alsoWebsite }),
     },
   );
 }
@@ -769,6 +813,28 @@ export function syncEventCalendar(id: string) {
     `/api/events/${encodeURIComponent(id)}/calendar-sync`,
     { method: "POST" },
   );
+}
+
+/** What "Put on website" would change for this event. */
+export function getEventWebsitePreview(id: string) {
+  return request<{ ok: boolean; entries: ReleaseEntry[]; included: string[] }>(
+    `/api/events/${encodeURIComponent(id)}/publish`,
+  );
+}
+
+/** Put this event (and only this event) on the website. */
+export function putEventOnWebsite(id: string) {
+  return request<{
+    ok: boolean;
+    event: OpsEvent;
+    written: string[];
+    deleted: string[];
+    warnings: string[];
+  }>(`/api/events/${encodeURIComponent(id)}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target: "production", confirm: "production" }),
+  });
 }
 
 /** Stage again without editing. Saving already stages. */

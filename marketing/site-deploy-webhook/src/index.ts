@@ -47,7 +47,24 @@ function serviceInfo(request: Request): Response {
   });
 }
 
+/** Cron: let ops start any website update that is due. Ops holds the rules. */
+export async function runOpsTick(env: Env): Promise<Response | null> {
+  if (!env.OPS_URL || !env.DEPLOY_WEBHOOK_SECRET) return null;
+  const response = await fetch(`${env.OPS_URL.replace(/\/$/, "")}/api/web/tick`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.DEPLOY_WEBHOOK_SECRET}` },
+  });
+  if (!response.ok) {
+    console.error(`ops tick failed (${response.status}): ${await response.text()}`);
+  }
+  return response;
+}
+
 export default {
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(runOpsTick(env).then(() => undefined));
+  },
+
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request) });

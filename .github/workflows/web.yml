@@ -118,7 +118,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Compute build metadata
         id: buildmeta
@@ -153,6 +153,7 @@ jobs:
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "556507"
           secrets-profile: staging
+          snapshot-site: staging
 
       - name: Smoke test
         env:
@@ -205,7 +206,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Compute build metadata
         id: buildmeta
@@ -278,7 +279,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Resolve Pages preview branch
         id: branch

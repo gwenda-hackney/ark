@@ -108,7 +108,7 @@ test("dry run never calls either publisher", async () => {
   assert.equal(results[0].published, false);
 });
 
-test("publishes preview then this series' documents, and rebuilds once", async () => {
+test("publishes preview then this series' documents", async () => {
   const first = recurringEvent();
   first.dates = [publishedRow(first, "2026-09-26")];
   const second = recurringEvent({ id: "8", slug: "gwenda-sundays" });
@@ -127,9 +127,6 @@ test("publishes preview then this series' documents, and rebuilds once", async (
         calls.push(["live", event.id, dates.length > 0]);
         return { warnings: [] };
       },
-      rebuildLive: async () => {
-        calls.push(["rebuild"]);
-      },
     },
   );
 
@@ -139,6 +136,5 @@ test("publishes preview then this series' documents, and rebuilds once", async (
     ["live", "7", true],
     ["preview", "8", false],
     ["live", "8", true],
-    ["rebuild"],
   ]);
 });

@@ -3,7 +3,6 @@ import { siteEnvName } from "../../_lib/config-store.js";
 import { deployTargetForEnv } from "../../_lib/menu.js";
 import { syncOpsMenuToSanity } from "../../_lib/publish-sync.js";
 import {
-  dispatchStagingContentDeploy,
   webhookConfig,
   webhookJson,
 } from "../../_lib/site-deploy.js";
@@ -37,31 +36,14 @@ export const onRequestPost = withApiHandler(async (context) => {
   }
 
   const sync = await syncOpsMenuToSanity(context.env, { target: "staging" });
-  const changed =
-    (sync.synced?.length || 0) +
-    (sync.created?.length || 0) +
-    (sync.sectionWrites || 0);
-  if (!changed || target === "development") {
-    return jsonResponse({
-      ok: true,
-      target,
-      dataset: "staging",
-      sync,
-      deployed: false,
-    });
-  }
-  const result = await dispatchStagingContentDeploy(context.env);
-  return jsonResponse(
-    {
-      ok: true,
-      target,
-      dataset: "staging",
-      sync,
-      deployed: true,
-      ...result,
-    },
-    202,
-  );
+  // The preview site updates on its own once edits go quiet (site-pending.js).
+  return jsonResponse({
+    ok: true,
+    target,
+    dataset: "staging",
+    sync,
+    deployed: false,
+  });
 });
 
 export const onRequestGet = withApiHandler(async (context) => {

@@ -9,4 +9,10 @@ export type NavRoute = {
 	children?: NavRoute[];
 	/** Static section label. Children stay visible. Not a link or a toggle. */
 	heading?: boolean;
+	/** Hidden unless the signed-in user is an admin. */
+	adminOnly?: boolean;
+	/** One-line explanation under the name in the phone menu sheet. */
+	hint?: string;
+	/** Shows the "waiting for the website" count. */
+	badge?: "website";
 };

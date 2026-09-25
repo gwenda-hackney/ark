@@ -1,17 +1,24 @@
 /**
  * Saving an event stages it: its series and nights are written to the staging
- * dataset. What's on reads that live; new or removed pages rebuild staging.
+ * dataset. What's on reads that live; the rest of the preview site updates on
+ * its own once edits go quiet (site-pending.js).
  * Production only changes from Website > Staging → live, never from here.
  * Local ops writes drafts instead (see sanity.js), so dev never touches staging.
  */
 import {
   EDITORIAL_DATASET,
   sanityMutate,
+  sanityMutateProduction,
   sanityQuery,
   sanityUploadImage,
 } from "./sanity.js";
+import {
+  getReleaseDiff,
+  markReleasedInOps,
+  planRelease,
+  publishRelease,
+} from "./release.js";
 import { siteEnvName } from "./config-store.js";
-import { dispatchStagingContentDeploy } from "./site-deploy.js";
 import {
   expandOccurrenceDates,
   expandSeriesOccurrenceDates,
@@ -135,7 +142,7 @@ function framingFromOccurrence(event, occurrence) {
 export async function publishEventPreview(
   env,
   id,
-  { deploy: allowDeploy = true } = {},
+  _options = {},
 ) {
   const event = await getEvent(env, id);
   // Series and night pages are built ahead of time; the diary is read live.
@@ -308,16 +315,9 @@ export async function publishEventPreview(
     await saveOccurrence(env, id, occurrence);
   }
 
-  let deployed = false;
-  let deploy = null;
-  if (allowDeploy && pagesChanged && siteEnvName(env) !== "local") {
-    try {
-      deploy = await dispatchStagingContentDeploy(env);
-      deployed = true;
-    } catch (error) {
-      warnings.push(error?.message || "Preview site rebuild did not start.");
-    }
-  }
+  // No build here: the site updates once edits go quiet (site-pending.js).
+  const deployed = false;
+  const deploy = null;
 
   return {
     event: await getEvent(env, id),
@@ -396,16 +396,8 @@ export async function publishAllEventPreviews(env) {
     }
   }
 
-  let deployed = false;
-  let deploy = null;
-  if (pagesChanged && siteEnvName(env) !== "local") {
-    try {
-      deploy = await dispatchStagingContentDeploy(env);
-      deployed = true;
-    } catch (error) {
-      warnings.push(error?.message || "Staging site rebuild did not start.");
-    }
-  }
+  const deployed = false;
+  const deploy = null;
 
   return {
     events: await listEvents(env),
@@ -421,7 +413,17 @@ export async function publishAllEventPreviews(env) {
 
 /** Removes from staging only. Website > Staging → live carries the removal to production. */
 export async function unpublishEvent(env, event) {
-  return unpublishOccurrences(env, event?.dates || []);
+  const warnings = await unpublishOccurrences(env, event?.dates || []);
+  if (event?.slug) {
+    try {
+      await sanityMutate(env, EDITORIAL_DATASET, [
+        { delete: { id: sanitySeriesId(event.slug) } },
+      ]);
+    } catch (error) {
+      warnings.push(error?.message || "Could not remove the series from staging.");
+    }
+  }
+  return warnings;
 }
 
 export async function unpublishOccurrences(env, rows) {
@@ -436,6 +438,77 @@ export async function unpublishOccurrences(env, rows) {
       warnings.push(
         error?.message || `Could not remove ${row.date} from staging.`,
       );
+    }
+  }
+  return warnings;
+}
+
+/**
+ * Every published document that belongs to this event, on either side: the
+ * series and each night (including nights removed in ops but still live).
+ */
+export async function eventDocumentIds(env, event, { query = sanityQuery } = {}) {
+  const seriesId = sanitySeriesId(event.slug);
+  const groq = `*[!(_id in path("drafts.**")) && (_id == $seriesId || (_type == "event" && seriesId == $slug))]._id`;
+  const params = { seriesId, slug: event.slug };
+  const [staging, production] = await Promise.all([
+    query(env, EDITORIAL_DATASET, groq, params),
+    query(env, "production", groq, params),
+  ]);
+  const ids = new Set([seriesId, ...(staging || []), ...(production || [])]);
+  for (const row of event.dates || []) if (row.sanityId) ids.add(row.sanityId);
+  return [...ids];
+}
+
+/** What "Put on website" would change for this event, without changing anything. */
+export async function previewEventOnWebsite(env, id) {
+  const event = await getEvent(env, id);
+  const ids = await eventDocumentIds(env, event);
+  const { entries } = await getReleaseDiff(env);
+  const plan = planRelease(entries, ids);
+  const wanted = new Set([...plan.writes, ...plan.deletes]);
+  return {
+    event,
+    entries: entries.filter((entry) => wanted.has(entry.id)),
+    included: plan.included,
+  };
+}
+
+/**
+ * "Put on website" for one event: bring staging up to date from ops, then
+ * copy only this event's documents (and anything they need) to production.
+ * The site pages follow on the next automatic update.
+ */
+export async function putEventOnWebsite(env, id) {
+  const staged = await publishEventPreview(env, id);
+  const ids = await eventDocumentIds(env, staged.event);
+  const result = await publishRelease(env, { ids });
+  const warnings = [...(staged.warnings || []), ...result.warnings];
+  try {
+    await markReleasedInOps(env, result.written);
+  } catch (error) {
+    warnings.push(`On the website, but ops status did not update: ${error?.message || "unknown error"}.`);
+  }
+  return {
+    event: await getEvent(env, id),
+    written: result.written,
+    deleted: result.deleted,
+    included: result.included,
+    warnings,
+  };
+}
+
+/** Take an event's documents off the live site (delete with "also take it off the website"). */
+export async function removeEventFromWebsite(env, event, rows = null) {
+  const ids = rows
+    ? rows.map((row) => row.sanityId).filter(Boolean)
+    : await eventDocumentIds(env, event);
+  const warnings = [];
+  for (const docId of ids) {
+    try {
+      await sanityMutateProduction(env, [{ delete: { id: docId } }]);
+    } catch (error) {
+      warnings.push(`Could not take ${docId} off the website: ${error?.message || "unknown error"}.`);
     }
   }
   return warnings;

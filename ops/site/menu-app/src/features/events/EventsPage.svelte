@@ -23,11 +23,11 @@
 	import { EVENTS_HELP } from "./events-help";
 	import { eventHeaderFlag } from "../../lib/event-header-status";
 	import {
-		eventsAwaitingRelease,
 		eventsNotStaged,
 		seriesCount,
 	} from "../../lib/event-publish-queue";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
+	import { preparePhoto } from "../../lib/photo-prep";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
 	import SeriesGrid from "./SeriesGrid.svelte";
@@ -46,8 +46,10 @@
 		eventDriveFileUrl,
 		getEventDrive,
 		getEvents,
+		getEventWebsitePreview,
 		getMe,
 		publishAllEventsPreview,
+		putEventOnWebsite,
 		restageEvent,
 		syncEventCalendar,
 		updateEvent,
@@ -57,6 +59,7 @@
 		uploadEventOccurrenceImage,
 		type EventDriveFile,
 		type EventStaging,
+		type ReleaseEntry,
 		type OpsEvent,
 		type OpsNightScheduleSlot,
 	} from "../../lib/api";
@@ -86,6 +89,7 @@
 		seriesWeekdayLabel,
 	} from "../../lib/event-schedule";
 	import { toast } from "../../lib/toast.svelte";
+	import { refreshSitePending } from "../../lib/site-pending.svelte";
 	import { easeOut, fadeMs, flyMs } from "../../lib/motion";
 	import {
 		beginLeave,
@@ -134,13 +138,12 @@
 			return;
 		}
 		if (!staging.ok) {
-			toast.error(`${saved} Not staged: ${staging.error || "staging failed."}`);
+			toast.error(`${saved} It isn't on the preview site: ${staging.error || "something went wrong."}`);
 			return;
 		}
 		if (staging.warnings?.length) applyWarnings(staging.warnings);
 		if (staging.local) toast.ok(`${saved} Local preview updated.`);
-		else if (staging.deployed) toast.ok(`${saved} Staged. Staging is rebuilding for the new pages.`);
-		else toast.ok(`${saved} Staged.`);
+		else toast.ok(`${saved} It's on the preview site.`);
 	}
 	let openedKey = $state("");
 	let deleteOpen = $state(false);
@@ -608,7 +611,6 @@
 	const stagingPreviewCurrent = $derived(current?.publish.preview === "current");
 	const liveCurrent = $derived(current?.publish.live === "current");
 	const notStaged = $derived(eventsNotStaged(events));
-	const awaitingRelease = $derived(eventsAwaitingRelease(events));
 
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const base = route.isNew
@@ -672,10 +674,10 @@
 	}
 
 	function statusLabel(event: OpsEvent): string {
-		if (event.publish.preview !== "current") return "Not staged";
+		if (event.publish.preview !== "current") return "Not on preview";
 		if (localOps) return "Local preview";
-		if (event.publish.live === "current") return "Live";
-		return "Staged";
+		if (event.publish.live === "current") return "On website";
+		return "Not on website yet";
 	}
 
 	function statusTone(event: OpsEvent | null): string {
@@ -1299,8 +1301,15 @@
 		leaveEditor(listHomePath(), { force: true });
 	}
 
+	/** Delete asks whether to take it off gwenda.co.uk too (only if it is there). */
+	let alsoWebsite = $state(true);
+	const onWebsite = $derived(
+		!localOps && Boolean(current?.publish) && current?.publish.live !== "unpublished",
+	);
+
 	function requestDelete() {
 		if (!eventId || busy) return;
+		alsoWebsite = true;
 		if (editingOccurrence && !isOpenSeries) {
 			deleteScopeOpen = true;
 			return;
@@ -1322,15 +1331,20 @@
 		intent = "delete";
 		try {
 			if (scope === "series" || !editingOccurrence || !occurrenceDate) {
-				const data = await deleteEvent(eventId);
+				const offWebsite = onWebsite && alsoWebsite;
+				const data = await deleteEvent(eventId, { alsoWebsite: offWebsite });
 				events = events.filter((row) => row.id !== eventId);
-				toast.ok("Event deleted.");
+				toast.ok(offWebsite ? "Event deleted and taken off the website." : "Event deleted.");
+				void refreshSitePending();
 				applyWarnings(data.warnings);
 				beginLeave();
 				leaveEditor(listHomePath(), { force: true });
 			} else {
-				const data = await deleteEventOccurrence(eventId, occurrenceDate, scope);
+				const data = await deleteEventOccurrence(eventId, occurrenceDate, scope, {
+					alsoWebsite: onWebsite && alsoWebsite,
+				});
 				applyWarnings(data.warnings);
+				void refreshSitePending();
 				if (data.deleted || !data.event) {
 					events = events.filter((row) => row.id !== eventId);
 					toast.ok(
@@ -1593,7 +1607,7 @@
 			const data = await restageEvent(eventId);
 			rememberEvent(data.event, false);
 			warnings = data.warnings || [];
-			toast.ok(localOps ? "Local preview updated." : "Staged.");
+			toast.ok(localOps ? "Local preview updated." : "It's on the preview site.");
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not stage.";
 			error = message;
@@ -1603,10 +1617,50 @@
 		}
 	}
 
-	/** The live site changes only from Website > Staging → live, filtered to this series. */
-	function openRelease() {
-		const slug = String(current?.slug || "").trim();
-		navigate(slug ? `/web?q=${encodeURIComponent(slug)}` : "/web");
+	/** "Put on website": show what changes, in plain words, then publish just this event. */
+	let putOpen = $state(false);
+	let putEntries = $state<ReleaseEntry[] | null>(null);
+	let putError = $state("");
+	let putting = $state(false);
+
+	async function openPutOnWebsite() {
+		if (!eventId || busy || formDirty) return;
+		putOpen = true;
+		putEntries = null;
+		putError = "";
+		try {
+			putEntries = (await getEventWebsitePreview(eventId)).entries;
+		} catch (err) {
+			putError = err instanceof Error ? err.message : "Could not check what would change.";
+		}
+	}
+
+	async function confirmPutOnWebsite() {
+		if (!eventId || putting) return;
+		putting = true;
+		try {
+			const data = await putEventOnWebsite(eventId);
+			rememberEvent(data.event, false);
+			putOpen = false;
+			for (const warning of data.warnings || []) toast.info(warning);
+			toast.ok("On the website. What's on shows it now; its page updates in a few minutes.");
+			void refreshSitePending();
+		} catch (err) {
+			putError = err instanceof Error ? err.message : "Could not put it on the website.";
+		} finally {
+			putting = false;
+		}
+	}
+
+	function plainChange(entry: ReleaseEntry): string {
+		if (entry.change === "added") return `New: ${entry.label}`;
+		if (entry.change === "removed") return `Removed: ${entry.label}`;
+		const parts = entry.fields
+			.filter((field) => !field.detailOnly)
+			.slice(0, 3)
+			.map((field) => `${field.label.toLowerCase()} ${field.staging} (was ${field.production})`);
+		const extra = entry.fields.length > parts.length ? " and other details" : "";
+		return `${entry.label}: ${parts.length ? parts.join("; ") : "details"}${extra}`;
 	}
 
 	async function stageAll() {
@@ -1623,7 +1677,7 @@
 				toast.ok(
 					localOps
 						? `Local preview updated for ${seriesCount(data.published.length)}.`
-						: `Staged ${seriesCount(data.published.length)}.`,
+						: `${seriesCount(data.published.length)} put on the preview site.`,
 				);
 			}
 			if (data.warnings.length) warnings = data.warnings;
@@ -1640,7 +1694,7 @@
 			toast.error("Save the event before adding a photo.");
 			return;
 		}
-		void onImage("main", file);
+		void preparePhoto(file).then((ready) => onImage("main", ready));
 	}
 
 	function onHeroCropsChange(next: HeroFraming | null) {
@@ -1836,24 +1890,13 @@
 							variant="outline"
 							busy={stagingAll}
 							disabled={busy || stagingAll}
-							title="These were saved before saving staged automatically, or staging failed."
+							title="Some events aren't on the preview site. This puts them there."
 							onclick={() => void stageAll()}
 						>
 							{#snippet icon()}
 								<Icon name="upload" size={16} />
 							{/snippet}
-							Stage {seriesCount(notStaged.length)}
-						</Button>
-					{/if}
-					{#if !localOps}
-						<Button
-							type="button"
-							variant="outline"
-							disabled={busy}
-							title="Compare staging with the live site and publish."
-							onclick={() => navigate("/web")}
-						>
-							{awaitingRelease.length ? `Publish live (${awaitingRelease.length})…` : "Staging → live"}
+							Update preview site ({notStaged.length})
 						</Button>
 					{/if}
 					{#if listView === "series"}
@@ -2027,25 +2070,32 @@
 											type="button"
 											disabled={busy}
 											busy={publishing === "staging"}
-											title="Saving stages automatically. This retries."
+											title="Saving normally does this. Try again if it didn't work."
 											onclick={() => void onRestage()}
 										>
-											Stage
+											Update preview
 										</Button>
-									{:else if !localOps}
+									{:else if localOps}
+										<!-- Shown, never usable: the test copy must not change the real website. -->
 										<Button
-											variant="outline"
+											variant="primary"
+											size="sm"
+											type="button"
+											disabled
+											title="This is the test copy of ops. Put on website works in the real ops app."
+										>
+											Put on website
+										</Button>
+									{:else if !liveCurrent}
+										<Button
+											variant="primary"
 											size="sm"
 											type="button"
 											disabled={busy || formDirty}
-											title={formDirty
-												? "Save first. Saving stages the event."
-												: liveCurrent
-													? "Live. Open Staging → live to compare the two sites."
-													: "On staging. Review it, then publish it live."}
-											onclick={openRelease}
+											title={formDirty ? "Save first." : "Put this event on gwenda.co.uk."}
+											onclick={() => void openPutOnWebsite()}
 										>
-											Publish live…
+											Put on website
 										</Button>
 									{/if}
 								{/if}
@@ -2148,6 +2198,12 @@
 							</div>
 						{:else if !editingOnce}
 							<p class="head-note">Series defaults, shared by its nights.</p>
+						{/if}
+						{#if localOps && eventId}
+							<p class="head-note">
+								Test copy of ops: saving updates your local preview only. Put on website works in the
+								real ops app.
+							</p>
 						{/if}
 					</header>
 
@@ -2842,6 +2898,12 @@
 				<p class="delete-copy">
 					Choose how widely to delete. Past events will not be changed.
 				</p>
+				{#if onWebsite}
+					<label class="also-website">
+						<input type="checkbox" bind:checked={alsoWebsite} />
+						<span>Also take it off the website now</span>
+					</label>
+				{/if}
 				<div class="scope-options">
 					<Button
 						type="button"
@@ -2876,6 +2938,12 @@
 					Delete <strong>{name.trim() || "this event"}</strong>
 					{repeatUnit !== "none" ? " and its recurrence" : ""}? This cannot be undone.
 				</p>
+				{#if onWebsite}
+					<label class="also-website">
+						<input type="checkbox" bind:checked={alsoWebsite} />
+						<span>Also take it off the website now</span>
+					</label>
+				{/if}
 				{#snippet footer()}
 					<Button variant="outline" size="sm" type="button" disabled={busy} onclick={cancelDelete}>
 						Cancel
@@ -2889,6 +2957,50 @@
 						onclick={() => void performDelete("series")}
 					>
 						{saving && intent === "delete" ? "Deleting…" : "Delete"}
+					</Button>
+				{/snippet}
+			</Dialog>
+
+			<Dialog
+				open={putOpen}
+				title="Put on the website?"
+				onclose={() => {
+					if (!putting) putOpen = false;
+				}}
+			>
+				<p class="delete-copy">
+					This changes gwenda.co.uk for everyone. What's on shows it straight away; the event's
+					own page updates a few minutes later.
+				</p>
+				{#if putError}
+					<p class="put-error">{putError}</p>
+				{:else if putEntries === null}
+					<p class="delete-copy">Checking what will change…</p>
+				{:else if !putEntries.length}
+					<p class="delete-copy">The website already shows this. There's nothing new to put on it.</p>
+				{:else}
+					<ul class="put-list">
+						{#each putEntries as entry (entry.id)}
+							<li>{plainChange(entry)}</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if !stagingPreviewCurrent}
+					<p class="delete-copy">You haven't checked this on the preview site. That's fine for small changes.</p>
+				{/if}
+				{#snippet footer()}
+					<Button variant="outline" size="sm" type="button" disabled={putting} onclick={() => (putOpen = false)}>
+						Cancel
+					</Button>
+					<Button
+						variant="primary"
+						size="sm"
+						type="button"
+						busy={putting}
+						disabled={putting || Boolean(putError) || putEntries === null || !putEntries.length}
+						onclick={() => void confirmPutOnWebsite()}
+					>
+						Put on website
 					</Button>
 				{/snippet}
 			</Dialog>
@@ -4029,6 +4141,32 @@
 		font-size: 0.875rem;
 		line-height: 1.45;
 		color: var(--foreground);
+	}
+
+	.also-website {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		margin-top: 0.85rem;
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.also-website input {
+		width: 1.1rem;
+		height: 1.1rem;
+		accent-color: var(--primary);
+	}
+
+	.put-list {
+		margin: 0.75rem 0 0;
+		padding-left: 1.1rem;
+		line-height: 1.55;
+	}
+
+	.put-error {
+		margin: 0.75rem 0 0;
+		color: var(--destructive);
 	}
 
 	.delete-copy strong {

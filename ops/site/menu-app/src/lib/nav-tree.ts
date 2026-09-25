@@ -13,6 +13,21 @@ export function flattenNavRoutes(routes: NavRoute[]): NavRoute[] {
 	return leaves;
 }
 
+/** Drop admin-only entries (and groups left empty) for everyone else. */
+export function visibleRoutes(routes: NavRoute[], isAdmin: boolean): NavRoute[] {
+	const out: NavRoute[] = [];
+	for (const route of routes) {
+		if (route.adminOnly && !isAdmin) continue;
+		if (route.children?.length) {
+			const children = visibleRoutes(route.children, isAdmin);
+			if (children.length) out.push({ ...route, children });
+		} else {
+			out.push(route);
+		}
+	}
+	return out;
+}
+
 function decodeNavPath(path: string): string {
 	const bare = path.split("?")[0] ?? "/";
 	try {

@@ -9,19 +9,20 @@ export type HeaderFlag = {
 };
 
 /**
- * One status for the event header. Saving stages, so "Not staged" only shows
- * when staging failed (for example, no description yet). Local ops stages
- * drafts that only the local site shows.
+ * One status for the event header, in plain words. Saving puts the event on
+ * the preview site; "Put on website" puts it on gwenda.co.uk. Local ops only
+ * ever shows a local preview.
  */
 export function eventHeaderFlag(
   publish: EventPublishState | null | undefined,
   dirty: boolean,
   { local = false }: { local?: boolean } = {},
 ): HeaderFlag {
-  if (dirty) return { label: "Unsaved changes", tone: "unsaved" };
-  if (!publish) return { label: "Not saved", tone: "muted" };
-  if (publish.preview !== "current") return { label: "Not staged", tone: "unpublished" };
+  if (dirty) return { label: "Not saved", tone: "unsaved" };
+  if (!publish) return { label: "New", tone: "muted" };
+  if (publish.preview !== "current") return { label: "Not on the preview site", tone: "unpublished" };
   if (local) return { label: "Local preview", tone: "preview" };
-  if (publish.live === "current") return { label: "Live", tone: "live" };
-  return { label: "Staged · not live", tone: "preview" };
+  if (publish.live === "current") return { label: "On the website", tone: "live" };
+  if (publish.live === "unpublished") return { label: "Not on the website yet", tone: "preview" };
+  return { label: "Website has an older version", tone: "preview" };
 }

@@ -5,3 +5,11 @@ account_id = "1c23e160e39a187ce33fe192595c4a7f"
 
 [vars]
 GITHUB_REPOSITORY = "gwenda-hackney/ark"
+# Ops app, for the auto-update tick below.
+OPS_URL = "https://gwenda-ops.pages.dev"
+
+# Every 5 minutes: ask ops whether a site has changes that went quiet and needs
+# its one build (ops decides; see ops/site/functions/_lib/site-pending.js).
+[triggers]
+crons = ["*/5 * * * *"]
+

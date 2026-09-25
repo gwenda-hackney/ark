@@ -8,7 +8,6 @@ import {
 import { publishEventPreview } from "../functions/_lib/event-publish.js";
 import { getEvent, listEvents } from "../functions/_lib/event-store.js";
 import { markReleasedInOps, publishRelease } from "../functions/_lib/release.js";
-import { dispatchProductionDeploy } from "../functions/_lib/site-deploy.js";
 
 /**
  * Release only this series' own documents. Its content is unchanged (the plan
@@ -91,7 +90,6 @@ export async function publishRecurringEvents(
     loadEvents = listEvents,
     publishPreview = publishEventPreview,
     publishLive = releaseSeries,
-    rebuildLive = dispatchProductionDeploy,
   } = {},
 ) {
   const plans = planRecurringPublishes(await loadEvents(env));
@@ -112,18 +110,8 @@ export async function publishRecurringEvents(
     });
   }
 
-  // New nights have their own pages, so the live site needs one rebuild.
-  const published = results.find((result) => result.published);
-  if (published) {
-    try {
-      await rebuildLive(env);
-    } catch (error) {
-      published.warnings.push(
-        `Live site rebuild did not start: ${error?.message || "unknown error"}`,
-      );
-    }
-  }
-
+  // New nights have their own pages; the live site updates on its own once
+  // changes go quiet (ops site-pending.js via the webhook cron).
   return results;
 }
 
