@@ -4,6 +4,10 @@
  * Usage:
  *   node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev --expected-version 2026.06.11+abc1234
  *   SMOKE_TEST_GATE_BYPASS_KEY=... node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev ...
+ *
+ *   --deep           also POST /api/health/deep (Bearer DEPLOY_WEBHOOK_SECRET): Sanity,
+ *                    both Baserow databases, config DB and Gmail login
+ *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
  */
 import {
   assertHealthPayload,
@@ -24,6 +28,8 @@ const baseUrl = (getArg("--url") || process.env.SMOKE_TEST_URL || "").replace(
 );
 const expectedVersion =
   getArg("--expected-version") || process.env.SMOKE_TEST_EXPECTED_VERSION || "";
+const deep = args.includes("--deep");
+const sendEmail = args.includes("--send-email");
 const gateBypassKey =
   getArg("--gate-bypass-key") || process.env.SMOKE_TEST_GATE_BYPASS_KEY || "";
 const retries = Number(
@@ -204,12 +210,41 @@ async function runChecks() {
   }
 }
 
+/** Every dependency the deployment needs. Runs once, after the page checks pass. */
+async function runDeepChecks() {
+  const secret = process.env.DEPLOY_WEBHOOK_SECRET?.trim();
+  if (!secret) throw new Error("--deep needs DEPLOY_WEBHOOK_SECRET in the environment.");
+  const label = `${new URL(baseUrl).host}${expectedVersion ? ` ${expectedVersion}` : ""}`;
+  const res = await fetch(`${baseUrl}/api/health/deep`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ sendEmail, label }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!data?.checks) throw new Error(`/api/health/deep returned ${res.status}`);
+  for (const check of data.checks) {
+    const line = `${check.name}: ${check.ok ? check.detail : check.error} (${check.ms}ms)`;
+    if (check.ok) console.log(`OK ${line}`);
+    else console.error(`FAIL ${line}`);
+  }
+  if (!data.ok) throw new Error("Deep health check failed (see FAIL lines above).");
+  console.log(`Deep health passed for ${baseUrl}`);
+}
+
 const maxAttempts = retries + 1;
 
 for (let attempt = 1; attempt <= maxAttempts; attempt++) {
   try {
     await runChecks();
     console.log(`Smoke test passed for ${baseUrl}`);
+    if (deep) {
+      try {
+        await runDeepChecks();
+      } catch (err) {
+        console.error(`Smoke test failed: ${errorDetail(err)}`);
+        process.exit(1);
+      }
+    }
     process.exit(0);
   } catch (err) {
     if (attempt === maxAttempts) {
