@@ -10,8 +10,9 @@ describe("eventHeaderFlag", () => {
     });
   });
 
-  it("flags a saved event the preview site does not have", () => {
-    assert.equal(eventHeaderFlag({ preview: "stale", live: "stale" }, false).label, "Not on the preview site");
+  it("never mentions the preview site in hosted ops", () => {
+    assert.equal(eventHeaderFlag({ preview: "stale", live: "unpublished" }, false).label, "Not on the website yet");
+    assert.equal(eventHeaderFlag({ preview: "stale", live: "stale" }, false).label, "Website has an older version");
   });
 
   it("separates never published, older version and live", () => {
@@ -29,10 +30,14 @@ describe("eventHeaderFlag", () => {
     });
   });
 
-  it("never claims the website from local ops", () => {
+  it("local ops talks about its local preview only", () => {
     assert.equal(
       eventHeaderFlag({ preview: "current", live: "current" }, false, { local: true }).label,
       "Local preview",
+    );
+    assert.equal(
+      eventHeaderFlag({ preview: "stale", live: "current" }, false, { local: true }).label,
+      "Not in local preview",
     );
   });
 });
