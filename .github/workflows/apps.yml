@@ -306,6 +306,16 @@ jobs:
       - name: Smoke test production auth gate
         run: node scripts/smoke-ops-auth.mjs https://gwenda-ops.pages.dev/
 
+      # Only now that the new ops is live: remove config the old code read
+      # (shared/config.js RETIRED_SETTINGS). Never before the deploy.
+      - name: Pull ops config token from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env --profile production
+
+      - name: Post-deploy config cleanup
+        run: node scripts/config-post-deploy.mjs
+
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs
         env:

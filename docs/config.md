@@ -106,9 +106,11 @@ Ops **Developer tools → Settings** lists every setting for each environment an
 Do **not** put credentials here.
 
 ```bash
-npm run setup:baserow-config            # create/repair DB, table, fields, seed rows (JWT)
+npm run setup:baserow-config            # create/repair DB, table, fields, seed rows (JWT). Additive only.
 npm run setup:baserow-config -- --token # also mint the read/write token into SM
 ```
+
+**Breaking config changes happen after the deploy.** The code still running may read a row until the new code is live. So: add what both versions need first (`setup:baserow-config` only adds), deploy, then remove the old. Retired settings are listed in `RETIRED_SETTINGS` (`shared/config.js`); `scripts/config-post-deploy.mjs` removes their rows, and CI runs it after the prod ops deploy (`apps.yml`).
 
 ### Machine state in Gwenda Config
 

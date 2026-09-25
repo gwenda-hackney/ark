@@ -19,6 +19,7 @@ import {
   CONFIG_DATABASE_NAME,
   CONFIG_ENVS,
   CONFIG_TABLE_NAME,
+  deleteConfigRows,
   environmentOf,
   getConfigValueFor,
   getConfigValues as rowValues,
@@ -43,6 +44,20 @@ export {
   valuesFromRows,
   websiteUrls,
 };
+
+/**
+ * Settings that code no longer reads. Their rows are removed after a deploy
+ * (scripts/config-post-deploy.mjs, run by CI once the new code is live),
+ * never before: the code still running may read them until then.
+ */
+export const RETIRED_SETTINGS = ["web.origin", "sanity.dataset"];
+
+/** Remove retired settings' rows. Post-deploy only. */
+export async function removeRetiredSettings(env) {
+  const removed = {};
+  for (const key of RETIRED_SETTINGS) removed[key] = await deleteConfigRows(env, key);
+  return removed;
+}
 
 /** Written by env:pull for local-only settings a developer must fill in. */
 export const LOCAL_PLACEHOLDER = "SET-ME";
