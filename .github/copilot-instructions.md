@@ -8,11 +8,11 @@ Static marketing site for Gwenda (canalside ristobar, Hackney Wick). **Astro 4**
 
 | Environment | Branch    | Cloudflare Pages project | URL                            | Sanity dataset | Perspective | Studio |
 | ----------- | --------- | ------------------------ | ------------------------------ | -------------- | ----------- | ------ |
-| Local       | `develop` | local `npm run dev`      | http://localhost:4321          | `staging`      | drafts      | localhost Studio |
+| Local       | `develop` | local `npm run web:dev`      | http://localhost:4321          | `staging`      | drafts      | localhost Studio |
 | Staging     | `main`    | `gwenda-staging`         | https://gwenda-staging.pages.dev | `staging`    | published   | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) |
 | Production  | promote (`release` pointer) | `gwenda` | https://gwenda.co.uk | `production` (copied by ops Release) | published | [gwenda.sanity.studio](https://gwenda.sanity.studio) |
 
-Two datasets only (`staging` + `production`). Local Studio and `npm run dev` share staging with a drafts overlay. Hosted builds ignore drafts.
+Two datasets only (`staging` + `production`). Local Studio and `npm run web:dev` share staging with a drafts overlay. Hosted builds ignore drafts.
 
 ## Branch flow
 

@@ -44,7 +44,7 @@ export function assertNotLocal(env, message = "Local ops cannot change the live 
 export function assertSanityWritable(env) {
   if (!isLocalOps(env) || usesDevSanity(env)) return;
   const error = new Error(
-    `Local ops only writes the Gwenda Dev Sanity project (SANITY_PROJECT_ID=${DEV_SANITY_PROJECT_ID}). Run it with npm run dev.`,
+    `Local ops only writes the Gwenda Dev Sanity project (SANITY_PROJECT_ID=${DEV_SANITY_PROJECT_ID}). Run it with npm run ops:dev.`,
   );
   error.status = 403;
   throw error;

@@ -156,7 +156,7 @@ jobs:
 
       - name: Deploy production Studio
         if: steps.studio.outputs.changed == 'true'
-        run: npm run studio:deploy
+        run: npm run studio:deploy:prod
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
           SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}

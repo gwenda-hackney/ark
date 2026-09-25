@@ -8,7 +8,7 @@ Part of the Gwenda monorepo (`marketing/web/` under the ark root).
 
 | | Site | Studio | Git branch | Sanity dataset | Perspective |
 |---|------|--------|------------|----------------|-------------|
-| **Local** | [localhost:4321](http://localhost:4321) (`npm run dev`) | [localhost:3333](http://localhost:3333) (`npm run studio`) | `develop` | `staging` | drafts overlay |
+| **Local** | [localhost:4321](http://localhost:4321) (`npm run web:dev`) | [localhost:3333](http://localhost:3333) (`npm run studio:dev`) | `develop` | `staging` | drafts overlay |
 | **Staging** | [gwenda-staging.pages.dev](https://gwenda-staging.pages.dev) | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) | `main` | `staging` | published only |
 | **Production** | [gwenda.co.uk](https://gwenda.co.uk) | [gwenda.sanity.studio](https://gwenda.sanity.studio) | promote (`release` pointer) | `production` | published only |
 
@@ -23,19 +23,19 @@ Deployment history: [github.com/gwenda-hackney/ark/deployments](https://github.c
 
 ```bash
 # From repo root
-npm run dev
+npm run web:dev
 
 # Or from this directory
-npm run dev -w @gwenda/web
+npm run web:dev
 ```
 
-Repo-root `.env` supplies `SANITY_*` for local builds. `npm run dev` overlays Sanity drafts. Staging and production builds use published documents only. See [docs/sanity.md](../../docs/sanity.md).
+Repo-root `.env` supplies `SANITY_*` for local builds. `npm run web:dev` overlays Sanity drafts. Staging and production builds use published documents only. See [docs/sanity.md](../../docs/sanity.md).
 
 ## Branch flow
 
 Gitflow-style: `develop` is WIP, `main` is staging, production is promote-only.
 
-1. **Develop on `develop`** — local Studio + `npm run dev` against the staging dataset with drafts. CI verifies. There is no hosted development site.
+1. **Develop on `develop`** — local Studio + `npm run web:dev` against the staging dataset with drafts. CI verifies. There is no hosted development site.
 2. **Stage code** — merge to `main`. CI deploys gwenda-staging from **published** staging documents (drafts ignored).
 3. **Promote to staging** — publish in Studio, then ops Web or Dev Studio rebuilds gwenda-staging.
 4. **Publish live** — ops Website → Staging → live copies reviewed staging documents to `production` and rebuilds live from `release`.

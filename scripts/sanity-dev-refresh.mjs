@@ -8,8 +8,8 @@
  *
  * Uses your personal Sanity login (`npx sanity login`), not a robot token.
  *
- *   npm run sanity:dev:refresh
- *   npm run sanity:dev:refresh -- production     one dataset only
+ *   npm run dev:refresh:sanity
+ *   npm run dev:refresh:sanity -- production     one dataset only
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";

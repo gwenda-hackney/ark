@@ -178,7 +178,7 @@ async function importCommand(cerPath) {
 
   console.log("");
   console.log(`Updated ${ENV_PATH} with Apple Wallet signing vars.`);
-  console.log("Restart npm run dev, RSVP Yes, and open gwenda-ticket.pkpass on an iPhone.");
+  console.log("Restart npm run web:dev, RSVP Yes, and open gwenda-ticket.pkpass on an iPhone.");
 }
 
 const command = process.argv[2];

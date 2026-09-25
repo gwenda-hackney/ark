@@ -14,7 +14,7 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 | `.env` | `ARK_LOCAL_BW_TOKEN` + plain local settings (Password Manager note `ark/.env.local`) |
 | `.env.secrets` | Every app secret under its SM name (`npm run env:secrets:pull`) |
 
-Everything loads through `scripts/lib/load-env.mjs`: `.env`, then `.env.secrets`, then the app's runtime names from the rename table below. Marketing / Studio (`with-env`) get web names; ops scripts and `npm run dev -w @gwenda/ops` (`with-ops-env`, `ops-dev`) get ops names.
+Everything loads through `scripts/lib/load-env.mjs`: `.env`, then `.env.secrets`, then the app's runtime names from the rename table below. Marketing / Studio (`with-env`) get web names; ops scripts and `npm run ops:dev` (`with-ops-env`, `ops-dev`) get ops names.
 
 ## Secrets: one naming rule
 
@@ -128,8 +128,8 @@ Ops uses **two Baserow workspaces** so a local token cannot see production data:
 Staging web reads the production Ops DB for artists, so `BASEROW_OPS_API_KEY__STAGING` holds the production Ops token.
 
 ```bash
-npm run clone:baserow-ops-dev          # or --force to wipe+recopy
-npm run clone:baserow-web-dev          # staging website DB into the same workspace
+npm run dev:refresh:baserow-ops          # or --force to wipe+recopy
+npm run dev:refresh:baserow-web          # staging website DB into the same workspace
 ```
 
 Then mint/refresh scoped database tokens (script prints next steps). Local `ops-dev` **refuses** to start if `BASEROW_OPS_DATABASE_ID` is still the production id. Clone and promote scripts do not touch config (it is in its own database).
@@ -161,8 +161,8 @@ Subscribe, RSVP, and form submission tables are resolved **by name** (`Subscribe
 Ops `/forms` reads the same Form Submissions table with runtime `BASEROW_WEBSITE_API_KEY` (same SM key, same env).
 
 ```bash
-npm run clone:baserow-web-dev                    # once: copy website DB into Gwenda Dev
-npm run clone:baserow-web-staging                # once: Website Staging in the paid Gwenda workspace
+npm run dev:refresh:baserow-web                    # once: copy website DB into Gwenda Dev
+npm run preview:refresh:baserow-web                # once: Website Staging in the paid Gwenda workspace
 npm run setup:baserow-form-submissions           # create/repair Form Submissions table (JWT)
 ```
 

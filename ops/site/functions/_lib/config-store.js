@@ -75,7 +75,7 @@ export function opsConnectionInfo(env = {}) {
       : `${OPS_DATABASE_NAME} (dev)`;
 
   let risk = null;
-  // npm run dev:live: a local copy with production powers. Always flagged.
+  // npm run ops:prod: a local copy with production powers. Always flagged.
   const localLive = String(env.OPS_LOCAL_LIVE || "") === "1";
   if (localLive) risk = "local_live";
   else if (siteEnv !== "production" && isProductionDb) risk = "nonprod_on_production_db";
