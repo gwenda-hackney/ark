@@ -17,7 +17,7 @@ import {
   sanityUploadAsset,
   sanityUploadAssetProduction,
 } from "./sanity.js";
-import { listEvents, saveOccurrence } from "./event-store.js";
+import { listEvents, saveOccurrenceSnapshots } from "./event-store.js";
 import { copyStagingSnapshotsToProduction } from "./publish-sync.js";
 
 const CONTENT_FILTER = [
@@ -387,22 +387,20 @@ export async function publishRelease(
 export async function markReleasedInOps(env, sanityIds) {
   const ids = new Set(sanityIds);
   if (!ids.size) return { nights: 0, menuItems: 0 };
-  let nights = 0;
   const at = new Date().toISOString();
+  const updates = [];
   for (const event of await listEvents(env)) {
     for (const row of event.dates || []) {
-      if (!row.sanityId || !ids.has(row.sanityId) || !row.snapshots?.staging) continue;
-      await saveOccurrence(env, event.id, {
-        ...row,
-        label: `${event.name} · ${row.date}`,
-        snapshots: {
-          ...row.snapshots,
-          production: { hash: row.snapshots.staging.hash, at },
-        },
+      if (!row.id || !row.sanityId || !ids.has(row.sanityId) || !row.snapshots?.staging) continue;
+      if (row.snapshots.production?.hash === row.snapshots.staging.hash) continue;
+      updates.push({
+        id: Number(row.id),
+        snapshots: { ...row.snapshots, production: { hash: row.snapshots.staging.hash, at } },
       });
-      nights += 1;
     }
   }
+  // One batch call instead of one per night (Cloudflare call limit).
+  await saveOccurrenceSnapshots(env, updates);
   const menu = await copyStagingSnapshotsToProduction(env, { sanityIds: ids });
-  return { nights, menuItems: menu.copied };
+  return { nights: updates.length, menuItems: menu.copied };
 }

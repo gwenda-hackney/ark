@@ -155,7 +155,7 @@ async function main() {
     console.warn(`
   ************************************************************
   *  LIVE MODE: this local ops uses PRODUCTION data.         *
-  *  Saves, "Put on website" and "Update website now" change *
+  *  Saves, "Update website" and "Update website now" change *
   *  the real Ops DB and gwenda.co.uk.                        *
   ************************************************************
 `);

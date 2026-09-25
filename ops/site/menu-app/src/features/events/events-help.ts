@@ -51,6 +51,6 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "The website",
-		body: "Saving keeps your changes in ops. When the event is ready, press Put on website: you'll see what changes, then it goes on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
+		body: "Saving keeps your changes in ops. When the event is ready, press Update website to put it on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
 	},
 ];

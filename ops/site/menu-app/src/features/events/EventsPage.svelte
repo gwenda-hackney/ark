@@ -46,7 +46,6 @@
 		eventDriveFileUrl,
 		getEventDrive,
 		getEvents,
-		getEventWebsitePreview,
 		getMe,
 		publishAllEventsPreview,
 		putEventOnWebsite,
@@ -58,8 +57,6 @@
 		uploadEventImage,
 		uploadEventOccurrenceImage,
 		type EventDriveFile,
-		type EventStaging,
-		type ReleaseEntry,
 		type OpsEvent,
 		type OpsNightScheduleSlot,
 	} from "../../lib/api";
@@ -131,23 +128,30 @@
 		if (warnings.length) toast.info(warnings[0]);
 	}
 
-	/** Saving stages. Say what happened to staging, without failing the save. */
-	function noteStaging(staging: EventStaging | undefined, saved: string) {
-		if (!staging) {
-			toast.ok(saved);
+	/**
+	 * After a save, stage the event in its own request (one request doing both
+	 * ran out of Cloudflare's call allowance on long series). One message
+	 * either way; the save itself already succeeded.
+	 */
+	async function stageAfterSave(id: string, saved: string) {
+		if (!id) {
+			if (saved) toast.ok(saved);
 			return;
 		}
-		if (!staging.ok) {
-			// Editors never see the preview site; say what blocks the website instead.
+		try {
+			const data = await restageEvent(id);
+			if (data.event && String(data.event.id) === String(eventId)) rememberEvent(data.event, false);
+			else if (data.event) events = events.map((row) => (row.id === data.event.id ? data.event : row));
+			if (data.warnings?.length) applyWarnings(data.warnings);
+			if (saved) toast.ok(localOps ? `${saved} Local preview updated.` : saved);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "something went wrong.";
 			toast.error(
-				staging.local
-					? `${saved} Local preview not updated: ${staging.error || "something went wrong."}`
-					: `${saved} It can't go on the website yet: ${staging.error || "something went wrong."}`,
+				localOps
+					? `${saved} Local preview not updated: ${message}`
+					: `${saved} It can't go on the website yet: ${message}`,
 			);
-			return;
 		}
-		if (staging.warnings?.length) applyWarnings(staging.warnings);
-		toast.ok(staging.local ? `${saved} Local preview updated.` : saved);
 	}
 	let openedKey = $state("");
 	let deleteOpen = $state(false);
@@ -1436,6 +1440,8 @@
 				});
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
+				// A new night on an existing series: stage that series.
+				await stageAfterSave(String(data.event?.id || attachSeriesId), "");
 				toast.ok(data.created ? "Night added to the series." : "Night opened.");
 				navigate(eventItemPath(`${attachSeriesId}@${startsOn}`), { replace: true });
 			} catch (err) {
@@ -1513,13 +1519,13 @@
 				const data = await createEvent(body());
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
-				noteStaging(data.staging, repeatUnit === "once" ? "Event saved." : "Series saved.");
+				await stageAfterSave(String(data.event.id), repeatUnit === "once" ? "Event saved." : "Series saved.");
 				navigate(eventItemPath(data.event.id, tab), { replace: true });
 			} else {
 				const data = await updateEvent(eventId, body());
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
-				noteStaging(data.staging, repeatUnit === "once" ? "Event saved." : "Series saved.");
+				await stageAfterSave(eventId, repeatUnit === "once" ? "Event saved." : "Series saved.");
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not save the event.";
@@ -1558,7 +1564,9 @@
 						/* keep local list */
 					}
 				}
-				toast.ok(assignedTo !== eventId ? "Night assigned to series." : "Night moved.");
+				// Both series changed: stage the one it left and the one it joined.
+				if (!data.sourceDeleted && assignedTo !== eventId) await stageAfterSave(eventId, "");
+				await stageAfterSave(assignedTo, assignedTo !== eventId ? "Night assigned to series." : "Night moved.");
 				beginLeave();
 				navigate(eventItemPath(`${assignedTo}@${movedTo || startsOn}`, tab), {
 					replace: true,
@@ -1566,7 +1574,7 @@
 				});
 			} else {
 				const count = "updated" in data ? Number(data.updated) || 1 : 1;
-				noteStaging(data.staging, count === 1 ? "Event saved." : `${count} events saved.`);
+				await stageAfterSave(eventId, count === 1 ? "Event saved." : `${count} events saved.`);
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not save the event.";
@@ -1620,22 +1628,15 @@
 		}
 	}
 
-	/** "Put on website": show what changes, in plain words, then publish just this event. */
+	/** "Update website": confirm, then publish just this event. */
 	let putOpen = $state(false);
-	let putEntries = $state<ReleaseEntry[] | null>(null);
 	let putError = $state("");
 	let putting = $state(false);
 
-	async function openPutOnWebsite() {
+	function openPutOnWebsite() {
 		if (!eventId || busy || formDirty) return;
-		putOpen = true;
-		putEntries = null;
 		putError = "";
-		try {
-			putEntries = (await getEventWebsitePreview(eventId)).entries;
-		} catch (err) {
-			putError = err instanceof Error ? err.message : "Could not check what would change.";
-		}
+		putOpen = true;
 	}
 
 	async function confirmPutOnWebsite() {
@@ -1646,24 +1647,13 @@
 			rememberEvent(data.event, false);
 			putOpen = false;
 			for (const warning of data.warnings || []) toast.info(warning);
-			toast.ok("On the website. What's on shows it now; its page updates in a few minutes.");
+			toast.ok("Website updated. What's on shows it now; its page follows in a few minutes.");
 			void refreshSitePending();
 		} catch (err) {
-			putError = err instanceof Error ? err.message : "Could not put it on the website.";
+			putError = err instanceof Error ? err.message : "Could not update the website.";
 		} finally {
 			putting = false;
 		}
-	}
-
-	function plainChange(entry: ReleaseEntry): string {
-		if (entry.change === "added") return `New: ${entry.label}`;
-		if (entry.change === "removed") return `Removed: ${entry.label}`;
-		const parts = entry.fields
-			.filter((field) => !field.detailOnly)
-			.slice(0, 3)
-			.map((field) => `${field.label.toLowerCase()} ${field.staging} (was ${field.production})`);
-		const extra = entry.fields.length > parts.length ? " and other details" : "";
-		return `${entry.label}: ${parts.length ? parts.join("; ") : "details"}${extra}`;
 	}
 
 	async function stageAll() {
@@ -1814,11 +1804,11 @@
 					file,
 				);
 				rememberEvent(data.event, false);
-				noteStaging((data as { staging?: EventStaging }).staging, "Photo saved.");
+				await stageAfterSave(eventId, "Photo saved.");
 			} else {
 				const data = await uploadEventImage(eventId, file, role);
 				rememberEvent(data.event, false);
-				if (role === "main") noteStaging(data.staging, "Photo saved.");
+				if (role === "main") await stageAfterSave(eventId, "Photo saved.");
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not upload the image.";
@@ -1838,12 +1828,12 @@
 			if (editingOccurrence && occurrenceDate && role === "main") {
 				const data = await clearEventOccurrenceImage(eventId, occurrenceDate);
 				rememberEvent(data.event, false);
-				noteStaging((data as { staging?: EventStaging }).staging, "Photo removed.");
+				await stageAfterSave(eventId, "Photo removed.");
 			} else {
 				const data = await clearEventImage(eventId, role, imageName);
 				rememberEvent(data.event, false);
 				if (role === "main") {
-					noteStaging((data as { staging?: EventStaging }).staging, "Photo removed.");
+					await stageAfterSave(eventId, "Photo removed.");
 				}
 			}
 		} catch (err) {
@@ -2085,9 +2075,9 @@
 											size="sm"
 											type="button"
 											disabled
-											title="This is the test copy of ops. Put on website works in the real ops app."
+											title="This is the test copy of ops. Update website works in the real ops app."
 										>
-											Put on website
+											Update website
 										</Button>
 									{:else if !liveCurrent}
 										<Button
@@ -2095,10 +2085,10 @@
 											size="sm"
 											type="button"
 											disabled={busy || formDirty}
-											title={formDirty ? "Save first." : "Put this event on gwenda.co.uk."}
-											onclick={() => void openPutOnWebsite()}
+											title={formDirty ? "Save first." : "Put this version of the event on gwenda.co.uk."}
+											onclick={openPutOnWebsite}
 										>
-											Put on website
+											Update website
 										</Button>
 									{/if}
 								{/if}
@@ -2204,7 +2194,7 @@
 						{/if}
 						{#if localOps && eventId}
 							<p class="head-note">
-								Test copy of ops: saving updates your local preview only. Put on website works in the
+								Test copy of ops: saving updates your local preview only. Update website works in the
 								real ops app.
 							</p>
 						{/if}
@@ -2966,30 +2956,14 @@
 
 			<Dialog
 				open={putOpen}
-				title="Put on the website?"
+				title="Update the website?"
 				onclose={() => {
 					if (!putting) putOpen = false;
 				}}
 			>
-				<p class="delete-copy">
-					This changes gwenda.co.uk for everyone. What's on shows it straight away; the event's
-					own page updates a few minutes later.
-				</p>
+				<p class="delete-copy">This changes gwenda.co.uk for everyone.</p>
 				{#if putError}
 					<p class="put-error">{putError}</p>
-				{:else if putEntries === null}
-					<p class="delete-copy">Checking what will change…</p>
-				{:else if !putEntries.length}
-					<p class="delete-copy">
-						The website already shows this version. Press Put on website to mark it as on the
-						website.
-					</p>
-				{:else}
-					<ul class="put-list">
-						{#each putEntries as entry (entry.id)}
-							<li>{plainChange(entry)}</li>
-						{/each}
-					</ul>
 				{/if}
 				{#snippet footer()}
 					<Button variant="outline" size="sm" type="button" disabled={putting} onclick={() => (putOpen = false)}>
@@ -3000,10 +2974,10 @@
 						size="sm"
 						type="button"
 						busy={putting}
-						disabled={putting || Boolean(putError) || putEntries === null}
+						disabled={putting}
 						onclick={() => void confirmPutOnWebsite()}
 					>
-						Put on website
+						Update website
 					</Button>
 				{/snippet}
 			</Dialog>
@@ -4159,12 +4133,6 @@
 		width: 1.1rem;
 		height: 1.1rem;
 		accent-color: var(--primary);
-	}
-
-	.put-list {
-		margin: 0.75rem 0 0;
-		padding-left: 1.1rem;
-		line-height: 1.55;
 	}
 
 	.put-error {

@@ -12,7 +12,7 @@ function eventId(context) {
   return decodeURIComponent(context.params?.id || "");
 }
 
-/** What "Put on website" would change for this event. Read-only. */
+/** What "Update website" would change for this event. Read-only. */
 export const onRequestGet = withApiHandler(async (context) => {
   const id = eventId(context);
   if (!id) return jsonResponse({ error: "Missing event id." }, 400);
