@@ -45,7 +45,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Deploy hosted Studio (dev)
         run: npm run studio:deploy:preview
@@ -103,7 +103,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Deploy hosted Studio (production)
         run: npm run studio:deploy:prod
