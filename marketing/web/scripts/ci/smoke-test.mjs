@@ -8,6 +8,8 @@
  *   --deep           also POST /api/health/deep (Bearer DEPLOY_WEBHOOK_SECRET): Sanity,
  *                    both Baserow databases, config DB and Gmail login
  *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
+ *   --form-test      with --deep, submit the play form end to end: row saved, team and
+ *                    applicant emails to alerts@ (not play@), row deleted afterwards
  */
 import {
   assertHealthPayload,
@@ -30,6 +32,7 @@ const expectedVersion =
   getArg("--expected-version") || process.env.SMOKE_TEST_EXPECTED_VERSION || "";
 const deep = args.includes("--deep");
 const sendEmail = args.includes("--send-email");
+const formTest = args.includes("--form-test");
 const gateBypassKey =
   getArg("--gate-bypass-key") || process.env.SMOKE_TEST_GATE_BYPASS_KEY || "";
 const retries = Number(
@@ -218,7 +221,7 @@ async function runDeepChecks() {
   const res = await fetch(`${baseUrl}/api/health/deep`, {
     method: "POST",
     headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ sendEmail, label }),
+    body: JSON.stringify({ sendEmail, formTest, label }),
   });
   const data = await res.json().catch(() => null);
   if (!data?.checks) throw new Error(`/api/health/deep returned ${res.status}`);

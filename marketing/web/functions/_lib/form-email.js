@@ -93,9 +93,10 @@ export function resolveFormReplyTo(form) {
  */
 export async function sendFormNotificationEmail(
   env,
-  { form, answers, changes, updated = false },
+  { form, answers, changes, updated = false, to: toOverride = "" },
 ) {
-  const to = await resolveFormNotifyTo(env, form);
+  // toOverride: the post-deploy form test sends to alerts@, never the form's inbox.
+  const to = toOverride || (await resolveFormNotifyTo(env, form));
   const from = resolveFormNotifyFrom(env, form, to);
   const isUpdate =
     Boolean(updated) || (Array.isArray(changes) && changes.length > 0);
