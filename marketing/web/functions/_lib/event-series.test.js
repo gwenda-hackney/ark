@@ -468,6 +468,19 @@ describe("a weekly night's own short line", () => {
   });
 });
 
+describe("What's on card offer", () => {
+  it("shows the next night's offer when the series has none", () => {
+    const [card] = buildWhatsOnStack(
+      [
+        { ...night({ id: "negroni-night-2026-09-29", seriesId: "negroni-night", date: "2026-09-29", recurrence: "Every Tuesday" }), offer: "£10 Negroni all night" },
+        { ...night({ id: "negroni-night-2026-10-06", seriesId: "negroni-night", date: "2026-10-06", recurrence: "Every Tuesday" }), offer: "" },
+      ],
+      { now, series: [negroniSeries] },
+    );
+    expect(card.offer).toBe("£10 Negroni all night");
+  });
+});
+
 describe("buildSeriesDetail", () => {
   it("keeps Gwenda Nights as a series and lists scheduled nights under it", () => {
     const detail = buildSeriesDetail(

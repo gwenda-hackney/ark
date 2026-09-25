@@ -824,7 +824,9 @@ export function buildWhatsOnStack(
       thisWeekName: diary.thisWeekName,
       upcomingDate: diary.upcomingDate,
       upcomingName: diary.upcomingName,
-      offer: row.offer,
+      // Ops keeps the offer on each night (the series document has none), so
+      // the card shows the next night's offer.
+      offer: row.offer || featuredNight?.offer || "",
       pageUrl: String(
         (row.nights || []).find((night) => String(night.pageUrl || "").trim())
           ?.pageUrl || "",
