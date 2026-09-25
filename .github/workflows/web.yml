@@ -1,8 +1,12 @@
 name: Web
 
-# Marketing site: staging from main, branch previews, and the production
-# preview on every push to release (release-preview.gwenda-blue.pages.dev).
+# Marketing site: staging (prod's preview) from main, branch previews, and the
+# production preview on every push to release (release-preview.gwenda-blue.pages.dev).
 # Live deploys are web-promote.yml (build release; content comes from ops Release).
+#
+# The dev website (gwenda-web-dev, Gwenda Dev Sanity copy) also builds from
+# main: both sites on a push, and the one dev ops asks for (dev-preview /
+# dev-live, dispatched by the deploy webhook).
 
 run-name: >-
   ${{
@@ -32,6 +36,8 @@ on:
           - staging-content
           - promote-dev-to-staging
           - production-preview
+          - dev-preview
+          - dev-live
   repository_dispatch:
     types: [content-deploy-staging, promote-dev-to-staging]
 
@@ -42,6 +48,7 @@ jobs:
     outputs:
       mode: ${{ steps.r.outputs.mode }}
       dataset: ${{ steps.r.outputs.dataset }}
+      dev_sites: ${{ steps.r.outputs.dev_sites }}
     steps:
       - id: r
         run: |
@@ -56,6 +63,8 @@ jobs:
               MODE=staging-content
             elif [ "$ACTION" = "production-preview" ]; then
               MODE=production-preview
+            elif [ "$ACTION" = "dev-preview" ] || [ "$ACTION" = "dev-live" ]; then
+              MODE=$ACTION
             elif [ "$ACTION" = "auto" ]; then
               case "${{ github.ref_name }}" in
                 main) MODE=staging-code ;;
@@ -82,7 +91,17 @@ jobs:
 
           DATASET=staging
 
+          # Dev website sites to build: both when main's code changes, else
+          # the one dev ops asked for.
+          case "$MODE" in
+            staging-code) DEV_SITES='["preview","live"]' ;;
+            dev-preview) DEV_SITES='["preview"]' ;;
+            dev-live) DEV_SITES='["live"]' ;;
+            *) DEV_SITES='[]' ;;
+          esac
+
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "dev_sites=$DEV_SITES" >> "$GITHUB_OUTPUT"
           echo "dataset=$DATASET" >> "$GITHUB_OUTPUT"
           echo "Resolved mode=$MODE dataset=$DATASET"
 
@@ -176,6 +195,87 @@ jobs:
               ["Site","https://gwenda-staging.pages.dev"],
               ["Mode","`${{ needs.resolve.outputs.mode }}`"]
             ]}
+
+  deploy-dev:
+    name: Deploy dev website (${{ matrix.site }})
+    needs: [resolve, verify]
+    if: needs.resolve.outputs.dev_sites != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        site: ${{ fromJSON(needs.resolve.outputs.dev_sites) }}
+    concurrency:
+      group: web-dev-${{ matrix.site }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: dev-${{ matrix.site }}
+      url: ${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || 'main' }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        uses: ./.github/actions/npm-install
+
+      - name: Compute build metadata
+        id: buildmeta
+        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
+        env:
+          GITHUB_REF_NAME: main
+          GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
+
+      # The dev environment's secrets are the "local" ones: Gwenda Dev Sanity,
+      # the dev Ops and Website Baserow copies.
+      - name: Pull dev web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:web:pull -- --github-env --profile local
+
+      - name: Deploy
+        uses: ./.github/actions/deploy-pages
+        with:
+          pages-project: gwenda-web-dev
+          pages-production-branch: main
+          deploy-branch: ${{ matrix.site == 'live' && 'main' || 'preview' }}
+          wrangler-config: wrangler.dev.toml
+          public-is-staging: "true"
+          env-label: ${{ matrix.site == 'live' && 'Dev' || 'Dev · preview' }}
+          site-origin: ${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}
+          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
+          build-version: ${{ steps.buildmeta.outputs.version }}
+          build-sha: ${{ steps.buildmeta.outputs.sha }}
+          build-ref: ${{ steps.buildmeta.outputs.ref }}
+          build-time: ${{ steps.buildmeta.outputs.time }}
+          cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          sanity-api-token: ${{ env.SANITY_API_TOKEN }}
+          sanity-project-id: gwscpagy
+          sanity-dataset: ${{ matrix.site == 'live' && 'production' || 'staging' }}
+          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
+          baserow-ops-database-id: "560292"
+          secrets-profile: dev
+          snapshot-site: ${{ matrix.site == 'live' && 'production' || 'staging' }}
+          snapshot-environment: dev
+
+      - name: Smoke test
+        env:
+          SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url "${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
 
   deploy-production-preview:
     name: Deploy production preview

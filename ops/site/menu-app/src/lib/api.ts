@@ -51,7 +51,7 @@ export type AuthMe = {
   databaseLabel: string;
   isProductionDb: boolean;
   risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
-  /** Sees developer tools. Always true in local ops. */
+  /** Sees developer tools. Always true in dev. */
   isAdmin?: boolean;
 };
 
@@ -579,7 +579,14 @@ export type SiteStatus = {
 
 export function getSitePending() {
   return coalesce("site-pending", () =>
-    request<{ ok: boolean; local: boolean; production: SiteStatus; staging: SiteStatus }>(
+    request<{
+      ok: boolean;
+      local: boolean;
+      /** This environment's website and preview (dev ops: the dev website). */
+      urls?: { live: string; preview: string };
+      production: SiteStatus;
+      staging: SiteStatus;
+    }>(
       "/api/web/pending",
     ),
   );
@@ -591,6 +598,32 @@ export function updateSiteNow(site: "production" | "staging" = "production") {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ site }),
   });
+}
+
+export type SettingValue = { value: string | null; from: string };
+
+/** One setting across environments (shared/config.js describeSettings). */
+export type SettingRow = {
+  key: string;
+  service: string;
+  about: string;
+  kind: "stored" | "worked out";
+  values: Record<string, SettingValue>;
+  machine: SettingValue;
+  local: { env: string; required: boolean; hint: string; value: string | null } | null;
+};
+
+export type SettingsOverview = {
+  environments: string[];
+  current: string;
+  onMachine: boolean;
+  settings: SettingRow[];
+  unknown: { key: string; env: string; service: string; value: string }[];
+  state: { key: string; env: string; service: string; size: number }[];
+};
+
+export function getSettingsOverview() {
+  return request<SettingsOverview & { ok: boolean }>("/api/web/settings");
 }
 
 export function getCodeDiff() {
@@ -847,6 +880,36 @@ export function restageEvent(id: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target: "staging" }),
+  });
+}
+
+/** A saved event still being got ready for the website (calendar + preview copy). */
+export type WebsiteJob = {
+  eventId: string;
+  name: string;
+  state: "waiting" | "failed";
+  error: string;
+  failedAt: string | null;
+};
+
+export function getWebsiteJobs() {
+  return request<{ ok: boolean; jobs: WebsiteJob[] }>("/api/web/jobs");
+}
+
+/** One step of that work: for `eventId`, or the next waiting event. */
+export function runWebsiteJob(eventId = "", { retry = false }: { retry?: boolean } = {}) {
+  return request<{
+    ok: boolean;
+    idle?: boolean;
+    eventId?: string;
+    done?: boolean;
+    failed?: string;
+    warnings?: string[];
+    event?: OpsEvent;
+  }>("/api/web/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventId, retry }),
   });
 }
 

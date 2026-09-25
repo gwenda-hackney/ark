@@ -8,6 +8,20 @@ interface Props {
 }
 
 const { share = true } = Astro.props;
+
+/**
+ * Which environment this is. Hosted builds set PUBLIC_ENV_LABEL (the dev
+ * website says "Dev" / "Dev · preview"); gwenda-staging is prod's preview
+ * (docs/sanity.md). A local dev server shows the Gwenda Dev copy, its live
+ * dataset under `npm run web:dev:live`.
+ */
+const envLabel =
+  import.meta.env.PUBLIC_ENV_LABEL ||
+  (import.meta.env.DEV
+    ? process.env.SANITY_DATASET === "production"
+      ? "Dev · live"
+      : "Dev"
+    : "Preview");
 ---
 
 {
@@ -15,7 +29,7 @@ const { share = true } = Astro.props;
     <div
       class="staging-ribbon"
       role="status"
-      aria-label={`Staging environment. Build ${buildLabel()}.`}
+      aria-label={`${envLabel} environment. Build ${buildLabel()}.`}
       title={`Build ${buildLabel()}`}
     >
       {share ? (
@@ -23,12 +37,13 @@ const { share = true } = Astro.props;
           type="button"
           class="staging-ribbon-share"
           id="staging-share"
-          title="Copy a link that unlocks staging for the recipient"
+          data-env-label={envLabel}
+          title="Copy a link that unlocks this site for the recipient"
         >
-          <span data-staging-share-label>Staging</span>
+          <span data-staging-share-label>{envLabel}</span>
         </button>
       ) : (
-        <span>Staging</span>
+        <span>{envLabel}</span>
       )}
     </div>
   )

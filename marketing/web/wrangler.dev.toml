@@ -1,0 +1,35 @@
+# Cloudflare Pages — the dev website (gwenda-web-dev), built from the Gwenda
+# Dev Sanity copy for dev ops. main branch = live (production dataset);
+# the "preview" branch = preview (staging dataset). Password-gated like
+# prod's preview. Form notifications go to alerts@ (config forms.notify_email),
+# never the form's real address copied from prod.
+name = "gwenda-web-dev"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "dist"
+
+[vars]
+SITE_ENV = "dev"
+SANITY_PROJECT_ID = "gwscpagy"
+SANITY_DATASET = "production"
+BASEROW_OPS_DATABASE_ID = "560292"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = "587"
+SMTP_USER = "notifications@gwenda.co.uk"
+SMTP_FROM_EVENTS = "Gwenda Events <events@gwenda.co.uk>"
+ALERT_EMAIL = "alerts@gwenda.co.uk"
+INVITE_BASE_URL = "https://gwenda-web-dev.pages.dev"
+INVITE_IMAGE_URL = "https://gwenda.co.uk/images/event-invite.jpg"
+
+[env.preview.vars]
+SITE_ENV = "dev"
+SANITY_PROJECT_ID = "gwscpagy"
+SANITY_DATASET = "staging"
+BASEROW_OPS_DATABASE_ID = "560292"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = "587"
+SMTP_USER = "notifications@gwenda.co.uk"
+SMTP_FROM_EVENTS = "Gwenda Events <events@gwenda.co.uk>"
+ALERT_EMAIL = "alerts@gwenda.co.uk"
+INVITE_BASE_URL = "https://preview.gwenda-web-dev.pages.dev"
+INVITE_IMAGE_URL = "https://gwenda.co.uk/images/event-invite.jpg"

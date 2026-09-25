@@ -22,11 +22,14 @@
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import { EVENTS_HELP } from "./events-help";
 	import { eventHeaderFlag } from "../../lib/event-header-status";
-	import {
-		eventsNotStaged,
-		seriesCount,
-	} from "../../lib/event-publish-queue";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
+	import {
+		onWebsiteJobEvent,
+		queueWebsiteJob,
+		retryWebsiteJob,
+		websiteJobFor,
+		websiteJobSettled,
+	} from "../../lib/website-jobs.svelte";
 	import { preparePhoto } from "../../lib/photo-prep";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
@@ -47,9 +50,7 @@
 		getEventDrive,
 		getEvents,
 		getMe,
-		publishAllEventsPreview,
 		putEventOnWebsite,
-		restageEvent,
 		syncEventCalendar,
 		updateEvent,
 		updateEventOccurrence,
@@ -72,7 +73,7 @@
 		normalizeEventTab,
 		parseShellPath,
 	} from "../../lib/nav";
-	import { setCrumbLeaf } from "../../lib/crumbs.svelte";
+	import { setActiveNavOverride, setCrumbLeaf } from "../../lib/crumbs.svelte";
 	import {
 		compareSeriesByWeekday,
 		countEventScheduleRows,
@@ -116,10 +117,8 @@
 	let saving = $state(false);
 	let intent = $state<"" | "save" | "delete" | "image">("");
 	let calendarSyncing = $state(false);
-	let publishing = $state("");
 	/** Local ops stages drafts for the local site and never releases. */
 	let localOps = $state(false);
-	let stagingAll = $state(false);
 	let error = $state("");
 	let warnings = $state<string[]>([]);
 
@@ -129,28 +128,24 @@
 	}
 
 	/**
-	 * After a save, stage the event in its own request (one request doing both
-	 * ran out of Cloudflare's call allowance on long series). One message
-	 * either way; the save itself already succeeded.
+	 * After a save: the save is done. The calendar and the website copy follow
+	 * in the background (lib/website-jobs), so the editor can carry on.
 	 */
-	async function stageAfterSave(id: string, saved: string) {
-		if (!id) {
-			if (saved) toast.ok(saved);
-			return;
-		}
-		try {
-			const data = await restageEvent(id);
-			if (data.event && String(data.event.id) === String(eventId)) rememberEvent(data.event, false);
-			else if (data.event) events = events.map((row) => (row.id === data.event.id ? data.event : row));
-			if (data.warnings?.length) applyWarnings(data.warnings);
-			if (saved) toast.ok(localOps ? `${saved} Local preview updated.` : saved);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "something went wrong.";
-			toast.error(
-				localOps
-					? `${saved} Local preview not updated: ${message}`
-					: `${saved} It can't go on the website yet: ${message}`,
-			);
+	function stageAfterSave(id: string, saved: string) {
+		if (saved) toast.ok(saved);
+		queueWebsiteJob(id);
+	}
+
+	/** An event came back ready from the background work: show its new state. */
+	function takeReadyEvent(event: OpsEvent) {
+		if (String(event.id) === String(eventId) && current) {
+			// Mid-edit: only the status changes, never the fields being typed.
+			if (formDirty) {
+				current = { ...current, publish: event.publish };
+				events = events.map((row) => (row.id === event.id ? { ...row, publish: event.publish } : row));
+			} else rememberEvent(event, false);
+		} else if (events.some((row) => row.id === event.id)) {
+			events = events.map((row) => (row.id === event.id ? event : row));
 		}
 	}
 	let openedKey = $state("");
@@ -192,6 +187,9 @@
 	let tabPrev = "details";
 	let tabReady = false;
 	let heroCrops = $state<HeroFraming | null>(null);
+	/** Photo picked on a new event: shown now, uploaded right after the first save. */
+	let pendingPhoto = $state<File | null>(null);
+	let pendingPhotoUrl = $state("");
 
 	let name = $state("");
 	let defaultsUnlocked = $state(false);
@@ -256,6 +254,11 @@
 			!editingOccurrence &&
 			String(current?.repeatUnit || repeatUnit || "").toLowerCase() === "once",
 	);
+	// A special event is not a series: keep Schedule highlighted in the menu.
+	$effect(() => {
+		setActiveNavOverride(editingOnce ? "events-schedule" : "");
+		return () => setActiveNavOverride("");
+	});
 	const listView = $derived<"series" | "schedule">(
 		routeList ??
 			(editingOccurrence || creatingOnce || editingOnce
@@ -270,22 +273,20 @@
 	);
 	const tab = $derived(normalizeEventTab(route.tab));
 	const busy = $derived(
-		loading || saving || driveUploading || calendarSyncing || Boolean(publishing),
+		loading || saving || driveUploading || calendarSyncing,
 	);
 	const busyLabel = $derived(
 		calendarSyncing
 			? "Updating calendar…"
-			: publishing
-				? "Publishing…"
-				: loading
-					? "Loading…"
-					: driveUploading
-						? "Uploading…"
-						: intent === "delete"
-							? "Deleting…"
-							: intent === "image"
-								? "Updating photo…"
-								: "Saving…",
+			: loading
+				? "Loading…"
+				: driveUploading
+					? "Uploading…"
+					: intent === "delete"
+						? "Deleting…"
+						: intent === "image"
+							? "Updating photo…"
+							: "Saving…",
 	);
 	const missing = $derived(
 		editing && !route.isNew && !loading && !current && Boolean(error),
@@ -572,9 +573,10 @@
 
 	/** Photo owned by this editor (series main, or night override). */
 	const framingUrl = $derived(
-		editingOccurrence
-			? currentOccurrence?.overrides?.image?.url || ""
-			: current?.mainImage?.url || "",
+		pendingPhotoUrl ||
+			(editingOccurrence
+				? currentOccurrence?.overrides?.image?.url || ""
+				: current?.mainImage?.url || ""),
 	);
 	/** Open series (Gwenda Nights): one night at a time, no future-events scope. */
 	const isOpenSeries = $derived(
@@ -613,12 +615,13 @@
 				? formatDate(startsOn)
 				: "No date",
 	);
+	const websiteJob = $derived(websiteJobFor(current?.id));
 	const headerFlag = $derived(
-		eventHeaderFlag(current?.publish, formDirty, { local: localOps }),
+		eventHeaderFlag(current?.publish, formDirty, {
+			job: websiteJob?.state ?? null,
+		}),
 	);
-	const stagingPreviewCurrent = $derived(current?.publish.preview === "current");
 	const liveCurrent = $derived(current?.publish.live === "current");
-	const notStaged = $derived(eventsNotStaged(events));
 
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const base = route.isNew
@@ -682,7 +685,6 @@
 	}
 
 	function statusLabel(event: OpsEvent): string {
-		if (localOps) return event.publish.preview === "current" ? "Local preview" : "Not in local preview";
 		if (event.publish.live === "current") return "On website";
 		return "Not on website yet";
 	}
@@ -880,6 +882,7 @@
 
 	function blank() {
 		current = null;
+		clearPendingPhoto();
 		name = "";
 		artist = "";
 		offer = "";
@@ -1099,11 +1102,13 @@
 
 	onMount(() => {
 		void reload();
+		const stopJobEvents = onWebsiteJobEvent(takeReadyEvent);
 		getMe()
 			.then((me) => {
 				localOps = me.siteEnv === "local";
 			})
 			.catch(() => undefined);
+		return stopJobEvents;
 	});
 
 	function clearListFilters() {
@@ -1311,7 +1316,7 @@
 	/** Delete asks whether to take it off gwenda.co.uk too (only if it is there). */
 	let alsoWebsite = $state(true);
 	const onWebsite = $derived(
-		!localOps && Boolean(current?.publish) && current?.publish.live !== "unpublished",
+		Boolean(current?.publish) && current?.publish.live !== "unpublished",
 	);
 
 	function requestDelete() {
@@ -1440,6 +1445,7 @@
 				});
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
+				await uploadPendingPhoto(String(data.event?.id || attachSeriesId), startsOn);
 				// A new night on an existing series: stage that series.
 				await stageAfterSave(String(data.event?.id || attachSeriesId), "");
 				toast.ok(data.created ? "Night added to the series." : "Night opened.");
@@ -1519,6 +1525,7 @@
 				const data = await createEvent(body());
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
+				await uploadPendingPhoto(String(data.event.id));
 				await stageAfterSave(String(data.event.id), repeatUnit === "once" ? "Event saved." : "Series saved.");
 				navigate(eventItemPath(data.event.id, tab), { replace: true });
 			} else {
@@ -1608,25 +1615,6 @@
 		}
 	}
 
-	/** Retry staging. Saving stages, so this is only for a failed or older stage. */
-	async function onRestage() {
-		if (!eventId || busy) return;
-		publishing = "staging";
-		error = "";
-		warnings = [];
-		try {
-			const data = await restageEvent(eventId);
-			rememberEvent(data.event, false);
-			warnings = data.warnings || [];
-			toast.ok(localOps ? "Local preview updated." : "It's on the preview site.");
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Could not stage.";
-			error = message;
-			toast.error(message);
-		} finally {
-			publishing = "";
-		}
-	}
 
 	/** "Update website": confirm, then publish just this event. */
 	let putOpen = $state(false);
@@ -1639,10 +1627,28 @@
 		putOpen = true;
 	}
 
+	let retrying = $state(false);
+
+	async function onRetryWebsiteJob() {
+		if (!eventId || retrying) return;
+		retrying = true;
+		try {
+			await retryWebsiteJob(eventId);
+			toast.ok("Trying again. It carries on in the background.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "It still didn't work.");
+		} finally {
+			retrying = false;
+		}
+	}
+
 	async function confirmPutOnWebsite() {
 		if (!eventId || putting) return;
 		putting = true;
 		try {
+			// Let the background work for this event finish first, so the two
+			// never write the same nights at once.
+			await websiteJobSettled(eventId);
 			const data = await putEventOnWebsite(eventId);
 			rememberEvent(data.event, false);
 			putOpen = false;
@@ -1656,38 +1662,40 @@
 		}
 	}
 
-	async function stageAll() {
-		if (stagingAll || busy || !notStaged.length) return;
-		stagingAll = true;
-		try {
-			const data = await publishAllEventsPreview();
-			events = data.events || events;
-			if (data.failed.length) {
-				toast.error(
-					`Could not stage ${data.failed.map((row) => `${row.name} (${row.error})`).join(", ")}.`,
-				);
-			} else {
-				toast.ok(
-					localOps
-						? `Local preview updated for ${seriesCount(data.published.length)}.`
-						: `${seriesCount(data.published.length)} put on the preview site.`,
-				);
-			}
-			if (data.warnings.length) warnings = data.warnings;
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not stage.");
-		} finally {
-			stagingAll = false;
-		}
+
+	function clearPendingPhoto() {
+		if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+		pendingPhoto = null;
+		pendingPhotoUrl = "";
 	}
 
 	function acceptPhotoFile(file: File | undefined | null) {
 		if (!file || !file.type.startsWith("image/")) return;
-		if (!eventId) {
-			toast.error("Save the event before adding a photo.");
-			return;
+		void preparePhoto(file).then((ready) => {
+			if (!ready) return;
+			if (eventId) return onImage("main", ready);
+			// Not saved yet: hold it and show it; Save uploads it.
+			clearPendingPhoto();
+			pendingPhoto = ready;
+			pendingPhotoUrl = URL.createObjectURL(ready);
+		});
+	}
+
+	/** After the first save of a new event or night: upload the photo picked before it. */
+	async function uploadPendingPhoto(id: string, nightDate = "") {
+		const photo = pendingPhoto;
+		clearPendingPhoto();
+		if (!photo || !id) return;
+		try {
+			const data = nightDate
+				? await uploadEventOccurrenceImage(id, nightDate, photo)
+				: await uploadEventImage(id, photo, "main");
+			rememberEvent(data.event, false);
+		} catch (err) {
+			toast.error(
+				`Saved, but the photo didn't upload: ${err instanceof Error ? err.message : "something went wrong."} Add it again.`,
+			);
 		}
-		void preparePhoto(file).then((ready) => onImage("main", ready));
 	}
 
 	function onHeroCropsChange(next: HeroFraming | null) {
@@ -1877,21 +1885,6 @@
 						{/snippet}
 						Refresh
 					</Button>
-					{#if localOps && notStaged.length}
-						<Button
-							type="button"
-							variant="outline"
-							busy={stagingAll}
-							disabled={busy || stagingAll}
-							title="Some events aren't in your local preview. This puts them there."
-							onclick={() => void stageAll()}
-						>
-							{#snippet icon()}
-								<Icon name="upload" size={16} />
-							{/snippet}
-							Update local preview ({notStaged.length})
-						</Button>
-					{/if}
 					{#if listView === "series"}
 						<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
 							{#snippet icon()}
@@ -2056,30 +2049,7 @@
 									>
 										Update calendar
 									</Button>
-									{#if localOps && !formDirty && !stagingPreviewCurrent}
-										<Button
-											variant="outline"
-											size="sm"
-											type="button"
-											disabled={busy}
-											busy={publishing === "staging"}
-											title="Saving normally does this. Try again if it didn't work."
-											onclick={() => void onRestage()}
-										>
-											Update local preview
-										</Button>
-									{:else if localOps}
-										<!-- Shown, never usable: the test copy must not change the real website. -->
-										<Button
-											variant="primary"
-											size="sm"
-											type="button"
-											disabled
-											title="This is the test copy of ops. Update website works in the real ops app."
-										>
-											Update website
-										</Button>
-									{:else if !liveCurrent}
+									{#if !liveCurrent}
 										<Button
 											variant="primary"
 											size="sm"
@@ -2193,9 +2163,9 @@
 							<p class="head-note">Series defaults, shared by its nights.</p>
 						{/if}
 						{#if localOps && eventId}
-							<p class="head-note">
-								Test copy of ops: saving updates your local preview only. Update website works in the
-								real ops app.
+							<p class="head-note local-note">
+								Test copy of ops: Save and Update website change the Gwenda Dev copy of the website,
+								never gwenda.co.uk.
 							</p>
 						{/if}
 					</header>
@@ -2495,13 +2465,14 @@
 													<HeroImagePanel
 														sourceUrl={framingUrl}
 														crops={heroCrops}
-														disabled={busy || !eventId}
+														disabled={busy}
 														tooltip={editingOccurrence
 															? "This night's flyer. What's on uses it while this is the next night. The original is saved in this series Drive folder."
 															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback. The original is saved in this series Drive folder."}
 														onchangecrops={onHeroCropsChange}
 														onpickfile={(file) => acceptPhotoFile(file)}
-														onclear={() => onClearImage("main")}
+														onclear={() =>
+															pendingPhoto ? clearPendingPhoto() : void onClearImage("main")}
 													/>
 												{/if}
 											</aside>
@@ -2761,6 +2732,24 @@
 												</div>
 											{/if}
 										</section>
+									{/if}
+									{#if websiteJob?.state === "failed" && !formDirty}
+										<div class="job-failed" role="alert">
+											<p>
+												Saved, but it couldn't be got ready for the website: {websiteJob.error ||
+													"something went wrong."}
+											</p>
+											<Button
+												variant="outline"
+												size="sm"
+												type="button"
+												busy={retrying}
+												disabled={retrying}
+												onclick={() => void onRetryWebsiteJob()}
+											>
+												Try again
+											</Button>
+										</div>
 									{/if}
 									{#if warnings.length}
 										<ul class="warnings">
@@ -3625,6 +3614,12 @@
 		max-width: 40rem;
 	}
 
+	/* Its own row: the night/series note already sits in row 3. */
+	.head-note.local-note {
+		grid-row: 4;
+		padding-top: 0.2rem;
+	}
+
 	.create-mode {
 		grid-column: 1 / -1;
 		display: grid;
@@ -3986,6 +3981,23 @@
 	.error,
 	.warnings {
 		color: var(--destructive);
+	}
+
+	.job-failed {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0.75rem;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+		border-radius: var(--radius-md, 0.5rem);
+		color: var(--destructive);
+		font-size: var(--text-sm);
+	}
+
+	.job-failed p {
+		flex: 1 1 16rem;
+		margin: 0;
 	}
 
 	.warnings {

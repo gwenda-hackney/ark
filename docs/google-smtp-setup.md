@@ -121,7 +121,7 @@ In Secrets Manager (pulled to `.env.secrets`), only the password needs to be fil
 SMTP_PASSWORD=your-16-char-app-password
 ```
 
-Local SMTP user (if not relying on wrangler vars during `npm run dev`):
+Local SMTP user (if not relying on wrangler vars during `npm run web:dev`):
 
 ```bash
 SMTP_USER=notifications@gwenda.co.uk
@@ -130,7 +130,7 @@ SMTP_USER=notifications@gwenda.co.uk
 Restart the dev server after saving:
 
 ```bash
-npm run dev
+npm run web:dev
 ```
 
 Push the password only:
@@ -220,7 +220,7 @@ export APPLE_WALLET_TEAM_ID=XXXXXXXXXX
 npm run setup:apple-wallet:import -- ~/Downloads/pass.cer
 ```
 
-Restart `npm run dev`. RSVP Yes should attach `gwenda-ticket.pkpass` alongside the calendar file.
+Restart `npm run web:dev`. RSVP Yes should attach `gwenda-ticket.pkpass` alongside the calendar file.
 
 For staging/production, sync secrets after `.env` is populated:
 

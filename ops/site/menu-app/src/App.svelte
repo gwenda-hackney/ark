@@ -15,6 +15,7 @@
 	import UsersPage from "./features/users/UsersPage.svelte";
 	import WebPage from "./features/web/WebPage.svelte";
 	import DevToolsPage from "./features/web/DevToolsPage.svelte";
+	import SettingsPage from "./features/web/SettingsPage.svelte";
 	import FormsPage from "./features/forms/FormsPage.svelte";
 	import EventsPage from "./features/events/EventsPage.svelte";
 	import ArtistsPage from "./features/artists/ArtistsPage.svelte";
@@ -82,6 +83,8 @@
 					{:else if key === "web"}
 						{#if parseShellPath(current).view === "dev"}
 							<DevToolsPage />
+						{:else if parseShellPath(current).view === "settings"}
+							<SettingsPage />
 						{:else}
 							<WebPage />
 						{/if}

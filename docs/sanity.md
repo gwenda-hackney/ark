@@ -2,21 +2,35 @@
 
 Sanity is Gwenda's **editorial layer**: website data and copy that editors own, distinct from site code in git.
 
-One project (`pn5yjro6`) on [sanity.io/manage](https://www.sanity.io/manage). Two hosted Studios. Two datasets (`staging` and `production`). The project is on the **Free** plan, which allows two datasets and no more, so there is no development dataset: local work uses drafts in `staging`.
+Two projects on [sanity.io/manage](https://www.sanity.io/manage), both on the **Free** plan (two datasets each, `staging` and `production`):
+
+- **Gwenda Web** (`pn5yjro6`): the real website. Two hosted Studios.
+- **Gwenda Dev** (`gwscpagy`): a copy for local work. Local ops, the local site and local Studio use it, so local testing runs exactly the hosted flow (Save, then Update website) and can never reach gwenda.co.uk. Refresh it from the real project with `npm run dev:refresh:sanity` (your personal `npx sanity login`; the real project is only read).
 
 ## Environments
 
-| | Git branch | Website | Sanity dataset | Perspective | Studio |
-|---|------------|---------|----------------|-------------|--------|
-| **Local** | `develop` (WIP) | `npm run dev` | **`staging`** | drafts overlay | localhost Studio |
-| **Staging** | `main` | gwenda-staging.pages.dev | **`staging`** | published only | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) (edit here; review the site) |
-| **Production** | promote only (`release` pointer) | gwenda.co.uk | **`production`** (copied from staging by ops Release) | published only | [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema; do not edit live content) |
+Two environments, **dev** and **prod**, built the same way. Each has its own Sanity project with two datasets (`staging` = preview, `production` = live), its own Ops database and its own Website database:
 
-Local Studio and `npm run dev` work against the staging dataset with drafts visible. The hosted staging **site** ignores drafts. Production gets the published staging documents you choose in ops **Website → Staging → live**, then a production build.
+| | Sanity | Ops DB | Website DB | Ops app | Website |
+|---|---|---|---|---|---|
+| **Dev** | Gwenda Dev (`gwscpagy`) | Gwenda Dev · Ops (560292) | Gwenda Dev · Website (563090) | [gwenda-ops-dev.pages.dev](https://gwenda-ops-dev.pages.dev), or `npm run ops:dev` | [gwenda-web-dev.pages.dev](https://gwenda-web-dev.pages.dev) (live) / [preview.gwenda-web-dev.pages.dev](https://preview.gwenda-web-dev.pages.dev) (preview); locally `npm run web:dev:live` / `npm run web:dev` |
+| **Prod** | Gwenda Web (`pn5yjro6`) | Gwenda Ops (556507) | Website (461843) | gwenda-ops.pages.dev | gwenda-staging.pages.dev (preview) / gwenda.co.uk (live) |
+
+**Hosted dev** runs the code on `main`: every push deploys dev ops (`apps.yml`) and both dev website sites (`web.yml`), so the whole ops → website flow can be tried in Cloudflare before `release`. Dev ops' builds go to the dev website only (the deploy webhook routes `env: "dev"` requests to `web.yml` `dev-preview` / `dev-live`), with their own snapshot and scheduler keys (`site.build_snapshot.dev`, `site.auto_update.dev`). The dev website is password-gated. Form notifications from every hosted site except prod (dev website, prod's preview) go to `alerts@gwenda.co.uk` (config `forms.notify_email`, Env `dev` and `staging`). On a developer's machine, `FORMS_NOTIFY_EMAIL` in `.env` sends them to that developer instead. Outside prod, if neither is available nothing is sent rather than falling back to the form's real address. Hosted dev sets `SITE_ENV=dev`; a developer's machine is `SITE_ENV=local` and reads the dev settings plus its own `.env` values (see docs/config.md). Secrets Manager still names dev secrets `__LOCAL`.
+
+**gwenda-staging is prod's preview, not a third environment.** It shows prod's `staging` dataset (what ops has saved but not yet put on the website) with the code on `main`, so new code is checked against real content before release. It has its own Website DB (Website Staging, 564496) so test form submissions stay out of the real one. Its ribbon says **Preview**; a local site's says **Dev**.
+
+| | Git branch | Sanity dataset | Perspective | Studio |
+|---|------------|----------------|-------------|--------|
+| **Dev** (your machine) | `develop` (WIP) | Gwenda Dev `staging` / `production` | drafts overlay / published | `npm run studio:dev` |
+| **Prod preview** | `main` | prod `staging` | published only | [gwenda-dev.sanity.studio](https://gwenda-dev.sanity.studio) (the name predates Gwenda Dev) |
+| **Prod** | promote only (`release` pointer) | prod `production` (copied from staging by ops Update website) | published only | [gwenda.sanity.studio](https://gwenda.sanity.studio) (schema; do not edit live content) |
+
+Data only moves by copying between environments: `npm run dev:refresh` copies prod into dev (Sanity and both Baserow databases), `npm run preview:refresh:baserow-web` refreshes the preview's Website DB.
 
 ## Workflow
 
-1. **Local** — `npm run studio` and `npm run dev` on `develop`. Leave WIP as drafts. CI verifies. There is no hosted development site.
+1. **Local** — `npm run studio:dev` and `npm run web:dev` on `develop`. Leave WIP as drafts. CI verifies. There is no hosted development site.
 2. **Publish**, then **promote to staging** — rebuilds gwenda-staging from published staging documents (and deploys `main` site code).
 3. **Review** https://gwenda-staging.pages.dev.
 4. **Publish live** — ops **Website → Staging → live** diffs published staging against production, copies what you pick (or everything), then rebuilds gwenda.co.uk.
@@ -49,10 +63,9 @@ Settings → Developer tools (`/web/dev`), for emails listed in config `ops.admi
 ### Ops events and local ops
 
 - **Hosted ops:** saving an event stages it (writes its series and nights to `staging`, published). What's on on gwenda-staging reads that live; the rest of the preview site updates after 10 quiet minutes. The website changes only through Put on website or the Website page.
-- **Local ops** (`SITE_ENV=local`): saving writes **drafts** in `staging`, which only the local site shows (`previewDrafts`). Local ops cannot write published staging documents, production, or trigger any deploy (the server returns 403). Studio cannot publish or delete `event` / `eventSeries` documents, so a local draft can never be pushed to staging from Studio; use Discard to clear one.
-- A removal cannot be previewed locally: deleting a night in local ops only drops its draft.
+- **Local ops** (`SITE_ENV=local`) works exactly like hosted ops, in **Gwenda Dev**: Save writes published `staging`, Update website copies to Gwenda Dev `production`. It refuses to write the real project (403), and it never starts GitHub builds or database copies. `npm run ops:dev` sets the dev project and warns if `SANITY_API_TOKEN` can't open it (the token is `SANITY_API_TOKEN__LOCAL` in Secrets Manager). `npm run ops:prod` is the real project and production data.
 
-Local `.env` uses `SANITY_DATASET=staging`. Do not edit the production dataset in Studio.
+Local `.env` uses `SANITY_PROJECT_ID=gwscpagy` and `SANITY_DATASET=staging`. Do not edit the real production dataset in Studio.
 
 ## Tokens
 
@@ -81,9 +94,9 @@ npm run setup:sanity-tokens
 ### Local `.env`
 
 ```bash
-SANITY_PROJECT_ID=pn5yjro6
+SANITY_PROJECT_ID=gwscpagy   # Gwenda Dev
 SANITY_DATASET=staging
-SANITY_API_TOKEN=sk...   # ark-local-editor (Editor robot)
+# SANITY_API_TOKEN comes from .env.secrets: SANITY_API_TOKEN__LOCAL (Gwenda Dev Editor robot)
 ```
 
 ## Studio env files
@@ -100,10 +113,10 @@ All local configuration lives in **repo-root `.env`**. `scripts/with-env.mjs` lo
 
 | Command | Dataset / hostname |
 |---------|-------------------|
-| `npm run studio` | `staging` → localhost:3333 (drafts in `npm run dev`) |
-| `npm run studio:deploy:dev` | `staging` → gwenda-dev.sanity.studio (main CI) |
-| `npm run studio:deploy:staging` | alias of `studio:deploy:dev` |
-| `npm run studio:deploy` | `production` → gwenda.sanity.studio |
+| `npm run studio:dev` | `staging` → localhost:3333 (drafts in `npm run web:dev`) |
+| `npm run studio:deploy:preview` | `staging` → gwenda-dev.sanity.studio (main CI) |
+| `npm run studio:deploy:preview` | alias of `studio:deploy:dev` |
+| `npm run studio:deploy:prod` | `production` → gwenda.sanity.studio |
 
 Hosted Studio deploys get extra vars from GitHub Actions secrets (see `studio.yml`).
 
@@ -116,25 +129,22 @@ Pull secrets with `npm run env:pull` (Bitwarden note `ark/.env.local`), then `np
 ## Local commands
 
 ```bash
-npm run studio              # localhost Studio → staging dataset
-npm run dev                 # site → staging dataset, drafts overlay
-npm run studio:deploy:dev   # hosted Dev Studio (main CI)
-npm run studio:seed:dev     # seed staging menu
-npm run studio:seed:production   # seed production menu (one-off, CONFIRM built in)
+npm run studio:dev              # localhost Studio → Gwenda Dev staging
+npm run web:dev                 # site → Gwenda Dev staging, drafts overlay
+npm run web:dev:live            # site → Gwenda Dev production (:4322)
+npm run ops:dev                 # ops → dev Ops DB + Gwenda Dev
+npm run ops:prod                # ops on your machine with REAL production data
+npm run dev:refresh             # copy real data into dev (Sanity + both Baserow DBs)
+npm run studio:deploy:preview   # hosted Studio for prod's preview (main CI)
+npm run studio:deploy:prod      # hosted Studio for prod
 ```
+
+We're live: data is never seeded, only copied between environments.
 
 ## Schema + content
 
 Schema lives in git (`marketing/studio/schemaTypes/`). Queries in `marketing/web/src/lib/sanity/`. Content lives in two datasets: **staging** (local Studio, Dev Studio, ops writes, staging site) and **production** (published staging documents copied from ops Website → Staging → live, live site). Do not edit production in Studio.
 
-### Menu seed
-
-```bash
-npm run studio:seed:dev
-npm run studio:seed:production   # requires Editor token in .env
-```
-
-Idempotent — updates by slug/name.
 
 ## Mirror datasets
 
@@ -164,7 +174,7 @@ npm run sync:sanity-datasets -- --direction production-to-staging --confirm stag
 |------|----------------|
 | Schema + queries | git `develop` → `main` (staging) → ops promote (live) |
 | Dev Studio | push `marketing/studio/**` to `main` |
-| Prod Studio | ops promote (or `npm run studio:deploy`) |
+| Prod Studio | ops promote (or `npm run studio:deploy:prod`) |
 | Staging content | publish in Studio, then rebuild gwenda-staging |
 | Production content | ops Website → Staging → live (document copy), then production build |
 | Dataset mirror | GitHub **Sanity** workflow (`sanity.yml`) |
@@ -172,11 +182,11 @@ npm run sync:sanity-datasets -- --direction production-to-staging --confirm stag
 
 ## Deploy published content to the website
 
-The static site reads **published** Sanity documents at build time. `npm run dev` overlays drafts so you can preview WIP without publishing. Publishing a document does not update gwenda-staging until the next staging rebuild.
+The static site reads **published** Sanity documents at build time. `npm run web:dev` overlays drafts so you can preview WIP without publishing. Publishing a document does not update gwenda-staging until the next staging rebuild.
 
 ### Editor workflow
 
-1. Edit in **Dev Studio** or local Studio. Leave WIP as drafts. `npm run dev` shows those drafts.
+1. Edit in **Dev Studio** (real staging). Leave WIP as drafts. Local Studio and `npm run web:dev` use the Gwenda Dev copy, so try changes there first.
 2. Publish when the copy is ready for the review site.
 3. Rebuild staging (ops Web / Dev Studio promote, or merge to `main`). Staging ignores drafts.
 4. Review https://gwenda-staging.pages.dev.
@@ -227,6 +237,6 @@ Local Studio reads deploy vars from `.env` via `scripts/with-env.mjs`. Hosted St
 Production hosted Studio after setup:
 
 ```bash
-npm run studio:deploy   # uses SANITY_DEPLOY_TOKEN (CI secret, or .env.secrets locally)
+npm run studio:deploy:prod   # uses SANITY_DEPLOY_TOKEN (CI secret, or .env.secrets locally)
 ```
 

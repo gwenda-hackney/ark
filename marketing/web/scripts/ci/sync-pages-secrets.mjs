@@ -6,6 +6,7 @@
  * Usage:
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda --profile production
+ *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-web-dev --profile dev
  *   ... --if-changed   skip when nothing changed since the last sync (deploys)
  *
  * Every wrangler call takes a second or two, so a full sync is ~1 minute.
@@ -19,7 +20,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { APP_SECRETS } from "../../../../scripts/lib/bitwarden-sm.mjs";
-import { getConfigValueFor, setConfigValueFor } from "../../../../shared/config-db.js";
+import { readState, writeState } from "../../../../shared/config.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(scriptDir, "../..");
@@ -53,7 +54,7 @@ const FINGERPRINT_KEY = "web.pages_secrets_fingerprint";
 
 if (!project || !profile) {
   console.error(
-    "Usage: sync-pages-secrets.mjs --project NAME --profile staging|production",
+    "Usage: sync-pages-secrets.mjs --project NAME --profile staging|production|dev",
   );
   process.exit(1);
 }
@@ -257,6 +258,16 @@ const profiles = {
     for (const key of STAGING_ONLY_KEYS) deleteSecret(key);
     putSharedSecrets();
   },
+  // Like staging: gated. Form notifications go to the dev inbox
+  // (forms.notify_email for Env=local), never the form's real address.
+  dev: () => {
+    if (!process.env.SITE_PASSWORD) {
+      console.error("SITE_PASSWORD is required for dev deploys.");
+      process.exit(1);
+    }
+    for (const key of STAGING_ONLY_KEYS) putSecret(key, process.env[key]);
+    putSharedSecrets();
+  },
 };
 
 const run = profiles[profile];
@@ -285,9 +296,11 @@ const fingerprint = createHash("sha256")
   )
   .digest("hex");
 
+const fingerprintEnv = profile;
+
 async function storedFingerprint() {
   try {
-    return await getConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile);
+    return await readState(process.env, "web", FINGERPRINT_KEY, fingerprintEnv);
   } catch (error) {
     console.warn(`Could not read the last secret fingerprint (${error.message}); syncing.`);
     return "";
@@ -309,7 +322,7 @@ console.log(
 );
 
 try {
-  await setConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile, fingerprint);
+  await writeState(process.env, "web", FINGERPRINT_KEY, fingerprintEnv, fingerprint);
 } catch (error) {
   console.warn(`Synced, but could not save the fingerprint (${error.message}); the next deploy syncs again.`);
 }

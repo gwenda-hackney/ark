@@ -8,8 +8,8 @@ Migration is ongoing: only part of the site is CMS-backed today. Schema types wi
 
 ```bash
 npx sanity login                              # one-time
-npm run studio                                # http://localhost:3333 → staging dataset
-npm run dev                                   # site overlays drafts from that Studio
+npm run studio:dev                                # http://localhost:3333 → staging dataset
+npm run web:dev                                   # site overlays drafts from that Studio
 ```
 
 The project already has `staging` and `production`. Growth allows two datasets. Do not create a third.
@@ -18,10 +18,10 @@ The project already has `staging` and `production`. Growth allows two datasets. 
 
 | | URL | Command |
 |---|-----|---------|
-| **Dev Studio** | https://gwenda-dev.sanity.studio | `npm run studio:deploy:dev` (main CI) |
-| **Prod Studio** (schema only) | https://gwenda.sanity.studio | ops promote / `npm run studio:deploy` |
+| **Dev Studio** | https://gwenda-dev.sanity.studio | `npm run studio:deploy:preview` (main CI) |
+| **Prod Studio** (schema only) | https://gwenda.sanity.studio | ops promote / `npm run studio:deploy:prod` |
 
-Local Studio and Dev Studio both use the **staging** dataset. `npm run dev` shows drafts. Hosted staging and production ignore drafts. Do not edit production in Studio.
+Local Studio and Dev Studio both use the **staging** dataset. `npm run web:dev` shows drafts. Hosted staging and production ignore drafts. Do not edit production in Studio.
 
 ## Schema today
 
@@ -33,12 +33,6 @@ Document types in `schemaTypes/` — queries live in `marketing/web/src/lib/sani
 | `menuItem` | Cocktail / drink entry |
 | `event` | Special events listing |
 | `form` | Configurable public forms (fields, copy, notify / From / Reply-To) |
-
-Seed Play + Collaborate forms into the staging dataset:
-
-```bash
-npm run studio:seed:forms:dev
-```
 
 Public URL: `/contact/<slug>` (e.g. `/contact/play`). Contact hub: `/contact`.
 

@@ -7,8 +7,7 @@
     "dev": "node ../../scripts/with-env.mjs ../../node_modules/.bin/sanity dev",
     "build": "node ../../scripts/with-env.mjs ../../node_modules/.bin/sanity build",
     "deploy": "node ../../scripts/with-env.mjs ../../node_modules/.bin/sanity deploy",
-    "start": "node ../../scripts/with-env.mjs ../../node_modules/.bin/sanity start",
-    "dataset:create": "node ../../scripts/with-env.mjs env -u SANITY_API_TOKEN -u SANITY_AUTH_TOKEN ../../node_modules/.bin/sanity dataset create"
+    "start": "node ../../scripts/with-env.mjs ../../node_modules/.bin/sanity start"
   },
   "keywords": [
     "sanity"

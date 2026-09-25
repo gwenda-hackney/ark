@@ -50,7 +50,7 @@ npm run env:push -- --replace    # overwrite the note with .env (drops removed k
 `env:set` updates the vault note and merges into local `.env` (for `--env local`, the default).
 `env:push` only writes vault ← local (skips `BITWARDEN_EMAIL` / `BITWARDEN_PASSWORD`).
 
-Every script loads env through `scripts/lib/load-env.mjs`: `.env`, then `.env.secrets`, then (for an app) that app's runtime names. `with-env.mjs` uses the web names and `with-ops-env.mjs` / `ops-dev` the ops names. Production worker setup (`setup:wifi-portal`, `setup:subscribe-mailchimp-sync`, `migrate:subscribe-sync-runs`) reads the production Website Baserow token straight from Secrets Manager.
+Every script loads env through `scripts/lib/load-env.mjs`: `.env`, then `.env.secrets`, then (for an app) that app's runtime names. `with-env.mjs` uses the web names and `with-ops-env.mjs` / `ops-dev` the ops names. Production worker setup (`setup:wifi-portal`, `setup:subscribe-mailchimp-sync`) reads the production Website Baserow token straight from Secrets Manager.
 
 ## Cloudflare tokens
 
@@ -120,7 +120,7 @@ The pull lists **Ark + Ark/Ops + Ark/Web** and writes every secret any app uses 
 
 `env:ark:pull` / `env:ops:pull` / `env:web:pull` exist for CI (`--github-env` exports one app's runtime names). Run locally without that flag, they write the same `.env.secrets`.
 
-The local Ops dev database id (`BASEROW_OPS_DATABASE_ID`, `BASEROW_OPS_DEV_WORKSPACE_ID`) is a plain setting in `.env`, written by `npm run clone:baserow-ops-dev`.
+The local Ops dev database id (`BASEROW_OPS_DATABASE_ID`, `BASEROW_OPS_DEV_WORKSPACE_ID`) is a plain setting in `.env`, written by `npm run dev:refresh:baserow-ops`.
 
 Push a value (to the owning project, under its SM name). Values come from `.env.secrets`, or from the shell for keys named on the command line:
 

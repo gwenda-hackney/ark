@@ -74,7 +74,7 @@ Google Cloud **Web application** OAuth client (reuse the existing client):
 1. Authorized JavaScript origins: `http://localhost:5174`, `http://127.0.0.1:5174`, `https://gwenda-ops.pages.dev`
 2. Authorized redirect URIs: `http://localhost:5174/api/auth/callback`, `http://127.0.0.1:5174/api/auth/callback`, `https://gwenda-ops.pages.dev/api/auth/callback`
 
-Local: `npm run dev -w @gwenda/ops` → http://localhost:5174/ → Continue with Google. Optional `OPS_LOCAL_ADMIN_PW` remains a local bypass only. Leave `OPS_LOCAL_ADMIN_PW` unset on Pages.
+Local: `npm run ops:dev` → http://localhost:5174/ → Continue with Google. Optional `OPS_LOCAL_ADMIN_PW` remains a local bypass only. Leave `OPS_LOCAL_ADMIN_PW` unset on Pages.
 
 Logout clears the session cookie and returns to `/gate/`.
 
@@ -95,12 +95,12 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, then rebuilds `gwenda-staging.pages.dev`. Production gets these documents from ops Website → Staging → live. In local ops this writes drafts only the local site shows. Do not edit production in Studio.
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, and gwenda-staging rebuilds once edits go quiet. Production gets these documents from ops Website → Staging → live. In local ops this writes the Gwenda Dev copy instead. Do not edit production in Studio.
 
 ## Local
 
 ```bash
-npm run dev -w @gwenda/ops
+npm run ops:dev
 ```
 
 - Vite SPA with HMR: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
@@ -112,18 +112,20 @@ Secrets come from **`.env.secrets`** (`npm run env:secrets:pull`, env `local`), 
 
 ```bash
 npm run env:secrets:pull
-npm run dev -w @gwenda/ops
+npm run ops:dev
 ```
 
-### Debugging production locally (`dev:live`)
+Local ops works exactly like hosted ops, against copies: the dev Ops DB and the **Gwenda Dev** Sanity project. Save writes its staging dataset; Update website writes its production dataset. See the result with `npm run web:dev` (preview) or `npm run web:dev:live` (website, port 4322). Nothing reaches gwenda.co.uk, and site builds only run hosted. Refresh the copy with `npm run dev:refresh:sanity`. See [docs/sanity.md](../../docs/sanity.md).
+
+### Debugging production locally (`ops:prod`)
 
 ```bash
-npm run dev:live -w @gwenda/ops
+npm run ops:prod
 ```
 
-The same local app (HMR, stack traces in your terminal) with **production powers**: production Ops DB (556507), production secrets straight from Secrets Manager, `SITE_ENV=production`. Saves, **Update website** and **Update website now** change the real Ops DB and gwenda.co.uk, exactly like hosted ops. The app shows a red **LOCAL COPY ON LIVE DATA** banner. Stop it and run plain `npm run dev` to go back to the dev copy (it rewrites `.dev.vars`). Don't run both at once: they share `.dev.vars`.
+The same local app (HMR, stack traces in your terminal) with **production powers**: production Ops DB (556507), production secrets straight from Secrets Manager, `SITE_ENV=production`. Saves, **Update website** and **Update website now** change the real Ops DB and gwenda.co.uk, exactly like hosted ops. The app shows a red **LOCAL COPY ON LIVE DATA** banner. Stop it and run plain `npm run web:dev` to go back to the dev copy (it rewrites `.dev.vars`). Don't run both at once: they share `.dev.vars`.
 
-Resending form emails from `/forms` locally calls the marketing dev server (`web.origin` = `http://localhost:4321`), so run `npm run dev -w @gwenda/web` too.
+Resending form emails from `/forms` locally calls the marketing dev server (`web.origin` = `http://localhost:4321`), so run `npm run web:dev` too.
 
 Build:
 

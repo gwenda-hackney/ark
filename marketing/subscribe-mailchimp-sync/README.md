@@ -19,15 +19,7 @@ Audience merge field: **Signed up** (`SIGNEDUP`, date). Create once if missing (
 
 ## Sync-run log table
 
-One-shot migration (creates/repairs the Baserow table; needs JWT):
-
-```bash
-npm run migrate:subscribe-sync-runs
-```
-
-Uses `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD`, or prompts when stdin is a TTY.
-
-Then set `BASEROW_SYNC_LOG_TABLE_ID` in `wrangler.toml` `[vars]` and redeploy.
+The table was created once at launch. Set `BASEROW_SYNC_LOG_TABLE_ID` in `wrangler.toml` `[vars]` and redeploy.
 
 ## Setup (Worker secrets / first deploy)
 

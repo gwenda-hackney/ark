@@ -18,7 +18,7 @@ import {
   removeEventFromWebsite,
   unpublishOccurrences,
 } from "../../../../_lib/event-publish.js";
-import { isLocalOps } from "../../../../_lib/sanity.js";
+import { canChangeWebsite } from "../../../../_lib/sanity.js";
 
 function params(context) {
   return {
@@ -39,11 +39,8 @@ export const onRequestPut = withApiHandler(async (context) => {
     date,
     body && typeof body === "object" ? body : {},
   );
-  await syncSeriesCalendar(context.env, result.event);
-  return jsonResponse(
-    attachCalendarWarnings(context.env, { ok: true, ...result }),
-    result.created ? 201 : 200,
-  );
+  // Calendar and website copy follow in the background (website-jobs.js).
+  return jsonResponse({ ok: true, ...result }, result.created ? 201 : 200);
 });
 
 export const onRequestPatch = withApiHandler(async (context) => {
@@ -64,8 +61,8 @@ export const onRequestPatch = withApiHandler(async (context) => {
     }
   }
   const result = await updateOccurrenceContent(context.env, id, date, body);
-  await syncSeriesCalendar(context.env, result.event);
-  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, ...result }));
+  // Calendar and website copy follow in the background (website-jobs.js).
+  return jsonResponse({ ok: true, ...result });
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {
@@ -80,7 +77,7 @@ export const onRequestDelete = withApiHandler(async (context) => {
   ).trim();
   const event = await getEvent(context.env, id);
   const plan = occurrenceDeleteTargets(event, date, scope);
-  const offWebsite = Boolean(body?.alsoWebsite) && !isLocalOps(context.env);
+  const offWebsite = Boolean(body?.alsoWebsite) && canChangeWebsite(context.env);
   const warnings = offWebsite
     ? await removeEventFromWebsite(context.env, event, plan.targets)
     : [];

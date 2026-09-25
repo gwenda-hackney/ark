@@ -18,7 +18,6 @@ export const onRequestGet = withApiHandler(async (context) => {
     values,
     settings: {
       sanityProjectId: values["sanity.project_id"] || null,
-      sanityDataset: values["sanity.dataset"] || null,
       siteDeployWebhookUrl: values["site_deploy.webhook_url"] || null,
       googleOauthClientId: values["google.oauth_client_id"] || null,
       taskRoleSocial: values[OPS_CONFIG_KEYS.taskRoleSocial] || "",

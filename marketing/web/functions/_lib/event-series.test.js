@@ -426,6 +426,61 @@ describe("isRecurringSeries", () => {
   });
 });
 
+describe("a weekly night's own short line", () => {
+  const nights = [
+    night({
+      id: "negroni-night-2026-09-29",
+      seriesId: "negroni-night",
+      seriesTitle: "Negroni Night",
+      title: "Negroni Night",
+      date: "2026-09-29",
+      recurrence: "Every Tuesday",
+      shortDescription: "This week: chess tournament from 7.",
+    }),
+    night({
+      id: "negroni-night-2026-10-06",
+      seriesId: "negroni-night",
+      seriesTitle: "Negroni Night",
+      title: "Negroni Night",
+      date: "2026-10-06",
+      recurrence: "Every Tuesday",
+      shortDescription: "£10 NEGRONI.",
+    }),
+  ];
+
+  it("follows the series line on the What's on card", () => {
+    const [card] = buildWhatsOnStack(nights, { now, series: [negroniSeries] });
+    expect(card.description).toBe(
+      "£10 NEGRONI.\n\nThis week: chess tournament from 7.",
+    );
+  });
+
+  it("shows under its date on the series page, not the series line copy", () => {
+    const detail = buildSeriesDetail(nights, "negroni-night", {
+      now,
+      limit: 10,
+      series: [negroniSeries],
+    });
+    expect(detail.upcomingDates.map((row) => row.note)).toEqual([
+      "This week: chess tournament from 7.",
+      "",
+    ]);
+  });
+});
+
+describe("What's on card offer", () => {
+  it("shows the next night's offer when the series has none", () => {
+    const [card] = buildWhatsOnStack(
+      [
+        { ...night({ id: "negroni-night-2026-09-29", seriesId: "negroni-night", date: "2026-09-29", recurrence: "Every Tuesday" }), offer: "£10 Negroni all night" },
+        { ...night({ id: "negroni-night-2026-10-06", seriesId: "negroni-night", date: "2026-10-06", recurrence: "Every Tuesday" }), offer: "" },
+      ],
+      { now, series: [negroniSeries] },
+    );
+    expect(card.offer).toBe("£10 Negroni all night");
+  });
+});
+
 describe("buildSeriesDetail", () => {
   it("keeps Gwenda Nights as a series and lists scheduled nights under it", () => {
     const detail = buildSeriesDetail(

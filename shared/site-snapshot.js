@@ -12,6 +12,15 @@
 
 export const SNAPSHOT_CONFIG_KEY = "site.build_snapshot";
 
+/**
+ * Config key for one environment's snapshots. Prod keeps the plain key; the
+ * dev website (built from the Gwenda Dev copy) gets its own, so the two never
+ * read each other's builds.
+ */
+export function snapshotConfigKey(environment = "prod") {
+  return environment === "dev" ? `${SNAPSHOT_CONFIG_KEY}.dev` : SNAPSHOT_CONFIG_KEY;
+}
+
 const SYSTEM_KEYS = new Set(["_rev", "_updatedAt", "_createdAt"]);
 
 /** Published content only; the same filter the Website page diff uses. */

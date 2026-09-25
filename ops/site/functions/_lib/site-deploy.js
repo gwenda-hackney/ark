@@ -1,4 +1,9 @@
-import { assertNotLocal } from "./sanity.js";
+import { assertNotLocal, isLocalOps } from "./sanity.js";
+
+/** Which website a build is for: dev ops builds the dev site, never gwenda.co.uk. */
+export function buildEnvironment(env) {
+  return isLocalOps(env) ? "dev" : "prod";
+}
 
 /**
  * Shared preview-site rebuild. Feature publishers write Sanity, then call this.
@@ -48,7 +53,7 @@ export async function dispatchStagingContentDeploy(env) {
   }
   return webhookJson(`${baseUrl}/deploy`, secret, {
     method: "POST",
-    body: { target: "staging" },
+    body: { target: "staging", env: buildEnvironment(env) },
   });
 }
 
@@ -83,7 +88,7 @@ export async function dispatchProductionDeploy(env) {
   }
   return webhookJson(`${baseUrl}/promote`, secret, {
     method: "POST",
-    body: { kind: "staging-to-production" },
+    body: { kind: "staging-to-production", env: buildEnvironment(env) },
   });
 }
 

@@ -1,0 +1,20 @@
+# Dev ops (gwenda-ops-dev): the hosted dev environment. Same app as prod ops,
+# on the dev copies: Gwenda Dev Sanity, the dev Ops DB, dev config rows and the
+# __LOCAL secrets. SITE_ENV=dev (a developer's machine is SITE_ENV=local). Its website is
+# gwenda-web-dev; it can never touch gwenda.co.uk. Deployed from main by
+# apps.yml, which copies this file over wrangler.toml.
+name = "gwenda-ops-dev"
+pages_build_output_dir = "src"
+compatibility_date = "2026-07-01"
+
+[vars]
+SITE_ENV = "dev"
+SANITY_PROJECT_ID = "gwscpagy"
+BASEROW_OPS_DATABASE_ID = "560292"
+GOOGLE_OAUTH_CLIENT_ID = "682046070260-n9jpt18kt29vufljre5dkfqupq7rrdlt.apps.googleusercontent.com"
+SITE_DEPLOY_WEBHOOK_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
+SANITY_STUDIO_SITE_DEPLOY_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
+
+[ai]
+binding = "AI"
+remote = true

@@ -18,7 +18,7 @@
 		shellCrumbs,
 		syncCanonicalUrl,
 	} from "../lib/nav";
-	import { crumbLeaf } from "../lib/crumbs.svelte";
+	import { activeNavOverride, crumbLeaf } from "../lib/crumbs.svelte";
 	import {
 		hideShellChrome,
 		mobileTabFor,
@@ -27,8 +27,10 @@
 		tabHref,
 		type MobileTabId,
 	} from "../lib/mobile-nav";
-	import { matchActiveRoute, navGroupContains, visibleRoutes } from "../lib/nav-tree";
+	import { flattenNavRoutes, matchActiveRoute, navGroupContains, visibleRoutes } from "../lib/nav-tree";
 	import { startSitePendingPolling, websiteBadge } from "../lib/site-pending.svelte";
+	import { startWebsiteJobs } from "../lib/website-jobs.svelte";
+	import WebsiteJobsTray from "./WebsiteJobsTray.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../lib/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
@@ -123,7 +125,12 @@
 			.catch(() => {
 				me = null;
 			});
-		return startSitePendingPolling();
+		const stopPending = startSitePendingPolling();
+		const stopJobs = startWebsiteJobs();
+		return () => {
+			stopPending();
+			stopJobs();
+		};
 	});
 
 	const shownRoutes = $derived(visibleRoutes(routes, Boolean(me?.isAdmin)));
@@ -145,7 +152,11 @@
 		!printBook && Boolean(me && (me.siteEnv !== "production" || me.risk)),
 	);
 
-	const active = $derived(matchActiveRoute(routes, path));
+	const active = $derived(
+		(activeNavOverride.id &&
+			flattenNavRoutes(routes).find((route) => route.id === activeNavOverride.id)) ||
+			matchActiveRoute(routes, path),
+	);
 	const tabs = $derived(mobileTabs(shownRoutes));
 	const currentTab = $derived(sheet ?? mobileTabFor(path, routes));
 	const sheetTab = $derived(tabs.find((row) => row.id === sheet) ?? null);
@@ -503,7 +514,10 @@
 						{/each}
 					</ol>
 				</nav>
+				<WebsiteJobsTray />
 			</header>
+		{:else if !printBook}
+			<WebsiteJobsTray floating />
 		{/if}
 
 		{#if showEnvBanner}

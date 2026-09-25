@@ -5,8 +5,8 @@ import { opsConnectionInfo, siteEnvName } from "./config-store.js";
 
 describe("siteEnvName", () => {
   it("maps common SITE_ENV values", () => {
-    assert.equal(siteEnvName({ SITE_ENV: "local" }), "local");
-    assert.equal(siteEnvName({ SITE_ENV: "dev" }), "local");
+    assert.equal(siteEnvName({ SITE_ENV: "local" }), "dev");
+    assert.equal(siteEnvName({ SITE_ENV: "dev" }), "dev");
     assert.equal(siteEnvName({ SITE_ENV: "production" }), "production");
     assert.equal(siteEnvName({ SITE_ENV: "prod" }), "production");
     assert.equal(siteEnvName({ SITE_ENV: "staging" }), "staging");
@@ -20,7 +20,11 @@ describe("opsConnectionInfo", () => {
       SITE_ENV: "local",
       BASEROW_OPS_DATABASE_ID: "560292",
     });
-    assert.equal(info.envLabel, "Local");
+    assert.equal(info.envLabel, "Dev · this machine");
+    assert.equal(
+      opsConnectionInfo({ SITE_ENV: "dev", BASEROW_OPS_DATABASE_ID: "560292" }).envLabel,
+      "Dev",
+    );
     assert.equal(info.databaseId, "560292");
     assert.equal(info.isProductionDb, false);
     assert.equal(info.databaseLabel, "Gwenda Ops (dev)");

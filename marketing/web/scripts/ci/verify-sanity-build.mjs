@@ -77,7 +77,7 @@ console.error(
     "",
     "Staging builds use the staging dataset. Drafts are ignored.",
     "Set GitHub secret SANITY_API_TOKEN to a Viewer token (separate from SANITY_DEPLOY_TOKEN).",
-    "Seed staging, then rebuild: npm run studio:seed:dev",
+    "Check the staging dataset has content, then rebuild.",
   ].join("\n"),
 );
 process.exit(1);

@@ -1,16 +1,18 @@
 /**
- * Ops runtime non-secret config (Baserow "Gwenda Config", Service = ops).
- * Resolution rules live in shared/config-db.js. Secrets never belong here.
+ * Ops settings (Service = ops), through the config service (shared/config.js),
+ * which decides rows vs computed vs a developer's local values. Secrets never
+ * belong here.
  */
 import {
   CONFIG_CACHE_TTL_MS,
-  configEnvName,
-  getConfigString as getSharedConfigString,
-  getConfigValues as getSharedConfigValues,
+  environmentOf,
+  getSettingOrEmpty,
+  getSettings,
+  isLocalMachine,
   resetConfigCacheForTests,
-  setConfigValue,
+  setSetting,
   valuesFromRows,
-} from "../../../../shared/config-db.js";
+} from "../../../../shared/config.js";
 import {
   OPS_DATABASE_NAME,
   OPS_PRODUCTION_DATABASE_ID,
@@ -39,7 +41,6 @@ export const DEFAULT_POUR_TARGETS = {
 /** Non-secret ops settings (config Name column). */
 export const OPS_CONFIG_KEYS = {
   sanityProjectId: "sanity.project_id",
-  sanityDataset: "sanity.dataset",
   siteDeployWebhookUrl: "site_deploy.webhook_url",
   googleOauthClientId: "google.oauth_client_id",
   googleDriveEventsFolderId: "google.drive_events_folder_id",
@@ -53,7 +54,8 @@ export const DEFAULT_SANITY_PROJECT_ID = "pn5yjro6";
 
 const DRINK_TYPES = Object.keys(POUR_TARGET_KEYS);
 
-export const siteEnvName = configEnvName;
+/** dev, staging or production (a developer's machine is dev). */
+export const siteEnvName = environmentOf;
 
 /** Human labels for shell chrome (which Baserow world this request hits). */
 export function opsConnectionInfo(env = {}) {
@@ -61,8 +63,10 @@ export function opsConnectionInfo(env = {}) {
   const databaseId = opsDatabaseId(env) || null;
   const isProductionDb = databaseId === OPS_PRODUCTION_DATABASE_ID;
   const envLabel =
-    siteEnv === "local"
-      ? "Local"
+    siteEnv === "dev"
+      ? isLocalMachine(env)
+        ? "Dev · this machine"
+        : "Dev"
       : siteEnv === "staging"
         ? "Staging"
         : siteEnv === "production"
@@ -75,7 +79,7 @@ export function opsConnectionInfo(env = {}) {
       : `${OPS_DATABASE_NAME} (dev)`;
 
   let risk = null;
-  // npm run dev:live: a local copy with production powers. Always flagged.
+  // npm run ops:prod: a local copy with production powers. Always flagged.
   const localLive = String(env.OPS_LOCAL_LIVE || "") === "1";
   if (localLive) risk = "local_live";
   else if (siteEnv !== "production" && isProductionDb) risk = "nonprod_on_production_db";
@@ -123,19 +127,19 @@ export function pourTargetsFromValues(values) {
   return normalizePourTargets(partial);
 }
 
-/** Flat key/value map for ops in this env. */
+/** Every ops setting for this runtime. */
 export async function getConfigValues(env) {
-  return getSharedConfigValues(env, SERVICE);
+  return getSettings(env, SERVICE);
 }
 
-/** One ops value, or "" when unset / config unavailable. */
+/** One ops setting, or "" when unset / config unavailable. */
 export async function getConfigString(env, key) {
-  return getSharedConfigString(env, SERVICE, key);
+  return getSettingOrEmpty(env, SERVICE, key);
 }
 
-/** Write this env's ops row for `key`. */
+/** Write this environment's ops row for `key`. */
 export async function setConfigString(env, key, value) {
-  await setConfigValue(env, SERVICE, key, value);
+  await setSetting(env, SERVICE, key, value);
 }
 
 /**
@@ -162,7 +166,6 @@ export async function applyOpsAppConfig(env = {}) {
     SANITY_PROJECT_ID:
       pick("SANITY_PROJECT_ID", OPS_CONFIG_KEYS.sanityProjectId) ||
       DEFAULT_SANITY_PROJECT_ID,
-    SANITY_DATASET: pick("SANITY_DATASET", OPS_CONFIG_KEYS.sanityDataset),
     SITE_DEPLOY_WEBHOOK_URL: webhook,
     SANITY_STUDIO_SITE_DEPLOY_URL:
       env.SANITY_STUDIO_SITE_DEPLOY_URL?.trim() || webhook,
@@ -170,7 +173,8 @@ export async function applyOpsAppConfig(env = {}) {
       "GOOGLE_OAUTH_CLIENT_ID",
       OPS_CONFIG_KEYS.googleOauthClientId,
     ),
-    WEB_ORIGIN: pick("WEB_ORIGIN", OPS_CONFIG_KEYS.webOrigin),
+    // Worked out from the environment (shared/site-urls.js), never configured.
+    WEB_ORIGIN: values[OPS_CONFIG_KEYS.webOrigin] || "",
   };
 }
 

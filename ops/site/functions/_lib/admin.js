@@ -19,7 +19,7 @@ export function parseAdminEmails(value) {
 }
 
 export async function isOpsAdmin(env, email, { read = getConfigString } = {}) {
-  if (siteEnvName(env) === "local") return true;
+  if (siteEnvName(env) === "dev") return true;
   const normalized = String(email || "").trim().toLowerCase();
   if (!normalized) return false;
   return parseAdminEmails(await read(env, ADMIN_EMAILS_KEY)).has(normalized);

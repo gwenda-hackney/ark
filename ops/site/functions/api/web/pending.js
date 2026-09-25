@@ -1,6 +1,7 @@
 import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { isLocalOps } from "../../_lib/sanity.js";
+import { runsOnMachine } from "../../_lib/sanity.js";
 import { siteStatus } from "../../_lib/site-pending.js";
+import { siteUrls } from "../../_lib/site-urls.js";
 
 /** Changes waiting for each site's next update, for the Website page and menu badge. */
 export const onRequestGet = withApiHandler(async (context) => {
@@ -8,5 +9,11 @@ export const onRequestGet = withApiHandler(async (context) => {
     siteStatus(context.env, "production"),
     siteStatus(context.env, "staging"),
   ]);
-  return jsonResponse({ ok: true, local: isLocalOps(context.env), production, staging });
+  return jsonResponse({
+    ok: true,
+    local: runsOnMachine(context.env),
+    urls: siteUrls(context.env),
+    production,
+    staging,
+  });
 });

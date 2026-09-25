@@ -1,6 +1,6 @@
 ---
 import EventTicketPage from "../../../../components/EventTicketPage.astro";
-import { isStaging } from "../../../../config/env";
+import { isStaging, stagingOrigin } from "../../../../config/env";
 import { siteConfig } from "../../../../config/site";
 import { fetchRsvpEventPages } from "../../../../lib/sanity/rsvp-events";
 import { parseOccurrenceSlug } from "../../../../../functions/_lib/event-series.js";
@@ -32,7 +32,7 @@ const { event, occurrenceSlug } = Astro.props;
 const series = Astro.params.series || "";
 const date = Astro.params.date || "";
 const siteOrigin = isStaging
-  ? "https://gwenda-staging.pages.dev"
+  ? stagingOrigin
   : siteConfig.domain;
 const pageUrl = `${siteOrigin}/whats-on/${series}/${date}/ticket`;
 const pageTitle = `Your ticket · ${event.title} · Gwenda`;

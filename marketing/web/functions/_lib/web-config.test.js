@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resetConfigCacheForTests } from "../../../../shared/config-db.js";
+import { resetConfigCacheForTests } from "../../../../shared/config.js";
 import { resolveFormNotifyTo } from "./web-config.js";
 
 function stubConfigRows(rows) {
@@ -29,7 +29,7 @@ describe("resolveFormNotifyTo", () => {
     vi.unstubAllGlobals();
   });
 
-  it("uses the Sanity form address without a config token", async () => {
+  it("prod uses the Sanity form address without a config token", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -38,17 +38,30 @@ describe("resolveFormNotifyTo", () => {
     );
     expect(
       await resolveFormNotifyTo(
-        { SITE_ENV: "local" },
+        { SITE_ENV: "production" },
         { notifyEmail: "play@gwenda.co.uk" },
       ),
     ).toBe("play@gwenda.co.uk");
   });
 
+  it("outside prod, never falls back to the form's real inbox", async () => {
+    const form = { notifyEmail: "play@gwenda.co.uk" };
+    // A developer's machine without their own address.
+    await expect(resolveFormNotifyTo({ SITE_ENV: "local" }, form)).rejects.toThrow(
+      /FORMS_NOTIFY_EMAIL is not set/,
+    );
+    // Settings reachable but no override row for this env.
+    stubConfigRows([row("forms.notify_email", "dev@gwenda.co.uk", "staging", "web")]);
+    await expect(
+      resolveFormNotifyTo({ SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" }, form),
+    ).rejects.toThrow(/not set for dev/);
+  });
+
   it("prefers this env's forms.notify_email row", async () => {
     stubConfigRows([
-      row("forms.notify_email", "dev@gwenda.co.uk", "local", "web"),
+      row("forms.notify_email", "dev@gwenda.co.uk", "dev", "web"),
     ]);
-    const env = { SITE_ENV: "local", BASEROW_CONFIG_API_KEY: "cfg" };
+    const env = { SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" };
     expect(
       await resolveFormNotifyTo(env, { notifyEmail: "play@gwenda.co.uk" }),
     ).toBe("dev@gwenda.co.uk");
@@ -64,14 +77,39 @@ describe("resolveFormNotifyTo", () => {
     ).toBe("play@gwenda.co.uk");
   });
 
-  it("falls back to the form address when config is down", async () => {
+  it("prod falls back to the form address when config is down", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("nope", { status: 500 })),
     );
-    const env = { SITE_ENV: "local", BASEROW_CONFIG_API_KEY: "cfg" };
+    const env = { SITE_ENV: "production", BASEROW_CONFIG_API_KEY: "cfg" };
     expect(
       await resolveFormNotifyTo(env, { notifyEmail: "play@gwenda.co.uk" }),
     ).toBe("play@gwenda.co.uk");
+  });
+
+  it("hosted dev uses the config row; a developer's machine can override it", async () => {
+    stubConfigRows([row("forms.notify_email", "alerts@gwenda.co.uk", "dev", "web")]);
+    const form = { notifyEmail: "play@gwenda.co.uk" };
+    expect(
+      await resolveFormNotifyTo({ SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" }, form),
+    ).toBe("alerts@gwenda.co.uk");
+    expect(
+      await resolveFormNotifyTo(
+        { SITE_ENV: "local", BASEROW_CONFIG_API_KEY: "cfg", FORMS_NOTIFY_EMAIL: "me@gwenda.co.uk" },
+        form,
+      ),
+    ).toBe("me@gwenda.co.uk");
+  });
+
+  it("outside prod, config down means no email", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("nope", { status: 500 })),
+    );
+    const env = { SITE_ENV: "staging", BASEROW_CONFIG_API_KEY: "cfg" };
+    await expect(
+      resolveFormNotifyTo(env, { notifyEmail: "play@gwenda.co.uk" }),
+    ).rejects.toThrow();
   });
 });

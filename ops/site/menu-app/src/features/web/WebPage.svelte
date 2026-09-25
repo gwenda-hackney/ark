@@ -30,6 +30,12 @@
 	import { easeOut, flyMs } from "../../lib/motion";
 	import { toast } from "../../lib/toast.svelte";
 	import { getSitePendingState, refreshSitePending } from "../../lib/site-pending.svelte";
+	import {
+		getWebsiteJobsState,
+		refreshWebsiteJobs,
+		retryWebsiteJob,
+		websiteJobSettled,
+	} from "../../lib/website-jobs.svelte";
 
 	/** Editors think in events, so events come from ops, not from document diffs. */
 	type Waiting =
@@ -192,8 +198,29 @@
 		}
 	}
 
+	const jobs = $derived(getWebsiteJobsState().jobs);
+	/** This environment's website (dev ops links to the dev website). */
+	const siteUrls = $derived(getSitePendingState().urls);
+	const siteHost = $derived(new URL(siteUrls.live).host);
+
+	async function retryJob(id: string) {
+		if (working) return;
+		working = `retry-${id}`;
+		try {
+			await retryWebsiteJob(id);
+			toast.ok("Trying again. It carries on in the background.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "It still didn't work.");
+		} finally {
+			working = "";
+			await refreshWebsiteJobs();
+		}
+	}
+
 	async function putOne(item: Waiting) {
 		if (item.kind === "event") {
+			// Background work for this event first, so the two never overlap.
+			await websiteJobSettled(item.event.id);
 			const result = await putEventOnWebsite(item.event.id);
 			for (const warning of result.warnings) toast.info(warning);
 		} else {
@@ -239,7 +266,10 @@
 			{#if local}
 				<p class="banner">
 					<Icon name="lock" size={16} />
-					<span>This is the test copy of ops. It can't change the website.</span>
+					<span>
+						Test copy of ops: Update website changes the Gwenda Dev copy of the website, never
+						gwenda.co.uk. Site builds only run in the real ops app.
+					</span>
 				</p>
 			{/if}
 
@@ -260,8 +290,8 @@
 				<div class="status-copy">
 					<h2>{liveStatus.title}</h2>
 					{#if liveStatus.note}<p>{liveStatus.note}</p>{/if}
-					<a class="site-link" href="https://gwenda.co.uk" target="_blank" rel="noreferrer">
-						Open gwenda.co.uk <Icon name="external-link" size={12} />
+					<a class="site-link" href={siteUrls.live} target="_blank" rel="noreferrer">
+						Open {siteHost} <Icon name="external-link" size={12} />
 					</a>
 				</div>
 				{#if !local && live && (live.items.length || live.failed || !live.known) && !live.updating}
@@ -287,11 +317,44 @@
 				</ul>
 			{/if}
 
+			<!-- Saved, still being got ready (calendar + website copy) -->
+			{#if jobs.length}
+				<section class="card" aria-labelledby="jobs-title">
+					<header class="card-head">
+						<h2 id="jobs-title">Getting ready</h2>
+					</header>
+					<p class="muted">Saved. The calendar and website copy are catching up, which takes a minute or two.</p>
+					<ul class="list">
+						{#each jobs as job (job.eventId)}
+							<li>
+								<span class="word {job.state === 'failed' ? 'removed' : 'changed'}">
+									{job.state === "failed" ? "Stuck" : "Waiting"}
+								</span>
+								<span class="name">
+									{job.name}{#if job.error}<span class="muted"> · {job.error}</span>{/if}
+								</span>
+								{#if job.state === "failed"}
+									<Button
+										variant="outline"
+										size="sm"
+										busy={working === `retry-${job.eventId}`}
+										disabled={Boolean(working)}
+										onclick={() => void retryJob(job.eventId)}
+									>
+										Try again
+									</Button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/if}
+
 			<!-- 2. Saved but not on the website -->
 			<section class="card" aria-labelledby="unpublished-title">
 				<header class="card-head">
 					<h2 id="unpublished-title">Not on the website yet</h2>
-					{#if unpublished.length && !local}
+					{#if unpublished.length}
 						<Button variant="primary" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = true)}>
 							Update website with all
 						</Button>
@@ -310,17 +373,15 @@
 									{item.change === "removed" ? "Remove" : changeWord(item.change)}
 								</span>
 								<span class="name">{item.label}</span>
-								{#if !local}
-									<Button
-										variant="outline"
-										size="sm"
-										busy={working === `put-${item.key}`}
-										disabled={Boolean(working)}
-										onclick={() => void putOnWebsite([item], false)}
-									>
-										{item.change === "removed" ? "Take off website" : "Update website"}
-									</Button>
-								{/if}
+								<Button
+									variant="outline"
+									size="sm"
+									busy={working === `put-${item.key}`}
+									disabled={Boolean(working)}
+									onclick={() => void putOnWebsite([item], false)}
+								>
+									{item.change === "removed" ? "Take off website" : "Update website"}
+								</Button>
 							</li>
 						{/each}
 					</ul>
@@ -342,7 +403,7 @@
 								: preview?.items.length
 									? `${changes(preview.items.length)} will show there${preview.autoUpdateAt ? ` at about ${clock(preview.autoUpdateAt)}` : " soon"}.`
 									: "checking…"}
-					<a href="https://gwenda-staging.pages.dev" target="_blank" rel="noreferrer">Open preview site</a>
+					<a href={siteUrls.preview} target="_blank" rel="noreferrer">Open preview site</a>
 				</p>
 				{#if !local && preview && (preview.items.length || preview.failed) && !preview.updating}
 					<button
