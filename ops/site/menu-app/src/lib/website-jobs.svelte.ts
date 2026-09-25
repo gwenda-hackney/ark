@@ -14,9 +14,19 @@ type State = {
 	/** Saved in this tab and not confirmed ready yet: shown before the list catches up. */
 	queued: string[];
 	running: boolean;
+	/** Finished in this tab, newest first, so the tray can say "done". */
+	recent: { eventId: string; name: string; at: string }[];
 };
 
-let state = $state<State>({ jobs: [], queued: [], running: false });
+let state = $state<State>({ jobs: [], queued: [], running: false, recent: [] });
+const RECENT_LIMIT = 8;
+
+function noteDone(id: string, name: string) {
+	state.recent = [
+		{ eventId: id, name, at: new Date().toISOString() },
+		...state.recent.filter((row) => row.eventId !== id),
+	].slice(0, RECENT_LIMIT);
+}
 let timer: ReturnType<typeof setInterval> | null = null;
 const eventListeners = new Set<(event: OpsEvent) => void>();
 const idleWaiters: (() => void)[] = [];
@@ -79,6 +89,7 @@ async function run(): Promise<void> {
 				if (!state.queued.length) break;
 			} else if (result.done) {
 				dequeue(id);
+				noteDone(id, result.event?.name || state.jobs.find((row) => row.eventId === id)?.name || "Event");
 			}
 		}
 	} catch {
