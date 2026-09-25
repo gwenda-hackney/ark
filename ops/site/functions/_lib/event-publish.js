@@ -43,7 +43,7 @@ import {
   hasShortDescriptionOverrideColumn,
   listEvents,
   removeOccurrence,
-  saveOccurrence,
+  saveOccurrences,
 } from "./event-store.js";
 import { syncSocialTasks } from "./event-tasks.js";
 
@@ -216,6 +216,9 @@ export async function publishEventPreview(
     const hash = occurrenceHash(event, previous || date);
     if (previous?.sanityId && previous?.snapshots?.staging?.hash === hash) {
       occurrences.push({
+        // Nothing to write back unless its ClickUp task changes below.
+        unchanged: true,
+        previousTaskId: previous.clickupTaskId || "",
         id: previous.id,
         date: previous.date,
         slug: previous.slug,
@@ -312,9 +315,14 @@ export async function publishEventPreview(
       ? { dates: occurrences, warnings: [] }
       : await syncSocialTasks(env, event, occurrences);
   warnings.push(...tasks.warnings);
-  for (const occurrence of tasks.dates) {
-    await saveOccurrence(env, id, occurrence);
+  // One Baserow write per changed night only: a series has a dozen nights and
+  // Cloudflare allows 50 outbound calls per request on the free plan.
+  const changed = [];
+  for (const { unchanged, previousTaskId, ...occurrence } of tasks.dates) {
+    if (unchanged && (occurrence.clickupTaskId || "") === previousTaskId) continue;
+    changed.push(occurrence);
   }
+  await saveOccurrences(env, id, changed);
 
   // No build here: the site updates once edits go quiet (site-pending.js).
   const deployed = false;
@@ -461,7 +469,7 @@ export async function eventDocumentIds(env, event, { query = sanityQuery } = {})
   return [...ids];
 }
 
-/** What "Put on website" would change for this event, without changing anything. */
+/** What "Update website" would change for this event, without changing anything. */
 export async function previewEventOnWebsite(env, id) {
   const event = await getEvent(env, id);
   const ids = await eventDocumentIds(env, event);
@@ -476,12 +484,17 @@ export async function previewEventOnWebsite(env, id) {
 }
 
 /**
- * "Put on website" for one event: bring staging up to date from ops, then
+ * "Update website" for one event: bring staging up to date from ops, then
  * copy only this event's documents (and anything they need) to production.
  * The site pages follow on the next automatic update.
  */
 export async function putEventOnWebsite(env, id) {
-  const staged = await publishEventPreview(env, id);
+  // Saving already staged it; only stage again if staging is behind ops.
+  const current = await getEvent(env, id);
+  const staged =
+    current.publish?.preview === "current"
+      ? { event: current, warnings: [] }
+      : await publishEventPreview(env, id);
   const ids = await eventDocumentIds(env, staged.event);
   const result = await publishRelease(env, { ids });
   const warnings = [...(staged.warnings || []), ...result.warnings];

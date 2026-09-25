@@ -1,6 +1,5 @@
 import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
 import { clearEventImage, setEventImage } from "../../../_lib/event-store.js";
-import { stageEvent } from "../../../_lib/event-publish.js";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -31,9 +30,7 @@ export const onRequestPost = withApiHandler(async (context) => {
     contentType,
     role,
   });
-  if (role !== "main") return jsonResponse({ ok: true, event });
-  const staged = await stageEvent(context.env, id);
-  return jsonResponse({ ok: true, event: staged.event || event, staging: staged.staging });
+  return jsonResponse({ ok: true, event });
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {
@@ -43,7 +40,5 @@ export const onRequestDelete = withApiHandler(async (context) => {
   const role = url.searchParams.get("role") === "gallery" ? "gallery" : "main";
   const name = String(url.searchParams.get("name") || "");
   const event = await clearEventImage(context.env, id, { role, name });
-  if (role !== "main") return jsonResponse({ ok: true, event });
-  const staged = await stageEvent(context.env, id);
-  return jsonResponse({ ok: true, event: staged.event || event, staging: staged.staging });
+  return jsonResponse({ ok: true, event });
 });

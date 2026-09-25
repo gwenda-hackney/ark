@@ -10,7 +10,7 @@ export type HeaderFlag = {
 
 /**
  * One status for the event header, in plain words: saved, and on the website
- * or not. "Put on website" puts it on gwenda.co.uk.
+ * or not. "Update website" puts it on gwenda.co.uk.
  */
 export function eventHeaderFlag(
   publish: EventPublishState | null | undefined,
