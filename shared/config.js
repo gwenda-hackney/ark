@@ -47,7 +47,7 @@ export {
  * (scripts/config-post-deploy.mjs, run by CI once the new code is live),
  * never before: the code still running may read them until then.
  */
-export const RETIRED_SETTINGS = ["web.origin", "sanity.dataset"];
+export const RETIRED_SETTINGS = ["web.origin", "sanity.dataset", "web.pages_secrets_fingerprint"];
 
 /** Remove retired settings' rows. Post-deploy only. */
 export async function removeRetiredSettings(env) {

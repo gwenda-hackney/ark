@@ -119,7 +119,6 @@ A few rows are written by code, not people. Leave them alone:
 | `site.build_snapshot` (`.dev` for the dev website) | web | the site: staging (preview) / production (live) | deploy job (`site-build-snapshot.mjs`) | What the last build was made from |
 | `site.auto_update` (`.dev` for dev ops) | ops | the site: staging / production | ops scheduler tick | Quiet timer, running build, failures |
 | `site.prep_failures` | ops | environment | ops website jobs | Events that couldn't be got ready for the website |
-| `web.pages_secrets_fingerprint` | web | staging / production / dev | `sync-pages-secrets.mjs` | Hash of the last Pages secret sync; deploys skip the sync when unchanged |
 
 
 ## Ops Baserow workspaces
