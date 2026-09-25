@@ -170,7 +170,7 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         PAGES_PROJECT_NAME: ${{ inputs.pages-project }}
-      run: node marketing/web/scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secrets-profile }}" --if-changed
+      run: node marketing/web/scripts/ci/sync-pages-secrets.mjs --project "${{ inputs.pages-project }}" --profile "${{ inputs.secrets-profile }}"
 
     - name: Deploy to Cloudflare Pages
       id: pages_deploy
