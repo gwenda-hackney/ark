@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetConfigCacheForTests } from "../../../../shared/config.js";
-import { resolveFormNotifyTo } from "./web-config.js";
+import { resolveFormNotifyTo } from "../../../../shared/forms/notify-to.js";
 
 function stubConfigRows(rows) {
   vi.stubGlobal(

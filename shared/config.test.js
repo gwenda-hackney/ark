@@ -6,10 +6,8 @@ import { fileURLToPath } from "node:url";
 import {
   LOCAL_PLACEHOLDER,
   getSetting,
-  getSettings,
   missingLocalSettings,
   resetConfigCacheForTests,
-  websiteUrls,
 } from "./config.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,7 +47,6 @@ describe("config service", () => {
         (file) =>
           ![
             "shared/config.js",
-            "shared/site-urls.js",
             "shared/config-db.test.js",
             "shared/config.test.js",
           ].includes(file),
@@ -76,15 +73,5 @@ describe("config service", () => {
         ["FORMS_NOTIFY_EMAIL"],
       );
       assert.deepEqual(missingLocalSettings({ SITE_ENV: "dev" }), []);
-    }));
-
-  it("web.origin is worked out from the environment, never stored", () =>
-    withRows([...ROWS, row("web.origin", "https://evil.example", "all", "ops")], async () => {
-      assert.equal(await getSetting({ SITE_ENV: "production" }, "ops", "web.origin"), "https://gwenda.co.uk");
-      assert.equal(await getSetting({ SITE_ENV: "dev" }, "ops", "web.origin"), "https://gwenda-web-dev.pages.dev");
-      assert.equal(await getSetting({ SITE_ENV: "local" }, "ops", "web.origin"), "http://localhost:4321");
-      const all = await getSettings({ SITE_ENV: "production", BASEROW_CONFIG_API_KEY: "k" }, "ops");
-      assert.equal(all["web.origin"], "https://gwenda.co.uk");
-      assert.equal(websiteUrls({ SITE_ENV: "staging" }).live, "https://gwenda-staging.pages.dev");
     }));
 });

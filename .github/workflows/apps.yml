@@ -7,6 +7,7 @@ on:
       - "marketing/web/src/config/colors.json"
       - "ops/site/**"
       - "ops/site/menu-app/**"
+      - "shared/**"
       - "ops/README.md"
       - ".github/workflows/apps.yml"
       - ".github/scripts/sync-brand-tokens.mjs"
@@ -54,6 +55,7 @@ jobs:
             ops:
               - 'ops/site/**'
               - 'ops/site/menu-app/**'
+              - 'shared/**'
               - 'ops/README.md'
               - '.github/workflows/apps.yml'
       - id: set

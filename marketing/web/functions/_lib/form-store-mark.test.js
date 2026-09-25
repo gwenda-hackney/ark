@@ -7,10 +7,10 @@ vi.mock("./baserow.js", () => ({
     rowUrl: (id) => `https://baserow.test/rows/${id}/`,
   }),
 }));
-vi.mock("./form-alert.js", () => ({ reportFormError: vi.fn(async () => undefined) }));
+vi.mock("../../../../shared/forms/form-alert.js", () => ({ reportFormError: vi.fn(async () => undefined) }));
 
-const { markFormSubmissionEmailSent, readableUpstreamDetail } = await import("./form-store.js");
-const { reportFormError } = await import("./form-alert.js");
+const { markFormSubmissionEmailSent, readableUpstreamDetail, saveFormEditLink } = await import("./form-store.js");
+const { reportFormError } = await import("../../../../shared/forms/form-alert.js");
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -36,6 +36,27 @@ describe("markFormSubmissionEmailSent", () => {
     const result = await markFormSubmissionEmailSent({}, "7", "receipt");
     expect(result.ok).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("saveFormEditLink", () => {
+  it("saves the receipt's edit link on the row for ops", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const link = "https://gwenda.co.uk/contact/edit?t=abc.def";
+    const result = await saveFormEditLink({}, "7", link);
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://baserow.test/rows/7/");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ "Edit Link": link });
+  });
+
+  it("reports a failed save without throwing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("bad field", { status: 400 })));
+    const result = await saveFormEditLink({}, "7", "https://gwenda.co.uk/contact/edit?t=x");
+    expect(result.ok).toBe(false);
+    expect(reportFormError).toHaveBeenCalledWith({}, "form_store_failed", expect.objectContaining({ op: "save_edit_link" }));
   });
 });
 

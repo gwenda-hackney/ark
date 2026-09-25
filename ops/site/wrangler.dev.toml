@@ -6,6 +6,8 @@
 name = "gwenda-ops-dev"
 pages_build_output_dir = "src"
 compatibility_date = "2026-07-01"
+# Form emails (shared/gmail-send.js) build the message with nodemailer.
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 SITE_ENV = "dev"
@@ -14,6 +16,10 @@ BASEROW_OPS_DATABASE_ID = "560292"
 GOOGLE_OAUTH_CLIENT_ID = "682046070260-n9jpt18kt29vufljre5dkfqupq7rrdlt.apps.googleusercontent.com"
 SITE_DEPLOY_WEBHOOK_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
 SANITY_STUDIO_SITE_DEPLOY_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
+# Form emails resent from /forms: the same mailbox and alerts as the website.
+SMTP_USER = "notifications@gwenda.co.uk"
+SMTP_FROM_EVENTS = "Gwenda Events <events@gwenda.co.uk>"
+ALERT_EMAIL = "alerts@gwenda.co.uk"
 
 [ai]
 binding = "AI"

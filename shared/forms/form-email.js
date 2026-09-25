@@ -1,23 +1,27 @@
-import { resolveSmtpFrom, SMTP_PURPOSE } from "./smtp-from.js";
+/**
+ * Send a form's notification (to the form's inbox) and receipt (to the
+ * applicant). The website sends both when a form is submitted; ops resends
+ * either one from /forms.
+ */
+import { resolveSmtpFrom, SMTP_PURPOSE } from "../smtp-from.js";
 import { reportFormError } from "./form-alert.js";
-import { isGmailConfigured, sendGmail } from "./gmail-send.js";
-import { createLogger } from "./log.js";
-import { resolveFormNotifyTo } from "./web-config.js";
+import { isGmailConfigured, sendGmail } from "../gmail-send.js";
+import { createLogger } from "../log.js";
+import { resolveFormNotifyTo } from "./notify-to.js";
 import {
   formatFormEmail,
   formatFormNotifyHtml,
   formatFormNotifySubject,
   formatFormReceiptSubject,
   replyToFromAnswers,
-} from "./form-submit.js";
-import { LOGO_CID } from "./rsvp-email-template.js";
-import { fetchImageBuffer } from "./rsvp-tickets.js";
+} from "./format.js";
+import { fetchImageBuffer, LOGO_CID } from "../email-image.js";
 import {
   SITE_ADDRESS,
   SITE_DOMAIN,
   SITE_INSTAGRAM,
   VENUE_MAPS_URL,
-} from "./site-location.js";
+} from "../site-location.js";
 
 const LOGO_URL = `${SITE_DOMAIN}/brand/logo-email.png`;
 const log = createLogger();

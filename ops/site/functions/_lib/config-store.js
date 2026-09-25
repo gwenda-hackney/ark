@@ -1,6 +1,6 @@
 /**
  * Ops settings (Service = ops), through the config service (shared/config.js),
- * which decides rows vs computed vs a developer's local values. Secrets never
+ * which decides between rows and a developer's local values. Secrets never
  * belong here.
  */
 import {
@@ -47,7 +47,6 @@ export const OPS_CONFIG_KEYS = {
   googleCalendarId: "google.calendar_id",
   taskRoleSocial: "tasks.role.social",
   clickupEventsListId: "clickup.events_list_id",
-  webOrigin: "web.origin",
 };
 
 export const DEFAULT_SANITY_PROJECT_ID = "pn5yjro6";
@@ -173,8 +172,6 @@ export async function applyOpsAppConfig(env = {}) {
       "GOOGLE_OAUTH_CLIENT_ID",
       OPS_CONFIG_KEYS.googleOauthClientId,
     ),
-    // Worked out from the environment (shared/site-urls.js), never configured.
-    WEB_ORIGIN: values[OPS_CONFIG_KEYS.webOrigin] || "",
   };
 }
 

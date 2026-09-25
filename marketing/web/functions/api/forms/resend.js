@@ -1,6 +1,6 @@
 import { validateSubscribeRequest } from "../../_lib/subscribe-auth.js";
 import { isFormHoneypotTripped } from "../../_lib/form-honeypot.js";
-import { EMAIL_RE } from "../../_lib/form-field-rules.js";
+import { EMAIL_RE } from "../../../../../shared/forms/field-rules.js";
 import { sendFormVerifyEmail } from "../../_lib/form-verify-email.js";
 import { verifyFormResendToken } from "../../_lib/form-verify-auth.js";
 import {
@@ -10,8 +10,8 @@ import {
   updateFormSubmissionEmail,
 } from "../../_lib/form-store.js";
 import { fetchFormForSubmit } from "../../_lib/form-submit.js";
-import { reportFormError } from "../../_lib/form-alert.js";
-import { requestFields } from "../../_lib/log.js";
+import { reportFormError } from "../../../../../shared/forms/form-alert.js";
+import { requestFields } from "../../../../../shared/log.js";
 
 export async function onRequestPost(context) {
   const auth = validateSubscribeRequest(context.request, context.env);

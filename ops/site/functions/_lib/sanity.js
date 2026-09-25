@@ -77,7 +77,8 @@ function headers(token, extra = {}) {
   };
 }
 
-export async function sanityQuery(env, dataset, query, params = {}) {
+/** `perspective: "published"` reads what the website shows (no drafts). */
+export async function sanityQuery(env, dataset, query, params = {}, { perspective } = {}) {
   const token = env.SANITY_API_TOKEN?.trim();
   if (!token) {
     const error = new Error("SANITY_API_TOKEN is not configured for publish sync.");
@@ -89,6 +90,7 @@ export async function sanityQuery(env, dataset, query, params = {}) {
     `https://${projectId}.api.sanity.io/${API_VERSION}/data/query/${dataset}`,
   );
   url.searchParams.set("query", query);
+  if (perspective) url.searchParams.set("perspective", perspective);
   for (const [key, value] of Object.entries(params)) {
     // Sanity requires GROQ params as `$name` query-string keys.
     const paramKey = key.startsWith("$") ? key : `$${key}`;
