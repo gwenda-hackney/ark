@@ -15,7 +15,8 @@ function sameSecret(a, b) {
 }
 
 /**
- * POST /api/health/deep  { sendEmail?: boolean, label?: string }
+ * POST /api/health/deep  { sendEmail?: boolean, formTest?: boolean, label?: string }
+ * formTest submits the play form end to end (emails to alerts@, row deleted).
  * Bearer DEPLOY_WEBHOOK_SECRET. 200 when every dependency answers, 503 if not.
  */
 export async function onRequestPost(context) {
@@ -28,6 +29,8 @@ export async function onRequestPost(context) {
   const body = await context.request.json().catch(() => ({}));
   const result = await runDeepHealth(env, {
     sendEmail: body?.sendEmail === true,
+    formTest: body?.formTest === true,
+    requestUrl: context.request.url,
     label: String(body?.label || "").slice(0, 120),
   });
   return json({ ok: result.ok, env: env.SITE_ENV || null, checks: result.checks }, result.ok ? 200 : 503);

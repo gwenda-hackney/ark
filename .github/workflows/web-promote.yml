@@ -124,9 +124,23 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
-      # Databases, config and email, once: a test email goes to alerts@gwenda.co.uk.
-      - name: Deep health (databases and email)
-        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep --send-email
+      # Automatic content updates run this workflow too, several times a day.
+      # Only a code change gets the test email and the form test.
+      - name: Did the website code change since the last release?
+        id: webcode
+        run: |
+          last=$(git describe --tags --abbrev=0 --match '20*' HEAD^ 2>/dev/null || true)
+          if [ -z "$last" ] || ! git diff --quiet "$last" HEAD -- marketing/web shared package-lock.json; then
+            echo "flags=--send-email --form-test" >> "$GITHUB_OUTPUT"
+          else
+            echo "Website code unchanged since $last: read-only checks only."
+            echo "flags=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Databases and config always; on code changes also a test email and a real
+      # play-form submission (emails to alerts@gwenda.co.uk, test row deleted).
+      - name: Deep health (databases, email, forms)
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep ${{ steps.webcode.outputs.flags }}
 
       # Studio only needs redeploying when its code changed (~30s otherwise).
       - name: Did Studio change since the last release?
