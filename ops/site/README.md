@@ -115,6 +115,14 @@ npm run env:secrets:pull
 npm run dev -w @gwenda/ops
 ```
 
+### Debugging production locally (`dev:live`)
+
+```bash
+npm run dev:live -w @gwenda/ops
+```
+
+The same local app (HMR, stack traces in your terminal) with **production powers**: production Ops DB (556507), production secrets straight from Secrets Manager, `SITE_ENV=production`. Saves, **Put on website** and **Update website now** change the real Ops DB and gwenda.co.uk, exactly like hosted ops. The app shows a red **LOCAL COPY ON LIVE DATA** banner. Stop it and run plain `npm run dev` to go back to the dev copy (it rewrites `.dev.vars`). Don't run both at once: they share `.dev.vars`.
+
 Resending form emails from `/forms` locally calls the marketing dev server (`web.origin` = `http://localhost:4321`), so run `npm run dev -w @gwenda/web` too.
 
 Build:
