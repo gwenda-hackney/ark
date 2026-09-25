@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { afterEach, before, describe, it, mock } from "node:test";
 import { resetBaserowClientForTests } from "./baserow.js";
 import {
   listFormSubmissions,
@@ -59,47 +59,147 @@ describe("mapFormSubmission", () => {
   });
 });
 
+/** A throwaway service account, so the real Gmail send path runs against mocked fetch. */
+async function serviceAccountJson() {
+  const { privateKey } = await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["sign"],
+  );
+  const der = Buffer.from(await crypto.subtle.exportKey("pkcs8", privateKey)).toString("base64");
+  return JSON.stringify({
+    type: "service_account",
+    client_email: "mailer@example.iam.gserviceaccount.com",
+    private_key: `-----BEGIN PRIVATE KEY-----\n${der}\n-----END PRIVATE KEY-----\n`,
+  });
+}
+
+const PLAY_FORM = {
+  title: "Play at Gwenda",
+  slug: "play",
+  notifyEmail: "play@gwenda.co.uk",
+  fromEmail: "play@gwenda.co.uk",
+  fields: [{ key: "name", label: "Name", type: "text" }],
+};
+
+/**
+ * Website Baserow + Sanity + Gmail, all mocked. Returns what was sent and
+ * which rows were patched.
+ */
+function mockResend({ row, form = PLAY_FORM }) {
+  const sent = [];
+  const patches = [];
+  const sanityUrls = [];
+  mock.method(globalThis, "fetch", async (input, init) => {
+    const url = String(input);
+    if (url.includes("/tables/all-tables/")) {
+      return jsonResponse([{ id: 42, name: "Form Submissions", database_id: 7 }]);
+    }
+    if (url.includes("/rows/table/42/")) {
+      if (init?.method === "PATCH") {
+        patches.push(JSON.parse(init.body));
+        return jsonResponse({ id: row?.id });
+      }
+      return row ? jsonResponse(row) : jsonResponse({ error: "ERROR_ROW_DOES_NOT_EXIST" }, 404);
+    }
+    if (url.includes(".api.sanity.io/")) {
+      sanityUrls.push(new URL(url));
+      return jsonResponse({ result: form });
+    }
+    if (url === "https://oauth2.googleapis.com/token") {
+      return jsonResponse({ access_token: "t", expires_in: 3600 });
+    }
+    if (url.startsWith("https://gmail.googleapis.com/")) {
+      const { raw } = JSON.parse(init.body);
+      sent.push(Buffer.from(raw, "base64url").toString("utf8"));
+      return jsonResponse({ id: "m1" });
+    }
+    // The email logo: not an image here, so the email goes without it.
+    return new Response("", { status: 404 });
+  });
+  return { sent, patches, sanityUrls };
+}
+
+const playRow = (extra = {}) => ({
+  id: 501,
+  "Form Slug": "play",
+  "Reply To": "alex@example.com",
+  Answers: JSON.stringify({
+    entries: [
+      { key: "name", label: "Name", value: "Alex" },
+      { key: "email", label: "Email", value: "alex@example.com" },
+    ],
+  }),
+  ...extra,
+});
+
 describe("resendFormEmail", () => {
-  const resendEnv = {
-    WEB_ORIGIN: "http://localhost:4321/",
-    FORMS_ADMIN_SECRET: "s3cret",
+  let resendEnv;
+  const baseEnv = {
+    BASEROW_WEBSITE_API_KEY: "web-token",
+    SANITY_API_TOKEN: "sanity",
+    SANITY_PROJECT_ID: "gwscpagy",
+    SITE_ENV: "local",
+    FORMS_NOTIFY_EMAIL: "dev@example.com",
+    SMTP_USER: "notifications@gwenda.co.uk",
   };
+  before(async () => {
+    resendEnv = { ...baseEnv, GMAIL_SERVICE_ACCOUNT_JSON: await serviceAccountJson() };
+  });
 
-  it("posts to the website admin endpoint with the bearer secret", async () => {
-    const calls = [];
-    mock.method(globalThis, "fetch", async (url, init) => {
-      calls.push({ url: String(url), init });
-      return jsonResponse({ ok: true, sentAt: "2026-09-24T10:00:00Z" });
-    });
+  it("sends the receipt with the edit link the website saved, then stamps the row", async () => {
+    const editLink = "https://gwenda-web-dev.pages.dev/contact/edit?t=abc.def";
+    const { sent, patches, sanityUrls } = mockResend({ row: playRow({ "Edit Link": editLink }) });
+
     const result = await resendFormEmail(resendEnv, "501", "receipt");
-    assert.deepEqual(result, { ok: true, sentAt: "2026-09-24T10:00:00Z" });
-    assert.equal(calls[0].url, "http://localhost:4321/api/forms/admin/resend");
-    assert.equal(calls[0].init.headers.Authorization, "Bearer s3cret");
-    assert.deepEqual(JSON.parse(calls[0].init.body), { rowId: "501", kind: "receipt" });
+
+    assert.equal(result.ok, true);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0], /^To: alex@example\.com/m);
+    assert.ok(sent[0].replace(/=\r\n/g, "").includes("contact/edit?t=3Dabc.def"));
+    assert.deepEqual(Object.keys(patches[0]), ["Receipt Sent"]);
+    assert.equal(result.sentAt, patches[0]["Receipt Sent"]);
+    // The live site's form: production dataset, no drafts.
+    assert.match(sanityUrls[0].pathname, /\/data\/query\/production$/);
+    assert.equal(sanityUrls[0].searchParams.get("perspective"), "published");
+    assert.equal(sanityUrls[0].searchParams.get("$slug"), '"play"');
   });
 
-  it("rejects unknown kinds and missing config before calling out", async () => {
-    mock.method(globalThis, "fetch", async () => {
-      throw new Error("should not fetch");
-    });
-    await assert.rejects(resendFormEmail(resendEnv, "1", "verify"), { status: 400 });
-    await assert.rejects(
-      resendFormEmail({ FORMS_ADMIN_SECRET: "s" }, "1", "notify"),
-      /web\.origin/,
-    );
-    await assert.rejects(
-      resendFormEmail({ WEB_ORIGIN: "http://x" }, "1", "notify"),
-      /FORMS_ADMIN_SECRET/,
-    );
+  it("links an older row with no saved edit link to the form's page", async () => {
+    const { sent } = mockResend({ row: playRow() });
+    await resendFormEmail(resendEnv, "501", "receipt");
+    assert.ok(sent[0].replace(/=\r\n/g, "").includes("https://gwenda.co.uk/contact/play"));
   });
 
-  it("surfaces the website error", async () => {
-    mock.method(globalThis, "fetch", async () =>
-      jsonResponse({ error: "Email is not configured." }, 502),
-    );
-    await assert.rejects(resendFormEmail(resendEnv, "1", "notify"), {
-      status: 502,
-      message: "Email is not configured.",
+  it("sends the notification to this environment's notify address", async () => {
+    const { sent, patches } = mockResend({ row: playRow() });
+    await resendFormEmail(resendEnv, "501", "notify");
+    assert.match(sent[0], /^To: dev@example\.com/m);
+    assert.deepEqual(Object.keys(patches[0]), ["Notify Sent"]);
+  });
+
+  it("does not stamp the row when mail is not set up (dry run)", async () => {
+    const { sent, patches } = mockResend({ row: playRow() });
+    const result = await resendFormEmail(baseEnv, "501", "notify");
+    assert.deepEqual(result, { ok: true, dryRun: true });
+    assert.equal(sent.length, 0);
+    assert.equal(patches.length, 0);
+  });
+
+  it("rejects unknown kinds, missing rows and forms", async () => {
+    mockResend({ row: null });
+    await assert.rejects(resendFormEmail(baseEnv, "1", "verify"), { status: 400 });
+    await assert.rejects(resendFormEmail(baseEnv, "1", "notify"), { status: 404 });
+    mock.restoreAll();
+    mockResend({ row: playRow(), form: null });
+    await assert.rejects(resendFormEmail(baseEnv, "501", "notify"), {
+      status: 404,
+      message: 'Form "play" is not in Sanity.',
     });
   });
 });

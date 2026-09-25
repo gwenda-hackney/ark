@@ -6,15 +6,14 @@
 import {
   buildConfirmationContent,
   confirmationHtml,
-  LOGO_CID,
 } from "./rsvp-email-template.js";
-import { fetchImageBuffer } from "./rsvp-tickets.js";
-import { isGmailConfigured, sendGmail } from "./gmail-send.js";
+import { fetchImageBuffer, LOGO_CID } from "../../../../shared/email-image.js";
+import { isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
 import {
   EVENTS_NO_REPLY_HEADERS,
   resolveSmtpFrom,
   SMTP_PURPOSE,
-} from "./smtp-from.js";
+} from "../../../../shared/smtp-from.js";
 
 /**
  * Send the RSVP confirmation. Best-effort: callers should not fail the RSVP if

@@ -65,7 +65,7 @@ const EXPECTED_FIELDS = [
     name: "Answers",
     body: { name: "Answers", type: "long_text" },
   },
-  // Stamped by the site (and ops resend) after each email actually goes out.
+  // Stamped by the site (and ops) after each email actually goes out.
   ...["Notify Sent", "Receipt Sent"].map((name) => ({
     name,
     body: {
@@ -76,6 +76,11 @@ const EXPECTED_FIELDS = [
       date_time_format: "24",
     },
   })),
+  // The receipt's edit link, saved by the site so ops can resend the receipt.
+  {
+    name: "Edit Link",
+    body: { name: "Edit Link", type: "url" },
+  },
 ];
 
 function readEnv(name) {

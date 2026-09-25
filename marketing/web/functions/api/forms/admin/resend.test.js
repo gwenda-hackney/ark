@@ -19,7 +19,7 @@ vi.mock("../../../_lib/form-store.js", () => ({
 vi.mock("../../../_lib/form-submit.js", () => ({
   fetchFormForSubmit: mocks.fetchFormForSubmit,
 }));
-vi.mock("../../../_lib/form-email.js", () => ({
+vi.mock("../../../../../../shared/forms/form-email.js", () => ({
   sendFormNotificationEmail: mocks.sendFormNotificationEmail,
   sendFormReceiptEmail: mocks.sendFormReceiptEmail,
 }));

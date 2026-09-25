@@ -9,7 +9,7 @@
  *  - the row is deleted at the end so ops never shows it.
  */
 import { resolvePublicOrigin } from "./public-origin.js";
-import { sendFormNotificationEmail, sendFormReceiptEmail } from "./form-email.js";
+import { sendFormNotificationEmail, sendFormReceiptEmail } from "../../../../shared/forms/form-email.js";
 import {
   FORM_STATUS_VERIFIED,
   deleteFormSubmission,

@@ -81,7 +81,7 @@ dist/          Build output (gitignored)
 - Staging gate: `SITE_PASSWORD` (Bitwarden Ark/Web → Cloudflare Pages via `web-secrets.yml`).
 - Secrets in Bitwarden SM follow one rule: `NAME` is shared, `NAME__LOCAL` / `__STAGING` / `__PRODUCTION` overrides it for that env. Per-app key lists and renames live in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). Do not add fallbacks across envs.
 - Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (runtime name; SM `BASEROW_WEBSITE_API_KEY__<ENV>`). Subscribe, Event Invites, and Form Submissions tables are resolved by name. The token selects the Website database.
-- Runtime non-secret config (pour targets, `forms.notify_email`, `web.origin`, Sanity dataset…): Baserow **Gwenda Config** database, read via `shared/config-db.js` with `BASEROW_CONFIG_API_KEY`. Rows are profiled by Env and Service; a runtime only writes its own Env rows. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
+- Runtime non-secret config (pour targets, `forms.notify_email`, Sanity dataset…): Baserow **Gwenda Config** database, read via `shared/config-db.js` with `BASEROW_CONFIG_API_KEY`. Rows are profiled by Env and Service; a runtime only writes its own Env rows. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
 ## What not to do
 

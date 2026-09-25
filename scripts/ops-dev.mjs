@@ -46,6 +46,9 @@ const DEV_VAR_KEYS = [
   "SANITY_API_TOKEN",
   "DEPLOY_WEBHOOK_SECRET",
   "FORMS_ADMIN_SECRET",
+  "GMAIL_SERVICE_ACCOUNT_JSON",
+  // Where form emails resent from /forms go on this machine.
+  "FORMS_NOTIFY_EMAIL",
   // Optional env overrides (normally config database):
   "SANITY_PROJECT_ID",
   "SANITY_DATASET",
@@ -174,7 +177,11 @@ async function main() {
 
   if (!LIVE) {
     const { missingLocalSettings } = await import("../shared/config.js");
-    const missing = missingLocalSettings({ ...process.env, SITE_ENV: "local" }, { services: ["ops"] });
+    // Ops resends the website's form emails, so it needs the web ones too.
+    const missing = missingLocalSettings(
+      { ...process.env, SITE_ENV: "local" },
+      { services: ["ops", "web"] },
+    );
     if (missing.length) {
       throw new Error(
         `Set these in the repo .env first:\n${missing

@@ -3,12 +3,11 @@
  * never from config-db.js (shared/config.test.js enforces it).
  *
  * Where a value comes from, in order:
- *   1. Worked out: settings with `compute` (web.origin) are never stored.
- *   2. A developer's machine: settings with `local` read that developer's own
+ *   1. A developer's machine: settings with `local` read that developer's own
  *      value from .env. `required` ones must be set; `npm run env:pull` writes
  *      a placeholder so a fresh machine fails loudly until the developer fills
  *      it in (e.g. their email for form notifications).
- *   3. The Gwenda Config database: this environment's row (dev, staging or
+ *   2. The Gwenda Config database: this environment's row (dev, staging or
  *      production; a developer's machine reads dev), else the "all" row.
  *
  * Machine state (build snapshots, scheduler state, secret fingerprints) also
@@ -31,7 +30,6 @@ import {
   setConfigValueFor,
   valuesFromRows,
 } from "./config-db.js";
-import { websiteUrls } from "./site-urls.js";
 
 export {
   CONFIG_CACHE_TTL_MS,
@@ -42,7 +40,6 @@ export {
   isLocalMachine,
   resetConfigCacheForTests,
   valuesFromRows,
-  websiteUrls,
 };
 
 /**
@@ -65,7 +62,6 @@ export const LOCAL_PLACEHOLDER = "SET-ME";
 /**
  * Every setting. `service` is the config Service column ("all" = both apps).
  * `local`: on a developer's machine, read `env` from .env instead.
- * `compute`: worked out from the environment, never stored.
  */
 export const SETTINGS = {
   "sanity.project_id": { service: "all", about: "Sanity project (dev: Gwenda Dev)" },
@@ -81,12 +77,6 @@ export const SETTINGS = {
   "pour_target.pour": { service: "ops", about: "Pour-cost target, pours (%)" },
   "pour_target.beer": { service: "ops", about: "Pour-cost target, beer (%)" },
   "pour_target.packaged": { service: "ops", about: "Pour-cost target, packaged (%)" },
-  "web.origin": {
-    service: "ops",
-    about: "The website ops calls (form resends)",
-    // A developer's machine runs `npm run web:dev` on :4321.
-    compute: (env) => (isLocalMachine(env) ? websiteUrls(env).preview : websiteUrls(env).live),
-  },
   "forms.notify_email": {
     service: "web",
     about: "Where form notifications go outside prod (prod: each form's own address)",
@@ -114,23 +104,22 @@ function missingLocal(entry, key) {
   );
 }
 
-/** Computed and local values that win over config rows for this runtime. */
+/** A developer's local values, which win over config rows on their machine. */
 function overrides(env, service) {
   const out = {};
+  if (!isLocalMachine(env)) return out;
   for (const [key, entry] of Object.entries(SETTINGS)) {
     if (entry.service !== service && entry.service !== "all") continue;
-    if (entry.compute) out[key] = entry.compute(env);
-    else if (entry.local && isLocalMachine(env)) {
-      const value = localValue(env, entry);
-      if (value) out[key] = value;
-    }
+    if (!entry.local) continue;
+    const value = localValue(env, entry);
+    if (value) out[key] = value;
   }
   return out;
 }
 
 /**
  * Every setting for one service in this runtime, as key → value. Config rows,
- * then computed and local values on top. Throws when the database can't be read.
+ * then local values on top. Throws when the database can't be read.
  */
 export async function getSettings(env, service) {
   return { ...(await rowValues(env, service)), ...overrides(env, service) };
@@ -142,7 +131,6 @@ export async function getSettings(env, service) {
  */
 export async function getSetting(env, service, key) {
   const entry = SETTINGS[key];
-  if (entry?.compute) return entry.compute(env);
   if (entry?.local && isLocalMachine(env)) {
     const value = localValue(env, entry);
     if (value) return value;
@@ -166,7 +154,6 @@ export async function getSettingOrEmpty(env, service, key) {
 
 /** Write this environment's row for a setting (e.g. pour targets from /config). */
 export async function setSetting(env, service, key, value) {
-  if (SETTINGS[key]?.compute) throw new ConfigError(`${key} is worked out, not stored.`, 400);
   await setConfigValue(env, service, key, value);
 }
 
@@ -232,9 +219,7 @@ export async function describeSettings(env) {
   const settings = Object.entries(SETTINGS).map(([key, entry]) => {
     const values = {};
     for (const envName of CONFIG_ENVS) {
-      values[envName] = entry.compute
-        ? { value: entry.compute({ SITE_ENV: envName }), from: "worked out" }
-        : winner(key, entry.service, envName);
+      values[envName] = winner(key, entry.service, envName);
     }
     const local = entry.local
       ? {
@@ -249,13 +234,10 @@ export async function describeSettings(env) {
       key,
       service: entry.service,
       about: entry.about || "",
-      kind: entry.compute ? "worked out" : "stored",
       values,
-      machine: entry.compute
-        ? { value: entry.compute({ SITE_ENV: "local" }), from: "worked out" }
-        : local
-          ? { value: local.value, from: `.env ${local.env}` }
-          : { ...winner(key, entry.service, "dev"), from: `dev ${winner(key, entry.service, "dev").from}` },
+      machine: local
+        ? { value: local.value, from: `.env ${local.env}` }
+        : { ...winner(key, entry.service, "dev"), from: `dev ${winner(key, entry.service, "dev").from}` },
       local,
     };
   });

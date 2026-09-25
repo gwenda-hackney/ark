@@ -6,20 +6,18 @@ import { isFormHoneypotTripped } from "../../_lib/form-honeypot.js";
 import {
   sendFormNotificationEmail,
   sendFormReceiptEmail,
-} from "../../_lib/form-email.js";
+} from "../../../../../shared/forms/form-email.js";
 import {
   FORM_STATUS_VERIFIED,
   markFormSubmissionEmailSent,
+  saveFormEditLink,
   upsertFormSubmission,
 } from "../../_lib/form-store.js";
-import { reportFormError } from "../../_lib/form-alert.js";
-import { requestFields } from "../../_lib/log.js";
+import { reportFormError } from "../../../../../shared/forms/form-alert.js";
+import { requestFields } from "../../../../../shared/log.js";
 import { formPublicPath } from "../../_lib/form-paths.js";
-import {
-  fetchFormForSubmit,
-  replyToFromAnswers,
-  validateFormAnswers,
-} from "../../_lib/form-submit.js";
+import { fetchFormForSubmit, validateFormAnswers } from "../../_lib/form-submit.js";
+import { replyToFromAnswers } from "../../../../../shared/forms/format.js";
 import {
   buildFormEditUrl,
   createFormEditToken,
@@ -141,9 +139,17 @@ export async function onRequestPost(context) {
     email: replyTo,
     slug,
   });
+  const signedEditUrl = await buildFormEditUrl(
+    context.request.url,
+    context.env,
+    editToken,
+  );
   const editUrl =
-    (await buildFormEditUrl(context.request.url, context.env, editToken)) ||
-    `${origin.replace(/\/$/, "")}${formPublicPath(slug)}`;
+    signedEditUrl || `${origin.replace(/\/$/, "")}${formPublicPath(slug)}`;
+  // Saved before any email goes out, so ops can resend a receipt that failed.
+  if (signedEditUrl) {
+    await saveFormEditLink(context.env, rowId, signedEditUrl);
+  }
 
   try {
     const sent = await sendFormNotificationEmail(context.env, {

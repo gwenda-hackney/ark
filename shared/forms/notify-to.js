@@ -1,9 +1,9 @@
 /**
- * Non-secret web settings from the central Baserow config database
- * (Service = web). See docs/config.md.
+ * Where a form's notification goes. The setting belongs to the website
+ * (Service = web); ops reads the same one when it resends. See docs/config.md.
  */
-import { environmentOf, getSetting, getSettingOrEmpty } from "../../../../shared/config.js";
-import { log } from "./log.js";
+import { environmentOf, getSetting, getSettingOrEmpty } from "../config.js";
+import { log } from "../log.js";
 
 export const WEB_CONFIG_KEYS = {
   formsNotifyEmail: "forms.notify_email",

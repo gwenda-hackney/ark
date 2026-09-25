@@ -1,6 +1,13 @@
 import { baserowFormSubmissionRowsUrl } from "./baserow.js";
-import { reportFormError } from "./form-alert.js";
-import { diffFormAnswers, replyToFromAnswers } from "./form-submit.js";
+import { reportFormError } from "../../../../shared/forms/form-alert.js";
+import { diffFormAnswers } from "./form-submit.js";
+import { replyToFromAnswers } from "../../../../shared/forms/format.js";
+import {
+  FORM_EDIT_LINK_FIELD,
+  FORM_EMAIL_SENT_FIELDS,
+} from "../../../../shared/forms/submission-fields.js";
+
+export { FORM_EMAIL_SENT_FIELDS };
 
 async function reportStoreFailure(env, extra) {
   await reportFormError(env, "form_store_failed", extra);
@@ -9,7 +16,6 @@ async function reportStoreFailure(env, extra) {
 export const FORM_STATUS_PENDING = "Pending";
 export const FORM_STATUS_VERIFIED = "Verified";
 
-/** Datetime columns stamped after each real (non dry-run) send. */
 export const MARK_RETRY_DELAY_MS = 750;
 
 /** Baserow's 5xx pages are HTML; an alert should say what happened, not paste the page. */
@@ -18,11 +24,6 @@ export function readableUpstreamDetail(status, detail) {
   if (/<html|<!doctype/i.test(text)) return `Baserow server error (${status}).`;
   return text.slice(0, 300);
 }
-
-export const FORM_EMAIL_SENT_FIELDS = {
-  notify: "Notify Sent",
-  receipt: "Receipt Sent",
-};
 
 function selectValue(field) {
   if (field == null) return "";
@@ -578,6 +579,38 @@ export async function markFormSubmissionEmailSent(env, rowId, kind, sentAt) {
     return { ok: false, error: "Could not mark email sent." };
   }
   return { ok: true, sentAt: when };
+}
+
+/**
+ * Save the receipt's edit link on the row, so ops can resend the receipt
+ * without the signing secret or this site's address. Best effort: a missing
+ * link only means ops's resend links to the form instead.
+ */
+export async function saveFormEditLink(env, rowId, editUrl) {
+  const id = String(rowId ?? "").trim();
+  if (!id || !editUrl) return { ok: false, error: "Missing submission." };
+
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+
+  const upstream = await fetch(resolved.rowUrl(id), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Token ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ [FORM_EDIT_LINK_FIELD]: editUrl }),
+  });
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => "");
+    await reportStoreFailure(env, {
+      op: "save_edit_link",
+      status: upstream.status,
+      detail: readableUpstreamDetail(upstream.status, detail),
+    });
+    return { ok: false, error: "Could not save the edit link." };
+  }
+  return { ok: true };
 }
 
 /** Remove one submission row (used by the post-deploy form test to clean up). */

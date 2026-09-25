@@ -19,6 +19,7 @@ on:
   push:
     paths:
       - "marketing/web/**"
+      - "shared/**"
       - "package-lock.json"
       - ".github/workflows/web.yml"
       - ".github/workflows/verify.yml"

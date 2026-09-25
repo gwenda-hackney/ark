@@ -3,7 +3,7 @@ import {
   formatFormAlertEmail,
   reportFormError,
   shouldSendFormAlert,
-} from "./form-alert.js";
+} from "../../../../shared/forms/form-alert.js";
 
 const productionEnv = {
   SITE_ENV: "production",

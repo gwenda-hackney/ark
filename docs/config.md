@@ -6,7 +6,7 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 |-------|--------|----------|
 | Secrets | Bitwarden Secrets Manager → `.env.secrets` / Cloudflare Pages secrets | API tokens, passwords, signing keys |
 | Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, SMTP host |
-| Runtime non-secret config | Baserow **Gwenda Config** database (one table, profiled by Env + Service) | Pour targets, Sanity project/dataset, dev notify inbox, web origin for ops |
+| Runtime non-secret config | Baserow **Gwenda Config** database (one table, profiled by Env + Service) | Pour targets, Sanity project/dataset, dev notify inbox |
 | Marketing product flags | Sanity `siteSettings` | Booking / gallery toggles |
 
 | File | Role |
@@ -82,9 +82,8 @@ Non-secret settings live in one Baserow database, **Gwenda Config** (`569392`, t
 
 All code reads settings through **`shared/config.js`**, never the database directly (`shared/config.test.js` fails the build otherwise). It decides where each value comes from, in order:
 
-1. **Worked out.** Some settings are never stored: `web.origin` comes from the environment's website (`shared/site-urls.js`: prod → gwenda.co.uk, dev → gwenda-web-dev, a developer's machine → localhost:4321). Safe: it's a fixed list in code, never taken from a request.
-2. **A developer's own value.** On a developer's machine (`SITE_ENV=local`, set by `npm run ops:dev` / `web:dev`), settings marked `local` read that developer's `.env`. `npm run env:pull` writes a `SET-ME` placeholder for any that are missing, and `ops:dev` / `web:dev` refuse to start until it's replaced. These are never pushed to the shared Bitwarden note.
-3. **The Config database.** This environment's row, else the `all` row. A developer's machine reads the **dev** rows: dev settings are its defaults.
+1. **A developer's own value.** On a developer's machine (`SITE_ENV=local`, set by `npm run ops:dev` / `web:dev`), settings marked `local` read that developer's `.env`. `npm run env:pull` writes a `SET-ME` placeholder for any that are missing, and `ops:dev` / `web:dev` refuse to start until it's replaced. These are never pushed to the shared Bitwarden note.
+2. **The Config database.** This environment's row, else the `all` row. A developer's machine reads the **dev** rows: dev settings are its defaults.
 
 The environment comes from `SITE_ENV` (or `PUBLIC_IS_STAGING`): `dev` (hosted dev), `local` (a developer's machine, which is dev), `staging`, `production`. A runtime writes only its own Env row (e.g. ops `/config` pour targets). Values are cached for 60 seconds per isolate. Every env reads with the same token, SM `BASEROW_CONFIG_API_KEY` (Ark, shared), which only sees this database.
 
@@ -100,7 +99,6 @@ Ops **Developer tools → Settings** lists every setting for each environment an
 | `google.calendar_id` | dev, production / ops | Calendar that receives ops nights | dev row |
 | `lightspeed.archive_skus` | per env / ops | Lightspeed SKUs archived from the ops stock view | |
 | `ops.admin_emails` | all / ops | Who sees Developer tools (everyone in dev) | |
-| `web.origin` | worked out | Website ops calls for form resends | `http://localhost:4321` |
 | `forms.notify_email` | dev, staging / web | Form notifications outside production: `alerts@gwenda.co.uk`. Required outside production (none means no email). Production has no row: each form's own address. | **`FORMS_NOTIFY_EMAIL`** in `.env` (your email) |
 
 Do **not** put credentials here.
@@ -180,4 +178,6 @@ Mail goes out through the Gmail API as `GMAIL_SERVICE_ACCOUNT_JSON` (domain-wide
 
 Each submission sends two emails: a **notification** to the team and a **receipt** to the applicant. After each one actually goes out (not a local dry run) the row is stamped in `Notify Sent` / `Receipt Sent`.
 
-Ops `/forms` shows both stamps and can send or resend either email. Ops calls `POST {web.origin}/api/forms/admin/resend` with `{ rowId, kind: "notify" | "receipt" }` and `Authorization: Bearer FORMS_ADMIN_SECRET`. The site re-renders the email from the stored row and the Sanity form, sends it, and stamps the row. `FORMS_ADMIN_SECRET` is per env (`__LOCAL`, `__STAGING`, `__PRODUCTION`), and ops and web read the same one for their env.
+The code that renders and sends both emails lives in `shared/forms/` and is used by both apps. Ops `/forms` shows both stamps and can send or resend either email itself: it reads the row, loads the form from the live site's Sanity dataset (published only), sends through the same Gmail mailbox (`GMAIL_SERVICE_ACCOUNT_JSON`, `SMTP_USER` in ops' wrangler `[vars]`), and stamps the row. Ops never calls the website.
+
+The receipt's "change your application" link is signed with the website's secret. The site saves the finished link in the row's `Edit Link` column when it stores the submission, so ops can resend a receipt without the secret or the website's address. Rows stored before that column existed link to the form's page on gwenda.co.uk instead.

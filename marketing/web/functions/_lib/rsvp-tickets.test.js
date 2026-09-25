@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildAppleWalletPass,
   buildCalendarTicket,
-  fetchImageBuffer,
   formatTicketTitle,
   WALLET_STRIP_SIZES,
   walletStripImageUrl,
 } from "./rsvp-tickets.js";
+import { fetchImageBuffer } from "../../../../shared/email-image.js";
 
 const APPLE_WALLET_ENV = {
   APPLE_WALLET_PASS_TYPE_ID: "pass.co.uk.gwenda.events",

@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { diffFormAnswers, validateFormAnswers } from "./form-submit.js";
 import {
   formatFormEmail,
   formatFormNotifyHtml,
   formatFormNotifySubject,
   formatFormReceiptSubject,
-  diffFormAnswers,
   replyToFromAnswers,
-  validateFormAnswers,
-} from "./form-submit.js";
+} from "../../../../shared/forms/format.js";
 
 const sampleForm = {
   title: "Play at Gwenda",

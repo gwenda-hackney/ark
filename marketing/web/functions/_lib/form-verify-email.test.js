@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildFormVerifyEmailHtml } from "./form-verify-email.js";
-import { LOGO_CID } from "./rsvp-email-template.js";
+import { LOGO_CID } from "../../../../shared/email-image.js";
 
 describe("buildFormVerifyEmailHtml", () => {
   it("renders branded mark, CTA, and verify URL on the button only", () => {

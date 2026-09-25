@@ -6,11 +6,11 @@ import {
   formatRsvpContent,
   greetingLine,
   guestLine,
-  LOGO_CID,
   mergeRsvpConfirmation,
 } from "./rsvp-email-template.js";
+import { LOGO_CID } from "../../../../shared/email-image.js";
 import { buildCalendarTicket, ticketAttachmentBaseName } from "./rsvp-tickets.js";
-import { SITE_ADDRESS, VENUE_MAPS_URL } from "./site-location.js";
+import { SITE_ADDRESS, VENUE_MAPS_URL } from "../../../../shared/site-location.js";
 
 describe("greetingLine", () => {
   it("uses the guest name when present", () => {

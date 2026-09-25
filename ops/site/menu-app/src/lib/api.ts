@@ -607,7 +607,6 @@ export type SettingRow = {
   key: string;
   service: string;
   about: string;
-  kind: "stored" | "worked out";
   values: Record<string, SettingValue>;
   machine: SettingValue;
   local: { env: string; required: boolean; hint: string; value: string | null } | null;
