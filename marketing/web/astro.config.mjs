@@ -242,6 +242,10 @@ function devFormsApi() {
           process.env.BASEROW_CONFIG_API_KEY || env.BASEROW_CONFIG_API_KEY,
         FORMS_ADMIN_SECRET:
           process.env.FORMS_ADMIN_SECRET || env.FORMS_ADMIN_SECRET,
+        // A developer's own inbox for form emails (repo .env); hosted
+        // non-prod sites use the config setting (alerts@).
+        FORMS_NOTIFY_EMAIL:
+          process.env.FORMS_NOTIFY_EMAIL || env.FORMS_NOTIFY_EMAIL,
         GMAIL_SERVICE_ACCOUNT_JSON:
           process.env.GMAIL_SERVICE_ACCOUNT_JSON ||
           env.GMAIL_SERVICE_ACCOUNT_JSON,

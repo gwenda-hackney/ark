@@ -26,7 +26,8 @@ const API = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\
 const WORKSPACE_ID = process.env.BASEROW_CONFIG_WORKSPACE_ID?.trim() || "208709";
 const TOKEN_NAME = "gwenda-config";
 
-const DEV_NOTIFY = "dscalamogna@gwenda.co.uk";
+/** Every hosted non-prod site. A developer's machine overrides with FORMS_NOTIFY_EMAIL. */
+const DEV_NOTIFY = "alerts@gwenda.co.uk";
 
 /** [Name, Value, Env, Service, Notes] */
 const SEED_ROWS = [
