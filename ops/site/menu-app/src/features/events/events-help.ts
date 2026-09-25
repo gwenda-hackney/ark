@@ -50,7 +50,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "Saving a series or a night updates Google Calendar. Update calendar on a saved series sends the upcoming nights again without saving. Save first if the series has unsaved edits.",
 	},
 	{
-		title: "Staging and release",
-		body: "Saving a series or a night stages it: gwenda-staging's What's on shows it on refresh, and staging rebuilds by itself when new pages appear. The header says Staged · not live until it is published. Publish live… opens Website > Staging → live filtered to this series, where you compare staging with the live site and publish. The live site only changes from there. If saving could not stage (for example, no description yet), the header says Not staged and Stage retries. In local ops, saving updates a draft only your local site shows; nothing reaches staging or the live site.",
+		title: "Preview site and website",
+		body: "Saving puts the event on the preview site (gwenda-staging), so you can check it there. When it's ready, press Put on website: you'll see what changes, then it goes on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
 	},
 ];

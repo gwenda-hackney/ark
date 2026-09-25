@@ -165,9 +165,27 @@ export async function getConfigString(env, service, key) {
  * A runtime never writes `all` or another env's rows.
  */
 export async function setConfigValue(env, service, key, value) {
+  return setConfigValueFor(env, service, key, configEnvName(env), value);
+}
+
+/**
+ * Exact row for one env + service (no fallback to `all`), bypassing the cache.
+ * For machine state kept per site (build snapshots, secret fingerprints),
+ * not for settings: settings use getConfigValues.
+ */
+export async function getConfigValueFor(env, service, key, envName) {
+  const api = client(env);
+  const rows = await listRows(api, await configTableId(api));
+  const match = rows.find(
+    (row) => text(row.Name) === key && scope(row.Env) === envName && scope(row.Service) === service,
+  );
+  return match ? text(match.Value) : "";
+}
+
+/** Create or update the exact row for one env + service. */
+export async function setConfigValueFor(env, service, key, envName, value) {
   const api = client(env);
   const tableId = await configTableId(api);
-  const envName = configEnvName(env);
   const rows = await listRows(api, tableId);
   const match = rows.find(
     (row) => text(row.Name) === key && scope(row.Env) === envName && scope(row.Service) === service,

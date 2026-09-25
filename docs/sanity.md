@@ -21,17 +21,28 @@ Local Studio and `npm run dev` work against the staging dataset with drafts visi
 3. **Review** https://gwenda-staging.pages.dev.
 4. **Publish live** — ops **Website → Staging → live** diffs published staging against production, copies what you pick (or everything), then rebuilds gwenda.co.uk.
 
-### Ops Website page (Staging → live)
+### Publishing from ops (editor flow)
 
-One page compares staging with live in three sections:
+The ops editor is not technical, so ops uses plain words: *preview site* (gwenda-staging) and *website* (gwenda.co.uk).
 
-- **Content**: published Sanity documents that differ, with a field-level diff. **Publish to live** copies staging → production (then rebuilds live); **Reset staging from live** copies production → staging (then rebuilds staging). Both work on all documents or the ones you tick.
-- **Code**: the commit each site runs, and the commits on staging that live lacks (via the site-deploy webhook's `/compare`). Code ships when `release` moves, not from this page.
-- **Databases**: Baserow production vs its copies, table by table (production Ops DB 556507 vs the Gwenda Dev copy 560292; production Website DB 461843 vs Website Staging 564496). Rows are compared by value, so ids and empty-vs-null differences don't count. **Copy production over it** runs `.github/workflows/baserow-copy.yml` through the webhook's `/baserow-copy`; production is only read.
+1. **Save** an event: it goes on the preview site (published in `staging`).
+2. **Put on website** (event header): shows what changes in plain words, then puts that event on the preview site and copies only its documents (series, nights, removed nights, and anything they reference that changed) to `production`. Skipping the preview check is allowed.
+3. **Delete** asks "Also take it off the website now?" when the event is on the website.
+4. The **Website** page (menu, with a badge) shows whether gwenda.co.uk is up to date, what is waiting, and anything saved but not put on the website ("Put all on the website").
+
+**Builds are batched.** Putting something on the website changes the data at once (What's on reads it live), but static pages (night, series, artist pages) wait for a build. Each build records a snapshot of what it was made from (`scripts/site-build-snapshot.mjs`, config key `site.build_snapshot`, Service `web`, Env = site). Ops compares current data with it: that is the badge count. The site-deploy webhook's cron calls ops `/api/web/tick` every 5 minutes; a site with pending changes and **10 quiet minutes** gets one build. One automatic retry after a failure, then the page asks the editor to press *Try again*. *Update website now* skips the wait. Scheduler state: config key `site.auto_update` (Service `ops`).
+
+### Developer tools (admins)
+
+Settings → Developer tools (`/web/dev`), for emails listed in config `ops.admin_emails` (Service `ops`; everyone in local ops):
+
+- **Content**: published documents that differ, field by field; copy either way (publish to live, or reset staging from live).
+- **Code**: commits on staging that live lacks (webhook `/compare`). Code ships when `release` moves.
+- **Databases**: Baserow production vs its copies (Ops 556507 vs Gwenda Dev 560292; Website 461843 vs Website Staging 564496), table by table; **Copy production over it** runs `baserow-copy.yml`.
 
 ### Ops events and local ops
 
-- **Hosted ops:** saving an event stages it (writes its series and nights to `staging`, published). What's on on gwenda-staging reads that live; staging rebuilds itself when new series or night pages appear. The live site changes only from ops Website → Staging → live.
+- **Hosted ops:** saving an event stages it (writes its series and nights to `staging`, published). What's on on gwenda-staging reads that live; the rest of the preview site updates after 10 quiet minutes. The website changes only through Put on website or the Website page.
 - **Local ops** (`SITE_ENV=local`): saving writes **drafts** in `staging`, which only the local site shows (`previewDrafts`). Local ops cannot write published staging documents, production, or trigger any deploy (the server returns 403). Studio cannot publish or delete `event` / `eventSeries` documents, so a local draft can never be pushed to staging from Studio; use Discard to clear one.
 - A removal cannot be previewed locally: deleting a night in local ops only drops its draft.
 

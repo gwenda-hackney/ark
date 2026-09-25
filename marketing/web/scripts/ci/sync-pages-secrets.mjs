@@ -6,12 +6,20 @@
  * Usage:
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda-staging --profile staging
  *   node scripts/ci/sync-pages-secrets.mjs --project gwenda --profile production
+ *   ... --if-changed   skip when nothing changed since the last sync (deploys)
+ *
+ * Every wrangler call takes a second or two, so a full sync is ~1 minute.
+ * Pages keeps secrets across deployments, so deploys pass --if-changed: the
+ * planned puts and deletes are fingerprinted and compared with the fingerprint
+ * saved after the last sync (Gwenda Config, web.pages_secrets_fingerprint).
  */
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { APP_SECRETS } from "../../../../scripts/lib/bitwarden-sm.mjs";
+import { getConfigValueFor, setConfigValueFor } from "../../../../shared/config-db.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(scriptDir, "../..");
@@ -40,6 +48,8 @@ function getArg(name) {
 
 const project = getArg("--project") || process.env.PAGES_PROJECT_NAME;
 const profile = getArg("--profile");
+const ifChanged = args.includes("--if-changed");
+const FINGERPRINT_KEY = "web.pages_secrets_fingerprint";
 
 if (!project || !profile) {
   console.error(
@@ -56,6 +66,9 @@ const wranglerEnv = {
 
 /** Pages Functions secrets are scoped per deployment environment. Preview branch deploys need preview secrets. */
 const deploymentEnvs = ["production", "preview"];
+
+/** Planned changes; nothing touches Cloudflare until the plan runs. */
+const plan = [];
 
 function putSecret(key, value) {
   if (!value) {
@@ -75,6 +88,10 @@ function putSecret(key, value) {
     }
     value = cleaned;
   }
+  plan.push({ op: "put", key, value });
+}
+
+function applyPut(key, value) {
   for (const deploymentEnv of deploymentEnvs) {
     const result = spawnSync(
       process.execPath,
@@ -105,6 +122,10 @@ function putSecret(key, value) {
 }
 
 function deleteSecret(key) {
+  plan.push({ op: "delete", key });
+}
+
+function applyDelete(key) {
   for (const deploymentEnv of deploymentEnvs) {
     const result = spawnSync(
       process.execPath,
@@ -245,9 +266,50 @@ if (!run) {
 }
 
 run();
-await putPlainSmtpVars();
+for (const key of LEFTOVER_CONFIG_SECRET_KEYS) deleteSecret(key);
 
+/** Values are hashed, never stored. Any change to keys, values or targets changes it. */
+const fingerprint = createHash("sha256")
+  .update(
+    JSON.stringify({
+      project,
+      profile,
+      deploymentEnvs,
+      smtp: SMTP_PLAIN_VARS,
+      plan: plan.map((step) => [
+        step.op,
+        step.key,
+        step.value == null ? "" : createHash("sha256").update(step.value).digest("hex"),
+      ]),
+    }),
+  )
+  .digest("hex");
+
+async function storedFingerprint() {
+  try {
+    return await getConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile);
+  } catch (error) {
+    console.warn(`Could not read the last secret fingerprint (${error.message}); syncing.`);
+    return "";
+  }
+}
+
+if (ifChanged && (await storedFingerprint()) === fingerprint) {
+  console.log(`Pages secrets for ${project} (${profile}) unchanged since the last sync; skipped.`);
+  process.exit(0);
+}
+
+for (const step of plan) {
+  if (step.op === "put") applyPut(step.key, step.value);
+  else applyDelete(step.key);
+}
+await putPlainSmtpVars();
 console.log(
   "Plain SMTP host/port/user are project vars; only SMTP_PASSWORD is a Pages secret. Form From/Reply-To live in Sanity.",
 );
-for (const key of LEFTOVER_CONFIG_SECRET_KEYS) deleteSecret(key);
+
+try {
+  await setConfigValueFor(process.env, "web", FINGERPRINT_KEY, profile, fingerprint);
+} catch (error) {
+  console.warn(`Synced, but could not save the fingerprint (${error.message}); the next deploy syncs again.`);
+}

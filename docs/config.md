@@ -104,6 +104,18 @@ npm run setup:baserow-config            # create/repair DB, table, fields, seed 
 npm run setup:baserow-config -- --token # also mint the read/write token into SM
 ```
 
+### Machine state in Gwenda Config
+
+A few rows are written by code, not people. Leave them alone:
+
+| Key | Service | Env | Written by | Holds |
+|---|---|---|---|---|
+| `site.build_snapshot` | web | staging / production | deploy job (`site-build-snapshot.mjs`) | What the last build was made from |
+| `site.auto_update` | ops | staging / production | ops scheduler tick | Quiet timer, running build, failures |
+| `web.pages_secrets_fingerprint` | web | staging / production | `sync-pages-secrets.mjs` | Hash of the last Pages secret sync; deploys skip the sync when unchanged |
+
+`ops.admin_emails` (Service ops) is a normal setting: comma-separated emails that see Developer tools.
+
 ## Ops Baserow workspaces
 
 Ops uses **two Baserow workspaces** so a local token cannot see production data:

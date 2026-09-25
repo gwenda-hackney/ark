@@ -1,4 +1,5 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
+import { requireAdmin } from "../../_lib/admin.js";
 import { compareDatabasePair, databasePairs } from "../../_lib/db-diff.js";
 import { dispatchBaserowCopy } from "../../_lib/site-deploy.js";
 
@@ -6,6 +7,7 @@ const COPY_TARGETS = { ops: "ops-dev", website: "website-staging" };
 
 /** GET ?pair=ops|website compares one pair; without it, lists the pairs. */
 export const onRequestGet = withApiHandler(async (context) => {
+  await requireAdmin(context.env, context.request);
   const pair = new URL(context.request.url).searchParams.get("pair");
   if (!pair) {
     const pairs = Object.values(databasePairs(context.env)).map((row) => ({
@@ -21,6 +23,7 @@ export const onRequestGet = withApiHandler(async (context) => {
 
 /** POST { pair, confirm: pair } copies production over that pair's copy. */
 export const onRequestPost = withApiHandler(async (context) => {
+  await requireAdmin(context.env, context.request);
   const body = await readJsonBody(context.request);
   const pair = String(body?.pair || "");
   const target = COPY_TARGETS[pair];

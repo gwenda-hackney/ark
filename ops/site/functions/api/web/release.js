@@ -1,14 +1,11 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
+import { requireAdmin } from "../../_lib/admin.js";
 import { isLocalOps } from "../../_lib/sanity.js";
 import {
   getReleaseDiff,
   markReleasedInOps,
   publishRelease,
 } from "../../_lib/release.js";
-import {
-  dispatchProductionDeploy,
-  dispatchStagingContentDeploy,
-} from "../../_lib/site-deploy.js";
 
 /** Staging vs production, published documents only. */
 export const onRequestGet = withApiHandler(async (context) => {
@@ -19,11 +16,14 @@ export const onRequestGet = withApiHandler(async (context) => {
 /**
  * Publish to production: `{ confirm: "production", ids?: string[] }`.
  * Reset staging from live: `{ confirm: "staging", direction: "to-staging" }`.
- * Without ids, everything that differs is copied. Then the target rebuilds.
+ * Without ids, everything that differs is copied. The site itself updates
+ * once edits go quiet (site-pending.js), so several publishes share one build.
  */
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
   const direction = body?.direction === "to-staging" ? "to-staging" : "to-production";
+  // Resetting the preview site from live is a developer tool.
+  if (direction === "to-staging") await requireAdmin(context.env, context.request);
   const expected = direction === "to-staging" ? "staging" : "production";
   if (body?.confirm !== expected) {
     return jsonResponse({ error: `Send confirm: "${expected}" to overwrite ${expected}.` }, 400);
@@ -46,18 +46,7 @@ export const onRequestPost = withApiHandler(async (context) => {
       );
     }
   }
-  let deploy = null;
-  if (result.written.length || result.deleted.length) {
-    const rebuild =
-      direction === "to-staging" ? dispatchStagingContentDeploy : dispatchProductionDeploy;
-    try {
-      deploy = await rebuild(context.env);
-    } catch (error) {
-      warnings.push(
-        `Copied, but the ${direction === "to-staging" ? "staging" : "live"} site rebuild did not start: ${error?.message || "unknown error"}.`,
-      );
-    }
-  }
+  const deploy = null;
   return jsonResponse(
     { ok: true, ...result, warnings, marked, deploy },
     deploy ? 202 : 200,

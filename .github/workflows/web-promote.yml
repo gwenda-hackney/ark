@@ -56,7 +56,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Compute build metadata
         id: buildmeta
@@ -89,6 +89,7 @@ jobs:
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-dataset: production
           secrets-profile: production
+          snapshot-site: production
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "556507"
 
@@ -123,7 +124,20 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
+      # Studio only needs redeploying when its code changed (~30s otherwise).
+      - name: Did Studio change since the last release?
+        id: studio
+        run: |
+          last=$(git describe --tags --abbrev=0 --match '20*' HEAD^ 2>/dev/null || true)
+          if [ -z "$last" ] || ! git diff --quiet "$last" HEAD -- marketing/studio package-lock.json; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Studio unchanged since $last; skipping its deploy."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy production Studio
+        if: steps.studio.outputs.changed == 'true'
         run: npm run studio:deploy
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}

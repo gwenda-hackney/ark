@@ -4,6 +4,8 @@ export type Env = {
   DEPLOY_WEBHOOK_SECRET: string;
   GITHUB_TOKEN: string;
   GITHUB_REPOSITORY: string;
+  /** Ops base URL for the scheduled auto-update tick. */
+  OPS_URL?: string;
 };
 
 export type DeployRequest = {

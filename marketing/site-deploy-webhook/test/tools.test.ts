@@ -91,3 +91,20 @@ describe("handleBaserowCopy", () => {
     expect(JSON.parse(String(init.body))).toEqual({ ref: "main", inputs: { target: "ops-dev" } });
   });
 });
+
+describe("runOpsTick", () => {
+  it("posts to the ops tick with the shared secret", async () => {
+    const { runOpsTick } = await import("../src/index");
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await runOpsTick({ ...env, OPS_URL: "https://ops.example/" });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://ops.example/api/web/tick");
+    expect(init.headers.Authorization).toBe("Bearer test-secret");
+  });
+
+  it("does nothing without OPS_URL", async () => {
+    const { runOpsTick } = await import("../src/index");
+    expect(await runOpsTick(env)).toBeNull();
+  });
+});
