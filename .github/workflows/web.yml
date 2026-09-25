@@ -1,6 +1,7 @@
 name: Web
 
-# Marketing site: staging from main, branch previews, and a release preview.
+# Marketing site: staging from main, branch previews, and the production
+# preview on every push to release (release-preview.gwenda-blue.pages.dev).
 # Live deploys are web-promote.yml (build release; content comes from ops Release).
 
 run-name: >-
@@ -58,14 +59,18 @@ jobs:
             elif [ "$ACTION" = "auto" ]; then
               case "${{ github.ref_name }}" in
                 main) MODE=staging-code ;;
-                develop|release) MODE=verify-only ;;
+                release) MODE=production-preview ;;
+                develop) MODE=verify-only ;;
                 *) MODE=branch-preview ;;
               esac
             fi
           elif [ "${{ github.event_name }}" = "push" ]; then
+            # release builds the production preview (release-preview alias, never
+            # the live domain). Going live is the separate, manual Web promote run.
             case "${{ github.ref_name }}" in
               main) MODE=staging-code ;;
-              develop|release) MODE=verify-only ;;
+              release) MODE=production-preview ;;
+              develop) MODE=verify-only ;;
               *) MODE=branch-preview ;;
             esac
           fi
