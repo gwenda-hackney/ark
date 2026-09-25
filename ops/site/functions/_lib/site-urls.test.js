@@ -5,7 +5,7 @@ import { runsOnMachine } from "./sanity.js";
 import { siteUrls } from "./site-urls.js";
 
 const prod = { SITE_ENV: "production" };
-const hostedDev = { SITE_ENV: "dev", OPS_HOSTED: "1" };
+const hostedDev = { SITE_ENV: "dev" };
 const machine = { SITE_ENV: "local" };
 
 test("each ops belongs to one environment's website", () => {

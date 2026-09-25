@@ -265,6 +265,7 @@ export function parseShellPath(path) {
     return { page: "artists", slug: part || null, isNew: false };
   }
   if (p === "/web/dev") return { page: "web", view: "dev" };
+  if (p === "/web/dev/settings") return { page: "web", view: "settings" };
   // Old link to the release page: the Website page covers it now.
   if (p === "/web/release") return { page: "web", view: null };
   if (p === "/web" || p.startsWith("/web/")) return { page: "web", view: null };

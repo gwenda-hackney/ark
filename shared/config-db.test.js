@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { configEnvName, valuesFromRows } from "./config-db.js";
+import { environmentOf, isLocalMachine, valuesFromRows } from "./config-db.js";
 
 const row = (Name, Value, Env = "all", Service = "all") => ({
   Name,
@@ -9,13 +9,16 @@ const row = (Name, Value, Env = "all", Service = "all") => ({
   Service: { value: Service },
 });
 
-describe("configEnvName", () => {
+describe("environmentOf", () => {
   it("maps SITE_ENV and the staging flag", () => {
-    assert.equal(configEnvName({ SITE_ENV: "local" }), "local");
-    assert.equal(configEnvName({ SITE_ENV: "staging" }), "staging");
-    assert.equal(configEnvName({ PUBLIC_IS_STAGING: "true" }), "staging");
-    assert.equal(configEnvName({ SITE_ENV: "production" }), "production");
-    assert.equal(configEnvName({}), "production");
+    assert.equal(environmentOf({ SITE_ENV: "local" }), "dev");
+    assert.equal(environmentOf({ SITE_ENV: "dev" }), "dev");
+    assert.equal(isLocalMachine({ SITE_ENV: "local" }), true);
+    assert.equal(isLocalMachine({ SITE_ENV: "dev" }), false);
+    assert.equal(environmentOf({ SITE_ENV: "staging" }), "staging");
+    assert.equal(environmentOf({ PUBLIC_IS_STAGING: "true" }), "staging");
+    assert.equal(environmentOf({ SITE_ENV: "production" }), "production");
+    assert.equal(environmentOf({}), "production");
   });
 });
 

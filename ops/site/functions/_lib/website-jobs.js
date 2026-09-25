@@ -15,7 +15,7 @@
  * A step that fails is remembered against the event's content, so it is not
  * retried in a loop. Changing the event, or "Try again", clears it.
  */
-import { configEnvName, getConfigValueFor, setConfigValueFor } from "../../../../shared/config-db.js";
+import { environmentOf, readState, writeState } from "../../../../shared/config.js";
 import {
   calendarConfigured,
   calendarNightsBehind,
@@ -62,12 +62,12 @@ export function parseFailures(text) {
 
 async function readFailures(env) {
   return parseFailures(
-    await getConfigValueFor(env, "ops", FAILURES_KEY, configEnvName(env)).catch(() => ""),
+    await readState(env, "ops", FAILURES_KEY, environmentOf(env)).catch(() => ""),
   );
 }
 
 async function writeFailures(env, failures) {
-  await setConfigValueFor(env, "ops", FAILURES_KEY, configEnvName(env), JSON.stringify(failures));
+  await writeState(env, "ops", FAILURES_KEY, environmentOf(env), JSON.stringify(failures));
 }
 
 /** A failure only counts while the event is unchanged since it failed. */

@@ -77,7 +77,7 @@ export async function configuredCalendarId(env) {
   if (siteEnvName(env) === "production") {
     return normalizeCalendarId(env?.GOOGLE_CALENDAR_ID);
   }
-  if (siteEnvName(env) === "local") {
+  if (siteEnvName(env) === "dev") {
     return normalizeCalendarId(env?.GOOGLE_CALENDAR_ID_LOCAL);
   }
   return "";

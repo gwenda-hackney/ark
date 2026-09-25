@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resetConfigCacheForTests } from "../../../../shared/config-db.js";
+import { resetConfigCacheForTests } from "../../../../shared/config.js";
 import { resolveFormNotifyTo } from "./web-config.js";
 
 function stubConfigRows(rows) {
@@ -46,22 +46,22 @@ describe("resolveFormNotifyTo", () => {
 
   it("outside prod, never falls back to the form's real inbox", async () => {
     const form = { notifyEmail: "play@gwenda.co.uk" };
-    // No settings access at all.
+    // A developer's machine without their own address.
     await expect(resolveFormNotifyTo({ SITE_ENV: "local" }, form)).rejects.toThrow(
-      /forms.notify_email is not set/,
+      /FORMS_NOTIFY_EMAIL is not set/,
     );
     // Settings reachable but no override row for this env.
     stubConfigRows([row("forms.notify_email", "dev@gwenda.co.uk", "staging", "web")]);
     await expect(
       resolveFormNotifyTo({ SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" }, form),
-    ).rejects.toThrow(/not set for local/);
+    ).rejects.toThrow(/not set for dev/);
   });
 
   it("prefers this env's forms.notify_email row", async () => {
     stubConfigRows([
-      row("forms.notify_email", "dev@gwenda.co.uk", "local", "web"),
+      row("forms.notify_email", "dev@gwenda.co.uk", "dev", "web"),
     ]);
-    const env = { SITE_ENV: "local", BASEROW_CONFIG_API_KEY: "cfg" };
+    const env = { SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" };
     expect(
       await resolveFormNotifyTo(env, { notifyEmail: "play@gwenda.co.uk" }),
     ).toBe("dev@gwenda.co.uk");
@@ -89,7 +89,7 @@ describe("resolveFormNotifyTo", () => {
   });
 
   it("hosted dev uses the config row; a developer's machine can override it", async () => {
-    stubConfigRows([row("forms.notify_email", "alerts@gwenda.co.uk", "local", "web")]);
+    stubConfigRows([row("forms.notify_email", "alerts@gwenda.co.uk", "dev", "web")]);
     const form = { notifyEmail: "play@gwenda.co.uk" };
     expect(
       await resolveFormNotifyTo({ SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" }, form),

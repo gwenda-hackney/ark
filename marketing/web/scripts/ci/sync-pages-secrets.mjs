@@ -20,7 +20,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { APP_SECRETS } from "../../../../scripts/lib/bitwarden-sm.mjs";
-import { getConfigValueFor, setConfigValueFor } from "../../../../shared/config-db.js";
+import { readState, writeState } from "../../../../shared/config.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webDir = resolve(scriptDir, "../..");
@@ -296,12 +296,11 @@ const fingerprint = createHash("sha256")
   )
   .digest("hex");
 
-/** Config Env for this profile's fingerprint row: the dev environment is "local" in config. */
-const fingerprintEnv = profile === "dev" ? "local" : profile;
+const fingerprintEnv = profile;
 
 async function storedFingerprint() {
   try {
-    return await getConfigValueFor(process.env, "web", FINGERPRINT_KEY, fingerprintEnv);
+    return await readState(process.env, "web", FINGERPRINT_KEY, fingerprintEnv);
   } catch (error) {
     console.warn(`Could not read the last secret fingerprint (${error.message}); syncing.`);
     return "";
@@ -323,7 +322,7 @@ console.log(
 );
 
 try {
-  await setConfigValueFor(process.env, "web", FINGERPRINT_KEY, fingerprintEnv, fingerprint);
+  await writeState(process.env, "web", FINGERPRINT_KEY, fingerprintEnv, fingerprint);
 } catch (error) {
   console.warn(`Synced, but could not save the fingerprint (${error.message}); the next deploy syncs again.`);
 }
