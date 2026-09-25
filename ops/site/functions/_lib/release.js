@@ -373,6 +373,8 @@ export async function publishRelease(
 
   return {
     direction: directionName,
+    // Publish all: every source document now matches the target.
+    inSync: ids ? null : sourceDocs.map((doc) => doc._id),
     written: plan.writes,
     deleted,
     included: plan.included,
