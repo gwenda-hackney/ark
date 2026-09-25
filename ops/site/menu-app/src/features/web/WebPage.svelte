@@ -30,6 +30,12 @@
 	import { easeOut, flyMs } from "../../lib/motion";
 	import { toast } from "../../lib/toast.svelte";
 	import { getSitePendingState, refreshSitePending } from "../../lib/site-pending.svelte";
+	import {
+		getWebsiteJobsState,
+		refreshWebsiteJobs,
+		retryWebsiteJob,
+		websiteJobSettled,
+	} from "../../lib/website-jobs.svelte";
 
 	/** Editors think in events, so events come from ops, not from document diffs. */
 	type Waiting =
@@ -192,8 +198,26 @@
 		}
 	}
 
+	const jobs = $derived(getWebsiteJobsState().jobs);
+
+	async function retryJob(id: string) {
+		if (working) return;
+		working = `retry-${id}`;
+		try {
+			await retryWebsiteJob(id);
+			toast.ok("Trying again. It carries on in the background.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "It still didn't work.");
+		} finally {
+			working = "";
+			await refreshWebsiteJobs();
+		}
+	}
+
 	async function putOne(item: Waiting) {
 		if (item.kind === "event") {
+			// Background work for this event first, so the two never overlap.
+			await websiteJobSettled(item.event.id);
 			const result = await putEventOnWebsite(item.event.id);
 			for (const warning of result.warnings) toast.info(warning);
 		} else {
@@ -285,6 +309,39 @@
 						</li>
 					{/each}
 				</ul>
+			{/if}
+
+			<!-- Saved, still being got ready (calendar + website copy) -->
+			{#if jobs.length}
+				<section class="card" aria-labelledby="jobs-title">
+					<header class="card-head">
+						<h2 id="jobs-title">Getting ready</h2>
+					</header>
+					<p class="muted">Saved. The calendar and website copy are catching up, which takes a minute or two.</p>
+					<ul class="list">
+						{#each jobs as job (job.eventId)}
+							<li>
+								<span class="word {job.state === 'failed' ? 'removed' : 'changed'}">
+									{job.state === "failed" ? "Stuck" : "Waiting"}
+								</span>
+								<span class="name">
+									{job.name}{#if job.error}<span class="muted"> · {job.error}</span>{/if}
+								</span>
+								{#if job.state === "failed"}
+									<Button
+										variant="outline"
+										size="sm"
+										busy={working === `retry-${job.eventId}`}
+										disabled={Boolean(working)}
+										onclick={() => void retryJob(job.eventId)}
+									>
+										Try again
+									</Button>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+				</section>
 			{/if}
 
 			<!-- 2. Saved but not on the website -->

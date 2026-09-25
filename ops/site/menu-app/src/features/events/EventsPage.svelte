@@ -27,6 +27,13 @@
 		seriesCount,
 	} from "../../lib/event-publish-queue";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
+	import {
+		onWebsiteJobEvent,
+		queueWebsiteJob,
+		retryWebsiteJob,
+		websiteJobFor,
+		websiteJobSettled,
+	} from "../../lib/website-jobs.svelte";
 	import { preparePhoto } from "../../lib/photo-prep";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
@@ -129,28 +136,24 @@
 	}
 
 	/**
-	 * After a save, stage the event in its own request (one request doing both
-	 * ran out of Cloudflare's call allowance on long series). One message
-	 * either way; the save itself already succeeded.
+	 * After a save: the save is done. The calendar and the website copy follow
+	 * in the background (lib/website-jobs), so the editor can carry on.
 	 */
-	async function stageAfterSave(id: string, saved: string) {
-		if (!id) {
-			if (saved) toast.ok(saved);
-			return;
-		}
-		try {
-			const data = await restageEvent(id);
-			if (data.event && String(data.event.id) === String(eventId)) rememberEvent(data.event, false);
-			else if (data.event) events = events.map((row) => (row.id === data.event.id ? data.event : row));
-			if (data.warnings?.length) applyWarnings(data.warnings);
-			if (saved) toast.ok(localOps ? `${saved} Local preview updated.` : saved);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "something went wrong.";
-			toast.error(
-				localOps
-					? `${saved} Local preview not updated: ${message}`
-					: `${saved} It can't go on the website yet: ${message}`,
-			);
+	function stageAfterSave(id: string, saved: string) {
+		if (saved) toast.ok(saved);
+		queueWebsiteJob(id);
+	}
+
+	/** An event came back ready from the background work: show its new state. */
+	function takeReadyEvent(event: OpsEvent) {
+		if (String(event.id) === String(eventId) && current) {
+			// Mid-edit: only the status changes, never the fields being typed.
+			if (formDirty) {
+				current = { ...current, publish: event.publish };
+				events = events.map((row) => (row.id === event.id ? { ...row, publish: event.publish } : row));
+			} else rememberEvent(event, false);
+		} else if (events.some((row) => row.id === event.id)) {
+			events = events.map((row) => (row.id === event.id ? event : row));
 		}
 	}
 	let openedKey = $state("");
@@ -613,8 +616,12 @@
 				? formatDate(startsOn)
 				: "No date",
 	);
+	const websiteJob = $derived(websiteJobFor(current?.id));
 	const headerFlag = $derived(
-		eventHeaderFlag(current?.publish, formDirty, { local: localOps }),
+		eventHeaderFlag(current?.publish, formDirty, {
+			local: localOps,
+			job: websiteJob?.state ?? null,
+		}),
 	);
 	const stagingPreviewCurrent = $derived(current?.publish.preview === "current");
 	const liveCurrent = $derived(current?.publish.live === "current");
@@ -1099,11 +1106,13 @@
 
 	onMount(() => {
 		void reload();
+		const stopJobEvents = onWebsiteJobEvent(takeReadyEvent);
 		getMe()
 			.then((me) => {
 				localOps = me.siteEnv === "local";
 			})
 			.catch(() => undefined);
+		return stopJobEvents;
 	});
 
 	function clearListFilters() {
@@ -1639,10 +1648,28 @@
 		putOpen = true;
 	}
 
+	let retrying = $state(false);
+
+	async function onRetryWebsiteJob() {
+		if (!eventId || retrying) return;
+		retrying = true;
+		try {
+			await retryWebsiteJob(eventId);
+			toast.ok("Trying again. It carries on in the background.");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "It still didn't work.");
+		} finally {
+			retrying = false;
+		}
+	}
+
 	async function confirmPutOnWebsite() {
 		if (!eventId || putting) return;
 		putting = true;
 		try {
+			// Let the background work for this event finish first, so the two
+			// never write the same nights at once.
+			await websiteJobSettled(eventId);
 			const data = await putEventOnWebsite(eventId);
 			rememberEvent(data.event, false);
 			putOpen = false;
@@ -2761,6 +2788,24 @@
 												</div>
 											{/if}
 										</section>
+									{/if}
+									{#if websiteJob?.state === "failed" && !formDirty}
+										<div class="job-failed" role="alert">
+											<p>
+												Saved, but it couldn't be got ready for the website: {websiteJob.error ||
+													"something went wrong."}
+											</p>
+											<Button
+												variant="outline"
+												size="sm"
+												type="button"
+												busy={retrying}
+												disabled={retrying}
+												onclick={() => void onRetryWebsiteJob()}
+											>
+												Try again
+											</Button>
+										</div>
 									{/if}
 									{#if warnings.length}
 										<ul class="warnings">
@@ -3986,6 +4031,23 @@
 	.error,
 	.warnings {
 		color: var(--destructive);
+	}
+
+	.job-failed {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 0.75rem;
+		padding: 0.6rem 0.75rem;
+		border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+		border-radius: var(--radius-md, 0.5rem);
+		color: var(--destructive);
+		font-size: var(--text-sm);
+	}
+
+	.job-failed p {
+		flex: 1 1 16rem;
+		margin: 0;
 	}
 
 	.warnings {

@@ -10,6 +10,13 @@ describe("eventHeaderFlag", () => {
     });
   });
 
+  it("says when the background work is still going or has failed", () => {
+    const publish = { preview: "stale", live: "current" };
+    assert.equal(eventHeaderFlag(publish, false, { job: "waiting" }).label, "Saved. Getting it ready…");
+    assert.equal(eventHeaderFlag(publish, false, { job: "failed" }).tone, "unpublished");
+    assert.equal(eventHeaderFlag(publish, true, { job: "waiting" }).label, "Not saved");
+  });
+
   it("never mentions the preview site in hosted ops", () => {
     assert.equal(eventHeaderFlag({ preview: "stale", live: "unpublished" }, false).label, "Not on the website yet");
     assert.equal(eventHeaderFlag({ preview: "stale", live: "stale" }, false).label, "Website has an older version");

@@ -15,10 +15,13 @@ export type HeaderFlag = {
 export function eventHeaderFlag(
   publish: EventPublishState | null | undefined,
   dirty: boolean,
-  { local = false }: { local?: boolean } = {},
+  { local = false, job = null }: { local?: boolean; job?: "waiting" | "failed" | null } = {},
 ): HeaderFlag {
   if (dirty) return { label: "Not saved", tone: "unsaved" };
   if (!publish) return { label: "New", tone: "muted" };
+  // Saved; the calendar and website copy are still following in the background.
+  if (job === "waiting") return { label: "Saved. Getting it ready…", tone: "muted" };
+  if (job === "failed") return { label: "Saved, but not ready for the website", tone: "unpublished" };
   // Local ops is the developer's test copy: the preview is all it has.
   if (local) {
     return publish.preview === "current"

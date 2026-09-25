@@ -39,7 +39,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Default hero",
-		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. The original file is also saved in that series Drive folder. Saving stages the new framing.",
+		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. The original file is also saved in that series Drive folder.",
 	},
 	{
 		title: "Gallery",
@@ -47,10 +47,10 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Google Calendar",
-		body: "Saving a series or a night updates Google Calendar. Update calendar on a saved series sends the upcoming nights again without saving. Save first if the series has unsaved edits.",
+		body: "Saving a series or a night updates Google Calendar a minute or so later. Update calendar on a saved series sends the upcoming nights again without saving. Save first if the series has unsaved edits.",
 	},
 	{
 		title: "The website",
-		body: "Saving keeps your changes in ops. When the event is ready, press Update website to put it on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
+		body: "Saving keeps your changes in ops straight away. The header says \"Getting it ready…\" for a minute while the calendar and website copy catch up. When the event is ready, press Update website to put it on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
 	},
 ];
