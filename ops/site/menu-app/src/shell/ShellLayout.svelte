@@ -29,6 +29,7 @@
 	} from "../lib/mobile-nav";
 	import { matchActiveRoute, navGroupContains, visibleRoutes } from "../lib/nav-tree";
 	import { startSitePendingPolling, websiteBadge } from "../lib/site-pending.svelte";
+	import { startWebsiteJobs } from "../lib/website-jobs.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../lib/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
@@ -123,7 +124,12 @@
 			.catch(() => {
 				me = null;
 			});
-		return startSitePendingPolling();
+		const stopPending = startSitePendingPolling();
+		const stopJobs = startWebsiteJobs();
+		return () => {
+			stopPending();
+			stopJobs();
+		};
 	});
 
 	const shownRoutes = $derived(visibleRoutes(routes, Boolean(me?.isAdmin)));

@@ -5,7 +5,6 @@
 import {
   baserowFetch,
   resolveOpsTableIds,
-  updateRow,
 } from "./baserow.js";
 import { OPS_CONFIG_KEYS, getConfigString, siteEnvName } from "./config-store.js";
 import { resolveOccurrenceContent } from "./event-content.js";
@@ -152,11 +151,26 @@ export async function forgetCalendarOccurrences(env, occurrences) {
   return warnings;
 }
 
-async function writeCalendarLink(env, tableId, fieldName, occurrenceId, eventId, hash) {
-  const value = formatCalendarLink(eventId, hash);
-  const fields = { [fieldName]: value };
-  if (fieldName === GOOGLE_CALENDAR_EVENT_FIELD) fields[CALENDAR_LINK_NOTES_FIELD] = "";
-  await updateRow(env, tableId, occurrenceId, fields);
+/** Remember each night's calendar entry, in one Baserow batch call. */
+async function writeCalendarLinks(env, tableId, fieldName, links) {
+  for (let i = 0; i < links.length; i += 200) {
+    await baserowFetch(
+      env,
+      `/api/database/rows/table/${tableId}/batch/?user_field_names=true`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          items: links.slice(i, i + 200).map(({ id, value }) => ({
+            id: Number(id),
+            [fieldName]: value,
+            ...(fieldName === GOOGLE_CALENDAR_EVENT_FIELD
+              ? { [CALENDAR_LINK_NOTES_FIELD]: "" }
+              : {}),
+          })),
+        }),
+      },
+    );
+  }
 }
 
 async function saveGoogleEvent(env, calendarId, body, existingId) {
@@ -179,7 +193,52 @@ async function saveGoogleEvent(env, calendarId, body, existingId) {
   }
 }
 
-export async function syncSeriesCalendar(env, event) {
+function upcomingNights(event, today = todayIso()) {
+  return (event?.dates || [])
+    .filter((row) => row?.date && row.date >= today && row.id)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, CALENDAR_SYNC_LIMIT);
+}
+
+function nightCalendarEvent(event, row) {
+  const content = resolveOccurrenceContent(event, row);
+  const googleEvent = buildCalendarEvent({
+    occurrenceId: row.id,
+    title: content.title,
+    artist: content.artist,
+    offer: content.offer,
+    description: content.description,
+    nightSchedule: content.nightSchedule,
+    date: row.date,
+    startTime: content.startTime,
+    endTime: content.endTime,
+    seriesSlug: event.slug,
+  });
+  return { googleEvent, hash: calendarEventHash(googleEvent) };
+}
+
+function nightIsCurrent(event, row) {
+  const stored = parseCalendarLink(row.googleCalendarEventId);
+  return Boolean(stored.id) && stored.hash === nightCalendarEvent(event, row).hash;
+}
+
+/** Upcoming nights whose Google Calendar entry is missing or out of date. */
+export function calendarNightsBehind(event, today = todayIso()) {
+  return upcomingNights(event, today).filter((row) => !nightIsCurrent(event, row)).length;
+}
+
+/** True when this ops has a Google Calendar to keep in step. */
+export async function calendarConfigured(env) {
+  const { calendarId, ready } = await calendarReady(env);
+  return Boolean(calendarId && ready);
+}
+
+/**
+ * Bring the series' upcoming nights onto Google Calendar. `maxWrites` caps
+ * the calendar calls in one request (Cloudflare allows 50 on the free plan);
+ * `remaining` says how many nights are still to do.
+ */
+export async function syncSeriesCalendar(env, event, { maxWrites = Infinity } = {}) {
   if (!event?.id) return { event, warnings: [] };
   const { calendarId, ready } = await calendarReady(env);
   if (!calendarId || !ready) return { event, warnings: [] };
@@ -198,10 +257,10 @@ export async function syncSeriesCalendar(env, event) {
   }
 
   const today = todayIso();
-  const future = (event.dates || [])
-    .filter((row) => row?.date && row.date >= today && row.id)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const nights = future.slice(0, CALENDAR_SYNC_LIMIT);
+  const future = (event.dates || []).filter(
+    (row) => row?.date && row.date >= today && row.id,
+  );
+  const nights = upcomingNights(event, today);
   if (future.length > nights.length) {
     noteCalendarWarning(
       env,
@@ -223,27 +282,22 @@ export async function syncSeriesCalendar(env, event) {
   }
 
   const usedIds = new Set();
+  const links = [];
+  let writes = 0;
+  let remaining = 0;
   for (const row of nights) {
-    const content = resolveOccurrenceContent(event, row);
-    const googleEvent = buildCalendarEvent({
-      occurrenceId: row.id,
-      title: content.title,
-      artist: content.artist,
-      offer: content.offer,
-      description: content.description,
-      nightSchedule: content.nightSchedule,
-      date: row.date,
-      startTime: content.startTime,
-      endTime: content.endTime,
-      seriesSlug: event.slug,
-    });
-    const hash = calendarEventHash(googleEvent);
+    const { googleEvent, hash } = nightCalendarEvent(event, row);
     const stored = parseCalendarLink(row.googleCalendarEventId);
     try {
       if (stored.id && stored.hash === hash) {
         usedIds.add(stored.id);
         continue;
       }
+      if (writes >= maxWrites) {
+        remaining += 1;
+        continue;
+      }
+      writes += 1;
       let eventId = stored.id;
       if (!eventId) {
         const choice = chooseCalendarEvent(
@@ -283,7 +337,7 @@ export async function syncSeriesCalendar(env, event) {
         linkField &&
         formatCalendarLink(savedId, hash) !== row.googleCalendarEventId
       ) {
-        await writeCalendarLink(env, tableId, linkField, row.id, savedId, hash);
+        links.push({ id: row.id, value: formatCalendarLink(savedId, hash) });
       }
     } catch (error) {
       noteCalendarWarning(
@@ -293,8 +347,20 @@ export async function syncSeriesCalendar(env, event) {
     }
   }
 
+  if (links.length) {
+    try {
+      await writeCalendarLinks(env, tableId, linkField, links);
+    } catch (error) {
+      noteCalendarWarning(
+        env,
+        `Google Calendar was updated, but ops could not remember it. ${error?.message || "Request failed."}`,
+      );
+    }
+  }
+
   return {
     event,
+    remaining,
     warnings: Array.isArray(env?.__gwendaCalendarWarnings)
       ? [...env.__gwendaCalendarWarnings]
       : [],

@@ -850,6 +850,36 @@ export function restageEvent(id: string) {
   });
 }
 
+/** A saved event still being got ready for the website (calendar + preview copy). */
+export type WebsiteJob = {
+  eventId: string;
+  name: string;
+  state: "waiting" | "failed";
+  error: string;
+  failedAt: string | null;
+};
+
+export function getWebsiteJobs() {
+  return request<{ ok: boolean; jobs: WebsiteJob[] }>("/api/web/jobs");
+}
+
+/** One step of that work: for `eventId`, or the next waiting event. */
+export function runWebsiteJob(eventId = "", { retry = false }: { retry?: boolean } = {}) {
+  return request<{
+    ok: boolean;
+    idle?: boolean;
+    eventId?: string;
+    done?: boolean;
+    failed?: string;
+    warnings?: string[];
+    event?: OpsEvent;
+  }>("/api/web/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventId, retry }),
+  });
+}
+
 export function publishAllEventsPreview() {
   return request<{
     ok: boolean;

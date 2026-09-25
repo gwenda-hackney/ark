@@ -39,11 +39,8 @@ export const onRequestPut = withApiHandler(async (context) => {
     date,
     body && typeof body === "object" ? body : {},
   );
-  await syncSeriesCalendar(context.env, result.event);
-  return jsonResponse(
-    attachCalendarWarnings(context.env, { ok: true, ...result }),
-    result.created ? 201 : 200,
-  );
+  // Calendar and website copy follow in the background (website-jobs.js).
+  return jsonResponse({ ok: true, ...result }, result.created ? 201 : 200);
 });
 
 export const onRequestPatch = withApiHandler(async (context) => {
@@ -64,8 +61,8 @@ export const onRequestPatch = withApiHandler(async (context) => {
     }
   }
   const result = await updateOccurrenceContent(context.env, id, date, body);
-  await syncSeriesCalendar(context.env, result.event);
-  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, ...result }));
+  // Calendar and website copy follow in the background (website-jobs.js).
+  return jsonResponse({ ok: true, ...result });
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {
