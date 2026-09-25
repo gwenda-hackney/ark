@@ -88,6 +88,16 @@ describe("resolveFormNotifyTo", () => {
     ).toBe("play@gwenda.co.uk");
   });
 
+  it("a hosted dev site's own address wins over the shared local row", async () => {
+    stubConfigRows([row("forms.notify_email", "dev@gwenda.co.uk", "local", "web")]);
+    const env = { SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg", FORMS_NOTIFY_EMAIL: "alerts@gwenda.co.uk" };
+    expect(await resolveFormNotifyTo(env, { notifyEmail: "play@gwenda.co.uk" })).toBe("alerts@gwenda.co.uk");
+    // Your machine: same config rows, no site setting.
+    expect(
+      await resolveFormNotifyTo({ SITE_ENV: "local", BASEROW_CONFIG_API_KEY: "cfg" }, { notifyEmail: "play@gwenda.co.uk" }),
+    ).toBe("dev@gwenda.co.uk");
+  });
+
   it("outside prod, config down means no email", async () => {
     vi.stubGlobal(
       "fetch",
