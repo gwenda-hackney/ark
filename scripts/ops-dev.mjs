@@ -8,8 +8,13 @@
  *   npm run dev -w @gwenda/ops
  *   npm run dev:live -w @gwenda/ops    debug against PRODUCTION (see below)
  *
+ * Plain `dev` works exactly like hosted ops (Save, Update website) against
+ * copies: the dev Ops DB and the Gwenda Dev Sanity project (its own staging
+ * and production datasets). Nothing it does can reach gwenda.co.uk. Refresh
+ * the copy with `npm run sanity:dev:refresh`.
+ *
  * --live runs the same local app with production powers: production Ops DB,
- * production secrets from Secrets Manager, SITE_ENV=production. "Put on
+ * production secrets from Secrets Manager, SITE_ENV=production. "Update
  * website", "Update website now" and saves act on the real website, exactly
  * like hosted ops. Use it to reproduce and fix production problems with local
  * stack traces. The app shows a red "LOCAL COPY ON LIVE DATA" banner.
@@ -70,6 +75,27 @@ function resolveLocalOpsDatabaseId() {
     }
   }
   return "";
+}
+
+/**
+ * Local ops must use the Gwenda Dev Sanity project, with a token for it
+ * (SANITY_API_TOKEN__LOCAL in Secrets Manager).
+ */
+async function useDevSanityProject() {
+  const { DEV_SANITY_PROJECT_ID } = await import("../ops/site/functions/_lib/sanity.js");
+  process.env.SANITY_PROJECT_ID = DEV_SANITY_PROJECT_ID;
+  const token = process.env.SANITY_API_TOKEN?.trim();
+  const response = token
+    ? await fetch(`https://${DEV_SANITY_PROJECT_ID}.api.sanity.io/v2025-01-01/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => null)
+    : null;
+  if (!response?.ok) {
+    console.warn(
+      `SANITY_API_TOKEN does not open the Gwenda Dev Sanity project (${DEV_SANITY_PROJECT_ID}). ` +
+        "Saves will fail until SANITY_API_TOKEN__LOCAL in Secrets Manager holds its token; then npm run env:secrets:pull.",
+    );
+  }
 }
 
 function assertLocalNotProdDatabase(databaseId) {
@@ -152,6 +178,9 @@ async function main() {
     if (localPassword && !process.env.OPS_LOCAL_ADMIN_PW) process.env.OPS_LOCAL_ADMIN_PW = localPassword;
     const { OPS_PRODUCTION_DATABASE_ID } = await import("../ops/site/functions/_lib/baserow.js");
     process.env.BASEROW_OPS_DATABASE_ID = OPS_PRODUCTION_DATABASE_ID;
+    // Repo .env points local work at the dev Sanity project; live is the real one.
+    const { REAL_SANITY_PROJECT_ID } = await import("../ops/site/functions/_lib/sanity.js");
+    process.env.SANITY_PROJECT_ID = REAL_SANITY_PROJECT_ID;
     console.warn(`
   ************************************************************
   *  LIVE MODE: this local ops uses PRODUCTION data.         *
@@ -163,6 +192,7 @@ async function main() {
     const databaseId = resolveLocalOpsDatabaseId();
     if (databaseId) process.env.BASEROW_OPS_DATABASE_ID = databaseId;
     await assertLocalNotProdDatabase(process.env.BASEROW_OPS_DATABASE_ID?.trim() || "");
+    await useDevSanityProject();
   }
 
   // Pull plain settings (e.g. Google client id) from config when missing in env.

@@ -8,7 +8,7 @@ import {
   unpublishEvent,
   withWebsiteStatus,
 } from "../../_lib/event-publish.js";
-import { isLocalOps } from "../../_lib/sanity.js";
+import { canChangeWebsite } from "../../_lib/sanity.js";
 
 function eventId(context) {
   return decodeURIComponent(context.params?.id || "");
@@ -41,7 +41,7 @@ export const onRequestDelete = withApiHandler(async (context) => {
   const event = await getEvent(context.env, id);
   // "Also take it off the website now": otherwise it stays live until the
   // Website page publishes the removal.
-  const offWebsite = Boolean(body?.alsoWebsite) && !isLocalOps(context.env);
+  const offWebsite = Boolean(body?.alsoWebsite) && canChangeWebsite(context.env);
   const warnings = offWebsite ? await removeEventFromWebsite(context.env, event) : [];
   warnings.push(...(await unpublishEvent(context.env, event)));
   await deleteEvent(context.env, id);

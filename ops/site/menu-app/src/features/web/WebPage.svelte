@@ -263,7 +263,10 @@
 			{#if local}
 				<p class="banner">
 					<Icon name="lock" size={16} />
-					<span>This is the test copy of ops. It can't change the website.</span>
+					<span>
+						Test copy of ops: Update website changes the Gwenda Dev copy of the website, never
+						gwenda.co.uk. Site builds only run in the real ops app.
+					</span>
 				</p>
 			{/if}
 
@@ -348,7 +351,7 @@
 			<section class="card" aria-labelledby="unpublished-title">
 				<header class="card-head">
 					<h2 id="unpublished-title">Not on the website yet</h2>
-					{#if unpublished.length && !local}
+					{#if unpublished.length}
 						<Button variant="primary" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = true)}>
 							Update website with all
 						</Button>
@@ -367,17 +370,15 @@
 									{item.change === "removed" ? "Remove" : changeWord(item.change)}
 								</span>
 								<span class="name">{item.label}</span>
-								{#if !local}
-									<Button
-										variant="outline"
-										size="sm"
-										busy={working === `put-${item.key}`}
-										disabled={Boolean(working)}
-										onclick={() => void putOnWebsite([item], false)}
-									>
-										{item.change === "removed" ? "Take off website" : "Update website"}
-									</Button>
-								{/if}
+								<Button
+									variant="outline"
+									size="sm"
+									busy={working === `put-${item.key}`}
+									disabled={Boolean(working)}
+									onclick={() => void putOnWebsite([item], false)}
+								>
+									{item.change === "removed" ? "Take off website" : "Update website"}
+								</Button>
 							</li>
 						{/each}
 					</ul>

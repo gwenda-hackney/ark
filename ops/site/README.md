@@ -95,7 +95,7 @@ If Cloudflare Access still intercepts production after cutover, run `npm run tea
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 | Stock / POS HTML | Drive → `ops/site/src/stock` |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, then rebuilds `gwenda-staging.pages.dev`. Production gets these documents from ops Website → Staging → live. In local ops this writes drafts only the local site shows. Do not edit production in Studio.
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into the **staging** dataset. It matches by stored Sanity ID or name, creates missing sections/items, and gwenda-staging rebuilds once edits go quiet. Production gets these documents from ops Website → Staging → live. In local ops this writes the Gwenda Dev copy instead. Do not edit production in Studio.
 
 ## Local
 
@@ -114,6 +114,8 @@ Secrets come from **`.env.secrets`** (`npm run env:secrets:pull`, env `local`), 
 npm run env:secrets:pull
 npm run dev -w @gwenda/ops
 ```
+
+Local ops works exactly like hosted ops, against copies: the dev Ops DB and the **Gwenda Dev** Sanity project. Save writes its staging dataset; Update website writes its production dataset. See the result with `npm run dev -w @gwenda/web` (preview) or `npm run dev:website -w @gwenda/web` (website, port 4322). Nothing reaches gwenda.co.uk, and site builds only run hosted. Refresh the copy with `npm run sanity:dev:refresh`. See [docs/sanity.md](../../docs/sanity.md).
 
 ### Debugging production locally (`dev:live`)
 
