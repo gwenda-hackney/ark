@@ -485,7 +485,9 @@ export async function putEventOnWebsite(env, id) {
   const result = await publishRelease(env, { ids });
   const warnings = [...(staged.warnings || []), ...result.warnings];
   try {
-    await markReleasedInOps(env, result.written);
+    // Everything in scope now matches the website, copied or not, so mark it
+    // all: events copied live by the old whole-dataset promote get fixed here.
+    await markReleasedInOps(env, [...ids, ...result.written]);
   } catch (error) {
     warnings.push(`On the website, but ops status did not update: ${error?.message || "unknown error"}.`);
   }

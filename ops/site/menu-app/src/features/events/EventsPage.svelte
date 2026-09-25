@@ -2977,7 +2977,10 @@
 				{:else if putEntries === null}
 					<p class="delete-copy">Checking what will change…</p>
 				{:else if !putEntries.length}
-					<p class="delete-copy">The website already shows this. There's nothing new to put on it.</p>
+					<p class="delete-copy">
+						The website already shows this version. Press Put on website to mark it as on the
+						website.
+					</p>
 				{:else}
 					<ul class="put-list">
 						{#each putEntries as entry (entry.id)}
@@ -2997,7 +3000,7 @@
 						size="sm"
 						type="button"
 						busy={putting}
-						disabled={putting || Boolean(putError) || putEntries === null || !putEntries.length}
+						disabled={putting || Boolean(putError) || putEntries === null}
 						onclick={() => void confirmPutOnWebsite()}
 					>
 						Put on website

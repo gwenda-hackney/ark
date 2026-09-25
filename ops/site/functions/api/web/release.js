@@ -39,7 +39,8 @@ export const onRequestPost = withApiHandler(async (context) => {
   let marked = { nights: 0, menuItems: 0 };
   if (direction === "to-production") {
     try {
-      marked = await markReleasedInOps(context.env, result.written);
+      // Chosen documents that already matched live count as published too.
+      marked = await markReleasedInOps(context.env, [...(ids || result.inSync || []), ...result.written]);
     } catch (error) {
       warnings.push(
         `Published, but ops status did not update: ${error?.message || "unknown error"}.`,
