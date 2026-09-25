@@ -2253,7 +2253,7 @@
 							<p class="head-note">Series defaults, shared by its nights.</p>
 						{/if}
 						{#if localOps && eventId}
-							<p class="head-note">
+							<p class="head-note local-note">
 								Test copy of ops: saving updates your local preview only. Update website works in the
 								real ops app.
 							</p>
@@ -3702,6 +3702,12 @@
 		line-height: 1.4;
 		color: var(--muted-foreground);
 		max-width: 40rem;
+	}
+
+	/* Its own row: the night/series note already sits in row 3. */
+	.head-note.local-note {
+		grid-row: 4;
+		padding-top: 0.2rem;
 	}
 
 	.create-mode {
