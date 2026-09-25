@@ -3,6 +3,7 @@
 	 * Crop the What's on card: the whole photo stays visible, and the 16×10
 	 * frame on it is exactly what the site shows. Drag the frame, zoom to tighten.
 	 */
+	import Icon from "../../shell/Icon.svelte";
 	import { Tip } from "../../ui";
 	import {
 		HERO_ASPECT,
@@ -312,8 +313,20 @@
 				<Tip label="Hero" {tooltip} />
 			{/if}
 		</h2>
-		{#if sourceUrl && !locked}
+		{#if !locked}
 			<div class="hero-actions">
+				<label class="pick camera">
+					<input
+						class="sr-only"
+						type="file"
+						accept="image/*"
+						capture="environment"
+						disabled={disabled}
+						onchange={onFile}
+					/>
+					<span class="pick-btn"><Icon name="camera" size={15} /> Take photo</span>
+				</label>
+			{#if sourceUrl}
 				<label class="pick">
 					<input
 						class="sr-only"
@@ -327,6 +340,7 @@
 				<button class="pick-btn remove" type="button" {disabled} onclick={onclear}>
 					Remove
 				</button>
+			{/if}
 			</div>
 		{/if}
 	</header>
@@ -462,9 +476,21 @@
 		cursor: pointer;
 	}
 
+	/* Phones and tablets only: opens the camera straight away. */
+	.pick.camera {
+		display: none;
+	}
+
+	@media (pointer: coarse) {
+		.pick.camera {
+			display: inline-flex;
+		}
+	}
+
 	.pick-btn {
 		display: inline-flex;
 		align-items: center;
+		gap: 0.4rem;
 		height: var(--control-h-sm);
 		padding: 0 0.75rem;
 		border: 1px solid var(--border);

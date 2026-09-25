@@ -85,16 +85,7 @@
 		collectPosScreenSuggestions,
 		defaultPosScreenForItem,
 	} from "../../../../functions/_lib/lightspeed-stock.js";
-
-	const PHOTO_KEY = "ops.menu.photo";
-
-	function readPhotoOpen(): boolean {
-		try {
-			return localStorage.getItem(PHOTO_KEY) !== "closed";
-		} catch {
-			return true;
-		}
-	}
+	import { preparePhoto } from "../../lib/photo-prep";
 
 	let {
 		item = $bindable(null as MenuItem | null),
@@ -145,7 +136,6 @@
 	let snapshot = $state("");
 	let photoDragging = $state(false);
 	let photoDragDepth = 0;
-	let photoOpen = $state(readPhotoOpen());
 	let addIngredientOpen = $state(false);
 	let deleteOpen = $state(false);
 	let discardOpen = $state(false);
@@ -455,9 +445,9 @@
 		item = { ...item, description: line };
 	}
 
-	function acceptPhotoFile(file: File | undefined | null) {
+	async function acceptPhotoFile(file: File | undefined | null) {
 		if (!file || !file.type.startsWith("image/")) return;
-		void onphoto(file);
+		await onphoto(await preparePhoto(file));
 	}
 
 	function removePhoto() {
@@ -465,18 +455,9 @@
 		void onphotoremove();
 	}
 
-	function setPhotoOpen(next: boolean) {
-		photoOpen = next;
-		try {
-			localStorage.setItem(PHOTO_KEY, next ? "open" : "closed");
-		} catch {
-			/* ignore quota / private mode */
-		}
-	}
-
 	function onPhotoInput(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
-		acceptPhotoFile(input.files?.[0]);
+		void acceptPhotoFile(input.files?.[0]);
 		input.value = "";
 	}
 
@@ -502,7 +483,7 @@
 		photoDragDepth = 0;
 		photoDragging = false;
 		const file = e.dataTransfer?.files?.[0];
-		acceptPhotoFile(file);
+		void acceptPhotoFile(file);
 	}
 
 	function patch(field: keyof MenuItem, value: unknown) {
@@ -586,29 +567,13 @@
 	}
 
 	const photoUrl = $derived(item?.image?.asset?.url);
-	const heroPhotoSrc = $derived.by(() => {
+	const photoSrc = $derived.by(() => {
 		if (!photoUrl) return "";
 		try {
 			const parsed = new URL(photoUrl, location.origin);
 			if (parsed.hostname.includes("cdn.sanity.io")) {
-				parsed.searchParams.set("w", "1200");
+				parsed.searchParams.set("w", "800");
 				parsed.searchParams.set("fit", "max");
-				parsed.searchParams.set("auto", "format");
-				return parsed.toString();
-			}
-		} catch {
-			/* keep original */
-		}
-		return photoUrl;
-	});
-	const thumbPhotoSrc = $derived.by(() => {
-		if (!photoUrl) return "";
-		try {
-			const parsed = new URL(photoUrl, location.origin);
-			if (parsed.hostname.includes("cdn.sanity.io")) {
-				parsed.searchParams.set("w", "240");
-				parsed.searchParams.set("h", "240");
-				parsed.searchParams.set("fit", "crop");
 				parsed.searchParams.set("auto", "format");
 				return parsed.toString();
 			}
@@ -759,109 +724,10 @@
 	>
 		<BusyOverlay active={busy} label={busyLabel} />
 		<EditorBackBar label="Menu" {dirty} onback={discardAndClose} />
-		<div class="split" class:photo-collapsed={!photoOpen}>
-			<aside
-				class="hero"
-				class:dragging={photoDragging}
-				aria-hidden={!photoOpen}
-				inert={!photoOpen}
-				ondragenter={onPhotoDragEnter}
-				ondragover={onPhotoDragOver}
-				ondragleave={onPhotoDragLeave}
-				ondrop={onPhotoDrop}
-			>
-				<button
-					class="photo-collapse"
-					type="button"
-					title="Hide photo"
-					aria-label="Hide photo"
-					tabindex={photoOpen ? 0 : -1}
-					onclick={() => setPhotoOpen(false)}
-				>
-					<Icon name="chevron-right" size={16} />
-				</button>
-				{#if photoUrl}
-					<img
-						class="hero-img"
-						src={heroPhotoSrc}
-						alt={item.image?.alt || item.name || ""}
-					/>
-					<div class="photo-hit has-photo">
-						<label class="photo-btn">
-							<Icon name="upload" size={16} />
-							Replace photo
-							<input
-								class="sr-only"
-								type="file"
-								accept="image/jpeg,image/png,image/webp,image/gif"
-								onchange={onPhotoInput}
-							/>
-						</label>
-						<button
-							class="photo-btn remove"
-							type="button"
-							disabled={busy}
-							onclick={removePhoto}
-						>
-							<Icon name="trash" size={16} />
-							Remove photo
-						</button>
-					</div>
-				{:else}
-					<label class="photo-hit empty">
-						<span class="photo-btn primary">
-							<Icon name="upload" size={16} />
-							Add photo
-						</span>
-						<span class="photo-hint">or drop an image here</span>
-						<input
-							type="file"
-							accept="image/jpeg,image/png,image/webp,image/gif"
-							onchange={onPhotoInput}
-						/>
-					</label>
-				{/if}
-				{#if photoDragging}
-					<div class="photo-drop" aria-hidden="true">
-						<span>Drop to {photoUrl ? "replace" : "add"}</span>
-					</div>
-				{/if}
-			</aside>
+		<div class="split">
 
 			<div class="panel" class:dirty>
 				<header class="panel-head">
-					<div class="thumb">
-						<label class="thumb-hit" aria-label={photoUrl ? "Replace photo" : "Add photo"}>
-							{#if photoUrl}
-								<img
-									class="thumb-img"
-									src={thumbPhotoSrc}
-									alt=""
-								/>
-							{:else}
-								<span class="thumb-empty">
-									<Icon name="upload" size={16} />
-								</span>
-							{/if}
-							<input
-								class="sr-only"
-								type="file"
-								accept="image/jpeg,image/png,image/webp,image/gif"
-								onchange={onPhotoInput}
-							/>
-						</label>
-						{#if photoUrl}
-							<button
-								class="thumb-remove"
-								type="button"
-								disabled={busy}
-								aria-label="Remove photo"
-								onclick={removePhoto}
-							>
-								<Icon name="close" size={12} />
-							</button>
-						{/if}
-					</div>
 					<div class="type-line">
 						<p class="eyebrow">{typeLine}</p>
 						{#if dirty}
@@ -876,21 +742,6 @@
 					</div>
 					<div class="head-tools">
 						<div class="toolbar-actions">
-							{#if !photoOpen}
-								<Button
-									class="photo-expand"
-									variant="ghost"
-									size="sm"
-									type="button"
-									title="Show photo"
-									aria-label="Show photo"
-									onclick={() => setPhotoOpen(true)}
-								>
-									{#snippet icon()}
-										<Icon name="chevron-right" />
-									{/snippet}
-								</Button>
-							{/if}
 							{#if item._id && item.name?.trim()}
 								<Button
 									variant="ghost"
@@ -1029,94 +880,133 @@
 							}}
 						>
 					{#if tab === "details"}
-						<section class="block">
-							<div class="grid identity">
-								<Field label="Drink type" for="f-drink-type">
-									<NativeSelect
-										id="f-drink-type"
-										size="sm"
-										options={drinkTypeOptions}
-										value={drinkType}
-										onchange={(e) =>
-											setDrinkType(
-												(e.currentTarget as HTMLSelectElement)
-													.value as DrinkType,
-											)}
-									/>
-								</Field>
-								{#if showRecipe}
-									<Field
-										label="Category"
-										for="f-cocktail-type"
-										tooltip="Build family: spritz, highball, stirred, and so on. Separate from where it sits on the menu."
-									>
+						<section class="details-board">
+							<div class="details-main">
+								<div class="grid">
+									<Field label="Drink type" for="f-drink-type">
 										<NativeSelect
-											id="f-cocktail-type"
+											id="f-drink-type"
 											size="sm"
-											options={cocktailTypeOptions}
-											value={normalizeCocktailType(item.cocktailType)}
+											options={drinkTypeOptions}
+											value={drinkType}
 											onchange={(e) =>
-												patch(
-													"cocktailType",
-													normalizeCocktailType(
-														(e.currentTarget as HTMLSelectElement).value,
-													) as CocktailType | "",
+												setDrinkType(
+													(e.currentTarget as HTMLSelectElement)
+														.value as DrinkType,
 												)}
 										/>
 									</Field>
-								{:else}
-									<Field label="Producer" for="f-producer-d">
-										<TextField
-											id="f-producer-d"
-											size="sm"
-											value={item.producer || ""}
-											oninput={(e) =>
-												patch(
-													"producer",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								{/if}
-								<div class="notes">
-									<Field
-										label="Tasting note"
-										for="f-notes"
-										tooltip="Short line under the name."
-									>
-										<TextField
-											id="f-notes"
-											size="sm"
-											value={item.notes || ""}
-											placeholder="e.g. Floral fizz"
-											oninput={(e) =>
-												patch(
-													"notes",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-								{#if showRecipe}
+									{#if showRecipe}
+										<Field
+											label="Category"
+											for="f-cocktail-type"
+											tooltip="Build family: spritz, highball, stirred, and so on. Separate from where it sits on the menu."
+										>
+											<NativeSelect
+												id="f-cocktail-type"
+												size="sm"
+												options={cocktailTypeOptions}
+												value={normalizeCocktailType(item.cocktailType)}
+												onchange={(e) =>
+													patch(
+														"cocktailType",
+														normalizeCocktailType(
+															(e.currentTarget as HTMLSelectElement).value,
+														) as CocktailType | "",
+													)}
+											/>
+										</Field>
+									{:else}
+										<Field label="Producer" for="f-producer-d">
+											<TextField
+												id="f-producer-d"
+												size="sm"
+												value={item.producer || ""}
+												oninput={(e) =>
+													patch(
+														"producer",
+														(e.currentTarget as HTMLInputElement).value,
+													)}
+											/>
+										</Field>
+									{/if}
+									<div class="full">
+										<Field
+											label="Tasting note"
+											for="f-notes"
+											tooltip="Short line under the name."
+										>
+											<TextField
+												id="f-notes"
+												size="sm"
+												value={item.notes || ""}
+												placeholder="e.g. Floral fizz"
+												oninput={(e) =>
+													patch(
+														"notes",
+														(e.currentTarget as HTMLInputElement).value,
+													)}
+											/>
+										</Field>
+									</div>
+									<div class="full">
+										<Field
+											label="Menu description"
+											for="f-description"
+											tooltip="What guests read on the menu: the ingredient line or a longer blurb."
+										>
+											{#snippet actions()}
+												{#if showRecipe}
+													<Button
+														variant="ghost"
+														size="xs"
+														type="button"
+														aria-label="Fill in from ingredients"
+														title="Fill in from ingredients"
+														disabled={!flattenIngredientsForMenu(ingredients)}
+														onclick={createMenuLineFromIngredients}
+													>
+														{#snippet icon()}
+															<Icon name="from-list" size={14} />
+														{/snippet}
+													</Button>
+												{/if}
+											{/snippet}
+											<TextArea
+												id="f-description"
+												rows={3}
+												value={item.description || ""}
+												oninput={(e) =>
+													patch(
+														"description",
+														(e.currentTarget as HTMLTextAreaElement).value,
+													)}
+											/>
+										</Field>
+									</div>
 									<Field
 										label="ABV"
 										for="f-abv"
-										tooltip="From inventory for linked ingredients. Override or recalculate after stock ABV changes."
+										tooltip={showRecipe
+											? "Worked out from the ingredients. Type over it, or press the arrows to work it out again."
+											: undefined}
 									>
 										{#snippet actions()}
-											<Button
-												variant="ghost"
-												size="xs"
-												type="button"
-												aria-label="Recalculate from recipe"
-												title="Recalculate ABV and volume from recipe"
-												disabled={!canRecalcRecipe}
-												onclick={recalculateRecipeMetrics}
-											>
-												{#snippet icon()}
-													<Icon name="refresh" />
-												{/snippet}
-											</Button>
+											{#if showRecipe}
+												<Button
+													variant="ghost"
+													size="xs"
+													type="button"
+													aria-label="Work out ABV and volume from ingredients"
+													title="Work out ABV and volume from ingredients"
+													disabled={!canRecalcRecipe}
+													onclick={recalculateRecipeMetrics}
+												>
+													{#snippet icon()}
+														<Icon name="refresh" />
+													{/snippet}
+												</Button>
+											{/if}
 										{/snippet}
 										<TextField
 											id="f-abv"
@@ -1132,7 +1022,9 @@
 									<Field
 										label="Volume"
 										for="f-volume"
-										tooltip="From recipe volumes. Override or recalculate with ABV after stock changes."
+										tooltip={showRecipe
+											? "Worked out from the ingredients. Type over it if the glass holds a different amount."
+											: undefined}
 									>
 										<TextField
 											id="f-volume"
@@ -1145,33 +1037,83 @@
 												)}
 										/>
 									</Field>
-								{:else}
-									<Field label="ABV" for="f-abv-d">
-										<TextField
-											id="f-abv-d"
-											size="sm"
-											value={item.abv || ""}
-											oninput={(e) =>
-												patch(
-													"abv",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-									<Field label="Volume" for="f-volume-d">
-										<TextField
-											id="f-volume-d"
-											size="sm"
-											value={item.volume || ""}
-											oninput={(e) =>
-												patch(
-													"volume",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								{/if}
+								</div>
 							</div>
+
+							<aside
+								class="details-side photo"
+								class:dragging={photoDragging}
+								aria-label="Photo"
+								ondragenter={onPhotoDragEnter}
+								ondragover={onPhotoDragOver}
+								ondragleave={onPhotoDragLeave}
+								ondrop={onPhotoDrop}
+							>
+								<div class="photo-head">
+									<p class="photo-title">Photo</p>
+									{#if item._id}
+										<div class="photo-actions">
+											<label class="photo-btn camera">
+												<input
+													class="sr-only"
+													type="file"
+													accept="image/*"
+													capture="environment"
+													disabled={busy}
+													onchange={onPhotoInput}
+												/>
+												<Icon name="camera" size={15} />
+												Take photo
+											</label>
+										{#if photoUrl}
+											<label class="photo-btn">
+												<input
+													class="sr-only"
+													type="file"
+													accept="image/jpeg,image/png,image/webp,image/gif"
+													disabled={busy}
+													onchange={onPhotoInput}
+												/>
+												Replace
+											</label>
+											<button
+												class="photo-btn remove"
+												type="button"
+												disabled={busy}
+												onclick={removePhoto}
+											>
+												Remove
+											</button>
+										{/if}
+										</div>
+									{/if}
+								</div>
+								{#if !item._id}
+									<p class="photo-empty muted">Save the drink first, then add a photo.</p>
+								{:else if photoUrl}
+									<div class="photo-frame">
+										<img src={photoSrc} alt={item.image?.alt || item.name || ""} />
+									</div>
+								{:else}
+									<label class="photo-empty">
+										<input
+											class="sr-only"
+											type="file"
+											accept="image/jpeg,image/png,image/webp,image/gif"
+											disabled={busy}
+											onchange={onPhotoInput}
+										/>
+										<Icon name="upload" size={18} />
+										<span class="photo-empty-label">Add photo</span>
+										<span class="photo-hint">or drop a picture here</span>
+									</label>
+								{/if}
+								{#if photoDragging && item._id}
+									<div class="photo-drop" aria-hidden="true">
+										<span>Drop to {photoUrl ? "replace" : "add"}</span>
+									</div>
+								{/if}
+							</aside>
 						</section>
 
 						<section class="block">
@@ -1179,15 +1121,14 @@
 								<p class="section-title">{showRecipe ? "Ingredients" : "Serve"}</p>
 								<Button
 									variant="accent"
-									size="xs"
+									size="sm"
 									type="button"
-									aria-label={showRecipe ? "Add ingredient" : "Add stock"}
-									title={showRecipe ? "Add ingredient" : "Add stock"}
 									onclick={() => (addIngredientOpen = true)}
 								>
 									{#snippet icon()}
 										<Icon name="plus" size={15} />
 									{/snippet}
+									{showRecipe ? "Add ingredient" : "Add stock"}
 								</Button>
 							</div>
 							<IngredientsGrid
@@ -1195,100 +1136,60 @@
 								bind:inventory
 								onChange={onIngredientsChange}
 							/>
-							{#if showRecipe}
-								<div class="method-field">
-									<Field label="Method" for="f-method">
-										<MethodEditor
-											id="f-method"
-											value={item.method || ""}
-											onChange={(next) => patch("method", next)}
-										/>
-									</Field>
-									<div class="grid serve-fields">
-										<Field label="Glassware" for="f-glass">
-											<NativeSelect
-												id="f-glass"
-												size="sm"
-												options={glassOptions}
-												value={item.glassware || ""}
-												onchange={(e) =>
-													patch(
-														"glassware",
-														(e.currentTarget as HTMLSelectElement)
-															.value,
-													)}
-											/>
-										</Field>
-										<Field label="Ice" for="f-ice">
-											<NativeSelect
-												id="f-ice"
-												size="sm"
-												options={iceOptions}
-												value={item.ice || ""}
-												onchange={(e) =>
-													patch(
-														"ice",
-														(e.currentTarget as HTMLSelectElement)
-															.value,
-													)}
-											/>
-										</Field>
-										<div class="full">
-											<Field label="Garnish" for="f-garnish">
-												<TextField
-													id="f-garnish"
-													size="sm"
-													value={item.garnish || ""}
-													oninput={(e) =>
-														patch(
-															"garnish",
-															(e.currentTarget as HTMLInputElement)
-																.value,
-														)}
-												/>
-											</Field>
-										</div>
-									</div>
-								</div>
-							{/if}
 						</section>
 
-						<section class="block">
-							<p class="section-title">Guest line</p>
-							<Field
-								label="Description"
-								for="f-description"
-								tooltip="Ingredient line or longer blurb on the guest menu."
-							>
-								{#snippet actions()}
-								{#if showRecipe}
-									<Button
-										variant="ghost"
-										size="xs"
-										type="button"
-										aria-label="Create from ingredients"
-										title="Create from ingredients"
-										disabled={!flattenIngredientsForMenu(ingredients)}
-										onclick={createMenuLineFromIngredients}
-									>
-										{#snippet icon()}
-											<Icon name="from-list" size={14} />
-										{/snippet}
-									</Button>
-								{/if}
-							{/snippet}
-								<TextArea
-									id="f-description"
-									rows={3}
-									value={item.description || ""}
-									oninput={(e) =>
-										patch(
-											"description",
-											(e.currentTarget as HTMLTextAreaElement).value,
-										)}
-								/>
-							</Field>
-						</section>
+						{#if showRecipe}
+							<section class="block">
+								<p class="section-title">How to make it</p>
+								<Field label="Method" for="f-method">
+									<MethodEditor
+										id="f-method"
+										value={item.method || ""}
+										onChange={(next) => patch("method", next)}
+									/>
+								</Field>
+								<div class="grid three">
+									<Field label="Glassware" for="f-glass">
+										<NativeSelect
+											id="f-glass"
+											size="sm"
+											options={glassOptions}
+											value={item.glassware || ""}
+											onchange={(e) =>
+												patch(
+													"glassware",
+													(e.currentTarget as HTMLSelectElement).value,
+												)}
+										/>
+									</Field>
+									<Field label="Ice" for="f-ice">
+										<NativeSelect
+											id="f-ice"
+											size="sm"
+											options={iceOptions}
+											value={item.ice || ""}
+											onchange={(e) =>
+												patch(
+													"ice",
+													(e.currentTarget as HTMLSelectElement).value,
+												)}
+										/>
+									</Field>
+									<Field label="Garnish" for="f-garnish">
+										<TextField
+											id="f-garnish"
+											size="sm"
+											value={item.garnish || ""}
+											oninput={(e) =>
+												patch(
+													"garnish",
+													(e.currentTarget as HTMLInputElement).value,
+												)}
+										/>
+									</Field>
+								</div>
+							</section>
+						{/if}
 
 						<Dialog
 							open={addIngredientOpen}
@@ -1492,235 +1393,11 @@
 
 	.split {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
-		grid-template-areas: "panel hero";
-		column-gap: var(--gap);
-		row-gap: var(--gap);
+		grid-template-columns: minmax(0, 1fr);
 		flex: 1;
 		min-height: 0;
 		height: 100%;
 		padding: var(--gap) var(--page-gutter) var(--gap);
-		transition:
-			grid-template-columns var(--t-slow) var(--ease),
-			column-gap var(--t-slow) var(--ease);
-	}
-
-	.hero {
-		grid-area: hero;
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-		min-height: 0;
-		height: 100%;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-xl);
-		background: var(--sunken);
-		overflow: hidden;
-		box-shadow: var(--shadow-sm);
-		opacity: 1;
-		transition:
-			opacity var(--t) var(--ease),
-			border-color var(--t-slow) var(--ease),
-			box-shadow var(--t-slow) var(--ease);
-	}
-
-	.photo-collapse {
-		position: absolute;
-		top: 0.55rem;
-		left: 0.55rem;
-		z-index: 3;
-		display: grid;
-		place-content: center;
-		width: 2rem;
-		height: 2rem;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-pill);
-		background: color-mix(in srgb, var(--card) 88%, transparent);
-		color: var(--muted-foreground);
-		backdrop-filter: blur(8px);
-		cursor: pointer;
-		opacity: 0;
-		transition:
-			opacity var(--t-fast) var(--ease-in-out),
-			color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			border-color var(--t-fast) var(--ease-in-out);
-	}
-
-	.hero:hover .photo-collapse,
-	.hero:focus-within .photo-collapse,
-	.photo-collapse:focus-visible {
-		opacity: 1;
-	}
-
-	.photo-collapse:hover,
-	.photo-collapse:focus-visible {
-		color: var(--foreground);
-		border-color: var(--border-strong, var(--border));
-		background: var(--card);
-	}
-
-	.split.photo-collapsed {
-		grid-template-columns: minmax(0, 1fr) 0%;
-		column-gap: 0;
-	}
-
-	.split.photo-collapsed .hero {
-		opacity: 0;
-		border-color: transparent;
-		box-shadow: none;
-		pointer-events: none;
-	}
-
-	.hero.dragging {
-		border-color: var(--primary);
-		box-shadow: var(--shadow-primary);
-	}
-
-	.hero-img {
-		flex: 1;
-		min-height: 0;
-		width: 100%;
-		object-fit: cover;
-		object-position: center;
-		display: block;
-		background: #0a0a0a;
-		pointer-events: none;
-	}
-
-	.photo-hit {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-content: center;
-		justify-items: center;
-		gap: 0.55rem;
-		margin: 0;
-		cursor: pointer;
-	}
-
-	.photo-hit.empty {
-		background:
-			radial-gradient(
-				ellipse at 50% 30%,
-				var(--primary-wash-strong),
-				transparent 55%
-			),
-			var(--sunken);
-	}
-
-	.photo-hit.has-photo {
-		display: flex;
-		flex-direction: row;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		background: transparent;
-		opacity: 0;
-		transition: opacity var(--t-fast) var(--ease-in-out);
-	}
-
-	.photo-hit.has-photo .photo-btn {
-		pointer-events: none;
-	}
-
-	.photo-hit.has-photo:hover,
-	.photo-hit.has-photo:focus-within,
-	.hero.dragging .photo-hit.has-photo {
-		opacity: 1;
-		background: color-mix(in srgb, #0d0d0d 45%, transparent);
-	}
-
-	.photo-hit.has-photo:hover .photo-btn,
-	.photo-hit.has-photo:focus-within .photo-btn,
-	.hero.dragging .photo-hit.has-photo .photo-btn {
-		pointer-events: auto;
-	}
-
-	.photo-hit.empty input {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		opacity: 0;
-		cursor: pointer;
-	}
-
-	.photo-btn {
-		position: relative;
-		z-index: 1;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.45rem;
-		height: var(--control-h-sm);
-		padding: 0 0.95rem;
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-pill);
-		background: color-mix(in srgb, var(--card) 88%, transparent);
-		color: var(--foreground);
-		font-family: inherit;
-		font-size: var(--text);
-		font-weight: 500;
-		line-height: 1;
-		appearance: none;
-		backdrop-filter: blur(8px);
-		cursor: pointer;
-	}
-
-	.photo-hit.empty .photo-btn {
-		pointer-events: none;
-	}
-
-	.photo-btn.primary {
-		background: var(--primary);
-		border-color: var(--primary);
-		color: var(--primary-foreground);
-	}
-
-	.photo-btn.remove {
-		color: var(--destructive);
-		border-color: color-mix(in srgb, var(--destructive) 45%, var(--border-strong));
-	}
-
-	.photo-hit.has-photo:hover .photo-btn:not(.primary):not(.remove),
-	.photo-hit.has-photo:focus-within .photo-btn:not(.primary):not(.remove) {
-		background: var(--card);
-	}
-
-	.photo-btn.remove:hover:not(:disabled),
-	.photo-btn.remove:focus-visible {
-		background: var(--destructive-wash);
-		border-color: var(--destructive);
-	}
-
-	.photo-btn.remove:disabled {
-		opacity: 0.55;
-		cursor: default;
-	}
-
-	.photo-hint {
-		position: relative;
-		z-index: 1;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-		pointer-events: none;
-	}
-
-	.photo-drop {
-		position: absolute;
-		inset: 0;
-		z-index: 2;
-		display: grid;
-		place-content: center;
-		pointer-events: none;
-		background: color-mix(in srgb, var(--primary) 14%, transparent);
-		color: var(--primary);
-		font-size: var(--text-md);
-		font-weight: 600;
-		letter-spacing: 0.04em;
 	}
 
 	.type-line {
@@ -1767,7 +1444,6 @@
 	}
 
 	.panel {
-		grid-area: panel;
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
@@ -1809,107 +1485,6 @@
 	}
 
 	.head-tools :global(.close-btn:hover:not(:disabled)) {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
-
-	.thumb {
-		display: none;
-	}
-
-	.split.photo-collapsed .thumb {
-		display: block;
-		position: relative;
-		grid-column: 1;
-		grid-row: 1 / span 2;
-		width: 3.75rem;
-		height: 3.75rem;
-		align-self: start;
-		margin-top: 0.15rem;
-	}
-
-	.split.photo-collapsed .panel-head {
-		grid-template-columns: 3.75rem minmax(0, 1fr) auto;
-		column-gap: 0.7rem;
-	}
-
-	.split.photo-collapsed .type-line {
-		grid-column: 2;
-		grid-row: 1;
-	}
-
-	.split.photo-collapsed .head-tools {
-		grid-column: 3;
-		grid-row: 1;
-	}
-
-	.split.photo-collapsed .title-name,
-	.split.photo-collapsed .panel-head:has(.title-meta) .title-name {
-		grid-column: 2 / -1;
-		grid-row: 2;
-	}
-
-	.split.photo-collapsed .title-meta {
-		grid-column: 1 / -1;
-		grid-row: 3;
-		align-items: flex-start;
-		padding-top: 0.35rem;
-	}
-
-	.split.photo-collapsed .price-row,
-	.split.photo-collapsed .pour-readout {
-		justify-content: flex-start;
-	}
-
-	.thumb-hit {
-		display: block;
-		width: 100%;
-		height: 100%;
-		margin: 0;
-		border-radius: var(--radius-md);
-		overflow: hidden;
-		background: var(--sunken);
-		cursor: pointer;
-	}
-
-	.thumb-img {
-		display: block;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.thumb-empty {
-		display: grid;
-		place-content: center;
-		width: 100%;
-		height: 100%;
-		color: var(--muted-foreground);
-	}
-
-	.thumb-hit:focus-within {
-		outline: 2px solid var(--ring);
-		outline-offset: 2px;
-	}
-
-	.thumb-remove {
-		position: absolute;
-		top: -0.35rem;
-		right: -0.35rem;
-		display: grid;
-		place-content: center;
-		width: 1.35rem;
-		height: 1.35rem;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-pill);
-		background: var(--card);
-		color: var(--muted-foreground);
-		cursor: pointer;
-	}
-
-	.thumb-remove:hover:not(:disabled),
-	.thumb-remove:focus-visible {
 		color: var(--destructive);
 		background: var(--destructive-wash);
 	}
@@ -2142,6 +1717,8 @@
 	.tab-body {
 		position: relative;
 		padding: 1rem var(--card-pad-lg) var(--card-pad-lg);
+		container-type: inline-size;
+		container-name: drink-detail;
 	}
 
 	.tab-panel {
@@ -2153,8 +1730,9 @@
 		gap: 0.85rem;
 	}
 
-	.block + .block {
-		margin-top: 1.25rem;
+	.block + .block,
+	.details-board + .block {
+		margin-top: 1.5rem;
 	}
 
 	.section-title {
@@ -2193,28 +1771,200 @@
 
 	.grid {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.7rem 0.85rem;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: 0.8rem 0.85rem;
 		align-items: start;
 	}
 
-	.grid.three,
-	.grid.identity {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+	.grid.three {
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.full {
 		grid-column: 1 / -1;
 	}
 
-	.method-field {
+	/* Photo on top when narrow; beside the fields, top right, when wide. */
+	.details-board {
 		display: grid;
-		gap: 0.7rem;
-		margin-top: 0.85rem;
+		grid-template-columns: minmax(0, 1fr);
+		gap: 1.25rem 1.5rem;
+		align-items: start;
 	}
 
-	.serve-fields {
-		margin-top: 0;
+	.details-main {
+		min-width: 0;
+	}
+
+	.details-side {
+		order: -1;
+		min-width: 0;
+	}
+
+	.photo {
+		position: relative;
+		display: grid;
+		gap: 0.6rem;
+	}
+
+	.photo-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		min-height: var(--control-h-sm);
+	}
+
+	.photo-title {
+		margin: 0;
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+
+	.photo-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.photo-btn {
+		display: inline-flex;
+		align-items: center;
+		height: var(--control-h-sm);
+		padding: 0 0.75rem;
+		border: 1px solid var(--border);
+		border-radius: 0.35rem;
+		background: var(--surface);
+		color: inherit;
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.photo-btn {
+		gap: 0.4rem;
+	}
+
+	/* Phones and tablets only: opens the camera straight away. */
+	.photo-btn.camera {
+		display: none;
+	}
+
+	@media (pointer: coarse) {
+		.photo-btn.camera {
+			display: inline-flex;
+		}
+	}
+
+	.photo-btn:focus-within,
+	.photo-btn:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.photo-btn.remove:hover:not(:disabled),
+	.photo-btn.remove:focus-visible {
+		color: var(--destructive);
+		background: var(--destructive-wash);
+	}
+
+	.photo-btn:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	.photo-frame,
+	.photo-empty {
+		width: 100%;
+		aspect-ratio: 16 / 10;
+		border-radius: 0.4rem;
+		overflow: hidden;
+	}
+
+	.photo-frame {
+		border: 1px solid var(--border);
+		background: #0d0d0d;
+	}
+
+	.photo-frame img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.photo-empty {
+		display: grid;
+		place-content: center;
+		justify-items: center;
+		gap: 0.3rem;
+		margin: 0;
+		padding: 1rem;
+		border: 1px dashed var(--border);
+		background: var(--surface);
+		color: var(--muted-foreground);
+		text-align: center;
+		cursor: pointer;
+	}
+
+	label.photo-empty:hover,
+	label.photo-empty:focus-within {
+		border-color: var(--border-strong, var(--border));
+		color: var(--foreground);
+	}
+
+	.photo-empty.muted {
+		font-size: var(--text-sm);
+		cursor: default;
+	}
+
+	.photo-empty-label {
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--foreground);
+	}
+
+	.photo-hint {
+		font-size: var(--text-xs);
+	}
+
+	.photo.dragging .photo-frame,
+	.photo.dragging .photo-empty {
+		border-color: var(--primary);
+	}
+
+	.photo-drop {
+		position: absolute;
+		inset: calc(var(--control-h-sm) + 0.6rem) 0 0;
+		display: grid;
+		place-content: center;
+		border-radius: 0.4rem;
+		background: color-mix(in srgb, var(--primary) 14%, transparent);
+		color: var(--primary);
+		font-weight: 600;
+		pointer-events: none;
+	}
+
+	@container drink-detail (min-width: 34rem) {
+		.grid.three {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	@container drink-detail (min-width: 46rem) {
+		.details-board {
+			grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+		}
+
+		.details-side {
+			order: 0;
+		}
+
+		.photo-frame,
+		.photo-empty {
+			aspect-ratio: 1;
+		}
 	}
 
 	.hint {
@@ -2242,44 +1992,9 @@
 		color: var(--muted-foreground);
 	}
 
-	@media (max-width: 1100px) {
-		.split {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 30%);
-		}
-
-		.split.photo-collapsed {
-			grid-template-columns: minmax(0, 1fr) 0%;
-		}
-
-		.grid.three,
-		.grid.identity {
-			grid-template-columns: 1fr 1fr;
-		}
-
-		.grid.identity .notes {
-			grid-column: 1 / -1;
-		}
-	}
-
 	@media (max-width: 900px) {
-		.split,
-		.split.photo-collapsed {
-			grid-template-columns: minmax(0, 1fr);
-			grid-template-rows: minmax(0, 1fr);
-			flex: 1;
-			min-height: 0;
+		.split {
 			padding: 0;
-			column-gap: 0;
-			row-gap: 0;
-			transition: none;
-		}
-
-		.panel {
-			min-height: 0;
-		}
-
-		.hero {
-			display: none;
 		}
 
 		.panel {
@@ -2292,39 +2007,9 @@
 			display: none;
 		}
 
-		.head-tools :global(.photo-expand) {
-			display: none;
-		}
-
-		.thumb {
-			display: block;
-			position: relative;
-			grid-column: 1;
-			grid-row: 1 / span 2;
-			width: 3.75rem;
-			height: 3.75rem;
-			align-self: start;
-			margin-top: 0.15rem;
-		}
-
-		.panel-head {
-			grid-template-columns: 3.75rem minmax(0, 1fr) auto;
-			column-gap: 0.7rem;
-		}
-
-		.type-line {
-			grid-column: 2;
-			grid-row: 1;
-		}
-
-		.head-tools {
-			grid-column: 3;
-			grid-row: 1;
-		}
-
 		.title-name,
 		.panel-head:has(.title-meta) .title-name {
-			grid-column: 2 / -1;
+			grid-column: 1 / -1;
 			grid-row: 2;
 		}
 
@@ -2360,14 +2045,6 @@
 	}
 
 	@media (max-width: 880px) {
-		.split {
-			grid-template-columns: 1fr;
-			flex: 1;
-			min-height: 0;
-			padding: 0;
-			gap: 0;
-		}
-
 		.head-tools {
 			flex-wrap: wrap;
 			height: auto;
@@ -2376,12 +2053,6 @@
 
 		.panel-foot {
 			padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-		}
-
-		.grid,
-		.grid.three,
-		.grid.identity {
-			grid-template-columns: 1fr;
 		}
 	}
 
