@@ -1,12 +1,12 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
 import { dispatchStagingContentDeploy } from "../../_lib/site-deploy.js";
 
-/** Rebuild the staging site. Production changes only from Website > Release. */
+/** Rebuild the staging site. Production changes only from Website > Staging → live. */
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
   if (body?.confirm === "production") {
     return jsonResponse(
-      { error: "Production is published from Website > Release." },
+      { error: "Production is published from Website > Staging → live." },
       400,
     );
   }

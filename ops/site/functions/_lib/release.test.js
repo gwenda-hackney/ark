@@ -123,3 +123,31 @@ test("publishRelease copies missing assets, writes, then deletes, and refuses lo
     (error) => error.status === 403,
   );
 });
+
+test("to-staging copies production onto staging and deletes staging-only documents", async () => {
+  const staging = [series({ title: "Edited on staging" }), night("2026-10-03")];
+  const production = [series()];
+  const writes = [];
+  const query = async (_env, dataset, q) => {
+    if (q.startsWith("*[_id in $ids]._id")) return ["image-abc123-10x10-jpg"];
+    return dataset === "production" ? production : staging;
+  };
+  const result = await publishRelease(
+    { SITE_ENV: "production" },
+    { direction: "to-staging" },
+    {
+      query,
+      mutate: async (_env, batch) => writes.push(...batch),
+      upload: async () => {
+        throw new Error("no upload expected");
+      },
+    },
+  );
+  assert.equal(writes[0].createOrReplace.title, "Gwenda Nights");
+  assert.deepEqual(writes[1], { delete: { id: "event-nights-2026-10-03" } });
+  assert.equal(result.direction, "to-staging");
+  await assert.rejects(
+    publishRelease({ SITE_ENV: "production" }, { direction: "sideways" }, { query }),
+    (error) => error.status === 400,
+  );
+});

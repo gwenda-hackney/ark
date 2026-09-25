@@ -1,4 +1,5 @@
 import { handleDeploy, handlePromote, handleStatus } from "./handler";
+import { handleBaserowCopy, handleCompare } from "./tools";
 import type { Env } from "./types";
 
 const ALLOWED_ORIGINS = new Set([
@@ -40,6 +41,8 @@ function serviceInfo(request: Request): Response {
     deploy: "POST /deploy",
     promote: "POST /promote",
     status: "GET /status?run_id=",
+    compare: "GET /compare?base=&head=",
+    baserowCopy: "POST /baserow-copy",
     health: "GET /health",
   });
 }
@@ -71,6 +74,16 @@ export default {
 
       if (request.method === "POST" && url.pathname === "/promote") {
         const result = await handlePromote(request, env);
+        return jsonResponse(request, result.body, result.status);
+      }
+
+      if (request.method === "GET" && url.pathname === "/compare") {
+        const result = await handleCompare(request, env);
+        return jsonResponse(request, result.body, result.status);
+      }
+
+      if (request.method === "POST" && url.pathname === "/baserow-copy") {
+        const result = await handleBaserowCopy(request, env);
         return jsonResponse(request, result.body, result.status);
       }
 

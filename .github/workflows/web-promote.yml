@@ -3,7 +3,7 @@ name: Web promote
 # Builds and deploys the release branch to gwenda.co.uk. Refuses any other
 # branch. Does not move release, and does not deploy ops.
 #
-# Content is not copied here. Ops Website > Release copies reviewed staging
+# Content is not copied here. Ops Website > Staging → live copies reviewed staging
 # documents onto production and then starts this workflow to rebuild. A
 # dataset clone would also carry staging drafts (local ops previews) and
 # anything nobody reviewed.

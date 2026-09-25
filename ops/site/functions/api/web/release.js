@@ -5,7 +5,10 @@ import {
   markReleasedInOps,
   publishRelease,
 } from "../../_lib/release.js";
-import { dispatchProductionDeploy } from "../../_lib/site-deploy.js";
+import {
+  dispatchProductionDeploy,
+  dispatchStagingContentDeploy,
+} from "../../_lib/site-deploy.js";
 
 /** Staging vs production, published documents only. */
 export const onRequestGet = withApiHandler(async (context) => {
@@ -15,12 +18,15 @@ export const onRequestGet = withApiHandler(async (context) => {
 
 /**
  * Publish to production: `{ confirm: "production", ids?: string[] }`.
- * Without ids, everything that differs goes live. Then production rebuilds.
+ * Reset staging from live: `{ confirm: "staging", direction: "to-staging" }`.
+ * Without ids, everything that differs is copied. Then the target rebuilds.
  */
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
-  if (body?.confirm !== "production") {
-    return jsonResponse({ error: 'Send confirm: "production" to publish.' }, 400);
+  const direction = body?.direction === "to-staging" ? "to-staging" : "to-production";
+  const expected = direction === "to-staging" ? "staging" : "production";
+  if (body?.confirm !== expected) {
+    return jsonResponse({ error: `Send confirm: "${expected}" to overwrite ${expected}.` }, 400);
   }
   const ids = Array.isArray(body.ids)
     ? body.ids.map((id) => String(id || "").trim()).filter(Boolean)
@@ -28,23 +34,27 @@ export const onRequestPost = withApiHandler(async (context) => {
   if (ids && !ids.length) {
     return jsonResponse({ error: "Choose at least one change to publish." }, 400);
   }
-  const result = await publishRelease(context.env, { ids });
+  const result = await publishRelease(context.env, { ids, direction });
   const warnings = [...result.warnings];
   let marked = { nights: 0, menuItems: 0 };
-  try {
-    marked = await markReleasedInOps(context.env, result.written);
-  } catch (error) {
-    warnings.push(
-      `Published, but ops status did not update: ${error?.message || "unknown error"}.`,
-    );
+  if (direction === "to-production") {
+    try {
+      marked = await markReleasedInOps(context.env, result.written);
+    } catch (error) {
+      warnings.push(
+        `Published, but ops status did not update: ${error?.message || "unknown error"}.`,
+      );
+    }
   }
   let deploy = null;
   if (result.written.length || result.deleted.length) {
+    const rebuild =
+      direction === "to-staging" ? dispatchStagingContentDeploy : dispatchProductionDeploy;
     try {
-      deploy = await dispatchProductionDeploy(context.env);
+      deploy = await rebuild(context.env);
     } catch (error) {
       warnings.push(
-        `Published, but the live site rebuild did not start: ${error?.message || "unknown error"}.`,
+        `Copied, but the ${direction === "to-staging" ? "staging" : "live"} site rebuild did not start: ${error?.message || "unknown error"}.`,
       );
     }
   }

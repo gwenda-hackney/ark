@@ -49,6 +49,7 @@ export const SECRET_OWNERS = {
   ],
   ops: [
     "BASEROW_OPS_API_KEY",
+    "BASEROW_OPS_DEV_API_KEY",
     "GOOGLE_SERVICE_ACCOUNT_JSON",
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "OPS_SESSION_SECRET",
@@ -86,6 +87,8 @@ export const APP_SECRETS = {
   ops: {
     keys: [
       "BASEROW_API_KEY",
+      // Gwenda Dev copy of the Ops DB, so the Website page can compare it.
+      "BASEROW_OPS_DEV_API_KEY",
       "BASEROW_WEBSITE_API_KEY",
       "BASEROW_CONFIG_API_KEY",
       "GOOGLE_OAUTH_CLIENT_SECRET",

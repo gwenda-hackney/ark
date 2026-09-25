@@ -492,7 +492,7 @@ export function getWebStatus() {
   return coalesce("web-status", () => request<WebStatus>("/api/web/status"));
 }
 
-/** Rebuild the staging site. Production is published from Website > Release. */
+/** Rebuild the staging site. The live site is published from Website > Staging → live. */
 export function promoteWebsite(target: "staging") {
   return request<{
     ok: boolean;
@@ -538,7 +538,66 @@ export function getReleaseDiff() {
   return request<ReleaseDiff>("/api/web/release");
 }
 
-export function publishRelease(ids: string[] | null) {
+export type CodeDiff = {
+  ok: boolean;
+  staging: string | null;
+  live: string | null;
+  /** null when a site's version is unknown. */
+  same: boolean | null;
+  aheadBy?: number;
+  behindBy?: number;
+  url?: string;
+  files?: number;
+  commits: { sha: string; url: string; message: string; author: string; date: string }[];
+  error?: string;
+};
+
+export function getCodeDiff() {
+  return request<CodeDiff>("/api/web/code");
+}
+
+export type DbTableDiff = {
+  name: string;
+  status: "same" | "different" | "missing" | "extra";
+  sourceRows: number;
+  targetRows: number;
+  sourceOnly: number;
+  targetOnly: number;
+  missingColumns: string[];
+  extraColumns: string[];
+};
+
+export type DbPairDiff = {
+  ok: boolean;
+  id: "ops" | "website";
+  label: string;
+  copyLabel: string;
+  source: { label: string; databaseId: string };
+  target: { label: string; databaseId: string };
+  inSync: boolean;
+  tables: DbTableDiff[];
+  checkedAt: string;
+};
+
+export function getDbPairDiff(pair: "ops" | "website") {
+  return request<DbPairDiff>(`/api/web/databases?pair=${pair}`);
+}
+
+export function copyDbPair(pair: "ops" | "website") {
+  return request<{ ok: boolean; runId?: number | null; runUrl?: string; status?: string }>(
+    "/api/web/databases",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pair, confirm: pair }),
+    },
+  );
+}
+
+export function publishRelease(
+  ids: string[] | null,
+  direction: "to-production" | "to-staging" = "to-production",
+) {
   return request<{
     ok: boolean;
     written: string[];
@@ -550,7 +609,11 @@ export function publishRelease(ids: string[] | null) {
   }>("/api/web/release", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ confirm: "production", ...(ids ? { ids } : {}) }),
+    body: JSON.stringify({
+      confirm: direction === "to-staging" ? "staging" : "production",
+      direction,
+      ...(ids ? { ids } : {}),
+    }),
   });
 }
 

@@ -16,7 +16,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   );
   if (target === "production") {
     return jsonResponse(
-      { error: "Production is updated by promoting staging from Web." },
+      { error: "Production is published from Website > Staging → live." },
       400,
     );
   }
@@ -31,7 +31,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   const action = body?.action === "promote" ? "promote" : "deploy";
   if (action === "promote") {
     return jsonResponse(
-      { error: "Promote staging from the Web page, not from recipe publish." },
+      { error: "Publish to production from Website > Staging → live." },
       400,
     );
   }

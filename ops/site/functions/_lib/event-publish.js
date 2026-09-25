@@ -1,7 +1,7 @@
 /**
  * Saving an event stages it: its series and nights are written to the staging
  * dataset. What's on reads that live; new or removed pages rebuild staging.
- * Production only changes from Website > Release, never from here.
+ * Production only changes from Website > Staging → live, never from here.
  * Local ops writes drafts instead (see sanity.js), so dev never touches staging.
  */
 import {
@@ -419,7 +419,7 @@ export async function publishAllEventPreviews(env) {
   };
 }
 
-/** Removes from staging only. Website > Release carries the removal to production. */
+/** Removes from staging only. Website > Staging → live carries the removal to production. */
 export async function unpublishEvent(env, event) {
   return unpublishOccurrences(env, event?.dates || []);
 }

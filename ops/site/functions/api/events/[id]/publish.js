@@ -9,7 +9,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request).catch(() => null);
   if (body?.target === "production") {
     return jsonResponse(
-      { error: "Production only changes from Website > Release." },
+      { error: "Production only changes from Website > Staging → live." },
       400,
     );
   }
