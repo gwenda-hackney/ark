@@ -10,6 +10,15 @@ export const FORM_STATUS_PENDING = "Pending";
 export const FORM_STATUS_VERIFIED = "Verified";
 
 /** Datetime columns stamped after each real (non dry-run) send. */
+export const MARK_RETRY_DELAY_MS = 750;
+
+/** Baserow's 5xx pages are HTML; an alert should say what happened, not paste the page. */
+export function readableUpstreamDetail(status, detail) {
+  const text = String(detail || "");
+  if (/<html|<!doctype/i.test(text)) return `Baserow server error (${status}).`;
+  return text.slice(0, 300);
+}
+
 export const FORM_EMAIL_SENT_FIELDS = {
   notify: "Notify Sent",
   receipt: "Receipt Sent",
@@ -542,21 +551,29 @@ export async function markFormSubmissionEmailSent(env, rowId, kind, sentAt) {
   if (!resolved.ok) return resolved;
 
   const when = sentAt || new Date().toISOString();
-  const upstream = await fetch(resolved.rowUrl(id), {
-    method: "PATCH",
-    headers: {
-      Authorization: `Token ${resolved.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ [field]: when }),
-  });
+  const patch = () =>
+    fetch(resolved.rowUrl(id), {
+      method: "PATCH",
+      headers: {
+        Authorization: `Token ${resolved.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ [field]: when }),
+    });
+  let upstream = await patch();
+  // Baserow occasionally answers 5xx for a moment; the email already went out,
+  // so one retry saves a false "Not sent" in ops and a needless alert.
+  if (upstream.status >= 500) {
+    await new Promise((resolve) => setTimeout(resolve, MARK_RETRY_DELAY_MS));
+    upstream = await patch();
+  }
 
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => "");
     await reportStoreFailure(env, {
       op: `mark_${kind}_sent`,
       status: upstream.status,
-      detail: detail.slice(0, 300),
+      detail: readableUpstreamDetail(upstream.status, detail),
     });
     return { ok: false, error: "Could not mark email sent." };
   }
