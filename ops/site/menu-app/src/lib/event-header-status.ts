@@ -9,9 +9,8 @@ export type HeaderFlag = {
 };
 
 /**
- * One status for the event header, in plain words. Saving puts the event on
- * the preview site; "Put on website" puts it on gwenda.co.uk. Local ops only
- * ever shows a local preview.
+ * One status for the event header, in plain words: saved, and on the website
+ * or not. "Put on website" puts it on gwenda.co.uk.
  */
 export function eventHeaderFlag(
   publish: EventPublishState | null | undefined,
@@ -20,9 +19,15 @@ export function eventHeaderFlag(
 ): HeaderFlag {
   if (dirty) return { label: "Not saved", tone: "unsaved" };
   if (!publish) return { label: "New", tone: "muted" };
-  if (publish.preview !== "current") return { label: "Not on the preview site", tone: "unpublished" };
-  if (local) return { label: "Local preview", tone: "preview" };
+  // Local ops is the developer's test copy: the preview is all it has.
+  if (local) {
+    return publish.preview === "current"
+      ? { label: "Local preview", tone: "preview" }
+      : { label: "Not in local preview", tone: "unpublished" };
+  }
+  // Hosted ops: editors only think about the website. The preview site is
+  // updated on save behind the scenes and never named.
   if (publish.live === "current") return { label: "On the website", tone: "live" };
-  if (publish.live === "unpublished") return { label: "Not on the website yet", tone: "preview" };
+  if (publish.live === "unpublished") return { label: "Not on the website yet", tone: "unpublished" };
   return { label: "Website has an older version", tone: "preview" };
 }
