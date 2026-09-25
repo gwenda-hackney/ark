@@ -138,12 +138,16 @@
 			return;
 		}
 		if (!staging.ok) {
-			toast.error(`${saved} It isn't on the preview site: ${staging.error || "something went wrong."}`);
+			// Editors never see the preview site; say what blocks the website instead.
+			toast.error(
+				staging.local
+					? `${saved} Local preview not updated: ${staging.error || "something went wrong."}`
+					: `${saved} It can't go on the website yet: ${staging.error || "something went wrong."}`,
+			);
 			return;
 		}
 		if (staging.warnings?.length) applyWarnings(staging.warnings);
-		if (staging.local) toast.ok(`${saved} Local preview updated.`);
-		else toast.ok(`${saved} It's on the preview site.`);
+		toast.ok(staging.local ? `${saved} Local preview updated.` : saved);
 	}
 	let openedKey = $state("");
 	let deleteOpen = $state(false);
@@ -674,8 +678,7 @@
 	}
 
 	function statusLabel(event: OpsEvent): string {
-		if (event.publish.preview !== "current") return "Not on preview";
-		if (localOps) return "Local preview";
+		if (localOps) return event.publish.preview === "current" ? "Local preview" : "Not in local preview";
 		if (event.publish.live === "current") return "On website";
 		return "Not on website yet";
 	}
@@ -1884,19 +1887,19 @@
 						{/snippet}
 						Refresh
 					</Button>
-					{#if notStaged.length}
+					{#if localOps && notStaged.length}
 						<Button
 							type="button"
 							variant="outline"
 							busy={stagingAll}
 							disabled={busy || stagingAll}
-							title="Some events aren't on the preview site. This puts them there."
+							title="Some events aren't in your local preview. This puts them there."
 							onclick={() => void stageAll()}
 						>
 							{#snippet icon()}
 								<Icon name="upload" size={16} />
 							{/snippet}
-							Update preview site ({notStaged.length})
+							Update local preview ({notStaged.length})
 						</Button>
 					{/if}
 					{#if listView === "series"}
@@ -2063,7 +2066,7 @@
 									>
 										Update calendar
 									</Button>
-									{#if !formDirty && !stagingPreviewCurrent}
+									{#if localOps && !formDirty && !stagingPreviewCurrent}
 										<Button
 											variant="outline"
 											size="sm"
@@ -2073,7 +2076,7 @@
 											title="Saving normally does this. Try again if it didn't work."
 											onclick={() => void onRestage()}
 										>
-											Update preview
+											Update local preview
 										</Button>
 									{:else if localOps}
 										<!-- Shown, never usable: the test copy must not change the real website. -->
@@ -2987,9 +2990,6 @@
 							<li>{plainChange(entry)}</li>
 						{/each}
 					</ul>
-				{/if}
-				{#if !stagingPreviewCurrent}
-					<p class="delete-copy">You haven't checked this on the preview site. That's fine for small changes.</p>
 				{/if}
 				{#snippet footer()}
 					<Button variant="outline" size="sm" type="button" disabled={putting} onclick={() => (putOpen = false)}>

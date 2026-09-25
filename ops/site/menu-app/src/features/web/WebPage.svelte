@@ -5,18 +5,23 @@
 	 *
 	 *  1. The website: up to date, updating, or "N changes will appear at 3:40".
 	 *     It updates by itself once edits go quiet; "Update website now" skips the wait.
-	 *  2. Saved but not on the website yet: things saved in ops (or Studio) that
-	 *     nobody has put on the website. Put one, or all, on the website.
+	 *  2. Not on the website yet: events whose saved version isn't on the website
+	 *     (from ops' own status), plus anything else that differs (menu, Studio
+	 *     edits, removed events). Put one, or all, on the website.
+	 *  The preview site is a developer concern: only admins see its line.
 	 */
 	import { onDestroy, onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../../shell";
 	import { BusyOverlay, Button, Dialog, PageHeader } from "../../ui";
 	import {
+		getEvents,
 		getMe,
 		getReleaseDiff,
 		publishRelease,
+		putEventOnWebsite,
 		updateSiteNow,
+		type OpsEvent,
 		type ReleaseEntry,
 		type SitePendingItem,
 		type SiteStatus,
@@ -26,7 +31,12 @@
 	import { toast } from "../../lib/toast.svelte";
 	import { getSitePendingState, refreshSitePending } from "../../lib/site-pending.svelte";
 
-	let unpublished = $state<ReleaseEntry[]>([]);
+	/** Editors think in events, so events come from ops, not from document diffs. */
+	type Waiting =
+		| { key: string; kind: "event"; label: string; change: "added" | "changed"; event: OpsEvent }
+		| { key: string; kind: "doc"; label: string; change: "added" | "changed" | "removed"; entry: ReleaseEntry };
+
+	let unpublished = $state<Waiting[]>([]);
 	let loaded = $state(false);
 	let loadError = $state("");
 	let local = $state(false);
@@ -117,10 +127,26 @@
 	const liveStatus = $derived(statusOf(live));
 	const previewStatus = $derived(statusOf(preview));
 
+	const EVENT_TYPES = new Set(["event", "eventSeries"]);
+
 	async function loadUnpublished() {
 		try {
-			const diff = await getReleaseDiff();
-			unpublished = diff.entries;
+			const [diff, eventList] = await Promise.all([getReleaseDiff(), getEvents()]);
+			const events: Waiting[] = (eventList.events || [])
+				.filter((event) => event.publish.live !== "current")
+				.map((event) => ({
+					key: `event:${event.id}`,
+					kind: "event",
+					label: event.name || "Untitled event",
+					change: event.publish.live === "unpublished" ? "added" : "changed",
+					event,
+				}));
+			// Event documents are covered by their event, except ones still on the
+			// website for events that no longer exist in ops.
+			const docs: Waiting[] = diff.entries
+				.filter((entry) => !EVENT_TYPES.has(entry.type) || entry.change === "removed")
+				.map((entry) => ({ key: `doc:${entry.id}`, kind: "doc", label: entry.label, change: entry.change, entry }));
+			unpublished = [...events, ...docs];
 			local = diff.local;
 			loadError = "";
 		} catch (err) {
@@ -166,21 +192,31 @@
 		}
 	}
 
-	async function putOnWebsite(ids: string[] | null) {
-		if (working) return;
-		working = ids ? `put-${ids[0]}` : "put-all";
-		try {
-			const result = await publishRelease(ids);
-			confirmAll = false;
+	async function putOne(item: Waiting) {
+		if (item.kind === "event") {
+			const result = await putEventOnWebsite(item.event.id);
 			for (const warning of result.warnings) toast.info(warning);
+		} else {
+			const result = await publishRelease([item.entry.id]);
+			for (const warning of result.warnings) toast.info(warning);
+		}
+	}
+
+	async function putOnWebsite(items: Waiting[], all: boolean) {
+		if (working) return;
+		working = all ? "put-all" : `put-${items[0]?.key}`;
+		try {
+			for (const item of items) await putOne(item);
+			confirmAll = false;
 			toast.ok(
-				ids
-					? "On the website. Its page updates in a few minutes."
-					: "Everything is on the website. Pages update in a few minutes.",
+				all
+					? "Everything is on the website. Pages update in a few minutes."
+					: "On the website. Its page updates in a few minutes.",
 			);
 			await refreshAll();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not put that on the website.");
+			await refreshAll();
 		} finally {
 			working = "";
 		}
@@ -254,7 +290,7 @@
 			<!-- 2. Saved but not on the website -->
 			<section class="card" aria-labelledby="unpublished-title">
 				<header class="card-head">
-					<h2 id="unpublished-title">Saved, but not on the website yet</h2>
+					<h2 id="unpublished-title">Not on the website yet</h2>
 					{#if unpublished.length && !local}
 						<Button variant="primary" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = true)}>
 							Put all on the website
@@ -265,25 +301,25 @@
 					<p class="muted">Nothing. Everything you've saved is on the website.</p>
 				{:else}
 					<p class="muted">
-						These are on the preview site but not on the website. Put them on one at a time, or all
-						together.
+						You've saved these, but the website doesn't show them yet. Put them on one at a time, or
+						all together.
 					</p>
 					<ul class="list">
-						{#each unpublished as entry (entry.id)}
+						{#each unpublished as item (item.key)}
 							<li>
-								<span class="word {entry.change === 'removed' ? 'removed' : entry.change}">
-									{entry.change === "removed" ? "Remove" : changeWord(entry.change)}
+								<span class="word {item.change}">
+									{item.change === "removed" ? "Remove" : changeWord(item.change)}
 								</span>
-								<span class="name">{entry.label}</span>
+								<span class="name">{item.label}</span>
 								{#if !local}
 									<Button
 										variant="outline"
 										size="sm"
-										busy={working === `put-${entry.id}`}
+										busy={working === `put-${item.key}`}
 										disabled={Boolean(working)}
-										onclick={() => void putOnWebsite([entry.id])}
+										onclick={() => void putOnWebsite([item], false)}
 									>
-										{entry.change === "removed" ? "Take off website" : "Put on website"}
+										{item.change === "removed" ? "Take off website" : "Put on website"}
 									</Button>
 								{/if}
 							</li>
@@ -292,7 +328,8 @@
 				{/if}
 			</section>
 
-			<!-- Preview site, small -->
+			<!-- Preview site: developers only -->
+			{#if isAdmin}
 			<section class="preview" aria-label="Preview site">
 				<span class="dot {previewStatus.tone}" aria-hidden="true"></span>
 				<p>
@@ -319,6 +356,7 @@
 					</button>
 				{/if}
 			</section>
+			{/if}
 		</div>
 	{/if}
 
@@ -334,8 +372,8 @@
 			updates straight away; event pages follow in a few minutes.
 		</p>
 		<ul class="dialog-list">
-			{#each unpublished.slice(0, 8) as entry (entry.id)}
-				<li>{entry.change === "removed" ? "Remove" : changeWord(entry.change)}: {entry.label}</li>
+			{#each unpublished.slice(0, 8) as item (item.key)}
+				<li>{item.change === "removed" ? "Remove" : changeWord(item.change)}: {item.label}</li>
 			{/each}
 			{#if unpublished.length > 8}<li>and {unpublished.length - 8} more</li>{/if}
 		</ul>
@@ -343,7 +381,7 @@
 			<Button variant="outline" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = false)}>
 				Cancel
 			</Button>
-			<Button variant="primary" size="sm" busy={working === "put-all"} onclick={() => void putOnWebsite(null)}>
+			<Button variant="primary" size="sm" busy={working === "put-all"} onclick={() => void putOnWebsite(unpublished, true)}>
 				Put on website
 			</Button>
 		{/snippet}

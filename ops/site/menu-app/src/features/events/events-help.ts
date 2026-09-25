@@ -50,7 +50,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "Saving a series or a night updates Google Calendar. Update calendar on a saved series sends the upcoming nights again without saving. Save first if the series has unsaved edits.",
 	},
 	{
-		title: "Preview site and website",
-		body: "Saving puts the event on the preview site (gwenda-staging), so you can check it there. When it's ready, press Put on website: you'll see what changes, then it goes on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
+		title: "The website",
+		body: "Saving keeps your changes in ops. When the event is ready, press Put on website: you'll see what changes, then it goes on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event asks whether to take it off the website too.",
 	},
 ];
