@@ -24,9 +24,13 @@ ark/
 npm install
 npm run env:pull          # Bitwarden Password Manager → .env (bw-unlock once per container)
 npm run env:secrets:pull  # Secrets Manager → .env.secrets (all app secrets)
-npm run dev               # marketing site → http://localhost:4321
-npm run studio            # Sanity Studio → http://localhost:3333
+npm run dev:refresh           # copy real data into your dev copies (Sanity + Baserow)
+npm run web:dev               # website, dev copy → http://localhost:4321 (web:dev:live → :4322)
+npm run ops:dev               # ops, dev copy → http://localhost:5174
+npm run studio:dev            # Sanity Studio, dev copy → http://localhost:3333
 ```
+
+Commands say which environment they touch: `dev` is your copy, `prod` is the real thing (`ops:prod` runs ops locally on real data). gwenda-staging is prod's preview. See [docs/sanity.md](docs/sanity.md#environments).
 
 See **[docs/monorepo.md](docs/monorepo.md)** for workspaces, deploy triggers, and colour sync.
 

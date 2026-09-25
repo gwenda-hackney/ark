@@ -9,8 +9,8 @@
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
  * Source rows: BASEROW_API_KEY with read access to the production Ops DB.
  *
- *   npm run clone:baserow-ops-dev
- *   npm run clone:baserow-ops-dev -- --dry-run
+ *   npm run dev:refresh:baserow-ops
+ *   npm run dev:refresh:baserow-ops -- --dry-run
  *
  * Env overrides:
  *   BASEROW_OPS_CLONE_SOURCE_ID     source DB (default 556507)
@@ -341,7 +341,7 @@ function writeLocalDevHints({ workspaceId, databaseId }) {
   const opsEnvPath = resolve(ROOT, ".env");
   const lines = [
     "",
-    `# Set after clone:baserow-ops-dev (${new Date().toISOString().slice(0, 10)})`,
+    `# Set after dev:refresh:baserow-ops (${new Date().toISOString().slice(0, 10)})`,
     `BASEROW_OPS_DATABASE_ID=${databaseId}`,
     `BASEROW_OPS_DEV_WORKSPACE_ID=${workspaceId}`,
   ];

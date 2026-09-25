@@ -27,7 +27,7 @@ export function sanityPerspective(input: {
 
 function findRepoRoot(): string {
   const candidates = [
-    // npm run dev -w @gwenda/web → cwd is marketing/web/
+    // npm run web:dev → cwd is marketing/web/
     resolve(process.cwd(), "../.."),
     // import.meta.url fallback (build / SSR)
     resolve(dirname(fileURLToPath(import.meta.url)), "../../../../.."),

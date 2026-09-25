@@ -10,6 +10,11 @@ function labelEl() {
   return document.querySelector("#staging-share [data-staging-share-label]");
 }
 
+/** The environment name the ribbon shows ("Dev", "Preview"), set by StagingRibbon. */
+function defaultLabel() {
+  return document.getElementById("staging-share")?.dataset.envLabel || "Preview";
+}
+
 function setLabel(text) {
   const label = labelEl();
   if (label) label.textContent = text;
@@ -39,7 +44,7 @@ async function copyShareLink() {
 
   setLabel("Copied");
   window.clearTimeout(resetTimer);
-  resetTimer = window.setTimeout(() => setLabel("Staging"), 1600);
+  resetTimer = window.setTimeout(() => setLabel(defaultLabel()), 1600);
 }
 
 export function initStagingShare() {
@@ -54,7 +59,7 @@ export function initStagingShare() {
     copyShareLink().catch(() => {
       setLabel("Failed");
       window.clearTimeout(resetTimer);
-      resetTimer = window.setTimeout(() => setLabel("Staging"), 2000);
+      resetTimer = window.setTimeout(() => setLabel(defaultLabel()), 2000);
     });
   });
 }

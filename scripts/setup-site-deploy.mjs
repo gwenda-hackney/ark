@@ -269,10 +269,10 @@ async function main() {
 
   console.log(
     "\nDone.\n" +
-      "- Local Studio: restart `npm run studio` (with-env loads .env).\n" +
+      "- Local Studio: restart `npm run studio:dev` (with-env loads .env).\n" +
       "- Hosted dev Studio: redeployed with site deploy config.\n" +
       "- Content deploy button: works after site-deploy workflows are on `main` (push pending commits).\n" +
-      "- Production Studio: `npm run studio:deploy` when ready.",
+      "- Production Studio: `npm run studio:deploy:prod` when ready.",
   );
 }
 

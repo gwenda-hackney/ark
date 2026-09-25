@@ -2,8 +2,8 @@
 /**
  * Clone the marketing website Baserow database.
  *
- *   npm run clone:baserow-web-dev        Gwenda Dev (local)
- *   npm run clone:baserow-web-staging    Website Staging in paid Gwenda workspace
+ *   npm run dev:refresh:baserow-web        Gwenda Dev (local)
+ *   npm run preview:refresh:baserow-web    Website Staging in paid Gwenda workspace
  *
  * Recreates every table/field, copies rows with link remapping. File field
  * values are skipped; empty file columns are still created.

@@ -48,7 +48,7 @@ jobs:
         run: npm ci
 
       - name: Deploy hosted Studio (dev)
-        run: npm run studio:deploy:dev
+        run: npm run studio:deploy:preview
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
           SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
@@ -106,7 +106,7 @@ jobs:
         run: npm ci
 
       - name: Deploy hosted Studio (production)
-        run: npm run studio:deploy
+        run: npm run studio:deploy:prod
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
           SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
