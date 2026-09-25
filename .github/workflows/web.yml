@@ -1,6 +1,7 @@
 name: Web
 
-# Marketing site: staging from main, branch previews, and a release preview.
+# Marketing site: staging from main, branch previews, and the production
+# preview on every push to release (release-preview.gwenda-blue.pages.dev).
 # Live deploys are web-promote.yml (build release; content comes from ops Release).
 
 run-name: >-
@@ -58,14 +59,18 @@ jobs:
             elif [ "$ACTION" = "auto" ]; then
               case "${{ github.ref_name }}" in
                 main) MODE=staging-code ;;
-                develop|release) MODE=verify-only ;;
+                release) MODE=production-preview ;;
+                develop) MODE=verify-only ;;
                 *) MODE=branch-preview ;;
               esac
             fi
           elif [ "${{ github.event_name }}" = "push" ]; then
+            # release builds the production preview (release-preview alias, never
+            # the live domain). Going live is the separate, manual Web promote run.
             case "${{ github.ref_name }}" in
               main) MODE=staging-code ;;
-              develop|release) MODE=verify-only ;;
+              release) MODE=production-preview ;;
+              develop) MODE=verify-only ;;
               *) MODE=branch-preview ;;
             esac
           fi
@@ -244,8 +249,9 @@ jobs:
           secrets-profile: production
 
       - name: Smoke test preview
-        # Live settings, so also send a test email to alerts@gwenda.co.uk before going live.
-        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://release-preview.gwenda-blue.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000 --deep --send-email
+        # Live settings: a test email and a real play-form submission (both to
+        # alerts@gwenda.co.uk, test row deleted) before anything goes live.
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://release-preview.gwenda-blue.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000 --deep --send-email --form-test
 
       - name: Deployment summary
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs

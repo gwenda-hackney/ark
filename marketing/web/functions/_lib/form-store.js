@@ -562,3 +562,19 @@ export async function markFormSubmissionEmailSent(env, rowId, kind, sentAt) {
   }
   return { ok: true, sentAt: when };
 }
+
+/** Remove one submission row (used by the post-deploy form test to clean up). */
+export async function deleteFormSubmission(env, rowId) {
+  const id = String(rowId ?? "").trim();
+  if (!id) return { ok: false, error: "Missing submission." };
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+  const upstream = await fetch(resolved.rowUrl(id), {
+    method: "DELETE",
+    headers: { Authorization: `Token ${resolved.apiKey}` },
+  });
+  if (!upstream.ok && upstream.status !== 404) {
+    return { ok: false, error: `Baserow ${upstream.status} deleting the test row.` };
+  }
+  return { ok: true };
+}

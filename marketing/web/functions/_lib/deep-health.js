@@ -14,6 +14,7 @@ import {
   resolveSubscribeTableId,
 } from "./baserow.js";
 import { gmailAccessToken, gmailSender, isGmailConfigured, sendGmail } from "./gmail-send.js";
+import { runFormSmoke } from "./form-smoke.js";
 import { sanityDatasetForEnv, sanityQuery } from "./sanity-query.js";
 
 const DEFAULT_BASEROW_API = "https://api.baserow.io";
@@ -88,10 +89,15 @@ async function timed(name, run) {
   }
 }
 
-export async function runDeepHealth(env, { sendEmail = false, label = "", checks = CHECKS, emailDeps } = {}) {
+export async function runDeepHealth(
+  env,
+  { sendEmail = false, formTest = false, requestUrl, label = "", checks = CHECKS, emailDeps, formSmoke = runFormSmoke } = {},
+) {
   const results = await Promise.all([
     ...Object.entries(checks).map(([name, run]) => timed(name, () => run(env))),
     timed("email", () => checkEmail(env, { send: sendEmail, label, deps: emailDeps })),
+    // A real submission of the play form, emails to alerts@, row deleted after.
+    ...(formTest ? [timed("form", () => formSmoke(env, { requestUrl }))] : []),
   ]);
   return { ok: results.every((result) => result.ok), checks: results };
 }
