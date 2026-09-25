@@ -1,4 +1,4 @@
-import { describeSettings } from "../../../../shared/config.js";
+import { describeSettings } from "../../../../../shared/config.js";
 import { requireAdmin } from "../../_lib/admin.js";
 import { jsonResponse, withApiHandler } from "../../_lib/http.js";
 
