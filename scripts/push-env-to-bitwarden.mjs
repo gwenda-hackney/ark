@@ -9,6 +9,7 @@
  *   npm run env:push -- --dry-run
  */
 import { readFileSync } from "node:fs";
+import { localSettingNames } from "../shared/config.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -25,7 +26,14 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENV_PATH = resolve(ROOT, ".env");
-const SKIP = new Set(["BITWARDEN_EMAIL", "BITWARDEN_PASSWORD", "BW_SESSION", "BW_PASSWORD"]);
+/** Bitwarden login, and each developer's own values (shared/config.js `local` settings). */
+const SKIP = new Set([
+  "BITWARDEN_EMAIL",
+  "BITWARDEN_PASSWORD",
+  "BW_SESSION",
+  "BW_PASSWORD",
+  ...localSettingNames().map(({ env }) => env),
+]);
 
 function parseArgs(argv) {
   const out = { dryRun: false, replace: false };

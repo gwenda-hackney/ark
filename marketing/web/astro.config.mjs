@@ -2,6 +2,7 @@ import { defineConfig, envField } from "astro/config";
 import { resolve } from "node:path";
 import { loadEnv } from "vite";
 import { devSiteGate } from "./scripts/dev-site-gate.js";
+import { missingLocalSettings } from "../../shared/config.js";
 import {
   issueSubscribeTokens,
   validateSubscribeAuth,
@@ -39,6 +40,22 @@ const env = loadEnv(
 );
 const sitePassword = env.SITE_PASSWORD;
 
+// A developer's machine must set its local-only values (npm run env:pull
+// writes placeholders). Fail before serving, not on the first form email.
+if (process.argv.includes("dev")) {
+  const missing = missingLocalSettings(
+    { ...env, ...process.env, SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local" },
+    { services: ["web"] },
+  );
+  if (missing.length) {
+    throw new Error(
+      `Set these in the repo .env first:\n${missing
+        .map((row) => `  ${row.env}=  (${row.hint}, for ${row.key})`)
+        .join("\n")}`,
+    );
+  }
+}
+
 function localSanityPerspective() {
   const explicit =
     process.env.SANITY_PERSPECTIVE?.trim() || env.SANITY_PERSPECTIVE?.trim();
@@ -67,9 +84,8 @@ const subscribeEnv = () => ({
   BASEROW_SUBSCRIBE_TABLE_NAME:
     process.env.BASEROW_SUBSCRIBE_TABLE_NAME ||
     env.BASEROW_SUBSCRIBE_TABLE_NAME,
-  SITE_ENV:
-    process.env.SITE_ENV ||
-    (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+  // These run in the local dev server only: a developer's machine.
+  SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local",
 });
 
 const rsvpEnv = () => ({
@@ -79,9 +95,8 @@ const rsvpEnv = () => ({
     process.env.BASEROW_DATABASE_ID || env.BASEROW_DATABASE_ID,
   BASEROW_RSVP_TABLE_NAME:
     process.env.BASEROW_RSVP_TABLE_NAME || env.BASEROW_RSVP_TABLE_NAME,
-  SITE_ENV:
-    process.env.SITE_ENV ||
-    (env.PUBLIC_IS_STAGING === "true" ? "staging" : env.SITE_ENV),
+  // These run in the local dev server only: a developer's machine.
+  SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local",
   TICKET_SECRET: process.env.TICKET_SECRET || env.TICKET_SECRET,
   SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
@@ -249,12 +264,8 @@ function devFormsApi() {
         GMAIL_SERVICE_ACCOUNT_JSON:
           process.env.GMAIL_SERVICE_ACCOUNT_JSON ||
           env.GMAIL_SERVICE_ACCOUNT_JSON,
-        // Unset must not fall through to production config rows.
-        SITE_ENV:
-          process.env.SITE_ENV ||
-          (env.PUBLIC_IS_STAGING === "true"
-            ? "staging"
-            : env.SITE_ENV || "local"),
+        // A developer's machine: dev settings plus their own .env values.
+        SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local",
         SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
         SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
         SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,

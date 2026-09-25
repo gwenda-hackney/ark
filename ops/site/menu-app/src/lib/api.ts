@@ -51,7 +51,7 @@ export type AuthMe = {
   databaseLabel: string;
   isProductionDb: boolean;
   risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
-  /** Sees developer tools. Always true in local ops. */
+  /** Sees developer tools. Always true in dev. */
   isAdmin?: boolean;
 };
 
@@ -598,6 +598,32 @@ export function updateSiteNow(site: "production" | "staging" = "production") {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ site }),
   });
+}
+
+export type SettingValue = { value: string | null; from: string };
+
+/** One setting across environments (shared/config.js describeSettings). */
+export type SettingRow = {
+  key: string;
+  service: string;
+  about: string;
+  kind: "stored" | "worked out";
+  values: Record<string, SettingValue>;
+  machine: SettingValue;
+  local: { env: string; required: boolean; hint: string; value: string | null } | null;
+};
+
+export type SettingsOverview = {
+  environments: string[];
+  current: string;
+  onMachine: boolean;
+  settings: SettingRow[];
+  unknown: { key: string; env: string; service: string; value: string }[];
+  state: { key: string; env: string; service: string; size: number }[];
+};
+
+export function getSettingsOverview() {
+  return request<SettingsOverview & { ok: boolean }>("/api/web/settings");
 }
 
 export function getCodeDiff() {

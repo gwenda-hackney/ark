@@ -15,7 +15,8 @@
 
 export const CONFIG_DATABASE_NAME = "Gwenda Config";
 export const CONFIG_TABLE_NAME = "Config";
-export const CONFIG_ENVS = ["local", "staging", "production"];
+/** Config Env values. "staging" is prod's preview. A developer's machine reads "dev". */
+export const CONFIG_ENVS = ["dev", "staging", "production"];
 export const CONFIG_SERVICES = ["ops", "web"];
 export const CONFIG_CACHE_TTL_MS = 60_000;
 
@@ -29,15 +30,28 @@ export function resetConfigCacheForTests() {
   tableIdByKey = new Map();
 }
 
-/** Config env for a runtime: SITE_ENV, else PUBLIC_IS_STAGING, else production. */
-export function configEnvName(env = {}) {
+/**
+ * The environment a runtime belongs to (its config Env): dev, staging (prod's
+ * preview) or production. From SITE_ENV, else PUBLIC_IS_STAGING, else production.
+ * A developer's machine (SITE_ENV=local) is dev.
+ */
+export function environmentOf(env = {}) {
   const raw = String(env.SITE_ENV || env.PUBLIC_IS_STAGING || "")
     .trim()
     .toLowerCase();
   if (raw === "true" || raw === "staging") return "staging";
-  if (raw === "local" || raw === "development" || raw === "dev") return "local";
+  if (raw === "local" || raw === "development" || raw === "dev") return "dev";
   if (raw === "production" || raw === "prod" || !raw) return "production";
   return raw;
+}
+
+/**
+ * A developer's machine (npm run ops:dev / web:dev set SITE_ENV=local): dev
+ * settings plus that developer's own values from .env. Hosted dev is SITE_ENV=dev.
+ */
+export function isLocalMachine(env = {}) {
+  const raw = String(env.SITE_ENV || "").trim().toLowerCase();
+  return raw === "local" || raw === "development";
 }
 
 function text(value) {
@@ -145,9 +159,19 @@ async function loadRows(env) {
   return rows;
 }
 
+/** Every row, for the settings overview (cached like reads). */
+export async function listConfigRows(env) {
+  return loadRows(env);
+}
+
+/** A row's Env / Service value, lowercased ("all" when blank). */
+export function rowScope(value) {
+  return scope(value);
+}
+
 /** Flat key → value map for this runtime's env and the given service. */
 export async function getConfigValues(env, service) {
-  return valuesFromRows(await loadRows(env), configEnvName(env), service);
+  return valuesFromRows(await loadRows(env), environmentOf(env), service);
 }
 
 /** One value, or "" when unset or config is unavailable (callers apply defaults). */
@@ -165,7 +189,7 @@ export async function getConfigString(env, service, key) {
  * A runtime never writes `all` or another env's rows.
  */
 export async function setConfigValue(env, service, key, value) {
-  return setConfigValueFor(env, service, key, configEnvName(env), value);
+  return setConfigValueFor(env, service, key, environmentOf(env), value);
 }
 
 /**

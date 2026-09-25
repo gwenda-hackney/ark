@@ -27,7 +27,7 @@ describe("siteEnvName", () => {
   it("normalizes staging and local aliases", () => {
     assert.equal(siteEnvName({ SITE_ENV: "staging" }), "staging");
     assert.equal(siteEnvName({ PUBLIC_IS_STAGING: "true" }), "staging");
-    assert.equal(siteEnvName({ SITE_ENV: "dev" }), "local");
+    assert.equal(siteEnvName({ SITE_ENV: "dev" }), "dev");
     assert.equal(siteEnvName({}), "production");
   });
 });

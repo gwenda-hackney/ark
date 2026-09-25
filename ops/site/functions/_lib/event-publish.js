@@ -366,7 +366,7 @@ export async function publishEventPreview(
   }
 
   const tasks =
-    siteEnvName(env) === "local"
+    siteEnvName(env) === "dev"
       ? { dates: occurrences, warnings: [] }
       : await syncSocialTasks(env, event, occurrences);
   warnings.push(...tasks.warnings);
@@ -404,7 +404,7 @@ export async function stageEvent(env, id) {
       event: await withWebsiteStatus(env, result.event),
       staging: {
         ok: true,
-        local: siteEnvName(env) === "local",
+        local: siteEnvName(env) === "dev",
         warnings: result.warnings,
         deployed: result.deployed,
         deploy: result.deploy,
@@ -415,7 +415,7 @@ export async function stageEvent(env, id) {
       event: null,
       staging: {
         ok: false,
-        local: siteEnvName(env) === "local",
+        local: siteEnvName(env) === "dev",
         error: error?.message || "Could not stage this event.",
         warnings: [],
       },

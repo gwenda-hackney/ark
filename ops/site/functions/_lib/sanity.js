@@ -1,4 +1,4 @@
-import { configEnvName } from "../../../../shared/config-db.js";
+import { environmentOf, isLocalMachine } from "../../../../shared/config.js";
 
 /** The real website's project. */
 export const REAL_SANITY_PROJECT_ID = "pn5yjro6";
@@ -24,20 +24,14 @@ export function sanityDataset(env = {}, target = "staging") {
   return EDITORIAL_DATASET;
 }
 
-/**
- * The dev environment: the dev Ops DB and the Gwenda Dev Sanity project.
- * Config calls it "local" (shared/config-db.js maps SITE_ENV=dev to it).
- */
+/** The dev environment (hosted or a developer's machine): dev Ops DB, Gwenda Dev Sanity. */
 export function isLocalOps(env = {}) {
-  return configEnvName(env) === "local";
+  return environmentOf(env) === "dev";
 }
 
-/**
- * Ops on someone's machine (npm run ops:dev). Hosted dev ops
- * (gwenda-ops-dev, OPS_HOSTED=1) is the same dev environment, but hosted.
- */
+/** Ops on a developer's machine (npm run ops:dev), not hosted dev ops. */
 export function runsOnMachine(env = {}) {
-  return isLocalOps(env) && String(env.OPS_HOSTED || "").trim() !== "1";
+  return isLocalMachine(env);
 }
 
 /** For things that only exist hosted (GitHub builds, database copies). */

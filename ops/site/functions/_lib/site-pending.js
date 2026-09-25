@@ -15,7 +15,7 @@ import {
   pendingSignature,
   pendingSince,
 } from "../../../../shared/site-snapshot.js";
-import { getConfigValueFor, setConfigValueFor } from "../../../../shared/config-db.js";
+import { readState as readConfigState, writeState as writeConfigState } from "../../../../shared/config.js";
 import { listArtists } from "./artist-store.js";
 import { EDITORIAL_DATASET, sanityQuery } from "./sanity.js";
 import {
@@ -58,11 +58,11 @@ export function parseState(text) {
   }
 }
 
-export async function readState(env, site, { read = getConfigValueFor } = {}) {
+export async function readState(env, site, { read = readConfigState } = {}) {
   return parseState(await read(env, "ops", stateKey(env), site).catch(() => ""));
 }
 
-export async function writeState(env, site, state, { write = setConfigValueFor } = {}) {
+export async function writeState(env, site, state, { write = writeConfigState } = {}) {
   await write(env, "ops", stateKey(env), site, JSON.stringify(state));
 }
 
@@ -70,7 +70,7 @@ export async function writeState(env, site, state, { write = setConfigValueFor }
 export async function computePending(
   env,
   site,
-  { query = sanityQuery, artists = listArtists, read = getConfigValueFor } = {},
+  { query = sanityQuery, artists = listArtists, read = readConfigState } = {},
 ) {
   const [snapshotText, docs, artistRows] = await Promise.all([
     read(env, "web", snapshotConfigKey(buildEnvironment(env)), site).catch(() => ""),

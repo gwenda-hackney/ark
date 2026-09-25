@@ -172,6 +172,18 @@ function writeDevVars() {
 async function main() {
   loadRootEnv();
 
+  if (!LIVE) {
+    const { missingLocalSettings } = await import("../shared/config.js");
+    const missing = missingLocalSettings({ ...process.env, SITE_ENV: "local" }, { services: ["ops"] });
+    if (missing.length) {
+      throw new Error(
+        `Set these in the repo .env first:\n${missing
+          .map((row) => `  ${row.env}=  (${row.hint}, for ${row.key})`)
+          .join("\n")}`,
+      );
+    }
+  }
+
   if (LIVE) {
     const localPassword = process.env.OPS_LOCAL_ADMIN_PW;
     await loadProductionSecrets();

@@ -13,7 +13,7 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { listArtists } from "../ops/site/functions/_lib/artist-store.js";
-import { setConfigValueFor } from "../shared/config-db.js";
+import { writeState } from "../shared/config.js";
 import {
   snapshotConfigKey,
   SNAPSHOT_DOCS_QUERY,
@@ -73,7 +73,7 @@ if (command === "capture") {
   const snapshot = parseSnapshot(readFileSync(input, "utf8")) || fail("Snapshot file is not valid.");
   const environment = arg("--environment") || "prod";
   if (environment !== "dev" && environment !== "prod") fail("--environment must be dev or prod");
-  await setConfigValueFor(process.env, "web", snapshotConfigKey(environment), site, JSON.stringify(snapshot));
+  await writeState(process.env, "web", snapshotConfigKey(environment), site, JSON.stringify(snapshot));
   console.log(`Saved the ${site} build snapshot (${snapshot.at}).`);
 } else {
   fail(

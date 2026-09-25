@@ -25,7 +25,7 @@
 		type WebEnvStatus,
 		type WebStatus,
 	} from "../../lib/api";
-	import { loginNext } from "../../lib/nav";
+	import { loginNext, navigate } from "../../lib/nav";
 	import { easeOut, flyMs } from "../../lib/motion";
 	import { toast } from "../../lib/toast.svelte";
 	import { beginSitePublish, writeSitePublish } from "../../lib/site-publish";
@@ -45,7 +45,7 @@
 	type CopyRun = { runId: number | null; runUrl: string; status: string; conclusion: string | null };
 
 	const PAIRS: { id: PairId; label: string; copy: string }[] = [
-		{ id: "ops", label: "Ops", copy: "Gwenda Dev copy (local ops)" },
+		{ id: "ops", label: "Ops", copy: "Gwenda Dev copy (dev ops)" },
 		{ id: "website", label: "Website", copy: "Website Staging (gwenda-staging)" },
 	];
 
@@ -341,6 +341,7 @@
 		subtitle="Staging against the live site: content, code and data. Admins only."
 	>
 		{#snippet actions()}
+			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev/settings")}>Settings</Button>
 			<Button variant="outline" size="sm" disabled={loading} onclick={() => void load()}>
 				{#snippet icon()}
 					<Icon name="refresh" size={16} />
@@ -364,8 +365,8 @@
 				<p class="banner">
 					<Icon name="lock" size={16} />
 					<span>
-						View only in local ops. Your local edits are drafts for your local site; nothing here can be
-						published or copied from local ops.
+						Ops on your machine: copying content changes the Gwenda Dev copy, never gwenda.co.uk.
+						Site rebuilds and database copies only run in hosted ops.
 					</span>
 				</p>
 			{/if}
@@ -402,22 +403,20 @@
 								{diff.counts.added} new on staging · {diff.counts.changed} changed · {diff.counts.removed}
 								only on live. Tick documents to act on some; otherwise the buttons act on all.
 							</p>
-							{#if !local}
-								<div class="actions">
-									<Button variant="primary" disabled={working} onclick={() => ask("to-production")}>
-										{#snippet icon()}
-											<Icon name="upload" size={16} />
-										{/snippet}
-										{selected.size ? `Publish ${countLabel(selectedCount)} to live` : "Publish all to live"}
-									</Button>
-									<Button variant="outline" disabled={working} onclick={() => ask("to-staging")}>
-										{#snippet icon()}
-											<Icon name="undo" size={16} />
-										{/snippet}
-										{selected.size ? `Reset ${countLabel(selected.size)} from live` : "Reset staging from live"}
-									</Button>
-								</div>
-							{/if}
+							<div class="actions">
+								<Button variant="primary" disabled={working} onclick={() => ask("to-production")}>
+									{#snippet icon()}
+										<Icon name="upload" size={16} />
+									{/snippet}
+									{selected.size ? `Publish ${countLabel(selectedCount)} to live` : "Publish all to live"}
+								</Button>
+								<Button variant="outline" disabled={working} onclick={() => ask("to-staging")}>
+									{#snippet icon()}
+										<Icon name="undo" size={16} />
+									{/snippet}
+									{selected.size ? `Reset ${countLabel(selected.size)} from live` : "Reset staging from live"}
+								</Button>
+							</div>
 							<SearchField
 								bind:value={query}
 								placeholder="Filter documents"
@@ -431,14 +430,12 @@
 								{@const allOn = group.entries.every((entry) => selected.has(entry.id))}
 								<section class="group" aria-label={group.label}>
 									<header class="group-head">
-										{#if !local}
-											<input
-												type="checkbox"
-												checked={allOn}
-												aria-label={`Select all ${group.label}`}
-												onchange={() => toggleGroup(group.entries)}
-											/>
-										{/if}
+										<input
+											type="checkbox"
+											checked={allOn}
+											aria-label={`Select all ${group.label}`}
+											onchange={() => toggleGroup(group.entries)}
+										/>
 										<h3>{group.label}</h3>
 										<span class="count">{group.entries.length}</span>
 									</header>
@@ -448,16 +445,14 @@
 											{@const pulled = !selected.has(entry.id) && extra.some((row) => row.id === entry.id)}
 											<li class="entry" class:on={selected.has(entry.id) || pulled}>
 												<div class="entry-row">
-													{#if !local}
-														<input
-															type="checkbox"
-															checked={selected.has(entry.id) || pulled}
-															disabled={pulled}
-															title={pulled ? "Published with a document you picked that needs it." : undefined}
-															aria-label={`Select ${entry.label}`}
-															onchange={() => (selected = toggle(selected, entry.id))}
-														/>
-													{/if}
+													<input
+														type="checkbox"
+														checked={selected.has(entry.id) || pulled}
+														disabled={pulled}
+														title={pulled ? "Published with a document you picked that needs it." : undefined}
+														aria-label={`Select ${entry.label}`}
+														onchange={() => (selected = toggle(selected, entry.id))}
+													/>
 													<span class="badge {entry.change}">
 														{entry.change === "removed" ? "Live only" : changeLabel(entry.change)}
 													</span>
@@ -725,7 +720,7 @@
 	>
 		<p class="dialog-copy">
 			{#if confirmCopy === "ops"}
-				Every row in the Gwenda Dev copy of the Ops DB (what local ops uses) is replaced with
+				Every row in the Gwenda Dev copy of the Ops DB (what dev ops uses) is replaced with
 				production's. Local edits there are lost.
 			{:else}
 				Every row in Website Staging (subscribers, form submissions) is replaced with production's, so

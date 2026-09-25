@@ -15,6 +15,7 @@
  * Overrides: BW_ARK_ENV_ITEM, BW_SERVER, BW_SESSION, BW_PASSWORD, BW_SESSION_FILE
  */
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { LOCAL_PLACEHOLDER, localSettingNames } from "../shared/config.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
@@ -73,6 +74,22 @@ EU server:    ${DEFAULT_SERVER}
 Seed empty notes first: npm run env:seed
 Set one key:           npm run env:set -- KEY value
 Push local .env → vault: npm run env:push`);
+}
+
+/**
+ * Values only the developer on this machine knows (shared/config.js SETTINGS
+ * with `local`, e.g. their email for form notifications). Never in the shared
+ * note: a missing one gets a placeholder, which fails local dev until filled in.
+ */
+function withLocalPlaceholders(content) {
+  const have = new Map(parseDotEnv(content));
+  const missing = localSettingNames().filter(({ env }) => !have.get(env));
+  if (!missing.length) return content;
+  const lines = missing.map(
+    ({ env, hint }) => `# ${hint}: yours only, not in Bitwarden.\n${env}=${LOCAL_PLACEHOLDER}`,
+  );
+  console.log(`Add your own value for: ${missing.map(({ env }) => env).join(", ")} (in .env).`);
+  return `${content.replace(/\n*$/, "\n")}\n${lines.join("\n")}\n`;
 }
 
 function main() {
@@ -137,6 +154,8 @@ function main() {
         (result.appended ? `, appended ${result.appended}` : "");
     }
   }
+
+  content = withLocalPlaceholders(content);
 
   const keys = [...secrets.keys()].sort();
   console.log(

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Create or repair the Baserow "Gwenda Config" database (workspace Gwenda).
- * See shared/config-db.js for how rows resolve.
+ * See shared/config.js (the config service) for how settings resolve.
  *
  *   npm run setup:baserow-config            # database, table, fields, seed rows
  *   npm run setup:baserow-config -- --token # also mint BASEROW_CONFIG_API_KEY → SM (Ark)
@@ -15,8 +15,10 @@ import { fileURLToPath } from "node:url";
 import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   CONFIG_DATABASE_NAME,
+  CONFIG_ENVS,
   CONFIG_TABLE_NAME,
-} from "../shared/config-db.js";
+  SETTINGS,
+} from "../shared/config.js";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 import { listAllSmSecrets, resolveSmAccessToken, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
@@ -26,8 +28,8 @@ const API = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\
 const WORKSPACE_ID = process.env.BASEROW_CONFIG_WORKSPACE_ID?.trim() || "208709";
 const TOKEN_NAME = "gwenda-config";
 
-/** Every hosted non-prod site. A developer's machine overrides with FORMS_NOTIFY_EMAIL. */
-const DEV_NOTIFY = "alerts@gwenda.co.uk";
+/** Every hosted non-prod site. A developer's machine uses FORMS_NOTIFY_EMAIL from .env. */
+const NONPROD_NOTIFY = "alerts@gwenda.co.uk";
 
 /** [Name, Value, Env, Service, Notes] */
 const SEED_ROWS = [
@@ -36,11 +38,13 @@ const SEED_ROWS = [
   ["pour_target.beer", "22", "all", "ops", ""],
   ["pour_target.packaged", "25", "all", "ops", ""],
   ["sanity.project_id", "pn5yjro6", "all", "all", ""],
-  ["forms.notify_email", DEV_NOTIFY, "local", "web", "Overrides the Sanity form notify address outside production"],
-  ["forms.notify_email", DEV_NOTIFY, "staging", "web", "Overrides the Sanity form notify address outside production"],
-  ["web.origin", "http://localhost:4321", "local", "ops", "Marketing site ops calls (form mail resend)"],
-  ["web.origin", "https://gwenda.co.uk", "production", "ops", "Marketing site ops calls (form mail resend)"],
+  ["sanity.project_id", "gwscpagy", "dev", "all", "Gwenda Dev copy"],
+  ["forms.notify_email", NONPROD_NOTIFY, "dev", "web", "Form notifications outside production"],
+  ["forms.notify_email", NONPROD_NOTIFY, "staging", "web", "Form notifications outside production"],
 ];
+
+/** Settings that used to be rows: worked out now (web.origin) or unused (sanity.dataset). */
+const RETIRED_KEYS = new Set(["web.origin", "sanity.dataset"]);
 
 const SELECT = (values) =>
   values.map((value, i) => ({
@@ -50,7 +54,7 @@ const SELECT = (values) =>
 
 const FIELDS = [
   { name: "Value", type: "long_text" },
-  { name: "Env", type: "single_select", select_options: SELECT(["all", "local", "staging", "production"]) },
+  { name: "Env", type: "single_select", select_options: SELECT(["all", ...CONFIG_ENVS]) },
   { name: "Service", type: "single_select", select_options: SELECT(["all", "ops", "web"]) },
   { name: "Notes", type: "long_text" },
 ];
@@ -110,6 +114,46 @@ async function ensureFields(jwt, tableId) {
   }
 }
 
+/**
+ * Env choices are all + CONFIG_ENVS. The old "local" choice is renamed to
+ * "dev" in place, so its rows keep their values (a developer's own values
+ * live in their .env, not here).
+ */
+async function ensureEnvOptions(jwt, tableId) {
+  const fields = await request(jwt, `/api/database/fields/table/${tableId}/`);
+  const field = fields.find((row) => row.name === "Env");
+  if (!field) return;
+  const wanted = ["all", ...CONFIG_ENVS];
+  let changed = false;
+  const options = field.select_options.map((option) => {
+    if (option.value === "local" && !field.select_options.some((o) => o.value === "dev")) {
+      changed = true;
+      console.log("~ Env option local → dev");
+      return { ...option, value: "dev" };
+    }
+    return option;
+  });
+  for (const value of wanted) {
+    if (options.some((option) => option.value === value)) continue;
+    changed = true;
+    console.log(`+ Env option ${value}`);
+    options.push({ value, color: "light-blue" });
+  }
+  if (!changed) return;
+  await request(jwt, `/api/database/fields/${field.id}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ select_options: options }),
+  });
+}
+
+async function removeRetiredRows(jwt, tableId) {
+  for (const row of await listRows(jwt, tableId)) {
+    if (!RETIRED_KEYS.has(row.Name)) continue;
+    console.log(`- ${row.Name} (${row.Env?.value || "all"}/${row.Service?.value || "all"})`);
+    await request(jwt, `/api/database/rows/table/${tableId}/${row.id}/`, { method: "DELETE" });
+  }
+}
+
 async function listRows(jwt, tableId) {
   const body = await request(jwt, `/api/database/rows/table/${tableId}/?user_field_names=true&size=200`);
   return body.results || [];
@@ -163,7 +207,13 @@ async function main() {
   const database = await findOrCreateDatabase(jwt);
   const table = await findOrCreateTable(jwt, database.id);
   await ensureFields(jwt, table.id);
+  await ensureEnvOptions(jwt, table.id);
   await seedRows(jwt, table.id);
+  await removeRetiredRows(jwt, table.id);
+  // Keep the service's list of settings honest: every seeded key is known.
+  for (const [Name] of SEED_ROWS) {
+    if (!SETTINGS[Name]) console.warn(`! ${Name} is seeded but not in shared/config.js SETTINGS`);
+  }
   if (process.argv.includes("--token")) await mintToken(jwt, database.id);
   console.log(`${CONFIG_DATABASE_NAME}: https://baserow.io/database/${database.id}/table/${table.id}/`);
 }

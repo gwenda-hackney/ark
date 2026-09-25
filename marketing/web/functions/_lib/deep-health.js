@@ -6,7 +6,7 @@
  * Each check is independent and reports ok/error and how long it took, so one
  * broken token doesn't hide the others.
  */
-import { getConfigValues } from "../../../../shared/config-db.js";
+import { getSettings } from "../../../../shared/config.js";
 import { listArtists } from "../../../../ops/site/functions/_lib/artist-store.js";
 import { opsArtistEnv } from "../../src/lib/featured-artist.js";
 import {
@@ -53,7 +53,7 @@ export const CHECKS = {
     return `${artists.length} artists`;
   },
   async config(env) {
-    const values = await getConfigValues(env, "web");
+    const values = await getSettings(env, "web");
     return `${Object.keys(values).length} settings`;
   },
 };
