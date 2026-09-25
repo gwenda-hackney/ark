@@ -130,6 +130,17 @@ runs:
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
         BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}
 
+    # What verify.yml used to check on its own separate build.
+    - name: Check build output
+      if: inputs.skip-build != 'true'
+      shell: bash
+      run: |
+        (cd marketing/web && node scripts/ci/verify-sanity-build.mjs)
+        if rg -q 'cloudflareinsights\.com' marketing/web/dist/; then
+          echo "marketing/web/dist/ contains manual Cloudflare Web Analytics embed — remove it from source" >&2
+          exit 1
+        fi
+
     - name: Ensure dist exists
       if: inputs.skip-build == 'true'
       shell: bash
