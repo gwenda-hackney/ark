@@ -228,7 +228,8 @@ export function isPublicPath(pathname) {
   const p = pathname.replace(/\/+$/, "") || "/";
   if (p === "/gate") return true;
   if (p === "/robots.txt") return true;
-  if (p === "/favicon.ico" || p === "/favicon.svg") return true;
+  if (p === "/favicon.ico" || p === "/favicon.svg" || p === "/favicon.png") return true;
+  if (p === "/apple-touch-icon.png") return true;
   if (p === "/api/auth" || p.startsWith("/api/auth/")) return true;
   // Scheduler tick from the site-deploy webhook; checks its own bearer secret.
   if (p === "/api/web/tick") return true;
