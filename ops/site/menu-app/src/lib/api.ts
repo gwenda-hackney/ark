@@ -815,7 +815,7 @@ export function syncEventCalendar(id: string) {
   );
 }
 
-/** What "Put on website" would change for this event. */
+/** What "Update website" would change for this event. */
 export function getEventWebsitePreview(id: string) {
   return request<{ ok: boolean; entries: ReleaseEntry[]; included: string[] }>(
     `/api/events/${encodeURIComponent(id)}/publish`,

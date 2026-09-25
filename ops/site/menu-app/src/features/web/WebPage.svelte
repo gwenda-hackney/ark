@@ -210,8 +210,8 @@
 			confirmAll = false;
 			toast.ok(
 				all
-					? "Everything is on the website. Pages update in a few minutes."
-					: "On the website. Its page updates in a few minutes.",
+					? "Website updated. Pages follow in a few minutes."
+					: "Website updated. Its page follows in a few minutes.",
 			);
 			await refreshAll();
 		} catch (err) {
@@ -293,7 +293,7 @@
 					<h2 id="unpublished-title">Not on the website yet</h2>
 					{#if unpublished.length && !local}
 						<Button variant="primary" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = true)}>
-							Put all on the website
+							Update website with all
 						</Button>
 					{/if}
 				</header>
@@ -301,8 +301,7 @@
 					<p class="muted">Nothing. Everything you've saved is on the website.</p>
 				{:else}
 					<p class="muted">
-						You've saved these, but the website doesn't show them yet. Put them on one at a time, or
-						all together.
+						You've saved these, but the website doesn't show them yet.
 					</p>
 					<ul class="list">
 						{#each unpublished as item (item.key)}
@@ -319,7 +318,7 @@
 										disabled={Boolean(working)}
 										onclick={() => void putOnWebsite([item], false)}
 									>
-										{item.change === "removed" ? "Take off website" : "Put on website"}
+										{item.change === "removed" ? "Take off website" : "Update website"}
 									</Button>
 								{/if}
 							</li>
@@ -362,27 +361,18 @@
 
 	<Dialog
 		open={confirmAll}
-		title="Put everything on the website?"
+		title="Update the website?"
 		onclose={() => {
 			if (!working) confirmAll = false;
 		}}
 	>
-		<p class="dialog-copy">
-			{changes(unpublished.length)} will change the website for everyone. The What's on list
-			updates straight away; event pages follow in a few minutes.
-		</p>
-		<ul class="dialog-list">
-			{#each unpublished.slice(0, 8) as item (item.key)}
-				<li>{item.change === "removed" ? "Remove" : changeWord(item.change)}: {item.label}</li>
-			{/each}
-			{#if unpublished.length > 8}<li>and {unpublished.length - 8} more</li>{/if}
-		</ul>
+		<p class="dialog-copy">{changes(unpublished.length)} will go on gwenda.co.uk.</p>
 		{#snippet footer()}
 			<Button variant="outline" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = false)}>
 				Cancel
 			</Button>
 			<Button variant="primary" size="sm" busy={working === "put-all"} onclick={() => void putOnWebsite(unpublished, true)}>
-				Put on website
+				Update website
 			</Button>
 		{/snippet}
 	</Dialog>

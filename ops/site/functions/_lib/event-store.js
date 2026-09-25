@@ -1257,8 +1257,8 @@ export async function clearEventImage(env, id, { role, name }) {
   return event;
 }
 
-export async function saveOccurrence(env, eventId, occurrence) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
+/** Baserow fields for one night row (shared by single and batch saves). */
+async function occurrenceFields(env, eventId, occurrence) {
   const fields = {
     Name: occurrence.label,
     Event: [Number(eventId)],
@@ -1305,12 +1305,43 @@ export async function saveOccurrence(env, eventId, occurrence) {
           ? occurrence.overrides.heroCrops
           : JSON.stringify(occurrence.overrides.heroCrops);
   }
+  return fields;
+}
+
+export async function saveOccurrence(env, eventId, occurrence) {
+  const tables = requireEventsTables(await resolveOpsTableIds(env));
+  const fields = await occurrenceFields(env, eventId, occurrence);
   if (occurrence.id) {
     return mapEventDate(
       await updateRow(env, tables.eventDates, occurrence.id, fields),
     );
   }
   return mapEventDate(await createRow(env, tables.eventDates, fields));
+}
+
+/**
+ * Save many nights: existing rows in one batch request (Baserow allows 200),
+ * new rows one by one. Keeps a series save inside Cloudflare's call limit.
+ */
+export async function saveOccurrences(env, eventId, occurrences) {
+  const list = (occurrences || []).filter(Boolean);
+  if (!list.length) return;
+  const tables = requireEventsTables(await resolveOpsTableIds(env));
+  const existing = [];
+  for (const occurrence of list) {
+    if (occurrence.id) {
+      existing.push({ id: Number(occurrence.id), ...(await occurrenceFields(env, eventId, occurrence)) });
+    } else {
+      await createRow(env, tables.eventDates, await occurrenceFields(env, eventId, occurrence));
+    }
+  }
+  for (let i = 0; i < existing.length; i += 200) {
+    await baserowFetch(
+      env,
+      `/api/database/rows/table/${tables.eventDates}/batch/?user_field_names=true`,
+      { method: "PATCH", body: JSON.stringify({ items: existing.slice(i, i + 200) }) },
+    );
+  }
 }
 
 /** Ensure a calendar night exists on the series, even outside the recurrence rule. */
@@ -2027,4 +2058,29 @@ export async function removeOccurrence(env, id) {
     if (error?.status !== 404) throw error;
   }
   return warnings;
+}
+
+/**
+ * Update only "Publish snapshots" on many night rows in one request
+ * (Baserow batch update, up to 200 rows per call).
+ */
+export async function saveOccurrenceSnapshots(env, updates) {
+  if (!updates?.length) return 0;
+  const tables = requireEventsTables(await resolveOpsTableIds(env));
+  for (let i = 0; i < updates.length; i += 200) {
+    await baserowFetch(
+      env,
+      `/api/database/rows/table/${tables.eventDates}/batch/?user_field_names=true`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          items: updates.slice(i, i + 200).map((row) => ({
+            id: row.id,
+            "Publish snapshots": JSON.stringify(row.snapshots || {}),
+          })),
+        }),
+      },
+    );
+  }
+  return updates.length;
 }

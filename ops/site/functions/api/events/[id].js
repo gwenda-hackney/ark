@@ -6,7 +6,6 @@ import {
 import { deleteEvent, getEvent, updateEvent } from "../../_lib/event-store.js";
 import {
   removeEventFromWebsite,
-  stageEvent,
   unpublishEvent,
   withWebsiteStatus,
 } from "../../_lib/event-publish.js";
@@ -30,12 +29,11 @@ export const onRequestPatch = withApiHandler(async (context) => {
   if (!body || typeof body !== "object") {
     return jsonResponse({ error: "Invalid request." }, 400);
   }
-  const updated = await updateEvent(context.env, id, body);
-  await syncSeriesCalendar(context.env, updated);
-  const { event, staging } = await stageEvent(context.env, id);
-  return jsonResponse(
-    attachCalendarWarnings(context.env, { ok: true, event: event || updated, staging }),
-  );
+  // Staging runs in its own request (the app calls /publish next): one request
+  // doing both ran out of Cloudflare's 50 outbound calls on a long series.
+  const event = await updateEvent(context.env, id, body);
+  await syncSeriesCalendar(context.env, event);
+  return jsonResponse(attachCalendarWarnings(context.env, { ok: true, event }));
 });
 
 export const onRequestDelete = withApiHandler(async (context) => {
