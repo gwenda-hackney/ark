@@ -19,6 +19,7 @@ import {
   publishRelease,
 } from "./release.js";
 import { siteEnvName } from "./config-store.js";
+import { documentFingerprint } from "../../../../shared/site-snapshot.js";
 import {
   expandOccurrenceDates,
   expandSeriesOccurrenceDates,
@@ -337,7 +338,7 @@ export async function stageEvent(env, id) {
   try {
     const result = await publishEventPreview(env, id);
     return {
-      event: result.event,
+      event: await withWebsiteStatus(env, result.event),
       staging: {
         ok: true,
         local: siteEnvName(env) === "local",
@@ -492,7 +493,7 @@ export async function putEventOnWebsite(env, id) {
     warnings.push(`On the website, but ops status did not update: ${error?.message || "unknown error"}.`);
   }
   return {
-    event: await getEvent(env, id),
+    event: await withWebsiteStatus(env, await getEvent(env, id)),
     written: result.written,
     deleted: result.deleted,
     included: result.included,
@@ -514,4 +515,54 @@ export async function removeEventFromWebsite(env, event, rows = null) {
     }
   }
   return warnings;
+}
+
+const EVENT_DOCS_QUERY = `*[_type in ["eventSeries", "event"] && !(_id in path("drafts.**"))]`;
+
+/**
+ * "Is this event on the website?" from the real data: every one of its
+ * documents (series + nights) on staging, which saving keeps in step with
+ * ops, compared with production. Fingerprints in ops only cover the fields
+ * someone remembered to list; this cannot miss one.
+ *  - nothing staged yet: keep ops' own answer
+ *  - nothing live: "unpublished"
+ *  - any document added, removed or different: "stale"
+ */
+export function websiteStatusFor(event, staging, production) {
+  const seriesId = sanitySeriesId(event.slug);
+  const belongs = (doc) =>
+    doc._id === seriesId || (doc._type === "event" && doc.seriesId === event.slug);
+  const onStaging = [...staging.values()].filter(belongs);
+  if (!onStaging.length) return event.publish?.live || "unpublished";
+  const live = [...production.values()].filter(belongs);
+  if (!live.length) return "unpublished";
+  if (live.length !== onStaging.length) return "stale";
+  for (const doc of onStaging) {
+    const other = production.get(doc._id);
+    if (!other || documentFingerprint(other) !== documentFingerprint(doc)) return "stale";
+  }
+  return "current";
+}
+
+/** Replace publish.live with the real-data answer. Local ops keeps its own. */
+export async function withWebsiteStatus(env, events, { query = sanityQuery } = {}) {
+  const list = (Array.isArray(events) ? events : [events]).filter(Boolean);
+  if (!list.length || siteEnvName(env) === "local") return events;
+  let staging;
+  let production;
+  try {
+    const [stagingDocs, productionDocs] = await Promise.all([
+      query(env, EDITORIAL_DATASET, EVENT_DOCS_QUERY),
+      query(env, "production", EVENT_DOCS_QUERY),
+    ]);
+    staging = new Map((stagingDocs || []).map((doc) => [doc._id, doc]));
+    production = new Map((productionDocs || []).map((doc) => [doc._id, doc]));
+  } catch {
+    return events; // Sanity unreachable: ops' own status is better than none.
+  }
+  const apply = (event) => ({
+    ...event,
+    publish: { ...event.publish, live: websiteStatusFor(event, staging, production) },
+  });
+  return Array.isArray(events) ? list.map(apply) : apply(events);
 }

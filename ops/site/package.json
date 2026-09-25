@@ -6,6 +6,7 @@
   "description": "Gwenda internal ops tools: shared shell, recipes, menu prices and stock (Cloudflare Access / Pages)",
   "scripts": {
     "dev": "node ../../scripts/ops-dev.mjs",
+    "dev:live": "node ../../scripts/ops-dev.mjs --live",
     "build": "npm run build -w @gwenda/ops-menu",
     "test": "node --test functions/_lib/*.test.js scripts/*.test.js menu-app/src/lib/*.test.ts menu-app/src/features/events/hero-crops.test.ts ../../scripts/lib/cloudflare-tokens.test.mjs ../../scripts/lib/bitwarden-sm.test.mjs ../../shared/*.test.js",
     "events:roll": "node ../../scripts/with-ops-env.mjs node scripts/publish-recurring-events.mjs",

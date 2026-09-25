@@ -75,14 +75,19 @@ export function opsConnectionInfo(env = {}) {
       : `${OPS_DATABASE_NAME} (dev)`;
 
   let risk = null;
-  if (siteEnv !== "production" && isProductionDb) risk = "nonprod_on_production_db";
+  // npm run dev:live: a local copy with production powers. Always flagged.
+  const localLive = String(env.OPS_LOCAL_LIVE || "") === "1";
+  if (localLive) risk = "local_live";
+  else if (siteEnv !== "production" && isProductionDb) risk = "nonprod_on_production_db";
   else if (siteEnv === "production" && databaseId && !isProductionDb) {
     risk = "production_on_nonprod_db";
   }
 
   return {
     siteEnv,
-    envLabel,
+    envLabel: localLive
+      ? "LOCAL COPY ON LIVE DATA: changes affect the real website"
+      : envLabel,
     databaseId,
     databaseLabel,
     isProductionDb,
