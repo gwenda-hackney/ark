@@ -79,7 +79,7 @@
 		normalizeEventTab,
 		parseShellPath,
 	} from "../../lib/nav";
-	import { setCrumbLeaf } from "../../lib/crumbs.svelte";
+	import { setActiveNavOverride, setCrumbLeaf } from "../../lib/crumbs.svelte";
 	import {
 		compareSeriesByWeekday,
 		countEventScheduleRows,
@@ -262,6 +262,11 @@
 			!editingOccurrence &&
 			String(current?.repeatUnit || repeatUnit || "").toLowerCase() === "once",
 	);
+	// A special event is not a series: keep Schedule highlighted in the menu.
+	$effect(() => {
+		setActiveNavOverride(editingOnce ? "events-schedule" : "");
+		return () => setActiveNavOverride("");
+	});
 	const listView = $derived<"series" | "schedule">(
 		routeList ??
 			(editingOccurrence || creatingOnce || editingOnce
