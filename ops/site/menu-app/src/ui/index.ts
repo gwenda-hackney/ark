@@ -19,6 +19,7 @@ export { default as SearchField } from "./SearchField.svelte";
 export { default as Segmented } from "./Segmented.svelte";
 export { default as SidePanel } from "./SidePanel.svelte";
 export { default as TextField } from "./TextField.svelte";
+export { default as TimeField } from "./TimeField.svelte";
 export { default as TextArea } from "./TextArea.svelte";
 export { default as NativeSelect } from "./NativeSelect.svelte";
 export { default as ComboBox } from "./ComboBox.svelte";
