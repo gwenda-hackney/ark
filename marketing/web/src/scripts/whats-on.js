@@ -6,9 +6,13 @@ import {
   formatEventRecurrence,
   formatEventSpan,
 } from "../data/events";
-import { formatShortEventDate } from "../../functions/_lib/event-series.js";
+import {
+  formatShortEventDate,
+  seriesCardNextLine,
+} from "../../functions/_lib/event-series.js";
 import { artistRunLabel } from "../lib/artist-run.js";
 import { diaryGroups } from "../lib/diary-groups.js";
+import { followUpdatesLink } from "../lib/follow-updates.js";
 
 function heroImageUrl(event, width) {
   const url = event.heroImageUrl || event.heroImage?.url;
@@ -163,8 +167,7 @@ function eventDescription(
   return wrap;
 }
 
-function appendPageLink(parent, url) {
-  const link = eventPageLink(url);
+function appendPageLink(parent, url, link = eventPageLink(url)) {
   if (!link) return;
   const line = document.createElement("p");
   line.className = "event-page-link";
@@ -182,9 +185,12 @@ function seriesCard(event, { eager = false } = {}) {
   const regular = Boolean(event.regular);
   const href = String(event.href || "").trim();
   const external = eventPageLink(event.pageUrl);
+  const datesPending = Boolean(event.datesPending);
+  // A link inside the card: the card becomes a div with a hit area behind it.
+  const linked = Boolean(external) || datesPending;
   const item = document.createElement("li");
-  const card = document.createElement(external ? "div" : href ? "a" : "div");
-  card.className = `event-card event-card--series${external ? " event-card--linked" : ""}${regular ? " event-card--regular" : ""}`;
+  const card = document.createElement(linked ? "div" : href ? "a" : "div");
+  card.className = `event-card event-card--series${linked ? " event-card--linked" : ""}${regular ? " event-card--regular" : ""}`;
   const captionName = String(event.imageCaptionName || "").trim();
   const hostDate = String(event.hostDate || "").trim();
   const label = [
@@ -203,7 +209,7 @@ function seriesCard(event, { eager = false } = {}) {
   ]
     .filter(Boolean)
     .join(". ");
-  if (external && href) {
+  if (linked && href) {
     const hit = document.createElement("a");
     hit.className = "event-card-hit";
     hit.href = href;
@@ -236,11 +242,14 @@ function seriesCard(event, { eager = false } = {}) {
     when.textContent = formatEventDiaryDate(event.date);
     date.appendChild(when);
   }
-  const span = formatEventSpan(event.startTime, event.endTime, event.time);
-  if (span) {
+  const nextLine = seriesCardNextLine(
+    event,
+    formatEventSpan(event.startTime, event.endTime, event.time),
+  );
+  if (nextLine) {
     const time = document.createElement("span");
     time.className = "event-time";
-    time.textContent = span;
+    time.textContent = nextLine;
     date.appendChild(time);
   }
 
@@ -274,6 +283,7 @@ function seriesCard(event, { eager = false } = {}) {
     copy.appendChild(eventDescription(event.description));
   }
   appendPageLink(copy, event.pageUrl);
+  if (datesPending) appendPageLink(copy, "", followUpdatesLink());
 
   const follow = document.createElement("div");
   follow.className = "event-follow";
@@ -821,6 +831,9 @@ async function refreshSeriesDetail(page, root, { signal } = {}) {
     applyLiveMedia(main, seriesHeroSource(detail), 1800, true);
     applyRecurringSeriesCopy(main, detail);
   }
+  page
+    .querySelector(".whats-on-series-pending")
+    ?.toggleAttribute("hidden", !detail.datesPending);
   const list = root.querySelector(".events-list");
   const nights = Array.isArray(detail.nights) ? detail.nights : [];
   if (list instanceof HTMLOListElement && root.dataset.seriesRich === "true") {

@@ -468,9 +468,9 @@ function fieldsFromInput(
   if (!partial || input.startsOn !== undefined) {
     const startsOn = isoDate(input.startsOn);
     const unit = text(input.repeatUnit || "none").toLowerCase();
-    // Scheduled series (does not repeat) may have no nights yet. Recurring
-    // series still need a start date for the rule.
-    if (!startsOn && unit !== "none") {
+    // A series may have no start date yet: the website shows it with
+    // "Check back soon for the next date". A one-off still needs its date.
+    if (!startsOn && unit === "once") {
       const error = new Error("Start date is required.");
       error.status = 400;
       throw error;
@@ -544,7 +544,13 @@ function fieldsFromInput(
     error.status = 400;
     throw error;
   }
-  if (unit && unit !== "none" && unit !== "once" && !fields["Ends on"]) {
+  if (
+    unit &&
+    unit !== "none" &&
+    unit !== "once" &&
+    fields["Starts on"] &&
+    !fields["Ends on"]
+  ) {
     const error = new Error("Recurring events need an end date.");
     error.status = 400;
     throw error;

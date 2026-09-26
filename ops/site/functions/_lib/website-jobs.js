@@ -21,8 +21,13 @@ import {
   calendarNightsBehind,
   syncSeriesCalendar,
 } from "./event-calendar-sync.js";
-import { occurrenceHash } from "./event-content.js";
-import { publishEventPreview, withWebsiteStatus } from "./event-publish.js";
+import { occurrenceHash, seriesAwaitingDates } from "./event-content.js";
+import {
+  publishEventPreview,
+  readSeriesPreviews,
+  seriesPreviewHash,
+  withWebsiteStatus,
+} from "./event-publish.js";
 import { droppedNights, getEvent, listEvents, previewBehind } from "./event-store.js";
 
 export const CALENDAR_STEP = 12;
@@ -31,9 +36,12 @@ const FAILURES_KEY = "site.prep_failures";
 /** Changes whenever anything the calendar or website shows changes. */
 export function contentSignature(event) {
   const byDate = new Map((event?.dates || []).map((row) => [row.date, row]));
-  const text = (event?.publish?.previewDates || [])
-    .map((date) => occurrenceHash(event, byDate.get(date) || date))
-    .join("\n");
+  const text = [
+    ...(event?.publish?.previewDates || []).map((date) =>
+      occurrenceHash(event, byDate.get(date) || date),
+    ),
+    ...(seriesAwaitingDates(event) ? [seriesPreviewHash(event)] : []),
+  ].join("\n");
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) {
     hash ^= text.charCodeAt(i);
@@ -42,13 +50,21 @@ export function contentSignature(event) {
   return (hash >>> 0).toString(36);
 }
 
-/** What this event still needs, or null when it is ready. */
-export function prepNeeded(event, { calendar = true } = {}) {
+/**
+ * What this event still needs, or null when it is ready.
+ * `seriesPreviews` (readSeriesPreviews) covers a series waiting for dates.
+ */
+export function prepNeeded(event, { calendar = true, seriesPreviews = {} } = {}) {
   if (!event?.id) return null;
+  const awaiting = seriesAwaitingDates(event);
   // An ended series has no upcoming nights but may still have some to take off.
-  if (!event.publish?.previewDates?.length && !droppedNights(event).length) return null;
+  if (!awaiting && !event.publish?.previewDates?.length && !droppedNights(event).length) {
+    return null;
+  }
   const calendarBehind = calendar ? calendarNightsBehind(event) : 0;
-  const preview = previewBehind(event);
+  const preview =
+    previewBehind(event) ||
+    (awaiting && seriesPreviews[String(event.id)] !== seriesPreviewHash(event));
   if (!calendarBehind && !preview) return null;
   return { calendarBehind, preview };
 }
@@ -79,10 +95,10 @@ export function currentFailure(failures, event) {
 }
 
 /** Every event that is not ready yet, in the order the runner takes them. */
-export function jobsFrom(events, failures, { calendar = true } = {}) {
+export function jobsFrom(events, failures, { calendar = true, seriesPreviews = {} } = {}) {
   const jobs = [];
   for (const event of events) {
-    const needs = prepNeeded(event, { calendar });
+    const needs = prepNeeded(event, { calendar, seriesPreviews });
     if (!needs) continue;
     const failure = currentFailure(failures, event);
     jobs.push({
@@ -97,12 +113,13 @@ export function jobsFrom(events, failures, { calendar = true } = {}) {
 }
 
 export async function listWebsiteJobs(env) {
-  const [events, failures, calendar] = await Promise.all([
+  const [events, failures, calendar, seriesPreviews] = await Promise.all([
     listEvents(env),
     readFailures(env),
     calendarConfigured(env),
+    readSeriesPreviews(env),
   ]);
-  return jobsFrom(events, failures, { calendar });
+  return jobsFrom(events, failures, { calendar, seriesPreviews });
 }
 
 /** Earlier failures for events that are ready now or have changed: drop them. */
@@ -120,18 +137,19 @@ function prunedFailures(failures, event) {
 export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
   const failures = await readFailures(env);
   const calendar = await calendarConfigured(env);
+  let seriesPreviews = await readSeriesPreviews(env);
   let event;
   if (eventId) {
     event = await getEvent(env, eventId);
   } else {
     const events = await listEvents(env);
     event = events.find(
-      (row) => prepNeeded(row, { calendar }) && !currentFailure(failures, row),
+      (row) => prepNeeded(row, { calendar, seriesPreviews }) && !currentFailure(failures, row),
     );
     if (!event) return { idle: true };
   }
 
-  const needs = prepNeeded(event, { calendar });
+  const needs = prepNeeded(event, { calendar, seriesPreviews });
   const failed = currentFailure(failures, event);
   if (!needs || (failed && !retry)) {
     if (!needs && failures[String(event.id)]) await writeFailures(env, prunedFailures(failures, event));
@@ -154,6 +172,7 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
       const result = await publishEventPreview(env, event.id);
       warnings.push(...(result.warnings || []));
       event = result.event;
+      seriesPreviews = await readSeriesPreviews(env);
       if (previewBehind(event)) {
         throw new Error("The website copy is still out of date after updating it.");
       }
@@ -167,7 +186,7 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
     return { eventId: String(event.id), done: false, failed: message, warnings };
   }
 
-  const done = !prepNeeded(event, { calendar });
+  const done = !prepNeeded(event, { calendar, seriesPreviews });
   if (failures[String(event.id)]) await writeFailures(env, prunedFailures(failures, event));
   return {
     eventId: String(event.id),

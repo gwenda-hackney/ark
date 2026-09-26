@@ -39,6 +39,8 @@ export type EventSeries = {
   recurrence?: string;
   replacesSeriesId?: string;
   schedule?: "manual" | "repeating" | "once";
+  /** No nights yet: What's on shows "Check back soon for the next date". */
+  datesPending?: boolean;
   offer?: string;
   nightSchedule?: Array<{
     label: string;

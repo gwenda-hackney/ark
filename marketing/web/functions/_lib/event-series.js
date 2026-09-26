@@ -547,6 +547,20 @@ function groupUpcomingBySeries(events, now = new Date()) {
   return groups;
 }
 
+/** Card and page line for a series with no nights yet. */
+export const DATES_PENDING_LABEL = "Check back soon for the next date";
+
+/**
+ * Line under a series card's schedule label: the next night and its times,
+ * or "Check back soon for the next date". A one-off's label is already its date.
+ */
+export function seriesCardNextLine(card, span = "") {
+  if (card?.datesPending) return DATES_PENDING_LABEL;
+  const next =
+    card?.schedule === "once" ? "" : formatShortEventDate(card?.date || "");
+  return [next ? `Next: ${next}` : "", span].filter(Boolean).join(" · ");
+}
+
 function asSeriesTemplate(record) {
   if (!record) return null;
   const seriesId = String(
@@ -568,6 +582,7 @@ function asSeriesTemplate(record) {
       record.replacesSeriesId || record.replacesSeries || "",
     ).trim(),
     schedule,
+    datesPending: record.datesPending === true,
     offer: String(record.offer || "").trim(),
     nightSchedule: Array.isArray(record.nightSchedule)
       ? record.nightSchedule
@@ -614,11 +629,14 @@ function summarizeSeries(template, nights) {
   const weekdayRank = repeating
     ? eventWeekdayRank(series.recurrence)
     : seriesWeekdayRankFromNights(ordered);
+  const datesPending = !ordered.length && series.datesPending;
   const scheduleLabel = repeating
     ? series.recurrence
     : once
       ? formatShortEventDate(next?.date) || "Special event"
-      : weekdaySlotLabel(weekdayRank) || "Scheduled";
+      : datesPending
+        ? "Dates to be announced"
+        : weekdaySlotLabel(weekdayRank) || "Scheduled";
   const cardHero = seriesDefaultHero(series, ordered);
   return {
     seriesId: series.seriesId,
@@ -636,6 +654,7 @@ function summarizeSeries(template, nights) {
     replacesSeriesId: series.replacesSeriesId || "",
     schedule: series.schedule,
     scheduleLabel,
+    datesPending,
     weekdayRank,
     nextDate: next?.date || "",
     startTime: next?.startTime || "",
@@ -695,6 +714,11 @@ export function buildSeriesList(
     if (!template) continue;
     const { nights: _nights, ...summary } = summarizeSeries(template, nights);
     rows.push({ ...summary, nights });
+  }
+  // Announced before its first night: listed with "Check back soon for the next date".
+  for (const [seriesId, template] of templates) {
+    if (!template.datesPending || groups.has(seriesId)) continue;
+    rows.push(summarizeSeries(template, []));
   }
   return rows.sort(compareSeries);
 }
@@ -840,6 +864,7 @@ export function buildWhatsOnStack(
       replacesSeriesId: row.replacesSeriesId || "",
       schedule: row.schedule,
       scheduleLabel: row.scheduleLabel,
+      datesPending: row.datesPending,
       weekdayRank: row.weekdayRank,
       heroImageUrl: cardHero.heroImageUrl,
       heroImage: cardHero.heroImage,
@@ -1059,11 +1084,28 @@ export function buildSeriesDetail(
       heroImageUrl: heroUrl(event),
     }));
 
-  if (!nights.length) return null;
-
-  const templates = resolveTemplates(series, new Map([[key, nights]]));
+  const templates = resolveTemplates(
+    series,
+    nights.length ? new Map([[key, nights]]) : new Map(),
+  );
   const template = templates.get(key);
   if (!template) return null;
+  if (!nights.length) {
+    if (!template.datesPending) return null;
+    const { nights: _none, ...pending } = summarizeSeries(template, []);
+    return {
+      ...pending,
+      description:
+        seriesMarketingCopy(pending.fullDescription || pending.description, {
+          maxParagraphs: 2,
+        }) || pending.shortDescription,
+      nights: [],
+      next: null,
+      richDetail: true,
+      featuredGuest: null,
+      upcomingDates: [],
+    };
+  }
 
   const summary = summarizeSeries(template, nights);
   const { nights: _grouped, ...seriesSummary } = summary;

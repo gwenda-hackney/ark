@@ -54,6 +54,14 @@ export const eventSeries = defineType({
         "Set by ops when the series auto-schedules. Empty for manual series.",
     }),
     defineField({
+      name: "datesPending",
+      title: "Dates to be announced",
+      type: "boolean",
+      readOnly: true,
+      description:
+        "Set by ops when the series has no nights yet. What's on shows it with “Check back soon for the next date”.",
+    }),
+    defineField({
       name: "shortDescription",
       title: "Short description",
       type: "text",

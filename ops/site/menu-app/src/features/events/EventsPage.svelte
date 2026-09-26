@@ -1505,13 +1505,9 @@
 		}
 		if (
 			(!editingOccurrence && !name.trim()) ||
-			(!creatingNight && !editingOccurrence && !startsOn && repeatUnit !== "none")
+			(!creatingNight && !editingOccurrence && !startsOn && repeatUnit === "once")
 		) {
-			const message = !name.trim()
-				? "Add a name."
-				: repeatUnit === "once"
-					? "Add a date."
-					: "Add a start date on Schedule.";
+			const message = !name.trim() ? "Add a name." : "Add a date.";
 			error = message;
 			toast.error(message);
 			const target = route.isNew
@@ -1534,6 +1530,7 @@
 			!editingOccurrence &&
 			repeatUnit !== "none" &&
 			repeatUnit !== "once" &&
+			startsOn &&
 			!endsOn
 		) {
 			error = "Add an end date for the recurring event.";
@@ -2575,14 +2572,13 @@
 													for="event-starts"
 													tooltip={repeatUnit === "none"
 														? "First scheduled night. Leave empty until you add a night."
-														: "First night of the series. Recurrence builds forward from here."}
+														: "First night of the series. Recurrence builds forward from here. Leave empty if it is not fixed yet: the website says “Check back soon for the next date”."}
 												>
 													<TextField
 														id="event-starts"
 														size="sm"
 														type="date"
 														bind:value={startsOn}
-														required={repeatUnit !== "none"}
 														disabled={editingOccurrence}
 													/>
 												</Field>
@@ -2591,14 +2587,14 @@
 													for="event-ends"
 													tooltip={repeatUnit === "none"
 														? "Optional. Not used when nights are scheduled one by one."
-														: "Last night of the series. Required when it repeats."}
+														: "Last night of the series. Required once it has a start date."}
 												>
 													<TextField
 														id="event-ends"
 														size="sm"
 														type="date"
 														bind:value={endsOn}
-														required={repeatUnit !== "none"}
+														required={repeatUnit !== "none" && Boolean(startsOn)}
 														disabled={editingOccurrence}
 													/>
 												</Field>
@@ -2721,9 +2717,11 @@
 												</ul>
 											{:else}
 												<p class="hint">
-													{repeatUnit === "none"
-														? "No nights scheduled yet."
-														: "No upcoming date for this rule."}
+													{startsOn
+														? repeatUnit === "none"
+															? "No nights scheduled yet."
+															: "No upcoming date for this rule."
+														: "No start date yet. The website shows this series with “Check back soon for the next date” and a link to our Instagram."}
 												</p>
 											{/if}
 										</section>
