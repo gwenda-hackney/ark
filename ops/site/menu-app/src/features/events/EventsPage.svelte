@@ -1480,8 +1480,18 @@
 			error = message;
 			toast.error(message);
 			const target = route.isNew
-				? eventNewPath(!name.trim() ? "details" : "schedule")
+				? eventNewPath(!name.trim() ? "details" : "schedule", { once: newEventRoute })
 				: eventItemPath(route.slug || eventId, !name.trim() ? "details" : "schedule");
+			if (path !== target) navigate(target);
+			return;
+		}
+		// The website needs one (publishEventPreview); a night uses its series'.
+		if (!editingOccurrence && !description.replace(/<[^>]*>/g, "").trim()) {
+			error = "Add a description. The website needs one.";
+			toast.error(error);
+			const target = route.isNew
+				? eventNewPath("details", { once: newEventRoute })
+				: eventItemPath(route.slug || eventId, "details");
 			if (path !== target) navigate(target);
 			return;
 		}
