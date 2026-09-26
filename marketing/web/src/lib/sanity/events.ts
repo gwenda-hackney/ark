@@ -96,6 +96,7 @@ type SanitySeries = {
   schedule?: string | null;
   recurrence?: string | null;
   replacesSeriesId?: string | null;
+  formerSlugs?: string[] | null;
   datesPending?: boolean | null;
   gallery?: EventSeries["gallery"] | null;
   shortDescription?: string | null;
@@ -117,6 +118,9 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
           ? "once"
           : "manual",
     replacesSeriesId: String(doc.replacesSeriesId || "").trim(),
+    formerSlugs: (doc.formerSlugs || [])
+      .map((slug) => String(slug || "").trim())
+      .filter(Boolean),
     datesPending: doc.datesPending === true,
     gallery: Array.isArray(doc.gallery) ? doc.gallery : [],
     recurrence: doc.recurrence?.trim() || "",

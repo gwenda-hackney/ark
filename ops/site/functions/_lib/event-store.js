@@ -130,6 +130,10 @@ function linksFrom(value) {
   return raw.map((entry) => text(entry)).filter(Boolean);
 }
 
+function slugList(value) {
+  return [...new Set(linksFrom(value).map(itemSlug).filter(Boolean))];
+}
+
 function parseSnapshots(value) {
   if (!value) return {};
   let parsed = value;
@@ -164,6 +168,8 @@ const NIGHT_SCHEDULE_FIELD = "Night schedule";
 const NIGHT_SCHEDULE_FALLBACK = "Notes";
 const NIGHT_SCHEDULE_OVERRIDE_FIELD = "Night schedule override";
 const SHORT_DESCRIPTION_OVERRIDE_FIELD = "Short description override";
+/** Web addresses the series had before, one per line: the website redirects them. */
+const FORMER_SLUGS_FIELD = "Former slugs";
 let eventsFieldNamesCache = null;
 let eventDatesFieldNamesCache = null;
 
@@ -175,12 +181,16 @@ async function tableFieldNames(env, tableId) {
   return new Set((fields || []).map((field) => field.name));
 }
 
-async function nightScheduleFieldName(env) {
+async function eventFieldNames(env) {
   if (!eventsFieldNamesCache) {
     const tables = requireEventsTables(await resolveOpsTableIds(env));
     eventsFieldNamesCache = await tableFieldNames(env, tables.events);
   }
-  return eventsFieldNamesCache.has(NIGHT_SCHEDULE_FIELD)
+  return eventsFieldNamesCache;
+}
+
+async function nightScheduleFieldName(env) {
+  return (await eventFieldNames(env)).has(NIGHT_SCHEDULE_FIELD)
     ? NIGHT_SCHEDULE_FIELD
     : NIGHT_SCHEDULE_FALLBACK;
 }
@@ -282,6 +292,7 @@ export function mapEvent(row, dates = []) {
     skippedDates: normalizeSkippedDates(row["Skipped dates"]),
     extraDates: normalizeExtraDates(row["Extra dates"]),
     slug: text(row.Slug) || seriesSlug(name),
+    formerSlugs: slugList(row[FORMER_SLUGS_FIELD]),
     replacesSeries: text(row["Replaces series"]),
     driveFolderId: text(row["Drive folder id"]),
     driveFolderUrl: driveFolderWebUrl(text(row["Drive folder id"])),
@@ -595,6 +606,63 @@ async function assertUniqueName(env, tables, name, exceptId = "") {
   return slug;
 }
 
+/** Website paths under /whats-on/ that are pages of their own, not series. */
+const RESERVED_SLUGS = new Set(["schedule"]);
+
+/**
+ * A new web address (/whats-on/<slug>) for a series, checked against the other
+ * events' rows. The old one moves to Former slugs so the website redirects it.
+ * Nights keep their own slugs: RSVPs and ticket links are keyed by them.
+ * Null when the address does not change.
+ */
+export function slugChangePlan(current, value, rows) {
+  const slug = itemSlug(value);
+  const fail = (message, status = 400) => {
+    const error = new Error(message);
+    error.status = status;
+    throw error;
+  };
+  if (!slug) fail("Use letters or numbers in the web address.");
+  if (slug === current.slug) return null;
+  if (RESERVED_SLUGS.has(slug)) fail("That web address is used by another page. Pick another.", 409);
+  for (const row of rows) {
+    if (String(row.id) === String(current.id)) continue;
+    const name = text(row.Name);
+    if ((text(row.Slug) || seriesSlug(name)) === slug) {
+      fail(`${name} already uses that web address.`, 409);
+    }
+    if (slugList(row[FORMER_SLUGS_FIELD]).includes(slug)) {
+      fail(`${name} used that web address before, and it still leads there. Pick another.`, 409);
+    }
+  }
+  const formerSlugs = [
+    ...new Set([...(current.formerSlugs || []), current.slug].filter((old) => old && old !== slug)),
+  ];
+  return { slug, previous: current.slug, formerSlugs, rows };
+}
+
+async function planSlugChange(env, tables, current, value) {
+  if (itemSlug(value) === current.slug) return null;
+  if (!(await eventFieldNames(env)).has(FORMER_SLUGS_FIELD)) {
+    const error = new Error(
+      "Changing the web address is not set up yet: the events table needs its Former slugs column.",
+    );
+    error.status = 503;
+    throw error;
+  }
+  return slugChangePlan(current, value, await listAllRows(env, tables.events));
+}
+
+/** One-off events that replace (or sit beside) this series follow its new address. */
+async function repointReplacedSeries(env, tables, { slug, previous, rows }) {
+  for (const row of rows) {
+    const value = text(row["Replaces series"]);
+    const next =
+      value === previous ? slug : value === `keep:${previous}` ? `keep:${slug}` : "";
+    if (next) await updateRow(env, tables.events, row.id, { "Replaces series": next });
+  }
+}
+
 export async function listEvents(env) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const [rows, dateRows] = await Promise.all([
@@ -761,11 +829,16 @@ export async function updateEvent(env, id, input) {
   }
   if (input?.name !== undefined)
     await assertUniqueName(env, tables, text(merged.name), id);
+  const slugChange =
+    input?.slug !== undefined
+      ? await planSlugChange(env, tables, current, input.slug)
+      : null;
   const nightScheduleField = await nightScheduleFieldName(env);
   const fields = fieldsFromInput(merged, {
-    slug: current.slug || seriesSlug(merged.name),
+    slug: slugChange?.slug || current.slug || seriesSlug(merged.name),
     nightScheduleField,
   });
+  if (slugChange) fields[FORMER_SLUGS_FIELD] = slugChange.formerSlugs.join("\n");
   assignPageLink(fields, merged.pageUrl);
   const nextName = text(merged.name);
   const nameChanged =
@@ -789,6 +862,7 @@ export async function updateEvent(env, id, input) {
     }
     throw error;
   }
+  if (slugChange) await repointReplacedSeries(env, tables, slugChange);
   const dates = await loadDates(env, tables, id);
   let event = mapEvent(row, dates);
   if (nameChanged) {
