@@ -51,6 +51,15 @@ import {
   saveOccurrences,
 } from "./event-store.js";
 import { syncSocialTasks } from "./event-tasks.js";
+import {
+  GALLERY_ENABLED,
+  galleryBehind,
+  galleryFingerprint,
+  listGalleryFiles,
+  readGalleryStaged,
+  recordGalleryStaged,
+  syncGalleryImages,
+} from "./event-gallery.js";
 
 function httpError(message, status) {
   const error = new Error(message);
@@ -229,6 +238,45 @@ async function recordSeriesPreview(env, event, datesPending) {
   await writeState(env, "ops", SERIES_PREVIEWS_KEY, environmentOf(env), JSON.stringify(next));
 }
 
+/**
+ * The series' Drive gallery as Sanity images. If Drive cannot be read, keep
+ * the gallery already staged rather than emptying it.
+ */
+async function stageGallery(env, event) {
+  if (!GALLERY_ENABLED) {
+    return { images: [], complete: false, fingerprint: "", changed: false, error: "" };
+  }
+  const staged = await readGalleryStaged(env);
+  try {
+    const files = await listGalleryFiles(env, event);
+    const fingerprint = galleryFingerprint(files);
+    const { images, complete } = await syncGalleryImages(env, files);
+    return {
+      images,
+      complete,
+      fingerprint,
+      changed:
+        staged[String(event.id)] !== fingerprint &&
+        (images.length > 0 || String(event.id) in staged),
+      error: "",
+    };
+  } catch (error) {
+    const current = await sanityQuery(
+      env,
+      PREVIEW,
+      `*[_id == $id][0].gallery`,
+      { id: sanitySeriesId(event.slug) },
+    ).catch(() => null);
+    return {
+      images: Array.isArray(current) ? current : [],
+      complete: false,
+      fingerprint: "",
+      changed: false,
+      error: `The gallery could not be copied from Drive: ${error?.message || "unknown error"}.`,
+    };
+  }
+}
+
 export async function publishEventPreview(
   env,
   id,
@@ -279,6 +327,8 @@ export async function publishEventPreview(
     }
     heroByUrl.set(`series:${seriesImageUrl}`, seriesHero);
   }
+  const gallery = await stageGallery(env, event);
+  if (gallery.changed) pagesChanged = true;
   mutations.push({
     createOrReplace: sanitySeriesDocument({
       slug: event.slug,
@@ -291,6 +341,7 @@ export async function publishEventPreview(
       nightSchedule: event.nightSchedule || [],
       heroImage: seriesHero || null,
       datesPending,
+      gallery: gallery.images,
     }),
   });
 
@@ -400,6 +451,7 @@ export async function publishEventPreview(
     await sanityMutate(env, mutations.slice(i, i + 25));
   }
   await recordSeriesPreview(env, event, datesPending);
+  if (gallery.complete) await recordGalleryStaged(env, event.id, gallery.fingerprint);
 
   const warnings = [];
   if (drop.length) pagesChanged = true;
@@ -428,9 +480,12 @@ export async function publishEventPreview(
   const deployed = false;
   const deploy = null;
 
+  if (gallery.error) warnings.push(gallery.error);
+
   return {
     event: await getEvent(env, id),
     warnings,
+    galleryError: gallery.error,
     deployed,
     deploy,
     pagesChanged,
@@ -596,7 +651,10 @@ export async function previewEventOnWebsite(env, id) {
 export async function putEventOnWebsite(env, id) {
   // Saving already staged it; only stage again if the drafts are behind ops.
   const current = await getEvent(env, id);
-  const staged = previewBehind(current) || seriesAwaitingDates(current)
+  const staged =
+    previewBehind(current) ||
+    seriesAwaitingDates(current) ||
+    galleryBehind(current, await readGalleryStaged(env))
     ? await publishEventPreview(env, id)
     : { event: current, warnings: [] };
   const ids = await eventDocumentIds(env, staged.event);

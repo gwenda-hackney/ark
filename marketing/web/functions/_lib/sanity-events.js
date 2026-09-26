@@ -38,6 +38,12 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   title,
   schedule,
   datesPending,
+  "gallery": gallery[]{
+    "url": asset->url,
+    "width": asset->metadata.dimensions.width,
+    "height": asset->metadata.dimensions.height,
+    alt
+  },
   recurrence,
   replacesSeriesId,
   shortDescription,
@@ -107,6 +113,7 @@ export async function fetchPublishedSeries(env) {
             : "manual",
       replacesSeriesId: String(row.replacesSeriesId || "").trim(),
       datesPending: row.datesPending === true,
+      gallery: Array.isArray(row.gallery) ? row.gallery : [],
       recurrence: row.recurrence || "",
       shortDescription: String(row.shortDescription || "").trim(),
       nightSchedule: Array.isArray(row.nightSchedule)

@@ -41,6 +41,13 @@ export type EventSeries = {
   schedule?: "manual" | "repeating" | "once";
   /** No nights yet: What's on shows "Check back soon for the next date". */
   datesPending?: boolean;
+  /** Photos from the series' Drive gallery, copied by ops. */
+  gallery?: Array<{
+    url: string;
+    width: number;
+    height: number;
+    alt?: string | null;
+  }>;
   offer?: string;
   nightSchedule?: Array<{
     label: string;

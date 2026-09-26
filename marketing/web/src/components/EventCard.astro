@@ -1,0 +1,12 @@
+---
+/** Every event card: build a model with src/lib/event-card.js, render it here. */
+import { renderEventCard } from "../lib/event-card.js";
+
+type Props = {
+  model: Parameters<typeof renderEventCard>[0];
+};
+
+const { model } = Astro.props as Props;
+---
+
+<Fragment set:html={renderEventCard(model)} />

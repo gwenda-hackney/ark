@@ -547,6 +547,9 @@ function groupUpcomingBySeries(events, now = new Date()) {
   return groups;
 }
 
+/** A repeating series page: the next night plus three nights ahead. */
+const REPEATING_DETAIL_NIGHTS = 4;
+
 /** Card and page line for a series with no nights yet. */
 export const DATES_PENDING_LABEL = "Check back soon for the next date";
 
@@ -559,6 +562,18 @@ export function seriesCardNextLine(card, span = "") {
   const next =
     card?.schedule === "once" ? "" : formatShortEventDate(card?.date || "");
   return [next ? `Next: ${next}` : "", span].filter(Boolean).join(" · ");
+}
+
+/** Gallery photos with a URL and a size, from the series document. */
+export function seriesGallery(value) {
+  return (Array.isArray(value) ? value : [])
+    .map((image) => ({
+      url: String(image?.url || "").trim(),
+      width: Number(image?.width) || 0,
+      height: Number(image?.height) || 0,
+      alt: String(image?.alt || "").trim(),
+    }))
+    .filter((image) => image.url && image.width > 0 && image.height > 0);
 }
 
 function asSeriesTemplate(record) {
@@ -583,6 +598,7 @@ function asSeriesTemplate(record) {
     ).trim(),
     schedule,
     datesPending: record.datesPending === true,
+    gallery: seriesGallery(record.gallery),
     offer: String(record.offer || "").trim(),
     nightSchedule: Array.isArray(record.nightSchedule)
       ? record.nightSchedule
@@ -655,6 +671,7 @@ function summarizeSeries(template, nights) {
     schedule: series.schedule,
     scheduleLabel,
     datesPending,
+    gallery: series.gallery || [],
     weekdayRank,
     nextDate: next?.date || "",
     startTime: next?.startTime || "",
@@ -827,6 +844,11 @@ export function buildWhatsOnStack(
     // The next night's own line (e.g. "This Friday: guest DJ") follows the
     // series copy, for weekly residencies as well as one-offs.
     const featuredNight = row.nights.slice().sort(compareNights)[0] || null;
+    // The next night's guest/collaborator, their link (usually Instagram) on the name.
+    const guestName = String(featuredNight?.artist || "").trim();
+    const guestUrl = guestName
+      ? String(featuredNight?.pageUrl || "").trim()
+      : "";
     return {
       id: row.seriesId,
       seriesId: row.seriesId,
@@ -851,10 +873,14 @@ export function buildWhatsOnStack(
       // Ops keeps the offer on each night (the series document has none), so
       // the card shows the next night's offer.
       offer: row.offer || featuredNight?.offer || "",
-      pageUrl: String(
-        (row.nights || []).find((night) => String(night.pageUrl || "").trim())
-          ?.pageUrl || "",
-      ).trim(),
+      guestName,
+      guestUrl,
+      pageUrl:
+        guestUrl ||
+        String(
+          (row.nights || []).find((night) => String(night.pageUrl || "").trim())
+            ?.pageUrl || "",
+        ).trim(),
       nightSchedule: row.nightSchedule || [],
       date: row.nextDate,
       startTime: row.startTime,
@@ -1112,7 +1138,9 @@ export function buildSeriesDetail(
   const repeating = seriesSummary.schedule === "repeating";
   const richDetail = !repeating;
 
-  const detailNights = repeating ? nights.slice(0, 2) : nights;
+  const detailNights = repeating
+    ? nights.slice(0, REPEATING_DETAIL_NIGHTS)
+    : nights;
   const page = repeating
     ? { events: detailNights, next: null }
     : pageEventFeed(nights, { after, afterId, limit, now });

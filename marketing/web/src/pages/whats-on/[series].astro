@@ -1,17 +1,13 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import EventImageCaption from "../../components/EventImageCaption.astro";
-import EventNightSchedule from "../../components/EventNightSchedule.astro";
-import EventPageLink from "../../components/EventPageLink.astro";
+import EventCard from "../../components/EventCard.astro";
 import FollowUpdatesLink from "../../components/FollowUpdatesLink.astro";
+import SeriesGallery from "../../components/SeriesGallery.astro";
 import Subpage from "../../components/Subpage.astro";
 import { siteConfig } from "../../config/site";
 import {
   eventDescriptionParagraphs,
-  formatEventDate,
-  formatEventDiaryDate,
   formatEventRecurrence,
-  formatEventSpan,
 } from "../../data/events";
 import {
   buildSeriesDetail,
@@ -19,6 +15,7 @@ import {
   DATES_PENDING_LABEL,
 } from "../../../functions/_lib/event-series.js";
 import { EVENT_FEED_PAGE_SIZE } from "../../../functions/_lib/event-feed.js";
+import { nightCardModel, seriesCardModel } from "../../lib/event-card.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 
 export async function getStaticPaths() {
@@ -51,39 +48,15 @@ const pageDescription =
   siteConfig.seo.whatsOn.description;
 const richDetail = Boolean(detail.richDetail);
 const datesPending = Boolean(detail.datesPending);
-const featuredGuest = detail.featuredGuest;
-const mainDescription = featuredGuest?.description || detail.description;
-const mainArtist = featuredGuest?.artist || "";
-const mainOffer = featuredGuest?.offer || detail.offer || "";
-// A guest night can link its own artist; otherwise the series' link.
-const mainPageUrl = featuredGuest?.pageUrl || detail.nights?.[0]?.pageUrl;
-const mainImage = featuredGuest?.heroImageUrl || detail.heroImageUrl;
-const mainSchedule =
-  (Array.isArray(featuredGuest?.nightSchedule) &&
-  featuredGuest.nightSchedule.length
-    ? featuredGuest.nightSchedule
-    : detail.nightSchedule) || [];
-
-function eventImageUrl(
-  url: string | null | undefined,
-  width: number,
-): string | null {
-  if (!url) return null;
-  if (/[?&](rect|fit)=/.test(url)) return url;
-  if (/[?&]w=/.test(url)) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
-}
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
   <Subpage
     class={`whats-on-series-page events-page${richDetail ? " whats-on-series-page--rich" : " whats-on-series-page--recurring"}`}
     innerClass="events-inner whats-on-series-inner"
-    eyebrow={
-      detail.scheduleLabel
-        ? formatEventRecurrence(detail.scheduleLabel)
-        : "Regular events"
-    }
+    eyebrow={detail.scheduleLabel
+      ? formatEventRecurrence(detail.scheduleLabel)
+      : "Regular events"}
     title={detail.title}
   >
     <Fragment slot="lead">
@@ -96,98 +69,7 @@ function eventImageUrl(
       }
     </Fragment>
 
-    {
-      !richDetail ? (
-        <section class="whats-on-series-main event-card">
-          {eventImageUrl(mainImage, 1800) ? (
-            <figure class="event-media">
-              <img
-                class="event-hero"
-                src={eventImageUrl(mainImage, 1800)}
-                alt={featuredGuest?.heroImage?.alt || detail.title}
-                loading="eager"
-                style={
-                  featuredGuest?.heroImage?.objectPosition ||
-                  featuredGuest?.heroObjectPosition ||
-                  detail.heroImage?.objectPosition ||
-                  detail.heroObjectPosition
-                    ? `object-position: ${
-                        featuredGuest?.heroImage?.objectPosition ||
-                        featuredGuest?.heroObjectPosition ||
-                        detail.heroImage?.objectPosition ||
-                        detail.heroObjectPosition
-                      }`
-                    : undefined
-                }
-              />
-              <EventImageCaption
-                label={featuredGuest?.imageCaption}
-                name={featuredGuest?.imageCaptionName}
-              />
-            </figure>
-          ) : (
-            <div class="event-media event-media--empty" aria-hidden="true">
-              <span>Gwenda</span>
-            </div>
-          )}
-          <article class="event-copy">
-            {detail.nextDate ? (
-              <p class="event-date">
-                <time datetime={detail.nextDate}>
-                  {formatEventDiaryDate(detail.nextDate)}
-                </time>
-              </p>
-            ) : null}
-            <h2 class="event-title">{detail.title}</h2>
-            {mainOffer ? <p class="event-offer">{mainOffer}</p> : null}
-            {mainArtist ? (
-              <p class="event-artist">Special guest · {mainArtist}</p>
-            ) : null}
-            <EventNightSchedule slots={mainSchedule} />
-            {mainDescription ? (
-              <div class="event-description">
-                {eventDescriptionParagraphs(mainDescription).map(
-                  (paragraph) => (
-                    <p>{paragraph}</p>
-                  ),
-                )}
-              </div>
-            ) : null}
-            <EventPageLink url={mainPageUrl} />
-            {detail.upcomingDates?.length ? (
-              <div class="event-dates">
-                <p class="event-dates-label">Nights ahead</p>
-                    <ul>
-                      {detail.upcomingDates.map((night) => (
-                        <li>
-                          {night.displaced ? (
-                            <a class="event-dates-instead" href={night.href}>
-                              {night.line}
-                            </a>
-                          ) : (
-                            <>
-                              <time datetime={night.date}>
-                                {formatEventDate(night.date)}
-                              </time>
-                              {night.isSpecialEdition && night.artist ? (
-                                <p class="event-dates-guest">
-                                  Special guest · {night.artist}
-                                </p>
-                              ) : null}
-                              {night.note ? (
-                                <p class="event-dates-guest">{night.note}</p>
-                              ) : null}
-                            </>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-              </div>
-            ) : null}
-          </article>
-        </section>
-      ) : null
-    }
+    {!richDetail ? <EventCard model={seriesCardModel(detail)} /> : null}
 
     {
       datesPending ? (
@@ -208,90 +90,19 @@ function eventImageUrl(
       {
         richDetail ? (
           <ol class="events-list">
-            {detail.nights.map((event, index) => {
-              const image = eventImageUrl(event.heroImageUrl, 1800);
-              return (
-                <li class="event-card">
-                  {image ? (
-                    <figure class="event-media">
-                      <img
-                        class="event-hero"
-                        src={image}
-                        alt={event.heroImage?.alt || event.title}
-                        loading={index === 0 ? "eager" : "lazy"}
-                        style={
-                          event.heroImage?.objectPosition ||
-                          event.heroObjectPosition
-                            ? `object-position: ${
-                                event.heroImage?.objectPosition ||
-                                event.heroObjectPosition
-                              }`
-                            : undefined
-                        }
-                      />
-                      <EventImageCaption
-                        label={event.imageCaption}
-                        name={event.imageCaptionName}
-                      />
-                    </figure>
-                  ) : (
-                    <div
-                      class="event-media event-media--empty"
-                      aria-hidden="true"
-                    >
-                      <span>Gwenda</span>
-                    </div>
-                  )}
-                  <article class="event-copy">
-                    <p class="event-date">
-                      <time datetime={event.date}>
-                        {formatEventDiaryDate(event.date)}
-                      </time>
-                      {formatEventSpan(
-                        event.startTime,
-                        event.endTime,
-                        event.time,
-                      ) ? (
-                        <span class="event-time">
-                          {formatEventSpan(
-                            event.startTime,
-                            event.endTime,
-                            event.time,
-                          )}
-                        </span>
-                      ) : null}
-                    </p>
-                    <h2 class="event-title">{event.title}</h2>
-                    {event.offer ? (
-                      <p class="event-offer">{event.offer}</p>
-                    ) : null}
-                    {event.artist ? (
-                      <p class="event-artist">{event.artist}</p>
-                    ) : null}
-                    <EventNightSchedule
-                      slots={
-                        Array.isArray(event.nightSchedule) &&
-                        event.nightSchedule.length
-                          ? event.nightSchedule
-                          : detail.nightSchedule
-                      }
-                    />
-                    <div class="event-description">
-                      {eventDescriptionParagraphs(
-                        event.description,
-                        event.time,
-                      ).map((paragraph) => (
-                        <p>{paragraph}</p>
-                      ))}
-                    </div>
-                    <EventPageLink url={event.pageUrl} />
-                  </article>
-                </li>
-              );
-            })}
+            {detail.nights.map((night, index) => (
+              <EventCard
+                model={nightCardModel(night, {
+                  eager: index === 0,
+                  seriesSchedule: detail.nightSchedule,
+                })}
+              />
+            ))}
           </ol>
         ) : null
       }
     </div>
+
+    <SeriesGallery images={detail.gallery} title={detail.title} />
   </Subpage>
 </BaseLayout>

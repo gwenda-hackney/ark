@@ -1,65 +1,35 @@
-import {
-  eventDescriptionParagraphs,
-  eventPageLink,
-  formatEventDate,
-  formatEventDiaryDate,
-  formatEventRecurrence,
-  formatEventSpan,
-} from "../data/events";
-import {
-  formatShortEventDate,
-  seriesCardNextLine,
-} from "../../functions/_lib/event-series.js";
+import { formatShortEventDate } from "../../functions/_lib/event-series.js";
 import { artistRunLabel } from "../lib/artist-run.js";
 import { diaryGroups } from "../lib/diary-groups.js";
-import { followUpdatesLink } from "../lib/follow-updates.js";
+import {
+  diaryCardModel,
+  nightCardModel,
+  renderEventCard,
+  seriesCardModel,
+} from "../lib/event-card.js";
 
-function heroImageUrl(event, width) {
-  const url = event.heroImageUrl || event.heroImage?.url;
-  if (!url) return null;
-  // Already framed by Sanity (fit=crop + w/h) — don't append another resize pass
-  // that drops rect/hotspot params.
-  if (/[?&](rect|fit)=/.test(url)) return url;
-  if (/[?&]w=/.test(url)) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
+/** One element from the shared card renderer (src/lib/event-card.js). */
+function cardElement(model) {
+  const template = document.createElement("template");
+  template.innerHTML = renderEventCard(model).trim();
+  const card = template.content.firstElementChild;
+  bindHostJumps(card);
+  return card;
 }
 
-function eventMedia(event, eager, width = 1200) {
-  const url = heroImageUrl(event, width);
-  if (!url) {
-    const empty = document.createElement("div");
-    empty.className = "event-media event-media--empty";
-    empty.setAttribute("aria-hidden", "true");
-    const mark = document.createElement("span");
-    mark.textContent = "Gwenda";
-    empty.appendChild(mark);
-    return empty;
-  }
-  const figure = document.createElement("figure");
-  figure.className = "event-media";
-  const img = document.createElement("img");
-  img.className = "event-hero";
-  img.src = url;
-  img.alt = event.heroImage?.alt || event.heroImageAlt || event.title;
-  img.loading = eager ? "eager" : "lazy";
-  const position =
-    event.heroImage?.objectPosition || event.heroObjectPosition || "";
-  if (position) img.style.objectPosition = position;
-  figure.appendChild(img);
-  const captionName = String(event.imageCaptionName || "").trim();
-  if (captionName) {
-    const caption = document.createElement("figcaption");
-    caption.className = "event-media-caption";
-    const kicker = document.createElement("span");
-    kicker.className = "event-media-caption-kicker";
-    kicker.textContent = String(event.imageCaption || "").trim() || "Hosting";
-    const who = document.createElement("span");
-    who.className = "event-media-caption-name";
-    who.textContent = captionName;
-    caption.append(kicker, who);
-    figure.appendChild(caption);
-  }
-  return figure;
+/** What's on: a series card in its list item. */
+function seriesCard(event, { eager = false } = {}) {
+  const item = document.createElement("li");
+  item.dataset.schedule = event.schedule === "once" ? "once" : "series";
+  item.appendChild(cardElement(diaryCardModel(event, { eager })));
+  return item;
+}
+
+/** Series page: one night. */
+function nightCard(night, detail, { eager = false } = {}) {
+  return cardElement(
+    nightCardModel(night, { eager, seriesSchedule: detail?.nightSchedule }),
+  );
 }
 
 function openHostJump(event, href) {
@@ -86,239 +56,6 @@ function bindHostJumps(root) {
   for (const line of root.querySelectorAll(".event-next[data-href]")) {
     if (line instanceof HTMLElement) bindHostJump(line, line.dataset.href);
   }
-}
-
-function teaserLine(label, isoDate, name, href = "") {
-  const line = document.createElement("p");
-  line.className = "event-next";
-  const kicker = document.createElement("span");
-  kicker.className = "event-next-label";
-  kicker.textContent = label;
-  line.appendChild(kicker);
-  const when = isoDate ? formatShortEventDate(isoDate) : "";
-  if (when) {
-    const sep = document.createElement("span");
-    sep.className = "event-next-sep";
-    sep.setAttribute("aria-hidden", "true");
-    sep.textContent = "·";
-    const time = document.createElement("time");
-    time.dateTime = isoDate;
-    time.textContent = when;
-    line.append(sep, time);
-  }
-  const sepName = document.createElement("span");
-  sepName.className = "event-next-sep";
-  sepName.setAttribute("aria-hidden", "true");
-  sepName.textContent = "·";
-  const who = document.createElement("span");
-  who.className = "event-next-name";
-  who.textContent = name;
-  line.append(sepName, who);
-  if (href) bindHostJump(line, href);
-  return line;
-}
-
-function nightScheduleBlock(slots) {
-  const rows = (Array.isArray(slots) ? slots : [])
-    .map((slot) => {
-      const label = String(slot?.label || "").trim();
-      if (!label) return null;
-      return {
-        label,
-        when: formatEventSpan(slot?.startTime, slot?.endTime),
-      };
-    })
-    .filter(Boolean);
-  if (!rows.length) return null;
-  const block = document.createElement("div");
-  block.className = "night-schedule";
-  const list = document.createElement("ol");
-  list.className = "night-schedule-list";
-  for (const row of rows) {
-    const item = document.createElement("li");
-    if (row.when) {
-      const time = document.createElement("span");
-      time.className = "night-schedule-time";
-      time.textContent = row.when;
-      item.appendChild(time);
-    }
-    const name = document.createElement("span");
-    name.className = "night-schedule-item";
-    name.textContent = row.label;
-    item.appendChild(name);
-    list.appendChild(item);
-  }
-  block.append(list);
-  return block;
-}
-
-function eventDescription(
-  description,
-  className = "event-description",
-  legacyTime = "",
-) {
-  const wrap = document.createElement("div");
-  wrap.className = className;
-  for (const paragraph of eventDescriptionParagraphs(description, legacyTime)) {
-    const node = document.createElement("p");
-    node.textContent = paragraph;
-    wrap.appendChild(node);
-  }
-  return wrap;
-}
-
-function appendPageLink(parent, url, link = eventPageLink(url)) {
-  if (!link) return;
-  const line = document.createElement("p");
-  line.className = "event-page-link";
-  const anchor = document.createElement("a");
-  anchor.href = link.href;
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
-  anchor.textContent = link.label;
-  line.appendChild(anchor);
-  parent.appendChild(line);
-}
-
-/** Home: one basic series card. */
-function seriesCard(event, { eager = false } = {}) {
-  const regular = Boolean(event.regular);
-  const href = String(event.href || "").trim();
-  const external = eventPageLink(event.pageUrl);
-  const datesPending = Boolean(event.datesPending);
-  // A link inside the card: the card becomes a div with a hit area behind it.
-  const linked = Boolean(external) || datesPending;
-  const item = document.createElement("li");
-  const card = document.createElement(linked ? "div" : href ? "a" : "div");
-  card.className = `event-card event-card--series${linked ? " event-card--linked" : ""}${regular ? " event-card--regular" : ""}`;
-  const captionName = String(event.imageCaptionName || "").trim();
-  const hostDate = String(event.hostDate || "").trim();
-  const label = [
-    event.title,
-    captionName ? `Hosting ${captionName}` : "",
-    hostDate
-      ? `${event.hostThisWeek ? "This week, " : ""}${formatShortEventDate(hostDate)}`
-      : "",
-    String(event.thisWeekName || "").trim()
-      ? `This week, ${event.thisWeekName}`
-      : "",
-    String(event.upcomingName || "").trim()
-      ? `Next, ${event.upcomingName}`
-      : "",
-    captionName ? `Next at Gwenda, ${captionName}` : "",
-  ]
-    .filter(Boolean)
-    .join(". ");
-  if (linked && href) {
-    const hit = document.createElement("a");
-    hit.className = "event-card-hit";
-    hit.href = href;
-    hit.setAttribute("aria-label", label);
-    card.appendChild(hit);
-  } else if (href) {
-    card.href = href;
-    card.setAttribute("aria-label", label);
-  }
-
-  card.appendChild(eventMedia(event, eager, 960));
-
-  const copy = document.createElement("article");
-  copy.className = "event-copy";
-
-  const date = document.createElement("p");
-  date.className = "event-date";
-  const whenLabel = regular
-    ? formatEventRecurrence(
-        String(event.scheduleLabel || event.recurrence || "").trim(),
-      )
-    : String(event.scheduleLabel || "").trim();
-  if (whenLabel) {
-    const when = document.createElement("span");
-    when.textContent = whenLabel;
-    date.appendChild(when);
-  } else {
-    const when = document.createElement("time");
-    when.dateTime = event.date;
-    when.textContent = formatEventDiaryDate(event.date);
-    date.appendChild(when);
-  }
-  const nextLine = seriesCardNextLine(
-    event,
-    formatEventSpan(event.startTime, event.endTime, event.time),
-  );
-  if (nextLine) {
-    const time = document.createElement("span");
-    time.className = "event-time";
-    time.textContent = nextLine;
-    date.appendChild(time);
-  }
-
-  const title = document.createElement("h2");
-  title.className = "event-title";
-  title.textContent = event.title;
-  copy.append(date, title);
-
-  const hostName = String(event.hostName || "").trim();
-  const hostThisWeek = Boolean(event.hostThisWeek);
-  if (hostName && !hostThisWeek) {
-    copy.appendChild(
-      teaserLine("Coming up", hostDate, hostName, String(event.hostHref || "")),
-    );
-  }
-  if (hostThisWeek && hostName) {
-    copy.appendChild(teaserLine("This week", hostDate, hostName));
-  }
-
-  if (event.offer) {
-    const offer = document.createElement("p");
-    offer.className = "event-offer";
-    offer.textContent = event.offer;
-    copy.appendChild(offer);
-  }
-
-  const schedule = nightScheduleBlock(event.nightSchedule);
-  if (schedule) copy.appendChild(schedule);
-
-  if (event.description) {
-    copy.appendChild(eventDescription(event.description));
-  }
-  appendPageLink(copy, event.pageUrl);
-  if (datesPending) appendPageLink(copy, "", followUpdatesLink());
-
-  const follow = document.createElement("div");
-  follow.className = "event-follow";
-  const thisWeekName = String(event.thisWeekName || "").trim();
-  if (thisWeekName) {
-    follow.appendChild(
-      teaserLine("This week", String(event.thisWeekDate || ""), thisWeekName),
-    );
-  }
-  const upcomingName = String(event.upcomingName || "").trim();
-  if (upcomingName) {
-    follow.appendChild(
-      teaserLine("Next", String(event.upcomingDate || ""), upcomingName),
-    );
-  } else if (!hostName && !thisWeekName) {
-    const upcoming = String(event.upcoming || "").trim();
-    if (upcoming) {
-      const guest = document.createElement("p");
-      guest.className = "event-next";
-      guest.textContent = upcoming;
-      follow.appendChild(guest);
-    }
-  }
-  if (Number(event.nightCount) > 1) {
-    const more = document.createElement("p");
-    more.className = "event-more-dates";
-    more.textContent = "More dates and info";
-    follow.appendChild(more);
-  }
-  if (follow.childElementCount) copy.appendChild(follow);
-
-  card.appendChild(copy);
-  item.appendChild(card);
-  item.dataset.schedule = event.schedule === "once" ? "once" : "series";
-  return item;
 }
 
 function diaryLabel(group, lead) {
@@ -365,63 +102,6 @@ function appendDiaryCards(list, nights, { eagerFirst = false } = {}) {
     list.appendChild(seriesCard(night, { eager: eagerFirst && index === 0 }));
   });
   syncDiaryLabels(list);
-}
-
-/** Series detail (Gwenda Nights): full night card. */
-function nightCard(event, { eager = false } = {}) {
-  const item = document.createElement("li");
-  item.className = "event-card";
-  item.appendChild(eventMedia(event, eager, 1800));
-
-  const copy = document.createElement("article");
-  copy.className = "event-copy";
-
-  const date = document.createElement("p");
-  date.className = "event-date";
-  const when = document.createElement("time");
-  when.dateTime = event.date;
-  when.textContent = formatEventDiaryDate(event.date);
-  date.appendChild(when);
-  const span = formatEventSpan(event.startTime, event.endTime, event.time);
-  if (span) {
-    const time = document.createElement("span");
-    time.className = "event-time";
-    time.textContent = span;
-    date.appendChild(time);
-  }
-
-  const title = document.createElement("h2");
-  title.className = "event-title";
-  title.textContent = event.title;
-  copy.append(date, title);
-
-  if (event.offer) {
-    const offer = document.createElement("p");
-    offer.className = "event-offer";
-    offer.textContent = event.offer;
-    copy.appendChild(offer);
-  }
-  if (event.artist) {
-    const artist = document.createElement("p");
-    artist.className = "event-artist";
-    artist.textContent = event.artist;
-    copy.appendChild(artist);
-  }
-
-  const slots =
-    Array.isArray(event.nightSchedule) && event.nightSchedule.length
-      ? event.nightSchedule
-      : event.seriesNightSchedule;
-  const schedule = nightScheduleBlock(slots);
-  if (schedule) copy.appendChild(schedule);
-
-  copy.appendChild(
-    eventDescription(event.description, "event-description", event.time),
-  );
-  appendPageLink(copy, event.pageUrl);
-
-  item.appendChild(copy);
-  return item;
 }
 
 /**
@@ -526,13 +206,6 @@ export function initHomeNext() {
 
 function pageSiteEnv() {
   return document.documentElement?.dataset?.siteEnv || "";
-}
-
-function applyLiveMedia(card, event, width, eager) {
-  const media = card.querySelector(":scope > .event-media");
-  const next = eventMedia(event, eager, width);
-  if (media) media.replaceWith(next);
-  else card.prepend(next);
 }
 
 function ensureHomeList(content) {
@@ -696,117 +369,6 @@ function setupLoadMore(content, list) {
   }
 }
 
-function seriesHeroSource(detail) {
-  const guest = detail?.featuredGuest;
-  if (guest?.heroImageUrl) return guest;
-  return {
-    title: detail?.title || "",
-    heroImageUrl: detail?.heroImageUrl || "",
-    heroImage: detail?.heroImage || null,
-    heroImageAlt: detail?.heroImageAlt || detail?.title || "",
-    imageCaption: "",
-    imageCaptionName: "",
-  };
-}
-
-function upcomingDatesBlock(dates) {
-  const block = document.createElement("div");
-  block.className = "event-dates";
-  const label = document.createElement("p");
-  label.className = "event-dates-label";
-  label.textContent = "Nights ahead";
-  const list = document.createElement("ul");
-  for (const night of dates) {
-    const item = document.createElement("li");
-    if (night.displaced && night.href) {
-      const link = document.createElement("a");
-      link.className = "event-dates-instead";
-      link.href = night.href;
-      link.textContent = night.line || "";
-      item.appendChild(link);
-    } else if (night.date) {
-      const when = document.createElement("time");
-      when.dateTime = night.date;
-      when.textContent = formatEventDate(night.date);
-      item.appendChild(when);
-      const artist = String(night.artist || "").trim();
-      if (night.isSpecialEdition && artist) {
-        const guest = document.createElement("p");
-        guest.className = "event-dates-guest";
-        guest.textContent = `Special guest · ${artist}`;
-        item.appendChild(guest);
-      }
-    }
-    if (item.childElementCount) list.appendChild(item);
-  }
-  block.append(label, list);
-  return block;
-}
-
-function applyRecurringSeriesCopy(main, detail) {
-  const copy = main.querySelector(".event-copy");
-  if (!(copy instanceof HTMLElement)) return;
-  const guest = detail.featuredGuest;
-  const nextDate = String(detail.nextDate || guest?.date || "").trim();
-  const offer = String(guest?.offer || detail.offer || "").trim();
-  const artist = String(guest?.artist || "").trim();
-  const description = String(guest?.description || detail.description || "");
-  const slots =
-    Array.isArray(guest?.nightSchedule) && guest.nightSchedule.length
-      ? guest.nightSchedule
-      : detail.nightSchedule;
-  const pageUrl = guest?.pageUrl || detail.nights?.[0]?.pageUrl || "";
-  const title = String(detail.title || copy.querySelector(".event-title")?.textContent || "");
-
-  copy.replaceChildren();
-  if (nextDate) {
-    const date = document.createElement("p");
-    date.className = "event-date";
-    const when = document.createElement("time");
-    when.dateTime = nextDate;
-    when.textContent = formatEventDiaryDate(nextDate);
-    date.appendChild(when);
-    const span = formatEventSpan(
-      guest?.startTime || detail.startTime,
-      guest?.endTime || detail.endTime,
-      guest?.time || detail.time,
-    );
-    if (span) {
-      const time = document.createElement("span");
-      time.className = "event-time";
-      time.textContent = span;
-      date.appendChild(time);
-    }
-    copy.appendChild(date);
-  }
-  const heading = document.createElement("h2");
-  heading.className = "event-title";
-  heading.textContent = title;
-  copy.appendChild(heading);
-  if (offer) {
-    const offerLine = document.createElement("p");
-    offerLine.className = "event-offer";
-    offerLine.textContent = offer;
-    copy.appendChild(offerLine);
-  }
-  if (artist) {
-    const guestLine = document.createElement("p");
-    guestLine.className = "event-artist";
-    guestLine.textContent = `Special guest · ${artist}`;
-    copy.appendChild(guestLine);
-  }
-  const schedule = nightScheduleBlock(slots);
-  if (schedule) copy.appendChild(schedule);
-  if (description.trim()) copy.appendChild(eventDescription(description));
-  appendPageLink(copy, pageUrl);
-  const dates = Array.isArray(detail.upcomingDates) ? detail.upcomingDates : [];
-  if (dates.length) copy.appendChild(upcomingDatesBlock(dates));
-}
-
-function withSeriesSchedule(night, detail) {
-  return { ...night, seriesNightSchedule: detail?.nightSchedule || [] };
-}
-
 async function refreshSeriesDetail(page, root, { signal } = {}) {
   const seriesId = root.dataset.seriesId || "";
   if (!seriesId) throw new Error("Missing series.");
@@ -826,11 +388,9 @@ async function refreshSeriesDetail(page, root, { signal } = {}) {
   if (!document.contains(page) || !document.contains(root)) return;
   const detail = data.series;
   if (!detail) throw new Error("Series not found.");
-  const main = page.querySelector(".whats-on-series-main");
-  if (main) {
-    applyLiveMedia(main, seriesHeroSource(detail), 1800, true);
-    applyRecurringSeriesCopy(main, detail);
-  }
+  page
+    .querySelector(".whats-on-series-main")
+    ?.replaceWith(cardElement(seriesCardModel(detail)));
   page
     .querySelector(".whats-on-series-pending")
     ?.toggleAttribute("hidden", !detail.datesPending);
@@ -839,7 +399,7 @@ async function refreshSeriesDetail(page, root, { signal } = {}) {
   if (list instanceof HTMLOListElement && root.dataset.seriesRich === "true") {
     list.replaceChildren(
       ...nights.map((night, index) =>
-        nightCard(withSeriesSchedule(night, detail), { eager: index === 0 }),
+        nightCard(night, detail, { eager: index === 0 }),
       ),
     );
   }
@@ -921,7 +481,7 @@ function setupSeriesLoadMore(root, signal) {
       const detail = data.series;
       const nights = Array.isArray(detail?.nights) ? detail.nights : [];
       list.append(
-        ...nights.map((night) => nightCard(withSeriesSchedule(night, detail))),
+        ...nights.map((night) => nightCard(night, detail)),
       );
       nextCursor = detail?.next || null;
       more.textContent = "";
