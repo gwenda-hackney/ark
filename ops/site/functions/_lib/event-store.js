@@ -3,7 +3,6 @@
  */
 import { itemSlug, namesClash } from "./item-key.js";
 import {
-  baserowApiBase,
   baserowFetch,
   createRow,
   deleteRow,
@@ -44,15 +43,9 @@ import {
   createEventDriveFolder,
   driveFolderWebUrl,
   ensureNamedChildFolder,
-  isOccurrenceHeroDriveName,
-  isSeriesHeroDriveName,
-  listDriveChildren,
-  occurrenceHeroDriveName,
   renameDriveFile,
-  seriesHeroDriveName,
   trashDriveFile,
   untrashDriveFile,
-  uploadDriveFile,
 } from "./google-drive.js";
 import {
   parseNightSchedule,
@@ -1101,142 +1094,6 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
   };
 }
 
-function absoluteFileUrl(env, url) {
-  const raw = text(url);
-  if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) return raw;
-  const base = baserowApiBase(env);
-  return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
-}
-
-async function bytesFromImage(env, image) {
-  const url = absoluteFileUrl(env, image?.url);
-  if (!url) {
-    const error = new Error("Hero image has no file URL.");
-    error.status = 502;
-    throw error;
-  }
-  const response = await fetch(url);
-  if (!response.ok) {
-    const error = new Error(`Could not read the hero image (${response.status}).`);
-    error.status = 502;
-    throw error;
-  }
-  const bytes = await response.arrayBuffer();
-  const contentType = String(response.headers.get("content-type") || "")
-    .split(";")[0]
-    .trim();
-  return { bytes, contentType, filename: image?.name || "" };
-}
-
-/**
- * Replace the hero copy in the series Drive folder.
- * `match` selects the previous file for this slot (series, or one night).
- */
-async function putHeroDriveCopy(env, eventId, bytes, { name, contentType, match }) {
-  const event = await ensureEventDriveFolder(env, eventId);
-  const uploaded = await uploadDriveFile(env, {
-    name,
-    parentId: event.driveFolderId,
-    bytes,
-    contentType: contentType || "image/jpeg",
-  });
-  const children = await listDriveChildren(env, event.driveFolderId);
-  for (const file of children) {
-    if (!file?.id || file.id === uploaded.id) continue;
-    if (!match(file)) continue;
-    await trashDriveFile(env, file.id);
-  }
-  return uploaded;
-}
-
-async function removeHeroDriveCopies(env, eventId, match) {
-  let event;
-  try {
-    event = await getEvent(env, eventId);
-  } catch (error) {
-    if (error?.status === 404) return;
-    throw error;
-  }
-  if (!event.driveFolderId) return;
-  const children = await listDriveChildren(env, event.driveFolderId);
-  for (const file of children) {
-    if (file?.id && match(file)) await trashDriveFile(env, file.id);
-  }
-}
-
-async function copySeriesHero(env, eventId, bytes, { filename, contentType }) {
-  return putHeroDriveCopy(env, eventId, bytes, {
-    name: seriesHeroDriveName(filename, contentType),
-    contentType,
-    match: (file) => isSeriesHeroDriveName(file?.name),
-  });
-}
-
-async function copyOccurrenceHero(env, eventId, date, bytes, { filename, contentType }) {
-  return putHeroDriveCopy(env, eventId, bytes, {
-    name: occurrenceHeroDriveName(date, filename, contentType),
-    contentType,
-    match: (file) => isOccurrenceHeroDriveName(file?.name, date),
-  });
-}
-
-async function renameOccurrenceHeroCopy(env, eventId, fromDate, toDate) {
-  if (!fromDate || !toDate || fromDate === toDate) return;
-  const event = await getEvent(env, eventId);
-  if (!event.driveFolderId) return;
-  const children = await listDriveChildren(env, event.driveFolderId);
-  for (const file of children) {
-    if (!file?.id || !isOccurrenceHeroDriveName(file.name, fromDate)) continue;
-    const ext = String(file.name).split(".").pop();
-    await renameDriveFile(env, file.id, `hero-${toDate}.${ext}`);
-  }
-}
-
-/** Copy heroes already stored in Baserow into each series Drive folder. */
-export async function copyStoredHeroesToDrive(env) {
-  const events = await listEvents(env);
-  const copied = [];
-  const skipped = [];
-  for (const event of events) {
-    const jobs = [];
-    if (event.mainImage?.url) {
-      jobs.push({ kind: "series", image: event.mainImage, date: "" });
-    }
-    for (const night of event.dates || []) {
-      const image = night.overrides?.image;
-      if (!image?.url) continue;
-      jobs.push({ kind: "night", image, date: night.date });
-    }
-    if (!jobs.length) continue;
-    if (!event.driveFolderId) {
-      skipped.push({ id: event.id, name: event.name, reason: "no Drive folder" });
-      continue;
-    }
-    for (const job of jobs) {
-      const file = await bytesFromImage(env, job.image);
-      if (job.kind === "series") {
-        await copySeriesHero(env, event.id, file.bytes, {
-          filename: file.filename,
-          contentType: file.contentType,
-        });
-      } else {
-        await copyOccurrenceHero(env, event.id, job.date, file.bytes, {
-          filename: file.filename,
-          contentType: file.contentType,
-        });
-      }
-      copied.push({
-        id: event.id,
-        name: event.name,
-        kind: job.kind,
-        date: job.date,
-      });
-    }
-  }
-  return { copied, skipped };
-}
-
 async function attachFiles(env, tables, id, field, entries, extra = {}) {
   const row = await updateRow(env, tables.events, id, {
     [field]: entries.map((entry) => ({ name: entry.name })),
@@ -1264,11 +1121,9 @@ export async function setEventImage(
     ];
     return attachFiles(env, tables, id, "Images", names);
   }
-  const event = await attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }], {
+  return attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }], {
     "Hero crops": "",
   });
-  await copySeriesHero(env, id, bytes, { filename, contentType });
-  return event;
 }
 
 export async function clearEventImage(env, id, { role, name }) {
@@ -1280,11 +1135,9 @@ export async function clearEventImage(env, id, { role, name }) {
       .map((image) => ({ name: image.name }));
     return attachFiles(env, tables, id, "Images", names);
   }
-  const event = await attachFiles(env, tables, id, "Main image", [], {
+  return attachFiles(env, tables, id, "Main image", [], {
     "Hero crops": "",
   });
-  await removeHeroDriveCopies(env, id, (file) => isSeriesHeroDriveName(file?.name));
-  return event;
 }
 
 /** Baserow fields for one night row (shared by single and batch saves). */
@@ -1937,9 +1790,6 @@ export async function moveOccurrence(
     const updated = await getEvent(env, eventId);
     const occurrence =
       updated.dates.find((row) => row.date === to) || updated.dates[0] || null;
-    if (fromOccurrence.overrides?.image) {
-      await renameOccurrenceHeroCopy(env, eventId, from, to);
-    }
     return {
       event: updated,
       occurrence,
@@ -1987,9 +1837,6 @@ export async function moveOccurrence(
     await removeOccurrence(env, leftover.id);
   }
   series = await getEvent(env, eventId);
-  if (fromOccurrence.overrides?.image) {
-    await renameOccurrenceHeroCopy(env, eventId, from, to);
-  }
   return {
     event: series,
     occurrence: series.dates.find((row) => row.date === to) || target,
@@ -2033,7 +1880,6 @@ export async function setOccurrenceImage(
     });
     occurrenceSaved = mapEventDate(row);
   }
-  await copyOccurrenceHero(env, eventId, normalized, bytes, { filename, contentType });
   return { event: await getEvent(env, eventId), occurrence: occurrenceSaved };
 }
 
@@ -2052,9 +1898,6 @@ export async function clearOccurrenceImage(env, eventId, date) {
     label: `${event.name} · ${normalized}`,
     overrides: { ...occurrence.overrides, image: null, heroCrops: null },
   });
-  await removeHeroDriveCopies(env, eventId, (file) =>
-    isOccurrenceHeroDriveName(file?.name, normalized),
-  );
   return { event: await getEvent(env, eventId), occurrence: saved };
 }
 

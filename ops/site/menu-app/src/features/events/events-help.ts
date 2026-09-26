@@ -39,7 +39,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Default hero",
-		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. The original file is also saved in that series Drive folder.",
+		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Original downloads the file as it was uploaded.",
 	},
 	{
 		title: "Gallery",

@@ -5,13 +5,9 @@ import {
   findNamedFolder,
   isDriveImage,
   isHeroDriveFileName,
-  isOccurrenceHeroDriveName,
-  isSeriesHeroDriveName,
   mapDriveImage,
-  occurrenceHeroDriveName,
   parseDriveServiceAccount,
   pickReusableDriveFolder,
-  seriesHeroDriveName,
 } from "./google-drive.js";
 
 describe("google-drive helpers", () => {
@@ -96,21 +92,10 @@ describe("google-drive helpers", () => {
     );
   });
 
-  it("names hero copies in the series folder", () => {
-    assert.equal(seriesHeroDriveName("Poster.PNG"), "hero.png");
-    assert.equal(seriesHeroDriveName("flyer.jpeg"), "hero.jpg");
-    assert.equal(seriesHeroDriveName("noext", "image/webp"), "hero.webp");
-    assert.equal(seriesHeroDriveName(""), "hero.jpg");
-    assert.equal(
-      occurrenceHeroDriveName("2026-10-10", "night.gif"),
-      "hero-2026-10-10.gif",
-    );
-    assert.equal(isSeriesHeroDriveName("hero.jpg"), true);
-    assert.equal(isSeriesHeroDriveName("hero-2026-10-10.jpg"), false);
-    assert.equal(isOccurrenceHeroDriveName("hero-2026-10-10.png", "2026-10-10"), true);
-    assert.equal(isOccurrenceHeroDriveName("hero-2026-10-10.png", "2026-10-11"), false);
+  it("recognises the hero copies older folders still hold", () => {
     assert.equal(isHeroDriveFileName("hero.webp"), true);
     assert.equal(isHeroDriveFileName("hero-2026-10-10.gif"), true);
     assert.equal(isHeroDriveFileName("crowd.jpg"), false);
+    assert.equal(isHeroDriveFileName("hero-notes.jpg"), false);
   });
 });
