@@ -3,10 +3,12 @@
 	import { navigate } from "../../../lib/nav";
 
 	let {
+		eyebrow = "",
 		title = "",
 		subtitle = "",
 		href = "",
 	}: {
+		eyebrow?: string;
 		title?: string;
 		subtitle?: string;
 		href?: string;
@@ -27,6 +29,9 @@
 </script>
 
 <div class="stack">
+	{#if eyebrow}
+		<span class="eyebrow">{eyebrow}</span>
+	{/if}
 	{#if href}
 		<a class="title" {href} onclick={onClick}>{title}</a>
 	{:else}
@@ -45,6 +50,16 @@
 		gap: 0.12rem;
 		min-width: 0;
 		width: 100%;
+	}
+
+	.eyebrow {
+		color: var(--primary);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		line-height: 1.2;
+		text-transform: uppercase;
+		white-space: nowrap;
 	}
 
 	.title {
