@@ -579,14 +579,22 @@ export async function putEventOnWebsite(env, id) {
 }
 
 /** Take an event's documents off the live site and the preview (delete with "also take it off the website"). */
-export async function removeEventFromWebsite(env, event, rows = null) {
-  const ids = rows
+export async function removeEventFromWebsite(
+  env,
+  event,
+  rows = null,
+  { query = sanityQuery, mutate = sanityMutate } = {},
+) {
+  const found = rows
     ? rows.map((row) => row.sanityId).filter(Boolean)
-    : await eventDocumentIds(env, event);
+    : await eventDocumentIds(env, event, { query });
+  // Nights first: Sanity won't delete the series while live nights refer to it.
+  const seriesId = sanitySeriesId(event.slug);
+  const ids = [...found.filter((id) => id !== seriesId), ...found.filter((id) => id === seriesId)];
   const warnings = [];
   for (const docId of ids) {
     try {
-      await sanityMutate(env, [{ delete: { id: docId } }]);
+      await mutate(env, [{ delete: { id: docId } }]);
     } catch (error) {
       warnings.push(`Could not take ${docId} off the website: ${error?.message || "unknown error"}.`);
     }

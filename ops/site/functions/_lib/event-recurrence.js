@@ -110,11 +110,15 @@ export function normalizeExtraDates(value) {
   return normalizeIsoDateList(value);
 }
 
-function finalizeDates(dates, rule, { from, to } = {}) {
+/**
+ * The rule's dates plus its extra nights. An extra night was added by hand, so
+ * it stays whatever the series' start, end or window: only past (`from`) or
+ * skipped dates leave out.
+ */
+function finalizeDates(dates, rule, { from } = {}) {
   const merged = new Set(dates);
   for (const extra of normalizeExtraDates(rule?.extraDates)) {
     if (from && extra < from) continue;
-    if (to && extra > to) continue;
     merged.add(extra);
   }
   const skipped = new Set(normalizeSkippedDates(rule?.skippedDates));
@@ -154,27 +158,20 @@ export function expandOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS 
 
   const unit = String(rule?.repeatUnit || "none").trim().toLowerCase();
   const endsOn = parseIsoDate(rule?.endsOn);
-  if (endsOn && endsOn < start) return [];
-
   const todayIsoValue = formatIsoDate(todayDate);
+  if (endsOn && endsOn < start) return finalizeDates([], rule, { from: todayIsoValue });
 
   if (unit === "none" || unit === "" || unit === "once") {
     if (start < todayDate) {
       return finalizeDates([], rule, { from: todayIsoValue });
     }
-    if (endsOn && start > endsOn) return [];
-    return finalizeDates([formatIsoDate(start)], rule, {
-      from: todayIsoValue,
-      to: endsOn ? formatIsoDate(endsOn) : undefined,
-    });
+    if (endsOn && start > endsOn) return finalizeDates([], rule, { from: todayIsoValue });
+    return finalizeDates([formatIsoDate(start)], rule, { from: todayIsoValue });
   }
 
   const last = windowEnd(todayDate, endsOn, horizonDays);
   if (last < todayDate || last < start) {
-    return finalizeDates([], rule, {
-      from: todayIsoValue,
-      to: formatIsoDate(last),
-    });
+    return finalizeDates([], rule, { from: todayIsoValue });
   }
   const every = repeatEvery(rule);
   const dates = [];
@@ -188,13 +185,13 @@ export function expandOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS 
       dates.push(formatIsoDate(cursor));
       cursor = addDays(cursor, every);
     }
-    return finalizeDates(dates, rule, { from: todayIsoValue, to: lastIso });
+    return finalizeDates(dates, rule, { from: todayIsoValue });
   }
 
   if (unit === "week") {
     const days = normalizeWeekdays(rule?.weekdays);
     if (!days.length) {
-      return finalizeDates([], rule, { from: todayIsoValue, to: lastIso });
+      return finalizeDates([], rule, { from: todayIsoValue });
     }
     const anchor = mondayOf(start);
     let cursor = start > todayDate ? start : todayDate;
@@ -206,13 +203,13 @@ export function expandOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS 
       }
       cursor = addDays(cursor, 1);
     }
-    return finalizeDates(dates, rule, { from: todayIsoValue, to: lastIso });
+    return finalizeDates(dates, rule, { from: todayIsoValue });
   }
 
   if (unit === "month") {
     const monthDay = Math.floor(Number(rule?.monthDay) || start.getUTCDate());
     if (monthDay < 1 || monthDay > 31) {
-      return finalizeDates([], rule, { from: todayIsoValue, to: lastIso });
+      return finalizeDates([], rule, { from: todayIsoValue });
     }
     let year = start.getUTCFullYear();
     let month = start.getUTCMonth();
@@ -235,7 +232,7 @@ export function expandOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS 
         year += 1;
       }
     }
-    return finalizeDates(dates, rule, { from: todayIsoValue, to: lastIso });
+    return finalizeDates(dates, rule, { from: todayIsoValue });
   }
 
   return [];
@@ -251,13 +248,14 @@ export function expandSeriesOccurrenceDates(rule) {
     // Starts on may be empty for an open series with no nights yet.
     return finalizeDates(startIso ? [startIso] : [], rule, {});
   }
-  if (!start) return [];
   const end = parseIsoDate(rule?.endsOn);
-  if (!end || end < start) return [];
-  return expandOccurrenceDates(rule, {
-    today: startIso,
-    horizonDays: daysBetween(start, end),
-  });
+  // Nights added by hand belong to the series even outside its start and end.
+  if (!start || !end || end < start) return finalizeDates([], rule, {});
+  return finalizeDates(
+    expandOccurrenceDates(rule, { today: startIso, horizonDays: daysBetween(start, end) }),
+    rule,
+    {},
+  );
 }
 
 /**
