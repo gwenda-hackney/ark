@@ -22,8 +22,8 @@ ark/
 
 ```bash
 npm install
-npm run env:pull          # Bitwarden Password Manager → .env (bw-unlock once per container)
-npm run env:secrets:pull  # Secrets Manager → .env.secrets (all app secrets)
+bw-unlock                 # the login; npm scripts then load secrets in memory (docs/env.md)
+git config user.email you@gwenda.co.uk   # your local form emails go here too; no .env needed
 npm run dev:refresh           # copy real data into your dev copies (Sanity + Baserow)
 npm run web:dev               # website, dev copy → http://localhost:4321 (web:dev:live → :4322)
 npm run ops:dev               # ops, dev copy → http://localhost:5174
@@ -57,9 +57,7 @@ There are two environments, built the same way. Each is a complete, separate cop
 **CMS:** Sanity project "Gwenda Web" (`pn5yjro6`), [manage](https://www.sanity.io/manage/project/pn5yjro6)
 - Studio: [gwenda.sanity.studio](https://gwenda.sanity.studio). It saves drafts only; ops publishes.
 
-**Databases:** Baserow workspace "Gwenda", [dashboard](https://baserow.io/dashboard)
-- Ops: `556507`
-- Website: `461843`
+**Databases:** Baserow workspace "Gwenda", [dashboard](https://baserow.io/dashboard): "Gwenda Ops" and "Website" (found by name; no ids are configured, see [docs/config.md](docs/config.md#baserow-no-ids))
 
 **Other:** [brand.gwenda.co.uk](https://brand.gwenda.co.uk) (brand guidelines), [health.gwenda.co.uk](https://health.gwenda.co.uk) (site health)
 
@@ -73,9 +71,7 @@ There are two environments, built the same way. Each is a complete, separate cop
 
 **CMS:** Sanity project "Gwenda Dev" (`gwscpagy`), [manage](https://www.sanity.io/manage/project/gwscpagy). Studio: `npm run studio:dev`.
 
-**Databases:** Baserow workspace "Gwenda Dev", [dashboard](https://baserow.io/dashboard)
-- Ops: `560292`
-- Website: `563090`
+**Databases:** Baserow workspace "Gwenda Dev", [dashboard](https://baserow.io/dashboard): copies of "Gwenda Ops" and "Website"
 
 ### Dev on your machine
 
@@ -93,7 +89,7 @@ The same dev copies, run locally:
 ### Shared by both
 
 - **Settings:** the "Gwenda Config" Baserow database (`569392`). Each row is marked with its environment; dev is called `local` there.
-- **Secrets:** Bitwarden Secrets Manager. Dev uses the `__LOCAL` versions.
+- **Secrets:** Bitwarden Secrets Manager. Dev (your machine and the dev sites) uses the `__DEV` versions.
 - **Builds:** the deploy webhook Worker sends each ops app's builds to its own website.
 
 More detail: [docs/sanity.md](docs/sanity.md#environments).

@@ -1,9 +1,10 @@
 /**
  * Send mail through the Gmail API over HTTPS (no SMTP sockets on Pages).
  * Auth: service account JSON in GMAIL_SERVICE_ACCOUNT_JSON with domain-wide
- * delegation for gmail.send, impersonating the SMTP_USER mailbox.
+ * delegation for gmail.send, impersonating MAIL_SENDER (shared/mail-from.js).
  */
 import MailComposer from "nodemailer/lib/mail-composer/index.js";
+import { MAIL_SENDER } from "./mail-from.js";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_SEND_URL =
@@ -54,13 +55,9 @@ export function parseGmailServiceAccount(env = {}) {
   }
 }
 
-export function gmailSender(env = {}) {
-  return env.SMTP_USER?.trim() || "";
-}
-
-/** True when the service account and sending mailbox are both set. */
+/** True when the service account is set (the mailbox is MAIL_SENDER). */
 export function isGmailConfigured(env = {}) {
-  return Boolean(parseGmailServiceAccount(env) && gmailSender(env));
+  return Boolean(parseGmailServiceAccount(env));
 }
 
 async function mintAccessToken(account, subject) {
@@ -113,10 +110,8 @@ async function mintAccessToken(account, subject) {
 
 export async function gmailAccessToken(env) {
   const account = parseGmailServiceAccount(env);
-  const subject = gmailSender(env);
-  if (!account || !subject) {
-    throw new Error("GMAIL_SERVICE_ACCOUNT_JSON or SMTP_USER is not configured.");
-  }
+  const subject = MAIL_SENDER;
+  if (!account) throw new Error("GMAIL_SERVICE_ACCOUNT_JSON is not configured.");
   const cacheKey = `${account.client_email}:${subject}`;
   const now = Math.floor(Date.now() / 1000);
   if (cachedToken && cachedToken.key === cacheKey && cachedToken.exp > now) {

@@ -1,6 +1,6 @@
 /**
  * Resolve Ops Baserow table ids by name for local seed/migrate scripts.
- * Requires BASEROW_API_KEY in the environment (and optional BASEROW_OPS_DATABASE_ID).
+ * Requires BASEROW_API_KEY in the environment; the token picks the database.
  */
 import { resolveOpsTableIds } from "../../ops/site/functions/_lib/baserow.js";
 

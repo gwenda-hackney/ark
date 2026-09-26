@@ -146,7 +146,6 @@ describe("resendFormEmail", () => {
     SANITY_PROJECT_ID: "gwscpagy",
     SITE_ENV: "local",
     FORMS_NOTIFY_EMAIL: "dev@example.com",
-    SMTP_USER: "notifications@gwenda.co.uk",
   };
   before(async () => {
     resendEnv = { ...baseEnv, GMAIL_SERVICE_ACCOUNT_JSON: await serviceAccountJson() };

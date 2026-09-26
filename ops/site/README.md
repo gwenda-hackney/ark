@@ -59,8 +59,7 @@ Theme/UI primitives mirror trading’s `shell.web` (Gwenda colours + Ysabeau/Rob
 The same Google login works on **localhost** and **gwenda-ops.pages.dev**. Who may use ops lives in the Baserow **Users** table (Email + Active), managed at `/users`.
 
 ```bash
-# .env
-GOOGLE_OAUTH_CLIENT_ID=…
+# Secrets Manager (loaded after bw-unlock); the client id is in wrangler [vars]
 GOOGLE_OAUTH_CLIENT_SECRET=…
 OPS_SESSION_SECRET=…          # signs the app session cookie (not from Google)
 
@@ -108,10 +107,10 @@ npm run ops:dev
 
 TODO: `:8788` still serves the built SPA, so both ports show a UI. Prefer Wrangler proxying the shell back to Vite so local UI is only the live HMR app.
 
-Secrets come from **`.env.secrets`** (`npm run env:secrets:pull`, env `local`), mapped to ops runtime names by `ops-dev` / `with-ops-env`. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
+Secrets come from Secrets Manager (env `dev`) after `bw-unlock`, loaded in memory and mapped to ops runtime names by `ops-dev` / `with-ops-env`; Wrangler reads them through `.dev.vars`, which is only a symlink to a per-run file in RAM (`/dev/shm`) while `ops:dev` runs; the secrets never touch the repo disk. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
 
 ```bash
-npm run env:secrets:pull
+bw-unlock        # if a script says the vault is locked
 npm run ops:dev
 ```
 
@@ -123,7 +122,7 @@ Local ops works exactly like hosted ops, against copies: the dev Ops DB and the 
 npm run ops:prod
 ```
 
-The same local app (HMR, stack traces in your terminal) with **production powers**: production Ops DB (556507), production secrets straight from Secrets Manager, `SITE_ENV=production`. Saves, **Update website** and **Update website now** change the real Ops DB and gwenda.co.uk, exactly like hosted ops. The app shows a red **LOCAL COPY ON LIVE DATA** banner. Stop it and run plain `npm run web:dev` to go back to the dev copy (it rewrites `.dev.vars`). Don't run both at once: they share `.dev.vars`.
+The same local app (HMR, stack traces in your terminal) with **production powers**: production Ops DB (Gwenda / Gwenda Ops, reached with the production token), production secrets straight from Secrets Manager, `SITE_ENV=production`. Saves, **Update website** and **Update website now** change the real Ops DB and gwenda.co.uk, exactly like hosted ops. The app shows a red **LOCAL COPY ON LIVE DATA** banner. Stop it and run plain `npm run ops:dev` to go back to the dev copy. Don't run both at once: they use the same ports.
 
 Resending form emails from `/forms` locally sends them from this machine: notifications go to your `FORMS_NOTIFY_EMAIL`, receipts to the applicant on the dev row. No website needs to be running.
 

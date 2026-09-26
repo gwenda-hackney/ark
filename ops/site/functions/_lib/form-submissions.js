@@ -36,7 +36,7 @@ function websiteEnv(env) {
   const key = env.BASEROW_WEBSITE_API_KEY?.trim();
   if (!key) {
     const error = new Error(
-      "BASEROW_WEBSITE_API_KEY is not configured. Run npm run env:secrets:pull.",
+      "BASEROW_WEBSITE_API_KEY is not configured. Locally, run bw-unlock and restart.",
     );
     error.status = 503;
     throw error;

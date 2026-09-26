@@ -2,22 +2,22 @@
 /**
  * Deploy Baserow → Mailchimp subscribe sync Worker and sync secrets.
  *
- * Needs in repo-root .env:
- *   CLOUDFLARE_API_TOKEN (.env.secrets), MAILCHIMP_API_KEY (.env).
- *   The production Website Baserow token comes from Secrets Manager.
- * Optional: MAILCHIMP_AUDIENCE_ID, SUBSCRIBE_MAILCHIMP_SYNC_SECRET
+ * Everything comes from Secrets Manager (bw-unlock): CLOUDFLARE_API_TOKEN, the
+ * production Website Baserow token, MAILCHIMP_API_KEY and
+ * SUBSCRIBE_MAILCHIMP_SYNC_SECRET (generated and stored if missing). CI
+ * (workers.yml) reads the same keys when it redeploys the Worker.
+ * Optional: MAILCHIMP_AUDIENCE_ID in the shell (defaults to the Gwenda audience).
  */
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
-import { loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
+import { loadAppSecretsFromSm, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/subscribe-mailchimp-sync");
-const ENV_PATH = resolve(ROOT, ".env");
 
 function run(cmd, args, { cwd = ROOT, env = process.env, input, quiet = false } = {}) {
   const result = spawnSync(cmd, args, {
@@ -44,40 +44,6 @@ function readWranglerAccountId() {
   return match[1];
 }
 
-function upsertEnvLines(lines) {
-  const existing = existsSync(ENV_PATH) ? readFileSync(ENV_PATH, "utf8") : "";
-  const keys = lines.map((line) => line.split("=")[0]);
-  const filtered = existing
-    .split("\n")
-    .filter((line) => {
-      const key = line.split("=")[0]?.trim();
-      return !keys.includes(key);
-    })
-    .join("\n")
-    .replace(/\n+$/, "");
-
-  const block = `\n\n# Subscribe → Mailchimp sync (npm run setup:subscribe-mailchimp-sync)\n${lines.join("\n")}\n`;
-  writeFileSync(
-    ENV_PATH,
-    filtered ? `${filtered}${block}` : `${block.trimStart()}\n`,
-  );
-}
-
-function repoSlug() {
-  return run(
-    "gh",
-    ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
-    { quiet: true },
-  ).trim();
-}
-
-function setGhSecret(name, value) {
-  run("gh", ["secret", "set", name, "--repo", repoSlug()], {
-    input: value,
-    quiet: true,
-  });
-  console.log(`Set GitHub secret ${name}.`);
-}
 
 async function ensureSignedUpMergeField(mailchimpKey, audienceId) {
   const dc = mailchimpKey.split("-").pop();
@@ -118,32 +84,37 @@ async function ensureSignedUpMergeField(mailchimpKey, audienceId) {
 }
 
 
-/** Production Website token (live Subscribers), from Secrets Manager. */
-function productionWebsiteBaserowKey() {
-  const { values } = loadAppSecretsFromSm("web", "production");
-  return values.get("BASEROW_API_KEY")?.trim() || "";
+/** Production values from Secrets Manager: the Website token (live Subscribers) and the Mailchimp keys. */
+function productionSecrets() {
+  const { values, raw } = loadAppSecretsFromSm("web", "production");
+  return {
+    baserowKey: values.get("BASEROW_API_KEY")?.trim() || "",
+    mailchimpKey: raw.get("MAILCHIMP_API_KEY")?.trim() || "",
+    syncSecret: raw.get("SUBSCRIBE_MAILCHIMP_SYNC_SECRET")?.trim() || "",
+  };
 }
 
 async function main() {
   loadRepoEnv();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
-  const baserowKey = productionWebsiteBaserowKey();
-  const mailchimpKey = process.env.MAILCHIMP_API_KEY?.trim();
+  const secrets = productionSecrets();
+  const { baserowKey, mailchimpKey } = secrets;
   const audienceId =
     process.env.MAILCHIMP_AUDIENCE_ID?.trim() || "e2c69d5d31";
-  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing from .env");
+  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing. Run bw-unlock.");
   if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
-  if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY is missing from .env");
+  if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY is missing from Secrets Manager (Ark/Web).");
 
   await ensureSignedUpMergeField(mailchimpKey, audienceId);
 
-  let syncSecret = process.env.SUBSCRIBE_MAILCHIMP_SYNC_SECRET?.trim();
+  let syncSecret = secrets.syncSecret;
   if (!syncSecret) {
     syncSecret = randomBytes(32).toString("hex");
-    console.log("Generated SUBSCRIBE_MAILCHIMP_SYNC_SECRET.");
+    upsertSmSecret({ key: "SUBSCRIBE_MAILCHIMP_SYNC_SECRET", value: syncSecret });
+    console.log("Generated SUBSCRIBE_MAILCHIMP_SYNC_SECRET and stored it in Secrets Manager.");
   } else {
-    console.log("Reusing SUBSCRIBE_MAILCHIMP_SYNC_SECRET from .env.");
+    console.log("Reusing SUBSCRIBE_MAILCHIMP_SYNC_SECRET from Secrets Manager.");
   }
 
   const accountId = readWranglerAccountId();
@@ -182,24 +153,6 @@ async function main() {
     quiet: true,
   });
   console.log("Worker secrets synced.");
-
-  try {
-    setGhSecret("MAILCHIMP_API_KEY", mailchimpKey);
-    setGhSecret("MAILCHIMP_AUDIENCE_ID", audienceId);
-    setGhSecret("SUBSCRIBE_MAILCHIMP_SYNC_SECRET", syncSecret);
-  } catch (error) {
-    console.warn(
-      "Could not set GitHub secrets (gh auth?). CI deploy will need them later:",
-      error instanceof Error ? error.message : error,
-    );
-  }
-
-  upsertEnvLines([
-    `MAILCHIMP_AUDIENCE_ID=${audienceId}`,
-    `SUBSCRIBE_MAILCHIMP_SYNC_SECRET=${syncSecret}`,
-    `SUBSCRIBE_MAILCHIMP_SYNC_URL=${workerUrl}`,
-  ]);
-  console.log(`Updated ${ENV_PATH}.`);
 
   console.log(
     "\nDone.\n" +

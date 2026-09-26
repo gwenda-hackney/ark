@@ -4,9 +4,9 @@
  *
  * Where a value comes from, in order:
  *   1. A developer's machine: settings with `local` read that developer's own
- *      value from .env. `required` ones must be set; `npm run env:pull` writes
- *      a placeholder so a fresh machine fails loudly until the developer fills
- *      it in (e.g. their email for form notifications).
+ *      value from .env. `required` ones must be set, so a fresh machine fails
+ *      loudly until the developer fills it in (e.g. their email for form
+ *      notifications; .env.example lists them).
  *   2. The Gwenda Config database: this environment's row (dev or production;
  *      a developer's machine reads dev), else the "all" row.
  *
@@ -62,7 +62,7 @@ export async function removeRetiredEnv(env, envName) {
   return deleteConfigEnvRows(env, envName);
 }
 
-/** Written by env:pull for local-only settings a developer must fill in. */
+/** A placeholder that counts as unset (older .env files carry it). */
 export const LOCAL_PLACEHOLDER = "SET-ME";
 
 /**
@@ -105,8 +105,8 @@ function localValue(env, entry) {
 
 function missingLocal(entry, key) {
   return new ConfigError(
-    `${entry.local.env} is not set in .env (${entry.local.hint}). ` +
-      `This machine needs it for ${key}; replace ${LOCAL_PLACEHOLDER} with your value.`,
+    `${entry.local.env} is not set (${entry.local.hint}). This machine needs it for ${key}. ` +
+      "Set your git email (git config user.email you@example.com) or put it in .env.",
   );
 }
 
@@ -173,13 +173,6 @@ export function missingLocalSettings(env = process.env, { services = ["ops", "we
     .filter(([, entry]) => entry.local?.required && services.includes(entry.service))
     .filter(([, entry]) => !localValue(env, entry))
     .map(([key, entry]) => ({ key, env: entry.local.env, hint: entry.local.hint }));
-}
-
-/** Local-only settings, for env:pull placeholders and the env template. */
-export function localSettingNames() {
-  return Object.values(SETTINGS)
-    .filter((entry) => entry.local)
-    .map((entry) => ({ env: entry.local.env, hint: entry.local.hint }));
 }
 
 /** Machine state row (not a setting): exact Env + Service, no fallback. */

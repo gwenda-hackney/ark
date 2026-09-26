@@ -1,136 +1,86 @@
-# Local env from Bitwarden
+# Local env
 
-Local secrets live in Bitwarden (`bitwarden.eu`), not in git. Do **not** mint new Cloudflare / Sanity / Baserow tokens on every fresh clone.
+Local secrets are never written into the repo. **`bw-unlock` is the login**: after it, every npm script (`with-env`, `with-ops-env`, `ops:dev`, setup scripts) loads secrets from Bitwarden Secrets Manager straight into its own process env. Do **not** mint new Cloudflare / Sanity / Baserow tokens on a fresh clone.
 
-The Password Manager holds one note, `ark/.env.local`, in the Bitwarden folder **`ark`**. Production secrets live only in Secrets Manager.
+## How it works
 
-## Vault item names
+| Piece | Where | Lifetime |
+|-------|-------|----------|
+| Bitwarden session key (`BW_SESSION`) | `/dev/shm/ark-secrets-<uid>/bw-session` (RAM, mode 600), written by `bw-unlock` | Until `bw-lock`, `bw logout`, a new unlock or the container stopping. Run `bw-unlock` after each container start. |
+| SM machine token `ARK_LOCAL_BW_TOKEN` | Only in the vault note `ark/.env.local` (folder `ark`) | Read from the unlocked vault when needed, held in memory, never written to disk. |
+| App secrets (SM names) | Look-aside cache `/dev/shm/ark-secrets-<uid>/dev.json` (RAM, mode 600) | 12 hours, tied to the current session. Gone when the container stops. |
+| Local settings | Defaults in `scripts/lib/load-env.mjs` (`LOCAL_DEFAULTS`: the dev Sanity project, localhost links) | Committed. A machine works on the dev copies, like the hosted dev site. |
+| Where your local form emails go | `FORMS_NOTIFY_EMAIL`, defaulting to your git email (`git config user.email`) | Set git's email once per checkout, as you would anyway. |
+| Personal overrides | Optional repo-root `.env` (see `.env.example`) | Usually doesn't exist. |
 
-Notes live in the Bitwarden folder **`ark`**:
+`scripts/lib/load-env.mjs` does this: `.env`, then `LOCAL_DEFAULTS` for anything still unset, then the cache (on a miss: token from the vault, then `bws` lists Ark, Ark/Ops and Ark/Web, env `dev`), then that app's runtime names (`APP_SECRETS` rename). The cache entry holds a hash of the session key, so after `bw-lock` or a new unlock it no longer matches. Scripts that write to SM (`env:*:push`, `setup:*`) clear it. A cold load takes about 4 seconds; a cached one about 60 ms.
 
-| Bitwarden item | Folder | Seed template | Role |
-|----------------|--------|---------------|------|
-| `ark/.env.local` | `ark` | `scripts/env-templates/local.env` | Laptop / nest (default `env:pull`) |
+Scripts read the session from the file, not only from the shell variable, so a shell that did not source `~/.bashrc` (an editor task, an agent) still works while the vault is unlocked. Check with `npm run env:status`. Plain `bw status` in such a shell says `locked` even when the vault is unlocked, because it only looks at `BW_SESSION`. If a script prints `Secrets not loaded: vault locked`, run `bw-unlock` and rerun. Nothing else is needed.
 
-The local note holds only the SM bootstrap token (`ARK_LOCAL_BW_TOKEN`) and plain local settings (Sanity project and dataset, site flags, SMTP host and user, UniFi console id, Studio deploy URL). Every credential comes from Secrets Manager into `.env.secrets`. Do not copy those back into `.env`.
+Wrangler's bindings go in a per-run file in the same RAM directory (mode 600, deleted on exit). `wrangler pages dev` only reads `.dev.vars` (it ignores `--env-file`), so for `ops:dev` `ops/site/.dev.vars` is a gitignored symlink to that file while it runs; `wifi-portal` passes `--env-file`. Wrangler's own process env keeps `CLOUDFLARE_API_TOKEN`, which the remote `AI` binding needs; without it Wrangler falls back to a browser OAuth login and hangs. A leftover `.dev.vars` is deleted on start, because Wrangler would prefer it.
 
-`npm run env:seed` creates missing notes and moves existing ones into the `ark` folder.
+In CI (`CI` set) the loader does not touch the vault or apply `LOCAL_DEFAULTS`. Jobs export secrets with `npm run env:<app>:pull -- --github-env`.
 
-## First-time seed
+## First time on a machine
 
 ```bash
 bw config server https://vault.bitwarden.eu   # once
 bw login                                      # once
-bw-unlock                                     # or: export BW_SESSION=$(bw unlock --raw)
+bw-unlock                                     # the login; persists for this container
 
-npm run env:seed          # create ark/.env.local from the template (skip if it exists)
-npm run env:pull          # write repo-root .env from ark/.env.local
-npm run env:secrets:pull  # SM → .env.secrets (needs ARK_LOCAL_BW_TOKEN in .env)
+git config user.email you@gwenda.co.uk   # also where your local form emails go
 ```
 
-In the devcontainer, `bw-unlock` writes the session key to `/commandhistory/.bw-session` (a Docker volume). New shells and env scripts reuse it, so you should not need to unlock again until `bw-lock`, `bw logout`, or a new login. Treat that file like a decrypted vault key. Override the path with `BW_SESSION_FILE`.
+That's it. `npm run web:dev`, `npm run ops:dev` and the rest now load secrets themselves.
 
-Set a local setting one at a time:
+## Everyday
 
 ```bash
-npm run env:set -- PUBLIC_OPENING_DATE 2026-08-01
-# App and Cloudflare secrets belong in Secrets Manager, not the note:
-npm run env:ark:push
-npm run env:web:push -- KEY
+npm run env:status            # vault unlocked? secrets cached?
+bw-unlock                     # when a script says the vault is locked
+bw-lock                       # locks, deletes the session file and the secrets cache
+npm run env:secrets:refresh   # refetch now (after editing a secret in the Bitwarden web app)
+ARK_SECRETS_REFRESH=1 npm run ops:dev   # same, for one run
 ```
 
-Or push every non-empty key from local `.env` into the vault note:
+Overrides: `BW_SESSION_FILE` (session file path), `ARK_SECRETS_CACHE_DIR` (cache directory).
 
-```bash
-bw-unlock                 # skip if already unlocked in this container
-npm run env:push                 # upsert keys into the note
-npm run env:push -- --replace    # overwrite the note with .env (drops removed keys)
-```
-
-`env:set` updates the vault note and merges into local `.env` (for `--env local`, the default).
-`env:push` only writes vault ← local (skips `BITWARDEN_EMAIL` / `BITWARDEN_PASSWORD`).
-
-Every script loads env through `scripts/lib/load-env.mjs`: `.env`, then `.env.secrets`, then (for an app) that app's runtime names. `with-env.mjs` uses the web names and `with-ops-env.mjs` / `ops-dev` the ops names. Production worker setup (`setup:wifi-portal`, `setup:subscribe-mailchimp-sync`) reads the production Website Baserow token straight from Secrets Manager.
+Production worker setup (`setup:wifi-portal`, `setup:subscribe-mailchimp-sync`) reads the production Website Baserow token straight from Secrets Manager.
 
 ## Cloudflare tokens
 
+One Cloudflare account serves every env, so there is one token, shared (no suffix):
+
 | Key | Where | Role |
 |-----|--------|------|
-| `CLOUDFLARE_DEV_API_TOKEN` | SM Ark → `.env.secrets` | Local DEV: Pages, Wrangler, Access teardown. |
-| `CLOUDFLARE_API_TOKEN` | SM Ark → `.env.secrets`; GitHub Actions secret | CI / Wrangler name. Deploy jobs still use the GitHub copy. |
-| `CLOUDFLARE_ACCOUNT_ID` | SM Ark → `.env.secrets`; GitHub Actions secret | Same account as wrangler `account_id`. |
+| `CLOUDFLARE_API_TOKEN` | SM Ark; GitHub Actions secret | Pages, Workers, Wrangler, locally and in CI. Some jobs still use the GitHub copy. |
+| `CLOUDFLARE_ACCOUNT_ID` | SM Ark; GitHub Actions secret | Same account as wrangler `account_id`. |
 
-Local DEV token permissions (custom token, this account):
-
-- Account · Cloudflare Pages · Edit
-- Account · Access: Apps and Policies · Edit (only needed for `npm run teardown:ops-access`)
-- Account · Access: Organizations, Identity Providers, and Groups · Edit (teardown IdP)
-
-Create a **Editor** robot (`ark-local-editor`) via `npm run setup:sanity-tokens` after `npx sanity login`. Never put that token in GitHub; CI uses Viewer / Deploy Studio robots.
-
-## Fresh machine / nest
-
-```bash
-bw-unlock                 # skip if already unlocked in this container
-npm run env:pull          # Password Manager → .env (ARK_LOCAL_BW_TOKEN)
-npm run env:secrets:pull  # Secrets Manager → .env.secrets
-```
-
-Useful flags:
-
-```bash
-npm run env:pull -- --dry-run
-npm run env:pull -- --replace
-npm run env:seed -- --force          # reset notes from templates (destructive)
-```
-
-## What not to re-run
-
-If production already works, skip `setup:ci-secrets` / `setup:site-deploy` on clone. Those create or rotate CI/Worker secrets. Use them only for first-time wiring or repair.
-
-## Nest vs ark
-
-| File | Purpose |
-|------|---------|
-| `ark/.env` (file) ← item `ark/.env.local` | Shared local + `ARK_LOCAL_BW_TOKEN` (SM bootstrap) |
-| `.env.secrets` | Every app secret from Secrets Manager, under SM names (`npm run env:secrets:pull`) |
-| Nest `.env` (`~/dev/gwenda/.env`) | Workspace tools (e.g. ClickUp). Separate. |
-
-## Org Cloudflare (Ark)
-
-```bash
-# Requires ARK_LOCAL_BW_TOKEN in .env
-CLOUDFLARE_DEV_API_TOKEN=... npm run env:ark:push -- CLOUDFLARE_DEV_API_TOKEN
-npm run env:secrets:pull
-```
-
-GitHub still holds `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` for deploy workflows that never talk to Secrets Manager.
+`npm run teardown:ops-access` also needs Access: Apps and Policies · Edit on that token.
 
 ## Secrets Manager pulls
 
-Naming rule, manifests and project ownership: see [config.md](./config.md#secrets-one-naming-rule). In short, SM holds `NAME` (shared) and `NAME__LOCAL` / `__PRODUCTION` (override), and a pull for one env merges them with the override winning.
+Naming rule, manifests and project ownership: see [config.md](./config.md#secrets-one-naming-rule). In short, SM holds `NAME` (every env) and `NAME__DEV` / `NAME__PRODUCTION` (that env), and a pull for one env merges them with the env value winning. A developer's machine is dev.
 
 ```bash
-# Requires ARK_LOCAL_BW_TOKEN in .env
-npm run env:secrets:pull                          # env=local → .env.secrets
-npm run env:secrets:pull -- --env production --dry-run
+npm run env:secrets:refresh                              # refetch dev into the cache, list missing names
+npm run env:secrets:refresh -- --env production --dry-run   # names only, nothing cached
 ```
 
-The pull lists **Ark + Ark/Ops + Ark/Web** and writes every secret any app uses once, under its SM name (for example `BASEROW_OPS_API_KEY` and `BASEROW_WEBSITE_API_KEY`, never a bare `BASEROW_API_KEY`). Missing keys are written as comments naming the SM keys it looked for. The app wrappers map SM names to runtime names from the `APP_SECRETS` rename table, so web sees `BASEROW_API_KEY` as the website token and ops sees it as the ops token.
+A load lists **Ark + Ark/Ops + Ark/Web** and keeps every secret any app uses once, under its SM name (for example `BASEROW_OPS_API_KEY` and `BASEROW_WEBSITE_API_KEY`, never a bare `BASEROW_API_KEY`). The app wrappers map SM names to runtime names from the `APP_SECRETS` rename table, so web sees `BASEROW_API_KEY` as the website token and ops sees it as the ops token.
 
-`env:ark:pull` / `env:ops:pull` / `env:web:pull` exist for CI (`--github-env` exports one app's runtime names). Run locally without that flag, they write the same `.env.secrets`.
+`env:ark:pull` / `env:ops:pull` / `env:web:pull` exist for CI (`--github-env` exports one app's runtime names). Run locally without that flag, they refresh the same cache.
 
-The local Ops dev database id (`BASEROW_OPS_DATABASE_ID`, `BASEROW_OPS_DEV_WORKSPACE_ID`) is a plain setting in `.env`, written by `npm run dev:refresh:baserow-ops`.
+No Baserow database or workspace ids are configured anywhere. A database token opens one workspace and the apps find their database by its tables; scripts log in and find databases by name. See [config.md](./config.md#baserow-no-ids).
 
-Push a value (to the owning project, under its SM name). Values come from `.env.secrets`, or from the shell for keys named on the command line:
+Push a value (to the owning project, under its SM name). Name the keys; each value comes from the shell:
 
 ```bash
-npm run env:web:push -- SUBSCRIBE_SECRET                     # shared NAME
-NEW_SECRET=... npm run env:web:push -- NEW_SECRET            # value from the shell
-npm run env:ops:push -- --profile local BASEROW_API_KEY      # BASEROW_OPS_API_KEY__LOCAL
+SUBSCRIBE_SECRET=... npm run env:web:push -- SUBSCRIBE_SECRET                  # shared NAME
+BASEROW_API_KEY=... npm run env:ops:push -- --profile dev BASEROW_API_KEY      # BASEROW_OPS_API_KEY__DEV
 ```
 
-Keys that already have env overrides in SM are skipped unless `--profile` is given, so a local token never becomes the shared value.
+Keys that already have env values in SM are skipped unless `--profile` is given, so a dev token never becomes the shared value.
 
 CI (Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then:
 
@@ -140,9 +90,9 @@ gh workflow run web-secrets.yml -f profile=production  # gwenda (live + preview)
 gh workflow run web-secrets.yml -f profile=dev         # gwenda-web-dev
 ```
 
-Pages snapshots secrets per deployment, so a secret-only change needs a redeploy. **Deploy workflows do not push Pages secrets**; only `ops-secrets.yml` / `web-secrets.yml` (or a local `npm run setup:ops` + redeploy) do. `web.yml` may pull Ark/Web into the job env for the build (`SANITY_API_TOKEN`, `BASEROW_OPS_API_KEY` for artists, `GATE_BYPASS_KEY` smoke test) but never writes them to Cloudflare.
+Pages snapshots secrets per deployment, so a secret-only change needs a redeploy. The ops deploys (`apps.yml`, production and dev) sync ops Pages secrets before deploying, adding and updating only. The website deploys do not push Pages secrets; `web-secrets.yml` does. `web.yml` may pull Ark/Web into the job env for the build (`SANITY_API_TOKEN`, `BASEROW_OPS_API_KEY` for artists, `GATE_BYPASS_KEY` smoke test) but never writes them to Cloudflare.
 
-GitHub holds only `BWS_ACCESS_TOKEN` plus the Cloudflare deploy copies (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`) for jobs that never talk to Secrets Manager.
+GitHub holds only `BWS_ACCESS_TOKEN`. Every workflow reads everything else from Secrets Manager: app secrets with `env:<app>:pull -- --github-env`, script credentials with `sm-export.mjs`. Do not add GitHub secrets.
 
 Baserow workspaces and tokens per env: see [config.md](./config.md#ops-baserow-workspaces).
 
@@ -150,24 +100,13 @@ Baserow workspaces and tokens per env: see [config.md](./config.md#ops-baserow-w
 
 Some secrets are for scripts, not app runtimes, so they are not in `APP_SECRETS`. CI exports them with `node scripts/sm-export.mjs NAME ...` (masked).
 
+- `DISPATCH_TOKEN` (Ark): GitHub token the site-deploy Worker starts workflows with (`workers.yml` puts it on the Worker as `GITHUB_TOKEN`).
+- `MAILCHIMP_API_KEY`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` (Ark/Web): the Mailchimp sync Worker (`workers.yml`, `setup:subscribe-mailchimp-sync`).
 - `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (Ark/Ops): Baserow login for the clone scripts, which create tables and columns. **Required by `baserow-copy.yml`** (ops Website → Databases → Copy production over it). Prefer a dedicated Baserow user that can see production and the copies.
-- `BASEROW_OPS_DEV_API_KEY` (Ark/Ops, also an ops runtime key): token for the Gwenda Dev copy of the Ops DB, so hosted ops can compare it with production. Same value as `BASEROW_OPS_API_KEY__LOCAL`.
 
-## SMTP (form + invite mail)
+## Email
 
-`SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` are plain Pages project vars (wrangler `[vars]` and `sync-pages-secrets.mjs`). Only `SMTP_PASSWORD` is a Pages secret (Ark/Web SM).
-
-Gmail accounts with 2FA need a [Google app password](https://support.google.com/accounts/answer/185833) for `notifications@gwenda.co.uk`. Paste with or without spaces; sync strips spaces. A normal account password fails with `534 Application-specific password required`, and form verify returns 502 after the Baserow row is already saved.
-
-After rotating the app password, store it in Ark/Web (`SMTP_PASSWORD`), then sync Pages:
-
-```bash
-SMTP_PASSWORD='...' npm run env:web:push -- SMTP_PASSWORD
-gh workflow run web-secrets.yml -f profile=production
-gh workflow run web-secrets.yml -f profile=dev
-```
-
-Redeploy if form mail still 502s after a secret-only change that also touched host/user vars.
+All mail goes through the Gmail API over HTTPS (`shared/gmail-send.js`), sent as `notifications@gwenda.co.uk` by the Google service account `GMAIL_SERVICE_ACCOUNT_JSON` (SM `GOOGLE_SERVICE_ACCOUNT_JSON`, domain-wide delegation for `gmail.send`). The addresses are constants in `shared/mail-from.js`, not config. There is no SMTP anywhere: Workers can't hold SMTP connections well. See [email.md](./email.md).
 
 ## Workers Logs (Pages Functions)
 
@@ -178,7 +117,7 @@ Pages Functions do **not** persist logs. `[observability]` is rejected in Pages 
 - `form_receipt_email_failed` / `form_receipt_failed_after_store`
 - `form_verify_email_failed` / `form_verify_resend_failed` / `form_verify_token_failed`
 
-On production (`SITE_ENV=production`) those events also email `ALERT_EMAIL` (`alerts@gwenda.co.uk`) via SMTP. Client 400s and honeypots are not alerted. Missing notify address on a form is logged, not emailed. Missing SMTP in production is emailed.
+On production (`SITE_ENV=production`) those events also email `ALERT_EMAIL` (`alerts@gwenda.co.uk`). Client 400s and honeypots are not alerted. Missing notify address on a form is logged, not emailed. Email not configured in production is alerted.
 
 Standalone Workers can persist logs with `[observability] enabled = true`. `gwenda-site-health` does this.
 
@@ -192,7 +131,7 @@ Standalone Workers can persist logs with `[observability] enabled = true`. `gwen
 npm run setup:site-health
 ```
 
-That creates the KV namespace, deploys the Worker on `health.gwenda.co.uk`, and puts `SMTP_PASSWORD`. CI redeploys from `.github/workflows/workers.yml`.
+That creates the KV namespace, puts `GMAIL_SERVICE_ACCOUNT_JSON` and deploys the Worker on `health.gwenda.co.uk`. CI redeploys from `.github/workflows/workers.yml`: it puts the secret before the deploy, checks `GET /health` reports `emailConfigured: true`, then deletes the retired `SMTP_PASSWORD`.
 
 ## Secrets vs config
 

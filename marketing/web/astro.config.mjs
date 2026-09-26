@@ -40,8 +40,8 @@ const env = loadEnv(
 );
 const sitePassword = env.SITE_PASSWORD;
 
-// A developer's machine must set its local-only values (npm run env:pull
-// writes placeholders). Fail before serving, not on the first form email.
+// A developer's machine must set its local-only values (.env.example).
+// Fail before serving, not on the first form email.
 if (process.argv.includes("dev")) {
   const missing = missingLocalSettings(
     { ...env, ...process.env, SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local" },
@@ -49,7 +49,7 @@ if (process.argv.includes("dev")) {
   );
   if (missing.length) {
     throw new Error(
-      `Set these in the repo .env first:\n${missing
+      `Set your git email (git config user.email you@example.com), or these in the repo .env:\n${missing
         .map((row) => `  ${row.env}=  (${row.hint}, for ${row.key})`)
         .join("\n")}`,
     );
@@ -99,12 +99,6 @@ const rsvpEnv = () => ({
   SANITY_PERSPECTIVE: localSanityPerspective(),
   INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
   INVITE_IMAGE_URL: process.env.INVITE_IMAGE_URL || env.INVITE_IMAGE_URL,
-  SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
-  SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
-  SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
-  SMTP_PASSWORD: process.env.SMTP_PASSWORD || env.SMTP_PASSWORD,
-  SMTP_FROM: process.env.SMTP_FROM || env.SMTP_FROM,
-  SMTP_FROM_EVENTS: process.env.SMTP_FROM_EVENTS || env.SMTP_FROM_EVENTS,
   APPLE_WALLET_PASS_TYPE_ID:
     process.env.APPLE_WALLET_PASS_TYPE_ID || env.APPLE_WALLET_PASS_TYPE_ID,
   APPLE_WALLET_TEAM_ID:
@@ -130,15 +124,8 @@ const devApiEnv = () => ({
   ...rsvpEnv(),
   INVITE_BASE_URL: env.INVITE_BASE_URL,
   INVITE_IMAGE_URL: env.INVITE_IMAGE_URL,
-  SMTP_HOST: env.SMTP_HOST,
-  SMTP_PORT: env.SMTP_PORT,
-  SMTP_USER: env.SMTP_USER,
-  SMTP_PASSWORD: env.SMTP_PASSWORD,
-  SMTP_FROM: env.SMTP_FROM,
   BASEROW_OPS_API_KEY:
     process.env.BASEROW_OPS_API_KEY || env.BASEROW_OPS_API_KEY,
-  BASEROW_OPS_DATABASE_ID:
-    process.env.BASEROW_OPS_DATABASE_ID || env.BASEROW_OPS_DATABASE_ID,
   BASEROW_API_URL: process.env.BASEROW_API_URL || env.BASEROW_API_URL,
 });
 
@@ -260,12 +247,6 @@ function devFormsApi() {
           env.GMAIL_SERVICE_ACCOUNT_JSON,
         // A developer's machine: dev settings plus their own .env values.
         SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local",
-        SMTP_HOST: process.env.SMTP_HOST || env.SMTP_HOST,
-        SMTP_PORT: process.env.SMTP_PORT || env.SMTP_PORT,
-        SMTP_USER: process.env.SMTP_USER || env.SMTP_USER,
-        SMTP_PASSWORD: process.env.SMTP_PASSWORD || env.SMTP_PASSWORD,
-        SMTP_FROM: process.env.SMTP_FROM || env.SMTP_FROM,
-        SMTP_FROM_EVENTS: process.env.SMTP_FROM_EVENTS || env.SMTP_FROM_EVENTS,
         INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
         SITE_URL: process.env.SITE_URL || env.SITE_URL,
       });

@@ -4,7 +4,7 @@
  *
  *   node scripts/site-build-snapshot.mjs capture --out FILE
  *     Before the build. Reads SANITY_DATASET with SANITY_API_TOKEN, and the
- *     Artists table with BASEROW_OPS_API_KEY + BASEROW_OPS_DATABASE_ID.
+ *     Artists table with BASEROW_OPS_API_KEY (the token picks the database).
  *
  *   node scripts/site-build-snapshot.mjs save --in FILE --site preview|production [--environment dev|prod]
  *     After a successful deploy. Writes Gwenda Config (BASEROW_CONFIG_API_KEY).
@@ -50,16 +50,11 @@ async function sanityDocs() {
 
 async function artists() {
   const key = process.env.BASEROW_OPS_API_KEY;
-  const databaseId = process.env.BASEROW_OPS_DATABASE_ID;
-  if (!key || !databaseId) {
-    console.warn("No BASEROW_OPS_API_KEY / BASEROW_OPS_DATABASE_ID: artists not in the snapshot.");
+  if (!key) {
+    console.warn("No BASEROW_OPS_API_KEY: artists not in the snapshot.");
     return [];
   }
-  return listArtists({
-    BASEROW_API_KEY: key,
-    BASEROW_OPS_DATABASE_ID: databaseId,
-    BASEROW_API_URL: process.env.BASEROW_API_URL,
-  });
+  return listArtists({ BASEROW_API_KEY: key, BASEROW_API_URL: process.env.BASEROW_API_URL });
 }
 
 if (command === "capture") {

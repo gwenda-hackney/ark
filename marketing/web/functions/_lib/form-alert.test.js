@@ -8,10 +8,6 @@ import {
 const productionEnv = {
   SITE_ENV: "production",
   ALERT_EMAIL: "alerts@gwenda.co.uk",
-  SMTP_HOST: "smtp.gmail.com",
-  SMTP_PORT: "587",
-  SMTP_USER: "notifications@gwenda.co.uk",
-  SMTP_PASSWORD: "abcdefghijklmnop",
 };
 
 describe("shouldSendFormAlert", () => {
@@ -31,10 +27,10 @@ describe("shouldSendFormAlert", () => {
     ).toBe(false);
   });
 
-  it("alerts when SMTP is missing in production", () => {
+  it("alerts when email is not configured in production", () => {
     expect(
       shouldSendFormAlert(productionEnv, "form_notify_email_skipped", {
-        reason: "smtp_not_configured",
+        reason: "email_not_configured",
       }),
     ).toBe(true);
   });

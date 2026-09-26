@@ -100,7 +100,6 @@ jobs:
           secrets-profile: production
           snapshot-site: production
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
-          baserow-ops-database-id: "556507"
 
       - name: Ensure apex custom domain
         run: cd marketing/web && node scripts/ensure-pages-domain.mjs
@@ -171,7 +170,7 @@ jobs:
         if: steps.studio.outputs.changed == 'true'
         run: npm run studio:deploy
         env:
-          SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
+          SANITY_DEPLOY_TOKEN: ${{ env.SANITY_DEPLOY_TOKEN }}
 
       - name: Tag production release
         run: cd marketing/web && node scripts/ci/tag-production-release.mjs

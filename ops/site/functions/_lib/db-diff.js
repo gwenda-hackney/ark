@@ -10,11 +10,14 @@
  * between copies, so rows are compared by their values, with links compared by
  * the names they show.
  */
-import { OPS_PRODUCTION_DATABASE_ID, baserowFetch } from "./baserow.js";
+import { baserowFetch, pickDatabaseId } from "./baserow.js";
 
 const PAGE_SIZE = 200;
 
-/** Database ids, overridable per environment. */
+/**
+ * Which tokens to compare. Each token sees one workspace; the database in it is
+ * found by its tables (DATABASE_FINGERPRINTS), so no ids are configured.
+ */
 export function databasePairs(env = {}) {
   const opsToken = env.BASEROW_API_KEY || "";
   return {
@@ -24,13 +27,11 @@ export function databasePairs(env = {}) {
       copyLabel: "Gwenda Dev copy (local ops)",
       source: {
         label: "Production",
-        databaseId: env.BASEROW_OPS_DATABASE_ID_PRODUCTION || OPS_PRODUCTION_DATABASE_ID,
         token: opsToken,
       },
       target: {
         label: "Dev copy",
-        databaseId: env.BASEROW_OPS_DEV_DATABASE_ID || "560292",
-        token: env.BASEROW_OPS_DEV_API_KEY || "",
+        token: env.BASEROW_OPS_API_KEY__DEV || "",
       },
       // Production-only by design: config moved to the Gwenda Config DB.
       ignoreTables: ["App Config"],
@@ -41,14 +42,12 @@ export function databasePairs(env = {}) {
       copyLabel: "Gwenda Dev copy (dev website)",
       source: {
         label: "Production",
-        databaseId: env.BASEROW_WEBSITE_DATABASE_ID_PRODUCTION || "461843",
         token: opsToken,
       },
       // The dev copy lives in the Gwenda Dev workspace, like the Ops copy.
       target: {
         label: "Dev copy",
-        databaseId: env.BASEROW_WEBSITE_DEV_DATABASE_ID || "563090",
-        token: env.BASEROW_OPS_DEV_API_KEY || "",
+        token: env.BASEROW_OPS_API_KEY__DEV || "",
       },
       ignoreTables: [],
     },
@@ -90,9 +89,14 @@ export function rowKey(row, fields) {
   return JSON.stringify(fields.map((field) => normalizeCell(row[field])));
 }
 
-async function listTables(env, databaseId) {
-  const tables = await baserowFetch(env, "/api/database/tables/all-tables/");
-  return (tables || []).filter((table) => String(table.database_id) === String(databaseId));
+/** The token's tables of one kind of database, and that database's id. */
+async function listTables(env, kind) {
+  const tables = (await baserowFetch(env, "/api/database/tables/all-tables/")) || [];
+  const databaseId = pickDatabaseId(tables, kind);
+  return {
+    databaseId,
+    tables: tables.filter((table) => String(table.database_id) === databaseId),
+  };
 }
 
 async function listRows(env, tableId) {
@@ -143,26 +147,19 @@ export function compareRows(sourceRows, targetRows) {
   };
 }
 
-async function readSide(env, side) {
+async function readSide(env, kind, side) {
   if (!side.token) {
     const error = new Error(`No Baserow token for the ${side.label.toLowerCase()} database here.`);
     error.status = 503;
     throw error;
   }
   const scoped = withToken(env, side.token);
-  const tables = await listTables(scoped, side.databaseId);
-  if (!tables.length) {
-    const error = new Error(
-      `This ops token cannot read the ${side.label.toLowerCase()} database (${side.databaseId}).`,
-    );
-    error.status = 503;
-    throw error;
-  }
+  const { databaseId, tables } = await listTables(scoped, kind);
   const byName = new Map();
   for (const table of tables) {
     byName.set(table.name, { id: table.id, rows: await listRows(scoped, table.id) });
   }
-  return byName;
+  return { databaseId, byName };
 }
 
 /** Compare one pair. Tables are matched by name. */
@@ -173,10 +170,12 @@ export async function compareDatabasePair(env, pairId) {
     error.status = 400;
     throw error;
   }
-  const [source, target] = await Promise.all([
-    readSide(env, pair.source),
-    readSide(env, pair.target),
+  const [sourceSide, targetSide] = await Promise.all([
+    readSide(env, pair.id, pair.source),
+    readSide(env, pair.id, pair.target),
   ]);
+  const source = sourceSide.byName;
+  const target = targetSide.byName;
   const ignore = new Set(pair.ignoreTables);
   const names = [...new Set([...source.keys(), ...target.keys()])]
     .filter((name) => !ignore.has(name))
@@ -211,8 +210,8 @@ export async function compareDatabasePair(env, pairId) {
     id: pair.id,
     label: pair.label,
     copyLabel: pair.copyLabel,
-    source: { label: pair.source.label, databaseId: pair.source.databaseId },
-    target: { label: pair.target.label, databaseId: pair.target.databaseId },
+    source: { label: pair.source.label, databaseId: sourceSide.databaseId },
+    target: { label: pair.target.label, databaseId: targetSide.databaseId },
     inSync: tables.every((table) => table.status === "same"),
     tables,
     checkedAt: new Date().toISOString(),

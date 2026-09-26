@@ -10,6 +10,10 @@ describe("eventHeaderFlag", () => {
     });
   });
 
+  it("marks a new, unsaved event with its own badge", () => {
+    assert.deepEqual(eventHeaderFlag(null, false), { label: "New", tone: "new" });
+  });
+
   it("says when the background work is still going or has failed", () => {
     const publish = { preview: "stale", live: "current" };
     assert.equal(eventHeaderFlag(publish, false, { job: "waiting" }).label, "Saved. Getting it ready…");

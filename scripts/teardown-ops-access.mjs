@@ -4,7 +4,6 @@
  *
  * Usage: npm run teardown:ops-access
  */
-import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
 
@@ -79,11 +78,11 @@ function matchesApp(app) {
 
 try {
   loadRepoEnv();
-  const token = resolveCloudflareDevToken();
+  const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
   if (!token || !accountId) {
     throw new Error(
-      "CLOUDFLARE_DEV_API_TOKEN (or CLOUDFLARE_API_TOKEN) and CLOUDFLARE_ACCOUNT_ID are required.",
+      "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required.",
     );
   }
 

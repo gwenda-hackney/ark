@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Run a command with the web app env: repo-root `.env` plus `.env.secrets`
- * (`npm run env:secrets:pull`) under web runtime names. Missing files are
- * skipped so CI can inject env vars via workflow secrets instead. Studio, web,
+ * Run a command with the web app env: repo-root `.env` plus secrets from the
+ * unlocked vault (scripts/lib/load-env.mjs) under web runtime names. In CI the
+ * vault is skipped and workflow secrets are used instead. Studio, web,
  * and CLI share this loader; root names map to SANITY_STUDIO_* aliases (see
  * deriveStudioEnv).
  */

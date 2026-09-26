@@ -12,15 +12,9 @@ const account = JSON.stringify({
 });
 
 describe("gmail config", () => {
-  it("needs a service account and a sending mailbox", () => {
+  it("needs only the service account (the mailbox is fixed)", () => {
     expect(isGmailConfigured({})).toBe(false);
-    expect(isGmailConfigured({ GMAIL_SERVICE_ACCOUNT_JSON: account })).toBe(false);
-    expect(
-      isGmailConfigured({
-        GMAIL_SERVICE_ACCOUNT_JSON: account,
-        SMTP_USER: "notifications@gwenda.co.uk",
-      }),
-    ).toBe(true);
+    expect(isGmailConfigured({ GMAIL_SERVICE_ACCOUNT_JSON: account })).toBe(true);
   });
 
   it("rejects JSON that is not a service account", () => {

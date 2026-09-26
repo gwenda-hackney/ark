@@ -118,13 +118,8 @@
 							<div class="span warn">
 								<dt>Warning</dt>
 								<dd>
-									{#if connection.risk === "nonprod_on_production_db"}
-										This non-production session is pointed at the production Ops
-										database. Do not edit until BASEROW_OPS_DATABASE_ID is fixed.
-									{:else}
-										Production is pointed at a non-production Ops database.
-										Check BASEROW_OPS_DATABASE_ID.
-									{/if}
+									This is a local copy working on live data. Changes affect the
+									real website.
 								</dd>
 							</div>
 						{/if}

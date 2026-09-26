@@ -19,7 +19,7 @@ No LAN host required while the console is online at [unifi.ui.com](https://unifi
 
 1. Create a **Site Manager API key** at [unifi.ui.com → Settings → API Keys](https://unifi.ui.com/settings/api-keys)  
    (this is **not** the local Network → Integrations key)
-2. Put it in repo-root `.env` as `UNIFI_SITE_MANAGER_API_KEY=…`
+2. Store it in Secrets Manager: `UNIFI_SITE_MANAGER_API_KEY=… npm run env:web:push -- UNIFI_SITE_MANAGER_API_KEY`
 3. Confirm `UNIFI_CONSOLE_ID` in `wrangler.toml` matches your console URL:
 
    `https://unifi.ui.com/consoles/{UNIFI_CONSOLE_ID}/network/…`
@@ -27,12 +27,11 @@ No LAN host required while the console is online at [unifi.ui.com](https://unifi
 4. Deploy:
 
 ```bash
-# needs CLOUDFLARE_API_TOKEN, BASEROW_API_KEY, UNIFI_SITE_MANAGER_API_KEY in .env
+# needs bw-unlock: CLOUDFLARE_API_TOKEN, BASEROW_API_KEY, UNIFI_SITE_MANAGER_API_KEY come from Secrets Manager
 npm run setup:wifi-portal
 ```
 
-That deploys `gwenda-wifi-captive-portal`, sets Worker secrets, and writes
-`WIFI_CAPTIVE_PORTAL_URL` into `.env`.
+That deploys `gwenda-wifi-captive-portal` and sets its Worker secrets.
 
 Local preview:
 
@@ -40,8 +39,8 @@ Local preview:
 npm run wifi-portal
 ```
 
-Loads `BASEROW_API_KEY` and `UNIFI_SITE_MANAGER_API_KEY` from repo-root `.env` into
-`marketing/wifi-captive-portal/.dev.vars`, then starts Wrangler locally.
+Loads `BASEROW_API_KEY` and `UNIFI_SITE_MANAGER_API_KEY` from Secrets Manager (after `bw-unlock`)
+and starts Wrangler locally with them in a per-run env file in RAM (no `.dev.vars`).
 Open the URL Wrangler prints (usually `http://127.0.0.1:8787/guest/s/default/?id=aa:bb:cc:dd:ee:ff`).
 
 ## Configure UniFi (UDR7)

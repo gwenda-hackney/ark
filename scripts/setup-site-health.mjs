@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 /**
- * Create KV, deploy gwenda-site-health, and sync SMTP_PASSWORD.
+ * Create KV, put the Gmail service account, and deploy gwenda-site-health.
  *
  * Usage:
  *   npm run setup:site-health
  *
- * Needs in .env.secrets (npm run env:secrets:pull):
- *   CLOUDFLARE_DEV_API_TOKEN (or CLOUDFLARE_API_TOKEN), SMTP_PASSWORD
+ * Needs from Secrets Manager (bw-unlock):
+ *   CLOUDFLARE_API_TOKEN, GOOGLE_SERVICE_ACCOUNT_JSON
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -123,18 +122,17 @@ function ensureKvNamespace(wranglerEnv) {
 }
 
 function main() {
-  loadRepoEnv({ override: true });
+  loadRepoEnv({ app: "web", override: true });
 
-  const cloudflareToken =
-    process.env.CLOUDFLARE_API_TOKEN?.trim() || resolveCloudflareDevToken();
-  const smtpPassword = (process.env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
+  const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
+  const serviceAccount = process.env.GMAIL_SERVICE_ACCOUNT_JSON?.trim() || "";
   if (!cloudflareToken) {
     throw new Error(
-      "CLOUDFLARE_API_TOKEN (or CLOUDFLARE_DEV_API_TOKEN) is missing. Run npm run env:secrets:pull.",
+      "CLOUDFLARE_API_TOKEN is missing. Run bw-unlock.",
     );
   }
-  if (!smtpPassword) {
-    throw new Error("SMTP_PASSWORD is missing. Run npm run env:secrets:pull.");
+  if (!serviceAccount) {
+    throw new Error("GMAIL_SERVICE_ACCOUNT_JSON is missing. Run bw-unlock.");
   }
 
   const accountId = readWranglerAccountId();
@@ -145,6 +143,15 @@ function main() {
 
   ensureKvNamespace(wranglerEnv);
 
+  // Before the deploy: the Worker sends alerts through the Gmail API.
+  console.log("Putting Worker secret GMAIL_SERVICE_ACCOUNT_JSON…");
+  run("npx", ["wrangler", "secret", "put", "GMAIL_SERVICE_ACCOUNT_JSON"], {
+    cwd: WORKER_DIR,
+    env: wranglerEnv,
+    input: serviceAccount,
+    quiet: true,
+  });
+
   console.log("Deploying Worker…");
   run("npx", ["wrangler", "deploy"], {
     cwd: WORKER_DIR,
@@ -154,14 +161,6 @@ function main() {
   const host = "health.gwenda.co.uk";
   console.log(`Worker URL: https://${host}`);
 
-  console.log("Syncing Worker secret SMTP_PASSWORD…");
-  run("npx", ["wrangler", "secret", "put", "SMTP_PASSWORD"], {
-    cwd: WORKER_DIR,
-    env: wranglerEnv,
-    input: smtpPassword,
-    quiet: true,
-  });
-  console.log("Worker secret synced.");
 
   console.log(
     "\nDone.\n" +

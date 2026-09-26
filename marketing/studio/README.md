@@ -8,7 +8,7 @@ Migration is ongoing: only part of the site is CMS-backed today. Schema types wi
 
 ```bash
 npx sanity login                              # one-time
-npm run studio:dev                            # http://localhost:3333 → the project in .env (Gwenda Dev)
+npm run studio:dev                            # http://localhost:3333 → Gwenda Dev
 npm run web:dev                               # site shows that Studio's drafts
 ```
 
@@ -37,6 +37,6 @@ Document types in `schemaTypes/` — queries live in `marketing/web/src/lib/sani
 
 Public URL: `/contact/<slug>` (e.g. `/contact/play`). Contact hub: `/contact`.
 
-Form mail identity (`notifyEmail`, `fromEmail`, `replyToEmail`) is edited in Studio (default `play@gwenda.co.uk`). Only `SMTP_PASSWORD` is a secret.
+Form mail identity (`notifyEmail`, `fromEmail`, `replyToEmail`) is edited in Studio (default `play@gwenda.co.uk`). Mail is sent through the Gmail API as notifications@ ([docs/email.md](../../docs/email.md)).
 
 The live site reads **published** documents at build time; the preview reads drafts over them. Edit in Studio, check the preview, then publish from ops.

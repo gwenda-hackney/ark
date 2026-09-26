@@ -18,9 +18,8 @@ SITE_URL = "https://gwenda.co.uk"
 # Prod's preview (drafts over published).
 PREVIEW_SITE_URL = "https://preview.gwenda-blue.pages.dev"
 ALERT_EMAIL = "alerts@gwenda.co.uk"
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = "587"
-SMTP_USER = "notifications@gwenda.co.uk"
+# Alerts go through the Gmail API as notifications@ (shared/mail-from.js);
+# the Worker secret GMAIL_SERVICE_ACCOUNT_JSON is put by CI before each deploy.
 
 [triggers]
 crons = ["*/5 * * * *"]
