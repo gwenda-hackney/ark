@@ -1,11 +1,6 @@
+import { isGmailConfigured, sendGmail } from "../../../shared/gmail-send.js";
+import { NOTIFICATIONS_FROM } from "../../../shared/mail-from.js";
 import type { Env, HealthAlert, ProbeResult } from "./types";
-
-function formatFromAddress(fromEmail: string): string {
-  const raw = fromEmail.trim();
-  if (!raw) return "";
-  if (raw.includes("<") && raw.includes(">")) return raw;
-  return `Gwenda <${raw}>`;
-}
 
 export function formatHealthAlertEmail(
   alert: Exclude<HealthAlert, null>,
@@ -32,18 +27,16 @@ export function formatHealthAlertEmail(
   };
 }
 
+/** Email an alert through the Gmail API (HTTPS; Workers have no SMTP). */
 export async function sendHealthAlert(
   env: Env,
   alert: Exclude<HealthAlert, null>,
   probe: ProbeResult,
   siteUrl?: string,
+  send: typeof sendGmail = sendGmail,
 ): Promise<{ ok: boolean; error?: string }> {
   const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
-  const host = env.SMTP_HOST?.trim();
-  const from = formatFromAddress(env.SMTP_USER?.trim() || "");
-  const user = env.SMTP_USER?.trim() ?? "";
-  const password = (env.SMTP_PASSWORD ?? "").replace(/\s+/g, "");
-  if (!host || !from || !to || !user || !password) {
+  if (!isGmailConfigured(env)) {
     return { ok: false, error: "Alert email is not configured." };
   }
 
@@ -54,15 +47,7 @@ export async function sendHealthAlert(
   );
 
   try {
-    const nodemailer = await import("nodemailer");
-    const port = Number(env.SMTP_PORT?.trim() || "587");
-    const transport = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass: password },
-    });
-    await transport.sendMail({ from, to, subject, text });
+    await send(env, { from: NOTIFICATIONS_FROM, to, subject, text });
     return { ok: true };
   } catch (error) {
     return {

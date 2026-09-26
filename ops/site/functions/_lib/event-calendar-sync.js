@@ -8,7 +8,7 @@ import {
 } from "./baserow.js";
 import { OPS_CONFIG_KEYS, getConfigString, siteEnvName } from "./config-store.js";
 import { resolveOccurrenceContent } from "./event-content.js";
-import { todayIso } from "./event-recurrence.js";
+import { expandSeriesOccurrenceDates, todayIso } from "./event-recurrence.js";
 import { parseDriveServiceAccount } from "./google-drive.js";
 import {
   CALENDAR_SYNC_LIMIT,
@@ -193,9 +193,16 @@ async function saveGoogleEvent(env, calendarId, body, existingId) {
   }
 }
 
+/** Upcoming nights the schedule still has (dropped ones wait to be removed). */
+function scheduledFuture(event, today = todayIso()) {
+  const scheduled = new Set(expandSeriesOccurrenceDates(event));
+  return (event?.dates || []).filter(
+    (row) => row?.date && row.date >= today && row.id && scheduled.has(row.date),
+  );
+}
+
 function upcomingNights(event, today = todayIso()) {
-  return (event?.dates || [])
-    .filter((row) => row?.date && row.date >= today && row.id)
+  return scheduledFuture(event, today)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, CALENDAR_SYNC_LIMIT);
 }
@@ -257,9 +264,7 @@ export async function syncSeriesCalendar(env, event, { maxWrites = Infinity } = 
   }
 
   const today = todayIso();
-  const future = (event.dates || []).filter(
-    (row) => row?.date && row.date >= today && row.id,
-  );
+  const future = scheduledFuture(event, today);
   const nights = upcomingNights(event, today);
   if (future.length > nights.length) {
     noteCalendarWarning(

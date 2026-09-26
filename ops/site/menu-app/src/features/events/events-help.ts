@@ -15,7 +15,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Assigning to a series",
-		body: "When creating, pick a series to add a night, or leave it empty for a new series. A night stays on that series. Open Edit series from the night if you need the shared defaults.",
+		body: "To add a night to a series, press New event on the Schedule and pick the series, or press Add night on the series itself. Leave the series on No series for a special event. A night stays on that series. Open Edit series from the night if you need the shared defaults.",
 	},
 	{
 		title: "Repeating dates",
@@ -39,7 +39,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Default hero",
-		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. The original file is also saved in that series Drive folder.",
+		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Original downloads the file as it was uploaded.",
 	},
 	{
 		title: "Gallery",

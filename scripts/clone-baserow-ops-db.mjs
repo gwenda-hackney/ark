@@ -7,16 +7,14 @@
  * empty file columns are still created so uploads work on the clone.
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
- * Source rows: BASEROW_API_KEY with read access to the production Ops DB.
+ * Source rows: BASEROW_API_KEY with read access to the production Ops DB, so
+ * this runs in CI (baserow-copy.yml, production token). Locally the token only
+ * opens Gwenda Dev. Databases are found by name (scripts/lib/migrations.mjs).
  *
- *   npm run dev:refresh:baserow-ops
  *   npm run dev:refresh:baserow-ops -- --dry-run
  *
- * Env overrides:
- *   BASEROW_OPS_CLONE_SOURCE_ID     source DB (default 556507)
- *   BASEROW_OPS_DEV_WORKSPACE_NAME  (default "Gwenda Dev")
+ * Env override: BASEROW_OPS_DEV_WORKSPACE_NAME (default "Gwenda Dev")
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
@@ -31,11 +29,11 @@ import {
   TABLE_USERS,
 } from "../ops/site/functions/_lib/baserow.js";
 import { refuseSourceWorkspace } from "./lib/baserow-clone.mjs";
+import { findDatabase } from "./lib/migrations.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
-const DEFAULT_SOURCE_DB = "556507";
 const DEV_WORKSPACE_NAME = "Gwenda Dev";
 /** Older clone name; findOrCreate renames it to DEV_WORKSPACE_NAME. */
 const LEGACY_DEV_WORKSPACE_NAME = "Gwenda Ops Dev";
@@ -338,49 +336,6 @@ async function findOrCreateDatabase(apiBase, jwt, workspaceId, name, dryRun) {
   return String(created.id);
 }
 
-function writeLocalDevHints({ workspaceId, databaseId }) {
-  const opsEnvPath = resolve(ROOT, ".env");
-  const lines = [
-    "",
-    `# Set after dev:refresh:baserow-ops (${new Date().toISOString().slice(0, 10)})`,
-    `BASEROW_OPS_DATABASE_ID=${databaseId}`,
-    `BASEROW_OPS_DEV_WORKSPACE_ID=${workspaceId}`,
-  ];
-  if (existsSync(opsEnvPath)) {
-    let text = readFileSync(opsEnvPath, "utf8");
-    for (const key of ["BASEROW_OPS_DATABASE_ID", "BASEROW_OPS_DEV_WORKSPACE_ID"]) {
-      const re = new RegExp(`^${key}=.*$`, "m");
-      const value = key === "BASEROW_OPS_DATABASE_ID" ? databaseId : workspaceId;
-      if (re.test(text)) text = text.replace(re, `${key}=${value}`);
-      else text = `${text.trimEnd()}\n${key}=${value}\n`;
-    }
-    writeFileSync(opsEnvPath, text.endsWith("\n") ? text : `${text}\n`);
-    console.log(`Updated ${opsEnvPath} with BASEROW_OPS_DATABASE_ID=${databaseId}`);
-  } else {
-    writeFileSync(
-      opsEnvPath,
-      `# Local Ops DB id (from clone)\nBASEROW_OPS_DATABASE_ID=${databaseId}\nBASEROW_OPS_DEV_WORKSPACE_ID=${workspaceId}\n`,
-    );
-    console.log(`Wrote ${opsEnvPath}`);
-  }
-
-  writeFileSync(
-    resolve(ROOT, ".baserow-ops-dev.json"),
-    `${JSON.stringify(
-      {
-        workspaceId,
-        databaseId,
-        workspaceName: DEV_WORKSPACE_NAME,
-        databaseName: OPS_DATABASE_NAME,
-        sourceDatabaseId: readEnv("BASEROW_OPS_CLONE_SOURCE_ID", DEFAULT_SOURCE_DB),
-        clonedAt: new Date().toISOString(),
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  console.log("Wrote .baserow-ops-dev.json");
-}
 
 async function main() {
   loadRepoEnv({ app: "ops" });
@@ -391,8 +346,6 @@ async function main() {
   }
 
   const apiBase = readEnv("BASEROW_API_URL", DEFAULT_API).replace(/\/$/, "");
-  const sourceDbId = readEnv("BASEROW_OPS_CLONE_SOURCE_ID", DEFAULT_SOURCE_DB);
-  // Prefer explicit source; do not use BASEROW_OPS_DATABASE_ID if already pointed at a clone.
   const apiKey = readEnv("BASEROW_API_KEY");
   if (!apiKey) throw new Error("BASEROW_API_KEY is required to read the source database.");
 
@@ -401,11 +354,12 @@ async function main() {
     DEV_WORKSPACE_NAME,
   );
 
-  console.log(`Source Ops database: ${sourceDbId}`);
+  const jwt = await getBaserowJwt(apiBase);
+  const source = await findDatabase({ apiBase, jwt, key: "ops", env: "production" });
+  const sourceDbId = source.databaseId;
+  console.log(`Source Ops database: ${source.label} (${sourceDbId})`);
   console.log(`Target workspace name: ${workspaceName}`);
   if (opts.dryRun) console.log("Dry run (no writes).\n");
-
-  const jwt = await getBaserowJwt(apiBase);
 
   const sourceTables = await jwtRequest(
     apiBase,
@@ -613,8 +567,6 @@ async function main() {
     console.log(`  copied ${rows.length}`);
   }
 
-  writeLocalDevHints({ workspaceId, databaseId });
-
   console.log(`
 Clone complete.
 
@@ -625,12 +577,9 @@ Clone complete.
 Next:
   1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
        Create a token with access ONLY to this Ops database.
-  2. Put that token in Secrets Manager as BASEROW_OPS_API_KEY__LOCAL.
-  3. The prod-only token for DB ${sourceDbId} is BASEROW_OPS_API_KEY__PRODUCTION
-       (Pages: gh workflow run ops-secrets.yml).
-  4. npm run env:push       # save the new Ops DB id to the Bitwarden note
-  5. Local ops-dev will use BASEROW_OPS_DATABASE_ID=${databaseId}
-     Production wrangler keeps ${sourceDbId}.
+  2. Put that token in Secrets Manager as BASEROW_OPS_API_KEY__DEV.
+  3. The production token (BASEROW_OPS_API_KEY__PRODUCTION) stays scoped to Gwenda.
+  Nothing stores the database id: apps find it from the token's tables.
 ${skippedPhotos ? `\n  Note: ${skippedPhotos} Photo file(s) were not copied. Re-run fetch:ops-menu-photos on the dev DB if needed.\n` : ""}`);
 }
 

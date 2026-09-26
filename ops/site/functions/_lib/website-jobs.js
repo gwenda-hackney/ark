@@ -23,7 +23,7 @@ import {
 } from "./event-calendar-sync.js";
 import { occurrenceHash } from "./event-content.js";
 import { publishEventPreview, withWebsiteStatus } from "./event-publish.js";
-import { getEvent, listEvents } from "./event-store.js";
+import { droppedNights, getEvent, listEvents, previewBehind } from "./event-store.js";
 
 export const CALENDAR_STEP = 12;
 const FAILURES_KEY = "site.prep_failures";
@@ -44,9 +44,11 @@ export function contentSignature(event) {
 
 /** What this event still needs, or null when it is ready. */
 export function prepNeeded(event, { calendar = true } = {}) {
-  if (!event?.id || !event.publish?.previewDates?.length) return null;
+  if (!event?.id) return null;
+  // An ended series has no upcoming nights but may still have some to take off.
+  if (!event.publish?.previewDates?.length && !droppedNights(event).length) return null;
   const calendarBehind = calendar ? calendarNightsBehind(event) : 0;
-  const preview = event.publish.preview !== "current";
+  const preview = previewBehind(event);
   if (!calendarBehind && !preview) return null;
   return { calendarBehind, preview };
 }
@@ -152,7 +154,7 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
       const result = await publishEventPreview(env, event.id);
       warnings.push(...(result.warnings || []));
       event = result.event;
-      if (event.publish?.preview !== "current") {
+      if (previewBehind(event)) {
         throw new Error("The website copy is still out of date after updating it.");
       }
     }

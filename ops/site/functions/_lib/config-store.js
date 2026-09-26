@@ -13,11 +13,7 @@ import {
   setSetting,
   valuesFromRows,
 } from "../../../../shared/config.js";
-import {
-  OPS_DATABASE_NAME,
-  OPS_PRODUCTION_DATABASE_ID,
-  opsDatabaseId,
-} from "./baserow.js";
+import { OPS_DATABASE_NAME } from "./baserow.js";
 
 export { CONFIG_CACHE_TTL_MS, resetConfigCacheForTests, valuesFromRows };
 
@@ -56,11 +52,17 @@ const DRINK_TYPES = Object.keys(POUR_TARGET_KEYS);
 /** dev or production (a developer's machine is dev). */
 export const siteEnvName = environmentOf;
 
-/** Human labels for shell chrome (which Baserow world this request hits). */
-export function opsConnectionInfo(env = {}) {
+/**
+ * Human labels for shell chrome (which Baserow world this request hits).
+ * The token decides the workspace (BASEROW_OPS_API_KEY__PRODUCTION only
+ * exists on production), so the env names the database; `databaseId` is only
+ * the id the token resolved to, for display and links.
+ */
+export function opsConnectionInfo(env = {}, databaseId = null) {
   const siteEnv = siteEnvName(env);
-  const databaseId = opsDatabaseId(env) || null;
-  const isProductionDb = databaseId === OPS_PRODUCTION_DATABASE_ID;
+  // npm run ops:prod: a local copy with production powers. Always flagged.
+  const localLive = String(env.OPS_LOCAL_LIVE || "") === "1";
+  const isProductionDb = siteEnv === "production" || localLive;
   const envLabel =
     siteEnv === "dev"
       ? isLocalMachine(env)
@@ -69,30 +71,16 @@ export function opsConnectionInfo(env = {}) {
       : siteEnv === "production"
         ? "Production"
         : siteEnv;
-  const databaseLabel = !databaseId
-    ? "Baserow Ops (auto)"
-    : isProductionDb
-      ? OPS_DATABASE_NAME
-      : `${OPS_DATABASE_NAME} (dev)`;
-
-  let risk = null;
-  // npm run ops:prod: a local copy with production powers. Always flagged.
-  const localLive = String(env.OPS_LOCAL_LIVE || "") === "1";
-  if (localLive) risk = "local_live";
-  else if (siteEnv !== "production" && isProductionDb) risk = "nonprod_on_production_db";
-  else if (siteEnv === "production" && databaseId && !isProductionDb) {
-    risk = "production_on_nonprod_db";
-  }
 
   return {
     siteEnv,
     envLabel: localLive
       ? "LOCAL COPY ON LIVE DATA: changes affect the real website"
       : envLabel,
-    databaseId,
-    databaseLabel,
+    databaseId: databaseId || null,
+    databaseLabel: isProductionDb ? OPS_DATABASE_NAME : `${OPS_DATABASE_NAME} (dev)`,
     isProductionDb,
-    risk,
+    risk: localLive ? "local_live" : null,
   };
 }
 

@@ -16,11 +16,9 @@
  * Prompts for Baserow email + password on first login, then caches the JWT in
  * `.baserow-jwt.json` (gitignored) for this checkout. Optional non-interactive:
  *   BASEROW_JWT_EMAIL, BASEROW_JWT_PASSWORD
- *   BASEROW_WORKSPACE_ID   (required to create a new database)
- *   BASEROW_OPS_DATABASE_ID (reuse an existing Ops database)
+ *   BASEROW_WORKSPACE_NAME (default "Gwenda"; the Gwenda Ops database in it is
+ *   reused by name or created)
  */
-import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 import {
   OPS_DATABASE_NAME,
@@ -36,7 +34,9 @@ import {
   TABLE_EVENTS,
   TABLE_EVENT_DATES,
   TABLE_ARTISTS,
+  TABLE_GUEST_ARTISTS,
 } from "../ops/site/functions/_lib/baserow.js";
+import { GUEST_ARTIST_FIELDS } from "../ops/site/functions/_lib/guest-artists.js";
 import {
   DEFAULT_POS_MENU_NAME,
   LEGACY_DEFAULT_POS_MENU_NAME,
@@ -114,66 +114,23 @@ async function listWorkspaces(apiBase, jwt) {
   return Array.isArray(payload) ? payload : payload?.workspaces || [];
 }
 
+/** The workspace to build in, by name (BASEROW_WORKSPACE_NAME, default "Gwenda"). */
 async function resolveWorkspaceId(apiBase, jwt) {
-  const configured = readEnv("BASEROW_WORKSPACE_ID");
-  if (configured) {
-    console.log(`Using BASEROW_WORKSPACE_ID=${configured}`);
-    return configured;
-  }
-
+  const name = readEnv("BASEROW_WORKSPACE_NAME") || "Gwenda";
   const workspaces = await listWorkspaces(apiBase, jwt);
-  if (workspaces.length === 0) {
-    throw new Error("No Baserow workspaces visible for this account.");
-  }
-
-  console.log("Workspaces:");
-  for (const workspace of workspaces) {
-    console.log(`  ${workspace.id}  ${workspace.name}`);
-  }
-
-  if (workspaces.length === 1) {
-    console.log(
-      `Using only workspace: ${workspaces[0].name} (${workspaces[0].id})`,
-    );
-    return String(workspaces[0].id);
-  }
-
-  const preferred = workspaces.find(
-    (workspace) => String(workspace.name).trim().toLowerCase() === "gwenda",
+  const found = workspaces.find(
+    (workspace) => String(workspace.name).trim().toLowerCase() === name.toLowerCase(),
   );
-  if (preferred) {
-    console.log(`Using Gwenda workspace (${preferred.id})`);
-    return String(preferred.id);
-  }
-
-  if (!stdin.isTTY) {
+  if (!found) {
     throw new Error(
-      `Multiple workspaces. Set BASEROW_WORKSPACE_ID to one of: ${workspaces
-        .map((workspace) => workspace.id)
-        .join(", ")}`,
+      `Baserow workspace "${name}" not found. Visible: ${workspaces.map((w) => w.name).join(", ") || "none"}.`,
     );
   }
-
-  const rl = createInterface({ input: stdin, output: stdout });
-  let chosen;
-  try {
-    chosen = (await rl.question("Workspace id to use: ")).trim();
-  } finally {
-    rl.close();
-  }
-  if (!workspaces.some((workspace) => String(workspace.id) === chosen)) {
-    throw new Error(`Unknown workspace id: ${chosen}`);
-  }
-  return chosen;
+  console.log(`Using workspace ${found.name} (${found.id})`);
+  return String(found.id);
 }
 
 async function findOrCreateOpsDatabase(apiBase, jwt) {
-  const existingId = readEnv("BASEROW_OPS_DATABASE_ID");
-  if (existingId) {
-    console.log(`Using BASEROW_OPS_DATABASE_ID=${existingId}`);
-    return existingId;
-  }
-
   const workspaceId = await resolveWorkspaceId(apiBase, jwt);
   const apps = await baserowRequest(
     apiBase,
@@ -204,7 +161,8 @@ async function findOrCreateOpsDatabase(apiBase, jwt) {
   return String(created.id);
 }
 
-async function findOrCreateTable(apiBase, jwt, databaseId, tables, tableName) {
+/** `create` overrides the new table's body (e.g. a table with only its key column). */
+async function findOrCreateTable(apiBase, jwt, databaseId, tables, tableName, create = {}) {
   const existing = tables.find((table) => table.name === tableName);
   if (existing) {
     console.log(`Using existing table "${tableName}" (id ${existing.id}).`);
@@ -214,7 +172,7 @@ async function findOrCreateTable(apiBase, jwt, databaseId, tables, tableName) {
     apiBase,
     jwt,
     `/api/database/tables/database/${databaseId}/`,
-    { method: "POST", body: JSON.stringify({ name: tableName }) },
+    { method: "POST", body: JSON.stringify({ name: tableName, ...create }) },
   );
   console.log(`Created table "${tableName}" (id ${created.id}).`);
   tables.push(created);
@@ -903,6 +861,10 @@ function eventDateFields(eventsTableId) {
     },
     { name: "Offer override", body: { name: "Offer override", type: "text" } },
     {
+      name: "Page link override",
+      body: { name: "Page link override", type: "url" },
+    },
+    {
       name: "Description override",
       body: { name: "Description override", type: "long_text" },
     },
@@ -1565,6 +1527,21 @@ async function main() {
   );
   console.log(`Fields on ${TABLE_ARTISTS}:`);
   await ensureFields(apiBase, jwt, artists.id, artistFields());
+  const guestArtists = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_GUEST_ARTISTS,
+    { data: [["Email"]], first_row_header: true },
+  );
+  console.log(`Fields on ${TABLE_GUEST_ARTISTS}:`);
+  await ensureFields(
+    apiBase,
+    jwt,
+    guestArtists.id,
+    GUEST_ARTIST_FIELDS.map((body) => ({ name: body.name, body })),
+  );
   console.log(`Rows on ${TABLE_POS_MENUS}:`);
   await seedFallMenu(apiBase, jwt, posMenus.id, items.id, {
     linkEmptyItems: createdItemFields.includes("POS menus"),
@@ -1605,68 +1582,13 @@ async function main() {
   console.log(`  ${TABLE_ARTISTS} → ${artists.id}`);
   console.log("");
 
-  const envLines = [`BASEROW_OPS_DATABASE_ID=${databaseId}`];
-  await maybeWriteEnv(envLines);
-  // wrangler.toml is production Pages config. Never point it at a local clone.
-  if (String(databaseId) === "556507") {
-    await maybeWriteWranglerVars({
-      BASEROW_OPS_DATABASE_ID: String(databaseId),
-    });
-  } else {
-    console.log(
-      `Skipping wrangler.toml update (database ${databaseId} is not production 556507).`,
-    );
-  }
-  await maybeStripTableIdEnvKeys();
 
   console.log(
-    "Table ids are resolved by name at runtime (no env/wrangler map).",
+    "Database and table ids are resolved by name at runtime; nothing to store.",
   );
   console.log(
     "Next: npm run setup:ops  (pushes Baserow API key + deploy secrets to gwenda-ops Pages)",
   );
-}
-
-async function maybeWriteEnv(lines) {
-  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
-  const { resolve } = await import("node:path");
-  const envPath = resolve(process.cwd(), ".env");
-  if (!existsSync(envPath)) {
-    console.log("Add to repo-root .env:");
-    for (const line of lines) console.log(`  ${line}`);
-    return;
-  }
-
-  let text = readFileSync(envPath, "utf8");
-  let changed = false;
-  for (const line of lines) {
-    const [key, value] = line.split("=");
-    const pattern = new RegExp(`^${key}=.*$`, "m");
-    if (pattern.test(text)) {
-      const current = text.match(pattern)?.[0]?.slice(key.length + 1) || "";
-      if (!current.trim()) {
-        text = text.replace(pattern, `${key}=${value}`);
-        changed = true;
-      } else if (current.trim() !== value) {
-        console.log(
-          `Keeping existing ${key}=${current.trim()} (new value would be ${value})`,
-        );
-      }
-    } else {
-      if (!text.endsWith("\n")) text += "\n";
-      text += `${key}=${value}\n`;
-      changed = true;
-    }
-  }
-  if (changed) {
-    writeFileSync(envPath, text);
-    console.log(`Wrote Baserow Ops ids into ${envPath}`);
-  } else {
-    console.log("Baserow Ops ids already present in .env");
-  }
-  for (const line of lines) console.log(`  ${line}`);
-
-  await maybeSyncBitwarden(lines);
 }
 
 function upsertTomlVars(text, vars) {
@@ -1683,31 +1605,6 @@ function upsertTomlVars(text, vars) {
   return next;
 }
 
-async function maybeWriteWranglerVars(vars) {
-  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
-  const { resolve } = await import("node:path");
-  const wranglerPath = resolve(process.cwd(), "ops/site/wrangler.toml");
-  if (!existsSync(wranglerPath)) {
-    console.log(
-      "Add BASEROW_OPS_DATABASE_ID to ops/site/wrangler.toml [vars] if needed.",
-    );
-    return;
-  }
-  let next = readFileSync(wranglerPath, "utf8");
-  const current = next;
-  next = upsertTomlVars(next, vars);
-  // Drop legacy per-table id vars; runtime resolves by name.
-  for (const key of TABLE_ID_ENV_KEYS) {
-    next = next.replace(new RegExp(`^${key}\\s*=\\s*.*\\n?`, "gm"), "");
-  }
-  if (next !== current) {
-    writeFileSync(wranglerPath, next);
-    console.log(`Wrote Baserow Ops database id into ${wranglerPath} [vars]`);
-  } else {
-    console.log("Baserow Ops database id already present in wrangler.toml");
-  }
-}
-
 const TABLE_ID_ENV_KEYS = [
   "BASEROW_OPS_SECTIONS_TABLE_ID",
   "BASEROW_OPS_ITEMS_TABLE_ID",
@@ -1718,104 +1615,6 @@ const TABLE_ID_ENV_KEYS = [
   "BASEROW_OPS_USERS_TABLE_ID",
   "BASEROW_OPS_CONFIG_TABLE_ID",
 ];
-
-async function maybeStripTableIdEnvKeys() {
-  const { readFileSync, writeFileSync, existsSync } = await import("node:fs");
-  const { resolve } = await import("node:path");
-  const envPath = resolve(process.cwd(), ".env");
-  if (!existsSync(envPath)) return;
-  let text = readFileSync(envPath, "utf8");
-  const before = text;
-  for (const key of TABLE_ID_ENV_KEYS) {
-    text = text.replace(new RegExp(`^${key}=.*\\n?`, "gm"), "");
-  }
-  if (text !== before) {
-    writeFileSync(envPath, text);
-    console.log("Removed legacy BASEROW_OPS_*_TABLE_ID keys from .env");
-  }
-  try {
-    const {
-      ensureBwInstalled,
-      ensureServer,
-      ensureSession,
-      syncVault,
-      getItemOrNull,
-      updateItemNotes,
-      DEFAULT_LOCAL_ITEM,
-    } = await import("./lib/bitwarden-env.mjs");
-    ensureBwInstalled();
-    ensureServer();
-    ensureSession();
-    syncVault();
-    const item = getItemOrNull(DEFAULT_LOCAL_ITEM);
-    if (!item?.notes) return;
-    let notes = item.notes;
-    const notesBefore = notes;
-    for (const key of TABLE_ID_ENV_KEYS) {
-      notes = notes.replace(new RegExp(`^${key}=.*\\n?`, "gm"), "");
-    }
-    if (notes !== notesBefore) {
-      updateItemNotes(item, notes);
-      console.log(
-        `Stripped table id keys from Bitwarden ${DEFAULT_LOCAL_ITEM}.`,
-      );
-    }
-  } catch {
-    // Local .env strip is enough when vault is locked.
-  }
-}
-
-async function maybeSyncBitwarden(lines) {
-  try {
-    const {
-      ensureBwInstalled,
-      ensureServer,
-      ensureSession,
-      syncVault,
-      getItemOrNull,
-      upsertDotEnvKey,
-      updateItemNotes,
-      DEFAULT_LOCAL_ITEM,
-    } = await import("./lib/bitwarden-env.mjs");
-
-    ensureBwInstalled();
-    ensureServer();
-    ensureSession();
-    syncVault();
-
-    const item = getItemOrNull(DEFAULT_LOCAL_ITEM);
-    if (!item) {
-      console.log(
-        `Bitwarden item "${DEFAULT_LOCAL_ITEM}" missing. Run: npm run env:seed`,
-      );
-      return;
-    }
-
-    let notes = item.notes || "";
-    for (const line of lines) {
-      const eq = line.indexOf("=");
-      const key = line.slice(0, eq);
-      const value = line.slice(eq + 1);
-      notes = upsertDotEnvKey(notes, key, value);
-    }
-    updateItemNotes(item, notes);
-    console.log(
-      `Updated Bitwarden ${DEFAULT_LOCAL_ITEM} with Baserow Ops database id.`,
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.log("");
-    console.log("Bitwarden not updated (local .env only):");
-    console.log(`  ${message.split("\n")[0]}`);
-    console.log("After unlock, sync with:");
-    for (const line of lines) {
-      const eq = line.indexOf("=");
-      const key = line.slice(0, eq);
-      const value = line.slice(eq + 1);
-      console.log(`  npm run env:set -- ${key} '${value}'`);
-    }
-  }
-}
 
 main().catch((error) => {
   console.error(error.message || error);

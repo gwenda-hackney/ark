@@ -14,8 +14,19 @@ import {
 import { SITE_DOMAIN } from "../../../../shared/site-location.js";
 import { getRow, listAllRows, listAllTables, updateRow } from "./baserow.js";
 import { sanityQuery } from "./sanity.js";
+import { listEvents, normalizePageUrl, saveOccurrences, updateEvent } from "./event-store.js";
+import { todayIso } from "./event-recurrence.js";
+import {
+  DECISIONS,
+  emailKey,
+  guestArtistsByEmail,
+  planArtistUpdate,
+  saveGuestArtist,
+} from "./guest-artists.js";
 
 export const FORM_SUBMISSIONS_TABLE_NAME = "Form Submissions";
+
+const PLAY_FORM = "play";
 
 const NAME_KEYS = ["name", "full_name", "fullname", "your_name"];
 
@@ -36,7 +47,7 @@ function websiteEnv(env) {
   const key = env.BASEROW_WEBSITE_API_KEY?.trim();
   if (!key) {
     const error = new Error(
-      "BASEROW_WEBSITE_API_KEY is not configured. Run npm run env:secrets:pull.",
+      "BASEROW_WEBSITE_API_KEY is not configured. Locally, run bw-unlock and restart.",
     );
     error.status = 503;
     throw error;
@@ -139,14 +150,131 @@ function submittedTime(value) {
   return Number.isNaN(time) ? 0 : time;
 }
 
+/**
+ * Ops' record for each play applicant (Guest artists, by email): decision and
+ * ops' artist name and link. Submissions themselves are never changed.
+ */
+export function withGuestRecords(submissions, records) {
+  return submissions.map((row) => {
+    const record = row.formSlug === PLAY_FORM ? records.get(row.email) : null;
+    return {
+      ...row,
+      decision: record?.decision || "",
+      artistName: record?.artistName || "",
+      artistLink: record?.artistLink || "",
+      submitted: row.formSlug === PLAY_FORM ? submittedArtist(row) : null,
+    };
+  });
+}
+
 /** Current submissions, newest first. Earlier versions (Current = false) stay out. */
 export async function listFormSubmissions(env) {
   const tableId = await resolveTableId(env);
-  const rows = await listAllRows(websiteEnv(env), tableId);
-  return rows
+  const [rows, records] = await Promise.all([
+    listAllRows(websiteEnv(env), tableId),
+    guestArtistsByEmail(env),
+  ]);
+  const current = rows
     .map(mapFormSubmission)
     .filter((row) => row.id && row.current)
     .sort((a, b) => submittedTime(b.submittedAt) - submittedTime(a.submittedAt));
+  return withGuestRecords(current, records);
+}
+
+function answer(submission, key) {
+  return submission.answers.find((entry) => entry.key === key)?.value || "";
+}
+
+/** Their "Instagram or website" answer as a link, or "" when it isn't one. */
+export function artistLink(value) {
+  try {
+    return normalizePageUrl(value);
+  } catch {
+    return "";
+  }
+}
+
+/** What they sent: artist name and their "Instagram or website", as a link. */
+export function submittedArtist(submission) {
+  return {
+    name: answer(submission, "artistName") || submission.name,
+    link: artistLink(answer(submission, "instagram")),
+  };
+}
+
+/** Approved play applications, for picking a guest artist. Ops' copy wins. */
+export function approvedArtists(submissions) {
+  const seen = new Set();
+  const out = [];
+  for (const row of submissions) {
+    if (row.formSlug !== PLAY_FORM || row.decision !== "Approved") continue;
+    const sent = submittedArtist(row);
+    const name = row.artistName || sent.name;
+    if (!name || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    out.push({ id: row.id, name, link: row.artistLink || sent.link });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listApprovedArtists(env) {
+  return approvedArtists(await listFormSubmissions(env));
+}
+
+/** The play application behind a submission id; ops keeps its record by their email. */
+async function playSubmission(env, rowId) {
+  const tableId = await resolveTableId(env);
+  let row;
+  try {
+    row = mapFormSubmission(await getRow(websiteEnv(env), tableId, rowId));
+  } catch (error) {
+    if (error?.status === 404) throw httpError("Submission not found.", 404);
+    throw error;
+  }
+  if (row.formSlug !== PLAY_FORM) throw httpError("Only play applications can be approved.", 400);
+  return row;
+}
+
+/** Approve or decline an applicant ("" clears the decision). */
+export async function setFormDecision(env, rowId, decision) {
+  const value = String(decision || "");
+  if (value && !DECISIONS.includes(value)) {
+    throw httpError(`decision must be ${DECISIONS.join(" or ")}.`, 400);
+  }
+  const row = await playSubmission(env, rowId);
+  const saved = await saveGuestArtist(env, row.email, { decision: value });
+  return { ok: true, decision: saved.decision };
+}
+
+/**
+ * Ops' copy of an applicant's artist name and link. Empty means use what
+ * they sent. Their answers are never changed. Upcoming events still showing
+ * the old name and link get the new ones (planArtistUpdate); the website
+ * follows on the next Update website.
+ */
+export async function setFormArtist(env, rowId, { name = "", link = "" } = {}) {
+  const artistName = String(name || "").trim();
+  if (artistName.length > 120) throw httpError("Artist name is too long.", 400);
+  let artistLink;
+  try {
+    artistLink = normalizePageUrl(link);
+  } catch (error) {
+    throw httpError(error.message, 400);
+  }
+  const row = await playSubmission(env, rowId);
+  const sent = submittedArtist(row);
+  const before = (await guestArtistsByEmail(env)).get(emailKey(row.email));
+  const saved = await saveGuestArtist(env, row.email, { artistName, artistLink });
+  const from = { name: before?.artistName || sent.name, link: before?.artistLink || sent.link };
+  const to = { name: saved.artistName || sent.name, link: saved.artistLink || sent.link };
+  const plan = planArtistUpdate(await listEvents(env), { from, to }, todayIso());
+  for (const { id, patch } of plan.series) await updateEvent(env, id, patch);
+  for (const { eventId, rows } of plan.nights) await saveOccurrences(env, eventId, rows);
+  const eventsUpdated = new Set([
+    ...plan.series.map((item) => item.id),
+    ...plan.nights.map((item) => item.eventId),
+  ]).size;
+  return { ok: true, artistName: saved.artistName, artistLink: saved.artistLink, eventsUpdated };
 }
 
 export const FORM_EMAIL_KINDS = ["notify", "receipt"];

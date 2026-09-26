@@ -3,10 +3,8 @@ export interface Env {
   SITE_URL: string;
   PREVIEW_SITE_URL?: string;
   ALERT_EMAIL: string;
-  SMTP_HOST: string;
-  SMTP_PORT: string;
-  SMTP_USER: string;
-  SMTP_PASSWORD?: string;
+  /** Service account that sends as notifications@ (shared/gmail-send.js). */
+  GMAIL_SERVICE_ACCOUNT_JSON?: string;
   HEALTH_STATUS_TOKEN?: string;
 }
 

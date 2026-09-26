@@ -2,10 +2,22 @@
 	import { onDestroy, onMount } from "svelte";
 	import { fade, fly } from "svelte/transition";
 	import { Icon } from "../../shell";
-	import { BusyOverlay, Button, EditorBackBar, NativeSelect, PageHeader, SearchField } from "../../ui";
+	import {
+		BusyOverlay,
+		Button,
+		EditorBackBar,
+		Field,
+		NativeSelect,
+		PageHeader,
+		SearchField,
+		TextField,
+	} from "../../ui";
 	import {
 		getFormSubmissions,
 		resendFormEmail,
+		setFormArtist,
+		setFormDecision,
+		type FormDecision,
 		type FormEmailKind,
 		type FormSubmission,
 	} from "../../lib/api";
@@ -28,6 +40,14 @@
 	let sending = $state<FormEmailKind | null>(null);
 	let mailNote = $state("");
 	let mailError = $state("");
+	let deciding = $state(false);
+	let decisionError = $state("");
+	/** Ops' copy of the artist name and link, shown filled with what they sent. */
+	let artistNameDraft = $state("");
+	let artistLinkDraft = $state("");
+	let savingArtist = $state(false);
+	let artistNote = $state("");
+	let artistError = $state("");
 
 	const EMAILS: { kind: FormEmailKind; label: string; field: "notifySentAt" | "receiptSentAt" }[] = [
 		{ kind: "notify", label: "Team notification", field: "notifySentAt" },
@@ -99,7 +119,46 @@
 		void openId;
 		mailNote = "";
 		mailError = "";
+		artistNote = "";
+		artistError = "";
+		const row = rows.find((item) => item.id === openId);
+		artistNameDraft = row?.artistName || row?.submitted?.name || "";
+		artistLinkDraft = row?.artistLink || row?.submitted?.link || "";
 	});
+
+	const artistDirty = $derived(
+		Boolean(selected) &&
+			(artistNameDraft.trim() !== (selected?.artistName || selected?.submitted?.name || "") ||
+				artistLinkDraft.trim() !== (selected?.artistLink || selected?.submitted?.link || "")),
+	);
+
+	/** Save ops' copy. Matching what they sent stores nothing, so it follows their answers. */
+	async function saveArtist(row: FormSubmission) {
+		if (savingArtist) return;
+		savingArtist = true;
+		artistNote = "";
+		artistError = "";
+		const sent = row.submitted || { name: "", link: "" };
+		const name = artistNameDraft.trim() === sent.name ? "" : artistNameDraft.trim();
+		const link = artistLinkDraft.trim() === sent.link ? "" : artistLinkDraft.trim();
+		try {
+			const saved = await setFormArtist(row.id, { name, link });
+			rows = rows.map((item) =>
+				item.formSlug === row.formSlug && item.email === row.email
+					? { ...item, artistName: saved.artistName, artistLink: saved.artistLink }
+					: item,
+			);
+			artistNameDraft = saved.artistName || sent.name;
+			artistLinkDraft = saved.artistLink || sent.link;
+			artistNote = saved.eventsUpdated
+				? `Saved. ${saved.eventsUpdated === 1 ? "1 upcoming event" : `${saved.eventsUpdated} upcoming events`} updated too; they go on the website with Update website.`
+				: "Saved.";
+		} catch (err) {
+			artistError = err instanceof Error ? err.message : "Could not save that.";
+		} finally {
+			savingArtist = false;
+		}
+	}
 
 	async function resend(row: FormSubmission, kind: FormEmailKind) {
 		if (sending) return;
@@ -120,6 +179,23 @@
 			mailError = err instanceof Error ? err.message : "Could not resend.";
 		} finally {
 			sending = null;
+		}
+	}
+
+	/** Approve or decline; it holds for every reply from the same address. */
+	async function decide(row: FormSubmission, decision: FormDecision) {
+		if (deciding) return;
+		deciding = true;
+		decisionError = "";
+		try {
+			await setFormDecision(row.id, decision);
+			rows = rows.map((item) =>
+				item.formSlug === row.formSlug && item.email === row.email ? { ...item, decision } : item,
+			);
+		} catch (err) {
+			decisionError = err instanceof Error ? err.message : "Could not save that.";
+		} finally {
+			deciding = false;
 		}
 	}
 
@@ -171,8 +247,41 @@
 							<p class="eyebrow">
 								Play application{selected?.formTitle ? ` · ${selected.formTitle}` : ""}
 							</p>
+							{#if selected?.status}
+								<p class="status-flag {statusTone}">{selected.status}</p>
+							{/if}
+							{#if selected?.decision}
+								<p class="status-flag {selected.decision === 'Approved' ? 'live' : 'muted'}">
+									{selected.decision}
+								</p>
+							{/if}
 						</div>
 						<div class="head-tools">
+							{#if selected?.formSlug === "play"}
+								{#if selected.decision !== "Approved"}
+									<Button
+										variant="primary"
+										size="sm"
+										type="button"
+										disabled={deciding}
+										title="Approved artists can be picked as an event's guest artist."
+										onclick={() => void decide(selected, "Approved")}
+									>
+										Approve
+									</Button>
+								{/if}
+								{#if selected.decision !== "Declined"}
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										disabled={deciding}
+										onclick={() => void decide(selected, "Declined")}
+									>
+										Decline
+									</Button>
+								{/if}
+							{/if}
 							{#if selected?.email}
 								<Button
 									variant="outline"
@@ -201,9 +310,6 @@
 						<div class="title-name">
 							<div class="name-line">
 								<h1 class="title">{selected ? personLabel(selected) : "Submission"}</h1>
-								{#if selected?.status}
-									<p class="status-flag {statusTone}">{selected.status}</p>
-								{/if}
 							</div>
 							{#if selected?.email && selected.name}
 								<a class="sub" href={`mailto:${selected.email}`}>{selected.email}</a>
@@ -220,6 +326,7 @@
 										: "An earlier reply. This address has a newer one."}
 								</span>
 							</p>
+							{#if decisionError}<p class="error">{decisionError}</p>{/if}
 						{/if}
 					</header>
 
@@ -256,6 +363,48 @@
 									{/if}
 								</div>
 								<aside class="details-side">
+									{#if selected.submitted}
+										<section class="card" aria-labelledby="form-artist-title">
+											<h2 class="card-title" id="form-artist-title">Guest artist</h2>
+											<p class="muted">
+												How they appear when picked as an event's guest artist. Saving also updates upcoming events that
+												still show the old name or link. Their application stays as they sent it.
+											</p>
+											<Field label="Artist name" for="form-artist-name">
+												<TextField
+													id="form-artist-name"
+													size="sm"
+													bind:value={artistNameDraft}
+													placeholder={selected.submitted.name || "Artist or DJ name"}
+												/>
+											</Field>
+											<Field label="Instagram or website" for="form-artist-link">
+												<TextField
+													id="form-artist-link"
+													size="sm"
+													bind:value={artistLinkDraft}
+													placeholder="@handle or website"
+												/>
+											</Field>
+											<div class="artist-actions">
+												<Button
+													variant="outline"
+													size="sm"
+													type="button"
+													disabled={!artistDirty || savingArtist}
+													busy={savingArtist}
+													onclick={() => void saveArtist(selected)}
+												>
+													Save
+												</Button>
+												{#if artistError}
+													<p class="error">{artistError}</p>
+												{:else if artistNote}
+													<p class="muted">{artistNote}</p>
+												{/if}
+											</div>
+										</section>
+									{/if}
 									<section class="card" aria-labelledby="form-emails-title">
 										<h2 class="card-title" id="form-emails-title">Emails</h2>
 										<ul class="emails">
@@ -462,6 +611,7 @@
 	.status-flag {
 		display: inline-flex;
 		align-items: center;
+		flex-shrink: 0;
 		width: fit-content;
 		margin: 0;
 		padding: 0.18rem 0.5rem;
@@ -612,6 +762,16 @@
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--background);
+	}
+
+	.artist-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.artist-actions p {
+		margin: 0;
 	}
 
 	.card-title {

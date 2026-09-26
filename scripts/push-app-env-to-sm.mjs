@@ -1,25 +1,20 @@
 #!/usr/bin/env node
 /**
- * Push filled secrets into Secrets Manager. Values come from `.env.secrets`
- * (SM names), or from the shell for keys named on the command line. Each key goes to its owning project under its SM name.
- * Keys may be given as the app's runtime name or the SM name.
+ * Push secrets into Secrets Manager. Name the keys; each value comes from the
+ * shell under the name given. Each key goes to its owning project under its SM
+ * name. Keys may be given as the app's runtime name or the SM name.
  *
- *   npm run env:web:push -- --dry-run
- *   npm run env:web:push -- SUBSCRIBE_SECRET          # shared value
- *   NEW_SECRET=... npm run env:web:push -- NEW_SECRET  # value from the shell
- *   npm run env:ops:push -- --profile local BASEROW_API_KEY   # BASEROW_OPS_API_KEY__LOCAL
+ *   SUBSCRIBE_SECRET=... npm run env:web:push -- SUBSCRIBE_SECRET   # shared value
+ *   SUBSCRIBE_SECRET=... npm run env:web:push -- --dry-run SUBSCRIBE_SECRET
+ *   npm run env:ops:push -- --profile dev BASEROW_API_KEY   # BASEROW_OPS_API_KEY__DEV
  *
  * Without --profile a key is pushed as the shared NAME. Keys that already have
- * env overrides in SM are skipped unless --profile is given, so a local token
+ * env overrides in SM are skipped unless --profile is given, so a dev token
  * never becomes the shared value for every env.
  */
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
 import {
   APP_SECRETS,
-  LOCAL_SECRETS_FILE,
+  SM_TOKEN_HINT,
   appSecrets,
   envSecretKey,
   listAllSmSecrets,
@@ -30,13 +25,6 @@ import {
   smNameFor,
   upsertSmSecret,
 } from "./lib/bitwarden-sm.mjs";
-
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-function loadDotEnv(path) {
-  if (!existsSync(path)) return new Map();
-  return new Map(parseDotEnv(readFileSync(path, "utf8")));
-}
 
 function parseArgs(argv) {
   const out = { app: "", env: "", dryRun: false, only: [] };
@@ -51,29 +39,29 @@ function parseArgs(argv) {
     else if (!out.app) out.app = arg;
     else out.only.push(arg);
   }
-  if (!out.help) appSecrets(out.app);
+  if (!out.help) {
+    appSecrets(out.app);
+    if (!out.only.length) throw new Error("Name the keys to push; each value comes from the shell.");
+  }
   return out;
 }
 
 function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(`Usage: node scripts/push-app-env-to-sm.mjs <${Object.keys(APP_SECRETS).join("|")}> [--profile local|staging|production] [--dry-run] [KEY...]`);
+    console.log(`Usage: node scripts/push-app-env-to-sm.mjs <${Object.keys(APP_SECRETS).join("|")}> [--profile dev|production] [--dry-run] KEY...
+
+  Each KEY's value comes from the shell: KEY=... npm run env:<app>:push -- KEY`);
     return;
   }
 
-  const shell = new Map(Object.entries(process.env));
-  for (const [key, value] of loadDotEnv(resolve(root, ".env"))) {
-    if (!process.env[key]) process.env[key] = value;
-  }
   const accessToken = resolveSmAccessToken();
   if (!accessToken) {
-    console.error("Set ARK_LOCAL_BW_TOKEN in repo-root .env (or BWS_ACCESS_TOKEN).");
+    console.error(SM_TOKEN_HINT);
     process.exit(1);
   }
 
   const spec = APP_SECRETS[opts.app];
-  const local = loadDotEnv(resolve(root, LOCAL_SECRETS_FILE));
   const runtimeFor = (key) =>
     spec.keys.includes(key) ? key : spec.keys.find((k) => smNameFor(opts.app, k) === key);
   const existingKeys = [...listAllSmSecrets({ accessToken }).keys()];
@@ -83,17 +71,18 @@ function main() {
       return parsed.name === name && parsed.env !== null;
     });
 
-  const keys = opts.only.length ? opts.only : spec.keys;
-  for (const arg of keys) {
+  for (const arg of opts.only) {
     const key = runtimeFor(arg);
     if (!key) {
       console.log(`skip ${arg}: not an ${opts.app} secret`);
       continue;
     }
     const smName = smNameFor(opts.app, key);
-    const fromShell = opts.only.length ? shell.get(arg) : undefined;
-    const value = String(fromShell ?? local.get(smName) ?? "").trim();
-    if (!value) continue;
+    const value = String(process.env[arg] ?? "").trim();
+    if (!value) {
+      console.log(`skip ${arg}: no value in the shell (${arg}=... npm run env:${opts.app}:push -- ${arg})`);
+      continue;
+    }
     if (!ownerOf(smName)) {
       console.log(`skip ${key}: ${smName} has no owning project`);
       continue;

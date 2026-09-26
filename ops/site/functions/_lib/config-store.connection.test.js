@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { OPS_PRODUCTION_DATABASE_ID } from "./baserow.js";
 import { opsConnectionInfo, siteEnvName } from "./config-store.js";
 
 describe("siteEnvName", () => {
@@ -16,15 +15,9 @@ describe("siteEnvName", () => {
 
 describe("opsConnectionInfo", () => {
   it("labels local clone clearly", () => {
-    const info = opsConnectionInfo({
-      SITE_ENV: "local",
-      BASEROW_OPS_DATABASE_ID: "560292",
-    });
+    const info = opsConnectionInfo({ SITE_ENV: "local" }, "560292");
     assert.equal(info.envLabel, "Dev · this machine");
-    assert.equal(
-      opsConnectionInfo({ SITE_ENV: "dev", BASEROW_OPS_DATABASE_ID: "560292" }).envLabel,
-      "Dev",
-    );
+    assert.equal(opsConnectionInfo({ SITE_ENV: "dev" }).envLabel, "Dev");
     assert.equal(info.databaseId, "560292");
     assert.equal(info.isProductionDb, false);
     assert.equal(info.databaseLabel, "Gwenda Ops (dev)");
@@ -32,21 +25,17 @@ describe("opsConnectionInfo", () => {
   });
 
   it("labels production Ops DB", () => {
-    const info = opsConnectionInfo({
-      SITE_ENV: "production",
-      BASEROW_OPS_DATABASE_ID: OPS_PRODUCTION_DATABASE_ID,
-    });
+    const info = opsConnectionInfo({ SITE_ENV: "production" });
     assert.equal(info.envLabel, "Production");
     assert.equal(info.isProductionDb, true);
     assert.equal(info.databaseLabel, "Gwenda Ops");
+    assert.equal(info.databaseId, null);
     assert.equal(info.risk, null);
   });
 
-  it("flags local pointed at production DB", () => {
-    const info = opsConnectionInfo({
-      SITE_ENV: "local",
-      BASEROW_OPS_DATABASE_ID: OPS_PRODUCTION_DATABASE_ID,
-    });
-    assert.equal(info.risk, "nonprod_on_production_db");
+  it("flags a local copy on live data", () => {
+    const info = opsConnectionInfo({ SITE_ENV: "production", OPS_LOCAL_LIVE: "1" });
+    assert.equal(info.risk, "local_live");
+    assert.equal(info.isProductionDb, true);
   });
 });

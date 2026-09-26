@@ -52,6 +52,8 @@ const featuredGuest = detail.featuredGuest;
 const mainDescription = featuredGuest?.description || detail.description;
 const mainArtist = featuredGuest?.artist || "";
 const mainOffer = featuredGuest?.offer || detail.offer || "";
+// A guest night can link its own artist; otherwise the series' link.
+const mainPageUrl = featuredGuest?.pageUrl || detail.nights?.[0]?.pageUrl;
 const mainImage = featuredGuest?.heroImageUrl || detail.heroImageUrl;
 const mainSchedule =
   (Array.isArray(featuredGuest?.nightSchedule) &&
@@ -148,7 +150,7 @@ function eventImageUrl(
                 )}
               </div>
             ) : null}
-            <EventPageLink url={detail.nights?.[0]?.pageUrl} />
+            <EventPageLink url={mainPageUrl} />
             {detail.upcomingDates?.length ? (
               <div class="event-dates">
                 <p class="event-dates-label">Nights ahead</p>

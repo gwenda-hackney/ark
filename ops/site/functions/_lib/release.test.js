@@ -5,6 +5,7 @@ import {
   computeReleaseDiff,
   planRelease,
   publishRelease,
+  releaseDocument,
   summarizeValue,
 } from "./release.js";
 
@@ -136,4 +137,36 @@ test("publish all reports every source document as in sync; a selection does not
   assert.deepEqual(all.written, []);
   const some = await publishRelease({ SITE_ENV: "production" }, { ids: ["series-nights"] }, deps);
   assert.equal(some.inSync, null);
+});
+
+test("a draft marked removed is a removal: publishing deletes the document and its draft", async () => {
+  const preview = [series(), night("2026-10-03", { removed: true })];
+  const production = [series(), night("2026-10-03")];
+  const entries = computeReleaseDiff(preview, production);
+  assert.deepEqual(entries.map((entry) => [entry.id, entry.change]), [["event-nights-2026-10-03", "removed"]]);
+
+  const batches = [];
+  const query = async (_env, view) => (view === "production" ? production : preview);
+  const result = await publishRelease(
+    { SITE_ENV: "production" },
+    { ids: ["event-nights-2026-10-03"] },
+    { query, mutate: async (_env, batch) => batches.push(batch) },
+  );
+  assert.deepEqual(batches, [[
+    { delete: { id: "drafts.event-nights-2026-10-03" } },
+    { delete: { id: "event-nights-2026-10-03" } },
+  ]]);
+  assert.deepEqual(result.deleted, ["event-nights-2026-10-03"]);
+});
+
+test("publishing makes draft references strong again; weak markers are not a change", () => {
+  const weak = { _type: "reference", _ref: "series-nights", _weak: true, _strengthenOnPublish: { type: "eventSeries" } };
+  const strong = { _type: "reference", _ref: "series-nights" };
+  const draft = { _id: "event-nights-2026-10-01", _type: "event", title: "Nights", series: weak };
+  assert.deepEqual(releaseDocument(draft).series, strong);
+  // A reference meant to stay weak keeps its _weak flag.
+  const keepWeak = { ...weak, _strengthenOnPublish: { type: "eventSeries", weak: true } };
+  assert.deepEqual(releaseDocument({ ...draft, series: keepWeak }).series, { ...strong, _weak: true });
+  const live = { ...draft, series: strong };
+  assert.deepEqual(computeReleaseDiff([draft], [live]), []);
 });

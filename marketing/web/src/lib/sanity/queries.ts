@@ -1,5 +1,5 @@
 /** Published events for the events page — ordered by date ascending. */
-export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public"] | order(date asc) {
+export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public" && removed != true] | order(date asc) {
   "id": slug.current,
   title,
   artist,
@@ -59,7 +59,7 @@ export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   }
 }`;
 
-export const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug][0] {
+export const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug && removed != true][0] {
   "id": slug.current,
   title,
   date,
@@ -75,7 +75,7 @@ export const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug]
 }`;
 
 /** All published events with slugs — used to prerender RSVP pages and social previews. */
-export const RSVP_EVENTS_QUERY = `*[_type == "event" && defined(slug.current)] | order(date asc) {
+export const RSVP_EVENTS_QUERY = `*[_type == "event" && defined(slug.current) && removed != true] | order(date asc) {
   "slug": slug.current,
   title,
   date,

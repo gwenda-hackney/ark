@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { onDestroy, onMount } from "svelte";
+	import { onDestroy, onMount, tick } from "svelte";
 	import { fade, fly } from "svelte/transition";
 	import { Icon } from "../../shell";
 	import {
 		BusyOverlay,
+		ComboBox,
 		Button,
 		Dialog,
 		EditorBackBar,
@@ -47,6 +48,7 @@
 		deleteEventOccurrence,
 		ensureEventOccurrence,
 		eventDriveFileUrl,
+		getApprovedArtists,
 		getEventDrive,
 		getEvents,
 		getMe,
@@ -57,6 +59,7 @@
 		uploadEventDriveImage,
 		uploadEventImage,
 		uploadEventOccurrenceImage,
+		type ApprovedArtist,
 		type EventDriveFile,
 		type OpsEvent,
 		type OpsNightScheduleSlot,
@@ -222,6 +225,19 @@
 	let replacing = $state(false);
 	let current = $state<OpsEvent | null>(null);
 	let attachSeriesId = $state("");
+	/** Approved play applicants, suggested in Guest Artist. */
+	let approvedArtists = $state<ApprovedArtist[]>([]);
+
+	/** Picked from the Guest Artist list: their name, and their Instagram or website. */
+	function pickApprovedArtist(id: string) {
+		const hit = approvedArtists.find((row) => row.id === id);
+		if (!hit) return;
+		artist = hit.name;
+		if (hit.link) pageUrl = hit.link;
+	}
+
+	/** Series to pick when the next new-event form opens ("Add night" on a series). */
+	let presetSeriesId = "";
 
 	let listOrigin = $state<"series" | "schedule">("series");
 	const route = $derived(parseShellPath(path));
@@ -230,9 +246,11 @@
 		(route as { list?: string }).list === "schedule" ? "schedule" : (route as { list?: string }).list === "series" ? "series" : null,
 	);
 	const creatingNight = $derived(route.isNew && Boolean(attachSeriesId));
-	const creatingOnce = $derived(
+	/** "New event" (Schedule): a night for a series, or a special event without one. */
+	const newEventRoute = $derived(
 		route.isNew && (route as { kind?: string }).kind === "once",
 	);
+	const creatingOnce = $derived(newEventRoute && !attachSeriesId);
 	const seriesOptions = $derived(
 		events
 			.filter((event) => event.repeatUnit !== "once")
@@ -342,6 +360,7 @@
 		name?: string;
 		artist?: string;
 		offer?: string;
+		pageUrl?: string;
 		description?: string;
 		shortDescription?: string;
 		operationsNotes?: string;
@@ -355,6 +374,7 @@
 			name: String(row.name || "").trim(),
 			artist: String(row.artist || "").trim(),
 			offer: String(row.offer || "").trim(),
+			pageUrl: String(row.pageUrl || "").trim(),
 			description: String(row.description || "").trim(),
 			shortDescription: String(row.shortDescription || "").trim(),
 			operationsNotes: String(row.operationsNotes || "").trim(),
@@ -379,6 +399,7 @@
 					name,
 					artist,
 					offer,
+					pageUrl,
 					description,
 					shortDescription,
 					operationsNotes,
@@ -392,6 +413,7 @@
 					name: overrides?.name || current.name,
 					artist: overrides?.artist || current.artist,
 					offer: overrides?.offer || current.offer,
+					pageUrl: overrides?.pageUrl || current.pageUrl,
 					description: overrides?.description || current.description,
 					shortDescription: overrides?.shortDescription || "",
 					operationsNotes: overrides?.operationsNotes || current.operationsNotes,
@@ -631,7 +653,9 @@
 				: "/events/new";
 		const hrefFor = (id: string) => eventTabPath(base, id);
 		if (creatingNight) {
-			return [{ id: "details", label: "Details", href: hrefFor("details") }];
+			return [
+				{ id: "details", label: "Details", href: newEventRoute ? "/events/new/once" : hrefFor("details") },
+			];
 		}
 		if (creatingOnce) {
 			return [{ id: "details", label: "Details", href: "/events/new/once" }];
@@ -833,7 +857,7 @@
 		name = occurrence?.overrides.name || event.name;
 		artist = occurrence?.overrides.artist || event.artist || "";
 		offer = occurrence?.overrides.offer || event.offer || "";
-		pageUrl = event.pageUrl || "";
+		pageUrl = occurrence?.overrides.pageUrl || event.pageUrl || "";
 		const onceNight =
 			event.repeatUnit === "once"
 				? event.dates.find((row) => row.overrides?.description || row.overrides?.shortDescription) ||
@@ -897,15 +921,29 @@
 		startTime = "";
 		endTime = "";
 		repeatEvery = "1";
-		repeatUnit = creatingOnce ? "once" : "none";
+		repeatUnit = newEventRoute ? "once" : "none";
 		weekdays = [];
 		monthDay = "";
 		endsOn = "";
 		replacesSeries = "";
-		attachSeriesId = "";
+		attachSeriesId = presetSeriesId;
+		presetSeriesId = "";
 		warnings = [];
 		heroCrops = null;
 		defaultsUnlocked = false;
+	}
+
+	/** A new form starts in its name, or its date when the series is already picked. */
+	async function focusFirstField() {
+		await tick();
+		const id = attachSeriesId ? "event-date" : "event-name";
+		(document.getElementById(id) as HTMLInputElement | null)?.focus();
+	}
+
+	/** "Add night" on a series: the New event form with this series picked. */
+	function addNightToSeries() {
+		presetSeriesId = eventId;
+		navigate("/events/new/once");
 	}
 
 	function addNightSlot() {
@@ -981,6 +1019,7 @@
 		if (key === "name") return String(event.name || "").trim();
 		if (key === "artist") return String(event.artist || "").trim();
 		if (key === "offer") return String(event.offer || "").trim();
+		if (key === "pageUrl") return String(event.pageUrl || "").trim();
 		if (key === "shortDescription") return String(event.shortDescription || "").trim();
 		if (key === "description") return String(event.description || "").trim();
 		if (key === "startTime") return String(event.startTime || "").trim();
@@ -1008,6 +1047,7 @@
 			(title && title.toLowerCase() !== seriesName) ||
 				String(overrides.artist || "").trim() ||
 				String(overrides.offer || "").trim() ||
+				String(overrides.pageUrl || "").trim() ||
 				String(overrides.shortDescription || "").trim() ||
 				String(overrides.description || "").trim() ||
 				String(overrides.startTime || "").trim() ||
@@ -1037,6 +1077,7 @@
 		name = seriesText("name");
 		artist = seriesText("artist");
 		offer = seriesText("offer");
+		pageUrl = seriesText("pageUrl");
 		shortDescription = "";
 		description = seriesText("description");
 		startTime = seriesText("startTime");
@@ -1065,6 +1106,7 @@
 			name: nightField("name", name),
 			artist: nightField("artist", artist),
 			offer: nightField("offer", offer),
+			pageUrl: nightField("pageUrl", pageUrl),
 			description: nightField("description", description),
 			shortDescription: nightField("shortDescription", shortDescription),
 			operationsNotes: nightField("operationsNotes", operationsNotes),
@@ -1102,6 +1144,10 @@
 
 	onMount(() => {
 		void reload();
+		// A hint only: Guest Artist still takes any name without it.
+		getApprovedArtists()
+			.then((data) => (approvedArtists = data.artists || []))
+			.catch(() => {});
 		const stopJobEvents = onWebsiteJobEvent(takeReadyEvent);
 		getMe()
 			.then((me) => {
@@ -1159,7 +1205,7 @@
 	$effect(() => {
 		if (!editing) return;
 		const canonical = route.isNew
-			? eventNewPath(route.tab || "details", { once: creatingOnce })
+			? eventNewPath(route.tab || "details", { once: newEventRoute })
 			: route.slug
 				? eventItemPath(route.slug, route.tab || "details")
 				: "";
@@ -1174,7 +1220,7 @@
 						.filter(Boolean)
 						.join(" · ")
 				: name.trim() ||
-					(route.isNew ? (creatingOnce ? "New event" : "New series") : "Event");
+					(route.isNew ? (creatingNight ? "New night" : creatingOnce ? "New event" : "New series") : "Event");
 		setCrumbLeaf(label);
 		return () => setCrumbLeaf("");
 	});
@@ -1191,6 +1237,7 @@
 			warnings = [];
 			if (route.isNew) {
 				blank();
+				void focusFirstField();
 				return;
 			}
 			if (current?.id === eventId) {
@@ -1427,6 +1474,7 @@
 					name: name.trim(),
 					artist: artist.trim(),
 					offer: offer.trim(),
+					pageUrl: pageUrl.trim(),
 					description: description.trim(),
 					shortDescription: shortDescription.trim(),
 					operationsNotes: operationsNotes.trim(),
@@ -1467,8 +1515,18 @@
 			error = message;
 			toast.error(message);
 			const target = route.isNew
-				? eventNewPath(!name.trim() ? "details" : "schedule")
+				? eventNewPath(!name.trim() ? "details" : "schedule", { once: newEventRoute })
 				: eventItemPath(route.slug || eventId, !name.trim() ? "details" : "schedule");
+			if (path !== target) navigate(target);
+			return;
+		}
+		// The website needs one (publishEventPreview); a night uses its series'.
+		if (!editingOccurrence && !description.replace(/<[^>]*>/g, "").trim()) {
+			error = "Add a description. The website needs one.";
+			toast.error(error);
+			const target = route.isNew
+				? eventNewPath("details", { once: newEventRoute })
+				: eventItemPath(route.slug || eventId, "details");
 			if (path !== target) navigate(target);
 			return;
 		}
@@ -1892,7 +1950,7 @@
 							{#snippet icon()}
 								<Icon name="plus" size={16} />
 							{/snippet}
-							Special event
+							New event
 						</Button>
 					{/if}
 				{/snippet}
@@ -2008,6 +2066,7 @@
 								<Icon name="events" size={14} />
 							{/if}
 							<p class="eyebrow">{typeLine}</p>
+							<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 						</div>
 						<div class="head-tools">
 							<div class="toolbar-actions">
@@ -2027,6 +2086,21 @@
 										{/snippet}
 									</Button>
 									<span class="tool-sep" aria-hidden="true"></span>
+								{/if}
+								{#if eventId && !route.isNew && !editingOccurrence && !editingOnce}
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										disabled={busy}
+										title="Add a night to this series."
+										onclick={addNightToSeries}
+									>
+										{#snippet icon()}
+											<Icon name="plus" size={16} />
+										{/snippet}
+										Add night
+									</Button>
 								{/if}
 								{#if eventId && !route.isNew}
 									<Button
@@ -2092,7 +2166,6 @@
 									<p class="night-headline">
 										{headerDate === "No date" ? "Pick a date" : headerDate}
 									</p>
-									<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 								</div>
 								{#if editingOccurrence && !defaultsUnlocked}
 									<p class="locked-title">{lockedReadout("name")}</p>
@@ -2118,7 +2191,6 @@
 										placeholder={creatingOnce || editingOnce ? "Event name" : "Series name"}
 										bind:value={name}
 									/>
-									<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 								</div>
 							{/if}
 							{#if (!editingOccurrence || defaultsUnlocked) && artist.trim()}
@@ -2152,7 +2224,9 @@
 							</div>
 						{:else if creatingOnce}
 							<div class="create-mode">
-								<p class="create-hint muted">A special event. It does not belong to a series.</p>
+								<p class="create-hint muted">
+									Pick a series below to add a night to it, or leave it on "No series" for a special event.
+								</p>
 							</div>
 						{:else if !editingOnce}
 							<p class="head-note">Series defaults, shared by its nights.</p>
@@ -2193,15 +2267,17 @@
 												<div
 													class="control-grid"
 													class:has-slots={!editingOccurrence}
-													class:with-series={route.isNew && !creatingOnce}
+													class:with-series={route.isNew}
 													class:with-date={editingOccurrence || creatingNight || creatingOnce || editingOnce}
 												>
-													{#if route.isNew && !creatingOnce}
+													{#if route.isNew}
 														<Field
 															class="series"
 															label="Series"
 															for="event-series"
-															tooltip="Choose an existing series to add this night, or leave empty to create a new series."
+															tooltip={newEventRoute
+																? "Choose a series to add a night to it, or No series for a special event."
+																: "Choose an existing series to add this night, or leave empty to create a new series."}
 														>
 															<NativeSelect
 																id="event-series"
@@ -2210,7 +2286,7 @@
 																options={[
 																	{
 																		value: "",
-																		label: "New series",
+																		label: newEventRoute ? "No series (special event)" : "New series",
 																	},
 																	...seriesOptions,
 																]}
@@ -2334,20 +2410,47 @@
 															{/if}
 														</div>
 													{/if}
+													<div class="guest guest-group">
 													<Field
-														class="guest"
 														label="Guest Artist"
 														for="event-artist"
 														tooltip={editingOccurrence
 															? "From the series until you override defaults. A guest of its own is a special edition on What's on."
-															: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
+															: "Optional default. Type any name, or pick an approved artist from the list (approve them in Play applications) to bring their link too. A night with its own guest is labelled Guest on Upcoming and What's on."}
 													>
 														{#if editingOccurrence && !defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("artist")}</p>
 														{:else}
-															<TextField id="event-artist" size="sm" bind:value={artist} />
+															<ComboBox
+																id="event-artist"
+																size="sm"
+																bind:value={artist}
+																placeholder="Artist or DJ name"
+																emptyText="No approved artists yet. Approve them in Play applications."
+																options={approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
+																onpick={(option) => pickApprovedArtist(option.value)}
+															/>
 														{/if}
 													</Field>
+													<Field
+														label="Guest artist link"
+														for="event-page-url"
+														tooltip={editingOccurrence
+															? "From the series until you override defaults. A guest of this night can link their own Instagram or website."
+															: "Optional. Their Instagram or website (an @handle works), linked on the website."}
+													>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value">{lockedReadout("pageUrl")}</p>
+														{:else}
+															<TextField
+																id="event-page-url"
+																size="sm"
+																bind:value={pageUrl}
+																placeholder="Instagram or website link"
+															/>
+														{/if}
+													</Field>
+													</div>
 													<Field
 														class="offer"
 														label="Offer"
@@ -2367,21 +2470,6 @@
 															/>
 														{/if}
 													</Field>
-													{#if !editingOccurrence}
-														<Field
-															class="span-all"
-															label="Page link"
-															for="event-page-url"
-															tooltip="Optional. Their own page. Shown on the event when it is set."
-														>
-															<TextField
-																id="event-page-url"
-																size="sm"
-																bind:value={pageUrl}
-																placeholder="https://"
-															/>
-														</Field>
-													{/if}
 													<Field
 														class="span-all"
 														label="Short description"
@@ -2451,7 +2539,7 @@
 													<HeroImagePanel
 														sourceUrl={current?.mainImage?.url || ""}
 														locked
-														tooltip="Series flyer. Override defaults to give this night its own photo. The original is saved in this series Drive folder."
+														tooltip="Series flyer. Override defaults to give this night its own photo. Original downloads the file as uploaded."
 														onchangecrops={() => undefined}
 														onpickfile={() => undefined}
 														onclear={() => undefined}
@@ -2462,8 +2550,8 @@
 														crops={heroCrops}
 														disabled={busy}
 														tooltip={editingOccurrence
-															? "This night's flyer. What's on uses it while this is the next night. The original is saved in this series Drive folder."
-															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback. The original is saved in this series Drive folder."}
+															? "This night's flyer. What's on uses it while this is the next night. Original downloads the file as uploaded."
+															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback. Original downloads the file as uploaded."}
 														onchangecrops={onHeroCropsChange}
 														onpickfile={(file) => acceptPhotoFile(file)}
 														onclear={() =>
@@ -3289,7 +3377,6 @@
 		cursor: pointer;
 	}
 
-	.photo-hit.empty .photo-btn,
 	.tile.add .photo-btn {
 		pointer-events: none;
 	}
@@ -3492,8 +3579,18 @@
 			box-shadow var(--t-fast) var(--ease-in-out);
 	}
 
+	/* Empty: an ordinary-looking field with a quiet prompt; the name itself stays title-sized. */
 	.title-input::placeholder {
 		color: var(--subtle-foreground);
+		font-family: var(--font);
+		font-size: 1rem;
+		font-weight: 400;
+		letter-spacing: 0;
+	}
+
+	.name-line .title-input:placeholder-shown {
+		min-width: min(100%, 20rem);
+		border-color: var(--border);
 	}
 
 	.title-input:hover {
@@ -3545,6 +3642,7 @@
 	.status-flag {
 		display: inline-flex;
 		align-items: center;
+		flex-shrink: 0;
 		width: fit-content;
 		margin: 0;
 		padding: 0.18rem 0.5rem;
@@ -3575,6 +3673,12 @@
 	.status-flag.live {
 		color: var(--primary);
 		background: var(--primary-wash);
+	}
+
+	.status-flag.new {
+		color: var(--foreground);
+		background: var(--muted);
+		box-shadow: inset 0 0 0 1px var(--border-strong);
 	}
 
 	.status-flag.muted {
@@ -3725,6 +3829,12 @@
 		grid-template-columns: minmax(0, 1fr);
 		gap: 0.8rem 0.7rem;
 		align-items: start;
+		min-width: 0;
+	}
+
+	.guest-group {
+		display: grid;
+		gap: 0.8rem;
 		min-width: 0;
 	}
 
@@ -3949,22 +4059,12 @@
 		line-height: 1.35;
 	}
 
-	.occurrences .occurrence-flag {
-		color: var(--primary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-	}
-
 	.hint,
 	.status,
 	.error,
 	.warnings,
 	.delete-copy {
 		margin: 0;
-	}
-
-	.hint a {
-		color: inherit;
 	}
 
 	.error,

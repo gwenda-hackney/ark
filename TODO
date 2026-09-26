@@ -28,3 +28,26 @@ Tracked in GitHub issues where noted. See README and `.github/copilot-instructio
 
 
 the guest menus control should be a multi select chip control or chip dropdown. Print, Digital. It would not make sense to have it digitial and not POS so having it on a menu implies we need it in the POS. We should have some other control to indicate that it's no longer on the POS which means it needs to be removed from digital and print menus. That might just be "archive" functionality
+
+
+
+1. the offer should be visible on the series on website
+
+2. test event flow live
+
+
+
+align play form with actual series
+
+3. make sure edits to menu make it to website
+
+4. photo from phone for cocktail
+5. editing amo mas, moved the menu to series - editing a special event should stay on schedule menu
+6. 
+7. look at radio gwenda - bunch of words on top of each other
+8. 
+9. mobile view for some of the pages is not great - specifically the grids - their filyers take up too much vertical space
+10. we need to prune the entries in the sync table
+
+
+

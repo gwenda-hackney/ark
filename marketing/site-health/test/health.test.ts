@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { formatHealthAlertEmail } from "../src/alert";
+import { formatHealthAlertEmail, sendHealthAlert } from "../src/alert";
 import {
   emptyHealthState,
   FAIL_THRESHOLD,
@@ -225,10 +225,6 @@ describe("runHealthCheck", () => {
   const env = {
     SITE_URL: "https://gwenda.co.uk",
     ALERT_EMAIL: "alerts@gwenda.co.uk",
-    SMTP_HOST: "smtp.gmail.com",
-    SMTP_PORT: "587",
-    SMTP_USER: "notifications@gwenda.co.uk",
-    SMTP_PASSWORD: "secret",
   } as Env;
 
   it("emails after two failed runs and once on recovery", async () => {
@@ -293,5 +289,33 @@ describe("isStatusAuthorized", () => {
     });
     expect(isStatusAuthorized(denied, env)).toBe(false);
     expect(isStatusAuthorized(allowed, env)).toBe(true);
+  });
+});
+
+describe("sendHealthAlert", () => {
+  const probe: ProbeResult = { ok: false, checks: [{ name: "health", ok: false, status: 502 }] };
+  const serviceAccount = JSON.stringify({
+    type: "service_account",
+    client_email: "sender@example.iam.gserviceaccount.com",
+    private_key: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
+  });
+
+  it("does not send without the Gmail service account", async () => {
+    const send = vi.fn();
+    const result = await sendHealthAlert({ ALERT_EMAIL: "alerts@gwenda.co.uk" } as Env, "down", probe, undefined, send);
+    expect(result.ok).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("sends through Gmail as notifications@", async () => {
+    const send = vi.fn(async () => ({ id: "1" }));
+    const env = { ALERT_EMAIL: "alerts@gwenda.co.uk", GMAIL_SERVICE_ACCOUNT_JSON: serviceAccount } as Env;
+    const result = await sendHealthAlert(env, "down", probe, "https://gwenda.co.uk", send);
+    expect(result.ok).toBe(true);
+    expect(send).toHaveBeenCalledWith(env, expect.objectContaining({
+      from: "Gwenda <notifications@gwenda.co.uk>",
+      to: "alerts@gwenda.co.uk",
+      subject: "Gwenda site down",
+    }));
   });
 });

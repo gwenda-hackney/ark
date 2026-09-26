@@ -8,24 +8,22 @@
  * values are skipped; empty file columns are still created.
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
- * Source rows use the same JWT (must see database 461843).
+ * Source rows use the same JWT. Source and target are found by name
+ * (scripts/lib/migrations.mjs DATABASES): Gwenda / Website → Gwenda Dev.
  *
  * Env overrides:
- *   BASEROW_WEB_CLONE_SOURCE_ID          source DB (default 461843)
  *   BASEROW_WEB_DEV_WORKSPACE_NAME       (default "Gwenda Dev")
- *   BASEROW_WEB_DEV_WORKSPACE_ID         (default from .baserow-ops-dev.json)
  *   BASEROW_WEB_DEV_DATABASE_NAME        (default "Website")
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
+import { findDatabase } from "./lib/migrations.mjs";
 import {
   fieldCreateBody,
   findOrCreateDatabase,
   findWorkspaceByName,
   jwtRequest,
-  listAllApplications,
   refuseSourceWorkspace,
   listAllRows,
   orderTables,
@@ -36,11 +34,8 @@ import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_API = "https://api.baserow.io";
-const DEFAULT_SOURCE_DB = "461843";
 const DEV_WORKSPACE_NAME = "Gwenda Dev";
 const DEFAULT_DATABASE_NAME = "Website";
-const META_PATH = resolve(ROOT, ".baserow-web-dev.json");
-const OPS_META_PATH = resolve(ROOT, ".baserow-ops-dev.json");
 
 function readEnv(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
@@ -58,63 +53,15 @@ function parseArgs(argv) {
   return out;
 }
 
-function readJson(path) {
-  if (!existsSync(path)) return null;
-  try {
-    return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return null;
-  }
-}
-
-function resolveWorkspaceIdHint() {
-  const explicit = readEnv("BASEROW_WEB_DEV_WORKSPACE_ID");
-  if (explicit) return explicit;
-  const ops = readJson(OPS_META_PATH);
-  if (ops?.workspaceId) return String(ops.workspaceId);
-  return readEnv("BASEROW_OPS_DEV_WORKSPACE_ID");
-}
-
 async function resolveWorkspaceId(apiBase, jwt, workspaceName) {
-  const hinted = resolveWorkspaceIdHint();
-  if (hinted) {
-    console.log(`Using workspace id ${hinted} (${workspaceName}).`);
-    return hinted;
-  }
   const found = await findWorkspaceByName(apiBase, jwt, workspaceName);
   if (!found) {
     throw new Error(
-      `Workspace "${workspaceName}" not found. Clone ops first or set BASEROW_WEB_DEV_WORKSPACE_ID.`,
+      `Workspace "${workspaceName}" not found. Clone ops first (it creates the workspace).`,
     );
   }
   console.log(`Using existing workspace "${found.name}" (${found.id}).`);
   return String(found.id);
-}
-
-async function resolveSourceName(apiBase, jwt, sourceDbId) {
-  const apps = await listAllApplications(apiBase, jwt);
-  const found = apps.find((app) => String(app.id) === String(sourceDbId));
-  const name = found?.name?.trim();
-  return name || DEFAULT_DATABASE_NAME;
-}
-
-function writeLocalDevHints({ workspaceId, databaseId, databaseName, sourceDbId }) {
-  writeFileSync(
-    META_PATH,
-    `${JSON.stringify(
-      {
-        workspaceId,
-        databaseId,
-        workspaceName: DEV_WORKSPACE_NAME,
-        databaseName,
-        sourceDatabaseId: sourceDbId,
-        clonedAt: new Date().toISOString(),
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  console.log(`Wrote ${META_PATH}`);
 }
 
 async function main() {
@@ -126,14 +73,14 @@ async function main() {
   }
 
   const apiBase = readEnv("BASEROW_API_URL", DEFAULT_API).replace(/\/$/, "");
-  const sourceDbId = readEnv("BASEROW_WEB_CLONE_SOURCE_ID", DEFAULT_SOURCE_DB);
   const workspaceName = readEnv("BASEROW_WEB_DEV_WORKSPACE_NAME", DEV_WORKSPACE_NAME);
+  const jwt = await getBaserowJwt(apiBase);
+  const source = await findDatabase({ apiBase, jwt, key: "website", env: "production" });
+  const sourceDbId = source.databaseId;
 
-  console.log(`Source website database: ${sourceDbId}`);
+  console.log(`Source website database: ${source.label} (${sourceDbId})`);
   console.log(`Target workspace name: ${workspaceName}`);
   if (opts.dryRun) console.log("Dry run (no writes).\n");
-
-  const jwt = await getBaserowJwt(apiBase);
 
   const sourceTables = await jwtRequest(
     apiBase,
@@ -162,7 +109,7 @@ async function main() {
   }
 
   const ordered = orderTables(sourceTables, sourceFieldsByTableId);
-  const sourceName = await resolveSourceName(apiBase, jwt, sourceDbId);
+  const sourceName = source.label.split(" / ").pop();
   const destName = readEnv("BASEROW_WEB_DEV_DATABASE_NAME", DEFAULT_DATABASE_NAME);
   const totalRows = [...rowCounts.values()].reduce((sum, n) => sum + n, 0);
 
@@ -337,12 +284,6 @@ async function main() {
     console.log(`  copied ${rows.length}`);
   }
 
-  writeLocalDevHints({
-    workspaceId,
-    databaseId,
-    databaseName: destName,
-    sourceDbId,
-  });
 
   const destSubscribe = destByName.get("Subscribers");
 
@@ -355,8 +296,8 @@ Clone complete.
 
 Next:
   1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
-     Create a token with access ONLY to this website database (${databaseId}).
-  2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__LOCAL.
+     Create a token with access ONLY to this website database.
+  2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__DEV.
   3. npm run env:secrets:refresh
 ${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {

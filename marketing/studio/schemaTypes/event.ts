@@ -84,6 +84,15 @@ export const event = defineType({
         "Set by ops when this date has a special guest or custom content.",
     }),
     defineField({
+      name: "removed",
+      title: "Removed",
+      type: "boolean",
+      readOnly: true,
+      hidden: true,
+      description:
+        "Set by ops on a draft when this date is dropped from its series' schedule: it leaves the website on the next publish.",
+    }),
+    defineField({
       name: "slug",
       title: "Slug",
       type: "slug",

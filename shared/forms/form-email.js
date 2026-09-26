@@ -3,7 +3,7 @@
  * applicant). The website sends both when a form is submitted; ops resends
  * either one from /forms.
  */
-import { resolveSmtpFrom, SMTP_PURPOSE } from "../smtp-from.js";
+import { EVENTS_FROM, MAIL_SENDER, NOTIFICATIONS_FROM } from "../mail-from.js";
 import { reportFormError } from "./form-alert.js";
 import { isGmailConfigured, sendGmail } from "../gmail-send.js";
 import { createLogger } from "../log.js";
@@ -30,7 +30,6 @@ function mailSkipFields(env, from, to) {
   return {
     hasFrom: Boolean(from),
     hasTo: Boolean(to),
-    hasSender: Boolean(env.SMTP_USER?.trim()),
     hasServiceAccount: Boolean(env.GMAIL_SERVICE_ACCOUNT_JSON?.trim()),
   };
 }
@@ -43,41 +42,17 @@ export function formatFormFromAddress(fromEmail) {
   return `Gwenda <${raw}>`;
 }
 
-function bareAddress(value) {
-  const raw = String(value ?? "").trim();
-  const angled = raw.match(/<([^>]+)>/);
-  return (angled ? angled[1] : raw).trim().toLowerCase();
-}
-
-/**
- * Outbound From for form mail: Sanity form.fromEmail, then invite/events env fallbacks.
- */
+/** Outbound From for form mail: Sanity form.fromEmail, else the events address. */
 export function resolveFormFrom(env, form) {
-  const fromForm = formatFormFromAddress(form?.fromEmail);
-  if (fromForm) return fromForm;
-  return (
-    resolveSmtpFrom(env, SMTP_PURPOSE.INVITES) ||
-    resolveSmtpFrom(env, SMTP_PURPOSE.EVENTS)
-  );
+  return formatFormFromAddress(form?.fromEmail) || EVENTS_FROM;
 }
 
 /**
- * From for ops/staff notifications.
- * Prefer the SMTP mailbox (notifications@) so we never send From play@ → To play@,
- * which Google Groups often silently drops.
+ * From for ops/staff notifications: always the sending mailbox (notifications@),
+ * so we never send From play@ → To play@, which Google Groups often drops.
  */
-export function resolveFormNotifyFrom(env, form, to) {
-  const smtpFrom = env.SMTP_FROM?.trim();
-  if (smtpFrom) return smtpFrom;
-
-  const user = env.SMTP_USER?.trim();
-  if (user) return formatFormFromAddress(user);
-
-  const formFrom = resolveFormFrom(env, form);
-  if (formFrom && bareAddress(formFrom) !== bareAddress(to)) {
-    return formFrom;
-  }
-  return formFrom;
+export function resolveFormNotifyFrom() {
+  return NOTIFICATIONS_FROM;
 }
 
 /**
@@ -101,7 +76,7 @@ export async function sendFormNotificationEmail(
 ) {
   // toOverride: the post-deploy form test sends to alerts@, never the form's inbox.
   const to = toOverride || (await resolveFormNotifyTo(env, form));
-  const from = resolveFormNotifyFrom(env, form, to);
+  const from = resolveFormNotifyFrom();
   const isUpdate =
     Boolean(updated) || (Array.isArray(changes) && changes.length > 0);
   const subject = formatFormNotifySubject(form, answers, { updated: isUpdate });
@@ -155,7 +130,7 @@ export async function sendFormNotificationEmail(
       return { ok: true, dryRun: true };
     }
     await reportFormError(env, "form_notify_email_skipped", {
-      reason: "smtp_not_configured",
+      reason: "email_not_configured",
       slug: form?.slug ?? "",
       ...mailSkipFields(env, from, to),
     });
@@ -190,7 +165,7 @@ export async function sendFormNotificationEmail(
       error: message,
       from,
       to,
-      sender: env.SMTP_USER?.trim() ?? "",
+      sender: MAIL_SENDER,
       slug: form?.slug ?? "",
     });
     return { ok: false, error: message };
@@ -254,7 +229,7 @@ export async function sendFormReceiptEmail(
       return { ok: true, dryRun: true };
     }
     await reportFormError(env, "form_receipt_email_skipped", {
-      reason: "smtp_not_configured",
+      reason: "email_not_configured",
       slug: form?.slug ?? "",
       ...mailSkipFields(env, from, to),
     });
@@ -287,7 +262,7 @@ export async function sendFormReceiptEmail(
       error: message,
       from,
       to,
-      sender: env.SMTP_USER?.trim() ?? "",
+      sender: MAIL_SENDER,
       slug: form?.slug ?? "",
     });
     return { ok: false, error: message };

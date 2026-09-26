@@ -3,7 +3,6 @@ import { checkEmail, runDeepHealth } from "./deep-health.js";
 
 const gmailEnv = {
   GMAIL_SERVICE_ACCOUNT_JSON: JSON.stringify({ type: "service_account", client_email: "a@b", private_key: "k" }),
-  SMTP_USER: "notifications@gwenda.co.uk",
 };
 
 describe("runDeepHealth", () => {
@@ -40,7 +39,7 @@ describe("checkEmail", () => {
     await checkEmail(gmailEnv, { send: true, label: "gwenda.co.uk 2026.09.25", deps: { send } });
     const [, mail] = send.mock.calls[0];
     expect(mail.to).toBe("alerts@gwenda.co.uk");
-    expect(mail.from).toBe("notifications@gwenda.co.uk");
+    expect(mail.from).toBe("Gwenda <notifications@gwenda.co.uk>");
     expect(mail.subject).toContain("gwenda.co.uk 2026.09.25");
   });
 

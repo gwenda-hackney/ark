@@ -1,3 +1,4 @@
+import { isGmailConfigured } from "../../../shared/gmail-send.js";
 import { sendHealthAlert } from "./alert";
 import {
   interpretProbe,
@@ -151,7 +152,12 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/health") {
-      return json({ ok: true, service: "gwenda-site-health" });
+      // emailConfigured is the deploy smoke check: alerts can go out.
+      return json({
+        ok: true,
+        service: "gwenda-site-health",
+        emailConfigured: isGmailConfigured(env),
+      });
     }
 
     if (request.method === "GET" && url.pathname === "/status") {

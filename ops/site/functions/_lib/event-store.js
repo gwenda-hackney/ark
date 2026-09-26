@@ -3,7 +3,6 @@
  */
 import { itemSlug, namesClash } from "./item-key.js";
 import {
-  baserowApiBase,
   baserowFetch,
   createRow,
   deleteRow,
@@ -44,15 +43,9 @@ import {
   createEventDriveFolder,
   driveFolderWebUrl,
   ensureNamedChildFolder,
-  isOccurrenceHeroDriveName,
-  isSeriesHeroDriveName,
-  listDriveChildren,
-  occurrenceHeroDriveName,
   renameDriveFile,
-  seriesHeroDriveName,
   trashDriveFile,
   untrashDriveFile,
-  uploadDriveFile,
 } from "./google-drive.js";
 import {
   parseNightSchedule,
@@ -87,8 +80,11 @@ function isoDate(value) {
 
 /** Empty is allowed. Anything else must be an http(s) URL. */
 export function normalizePageUrl(value) {
-  const raw = text(value);
+  let raw = text(value);
   if (!raw) return "";
+  // "@handle" is an Instagram account; "example.com" means https.
+  if (/^@[\w.]+$/.test(raw)) raw = `https://www.instagram.com/${raw.slice(1)}/`;
+  else if (!/^[a-z][a-z0-9+.-]*:/i.test(raw) && raw.includes(".")) raw = `https://${raw}`;
   let parsed;
   try {
     parsed = new URL(raw);
@@ -96,7 +92,7 @@ export function normalizePageUrl(value) {
     parsed = null;
   }
   if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
-    const error = new Error("Page link must start with http:// or https://.");
+    const error = new Error("Link must be a website address or an @Instagram handle.");
     error.status = 400;
     throw error;
   }
@@ -163,6 +159,7 @@ function requireEventsTables(tables) {
 
 /** Prefer dedicated column; fall back to unused Notes until schema sync. */
 const PAGE_LINK_FIELD = "Page link";
+const PAGE_LINK_OVERRIDE_FIELD = "Page link override";
 const NIGHT_SCHEDULE_FIELD = "Night schedule";
 const NIGHT_SCHEDULE_FALLBACK = "Notes";
 const NIGHT_SCHEDULE_OVERRIDE_FIELD = "Night schedule override";
@@ -232,6 +229,7 @@ export function mapEventDate(row) {
     name: text(row["Title override"]),
     artist: text(row["Artist override"]),
     offer: text(row["Offer override"]),
+    pageUrl: text(row[PAGE_LINK_OVERRIDE_FIELD]),
     description: text(row["Description override"]),
     shortDescription: text(row[SHORT_DESCRIPTION_OVERRIDE_FIELD]),
     time: text(row["Time override"]),
@@ -814,11 +812,25 @@ async function clearSeriesTitleEchoes(env, event, previousName) {
 
 /**
  * A night no longer in the schedule that is still on the website keeps its
- * row until the website job takes it off (publishEventPreview). Deleting it on
- * save would leave it on the website with nothing left to say so.
+ * row until the website job marks it removed on the preview (publishEventPreview).
+ * Deleting it on save would leave it on the website with nothing left to say so.
  */
 export function keepsDroppedNight(row, today = todayIso()) {
   return Boolean(row?.sanityId) && row.date >= today;
+}
+
+/** Upcoming nights on the website that the schedule no longer has. */
+export function droppedNights(event, today = todayIso()) {
+  const scheduled = new Set(expandSeriesOccurrenceDates(event));
+  return (event?.dates || []).filter(
+    (row) => !scheduled.has(row.date) && keepsDroppedNight(row, today),
+  );
+}
+
+/** The preview is behind ops: nights to write, or dropped nights to mark removed. */
+export function previewBehind(event, today = todayIso()) {
+  if (droppedNights(event, today).length) return true;
+  return Boolean(event?.publish?.previewDates?.length) && event.publish.preview !== "current";
 }
 
 export async function syncEventOccurrences(env, event) {
@@ -862,6 +874,7 @@ export async function syncEventOccurrences(env, event) {
         name: "",
         artist: "",
         offer: "",
+        pageUrl: "",
         description: "",
         time: "",
         startTime: "",
@@ -1087,142 +1100,6 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
   };
 }
 
-function absoluteFileUrl(env, url) {
-  const raw = text(url);
-  if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) return raw;
-  const base = baserowApiBase(env);
-  return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
-}
-
-async function bytesFromImage(env, image) {
-  const url = absoluteFileUrl(env, image?.url);
-  if (!url) {
-    const error = new Error("Hero image has no file URL.");
-    error.status = 502;
-    throw error;
-  }
-  const response = await fetch(url);
-  if (!response.ok) {
-    const error = new Error(`Could not read the hero image (${response.status}).`);
-    error.status = 502;
-    throw error;
-  }
-  const bytes = await response.arrayBuffer();
-  const contentType = String(response.headers.get("content-type") || "")
-    .split(";")[0]
-    .trim();
-  return { bytes, contentType, filename: image?.name || "" };
-}
-
-/**
- * Replace the hero copy in the series Drive folder.
- * `match` selects the previous file for this slot (series, or one night).
- */
-async function putHeroDriveCopy(env, eventId, bytes, { name, contentType, match }) {
-  const event = await ensureEventDriveFolder(env, eventId);
-  const uploaded = await uploadDriveFile(env, {
-    name,
-    parentId: event.driveFolderId,
-    bytes,
-    contentType: contentType || "image/jpeg",
-  });
-  const children = await listDriveChildren(env, event.driveFolderId);
-  for (const file of children) {
-    if (!file?.id || file.id === uploaded.id) continue;
-    if (!match(file)) continue;
-    await trashDriveFile(env, file.id);
-  }
-  return uploaded;
-}
-
-async function removeHeroDriveCopies(env, eventId, match) {
-  let event;
-  try {
-    event = await getEvent(env, eventId);
-  } catch (error) {
-    if (error?.status === 404) return;
-    throw error;
-  }
-  if (!event.driveFolderId) return;
-  const children = await listDriveChildren(env, event.driveFolderId);
-  for (const file of children) {
-    if (file?.id && match(file)) await trashDriveFile(env, file.id);
-  }
-}
-
-async function copySeriesHero(env, eventId, bytes, { filename, contentType }) {
-  return putHeroDriveCopy(env, eventId, bytes, {
-    name: seriesHeroDriveName(filename, contentType),
-    contentType,
-    match: (file) => isSeriesHeroDriveName(file?.name),
-  });
-}
-
-async function copyOccurrenceHero(env, eventId, date, bytes, { filename, contentType }) {
-  return putHeroDriveCopy(env, eventId, bytes, {
-    name: occurrenceHeroDriveName(date, filename, contentType),
-    contentType,
-    match: (file) => isOccurrenceHeroDriveName(file?.name, date),
-  });
-}
-
-async function renameOccurrenceHeroCopy(env, eventId, fromDate, toDate) {
-  if (!fromDate || !toDate || fromDate === toDate) return;
-  const event = await getEvent(env, eventId);
-  if (!event.driveFolderId) return;
-  const children = await listDriveChildren(env, event.driveFolderId);
-  for (const file of children) {
-    if (!file?.id || !isOccurrenceHeroDriveName(file.name, fromDate)) continue;
-    const ext = String(file.name).split(".").pop();
-    await renameDriveFile(env, file.id, `hero-${toDate}.${ext}`);
-  }
-}
-
-/** Copy heroes already stored in Baserow into each series Drive folder. */
-export async function copyStoredHeroesToDrive(env) {
-  const events = await listEvents(env);
-  const copied = [];
-  const skipped = [];
-  for (const event of events) {
-    const jobs = [];
-    if (event.mainImage?.url) {
-      jobs.push({ kind: "series", image: event.mainImage, date: "" });
-    }
-    for (const night of event.dates || []) {
-      const image = night.overrides?.image;
-      if (!image?.url) continue;
-      jobs.push({ kind: "night", image, date: night.date });
-    }
-    if (!jobs.length) continue;
-    if (!event.driveFolderId) {
-      skipped.push({ id: event.id, name: event.name, reason: "no Drive folder" });
-      continue;
-    }
-    for (const job of jobs) {
-      const file = await bytesFromImage(env, job.image);
-      if (job.kind === "series") {
-        await copySeriesHero(env, event.id, file.bytes, {
-          filename: file.filename,
-          contentType: file.contentType,
-        });
-      } else {
-        await copyOccurrenceHero(env, event.id, job.date, file.bytes, {
-          filename: file.filename,
-          contentType: file.contentType,
-        });
-      }
-      copied.push({
-        id: event.id,
-        name: event.name,
-        kind: job.kind,
-        date: job.date,
-      });
-    }
-  }
-  return { copied, skipped };
-}
-
 async function attachFiles(env, tables, id, field, entries, extra = {}) {
   const row = await updateRow(env, tables.events, id, {
     [field]: entries.map((entry) => ({ name: entry.name })),
@@ -1250,11 +1127,9 @@ export async function setEventImage(
     ];
     return attachFiles(env, tables, id, "Images", names);
   }
-  const event = await attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }], {
+  return attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }], {
     "Hero crops": "",
   });
-  await copySeriesHero(env, id, bytes, { filename, contentType });
-  return event;
 }
 
 export async function clearEventImage(env, id, { role, name }) {
@@ -1266,11 +1141,9 @@ export async function clearEventImage(env, id, { role, name }) {
       .map((image) => ({ name: image.name }));
     return attachFiles(env, tables, id, "Images", names);
   }
-  const event = await attachFiles(env, tables, id, "Main image", [], {
+  return attachFiles(env, tables, id, "Main image", [], {
     "Hero crops": "",
   });
-  await removeHeroDriveCopies(env, id, (file) => isSeriesHeroDriveName(file?.name));
-  return event;
 }
 
 /** Baserow fields for one night row (shared by single and batch saves). */
@@ -1290,6 +1163,10 @@ async function occurrenceFields(env, eventId, occurrence) {
     fields["Offer override"] = text(occurrence.overrides?.offer);
     fields["Description override"] = text(occurrence.overrides?.description);
     const dateFields = await eventDateFieldNames(env);
+    // Added by migration; ops running before it simply has no per-night link.
+    if (dateFields.has(PAGE_LINK_OVERRIDE_FIELD)) {
+      fields[PAGE_LINK_OVERRIDE_FIELD] = normalizePageUrl(occurrence.overrides?.pageUrl);
+    }
     if (dateFields.has(SHORT_DESCRIPTION_OVERRIDE_FIELD)) {
       fields[SHORT_DESCRIPTION_OVERRIDE_FIELD] = text(
         occurrence.overrides?.shortDescription,
@@ -1382,6 +1259,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
         name: titleOverrideForSave(event.name, overrides.name),
         artist: text(overrides.artist),
         offer: text(overrides.offer),
+        pageUrl: text(overrides.pageUrl),
         description: text(overrides.description),
         shortDescription: text(overrides.shortDescription),
         time: text(overrides.time),
@@ -1441,6 +1319,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
       name: titleOverrideForSave(series.name, overrides.name),
       artist: text(overrides.artist),
       offer: text(overrides.offer),
+      pageUrl: text(overrides.pageUrl),
       description: text(overrides.description),
       shortDescription: text(overrides.shortDescription),
       time: text(overrides.time),
@@ -1497,6 +1376,7 @@ export async function assignOccurrenceToSeries(
     name: text(input?.name !== undefined ? input.name : resolved.name),
     artist: text(input?.artist !== undefined ? input.artist : resolved.artist),
     offer: text(input?.offer !== undefined ? input.offer : resolved.offer),
+    pageUrl: text(input?.pageUrl !== undefined ? input.pageUrl : resolved.pageUrl),
     description: text(
       input?.description !== undefined
         ? input.description
@@ -1593,6 +1473,7 @@ function hasOccurrenceInput(overrides) {
     "name",
     "artist",
     "offer",
+    "pageUrl",
     "description",
     "shortDescription",
     "time",
@@ -1709,6 +1590,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
     ),
     artist: input?.artist !== undefined ? text(input.artist) : current.artist,
     offer: input?.offer !== undefined ? text(input.offer) : current.offer,
+    pageUrl: input?.pageUrl !== undefined ? text(input.pageUrl) : current.pageUrl,
     description:
       input?.description !== undefined
         ? text(input.description)
@@ -1750,6 +1632,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           name: titleOverrideForSave(event.name, content.title),
           artist: content.artist,
           offer: content.offer,
+          pageUrl: content.pageUrl,
           description: content.description,
           time: content.time,
           startTime: content.startTime,
@@ -1768,6 +1651,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
       name: overrides.name || event.name,
       artist: overrides.artist,
       offer: overrides.offer,
+      pageUrl: overrides.pageUrl,
       description: overrides.description,
       time: overrides.time,
       startTime: overrides.startTime,
@@ -1785,6 +1669,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           name: "",
           artist: "",
           offer: "",
+          pageUrl: "",
           description: "",
           time: "",
           startTime: "",
@@ -1880,6 +1765,7 @@ export async function moveOccurrence(
     ),
     artist: input?.artist !== undefined ? text(input.artist) : current.artist,
     offer: input?.offer !== undefined ? text(input.offer) : current.offer,
+    pageUrl: input?.pageUrl !== undefined ? text(input.pageUrl) : current.pageUrl,
     description:
       input?.description !== undefined
         ? text(input.description)
@@ -1913,6 +1799,7 @@ export async function moveOccurrence(
       name: overrides.name || event.name,
       artist: overrides.artist,
       offer: overrides.offer,
+      pageUrl: overrides.pageUrl,
       description: overrides.description,
       time: overrides.time,
       startTime: overrides.startTime,
@@ -1923,9 +1810,6 @@ export async function moveOccurrence(
     const updated = await getEvent(env, eventId);
     const occurrence =
       updated.dates.find((row) => row.date === to) || updated.dates[0] || null;
-    if (fromOccurrence.overrides?.image) {
-      await renameOccurrenceHeroCopy(env, eventId, from, to);
-    }
     return {
       event: updated,
       occurrence,
@@ -1973,9 +1857,6 @@ export async function moveOccurrence(
     await removeOccurrence(env, leftover.id);
   }
   series = await getEvent(env, eventId);
-  if (fromOccurrence.overrides?.image) {
-    await renameOccurrenceHeroCopy(env, eventId, from, to);
-  }
   return {
     event: series,
     occurrence: series.dates.find((row) => row.date === to) || target,
@@ -2019,7 +1900,6 @@ export async function setOccurrenceImage(
     });
     occurrenceSaved = mapEventDate(row);
   }
-  await copyOccurrenceHero(env, eventId, normalized, bytes, { filename, contentType });
   return { event: await getEvent(env, eventId), occurrence: occurrenceSaved };
 }
 
@@ -2038,9 +1918,6 @@ export async function clearOccurrenceImage(env, eventId, date) {
     label: `${event.name} · ${normalized}`,
     overrides: { ...occurrence.overrides, image: null, heroCrops: null },
   });
-  await removeHeroDriveCopies(env, eventId, (file) =>
-    isOccurrenceHeroDriveName(file?.name, normalized),
-  );
   return { event: await getEvent(env, eventId), occurrence: saved };
 }
 

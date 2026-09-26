@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import { afterEach, before, describe, it, mock } from "node:test";
 import { resetBaserowClientForTests } from "./baserow.js";
 import {
+  approvedArtists,
+  artistLink,
   listFormSubmissions,
   mapFormSubmission,
   resendFormEmail,
+  setFormArtist,
+  setFormDecision,
+  withGuestRecords,
 } from "./form-submissions.js";
-import { jsonResponse } from "./test-baserow-mock.js";
+import { jsonResponse, opsCatalogTables } from "./test-baserow-mock.js";
 
 afterEach(() => {
   mock.restoreAll();
@@ -146,7 +151,6 @@ describe("resendFormEmail", () => {
     SANITY_PROJECT_ID: "gwscpagy",
     SITE_ENV: "local",
     FORMS_NOTIFY_EMAIL: "dev@example.com",
-    SMTP_USER: "notifications@gwenda.co.uk",
   };
   before(async () => {
     resendEnv = { ...baseEnv, GMAIL_SERVICE_ACCOUNT_JSON: await serviceAccountJson() };
@@ -208,12 +212,14 @@ describe("listFormSubmissions", () => {
   it("uses the website token and keeps only current rows, newest first", async () => {
     const auths = [];
     mock.method(globalThis, "fetch", async (input, init) => {
-      auths.push(init?.headers?.Authorization || "");
       const url = String(input);
+      auths.push([url, init?.headers?.Authorization || ""]);
       if (url.includes("/tables/all-tables/")) {
         return jsonResponse([
           { id: 42, name: "Form Submissions", database_id: 7 },
           { id: 9, name: "Subscribers", database_id: 7 },
+          // Ops' own database, with no Guest artists table yet.
+          ...opsCatalogTables(90),
         ]);
       }
       return jsonResponse({
@@ -251,7 +257,11 @@ describe("listFormSubmissions", () => {
       rows.map((row) => row.email),
       ["new@example.com", "old@example.com"],
     );
-    assert.ok(auths.every((header) => header === "Token web-token"));
+    // Submissions with the website token; only Guest artists lookups use ops'.
+    const submissionReads = auths.filter(([url]) => url.includes("/rows/table/42/"));
+    assert.ok(submissionReads.length);
+    assert.ok(submissionReads.every(([, header]) => header === "Token web-token"));
+    assert.ok(auths.every(([, header]) => header === "Token web-token" || header === "Token ops-token"));
   });
 
   it("fails when the website token is missing", async () => {
@@ -259,5 +269,123 @@ describe("listFormSubmissions", () => {
       () => listFormSubmissions({ BASEROW_API_KEY: "ops-token" }),
       (error) => error.status === 503 && /BASEROW_WEBSITE_API_KEY/.test(error.message),
     );
+  });
+});
+
+describe("play applicants: ops' own record", () => {
+  const play = (id, email, extra = {}) => ({
+    id,
+    formSlug: "play",
+    email,
+    name: "Real Name",
+    submittedAt: "t",
+    current: true,
+    answers: [
+      { key: "artistName", label: "Artist / DJ name", value: `DJ ${id}` },
+      { key: "instagram", label: "Instagram", value: "@dj" },
+    ],
+    ...extra,
+  });
+  const record = (email, extra = {}) => ({ id: "1", email, decision: "", artistName: "", artistLink: "", ...extra });
+
+  it("joins each play application to its record by email; other forms get none", () => {
+    const records = new Map([["a@x.com", record("a@x.com", { decision: "Approved" })]]);
+    const [a, b, other] = withGuestRecords(
+      [play("1", "a@x.com"), play("2", "b@x.com"), { ...play("3", "a@x.com"), formSlug: "collaborate" }],
+      records,
+    );
+    assert.equal(a.decision, "Approved");
+    assert.deepEqual(a.submitted, { name: "DJ 1", link: "https://www.instagram.com/dj/" });
+    assert.equal(b.decision, "");
+    assert.equal(other.decision, "");
+    assert.equal(other.submitted, null);
+  });
+
+  it("lists approved artists, ops' name and link over what they sent", () => {
+    const records = new Map([
+      ["a@x.com", record("a@x.com", { decision: "Approved" })],
+      ["b@x.com", record("b@x.com", { decision: "Approved", artistName: "Bee", artistLink: "https://bee.example/" })],
+      ["c@x.com", record("c@x.com", { decision: "Declined" })],
+    ]);
+    const rows = withGuestRecords([play("1", "a@x.com"), play("2", "b@x.com"), play("3", "c@x.com")], records);
+    assert.deepEqual(approvedArtists(rows), [
+      { id: "2", name: "Bee", link: "https://bee.example/" },
+      { id: "1", name: "DJ 1", link: "https://www.instagram.com/dj/" },
+    ]);
+  });
+
+  it("turns their answer into a link, or nothing", () => {
+    assert.equal(artistLink("djsomeone.co.uk"), "https://djsomeone.co.uk/");
+    assert.equal(artistLink("https://instagram.com/x"), "https://instagram.com/x");
+    assert.equal(artistLink("ask me"), "");
+  });
+});
+
+describe("setFormDecision / setFormArtist", () => {
+  /** Website DB (Form Submissions, 42) and Ops DB (with Guest artists, 60). */
+  function mockBaserow({ guestTable = true, guests = [], submission = { formSlug: "play" } } = {}) {
+    const writes = [];
+    mock.method(globalThis, "fetch", async (input, init) => {
+      const url = String(input);
+      if (url.includes("/tables/all-tables/")) {
+        return jsonResponse([
+          { id: 42, name: "Form Submissions", database_id: 7 },
+          ...opsCatalogTables(9),
+          ...(guestTable ? [{ id: 60, name: "Guest artists", database_id: 9 }] : []),
+          { id: 61, name: "Events", database_id: 9 },
+          { id: 62, name: "Event dates", database_id: 9 },
+        ]);
+      }
+      // No events here: planArtistUpdate has its own tests.
+      if (url.includes("/rows/table/61/") || url.includes("/rows/table/62/")) {
+        return jsonResponse({ results: [], next: null });
+      }
+      if (url.includes("/fields/table/")) return jsonResponse([]);
+      if (url.includes("/rows/table/42/5/")) {
+        return jsonResponse({
+          id: 5,
+          "Form Slug": submission.formSlug,
+          "Reply To": "Artist@X.com",
+          Current: true,
+          Answers: "[]",
+        });
+      }
+      if (url.includes("/rows/table/60/")) {
+        if (init?.method === "POST" || init?.method === "PATCH") {
+          const body = JSON.parse(init.body);
+          writes.push([init.method, url.match(/table\/60\/(\d+)\//)?.[1] || "", body]);
+          return jsonResponse({ id: 77, Email: "artist@x.com", ...body, Decision: body.Decision ? { value: body.Decision } : null });
+        }
+        return jsonResponse({ results: guests, next: null });
+      }
+      throw new Error(`unexpected ${url}`);
+    });
+    return writes;
+  }
+
+  it("keeps the decision in Guest artists by email, never on the submission", async () => {
+    const writes = mockBaserow();
+    assert.deepEqual(await setFormDecision(env, "5", "Approved"), { ok: true, decision: "Approved" });
+    assert.deepEqual(writes, [["POST", "", { Email: "artist@x.com", Decision: "Approved" }]]);
+  });
+
+  it("updates the existing record for that email", async () => {
+    const writes = mockBaserow({ guests: [{ id: 3, Email: "artist@x.com", Decision: { value: "Approved" } }] });
+    await setFormArtist(env, "5", { name: "DJ Bee", link: "@djbee" });
+    assert.deepEqual(writes, [
+      ["PATCH", "3", { "Artist name": "DJ Bee", "Artist link": "https://www.instagram.com/djbee/" }],
+    ]);
+  });
+
+  it("says so when the Guest artists table is missing", async () => {
+    mockBaserow({ guestTable: false });
+    await assert.rejects(setFormDecision(env, "5", "Approved"), { status: 503 });
+  });
+
+  it("only for play applications, and only real decisions and links", async () => {
+    mockBaserow({ submission: { formSlug: "collaborate" } });
+    await assert.rejects(setFormDecision(env, "5", "Approved"), { status: 400 });
+    await assert.rejects(setFormDecision(env, "5", "Maybe"), { status: 400 });
+    await assert.rejects(setFormArtist(env, "5", { link: "not a link" }), { status: 400 });
   });
 });

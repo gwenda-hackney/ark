@@ -24,11 +24,12 @@ The table was created once at launch. Set `BASEROW_SYNC_LOG_TABLE_ID` in `wrangl
 ## Setup (Worker secrets / first deploy)
 
 ```bash
-# From repo root — needs CLOUDFLARE_API_TOKEN, BASEROW_API_KEY, MAILCHIMP_API_KEY in .env
+# From repo root, after bw-unlock. Reads CLOUDFLARE_API_TOKEN, the production Website token,
+# MAILCHIMP_API_KEY and SUBSCRIBE_MAILCHIMP_SYNC_SECRET (Ark/Web) from Secrets Manager.
 npm run setup:subscribe-mailchimp-sync
 ```
 
-Optional `.env`: `MAILCHIMP_AUDIENCE_ID` (defaults to `e2c69d5d31`).
+Optional in the shell: `MAILCHIMP_AUDIENCE_ID` (defaults to `e2c69d5d31`). CI (`workers.yml`) redeploys the Worker with the same Secrets Manager keys.
 
 Secrets on the Worker: `BASEROW_API_KEY`, `MAILCHIMP_API_KEY`, `SYNC_SECRET`.
 

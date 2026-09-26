@@ -6,6 +6,7 @@ import {
 } from "../../_lib/auth.js";
 import { opsConnectionInfo } from "../../_lib/config-store.js";
 import { opsEnv } from "../../_lib/ops-env.js";
+import { resolveOpsTableIds } from "../../_lib/baserow.js";
 import { isOpsAdmin } from "../../_lib/admin.js";
 
 /** Current session identity and Baserow connection for the shell. */
@@ -23,7 +24,8 @@ export async function onRequestGet(context) {
   }
 
   const email = await resolveSessionEmail(context.request, auth);
-  const connection = opsConnectionInfo(env);
+  const resolved = await resolveOpsTableIds(env).catch(() => null);
+  const connection = opsConnectionInfo(env, resolved?.databaseId);
   return new Response(
     JSON.stringify({
       email: email || null,

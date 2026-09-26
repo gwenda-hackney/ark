@@ -6,7 +6,7 @@ import {
   objectPositionFromHotspot,
 } from "./sanity-image-url.js";
 
-const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public"] | order(date asc) {
+const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public" && removed != true] | order(date asc) {
   "id": slug.current,
   title,
   artist,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { keepsDroppedNight, occurrenceDeleteTargets, publishState } from "./event-store.js";
+import { droppedNights, keepsDroppedNight, occurrenceDeleteTargets, previewBehind, publishState } from "./event-store.js";
 
 function series(overrides = {}) {
   return {
@@ -70,5 +70,12 @@ describe("dropping a night from the schedule", () => {
     const event = series({ startsOn: "2026-09-30", endsOn: "2026-10-14", weekdays: ["wed"] });
     const state = publishState(event, [published], today);
     assert.equal(state.preview, "stale");
+  });
+
+  it("lists the dropped night and leaves the preview behind until it is marked", () => {
+    const event = series({ startsOn: "2026-09-30", endsOn: "2026-10-14", weekdays: ["wed"], dates: [published] });
+    assert.deepEqual(droppedNights(event, today).map((row) => row.date), ["2026-09-29"]);
+    assert.equal(previewBehind(event, today), true);
+    assert.equal(previewBehind({ ...event, dates: [], publish: { preview: "current", previewDates: ["2026-09-30"] } }, today), false);
   });
 });

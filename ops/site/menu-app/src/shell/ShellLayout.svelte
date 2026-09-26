@@ -95,7 +95,7 @@
 			? ""
 			: [
 					me.envLabel,
-					me.databaseId ? `Baserow DB ${me.databaseId}` : "Baserow DB not set",
+					me.databaseId ? `Baserow DB ${me.databaseId}` : "Baserow DB not reachable",
 					me.databaseLabel,
 				].join(" · "),
 	);
@@ -105,13 +105,9 @@
 	const envBannerText = $derived(
 		!me
 			? ""
-			: me.risk === "nonprod_on_production_db"
-				? `Misconfigured: ${me.envLabel} is pointed at the production Baserow DB (${me.databaseId}). Do not edit.`
-				: me.risk === "production_on_nonprod_db"
-					? `Misconfigured: Production is pointed at a non-production Baserow DB (${me.databaseId}).`
-					: me.siteEnv === "local"
-						? `Local · edits go to Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}), not production.`
-						: `${me.envLabel} · Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}).`,
+			: me.siteEnv === "local"
+				? `Local · edits go to Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}), not production.`
+				: `${me.envLabel} · Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}).`,
 	);
 	const brandSub = $derived(
 		envLabel ? `${brandSubtitle} · ${envLabel}` : brandSubtitle,

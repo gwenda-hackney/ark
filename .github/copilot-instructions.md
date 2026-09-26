@@ -77,11 +77,11 @@ dist/          Build output (gitignored)
 
 ## Configuration
 
-- Local: `npm run env:pull` (Bitwarden note `ark/.env.local`), then `npm run env:secrets:pull` (one `.env.secrets` under SM names; `with-env` / `with-ops-env` map them per app). See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
+- Local: `bw-unlock` and a git email (`FORMS_NOTIFY_EMAIL` defaults to it); `.env` is optional overrides (`.env.example`); local settings default to the dev copies (`LOCAL_DEFAULTS` in `scripts/lib/load-env.mjs`). Secrets are never in files: `with-env` / `with-ops-env` / `ops:dev` load them from Secrets Manager into memory (RAM cache in `/dev/shm`). If a script says the vault is locked, run `bw-unlock`. See [docs/env.md](../docs/env.md) and [docs/config.md](../docs/config.md).
 - Preview gate: `SITE_PASSWORD` (Bitwarden Ark/Web → the Pages preview environment via `web-secrets.yml`).
-- Secrets in Bitwarden SM follow one rule: `NAME` is shared, `NAME__LOCAL` / `__PRODUCTION` overrides it for that env. Per-app key lists and renames live in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). Do not add fallbacks across envs.
+- Secrets in Bitwarden SM follow one rule: `NAME` is shared, `NAME__DEV` / `NAME__PRODUCTION` overrides it for that env (dev = a developer's machine and the dev sites). Code reads the plain name; never add bespoke per-env names or env checks that pick a secret. Per-app key lists and renames live in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). Do not add fallbacks across envs.
 - Subscribe: `SUBSCRIBE_SECRET`, `BASEROW_API_KEY` (runtime name; SM `BASEROW_WEBSITE_API_KEY__<ENV>`). Subscribe, Event Invites, and Form Submissions tables are resolved by name. The token selects the Website database.
-- Runtime non-secret config (pour targets, `forms.notify_email`, Sanity dataset…): Baserow **Gwenda Config** database, read via `shared/config.js` with `BASEROW_CONFIG_API_KEY`. Rows are profiled by Env and Service; a runtime only writes its own Env rows. Ops table ids are resolved by name from the Baserow catalog (optional `BASEROW_OPS_DATABASE_ID` only). Marketing product flags stay in Sanity `siteSettings`.
+- Runtime non-secret config (pour targets, `forms.notify_email`, Sanity dataset…): Baserow **Gwenda Config** database, read via `shared/config.js` with `BASEROW_CONFIG_API_KEY`. Rows are profiled by Env and Service; a runtime only writes its own Env rows. No Baserow ids are configured: the token picks the workspace (per-env tokens only, `__DEV` / `__PRODUCTION`), and database and table ids are resolved by table names. Marketing product flags stay in Sanity `siteSettings`.
 - Opening year: `PUBLIC_OPENING_DATE` (GitHub variable, build-time; Story Est. year).
 ## What not to do
 
@@ -103,5 +103,5 @@ npm run ensure:domain    # Attach custom domain + DNS (CUSTOM_DOMAIN, ZONE_NAME)
 ## Related docs
 
 - [README.md](../README.md) — full setup, branch flow, rollback
-- [docs/env.md](../docs/env.md) — Bitwarden → local `.env`
+- [docs/env.md](../docs/env.md) — local env: vault login, secrets in memory, defaults
 - [.env.example](../.env.example) — local env reference

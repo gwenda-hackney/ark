@@ -9,6 +9,8 @@ function series(id, { preview = "current", link = "", description = "Tuesday nig
     name: `Series ${id}`,
     slug: `series-${id}`,
     description,
+    repeatUnit: "none",
+    startsOn: "2099-01-06",
     publish: { preview, live: "current", previewDates: ["2099-01-06"] },
     dates: [{ id: `${id}01`, date: "2099-01-06", googleCalendarEventId: link }],
   };
@@ -31,6 +33,18 @@ describe("website jobs", () => {
     assert.equal(prepNeeded(series("1"), { calendar: true }).calendarBehind, 1);
     // Nothing upcoming: nothing to do.
     assert.equal(prepNeeded({ ...series("1", { preview: "stale" }), publish: { preview: "stale", previewDates: [] } }), null);
+  });
+
+  it("an ended series still needs its website nights marked removed", () => {
+    const ended = {
+      ...series("2", { preview: "stale" }),
+      startsOn: "",
+      publish: { preview: "stale", previewDates: [] },
+      dates: [{ id: "201", date: "2099-01-06", sanityId: "event-series-2-2099-01-06" }],
+    };
+    assert.deepEqual(prepNeeded(ended, { calendar: true }), { calendarBehind: 0, preview: true });
+    // Once marked, the row goes and there is nothing left to do.
+    assert.equal(prepNeeded({ ...ended, dates: [] }), null);
   });
 
   it("a failure holds until the event changes", () => {

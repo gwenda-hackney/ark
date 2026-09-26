@@ -1,28 +1,27 @@
 #!/usr/bin/env node
 /**
  * One-shot setup for the site deploy webhook (ops → site rebuilds):
- *   - generate DEPLOY_WEBHOOK_SECRET (or reuse from .env.secrets) and store it in Secrets Manager
- *   - push GitHub secrets (DEPLOY_WEBHOOK_SECRET, DISPATCH_TOKEN, SANITY_STUDIO_SITE_DEPLOY_URL)
+ *   - generate DEPLOY_WEBHOOK_SECRET (or reuse the one in Secrets Manager)
+ *   - store it and DISPATCH_TOKEN (the GitHub token the Worker dispatches
+ *     workflows with) in Secrets Manager; CI reads them from there
  *   - deploy gwenda-site-deploy-webhook Worker + sync Worker secrets
- *   - write SANITY_STUDIO_SITE_DEPLOY_URL into repo-root .env (local ops reads it as the webhook URL)
  *
  * Usage:
  *   npm run setup:site-deploy
  *
  * Requires:
- *   - .env.secrets with CLOUDFLARE_API_TOKEN (npm run env:secrets:pull)
+ *   - CLOUDFLARE_API_TOKEN from Secrets Manager (bw-unlock)
  *   - gh authenticated with repo + workflow scope (gh auth login)
  */
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 import { upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const ENV_PATH = resolve(ROOT, ".env");
 const WORKER_DIR = resolve(ROOT, "marketing/site-deploy-webhook");
 const WORKER_NAME = "gwenda-site-deploy-webhook";
 
@@ -45,14 +44,6 @@ function run(command, args, { input, env, cwd = ROOT, quiet = false } = {}) {
   return result.stdout ?? "";
 }
 
-function repoSlug() {
-  const fromGh = run("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], {
-    quiet: true,
-  }).trim();
-  if (fromGh) return fromGh;
-  throw new Error("Could not resolve GitHub repo — run from the ark checkout with gh configured.");
-}
-
 function assertGhAuth() {
   try {
     run("gh", ["auth", "status"], { quiet: true });
@@ -64,32 +55,11 @@ function assertGhAuth() {
   }
 }
 
-function setGhSecret(name, value) {
-  run("gh", ["secret", "set", name, "--repo", repoSlug()], { input: value, quiet: true });
-  console.log(`Set GitHub secret ${name}.`);
-}
-
 function readWranglerAccountId() {
   const toml = readFileSync(resolve(WORKER_DIR, "wrangler.toml"), "utf8");
   const match = toml.match(/^account_id\s*=\s*"([^"]+)"/m);
   if (!match) throw new Error("account_id not found in marketing/site-deploy-webhook/wrangler.toml");
   return match[1];
-}
-
-function writeSiteDeployEnvLines(lines) {
-  const existing = existsSync(ENV_PATH) ? readFileSync(ENV_PATH, "utf8") : "";
-  const keys = lines.map((line) => line.split("=")[0]);
-  const filtered = existing
-    .split("\n")
-    .filter((line) => {
-      const key = line.split("=")[0]?.trim();
-      return !keys.includes(key);
-    })
-    .join("\n")
-    .replace(/\n+$/, "");
-
-  const block = `\n\n# Site deploy (npm run setup:site-deploy)\n${lines.join("\n")}\n`;
-  writeFileSync(ENV_PATH, filtered ? `${filtered}${block}` : `${block.trimStart()}\n`);
 }
 
 async function main() {
@@ -98,7 +68,7 @@ async function main() {
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (!cloudflareToken) {
-    throw new Error("CLOUDFLARE_API_TOKEN is missing. Run npm run env:secrets:pull.");
+    throw new Error("CLOUDFLARE_API_TOKEN is missing. Run bw-unlock.");
   }
 
   let deploySecret = process.env.DEPLOY_WEBHOOK_SECRET?.trim();
@@ -106,7 +76,7 @@ async function main() {
     deploySecret = randomBytes(32).toString("hex");
     console.log("Generated DEPLOY_WEBHOOK_SECRET.");
   } else {
-    console.log("Reusing DEPLOY_WEBHOOK_SECRET from .env.secrets.");
+    console.log("Reusing DEPLOY_WEBHOOK_SECRET from Secrets Manager.");
   }
 
   const dispatchToken = run("gh", ["auth", "token"], { quiet: true }).trim();
@@ -119,10 +89,6 @@ async function main() {
     CLOUDFLARE_API_TOKEN: cloudflareToken,
     CLOUDFLARE_ACCOUNT_ID: accountId,
   };
-
-  console.log("Pushing GitHub secrets…");
-  setGhSecret("DEPLOY_WEBHOOK_SECRET", deploySecret);
-  setGhSecret("DISPATCH_TOKEN", dispatchToken);
 
   console.log("Deploying site-deploy webhook Worker…");
   const deployOut = run("npx", ["wrangler", "deploy"], {
@@ -153,13 +119,15 @@ async function main() {
   });
   console.log("Worker secrets synced.");
 
-  setGhSecret("SANITY_STUDIO_SITE_DEPLOY_URL", workerUrl);
-
-  if (upsertSmSecret({ key: "DEPLOY_WEBHOOK_SECRET", value: deploySecret }) !== "unchanged") {
-    console.log("Stored DEPLOY_WEBHOOK_SECRET in Secrets Manager. Run npm run env:secrets:pull.");
+  for (const [key, value] of [
+    ["DEPLOY_WEBHOOK_SECRET", deploySecret],
+    ["DISPATCH_TOKEN", dispatchToken],
+  ]) {
+    if (upsertSmSecret({ key, value }) !== "unchanged") console.log(`Stored ${key} in Secrets Manager.`);
   }
-  writeSiteDeployEnvLines([`SANITY_STUDIO_SITE_DEPLOY_URL=${workerUrl}`]);
-  console.log(`Updated ${ENV_PATH} with the site deploy URL.`);
+  console.log(
+    `If the URL changed, update SANITY_STUDIO_SITE_DEPLOY_URL in ops/site/wrangler*.toml: ${workerUrl}`,
+  );
 
   console.log(
     "\nDone.\n" +

@@ -303,6 +303,13 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
 
+      # Pages keeps each deployment's secrets, so the new code's secrets go on
+      # before it deploys. Adds and updates only; the running ops keeps its own.
+      - name: Sync ops secrets (SM env=production)
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/setup-ops-secrets.mjs
+
       # Additive only, so the ops still running keeps working (scripts/lib/migrations.mjs).
       - name: Migrations before deploy
         run: node scripts/migrate.mjs --app ops --phase pre --env production
@@ -339,7 +346,7 @@ jobs:
             ]}
 
   # Dev ops (gwenda-ops-dev): the same app on the dev copies, from main. Its
-  # website is gwenda-web-dev (web.yml). Secrets are the dev ("local") ones.
+  # website is gwenda-web-dev (web.yml). Secrets are the dev ones (NAME__DEV).
   ops-dev:
     name: Deploy ops (dev)
     needs: changes
@@ -394,10 +401,10 @@ jobs:
       - name: Use the dev Wrangler config
         run: cp ops/site/wrangler.dev.toml ops/site/wrangler.toml
 
-      - name: Sync dev ops secrets (SM env=local)
+      - name: Sync dev ops secrets (SM env=dev)
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env local
+        run: node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env dev
 
       # Baserow schema changes need a user login (database tokens only touch rows).
       - name: Baserow login for migrations
