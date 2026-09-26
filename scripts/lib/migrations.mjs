@@ -124,6 +124,20 @@ export function baserowDatabase({ apiBase, jwt, databaseId, label, request = jwt
       });
       return "created";
     },
+    /**
+     * Add a table unless one with that name exists: just its primary column
+     * (`primary`), no rows. Returns what happened.
+     */
+    async ensureTable(tableName, primary) {
+      tables ??= await call(`/api/database/tables/database/${databaseId}/`);
+      if (tables.some((t) => t.name === tableName)) return "exists";
+      const created = await call(`/api/database/tables/database/${databaseId}/`, {
+        method: "POST",
+        body: JSON.stringify({ name: tableName, data: [[primary]], first_row_header: true }),
+      });
+      tables = [...tables, created];
+      return "created";
+    },
     /** Remove a column if it's there. Post-deploy only. */
     async removeField(tableName, fieldName) {
       const field = (await fields(tableName)).find((f) => f.name === fieldName);

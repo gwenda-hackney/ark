@@ -34,7 +34,9 @@ import {
   TABLE_EVENTS,
   TABLE_EVENT_DATES,
   TABLE_ARTISTS,
+  TABLE_GUEST_ARTISTS,
 } from "../ops/site/functions/_lib/baserow.js";
+import { GUEST_ARTIST_FIELDS } from "../ops/site/functions/_lib/guest-artists.js";
 import {
   DEFAULT_POS_MENU_NAME,
   LEGACY_DEFAULT_POS_MENU_NAME,
@@ -159,7 +161,8 @@ async function findOrCreateOpsDatabase(apiBase, jwt) {
   return String(created.id);
 }
 
-async function findOrCreateTable(apiBase, jwt, databaseId, tables, tableName) {
+/** `create` overrides the new table's body (e.g. a table with only its key column). */
+async function findOrCreateTable(apiBase, jwt, databaseId, tables, tableName, create = {}) {
   const existing = tables.find((table) => table.name === tableName);
   if (existing) {
     console.log(`Using existing table "${tableName}" (id ${existing.id}).`);
@@ -169,7 +172,7 @@ async function findOrCreateTable(apiBase, jwt, databaseId, tables, tableName) {
     apiBase,
     jwt,
     `/api/database/tables/database/${databaseId}/`,
-    { method: "POST", body: JSON.stringify({ name: tableName }) },
+    { method: "POST", body: JSON.stringify({ name: tableName, ...create }) },
   );
   console.log(`Created table "${tableName}" (id ${created.id}).`);
   tables.push(created);
@@ -1524,6 +1527,21 @@ async function main() {
   );
   console.log(`Fields on ${TABLE_ARTISTS}:`);
   await ensureFields(apiBase, jwt, artists.id, artistFields());
+  const guestArtists = await findOrCreateTable(
+    apiBase,
+    jwt,
+    databaseId,
+    tables,
+    TABLE_GUEST_ARTISTS,
+    { data: [["Email"]], first_row_header: true },
+  );
+  console.log(`Fields on ${TABLE_GUEST_ARTISTS}:`);
+  await ensureFields(
+    apiBase,
+    jwt,
+    guestArtists.id,
+    GUEST_ARTIST_FIELDS.map((body) => ({ name: body.name, body })),
+  );
   console.log(`Rows on ${TABLE_POS_MENUS}:`);
   await seedFallMenu(apiBase, jwt, posMenus.id, items.id, {
     linkEmptyItems: createdItemFields.includes("POS menus"),

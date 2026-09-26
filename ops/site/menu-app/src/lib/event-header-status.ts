@@ -5,7 +5,7 @@ export type EventPublishState = {
 
 export type HeaderFlag = {
   label: string;
-  tone: "unsaved" | "unpublished" | "preview" | "live" | "muted";
+  tone: "unsaved" | "unpublished" | "preview" | "live" | "muted" | "new";
 };
 
 /**
@@ -18,7 +18,7 @@ export function eventHeaderFlag(
   { job = null }: { job?: "waiting" | "failed" | null } = {},
 ): HeaderFlag {
   if (dirty) return { label: "Not saved", tone: "unsaved" };
-  if (!publish) return { label: "New", tone: "muted" };
+  if (!publish) return { label: "New", tone: "new" };
   // Saved; the calendar and website copy are still following in the background.
   if (job === "waiting") return { label: "Saved. Getting it ready…", tone: "muted" };
   if (job === "failed") return { label: "Saved, but not ready for the website", tone: "unpublished" };

@@ -28,6 +28,14 @@
 			minWidth: 140,
 		},
 		{
+			headerName: "Decision",
+			field: "decision",
+			width: 120,
+			minWidth: 100,
+			valueGetter: (p) =>
+				p.data?.decision || (p.data?.formSlug === "play" ? "To review" : ""),
+		},
+		{
 			headerName: "Status",
 			field: "status",
 			// Email verification was dropped, so status no longer means anything.
