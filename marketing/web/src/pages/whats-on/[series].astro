@@ -13,6 +13,7 @@ import {
   buildSeriesDetail,
   buildSeriesList,
   DATES_PENDING_LABEL,
+  seriesRedirects,
 } from "../../../functions/_lib/event-series.js";
 import { EVENT_FEED_PAGE_SIZE } from "../../../functions/_lib/event-feed.js";
 import { nightCardModel, seriesCardModel } from "../../lib/event-card.js";
@@ -21,13 +22,25 @@ import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
 export async function getStaticPaths() {
   try {
     const { series, occurrences } = await fetchWhatsOnCatalog();
-    return buildSeriesList(occurrences, { series }).map((row) => ({
+    const pages = buildSeriesList(occurrences, { series }).map((row) => ({
       params: { series: row.seriesId },
+      props: { redirectTo: "" },
     }));
+    // A web address changed in ops: the old one leads to the series.
+    const redirects = seriesRedirects(series).map(({ from, to }) => ({
+      params: { series: from },
+      props: { redirectTo: `/whats-on/${to}` },
+    }));
+    return [...pages, ...redirects];
   } catch (error) {
     console.warn("What's on series paths skipped:", error);
     return [];
   }
+}
+
+const { redirectTo } = Astro.props;
+if (redirectTo) {
+  return Astro.redirect(redirectTo, 301);
 }
 
 const seriesId = Astro.params.series || "";

@@ -812,6 +812,10 @@ function eventFields() {
       body: { name: "Extra dates", type: "long_text" },
     },
     { name: "Slug", body: { name: "Slug", type: "text" } },
+    {
+      name: "Former slugs",
+      body: { name: "Former slugs", type: "long_text" },
+    },
     { name: "Drive folder id", body: { name: "Drive folder id", type: "text" } },
     {
       name: "Replaces series",

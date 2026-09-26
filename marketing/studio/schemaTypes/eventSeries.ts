@@ -23,6 +23,14 @@ export const eventSeries = defineType({
       readOnly: true,
     }),
     defineField({
+      name: "formerSlugs",
+      title: "Former slugs",
+      type: "array",
+      of: [{ type: "string" }],
+      readOnly: true,
+      description: "Set by ops. Old web addresses that redirect to this series.",
+    }),
+    defineField({
       name: "schedule",
       title: "Schedule",
       type: "string",

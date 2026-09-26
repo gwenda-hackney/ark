@@ -40,6 +40,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
 
 export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   "id": slug.current,
+  formerSlugs,
   title,
   schedule,
   datesPending,

@@ -3,15 +3,13 @@ import EventTicketPage from "../../../../components/EventTicketPage.astro";
 import { isPreview, previewOrigin } from "../../../../config/env";
 import { siteConfig } from "../../../../config/site";
 import { fetchRsvpEventPages } from "../../../../lib/sanity/rsvp-events";
-import { parseOccurrenceSlug } from "../../../../../functions/_lib/event-series.js";
+import { occurrencePathParams } from "../../../../../functions/_lib/event-series.js";
 
 export async function getStaticPaths() {
   try {
     const events = await fetchRsvpEventPages();
     return events.map((event) => {
-      const parsed = parseOccurrenceSlug(event.slug);
-      const series = parsed?.seriesId || event.seriesId || event.slug;
-      const date = parsed?.date || event.date;
+      const { series, date } = occurrencePathParams(event);
       return {
         params: { series, date },
         props: { event, occurrenceSlug: event.slug },

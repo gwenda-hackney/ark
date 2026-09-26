@@ -7,20 +7,27 @@ import {
   socialDescription,
   type RsvpEventPage,
 } from "../../../lib/sanity/rsvp-events";
-import { parseOccurrenceSlug } from "../../../../functions/_lib/event-series.js";
+import { fetchSeries } from "../../../lib/sanity/events";
+import { nightPagePaths } from "../../../../functions/_lib/event-series.js";
 
 export async function getStaticPaths() {
   try {
-    const events = await fetchRsvpEventPages();
-    return events.map((event) => {
-      const parsed = parseOccurrenceSlug(event.slug);
-      const series = parsed?.seriesId || event.seriesId || event.slug;
-      const date = parsed?.date || event.date;
-      return {
+    const [events, series] = await Promise.all([
+      fetchRsvpEventPages(),
+      fetchSeries().catch(() => []),
+    ]);
+    const { pages, redirects } = nightPagePaths(events, series);
+    return [
+      ...pages.map(({ event, series, date }) => ({
         params: { series, date },
-        props: { event, occurrenceSlug: event.slug },
-      };
-    });
+        props: { event, occurrenceSlug: event.slug, redirectTo: "" },
+      })),
+      // The series' web address changed in ops: old night links still work.
+      ...redirects.map(({ series, date, to }) => ({
+        params: { series, date },
+        props: { event: null, occurrenceSlug: "", redirectTo: to },
+      })),
+    ];
   } catch (error) {
     console.warn("What's on invite paths skipped:", error);
     return [];
@@ -30,9 +37,13 @@ export async function getStaticPaths() {
 interface Props {
   event: RsvpEventPage;
   occurrenceSlug: string;
+  redirectTo: string;
 }
 
-const { event, occurrenceSlug } = Astro.props;
+const { event, occurrenceSlug, redirectTo } = Astro.props;
+if (redirectTo) {
+  return Astro.redirect(redirectTo, 301);
+}
 const series = Astro.params.series || "";
 const date = Astro.params.date || "";
 const siteOrigin = isPreview
