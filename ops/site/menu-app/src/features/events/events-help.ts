@@ -7,7 +7,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Schedule",
-		body: "Schedule lists upcoming nights by week. Calendar shows the same nights on a month grid. Open a night for guest artist, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults.",
+		body: "Schedule lists upcoming nights by week. Calendar shows the same nights on a month grid. Open a night for guest/collaboration, offer, or a one-off flyer. Use Edit series on a night to jump back to the series defaults.",
 	},
 	{
 		title: "Series and nights",
@@ -26,7 +26,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "On a night, change Date and save This event. The series window stays the same. The old date is skipped and the new date is kept for that night only.",
 	},
 	{
-		title: "Guest Artist",
+		title: "Guest/collaboration",
 		body: "Optional. On an open series night, a guest of its own shows a star on Schedule. Recurring residencies just list the guest under that night. On a series, this is the default name when a night has none.",
 	},
 	{
