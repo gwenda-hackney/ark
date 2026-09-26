@@ -236,3 +236,34 @@ describe("planOccurrenceMove", () => {
     assert.equal(plan.startsOn, "2026-10-10");
   });
 });
+
+describe("nights added by hand", () => {
+it("stay outside the series' start and end", () => {
+  const weekly = {
+    repeatUnit: "week",
+    repeatEvery: 1,
+    weekdays: ["tue"],
+    startsOn: "2026-09-29",
+    endsOn: "2026-10-20",
+    extraDates: ["2026-09-26", "2026-10-24"],
+  };
+  assert.deepEqual(expandSeriesOccurrenceDates(weekly), [
+    "2026-09-26",
+    "2026-09-29",
+    "2026-10-06",
+    "2026-10-13",
+    "2026-10-20",
+    "2026-10-24",
+  ]);
+  assert.deepEqual(expandOccurrenceDates(weekly, { today: "2026-10-15" }), ["2026-10-20", "2026-10-24"]);
+  // Ended (end before start): only the added nights are left.
+  const ended = { ...weekly, startsOn: "2026-09-02", endsOn: "2026-08-20" };
+  assert.deepEqual(expandSeriesOccurrenceDates(ended), ["2026-09-26", "2026-10-24"]);
+  assert.deepEqual(expandOccurrenceDates(ended, { today: "2026-10-01" }), ["2026-10-24"]);
+  // Skipped still wins.
+  assert.deepEqual(
+    expandOccurrenceDates({ ...weekly, skippedDates: ["2026-10-24"] }, { today: "2026-10-15" }),
+    ["2026-10-20"],
+  );
+});
+});
