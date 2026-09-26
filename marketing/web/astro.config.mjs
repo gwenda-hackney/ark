@@ -13,25 +13,7 @@ import { subscribeEmail } from "./functions/_lib/subscribe.js";
 import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
 import { resolvePublicOrigin } from "./functions/_lib/public-origin.js";
 import { readEventPasswordFromSearchParams } from "./functions/_lib/event-password.js";
-import {
-  fetchPublishedCatalog,
-  fetchPublishedEvents,
-} from "./functions/_lib/sanity-events.js";
-import { pageEventFeed } from "./functions/_lib/event-feed.js";
-import {
-  buildPublicSchedule,
-  buildSeriesDetail,
-  buildWhatsOnHome,
-} from "./functions/_lib/event-series.js";
-import { fetchFeaturedArtists } from "./src/lib/featured-artist.js";
-import { publicEventFields } from "./functions/_lib/sanity-event.js";
 import { pickPemValue } from "./functions/_lib/env-pem.js";
-import { resolveTicket } from "./functions/_lib/ticket.js";
-import {
-  buildAppleWalletPass,
-  buildCalendarTicket,
-  ticketAttachmentBaseName,
-} from "./functions/_lib/rsvp-tickets.js";
 
 const env = loadEnv(
   process.env.NODE_ENV ?? "development",
@@ -136,6 +118,26 @@ function sendJson(res, status, data, extraHeaders = {}) {
     res.setHeader(key, value);
   }
   res.end(JSON.stringify(data));
+}
+
+/**
+ * A failing dev handler answers 500 instead of leaving the request hanging.
+ * Server code loads per request (ssrLoadModule), so a broken file only
+ * shows up here, not at startup.
+ */
+function caught(label, handler) {
+  return async (req, res, next) => {
+    try {
+      await handler(req, res, next);
+    } catch (error) {
+      console.error(label, error);
+      if (!res.headersSent) {
+        sendJson(res, 500, { error: "Something went wrong. Try again?" });
+      } else {
+        res.end();
+      }
+    }
+  };
 }
 
 /** Dev-only stub for /api/subscribe — production uses functions/api/subscribe.js */
@@ -462,8 +464,11 @@ function devRsvpApi() {
  * path from req.url before calling the handler — a single "/api/ticket"
  * mount never sees "/pass" or "/calendar" in req.url.
  */
-async function resolveTicketFromRequest(req) {
+async function resolveTicketFromRequest(server, req) {
   const url = new URL(req.url ?? "", "http://localhost");
+  const { resolveTicket } = await server.ssrLoadModule(
+    "/functions/_lib/ticket.js",
+  );
   return {
     url,
     result: await resolveTicket(rsvpEnv(), {
@@ -478,14 +483,16 @@ function devTicketApi() {
   return {
     name: "dev-ticket-api",
     configureServer(server) {
-      server.middlewares.use("/api/ticket/pass", async (req, res, next) => {
+      server.middlewares.use("/api/ticket/pass", caught("dev ticket pass api", async (req, res, next) => {
         if (req.method !== "GET") return next();
-        const { result } = await resolveTicketFromRequest(req);
+        const { result } = await resolveTicketFromRequest(server, req);
         if (!result.ok) {
           sendJson(res, result.status, { error: result.error });
           return;
         }
         const { event, guest, ticketId } = result;
+        const { buildAppleWalletPass, ticketAttachmentBaseName } =
+          await server.ssrLoadModule("/functions/_lib/rsvp-tickets.js");
         const pass = await buildAppleWalletPass(rsvpEnv(), {
           ticketId,
           title: event.title,
@@ -510,16 +517,18 @@ function devTicketApi() {
           `attachment; filename="${ticketAttachmentBaseName(event.slug)}.pkpass"`,
         );
         res.end(pass);
-      });
+      }));
 
-      server.middlewares.use("/api/ticket/calendar", async (req, res, next) => {
+      server.middlewares.use("/api/ticket/calendar", caught("dev ticket calendar api", async (req, res, next) => {
         if (req.method !== "GET") return next();
-        const { result } = await resolveTicketFromRequest(req);
+        const { result } = await resolveTicketFromRequest(server, req);
         if (!result.ok) {
           sendJson(res, result.status, { error: result.error });
           return;
         }
         const { event, guest, ticketId } = result;
+        const { buildCalendarTicket, ticketAttachmentBaseName } =
+          await server.ssrLoadModule("/functions/_lib/rsvp-tickets.js");
         const ics = buildCalendarTicket({
           ticketId,
           title: event.title,
@@ -538,23 +547,26 @@ function devTicketApi() {
           `attachment; filename="${ticketAttachmentBaseName(event.slug)}.ics"`,
         );
         res.end(ics);
-      });
+      }));
 
-      server.middlewares.use("/api/ticket", async (req, res, next) => {
+      server.middlewares.use("/api/ticket", caught("dev ticket api", async (req, res, next) => {
         if (req.method !== "GET") return next();
-        const { result } = await resolveTicketFromRequest(req);
+        const { result } = await resolveTicketFromRequest(server, req);
         if (!result.ok) {
           sendJson(res, result.status, { error: result.error });
           return;
         }
         const { event, guest, ticketId } = result;
+        const { publicEventFields } = await server.ssrLoadModule(
+          "/functions/_lib/sanity-event.js",
+        );
         sendJson(res, 200, {
           ok: true,
           event: publicEventFields(event),
           guest: { name: guest.name, guests: guest.rsvpGuests },
           ticketId,
         });
-      });
+      }));
     },
   };
 }
@@ -564,12 +576,18 @@ function devEventsApi() {
   return {
     name: "dev-events-api",
     configureServer(server) {
-      server.middlewares.use("/api/events", async (req, res, next) => {
+      server.middlewares.use("/api/events", caught("dev events api", async (req, res, next) => {
         if (req.method !== "GET") {
           next();
           return;
         }
         const url = new URL(req.url ?? "", "http://localhost");
+        const { fetchPublishedEvents } = await server.ssrLoadModule(
+          "/functions/_lib/sanity-events.js",
+        );
+        const { pageEventFeed } = await server.ssrLoadModule(
+          "/functions/_lib/event-feed.js",
+        );
         const events = await fetchPublishedEvents(devApiEnv());
         const page = pageEventFeed(events, {
           after: url.searchParams.get("after") || "",
@@ -577,7 +595,7 @@ function devEventsApi() {
           limit: url.searchParams.get("limit") || "",
         });
         sendJson(res, 200, { ok: true, events: page.events, next: page.next });
-      });
+      }));
     },
   };
 }
@@ -587,7 +605,7 @@ function devWhatsOnApi() {
   return {
     name: "dev-whats-on-api",
     configureServer(server) {
-      server.middlewares.use("/api/whats-on", async (req, res, next) => {
+      server.middlewares.use("/api/whats-on", caught("dev whats-on api", async (req, res, next) => {
         if (req.method !== "GET") {
           next();
           return;
@@ -595,6 +613,11 @@ function devWhatsOnApi() {
         const url = new URL(req.url ?? "/", "http://localhost");
         // Vite strips the /api/whats-on mount, so list is "/" and detail is "/:series".
         const path = url.pathname.replace(/^\/+/, "").trim();
+        const { fetchPublishedCatalog } = await server.ssrLoadModule(
+          "/functions/_lib/sanity-events.js",
+        );
+        const { buildPublicSchedule, buildSeriesDetail, buildWhatsOnHome } =
+          await server.ssrLoadModule("/functions/_lib/event-series.js");
         const { occurrences, series: seriesRecords } =
           await fetchPublishedCatalog(devApiEnv());
         if (path === "schedule") {
@@ -628,7 +651,7 @@ function devWhatsOnApi() {
           return;
         }
         sendJson(res, 200, { ok: true, series: detail });
-      });
+      }));
     },
   };
 }
@@ -638,11 +661,14 @@ function devFeaturedArtistApi() {
   return {
     name: "dev-featured-artist-api",
     configureServer(server) {
-      server.middlewares.use("/api/featured-artist", async (req, res, next) => {
+      server.middlewares.use("/api/featured-artist", caught("dev featured-artist api", async (req, res, next) => {
         if (req.method !== "GET") {
           next();
           return;
         }
+        const { fetchFeaturedArtists } = await server.ssrLoadModule(
+          "/src/lib/featured-artist.js",
+        );
         const featured = await fetchFeaturedArtists(devApiEnv());
         const current = featured.current;
         sendJson(res, 200, {
@@ -655,7 +681,7 @@ function devFeaturedArtistApi() {
               }
             : null,
         });
-      });
+      }));
     },
   };
 }

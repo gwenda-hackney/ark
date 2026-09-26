@@ -182,7 +182,8 @@ describe("buildWhatsOnStack", () => {
       },
     );
     expect(stack[0].upcoming).toBe("Next · Tues 29 Sep · Special guest · Dan");
-    expect(stack[0].upcomingName).toBe("Special guest · Dan");
+    // Dan leads the card ("With Dan"), so no Next line repeats him.
+    expect(stack[0].upcomingName).toBe("");
     expect(stack[0].artist).toBe("Dan");
   });
 
@@ -385,7 +386,7 @@ describe("buildWhatsOnStack", () => {
     expect(stack[0].upcomingDate).toBe("2026-10-10");
   });
 
-  it("labels a repeating guest this week, then the one after as next", () => {
+  it("skips this week's guest (already on the card) and teases the next", () => {
     const stack = buildWhatsOnStack(
       [
         night({
@@ -412,8 +413,9 @@ describe("buildWhatsOnStack", () => {
       { now, series: [negroniSeries] },
     );
     expect(stack[0].hostName).toBe("");
-    expect(stack[0].thisWeekName).toBe("Special guest · Maya");
-    expect(stack[0].thisWeekDate).toBe("2026-09-22");
+    expect(stack[0].guestName).toBe("Maya");
+    expect(stack[0].thisWeekName).toBe("");
+    expect(stack[0].thisWeekDate).toBe("");
     expect(stack[0].upcomingName).toBe("Special guest · Dan");
     expect(stack[0].upcomingDate).toBe("2026-09-29");
   });
