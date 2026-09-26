@@ -247,6 +247,14 @@
 							<p class="eyebrow">
 								Play application{selected?.formTitle ? ` · ${selected.formTitle}` : ""}
 							</p>
+							{#if selected?.status}
+								<p class="status-flag {statusTone}">{selected.status}</p>
+							{/if}
+							{#if selected?.decision}
+								<p class="status-flag {selected.decision === 'Approved' ? 'live' : 'muted'}">
+									{selected.decision}
+								</p>
+							{/if}
 						</div>
 						<div class="head-tools">
 							{#if selected?.formSlug === "play"}
@@ -302,14 +310,6 @@
 						<div class="title-name">
 							<div class="name-line">
 								<h1 class="title">{selected ? personLabel(selected) : "Submission"}</h1>
-								{#if selected?.status}
-									<p class="status-flag {statusTone}">{selected.status}</p>
-								{/if}
-								{#if selected?.decision}
-									<p class="status-flag {selected.decision === 'Approved' ? 'live' : 'muted'}">
-										{selected.decision}
-									</p>
-								{/if}
 							</div>
 							{#if selected?.email && selected.name}
 								<a class="sub" href={`mailto:${selected.email}`}>{selected.email}</a>
@@ -611,6 +611,7 @@
 	.status-flag {
 		display: inline-flex;
 		align-items: center;
+		flex-shrink: 0;
 		width: fit-content;
 		margin: 0;
 		padding: 0.18rem 0.5rem;
