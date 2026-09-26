@@ -4,7 +4,7 @@
  * Baserow config database (docs/config.md).
  *
  * Needs ARK_LOCAL_BW_TOKEN (local .env) or BWS_ACCESS_TOKEN (CI), plus a
- * Cloudflare token from `.env.secrets` / the job env.
+ * Cloudflare token from Secrets Manager (bw-unlock) / the job env.
  *
  * One Cloudflare API request (scripts/lib/pages-vars.mjs), not a wrangler
  * call per key.
@@ -15,9 +15,8 @@
  *
  * Usage (from repo root):
  *   npm run setup:ops
- *   node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env local   # dev ops
+ *   node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env dev   # dev ops
  */
-import { resolveCloudflareDevToken } from "./lib/cloudflare-tokens.mjs";
 import { APP_SECRETS, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 import { applyPagesVars } from "./lib/pages-vars.mjs";
@@ -29,16 +28,16 @@ function argValue(name, fallback) {
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-/** Prod ops by default; dev ops is gwenda-ops-dev with the "local" (dev) secrets. */
+/** Prod ops by default; dev ops is gwenda-ops-dev with the dev secrets. */
 const project = argValue("--project", "gwenda-ops");
 const secretEnv = argValue("--env", "production");
 if (project === "gwenda-ops" && secretEnv !== "production") {
   console.error("gwenda-ops only takes production secrets.");
   process.exit(1);
 }
-const token = resolveCloudflareDevToken();
+const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
 if (!token) {
-  console.error("CLOUDFLARE_DEV_API_TOKEN (or legacy CLOUDFLARE_API_TOKEN) is required.");
+  console.error("CLOUDFLARE_API_TOKEN is required.");
   process.exit(1);
 }
 
@@ -71,7 +70,7 @@ try {
 
 console.log("Done. Plain ops settings live in the Baserow config database.");
 console.log(
-  "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local keeps it in Secrets Manager (.env.secrets).",
+  "Leave OPS_LOCAL_ADMIN_PW unset on Pages. Local keeps it in Secrets Manager.",
 );
 console.log(
   "Redeploy required for secrets to go live: npm run deploy:production -w @gwenda/ops",

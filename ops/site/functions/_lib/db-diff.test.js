@@ -43,12 +43,12 @@ test("counts rows on one side only, duplicates included, and column drift", () =
   });
 });
 
-test("pairs read tokens from env and default to the known databases", () => {
-  const pairs = databasePairs({ BASEROW_API_KEY: "prod", BASEROW_OPS_DEV_API_KEY: "dev" });
-  assert.equal(pairs.ops.source.databaseId, "556507");
+test("pairs read tokens from env; databases are found by their tables", () => {
+  const pairs = databasePairs({ BASEROW_API_KEY: "prod", BASEROW_OPS_API_KEY__DEV: "dev" });
+  assert.equal(pairs.ops.source.token, "prod");
   assert.equal(pairs.ops.target.token, "dev");
   // Both copies are the Gwenda Dev ones, read with the dev token.
-  assert.equal(pairs.website.target.databaseId, "563090");
   assert.equal(pairs.website.target.token, "dev");
+  assert.equal("databaseId" in pairs.ops.source, false);
   assert.deepEqual(pairs.ops.ignoreTables, ["App Config"]);
 });

@@ -4,22 +4,19 @@ compatibility_date = "2026-07-01"
 # Form emails (shared/gmail-send.js) build the message with nodemailer.
 compatibility_flags = ["nodejs_compat"]
 
-# Table ids are resolved at runtime by name from the Baserow catalog.
-# Production Ops DB only. Local uses BASEROW_OPS_DATABASE_ID from .env / .dev.vars
-# (Gwenda Dev workspace clone). BASEROW_API_KEY stays a Pages secret (prod token).
+# The Baserow token (BASEROW_API_KEY, a Pages secret) picks the workspace: the
+# production token sees Gwenda. Database and table ids are resolved by table
+# names at runtime; none are configured.
 # Non-secret knobs live in the Baserow config database (docs/config.md).
 [vars]
 SITE_ENV = "production"
 SANITY_PROJECT_ID = "pn5yjro6"
-BASEROW_OPS_DATABASE_ID = "556507"
 # Non-secret OAuth client id (secret stays a Pages secret). Needed so direct
 # `wrangler pages deploy` snapshots include it — project API plain_text vars alone are not enough.
 GOOGLE_OAUTH_CLIENT_ID = "682046070260-n9jpt18kt29vufljre5dkfqupq7rrdlt.apps.googleusercontent.com"
 SITE_DEPLOY_WEBHOOK_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
 SANITY_STUDIO_SITE_DEPLOY_URL = "https://gwenda-site-deploy-webhook.dscalamogna.workers.dev"
 # Form emails resent from /forms: the same mailbox and alerts as the website.
-SMTP_USER = "notifications@gwenda.co.uk"
-SMTP_FROM_EVENTS = "Gwenda Events <events@gwenda.co.uk>"
 ALERT_EMAIL = "alerts@gwenda.co.uk"
 SITE_HEALTH_URL = "https://health.gwenda.co.uk"
 # Secondary calendar shared with gwenda-ops-drive. Local ops sets SITE_ENV=local and ignores this.

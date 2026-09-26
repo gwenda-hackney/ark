@@ -43,10 +43,15 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/npm-install
 
+      - name: Pull web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:web:pull -- --github-env
+
       - name: Deploy hosted Studio (production)
         run: npm run studio:deploy
         env:
-          SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
+          SANITY_DEPLOY_TOKEN: ${{ env.SANITY_DEPLOY_TOKEN }}
 
       - name: Deployment summary
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs

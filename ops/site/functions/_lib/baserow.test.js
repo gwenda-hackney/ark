@@ -167,7 +167,7 @@ describe("resolveOpsTableIds", () => {
     assert.equal(fetchMock.mock.callCount(), 1);
   });
 
-  it("scopes to BASEROW_OPS_DATABASE_ID when set", async () => {
+  it("refuses a token that sees two Ops databases", async () => {
     mock.method(globalThis, "fetch", async () =>
       jsonResponse([
         { id: 11, name: "Menu Sections", database_id: 9 },
@@ -178,12 +178,9 @@ describe("resolveOpsTableIds", () => {
         { id: 23, name: "Ingredients", database_id: 7 },
       ]),
     );
-    const tables = await resolveOpsTableIds({
-      BASEROW_API_KEY: "token",
-      BASEROW_OPS_DATABASE_ID: "7",
-    });
-    assert.equal(tables.databaseId, "7");
-    assert.equal(tables.sections, "21");
-    assert.equal(tables.items, "22");
+    await assert.rejects(
+      resolveOpsTableIds({ BASEROW_API_KEY: "token-sees-two" }),
+      /sees 2 ops databases \(9, 7\)\. Limit the token to one/,
+    );
   });
 });

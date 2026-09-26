@@ -34,33 +34,14 @@ const secrets = {};
 const previewSecrets = {};
 
 function putSecret(key, value) {
-  if (!value) {
-    if (key === "SMTP_PASSWORD") {
-      console.warn(
-        "SMTP_PASSWORD is empty in the environment; leaving existing Pages secret unchanged.",
-      );
-    }
-    return;
-  }
-  if (key === "SMTP_PASSWORD") {
-    const cleaned = String(value).replace(/\s+/g, "");
-    if (cleaned.length !== 16) {
-      console.warn(
-        `SMTP_PASSWORD length is ${cleaned.length} after stripping spaces (expected 16 for a Google app password).`,
-      );
-    }
-    value = cleaned;
-  }
-  secrets[key] = value;
+  if (value) secrets[key] = value;
 }
 
-/** Plain SMTP config that must remain on the Pages project (not secrets). */
-const SMTP_PLAIN_VARS = {
-  SMTP_HOST: "smtp.gmail.com",
-  SMTP_PORT: "587",
-  SMTP_USER: "notifications@gwenda.co.uk",
-  SMTP_FROM_EVENTS: "Gwenda Events <events@gwenda.co.uk>",
-};
+/**
+ * Secrets no code reads any more, deleted from the project on each sync.
+ * SMTP_PASSWORD: mail goes through the Gmail API (shared/gmail-send.js).
+ */
+const RETIRED_SECRETS = ["SMTP_PASSWORD"];
 
 /** The password gate: on every preview, never on the live site. */
 const GATE_KEYS = new Set(["SITE_PASSWORD", "GATE_BYPASS_KEY"]);
@@ -121,7 +102,7 @@ try {
     token: process.env.CLOUDFLARE_API_TOKEN?.trim(),
     project,
     secrets,
-    plain: SMTP_PLAIN_VARS,
+    remove: RETIRED_SECRETS,
     previewSecrets,
   });
   console.log(`Set ${done.secrets.length} secrets on ${project} (production, preview): ${done.secrets.join(", ")}.`);
@@ -129,9 +110,6 @@ try {
     console.log(`Set ${done.previewSecrets.join(", ")} on ${project} (preview only).`);
   }
   for (const key of done.removed) console.log(`Removed secret ${key} from ${project}.`);
-  console.log(
-    "Plain SMTP host/port/user are project vars; only SMTP_PASSWORD is a Pages secret. Form From/Reply-To live in Sanity.",
-  );
 } catch (error) {
   console.error(error.message);
   process.exit(1);

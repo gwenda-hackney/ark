@@ -1,7 +1,7 @@
 /**
  * The artist on the wall, read from Ops Baserow.
  * Marketing's own Baserow token cannot see that database, so this uses
- * BASEROW_OPS_API_KEY (from .env.secrets via with-env).
+ * BASEROW_OPS_API_KEY (from Secrets Manager via with-env).
  */
 import { listArtists } from "../../../../ops/site/functions/_lib/artist-store.js";
 import { artistRunLabel } from "./artist-run.js";
@@ -10,15 +10,11 @@ function text(value) {
   return String(value || "").trim();
 }
 
+/** Ops Baserow access for the website; the token alone picks the database. */
 export function opsArtistEnv(env = process.env) {
   const key = text(env.BASEROW_OPS_API_KEY);
-  const databaseId = text(env.BASEROW_OPS_DATABASE_ID);
-  if (!key || !databaseId) return null;
-  return {
-    BASEROW_API_KEY: key,
-    BASEROW_API_URL: env.BASEROW_API_URL,
-    BASEROW_OPS_DATABASE_ID: databaseId,
-  };
+  if (!key) return null;
+  return { BASEROW_API_KEY: key, BASEROW_API_URL: env.BASEROW_API_URL };
 }
 
 function imageUrl(file) {

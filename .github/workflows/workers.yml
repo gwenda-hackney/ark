@@ -94,6 +94,14 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:ark:pull -- --github-env
+      # DEPLOY_WEBHOOK_SECRET (web runtime key) and the GitHub token the Worker
+      # dispatches workflows with (script-only, so exported by name).
+      - name: Pull webhook secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: |
+          npm run env:web:pull -- --github-env
+          node scripts/sm-export.mjs DISPATCH_TOKEN
       - run: npm run typecheck -w @gwenda/site-deploy-webhook
       - run: npm test -w @gwenda/site-deploy-webhook
       - uses: cloudflare/wrangler-action@v3
@@ -110,8 +118,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
-          DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          DEPLOY_WEBHOOK_SECRET: ${{ env.DEPLOY_WEBHOOK_SECRET }}
+          DISPATCH_TOKEN: ${{ env.DISPATCH_TOKEN }}
 
   subscribe-mailchimp-sync:
     name: Subscribe Mailchimp sync
@@ -132,6 +140,14 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:ark:pull -- --github-env
+      # BASEROW_API_KEY: the production Website token (Subscribers, Subscribe
+      # sync runs). The Mailchimp credentials are script-only, exported by name.
+      - name: Pull web secrets from Bitwarden SM
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: |
+          npm run env:web:pull -- --github-env
+          node scripts/sm-export.mjs MAILCHIMP_API_KEY SUBSCRIBE_MAILCHIMP_SYNC_SECRET
       - run: npm run typecheck -w @gwenda/subscribe-mailchimp-sync
       - run: npm test -w @gwenda/subscribe-mailchimp-sync
       - uses: cloudflare/wrangler-action@v3
@@ -149,9 +165,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          BASEROW_API_KEY: ${{ secrets.BASEROW_API_KEY }}
-          MAILCHIMP_API_KEY: ${{ secrets.MAILCHIMP_API_KEY }}
-          SUBSCRIBE_MAILCHIMP_SYNC_SECRET: ${{ secrets.SUBSCRIBE_MAILCHIMP_SYNC_SECRET }}
+          BASEROW_API_KEY: ${{ env.BASEROW_API_KEY }}
+          MAILCHIMP_API_KEY: ${{ env.MAILCHIMP_API_KEY }}
+          SUBSCRIBE_MAILCHIMP_SYNC_SECRET: ${{ env.SUBSCRIBE_MAILCHIMP_SYNC_SECRET }}
 
   site-health:
     name: Site health
@@ -178,25 +194,45 @@ jobs:
         run: npm run env:web:pull -- --github-env
       - run: npm run typecheck -w @gwenda/site-health
       - run: npm test -w @gwenda/site-health
+      # Pre: the new code sends alerts through the Gmail API, so the Worker
+      # needs the service account before it deploys. Old code ignores it.
+      - name: Put Worker secrets
+        run: |
+          cd marketing/site-health
+          printf '%s' "$GMAIL_SERVICE_ACCOUNT_JSON" | npx wrangler secret put GMAIL_SERVICE_ACCOUNT_JSON
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          GMAIL_SERVICE_ACCOUNT_JSON: ${{ env.GMAIL_SERVICE_ACCOUNT_JSON }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
           workingDirectory: marketing/site-health
-      - name: Sync Worker secrets
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5 6; do
+            body="$(curl -fsS https://health.gwenda.co.uk/health || true)"
+            if printf '%s' "$body" | grep -q '"emailConfigured":true'; then
+              echo "site-health is up and can send alerts."; exit 0
+            fi
+            sleep 10
+          done
+          echo "site-health smoke test failed: $body" >&2
+          exit 1
+      # Post: only the old SMTP code used this. Safe to run again.
+      - name: Remove retired Worker secrets
         run: |
           cd marketing/site-health
-          cleaned="$(printf '%s' "$SMTP_PASSWORD" | tr -d '[:space:]')"
-          if [ "${#cleaned}" -ne 16 ]; then
-            echo "SMTP_PASSWORD must be a 16-character Google app password (got ${#cleaned})." >&2
-            exit 1
+          if npx wrangler secret list --format json | grep -q '"name": *"SMTP_PASSWORD"'; then
+            npx wrangler secret delete SMTP_PASSWORD
+          else
+            echo "SMTP_PASSWORD already removed."
           fi
-          printf '%s' "$cleaned" | npx wrangler secret put SMTP_PASSWORD
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          SMTP_PASSWORD: ${{ env.SMTP_PASSWORD }}
 
   recipe-cost-webhook:
     name: Recipe cost webhook

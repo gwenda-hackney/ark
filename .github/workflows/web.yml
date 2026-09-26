@@ -127,12 +127,12 @@ jobs:
           GITHUB_REF_NAME: main
           GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
 
-      # The dev environment's secrets are the "local" ones: Gwenda Dev Sanity,
-      # the dev Ops and Website Baserow copies.
+      # The dev secrets (NAME__DEV): Gwenda Dev Sanity, the dev Ops and
+      # Website Baserow copies.
       - name: Pull dev web secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:web:pull -- --github-env --profile local
+        run: npm run env:web:pull -- --github-env --profile dev
 
       - name: Unit tests
         run: npm test -w @gwenda/web
@@ -171,7 +171,6 @@ jobs:
           sanity-project-id: gwscpagy
           sanity-perspective: ${{ matrix.site == 'live' && 'published' || 'previewDrafts' }}
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
-          baserow-ops-database-id: "560292"
           secrets-profile: dev
           snapshot-site: ${{ matrix.site == 'live' && 'production' || 'preview' }}
           snapshot-environment: dev
@@ -277,7 +276,6 @@ jobs:
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-perspective: previewDrafts
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
-          baserow-ops-database-id: "556507"
           secrets-profile: production
           snapshot-site: preview
 
@@ -344,7 +342,7 @@ jobs:
       - name: Pull dev web secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:web:pull -- --github-env --profile local
+        run: npm run env:web:pull -- --github-env --profile dev
 
       - name: Unit tests
         run: npm test -w @gwenda/web
@@ -373,7 +371,6 @@ jobs:
           sanity-project-id: gwscpagy
           sanity-perspective: previewDrafts
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
-          baserow-ops-database-id: "560292"
           secrets-profile: dev
 
       - name: Resolve preview URL

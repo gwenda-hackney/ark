@@ -31,7 +31,7 @@ npm run web:dev
 npm run web:dev
 ```
 
-Repo-root `.env` supplies `SANITY_*` for local builds. `npm run web:dev` overlays Sanity drafts, like a preview; live builds use published documents only (`SANITY_PERSPECTIVE`). See [docs/sanity.md](../../docs/sanity.md).
+Local builds use the Gwenda Dev Sanity project by default (`LOCAL_DEFAULTS` in `scripts/lib/load-env.mjs`). `npm run web:dev` overlays Sanity drafts, like a preview; live builds use published documents only (`SANITY_PERSPECTIVE`). See [docs/sanity.md](../../docs/sanity.md).
 
 ## Branch flow
 

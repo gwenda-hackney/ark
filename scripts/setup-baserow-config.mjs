@@ -26,8 +26,15 @@ import { listAllSmSecrets, resolveSmAccessToken, upsertSmSecret } from "./lib/bi
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const API = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\/$/, "");
-/** Paid Gwenda workspace (production data lives here too). */
-const WORKSPACE_ID = process.env.BASEROW_CONFIG_WORKSPACE_ID?.trim() || "208709";
+/** Paid Gwenda workspace (production data lives here too), found by name. */
+const WORKSPACE_NAME = "Gwenda";
+
+async function workspaceId(jwt) {
+  const workspaces = await request(jwt, "/api/workspaces/");
+  const found = (workspaces || []).find((ws) => ws.name === WORKSPACE_NAME);
+  if (!found) throw new Error(`Baserow workspace "${WORKSPACE_NAME}" not found.`);
+  return found.id;
+}
 const TOKEN_NAME = "gwenda-config";
 
 /** Every hosted non-prod site. A developer's machine uses FORMS_NOTIFY_EMAIL from .env. */
@@ -80,11 +87,12 @@ async function request(jwt, path, init = {}) {
 }
 
 async function findOrCreateDatabase(jwt) {
-  const apps = await request(jwt, `/api/applications/workspace/${WORKSPACE_ID}/`);
+  const workspace = await workspaceId(jwt);
+  const apps = await request(jwt, `/api/applications/workspace/${workspace}/`);
   const found = apps.find((app) => app.type === "database" && app.name === CONFIG_DATABASE_NAME);
   if (found) return found;
   console.log(`+ database ${CONFIG_DATABASE_NAME}`);
-  return request(jwt, `/api/applications/workspace/${WORKSPACE_ID}/`, {
+  return request(jwt, `/api/applications/workspace/${workspace}/`, {
     method: "POST",
     body: JSON.stringify({ type: "database", name: CONFIG_DATABASE_NAME }),
   });
@@ -168,14 +176,14 @@ async function seedRows(jwt, tableId) {
 
 async function mintToken(jwt, databaseId) {
   const accessToken = resolveSmAccessToken();
-  if (!accessToken) throw new Error("Set ARK_LOCAL_BW_TOKEN in .env to store the token in SM.");
+  if (!accessToken) throw new Error("Run bw-unlock to store the token in SM.");
   if (listAllSmSecrets({ accessToken }).get("BASEROW_CONFIG_API_KEY")) {
     console.log("SM already has BASEROW_CONFIG_API_KEY. Delete it first to rotate.");
     return;
   }
   const token = await request(jwt, "/api/database/tokens/", {
     method: "POST",
-    body: JSON.stringify({ name: TOKEN_NAME, workspace: Number(WORKSPACE_ID) }),
+    body: JSON.stringify({ name: TOKEN_NAME, workspace: await workspaceId(jwt) }),
   });
   const scoped = [["database", Number(databaseId)]];
   await request(jwt, `/api/database/tokens/${token.id}/`, {

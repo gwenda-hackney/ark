@@ -11,15 +11,8 @@ import {
 describe("opsArtistEnv", () => {
   it("uses the ops token, not the marketing Baserow key", () => {
     expect(
-      opsArtistEnv({
-        BASEROW_API_KEY: "marketing",
-        BASEROW_OPS_API_KEY: "ops",
-        BASEROW_OPS_DATABASE_ID: "560292",
-      }),
-    ).toMatchObject({
-      BASEROW_API_KEY: "ops",
-      BASEROW_OPS_DATABASE_ID: "560292",
-    });
+      opsArtistEnv({ BASEROW_API_KEY: "marketing", BASEROW_OPS_API_KEY: "ops" }),
+    ).toMatchObject({ BASEROW_API_KEY: "ops" });
     expect(opsArtistEnv({ BASEROW_API_KEY: "marketing" })).toBeNull();
   });
 });

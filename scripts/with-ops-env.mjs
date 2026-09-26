@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Run a command with the ops app env: repo-root `.env` plus `.env.secrets`
- * under ops runtime names. Missing files are skipped so CI can inject secrets
- * another way.
+ * Run a command with the ops app env: repo-root `.env` plus secrets from the
+ * unlocked vault (scripts/lib/load-env.mjs) under ops runtime names. In CI the
+ * vault is skipped and the job injects secrets another way.
  *
  *   node scripts/with-ops-env.mjs node scripts/setup-baserow-ops.mjs
  */

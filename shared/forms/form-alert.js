@@ -1,5 +1,6 @@
 import { createLogger, serializeError } from "../log.js";
 import { isGmailConfigured, sendGmail } from "../gmail-send.js";
+import { NOTIFICATIONS_FROM } from "../mail-from.js";
 
 const ALERT_EVENTS = new Set([
   "form_store_failed",
@@ -12,18 +13,11 @@ const ALERT_EVENTS = new Set([
   "form_verify_token_failed",
 ]);
 
-const SKIPPED_SMTP_EVENTS = new Set([
+const SKIPPED_EMAIL_EVENTS = new Set([
   "form_notify_email_skipped",
   "form_receipt_email_skipped",
   "form_verify_email_skipped",
 ]);
-
-function formatFromAddress(fromEmail) {
-  const raw = String(fromEmail ?? "").trim();
-  if (!raw) return "";
-  if (raw.includes("<") && raw.includes(">")) return raw;
-  return `Gwenda <${raw}>`;
-}
 
 function flattenExtra(extra) {
   const out = { ...extra };
@@ -35,8 +29,8 @@ function flattenExtra(extra) {
 
 export function shouldSendFormAlert(env, event, extra = {}) {
   if (env?.SITE_ENV?.trim() !== "production") return false;
-  if (SKIPPED_SMTP_EVENTS.has(event)) {
-    return extra.reason === "smtp_not_configured";
+  if (SKIPPED_EMAIL_EVENTS.has(event)) {
+    return extra.reason === "email_not_configured";
   }
   return ALERT_EVENTS.has(event);
 }
@@ -57,9 +51,8 @@ export function formatFormAlertEmail({ event, extra = {} }) {
 
 export async function sendAlertEmail(env, { event, extra = {} }, deps = {}) {
   const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
-  const from =
-    env.SMTP_FROM?.trim() || formatFromAddress(env.SMTP_USER?.trim());
-  if (!from || !to || !isGmailConfigured(env)) {
+  const from = NOTIFICATIONS_FROM;
+  if (!to || !isGmailConfigured(env)) {
     return { ok: false, error: "Alert email is not configured." };
   }
 

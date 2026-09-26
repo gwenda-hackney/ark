@@ -81,10 +81,6 @@ inputs:
     description: Ops Baserow token for the featured artist at build time
     required: false
     default: ""
-  baserow-ops-database-id:
-    description: Ops Baserow database id for the featured artist at build time
-    required: false
-    default: ""
   snapshot-site:
     description: >
       preview or production to record what this build was made
@@ -117,7 +113,6 @@ runs:
         SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
-        BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}
         BUILD_SHA: ${{ inputs.build-sha }}
 
     - name: Build
@@ -138,7 +133,6 @@ runs:
         SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
-        BASEROW_OPS_DATABASE_ID: ${{ inputs.baserow-ops-database-id }}
 
     # What verify.yml used to check on its own separate build.
     - name: Check build output

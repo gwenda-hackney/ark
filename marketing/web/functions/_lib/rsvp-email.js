@@ -10,10 +10,9 @@ import {
 import { fetchImageBuffer, LOGO_CID } from "../../../../shared/email-image.js";
 import { isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
 import {
+  EVENTS_FROM,
   EVENTS_NO_REPLY_HEADERS,
-  resolveSmtpFrom,
-  SMTP_PURPOSE,
-} from "../../../../shared/smtp-from.js";
+} from "../../../../shared/mail-from.js";
 
 /**
  * Send the RSVP confirmation. Best-effort: callers should not fail the RSVP if
@@ -23,7 +22,7 @@ export async function sendRsvpConfirmationEmail(
   env,
   { to, name, guests, event, inviteUrl, ticketUrl, origin, ticketId },
 ) {
-  const from = resolveSmtpFrom(env, SMTP_PURPOSE.EVENTS);
+  const from = EVENTS_FROM;
   const recipient = to?.trim();
   if (!from || !recipient || !isGmailConfigured(env)) {
     return { ok: false, skipped: true };

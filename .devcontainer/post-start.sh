@@ -28,10 +28,10 @@ install_bw_session_bashrc() {
   if [ -z "$snippet" ] || [ ! -f "$bashrc" ]; then
     return 0
   fi
-  if ! grep -q ">>> ark-bw-session >>>" "$bashrc" 2>/dev/null; then
-    printf '\n' >> "$bashrc"
-    cat "$snippet" >> "$bashrc"
-  fi
+  # Replace the block every start, so a changed snippet reaches existing containers.
+  sed -i '/>>> ark-bw-session >>>/,/<<< ark-bw-session <<</d' "$bashrc"
+  [ -n "$(tail -c1 "$bashrc")" ] && printf '\n' >> "$bashrc"
+  cat "$snippet" >> "$bashrc"
 }
 
 install_bw_session_bashrc
@@ -55,7 +55,6 @@ if [ -d "/home/node/.config/Bitwarden CLI" ]; then
   sudo chown -R node:node "/home/node/.config/Bitwarden CLI" 2>/dev/null || true
 fi
 if command -v bw >/dev/null 2>&1; then
-  echo "Secrets: bw login && bw-unlock && npm run env:seed && npm run env:pull"
-  echo "         then npm run env:secrets:pull"
-  echo "         (session persists in this container; see docs/env.md)"
+  echo "Secrets: bw login && bw-unlock (then every npm script loads them; docs/env.md)"
+  git -C "$ROOT" config user.email >/dev/null || echo "         git config user.email you@gwenda.co.uk (local form emails go there)"
 fi

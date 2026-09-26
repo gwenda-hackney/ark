@@ -1,8 +1,6 @@
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
 
 export const OPS_DATABASE_NAME = "Gwenda Ops";
-/** Production Ops Baserow database (Gwenda workspace). Local must not use this. */
-export const OPS_PRODUCTION_DATABASE_ID = "556507";
 export const TABLE_SECTIONS = "Menu Sections";
 export const TABLE_ITEMS = "Menu Items";
 export const TABLE_INGREDIENTS = "Ingredients";
@@ -31,10 +29,6 @@ export function baserowApiBase(env = {}) {
 
 export function baserowApiKey(env = {}) {
   return env.BASEROW_API_KEY?.trim() || "";
-}
-
-export function opsDatabaseId(env = {}) {
-  return env.BASEROW_OPS_DATABASE_ID?.trim() || "";
 }
 
 function requireKey(env) {
@@ -185,8 +179,16 @@ export async function listAllTables(env) {
   return baserowFetch(env, "/api/database/tables/all-tables/");
 }
 
-/** Tables that identify the Gwenda Ops database when DATABASE_ID is unset. */
-const OPS_FINGERPRINT = [TABLE_SECTIONS, TABLE_ITEMS, TABLE_INGREDIENTS];
+/**
+ * Tables that identify each database. A database token cannot read database
+ * names, only the tables it may use, so the token picks the workspace (Gwenda
+ * Dev or Gwenda) and these names pick the database in it. No ids in config.
+ */
+export const DATABASE_FINGERPRINTS = {
+  ops: [TABLE_SECTIONS, TABLE_ITEMS, TABLE_INGREDIENTS],
+  // Every Website copy has these two; production has no Event Invites table.
+  website: ["Subscribers", "Form Submissions"],
+};
 
 export const OPS_TABLE_SPECS = [
   { key: "sections", name: TABLE_SECTIONS, required: true },
@@ -204,47 +206,33 @@ export const OPS_TABLE_SPECS = [
 ];
 
 /**
- * Pick the Ops database id: explicit env, or the only database that contains
- * the fingerprint tables (Menu Sections / Menu Items / Ingredients).
+ * The one database (of those the token can see) that has every table in
+ * `fingerprint`. Several matches means the token was given too much.
+ * @param {"ops" | "website"} kind
  */
-export function pickOpsDatabaseId(tables, preferredId = "") {
-  const list = Array.isArray(tables) ? tables : [];
-  if (preferredId) {
-    const scoped = list.filter((table) => String(table.database_id) === preferredId);
-    if (!scoped.length) {
-      const error = new Error(
-        `Baserow database ${preferredId} has no tables visible to this token.`,
-      );
-      error.status = 503;
-      throw error;
-    }
-    return preferredId;
-  }
-
+export function pickDatabaseId(tables, kind) {
+  const fingerprint = DATABASE_FINGERPRINTS[kind];
   const byDb = new Map();
-  for (const table of list) {
+  for (const table of Array.isArray(tables) ? tables : []) {
     const id = String(table.database_id);
     if (!byDb.has(id)) byDb.set(id, new Set());
     byDb.get(id).add(table.name);
   }
-  const matches = [...byDb.entries()].filter(([, names]) =>
-    OPS_FINGERPRINT.every((name) => names.has(name)),
-  );
-  if (matches.length === 1) return matches[0][0];
-  if (matches.length === 0) {
-    const error = new Error(
-      `Baserow Ops tables not found (need ${OPS_FINGERPRINT.join(", ")}). Run npm run setup:baserow-ops.`,
-    );
-    error.status = 503;
-    throw error;
-  }
+  const matches = [...byDb.entries()]
+    .filter(([, names]) => fingerprint.every((name) => names.has(name)))
+    .map(([id]) => id);
+  if (matches.length === 1) return matches[0];
   const error = new Error(
-    `Multiple Baserow databases look like Ops. Set BASEROW_OPS_DATABASE_ID to one of: ${matches
-      .map(([id]) => id)
-      .join(", ")}.`,
+    matches.length === 0
+      ? `This Baserow token sees no ${kind} database (tables ${fingerprint.join(", ")}). Check the token's database permissions.`
+      : `This Baserow token sees ${matches.length} ${kind} databases (${matches.join(", ")}). Limit the token to one.`,
   );
   error.status = 503;
   throw error;
+}
+
+export function pickOpsDatabaseId(tables) {
+  return pickDatabaseId(tables, "ops");
 }
 
 function pickTableId(scoped, name, { required = true } = {}) {
@@ -267,12 +255,10 @@ function pickTableId(scoped, name, { required = true } = {}) {
 
 /**
  * Resolve Ops table ids from the Baserow catalog by stable names.
- * Cached per isolate. Optional BASEROW_OPS_DATABASE_ID scopes when the token
- * can see more than one Ops-like database.
+ * Cached per isolate and token.
  */
 export async function resolveOpsTableIds(env) {
-  const preferredDb = opsDatabaseId(env);
-  const cacheKey = preferredDb || "*";
+  const cacheKey = baserowApiKey(env);
   if (
     tableIdCache &&
     tableIdCacheKey === cacheKey &&
@@ -282,7 +268,7 @@ export async function resolveOpsTableIds(env) {
   }
 
   const tables = await listAllTables(env);
-  const databaseId = pickOpsDatabaseId(tables, preferredDb);
+  const databaseId = pickOpsDatabaseId(tables);
   const scoped = (Array.isArray(tables) ? tables : []).filter(
     (table) => String(table.database_id) === databaseId,
   );

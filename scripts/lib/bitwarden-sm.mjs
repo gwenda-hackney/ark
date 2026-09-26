@@ -1,14 +1,16 @@
 /**
  * Bitwarden Secrets Manager (bws) for app secrets.
- * Password Manager (`bw` / env:pull) stays separate. This is machine-account access.
+ * Machine-account access. The local token (ARK_LOCAL_BW_TOKEN) is read from the
+ * unlocked Password Manager vault; CI passes BWS_ACCESS_TOKEN.
  *
- * One rule for every secret:
- *   NAME              shared value (all envs)
- *   NAME__LOCAL       override for local
- *   NAME__STAGING     override for staging
- *   NAME__PRODUCTION  override for production
- * The env override wins. Secrets that must differ per env (Baserow tokens) have
- * no shared NAME, so a missing override is reported instead of falling back.
+ * One rule for every secret, two envs (dev is a developer's machine and the
+ * hosted dev site alike):
+ *   NAME              the same value in every env
+ *   NAME__DEV         the dev value
+ *   NAME__PRODUCTION  the production value
+ * A runtime in env E reads NAME and gets NAME__E, else NAME. Code never picks
+ * an env itself. The one reader that spans envs (ops comparing production with
+ * its dev copy) asks for the suffixed name, e.g. BASEROW_OPS_API_KEY__DEV.
  *
  * Projects (Ark, Ark/Ops, Ark/Web) only record ownership. Pulls merge all three.
  */
@@ -21,6 +23,8 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { vaultSmAccessToken } from "./bitwarden-env.mjs";
+import { clearSecretsCache } from "./secrets-cache.mjs";
 
 export const DEFAULT_SM_SERVER = "https://vault.bitwarden.eu";
 
@@ -28,7 +32,7 @@ export const DEFAULT_ARK_PROJECT_ID = "b9de9355-0a8f-45e7-b5fe-b4ca00eff281";
 export const DEFAULT_OPS_PROJECT_ID = "ea9095b4-8226-4dec-96c3-b4c8008b0b6b";
 export const DEFAULT_WEB_PROJECT_ID = "d7881774-3a4c-4603-97e3-b4c8010fd860";
 
-export const SECRET_ENVS = ["local", "staging", "production"];
+export const SECRET_ENVS = ["dev", "production"];
 export const ENV_OVERRIDE_SEPARATOR = "__";
 
 export function resolveProjectIds(env = process.env) {
@@ -42,14 +46,14 @@ export function resolveProjectIds(env = process.env) {
 /** Owning SM project for each secret base name. */
 export const SECRET_OWNERS = {
   ark: [
-    "CLOUDFLARE_DEV_API_TOKEN",
     "CLOUDFLARE_API_TOKEN",
     "CLOUDFLARE_ACCOUNT_ID",
     "BASEROW_CONFIG_API_KEY",
+    // Script-only (sm-export): the site-deploy Worker's GitHub token.
+    "DISPATCH_TOKEN",
   ],
   ops: [
     "BASEROW_OPS_API_KEY",
-    "BASEROW_OPS_DEV_API_KEY",
     "GOOGLE_SERVICE_ACCOUNT_JSON",
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "OPS_SESSION_SECRET",
@@ -61,16 +65,15 @@ export const SECRET_OWNERS = {
     "SANITY_API_TOKEN",
     "DEPLOY_WEBHOOK_SECRET",
     "SUBSCRIBE_SECRET",
-    "SMTP_PASSWORD",
     "SITE_PASSWORD",
     "GATE_BYPASS_KEY",
     "SANITY_DEPLOY_TOKEN",
     "UNIFI_SITE_MANAGER_API_KEY",
+    // Script-only (sm-export): the Mailchimp sync Worker.
+    "MAILCHIMP_API_KEY",
+    "SUBSCRIBE_MAILCHIMP_SYNC_SECRET",
   ],
 };
-
-/** Local secrets file, written by `npm run env:secrets:pull` under SM names. */
-export const LOCAL_SECRETS_FILE = ".env.secrets";
 
 /**
  * Runtime keys each app gets. Runtime name = SM name except `rename`
@@ -80,15 +83,15 @@ export const LOCAL_SECRETS_FILE = ".env.secrets";
  */
 export const APP_SECRETS = {
   ark: {
-    keys: ["CLOUDFLARE_DEV_API_TOKEN", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
+    keys: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"],
     rename: {},
     pagesSkip: [],
   },
   ops: {
     keys: [
       "BASEROW_API_KEY",
-      // Gwenda Dev copy of the Ops DB, so the Website page can compare it.
-      "BASEROW_OPS_DEV_API_KEY",
+      // The dev copies, so production ops can compare with them (db-diff.js).
+      "BASEROW_OPS_API_KEY__DEV",
       "BASEROW_WEBSITE_API_KEY",
       "BASEROW_CONFIG_API_KEY",
       "GOOGLE_OAUTH_CLIENT_SECRET",
@@ -118,8 +121,7 @@ export const APP_SECRETS = {
       "SANITY_API_TOKEN",
       "DEPLOY_WEBHOOK_SECRET",
       "GMAIL_SERVICE_ACCOUNT_JSON",
-      "SMTP_PASSWORD",
-      "SITE_PASSWORD",
+        "SITE_PASSWORD",
       "GATE_BYPASS_KEY",
       "SANITY_DEPLOY_TOKEN",
       "UNIFI_SITE_MANAGER_API_KEY",
@@ -132,7 +134,7 @@ export const APP_SECRETS = {
   },
 };
 
-/** Every SM secret name some app uses, in manifest order (for the local file). */
+/** Every SM secret name some app uses, in manifest order (what local loads). */
 export function localSecretNames() {
   const names = [];
   for (const app of Object.keys(APP_SECRETS)) {
@@ -156,16 +158,19 @@ export function smNameFor(app, runtimeKey) {
   return appSecrets(app).rename[runtimeKey] || runtimeKey;
 }
 
+/** Owning project of an SM name (NAME or NAME__ENV). */
 export function ownerOf(smName) {
+  const { name } = parseSecretKey(smName);
   for (const [project, names] of Object.entries(SECRET_OWNERS)) {
-    if (names.includes(smName)) return project;
+    if (names.includes(name)) return project;
   }
   return null;
 }
 
 export function normalizeSecretEnv(value) {
   const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "development" || raw === "dev") return "local";
+  // A developer's machine is dev.
+  if (raw === "local" || raw === "development") return "dev";
   if (raw === "prod") return "production";
   if (!SECRET_ENVS.includes(raw)) {
     throw new Error(`Unknown env "${value}". Use one of: ${SECRET_ENVS.join(", ")}.`);
@@ -188,23 +193,28 @@ export function envSecretKey(name, env) {
 }
 
 /**
- * Collapse raw SM keys for one env: `NAME__ENV` beats `NAME`.
- * Overrides for other envs are dropped.
+ * Collapse raw SM keys for one env: NAME gets `NAME__ENV`, else `NAME`.
+ * Suffixed names stay available as themselves, for the rare reader that
+ * asks for another env's value by name.
  * @param {Map<string, string>} raw
  * @param {string} env
- * @returns {Map<string, string>} base name → value
+ * @returns {Map<string, string>}
  */
 export function resolveSecretsForEnv(raw, env) {
   const target = normalizeSecretEnv(env);
   const shared = new Map();
+  const suffixed = new Map();
   const overrides = new Map();
   for (const [key, value] of raw) {
     if (!String(value ?? "").trim()) continue;
     const parsed = parseSecretKey(key);
     if (parsed.env === null) shared.set(parsed.name, value);
-    else if (parsed.env === target) overrides.set(parsed.name, value);
+    else {
+      suffixed.set(key, value);
+      if (parsed.env === target) overrides.set(parsed.name, value);
+    }
   }
-  return new Map([...shared, ...overrides]);
+  return new Map([...suffixed, ...shared, ...overrides]);
 }
 
 /**
@@ -287,7 +297,7 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
   const token = accessToken || resolveSmAccessToken();
   if (!token) {
     throw new Error(
-      "Missing Secrets Manager access token. Set ARK_LOCAL_BW_TOKEN in .env (local) or BWS_ACCESS_TOKEN (CI).",
+      `Missing Secrets Manager access token. ${SM_TOKEN_HINT}`,
     );
   }
   const server = (
@@ -316,12 +326,16 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
   }
 }
 
+export const SM_TOKEN_HINT =
+  "Run bw-unlock (the token is ARK_LOCAL_BW_TOKEN in the vault note ark/.env.local); CI sets BWS_ACCESS_TOKEN.";
+
+/** Shell token first (CI, or an explicit override), else the unlocked vault. */
 export function resolveSmAccessToken(env = process.env) {
   return (
     env.BWS_ACCESS_TOKEN?.trim() ||
     env.ARK_LOCAL_BW_TOKEN?.trim() ||
     env.ARK_CI_BW_TOKEN?.trim() ||
-    ""
+    (env.CI ? "" : vaultSmAccessToken())
   );
 }
 
@@ -393,6 +407,7 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
 
   const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
   const existing = entries.get(trimmedKey);
+  clearSecretsCache();
   if (existing?.id) {
     if (existing.value === trimmedValue) return "unchanged";
     const args = ["secret", "edit", existing.id, "--value", trimmedValue];
@@ -413,6 +428,7 @@ export function deleteSmSecretByKey({ key, accessToken, serverUrl } = {}) {
   for (const projectId of Object.values(resolveProjectIds())) {
     const existing = listSmSecretEntries({ accessToken, serverUrl, projectId }).get(trimmedKey);
     if (!existing?.id) continue;
+    clearSecretsCache();
     runBws(["secret", "delete", existing.id], { accessToken, serverUrl });
     return true;
   }

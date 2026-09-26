@@ -13,7 +13,8 @@ import {
   resolveFormSubmissionsTableId,
   resolveSubscribeTableId,
 } from "./baserow.js";
-import { gmailAccessToken, gmailSender, isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
+import { gmailAccessToken, isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
+import { NOTIFICATIONS_FROM } from "../../../../shared/mail-from.js";
 import { runFormSmoke } from "./form-smoke.js";
 import { sanityDatasetForEnv, sanityQuery } from "./sanity-query.js";
 
@@ -48,7 +49,7 @@ export const CHECKS = {
   },
   async opsArtists(env) {
     const opsEnv = opsArtistEnv(env);
-    if (!opsEnv) throw new Error("BASEROW_OPS_API_KEY / BASEROW_OPS_DATABASE_ID not set.");
+    if (!opsEnv) throw new Error("BASEROW_OPS_API_KEY not set.");
     const artists = await listArtists(opsEnv);
     return `${artists.length} artists`;
   },
@@ -66,7 +67,7 @@ export async function checkEmail(env, { send = false, label = "", deps = {} } = 
     return "Gmail login works (no email sent)";
   }
   const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
-  const from = gmailSender(env);
+  const from = NOTIFICATIONS_FROM;
   await (deps.send ?? sendGmail)(env, {
     from,
     to,

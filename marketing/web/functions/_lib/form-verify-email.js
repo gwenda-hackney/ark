@@ -1,5 +1,6 @@
 import { resolveFormFrom, resolveFormReplyTo } from "../../../../shared/forms/form-email.js";
 import { isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
+import { MAIL_SENDER } from "../../../../shared/mail-from.js";
 import { reportFormError } from "../../../../shared/forms/form-alert.js";
 import { createLogger } from "../../../../shared/log.js";
 import {
@@ -233,10 +234,9 @@ export async function sendFormVerifyEmail(
       return { ok: true, dryRun: true, verifyUrl };
     }
     await reportFormError(env, "form_verify_email_skipped", {
-      reason: "smtp_not_configured",
+      reason: "email_not_configured",
       hasFrom: Boolean(from),
       hasTo: Boolean(to),
-      hasSender: Boolean(env.SMTP_USER?.trim()),
       hasServiceAccount: Boolean(env.GMAIL_SERVICE_ACCOUNT_JSON?.trim()),
       slug: form?.slug ?? "",
     });
@@ -271,7 +271,7 @@ export async function sendFormVerifyEmail(
       error: message,
       from,
       to,
-      sender: env.SMTP_USER?.trim() ?? "",
+      sender: MAIL_SENDER,
       slug: form?.slug ?? "",
     });
     return { ok: false, error: message };
