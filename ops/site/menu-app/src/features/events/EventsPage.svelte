@@ -222,6 +222,8 @@
 	let replacing = $state(false);
 	let current = $state<OpsEvent | null>(null);
 	let attachSeriesId = $state("");
+	/** Series to pick when the next new-event form opens ("Add night" on a series). */
+	let presetSeriesId = "";
 
 	let listOrigin = $state<"series" | "schedule">("series");
 	const route = $derived(parseShellPath(path));
@@ -230,9 +232,11 @@
 		(route as { list?: string }).list === "schedule" ? "schedule" : (route as { list?: string }).list === "series" ? "series" : null,
 	);
 	const creatingNight = $derived(route.isNew && Boolean(attachSeriesId));
-	const creatingOnce = $derived(
+	/** "New event" (Schedule): a night for a series, or a special event without one. */
+	const newEventRoute = $derived(
 		route.isNew && (route as { kind?: string }).kind === "once",
 	);
+	const creatingOnce = $derived(newEventRoute && !attachSeriesId);
 	const seriesOptions = $derived(
 		events
 			.filter((event) => event.repeatUnit !== "once")
@@ -631,7 +635,9 @@
 				: "/events/new";
 		const hrefFor = (id: string) => eventTabPath(base, id);
 		if (creatingNight) {
-			return [{ id: "details", label: "Details", href: hrefFor("details") }];
+			return [
+				{ id: "details", label: "Details", href: newEventRoute ? "/events/new/once" : hrefFor("details") },
+			];
 		}
 		if (creatingOnce) {
 			return [{ id: "details", label: "Details", href: "/events/new/once" }];
@@ -897,15 +903,22 @@
 		startTime = "";
 		endTime = "";
 		repeatEvery = "1";
-		repeatUnit = creatingOnce ? "once" : "none";
+		repeatUnit = newEventRoute ? "once" : "none";
 		weekdays = [];
 		monthDay = "";
 		endsOn = "";
 		replacesSeries = "";
-		attachSeriesId = "";
+		attachSeriesId = presetSeriesId;
+		presetSeriesId = "";
 		warnings = [];
 		heroCrops = null;
 		defaultsUnlocked = false;
+	}
+
+	/** "Add night" on a series: the New event form with this series picked. */
+	function addNightToSeries() {
+		presetSeriesId = eventId;
+		navigate("/events/new/once");
 	}
 
 	function addNightSlot() {
@@ -1159,7 +1172,7 @@
 	$effect(() => {
 		if (!editing) return;
 		const canonical = route.isNew
-			? eventNewPath(route.tab || "details", { once: creatingOnce })
+			? eventNewPath(route.tab || "details", { once: newEventRoute })
 			: route.slug
 				? eventItemPath(route.slug, route.tab || "details")
 				: "";
@@ -1174,7 +1187,7 @@
 						.filter(Boolean)
 						.join(" · ")
 				: name.trim() ||
-					(route.isNew ? (creatingOnce ? "New event" : "New series") : "Event");
+					(route.isNew ? (creatingNight ? "New night" : creatingOnce ? "New event" : "New series") : "Event");
 		setCrumbLeaf(label);
 		return () => setCrumbLeaf("");
 	});
@@ -1892,7 +1905,7 @@
 							{#snippet icon()}
 								<Icon name="plus" size={16} />
 							{/snippet}
-							Special event
+							New event
 						</Button>
 					{/if}
 				{/snippet}
@@ -2028,6 +2041,21 @@
 									</Button>
 									<span class="tool-sep" aria-hidden="true"></span>
 								{/if}
+								{#if eventId && !route.isNew && !editingOccurrence && !editingOnce}
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										disabled={busy}
+										title="Add a night to this series."
+										onclick={addNightToSeries}
+									>
+										{#snippet icon()}
+											<Icon name="plus" size={16} />
+										{/snippet}
+										Add night
+									</Button>
+								{/if}
 								{#if eventId && !route.isNew}
 									<Button
 										variant="outline"
@@ -2152,7 +2180,9 @@
 							</div>
 						{:else if creatingOnce}
 							<div class="create-mode">
-								<p class="create-hint muted">A special event. It does not belong to a series.</p>
+								<p class="create-hint muted">
+									Pick a series below to add a night to it, or leave it on "No series" for a special event.
+								</p>
 							</div>
 						{:else if !editingOnce}
 							<p class="head-note">Series defaults, shared by its nights.</p>
@@ -2193,15 +2223,17 @@
 												<div
 													class="control-grid"
 													class:has-slots={!editingOccurrence}
-													class:with-series={route.isNew && !creatingOnce}
+													class:with-series={route.isNew}
 													class:with-date={editingOccurrence || creatingNight || creatingOnce || editingOnce}
 												>
-													{#if route.isNew && !creatingOnce}
+													{#if route.isNew}
 														<Field
 															class="series"
 															label="Series"
 															for="event-series"
-															tooltip="Choose an existing series to add this night, or leave empty to create a new series."
+															tooltip={newEventRoute
+																? "Choose a series to add a night to it, or No series for a special event."
+																: "Choose an existing series to add this night, or leave empty to create a new series."}
 														>
 															<NativeSelect
 																id="event-series"
@@ -2210,7 +2242,7 @@
 																options={[
 																	{
 																		value: "",
-																		label: "New series",
+																		label: newEventRoute ? "No series (special event)" : "New series",
 																	},
 																	...seriesOptions,
 																]}
