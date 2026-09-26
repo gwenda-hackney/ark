@@ -42,6 +42,7 @@ export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   "id": slug.current,
   title,
   schedule,
+  datesPending,
   recurrence,
   replacesSeriesId,
   shortDescription,

@@ -154,7 +154,9 @@ function windowEnd(today, endsOn, horizonDays) {
 export function expandOccurrenceDates(rule, { today, horizonDays = HORIZON_DAYS } = {}) {
   const start = parseIsoDate(rule?.startsOn);
   const todayDate = parseIsoDate(today) || parseIsoDate(todayIso());
-  if (!start || !todayDate) return [];
+  if (!todayDate) return [];
+  // No start date yet: only nights added by hand.
+  if (!start) return finalizeDates([], rule, { from: formatIsoDate(todayDate) });
 
   const unit = String(rule?.repeatUnit || "none").trim().toLowerCase();
   const endsOn = parseIsoDate(rule?.endsOn);

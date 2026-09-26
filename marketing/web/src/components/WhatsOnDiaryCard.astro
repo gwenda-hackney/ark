@@ -2,6 +2,7 @@
 import EventImageCaption from "./EventImageCaption.astro";
 import EventNightSchedule from "./EventNightSchedule.astro";
 import EventPageLink from "./EventPageLink.astro";
+import FollowUpdatesLink from "./FollowUpdatesLink.astro";
 import {
   eventDescriptionParagraphs,
   eventPageLink,
@@ -9,7 +10,10 @@ import {
   formatEventRecurrence,
   formatEventSpan,
 } from "../data/events";
-import { formatShortEventDate } from "../../functions/_lib/event-series.js";
+import {
+  formatShortEventDate,
+  seriesCardNextLine,
+} from "../../functions/_lib/event-series.js";
 
 type DiaryEvent = {
   title?: string;
@@ -18,6 +22,7 @@ type DiaryEvent = {
   regular?: boolean;
   schedule?: string;
   scheduleLabel?: string;
+  datesPending?: boolean;
   recurrence?: string;
   date?: string;
   startTime?: string;
@@ -55,8 +60,11 @@ const { event, image = null, eager = false } = Astro.props as Props;
 const regular = Boolean(event.regular);
 const href = String(event.href || "").trim() || "/whats-on";
 const external = eventPageLink(event.pageUrl);
-const Card = external ? "div" : "a";
-const cardClass = `event-card event-card--series${external ? " event-card--linked" : ""}${regular ? " event-card--regular" : ""}`;
+const datesPending = Boolean(event.datesPending);
+// A link inside the card: the card becomes a div with a hit area behind it.
+const linked = Boolean(external) || datesPending;
+const Card = linked ? "div" : "a";
+const cardClass = `event-card event-card--series${linked ? " event-card--linked" : ""}${regular ? " event-card--regular" : ""}`;
 const cardLabel = [
   event.title,
   event.imageCaptionName ? `Hosting ${event.imageCaptionName}` : "",
@@ -73,16 +81,19 @@ const whenLabel = regular
       String(event.scheduleLabel || event.recurrence || "").trim(),
     )
   : String(event.scheduleLabel || "").trim();
-const span = formatEventSpan(event.startTime, event.endTime, event.time);
+const nextLine = seriesCardNextLine(
+  event,
+  formatEventSpan(event.startTime, event.endTime, event.time),
+);
 ---
 
 <Card
   class={cardClass}
-  href={external ? undefined : href}
-  aria-label={external ? undefined : cardLabel}
+  href={linked ? undefined : href}
+  aria-label={linked ? undefined : cardLabel}
 >
   {
-    external ? (
+    linked ? (
       <a class="event-card-hit" href={href} aria-label={cardLabel} />
     ) : null
   }
@@ -125,7 +136,7 @@ const span = formatEventSpan(event.startTime, event.endTime, event.time);
           <time datetime={event.date}>{formatEventDiaryDate(event.date || "")}</time>
         )
       }
-      {span ? <span class="event-time">{span}</span> : null}
+      {nextLine ? <span class="event-time">{nextLine}</span> : null}
     </p>
     <h2 class="event-title">{event.title}</h2>
     {
@@ -187,6 +198,7 @@ const span = formatEventSpan(event.startTime, event.endTime, event.time);
       ) : null
     }
     <EventPageLink url={event.pageUrl} />
+    {datesPending ? <FollowUpdatesLink /> : null}
     {
       event.thisWeekName || event.upcomingName || (event.nightCount || 0) > 1 ? (
         <div class="event-follow">

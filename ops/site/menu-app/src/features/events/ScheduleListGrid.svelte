@@ -11,7 +11,6 @@
 	import PhotoCell from "../menu/cells/PhotoCell.svelte";
 	import EventStackCell from "./cells/EventStackCell.svelte";
 	import EventStatusCell from "./cells/EventStatusCell.svelte";
-	import EventWhenCell from "./cells/EventWhenCell.svelte";
 	import WeekHeadingCell from "./cells/WeekHeadingCell.svelte";
 
 	export type ScheduleTableRow =
@@ -33,34 +32,25 @@
 
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
+	function whenLabel(row: { weekday: string; dayDate: string }) {
+		return [row.weekday, row.dayDate].filter(Boolean).join(" · ");
+	}
+
 	const columnDefs = $derived.by((): ColDef<ScheduleTableRow>[] => {
 		const compact = phone.matches;
 		return [
 			{
-				headerName: "When",
-				colId: "when",
-				width: 132,
-				minWidth: 96,
-				flex: 0,
-				sortable: false,
-				valueGetter: (p) => (p.data?.kind === "night" ? p.data.weekday : ""),
-				cellRenderer: svelteCell(EventWhenCell, (params: ICellRendererParams<ScheduleTableRow>) => ({
-					primary: params.data?.kind === "night" ? params.data.weekday : "",
-					secondary: params.data?.kind === "night" ? params.data.dayDate : "",
-				})),
-			},
-			{
 				headerName: "",
 				colId: "photo",
-				width: 64,
-				minWidth: 56,
+				width: 84,
+				minWidth: 72,
 				flex: 0,
 				sortable: false,
 				cellClass: "photo-cell",
 				cellRenderer: svelteCell(PhotoCell, (params: ICellRendererParams<ScheduleTableRow>) => ({
 					url: params.data?.kind === "night" ? params.data.photo : "",
 					alt: "",
-					size: "md",
+					size: "lg",
 				})),
 			},
 			{
@@ -71,8 +61,9 @@
 				sortable: false,
 				valueGetter: (p) => (p.data?.kind === "night" ? p.data.name : ""),
 				tooltipValueGetter: (p) =>
-					p.data?.kind === "night" ? [p.data.name, p.data.meta].filter(Boolean).join("\n") : "",
+					p.data?.kind === "night" ? [whenLabel(p.data), p.data.name, p.data.meta].filter(Boolean).join("\n") : "",
 				cellRenderer: svelteCell(EventStackCell, (params: ICellRendererParams<ScheduleTableRow>) => ({
+					eyebrow: params.data?.kind === "night" ? whenLabel(params.data) : "",
 					title: params.data?.kind === "night" ? params.data.name : "",
 					subtitle: params.data?.kind === "night" ? params.data.meta : "",
 					href: params.data?.kind === "night" ? params.data.href : "",
@@ -115,8 +106,8 @@
 		getRowId={(row) => row.id}
 		domLayout="normal"
 		gridOptions={{
-			rowHeight: 56,
-			getRowHeight: (params) => (params.data?.kind === "week" ? 52 : 56),
+			rowHeight: 80,
+			getRowHeight: (params) => (params.data?.kind === "week" ? 52 : 80),
 			isFullWidthRow: (params) => params.rowNode.data?.kind === "week",
 			fullWidthCellRenderer: svelteCell(
 				WeekHeadingCell,

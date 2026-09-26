@@ -96,6 +96,7 @@ type SanitySeries = {
   schedule?: string | null;
   recurrence?: string | null;
   replacesSeriesId?: string | null;
+  datesPending?: boolean | null;
   shortDescription?: string | null;
   nightSchedule?: SanityEvent["nightSchedule"];
   description?: string | PortableTextBlock[] | null;
@@ -115,6 +116,7 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
           ? "once"
           : "manual",
     replacesSeriesId: String(doc.replacesSeriesId || "").trim(),
+    datesPending: doc.datesPending === true,
     recurrence: doc.recurrence?.trim() || "",
     shortDescription: doc.shortDescription?.trim() || "",
     nightSchedule: mapNightSchedule(doc.nightSchedule),

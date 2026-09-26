@@ -7,6 +7,7 @@ import {
   isRecurringSeries,
   nightPublicDescription,
   parseOccurrenceSlug,
+  seriesCardNextLine,
   seriesMarketingCopy,
   seriesUsesRichDetail,
 } from "./event-series.js";
@@ -979,5 +980,117 @@ describe("parseOccurrenceSlug", () => {
       seriesId: "negroni-night",
       date: "2026-09-29",
     });
+  });
+});
+
+describe("series with no dates yet", () => {
+  const pending = {
+    seriesId: "vinyl-club",
+    title: "Vinyl Club",
+    description: "Records from the bar's own shelves.",
+    schedule: "manual",
+    datesPending: true,
+  };
+
+  it("lists it on What's on with Check back soon for the next date", () => {
+    const stack = buildWhatsOnStack([], { now, series: [pending] });
+    expect(stack).toHaveLength(1);
+    expect(stack[0]).toMatchObject({
+      seriesId: "vinyl-club",
+      scheduleLabel: "Dates to be announced",
+      datesPending: true,
+      date: "",
+      href: "/whats-on/vinyl-club",
+    });
+    expect(seriesCardNextLine(stack[0], "19:00–late")).toBe(
+      "Check back soon for the next date",
+    );
+  });
+
+  it("keeps a weekly series' day before its start date is set", () => {
+    const stack = buildWhatsOnStack([], {
+      now,
+      series: [
+        pending,
+        {
+          seriesId: "jazz",
+          title: "Jazz",
+          schedule: "repeating",
+          recurrence: "Every Wednesday",
+          datesPending: true,
+        },
+      ],
+    });
+    expect(stack.map((card) => card.seriesId)).toEqual(["jazz", "vinyl-club"]);
+    expect(stack[0]).toMatchObject({
+      scheduleLabel: "Every Wednesday",
+      datesPending: true,
+      regular: true,
+    });
+    expect(seriesCardNextLine(stack[0])).toBe(
+      "Check back soon for the next date",
+    );
+  });
+
+  it("leaves out a series with no dates that is not waiting for any", () => {
+    const { datesPending: _flag, ...ended } = pending;
+    expect(buildWhatsOnStack([], { now, series: [ended] })).toEqual([]);
+    expect(buildSeriesDetail([], "vinyl-club", { now, series: [ended] })).toBe(
+      null,
+    );
+  });
+
+  it("gives it a series page with no nights", () => {
+    const detail = buildSeriesDetail([], "vinyl-club", {
+      now,
+      series: [pending],
+    });
+    expect(detail).toMatchObject({
+      title: "Vinyl Club",
+      datesPending: true,
+      scheduleLabel: "Dates to be announced",
+      description: "Records from the bar's own shelves.",
+      nights: [],
+      upcomingDates: [],
+    });
+  });
+
+  it("shows the nights once one is published", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "vinyl-club-2026-10-03",
+          seriesId: "vinyl-club",
+          seriesTitle: "Vinyl Club",
+          title: "Vinyl Club",
+          date: "2026-10-03",
+        }),
+      ],
+      { now, series: [pending] },
+    );
+    expect(stack).toHaveLength(1);
+    expect(stack[0].datesPending).toBe(false);
+    expect(stack[0].scheduleLabel).toBe("Saturdays");
+    expect(stack[0].date).toBe("2026-10-03");
+  });
+});
+
+describe("seriesCardNextLine", () => {
+  it("names the next night with its times", () => {
+    expect(
+      seriesCardNextLine(
+        { schedule: "repeating", date: "2026-09-30" },
+        "19:00–late",
+      ),
+    ).toBe("Next: Wed 30 Sep · 19:00–late");
+    expect(seriesCardNextLine({ schedule: "manual", date: "2026-10-03" })).toBe(
+      "Next: Sat 3 Oct",
+    );
+  });
+
+  it("leaves a one-off's date to its label", () => {
+    expect(
+      seriesCardNextLine({ schedule: "once", date: "2026-10-31" }, "20:00"),
+    ).toBe("20:00");
   });
 });

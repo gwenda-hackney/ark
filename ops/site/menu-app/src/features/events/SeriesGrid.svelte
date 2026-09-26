@@ -11,7 +11,6 @@
 	import PhotoCell from "../menu/cells/PhotoCell.svelte";
 	import EventStackCell from "./cells/EventStackCell.svelte";
 	import EventStatusCell from "./cells/EventStatusCell.svelte";
-	import EventWhenCell from "./cells/EventWhenCell.svelte";
 
 	export type SeriesTableRow = {
 		id: string;
@@ -35,60 +34,37 @@
 
 	const columnDefs = $derived.by((): ColDef<SeriesTableRow>[] => {
 		const compact = phone.matches;
-		const text = (headerName: string, field: keyof SeriesTableRow, flex: number, minWidth: number): ColDef<SeriesTableRow> => ({
-			headerName,
-			field,
-			flex,
-			minWidth,
-			sortable: false,
-			tooltipValueGetter: (p) => String(p.value || ""),
-		});
 		return [
-			{
-				headerName: "When",
-				colId: "when",
-				width: 132,
-				minWidth: 96,
-				flex: 0,
-				sortable: false,
-				valueGetter: (p) => p.data?.when || "",
-				cellRenderer: svelteCell(EventWhenCell, (params: ICellRendererParams<SeriesTableRow>) => ({
-					primary: params.data?.when || "",
-				})),
-			},
 			{
 				headerName: "",
 				colId: "photo",
-				width: 64,
-				minWidth: 56,
+				width: 84,
+				minWidth: 72,
 				flex: 0,
 				sortable: false,
 				cellClass: "photo-cell",
 				cellRenderer: svelteCell(PhotoCell, (params: ICellRendererParams<SeriesTableRow>) => ({
 					url: params.data?.photo || "",
 					alt: "",
-					size: "md",
+					size: "lg",
 				})),
 			},
 			{
 				headerName: "Series",
 				colId: "name",
-				flex: 1.5,
-				minWidth: 160,
+				flex: 1,
+				minWidth: 180,
 				sortable: false,
 				valueGetter: (p) => p.data?.name || "",
 				tooltipValueGetter: (p) =>
-					[p.data?.name, compact ? p.data?.detail : p.data?.blurb].filter(Boolean).join("\n"),
+					[p.data?.when, p.data?.name, p.data?.blurb, p.data?.detail].filter(Boolean).join("\n"),
 				cellRenderer: svelteCell(EventStackCell, (params: ICellRendererParams<SeriesTableRow>) => ({
+					eyebrow: params.data?.when || "",
 					title: params.data?.name || "",
-					subtitle: compact ? params.data?.detail || "" : params.data?.blurb || "",
+					subtitle: params.data?.detail || "",
 					href: params.data?.href || "",
 				})),
 			},
-			{ ...text("Time", "time", 0.7, 96), hide: compact },
-			{ ...text("Guest", "guest", 0.8, 110), hide: compact },
-			{ ...text("Next", "next", 1.1, 140), hide: compact },
-			{ ...text("Offer", "offer", 0.9, 110), hide: compact },
 			{
 				headerName: "Status",
 				colId: "status",
@@ -126,7 +102,7 @@
 		getRowId={(row) => row.id}
 		domLayout="normal"
 		gridOptions={{
-			rowHeight: 56,
+			rowHeight: 80,
 			onRowClicked: openRow,
 		}}
 	/>

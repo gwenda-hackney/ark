@@ -3,6 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import EventImageCaption from "../../components/EventImageCaption.astro";
 import EventNightSchedule from "../../components/EventNightSchedule.astro";
 import EventPageLink from "../../components/EventPageLink.astro";
+import FollowUpdatesLink from "../../components/FollowUpdatesLink.astro";
 import Subpage from "../../components/Subpage.astro";
 import { siteConfig } from "../../config/site";
 import {
@@ -15,6 +16,7 @@ import {
 import {
   buildSeriesDetail,
   buildSeriesList,
+  DATES_PENDING_LABEL,
 } from "../../../functions/_lib/event-series.js";
 import { EVENT_FEED_PAGE_SIZE } from "../../../functions/_lib/event-feed.js";
 import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
@@ -48,6 +50,7 @@ const pageDescription =
   detail.description.split(/\n{2,}/)[0]?.slice(0, 155) ||
   siteConfig.seo.whatsOn.description;
 const richDetail = Boolean(detail.richDetail);
+const datesPending = Boolean(detail.datesPending);
 const featuredGuest = detail.featuredGuest;
 const mainDescription = featuredGuest?.description || detail.description;
 const mainArtist = featuredGuest?.artist || "";
@@ -182,6 +185,15 @@ function eventImageUrl(
               </div>
             ) : null}
           </article>
+        </section>
+      ) : null
+    }
+
+    {
+      datesPending ? (
+        <section class="events-empty whats-on-series-pending">
+          <h2>{DATES_PENDING_LABEL}</h2>
+          <FollowUpdatesLink />
         </section>
       ) : null
     }

@@ -1,3 +1,4 @@
+import { expandSeriesOccurrenceDates, todayIso } from "./event-recurrence.js";
 import { itemSlug } from "./item-key.js";
 import {
   parseNightSchedule,
@@ -28,6 +29,17 @@ export function seriesScheduleMode(event) {
     .toLowerCase();
   if (unit === "once") return "once";
   return unit && unit !== "none" ? "repeating" : "manual";
+}
+
+/**
+ * No start date and no nights ahead: saved before its first night, or its
+ * start date cleared. A weekly series can already say "Every Wednesday".
+ * The website lists it with "Check back soon for the next date".
+ */
+export function seriesAwaitingDates(event, today = todayIso()) {
+  if (seriesScheduleMode(event) === "once") return false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(event?.startsOn || "").trim())) return false;
+  return !expandSeriesOccurrenceDates(event).some((date) => date >= today);
 }
 
 export function plainToEventDescription(text) {
@@ -348,6 +360,7 @@ export function sanitySeriesDocument({
   replacesSeriesId,
   nightSchedule,
   heroImage,
+  datesPending = false,
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -363,6 +376,7 @@ export function sanitySeriesDocument({
     description: plainToEventDescription(description),
     nightSchedule: toSanityNightSchedule(nightSchedule),
   };
+  if (datesPending) doc.datesPending = true;
   if (heroImage) doc.heroImage = heroImage;
   return doc;
 }
