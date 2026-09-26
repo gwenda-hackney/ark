@@ -273,8 +273,12 @@ describe("home next night", () => {
     });
     const meta = document.querySelector(".what-we-do-next-meta");
     expect(meta?.textContent).toBe("Mon 28 Sep");
-    expect(meta?.querySelector("time")?.getAttribute("datetime")).toBe("2026-09-28");
-    expect(document.querySelector(".what-we-do-cta")?.nextElementSibling).toBeNull();
+    expect(meta?.querySelector("time")?.getAttribute("datetime")).toBe(
+      "2026-09-28",
+    );
+    expect(
+      document.querySelector(".what-we-do-cta")?.nextElementSibling,
+    ).toBeNull();
   });
 
   it("clears the night line when nothing is still ahead", () => {
@@ -285,8 +289,12 @@ describe("home next night", () => {
       </article>
     `;
     applyHomeNext(document.querySelector("[data-home-next]"), null);
-    expect(document.querySelector(".what-we-do-next-name")?.textContent).toBe("");
-    expect(document.querySelector(".what-we-do-next-meta")?.textContent).toBe("");
+    expect(document.querySelector(".what-we-do-next-name")?.textContent).toBe(
+      "",
+    );
+    expect(document.querySelector(".what-we-do-next-meta")?.textContent).toBe(
+      "",
+    );
   });
 
   it("shows the artist's months on the second line", () => {

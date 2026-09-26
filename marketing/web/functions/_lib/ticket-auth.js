@@ -14,11 +14,7 @@ function bufferToBase64Url(buf) {
 
 /** Reuses a secret already configured for another purpose, so no new setup is required. */
 function ticketSecret(env) {
-  return (
-    env?.TICKET_SECRET?.trim() ||
-    env?.SUBSCRIBE_SECRET?.trim() ||
-    ""
-  );
+  return env?.TICKET_SECRET?.trim() || env?.SUBSCRIBE_SECRET?.trim() || "";
 }
 
 async function signTicket(secret, slug, rowId) {
@@ -46,7 +42,8 @@ export async function createTicketToken(env, slug, rowId) {
 }
 
 function matchesToken(provided, expected) {
-  if (!provided || !expected || provided.length !== expected.length) return false;
+  if (!provided || !expected || provided.length !== expected.length)
+    return false;
   let diff = 0;
   for (let i = 0; i < provided.length; i++) {
     diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
@@ -66,7 +63,9 @@ export async function buildTicketUrl(origin, env, slug, rowId) {
   const token = await createTicketToken(env, slug, rowId);
   if (!token) return null;
   const base = String(origin || "https://gwenda.co.uk").replace(/\/$/, "");
-  const url = new URL(`${base}/events/${encodeURIComponent(slug.trim())}/ticket`);
+  const url = new URL(
+    `${base}/events/${encodeURIComponent(slug.trim())}/ticket`,
+  );
   url.searchParams.set("guest", String(rowId));
   url.searchParams.set("t", token);
   return url.toString();

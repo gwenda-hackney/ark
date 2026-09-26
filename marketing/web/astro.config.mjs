@@ -26,7 +26,11 @@ const sitePassword = env.SITE_PASSWORD;
 // Fail before serving, not on the first form email.
 if (process.argv.includes("dev")) {
   const missing = missingLocalSettings(
-    { ...env, ...process.env, SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local" },
+    {
+      ...env,
+      ...process.env,
+      SITE_ENV: process.env.SITE_ENV || env.SITE_ENV || "local",
+    },
     { services: ["web"] },
   );
   if (missing.length) {
@@ -76,7 +80,8 @@ const rsvpEnv = () => ({
   TICKET_SECRET: process.env.TICKET_SECRET || env.TICKET_SECRET,
   SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
-  SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "production",
+  SANITY_DATASET:
+    process.env.SANITY_DATASET || env.SANITY_DATASET || "production",
   SANITY_API_TOKEN: process.env.SANITY_API_TOKEN || env.SANITY_API_TOKEN,
   SANITY_PERSPECTIVE: localSanityPerspective(),
   INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
@@ -483,90 +488,99 @@ function devTicketApi() {
   return {
     name: "dev-ticket-api",
     configureServer(server) {
-      server.middlewares.use("/api/ticket/pass", caught("dev ticket pass api", async (req, res, next) => {
-        if (req.method !== "GET") return next();
-        const { result } = await resolveTicketFromRequest(server, req);
-        if (!result.ok) {
-          sendJson(res, result.status, { error: result.error });
-          return;
-        }
-        const { event, guest, ticketId } = result;
-        const { buildAppleWalletPass, ticketAttachmentBaseName } =
-          await server.ssrLoadModule("/functions/_lib/rsvp-tickets.js");
-        const pass = await buildAppleWalletPass(rsvpEnv(), {
-          ticketId,
-          title: event.title,
-          date: event.date,
-          startTime: event.ticketStart,
-          endTime: event.ticketEnd,
-          venue: event.venue,
-          guestName: guest.name,
-          guests: guest.rsvpGuests,
-          heroImageUrl: event.heroImageUrl,
-        });
-        if (!pass) {
-          sendJson(res, 503, {
-            error: "Apple Wallet isn't set up for this event yet.",
+      server.middlewares.use(
+        "/api/ticket/pass",
+        caught("dev ticket pass api", async (req, res, next) => {
+          if (req.method !== "GET") return next();
+          const { result } = await resolveTicketFromRequest(server, req);
+          if (!result.ok) {
+            sendJson(res, result.status, { error: result.error });
+            return;
+          }
+          const { event, guest, ticketId } = result;
+          const { buildAppleWalletPass, ticketAttachmentBaseName } =
+            await server.ssrLoadModule("/functions/_lib/rsvp-tickets.js");
+          const pass = await buildAppleWalletPass(rsvpEnv(), {
+            ticketId,
+            title: event.title,
+            date: event.date,
+            startTime: event.ticketStart,
+            endTime: event.ticketEnd,
+            venue: event.venue,
+            guestName: guest.name,
+            guests: guest.rsvpGuests,
+            heroImageUrl: event.heroImageUrl,
           });
-          return;
-        }
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "application/vnd.apple.pkpass");
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename="${ticketAttachmentBaseName(event.slug)}.pkpass"`,
-        );
-        res.end(pass);
-      }));
+          if (!pass) {
+            sendJson(res, 503, {
+              error: "Apple Wallet isn't set up for this event yet.",
+            });
+            return;
+          }
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/vnd.apple.pkpass");
+          res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${ticketAttachmentBaseName(event.slug)}.pkpass"`,
+          );
+          res.end(pass);
+        }),
+      );
 
-      server.middlewares.use("/api/ticket/calendar", caught("dev ticket calendar api", async (req, res, next) => {
-        if (req.method !== "GET") return next();
-        const { result } = await resolveTicketFromRequest(server, req);
-        if (!result.ok) {
-          sendJson(res, result.status, { error: result.error });
-          return;
-        }
-        const { event, guest, ticketId } = result;
-        const { buildCalendarTicket, ticketAttachmentBaseName } =
-          await server.ssrLoadModule("/functions/_lib/rsvp-tickets.js");
-        const ics = buildCalendarTicket({
-          ticketId,
-          title: event.title,
-          date: event.date,
-          startTime: event.ticketStart,
-          endTime: event.ticketEnd,
-          venue: event.venue,
-          guestName: guest.name,
-          guests: guest.rsvpGuests,
-          description: event.description,
-        });
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename="${ticketAttachmentBaseName(event.slug)}.ics"`,
-        );
-        res.end(ics);
-      }));
+      server.middlewares.use(
+        "/api/ticket/calendar",
+        caught("dev ticket calendar api", async (req, res, next) => {
+          if (req.method !== "GET") return next();
+          const { result } = await resolveTicketFromRequest(server, req);
+          if (!result.ok) {
+            sendJson(res, result.status, { error: result.error });
+            return;
+          }
+          const { event, guest, ticketId } = result;
+          const { buildCalendarTicket, ticketAttachmentBaseName } =
+            await server.ssrLoadModule("/functions/_lib/rsvp-tickets.js");
+          const ics = buildCalendarTicket({
+            ticketId,
+            title: event.title,
+            date: event.date,
+            startTime: event.ticketStart,
+            endTime: event.ticketEnd,
+            venue: event.venue,
+            guestName: guest.name,
+            guests: guest.rsvpGuests,
+            description: event.description,
+          });
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+          res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${ticketAttachmentBaseName(event.slug)}.ics"`,
+          );
+          res.end(ics);
+        }),
+      );
 
-      server.middlewares.use("/api/ticket", caught("dev ticket api", async (req, res, next) => {
-        if (req.method !== "GET") return next();
-        const { result } = await resolveTicketFromRequest(server, req);
-        if (!result.ok) {
-          sendJson(res, result.status, { error: result.error });
-          return;
-        }
-        const { event, guest, ticketId } = result;
-        const { publicEventFields } = await server.ssrLoadModule(
-          "/functions/_lib/sanity-event.js",
-        );
-        sendJson(res, 200, {
-          ok: true,
-          event: publicEventFields(event),
-          guest: { name: guest.name, guests: guest.rsvpGuests },
-          ticketId,
-        });
-      }));
+      server.middlewares.use(
+        "/api/ticket",
+        caught("dev ticket api", async (req, res, next) => {
+          if (req.method !== "GET") return next();
+          const { result } = await resolveTicketFromRequest(server, req);
+          if (!result.ok) {
+            sendJson(res, result.status, { error: result.error });
+            return;
+          }
+          const { event, guest, ticketId } = result;
+          const { publicEventFields } = await server.ssrLoadModule(
+            "/functions/_lib/sanity-event.js",
+          );
+          sendJson(res, 200, {
+            ok: true,
+            event: publicEventFields(event),
+            guest: { name: guest.name, guests: guest.rsvpGuests },
+            ticketId,
+          });
+        }),
+      );
     },
   };
 }
@@ -576,26 +590,33 @@ function devEventsApi() {
   return {
     name: "dev-events-api",
     configureServer(server) {
-      server.middlewares.use("/api/events", caught("dev events api", async (req, res, next) => {
-        if (req.method !== "GET") {
-          next();
-          return;
-        }
-        const url = new URL(req.url ?? "", "http://localhost");
-        const { fetchPublishedEvents } = await server.ssrLoadModule(
-          "/functions/_lib/sanity-events.js",
-        );
-        const { pageEventFeed } = await server.ssrLoadModule(
-          "/functions/_lib/event-feed.js",
-        );
-        const events = await fetchPublishedEvents(devApiEnv());
-        const page = pageEventFeed(events, {
-          after: url.searchParams.get("after") || "",
-          afterId: url.searchParams.get("afterId") || "",
-          limit: url.searchParams.get("limit") || "",
-        });
-        sendJson(res, 200, { ok: true, events: page.events, next: page.next });
-      }));
+      server.middlewares.use(
+        "/api/events",
+        caught("dev events api", async (req, res, next) => {
+          if (req.method !== "GET") {
+            next();
+            return;
+          }
+          const url = new URL(req.url ?? "", "http://localhost");
+          const { fetchPublishedEvents } = await server.ssrLoadModule(
+            "/functions/_lib/sanity-events.js",
+          );
+          const { pageEventFeed } = await server.ssrLoadModule(
+            "/functions/_lib/event-feed.js",
+          );
+          const events = await fetchPublishedEvents(devApiEnv());
+          const page = pageEventFeed(events, {
+            after: url.searchParams.get("after") || "",
+            afterId: url.searchParams.get("afterId") || "",
+            limit: url.searchParams.get("limit") || "",
+          });
+          sendJson(res, 200, {
+            ok: true,
+            events: page.events,
+            next: page.next,
+          });
+        }),
+      );
     },
   };
 }
@@ -605,53 +626,56 @@ function devWhatsOnApi() {
   return {
     name: "dev-whats-on-api",
     configureServer(server) {
-      server.middlewares.use("/api/whats-on", caught("dev whats-on api", async (req, res, next) => {
-        if (req.method !== "GET") {
-          next();
-          return;
-        }
-        const url = new URL(req.url ?? "/", "http://localhost");
-        // Vite strips the /api/whats-on mount, so list is "/" and detail is "/:series".
-        const path = url.pathname.replace(/^\/+/, "").trim();
-        const { fetchPublishedCatalog } = await server.ssrLoadModule(
-          "/functions/_lib/sanity-events.js",
-        );
-        const { buildPublicSchedule, buildSeriesDetail, buildWhatsOnHome } =
-          await server.ssrLoadModule("/functions/_lib/event-series.js");
-        const { occurrences, series: seriesRecords } =
-          await fetchPublishedCatalog(devApiEnv());
-        if (path === "schedule") {
-          sendJson(res, 200, {
-            ok: true,
-            ...buildPublicSchedule(occurrences, { series: seriesRecords }),
+      server.middlewares.use(
+        "/api/whats-on",
+        caught("dev whats-on api", async (req, res, next) => {
+          if (req.method !== "GET") {
+            next();
+            return;
+          }
+          const url = new URL(req.url ?? "/", "http://localhost");
+          // Vite strips the /api/whats-on mount, so list is "/" and detail is "/:series".
+          const path = url.pathname.replace(/^\/+/, "").trim();
+          const { fetchPublishedCatalog } = await server.ssrLoadModule(
+            "/functions/_lib/sanity-events.js",
+          );
+          const { buildPublicSchedule, buildSeriesDetail, buildWhatsOnHome } =
+            await server.ssrLoadModule("/functions/_lib/event-series.js");
+          const { occurrences, series: seriesRecords } =
+            await fetchPublishedCatalog(devApiEnv());
+          if (path === "schedule") {
+            sendJson(res, 200, {
+              ok: true,
+              ...buildPublicSchedule(occurrences, { series: seriesRecords }),
+            });
+            return;
+          }
+          if (!path) {
+            sendJson(res, 200, {
+              ok: true,
+              ...buildWhatsOnHome(occurrences, {
+                after: url.searchParams.get("after") || "",
+                afterId: url.searchParams.get("afterId") || "",
+                limit: url.searchParams.get("limit") || "",
+                series: seriesRecords,
+              }),
+            });
+            return;
+          }
+          const seriesId = decodeURIComponent(path.split("/")[0] || "").trim();
+          const detail = buildSeriesDetail(occurrences, seriesId, {
+            after: url.searchParams.get("after") || "",
+            afterId: url.searchParams.get("afterId") || "",
+            limit: url.searchParams.get("limit") || "",
+            series: seriesRecords,
           });
-          return;
-        }
-        if (!path) {
-          sendJson(res, 200, {
-            ok: true,
-            ...buildWhatsOnHome(occurrences, {
-              after: url.searchParams.get("after") || "",
-              afterId: url.searchParams.get("afterId") || "",
-              limit: url.searchParams.get("limit") || "",
-              series: seriesRecords,
-            }),
-          });
-          return;
-        }
-        const seriesId = decodeURIComponent(path.split("/")[0] || "").trim();
-        const detail = buildSeriesDetail(occurrences, seriesId, {
-          after: url.searchParams.get("after") || "",
-          afterId: url.searchParams.get("afterId") || "",
-          limit: url.searchParams.get("limit") || "",
-          series: seriesRecords,
-        });
-        if (!detail) {
-          sendJson(res, 404, { error: "Series not found." });
-          return;
-        }
-        sendJson(res, 200, { ok: true, series: detail });
-      }));
+          if (!detail) {
+            sendJson(res, 404, { error: "Series not found." });
+            return;
+          }
+          sendJson(res, 200, { ok: true, series: detail });
+        }),
+      );
     },
   };
 }
@@ -661,27 +685,30 @@ function devFeaturedArtistApi() {
   return {
     name: "dev-featured-artist-api",
     configureServer(server) {
-      server.middlewares.use("/api/featured-artist", caught("dev featured-artist api", async (req, res, next) => {
-        if (req.method !== "GET") {
-          next();
-          return;
-        }
-        const { fetchFeaturedArtists } = await server.ssrLoadModule(
-          "/src/lib/featured-artist.js",
-        );
-        const featured = await fetchFeaturedArtists(devApiEnv());
-        const current = featured.current;
-        sendJson(res, 200, {
-          ok: true,
-          artist: current
-            ? {
-                name: current.name,
-                startMonth: current.startMonth || "",
-                endMonth: current.endMonth || "",
-              }
-            : null,
-        });
-      }));
+      server.middlewares.use(
+        "/api/featured-artist",
+        caught("dev featured-artist api", async (req, res, next) => {
+          if (req.method !== "GET") {
+            next();
+            return;
+          }
+          const { fetchFeaturedArtists } = await server.ssrLoadModule(
+            "/src/lib/featured-artist.js",
+          );
+          const featured = await fetchFeaturedArtists(devApiEnv());
+          const current = featured.current;
+          sendJson(res, 200, {
+            ok: true,
+            artist: current
+              ? {
+                  name: current.name,
+                  startMonth: current.startMonth || "",
+                  endMonth: current.endMonth || "",
+                }
+              : null,
+          });
+        }),
+      );
     },
   };
 }

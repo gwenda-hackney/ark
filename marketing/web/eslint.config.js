@@ -18,7 +18,10 @@ export default tseslint.config(
   {
     // `const { dropped, ...rest } = obj` is the idiom for omitting a key.
     rules: {
-      "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { ignoreRestSiblings: true },
+      ],
     },
   },
   {

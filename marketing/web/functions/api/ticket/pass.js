@@ -1,6 +1,9 @@
 import { jsonResponse, withApiHandler } from "../../_lib/api-handler.js";
 import { resolveTicket } from "../../_lib/ticket.js";
-import { buildAppleWalletPass, ticketAttachmentBaseName } from "../../_lib/rsvp-tickets.js";
+import {
+  buildAppleWalletPass,
+  ticketAttachmentBaseName,
+} from "../../_lib/rsvp-tickets.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const params = new URL(context.request.url).searchParams;
@@ -27,7 +30,10 @@ export const onRequestGet = withApiHandler(async (context) => {
   });
 
   if (!pass) {
-    return jsonResponse({ error: "Apple Wallet isn't set up for this event yet." }, 503);
+    return jsonResponse(
+      { error: "Apple Wallet isn't set up for this event yet." },
+      503,
+    );
   }
 
   return new Response(pass, {

@@ -2,7 +2,11 @@ import type { Menu, MenuItem, MenuSection } from "../../types/menu";
 import type { MenuTeaseCocktail } from "../../data/menu-tease";
 import { createSanityClient } from "./client";
 import { getSanityImageConfig } from "./env";
-import { mapSanityGalleryImage, mapSanityImage, type SanityImageField } from "./images";
+import {
+  mapSanityGalleryImage,
+  mapSanityImage,
+  type SanityImageField,
+} from "./images";
 import { MENU_QUERY } from "./queries";
 
 type SanityMenuSection = {
@@ -26,7 +30,9 @@ type SanityMenuSection = {
 };
 
 function mapDrinkType(value: string | null | undefined): MenuItem["drinkType"] {
-  const raw = String(value || "").trim().toLowerCase();
+  const raw = String(value || "")
+    .trim()
+    .toLowerCase();
   if (raw === "pour" || raw === "beer" || raw === "packaged") return raw;
   return "cocktail";
 }
@@ -51,7 +57,9 @@ function mapMenuItem(doc: SanityMenuSection["items"][number]): MenuItem | null {
   };
 }
 
-function mapFlatSection(doc: SanityMenuSection): (MenuSection & { parentId?: string }) | null {
+function mapFlatSection(
+  doc: SanityMenuSection,
+): (MenuSection & { parentId?: string }) | null {
   if (!doc.id || !doc.title) {
     return null;
   }
@@ -110,7 +118,10 @@ export async function fetchMenu(): Promise<Menu> {
 
   const flat = docs
     .map(mapFlatSection)
-    .filter((section): section is MenuSection & { parentId?: string } => section !== null);
+    .filter(
+      (section): section is MenuSection & { parentId?: string } =>
+        section !== null,
+    );
 
   const sections = nestMenuSections(flat);
   assertMenuContent(sections);
@@ -135,7 +146,10 @@ export async function fetchMenuTeaseCocktails(): Promise<MenuTeaseCocktail[]> {
       if (!item.id) return null;
 
       const name = item.name?.trim() || "";
-      const image = mapSanityGalleryImage(item.image, name || item.image?.alt || undefined);
+      const image = mapSanityGalleryImage(
+        item.image,
+        name || item.image?.alt || undefined,
+      );
 
       if (!image) return null;
 

@@ -24,7 +24,9 @@ export function storedToPillTotal(stored) {
 }
 
 export function isValidEmail(email) {
-  return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  return (
+    typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  );
 }
 
 function readInput(id) {
@@ -55,7 +57,8 @@ export function readRsvpForm() {
   );
 
   if (!name) return { ok: false, error: "Please add your name." };
-  if (!isValidEmail(email)) return { ok: false, error: "Please add a valid email." };
+  if (!isValidEmail(email))
+    return { ok: false, error: "Please add a valid email." };
 
   let additional = 0;
   if (countBtn instanceof HTMLButtonElement) {
@@ -77,7 +80,9 @@ function setInput(id, value) {
 }
 
 function selectInGroup(groupSelector, predicate) {
-  for (const btn of document.querySelectorAll(`${groupSelector} .rsvp-pick-btn`)) {
+  for (const btn of document.querySelectorAll(
+    `${groupSelector} .rsvp-pick-btn`,
+  )) {
     if (!(btn instanceof HTMLButtonElement)) continue;
     const selected = predicate(btn);
     btn.classList.toggle("is-selected", selected);
@@ -118,7 +123,9 @@ export function prefillRsvpForm({ name, email, rsvpGuests } = {}) {
 
   const attending = rsvpGuests > 0;
   selectInGroup(".rsvp-pick--attending", (btn) =>
-    attending ? btn.dataset.attending === "yes" : btn.dataset.attending === "no",
+    attending
+      ? btn.dataset.attending === "yes"
+      : btn.dataset.attending === "no",
   );
 
   const additional = attending ? totalToAdditionalGuests(rsvpGuests) : null;
@@ -142,7 +149,9 @@ export function bindRsvpPickForm() {
   const form = document.getElementById("rsvp-form");
   if (!form) return;
 
-  for (const btn of form.querySelectorAll(".rsvp-pick--attending .rsvp-pick-btn")) {
+  for (const btn of form.querySelectorAll(
+    ".rsvp-pick--attending .rsvp-pick-btn",
+  )) {
     btn.addEventListener("click", () => {
       if (!(btn instanceof HTMLButtonElement)) return;
       const attending = btn.dataset.attending === "yes";
@@ -157,7 +166,9 @@ export function bindRsvpPickForm() {
     });
   }
 
-  for (const btn of form.querySelectorAll(".rsvp-pick--counts .rsvp-pick-btn")) {
+  for (const btn of form.querySelectorAll(
+    ".rsvp-pick--counts .rsvp-pick-btn",
+  )) {
     btn.addEventListener("click", () => {
       if (!(btn instanceof HTMLButtonElement)) return;
       selectInGroup(".rsvp-pick--counts", (candidate) => candidate === btn);

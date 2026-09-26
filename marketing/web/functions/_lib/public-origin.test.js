@@ -11,8 +11,8 @@ describe("resolvePublicOrigin", () => {
   });
 
   it("keeps a public request origin", () => {
-    expect(resolvePublicOrigin("https://preview.gwenda-blue.pages.dev", {})).toBe(
-      "https://preview.gwenda-blue.pages.dev",
-    );
+    expect(
+      resolvePublicOrigin("https://preview.gwenda-blue.pages.dev", {}),
+    ).toBe("https://preview.gwenda-blue.pages.dev");
   });
 });

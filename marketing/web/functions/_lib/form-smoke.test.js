@@ -8,9 +8,24 @@ const play = {
     { key: "name", label: "Name", type: "text", required: true },
     { key: "email", label: "Email", type: "email", required: true },
     { key: "phone", label: "Phone", type: "tel" },
-    { key: "whatYouDo", label: "What", type: "multiSelect", required: true, options: [{ label: "Other", value: "other" }, { label: "DJ", value: "dj" }] },
+    {
+      key: "whatYouDo",
+      label: "What",
+      type: "multiSelect",
+      required: true,
+      options: [
+        { label: "Other", value: "other" },
+        { label: "DJ", value: "dj" },
+      ],
+    },
     { key: "musicLink", label: "Link", type: "url", required: true },
-    { key: "basedWhere", label: "Where", type: "select", required: true, options: [{ label: "London" }] },
+    {
+      key: "basedWhere",
+      label: "Where",
+      type: "select",
+      required: true,
+      options: [{ label: "London" }],
+    },
     { key: "description", label: "About", type: "textarea", required: true },
   ],
 };

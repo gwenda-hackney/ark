@@ -14,12 +14,18 @@ const account = JSON.stringify({
 describe("gmail config", () => {
   it("needs only the service account (the mailbox is fixed)", () => {
     expect(isGmailConfigured({})).toBe(false);
-    expect(isGmailConfigured({ GMAIL_SERVICE_ACCOUNT_JSON: account })).toBe(true);
+    expect(isGmailConfigured({ GMAIL_SERVICE_ACCOUNT_JSON: account })).toBe(
+      true,
+    );
   });
 
   it("rejects JSON that is not a service account", () => {
-    expect(parseGmailServiceAccount({ GMAIL_SERVICE_ACCOUNT_JSON: "{}" })).toBe(null);
-    expect(parseGmailServiceAccount({ GMAIL_SERVICE_ACCOUNT_JSON: "nope" })).toBe(null);
+    expect(parseGmailServiceAccount({ GMAIL_SERVICE_ACCOUNT_JSON: "{}" })).toBe(
+      null,
+    );
+    expect(
+      parseGmailServiceAccount({ GMAIL_SERVICE_ACCOUNT_JSON: "nope" }),
+    ).toBe(null);
   });
 });
 
@@ -34,7 +40,11 @@ describe("buildRawMessage", () => {
         text: "Hello",
         html: '<img src="cid:gwenda-logo">',
         attachments: [
-          { filename: "gwenda-logo.png", content: Buffer.from("png"), cid: "gwenda-logo" },
+          {
+            filename: "gwenda-logo.png",
+            content: Buffer.from("png"),
+            cid: "gwenda-logo",
+          },
         ],
       })
     ).toString("utf8");

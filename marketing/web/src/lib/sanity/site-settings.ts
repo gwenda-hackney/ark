@@ -20,7 +20,9 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 
 export async function fetchSiteSettings(): Promise<SiteSettings> {
   const client = createSanityClient();
-  const doc = await client.fetch<SanitySiteSettings | null>(SITE_SETTINGS_QUERY);
+  const doc = await client.fetch<SanitySiteSettings | null>(
+    SITE_SETTINGS_QUERY,
+  );
 
   if (!doc) {
     return DEFAULT_SITE_SETTINGS;

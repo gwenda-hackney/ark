@@ -85,10 +85,8 @@ function inputType(field: FormField) {
   data-success-title={form.successTitle}
   data-success-message={form.successMessage}
   data-verify-pending-title={form.verifyPendingTitle ?? "Check your email"}
-  data-verify-pending-message={
-    form.verifyPendingMessage ??
-    "We sent a link to {email}. Open it to finish (valid for 48 hours)."
-  }
+  data-verify-pending-message={form.verifyPendingMessage ??
+    "We sent a link to {email}. Open it to finish (valid for 48 hours)."}
   novalidate
 >
   <p class="contact-required-note">
@@ -146,7 +144,9 @@ function inputType(field: FormField) {
                       rows="4"
                       placeholder={field.placeholder ?? undefined}
                       required={required}
-                      aria-describedby={field.helpText ? `${id}-help` : undefined}
+                      aria-describedby={
+                        field.helpText ? `${id}-help` : undefined
+                      }
                     />
                   </div>
                 </div>
@@ -158,7 +158,10 @@ function inputType(field: FormField) {
               const options = field.options ?? [];
               return (
                 <div class="contact-stack-item">
-                  <div class="contact-field gw-field" data-choice-field={field.key}>
+                  <div
+                    class="contact-field gw-field"
+                    data-choice-field={field.key}
+                  >
                     <div class="contact-field-heading">
                       <label class="contact-field-label" for={id}>
                         {labelText}
@@ -170,7 +173,9 @@ function inputType(field: FormField) {
                       name={field.key}
                       required={required}
                       data-has-other={showOther ? "true" : undefined}
-                      aria-describedby={field.helpText ? `${id}-help` : undefined}
+                      aria-describedby={
+                        field.helpText ? `${id}-help` : undefined
+                      }
                     >
                       <option value="" disabled selected>
                         Select…
@@ -180,7 +185,9 @@ function inputType(field: FormField) {
                         return (
                           <option
                             value={value}
-                            data-is-other={isOtherChoice(value) ? "true" : undefined}
+                            data-is-other={
+                              isOtherChoice(value) ? "true" : undefined
+                            }
                           >
                             {option.label}
                           </option>
@@ -188,7 +195,11 @@ function inputType(field: FormField) {
                       })}
                     </select>
                     {showOther ? (
-                      <div class="contact-other gw-field" data-other-for={field.key} hidden>
+                      <div
+                        class="contact-other gw-field"
+                        data-other-for={field.key}
+                        hidden
+                      >
                         <label for={`${id}-other`}>Please specify</label>
                         <input
                           type="text"
@@ -208,12 +219,17 @@ function inputType(field: FormField) {
               const showOther = fieldHasOther(field);
               return (
                 <div class="contact-stack-item">
-                  <fieldset class="contact-field contact-tags" data-choice-field={field.key}>
+                  <fieldset
+                    class="contact-field contact-tags"
+                    data-choice-field={field.key}
+                  >
                     <legend class="contact-field-label">{labelText}</legend>
                     {help}
                     <div
                       class="contact-tag-list"
-                      aria-describedby={field.helpText ? `${id}-help` : undefined}
+                      aria-describedby={
+                        field.helpText ? `${id}-help` : undefined
+                      }
                     >
                       {(field.options ?? []).map((option) => {
                         const value = optionValue(option);
@@ -225,7 +241,9 @@ function inputType(field: FormField) {
                               id={choiceId}
                               name={field.key}
                               value={value}
-                              data-is-other={isOtherChoice(value) ? "true" : undefined}
+                              data-is-other={
+                                isOtherChoice(value) ? "true" : undefined
+                              }
                             />
                             <span>{option.label}</span>
                           </label>
@@ -233,7 +251,11 @@ function inputType(field: FormField) {
                       })}
                     </div>
                     {showOther ? (
-                      <div class="contact-other gw-field" data-other-for={field.key} hidden>
+                      <div
+                        class="contact-other gw-field"
+                        data-other-for={field.key}
+                        hidden
+                      >
                         <label for={`${id}-other`}>Please specify</label>
                         <input
                           type="text"
@@ -309,6 +331,7 @@ function inputType(field: FormField) {
       role="alert"
       aria-live="polite"
       hidden
-    ></p>
+    >
+    </p>
   </div>
 </form>

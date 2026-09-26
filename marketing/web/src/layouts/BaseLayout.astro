@@ -32,16 +32,18 @@ const {
   noindex = false,
 } = Astro.props;
 
-const siteOrigin = isPreview
-  ? previewOrigin
-  : siteConfig.domain;
+const siteOrigin = isPreview ? previewOrigin : siteConfig.domain;
 const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 ---
 
 <!doctype html>
 <html
   lang="en"
-  data-site-env={import.meta.env.DEV ? "local" : isPreview ? "preview" : "production"}
+  data-site-env={import.meta.env.DEV
+    ? "local"
+    : isPreview
+      ? "preview"
+      : "production"}
 >
   <head>
     <meta charset="UTF-8" />

@@ -37,7 +37,11 @@ function eventMedia(event, eager) {
   return figure;
 }
 
-function eventDescription(description, className = "event-description", legacyTime = "") {
+function eventDescription(
+  description,
+  className = "event-description",
+  legacyTime = "",
+) {
   const wrap = document.createElement("div");
   wrap.className = className;
   for (const paragraph of eventDescriptionParagraphs(description, legacyTime)) {
@@ -147,7 +151,9 @@ function eventCard(event, { regular = false, eager = false } = {}) {
     artist.textContent = event.artist;
     copy.appendChild(artist);
   }
-  copy.appendChild(eventDescription(event.description, "event-description", event.time));
+  copy.appendChild(
+    eventDescription(event.description, "event-description", event.time),
+  );
   if (regular && event.guestEditions?.length) {
     copy.appendChild(guestEditionList(event.guestEditions, event.description));
   }
@@ -287,7 +293,8 @@ async function refreshEvents() {
     watchFeed();
   } catch {
     const loading = document.getElementById("events-loading");
-    if (loading) loading.textContent = "Could not load events. Please try again.";
+    if (loading)
+      loading.textContent = "Could not load events. Please try again.";
   }
 }
 

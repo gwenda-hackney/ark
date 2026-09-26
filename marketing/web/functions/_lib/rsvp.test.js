@@ -33,7 +33,9 @@ describe("findChannel", () => {
   };
 
   it("matches a password to its channel", () => {
-    expect(findChannel(event, "Candle Canal Vinyl")?.label).toBe("Dan - WhatsApp");
+    expect(findChannel(event, "Candle Canal Vinyl")?.label).toBe(
+      "Dan - WhatsApp",
+    );
   });
 
   it("returns null for an unknown or missing password", () => {
@@ -53,7 +55,10 @@ describe("getEventRsvp", () => {
 
 describe("saveRsvpResponse", () => {
   it("blocks a missing slug", async () => {
-    const result = await saveRsvpResponse({}, { slug: "", token: "candle-canal-vinyl", attending: false });
+    const result = await saveRsvpResponse(
+      {},
+      { slug: "", token: "candle-canal-vinyl", attending: false },
+    );
     expect(result.ok).toBe(false);
     expect(result.status).toBe(404);
   });

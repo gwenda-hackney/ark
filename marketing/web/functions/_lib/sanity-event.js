@@ -1,5 +1,9 @@
 import { normalizeEventPassword } from "./event-password.js";
-import { sanityDatasetForEnv, sanityProjectId, sanityQuery } from "./sanity-query.js";
+import {
+  sanityDatasetForEnv,
+  sanityProjectId,
+  sanityQuery,
+} from "./sanity-query.js";
 import { portableTextToPlain } from "./portable-text.js";
 
 const EVENT_FIELDS = `{
@@ -77,12 +81,17 @@ export async function fetchEventBySlug(env, slug) {
   const normalized = slug?.trim();
   if (!normalized) return null;
 
-  const doc = await sanityQuery(env, EVENT_BY_SLUG_QUERY, { $slug: normalized });
+  const doc = await sanityQuery(env, EVENT_BY_SLUG_QUERY, {
+    $slug: normalized,
+  });
   return toEventRecord(doc);
 }
 
 export async function fetchEventHeroImageUrl(env, slug) {
   const event = await fetchEventBySlug(env, slug);
   if (event?.heroImageUrl) return event.heroImageUrl;
-  return env.INVITE_IMAGE_URL?.trim() || "https://gwenda.co.uk/images/event-invite.jpg";
+  return (
+    env.INVITE_IMAGE_URL?.trim() ||
+    "https://gwenda.co.uk/images/event-invite.jpg"
+  );
 }

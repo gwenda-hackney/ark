@@ -13,7 +13,11 @@ import {
   resolveFormSubmissionsTableId,
   resolveSubscribeTableId,
 } from "./baserow.js";
-import { gmailAccessToken, isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
+import {
+  gmailAccessToken,
+  isGmailConfigured,
+  sendGmail,
+} from "../../../../shared/gmail-send.js";
 import { NOTIFICATIONS_FROM } from "../../../../shared/mail-from.js";
 import { runFormSmoke } from "./form-smoke.js";
 import { sanityDatasetForEnv, sanityQuery } from "./sanity-query.js";
@@ -23,10 +27,16 @@ const DEFAULT_BASEROW_API = "https://api.baserow.io";
 async function readOneRow(env, resolveTable, label) {
   const table = await resolveTable(env);
   if (!table.ok) throw new Error(table.error || `${label} table not found.`);
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
-  const response = await fetch(`${apiBase}/api/database/rows/table/${table.tableId}/?size=1`, {
-    headers: { Authorization: `Token ${env.BASEROW_API_KEY}` },
-  });
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
+    /\/$/,
+    "",
+  );
+  const response = await fetch(
+    `${apiBase}/api/database/rows/table/${table.tableId}/?size=1`,
+    {
+      headers: { Authorization: `Token ${env.BASEROW_API_KEY}` },
+    },
+  );
   if (!response.ok) throw new Error(`${label}: Baserow ${response.status}.`);
   const body = await response.json();
   return `${body.count ?? 0} rows`;
@@ -38,7 +48,8 @@ export const CHECKS = {
       env,
       'count(*[!(_id in path("drafts.**")) && _type in ["eventSeries", "event", "menuItem", "form"]])',
     );
-    if (!count) throw new Error(`No content in dataset ${sanityDatasetForEnv(env)}.`);
+    if (!count)
+      throw new Error(`No content in dataset ${sanityDatasetForEnv(env)}.`);
     return `${count} documents in ${sanityDatasetForEnv(env)}`;
   },
   async subscribers(env) {
@@ -60,7 +71,10 @@ export const CHECKS = {
 };
 
 /** Gmail: log in only, or also send a test message to the alert address. */
-export async function checkEmail(env, { send = false, label = "", deps = {} } = {}) {
+export async function checkEmail(
+  env,
+  { send = false, label = "", deps = {} } = {},
+) {
   if (!isGmailConfigured(env)) throw new Error("Gmail is not configured.");
   if (!send) {
     await (deps.token ?? gmailAccessToken)(env);
@@ -86,17 +100,32 @@ async function timed(name, run) {
   try {
     return { name, ok: true, detail: await run(), ms: Date.now() - started };
   } catch (error) {
-    return { name, ok: false, error: error?.message || String(error), ms: Date.now() - started };
+    return {
+      name,
+      ok: false,
+      error: error?.message || String(error),
+      ms: Date.now() - started,
+    };
   }
 }
 
 export async function runDeepHealth(
   env,
-  { sendEmail = false, formTest = false, requestUrl, label = "", checks = CHECKS, emailDeps, formSmoke = runFormSmoke } = {},
+  {
+    sendEmail = false,
+    formTest = false,
+    requestUrl,
+    label = "",
+    checks = CHECKS,
+    emailDeps,
+    formSmoke = runFormSmoke,
+  } = {},
 ) {
   const results = await Promise.all([
     ...Object.entries(checks).map(([name, run]) => timed(name, () => run(env))),
-    timed("email", () => checkEmail(env, { send: sendEmail, label, deps: emailDeps })),
+    timed("email", () =>
+      checkEmail(env, { send: sendEmail, label, deps: emailDeps }),
+    ),
     // A real submission of the play form, emails to alerts@, row deleted after.
     ...(formTest ? [timed("form", () => formSmoke(env, { requestUrl }))] : []),
   ]);

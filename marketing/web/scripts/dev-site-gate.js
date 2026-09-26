@@ -88,11 +88,7 @@ export function devSiteGate({ password, bypassKey } = {}) {
       }
       const path = safeRedirectPath(url.searchParams.get("path") || "/");
       const host = req.headers.host || url.host;
-      const shareUrl = buildGateShareUrl(
-        `http://${host}`,
-        path,
-        bypassKey,
-      );
+      const shareUrl = buildGateShareUrl(`http://${host}`, path, bypassKey);
       if (!shareUrl) {
         send(500, { error: "Could not build a share link." });
         return;

@@ -216,11 +216,15 @@ async function runChecks() {
 /** Every dependency the deployment needs. Runs once, after the page checks pass. */
 async function runDeepChecks() {
   const secret = process.env.DEPLOY_WEBHOOK_SECRET?.trim();
-  if (!secret) throw new Error("--deep needs DEPLOY_WEBHOOK_SECRET in the environment.");
+  if (!secret)
+    throw new Error("--deep needs DEPLOY_WEBHOOK_SECRET in the environment.");
   const label = `${new URL(baseUrl).host}${expectedVersion ? ` ${expectedVersion}` : ""}`;
   const res = await fetch(`${baseUrl}/api/health/deep`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ sendEmail, formTest, label }),
   });
   const data = await res.json().catch(() => null);
@@ -230,7 +234,8 @@ async function runDeepChecks() {
     if (check.ok) console.log(`OK ${line}`);
     else console.error(`FAIL ${line}`);
   }
-  if (!data.ok) throw new Error("Deep health check failed (see FAIL lines above).");
+  if (!data.ok)
+    throw new Error("Deep health check failed (see FAIL lines above).");
   console.log(`Deep health passed for ${baseUrl}`);
 }
 

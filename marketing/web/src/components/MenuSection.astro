@@ -27,7 +27,10 @@ const items = getAvailableItems(section);
 {
   items.length > 0 && (
     <section
-      class:list={["menu-section", variant === "subsection" && "menu-section--subsection"]}
+      class:list={[
+        "menu-section",
+        variant === "subsection" && "menu-section--subsection",
+      ]}
       id={omitId ? undefined : section.id}
       aria-labelledby={showHeader ? `${section.id}-heading` : undefined}
     >
@@ -38,13 +41,15 @@ const items = getAvailableItems(section);
           const priceLabel = formatMenuPrice(item);
           const hasDetail = Boolean(
             item.description ||
-              item.notes ||
-              item.abv ||
-              item.volume ||
-              item.producer,
+            item.notes ||
+            item.abv ||
+            item.volume ||
+            item.producer,
           );
           return (
-            <li class:list={["menu-item", { "menu-item--compact": !hasDetail }]}>
+            <li
+              class:list={["menu-item", { "menu-item--compact": !hasDetail }]}
+            >
               <div class="menu-item-row">
                 <h3 class="menu-item-name">{item.name}</h3>
                 {showPrices && priceLabel ? (
@@ -64,7 +69,9 @@ const items = getAvailableItems(section);
               )}
               {(item.abv || item.volume || item.producer) && (
                 <p class="menu-item-description">
-                  {[item.abv, item.volume, item.producer].filter(Boolean).join(" · ")}
+                  {[item.abv, item.volume, item.producer]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </p>
               )}
               {item.notes && <p class="menu-item-notes">{item.notes}</p>}

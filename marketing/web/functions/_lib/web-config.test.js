@@ -47,13 +47,18 @@ describe("resolveFormNotifyTo", () => {
   it("outside prod, never falls back to the form's real inbox", async () => {
     const form = { notifyEmail: "play@gwenda.co.uk" };
     // A developer's machine without their own address.
-    await expect(resolveFormNotifyTo({ SITE_ENV: "local" }, form)).rejects.toThrow(
-      /FORMS_NOTIFY_EMAIL is not set/,
-    );
-    // Settings reachable but no override row for this env.
-    stubConfigRows([row("forms.notify_email", "dev@gwenda.co.uk", "production", "web")]);
     await expect(
-      resolveFormNotifyTo({ SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" }, form),
+      resolveFormNotifyTo({ SITE_ENV: "local" }, form),
+    ).rejects.toThrow(/FORMS_NOTIFY_EMAIL is not set/);
+    // Settings reachable but no override row for this env.
+    stubConfigRows([
+      row("forms.notify_email", "dev@gwenda.co.uk", "production", "web"),
+    ]);
+    await expect(
+      resolveFormNotifyTo(
+        { SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" },
+        form,
+      ),
     ).rejects.toThrow(/not set for dev/);
   });
 
@@ -89,14 +94,23 @@ describe("resolveFormNotifyTo", () => {
   });
 
   it("hosted dev uses the config row; a developer's machine can override it", async () => {
-    stubConfigRows([row("forms.notify_email", "alerts@gwenda.co.uk", "dev", "web")]);
+    stubConfigRows([
+      row("forms.notify_email", "alerts@gwenda.co.uk", "dev", "web"),
+    ]);
     const form = { notifyEmail: "play@gwenda.co.uk" };
     expect(
-      await resolveFormNotifyTo({ SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" }, form),
+      await resolveFormNotifyTo(
+        { SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" },
+        form,
+      ),
     ).toBe("alerts@gwenda.co.uk");
     expect(
       await resolveFormNotifyTo(
-        { SITE_ENV: "local", BASEROW_CONFIG_API_KEY: "cfg", FORMS_NOTIFY_EMAIL: "me@gwenda.co.uk" },
+        {
+          SITE_ENV: "local",
+          BASEROW_CONFIG_API_KEY: "cfg",
+          FORMS_NOTIFY_EMAIL: "me@gwenda.co.uk",
+        },
         form,
       ),
     ).toBe("me@gwenda.co.uk");

@@ -112,9 +112,10 @@ function formatClockRange(start, end) {
 }
 
 function formatTimePart(part) {
-  const range = /^(\d{1,2})[:.](\d{2})\s*(?:[–—-]|to)\s*(\d{1,2})[:.](\d{2})$/i.exec(
-    part.trim(),
-  );
+  const range =
+    /^(\d{1,2})[:.](\d{2})\s*(?:[–—-]|to)\s*(\d{1,2})[:.](\d{2})$/i.exec(
+      part.trim(),
+    );
   if (range) {
     const start = parseClock(range[1], range[2]);
     const end = parseClock(range[3], range[4]);
@@ -204,7 +205,9 @@ export function formatRsvpContent(template, values) {
     .replaceAll("{ticket_url}", values.ticketUrl || "");
 
   if (!name) {
-    text = text.replace(/^Hi\s*,/gm, "Hello,").replace(/^Hi there,/gm, "Hello,");
+    text = text
+      .replace(/^Hi\s*,/gm, "Hello,")
+      .replace(/^Hi there,/gm, "Hello,");
   }
 
   return text;
@@ -281,9 +284,21 @@ function emailFooterHtml({ year = new Date().getFullYear() } = {}) {
   </div>`;
 }
 
-export function buildConfirmationContent({ name, guests, event, inviteUrl, ticketUrl, origin }) {
+export function buildConfirmationContent({
+  name,
+  guests,
+  event,
+  inviteUrl,
+  ticketUrl,
+  origin,
+}) {
   const copy = mergeRsvpConfirmation(event);
-  const when = formatEventWhen(event?.date, copy.ticketStart, copy.ticketEnd, event?.time);
+  const when = formatEventWhen(
+    event?.date,
+    copy.ticketStart,
+    copy.ticketEnd,
+    event?.time,
+  );
   const title = event?.title || "The event";
   const offer = event?.offer?.trim() || "";
   const eventBlock = eventBlockText(title, when, offer);

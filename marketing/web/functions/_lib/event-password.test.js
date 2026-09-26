@@ -15,7 +15,9 @@ describe("event-password", () => {
   });
 
   it("normalizes spaces to hyphens", () => {
-    expect(normalizeEventPassword("Candle Canal Vinyl")).toBe("candle-canal-vinyl");
+    expect(normalizeEventPassword("Candle Canal Vinyl")).toBe(
+      "candle-canal-vinyl",
+    );
   });
 
   it("accepts three-word passwords and legacy tokens", () => {
@@ -31,6 +33,8 @@ describe("event-password", () => {
         "launch-party",
         "candle-canal-vinyl",
       ),
-    ).toBe("https://gwenda.co.uk/events/launch-party?event-password=candle-canal-vinyl");
+    ).toBe(
+      "https://gwenda.co.uk/events/launch-party?event-password=candle-canal-vinyl",
+    );
   });
 });

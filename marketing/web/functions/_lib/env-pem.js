@@ -49,7 +49,8 @@ export function pickPemValue(processValue, loadedValue) {
   const fromProcess = String(processValue ?? "").trim();
   const fromLoaded = String(loadedValue ?? "").trim();
   const isComplete =
-    fromProcess.includes("END CERTIFICATE") || fromProcess.includes("END PRIVATE KEY");
+    fromProcess.includes("END CERTIFICATE") ||
+    fromProcess.includes("END PRIVATE KEY");
   if (isComplete) return fromProcess;
   return fromLoaded || fromProcess;
 }

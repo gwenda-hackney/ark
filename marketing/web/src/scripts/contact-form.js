@@ -51,13 +51,11 @@ function collectAnswers(form) {
   }
 
   form.querySelectorAll("input, select, textarea").forEach((el) => {
-    if (
-      !(
-        el instanceof HTMLInputElement ||
-        el instanceof HTMLSelectElement ||
-        el instanceof HTMLTextAreaElement
-      )
-    ) {
+    if (!(
+      el instanceof HTMLInputElement ||
+      el instanceof HTMLSelectElement ||
+      el instanceof HTMLTextAreaElement
+    )) {
       return;
     }
     const name = el.name;
@@ -83,9 +81,7 @@ function syncOtherFields(form) {
     const key = wrap.dataset.otherFor;
     if (!key) return;
 
-    const select = form.querySelector(
-      `select[name="${CSS.escape(key)}"]`,
-    );
+    const select = form.querySelector(`select[name="${CSS.escape(key)}"]`);
     let otherOn = false;
     if (select instanceof HTMLSelectElement) {
       otherOn = isOtherChoiceValue(select.value);
@@ -100,7 +96,10 @@ function syncOtherFields(form) {
     const wasHidden = wrap.hidden;
     wrap.hidden = !otherOn;
     const input = wrap.querySelector("input, textarea");
-    if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+    if (
+      input instanceof HTMLInputElement ||
+      input instanceof HTMLTextAreaElement
+    ) {
       input.required = otherOn;
       if (!otherOn) {
         input.value = "";
@@ -192,7 +191,9 @@ const URL_RE = /^https?:\/\/\S+$/i;
 
 /** Keep in sync with functions/_lib/form-field-rules.js */
 function isValidEmail(value) {
-  const email = String(value ?? "").trim().toLowerCase();
+  const email = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (!email || email.length > 254) return false;
   if (email.includes("..")) return false;
   if (!EMAIL_RE.test(email)) return false;
@@ -207,13 +208,19 @@ function isValidEmail(value) {
   if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(local)) return false;
 
   if (!domain || domain.length > 253) return false;
-  if (domain.startsWith("-") || domain.endsWith("-") || domain.startsWith(".")) {
+  if (
+    domain.startsWith("-") ||
+    domain.endsWith("-") ||
+    domain.startsWith(".")
+  ) {
     return false;
   }
   const labels = domain.split(".");
   if (labels.length < 2) return false;
   if (labels.some((label) => !label || label.length > 63)) return false;
-  if (labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))) {
+  if (
+    labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))
+  ) {
     return false;
   }
   const tld = labels[labels.length - 1];
@@ -493,8 +500,7 @@ function validateFormFields(form) {
         if (!valid) {
           ok = false;
           if (!firstInvalid) {
-            firstInvalid =
-              wrap.querySelector(".gw-select-trigger") || control;
+            firstInvalid = wrap.querySelector(".gw-select-trigger") || control;
           }
         }
       }
@@ -559,12 +565,10 @@ function initFieldValidation(form) {
 
   form.addEventListener("input", (event) => {
     const target = event.target;
-    if (
-      !(
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement
-      )
-    ) {
+    if (!(
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement
+    )) {
       return;
     }
     if (target.type === "checkbox" || target.type === "radio") return;
@@ -605,7 +609,8 @@ function initFieldValidation(form) {
 function initSectionNav() {
   const nav = document.getElementById("contact-nav");
   const form = document.getElementById("contact-form");
-  if (!(nav instanceof HTMLElement) || !(form instanceof HTMLFormElement)) return;
+  if (!(nav instanceof HTMLElement) || !(form instanceof HTMLFormElement))
+    return;
 
   const links = [...nav.querySelectorAll(".contact-nav-link")];
   const sections = [...form.querySelectorAll(".contact-section")];
@@ -624,7 +629,10 @@ function initSectionNav() {
   ) {
     const stuckObserver = new IntersectionObserver(
       ([entry]) => {
-        nav.classList.toggle("is-stuck", Boolean(entry && !entry.isIntersecting));
+        nav.classList.toggle(
+          "is-stuck",
+          Boolean(entry && !entry.isIntersecting),
+        );
       },
       { threshold: [1] },
     );
@@ -730,10 +738,13 @@ function initBrandedSelects(root) {
     if (!(select instanceof HTMLSelectElement)) continue;
     if (select.closest(".gw-select")) continue;
 
-    const options = [...select.options].filter((opt) => !opt.disabled || opt.value);
+    const options = [...select.options].filter(
+      (opt) => !opt.disabled || opt.value,
+    );
     const placeholder =
-      [...select.options].find((opt) => opt.disabled && !opt.value)?.textContent?.trim() ||
-      "Select…";
+      [...select.options]
+        .find((opt) => opt.disabled && !opt.value)
+        ?.textContent?.trim() || "Select…";
 
     const root = document.createElement("div");
     root.className = "gw-select";
@@ -801,7 +812,9 @@ function initBrandedSelects(root) {
     const parent = select.parentElement;
     if (!parent) continue;
     if (select.id) {
-      const label = parent.querySelector(`label[for="${CSS.escape(select.id)}"]`);
+      const label = parent.querySelector(
+        `label[for="${CSS.escape(select.id)}"]`,
+      );
       if (label) label.setAttribute("for", trigger.id);
     }
     parent.insertBefore(root, select);
@@ -839,7 +852,11 @@ function initBrandedSelects(root) {
     });
 
     trigger.addEventListener("keydown", (event) => {
-      if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+      if (
+        event.key === "ArrowDown" ||
+        event.key === "Enter" ||
+        event.key === " "
+      ) {
         event.preventDefault();
         openMenu();
       }
@@ -1141,14 +1158,8 @@ export function initContactForm() {
           pending: null,
           result: {
             kind: "done",
-            title:
-              data.successTitle ||
-              form.dataset.successTitle ||
-              "Got it",
-            message:
-              data.successMessage ||
-              form.dataset.successMessage ||
-              "",
+            title: data.successTitle || form.dataset.successTitle || "Got it",
+            message: data.successMessage || form.dataset.successMessage || "",
           },
         });
       }
@@ -1158,7 +1169,9 @@ export function initContactForm() {
       setSubmitting(false);
       setError(
         errorEl,
-        error instanceof Error ? error.message : "Something went wrong. Try again?",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Try again?",
       );
       formAuth = null;
     }
@@ -1248,11 +1261,7 @@ export function initContactFormSubmitted() {
   }
 
   function showMissing() {
-    fillCopy(
-      "Nothing to show yet",
-      "Submit the form again to continue.",
-      "",
-    );
+    fillCopy("Nothing to show yet", "Submit the form again to continue.", "");
     if (verifyActionsEl) verifyActionsEl.hidden = true;
     if (resendWrap) resendWrap.hidden = true;
     showActions({ home: false, retry: true });
@@ -1285,7 +1294,9 @@ export function initContactFormSubmitted() {
     );
   } else if (session?.result?.kind === "pending") {
     showPending(
-      session.result.title || root.dataset.verifyPendingTitle || "Check your email",
+      session.result.title ||
+        root.dataset.verifyPendingTitle ||
+        "Check your email",
       session.result.message ||
         root.dataset.verifyPendingMessage ||
         "We sent a link to {email}. Open it to finish (valid for 48 hours).",
@@ -1401,7 +1412,9 @@ export function initContactFormSubmitted() {
     } catch (error) {
       setError(
         resendErrorEl,
-        error instanceof Error ? error.message : "Something went wrong. Try again?",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Try again?",
       );
       formAuth = null;
     } finally {

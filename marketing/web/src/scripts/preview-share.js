@@ -12,7 +12,9 @@ function labelEl() {
 
 /** The environment name the ribbon shows ("Dev", "Preview"), set by PreviewRibbon. */
 function defaultLabel() {
-  return document.getElementById("preview-share")?.dataset.envLabel || "Preview";
+  return (
+    document.getElementById("preview-share")?.dataset.envLabel || "Preview"
+  );
 }
 
 function setLabel(text) {
@@ -35,7 +37,9 @@ async function copyShareLink() {
   if (navigator.clipboard?.write && window.ClipboardItem) {
     await navigator.clipboard.write([
       new ClipboardItem({
-        "text/plain": pending.then((url) => new Blob([url], { type: "text/plain" })),
+        "text/plain": pending.then(
+          (url) => new Blob([url], { type: "text/plain" }),
+        ),
       }),
     ]);
   } else {

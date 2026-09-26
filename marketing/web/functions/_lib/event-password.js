@@ -214,7 +214,7 @@ export function readEventPasswordFromSearchParams(searchParams) {
   if (!searchParams) return null;
   const fromQuery =
     typeof searchParams.get === "function"
-      ? searchParams.get(EVENT_PASSWORD_QUERY) ?? searchParams.get("key")
+      ? (searchParams.get(EVENT_PASSWORD_QUERY) ?? searchParams.get("key"))
       : null;
   return fromQuery?.trim() ? fromQuery : null;
 }

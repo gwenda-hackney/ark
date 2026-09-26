@@ -478,8 +478,24 @@ describe("What's on card offer", () => {
   it("shows the next night's offer when the series has none", () => {
     const [card] = buildWhatsOnStack(
       [
-        { ...night({ id: "negroni-night-2026-09-29", seriesId: "negroni-night", date: "2026-09-29", recurrence: "Every Tuesday" }), offer: "£10 Negroni all night" },
-        { ...night({ id: "negroni-night-2026-10-06", seriesId: "negroni-night", date: "2026-10-06", recurrence: "Every Tuesday" }), offer: "" },
+        {
+          ...night({
+            id: "negroni-night-2026-09-29",
+            seriesId: "negroni-night",
+            date: "2026-09-29",
+            recurrence: "Every Tuesday",
+          }),
+          offer: "£10 Negroni all night",
+        },
+        {
+          ...night({
+            id: "negroni-night-2026-10-06",
+            seriesId: "negroni-night",
+            date: "2026-10-06",
+            recurrence: "Every Tuesday",
+          }),
+          offer: "",
+        },
       ],
       { now, series: [negroniSeries] },
     );
@@ -1001,23 +1017,39 @@ describe("a series with a new web address", () => {
 
   it("a night page follows its series, not the slug it was made with", () => {
     expect(
-      occurrencePathParams({ slug: "negroni-night-2026-09-29", seriesId: "negroni-hour" }),
+      occurrencePathParams({
+        slug: "negroni-night-2026-09-29",
+        seriesId: "negroni-hour",
+      }),
     ).toEqual({ series: "negroni-hour", date: "2026-09-29" });
     // Older documents without their own seriesId.
     expect(
-      occurrencePathParams({ slug: "negroni-night-2026-09-29", seriesId: "negroni-night-2026-09-29" }),
+      occurrencePathParams({
+        slug: "negroni-night-2026-09-29",
+        seriesId: "negroni-night-2026-09-29",
+      }),
     ).toEqual({ series: "negroni-night", date: "2026-09-29" });
   });
 
   it("old series addresses redirect, never over a series that has that address now", () => {
-    expect(seriesRedirects(series)).toEqual([{ from: "negroni-night", to: "negroni-hour" }]);
+    expect(seriesRedirects(series)).toEqual([
+      { from: "negroni-night", to: "negroni-hour" },
+    ]);
   });
 
   it("old night addresses redirect to the new ones", () => {
     const { pages, redirects } = nightPagePaths(
       [
-        { slug: "negroni-night-2026-09-29", seriesId: "negroni-hour", date: "2026-09-29" },
-        { slug: "negroni-hour-2026-10-06", seriesId: "negroni-hour", date: "2026-10-06" },
+        {
+          slug: "negroni-night-2026-09-29",
+          seriesId: "negroni-hour",
+          date: "2026-09-29",
+        },
+        {
+          slug: "negroni-hour-2026-10-06",
+          seriesId: "negroni-hour",
+          date: "2026-10-06",
+        },
       ],
       series,
     );
@@ -1026,8 +1058,16 @@ describe("a series with a new web address", () => {
       "negroni-hour/2026-10-06",
     ]);
     expect(redirects).toEqual([
-      { series: "negroni-night", date: "2026-09-29", to: "/whats-on/negroni-hour/2026-09-29" },
-      { series: "negroni-night", date: "2026-10-06", to: "/whats-on/negroni-hour/2026-10-06" },
+      {
+        series: "negroni-night",
+        date: "2026-09-29",
+        to: "/whats-on/negroni-hour/2026-09-29",
+      },
+      {
+        series: "negroni-night",
+        date: "2026-10-06",
+        to: "/whats-on/negroni-hour/2026-10-06",
+      },
     ]);
   });
 });

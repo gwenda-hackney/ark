@@ -146,21 +146,33 @@ describe("isUnauthenticatedCrawler", () => {
 describe("resolveGate", () => {
   it("leaves the live site open, password or not", () => {
     expect(resolveGate({ SITE_ENV: "production" })).toEqual({ kind: "open" });
-    expect(resolveGate({ SITE_ENV: "production", SITE_PASSWORD: "pw" })).toEqual({ kind: "open" });
+    expect(
+      resolveGate({ SITE_ENV: "production", SITE_PASSWORD: "pw" }),
+    ).toEqual({ kind: "open" });
   });
 
   it("gates a preview even though it runs as production", () => {
-    expect(resolveGate({ SITE_ENV: "production", SITE_PREVIEW: "true", SITE_PASSWORD: "pw" })).toEqual({
+    expect(
+      resolveGate({
+        SITE_ENV: "production",
+        SITE_PREVIEW: "true",
+        SITE_PASSWORD: "pw",
+      }),
+    ).toEqual({
       kind: "gated",
       password: "pw",
     });
   });
 
   it("refuses a preview without a password rather than opening it", () => {
-    expect(resolveGate({ SITE_ENV: "production", SITE_PREVIEW: "true" })).toEqual({ kind: "misconfigured" });
+    expect(
+      resolveGate({ SITE_ENV: "production", SITE_PREVIEW: "true" }),
+    ).toEqual({ kind: "misconfigured" });
   });
 
   it("gates the dev website when it has a password", () => {
-    expect(resolveGate({ SITE_ENV: "dev", SITE_PASSWORD: "pw" }).kind).toBe("gated");
+    expect(resolveGate({ SITE_ENV: "dev", SITE_PASSWORD: "pw" }).kind).toBe(
+      "gated",
+    );
   });
 });

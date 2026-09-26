@@ -94,7 +94,11 @@ export async function saveRsvpResponse(
 
   const config = await baserowRsvpRowsUrl(env);
   if (!config.ok) {
-    return { ok: false, status: 502, error: "Something went wrong. Try again?" };
+    return {
+      ok: false,
+      status: 502,
+      error: "Something went wrong. Try again?",
+    };
   }
 
   if (!attending) {
@@ -112,7 +116,11 @@ export async function saveRsvpResponse(
       }),
     });
     if (!create.ok) {
-      return { ok: false, status: 502, error: "Something went wrong. Try again?" };
+      return {
+        ok: false,
+        status: 502,
+        error: "Something went wrong. Try again?",
+      };
     }
     return {
       ok: true,
@@ -165,13 +173,22 @@ export async function saveRsvpResponse(
     }),
   });
   if (!patch.ok) {
-    return { ok: false, status: 502, error: "Something went wrong. Try again?" };
+    return {
+      ok: false,
+      status: 502,
+      error: "Something went wrong. Try again?",
+    };
   }
 
   // The ticket link is the guest's own page to view their RSVP and add it to
   // Apple Wallet — no email required to test the round trip.
   const publicOrigin = resolvePublicOrigin(origin, env);
-  const ticketUrl = await buildTicketUrl(publicOrigin, env, event.slug, guest.rowId);
+  const ticketUrl = await buildTicketUrl(
+    publicOrigin,
+    env,
+    event.slug,
+    guest.rowId,
+  );
   const inviteLink = inviteUrlFor(publicOrigin, env, event.slug, token);
 
   // Best-effort confirmation email. A mail failure must not fail the RSVP,

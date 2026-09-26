@@ -63,7 +63,10 @@ function parseTimeOnDate(date, time) {
 }
 
 function toIcsUtc(date) {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}Z$/, "Z");
 }
 
 /**
@@ -88,7 +91,9 @@ export function buildCalendarTicket({
   if (start && end && end <= start) end.setDate(end.getDate() + 1);
   const summary = escapeIcsText(formatTicketTitle(title));
   const location = escapeIcsText(venue || DEFAULT_LOCATION.address);
-  const attendee = guestName ? `ATTENDEE;CN=${escapeIcsText(guestName)}:MAILTO:guest@gwenda.co.uk\r\n` : "";
+  const attendee = guestName
+    ? `ATTENDEE;CN=${escapeIcsText(guestName)}:MAILTO:guest@gwenda.co.uk\r\n`
+    : "";
   const details = [
     description?.trim(),
     guests > 1 ? `Party size: ${guests}` : "",
@@ -141,15 +146,26 @@ function readAppleWalletEnv(env) {
     signerCert,
     signerKey,
     wwdr,
-    signerKeyPassphrase: env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE?.trim() || undefined,
+    signerKeyPassphrase:
+      env.APPLE_WALLET_SIGNER_KEY_PASSPHRASE?.trim() || undefined,
   };
 }
 
 /** Apple Wallet event-ticket strip sizes (see Wallet Human Interface Guidelines). */
 export const WALLET_STRIP_SIZES = [
   { file: "strip.png", width: 375, height: 98, fallback: "strip-fallback.png" },
-  { file: "strip@2x.png", width: 750, height: 196, fallback: "strip-fallback@2x.png" },
-  { file: "strip@3x.png", width: 1125, height: 294, fallback: "strip-fallback@3x.png" },
+  {
+    file: "strip@2x.png",
+    width: 750,
+    height: 196,
+    fallback: "strip-fallback@2x.png",
+  },
+  {
+    file: "strip@3x.png",
+    width: 1125,
+    height: 294,
+    fallback: "strip-fallback@3x.png",
+  },
 ];
 
 const WALLET_BRAND_FILES = [
@@ -181,7 +197,9 @@ async function buildPassImageBuffers({ heroImageUrl }) {
   if (heroImageUrl) {
     const strips = await Promise.all(
       WALLET_STRIP_SIZES.map(async ({ file, width, height }) => {
-        const buffer = await fetchImageBuffer(walletStripImageUrl(heroImageUrl, width, height));
+        const buffer = await fetchImageBuffer(
+          walletStripImageUrl(heroImageUrl, width, height),
+        );
         return buffer ? [file, buffer] : null;
       }),
     );
@@ -234,7 +252,9 @@ export async function buildAppleWalletPass(env, options) {
   // so this should never be missing. Guard anyway rather than ship a pass Apple
   // will refuse to render on-device — the calendar .ics ticket still goes out.
   if (!buffers["icon.png"]) {
-    console.warn("Apple Wallet pass skipped: bundled icon.png is missing. Run npm run generate:brand-assets.");
+    console.warn(
+      "Apple Wallet pass skipped: bundled icon.png is missing. Run npm run generate:brand-assets.",
+    );
     return null;
   }
 
@@ -314,7 +334,8 @@ export function ticketAttachmentBaseName(eventSlug) {
 }
 
 export async function buildRsvpTicketAttachments(env, options) {
-  const ticketId = options.ticketId || `gwenda-${options.eventSlug || "event"}-${Date.now()}`;
+  const ticketId =
+    options.ticketId || `gwenda-${options.eventSlug || "event"}-${Date.now()}`;
   const attachmentBase = ticketAttachmentBaseName(options.eventSlug);
   const ics = buildCalendarTicket({
     ticketId,

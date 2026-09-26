@@ -56,9 +56,11 @@ describe("initSectionHash", () => {
     initSectionHash();
     replaceState.mockClear();
 
-    document.getElementById("menu-link")?.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
+    document
+      .getElementById("menu-link")
+      ?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
 
     expect(scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ behavior: "smooth", block: "start" }),
@@ -92,9 +94,11 @@ describe("initSectionHash", () => {
     initSectionHash();
     replaceState.mockClear();
 
-    document.getElementById("menu-link")?.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
+    document
+      .getElementById("menu-link")
+      ?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
 
     expect(replaceState).toHaveBeenCalledWith(routerState, "", "/#menu");
     expect(history.state).toMatchObject({ index: 2 });

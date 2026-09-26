@@ -598,7 +598,8 @@ async function hasEditLinkColumn(resolved) {
   if (!upstream.ok) return false;
   const fields = await upstream.json().catch(() => []);
   editLinkColumnSeen =
-    Array.isArray(fields) && fields.some((field) => field?.name === FORM_EDIT_LINK_FIELD);
+    Array.isArray(fields) &&
+    fields.some((field) => field?.name === FORM_EDIT_LINK_FIELD);
   return editLinkColumnSeen;
 }
 
@@ -649,7 +650,10 @@ export async function deleteFormSubmission(env, rowId) {
     headers: { Authorization: `Token ${resolved.apiKey}` },
   });
   if (!upstream.ok && upstream.status !== 404) {
-    return { ok: false, error: `Baserow ${upstream.status} deleting the test row.` };
+    return {
+      ok: false,
+      error: `Baserow ${upstream.status} deleting the test row.`,
+    };
   }
   return { ok: true };
 }
