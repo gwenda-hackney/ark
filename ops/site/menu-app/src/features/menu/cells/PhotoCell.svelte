@@ -6,7 +6,7 @@
 	}: {
 		url?: string;
 		alt?: string;
-		size?: "sm" | "md";
+		size?: "sm" | "md" | "lg";
 	} = $props();
 
 	/** Sanity CDN can crop; Baserow files cannot — leave those alone. */
@@ -15,7 +15,8 @@
 		if (!raw) return "";
 		if (!raw.includes("cdn.sanity.io")) return raw;
 		const base = raw.split("?")[0] || raw;
-		return `${base}?w=96&h=96&fit=crop&auto=format`;
+		const px = size === "lg" ? 144 : 96;
+		return `${base}?w=${px}&h=${px}&fit=crop&auto=format`;
 	});
 </script>
 
@@ -44,6 +45,12 @@
 		width: 2.5rem;
 		height: 2.5rem;
 		border-radius: 0.5rem;
+	}
+
+	.lg {
+		width: 3.5rem;
+		height: 3.5rem;
+		border-radius: 0.55rem;
 	}
 
 	/* Keeps the column aligned without a hollow box that reads as a checkbox. */
