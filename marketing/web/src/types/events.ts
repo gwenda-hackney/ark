@@ -38,6 +38,8 @@ export type EventSeries = {
   shortDescription?: string;
   recurrence?: string;
   replacesSeriesId?: string;
+  /** Old web addresses, set in ops, that redirect to this series. */
+  formerSlugs?: string[];
   schedule?: "manual" | "repeating" | "once";
   /** No nights yet: What's on shows "Check back soon for the next date". */
   datesPending?: boolean;

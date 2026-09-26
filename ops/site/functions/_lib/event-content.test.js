@@ -93,6 +93,16 @@ test("series template is a first-class sanity document", () => {
   assert.equal(document._id, "series-gwenda-nights");
   assert.equal(document.schedule, "manual");
   assert.equal(document.slug.current, "gwenda-nights");
+  assert.equal("formerSlugs" in document, false);
+});
+
+test("a series lists its former web addresses for the website to redirect", () => {
+  const document = sanitySeriesDocument({
+    slug: "gwenda-nights",
+    title: "Gwenda Nights",
+    formerSlugs: ["gwenda-saturdays", "gwenda-nights", ""],
+  });
+  assert.deepEqual(document.formerSlugs, ["gwenda-saturdays"]);
 });
 
 test("title override is blank when it only echoes the series name", () => {

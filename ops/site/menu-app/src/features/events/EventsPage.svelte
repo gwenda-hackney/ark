@@ -71,6 +71,7 @@
 		eventListPath,
 		eventNewPath,
 		eventTabPath,
+		itemSlug,
 		leaveEditor,
 		loginNext,
 		navigate,
@@ -200,6 +201,8 @@
 	let artist = $state("");
 	let offer = $state("");
 	let pageUrl = $state("");
+	/** The series' page address: /whats-on/<webAddress>. */
+	let webAddress = $state("");
 	let shortDescription = $state("");
 	let description = $state("");
 	let nightSchedule = $state<OpsNightScheduleSlot[]>([]);
@@ -476,9 +479,15 @@
 		}
 		return (
 			draft !== fieldSnapshot(current) ||
-			cropsKey(heroCrops) !== cropsKey(current.heroCrops)
+			cropsKey(heroCrops) !== cropsKey(current.heroCrops) ||
+			webAddressChanged
 		);
 	});
+
+	/** Blank keeps the address the series has. */
+	const webAddressChanged = $derived(
+		Boolean(current && webAddress.trim() && itemSlug(webAddress) !== current.slug),
+	);
 
 	const previewDates = $derived(
 		expandSeriesOccurrenceDates({
@@ -859,6 +868,7 @@
 		artist = occurrence?.overrides.artist || event.artist || "";
 		offer = occurrence?.overrides.offer || event.offer || "";
 		pageUrl = occurrence?.overrides.pageUrl || event.pageUrl || "";
+		webAddress = event.slug || "";
 		const onceNight =
 			event.repeatUnit === "once"
 				? event.dates.find((row) => row.overrides?.description || row.overrides?.shortDescription) ||
@@ -912,6 +922,7 @@
 		artist = "";
 		offer = "";
 		pageUrl = "";
+		webAddress = "";
 		shortDescription = "";
 		description = "";
 		nightSchedule = [];
@@ -1010,6 +1021,7 @@
 			monthDay: Number(monthDay) || 0,
 			endsOn,
 			...(repeatUnit === "once" ? { replacesSeries } : {}),
+			...(webAddressChanged ? { slug: webAddress.trim() } : {}),
 			heroCrops: heroCrops || null,
 		};
 	}
@@ -2508,6 +2520,32 @@
 															/>
 														{/if}
 													</Field>
+													{#if current && !editingOccurrence}
+														<Field
+															class="span-all"
+															label="Web address"
+															for="event-web-address"
+															tooltip="The end of this {editingOnce ? 'event' : 'series'}'s page address on the website. Letters, numbers and dashes. If you change it, old links still lead here."
+														>
+															<div class="web-address">
+																<span class="web-address-base">gwenda.co.uk/whats-on/</span>
+																<TextField
+																	id="event-web-address"
+																	size="sm"
+																	bind:value={webAddress}
+																	placeholder={current.slug}
+																	autocomplete="off"
+																	spellcheck="false"
+																/>
+															</div>
+															{#if webAddressChanged}
+																<p class="hint">
+																	New address: gwenda.co.uk/whats-on/{itemSlug(webAddress)}. The website
+																	changes when you press Update website, and old links will lead here.
+																</p>
+															{/if}
+														</Field>
+													{/if}
 													<Field
 														class="span-all"
 														label="Operations notes"
@@ -3546,6 +3584,24 @@
 		font-size: 1.05rem;
 		font-weight: 500;
 		line-height: 1.3;
+	}
+
+	.web-address {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2, 0.5rem);
+		min-width: 0;
+	}
+
+	.web-address :global(input) {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.web-address-base {
+		color: var(--muted-foreground);
+		font-size: var(--text-sm);
+		white-space: nowrap;
 	}
 
 	.locked-value {

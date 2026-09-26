@@ -1,6 +1,9 @@
 ---
 import { fetchRsvpEventPages } from "../../../lib/sanity/rsvp-events";
-import { parseOccurrenceSlug } from "../../../../functions/_lib/event-series.js";
+import {
+  occurrencePathParams,
+  parseOccurrenceSlug,
+} from "../../../../functions/_lib/event-series.js";
 
 export async function getStaticPaths() {
   try {
@@ -8,7 +11,7 @@ export async function getStaticPaths() {
     return events.map((event) => {
       const parsed = parseOccurrenceSlug(event.slug);
       const target = parsed
-        ? `/whats-on/${parsed.seriesId}/${parsed.date}/ticket`
+        ? `/whats-on/${occurrencePathParams(event).series}/${parsed.date}/ticket`
         : `/whats-on/${event.seriesId || event.slug}`;
       return {
         params: { slug: event.slug },

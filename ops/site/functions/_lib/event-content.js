@@ -362,6 +362,7 @@ export function sanitySeriesDocument({
   heroImage,
   datesPending = false,
   gallery = [],
+  formerSlugs = [],
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -378,6 +379,9 @@ export function sanitySeriesDocument({
     nightSchedule: toSanityNightSchedule(nightSchedule),
   };
   if (datesPending) doc.datesPending = true;
+  // Old web addresses the website redirects here. Left off when none.
+  const former = formerSlugs.map((old) => String(old || "").trim()).filter((old) => old && old !== key);
+  if (former.length) doc.formerSlugs = former;
   // Left off when empty, so series without photos stay unchanged.
   if (gallery.length) doc.gallery = gallery;
   if (heroImage) doc.heroImage = heroImage;

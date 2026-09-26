@@ -5,7 +5,7 @@ import { eventDocumentIds } from "./event-publish.js";
 test("an event's documents: series, nights on either side, and ops rows", async () => {
   const seen = [];
   const query = async (_env, dataset, _groq, params) => {
-    seen.push([dataset, params.slug, params.seriesId]);
+    seen.push([dataset, params.slugs, params.seriesIds]);
     return dataset === "production"
       ? ["series-jazz", "event-jazz-2026-09-01"]
       : ["series-jazz", "event-jazz-2026-10-06"];
@@ -22,7 +22,24 @@ test("an event's documents: series, nights on either side, and ops rows", async 
     "series-jazz",
   ]);
   assert.deepEqual(seen.map((row) => row[0]).sort(), ["preview", "production"]);
-  assert.equal(seen[0][2], "series-jazz");
+  assert.deepEqual(seen[0][2], ["series-jazz"]);
+});
+
+test("after a new web address, the old series is the event's too, and goes last", async () => {
+  const seen = [];
+  const query = async (_env, dataset, _groq, params) => {
+    seen.push(params);
+    return dataset === "production"
+      ? ["series-jazz", "event-jazz-2026-10-06"]
+      : ["series-jazz-nights", "event-jazz-2026-10-06"];
+  };
+  const ids = await eventDocumentIds(
+    {},
+    { slug: "jazz-nights", formerSlugs: ["jazz"], dates: [] },
+    { query },
+  );
+  assert.deepEqual(seen[0], { slugs: ["jazz-nights", "jazz"], seriesIds: ["series-jazz-nights", "series-jazz"] });
+  assert.deepEqual(ids, ["event-jazz-2026-10-06", "series-jazz-nights", "series-jazz"]);
 });
 
 import { websiteStatusFor } from "./event-publish.js";
@@ -84,6 +101,56 @@ test("dropped nights: live ones get a removed draft, never-published ones lose t
     { patch: { id: "event-negroni-2026-09-29", set: { removed: true } } },
     { delete: { id: "event-negroni-2026-10-06" } },
   ]);
+});
+
+test("a new web address reads out of date until the website has it", () => {
+  const moved = { slug: "negroni-hour", formerSlugs: ["negroni"], publish: { live: "current" } };
+  const renamed = { ...series("£8"), _id: "series-negroni-hour" };
+  const preview = docs(renamed, { ...series("£8"), removed: true }, night("2026-09-29", { seriesId: "negroni-hour" }));
+  const production = docs(series("£8"), night("2026-09-29"));
+  assert.equal(websiteStatusFor(moved, preview, production), "stale");
+  assert.equal(
+    websiteStatusFor(moved, preview, docs(renamed, night("2026-09-29", { seriesId: "negroni-hour" }))),
+    "current",
+  );
+});
+
+import { retireFormerSeries } from "./event-publish.js";
+
+test("the old series is marked removed once past nights point at the new one", async () => {
+  const sent = [];
+  const query = async (_env, dataset) =>
+    dataset === "production"
+      ? ["series-jazz"]
+      : [
+          { _id: "series-jazz", _type: "eventSeries" },
+          { _id: "event-jazz-2026-09-01", _type: "event" },
+          { _id: "event-jazz-2026-10-06", _type: "event" },
+        ];
+  const result = await retireFormerSeries(
+    {},
+    { slug: "jazz-nights", formerSlugs: ["jazz"] },
+    new Set(["event-jazz-2026-10-06"]),
+    { query, mutate: async (_env, mutations) => sent.push(...mutations) },
+  );
+  assert.deepEqual(result, { changed: true, warnings: [] });
+  assert.deepEqual(sent, [
+    {
+      patch: {
+        id: "event-jazz-2026-09-01",
+        set: { seriesId: "jazz-nights", series: { _type: "reference", _ref: "series-jazz-nights" } },
+      },
+    },
+    { patch: { id: "series-jazz", set: { removed: true } } },
+  ]);
+});
+
+test("no former web address: nothing to retire", async () => {
+  const result = await retireFormerSeries({}, { slug: "jazz" }, new Set(), {
+    query: async () => assert.fail("no query"),
+    mutate: async () => assert.fail("no mutation"),
+  });
+  assert.deepEqual(result, { changed: false, warnings: [] });
 });
 
 import { removeEventFromWebsite } from "./event-publish.js";

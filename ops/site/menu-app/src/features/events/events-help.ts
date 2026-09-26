@@ -38,6 +38,10 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "Optional structured slots for the night, such as Open decks or Chess. Each slot needs a label and can include start and end times. When set, What's on shows them in gold under the series.",
 	},
 	{
+		title: "Web address",
+		body: "On a series, Web address is the end of its page link: gwenda.co.uk/whats-on/… It starts from the name and stays the same when you rename the series. Change it here if you want a different link. The website changes when you press Update website, and old links still lead to the page. RSVPs and tickets people already have keep working.",
+	},
+	{
 		title: "Default hero",
 		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Original downloads the file as it was uploaded.",
 	},

@@ -342,6 +342,7 @@ export async function publishEventPreview(
       heroImage: seriesHero || null,
       datesPending,
       gallery: gallery.images,
+      formerSlugs: event.formerSlugs || [],
     }),
   });
 
@@ -387,7 +388,9 @@ export async function publishEventPreview(
     }
     if (!previous?.sanityId) pagesChanged = true;
     const content = resolveOccurrenceContent(event, previous || date);
-    const slug = occurrenceSlug(event.slug, date);
+    // A night keeps its slug when the series gets a new web address: RSVPs
+    // and ticket links are keyed by it.
+    const slug = previous?.slug || occurrenceSlug(event.slug, date);
     const imageUrl = content.image?.url || "";
     let hero = heroByUrl.get(imageUrl);
     if (imageUrl && !heroByUrl.has(imageUrl)) {
@@ -461,6 +464,13 @@ export async function publishEventPreview(
   for (const row of dropWarnings.length ? [] : drop) {
     if (row.id) await removeOccurrence(env, row.id);
   }
+  const retired = await retireFormerSeries(
+    env,
+    event,
+    new Set(occurrences.map((row) => row.sanityId)),
+  );
+  if (retired.changed) pagesChanged = true;
+  warnings.push(...retired.warnings);
 
   const tasks =
     siteEnvName(env) === "dev"
@@ -613,20 +623,81 @@ export async function markNightsRemoved(env, rows, { query = sanityQuery, mutate
 }
 
 /**
+ * After the series gets a new web address, the old series document goes with
+ * the next "Update website", like a dropped night. Nights not restaged above
+ * (past ones) move to the new series first, or the old one could not go.
+ */
+export async function retireFormerSeries(
+  env,
+  event,
+  written = new Set(),
+  { query = sanityQuery, mutate = sanityMutate } = {},
+) {
+  const former = event.formerSlugs || [];
+  if (!former.length) return { changed: false, warnings: [] };
+  const found =
+    (await query(
+      env,
+      PREVIEW,
+      `*[removed != true && (_id in $seriesIds || (_type == "event" && seriesId in $former))]{ _id, _type }`,
+      { seriesIds: former.map(sanitySeriesId), former },
+    )) || [];
+  const nights = found
+    .filter((doc) => doc._type === "event" && !written.has(doc._id))
+    .map((doc) => doc._id);
+  const series = found.filter((doc) => doc._type === "eventSeries");
+  if (!nights.length && !series.length) return { changed: false, warnings: [] };
+  if (nights.length) {
+    const set = {
+      seriesId: event.slug,
+      series: { _type: "reference", _ref: sanitySeriesId(event.slug) },
+    };
+    try {
+      await mutate(env, nights.map((id) => ({ patch: { id, set } })));
+    } catch (error) {
+      // Leave the old series be: its nights still point at it.
+      return {
+        changed: true,
+        warnings: [error?.message || "Could not move past nights to the new web address."],
+      };
+    }
+  }
+  const warnings = await markNightsRemoved(
+    env,
+    series.map((doc) => ({ sanityId: doc._id })),
+    { query, mutate },
+  );
+  return { changed: true, warnings };
+}
+
+/** Series documents under the current and former web addresses. */
+function seriesKeys(event) {
+  const slugs = [event.slug, ...(event.formerSlugs || [])].filter(Boolean);
+  return { slugs, seriesIds: slugs.map(sanitySeriesId) };
+}
+
+/** Nights first: Sanity won't delete a series while live nights refer to it. */
+function seriesLast(ids, seriesIds) {
+  const series = new Set(seriesIds);
+  return [...ids.filter((id) => !series.has(id)), ...ids.filter((id) => series.has(id))];
+}
+
+/**
  * Every published document that belongs to this event, on either side: the
- * series and each night (including nights removed in ops but still live).
+ * series and each night (including nights removed in ops but still live), and
+ * the series under a former web address until the website lets it go.
  */
 export async function eventDocumentIds(env, event, { query = sanityQuery } = {}) {
-  const seriesId = sanitySeriesId(event.slug);
-  const groq = `*[!(_id in path("drafts.**")) && (_id == $seriesId || (_type == "event" && seriesId == $slug))]._id`;
-  const params = { seriesId, slug: event.slug };
+  const { slugs, seriesIds } = seriesKeys(event);
+  const groq = `*[!(_id in path("drafts.**")) && (_id in $seriesIds || (_type == "event" && seriesId in $slugs))]._id`;
+  const params = { seriesIds, slugs };
   const [preview, production] = await Promise.all([
     query(env, PREVIEW, groq, params),
     query(env, "production", groq, params),
   ]);
-  const ids = new Set([seriesId, ...(preview || []), ...(production || [])]);
+  const ids = new Set([seriesIds[0], ...(preview || []), ...(production || [])]);
   for (const row of event.dates || []) if (row.sanityId) ids.add(row.sanityId);
-  return [...ids];
+  return seriesLast([...ids], seriesIds);
 }
 
 /** What "Update website" would change for this event, without changing anything. */
@@ -686,9 +757,7 @@ export async function removeEventFromWebsite(
   const found = rows
     ? rows.map((row) => row.sanityId).filter(Boolean)
     : await eventDocumentIds(env, event, { query });
-  // Nights first: Sanity won't delete the series while live nights refer to it.
-  const seriesId = sanitySeriesId(event.slug);
-  const ids = [...found.filter((id) => id !== seriesId), ...found.filter((id) => id === seriesId)];
+  const ids = seriesLast(found, seriesKeys(event).seriesIds);
   const warnings = [];
   for (const docId of ids) {
     try {
@@ -713,9 +782,9 @@ const EVENT_DOCS_QUERY = `*[_type in ["eventSeries", "event"] && !(_id in path("
  *  - any document added, removed or different: "stale"
  */
 export function websiteStatusFor(event, preview, production) {
-  const seriesId = sanitySeriesId(event.slug);
+  const { slugs, seriesIds } = seriesKeys(event);
   const belongs = (doc) =>
-    doc._id === seriesId || (doc._type === "event" && doc.seriesId === event.slug);
+    seriesIds.includes(doc._id) || (doc._type === "event" && slugs.includes(doc.seriesId));
   // A night marked removed is gone from the preview, still on the website.
   const onPreview = [...preview.values()].filter((doc) => belongs(doc) && doc.removed !== true);
   if (!onPreview.length) return event.publish?.live || "unpublished";
