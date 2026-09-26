@@ -5,6 +5,7 @@ import {
   computeReleaseDiff,
   planRelease,
   publishRelease,
+  releaseDocument,
   summarizeValue,
 } from "./release.js";
 
@@ -156,4 +157,16 @@ test("a draft marked removed is a removal: publishing deletes the document and i
     { delete: { id: "event-nights-2026-10-03" } },
   ]]);
   assert.deepEqual(result.deleted, ["event-nights-2026-10-03"]);
+});
+
+test("publishing makes draft references strong again; weak markers are not a change", () => {
+  const weak = { _type: "reference", _ref: "series-nights", _weak: true, _strengthenOnPublish: { type: "eventSeries" } };
+  const strong = { _type: "reference", _ref: "series-nights" };
+  const draft = { _id: "event-nights-2026-10-01", _type: "event", title: "Nights", series: weak };
+  assert.deepEqual(releaseDocument(draft).series, strong);
+  // A reference meant to stay weak keeps its _weak flag.
+  const keepWeak = { ...weak, _strengthenOnPublish: { type: "eventSeries", weak: true } };
+  assert.deepEqual(releaseDocument({ ...draft, series: keepWeak }).series, { ...strong, _weak: true });
+  const live = { ...draft, series: strong };
+  assert.deepEqual(computeReleaseDiff([draft], [live]), []);
 });

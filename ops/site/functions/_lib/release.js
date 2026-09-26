@@ -68,11 +68,25 @@ export function stableStringify(value) {
   return JSON.stringify(value ?? null);
 }
 
-/** The document as the website should hold it: no revision, timestamps or draft id. */
+/**
+ * Drafts hold references weak until publish (sanity.js weakenReferences): the
+ * published copy gets them strong again, unless the reference was meant weak.
+ */
+export function strengthenReferences(value) {
+  if (Array.isArray(value)) return value.map(strengthenReferences);
+  if (!value || typeof value !== "object") return value;
+  if (value._strengthenOnPublish) {
+    const { _strengthenOnPublish: plan, _weak, ...ref } = value;
+    return plan.weak ? { ...ref, _weak: true } : ref;
+  }
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, strengthenReferences(item)]));
+}
+
+/** The document as the website should hold it: no revision, timestamps or draft id, strong references. */
 export function releaseDocument(doc) {
   const out = {};
   for (const [key, value] of Object.entries(doc || {})) {
-    if (!SYSTEM_KEYS.has(key)) out[key] = value;
+    if (!SYSTEM_KEYS.has(key)) out[key] = strengthenReferences(value);
   }
   return out;
 }
