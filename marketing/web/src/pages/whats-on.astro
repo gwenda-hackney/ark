@@ -1,12 +1,13 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Subpage from "../components/Subpage.astro";
-import WhatsOnDiaryCard from "../components/WhatsOnDiaryCard.astro";
+import EventCard from "../components/EventCard.astro";
 import { isPreview } from "../config/env";
 import { siteConfig } from "../config/site";
 import { getUpcomingEvents } from "../data/events";
 import { buildWhatsOnHome } from "../../functions/_lib/event-series.js";
 import { diaryGroups } from "../lib/diary-groups.js";
+import { diaryCardModel } from "../lib/event-card.js";
 import { whatsOnNavItems } from "../lib/site-nav.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 
@@ -57,16 +58,6 @@ const diaryEntries = [
 const whatsOnNav = whatsOnNavItems(nights);
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.whatsOn;
-
-function eventImageUrl(
-  url: string | null | undefined,
-  width: number,
-): string | null {
-  if (!url) return null;
-  if (/[?&](rect|fit)=/.test(url)) return url;
-  if (/[?&]w=/.test(url)) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
-}
 
 const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
   "@type": "Event",
@@ -154,15 +145,14 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
                 );
               }
               const event = entry.event;
-              const image = eventImageUrl(event.heroImageUrl, 960);
               return (
                 <li
                   data-schedule={event.schedule === "once" ? "once" : "series"}
                 >
-                  <WhatsOnDiaryCard
-                    event={event}
-                    image={image}
-                    eager={Boolean(entry.eager)}
+                  <EventCard
+                    model={diaryCardModel(event, {
+                      eager: Boolean(entry.eager),
+                    })}
                   />
                 </li>
               );

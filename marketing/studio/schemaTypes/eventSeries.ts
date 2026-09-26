@@ -113,6 +113,28 @@ export const eventSeries = defineType({
       ],
     }),
     defineField({
+      name: "gallery",
+      title: "Gallery",
+      type: "array",
+      readOnly: true,
+      description:
+        "Copied by ops from the series' Drive gallery folder. Shown at the bottom of its What's on page.",
+      of: [
+        {
+          type: "image",
+          fields: [
+            defineField({ name: "alt", type: "string", title: "Alternative text" }),
+            defineField({
+              name: "driveFileId",
+              type: "string",
+              title: "Drive file",
+              hidden: true,
+            }),
+          ],
+        },
+      ],
+    }),
+    defineField({
       name: "heroImage",
       title: "Default hero",
       type: "image",

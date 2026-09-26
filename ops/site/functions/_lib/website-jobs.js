@@ -29,6 +29,7 @@ import {
   withWebsiteStatus,
 } from "./event-publish.js";
 import { droppedNights, getEvent, listEvents, previewBehind } from "./event-store.js";
+import { galleryBehind, readGalleryStaged } from "./event-gallery.js";
 
 export const CALENDAR_STEP = 12;
 const FAILURES_KEY = "site.prep_failures";
@@ -52,9 +53,13 @@ export function contentSignature(event) {
 
 /**
  * What this event still needs, or null when it is ready.
- * `seriesPreviews` (readSeriesPreviews) covers a series waiting for dates.
+ * `seriesPreviews` (readSeriesPreviews) covers a series waiting for dates,
+ * `galleryStaged` (readGalleryStaged) its Drive gallery.
  */
-export function prepNeeded(event, { calendar = true, seriesPreviews = {} } = {}) {
+export function prepNeeded(
+  event,
+  { calendar = true, seriesPreviews = {}, galleryStaged = null } = {},
+) {
   if (!event?.id) return null;
   const awaiting = seriesAwaitingDates(event);
   // An ended series has no upcoming nights but may still have some to take off.
@@ -64,7 +69,8 @@ export function prepNeeded(event, { calendar = true, seriesPreviews = {} } = {})
   const calendarBehind = calendar ? calendarNightsBehind(event) : 0;
   const preview =
     previewBehind(event) ||
-    (awaiting && seriesPreviews[String(event.id)] !== seriesPreviewHash(event));
+    (awaiting && seriesPreviews[String(event.id)] !== seriesPreviewHash(event)) ||
+    (galleryStaged !== null && galleryBehind(event, galleryStaged));
   if (!calendarBehind && !preview) return null;
   return { calendarBehind, preview };
 }
@@ -95,10 +101,14 @@ export function currentFailure(failures, event) {
 }
 
 /** Every event that is not ready yet, in the order the runner takes them. */
-export function jobsFrom(events, failures, { calendar = true, seriesPreviews = {} } = {}) {
+export function jobsFrom(
+  events,
+  failures,
+  { calendar = true, seriesPreviews = {}, galleryStaged = null } = {},
+) {
   const jobs = [];
   for (const event of events) {
-    const needs = prepNeeded(event, { calendar, seriesPreviews });
+    const needs = prepNeeded(event, { calendar, seriesPreviews, galleryStaged });
     if (!needs) continue;
     const failure = currentFailure(failures, event);
     jobs.push({
@@ -113,13 +123,14 @@ export function jobsFrom(events, failures, { calendar = true, seriesPreviews = {
 }
 
 export async function listWebsiteJobs(env) {
-  const [events, failures, calendar, seriesPreviews] = await Promise.all([
+  const [events, failures, calendar, seriesPreviews, galleryStaged] = await Promise.all([
     listEvents(env),
     readFailures(env),
     calendarConfigured(env),
     readSeriesPreviews(env),
+    readGalleryStaged(env),
   ]);
-  return jobsFrom(events, failures, { calendar, seriesPreviews });
+  return jobsFrom(events, failures, { calendar, seriesPreviews, galleryStaged });
 }
 
 /** Earlier failures for events that are ready now or have changed: drop them. */
@@ -138,18 +149,21 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
   const failures = await readFailures(env);
   const calendar = await calendarConfigured(env);
   let seriesPreviews = await readSeriesPreviews(env);
+  let galleryStaged = await readGalleryStaged(env);
   let event;
   if (eventId) {
     event = await getEvent(env, eventId);
   } else {
     const events = await listEvents(env);
     event = events.find(
-      (row) => prepNeeded(row, { calendar, seriesPreviews }) && !currentFailure(failures, row),
+      (row) =>
+        prepNeeded(row, { calendar, seriesPreviews, galleryStaged }) &&
+        !currentFailure(failures, row),
     );
     if (!event) return { idle: true };
   }
 
-  const needs = prepNeeded(event, { calendar, seriesPreviews });
+  const needs = prepNeeded(event, { calendar, seriesPreviews, galleryStaged });
   const failed = currentFailure(failures, event);
   if (!needs || (failed && !retry)) {
     if (!needs && failures[String(event.id)]) await writeFailures(env, prunedFailures(failures, event));
@@ -173,6 +187,10 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
       warnings.push(...(result.warnings || []));
       event = result.event;
       seriesPreviews = await readSeriesPreviews(env);
+      galleryStaged = await readGalleryStaged(env);
+      // The copy is staged; only the photos failed. Hold it as a failure so
+      // it is not retried in a loop.
+      if (result.galleryError) throw new Error(result.galleryError);
       if (previewBehind(event)) {
         throw new Error("The website copy is still out of date after updating it.");
       }
@@ -186,7 +204,7 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
     return { eventId: String(event.id), done: false, failed: message, warnings };
   }
 
-  const done = !prepNeeded(event, { calendar, seriesPreviews });
+  const done = !prepNeeded(event, { calendar, seriesPreviews, galleryStaged });
   if (failures[String(event.id)]) await writeFailures(env, prunedFailures(failures, event));
   return {
     eventId: String(event.id),

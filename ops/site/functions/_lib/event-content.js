@@ -361,6 +361,7 @@ export function sanitySeriesDocument({
   nightSchedule,
   heroImage,
   datesPending = false,
+  gallery = [],
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -377,6 +378,8 @@ export function sanitySeriesDocument({
     nightSchedule: toSanityNightSchedule(nightSchedule),
   };
   if (datesPending) doc.datesPending = true;
+  // Left off when empty, so series without photos stay unchanged.
+  if (gallery.length) doc.gallery = gallery;
   if (heroImage) doc.heroImage = heroImage;
   return doc;
 }

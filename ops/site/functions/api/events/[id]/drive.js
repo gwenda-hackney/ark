@@ -1,4 +1,10 @@
 import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
+import {
+  GALLERY_MAX,
+  forgetGalleryStaged,
+  galleryFingerprint,
+  readGalleryStaged,
+} from "../../../_lib/event-gallery.js";
 import { ensureEventGalleryFolder } from "../../../_lib/event-store.js";
 import {
   isDriveImage,
@@ -46,10 +52,16 @@ export const onRequestGet = withApiHandler(async (context) => {
   const id = eventId(context);
   if (!id) return jsonResponse({ error: "Missing event id." }, 400);
   const { event, gallery } = await ensureEventGalleryFolder(context.env, id);
-  const [files, outsideGallery] = await Promise.all([
+  const [files, outsideGallery, staged] = await Promise.all([
     listDriveImages(context.env, gallery.id),
     imagesOutsideGallery(context.env, event),
+    readGalleryStaged(context.env),
   ]);
+  // Photos added or removed in Drive itself: copy the gallery again.
+  const was = staged[String(event.id)];
+  if (was !== undefined && was !== galleryFingerprint(files.slice(0, GALLERY_MAX))) {
+    await forgetGalleryStaged(context.env, event.id);
+  }
   return jsonResponse(libraryPayload(event, gallery, files, outsideGallery));
 });
 
@@ -81,6 +93,7 @@ export const onRequestPost = withApiHandler(async (context) => {
     contentType,
   });
   const files = await listDriveImages(context.env, gallery.id);
+  await forgetGalleryStaged(context.env, event.id);
   return jsonResponse({
     ok: true,
     file: uploaded,

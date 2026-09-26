@@ -97,6 +97,7 @@ type SanitySeries = {
   recurrence?: string | null;
   replacesSeriesId?: string | null;
   datesPending?: boolean | null;
+  gallery?: EventSeries["gallery"] | null;
   shortDescription?: string | null;
   nightSchedule?: SanityEvent["nightSchedule"];
   description?: string | PortableTextBlock[] | null;
@@ -117,6 +118,7 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
           : "manual",
     replacesSeriesId: String(doc.replacesSeriesId || "").trim(),
     datesPending: doc.datesPending === true,
+    gallery: Array.isArray(doc.gallery) ? doc.gallery : [],
     recurrence: doc.recurrence?.trim() || "",
     shortDescription: doc.shortDescription?.trim() || "",
     nightSchedule: mapNightSchedule(doc.nightSchedule),

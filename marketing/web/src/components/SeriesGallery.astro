@@ -1,0 +1,16 @@
+---
+/** Photos from the series' Drive gallery, in rows (src/lib/event-card.js). */
+import { renderGallery } from "../lib/event-card.js";
+
+type Props = {
+  images?: Parameters<typeof renderGallery>[0];
+  title?: string;
+};
+
+const { images = [], title = "" } = Astro.props as Props;
+// Hidden until the gallery is finished (ops copies nothing while it is off:
+// GALLERY_ENABLED in ops/site/functions/_lib/event-gallery.js).
+const enabled = false;
+---
+
+{enabled ? <Fragment set:html={renderGallery(images, { title })} /> : null}
