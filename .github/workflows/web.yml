@@ -24,7 +24,6 @@ on:
       - "shared/**"
       - "package-lock.json"
       - ".github/workflows/web.yml"
-      - ".github/workflows/verify.yml"
       - ".github/actions/deploy-pages/**"
       - ".github/scripts/cloudflare-pages-branch.mjs"
   workflow_dispatch:
@@ -57,7 +56,6 @@ jobs:
               case "${{ github.ref_name }}" in
                 main) MODE=dev ;;
                 release) MODE=preview ;;
-                develop) MODE=verify-only ;;
                 *) MODE=branch-preview ;;
               esac
               ;;
@@ -78,12 +76,6 @@ jobs:
           echo "Resolved mode=$MODE"
 
   # Deploy jobs build, check and test themselves; this is the develop-branch check.
-  verify:
-    needs: resolve
-    if: needs.resolve.outputs.mode == 'verify-only'
-    uses: ./.github/workflows/verify.yml
-    secrets: inherit
-
   deploy-dev:
     name: Deploy dev website (${{ matrix.site }})
     needs: resolve

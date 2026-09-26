@@ -32,6 +32,16 @@ npm run studio:dev            # Sanity Studio, dev copy → http://localhost:333
 
 Commands say which environment they touch: `dev` is your copy, `prod` is the real thing (`ops:prod` runs ops locally on real data). See [docs/sanity.md](docs/sanity.md#environments).
 
+## Making a change
+
+Work is tracked as [GitHub issues](https://github.com/gwenda-hackney/ark/issues), grouped into [milestones](https://github.com/gwenda-hackney/ark/milestones).
+
+1. Branch from `main`: `feat/<issue>-<slug>` (or `fix/`, `chore/`, `refactor/`, `test/`). Pushing deploys a branch preview of the dev website.
+2. Open a pull request into `main` and fill in the template. [PR checks](.github/workflows/pr.yml) run lint and tests; merge when they're green, then delete the branch.
+3. `main` deploys dev. Production goes `main` → `release` (prod preview) → promote, and only on purpose.
+
+Before pushing: `npm run lint` and `npm test` (website), `npm test -w @gwenda/ops` (ops).
+
 ## Environments
 
 There are two environments, built the same way. Each is a complete, separate copy: its own ops app, website, CMS (one Sanity dataset) and databases.
