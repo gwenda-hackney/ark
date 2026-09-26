@@ -2493,7 +2493,7 @@
 													<HeroImagePanel
 														sourceUrl={current?.mainImage?.url || ""}
 														locked
-														tooltip="Series flyer. Override defaults to give this night its own photo. The original is saved in this series Drive folder."
+														tooltip="Series flyer. Override defaults to give this night its own photo. Original downloads the file as uploaded."
 														onchangecrops={() => undefined}
 														onpickfile={() => undefined}
 														onclear={() => undefined}
@@ -2504,8 +2504,8 @@
 														crops={heroCrops}
 														disabled={busy}
 														tooltip={editingOccurrence
-															? "This night's flyer. What's on uses it while this is the next night. The original is saved in this series Drive folder."
-															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback. The original is saved in this series Drive folder."}
+															? "This night's flyer. What's on uses it while this is the next night. Original downloads the file as uploaded."
+															: "What's on shows the next night's flyer when that night has its own photo. This is the fallback. Original downloads the file as uploaded."}
 														onchangecrops={onHeroCropsChange}
 														onpickfile={(file) => acceptPhotoFile(file)}
 														onclear={() =>
@@ -3331,7 +3331,6 @@
 		cursor: pointer;
 	}
 
-	.photo-hit.empty .photo-btn,
 	.tile.add .photo-btn {
 		pointer-events: none;
 	}
@@ -3991,22 +3990,12 @@
 		line-height: 1.35;
 	}
 
-	.occurrences .occurrence-flag {
-		color: var(--primary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-	}
-
 	.hint,
 	.status,
 	.error,
 	.warnings,
 	.delete-copy {
 		margin: 0;
-	}
-
-	.hint a {
-		color: inherit;
 	}
 
 	.error,

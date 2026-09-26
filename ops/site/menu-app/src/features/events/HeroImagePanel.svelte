@@ -44,6 +44,9 @@
 		onclear: () => void;
 	} = $props();
 
+	/** The uploaded file in Baserow, the only copy. A photo not yet saved (blob:) has none. */
+	const originalUrl = $derived(/^https?:\/\//i.test(sourceUrl) ? sourceUrl : "");
+
 	let naturalW = $state(0);
 	let naturalH = $state(0);
 	let windowCrop = $state<HeroCropRect>({ left: 0, top: 0, right: 0, bottom: 0 });
@@ -341,6 +344,11 @@
 					Remove
 				</button>
 			{/if}
+			{#if originalUrl}
+				<a class="pick-btn" href={originalUrl} download target="_blank" rel="noopener">
+					<Icon name="download" size={15} /> Original
+				</a>
+			{/if}
 			</div>
 		{/if}
 	</header>
@@ -350,6 +358,11 @@
 			<div class="locked-preview">
 				<img src={sourceUrl} alt="" />
 			</div>
+			{#if originalUrl}
+				<a class="pick-btn" href={originalUrl} download target="_blank" rel="noopener">
+					<Icon name="download" size={15} /> Original
+				</a>
+			{/if}
 		{:else}
 			<p class="locked-empty">No series photo</p>
 		{/if}
@@ -506,6 +519,11 @@
 	.pick-btn.remove:focus-visible {
 		color: var(--destructive);
 		background: var(--destructive-wash);
+	}
+
+	a.pick-btn {
+		text-decoration: none;
+		width: fit-content;
 	}
 
 	.pick-btn:disabled {

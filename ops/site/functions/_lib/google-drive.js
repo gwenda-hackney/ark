@@ -15,54 +15,13 @@ const FOLDER_MIME = "application/vnd.google-apps.folder";
 /** Child folder under each series folder. Gallery photos live here. */
 export const GALLERY_FOLDER_NAME = "gallery";
 
-const HERO_EXT = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-  gif: "image/gif",
-};
-
-/** File extension for a hero copy. jpeg is stored as jpg. */
-export function heroFileExtension(filename, contentType = "") {
-  const fromName = /\.([a-z0-9]{1,8})$/i.exec(String(filename || "").trim());
-  const named = fromName?.[1]?.toLowerCase() || "";
-  if (named === "jpeg" || named === "jpg") return "jpg";
-  if (HERO_EXT[named] && named !== "jpeg") return named;
-  const type = String(contentType || "").split(";")[0].trim().toLowerCase();
-  if (type === "image/png") return "png";
-  if (type === "image/webp") return "webp";
-  if (type === "image/gif") return "gif";
-  return "jpg";
-}
-
-/** Series flyer in the series Drive folder: hero.jpg */
-export function seriesHeroDriveName(filename, contentType = "") {
-  return `hero.${heroFileExtension(filename, contentType)}`;
-}
-
-/** Night flyer in the series Drive folder: hero-YYYY-MM-DD.jpg */
-export function occurrenceHeroDriveName(date, filename, contentType = "") {
-  const day = String(date || "").slice(0, 10);
-  return `hero-${day}.${heroFileExtension(filename, contentType)}`;
-}
-
-export function isSeriesHeroDriveName(name) {
-  return /^hero\.(jpg|png|webp|gif)$/i.test(String(name || "").trim());
-}
-
-export function isOccurrenceHeroDriveName(name, date = "") {
-  const match = /^hero-(\d{4}-\d{2}-\d{2})\.(jpg|png|webp|gif)$/i.exec(
-    String(name || "").trim(),
-  );
-  if (!match) return false;
-  const day = String(date || "").slice(0, 10);
-  return day ? match[1] === day : true;
-}
-
-/** Series or night hero copy. These sit beside the gallery folder. */
+/**
+ * Hero copies ops used to keep beside the gallery folder (hero.jpg,
+ * hero-YYYY-MM-DD.jpg). Ops no longer writes them: the hero lives in Baserow
+ * only. Older folders may still hold them, so the gallery leaves them out.
+ */
 export function isHeroDriveFileName(name) {
-  return isSeriesHeroDriveName(name) || isOccurrenceHeroDriveName(name);
+  return /^hero(-\d{4}-\d{2}-\d{2})?\.(jpg|png|webp|gif)$/i.test(String(name || "").trim());
 }
 
 /** @type {Map<string, { id: string, name: string, url: string }>} */
