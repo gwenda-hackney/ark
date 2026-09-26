@@ -225,10 +225,10 @@
 	let replacing = $state(false);
 	let current = $state<OpsEvent | null>(null);
 	let attachSeriesId = $state("");
-	/** Approved play applicants, suggested in Guest Artist. */
+	/** Approved play applicants, suggested in Guest/collaboration. */
 	let approvedArtists = $state<ApprovedArtist[]>([]);
 
-	/** Picked from the Guest Artist list: their name, and their Instagram or website. */
+	/** Picked from the Guest/collaboration list: their name, and their Instagram or website. */
 	function pickApprovedArtist(id: string) {
 		const hit = approvedArtists.find((row) => row.id === id);
 		if (!hit) return;
@@ -1144,7 +1144,7 @@
 
 	onMount(() => {
 		void reload();
-		// A hint only: Guest Artist still takes any name without it.
+		// A hint only: Guest/collaboration still takes any name without it.
 		getApprovedArtists()
 			.then((data) => (approvedArtists = data.artists || []))
 			.catch(() => {});
@@ -2409,7 +2409,7 @@
 													{/if}
 													<div class="guest guest-group">
 													<Field
-														label="Guest Artist"
+														label="Guest/collaboration"
 														for="event-artist"
 														tooltip={editingOccurrence
 															? "From the series until you override defaults. A guest of its own is a special edition on What's on."
@@ -2422,7 +2422,7 @@
 																id="event-artist"
 																size="sm"
 																bind:value={artist}
-																placeholder="Artist or DJ name"
+																placeholder="Artist, DJ or collaborator"
 																emptyText="No approved artists yet. Approve them in Play applications."
 																options={approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
 																onpick={(option) => pickApprovedArtist(option.value)}
@@ -2430,7 +2430,7 @@
 														{/if}
 													</Field>
 													<Field
-														label="Guest artist link"
+														label="Guest/collaboration link"
 														for="event-page-url"
 														tooltip={editingOccurrence
 															? "From the series until you override defaults. A guest of this night can link their own Instagram or website."
@@ -2567,107 +2567,116 @@
 												</p>
 											{/if}
 											<div class="rule-fields">
-												<Field
-													label="Starts on"
-													for="event-starts"
-													tooltip={repeatUnit === "none"
-														? "First scheduled night. Leave empty until you add a night."
-														: "First night of the series. Recurrence builds forward from here. Leave empty if it is not fixed yet: the website says “Check back soon for the next date”."}
-												>
-													<TextField
-														id="event-starts"
-														size="sm"
-														type="date"
-														bind:value={startsOn}
-														disabled={editingOccurrence}
-													/>
-												</Field>
-												<Field
-													label="Ends on"
-													for="event-ends"
-													tooltip={repeatUnit === "none"
-														? "Optional. Not used when nights are scheduled one by one."
-														: "Last night of the series. Required once it has a start date."}
-												>
-													<TextField
-														id="event-ends"
-														size="sm"
-														type="date"
-														bind:value={endsOn}
-														required={repeatUnit !== "none" && Boolean(startsOn)}
-														disabled={editingOccurrence}
-													/>
-												</Field>
-												<Field
-													label="Unit"
-													for="event-unit"
-													tooltip="Weekly or monthly builds the calendar. Does not repeat is for series like Gwenda Nights, where each night is added on its own date."
-												>
-													<NativeSelect
-														id="event-unit"
-														size="sm"
-														bind:value={repeatUnit}
-														disabled={editingOccurrence}
-														options={[
-															{ value: "none", label: "Does not repeat" },
-															{ value: "day", label: "Day" },
-															{ value: "week", label: "Week" },
-															{ value: "month", label: "Month" },
-														]}
-													/>
-												</Field>
-												{#if repeatUnit !== "none"}
+												<div class="rule-row">
 													<Field
-														label="Every"
-														for="event-every"
-														tooltip="How often the pattern repeats. 1 with Week means every week."
+														label="Unit"
+														for="event-unit"
+														tooltip="Weekly or monthly builds the calendar. Does not repeat is for series like Gwenda Nights, where each night is added on its own date."
+													>
+														<NativeSelect
+															id="event-unit"
+															size="sm"
+															bind:value={repeatUnit}
+															disabled={editingOccurrence}
+															options={[
+																{ value: "none", label: "Does not repeat" },
+																{ value: "day", label: "Day" },
+																{ value: "week", label: "Week" },
+																{ value: "month", label: "Month" },
+															]}
+														/>
+													</Field>
+													{#if repeatUnit !== "none"}
+														<Field
+															label="Every"
+															for="event-every"
+															tooltip="How often the pattern repeats. 1 with Week means every week."
+														>
+															<TextField
+																id="event-every"
+																size="sm"
+																type="number"
+																min="1"
+																max="52"
+																bind:value={repeatEvery}
+																disabled={editingOccurrence}
+															/>
+														</Field>
+													{/if}
+													{#if repeatUnit === "week"}
+														<Field
+															label="On"
+															class="days"
+															tooltip="Which weekdays the night falls on. Pick more than one for a series that runs several nights a week."
+														>
+															<div class="chips" role="group" aria-label="Weekdays">
+																{#each WEEKDAYS as day (day)}
+																	<button
+																		type="button"
+																		class="chip"
+																		class:on={weekdays.includes(day)}
+																		aria-pressed={weekdays.includes(day)}
+																		disabled={editingOccurrence}
+																		onclick={() => toggleWeekday(day)}
+																	>
+																		{WEEKDAY_LABELS[day]}
+																	</button>
+																{/each}
+															</div>
+														</Field>
+													{/if}
+													{#if repeatUnit === "month"}
+														<Field
+															label="Day of month"
+															for="event-month-day"
+															tooltip="Which day of the month the night falls on. Leave empty to follow Starts on."
+														>
+															<TextField
+																id="event-month-day"
+																size="sm"
+																type="number"
+																min="1"
+																max="31"
+																bind:value={monthDay}
+																disabled={editingOccurrence}
+																placeholder="From the start date"
+															/>
+														</Field>
+													{/if}
+												</div>
+												<div class="rule-row">
+													<Field
+														label="Starts on"
+														for="event-starts"
+														tooltip={repeatUnit === "none"
+															? "First scheduled night. Leave empty until you add a night."
+															: "First night of the series. Recurrence builds forward from here. Leave empty if it is not fixed yet: the website says “Check back soon for the next date”."}
 													>
 														<TextField
-															id="event-every"
+															id="event-starts"
 															size="sm"
-															type="number"
-															min="1"
-															max="52"
-															bind:value={repeatEvery}
+															type="date"
+															bind:value={startsOn}
 															disabled={editingOccurrence}
 														/>
 													</Field>
-												{/if}
-												{#if repeatUnit === "week"}
-													<fieldset class="days full" disabled={editingOccurrence}>
-														<legend>On</legend>
-														<div class="chips">
-															{#each WEEKDAYS as day (day)}
-																<button
-																	type="button"
-																	class="chip"
-																	class:on={weekdays.includes(day)}
-																	onclick={() => toggleWeekday(day)}
-																>
-																	{WEEKDAY_LABELS[day]}
-																</button>
-															{/each}
-														</div>
-													</fieldset>
-												{/if}
-												{#if repeatUnit === "month"}
 													<Field
-														label="Day of month"
-														for="event-month-day"
-														tooltip="Which day of the month the night falls on. Leave empty to follow Starts on."
+														label="Ends on"
+														for="event-ends"
+														tooltip={repeatUnit === "none"
+															? "Optional. Not used when nights are scheduled one by one."
+															: "Last night of the series. Required once it has a start date."}
 													>
 														<TextField
-															id="event-month-day"
+															id="event-ends"
 															size="sm"
-															type="number"
-															min="1"
-															max="31"
-															bind:value={monthDay}
+															type="date"
+															bind:value={endsOn}
+															required={repeatUnit !== "none" && Boolean(startsOn)}
 															disabled={editingOccurrence}
-															placeholder="From the start date"
 														/>
 													</Field>
-												{/if}
+												</div>
 											</div>
 											{#if previewDates.length}
 												<h2 class="section-title">
@@ -2676,7 +2685,7 @@
 														<Tip
 															label="Upcoming"
 															tooltip={repeatUnit === "none"
-																? "Each night is its own date. A star marks a night with its own guest artist."
+																? "Each night is its own date. A star marks a night with its own guest or collaboration."
 																: "Nights from this series rule. Guest and times show when a night overrides the series defaults."}
 														/>
 													</span>
@@ -3843,58 +3852,49 @@
 
 	.rule-fields {
 		display: grid;
-		gap: 0.7rem 0.85rem;
-		align-items: start;
+		gap: 1rem;
+		padding-bottom: 0.4rem;
 	}
 
-	.rule-fields {
+	/* Repeat pattern on the first row, dates on the second; fields share one width so the rows line up. */
+	.rule-row {
 		display: flex;
 		flex-wrap: wrap;
-		justify-content: flex-start;
+		align-items: start;
+		gap: 0.85rem 1rem;
 	}
 
-	.rule-fields > :global(.field) {
-		flex: 1 1 11rem;
-		max-width: 14rem;
+	.rule-row > :global(.field) {
+		flex: 0 1 13rem;
 		min-width: min(100%, 11rem);
 	}
 
-	.rule-fields > .days {
-		flex: 1 1 100%;
-		max-width: 40rem;
-	}
-
-	.days {
-		border: 0;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		gap: 0.4rem;
-	}
-
-	.days legend {
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
+	.rule-row > :global(.field.days) {
+		flex: 0 1 auto;
 	}
 
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.45rem;
+		gap: 0.4rem;
 	}
 
 	.chip {
+		min-width: 3.25rem;
+		height: var(--control-h-sm);
 		border: 1px solid var(--border);
 		background: transparent;
 		color: var(--foreground);
 		border-radius: var(--radius-pill);
-		padding: 0.3rem 0.7rem;
+		padding: 0 0.8rem;
 		font: inherit;
 		font-size: var(--text-sm);
+		cursor: pointer;
 	}
 
-	.chip {
-		cursor: pointer;
+	.chip:disabled {
+		cursor: default;
+		opacity: 0.6;
 	}
 
 	.chip.on {
@@ -3905,7 +3905,7 @@
 
 	.occurrences {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
 		gap: 0.55rem;
 		margin: 0;
 		padding: 0;
