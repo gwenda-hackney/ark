@@ -9,18 +9,31 @@ export const PAGES_DEPLOYMENT_ENVS = ["production", "preview"];
 
 /**
  * The PATCH body. `secrets` and `plain` are { KEY: value } (empty values are
- * left alone). `previewSecrets` go on the preview environment only and are
- * removed from production (the preview's password gate). `remove` deletes a
- * key only where it is a secret: plain vars come from wrangler.toml [vars]
- * and are not ours to delete.
+ * left alone). `secretEnvs` says which environments get `secrets`: both by
+ * default, production only for a project whose previews must not hold them.
+ * `previewSecrets` go on the preview environment only and are removed from
+ * production (the preview's password gate). `remove` deletes a key only where
+ * it is a secret: plain vars come from wrangler.toml [vars] and are not ours
+ * to delete. `previewRemove` deletes keys from the preview only; "all" deletes
+ * every secret the preview holds.
  */
-export function pagesVarsPatch({ current = {}, secrets = {}, plain = {}, remove = [], previewSecrets = {} }) {
+export function pagesVarsPatch({
+  current = {},
+  secrets = {},
+  plain = {},
+  remove = [],
+  previewSecrets = {},
+  secretEnvs = PAGES_DEPLOYMENT_ENVS,
+  previewRemove = [],
+}) {
   const deploymentConfigs = {};
   const removed = [];
   for (const deploymentEnv of PAGES_DEPLOYMENT_ENVS) {
     const existing = current[deploymentEnv]?.env_vars || {};
     const envVars = {};
-    const drop = deploymentEnv === "production" ? [...remove, ...Object.keys(previewSecrets)] : remove;
+    const previewDrop = previewRemove === "all" ? Object.keys(existing) : previewRemove;
+    const drop =
+      deploymentEnv === "production" ? [...remove, ...Object.keys(previewSecrets)] : [...remove, ...previewDrop];
     for (const key of drop) {
       if (existing[key]?.type === "secret_text") {
         envVars[key] = null;
@@ -30,7 +43,8 @@ export function pagesVarsPatch({ current = {}, secrets = {}, plain = {}, remove 
     for (const [key, value] of Object.entries(plain)) {
       if (value) envVars[key] = { type: "plain_text", value: String(value) };
     }
-    const envSecrets = deploymentEnv === "preview" ? { ...secrets, ...previewSecrets } : secrets;
+    const ownSecrets = secretEnvs.includes(deploymentEnv) ? secrets : {};
+    const envSecrets = deploymentEnv === "preview" ? { ...ownSecrets, ...previewSecrets } : ownSecrets;
     for (const [key, value] of Object.entries(envSecrets)) {
       if (value) envVars[key] = { type: "secret_text", value: String(value) };
     }
@@ -39,7 +53,7 @@ export function pagesVarsPatch({ current = {}, secrets = {}, plain = {}, remove 
   return { body: { deployment_configs: deploymentConfigs }, removed };
 }
 
-/** Apply secrets / plain vars / removals to both deployment environments of a project. */
+/** Apply secrets / plain vars / removals to a project's deployment environments. */
 export async function applyPagesVars({
   accountId,
   token,
@@ -48,6 +62,8 @@ export async function applyPagesVars({
   plain = {},
   remove = [],
   previewSecrets = {},
+  secretEnvs = PAGES_DEPLOYMENT_ENVS,
+  previewRemove = [],
   fetchImpl = fetch,
 }) {
   if (!accountId || !token) {
@@ -57,7 +73,7 @@ export async function applyPagesVars({
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
   let current = {};
-  if (remove.length || Object.keys(previewSecrets).length) {
+  if (remove.length || previewRemove === "all" || previewRemove.length || Object.keys(previewSecrets).length) {
     const got = await fetchImpl(url, { headers });
     const data = await got.json().catch(() => ({}));
     if (!got.ok || !data.success) {
@@ -66,7 +82,15 @@ export async function applyPagesVars({
     current = data.result?.deployment_configs || {};
   }
 
-  const { body, removed } = pagesVarsPatch({ current, secrets, plain, remove, previewSecrets });
+  const { body, removed } = pagesVarsPatch({
+    current,
+    secrets,
+    plain,
+    remove,
+    previewSecrets,
+    secretEnvs,
+    previewRemove,
+  });
   const res = await fetchImpl(url, { method: "PATCH", headers, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.success) {

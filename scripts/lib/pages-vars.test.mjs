@@ -50,6 +50,38 @@ describe("pages vars", () => {
     assert.deepEqual(removed, ["SITE_PASSWORD (production)"]);
   });
 
+  it("keeps secrets off the preview when told to (prod ops previews hold no prod secrets)", () => {
+    const { body } = pagesVarsPatch({ secrets: { A: "1" }, secretEnvs: ["production"] });
+    assert.deepEqual(body.deployment_configs.production.env_vars, { A: { type: "secret_text", value: "1" } });
+    assert.deepEqual(body.deployment_configs.preview.env_vars, {});
+  });
+
+  it("clears keys from the preview only", () => {
+    const current = {
+      production: { env_vars: { A: { type: "secret_text" } } },
+      preview: { env_vars: { A: { type: "secret_text" }, B: { type: "secret_text" } } },
+    };
+    const { body, removed } = pagesVarsPatch({
+      current,
+      secrets: { A: "1" },
+      secretEnvs: ["production"],
+      previewRemove: ["A", "B", "C"],
+    });
+    assert.deepEqual(body.deployment_configs.production.env_vars, { A: { type: "secret_text", value: "1" } });
+    assert.deepEqual(body.deployment_configs.preview.env_vars, { A: null, B: null });
+    assert.deepEqual(removed, ["A (preview)", "B (preview)"]);
+  });
+
+  it("clears every secret from the preview with \"all\", leaving plain vars", () => {
+    const current = {
+      production: { env_vars: { A: { type: "secret_text" } } },
+      preview: { env_vars: { A: { type: "secret_text" }, OLD: { type: "secret_text" }, P: { type: "plain_text" } } },
+    };
+    const { body } = pagesVarsPatch({ current, secretEnvs: ["production"], previewRemove: "all" });
+    assert.deepEqual(body.deployment_configs.preview.env_vars, { A: null, OLD: null });
+    assert.deepEqual(body.deployment_configs.production.env_vars, {});
+  });
+
   it("sends one PATCH, and reads the project first only when removing", async () => {
     const calls = [];
     const fetchImpl = async (url, init = {}) => {
