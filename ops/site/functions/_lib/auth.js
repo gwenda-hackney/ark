@@ -10,6 +10,8 @@ export const OAUTH_STATE_COOKIE = "gwenda_ops_oauth";
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 14;
 const SESSION_SCOPE = "gwenda-ops-google-session-v1";
 const OAUTH_STATE_SCOPE = "gwenda-ops-oauth-state-v1";
+const HANDOFF_SCOPE = "gwenda-ops-preview-handoff-v1";
+const HANDOFF_TTL_SEC = 60;
 
 function bufferToBase64Url(buf) {
   const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
@@ -161,10 +163,14 @@ export async function verifySessionToken(secret, token) {
   return email;
 }
 
-export async function createOauthStateToken(secret, state, codeVerifier) {
+/**
+ * OAuth state cookie: state, PKCE verifier and, on dev only, the branch
+ * preview origin to hand the session back to (preview-signin.js).
+ */
+export async function createOauthStateToken(secret, state, codeVerifier, returnTo = "") {
   if (!secret || !state || !codeVerifier) return "";
-  // state and verifier are url-safe; join with a char that cannot appear in them
-  const payload = `${state}|${codeVerifier}`;
+  // state and verifier are url-safe and an origin has no "|": join with it
+  const payload = returnTo ? `${state}|${codeVerifier}|${returnTo}` : `${state}|${codeVerifier}`;
   const sig = await hmacSign(secret, `${OAUTH_STATE_SCOPE}:${payload}`);
   return `${payload}.${sig}`;
 }
@@ -176,14 +182,48 @@ export async function verifyOauthStateToken(secret, token) {
   if (sigDot <= 0) return null;
   const sig = raw.slice(sigDot + 1);
   const payload = raw.slice(0, sigDot);
-  const sep = payload.indexOf("|");
-  if (sep <= 0 || !sig) return null;
-  const state = payload.slice(0, sep);
-  const codeVerifier = payload.slice(sep + 1);
-  if (!state || !codeVerifier) return null;
+  const [state, codeVerifier, returnTo = "", ...extra] = payload.split("|");
+  if (!state || !codeVerifier || extra.length || !sig) return null;
   const expected = await hmacSign(secret, `${OAUTH_STATE_SCOPE}:${payload}`);
   if (!matchesSecret(sig, expected)) return null;
-  return { state, codeVerifier };
+  return { state, codeVerifier, returnTo };
+}
+
+/**
+ * One-minute token that carries a signed-in email to one branch preview
+ * origin (`audience`): payload.sig, payload = base64url JSON {e, a, x}.
+ */
+export async function createHandoffToken(secret, email, audience, ttlSec = HANDOFF_TTL_SEC) {
+  const normalized = normalizeEmail(email);
+  if (!secret || !normalized || !audience) return "";
+  const exp = Math.floor(Date.now() / 1000) + ttlSec;
+  const payload = bufferToBase64Url(
+    new TextEncoder().encode(JSON.stringify({ e: normalized, a: audience, x: exp })),
+  );
+  const sig = await hmacSign(secret, `${HANDOFF_SCOPE}:${payload}`);
+  return `${payload}.${sig}`;
+}
+
+/** The email in a hand-off token, if it is genuine, unexpired and meant for `audience`. */
+export async function verifyHandoffToken(secret, token, audience) {
+  if (!secret || !token || !audience) return "";
+  const raw = String(token);
+  const dot = raw.lastIndexOf(".");
+  if (dot <= 0) return "";
+  const payload = raw.slice(0, dot);
+  const sig = raw.slice(dot + 1);
+  const expected = await hmacSign(secret, `${HANDOFF_SCOPE}:${payload}`);
+  if (!matchesSecret(sig, expected)) return "";
+  let claims;
+  try {
+    const bin = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    claims = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+  } catch {
+    return "";
+  }
+  if (claims?.a !== audience) return "";
+  if (!Number.isFinite(claims?.x) || claims.x < Math.floor(Date.now() / 1000)) return "";
+  return normalizeEmail(claims.e);
 }
 
 export function parseCookies(header) {
