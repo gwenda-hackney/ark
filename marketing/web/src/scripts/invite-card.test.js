@@ -38,7 +38,11 @@ describe("invite-card history", () => {
   beforeEach(() => {
     window.matchMedia = vi.fn().mockReturnValue({ matches: false });
     mountInviteCard();
-    window.history.replaceState(null, "", "/events/launch-party?event-password=ember-harbor-lantern");
+    window.history.replaceState(
+      null,
+      "",
+      "/events/launch-party?event-password=ember-harbor-lantern",
+    );
     initInviteCard();
   });
 
@@ -54,7 +58,9 @@ describe("invite-card history", () => {
 
     openInviteCard();
 
-    expect(document.getElementById("invite-card")?.classList.contains("is-open")).toBe(true);
+    expect(
+      document.getElementById("invite-card")?.classList.contains("is-open"),
+    ).toBe(true);
     expect(pushState).toHaveBeenCalledWith(
       { inviteCard: "open" },
       "",
@@ -67,8 +73,12 @@ describe("invite-card history", () => {
 
     window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
 
-    expect(document.getElementById("invite-card")?.classList.contains("is-open")).toBe(false);
-    expect(document.getElementById("invite-card-front-idle")?.hidden).toBe(true);
+    expect(
+      document.getElementById("invite-card")?.classList.contains("is-open"),
+    ).toBe(false);
+    expect(document.getElementById("invite-card-front-idle")?.hidden).toBe(
+      true,
+    );
   });
 
   it("shows the front cover only after the close flip finishes", () => {
@@ -82,18 +92,20 @@ describe("invite-card history", () => {
     expect(card?.classList.contains("is-flipping")).toBe(true);
     expect(idle?.hidden).toBe(true);
 
-    inner?.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "transform" }));
+    inner?.dispatchEvent(
+      new TransitionEvent("transitionend", { propertyName: "transform" }),
+    );
 
     expect(card?.classList.contains("is-flipping")).toBe(false);
     expect(idle?.hidden).toBe(false);
   });
 
   it("does not push duplicate history entries while open", () => {
-    const pushState = vi.spyOn(window.history, "pushState").mockImplementation(
-      (state, unused, url) => {
+    const pushState = vi
+      .spyOn(window.history, "pushState")
+      .mockImplementation((state, unused, url) => {
         History.prototype.pushState.call(window.history, state, unused, url);
-      },
-    );
+      });
 
     openInviteCard();
     openInviteCard();
@@ -109,7 +121,9 @@ describe("invite-card history", () => {
       new PopStateEvent("popstate", { state: { inviteCard: "open" } }),
     );
 
-    expect(document.getElementById("invite-card")?.classList.contains("is-open")).toBe(true);
+    expect(
+      document.getElementById("invite-card")?.classList.contains("is-open"),
+    ).toBe(true);
   });
 
   it("clears inline height when the card is closed", () => {
@@ -157,7 +171,9 @@ describe("invite-card history", () => {
     fadeOutRsvpLoading(onComplete);
 
     expect(loading?.classList.contains("is-leaving")).toBe(true);
-    loading?.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
+    loading?.dispatchEvent(
+      new TransitionEvent("transitionend", { propertyName: "opacity" }),
+    );
     await Promise.resolve();
     expect(loading?.hidden).toBe(true);
     expect(onComplete).toHaveBeenCalledTimes(1);

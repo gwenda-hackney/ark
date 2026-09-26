@@ -9,7 +9,13 @@ function parseTicketQuery() {
   const fromBody = document.body?.dataset?.occurrenceSlug?.trim();
   const parts = window.location.pathname.split("/").filter(Boolean);
   let slug = fromBody || "";
-  if (!slug && parts[0] === "whats-on" && parts[1] && parts[2] && parts[3] === "ticket") {
+  if (
+    !slug &&
+    parts[0] === "whats-on" &&
+    parts[1] &&
+    parts[2] &&
+    parts[3] === "ticket"
+  ) {
     slug = `${decodeURIComponent(parts[1])}-${decodeURIComponent(parts[2])}`;
   }
   if (!slug && parts[0] === "events" && parts[1] && parts[2] === "ticket") {
@@ -47,7 +53,12 @@ function renderTicket(data, queryString) {
   if (event.date) {
     setText(
       "ticket-event-date",
-      formatEventWhen(event.date, event.ticketStart, event.ticketEnd, event.time),
+      formatEventWhen(
+        event.date,
+        event.ticketStart,
+        event.ticketEnd,
+        event.time,
+      ),
     );
   }
 
@@ -55,7 +66,10 @@ function renderTicket(data, queryString) {
   if (venueLink && event.venue) venueLink.textContent = event.venue;
 
   setText("ticket-guest-name", guest.name || "Guest");
-  setText("ticket-guest-party", guest.guests > 1 ? `Party of ${guest.guests}` : "Just you");
+  setText(
+    "ticket-guest-party",
+    guest.guests > 1 ? `Party of ${guest.guests}` : "Just you",
+  );
 
   const walletBtn = document.getElementById("ticket-wallet-btn");
   if (walletBtn instanceof HTMLAnchorElement) {

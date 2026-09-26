@@ -102,18 +102,18 @@ const overlayOnly = pageLinks.length > 6;
   {
     !overlayOnly && thisPageLinks.length > 0 && (
       <nav class="site-header-bar" aria-label="This page">
-        {
-          thisPageLinks.map((item) => (
-            <a
-              href={item.href}
-              class:list={[item.cta && "site-header-cta"]}
-              data-astro-reload={shouldReloadNavLink(item.href) || undefined}
-              aria-current={isCurrentNavPage(item.href, pathname) ? "page" : undefined}
-            >
-              {item.label}
-            </a>
-          ))
-        }
+        {thisPageLinks.map((item) => (
+          <a
+            href={item.href}
+            class:list={[item.cta && "site-header-cta"]}
+            data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+            aria-current={
+              isCurrentNavPage(item.href, pathname) ? "page" : undefined
+            }
+          >
+            {item.label}
+          </a>
+        ))}
       </nav>
     )
   }

@@ -1,8 +1,5 @@
 ---
-import {
-  isCurrentNavPage,
-  shouldReloadNavLink,
-} from "../lib/site-nav.js";
+import { isCurrentNavPage, shouldReloadNavLink } from "../lib/site-nav.js";
 
 interface Link {
   href: string;
@@ -44,7 +41,9 @@ const pageAnchorsOnly = pageLinks.every((item) => item.href.startsWith("#"));
         href={homeLink.href}
         class="site-nav-home"
         data-astro-reload={shouldReloadNavLink(homeLink.href) || undefined}
-        aria-current={isCurrentNavPage(homeLink.href, pathname) ? "page" : undefined}
+        aria-current={
+          isCurrentNavPage(homeLink.href, pathname) ? "page" : undefined
+        }
       >
         {homeLink.label}
       </a>
@@ -52,50 +51,50 @@ const pageAnchorsOnly = pageLinks.every((item) => item.href.startsWith("#"));
   }
   {
     pageLinks.length > 0 && (
-  <div
-    class:list={[
-      "site-nav-group",
-      "site-nav-group--page",
-      pageAnchorsOnly && "site-nav-group--anchors",
-    ]}
-    role="group"
-    aria-labelledby="site-nav-page-label"
-  >
-    <p class="site-nav-label is-current" id="site-nav-page-label">This page</p>
-    {
-      pageLinks.map((item) => (
-        <a
-          href={item.href}
-          class:list={[
-            item.cta && "site-header-cta",
-            item.href.startsWith("#") && "site-nav-anchor",
-          ]}
-          data-astro-reload={shouldReloadNavLink(item.href) || undefined}
-          aria-current={isCurrentNavPage(item.href, pathname) ? "page" : undefined}
-        >
-          {item.label}
-        </a>
-      ))
-    }
-  </div>
+      <div
+        class:list={[
+          "site-nav-group",
+          "site-nav-group--page",
+          pageAnchorsOnly && "site-nav-group--anchors",
+        ]}
+        role="group"
+        aria-labelledby="site-nav-page-label"
+      >
+        <p class="site-nav-label is-current" id="site-nav-page-label">
+          This page
+        </p>
+        {pageLinks.map((item) => (
+          <a
+            href={item.href}
+            class:list={[
+              item.cta && "site-header-cta",
+              item.href.startsWith("#") && "site-nav-anchor",
+            ]}
+            data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+            aria-current={
+              isCurrentNavPage(item.href, pathname) ? "page" : undefined
+            }
+          >
+            {item.label}
+          </a>
+        ))}
+      </div>
     )
   }
   {
     siteLinks.length > 0 && (
       <div class="site-nav-group site-nav-group--site">
-        {
-          siteLinks.map((item) => (
-            <a
-              href={item.href}
-              data-astro-reload={shouldReloadNavLink(item.href) || undefined}
-              aria-current={
-                isCurrentNavPage(item.href, pathname) ? "page" : undefined
-              }
-            >
-              {item.label}
-            </a>
-          ))
-        }
+        {siteLinks.map((item) => (
+          <a
+            href={item.href}
+            data-astro-reload={shouldReloadNavLink(item.href) || undefined}
+            aria-current={
+              isCurrentNavPage(item.href, pathname) ? "page" : undefined
+            }
+          >
+            {item.label}
+          </a>
+        ))}
       </div>
     )
   }

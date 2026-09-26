@@ -20,7 +20,13 @@ function subtitleLines(subtitle: string): string[] {
 const leadLines = section.subtitle ? subtitleLines(section.subtitle) : [];
 ---
 
-<header class:list={["menu-section-header", `menu-section-header--${variant}`, "reveal"]}>
+<header
+  class:list={[
+    "menu-section-header",
+    `menu-section-header--${variant}`,
+    "reveal",
+  ]}
+>
   <HeadingTag
     class:list={[
       "menu-section-title",

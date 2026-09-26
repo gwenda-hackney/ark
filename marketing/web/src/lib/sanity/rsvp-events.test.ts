@@ -3,7 +3,9 @@ import { socialDescription } from "./rsvp-events";
 
 describe("socialDescription", () => {
   it("returns short text unchanged", () => {
-    expect(socialDescription("Launch party at Gwenda.")).toBe("Launch party at Gwenda.");
+    expect(socialDescription("Launch party at Gwenda.")).toBe(
+      "Launch party at Gwenda.",
+    );
   });
 
   it("truncates long copy on a word boundary", () => {

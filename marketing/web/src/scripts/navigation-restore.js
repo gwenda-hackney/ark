@@ -37,8 +37,12 @@ function clearRestore() {
 
 /** Force every deferred/animated element into its resting, visible state. */
 export function settleAnimations() {
-  document.querySelectorAll(".reveal").forEach((el) => el.classList.add("visible"));
-  document.querySelectorAll(".enter-scene").forEach((el) => el.classList.add("is-visible"));
+  document
+    .querySelectorAll(".reveal")
+    .forEach((el) => el.classList.add("visible"));
+  document
+    .querySelectorAll(".enter-scene")
+    .forEach((el) => el.classList.add("is-visible"));
   document.querySelectorAll(".enter-stagger").forEach((el) => {
     if (!(el instanceof HTMLElement)) return;
     el.style.opacity = "1";

@@ -32,16 +32,18 @@ const {
   noindex = false,
 } = Astro.props;
 
-const siteOrigin = isPreview
-  ? previewOrigin
-  : siteConfig.domain;
+const siteOrigin = isPreview ? previewOrigin : siteConfig.domain;
 const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
 ---
 
 <!doctype html>
 <html
   lang="en"
-  data-site-env={import.meta.env.DEV ? "local" : isPreview ? "preview" : "production"}
+  data-site-env={import.meta.env.DEV
+    ? "local"
+    : isPreview
+      ? "preview"
+      : "production"}
 >
   <head>
     <meta charset="UTF-8" />
@@ -81,14 +83,16 @@ const canonicalUrl = new URL(Astro.url.pathname, siteOrigin).href;
       // Runs before first paint: on back/forward, render in final state so the
       // browser's native scroll restoration lands without a jump.
       try {
-        var nav = performance.getEntriesByType("navigation")[0];
+        const nav = performance.getEntriesByType("navigation")[0];
         if (nav && nav.type === "back_forward") {
           document.documentElement.classList.add(
             "navigation-restore",
             "fonts-ready",
           );
         }
-      } catch (_) {}
+      } catch {
+        // Older browsers without navigation timing: nothing to restore.
+      }
     </script>
 
     <Fonts />

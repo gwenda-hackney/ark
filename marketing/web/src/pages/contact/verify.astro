@@ -127,7 +127,8 @@ const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
         return;
       }
 
-      if (titleEl) titleEl.textContent = data.successTitle || "You're confirmed";
+      if (titleEl)
+        titleEl.textContent = data.successTitle || "You're confirmed";
       if (messageEl) {
         messageEl.textContent =
           data.successMessage || "Thanks for writing. We'll be in touch.";

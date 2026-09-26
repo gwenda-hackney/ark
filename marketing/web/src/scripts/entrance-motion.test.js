@@ -10,7 +10,10 @@ import {
 
 describe("entrance-motion", () => {
   beforeEach(() => {
-    document.documentElement.classList.remove("navigation-restore", "fonts-ready");
+    document.documentElement.classList.remove(
+      "navigation-restore",
+      "fonts-ready",
+    );
     window.matchMedia = vi.fn().mockReturnValue({ matches: false });
   });
 
@@ -49,7 +52,9 @@ describe("entrance-motion", () => {
     const done = fadeOutElement(loader);
     expect(loader.classList.contains("is-leaving")).toBe(true);
 
-    loader.dispatchEvent(new TransitionEvent("transitionend", { propertyName: "opacity" }));
+    loader.dispatchEvent(
+      new TransitionEvent("transitionend", { propertyName: "opacity" }),
+    );
     await done;
 
     expect(loader.hidden).toBe(true);

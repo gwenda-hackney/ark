@@ -40,7 +40,11 @@ function canScrollY(el) {
   if (!(el instanceof HTMLElement)) return false;
   const style = getComputedStyle(el);
   const overflowY = style.overflowY;
-  if (overflowY !== "auto" && overflowY !== "scroll" && overflowY !== "overlay") {
+  if (
+    overflowY !== "auto" &&
+    overflowY !== "scroll" &&
+    overflowY !== "overlay"
+  ) {
     return false;
   }
   return el.scrollHeight > el.clientHeight + 1;
@@ -185,7 +189,10 @@ function bindThumbDrag(host) {
    * @param {PointerEvent} event
    */
   function endDrag(event) {
-    if (!host.dragging || (activePointer !== null && event.pointerId !== activePointer)) {
+    if (
+      !host.dragging ||
+      (activePointer !== null && event.pointerId !== activePointer)
+    ) {
       return;
     }
     host.dragging = false;
@@ -205,7 +212,9 @@ function bindThumbDrag(host) {
 
   host.rail.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
-    if (!canScrollY(host.isViewport ? document.documentElement : host.scrollEl)) {
+    if (
+      !canScrollY(host.isViewport ? document.documentElement : host.scrollEl)
+    ) {
       return;
     }
 
@@ -330,9 +339,9 @@ function ensureHost(scrollEl) {
  * @param {Element} scrollEl
  */
 function pulse(scrollEl) {
-  const el =
-    scrollEl === document.body ? document.documentElement : scrollEl;
-  const host = hosts.get(el) ?? (el === document.documentElement ? viewportHost : null);
+  const el = scrollEl === document.body ? document.documentElement : scrollEl;
+  const host =
+    hosts.get(el) ?? (el === document.documentElement ? viewportHost : null);
   if (host?.dragging) {
     syncThumb(host);
     return;

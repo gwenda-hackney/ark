@@ -50,8 +50,7 @@ export const siteConfig = {
     },
     contact: {
       title: "Contact · Gwenda",
-      description:
-        "Join the list or apply to play at Gwenda in Hackney Wick.",
+      description: "Join the list or apply to play at Gwenda in Hackney Wick.",
     },
     artists: {
       title: "Featured artist · Gwenda",
@@ -83,8 +82,7 @@ export const siteConfig = {
     shareTitle: "Gwenda | Hackney Wick, London",
     shareDescription:
       "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art and vinyl.",
-    imageAlt:
-      "Gwenda on the Hackney Wick canal.",
+    imageAlt: "Gwenda on the Hackney Wick canal.",
   },
   location: {
     area: "Hackney Wick",
@@ -125,7 +123,8 @@ export const siteConfig = {
     storyBodyPromo: [
       "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
     ],
-    storyClosingPromo: "Who is Gwenda? We can't say. Come experience for yourself.",
+    storyClosingPromo:
+      "Who is Gwenda? We can't say. Come experience for yourself.",
     storyBody: [
       "Italian small plates, refined for candlelight. Rotating signature cocktails, hand-crafted in-house, elevated for the lounge.",
     ],
@@ -184,8 +183,7 @@ export const siteConfig = {
     menuTeaseComingSoon: "Coming soon",
     bookTableEyebrow: "The table",
     bookTableHeading: "Book a table",
-    bookTableLead:
-      "Olive trees at Schwartz Wharf. A table, when you want one.",
+    bookTableLead: "Olive trees at Schwartz Wharf. A table, when you want one.",
     signupHeading: "Stay close",
     signupNavCta: "Join the experience",
     signupEyebrowPromo: "The list",

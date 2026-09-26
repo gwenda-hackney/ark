@@ -4,7 +4,12 @@ import { diaryCacheControl, pageEventFeed } from "./event-feed.js";
 const now = new Date(2026, 8, 22, 15, 0, 0);
 
 function night(id, date) {
-  return { id, date, title: id, recurrence: id.startsWith("jazz") ? "Every Wednesday" : "" };
+  return {
+    id,
+    date,
+    title: id,
+    recurrence: id.startsWith("jazz") ? "Every Wednesday" : "",
+  };
 }
 
 describe("pageEventFeed", () => {
@@ -18,7 +23,10 @@ describe("pageEventFeed", () => {
 
   it("drops past nights and returns the next page cursor", () => {
     const page = pageEventFeed(events, { limit: 2, now });
-    expect(page.events.map((event) => event.id)).toEqual(["jazz-1", "jazz-1-late"]);
+    expect(page.events.map((event) => event.id)).toEqual([
+      "jazz-1",
+      "jazz-1-late",
+    ]);
     expect(page.next).toEqual({ after: "2026-09-23", afterId: "jazz-1-late" });
   });
 
@@ -37,6 +45,8 @@ describe("pageEventFeed", () => {
 describe("diaryCacheControl", () => {
   it("caches the diary the same way on dev and production", () => {
     expect(diaryCacheControl({ SITE_ENV: "dev" })).toBe("public, max-age=60");
-    expect(diaryCacheControl({ SITE_ENV: "production" })).toBe("public, max-age=60");
+    expect(diaryCacheControl({ SITE_ENV: "production" })).toBe(
+      "public, max-age=60",
+    );
   });
 });

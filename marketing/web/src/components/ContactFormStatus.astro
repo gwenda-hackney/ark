@@ -23,10 +23,8 @@ const {
   data-success-title={form.successTitle}
   data-success-message={form.successMessage}
   data-verify-pending-title={form.verifyPendingTitle ?? "Check your email"}
-  data-verify-pending-message={
-    form.verifyPendingMessage ??
-    "We sent a link to {email}. Open it to finish (valid for 48 hours)."
-  }
+  data-verify-pending-message={form.verifyPendingMessage ??
+    "We sent a link to {email}. Open it to finish (valid for 48 hours)."}
 >
   <p class="section-eyebrow">{form.eyebrow ?? "Gwenda"}</p>
   <h1 id="contact-success-title">{title}</h1>
@@ -52,7 +50,8 @@ const {
         role="alert"
         aria-live="polite"
         hidden
-      ></p>
+      >
+      </p>
     </div>
   </div>
   <div class="contact-success-actions" id="contact-success-actions" hidden>

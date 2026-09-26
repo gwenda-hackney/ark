@@ -31,11 +31,15 @@ const NAMES = [
 
 /** 1–12, or "" when the value is blank or not a month. */
 export function monthIndex(value) {
-  const raw = String(value ?? "").trim().toLowerCase();
+  const raw = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (!raw) return 0;
   const number = Number(raw);
   if (Number.isInteger(number) && number >= 1 && number <= 12) return number;
-  const index = NAMES.findIndex((name) => name.startsWith(raw) && raw.length >= 3);
+  const index = NAMES.findIndex(
+    (name) => name.startsWith(raw) && raw.length >= 3,
+  );
   return index >= 0 ? index + 1 : 0;
 }
 

@@ -16,7 +16,10 @@ import {
 import { reportFormError } from "../../../../../shared/forms/form-alert.js";
 import { requestFields } from "../../../../../shared/log.js";
 import { formPublicPath } from "../../_lib/form-paths.js";
-import { fetchFormForSubmit, validateFormAnswers } from "../../_lib/form-submit.js";
+import {
+  fetchFormForSubmit,
+  validateFormAnswers,
+} from "../../_lib/form-submit.js";
 import { replyToFromAnswers } from "../../../../../shared/forms/format.js";
 import {
   buildFormEditUrl,

@@ -9,8 +9,14 @@ import {
   mergeRsvpConfirmation,
 } from "./rsvp-email-template.js";
 import { LOGO_CID } from "../../../../shared/email-image.js";
-import { buildCalendarTicket, ticketAttachmentBaseName } from "./rsvp-tickets.js";
-import { SITE_ADDRESS, VENUE_MAPS_URL } from "../../../../shared/site-location.js";
+import {
+  buildCalendarTicket,
+  ticketAttachmentBaseName,
+} from "./rsvp-tickets.js";
+import {
+  SITE_ADDRESS,
+  VENUE_MAPS_URL,
+} from "../../../../shared/site-location.js";
 
 describe("greetingLine", () => {
   it("uses the guest name when present", () => {
@@ -33,7 +39,9 @@ describe("guestLine", () => {
 
 describe("formatEventWhen", () => {
   it("includes the date and ticket times", () => {
-    expect(formatEventWhen("2026-08-15", "17:00", "23:00")).toContain("15 August 2026");
+    expect(formatEventWhen("2026-08-15", "17:00", "23:00")).toContain(
+      "15 August 2026",
+    );
     expect(formatEventWhen("2026-08-15", "17:00", "23:00")).toMatch(/5–11pm/);
   });
 });
@@ -57,7 +65,8 @@ describe("buildConfirmationContent", () => {
       name: "Dan",
       guests: 1,
       origin: "https://gwenda.co.uk",
-      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
+      inviteUrl:
+        "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
       event: {
         title: "Launch Party",
         date: "2026-08-15",
@@ -86,8 +95,10 @@ describe("buildConfirmationContent", () => {
       name: "Dan",
       guests: 2,
       origin: "https://gwenda.co.uk",
-      inviteUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
-      ticketUrl: "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
+      inviteUrl:
+        "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
+      ticketUrl:
+        "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
       event: { title: "Launch Party", date: "2026-08-15" },
     });
 
@@ -108,8 +119,10 @@ describe("confirmationHtml", () => {
       eventBlockHtml: "<div>Launch Party</div>",
       logoUrl: "https://gwenda.co.uk/brand/logo-email.png",
       logoCid: LOGO_CID,
-      ticketUrl: "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
-      modifyUrl: "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
+      ticketUrl:
+        "https://gwenda.co.uk/events/private-launch-party/ticket?guest=42&t=abc123",
+      modifyUrl:
+        "https://gwenda.co.uk/events/private-launch-party?event-password=ember-harbor-lantern",
     });
     expect(html).toContain(`cid:${LOGO_CID}`);
     expect(html).toContain("Open your ticket");
@@ -124,7 +137,9 @@ describe("confirmationHtml", () => {
 
 describe("ticketAttachmentBaseName", () => {
   it("drops a private- prefix from the event slug", () => {
-    expect(ticketAttachmentBaseName("private-launch-party")).toBe("launch-party");
+    expect(ticketAttachmentBaseName("private-launch-party")).toBe(
+      "launch-party",
+    );
   });
 });
 

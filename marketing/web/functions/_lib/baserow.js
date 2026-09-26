@@ -52,7 +52,10 @@ async function resolveTableIdByName(env, tableName) {
     return { ok: false, error: "Baserow is not configured." };
   }
 
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
+    /\/$/,
+    "",
+  );
   const databaseId = baserowDatabaseId(env);
   const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
 
@@ -141,7 +144,10 @@ export async function baserowRowsUrl(env) {
     return resolved;
   }
 
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
+    /\/$/,
+    "",
+  );
   const { tableId } = resolved;
   return {
     ok: true,
@@ -164,7 +170,10 @@ export async function baserowRsvpRowsUrl(env) {
     return resolved;
   }
 
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
+    /\/$/,
+    "",
+  );
   const { tableId } = resolved;
   return {
     ok: true,
@@ -187,7 +196,10 @@ export async function baserowFormSubmissionRowsUrl(env) {
     return resolved;
   }
 
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(/\/$/, "");
+  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
+    /\/$/,
+    "",
+  );
   const { tableId } = resolved;
   return {
     ok: true,

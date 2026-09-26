@@ -372,7 +372,7 @@ describe("formatFormNotifyHtml", () => {
     expect(html).toContain("DJ Alex");
     expect(html).toContain("About you");
     expect(html).toContain("Your music");
-    expect(html).toContain('mailto:alex@example.com');
+    expect(html).toContain("mailto:alex@example.com");
     expect(html).toContain("https://soundcloud.com/alex");
     expect(html).not.toContain(">Phone<");
     expect(html).not.toContain("/contact/play");

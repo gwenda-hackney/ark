@@ -20,7 +20,7 @@ npm workspaces (not pnpm). Root `package.json` lists each package path explicitl
 
 `npm run sync:brand` (`.github/scripts/sync-brand-tokens.mjs`):
 
-Reads `marketing/web/src/config/colors.json`, updates `marketing/brand/src/index.html` `:root` CSS variables. CI enforces sync on every verify run.
+Reads `marketing/web/src/config/colors.json`, updates `marketing/brand/src/index.html` `:root` CSS variables. CI enforces sync on every pull request and web deploy.
 
 ## Deploy workflows
 
@@ -28,16 +28,16 @@ The main deploy workflows under `.github/workflows/`:
 
 | Workflow | Role |
 |----------|------|
-| `web.yml` | Dev website (`main`), prod's preview (`release`, and ops content rebuilds), verify-only (`develop`), branch previews on the dev website |
+| `web.yml` | Dev website (`main`), prod's preview (`release`, and ops content rebuilds), branch previews on the dev website |
 | `web-promote.yml` | Live site from `release` and published documents |
 | `studio.yml` | Hosted Studio by hand from `release` (Web promote also redeploys it) |
 | `workers.yml` | site-deploy-webhook, Mailchimp sync, site-health, recipe-cost |
 | `apps.yml` | Brand guidelines + ops Pages |
-| `verify.yml` | Reusable build/test (called by `web.yml`) |
+| `pr.yml` | Pull request checks: website lint and tests, ops tests, type check and build |
 
 Root `package.json` alone should not trigger Worker deploys.
 
-Colour changes in `marketing/web/src/config/colors.json` are included in the brand app filter. Prefer `npm run sync:brand`, commit `marketing/brand/`, then push. CI `verify` still enforces sync via `sync:brand --check`.
+Colour changes in `marketing/web/src/config/colors.json` are included in the brand app filter. Prefer `npm run sync:brand`, commit `marketing/brand/`, then push. CI (PR checks and web deploys) still enforces sync via `sync:brand --check`.
 
 ## Migration map (old → new)
 

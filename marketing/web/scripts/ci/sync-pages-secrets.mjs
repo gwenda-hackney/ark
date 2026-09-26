@@ -69,7 +69,9 @@ const profiles = {
   // is gated. Without a password the preview refuses visitors (site-auth.js).
   production: () => {
     if (!process.env.SITE_PASSWORD) {
-      console.warn("SITE_PASSWORD is empty: the preview stays closed until it is set.");
+      console.warn(
+        "SITE_PASSWORD is empty: the preview stays closed until it is set.",
+      );
     }
     for (const key of GATE_KEYS) {
       if (process.env[key]) previewSecrets[key] = process.env[key];
@@ -105,11 +107,16 @@ try {
     remove: RETIRED_SECRETS,
     previewSecrets,
   });
-  console.log(`Set ${done.secrets.length} secrets on ${project} (production, preview): ${done.secrets.join(", ")}.`);
+  console.log(
+    `Set ${done.secrets.length} secrets on ${project} (production, preview): ${done.secrets.join(", ")}.`,
+  );
   if (done.previewSecrets.length) {
-    console.log(`Set ${done.previewSecrets.join(", ")} on ${project} (preview only).`);
+    console.log(
+      `Set ${done.previewSecrets.join(", ")} on ${project} (preview only).`,
+    );
   }
-  for (const key of done.removed) console.log(`Removed secret ${key} from ${project}.`);
+  for (const key of done.removed)
+    console.log(`Removed secret ${key} from ${project}.`);
 } catch (error) {
   console.error(error.message);
   process.exit(1);

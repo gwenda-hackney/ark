@@ -20,8 +20,7 @@ describe("buildSanityImageUrl", () => {
 });
 
 describe("mapSanityImage", () => {
-  const sampleAssetId =
-    "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-800x1000-png";
+  const sampleAssetId = "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-800x1000-png";
 
   it("maps a Sanity image field to menu image metadata", () => {
     const image = mapSanityImage(
@@ -60,8 +59,7 @@ describe("mapSanityImage", () => {
 });
 
 describe("mapSanityGalleryImage", () => {
-  const sampleAssetId =
-    "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-800x1000-png";
+  const sampleAssetId = "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-800x1000-png";
 
   it("delivers the Studio crop without a second tile crop pass", () => {
     const image = mapSanityGalleryImage({
@@ -91,8 +89,7 @@ describe("mapSanityGalleryImage", () => {
 });
 
 describe("mapSanitySocialPreviewImage", () => {
-  const sampleAssetId =
-    "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-800x1000-png";
+  const sampleAssetId = "image-Tb9Ew8CXIwaY6R1kjMvI0uRR-800x1000-png";
 
   it("builds a 1200×630 JPEG for link previews", () => {
     const image = mapSanitySocialPreviewImage({

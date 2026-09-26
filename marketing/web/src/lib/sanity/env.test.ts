@@ -14,8 +14,8 @@ describe("sanityPerspective", () => {
     expect(sanityPerspective({ dev: true, perspective: "published" })).toBe(
       "published",
     );
-    expect(sanityPerspective({ dev: false, perspective: "previewDrafts" })).toBe(
-      "previewDrafts",
-    );
+    expect(
+      sanityPerspective({ dev: false, perspective: "previewDrafts" }),
+    ).toBe("previewDrafts");
   });
 });

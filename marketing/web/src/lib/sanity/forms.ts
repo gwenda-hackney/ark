@@ -7,13 +7,7 @@ export type FormFieldOption = {
 };
 
 export type FormFieldType =
-  | "text"
-  | "email"
-  | "tel"
-  | "url"
-  | "textarea"
-  | "select"
-  | "multiSelect";
+  "text" | "email" | "tel" | "url" | "textarea" | "select" | "multiSelect";
 
 export type FormField = {
   key: string;
@@ -52,11 +46,13 @@ export type FormPage = {
 };
 
 function sectionId(title: string) {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "") || "details";
+  return (
+    title
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "details"
+  );
 }
 
 /** Group fields by Sanity `section` label, preserving order. */
@@ -90,6 +86,8 @@ export async function fetchFormBySlug(slug: string): Promise<FormPage | null> {
   if (!doc?.slug || !doc.heading || !Array.isArray(doc.fields)) return null;
   return {
     ...doc,
-    fields: doc.fields.filter((field) => field?.key && field?.label && field?.type),
+    fields: doc.fields.filter(
+      (field) => field?.key && field?.label && field?.type,
+    ),
   };
 }

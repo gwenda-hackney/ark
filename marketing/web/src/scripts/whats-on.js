@@ -480,9 +480,7 @@ function setupSeriesLoadMore(root, signal) {
       if (signal.aborted || !document.contains(list)) return;
       const detail = data.series;
       const nights = Array.isArray(detail?.nights) ? detail.nights : [];
-      list.append(
-        ...nights.map((night) => nightCard(night, detail)),
-      );
+      list.append(...nights.map((night) => nightCard(night, detail)));
       nextCursor = detail?.next || null;
       more.textContent = "";
       if (!nextCursor) more.remove();

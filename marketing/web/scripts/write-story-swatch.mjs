@@ -23,7 +23,9 @@ const sampledHex = await sampleStoryBackgroundHex(sharp(buffer));
 await sharp(buffer).png().toFile(outPath);
 
 console.log(`Wrote public/brand/story-background.png (sampled: ${sampledHex})`);
-console.log(`Print flat colour: ${computeStoryPrintFlatHex(colors)} (${colors.bgStoryPrint})`);
+console.log(
+  `Print flat colour: ${computeStoryPrintFlatHex(colors)} (${colors.bgStoryPrint})`,
+);
 
 if (sampledHex !== colors.bgStory) {
   console.warn(

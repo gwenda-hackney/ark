@@ -78,6 +78,18 @@ Local: `npm run ops:dev` → http://localhost:5174/ → Continue with Google. Op
 Logout clears the session cookie and returns to `/gate/`.
 
 If Cloudflare Access still intercepts production after cutover, run `npm run teardown:ops-access` (or delete the Gwenda ops Access apps in Zero Trust).
+
+### Letting in someone outside the company (a personal Gmail)
+
+No code change is needed. Google sign-in proves who someone is; an active row in **Users** decides whether they get in. A company account without an active row is refused the same way an outside Gmail is.
+
+1. **Google Cloud → OAuth consent screen** (not the OAuth client): set User type from **Internal** to **External**. Scopes stay `openid email profile`, so no sensitive-scope verification. While the app is in **Testing**, add the Gmail as a test user; publishing the app removes the test-user cap. Don't change the client id, secret or redirect URIs.
+2. **Ops → `/users`:** add their Google email with **Active** on. Without the row, sign-in ends in a 403 with no session.
+
+Where it's enforced: `api/auth/callback.js` checks `isOpsUser` before setting a session, `_middleware.js` checks again on every request, and `_lib/user-store.js` reads Users (cached 30 seconds). The authorize URL in `_lib/google-oauth.js` doesn't lock a Workspace domain. Deactivating someone at `/users` cuts them off on their next request.
+
+There are no roles: an active user sees all of ops (recipes and trade prices, form submissions, events, website release, and `/users` itself). Only add people who should see all of that.
+
 ## Where data lives
 
 | Data | Store |

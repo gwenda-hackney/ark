@@ -24,7 +24,9 @@ describe("formatTicketTitle", () => {
   });
 
   it("leaves an existing Gwenda prefix alone", () => {
-    expect(formatTicketTitle("Gwenda Launch Party")).toBe("Gwenda Launch Party");
+    expect(formatTicketTitle("Gwenda Launch Party")).toBe(
+      "Gwenda Launch Party",
+    );
   });
 
   it("falls back when the title is empty", () => {
@@ -63,7 +65,11 @@ describe("walletStripImageUrl", () => {
   });
 
   it("appends to an existing query string", () => {
-    const url = walletStripImageUrl("https://cdn.sanity.io/images/demo/hero.jpg?dpr=2", 375, 98);
+    const url = walletStripImageUrl(
+      "https://cdn.sanity.io/images/demo/hero.jpg?dpr=2",
+      375,
+      98,
+    );
     expect(url).toContain("&w=375");
     expect(url).toContain("fit=crop");
   });
@@ -97,7 +103,9 @@ describe("fetchImageBuffer", () => {
         arrayBuffer: async () => PNG_MAGIC.buffer,
       }),
     );
-    const buffer = await fetchImageBuffer("https://gwenda.co.uk/brand/wallet/icon.png");
+    const buffer = await fetchImageBuffer(
+      "https://gwenda.co.uk/brand/wallet/icon.png",
+    );
     expect(buffer).not.toBeNull();
   });
 
@@ -111,7 +119,9 @@ describe("fetchImageBuffer", () => {
         arrayBuffer: async () => html.buffer,
       }),
     );
-    const buffer = await fetchImageBuffer("https://gwenda.co.uk/brand/wallet/icon.png");
+    const buffer = await fetchImageBuffer(
+      "https://gwenda.co.uk/brand/wallet/icon.png",
+    );
     expect(buffer).toBeNull();
   });
 
@@ -125,7 +135,9 @@ describe("fetchImageBuffer", () => {
         arrayBuffer: async () => html.buffer,
       }),
     );
-    const buffer = await fetchImageBuffer("https://gwenda.co.uk/brand/wallet/icon.png");
+    const buffer = await fetchImageBuffer(
+      "https://gwenda.co.uk/brand/wallet/icon.png",
+    );
     expect(buffer).toBeNull();
   });
 });
@@ -184,7 +196,8 @@ describe("buildAppleWalletPass", () => {
 
 describe("bundled wallet brand assets", () => {
   it("provides every brand file used by the pass as a valid PNG", async () => {
-    const { WALLET_BRAND_ASSETS } = await import("./wallet-brand-assets.generated.js");
+    const { WALLET_BRAND_ASSETS } =
+      await import("./wallet-brand-assets.generated.js");
     const requiredFiles = [
       "logo.png",
       "logo@2x.png",
