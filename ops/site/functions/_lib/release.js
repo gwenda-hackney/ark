@@ -5,8 +5,9 @@
  * drops the draft, together with anything it references that also changed.
  * Discarding drops the drafts, so the preview matches the website again.
  *
- * Removals don't wait for this: ops deletes the draft and the published
- * document together (sanity.js draftMutations).
+ * A draft marked `removed` (a night dropped from its series' schedule) is a
+ * removal: publishing deletes the document and its draft. Deleting in ops
+ * doesn't wait for this: it removes both at once (sanity.js draftMutations).
  */
 import {
   PREVIEW,
@@ -156,7 +157,9 @@ function fieldChanges(preview, production) {
 
 /** Compare the preview (drafts over published) against what the website shows. */
 export function computeReleaseDiff(previewDocs, productionDocs) {
-  const preview = new Map((previewDocs || []).map((doc) => [doc._id, doc]));
+  const preview = new Map(
+    (previewDocs || []).filter((doc) => doc.removed !== true).map((doc) => [doc._id, doc]),
+  );
   const production = new Map((productionDocs || []).map((doc) => [doc._id, doc]));
   const entries = [];
   for (const [id, doc] of preview) {
@@ -282,12 +285,12 @@ export async function publishRelease(
     );
   }
 
-  // Only a document deleted outside ops lands here: ops removes both at once.
+  // Dropped nights (drafts marked removed), or a document deleted outside ops.
   const warnings = [];
   const deleted = [];
   for (const id of plan.deletes) {
     try {
-      await mutate(env, [{ delete: { id } }]);
+      await mutate(env, [{ delete: { id: draftId(id) } }, { delete: { id } }]);
       deleted.push(id);
     } catch (error) {
       warnings.push(

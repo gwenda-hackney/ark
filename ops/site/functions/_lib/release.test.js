@@ -137,3 +137,23 @@ test("publish all reports every source document as in sync; a selection does not
   const some = await publishRelease({ SITE_ENV: "production" }, { ids: ["series-nights"] }, deps);
   assert.equal(some.inSync, null);
 });
+
+test("a draft marked removed is a removal: publishing deletes the document and its draft", async () => {
+  const preview = [series(), night("2026-10-03", { removed: true })];
+  const production = [series(), night("2026-10-03")];
+  const entries = computeReleaseDiff(preview, production);
+  assert.deepEqual(entries.map((entry) => [entry.id, entry.change]), [["event-nights-2026-10-03", "removed"]]);
+
+  const batches = [];
+  const query = async (_env, view) => (view === "production" ? production : preview);
+  const result = await publishRelease(
+    { SITE_ENV: "production" },
+    { ids: ["event-nights-2026-10-03"] },
+    { query, mutate: async (_env, batch) => batches.push(batch) },
+  );
+  assert.deepEqual(batches, [[
+    { delete: { id: "drafts.event-nights-2026-10-03" } },
+    { delete: { id: "event-nights-2026-10-03" } },
+  ]]);
+  assert.deepEqual(result.deleted, ["event-nights-2026-10-03"]);
+});

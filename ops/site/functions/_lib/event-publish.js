@@ -3,7 +3,9 @@
  * What's on on the preview site reads them live; the rest of the preview site
  * updates on its own once edits go quiet (site-pending.js).
  * The website only changes when the drafts are published (Put on website,
- * or Website > Preview → live). Removing a night takes it off both at once.
+ * or Website > Preview → live). A night dropped from the schedule is a draft
+ * too: marked `removed`, it leaves the website when the series is published.
+ * Deleting a night or an event takes it off both at once.
  */
 import {
   PREVIEW,
@@ -42,6 +44,7 @@ import {
   getEvent,
   hasShortDescriptionOverrideColumn,
   listEvents,
+  previewBehind,
   removeOccurrence,
   saveOccurrences,
 } from "./event-store.js";
@@ -207,7 +210,12 @@ export async function publishEventPreview(
     httpError("Description is required before publishing.", 400);
   const today = todayIso();
   const wanted = expandOccurrenceDates(event, { today });
-  if (!wanted.length) httpError("There is no upcoming date to publish.", 400);
+  const materialized = new Set(expandSeriesOccurrenceDates(event));
+  const drop = event.dates.filter(
+    (row) => row.date >= today && !materialized.has(row.date),
+  );
+  // An ended series still has its dropped nights to take off the website.
+  if (!wanted.length && !drop.length) httpError("There is no upcoming date to publish.", 400);
 
   const existingByDate = new Map(event.dates.map((row) => [row.date, row]));
   const heroByUrl = new Map();
@@ -354,13 +362,11 @@ export async function publishEventPreview(
   }
 
   const warnings = [];
-  const materialized = new Set(expandSeriesOccurrenceDates(event));
-  const drop = event.dates.filter(
-    (row) => row.date >= today && !materialized.has(row.date),
-  );
   if (drop.length) pagesChanged = true;
-  warnings.push(...(await unpublishOccurrences(env, drop)));
-  for (const row of drop) {
+  const dropWarnings = await markNightsRemoved(env, drop);
+  warnings.push(...dropWarnings);
+  // Keep the rows when marking failed, so the next run tries again.
+  for (const row of dropWarnings.length ? [] : drop) {
     if (row.id) await removeOccurrence(env, row.id);
   }
 
@@ -491,6 +497,27 @@ export async function unpublishOccurrences(env, rows) {
 }
 
 /**
+ * Dropped from the schedule: a night on the website gets a draft marked
+ * `removed` (the preview hides it; publishing deletes it), one that never went
+ * live just loses its draft.
+ */
+export async function markNightsRemoved(env, rows, { query = sanityQuery, mutate = sanityMutate } = {}) {
+  const ids = (rows || []).map((row) => row?.sanityId).filter(Boolean);
+  if (!ids.length) return [];
+  const live = new Set((await query(env, "production", "*[_id in $ids]._id", { ids })) || []);
+  const mutations = ids.map((id) =>
+    live.has(id) ? { patch: { id, set: { removed: true } } } : { delete: { id } },
+  );
+  const warnings = [];
+  try {
+    await mutate(env, mutations);
+  } catch (error) {
+    warnings.push(error?.message || "Could not take the dropped nights off the preview.");
+  }
+  return warnings;
+}
+
+/**
  * Every published document that belongs to this event, on either side: the
  * series and each night (including nights removed in ops but still live).
  */
@@ -529,10 +556,9 @@ export async function previewEventOnWebsite(env, id) {
 export async function putEventOnWebsite(env, id) {
   // Saving already staged it; only stage again if the drafts are behind ops.
   const current = await getEvent(env, id);
-  const staged =
-    current.publish?.preview === "current"
-      ? { event: current, warnings: [] }
-      : await publishEventPreview(env, id);
+  const staged = previewBehind(current)
+    ? await publishEventPreview(env, id)
+    : { event: current, warnings: [] };
   const ids = await eventDocumentIds(env, staged.event);
   const result = await publishRelease(env, { ids });
   const warnings = [...(staged.warnings || []), ...result.warnings];
@@ -575,7 +601,8 @@ const EVENT_DOCS_QUERY = `*[_type in ["eventSeries", "event"] && !(_id in path("
  * documents (series + nights) on the preview, which saving keeps in step
  * with ops, compared with what the website shows. Fingerprints in ops only cover the fields
  * someone remembered to list; this cannot miss one.
- *  - nothing staged yet: keep ops' own answer
+ *  - nothing staged yet: keep ops' own answer (an ended series with every
+ *    night marked removed still has its series document staged)
  *  - nothing live: "unpublished"
  *  - any document added, removed or different: "stale"
  */
@@ -583,7 +610,8 @@ export function websiteStatusFor(event, preview, production) {
   const seriesId = sanitySeriesId(event.slug);
   const belongs = (doc) =>
     doc._id === seriesId || (doc._type === "event" && doc.seriesId === event.slug);
-  const onPreview = [...preview.values()].filter(belongs);
+  // A night marked removed is gone from the preview, still on the website.
+  const onPreview = [...preview.values()].filter((doc) => belongs(doc) && doc.removed !== true);
   if (!onPreview.length) return event.publish?.live || "unpublished";
   const live = [...production.values()].filter(belongs);
   if (!live.length) return "unpublished";

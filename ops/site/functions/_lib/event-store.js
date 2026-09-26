@@ -812,6 +812,29 @@ async function clearSeriesTitleEchoes(env, event, previousName) {
   return changed ? getEvent(env, event.id) : event;
 }
 
+/**
+ * A night no longer in the schedule that is still on the website keeps its
+ * row until the website job marks it removed on the preview (publishEventPreview).
+ * Deleting it on save would leave it on the website with nothing left to say so.
+ */
+export function keepsDroppedNight(row, today = todayIso()) {
+  return Boolean(row?.sanityId) && row.date >= today;
+}
+
+/** Upcoming nights on the website that the schedule no longer has. */
+export function droppedNights(event, today = todayIso()) {
+  const scheduled = new Set(expandSeriesOccurrenceDates(event));
+  return (event?.dates || []).filter(
+    (row) => !scheduled.has(row.date) && keepsDroppedNight(row, today),
+  );
+}
+
+/** The preview is behind ops: nights to write, or dropped nights to mark removed. */
+export function previewBehind(event, today = todayIso()) {
+  if (droppedNights(event, today).length) return true;
+  return Boolean(event?.publish?.previewDates?.length) && event.publish.preview !== "current";
+}
+
 export async function syncEventOccurrences(env, event) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const wanted = new Set(expandSeriesOccurrenceDates(event));
@@ -836,8 +859,10 @@ export async function syncEventOccurrences(env, event) {
   for (const row of extras) {
     if (row?.id) await removeOccurrence(env, row.id);
   }
+  const today = todayIso();
   for (const [date, row] of byDate) {
     if (wanted.has(date)) continue;
+    if (keepsDroppedNight(row, today)) continue;
     if (row?.id) await removeOccurrence(env, row.id);
     byDate.delete(date);
   }
