@@ -17,6 +17,7 @@
 		Segmented,
 		TextArea,
 		TextField,
+		TimeField,
 		Tip,
 	} from "../../ui";
 	import type { SegmentedItem } from "../../ui/types";
@@ -2319,10 +2320,9 @@
 														{#if editingOccurrence && !defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("startTime")}</p>
 														{:else}
-															<TextField
+															<TimeField
 																id="event-start-time"
 																size="sm"
-																type="time"
 																bind:value={startTime}
 															/>
 														{/if}
@@ -2338,11 +2338,11 @@
 														{#if editingOccurrence && !defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("endTime")}</p>
 														{:else}
-															<TextField
+															<TimeField
 																id="event-end-time"
 																size="sm"
-																type="time"
 																bind:value={endTime}
+																suggest={startTime || "23:00"}
 															/>
 														{/if}
 													</Field>
@@ -2375,16 +2375,15 @@
 																				bind:value={nightSchedule[index].label}
 																				aria-label={`Slot ${index + 1} label`}
 																			/>
-																			<TextField
+																			<TimeField
 																				size="sm"
-																				type="time"
 																				bind:value={nightSchedule[index].startTime}
 																				aria-label={`Slot ${index + 1} start`}
 																			/>
-																			<TextField
+																			<TimeField
 																				size="sm"
-																				type="time"
 																				bind:value={nightSchedule[index].endTime}
+																				suggest={nightSchedule[index].startTime || endTime || "23:00"}
 																				aria-label={`Slot ${index + 1} end`}
 																			/>
 																			<button
