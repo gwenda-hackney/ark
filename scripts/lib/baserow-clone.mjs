@@ -46,6 +46,25 @@ export async function listAllApplications(apiBase, jwt) {
   return Array.isArray(apps) ? apps : [];
 }
 
+/**
+ * Copies only ever go production → dev. Refuse a target workspace that holds
+ * the source database: with a mistaken workspace name or id, a --force copy
+ * would otherwise wipe production's own tables.
+ */
+export async function refuseSourceWorkspace(apiBase, jwt, sourceDbId, targetWorkspaceId) {
+  const apps = await listAllApplications(apiBase, jwt);
+  const source = apps.find((app) => String(app.id) === String(sourceDbId));
+  const sourceWorkspaceId = source?.workspace?.id ?? source?.group?.id;
+  if (sourceWorkspaceId == null) {
+    throw new Error(`Can't tell which workspace source DB ${sourceDbId} is in. Refusing to copy.`);
+  }
+  if (String(sourceWorkspaceId) === String(targetWorkspaceId)) {
+    throw new Error(
+      `Target workspace ${targetWorkspaceId} holds the source DB ${sourceDbId}. Copies only go production → dev. Refusing.`,
+    );
+  }
+}
+
 export function fieldCreateBody(field, tableIdByOldId) {
   if (field.read_only && field.type !== "text") return null;
   if (field.type === "file") {

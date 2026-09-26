@@ -26,6 +26,7 @@ import {
   findWorkspaceByName,
   jwtRequest,
   listAllApplications,
+  refuseSourceWorkspace,
   listAllRows,
   orderTables,
   remapRowPayload,
@@ -179,6 +180,7 @@ async function main() {
   if (opts.dryRun) return;
 
   const workspaceId = await resolveWorkspaceId(apiBase, jwt, workspaceName);
+  await refuseSourceWorkspace(apiBase, jwt, sourceDbId, workspaceId);
   const databaseId = await findOrCreateDatabase(apiBase, jwt, workspaceId, destName);
 
   let destTables = await jwtRequest(
@@ -355,7 +357,7 @@ Next:
   1. In Baserow → workspace "${workspaceName}" → Settings → Database tokens:
      Create a token with access ONLY to this website database (${databaseId}).
   2. Put that token in Secrets Manager as BASEROW_WEBSITE_API_KEY__LOCAL.
-  3. npm run env:secrets:pull
+  3. npm run env:secrets:refresh
 ${skippedFiles ? `\n  Note: ${skippedFiles} file field value(s) were not copied.\n` : ""}`);
   if (destSubscribe) {
     console.log(`  Subscribers table id: ${destSubscribe.id}`);
