@@ -2066,6 +2066,7 @@
 								<Icon name="events" size={14} />
 							{/if}
 							<p class="eyebrow">{typeLine}</p>
+							<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 						</div>
 						<div class="head-tools">
 							<div class="toolbar-actions">
@@ -2165,7 +2166,6 @@
 									<p class="night-headline">
 										{headerDate === "No date" ? "Pick a date" : headerDate}
 									</p>
-									<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 								</div>
 								{#if editingOccurrence && !defaultsUnlocked}
 									<p class="locked-title">{lockedReadout("name")}</p>
@@ -2191,7 +2191,6 @@
 										placeholder={creatingOnce || editingOnce ? "Event name" : "Series name"}
 										bind:value={name}
 									/>
-									<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
 								</div>
 							{/if}
 							{#if (!editingOccurrence || defaultsUnlocked) && artist.trim()}
@@ -3643,6 +3642,7 @@
 	.status-flag {
 		display: inline-flex;
 		align-items: center;
+		flex-shrink: 0;
 		width: fit-content;
 		margin: 0;
 		padding: 0.18rem 0.5rem;
