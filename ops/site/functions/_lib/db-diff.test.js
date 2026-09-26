@@ -47,6 +47,8 @@ test("pairs read tokens from env and default to the known databases", () => {
   const pairs = databasePairs({ BASEROW_API_KEY: "prod", BASEROW_OPS_DEV_API_KEY: "dev" });
   assert.equal(pairs.ops.source.databaseId, "556507");
   assert.equal(pairs.ops.target.token, "dev");
-  assert.equal(pairs.website.target.databaseId, "564496");
+  // Both copies are the Gwenda Dev ones, read with the dev token.
+  assert.equal(pairs.website.target.databaseId, "563090");
+  assert.equal(pairs.website.target.token, "dev");
   assert.deepEqual(pairs.ops.ignoreTables, ["App Config"]);
 });

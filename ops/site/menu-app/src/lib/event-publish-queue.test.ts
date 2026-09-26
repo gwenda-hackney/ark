@@ -23,7 +23,7 @@ const list = [
 ];
 
 describe("event publish queue", () => {
-  it("lists events staging does not have", () => {
+  it("lists events preview does not have", () => {
     assert.deepEqual(eventsNotStaged(list).map((event) => event.id), ["new", "edited"]);
   });
 

@@ -136,7 +136,7 @@ describe("websiteTargetStatus", () => {
   it("marks excluded when the drink is off the digital menu", () => {
     const status = websiteTargetStatus(
       { ...baseItem, onDigitalMenu: false },
-      "staging",
+      "preview",
     );
     assert.deepEqual(status, { status: "excluded" });
   });
@@ -150,16 +150,16 @@ describe("websiteTargetStatus", () => {
   });
 
   it("marks unknown when linked but never snapshotted", () => {
-    const status = websiteTargetStatus(baseItem, "staging");
+    const status = websiteTargetStatus(baseItem, "preview");
     assert.deepEqual(status, { status: "unknown" });
   });
 
   it("marks published when the snapshot matches", () => {
     const payload = websiteProjection(baseItem);
-    const snapshots = recordTargetSnapshot({}, "staging", payload, "2026-09-16T09:00:00.000Z");
+    const snapshots = recordTargetSnapshot({}, "preview", payload, "2026-09-16T09:00:00.000Z");
     const status = websiteTargetStatus(
       { ...baseItem, publishSnapshots: snapshots },
-      "staging",
+      "preview",
     );
     assert.deepEqual(status, { status: "published" });
   });
@@ -198,7 +198,7 @@ describe("publish snapshots", () => {
     assert.deepEqual(parsePublishSnapshots("not-json"), {});
     const parsed = parsePublishSnapshots(
       JSON.stringify({
-        staging: {
+        preview: {
           at: "2026-09-16T09:00:00.000Z",
           hash: "abc",
           payload: { name: "Gwenda" },
@@ -206,24 +206,24 @@ describe("publish snapshots", () => {
         extra: { hash: "nope" },
       }),
     );
-    assert.equal(parsed.staging.hash, "abc");
-    assert.equal(parsed.staging.payload.name, "Gwenda");
+    assert.equal(parsed.preview.hash, "abc");
+    assert.equal(parsed.preview.payload.name, "Gwenda");
     assert.equal(parsed.extra, undefined);
   });
 
   it("merges a new target without dropping the other", () => {
-    const first = recordTargetSnapshot({}, "staging", websiteProjection(baseItem));
+    const first = recordTargetSnapshot({}, "preview", websiteProjection(baseItem));
     const next = recordTargetSnapshot(
       first,
       "production",
       websiteProjection({ ...baseItem, price: "16" }),
     );
-    assert.ok(next.staging.hash);
+    assert.ok(next.preview.hash);
     assert.ok(next.production.hash);
-    assert.notEqual(next.staging.hash, next.production.hash);
+    assert.notEqual(next.preview.hash, next.production.hash);
     const raw = serializePublishSnapshots(next);
     const roundTrip = parsePublishSnapshots(raw);
-    assert.equal(roundTrip.staging.hash, next.staging.hash);
+    assert.equal(roundTrip.preview.hash, next.preview.hash);
     assert.equal(roundTrip.production.hash, next.production.hash);
   });
 });
@@ -248,11 +248,11 @@ describe("toClientItem", () => {
     const item = {
       ...baseItem,
       _id: "1",
-      publishSnapshots: recordTargetSnapshot({}, "staging", payload),
+      publishSnapshots: recordTargetSnapshot({}, "preview", payload),
     };
     const client = toClientItem(item);
     assert.equal(client.publishSnapshots, undefined);
-    assert.equal(client.publish.staging.status, "published");
+    assert.equal(client.publish.preview.status, "published");
     assert.equal(client.publish.production.status, "unknown");
     assert.equal("pos" in client.publish, false);
   });
@@ -278,4 +278,10 @@ describe("toClientItem", () => {
       { field: "price", from: "14", to: "16" },
     ]);
   });
+});
+
+it("snapshots saved under the old staging name read as the preview", () => {
+  const parsed = parsePublishSnapshots(JSON.stringify({ staging: { hash: "h1", at: "t" } }));
+  assert.equal(parsed.preview.hash, "h1");
+  assert.equal(parsed.staging, undefined);
 });

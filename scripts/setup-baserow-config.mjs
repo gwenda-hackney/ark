@@ -3,7 +3,7 @@
  * Create or repair the Baserow "Gwenda Config" database (workspace Gwenda).
  * See shared/config.js (the config service) for how settings resolve.
  * Additive only (safe before a deploy): removing rows the running code may
- * still read happens after the deploy, in scripts/config-post-deploy.mjs.
+ * still read happens after the deploy (migrations/config-retired-settings.mjs).
  *
  *   npm run setup:baserow-config            # database, table, fields, seed rows
  *   npm run setup:baserow-config -- --token # also mint BASEROW_CONFIG_API_KEY → SM (Ark)
@@ -26,7 +26,7 @@ import { listAllSmSecrets, resolveSmAccessToken, upsertSmSecret } from "./lib/bi
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const API = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\/$/, "");
-/** Paid Gwenda workspace (production + staging data live here too). */
+/** Paid Gwenda workspace (production data lives here too). */
 const WORKSPACE_ID = process.env.BASEROW_CONFIG_WORKSPACE_ID?.trim() || "208709";
 const TOKEN_NAME = "gwenda-config";
 
@@ -42,7 +42,6 @@ const SEED_ROWS = [
   ["sanity.project_id", "pn5yjro6", "all", "all", ""],
   ["sanity.project_id", "gwscpagy", "dev", "all", "Gwenda Dev copy"],
   ["forms.notify_email", NONPROD_NOTIFY, "dev", "web", "Form notifications outside production"],
-  ["forms.notify_email", NONPROD_NOTIFY, "staging", "web", "Form notifications outside production"],
 ];
 
 

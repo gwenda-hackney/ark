@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * Refresh the Gwenda Dev Sanity project from the real one:
- *   real staging    → dev staging
- *   real production → dev production
- * Documents are replaced by id; a document deleted from the real project
- * stays in dev until the dev dataset is recreated. The real project is only read.
+ * Refresh the Gwenda Dev Sanity project from the real one: each has one
+ * dataset, production, drafts included. Documents are replaced by id; a
+ * document deleted from the real project stays in dev until the dev dataset
+ * is recreated. The real project is only read.
  *
  * Uses your personal Sanity login (`npx sanity login`), not a robot token.
  *
  *   npm run dev:refresh:sanity
- *   npm run dev:refresh:sanity -- production     one dataset only
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -24,7 +22,7 @@ import {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const STUDIO = resolve(ROOT, "marketing/studio");
 const SANITY = resolve(ROOT, "node_modules/.bin/sanity");
-const DATASETS = ["staging", "production"];
+const DATASET = "production";
 
 if (DEV_SANITY_PROJECT_ID === REAL_SANITY_PROJECT_ID) {
   throw new Error("Dev and real Sanity projects are the same. Refusing to import.");
@@ -42,17 +40,13 @@ function sanity(projectId, args) {
   }
 }
 
-const wanted = process.argv.slice(2).filter((name) => DATASETS.includes(name));
-const datasets = wanted.length ? wanted : DATASETS;
 const dir = mkdtempSync(join(tmpdir(), "gwenda-sanity-"));
 try {
-  for (const dataset of datasets) {
-    const file = join(dir, `${dataset}.tar.gz`);
-    console.log(`\n${REAL_SANITY_PROJECT_ID}/${dataset} → ${DEV_SANITY_PROJECT_ID}/${dataset}`);
-    sanity(REAL_SANITY_PROJECT_ID, ["dataset", "export", dataset, file, "--overwrite"]);
-    sanity(DEV_SANITY_PROJECT_ID, ["dataset", "import", file, dataset, "--replace", "--allow-failing-assets"]);
-  }
-  console.log(`\nDone. Gwenda Dev (${DEV_SANITY_PROJECT_ID}) now matches the real ${datasets.join(" and ")}.`);
+  const file = join(dir, `${DATASET}.tar.gz`);
+  console.log(`\n${REAL_SANITY_PROJECT_ID}/${DATASET} → ${DEV_SANITY_PROJECT_ID}/${DATASET}`);
+  sanity(REAL_SANITY_PROJECT_ID, ["dataset", "export", DATASET, file, "--overwrite"]);
+  sanity(DEV_SANITY_PROJECT_ID, ["dataset", "import", file, DATASET, "--replace", "--allow-failing-assets"]);
+  console.log(`\nDone. Gwenda Dev (${DEV_SANITY_PROJECT_ID}) now matches the real project.`);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

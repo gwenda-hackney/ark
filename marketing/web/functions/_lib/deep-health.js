@@ -13,7 +13,7 @@ import {
   resolveFormSubmissionsTableId,
   resolveSubscribeTableId,
 } from "./baserow.js";
-import { gmailAccessToken, gmailSender, isGmailConfigured, sendGmail } from "./gmail-send.js";
+import { gmailAccessToken, gmailSender, isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
 import { runFormSmoke } from "./form-smoke.js";
 import { sanityDatasetForEnv, sanityQuery } from "./sanity-query.js";
 

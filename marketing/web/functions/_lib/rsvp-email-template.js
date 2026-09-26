@@ -7,7 +7,8 @@ import {
   SITE_DOMAIN,
   SITE_INSTAGRAM,
   VENUE_MAPS_URL,
-} from "./site-location.js";
+} from "../../../../shared/site-location.js";
+import { LOGO_CID } from "../../../../shared/email-image.js";
 
 const COLORS = {
   bg: "#0d0d0d",
@@ -34,8 +35,6 @@ Thanks for replying. {guests_line}
 Open your ticket link below to view your pass, add it to Apple Wallet, or save the date to your calendar.
 
 Need to change your reply? {modify_url}`;
-
-export const LOGO_CID = "gwenda-logo@gwenda";
 
 export function defaultRsvpConfirmation() {
   return {

@@ -1,7 +1,7 @@
 /**
  * Unpublished-change tracking for ops recipes vs external systems.
  *
- * Website targets (staging / production) compare the current guest projection
+ * Website targets (preview / production) compare the current guest projection
  * to the last successful publish snapshot stored on the Baserow item.
  *
  * POS is a stub (`unsupported`). A later live adapter should fetch external
@@ -17,7 +17,7 @@ import {
 
 export const PUBLISH_SNAPSHOTS_FIELD = "Publish snapshots";
 
-export const WEBSITE_TARGETS = ["staging", "production"];
+export const WEBSITE_TARGETS = ["preview", "production"];
 
 /** Guest fields that go to Sanity. Order is the canonical hash order. */
 export const WEBSITE_FIELDS = [
@@ -50,8 +50,8 @@ const OPTIONAL_SANITY_FIELDS = [
  * the target until an API exists. A future `live` kind would fetch records.
  */
 export const TARGETS = {
-  staging: {
-    id: "staging",
+  preview: {
+    id: "preview",
     label: "Preview site",
     kind: "snapshot",
     projection: "website",
@@ -217,7 +217,8 @@ function sanitizeSnapshots(parsed) {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
   const out = {};
   for (const target of [...WEBSITE_TARGETS, "pos"]) {
-    const entry = snapshotEntry(parsed[target]);
+    // Rows saved before the preview moved onto drafts call it "staging".
+    const entry = snapshotEntry(parsed[target] ?? (target === "preview" ? parsed.staging : undefined));
     if (entry) out[target] = entry;
   }
   return out;
@@ -305,7 +306,7 @@ function compactStatus(result) {
 
 export function publicPublishStatus(item) {
   return {
-    staging: compactStatus(websiteTargetStatus(item, "staging")),
+    preview: compactStatus(websiteTargetStatus(item, "preview")),
     production: compactStatus(websiteTargetStatus(item, "production")),
   };
 }

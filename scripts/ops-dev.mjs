@@ -9,8 +9,8 @@
  *   npm run ops:prod    debug against PRODUCTION (see below)
  *
  * Plain `dev` works exactly like hosted ops (Save, Update website) against
- * copies: the dev Ops DB and the Gwenda Dev Sanity project (its own staging
- * and production datasets). Nothing it does can reach gwenda.co.uk. Refresh
+ * copies: the dev Ops DB and the Gwenda Dev Sanity project (drafts and
+ * published, like the real one). Nothing it does can reach gwenda.co.uk. Refresh
  * the copy with `npm run dev:refresh:sanity`.
  *
  * --live runs the same local app with production powers: production Ops DB,
@@ -46,6 +46,9 @@ const DEV_VAR_KEYS = [
   "SANITY_API_TOKEN",
   "DEPLOY_WEBHOOK_SECRET",
   "FORMS_ADMIN_SECRET",
+  "GMAIL_SERVICE_ACCOUNT_JSON",
+  // Where form emails resent from /forms go on this machine.
+  "FORMS_NOTIFY_EMAIL",
   // Optional env overrides (normally config database):
   "SANITY_PROJECT_ID",
   "SANITY_DATASET",
@@ -174,7 +177,11 @@ async function main() {
 
   if (!LIVE) {
     const { missingLocalSettings } = await import("../shared/config.js");
-    const missing = missingLocalSettings({ ...process.env, SITE_ENV: "local" }, { services: ["ops"] });
+    // Ops resends the website's form emails, so it needs the web ones too.
+    const missing = missingLocalSettings(
+      { ...process.env, SITE_ENV: "local" },
+      { services: ["ops", "web"] },
+    );
     if (missing.length) {
       throw new Error(
         `Set these in the repo .env first:\n${missing

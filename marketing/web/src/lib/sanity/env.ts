@@ -3,8 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_PROJECT_ID = "pn5yjro6";
-/** Local dev default. CI / wrangler sets SANITY_DATASET per environment. */
-const DEFAULT_DATASET = "staging";
+/** Each environment has one dataset; the preview reads its drafts (SANITY_PERSPECTIVE). */
+const DEFAULT_DATASET = "production";
 
 export type SanityConfig = {
   projectId: string;
@@ -14,7 +14,7 @@ export type SanityConfig = {
 
 export type SanityPerspective = "published" | "previewDrafts";
 
-/** Local `astro dev` overlays drafts. Staging/production builds stay published. */
+/** Local `astro dev` and preview builds overlay drafts. Live builds stay published. */
 export function sanityPerspective(input: {
   perspective?: string;
   dev?: boolean;

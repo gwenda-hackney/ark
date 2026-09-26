@@ -68,7 +68,7 @@ export function changeLabel(change: ReleaseChange): string {
 
 /** "Title, Description +2" for the collapsed row. */
 export function fieldSummary(entry: ReleaseViewEntry, max = 3): string {
-  if (entry.change === "removed") return "Removed from staging";
+  if (entry.change === "removed") return "Removed from preview";
   if (entry.change === "added") return "Not on the live site yet";
   const names = entry.fields.map((field) => field.label);
   if (!names.length) return "Details differ";

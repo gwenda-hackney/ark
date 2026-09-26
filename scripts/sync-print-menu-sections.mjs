@@ -2,6 +2,8 @@
 /**
  * Align Baserow + Sanity menu sections with the guest print tree.
  * Deletes leftover untitled Baserow sample rows. Does not rewrite recipes.
+ * Writes published Sanity documents, not drafts: point it at Gwenda Dev
+ * (SANITY_PROJECT_ID=gwscpagy) unless the change should go live.
  *
  *   node scripts/with-ops-env.mjs node scripts/sync-print-menu-sections.mjs
  */
@@ -234,7 +236,7 @@ function allocateOrderRanks(count) {
 function sanityClient() {
   const token = process.env.SANITY_API_TOKEN?.trim();
   const projectId = process.env.SANITY_PROJECT_ID?.trim() || "pn5yjro6";
-  const dataset = process.env.SANITY_DATASET?.trim() || "staging";
+  const dataset = process.env.SANITY_DATASET?.trim() || "production";
   if (!token) return null;
   return createClient({
     projectId,

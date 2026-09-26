@@ -60,15 +60,9 @@ function localSanityPerspective() {
   const explicit =
     process.env.SANITY_PERSPECTIVE?.trim() || env.SANITY_PERSPECTIVE?.trim();
   if (explicit === "published" || explicit === "previewDrafts") return explicit;
+  // Only the live site hides drafts; the preview and a dev server show them.
   const siteEnv = process.env.SITE_ENV || env.SITE_ENV;
-  if (
-    siteEnv === "staging" ||
-    siteEnv === "production" ||
-    env.PUBLIC_IS_STAGING === "true"
-  ) {
-    return "published";
-  }
-  return "previewDrafts";
+  return siteEnv === "production" ? "published" : "previewDrafts";
 }
 const gatePlugin = devSiteGate({
   password: sitePassword,
@@ -100,7 +94,7 @@ const rsvpEnv = () => ({
   TICKET_SECRET: process.env.TICKET_SECRET || env.TICKET_SECRET,
   SUBSCRIBE_SECRET: process.env.SUBSCRIBE_SECRET || env.SUBSCRIBE_SECRET,
   SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID || env.SANITY_PROJECT_ID,
-  SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "staging",
+  SANITY_DATASET: process.env.SANITY_DATASET || env.SANITY_DATASET || "production",
   SANITY_API_TOKEN: process.env.SANITY_API_TOKEN || env.SANITY_API_TOKEN,
   SANITY_PERSPECTIVE: localSanityPerspective(),
   INVITE_BASE_URL: process.env.INVITE_BASE_URL || env.INVITE_BASE_URL,
@@ -242,7 +236,7 @@ function devFormsApi() {
         SANITY_DATASET:
           process.env.SANITY_DATASET?.trim() ||
           env.SANITY_DATASET?.trim() ||
-          "staging",
+          "production",
         SANITY_API_TOKEN:
           process.env.SANITY_API_TOKEN?.trim() || env.SANITY_API_TOKEN?.trim(),
         SANITY_PERSPECTIVE: localSanityPerspective(),
@@ -407,7 +401,7 @@ function devRsvpApi() {
           SANITY_DATASET:
             process.env.SANITY_DATASET?.trim() ||
             env.SANITY_DATASET?.trim() ||
-            "staging",
+            "production",
           SANITY_PROJECT_ID:
             process.env.SANITY_PROJECT_ID?.trim() ||
             env.SANITY_PROJECT_ID?.trim(),
@@ -695,7 +689,7 @@ export default defineConfig({
         access: "secret",
         optional: true,
       }),
-      PUBLIC_IS_STAGING: envField.string({
+      PUBLIC_IS_PREVIEW: envField.string({
         context: "client",
         access: "public",
         optional: true,
@@ -747,7 +741,7 @@ export default defineConfig({
         context: "server",
         access: "public",
         optional: true,
-        default: "staging",
+        default: "production",
       }),
       SANITY_API_TOKEN: envField.string({
         context: "server",

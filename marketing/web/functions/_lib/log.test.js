@@ -5,7 +5,7 @@ import {
   createStdoutSink,
   requestFields,
   serializeError,
-} from "./log.js";
+} from "../../../../shared/log.js";
 
 describe("serializeError", () => {
   it("keeps name, message, status, and stack", () => {

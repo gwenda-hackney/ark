@@ -3,14 +3,14 @@ import "../styles/global.css";
 import { Image } from "astro:assets";
 import SocialMeta from "../components/SocialMeta.astro";
 import Fonts from "../components/Fonts.astro";
-import StagingRibbon from "../components/StagingRibbon.astro";
+import PreviewRibbon from "../components/PreviewRibbon.astro";
 import { siteConfig } from "../config/site";
-import { isStaging, stagingOrigin } from "../config/env";
+import { isPreview, previewOrigin } from "../config/env";
 import { compactLogo } from "../lib/hero-assets";
 
 const next = Astro.url.searchParams.get("next") ?? "/";
-const siteOrigin = isStaging
-  ? stagingOrigin
+const siteOrigin = isPreview
+  ? previewOrigin
   : siteConfig.domain;
 const canonicalUrl = new URL(next === "/" ? "/" : next, siteOrigin).href;
 ---
@@ -38,7 +38,7 @@ const canonicalUrl = new URL(next === "/" ? "/" : next, siteOrigin).href;
     />
   </head>
   <body class="gate-page">
-    <StagingRibbon share={false} />
+    <PreviewRibbon share={false} />
     <div class="grain" aria-hidden="true"></div>
     <main class="gate">
       <Image {...compactLogo} alt="Gwenda" class="gate-logo" loading="eager" />

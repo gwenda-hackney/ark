@@ -2,8 +2,8 @@
  * Post-deploy smoke test — page load, critical assets, and runtime APIs.
  *
  * Usage:
- *   node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev --expected-version 2026.06.11+abc1234
- *   SMOKE_TEST_GATE_BYPASS_KEY=... node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev ...
+ *   node scripts/ci/smoke-test.mjs --url https://preview.gwenda-blue.pages.dev --expected-version 2026.06.11+abc1234
+ *   SMOKE_TEST_GATE_BYPASS_KEY=... node scripts/ci/smoke-test.mjs --url https://preview.gwenda-blue.pages.dev ...
  *
  *   --deep           also POST /api/health/deep (Bearer DEPLOY_WEBHOOK_SECRET): Sanity,
  *                    both Baserow databases, config DB and Gmail login

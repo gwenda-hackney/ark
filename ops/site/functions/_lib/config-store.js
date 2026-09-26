@@ -1,6 +1,6 @@
 /**
  * Ops settings (Service = ops), through the config service (shared/config.js),
- * which decides rows vs computed vs a developer's local values. Secrets never
+ * which decides between rows and a developer's local values. Secrets never
  * belong here.
  */
 import {
@@ -47,14 +47,13 @@ export const OPS_CONFIG_KEYS = {
   googleCalendarId: "google.calendar_id",
   taskRoleSocial: "tasks.role.social",
   clickupEventsListId: "clickup.events_list_id",
-  webOrigin: "web.origin",
 };
 
 export const DEFAULT_SANITY_PROJECT_ID = "pn5yjro6";
 
 const DRINK_TYPES = Object.keys(POUR_TARGET_KEYS);
 
-/** dev, staging or production (a developer's machine is dev). */
+/** dev or production (a developer's machine is dev). */
 export const siteEnvName = environmentOf;
 
 /** Human labels for shell chrome (which Baserow world this request hits). */
@@ -67,11 +66,9 @@ export function opsConnectionInfo(env = {}) {
       ? isLocalMachine(env)
         ? "Dev · this machine"
         : "Dev"
-      : siteEnv === "staging"
-        ? "Staging"
-        : siteEnv === "production"
-          ? "Production"
-          : siteEnv;
+      : siteEnv === "production"
+        ? "Production"
+        : siteEnv;
   const databaseLabel = !databaseId
     ? "Baserow Ops (auto)"
     : isProductionDb
@@ -173,8 +170,6 @@ export async function applyOpsAppConfig(env = {}) {
       "GOOGLE_OAUTH_CLIENT_ID",
       OPS_CONFIG_KEYS.googleOauthClientId,
     ),
-    // Worked out from the environment (shared/site-urls.js), never configured.
-    WEB_ORIGIN: values[OPS_CONFIG_KEYS.webOrigin] || "",
   };
 }
 

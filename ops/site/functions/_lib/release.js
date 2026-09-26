@@ -1,24 +1,22 @@
 /**
- * Website release: staging → production, document by document. The same
- * engine runs the other way (production → staging) to reset staging.
+ * Website release: publish drafts, document by document. The diff compares
+ * the preview (drafts over published) with what the website shows (published
+ * only). Publishing writes each chosen draft over its published document and
+ * drops the draft, together with anything it references that also changed.
+ * Discarding drops the drafts, so the preview matches the website again.
  *
- * The diff compares published documents only. Drafts (including local ops
- * previews) never reach production. Publishing copies the chosen documents,
- * anything they reference that also changed, and any image or file assets
- * production is missing. Removals run last, one by one, because production
- * refuses to delete a document another document still points at.
+ * Removals don't wait for this: ops deletes the draft and the published
+ * document together (sanity.js draftMutations).
  */
 import {
-  EDITORIAL_DATASET,
+  PREVIEW,
   assertSanityWritable,
-  sanityMutate,
-  sanityMutateProduction,
+  draftId,
+  sanityMutatePublished,
   sanityQuery,
-  sanityUploadAsset,
-  sanityUploadAssetProduction,
 } from "./sanity.js";
 import { listEvents, saveOccurrenceSnapshots } from "./event-store.js";
-import { copyStagingSnapshotsToProduction } from "./publish-sync.js";
+import { copyPreviewSnapshotsToProduction } from "./publish-sync.js";
 
 const CONTENT_FILTER = [
   '!(_id in path("drafts.**"))',
@@ -30,9 +28,8 @@ const CONTENT_FILTER = [
 ].join(" && ");
 
 const DOCS_QUERY = `*[${CONTENT_FILTER}]`;
-const ASSET_QUERY = `*[_id in $ids]{ _id, url, originalFilename, mimeType }`;
 
-const SYSTEM_KEYS = new Set(["_rev", "_updatedAt", "_createdAt"]);
+const SYSTEM_KEYS = new Set(["_rev", "_updatedAt", "_createdAt", "_originalId"]);
 const HIDDEN_FIELDS = new Set(["_id", "_type", ...SYSTEM_KEYS]);
 
 /** Display order and names for the groups on the Release page. */
@@ -70,7 +67,7 @@ export function stableStringify(value) {
   return JSON.stringify(value ?? null);
 }
 
-/** The document as production should hold it: no revision or timestamps. */
+/** The document as the website should hold it: no revision, timestamps or draft id. */
 export function releaseDocument(doc) {
   const out = {};
   for (const [key, value] of Object.entries(doc || {})) {
@@ -135,34 +132,34 @@ export function documentLabel(doc) {
   return String(title);
 }
 
-function fieldChanges(staging, production) {
-  const keys = new Set([...Object.keys(staging || {}), ...Object.keys(production || {})]);
+function fieldChanges(preview, production) {
+  const keys = new Set([...Object.keys(preview || {}), ...Object.keys(production || {})]);
   const out = [];
   for (const key of [...keys].sort()) {
     if (HIDDEN_FIELDS.has(key)) continue;
-    const next = staging?.[key];
+    const next = preview?.[key];
     const prev = production?.[key];
     if (stableStringify(next) === stableStringify(prev)) continue;
-    const stagingSummary = summarizeValue(next);
+    const previewSummary = summarizeValue(next);
     const productionSummary = summarizeValue(prev);
     out.push({
       key,
       label: humanize(key),
-      staging: stagingSummary,
+      preview: previewSummary,
       production: productionSummary,
       // Same summary but different data: crop, hotspot, marks, keys.
-      detailOnly: stagingSummary === productionSummary,
+      detailOnly: previewSummary === productionSummary,
     });
   }
   return out;
 }
 
-/** Compare published staging against production. */
-export function computeReleaseDiff(stagingDocs, productionDocs) {
-  const staging = new Map((stagingDocs || []).map((doc) => [doc._id, doc]));
+/** Compare the preview (drafts over published) against what the website shows. */
+export function computeReleaseDiff(previewDocs, productionDocs) {
+  const preview = new Map((previewDocs || []).map((doc) => [doc._id, doc]));
   const production = new Map((productionDocs || []).map((doc) => [doc._id, doc]));
   const entries = [];
-  for (const [id, doc] of staging) {
+  for (const [id, doc] of preview) {
     const live = production.get(id);
     if (!live) {
       entries.push({ id, doc, change: "added", fields: fieldChanges(releaseDocument(doc), null) });
@@ -177,7 +174,7 @@ export function computeReleaseDiff(stagingDocs, productionDocs) {
     });
   }
   for (const [id, doc] of production) {
-    if (!staging.has(id)) entries.push({ id, doc, change: "removed", fields: [] });
+    if (!preview.has(id)) entries.push({ id, doc, change: "removed", fields: [] });
   }
   return entries
     .map(({ id, doc, change, fields }) => ({
@@ -220,17 +217,17 @@ export function planRelease(entries, ids = null) {
   return { writes, deletes, included };
 }
 
-async function loadDatasets(env, query) {
-  const [staging, production] = await Promise.all([
-    query(env, EDITORIAL_DATASET, DOCS_QUERY),
+async function loadViews(env, query) {
+  const [preview, production] = await Promise.all([
+    query(env, PREVIEW, DOCS_QUERY),
     query(env, "production", DOCS_QUERY),
   ]);
-  return { staging: staging || [], production: production || [] };
+  return { preview: preview || [], production: production || [] };
 }
 
 export async function getReleaseDiff(env, { query = sanityQuery } = {}) {
-  const { staging, production } = await loadDatasets(env, query);
-  const entries = computeReleaseDiff(staging, production);
+  const { preview, production } = await loadViews(env, query);
+  const entries = computeReleaseDiff(preview, production);
   return {
     entries,
     counts: {
@@ -241,144 +238,71 @@ export async function getReleaseDiff(env, { query = sanityQuery } = {}) {
   };
 }
 
-function remapAssets(value, map) {
-  if (!map.size) return value;
-  if (Array.isArray(value)) return value.map((item) => remapAssets(item, map));
-  if (!value || typeof value !== "object") return value;
-  const out = {};
-  for (const [key, child] of Object.entries(value)) out[key] = remapAssets(child, map);
-  if (typeof out._ref === "string" && map.has(out._ref)) out._ref = map.get(out._ref);
-  return out;
-}
-
-/** Where documents come from and go to, and how to write the target. */
-export const DIRECTIONS = {
-  "to-production": {
-    source: EDITORIAL_DATASET,
-    target: "production",
-    sourceLabel: "staging",
-    targetLabel: "the live site",
-  },
-  "to-staging": {
-    source: "production",
-    target: EDITORIAL_DATASET,
-    sourceLabel: "the live site",
-    targetLabel: "staging",
-  },
-};
-
-function directionFor(value) {
-  const direction = DIRECTIONS[value || "to-production"];
-  if (!direction) {
-    const error = new Error('direction must be "to-production" or "to-staging".');
-    error.status = 400;
-    throw error;
-  }
-  return direction;
-}
-
-async function copyMissingAssets(env, docs, { query, upload, fetchImpl, direction }) {
-  const wanted = new Set();
-  for (const doc of docs) for (const ref of collectRefs(doc).assets) wanted.add(ref);
-  const map = new Map();
-  if (!wanted.size) return { map, copied: 0 };
-  const ids = [...wanted];
-  const present = new Set((await query(env, direction.target, `*[_id in $ids]._id`, { ids })) || []);
-  const missing = ids.filter((id) => !present.has(id));
-  if (!missing.length) return { map, copied: 0 };
-  const sources = (await query(env, direction.source, ASSET_QUERY, { ids: missing })) || [];
-  let copied = 0;
-  for (const asset of sources) {
-    if (!asset?.url) continue;
-    const response = await fetchImpl(asset.url, { signal: AbortSignal.timeout(45_000) });
-    if (!response.ok) {
-      const error = new Error(
-        `Could not read ${asset.originalFilename || asset._id} from ${direction.sourceLabel}.`,
-      );
-      error.status = 502;
-      throw error;
-    }
-    const bytes = await response.arrayBuffer();
-    const kind = asset._id.startsWith("file-") ? "files" : "images";
-    const uploaded = await upload(env, kind, bytes, {
-      filename: asset.originalFilename || undefined,
-      contentType: asset.mimeType || response.headers.get("content-type") || undefined,
-    });
-    if (uploaded?._id && uploaded._id !== asset._id) map.set(asset._id, uploaded._id);
-    copied += 1;
-  }
-  return { map, copied };
-}
+export const DIRECTIONS = ["to-production", "discard"];
 
 /**
- * Copy one dataset onto the other. Default: staging onto production.
- * `direction: "to-staging"` copies production back onto staging. `ids` limits
- * it to chosen documents; omit to copy everything that differs. The diff is
+ * Publish the preview to the website (default), or `direction: "discard"` to
+ * drop drafts so the preview shows the website again. `ids` limits it to
+ * chosen documents; omit to take everything that differs. The diff is
  * recomputed here, never trusted from the browser.
  */
 export async function publishRelease(
   env,
-  { ids = null, direction: directionName = "to-production" } = {},
-  {
-    query = sanityQuery,
-    mutate = null,
-    upload = null,
-    fetchImpl = fetch,
-  } = {},
+  { ids = null, direction = "to-production" } = {},
+  { query = sanityQuery, mutate = sanityMutatePublished } = {},
 ) {
   assertSanityWritable(env);
-  const direction = directionFor(directionName);
-  const toStaging = direction.target === EDITORIAL_DATASET;
-  const write =
-    mutate ||
-    (toStaging
-      ? (e, batch) => sanityMutate(e, EDITORIAL_DATASET, batch)
-      : sanityMutateProduction);
-  const put =
-    upload ||
-    (toStaging
-      ? (e, kind, bytes, meta) => sanityUploadAsset(e, EDITORIAL_DATASET, kind, bytes, meta)
-      : sanityUploadAssetProduction);
-  const { staging, production } = await loadDatasets(env, query);
-  const [sourceDocs, targetDocs] = toStaging ? [production, staging] : [staging, production];
-  const entries = computeReleaseDiff(sourceDocs, targetDocs);
-  const plan = planRelease(entries, ids);
-  const sourceById = new Map(sourceDocs.map((doc) => [doc._id, doc]));
-  const docs = plan.writes.map((id) => releaseDocument(sourceById.get(id)));
+  if (!DIRECTIONS.includes(direction)) {
+    const error = new Error('direction must be "to-production" or "discard".');
+    error.status = 400;
+    throw error;
+  }
+  const { preview, production } = await loadViews(env, query);
+  const entries = computeReleaseDiff(preview, production);
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
 
-  const assets = await copyMissingAssets(env, docs, {
-    query,
-    upload: put,
-    fetchImpl,
-    direction,
-  });
-  const mutations = docs.map((doc) => ({ createOrReplace: remapAssets(doc, assets.map) }));
-  for (let i = 0; i < mutations.length; i += 50) {
-    await write(env, mutations.slice(i, i + 50));
+  if (direction === "discard") {
+    const chosen = (ids || [...byId.keys()]).filter((id) => byId.has(id));
+    for (let i = 0; i < chosen.length; i += 50) {
+      await mutate(env, chosen.slice(i, i + 50).map((id) => ({ delete: { id: draftId(id) } })));
+    }
+    return { direction, inSync: null, written: [], discarded: chosen, deleted: [], included: [], warnings: [] };
   }
 
+  const plan = planRelease(entries, ids);
+  const previewById = new Map(preview.map((doc) => [doc._id, doc]));
+  // Each document's publish and draft removal travel in the same transaction.
+  for (let i = 0; i < plan.writes.length; i += 25) {
+    await mutate(
+      env,
+      plan.writes.slice(i, i + 25).flatMap((id) => [
+        { createOrReplace: releaseDocument(previewById.get(id)) },
+        { delete: { id: draftId(id) } },
+      ]),
+    );
+  }
+
+  // Only a document deleted outside ops lands here: ops removes both at once.
   const warnings = [];
   const deleted = [];
-  const byId = new Map(entries.map((entry) => [entry.id, entry]));
   for (const id of plan.deletes) {
     try {
-      await write(env, [{ delete: { id } }]);
+      await mutate(env, [{ delete: { id } }]);
       deleted.push(id);
     } catch (error) {
       warnings.push(
-        `${byId.get(id)?.label || id} was not removed: ${error?.message || `still in use on ${direction.targetLabel}.`}`,
+        `${byId.get(id)?.label || id} was not removed: ${error?.message || "still in use on the website."}`,
       );
     }
   }
 
   return {
-    direction: directionName,
-    // Publish all: every source document now matches the target.
-    inSync: ids ? null : sourceDocs.map((doc) => doc._id),
+    direction,
+    // Publish all: every preview document now matches the website.
+    inSync: ids ? null : preview.map((doc) => doc._id),
     written: plan.writes,
     deleted,
     included: plan.included,
-    assetsCopied: assets.copied,
     warnings,
   };
 }
@@ -391,16 +315,16 @@ export async function markReleasedInOps(env, sanityIds) {
   const updates = [];
   for (const event of await listEvents(env)) {
     for (const row of event.dates || []) {
-      if (!row.id || !row.sanityId || !ids.has(row.sanityId) || !row.snapshots?.staging) continue;
-      if (row.snapshots.production?.hash === row.snapshots.staging.hash) continue;
+      if (!row.id || !row.sanityId || !ids.has(row.sanityId) || !row.snapshots?.preview) continue;
+      if (row.snapshots.production?.hash === row.snapshots.preview.hash) continue;
       updates.push({
         id: Number(row.id),
-        snapshots: { ...row.snapshots, production: { hash: row.snapshots.staging.hash, at } },
+        snapshots: { ...row.snapshots, production: { hash: row.snapshots.preview.hash, at } },
       });
     }
   }
   // One batch call instead of one per night (Cloudflare call limit).
   await saveOccurrenceSnapshots(env, updates);
-  const menu = await copyStagingSnapshotsToProduction(env, { sanityIds: ids });
+  const menu = await copyPreviewSnapshotsToProduction(env, { sanityIds: ids });
   return { nights: updates.length, menuItems: menu.copied };
 }

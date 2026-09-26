@@ -7,12 +7,12 @@ let installed = false;
 let resetTimer = 0;
 
 function labelEl() {
-  return document.querySelector("#staging-share [data-staging-share-label]");
+  return document.querySelector("#preview-share [data-preview-share-label]");
 }
 
-/** The environment name the ribbon shows ("Dev", "Preview"), set by StagingRibbon. */
+/** The environment name the ribbon shows ("Dev", "Preview"), set by PreviewRibbon. */
 function defaultLabel() {
-  return document.getElementById("staging-share")?.dataset.envLabel || "Preview";
+  return document.getElementById("preview-share")?.dataset.envLabel || "Preview";
 }
 
 function setLabel(text) {
@@ -22,7 +22,7 @@ function setLabel(text) {
 
 async function copyShareLink() {
   const path = `${window.location.pathname}${window.location.search}`;
-  const pending = fetch(`/api/staging-share?path=${encodeURIComponent(path)}`, {
+  const pending = fetch(`/api/preview-share?path=${encodeURIComponent(path)}`, {
     credentials: "same-origin",
   }).then(async (response) => {
     const data = await response.json().catch(() => ({}));
@@ -47,14 +47,14 @@ async function copyShareLink() {
   resetTimer = window.setTimeout(() => setLabel(defaultLabel()), 1600);
 }
 
-export function initStagingShare() {
+export function initPreviewShare() {
   if (installed) return;
   installed = true;
 
   document.addEventListener("click", (event) => {
     const target = event.target;
     const button =
-      target instanceof Element ? target.closest("#staging-share") : null;
+      target instanceof Element ? target.closest("#preview-share") : null;
     if (!(button instanceof HTMLButtonElement)) return;
     copyShareLink().catch(() => {
       setLabel("Failed");

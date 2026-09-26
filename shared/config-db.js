@@ -4,7 +4,7 @@
  * One table, one row per value:
  *   Name     dotted key, e.g. forms.notify_email
  *   Value    string
- *   Env      all | local | staging | production
+ *   Env      all | dev | production, or a site's name (preview) for machine state
  *   Service  all | ops | web
  * For a given env + service the most specific row wins: Env beats Service beats `all`.
  *
@@ -15,8 +15,8 @@
 
 export const CONFIG_DATABASE_NAME = "Gwenda Config";
 export const CONFIG_TABLE_NAME = "Config";
-/** Config Env values. "staging" is prod's preview. A developer's machine reads "dev". */
-export const CONFIG_ENVS = ["dev", "staging", "production"];
+/** Config Env values. A developer's machine reads "dev"; prod's preview is production. */
+export const CONFIG_ENVS = ["dev", "production"];
 export const CONFIG_SERVICES = ["ops", "web"];
 export const CONFIG_CACHE_TTL_MS = 60_000;
 
@@ -31,15 +31,14 @@ export function resetConfigCacheForTests() {
 }
 
 /**
- * The environment a runtime belongs to (its config Env): dev, staging (prod's
- * preview) or production. From SITE_ENV, else PUBLIC_IS_STAGING, else production.
- * A developer's machine (SITE_ENV=local) is dev.
+ * The environment a runtime belongs to (its config Env): dev or production,
+ * from SITE_ENV. Prod's preview runs as production. A developer's machine
+ * (SITE_ENV=local) is dev.
  */
 export function environmentOf(env = {}) {
-  const raw = String(env.SITE_ENV || env.PUBLIC_IS_STAGING || "")
+  const raw = String(env.SITE_ENV || "")
     .trim()
     .toLowerCase();
-  if (raw === "true" || raw === "staging") return "staging";
   if (raw === "local" || raw === "development" || raw === "dev") return "dev";
   if (raw === "production" || raw === "prod" || !raw) return "production";
   return raw;
@@ -208,9 +207,18 @@ export async function getConfigValueFor(env, service, key, envName) {
 
 /** Delete every row named `key` (any Env / Service). Returns how many. */
 export async function deleteConfigRows(env, key) {
+  return deleteMatchingRows(env, (row) => text(row.Name) === key);
+}
+
+/** Delete every row of one Env, settings and machine state alike. Returns how many. */
+export async function deleteConfigEnvRows(env, envName) {
+  return deleteMatchingRows(env, (row) => scope(row.Env) === envName);
+}
+
+async function deleteMatchingRows(env, matches) {
   const api = client(env);
   const tableId = await configTableId(api);
-  const rows = (await listRows(api, tableId)).filter((row) => text(row.Name) === key);
+  const rows = (await listRows(api, tableId)).filter(matches);
   for (const row of rows) {
     await api.call(`/api/database/rows/table/${tableId}/${row.id}/`, { method: "DELETE" });
   }

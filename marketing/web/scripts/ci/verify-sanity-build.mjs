@@ -13,7 +13,7 @@ const distDir = resolve(process.cwd(), "dist");
 const home = readFileSync(resolve(distDir, "index.html"), "utf8");
 const menu = readFileSync(resolve(distDir, "menu/index.html"), "utf8");
 
-const sanityImageRe = /cdn\.sanity\.io\/images\/pn5yjro6\/([^/"']+)/;
+const sanityImageRe = /cdn\.sanity\.io\/images\/[a-z0-9]+\/([^/"']+)/;
 const datasetMatch = home.match(sanityImageRe) ?? menu.match(sanityImageRe);
 const dataset = datasetMatch?.[1] ?? process.env.SANITY_DATASET ?? "unknown";
 const galleryTiles = (home.match(/menu-tease-cocktail/g) ?? []).length;
@@ -75,9 +75,9 @@ console.error(
     `  coming soon placeholder: ${hasComingSoon}`,
     `  menu page empty: ${menuEmpty}`,
     "",
-    "Staging builds use the staging dataset. Drafts are ignored.",
+    "Preview builds use the preview dataset. Drafts are ignored.",
     "Set GitHub secret SANITY_API_TOKEN to a Viewer token (separate from SANITY_DEPLOY_TOKEN).",
-    "Check the staging dataset has content, then rebuild.",
+    "Check the preview dataset has content, then rebuild.",
   ].join("\n"),
 );
 process.exit(1);

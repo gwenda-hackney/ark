@@ -1,5 +1,5 @@
-import { createLogger, serializeError } from "./log.js";
-import { isGmailConfigured, sendGmail } from "./gmail-send.js";
+import { createLogger, serializeError } from "../log.js";
+import { isGmailConfigured, sendGmail } from "../gmail-send.js";
 
 const ALERT_EVENTS = new Set([
   "form_store_failed",

@@ -3,7 +3,7 @@ import {
   buildRawMessage,
   isGmailConfigured,
   parseGmailServiceAccount,
-} from "./gmail-send.js";
+} from "../../../../shared/gmail-send.js";
 
 const account = JSON.stringify({
   type: "service_account",

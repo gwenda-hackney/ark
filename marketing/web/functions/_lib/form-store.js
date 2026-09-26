@@ -1,6 +1,14 @@
 import { baserowFormSubmissionRowsUrl } from "./baserow.js";
-import { reportFormError } from "./form-alert.js";
-import { diffFormAnswers, replyToFromAnswers } from "./form-submit.js";
+import { reportFormError } from "../../../../shared/forms/form-alert.js";
+import { log } from "../../../../shared/log.js";
+import { diffFormAnswers } from "./form-submit.js";
+import { replyToFromAnswers } from "../../../../shared/forms/format.js";
+import {
+  FORM_EDIT_LINK_FIELD,
+  FORM_EMAIL_SENT_FIELDS,
+} from "../../../../shared/forms/submission-fields.js";
+
+export { FORM_EMAIL_SENT_FIELDS };
 
 async function reportStoreFailure(env, extra) {
   await reportFormError(env, "form_store_failed", extra);
@@ -9,7 +17,6 @@ async function reportStoreFailure(env, extra) {
 export const FORM_STATUS_PENDING = "Pending";
 export const FORM_STATUS_VERIFIED = "Verified";
 
-/** Datetime columns stamped after each real (non dry-run) send. */
 export const MARK_RETRY_DELAY_MS = 750;
 
 /** Baserow's 5xx pages are HTML; an alert should say what happened, not paste the page. */
@@ -18,11 +25,6 @@ export function readableUpstreamDetail(status, detail) {
   if (/<html|<!doctype/i.test(text)) return `Baserow server error (${status}).`;
   return text.slice(0, 300);
 }
-
-export const FORM_EMAIL_SENT_FIELDS = {
-  notify: "Notify Sent",
-  receipt: "Receipt Sent",
-};
 
 function selectValue(field) {
   if (field == null) return "";
@@ -578,6 +580,62 @@ export async function markFormSubmissionEmailSent(env, rowId, kind, sentAt) {
     return { ok: false, error: "Could not mark email sent." };
   }
   return { ok: true, sentAt: when };
+}
+
+/** Set once the Edit Link column is seen, so later saves skip the check. */
+let editLinkColumnSeen = false;
+
+export function resetEditLinkColumnForTests() {
+  editLinkColumnSeen = false;
+}
+
+/** The column arrives by a pre-deploy migration; a database without it yet is fine. */
+async function hasEditLinkColumn(resolved) {
+  if (editLinkColumnSeen) return true;
+  const upstream = await fetch(resolved.fieldsUrl, {
+    headers: { Authorization: `Token ${resolved.apiKey}` },
+  });
+  if (!upstream.ok) return false;
+  const fields = await upstream.json().catch(() => []);
+  editLinkColumnSeen =
+    Array.isArray(fields) && fields.some((field) => field?.name === FORM_EDIT_LINK_FIELD);
+  return editLinkColumnSeen;
+}
+
+/**
+ * Save the receipt's edit link on the row, so ops can resend the receipt
+ * without the signing secret or this site's address. Best effort: a missing
+ * link only means ops's resend links to the form instead.
+ */
+export async function saveFormEditLink(env, rowId, editUrl) {
+  const id = String(rowId ?? "").trim();
+  if (!id || !editUrl) return { ok: false, error: "Missing submission." };
+
+  const resolved = await baserowFormSubmissionRowsUrl(env);
+  if (!resolved.ok) return resolved;
+  if (!(await hasEditLinkColumn(resolved))) {
+    log.event("warn", "form_edit_link_column_missing", { rowId: id });
+    return { ok: false, skipped: true, error: "No Edit Link column yet." };
+  }
+
+  const upstream = await fetch(resolved.rowUrl(id), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Token ${resolved.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ [FORM_EDIT_LINK_FIELD]: editUrl }),
+  });
+  if (!upstream.ok) {
+    const detail = await upstream.text().catch(() => "");
+    await reportStoreFailure(env, {
+      op: "save_edit_link",
+      status: upstream.status,
+      detail: readableUpstreamDetail(upstream.status, detail),
+    });
+    return { ok: false, error: "Could not save the edit link." };
+  }
+  return { ok: true };
 }
 
 /** Remove one submission row (used by the post-deploy form test to clean up). */

@@ -6,15 +6,15 @@ import { getSitePending, type SiteStatus } from "./api";
 
 type State = {
 	production: SiteStatus | null;
-	staging: SiteStatus | null;
+	preview: SiteStatus | null;
 	local: boolean;
 	/** This environment's website and preview addresses. */
 	urls: { live: string; preview: string };
 };
 
-const PROD_URLS = { live: "https://gwenda.co.uk", preview: "https://gwenda-staging.pages.dev" };
+const PROD_URLS = { live: "https://gwenda.co.uk", preview: "https://preview.gwenda-blue.pages.dev" };
 
-let state = $state<State>({ production: null, staging: null, local: false, urls: PROD_URLS });
+let state = $state<State>({ production: null, preview: null, local: false, urls: PROD_URLS });
 let timer: ReturnType<typeof setInterval> | null = null;
 
 export function getSitePendingState(): State {
@@ -35,7 +35,7 @@ export async function refreshSitePending(): Promise<void> {
 		const next = await getSitePending();
 		state = {
 			production: next.production,
-			staging: next.staging,
+			preview: next.preview,
 			local: next.local,
 			urls: next.urls || PROD_URLS,
 		};

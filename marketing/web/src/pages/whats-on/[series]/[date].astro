@@ -1,6 +1,6 @@
 ---
 import EventRsvpPage from "../../../components/EventRsvpPage.astro";
-import { isStaging, stagingOrigin } from "../../../config/env";
+import { isPreview, previewOrigin } from "../../../config/env";
 import { siteConfig } from "../../../config/site";
 import {
   fetchRsvpEventPages,
@@ -35,8 +35,8 @@ interface Props {
 const { event, occurrenceSlug } = Astro.props;
 const series = Astro.params.series || "";
 const date = Astro.params.date || "";
-const siteOrigin = isStaging
-  ? stagingOrigin
+const siteOrigin = isPreview
+  ? previewOrigin
   : siteConfig.domain;
 const pageUrl = `${siteOrigin}/whats-on/${series}/${date}`;
 const pageTitle = `${event.title} · Gwenda`;

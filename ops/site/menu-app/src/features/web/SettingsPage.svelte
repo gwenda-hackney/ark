@@ -14,7 +14,6 @@
 
 	const ENV_LABELS: Record<string, string> = {
 		dev: "Dev",
-		staging: "Prod preview",
 		production: "Prod",
 	};
 
@@ -51,7 +50,6 @@
 
 	function sourceTone(cell: SettingValue): string {
 		if (cell.from === "not set") return "missing";
-		if (cell.from === "worked out") return "computed";
 		if (cell.from.startsWith(".env")) return "local";
 		return "";
 	}
@@ -77,8 +75,8 @@
 	{:else if data}
 		<div class="ready" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 			<p class="intro">
-				Values come from, in order: <strong>worked out</strong> in code, a developer's own
-				<strong>.env</strong> (on their machine only), then the <strong>Gwenda Config</strong> database
+				Values come from, in order: a developer's own <strong>.env</strong> (on their machine
+				only), then the <strong>Gwenda Config</strong> database
 				(this environment's row, else <code>all</code>). A developer's machine reads the Dev rows.
 				You're viewing from <strong>{ENV_LABELS[data.current] || data.current}</strong>{data.onMachine
 					? " on a developer's machine"
@@ -274,7 +272,6 @@
 		color: var(--destructive);
 	}
 
-	.from.computed,
 	.from.local {
 		color: var(--primary);
 	}

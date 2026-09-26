@@ -4,7 +4,7 @@ import {
   isValidEmail,
   isValidInstagramOrLink,
   isValidPhone,
-} from "./form-field-rules.js";
+} from "../../../../shared/forms/field-rules.js";
 
 describe("form-field-rules", () => {
   it("accepts common emails and rejects junk", () => {

@@ -9,7 +9,7 @@ import {
 import {
   sendFormNotificationEmail,
   sendFormReceiptEmail,
-} from "../../../_lib/form-email.js";
+} from "../../../../../../shared/forms/form-email.js";
 import {
   FORM_EMAIL_SENT_FIELDS,
   fetchFormSubmissionRow,

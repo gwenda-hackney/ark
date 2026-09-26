@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Create (or repair) the Form Submissions Baserow table for local dev + staging.
+ * Create (or repair) the Form Submissions Baserow table (dev, or production with its own token).
  *
  * Database tokens only allow row CRUD. Creating tables/fields requires a short-lived
  * JWT from POST /api/user/token-auth/ (Admin or Builder on the workspace).
  *
- * Dev and gwenda-staging share Gwenda Dev / Website. Production tables
+ * Both dev sites share Gwenda Dev / Website. Production tables
  * are created separately when you promote.
  *
  * Usage:
@@ -65,7 +65,7 @@ const EXPECTED_FIELDS = [
     name: "Answers",
     body: { name: "Answers", type: "long_text" },
   },
-  // Stamped by the site (and ops resend) after each email actually goes out.
+  // Stamped by the site (and ops) after each email actually goes out.
   ...["Notify Sent", "Receipt Sent"].map((name) => ({
     name,
     body: {
@@ -76,6 +76,11 @@ const EXPECTED_FIELDS = [
       date_time_format: "24",
     },
   })),
+  // The receipt's edit link, saved by the site so ops can resend the receipt.
+  {
+    name: "Edit Link",
+    body: { name: "Edit Link", type: "url" },
+  },
 ];
 
 function readEnv(name) {

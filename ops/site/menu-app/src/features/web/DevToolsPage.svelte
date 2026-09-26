@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
-	 * Developer tools (admins): staging against live, in three parts.
-	 *   Content   Sanity documents that differ. Publish to live, or reset staging from live.
-	 *   Code      Commits staging runs that live does not. Ships when release moves.
+	 * Developer tools (admins): preview against live, in three parts.
+	 *   Content   Drafts that differ from what is live. Publish them, or discard them.
+	 *   Code      Commits the preview runs that live does not. Ships on promote.
 	 *   Databases Baserow production vs its copies. Production may drift; copy it over to debug.
 	 */
 	import { onDestroy, onMount } from "svelte";
@@ -41,12 +41,12 @@
 	import SitePublishMonitor from "./SitePublishMonitor.svelte";
 
 	type PairId = "ops" | "website";
-	type Direction = "to-production" | "to-staging";
+	type Direction = "to-production" | "discard";
 	type CopyRun = { runId: number | null; runUrl: string; status: string; conclusion: string | null };
 
 	const PAIRS: { id: PairId; label: string; copy: string }[] = [
 		{ id: "ops", label: "Ops", copy: "Gwenda Dev copy (dev ops)" },
-		{ id: "website", label: "Website", copy: "Website Staging (gwenda-staging)" },
+		{ id: "website", label: "Website", copy: "Gwenda Dev copy (dev website)" },
 	];
 
 	let diff = $state<ReleaseDiff | null>(null);
@@ -84,7 +84,7 @@
 	const extra = $derived(includedWith(entries, selected));
 	const selectedCount = $derived(selected.size + extra.length);
 	const local = $derived(Boolean(diff?.local));
-	const staging = $derived(web?.environments.staging ?? null);
+	const preview = $derived(web?.environments.preview ?? null);
 	const live = $derived(web?.environments.production ?? null);
 
 	const codeSummary = $derived.by(() => {
@@ -143,7 +143,7 @@
 			const ids = new Set(nextDiff.entries.map((entry) => entry.id));
 			selected = new Set([...selected].filter((id) => ids.has(id)));
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "Could not compare staging and live.";
+			const message = err instanceof Error ? err.message : "Could not compare preview and live.";
 			if (message.startsWith("auth:")) {
 				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/web/dev"))}`;
 				return;
@@ -158,7 +158,7 @@
 			.catch((err) => {
 				code = {
 					ok: false,
-					staging: null,
+					preview: null,
 					live: null,
 					same: null,
 					commits: [],
@@ -241,7 +241,7 @@
 			warnings = result.warnings;
 			if (result.deploy?.runId) {
 				writeSitePublish({
-					target: direction === "to-staging" ? "staging" : "production",
+					target: direction === "discard" ? "preview" : "production",
 					runId: result.deploy.runId,
 					runUrl: result.deploy.runUrl || "",
 					status: result.deploy.alreadyRunning ? "in_progress" : "queued",
@@ -249,10 +249,14 @@
 					completed: false,
 				});
 			}
-			const count = countLabel(result.written.length + result.deleted.length);
+			const count = countLabel(
+				direction === "discard"
+					? (result.discarded?.length ?? 0)
+					: result.written.length + result.deleted.length,
+			);
 			toast.ok(
-				direction === "to-staging"
-					? `Staging reset: ${count} copied from live.`
+				direction === "discard"
+					? `Discarded ${count}: the preview matches live again.`
 					: `Published ${count}. What's on is live now; other pages rebuild in a few minutes.`,
 			);
 			await load();
@@ -287,12 +291,12 @@
 		}
 	}
 
-	async function rebuildStaging() {
+	async function rebuildPreview() {
 		try {
-			const run = await beginSitePublish("staging");
-			toast.ok(run.status === "in_progress" ? "A staging rebuild is already running." : "Staging rebuild started.");
+			const run = await beginSitePublish("preview");
+			toast.ok(run.status === "in_progress" ? "A preview rebuild is already running." : "Preview rebuild started.");
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not rebuild staging.");
+			toast.error(err instanceof Error ? err.message : "Could not rebuild preview.");
 		}
 	}
 	/** This environment's website and preview (dev ops: the dev website). */
@@ -338,7 +342,7 @@
 <div class="page scrollbar-fade">
 	<PageHeader
 		title="Developer tools"
-		subtitle="Staging against the live site: content, code and data. Admins only."
+		subtitle="Preview against the live site: content, code and data. Admins only."
 	>
 		{#snippet actions()}
 			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev/settings")}>Settings</Button>
@@ -356,7 +360,7 @@
 	{:else if diff}
 		<div class="ready" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 			<section class="flow" aria-label="Sites">
-				{@render site("Staging", staging, siteUrls.preview)}
+				{@render site("Preview", preview, siteUrls.preview)}
 				<div class="arrow"><Icon name="chevron-right" size={22} /></div>
 				{@render site("Live", live, siteUrls.live)}
 			</section>
@@ -395,12 +399,12 @@
 					<div class="section-body">
 						{#if !entries.length}
 							<p class="muted">
-								Every published document on staging matches the live site. Saving an event in ops
-								puts it on staging, and it shows up here.
+								Nothing is waiting to go live: the preview matches the live site. Saving an event in
+								ops puts it on the preview, and it shows up here.
 							</p>
 						{:else}
 							<p class="muted">
-								{diff.counts.added} new on staging · {diff.counts.changed} changed · {diff.counts.removed}
+								{diff.counts.added} new on the preview · {diff.counts.changed} changed · {diff.counts.removed}
 								only on live. Tick documents to act on some; otherwise the buttons act on all.
 							</p>
 							<div class="actions">
@@ -410,11 +414,11 @@
 									{/snippet}
 									{selected.size ? `Publish ${countLabel(selectedCount)} to live` : "Publish all to live"}
 								</Button>
-								<Button variant="outline" disabled={working} onclick={() => ask("to-staging")}>
+								<Button variant="outline" disabled={working} onclick={() => ask("discard")}>
 									{#snippet icon()}
 										<Icon name="undo" size={16} />
 									{/snippet}
-									{selected.size ? `Reset ${countLabel(selected.size)} from live` : "Reset staging from live"}
+									{selected.size ? `Discard ${countLabel(selected.size)}` : "Discard all preview changes"}
 								</Button>
 							</div>
 							<SearchField
@@ -468,7 +472,7 @@
 															{pulled
 																? "Needed by your selection"
 																: entry.change === "removed"
-																	? "Not on staging: publishing removes it from live"
+																	? "Not on the preview: publishing removes it from live"
 																	: fieldSummary(entry)}
 														</span>
 														{#if entry.fields.length}
@@ -483,7 +487,7 @@
 																<tr>
 																	<th scope="col">Field</th>
 																	<th scope="col">Live</th>
-																	<th scope="col">Staging</th>
+																	<th scope="col">Preview</th>
 																</tr>
 															</thead>
 															<tbody>
@@ -492,7 +496,7 @@
 																		<th scope="row">{field.label}</th>
 																		<td class="old">{field.detailOnly ? "Details differ" : field.production}</td>
 																		<td class="new">
-																			{field.detailOnly ? "(crop, formatting or order)" : field.staging}
+																			{field.detailOnly ? "(crop, formatting or order)" : field.preview}
 																		</td>
 																	</tr>
 																{/each}
@@ -508,9 +512,9 @@
 						{/if}
 						{#if !local}
 							<p class="footnote">
-								Staging pages look out of date?
-								<button type="button" class="link" onclick={() => void rebuildStaging()}>
-									Rebuild staging
+								Preview pages look out of date?
+								<button type="button" class="link" onclick={() => void rebuildPreview()}>
+									Rebuild preview
 								</button>
 							</p>
 						{/if}
@@ -531,7 +535,7 @@
 							<p class="muted">Both sites run {shortCommit(code.live)}.</p>
 						{:else}
 							<p class="muted">
-								Staging runs {shortCommit(code.staging)}, live runs {shortCommit(code.live)}.
+								Preview runs {shortCommit(code.preview)}, live runs {shortCommit(code.live)}.
 								{#if code.files}{code.files} files changed.{/if}
 								Code goes live when the <span class="mono">release</span> branch moves to
 								<span class="mono">main</span>, not from this page.
@@ -684,17 +688,16 @@
 
 	<Dialog
 		open={confirm !== null}
-		title={confirm?.direction === "to-staging" ? "Reset staging from the live site?" : "Publish to gwenda.co.uk?"}
+		title={confirm?.direction === "discard" ? "Discard preview changes?" : "Publish to gwenda.co.uk?"}
 		onclose={() => {
 			if (!working) confirm = null;
 		}}
 	>
 		<p class="dialog-copy">
-			{#if confirm?.direction === "to-staging"}
-				{confirm.scope === "all" ? `All ${countLabel(entries.length)}` : countLabel(selected.size)} on staging
-				will be overwritten with what is live: staging edits are lost, and documents only on staging are
-				deleted. Ops still has its own data, so saving an event again stages it again. Staging rebuilds
-				afterwards.
+			{#if confirm?.direction === "discard"}
+				{confirm.scope === "all" ? `All ${countLabel(entries.length)}` : countLabel(selected.size)} unpublished
+				changes are thrown away, so the preview shows what is live. Ops still has its own data, so saving an
+				event again puts it back on the preview. The preview rebuilds afterwards.
 			{:else}
 				{confirm?.scope === "all"
 					? `All ${countLabel(entries.length)} go live.`
@@ -706,14 +709,14 @@
 		{#snippet footer()}
 			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirm = null)}>Cancel</Button>
 			<Button variant="primary" size="sm" busy={working} onclick={() => void copyContent()}>
-				{confirm?.direction === "to-staging" ? "Reset staging" : "Publish"}
+				{confirm?.direction === "discard" ? "Discard" : "Publish"}
 			</Button>
 		{/snippet}
 	</Dialog>
 
 	<Dialog
 		open={confirmCopy !== null}
-		title="Copy production over the {confirmCopy === 'ops' ? 'Ops dev copy' : 'Website Staging database'}?"
+		title="Copy production over the {confirmCopy === 'ops' ? 'Ops dev copy' : 'Website dev copy'}?"
 		onclose={() => {
 			if (!working) confirmCopy = null;
 		}}
@@ -723,8 +726,8 @@
 				Every row in the Gwenda Dev copy of the Ops DB (what dev ops uses) is replaced with
 				production's. Local edits there are lost.
 			{:else}
-				Every row in Website Staging (subscribers, form submissions) is replaced with production's, so
-				gwenda-staging will hold real people's data. Staging-only rows are lost.
+				Every row in the Gwenda Dev copy of the Website DB (subscribers, form submissions) is replaced
+				with production's, so the dev website will hold real people's data. Dev-only rows are lost.
 			{/if}
 			Production is only read. Photos are not copied. It runs as a GitHub Action and takes a few minutes.
 		</p>
@@ -733,7 +736,7 @@
 			<Button variant="primary" size="sm" busy={working} onclick={() => void copyDatabase()}>Copy</Button>
 		{/snippet}
 	</Dialog>
-	<BusyOverlay active={loading && !diff} label="Comparing staging and live…" />
+	<BusyOverlay active={loading && !diff} label="Comparing preview and live…" />
 </div>
 
 <style>

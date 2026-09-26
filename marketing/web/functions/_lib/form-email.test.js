@@ -4,7 +4,7 @@ import {
   resolveFormFrom,
   resolveFormNotifyFrom,
   resolveFormReplyTo,
-} from "./form-email.js";
+} from "../../../../shared/forms/form-email.js";
 
 describe("form email identity", () => {
   it("formats bare from addresses", () => {

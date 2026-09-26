@@ -2,13 +2,13 @@
  * Getting saved events ready for the website, in the background.
  *
  * Saving only writes Baserow. Afterwards each event still needs its Google
- * Calendar entries and its preview (staging) documents brought up to date.
+ * Calendar entries and its preview (preview) documents brought up to date.
  * There is no queue table: the data already says which events are behind
  * (publish.preview, and each night's stored calendar hash), so the queue is
  * worked out every time and can't drift or be lost.
  *
  * Work runs one step per request (Cloudflare's free plan allows 50 outbound
- * calls per request): up to CALENDAR_STEP nights of calendar, or staging one
+ * calls per request): up to CALENDAR_STEP nights of calendar, or preview one
  * event. The open ops app runs steps back to back; the deploy webhook's cron
  * runs one every few minutes when nobody has ops open.
  *
@@ -46,9 +46,9 @@ export function contentSignature(event) {
 export function prepNeeded(event, { calendar = true } = {}) {
   if (!event?.id || !event.publish?.previewDates?.length) return null;
   const calendarBehind = calendar ? calendarNightsBehind(event) : 0;
-  const staging = event.publish.preview !== "current";
-  if (!calendarBehind && !staging) return null;
-  return { calendarBehind, staging };
+  const preview = event.publish.preview !== "current";
+  if (!calendarBehind && !preview) return null;
+  return { calendarBehind, preview };
 }
 
 export function parseFailures(text) {

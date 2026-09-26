@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resetConfigCacheForTests } from "../../../../shared/config.js";
-import { resolveFormNotifyTo } from "./web-config.js";
+import { resolveFormNotifyTo } from "../../../../shared/forms/notify-to.js";
 
 function stubConfigRows(rows) {
   vi.stubGlobal(
@@ -51,7 +51,7 @@ describe("resolveFormNotifyTo", () => {
       /FORMS_NOTIFY_EMAIL is not set/,
     );
     // Settings reachable but no override row for this env.
-    stubConfigRows([row("forms.notify_email", "dev@gwenda.co.uk", "staging", "web")]);
+    stubConfigRows([row("forms.notify_email", "dev@gwenda.co.uk", "production", "web")]);
     await expect(
       resolveFormNotifyTo({ SITE_ENV: "dev", BASEROW_CONFIG_API_KEY: "cfg" }, form),
     ).rejects.toThrow(/not set for dev/);
@@ -107,7 +107,7 @@ describe("resolveFormNotifyTo", () => {
       "fetch",
       vi.fn(async () => new Response("nope", { status: 500 })),
     );
-    const env = { SITE_ENV: "staging", BASEROW_CONFIG_API_KEY: "cfg" };
+    const env = { SITE_ENV: "preview", BASEROW_CONFIG_API_KEY: "cfg" };
     await expect(
       resolveFormNotifyTo(env, { notifyEmail: "play@gwenda.co.uk" }),
     ).rejects.toThrow();

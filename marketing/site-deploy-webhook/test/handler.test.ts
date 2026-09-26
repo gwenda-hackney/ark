@@ -15,7 +15,8 @@ const env = {
 };
 
 describe("parseDeployTarget", () => {
-  it("accepts staging and production", () => {
+  it("accepts preview, the old staging name, and production", () => {
+    expect(parseDeployTarget({ target: "preview" })).toBe("preview");
     expect(parseDeployTarget({ target: "staging" })).toBe("staging");
     expect(parseDeployTarget({ target: "production" })).toBe("production");
   });
@@ -57,7 +58,7 @@ describe("handleDeploy", () => {
   it("returns 401 when unauthorized", async () => {
     const request = new Request("https://example.com/deploy", {
       method: "POST",
-      body: JSON.stringify({ target: "staging" }),
+      body: JSON.stringify({ target: "preview" }),
     });
 
     const result = await handleDeploy(request, env);
@@ -85,51 +86,61 @@ describe("handleDeploy", () => {
     expect(result.status).toBe(400);
     expect(String(result.body.error)).toContain("Website > Release");
   });
-});
 
-describe("handlePromote", () => {
-  it("treats legacy development-to-staging as a staging rebuild", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ workflow_runs: [] })),
-        )
-        .mockResolvedValueOnce(new Response(null, { status: 204 }))
-        .mockResolvedValueOnce(
-          new Response(
-            JSON.stringify({
-              workflow_runs: [
-                {
-                  id: 66,
-                  status: "in_progress",
-                  conclusion: null,
-                  html_url: "https://github.com/run/66",
-                  path: ".github/workflows/web.yml",
-                  name: "staging-content",
-                  display_title: "staging-content",
-                },
-              ],
-            }),
-          ),
-        ),
-    );
-
-    const request = new Request("https://example.com/promote", {
+  it("builds nothing for prod ops still asking for the old staging site", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const request = new Request("https://example.com/deploy", {
       method: "POST",
       headers: { Authorization: "Bearer test-secret" },
-      body: JSON.stringify({ kind: "development-to-staging" }),
+      body: JSON.stringify({ target: "staging" }),
     });
-    const result = await handlePromote(request, env);
+    const result = await handleDeploy(request, env);
     expect(result.status).toBe(202);
-    expect(result.body.target).toBe("staging");
-    expect(result.body.kind).toBe("staging-content");
-    expect(result.body.runId).toBe(66);
+    expect(result.body.skipped).toBe("retired");
+    expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 
-  it("dispatches staging-to-production without a preview run", async () => {
+  it("rebuilds prod's preview from main's web.yml", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [] })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            workflow_runs: [
+              {
+                id: 91,
+                status: "in_progress",
+                conclusion: null,
+                html_url: "https://github.com/run/91",
+                path: ".github/workflows/web.yml",
+                name: "preview",
+                display_title: "preview",
+              },
+            ],
+          }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const request = new Request("https://example.com/deploy", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-secret" },
+      body: JSON.stringify({ target: "preview" }),
+    });
+    const result = await handleDeploy(request, env);
+    expect(result.body.target).toBe("preview");
+    expect(result.body.runId).toBe(91);
+    const [, init] = fetchMock.mock.calls[1];
+    expect(JSON.parse(String(init.body))).toEqual({ ref: "main", inputs: { action: "preview" } });
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("handlePromote", () => {
+  it("dispatches the live build without a preview run", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -148,8 +159,8 @@ describe("handlePromote", () => {
                   conclusion: null,
                   html_url: "https://github.com/run/88",
                   path: ".github/workflows/web-promote.yml",
-                  name: "promote-staging-to-production",
-                  display_title: "promote-staging-to-production",
+                  name: "promote-release-to-production",
+                  display_title: "promote-release-to-production",
                 },
               ],
             }),
@@ -160,7 +171,7 @@ describe("handlePromote", () => {
     const request = new Request("https://example.com/promote", {
       method: "POST",
       headers: { Authorization: "Bearer test-secret" },
-      body: JSON.stringify({ kind: "staging-to-production" }),
+      body: JSON.stringify({ kind: "to-production" }),
     });
     const result = await handlePromote(request, env);
     expect(result.status).toBe(202);
@@ -179,7 +190,7 @@ describe("handleStatus", () => {
     expect(result.status).toBe(400);
   });
 
-  it("returns previewUrl for successful production content preview", async () => {
+  it("returns previewUrl for a successful preview build", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValueOnce(
@@ -190,8 +201,8 @@ describe("handleStatus", () => {
             conclusion: "success",
             html_url: "https://github.com/run/55",
             path: ".github/workflows/web.yml",
-            name: "production-content",
-            display_title: "production-content",
+            name: "preview",
+            display_title: "preview",
           }),
         ),
       ),
@@ -203,9 +214,7 @@ describe("handleStatus", () => {
     const result = await handleStatus(request, env);
     expect(result.status).toBe(200);
     expect(result.body.phase).toBe("preview");
-    expect(result.body.previewUrl).toBe(
-      "https://release-preview.gwenda-blue.pages.dev",
-    );
+    expect(result.body.previewUrl).toBe("https://preview.gwenda-blue.pages.dev");
     expect(result.body.previewRunId).toBe(55);
 
     vi.unstubAllGlobals();
@@ -213,7 +222,7 @@ describe("handleStatus", () => {
 });
 
 describe("github integration", () => {
-  it("dispatches workflow for staging", async () => {
+  it("dispatches workflow for the preview", async () => {
     vi.resetModules();
     vi.stubGlobal(
       "fetch",
@@ -230,8 +239,8 @@ describe("github integration", () => {
                   conclusion: null,
                   html_url: "https://github.com/run/99",
                   path: ".github/workflows/web.yml",
-                  name: "staging-content",
-                  display_title: "staging-content",
+                  name: "preview",
+                  display_title: "preview",
                 },
               ],
             }),
@@ -240,7 +249,7 @@ describe("github integration", () => {
     );
 
     const { dispatchContentDeploy } = await import("../src/github");
-    const run = await dispatchContentDeploy(env, "staging");
+    const run = await dispatchContentDeploy(env, "preview");
 
     expect(run.id).toBe(99);
 
@@ -251,7 +260,7 @@ describe("github integration", () => {
     expect(headers.get("User-Agent")).toBe("gwenda-site-deploy-webhook");
     expect(dispatchUrl).toContain("web.yml");
     const body = JSON.parse(String(dispatchInit.body));
-    expect(body.inputs.action).toBe("staging-content");
+    expect(body.inputs.action).toBe("preview");
 
     vi.unstubAllGlobals();
   });
@@ -273,8 +282,8 @@ describe("github integration", () => {
                   conclusion: null,
                   html_url: "https://github.com/run/77",
                   path: ".github/workflows/web-promote.yml",
-                  name: "promote-staging-to-production",
-                  display_title: "promote-staging-to-production",
+                  name: "promote-release-to-production",
+                  display_title: "promote-release-to-production",
                 },
               ],
             }),
@@ -282,8 +291,8 @@ describe("github integration", () => {
         ),
     );
 
-    const { dispatchStagingPromote } = await import("../src/github");
-    const run = await dispatchStagingPromote(env);
+    const { dispatchLivePromote } = await import("../src/github");
+    const run = await dispatchLivePromote(env);
     expect(run.id).toBe(77);
 
     const [dispatchUrl, dispatchInit] = (
@@ -321,11 +330,11 @@ describe("dev website builds", () => {
     const request = new Request("https://example.com/promote", {
       method: "POST",
       headers: { Authorization: "Bearer test-secret" },
-      body: JSON.stringify({ kind: "staging-to-production", env: "dev" }),
+      body: JSON.stringify({ kind: "to-production", env: "dev" }),
     });
     const result = await handlePromote(request, env);
     expect(result.status).toBe(202);
-    expect(result.body.target).toBe("dev-production");
+    expect(result.body.target).toBe("dev-live");
     expect(result.body.runId).toBe(77);
     const [url, init] = fetchMock.mock.calls[1];
     expect(String(url)).toContain("/actions/workflows/web.yml/dispatches");
@@ -343,10 +352,10 @@ describe("dev website builds", () => {
     const request = new Request("https://example.com/deploy", {
       method: "POST",
       headers: { Authorization: "Bearer test-secret" },
-      body: JSON.stringify({ target: "staging", env: "dev" }),
+      body: JSON.stringify({ target: "preview", env: "dev" }),
     });
     const result = await handleDeploy(request, env);
-    expect(result.body.target).toBe("dev-staging");
+    expect(result.body.target).toBe("dev-preview");
     expect(result.body.alreadyRunning).toBe(true);
     expect(result.body.runId).toBe(78);
     vi.unstubAllGlobals();

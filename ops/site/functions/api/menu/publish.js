@@ -15,7 +15,7 @@ export const onRequestPost = withApiHandler(async (context) => {
   );
   if (target === "production") {
     return jsonResponse(
-      { error: "Production is published from Website > Staging → live." },
+      { error: "Production is published from Website > Preview → live." },
       400,
     );
   }
@@ -30,17 +30,17 @@ export const onRequestPost = withApiHandler(async (context) => {
   const action = body?.action === "promote" ? "promote" : "deploy";
   if (action === "promote") {
     return jsonResponse(
-      { error: "Publish to production from Website > Staging → live." },
+      { error: "Publish to production from Website > Preview → live." },
       400,
     );
   }
 
-  const sync = await syncOpsMenuToSanity(context.env, { target: "staging" });
+  const sync = await syncOpsMenuToSanity(context.env, { target: "preview" });
   // The preview site updates on its own once edits go quiet (site-pending.js).
   return jsonResponse({
     ok: true,
     target,
-    dataset: "staging",
+    dataset: "preview",
     sync,
     deployed: false,
   });

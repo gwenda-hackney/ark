@@ -2,7 +2,18 @@
  * Website form submissions (Baserow "Form Submissions").
  * Uses the marketing token (BASEROW_WEBSITE_API_KEY), not the Ops database token.
  */
-import { listAllRows, listAllTables } from "./baserow.js";
+import { FORM_QUERY } from "../../../../shared/forms/format.js";
+import {
+  sendFormNotificationEmail,
+  sendFormReceiptEmail,
+} from "../../../../shared/forms/form-email.js";
+import {
+  FORM_EDIT_LINK_FIELD,
+  FORM_EMAIL_SENT_FIELDS,
+} from "../../../../shared/forms/submission-fields.js";
+import { SITE_DOMAIN } from "../../../../shared/site-location.js";
+import { getRow, listAllRows, listAllTables, updateRow } from "./baserow.js";
+import { sanityQuery } from "./sanity.js";
 
 export const FORM_SUBMISSIONS_TABLE_NAME = "Form Submissions";
 
@@ -92,8 +103,8 @@ export function mapFormSubmission(row) {
     status: selectValue(row?.Status),
     submittedAt: typeof row?.Submitted === "string" ? row.Submitted : "",
     current: isCurrentRow(row),
-    notifySentAt: dateValue(row?.["Notify Sent"]),
-    receiptSentAt: dateValue(row?.["Receipt Sent"]),
+    notifySentAt: dateValue(row?.[FORM_EMAIL_SENT_FIELDS.notify]),
+    receiptSentAt: dateValue(row?.[FORM_EMAIL_SENT_FIELDS.receipt]),
     answers,
   };
 }
@@ -147,8 +158,8 @@ function httpError(message, status) {
 }
 
 /**
- * Ask the website to resend one email for a submission. The site renders it
- * from the stored row + Sanity form, sends it, and stamps the Sent column.
+ * Resend one email for a submission: render it from the stored row and the
+ * Sanity form (the same code the website uses), send it, and stamp the row.
  * @param {"notify" | "receipt"} kind
  * @returns {Promise<{ ok: true, sentAt?: string | null, dryRun?: boolean, warning?: string }>}
  */
@@ -156,37 +167,45 @@ export async function resendFormEmail(env, rowId, kind) {
   if (!FORM_EMAIL_KINDS.includes(kind)) {
     throw httpError("kind must be notify or receipt.", 400);
   }
-  const origin = env.WEB_ORIGIN?.trim().replace(/\/$/, "");
-  if (!origin) {
-    throw httpError("web.origin is not set in the config database.", 503);
-  }
-  const secret = env.FORMS_ADMIN_SECRET?.trim();
-  if (!secret) {
-    throw httpError("FORMS_ADMIN_SECRET is not configured. Run npm run env:secrets:pull.", 503);
+  const tableId = await resolveTableId(env);
+  let row;
+  try {
+    row = await getRow(websiteEnv(env), tableId, rowId);
+  } catch (error) {
+    if (error?.status === 404) throw httpError("Submission not found.", 404);
+    throw error;
   }
 
-  let response;
+  const slug = String(row?.["Form Slug"] ?? "").trim();
+  // The form as the live site shows it (drafts never reach the website).
+  const form = slug
+    ? await sanityQuery(env, "production", FORM_QUERY, { slug })
+    : null;
+  if (!form) throw httpError(`Form "${slug}" is not in Sanity.`, 404);
+  const answers = parseEntries(row);
+
+  let sent;
+  if (kind === "notify") {
+    sent = await sendFormNotificationEmail(env, { form, answers });
+  } else {
+    const email = String(row["Reply To"] ?? "").trim().toLowerCase();
+    if (!email) throw httpError("Submission has no reply-to email.", 400);
+    // Rows from before the website saved the link fall back to the form's page.
+    const editUrl =
+      String(row[FORM_EDIT_LINK_FIELD] ?? "").trim() ||
+      `${SITE_DOMAIN}/contact/${encodeURIComponent(slug)}`;
+    sent = await sendFormReceiptEmail(env, { form, answers, email, editUrl });
+  }
+  if (!sent.ok) throw httpError(sent.error || "Could not send.", 502);
+  if (sent.dryRun) return { ok: true, dryRun: true };
+
+  const sentAt = new Date().toISOString();
   try {
-    response = await fetch(`${origin}/api/forms/admin/resend`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ rowId: String(rowId), kind }),
+    await updateRow(websiteEnv(env), tableId, rowId, {
+      [FORM_EMAIL_SENT_FIELDS[kind]]: sentAt,
     });
-  } catch (error) {
-    throw httpError(
-      `Could not reach the website at ${origin} (${error instanceof Error ? error.message : error}).`,
-      502,
-    );
+  } catch {
+    return { ok: true, sentAt: null, warning: "Sent, but could not mark it sent." };
   }
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw httpError(
-      body?.error || `Website resend failed (${response.status}).`,
-      response.status === 401 || response.status >= 500 ? 502 : response.status,
-    );
-  }
-  return body ?? { ok: true };
+  return { ok: true, sentAt };
 }

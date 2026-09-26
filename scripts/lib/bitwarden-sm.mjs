@@ -98,10 +98,13 @@ export const APP_SECRETS = {
       "SANITY_API_TOKEN",
       "DEPLOY_WEBHOOK_SECRET",
       "FORMS_ADMIN_SECRET",
+      // Form emails resent from /forms go out as the website's mailbox.
+      "GMAIL_SERVICE_ACCOUNT_JSON",
     ],
     rename: {
       BASEROW_API_KEY: "BASEROW_OPS_API_KEY",
       GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
+      GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
     pagesSkip: ["OPS_LOCAL_ADMIN_PW"],
   },

@@ -7,24 +7,31 @@ import {
 import { sanityPerspectiveForEnv } from "./sanity-query.js";
 
 describe("sanityDatasetForEnv", () => {
-  it("uses the staging dataset", () => {
-    expect(sanityDatasetForEnv({ SITE_ENV: "staging" })).toBe("staging");
+  it("reads the one dataset, whichever site this is", () => {
+    expect(sanityDatasetForEnv({ SITE_ENV: "preview" })).toBe("production");
+    expect(sanityDatasetForEnv({})).toBe("production");
   });
 
   it("prefers explicit SANITY_DATASET", () => {
-    expect(sanityDatasetForEnv({ SANITY_DATASET: "production" })).toBe("production");
+    expect(sanityDatasetForEnv({ SANITY_DATASET: "other" })).toBe("other");
   });
 });
 
 describe("sanityPerspectiveForEnv", () => {
-  it("ignores drafts on staging and production", () => {
-    expect(sanityPerspectiveForEnv({ SITE_ENV: "staging" })).toBe("published");
+  it("hides drafts on the live site", () => {
     expect(sanityPerspectiveForEnv({ SITE_ENV: "production" })).toBe("published");
     expect(sanityPerspectiveForEnv({})).toBe("published");
   });
 
-  it("overlays drafts for local SITE_ENV", () => {
+  it("overlays drafts on the preview and a local dev server", () => {
+    expect(sanityPerspectiveForEnv({ SITE_ENV: "preview" })).toBe("previewDrafts");
     expect(sanityPerspectiveForEnv({ SITE_ENV: "local" })).toBe("previewDrafts");
+  });
+
+  it("follows an explicit SANITY_PERSPECTIVE", () => {
+    expect(
+      sanityPerspectiveForEnv({ SITE_ENV: "production", SANITY_PERSPECTIVE: "previewDrafts" }),
+    ).toBe("previewDrafts");
   });
 });
 
@@ -70,7 +77,7 @@ describe("fetchEventBySlug", () => {
     );
 
     const event = await fetchEventBySlug(
-      { SANITY_DATASET: "staging", SITE_ENV: "staging" },
+      { SITE_ENV: "production" },
       "private-launch-party",
     );
     const requested = String(vi.mocked(fetch).mock.calls[0][0]);

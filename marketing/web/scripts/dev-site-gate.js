@@ -67,7 +67,7 @@ export function devSiteGate({ password, bypassKey } = {}) {
       }
     }
 
-    if (url.pathname === "/api/staging-share") {
+    if (url.pathname === "/api/preview-share") {
       const send = (status, body) => {
         res.statusCode = status;
         res.setHeader("Content-Type", "application/json");

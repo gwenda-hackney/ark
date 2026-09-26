@@ -74,5 +74,5 @@ test("the tick builds each quiet site once and saves state", async () => {
   assert.equal(result.production.action, "build");
   assert.deepEqual(dispatched, ["production"]);
   assert.equal(JSON.parse(store.get("ops:site.auto_update:production")).runId, 9);
-  assert.equal(result.staging.action, "idle");
+  assert.equal(result.preview.action, "idle");
 });

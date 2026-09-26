@@ -1,7 +1,5 @@
-import {
-  fetchFormForSubmit,
-  replyToFromAnswers,
-} from "../../_lib/form-submit.js";
+import { fetchFormForSubmit } from "../../_lib/form-submit.js";
+import { replyToFromAnswers } from "../../../../../shared/forms/format.js";
 import { formPublicPath } from "../../_lib/form-paths.js";
 import { parseFormVerifyToken } from "../../_lib/form-verify-auth.js";
 import {

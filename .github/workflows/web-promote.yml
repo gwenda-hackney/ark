@@ -3,10 +3,9 @@ name: Web promote
 # Builds and deploys the release branch to gwenda.co.uk. Refuses any other
 # branch. Does not move release, and does not deploy ops.
 #
-# Content is not copied here. Ops Website > Staging → live copies reviewed staging
-# documents onto production and then starts this workflow to rebuild. A
-# dataset clone would also carry staging drafts (local ops previews) and
-# anything nobody reviewed.
+# Content is not copied here. Ops publishes the drafts the editor checked on
+# the preview (Put on website, Website > Preview → live), then this rebuilds
+# the live site from published documents only.
 
 run-name: promote-release-to-production
 
@@ -14,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: web-promote-staging-to-production
+  group: web-promote
   cancel-in-progress: false
 
 jobs:
@@ -71,6 +70,16 @@ jobs:
         run: npm run env:web:pull -- --github-env --profile production
 
 
+      # Baserow schema changes need a user login (database tokens only touch rows).
+      - name: Baserow login for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # Additive only, so the website still running keeps working (scripts/lib/migrations.mjs).
+      - name: Migrations before deploy
+        run: node scripts/migrate.mjs --app web --phase pre --env production
+
       - name: Deploy production
         uses: ./.github/actions/deploy-pages
         with:
@@ -78,7 +87,7 @@ jobs:
           pages-production-branch: release
           deploy-branch: release
           wrangler-config: wrangler.toml
-          public-is-staging: "false"
+          public-is-preview: "false"
           public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
@@ -142,6 +151,10 @@ jobs:
       - name: Deep health (databases, email, forms)
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep ${{ steps.webcode.outputs.flags }}
 
+      # The new code is live: remove what only the old code used.
+      - name: Migrations after deploy
+        run: node scripts/migrate.mjs --app web --phase post --env production
+
       # Studio only needs redeploying when its code changed (~30s otherwise).
       - name: Did Studio change since the last release?
         id: studio
@@ -156,11 +169,9 @@ jobs:
 
       - name: Deploy production Studio
         if: steps.studio.outputs.changed == 'true'
-        run: npm run studio:deploy:prod
+        run: npm run studio:deploy
         env:
           SANITY_DEPLOY_TOKEN: ${{ secrets.SANITY_DEPLOY_TOKEN }}
-          SANITY_STUDIO_SITE_DEPLOY_URL: ${{ secrets.SANITY_STUDIO_SITE_DEPLOY_URL }}
-          DEPLOY_WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
 
       - name: Tag production release
         run: cd marketing/web && node scripts/ci/tag-production-release.mjs

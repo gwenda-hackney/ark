@@ -1,19 +1,18 @@
-import { resolveFormFrom, resolveFormReplyTo } from "./form-email.js";
-import { isGmailConfigured, sendGmail } from "./gmail-send.js";
-import { reportFormError } from "./form-alert.js";
-import { createLogger } from "./log.js";
+import { resolveFormFrom, resolveFormReplyTo } from "../../../../shared/forms/form-email.js";
+import { isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
+import { reportFormError } from "../../../../shared/forms/form-alert.js";
+import { createLogger } from "../../../../shared/log.js";
 import {
   buildFormVerifyUrl,
   createFormVerifyToken,
 } from "./form-verify-auth.js";
-import { LOGO_CID } from "./rsvp-email-template.js";
-import { fetchImageBuffer } from "./rsvp-tickets.js";
+import { fetchImageBuffer, LOGO_CID } from "../../../../shared/email-image.js";
 import {
   SITE_ADDRESS,
   SITE_DOMAIN,
   SITE_INSTAGRAM,
   VENUE_MAPS_URL,
-} from "./site-location.js";
+} from "../../../../shared/site-location.js";
 
 const COLORS = {
   bg: "#0d0d0d",
@@ -186,7 +185,7 @@ export async function sendFormVerifyEmail(
     .toLowerCase();
   const mailReady = Boolean(from && to && isGmailConfigured(env));
   const siteEnv = env.SITE_ENV?.trim();
-  const isDeployed = siteEnv === "staging" || siteEnv === "production";
+  const isDeployed = siteEnv === "production";
 
   const token = await createFormVerifyToken(env, {
     rowId,
@@ -279,4 +278,4 @@ export async function sendFormVerifyEmail(
   }
 }
 
-export { formatFormFromAddress } from "./form-email.js";
+export { formatFormFromAddress } from "../../../../shared/forms/form-email.js";

@@ -14,11 +14,7 @@ import {
   occurrenceDeleteTargets,
   updateOccurrenceContent,
 } from "../../../../_lib/event-store.js";
-import {
-  removeEventFromWebsite,
-  unpublishOccurrences,
-} from "../../../../_lib/event-publish.js";
-import { canChangeWebsite } from "../../../../_lib/sanity.js";
+import { unpublishOccurrences } from "../../../../_lib/event-publish.js";
 
 function params(context) {
   return {
@@ -77,11 +73,8 @@ export const onRequestDelete = withApiHandler(async (context) => {
   ).trim();
   const event = await getEvent(context.env, id);
   const plan = occurrenceDeleteTargets(event, date, scope);
-  const offWebsite = Boolean(body?.alsoWebsite) && canChangeWebsite(context.env);
-  const warnings = offWebsite
-    ? await removeEventFromWebsite(context.env, event, plan.targets)
-    : [];
-  warnings.push(...(await unpublishOccurrences(context.env, plan.targets)));
+  // Deleting takes the nights off the preview and the website together.
+  const warnings = await unpublishOccurrences(context.env, plan.targets);
   const result = await deleteOccurrences(context.env, id, date, scope);
   if (result.event) await syncSeriesCalendar(context.env, result.event);
   return jsonResponse(

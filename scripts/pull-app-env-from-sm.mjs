@@ -8,7 +8,7 @@
  *   npm run env:secrets:pull                      # .env.secrets (local, SM names)
  *   npm run env:secrets:pull -- --profile staging --dry-run
  *   npm run env:ops:pull -- --github-env          # CI, ops runtime names, production
- *   npm run env:web:pull -- --github-env          # CI, web runtime names, staging
+ *   npm run env:web:pull -- --github-env          # CI, web runtime names, production
  *
  * The local file holds every app's secrets once, under SM names. Wrappers
  * (with-env, with-ops-env, ops-dev) map them to each app's runtime names.
@@ -36,7 +36,7 @@ import {
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Default env when --profile is omitted. CI jobs rely on these. */
-const GITHUB_DEFAULT_ENV = { ark: "production", ops: "production", web: "staging" };
+const GITHUB_DEFAULT_ENV = { ark: "production", ops: "production", web: "production" };
 const LEGACY_FILES = [".env.ark", ".env.ops", ".env.web"];
 
 function loadDotEnv(path) {
@@ -113,7 +113,7 @@ function main() {
   no --github-env / --env-only, the app is ignored and the same file is written.
 
   --profile|--env local|staging|production
-                 local by default; with --github-env: ops=production, web=staging
+                 local by default; with --github-env: production
   --dry-run      List resolved and missing keys (no values, no write)
   --env-only     Print KEY=value lines; do not write files
   --github-env   Append resolved secrets (plus Ark keys) to $GITHUB_ENV

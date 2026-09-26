@@ -1,16 +1,18 @@
 name: Web
 
-# Marketing site: staging (prod's preview) from main, branch previews, and the
-# production preview on every push to release (release-preview.gwenda-blue.pages.dev).
-# Live deploys are web-promote.yml (build release; content comes from ops Release).
+# Marketing site. Two environments, built the same way (docs/sanity.md):
 #
-# The dev website (gwenda-web-dev, Gwenda Dev Sanity copy) also builds from
-# main: both sites on a push, and the one dev ops asks for (dev-preview /
-# dev-live, dispatched by the deploy webhook).
+#   dev   gwenda-web-dev, Gwenda Dev Sanity: every push to main builds both
+#         sites (live = main branch, preview = "preview" branch), and dev ops
+#         asks for one (dev-preview / dev-live) through the deploy webhook.
+#   prod  gwenda: every push to release builds the preview ("preview" branch:
+#         drafts over published, password-gated); ops asks for content
+#         rebuilds (preview). The live site is web-promote.yml.
+#
+# Other branches get a branch preview on the dev website, with dev data.
 
 run-name: >-
   ${{
-    github.event_name == 'repository_dispatch' && github.event.action ||
     github.event_name == 'workflow_dispatch' && inputs.action ||
     format('push-{0}', github.ref_name)
   }}
@@ -19,6 +21,7 @@ on:
   push:
     paths:
       - "marketing/web/**"
+      - "shared/**"
       - "package-lock.json"
       - ".github/workflows/web.yml"
       - ".github/workflows/verify.yml"
@@ -33,13 +36,9 @@ on:
         default: auto
         options:
           - auto
-          - staging-content
-          - promote-dev-to-staging
-          - production-preview
+          - preview
           - dev-preview
           - dev-live
-  repository_dispatch:
-    types: [content-deploy-staging, promote-dev-to-staging]
 
 jobs:
   resolve:
@@ -47,54 +46,28 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.r.outputs.mode }}
-      dataset: ${{ steps.r.outputs.dataset }}
       dev_sites: ${{ steps.r.outputs.dev_sites }}
     steps:
       - id: r
         run: |
-          MODE=""
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            case "${{ github.event.action }}" in
-              content-deploy-staging|promote-dev-to-staging) MODE=staging-content ;;
-            esac
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            ACTION="${{ inputs.action }}"
-            if [ "$ACTION" = "staging-content" ] || [ "$ACTION" = "promote-dev-to-staging" ]; then
-              MODE=staging-content
-            elif [ "$ACTION" = "production-preview" ]; then
-              MODE=production-preview
-            elif [ "$ACTION" = "dev-preview" ] || [ "$ACTION" = "dev-live" ]; then
-              MODE=$ACTION
-            elif [ "$ACTION" = "auto" ]; then
+          ACTION="${{ github.event_name == 'workflow_dispatch' && inputs.action || 'auto' }}"
+          case "$ACTION" in
+            preview|dev-preview|dev-live) MODE=$ACTION ;;
+            auto)
               case "${{ github.ref_name }}" in
-                main) MODE=staging-code ;;
-                release) MODE=production-preview ;;
+                main) MODE=dev ;;
+                release) MODE=preview ;;
                 develop) MODE=verify-only ;;
                 *) MODE=branch-preview ;;
               esac
-            fi
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            # release builds the production preview (release-preview alias, never
-            # the live domain). Going live is the separate, manual Web promote run.
-            case "${{ github.ref_name }}" in
-              main) MODE=staging-code ;;
-              release) MODE=production-preview ;;
-              develop) MODE=verify-only ;;
-              *) MODE=branch-preview ;;
-            esac
-          fi
-
-          if [ -z "$MODE" ]; then
-            echo "Could not resolve deploy mode" >&2
-            exit 1
-          fi
-
-          DATASET=staging
+              ;;
+            *) echo "Unknown action $ACTION" >&2; exit 1 ;;
+          esac
 
           # Dev website sites to build: both when main's code changes, else
           # the one dev ops asked for.
           case "$MODE" in
-            staging-code) DEV_SITES='["preview","live"]' ;;
+            dev) DEV_SITES='["preview","live"]' ;;
             dev-preview) DEV_SITES='["preview"]' ;;
             dev-live) DEV_SITES='["live"]' ;;
             *) DEV_SITES='[]' ;;
@@ -102,103 +75,18 @@ jobs:
 
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
           echo "dev_sites=$DEV_SITES" >> "$GITHUB_OUTPUT"
-          echo "dataset=$DATASET" >> "$GITHUB_OUTPUT"
-          echo "Resolved mode=$MODE dataset=$DATASET"
+          echo "Resolved mode=$MODE"
 
+  # Deploy jobs build, check and test themselves; this is the develop-branch check.
   verify:
     needs: resolve
+    if: needs.resolve.outputs.mode == 'verify-only'
     uses: ./.github/workflows/verify.yml
     secrets: inherit
-    with:
-      sanity-dataset: ${{ needs.resolve.outputs.dataset }}
-
-  deploy-staging:
-    name: Deploy staging
-    needs: [resolve, verify]
-    if: needs.resolve.outputs.mode == 'staging-code' || needs.resolve.outputs.mode == 'staging-content'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: web-staging
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      deployments: write
-    environment:
-      name: staging
-      url: https://gwenda-staging.pages.dev
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.resolve.outputs.mode == 'staging-content' && 'main' || github.sha }}
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "npm"
-
-      - name: Install dependencies
-        uses: ./.github/actions/npm-install
-
-      - name: Compute build metadata
-        id: buildmeta
-        run: cd marketing/web && node scripts/ci/compute-build-metadata.mjs
-        env:
-          GITHUB_REF_NAME: main
-          GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp || github.run_started_at }}
-
-      - name: Pull web secrets from Bitwarden SM
-        env:
-          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:web:pull -- --github-env
-
-
-      - name: Deploy
-        uses: ./.github/actions/deploy-pages
-        with:
-          pages-project: gwenda-staging
-          pages-production-branch: main
-          deploy-branch: main
-          wrangler-config: wrangler.staging.toml
-          public-is-staging: "true"
-          public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
-          build-version: ${{ steps.buildmeta.outputs.version }}
-          build-sha: ${{ steps.buildmeta.outputs.sha }}
-          build-ref: ${{ steps.buildmeta.outputs.ref }}
-          build-time: ${{ steps.buildmeta.outputs.time }}
-          cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
-          cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          sanity-api-token: ${{ env.SANITY_API_TOKEN }}
-          sanity-dataset: staging
-          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
-          baserow-ops-database-id: "556507"
-          secrets-profile: staging
-          snapshot-site: staging
-
-      - name: Smoke test
-        env:
-          SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
-        # --deep: Sanity, both Baserow databases, config DB and Gmail login (no email on staging).
-        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda-staging.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000 --deep
-
-      - name: Deployment summary
-        run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
-        env:
-          DEPLOY_SUMMARY_JSON: >-
-            {"title":"${{ needs.resolve.outputs.mode == 'staging-content' && 'Staging content deployed' || 'Staging deployed' }}","rows":[
-              ["Version","`${{ steps.buildmeta.outputs.version }}`"],
-              ["Commit","[\\`${{ steps.buildmeta.outputs.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.buildmeta.outputs.sha }})"],
-              ["Site","https://gwenda-staging.pages.dev"],
-              ["Mode","`${{ needs.resolve.outputs.mode }}`"]
-            ]}
 
   deploy-dev:
     name: Deploy dev website (${{ matrix.site }})
-    needs: [resolve, verify]
+    needs: resolve
     if: needs.resolve.outputs.dev_sites != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -246,6 +134,22 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile local
 
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
+
+      # Baserow schema changes need a user login (database tokens only touch rows).
+      - name: Baserow login for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # Additive only, so the website still running keeps working (scripts/lib/migrations.mjs).
+      - name: Migrations before deploy
+        run: node scripts/migrate.mjs --app web --phase pre --env dev
+
       - name: Deploy
         uses: ./.github/actions/deploy-pages
         with:
@@ -253,7 +157,7 @@ jobs:
           pages-production-branch: main
           deploy-branch: ${{ matrix.site == 'live' && 'main' || 'preview' }}
           wrangler-config: wrangler.dev.toml
-          public-is-staging: "true"
+          public-is-preview: "true"
           env-label: ${{ matrix.site == 'live' && 'Dev' || 'Dev · preview' }}
           site-origin: ${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}
           public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
@@ -265,11 +169,11 @@ jobs:
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
           sanity-project-id: gwscpagy
-          sanity-dataset: ${{ matrix.site == 'live' && 'production' || 'staging' }}
+          sanity-perspective: ${{ matrix.site == 'live' && 'published' || 'previewDrafts' }}
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "560292"
           secrets-profile: dev
-          snapshot-site: ${{ matrix.site == 'live' && 'production' || 'staging' }}
+          snapshot-site: ${{ matrix.site == 'live' && 'production' || 'preview' }}
           snapshot-environment: dev
 
       - name: Smoke test
@@ -277,30 +181,40 @@ jobs:
           SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url "${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
 
-  deploy-production-preview:
-    name: Deploy production preview
-    needs: [resolve, verify]
-    if: needs.resolve.outputs.mode == 'production-preview'
+      # The new code is live: remove what only the old code used.
+      - name: Migrations after deploy
+        run: node scripts/migrate.mjs --app web --phase post --env dev
+
+  # Prod's preview: the release code on drafts over published. A push to
+  # release builds it with the new code; ops's content rebuilds (dispatched
+  # from main's copy of this file) still build the release code.
+  deploy-preview:
+    name: Deploy preview
+    needs: resolve
+    if: needs.resolve.outputs.mode == 'preview'
     runs-on: ubuntu-latest
     concurrency:
-      group: web-production-preview
+      group: web-preview
       cancel-in-progress: false
     permissions:
       contents: read
       deployments: write
     environment:
-      name: production-preview
-      url: https://release-preview.gwenda-blue.pages.dev
+      name: preview
+      url: https://preview.gwenda-blue.pages.dev
     steps:
-      - name: Require the release branch
+      - name: Require the release branch on push
+        if: github.event_name == 'push'
         run: |
           if [ "${{ github.ref }}" != "refs/heads/release" ]; then
-            echo "Production preview deploys only from release (got ${{ github.ref_name }})." >&2
+            echo "The preview deploys only from release (got ${{ github.ref_name }})." >&2
             exit 1
           fi
 
-      - name: Checkout
+      - name: Checkout release
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.sha || 'release' }}
 
       - name: Enable Corepack
         run: corepack enable
@@ -326,15 +240,33 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile production
 
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
+
+      # Baserow schema changes need a user login (database tokens only touch rows).
+      - name: Baserow login for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # Additive only: the live site still runs the old code. Never post here;
+      # post-deploy migrations run when web-promote puts this code live.
+      - name: Migrations before deploy
+        run: node scripts/migrate.mjs --app web --phase pre --env production
 
       - name: Deploy preview
         uses: ./.github/actions/deploy-pages
         with:
           pages-project: gwenda
           pages-production-branch: release
-          deploy-branch: release-preview
+          deploy-branch: preview
           wrangler-config: wrangler.toml
-          public-is-staging: "false"
+          public-is-preview: "true"
+          env-label: Preview
+          site-origin: https://preview.gwenda-blue.pages.dev
           public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
@@ -343,36 +275,41 @@ jobs:
           cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
-          sanity-dataset: staging
+          sanity-perspective: previewDrafts
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           baserow-ops-database-id: "556507"
           secrets-profile: production
+          snapshot-site: preview
 
       - name: Smoke test preview
+        env:
+          SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
         # Live settings: a test email and a real play-form submission (both to
         # alerts@gwenda.co.uk, test row deleted) before anything goes live.
-        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://release-preview.gwenda-blue.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000 --deep --send-email --form-test
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://preview.gwenda-blue.pages.dev --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000 --deep --send-email --form-test
 
       - name: Deployment summary
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Production preview ready","rows":[
-              ["Preview","[https://release-preview.gwenda-blue.pages.dev](https://release-preview.gwenda-blue.pages.dev)"],
+            {"title":"Preview ready","rows":[
+              ["Preview","[https://preview.gwenda-blue.pages.dev](https://preview.gwenda-blue.pages.dev)"],
               ["Version","`${{ steps.buildmeta.outputs.version }}`"],
               ["Live site","unchanged"]
             ]}
 
+  # Unreleased code belongs in dev: a branch preview is the dev website on its
+  # own Pages branch, with dev data.
   deploy-branch-preview:
     name: Deploy branch preview
-    needs: [resolve, verify]
+    needs: resolve
     if: needs.resolve.outputs.mode == 'branch-preview'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       deployments: write
     environment:
-      name: web-preview
+      name: web-branch-preview
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -393,8 +330,8 @@ jobs:
         id: branch
         run: |
           NAME=$(node .github/scripts/cloudflare-pages-branch.mjs '${{ github.ref_name }}')
-          if [ "$NAME" = "main" ] || [ "$NAME" = "release" ]; then
-            NAME="preview-${GITHUB_SHA::7}"
+          if [ "$NAME" = "main" ] || [ "$NAME" = "release" ] || [ "$NAME" = "preview" ]; then
+            NAME="branch-${GITHUB_SHA::7}"
           fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
@@ -404,20 +341,27 @@ jobs:
         env:
           GITHUB_EVENT_HEAD_COMMIT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
 
-      - name: Pull web secrets from Bitwarden SM
+      - name: Pull dev web secrets from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: npm run env:web:pull -- --github-env
+        run: npm run env:web:pull -- --github-env --profile local
+
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
 
       - name: Deploy preview
         id: deploy
         uses: ./.github/actions/deploy-pages
         with:
-          pages-project: gwenda-staging
+          pages-project: gwenda-web-dev
           pages-production-branch: main
           deploy-branch: ${{ steps.branch.outputs.name }}
-          wrangler-config: wrangler.staging.toml
-          public-is-staging: "true"
+          wrangler-config: wrangler.dev.toml
+          public-is-preview: "true"
+          env-label: Dev · ${{ steps.branch.outputs.name }}
           public-opening-date: ${{ vars.PUBLIC_OPENING_DATE || '2026-08-01' }}
           build-version: ${{ steps.buildmeta.outputs.version }}
           build-sha: ${{ steps.buildmeta.outputs.sha }}
@@ -426,8 +370,11 @@ jobs:
           cloudflare-api-token: ${{ env.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           sanity-api-token: ${{ env.SANITY_API_TOKEN }}
-          sanity-dataset: staging
-          secrets-profile: staging
+          sanity-project-id: gwscpagy
+          sanity-perspective: previewDrafts
+          baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
+          baserow-ops-database-id: "560292"
+          secrets-profile: dev
 
       - name: Resolve preview URL
         id: preview_url
@@ -437,7 +384,7 @@ jobs:
             URL="${{ steps.deploy.outputs.deployment-url }}"
           fi
           if [ -z "$URL" ]; then
-            URL="https://${{ steps.branch.outputs.name }}.gwenda-staging.pages.dev"
+            URL="https://${{ steps.branch.outputs.name }}.gwenda-web-dev.pages.dev"
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
@@ -450,7 +397,7 @@ jobs:
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Web — branch preview","rows":[
+            {"title":"Web — branch preview (dev data)","rows":[
               ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
               ["Pages branch","`${{ steps.branch.outputs.name }}`"],
               ["Git branch","`${{ github.ref_name }}`"],

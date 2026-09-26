@@ -14,7 +14,7 @@ import {
 describe("readsLiveDiary", () => {
   it("refreshes the diary on every deployed site", () => {
     expect(readsLiveDiary("local")).toBe(true);
-    expect(readsLiveDiary("staging")).toBe(true);
+    expect(readsLiveDiary("preview")).toBe(true);
     expect(readsLiveDiary("production")).toBe(true);
     expect(readsLiveDiary("")).toBe(false);
   });

@@ -1,6 +1,5 @@
 export const AUTH_COOKIE_NAME = "gwenda_access";
 export const GATE_BYPASS_PARAM = "access";
-export const STAGING_SITE_ENV = "staging";
 export const PRODUCTION_SITE_ENV = "production";
 const AUTH_SCOPE = "gwenda-gate-v1";
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30;
@@ -62,7 +61,7 @@ export function gateBypassRedirectPath(url) {
 }
 
 /**
- * Shareable staging URL with ?access= so the recipient unlocks the gate.
+ * Shareable preview URL with ?access= so the recipient unlocks the gate.
  * Path must be same-origin (starts with a single /).
  */
 export function buildGateShareUrl(origin, pathWithSearch, bypassKey) {
@@ -119,21 +118,23 @@ export function isAiReadingBot(request) {
   return AI_READING_BOTS.test(getUserAgent(request));
 }
 
-/** Search, social preview, and AI reading bots bypass the staging password gate. */
+/** Search, social preview, and AI reading bots bypass the preview password gate. */
 export function isUnauthenticatedCrawler(request) {
   return isSearchEngineCrawler(request) || isAiReadingBot(request);
 }
 
 /** @returns {{ kind: "open" | "gated" | "misconfigured", password?: string }} */
 export function resolveGate(env) {
-  if (env.SITE_ENV === PRODUCTION_SITE_ENV) {
+  // A preview (SITE_PREVIEW, wrangler [env.preview.vars]) is always gated,
+  // even though it runs as production.
+  const preview = env.SITE_PREVIEW === "true";
+  if (env.SITE_ENV === PRODUCTION_SITE_ENV && !preview) {
     return { kind: "open" };
   }
 
-  const stagingRequired = env.SITE_ENV === STAGING_SITE_ENV;
   const password = env.SITE_PASSWORD;
 
-  if (stagingRequired && !password) {
+  if (preview && !password) {
     return { kind: "misconfigured" };
   }
   if (!password) {
@@ -143,7 +144,7 @@ export function resolveGate(env) {
 }
 
 export function gateMisconfiguredResponse() {
-  return new Response("Staging requires SITE_PASSWORD.", { status: 503 });
+  return new Response("The preview requires SITE_PASSWORD.", { status: 503 });
 }
 
 export function isPublicPath(pathname) {

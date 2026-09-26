@@ -15,7 +15,7 @@ import { flattenMenuSections } from "./menu-sections.js";
 import { loadMenuTree } from "./menu-store.js";
 import { baserowFetch, updateRow } from "./baserow.js";
 import {
-  sanityDataset,
+  PREVIEW,
   sanityMutate,
   sanityQuery,
   sanityUploadImage,
@@ -38,11 +38,11 @@ export function slugifySection(title, fallback = "section") {
   return slug || fallback;
 }
 
-async function resolveSanityItemId(env, dataset, item) {
+async function resolveSanityItemId(env, item) {
   if (item.sanityId) {
     const exists = await sanityQuery(
       env,
-      dataset,
+      PREVIEW,
       `*[_id == $id][0]._id`,
       { id: item.sanityId },
     );
@@ -50,21 +50,21 @@ async function resolveSanityItemId(env, dataset, item) {
   }
   const found = await sanityQuery(
     env,
-    dataset,
+    PREVIEW,
     `*[_type == "menuItem" && name == $name && !(_id in path("drafts.**"))][0]._id`,
     { name: item.name },
   );
   return found || null;
 }
 
-async function syncPhoto(env, dataset, item) {
+async function syncPhoto(env, item) {
   const url = item.image?.asset?.url;
   if (!url) return undefined;
   const response = await fetch(url);
   if (!response.ok) return undefined;
   const bytes = await response.arrayBuffer();
   const contentType = response.headers.get("content-type") || "image/jpeg";
-  const asset = await sanityUploadImage(env, dataset, bytes, {
+  const asset = await sanityUploadImage(env, bytes, {
     filename: `${item.name || "cocktail"}.jpg`,
     contentType,
   });
@@ -115,7 +115,7 @@ async function createdDocId(result) {
  * Parents are walked before children via flattenMenuSections.
  * Already-linked sections are left as-is (item publish carries section refs).
  */
-async function ensureSanitySections(env, dataset, tables, sections) {
+async function ensureSanitySections(env, tables, sections) {
   const flat = flattenMenuSections(sections);
   const byBaserowId = new Map();
   let writes = 0;
@@ -134,7 +134,7 @@ async function ensureSanitySections(env, dataset, tables, sections) {
 
     let sanityId = await sanityQuery(
       env,
-      dataset,
+      PREVIEW,
       `*[_type == "menuSection" && slug.current == $slug && !(_id in path("drafts.**"))][0]._id`,
       { slug },
     );
@@ -153,7 +153,7 @@ async function ensureSanitySections(env, dataset, tables, sections) {
     if (!parentSanityId) unset.push("parent");
 
     if (sanityId) {
-      await sanityMutate(env, dataset, [
+      await sanityMutate(env, [
         {
           patch: {
             id: sanityId,
@@ -171,7 +171,7 @@ async function ensureSanitySections(env, dataset, tables, sections) {
       ]);
       writes += 1;
     } else {
-      const created = await sanityMutate(env, dataset, [
+      const created = await sanityMutate(env, [
         { create: { _type: "menuSection", ...fields } },
       ]);
       sanityId = await createdDocId(created);
@@ -197,7 +197,7 @@ function sectionRef(sanitySectionId) {
   return { _type: "reference", _ref: sanitySectionId };
 }
 
-async function createSanityItem(env, dataset, item, payload, sanitySectionId) {
+async function createSanityItem(env, item, payload, sanitySectionId) {
   const { set, unset } = sanityPatchFromProjection(payload);
   const doc = {
     _type: "menuItem",
@@ -213,14 +213,14 @@ async function createSanityItem(env, dataset, item, payload, sanitySectionId) {
   const url = item.image?.asset?.url;
   if (url) {
     try {
-      const image = await syncPhoto(env, dataset, item);
+      const image = await syncPhoto(env, item);
       if (image) doc.image = image;
     } catch {
       // Create without photo if upload fails.
     }
   }
 
-  const created = await sanityMutate(env, dataset, [{ create: doc }]);
+  const created = await sanityMutate(env, [{ create: doc }]);
   const sanityId = await createdDocId(created);
   if (!sanityId) {
     const error = new Error(`Failed to create Sanity menu item "${item.name}".`);
@@ -231,11 +231,11 @@ async function createSanityItem(env, dataset, item, payload, sanitySectionId) {
 }
 
 /**
- * Push guest-facing fields from Baserow ops → Sanity (marketing site CMS).
+ * Push guest-facing fields from Baserow ops → Sanity drafts (the preview).
  * Creates missing sections/items. Recipes / method / glass stay in Baserow only.
+ * `target` names the publish snapshot this records.
  */
-export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
-  const dataset = sanityDataset(env, target);
+export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
   const { items, sections, tables } = await loadMenuTree(env);
   await assertPublishSnapshotsField(env, tables.items);
 
@@ -273,7 +273,7 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
   }
 
   const { byBaserowId: sectionIds, writes: sectionWrites } =
-    await ensureSanitySections(env, dataset, tables, [...withAncestors.values()]);
+    await ensureSanitySections(env, tables, [...withAncestors.values()]);
 
   const created = [];
   const synced = [];
@@ -293,7 +293,7 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
       continue;
     }
 
-    let sanityId = await resolveSanityItemId(env, dataset, item);
+    let sanityId = await resolveSanityItemId(env, item);
     const payload = websiteProjection(item);
     const previous = item.publishSnapshots?.[target];
     const hashMatches = previous?.hash === projectionHash(payload);
@@ -310,7 +310,6 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
     if (isNew) {
       sanityId = await createSanityItem(
         env,
-        dataset,
         item,
         payload,
         sanitySectionId,
@@ -337,7 +336,7 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
         unset.push("image");
       } else {
         try {
-          const image = await syncPhoto(env, dataset, item);
+          const image = await syncPhoto(env, item);
           if (image) set.image = image;
         } catch {
           // Keep previous Sanity image if upload fails.
@@ -345,7 +344,7 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
       }
     }
 
-    await sanityMutate(env, dataset, [
+    await sanityMutate(env, [
       { patch: { id: sanityId, set, ...(unset.length ? { unset } : {}) } },
     ]);
 
@@ -360,26 +359,26 @@ export async function syncOpsMenuToSanity(env, { target = "staging" } = {}) {
     synced.push({ id: item._id, name: item.name, sanityId });
   }
 
-  return { dataset, created, synced, unchanged, missing, sectionWrites };
+  return { created, synced, unchanged, missing, sectionWrites };
 }
 
 /**
- * After a release, mark live snapshots as matching staging. Pass `sanityIds`
+ * After a release, mark live snapshots as matching the preview. Pass `sanityIds`
  * to limit it to the menu items that were actually published.
  */
-export async function copyStagingSnapshotsToProduction(env, { sanityIds } = {}) {
+export async function copyPreviewSnapshotsToProduction(env, { sanityIds } = {}) {
   const { items, tables } = await loadMenuTree(env);
   let copied = 0;
   for (const item of items) {
-    const staging = item.publishSnapshots?.staging;
-    if (!staging) continue;
+    const preview = item.publishSnapshots?.preview;
+    if (!preview) continue;
     if (sanityIds && !sanityIds.has(item.sanityId)) continue;
     const next = recordTargetSnapshot(
       item.publishSnapshots,
       "production",
-      staging.payload || {},
+      preview.payload || {},
     );
-    if (staging.hash) next.production.hash = staging.hash;
+    if (preview.hash) next.production.hash = preview.hash;
     await updateRow(env, tables.items, item._id, {
       [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(next),
     });

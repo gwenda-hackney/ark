@@ -45,7 +45,7 @@ export async function login(password: string, next = "/menu") {
 export type AuthMe = {
   email: string | null;
   mode: "google" | "password" | "misconfigured";
-  siteEnv: "local" | "staging" | "production" | string;
+  siteEnv: "local" | "preview" | "production" | string;
   envLabel: string;
   databaseId: string | null;
   databaseLabel: string;
@@ -444,7 +444,7 @@ export function updateConfig(body: {
   });
 }
 
-export type WebEnvId = "staging" | "production";
+export type WebEnvId = "preview" | "production";
 
 export type WebEnvStatus = {
   id: WebEnvId;
@@ -485,7 +485,7 @@ export type WebStatus = {
   driftLabel: string;
   lastError: string | null;
   promote: {
-    toStaging: boolean;
+    toPreview: boolean;
     toProduction: boolean;
   };
 };
@@ -494,8 +494,8 @@ export function getWebStatus() {
   return coalesce("web-status", () => request<WebStatus>("/api/web/status"));
 }
 
-/** Rebuild the staging site. The live site is published from Website > Staging → live. */
-export function promoteWebsite(target: "staging") {
+/** Rebuild the preview site. The live site is published from Website > Preview → live. */
+export function promoteWebsite(target: "preview") {
   return request<{
     ok: boolean;
     kind?: string;
@@ -513,7 +513,7 @@ export function promoteWebsite(target: "staging") {
 export type ReleaseField = {
   key: string;
   label: string;
-  staging: string;
+  preview: string;
   production: string;
   detailOnly: boolean;
 };
@@ -542,7 +542,7 @@ export function getReleaseDiff() {
 
 export type CodeDiff = {
   ok: boolean;
-  staging: string | null;
+  preview: string | null;
   live: string | null;
   /** null when a site's version is unknown. */
   same: boolean | null;
@@ -564,7 +564,7 @@ export type SitePendingItem = {
 
 /** One site's "waiting to show on the website" state. */
 export type SiteStatus = {
-  site: "production" | "staging";
+  site: "production" | "preview";
   /** False until the first build after this feature records a snapshot. */
   known: boolean;
   builtAt: string | null;
@@ -585,14 +585,14 @@ export function getSitePending() {
       /** This environment's website and preview (dev ops: the dev website). */
       urls?: { live: string; preview: string };
       production: SiteStatus;
-      staging: SiteStatus;
+      preview: SiteStatus;
     }>(
       "/api/web/pending",
     ),
   );
 }
 
-export function updateSiteNow(site: "production" | "staging" = "production") {
+export function updateSiteNow(site: "production" | "preview" = "production") {
   return request<{ ok: boolean; status: SiteStatus }>("/api/web/update", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -607,7 +607,6 @@ export type SettingRow = {
   key: string;
   service: string;
   about: string;
-  kind: "stored" | "worked out";
   values: Record<string, SettingValue>;
   machine: SettingValue;
   local: { env: string; required: boolean; hint: string; value: string | null } | null;
@@ -670,21 +669,21 @@ export function copyDbPair(pair: "ops" | "website") {
 
 export function publishRelease(
   ids: string[] | null,
-  direction: "to-production" | "to-staging" = "to-production",
+  direction: "to-production" | "discard" = "to-production",
 ) {
   return request<{
     ok: boolean;
     written: string[];
     deleted: string[];
+    discarded?: string[];
     included: string[];
-    assetsCopied: number;
     warnings: string[];
     deploy: { runId?: number; runUrl?: string; alreadyRunning?: boolean } | null;
   }>("/api/web/release", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      confirm: direction === "to-staging" ? "staging" : "production",
+      confirm: direction === "discard" ? "preview" : "production",
       direction,
       ...(ids ? { ids } : {}),
     }),
@@ -709,8 +708,8 @@ export function getDeployStatus(runId: number) {
 
 export type OpsEventImage = { name: string; url: string };
 
-/** What happened to staging after a save. Saving never fails because of it. */
-export type EventStaging = {
+/** What happened to preview after a save. Saving never fails because of it. */
+export type EventPreview = {
   ok: boolean;
   /** Local ops staged a draft for the local site only. */
   local: boolean;
@@ -792,7 +791,7 @@ export function getEvents() {
 }
 
 export function createEvent(body: unknown) {
-  return request<{ event: OpsEvent; warnings?: string[]; staging?: EventStaging }>("/api/events", {
+  return request<{ event: OpsEvent; warnings?: string[]; preview?: EventPreview }>("/api/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -800,21 +799,18 @@ export function createEvent(body: unknown) {
 }
 
 export function updateEvent(id: string, body: unknown) {
-  return request<{ event: OpsEvent; warnings?: string[]; staging?: EventStaging }>(`/api/events/${encodeURIComponent(id)}`, {
+  return request<{ event: OpsEvent; warnings?: string[]; preview?: EventPreview }>(`/api/events/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-export function deleteEvent(id: string, { alsoWebsite = false } = {}) {
+/** Deleting takes the event off the preview and the website too. */
+export function deleteEvent(id: string) {
   return request<{ ok: boolean; warnings?: string[] }>(
     `/api/events/${encodeURIComponent(id)}`,
-    {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alsoWebsite }),
-    },
+    { method: "DELETE" },
   );
 }
 
@@ -822,7 +818,6 @@ export function deleteEventOccurrence(
   id: string,
   date: string,
   scope: "this" | "following" | "all",
-  { alsoWebsite = false } = {},
 ) {
   return request<{
     ok: boolean;
@@ -836,7 +831,7 @@ export function deleteEventOccurrence(
     {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scope, alsoWebsite }),
+      body: JSON.stringify({ scope }),
     },
   );
 }
@@ -879,7 +874,7 @@ export function restageEvent(id: string) {
   }>(`/api/events/${encodeURIComponent(id)}/publish`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target: "staging" }),
+    body: JSON.stringify({ target: "preview" }),
   });
 }
 
@@ -935,7 +930,7 @@ export function uploadEventImage(
   const body = new FormData();
   body.set("file", file);
   body.set("role", role);
-  return request<{ event: OpsEvent; staging?: EventStaging }>(
+  return request<{ event: OpsEvent; preview?: EventPreview }>(
     `/api/events/${encodeURIComponent(id)}/image`,
     {
       method: "POST",
@@ -1020,7 +1015,7 @@ export function updateEventOccurrence(
 ) {
   return request<{
     event: OpsEvent;
-    staging?: EventStaging;
+    preview?: EventPreview;
     occurrence: OpsEventOccurrence;
     updated: number;
     scope: "this" | "following" | "all";
@@ -1046,7 +1041,7 @@ export function ensureEventOccurrence(
 ) {
   return request<{
     event: OpsEvent;
-    staging?: EventStaging;
+    preview?: EventPreview;
     occurrence: OpsEventOccurrence;
     created: boolean;
     warnings?: string[];

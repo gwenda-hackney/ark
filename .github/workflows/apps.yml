@@ -7,6 +7,7 @@ on:
       - "marketing/web/src/config/colors.json"
       - "ops/site/**"
       - "ops/site/menu-app/**"
+      - "shared/**"
       - "ops/README.md"
       - ".github/workflows/apps.yml"
       - ".github/scripts/sync-brand-tokens.mjs"
@@ -54,6 +55,7 @@ jobs:
             ops:
               - 'ops/site/**'
               - 'ops/site/menu-app/**'
+              - 'shared/**'
               - 'ops/README.md'
               - '.github/workflows/apps.yml'
       - id: set
@@ -114,7 +116,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Pull Ark secrets from Bitwarden SM
         env:
@@ -187,7 +189,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Pull Ark secrets from Bitwarden SM
         env:
@@ -282,7 +284,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Pull Ark secrets from Bitwarden SM
         env:
@@ -295,6 +297,16 @@ jobs:
       - name: Build menu SPA
         run: npm run build -w @gwenda/ops
 
+      # Baserow schema changes need a user login (database tokens only touch rows).
+      - name: Baserow login for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # Additive only, so the ops still running keeps working (scripts/lib/migrations.mjs).
+      - name: Migrations before deploy
+        run: node scripts/migrate.mjs --app ops --phase pre --env production
+
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -306,15 +318,15 @@ jobs:
       - name: Smoke test production auth gate
         run: node scripts/smoke-ops-auth.mjs https://gwenda-ops.pages.dev/
 
-      # Only now that the new ops is live: remove config the old code read
-      # (shared/config.js RETIRED_SETTINGS). Never before the deploy.
+      # Only now that the new ops is live: remove what the old code read, e.g.
+      # retired config rows (migrations/config-retired-settings.mjs).
       - name: Pull ops config token from Bitwarden SM
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:ops:pull -- --github-env --profile production
 
-      - name: Post-deploy config cleanup
-        run: node scripts/config-post-deploy.mjs
+      - name: Migrations after deploy
+        run: node scripts/migrate.mjs --app ops --phase post --env production
 
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs
@@ -360,7 +372,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Pull Ark secrets from Bitwarden SM
         env:
@@ -387,6 +399,16 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env local
 
+      # Baserow schema changes need a user login (database tokens only touch rows).
+      - name: Baserow login for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # Additive only, so the ops still running keeps working (scripts/lib/migrations.mjs).
+      - name: Migrations before deploy
+        run: node scripts/migrate.mjs --app ops --phase pre --env dev
+
       - name: Deploy to Cloudflare Pages (dev)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -397,6 +419,10 @@ jobs:
 
       - name: Smoke test dev auth gate
         run: node scripts/smoke-ops-auth.mjs https://gwenda-ops-dev.pages.dev/
+
+      # The new code is live: remove what only the old code used.
+      - name: Migrations after deploy
+        run: node scripts/migrate.mjs --app ops --phase post --env dev
 
   ops-preview:
     name: Deploy ops (preview)
@@ -426,7 +452,7 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/npm-install
 
       - name: Pull Ark secrets from Bitwarden SM
         env:

@@ -30,6 +30,7 @@ import {
   TABLE_SUPPLIERS,
   TABLE_USERS,
 } from "../ops/site/functions/_lib/baserow.js";
+import { refuseSourceWorkspace } from "./lib/baserow-clone.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -444,6 +445,7 @@ async function main() {
     workspaceName,
     false,
   );
+  await refuseSourceWorkspace(apiBase, jwt, sourceDbId, workspaceId);
   const databaseId = await findOrCreateDatabase(
     apiBase,
     jwt,

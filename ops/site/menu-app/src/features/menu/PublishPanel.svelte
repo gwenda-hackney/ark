@@ -10,7 +10,7 @@
 	import { Icon } from "../../shell";
 
 	let {
-		publishTarget = $bindable("staging" as PublishTarget),
+		publishTarget = $bindable("preview" as PublishTarget),
 		items = [],
 		busy = false,
 		busyLabel = "Updating website…",
@@ -54,13 +54,13 @@
 
 	<div class="body scrollbar-fade">
 		<p class="lede">
-			Push saved menu changes into the staging dataset, then rebuild the
-			preview site. Drafts in Studio are not included until you publish them.
+			Put saved menu changes on the preview site. The live website doesn't
+			change until you publish them.
 		</p>
 
 		<p class="note">
-			Writes the staging dataset, then rebuilds the preview site. Production is
-			updated from Website → Staging → live after you review it.
+			Saves them as drafts, then rebuilds the preview site. They go live from
+			Website → Preview → live after you check them.
 		</p>
 
 		<div class="status">

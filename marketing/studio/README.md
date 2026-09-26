@@ -8,20 +8,21 @@ Migration is ongoing: only part of the site is CMS-backed today. Schema types wi
 
 ```bash
 npx sanity login                              # one-time
-npm run studio:dev                                # http://localhost:3333 → staging dataset
-npm run web:dev                                   # site overlays drafts from that Studio
+npm run studio:dev                            # http://localhost:3333 → the project in .env (Gwenda Dev)
+npm run web:dev                               # site shows that Studio's drafts
 ```
 
-The project already has `staging` and `production`. Growth allows two datasets. Do not create a third.
+Each project has one dataset, `production`. Do not create another.
+
+## Drafts only
+
+Studio saves drafts. Publish, unpublish, delete and duplicate are removed (`sanity.config.ts`): ops publishes, so the editor sees what goes live in one place. The preview sites show drafts; the live sites show published documents.
 
 ## Hosted Studio
 
 | | URL | Command |
 |---|-----|---------|
-| **Dev Studio** | https://gwenda-dev.sanity.studio | `npm run studio:deploy:preview` (main CI) |
-| **Prod Studio** (schema only) | https://gwenda.sanity.studio | ops promote / `npm run studio:deploy:prod` |
-
-Local Studio and Dev Studio both use the **staging** dataset. `npm run web:dev` shows drafts. Hosted staging and production ignore drafts. Do not edit production in Studio.
+| **Gwenda** | https://gwenda.sanity.studio | Web promote (when Studio changed), or `studio.yml` from `release` / `npm run studio:deploy` |
 
 ## Schema today
 
@@ -38,4 +39,4 @@ Public URL: `/contact/<slug>` (e.g. `/contact/play`). Contact hub: `/contact`.
 
 Form mail identity (`notifyEmail`, `fromEmail`, `replyToEmail`) is edited in Studio (default `play@gwenda.co.uk`). Only `SMTP_PASSWORD` is a secret.
 
-The Astro site reads **published** documents at build time. Publish in Studio, rebuild gwenda-staging, review, then promote staging onto production.
+The live site reads **published** documents at build time; the preview reads drafts over them. Edit in Studio, check the preview, then publish from ops.

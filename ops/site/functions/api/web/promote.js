@@ -1,18 +1,18 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { dispatchStagingContentDeploy } from "../../_lib/site-deploy.js";
+import { dispatchPreviewDeploy } from "../../_lib/site-deploy.js";
 
-/** Rebuild the staging site. Production changes only from Website > Staging → live. */
+/** Rebuild the preview site. The live site changes only when drafts are published. */
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);
   if (body?.confirm === "production") {
     return jsonResponse(
-      { error: "Production is published from Website > Staging → live." },
+      { error: "Production is published from Website > Preview → live." },
       400,
     );
   }
-  if (body?.confirm !== "staging") {
-    return jsonResponse({ error: 'Send confirm: "staging" to rebuild staging.' }, 400);
+  if (body?.confirm !== "preview") {
+    return jsonResponse({ error: 'Send confirm: "preview" to rebuild preview.' }, 400);
   }
-  const payload = await dispatchStagingContentDeploy(context.env);
-  return jsonResponse({ ok: true, kind: "staging-content", ...payload }, 202);
+  const payload = await dispatchPreviewDeploy(context.env);
+  return jsonResponse({ ok: true, kind: "preview", ...payload }, 202);
 });

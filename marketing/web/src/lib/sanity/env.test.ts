@@ -6,7 +6,7 @@ describe("sanityPerspective", () => {
     expect(sanityPerspective({ dev: true })).toBe("previewDrafts");
   });
 
-  it("uses published for staging and production builds", () => {
+  it("uses published unless a dev server or the build says otherwise", () => {
     expect(sanityPerspective({ dev: false })).toBe("published");
   });
 

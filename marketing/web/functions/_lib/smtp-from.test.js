@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSmtpFrom, SMTP_PURPOSE } from "./smtp-from.js";
+import { resolveSmtpFrom, SMTP_PURPOSE } from "../../../../shared/smtp-from.js";
 
 describe("resolveSmtpFrom", () => {
   it("defaults event mail to events@gwenda.co.uk", () => {

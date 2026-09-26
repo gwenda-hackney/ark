@@ -15,7 +15,8 @@ enabled = true
 
 [vars]
 SITE_URL = "https://gwenda.co.uk"
-STAGING_SITE_URL = "https://gwenda-staging.pages.dev"
+# Prod's preview (drafts over published).
+PREVIEW_SITE_URL = "https://preview.gwenda-blue.pages.dev"
 ALERT_EMAIL = "alerts@gwenda.co.uk"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = "587"

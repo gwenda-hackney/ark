@@ -8,12 +8,12 @@ export type PublishWorkEvent = {
   };
 };
 
-/** Saved but not on staging: staging failed or the event predates save-stages. */
+/** Saved but not on the preview: that failed, or the event predates save-stages. */
 export function eventsNotStaged<T extends PublishWorkEvent>(events: T[]): T[] {
   return events.filter((event) => event.publish.preview !== "current");
 }
 
-/** On staging and waiting to be published from Website > Staging → live. */
+/** On the preview and waiting to be published from Website > Preview → live. */
 export function eventsAwaitingRelease<T extends PublishWorkEvent>(events: T[]): T[] {
   return events.filter(
     (event) => event.publish.preview === "current" && event.publish.live !== "current",
