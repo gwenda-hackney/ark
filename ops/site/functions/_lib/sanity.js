@@ -121,26 +121,63 @@ function withoutSystemKeys(doc) {
   return out;
 }
 
+const ASSET_REF = /^(image|file)-/;
+
+/**
+ * A draft may point at a document that so far exists only as a draft (a new
+ * series, a new parent section), and Sanity refuses a strong reference to a
+ * missing document. So draft references are weak and marked to be made strong
+ * on publish, as Sanity Studio does; release.js strengthens them when it
+ * publishes. `typeOf(id)` names the target's type when this save writes it.
+ */
+export function weakenReferences(value, typeOf = () => "") {
+  if (Array.isArray(value)) return value.map((item) => weakenReferences(item, typeOf));
+  if (!value || typeof value !== "object") return value;
+  if (typeof value._ref === "string" && !ASSET_REF.test(value._ref) && !value._weak) {
+    const type = typeOf(value._ref);
+    return { ...value, _weak: true, _strengthenOnPublish: type ? { type } : {} };
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, weakenReferences(item, typeOf)]),
+  );
+}
+
+function weakenPatch(body, typeOf) {
+  const out = { ...body };
+  for (const key of ["set", "setIfMissing"]) {
+    if (out[key]) out[key] = weakenReferences(out[key], typeOf);
+  }
+  if (out.insert?.items) out.insert = { ...out.insert, items: weakenReferences(out.insert.items, typeOf) };
+  return out;
+}
+
 /**
  * Ops' writes as draft writes. Creates and replaces land on the draft; a patch
  * first copies the published document into a draft if there is none yet
  * (`existing` holds both, raw). A delete removes the draft and the published
- * document: taking something away goes straight to the website.
+ * document: taking something away goes straight to the website. References
+ * in what ops writes become weak until publish (weakenReferences).
  */
 export function draftMutations(mutations, existing = [], newId = () => crypto.randomUUID()) {
   const byId = new Map(existing.map((doc) => [doc._id, doc]));
+  const typeById = new Map();
+  for (const mutation of mutations) {
+    const body = mutation.create || mutation.createOrReplace || mutation.createIfNotExists;
+    if (body?._id && body._type) typeById.set(publishedId(body._id), body._type);
+  }
+  const typeOf = (id) => typeById.get(publishedId(id)) || "";
   const out = [];
   for (const mutation of mutations) {
     const [kind, body] = Object.entries(mutation)[0] || [];
     if (kind === "create" || kind === "createOrReplace" || kind === "createIfNotExists") {
       const id = body._id ? publishedId(body._id) : newId();
-      out.push({ [kind]: { ...body, _id: draftId(id) } });
+      out.push({ [kind]: { ...weakenReferences(body, typeOf), _id: draftId(id) } });
     } else if (kind === "patch") {
       const id = publishedId(body.id);
       if (!byId.has(draftId(id)) && byId.has(id)) {
         out.push({ createIfNotExists: { ...withoutSystemKeys(byId.get(id)), _id: draftId(id) } });
       }
-      out.push({ patch: { ...body, id: draftId(id) } });
+      out.push({ patch: { ...weakenPatch(body, typeOf), id: draftId(id) } });
     } else if (kind === "delete") {
       const id = publishedId(body.id);
       out.push({ delete: { id: draftId(id) } }, { delete: { id } });
