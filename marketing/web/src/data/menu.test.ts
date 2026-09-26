@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  getAvailableItems,
-  getSection,
-  getSignatureCocktails,
-} from "./menu";
+import { getAvailableItems, getSection, getSignatureCocktails } from "./menu";
 import type { Menu } from "../types/menu";
 
 const sampleImage = {
@@ -27,7 +23,12 @@ const sampleMenu: Menu = {
           image: sampleImage,
           notes: "Aperitif",
         },
-        { id: "b", name: "Canal Bloom", description: "Rye, smoke", drinkType: "cocktail" },
+        {
+          id: "b",
+          name: "Canal Bloom",
+          description: "Rye, smoke",
+          drinkType: "cocktail",
+        },
         {
           id: "c",
           name: "Hidden",
@@ -35,7 +36,12 @@ const sampleMenu: Menu = {
           drinkType: "cocktail",
           image: sampleImage,
         },
-        { id: "d", name: "House Negroni", drinkType: "pour", image: sampleImage },
+        {
+          id: "d",
+          name: "House Negroni",
+          drinkType: "pour",
+          image: sampleImage,
+        },
       ],
     },
     {
@@ -48,7 +54,9 @@ const sampleMenu: Menu = {
 
 describe("getSection", () => {
   it("finds a section by slug id", () => {
-    expect(getSection(sampleMenu, "signature-cocktails")?.title).toBe("Signature Cocktails");
+    expect(getSection(sampleMenu, "signature-cocktails")?.title).toBe(
+      "Signature Cocktails",
+    );
   });
 });
 
@@ -78,9 +86,19 @@ describe("getSignatureCocktails", () => {
           id: "drinks",
           title: "Drinks",
           items: [
-            { id: "a", name: "With photo", drinkType: "cocktail", image: sampleImage },
+            {
+              id: "a",
+              name: "With photo",
+              drinkType: "cocktail",
+              image: sampleImage,
+            },
             { id: "b", name: "No photo", drinkType: "cocktail" },
-            { id: "c", name: "Bottled beer", drinkType: "packaged", image: sampleImage },
+            {
+              id: "c",
+              name: "Bottled beer",
+              drinkType: "packaged",
+              image: sampleImage,
+            },
           ],
         },
       ],

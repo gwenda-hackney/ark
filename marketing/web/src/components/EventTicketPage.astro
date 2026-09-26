@@ -25,7 +25,11 @@ const { meta, occurrenceSlug = "" } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
     <title>{meta.title}</title>
-    <SocialMeta title={meta.title} description="Your ticket · Gwenda" url={meta.url} />
+    <SocialMeta
+      title={meta.title}
+      description="Your ticket · Gwenda"
+      url={meta.url}
+    />
     <Fonts />
     <link rel="icon" href={siteConfig.brand.faviconPath} sizes="any" />
     <link
@@ -93,10 +97,20 @@ const { meta, occurrenceSlug = "" } = Astro.props;
             </div>
 
             <div class="ticket-actions">
-              <a id="ticket-wallet-btn" class="btn btn-primary" href="#" rel="nofollow">
+              <a
+                id="ticket-wallet-btn"
+                class="btn btn-primary"
+                href="#"
+                rel="nofollow"
+              >
                 Add to Apple Wallet
               </a>
-              <a id="ticket-calendar-btn" class="btn btn-ghost" href="#" rel="nofollow">
+              <a
+                id="ticket-calendar-btn"
+                class="btn btn-ghost"
+                href="#"
+                rel="nofollow"
+              >
                 Add to calendar
               </a>
             </div>

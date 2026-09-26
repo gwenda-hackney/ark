@@ -30,17 +30,15 @@ const { cocktailGalleryEnabled } = await fetchSiteSettings();
   )
 }
 
-<Header
-  features={features}
-  showMenuTease={features.showMenuTease}
-  awaitsHero
-/>
+<Header features={features} showMenuTease={features.showMenuTease} awaitsHero />
 <main>
   <Hero />
   <Story mode={mode} showTeam={features.showTeam} />
-  {features.showMenuTease && (
-    <MenuTease showCocktailImages={cocktailGalleryEnabled} />
-  )}
+  {
+    features.showMenuTease && (
+      <MenuTease showCocktailImages={cocktailGalleryEnabled} />
+    )
+  }
   <WhatWeDo />
   {features.showGallery && <TeaserGallery features={features} />}
   <EmailSignup mode={mode} />

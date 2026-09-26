@@ -31,13 +31,7 @@ const DESKTOP_MAPS: Record<number, DesktopMap> = {
   3: { cols: 3, rows: ["a b c"], equal: true },
   4: {
     cols: 5,
-    rows: [
-      "a a a b b",
-      "a a a b b",
-      "a a a c c",
-      "d d d c c",
-      "d d d c c",
-    ],
+    rows: ["a a a b b", "a a a b b", "a a a c c", "d d d c c", "d d d c c"],
   },
   5: {
     cols: 4,
@@ -145,8 +139,8 @@ export function getGalleryTileSpan(
   const letter = layout.tileAreas[index];
   if (!letter) return { cols: 1, rows: 1 };
 
-  const rowStrings = [...layout.areasDesktop.matchAll(/"([^"]+)"/g)].map((match) =>
-    match[1]!.split(/\s+/),
+  const rowStrings = [...layout.areasDesktop.matchAll(/"([^"]+)"/g)].map(
+    (match) => match[1]!.split(/\s+/),
   );
 
   const cells: Array<{ row: number; col: number }> = [];

@@ -10,12 +10,7 @@ import {
 } from "../lib/featured-artist.js";
 import { artistNavItems } from "../lib/site-nav.js";
 
-const {
-  artist = null,
-  next = null,
-  previous = [],
-  now = null,
-} = Astro.props;
+const { artist = null, next = null, previous = [], now = null } = Astro.props;
 
 const works = (artist?.art || []).slice(0, 3);
 const archived = artist?.slot === "previous";
@@ -34,10 +29,7 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
       artist ? (
         <>
           <header
-            class:list={[
-              "artist-intro reveal",
-              !artist.portrait && "is-plain",
-            ]}
+            class:list={["artist-intro reveal", !artist.portrait && "is-plain"]}
           >
             {artist.portrait ? (
               <figure class="artist-portrait artist-frame">
@@ -51,7 +43,9 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
                 align={artist.portrait ? "beside" : "center"}
                 animate={false}
               />
-              {artist.profile ? <p class="artist-lead">{artist.profile}</p> : null}
+              {artist.profile ? (
+                <p class="artist-lead">{artist.profile}</p>
+              ) : null}
               <p class="artist-programme">
                 We collaborate with local artists, and give them the wall. A
                 place to show the work, here in the room.
@@ -117,22 +111,31 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
                           alt={image.label || `${artist.name} artwork`}
                         />
                       </div>
-                      {image.label ? <figcaption>{image.label}</figcaption> : null}
+                      {image.label ? (
+                        <figcaption>{image.label}</figcaption>
+                      ) : null}
                     </figure>
                   </li>
                 ))}
               </ul>
               {artist.website ? (
                 <p class="artist-more">
-                  A sample from {artist.artistName}'s latest work. The rest is at{" "}
-                  <a href={artist.website} target="_blank" rel="noreferrer">{websiteLabel(artist.website)}</a>.
+                  A sample from {artist.artistName}'s latest work. The rest is
+                  at{" "}
+                  <a href={artist.website} target="_blank" rel="noreferrer">
+                    {websiteLabel(artist.website)}
+                  </a>
+                  .
                 </p>
               ) : null}
             </section>
           ) : artist.website ? (
             <p class="artist-more">
               The work is at{" "}
-              <a href={artist.website} target="_blank" rel="noreferrer">{websiteLabel(artist.website)}</a>.
+              <a href={artist.website} target="_blank" rel="noreferrer">
+                {websiteLabel(artist.website)}
+              </a>
+              .
             </p>
           ) : null}
 
@@ -168,13 +171,17 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
           ) : null}
         </>
       ) : (
-        <PageHeader eyebrow="The wall" title="Featured artist">
-          <p>
-            We collaborate with local artists, and give them the wall. A place
-            to show the work, here in the room.
+        <>
+          <PageHeader eyebrow="The wall" title="Featured artist">
+            <p>
+              We collaborate with local artists, and give them the wall. A place
+              to show the work, here in the room.
+            </p>
+          </PageHeader>
+          <p class="artist-lead artist-waiting">
+            The next artist will hang here.
           </p>
-        </PageHeader>
-        <p class="artist-lead artist-waiting">The next artist will hang here.</p>
+        </>
       )
     }
   </Subpage>

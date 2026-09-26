@@ -69,16 +69,18 @@ describe("initMenuToc", () => {
     if (target) target.scrollIntoView = scrollIntoView;
 
     initMenuToc();
-    document.querySelector('a[href="#the-cabinet"]')?.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
+    document
+      .querySelector('a[href="#the-cabinet"]')
+      ?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
 
     expect(scrollIntoView).toHaveBeenCalled();
     expect(location.hash).toBe("#the-cabinet");
     expect(
-      document.querySelector('a[href="#the-cabinet"]')?.classList.contains(
-        "is-active",
-      ),
+      document
+        .querySelector('a[href="#the-cabinet"]')
+        ?.classList.contains("is-active"),
     ).toBe(true);
   });
 });

@@ -13,11 +13,7 @@ const GRAIN_TILE = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="
   <circle cx="180" cy="180" r="1" fill="#fff" opacity="0.3"/>
 </svg>`;
 
-export function storyBackgroundSvg(
-  width,
-  height,
-  { bgElevated, gold },
-) {
+export function storyBackgroundSvg(width, height, { bgElevated, gold }) {
   const glowRadiusX = width * 0.45;
   const glowRadiusY = height * 0.275;
 
@@ -95,7 +91,10 @@ export async function sampleStoryBackgroundHex(image) {
   );
 }
 
-export async function renderStoryBackground(colors, { width = 1200, height = 800 } = {}) {
+export async function renderStoryBackground(
+  colors,
+  { width = 1200, height = 800 } = {},
+) {
   const svg = storyBackgroundSvg(width, height, colors);
   return sharp(Buffer.from(svg)).png().toBuffer();
 }

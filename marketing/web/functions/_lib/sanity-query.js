@@ -14,7 +14,11 @@ export function sanityPerspectiveForEnv(env = {}) {
   const explicit = env.SANITY_PERSPECTIVE?.trim();
   if (explicit === "published" || explicit === "previewDrafts") return explicit;
   const siteEnv = env.SITE_ENV?.trim();
-  if (siteEnv === "preview" || siteEnv === "local" || siteEnv === "development") {
+  if (
+    siteEnv === "preview" ||
+    siteEnv === "local" ||
+    siteEnv === "development"
+  ) {
     return "previewDrafts";
   }
   return "published";
@@ -30,7 +34,9 @@ export async function sanityQuery(env, query, params = {}) {
   const dataset = sanityDatasetForEnv(env);
   const token = env.SANITY_API_TOKEN?.trim();
   const host = token ? "api.sanity.io" : "apicdn.sanity.io";
-  const url = new URL(`https://${projectId}.${host}/${API_VERSION}/data/query/${dataset}`);
+  const url = new URL(
+    `https://${projectId}.${host}/${API_VERSION}/data/query/${dataset}`,
+  );
   url.searchParams.set("query", query);
   url.searchParams.set("perspective", sanityPerspectiveForEnv(env));
   for (const [key, value] of Object.entries(params)) {

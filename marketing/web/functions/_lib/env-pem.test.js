@@ -18,12 +18,14 @@ BAZ=1`);
 
 describe("pickPemValue", () => {
   it("prefers a complete PEM from loadEnv over a truncated process env", () => {
-    const loaded = "-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----";
+    const loaded =
+      "-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----";
     expect(pickPemValue("-----BEGIN CERTIFICATE-----", loaded)).toBe(loaded);
   });
 
   it("keeps a complete process env value when present", () => {
-    const processValue = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----";
+    const processValue =
+      "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----";
     expect(pickPemValue(processValue, "other")).toBe(processValue);
   });
 });

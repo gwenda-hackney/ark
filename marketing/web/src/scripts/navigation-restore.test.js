@@ -38,9 +38,9 @@ describe("navigation restore helpers", () => {
   });
 
   it("opens a new page at the top and keeps a restored offset", () => {
-    expect(shouldPinScrollTop("push", "https://gwenda.test/artists/current")).toBe(
-      true,
-    );
+    expect(
+      shouldPinScrollTop("push", "https://gwenda.test/artists/current"),
+    ).toBe(true);
     expect(shouldPinScrollTop("replace", "/artists/current")).toBe(true);
     expect(shouldPinScrollTop("traverse", "/artists/current")).toBe(false);
     expect(shouldPinScrollTop("push", "/whats-on#series")).toBe(false);

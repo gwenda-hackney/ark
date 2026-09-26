@@ -4,7 +4,12 @@ const HERO_ASPECT = 16 / 10;
  * 16×10 card inside a stored crop, in source pixels.
  * The site used to take that crop and fit=crop it again, which cut the card.
  */
-export function cardFramePixels(crop, dimensions, hotspot, aspect = HERO_ASPECT) {
+export function cardFramePixels(
+  crop,
+  dimensions,
+  hotspot,
+  aspect = HERO_ASPECT,
+) {
   const sourceW = Number(dimensions?.width) || 0;
   const sourceH = Number(dimensions?.height) || 0;
   if (sourceW < 1 || sourceH < 1) return null;
@@ -95,7 +100,10 @@ export function resolveHeroUrl(row, { width = 1600, height = 1000 } = {}) {
   return withFocalPoint(url, row?.heroHotspot) || asset;
 }
 
-export function resolveSeriesHeroUrl(row, { width = 1600, height = 1000 } = {}) {
+export function resolveSeriesHeroUrl(
+  row,
+  { width = 1600, height = 1000 } = {},
+) {
   const asset = String(
     row?.seriesHeroAssetUrl || row?.seriesHeroImageUrl || "",
   ).trim();

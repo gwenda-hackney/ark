@@ -852,8 +852,10 @@ export function buildWhatsOnStack(
     // The card already leads with that night's date and "With <guest>", so a
     // This week / Next line for the same night would repeat it.
     const shownDate = guestName ? String(featuredNight.date || "") : "";
-    const thisWeekShown = Boolean(shownDate) && diary.thisWeekDate === shownDate;
-    const upcomingShown = Boolean(shownDate) && diary.upcomingDate === shownDate;
+    const thisWeekShown =
+      Boolean(shownDate) && diary.thisWeekDate === shownDate;
+    const upcomingShown =
+      Boolean(shownDate) && diary.upcomingDate === shownDate;
     return {
       id: row.seriesId,
       seriesId: row.seriesId,

@@ -9,7 +9,10 @@
  *  - the row is deleted at the end so ops never shows it.
  */
 import { resolvePublicOrigin } from "./public-origin.js";
-import { sendFormNotificationEmail, sendFormReceiptEmail } from "../../../../shared/forms/form-email.js";
+import {
+  sendFormNotificationEmail,
+  sendFormReceiptEmail,
+} from "../../../../shared/forms/form-email.js";
 import {
   FORM_STATUS_VERIFIED,
   deleteFormSubmission,
@@ -23,7 +26,9 @@ import { formPublicPath } from "./form-paths.js";
 export const SMOKE_FORM_SLUG = "play";
 
 function firstChoice(field) {
-  const option = (field.options || []).find((row) => !/^other$/i.test(String(row.value || row.label || "")));
+  const option = (field.options || []).find(
+    (row) => !/^other$/i.test(String(row.value || row.label || "")),
+  );
   return String(option?.value || option?.label || "").trim();
 }
 
@@ -40,7 +45,8 @@ export function smokeAnswers(form, email) {
     if (!field.required) continue;
     if (field.type === "multiSelect") answers[field.key] = [firstChoice(field)];
     else if (field.type === "select") answers[field.key] = firstChoice(field);
-    else if (field.type === "tel" || field.key === "phone") answers[field.key] = "07700 900000";
+    else if (field.type === "tel" || field.key === "phone")
+      answers[field.key] = "07700 900000";
     else if (field.type === "url") answers[field.key] = "https://gwenda.co.uk";
     else answers[field.key] = "Smoke test (automatic, deleted straight after)";
   }
@@ -48,12 +54,16 @@ export function smokeAnswers(form, email) {
 }
 
 /** Throws with a clear step name if any part fails. Always tries to delete the row. */
-export async function runFormSmoke(env, { slug = SMOKE_FORM_SLUG, requestUrl = "https://gwenda.co.uk/" } = {}) {
+export async function runFormSmoke(
+  env,
+  { slug = SMOKE_FORM_SLUG, requestUrl = "https://gwenda.co.uk/" } = {},
+) {
   const to = env.ALERT_EMAIL?.trim() || "alerts@gwenda.co.uk";
   const form = await fetchFormForSubmit(env, slug);
   if (!form) throw new Error(`Form "${slug}" not found or disabled.`);
   const validated = validateFormAnswers(form, smokeAnswers(form, to));
-  if (!validated.ok) throw new Error(`Test answers rejected: ${validated.error}`);
+  if (!validated.ok)
+    throw new Error(`Test answers rejected: ${validated.error}`);
 
   const stored = await upsertFormSubmission(env, {
     form,
@@ -61,20 +71,36 @@ export async function runFormSmoke(env, { slug = SMOKE_FORM_SLUG, requestUrl = "
     submittedAt: new Date().toISOString(),
     status: FORM_STATUS_VERIFIED,
   });
-  if (!stored.ok) throw new Error(`Saving the row failed: ${stored.error || "unknown"}`);
+  if (!stored.ok)
+    throw new Error(`Saving the row failed: ${stored.error || "unknown"}`);
   const rowId = stored.rowId;
 
   try {
-    const notify = await sendFormNotificationEmail(env, { form, answers: validated.answers, to });
+    const notify = await sendFormNotificationEmail(env, {
+      form,
+      answers: validated.answers,
+      to,
+    });
     if (!notify.ok || notify.dryRun) {
-      throw new Error(`Team email failed: ${notify.error || (notify.dryRun ? "dry run" : "unknown")}`);
+      throw new Error(
+        `Team email failed: ${notify.error || (notify.dryRun ? "dry run" : "unknown")}`,
+      );
     }
-    const notifyMarked = await markFormSubmissionEmailSent(env, rowId, "notify");
+    const notifyMarked = await markFormSubmissionEmailSent(
+      env,
+      rowId,
+      "notify",
+    );
     if (!notifyMarked?.ok) {
-      throw new Error(`Recording the team email on the row failed: ${notifyMarked?.error || "unknown"}`);
+      throw new Error(
+        `Recording the team email on the row failed: ${notifyMarked?.error || "unknown"}`,
+      );
     }
 
-    const origin = resolvePublicOrigin(new URL(requestUrl).origin, env).replace(/\/$/, "");
+    const origin = resolvePublicOrigin(new URL(requestUrl).origin, env).replace(
+      /\/$/,
+      "",
+    );
     const receipt = await sendFormReceiptEmail(env, {
       form,
       answers: validated.answers,
@@ -82,11 +108,19 @@ export async function runFormSmoke(env, { slug = SMOKE_FORM_SLUG, requestUrl = "
       editUrl: `${origin}${formPublicPath(slug)}`,
     });
     if (!receipt.ok || receipt.dryRun) {
-      throw new Error(`Applicant email failed: ${receipt.error || (receipt.dryRun ? "dry run" : "unknown")}`);
+      throw new Error(
+        `Applicant email failed: ${receipt.error || (receipt.dryRun ? "dry run" : "unknown")}`,
+      );
     }
-    const receiptMarked = await markFormSubmissionEmailSent(env, rowId, "receipt");
+    const receiptMarked = await markFormSubmissionEmailSent(
+      env,
+      rowId,
+      "receipt",
+    );
     if (!receiptMarked?.ok) {
-      throw new Error(`Recording the applicant email on the row failed: ${receiptMarked?.error || "unknown"}`);
+      throw new Error(
+        `Recording the applicant email on the row failed: ${receiptMarked?.error || "unknown"}`,
+      );
     }
 
     const row = await fetchFormSubmissionRow(env, rowId);
@@ -95,7 +129,8 @@ export async function runFormSmoke(env, { slug = SMOKE_FORM_SLUG, requestUrl = "
     }
   } finally {
     const removed = await deleteFormSubmission(env, rowId);
-    if (!removed.ok) throw new Error(`Cleaning up the test row failed: ${removed.error}`);
+    if (!removed.ok)
+      throw new Error(`Cleaning up the test row failed: ${removed.error}`);
   }
   return `"${form.title}" saved, both emails sent to ${to}, test row deleted`;
 }

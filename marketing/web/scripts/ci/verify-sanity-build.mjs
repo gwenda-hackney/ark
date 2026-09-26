@@ -39,7 +39,9 @@ if (!hasCmsContent && !(hasComingSoon && menuEmpty)) {
 }
 
 if (galleryTiles > 0) {
-  console.log(`Sanity build OK — dataset: ${dataset}, gallery tiles: ${galleryTiles}`);
+  console.log(
+    `Sanity build OK — dataset: ${dataset}, gallery tiles: ${galleryTiles}`,
+  );
   process.exit(0);
 }
 

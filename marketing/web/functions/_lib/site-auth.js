@@ -66,7 +66,9 @@ export function gateBypassRedirectPath(url) {
  */
 export function buildGateShareUrl(origin, pathWithSearch, bypassKey) {
   const key = String(bypassKey || "").trim();
-  const base = String(origin || "").trim().replace(/\/$/, "");
+  const base = String(origin || "")
+    .trim()
+    .replace(/\/$/, "");
   if (!key || !base) return "";
   const path = safeRedirectPath(pathWithSearch || "/");
   const url = new URL(path, `${base}/`);

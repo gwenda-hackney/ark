@@ -28,9 +28,17 @@ function compareEvents(a, b) {
  */
 export function pageEventFeed(
   events,
-  { after = "", afterId = "", limit = EVENT_FEED_PAGE_SIZE, now = new Date() } = {},
+  {
+    after = "",
+    afterId = "",
+    limit = EVENT_FEED_PAGE_SIZE,
+    now = new Date(),
+  } = {},
 ) {
-  const size = Math.min(24, Math.max(1, Math.floor(Number(limit) || EVENT_FEED_PAGE_SIZE)));
+  const size = Math.min(
+    24,
+    Math.max(1, Math.floor(Number(limit) || EVENT_FEED_PAGE_SIZE)),
+  );
   const today = todayIso(now);
   const upcoming = (Array.isArray(events) ? events : [])
     .filter((event) => event?.date && event.date >= today)
@@ -41,7 +49,9 @@ export function pageEventFeed(
   if (after) {
     const cursorId = String(afterId || "");
     start = upcoming.findIndex(
-      (event) => event.date > after || (event.date === after && String(event.id) > cursorId),
+      (event) =>
+        event.date > after ||
+        (event.date === after && String(event.id) > cursorId),
     );
     if (start < 0) start = upcoming.length;
   }
@@ -51,6 +61,7 @@ export function pageEventFeed(
   const hasMore = start + page.length < upcoming.length;
   return {
     events: page,
-    next: hasMore && last ? { after: last.date, afterId: String(last.id) } : null,
+    next:
+      hasMore && last ? { after: last.date, afterId: String(last.id) } : null,
   };
 }

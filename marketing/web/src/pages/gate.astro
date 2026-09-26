@@ -9,9 +9,7 @@ import { isPreview, previewOrigin } from "../config/env";
 import { compactLogo } from "../lib/hero-assets";
 
 const next = Astro.url.searchParams.get("next") ?? "/";
-const siteOrigin = isPreview
-  ? previewOrigin
-  : siteConfig.domain;
+const siteOrigin = isPreview ? previewOrigin : siteConfig.domain;
 const canonicalUrl = new URL(next === "/" ? "/" : next, siteOrigin).href;
 ---
 

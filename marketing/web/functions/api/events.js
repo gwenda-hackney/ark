@@ -10,9 +10,7 @@ export const onRequestGet = withApiHandler(async (context) => {
     afterId: url.searchParams.get("afterId") || "",
     limit: url.searchParams.get("limit") || "",
   });
-  return jsonResponse(
-    { ok: true, events: page.events, next: page.next },
-    200,
-    { "Cache-Control": "public, max-age=60" },
-  );
+  return jsonResponse({ ok: true, events: page.events, next: page.next }, 200, {
+    "Cache-Control": "public, max-age=60",
+  });
 });

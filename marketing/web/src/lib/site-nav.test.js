@@ -16,9 +16,12 @@ const nights = [
 
 describe("withHome", () => {
   it("keeps this page's links and drops Home", () => {
-    expect(withHome([{ href: "/", label: "Home" }, { href: "/join-list", label: "Stay close" }])).toEqual([
-      { href: "/join-list", label: "Stay close" },
-    ]);
+    expect(
+      withHome([
+        { href: "/", label: "Home" },
+        { href: "/join-list", label: "Stay close" },
+      ]),
+    ).toEqual([{ href: "/join-list", label: "Stay close" }]);
   });
 });
 
@@ -56,7 +59,9 @@ describe("whatsOnNavItems", () => {
 
 describe("artistNavItems", () => {
   it("lists galleries only when that artist has pictures", () => {
-    expect(artistNavItems({ art: [], gwenda: [] }).map((item) => item.href)).toEqual([]);
+    expect(
+      artistNavItems({ art: [], gwenda: [] }).map((item) => item.href),
+    ).toEqual([]);
     expect(
       artistNavItems({
         art: [{ url: "https://files.example/work.jpg" }],
@@ -68,18 +73,16 @@ describe("artistNavItems", () => {
 
 describe("homeAnchorItems", () => {
   it("lists this page's sections, with the join link last", () => {
-    expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.href)).toEqual([
-      "#story",
-      "#menu",
-      "#what-we-do",
-      "#list",
-    ]);
-    expect(homeAnchorItems({ showMenu: true, showTeam: true }).map((item) => item.label)).toEqual([
-      "Behind the doors",
-      "Menu",
-      "What's on",
-      "Join the experience",
-    ]);
+    expect(
+      homeAnchorItems({ showMenu: true, showTeam: true }).map(
+        (item) => item.href,
+      ),
+    ).toEqual(["#story", "#menu", "#what-we-do", "#list"]);
+    expect(
+      homeAnchorItems({ showMenu: true, showTeam: true }).map(
+        (item) => item.label,
+      ),
+    ).toEqual(["Behind the doors", "Menu", "What's on", "Join the experience"]);
     expect(homeAnchorItems({ showTeam: true }).at(-1)).toMatchObject({
       href: "#list",
       cta: true,
@@ -92,9 +95,9 @@ describe("homeAnchorItems", () => {
         (item) => item.href,
       ),
     ).toEqual(["#story", "#what-we-do", "#glimpse", "#list"]);
-    expect(homeAnchorItems({ showTeam: true }).some((item) => item.href === "#team")).toBe(
-      false,
-    );
+    expect(
+      homeAnchorItems({ showTeam: true }).some((item) => item.href === "#team"),
+    ).toBe(false);
     expect(homeAnchorItems().some((item) => item.href === "#menu")).toBe(false);
   });
 });
@@ -139,11 +142,9 @@ describe("sitePageLinks", () => {
   });
 
   it("omits Menu when the home header does not show it", () => {
-    expect(sitePageLinks("/", { showMenu: false }).map((item) => item.href)).toEqual([
-      "/whats-on",
-      "/artists/current",
-      "/contact",
-    ]);
+    expect(
+      sitePageLinks("/", { showMenu: false }).map((item) => item.href),
+    ).toEqual(["/whats-on", "/artists/current", "/contact"]);
   });
 });
 

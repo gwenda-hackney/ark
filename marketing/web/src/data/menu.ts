@@ -8,7 +8,9 @@ export function flattenMenuSections(sections: MenuSection[]): MenuSection[] {
 }
 
 export function getSection(menu: Menu, id: string): MenuSection | undefined {
-  return flattenMenuSections(menu.sections).find((section) => section.id === id);
+  return flattenMenuSections(menu.sections).find(
+    (section) => section.id === id,
+  );
 }
 
 export function getAvailableItems(section: MenuSection): MenuItem[] {

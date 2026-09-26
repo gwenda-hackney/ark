@@ -561,7 +561,9 @@ a:not(.btn):hover {
   padding: var(--section-pad-top) 0;
   /* Land the first line just under the bar. Padding already offsets content
      inside the section, so only the shortfall against the header remains. */
-  scroll-margin-top: calc(var(--header-height) + 1.25rem - var(--section-pad-top));
+  scroll-margin-top: calc(
+    var(--header-height) + 1.25rem - var(--section-pad-top)
+  );
 }
 
 /* Buttons */
@@ -1139,9 +1141,11 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
 }
 
 .site-header-nav.is-open a[aria-current="page"]:not(.site-header-cta)::after,
-.site-header-nav.is-open a[aria-current="location"]:not(.site-header-cta)::after,
+.site-header-nav.is-open
+  a[aria-current="location"]:not(.site-header-cta)::after,
 .site-header-nav.is-closing a[aria-current="page"]:not(.site-header-cta)::after,
-.site-header-nav.is-closing a[aria-current="location"]:not(.site-header-cta)::after {
+.site-header-nav.is-closing
+  a[aria-current="location"]:not(.site-header-cta)::after {
   bottom: 0.7rem;
 }
 
@@ -1486,7 +1490,8 @@ html.fonts-ready .hero-logo.enter-stagger--auto {
 
 /* Stay blank until the wordmark file has pixels. Starting the fade on an
    empty image lets the mark pop in halfway through. */
-html.fonts-ready:not(.navigation-restore) .hero-logo.enter-stagger--auto:not(.is-decoded) {
+html.fonts-ready:not(.navigation-restore)
+  .hero-logo.enter-stagger--auto:not(.is-decoded) {
   animation: none;
   opacity: 0;
 }
@@ -2004,7 +2009,13 @@ html.fonts-ready .thanks {
       #000 78%,
       transparent 100%
     ),
-    linear-gradient(to bottom, transparent 0%, #000 14%, #000 68%, transparent 100%);
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      #000 14%,
+      #000 68%,
+      transparent 100%
+    );
   mask-image:
     linear-gradient(
       90deg,
@@ -2014,7 +2025,13 @@ html.fonts-ready .thanks {
       #000 78%,
       transparent 100%
     ),
-    linear-gradient(to bottom, transparent 0%, #000 14%, #000 68%, transparent 100%);
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      #000 14%,
+      #000 68%,
+      transparent 100%
+    );
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
   -webkit-mask-repeat: no-repeat;
@@ -3191,7 +3208,6 @@ html.fonts-ready .thanks {
   box-shadow: 0 0 32px color-mix(in srgb, var(--color-gold) 16%, transparent);
 }
 
-
 .invite-card-logo-wrap {
   align-self: center;
   margin-inline: auto;
@@ -3802,7 +3818,6 @@ html.fonts-ready .thanks {
   border-color: color-mix(in srgb, var(--color-gold) 35%, transparent);
 }
 
-
 .rsvp-pick-btn.is-selected {
   border-color: var(--color-gold);
   background: color-mix(in srgb, var(--color-gold) 12%, var(--color-bg-card));
@@ -4158,7 +4173,6 @@ html.fonts-ready .thanks {
   opacity: 1;
 }
 
-
 .subpage-chrome-logo-img {
   display: block;
   height: 3.75rem;
@@ -4298,8 +4312,7 @@ html.fonts-ready .thanks {
 
 .credit-list li {
   padding: 1.35rem 0;
-  border-top: 1px solid
-    color-mix(in srgb, var(--color-gold) 28%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-gold) 28%, transparent);
   text-align: left;
 }
 
@@ -6304,7 +6317,6 @@ a.event-card:focus-visible .event-title,
   z-index: 2;
 }
 
-
 .events-list > li + li,
 .event-card + .event-card {
   border-top: 1px solid var(--color-border-subtle);
@@ -7825,7 +7837,13 @@ html.navigation-restore #rsvp-loading {
         #000 90%,
         transparent 100%
       ),
-      linear-gradient(to bottom, transparent 0%, #000 12%, #000 78%, transparent 100%);
+      linear-gradient(
+        to bottom,
+        transparent 0%,
+        #000 12%,
+        #000 78%,
+        transparent 100%
+      );
     mask-image:
       linear-gradient(
         90deg,
@@ -7834,7 +7852,13 @@ html.navigation-restore #rsvp-loading {
         #000 90%,
         transparent 100%
       ),
-      linear-gradient(to bottom, transparent 0%, #000 12%, #000 78%, transparent 100%);
+      linear-gradient(
+        to bottom,
+        transparent 0%,
+        #000 12%,
+        #000 78%,
+        transparent 100%
+      );
   }
 
   .menu-tease + .what-we-do {

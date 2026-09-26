@@ -12,7 +12,12 @@ export function parseInviteChannel(raw) {
   if (!text.trim()) return null;
   const value = text.trim().toLowerCase();
   if (value === "email" || value === "e-mail") return "email";
-  if (value === "instagram" || value === "ig" || value === "dm" || value === "insta") {
+  if (
+    value === "instagram" ||
+    value === "ig" ||
+    value === "dm" ||
+    value === "insta"
+  ) {
     return "instagram";
   }
   return null;

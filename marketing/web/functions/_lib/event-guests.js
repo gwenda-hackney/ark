@@ -89,7 +89,11 @@ export async function findGuestByEventAndContact(env, eventSlug, contact) {
   return { ok: true, status: 200, guest: rowToGuest(row) };
 }
 
-export async function createGuestForEvent(env, eventSlug, { name, email, source }) {
+export async function createGuestForEvent(
+  env,
+  eventSlug,
+  { name, email, source },
+) {
   const slug = eventSlug?.trim();
   const contact = email?.trim();
   const guestName = name?.trim() || contact?.split("@")[0] || "Guest";

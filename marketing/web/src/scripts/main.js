@@ -28,7 +28,12 @@ function placeHomeContactRule() {
   const paths = document.querySelector(".signup .contact-hub-paths");
   const rule = paths?.querySelector(".contact-hub-rule");
   const cols = paths?.querySelectorAll(".contact-hub-path");
-  if (!(paths instanceof HTMLElement) || !(rule instanceof HTMLElement) || !cols || cols.length < 2) {
+  if (
+    !(paths instanceof HTMLElement) ||
+    !(rule instanceof HTMLElement) ||
+    !cols ||
+    cols.length < 2
+  ) {
     return;
   }
   if (getComputedStyle(rule).position !== "absolute") {
@@ -40,13 +45,17 @@ function placeHomeContactRule() {
     for (const child of col.children) {
       const box = child.getBoundingClientRect();
       if (box.width === 0) continue;
-      value = side === "right" ? Math.max(value, box.right) : Math.min(value, box.left);
+      value =
+        side === "right"
+          ? Math.max(value, box.right)
+          : Math.min(value, box.left);
     }
     return value;
   };
   const left = edge(cols[0], "right");
   const right = edge(cols[1], "left");
-  if (!Number.isFinite(left) || !Number.isFinite(right) || right <= left) return;
+  if (!Number.isFinite(left) || !Number.isFinite(right) || right <= left)
+    return;
   const origin = paths.getBoundingClientRect().left;
   rule.style.left = `${(left + right) / 2 - origin}px`;
 }
@@ -122,7 +131,9 @@ function initPage() {
     }
     if (!collapsedNav || !header) return;
     // Slide quick links in once the page title has passed the bar.
-    const title = document.querySelector("main .page-header, main .section-header");
+    const title = document.querySelector(
+      "main .page-header, main .section-header",
+    );
     const titleBottom = title
       ? title.getBoundingClientRect().bottom + window.scrollY
       : 200;
@@ -160,7 +171,9 @@ function initPage() {
         link.removeAttribute("aria-current");
       }
     }
-    const pageLabel = siteNav.querySelector(".site-nav-group--page .site-nav-label");
+    const pageLabel = siteNav.querySelector(
+      ".site-nav-group--page .site-nav-label",
+    );
     if (pageLabel) {
       pageLabel.classList.toggle("is-current", currentId == null);
     }
@@ -327,10 +340,13 @@ function initPage() {
       const reduced = window.matchMedia(
         "(prefers-reduced-motion: reduce)",
       ).matches;
-      navClosingTimer = setTimeout(() => {
-        siteNav.removeEventListener("transitionend", onEnd);
-        finishNavClosing();
-      }, reduced ? 0 : 560);
+      navClosingTimer = setTimeout(
+        () => {
+          siteNav.removeEventListener("transitionend", onEnd);
+          finishNavClosing();
+        },
+        reduced ? 0 : 560,
+      );
     } else {
       document.body.classList.remove("site-nav-open");
     }
@@ -361,18 +377,23 @@ function initPage() {
         }
         // Page and header links fade first. The full menu starts after that.
         document.body.classList.add("site-nav-covering");
-        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        navCoverTimer = setTimeout(() => {
-          navCoverTimer = null;
-          if (!document.body.classList.contains("site-nav-covering")) return;
-          void siteNav.offsetHeight;
-          siteNav.classList.add("is-open");
-          menuBtn.classList.add("is-open");
-          menuBtn.setAttribute("aria-expanded", "true");
-          menuBtn.setAttribute("aria-label", "Close menu");
-          document.body.classList.add("site-nav-open");
-          applyHeaderVisibility();
-        }, reduced ? 0 : 280);
+        const reduced = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        navCoverTimer = setTimeout(
+          () => {
+            navCoverTimer = null;
+            if (!document.body.classList.contains("site-nav-covering")) return;
+            void siteNav.offsetHeight;
+            siteNav.classList.add("is-open");
+            menuBtn.classList.add("is-open");
+            menuBtn.setAttribute("aria-expanded", "true");
+            menuBtn.setAttribute("aria-label", "Close menu");
+            document.body.classList.add("site-nav-open");
+            applyHeaderVisibility();
+          },
+          reduced ? 0 : 280,
+        );
       },
       { signal },
     );
@@ -411,15 +432,17 @@ function initPage() {
       return true;
     }
 
-    document.querySelectorAll(".site-header-bar a[href^='#']").forEach((link) => {
-      link.addEventListener(
-        "click",
-        (event) => {
-          scrollToPageAnchor(link, event);
-        },
-        { signal },
-      );
-    });
+    document
+      .querySelectorAll(".site-header-bar a[href^='#']")
+      .forEach((link) => {
+        link.addEventListener(
+          "click",
+          (event) => {
+            scrollToPageAnchor(link, event);
+          },
+          { signal },
+        );
+      });
 
     siteNav.querySelectorAll("a").forEach((link) => {
       link.addEventListener(
