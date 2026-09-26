@@ -21,6 +21,7 @@ import {
   publishRelease,
 } from "./release.js";
 import { siteEnvName } from "./config-store.js";
+import { environmentOf, readState, writeState } from "../../../../shared/config.js";
 import { documentFingerprint } from "../../../../shared/site-snapshot.js";
 import {
   expandOccurrenceDates,
@@ -38,6 +39,7 @@ import {
   sanityEventDocument,
   sanitySeriesDocument,
   sanitySeriesId,
+  seriesAwaitingDates,
   seriesScheduleMode,
 } from "./event-content.js";
 import {
@@ -195,6 +197,38 @@ function framingFromOccurrence(event, occurrence) {
   return framingFromEvent(event);
 }
 
+const SERIES_PREVIEWS_KEY = "site.series_previews";
+
+/**
+ * A series waiting for dates has no nights to hold a preview snapshot, so the
+ * last one staged is kept here, by event id: `{ [id]: seriesPreviewHash }`.
+ */
+export function seriesPreviewHash(event) {
+  return occurrenceHash(event, "");
+}
+
+export async function readSeriesPreviews(env) {
+  try {
+    const parsed = JSON.parse(
+      (await readState(env, "ops", SERIES_PREVIEWS_KEY, environmentOf(env))) || "{}",
+    );
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function recordSeriesPreview(env, event, datesPending) {
+  const previews = await readSeriesPreviews(env);
+  const id = String(event.id);
+  const hash = datesPending ? seriesPreviewHash(event) : undefined;
+  if (previews[id] === hash) return;
+  const next = { ...previews };
+  if (hash) next[id] = hash;
+  else delete next[id];
+  await writeState(env, "ops", SERIES_PREVIEWS_KEY, environmentOf(env), JSON.stringify(next));
+}
+
 export async function publishEventPreview(
   env,
   id,
@@ -214,8 +248,12 @@ export async function publishEventPreview(
   const drop = event.dates.filter(
     (row) => row.date >= today && !materialized.has(row.date),
   );
-  // An ended series still has its dropped nights to take off the website.
-  if (!wanted.length && !drop.length) httpError("There is no upcoming date to publish.", 400);
+  // No nights yet goes on the website as "Check back soon for the next date". An ended series
+  // still has its dropped nights to take off the website.
+  const datesPending = seriesAwaitingDates(event);
+  if (!wanted.length && !drop.length && !datesPending) {
+    httpError("There is no upcoming date to publish.", 400);
+  }
 
   const existingByDate = new Map(event.dates.map((row) => [row.date, row]));
   const heroByUrl = new Map();
@@ -252,6 +290,7 @@ export async function publishEventPreview(
       replacesSeriesId: publishedReplacesSeries(event.replacesSeries),
       nightSchedule: event.nightSchedule || [],
       heroImage: seriesHero || null,
+      datesPending,
     }),
   });
 
@@ -360,6 +399,7 @@ export async function publishEventPreview(
   for (let i = 0; i < mutations.length; i += 25) {
     await sanityMutate(env, mutations.slice(i, i + 25));
   }
+  await recordSeriesPreview(env, event, datesPending);
 
   const warnings = [];
   if (drop.length) pagesChanged = true;
@@ -556,7 +596,7 @@ export async function previewEventOnWebsite(env, id) {
 export async function putEventOnWebsite(env, id) {
   // Saving already staged it; only stage again if the drafts are behind ops.
   const current = await getEvent(env, id);
-  const staged = previewBehind(current)
+  const staged = previewBehind(current) || seriesAwaitingDates(current)
     ? await publishEventPreview(env, id)
     : { event: current, warnings: [] };
   const ids = await eventDocumentIds(env, staged.event);

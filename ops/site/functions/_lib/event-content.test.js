@@ -6,6 +6,7 @@ import {
   plainToEventDescription,
   recurrenceLabel,
   resolveOccurrenceContent,
+  seriesAwaitingDates,
   seriesDescriptionForPublish,
   seriesScheduleMode,
   seriesShortDescriptionForPublish,
@@ -473,4 +474,36 @@ test("a night's own link wins over the series link", () => {
   ] };
   assert.equal(resolveOccurrenceContent(event, event.dates[0]).pageUrl, "https://guest.example/");
   assert.equal(resolveOccurrenceContent(event, event.dates[1]).pageUrl, "https://series.example/");
+});
+
+test("a series with no start date and no nights ahead waits for dates", () => {
+  const today = "2026-09-26";
+  assert.equal(seriesAwaitingDates({ repeatUnit: "none", startsOn: "", dates: [] }, today), true);
+  assert.equal(seriesAwaitingDates({ repeatUnit: "", dates: [] }, today), true);
+  // Schedule cleared on a series that already ran: past nights do not count.
+  assert.equal(
+    seriesAwaitingDates(
+      { repeatUnit: "none", startsOn: "", dates: [{ date: "2026-08-01" }], extraDates: ["2026-08-01"] },
+      today,
+    ),
+    true,
+  );
+  assert.equal(seriesAwaitingDates({ repeatUnit: "none", startsOn: "2026-10-03" }, today), false);
+  assert.equal(seriesAwaitingDates({ repeatUnit: "none", extraDates: ["2026-10-03"] }, today), false);
+  // Every Wednesday, start date to come.
+  assert.equal(
+    seriesAwaitingDates({ repeatUnit: "week", weekdays: ["wed"], startsOn: "", dates: [] }, today),
+    true,
+  );
+  assert.equal(
+    seriesAwaitingDates({ repeatUnit: "week", weekdays: ["wed"], startsOn: "2026-09-30", endsOn: "2026-12-30" }, today),
+    false,
+  );
+  assert.equal(seriesAwaitingDates({ repeatUnit: "once", startsOn: "", dates: [] }, today), false);
+
+  const waiting = sanitySeriesDocument({ slug: "vinyl-club", title: "Vinyl Club", datesPending: true });
+  assert.equal(waiting.datesPending, true);
+  // Left off otherwise, so series already on the website stay unchanged.
+  const dated = sanitySeriesDocument({ slug: "vinyl-club", title: "Vinyl Club" });
+  assert.equal("datesPending" in dated, false);
 });

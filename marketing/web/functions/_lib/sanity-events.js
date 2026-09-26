@@ -37,6 +37,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   "id": slug.current,
   title,
   schedule,
+  datesPending,
   recurrence,
   replacesSeriesId,
   shortDescription,
@@ -105,6 +106,7 @@ export async function fetchPublishedSeries(env) {
             ? "once"
             : "manual",
       replacesSeriesId: String(row.replacesSeriesId || "").trim(),
+      datesPending: row.datesPending === true,
       recurrence: row.recurrence || "",
       shortDescription: String(row.shortDescription || "").trim(),
       nightSchedule: Array.isArray(row.nightSchedule)
