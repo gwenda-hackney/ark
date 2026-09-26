@@ -168,13 +168,15 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
           ) : null}
         </>
       ) : (
-        <PageHeader eyebrow="The wall" title="Featured artist">
-          <p>
-            We collaborate with local artists, and give them the wall. A place
-            to show the work, here in the room.
-          </p>
-        </PageHeader>
-        <p class="artist-lead artist-waiting">The next artist will hang here.</p>
+        <>
+          <PageHeader eyebrow="The wall" title="Featured artist">
+            <p>
+              We collaborate with local artists, and give them the wall. A place
+              to show the work, here in the room.
+            </p>
+          </PageHeader>
+          <p class="artist-lead artist-waiting">The next artist will hang here.</p>
+        </>
       )
     }
   </Subpage>

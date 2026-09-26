@@ -129,13 +129,6 @@ export function formatEventWeek(isoDate: string): string {
   )}`;
 }
 
-function formatTicketTime(time: string | null | undefined): string {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? "").trim());
-  if (!match) return "";
-  const clock = parseClock(match[1], match[2]);
-  return clock ? formatClock(clock) : "";
-}
-
 type Clock = { hours: number; minutes: number };
 
 function parseClock(hoursText: string, minutesText: string): Clock | null {
