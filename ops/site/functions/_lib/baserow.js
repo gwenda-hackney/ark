@@ -13,6 +13,8 @@ export const TABLE_MENU_PLACEMENTS = "Menu placements";
 export const TABLE_EVENTS = "Events";
 export const TABLE_EVENT_DATES = "Event dates";
 export const TABLE_ARTISTS = "Artists";
+/** Ops' record of play applicants (decision, artist name and link), by email. */
+export const TABLE_GUEST_ARTISTS = "Guest artists";
 
 /** Baserow Cloud allows 10 concurrent API requests. Stay under that. */
 export const BASEROW_MAX_CONCURRENT = 8;
@@ -203,6 +205,7 @@ export const OPS_TABLE_SPECS = [
   { key: "events", name: TABLE_EVENTS, required: false },
   { key: "eventDates", name: TABLE_EVENT_DATES, required: false },
   { key: "artists", name: TABLE_ARTISTS, required: false },
+  { key: "guestArtists", name: TABLE_GUEST_ARTISTS, required: false },
 ];
 
 /**

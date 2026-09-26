@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { onDestroy, onMount } from "svelte";
+	import { onDestroy, onMount, tick } from "svelte";
 	import { fade, fly } from "svelte/transition";
 	import { Icon } from "../../shell";
 	import {
 		BusyOverlay,
+		ComboBox,
 		Button,
 		Dialog,
 		EditorBackBar,
@@ -47,6 +48,7 @@
 		deleteEventOccurrence,
 		ensureEventOccurrence,
 		eventDriveFileUrl,
+		getApprovedArtists,
 		getEventDrive,
 		getEvents,
 		getMe,
@@ -57,6 +59,7 @@
 		uploadEventDriveImage,
 		uploadEventImage,
 		uploadEventOccurrenceImage,
+		type ApprovedArtist,
 		type EventDriveFile,
 		type OpsEvent,
 		type OpsNightScheduleSlot,
@@ -222,6 +225,17 @@
 	let replacing = $state(false);
 	let current = $state<OpsEvent | null>(null);
 	let attachSeriesId = $state("");
+	/** Approved play applicants, suggested in Guest Artist. */
+	let approvedArtists = $state<ApprovedArtist[]>([]);
+
+	/** Picked from the Guest Artist list: their name, and their Instagram or website. */
+	function pickApprovedArtist(id: string) {
+		const hit = approvedArtists.find((row) => row.id === id);
+		if (!hit) return;
+		artist = hit.name;
+		if (hit.link) pageUrl = hit.link;
+	}
+
 	/** Series to pick when the next new-event form opens ("Add night" on a series). */
 	let presetSeriesId = "";
 
@@ -346,6 +360,7 @@
 		name?: string;
 		artist?: string;
 		offer?: string;
+		pageUrl?: string;
 		description?: string;
 		shortDescription?: string;
 		operationsNotes?: string;
@@ -359,6 +374,7 @@
 			name: String(row.name || "").trim(),
 			artist: String(row.artist || "").trim(),
 			offer: String(row.offer || "").trim(),
+			pageUrl: String(row.pageUrl || "").trim(),
 			description: String(row.description || "").trim(),
 			shortDescription: String(row.shortDescription || "").trim(),
 			operationsNotes: String(row.operationsNotes || "").trim(),
@@ -383,6 +399,7 @@
 					name,
 					artist,
 					offer,
+					pageUrl,
 					description,
 					shortDescription,
 					operationsNotes,
@@ -396,6 +413,7 @@
 					name: overrides?.name || current.name,
 					artist: overrides?.artist || current.artist,
 					offer: overrides?.offer || current.offer,
+					pageUrl: overrides?.pageUrl || current.pageUrl,
 					description: overrides?.description || current.description,
 					shortDescription: overrides?.shortDescription || "",
 					operationsNotes: overrides?.operationsNotes || current.operationsNotes,
@@ -839,7 +857,7 @@
 		name = occurrence?.overrides.name || event.name;
 		artist = occurrence?.overrides.artist || event.artist || "";
 		offer = occurrence?.overrides.offer || event.offer || "";
-		pageUrl = event.pageUrl || "";
+		pageUrl = occurrence?.overrides.pageUrl || event.pageUrl || "";
 		const onceNight =
 			event.repeatUnit === "once"
 				? event.dates.find((row) => row.overrides?.description || row.overrides?.shortDescription) ||
@@ -913,6 +931,13 @@
 		warnings = [];
 		heroCrops = null;
 		defaultsUnlocked = false;
+	}
+
+	/** A new form starts in its name, or its date when the series is already picked. */
+	async function focusFirstField() {
+		await tick();
+		const id = attachSeriesId ? "event-date" : "event-name";
+		(document.getElementById(id) as HTMLInputElement | null)?.focus();
 	}
 
 	/** "Add night" on a series: the New event form with this series picked. */
@@ -994,6 +1019,7 @@
 		if (key === "name") return String(event.name || "").trim();
 		if (key === "artist") return String(event.artist || "").trim();
 		if (key === "offer") return String(event.offer || "").trim();
+		if (key === "pageUrl") return String(event.pageUrl || "").trim();
 		if (key === "shortDescription") return String(event.shortDescription || "").trim();
 		if (key === "description") return String(event.description || "").trim();
 		if (key === "startTime") return String(event.startTime || "").trim();
@@ -1021,6 +1047,7 @@
 			(title && title.toLowerCase() !== seriesName) ||
 				String(overrides.artist || "").trim() ||
 				String(overrides.offer || "").trim() ||
+				String(overrides.pageUrl || "").trim() ||
 				String(overrides.shortDescription || "").trim() ||
 				String(overrides.description || "").trim() ||
 				String(overrides.startTime || "").trim() ||
@@ -1050,6 +1077,7 @@
 		name = seriesText("name");
 		artist = seriesText("artist");
 		offer = seriesText("offer");
+		pageUrl = seriesText("pageUrl");
 		shortDescription = "";
 		description = seriesText("description");
 		startTime = seriesText("startTime");
@@ -1078,6 +1106,7 @@
 			name: nightField("name", name),
 			artist: nightField("artist", artist),
 			offer: nightField("offer", offer),
+			pageUrl: nightField("pageUrl", pageUrl),
 			description: nightField("description", description),
 			shortDescription: nightField("shortDescription", shortDescription),
 			operationsNotes: nightField("operationsNotes", operationsNotes),
@@ -1115,6 +1144,10 @@
 
 	onMount(() => {
 		void reload();
+		// A hint only: Guest Artist still takes any name without it.
+		getApprovedArtists()
+			.then((data) => (approvedArtists = data.artists || []))
+			.catch(() => {});
 		const stopJobEvents = onWebsiteJobEvent(takeReadyEvent);
 		getMe()
 			.then((me) => {
@@ -1204,6 +1237,7 @@
 			warnings = [];
 			if (route.isNew) {
 				blank();
+				void focusFirstField();
 				return;
 			}
 			if (current?.id === eventId) {
@@ -1440,6 +1474,7 @@
 					name: name.trim(),
 					artist: artist.trim(),
 					offer: offer.trim(),
+					pageUrl: pageUrl.trim(),
 					description: description.trim(),
 					shortDescription: shortDescription.trim(),
 					operationsNotes: operationsNotes.trim(),
@@ -2376,20 +2411,47 @@
 															{/if}
 														</div>
 													{/if}
+													<div class="guest guest-group">
 													<Field
-														class="guest"
 														label="Guest Artist"
 														for="event-artist"
 														tooltip={editingOccurrence
 															? "From the series until you override defaults. A guest of its own is a special edition on What's on."
-															: "Optional default. A night with its own guest is labelled Guest on Upcoming and What's on."}
+															: "Optional default. Type any name, or pick an approved artist from the list (approve them in Play applications) to bring their link too. A night with its own guest is labelled Guest on Upcoming and What's on."}
 													>
 														{#if editingOccurrence && !defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("artist")}</p>
 														{:else}
-															<TextField id="event-artist" size="sm" bind:value={artist} />
+															<ComboBox
+																id="event-artist"
+																size="sm"
+																bind:value={artist}
+																placeholder="Artist or DJ name"
+																emptyText="No approved artists yet. Approve them in Play applications."
+																options={approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
+																onpick={(option) => pickApprovedArtist(option.value)}
+															/>
 														{/if}
 													</Field>
+													<Field
+														label="Guest artist link"
+														for="event-page-url"
+														tooltip={editingOccurrence
+															? "From the series until you override defaults. A guest of this night can link their own Instagram or website."
+															: "Optional. Their Instagram or website (an @handle works), linked on the website."}
+													>
+														{#if editingOccurrence && !defaultsUnlocked}
+															<p class="locked-value">{lockedReadout("pageUrl")}</p>
+														{:else}
+															<TextField
+																id="event-page-url"
+																size="sm"
+																bind:value={pageUrl}
+																placeholder="Instagram or website link"
+															/>
+														{/if}
+													</Field>
+													</div>
 													<Field
 														class="offer"
 														label="Offer"
@@ -2409,21 +2471,6 @@
 															/>
 														{/if}
 													</Field>
-													{#if !editingOccurrence}
-														<Field
-															class="span-all"
-															label="Page link"
-															for="event-page-url"
-															tooltip="Optional. Their own page. Shown on the event when it is set."
-														>
-															<TextField
-																id="event-page-url"
-																size="sm"
-																bind:value={pageUrl}
-																placeholder="https://"
-															/>
-														</Field>
-													{/if}
 													<Field
 														class="span-all"
 														label="Short description"
@@ -3533,8 +3580,18 @@
 			box-shadow var(--t-fast) var(--ease-in-out);
 	}
 
+	/* Empty: an ordinary-looking field with a quiet prompt; the name itself stays title-sized. */
 	.title-input::placeholder {
 		color: var(--subtle-foreground);
+		font-family: var(--font);
+		font-size: 1rem;
+		font-weight: 400;
+		letter-spacing: 0;
+	}
+
+	.name-line .title-input:placeholder-shown {
+		min-width: min(100%, 20rem);
+		border-color: var(--border);
 	}
 
 	.title-input:hover {
@@ -3616,6 +3673,12 @@
 	.status-flag.live {
 		color: var(--primary);
 		background: var(--primary-wash);
+	}
+
+	.status-flag.new {
+		color: var(--foreground);
+		background: var(--muted);
+		box-shadow: inset 0 0 0 1px var(--border-strong);
 	}
 
 	.status-flag.muted {
@@ -3766,6 +3829,12 @@
 		grid-template-columns: minmax(0, 1fr);
 		gap: 0.8rem 0.7rem;
 		align-items: start;
+		min-width: 0;
+	}
+
+	.guest-group {
+		display: grid;
+		gap: 0.8rem;
 		min-width: 0;
 	}
 

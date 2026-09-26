@@ -163,7 +163,7 @@ export function resolveOccurrenceContent(event, occurrence) {
     title: String(overrides.name || event?.name || "").trim(),
     artist: String(overrides.artist || event?.artist || "").trim(),
     offer: String(overrides.offer || event?.offer || "").trim(),
-    pageUrl: String(event?.pageUrl || "").trim(),
+    pageUrl: String(overrides.pageUrl || event?.pageUrl || "").trim(),
     description: once
       ? seriesDescriptionForPublish(event)
       : String(overrides.description || event?.description || "").trim(),

@@ -95,6 +95,24 @@ describe("baserowDatabase", () => {
     assert.deepEqual(columns[0].select_options.map((o) => o.value), ["dev", "preview"]);
   });
 
+  it("adds a table with just its key column, once", async () => {
+    const created = [];
+    const request = async (_base, _jwt, path, init = {}) => {
+      if (path === "/api/database/tables/database/7/" && init.method === "POST") {
+        const body = JSON.parse(init.body);
+        created.push(body);
+        return { id: 50, name: body.name };
+      }
+      if (path === "/api/database/tables/database/7/") return [{ id: 42, name: "Form Submissions" }];
+      throw new Error(`unexpected ${path}`);
+    };
+    const database = baserowDatabase({ apiBase: "x", jwt: "j", databaseId: 7, label: "Ops", request });
+    assert.equal(await database.ensureTable("Guest artists", "Email"), "created");
+    assert.equal(await database.ensureTable("Guest artists", "Email"), "exists");
+    assert.equal(await database.ensureTable("Form Submissions", "Email"), "exists");
+    assert.deepEqual(created, [{ name: "Guest artists", data: [["Email"]], first_row_header: true }]);
+  });
+
   it("names a missing table", async () => {
     const { database } = db([]);
     await assert.rejects(database.fields("Nope"), /Website: table "Nope" not found/);

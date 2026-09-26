@@ -352,6 +352,13 @@ export type FormSubmission = {
   email: string;
   name: string;
   status: string;
+  /** Ops' answer to a play application: "Approved", "Declined" or "". */
+  decision: FormDecision;
+  /** Ops' own artist name and link for a play applicant; "" means use what they sent. */
+  artistName: string;
+  artistLink: string;
+  /** What a play applicant sent (artist name, Instagram or website); null for other forms. */
+  submitted: { name: string; link: string } | null;
   submittedAt: string;
   current: boolean;
   /** ISO time the ops notification went out, or "" if never. */
@@ -362,6 +369,37 @@ export type FormSubmission = {
 };
 
 export type FormEmailKind = "notify" | "receipt";
+
+export type FormDecision = "Approved" | "Declined" | "";
+
+export function setFormDecision(id: string, decision: FormDecision) {
+  return request<{ ok: boolean; decision: FormDecision }>(
+    `/api/forms/${encodeURIComponent(id)}/decision`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ decision }),
+    },
+  );
+}
+
+export function setFormArtist(id: string, artist: { name: string; link: string }) {
+  return request<{ ok: boolean; artistName: string; artistLink: string; eventsUpdated: number }>(
+    `/api/forms/${encodeURIComponent(id)}/artist`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(artist),
+    },
+  );
+}
+
+/** An approved play applicant: pickable as a guest artist, with their link. */
+export type ApprovedArtist = { id: string; name: string; link: string };
+
+export function getApprovedArtists() {
+  return request<{ artists: ApprovedArtist[] }>("/api/forms/artists");
+}
 
 export function getFormSubmissions() {
   return request<{ submissions: FormSubmission[] }>("/api/forms");
@@ -735,6 +773,7 @@ export type OpsEventOccurrence = {
     name: string;
     artist: string;
     offer: string;
+    pageUrl?: string;
     description: string;
     shortDescription: string;
     time: string;
@@ -1005,6 +1044,7 @@ export function updateEventOccurrence(
     name: string;
     artist: string;
     offer: string;
+    pageUrl?: string;
     description: string;
     time: string;
     startTime: string;

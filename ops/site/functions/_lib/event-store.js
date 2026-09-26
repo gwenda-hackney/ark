@@ -80,8 +80,11 @@ function isoDate(value) {
 
 /** Empty is allowed. Anything else must be an http(s) URL. */
 export function normalizePageUrl(value) {
-  const raw = text(value);
+  let raw = text(value);
   if (!raw) return "";
+  // "@handle" is an Instagram account; "example.com" means https.
+  if (/^@[\w.]+$/.test(raw)) raw = `https://www.instagram.com/${raw.slice(1)}/`;
+  else if (!/^[a-z][a-z0-9+.-]*:/i.test(raw) && raw.includes(".")) raw = `https://${raw}`;
   let parsed;
   try {
     parsed = new URL(raw);
@@ -89,7 +92,7 @@ export function normalizePageUrl(value) {
     parsed = null;
   }
   if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
-    const error = new Error("Page link must start with http:// or https://.");
+    const error = new Error("Link must be a website address or an @Instagram handle.");
     error.status = 400;
     throw error;
   }
@@ -156,6 +159,7 @@ function requireEventsTables(tables) {
 
 /** Prefer dedicated column; fall back to unused Notes until schema sync. */
 const PAGE_LINK_FIELD = "Page link";
+const PAGE_LINK_OVERRIDE_FIELD = "Page link override";
 const NIGHT_SCHEDULE_FIELD = "Night schedule";
 const NIGHT_SCHEDULE_FALLBACK = "Notes";
 const NIGHT_SCHEDULE_OVERRIDE_FIELD = "Night schedule override";
@@ -225,6 +229,7 @@ export function mapEventDate(row) {
     name: text(row["Title override"]),
     artist: text(row["Artist override"]),
     offer: text(row["Offer override"]),
+    pageUrl: text(row[PAGE_LINK_OVERRIDE_FIELD]),
     description: text(row["Description override"]),
     shortDescription: text(row[SHORT_DESCRIPTION_OVERRIDE_FIELD]),
     time: text(row["Time override"]),
@@ -869,6 +874,7 @@ export async function syncEventOccurrences(env, event) {
         name: "",
         artist: "",
         offer: "",
+        pageUrl: "",
         description: "",
         time: "",
         startTime: "",
@@ -1157,6 +1163,10 @@ async function occurrenceFields(env, eventId, occurrence) {
     fields["Offer override"] = text(occurrence.overrides?.offer);
     fields["Description override"] = text(occurrence.overrides?.description);
     const dateFields = await eventDateFieldNames(env);
+    // Added by migration; ops running before it simply has no per-night link.
+    if (dateFields.has(PAGE_LINK_OVERRIDE_FIELD)) {
+      fields[PAGE_LINK_OVERRIDE_FIELD] = normalizePageUrl(occurrence.overrides?.pageUrl);
+    }
     if (dateFields.has(SHORT_DESCRIPTION_OVERRIDE_FIELD)) {
       fields[SHORT_DESCRIPTION_OVERRIDE_FIELD] = text(
         occurrence.overrides?.shortDescription,
@@ -1249,6 +1259,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
         name: titleOverrideForSave(event.name, overrides.name),
         artist: text(overrides.artist),
         offer: text(overrides.offer),
+        pageUrl: text(overrides.pageUrl),
         description: text(overrides.description),
         shortDescription: text(overrides.shortDescription),
         time: text(overrides.time),
@@ -1308,6 +1319,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
       name: titleOverrideForSave(series.name, overrides.name),
       artist: text(overrides.artist),
       offer: text(overrides.offer),
+      pageUrl: text(overrides.pageUrl),
       description: text(overrides.description),
       shortDescription: text(overrides.shortDescription),
       time: text(overrides.time),
@@ -1364,6 +1376,7 @@ export async function assignOccurrenceToSeries(
     name: text(input?.name !== undefined ? input.name : resolved.name),
     artist: text(input?.artist !== undefined ? input.artist : resolved.artist),
     offer: text(input?.offer !== undefined ? input.offer : resolved.offer),
+    pageUrl: text(input?.pageUrl !== undefined ? input.pageUrl : resolved.pageUrl),
     description: text(
       input?.description !== undefined
         ? input.description
@@ -1460,6 +1473,7 @@ function hasOccurrenceInput(overrides) {
     "name",
     "artist",
     "offer",
+    "pageUrl",
     "description",
     "shortDescription",
     "time",
@@ -1576,6 +1590,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
     ),
     artist: input?.artist !== undefined ? text(input.artist) : current.artist,
     offer: input?.offer !== undefined ? text(input.offer) : current.offer,
+    pageUrl: input?.pageUrl !== undefined ? text(input.pageUrl) : current.pageUrl,
     description:
       input?.description !== undefined
         ? text(input.description)
@@ -1617,6 +1632,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           name: titleOverrideForSave(event.name, content.title),
           artist: content.artist,
           offer: content.offer,
+          pageUrl: content.pageUrl,
           description: content.description,
           time: content.time,
           startTime: content.startTime,
@@ -1635,6 +1651,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
       name: overrides.name || event.name,
       artist: overrides.artist,
       offer: overrides.offer,
+      pageUrl: overrides.pageUrl,
       description: overrides.description,
       time: overrides.time,
       startTime: overrides.startTime,
@@ -1652,6 +1669,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           name: "",
           artist: "",
           offer: "",
+          pageUrl: "",
           description: "",
           time: "",
           startTime: "",
@@ -1747,6 +1765,7 @@ export async function moveOccurrence(
     ),
     artist: input?.artist !== undefined ? text(input.artist) : current.artist,
     offer: input?.offer !== undefined ? text(input.offer) : current.offer,
+    pageUrl: input?.pageUrl !== undefined ? text(input.pageUrl) : current.pageUrl,
     description:
       input?.description !== undefined
         ? text(input.description)
@@ -1780,6 +1799,7 @@ export async function moveOccurrence(
       name: overrides.name || event.name,
       artist: overrides.artist,
       offer: overrides.offer,
+      pageUrl: overrides.pageUrl,
       description: overrides.description,
       time: overrides.time,
       startTime: overrides.startTime,

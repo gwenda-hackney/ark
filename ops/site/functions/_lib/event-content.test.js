@@ -23,7 +23,10 @@ test("page link is an optional http address", () => {
     normalizePageUrl("https://partiful.com/e/example"),
     "https://partiful.com/e/example",
   );
-  assert.throws(() => normalizePageUrl("partiful.com"), /http/);
+  assert.equal(normalizePageUrl("partiful.com/e/x"), "https://partiful.com/e/x");
+  assert.equal(normalizePageUrl("@dj.someone"), "https://www.instagram.com/dj.someone/");
+  assert.throws(() => normalizePageUrl("not a link"), /website address/);
+  assert.throws(() => normalizePageUrl("ftp://example.com"), /website address/);
 });
 
 test("publishes event-specific ticket times", () => {
@@ -461,4 +464,13 @@ test("turns light Markdown into structured event description blocks", () => {
   assert.equal(blocks[1].style, "h2");
   assert.equal(blocks[2].listItem, "bullet");
   assert.equal(blocks[3].children[0].text, "Guest sets");
+});
+
+test("a night's own link wins over the series link", () => {
+  const event = { name: "Jazz", pageUrl: "https://series.example/", dates: [
+    { date: "2026-10-01", overrides: { pageUrl: "https://guest.example/" } },
+    { date: "2026-10-08", overrides: {} },
+  ] };
+  assert.equal(resolveOccurrenceContent(event, event.dates[0]).pageUrl, "https://guest.example/");
+  assert.equal(resolveOccurrenceContent(event, event.dates[1]).pageUrl, "https://series.example/");
 });
