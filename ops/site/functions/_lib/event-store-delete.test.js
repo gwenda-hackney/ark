@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { occurrenceDeleteTargets } from "./event-store.js";
+import { droppedNights, keepsDroppedNight, occurrenceDeleteTargets, previewBehind, publishState } from "./event-store.js";
 
 function series(overrides = {}) {
   return {
@@ -50,5 +50,32 @@ describe("occurrenceDeleteTargets", () => {
       "this",
     );
     assert.equal(plan.mode, "series");
+  });
+});
+
+describe("dropping a night from the schedule", () => {
+  const today = "2026-09-26";
+  const published = { id: "a", date: "2026-09-29", sanityId: "event-jazz-2026-09-29", snapshots: { preview: { hash: "x" } } };
+
+  it("keeps an upcoming night that is on the website", () => {
+    assert.equal(keepsDroppedNight(published, today), true);
+  });
+
+  it("deletes a night that never reached the website, or is past", () => {
+    assert.equal(keepsDroppedNight({ id: "b", date: "2026-09-29" }, today), false);
+    assert.equal(keepsDroppedNight({ ...published, date: "2026-09-22" }, today), false);
+  });
+
+  it("leaves the event waiting for the website while the kept night is there", () => {
+    const event = series({ startsOn: "2026-09-30", endsOn: "2026-10-14", weekdays: ["wed"] });
+    const state = publishState(event, [published], today);
+    assert.equal(state.preview, "stale");
+  });
+
+  it("lists the dropped night and leaves the preview behind until it is marked", () => {
+    const event = series({ startsOn: "2026-09-30", endsOn: "2026-10-14", weekdays: ["wed"], dates: [published] });
+    assert.deepEqual(droppedNights(event, today).map((row) => row.date), ["2026-09-29"]);
+    assert.equal(previewBehind(event, today), true);
+    assert.equal(previewBehind({ ...event, dates: [], publish: { preview: "current", previewDates: ["2026-09-30"] } }, today), false);
   });
 });

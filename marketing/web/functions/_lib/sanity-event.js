@@ -24,7 +24,7 @@ const EVENT_FIELDS = `{
   }
 }`;
 
-const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug][0]${EVENT_FIELDS}`;
+const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug && removed != true][0]${EVENT_FIELDS}`;
 
 export { sanityDatasetForEnv };
 

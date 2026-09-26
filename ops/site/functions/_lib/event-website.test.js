@@ -56,3 +56,32 @@ test("nothing live is unpublished; a night only on one side is stale", () => {
 test("not staged at all keeps ops' own answer", () => {
   assert.equal(websiteStatusFor(negroni, docs(), docs(series("x"))), "current");
 });
+
+test("a night marked removed on the preview leaves the event waiting for the website", () => {
+  const preview = docs(series("£8"), night("2026-09-29", { removed: true }), night("2026-10-06"));
+  const production = docs(series("£8"), night("2026-09-29"), night("2026-10-06"));
+  assert.equal(websiteStatusFor(negroni, preview, production), "stale");
+});
+
+import { markNightsRemoved } from "./event-publish.js";
+
+test("dropped nights: live ones get a removed draft, never-published ones lose their draft", async () => {
+  const sent = [];
+  const warnings = await markNightsRemoved(
+    {},
+    [{ sanityId: "event-negroni-2026-09-29" }, { sanityId: "event-negroni-2026-10-06" }, { date: "x" }],
+    {
+      query: async (_env, view, _groq, { ids }) => {
+        assert.equal(view, "production");
+        assert.deepEqual(ids, ["event-negroni-2026-09-29", "event-negroni-2026-10-06"]);
+        return ["event-negroni-2026-09-29"];
+      },
+      mutate: async (_env, mutations) => sent.push(...mutations),
+    },
+  );
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(sent, [
+    { patch: { id: "event-negroni-2026-09-29", set: { removed: true } } },
+    { delete: { id: "event-negroni-2026-10-06" } },
+  ]);
+});
