@@ -1,15 +1,6 @@
 ---
+import { pageLinkHtml } from "../lib/event-card.js";
 import { followUpdatesLink } from "../lib/follow-updates.js";
-
-const link = followUpdatesLink();
 ---
 
-{
-  link ? (
-    <p class="event-page-link">
-      <a href={link.href} rel="noopener noreferrer" target="_blank">
-        {link.label}
-      </a>
-    </p>
-  ) : null
-}
+<Fragment set:html={pageLinkHtml(followUpdatesLink())} />

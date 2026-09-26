@@ -6109,8 +6109,25 @@ a.credit-name {
   max-width: none;
 }
 
+/* Repeating series: a larger photo, the next night beside it. */
+.whats-on-series-page .whats-on-series-main {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+.whats-on-series-main .event-date {
+  margin-bottom: 0.5rem;
+}
+
+.whats-on-series-main .event-time {
+  margin-top: 0.35rem;
+  color: var(--color-text);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.2;
+}
+
 @media (max-width: 760px) {
-  .whats-on-series-page .event-card {
+  .whats-on-series-page .event-card,
+  .whats-on-series-page .whats-on-series-main {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -6281,10 +6298,12 @@ a.event-card:focus-visible .event-title,
   text-decoration: none;
 }
 
-.event-card--linked .event-page-link {
+.event-card--linked .event-page-link,
+.event-card--linked .event-guest a {
   position: relative;
   z-index: 2;
 }
+
 
 .events-list > li + li,
 .event-card + .event-card {
@@ -6510,14 +6529,42 @@ a.event-card:focus-visible .event-title,
 }
 
 .whats-on-page .event-card--series .event-date {
+  margin-bottom: 0.55rem;
   font-size: 0.9rem;
   letter-spacing: 0.22em;
 }
 
+/* Compact copy so the text column sits close to the photo's height. */
+.whats-on-page .event-card--series .event-time {
+  margin-top: 0.25rem;
+  font-size: 1.1rem;
+}
+
 .whats-on-page .event-card--series .event-title {
   max-width: none;
-  font-size: clamp(2.35rem, 4vw, 3.35rem);
+  margin-bottom: 0.4rem;
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
   line-height: 1.02;
+}
+
+.whats-on-page .event-card--series .event-guest {
+  margin-bottom: 0.6rem;
+}
+
+.whats-on-page .event-card--series .night-schedule {
+  margin: 0.3rem 0 0.75rem;
+}
+
+.whats-on-page .event-card--series .night-schedule-list {
+  gap: 0.2rem;
+}
+
+.whats-on-page .event-card--series .night-schedule-time {
+  font-size: 1.1rem;
+}
+
+.whats-on-page .event-card--series .event-follow {
+  margin-top: 0.85rem;
 }
 
 .whats-on-page .event-card--series .event-description {
@@ -6526,8 +6573,8 @@ a.event-card:focus-visible .event-title,
 
 .whats-on-page .event-card--series .event-description p {
   margin: 0;
-  font-size: 0.98rem;
-  line-height: 1.75;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .whats-on-page .event-card--series .event-description p + p {
@@ -6709,6 +6756,54 @@ a.event-card:focus-visible .event-title,
   letter-spacing: 0.025em;
 }
 
+/* Gold marks the important words: on a card, the guest's name, not "With". */
+.event-guest {
+  color: var(--color-text-muted);
+}
+
+.event-guest a,
+.event-guest-name {
+  color: var(--color-gold);
+  font-size: clamp(1.45rem, 2.4vw, 1.8rem);
+  font-style: normal;
+  letter-spacing: 0.01em;
+}
+
+/* The site's link hover: a gold line slides in under the name. A faint line
+   stays under it at rest so the name reads as a link. */
+.event-guest a {
+  position: relative;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.event-guest a::before,
+.event-guest a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 100%;
+  height: 1px;
+}
+
+.event-guest a::before {
+  background: var(--color-gold-dim);
+}
+
+.event-guest a::after {
+  background: var(--color-gold);
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.35s var(--ease-smooth);
+}
+
+.event-guest a:hover::after,
+.event-guest a:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
 .event-hosts {
   display: grid;
   gap: 0.2rem;
@@ -6844,7 +6939,18 @@ a.event-card:focus-visible .event-title,
 
 .event-card--series:hover .event-more-dates,
 .event-card--series:focus-visible .event-more-dates {
-  color: var(--color-gold);
+  color: var(--color-text);
+}
+
+/* The underline under "More dates and info" is the hover cue; the title stays put. */
+.whats-on-page
+  .event-card--series:is(
+    :hover,
+    :focus-visible,
+    :has(.event-card-hit:focus-visible)
+  )
+  .event-title {
+  color: var(--color-text);
 }
 
 .event-card--series:hover .event-more-dates::after,
@@ -6992,47 +7098,117 @@ a.event-card:focus-visible .event-title,
   margin-top: 0.55rem;
 }
 
+/* Series gallery: rows of photos at one height, each as wide as its shape. */
+.series-gallery {
+  margin-top: clamp(2.5rem, 6vw, 4.5rem);
+  padding-top: clamp(1.5rem, 3vw, 2.25rem);
+  border-top: 1px solid var(--color-border);
+}
+
+.series-gallery-label {
+  margin: 0 0 1.25rem;
+  color: var(--color-gold);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.series-gallery-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Keeps a short last row at the same height instead of stretching it. */
+.series-gallery-list::after {
+  content: "";
+  flex-grow: 1000000;
+}
+
+.series-gallery-item {
+  flex-grow: calc(var(--ratio) * 100);
+  flex-basis: calc(var(--ratio) * 15rem);
+}
+
+.series-gallery-item a {
+  display: block;
+  overflow: hidden;
+  background: var(--color-bg-card);
+}
+
+.series-gallery-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition:
+    opacity 0.35s var(--ease-smooth),
+    transform 0.6s var(--ease-smooth);
+}
+
+.series-gallery-item a:hover img,
+.series-gallery-item a:focus-visible img {
+  opacity: 0.88;
+  transform: scale(1.02);
+}
+
+@media (max-width: 640px) {
+  .series-gallery-item {
+    flex-basis: calc(var(--ratio) * 9rem);
+  }
+}
+
+/* "Nights ahead" on a series page: a short list after the next night. */
 .event-dates {
-  margin-top: 1.6rem;
+  margin-top: 1.75rem;
 }
 
 .event-dates-label {
-  margin: 0 0 0.65rem;
+  margin: 0 0 0.5rem;
   color: var(--color-gold);
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.28em;
   text-transform: uppercase;
 }
 
 .event-dates ul {
-  display: grid;
-  gap: 0.75rem;
   margin: 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--color-border);
 }
 
 .event-dates li {
-  display: grid;
-  gap: 0.15rem;
-  color: var(--color-text-muted);
-  font-family: var(--font-body);
-  font-size: 0.92rem;
-  font-weight: 400;
-  line-height: 1.5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.event-dates-guest {
-  display: block;
-  margin: 0;
-  color: var(--color-gold);
+.event-dates time {
+  color: var(--color-text);
   font-family: var(--font-display);
-  font-size: 1.05rem;
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.event-dates-guest,
+.event-dates-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-style: italic;
-  font-weight: 400;
-  letter-spacing: 0.025em;
+  line-height: 1.35;
 }
 
 .night-schedule {
@@ -7055,7 +7231,7 @@ a.event-card:focus-visible .event-title,
 }
 
 .night-schedule-time {
-  color: var(--color-gold);
+  color: var(--color-text);
   font-family: var(--font-display);
   font-size: 1.3rem;
   font-weight: 400;
@@ -7064,7 +7240,7 @@ a.event-card:focus-visible .event-title,
 }
 
 .night-schedule-item {
-  color: var(--color-text);
+  color: var(--color-text-muted);
   font-family: var(--font-display);
   font-size: 1.05rem;
   font-style: italic;
@@ -7085,25 +7261,6 @@ a.event-card:focus-visible .event-title,
     grid-template-columns: minmax(0, 1fr);
     gap: 0.15rem;
   }
-}
-
-.event-dates details {
-  margin-top: 0.6rem;
-}
-
-.event-dates summary {
-  width: fit-content;
-  color: var(--color-gold);
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.event-dates details ul {
-  margin-top: 0.5rem;
 }
 
 .events-empty {

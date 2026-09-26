@@ -530,7 +530,7 @@ describe("buildSeriesDetail", () => {
     );
   });
 
-  it("shows two upcoming nights for repeating series with guest in main", () => {
+  it("shows the next night and the nights ahead for repeating series with guest in main", () => {
     const detail = buildSeriesDetail(
       [
         night({
@@ -564,10 +564,10 @@ describe("buildSeriesDetail", () => {
       { now, series: [negroniSeries] },
     );
     expect(detail.richDetail).toBe(false);
-    expect(detail.nights).toHaveLength(2);
+    expect(detail.nights).toHaveLength(3);
     expect(detail.featuredGuest.artist).toBe("Maya");
     expect(detail.featuredGuest.imageCaptionName).toBe("");
-    expect(detail.upcomingDates).toHaveLength(2);
+    expect(detail.upcomingDates).toHaveLength(3);
   });
 
   it("captions a scheduled night only when the flyer is the guest's", () => {
@@ -876,7 +876,12 @@ describe("one-off cards", () => {
       "No Gwenda Radio on Sun 18 Oct. Instead, Amo MAS. A night of records. Don't worry, Gwenda Radio will be back on Sun 25 Oct.",
     );
     const dates = detail.upcomingDates.map((row) => row.date);
-    expect(dates).toEqual(["2026-09-27", "2026-10-04", "2026-10-18"]);
+    expect(dates).toEqual([
+      "2026-09-27",
+      "2026-10-04",
+      "2026-10-11",
+      "2026-10-18",
+    ]);
   });
 });
 
@@ -1092,5 +1097,50 @@ describe("seriesCardNextLine", () => {
     expect(
       seriesCardNextLine({ schedule: "once", date: "2026-10-31" }, "20:00"),
     ).toBe("20:00");
+  });
+});
+
+describe("What's on card guest", () => {
+  it("names the next night's guest with their link", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "negroni-night-2026-09-29",
+          seriesId: "negroni-night",
+          date: "2026-09-29",
+          recurrence: "Every Tuesday",
+          artist: "Vbrave",
+          pageUrl: "https://www.instagram.com/vbrave/",
+        }),
+      ],
+      { now, series: [negroniSeries] },
+    );
+    expect(stack[0]).toMatchObject({
+      guestName: "Vbrave",
+      guestUrl: "https://www.instagram.com/vbrave/",
+      pageUrl: "https://www.instagram.com/vbrave/",
+    });
+  });
+
+  it("keeps a link with no guest as the card's own page link", () => {
+    const stack = buildWhatsOnStack(
+      [
+        night({
+          id: "amo-mas-2026-10-18",
+          seriesId: "amo-mas",
+          date: "2026-10-18",
+          pageUrl: "https://partiful.com/e/amo",
+        }),
+      ],
+      {
+        now,
+        series: [{ seriesId: "amo-mas", title: "Amo más", schedule: "once" }],
+      },
+    );
+    expect(stack[0]).toMatchObject({
+      guestName: "",
+      guestUrl: "",
+      pageUrl: "https://partiful.com/e/amo",
+    });
   });
 });
