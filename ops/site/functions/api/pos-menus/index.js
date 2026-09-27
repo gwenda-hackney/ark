@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { createPosMenu, listPosMenus } from "../../_lib/pos-menu-store.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { createPosMenu, listPosMenus } from "../../../src/features/menu/server/pos-menu-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const posMenus = await listPosMenus(context.env);

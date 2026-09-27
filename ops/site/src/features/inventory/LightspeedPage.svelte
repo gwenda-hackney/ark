@@ -23,7 +23,7 @@
 		DEFAULT_LIGHTSPEED_MENU,
 		rankByName,
 		serveBaseName,
-	} from "../../../functions/_lib/lightspeed-stock.js";
+	} from "./lightspeed-stock.js";
 	import {
 		DRINK_TYPES,
 		GUEST_MENU_PLACEMENTS,

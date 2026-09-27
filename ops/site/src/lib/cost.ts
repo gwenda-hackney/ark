@@ -1,5 +1,5 @@
 import { quantityToMl } from "./abv.ts";
-import { inventoryItemPath, namesClash } from "../../functions/_lib/spa-path.js";
+import { inventoryItemPath, namesClash } from "../app/spa-path.js";
 import {
 	normalizeDrinkType,
 	parseGbp,

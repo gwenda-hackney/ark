@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { createArtist, listArtists } from "../../_lib/artist-store.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { createArtist, listArtists } from "../../../src/features/artists/server/artist-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const artists = await listArtists(context.env);

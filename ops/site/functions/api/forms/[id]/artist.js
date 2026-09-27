@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../../_lib/http.js";
-import { setFormArtist } from "../../../_lib/form-submissions.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../../src/platform/http.js";
+import { setFormArtist } from "../../../../src/features/forms/server/form-submissions.js";
 
 /** POST { name, link } → ops' copy of this applicant's artist name and link. */
 export const onRequestPost = withApiHandler(async (context) => {

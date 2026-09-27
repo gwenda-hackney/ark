@@ -5,4 +5,4 @@ export {
   removeItemFromSections,
   sectionPathLabel,
   upsertItemInSections,
-} from "../../functions/_lib/menu-sections.js";
+} from "../features/menu/menu-sections.js";

@@ -1,5 +1,5 @@
-import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { listFormSubmissions } from "../../_lib/form-submissions.js";
+import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
+import { listFormSubmissions } from "../../../src/features/forms/server/form-submissions.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const submissions = await listFormSubmissions(context.env);

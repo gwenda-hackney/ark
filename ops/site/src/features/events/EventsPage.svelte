@@ -104,7 +104,7 @@
 	import {
 		WEEKDAYS,
 		expandSeriesOccurrenceDates,
-	} from "../../../functions/_lib/event-recurrence.js";
+	} from "./event-recurrence.js";
 
 	let { path = "/" }: { path?: string } = $props();
 

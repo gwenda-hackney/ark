@@ -1,8 +1,8 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
 import {
   createInventoryItem,
   listInventory,
-} from "../../_lib/inventory-store.js";
+} from "../../../src/features/inventory/server/inventory-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const url = new URL(context.request.url);

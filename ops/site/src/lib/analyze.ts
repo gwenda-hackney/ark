@@ -8,8 +8,8 @@ import {
 } from "./abv.ts";
 import { formatPourPercent, recipePriceAnalysis } from "./cost.ts";
 import type { RecipePriceAnalysis } from "./cost.ts";
-import { itemSlug } from "../../functions/_lib/item-key.js";
-import { inventoryItemPath } from "../../functions/_lib/spa-path.js";
+import { itemSlug } from "../features/menu/item-key.js";
+import { inventoryItemPath } from "../app/spa-path.js";
 import {
 	hasRecipe,
 	normalizeDrinkType,

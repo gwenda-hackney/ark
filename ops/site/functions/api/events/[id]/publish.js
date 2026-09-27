@@ -1,12 +1,12 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../../_lib/http.js";
-import { attachCalendarWarnings } from "../../../_lib/event-calendar-sync.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../../src/platform/http.js";
+import { attachCalendarWarnings } from "../../../../src/features/events/server/event-calendar-sync.js";
 import {
   previewEventOnWebsite,
   publishEventPreview,
   putEventOnWebsite,
   withWebsiteStatus,
-} from "../../../_lib/event-publish.js";
-import { assertSanityWritable } from "../../../_lib/sanity.js";
+} from "../../../../src/features/events/server/event-publish.js";
+import { assertSanityWritable } from "../../../../src/platform/sanity.js";
 
 function eventId(context) {
   return decodeURIComponent(context.params?.id || "");

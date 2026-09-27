@@ -1,8 +1,8 @@
-import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { requireAdmin } from "../../_lib/admin.js";
-import { compareCode } from "../../_lib/site-deploy.js";
-import { sanityQuery } from "../../_lib/sanity.js";
-import { collectWebStatus } from "../../_lib/web-status.js";
+import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
+import { requireAdmin } from "../../../src/features/access/server/admin.js";
+import { compareCode } from "../../../src/features/web/server/site-deploy.js";
+import { sanityQuery } from "../../../src/platform/sanity.js";
+import { collectWebStatus } from "../../../src/features/web/server/web-status.js";
 
 /**
  * Code on preview vs live. Commits come from each site's health endpoint;

@@ -2,7 +2,7 @@
 	import { Button, Field, NativeSelect } from "../../ui";
 	import type { SelectOption } from "../../ui/types";
 	import type { MenuPlacement, PosMenu } from "../../lib/types";
-	import { parsePosScreenInput } from "../../../functions/_lib/lightspeed-stock.js";
+	import { parsePosScreenInput } from "../inventory/lightspeed-stock.js";
 
 	let {
 		menus = [],

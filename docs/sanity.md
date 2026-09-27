@@ -16,7 +16,7 @@ Nothing is copied between datasets. Every change starts as a Sanity **draft** (`
 - **Ops publishes.** *Put on website* publishes one event's drafts (and anything they reference that also changed); *Website → Preview → live* publishes any or all. Developer tools can also discard drafts, so the preview matches live again.
 - **Removals don't wait.** Deleting in ops removes the draft and the published document together: it comes off the preview and the website at once (the delete dialog says so).
 
-Ops reads Sanity through the same two views (`ops/site/functions/_lib/sanity.js`: `preview`, `production`, and `raw` for both side by side), and turns every write into a draft write (`draftMutations`). Publishing and discarding are `release.js`.
+Ops reads Sanity through the same two views (`ops/site/src/platform/sanity.js`: `preview`, `production`, and `raw` for both side by side), and turns every write into a draft write (`draftMutations`). Publishing and discarding are `release.js`.
 
 ## Environments
 

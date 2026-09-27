@@ -19,7 +19,7 @@ The most important tests describe **what someone does** ("an editor creates a we
 
 ## Ops: the fake world
 
-`ops/site/functions/_test/fake-world.js` replaces global `fetch` with in-memory versions of everything ops talks to:
+`ops/site/src/testing/fake-world.js` replaces global `fetch` with in-memory versions of everything ops talks to:
 
 | Service | Faked as |
 |---|---|
@@ -31,8 +31,8 @@ The most important tests describe **what someone does** ("an editor creates a we
 Every world gets fresh random tokens, so ops' module-level caches never carry one test's data into another. Any outside call the fake doesn't know **throws with its URL**: a new integration shows up as a failing test, not a silent network call.
 
 ```js
-import { callApi, createFakeWorld } from "../_test/fake-world.js";
-import { onRequestPost as createEvent } from "../api/events/index.js";
+import { callApi, createFakeWorld } from "../../testing/fake-world.js";
+import { onRequestPost as createEvent } from "../../../functions/api/events/index.js";
 
 const world = await createFakeWorld();
 world.install();
@@ -43,7 +43,7 @@ world.google.calendar();             // calendar entries
 world.restore();
 ```
 
-Use cases live in `ops/site/functions/use-cases/` and run with `npm test -w @gwenda/ops`. `use-cases/events.test.js` has an `editor(world)` helper (create, edit, add or edit a night, wait for the background job, Update website, and `sees()` for the status line the editor reads) to copy for other areas.
+Use cases live next to their feature (`ops/site/src/features/events/use-cases.test.js`) and run with `npm test -w @gwenda/ops`. The events one has an `editor(world)` helper (create, edit, add or edit a night, wait for the background job, Update website, and `sees()` for the status line the editor reads) to copy for other areas.
 
 ## Known bugs
 
