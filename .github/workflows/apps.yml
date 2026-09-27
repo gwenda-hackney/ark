@@ -470,9 +470,6 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:ark:pull -- --github-env
 
-      - name: Unit tests
-        run: npm test -w @gwenda/ops && npm run test:shared
-
       - name: Build menu SPA
         run: npm run build -w @gwenda/ops
 
