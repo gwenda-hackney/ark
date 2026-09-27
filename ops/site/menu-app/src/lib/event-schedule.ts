@@ -68,7 +68,7 @@ export function groupEventSchedule(
 		const materialized = new Set(expandSeriesOccurrenceDates(event));
 		const source = event.dates.length
 			? event.dates.filter((occurrence) => materialized.has(occurrence.date))
-			: event.publish.previewDates.map((date) => ({
+			: event.publish.previewDates.map((date): OpsEventOccurrence => ({
 					id: "",
 					date,
 					slug: "",
@@ -80,12 +80,15 @@ export function groupEventSchedule(
 						artist: "",
 						offer: "",
 						description: "",
+						shortDescription: "",
 						time: "",
 						startTime: "",
 						endTime: "",
+						nightSchedule: null,
 						operationsNotes: "",
 						imageLinks: [],
 						image: null,
+						heroCrops: null,
 					},
 				}));
 		// One row per night. Duplicate Baserow date rows must not crash the list.

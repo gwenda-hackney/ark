@@ -533,7 +533,7 @@
 			<div class="pane list">
 				<div class="missing">
 					<p>That inventory item was not found.</p>
-					<Button variant="outline" size="sm" onclick={backToGrid}>
+					<Button variant="outline" size="sm" onclick={() => backToGrid()}>
 						Back to inventory
 					</Button>
 				</div>

@@ -40,7 +40,7 @@
 	import type { SelectOption, SegmentedItem } from "../../ui/types";
 	import { RECONCILE_HELP } from "./lightspeed-help";
 
-	let fileInput: HTMLInputElement | undefined;
+	let fileInput = $state<HTMLInputElement | undefined>();
 	let dragOver = $state(false);
 	let fileName = $state("");
 	let csvText = $state("");

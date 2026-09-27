@@ -269,6 +269,7 @@ export function previewLightspeedCsv(
       onPrintMenu?: boolean;
       onDigitalMenu?: boolean;
       posMenuIds?: string[];
+      menuScreen?: string;
       priceAlt?: string;
     }>;
     rows?: Array<{ sku?: string; name?: string }>;

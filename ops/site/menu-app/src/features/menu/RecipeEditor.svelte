@@ -118,8 +118,8 @@
 		cleanToken?: number;
 		tab?: string;
 		tabBase?: string;
-		onsave: () => void | Promise<void>;
-		onprint?: () => void | Promise<void>;
+		onsave: () => unknown;
+		onprint?: () => unknown;
 		ondelete: () => void | Promise<void>;
 		onphoto: (file: File) => void | Promise<void>;
 		onphotoremove: () => void | Promise<void>;
@@ -1967,28 +1967,10 @@
 		}
 	}
 
-	.hint {
-		margin: 0.15rem 0 0;
-		font-size: var(--text);
-		line-height: 1.4;
-		color: var(--muted-foreground);
-	}
-
 	.lede-hint {
 		margin: -0.25rem 0 0.75rem;
 		font-size: var(--text-sm);
 		line-height: 1.45;
-		color: var(--muted-foreground);
-	}
-
-	.publish-diff {
-		margin: 0.35rem 0 0;
-		padding: 0;
-		list-style: none;
-		display: grid;
-		gap: 0.15rem;
-		font-size: var(--text-sm);
-		line-height: 1.4;
 		color: var(--muted-foreground);
 	}
 

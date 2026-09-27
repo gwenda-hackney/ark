@@ -63,6 +63,7 @@
 		type ApprovedArtist,
 		type EventDriveFile,
 		type OpsEvent,
+		type OpsEventOccurrence,
 		type OpsNightScheduleSlot,
 	} from "../../lib/api";
 	import {
@@ -2807,6 +2808,8 @@
 												{/if}
 												<div
 													class="drive-drop"
+													role="group"
+													aria-label="Drop images here to add them to the gallery"
 													class:dragging={driveDragging}
 													class:busy={driveLoading || driveUploading}
 													ondragenter={onDriveDragEnter}
@@ -3306,8 +3309,6 @@
 			border-color var(--t-fast) var(--ease-in-out);
 	}
 
-	.hero:hover .photo-collapse,
-	.hero:focus-within .photo-collapse,
 	.photo-collapse:focus-visible {
 		opacity: 1;
 	}
@@ -3368,29 +3369,12 @@
 		transition: opacity var(--t-fast) var(--ease-in-out);
 	}
 
-	.photo-hit.has-photo .photo-btn,
-	.tile-hit .photo-btn {
-		pointer-events: none;
-	}
-
 	.photo-hit.has-photo:hover,
-	.photo-hit.has-photo:focus-within,
-	.hero.dragging .photo-hit.has-photo,
-	.tile:hover .tile-hit,
-	.tile:focus-within .tile-hit {
+	.photo-hit.has-photo:focus-within {
 		opacity: 1;
 		background: color-mix(in srgb, #0d0d0d 45%, transparent);
 	}
 
-	.photo-hit.has-photo:hover .photo-btn,
-	.photo-hit.has-photo:focus-within .photo-btn,
-	.hero.dragging .photo-hit.has-photo .photo-btn,
-	.tile:hover .tile-hit .photo-btn,
-	.tile:focus-within .tile-hit .photo-btn {
-		pointer-events: auto;
-	}
-
-	.photo-hit.empty input,
 	.tile.add input {
 		position: absolute;
 		inset: 0;

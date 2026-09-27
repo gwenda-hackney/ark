@@ -43,21 +43,19 @@
 		setScreens(screens.filter((screen) => screen !== path));
 	}
 
-	function onAdd(event: Event) {
-		const next = (event.currentTarget as HTMLSelectElement).value;
-		(event.currentTarget as HTMLSelectElement).value = "";
+	function onAdd(event: { currentTarget: { value: string } }) {
+		const next = event.currentTarget.value;
 		add(next);
 	}
 </script>
 
 <div class="picker">
 	{#if screens.length}
-		<div class="chips" role="list">
+		<div class="chips">
 			{#each screens as screen (screen)}
 				<button
 					type="button"
 					class="chip on"
-					role="listitem"
 					aria-label={`Remove ${screen}`}
 					onclick={() => remove(screen)}
 				>
