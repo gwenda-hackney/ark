@@ -259,8 +259,7 @@ describe("events: editing", () => {
   });
   afterEach(() => world.restore());
 
-  // Known bug #56: the status stays "Website has an older version" after Update website.
-  it("a change to the series waits for Update website", { todo: "known bug #56" }, async () => {
+  it("a change to the series waits for Update website", async () => {
     await ops.edit(event, { shortDescription: "Chess, negronis, the canal." });
     await ops.waitUntilReady(event);
     assert.equal(await ops.sees(event), "Website has an older version");
@@ -269,6 +268,7 @@ describe("events: editing", () => {
     await ops.updateWebsite(event);
     assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess, negronis, the canal.");
     assert.equal(await ops.sees(event), "On the website");
+    assert.deepEqual(world.sanity.drafts().map((doc) => doc._id), [], "no drafts left behind");
   });
 
   it("a new web address: the old one is kept so the website can redirect it", async () => {

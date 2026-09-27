@@ -19,10 +19,11 @@ import {
   markReleasedInOps,
   planRelease,
   publishRelease,
+  releaseDocument,
+  stableStringify,
 } from "./release.js";
 import { siteEnvName } from "./config-store.js";
 import { environmentOf, readState, writeState } from "../../../../shared/config.js";
-import { documentFingerprint } from "../../../../shared/site-snapshot.js";
 import {
   expandOccurrenceDates,
   expandSeriesOccurrenceDates,
@@ -793,7 +794,11 @@ export function websiteStatusFor(event, preview, production) {
   if (live.length !== onPreview.length) return "stale";
   for (const doc of onPreview) {
     const other = production.get(doc._id);
-    if (!other || documentFingerprint(other) !== documentFingerprint(doc)) return "stale";
+    // Compared as Update website writes them: a draft's weak references count
+    // as the strong ones they become on publish (#56).
+    if (!other || stableStringify(releaseDocument(other)) !== stableStringify(releaseDocument(doc))) {
+      return "stale";
+    }
   }
   return "current";
 }
