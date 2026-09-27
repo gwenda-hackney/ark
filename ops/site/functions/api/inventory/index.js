@@ -2,7 +2,7 @@ import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platfor
 import {
   createInventoryItem,
   listInventory,
-} from "../../../src/features/inventory/server/inventory-store.js";
+} from "../../../src/inventory/server/inventory-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const url = new URL(context.request.url);

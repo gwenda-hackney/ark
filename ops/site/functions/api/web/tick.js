@@ -1,7 +1,7 @@
 import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
 import { runsOnMachine } from "../../../src/platform/sanity.js";
-import { autoUpdateTick } from "../../../src/features/web/server/site-pending.js";
-import { runWebsiteJob } from "../../../src/features/events/server/website-jobs.js";
+import { autoUpdateTick } from "../../../src/website/server/site-pending.js";
+import { runWebsiteJob } from "../../../src/events/server/website-jobs.js";
 
 function sameSecret(a, b) {
   if (!a || !b || a.length !== b.length) return false;

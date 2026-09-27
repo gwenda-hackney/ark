@@ -2,8 +2,8 @@ import { jsonResponse, readJsonBody, withApiHandler } from "../../../../src/plat
 import {
   deleteMenuSection,
   updateMenuSection,
-} from "../../../../src/features/menu/server/menu-store.js";
-import { toClientSection } from "../../../../src/features/inventory/server/reconcile.js";
+} from "../../../../src/menu/server/menu-store.js";
+import { toClientSection } from "../../../../src/inventory/server/reconcile.js";
 
 function sectionId(context) {
   return decodeURIComponent(context.params?.id || "");

@@ -1,11 +1,11 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
-import { requireAdmin } from "../../../src/features/access/server/admin.js";
+import { requireAdmin } from "../../../src/access/server/admin.js";
 import { runsOnMachine } from "../../../src/platform/sanity.js";
 import {
   getReleaseDiff,
   markReleasedInOps,
   publishRelease,
-} from "../../../src/features/web/server/release.js";
+} from "../../../src/website/server/release.js";
 
 /** The preview (drafts over published) vs what the website shows. */
 export const onRequestGet = withApiHandler(async (context) => {

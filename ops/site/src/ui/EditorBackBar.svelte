@@ -3,7 +3,7 @@
 	 * Phone-only editor chrome: a labeled back control at the top of the
 	 * overlay, in the place a list push would put it. Hidden on desktop.
 	 */
-	import { Icon } from "../shell";
+	import { Icon } from "../app/shell";
 
 	let {
 		label,

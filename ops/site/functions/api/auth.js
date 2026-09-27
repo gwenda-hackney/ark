@@ -5,7 +5,7 @@ import {
   requestOrigin,
   resolveAuth,
   safeRedirectPath,
-} from "../../src/features/access/server/auth.js";
+} from "../../src/access/server/auth.js";
 import { opsEnv } from "../../src/platform/ops-env.js";
 
 /** Gate mode for the UI. */

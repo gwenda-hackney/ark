@@ -36,12 +36,12 @@ import {
   TABLE_ARTISTS,
   TABLE_GUEST_ARTISTS,
 } from "../ops/site/src/platform/baserow.js";
-import { GUEST_ARTIST_FIELDS } from "../ops/site/src/features/artists/server/guest-artists.js";
+import { GUEST_ARTIST_FIELDS } from "../ops/site/src/artists/server/guest-artists.js";
 import { artistFields, eventDateFields, eventFields, userFields } from "./lib/baserow-ops-schema.mjs";
 import {
   DEFAULT_POS_MENU_NAME,
   LEGACY_DEFAULT_POS_MENU_NAME,
-} from "../ops/site/src/features/menu/server/pos-menu-store.js";
+} from "../ops/site/src/menu/server/pos-menu-store.js";
 import { parseEmailList } from "./lib/parse-email-list.mjs";
 import {
   looksLikeOnlyUrls,
@@ -49,7 +49,7 @@ import {
   SEED_SUPPLIERS,
   skuFromProductUrl,
   supplierFromUrl,
-} from "../ops/site/src/features/inventory/suppliers.js";
+} from "../ops/site/src/inventory/suppliers.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

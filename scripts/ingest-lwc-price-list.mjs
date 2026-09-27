@@ -14,7 +14,7 @@ import { listAllRows, updateRow } from "../ops/site/src/platform/baserow.js";
 import {
   parseMoney,
   skuFromProductUrl,
-} from "../ops/site/src/features/inventory/suppliers.js";
+} from "../ops/site/src/inventory/suppliers.js";
 import { diffLwcPriceLists, parseLwcPriceListCsv } from "./lib/lwc-price-list.mjs";
 import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 

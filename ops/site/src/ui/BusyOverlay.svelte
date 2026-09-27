@@ -4,7 +4,7 @@
 	 * Matches trading shell.web: top progress bar, scrim, spinner + label.
 	 */
 	import { fade } from "svelte/transition";
-	import { easeOut, fadeMs } from "../lib/motion";
+	import { easeOut, fadeMs } from "./motion";
 
 	let {
 		active = false,

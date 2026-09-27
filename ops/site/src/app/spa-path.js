@@ -3,9 +3,9 @@
  * hash routes (`/#/menu`) so bookmarks still land in the right place.
  */
 
-import { itemSlug } from "../features/menu/item-key.js";
+import { itemSlug } from "../menu/item-key.js";
 
-export { itemMatchesKey, itemSlug, namesClash } from "../features/menu/item-key.js";
+export { itemMatchesKey, itemSlug, namesClash } from "../menu/item-key.js";
 
 export function stripTrailingSlash(pathname) {
   if (!pathname || pathname === "/") return "/";

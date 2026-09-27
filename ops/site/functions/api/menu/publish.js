@@ -1,11 +1,11 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
 import { siteEnvName } from "../../../src/platform/config-store.js";
-import { deployTargetForEnv } from "../../../src/features/menu/server/menu.js";
-import { syncOpsMenuToSanity } from "../../../src/features/web/server/publish-sync.js";
+import { deployTargetForEnv } from "../../../src/menu/server/menu.js";
+import { syncOpsMenuToSanity } from "../../../src/website/server/publish-sync.js";
 import {
   webhookConfig,
   webhookJson,
-} from "../../../src/features/web/server/site-deploy.js";
+} from "../../../src/website/server/site-deploy.js";
 
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);

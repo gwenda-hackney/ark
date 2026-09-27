@@ -3,14 +3,14 @@ import {
   applyLightspeedActual,
   createInventoryFromLightspeed,
   listInventory,
-} from "../../../src/features/inventory/server/inventory-store.js";
+} from "../../../src/inventory/server/inventory-store.js";
 import { getConfigString, setConfigString } from "../../../src/platform/config-store.js";
-import { assertUniqueItemName } from "../../../src/features/menu/item-key.js";
+import { assertUniqueItemName } from "../../../src/menu/item-key.js";
 import {
   applyLightspeedMenuMatch,
   createMenuItem,
   loadMenuTree,
-} from "../../../src/features/menu/server/menu-store.js";
+} from "../../../src/menu/server/menu-store.js";
 import {
   DEFAULT_LIGHTSPEED_MENU,
   LIGHTSPEED_ARCHIVE_KEY,
@@ -24,7 +24,7 @@ import {
   removeArchiveSkus,
   resolveManualLinks,
   summarizeMatch,
-} from "../../../src/features/inventory/lightspeed-stock.js";
+} from "../../../src/inventory/lightspeed-stock.js";
 
 function menuNameFrom(body) {
   return typeof body.menuName === "string" && body.menuName.trim()
