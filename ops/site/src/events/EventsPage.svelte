@@ -9,13 +9,10 @@
 		EditorBackBar,
 		MultiSelect,
 		PageHeader,
-		PageHelp,
 		SearchField,
 		Segmented,
 	} from "../ui";
 	import type { SegmentedItem } from "../ui/types";
-	import { EVENTS_HELP } from "./events-help";
-	import { eventHeaderFlag } from "./event-header-status";
 	import {
 		onWebsiteJobEvent,
 		queueWebsiteJob,
@@ -24,6 +21,7 @@
 		websiteJobSettled,
 	} from "./website-jobs.svelte";
 	import { preparePhoto } from "../ui/photo-prep";
+	import EditorHeader from "./EditorHeader.svelte";
 	import EventsList from "./EventsList.svelte";
 	import DetailsTab from "./tabs/DetailsTab.svelte";
 	import GalleryTab from "./tabs/GalleryTab.svelte";
@@ -33,7 +31,7 @@
 	import ReplaceNightDialog from "./dialogs/ReplaceNightDialog.svelte";
 	import ScopeDialog from "./dialogs/ScopeDialog.svelte";
 	import UpdateWebsiteDialog from "./dialogs/UpdateWebsiteDialog.svelte";
-	import { formatDate, repeatLabel } from "./event-labels";
+	import { formatDate } from "./event-labels";
 	import {
 	} from "./hero-crops";
 	import {
@@ -90,11 +88,7 @@
 		takeBlockedNav,
 	} from "../ui/unsaved.svelte";
 	import { EventGallery } from "./event-gallery.svelte";
-	import {
-		EventForm,
-		lockedReadout as lockedReadoutOf,
-		type SeriesTextKey,
-	} from "./event-form.svelte";
+	import { EventForm } from "./event-form.svelte";
 
 	let { path = "/" }: { path?: string } = $props();
 
@@ -256,24 +250,6 @@
 		String(current?.repeatUnit || form.repeatUnit || "none").toLowerCase() === "none",
 	);
 	const editingNight = $derived(editingOccurrence || creatingNight);
-	const showHeaderDate = $derived(creatingOnce || editingOnce);
-	const seriesRepeatLine = $derived(
-		repeatLabel({
-			repeatEvery: Number(form.repeatEvery) || 1,
-			repeatUnit: form.repeatUnit as OpsEvent["repeatUnit"],
-			weekdays: form.weekdays,
-			monthDay: Number(form.monthDay) || 0,
-		}),
-	);
-	const typeLine = $derived(
-		editingNight
-			? "This night"
-			: creatingOnce || editingOnce
-				? "Special event"
-				: form.repeatUnit === "none" || form.repeatUnit === "once"
-					? "Series"
-					: `Series · ${seriesRepeatLine}`,
-	);
 	const parentSeriesName = $derived(
 		editingOccurrence
 			? String(current?.name || "").trim()
@@ -281,20 +257,7 @@
 				? events.find((event) => event.id === attachSeriesId)?.name || ""
 				: "",
 	);
-	const headerDate = $derived(
-		occurrenceDate
-			? formatDate(occurrenceDate)
-			: form.startsOn
-				? formatDate(form.startsOn)
-				: "No date",
-	);
 	const websiteJob = $derived(websiteJobFor(current?.id));
-	const headerFlag = $derived(
-		eventHeaderFlag(current?.publish, formDirty, {
-			job: websiteJob?.state ?? null,
-		}),
-	);
-	const liveCurrent = $derived(current?.publish.live === "current");
 
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const base = route.isNew
@@ -372,12 +335,6 @@
 			current = event;
 			form.syncHeroCrops(event, occurrenceDate);
 		}
-	}
-
-	const lockedReadout = (key: SeriesTextKey) => lockedReadoutOf(current, key);
-
-	function unlockDefaults() {
-		form.defaultsUnlocked = true;
 	}
 
 	async function useSeriesDefaults() {
@@ -1067,184 +1024,27 @@
 			<EditorBackBar label={listTitle} dirty={formDirty} onback={requestClose} />
 			<div class="split split--full">
 				<div class="panel" class:dirty={formDirty}>
-					<header class="panel-head">
-						<div class="type-line">
-							{#if editingNight}
-								<Icon name="events" size={14} />
-							{/if}
-							<p class="eyebrow">{typeLine}</p>
-							<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
-						</div>
-						<div class="head-tools">
-							<div class="toolbar-actions">
-								{#if editingOccurrence}
-									<Button
-										variant="accent"
-										size="sm"
-										type="button"
-										disabled={busy}
-										aria-label={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
-										title={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
-										onclick={() =>
-											form.defaultsUnlocked ? void useSeriesDefaults() : unlockDefaults()}
-									>
-										{#snippet icon()}
-											<Icon name={form.defaultsUnlocked ? "undo" : "lock"} />
-										{/snippet}
-									</Button>
-									<span class="tool-sep" aria-hidden="true"></span>
-								{/if}
-								{#if eventId && !route.isNew && !editingOccurrence && !editingOnce}
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										disabled={busy}
-										title="Add a night to this series."
-										onclick={addNightToSeries}
-									>
-										{#snippet icon()}
-											<Icon name="plus" size={16} />
-										{/snippet}
-										Add night
-									</Button>
-								{/if}
-								{#if eventId && !route.isNew}
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										disabled={busy || formDirty}
-										busy={calendarSyncing}
-										title={
-											formDirty
-												? "Save before updating the calendar."
-												: "Send the upcoming nights for this series to Google Calendar."
-										}
-										onclick={() => void onSyncCalendar()}
-									>
-										Update calendar
-									</Button>
-									{#if !liveCurrent}
-										<Button
-											variant="primary"
-											size="sm"
-											type="button"
-											disabled={busy || formDirty}
-											title={formDirty ? "Save first." : "Put this version of the event on gwenda.co.uk."}
-											onclick={openPutOnWebsite}
-										>
-											Update website
-										</Button>
-									{/if}
-								{/if}
-								<PageHelp title="Events" topics={EVENTS_HELP} />
-								<Button
-									variant="ghost"
-									size="sm"
-									type="button"
-									disabled={busy || !eventId}
-									title="Reload"
-									aria-label="Reload from server"
-									onclick={requestReload}
-								>
-									{#snippet icon()}
-										<Icon name="refresh" />
-									{/snippet}
-								</Button>
-								<Button
-									class="close-btn"
-									variant="ghost"
-									size="sm"
-									type="button"
-									aria-label={formDirty ? "Close with unsaved changes" : "Close"}
-									title={formDirty ? "Close (unsaved)" : "Close"}
-									onclick={requestClose}
-								>
-									{#snippet icon()}
-										<Icon name="close" size={16} />
-									{/snippet}
-								</Button>
-							</div>
-						</div>
-						<div class="title-name">
-							{#if editingNight}
-								<div class="name-line">
-									<p class="night-headline">
-										{headerDate === "No date" ? "Pick a date" : headerDate}
-									</p>
-								</div>
-								{#if editingOccurrence && !form.defaultsUnlocked}
-									<p class="locked-title">{lockedReadout("name")}</p>
-								{:else}
-									<input
-										class="title-input night-title"
-										id="event-name"
-										required={!creatingNight && !editingOccurrence}
-										autocomplete="off"
-										aria-label="Night title"
-										placeholder={creatingNight ? "Night title (optional)" : "Night title"}
-										bind:value={form.name}
-									/>
-								{/if}
-							{:else}
-								<div class="name-line">
-									<input
-										class="title-input"
-										id="event-name"
-										required
-										autocomplete="off"
-										aria-label={creatingOnce || editingOnce ? "Event name" : "Series name"}
-										placeholder={creatingOnce || editingOnce ? "Event name" : "Series name"}
-										bind:value={form.name}
-									/>
-								</div>
-							{/if}
-							{#if (!editingOccurrence || form.defaultsUnlocked) && form.artist.trim()}
-								<p class="sub">{form.artist.trim()}</p>
-							{/if}
-						</div>
-						{#if showHeaderDate}
-							<div class="title-meta">
-								<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
-							</div>
-						{/if}
-						{#if editingNight}
-							<p class="head-note">
-								{#if parentSeriesName}<span>Part of {parentSeriesName}.</span>{/if}
-								<span>
-									{#if editingOccurrence && !form.defaultsUnlocked}
-										Times, flyer, and copy come from the series.
-									{:else}
-										Changes apply to this night only.
-									{/if}
-								</span>
-								{#if editingOccurrence && eventId}
-									<a class="series-link" href={eventItemPath(eventId)}>Edit series</a>
-								{/if}
-							</p>
-						{:else if route.isNew && !creatingOnce}
-							<div class="create-mode">
-								<p class="create-hint muted">
-									Pick a series below to add a night, or leave it empty for a new series.
-								</p>
-							</div>
-						{:else if creatingOnce}
-							<div class="create-mode">
-								<p class="create-hint muted">
-									Pick a series below to add a night to it, or leave it on "No series" for a special event.
-								</p>
-							</div>
-						{:else if !editingOnce}
-							<p class="head-note">Series defaults, shared by its nights.</p>
-						{/if}
-						{#if localOps && eventId}
-							<p class="head-note local-note">
-								Test copy of ops: Save and Update website change the Gwenda Dev copy of the website,
-								never gwenda.co.uk.
-							</p>
-						{/if}
-					</header>
+					<EditorHeader
+						{form}
+						{current}
+						{eventId}
+						{occurrenceDate}
+						{busy}
+						dirty={formDirty}
+						isNew={Boolean(route.isNew)}
+						{creatingNight}
+						{creatingOnce}
+						{editingOnce}
+						{parentSeriesName}
+						{calendarSyncing}
+						{localOps}
+						onusedefaults={() => void useSeriesDefaults()}
+						onaddnight={addNightToSeries}
+						onsynccalendar={() => void onSyncCalendar()}
+						onputonwebsite={openPutOnWebsite}
+						onreload={requestReload}
+						onclose={requestClose}
+					/>
 
 					<div class="tabs">
 						<Segmented
@@ -1428,29 +1228,6 @@
 		overflow: hidden;
 	}
 
-	.series-link {
-		color: var(--primary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		text-decoration: none;
-		white-space: nowrap;
-	}
-
-	.series-link:hover {
-		text-decoration: underline;
-	}
-
-	.meta-line.muted {
-		color: var(--muted-foreground);
-	}
-
-	.hint,
-	.status,
-	.lede {
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-	}
-
 	.missing,
 	.editor {
 		position: absolute;
@@ -1485,107 +1262,6 @@
 		padding: var(--gap) var(--page-gutter) var(--gap);
 	}
 
-	.hero {
-		display: none;
-	}
-
-	.photo-collapse {
-		position: absolute;
-		top: 0.55rem;
-		right: 0.55rem;
-		left: auto;
-		z-index: 3;
-		display: grid;
-		place-content: center;
-		width: 2rem;
-		height: 2rem;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-pill);
-		background: color-mix(in srgb, var(--card) 88%, transparent);
-		color: var(--muted-foreground);
-		backdrop-filter: blur(8px);
-		cursor: pointer;
-		opacity: 0;
-		transition:
-			opacity var(--t-fast) var(--ease-in-out),
-			color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			border-color var(--t-fast) var(--ease-in-out);
-	}
-
-	.photo-collapse:focus-visible {
-		opacity: 1;
-	}
-
-	.photo-collapse:hover,
-	.photo-collapse:focus-visible {
-		color: var(--foreground);
-		border-color: var(--border-strong, var(--border));
-		background: var(--card);
-	}
-
-	.hero.dragging {
-		border-color: var(--primary);
-		box-shadow: var(--shadow-primary);
-	}
-
-	.hero-img {
-		flex: 1;
-		min-height: 0;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		object-position: center;
-		display: block;
-		background: #0a0a0a;
-		pointer-events: none;
-	}
-
-	.photo-hit {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-content: center;
-		justify-items: center;
-		gap: 0.55rem;
-		margin: 0;
-		cursor: pointer;
-	}
-
-	.photo-hit.empty {
-		background:
-			radial-gradient(ellipse at 50% 30%, var(--primary-wash-strong), transparent 55%),
-			var(--sunken);
-	}
-
-	.photo-hit.has-photo,
-	.tile-hit {
-		display: flex;
-		flex-direction: row;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		background: transparent;
-		opacity: 0;
-		transition: opacity var(--t-fast) var(--ease-in-out);
-	}
-
-	.photo-hit.has-photo:hover,
-	.photo-hit.has-photo:focus-within {
-		opacity: 1;
-		background: color-mix(in srgb, #0d0d0d 45%, transparent);
-	}
-
-	.photo-hint {
-		position: relative;
-		z-index: 1;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-		pointer-events: none;
-	}
-
 	.panel {
 		grid-area: panel;
 		display: flex;
@@ -1603,298 +1279,6 @@
 
 	.panel.dirty {
 		border-color: color-mix(in srgb, var(--destructive) 32%, var(--border));
-	}
-
-	.panel-head {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
-		align-items: start;
-		column-gap: 0.85rem;
-		row-gap: 0.2rem;
-		flex-shrink: 0;
-		padding: 0.55rem var(--card-pad-lg) 0.75rem;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.type-line {
-		grid-column: 1;
-		grid-row: 1;
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		min-width: 0;
-		align-self: center;
-		height: var(--control-h-sm);
-	}
-
-	.eyebrow {
-		min-width: 0;
-		margin: 0;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.head-tools {
-		grid-column: 2;
-		grid-row: 1;
-		display: flex;
-		align-items: center;
-		justify-self: end;
-		height: var(--control-h-sm);
-	}
-
-	.toolbar-actions {
-		display: flex;
-		align-items: center;
-		flex-shrink: 0;
-		gap: 0.25rem;
-		height: var(--control-h-sm);
-	}
-
-	.tool-sep {
-		width: 1px;
-		height: 1rem;
-		margin: 0 0.15rem;
-		background: var(--border);
-	}
-
-	.head-tools :global(.close-btn) {
-		color: var(--muted-foreground);
-	}
-
-	.head-tools :global(.close-btn:hover:not(:disabled)) {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
-
-	.title-name {
-		grid-column: 1;
-		grid-row: 2;
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		gap: 0.15rem;
-		min-width: 0;
-	}
-
-	.name-line {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.45rem 0.7rem;
-		min-width: 0;
-	}
-
-	.name-line .title-input {
-		flex: 0 1 auto;
-		width: auto;
-		min-width: min(100%, 10rem);
-		max-width: 100%;
-		field-sizing: content;
-	}
-
-	.night-headline {
-		margin: 0;
-		font-family: var(--font);
-		font-size: 1.85rem;
-		font-weight: 600;
-		letter-spacing: 0.02em;
-		line-height: 1.3;
-		color: var(--primary);
-	}
-
-	.locked-title {
-		margin: 0.15rem 0 0;
-		color: var(--foreground);
-		font-size: 1.05rem;
-		font-weight: 500;
-		line-height: 1.3;
-	}
-
-	.title-input {
-		display: block;
-		width: 100%;
-		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
-		color: var(--foreground);
-		font-family: var(--font-display);
-		font-size: 1.85rem;
-		font-weight: 600;
-		letter-spacing: -0.02em;
-		line-height: 1.3;
-		outline: none;
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
-	}
-
-	/* Empty: an ordinary-looking field with a quiet prompt; the name itself stays title-sized. */
-	.title-input::placeholder {
-		color: var(--subtle-foreground);
-		font-family: var(--font);
-		font-size: 1rem;
-		font-weight: 400;
-		letter-spacing: 0;
-	}
-
-	.name-line .title-input:placeholder-shown {
-		min-width: min(100%, 20rem);
-		border-color: var(--border);
-	}
-
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
-	}
-
-	.title-input.night-title {
-		font-size: 1.05rem;
-		font-weight: 500;
-		letter-spacing: 0;
-	}
-
-	.title-meta {
-		grid-column: 2;
-		grid-row: 2;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		justify-self: stretch;
-		gap: 0.08rem;
-		padding-top: 0.12rem;
-		min-width: 0;
-	}
-
-	.date-readout {
-		margin: 0;
-		font-family: var(--font);
-		font-size: 1.85rem;
-		font-weight: 600;
-		letter-spacing: 0.02em;
-		line-height: 1.3;
-		color: var(--primary);
-		font-variant-numeric: tabular-nums;
-		white-space: nowrap;
-	}
-
-	.date-readout.muted {
-		color: var(--muted-foreground);
-		font-weight: 500;
-		font-size: 1.2rem;
-	}
-
-	.status-flag {
-		display: inline-flex;
-		align-items: center;
-		flex-shrink: 0;
-		width: fit-content;
-		margin: 0;
-		padding: 0.18rem 0.5rem;
-		border-radius: var(--radius-pill);
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		line-height: 1.2;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.status-flag.unpublished {
-		color: var(--primary-foreground);
-		background: var(--primary);
-	}
-
-	.status-flag.unsaved {
-		color: var(--destructive-foreground);
-		background: var(--destructive);
-	}
-
-	.status-flag.preview {
-		color: var(--foreground);
-		background: var(--primary-wash-strong);
-	}
-
-	.status-flag.live {
-		color: var(--primary);
-		background: var(--primary-wash);
-	}
-
-	.status-flag.new {
-		color: var(--foreground);
-		background: var(--muted);
-		box-shadow: inset 0 0 0 1px var(--border-strong);
-	}
-
-	.status-flag.muted {
-		color: var(--muted-foreground);
-		font-weight: 500;
-		letter-spacing: 0.04em;
-		text-transform: none;
-		padding: 0;
-		background: transparent;
-	}
-
-	.head-note {
-		grid-column: 1 / -1;
-		grid-row: 3;
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.2rem 0.65rem;
-		margin: 0;
-		padding-top: 0.45rem;
-		font-size: var(--text-xs);
-		font-weight: 500;
-		letter-spacing: 0.02em;
-		line-height: 1.4;
-		color: var(--muted-foreground);
-		max-width: 40rem;
-	}
-
-	/* Its own row: the night/series note already sits in row 3. */
-	.head-note.local-note {
-		grid-row: 4;
-		padding-top: 0.2rem;
-	}
-
-	.create-mode {
-		grid-column: 1 / -1;
-		display: grid;
-		gap: 0.45rem;
-		margin-top: 0.35rem;
-	}
-
-	.create-hint {
-		margin: 0;
-		font-size: var(--text-xs);
-		line-height: 1.4;
-	}
-
-	.create-hint.muted {
-		color: var(--muted-foreground);
-	}
-
-	.sub {
-		margin: 0;
-		font-size: var(--text);
-		color: var(--muted-foreground);
 	}
 
 	.tabs {
@@ -1923,17 +1307,6 @@
 		min-width: 0;
 	}
 
-	.lede {
-		margin: 0;
-		line-height: 1.45;
-	}
-
-	.full {
-		grid-column: 1 / -1;
-	}
-
-	.hint,
-	.status,
 	.error,
 	.warnings {
 		margin: 0;
@@ -1969,20 +1342,6 @@
 		font-size: var(--text-sm);
 	}
 
-	.gallery {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-		gap: 0.75rem;
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
-
-	.tile-hit {
-		position: absolute;
-		inset: 0;
-	}
-
 	.panel-foot {
 		display: flex;
 		align-items: center;
@@ -2009,19 +1368,9 @@
 			border-right: none;
 		}
 
-		.head-tools :global(.close-btn),
-		.head-tools :global(.photo-expand) {
-			display: none;
-		}
-
-		.head-note {
-			grid-row: 3;
-		}
-
-		.panel-head,
 		.tabs,
-		.tab-body,
-		.panel-foot {
+	.tab-body,
+	.panel-foot {
 			padding-left: max(var(--page-gutter), 1.125rem);
 			padding-right: max(var(--page-gutter), 1.125rem);
 		}
@@ -2036,15 +1385,4 @@
 		}
 	}
 
-	@media (max-width: 600px) {
-		.title-input,
-		.date-readout,
-		.night-headline {
-			font-size: 1.35rem;
-		}
-
-		.title-input.night-title {
-			font-size: 1rem;
-		}
-	}
 </style>
