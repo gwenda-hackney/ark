@@ -4,14 +4,9 @@ import {
 	inventoryItemPath,
 	menuItemPath,
 } from "../app/spa-path.js";
-import {
-	hasRecipe,
-	parseGbp,
-	type InventoryItem,
-	type MenuItem,
-	type MenuSection,
-	type PourTargetMap,
-} from "../app/types.ts";
+import { parseGbp } from "../app/money.ts";
+import { type InventoryItem } from "../inventory/types.ts";
+import { hasRecipe, type MenuItem, type MenuSection, type PourTargetMap } from "../menu/types.ts";
 
 export type FlaggedRecipe = {
 	id: string;

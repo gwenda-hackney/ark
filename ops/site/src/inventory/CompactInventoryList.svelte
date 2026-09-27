@@ -1,9 +1,6 @@
 <script lang="ts">
-	import {
-		INVENTORY_KINDS,
-		formatGbp,
-		type InventoryItem,
-	} from "../app/types";
+	import { formatGbp } from "../app/money";
+	import { INVENTORY_KINDS, type InventoryItem } from "./types";
 
 	type GridRow = InventoryItem & { _id: string };
 

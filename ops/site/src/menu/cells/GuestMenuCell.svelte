@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { guestMenuLabel } from "../../app/types";
+	import { guestMenuLabel } from "../types";
 
 	let {
 		placement,

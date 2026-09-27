@@ -13,7 +13,8 @@
 		type RecipePriceAnalysis,
 		type ServePourReading,
 	} from "./cost";
-	import { formatGbp, hasRecipe, priceLabels } from "../app/types";
+	import { formatGbp } from "../app/money";
+	import { hasRecipe, priceLabels } from "./types";
 	import { Icon } from "../app/shell";
 	import PourSettingsDialog from "./PourSettingsDialog.svelte";
 

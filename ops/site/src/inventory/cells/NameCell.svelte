@@ -5,7 +5,7 @@
 	 */
 	import { hasRangeSelection } from "../../ui/grid";
 	import { inventoryItemPath } from "../../app/nav";
-	import type { InventoryItem } from "../../app/types";
+	import type { InventoryItem } from "../types";
 	import HighlightText from "../../ui/HighlightText.svelte";
 
 	let {

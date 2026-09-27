@@ -22,7 +22,8 @@
 	import { formatPourPercent } from "../menu/cost";
 	import { loginNext } from "../app/nav";
 	import { pourSettings } from "../config/settings.svelte";
-	import type { InventoryItem, MenuSection } from "../app/types";
+	import type { InventoryItem } from "../inventory/types";
+	import type { MenuSection } from "../menu/types";
 	import {
 		buildSyncMetrics,
 		formatWhen,

@@ -19,7 +19,8 @@
 		type MenuListItem,
 		type MenuListRow,
 	} from "./menu-list";
-	import type { InventoryItem, MenuItem, MenuSection } from "../app/types";
+	import type { InventoryItem } from "../inventory/types";
+	import type { MenuItem, MenuSection } from "./types";
 	import { pourSettings } from "../config/settings.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { Icon } from "../app/shell";

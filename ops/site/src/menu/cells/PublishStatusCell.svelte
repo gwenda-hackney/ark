@@ -1,10 +1,6 @@
 <script lang="ts">
 	import { Icon } from "../../app/shell";
-	import {
-		publishLiveLabel,
-		publishNotLive,
-		type ItemPublishState,
-	} from "../../app/types";
+	import { publishLiveLabel, publishNotLive, type ItemPublishState } from "../publish";
 
 	let {
 		publish,

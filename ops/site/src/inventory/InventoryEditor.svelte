@@ -12,17 +12,9 @@
 		TextField,
 	} from "../ui";
 	import type { SelectOption } from "../ui/types";
-	import {
-		INVENTORY_KINDS,
-		UNITS,
-		formatGbp,
-		skuFromProductUrl,
-		type CatalogSupplier,
-		type InventoryItem,
-		type InventoryKind,
-		type InventorySupplier,
-		type MenuSection,
-	} from "../app/types";
+	import { formatGbp } from "../app/money";
+	import { INVENTORY_KINDS, skuFromProductUrl, type CatalogSupplier, type InventoryItem, type InventoryKind, type InventorySupplier } from "./types";
+	import { UNITS, type MenuSection } from "../menu/types";
 	import { kindCostEstimate } from "../menu/cost";
 	import { Icon } from "../app/shell";
 	import { navigate } from "../app/nav";

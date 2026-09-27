@@ -12,12 +12,9 @@
 	import { inventoryAbvById, resolveIngredientAbv } from "./abv";
 	import { costIngredientLine } from "./cost";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
-	import {
-		UNITS,
-		formatGbp,
-		type Ingredient,
-		type InventoryItem,
-	} from "../app/types";
+	import { formatGbp } from "../app/money";
+	import { type InventoryItem } from "../inventory/types";
+	import { UNITS, type Ingredient } from "./types";
 	import IngredientNameCell from "./cells/IngredientNameCell.svelte";
 	import RemoveRowCell from "./cells/RemoveRowCell.svelte";
 	import IngredientPicker from "./IngredientPicker.svelte";

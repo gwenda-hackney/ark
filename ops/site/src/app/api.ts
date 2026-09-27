@@ -62,18 +62,18 @@ export function getMe() {
 export function getMenu() {
   return coalesce("menu", () =>
     request<{
-      sections: import("./types").MenuSection[];
-      posMenus?: import("./types").PosMenu[];
+      sections: import("../menu/types").MenuSection[];
+      posMenus?: import("../menu/types").PosMenu[];
     }>("/api/menu"),
   );
 }
 
 export function getPosMenus() {
-  return request<{ posMenus: import("./types").PosMenu[] }>("/api/pos-menus");
+  return request<{ posMenus: import("../menu/types").PosMenu[] }>("/api/pos-menus");
 }
 
 export function createPosMenu(body: { name: string; isDefault?: boolean }) {
-  return request<{ posMenu: import("./types").PosMenu }>("/api/pos-menus", {
+  return request<{ posMenu: import("../menu/types").PosMenu }>("/api/pos-menus", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -84,7 +84,7 @@ export function updatePosMenu(
   id: string,
   body: { name?: string; isDefault?: boolean; orderRank?: number },
 ) {
-  return request<{ posMenu: import("./types").PosMenu }>(
+  return request<{ posMenu: import("../menu/types").PosMenu }>(
     `/api/pos-menus/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -102,7 +102,7 @@ export function deletePosMenu(id: string) {
 }
 
 export function createSection(body: unknown) {
-  return request<{ section: import("./types").MenuSection }>(
+  return request<{ section: import("../menu/types").MenuSection }>(
     "/api/menu/sections",
     {
       method: "POST",
@@ -113,7 +113,7 @@ export function createSection(body: unknown) {
 }
 
 export function updateSection(id: string, body: unknown) {
-  return request<{ section: import("./types").MenuSection }>(
+  return request<{ section: import("../menu/types").MenuSection }>(
     `/api/menu/sections/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -131,7 +131,7 @@ export function deleteSection(id: string) {
 }
 
 export function createItem(body: unknown) {
-  return request<{ item: import("./types").MenuItem }>("/api/menu", {
+  return request<{ item: import("../menu/types").MenuItem }>("/api/menu", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -139,7 +139,7 @@ export function createItem(body: unknown) {
 }
 
 export function updateItem(id: string, body: unknown) {
-  return request<{ item: import("./types").MenuItem }>(
+  return request<{ item: import("../menu/types").MenuItem }>(
     `/api/menu/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -190,7 +190,7 @@ export async function uploadPhoto(form: FormData) {
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
     url?: string;
-    item?: import("./types").MenuItem;
+    item?: import("../menu/types").MenuItem;
   };
   if (!res.ok) throw new Error(data.error || "Upload failed.");
   return data;
@@ -203,7 +203,7 @@ export async function deletePhoto(itemId: string) {
   );
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
-    item?: import("./types").MenuItem;
+    item?: import("../menu/types").MenuItem;
   };
   if (!res.ok) throw new Error(data.error || "Could not remove photo.");
   return data;
@@ -213,12 +213,12 @@ export function getInventory(all = false) {
   const q = all ? "?all=1" : "";
   const key = all ? "inventory:all" : "inventory";
   return coalesce(key, () =>
-    request<{ items: import("./types").InventoryItem[] }>(`/api/inventory${q}`),
+    request<{ items: import("../inventory/types").InventoryItem[] }>(`/api/inventory${q}`),
   );
 }
 
 export function createInventoryItem(body: unknown) {
-  return request<{ item: import("./types").InventoryItem }>("/api/inventory", {
+  return request<{ item: import("../inventory/types").InventoryItem }>("/api/inventory", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -226,7 +226,7 @@ export function createInventoryItem(body: unknown) {
 }
 
 export function updateInventoryItem(id: string, body: unknown) {
-  return request<{ item: import("./types").InventoryItem }>(
+  return request<{ item: import("../inventory/types").InventoryItem }>(
     `/api/inventory/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -283,7 +283,7 @@ export function previewLightspeedCsv(
     }>;
   } = {},
 ) {
-  return request<import("./types").LightspeedPreview>(
+  return request<import("../inventory/types").LightspeedPreview>(
     "/api/inventory/lightspeed",
     {
       method: "POST",
@@ -305,14 +305,14 @@ export function previewLightspeedCsv(
 
 export function getSuppliers() {
   return coalesce("suppliers", () =>
-    request<{ suppliers: import("./types").CatalogSupplier[] }>(
+    request<{ suppliers: import("../inventory/types").CatalogSupplier[] }>(
       "/api/suppliers",
     ),
   );
 }
 
 export function createSupplier(body: unknown) {
-  return request<{ supplier: import("./types").CatalogSupplier }>(
+  return request<{ supplier: import("../inventory/types").CatalogSupplier }>(
     "/api/suppliers",
     {
       method: "POST",
@@ -323,7 +323,7 @@ export function createSupplier(body: unknown) {
 }
 
 export function updateSupplier(id: string, body: unknown) {
-  return request<{ supplier: import("./types").CatalogSupplier }>(
+  return request<{ supplier: import("../inventory/types").CatalogSupplier }>(
     `/api/suppliers/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -419,12 +419,12 @@ export function resendFormEmail(id: string, kind: FormEmailKind) {
 
 export function getOpsUsers() {
   return coalesce("users", () =>
-    request<{ users: import("./types").OpsUser[] }>("/api/users"),
+    request<{ users: import("../users/types").OpsUser[] }>("/api/users"),
   );
 }
 
 export function createOpsUser(body: unknown) {
-  return request<{ user: import("./types").OpsUser }>("/api/users", {
+  return request<{ user: import("../users/types").OpsUser }>("/api/users", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -432,7 +432,7 @@ export function createOpsUser(body: unknown) {
 }
 
 export function updateOpsUser(id: string, body: unknown) {
-  return request<{ user: import("./types").OpsUser }>(
+  return request<{ user: import("../users/types").OpsUser }>(
     `/api/users/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -463,19 +463,19 @@ export function analyzeRecipeNote(body: { item: unknown; analysis: unknown }) {
 export function getConfig() {
   return coalesce("config", () =>
     request<{
-      pourTargets: import("./types").PourTargetMap;
+      pourTargets: import("../menu/types").PourTargetMap;
       values: Record<string, string>;
     }>("/api/config"),
   );
 }
 
 export function updateConfig(body: {
-  pourTargets?: Partial<import("./types").PourTargetMap>;
+  pourTargets?: Partial<import("../menu/types").PourTargetMap>;
   reset?: boolean;
 }) {
   return request<{
     ok: boolean;
-    pourTargets: import("./types").PourTargetMap;
+    pourTargets: import("../menu/types").PourTargetMap;
   }>("/api/config", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

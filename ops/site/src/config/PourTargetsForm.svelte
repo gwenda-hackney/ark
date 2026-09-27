@@ -1,11 +1,6 @@
 <script lang="ts">
 	import { Button, Field, TextField } from "../ui";
-	import {
-		DRINK_TYPES,
-		POUR_TARGET_META,
-		type DrinkType,
-		type PourTargetMap,
-	} from "../app/types";
+	import { DRINK_TYPES, POUR_TARGET_META, type DrinkType, type PourTargetMap } from "../menu/types";
 	import {
 		pourSettings,
 		resetPourTargets,

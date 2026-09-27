@@ -24,19 +24,8 @@
 		rankByName,
 		serveBaseName,
 	} from "./lightspeed-stock.js";
-	import {
-		DRINK_TYPES,
-		GUEST_MENU_PLACEMENTS,
-		guestMenuFlags,
-		asGuestMenuPlacement,
-		type LightspeedCsvRow,
-		type LightspeedMatchRow,
-		type LightspeedOpsRow,
-		type LightspeedPreview,
-		type MenuSection,
-		type PosMenu,
-		defaultPosMenus,
-	} from "../app/types";
+	import { type LightspeedCsvRow, type LightspeedMatchRow, type LightspeedOpsRow, type LightspeedPreview } from "./types";
+	import { DRINK_TYPES, GUEST_MENU_PLACEMENTS, guestMenuFlags, asGuestMenuPlacement, type MenuSection, type PosMenu, defaultPosMenus } from "../menu/types";
 	import type { SelectOption, SegmentedItem } from "../ui/types";
 	import { RECONCILE_HELP } from "./lightspeed-help";
 

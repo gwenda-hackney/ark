@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { buildMenuListRows, sortMenuListRows } from "./menu-list.ts";
-import { DEFAULT_POUR_TARGETS } from "../app/types.ts";
+import { DEFAULT_POUR_TARGETS } from "./types.ts";
 
 describe("menu-list", () => {
 	it("builds a section header plus matching drinks", () => {

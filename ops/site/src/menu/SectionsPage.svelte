@@ -6,7 +6,7 @@
 	import { loginNext } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
-	import type { MenuSection } from "../app/types";
+	import type { MenuSection } from "./types";
 	import SectionsPanel from "./SectionsPanel.svelte";
 
 	let sections = $state<MenuSection[]>([]);

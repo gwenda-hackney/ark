@@ -13,8 +13,9 @@ import {
 	resolvePackVolume,
 	snapGbp,
 } from "./cost.ts";
-import { DEFAULT_POUR_TARGETS, UK_PINT_ML, defaultServeQuantity } from "../app/types.ts";
-import type { InventoryItem, MenuItem } from "../app/types.ts";
+import { DEFAULT_POUR_TARGETS, UK_PINT_ML, defaultServeQuantity } from "./types.ts";
+import type { InventoryItem } from "../inventory/types.ts";
+import type { MenuItem } from "./types.ts";
 
 describe("parseLabelVolumeMl", () => {
 	it("reads UK spirit bottles and beer cans", () => {

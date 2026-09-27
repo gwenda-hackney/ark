@@ -4,15 +4,11 @@
 	import { Button, BusyOverlay, SidePanel } from "../ui";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
-	import type {
-		DrinkType,
-		InventoryItem,
-		MenuItem,
-		MenuSection,
-		PosMenu,
-		PublishTarget,
-	} from "../app/types";
-	import { defaultPosMenus, publishPendingCount } from "../app/types";
+	import type { InventoryItem } from "../inventory/types";
+	import type { PublishTarget } from "./publish";
+	import type { DrinkType, MenuItem, MenuSection, PosMenu } from "./types";
+	import { publishPendingCount } from "./publish";
+	import { defaultPosMenus } from "./types";
 	import { Icon } from "../app/shell";
 	import {
 		loginNext,

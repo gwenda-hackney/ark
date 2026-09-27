@@ -3,7 +3,7 @@
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { countSectionItems } from "./menu-sections.js";
-	import type { MenuSection } from "../app/types";
+	import type { MenuSection } from "./types";
 	import { Icon } from "../app/shell";
 
 	let {

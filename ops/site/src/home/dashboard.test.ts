@@ -10,8 +10,9 @@ import {
 	targetGrossMargin,
 	summarizeDashboard,
 } from "./dashboard.ts";
-import { DEFAULT_POUR_TARGETS } from "../app/types.ts";
-import type { InventoryItem, MenuItem } from "../app/types.ts";
+import { DEFAULT_POUR_TARGETS } from "../menu/types.ts";
+import type { InventoryItem } from "../inventory/types.ts";
+import type { MenuItem } from "../menu/types.ts";
 
 const tradeSpirit: InventoryItem = {
 	id: "vr",

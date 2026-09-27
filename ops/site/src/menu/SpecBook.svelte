@@ -2,17 +2,8 @@
 	import { onMount } from "svelte";
 	import { Button, Segmented } from "../ui";
 	import type { SegmentedItem } from "../ui/types";
-	import {
-		DRINK_TYPES,
-		drinkTypeLabel,
-		formatPrices,
-		hasRecipe,
-		normalizeDrinkType,
-		type DrinkType,
-		type Ingredient,
-		type InventoryItem,
-		type MenuItem,
-	} from "../app/types";
+	import { type InventoryItem } from "../inventory/types";
+	import { DRINK_TYPES, drinkTypeLabel, formatPrices, hasRecipe, normalizeDrinkType, type DrinkType, type Ingredient, type MenuItem } from "./types";
 	import { computeRecipeAbv, formatAbv } from "./abv";
 	import { inventoryItemPath } from "../app/nav";
 	import { formatMethodHtml } from "./format-method";

@@ -8,7 +8,7 @@ import {
 	recipeSearchFields,
 	snippetAround,
 } from "./search.ts";
-import type { MenuItem } from "../app/types.ts";
+import type { MenuItem } from "../menu/types.ts";
 
 const ponente: MenuItem = {
 	_id: "ponente",
