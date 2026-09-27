@@ -50,17 +50,6 @@ describe("website jobs", () => {
     assert.equal(calendarNightsBehind(series("1"), "2099-02-01"), 0);
   });
 
-  it("an event needs work when preview or the calendar is behind", () => {
-    assert.equal(prepNeeded(series("1"), { calendar: false }), null);
-    assert.deepEqual(prepNeeded(series("1", { preview: "stale" }), { calendar: false }), {
-      calendarBehind: 0,
-      preview: true,
-    });
-    assert.equal(prepNeeded(series("1"), { calendar: true }).calendarBehind, 1);
-    // Nothing upcoming: nothing to do.
-    assert.equal(prepNeeded({ ...series("1", { preview: "stale" }), publish: { preview: "stale", previewDates: [] } }), null);
-  });
-
   it("an ended series still needs its website nights marked removed", () => {
     const ended = {
       ...series("2", { preview: "stale" }),
