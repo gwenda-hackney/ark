@@ -34,6 +34,11 @@
 	} from "./website-jobs.svelte";
 	import { preparePhoto } from "../ui/photo-prep";
 	import EventsList from "./EventsList.svelte";
+	import DeleteEventDialog from "./dialogs/DeleteEventDialog.svelte";
+	import DiscardDialog from "./dialogs/DiscardDialog.svelte";
+	import ReplaceNightDialog from "./dialogs/ReplaceNightDialog.svelte";
+	import ScopeDialog from "./dialogs/ScopeDialog.svelte";
+	import UpdateWebsiteDialog from "./dialogs/UpdateWebsiteDialog.svelte";
 	import { WEEKDAY_LABELS, formatClock, formatDate, repeatLabel } from "./event-labels";
 	import {
 		hasMeaningfulFraming,
@@ -2521,171 +2526,59 @@
 				</div>
 			</div>
 
-			<Dialog open={discardOpen} title="Discard unsaved changes?" onclose={cancelDiscard}>
-				<p class="delete-copy">
-					{discardKind === "reload"
-						? "Reload will discard unsaved changes."
-						: "You have edits that have not been saved. Close without saving?"}
-				</p>
-				{#snippet footer()}
-					<Button variant="outline" size="sm" type="button" onclick={cancelDiscard}>
-						Keep editing
-					</Button>
-					<Button variant="destructive" size="sm" type="button" onclick={confirmDiscard}>
-						Discard
-					</Button>
-				{/snippet}
-			</Dialog>
+			<DiscardDialog
+				open={discardOpen}
+				kind={discardKind}
+				oncancel={cancelDiscard}
+				onconfirm={confirmDiscard}
+			/>
 
-			<Dialog
+			<ScopeDialog
 				open={saveScopeOpen}
 				title="Which events should change?"
+				message="Choose how widely to apply these edits. Past events will not be changed."
+				onchoose={(scope) => saveOccurrenceWithScope(scope)}
 				onclose={() => (saveScopeOpen = false)}
-			>
-				<p class="delete-copy">
-					Choose how widely to apply these edits. Past events will not be changed.
-				</p>
-				<div class="scope-options">
-					<Button type="button" variant="outline" onclick={() => saveOccurrenceWithScope("this")}>
-						This event
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						onclick={() => saveOccurrenceWithScope("following")}
-					>
-						This and following
-					</Button>
-					<Button type="button" onclick={() => saveOccurrenceWithScope("all")}>
-						All future events
-					</Button>
-				</div>
-			</Dialog>
+			/>
 
-			<Dialog
-				open={replacePrompt !== null}
-				title={replacePrompt
-					? `${formatDate(replacePrompt.date)} already has ${replacePrompt.name}`
-					: ""}
+			<ReplaceNightDialog
+				prompt={replacePrompt}
+				eventName={name.trim() || "this event"}
+				{replacing}
+				onchoose={(replace) => void chooseConflict(replace)}
 				onclose={() => (replacePrompt = null)}
-			>
-				<p class="delete-copy">
-					Cancel that night and show {name.trim() || "this event"} instead, or keep both?
-				</p>
-				{#snippet footer()}
-					<Button
-						variant="outline"
-						size="sm"
-						type="button"
-						disabled={replacing}
-						onclick={() => void chooseConflict(false)}
-					>
-						Keep both
-					</Button>
-					<Button
-						size="sm"
-						type="button"
-						disabled={replacing}
-						busy={replacing}
-						onclick={() => void chooseConflict(true)}
-					>
-						Show {name.trim() || "this event"} instead
-					</Button>
-				{/snippet}
-			</Dialog>
+			/>
 
-			<Dialog
+			<ScopeDialog
 				open={deleteScopeOpen}
 				title="Which events should be deleted?"
+				message="Choose how widely to delete. Past events will not be changed."
+				alsoWebsite={onWebsite}
+				disabled={busy}
+				destructive
+				allBusy={saving && intent === "delete"}
+				onchoose={(scope) => void performDelete(scope)}
 				onclose={cancelDelete}
-			>
-				<p class="delete-copy">
-					Choose how widely to delete. Past events will not be changed.
-				</p>
-				{#if onWebsite}
-					<p class="also-website">It comes off the website too, straight away.</p>
-				{/if}
-				<div class="scope-options">
-					<Button
-						type="button"
-						variant="outline"
-						disabled={busy}
-						onclick={() => void performDelete("this")}
-					>
-						This event
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						disabled={busy}
-						onclick={() => void performDelete("following")}
-					>
-						This and following
-					</Button>
-					<Button
-						type="button"
-						variant="destructive"
-						disabled={busy}
-						busy={saving && intent === "delete"}
-						onclick={() => void performDelete("all")}
-					>
-						All future events
-					</Button>
-				</div>
-			</Dialog>
+			/>
 
-			<Dialog open={deleteOpen} title="Delete event?" onclose={cancelDelete}>
-				<p class="delete-copy">
-					Delete <strong>{name.trim() || "this event"}</strong>
-					{repeatUnit !== "none" ? " and its recurrence" : ""}? This cannot be undone.
-				</p>
-				{#if onWebsite}
-					<p class="also-website">It comes off the website too, straight away.</p>
-				{/if}
-				{#snippet footer()}
-					<Button variant="outline" size="sm" type="button" disabled={busy} onclick={cancelDelete}>
-						Cancel
-					</Button>
-					<Button
-						variant="destructive"
-						size="sm"
-						type="button"
-						disabled={busy}
-						busy={saving && intent === "delete"}
-						onclick={() => void performDelete("series")}
-					>
-						{saving && intent === "delete" ? "Deleting…" : "Delete"}
-					</Button>
-				{/snippet}
-			</Dialog>
+			<DeleteEventDialog
+				open={deleteOpen}
+				eventName={name.trim() || "this event"}
+				recurring={repeatUnit !== "none"}
+				{onWebsite}
+				{busy}
+				deleting={saving && intent === "delete"}
+				oncancel={cancelDelete}
+				onconfirm={() => void performDelete("series")}
+			/>
 
-			<Dialog
+			<UpdateWebsiteDialog
 				open={putOpen}
-				title="Update the website?"
-				onclose={() => {
-					if (!putting) putOpen = false;
-				}}
-			>
-				<p class="delete-copy">This changes gwenda.co.uk for everyone.</p>
-				{#if putError}
-					<p class="put-error">{putError}</p>
-				{/if}
-				{#snippet footer()}
-					<Button variant="outline" size="sm" type="button" disabled={putting} onclick={() => (putOpen = false)}>
-						Cancel
-					</Button>
-					<Button
-						variant="primary"
-						size="sm"
-						type="button"
-						busy={putting}
-						disabled={putting}
-						onclick={() => void confirmPutOnWebsite()}
-					>
-						Update website
-					</Button>
-				{/snippet}
-			</Dialog>
+				{putting}
+				error={putError}
+				onclose={() => (putOpen = false)}
+				onconfirm={() => void confirmPutOnWebsite()}
+			/>
 		</form>
 	{/if}
 	<BusyOverlay active={busy} label={busyLabel} />
@@ -2723,12 +2616,6 @@
 		font-size: var(--text-xs);
 		font-weight: 600;
 		text-decoration: none;
-	}
-
-	.scope-options {
-		display: grid;
-		gap: 0.625rem;
-		margin-top: 1rem;
 	}
 
 	.hint,
@@ -3591,8 +3478,7 @@
 	.hint,
 	.status,
 	.error,
-	.warnings,
-	.delete-copy {
+	.warnings {
 		margin: 0;
 	}
 
@@ -3742,26 +3628,6 @@
 
 	.panel-foot :global(.delete-btn) {
 		margin-right: auto;
-	}
-
-	.delete-copy {
-		font-size: 0.875rem;
-		line-height: 1.45;
-		color: var(--foreground);
-	}
-
-	.also-website {
-		margin: 0.85rem 0 0;
-		font-size: var(--text-sm);
-	}
-
-	.put-error {
-		margin: 0.75rem 0 0;
-		color: var(--destructive);
-	}
-
-	.delete-copy strong {
-		font-weight: 600;
 	}
 
 	@media (max-width: 900px) {
