@@ -288,6 +288,15 @@ export async function publishRelease(
 
   const plan = planRelease(entries, ids);
   const previewById = new Map(preview.map((doc) => [doc._id, doc]));
+  // Drafts that already match the website (a night restaged with no real
+  // change) have nothing to publish; drop them so no stray drafts remain (#56).
+  const scope = new Set(ids || previewById.keys());
+  const leftoverDrafts = preview
+    .filter((doc) => scope.has(doc._id) && !byId.has(doc._id) && doc._originalId === draftId(doc._id))
+    .map((doc) => doc._id);
+  for (let i = 0; i < leftoverDrafts.length; i += 50) {
+    await mutate(env, leftoverDrafts.slice(i, i + 50).map((id) => ({ delete: { id: draftId(id) } })));
+  }
   // Each document's publish and draft removal travel in the same transaction.
   for (let i = 0; i < plan.writes.length; i += 25) {
     await mutate(
