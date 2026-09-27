@@ -9,7 +9,7 @@ import {
   linkHasQuery,
   listAllRows,
   updateRow,
-} from "../../platform/baserow.js";
+} from "../../../../../shared/baserow.js";
 import {
   defaultPosMenuIds,
   mapPosMenuLinks,

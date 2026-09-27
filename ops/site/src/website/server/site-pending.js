@@ -16,7 +16,7 @@ import {
   pendingSince,
 } from "../../../../../shared/site-snapshot.js";
 import { readState as readConfigState, writeState as writeConfigState } from "../../../../../shared/config.js";
-import { listArtists } from "../../artists/server/artist-store.js";
+import { listArtists } from "../../../../../shared/artists.js";
 import { PREVIEW, sanityQuery } from "../../platform/sanity.js";
 import {
   buildEnvironment,

@@ -5,7 +5,7 @@
 import {
   baserowFetch,
   resolveOpsTableIds,
-} from "../../platform/baserow.js";
+} from "../../../../../shared/baserow.js";
 import { OPS_CONFIG_KEYS, getConfigString, siteEnvName } from "../../platform/config-store.js";
 import { resolveOccurrenceContent } from "./event-content.js";
 import { expandSeriesOccurrenceDates, todayIso } from "../event-recurrence.js";

@@ -35,7 +35,7 @@ import {
   TABLE_EVENT_DATES,
   TABLE_ARTISTS,
   TABLE_GUEST_ARTISTS,
-} from "../ops/site/src/platform/baserow.js";
+} from "../shared/baserow.js";
 import { GUEST_ARTIST_FIELDS } from "../ops/site/src/artists/server/guest-artists.js";
 import { artistFields, eventDateFields, eventFields, userFields } from "./lib/baserow-ops-schema.mjs";
 import {
@@ -45,11 +45,11 @@ import {
 import { parseEmailList } from "./lib/parse-email-list.mjs";
 import {
   looksLikeOnlyUrls,
-  parseProductUrl,
   SEED_SUPPLIERS,
   skuFromProductUrl,
   supplierFromUrl,
 } from "../ops/site/src/inventory/suppliers.js";
+import { parseProductUrl } from "../shared/web-address.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

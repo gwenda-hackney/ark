@@ -10,7 +10,7 @@ import { onRequestGet as callback } from "../../../functions/api/auth/callback.j
 import { onRequestGet as login } from "../../../functions/api/auth/login.js";
 import { onRequestGet as logout } from "../../../functions/api/auth/logout.js";
 import { AUTH_COOKIE_NAME, parseCookies, verifySessionToken } from "./auth.js";
-import { resetBaserowClientForTests } from "../../platform/baserow.js";
+import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
 import { resetUsersCacheForTests } from "../../users/server/user-store.js";
 
 const SECRET = "test-session-secret";

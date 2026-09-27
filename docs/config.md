@@ -128,7 +128,7 @@ A few rows are written by code, not people. Leave them alone:
 
 No Baserow workspace, database or table id is configured anywhere. They change when a database is recreated, so everything goes by name:
 
-- **Apps** use a database token. A token belongs to one workspace, so it decides the environment: the production tokens only see **Gwenda**, the dev tokens only **Gwenda Dev**. Tokens can't read database names, so the app finds its database by its tables (`DATABASE_FINGERPRINTS` in `ops/site/src/platform/baserow.js`: Menu Sections / Menu Items / Ingredients for Ops; Subscribers / Form Submissions for Website), then its tables by name. A token that sees two such databases is an error.
+- **Apps** use a database token. A token belongs to one workspace, so it decides the environment: the production tokens only see **Gwenda**, the dev tokens only **Gwenda Dev**. Tokens can't read database names, so the app finds its database by its tables (`DATABASE_FINGERPRINTS` in `shared/baserow.js`: Menu Sections / Menu Items / Ingredients for Ops; Subscribers / Form Submissions for Website), then its tables by name. A token that sees two such databases is an error.
 - **Scripts** (migrations, clones, setup) log in as `BASEROW_JWT_EMAIL` and find databases by workspace and database name (`DATABASES` in `scripts/lib/migrations.mjs`).
 
 The Baserow data tokens only exist per env (`__DEV` / `__PRODUCTION`), never as a shared value. That is what keeps a developer's machine off production data; there is no id check.
