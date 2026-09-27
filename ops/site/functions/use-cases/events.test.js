@@ -140,6 +140,15 @@ function liveNights(world) {
     .sort();
 }
 
+/** Night documents the preview shows (drafts over live, minus nights marked removed). */
+function previewNights(world) {
+  return world.sanity
+    .view("previewDrafts")
+    .filter((doc) => doc._type === "event" && !doc.removed)
+    .map((doc) => doc.date)
+    .sort();
+}
+
 describe("events: creating", () => {
   let world;
   let ops;
@@ -293,12 +302,14 @@ describe("events: editing", () => {
     assert.notEqual(byDate.get(first).title, "Grandmaster night");
   });
 
-  // Known bug #57: the old date stays live after Update website.
-  it("moving a night takes it off its old date", { todo: "known bug #57" }, async () => {
+  it("moving a night takes it off its old date", async () => {
     const [, second] = liveNights(world);
     const moved = addDays(second, 1);
     await ops.editNight(event, second, { date: moved });
     await ops.waitUntilReady(event);
+    assert.ok(previewNights(world).includes(moved), "preview: on the new date");
+    assert.ok(!previewNights(world).includes(second), "preview: off the old date");
+    assert.ok(liveNights(world).includes(second), "live site unchanged until Update website");
     await ops.updateWebsite(event);
     const nights = liveNights(world);
     assert.ok(nights.includes(moved), "on the new date");
