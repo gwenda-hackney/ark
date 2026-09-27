@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { OpsEvent } from "./api.ts";
+import type { OpsEvent, OpsEventOccurrence } from "./api.ts";
 import {
 	compareSeriesByWeekday,
 	countEventScheduleRows,
@@ -26,15 +26,30 @@ function event(
 		id,
 		name,
 		artist: "",
+		offer: "",
+		pageUrl: "",
 		description: "",
+		shortDescription: "",
+		nightSchedule: [],
+		operationsNotes: "",
+		imageLinks: [],
 		startsOn: dates[0] || "",
+		time: "",
+		startTime: "",
+		endTime: "",
 		repeatEvery: 1,
 		repeatUnit: "week",
 		weekdays: [],
 		monthDay: 0,
 		endsOn: "",
+		skippedDates: [],
+		extraDates: [],
 		slug: id,
+		replacesSeries: "",
+		driveFolderId: "",
+		driveFolderUrl: "",
 		mainImage: null,
+		heroCrops: null,
 		images: [],
 		dates: [],
 		publish: {
@@ -42,6 +57,40 @@ function event(
 			live: "unpublished",
 			nextDate: dates[0] || "",
 			previewDates: dates,
+		},
+	};
+}
+
+/** A night row with empty overrides; `overrides` fills in the ones a test needs. */
+function night(
+	id: string,
+	date: string,
+	slug: string,
+	overrides: Partial<OpsEventOccurrence["overrides"]> = {},
+	isSpecialEdition = false,
+): OpsEventOccurrence {
+	return {
+		id,
+		date,
+		slug,
+		sanityId: "",
+		clickupTaskId: "",
+		isSpecialEdition,
+		overrides: {
+			name: "",
+			artist: "",
+			offer: "",
+			description: "",
+			shortDescription: "",
+			time: "",
+			startTime: "",
+			endTime: "",
+			nightSchedule: null,
+			operationsNotes: "",
+			imageLinks: [],
+			image: null,
+			heroCrops: null,
+			...overrides,
 		},
 	};
 }
@@ -84,46 +133,8 @@ describe("groupEventSchedule", () => {
 				{
 					...event("fri", "Music Friday", ["2026-09-25"]),
 					dates: [
-						{
-							id: "1",
-							date: "2026-09-25",
-							slug: "a",
-							sanityId: "",
-							clickupTaskId: "",
-							isSpecialEdition: false,
-							overrides: {
-								name: "",
-								artist: "",
-								offer: "",
-								description: "",
-								time: "",
-								startTime: "",
-								endTime: "",
-								operationsNotes: "",
-								imageLinks: [],
-								image: null,
-							},
-						},
-						{
-							id: "2",
-							date: "2026-09-25",
-							slug: "b",
-							sanityId: "",
-							clickupTaskId: "",
-							isSpecialEdition: false,
-							overrides: {
-								name: "",
-								artist: "",
-								offer: "",
-								description: "",
-								time: "",
-								startTime: "",
-								endTime: "",
-								operationsNotes: "",
-								imageLinks: [],
-								image: null,
-							},
-						},
+						night("1", "2026-09-25", "a"),
+						night("2", "2026-09-25", "b"),
 					],
 					repeatUnit: "none",
 					startsOn: "2026-09-25",
@@ -205,7 +216,7 @@ describe("paginateEventSchedule", () => {
 
 describe("compareSeriesByWeekday", () => {
 	it("orders series Monday to Sunday, with Gwenda Nights on Saturday", () => {
-		const rows = [
+		const rows: OpsEvent[] = [
 			event("fri", "Music Friday", ["2026-09-25"]),
 			{
 				...event("gn", "Gwenda Nights", ["2026-09-26"]),
@@ -288,27 +299,7 @@ describe("seriesNextNightLabel", () => {
 		const row = {
 			...event("nights", "Gwenda Nights", ["2026-10-10", "2026-10-31"]),
 			dates: [
-				{
-					id: "1",
-					date: "2026-10-10",
-					slug: "vbrave",
-					sanityId: "",
-					clickupTaskId: "",
-					isSpecialEdition: false,
-					overrides: {
-						name: "Vbrave Vinyl Session",
-						artist: "",
-						offer: "",
-						description: "",
-						time: "",
-						startTime: "",
-						endTime: "",
-						operationsNotes: "",
-						imageLinks: [],
-						image: null,
-						heroCrops: null,
-					},
-				},
+				night("1", "2026-10-10", "vbrave", { name: "Vbrave Vinyl Session" }),
 			],
 		};
 		assert.equal(seriesNextNightLabel(row), "Vbrave Vinyl Session");
@@ -318,48 +309,8 @@ describe("seriesNextNightLabel", () => {
 		const row = {
 			...event("nights", "Gwenda Nights", ["2026-10-10", "2026-10-31"]),
 			dates: [
-				{
-					id: "1",
-					date: "2026-10-10",
-					slug: "vbrave",
-					sanityId: "",
-					clickupTaskId: "",
-					isSpecialEdition: false,
-					overrides: {
-						name: "",
-						artist: "",
-						offer: "",
-						description: "",
-						time: "",
-						startTime: "",
-						endTime: "",
-						operationsNotes: "",
-						imageLinks: [],
-						image: null,
-						heroCrops: null,
-					},
-				},
-				{
-					id: "2",
-					date: "2026-10-31",
-					slug: "halloween",
-					sanityId: "",
-					clickupTaskId: "",
-					isSpecialEdition: true,
-					overrides: {
-						name: "Halloween",
-						artist: "Saif",
-						offer: "",
-						description: "",
-						time: "",
-						startTime: "",
-						endTime: "",
-						operationsNotes: "",
-						imageLinks: [],
-						image: null,
-						heroCrops: null,
-					},
-				},
+				night("1", "2026-10-10", "vbrave"),
+				night("2", "2026-10-31", "halloween", { name: "Halloween", artist: "Saif" }, true),
 			],
 		};
 		assert.equal(seriesNextNightLabel(row), "");

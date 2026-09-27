@@ -13,6 +13,7 @@
 		id = undefined,
 		disabled = false,
 		class: className = "",
+		"aria-label": ariaLabel = undefined,
 		onchange,
 	}: {
 		value?: string;
@@ -21,6 +22,7 @@
 		id?: string;
 		disabled?: boolean;
 		class?: string;
+		"aria-label"?: string;
 		onchange?: (e: { currentTarget: { value: string } }) => void;
 	} = $props();
 
@@ -156,6 +158,7 @@
 		class="trigger {size}"
 		{id}
 		{disabled}
+		aria-label={ariaLabel}
 		aria-haspopup="listbox"
 		aria-expanded={open}
 		onclick={() => void setOpen(!open)}

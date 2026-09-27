@@ -3,6 +3,11 @@
  * Baserow stores a flat table plus Parent; this is the nested model the app uses.
  */
 
+/**
+ * @template {{ subsections?: T[] }} T
+ * @param {T[] | null | undefined} sections
+ * @returns {T[]}
+ */
 export function flattenMenuSections(sections) {
   return (sections || []).flatMap((section) => [
     section,

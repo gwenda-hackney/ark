@@ -23,21 +23,17 @@
 		showReset?: boolean;
 	} = $props();
 
-	let draft = $state<Record<DrinkType, string>>({
-		cocktail: String(pourSettings.targets.cocktail),
-		pour: String(pourSettings.targets.pour),
-		beer: String(pourSettings.targets.beer),
-		packaged: String(pourSettings.targets.packaged),
-	});
+	/** Every drink type's target as text, so a new type can't be left out. */
+	function draftFrom(targets: PourTargetMap): Record<DrinkType, string> {
+		return Object.fromEntries(
+			DRINK_TYPES.map((row) => [row.value, String(targets[row.value])]),
+		) as Record<DrinkType, string>;
+	}
+
+	let draft = $state<Record<DrinkType, string>>(draftFrom(pourSettings.targets));
 
 	function syncDraft() {
-		const targets = pourSettings.targets;
-		draft = {
-			cocktail: String(targets.cocktail),
-			pour: String(targets.pour),
-			beer: String(targets.beer),
-			packaged: String(targets.packaged),
-		};
+		draft = draftFrom(pourSettings.targets);
 	}
 
 	$effect(() => {

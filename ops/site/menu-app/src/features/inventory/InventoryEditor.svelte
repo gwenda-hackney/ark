@@ -561,7 +561,7 @@
 								const n = Number(raw.replace(/[£,\s]/g, ""));
 								patch(
 									"estimatedCost",
-									Number.isFinite(n) ? n : item.estimatedCost,
+									Number.isFinite(n) ? n : item?.estimatedCost,
 								);
 							}}
 						/>
@@ -579,6 +579,7 @@
 							placeholder="0"
 							value={item.actualQty != null ? String(item.actualQty) : ""}
 							oninput={(e) => {
+								if (!item) return;
 								const raw = (e.currentTarget as HTMLInputElement).value.trim();
 								if (!raw) {
 									patch("actualQty", undefined);

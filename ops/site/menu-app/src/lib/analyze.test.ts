@@ -287,7 +287,7 @@ describe("Gwenda description vs St-Germain", () => {
 	it("reads full name even when the recipe line is not linked by id", () => {
 		const unlinked = {
 			...gwenda,
-			ingredients: gwenda.ingredients.map((ing) =>
+			ingredients: (gwenda.ingredients || []).map((ing) =>
 				ing.inventoryId === "sg" ? { name: "St. Germain", quantity: 10, unit: "ml" } : ing,
 			),
 		};
@@ -304,7 +304,7 @@ describe("Gwenda description vs St-Germain", () => {
 	it("still uses inventory full name for bottles without a brand alias", () => {
 		const renamed = {
 			...gwenda,
-			ingredients: gwenda.ingredients.map((ing) =>
+			ingredients: (gwenda.ingredients || []).map((ing) =>
 				ing.inventoryId === "sg"
 					? { ...ing, name: "Maison Fleur" }
 					: ing,
