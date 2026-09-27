@@ -1,5 +1,5 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
-import { deleteArtist, getArtist, updateArtist } from "../../../src/features/artists/server/artist-store.js";
+import { deleteArtist, getArtist, updateArtist } from "../../../src/artists/server/artist-store.js";
 
 function artistId(context) {
   return decodeURIComponent(context.params?.id || "");

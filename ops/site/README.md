@@ -9,13 +9,15 @@ Live: [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)
 
 ```
 ops/site/                 one package: @gwenda/ops
-├── src/
-│   ├── features/<feature>/   screens and pure logic; server/ holds that feature's
-│   │                         Baserow, Sanity and Google code (Functions only)
-│   ├── platform/             server building blocks: Baserow, Sanity, Google, HTTP, log, config
-│   ├── app/                  routing shared by the app and the middleware (spa-path)
-│   ├── testing/              the fake world for use-case tests
-│   └── lib/ ui/ shell/ theme/   app code (lib/ is being split into features, #64)
+├── src/                  one folder per part of ops, plus four shared ones
+│   ├── events/  menu/  inventory/  artists/  forms/  users/
+│   ├── website/  config/  home/  access/ (sign-in)
+│   │     each holds its screens (.svelte), logic (.ts/.js) and tests (*.test.*);
+│   │     server/ inside it holds its Baserow, Sanity and Google code (Functions only)
+│   ├── app/              App.svelte, main.ts, shell/, navigation, routing, API client, types
+│   ├── ui/               shared components (grid, fields, dialogs, toast…) and theme/
+│   ├── platform/         server building blocks: Baserow, Sanity, Google, HTTP, log, config
+│   └── testing/          the fake world for use-case tests
 ├── functions/            Pages Functions routes only: middleware and /api/*, calling src/
 ├── public/               served as-is: gate/ (sign-in page), icons, robots.txt
 ├── dist/                 build output (gitignored): `npm run build`, deployed by CI
@@ -23,7 +25,11 @@ ops/site/                 one package: @gwenda/ops
 └── wrangler.toml / wrangler.dev.toml
 ```
 
-**Rules:** code outside a `server/` folder (and outside `platform/` and `testing/`) may be imported by the app, so it must be pure: no `fetch`, no `env`. The app never imports `server/` or `platform/`. Tests sit next to the code. Moving the rest of the app into feature folders: [#64](https://github.com/gwenda-hackney/ark/issues/64).
+**Rules**
+- New code goes in the folder of the part of ops it belongs to; there is no catch-all `lib/`.
+- The app never imports `server/` or `platform/`. Code outside them may be imported by the app, so it must be pure: no `fetch`, no `env`.
+- Tests sit next to the code they test; each area's `use-cases.test.js` covers what an editor does ([docs/testing.md](../../docs/testing.md)).
+- Code another app needs (website, scripts) moves to `/shared` rather than being imported from here ([#64](https://github.com/gwenda-hackney/ark/issues/64)).
 
 ## Shell
 
@@ -84,7 +90,7 @@ No code change is needed. Google sign-in proves who someone is; an active row in
 1. **Google Cloud → OAuth consent screen** (not the OAuth client): set User type from **Internal** to **External**. Scopes stay `openid email profile`, so no sensitive-scope verification. While the app is in **Testing**, add the Gmail as a test user; publishing the app removes the test-user cap. Don't change the client id, secret or redirect URIs.
 2. **Ops → `/users`:** add their Google email with **Active** on. Without the row, sign-in ends in a 403 with no session.
 
-Where it's enforced: `api/auth/callback.js` checks `isOpsUser` before setting a session, `_middleware.js` checks again on every request, and `src/features/users/server/user-store.js` reads Users (cached 30 seconds). The authorize URL in `src/features/access/server/google-oauth.js` doesn't lock a Workspace domain. Deactivating someone at `/users` cuts them off on their next request.
+Where it's enforced: `api/auth/callback.js` checks `isOpsUser` before setting a session, `_middleware.js` checks again on every request, and `src/users/server/user-store.js` reads Users (cached 30 seconds). The authorize URL in `src/access/server/google-oauth.js` doesn't lock a Workspace domain. Deactivating someone at `/users` cuts them off on their next request.
 
 There are no roles: an active user sees all of ops (recipes and trade prices, form submissions, events, website release, and `/users` itself). Only add people who should see all of that.
 

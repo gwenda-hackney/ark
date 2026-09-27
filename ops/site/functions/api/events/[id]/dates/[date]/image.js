@@ -2,7 +2,7 @@ import { jsonResponse, withApiHandler } from "../../../../../../src/platform/htt
 import {
   clearOccurrenceImage,
   setOccurrenceImage,
-} from "../../../../../../src/features/events/server/event-store.js";
+} from "../../../../../../src/events/server/event-store.js";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([

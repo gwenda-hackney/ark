@@ -1,5 +1,5 @@
 import { withApiHandler } from "../../../../../src/platform/http.js";
-import { ensureEventGalleryFolder } from "../../../../../src/features/events/server/event-store.js";
+import { ensureEventGalleryFolder } from "../../../../../src/events/server/event-store.js";
 import {
   downloadDriveFile,
   downloadDriveThumbnail,

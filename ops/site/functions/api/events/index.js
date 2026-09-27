@@ -1,6 +1,6 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
-import { createEvent, listEvents } from "../../../src/features/events/server/event-store.js";
-import { withWebsiteStatus } from "../../../src/features/events/server/event-publish.js";
+import { createEvent, listEvents } from "../../../src/events/server/event-store.js";
+import { withWebsiteStatus } from "../../../src/events/server/event-publish.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const events = await withWebsiteStatus(context.env, await listEvents(context.env));

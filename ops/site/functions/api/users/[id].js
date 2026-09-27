@@ -1,5 +1,5 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
-import { deleteOpsUser, updateOpsUser } from "../../../src/features/users/server/user-store.js";
+import { deleteOpsUser, updateOpsUser } from "../../../src/users/server/user-store.js";
 
 export const onRequestPatch = withApiHandler(async (context) => {
   const id = context.params?.id;

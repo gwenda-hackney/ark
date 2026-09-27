@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { highlightParts } from "../lib/search";
+	import { highlightParts } from "./search";
 
 	let {
 		text = "",

@@ -6,15 +6,15 @@ import {
 import {
   attachCalendarWarnings,
   syncSeriesCalendar,
-} from "../../../../../src/features/events/server/event-calendar-sync.js";
+} from "../../../../../src/events/server/event-calendar-sync.js";
 import {
   deleteOccurrences,
   ensureOccurrence,
   getEvent,
   occurrenceDeleteTargets,
   updateOccurrenceContent,
-} from "../../../../../src/features/events/server/event-store.js";
-import { removeEventFromWebsite, unpublishOccurrences } from "../../../../../src/features/events/server/event-publish.js";
+} from "../../../../../src/events/server/event-store.js";
+import { removeEventFromWebsite, unpublishOccurrences } from "../../../../../src/events/server/event-publish.js";
 
 function params(context) {
   return {

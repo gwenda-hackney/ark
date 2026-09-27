@@ -3,7 +3,7 @@
 	 * Fixed toast stack. Outcomes only — in-flight work uses BusyOverlay.
 	 */
 	import { fly } from "svelte/transition";
-	import { dismiss, getToasts } from "../lib/toast.svelte";
+	import { dismiss, getToasts } from "./toast.svelte";
 	import { portal } from "./portal";
 
 	function easeOut(t: number): number {

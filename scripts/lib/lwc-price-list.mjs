@@ -1,7 +1,7 @@
 /**
  * LWC customer price list (CSV export) → { sku: { name, pack, price } }.
  */
-import { parseMoney } from "../../ops/site/src/features/inventory/suppliers.js";
+import { parseMoney } from "../../ops/site/src/inventory/suppliers.js";
 
 const SKU_RE = /^[A-Z]{2,4}[A-Z0-9]*\d+$/;
 const PACK_RE = /^(KEG\S+|CASE\d+|BOTTLE)$/i;

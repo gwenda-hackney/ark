@@ -4,8 +4,8 @@ import {
   forgetGalleryStaged,
   galleryFingerprint,
   readGalleryStaged,
-} from "../../../../src/features/events/server/event-gallery.js";
-import { ensureEventGalleryFolder } from "../../../../src/features/events/server/event-store.js";
+} from "../../../../src/events/server/event-gallery.js";
+import { ensureEventGalleryFolder } from "../../../../src/events/server/event-store.js";
 import {
   isDriveImage,
   isHeroDriveFileName,

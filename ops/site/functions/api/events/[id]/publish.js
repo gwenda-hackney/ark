@@ -1,11 +1,11 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../../src/platform/http.js";
-import { attachCalendarWarnings } from "../../../../src/features/events/server/event-calendar-sync.js";
+import { attachCalendarWarnings } from "../../../../src/events/server/event-calendar-sync.js";
 import {
   previewEventOnWebsite,
   publishEventPreview,
   putEventOnWebsite,
   withWebsiteStatus,
-} from "../../../../src/features/events/server/event-publish.js";
+} from "../../../../src/events/server/event-publish.js";
 import { assertSanityWritable } from "../../../../src/platform/sanity.js";
 
 function eventId(context) {
