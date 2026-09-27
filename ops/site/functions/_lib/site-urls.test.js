@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import { buildEnvironment } from "./site-deploy.js";
 import { runsOnMachine } from "./sanity.js";
 import { siteUrls } from "./site-urls.js";

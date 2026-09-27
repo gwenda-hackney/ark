@@ -41,7 +41,8 @@ jobs:
             ops:
               - 'ops/site/**'
               - 'shared/**'
-              - 'scripts/lib/**'
+              - 'scripts/**'
+              - 'vitest.config.js'
               - 'package-lock.json'
               - '.github/workflows/pr.yml'
 
@@ -96,6 +97,9 @@ jobs:
 
       - name: Unit tests
         run: npm test -w @gwenda/ops
+
+      - name: Shared and scripts tests
+        run: npm run test:shared
 
       # Reports only until the existing errors are cleared (#22); then this
       # becomes required.

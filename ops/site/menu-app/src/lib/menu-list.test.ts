@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { buildMenuListRows, sortMenuListRows } from "./menu-list.ts";
 import { DEFAULT_POUR_TARGETS } from "./types.ts";
 

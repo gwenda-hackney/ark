@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { afterEach, describe, it, vi } from "vitest";
 import { resetBaserowClientForTests } from "./baserow.js";
 import {
   createArtist,
@@ -12,7 +12,7 @@ import {
 import { jsonResponse, mockOpsBaserow, opsCatalogTables } from "./test-baserow-mock.js";
 
 afterEach(() => {
-  mock.restoreAll();
+  vi.restoreAllMocks();
   resetBaserowClientForTests();
 });
 
@@ -52,16 +52,13 @@ describe("mapArtist / orderArtists", () => {
 
 describe("listArtists / createArtist / deleteArtist", () => {
   it("returns an empty list when the table has no slotted rows", async () => {
-    mock.method(
-      globalThis,
-      "fetch",
-      mockOpsBaserow(async () => jsonResponse({ results: [] })),
-    );
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      mockOpsBaserow(async () => jsonResponse({ results: [] })));
     assert.deepEqual(await listArtists(tableEnv), []);
   });
 
   it("fails when the Artists table is missing", async () => {
-    mock.method(globalThis, "fetch", async (input) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation( async (input) => {
       const url = String(input);
       if (url.includes("/tables/all-tables/")) {
         return jsonResponse(
@@ -78,9 +75,7 @@ describe("listArtists / createArtist / deleteArtist", () => {
 
   it("moves the current artist to previous when someone else takes that badge", async () => {
     const patches = [];
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init, url) => {
         const method = init?.method || "GET";
         if (method === "PATCH") {
@@ -104,8 +99,7 @@ describe("listArtists / createArtist / deleteArtist", () => {
           });
         }
         return jsonResponse({ results: [row({ id: 4, Name: "Rita Matos" })] });
-      }),
-    );
+      }));
     const created = await createArtist(tableEnv, {
       name: "New Guest",
       artistName: "Rita",
@@ -126,17 +120,14 @@ describe("listArtists / createArtist / deleteArtist", () => {
 
   it("deletes a previous artist by id", async () => {
     let deleted = "";
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init, url) => {
         if ((init?.method || "GET") === "DELETE") {
           deleted = url;
           return jsonResponse({});
         }
         return jsonResponse(row({ id: 8, Name: "Ada", Slot: "previous" }));
-      }),
-    );
+      }));
     const result = await deleteArtist(tableEnv, "8");
     assert.deepEqual(result, { ok: true, id: "8" });
     assert.match(deleted, /\/rows\/table\/66\/8\//);
@@ -150,9 +141,7 @@ describe("setArtistImage", () => {
       Portrait: [{ name: "face.jpg", url: "https://files.example/face.jpg" }],
       Art: [{ name: "one.jpg", url: "https://files.example/one.jpg" }],
     });
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init, url) => {
         if (url.includes("/upload-file/")) {
           return jsonResponse({ name: "two.jpg", url: "https://files.example/two.jpg" });
@@ -169,8 +158,7 @@ describe("setArtistImage", () => {
           });
         }
         return jsonResponse(stored);
-      }),
-    );
+      }));
     const artist = await setArtistImage(tableEnv, "7", new Uint8Array([1, 2]), {
       filename: "two.jpg",
       contentType: "image/jpeg",

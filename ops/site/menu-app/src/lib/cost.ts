@@ -100,8 +100,6 @@ export function isVariableKind(kind: InventoryKind | undefined): boolean {
 	return kindCostEstimate(kind).variable;
 }
 
-export type PackVolumeSource = "pack-code" | "label" | "kind-default";
-
 export type PackVolume = {
 	units: number;
 	unitMl: number | null;

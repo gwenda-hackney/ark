@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import {
   PRINT_MENU_CHAPTERS,
   PRINT_MENU_SECTION_SLUGS,
