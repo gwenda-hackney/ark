@@ -292,6 +292,22 @@ export function ensureBwsInstalled() {
   return binPath;
 }
 
+/** True when bws failed because Secrets Manager rate-limited us (HTTP 429). */
+export function isSmRateLimited(detail) {
+  return /\b429\b|Too Many Requests|Slow down/i.test(String(detail || ""));
+}
+
+/** Waits before retry `attempt` (1-based) after a 429: 1.5s, 3s, 6s, 12s. */
+export function smRetryDelayMs(attempt) {
+  return 1500 * 2 ** (attempt - 1);
+}
+
+const SM_MAX_RETRIES = 4;
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
 export function runBws(args, { accessToken, serverUrl } = {}) {
   const bin = ensureBwsInstalled();
   const token = accessToken || resolveSmAccessToken();
@@ -305,16 +321,24 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
     process.env.BWS_SERVER_URL ||
     DEFAULT_SM_SERVER
   ).replace(/\/$/, "");
-  const result = spawnSync(
-    bin,
-    ["-t", token, "-u", server, "-o", "json", ...args],
-    { encoding: "utf8", env: process.env, stdio: ["pipe", "pipe", "pipe"] },
-  );
-  if (result.status !== 0) {
+  // Several projects are listed back to back, and SM answers 429 ("Slow
+  // down! ... Try again in 1s") to bursts: wait and retry instead of failing.
+  let result;
+  for (let attempt = 0; ; attempt += 1) {
+    result = spawnSync(
+      bin,
+      ["-t", token, "-u", server, "-o", "json", ...args],
+      { encoding: "utf8", env: process.env, stdio: ["pipe", "pipe", "pipe"] },
+    );
+    if (result.status === 0) break;
     const detail = [result.stderr, result.stdout]
       .filter(Boolean)
       .join("\n")
       .trim();
+    if (attempt < SM_MAX_RETRIES && isSmRateLimited(detail)) {
+      sleepSync(smRetryDelayMs(attempt + 1));
+      continue;
+    }
     throw new Error(detail || `bws ${args.join(" ")} failed`);
   }
   const out = (result.stdout ?? "").trim();
