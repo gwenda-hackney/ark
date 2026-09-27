@@ -2,11 +2,7 @@
  * House pour-cost targets from the Baserow config database (via /api/config).
  * Defaults match the drink-type model until the first successful load.
  */
-import {
-	DEFAULT_POUR_TARGETS,
-	normalizePourTargets,
-	type PourTargetMap,
-} from "../app/types.ts";
+import { DEFAULT_POUR_TARGETS, normalizePourTargets, type PourTargetMap } from "../menu/types.ts";
 import * as api from "../app/api.ts";
 
 export const pourSettings = $state({

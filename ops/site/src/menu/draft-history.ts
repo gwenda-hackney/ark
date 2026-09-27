@@ -1,4 +1,4 @@
-import { normalizeDrinkType, type Ingredient, type MenuItem } from "../app/types.ts";
+import { normalizeDrinkType, type Ingredient, type MenuItem } from "./types.ts";
 import { parseStoredAnalyzeNote } from "./analyze-note.js";
 
 export const MAX_UNDO = 80;

@@ -1,3 +1,6 @@
+import type { LightspeedStatus } from "../inventory/types";
+import type { ItemPublishState } from "./publish";
+
 export type Ingredient = {
   id?: number | string;
   quantity?: string | number | null;
@@ -9,7 +12,6 @@ export type Ingredient = {
   /** Shared inventory catalog row, when picked from stock. */
   inventoryId?: string;
 };
-
 /** Guest menu line from ingredient names (no quantities). */
 export function flattenIngredientsForMenu(
 	ingredients: Ingredient[] | undefined | null,
@@ -20,163 +22,13 @@ export function flattenIngredientsForMenu(
 		.filter(Boolean)
 		.join(", ");
 }
-
-export type InventoryKind =
-  | "liquor"
-  | "liqueur"
-  | "wine"
-  | "beer"
-  | "syrup"
-  | "juice"
-  | "bitter"
-  | "mixer"
-  | "garnish"
-  | "other";
-
-export const INVENTORY_KINDS: { value: InventoryKind; label: string }[] = [
-  { value: "liquor", label: "Liquor" },
-  { value: "liqueur", label: "Liqueur" },
-  { value: "wine", label: "Wine" },
-  { value: "beer", label: "Beer" },
-  { value: "syrup", label: "Syrup" },
-  { value: "juice", label: "Juice" },
-  { value: "bitter", label: "Bitter" },
-  { value: "mixer", label: "Mixer" },
-  { value: "garnish", label: "Garnish" },
-  { value: "other", label: "Other" },
-];
-
-export type InventorySupplier = {
-  _id?: string;
-  supplierId?: string;
-  name: string;
-  /** Product page on that supplier's site, when we have one. */
-  productUrl?: string;
-  /** Wholesaler product code, e.g. SPA47010. */
-  sku?: string;
-  /** Order unit from the price list: BOTTLE, CASE24, KEG30L. */
-  pack?: string;
-  /** Trade price in GBP for one pack. */
-  price?: number;
-};
-
-/** Wholesaler row in the Suppliers table. */
-export type CatalogSupplier = {
-  _id?: string;
-  id?: string;
-  name: string;
-  website?: string;
-  notes?: string;
-  /** Inventory links using this supplier. */
-  itemCount?: number;
-};
-
-export type InventoryItem = {
-  _id?: string;
-  id?: string;
-  /** Short bar name, e.g. St-Germain. */
-  name?: string;
-  /** Product name on the bottle, e.g. St-Germain elderflower liqueur. */
-  fullName?: string;
-  kind?: InventoryKind;
-  abv?: string;
-  defaultUnit?: string;
-  /**
-   * Stand-in pack cost in GBP when no supplier price exists.
-   * Volume kinds: typical bottle or litre. Count kinds: one piece.
-   */
-  estimatedCost?: number;
-  /** One row per supplier. Product URL lives on the junction, not the catalog. */
-  suppliers?: InventorySupplier[];
-  notes?: string;
-  active?: boolean;
-  /** POS item SKU in Lightspeed K-Series. Not the wholesaler code. */
-  lightspeedSku?: string;
-  /** On-hand quantity from a Lightspeed count, or a manual correction. */
-  actualQty?: number;
-  actualUnit?: string;
-  /** ISO timestamp of the last count (Lightspeed apply or a qty edit). */
-  countedAt?: string;
-};
-
-export type LightspeedStatus = "matched" | "mismatch" | "missing";
-
-export type LightspeedCsvRow = {
-  key?: string;
-  sku?: string;
-  name?: string;
-  quantity?: number | null;
-  unit?: string;
-  type?: string;
-  accountingGroup?: string;
-  defaultPrice?: number | null;
-  menuScreen?: string;
-  statisticsGroup?: string;
-  buttonName?: string;
-  suggestedDrinkType?: DrinkType;
-  suggestedPrice?: string;
-  role?: "sellable" | "stock" | "system";
-  packageContent?: string | number;
-};
-
-export type LightspeedOpsRow = {
-  id?: string;
-  name?: string;
-  drinkType?: DrinkType;
-  price?: string;
-  lightspeedSku?: string;
-  lightspeedName?: string;
-  lightspeedMenuScreen?: string;
-  lightspeedStatus?: LightspeedStatus;
-  section?: {
-    title?: string;
-    parentTitle?: string;
-  };
-};
-
-export type LightspeedMatchRow = {
-  via: string;
-  ops: LightspeedOpsRow;
-  lightspeed: LightspeedCsvRow;
-};
-
-export type LightspeedPreview = {
-  ok?: boolean;
-  applied?: boolean;
-  menuName?: string;
-  matched: LightspeedMatchRow[];
-  conflicts: LightspeedMatchRow[];
-  altServes?: LightspeedMatchRow[];
-  lightspeedOnly: LightspeedCsvRow[];
-  stockMatched?: LightspeedMatchRow[];
-  stockOnly?: LightspeedCsvRow[];
-  stockOpsOnly?: LightspeedOpsRow[];
-  systemOnly?: LightspeedCsvRow[];
-  archive: LightspeedCsvRow[];
-  opsOnly: LightspeedOpsRow[];
-  itemImportCsv?: string;
-  menuLayoutCsv?: string;
-  archiveSkuCsv?: string;
-};
-
-export function lightspeedStatusLabel(
-  status: LightspeedStatus | string | undefined,
-): string {
-  if (status === "matched") return "Match";
-  if (status === "mismatch") return "Name mismatch";
-  if (status === "missing") return "Missing from POS";
-  return "";
-}
-
 export type PosMenu = {
   id: string;
   name: string;
   orderRank?: number;
   isDefault?: boolean;
 };
-
 export type PlacementChannel = "print" | "digital" | "pos";
-
 export type MenuPlacement = {
   _id?: string;
   id?: string;
@@ -188,59 +40,21 @@ export type MenuPlacement = {
   posScreen?: string;
   orderRank?: number;
 };
-
 export function posMenusLabel(menus?: PosMenu[] | null): string {
   const names = (menus || []).map((row) => String(row.name || "").trim()).filter(Boolean);
   if (!names.length) return "None";
   return names.join(" · ");
 }
-
 export function posMenuIdsOf(item?: { posMenus?: PosMenu[] | null } | null): string[] {
   return (item?.posMenus || []).map((row) => String(row.id)).filter(Boolean);
 }
-
 export function defaultPosMenus(menus?: PosMenu[] | null): PosMenu[] {
   const list = Array.isArray(menus) ? menus : [];
   const marked = list.filter((row) => row.isDefault);
   return marked.length ? marked : list.slice(0, 1);
 }
-
-/** Who may sign in to ops (Baserow Users). */
-export type OpsUser = {
-  _id?: string;
-  id?: string;
-  email?: string;
-  name?: string;
-  active?: boolean;
-};
-
-export function parseGbp(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-    return Math.round(value * 100) / 100;
-  }
-  if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[£,\s]/g, "").trim();
-  if (!cleaned) return null;
-  const n = Number(cleaned);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 100) / 100;
-}
-
-export function formatGbp(value: unknown): string {
-  const n = parseGbp(value);
-  if (n == null) return "";
-  return `£${n.toFixed(2)}`;
-}
-
-export function skuFromProductUrl(url: string | undefined): string {
-  const raw = String(url || "").trim();
-  const match = raw.match(/\/P\/([A-Z0-9]+)\//i);
-  return match ? match[1].toUpperCase() : "";
-}
-
 /** How the drink is served and configured in ops. */
 export type DrinkType = "cocktail" | "pour" | "beer" | "packaged" | "postmix";
-
 /**
  * Cocktail build / family. Independent of menu section placement
  * (a signature under Our Formulas can still be a spritz).
@@ -253,7 +67,6 @@ export type CocktailType =
 	| "negroni"
 	| "fizz"
 	| "other";
-
 export const COCKTAIL_TYPES: { value: CocktailType; label: string }[] = [
 	{ value: "spritz", label: "Spritz" },
 	{ value: "highball", label: "Highball" },
@@ -263,7 +76,6 @@ export const COCKTAIL_TYPES: { value: CocktailType; label: string }[] = [
 	{ value: "fizz", label: "Fizz" },
 	{ value: "other", label: "Other" },
 ];
-
 export function normalizeCocktailType(value: unknown): CocktailType | "" {
 	const raw = String(value || "")
 		.trim()
@@ -272,7 +84,6 @@ export function normalizeCocktailType(value: unknown): CocktailType | "" {
 	const found = COCKTAIL_TYPES.find((row) => row.value === raw);
 	return found?.value || "";
 }
-
 export function cocktailTypeLabel(value: unknown): string {
 	const normalized = normalizeCocktailType(value);
 	if (!normalized) return "";
@@ -280,7 +91,6 @@ export function cocktailTypeLabel(value: unknown): string {
 		COCKTAIL_TYPES.find((row) => row.value === normalized)?.label || normalized
 	);
 }
-
 /** Infer cocktail type from a menu section slug when backfilling. */
 export function cocktailTypeFromSectionSlug(slug: unknown): CocktailType | "" {
 	const raw = String(slug || "")
@@ -288,33 +98,6 @@ export function cocktailTypeFromSectionSlug(slug: unknown): CocktailType | "" {
 		.toLowerCase();
 	return normalizeCocktailType(raw);
 }
-
-export type PublishTarget = "preview" | "production";
-
-export type PublishStatus =
-  | "excluded"
-  | "missing"
-  | "unknown"
-  | "unpublished"
-  | "published";
-
-export type PublishDiff = {
-  field: string;
-  from?: string;
-  to?: string;
-};
-
-export type TargetPublishState = {
-  status: PublishStatus;
-  changed?: string[];
-  diff?: PublishDiff[];
-};
-
-export type ItemPublishState = {
-  preview?: TargetPublishState;
-  production?: TargetPublishState;
-};
-
 export const DRINK_TYPES: { value: DrinkType; label: string; blurb: string }[] =
   [
     {
@@ -343,10 +126,8 @@ export const DRINK_TYPES: { value: DrinkType; label: string; blurb: string }[] =
       blurb: "Bag-in-box soft drink. Pint and half-pint prices.",
     },
   ];
-
 /** Guest channel chips. Print and/or Digital; neither = POS only. */
 export type GuestMenuPlacement = "both" | "print" | "digital" | "none";
-
 export const GUEST_MENU_CHANNELS: {
   value: "print" | "digital";
   label: string;
@@ -355,7 +136,6 @@ export const GUEST_MENU_CHANNELS: {
   { value: "print", label: "Print", blurb: "Print menu chapter." },
   { value: "digital", label: "Digital", blurb: "Website menu." },
 ];
-
 export const GUEST_MENU_PLACEMENTS: {
   value: GuestMenuPlacement;
   label: string;
@@ -366,7 +146,6 @@ export const GUEST_MENU_PLACEMENTS: {
   { value: "digital", label: "Digital", blurb: "Website only." },
   { value: "none", label: "POS only", blurb: "Till only. Not on print or the website." },
 ];
-
 export function guestMenuPlacement(item?: {
   onPrintMenu?: boolean;
   onDigitalMenu?: boolean;
@@ -387,7 +166,6 @@ export function guestMenuPlacement(item?: {
   if (digital) return "digital";
   return "none";
 }
-
 export function guestChannelsOf(item?: {
   onPrintMenu?: boolean;
   onDigitalMenu?: boolean;
@@ -399,7 +177,6 @@ export function guestChannelsOf(item?: {
   if (placement === "digital") return ["digital"];
   return [];
 }
-
 export function guestMenuFlags(placement: GuestMenuPlacement): {
   onPrintMenu: boolean;
   onDigitalMenu: boolean;
@@ -409,7 +186,6 @@ export function guestMenuFlags(placement: GuestMenuPlacement): {
   if (placement === "none") return { onPrintMenu: false, onDigitalMenu: false };
   return { onPrintMenu: true, onDigitalMenu: true };
 }
-
 export function guestMenuLabel(
   placement: GuestMenuPlacement | string | undefined,
 ): string {
@@ -419,26 +195,22 @@ export function guestMenuLabel(
   if (placement === "both") return "Both";
   return "";
 }
-
 export function asGuestMenuPlacement(value: string | undefined): GuestMenuPlacement {
   if (value === "print" || value === "digital" || value === "none" || value === "both") {
     return value;
   }
   return "both";
 }
-
 export function guestMenuBlurb(placement: GuestMenuPlacement | string | undefined): string {
   return (
     GUEST_MENU_PLACEMENTS.find((row) => row.value === placement)?.blurb || ""
   );
 }
-
 /**
  * Target pour cost as a percent of selling price, keyed by drink type.
  * Cocktail 20% is the usual mixed-drink target (18 to 24% industry band).
  */
 export type PourTargetMap = Record<DrinkType, number>;
-
 export const DEFAULT_POUR_TARGETS: PourTargetMap = {
   cocktail: 20,
   pour: 18,
@@ -446,7 +218,6 @@ export const DEFAULT_POUR_TARGETS: PourTargetMap = {
   packaged: 25,
   postmix: 15,
 };
-
 export const POUR_TARGET_META: Record<
   DrinkType,
   { label: string; blurb: string }
@@ -472,7 +243,6 @@ export const POUR_TARGET_META: Record<
     blurb: "Bag-in-box soft drink. Target is usually lower than bottled softs.",
   },
 };
-
 export function clampPourTarget(value: unknown): number | null {
   const n =
     typeof value === "number"
@@ -482,7 +252,6 @@ export function clampPourTarget(value: unknown): number | null {
   if (n < 1 || n > 80) return null;
   return Math.round(n * 10) / 10;
 }
-
 export function normalizePourTargets(
   value: Partial<PourTargetMap> | null | undefined,
 ): PourTargetMap {
@@ -493,7 +262,6 @@ export function normalizePourTargets(
   }
   return next;
 }
-
 export function pourTargetFor(
   type: DrinkType | undefined,
   map?: PourTargetMap | null,
@@ -501,7 +269,6 @@ export function pourTargetFor(
   const targets = normalizePourTargets(map);
   return targets[normalizeDrinkType(type)];
 }
-
 export type MenuItem = {
   _id?: string;
   id?: string;
@@ -561,7 +328,6 @@ export type MenuItem = {
   /** Lightspeed menus this drink appears on. */
   posMenus?: PosMenu[];
 };
-
 export type MenuSection = {
   _id: string;
   id?: string;
@@ -574,164 +340,6 @@ export type MenuSection = {
   items?: MenuItem[];
   subsections?: MenuSection[];
 };
-
-const PUBLISH_FIELD_LABELS: Record<string, string> = {
-  name: "name",
-  description: "description",
-  price: "price",
-  priceAlt: "alt price",
-  notes: "tasting note",
-  drinkType: "kind",
-  abv: "ABV",
-  volume: "volume",
-  producer: "producer",
-  sectionId: "section",
-  onDigitalMenu: "visibility",
-  photo: "photo",
-};
-
-export function publishFieldLabel(field: string): string {
-  return PUBLISH_FIELD_LABELS[field] || field;
-}
-
-export function formatChangedFields(changed?: string[]): string {
-  return (changed || []).map(publishFieldLabel).join(", ");
-}
-
-export function formatDiffValue(value?: string): string {
-  const text = String(value || "").trim();
-  return text || "blank";
-}
-
-export function formatPublishDiff(diff: PublishDiff): string {
-  if (diff.field === "photo") return "photo updated";
-  return `${formatDiffValue(diff.from)} to ${formatDiffValue(diff.to)}`;
-}
-
-/** True when this drink has unpublished field changes or is not on the site yet. */
-export function targetNeedsSync(state: TargetPublishState | undefined): boolean {
-  return state?.status === "unpublished" || state?.status === "missing";
-}
-
-export function publishNeedsSync(publish?: ItemPublishState): boolean {
-  return targetNeedsSync(publish?.preview) || targetNeedsSync(publish?.production);
-}
-
-/** True when the live website is missing this drink or is behind ops. */
-export function publishNotLive(publish?: ItemPublishState): boolean {
-  return targetNeedsSync(publish?.production);
-}
-
-export function publishChangeCount(publish?: ItemPublishState): number {
-  return new Set([
-    ...(publish?.preview?.changed || []),
-    ...(publish?.production?.changed || []),
-  ]).size;
-}
-
-export function publishPendingCount(
-  items: MenuItem[],
-  target?: PublishTarget,
-): number {
-  return items.filter((item) => {
-    if (target) return targetNeedsSync(item.publish?.[target]);
-    return publishNeedsSync(item.publish);
-  }).length;
-}
-
-export function publishTargetPhrase(
-  state: TargetPublishState | undefined,
-): string {
-  switch (state?.status) {
-    case "published":
-      return "up to date";
-    case "unpublished": {
-      const fields = formatChangedFields(state.changed);
-      return fields ? `unpublished (${fields})` : "unpublished changes";
-    }
-    case "unknown":
-      return "no recorded snapshot yet";
-    case "missing":
-      return "not on the website yet";
-    case "excluded":
-      return "not on the digital menu";
-    default:
-      return "no recorded snapshot yet";
-  }
-}
-
-export function publishHint(publish?: ItemPublishState): string {
-  return `Preview site: ${publishTargetPhrase(publish?.preview)}. Live website: ${publishTargetPhrase(publish?.production)}.`;
-}
-
-export function publishSyncLabel(publish?: ItemPublishState): string {
-  if (!publishNeedsSync(publish)) return "Up to date";
-  const count = publishChangeCount(publish);
-  if (count === 1) return "1 unpublished change";
-  if (count > 1) return `${count} unpublished changes`;
-  return "Needs a website update";
-}
-
-export function publishLiveLabel(publish?: ItemPublishState): string {
-  const live = publish?.production;
-  if (!targetNeedsSync(live)) return "Live on the website";
-  if (live?.status === "missing") return "Not on the live website";
-  const fields = formatChangedFields(live?.changed);
-  return fields
-    ? `Not live · ${fields}`
-    : "Not live · unpublished changes";
-}
-
-export type PublishGroupItem = {
-  name: string;
-  changed?: string[];
-  diff?: PublishDiff[];
-};
-
-export type PublishGroups = {
-  unpublished: PublishGroupItem[];
-  missing: PublishGroupItem[];
-  unknown: PublishGroupItem[];
-  published: PublishGroupItem[];
-  excluded: PublishGroupItem[];
-};
-
-export function groupItemsForPublish(
-  items: MenuItem[],
-  target: PublishTarget,
-): PublishGroups {
-  const groups: PublishGroups = {
-    unpublished: [],
-    missing: [],
-    unknown: [],
-    published: [],
-    excluded: [],
-  };
-  for (const item of items) {
-    const name = item.name?.trim() || "Untitled";
-    const state = item.publish?.[target];
-    const status = state?.status || "unknown";
-    if (status === "unpublished") {
-      groups.unpublished.push({
-        name,
-        changed: state?.changed,
-        diff: state?.diff,
-      });
-    } else if (status === "missing") {
-      groups.missing.push({ name });
-    } else if (status === "unknown") {
-      groups.unknown.push({ name });
-    } else if (status === "published") {
-      groups.published.push({ name });
-    } else if (status === "excluded") {
-      groups.excluded.push({ name });
-    } else {
-      groups.unknown.push({ name });
-    }
-  }
-  return groups;
-}
-
 export function normalizeDrinkType(value: unknown): DrinkType {
   const raw = String(value || "")
     .trim()
@@ -741,26 +349,20 @@ export function normalizeDrinkType(value: unknown): DrinkType {
   }
   return "cocktail";
 }
-
 export function drinkTypeLabel(type: DrinkType | undefined): string {
   const found = DRINK_TYPES.find((row) => row.value === normalizeDrinkType(type));
   return found?.label || "Cocktail";
 }
-
 export function hasRecipe(type: DrinkType | undefined): boolean {
   return normalizeDrinkType(type) === "cocktail";
 }
-
 export function serveTabLabel(type: DrinkType | undefined): string {
   return hasRecipe(type) ? "Recipe" : "Serve";
 }
-
 /** UK pint. Half pint is half of this via `altCostFactor`. */
 export const UK_PINT_ML = 568;
-
 /** Standard single spirit / wine pour. Double is 2× via `altCostFactor`. */
 export const SINGLE_POUR_ML = 25;
-
 /** Primary serve quantity used to cost a draught pint or a neat pour. */
 export function defaultServeQuantity(
   type: DrinkType | undefined,
@@ -775,7 +377,6 @@ export function defaultServeQuantity(
       return null;
   }
 }
-
 export function priceLabels(type: DrinkType | undefined): {
   primary: string;
   alt?: string;
@@ -793,7 +394,6 @@ export function priceLabels(type: DrinkType | undefined): {
       return { primary: "Single", alt: "Double" };
   }
 }
-
 /** Guest / grid display: £14 · £18 or £7. */
 export function formatPrices(item: {
   drinkType?: DrinkType;
@@ -810,7 +410,6 @@ export function formatPrices(item: {
   if (alt) return `£${alt}`;
   return "";
 }
-
 export const UNITS = [
   "ml",
   "cl",
@@ -827,7 +426,6 @@ export const UNITS = [
   "tsp",
   "tbsp",
 ] as const;
-
 export const GLASSWARE = [
   "",
   "Coupe",
@@ -842,5 +440,4 @@ export const GLASSWARE = [
   "Julep",
   "Hurricane",
 ] as const;
-
 export const ICE_OPTIONS = ["", "Cubed", "Crushed", "Block", "None"] as const;

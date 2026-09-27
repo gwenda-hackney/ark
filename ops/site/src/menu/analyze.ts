@@ -10,15 +10,8 @@ import { formatPourPercent, recipePriceAnalysis } from "./cost.ts";
 import type { RecipePriceAnalysis } from "./cost.ts";
 import { itemSlug } from "./item-key.js";
 import { inventoryItemPath } from "../app/spa-path.js";
-import {
-	hasRecipe,
-	normalizeDrinkType,
-	type DrinkType,
-	type Ingredient,
-	type InventoryItem,
-	type MenuItem,
-	type PourTargetMap,
-} from "../app/types.ts";
+import { type InventoryItem } from "../inventory/types.ts";
+import { hasRecipe, normalizeDrinkType, type DrinkType, type Ingredient, type MenuItem, type PourTargetMap } from "./types.ts";
 
 const KIND_ML_KEYS = [
 	"liquor",

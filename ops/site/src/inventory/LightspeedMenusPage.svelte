@@ -18,7 +18,7 @@
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
 	import { collectMenuItems } from "./lightspeed-stock.js";
-	import type { MenuItem, PosMenu } from "../app/types";
+	import type { MenuItem, PosMenu } from "../menu/types";
 	import { MENUS_HELP } from "./lightspeed-help";
 
 	let menus = $state<PosMenu[]>([]);

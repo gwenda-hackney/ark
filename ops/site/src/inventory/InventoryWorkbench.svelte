@@ -28,11 +28,8 @@
 	import { restoreGridScroll, parkGridScroll, unparkGridScroll } from "../ui/grid-scroll";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
-	import {
-		INVENTORY_KINDS,
-		formatGbp,
-		type InventoryItem,
-	} from "../app/types";
+	import { formatGbp } from "../app/money";
+	import { INVENTORY_KINDS, type InventoryItem } from "./types";
 	import { priceBasisLabel } from "../menu/cost";
 	import InventoryEditor from "./InventoryEditor.svelte";
 	import CompactInventoryList from "./CompactInventoryList.svelte";

@@ -1,10 +1,4 @@
-import {
-	cocktailTypeLabel,
-	drinkTypeLabel,
-	flattenIngredientsForMenu,
-	formatPrices,
-	type MenuItem,
-} from "../app/types.ts";
+import { cocktailTypeLabel, drinkTypeLabel, flattenIngredientsForMenu, formatPrices, type MenuItem } from "../menu/types.ts";
 
 export type HighlightPart = { text: string; hit: boolean };
 

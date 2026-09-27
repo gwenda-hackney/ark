@@ -8,7 +8,7 @@
 	import { hasRangeSelection } from "../../ui/grid";
 	import { menuItemPath } from "../../app/nav";
 	import type { MatchHint } from "../../ui/search";
-	import type { MenuItem } from "../../app/types";
+	import type { MenuItem } from "../types";
 	import HighlightText from "../../ui/HighlightText.svelte";
 
 	let {

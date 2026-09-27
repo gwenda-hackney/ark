@@ -1,4 +1,4 @@
-import type { Ingredient } from "../app/types.ts";
+import type { Ingredient } from "./types.ts";
 
 /** Approximate ml for volume-bearing recipe units. Non-volume units return null. */
 export function quantityToMl(

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from "../../ui";
 	import { Icon } from "../../app/shell";
-	import type { MenuItem } from "../../app/types";
+	import type { MenuItem } from "../types";
 
 	let {
 		item = null,

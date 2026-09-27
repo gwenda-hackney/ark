@@ -4,7 +4,7 @@
 	 */
 	import { hasRangeSelection } from "../../ui/grid";
 	import { menuItemPath } from "../../app/nav";
-	import type { MenuItem } from "../../app/types";
+	import type { MenuItem } from "../types";
 
 	let {
 		item = null,

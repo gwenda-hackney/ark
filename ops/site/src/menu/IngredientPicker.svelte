@@ -7,13 +7,8 @@
 	import { Button, BusyOverlay, Field, NativeSelect, TextField } from "../ui";
 	import type { SelectOption } from "../ui/types";
 	import * as api from "../app/api";
-	import {
-		INVENTORY_KINDS,
-		UNITS,
-		type Ingredient,
-		type InventoryItem,
-		type InventoryKind,
-	} from "../app/types";
+	import { INVENTORY_KINDS, type InventoryItem, type InventoryKind } from "../inventory/types";
+	import { UNITS, type Ingredient } from "./types";
 
 	let {
 		inventory = $bindable([] as InventoryItem[]),

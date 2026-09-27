@@ -10,8 +10,8 @@ import {
 	publishNotLive,
 	publishPendingCount,
 	publishSyncLabel,
-	type MenuItem,
-} from "./types.ts";
+} from "./publish.ts";
+import type { MenuItem } from "./types.ts";
 
 function item(
 	name: string,

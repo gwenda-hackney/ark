@@ -13,12 +13,8 @@
 	import type { SelectOption } from "../ui/types";
 	import { getInventory, getMenu, previewLightspeedCsv } from "../app/api";
 	import { toast } from "../ui/toast.svelte";
-	import type {
-		InventoryItem,
-		MenuItem,
-		MenuSection,
-		PosMenu,
-	} from "../app/types";
+	import type { InventoryItem } from "./types";
+	import type { MenuItem, MenuSection, PosMenu } from "../menu/types";
 	import {
 		collectMenuItems,
 		DEFAULT_LIGHTSPEED_MENU,

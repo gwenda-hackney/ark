@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { posMenusLabel, type PosMenu } from "../../app/types";
+	import { posMenusLabel, type PosMenu } from "../types";
 
 	let {
 		menus = [],
