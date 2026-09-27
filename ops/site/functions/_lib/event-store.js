@@ -1932,8 +1932,10 @@ export async function moveOccurrence(
       },
     });
   }
+  // A night already on the website stays as a dropped night, so the website job
+  // marks it removed and Update website takes it off (#57).
   const leftover = series.dates.find((row) => row.date === from);
-  if (leftover?.id) {
+  if (leftover?.id && !keepsDroppedNight(leftover)) {
     await removeOccurrence(env, leftover.id);
   }
   series = await getEvent(env, eventId);
