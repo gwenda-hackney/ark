@@ -13,7 +13,7 @@ export function stripTrailingSlash(pathname) {
 }
 
 /**
- * HTML document routes served by the Svelte shell (not static tool folders).
+ * HTML document routes served by the Svelte shell.
  * `/stock`, `/breakeven`, `/cashflow` are real directories, so they are not
  * rewritten to index.html.
  */
@@ -41,13 +41,11 @@ export function isSpaDocumentPath(pathname) {
     p === "/web" ||
     p.startsWith("/web/") ||
     p === "/forms" ||
-    p.startsWith("/forms/") ||
-    p === "/tools" ||
-    p.startsWith("/tools/")
+    p.startsWith("/forms/")
   );
 }
 
-/** Client-side nav targets (history API). Static tool folders stay full-page. */
+/** Client-side nav targets (history API). */
 export function isClientNavPath(pathname) {
   const p = stripTrailingSlash(pathname);
   if (p === "/") return true;
@@ -276,12 +274,6 @@ export function parseShellPath(path) {
   }
   if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
   if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
-  if (p === "/tools" || p.startsWith("/tools/")) {
-    const rest = p === "/tools" ? "" : p.slice("/tools/".length);
-    const tool = rest.split("/").filter(Boolean)[0] || "breakeven";
-    const allowed = new Set(["breakeven", "cashflow", "stock"]);
-    return { page: "tools", tool: allowed.has(tool) ? tool : "breakeven" };
-  }
   return { page: "home" };
 }
 

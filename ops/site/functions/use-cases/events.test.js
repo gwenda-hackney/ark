@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
-import { eventHeaderFlag } from "../../menu-app/src/lib/event-header-status.ts";
+import { eventHeaderFlag } from "../../src/lib/event-header-status.ts";
 import { callApi, createFakeWorld } from "../_test/fake-world.js";
 import {
   onRequestPut as addNight,
