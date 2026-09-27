@@ -14,7 +14,7 @@ import {
   occurrenceDeleteTargets,
   updateOccurrenceContent,
 } from "../../../../_lib/event-store.js";
-import { unpublishOccurrences } from "../../../../_lib/event-publish.js";
+import { removeEventFromWebsite, unpublishOccurrences } from "../../../../_lib/event-publish.js";
 
 function params(context) {
   return {
@@ -76,6 +76,9 @@ export const onRequestDelete = withApiHandler(async (context) => {
   // Deleting takes the nights off the preview and the website together.
   const warnings = await unpublishOccurrences(context.env, plan.targets);
   const result = await deleteOccurrences(context.env, id, date, scope);
+  // Nothing left of the event (e.g. every night of a series not yet started):
+  // its series page goes too, as when the whole event is deleted (#66).
+  if (result.deleted) warnings.push(...(await removeEventFromWebsite(context.env, event)));
   if (result.event) await syncSeriesCalendar(context.env, result.event);
   return jsonResponse(
     attachCalendarWarnings(context.env, { ok: true, warnings, ...result }),
