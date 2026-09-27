@@ -33,9 +33,8 @@
 		websiteJobSettled,
 	} from "./website-jobs.svelte";
 	import { preparePhoto } from "../ui/photo-prep";
-	import ScheduleCalendar from "./ScheduleCalendar.svelte";
-	import ScheduleListGrid from "./ScheduleListGrid.svelte";
-	import SeriesGrid from "./SeriesGrid.svelte";
+	import EventsList from "./EventsList.svelte";
+	import { WEEKDAY_LABELS, formatClock, formatDate, repeatLabel } from "./event-labels";
 	import {
 		hasMeaningfulFraming,
 		normalizeHeroFraming,
@@ -108,16 +107,6 @@
 
 	let { path = "/" }: { path?: string } = $props();
 
-	const WEEKDAY_LABELS: Record<string, string> = {
-		mon: "Mon",
-		tue: "Tue",
-		wed: "Wed",
-		thu: "Thu",
-		fri: "Fri",
-		sat: "Sat",
-		sun: "Sun",
-	};
-
 	let events = $state<OpsEvent[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
@@ -159,26 +148,6 @@
 	let deleteScopeOpen = $state(false);
 	let discardOpen = $state(false);
 	let saveScopeOpen = $state(false);
-	let seriesQuery = $state("");
-	let scheduleEventIds = $state<string[]>([]);
-	let scheduleQuery = $state("");
-	let scheduleFrom = $state("");
-	let scheduleTo = $state("");
-	const SCHEDULE_VIEW_KEY = "ops.events.scheduleView";
-	function readScheduleView(): string {
-		try {
-			return localStorage.getItem(SCHEDULE_VIEW_KEY) === "calendar" ? "calendar" : "list";
-		} catch {
-			return "list";
-		}
-	}
-	let scheduleView = $state(readScheduleView());
-	let calendarMonth = $state(currentScheduleMonth());
-	const scheduleTodayIso = scheduleToday();
-	const scheduleViewItems: SegmentedItem[] = [
-		{ id: "list", label: "List" },
-		{ id: "calendar", label: "Calendar" },
-	];
 	let discardKind = $state<"close" | "reload">("close");
 	let driveFiles = $state<EventDriveFile[]>([]);
 	let driveFolderUrl = $state("");
@@ -503,107 +472,6 @@
 		}).filter((date) => date >= new Date().toISOString().slice(0, 10)),
 	);
 
-	const schedule = $derived(groupEventSchedule(events));
-	const eventFilterOptions = $derived(
-		[...events]
-			.filter((event) => event.repeatUnit !== "once")
-			.sort((a, b) => a.name.localeCompare(b.name))
-			.map((event) => ({ value: event.id, label: event.name })),
-	);
-	const filteredSchedule = $derived(
-		filterEventSchedule(schedule, {
-			eventIds: scheduleEventIds,
-			query: scheduleQuery,
-			from: scheduleFrom,
-			to: scheduleTo,
-		}),
-	);
-	const visibleSchedule = $derived(filteredSchedule);
-
-	const filteredSeries = $derived.by(() => {
-		const q = seriesQuery.trim().toLowerCase();
-		return [...events]
-			.filter((event) => event.repeatUnit !== "once")
-			.filter((event) => {
-				if (!q) return true;
-				const hay = [
-					event.name,
-					event.artist,
-					event.offer,
-					event.shortDescription,
-					event.description,
-					...(event.nightSchedule || []).map((slot) => slot.label),
-				]
-					.join(" ")
-					.toLowerCase();
-				return hay.includes(q);
-			})
-			.sort(compareSeriesByWeekday);
-	});
-
-	function seriesNextIso(event: OpsEvent): string {
-		return String(event.publish?.nextDate || event.publish?.previewDates?.[0] || "").trim();
-	}
-
-	function seriesTimeLabel(event: OpsEvent): string {
-		const start = formatClock(event.startTime);
-		const end = formatClock(event.endTime);
-		if (start && end) return `${start}–${end}`;
-		if (start) return start;
-		return String(event.time || "").trim();
-	}
-
-	function seriesGuestLabel(event: OpsEvent): string {
-		const artist = String(event.artist || "").trim();
-		if (artist) return artist;
-		const night = (event.dates || []).find((row) => row.date === seriesNextIso(event));
-		return String(night?.overrides?.artist || "").trim();
-	}
-
-	function seriesOfferLabel(event: OpsEvent): string {
-		const offer = String(event.offer || "").trim();
-		if (offer) return offer;
-		const night = (event.dates || []).find((row) => row.date === seriesNextIso(event));
-		return String(night?.overrides?.offer || "").trim();
-	}
-
-	/** Short card blurb, or night-slot labels when the blurb is empty. */
-	function seriesBlurb(event: OpsEvent): string {
-		const short = String(event.shortDescription || "").trim();
-		if (short) return short;
-		return (event.nightSchedule || [])
-			.map((slot) => String(slot.label || "").trim())
-			.filter(Boolean)
-			.join(" · ");
-	}
-
-	function formatDayMonth(iso: string): string {
-		const [year, month, day] = iso.split("-").map(Number);
-		if (!year || !month || !day) return iso;
-		return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
-			day: "numeric",
-			month: "short",
-		});
-	}
-
-	function seriesNextCell(event: OpsEvent): string {
-		const next = seriesNextIso(event);
-		if (!next) return "No nights";
-		const night = seriesNextNightLabel(event);
-		const date = formatDayMonth(next);
-		return night ? `${date} · ${night}` : date;
-	}
-	const seriesFiltersActive = $derived(Boolean(seriesQuery.trim()));
-	const scheduleFiltersActive = $derived(
-		scheduleEventIds.length > 0 ||
-			Boolean(scheduleQuery.trim()) ||
-			Boolean(scheduleFrom) ||
-			Boolean(scheduleTo),
-	);
-	const filtersActive = $derived(
-		listView === "schedule" ? scheduleFiltersActive : seriesFiltersActive,
-	);
-
 	/** Photo owned by this editor (series main, or night override). */
 	const framingUrl = $derived(
 		pendingPhotoUrl ||
@@ -694,122 +562,6 @@
 			{ id: "gallery", label: "Images", href: hrefFor("gallery") },
 		];
 	});
-
-	function repeatLabel(event: {
-		repeatEvery?: number;
-		repeatUnit?: string;
-		weekdays?: string[];
-		monthDay?: number;
-	}): string {
-		if (event.repeatUnit === "once") return "Special event";
-		if (event.repeatUnit === "day") {
-			return event.repeatEvery === 1 ? "Every day" : `Every ${event.repeatEvery} days`;
-		}
-		if (event.repeatUnit === "week") {
-			const days = (event.weekdays || []).map((day) => WEEKDAY_LABELS[day] || day).join(", ");
-			const every = event.repeatEvery === 1 ? "Every week" : `Every ${event.repeatEvery} weeks`;
-			return days ? `${every} on ${days}` : every;
-		}
-		if (event.repeatUnit === "month") {
-			const day = event.monthDay || "the start date";
-			return event.repeatEvery === 1
-				? `Every month on ${day}`
-				: `Every ${event.repeatEvery} months on ${day}`;
-		}
-		return "Scheduled";
-	}
-
-	function statusLabel(event: OpsEvent): string {
-		if (event.publish.live === "current") return "On website";
-		return "Not on website yet";
-	}
-
-	function statusTone(event: OpsEvent | null): string {
-		if (!event) return "muted";
-		if (event.publish.preview !== "current") return "unpublished";
-		if (event.publish.live === "current") return "live";
-		return "preview";
-	}
-
-	function formatDate(iso: string): string {
-		if (!iso) return "";
-		const [year, month, day] = iso.split("-").map(Number);
-		if (!year || !month || !day) return iso;
-		return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
-			weekday: "short",
-			day: "numeric",
-			month: "short",
-		});
-	}
-
-	const seriesRows = $derived.by(() =>
-		filteredSeries.map((event) => {
-			const time = seriesTimeLabel(event);
-			const guest = seriesGuestLabel(event);
-			const next = seriesNextCell(event);
-			const offer = seriesOfferLabel(event);
-			return {
-				id: event.id,
-				href: eventItemPath(event.id),
-				when: seriesWeekdayLabel(event) || repeatLabel(event),
-				photo: event.mainImage?.url || "",
-				name: event.name,
-				blurb: seriesBlurb(event),
-				detail: [time, guest, next, offer].filter(Boolean).join(" · "),
-				time,
-				guest,
-				next,
-				offer,
-				status: statusLabel(event),
-				tone: statusTone(event),
-			};
-		}),
-	);
-
-	const scheduleRows = $derived.by(() =>
-		visibleSchedule.flatMap((week) => [
-			{ kind: "week" as const, id: `week:${week.start}`, label: week.label },
-			...week.rows.map((occurrence) => {
-				const artist =
-					occurrence.occurrence?.overrides.artist || occurrence.event.artist || "";
-				const when =
-					occurrence.event.repeatUnit === "once"
-						? formatDate(occurrence.date)
-						: repeatLabel(occurrence.event);
-				return {
-					kind: "night" as const,
-					id: `${occurrence.event.id}:${occurrence.occurrence?.id || occurrence.date}`,
-					href:
-						occurrence.event.repeatUnit === "once"
-							? eventItemPath(occurrence.event.id)
-							: eventItemPath(`${occurrence.event.id}@${occurrence.date}`),
-					weekday: formatScheduleWeekday(occurrence.date),
-					dayDate: formatScheduleDate(occurrence.date),
-					photo:
-						occurrence.occurrence?.overrides.image?.url ||
-						occurrence.event.mainImage?.url ||
-						"",
-					name: occurrence.occurrence?.overrides.name || occurrence.event.name,
-					meta: artist ? `${artist} · ${when}` : when,
-					status: statusLabel(occurrence.event),
-					tone: statusTone(occurrence.event),
-				};
-			}),
-		]),
-	);
-
-	function formatClock(value: string): string {
-		const raw = String(value || "").trim();
-		if (!raw) return "";
-		const match = /^(\d{1,2}):(\d{2})/.exec(raw);
-		if (!match) return raw;
-		const hour = Number(match[1]);
-		const minute = match[2];
-		if (!Number.isFinite(hour)) return raw;
-		const suffix = hour >= 12 ? "pm" : "am";
-		const twelve = hour % 12 || 12;
-		return minute === "00" ? `${twelve}${suffix}` : `${twelve}:${minute}${suffix}`;
-	}
 
 	function nightTimeLabel(occurrence: OpsEventOccurrence | undefined): string {
 		const start = formatClock(occurrence?.overrides.startTime || startTime || "");
@@ -1169,34 +921,6 @@
 			})
 			.catch(() => undefined);
 		return stopJobEvents;
-	});
-
-	function clearListFilters() {
-		if (listView === "schedule") {
-			scheduleEventIds = [];
-			scheduleQuery = "";
-			scheduleFrom = "";
-			scheduleTo = "";
-			return;
-		}
-		seriesQuery = "";
-	}
-
-	$effect(() => {
-		const view = scheduleView === "calendar" ? "calendar" : "list";
-		try {
-			localStorage.setItem(SCHEDULE_VIEW_KEY, view);
-		} catch {
-			/* Private browsing can block storage. The toggle still works. */
-		}
-	});
-
-	let appliedScheduleFrom = "";
-	$effect(() => {
-		const from = scheduleFrom;
-		if (from === appliedScheduleFrom) return;
-		appliedScheduleFrom = from;
-		if (/^\d{4}-\d{2}-\d{2}$/.test(from)) calendarMonth = from.slice(0, 7);
 	});
 
 	$effect(() => {
@@ -1679,7 +1403,6 @@
 		}
 	}
 
-
 	/** "Update website": confirm, then publish just this event. */
 	let putOpen = $state(false);
 	let putError = $state("");
@@ -1725,7 +1448,6 @@
 			putting = false;
 		}
 	}
-
 
 	function clearPendingPhoto() {
 		if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
@@ -1921,137 +1643,7 @@
 
 <div class="events-root" class:editing>
 	<!-- Keep the list mounted under the editor so week-list scroll survives open/close. -->
-	<div
-		class="list-page scrollbar-fade"
-		class:parked={editing || missing}
-		inert={editing || missing ? true : undefined}
-		aria-hidden={editing || missing ? true : undefined}
-	>
-			<PageHeader title={listTitle}>
-				{#snippet actions()}
-					{#if listView === "schedule"}
-						<Segmented
-							bind:value={scheduleView}
-							items={scheduleViewItems}
-							size="sm"
-							ariaLabel="Schedule layout"
-						/>
-					{/if}
-					<PageHelp title={listTitle} topics={EVENTS_HELP} />
-					<Button
-						type="button"
-						variant="outline"
-						disabled={busy}
-						onclick={() => void reload()}
-					>
-						{#snippet icon()}
-							<Icon name="refresh" size={16} />
-						{/snippet}
-						Refresh
-					</Button>
-					{#if listView === "series"}
-						<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
-							{#snippet icon()}
-								<Icon name="plus" size={16} />
-							{/snippet}
-							New series
-						</Button>
-					{:else}
-						<Button type="button" disabled={busy} onclick={() => navigate("/events/new/once")}>
-							{#snippet icon()}
-								<Icon name="plus" size={16} />
-							{/snippet}
-							New event
-						</Button>
-					{/if}
-				{/snippet}
-			</PageHeader>
-			{#if error && !editing && !missing}<p class="error">{error}</p>{/if}
-			{#if events.length || (!error && !loading)}
-				<div class="list-filters">
-					<div class="filter-search">
-						<span class="filter-label">Search</span>
-						{#if listView === "series"}
-							<SearchField
-								bind:value={seriesQuery}
-								placeholder="Series name…"
-								ariaLabel="Search series"
-								count={seriesQuery.trim() ? filteredSeries.length : undefined}
-								width="100%"
-							/>
-						{:else}
-							<SearchField
-								bind:value={scheduleQuery}
-								placeholder="Name, artist, offer…"
-								ariaLabel="Search nights"
-								count={scheduleQuery.trim()
-									? countEventScheduleRows(filteredSchedule)
-									: undefined}
-								width="100%"
-							/>
-						{/if}
-					</div>
-					{#if listView === "schedule"}
-						<div class="filter-events">
-							<label class="filter-label" for="event-filter">Series name</label>
-							<MultiSelect
-								id="event-filter"
-								size="sm"
-								bind:value={scheduleEventIds}
-								options={eventFilterOptions}
-								placeholder="All series"
-							/>
-						</div>
-						<div class="filter-dates">
-							<label class="filter-label" for="event-from">From</label>
-							<TextField id="event-from" size="sm" type="date" bind:value={scheduleFrom} />
-						</div>
-						<div class="filter-dates">
-							<label class="filter-label" for="event-to">To</label>
-							<TextField id="event-to" size="sm" type="date" bind:value={scheduleTo} />
-						</div>
-					{/if}
-					<button
-						type="button"
-						class="filter-clear"
-						disabled={!filtersActive}
-						onclick={clearListFilters}
-					>
-						Clear
-					</button>
-				</div>
-				<div class="list-main fill">
-				{#if listView === "series"}
-					{#if seriesRows.length}
-						<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-							<SeriesGrid rows={seriesRows} />
-						</div>
-					{:else}
-						<p class="empty">
-							{filtersActive ? "No series match these filters." : "No series yet."}
-						</p>
-					{/if}
-				{:else if scheduleView === "calendar"}
-					<div class="calendar-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-						<ScheduleCalendar
-							weeks={visibleSchedule}
-							bind:month={calendarMonth}
-							today={scheduleTodayIso}
-							filtersActive={scheduleFiltersActive}
-						/>
-					</div>
-				{:else if scheduleRows.length}
-					<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-						<ScheduleListGrid rows={scheduleRows} />
-					</div>
-				{:else}
-					<p class="empty">
-						{filtersActive ? "No nights match these filters." : "No upcoming nights."}
-					</p>
-				{/if}
-				</div>
-			{/if}
-		</div>
+	<EventsList {events} {listView} {listTitle} {busy} {error} {loading} {editing} {missing} onreload={() => void reload()} />
 	{#if missing}
 		<div class="missing">
 			<EditorBackBar label={listTitle} onback={() => leaveEditor(listHomePath())} />
@@ -3110,45 +2702,6 @@
 		overflow: hidden;
 	}
 
-	.list-page {
-		position: absolute;
-		inset: 0;
-		z-index: 0;
-		overflow: hidden;
-		padding: var(--page-gutter);
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap);
-		background: var(--background);
-	}
-
-	.list-main {
-		flex: 1;
-		min-height: 0;
-		min-width: 0;
-		overflow: auto;
-	}
-
-	.list-main.fill {
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	.grid-host,
-	.calendar-host {
-		flex: 1;
-		min-height: 0;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-	}
-
-	.list-page.parked {
-		/* Keep the list laid out and scrolled under the detail. */
-		pointer-events: none;
-	}
-
 	.series-link {
 		color: var(--primary);
 		font-size: var(--text-xs);
@@ -3159,66 +2712,6 @@
 
 	.series-link:hover {
 		text-decoration: underline;
-	}
-
-	.list-filters {
-		display: grid;
-		grid-template-columns: minmax(12rem, 1fr) 14rem 9.5rem 9.5rem auto;
-		gap: 0.75rem;
-		align-items: end;
-		justify-content: start;
-	}
-
-	.filter-search {
-		min-width: 0;
-	}
-
-	.filter-search :global(.wrap) {
-		height: var(--control-h-sm);
-	}
-
-	.filter-label {
-		display: block;
-		margin: 0 0 0.35rem;
-		color: var(--muted-foreground);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.filter-clear {
-		align-self: end;
-		height: var(--control-h-sm);
-		padding: 0 0.75rem;
-		border: 0;
-		border-radius: var(--radius-md);
-		background: transparent;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.filter-clear:hover:not(:disabled) {
-		color: var(--foreground);
-		background: var(--accent);
-	}
-
-	.filter-clear:disabled {
-		opacity: 0;
-		pointer-events: none;
-	}
-
-	@media (max-width: 720px) {
-		.list-filters {
-			grid-template-columns: 1fr 1fr;
-		}
-
-		.filter-search,
-		.filter-events {
-			grid-column: 1 / -1;
-		}
 	}
 
 	.meta-line.muted {
@@ -3238,7 +2731,6 @@
 		margin-top: 1rem;
 	}
 
-	.empty,
 	.hint,
 	.status,
 	.lede {
