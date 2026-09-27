@@ -67,7 +67,11 @@ describe("ops auth", () => {
     assert.deepEqual(await verifyOauthStateToken("sess", token), {
       state: "abc",
       codeVerifier: "verifier",
+      returnTo: "",
     });
+    const withReturn = await createOauthStateToken("sess", "abc", "verifier", "https://b.gwenda-ops-dev.pages.dev");
+    assert.equal((await verifyOauthStateToken("sess", withReturn)).returnTo, "https://b.gwenda-ops-dev.pages.dev");
+    assert.equal(await verifyOauthStateToken("nope", withReturn), null);
   });
 
   it("authenticates Google sessions from the cookie", async () => {
