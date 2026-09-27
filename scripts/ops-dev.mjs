@@ -221,7 +221,7 @@ async function main() {
     process.on(signal, () => process.exit(130));
   }
   try {
-    const { resolveOpsTableIds } = await import("../ops/site/src/platform/baserow.js");
+    const { resolveOpsTableIds } = await import("../shared/baserow.js");
     const { databaseId } = await resolveOpsTableIds(process.env);
     console.log(`Baserow Ops DB ${databaseId} (${LIVE ? "Gwenda, PRODUCTION" : "Gwenda Dev"} token)`);
   } catch (error) {

@@ -9,7 +9,7 @@ import {
   listAllRows,
   resolveOpsTableIds,
   updateRow,
-} from "../../platform/baserow.js";
+} from "../../../../../shared/baserow.js";
 
 const CACHE_TTL_MS = 30_000;
 let cache = { key: "", at: 0, emails: null };

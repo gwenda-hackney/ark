@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { resetBaserowClientForTests } from "../../platform/baserow.js";
-import {
-  createArtist,
-  deleteArtist,
-  listArtists,
-  mapArtist,
-  orderArtists,
-  setArtistImage,
-} from "./artist-store.js";
+import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
+import { createArtist, deleteArtist, setArtistImage } from "./artist-store.js";
+import { listArtists, mapArtist, orderArtists } from "../../../../../shared/artists.js";
 import { jsonResponse, mockOpsBaserow, opsCatalogTables } from "../../testing/test-baserow-mock.js";
 
 afterEach(() => {

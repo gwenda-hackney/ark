@@ -12,7 +12,7 @@ import {
   FORM_EMAIL_SENT_FIELDS,
 } from "../../../../../shared/forms/submission-fields.js";
 import { SITE_DOMAIN } from "../../../../../shared/site-location.js";
-import { getRow, listAllRows, listAllTables, updateRow } from "../../platform/baserow.js";
+import { getRow, listAllRows, listAllTables, updateRow } from "../../../../../shared/baserow.js";
 import { sanityQuery } from "../../platform/sanity.js";
 import { listEvents, normalizePageUrl, saveOccurrences, updateEvent } from "../../events/server/event-store.js";
 import { todayIso } from "../../events/event-recurrence.js";

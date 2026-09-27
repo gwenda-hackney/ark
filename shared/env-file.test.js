@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDotEnv, pickPemValue } from "./env-pem.js";
+import { parseDotEnv, pickPemValue } from "./env-file.js";
 
 describe("parseDotEnv", () => {
   it("reads multiline quoted values", () => {

@@ -14,7 +14,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../marketing/web/functions/_lib/env-pem.js";
+import { parseDotEnv } from "../shared/env-file.js";
 import {
   CONFIG_DATABASE_NAME,
   CONFIG_ENVS,

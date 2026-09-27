@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
-import { resetBaserowClientForTests } from "../../platform/baserow.js";
+import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
 import {
   activeEmailsFromRows,
   createOpsUser,

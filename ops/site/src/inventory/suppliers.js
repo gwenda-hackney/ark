@@ -1,20 +1,4 @@
-const URL_LINE = /^https?:\/\/\S+$/i;
-
-export function parseProductUrl(value) {
-  const raw = typeof value === "string" ? value.trim() : "";
-  if (!URL_LINE.test(raw)) return "";
-  return raw;
-}
-
-/** Accept a full URL or a bare host. Empty stays empty. */
-export function normalizeWebsite(value) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return "";
-  const direct = parseProductUrl(raw);
-  if (direct) return direct;
-  if (/^https?:\/\//i.test(raw)) return "";
-  return parseProductUrl(`https://${raw.replace(/^\/+/, "")}`);
-}
+import { normalizeWebsite, parseProductUrl } from "../../../../shared/web-address.js";
 
 export function findSupplierNameClash(entries, name, { exceptId } = {}) {
   const needle = String(name || "")
@@ -88,7 +72,7 @@ export function looksLikeOnlyUrls(value) {
   if (!raw) return true;
   return raw.split(/\r?\n/).every((line) => {
     const trimmed = line.trim();
-    return !trimmed || URL_LINE.test(trimmed);
+    return !trimmed || Boolean(parseProductUrl(trimmed));
   });
 }
 
@@ -145,7 +129,7 @@ export function parseSupplierEntries(value) {
     if (pipe >= 0) {
       name = trimmed.slice(0, pipe).trim();
       productUrl = parseProductUrl(trimmed.slice(pipe + 1));
-    } else if (URL_LINE.test(trimmed)) {
+    } else if (Boolean(parseProductUrl(trimmed))) {
       productUrl = trimmed;
     } else {
       name = trimmed;

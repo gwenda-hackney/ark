@@ -8,19 +8,18 @@ import {
   listAllRows,
   resolveOpsTableIds,
   updateRow,
-} from "../../platform/baserow.js";
+} from "../../../../../shared/baserow.js";
 import { recomputeDrinksForInventoryId } from "../../menu/server/menu-store.js";
 import { normalizeUnit } from "../../menu/server/menu.js";
 import {
   findSupplierNameClash,
   looksLikeOnlyUrls,
   normalizeSupplierEntries,
-  normalizeWebsite,
   parseMoney,
-  parseProductUrl,
   skuFromProductUrl,
   supplierFromUrl,
 } from "../suppliers.js";
+import { normalizeWebsite, parseProductUrl } from "../../../../../shared/web-address.js";
 import { assertUniqueItemName } from "../../menu/item-key.js";
 
 function text(value) {

@@ -8,7 +8,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { parseDotEnv } from "../../marketing/web/functions/_lib/env-pem.js";
+import { parseDotEnv } from "../../shared/env-file.js";
 import { secretsCacheDir } from "./secrets-cache.mjs";
 
 const VAULT_NOTE = "ark/.env.local";
