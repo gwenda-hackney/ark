@@ -10,8 +10,6 @@ export const OAUTH_STATE_COOKIE = "gwenda_ops_oauth";
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 14;
 const SESSION_SCOPE = "gwenda-ops-google-session-v1";
 const OAUTH_STATE_SCOPE = "gwenda-ops-oauth-state-v1";
-const HANDOFF_SCOPE = "gwenda-ops-preview-handoff-v1";
-const HANDOFF_TTL_SEC = 60;
 
 function bufferToBase64Url(buf) {
   const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : buf;
@@ -165,7 +163,7 @@ export async function verifySessionToken(secret, token) {
 
 /**
  * OAuth state cookie: state, PKCE verifier and, on dev only, the branch
- * preview origin to hand the session back to (preview-signin.js).
+ * preview origin to send the user back to after sign-in (preview-signin.js).
  */
 export async function createOauthStateToken(secret, state, codeVerifier, returnTo = "") {
   if (!secret || !state || !codeVerifier) return "";
@@ -189,43 +187,6 @@ export async function verifyOauthStateToken(secret, token) {
   return { state, codeVerifier, returnTo };
 }
 
-/**
- * One-minute token that carries a signed-in email to one branch preview
- * origin (`audience`): payload.sig, payload = base64url JSON {e, a, x}.
- */
-export async function createHandoffToken(secret, email, audience, ttlSec = HANDOFF_TTL_SEC) {
-  const normalized = normalizeEmail(email);
-  if (!secret || !normalized || !audience) return "";
-  const exp = Math.floor(Date.now() / 1000) + ttlSec;
-  const payload = bufferToBase64Url(
-    new TextEncoder().encode(JSON.stringify({ e: normalized, a: audience, x: exp })),
-  );
-  const sig = await hmacSign(secret, `${HANDOFF_SCOPE}:${payload}`);
-  return `${payload}.${sig}`;
-}
-
-/** The email in a hand-off token, if it is genuine, unexpired and meant for `audience`. */
-export async function verifyHandoffToken(secret, token, audience) {
-  if (!secret || !token || !audience) return "";
-  const raw = String(token);
-  const dot = raw.lastIndexOf(".");
-  if (dot <= 0) return "";
-  const payload = raw.slice(0, dot);
-  const sig = raw.slice(dot + 1);
-  const expected = await hmacSign(secret, `${HANDOFF_SCOPE}:${payload}`);
-  if (!matchesSecret(sig, expected)) return "";
-  let claims;
-  try {
-    const bin = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    claims = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
-  } catch {
-    return "";
-  }
-  if (claims?.a !== audience) return "";
-  if (!Number.isFinite(claims?.x) || claims.x < Math.floor(Date.now() / 1000)) return "";
-  return normalizeEmail(claims.e);
-}
-
 export function parseCookies(header) {
   const out = {};
   if (!header) return out;
@@ -236,7 +197,8 @@ export function parseCookies(header) {
   return out;
 }
 
-function cookieParts(name, value, { secure = true, maxAge = COOKIE_MAX_AGE_SEC } = {}) {
+/** `domain` is set only for the dev session shared with branch previews (preview-signin.js). */
+function cookieParts(name, value, { secure = true, maxAge = COOKIE_MAX_AGE_SEC, domain = "" } = {}) {
   const parts = [
     `${name}=${value}`,
     "Path=/",
@@ -244,6 +206,7 @@ function cookieParts(name, value, { secure = true, maxAge = COOKIE_MAX_AGE_SEC }
     "SameSite=Lax",
     `Max-Age=${maxAge}`,
   ];
+  if (domain) parts.push(`Domain=${domain}`);
   if (secure) parts.push("Secure");
   return parts.join("; ");
 }
