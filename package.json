@@ -21,6 +21,8 @@
     "ops:prod": "npm run dev:prod -w @gwenda/ops",
     "studio:dev": "npm run dev -w @gwenda/studio",
     "build": "npm run build -w @gwenda/web",
+    "test": "npm run test -w @gwenda/web",
+    "test:shared": "vitest run --project shared --project scripts",
     "web:build:serve": "npm run preview -w @gwenda/web",
     "dev:refresh": "npm run dev:refresh:sanity && npm run dev:refresh:baserow-ops && npm run dev:refresh:baserow-web",
     "dev:refresh:sanity": "node scripts/sanity-dev-refresh.mjs",
@@ -60,8 +62,10 @@
     "setup:apple-wallet:import": "node scripts/setup-apple-wallet.mjs import",
     "generate:brand-assets": "npm run generate:brand-assets -w @gwenda/web",
     "sync:brand": "node .github/scripts/sync-brand-tokens.mjs",
-    "test": "npm run test -w @gwenda/web",
     "lint": "npm run lint -w @gwenda/web",
     "lint:fix": "npm run lint:fix -w @gwenda/web"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.9"
   }
 }

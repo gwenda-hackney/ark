@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { environmentOf, isLocalMachine, valuesFromRows } from "./config-db.js";
 
 const row = (Name, Value, Env = "all", Service = "all") => ({

@@ -1,5 +1,18 @@
 # Testing
 
+## Running tests
+
+Every test in the repo runs with **Vitest** (one version, one root `vitest.config.js` listing each package as a project). Tests are found by glob, so a new `*.test.*` file runs without editing any config.
+
+| Command | Runs |
+|---|---|
+| `npx vitest run` | everything |
+| `npm test -w @gwenda/ops` / `-w @gwenda/web` / any package | that package |
+| `npm run test:shared` | `shared/` and `scripts/` |
+| VS Code test explorer (Vitest extension) | any file or single test |
+
+Write tests with `describe`/`it` from `vitest`. Plain `node:assert/strict` assertions are fine; mock with `vi.spyOn(...)` and restore with `vi.restoreAllMocks()`.
+
 ## Use cases first
 
 The most important tests describe **what someone does** ("an editor creates a weekly series", "moves a night", "presses Update website") and check what they'd see and what reached the outside world. They drive the real API handlers, end to end, with every outside service faked in memory. Function-level unit tests are for tricky pure logic (recurrence rules, crops, slugs, diffs) where it's easier to cover every case in isolation. Don't add them by default.
@@ -34,8 +47,8 @@ Use cases live in `ops/site/functions/use-cases/` and run with `npm test -w @gwe
 
 ## Known bugs
 
-A use case that finds a real bug stays in the suite, marked `{ todo: "known bug #N" }` with a comment linking the issue. It still runs but doesn't fail the build. The PR that fixes the bug removes the mark.
+A use case that finds a real bug stays in the suite, written as `it.fails("… (known bug #N)", …)` with a comment linking the issue. It still runs and doesn't fail the build, and it starts failing the day the bug is fixed without the mark being removed. The PR that fixes the bug changes it back to `it`.
 
 ## Website
 
-The website uses Vitest (`npm test -w @gwenda/web`). The same approach applies: drive the Pages Functions with faked Baserow, Sanity and email. Its shared fakes are still to come (#48).
+The same approach applies to the website (`npm test -w @gwenda/web`): drive the Pages Functions with faked Baserow, Sanity and email. Its shared fakes are still to come (#48).

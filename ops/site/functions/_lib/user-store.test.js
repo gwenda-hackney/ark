@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { afterEach, describe, it, vi } from "vitest";
 import { resetBaserowClientForTests } from "./baserow.js";
 import {
   activeEmailsFromRows,
@@ -12,7 +12,7 @@ import {
 import { jsonResponse, mockOpsBaserow, opsCatalogTables } from "./test-baserow-mock.js";
 
 afterEach(() => {
-  mock.restoreAll();
+  vi.restoreAllMocks();
   resetBaserowClientForTests();
   resetUsersCacheForTests();
 });
@@ -33,9 +33,7 @@ describe("activeEmailsFromRows", () => {
 
 describe("isOpsUser", () => {
   it("matches the Access email against the Users table", async () => {
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, _init, url) => {
         assert.match(url, /\/rows\/table\/99\//);
         return jsonResponse({
@@ -44,15 +42,14 @@ describe("isOpsUser", () => {
             { id: 2, Email: "gone@gwenda.com", Active: false },
           ],
         });
-      }),
-    );
+      }));
     assert.equal(await isOpsUser(tableEnv, "Person@Gwenda.com"), true);
     assert.equal(await isOpsUser(tableEnv, "gone@gwenda.com"), false);
     assert.equal(await isOpsUser(tableEnv, "other@gwenda.com"), false);
   });
 
   it("fails closed when the Users table is missing from the catalog", async () => {
-    mock.method(globalThis, "fetch", async (input) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation( async (input) => {
       const url = String(input);
       if (url.includes("/tables/all-tables/")) {
         return jsonResponse(
@@ -70,9 +67,7 @@ describe("isOpsUser", () => {
 
 describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
   it("lists users with emails, sorted", async () => {
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async () =>
         jsonResponse({
           results: [
@@ -81,8 +76,7 @@ describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
             { id: 3, Name: "", Email: "", Active: true },
           ],
         }),
-      ),
-    );
+      ));
     const users = await listOpsUsers(tableEnv);
     assert.deepEqual(
       users.map((u) => u.email),
@@ -92,9 +86,7 @@ describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
   });
 
   it("creates a user and rejects duplicates", async () => {
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init) => {
         if ((init?.method || "GET") === "POST") {
           const body = JSON.parse(init.body);
@@ -108,8 +100,7 @@ describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
         return jsonResponse({
           results: [{ id: 1, Email: "a@gwenda.com", Active: true }],
         });
-      }),
-    );
+      }));
     const created = await createOpsUser(tableEnv, {
       email: "New@Gwenda.com",
       name: "New",
@@ -125,9 +116,7 @@ describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
   });
 
   it("patches Active without requiring email", async () => {
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init) => {
         if ((init?.method || "GET") === "PATCH") {
           const body = JSON.parse(init.body);
@@ -140,8 +129,7 @@ describe("listOpsUsers / createOpsUser / updateOpsUser", () => {
           });
         }
         return jsonResponse({ results: [] });
-      }),
-    );
+      }));
     const user = await updateOpsUser(tableEnv, "1", { active: false });
     assert.equal(user.active, false);
   });

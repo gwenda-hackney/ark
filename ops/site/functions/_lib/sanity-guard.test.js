@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { test } from "vitest";
 import {
   DEV_SANITY_PROJECT_ID,
   REAL_SANITY_PROJECT_ID,

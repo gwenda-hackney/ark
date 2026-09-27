@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import {
   DEFAULT_LIGHTSPEED_MENU,
   LIGHTSPEED_COMBINED_IMPORT_HEADERS,

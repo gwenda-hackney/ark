@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { afterEach, describe, it, vi } from "vitest";
 import { existingImageAssets, heroImage } from "./event-publish.js";
 
-afterEach(() => mock.restoreAll());
+afterEach(() => vi.restoreAllMocks());
 
 const env = { SANITY_API_TOKEN: "token", SANITY_PROJECT_ID: "proj", SITE_ENV: "production" };
 const photo = { name: "abc123_flyer.jpg", url: "https://files.example/abc123_flyer.jpg" };
@@ -15,7 +15,7 @@ function json(body) {
 
 function stubFetch(handler) {
   const calls = [];
-  mock.method(globalThis, "fetch", async (input, init = {}) => {
+  vi.spyOn(globalThis, "fetch").mockImplementation( async (input, init = {}) => {
     const url = String(input);
     calls.push({ url, method: init.method || "GET", body: init.body });
     return handler(url, init);

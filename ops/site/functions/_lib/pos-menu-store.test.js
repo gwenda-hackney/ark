@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { afterEach, describe, it, vi } from "vitest";
 import { resetBaserowClientForTests } from "./baserow.js";
 import {
   createPosMenu,
@@ -16,7 +16,7 @@ import {
 import { jsonResponse, mockOpsBaserow } from "./test-baserow-mock.js";
 
 afterEach(() => {
-  mock.restoreAll();
+  vi.restoreAllMocks();
   resetBaserowClientForTests();
 });
 
@@ -53,9 +53,7 @@ describe("pos menu helpers", () => {
 
 describe("list / create / update / delete POS menus", () => {
   it("lists menus with the default first by order, then name", async () => {
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async () =>
         jsonResponse({
           results: [
@@ -63,8 +61,7 @@ describe("list / create / update / delete POS menus", () => {
             { id: 1, Name: "Fall 2026", Order: 1, Default: true },
           ],
         }),
-      ),
-    );
+      ));
     const menus = await listPosMenus(tableEnv);
     assert.deepEqual(
       menus.map((row) => row.name),
@@ -75,9 +72,7 @@ describe("list / create / update / delete POS menus", () => {
 
   it("creates the first menu as default and rejects a name clash", async () => {
     let created = null;
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init, url) => {
         const method = init?.method || "GET";
         if (method === "POST" && url.includes("/rows/table/77/")) {
@@ -93,8 +88,7 @@ describe("list / create / update / delete POS menus", () => {
         return jsonResponse({
           results: created ? [created] : [],
         });
-      }),
-    );
+      }));
     const menu = await createPosMenu(tableEnv, { name: "Fall 2026" });
     assert.equal(menu.name, "Fall 2026");
     assert.equal(menu.isDefault, true);
@@ -107,9 +101,7 @@ describe("list / create / update / delete POS menus", () => {
 
   it("clears other defaults when a menu is marked default", async () => {
     const patches = [];
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init, url) => {
         const method = init?.method || "GET";
         if (method === "PATCH") {
@@ -129,8 +121,7 @@ describe("list / create / update / delete POS menus", () => {
             { id: 2, Name: "Live", Order: 2, Default: false },
           ],
         });
-      }),
-    );
+      }));
     const menu = await updatePosMenu(tableEnv, "2", { isDefault: true });
     assert.equal(menu.isDefault, true);
     assert.ok(
@@ -142,9 +133,7 @@ describe("list / create / update / delete POS menus", () => {
 
   it("promotes another menu when the default is deleted", async () => {
     const patches = [];
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init, url) => {
         const method = init?.method || "GET";
         if (method === "DELETE") {
@@ -166,8 +155,7 @@ describe("list / create / update / delete POS menus", () => {
             { id: 2, Name: "Live", Order: 2, Default: false },
           ],
         });
-      }),
-    );
+      }));
     await deletePosMenu(tableEnv, "1");
     assert.deepEqual(patches, [{ Default: true }]);
   });

@@ -76,7 +76,7 @@ dist/          Build output (gitignored)
 - Run `npm run lint` and `npm test` before proposing changes.
 - Match existing style; ESLint + Prettier are enforced on pull requests (website).
 - Prefer minimal, focused diffs. Reuse existing helpers in `functions/_lib/` and `scripts/`.
-- Add unit tests for security-sensitive logic in `functions/_lib/` (Vitest). See issue #6 for coverage backlog.
+- Add tests for security-sensitive logic (Vitest; see docs/testing.md). See issue #6 for coverage backlog.
 
 ## Configuration
 
