@@ -4,11 +4,13 @@ import {
   APP_SECRETS,
   SECRET_OWNERS,
   envSecretKey,
+  isSmRateLimited,
   ownerOf,
   parseSecretKey,
   pickAppSecrets,
   resolveSecretsForEnv,
   smNameFor,
+  smRetryDelayMs,
 } from "./bitwarden-sm.mjs";
 
 describe("parseSecretKey", () => {
@@ -126,5 +128,20 @@ describe("catalog", () => {
 
   it("keeps the local admin password off Pages", () => {
     assert.ok(APP_SECRETS.ops.pagesSkip.includes("OPS_LOCAL_ADMIN_PW"));
+  });
+});
+
+describe("Secrets Manager rate limits", () => {
+  it("recognises the 429 bws prints, and nothing else", () => {
+    const bws429 =
+      'Error: \n   0: Received error message from server: [429 Too Many Requests] {"object":"error","message":"Slow down! Too many requests. Try again in 1s."}';
+    assert.equal(isSmRateLimited(bws429), true);
+    assert.equal(isSmRateLimited("[401 Unauthorized] invalid access token"), false);
+    assert.equal(isSmRateLimited("Resource not found"), false);
+    assert.equal(isSmRateLimited(""), false);
+  });
+
+  it("backs off 1.5s, 3s, 6s, 12s", () => {
+    assert.deepEqual([1, 2, 3, 4].map(smRetryDelayMs), [1500, 3000, 6000, 12000]);
   });
 });
