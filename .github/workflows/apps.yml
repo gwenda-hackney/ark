@@ -510,7 +510,7 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test preview auth gate
-        run: node scripts/smoke-ops-auth.mjs "${{ steps.preview_url.outputs.url }}"
+        run: node scripts/smoke-ops-auth.mjs "${{ steps.preview_url.outputs.url }}" --retries 12 --retry-delay-ms 5000
 
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs
