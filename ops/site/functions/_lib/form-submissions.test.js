@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, before, describe, it, mock } from "node:test";
+import { afterEach, beforeAll, describe, it, vi } from "vitest";
 import { resetBaserowClientForTests } from "./baserow.js";
 import {
   approvedArtists,
@@ -14,7 +14,7 @@ import {
 import { jsonResponse, opsCatalogTables } from "./test-baserow-mock.js";
 
 afterEach(() => {
-  mock.restoreAll();
+  vi.restoreAllMocks();
   resetBaserowClientForTests();
 });
 
@@ -100,7 +100,7 @@ function mockResend({ row, form = PLAY_FORM }) {
   const sent = [];
   const patches = [];
   const sanityUrls = [];
-  mock.method(globalThis, "fetch", async (input, init) => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input);
     if (url.includes("/tables/all-tables/")) {
       return jsonResponse([{ id: 42, name: "Form Submissions", database_id: 7 }]);
@@ -152,7 +152,7 @@ describe("resendFormEmail", () => {
     SITE_ENV: "local",
     FORMS_NOTIFY_EMAIL: "dev@example.com",
   };
-  before(async () => {
+  beforeAll(async () => {
     resendEnv = { ...baseEnv, GMAIL_SERVICE_ACCOUNT_JSON: await serviceAccountJson() };
   });
 
@@ -199,7 +199,7 @@ describe("resendFormEmail", () => {
     mockResend({ row: null });
     await assert.rejects(resendFormEmail(baseEnv, "1", "verify"), { status: 400 });
     await assert.rejects(resendFormEmail(baseEnv, "1", "notify"), { status: 404 });
-    mock.restoreAll();
+    vi.restoreAllMocks();
     mockResend({ row: playRow(), form: null });
     await assert.rejects(resendFormEmail(baseEnv, "501", "notify"), {
       status: 404,
@@ -211,7 +211,7 @@ describe("resendFormEmail", () => {
 describe("listFormSubmissions", () => {
   it("uses the website token and keeps only current rows, newest first", async () => {
     const auths = [];
-    mock.method(globalThis, "fetch", async (input, init) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       auths.push([url, init?.headers?.Authorization || ""]);
       if (url.includes("/tables/all-tables/")) {
@@ -325,7 +325,7 @@ describe("setFormDecision / setFormArtist", () => {
   /** Website DB (Form Submissions, 42) and Ops DB (with Guest artists, 60). */
   function mockBaserow({ guestTable = true, guests = [], submission = { formSlug: "play" } } = {}) {
     const writes = [];
-    mock.method(globalThis, "fetch", async (input, init) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.includes("/tables/all-tables/")) {
         return jsonResponse([

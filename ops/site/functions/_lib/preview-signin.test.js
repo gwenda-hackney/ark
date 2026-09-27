@@ -4,7 +4,7 @@
  * are faked.
  */
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "vitest";
 import { onRequest as middleware } from "../_middleware.js";
 import { onRequestGet as callback } from "../api/auth/callback.js";
 import { onRequestGet as login } from "../api/auth/login.js";

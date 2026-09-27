@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { mobileTabFor, mobileTabs, sheetSections, tabHref } from "./mobile-nav.ts";
 import { NAV_ROUTES } from "./nav-routes.ts";
 import { flattenNavRoutes } from "./nav-tree.ts";

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { buildSyncMetrics, healthLabel, healthTone } from "./web-metrics.ts";
 import type { WebEnvStatus } from "./api.ts";
 

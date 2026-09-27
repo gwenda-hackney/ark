@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { slugChangePlan } from "./event-store.js";
 
 const jazz = { id: "1", slug: "jazz", formerSlugs: [] };

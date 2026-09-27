@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { afterEach, describe, it, vi } from "vitest";
 import {
   baserowClient,
   baserowFetch,
@@ -12,7 +12,7 @@ import {
 const env = { BASEROW_API_KEY: "token" };
 
 afterEach(() => {
-  mock.restoreAll();
+  vi.restoreAllMocks();
   resetBaserowClientForTests();
 });
 
@@ -52,7 +52,7 @@ describe("baserowFetch", () => {
       sleeps.push(ms);
     };
     let calls = 0;
-    mock.method(globalThis, "fetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       calls += 1;
       if (calls < 3) {
         return jsonResponse(
@@ -76,7 +76,7 @@ describe("baserowFetch", () => {
     let current = 0;
     let peak = 0;
     const release = [];
-    mock.method(globalThis, "fetch", () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
       current += 1;
       peak = Math.max(peak, current);
       return new Promise((resolve) => {
@@ -111,7 +111,7 @@ describe("baserowFetch", () => {
     let current = 0;
     let peak = 0;
     const held = [];
-    mock.method(globalThis, "fetch", () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
       current += 1;
       peak = Math.max(peak, current);
       if (current === 1) {
@@ -144,7 +144,7 @@ describe("baserowFetch", () => {
 
 describe("resolveOpsTableIds", () => {
   it("resolves table ids by name from the catalog and caches", async () => {
-    const fetchMock = mock.method(globalThis, "fetch", async () =>
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       jsonResponse([
         { id: 11, name: "Menu Sections", database_id: 9 },
         { id: 12, name: "Menu Items", database_id: 9 },
@@ -164,11 +164,11 @@ describe("resolveOpsTableIds", () => {
     assert.equal(first.inventorySuppliers, "16");
     assert.equal(first.users, "17");
     assert.equal(second, first);
-    assert.equal(fetchMock.mock.callCount(), 1);
+    assert.equal(fetchMock.mock.calls.length, 1);
   });
 
   it("refuses a token that sees two Ops databases", async () => {
-    mock.method(globalThis, "fetch", async () =>
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       jsonResponse([
         { id: 11, name: "Menu Sections", database_id: 9 },
         { id: 12, name: "Menu Items", database_id: 9 },

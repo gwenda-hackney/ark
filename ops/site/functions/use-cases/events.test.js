@@ -5,7 +5,7 @@
  * what reached the calendar and the website.
  */
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "vitest";
 import { eventHeaderFlag } from "../../menu-app/src/lib/event-header-status.ts";
 import { callApi, createFakeWorld } from "../_test/fake-world.js";
 import { onRequestPut as addNight, onRequestPatch as editNight } from "../api/events/[id]/dates/[date].js";

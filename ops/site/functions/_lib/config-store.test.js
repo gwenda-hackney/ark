@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { afterEach, describe, it, vi } from "vitest";
 import { resetBaserowClientForTests } from "./baserow.js";
 import {
   DEFAULT_POUR_TARGETS,
@@ -13,7 +13,7 @@ import {
 import { jsonResponse, mockOpsBaserow } from "./test-baserow-mock.js";
 
 afterEach(() => {
-  mock.restoreAll();
+  vi.restoreAllMocks();
   resetBaserowClientForTests();
   resetConfigCacheForTests();
 });
@@ -59,9 +59,7 @@ describe("pourTargetsFromValues", () => {
 
 describe("getPourTargets", () => {
   it("reads config rows for ops", async () => {
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, _init, url) => {
         assert.match(url, /\/rows\/table\/88\//);
         return jsonResponse({
@@ -75,8 +73,7 @@ describe("getPourTargets", () => {
             },
           ],
         });
-      }),
-    );
+      }));
     assert.deepEqual(await getPourTargets(tableEnv), {
       ...DEFAULT_POUR_TARGETS,
       cocktail: 24,
@@ -84,14 +81,14 @@ describe("getPourTargets", () => {
   });
 
   it("returns defaults without a config token", async () => {
-    mock.method(globalThis, "fetch", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation( async () => {
       throw new Error("should not fetch");
     });
     assert.deepEqual(await getPourTargets({ SITE_ENV: "local" }), DEFAULT_POUR_TARGETS);
   });
 
   it("returns defaults when the config table is missing", async () => {
-    mock.method(globalThis, "fetch", async (input) => {
+    vi.spyOn(globalThis, "fetch").mockImplementation( async (input) => {
       const url = String(input);
       if (url.includes("/tables/all-tables/")) {
         return jsonResponse([
@@ -109,9 +106,7 @@ describe("getPourTargets", () => {
 describe("applyOpsAppConfig", () => {
   it("fills missing plain settings from config", async () => {
     const { applyOpsAppConfig } = await import("./config-store.js");
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async () =>
         jsonResponse({
           results: [
@@ -131,8 +126,7 @@ describe("applyOpsAppConfig", () => {
             },
           ],
         }),
-      ),
-    );
+      ));
     const env = await applyOpsAppConfig({ BASEROW_CONFIG_API_KEY: "config-token", SITE_ENV: "local" });
     assert.equal(env.SANITY_PROJECT_ID, "pn5yjro6");
     assert.equal(env.GOOGLE_OAUTH_CLIENT_ID, "client.apps.googleusercontent.com");
@@ -142,9 +136,7 @@ describe("applyOpsAppConfig", () => {
 describe("setPourTargets", () => {
   it("creates this env's pour-target rows, never Env=all", async () => {
     const posts = [];
-    mock.method(
-      globalThis,
-      "fetch",
+    vi.spyOn(globalThis, "fetch").mockImplementation(
       mockOpsBaserow(async (_input, init, url) => {
         if (url.includes("/rows/table/88/") && (!init.method || init.method === "GET")) {
           return jsonResponse({ results: [] });
@@ -154,8 +146,7 @@ describe("setPourTargets", () => {
           return jsonResponse({ id: posts.length, ...JSON.parse(init.body) }, 200);
         }
         throw new Error(`unexpected ${init.method} ${url}`);
-      }),
-    );
+      }));
     const next = await setPourTargets(tableEnv, { cocktail: 21 });
     assert.equal(next.cocktail, 21);
     assert.equal(posts.length, 4);

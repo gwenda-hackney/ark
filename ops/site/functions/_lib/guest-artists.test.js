@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { planArtistUpdate } from "./guest-artists.js";
 
 const today = "2026-09-26";

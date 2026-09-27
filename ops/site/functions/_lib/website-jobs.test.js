@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { calendarNightsBehind } from "./event-calendar-sync.js";
 import { seriesPreviewHash } from "./event-publish.js";
 import { contentSignature, currentFailure, jobsFrom, parseFailures, prepNeeded } from "./website-jobs.js";

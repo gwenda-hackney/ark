@@ -292,7 +292,7 @@ jobs:
         run: npm run env:ark:pull -- --github-env
 
       - name: Unit tests
-        run: npm test -w @gwenda/ops
+        run: npm test -w @gwenda/ops && npm run test:shared
 
       - name: Build menu SPA
         run: npm run build -w @gwenda/ops
@@ -387,7 +387,7 @@ jobs:
         run: npm run env:ark:pull -- --github-env
 
       - name: Unit tests
-        run: npm test -w @gwenda/ops
+        run: npm test -w @gwenda/ops && npm run test:shared
 
       - name: Build menu SPA
         run: npm run build -w @gwenda/ops
@@ -471,7 +471,7 @@ jobs:
         run: npm run env:ark:pull -- --github-env
 
       - name: Unit tests
-        run: npm test -w @gwenda/ops
+        run: npm test -w @gwenda/ops && npm run test:shared
 
       - name: Build menu SPA
         run: npm run build -w @gwenda/ops
