@@ -39,10 +39,9 @@
 	import ReplaceNightDialog from "./dialogs/ReplaceNightDialog.svelte";
 	import ScopeDialog from "./dialogs/ScopeDialog.svelte";
 	import UpdateWebsiteDialog from "./dialogs/UpdateWebsiteDialog.svelte";
-	import { WEEKDAY_LABELS, formatClock, formatDate, repeatLabel } from "./event-labels";
+	import { WEEKDAY_LABELS, formatDate, repeatLabel } from "./event-labels";
 	import {
 		hasMeaningfulFraming,
-		normalizeHeroFraming,
 		type HeroFraming,
 	} from "./hero-crops";
 	import {
@@ -67,8 +66,6 @@
 		type ApprovedArtist,
 		type EventDriveFile,
 		type OpsEvent,
-		type OpsEventOccurrence,
-		type OpsNightScheduleSlot,
 	} from "../app/api";
 	import {
 		editorKey,
@@ -105,10 +102,13 @@
 		setUnsavedGuard,
 		takeBlockedNav,
 	} from "../ui/unsaved.svelte";
+	import { WEEKDAYS } from "./event-recurrence.js";
 	import {
-		WEEKDAYS,
-		expandSeriesOccurrenceDates,
-	} from "./event-recurrence.js";
+		EventForm,
+		lockedReadout as lockedReadoutOf,
+		seriesText as seriesTextOf,
+		type SeriesTextKey,
+	} from "./event-form.svelte";
 
 	let { path = "/" }: { path?: string } = $props();
 
@@ -166,33 +166,11 @@
 	let tabSlide = $state(1);
 	let tabPrev = "details";
 	let tabReady = false;
-	let heroCrops = $state<HeroFraming | null>(null);
 	/** Photo picked on a new event: shown now, uploaded right after the first save. */
 	let pendingPhoto = $state<File | null>(null);
 	let pendingPhotoUrl = $state("");
 
-	let name = $state("");
-	let defaultsUnlocked = $state(false);
-	let artist = $state("");
-	let offer = $state("");
-	let pageUrl = $state("");
-	/** The series' page address: /whats-on/<webAddress>. */
-	let webAddress = $state("");
-	let shortDescription = $state("");
-	let description = $state("");
-	let nightSchedule = $state<OpsNightScheduleSlot[]>([]);
-	let operationsNotes = $state("");
-	let imageLinksText = $state("");
-	let startsOn = $state("");
-	let time = $state("");
-	let startTime = $state("");
-	let endTime = $state("");
-	let repeatEvery = $state("1");
-	let repeatUnit = $state("none");
-	let weekdays = $state<string[]>([]);
-	let monthDay = $state("");
-	let endsOn = $state("");
-	let replacesSeries = $state("");
+	const form = new EventForm();
 	let replacePrompt = $state<{
 		id: string;
 		name: string;
@@ -211,8 +189,8 @@
 	function pickApprovedArtist(id: string) {
 		const hit = approvedArtists.find((row) => row.id === id);
 		if (!hit) return;
-		artist = hit.name;
-		if (hit.link) pageUrl = hit.link;
+		form.artist = hit.name;
+		if (hit.link) form.pageUrl = hit.link;
 	}
 
 	/** Series to pick when the next new-event form opens ("Add night" on a series). */
@@ -249,7 +227,7 @@
 	const editingOnce = $derived(
 		!route.isNew &&
 			!editingOccurrence &&
-			String(current?.repeatUnit || repeatUnit || "").toLowerCase() === "once",
+			String(current?.repeatUnit || form.repeatUnit || "").toLowerCase() === "once",
 	);
 	// A special event is not a series: keep Schedule highlighted in the menu.
 	$effect(() => {
@@ -289,193 +267,12 @@
 		editing && !route.isNew && !loading && !current && Boolean(error),
 	);
 
-	function fieldSnapshot(row: {
-		name?: string;
-		artist?: string;
-		offer?: string;
-		shortDescription?: string;
-		description?: string;
-		nightSchedule?: OpsNightScheduleSlot[];
-		operationsNotes?: string;
-		imageLinks?: string[];
-		startsOn?: string;
-		time?: string;
-		startTime?: string;
-		endTime?: string;
-		repeatEvery?: number | string;
-		repeatUnit?: string;
-		weekdays?: string[];
-		monthDay?: number | string;
-		endsOn?: string;
-	}) {
-		return JSON.stringify({
-			name: String(row.name || "").trim(),
-			artist: String(row.artist || "").trim(),
-			offer: String(row.offer || "").trim(),
-			shortDescription: String(row.shortDescription || "").trim(),
-			description: String(row.description || "").trim(),
-			nightSchedule: (row.nightSchedule || [])
-				.map((slot) => ({
-					label: String(slot.label || "").trim(),
-					startTime: String(slot.startTime || "").trim(),
-					endTime: String(slot.endTime || "").trim(),
-				}))
-				.filter((slot) => slot.label),
-			operationsNotes: String(row.operationsNotes || "").trim(),
-			imageLinks: [...(row.imageLinks || [])].map((link) => link.trim()).filter(Boolean),
-			startsOn: row.startsOn || "",
-			time: String(row.time || "").trim(),
-			startTime: row.startTime || "",
-			endTime: row.endTime || "",
-			repeatEvery: Number(row.repeatEvery) || 1,
-			repeatUnit: row.repeatUnit || "none",
-			weekdays: [...(row.weekdays || [])].sort(),
-			monthDay: Number(row.monthDay) || 0,
-			endsOn: row.endsOn || "",
-		});
-	}
-
-	function occurrenceSnapshot(row: {
-		name?: string;
-		artist?: string;
-		offer?: string;
-		pageUrl?: string;
-		description?: string;
-		shortDescription?: string;
-		operationsNotes?: string;
-		imageLinks?: string[];
-		date?: string;
-		time?: string;
-		startTime?: string;
-		endTime?: string;
-	}) {
-		return JSON.stringify({
-			name: String(row.name || "").trim(),
-			artist: String(row.artist || "").trim(),
-			offer: String(row.offer || "").trim(),
-			pageUrl: String(row.pageUrl || "").trim(),
-			description: String(row.description || "").trim(),
-			shortDescription: String(row.shortDescription || "").trim(),
-			operationsNotes: String(row.operationsNotes || "").trim(),
-			imageLinks: [...(row.imageLinks || [])].map((link) => link.trim()).filter(Boolean),
-			date: row.date || "",
-			time: String(row.time || "").trim(),
-			startTime: row.startTime || "",
-			endTime: row.endTime || "",
-		});
-	}
-
-	function cropsKey(value: HeroFraming | Record<string, unknown> | null | undefined) {
-		if (!value || !hasMeaningfulFraming(normalizeHeroFraming(value))) return "";
-		return JSON.stringify(normalizeHeroFraming(value));
-	}
-
-	const formDirty = $derived.by(() => {
-		if (editingOccurrence && current) {
-			const overrides = currentOccurrence?.overrides;
-			const fieldsDirty =
-				occurrenceSnapshot({
-					name,
-					artist,
-					offer,
-					pageUrl,
-					description,
-					shortDescription,
-					operationsNotes,
-					imageLinks: imageLinksText.split(/\r?\n/),
-					date: startsOn,
-					time,
-					startTime,
-					endTime,
-				}) !==
-				occurrenceSnapshot({
-					name: overrides?.name || current.name,
-					artist: overrides?.artist || current.artist,
-					offer: overrides?.offer || current.offer,
-					pageUrl: overrides?.pageUrl || current.pageUrl,
-					description: overrides?.description || current.description,
-					shortDescription: overrides?.shortDescription || "",
-					operationsNotes: overrides?.operationsNotes || current.operationsNotes,
-					imageLinks: overrides?.imageLinks?.length
-						? overrides.imageLinks
-						: current.imageLinks,
-					date: occurrenceDate,
-					time: overrides?.time || current.time,
-					startTime: overrides?.startTime || current.startTime,
-					endTime: overrides?.endTime || current.endTime,
-				});
-			const cropsDirty =
-				Boolean(overrides?.image?.url) &&
-				cropsKey(heroCrops) !== cropsKey(overrides?.heroCrops);
-			return fieldsDirty || cropsDirty || attachSeriesId !== eventId;
-		}
-		const draft = fieldSnapshot({
-			name,
-			artist,
-			offer,
-			shortDescription,
-			description,
-			nightSchedule,
-			operationsNotes,
-			imageLinks: imageLinksText.split(/\r?\n/),
-			startsOn,
-			time,
-			startTime,
-			endTime,
-			repeatEvery,
-			repeatUnit,
-			weekdays,
-			monthDay,
-			endsOn,
-		});
-		if (!current) {
-			return (
-				draft !==
-				fieldSnapshot({
-					name: "",
-					artist: "",
-					offer: "",
-					shortDescription: "",
-					description: "",
-					nightSchedule: [],
-					operationsNotes: "",
-					imageLinks: [],
-					startsOn: "",
-					time: "",
-					startTime: "",
-					endTime: "",
-					repeatEvery: 1,
-					repeatUnit: creatingOnce ? "once" : "none",
-					weekdays: [],
-					monthDay: 0,
-					endsOn: "",
-				})
-			);
-		}
-		return (
-			draft !== fieldSnapshot(current) ||
-			cropsKey(heroCrops) !== cropsKey(current.heroCrops) ||
-			webAddressChanged
-		);
-	});
-
-	/** Blank keeps the address the series has. */
-	const webAddressChanged = $derived(
-		Boolean(current && webAddress.trim() && itemSlug(webAddress) !== current.slug),
+	const formDirty = $derived(
+		form.isDirty(current, { occurrenceDate, creatingOnce }) ||
+			(editingOccurrence && Boolean(current) && attachSeriesId !== eventId),
 	);
-
-	const previewDates = $derived(
-		expandSeriesOccurrenceDates({
-			startsOn,
-			repeatEvery: Number(repeatEvery) || 1,
-			repeatUnit,
-			weekdays,
-			monthDay: Number(monthDay) || undefined,
-			endsOn,
-			skippedDates: current?.skippedDates,
-			extraDates: current?.extraDates,
-		}).filter((date) => date >= new Date().toISOString().slice(0, 10)),
-	);
+	const webAddressChanged = $derived(form.webAddressChanged(current));
+	const previewDates = $derived(form.upcomingDates(current));
 
 	/** Photo owned by this editor (series main, or night override). */
 	const framingUrl = $derived(
@@ -486,16 +283,16 @@
 	);
 	/** Open series (Gwenda Nights): one night at a time, no future-events scope. */
 	const isOpenSeries = $derived(
-		String(current?.repeatUnit || repeatUnit || "none").toLowerCase() === "none",
+		String(current?.repeatUnit || form.repeatUnit || "none").toLowerCase() === "none",
 	);
 	const editingNight = $derived(editingOccurrence || creatingNight);
 	const showHeaderDate = $derived(creatingOnce || editingOnce);
 	const seriesRepeatLine = $derived(
 		repeatLabel({
-			repeatEvery: Number(repeatEvery) || 1,
-			repeatUnit: repeatUnit as OpsEvent["repeatUnit"],
-			weekdays,
-			monthDay: Number(monthDay) || 0,
+			repeatEvery: Number(form.repeatEvery) || 1,
+			repeatUnit: form.repeatUnit as OpsEvent["repeatUnit"],
+			weekdays: form.weekdays,
+			monthDay: Number(form.monthDay) || 0,
 		}),
 	);
 	const typeLine = $derived(
@@ -503,7 +300,7 @@
 			? "This night"
 			: creatingOnce || editingOnce
 				? "Special event"
-				: repeatUnit === "none" || repeatUnit === "once"
+				: form.repeatUnit === "none" || form.repeatUnit === "once"
 					? "Series"
 					: `Series · ${seriesRepeatLine}`,
 	);
@@ -517,8 +314,8 @@
 	const headerDate = $derived(
 		occurrenceDate
 			? formatDate(occurrenceDate)
-			: startsOn
-				? formatDate(startsOn)
+			: form.startsOn
+				? formatDate(form.startsOn)
 				: "No date",
 	);
 	const websiteJob = $derived(websiteJobFor(current?.id));
@@ -568,139 +365,19 @@
 		];
 	});
 
-	function nightTimeLabel(occurrence: OpsEventOccurrence | undefined): string {
-		const start = formatClock(occurrence?.overrides.startTime || startTime || "");
-		const end = formatClock(occurrence?.overrides.endTime || endTime || "");
-		if (start && end) return `${start}–${end}`;
-		if (start) return `From ${start}`;
-		return String(occurrence?.overrides.time || time || "").trim();
-	}
-
-	/** Open series only. Recurring residencies are not special events. */
-	function nightIsSpecialEvent(occurrence: OpsEventOccurrence | undefined): boolean {
-		if (String(repeatUnit || "none").toLowerCase() !== "none") return false;
-		return Boolean(occurrence?.isSpecialEdition);
-	}
-
-	function nightHeadline(occurrence: OpsEventOccurrence | undefined, date: string): string {
-		const overrideName = String(occurrence?.overrides.name || "").trim();
-		const seriesName = String(name || current?.name || "").trim();
-		if (overrideName && overrideName.toLowerCase() !== seriesName.toLowerCase()) {
-			return overrideName;
-		}
-		return formatDate(date);
-	}
-
-	function nightDetailLines(
-		occurrence: OpsEventOccurrence | undefined,
-		date: string,
-	): string[] {
-		const lines: string[] = [];
-		const overrideName = String(occurrence?.overrides.name || "").trim();
-		const seriesName = String(name || current?.name || "").trim();
-		const titled =
-			overrideName && overrideName.toLowerCase() !== seriesName.toLowerCase();
-		if (titled) lines.push(formatDate(date));
-		const when = nightTimeLabel(occurrence);
-		if (when) lines.push(when);
-		const guestOverride = String(occurrence?.overrides.artist || "").trim();
-		const seriesGuest = String(artist || "").trim();
-		if (guestOverride) {
-			lines.push(`Guest · ${guestOverride}`);
-		} else if (repeatUnit !== "none" && seriesGuest) {
-			lines.push(seriesGuest);
-		} else if (repeatUnit !== "none") {
-			lines.push("Series night");
-		}
-		const nightOffer = String(occurrence?.overrides.offer || "").trim();
-		if (nightOffer) lines.push(nightOffer);
-		return lines;
-	}
-
 	function fill(event: OpsEvent) {
 		current = event;
-		const occurrence = occurrenceDate
-			? event.dates.find((row) => row.date === occurrenceDate)
-			: null;
-		name = occurrence?.overrides.name || event.name;
-		artist = occurrence?.overrides.artist || event.artist || "";
-		offer = occurrence?.overrides.offer || event.offer || "";
-		pageUrl = occurrence?.overrides.pageUrl || event.pageUrl || "";
-		webAddress = event.slug || "";
-		const onceNight =
-			event.repeatUnit === "once"
-				? event.dates.find((row) => row.overrides?.description || row.overrides?.shortDescription) ||
-					event.dates[0]
-				: null;
-		shortDescription = occurrence
-			? occurrence.overrides.shortDescription || ""
-			: event.shortDescription || onceNight?.overrides.shortDescription || "";
-		description = occurrence
-			? occurrence.overrides.description || event.description || ""
-			: event.description || onceNight?.overrides.description || "";
-		nightSchedule = (event.nightSchedule || []).map((slot) => ({
-			label: slot.label || "",
-			startTime: slot.startTime || "",
-			endTime: slot.endTime || "",
-		}));
-		operationsNotes =
-			occurrence?.overrides.operationsNotes || event.operationsNotes || "";
-		imageLinksText = (
-			occurrence?.overrides.imageLinks?.length
-				? occurrence.overrides.imageLinks
-				: event.imageLinks || []
-		).join("\n");
-		startsOn = occurrenceDate || event.startsOn || "";
-		time = occurrence?.overrides.time || event.time || "";
-		startTime = occurrence?.overrides.startTime || event.startTime || "";
-		endTime = occurrence?.overrides.endTime || event.endTime || "";
-		repeatEvery = String(event.repeatEvery || 1);
-		repeatUnit = event.repeatUnit || "none";
-		weekdays = [...(event.weekdays || [])];
-		monthDay = event.monthDay ? String(event.monthDay) : "";
-		endsOn = event.endsOn || "";
-		replacesSeries = event.replacesSeries || "";
+		form.fill(event, occurrenceDate);
 		attachSeriesId = event.id;
-		if (occurrence?.overrides?.image?.url) {
-			heroCrops = normalizeHeroFraming(occurrence.overrides.heroCrops);
-		} else if (!occurrenceDate) {
-			heroCrops = event.heroCrops
-				? normalizeHeroFraming(event.heroCrops)
-				: null;
-		} else {
-			heroCrops = null;
-		}
-		syncNightLocks(event, occurrence);
 	}
 
 	function blank() {
 		current = null;
 		clearPendingPhoto();
-		name = "";
-		artist = "";
-		offer = "";
-		pageUrl = "";
-		webAddress = "";
-		shortDescription = "";
-		description = "";
-		nightSchedule = [];
-		operationsNotes = "";
-		imageLinksText = "";
-		startsOn = "";
-		time = "";
-		startTime = "";
-		endTime = "";
-		repeatEvery = "1";
-		repeatUnit = newEventRoute ? "once" : "none";
-		weekdays = [];
-		monthDay = "";
-		endsOn = "";
-		replacesSeries = "";
+		form.reset(newEventRoute ? "once" : "none");
 		attachSeriesId = presetSeriesId;
 		presetSeriesId = "";
 		warnings = [];
-		heroCrops = null;
-		defaultsUnlocked = false;
 	}
 
 	/** A new form starts in its name, or its date when the series is already picked. */
@@ -716,28 +393,6 @@
 		navigate("/events/new/once");
 	}
 
-	function addNightSlot() {
-		nightSchedule = [
-			...nightSchedule,
-			{ label: "", startTime: "", endTime: "" },
-		];
-	}
-
-	function removeNightSlot(index: number) {
-		nightSchedule = nightSchedule.filter((_, i) => i !== index);
-	}
-
-	function syncHeroCropsFromEvent(event: OpsEvent) {
-		if (occurrenceDate) {
-			const occurrence = event.dates.find((row) => row.date === occurrenceDate);
-			heroCrops = occurrence?.overrides?.image?.url
-				? normalizeHeroFraming(occurrence.overrides.heroCrops)
-				: null;
-			return;
-		}
-		heroCrops = event.heroCrops ? normalizeHeroFraming(event.heroCrops) : null;
-	}
-
 	function rememberEvent(event: OpsEvent, replaceFields: boolean) {
 		events = events.some((row) => row.id === event.id)
 			? events.map((row) => (row.id === event.id ? event : row))
@@ -745,98 +400,15 @@
 		if (replaceFields) fill(event);
 		else {
 			current = event;
-			syncHeroCropsFromEvent(event);
+			form.syncHeroCrops(event, occurrenceDate);
 		}
 	}
 
-	function body() {
-		return {
-			name: name.trim(),
-			artist: artist.trim(),
-			offer: offer.trim(),
-			pageUrl: pageUrl.trim(),
-			shortDescription: shortDescription.trim(),
-			description: description.trim(),
-			nightSchedule: nightSchedule
-				.map((slot) => ({
-					label: slot.label.trim(),
-					startTime: slot.startTime,
-					endTime: slot.endTime,
-				}))
-				.filter((slot) => slot.label),
-			operationsNotes: operationsNotes.trim(),
-			imageLinks: imageLinksText
-				.split(/\r?\n/)
-				.map((link) => link.trim())
-				.filter(Boolean),
-			startsOn,
-			time: startTime && endTime ? "" : time.trim(),
-			startTime,
-			endTime,
-			repeatEvery: Number(repeatEvery) || 1,
-			repeatUnit,
-			weekdays,
-			monthDay: Number(monthDay) || 0,
-			endsOn,
-			...(repeatUnit === "once" ? { replacesSeries } : {}),
-			...(webAddressChanged ? { slug: webAddress.trim() } : {}),
-			heroCrops: heroCrops || null,
-		};
-	}
-
-	function seriesText(key: string): string {
-		const event = current;
-		if (!event) return "";
-		if (key === "name") return String(event.name || "").trim();
-		if (key === "artist") return String(event.artist || "").trim();
-		if (key === "offer") return String(event.offer || "").trim();
-		if (key === "pageUrl") return String(event.pageUrl || "").trim();
-		if (key === "shortDescription") return String(event.shortDescription || "").trim();
-		if (key === "description") return String(event.description || "").trim();
-		if (key === "startTime") return String(event.startTime || "").trim();
-		if (key === "endTime") return String(event.endTime || "").trim();
-		if (key === "operationsNotes") return String(event.operationsNotes || "").trim();
-		return "";
-	}
-
-	function lockedReadout(key: string): string {
-		const raw = seriesText(key);
-		if (!raw) return "None on the series";
-		if (key === "startTime" || key === "endTime") return formatClock(raw) || raw;
-		return raw;
-	}
-
-	function nightHasOwnCopy(
-		event: OpsEvent,
-		occurrence: OpsEvent["dates"][number] | null | undefined,
-	): boolean {
-		const overrides = occurrence?.overrides;
-		if (!overrides) return false;
-		const title = String(overrides.name || "").trim();
-		const seriesName = String(event.name || "").trim().toLowerCase();
-		return Boolean(
-			(title && title.toLowerCase() !== seriesName) ||
-				String(overrides.artist || "").trim() ||
-				String(overrides.offer || "").trim() ||
-				String(overrides.pageUrl || "").trim() ||
-				String(overrides.shortDescription || "").trim() ||
-				String(overrides.description || "").trim() ||
-				String(overrides.startTime || "").trim() ||
-				String(overrides.endTime || "").trim() ||
-				String(overrides.operationsNotes || "").trim() ||
-				overrides.image?.url,
-		);
-	}
-
-	function syncNightLocks(
-		event: OpsEvent,
-		occurrence: OpsEvent["dates"][number] | null | undefined,
-	) {
-		defaultsUnlocked = nightHasOwnCopy(event, occurrence);
-	}
+	const seriesText = (key: SeriesTextKey) => seriesTextOf(current, key);
+	const lockedReadout = (key: SeriesTextKey) => lockedReadoutOf(current, key);
 
 	function unlockDefaults() {
-		defaultsUnlocked = true;
+		form.defaultsUnlocked = true;
 	}
 
 	async function useSeriesDefaults() {
@@ -844,49 +416,7 @@
 			await onClearImage("main");
 			if (currentOccurrence?.overrides?.image?.url) return;
 		}
-		heroCrops = null;
-		name = seriesText("name");
-		artist = seriesText("artist");
-		offer = seriesText("offer");
-		pageUrl = seriesText("pageUrl");
-		shortDescription = "";
-		description = seriesText("description");
-		startTime = seriesText("startTime");
-		endTime = seriesText("endTime");
-		operationsNotes = seriesText("operationsNotes");
-		defaultsUnlocked = false;
-	}
-
-	/** Empty means this night keeps the series value. */
-	function nightField(key: string, value: string): string {
-		const trimmed = value.trim();
-		if (!defaultsUnlocked || trimmed.toLowerCase() === seriesText(key).toLowerCase()) {
-			return "";
-		}
-		return trimmed;
-	}
-
-	function occurrenceBody(scope: "this" | "following" | "all") {
-		const ownLinks = currentOccurrence?.overrides?.imageLinks?.length
-			? currentOccurrence.overrides.imageLinks
-			: [];
-		return {
-			scope,
-			date: startsOn,
-			seriesId: eventId,
-			name: nightField("name", name),
-			artist: nightField("artist", artist),
-			offer: nightField("offer", offer),
-			pageUrl: nightField("pageUrl", pageUrl),
-			description: nightField("description", description),
-			shortDescription: nightField("shortDescription", shortDescription),
-			operationsNotes: nightField("operationsNotes", operationsNotes),
-			imageLinks: ownLinks,
-			time: !defaultsUnlocked || (startTime && endTime) ? "" : time.trim(),
-			startTime: nightField("startTime", startTime),
-			endTime: nightField("endTime", endTime),
-			heroCrops: framingUrl ? heroCrops || null : null,
-		};
+		form.useSeriesDefaults(current);
 	}
 
 	async function reload() {
@@ -959,10 +489,10 @@
 		const label = !editing
 			? ""
 			: editingOccurrence && occurrenceDate
-				? [formatDate(occurrenceDate), current?.name || name.trim()]
+				? [formatDate(occurrenceDate), current?.name || form.name.trim()]
 						.filter(Boolean)
 						.join(" · ")
-				: name.trim() ||
+				: form.name.trim() ||
 					(route.isNew ? (creatingNight ? "New night" : creatingOnce ? "New event" : "New series") : "Event");
 		setCrumbLeaf(label);
 		return () => setCrumbLeaf("");
@@ -1048,12 +578,6 @@
 	});
 
 	onDestroy(() => clearUnsavedGuard());
-
-	function toggleWeekday(day: string) {
-		weekdays = weekdays.includes(day)
-			? weekdays.filter((item) => item !== day)
-			: [...weekdays, day];
-	}
 
 	function listHomePath() {
 		return editingOccurrence || creatingOnce || editingOnce
@@ -1170,12 +694,12 @@
 	async function chooseConflict(replace: boolean) {
 		const target = replacePrompt;
 		if (!target || replacing) return;
-		const previous = replacesSeries;
+		const previous = form.replacesSeries;
 		replacePrompt = null;
 		replacing = true;
 		try {
 			if (replace) {
-				replacesSeries = target.slug;
+				form.replacesSeries = target.slug;
 				const skipped = [
 					...new Set([...(target.skippedDates || []), target.date]),
 				];
@@ -1184,12 +708,12 @@
 					row.id === data.event.id ? data.event : row,
 				);
 			} else {
-				replacesSeries = `keep:${target.slug}`;
+				form.replacesSeries = `keep:${target.slug}`;
 			}
 			skipReplaceAsk = true;
 			await onSave(new Event("submit"));
 		} catch (err) {
-			replacesSeries = previous;
+			form.replacesSeries = previous;
 			const message =
 				err instanceof Error ? err.message : "Could not cancel that night.";
 			error = message;
@@ -1203,7 +727,7 @@
 		event.preventDefault();
 		if (busy) return;
 		if (creatingNight) {
-			if (!attachSeriesId || !startsOn) {
+			if (!attachSeriesId || !form.startsOn) {
 				const message = !attachSeriesId ? "Choose a series." : "Add a date.";
 				error = message;
 				toast.error(message);
@@ -1213,29 +737,29 @@
 			intent = "save";
 			error = "";
 			try {
-				const data = await ensureEventOccurrence(attachSeriesId, startsOn, {
-					name: name.trim(),
-					artist: artist.trim(),
-					offer: offer.trim(),
-					pageUrl: pageUrl.trim(),
-					description: description.trim(),
-					shortDescription: shortDescription.trim(),
-					operationsNotes: operationsNotes.trim(),
-					imageLinks: imageLinksText
+				const data = await ensureEventOccurrence(attachSeriesId, form.startsOn, {
+					name: form.name.trim(),
+					artist: form.artist.trim(),
+					offer: form.offer.trim(),
+					pageUrl: form.pageUrl.trim(),
+					description: form.description.trim(),
+					shortDescription: form.shortDescription.trim(),
+					operationsNotes: form.operationsNotes.trim(),
+					imageLinks: form.imageLinksText
 						.split(/\r?\n/)
 						.map((link) => link.trim())
 						.filter(Boolean),
-					time: startTime && endTime ? "" : time.trim(),
-					startTime,
-					endTime,
+					time: form.startTime && form.endTime ? "" : form.time.trim(),
+					startTime: form.startTime,
+					endTime: form.endTime,
 				});
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
-				await uploadPendingPhoto(String(data.event?.id || attachSeriesId), startsOn);
+				await uploadPendingPhoto(String(data.event?.id || attachSeriesId), form.startsOn);
 				// A new night on an existing series: stage that series.
 				await stageAfterSave(String(data.event?.id || attachSeriesId), "");
 				toast.ok(data.created ? "Night added to the series." : "Night opened.");
-				navigate(eventItemPath(`${attachSeriesId}@${startsOn}`), { replace: true });
+				navigate(eventItemPath(`${attachSeriesId}@${form.startsOn}`), { replace: true });
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Could not add the night.";
 				error = message;
@@ -1247,20 +771,20 @@
 			return;
 		}
 		if (
-			(!editingOccurrence && !name.trim()) ||
-			(!creatingNight && !editingOccurrence && !startsOn && repeatUnit === "once")
+			(!editingOccurrence && !form.name.trim()) ||
+			(!creatingNight && !editingOccurrence && !form.startsOn && form.repeatUnit === "once")
 		) {
-			const message = !name.trim() ? "Add a name." : "Add a date.";
+			const message = !form.name.trim() ? "Add a name." : "Add a date.";
 			error = message;
 			toast.error(message);
 			const target = route.isNew
-				? eventNewPath(!name.trim() ? "details" : "schedule", { once: newEventRoute })
-				: eventItemPath(route.slug || eventId, !name.trim() ? "details" : "schedule");
+				? eventNewPath(!form.name.trim() ? "details" : "schedule", { once: newEventRoute })
+				: eventItemPath(route.slug || eventId, !form.name.trim() ? "details" : "schedule");
 			if (path !== target) navigate(target);
 			return;
 		}
 		// The website needs one (publishEventPreview); a night uses its series'.
-		if (!editingOccurrence && !description.replace(/<[^>]*>/g, "").trim()) {
+		if (!editingOccurrence && !form.description.replace(/<[^>]*>/g, "").trim()) {
 			error = "Add a description. The website needs one.";
 			toast.error(error);
 			const target = route.isNew
@@ -1271,31 +795,31 @@
 		}
 		if (
 			!editingOccurrence &&
-			repeatUnit !== "none" &&
-			repeatUnit !== "once" &&
-			startsOn &&
-			!endsOn
+			form.repeatUnit !== "none" &&
+			form.repeatUnit !== "once" &&
+			form.startsOn &&
+			!form.endsOn
 		) {
 			error = "Add an end date for the recurring event.";
 			toast.error(error);
 			return;
 		}
-		if (repeatUnit === "once" && !skipReplaceAsk) {
+		if (form.repeatUnit === "once" && !skipReplaceAsk) {
 			const hit = events.find(
 				(event) =>
 					event.id !== eventId &&
 					event.repeatUnit !== "once" &&
-					(event.dates || []).some((row) => row.date === startsOn),
+					(event.dates || []).some((row) => row.date === form.startsOn),
 			);
 			const decided =
-				replacesSeries === hit?.slug ||
-				replacesSeries === `keep:${hit?.slug || ""}`;
+				form.replacesSeries === hit?.slug ||
+				form.replacesSeries === `keep:${hit?.slug || ""}`;
 			if (hit?.slug && !decided) {
 				replacePrompt = {
 					id: hit.id,
 					name: hit.name,
 					slug: hit.slug,
-					date: startsOn,
+					date: form.startsOn,
 					skippedDates: hit.skippedDates || [],
 				};
 				return;
@@ -1303,7 +827,7 @@
 		}
 		skipReplaceAsk = false;
 		if (editingOccurrence) {
-			if (isOpenSeries || startsOn !== occurrenceDate) {
+			if (isOpenSeries || form.startsOn !== occurrenceDate) {
 				await saveOccurrenceWithScope("this");
 			} else {
 				saveScopeOpen = true;
@@ -1315,17 +839,17 @@
 		error = "";
 		try {
 			if (!eventId) {
-				const data = await createEvent(body());
+				const data = await createEvent(form.body(current));
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
 				await uploadPendingPhoto(String(data.event.id));
-				await stageAfterSave(String(data.event.id), repeatUnit === "once" ? "Event saved." : "Series saved.");
+				await stageAfterSave(String(data.event.id), form.repeatUnit === "once" ? "Event saved." : "Series saved.");
 				navigate(eventItemPath(data.event.id, tab), { replace: true });
 			} else {
-				const data = await updateEvent(eventId, body());
+				const data = await updateEvent(eventId, form.body(current));
 				rememberEvent(data.event, true);
 				applyWarnings(data.warnings);
-				await stageAfterSave(eventId, repeatUnit === "once" ? "Event saved." : "Series saved.");
+				await stageAfterSave(eventId, form.repeatUnit === "once" ? "Event saved." : "Series saved.");
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not save the event.";
@@ -1347,7 +871,7 @@
 			const data = await updateEventOccurrence(
 				eventId,
 				occurrenceDate,
-				occurrenceBody(scope),
+				form.occurrenceBody(scope, current, { seriesId: eventId, occurrenceDate, hasOwnPhoto: Boolean(framingUrl) }),
 			);
 			rememberEvent(data.event, true);
 			applyWarnings(data.warnings);
@@ -1368,7 +892,7 @@
 				if (!data.sourceDeleted && assignedTo !== eventId) await stageAfterSave(eventId, "");
 				await stageAfterSave(assignedTo, assignedTo !== eventId ? "Night assigned to series." : "Night moved.");
 				beginLeave();
-				navigate(eventItemPath(`${assignedTo}@${movedTo || startsOn}`, tab), {
+				navigate(eventItemPath(`${assignedTo}@${movedTo || form.startsOn}`, tab), {
 					replace: true,
 					force: true,
 				});
@@ -1490,7 +1014,7 @@
 	}
 
 	function onHeroCropsChange(next: HeroFraming | null) {
-		heroCrops = next && hasMeaningfulFraming(next) ? next : null;
+		form.heroCrops = next && hasMeaningfulFraming(next) ? next : null;
 	}
 
 	async function onGalleryInput(e: Event) {
@@ -1684,13 +1208,13 @@
 										size="sm"
 										type="button"
 										disabled={busy}
-										aria-label={defaultsUnlocked ? "Use series defaults" : "Override defaults"}
-										title={defaultsUnlocked ? "Use series defaults" : "Override defaults"}
+										aria-label={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
+										title={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
 										onclick={() =>
-											defaultsUnlocked ? void useSeriesDefaults() : unlockDefaults()}
+											form.defaultsUnlocked ? void useSeriesDefaults() : unlockDefaults()}
 									>
 										{#snippet icon()}
-											<Icon name={defaultsUnlocked ? "undo" : "lock"} />
+											<Icon name={form.defaultsUnlocked ? "undo" : "lock"} />
 										{/snippet}
 									</Button>
 									<span class="tool-sep" aria-hidden="true"></span>
@@ -1775,7 +1299,7 @@
 										{headerDate === "No date" ? "Pick a date" : headerDate}
 									</p>
 								</div>
-								{#if editingOccurrence && !defaultsUnlocked}
+								{#if editingOccurrence && !form.defaultsUnlocked}
 									<p class="locked-title">{lockedReadout("name")}</p>
 								{:else}
 									<input
@@ -1785,7 +1309,7 @@
 										autocomplete="off"
 										aria-label="Night title"
 										placeholder={creatingNight ? "Night title (optional)" : "Night title"}
-										bind:value={name}
+										bind:value={form.name}
 									/>
 								{/if}
 							{:else}
@@ -1797,12 +1321,12 @@
 										autocomplete="off"
 										aria-label={creatingOnce || editingOnce ? "Event name" : "Series name"}
 										placeholder={creatingOnce || editingOnce ? "Event name" : "Series name"}
-										bind:value={name}
+										bind:value={form.name}
 									/>
 								</div>
 							{/if}
-							{#if (!editingOccurrence || defaultsUnlocked) && artist.trim()}
-								<p class="sub">{artist.trim()}</p>
+							{#if (!editingOccurrence || form.defaultsUnlocked) && form.artist.trim()}
+								<p class="sub">{form.artist.trim()}</p>
 							{/if}
 						</div>
 						{#if showHeaderDate}
@@ -1814,7 +1338,7 @@
 							<p class="head-note">
 								{#if parentSeriesName}<span>Part of {parentSeriesName}.</span>{/if}
 								<span>
-									{#if editingOccurrence && !defaultsUnlocked}
+									{#if editingOccurrence && !form.defaultsUnlocked}
 										Times, flyer, and copy come from the series.
 									{:else}
 										Changes apply to this night only.
@@ -1914,7 +1438,7 @@
 																id="event-date"
 																size="sm"
 																type="date"
-																bind:value={startsOn}
+																bind:value={form.startsOn}
 																required
 															/>
 														</Field>
@@ -1927,13 +1451,13 @@
 															? "Shown on What's on. From the series until you override defaults."
 															: "Default start time for each night. A night can override it."}
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("startTime")}</p>
 														{:else}
 															<TimeField
 																id="event-start-time"
 																size="sm"
-																bind:value={startTime}
+																bind:value={form.startTime}
 															/>
 														{/if}
 													</Field>
@@ -1945,14 +1469,14 @@
 															? "Shown on What's on. From the series until you override defaults."
 															: "Default end time for each night. A night can override it."}
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("endTime")}</p>
 														{:else}
 															<TimeField
 																id="event-end-time"
 																size="sm"
-																bind:value={endTime}
-																suggest={startTime || "23:00"}
+																bind:value={form.endTime}
+																suggest={form.startTime || "23:00"}
 															/>
 														{/if}
 													</Field>
@@ -1970,30 +1494,30 @@
 																	variant="ghost"
 																	type="button"
 																	disabled={busy}
-																	onclick={addNightSlot}
+																	onclick={() => form.addNightSlot()}
 																>
 																	Add slot
 																</Button>
 															</div>
-															{#if nightSchedule.length}
+															{#if form.nightSchedule.length}
 																<ul class="night-schedule-list">
-																	{#each nightSchedule as slot, index (index)}
+																	{#each form.nightSchedule as slot, index (index)}
 																		<li class="night-slot">
 																			<TextField
 																				size="sm"
 																				placeholder="Open decks"
-																				bind:value={nightSchedule[index].label}
+																				bind:value={form.nightSchedule[index].label}
 																				aria-label={`Slot ${index + 1} label`}
 																			/>
 																			<TimeField
 																				size="sm"
-																				bind:value={nightSchedule[index].startTime}
+																				bind:value={form.nightSchedule[index].startTime}
 																				aria-label={`Slot ${index + 1} start`}
 																			/>
 																			<TimeField
 																				size="sm"
-																				bind:value={nightSchedule[index].endTime}
-																				suggest={nightSchedule[index].startTime || endTime || "23:00"}
+																				bind:value={form.nightSchedule[index].endTime}
+																				suggest={form.nightSchedule[index].startTime || form.endTime || "23:00"}
 																				aria-label={`Slot ${index + 1} end`}
 																			/>
 																			<button
@@ -2001,7 +1525,7 @@
 																				type="button"
 																				disabled={busy}
 																				aria-label={`Remove slot ${index + 1}`}
-																				onclick={() => removeNightSlot(index)}
+																				onclick={() => form.removeNightSlot(index)}
 																			>
 																				<Icon name="close" size={12} />
 																			</button>
@@ -2024,13 +1548,13 @@
 															? "From the series until you override defaults. A guest of its own is a special edition on What's on."
 															: "Optional default. Type any name, or pick an approved artist from the list (approve them in Play applications) to bring their link too. A night with its own guest is labelled Guest on Upcoming and What's on."}
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("artist")}</p>
 														{:else}
 															<ComboBox
 																id="event-artist"
 																size="sm"
-																bind:value={artist}
+																bind:value={form.artist}
 																placeholder="Artist, DJ or collaborator"
 																emptyText="No approved artists yet. Approve them in Play applications."
 																options={approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
@@ -2045,13 +1569,13 @@
 															? "From the series until you override defaults. A guest of this night can link their own Instagram or website."
 															: "Optional. Their Instagram or website (an @handle works), linked on the website."}
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("pageUrl")}</p>
 														{:else}
 															<TextField
 																id="event-page-url"
 																size="sm"
-																bind:value={pageUrl}
+																bind:value={form.pageUrl}
 																placeholder="Instagram or website link"
 															/>
 														{/if}
@@ -2065,13 +1589,13 @@
 															? "From the series until you override defaults."
 															: "Default public wording, such as a drink deal. A night can override it."}
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("offer")}</p>
 														{:else}
 															<TextField
 																id="event-offer"
 																size="sm"
-																bind:value={offer}
+																bind:value={form.offer}
 																placeholder="£10 Negroni"
 															/>
 														{/if}
@@ -2084,12 +1608,12 @@
 															? "From the series until you override defaults. The What's on card sentence."
 															: "What's on card. One or two lines on what this night is."}
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value">{lockedReadout("shortDescription")}</p>
 														{:else}
 															<TextArea
 																id="event-short-description"
-																bind:value={shortDescription}
+																bind:value={form.shortDescription}
 																rows={2}
 																placeholder={editingOccurrence
 																	? seriesText("shortDescription") ||
@@ -2106,15 +1630,15 @@
 															? "From the series until you override defaults."
 															: "Series and night page. Use the short field for the What's on card."}
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value prose">{lockedReadout("description")}</p>
 														{:else}
 															<MethodEditor
 																id="event-description"
-																value={description}
+																value={form.description}
 																label="Event description"
 																placeholder="Set the scene…"
-																onChange={(next) => (description = next)}
+																onChange={(next) => (form.description = next)}
 															/>
 														{/if}
 													</Field>
@@ -2130,7 +1654,7 @@
 																<TextField
 																	id="event-web-address"
 																	size="sm"
-																	bind:value={webAddress}
+																	bind:value={form.webAddress}
 																	placeholder={current.slug}
 																	autocomplete="off"
 																	spellcheck="false"
@@ -2138,7 +1662,7 @@
 															</div>
 															{#if webAddressChanged}
 																<p class="hint">
-																	New address: gwenda.co.uk/whats-on/{itemSlug(webAddress)}. The website
+																	New address: gwenda.co.uk/whats-on/{itemSlug(form.webAddress)}. The website
 																	changes when you press Update website, and old links will lead here.
 																</p>
 															{/if}
@@ -2150,12 +1674,12 @@
 														for="event-operations-notes"
 														tooltip="Internal only. Never published to the website."
 													>
-														{#if editingOccurrence && !defaultsUnlocked}
+														{#if editingOccurrence && !form.defaultsUnlocked}
 															<p class="locked-value prose">{lockedReadout("operationsNotes")}</p>
 														{:else}
 															<TextArea
 																id="event-operations-notes"
-																bind:value={operationsNotes}
+																bind:value={form.operationsNotes}
 																rows={4}
 																placeholder="Contacts, fee, setup, access, equipment…"
 															/>
@@ -2167,7 +1691,7 @@
 												{#if !eventId}
 													<p class="hint">Save before adding a photo.</p>
 												{/if}
-												{#if editingOccurrence && !defaultsUnlocked}
+												{#if editingOccurrence && !form.defaultsUnlocked}
 													<HeroImagePanel
 														sourceUrl={current?.mainImage?.url || ""}
 														locked
@@ -2179,7 +1703,7 @@
 												{:else}
 													<HeroImagePanel
 														sourceUrl={framingUrl}
-														crops={heroCrops}
+														crops={form.heroCrops}
 														disabled={busy}
 														tooltip={editingOccurrence
 															? "This night's flyer. What's on uses it while this is the next night. Original downloads the file as uploaded."
@@ -2194,7 +1718,7 @@
 										</section>
 									{:else if tab === "schedule"}
 										<section class="block">
-											{#if repeatUnit === "none"}
+											{#if form.repeatUnit === "none"}
 												<p class="hint">
 													This series does not repeat. Add each night when it is
 													scheduled (Details → Series, or New with this series
@@ -2211,7 +1735,7 @@
 														<NativeSelect
 															id="event-unit"
 															size="sm"
-															bind:value={repeatUnit}
+															bind:value={form.repeatUnit}
 															disabled={editingOccurrence}
 															options={[
 																{ value: "none", label: "Does not repeat" },
@@ -2221,7 +1745,7 @@
 															]}
 														/>
 													</Field>
-													{#if repeatUnit !== "none"}
+													{#if form.repeatUnit !== "none"}
 														<Field
 															label="Every"
 															for="event-every"
@@ -2233,12 +1757,12 @@
 																type="number"
 																min="1"
 																max="52"
-																bind:value={repeatEvery}
+																bind:value={form.repeatEvery}
 																disabled={editingOccurrence}
 															/>
 														</Field>
 													{/if}
-													{#if repeatUnit === "week"}
+													{#if form.repeatUnit === "week"}
 														<Field
 															label="On"
 															class="days"
@@ -2249,10 +1773,10 @@
 																	<button
 																		type="button"
 																		class="chip"
-																		class:on={weekdays.includes(day)}
-																		aria-pressed={weekdays.includes(day)}
+																		class:on={form.weekdays.includes(day)}
+																		aria-pressed={form.weekdays.includes(day)}
 																		disabled={editingOccurrence}
-																		onclick={() => toggleWeekday(day)}
+																		onclick={() => form.toggleWeekday(day)}
 																	>
 																		{WEEKDAY_LABELS[day]}
 																	</button>
@@ -2260,7 +1784,7 @@
 															</div>
 														</Field>
 													{/if}
-													{#if repeatUnit === "month"}
+													{#if form.repeatUnit === "month"}
 														<Field
 															label="Day of month"
 															for="event-month-day"
@@ -2272,7 +1796,7 @@
 																type="number"
 																min="1"
 																max="31"
-																bind:value={monthDay}
+																bind:value={form.monthDay}
 																disabled={editingOccurrence}
 																placeholder="From the start date"
 															/>
@@ -2283,7 +1807,7 @@
 													<Field
 														label="Starts on"
 														for="event-starts"
-														tooltip={repeatUnit === "none"
+														tooltip={form.repeatUnit === "none"
 															? "First scheduled night. Leave empty until you add a night."
 															: "First night of the series. Recurrence builds forward from here. Leave empty if it is not fixed yet: the website says “Check back soon for the next date”."}
 													>
@@ -2291,14 +1815,14 @@
 															id="event-starts"
 															size="sm"
 															type="date"
-															bind:value={startsOn}
+															bind:value={form.startsOn}
 															disabled={editingOccurrence}
 														/>
 													</Field>
 													<Field
 														label="Ends on"
 														for="event-ends"
-														tooltip={repeatUnit === "none"
+														tooltip={form.repeatUnit === "none"
 															? "Optional. Not used when nights are scheduled one by one."
 															: "Last night of the series. Required once it has a start date."}
 													>
@@ -2306,8 +1830,8 @@
 															id="event-ends"
 															size="sm"
 															type="date"
-															bind:value={endsOn}
-															required={repeatUnit !== "none" && Boolean(startsOn)}
+															bind:value={form.endsOn}
+															required={form.repeatUnit !== "none" && Boolean(form.startsOn)}
 															disabled={editingOccurrence}
 														/>
 													</Field>
@@ -2319,7 +1843,7 @@
 														Upcoming
 														<Tip
 															label="Upcoming"
-															tooltip={repeatUnit === "none"
+															tooltip={form.repeatUnit === "none"
 																? "Each night is its own date. A star marks a night with its own guest or collaboration."
 																: "Nights from this series rule. Guest and times show when a night overrides the series defaults."}
 														/>
@@ -2328,8 +1852,8 @@
 												<ul class="occurrences">
 													{#each previewDates as date (date)}
 														{@const occurrence = current?.dates.find((row) => row.date === date)}
-														{@const special = nightIsSpecialEvent(occurrence)}
-														{@const details = nightDetailLines(occurrence, date)}
+														{@const special = form.nightIsSpecialEvent(occurrence)}
+														{@const details = form.nightDetailLines(current, occurrence, date)}
 														<li>
 															<div class="occurrence-main">
 																<strong class="occurrence-title">
@@ -2342,7 +1866,7 @@
 																			<Icon name="star" size={13} />
 																		</span>
 																	{/if}
-																	{nightHeadline(occurrence, date)}
+																	{form.nightHeadline(current, occurrence, date)}
 																</strong>
 																{#each details as line (line)}
 																	<span class="occurrence-detail">{line}</span>
@@ -2361,8 +1885,8 @@
 												</ul>
 											{:else}
 												<p class="hint">
-													{startsOn
-														? repeatUnit === "none"
+													{form.startsOn
+														? form.repeatUnit === "none"
 															? "No nights scheduled yet."
 															: "No upcoming date for this rule."
 														: "No start date yet. The website shows this series with “Check back soon for the next date” and a link to our Instagram."}
@@ -2543,7 +2067,7 @@
 
 			<ReplaceNightDialog
 				prompt={replacePrompt}
-				eventName={name.trim() || "this event"}
+				eventName={form.name.trim() || "this event"}
 				{replacing}
 				onchoose={(replace) => void chooseConflict(replace)}
 				onclose={() => (replacePrompt = null)}
@@ -2563,8 +2087,8 @@
 
 			<DeleteEventDialog
 				open={deleteOpen}
-				eventName={name.trim() || "this event"}
-				recurring={repeatUnit !== "none"}
+				eventName={form.name.trim() || "this event"}
+				recurring={form.repeatUnit !== "none"}
 				{onWebsite}
 				{busy}
 				deleting={saving && intent === "delete"}
