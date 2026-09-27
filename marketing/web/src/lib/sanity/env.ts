@@ -135,11 +135,13 @@ export function getSanityConfig(): SanityConfig {
   ]);
 
   if (!token) {
-    const hint =
-      dataset === "production"
-        ? "GitHub secret SANITY_API_TOKEN (CI) or repo-root .env (local)."
-        : "repo-root .env (local dev).";
-    throw new Error(`SANITY_API_TOKEN is required — set it in ${hint}`);
+    // Secrets come from Bitwarden Secrets Manager (docs/env.md), not GitHub
+    // secrets or .env files.
+    throw new Error(
+      "SANITY_API_TOKEN is missing. Locally: run `npm run env:status`; if the vault is locked, run " +
+        "`bw-unlock`, then start through an npm script (e.g. `npm run web:dev`). In CI: the workflow " +
+        "pulls secrets from Secrets Manager with BWS_ACCESS_TOKEN.",
+    );
   }
 
   return { projectId, dataset, token };
