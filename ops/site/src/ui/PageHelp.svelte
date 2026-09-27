@@ -2,7 +2,7 @@
 	/**
 	 * Help button for a page header. Opens a side drawer of control notes.
 	 */
-	import { Icon } from "../shell";
+	import { Icon } from "../app/shell";
 	import Button from "./Button.svelte";
 	import HelpDrawer from "./HelpDrawer.svelte";
 	import type { PageHelpTopic } from "./types";

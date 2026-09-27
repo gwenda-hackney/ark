@@ -11,13 +11,13 @@
 		type GridApi,
 		type GridOptions,
 	} from "ag-grid-community";
-	import { hasRangeSelection, opsGridTheme } from "../lib/grid";
+	import { hasRangeSelection, opsGridTheme } from "./grid";
 	import {
 		readGridViewportScroll,
 		recalledGridScroll,
 		rememberGridScroll,
 		scrollGridViewport,
-	} from "../lib/grid-scroll";
+	} from "./grid-scroll";
 
 	const NUMERIC_HEADER = "ag-right-aligned-header";
 

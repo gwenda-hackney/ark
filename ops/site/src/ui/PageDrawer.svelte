@@ -5,7 +5,7 @@
 	 * Use this for workflows and reference pages. Keep short confirms in Dialog.
 	 */
 	import type { Snippet } from "svelte";
-	import { Icon } from "../shell";
+	import { Icon } from "../app/shell";
 	import Button from "./Button.svelte";
 	import SidePanel from "./SidePanel.svelte";
 

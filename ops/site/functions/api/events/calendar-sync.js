@@ -2,8 +2,8 @@ import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
 import {
   attachCalendarWarnings,
   syncSeriesCalendar,
-} from "../../../src/features/events/server/event-calendar-sync.js";
-import { listEvents } from "../../../src/features/events/server/event-store.js";
+} from "../../../src/events/server/event-calendar-sync.js";
+import { listEvents } from "../../../src/events/server/event-store.js";
 
 export const onRequestPost = withApiHandler(async (context) => {
   const events = await listEvents(context.env);

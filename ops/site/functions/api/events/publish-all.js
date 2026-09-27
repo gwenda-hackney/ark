@@ -1,5 +1,5 @@
 import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
-import { publishAllEventPreviews } from "../../../src/features/events/server/event-publish.js";
+import { publishAllEventPreviews } from "../../../src/events/server/event-publish.js";
 
 export const onRequestPost = withApiHandler(async (context) => {
   const result = await publishAllEventPreviews(context.env);

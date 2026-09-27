@@ -1,6 +1,6 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
-import { createMenuSection } from "../../../src/features/menu/server/menu-store.js";
-import { toClientSection } from "../../../src/features/inventory/server/reconcile.js";
+import { createMenuSection } from "../../../src/menu/server/menu-store.js";
+import { toClientSection } from "../../../src/inventory/server/reconcile.js";
 
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);

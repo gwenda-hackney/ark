@@ -1,6 +1,6 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
 import { assertNotLocal } from "../../../src/platform/sanity.js";
-import { siteStatus, updateNow } from "../../../src/features/web/server/site-pending.js";
+import { siteStatus, updateNow } from "../../../src/website/server/site-pending.js";
 
 /** "Update website now": build { site: "production" | "preview" } straight away. */
 export const onRequestPost = withApiHandler(async (context) => {

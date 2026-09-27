@@ -43,7 +43,7 @@ world.google.calendar();             // calendar entries
 world.restore();
 ```
 
-Use cases live next to their feature (`ops/site/src/features/events/use-cases.test.js`) and run with `npm test -w @gwenda/ops`. The events one has an `editor(world)` helper (create, edit, add or edit a night, wait for the background job, Update website, and `sees()` for the status line the editor reads) to copy for other areas.
+Use cases live next to their feature (`ops/site/src/events/use-cases.test.js`) and run with `npm test -w @gwenda/ops`. The events one has an `editor(world)` helper (create, edit, add or edit a night, wait for the background job, Update website, and `sees()` for the status line the editor reads) to copy for other areas.
 
 ## Known bugs
 

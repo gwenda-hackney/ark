@@ -1,6 +1,6 @@
 import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
-import { deleteMenuItem, loadMenuTree, updateMenuItem, archiveMenuItem } from "../../../src/features/menu/server/menu-store.js";
-import { toClientItem } from "../../../src/features/inventory/server/reconcile.js";
+import { deleteMenuItem, loadMenuTree, updateMenuItem, archiveMenuItem } from "../../../src/menu/server/menu-store.js";
+import { toClientItem } from "../../../src/inventory/server/reconcile.js";
 
 function itemId(context) {
   return decodeURIComponent(context.params?.id || "");

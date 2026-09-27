@@ -2,7 +2,7 @@ import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platfor
 import {
   deleteInventoryItem,
   updateInventoryItem,
-} from "../../../src/features/inventory/server/inventory-store.js";
+} from "../../../src/inventory/server/inventory-store.js";
 
 export const onRequestPatch = withApiHandler(async (context) => {
   const id = context.params?.id;

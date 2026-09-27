@@ -3,8 +3,8 @@ import {
   attachCalendarWarnings,
   configuredCalendarId,
   syncSeriesCalendar,
-} from "../../../../src/features/events/server/event-calendar-sync.js";
-import { getEvent } from "../../../../src/features/events/server/event-store.js";
+} from "../../../../src/events/server/event-calendar-sync.js";
+import { getEvent } from "../../../../src/events/server/event-store.js";
 
 /** Push one saved series onto Google Calendar. Does not write the site. */
 export const onRequestPost = withApiHandler(async (context) => {

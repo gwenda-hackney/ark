@@ -6,7 +6,7 @@
 	 * finish sits after the evening. Holds "HH:MM" like a native time input.
 	 */
 	import { onMount, tick } from "svelte";
-	import { nearestIndex, parseTime, timeOptions } from "../lib/time-input";
+	import { nearestIndex, parseTime, timeOptions } from "./time-input";
 
 	let {
 		value = $bindable(""),
