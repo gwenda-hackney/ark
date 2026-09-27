@@ -1,7 +1,6 @@
 import {
   buildAuthCookie,
   clearOauthStateCookie,
-  createHandoffToken,
   createSessionToken,
   isSecureOrigin,
   OAUTH_STATE_COOKIE,
@@ -19,7 +18,7 @@ import {
   parseOauthStateParam,
 } from "../../_lib/google-oauth.js";
 import { opsEnv } from "../../_lib/ops-env.js";
-import { allowedReturnTo } from "../../_lib/preview-signin.js";
+import { allowedReturnTo, sessionCookieDomain } from "../../_lib/preview-signin.js";
 import { isOpsUser } from "../../_lib/user-store.js";
 
 /** Google OAuth callback: exchange code, check Users, set session. */
@@ -84,14 +83,12 @@ export async function onRequestGet(context) {
     }
 
     const session = await createSessionToken(auth.sessionSecret, email);
-    // Signed in for a dev branch preview: hand the session back to it.
+    // Signed in for a dev branch preview: the dev session cookie is shared
+    // with previews, so send the user straight back to it.
     const returnTo = allowedReturnTo(env, context.request, oauth.returnTo);
-    const handoff = returnTo ? await createHandoffToken(auth.sessionSecret, email, returnTo) : "";
-    const destination = handoff
-      ? `${returnTo}/api/auth/handoff?${new URLSearchParams({ token: handoff, next: safeRedirectPath(next) })}`
-      : safeRedirectPath(next);
-    const response = relativeRedirect(destination);
-    response.headers.append("Set-Cookie", buildAuthCookie(session, { secure }));
+    const response = relativeRedirect(`${returnTo}${safeRedirectPath(next)}`);
+    const domain = sessionCookieDomain(env, context.request);
+    response.headers.append("Set-Cookie", buildAuthCookie(session, { secure, domain }));
     response.headers.append("Set-Cookie", clearOauth);
     return response;
   } catch (error) {
