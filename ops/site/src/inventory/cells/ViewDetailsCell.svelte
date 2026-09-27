@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from "../../ui";
 	import { Icon } from "../../app/shell";
-	import type { InventoryItem } from "../../app/types";
+	import type { InventoryItem } from "../types";
 
 	let {
 		item = null,

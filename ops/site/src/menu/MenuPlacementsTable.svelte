@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button, Field, NativeSelect } from "../ui";
 	import type { SelectOption } from "../ui/types";
-	import type { MenuPlacement, PosMenu } from "../app/types";
+	import type { MenuPlacement, PosMenu } from "./types";
 	import { parsePosScreenInput } from "../inventory/lightspeed-stock.js";
 
 	let {

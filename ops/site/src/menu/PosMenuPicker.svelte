@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PosMenu } from "../app/types";
+	import type { PosMenu } from "./types";
 
 	let {
 		menus = [],

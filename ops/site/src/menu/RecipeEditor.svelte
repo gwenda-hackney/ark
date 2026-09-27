@@ -13,28 +13,9 @@
 		TextField,
 	} from "../ui";
 	import type { SegmentedItem, SelectOption } from "../ui/types";
-	import {
-		COCKTAIL_TYPES,
-		DRINK_TYPES,
-		GLASSWARE,
-		ICE_OPTIONS,
-		defaultPosMenus,
-		defaultServeQuantity,
-		drinkTypeLabel,
-		flattenIngredientsForMenu,
-		formatGbp,
-		hasRecipe,
-		normalizeCocktailType,
-		normalizeDrinkType,
-		type CocktailType,
-		type DrinkType,
-		type Ingredient,
-		type InventoryItem,
-		type MenuItem,
-		type MenuPlacement,
-		type MenuSection,
-		type PosMenu,
-	} from "../app/types";
+	import { formatGbp } from "../app/money";
+	import { type InventoryItem } from "../inventory/types";
+	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
 	import { flattenMenuSections, sectionPathLabel } from "./menu-sections.js";
 	import {
 		computeRecipeAbv,

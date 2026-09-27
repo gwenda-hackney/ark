@@ -18,7 +18,8 @@
 		serveVerdict,
 		type ServePourReading,
 	} from "./cost";
-	import { formatGbp, hasRecipe } from "../app/types";
+	import { formatGbp } from "../app/money";
+	import { hasRecipe } from "./types";
 	import { Icon } from "../app/shell";
 	import InventoryLink from "./cells/InventoryLink.svelte";
 

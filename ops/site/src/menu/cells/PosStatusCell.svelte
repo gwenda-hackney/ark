@@ -1,8 +1,5 @@
 <script lang="ts">
-	import {
-		lightspeedStatusLabel,
-		type LightspeedStatus,
-	} from "../../app/types";
+	import { lightspeedStatusLabel, type LightspeedStatus } from "../../inventory/types";
 
 	let {
 		status,

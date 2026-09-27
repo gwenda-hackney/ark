@@ -14,7 +14,7 @@ ops/site/                 one package: @gwenda/ops
 │   ├── website/  config/  home/  access/ (sign-in)
 │   │     each holds its screens (.svelte), logic (.ts/.js) and tests (*.test.*);
 │   │     server/ inside it holds its Baserow, Sanity and Google code (Functions only)
-│   ├── app/              App.svelte, main.ts, shell/, navigation, routing, API client, types
+│   ├── app/              App.svelte, main.ts, shell/, navigation, routing, API client, money format
 │   ├── ui/               shared components (grid, fields, dialogs, toast…) and theme/
 │   ├── platform/         server building blocks: Baserow, Sanity, Google, HTTP, log, config
 │   └── testing/          the fake world for use-case tests

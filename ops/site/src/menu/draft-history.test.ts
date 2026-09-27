@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { isDraftDirty, serializeMenuDraft } from "./draft-history.ts";
-import type { MenuItem } from "../app/types.ts";
+import type { MenuItem } from "./types.ts";
 
 const base: MenuItem = {
 	name: "Ambra",

@@ -1,19 +1,8 @@
 import { quantityToMl } from "./abv.ts";
 import { inventoryItemPath, namesClash } from "../app/spa-path.js";
-import {
-	normalizeDrinkType,
-	parseGbp,
-	formatGbp,
-	pourTargetFor,
-	priceLabels,
-	type DrinkType,
-	type Ingredient,
-	type InventoryItem,
-	type InventoryKind,
-	type InventorySupplier,
-	type MenuItem,
-	type PourTargetMap,
-} from "../app/types.ts";
+import { parseGbp, formatGbp } from "../app/money.ts";
+import { type InventoryItem, type InventoryKind, type InventorySupplier } from "../inventory/types.ts";
+import { normalizeDrinkType, pourTargetFor, priceLabels, type DrinkType, type Ingredient, type MenuItem, type PourTargetMap } from "./types.ts";
 
 function roundMl(value: number): number {
 	return Math.round(value * 10) / 10;

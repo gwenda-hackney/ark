@@ -19,7 +19,7 @@
 	} from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
-	import type { CatalogSupplier } from "../app/types";
+	import type { CatalogSupplier } from "./types";
 
 	let suppliers = $state<CatalogSupplier[]>([]);
 	let loading = $state(true);

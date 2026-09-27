@@ -19,7 +19,7 @@
 	} from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
-	import type { OpsUser } from "../app/types";
+	import type { OpsUser } from "./types";
 
 	let users = $state<OpsUser[]>([]);
 	let loading = $state(true);

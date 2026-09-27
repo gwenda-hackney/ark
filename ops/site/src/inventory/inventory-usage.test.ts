@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { recipesUsingInventory } from "./inventory-usage.ts";
-import type { MenuSection } from "../app/types.ts";
+import type { MenuSection } from "../menu/types.ts";
 
 const sections: MenuSection[] = [
 	{

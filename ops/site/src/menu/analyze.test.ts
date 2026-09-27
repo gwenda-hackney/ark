@@ -10,8 +10,9 @@ import {
 	recipeMetrics,
 	summarizeIssues,
 } from "./analyze.ts";
-import type { InventoryItem, MenuItem } from "../app/types.ts";
-import { hasRecipe, serveTabLabel } from "../app/types.ts";
+import type { InventoryItem } from "../inventory/types.ts";
+import type { MenuItem } from "./types.ts";
+import { hasRecipe, serveTabLabel } from "./types.ts";
 
 function inv(
 	id: string,

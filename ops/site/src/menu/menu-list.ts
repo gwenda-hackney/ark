@@ -27,22 +27,10 @@ import {
 	recipeSearchFields,
 	type MatchHint,
 } from "../ui/search.ts";
-import {
-	cocktailTypeLabel,
-	drinkTypeLabel,
-	formatPrices,
-	guestMenuLabel,
-	guestMenuPlacement,
-	lightspeedStatusLabel,
-	normalizeDrinkType,
-	parseGbp,
-	posMenusLabel,
-	publishNotLive,
-	type InventoryItem,
-	type MenuItem,
-	type MenuSection,
-	type PourTargetMap,
-} from "../app/types.ts";
+import { parseGbp } from "../app/money.ts";
+import { lightspeedStatusLabel, type InventoryItem } from "../inventory/types.ts";
+import { publishNotLive } from "./publish.ts";
+import { cocktailTypeLabel, drinkTypeLabel, formatPrices, guestMenuLabel, guestMenuPlacement, normalizeDrinkType, posMenusLabel, type MenuItem, type MenuSection, type PourTargetMap } from "./types.ts";
 
 export type MenuListItem = MenuItem & {
 	_kind: "item";

@@ -1,12 +1,7 @@
 <script lang="ts">
 	import { Button, BusyOverlay } from "../ui";
-	import {
-		formatPublishDiff,
-		groupItemsForPublish,
-		publishFieldLabel,
-		type MenuItem,
-		type PublishTarget,
-	} from "../app/types";
+	import { formatPublishDiff, groupItemsForPublish, publishFieldLabel, type PublishTarget } from "./publish";
+	import { type MenuItem } from "./types";
 	import { Icon } from "../app/shell";
 
 	let {

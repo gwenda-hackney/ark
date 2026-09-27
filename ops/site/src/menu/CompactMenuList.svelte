@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { NativeSelect } from "../ui";
 	import HighlightText from "../ui/HighlightText.svelte";
-	import type { MenuItem } from "../app/types";
+	import type { MenuItem } from "./types";
 	import {
 		sortMenuListRows,
 		type MenuListRow,
