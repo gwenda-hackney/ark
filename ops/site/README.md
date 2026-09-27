@@ -8,21 +8,16 @@ Live: [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)
 ## Layout
 
 ```
-ops/site/
-├── menu-app/          ← Svelte 5 + Vite SPA (ops shell + menu recipes)
-├── src/
-│   ├── index.html     ← built shell (gitignored; `npm run build`)
-│   ├── _redirects     ← SPA fallback for `/menu` and `/inventory`
-│   ├── _app/          ← built SPA assets (gitignored)
-│   ├── stock/         ← menu prices & stock (Drive sync)
-│   ├── breakeven/
-│   ├── cashflow/
-│   ├── gate/          ← Google sign-in (optional password bypass)
-│   ├── styles/
-│   └── robots.txt
-├── functions/         ← Google OAuth gate + Baserow menu API
-└── scripts/sync-from-mydrive.mjs
+ops/site/                 one package: @gwenda/ops
+├── src/                  the ops app (Svelte 5 + Vite): features/, lib/, ui/, shell/, theme/
+├── functions/            Pages Functions: Google sign-in gate, middleware, /api/*
+├── public/               served as-is: gate/ (sign-in page), icons, robots.txt
+├── dist/                 build output (gitignored): `npm run build`, deployed by CI
+├── index.html  vite.config.ts  svelte.config.js  tsconfig.json
+└── wrangler.toml / wrangler.dev.toml
 ```
+
+The move to one folder per feature (screens, logic, server code and tests together) is in progress: [#64](https://github.com/gwenda-hackney/ark/issues/64).
 
 ## Shell
 
@@ -46,11 +41,8 @@ One UI for all tools. Collapsible icon rail (state in `localStorage` key `ops.ra
 | `/forms` | People who submitted a site form |
 | `/users` | Who may sign in |
 | `/config` | House pour-cost targets (Baserow config database) |
-| `/stock` | Prices & stock (iframe → `/stock/index.html`) |
-| `/breakeven` | Breakeven (iframe) |
-| `/cashflow` | Cashflow (iframe) |
 
-Old hash URLs (`/#/menu`) still resolve to the path routes. Drink and inventory URLs use the unique name (`/menu/negroni`). Direct `/stock/`, `/breakeven/`, and `/cashflow/` URLs still open those HTML tools on their own.
+Old hash URLs (`/#/menu`) still resolve to the path routes. Drink and inventory URLs use the unique name (`/menu/negroni`). The old static Tools pages (stock, breakeven, cashflow) were removed; the calculators come back as an ops feature in [#75](https://github.com/gwenda-hackney/ark/issues/75).
 
 Theme/UI primitives mirror trading’s `shell.web` (Gwenda colours + Ysabeau/Roboto).
 
@@ -104,7 +96,6 @@ There are no roles: an active user sees all of ops (recipes and trade prices, fo
 | Who may sign in to ops | **Baserow** `Users` (Email, Active). Manage in the app at `/users`, or in Baserow. |
 | House pour-cost targets and other non-secret knobs | **Baserow** `Gwenda Config` database (Name, Value, Env, Service), shared with the website and never copied with Ops data. Edit pour targets at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
-| Stock / POS HTML | Drive → `ops/site/src/stock` |
 
 Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into Sanity as **drafts**. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
 
@@ -114,10 +105,8 @@ Ops does **not** store recipes in Sanity. **Publish to digital menu** copies gue
 npm run ops:dev
 ```
 
-- Vite SPA with HMR: [http://127.0.0.1:5174/](http://127.0.0.1:5174/)
-- Pages + auth Functions: [http://127.0.0.1:8788/](http://127.0.0.1:8788/)
-
-TODO: `:8788` still serves the built SPA, so both ports show a UI. Prefer Wrangler proxying the shell back to Vite so local UI is only the live HMR app.
+- The app, with HMR: [http://127.0.0.1:5174/](http://127.0.0.1:5174/). Use this one.
+- Pages Functions and `public/` (sign-in gate, icons): [http://127.0.0.1:8788/](http://127.0.0.1:8788/). Vite proxies `/api` and `/gate` here.
 
 Secrets come from Secrets Manager (env `dev`) after `bw-unlock`, loaded in memory and mapped to ops runtime names by `ops-dev` / `with-ops-env`; Wrangler reads them through `.dev.vars`, which is only a symlink to a per-run file in RAM (`/dev/shm`) while `ops:dev` runs; the secrets never touch the repo disk. Plain settings (Sanity project/dataset, deploy webhook URL, OAuth client id, pour targets, the web origin for form resends) load from the Baserow **Gwenda Config** database with `BASEROW_CONFIG_API_KEY`. See [docs/config.md](../../docs/config.md).
 
@@ -143,11 +132,6 @@ Build:
 ```bash
 npm run build -w @gwenda/ops
 ```
-
-## Stock / breakeven / cashflow
-
-Edit those HTML tools under `src/`. Stock syncs from Drive with `npm run sync -w @gwenda/ops`.
-They load inside the shell via iframe; direct URLs still work.
 
 ## Deploy
 

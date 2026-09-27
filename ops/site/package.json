@@ -3,22 +3,33 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Gwenda internal ops tools: shared shell, recipes, menu prices and stock (Cloudflare Access / Pages)",
+  "description": "Gwenda ops: the internal app (events, menu, inventory, forms, users, website) and its Pages Functions",
   "scripts": {
     "dev": "node ../../scripts/ops-dev.mjs",
     "dev:prod": "node ../../scripts/ops-dev.mjs --live",
-    "build": "npm run build -w @gwenda/ops-menu",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
-    "sync": "node scripts/sync-from-mydrive.mjs",
-    "deploy": "npm run build && wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
-    "deploy:production": "npm run build && wrangler pages deploy src --project-name gwenda-ops --branch main --commit-dirty=true",
-    "deploy:preview": "npm run build && wrangler pages deploy src --project-name gwenda-ops --commit-dirty=true"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --branch main --commit-dirty=true",
+    "deploy:production": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --branch main --commit-dirty=true",
+    "deploy:preview": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --commit-dirty=true"
   },
   "dependencies": {
-    "nodemailer": "^7.0.6"
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-placeholder": "^3.31.3",
+    "@tiptap/markdown": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
+    "ag-grid-community": "^36.1.0",
+    "nodemailer": "^7.0.6",
+    "svelte": "^5.56.9"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
     "groq-js": "^1.30.3",
+    "svelte-check": "^4.3.1",
+    "typescript": "^5.8.2",
+    "vite": "^6.4.3",
     "vitest": "^4.1.9",
     "wrangler": "^4.98.0"
   }

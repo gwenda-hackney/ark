@@ -31,7 +31,6 @@ import { writeRuntimeEnvFile } from "./lib/secrets-cache.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OPS_DIR = resolve(ROOT, "ops/site");
-const MENU_APP = resolve(OPS_DIR, "menu-app");
 const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
 
 /** Secrets + config fills Wrangler binds for the Functions. */
@@ -254,10 +253,8 @@ async function main() {
       process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() &&
       process.env.OPS_SESSION_SECRET?.trim(),
   );
-  // TODO: Local Wrangler (:8788) still serves the built SPA from ops/site/src,
-  // so both ports show a UI. Prefer Wrangler proxying unmatched document
-  // routes to Vite (:5174) so there is one live SPA with HMR, and :8788 is
-  // Functions + static HTML tools only.
+  // Wrangler (:8788) serves Functions and public/ (the gate, icons); Vite
+  // (:5174) serves the live app with HMR and proxies /api to Wrangler.
   console.log(`
 Ops local:
   SPA (HMR):       http://localhost:5174/
@@ -271,11 +268,11 @@ Ops local:
 
   run(
     "npx",
-    ["wrangler", "pages", "dev", "src", "--ip", "0.0.0.0", "--port", "8788"],
+    ["wrangler", "pages", "dev", "public", "--ip", "0.0.0.0", "--port", "8788"],
     OPS_DIR,
     "wrangler",
   );
-  run("npx", ["vite", "--host", "0.0.0.0"], MENU_APP, "vite");
+  run("npx", ["vite", "--host", "0.0.0.0"], OPS_DIR, "vite");
 
   function shutdown() {
     for (const child of children) {
