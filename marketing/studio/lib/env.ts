@@ -1,5 +1,5 @@
 const DEFAULT_PROJECT_ID = "pn5yjro6";
-/** The Gwenda Dev copy (ops/site/functions/_lib/sanity.js DEV_SANITY_PROJECT_ID). */
+/** The Gwenda Dev copy (ops/site/src/platform/sanity.js DEV_SANITY_PROJECT_ID). */
 const DEV_PROJECT_ID = "gwscpagy";
 
 export function isDevProject(projectId: string): boolean {

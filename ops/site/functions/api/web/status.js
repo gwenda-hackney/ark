@@ -1,6 +1,6 @@
-import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { sanityQuery } from "../../_lib/sanity.js";
-import { collectWebStatus } from "../../_lib/web-status.js";
+import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
+import { sanityQuery } from "../../../src/platform/sanity.js";
+import { collectWebStatus } from "../../../src/features/web/server/web-status.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const status = await collectWebStatus(context.env, { sanityQuery });

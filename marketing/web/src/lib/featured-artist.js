@@ -3,7 +3,7 @@
  * Marketing's own Baserow token cannot see that database, so this uses
  * BASEROW_OPS_API_KEY (from Secrets Manager via with-env).
  */
-import { listArtists } from "../../../../ops/site/functions/_lib/artist-store.js";
+import { listArtists } from "../../../../ops/site/src/features/artists/server/artist-store.js";
 import { artistRunLabel } from "./artist-run.js";
 
 function text(value) {

@@ -34,7 +34,7 @@
 		storedLightspeedSku,
 		withAllocatedLightspeedSkus,
 		withInventoryExportIds,
-	} from "../../../functions/_lib/lightspeed-stock.js";
+	} from "./lightspeed-stock.js";
 	import { EXPORT_HELP } from "./lightspeed-help";
 
 	type GridRow = Record<string, string> & {

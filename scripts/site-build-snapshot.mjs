@@ -12,7 +12,7 @@
  * Capturing first means edits made during the build still count as pending.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { listArtists } from "../ops/site/functions/_lib/artist-store.js";
+import { listArtists } from "../ops/site/src/features/artists/server/artist-store.js";
 import { writeState } from "../shared/config.js";
 import {
   snapshotConfigKey,

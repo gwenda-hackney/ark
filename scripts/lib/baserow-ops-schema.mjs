@@ -1,7 +1,7 @@
 /**
  * Field definitions for the Gwenda Ops Baserow tables: the bodies
  * setup-baserow-ops.mjs sends to create each field. Pure data, safe to import
- * (unlike the setup script), so the test fake (ops/site/functions/_test/)
+ * (unlike the setup script), so the test fake (ops/site/src/testing/)
  * builds the same schema. Menu and inventory tables still live in the setup
  * script; move them here when their tests need them.
  */

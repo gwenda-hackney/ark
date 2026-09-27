@@ -1,7 +1,7 @@
 /**
  * "Getting it ready for the website": saving only stores the event, and the
  * calendar entries and website copy follow here, in the background. The
- * server works out what is behind (functions/_lib/website-jobs.js); the open
+ * server works out what is behind (src/features/events/server/website-jobs.js); the open
  * app runs one step per request until nothing is left. A cron does the same
  * when nobody has ops open.
  */

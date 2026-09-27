@@ -1,5 +1,5 @@
 import { normalizeDrinkType, type Ingredient, type MenuItem } from "./types.ts";
-import { parseStoredAnalyzeNote } from "../../functions/_lib/analyze-note.js";
+import { parseStoredAnalyzeNote } from "../features/menu/analyze-note.js";
 
 export const MAX_UNDO = 80;
 

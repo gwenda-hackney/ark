@@ -2,19 +2,19 @@ import {
   jsonResponse,
   readJsonBody,
   withApiHandler,
-} from "../../../../_lib/http.js";
+} from "../../../../../src/platform/http.js";
 import {
   attachCalendarWarnings,
   syncSeriesCalendar,
-} from "../../../../_lib/event-calendar-sync.js";
+} from "../../../../../src/features/events/server/event-calendar-sync.js";
 import {
   deleteOccurrences,
   ensureOccurrence,
   getEvent,
   occurrenceDeleteTargets,
   updateOccurrenceContent,
-} from "../../../../_lib/event-store.js";
-import { removeEventFromWebsite, unpublishOccurrences } from "../../../../_lib/event-publish.js";
+} from "../../../../../src/features/events/server/event-store.js";
+import { removeEventFromWebsite, unpublishOccurrences } from "../../../../../src/features/events/server/event-publish.js";
 
 function params(context) {
   return {

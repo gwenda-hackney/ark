@@ -1,12 +1,12 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
 import {
   attachCalendarWarnings,
-} from "../../_lib/event-calendar-sync.js";
-import { deleteEvent, getEvent, updateEvent } from "../../_lib/event-store.js";
+} from "../../../src/features/events/server/event-calendar-sync.js";
+import { deleteEvent, getEvent, updateEvent } from "../../../src/features/events/server/event-store.js";
 import {
   removeEventFromWebsite,
   withWebsiteStatus,
-} from "../../_lib/event-publish.js";
+} from "../../../src/features/events/server/event-publish.js";
 
 function eventId(context) {
   return decodeURIComponent(context.params?.id || "");

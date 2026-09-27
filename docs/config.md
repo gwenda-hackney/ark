@@ -28,7 +28,7 @@ Bitwarden Secrets Manager has no per-env secrets, so env is encoded in the name:
 
 There are two envs. **dev** is a developer's machine and the hosted dev sites alike; **production** is live and its preview. A pull for env `E` lists every SM project, keeps `NAME` and `NAME__E`, and lets the env value win. That is the whole merge: code reads the plain `NAME` and never chooses an env. Per-env credentials (Baserow tokens, `FORMS_ADMIN_SECRET`) have **no** shared `NAME`, so a missing value is reported as missing instead of silently using another env's.
 
-The one reader that needs another env's value asks for it by its full name: production ops compares its database with the dev copy using `BASEROW_OPS_API_KEY__DEV` (`ops/site/functions/_lib/db-diff.js`). Do not add bespoke per-env names (`FOO_DEV_KEY`) or env checks that pick a secret.
+The one reader that needs another env's value asks for it by its full name: production ops compares its database with the dev copy using `BASEROW_OPS_API_KEY__DEV` (`ops/site/src/platform/db-diff.js`). Do not add bespoke per-env names (`FOO_DEV_KEY`) or env checks that pick a secret.
 
 Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). When a runtime key differs from the SM name, the manifest renames it (locally in `load-env.mjs`, in CI via `--github-env`):
 
@@ -128,7 +128,7 @@ A few rows are written by code, not people. Leave them alone:
 
 No Baserow workspace, database or table id is configured anywhere. They change when a database is recreated, so everything goes by name:
 
-- **Apps** use a database token. A token belongs to one workspace, so it decides the environment: the production tokens only see **Gwenda**, the dev tokens only **Gwenda Dev**. Tokens can't read database names, so the app finds its database by its tables (`DATABASE_FINGERPRINTS` in `ops/site/functions/_lib/baserow.js`: Menu Sections / Menu Items / Ingredients for Ops; Subscribers / Form Submissions for Website), then its tables by name. A token that sees two such databases is an error.
+- **Apps** use a database token. A token belongs to one workspace, so it decides the environment: the production tokens only see **Gwenda**, the dev tokens only **Gwenda Dev**. Tokens can't read database names, so the app finds its database by its tables (`DATABASE_FINGERPRINTS` in `ops/site/src/platform/baserow.js`: Menu Sections / Menu Items / Ingredients for Ops; Subscribers / Form Submissions for Website), then its tables by name. A token that sees two such databases is an error.
 - **Scripts** (migrations, clones, setup) log in as `BASEROW_JWT_EMAIL` and find databases by workspace and database name (`DATABASES` in `scripts/lib/migrations.mjs`).
 
 The Baserow data tokens only exist per env (`__DEV` / `__PRODUCTION`), never as a shared value. That is what keeps a developer's machine off production data; there is no id check.

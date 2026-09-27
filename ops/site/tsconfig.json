@@ -17,6 +17,6 @@
     "src/**/*.ts",
     "src/**/*.svelte",
     "vite.config.ts",
-    "functions/_lib/spa-path.js"
+    "src/app/spa-path.js"
   ]
 }

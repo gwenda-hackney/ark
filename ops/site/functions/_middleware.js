@@ -14,11 +14,11 @@ import {
   resolveSessionEmail,
   safeRedirectPath,
   signInRequiredResponse,
-} from "./_lib/auth.js";
-import { attachLogger, serializeError } from "./_lib/log.js";
-import { opsEnv } from "./_lib/ops-env.js";
-import { isSpaDocumentPath } from "./_lib/spa-path.js";
-import { isOpsUser } from "./_lib/user-store.js";
+} from "../src/features/access/server/auth.js";
+import { attachLogger, serializeError } from "../src/platform/log.js";
+import { opsEnv } from "../src/platform/ops-env.js";
+import { isSpaDocumentPath } from "../src/app/spa-path.js";
+import { isOpsUser } from "../src/features/users/server/user-store.js";
 
 export async function onRequest(context) {
   const log = attachLogger(context);

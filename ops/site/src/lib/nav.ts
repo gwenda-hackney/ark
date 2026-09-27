@@ -5,7 +5,7 @@ import {
   isClientNavPath,
   shouldReplaceNav,
   stripTrailingSlash,
-} from "../../functions/_lib/spa-path.js";
+} from "../app/spa-path.js";
 
 export {
   canonicalizePath,
@@ -39,7 +39,7 @@ export {
   shellPageKey,
   shouldReplaceNav,
   stripTrailingSlash,
-} from "../../functions/_lib/spa-path.js";
+} from "../app/spa-path.js";
 
 import {
   rememberBlockedNav,

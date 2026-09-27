@@ -1,4 +1,4 @@
-import { isEditorPath, parseShellPath } from "../../functions/_lib/spa-path.js";
+import { isEditorPath, parseShellPath } from "../app/spa-path.js";
 import type { NavRoute } from "../shell/types";
 import { NAV_ROUTES } from "./nav-routes.ts";
 import { flattenNavRoutes, matchActiveRoute } from "./nav-tree.ts";

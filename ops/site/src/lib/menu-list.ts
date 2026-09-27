@@ -1,4 +1,4 @@
-import { posScreensLabel } from "../../functions/_lib/lightspeed-stock.js";
+import { posScreensLabel } from "../features/inventory/lightspeed-stock.js";
 import {
 	analyzeRecipe,
 	isIssue,

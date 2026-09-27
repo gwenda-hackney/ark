@@ -1,6 +1,6 @@
-import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { clearMenuItemPhoto, setMenuItemPhoto } from "../../_lib/menu-store.js";
-import { toClientItem } from "../../_lib/reconcile.js";
+import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
+import { clearMenuItemPhoto, setMenuItemPhoto } from "../../../src/features/menu/server/menu-store.js";
+import { toClientItem } from "../../../src/features/inventory/server/reconcile.js";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([

@@ -1,8 +1,8 @@
-import { jsonResponse, withApiHandler } from "../../../../../_lib/http.js";
+import { jsonResponse, withApiHandler } from "../../../../../../src/platform/http.js";
 import {
   clearOccurrenceImage,
   setOccurrenceImage,
-} from "../../../../../_lib/event-store.js";
+} from "../../../../../../src/features/events/server/event-store.js";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([

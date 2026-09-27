@@ -49,13 +49,13 @@
 		parseAnalyzeNote,
 		recipeSnapshot,
 	} from "../../lib/analyze";
-	import { parseStoredAnalyzeNote } from "../../../functions/_lib/analyze-note.js";
+	import { parseStoredAnalyzeNote } from "./analyze-note.js";
 	import {
 		marginTone,
 		recipePriceAnalysis,
 	} from "../../lib/cost";
 	import { pourSettings } from "../../lib/settings.svelte";
-	import { namesClash } from "../../../functions/_lib/spa-path.js";
+	import { namesClash } from "../../app/spa-path.js";
 	import * as api from "../../lib/api";
 	import { menuTabPath, navigate, normalizeMenuTab } from "../../lib/nav";
 	import {
@@ -84,7 +84,7 @@
 	import {
 		collectPosScreenSuggestions,
 		defaultPosScreenForItem,
-	} from "../../../functions/_lib/lightspeed-stock.js";
+	} from "../inventory/lightspeed-stock.js";
 	import { preparePhoto } from "../../lib/photo-prep";
 
 	let {

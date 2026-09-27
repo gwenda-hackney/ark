@@ -5,7 +5,7 @@
 		parsePosScreenInput,
 		posScreenPaths,
 		serializePosScreens,
-	} from "../../../functions/_lib/lightspeed-stock.js";
+	} from "../inventory/lightspeed-stock.js";
 
 	let {
 		value = "",

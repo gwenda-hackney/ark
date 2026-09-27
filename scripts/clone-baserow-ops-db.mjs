@@ -27,7 +27,7 @@ import {
   TABLE_SECTIONS,
   TABLE_SUPPLIERS,
   TABLE_USERS,
-} from "../ops/site/functions/_lib/baserow.js";
+} from "../ops/site/src/platform/baserow.js";
 import { refuseSourceWorkspace } from "./lib/baserow-clone.mjs";
 import { findDatabase } from "./lib/migrations.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";

@@ -3,11 +3,11 @@ import {
   resolveAuth,
   resolveSessionEmail,
   signInRequiredResponse,
-} from "../../_lib/auth.js";
-import { opsConnectionInfo } from "../../_lib/config-store.js";
-import { opsEnv } from "../../_lib/ops-env.js";
-import { resolveOpsTableIds } from "../../_lib/baserow.js";
-import { isOpsAdmin } from "../../_lib/admin.js";
+} from "../../../src/features/access/server/auth.js";
+import { opsConnectionInfo } from "../../../src/platform/config-store.js";
+import { opsEnv } from "../../../src/platform/ops-env.js";
+import { resolveOpsTableIds } from "../../../src/platform/baserow.js";
+import { isOpsAdmin } from "../../../src/features/access/server/admin.js";
 
 /** Current session identity and Baserow connection for the shell. */
 export async function onRequestGet(context) {
