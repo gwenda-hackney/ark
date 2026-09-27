@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listAllRows, updateRow } from "../ops/site/src/platform/baserow.js";
+import { listAllRows, updateRow } from "../shared/baserow.js";
 import {
   parseMoney,
   skuFromProductUrl,

@@ -13,7 +13,7 @@ import {
   setSetting,
   valuesFromRows,
 } from "../../../../shared/config.js";
-import { OPS_DATABASE_NAME } from "./baserow.js";
+import { OPS_DATABASE_NAME } from "../../../../shared/baserow.js";
 
 export { CONFIG_CACHE_TTL_MS, resetConfigCacheForTests, valuesFromRows };
 

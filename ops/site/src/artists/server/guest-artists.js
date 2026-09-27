@@ -10,7 +10,7 @@ import {
   listAllRows,
   resolveOpsTableIds,
   updateRow,
-} from "../../platform/baserow.js";
+} from "../../../../../shared/baserow.js";
 
 export const DECISIONS = ["Approved", "Declined"];
 

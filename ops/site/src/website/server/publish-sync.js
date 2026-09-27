@@ -13,7 +13,7 @@ import {
 } from "../../menu/server/menu-placements.js";
 import { flattenMenuSections } from "../../menu/menu-sections.js";
 import { loadMenuTree } from "../../menu/server/menu-store.js";
-import { baserowFetch, updateRow } from "../../platform/baserow.js";
+import { baserowFetch, updateRow } from "../../../../../shared/baserow.js";
 import {
   PREVIEW,
   sanityMutate,

@@ -6,7 +6,6 @@ import {
   findSupplierNameClash,
   looksLikeOnlyUrls,
   normalizeSupplierEntries,
-  normalizeWebsite,
   parseMoney,
   parseSupplierEntries,
   skuFromProductUrl,
@@ -118,21 +117,6 @@ describe("parseMoney / formatGbp", () => {
     assert.equal(parseMoney("£15.10"), 15.1);
     assert.equal(formatGbp(15.1), "£15.10");
     assert.equal(formatGbp(""), "");
-  });
-});
-
-describe("normalizeWebsite", () => {
-  it("keeps a full URL and fills https for a bare host", () => {
-    assert.equal(normalizeWebsite(""), "");
-    assert.equal(
-      normalizeWebsite("https://www.hillsprospect.com"),
-      "https://www.hillsprospect.com",
-    );
-    assert.equal(
-      normalizeWebsite("www.lwc-drinks.co.uk"),
-      "https://www.lwc-drinks.co.uk",
-    );
-    assert.equal(normalizeWebsite("not a website"), "");
   });
 });
 

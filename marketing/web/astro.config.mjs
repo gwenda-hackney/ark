@@ -13,7 +13,7 @@ import { subscribeEmail } from "./functions/_lib/subscribe.js";
 import { getEventRsvp, saveRsvpResponse } from "./functions/_lib/rsvp.js";
 import { resolvePublicOrigin } from "./functions/_lib/public-origin.js";
 import { readEventPasswordFromSearchParams } from "./functions/_lib/event-password.js";
-import { pickPemValue } from "./functions/_lib/env-pem.js";
+import { pickPemValue } from "../../shared/env-file.js";
 
 const env = loadEnv(
   process.env.NODE_ENV ?? "development",

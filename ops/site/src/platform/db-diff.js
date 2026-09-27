@@ -10,7 +10,7 @@
  * between copies, so rows are compared by their values, with links compared by
  * the names they show.
  */
-import { baserowFetch, pickDatabaseId } from "./baserow.js";
+import { baserowFetch, pickDatabaseId } from "../../../../shared/baserow.js";
 
 const PAGE_SIZE = 200;
 

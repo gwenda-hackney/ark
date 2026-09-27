@@ -9,7 +9,7 @@ import {
   listAllRows,
   resolveOpsTableIds,
   updateRow,
-} from "../../platform/baserow.js";
+} from "../../../../../shared/baserow.js";
 import { namesClash } from "../item-key.js";
 
 import { DEFAULT_POS_MENU_NAME, LEGACY_DEFAULT_POS_MENU_NAME, LIVE_POS_MENU_NAME } from "../pos-menus.js";

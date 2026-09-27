@@ -10,11 +10,26 @@ ark/
 ├── ops/
 │   ├── site/           ← ops Pages app (HTML tools)
 │   └── recipe-cost-webhook/
+├── shared/             ← code two or more apps use (see below)
 ├── docs/
 └── scripts/
 ```
 
 npm workspaces (not pnpm). Root `package.json` lists each package path explicitly under `marketing/` and `ops/`.
+
+## Shared code
+
+An app never imports another app's files. Code that two apps (or an app and `scripts/`) need lives in `shared/`, imported by relative path:
+
+| Module | What | Used by |
+|---|---|---|
+| `baserow.js` | Baserow client (rate-limited, retrying), Gwenda Ops table names and lookup | ops, website, scripts |
+| `artists.js` | Reading wall artists from Gwenda Ops (`listArtists`) | ops, website, scripts |
+| `web-address.js` | Web addresses typed by editors (`parseProductUrl`, `normalizeWebsite`) | ops, scripts |
+| `env-file.js` | `.env`-style parsing (`parseDotEnv`) and PEM values | website config, scripts |
+| `config*.js`, `site-*.js`, `forms/`, `gmail-send.js`, `log.js`, `mail-from.js`, `email-image.js` | Config database, site snapshot, form emails, logging | ops, website, Workers |
+
+Tests sit next to each module and run as the `shared` Vitest project.
 
 ## Brand colour sync
 

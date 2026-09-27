@@ -12,10 +12,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   looksLikeOnlyUrls,
-  parseProductUrl,
   skuFromProductUrl,
   supplierFromUrl,
 } from "../ops/site/src/inventory/suppliers.js";
+import { parseProductUrl } from "../shared/web-address.js";
 import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 
 const LWC_PRICES = JSON.parse(
