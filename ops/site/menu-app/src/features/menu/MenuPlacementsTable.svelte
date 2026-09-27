@@ -122,9 +122,8 @@
 		);
 	}
 
-	function onAdd(event: Event) {
-		const value = (event.currentTarget as HTMLSelectElement).value;
-		(event.currentTarget as HTMLSelectElement).value = "";
+	function onAdd(event: { currentTarget: { value: string } }) {
+		const value = event.currentTarget.value;
 		if (!value) return;
 		const list = [...(placements || [])];
 		if (value === "print" || value === "digital") {
@@ -230,7 +229,7 @@
 										aria-label={`Chapter for ${row.label}`}
 										onchange={(e) =>
 											setSection(
-												row.channel,
+												row.channel as "print" | "digital",
 												(e.currentTarget as HTMLSelectElement).value,
 											)}
 									/>

@@ -101,11 +101,9 @@ jobs:
       - name: Shared and scripts tests
         run: npm run test:shared
 
-      # Reports only until the existing errors are cleared (#22); then this
-      # becomes required.
+      # Errors and warnings both fail the check (#22 cleared them).
       - name: Type check (svelte-check)
-        continue-on-error: true
-        run: npm run check -w @gwenda/ops-menu
+        run: npm run check -w @gwenda/ops-menu -- --fail-on-warnings
 
       - name: Build
         run: npm run build -w @gwenda/ops

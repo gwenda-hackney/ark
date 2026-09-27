@@ -13,7 +13,7 @@
 		type = "text",
 		class: className = "",
 		...rest
-	}: HTMLInputAttributes & {
+	}: Omit<HTMLInputAttributes, "size"> & {
 		value?: string;
 		size?: "md" | "sm";
 		mono?: boolean;

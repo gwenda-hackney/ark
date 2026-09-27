@@ -5,6 +5,7 @@
 	import * as api from "../../lib/api";
 	import { toast } from "../../lib/toast.svelte";
 	import type {
+		DrinkType,
 		InventoryItem,
 		MenuItem,
 		MenuSection,
@@ -85,7 +86,10 @@
 
 	const menuRoute = $derived(parseShellPath(path));
 	const bookMode = $derived(Boolean(menuRoute.print));
-	const printFilter = $derived(menuRoute.printFilter || "cocktail");
+	// spa-path normalizes the filter to "all" or a drink type.
+	const printFilter = $derived(
+		(menuRoute.printFilter || "cocktail") as "all" | DrinkType,
+	);
 	const printSlug = $derived(menuRoute.print && menuRoute.slug ? menuRoute.slug : "");
 	const printBookItems = $derived(
 		printSlug
@@ -668,7 +672,7 @@
 				<div class="pane list">
 					<div class="missing">
 						<p>That drink is not on the menu.</p>
-						<Button variant="outline" size="sm" onclick={backToGrid}>
+						<Button variant="outline" size="sm" onclick={() => backToGrid()}>
 							Back to menu items
 						</Button>
 					</div>

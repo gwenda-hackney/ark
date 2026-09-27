@@ -220,12 +220,6 @@
 		color: var(--muted-foreground);
 	}
 
-	.note.warn {
-		border-color: var(--border-strong);
-		background: var(--primary-wash);
-		color: color-mix(in srgb, var(--primary) 70%, var(--foreground));
-	}
-
 	.status {
 		display: grid;
 		gap: 0.85rem;
