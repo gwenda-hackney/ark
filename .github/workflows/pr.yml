@@ -42,7 +42,7 @@ jobs:
               - 'ops/site/**'
               - 'shared/**'
               - 'scripts/**'
-              - 'vitest.config.js'
+              - 'vitest.config.mjs'
               - 'package-lock.json'
               - '.github/workflows/pr.yml'
 

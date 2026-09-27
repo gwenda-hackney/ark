@@ -20,6 +20,9 @@ import {
   onRequestPatch as editEvent,
 } from "../api/events/[id].js";
 import { onRequestPost as createEvent } from "../api/events/index.js";
+import { onRequestPost as syncCalendar } from "../api/events/[id]/calendar-sync.js";
+import { onRequestDelete as removeImage, onRequestPost as uploadImage } from "../api/events/[id]/image.js";
+import { onRequestPost as uploadNightImage } from "../api/events/[id]/dates/[date]/image.js";
 import { onRequestPost as runWebsiteJob } from "../api/web/jobs.js";
 import { onRequestPost as release } from "../api/web/release.js";
 
@@ -155,6 +158,37 @@ function editor(world) {
         method: "POST",
         path: "/api/web/release",
         body: { confirm: "preview", direction: "discard", ...(ids ? { ids } : {}) },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    /** Upload a photo: the series' main image, or with `date` one night's own. */
+    async uploadImage(event, { name = "flyer.jpg", type = "image/jpeg", bytes = 2048, date } = {}) {
+      const form = new FormData();
+      form.set("file", new File([new Uint8Array(bytes).fill(7)], name, { type }));
+      const path = date ? `/api/events/${id(event)}/dates/${date}/image` : `/api/events/${id(event)}/image`;
+      return callApi(world, date ? uploadNightImage : uploadImage, {
+        method: "POST",
+        path,
+        params: date ? { id: id(event), date } : { id: id(event) },
+        body: form,
+      });
+    },
+    async removeImage(event) {
+      const res = await callApi(world, removeImage, {
+        method: "DELETE",
+        path: `/api/events/${id(event)}/image?role=main`,
+        params: { id: id(event) },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data.event;
+    },
+    /** The event's "Sync calendar" button. */
+    async syncCalendar(event) {
+      const res = await callApi(world, syncCalendar, {
+        method: "POST",
+        path: `/api/events/${id(event)}/calendar-sync`,
+        params: { id: id(event) },
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data;
@@ -512,5 +546,118 @@ describe("events: changing the schedule drops nights", () => {
     await ops.waitUntilReady(event);
     assert.deepEqual(previewNights(world), nights.slice(0, 3), "the schedule still excludes the dropped nights");
     assert.equal(await ops.sees(event), "Website has an older version");
+  });
+});
+
+describe("events: images", () => {
+  let world;
+  let ops;
+  let event;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+    event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+  });
+  afterEach(() => world.restore());
+
+  const seriesImage = (doc) => doc?.heroImage?.asset?._ref || "";
+
+  it("adding a photo: on the preview once ready, live on Update website", async () => {
+    const res = await ops.uploadImage(event);
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    await ops.waitUntilReady(event);
+    const preview = world.sanity.view("previewDrafts").find((doc) => doc._type === "eventSeries");
+    assert.ok(seriesImage(preview), "the preview series has the photo");
+    assert.equal(seriesImage(world.sanity.published("eventSeries")[0]), "", "the live site doesn't yet");
+    assert.equal(await ops.sees(event), "Website has an older version");
+
+    await ops.updateWebsite(event);
+    assert.ok(seriesImage(world.sanity.published("eventSeries")[0]), "live after Update website");
+    assert.equal(await ops.sees(event), "On the website");
+  });
+
+  it("replacing the photo puts the new one live", async () => {
+    await ops.uploadImage(event, { name: "first.jpg" });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const first = seriesImage(world.sanity.published("eventSeries")[0]);
+    await ops.uploadImage(event, { name: "second.jpg", bytes: 4096 });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const second = seriesImage(world.sanity.published("eventSeries")[0]);
+    assert.ok(second && second !== first, "a different photo is live");
+  });
+
+  it("removing the photo takes it off the website on Update website", async () => {
+    await ops.uploadImage(event);
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    await ops.removeImage(event);
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    assert.equal(seriesImage(world.sanity.published("eventSeries")[0]), "");
+    assert.equal(await ops.sees(event), "On the website");
+  });
+
+  it("a night's own photo shows on that night only", async () => {
+    const [first, second] = liveNights(world);
+    const res = await ops.uploadImage(event, { name: "guest.jpg", date: second });
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const byDate = new Map(world.sanity.published("event").map((doc) => [doc.date, doc]));
+    assert.ok(byDate.get(second).heroImage?.asset?._ref, "the night has its own photo");
+    assert.ok(!byDate.get(first).heroImage?.asset?._ref, "other nights don't");
+  });
+
+  it("refuses files that aren't images, and images over 6 MB", async () => {
+    const pdf = await ops.uploadImage(event, { name: "menu.pdf", type: "application/pdf" });
+    assert.equal(pdf.status, 400);
+    assert.match(pdf.data.error, /JPEG, PNG, WebP, or GIF/);
+    const huge = await ops.uploadImage(event, { bytes: 6 * 1024 * 1024 + 1 });
+    assert.equal(huge.status, 400);
+    assert.match(huge.data.error, /6MB/);
+  });
+});
+
+describe("events: Google Calendar", () => {
+  let world;
+  let ops;
+  let event;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+    event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+  });
+  afterEach(() => world.restore());
+
+  it("new times reach every night's calendar entry", async () => {
+    await ops.edit(event, { startTime: "18:30", endTime: "22:30" });
+    await ops.waitUntilReady(event);
+    const starts = world.google.calendar().map((entry) => entry.start?.dateTime || "");
+    assert.ok(starts.length > 0);
+    assert.ok(starts.every((start) => start.slice(11, 16) === "18:30"), starts.join(", "));
+  });
+
+  // Known bug #70: sync skips unchanged nights without checking the entry exists.
+  it.fails("an entry deleted by hand in Google Calendar comes back with Sync calendar (known bug #70)", async () => {
+    const [victim] = world.google.calendar();
+    const date = (victim.start?.dateTime || victim.start?.date).slice(0, 10);
+    world.google.calendarEvents.delete(victim.id);
+    await ops.syncCalendar(event);
+    assert.ok(calendarDates(world).includes(date));
+    assert.equal(calendarDates(world).length, new Set(calendarDates(world)).size, "no duplicates");
+  });
+
+  it("syncing twice changes nothing", async () => {
+    const before = world.google.calendar().map((entry) => entry.id).sort();
+    await ops.syncCalendar(event);
+    await ops.syncCalendar(event);
+    assert.deepEqual(world.google.calendar().map((entry) => entry.id).sort(), before);
   });
 });
