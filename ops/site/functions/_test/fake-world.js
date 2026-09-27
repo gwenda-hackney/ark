@@ -23,6 +23,7 @@ import {
 
 const SANITY_PROJECT_ID = "gwscpagy";
 const DRIVE_EVENTS_ROOT = "drive-events-root";
+const FILES_HOST = "files.baserow.test";
 const CALENDAR_ID = "events@group.calendar.google.com";
 
 // ---------------------------------------------------------------- Baserow
@@ -57,6 +58,14 @@ function linkIds(value) {
 class FakeBaserow {
   constructor() {
     this.workspaces = new Map();
+    /** Uploaded user files by Baserow name, served from FILES_HOST. */
+    this.files = new Map();
+  }
+
+  serveFile(url) {
+    const file = this.files.get(decodeURIComponent(url.pathname.slice(1)));
+    if (!file) return new Response("Not found", { status: 404 });
+    return new Response(file.bytes, { headers: { "Content-Type": file.type || "application/octet-stream" } });
   }
 
   addWorkspace(token, tables) {
@@ -102,6 +111,8 @@ class FakeBaserow {
           }
           row[key] = option.id;
         }
+      } else if (field.type === "file") {
+        row[key] = (value || []).map((entry) => String(entry?.name || ""));
       } else if (field.type === "number") row[key] = value == null || value === "" ? null : String(value);
       else if (field.type === "boolean") row[key] = Boolean(value);
       else row[key] = value;
@@ -118,6 +129,13 @@ class FakeBaserow {
       else if (field.type === "link_row") {
         const target = this.tableById(field.link_row_table_id);
         out[field.name] = value.map((id) => ({ id, value: target?.rows.get(id)?.Name ?? "" }));
+      } else if (field.type === "file") {
+        out[field.name] = value.map((name) => ({
+          name,
+          visible_name: this.files.get(name)?.visibleName || name,
+          url: `https://${FILES_HOST}/${name}`,
+          is_image: true,
+        }));
       } else if (field.type === "single_select") {
         const option = field.select_options.find((o) => o.id === value);
         out[field.name] = option ? { id: option.id, value: option.value, color: option.color } : null;
@@ -131,7 +149,7 @@ class FakeBaserow {
     return null;
   }
 
-  handle(url, init) {
+  async handle(url, init) {
     const token = String(init.headers?.Authorization || "").replace(/^Token /, "");
     const tables = this.workspaces.get(token);
     if (!tables) return json({ error: "ERROR_INVALID_ACCESS_TOKEN" }, 401);
@@ -189,8 +207,12 @@ class FakeBaserow {
       }
     }
     if (path === "/api/user-files/upload-file/" && method === "POST") {
-      const name = `upload-${newId()}.jpg`;
-      return json({ name, url: `https://files.baserow.test/${name}`, is_image: true, visible_name: name });
+      const file = init.body instanceof FormData ? init.body.get("file") : null;
+      if (!file || typeof file === "string") throw new Error("Fake Baserow: upload without a file");
+      const visibleName = file.name || "upload.bin";
+      const name = `${newId()}_${visibleName}`;
+      this.files.set(name, { bytes: new Uint8Array(await file.arrayBuffer()), type: file.type, visibleName });
+      return json({ name, url: `https://${FILES_HOST}/${name}`, is_image: true, visible_name: visibleName });
     }
     throw new Error(`Fake Baserow: unhandled ${method} ${path}`);
   }
@@ -514,6 +536,7 @@ export async function createFakeWorld() {
       : { ...init, headers: init.headers instanceof Headers ? Object.fromEntries(init.headers) : init.headers || {} };
     calls.push(`${(merged.method || "GET").toUpperCase()} ${url.host}${url.pathname}`);
     if (url.host === "api.baserow.io") return baserow.handle(url, merged);
+    if (url.host === FILES_HOST) return baserow.serveFile(url);
     if (url.host.endsWith(".api.sanity.io") || url.host.endsWith(".apicdn.sanity.io")) return sanity.handle(url, merged);
     if (url.host.endsWith("googleapis.com")) return google.handle(url, merged);
     throw new Error(`Fake world: nothing fakes ${merged.method || "GET"} ${url}`);
@@ -539,10 +562,12 @@ export async function createFakeWorld() {
  * `params` the route params, `body` JSON for POST/PATCH/PUT.
  */
 export async function callApi(world, handler, { method = "GET", path = "/", params = {}, body } = {}) {
+  // FormData (file uploads) goes as multipart; anything else as JSON.
+  const multipart = body instanceof FormData;
   const request = new Request(`https://gwenda-ops-dev.pages.dev${path}`, {
     method,
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: body === undefined || multipart ? {} : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
   });
   const response = await handler({ request, env: { ...world.env }, params, data: {}, waitUntil() {} });
   const text = await response.text();
