@@ -38,7 +38,7 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..
  * (marketing/web/wrangler.dev.toml). Only when unset; never in CI.
  */
 const LOCAL_DEFAULTS = {
-  SANITY_PROJECT_ID: "gwscpagy", // Gwenda Dev (ops/site/functions/_lib/sanity.js DEV_SANITY_PROJECT_ID)
+  SANITY_PROJECT_ID: "gwscpagy", // Gwenda Dev (ops/site/src/platform/sanity.js DEV_SANITY_PROJECT_ID)
   SANITY_DATASET: "production",
   INVITE_BASE_URL: "http://localhost:4321",
 };

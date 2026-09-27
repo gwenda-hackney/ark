@@ -3,7 +3,7 @@ import { pickPricedSupplier } from "./cost.ts";
 import {
 	inventoryItemPath,
 	menuItemPath,
-} from "../../functions/_lib/spa-path.js";
+} from "../app/spa-path.js";
 import {
 	hasRecipe,
 	parseGbp,

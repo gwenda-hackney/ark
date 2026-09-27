@@ -9,15 +9,21 @@ Live: [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev)
 
 ```
 ops/site/                 one package: @gwenda/ops
-├── src/                  the ops app (Svelte 5 + Vite): features/, lib/, ui/, shell/, theme/
-├── functions/            Pages Functions: Google sign-in gate, middleware, /api/*
+├── src/
+│   ├── features/<feature>/   screens and pure logic; server/ holds that feature's
+│   │                         Baserow, Sanity and Google code (Functions only)
+│   ├── platform/             server building blocks: Baserow, Sanity, Google, HTTP, log, config
+│   ├── app/                  routing shared by the app and the middleware (spa-path)
+│   ├── testing/              the fake world for use-case tests
+│   └── lib/ ui/ shell/ theme/   app code (lib/ is being split into features, #64)
+├── functions/            Pages Functions routes only: middleware and /api/*, calling src/
 ├── public/               served as-is: gate/ (sign-in page), icons, robots.txt
 ├── dist/                 build output (gitignored): `npm run build`, deployed by CI
 ├── index.html  vite.config.ts  svelte.config.js  tsconfig.json
 └── wrangler.toml / wrangler.dev.toml
 ```
 
-The move to one folder per feature (screens, logic, server code and tests together) is in progress: [#64](https://github.com/gwenda-hackney/ark/issues/64).
+**Rules:** code outside a `server/` folder (and outside `platform/` and `testing/`) may be imported by the app, so it must be pure: no `fetch`, no `env`. The app never imports `server/` or `platform/`. Tests sit next to the code. Moving the rest of the app into feature folders: [#64](https://github.com/gwenda-hackney/ark/issues/64).
 
 ## Shell
 
@@ -78,7 +84,7 @@ No code change is needed. Google sign-in proves who someone is; an active row in
 1. **Google Cloud → OAuth consent screen** (not the OAuth client): set User type from **Internal** to **External**. Scopes stay `openid email profile`, so no sensitive-scope verification. While the app is in **Testing**, add the Gmail as a test user; publishing the app removes the test-user cap. Don't change the client id, secret or redirect URIs.
 2. **Ops → `/users`:** add their Google email with **Active** on. Without the row, sign-in ends in a 403 with no session.
 
-Where it's enforced: `api/auth/callback.js` checks `isOpsUser` before setting a session, `_middleware.js` checks again on every request, and `_lib/user-store.js` reads Users (cached 30 seconds). The authorize URL in `_lib/google-oauth.js` doesn't lock a Workspace domain. Deactivating someone at `/users` cuts them off on their next request.
+Where it's enforced: `api/auth/callback.js` checks `isOpsUser` before setting a session, `_middleware.js` checks again on every request, and `src/features/users/server/user-store.js` reads Users (cached 30 seconds). The authorize URL in `src/features/access/server/google-oauth.js` doesn't lock a Workspace domain. Deactivating someone at `/users` cuts them off on their next request.
 
 There are no roles: an active user sees all of ops (recipes and trade prices, form submissions, events, website release, and `/users` itself). Only add people who should see all of that.
 

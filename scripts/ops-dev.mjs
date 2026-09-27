@@ -70,7 +70,7 @@ function loadRootEnv() {
  * (SANITY_API_TOKEN__DEV in Secrets Manager).
  */
 async function useDevSanityProject() {
-  const { DEV_SANITY_PROJECT_ID } = await import("../ops/site/functions/_lib/sanity.js");
+  const { DEV_SANITY_PROJECT_ID } = await import("../ops/site/src/platform/sanity.js");
   process.env.SANITY_PROJECT_ID = DEV_SANITY_PROJECT_ID;
   const token = process.env.SANITY_API_TOKEN?.trim();
   const response = token
@@ -167,7 +167,7 @@ async function main() {
     await loadProductionSecrets();
     if (localPassword && !process.env.OPS_LOCAL_ADMIN_PW) process.env.OPS_LOCAL_ADMIN_PW = localPassword;
     // Repo .env points local work at the dev Sanity project; live is the real one.
-    const { REAL_SANITY_PROJECT_ID } = await import("../ops/site/functions/_lib/sanity.js");
+    const { REAL_SANITY_PROJECT_ID } = await import("../ops/site/src/platform/sanity.js");
     process.env.SANITY_PROJECT_ID = REAL_SANITY_PROJECT_ID;
     console.warn(`
   ************************************************************
@@ -186,7 +186,7 @@ async function main() {
   if (process.env.BASEROW_CONFIG_API_KEY?.trim()) {
     try {
       const { applyOpsAppConfig } = await import(
-        "../ops/site/functions/_lib/config-store.js"
+        "../ops/site/src/platform/config-store.js"
       );
       const merged = await applyOpsAppConfig({
         ...process.env,
@@ -221,7 +221,7 @@ async function main() {
     process.on(signal, () => process.exit(130));
   }
   try {
-    const { resolveOpsTableIds } = await import("../ops/site/functions/_lib/baserow.js");
+    const { resolveOpsTableIds } = await import("../ops/site/src/platform/baserow.js");
     const { databaseId } = await resolveOpsTableIds(process.env);
     console.log(`Baserow Ops DB ${databaseId} (${LIVE ? "Gwenda, PRODUCTION" : "Gwenda Dev"} token)`);
   } catch (error) {

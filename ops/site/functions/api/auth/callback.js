@@ -11,15 +11,15 @@ import {
   resolveAuth,
   safeRedirectPath,
   verifyOauthStateToken,
-} from "../../_lib/auth.js";
+} from "../../../src/features/access/server/auth.js";
 import {
   exchangeGoogleCode,
   googleEmailFromTokens,
   parseOauthStateParam,
-} from "../../_lib/google-oauth.js";
-import { opsEnv } from "../../_lib/ops-env.js";
-import { allowedReturnTo, sessionCookieDomain } from "../../_lib/preview-signin.js";
-import { isOpsUser } from "../../_lib/user-store.js";
+} from "../../../src/features/access/server/google-oauth.js";
+import { opsEnv } from "../../../src/platform/ops-env.js";
+import { allowedReturnTo, sessionCookieDomain } from "../../../src/features/access/server/preview-signin.js";
+import { isOpsUser } from "../../../src/features/users/server/user-store.js";
 
 /** Google OAuth callback: exchange code, check Users, set session. */
 export async function onRequestGet(context) {

@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { dispatchPreviewDeploy } from "../../_lib/site-deploy.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { dispatchPreviewDeploy } from "../../../src/features/web/server/site-deploy.js";
 
 /** Rebuild the preview site. The live site changes only when drafts are published. */
 export const onRequestPost = withApiHandler(async (context) => {

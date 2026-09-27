@@ -15,7 +15,7 @@ import {
   parseProductUrl,
   skuFromProductUrl,
   supplierFromUrl,
-} from "../ops/site/functions/_lib/suppliers.js";
+} from "../ops/site/src/features/inventory/suppliers.js";
 import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 
 const LWC_PRICES = JSON.parse(

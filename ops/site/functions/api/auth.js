@@ -5,8 +5,8 @@ import {
   requestOrigin,
   resolveAuth,
   safeRedirectPath,
-} from "../_lib/auth.js";
-import { opsEnv } from "../_lib/ops-env.js";
+} from "../../src/features/access/server/auth.js";
+import { opsEnv } from "../../src/platform/ops-env.js";
 
 /** Gate mode for the UI. */
 export async function onRequestGet(context) {

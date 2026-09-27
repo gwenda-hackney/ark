@@ -6,13 +6,13 @@ import {
   requestOrigin,
   resolveAuth,
   safeRedirectPath,
-} from "../../_lib/auth.js";
+} from "../../../src/features/access/server/auth.js";
 import {
   buildGoogleAuthorizeUrl,
   randomUrlSafe,
-} from "../../_lib/google-oauth.js";
-import { opsEnv } from "../../_lib/ops-env.js";
-import { allowedReturnTo, DEV_OPS_ORIGIN, devPreviewOrigin } from "../../_lib/preview-signin.js";
+} from "../../../src/features/access/server/google-oauth.js";
+import { opsEnv } from "../../../src/platform/ops-env.js";
+import { allowedReturnTo, DEV_OPS_ORIGIN, devPreviewOrigin } from "../../../src/features/access/server/preview-signin.js";
 
 /** Start Google OAuth (PKCE). */
 export async function onRequestGet(context) {

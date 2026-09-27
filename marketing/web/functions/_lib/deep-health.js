@@ -7,7 +7,7 @@
  * broken token doesn't hide the others.
  */
 import { getSettings } from "../../../../shared/config.js";
-import { listArtists } from "../../../../ops/site/functions/_lib/artist-store.js";
+import { listArtists } from "../../../../ops/site/src/features/artists/server/artist-store.js";
 import { opsArtistEnv } from "../../src/lib/featured-artist.js";
 import {
   resolveFormSubmissionsTableId,

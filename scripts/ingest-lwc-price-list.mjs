@@ -10,11 +10,11 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listAllRows, updateRow } from "../ops/site/functions/_lib/baserow.js";
+import { listAllRows, updateRow } from "../ops/site/src/platform/baserow.js";
 import {
   parseMoney,
   skuFromProductUrl,
-} from "../ops/site/functions/_lib/suppliers.js";
+} from "../ops/site/src/features/inventory/suppliers.js";
 import { diffLwcPriceLists, parseLwcPriceListCsv } from "./lib/lwc-price-list.mjs";
 import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
 

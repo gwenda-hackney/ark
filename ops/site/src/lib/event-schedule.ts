@@ -3,7 +3,7 @@ import {
 	WEEKDAYS,
 	expandSeriesOccurrenceDates,
 	normalizeWeekdays,
-} from "../../functions/_lib/event-recurrence.js";
+} from "../features/events/event-recurrence.js";
 
 export type EventScheduleRow = {
 	event: OpsEvent;

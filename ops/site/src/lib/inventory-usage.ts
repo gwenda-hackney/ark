@@ -1,5 +1,5 @@
-import { flattenMenuSections } from "../../functions/_lib/menu-sections.js";
-import { menuItemPath } from "../../functions/_lib/spa-path.js";
+import { flattenMenuSections } from "../features/menu/menu-sections.js";
+import { menuItemPath } from "../app/spa-path.js";
 import type { MenuSection } from "./types.ts";
 
 export type InventoryUsage = {

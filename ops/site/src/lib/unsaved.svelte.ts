@@ -2,7 +2,7 @@
  * Unsaved editor guard. Detail forms register while they are dirty so Close,
  * crumbs, the rail, and browser back cannot drop work silently.
  */
-import { navigationLeavesEditor } from "../../functions/_lib/spa-path.js";
+import { navigationLeavesEditor } from "../app/spa-path.js";
 
 export const unsaved = $state({
 	dirty: false,

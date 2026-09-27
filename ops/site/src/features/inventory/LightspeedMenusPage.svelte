@@ -17,7 +17,7 @@
 	} from "../../lib/api";
 	import { toast } from "../../lib/toast.svelte";
 	import { easeOut, flyMs } from "../../lib/motion";
-	import { collectMenuItems } from "../../../functions/_lib/lightspeed-stock.js";
+	import { collectMenuItems } from "./lightspeed-stock.js";
 	import type { MenuItem, PosMenu } from "../../lib/types";
 	import { MENUS_HELP } from "./lightspeed-help";
 

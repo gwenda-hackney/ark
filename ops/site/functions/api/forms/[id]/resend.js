@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../../_lib/http.js";
-import { resendFormEmail } from "../../../_lib/form-submissions.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../../src/platform/http.js";
+import { resendFormEmail } from "../../../../src/features/forms/server/form-submissions.js";
 
 /** POST { kind: "notify" | "receipt" } → resend that email via the website. */
 export const onRequestPost = withApiHandler(async (context) => {
