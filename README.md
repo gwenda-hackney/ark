@@ -36,7 +36,7 @@ Commands say which environment they touch: `dev` is your copy, `prod` is the rea
 
 Work is tracked as [GitHub issues](https://github.com/gwenda-hackney/ark/issues), grouped into [milestones](https://github.com/gwenda-hackney/ark/milestones).
 
-1. Branch from `main`: `feat/<issue>-<slug>` (or `fix/`, `chore/`, `refactor/`, `test/`). Pushing deploys a branch preview of the dev website.
+1. Branch from `main`: `feat/<issue>-<slug>` (or `fix/`, `chore/`, `refactor/`, `test/`). Pushing deploys branch previews on dev data: the website (`<branch>.gwenda-web-dev.pages.dev`) and, for ops changes, ops (`<branch>.gwenda-ops-dev.pages.dev`).
 2. Open a pull request into `main` and fill in the template. [PR checks](.github/workflows/pr.yml) run lint and tests; merge when they're green, then delete the branch.
 3. `main` deploys dev. Production goes `main` → `release` (prod preview) → promote, and only on purpose.
 

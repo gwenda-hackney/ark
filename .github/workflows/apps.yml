@@ -431,6 +431,10 @@ jobs:
       - name: Migrations after deploy
         run: node scripts/migrate.mjs --app ops --phase post --env dev
 
+  # Branch previews of ops run on gwenda-ops-dev (dev secrets, dev data), never
+  # on gwenda-ops: a branch is unreviewed code. They share the dev databases and
+  # run no migrations. The dev deploy from main puts the dev secrets on
+  # gwenda-ops-dev's preview environment.
   ops-preview:
     name: Deploy ops (preview)
     needs: changes
@@ -481,13 +485,16 @@ jobs:
           fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy preview to Cloudflare Pages
+      - name: Use the dev Wrangler config
+        run: cp ops/site/wrangler.dev.toml ops/site/wrangler.toml
+
+      - name: Deploy preview to Cloudflare Pages (dev)
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy src --project-name gwenda-ops --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
+          command: pages deploy src --project-name gwenda-ops-dev --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
           workingDirectory: ops/site
 
       - name: Resolve preview URL
@@ -498,7 +505,7 @@ jobs:
             URL="${{ steps.deploy.outputs.deployment-url }}"
           fi
           if [ -z "$URL" ]; then
-            URL="https://${{ steps.branch.outputs.name }}.gwenda-ops.pages.dev"
+            URL="https://${{ steps.branch.outputs.name }}.gwenda-ops-dev.pages.dev"
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
@@ -509,8 +516,9 @@ jobs:
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs
         env:
           DEPLOY_SUMMARY_JSON: >-
-            {"title":"Ops tools — branch preview","rows":[
+            {"title":"Ops tools — branch preview (dev data)","rows":[
               ["Preview","[${{ steps.preview_url.outputs.url }}](${{ steps.preview_url.outputs.url }})"],
+              ["Data","Dev copies (Gwenda Dev Sanity, dev Baserow). No migrations run for previews."],
               ["Pages branch","`${{ steps.branch.outputs.name }}`"],
               ["Git branch","`${{ github.ref_name }}`"],
               ["Commit","[\\`${{ github.sha }}\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"],
