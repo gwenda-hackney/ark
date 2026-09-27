@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import {
   DEV_SANITY_PROJECT_ID,
   REAL_SANITY_PROJECT_ID,
-} from "../ops/site/src/platform/sanity.js";
+} from "../shared/sanity-projects.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const STUDIO = resolve(ROOT, "marketing/studio");
