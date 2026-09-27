@@ -157,7 +157,7 @@ describe("spa-path", () => {
     assert.equal(isEditorPath("/menu/negroni/print"), false);
   });
 
-  it("rewrites only shell document paths, not static tools", () => {
+  it("rewrites only shell document paths", () => {
     assert.equal(isSpaDocumentPath("/menu"), true);
     assert.equal(isSpaDocumentPath("/menu/negroni"), true);
     assert.equal(isSpaDocumentPath("/menu/negroni/recipe"), true);
@@ -176,8 +176,7 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/events/new"), true);
     assert.equal(isSpaDocumentPath("/web"), true);
     assert.equal(isSpaDocumentPath("/forms"), true);
-    assert.equal(isSpaDocumentPath("/tools/breakeven"), true);
-    assert.equal(isSpaDocumentPath("/stock"), false);
+    assert.equal(isSpaDocumentPath("/tools/breakeven"), false, "Tools is gone (#75)");
     assert.equal(isSpaDocumentPath("/api/menu"), false);
     assert.equal(isClientNavPath("/config"), true);
     assert.equal(isClientNavPath("/lightspeed"), true);
@@ -189,9 +188,6 @@ describe("spa-path", () => {
     assert.equal(isClientNavPath("/web"), true);
     assert.equal(isClientNavPath("/forms"), true);
     assert.equal(isClientNavPath("/artists"), true);
-    assert.equal(isClientNavPath("/tools/cashflow"), true);
-    assert.equal(isClientNavPath("/stock"), false);
-    assert.equal(isClientNavPath("/stock/index.html"), false);
     assert.equal(shellPageKey("/config"), "config");
     assert.equal(shellPageKey("/lightspeed"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
@@ -302,15 +298,6 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/forms"), "forms");
     assert.equal(shellPageKey("/forms/12"), "forms");
     assert.deepEqual(parseShellPath("/forms/12"), { page: "forms", slug: "12" });
-    assert.equal(shellPageKey("/tools/breakeven"), "tools");
-    assert.deepEqual(parseShellPath("/tools/stock"), {
-      page: "tools",
-      tool: "stock",
-    });
-    assert.deepEqual(parseShellPath("/tools/nope"), {
-      page: "tools",
-      tool: "breakeven",
-    });
     assert.deepEqual(parseShellPath("/sections"), { page: "sections" });
     assert.deepEqual(parseShellPath("/lightspeed"), {
       page: "lightspeed",

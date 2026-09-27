@@ -24,14 +24,8 @@ gwenda-ops-*.json
 .dev.vars
 marketing/**/.dev.vars
 ops/**/.dev.vars
-ops/site/src/menu/
-ops/site/src/assets/
-ops/site/src/_app/
-ops/site/src/index.html
-ops/site/src/_app/
-ops/site/src/index.html
+ops/site/dist/
 
-ops/site/menu-app/node_modules/
 .astro/
 /src/env.d.ts
 ops/**/.venv/
