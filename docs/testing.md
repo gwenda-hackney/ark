@@ -2,7 +2,7 @@
 
 ## Running tests
 
-Every test in the repo runs with **Vitest** (one version, one root `vitest.config.js` listing each package as a project). Tests are found by glob, so a new `*.test.*` file runs without editing any config.
+Every test in the repo runs with **Vitest** (one version, one root `vitest.config.mjs` listing each package as a project). Tests are found by glob, so a new `*.test.*` file runs without editing any config.
 
 | Command | Runs |
 |---|---|
