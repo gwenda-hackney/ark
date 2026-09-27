@@ -156,6 +156,16 @@ npm run deploy -w @gwenda/ops
 # or CI via apps.yml
 ```
 
+CI (`apps.yml`):
+
+| Push to | Deploys to | Data and secrets |
+|---|---|---|
+| any other branch | `<branch>.gwenda-ops-dev.pages.dev` (branch preview) | dev copies, dev secrets; no migrations |
+| `main` | [gwenda-ops-dev.pages.dev](https://gwenda-ops-dev.pages.dev) | dev copies, dev secrets |
+| `release` + manual dispatch (target production) | [gwenda-ops.pages.dev](https://gwenda-ops.pages.dev) | production |
+
+Branch previews never run on `gwenda-ops`: a branch is unreviewed code, and prod ops' secrets live on its **production** environment only (`scripts/setup-ops-secrets.mjs`). To clear prod secrets left on its preview environment: `npm run setup:ops -- --clear-preview`.
+
 ## Lightspeed item list
 
 Ops matches a **Lightspeed formatted** CSV exported by hand from Back Office (`Menu` → `Item list` → `Export`) and uploaded at `/lightspeed`. Downloading it with a headless browser does not work: the Back Office login is behind Cloudflare Turnstile. That spike lives on the `archive/lightspeed-headless-export` branch. The durable route is the K-Series Items API.
