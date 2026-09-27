@@ -8,11 +8,20 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
 import { eventHeaderFlag } from "../../menu-app/src/lib/event-header-status.ts";
 import { callApi, createFakeWorld } from "../_test/fake-world.js";
-import { onRequestPut as addNight, onRequestPatch as editNight } from "../api/events/[id]/dates/[date].js";
+import {
+  onRequestPut as addNight,
+  onRequestDelete as deleteNight,
+  onRequestPatch as editNight,
+} from "../api/events/[id]/dates/[date].js";
 import { onRequestPost as publishEvent } from "../api/events/[id]/publish.js";
-import { onRequestGet as getEvent, onRequestPatch as editEvent } from "../api/events/[id].js";
+import {
+  onRequestDelete as deleteEvent,
+  onRequestGet as getEvent,
+  onRequestPatch as editEvent,
+} from "../api/events/[id].js";
 import { onRequestPost as createEvent } from "../api/events/index.js";
 import { onRequestPost as runWebsiteJob } from "../api/web/jobs.js";
+import { onRequestPost as release } from "../api/web/release.js";
 
 /** ISO date `days` from today. */
 function daysFromNow(days) {
@@ -120,6 +129,36 @@ function editor(world) {
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data;
     },
+    /** Delete one night (`scope`: this, following, all), as the night's Delete button does. */
+    async deleteNight(event, date, scope = "this") {
+      const res = await callApi(world, deleteNight, {
+        method: "DELETE",
+        path: `/api/events/${id(event)}/dates/${date}`,
+        params: { id: id(event), date },
+        body: { scope },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    async deleteEvent(event) {
+      const res = await callApi(world, deleteEvent, {
+        method: "DELETE",
+        path: `/api/events/${id(event)}`,
+        params: { id: id(event) },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    /** Website → Dev tools → Discard (admin; everyone is an admin on dev). */
+    async discardPreview(ids) {
+      const res = await callApi(world, release, {
+        method: "POST",
+        path: "/api/web/release",
+        body: { confirm: "preview", direction: "discard", ...(ids ? { ids } : {}) },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
     async open(event) {
       const res = await callApi(world, getEvent, { path: `/api/events/${id(event)}`, params: { id: id(event) } });
       assert.equal(res.status, 200, JSON.stringify(res.data));
@@ -146,6 +185,14 @@ function previewNights(world) {
     .view("previewDrafts")
     .filter((doc) => doc._type === "event" && !doc.removed)
     .map((doc) => doc.date)
+    .sort();
+}
+
+/** Dates with a Google Calendar entry. */
+function calendarDates(world) {
+  return world.google
+    .calendar()
+    .map((entry) => (entry.start?.dateTime || entry.start?.date || "").slice(0, 10))
     .sort();
 }
 
@@ -314,5 +361,156 @@ describe("events: editing", () => {
     const nights = liveNights(world);
     assert.ok(nights.includes(moved), "on the new date");
     assert.ok(!nights.includes(second), "off the old date");
+  });
+});
+
+// Deleting is immediate today: the nights leave the preview, the live site and
+// the calendar together. #23 makes it wait for Update website; these change then.
+describe("events: deleting", () => {
+  let world;
+  let ops;
+  let event;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+    event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+  });
+  afterEach(() => world.restore());
+
+  it("one night: gone from the website and the calendar, the rest untouched", async () => {
+    const [first, second, third] = liveNights(world);
+    await ops.deleteNight(event, second, "this");
+    await ops.waitUntilReady(event);
+    assert.ok(!liveNights(world).includes(second), "off the live site");
+    assert.ok(!previewNights(world).includes(second), "off the preview");
+    assert.ok(!calendarDates(world).includes(second), "off the calendar");
+    assert.ok(liveNights(world).includes(first) && liveNights(world).includes(third));
+    assert.ok(!(await ops.open(event)).dates.some((row) => row.date === second), "not in ops");
+    assert.equal(await ops.sees(event), "On the website");
+  });
+
+  it("this and following nights: the series ends before that night", async () => {
+    const nights = liveNights(world);
+    const from = nights[2];
+    await ops.deleteNight(event, from, "following");
+    await ops.waitUntilReady(event);
+    assert.deepEqual(liveNights(world), nights.slice(0, 2));
+    assert.deepEqual(calendarDates(world), nights.slice(0, 2));
+    assert.ok((await ops.open(event)).endsOn < from, "Ends on moves before the deleted night");
+  });
+
+  it("all future nights of a series that hasn't started: the whole event goes", async () => {
+    const res = await ops.deleteNight(event, liveNights(world)[1], "all");
+    assert.equal(res.deleted, true, "ops reports the event deleted, so the screen leaves it");
+    assert.deepEqual(world.sanity.published(), []);
+    assert.deepEqual(world.google.calendar(), []);
+    assert.equal(world.baserow.rows("Events").length, 0);
+  });
+
+  it("all future nights of a running series: it ends yesterday, past nights stay", async () => {
+    const running = await ops.create(
+      weeklySeries({ name: "Tuesday Quiz", weekdays: ["tue"], startsOn: daysFromNow(-20), endsOn: daysFromNow(40) }),
+    );
+    await ops.waitUntilReady(running);
+    await ops.updateWebsite(running);
+    const quizNights = () =>
+      world.sanity
+        .published("event")
+        .filter((doc) => doc.seriesId === running.slug)
+        .map((doc) => doc.date)
+        .sort();
+    const today = daysFromNow(0);
+    const upcoming = quizNights().filter((date) => date >= today);
+    assert.ok(upcoming.length > 1);
+    await ops.deleteNight(running, upcoming[0], "all");
+    await ops.waitUntilReady(running);
+    assert.ok(quizNights().every((date) => date < today), "no upcoming quiz nights live");
+    assert.equal((await ops.open(running)).endsOn, daysFromNow(-1));
+    assert.ok(liveNights(world).length > quizNights().length, "the chess series is untouched");
+  });
+
+  it("the whole series: its pages, nights, calendar entries and ops record all go", async () => {
+    await ops.deleteEvent(event);
+    assert.deepEqual(world.sanity.published(), []);
+    assert.deepEqual(world.sanity.drafts(), []);
+    assert.deepEqual(world.google.calendar(), []);
+    assert.equal(world.baserow.rows("Events").length, 0);
+    assert.equal(world.baserow.rows("Event dates").length, 0);
+  });
+
+  it("a series that never went live: its preview copy goes, the website is untouched", async () => {
+    const draftOnly = await ops.create(weeklySeries({ name: "Tuesday Quiz", weekdays: ["tue"] }));
+    await ops.waitUntilReady(draftOnly);
+    const liveBefore = world.sanity.published().length;
+    await ops.deleteEvent(draftOnly);
+    assert.equal(world.sanity.published().length, liveBefore, "the other series stays live");
+    assert.ok(
+      !world.sanity.drafts().some((doc) => String(doc.title || "").startsWith("Tuesday Quiz")),
+      "no preview copy left",
+    );
+  });
+
+  it("a one-off special event: off the website and the calendar", async () => {
+    const date = daysFromNow(12);
+    const special = await ops.create({
+      name: "Andy Caruso",
+      shortDescription: "Vinyl only.",
+      description: "The king of disco is back.",
+      startTime: "20:00",
+      endTime: "01:00",
+      startsOn: date,
+      repeatUnit: "once",
+    });
+    await ops.waitUntilReady(special);
+    await ops.updateWebsite(special);
+    await ops.deleteEvent(special);
+    assert.ok(!liveNights(world).includes(date));
+    assert.ok(!world.sanity.published("eventSeries").some((doc) => doc.title === "Andy Caruso"));
+    assert.ok(!calendarDates(world).includes(date));
+  });
+});
+
+describe("events: changing the schedule drops nights", () => {
+  let world;
+  let ops;
+  let event;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+    event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+  });
+  afterEach(() => world.restore());
+
+  it("ending the series earlier: dropped nights leave the preview now and the website on Update website", async () => {
+    const nights = liveNights(world);
+    await ops.edit(event, { endsOn: nights[2] });
+    await ops.waitUntilReady(event);
+    assert.deepEqual(previewNights(world), nights.slice(0, 3), "preview: only the nights still scheduled");
+    assert.deepEqual(liveNights(world), nights, "live site unchanged until Update website");
+    assert.deepEqual(calendarDates(world), nights.slice(0, 3), "calendar follows the schedule straight away");
+    assert.equal(await ops.sees(event), "Website has an older version");
+
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveNights(world), nights.slice(0, 3));
+    assert.deepEqual(world.sanity.drafts(), []);
+    assert.equal(await ops.sees(event), "On the website");
+  });
+
+  // Known bug #20: discarding the removed-night draft leaves the night live
+  // with no row in ops, and nothing marks it removed again.
+  it.fails("discarding a dropped night's draft: ops marks it removed again (known bug #20)", async () => {
+    const nights = liveNights(world);
+    await ops.edit(event, { endsOn: nights[2] });
+    await ops.waitUntilReady(event);
+    await ops.discardPreview();
+    await ops.waitUntilReady(event);
+    assert.deepEqual(previewNights(world), nights.slice(0, 3), "the schedule still excludes the dropped nights");
+    assert.equal(await ops.sees(event), "Website has an older version");
   });
 });
