@@ -6743,6 +6743,15 @@ a.event-card:focus-visible .event-title,
   transition: color 0.25s var(--ease-smooth);
 }
 
+/* Long titles, guest names and captions wrap inside the card instead of
+   running into the text beside or below them (#43). */
+.event-title,
+.event-guest,
+.event-offer,
+.event-media-caption-name {
+  overflow-wrap: anywhere;
+}
+
 .event-title + .event-recurrence {
   margin-top: -0.2rem;
 }
