@@ -8,8 +8,7 @@ ark/
 │   ├── studio/         ← Sanity Studio (website CMS)
 │   └── … Workers       ← site-deploy, Mailchimp sync, site health, Wi‑Fi portal
 ├── ops/
-│   ├── site/           ← ops Pages app (HTML tools)
-│   └── recipe-cost-webhook/
+│   └── site/           ← ops Pages app (HTML tools)
 ├── shared/             ← code two or more apps use (see below)
 ├── docs/
 └── scripts/
@@ -49,7 +48,7 @@ The main deploy workflows under `.github/workflows/`:
 | `web.yml` | Dev website (`main`), prod's preview (`release`, and ops content rebuilds), branch previews on the dev website |
 | `web-promote.yml` | Live site from `release` and published documents |
 | `studio.yml` | Hosted Studio by hand from `release` (Web promote also redeploys it) |
-| `workers.yml` | site-deploy-webhook, Mailchimp sync, site-health, recipe-cost |
+| `workers.yml` | site-deploy-webhook, Mailchimp sync, site-health |
 | `apps.yml` | Brand guidelines + ops Pages |
 | `pr.yml` | Pull request checks: website lint and tests, ops tests, type check and build |
 
@@ -67,6 +66,5 @@ Colour changes in `marketing/web/src/config/colors.json` are included in the bra
 | `utils/site-deploy-webhook/` | `marketing/site-deploy-webhook/` |
 | `utils/subscribe-mailchimp-sync/` | `marketing/subscribe-mailchimp-sync/` |
 | `utils/wifi-captive-portal/` | `marketing/wifi-captive-portal/` |
-| `utils/recipe-cost-webhook/` | `ops/recipe-cost-webhook/` |
 | `ops/` (Pages app at root) | `ops/site/` |
 | `deploy-staging.yml` etc. | `web.yml` / `web-promote.yml` / `studio.yml` / `workers.yml` / `apps.yml` |
