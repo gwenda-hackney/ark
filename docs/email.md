@@ -21,6 +21,8 @@ The service account impersonates `notifications@` and sends as it, or as an alia
 
 You pay for **one** Workspace user (`notifications@`). Aliases and groups do not add seats.
 
+**Outside production nothing reaches a real inbox.** `sendGmail` is the only way to send, and on dev or a developer's machine it replaces To, Cc and Bcc with the safe address: the `forms.notify_email` setting, which is `alerts@` on hosted dev and `FORMS_NOTIFY_EMAIL` (your git email) locally. The subject starts `[dev, for guest@example.com]` and the header `X-Gwenda-Original-To` names the real recipient. With no safe address it doesn't send at all. Copied data is full of real guests' addresses, so callers can't opt out.
+
 Event confirmations include on-brand HTML with the logo, a calendar ticket (`.ics`) and, when Apple certificates are configured, an Apple Wallet pass (`.pkpass`). RSVP email copy is edited in **Sanity** on each event.
 
 ---

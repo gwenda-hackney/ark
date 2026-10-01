@@ -14,6 +14,8 @@ routes = [
 enabled = true
 
 [vars]
+# Watches production and emails alerts@ only; sendGmail needs the env (#15).
+SITE_ENV = "production"
 SITE_URL = "https://gwenda.co.uk"
 # Prod's preview (drafts over published).
 PREVIEW_SITE_URL = "https://preview.gwenda-blue.pages.dev"
