@@ -40,7 +40,13 @@ export function environmentOf(env = {}) {
     .trim()
     .toLowerCase();
   if (raw === "local" || raw === "development" || raw === "dev") return "dev";
-  if (raw === "production" || raw === "prod" || !raw) return "production";
+  if (raw === "production" || raw === "prod") return "production";
+  if (!raw) {
+    // No default: code run outside a deployment without SITE_ENV used to read
+    // production settings with whatever database keys it had, and on
+    // 2026-09-26 wrote dev nights into the production calendar.
+    throw new Error("SITE_ENV is not set. Use production, dev or local.");
+  }
   return raw;
 }
 

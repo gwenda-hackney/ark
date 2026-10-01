@@ -68,9 +68,9 @@ test("the tick builds each quiet site once and saves state", async () => {
   };
   // First tick: a change appears (snapshot differs), timer starts.
   store.set("web:site.build_snapshot:production", JSON.stringify({ version: 1, documents: { gone: ["h", "Old", "event"] }, artists: {} }));
-  let result = await autoUpdateTick({}, { ...deps, now: T0 });
+  let result = await autoUpdateTick({ SITE_ENV: "production" }, { ...deps, now: T0 });
   assert.equal(result.production.action, "wait-quiet");
-  result = await autoUpdateTick({}, deps);
+  result = await autoUpdateTick({ SITE_ENV: "production" }, deps);
   assert.equal(result.production.action, "build");
   assert.deepEqual(dispatched, ["production"]);
   assert.equal(JSON.parse(store.get("ops:site.auto_update:production")).runId, 9);
