@@ -71,25 +71,17 @@ Settings → Developer tools (`/web/dev`), for emails listed in config `ops.admi
 
 Sanity **robot / API tokens** on this plan are **Viewer**, **Editor**, and **Deploy Studio**. There is no **Developer** robot role in the manage UI (Developer is a human user role on Growth+). Every token that builds a preview or serves its What's on must read drafts; Viewer and Editor both can.
 
-**Keep-set:**
+Each token is named after the Secrets Manager key that holds it:
 
-| Label | Role | Where | Used for |
-|-------|------|-------|----------|
-| `ark-local-editor` | **Editor** | Secrets Manager `SANITY_API_TOKEN__DEV` (loaded after `bw-unlock`) | Local Studio, seeds. **Never** GitHub. |
-| `ark-ci-viewer` | **Viewer** | GitHub `SANITY_API_TOKEN` | Site builds / content deploys |
-| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub + SM `SANITY_DEPLOY_TOKEN` | Hosted Studio deploys |
+| Label = SM key | Project | Role | Used for |
+| --- | --- | --- | --- |
+| `SANITY_API_TOKEN__DEV` | Gwenda Dev (`gwscpagy`) | **Editor** | Local and dev: ops, website builds, seeds |
+| `SANITY_API_TOKEN__PRODUCTION` | Gwenda (`pn5yjro6`) | **Editor** | Production ops and the live website build |
+| `SANITY_DEPLOY_TOKEN` | Gwenda (`pn5yjro6`) | **Deploy Studio** | Hosted Studio deploys |
 
-Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity login`), not the local Editor robot:
+Create tokens with a **personal** admin session (`npx sanity login`), as in [secrets-rebuild.md](secrets-rebuild.md). Don't run `setup:sanity-tokens`: it still uses the old labels, writes GitHub secrets, and revokes every token outside its keep-set, including the one live ops is using.
 
-```bash
-npx sanity login
-gh auth login -h github.com -p https -s repo,workflow
-bw-unlock   # so it can store SANITY_DEPLOY_TOKEN in Secrets Manager
-npm run setup:sanity-tokens -- --dry-run   # always look first: it revokes robots not in the keep-set
-npm run setup:sanity-tokens
-```
-
-`setup:ci-secrets` is a deprecated alias that only refreshes CI tokens + GitHub secrets.
+`setup:ci-secrets` (a deprecated alias that writes GitHub secrets) is out of date the same way.
 
 ### Local
 
