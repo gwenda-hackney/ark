@@ -8,6 +8,7 @@ import {
   ownerOf,
   parseSecretKey,
   pickAppSecrets,
+  pickProjectIds,
   resolveSecretsForEnv,
   smNameFor,
   smRetryDelayMs,
@@ -143,5 +144,30 @@ describe("Secrets Manager rate limits", () => {
 
   it("backs off 1.5s, 3s, 6s, 12s", () => {
     assert.deepEqual([1, 2, 3, 4].map(smRetryDelayMs), [1500, 3000, 6000, 12000]);
+  });
+});
+
+describe("pickProjectIds", () => {
+  const projects = [
+    { id: "a", name: "ark" },
+    { id: "o", name: "Ark/Ops" },
+    { id: "w", name: "ark/web" },
+    { id: "x", name: "something else" },
+  ];
+
+  it("finds each project by name, ignoring case", () => {
+    assert.deepEqual(pickProjectIds(projects, {}), { ark: "a", ops: "o", web: "w" });
+  });
+
+  it("lets BWS_*_PROJECT_ID override the lookup", () => {
+    assert.equal(pickProjectIds(projects, { BWS_OPS_PROJECT_ID: "custom" }).ops, "custom");
+  });
+
+  it("names the project the token can't see", () => {
+    assert.throws(() => pickProjectIds(projects.slice(0, 2), {}), /No Secrets Manager project named ark\/web/);
+  });
+
+  it("refuses two projects with the same name", () => {
+    assert.throws(() => pickProjectIds([...projects, { id: "a2", name: "ARK" }], {}), /Several .* named ark\./);
   });
 });
