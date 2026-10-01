@@ -10,8 +10,7 @@
     "marketing/subscribe-mailchimp-sync",
     "marketing/site-health",
     "marketing/wifi-captive-portal",
-    "ops/site",
-    "ops/recipe-cost-webhook"
+    "ops/site"
   ],
   "scripts": {
     "web:dev": "npm run dev -w @gwenda/web",
