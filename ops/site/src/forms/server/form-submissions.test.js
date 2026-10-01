@@ -164,7 +164,9 @@ describe("resendFormEmail", () => {
 
     assert.equal(result.ok, true);
     assert.equal(sent.length, 1);
-    assert.match(sent[0], /^To: alex@example\.com/m);
+    // Local ops: the receipt goes to the safe inbox, naming the applicant (#15).
+    assert.match(sent[0], /^To: dev@example\.com/m);
+    assert.match(sent[0], /^X-Gwenda-Original-To: alex@example\.com/m);
     assert.ok(sent[0].replace(/=\r\n/g, "").includes("contact/edit?t=3Dabc.def"));
     assert.deepEqual(Object.keys(patches[0]), ["Receipt Sent"]);
     assert.equal(result.sentAt, patches[0]["Receipt Sent"]);
