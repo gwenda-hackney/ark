@@ -80,6 +80,11 @@ jobs:
       - name: Migrations before deploy
         run: node scripts/migrate.mjs --app web --phase pre --env production
 
+      # What to roll back to if a check after the deploy fails (#18).
+      - name: Remember the live deployment
+        id: previous
+        run: node scripts/pages-rollback.mjs remember --project gwenda --url https://gwenda.co.uk
+
       - name: Deploy production
         uses: ./.github/actions/deploy-pages
         with:
@@ -138,6 +143,18 @@ jobs:
       # the test row is deleted.
       - name: Deep health (databases, email, forms)
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep --form-test
+
+      # Any failure since the deploy: put the previous deployment back (and its
+      # secrets). It must stay before the post migrations, which remove what
+      # the old code reads; a failed job skips them, so they haven't run.
+      - name: Roll back to the previous deployment
+        id: rollback
+        if: failure() && steps.previous.outputs.previous-id != ''
+        run: node scripts/pages-rollback.mjs rollback --project gwenda --to "${{ steps.previous.outputs.previous-id }}"
+
+      - name: Check the previous version is live again
+        if: failure() && steps.rollback.outcome == 'success' && steps.previous.outputs.previous-version != ''
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.previous.outputs.previous-version }}" --retries 18 --retry-delay-ms 5000
 
       # The new code is live: remove what only the old code used.
       - name: Migrations after deploy

@@ -127,6 +127,11 @@ jobs:
       - name: Verify brand tokens committed
         run: npm run sync:brand -- --check
 
+      # What to roll back to if the smoke test fails (#18).
+      - name: Remember the live deployment
+        id: previous
+        run: node scripts/pages-rollback.mjs remember --project gwenda-brand
+
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -148,6 +153,10 @@ jobs:
           done
           echo "Brand guidelines not served at $url"
           exit 1
+
+      - name: Roll back to the previous deployment
+        if: failure() && steps.previous.outputs.previous-id != ''
+        run: node scripts/pages-rollback.mjs rollback --project gwenda-brand --to "${{ steps.previous.outputs.previous-id }}"
 
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs
@@ -312,6 +321,11 @@ jobs:
       - name: Migrations before deploy
         run: node scripts/migrate.mjs --app ops --phase pre --env production
 
+      # What to roll back to if the smoke test fails (#18).
+      - name: Remember the live deployment
+        id: previous
+        run: node scripts/pages-rollback.mjs remember --project gwenda-ops
+
       - name: Deploy to Cloudflare Pages (production)
         uses: cloudflare/wrangler-action@v3
         with:
@@ -322,6 +336,17 @@ jobs:
 
       - name: Smoke test production auth gate
         run: node scripts/smoke-ops-auth.mjs https://gwenda-ops.pages.dev/
+
+      # Before the post migrations, which remove what the old code reads; a
+      # failed job skips them, so they haven't run.
+      - name: Roll back to the previous deployment
+        id: rollback
+        if: failure() && steps.previous.outputs.previous-id != ''
+        run: node scripts/pages-rollback.mjs rollback --project gwenda-ops --to "${{ steps.previous.outputs.previous-id }}"
+
+      - name: Check the previous ops answers again
+        if: failure() && steps.rollback.outcome == 'success'
+        run: node scripts/smoke-ops-auth.mjs https://gwenda-ops.pages.dev/ --retries 12 --retry-delay-ms 5000
 
       # Only now that the new ops is live: remove what the old code read, e.g.
       # retired config rows (migrations/config-retired-settings.mjs).
