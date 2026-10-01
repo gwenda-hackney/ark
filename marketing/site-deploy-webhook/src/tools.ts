@@ -97,7 +97,8 @@ export async function handleBaserowCopy(request: Request, env: Env): Promise<Han
   const res = await githubFetch(env, `/actions/workflows/${BASEROW_COPY_WORKFLOW_FILE}/dispatches`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ref: "main", inputs: { target } }),
+    // Reads production, so it runs on release in the production environment (#61).
+    body: JSON.stringify({ ref: "release", inputs: { target } }),
   });
   if (res.status !== 204) {
     return {

@@ -39,6 +39,7 @@
     "setup:sanity-tokens": "node scripts/setup-sanity-tokens.mjs",
     "setup:uptime": "node scripts/with-env.mjs node scripts/setup-uptime-monitors.mjs",
     "secret:set": "node scripts/secret-set.mjs",
+    "secrets:move-production": "node scripts/sm-move-production.mjs",
     "setup:baserow-rsvp": "node scripts/with-env.mjs node scripts/setup-baserow-rsvp.mjs",
     "setup:baserow-form-submissions": "node scripts/with-env.mjs node scripts/setup-baserow-form-submissions.mjs",
     "setup:baserow-ops": "node scripts/with-ops-env.mjs node ops/site/scripts/setup-baserow.mjs",

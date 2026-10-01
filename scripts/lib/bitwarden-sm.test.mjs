@@ -3,6 +3,9 @@ import { describe, it } from "vitest";
 import {
   APP_SECRETS,
   SECRET_OWNERS,
+  assertProductionReadable,
+  defaultSecretEnv,
+  pickProductionProjectIds,
   envSecretKey,
   isSmRateLimited,
   ownerOf,
@@ -219,5 +222,37 @@ describe("bws secret argv", () => {
     const redacted = redactBwsFailure(detail);
     assert.equal(redacted.includes(dashValue), false);
     assert.match(redacted, /unexpected argument '\[redacted\]'/);
+  });
+});
+
+describe("production projects (#61)", () => {
+  const projects = [
+    { id: "a", name: "Ark" },
+    { id: "ap", name: "Ark (production)" },
+    { id: "wp", name: "Ark/Web (production)" },
+  ];
+
+  it("finds the production twins the token can see, and skips the rest", () => {
+    assert.deepEqual(pickProductionProjectIds(projects), { ark: "ap", web: "wp" });
+    assert.deepEqual(pickProductionProjectIds([{ id: "a", name: "Ark" }]), {});
+  });
+
+  it("refuses two twins with the same name", () => {
+    assert.throws(() => pickProductionProjectIds([...projects, { id: "x", name: "ark (production)" }]), /Several/);
+  });
+
+  it("reads production on release and dev on every other branch", () => {
+    assert.equal(defaultSecretEnv({ GITHUB_REF_NAME: "release" }), "production");
+    assert.equal(defaultSecretEnv({ GITHUB_REF_NAME: "main" }), "dev");
+    assert.equal(defaultSecretEnv({ GITHUB_REF_NAME: "feat/x" }), "dev");
+    assert.equal(defaultSecretEnv({}), "dev");
+  });
+
+  it("stops a production pull by a token that sees no production values", () => {
+    assert.throws(
+      () => assertProductionReadable(new Map([["CLOUDFLARE_API_TOKEN", "x"], ["SANITY_API_TOKEN__DEV", "y"]])),
+      /can't read production secrets/,
+    );
+    assert.doesNotThrow(() => assertProductionReadable(new Map([["SANITY_API_TOKEN__PRODUCTION", "z"]])));
   });
 });
