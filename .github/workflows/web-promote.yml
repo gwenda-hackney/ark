@@ -132,23 +132,12 @@ jobs:
             (cd marketing/web && node scripts/ci/smoke-test.mjs --url "$url" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000)
           done
 
-      # Automatic content updates run this workflow too, several times a day.
-      # Only a code change gets the test email and the form test.
-      - name: Did the website code change since the last release?
-        id: webcode
-        run: |
-          last=$(git describe --tags --abbrev=0 --match '20*' HEAD^ 2>/dev/null || true)
-          if [ -z "$last" ] || ! git diff --quiet "$last" HEAD -- marketing/web shared package-lock.json; then
-            echo "flags=--send-email --form-test" >> "$GITHUB_OUTPUT"
-          else
-            echo "Website code unchanged since $last: read-only checks only."
-            echo "flags=" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Databases and config always; on code changes also a test email and a real
-      # play-form submission (emails to alerts@gwenda.co.uk, test row deleted).
+      # Databases, config, and a real play-form submission on every promote:
+      # secrets change without code changing, so a broken key must show here.
+      # Two emails to alerts@gwenda.co.uk, subjects starting "Smoke test:";
+      # the test row is deleted.
       - name: Deep health (databases, email, forms)
-        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep ${{ steps.webcode.outputs.flags }}
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep --form-test
 
       # The new code is live: remove what only the old code used.
       - name: Migrations after deploy

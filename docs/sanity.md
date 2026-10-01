@@ -79,9 +79,16 @@ Each token is named after the Secrets Manager key that holds it:
 | `SANITY_API_TOKEN__PRODUCTION` | Gwenda (`pn5yjro6`) | **Editor** | Production ops and the live website build |
 | `SANITY_DEPLOY_TOKEN` | Gwenda (`pn5yjro6`) | **Deploy Studio** | Hosted Studio deploys |
 
-Create tokens with a **personal** admin session (`npx sanity login`), as in [secrets-rebuild.md](secrets-rebuild.md). Don't run `setup:sanity-tokens`: it still uses the old labels, writes GitHub secrets, and revokes every token outside its keep-set, including the one live ops is using.
+Create or rotate them with a **personal** admin session:
 
-`setup:ci-secrets` (a deprecated alias that writes GitHub secrets) is out of date the same way.
+```bash
+npx sanity login
+npm run setup:sanity-tokens -- --dry-run          # what it would do
+npm run setup:sanity-tokens -- SANITY_API_TOKEN__DEV
+npm run setup:sanity-tokens -- --revoke-old SANITY_API_TOKEN__DEV   # also revoke the older one
+```
+
+It stores each new token in Secrets Manager under its label. It never revokes anything without `--revoke-old`, and then only older tokens with the same label. For production, revoke the old one only once the deploys on the new value are green.
 
 ### Local
 
