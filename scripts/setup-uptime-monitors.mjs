@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * External uptime checks for production, from outside Cloudflare (#10):
- * UptimeRobot (free plan, account automation@gwenda.co.uk), every 5 minutes,
+ * UptimeRobot (free plan, account alerts@gwenda.co.uk), every 5 minutes,
  * alerting alerts@gwenda.co.uk. The free plan can't create monitors or email
  * contacts through the API, so this only checks: the alerts@ contact is active,
  * every monitor below exists (matched by URL) and alerts it. It prints what to
