@@ -548,7 +548,8 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
-		gap: 0.2rem 0.65rem;
+		/* A space-sized gap between the sentences, not a wide one (#32). */
+		gap: 0.2rem 0.3em;
 		margin: 0;
 		padding-top: 0.45rem;
 		font-size: var(--text-xs);

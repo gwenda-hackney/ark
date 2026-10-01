@@ -188,6 +188,11 @@
 		box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
 	}
 
+	/* Below the dev/local banner rather than over its text (#32). */
+	:global(body:has(.env-banner)) .pill.floating {
+		top: calc(2.5rem + env(safe-area-inset-top, 0px));
+	}
+
 	.pill.stuck {
 		border-color: color-mix(in srgb, var(--destructive) 45%, transparent);
 		color: var(--destructive);

@@ -410,15 +410,27 @@
 		pointer-events: none;
 	}
 
+	/* Wraps instead of running off the edge when the page is narrower than
+	   the five filters (#32). */
 	.list-filters {
-		display: grid;
-		grid-template-columns: minmax(12rem, 1fr) 14rem 9.5rem 9.5rem auto;
+		display: flex;
+		flex-wrap: wrap;
 		gap: 0.75rem;
-		align-items: end;
-		justify-content: start;
+		align-items: flex-end;
 	}
 
 	.filter-search {
+		flex: 1 1 12rem;
+		min-width: 0;
+	}
+
+	.filter-events {
+		flex: 0 1 14rem;
+		min-width: 0;
+	}
+
+	.filter-dates {
+		flex: 0 1 9.5rem;
 		min-width: 0;
 	}
 
@@ -461,6 +473,7 @@
 
 	@media (max-width: 720px) {
 		.list-filters {
+			display: grid;
 			grid-template-columns: 1fr 1fr;
 		}
 
