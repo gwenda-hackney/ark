@@ -94,103 +94,107 @@
 </script>
 
 <header class="panel-head">
-	<div class="type-line">
-		{#if editingNight}
-			<Icon name="events" size={14} />
-		{/if}
-		<p class="eyebrow">{typeLine}</p>
-		<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
-	</div>
-	<div class="head-tools">
-		<div class="toolbar-actions">
-			{#if editingOccurrence}
-				<Button
-					variant="accent"
-					size="sm"
-					type="button"
-					disabled={busy}
-					aria-label={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
-					title={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
-					onclick={() =>
-						form.defaultsUnlocked ? onusedefaults() : unlockDefaults()}
-				>
-					{#snippet icon()}
-						<Icon name={form.defaultsUnlocked ? "undo" : "lock"} />
-					{/snippet}
-				</Button>
-				<span class="tool-sep" aria-hidden="true"></span>
+	<!-- One wrapping row: when the buttons don't fit beside the status, they
+	     drop to their own line instead of overlapping it (#43). -->
+	<div class="head-row">
+		<div class="type-line">
+			{#if editingNight}
+				<Icon name="events" size={14} />
 			{/if}
-			{#if eventId && !isNew && !editingOccurrence && !editingOnce}
-				<Button
-					variant="outline"
-					size="sm"
-					type="button"
-					disabled={busy}
-					title="Add a night to this series."
-					onclick={onaddnight}
-				>
-					{#snippet icon()}
-						<Icon name="plus" size={16} />
-					{/snippet}
-					Add night
-				</Button>
-			{/if}
-			{#if eventId && !isNew}
-				<Button
-					variant="outline"
-					size="sm"
-					type="button"
-					disabled={busy || dirty}
-					busy={calendarSyncing}
-					title={
-						dirty
-							? "Save before updating the calendar."
-							: "Send the upcoming nights for this series to Google Calendar."
-					}
-					onclick={() => onsynccalendar()}
-				>
-					Update calendar
-				</Button>
-				{#if !liveCurrent}
+			<p class="eyebrow">{typeLine}</p>
+			<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
+		</div>
+		<div class="head-tools">
+			<div class="toolbar-actions">
+				{#if editingOccurrence}
 					<Button
-						variant="primary"
+						variant="accent"
+						size="sm"
+						type="button"
+						disabled={busy}
+						aria-label={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
+						title={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
+						onclick={() =>
+							form.defaultsUnlocked ? onusedefaults() : unlockDefaults()}
+					>
+						{#snippet icon()}
+							<Icon name={form.defaultsUnlocked ? "undo" : "lock"} />
+						{/snippet}
+					</Button>
+					<span class="tool-sep" aria-hidden="true"></span>
+				{/if}
+				{#if eventId && !isNew && !editingOccurrence && !editingOnce}
+					<Button
+						variant="outline"
+						size="sm"
+						type="button"
+						disabled={busy}
+						title="Add a night to this series."
+						onclick={onaddnight}
+					>
+						{#snippet icon()}
+							<Icon name="plus" size={16} />
+						{/snippet}
+						Add night
+					</Button>
+				{/if}
+				{#if eventId && !isNew}
+					<Button
+						variant="outline"
 						size="sm"
 						type="button"
 						disabled={busy || dirty}
-						title={dirty ? "Save first." : "Put this version of the event on gwenda.co.uk."}
-						onclick={onputonwebsite}
+						busy={calendarSyncing}
+						title={
+							dirty
+								? "Save before updating the calendar."
+								: "Send the upcoming nights for this series to Google Calendar."
+						}
+						onclick={() => onsynccalendar()}
 					>
-						Update website
+						Update calendar
 					</Button>
+					{#if !liveCurrent}
+						<Button
+							variant="primary"
+							size="sm"
+							type="button"
+							disabled={busy || dirty}
+							title={dirty ? "Save first." : "Put this version of the event on gwenda.co.uk."}
+							onclick={onputonwebsite}
+						>
+							Update website
+						</Button>
+					{/if}
 				{/if}
-			{/if}
-			<PageHelp title="Events" topics={EVENTS_HELP} />
-			<Button
-				variant="ghost"
-				size="sm"
-				type="button"
-				disabled={busy || !eventId}
-				title="Reload"
-				aria-label="Reload from server"
-				onclick={onreload}
-			>
-				{#snippet icon()}
-					<Icon name="refresh" />
-				{/snippet}
-			</Button>
-			<Button
-				class="close-btn"
-				variant="ghost"
-				size="sm"
-				type="button"
-				aria-label={dirty ? "Close with unsaved changes" : "Close"}
-				title={dirty ? "Close (unsaved)" : "Close"}
-				onclick={onclose}
-			>
-				{#snippet icon()}
-					<Icon name="close" size={16} />
-				{/snippet}
-			</Button>
+				<PageHelp title="Events" topics={EVENTS_HELP} />
+				<Button
+					variant="ghost"
+					size="sm"
+					type="button"
+					disabled={busy || !eventId}
+					title="Reload"
+					aria-label="Reload from server"
+					onclick={onreload}
+				>
+					{#snippet icon()}
+						<Icon name="refresh" />
+					{/snippet}
+				</Button>
+				<Button
+					class="close-btn"
+					variant="ghost"
+					size="sm"
+					type="button"
+					aria-label={dirty ? "Close with unsaved changes" : "Close"}
+					title={dirty ? "Close (unsaved)" : "Close"}
+					onclick={onclose}
+				>
+					{#snippet icon()}
+						<Icon name="close" size={16} />
+					{/snippet}
+				</Button>
+			</div>
 		</div>
 	</div>
 	<div class="title-name">
@@ -296,15 +300,24 @@
 		border-bottom: 1px solid var(--border);
 	}
 
-	.type-line {
-		grid-column: 1;
+	.head-row {
+		grid-column: 1 / -1;
 		grid-row: 1;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.35rem 0.85rem;
+		min-width: 0;
+	}
+
+	.type-line {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
 		min-width: 0;
-		align-self: center;
-		height: var(--control-h-sm);
+		max-width: 100%;
+		min-height: var(--control-h-sm);
 	}
 
 	.eyebrow {
@@ -321,20 +334,19 @@
 	}
 
 	.head-tools {
-		grid-column: 2;
-		grid-row: 1;
 		display: flex;
 		align-items: center;
-		justify-self: end;
-		height: var(--control-h-sm);
+		margin-left: auto;
+		max-width: 100%;
 	}
 
 	.toolbar-actions {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		flex-shrink: 0;
+		justify-content: flex-end;
 		gap: 0.25rem;
-		height: var(--control-h-sm);
+		min-height: var(--control-h-sm);
 	}
 
 	.tool-sep {
