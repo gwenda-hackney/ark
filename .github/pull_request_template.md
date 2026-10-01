@@ -1,6 +1,6 @@
 ## What and why
 
-<!-- One or two plain-English sentences someone who runs Gwenda would understand. This line becomes the changelog entry (#50). -->
+<!-- One or two plain-English sentences someone who runs Gwenda would understand. The PR title is the release notes line, so write it the same way; the branch prefix picks its group (feat/ New, fix/ Fixes, others Behind the scenes), and the skip-changelog label leaves it out. -->
 
 Closes #
 
