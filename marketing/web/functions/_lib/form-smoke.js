@@ -25,6 +25,9 @@ import { formPublicPath } from "./form-paths.js";
 
 export const SMOKE_FORM_SLUG = "play";
 
+/** Both test emails start with this, so mail filters can file them. */
+export const SMOKE_SUBJECT_PREFIX = "Smoke test: ";
+
 function firstChoice(field) {
   const option = (field.options || []).find(
     (row) => !/^other$/i.test(String(row.value || row.label || "")),
@@ -80,6 +83,7 @@ export async function runFormSmoke(
       form,
       answers: validated.answers,
       to,
+      subjectPrefix: SMOKE_SUBJECT_PREFIX,
     });
     if (!notify.ok || notify.dryRun) {
       throw new Error(
@@ -106,6 +110,7 @@ export async function runFormSmoke(
       answers: validated.answers,
       email: to,
       editUrl: `${origin}${formPublicPath(slug)}`,
+      subjectPrefix: SMOKE_SUBJECT_PREFIX,
     });
     if (!receipt.ok || receipt.dryRun) {
       throw new Error(
