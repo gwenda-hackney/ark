@@ -1,6 +1,7 @@
-const DEFAULT_PROJECT_ID = "pn5yjro6";
-/** The Gwenda Dev copy (ops/site/src/platform/sanity.js DEV_SANITY_PROJECT_ID). */
-const DEV_PROJECT_ID = "gwscpagy";
+import {
+  DEV_SANITY_PROJECT_ID as DEV_PROJECT_ID,
+  REAL_SANITY_PROJECT_ID as DEFAULT_PROJECT_ID,
+} from "../../../shared/sanity-projects.js";
 
 export function isDevProject(projectId: string): boolean {
   return projectId === DEV_PROJECT_ID;

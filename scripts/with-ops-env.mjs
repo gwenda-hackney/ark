@@ -4,7 +4,7 @@
  * unlocked vault (scripts/lib/load-env.mjs) under ops runtime names. In CI the
  * vault is skipped and the job injects secrets another way.
  *
- *   node scripts/with-ops-env.mjs node scripts/setup-baserow-ops.mjs
+ *   node scripts/with-ops-env.mjs node ops/site/scripts/setup-baserow.mjs
  */
 import { spawnSync } from "node:child_process";
 import { loadRepoEnv } from "./lib/load-env.mjs";

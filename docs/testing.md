@@ -23,7 +23,7 @@ The most important tests describe **what someone does** ("an editor creates a we
 
 | Service | Faked as |
 |---|---|
-| Baserow (ops tables) | Tables built from `scripts/lib/baserow-ops-schema.mjs`, the same field definitions `setup-baserow-ops.mjs` uses. Link, select, file, batch and `link_row_has` filters behave like Baserow. |
+| Baserow (ops tables) | Tables built from `ops/site/src/platform/baserow-schema.js`, the same field definitions `ops/site/scripts/setup-baserow.mjs` uses (`npm run setup:baserow-ops`). Link, select, file, batch and `link_row_has` filters behave like Baserow. |
 | Baserow (Gwenda Config) | Its own table, reachable only with the config token, pre-filled with the Drive folder, calendar and Sanity project settings. |
 | Sanity | Documents in memory, queried with **groq-js** (the real GROQ engine) under the `raw`, `published` and `previewDrafts` perspectives. Mutations: create, createOrReplace, createIfNotExists, patch (`set`, `setIfMissing`, `unset`), delete. |
 | Google | Service-account tokens (a throwaway RSA key per run), Drive folders, Calendar events. |

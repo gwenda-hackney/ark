@@ -1,9 +1,5 @@
 import { environmentOf, isLocalMachine } from "../../../../shared/config.js";
-
-/** The real website's project. */
-export const REAL_SANITY_PROJECT_ID = "pn5yjro6";
-/** Free copy for local work, set up the same way (docs/sanity.md). */
-export const DEV_SANITY_PROJECT_ID = "gwscpagy";
+import { DEV_SANITY_PROJECT_ID, REAL_SANITY_PROJECT_ID } from "../../../../shared/sanity-projects.js";
 const DEFAULT_PROJECT_ID = REAL_SANITY_PROJECT_ID;
 const API_VERSION = "v2025-01-01";
 
