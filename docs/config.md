@@ -43,13 +43,13 @@ Everything else uses the same name at runtime and in SM. The same manifest drive
 
 Projects only record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two.
 
-| Project | Id | Owns |
-|---------|----|------|
-| **Ark** | `b9de9355-0a8f-45e7-b5fe-b4ca00eff281` | Cloudflare tokens, `BASEROW_CONFIG_API_KEY` |
-| **Ark/Ops** | `ea9095b4-8226-4dec-96c3-b4c8008b0b6b` | `BASEROW_OPS_API_KEY__*`, Google service account + OAuth secret, ops session/bypass, Lightspeed |
-| **Ark/Web** | `d7881774-3a4c-4603-97e3-b4c8010fd860` | `BASEROW_WEBSITE_API_KEY__*`, `FORMS_ADMIN_SECRET__*`, Sanity, deploy webhook, subscribe, site gate, Instagram |
+| Project (name in SM) | Owns |
+|---------|------|
+| `ark` | Cloudflare tokens, `BASEROW_CONFIG_API_KEY` |
+| `ark/ops` | `BASEROW_OPS_API_KEY__*`, Google service account + OAuth secret, ops session/bypass, Lightspeed, Baserow login `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (automation@) |
+| `ark/web` | `BASEROW_WEBSITE_API_KEY__*`, `FORMS_ADMIN_SECRET__*`, Sanity, deploy webhook, subscribe, site gate, Instagram |
 
-Override project ids with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
+Scripts find the projects by name (ignoring case) with `bws project list`, so recreating a project needs no code change. Override with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed. Name each SM access token after the key that holds it: `ARK_LOCAL_BW_TOKEN` (`ark-local`, read/write) and `BWS_ACCESS_TOKEN` (`ark-ci`, read only).
 
 ```bash
 npm run env:secrets:refresh                   # refetch dev into the RAM cache
