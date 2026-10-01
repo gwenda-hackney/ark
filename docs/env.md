@@ -47,6 +47,8 @@ Overrides: `BW_SESSION_FILE` (session file path), `ARK_SECRETS_CACHE_DIR` (cache
 
 Production worker setup (`setup:wifi-portal`, `setup:subscribe-mailchimp-sync`) reads the production Website Baserow token straight from Secrets Manager.
 
+If Secrets Manager is ever emptied, or every secret has to be replaced, follow [secrets-rebuild.md](secrets-rebuild.md).
+
 ## Cloudflare tokens
 
 One Cloudflare account serves every env, so there is one token, shared (no suffix):
