@@ -89,6 +89,8 @@ export const SECRET_OWNERS = {
     "BASEROW_CONFIG_API_KEY",
     // Script-only (sm-export): the site-deploy Worker's GitHub token.
     "DISPATCH_TOKEN",
+    // Script-only: UptimeRobot main API key (setup:uptime, alerts@ account).
+    "UPTIME_ROBOT_API_KEY",
   ],
   ops: [
     "BASEROW_OPS_API_KEY",
