@@ -91,7 +91,12 @@ describe("safe recipients outside production (#15)", () => {
   });
 
   it("leaves mail already addressed to the safe inbox unchanged", async () => {
-    const alert = { ...rsvp, to: "alerts@gwenda.co.uk", cc: undefined, bcc: undefined };
+    const alert = {
+      ...rsvp,
+      to: "alerts@gwenda.co.uk",
+      cc: undefined,
+      bcc: undefined,
+    };
     expect(await safeMail({ SITE_ENV: "dev" }, alert, safe)).toBe(alert);
   });
 
