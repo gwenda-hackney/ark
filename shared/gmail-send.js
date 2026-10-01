@@ -4,6 +4,8 @@
  * delegation for gmail.send, impersonating MAIL_SENDER (shared/mail-from.js).
  */
 import MailComposer from "nodemailer/lib/mail-composer/index.js";
+import { environmentOf, getSetting } from "./config.js";
+import { log } from "./log.js";
 import { MAIL_SENDER } from "./mail-from.js";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -132,11 +134,63 @@ export function buildRawMessage(mail) {
   });
 }
 
+const RECIPIENT_FIELDS = ["to", "cc", "bcc"];
+
+function addressesOf(value) {
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+  return list.flatMap((item) => {
+    const text = typeof item === "object" && item ? item.address || "" : String(item);
+    return text.split(",").map((part) => {
+      const match = part.match(/<([^>]+)>/);
+      return (match ? match[1] : part).trim().toLowerCase();
+    });
+  }).filter(Boolean);
+}
+
+/**
+ * Outside production every recipient becomes the safe inbox (forms.notify_email:
+ * alerts@ on hosted dev, FORMS_NOTIFY_EMAIL on a developer's machine), because
+ * copied data carries real guests' addresses. The subject and a header keep the
+ * original recipient visible. No safe inbox means no send, never the real one (#15).
+ */
+export async function safeMail(
+  env,
+  mail,
+  { safeAddress = () => getSetting(env, "web", "forms.notify_email") } = {},
+) {
+  const envName = environmentOf(env);
+  if (envName === "production") return mail;
+  let safe = "";
+  try {
+    safe = String((await safeAddress()) || "").trim();
+  } catch (error) {
+    throw new Error(
+      `Not sending outside production: no safe address (${error instanceof Error ? error.message : error}).`,
+    );
+  }
+  if (!safe) {
+    throw new Error(`forms.notify_email is not set for ${envName}; not sending outside production.`);
+  }
+  const original = RECIPIENT_FIELDS.flatMap((field) => addressesOf(mail[field]));
+  if (original.length && original.every((address) => address === safe.toLowerCase())) return mail;
+  const shown = original.join(", ") || "(no recipient)";
+  log.event("info", "mail_redirected", { env: envName, original: shown, to: safe });
+  const { to: _to, cc: _cc, bcc: _bcc, ...rest } = mail;
+  return {
+    ...rest,
+    to: safe,
+    subject: `[${envName}, for ${shown}] ${mail.subject || ""}`.trim(),
+    headers: { ...(mail.headers || {}), "X-Gwenda-Original-To": shown },
+  };
+}
+
 /**
  * Send one message. Accepts nodemailer mail options
  * (from, to, replyTo, subject, text, html, headers, attachments).
+ * Outside production the recipients are replaced first (safeMail).
  */
 export async function sendGmail(env, mail) {
+  mail = await safeMail(env, mail);
   const token = await gmailAccessToken(env);
   const raw = bufferToBase64Url(await buildRawMessage(mail));
   const response = await fetch(GMAIL_SEND_URL, {
