@@ -15,10 +15,14 @@ describe("environmentOf", () => {
     assert.equal(environmentOf({ SITE_ENV: "dev" }), "dev");
     assert.equal(isLocalMachine({ SITE_ENV: "local" }), true);
     assert.equal(isLocalMachine({ SITE_ENV: "dev" }), false);
-    // The preview build flag is not an environment: prod's preview is production.
-    assert.equal(environmentOf({ PUBLIC_IS_PREVIEW: "true" }), "production");
     assert.equal(environmentOf({ SITE_ENV: "production" }), "production");
-    assert.equal(environmentOf({}), "production");
+  });
+
+  it("refuses to guess when SITE_ENV is missing", () => {
+    // Defaulting to production let dev data reach the production calendar.
+    assert.throws(() => environmentOf({}), /SITE_ENV is not set/);
+    // The preview build flag is not an environment either.
+    assert.throws(() => environmentOf({ PUBLIC_IS_PREVIEW: "true" }), /SITE_ENV is not set/);
   });
 });
 

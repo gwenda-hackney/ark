@@ -27,7 +27,7 @@ describe("siteEnvName", () => {
   it("normalizes local aliases", () => {
     assert.equal(siteEnvName({ SITE_ENV: "local" }), "dev");
     assert.equal(siteEnvName({ SITE_ENV: "dev" }), "dev");
-    assert.equal(siteEnvName({}), "production");
+    assert.throws(() => siteEnvName({}), /SITE_ENV is not set/);
   });
 });
 
