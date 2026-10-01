@@ -70,7 +70,7 @@ function loadRootEnv() {
  * (SANITY_API_TOKEN__DEV in Secrets Manager).
  */
 async function useDevSanityProject() {
-  const { DEV_SANITY_PROJECT_ID } = await import("../ops/site/src/platform/sanity.js");
+  const { DEV_SANITY_PROJECT_ID } = await import("../shared/sanity-projects.js");
   process.env.SANITY_PROJECT_ID = DEV_SANITY_PROJECT_ID;
   const token = process.env.SANITY_API_TOKEN?.trim();
   const response = token
@@ -167,7 +167,7 @@ async function main() {
     await loadProductionSecrets();
     if (localPassword && !process.env.OPS_LOCAL_ADMIN_PW) process.env.OPS_LOCAL_ADMIN_PW = localPassword;
     // Repo .env points local work at the dev Sanity project; live is the real one.
-    const { REAL_SANITY_PROJECT_ID } = await import("../ops/site/src/platform/sanity.js");
+    const { REAL_SANITY_PROJECT_ID } = await import("../shared/sanity-projects.js");
     process.env.SANITY_PROJECT_ID = REAL_SANITY_PROJECT_ID;
     console.warn(`
   ************************************************************

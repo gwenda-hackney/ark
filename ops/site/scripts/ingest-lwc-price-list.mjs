@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 /**
- * Ingest an LWC customer price-list CSV into scripts/data/lwc-price-list.json
+ * Ingest an LWC customer price-list CSV into ops/site/scripts/data/lwc-price-list.json
  * and patch Baserow Inventory suppliers (Price / Pack / SKU) for matching codes.
  *
  * Usage:
- *   node scripts/with-ops-env.mjs node scripts/ingest-lwc-price-list.mjs [csv]
- *   node scripts/with-ops-env.mjs node scripts/ingest-lwc-price-list.mjs --dry-run [csv]
+ *   npm run ingest:lwc-price-list -- [csv]
+ *   npm run ingest:lwc-price-list -- --dry-run [csv]
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listAllRows, updateRow } from "../shared/baserow.js";
+import { listAllRows, updateRow } from "../../../shared/baserow.js";
 import {
   parseMoney,
   skuFromProductUrl,
-} from "../ops/site/src/inventory/suppliers.js";
-import { diffLwcPriceLists, parseLwcPriceListCsv } from "./lib/lwc-price-list.mjs";
-import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
+} from "../src/inventory/suppliers.js";
+import { diffLwcPriceLists, parseLwcPriceListCsv } from "../src/inventory/lwc-price-list.js";
+import { requireOpsTables } from "../../../scripts/lib/ops-baserow-tables.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const jsonPath = join(root, "scripts/data/lwc-price-list.json");

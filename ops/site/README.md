@@ -19,6 +19,7 @@ ops/site/                 one package: @gwenda/ops
 │   ├── platform/         server building blocks: Sanity, Google, HTTP, log, config (Baserow is in /shared)
 │   └── testing/          the fake world for use-case tests
 ├── functions/            Pages Functions routes only: middleware and /api/*, calling src/
+├── scripts/              ops-only tooling: setup-baserow (npm run setup:baserow-ops), LWC price list, supplier enrichment; data/
 ├── public/               served as-is: gate/ (sign-in page), icons, robots.txt
 ├── dist/                 build output (gitignored): `npm run build`, deployed by CI
 ├── index.html  vite.config.ts  svelte.config.js  tsconfig.json

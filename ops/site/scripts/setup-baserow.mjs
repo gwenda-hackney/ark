@@ -19,7 +19,7 @@
  *   BASEROW_WORKSPACE_NAME (default "Gwenda"; the Gwenda Ops database in it is
  *   reused by name or created)
  */
-import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
+import { getBaserowJwt } from "../../../scripts/lib/baserow-jwt.mjs";
 import {
   OPS_DATABASE_NAME,
   TABLE_INGREDIENTS,
@@ -35,21 +35,21 @@ import {
   TABLE_EVENT_DATES,
   TABLE_ARTISTS,
   TABLE_GUEST_ARTISTS,
-} from "../shared/baserow.js";
-import { GUEST_ARTIST_FIELDS } from "../ops/site/src/artists/server/guest-artists.js";
-import { artistFields, eventDateFields, eventFields, userFields } from "./lib/baserow-ops-schema.mjs";
+} from "../../../shared/baserow.js";
+import { GUEST_ARTIST_FIELDS } from "../src/artists/server/guest-artists.js";
+import { artistFields, eventDateFields, eventFields, userFields } from "../src/platform/baserow-schema.js";
 import {
   DEFAULT_POS_MENU_NAME,
   LEGACY_DEFAULT_POS_MENU_NAME,
-} from "../ops/site/src/menu/server/pos-menu-store.js";
-import { parseEmailList } from "./lib/parse-email-list.mjs";
+} from "../src/menu/server/pos-menu-store.js";
+import { parseEmailList } from "../../../scripts/lib/parse-email-list.mjs";
 import {
   looksLikeOnlyUrls,
   SEED_SUPPLIERS,
   skuFromProductUrl,
   supplierFromUrl,
-} from "../ops/site/src/inventory/suppliers.js";
-import { parseProductUrl } from "../shared/web-address.js";
+} from "../src/inventory/suppliers.js";
+import { parseProductUrl } from "../../../shared/web-address.js";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

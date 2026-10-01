@@ -2,8 +2,8 @@
  * An in-memory world for use-case tests: everything ops talks to over HTTP,
  * faked behind one global `fetch`, so tests drive the real API handlers.
  *
- * - Baserow: the ops tables (built from scripts/lib/baserow-ops-schema.mjs,
- *   the same field definitions setup-baserow-ops.mjs uses) and Gwenda Config,
+ * - Baserow: the ops tables (built from platform/baserow-schema.js,
+ *   the same field definitions scripts/setup-baserow.mjs uses) and Gwenda Config,
  *   each reachable only with its own token, as in real life.
  * - Sanity: documents in memory, queried with groq-js (the real GROQ engine)
  *   under the raw / published / previewDrafts perspectives.
@@ -19,7 +19,7 @@ import {
   eventDateFields,
   eventFields,
   userFields,
-} from "../../../../scripts/lib/baserow-ops-schema.mjs";
+} from "../platform/baserow-schema.js";
 
 const SANITY_PROJECT_ID = "gwscpagy";
 const DRIVE_EVENTS_ROOT = "drive-events-root";

@@ -4,7 +4,7 @@ import {
   cleanLwcName,
   diffLwcPriceLists,
   parseLwcPriceListCsv,
-} from "./lwc-price-list.mjs";
+} from "./lwc-price-list.js";
 
 describe("parseLwcPriceListCsv", () => {
   it("reads product rows and skips section headers", () => {

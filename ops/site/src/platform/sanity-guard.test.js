@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
+import { DEV_SANITY_PROJECT_ID, REAL_SANITY_PROJECT_ID } from "../../../../shared/sanity-projects.js";
 import {
-  DEV_SANITY_PROJECT_ID,
-  REAL_SANITY_PROJECT_ID,
   assertSanityWritable,
   draftMutations,
   sanityMutate,

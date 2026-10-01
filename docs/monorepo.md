@@ -26,10 +26,13 @@ An app never imports another app's files. Code that two apps (or an app and `scr
 | `baserow.js` | Baserow client (rate-limited, retrying), Gwenda Ops table names and lookup | ops, website, scripts |
 | `artists.js` | Reading wall artists from Gwenda Ops (`listArtists`) | ops, website, scripts |
 | `web-address.js` | Web addresses typed by editors (`parseProductUrl`, `normalizeWebsite`) | ops, scripts |
+| `sanity-projects.js` | The real and Gwenda Dev Sanity project IDs | ops, Studio, scripts |
 | `env-file.js` | `.env`-style parsing (`parseDotEnv`) and PEM values | website config, scripts |
 | `config*.js`, `site-*.js`, `forms/`, `gmail-send.js`, `log.js`, `mail-from.js`, `email-image.js` | Config database, site snapshot, form emails, logging | ops, website, Workers |
 
 Tests sit next to each module and run as the `shared` Vitest project.
+
+Scripts that only work on one app's data live in that app (`ops/site/scripts/`: Baserow setup, the LWC price list, supplier enrichment); `scripts/` holds repo-wide tooling (env loading, deploys, setup of shared services). Root `npm run` names stay the same.
 
 ## Brand colour sync
 

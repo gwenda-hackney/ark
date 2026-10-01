@@ -4,8 +4,8 @@
  * and pull ABV from those pages (Hills Prospect embeds AddFil_…_ABV).
  *
  * Usage:
- *   node scripts/with-ops-env.mjs node scripts/enrich-ops-inventory-suppliers.mjs
- *   node scripts/with-ops-env.mjs node scripts/enrich-ops-inventory-suppliers.mjs --dry-run
+ *   npm run enrich:ops-inventory
+ *   npm run enrich:ops-inventory -- --dry-run
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -14,9 +14,9 @@ import {
   looksLikeOnlyUrls,
   skuFromProductUrl,
   supplierFromUrl,
-} from "../ops/site/src/inventory/suppliers.js";
-import { parseProductUrl } from "../shared/web-address.js";
-import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
+} from "../src/inventory/suppliers.js";
+import { parseProductUrl } from "../../../shared/web-address.js";
+import { requireOpsTables } from "../../../scripts/lib/ops-baserow-tables.mjs";
 
 const LWC_PRICES = JSON.parse(
   readFileSync(
