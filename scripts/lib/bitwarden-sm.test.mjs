@@ -9,7 +9,10 @@ import {
   parseSecretKey,
   pickAppSecrets,
   pickProjectIds,
+  redactBwsFailure,
   resolveSecretsForEnv,
+  secretCreateArgs,
+  secretEditArgs,
   smNameFor,
   smRetryDelayMs,
 } from "./bitwarden-sm.mjs";
@@ -169,5 +172,52 @@ describe("pickProjectIds", () => {
 
   it("refuses two projects with the same name", () => {
     assert.throws(() => pickProjectIds([...projects, { id: "a2", name: "ARK" }], {}), /Several .* named ark\./);
+  });
+});
+
+describe("bws secret argv", () => {
+  const dashValue = "--starts-with-dashes";
+
+  it("puts a dash-leading create value after -- so clap does not treat it as a flag", () => {
+    assert.deepEqual(secretCreateArgs("FORMS_ADMIN_SECRET", dashValue, "proj"), [
+      "secret",
+      "create",
+      "FORMS_ADMIN_SECRET",
+      "--",
+      dashValue,
+      "proj",
+    ]);
+  });
+
+  it("passes notes as --note= before the end-of-options marker", () => {
+    assert.deepEqual(secretCreateArgs("SITE_PASSWORD", "word", "proj", "--note-text"), [
+      "secret",
+      "create",
+      "--note=--note-text",
+      "SITE_PASSWORD",
+      "--",
+      "word",
+      "proj",
+    ]);
+  });
+
+  it("passes an edit value with --value= so a leading dash stays attached", () => {
+    assert.deepEqual(secretEditArgs("sid", dashValue, "note"), [
+      "secret",
+      "edit",
+      "sid",
+      `--value=${dashValue}`,
+      "--note=note",
+    ]);
+  });
+
+  it("strips clap's echo of the rejected value from the error", () => {
+    const detail = [
+      `error: unexpected argument '${dashValue}' found`,
+      `tip: to pass '${dashValue}' as a value, use '-- ${dashValue}'`,
+    ].join("\n");
+    const redacted = redactBwsFailure(detail);
+    assert.equal(redacted.includes(dashValue), false);
+    assert.match(redacted, /unexpected argument '\[redacted\]'/);
   });
 });

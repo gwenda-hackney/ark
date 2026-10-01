@@ -380,7 +380,7 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
       sleepSync(smRetryDelayMs(attempt + 1));
       continue;
     }
-    throw new Error(detail || `bws ${args.join(" ")} failed`);
+    throw new Error(redactBwsFailure(detail) || `bws ${args.slice(0, 2).join(" ")} failed`);
   }
   const out = (result.stdout ?? "").trim();
   if (!out) return null;
@@ -456,6 +456,39 @@ export function loadAppSecretsFromSm(app, env, { accessToken, serverUrl } = {}) 
 }
 
 /**
+ * bws uses clap. A value that starts with "-" is parsed as a flag unless it is
+ * attached with `--name=` or, for a positional, placed after `--`.
+ * @param {string} name
+ * @param {string} value
+ */
+export function bwsEqualsOpt(name, value) {
+  return `--${name}=${value}`;
+}
+
+/** @returns {string[]} argv after the global bws flags */
+export function secretCreateArgs(key, value, projectId, note) {
+  const args = ["secret", "create"];
+  if (note) args.push(bwsEqualsOpt("note", note));
+  args.push(key, "--", value, projectId);
+  return args;
+}
+
+/** @returns {string[]} */
+export function secretEditArgs(id, value, note) {
+  const args = ["secret", "edit", id, bwsEqualsOpt("value", value)];
+  if (note) args.push(bwsEqualsOpt("note", note));
+  return args;
+}
+
+/** Drop secret material that clap echoes back in a usage error. */
+export function redactBwsFailure(detail) {
+  return String(detail || "")
+    .replace(/unexpected argument '[^']*'/g, "unexpected argument '[redacted]'")
+    .replace(/to pass '[^']*' as a value, use '--[^\n]*/g, "to pass '[redacted]' as a value, use '--'")
+    .trim();
+}
+
+/**
  * Create or update a secret in its owning project.
  * @returns {"created" | "updated" | "unchanged"}
  */
@@ -475,14 +508,10 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
   clearSecretsCache();
   if (existing?.id) {
     if (existing.value === trimmedValue) return "unchanged";
-    const args = ["secret", "edit", existing.id, "--value", trimmedValue];
-    if (note) args.push("--note", note);
-    runBws(args, { accessToken, serverUrl });
+    runBws(secretEditArgs(existing.id, trimmedValue, note), { accessToken, serverUrl });
     return "updated";
   }
-  const args = ["secret", "create", trimmedKey, trimmedValue, projectId];
-  if (note) args.push("--note", note);
-  runBws(args, { accessToken, serverUrl });
+  runBws(secretCreateArgs(trimmedKey, trimmedValue, projectId, note), { accessToken, serverUrl });
   return "created";
 }
 
