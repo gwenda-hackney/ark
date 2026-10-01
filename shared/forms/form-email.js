@@ -72,14 +72,15 @@ export function resolveFormReplyTo(form) {
  */
 export async function sendFormNotificationEmail(
   env,
-  { form, answers, changes, updated = false, to: toOverride = "" },
+  { form, answers, changes, updated = false, to: toOverride = "", subjectPrefix = "" },
 ) {
-  // toOverride: the post-deploy form test sends to alerts@, never the form's inbox.
+  // toOverride / subjectPrefix: the post-deploy form test sends to alerts@,
+  // never the form's inbox, with subjects mail filters can catch.
   const to = toOverride || (await resolveFormNotifyTo(env, form));
   const from = resolveFormNotifyFrom();
   const isUpdate =
     Boolean(updated) || (Array.isArray(changes) && changes.length > 0);
-  const subject = formatFormNotifySubject(form, answers, { updated: isUpdate });
+  const subject = subjectPrefix + formatFormNotifySubject(form, answers, { updated: isUpdate });
   const submitter = replyToFromAnswers(answers);
   const replyTo = submitter || resolveFormReplyTo(form);
   const mailReady = Boolean(from && to && isGmailConfigured(env));
@@ -178,7 +179,7 @@ export async function sendFormNotificationEmail(
  */
 export async function sendFormReceiptEmail(
   env,
-  { form, answers, email, editUrl, updated = false },
+  { form, answers, email, editUrl, updated = false, subjectPrefix = "" },
 ) {
   const to = String(email ?? "")
     .trim()
@@ -189,7 +190,7 @@ export async function sendFormReceiptEmail(
   const siteEnv = env.SITE_ENV?.trim();
   const isDeployed = siteEnv === "production";
 
-  const subject = formatFormReceiptSubject(form, { updated });
+  const subject = subjectPrefix + formatFormReceiptSubject(form, { updated });
 
   const logoBuffer = await fetchImageBuffer(LOGO_URL);
   const text = formatFormEmail({
