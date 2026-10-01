@@ -19,7 +19,7 @@ How secrets normally work is in [env.md](env.md) and [config.md](config.md). Thi
 3. Machine account `ark-ci`: **read** on all three. Create an access token named `BWS_ACCESS_TOKEN` and set it as the GitHub repo secret `BWS_ACCESS_TOKEN`. That is the **only** GitHub secret; workflows read everything else from SM.
 4. Check with `npm run env:secrets:refresh`. It lists what's missing. Without a project or with a wrong token it fails with `invalid_client`. If you test `bws` by hand, pass `--server-url https://vault.bitwarden.eu`. Without it, `bws` talks to the US server and every token looks invalid.
 
-Store values with `upsertSmSecret` from `scripts/lib/bitwarden-sm.mjs` (with the `ark-local` token from `vaultSmAccessToken()`), or `env:<app>:push`. A key must be in `SECRET_OWNERS` before it can be stored.
+Store a single value by hand with `npm run secret:set` (asks for the name, then the value, hidden). In code, use `upsertSmSecret` from `scripts/lib/bitwarden-sm.mjs` (with the `ark-local` token from `vaultSmAccessToken()`), or `env:<app>:push`. A key must be in `SECRET_OWNERS` before it can be stored.
 
 ## 1. Secrets from outside services
 

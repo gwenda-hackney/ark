@@ -71,6 +71,8 @@ There are two environments, built the same way. Each is a complete, separate cop
 
 **Other:** [brand.gwenda.co.uk](https://brand.gwenda.co.uk) (brand guidelines), [health.gwenda.co.uk](https://health.gwenda.co.uk) (site health)
 
+**Uptime, from outside Cloudflare:** [UptimeRobot](https://dashboard.uptimerobot.com) (free plan, login alerts@gwenda.co.uk) checks gwenda.co.uk, `/robots.txt`, `/health` (keyword `"service":"gwenda"`) and the ops sign-in page every 5 minutes, and emails **alerts@gwenda.co.uk**. alerts@ is a Google Group, so it must accept mail from outside the organisation. `npm run setup:uptime` creates any missing monitor and makes sure each alerts alerts@ (UptimeRobot v3 API; `-- --dry-run` only reports).
+
 ### Dev
 
 **Websites**
