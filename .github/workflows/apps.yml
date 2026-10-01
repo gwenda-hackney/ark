@@ -98,7 +98,7 @@ jobs:
       contents: read
       deployments: write
     environment:
-      name: brand-production
+      name: production
       url: https://brand.gwenda.co.uk
     steps:
       - name: Checkout code
@@ -180,8 +180,10 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      pull-requests: write
     environment:
-      name: brand-preview
+      name: preview
+      url: ${{ steps.preview_url.outputs.url }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -250,6 +252,11 @@ jobs:
           echo "Brand guidelines preview not served at $url"
           exit 1
 
+      - name: Link the preview on the PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/pr-preview-comment.mjs --app brand --url "${{ steps.preview_url.outputs.url }}"
+
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs
         env:
@@ -275,7 +282,7 @@ jobs:
       contents: read
       deployments: write
     environment:
-      name: ops-production
+      name: production
       url: https://gwenda-ops.pages.dev
     steps:
       - name: Checkout code
@@ -386,7 +393,7 @@ jobs:
       contents: read
       deployments: write
     environment:
-      name: ops-dev
+      name: dev
       url: https://gwenda-ops-dev.pages.dev
     steps:
       - name: Checkout code
@@ -470,8 +477,10 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      pull-requests: write
     environment:
-      name: ops-preview
+      name: preview
+      url: ${{ steps.preview_url.outputs.url }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -531,6 +540,11 @@ jobs:
 
       - name: Smoke test preview auth gate
         run: node scripts/smoke-ops-auth.mjs "${{ steps.preview_url.outputs.url }}" --retries 12 --retry-delay-ms 5000
+
+      - name: Link the preview on the PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/pr-preview-comment.mjs --app ops --url "${{ steps.preview_url.outputs.url }}"
 
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs

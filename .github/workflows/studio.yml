@@ -25,7 +25,7 @@ jobs:
     permissions:
       contents: read
     environment:
-      name: studio-production
+      name: production
       url: https://gwenda.sanity.studio
     steps:
       - name: Checkout code

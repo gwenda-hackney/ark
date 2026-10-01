@@ -134,7 +134,7 @@ describe("handleDeploy", () => {
     expect(result.body.target).toBe("preview");
     expect(result.body.runId).toBe(91);
     const [, init] = fetchMock.mock.calls[1];
-    expect(JSON.parse(String(init.body))).toEqual({ ref: "main", inputs: { action: "preview" } });
+    expect(JSON.parse(String(init.body))).toEqual({ ref: "release", inputs: { action: "preview" } });
     vi.unstubAllGlobals();
   });
 });
