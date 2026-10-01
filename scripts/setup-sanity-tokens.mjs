@@ -27,7 +27,7 @@ import { loadRepoEnv } from "./lib/load-env.mjs";
 import {
   DEV_SANITY_PROJECT_ID,
   REAL_SANITY_PROJECT_ID,
-} from "../ops/site/src/platform/sanity.js";
+} from "../shared/sanity-projects.js";
 
 const API_VERSION = "v2025-08-18";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
