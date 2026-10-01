@@ -28,19 +28,57 @@ import { clearSecretsCache } from "./secrets-cache.mjs";
 
 export const DEFAULT_SM_SERVER = "https://vault.bitwarden.eu";
 
-export const DEFAULT_ARK_PROJECT_ID = "b9de9355-0a8f-45e7-b5fe-b4ca00eff281";
-export const DEFAULT_OPS_PROJECT_ID = "ea9095b4-8226-4dec-96c3-b4c8008b0b6b";
-export const DEFAULT_WEB_PROJECT_ID = "d7881774-3a4c-4603-97e3-b4c8010fd860";
+/** SM project names (matched ignoring case), so recreated projects need no code change. */
+export const PROJECT_NAMES = { ark: "ark", ops: "ark/ops", web: "ark/web" };
+
+const PROJECT_ID_OVERRIDES = {
+  ark: "BWS_ARK_PROJECT_ID",
+  ops: "BWS_OPS_PROJECT_ID",
+  web: "BWS_WEB_PROJECT_ID",
+};
 
 export const SECRET_ENVS = ["dev", "production"];
 export const ENV_OVERRIDE_SEPARATOR = "__";
 
-export function resolveProjectIds(env = process.env) {
-  return {
-    ark: env.BWS_ARK_PROJECT_ID?.trim() || DEFAULT_ARK_PROJECT_ID,
-    ops: env.BWS_OPS_PROJECT_ID?.trim() || DEFAULT_OPS_PROJECT_ID,
-    web: env.BWS_WEB_PROJECT_ID?.trim() || DEFAULT_WEB_PROJECT_ID,
-  };
+/**
+ * Project ids from a `bws project list` result. `BWS_*_PROJECT_ID` overrides win.
+ * @param {{ id: string, name: string }[]} projects
+ */
+export function pickProjectIds(projects, env = process.env) {
+  const out = {};
+  for (const [owner, name] of Object.entries(PROJECT_NAMES)) {
+    const override = env[PROJECT_ID_OVERRIDES[owner]]?.trim();
+    if (override) {
+      out[owner] = override;
+      continue;
+    }
+    const matches = projects.filter((p) => String(p.name || "").trim().toLowerCase() === name);
+    if (matches.length !== 1) {
+      throw new Error(
+        matches.length
+          ? `Several Secrets Manager projects are named ${name}. Keep one.`
+          : `No Secrets Manager project named ${name} for this token. Create it, or give the machine account access.`,
+      );
+    }
+    out[owner] = matches[0].id;
+  }
+  return out;
+}
+
+const projectIdsByToken = new Map();
+
+/** Owner → project id, looked up by name once per token and server. */
+export function resolveProjectIds({ accessToken, serverUrl, env = process.env } = {}) {
+  if (Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim())) {
+    return pickProjectIds([], env);
+  }
+  const cacheKey = `${accessToken || ""}\n${serverUrl || ""}`;
+  if (!projectIdsByToken.has(cacheKey)) {
+    const projects = runBws(["project", "list"], { accessToken, serverUrl });
+    if (!Array.isArray(projects)) throw new Error("Unexpected bws project list response");
+    projectIdsByToken.set(cacheKey, projects);
+  }
+  return pickProjectIds(projectIdsByToken.get(cacheKey), env);
 }
 
 /** Owning SM project for each secret base name. */
@@ -58,6 +96,9 @@ export const SECRET_OWNERS = {
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "OPS_SESSION_SECRET",
     "OPS_LOCAL_ADMIN_PW",
+    // Script-only (sm-export): the automation@ Baserow login for schema changes.
+    "BASEROW_JWT_EMAIL",
+    "BASEROW_JWT_PASSWORD",
   ],
   web: [
     "BASEROW_WEBSITE_API_KEY",
@@ -365,7 +406,7 @@ export function listSmSecretEntries({ accessToken, serverUrl, projectId } = {}) 
 export function listAllSmSecrets({ accessToken, serverUrl } = {}) {
   const out = new Map();
   const seenIn = new Map();
-  for (const [project, projectId] of Object.entries(resolveProjectIds())) {
+  for (const [project, projectId] of Object.entries(resolveProjectIds({ accessToken, serverUrl }))) {
     const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
     for (const [key, entry] of entries) {
       if (seenIn.has(key)) {
@@ -403,7 +444,7 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
   if (!owner) {
     throw new Error(`${trimmedKey} has no owning project. Add it to SECRET_OWNERS first.`);
   }
-  const projectId = resolveProjectIds()[owner];
+  const projectId = resolveProjectIds({ accessToken, serverUrl })[owner];
 
   const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
   const existing = entries.get(trimmedKey);
@@ -425,7 +466,7 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
 export function deleteSmSecretByKey({ key, accessToken, serverUrl } = {}) {
   const trimmedKey = String(key || "").trim();
   if (!trimmedKey) throw new Error("deleteSmSecretByKey requires key");
-  for (const projectId of Object.values(resolveProjectIds())) {
+  for (const projectId of Object.values(resolveProjectIds({ accessToken, serverUrl }))) {
     const existing = listSmSecretEntries({ accessToken, serverUrl, projectId }).get(trimmedKey);
     if (!existing?.id) continue;
     clearSecretsCache();

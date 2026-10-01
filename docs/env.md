@@ -53,10 +53,10 @@ One Cloudflare account serves every env, so there is one token, shared (no suffi
 
 | Key | Where | Role |
 |-----|--------|------|
-| `CLOUDFLARE_API_TOKEN` | SM Ark; GitHub Actions secret | Pages, Workers, Wrangler, locally and in CI. Some jobs still use the GitHub copy. |
-| `CLOUDFLARE_ACCOUNT_ID` | SM Ark; GitHub Actions secret | Same account as wrangler `account_id`. |
+| `CLOUDFLARE_API_TOKEN` | SM `ark` | Pages, Workers, Wrangler, locally and in CI (CI pulls it from SM). The Cloudflare token has the same name. |
+| `CLOUDFLARE_ACCOUNT_ID` | SM `ark` | Same account as wrangler `account_id`. |
 
-`npm run teardown:ops-access` also needs Access: Apps and Policies · Edit on that token.
+It needs Pages · Edit, Workers Scripts · Edit, Workers KV Storage · Edit, Workers Routes · Edit (zone), Account Settings · Read and Workers AI · Read (local `ops:dev`). `npm run teardown:ops-access` also needs Access: Apps and Policies · Edit; use a short-lived token for that.
 
 ## Secrets Manager pulls
 
