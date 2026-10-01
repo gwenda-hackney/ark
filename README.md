@@ -36,7 +36,7 @@ Commands say which environment they touch: `dev` is your copy, `prod` is the rea
 
 Work is tracked as [GitHub issues](https://github.com/gwenda-hackney/ark/issues), grouped into [milestones](https://github.com/gwenda-hackney/ark/milestones).
 
-1. Branch from `main`: `feat/<issue>-<slug>` (or `fix/`, `chore/`, `refactor/`, `test/`). Pushing deploys branch previews on dev data: the website (`<branch>.gwenda-web-dev.pages.dev`) and, for ops changes, ops (`<branch>.gwenda-ops-dev.pages.dev`).
+1. Branch from `main`: `feat/<issue>-<slug>` (or `fix/`, `chore/`, `refactor/`, `test/`). Pushing deploys branch previews on dev data: the website (`<branch>.gwenda-web-dev.pages.dev`) and, for ops changes, ops (`<branch>.gwenda-ops-dev.pages.dev`). The PR's **Previews** comment links to each one, updated on every push.
 2. Open a pull request into `main` and fill in the template. [PR checks](.github/workflows/pr.yml) run lint and tests; merge when they're green, then delete the branch.
 3. `main` deploys dev. Production goes `main` → `release` (prod preview) → promote, and only on purpose.
 
@@ -54,7 +54,7 @@ There are two environments, built the same way. Each is a complete, separate cop
 - **Live**: what visitors see.
 - **Preview**: the same site showing changes saved in ops or Studio (Sanity drafts) but not yet published with **Update website**. Password-protected. Otherwise it is the live environment: forms on prod's preview are real submissions.
 
-**Code** on `main` runs in dev. Code on `release` runs prod's preview, and goes live with Web promote. **Data** only moves by copying: `npm run dev:refresh` copies prod into dev.
+**Code** on `main` runs in dev. Code on `release` runs prod's preview, and goes live with Web promote. GitHub enforces this: its `production` environment accepts deploys from `release` only, `dev` from `main` only, and `preview` (branch previews) from any branch. **Data** only moves by copying: `npm run dev:refresh` copies prod into dev.
 
 ### Prod
 
