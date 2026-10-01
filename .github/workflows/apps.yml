@@ -279,14 +279,17 @@ jobs:
       && github.ref_name == 'release'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       deployments: write
+      pull-requests: read
     environment:
       name: production
       url: https://gwenda-ops.pages.dev
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Enable Corepack
         run: corepack enable
@@ -364,6 +367,12 @@ jobs:
 
       - name: Migrations after deploy
         run: node scripts/migrate.mjs --app ops --phase post --env production
+
+      # Tags ops-<date>+<sha> and lists the PRs that changed ops since the last.
+      - name: GitHub Release with changelog
+        run: node scripts/release.mjs --app ops
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Deployment summary
         run: node marketing/web/scripts/ci/write-deployment-summary.mjs

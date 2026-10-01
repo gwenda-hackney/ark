@@ -24,6 +24,7 @@ jobs:
       contents: write
       deployments: write
       actions: read
+      pull-requests: read
     environment:
       name: production
       url: https://gwenda.co.uk
@@ -182,6 +183,12 @@ jobs:
         run: cd marketing/web && node scripts/ci/tag-production-release.mjs
         env:
           RELEASE_VERSION: ${{ steps.buildmeta.outputs.version }}
+
+      # The PRs merged since the last release; none (content only) → no release.
+      - name: GitHub Release with changelog
+        run: node scripts/release.mjs --app web --version "${{ steps.buildmeta.outputs.version }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Deployment summary
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs
