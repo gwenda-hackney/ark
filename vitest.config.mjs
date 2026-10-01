@@ -12,7 +12,6 @@ export default defineConfig({
       "marketing/subscribe-mailchimp-sync",
       "marketing/wifi-captive-portal",
       "ops/site",
-      "ops/recipe-cost-webhook",
       { test: { name: "shared", root: "shared", include: ["**/*.test.js"] } },
       { test: { name: "scripts", root: "scripts", include: ["**/*.test.mjs"] } },
     ],
