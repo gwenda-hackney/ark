@@ -23,7 +23,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
-import { productionSecretValues, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import { cloudflareFor, productionSecretValues, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/site-deploy-webhook");
@@ -58,10 +58,7 @@ function readWranglerAccountId() {
 async function main() {
   loadRepoEnv();
 
-  const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
-  if (!cloudflareToken) {
-    throw new Error("CLOUDFLARE_API_TOKEN is missing. Run bw-unlock.");
-  }
+  const cloudflareToken = cloudflareFor("production").token;
 
   // Read explicitly: this machine's own env is dev, so DEPLOY_WEBHOOK_SECRET
   // there is dev ops' secret, not production's.

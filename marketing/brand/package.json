@@ -6,7 +6,7 @@
   "scripts": {
     "deploy": "wrangler pages deploy src --project-name gwenda-brand --branch main --commit-dirty=true",
     "deploy:production": "wrangler pages deploy src --project-name gwenda-brand --branch main --commit-dirty=true",
-    "deploy:preview": "wrangler pages deploy src --project-name gwenda-brand --commit-dirty=true"
+    "deploy:preview": "wrangler pages deploy src --project-name gwenda-brand-dev --commit-dirty=true"
   },
   "devDependencies": {
     "wrangler": "^4.98.0"

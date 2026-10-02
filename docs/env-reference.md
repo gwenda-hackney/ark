@@ -40,7 +40,7 @@ Production values never sit in a `-dev` project, so the dev CI token, which read
 
 ### `ark`
 
-Production values (`NAME__PRODUCTION`) for shared infrastructure: the config database token, the GitHub dispatch token, the UptimeRobot key.
+Production values (`NAME__PRODUCTION`) for shared infrastructure: the Cloudflare token and account id, the config database token, the GitHub dispatch token, the UptimeRobot key.
 
 - **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token).
 - **Open:** [ark in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/4752cab2-4d4d-441d-be41-b4d600c97608/secrets)
@@ -93,7 +93,7 @@ Lets your machine read the app secrets. It is your machine's key to Secrets Mana
 - **Owner:** Bitwarden organisation: an access token of the machine account `ark-local`.
 - **Machine account:** `ark-local`, read/write on all six projects.
 - **Stored in:** the Password Manager vault note `ark/.env.local`. Never in `.env`; the loader warns if it finds it there.
-- **Used by:** every script on a developer's machine (`with-env`, `with-ops-env`, `ops:dev`, `setup:*`, `secret:set`, `secrets:move-dev`, `secrets:rename`).
+- **Used by:** every script on a developer's machine (`with-env`, `with-ops-env`, `ops:dev`, `setup:*`, `secret:set`, `secrets:move-dev`, `secrets:rename`, `secrets:import-env`).
 - **Gets there by:** `bw-unlock` opens the vault; the scripts read the token from the session in RAM (`/dev/shm/ark-secrets-<uid>/`).
 - **Expires:** never (created without an expiry).
 - **Changing it:** make a new access token on `ark-local`, put it in the vault note, run `npm run env:secrets:refresh`, then revoke the old one.
@@ -126,22 +126,22 @@ Lets branches and `main` build and test without ever seeing a production secret.
 
 ### `CLOUDFLARE_API_TOKEN`
 
-Everything we run is on Cloudflare (Pages sites, Workers), and deploying or changing any of it needs an API token.
+Everything we run is on Cloudflare (Pages sites, Workers), and deploying or changing any of it needs an API token. Each environment has its own Cloudflare account and token, because a token's deploy rights always cover its whole account.
 
-- **Owner:** the Cloudflare account ("Dscalamogna@gwenda.co.uk's Account"). It is an account token (`cfat_`), not tied to a person.
-- **SM:** `CLOUDFLARE_API_TOKEN`, shared, in [`ark-dev`](#ark-dev).
-- **Used by:** every deploy: Pages (website, ops, brand), Workers, Wrangler, the Pages secrets syncs (`ops-secrets.yml`, `web-secrets.yml`), the rollback script (#18), and `ops:dev` locally (Workers AI).
-- **Gets there by:** CI pulls it (`env:ark:pull -- --github-env`); your machine loads it from the cache.
-- **Permissions:** Pages Edit, Workers Scripts Edit, Workers KV Storage Edit, Workers Routes Edit (zone), Account Settings Read, Workers AI Read ([env.md](env.md#cloudflare-tokens)).
-- **Expires:** never (Cloudflare reports no expiry, checked 2026-10-02).
-- **Changing it:** create the new token, `npm run secret:set`, run one deploy, delete the old token in Cloudflare.
+- **Owner:** each token belongs to its account, not a person (`cfat_` account tokens): the production account, and **gwenda-dev**.
+- **SM:** `CLOUDFLARE_API_TOKEN__PRODUCTION` in [`ark`](#ark); `CLOUDFLARE_API_TOKEN__DEV` in [`ark-dev`](#ark-dev).
+- **Used by:** production: deploys of gwenda.co.uk, ops, brand and every Worker, the Pages secrets syncs, the rollback script (#18), and the production `setup:*` scripts. Dev: dev's Pages projects (`gwenda-web-dev`, `gwenda-ops-dev`, `gwenda-brand-dev`) and branch previews, and `ops:dev` locally (Workers AI).
+- **Gets there by:** CI pulls its environment's token (`env:ark:pull -- --github-env`); your machine loads dev's from the cache, and production `setup:*` scripts read production's from Secrets Manager.
+- **Permissions:** [env.md](env.md#cloudflare-tokens).
+- **Expires:** never.
+- **Changing it:** create the new token in that account, `npm run secret:set`, run one deploy, delete the old token in Cloudflare.
 
 ### `CLOUDFLARE_ACCOUNT_ID`
 
 Cloudflare's API addresses everything by account, so every call needs it next to the token.
 
-- **Owner:** the Cloudflare account; an id, not issued to anyone.
-- **SM:** `CLOUDFLARE_ACCOUNT_ID`, shared, in [`ark-dev`](#ark-dev). It is an id, not a secret; it is also in each Worker's `wrangler.toml`.
+- **Owner:** each account; an id, not issued to anyone.
+- **SM:** `CLOUDFLARE_ACCOUNT_ID__PRODUCTION` in [`ark`](#ark); `CLOUDFLARE_ACCOUNT_ID__DEV` in [`ark-dev`](#ark-dev). It is an id, not a secret; production's is also in each Worker's `wrangler.toml`.
 - **Used by:** the same jobs as the token.
 - **Expires:** never.
 
@@ -489,8 +489,8 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `ARK_LOCAL_BW_TOKEN` | Bitwarden `ark-local` | — | vault note | never |
 | `ARK_CI_TOKEN` | Bitwarden `ark-ci` | production | GitHub env `production` | as set |
 | `ARK_CI_DEV_TOKEN` | Bitwarden `ark-ci-dev` | dev | GitHub envs `dev`, `preview` | as set |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare account | shared | — / [`ark-dev`](#ark-dev) | never |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account | shared | — / [`ark-dev`](#ark-dev) | never |
+| `CLOUDFLARE_API_TOKEN` | each Cloudflare account | `__DEV` / `__PRODUCTION` | [`ark`](#ark) / [`ark-dev`](#ark-dev) | never |
+| `CLOUDFLARE_ACCOUNT_ID` | each Cloudflare account | `__DEV` / `__PRODUCTION` | [`ark`](#ark) / [`ark-dev`](#ark-dev) | never |
 | `BASEROW_OPS_API_KEY` | Baserow automation@ | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
 | `BASEROW_WEBSITE_API_KEY` | Baserow automation@ | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `BASEROW_CONFIG_API_KEY` | Baserow automation@ | `__DEV` / `__PRODUCTION` | [`ark`](#ark) / [`ark-dev`](#ark-dev) | never |

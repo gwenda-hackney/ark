@@ -53,14 +53,15 @@ If Secrets Manager is ever emptied, or every secret has to be replaced, follow [
 
 ## Cloudflare tokens
 
-One Cloudflare account serves every env, so there is one token, shared (no suffix):
+Each environment has its own Cloudflare account, because a Cloudflare token can't be limited to some Pages projects or Workers: its deploy rights cover its whole account. So the token dev CI and branch previews hold can't touch production.
 
 | Key | Where | Role |
 |-----|--------|------|
-| `CLOUDFLARE_API_TOKEN` | SM `ark` | Pages, Workers, Wrangler, locally and in CI (CI pulls it from SM). The Cloudflare token has the same name. |
-| `CLOUDFLARE_ACCOUNT_ID` | SM `ark` | Same account as wrangler `account_id`. |
+| `CLOUDFLARE_API_TOKEN__PRODUCTION` | SM `ark` | The production account: gwenda.co.uk, ops, brand, and every Worker. Pages · Edit, Workers Scripts · Edit, Workers KV Storage · Edit, Workers Routes · Edit (zone), Account Settings · Read. |
+| `CLOUDFLARE_API_TOKEN__DEV` | SM `ark-dev` | The gwenda-dev account: `gwenda-web-dev`, `gwenda-ops-dev`, `gwenda-brand-dev` and their branch previews. Pages · Edit, Workers AI · Read (local `ops:dev`). |
+| `CLOUDFLARE_ACCOUNT_ID__PRODUCTION` / `__DEV` | SM `ark` / `ark-dev` | Each account's id. The Workers' `wrangler.toml` `account_id` is production's. |
 
-It needs Pages · Edit, Workers Scripts · Edit, Workers KV Storage · Edit, Workers Routes · Edit (zone), Account Settings · Read and Workers AI · Read (local `ops:dev`). `npm run teardown:ops-access` also needs Access: Apps and Policies · Edit; use a short-lived token for that.
+Dev's Cloudflare token is named like its SM key; production's is called `CLOUDFLARE_API_TOKEN` in Cloudflare. A developer's machine loads dev, so scripts that change production (`setup:ops`, `setup:site-deploy`, `setup:site-health`, `setup:subscribe-mailchimp-sync`, `setup:wifi-portal`) ask for production's token explicitly (`cloudflareFor` in `scripts/lib/bitwarden-sm.mjs`).
 
 ## Secrets Manager pulls
 
