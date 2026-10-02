@@ -39,6 +39,7 @@
     "setup:sanity-tokens": "node scripts/setup-sanity-tokens.mjs",
     "setup:uptime": "node scripts/with-env.mjs node scripts/setup-uptime-monitors.mjs",
     "setup:sentry": "node scripts/setup-sentry.mjs",
+    "sentry:issues": "node scripts/sentry-issues.mjs",
     "secret:set": "node scripts/secret-set.mjs",
     "secrets:move-dev": "node scripts/sm-move-dev.mjs",
     "secrets:import-env": "node scripts/sm-import-env.mjs",
