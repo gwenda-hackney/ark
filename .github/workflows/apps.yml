@@ -45,6 +45,10 @@ jobs:
         id: filter
         if: github.event_name == 'push'
         with:
+          # Compare with this branch before the push. Without it, a push to
+          # release (merged from main) is compared with main, shows no
+          # changes, and production ops and brand never deploy (as workers.yml).
+          base: ${{ github.ref_name }}
           filters: |
             brand:
               - 'marketing/brand/**'
