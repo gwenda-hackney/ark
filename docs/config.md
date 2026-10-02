@@ -80,7 +80,7 @@ A shared `NAME` is visible to the dev token, so it must not be able to change pr
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Low: sign-in only works on registered addresses | Split: a dev OAuth client (follow-up) |
 | `BASEROW_JWT_EMAIL` / `_PASSWORD` | Yes: automation@ is in both workspaces | Split: a dev-only Baserow user for dev migrations (follow-up) |
 | `BASEROW_CONFIG_API_KEY` | Yes: one config table holds both envs' rows | Split the config database per env (follow-up) |
-| `DEPLOY_WEBHOOK_SECRET` | Yes: the webhook can start a live promote | Split: the webhook accepts a dev secret for dev targets only (follow-up) |
+| `DEPLOY_WEBHOOK_SECRET` | Yes: the webhook can start a live promote | Split: `__PRODUCTION` and `__DEV`; the webhook lets the dev one rebuild the dev website only |
 
 ```bash
 npm run env:secrets:refresh                   # refetch dev into the RAM cache

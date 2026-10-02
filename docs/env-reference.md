@@ -332,18 +332,19 @@ CI smoke tests and preview share links need to see a gated site without typing t
 
 ### `DEPLOY_WEBHOOK_SECRET`
 
-Ops starts website rebuilds and releases, but only GitHub can run them. The webhook Worker holds the GitHub token and does it for ops; this shared secret is how each side knows the other is genuine.
+Ops starts website rebuilds and releases, but only GitHub can run them. The webhook Worker holds the GitHub token and does it for ops; this secret is how each side knows the other is genuine. Production and dev ops each have their own, so dev's can't reach production.
 
 - **Owner:** Gwenda: a random value we generate (`setup:site-deploy` makes one if missing).
-- **SM:** `DEPLOY_WEBHOOK_SECRET`, shared, in [`ark/web-dev`](#arkweb-dev).
-- **What:** one secret, three uses:
-  - ops → the site deploy webhook Worker (rebuild, promote, status, compare, Baserow copy);
-  - the webhook → ops (`/api/web/tick`, every few minutes, for scheduled website updates);
-  - CI → the website's deep health check (`/api/health/deep`).
+- **SM:** `DEPLOY_WEBHOOK_SECRET__PRODUCTION` ([`ark/web`](#arkweb)), `DEPLOY_WEBHOOK_SECRET__DEV` ([`ark/web-dev`](#arkweb-dev)).
+- **What:** each environment's value has three uses:
+  - ops → the site deploy webhook Worker. Production's secret can do everything: rebuild, promote, status, compare, Baserow copy. Dev's can only rebuild the dev website, read status and compare. It can't start a live promote, rebuild the prod preview or copy the databases, whatever it asks for.
+  - the webhook → that environment's ops (`/api/web/tick`, every few minutes, for scheduled website updates);
+  - CI → that environment's website deep health check (`/api/health/deep`).
+- **Runtime name:** `DEPLOY_WEBHOOK_SECRET` in ops and on the website. The webhook Worker holds both, as `DEPLOY_WEBHOOK_SECRET` (production) and `DEPLOY_WEBHOOK_SECRET_DEV`.
 - **Used by:** ops (dev and production), the site deploy webhook Worker, the website, `smoke-test.mjs --deep`.
-- **Gets there by:** Pages secrets on ops and the website; Worker secret put by `workers.yml`.
+- **Gets there by:** Pages secrets on ops and the website; Worker secrets put by `workers.yml` (or `setup:site-deploy`).
 - **Expires:** never.
-- **Changing it:** every holder must change together: the Worker (`workers.yml` on `release`), ops (ops deploys), and the website (`web-secrets.yml`).
+- **Changing it:** one environment at a time; its holders change together: the Worker (`workers.yml` on `release`), that ops (its deploy) and that website (`web-secrets.yml` for its profile).
 
 ### `DISPATCH_TOKEN`
 
@@ -504,7 +505,7 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `FORMS_ADMIN_SECRET` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `SITE_PASSWORD` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `GATE_BYPASS_KEY` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
-| `DEPLOY_WEBHOOK_SECRET` | Gwenda | shared | — / [`ark/web-dev`](#arkweb-dev) | never |
+| `DEPLOY_WEBHOOK_SECRET` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `DISPATCH_TOKEN` | GitHub user das974 | shared | — / [`ark-dev`](#ark-dev) | none reported |
 | `MAILCHIMP_API_KEY` | Mailchimp user dscalamogna@ | shared | — / [`ark/web-dev`](#arkweb-dev) | **~2027-10-01** |
 | `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Gwenda | shared | — / [`ark/web-dev`](#arkweb-dev) | never |
