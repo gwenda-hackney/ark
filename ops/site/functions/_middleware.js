@@ -15,22 +15,22 @@ import {
   safeRedirectPath,
   signInRequiredResponse,
 } from "../src/access/server/auth.js";
-import { attachLogger, serializeError } from "../src/platform/log.js";
+import { sentryPagesPlugin } from "@sentry/cloudflare";
+import { sentryOptions } from "../../../shared/sentry.js";
+import { attachLogger } from "../src/platform/log.js";
 import { opsEnv } from "../src/platform/ops-env.js";
 import { isSpaDocumentPath } from "../src/app/spa-path.js";
 import { isOpsUser } from "../src/users/server/user-store.js";
 
-export async function onRequest(context) {
-  const log = attachLogger(context);
-  try {
-    return await handleRequest(context);
-  } catch (error) {
-    log.error("request.unhandled", { err: serializeError(error) });
-    throw error;
-  }
-}
+// Sentry first, so it sees every error the request throws (#35).
+export const onRequest = [
+  sentryPagesPlugin((context) => sentryOptions(context.env, "ops")),
+  protect,
+];
 
-async function handleRequest(context) {
+// A thrown error reaches Sentry through its plugin, with the stack.
+export async function protect(context) {
+  attachLogger(context);
   const env = await opsEnv(context);
   const auth = resolveAuth(env);
   if (auth.kind === "misconfigured") return authMisconfiguredResponse();
@@ -83,14 +83,22 @@ async function serveSpaIndex(context) {
   if (assets && typeof assets.fetch === "function") {
     // Follow asset pretty-URL redirects server-side. Returning a 308 to `/`
     // for `/events` (and other shell paths) boots the SPA on home instead.
-    let response = await assets.fetch(new Request(url.toString(), context.request));
-    for (let hop = 0; hop < 3 && response.status >= 300 && response.status < 400; hop += 1) {
+    let response = await assets.fetch(
+      new Request(url.toString(), context.request),
+    );
+    for (
+      let hop = 0;
+      hop < 3 && response.status >= 300 && response.status < 400;
+      hop += 1
+    ) {
       const location = response.headers.get("Location");
       if (!location) break;
       const next = new URL(location, url);
       next.search = "";
       next.hash = "";
-      response = await assets.fetch(new Request(next.toString(), context.request));
+      response = await assets.fetch(
+        new Request(next.toString(), context.request),
+      );
     }
     if (!response.ok) return response;
     return new Response(response.body, {
