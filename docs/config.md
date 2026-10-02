@@ -78,7 +78,7 @@ A shared `NAME` is visible to the dev token, so it must not be able to change pr
 | `UPTIME_ROBOT_API_KEY` | Monitoring only | Production only: `UPTIME_ROBOT_API_KEY__PRODUCTION` |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes: sends mail as notifications@, edits calendars | Split: a dev service account limited to the dev calendar and the safe inbox (follow-up) |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Low: sign-in only works on registered addresses | Split: a dev OAuth client (follow-up) |
-| `BASEROW_JWT_EMAIL` / `_PASSWORD` | Yes: automation@ is in both workspaces | Split: a dev-only Baserow user for dev migrations (follow-up) |
+| `BASEROW_JWT_EMAIL` / `_PASSWORD` | Yes: automation@ is in both workspaces, and Baserow tokens can't change structure, so migrations need this login | Stays shared: replaced by the move off Baserow (#127) |
 | `BASEROW_CONFIG_API_KEY` | Yes, when one config table held both envs' rows | Split: a Gwenda Config database per env, `__DEV` and `__PRODUCTION` tokens |
 | `DEPLOY_WEBHOOK_SECRET` | Yes: the webhook can start a live promote | Split: `__PRODUCTION` and `__DEV`; the webhook lets the dev one rebuild the dev website only |
 
