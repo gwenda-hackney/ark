@@ -10,7 +10,7 @@ import {
   localSecretNames,
   pickVisibleProjectIds,
   envSecretKey,
-  isSmRateLimited,
+  isSmRetryable,
   ownerOf,
   parseSecretKey,
   pickAppSecrets,
@@ -141,14 +141,16 @@ describe("catalog", () => {
   });
 });
 
-describe("Secrets Manager rate limits", () => {
-  it("recognises the 429 bws prints, and nothing else", () => {
+describe("Secrets Manager retries", () => {
+  it("retries the 429 and 503 bws prints, and nothing else", () => {
     const bws429 =
       'Error: \n   0: Received error message from server: [429 Too Many Requests] {"object":"error","message":"Slow down! Too many requests. Try again in 1s."}';
-    assert.equal(isSmRateLimited(bws429), true);
-    assert.equal(isSmRateLimited("[401 Unauthorized] invalid access token"), false);
-    assert.equal(isSmRateLimited("Resource not found"), false);
-    assert.equal(isSmRateLimited(""), false);
+    const bws503 = "Error: \n   0: Received error message from server: [503 Service Unavailable] \n";
+    assert.equal(isSmRetryable(bws429), true);
+    assert.equal(isSmRetryable(bws503), true);
+    assert.equal(isSmRetryable("[401 Unauthorized] invalid access token"), false);
+    assert.equal(isSmRetryable("Resource not found"), false);
+    assert.equal(isSmRetryable(""), false);
   });
 
   it("backs off 1.5s, 3s, 6s, 12s", () => {
