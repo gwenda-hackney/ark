@@ -29,12 +29,12 @@ Store a single value by hand with `npm run secret:set` (asks for the name, then 
 | `BASEROW_OPS_API_KEY__DEV` / `__PRODUCTION`, `BASEROW_WEBSITE_API_KEY__DEV` / `__PRODUCTION`, `BASEROW_CONFIG_API_KEY` | **Recover, don't create.** Log in to Baserow as automation@. `GET /api/database/tokens/` returns each token **with its key** to its owner, and the token names match the SM keys. | `GET /api/database/tokens/check/` with `Authorization: Token …` |
 | `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (`ark/ops`) | The automation@gwenda.co.uk Baserow login, never notifications@. If the password is lost, reset it on Baserow. The reset email arrives in the notifications@ inbox, because automation@ is an alias of it. | `POST /api/user/token-auth/` returns 200 |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (`ark`) | One account token, named `CLOUDFLARE_API_TOKEN`, used locally and by CI. Permissions are listed in [env.md](env.md#cloudflare-tokens). `cfat_` tokens are account tokens. The account ID comes from `GET /accounts` with the token. | `GET /accounts/<id>/tokens/verify` returns `active` |
-| `SANITY_API_TOKEN__DEV` (project `gwscpagy`, Editor), `SANITY_API_TOKEN__PRODUCTION` (`pn5yjro6`, Editor), `SANITY_DEPLOY_TOKEN` (`pn5yjro6`, Deploy Studio) | `npm run setup:sanity-tokens` (after `npx sanity login`): creates all three, labelled with their SM key, and stores them in SM. It revokes nothing unless you pass `--revoke-old`, and then only older tokens with the same label. Try `-- --dry-run` first. | `GET /users/me` with the new token |
+| `SANITY_API_TOKEN__DEV` (project `gwscpagy`, Editor), `SANITY_API_TOKEN__PRODUCTION` (`pn5yjro6`, Editor), `SANITY_DEPLOY_TOKEN__PRODUCTION` (`pn5yjro6`, Deploy Studio) | `npm run setup:sanity-tokens` (after `npx sanity login`): creates all three, labelled with their SM key, and stores them in SM. It revokes nothing unless you pass `--revoke-old`, and then only older tokens with the same label. Try `-- --dry-run` first. | `GET /users/me` with the new token |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | [Service accounts in gwenda-ops](https://console.cloud.google.com/iam-admin/serviceaccounts?project=gwenda-ops) → `gwenda-ops-drive` → Keys → Add key → JSON. A new key on the same account keeps its Gmail domain-wide delegation (sending as notifications@). Store the JSON on one line and delete the file. | JWT grant for the Drive scope, and for `gmail.send` with `sub: notifications@gwenda.co.uk`, both return a token |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | [The ops OAuth client](https://console.cloud.google.com/apis/credentials/oauthclient/682046070260-n9jpt18kt29vufljre5dkfqupq7rrdlt.apps.googleusercontent.com?project=682046070260) → Add secret | Token endpoint with a dummy code returns `invalid_grant` (right secret), not `invalid_client` |
 | `UNIFI_SITE_MANAGER_API_KEY` | [unifi.ui.com/api](https://unifi.ui.com/api) → Create API key | `GET https://api.ui.com/v1/hosts` with `X-API-KEY` lists the console |
-| `MAILCHIMP_API_KEY` | [Mailchimp API keys](https://admin.mailchimp.com/account/api/) | `GET https://<dc>.api.mailchimp.com/3.0/ping` |
-| `DISPATCH_TOKEN` | [New **fine-grained** GitHub token](https://github.com/settings/personal-access-tokens/new): owner `gwenda-hackney`, repo `ark` only, **Actions: Read and write** and **Contents: Read-only**. Not "Workflows", which lets the token edit workflow files. | `GET /repos/gwenda-hackney/ark/actions/workflows/web.yml` returns 200, and the org repo list shows only `ark` |
+| `MAILCHIMP_API_KEY__PRODUCTION` | [Mailchimp API keys](https://admin.mailchimp.com/account/api/) | `GET https://<dc>.api.mailchimp.com/3.0/ping` |
+| `DISPATCH_TOKEN__PRODUCTION` | [New **fine-grained** GitHub token](https://github.com/settings/personal-access-tokens/new): owner `gwenda-hackney`, repo `ark` only, **Actions: Read and write** and **Contents: Read-only**. Not "Workflows", which lets the token edit workflow files. | `GET /repos/gwenda-hackney/ark/actions/workflows/web.yml` returns 200, and the org repo list shows only `ark` |
 
 ## 2. Generated secrets
 
@@ -43,14 +43,14 @@ Make random values (`crypto.randomBytes(32).toString("base64url")`) for each env
 
 Two exceptions:
 - `DEPLOY_WEBHOOK_SECRET` is **one shared value** with no suffix, because a single Worker checks it for every env.
-- `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` is created by `npm run setup:subscribe-mailchimp-sync` if missing.
+- `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION` is created by `npm run setup:subscribe-mailchimp-sync` if missing.
 
 Pushing a new `OPS_SESSION_SECRET` logs everyone out of ops once, and a new `SITE_PASSWORD` changes the site-gate password. Pick a time when nobody is editing in ops.
 
 ## 3. Roll out, in this order
 
 1. **`release` must have the current SM code.** Ops production and the live website deploy only from `release`. If an SM change (for example the lookup by project name) is only on main, cherry-pick that commit onto `release`. Don't merge all of main into it.
-2. **Site-deploy Worker:** `npm run setup:site-deploy`. It gives the Worker `DEPLOY_WEBHOOK_SECRET` and `DISPATCH_TOKEN` from SM, and stops if `DISPATCH_TOKEN` is missing.
+2. **Site-deploy Worker:** `npm run setup:site-deploy`. It gives the Worker `DEPLOY_WEBHOOK_SECRET` and `DISPATCH_TOKEN__PRODUCTION` from SM, and stops if `DISPATCH_TOKEN` is missing.
 3. **Mailchimp sync Worker:** `npm run setup:subscribe-mailchimp-sync`
 4. **Ops production:** `gh workflow run ops-secrets.yml --ref release`. This pushes secrets and redeploys, and is the moment of the log-out. The workflow ends with the ops smoke test.
 5. **Website secrets:** `gh workflow run web-secrets.yml --ref main -f profile=production`, then the same with `profile=dev`. Pages only uses new secrets after a deploy.

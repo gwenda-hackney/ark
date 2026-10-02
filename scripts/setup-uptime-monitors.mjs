@@ -7,12 +7,12 @@
  * v2's newMonitor refuses free accounts, and v2 misreports the account's own
  * email contact as not active.
  *
- * Needs bw-unlock (UPTIME_ROBOT_API_KEY, the account's main API key, in SM).
+ * Needs bw-unlock (UPTIME_ROBOT_API_KEY__PRODUCTION, the account's main API key, in SM).
  *
  *   npm run setup:uptime                 create what's missing
  *   npm run setup:uptime -- --dry-run    only report
  */
-import { listAllSmSecrets } from "./lib/bitwarden-sm.mjs";
+import { productionSecretValues } from "./lib/bitwarden-sm.mjs";
 
 const API = "https://api.uptimerobot.com/v3";
 const ALERT_EMAIL = "alerts@gwenda.co.uk";
@@ -45,8 +45,8 @@ async function call(apiKey, method, path, body) {
 }
 
 async function main() {
-  const apiKey = listAllSmSecrets().get("UPTIME_ROBOT_API_KEY")?.trim();
-  if (!apiKey) throw new Error("UPTIME_ROBOT_API_KEY is missing from Secrets Manager (ark). Run bw-unlock.");
+  const apiKey = productionSecretValues().get("UPTIME_ROBOT_API_KEY")?.trim();
+  if (!apiKey) throw new Error("UPTIME_ROBOT_API_KEY__PRODUCTION is missing from Secrets Manager (ark). Run bw-unlock.");
 
   const contacts = (await call(apiKey, "GET", "alert-contacts")).data || [];
   const alerts = contacts.find((contact) => String(contact.value).toLowerCase() === ALERT_EMAIL);
