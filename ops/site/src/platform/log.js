@@ -2,9 +2,11 @@
  * Server-side logging for ops Pages Functions.
  *
  * Default sink writes one JSON object per line to stdout (console). Cloudflare
- * captures that stream today via `wrangler pages deployment tail`; swap `write`
- * later for Workers Logs, Logpush, or another collector.
+ * captures that stream via `wrangler pages deployment tail`. Errors also go to
+ * Sentry (#35), grouped by message, when the request runs under Sentry's
+ * middleware; elsewhere (tests, scripts) that's a no-op.
  */
+import { captureMessage } from "@sentry/cloudflare";
 
 export const SERVICE = "gwenda-ops";
 
@@ -59,7 +61,9 @@ export function requestFields(request) {
   }
   const headers = request.headers;
   const ray =
-    typeof headers?.get === "function" ? headers.get("cf-ray") || undefined : undefined;
+    typeof headers?.get === "function"
+      ? headers.get("cf-ray") || undefined
+      : undefined;
   const colo = request.cf?.colo || undefined;
   return {
     method: request.method,
@@ -77,6 +81,11 @@ export function createLogger({
 } = {}) {
   const emit = (level, message, extra = {}) => {
     try {
+      if (level === "error")
+        captureMessage(message, {
+          level: "error",
+          extra: { ...fields, ...extra },
+        });
       const result = write({
         ts: new Date().toISOString(),
         level,
