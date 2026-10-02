@@ -14,7 +14,7 @@ import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
-import { loadAppSecretsFromSm, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import { loadAppSecretsFromSm, productionSecretValues, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/subscribe-mailchimp-sync");
@@ -86,11 +86,12 @@ async function ensureSignedUpMergeField(mailchimpKey, audienceId) {
 
 /** Production values from Secrets Manager: the Website token (live Subscribers) and the Mailchimp keys. */
 function productionSecrets() {
-  const { values, raw } = loadAppSecretsFromSm("web", "production");
+  const { values } = loadAppSecretsFromSm("web", "production");
+  const production = productionSecretValues();
   return {
     baserowKey: values.get("BASEROW_API_KEY")?.trim() || "",
-    mailchimpKey: raw.get("MAILCHIMP_API_KEY")?.trim() || "",
-    syncSecret: raw.get("SUBSCRIBE_MAILCHIMP_SYNC_SECRET")?.trim() || "",
+    mailchimpKey: production.get("MAILCHIMP_API_KEY")?.trim() || "",
+    syncSecret: production.get("SUBSCRIBE_MAILCHIMP_SYNC_SECRET")?.trim() || "",
   };
 }
 
@@ -104,14 +105,14 @@ async function main() {
     process.env.MAILCHIMP_AUDIENCE_ID?.trim() || "e2c69d5d31";
   if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing. Run bw-unlock.");
   if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
-  if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY is missing from Secrets Manager (Ark/Web).");
+  if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY__PRODUCTION is missing from Secrets Manager (Ark/Web).");
 
   await ensureSignedUpMergeField(mailchimpKey, audienceId);
 
   let syncSecret = secrets.syncSecret;
   if (!syncSecret) {
     syncSecret = randomBytes(32).toString("hex");
-    upsertSmSecret({ key: "SUBSCRIBE_MAILCHIMP_SYNC_SECRET", value: syncSecret });
+    upsertSmSecret({ key: "SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION", value: syncSecret });
     console.log("Generated SUBSCRIBE_MAILCHIMP_SYNC_SECRET and stored it in Secrets Manager.");
   } else {
     console.log("Reusing SUBSCRIBE_MAILCHIMP_SYNC_SECRET from Secrets Manager.");

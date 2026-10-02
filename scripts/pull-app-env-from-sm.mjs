@@ -107,7 +107,7 @@ function main() {
   const resolved = resolveSecretsForEnv(raw, opts.env);
 
   if (opts.githubEnv || opts.envOnly) {
-    const { values, missing } = pickAppSecrets(opts.app, resolved);
+    const { values, missing } = pickAppSecrets(opts.app, resolved, opts.env);
     if (missing.length) {
       console.log(`Missing in SM: ${missing.map((key) => smNameFor(opts.app, key)).join(", ")}`);
     }
@@ -115,7 +115,7 @@ function main() {
       for (const [key, value] of values) process.stdout.write(`${key}=${value}\n`);
       return;
     }
-    const ark = opts.app === "ark" ? null : pickAppSecrets("ark", resolved);
+    const ark = opts.app === "ark" ? null : pickAppSecrets("ark", resolved, opts.env);
     const all = new Map([...(ark?.values ?? []), ...values]);
     if (!all.size) throw new Error("No secrets resolved from Secrets Manager. Check BWS_ACCESS_TOKEN.");
     appendGithubEnv(all);

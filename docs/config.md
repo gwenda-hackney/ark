@@ -65,17 +65,17 @@ So a job on `main` or a feature branch can't read a production value. In CI a pu
 
 ### Shared names and production
 
-A shared `NAME` is visible to the dev token, so it must not be able to change production. Audit (2026-10-01):
+A shared `NAME` is visible to the dev token, so it must not be able to change production. Names that only ever act on production are **production-only** (`PRODUCTION_ONLY` in `scripts/lib/bitwarden-sm.mjs`): stored as `NAME__PRODUCTION`, skipped by a dev pull, and read by scripts through `productionSecretValues()`; storing one without the suffix is refused. Audit (2026-10-01):
 
 | Shared name | Can it touch production? | Decision |
 |---|---|---|
 | `CLOUDFLARE_ACCOUNT_ID` | No, an id | Stays shared |
 | `CLOUDFLARE_API_TOKEN` | Yes: deploys every Pages project and Worker | Split: `__DEV` scoped to the dev projects, `__PRODUCTION` |
-| `DISPATCH_TOKEN` | Yes: starts workflows | Production only (the production Worker uses it) |
-| `MAILCHIMP_API_KEY`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Yes: the real audience | Production only (the production Worker) |
-| `SANITY_DEPLOY_TOKEN` | Yes: deploys the hosted Studio | Production only |
-| `UNIFI_SITE_MANAGER_API_KEY` | Yes: the venue Wi-Fi | Production only |
-| `UPTIME_ROBOT_API_KEY` | Monitoring only | Production only (local script) |
+| `DISPATCH_TOKEN` | Yes: starts workflows | Production only: `DISPATCH_TOKEN__PRODUCTION` |
+| `MAILCHIMP_API_KEY`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Yes: the real audience | Production only: `…__PRODUCTION` |
+| `SANITY_DEPLOY_TOKEN` | Yes: deploys the hosted Studio | Production only: `SANITY_DEPLOY_TOKEN__PRODUCTION` (deploy locally with `npx sanity login`) |
+| `UNIFI_SITE_MANAGER_API_KEY` | Yes: the venue Wi-Fi | Stays shared: there is one controller (the venue's), and the local portal dev server needs it |
+| `UPTIME_ROBOT_API_KEY` | Monitoring only | Production only: `UPTIME_ROBOT_API_KEY__PRODUCTION` |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes: sends mail as notifications@, edits calendars | Split: a dev service account limited to the dev calendar and the safe inbox (follow-up) |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Low: sign-in only works on registered addresses | Split: a dev OAuth client (follow-up) |
 | `BASEROW_JWT_EMAIL` / `_PASSWORD` | Yes: automation@ is in both workspaces | Split: a dev-only Baserow user for dev migrations (follow-up) |

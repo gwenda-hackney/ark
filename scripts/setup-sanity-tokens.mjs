@@ -5,7 +5,7 @@
  *
  *   SANITY_API_TOKEN__DEV         Gwenda Dev  Editor
  *   SANITY_API_TOKEN__PRODUCTION  Gwenda      Editor
- *   SANITY_DEPLOY_TOKEN           Gwenda      Deploy Studio
+ *   SANITY_DEPLOY_TOKEN__PRODUCTION  Gwenda   Deploy Studio
  *
  * It never revokes a token unless asked. With --revoke-old it revokes only the
  * older tokens with the same label, after the new one is stored. Revoke the
@@ -17,7 +17,7 @@
  * Usage:
  *   npm run setup:sanity-tokens -- --dry-run
  *   npm run setup:sanity-tokens -- SANITY_API_TOKEN__DEV
- *   npm run setup:sanity-tokens -- --revoke-old SANITY_DEPLOY_TOKEN
+ *   npm run setup:sanity-tokens -- --revoke-old SANITY_DEPLOY_TOKEN__PRODUCTION
  */
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
@@ -35,7 +35,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SANITY_TOKENS = [
   { key: "SANITY_API_TOKEN__DEV", projectId: DEV_SANITY_PROJECT_ID, roleName: "editor" },
   { key: "SANITY_API_TOKEN__PRODUCTION", projectId: REAL_SANITY_PROJECT_ID, roleName: "editor" },
-  { key: "SANITY_DEPLOY_TOKEN", projectId: REAL_SANITY_PROJECT_ID, roleName: "deploy-studio" },
+  { key: "SANITY_DEPLOY_TOKEN__PRODUCTION", projectId: REAL_SANITY_PROJECT_ID, roleName: "deploy-studio" },
 ];
 
 function parseArgs(argv) {

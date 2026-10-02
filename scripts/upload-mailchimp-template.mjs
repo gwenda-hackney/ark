@@ -6,10 +6,12 @@
  *     brand/email/mailchimp-grand-opening.html "Gwenda · Grand Opening"
  *
  * Optional third arg: existing template id to PATCH instead of create.
- * Needs MAILCHIMP_API_KEY in .env (with data-centre suffix).
+ * Uses MAILCHIMP_API_KEY from the shell, else MAILCHIMP_API_KEY__PRODUCTION
+ * from Secrets Manager (production-only, so bw-unlock).
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { productionSecretValues } from "./lib/bitwarden-sm.mjs";
 
 const [, , htmlPath, nameArg, templateIdArg] = process.argv;
 if (!htmlPath || !nameArg) {
@@ -19,8 +21,8 @@ if (!htmlPath || !nameArg) {
   process.exit(1);
 }
 
-const key = process.env.MAILCHIMP_API_KEY?.trim();
-if (!key) throw new Error("MAILCHIMP_API_KEY is missing");
+const key = process.env.MAILCHIMP_API_KEY?.trim() || productionSecretValues().get("MAILCHIMP_API_KEY")?.trim();
+if (!key) throw new Error("MAILCHIMP_API_KEY__PRODUCTION is missing from Secrets Manager");
 
 const dc = key.split("-").pop();
 if (!dc) throw new Error("API key missing data-centre suffix");
