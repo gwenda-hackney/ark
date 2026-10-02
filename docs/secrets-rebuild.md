@@ -16,8 +16,8 @@ How secrets normally work is in [env.md](env.md) and [config.md](config.md). Thi
 
 1. Projects `ark`, `ark/ops`, `ark/web` (production) and `ark-dev`, `ark/ops-dev`, `ark/web-dev` (dev and shared values) (#61). The scripts find them by name, ignoring case, so new IDs need no code change.
 2. Machine account `ark-local`: **read/write** on all six. Create an access token named `ARK_LOCAL_BW_TOKEN` with no expiry, and put it in the vault note `ark/.env.local` as `ARK_LOCAL_BW_TOKEN=…`.
-3. Machine account `ark-ci`: **read** on all six. Its token goes in the GitHub **environment** `production` as secret `BWS_ACCESS_TOKEN`.
-4. Machine account `ark-ci-dev`: **read** on the three `-dev` projects only. Its token goes in the GitHub environments `dev` and `preview` as `BWS_ACCESS_TOKEN`. These are the **only** GitHub secrets; workflows read everything else from SM ([config.md](./config.md#who-reads-what-61)).
+3. Machine account `ark-ci`: **read** on all six. Its token, named `ARK_CI_TOKEN`, goes in the GitHub **environment** `production` as secret `BWS_ACCESS_TOKEN`.
+4. Machine account `ark-ci-dev`: **read** on the three `-dev` projects only. Its token, named `ARK_CI_DEV_TOKEN`, goes in the GitHub environments `dev` and `preview` as `BWS_ACCESS_TOKEN`. These are the **only** GitHub secrets; workflows read everything else from SM ([config.md](./config.md#who-reads-what-61)).
 5. Check with `npm run env:secrets:refresh`. It lists what's missing. Without a project or with a wrong token it fails with `invalid_client`. If you test `bws` by hand, pass `--server-url https://vault.bitwarden.eu`. Without it, `bws` talks to the US server and every token looks invalid.
 
 Store a single value by hand with `npm run secret:set` (asks for the name, then the value, hidden). In code, use `upsertSmSecret` from `scripts/lib/bitwarden-sm.mjs` (with the `ark-local` token from `vaultSmAccessToken()`), or `env:<app>:push`. A key must be in `SECRET_OWNERS` before it can be stored.
