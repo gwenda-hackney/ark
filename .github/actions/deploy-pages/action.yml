@@ -73,10 +73,6 @@ inputs:
     description: Public address of a non-live build (PUBLIC_SITE_ORIGIN). Empty = prod's preview.
     required: false
     default: ""
-  snapshot-environment:
-    description: prod or dev. Which environment's build snapshot to record.
-    required: false
-    default: prod
   baserow-ops-api-key:
     description: Ops Baserow token for the featured artist at build time
     required: false
@@ -199,4 +195,4 @@ runs:
     - name: Save content snapshot
       if: inputs.snapshot-site != '' && inputs.skip-build != 'true'
       shell: bash
-      run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}" --environment "${{ inputs.snapshot-environment }}"
+      run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}"

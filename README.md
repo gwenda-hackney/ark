@@ -101,7 +101,7 @@ The same dev copies, run locally:
 
 ### Shared by both
 
-- **Settings:** the "Gwenda Config" Baserow database (`569392`). Each row is marked with its environment; dev is called `local` there.
+- **Settings:** the "Gwenda Config" Baserow database, one per environment (Gwenda for production, Gwenda Dev for dev).
 - **Secrets:** Bitwarden Secrets Manager. Dev (your machine and the dev sites) uses the `__DEV` versions.
 - **Builds:** the deploy webhook Worker sends each ops app's builds to its own website.
 

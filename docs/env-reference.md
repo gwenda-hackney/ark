@@ -40,7 +40,7 @@ Production values never sit in a `-dev` project, so the dev CI token, which read
 
 ### `ark`
 
-Production values (`NAME__PRODUCTION`) for shared infrastructure: Cloudflare, the config database, GitHub dispatch, UptimeRobot. None of these has a production-only value at present, so it is empty.
+Production values (`NAME__PRODUCTION`) for shared infrastructure: the config database token, the GitHub dispatch token, the UptimeRobot key.
 
 - **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token).
 - **Open:** [ark in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/4752cab2-4d4d-441d-be41-b4d600c97608/secrets)
@@ -54,14 +54,14 @@ Production values for ops: its Baserow token, session secret and local admin pas
 
 ### `ark/web`
 
-Production values for the website: its Baserow and Sanity tokens, the signing secret, the preview password and gate key, the form admin secret.
+Production values for the website: its Baserow and Sanity tokens, the signing secret, the preview password and gate key, the form admin secret, the deploy webhook secret, the Studio deploy token, the Mailchimp key and sync secret.
 
 - **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token).
 - **Open:** [ark/web in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/7b53d05f-9f8a-49b7-abcf-b4d600c980ac/secrets)
 
 ### `ark-dev`
 
-Dev values (`NAME__DEV`) and shared values (plain `NAME`, one value for both environments) for shared infrastructure: the Cloudflare token and account id, the config database token, the GitHub dispatch token, the UptimeRobot key.
+Dev values (`NAME__DEV`) and shared values (plain `NAME`, one value for both environments) for shared infrastructure: the Cloudflare token and account id, the config database token.
 
 - **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token), [`ark-ci-dev`](#ark_ci_dev_token).
 - **Open:** [ark-dev in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/502b2a1d-332e-46d0-948f-b4d70079cf1e/secrets)
@@ -75,7 +75,7 @@ Dev and shared values for ops: its dev Baserow token, session secret and local a
 
 ### `ark/web-dev`
 
-Dev and shared values for the website: its dev Baserow and Sanity tokens, signing secret, preview password and gate key, form admin secret; and the shared deploy webhook secret, Studio deploy token, Mailchimp key and sync secret, UniFi key.
+Dev and shared values for the website: its dev Baserow and Sanity tokens, signing secret, preview password and gate key, form admin secret, deploy webhook secret; and the shared UniFi key.
 
 - **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token), [`ark-ci-dev`](#ark_ci_dev_token).
 - **Open:** [ark/web-dev in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/ebcf1b4b-8711-4863-a539-b4d70079fe89/secrets)
@@ -180,8 +180,8 @@ Guest data from the website (form entries, subscribers, RSVPs) lives in Baserow'
 Non-secret settings (for example `forms.notify_email`, who gets form emails) and machine state live in a Baserow config database rather than in code, so they change without a deploy. This token reads and writes it.
 
 - **Owner:** Baserow user automation@gwenda.co.uk.
-- **SM:** `BASEROW_CONFIG_API_KEY`, shared, in [`ark-dev`](#ark-dev).
-- **What:** a database token for "Gwenda Config", the runtime settings both environments read. One table holds both environments' rows.
+- **SM:** `BASEROW_CONFIG_API_KEY__PRODUCTION` in [`ark`](#ark); `BASEROW_CONFIG_API_KEY__DEV` in [`ark-dev`](#ark-dev).
+- **What:** a database token for the environment's own "Gwenda Config" database (Gwenda for production, Gwenda Dev for dev). Each token sees only its own, so dev can't change production's settings.
 - **Used by:** ops and the website (`shared/config-db.js`), `setup:baserow-config`.
 - **Gets there by:** Pages secrets on ops and the website; CI pull.
 - **Expires:** never.
@@ -493,7 +493,7 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account | shared | — / [`ark-dev`](#ark-dev) | never |
 | `BASEROW_OPS_API_KEY` | Baserow automation@ | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
 | `BASEROW_WEBSITE_API_KEY` | Baserow automation@ | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
-| `BASEROW_CONFIG_API_KEY` | Baserow automation@ | shared | — / [`ark-dev`](#ark-dev) | never |
+| `BASEROW_CONFIG_API_KEY` | Baserow automation@ | `__DEV` / `__PRODUCTION` | [`ark`](#ark) / [`ark-dev`](#ark-dev) | never |
 | `BASEROW_JWT_EMAIL` / `_PASSWORD` | Baserow automation@ | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `SANITY_API_TOKEN` | Sanity projects | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `SANITY_DEPLOY_TOKEN` | Sanity project `pn5yjro6` | shared | — / [`ark/web-dev`](#arkweb-dev) | never |

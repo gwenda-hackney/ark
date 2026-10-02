@@ -141,7 +141,6 @@ jobs:
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
           secrets-profile: dev
           snapshot-site: ${{ matrix.site == 'live' && 'production' || 'preview' }}
-          snapshot-environment: dev
 
       - name: Smoke test
         env:

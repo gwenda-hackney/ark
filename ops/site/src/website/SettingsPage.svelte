@@ -58,7 +58,7 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader title="Settings" subtitle="Every setting, in every environment, and where its value comes from.">
+	<PageHeader title="Settings" subtitle="Every setting in this environment, and where its value comes from.">
 		{#snippet actions()}
 			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>Developer tools</Button>
 			<Button variant="outline" size="sm" disabled={loading} onclick={() => void load()}>
@@ -76,8 +76,8 @@
 		<div class="ready" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 			<p class="intro">
 				Values come from, in order: a developer's own <strong>.env</strong> (on their machine
-				only), then the <strong>Gwenda Config</strong> database
-				(this environment's row, else <code>all</code>). A developer's machine reads the Dev rows.
+				only), then this environment's <strong>Gwenda Config</strong> database
+				(this environment's row, else <code>all</code>). A developer's machine reads Dev's database.
 				You're viewing from <strong>{ENV_LABELS[data.current] || data.current}</strong>{data.onMachine
 					? " on a developer's machine"
 					: ""}.
@@ -95,7 +95,9 @@
 									{ENV_LABELS[envName] || envName}
 								</th>
 							{/each}
-							<th scope="col" class:current={data.onMachine}>Developer's machine</th>
+							{#if data.current === "dev"}
+								<th scope="col" class:current={data.onMachine}>Developer's machine</th>
+							{/if}
 						</tr>
 					</thead>
 					<tbody>
@@ -113,19 +115,21 @@
 										<span class="from {sourceTone(cell)}">{cell.from}</span>
 									</td>
 								{/each}
-								<td class:current={data.onMachine}>
-									{#if row.local}
-										<span class="value">
-											{row.local.value ?? (data.onMachine ? "—" : "(each developer's own)")}
-										</span>
-										<span class="from local">
-											.env <code>{row.local.env}</code>{row.local.required ? ", required" : ""}
-										</span>
-									{:else}
-										<span class="value">{row.machine.value || "—"}</span>
-										<span class="from {sourceTone(row.machine)}">{row.machine.from}</span>
-									{/if}
-								</td>
+								{#if data.current === "dev"}
+									<td class:current={data.onMachine}>
+										{#if row.local}
+											<span class="value">
+												{row.local.value ?? (data.onMachine ? "—" : "(each developer's own)")}
+											</span>
+											<span class="from local">
+												.env <code>{row.local.env}</code>{row.local.required ? ", required" : ""}
+											</span>
+										{:else}
+											<span class="value">{row.machine.value || "—"}</span>
+											<span class="from {sourceTone(row.machine)}">{row.machine.from}</span>
+										{/if}
+									</td>
+								{/if}
 							</tr>
 						{/each}
 					</tbody>

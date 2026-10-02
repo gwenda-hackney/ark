@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 /**
- * Create or repair the Baserow "Gwenda Config" database (workspace Gwenda).
- * See shared/config.js (the config service) for how settings resolve.
- * Additive only (safe before a deploy): removing rows the running code may
- * still read happens after the deploy (migrations/config-retired-settings.mjs).
+ * Create or repair an environment's Baserow "Gwenda Config" database:
+ * production's in the Gwenda workspace, dev's in Gwenda Dev. Each has its own
+ * token, so dev can't change production's settings. See shared/config.js (the
+ * config service) for how settings resolve. Additive only (safe before a
+ * deploy): removing rows the running code may still read happens after the
+ * deploy (migrations/config-retired-settings.mjs).
  *
- *   npm run setup:baserow-config            # database, table, fields, seed rows
- *   npm run setup:baserow-config -- --token # also mint BASEROW_CONFIG_API_KEY → SM (Ark)
+ *   npm run setup:baserow-config -- --env dev            # database, table, fields, seed rows
+ *   npm run setup:baserow-config -- --env dev --token    # also mint BASEROW_CONFIG_API_KEY__DEV → SM
+ *   npm run setup:baserow-config -- --env production --token
  *
  * Seeding only adds missing Name/Env/Service rows. It never overwrites edits.
- * Needs a Baserow user JWT (cached in .baserow-jwt.json).
+ * Logs in to Baserow as that environment's BASEROW_JWT_EMAIL (from SM).
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -22,12 +25,26 @@ import {
   SETTINGS,
 } from "../shared/config.js";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
-import { listAllSmSecrets, resolveSmAccessToken, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import {
+  listAllSmSecrets,
+  productionSecretValues,
+  resolveSecretsForEnv,
+  resolveSmAccessToken,
+  upsertSmSecret,
+} from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const API = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\/$/, "");
-/** Paid Gwenda workspace (production data lives here too), found by name. */
-const WORKSPACE_NAME = "Gwenda";
+/** Each environment's workspace, found by name. */
+const WORKSPACES = { production: "Gwenda", dev: "Gwenda Dev" };
+const envArg = process.argv.indexOf("--env");
+const TARGET = envArg > 0 ? process.argv[envArg + 1] : "";
+if (!WORKSPACES[TARGET]) {
+  console.error("Usage: setup-baserow-config.mjs --env dev|production [--token]");
+  process.exit(2);
+}
+const WORKSPACE_NAME = WORKSPACES[TARGET];
+const SM_KEY = `BASEROW_CONFIG_API_KEY__${TARGET.toUpperCase()}`;
 
 async function workspaceId(jwt) {
   const workspaces = await request(jwt, "/api/workspaces/");
@@ -35,12 +52,11 @@ async function workspaceId(jwt) {
   if (!found) throw new Error(`Baserow workspace "${WORKSPACE_NAME}" not found.`);
   return found.id;
 }
-const TOKEN_NAME = "gwenda-config";
 
 /** Every hosted non-prod site. A developer's machine uses FORMS_NOTIFY_EMAIL from .env. */
 const NONPROD_NOTIFY = "alerts@gwenda.co.uk";
 
-/** [Name, Value, Env, Service, Notes] */
+/** [Name, Value, Env, Service, Notes]; each database gets the rows for all and its own env. */
 const SEED_ROWS = [
   ["pour_target.cocktail", "20", "all", "ops", "House pour-cost % of selling price"],
   ["pour_target.pour", "18", "all", "ops", ""],
@@ -53,6 +69,9 @@ const SEED_ROWS = [
 
 
 
+/** Settings rows use all + the env; machine state also uses a site's name (preview). */
+const ENV_OPTIONS = ["all", ...CONFIG_ENVS, "preview"];
+
 const SELECT = (values) =>
   values.map((value, i) => ({
     value,
@@ -61,7 +80,7 @@ const SELECT = (values) =>
 
 const FIELDS = [
   { name: "Value", type: "long_text" },
-  { name: "Env", type: "single_select", select_options: SELECT(["all", ...CONFIG_ENVS]) },
+  { name: "Env", type: "single_select", select_options: SELECT(ENV_OPTIONS) },
   { name: "Service", type: "single_select", select_options: SELECT(["all", "ops", "web"]) },
   { name: "Notes", type: "long_text" },
 ];
@@ -122,26 +141,14 @@ async function ensureFields(jwt, tableId) {
   }
 }
 
-/**
- * Env choices are all + CONFIG_ENVS. The old "local" choice is renamed to
- * "dev" in place, so its rows keep their values (a developer's own values
- * live in their .env, not here).
- */
+/** Add any missing Env choice. */
 async function ensureEnvOptions(jwt, tableId) {
   const fields = await request(jwt, `/api/database/fields/table/${tableId}/`);
   const field = fields.find((row) => row.name === "Env");
   if (!field) return;
-  const wanted = ["all", ...CONFIG_ENVS];
   let changed = false;
-  const options = field.select_options.map((option) => {
-    if (option.value === "local" && !field.select_options.some((o) => o.value === "dev")) {
-      changed = true;
-      console.log("~ Env option local → dev");
-      return { ...option, value: "dev" };
-    }
-    return option;
-  });
-  for (const value of wanted) {
+  const options = [...field.select_options];
+  for (const value of ENV_OPTIONS) {
     if (options.some((option) => option.value === value)) continue;
     changed = true;
     console.log(`+ Env option ${value}`);
@@ -165,6 +172,7 @@ async function seedRows(jwt, tableId) {
     rows.map((row) => `${row.Name}|${row.Env?.value || "all"}|${row.Service?.value || "all"}`),
   );
   for (const [Name, Value, Env, Service, Notes] of SEED_ROWS) {
+    if (Env !== "all" && Env !== TARGET) continue;
     if (have.has(`${Name}|${Env}|${Service}`)) continue;
     console.log(`+ ${Name} (${Env}/${Service})`);
     await request(jwt, `/api/database/rows/table/${tableId}/?user_field_names=true`, {
@@ -177,13 +185,13 @@ async function seedRows(jwt, tableId) {
 async function mintToken(jwt, databaseId) {
   const accessToken = resolveSmAccessToken();
   if (!accessToken) throw new Error("Run bw-unlock to store the token in SM.");
-  if (listAllSmSecrets({ accessToken }).get("BASEROW_CONFIG_API_KEY")) {
-    console.log("SM already has BASEROW_CONFIG_API_KEY. Delete it first to rotate.");
+  if (listAllSmSecrets({ accessToken }).get(SM_KEY)) {
+    console.log(`SM already has ${SM_KEY}. Delete it first to rotate.`);
     return;
   }
   const token = await request(jwt, "/api/database/tokens/", {
     method: "POST",
-    body: JSON.stringify({ name: TOKEN_NAME, workspace: await workspaceId(jwt) }),
+    body: JSON.stringify({ name: SM_KEY, workspace: await workspaceId(jwt) }),
   });
   const scoped = [["database", Number(databaseId)]];
   await request(jwt, `/api/database/tokens/${token.id}/`, {
@@ -193,17 +201,28 @@ async function mintToken(jwt, databaseId) {
     }),
   });
   const result = upsertSmSecret({
-    key: "BASEROW_CONFIG_API_KEY",
+    key: SM_KEY,
     value: token.key,
     accessToken,
-    note: `Baserow token "${TOKEN_NAME}": read/create/update/delete on ${CONFIG_DATABASE_NAME} only. All envs.`,
+    note: `Baserow token "${SM_KEY}": read/create/update/delete on ${WORKSPACE_NAME} / ${CONFIG_DATABASE_NAME} only.`,
   });
-  console.log(`SM BASEROW_CONFIG_API_KEY: ${result}`);
+  console.log(`SM ${SM_KEY}: ${result}`);
+}
+
+/** Log in as this environment's Baserow user. */
+function useEnvLogin() {
+  const secrets =
+    TARGET === "production" ? productionSecretValues() : resolveSecretsForEnv(listAllSmSecrets(), "dev");
+  for (const key of ["BASEROW_JWT_EMAIL", "BASEROW_JWT_PASSWORD"]) {
+    const value = secrets.get(key);
+    if (value) process.env[key] = value;
+  }
 }
 
 async function main() {
   loadRootEnv();
-  const jwt = await getBaserowJwt(API, { hint: "Gwenda workspace" });
+  useEnvLogin();
+  const jwt = await getBaserowJwt(API, { hint: `${WORKSPACE_NAME} workspace` });
   const database = await findOrCreateDatabase(jwt);
   const table = await findOrCreateTable(jwt, database.id);
   await ensureFields(jwt, table.id);

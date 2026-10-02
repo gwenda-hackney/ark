@@ -7,7 +7,7 @@ Gwenda separates **secrets**, **deploy-time vars**, and **runtime config**.
 | Secrets | Bitwarden Secrets Manager → process env locally (after `bw-unlock`) / Cloudflare Pages secrets | API tokens, passwords, signing keys |
 | Deploy-time plain config | `wrangler.toml` `[vars]` | `SITE_ENV`, `ALERT_EMAIL` |
 | Fixed values, same in every env | Code constants | Mail sender (`shared/mail-from.js`) |
-| Runtime non-secret config | Baserow **Gwenda Config** database (one table, profiled by Env + Service) | Pour targets, Sanity project/dataset, dev notify inbox |
+| Runtime non-secret config | Baserow **Gwenda Config** database, one per environment (profiled by Env + Service) | Pour targets, Sanity project/dataset, dev notify inbox |
 | Marketing product flags | Sanity `siteSettings` | Booking / gallery toggles |
 
 | File | Role |
@@ -47,7 +47,7 @@ Projects record ownership (`SECRET_OWNERS`). A key must live in exactly one proj
 
 | Project (name in SM) | Owns |
 |---------|------|
-| `ark` | Cloudflare tokens, `BASEROW_CONFIG_API_KEY` |
+| `ark` | Cloudflare tokens, `BASEROW_CONFIG_API_KEY__*` |
 | `ark/ops` | `BASEROW_OPS_API_KEY__*`, Google service account + OAuth secret, ops session/bypass, Lightspeed, Baserow login `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (automation@) |
 | `ark/web` | `BASEROW_WEBSITE_API_KEY__*`, `FORMS_ADMIN_SECRET__*`, Sanity, deploy webhook, subscribe, site gate, Instagram |
 
@@ -79,7 +79,7 @@ A shared `NAME` is visible to the dev token, so it must not be able to change pr
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes: sends mail as notifications@, edits calendars | Split: a dev service account limited to the dev calendar and the safe inbox (follow-up) |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Low: sign-in only works on registered addresses | Split: a dev OAuth client (follow-up) |
 | `BASEROW_JWT_EMAIL` / `_PASSWORD` | Yes: automation@ is in both workspaces | Split: a dev-only Baserow user for dev migrations (follow-up) |
-| `BASEROW_CONFIG_API_KEY` | Yes: one config table holds both envs' rows | Split the config database per env (follow-up) |
+| `BASEROW_CONFIG_API_KEY` | Yes, when one config table held both envs' rows | Split: a Gwenda Config database per env, `__DEV` and `__PRODUCTION` tokens |
 | `DEPLOY_WEBHOOK_SECRET` | Yes: the webhook can start a live promote | Split: `__PRODUCTION` and `__DEV`; the webhook lets the dev one rebuild the dev website only |
 
 ```bash
@@ -103,7 +103,7 @@ Deploy workflows (`web.yml`, `web-promote.yml`) ship code only. They do not push
 
 ## Runtime config: Gwenda Config database
 
-Non-secret settings live in one Baserow database, **Gwenda Config** (`569392`, table `Config`, workspace `Gwenda`). It sits outside the Ops and Website databases, so cloning or promoting data between envs (for example prod Ops → dev Ops) never copies config.
+Non-secret settings live in a Baserow database called **Gwenda Config** (table `Config`), one per environment: production's in the **Gwenda** workspace, dev's in **Gwenda Dev**. Each has its own token, so nothing that runs in dev can change production's settings. It sits outside the Ops and Website databases, so copying data between envs (prod Ops → dev Ops) never copies config.
 
 | Column | Values |
 |--------|--------|
@@ -117,11 +117,11 @@ Non-secret settings live in one Baserow database, **Gwenda Config** (`569392`, t
 All code reads settings through **`shared/config.js`**, never the database directly (`shared/config.test.js` fails the build otherwise). It decides where each value comes from, in order:
 
 1. **A developer's own value.** On a developer's machine (`SITE_ENV=local`, set by `npm run ops:dev` / `web:dev`), settings marked `local` read that developer's value: `FORMS_NOTIFY_EMAIL` defaults to their git email (`git config user.email`) and can be overridden in `.env`. `ops:dev` / `web:dev` refuse to start without it.
-2. **The Config database.** This environment's row, else the `all` row. A developer's machine reads the **dev** rows: dev settings are its defaults.
+2. **The Config database.** This environment's row, else the `all` row. A developer's machine reads **dev's** database: dev settings are its defaults.
 
-The environment comes from `SITE_ENV`: `dev` (hosted dev), `local` (a developer's machine, which is dev), `production`. Prod's preview runs as `production`. A runtime writes only its own Env row (e.g. ops `/config` pour targets). Values are cached for 60 seconds per isolate. Every env reads with the same token, SM `BASEROW_CONFIG_API_KEY` (Ark, shared), which only sees this database.
+The environment comes from `SITE_ENV`: `dev` (hosted dev), `local` (a developer's machine, which is dev), `production`. Prod's preview runs as `production`. A runtime writes only its own Env row (e.g. ops `/config` pour targets). Values are cached for 60 seconds per isolate. Each environment reads its own database with its own token, `BASEROW_CONFIG_API_KEY__DEV` or `__PRODUCTION`, which sees only that database.
 
-Ops **Developer tools → Settings** lists every setting for each environment and where its value comes from.
+Ops **Developer tools → Settings** lists every setting in its environment and where its value comes from; in dev it also shows a developer's machine.
 
 | Key | Env / Service | Meaning | On a developer's machine |
 |-----|---------------|---------|--------------------------|
@@ -138,11 +138,12 @@ Ops **Developer tools → Settings** lists every setting for each environment an
 Do **not** put credentials here.
 
 ```bash
-npm run setup:baserow-config            # create/repair DB, table, fields, seed rows (JWT). Additive only.
-npm run setup:baserow-config -- --token # also mint the read/write token into SM
+npm run setup:baserow-config -- --env dev               # create/repair DB, table, fields, seed rows. Additive only.
+npm run setup:baserow-config -- --env dev --token       # also mint BASEROW_CONFIG_API_KEY__DEV into SM
+npm run setup:baserow-config -- --env production --token
 ```
 
-**Breaking config changes happen after the deploy.** The code still running may read a row until the new code is live. So: add what both versions need first (`setup:baserow-config` only adds), deploy, then remove the old. Retired settings are listed in `RETIRED_SETTINGS` (`shared/config.js`); `migrations/config-retired-settings.mjs` removes their rows after the production ops deploy (see [migrations](migrations.md)).
+**Breaking config changes happen after the deploy.** The code still running may read a row until the new code is live. So: add what both versions need first (`setup:baserow-config` only adds), deploy, then remove the old. Retired settings are listed in `RETIRED_SETTINGS` (`shared/config.js`); `migrations/config-retired-settings.mjs` removes their rows after each ops deploy (see [migrations](migrations.md)).
 
 ### Machine state in Gwenda Config
 
@@ -150,8 +151,8 @@ A few rows are written by code, not people. Leave them alone:
 
 | Key | Service | Env | Written by | Holds |
 |---|---|---|---|---|
-| `site.build_snapshot` (`.dev` for the dev website) | web | the site: preview / production (live) | deploy job (`site-build-snapshot.mjs`) | What the last build was made from |
-| `site.auto_update` (`.dev` for dev ops) | ops | the site: preview / production | ops scheduler tick | Quiet timer, running build, failures |
+| `site.build_snapshot` | web | the site: preview / production (live) | deploy job (`site-build-snapshot.mjs`) | What the last build was made from |
+| `site.auto_update` | ops | the site: preview / production | ops scheduler tick | Quiet timer, running build, failures |
 | `site.prep_failures` | ops | environment | ops website jobs | Events that couldn't be got ready for the website |
 
 
@@ -164,7 +165,7 @@ No Baserow workspace, database or table id is configured anywhere. They change w
 
 The Baserow data tokens only exist per env (`__DEV` / `__PRODUCTION`), never as a shared value. That is what keeps a developer's machine off production data; there is no id check.
 
-### The five tokens
+### The six tokens
 
 Each Baserow token is named exactly like the SM key that holds it, so there is never a question of which token is which. They belong to the `automation@gwenda.co.uk` Baserow user (the `BASEROW_JWT_EMAIL` login), not to a person, and have create / read / update / delete on the listed databases only:
 
@@ -174,9 +175,10 @@ Each Baserow token is named exactly like the SM key that holds it, so there is n
 | `BASEROW_WEBSITE_API_KEY__PRODUCTION` | Gwenda | Website |
 | `BASEROW_OPS_API_KEY__DEV` | Gwenda Dev | Gwenda Ops, Website |
 | `BASEROW_WEBSITE_API_KEY__DEV` | Gwenda Dev | Website |
-| `BASEROW_CONFIG_API_KEY` | Gwenda | Gwenda Config (every env reads it) |
+| `BASEROW_CONFIG_API_KEY__PRODUCTION` | Gwenda | Gwenda Config |
+| `BASEROW_CONFIG_API_KEY__DEV` | Gwenda Dev | Gwenda Config |
 
-The website has its own token so the public site never holds a key to staff data. Config has its own because every env, dev included, reads the one Config table in the Gwenda workspace.
+The website has its own token so the public site never holds a key to staff data. Config has its own so a settings reader never holds a key to data.
 
 ## Ops Baserow workspaces
 
