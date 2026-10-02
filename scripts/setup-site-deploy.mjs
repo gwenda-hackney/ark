@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
-import { listAllSmSecrets, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import { productionSecretValues, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/site-deploy-webhook");
@@ -69,10 +69,10 @@ async function main() {
     console.log("Reusing DEPLOY_WEBHOOK_SECRET from Secrets Manager.");
   }
 
-  const dispatchToken = listAllSmSecrets().get("DISPATCH_TOKEN")?.trim();
+  const dispatchToken = productionSecretValues().get("DISPATCH_TOKEN")?.trim();
   if (!dispatchToken) {
     throw new Error(
-      "DISPATCH_TOKEN is missing from Secrets Manager (ark). Create a fine-grained GitHub token " +
+      "DISPATCH_TOKEN__PRODUCTION is missing from Secrets Manager (ark). Create a fine-grained GitHub token " +
         "for gwenda-hackney/ark (Actions: read and write, Contents: read); see docs/secrets-rebuild.md.",
     );
   }

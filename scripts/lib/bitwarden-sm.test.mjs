@@ -6,6 +6,8 @@ import {
   assertProductionReadable,
   defaultSecretEnv,
   DEV_PROJECT_NAMES,
+  PRODUCTION_ONLY,
+  localSecretNames,
   pickVisibleProjectIds,
   envSecretKey,
   isSmRateLimited,
@@ -255,5 +257,28 @@ describe("dev and production projects (#61)", () => {
       /can't read production secrets/,
     );
     assert.doesNotThrow(() => assertProductionReadable(new Map([["SANITY_API_TOKEN__PRODUCTION", "z"]])));
+  });
+});
+
+describe("production-only names (#61)", () => {
+  it("leaves them out of a dev pull instead of reporting them missing", () => {
+    const resolved = new Map([["SANITY_API_TOKEN", "x"]]);
+    const dev = pickAppSecrets("web", resolved, "dev");
+    assert.ok(!dev.missing.includes("SANITY_DEPLOY_TOKEN"));
+    const production = pickAppSecrets("web", resolved, "production");
+    assert.ok(production.missing.includes("SANITY_DEPLOY_TOKEN"));
+  });
+
+  it("gives a production pull the __PRODUCTION value under the plain name", () => {
+    const resolved = resolveSecretsForEnv(new Map([["SANITY_DEPLOY_TOKEN__PRODUCTION", "deploy"]]), "production");
+    assert.equal(pickAppSecrets("web", resolved, "production").values.get("SANITY_DEPLOY_TOKEN"), "deploy");
+  });
+
+  it("keeps them out of what a developer's machine loads", () => {
+    for (const name of PRODUCTION_ONLY) assert.ok(!localSecretNames().includes(name), name);
+  });
+
+  it("every production-only name has an owning project", () => {
+    for (const name of PRODUCTION_ONLY) assert.ok(ownerOf(name), name);
   });
 });

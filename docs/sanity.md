@@ -77,7 +77,7 @@ Each token is named after the Secrets Manager key that holds it:
 | --- | --- | --- | --- |
 | `SANITY_API_TOKEN__DEV` | Gwenda Dev (`gwscpagy`) | **Editor** | Local and dev: ops, website builds, seeds |
 | `SANITY_API_TOKEN__PRODUCTION` | Gwenda (`pn5yjro6`) | **Editor** | Production ops and the live website build |
-| `SANITY_DEPLOY_TOKEN` | Gwenda (`pn5yjro6`) | **Deploy Studio** | Hosted Studio deploys |
+| `SANITY_DEPLOY_TOKEN__PRODUCTION` | Gwenda (`pn5yjro6`) | **Deploy Studio** | Hosted Studio deploys |
 
 Create or rotate them with a **personal** admin session:
 
@@ -163,5 +163,5 @@ Prerequisites: `bw-unlock` (for `CLOUDFLARE_API_TOKEN`), `gh auth login` with `r
 | Secret / var | Role |
 |---|---|
 | `DEPLOY_WEBHOOK_SECRET` | Shared password — GitHub secret, Worker secret, ops |
-| `DISPATCH_TOKEN` | GitHub PAT with Actions write — Worker uses it to trigger deploy workflows (setup uses `gh auth token`) |
+| `DISPATCH_TOKEN__PRODUCTION` | GitHub PAT with Actions write — Worker uses it to trigger deploy workflows (setup uses `gh auth token`) |
 | `SANITY_STUDIO_SITE_DEPLOY_URL` | Public Worker URL — GitHub secret + ops `wrangler.toml` |

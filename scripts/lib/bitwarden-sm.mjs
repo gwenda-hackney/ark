@@ -167,6 +167,20 @@ export const SECRET_OWNERS = {
 };
 
 /**
+ * Names that only ever have a production value (NAME__PRODUCTION, no shared
+ * NAME), so the dev token never sees them (#61): they act on the real
+ * services. A dev pull skips them instead of reporting them missing; a
+ * script that needs one reads productionSecretValues().
+ */
+export const PRODUCTION_ONLY = [
+  "DISPATCH_TOKEN",
+  "MAILCHIMP_API_KEY",
+  "SUBSCRIBE_MAILCHIMP_SYNC_SECRET",
+  "SANITY_DEPLOY_TOKEN",
+  "UPTIME_ROBOT_API_KEY",
+];
+
+/**
  * Runtime keys each app gets. Runtime name = SM name except `rename`
  * (runtime → SM), where an app reads a secret under its own name. Locally the
  * rename is applied by scripts/lib/load-env.mjs; CI gets runtime names from
@@ -231,7 +245,7 @@ export function localSecretNames() {
   for (const app of Object.keys(APP_SECRETS)) {
     for (const key of APP_SECRETS[app].keys) {
       const smName = smNameFor(app, key);
-      if (!names.includes(smName)) names.push(smName);
+      if (!names.includes(smName) && !PRODUCTION_ONLY.includes(smName)) names.push(smName);
     }
   }
   return names;
@@ -330,13 +344,15 @@ export function resolveSecretsForEnv(raw, env) {
 
 /**
  * Runtime env for an app: resolved SM values under the app's runtime names.
+ * Outside production, PRODUCTION_ONLY names are left out, not missing.
  * @returns {{ values: Map<string, string>, missing: string[] }}
  */
-export function pickAppSecrets(app, resolved) {
+export function pickAppSecrets(app, resolved, env = "production") {
   const spec = appSecrets(app);
   const values = new Map();
   const missing = [];
   for (const key of spec.keys) {
+    if (normalizeSecretEnv(env) !== "production" && PRODUCTION_ONLY.includes(smNameFor(app, key))) continue;
     const value = resolved.get(smNameFor(app, key));
     if (value == null || !String(value).trim()) missing.push(key);
     else values.set(key, String(value));
@@ -522,8 +538,19 @@ export function listAllSmSecrets({ accessToken, serverUrl } = {}) {
 export function loadAppSecretsFromSm(app, env, { accessToken, serverUrl } = {}) {
   const raw = listAllSmSecrets({ accessToken, serverUrl });
   if (normalizeSecretEnv(env) === "production") assertProductionReadable(raw);
-  const picked = pickAppSecrets(app, resolveSecretsForEnv(raw, env));
+  const picked = pickAppSecrets(app, resolveSecretsForEnv(raw, env), env);
   return { ...picked, raw };
+}
+
+/**
+ * Every value resolved for production, for a script that acts on production
+ * (setup:*, a PRODUCTION_ONLY credential). Needs a token that can read it.
+ * @returns {Map<string, string>}
+ */
+export function productionSecretValues({ accessToken, serverUrl } = {}) {
+  const raw = listAllSmSecrets({ accessToken, serverUrl });
+  assertProductionReadable(raw);
+  return resolveSecretsForEnv(raw, "production");
 }
 
 /**
@@ -572,6 +599,9 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
   const owner = ownerOf(parsed.name);
   if (!owner) {
     throw new Error(`${trimmedKey} has no owning project. Add it to SECRET_OWNERS first.`);
+  }
+  if (parsed.env !== "production" && PRODUCTION_ONLY.includes(parsed.name)) {
+    throw new Error(`${parsed.name} is production-only. Store it as ${parsed.name}__PRODUCTION.`);
   }
   // NAME__PRODUCTION stays in the production project; NAME__DEV and shared
   // NAME go to the owner's -Dev project once it exists.
