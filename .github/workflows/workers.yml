@@ -1,9 +1,11 @@
 name: Workers
 
+# Production Workers: they deploy from release, in the production GitHub
+# environment that holds the production Bitwarden token (#61).
 on:
   push:
     branches:
-      - main
+      - release
     paths:
       - "marketing/site-deploy-webhook/**"
       - "marketing/subscribe-mailchimp-sync/**"
@@ -70,6 +72,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.site_deploy == 'true'
     runs-on: ubuntu-latest
+    environment:
+      name: production
     permissions:
       contents: read
     steps:
@@ -116,6 +120,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.mailchimp == 'true'
     runs-on: ubuntu-latest
+    environment:
+      name: production
     permissions:
       contents: read
     steps:
@@ -164,6 +170,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.site_health == 'true'
     runs-on: ubuntu-latest
+    environment:
+      name: production
     permissions:
       contents: read
     steps:

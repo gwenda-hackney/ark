@@ -12,7 +12,12 @@
  * an env itself. The one reader that spans envs (ops comparing production with
  * its dev copy) asks for the suffixed name, e.g. BASEROW_OPS_API_KEY__DEV.
  *
- * Projects (Ark, Ark/Ops, Ark/Web) only record ownership. Pulls merge all three.
+ * Projects record ownership, in pairs like everything else (#61): Ark, Ark/Ops
+ * and Ark/Web are production and hold the NAME__PRODUCTION values; Ark-Dev,
+ * Ark/Ops-Dev and Ark/Web-Dev hold NAME__DEV and the shared NAME values. The
+ * dev CI token reads only the -Dev projects, so only release jobs in the
+ * production GitHub environment see production secrets. A pull merges every
+ * project the token can read and skips the ones it can't.
  */
 import { spawnSync } from "node:child_process";
 import {
@@ -30,6 +35,9 @@ export const DEFAULT_SM_SERVER = "https://vault.bitwarden.eu";
 
 /** SM project names (matched ignoring case), so recreated projects need no code change. */
 export const PROJECT_NAMES = { ark: "ark", ops: "ark/ops", web: "ark/web" };
+
+/** The dev projects: NAME__DEV and shared NAME values, all the dev token reads. */
+export const DEV_PROJECT_NAMES = { ark: "ark-dev", ops: "ark/ops-dev", web: "ark/web-dev" };
 
 const PROJECT_ID_OVERRIDES = {
   ark: "BWS_ARK_PROJECT_ID",
@@ -65,20 +73,60 @@ export function pickProjectIds(projects, env = process.env) {
   return out;
 }
 
-const projectIdsByToken = new Map();
+/**
+ * Owner → id of each project in `names` this token can see. One it can't see
+ * (the dev token can't see production; before the -Dev projects exist) is left
+ * out, not an error.
+ * @param {{ id: string, name: string }[]} projects
+ * @param {Record<string, string>} names
+ */
+export function pickVisibleProjectIds(projects, names) {
+  const out = {};
+  for (const [owner, name] of Object.entries(names)) {
+    const matches = projects.filter((p) => String(p.name || "").trim().toLowerCase() === name);
+    if (matches.length > 1) throw new Error(`Several Secrets Manager projects are named ${name}. Keep one.`);
+    if (matches.length) out[owner] = matches[0].id;
+  }
+  return out;
+}
+
+const projectsByToken = new Map();
+
+function listProjects({ accessToken, serverUrl }) {
+  const cacheKey = `${accessToken || ""}\n${serverUrl || ""}`;
+  if (!projectsByToken.has(cacheKey)) {
+    const projects = runBws(["project", "list"], { accessToken, serverUrl });
+    if (!Array.isArray(projects)) throw new Error("Unexpected bws project list response");
+    projectsByToken.set(cacheKey, projects);
+  }
+  return projectsByToken.get(cacheKey);
+}
 
 /** Owner → project id, looked up by name once per token and server. */
 export function resolveProjectIds({ accessToken, serverUrl, env = process.env } = {}) {
   if (Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim())) {
     return pickProjectIds([], env);
   }
-  const cacheKey = `${accessToken || ""}\n${serverUrl || ""}`;
-  if (!projectIdsByToken.has(cacheKey)) {
-    const projects = runBws(["project", "list"], { accessToken, serverUrl });
-    if (!Array.isArray(projects)) throw new Error("Unexpected bws project list response");
-    projectIdsByToken.set(cacheKey, projects);
-  }
-  return pickProjectIds(projectIdsByToken.get(cacheKey), env);
+  return pickProjectIds(listProjects({ accessToken, serverUrl }), env);
+}
+
+/** Owner → -Dev project id, for the ones this token can see. */
+export function resolveDevProjectIds({ accessToken, serverUrl } = {}) {
+  return pickVisibleProjectIds(listProjects({ accessToken, serverUrl }), DEV_PROJECT_NAMES);
+}
+
+/** Every project this token reads, labelled by its name: [["ark", id], ["ark-dev", id], …]. */
+function readableProjects({ accessToken, serverUrl, env = process.env }) {
+  const overridden = Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim());
+  const projects = overridden ? [] : listProjects({ accessToken, serverUrl });
+  const production = overridden ? pickProjectIds([], env) : pickVisibleProjectIds(projects, PROJECT_NAMES);
+  const dev = pickVisibleProjectIds(projects, DEV_PROJECT_NAMES);
+  const out = [
+    ...Object.entries(production).map(([owner, id]) => [PROJECT_NAMES[owner], id]),
+    ...Object.entries(dev).map(([owner, id]) => [DEV_PROJECT_NAMES[owner], id]),
+  ];
+  if (!out.length) throw new Error("This token can read no Ark Secrets Manager project. Check its access.");
+  return out;
 }
 
 /** Owning SM project for each secret base name. */
@@ -208,6 +256,26 @@ export function ownerOf(smName) {
     if (names.includes(name)) return project;
   }
   return null;
+}
+
+/**
+ * The env a CI job reads by default: production on release (the only branch
+ * the production GitHub environment accepts), dev on every other branch.
+ */
+export function defaultSecretEnv(env = process.env) {
+  return env.GITHUB_REF_NAME === "release" ? "production" : "dev";
+}
+
+/**
+ * Stop a production pull with a token that can't see production values (the
+ * dev CI token), instead of quietly falling back to shared values.
+ * @param {Map<string, string>} raw
+ */
+export function assertProductionReadable(raw) {
+  for (const key of raw.keys()) if (parseSecretKey(key).env === "production") return;
+  throw new Error(
+    "This token can't read production secrets. Only jobs on release in the production GitHub environment can (#61).",
+  );
 }
 
 export function normalizeSecretEnv(value) {
@@ -432,7 +500,7 @@ export function listSmSecretEntries({ accessToken, serverUrl, projectId } = {}) 
 export function listAllSmSecrets({ accessToken, serverUrl } = {}) {
   const out = new Map();
   const seenIn = new Map();
-  for (const [project, projectId] of Object.entries(resolveProjectIds({ accessToken, serverUrl }))) {
+  for (const [project, projectId] of readableProjects({ accessToken, serverUrl })) {
     const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
     for (const [key, entry] of entries) {
       if (seenIn.has(key)) {
@@ -453,6 +521,7 @@ export function listAllSmSecrets({ accessToken, serverUrl } = {}) {
  */
 export function loadAppSecretsFromSm(app, env, { accessToken, serverUrl } = {}) {
   const raw = listAllSmSecrets({ accessToken, serverUrl });
+  if (normalizeSecretEnv(env) === "production") assertProductionReadable(raw);
   const picked = pickAppSecrets(app, resolveSecretsForEnv(raw, env));
   return { ...picked, raw };
 }
@@ -499,11 +568,16 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
   const trimmedValue = value == null ? "" : String(value);
   if (!trimmedKey) throw new Error("upsertSmSecret requires key");
   if (!trimmedValue.trim()) throw new Error(`upsertSmSecret ${trimmedKey}: empty value`);
-  const owner = ownerOf(parseSecretKey(trimmedKey).name);
+  const parsed = parseSecretKey(trimmedKey);
+  const owner = ownerOf(parsed.name);
   if (!owner) {
     throw new Error(`${trimmedKey} has no owning project. Add it to SECRET_OWNERS first.`);
   }
-  const projectId = resolveProjectIds({ accessToken, serverUrl })[owner];
+  // NAME__PRODUCTION stays in the production project; NAME__DEV and shared
+  // NAME go to the owner's -Dev project once it exists.
+  const projectId =
+    (parsed.env !== "production" && resolveDevProjectIds({ accessToken, serverUrl })[owner]) ||
+    resolveProjectIds({ accessToken, serverUrl })[owner];
 
   const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });
   const existing = entries.get(trimmedKey);
@@ -521,7 +595,7 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
 export function deleteSmSecretByKey({ key, accessToken, serverUrl } = {}) {
   const trimmedKey = String(key || "").trim();
   if (!trimmedKey) throw new Error("deleteSmSecretByKey requires key");
-  for (const projectId of Object.values(resolveProjectIds({ accessToken, serverUrl }))) {
+  for (const [, projectId] of readableProjects({ accessToken, serverUrl })) {
     const existing = listSmSecretEntries({ accessToken, serverUrl, projectId }).get(trimmedKey);
     if (!existing?.id) continue;
     clearSecretsCache();
