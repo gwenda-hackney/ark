@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  callerEnvironment,
   handleDeploy,
   handlePromote,
   handleStatus,
@@ -358,6 +359,66 @@ describe("dev website builds", () => {
     expect(result.body.target).toBe("dev-preview");
     expect(result.body.alreadyRunning).toBe(true);
     expect(result.body.runId).toBe(78);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("dev ops' own secret (#120)", () => {
+  const split = { ...env, DEPLOY_WEBHOOK_SECRET_DEV: "dev-secret" };
+  const devAuth = { Authorization: "Bearer dev-secret" };
+  const run = (id: number, title: string, path = ".github/workflows/web.yml") => ({
+    id,
+    status: "in_progress",
+    conclusion: null,
+    html_url: `https://github.com/run/${id}`,
+    path,
+    name: title,
+    display_title: title,
+  });
+
+  it("knows whose secret it is", () => {
+    const withSecret = (secret: string) => new Request("https://x/", { headers: { Authorization: `Bearer ${secret}` } });
+    expect(callerEnvironment(withSecret("test-secret"), split)).toBe("production");
+    expect(callerEnvironment(withSecret("dev-secret"), split)).toBe("dev");
+    expect(callerEnvironment(withSecret("dev-secret"), env)).toBeNull();
+    expect(isAuthorized(withSecret("dev-secret"), split)).toBe(false);
+  });
+
+  it("can't start a live promote, even when it asks for production", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [] })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [run(78, "dev-live")] })));
+    vi.stubGlobal("fetch", fetchMock);
+    const request = new Request("https://x/promote", {
+      method: "POST",
+      headers: devAuth,
+      body: JSON.stringify({ kind: "to-production" }),
+    });
+    const result = await handlePromote(request, split);
+    expect(result.body.target).toBe("dev-live");
+    const [url, init] = fetchMock.mock.calls[1];
+    expect(String(url)).toContain("/web.yml/dispatches");
+    expect(JSON.parse(String(init.body))).toEqual({ ref: "main", inputs: { action: "dev-live" } });
+    vi.unstubAllGlobals();
+  });
+
+  it("can't rebuild prod's preview: it gets the dev preview", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [] })))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ workflow_runs: [run(79, "dev-preview")] })));
+    vi.stubGlobal("fetch", fetchMock);
+    const request = new Request("https://x/deploy", {
+      method: "POST",
+      headers: devAuth,
+      body: JSON.stringify({ target: "preview" }),
+    });
+    const result = await handleDeploy(request, split);
+    expect(result.body.target).toBe("dev-preview");
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body)).inputs).toEqual({ action: "dev-preview" });
     vi.unstubAllGlobals();
   });
 });
