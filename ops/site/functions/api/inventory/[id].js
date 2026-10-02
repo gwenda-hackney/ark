@@ -1,8 +1,8 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
 import {
   deleteInventoryItem,
   updateInventoryItem,
-} from "../../_lib/inventory-store.js";
+} from "../../../src/inventory/server/inventory-store.js";
 
 export const onRequestPatch = withApiHandler(async (context) => {
   const id = context.params?.id;

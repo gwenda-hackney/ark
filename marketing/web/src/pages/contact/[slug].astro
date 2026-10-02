@@ -6,10 +6,7 @@ import Subpage from "../../components/Subpage.astro";
 import ContactForm from "../../components/ContactForm.astro";
 import { siteConfig } from "../../config/site";
 import { PLAY_FORM_SLUG, isReservedFormSlug } from "../../lib/form-paths";
-import {
-  fetchFormBySlug,
-  fetchFormSlugs,
-} from "../../lib/sanity/forms";
+import { fetchFormBySlug, fetchFormSlugs } from "../../lib/sanity/forms";
 import turnTable from "../../assets/images/play/turn-table.jpg";
 
 export async function getStaticPaths() {
@@ -19,7 +16,10 @@ export async function getStaticPaths() {
       .filter((slug) => !isReservedFormSlug(slug))
       .map((slug) => ({ params: { slug } }));
   } catch (error) {
-    console.warn("Form static paths skipped — could not fetch forms from Sanity:", error);
+    console.warn(
+      "Form static paths skipped — could not fetch forms from Sanity:",
+      error,
+    );
     return [];
   }
 }
@@ -41,8 +41,7 @@ const showTurntable = form.slug === PLAY_FORM_SLUG;
 const eyebrow = form.eyebrow?.trim() || "";
 const heading = form.heading?.trim() || "";
 const showEyebrow =
-  Boolean(eyebrow) &&
-  eyebrow.toLowerCase() !== heading.toLowerCase();
+  Boolean(eyebrow) && eyebrow.toLowerCase() !== heading.toLowerCase();
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
@@ -55,8 +54,12 @@ const showEyebrow =
     {
       showTurntable ? (
         <aside slot="aside" class="contact-visual">
-          <div class="contact-visual-bg" aria-hidden="true"></div>
-          <div class="contact-visual-stage" data-play-parallax aria-hidden="true">
+          <div class="contact-visual-bg" aria-hidden="true" />
+          <div
+            class="contact-visual-stage"
+            data-play-parallax
+            aria-hidden="true"
+          >
             <Image
               src={turnTable}
               alt=""
@@ -67,8 +70,8 @@ const showEyebrow =
               fetchpriority="high"
             />
           </div>
-          <div class="contact-visual-overlay" aria-hidden="true"></div>
-          <div class="contact-visual-vignette" aria-hidden="true"></div>
+          <div class="contact-visual-overlay" aria-hidden="true" />
+          <div class="contact-visual-vignette" aria-hidden="true" />
         </aside>
       ) : null
     }

@@ -1,10 +1,10 @@
-import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
+import { jsonResponse, withApiHandler } from "../../../../src/platform/http.js";
 import {
   attachCalendarWarnings,
   configuredCalendarId,
   syncSeriesCalendar,
-} from "../../../_lib/event-calendar-sync.js";
-import { getEvent } from "../../../_lib/event-store.js";
+} from "../../../../src/events/server/event-calendar-sync.js";
+import { getEvent } from "../../../../src/events/server/event-store.js";
 
 /** Push one saved series onto Google Calendar. Does not write the site. */
 export const onRequestPost = withApiHandler(async (context) => {

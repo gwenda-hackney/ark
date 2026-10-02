@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../../_lib/http.js";
-import { setFormDecision } from "../../../_lib/form-submissions.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../../src/platform/http.js";
+import { setFormDecision } from "../../../../src/forms/server/form-submissions.js";
 
 /** POST { decision: "Approved" | "Declined" | "" } → ops' answer to an application. */
 export const onRequestPost = withApiHandler(async (context) => {

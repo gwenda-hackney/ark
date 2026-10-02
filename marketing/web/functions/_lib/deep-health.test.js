@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { checkEmail, runDeepHealth } from "./deep-health.js";
 
 const gmailEnv = {
-  GMAIL_SERVICE_ACCOUNT_JSON: JSON.stringify({ type: "service_account", client_email: "a@b", private_key: "k" }),
+  GMAIL_SERVICE_ACCOUNT_JSON: JSON.stringify({
+    type: "service_account",
+    client_email: "a@b",
+    private_key: "k",
+  }),
 };
 
 describe("runDeepHealth", () => {
@@ -29,14 +33,20 @@ describe("runDeepHealth", () => {
 describe("checkEmail", () => {
   it("only logs in unless asked to send", async () => {
     const send = vi.fn();
-    const detail = await checkEmail(gmailEnv, { deps: { token: async () => "t", send } });
+    const detail = await checkEmail(gmailEnv, {
+      deps: { token: async () => "t", send },
+    });
     expect(detail).toMatch(/no email sent/);
     expect(send).not.toHaveBeenCalled();
   });
 
   it("sends the test email to the alert address, not the form inbox", async () => {
     const send = vi.fn(async () => ({ id: "1" }));
-    await checkEmail(gmailEnv, { send: true, label: "gwenda.co.uk 2026.09.25", deps: { send } });
+    await checkEmail(gmailEnv, {
+      send: true,
+      label: "gwenda.co.uk 2026.09.25",
+      deps: { send },
+    });
     const [, mail] = send.mock.calls[0];
     expect(mail.to).toBe("alerts@gwenda.co.uk");
     expect(mail.from).toBe("Gwenda <notifications@gwenda.co.uk>");
@@ -44,6 +54,8 @@ describe("checkEmail", () => {
   });
 
   it("fails clearly when Gmail isn't configured", async () => {
-    await expect(checkEmail({}, {})).rejects.toThrow("Gmail is not configured.");
+    await expect(checkEmail({}, {})).rejects.toThrow(
+      "Gmail is not configured.",
+    );
   });
 });

@@ -12,9 +12,9 @@ const productionEnv = {
 
 describe("shouldSendFormAlert", () => {
   it("sends only in production", () => {
-    expect(
-      shouldSendFormAlert({ SITE_ENV: "dev" }, "form_store_failed"),
-    ).toBe(false);
+    expect(shouldSendFormAlert({ SITE_ENV: "dev" }, "form_store_failed")).toBe(
+      false,
+    );
     expect(shouldSendFormAlert({}, "form_store_failed")).toBe(false);
     expect(shouldSendFormAlert(productionEnv, "form_store_failed")).toBe(true);
   });

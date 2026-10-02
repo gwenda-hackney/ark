@@ -1,0 +1,109 @@
+name: PR checks
+
+# Checks every pull request into main, for the apps it touches. Website
+# builds and previews come from the branch push (web.yml branch preview);
+# this workflow adds what nothing else runs: lint, and ops tests and build
+# before merge. No secrets: nothing here talks to Baserow, Sanity or Cloudflare.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed apps
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      ops: ${{ steps.filter.outputs.ops }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'marketing/web/**'
+              - 'marketing/brand/**'
+              - 'shared/**'
+              - 'package-lock.json'
+              - '.github/workflows/pr.yml'
+            ops:
+              - 'ops/site/**'
+              - 'shared/**'
+              - 'scripts/**'
+              - 'vitest.config.mjs'
+              - 'package-lock.json'
+              - '.github/workflows/pr.yml'
+
+  web:
+    name: Website (lint, tests, brand tokens)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        uses: ./.github/actions/npm-install
+
+      - name: Lint (ESLint + Prettier)
+        run: npm run lint -w @gwenda/web
+
+      - name: Unit tests
+        run: npm test -w @gwenda/web
+
+      - name: Brand colour tokens in sync
+        run: npm run sync:brand -- --check
+
+  ops:
+    name: Ops (tests, type check, build)
+    needs: changes
+    if: needs.changes.outputs.ops == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        uses: ./.github/actions/npm-install
+
+      - name: Unit tests
+        run: npm test -w @gwenda/ops
+
+      - name: Shared and scripts tests
+        run: npm run test:shared
+
+      # Errors and warnings both fail the check (#22 cleared them).
+      - name: Type check (svelte-check)
+        run: npm run check -w @gwenda/ops -- --fail-on-warnings
+
+      - name: Build
+        run: npm run build -w @gwenda/ops

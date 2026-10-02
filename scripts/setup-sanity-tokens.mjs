@@ -1,304 +1,123 @@
 #!/usr/bin/env node
 /**
- * Clean Sanity robot tokens to a fixed keep-set, sync GitHub + Bitwarden.
+ * Create (or rotate) the Sanity robot tokens. Each is labelled with the
+ * Secrets Manager key that holds it, and stored only in Secrets Manager:
  *
- * Keep-set:
- *   ark-local-editor      Editor        → Secrets Manager SANITY_API_TOKEN
- *   ark-ci-viewer         Viewer        → GitHub SANITY_API_TOKEN
- *   ark-ci-deploy-studio  Deploy Studio → GitHub + Secrets Manager SANITY_DEPLOY_TOKEN
+ *   SANITY_API_TOKEN__DEV         Gwenda Dev  Editor
+ *   SANITY_API_TOKEN__PRODUCTION  Gwenda      Editor
+ *   SANITY_DEPLOY_TOKEN           Gwenda      Deploy Studio
  *
- * Admin auth (mint/revoke): personal Sanity CLI session (`npx sanity login`),
- * or SANITY_AUTH_TOKEN env. Do not store the personal token in Bitwarden.
+ * It never revokes a token unless asked. With --revoke-old it revokes only the
+ * older tokens with the same label, after the new one is stored. Revoke the
+ * production ones only once the deploys using the new value are green.
+ *
+ * Admin auth: your personal Sanity CLI session (`npx sanity login`, project
+ * Administrator), or SANITY_AUTH_TOKEN for this run. Needs bw-unlock.
  *
  * Usage:
- *   npm run setup:sanity-tokens
  *   npm run setup:sanity-tokens -- --dry-run
- *   npm run setup:sanity-tokens -- --skip-github --skip-bitwarden
+ *   npm run setup:sanity-tokens -- SANITY_API_TOKEN__DEV
+ *   npm run setup:sanity-tokens -- --revoke-old SANITY_DEPLOY_TOKEN
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
+import {
+  DEV_SANITY_PROJECT_ID,
+  REAL_SANITY_PROJECT_ID,
+} from "../shared/sanity-projects.js";
 
 const API_VERSION = "v2025-08-18";
-
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const PROJECT_ID_DEFAULT = "pn5yjro6";
-
-const KEEP = {
-  localEditor: {
-    label: "ark-local-editor",
-    roleName: "editor",
-    envKey: "SANITY_API_TOKEN",
-  },
-  ciViewer: {
-    label: "ark-ci-viewer",
-    roleName: "viewer",
-    ghSecret: "SANITY_API_TOKEN",
-    envKey: "SANITY_API_TOKEN",
-  },
-  ciDeploy: {
-    label: "ark-ci-deploy-studio",
-    roleName: "deploy-studio",
-    ghSecret: "SANITY_DEPLOY_TOKEN",
-    envKey: "SANITY_DEPLOY_TOKEN",
-  },
-};
-
-const KEEP_LABELS = new Set(Object.values(KEEP).map((spec) => spec.label));
+const SANITY_TOKENS = [
+  { key: "SANITY_API_TOKEN__DEV", projectId: DEV_SANITY_PROJECT_ID, roleName: "editor" },
+  { key: "SANITY_API_TOKEN__PRODUCTION", projectId: REAL_SANITY_PROJECT_ID, roleName: "editor" },
+  { key: "SANITY_DEPLOY_TOKEN", projectId: REAL_SANITY_PROJECT_ID, roleName: "deploy-studio" },
+];
 
 function parseArgs(argv) {
-  const out = { dryRun: false, skipGithub: false, skipBitwarden: false, help: false };
+  const out = { dryRun: false, revokeOld: false, keys: [], help: false };
   for (const arg of argv) {
     if (arg === "--dry-run") out.dryRun = true;
-    else if (arg === "--skip-github") out.skipGithub = true;
-    else if (arg === "--skip-bitwarden") out.skipBitwarden = true;
+    else if (arg === "--revoke-old") out.revokeOld = true;
     else if (arg === "--help" || arg === "-h") out.help = true;
-    else throw new Error(`Unknown argument: ${arg}`);
+    else if (arg.startsWith("-")) throw new Error(`Unknown argument: ${arg}`);
+    else out.keys.push(arg);
   }
+  const known = new Set(SANITY_TOKENS.map((spec) => spec.key));
+  const unknown = out.keys.filter((key) => !known.has(key));
+  if (unknown.length) throw new Error(`Unknown token: ${unknown.join(", ")}. Known: ${[...known].join(", ")}`);
   return out;
-}
-
-function run(command, args, { input, quiet = false, cwd = ROOT } = {}) {
-  const result = spawnSync(command, args, {
-    input,
-    encoding: "utf8",
-    cwd,
-    env: process.env,
-    stdio: quiet ? ["pipe", "pipe", "pipe"] : "inherit",
-  });
-  if (result.status !== 0) {
-    const detail = [result.stderr, result.stdout].filter(Boolean).join("\n").trim();
-    throw new Error(
-      detail ? `${command} ${args.join(" ")} failed:\n${detail}` : `${command} ${args.join(" ")} failed`,
-    );
-  }
-  return result.stdout ?? "";
 }
 
 function resolveAdminToken() {
   const fromEnv = process.env.SANITY_AUTH_TOKEN?.trim();
   if (fromEnv) return fromEnv;
-
-  const studioDir = resolve(ROOT, "marketing/studio");
-  const cwd = existsSync(resolve(studioDir, "sanity.cli.ts")) ? studioDir : ROOT;
-  const debug = run("npx", ["sanity", "debug", "--secrets"], { quiet: true, cwd });
-  const match = debug.match(/Auth token:\s+(\S+)/);
+  const result = spawnSync("npx", ["sanity", "debug", "--secrets"], { cwd: ROOT, encoding: "utf8" });
+  const match = String(result.stdout || "").match(/Auth token:\s+(\S+)/);
   if (!match) {
-    throw new Error(
-      "No Sanity personal session found.\n" +
-        "  npx sanity login\n" +
-        "  (must be project Administrator)\n" +
-        "Or set SANITY_AUTH_TOKEN temporarily for this run.",
-    );
+    throw new Error("No Sanity login. Run `npx sanity login` (project Administrator), or set SANITY_AUTH_TOKEN.");
   }
   return match[1];
 }
 
-async function sanityRequest(path, { method = "GET", body, adminToken } = {}) {
+async function sanity(path, adminToken, { method = "GET", body } = {}) {
   const res = await fetch(`https://api.sanity.io/${API_VERSION}${path}`, {
     method,
-    headers: {
-      Authorization: `Bearer ${adminToken}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-  if (!res.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String(data.message)
-        : text || res.statusText;
-    throw new Error(`Sanity API ${method} ${path} → ${res.status}: ${message}`);
-  }
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error(`Sanity ${method} ${path} → ${res.status}: ${data?.message || text}`);
   return data;
-}
-
-function summarizeTokens(tokens) {
-  return tokens.map((token) => {
-    const roles = Array.isArray(token.roles)
-      ? token.roles.map((role) => role.name || role).join(",")
-      : token.roleName || token.role || "?";
-    return `${token.label || "(no label)"} [${roles}] (${token.id})`;
-  });
-}
-
-async function listTokens(projectId, adminToken) {
-  const data = await sanityRequest(`/projects/${projectId}/tokens`, { adminToken });
-  return Array.isArray(data) ? data : data?.tokens || [];
-}
-
-async function listRobotRoles(projectId, adminToken) {
-  const roles = await sanityRequest(`/projects/${projectId}/roles`, { adminToken });
-  const list = Array.isArray(roles) ? roles : roles?.roles || [];
-  return list.filter((role) => role.appliesToRobots).map((role) => role.name);
-}
-
-async function deleteToken(projectId, adminToken, token, { dryRun }) {
-  if (dryRun) {
-    console.log(`Would revoke ${token.label || "(no label)"} (${token.id}).`);
-    return;
-  }
-  await sanityRequest(`/projects/${projectId}/tokens/${token.id}`, {
-    method: "DELETE",
-    adminToken,
-  });
-  console.log(`Revoked ${token.label || "(no label)"} (${token.id}).`);
-}
-
-async function createToken(projectId, adminToken, { label, roleName }, { dryRun }) {
-  if (dryRun) {
-    console.log(`Would create ${label} (${roleName}).`);
-    return `dry-run-${label}`;
-  }
-  const created = await sanityRequest(`/projects/${projectId}/tokens`, {
-    method: "POST",
-    adminToken,
-    body: { label, roleName },
-  });
-  const key = created?.key;
-  if (typeof key !== "string" || !key.startsWith("sk")) {
-    throw new Error(`Sanity did not return a token key for "${label}".`);
-  }
-  console.log(`Created ${label} (${roleName}).`);
-  return key;
-}
-
-function tryGhAuth() {
-  try {
-    run("gh", ["auth", "status"], { quiet: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function repoSlug() {
-  return run("gh", ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"], {
-    quiet: true,
-  }).trim();
-}
-
-function setGhSecret(name, value) {
-  run("gh", ["secret", "set", name, "--repo", repoSlug()], { input: value, quiet: true });
-  console.log(`Set GitHub secret ${name}.`);
 }
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(`Clean Sanity robot tokens to the ark keep-set.
-
-Usage:
-  node scripts/setup-sanity-tokens.mjs [--dry-run] [--skip-github] [--skip-bitwarden]
-
-Requires: npx sanity login (project Administrator).`);
+    console.log("Usage: node scripts/setup-sanity-tokens.mjs [--dry-run] [--revoke-old] [KEY ...]");
     return;
   }
-
   loadRepoEnv();
-  const projectId = process.env.SANITY_PROJECT_ID?.trim() || PROJECT_ID_DEFAULT;
   const adminToken = resolveAdminToken();
+  const specs = SANITY_TOKENS.filter((spec) => !opts.keys.length || opts.keys.includes(spec.key));
 
-  const before = await listTokens(projectId, adminToken);
-  console.log(`Project ${projectId} — current tokens (${before.length}):`);
-  for (const line of summarizeTokens(before)) console.log(`  - ${line}`);
-
-  const robotRoles = await listRobotRoles(projectId, adminToken);
-  for (const spec of Object.values(KEEP)) {
-    if (!robotRoles.includes(spec.roleName)) {
-      throw new Error(
-        `Role "${spec.roleName}" not available for robots. Available: ${robotRoles.join(", ")}`,
-      );
-    }
-  }
-
-  console.log("\nRecreating keep-set…");
-  const keys = {};
-  for (const spec of Object.values(KEEP)) {
-    const existing = before.filter((token) => token.label === spec.label);
-    for (const token of existing) {
-      await deleteToken(projectId, adminToken, token, opts);
-    }
-    keys[spec.label] = await createToken(projectId, adminToken, spec, opts);
-  }
-
-  const afterCreate = opts.dryRun ? before : await listTokens(projectId, adminToken);
-  const extras = afterCreate.filter((token) => !KEEP_LABELS.has(token.label));
-  if (extras.length) {
-    console.log(`\nRevoking ${extras.length} extra token(s)…`);
-    for (const token of extras) {
-      await deleteToken(projectId, adminToken, token, opts);
-    }
-  } else {
-    console.log("\nNo extra tokens to revoke.");
-  }
-
-  if (!opts.skipGithub) {
-    if (!tryGhAuth()) {
-      console.warn(
-        "\nGitHub CLI not authenticated — skipped secret sync.\n" +
-          "  gh auth login -h github.com -p https -s repo,workflow\n" +
-          "  npm run setup:sanity-tokens -- --skip-bitwarden",
-      );
-    } else if (opts.dryRun) {
-      console.log(
-        "Would set GitHub secrets SANITY_API_TOKEN, SANITY_DEPLOY_TOKEN.",
-      );
-    } else {
-      setGhSecret(KEEP.ciViewer.ghSecret, keys[KEEP.ciViewer.label]);
-      setGhSecret(KEEP.ciDeploy.ghSecret, keys[KEEP.ciDeploy.label]);
-    }
-  }
-
-  if (!opts.skipBitwarden) {
-    try {
-      if (opts.dryRun) {
-        console.log("Would store SANITY_DEPLOY_TOKEN in Secrets Manager.");
-      } else if (keys[KEEP.ciDeploy.label]) {
-        upsertSmSecret({ key: "SANITY_DEPLOY_TOKEN", value: keys[KEEP.ciDeploy.label] });
-        console.log("Stored ark-ci-deploy-studio as SANITY_DEPLOY_TOKEN in Secrets Manager.");
-      }
-    } catch (err) {
-      console.warn(
-        `\nBitwarden skipped: ${err instanceof Error ? err.message : err}\n` +
-          "  bw login && bw-unlock\n" +
-          "  then re-run with --skip-github",
-      );
-    }
-  }
-
-  if (!opts.dryRun && keys[KEEP.localEditor.label]?.startsWith("sk")) {
-    upsertSmSecret({ key: "SANITY_API_TOKEN", value: keys[KEEP.localEditor.label] });
-    console.log(
-      "Stored ark-local-editor as SANITY_API_TOKEN in Secrets Manager.",
+  for (const spec of specs) {
+    const existing = (await sanity(`/projects/${spec.projectId}/tokens`, adminToken)).filter(
+      (token) => token.label === spec.key,
     );
+    if (opts.dryRun) {
+      console.log(
+        `${spec.key}: would create a new token (${spec.roleName}) on ${spec.projectId} and store it in SM` +
+          (existing.length ? `; ${existing.length} older one(s) ${opts.revokeOld ? "revoked" : "kept"}` : ""),
+      );
+      continue;
+    }
+    const created = await sanity(`/projects/${spec.projectId}/tokens`, adminToken, {
+      method: "POST",
+      body: { label: spec.key, roleName: spec.roleName },
+    });
+    if (typeof created?.key !== "string") throw new Error(`Sanity returned no key for ${spec.key}.`);
+    upsertSmSecret({ key: spec.key, value: created.key });
+    console.log(`${spec.key}: created on ${spec.projectId} and stored in Secrets Manager.`);
+    for (const token of existing) {
+      if (opts.revokeOld) {
+        await sanity(`/projects/${spec.projectId}/tokens/${token.id}`, adminToken, { method: "DELETE" });
+        console.log(`  revoked the older ${spec.key} (${token.id})`);
+      } else {
+        console.log(`  the older ${spec.key} (${token.id}) still works; revoke it once deploys are green`);
+      }
+    }
   }
-
-  if (!opts.dryRun) {
-    const finalTokens = await listTokens(projectId, adminToken);
-    console.log(`\nFinal tokens (${finalTokens.length}):`);
-    for (const line of summarizeTokens(finalTokens)) console.log(`  - ${line}`);
-  }
-
-  console.log(
-    opts.dryRun
-      ? "\nDry run complete — no changes written."
-      : "\nDone. Local SANITY_API_TOKEN is the Editor robot (not your personal CLI session).",
-  );
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+  process.exitCode = 1;
+}

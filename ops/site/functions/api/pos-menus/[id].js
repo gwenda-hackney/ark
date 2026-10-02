@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { deletePosMenu, updatePosMenu } from "../../_lib/pos-menu-store.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { deletePosMenu, updatePosMenu } from "../../../src/menu/server/pos-menu-store.js";
 
 export const onRequestPatch = withApiHandler(async (context) => {
   const id = context.params?.id;

@@ -11,11 +11,16 @@ const CONTENT_ACTION: Record<ContentTarget, string> = {
 };
 
 /**
- * web.yml from main runs every content build. The dev website builds main's
- * code; the preview job checks out release itself. Live promotion is
+ * Which branch's web.yml runs a content build. The production GitHub
+ * environment only accepts release (#60), so prod's preview runs from
+ * release; the dev website builds main's code. Live promotion is
  * dispatchLivePromote, which always selects release.
  */
-const WORKFLOW_REF = "main";
+const WORKFLOW_REF: Record<ContentTarget, string> = {
+  preview: "release",
+  "dev-preview": "main",
+  "dev-live": "main",
+};
 
 /** Prod's preview: the "preview" branch of the gwenda Pages project. */
 export const PRODUCTION_CONTENT_PREVIEW_URL = "https://preview.gwenda-blue.pages.dev";
@@ -49,8 +54,8 @@ export function workflowFileForTarget(_target: ContentTarget): string {
   return WEB_WORKFLOW_FILE;
 }
 
-export function refForTarget(_target: ContentTarget): string {
-  return WORKFLOW_REF;
+export function refForTarget(target: ContentTarget): string {
+  return WORKFLOW_REF[target];
 }
 
 export function contentActionForTarget(target: ContentTarget): string {

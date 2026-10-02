@@ -30,33 +30,39 @@ const containerClass = [
 >
   {
     cocktails.map((cocktail, index) => (
-        <figure
-          class="menu-tease-cocktail reveal reveal-stagger"
-          role="listitem"
-          style={`${galleryTileVars(layout, index)}; --reveal-delay:${(index * 0.09).toFixed(2)}s`}
-        >
+      <figure
+        class="menu-tease-cocktail reveal reveal-stagger"
+        role="listitem"
+        style={`${galleryTileVars(layout, index)}; --reveal-delay:${(index * 0.09).toFixed(2)}s`}
+      >
         <img
           src={cocktail.image.url}
           width={cocktail.image.width}
           height={cocktail.image.height}
           alt={cocktail.image.alt ?? `${cocktail.name} at Gwenda`}
           class="menu-tease-cocktail-photo"
-          style={cocktail.image.objectPosition
-            ? `object-position: ${cocktail.image.objectPosition}`
-            : undefined}
+          style={
+            cocktail.image.objectPosition
+              ? `object-position: ${cocktail.image.objectPosition}`
+              : undefined
+          }
           loading="eager"
           decoding="async"
         />
         <figcaption
           class="menu-tease-cocktail-caption"
-          hidden={!cocktail.name.trim() && !cocktail.notes && !cocktail.description}
+          hidden={
+            !cocktail.name.trim() && !cocktail.notes && !cocktail.description
+          }
         >
           <span class="menu-tease-cocktail-name">{cocktail.name}</span>
           {(cocktail.notes || cocktail.description) && (
             <span class="menu-tease-cocktail-details">
               <span class="menu-tease-cocktail-details-inner">
                 {cocktail.notes && (
-                  <span class="menu-tease-cocktail-notes">{cocktail.notes}</span>
+                  <span class="menu-tease-cocktail-notes">
+                    {cocktail.notes}
+                  </span>
                 )}
                 {cocktail.description && (
                   <span class="menu-tease-cocktail-description">

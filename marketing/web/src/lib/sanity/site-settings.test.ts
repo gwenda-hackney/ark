@@ -12,7 +12,10 @@ describe("fetchSiteSettings", () => {
   it("returns bookingEnabled true when Sanity says so", async () => {
     vi.doMock("./client", () => ({
       createSanityClient: () => ({
-        fetch: async () => ({ bookingEnabled: true, cocktailGalleryEnabled: true }),
+        fetch: async () => ({
+          bookingEnabled: true,
+          cocktailGalleryEnabled: true,
+        }),
       }),
     }));
     const { fetchSiteSettings } = await import("./site-settings");
@@ -25,7 +28,10 @@ describe("fetchSiteSettings", () => {
   it("returns bookingEnabled false when Sanity says so", async () => {
     vi.doMock("./client", () => ({
       createSanityClient: () => ({
-        fetch: async () => ({ bookingEnabled: false, cocktailGalleryEnabled: true }),
+        fetch: async () => ({
+          bookingEnabled: false,
+          cocktailGalleryEnabled: true,
+        }),
       }),
     }));
     const { fetchSiteSettings } = await import("./site-settings");
@@ -38,7 +44,10 @@ describe("fetchSiteSettings", () => {
   it("returns cocktailGalleryEnabled false when Sanity says so", async () => {
     vi.doMock("./client", () => ({
       createSanityClient: () => ({
-        fetch: async () => ({ bookingEnabled: false, cocktailGalleryEnabled: false }),
+        fetch: async () => ({
+          bookingEnabled: false,
+          cocktailGalleryEnabled: false,
+        }),
       }),
     }));
     const { fetchSiteSettings } = await import("./site-settings");

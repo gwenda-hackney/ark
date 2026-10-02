@@ -24,7 +24,6 @@ on:
       - "shared/**"
       - "package-lock.json"
       - ".github/workflows/web.yml"
-      - ".github/workflows/verify.yml"
       - ".github/actions/deploy-pages/**"
       - ".github/scripts/cloudflare-pages-branch.mjs"
   workflow_dispatch:
@@ -41,58 +40,24 @@ on:
           - dev-live
 
 jobs:
-  resolve:
-    name: Resolve mode
-    runs-on: ubuntu-latest
-    outputs:
-      mode: ${{ steps.r.outputs.mode }}
-      dev_sites: ${{ steps.r.outputs.dev_sites }}
-    steps:
-      - id: r
-        run: |
-          ACTION="${{ github.event_name == 'workflow_dispatch' && inputs.action || 'auto' }}"
-          case "$ACTION" in
-            preview|dev-preview|dev-live) MODE=$ACTION ;;
-            auto)
-              case "${{ github.ref_name }}" in
-                main) MODE=dev ;;
-                release) MODE=preview ;;
-                develop) MODE=verify-only ;;
-                *) MODE=branch-preview ;;
-              esac
-              ;;
-            *) echo "Unknown action $ACTION" >&2; exit 1 ;;
-          esac
-
-          # Dev website sites to build: both when main's code changes, else
-          # the one dev ops asked for.
-          case "$MODE" in
-            dev) DEV_SITES='["preview","live"]' ;;
-            dev-preview) DEV_SITES='["preview"]' ;;
-            dev-live) DEV_SITES='["live"]' ;;
-            *) DEV_SITES='[]' ;;
-          esac
-
-          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
-          echo "dev_sites=$DEV_SITES" >> "$GITHUB_OUTPUT"
-          echo "Resolved mode=$MODE"
-
-  # Deploy jobs build, check and test themselves; this is the develop-branch check.
-  verify:
-    needs: resolve
-    if: needs.resolve.outputs.mode == 'verify-only'
-    uses: ./.github/workflows/verify.yml
-    secrets: inherit
-
+  # Which deploy runs is decided by each job's `if` (no separate resolve job,
+  # which cost a runner start before anything deployed):
+  #   push to main or action auto/dev-*   -> dev website (both sites on push)
+  #   push to release or action preview   -> prod preview
+  #   push to any other branch            -> branch preview on the dev website
   deploy-dev:
     name: Deploy dev website (${{ matrix.site }})
-    needs: resolve
-    if: needs.resolve.outputs.dev_sites != '[]'
+    if: >-
+      (github.ref_name == 'main' && (github.event_name == 'push' || inputs.action == 'auto')) ||
+      inputs.action == 'dev-preview' || inputs.action == 'dev-live'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        site: ${{ fromJSON(needs.resolve.outputs.dev_sites) }}
+        # Both sites when main's code changes, else the one dev ops asked for.
+        site: >-
+          ${{ fromJSON(inputs.action == 'dev-preview' && '["preview"]' ||
+          inputs.action == 'dev-live' && '["live"]' || '["preview","live"]') }}
     concurrency:
       group: web-dev-${{ matrix.site }}
       cancel-in-progress: false
@@ -100,7 +65,7 @@ jobs:
       contents: read
       deployments: write
     environment:
-      name: dev-${{ matrix.site }}
+      name: dev
       url: ${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}
     steps:
       - name: Checkout main
@@ -134,10 +99,13 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile dev
 
+      # Once per push: the same code builds both sites.
       - name: Unit tests
+        if: matrix.site == 'live'
         run: npm test -w @gwenda/web
 
       - name: Brand colour tokens in sync
+        if: matrix.site == 'live'
         run: npm run sync:brand -- --check
 
       # Baserow schema changes need a user login (database tokens only touch rows).
@@ -185,12 +153,13 @@ jobs:
         run: node scripts/migrate.mjs --app web --phase post --env dev
 
   # Prod's preview: the release code on drafts over published. A push to
-  # release builds it with the new code; ops's content rebuilds (dispatched
-  # from main's copy of this file) still build the release code.
+  # release builds it with the new code; ops's content rebuilds dispatch it on
+  # release too, since the production environment only accepts release (#60).
   deploy-preview:
     name: Deploy preview
-    needs: resolve
-    if: needs.resolve.outputs.mode == 'preview'
+    if: >-
+      (github.ref_name == 'release' && (github.event_name == 'push' || inputs.action == 'auto')) ||
+      inputs.action == 'preview'
     runs-on: ubuntu-latest
     concurrency:
       group: web-preview
@@ -199,7 +168,7 @@ jobs:
       contents: read
       deployments: write
     environment:
-      name: preview
+      name: production
       url: https://preview.gwenda-blue.pages.dev
     steps:
       - name: Require the release branch on push
@@ -298,16 +267,20 @@ jobs:
 
   # Unreleased code belongs in dev: a branch preview is the dev website on its
   # own Pages branch, with dev data.
+  # Lint, tests and brand checks for branches run in pr.yml; this only deploys.
   deploy-branch-preview:
     name: Deploy branch preview
-    needs: resolve
-    if: needs.resolve.outputs.mode == 'branch-preview'
+    if: >-
+      github.ref_name != 'main' && github.ref_name != 'release' &&
+      (github.event_name == 'push' || inputs.action == 'auto')
     runs-on: ubuntu-latest
     permissions:
       contents: read
       deployments: write
+      pull-requests: write
     environment:
-      name: web-branch-preview
+      name: preview
+      url: ${{ steps.preview_url.outputs.url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -343,12 +316,6 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: npm run env:web:pull -- --github-env --profile dev
-
-      - name: Unit tests
-        run: npm test -w @gwenda/web
-
-      - name: Brand colour tokens in sync
-        run: npm run sync:brand -- --check
 
       - name: Deploy preview
         id: deploy
@@ -389,6 +356,11 @@ jobs:
         env:
           SMOKE_TEST_GATE_BYPASS_KEY: ${{ env.GATE_BYPASS_KEY }}
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url "${{ steps.preview_url.outputs.url }}" --expected-version "${{ steps.buildmeta.outputs.version }}" --retries 18 --retry-delay-ms 5000
+
+      - name: Link the preview on the PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/pr-preview-comment.mjs --app web --url "${{ steps.preview_url.outputs.url }}"
 
       - name: Deployment summary
         run: cd marketing/web && node scripts/ci/write-deployment-summary.mjs

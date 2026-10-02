@@ -29,9 +29,7 @@ interface Props {
 const { event, occurrenceSlug } = Astro.props;
 const series = Astro.params.series || "";
 const date = Astro.params.date || "";
-const siteOrigin = isPreview
-  ? previewOrigin
-  : siteConfig.domain;
+const siteOrigin = isPreview ? previewOrigin : siteConfig.domain;
 const pageUrl = `${siteOrigin}/whats-on/${series}/${date}/ticket`;
 const pageTitle = `Your ticket · ${event.title} · Gwenda`;
 ---

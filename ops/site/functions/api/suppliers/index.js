@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { createSupplier, listSuppliers } from "../../_lib/inventory-store.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { createSupplier, listSuppliers } from "../../../src/inventory/server/inventory-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const suppliers = await listSuppliers(context.env);

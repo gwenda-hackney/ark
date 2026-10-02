@@ -36,12 +36,21 @@ describe("pageAnchorSections", () => {
     const nav = document.querySelector("nav");
     const stale = document.getElementById("special");
     document.querySelector("ol").replaceChildren(
-      Object.assign(document.createElement("li"), { id: "series", textContent: "Regular events" }),
-      Object.assign(document.createElement("li"), { id: "special", textContent: "Special events" }),
+      Object.assign(document.createElement("li"), {
+        id: "series",
+        textContent: "Regular events",
+      }),
+      Object.assign(document.createElement("li"), {
+        id: "special",
+        textContent: "Special events",
+      }),
     );
 
     const sections = pageAnchorSections(nav);
-    expect(sections.map((section) => section.id)).toEqual(["series", "special"]);
+    expect(sections.map((section) => section.id)).toEqual([
+      "series",
+      "special",
+    ]);
     expect(sections[1].el).not.toBe(stale);
     expect(stale.isConnected).toBe(false);
   });
@@ -77,7 +86,10 @@ describe("currentPageAnchorId", () => {
       currentPageAnchorId(sections, line, { atEnd: true, viewportHeight: 900 }),
     ).toBe("special");
     expect(
-      currentPageAnchorId(sections, line, { atEnd: false, viewportHeight: 900 }),
+      currentPageAnchorId(sections, line, {
+        atEnd: false,
+        viewportHeight: 900,
+      }),
     ).toBe("series");
   });
 

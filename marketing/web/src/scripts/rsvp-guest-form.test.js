@@ -95,10 +95,20 @@ describe("rsvp confirmation reveal", () => {
     prepareRsvpConfirmation({ attending: true });
 
     expect(document.getElementById("rsvp-confirmation")?.hidden).toBe(false);
-    expect(document.getElementById("rsvp-success-eyebrow")?.textContent).toMatch(/on the list/i);
-    expect(document.getElementById("rsvp-success-title")?.textContent).toMatch(/see you there/i);
-    expect(document.getElementById("rsvp-success-lead")?.textContent).toMatch(/ticket link/i);
-    expect(document.getElementById("rsvp-confirmation")?.classList.contains("visible")).toBe(false);
+    expect(
+      document.getElementById("rsvp-success-eyebrow")?.textContent,
+    ).toMatch(/on the list/i);
+    expect(document.getElementById("rsvp-success-title")?.textContent).toMatch(
+      /see you there/i,
+    );
+    expect(document.getElementById("rsvp-success-lead")?.textContent).toMatch(
+      /ticket link/i,
+    );
+    expect(
+      document
+        .getElementById("rsvp-confirmation")
+        ?.classList.contains("visible"),
+    ).toBe(false);
     expect(document.getElementById("rsvp-event-header")?.hidden).toBe(true);
   });
 
@@ -106,14 +116,20 @@ describe("rsvp confirmation reveal", () => {
     prepareRsvpConfirmation({ attending: true });
     revealRsvpConfirmation();
 
-    expect(document.getElementById("rsvp-confirmation")?.classList.contains("visible")).toBe(false);
+    expect(
+      document
+        .getElementById("rsvp-confirmation")
+        ?.classList.contains("visible"),
+    ).toBe(false);
 
     return new Promise((resolve) => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          expect(document.getElementById("rsvp-confirmation")?.classList.contains("visible")).toBe(
-            true,
-          );
+          expect(
+            document
+              .getElementById("rsvp-confirmation")
+              ?.classList.contains("visible"),
+          ).toBe(true);
           resolve();
         });
       });

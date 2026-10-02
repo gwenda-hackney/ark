@@ -81,7 +81,8 @@ function syncHeight(refs) {
 
 function bindHeightObserver(refs) {
   const inner = backInner(refs);
-  if (!(inner instanceof HTMLElement) || typeof ResizeObserver === "undefined") return;
+  if (!(inner instanceof HTMLElement) || typeof ResizeObserver === "undefined")
+    return;
 
   heightObserver?.disconnect();
   heightObserver = new ResizeObserver(() => {
@@ -184,7 +185,10 @@ function handlePopState(event) {
     return;
   }
 
-  if (card.classList.contains("is-open") || card.classList.contains("is-sending")) {
+  if (
+    card.classList.contains("is-open") ||
+    card.classList.contains("is-sending")
+  ) {
     applyCloseState(refs);
   }
 }

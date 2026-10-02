@@ -1,10 +1,10 @@
-import { withApiHandler } from "../../../../_lib/http.js";
-import { ensureEventGalleryFolder } from "../../../../_lib/event-store.js";
+import { withApiHandler } from "../../../../../src/platform/http.js";
+import { ensureEventGalleryFolder } from "../../../../../src/events/server/event-store.js";
 import {
   downloadDriveFile,
   downloadDriveThumbnail,
   getDriveFile,
-} from "../../../../_lib/google-drive.js";
+} from "../../../../../src/platform/google-drive.js";
 
 function params(context) {
   return {

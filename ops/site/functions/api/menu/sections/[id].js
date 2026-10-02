@@ -1,9 +1,9 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../../_lib/http.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../../src/platform/http.js";
 import {
   deleteMenuSection,
   updateMenuSection,
-} from "../../../_lib/menu-store.js";
-import { toClientSection } from "../../../_lib/reconcile.js";
+} from "../../../../src/menu/server/menu-store.js";
+import { toClientSection } from "../../../../src/inventory/server/reconcile.js";
 
 function sectionId(context) {
   return decodeURIComponent(context.params?.id || "");

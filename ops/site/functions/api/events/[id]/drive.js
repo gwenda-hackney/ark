@@ -1,18 +1,18 @@
-import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
+import { jsonResponse, withApiHandler } from "../../../../src/platform/http.js";
 import {
   GALLERY_MAX,
   forgetGalleryStaged,
   galleryFingerprint,
   readGalleryStaged,
-} from "../../../_lib/event-gallery.js";
-import { ensureEventGalleryFolder } from "../../../_lib/event-store.js";
+} from "../../../../src/events/server/event-gallery.js";
+import { ensureEventGalleryFolder } from "../../../../src/events/server/event-store.js";
 import {
   isDriveImage,
   isHeroDriveFileName,
   listDriveChildren,
   listDriveImages,
   uploadDriveFile,
-} from "../../../_lib/google-drive.js";
+} from "../../../../src/platform/google-drive.js";
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([

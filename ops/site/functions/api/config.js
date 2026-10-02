@@ -1,4 +1,4 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../_lib/http.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../src/platform/http.js";
 import {
   OPS_CONFIG_KEYS,
   getConfigValues,
@@ -6,7 +6,7 @@ import {
   resetPourTargets,
   setConfigString,
   setPourTargets,
-} from "../_lib/config-store.js";
+} from "../../src/platform/config-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const [pourTargets, values] = await Promise.all([

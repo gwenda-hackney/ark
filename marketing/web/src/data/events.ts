@@ -58,7 +58,11 @@ export function eventDescriptionParagraphs(
     .filter(Boolean);
   const sets =
     timeParts(legacyTime).length > 1 ? formatPublicTime(legacyTime) : "";
-  if (sets && sets !== String(legacyTime || "").trim() && !formatted.includes(sets)) {
+  if (
+    sets &&
+    sets !== String(legacyTime || "").trim() &&
+    !formatted.includes(sets)
+  ) {
     paragraphs.push(sets);
   }
   return paragraphs;
@@ -89,12 +93,17 @@ const DIARY_MONTHS = [
  * The line above the title. The coming week is Tomorrow or Next Tues.
  * Later nights are "Tues 6 Oct", with the year only after 31 December.
  */
-export function formatEventDiaryDate(isoDate: string, now = new Date()): string {
+export function formatEventDiaryDate(
+  isoDate: string,
+  now = new Date(),
+): string {
   const [year, month, day] = isoDate.split("-").map(Number);
   const eventDate = new Date(year, month - 1, day);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekday = DIARY_WEEKDAYS[eventDate.getDay()];
-  const daysAway = Math.round((eventDate.getTime() - today.getTime()) / 86400000);
+  const daysAway = Math.round(
+    (eventDate.getTime() - today.getTime()) / 86400000,
+  );
 
   if (daysAway === 0) return "Today";
   if (daysAway === 1) return "Tomorrow";
@@ -127,13 +136,6 @@ export function formatEventWeek(isoDate: string): string {
       month: "long",
     },
   )}`;
-}
-
-function formatTicketTime(time: string | null | undefined): string {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? "").trim());
-  if (!match) return "";
-  const clock = parseClock(match[1], match[2]);
-  return clock ? formatClock(clock) : "";
 }
 
 type Clock = { hours: number; minutes: number };
@@ -278,7 +280,9 @@ const WEEKDAY_NAMES = [
 ];
 
 /** Monday is 0. Daily residencies come first. Anything without a weekday sorts last. */
-export function eventWeekdayRank(recurrence: string | null | undefined): number {
+export function eventWeekdayRank(
+  recurrence: string | null | undefined,
+): number {
   const text = String(recurrence || "").toLowerCase();
   if (/\bevery day\b/.test(text)) return -1;
   let rank = WEEKDAY_NAMES.length;
@@ -352,8 +356,7 @@ export function buildEventsPageModel(
 }
 
 export type EventsStackItem =
-  | { regular: true; event: RegularEvent }
-  | { regular: false; event: Event };
+  { regular: true; event: RegularEvent } | { regular: false; event: Event };
 
 /** One diary: residencies and one-off nights, in date order. */
 export function buildEventsStack(model: EventsPageModel): EventsStackItem[] {

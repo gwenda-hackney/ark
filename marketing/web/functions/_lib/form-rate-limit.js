@@ -7,8 +7,7 @@ export const FORM_RATE_LIMITS = {
   edit: { bucket: "forms-edit", limit: 30, windowSec: 15 * 60 },
 };
 
-export const FORM_RATE_LIMIT_ERROR =
-  "Too many requests. Try again shortly.";
+export const FORM_RATE_LIMIT_ERROR = "Too many requests. Try again shortly.";
 
 /**
  * Best-effort client IP for rate limiting.
@@ -91,7 +90,13 @@ export async function checkFormRateLimit(
 ) {
   const max = Number(limit);
   const window = Number(windowSec);
-  if (!bucket || !Number.isFinite(max) || max < 1 || !Number.isFinite(window) || window < 1) {
+  if (
+    !bucket ||
+    !Number.isFinite(max) ||
+    max < 1 ||
+    !Number.isFinite(window) ||
+    window < 1
+  ) {
     return { ok: true };
   }
 
@@ -144,14 +149,11 @@ export async function checkFormRateLimit(
  */
 export function formRateLimitResponse(retryAfterSec) {
   const retry = Math.max(1, Number(retryAfterSec) || 60);
-  return new Response(
-    JSON.stringify({ error: FORM_RATE_LIMIT_ERROR }),
-    {
-      status: 429,
-      headers: {
-        "Content-Type": "application/json",
-        "Retry-After": String(retry),
-      },
+  return new Response(JSON.stringify({ error: FORM_RATE_LIMIT_ERROR }), {
+    status: 429,
+    headers: {
+      "Content-Type": "application/json",
+      "Retry-After": String(retry),
     },
-  );
+  });
 }

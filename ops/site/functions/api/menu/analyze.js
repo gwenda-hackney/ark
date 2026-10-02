@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { aiMessageText } from "../../_lib/ai-text.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { aiMessageText } from "../../../src/platform/ai-text.js";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
 

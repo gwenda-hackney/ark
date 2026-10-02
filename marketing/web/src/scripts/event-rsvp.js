@@ -25,7 +25,12 @@ function parseEventRsvp() {
     return { slug: fromBody, token };
   }
   const parts = window.location.pathname.split("/").filter(Boolean);
-  if (parts[0] === "whats-on" && parts[1] && parts[2] && parts[2] !== "ticket") {
+  if (
+    parts[0] === "whats-on" &&
+    parts[1] &&
+    parts[2] &&
+    parts[2] !== "ticket"
+  ) {
     return {
       slug: `${decodeURIComponent(parts[1])}-${decodeURIComponent(parts[2])}`,
       token,
@@ -82,7 +87,12 @@ function setInviteCardFront(event) {
   }
 
   if (lead && event.date) {
-    lead.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd, event.time);
+    lead.textContent = formatEventWhen(
+      event.date,
+      event.ticketStart,
+      event.ticketEnd,
+      event.time,
+    );
     lead.hidden = false;
   }
 }
@@ -102,7 +112,12 @@ function renderEvent(event) {
 
   const dateEl = document.getElementById("rsvp-event-date-personal");
   if (dateEl && event.date) {
-    dateEl.textContent = formatEventWhen(event.date, event.ticketStart, event.ticketEnd, event.time);
+    dateEl.textContent = formatEventWhen(
+      event.date,
+      event.ticketStart,
+      event.ticketEnd,
+      event.time,
+    );
     dateEl.hidden = false;
   }
 
@@ -114,12 +129,17 @@ function renderEvent(event) {
 
   const venueWrap = document.getElementById("rsvp-event-venue-wrap");
   const mapsLink = document.getElementById("rsvp-event-maps-link");
-  if (venueWrap instanceof HTMLElement && mapsLink instanceof HTMLAnchorElement) {
+  if (
+    venueWrap instanceof HTMLElement &&
+    mapsLink instanceof HTMLAnchorElement
+  ) {
     mapsLink.textContent = event.venue?.trim() || mapsLink.textContent;
     venueWrap.hidden = false;
   }
 
-  const description = document.getElementById("rsvp-event-description-personal");
+  const description = document.getElementById(
+    "rsvp-event-description-personal",
+  );
   const descriptionText = portableTextToPlain(event.description);
   if (description && descriptionText) {
     description.textContent = descriptionText;

@@ -19,18 +19,27 @@ describe("sanityDatasetForEnv", () => {
 
 describe("sanityPerspectiveForEnv", () => {
   it("hides drafts on the live site", () => {
-    expect(sanityPerspectiveForEnv({ SITE_ENV: "production" })).toBe("published");
+    expect(sanityPerspectiveForEnv({ SITE_ENV: "production" })).toBe(
+      "published",
+    );
     expect(sanityPerspectiveForEnv({})).toBe("published");
   });
 
   it("overlays drafts on the preview and a local dev server", () => {
-    expect(sanityPerspectiveForEnv({ SITE_ENV: "preview" })).toBe("previewDrafts");
-    expect(sanityPerspectiveForEnv({ SITE_ENV: "local" })).toBe("previewDrafts");
+    expect(sanityPerspectiveForEnv({ SITE_ENV: "preview" })).toBe(
+      "previewDrafts",
+    );
+    expect(sanityPerspectiveForEnv({ SITE_ENV: "local" })).toBe(
+      "previewDrafts",
+    );
   });
 
   it("follows an explicit SANITY_PERSPECTIVE", () => {
     expect(
-      sanityPerspectiveForEnv({ SITE_ENV: "production", SANITY_PERSPECTIVE: "previewDrafts" }),
+      sanityPerspectiveForEnv({
+        SITE_ENV: "production",
+        SANITY_PERSPECTIVE: "previewDrafts",
+      }),
     ).toBe("previewDrafts");
   });
 });

@@ -43,7 +43,13 @@ const AI_BOT_AGENTS = [
   "YouBot",
 ];
 
-const DISALLOWED_PATHS = ["/gate/", "/preview/", "/thanks/", "/about/", "/api/"];
+const DISALLOWED_PATHS = [
+  "/gate/",
+  "/preview/",
+  "/thanks/",
+  "/about/",
+  "/api/",
+];
 
 function buildRobotsTxt({ includeSitemap }) {
   const signal = "Content-Signal: search=yes,ai-input=yes,ai-train=yes";

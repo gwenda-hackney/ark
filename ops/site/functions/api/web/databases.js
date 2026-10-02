@@ -1,7 +1,7 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { requireAdmin } from "../../_lib/admin.js";
-import { compareDatabasePair, databasePairs } from "../../_lib/db-diff.js";
-import { dispatchBaserowCopy } from "../../_lib/site-deploy.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { requireAdmin } from "../../../src/access/server/admin.js";
+import { compareDatabasePair, databasePairs } from "../../../src/platform/db-diff.js";
+import { dispatchBaserowCopy } from "../../../src/website/server/site-deploy.js";
 
 const COPY_TARGETS = { ops: "ops-dev", website: "website-dev" };
 

@@ -1,5 +1,5 @@
 name = "gwenda-ops"
-pages_build_output_dir = "src"
+pages_build_output_dir = "dist"
 compatibility_date = "2026-07-01"
 # Form emails (shared/gmail-send.js) build the message with nodemailer.
 compatibility_flags = ["nodejs_compat"]

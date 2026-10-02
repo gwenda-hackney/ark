@@ -1,5 +1,5 @@
-import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
-import { clearEventImage, setEventImage } from "../../../_lib/event-store.js";
+import { jsonResponse, withApiHandler } from "../../../../src/platform/http.js";
+import { clearEventImage, setEventImage } from "../../../../src/events/server/event-store.js";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);

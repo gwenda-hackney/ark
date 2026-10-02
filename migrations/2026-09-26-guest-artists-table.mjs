@@ -3,7 +3,7 @@
  * declined, and the artist name and link ops uses for events. What they
  * submitted stays untouched in the website's Form Submissions.
  */
-import { GUEST_ARTIST_FIELDS } from "../ops/site/functions/_lib/guest-artists.js";
+import { GUEST_ARTIST_FIELDS } from "../ops/site/src/artists/server/guest-artists.js";
 
 export const app = "ops";
 export const phase = "pre";

@@ -1,0 +1,127 @@
+import type { OpsEvent } from "../app/api";
+import { seriesNextNightLabel } from "./event-schedule";
+
+/** Labels for events, series and nights, shared by the lists and the editor. */
+
+export const WEEKDAY_LABELS: Record<string, string> = {
+	mon: "Mon",
+	tue: "Tue",
+	wed: "Wed",
+	thu: "Thu",
+	fri: "Fri",
+	sat: "Sat",
+	sun: "Sun",
+};
+
+export function repeatLabel(event: {
+	repeatEvery?: number;
+	repeatUnit?: string;
+	weekdays?: string[];
+	monthDay?: number;
+}): string {
+	if (event.repeatUnit === "once") return "Special event";
+	if (event.repeatUnit === "day") {
+		return event.repeatEvery === 1 ? "Every day" : `Every ${event.repeatEvery} days`;
+	}
+	if (event.repeatUnit === "week") {
+		const days = (event.weekdays || []).map((day) => WEEKDAY_LABELS[day] || day).join(", ");
+		const every = event.repeatEvery === 1 ? "Every week" : `Every ${event.repeatEvery} weeks`;
+		return days ? `${every} on ${days}` : every;
+	}
+	if (event.repeatUnit === "month") {
+		const day = event.monthDay || "the start date";
+		return event.repeatEvery === 1
+			? `Every month on ${day}`
+			: `Every ${event.repeatEvery} months on ${day}`;
+	}
+	return "Scheduled";
+}
+
+export function statusLabel(event: OpsEvent): string {
+	if (event.publish.live === "current") return "On website";
+	return "Not on website yet";
+}
+
+export function statusTone(event: OpsEvent | null): string {
+	if (!event) return "muted";
+	if (event.publish.preview !== "current") return "unpublished";
+	if (event.publish.live === "current") return "live";
+	return "preview";
+}
+
+export function formatDate(iso: string): string {
+	if (!iso) return "";
+	const [year, month, day] = iso.split("-").map(Number);
+	if (!year || !month || !day) return iso;
+	return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+	});
+}
+
+export function formatClock(value: string): string {
+	const raw = String(value || "").trim();
+	if (!raw) return "";
+	const match = /^(\d{1,2}):(\d{2})/.exec(raw);
+	if (!match) return raw;
+	const hour = Number(match[1]);
+	const minute = match[2];
+	if (!Number.isFinite(hour)) return raw;
+	const suffix = hour >= 12 ? "pm" : "am";
+	const twelve = hour % 12 || 12;
+	return minute === "00" ? `${twelve}${suffix}` : `${twelve}:${minute}${suffix}`;
+}
+
+export function formatDayMonth(iso: string): string {
+	const [year, month, day] = iso.split("-").map(Number);
+	if (!year || !month || !day) return iso;
+	return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
+		day: "numeric",
+		month: "short",
+	});
+}
+
+export function seriesNextIso(event: OpsEvent): string {
+	return String(event.publish?.nextDate || event.publish?.previewDates?.[0] || "").trim();
+}
+
+export function seriesTimeLabel(event: OpsEvent): string {
+	const start = formatClock(event.startTime);
+	const end = formatClock(event.endTime);
+	if (start && end) return `${start}–${end}`;
+	if (start) return start;
+	return String(event.time || "").trim();
+}
+
+export function seriesGuestLabel(event: OpsEvent): string {
+	const artist = String(event.artist || "").trim();
+	if (artist) return artist;
+	const night = (event.dates || []).find((row) => row.date === seriesNextIso(event));
+	return String(night?.overrides?.artist || "").trim();
+}
+
+export function seriesOfferLabel(event: OpsEvent): string {
+	const offer = String(event.offer || "").trim();
+	if (offer) return offer;
+	const night = (event.dates || []).find((row) => row.date === seriesNextIso(event));
+	return String(night?.overrides?.offer || "").trim();
+}
+
+/** Short card blurb, or night-slot labels when the blurb is empty. */
+export function seriesBlurb(event: OpsEvent): string {
+	const short = String(event.shortDescription || "").trim();
+	if (short) return short;
+	return (event.nightSchedule || [])
+		.map((slot) => String(slot.label || "").trim())
+		.filter(Boolean)
+		.join(" · ");
+}
+
+export function seriesNextCell(event: OpsEvent): string {
+	const next = seriesNextIso(event);
+	if (!next) return "No nights";
+	const night = seriesNextNightLabel(event);
+	const date = formatDayMonth(next);
+	return night ? `${date} · ${night}` : date;
+}

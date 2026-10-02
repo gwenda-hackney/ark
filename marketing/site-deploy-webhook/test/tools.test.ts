@@ -88,7 +88,7 @@ describe("handleBaserowCopy", () => {
     expect(result.body.runId).toBe(7);
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/actions/workflows/baserow-copy.yml/dispatches");
-    expect(JSON.parse(String(init.body))).toEqual({ ref: "main", inputs: { target: "ops-dev" } });
+    expect(JSON.parse(String(init.body))).toEqual({ ref: "release", inputs: { target: "ops-dev" } });
   });
 });
 

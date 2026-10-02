@@ -125,7 +125,8 @@ const defaultRetryHref = formPublicPath(PLAY_FORM_SLUG);
     } catch {
       if (titleEl) titleEl.textContent = "Something went wrong";
       if (messageEl) {
-        messageEl.textContent = "Try the link again, or open the form directly.";
+        messageEl.textContent =
+          "Try the link again, or open the form directly.";
       }
       setRetryLink(retryEl, "", token);
     }

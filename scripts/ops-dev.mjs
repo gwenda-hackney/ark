@@ -31,7 +31,6 @@ import { writeRuntimeEnvFile } from "./lib/secrets-cache.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OPS_DIR = resolve(ROOT, "ops/site");
-const MENU_APP = resolve(OPS_DIR, "menu-app");
 const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
 
 /** Secrets + config fills Wrangler binds for the Functions. */
@@ -71,7 +70,7 @@ function loadRootEnv() {
  * (SANITY_API_TOKEN__DEV in Secrets Manager).
  */
 async function useDevSanityProject() {
-  const { DEV_SANITY_PROJECT_ID } = await import("../ops/site/functions/_lib/sanity.js");
+  const { DEV_SANITY_PROJECT_ID } = await import("../shared/sanity-projects.js");
   process.env.SANITY_PROJECT_ID = DEV_SANITY_PROJECT_ID;
   const token = process.env.SANITY_API_TOKEN?.trim();
   const response = token
@@ -168,7 +167,7 @@ async function main() {
     await loadProductionSecrets();
     if (localPassword && !process.env.OPS_LOCAL_ADMIN_PW) process.env.OPS_LOCAL_ADMIN_PW = localPassword;
     // Repo .env points local work at the dev Sanity project; live is the real one.
-    const { REAL_SANITY_PROJECT_ID } = await import("../ops/site/functions/_lib/sanity.js");
+    const { REAL_SANITY_PROJECT_ID } = await import("../shared/sanity-projects.js");
     process.env.SANITY_PROJECT_ID = REAL_SANITY_PROJECT_ID;
     console.warn(`
   ************************************************************
@@ -187,7 +186,7 @@ async function main() {
   if (process.env.BASEROW_CONFIG_API_KEY?.trim()) {
     try {
       const { applyOpsAppConfig } = await import(
-        "../ops/site/functions/_lib/config-store.js"
+        "../ops/site/src/platform/config-store.js"
       );
       const merged = await applyOpsAppConfig({
         ...process.env,
@@ -222,7 +221,7 @@ async function main() {
     process.on(signal, () => process.exit(130));
   }
   try {
-    const { resolveOpsTableIds } = await import("../ops/site/functions/_lib/baserow.js");
+    const { resolveOpsTableIds } = await import("../shared/baserow.js");
     const { databaseId } = await resolveOpsTableIds(process.env);
     console.log(`Baserow Ops DB ${databaseId} (${LIVE ? "Gwenda, PRODUCTION" : "Gwenda Dev"} token)`);
   } catch (error) {
@@ -254,10 +253,8 @@ async function main() {
       process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim() &&
       process.env.OPS_SESSION_SECRET?.trim(),
   );
-  // TODO: Local Wrangler (:8788) still serves the built SPA from ops/site/src,
-  // so both ports show a UI. Prefer Wrangler proxying unmatched document
-  // routes to Vite (:5174) so there is one live SPA with HMR, and :8788 is
-  // Functions + static HTML tools only.
+  // Wrangler (:8788) serves Functions and public/ (the gate, icons); Vite
+  // (:5174) serves the live app with HMR and proxies /api to Wrangler.
   console.log(`
 Ops local:
   SPA (HMR):       http://localhost:5174/
@@ -271,11 +268,11 @@ Ops local:
 
   run(
     "npx",
-    ["wrangler", "pages", "dev", "src", "--ip", "0.0.0.0", "--port", "8788"],
+    ["wrangler", "pages", "dev", "public", "--ip", "0.0.0.0", "--port", "8788"],
     OPS_DIR,
     "wrangler",
   );
-  run("npx", ["vite", "--host", "0.0.0.0"], MENU_APP, "vite");
+  run("npx", ["vite", "--host", "0.0.0.0"], OPS_DIR, "vite");
 
   function shutdown() {
     for (const child of children) {

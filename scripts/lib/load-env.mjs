@@ -19,7 +19,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseDotEnv } from "../../marketing/web/functions/_lib/env-pem.js";
+import { parseDotEnv } from "../../shared/env-file.js";
 import { VAULT_ONLY_KEYS, loadPersistedSession } from "./bitwarden-env.mjs";
 import {
   APP_SECRETS,
@@ -38,7 +38,7 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..
  * (marketing/web/wrangler.dev.toml). Only when unset; never in CI.
  */
 const LOCAL_DEFAULTS = {
-  SANITY_PROJECT_ID: "gwscpagy", // Gwenda Dev (ops/site/functions/_lib/sanity.js DEV_SANITY_PROJECT_ID)
+  SANITY_PROJECT_ID: "gwscpagy", // Gwenda Dev (shared/sanity-projects.js DEV_SANITY_PROJECT_ID)
   SANITY_DATASET: "production",
   INVITE_BASE_URL: "http://localhost:4321",
 };

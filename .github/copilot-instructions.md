@@ -17,10 +17,13 @@ One dataset per Sanity project (`production`). Ops and Studio write drafts; ops 
 
 ## Branch flow
 
-- Develop on **`develop`** → [Web](workflows/web.yml) verify only. Other branches get a branch preview on the dev website.
+Every change starts as a GitHub issue and goes through a pull request. Nobody commits straight to `main`.
+
+- **Branch** from `main`: `feat/<issue>-<slug>`, `fix/…`, `chore/…`, `refactor/…`, `test/…`. Pushing it deploys a branch preview of the dev website.
+- **Pull request** into `main`, using the template (`Closes #N`, how it was tested, before/after-deploy notes). [PR checks](workflows/pr.yml) run lint and tests for the website, and tests, type check and build for ops. Merge only when they're green (the repo can't enforce branch protection, so this is by convention). Squash-merge and delete the branch.
 - Merge to **`main`** → dev: both dev sites and dev ops deploy, tested against dev data.
 - Merge `main` into **`release`** → prod's preview deploys (release code on drafts) with the deep smoke test. The live site does not change.
-- **Production requires explicit authorization.** Do not promote to live unless the user clearly asks. Default after changes: push **`main`** and verify dev.
+- **Production requires explicit authorization.** Do not promote to live unless the user clearly asks. Default after changes: merge the PR to **`main`** and verify dev.
 - Live website, ops, brand, and production Studio each promote on their own manual workflow, and only from **`release`**.
 - Website: [Web promote](workflows/web-promote.yml) on `release` rebuilds gwenda.co.uk from published documents. It does not move `release` or copy content.
 - Ops: [Apps](workflows/apps.yml) workflow dispatch, app `ops`, target production, branch `release`. Pushing `main` does not update gwenda-ops.
@@ -59,7 +62,7 @@ dist/          Build output (gitignored)
 ## CI/CD conventions
 
 - **Node 24 + npm 11** via Corepack (`packageManager` in `package.json`). Workflows run `corepack enable` before `npm ci`.
-- **Tests in the deploy job:** each web deploy job runs the unit tests and checks its own build; `verify.yml` is the `develop` check.
+- **Tests:** [PR checks](workflows/pr.yml) run on every pull request (website lint and tests; ops tests, `svelte-check` and build). Each web deploy job also runs the unit tests and checks its own build.
 - **Deploy logic:** `actions/deploy-pages/action.yml` + `marketing/web/scripts/ci/*` — keep workflows thin; do not add inline bash loops to YAML.
 - **Wrangler config:** `wrangler.toml` (gwenda: `[vars]` live, `[env.preview.vars]` its preview) and `wrangler.dev.toml` (gwenda-web-dev, the same shape). Plain vars (SMTP host/port, invite URLs) live in wrangler; runtime secrets sync only via `web-secrets.yml` / `ops-secrets.yml` → `sync-pages-secrets.mjs` (Bitwarden SM → Pages). Deploys do not push secrets.
 - **Production custom domains:** `ensure-pages-domain.mjs` for `gwenda.co.uk` and `www.gwenda.co.uk` only (production deploy).
@@ -71,9 +74,9 @@ dist/          Build output (gitignored)
 ## Code quality
 
 - Run `npm run lint` and `npm test` before proposing changes.
-- Match existing style; ESLint + Prettier are enforced in CI.
+- Match existing style; ESLint + Prettier are enforced on pull requests (website).
 - Prefer minimal, focused diffs. Reuse existing helpers in `functions/_lib/` and `scripts/`.
-- Add unit tests for security-sensitive logic in `functions/_lib/` (Vitest). See issue #6 for coverage backlog.
+- Add tests for security-sensitive logic (Vitest; see docs/testing.md). See issue #6 for coverage backlog.
 
 ## Configuration
 
@@ -104,4 +107,5 @@ npm run ensure:domain    # Attach custom domain + DNS (CUSTOM_DOMAIN, ZONE_NAME)
 
 - [README.md](../README.md) — full setup, branch flow, rollback
 - [docs/env.md](../docs/env.md) — local env: vault login, secrets in memory, defaults
+- [docs/secrets-rebuild.md](../docs/secrets-rebuild.md) — rebuilding every secret if Secrets Manager is lost
 - [.env.example](../.env.example) — local env reference

@@ -1,15 +1,24 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import {
   APP_SECRETS,
   SECRET_OWNERS,
+  assertProductionReadable,
+  defaultSecretEnv,
+  DEV_PROJECT_NAMES,
+  pickVisibleProjectIds,
   envSecretKey,
+  isSmRateLimited,
   ownerOf,
   parseSecretKey,
   pickAppSecrets,
   pickProjectIds,
+  redactBwsFailure,
   resolveSecretsForEnv,
+  secretCreateArgs,
+  secretEditArgs,
   smNameFor,
+  smRetryDelayMs,
 } from "./bitwarden-sm.mjs";
 
 describe("parseSecretKey", () => {
@@ -130,6 +139,21 @@ describe("catalog", () => {
   });
 });
 
+describe("Secrets Manager rate limits", () => {
+  it("recognises the 429 bws prints, and nothing else", () => {
+    const bws429 =
+      'Error: \n   0: Received error message from server: [429 Too Many Requests] {"object":"error","message":"Slow down! Too many requests. Try again in 1s."}';
+    assert.equal(isSmRateLimited(bws429), true);
+    assert.equal(isSmRateLimited("[401 Unauthorized] invalid access token"), false);
+    assert.equal(isSmRateLimited("Resource not found"), false);
+    assert.equal(isSmRateLimited(""), false);
+  });
+
+  it("backs off 1.5s, 3s, 6s, 12s", () => {
+    assert.deepEqual([1, 2, 3, 4].map(smRetryDelayMs), [1500, 3000, 6000, 12000]);
+  });
+});
+
 describe("pickProjectIds", () => {
   const projects = [
     { id: "a", name: "ark" },
@@ -152,5 +176,84 @@ describe("pickProjectIds", () => {
 
   it("refuses two projects with the same name", () => {
     assert.throws(() => pickProjectIds([...projects, { id: "a2", name: "ARK" }], {}), /Several .* named ark\./);
+  });
+});
+
+describe("bws secret argv", () => {
+  const dashValue = "--starts-with-dashes";
+
+  it("puts a dash-leading create value after -- so clap does not treat it as a flag", () => {
+    assert.deepEqual(secretCreateArgs("FORMS_ADMIN_SECRET", dashValue, "proj"), [
+      "secret",
+      "create",
+      "FORMS_ADMIN_SECRET",
+      "--",
+      dashValue,
+      "proj",
+    ]);
+  });
+
+  it("passes notes as --note= before the end-of-options marker", () => {
+    assert.deepEqual(secretCreateArgs("SITE_PASSWORD", "word", "proj", "--note-text"), [
+      "secret",
+      "create",
+      "--note=--note-text",
+      "SITE_PASSWORD",
+      "--",
+      "word",
+      "proj",
+    ]);
+  });
+
+  it("passes an edit value with --value= so a leading dash stays attached", () => {
+    assert.deepEqual(secretEditArgs("sid", dashValue, "note"), [
+      "secret",
+      "edit",
+      "sid",
+      `--value=${dashValue}`,
+      "--note=note",
+    ]);
+  });
+
+  it("strips clap's echo of the rejected value from the error", () => {
+    const detail = [
+      `error: unexpected argument '${dashValue}' found`,
+      `tip: to pass '${dashValue}' as a value, use '-- ${dashValue}'`,
+    ].join("\n");
+    const redacted = redactBwsFailure(detail);
+    assert.equal(redacted.includes(dashValue), false);
+    assert.match(redacted, /unexpected argument '\[redacted\]'/);
+  });
+});
+
+describe("dev and production projects (#61)", () => {
+  const projects = [
+    { id: "a", name: "Ark" },
+    { id: "ad", name: "Ark-Dev" },
+    { id: "wd", name: "ark/web-dev" },
+  ];
+
+  it("finds the projects the token can see, and skips the rest", () => {
+    assert.deepEqual(pickVisibleProjectIds(projects, DEV_PROJECT_NAMES), { ark: "ad", web: "wd" });
+    assert.deepEqual(pickVisibleProjectIds([{ id: "a", name: "Ark" }], DEV_PROJECT_NAMES), {});
+  });
+
+  it("refuses two projects with the same name", () => {
+    assert.throws(() => pickVisibleProjectIds([...projects, { id: "x", name: "ARK-DEV" }], DEV_PROJECT_NAMES), /Several/);
+  });
+
+  it("reads production on release and dev on every other branch", () => {
+    assert.equal(defaultSecretEnv({ GITHUB_REF_NAME: "release" }), "production");
+    assert.equal(defaultSecretEnv({ GITHUB_REF_NAME: "main" }), "dev");
+    assert.equal(defaultSecretEnv({ GITHUB_REF_NAME: "feat/x" }), "dev");
+    assert.equal(defaultSecretEnv({}), "dev");
+  });
+
+  it("stops a production pull by a token that sees no production values", () => {
+    assert.throws(
+      () => assertProductionReadable(new Map([["CLOUDFLARE_API_TOKEN", "x"], ["SANITY_API_TOKEN__DEV", "y"]])),
+      /can't read production secrets/,
+    );
+    assert.doesNotThrow(() => assertProductionReadable(new Map([["SANITY_API_TOKEN__PRODUCTION", "z"]])));
   });
 });

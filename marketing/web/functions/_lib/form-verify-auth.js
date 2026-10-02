@@ -22,18 +22,15 @@ function stringToBase64Url(str) {
 
 function base64UrlToString(value) {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+  const pad =
+    padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
   const bin = atob(padded + pad);
   const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
   return new TextDecoder().decode(bytes);
 }
 
 function formVerifySecret(env) {
-  return (
-    env?.SUBSCRIBE_SECRET?.trim() ||
-    env?.TICKET_SECRET?.trim() ||
-    ""
-  );
+  return env?.SUBSCRIBE_SECRET?.trim() || env?.TICKET_SECRET?.trim() || "";
 }
 
 async function hmacSign(secret, message) {
@@ -53,7 +50,8 @@ async function hmacSign(secret, message) {
 }
 
 function matchesToken(provided, expected) {
-  if (!provided || !expected || provided.length !== expected.length) return false;
+  if (!provided || !expected || provided.length !== expected.length)
+    return false;
   let diff = 0;
   for (let i = 0; i < provided.length; i++) {
     diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
@@ -70,7 +68,9 @@ export async function createFormVerifyToken(
 ) {
   const secret = formVerifySecret(env);
   const cleanRow = String(rowId ?? "").trim();
-  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const cleanEmail = String(email ?? "")
+    .trim()
+    .toLowerCase();
   const cleanSlug = String(slug ?? "").trim();
   if (!secret || !cleanRow || !cleanEmail || !cleanSlug) return null;
 
@@ -152,7 +152,9 @@ export async function parseFormVerifyToken(env, token) {
 export async function createFormEditToken(env, { rowId, email, slug }) {
   const secret = formVerifySecret(env);
   const cleanRow = String(rowId ?? "").trim();
-  const cleanEmail = String(email ?? "").trim().toLowerCase();
+  const cleanEmail = String(email ?? "")
+    .trim()
+    .toLowerCase();
   const cleanSlug = String(slug ?? "").trim();
   if (!secret || !cleanRow || !cleanEmail || !cleanSlug) return null;
 
@@ -198,12 +200,7 @@ export async function parseFormEditToken(env, token) {
     return { ok: false, reason: "invalid" };
   }
 
-  if (
-    data?.v !== FORM_EDIT_SCOPE ||
-    !data.rowId ||
-    !data.email ||
-    !data.slug
-  ) {
+  if (data?.v !== FORM_EDIT_SCOPE || !data.rowId || !data.email || !data.slug) {
     return { ok: false, reason: "invalid" };
   }
 

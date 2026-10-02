@@ -32,7 +32,9 @@ describe("form-field-rules", () => {
   it("accepts instagram handles and links", () => {
     expect(isValidInstagramOrLink("@disco_kid")).toBe(true);
     expect(isValidInstagramOrLink("disco_kid")).toBe(true);
-    expect(isValidInstagramOrLink("https://instagram.com/disco_kid")).toBe(true);
+    expect(isValidInstagramOrLink("https://instagram.com/disco_kid")).toBe(
+      true,
+    );
     expect(isValidInstagramOrLink("https://www.instagram.com/disco_kid/")).toBe(
       true,
     );

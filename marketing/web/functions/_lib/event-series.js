@@ -849,6 +849,13 @@ export function buildWhatsOnStack(
     const guestUrl = guestName
       ? String(featuredNight?.pageUrl || "").trim()
       : "";
+    // The card already leads with that night's date and "With <guest>", so a
+    // This week / Next line for the same night would repeat it.
+    const shownDate = guestName ? String(featuredNight.date || "") : "";
+    const thisWeekShown =
+      Boolean(shownDate) && diary.thisWeekDate === shownDate;
+    const upcomingShown =
+      Boolean(shownDate) && diary.upcomingDate === shownDate;
     return {
       id: row.seriesId,
       seriesId: row.seriesId,
@@ -866,10 +873,10 @@ export function buildWhatsOnStack(
       hostName: diary.hostName,
       hostDate: diary.hostDate,
       hostThisWeek: diary.hostThisWeek,
-      thisWeekDate: diary.thisWeekDate,
-      thisWeekName: diary.thisWeekName,
-      upcomingDate: diary.upcomingDate,
-      upcomingName: diary.upcomingName,
+      thisWeekDate: thisWeekShown ? "" : diary.thisWeekDate,
+      thisWeekName: thisWeekShown ? "" : diary.thisWeekName,
+      upcomingDate: upcomingShown ? "" : diary.upcomingDate,
+      upcomingName: upcomingShown ? "" : diary.upcomingName,
       // Ops keeps the offer on each night (the series document has none), so
       // the card shows the next night's offer.
       offer: row.offer || featuredNight?.offer || "",

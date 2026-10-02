@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { createOpsUser, listOpsUsers } from "../../_lib/user-store.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { createOpsUser, listOpsUsers } from "../../../src/users/server/user-store.js";
 
 export const onRequestGet = withApiHandler(async (context) => {
   const users = await listOpsUsers(context.env);

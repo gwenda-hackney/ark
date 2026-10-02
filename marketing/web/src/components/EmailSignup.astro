@@ -17,15 +17,14 @@ const { mode, embedded = false } = Astro.props;
 const copy = getCopy(mode);
 const { contactPage } = siteConfig.copy;
 const playHref = formPublicPath(PLAY_FORM_SLUG);
-const sectionClass = embedded ? "signup section signup--embedded" : "signup section";
+const sectionClass = embedded
+  ? "signup section signup--embedded"
+  : "signup section";
 ---
 
 <section class={sectionClass} id={embedded ? undefined : "list"}>
   <div
-    class:list={[
-      "container",
-      embedded ? "signup-inner" : "contact-hub-inner",
-    ]}
+    class:list={["container", embedded ? "signup-inner" : "contact-hub-inner"]}
   >
     {
       embedded ? (
@@ -44,7 +43,9 @@ const sectionClass = embedded ? "signup section signup--embedded" : "signup sect
               novalidate
             >
               <div class="signup-field">
-                <label for="email" class="visually-hidden">Email address</label>
+                <label for="email" class="visually-hidden">
+                  Email address
+                </label>
                 <input
                   type="email"
                   name="email"
@@ -98,7 +99,9 @@ const sectionClass = embedded ? "signup section signup--embedded" : "signup sect
             <h2 class="signup-confirm-title">
               {siteConfig.copy.signupSuccessTitle}
             </h2>
-            <p class="signup-confirm-lead">{siteConfig.copy.signupSuccessLead}</p>
+            <p class="signup-confirm-lead">
+              {siteConfig.copy.signupSuccessLead}
+            </p>
             <a href="/#hero" class="btn btn-primary signup-confirm-back">
               {siteConfig.copy.signupSuccessBack}
             </a>
@@ -110,7 +113,9 @@ const sectionClass = embedded ? "signup section signup--embedded" : "signup sect
             class="contact-hub-path reveal reveal-stagger"
             style="--reveal-delay: 0.08s"
           >
-            <p class="contact-hub-path-eyebrow">{siteConfig.copy.bookTableEyebrow}</p>
+            <p class="contact-hub-path-eyebrow">
+              {siteConfig.copy.bookTableEyebrow}
+            </p>
             <h2>{siteConfig.copy.bookTableHeading}</h2>
             <p>{siteConfig.copy.bookTableLead}</p>
             <a
@@ -132,7 +137,9 @@ const sectionClass = embedded ? "signup section signup--embedded" : "signup sect
             <p class="contact-hub-path-eyebrow">{contactPage.playEyebrow}</p>
             <h2>{contactPage.playHeading}</h2>
             <p>{contactPage.playLead}</p>
-            <a href={playHref} class="btn btn-ghost">{contactPage.playCta}</a>
+            <a href={playHref} class="btn btn-ghost">
+              {contactPage.playCta}
+            </a>
           </article>
         </div>
       )

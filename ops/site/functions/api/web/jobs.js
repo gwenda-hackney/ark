@@ -1,5 +1,5 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { listWebsiteJobs, runWebsiteJob } from "../../_lib/website-jobs.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { listWebsiteJobs, runWebsiteJob } from "../../../src/events/server/website-jobs.js";
 
 /** Saved events still being got ready for the website. */
 export const onRequestGet = withApiHandler(async (context) => {

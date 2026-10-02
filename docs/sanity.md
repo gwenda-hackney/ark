@@ -16,7 +16,7 @@ Nothing is copied between datasets. Every change starts as a Sanity **draft** (`
 - **Ops publishes.** *Put on website* publishes one event's drafts (and anything they reference that also changed); *Website → Preview → live* publishes any or all. Developer tools can also discard drafts, so the preview matches live again.
 - **Removals don't wait.** Deleting in ops removes the draft and the published document together: it comes off the preview and the website at once (the delete dialog says so).
 
-Ops reads Sanity through the same two views (`ops/site/functions/_lib/sanity.js`: `preview`, `production`, and `raw` for both side by side), and turns every write into a draft write (`draftMutations`). Publishing and discarding are `release.js`.
+Ops reads Sanity through the same two views (`ops/site/src/platform/sanity.js`: `preview`, `production`, and `raw` for both side by side), and turns every write into a draft write (`draftMutations`). Publishing and discarding are `release.js`.
 
 ## Environments
 
@@ -71,25 +71,24 @@ Settings → Developer tools (`/web/dev`), for emails listed in config `ops.admi
 
 Sanity **robot / API tokens** on this plan are **Viewer**, **Editor**, and **Deploy Studio**. There is no **Developer** robot role in the manage UI (Developer is a human user role on Growth+). Every token that builds a preview or serves its What's on must read drafts; Viewer and Editor both can.
 
-**Keep-set:**
+Each token is named after the Secrets Manager key that holds it:
 
-| Label | Role | Where | Used for |
-|-------|------|-------|----------|
-| `ark-local-editor` | **Editor** | Secrets Manager `SANITY_API_TOKEN__DEV` (loaded after `bw-unlock`) | Local Studio, seeds. **Never** GitHub. |
-| `ark-ci-viewer` | **Viewer** | GitHub `SANITY_API_TOKEN` | Site builds / content deploys |
-| `ark-ci-deploy-studio` | **Deploy Studio** | GitHub + SM `SANITY_DEPLOY_TOKEN` | Hosted Studio deploys |
+| Label = SM key | Project | Role | Used for |
+| --- | --- | --- | --- |
+| `SANITY_API_TOKEN__DEV` | Gwenda Dev (`gwscpagy`) | **Editor** | Local and dev: ops, website builds, seeds |
+| `SANITY_API_TOKEN__PRODUCTION` | Gwenda (`pn5yjro6`) | **Editor** | Production ops and the live website build |
+| `SANITY_DEPLOY_TOKEN` | Gwenda (`pn5yjro6`) | **Deploy Studio** | Hosted Studio deploys |
 
-Mint, rotate, and revoke extras with a **personal** admin session (`npx sanity login`), not the local Editor robot:
+Create or rotate them with a **personal** admin session:
 
 ```bash
 npx sanity login
-gh auth login -h github.com -p https -s repo,workflow
-bw-unlock   # so it can store SANITY_DEPLOY_TOKEN in Secrets Manager
-npm run setup:sanity-tokens -- --dry-run   # always look first: it revokes robots not in the keep-set
-npm run setup:sanity-tokens
+npm run setup:sanity-tokens -- --dry-run          # what it would do
+npm run setup:sanity-tokens -- SANITY_API_TOKEN__DEV
+npm run setup:sanity-tokens -- --revoke-old SANITY_API_TOKEN__DEV   # also revoke the older one
 ```
 
-`setup:ci-secrets` is a deprecated alias that only refreshes CI tokens + GitHub secrets.
+It stores each new token in Secrets Manager under its label. It never revokes anything without `--revoke-old`, and then only older tokens with the same label. For production, revoke the old one only once the deploys on the new value are green.
 
 ### Local
 

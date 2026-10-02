@@ -1,6 +1,6 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../_lib/http.js";
-import { groupImportRows, parseImportText } from "../../_lib/menu.js";
-import { importIngredientsForItems } from "../../_lib/menu-store.js";
+import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
+import { groupImportRows, parseImportText } from "../../../src/menu/server/menu.js";
+import { importIngredientsForItems } from "../../../src/menu/server/menu-store.js";
 
 export const onRequestPost = withApiHandler(async (context) => {
   const body = await readJsonBody(context.request);

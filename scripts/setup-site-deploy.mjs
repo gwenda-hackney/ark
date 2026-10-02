@@ -2,8 +2,11 @@
 /**
  * One-shot setup for the site deploy webhook (ops → site rebuilds):
  *   - generate DEPLOY_WEBHOOK_SECRET (or reuse the one in Secrets Manager)
- *   - store it and DISPATCH_TOKEN (the GitHub token the Worker dispatches
- *     workflows with) in Secrets Manager; CI reads them from there
+ *   - store it in Secrets Manager; CI reads it from there
+ *   - give the Worker DISPATCH_TOKEN from Secrets Manager: a fine-grained
+ *     GitHub token for gwenda-hackney/ark only (Actions: read and write,
+ *     Contents: read). Never a personal `gh auth token`, which reaches
+ *     everything its owner can.
  *   - deploy gwenda-site-deploy-webhook Worker + sync Worker secrets
  *
  * Usage:
@@ -11,7 +14,6 @@
  *
  * Requires:
  *   - CLOUDFLARE_API_TOKEN from Secrets Manager (bw-unlock)
- *   - gh authenticated with repo + workflow scope (gh auth login)
  */
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -19,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
-import { upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import { listAllSmSecrets, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/site-deploy-webhook");
@@ -44,17 +46,6 @@ function run(command, args, { input, env, cwd = ROOT, quiet = false } = {}) {
   return result.stdout ?? "";
 }
 
-function assertGhAuth() {
-  try {
-    run("gh", ["auth", "status"], { quiet: true });
-  } catch {
-    throw new Error(
-      "GitHub CLI is not authenticated. Run:\n" +
-        "  gh auth login -h github.com -p https -s repo,workflow",
-    );
-  }
-}
-
 function readWranglerAccountId() {
   const toml = readFileSync(resolve(WORKER_DIR, "wrangler.toml"), "utf8");
   const match = toml.match(/^account_id\s*=\s*"([^"]+)"/m);
@@ -64,7 +55,6 @@ function readWranglerAccountId() {
 
 async function main() {
   loadRepoEnv();
-  assertGhAuth();
 
   const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (!cloudflareToken) {
@@ -79,9 +69,12 @@ async function main() {
     console.log("Reusing DEPLOY_WEBHOOK_SECRET from Secrets Manager.");
   }
 
-  const dispatchToken = run("gh", ["auth", "token"], { quiet: true }).trim();
+  const dispatchToken = listAllSmSecrets().get("DISPATCH_TOKEN")?.trim();
   if (!dispatchToken) {
-    throw new Error("gh auth token is empty — re-run gh auth login.");
+    throw new Error(
+      "DISPATCH_TOKEN is missing from Secrets Manager (ark). Create a fine-grained GitHub token " +
+        "for gwenda-hackney/ark (Actions: read and write, Contents: read); see docs/secrets-rebuild.md.",
+    );
   }
 
   const accountId = readWranglerAccountId();
@@ -119,11 +112,8 @@ async function main() {
   });
   console.log("Worker secrets synced.");
 
-  for (const [key, value] of [
-    ["DEPLOY_WEBHOOK_SECRET", deploySecret],
-    ["DISPATCH_TOKEN", dispatchToken],
-  ]) {
-    if (upsertSmSecret({ key, value }) !== "unchanged") console.log(`Stored ${key} in Secrets Manager.`);
+  if (upsertSmSecret({ key: "DEPLOY_WEBHOOK_SECRET", value: deploySecret }) !== "unchanged") {
+    console.log("Stored DEPLOY_WEBHOOK_SECRET in Secrets Manager.");
   }
   console.log(
     `If the URL changed, update SANITY_STUDIO_SITE_DEPLOY_URL in ops/site/wrangler*.toml: ${workerUrl}`,

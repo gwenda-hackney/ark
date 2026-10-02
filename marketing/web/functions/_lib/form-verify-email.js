@@ -1,4 +1,7 @@
-import { resolveFormFrom, resolveFormReplyTo } from "../../../../shared/forms/form-email.js";
+import {
+  resolveFormFrom,
+  resolveFormReplyTo,
+} from "../../../../shared/forms/form-email.js";
 import { isGmailConfigured, sendGmail } from "../../../../shared/gmail-send.js";
 import { MAIL_SENDER } from "../../../../shared/mail-from.js";
 import { reportFormError } from "../../../../shared/forms/form-alert.js";

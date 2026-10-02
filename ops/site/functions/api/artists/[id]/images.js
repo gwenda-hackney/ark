@@ -1,5 +1,5 @@
-import { jsonResponse, withApiHandler } from "../../../_lib/http.js";
-import { clearArtistImage, setArtistImage } from "../../../_lib/artist-store.js";
+import { jsonResponse, withApiHandler } from "../../../../src/platform/http.js";
+import { clearArtistImage, setArtistImage } from "../../../../src/artists/server/artist-store.js";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);

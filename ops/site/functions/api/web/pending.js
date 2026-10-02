@@ -1,7 +1,7 @@
-import { jsonResponse, withApiHandler } from "../../_lib/http.js";
-import { runsOnMachine } from "../../_lib/sanity.js";
-import { siteStatus } from "../../_lib/site-pending.js";
-import { siteUrls } from "../../_lib/site-urls.js";
+import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
+import { runsOnMachine } from "../../../src/platform/sanity.js";
+import { siteStatus } from "../../../src/website/server/site-pending.js";
+import { siteUrls } from "../../../src/website/server/site-urls.js";
 
 /** Changes waiting for each site's next update, for the Website page and menu badge. */
 export const onRequestGet = withApiHandler(async (context) => {

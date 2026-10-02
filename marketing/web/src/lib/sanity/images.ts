@@ -58,7 +58,9 @@ export function buildSanityImageUrl(
   return url.toString();
 }
 
-function toImageSource(image: NonNullable<SanityImageField>): SanityImageSource | null {
+function toImageSource(
+  image: NonNullable<SanityImageField>,
+): SanityImageSource | null {
   const assetId = image.asset?._id;
   if (!assetId) return null;
 
@@ -98,7 +100,9 @@ function croppedPixelSize(image: NonNullable<SanityImageField>): {
 }
 
 /** Map Sanity hotspot to CSS object-position on the cropped image. */
-export function galleryObjectPosition(image: NonNullable<SanityImageField>): string {
+export function galleryObjectPosition(
+  image: NonNullable<SanityImageField>,
+): string {
   const hotspot = image.hotspot;
   if (hotspot?.x == null || hotspot?.y == null) {
     return "50% 50%";
@@ -136,15 +140,15 @@ function hasImageFraming(image: NonNullable<SanityImageField>): boolean {
   const hotspot = image.hotspot;
   const cropped = Boolean(
     crop &&
-      ((crop.top ?? 0) > 0.001 ||
-        (crop.bottom ?? 0) > 0.001 ||
-        (crop.left ?? 0) > 0.001 ||
-        (crop.right ?? 0) > 0.001),
+    ((crop.top ?? 0) > 0.001 ||
+      (crop.bottom ?? 0) > 0.001 ||
+      (crop.left ?? 0) > 0.001 ||
+      (crop.right ?? 0) > 0.001),
   );
   const focused = Boolean(
     hotspot &&
-      (Math.abs((hotspot.x ?? 0.5) - 0.5) > 0.02 ||
-        Math.abs((hotspot.y ?? 0.5) - 0.5) > 0.02),
+    (Math.abs((hotspot.x ?? 0.5) - 0.5) > 0.02 ||
+      Math.abs((hotspot.y ?? 0.5) - 0.5) > 0.02),
   );
   return cropped || focused;
 }

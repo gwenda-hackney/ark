@@ -40,7 +40,9 @@ const sampleEvents: Event[] = [
 
 describe("eventPageLink", () => {
   it("names the site when a page is set", () => {
-    expect(eventPageLink("https://partiful.com/e/Goj3NNw3Up68TjUxYaoT")).toEqual({
+    expect(
+      eventPageLink("https://partiful.com/e/Goj3NNw3Up68TjUxYaoT"),
+    ).toEqual({
       href: "https://partiful.com/e/Goj3NNw3Up68TjUxYaoT",
       label: "Partiful",
     });

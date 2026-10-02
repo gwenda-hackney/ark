@@ -6,10 +6,14 @@
  *
  *   node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
  *
- * `NAME__PRODUCTION` wins over `NAME`. Fails, naming the key, if one is missing.
+ * On release `NAME__PRODUCTION` wins over `NAME`, elsewhere `NAME__DEV` (the
+ * production GitHub environment only accepts release, #61). Fails, naming the
+ * key, if one is missing.
  */
 import { appendFileSync } from "node:fs";
 import {
+  assertProductionReadable,
+  defaultSecretEnv,
   ensureBwsInstalled,
   listAllSmSecrets,
   resolveSecretsForEnv,
@@ -28,10 +32,10 @@ if (!path) {
 }
 
 ensureBwsInstalled();
-const resolved = resolveSecretsForEnv(
-  listAllSmSecrets({ accessToken: resolveSmAccessToken() }),
-  "production",
-);
+const env = defaultSecretEnv();
+const raw = listAllSmSecrets({ accessToken: resolveSmAccessToken() });
+if (env === "production") assertProductionReadable(raw);
+const resolved = resolveSecretsForEnv(raw, env);
 const missing = names.filter((name) => !String(resolved.get(name) ?? "").trim());
 if (missing.length) {
   console.error(

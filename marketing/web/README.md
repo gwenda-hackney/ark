@@ -8,11 +8,11 @@ Part of the Gwenda monorepo (`marketing/web/` under the ark root).
 
 Each environment's Sanity project has one dataset, `production`. A preview shows drafts over published documents; a live site shows published only.
 
-| | Site | Sanity | Git branch | Perspective |
-|---|------|--------|------------|-------------|
-| **Local** | [localhost:4321](http://localhost:4321) (`npm run web:dev`), [:4322](http://localhost:4322) (`web:dev:live`) | Gwenda Dev | your branch | drafts / published |
-| **Dev** | [preview.gwenda-web-dev.pages.dev](https://preview.gwenda-web-dev.pages.dev), [gwenda-web-dev.pages.dev](https://gwenda-web-dev.pages.dev) | Gwenda Dev | `main` | drafts / published |
-| **Prod** | [preview.gwenda-blue.pages.dev](https://preview.gwenda-blue.pages.dev), [gwenda.co.uk](https://gwenda.co.uk) | Gwenda Web | `release` (live via Web promote) | drafts / published |
+|           | Site                                                                                                                                       | Sanity     | Git branch                       | Perspective        |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | -------------------------------- | ------------------ |
+| **Local** | [localhost:4321](http://localhost:4321) (`npm run web:dev`), [:4322](http://localhost:4322) (`web:dev:live`)                               | Gwenda Dev | your branch                      | drafts / published |
+| **Dev**   | [preview.gwenda-web-dev.pages.dev](https://preview.gwenda-web-dev.pages.dev), [gwenda-web-dev.pages.dev](https://gwenda-web-dev.pages.dev) | Gwenda Dev | `main`                           | drafts / published |
+| **Prod**  | [preview.gwenda-blue.pages.dev](https://preview.gwenda-blue.pages.dev), [gwenda.co.uk](https://gwenda.co.uk)                               | Gwenda Web | `release` (live via Web promote) | drafts / published |
 
 ![Preview deployment](https://img.shields.io/github/deployments/gwenda-hackney/ark/preview?label=preview)
 ![Production deployment](https://img.shields.io/github/deployments/gwenda-hackney/ark/production?label=production)

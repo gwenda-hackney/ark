@@ -28,7 +28,7 @@ Bitwarden Secrets Manager has no per-env secrets, so env is encoded in the name:
 
 There are two envs. **dev** is a developer's machine and the hosted dev sites alike; **production** is live and its preview. A pull for env `E` lists every SM project, keeps `NAME` and `NAME__E`, and lets the env value win. That is the whole merge: code reads the plain `NAME` and never chooses an env. Per-env credentials (Baserow tokens, `FORMS_ADMIN_SECRET`) have **no** shared `NAME`, so a missing value is reported as missing instead of silently using another env's.
 
-The one reader that needs another env's value asks for it by its full name: production ops compares its database with the dev copy using `BASEROW_OPS_API_KEY__DEV` (`ops/site/functions/_lib/db-diff.js`). Do not add bespoke per-env names (`FOO_DEV_KEY`) or env checks that pick a secret.
+The one reader that needs another env's value asks for it by its full name: production ops compares its database with the dev copy using `BASEROW_OPS_API_KEY__DEV` (`ops/site/src/platform/db-diff.js`). Do not add bespoke per-env names (`FOO_DEV_KEY`) or env checks that pick a secret.
 
 Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs` (`APP_SECRETS`). When a runtime key differs from the SM name, the manifest renames it (locally in `load-env.mjs`, in CI via `--github-env`):
 
@@ -41,7 +41,7 @@ Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs`
 
 Everything else uses the same name at runtime and in SM. The same manifest drives local pulls (`env:<app>:pull`), CI pulls (`--github-env`) and the Cloudflare Pages sync (`setup:ops`, `sync-pages-secrets.mjs`), so there is one list to edit.
 
-Projects only record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two.
+Projects record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two. Projects come in pairs, named like everything else (#61): **`ark`, `ark/ops`, `ark/web` are production** and hold the `NAME__PRODUCTION` values; **`ark-dev`, `ark/ops-dev`, `ark/web-dev`** hold the `NAME__DEV` and shared `NAME` values. A write goes to the owner's production project for a `__PRODUCTION` name and to its `-dev` project otherwise; a pull reads every project the token can see. `npm run secrets:move-dev` moves the dev and shared values out of the production projects (dry run first, `-- --apply` to move).
 
 | Project (name in SM) | Owns |
 |---------|------|
@@ -49,7 +49,36 @@ Projects only record ownership (`SECRET_OWNERS`). A key must live in exactly one
 | `ark/ops` | `BASEROW_OPS_API_KEY__*`, Google service account + OAuth secret, ops session/bypass, Lightspeed, Baserow login `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (automation@) |
 | `ark/web` | `BASEROW_WEBSITE_API_KEY__*`, `FORMS_ADMIN_SECRET__*`, Sanity, deploy webhook, subscribe, site gate, Instagram |
 
-Scripts find the projects by name (ignoring case) with `bws project list`, so recreating a project needs no code change. Override with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed. Name each SM access token after the key that holds it: `ARK_LOCAL_BW_TOKEN` (`ark-local`, read/write) and `BWS_ACCESS_TOKEN` (`ark-ci`, read only).
+Scripts find the projects by name (ignoring case) with `bws project list`, so recreating a project needs no code change. Override the base three with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
+
+### Who reads what (#61)
+
+| Machine account | `ark`, `ark/ops`, `ark/web` (production) | `ark-dev`, `ark/ops-dev`, `ark/web-dev` | Where the token lives |
+|---|---|---|---|
+| `ark-local` | read/write | read/write | vault note `ark/.env.local` as `ARK_LOCAL_BW_TOKEN` (a developer's machine) |
+| `ark-ci` | read | read | token `ARK_CI_TOKEN`, stored as GitHub environment `production` secret `BWS_ACCESS_TOKEN` (deploys from `release` only) |
+| `ark-ci-dev` | none | read | token `ARK_CI_DEV_TOKEN`, stored as GitHub environments `dev` and `preview` secret `BWS_ACCESS_TOKEN` |
+
+So a job on `main` or a feature branch can't read a production value. In CI a pull defaults to production on `release` and dev on any other branch; a production pull with a token that sees no `__PRODUCTION` value stops with "This token can't read production secrets" instead of quietly using shared values. `pr.yml` uses no secrets.
+
+### Shared names and production
+
+A shared `NAME` is visible to the dev token, so it must not be able to change production. Audit (2026-10-01):
+
+| Shared name | Can it touch production? | Decision |
+|---|---|---|
+| `CLOUDFLARE_ACCOUNT_ID` | No, an id | Stays shared |
+| `CLOUDFLARE_API_TOKEN` | Yes: deploys every Pages project and Worker | Split: `__DEV` scoped to the dev projects, `__PRODUCTION` |
+| `DISPATCH_TOKEN` | Yes: starts workflows | Production only (the production Worker uses it) |
+| `MAILCHIMP_API_KEY`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Yes: the real audience | Production only (the production Worker) |
+| `SANITY_DEPLOY_TOKEN` | Yes: deploys the hosted Studio | Production only |
+| `UNIFI_SITE_MANAGER_API_KEY` | Yes: the venue Wi-Fi | Production only |
+| `UPTIME_ROBOT_API_KEY` | Monitoring only | Production only (local script) |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes: sends mail as notifications@, edits calendars | Split: a dev service account limited to the dev calendar and the safe inbox (follow-up) |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Low: sign-in only works on registered addresses | Split: a dev OAuth client (follow-up) |
+| `BASEROW_JWT_EMAIL` / `_PASSWORD` | Yes: automation@ is in both workspaces | Split: a dev-only Baserow user for dev migrations (follow-up) |
+| `BASEROW_CONFIG_API_KEY` | Yes: one config table holds both envs' rows | Split the config database per env (follow-up) |
+| `DEPLOY_WEBHOOK_SECRET` | Yes: the webhook can start a live promote | Split: the webhook accepts a dev secret for dev targets only (follow-up) |
 
 ```bash
 npm run env:secrets:refresh                   # refetch dev into the RAM cache
@@ -58,7 +87,7 @@ FORMS_ADMIN_SECRET=... npm run env:web:push -- FORMS_ADMIN_SECRET   # shell → 
 FORMS_ADMIN_SECRET=... npm run env:web:push -- --profile dev FORMS_ADMIN_SECRET   # → FORMS_ADMIN_SECRET__DEV
 ```
 
-Machine accounts: `ark-local` (read/write), `ark-ci` (read), both with access to all three projects. Local bootstrap is `ARK_LOCAL_BW_TOKEN`, read from the unlocked vault note `ark/.env.local` (never in `.env`); CI uses repo secret `BWS_ACCESS_TOKEN`. Do not mirror app secrets into GitHub.
+Machine accounts: see [Who reads what](#who-reads-what-61). Local bootstrap is `ARK_LOCAL_BW_TOKEN`, read from the unlocked vault note `ark/.env.local` (never in `.env`); CI uses the `BWS_ACCESS_TOKEN` of the job's GitHub environment. Do not mirror app secrets into GitHub.
 
 Sync to Cloudflare Pages (manual, after rotation):
 
@@ -128,7 +157,7 @@ A few rows are written by code, not people. Leave them alone:
 
 No Baserow workspace, database or table id is configured anywhere. They change when a database is recreated, so everything goes by name:
 
-- **Apps** use a database token. A token belongs to one workspace, so it decides the environment: the production tokens only see **Gwenda**, the dev tokens only **Gwenda Dev**. Tokens can't read database names, so the app finds its database by its tables (`DATABASE_FINGERPRINTS` in `ops/site/functions/_lib/baserow.js`: Menu Sections / Menu Items / Ingredients for Ops; Subscribers / Form Submissions for Website), then its tables by name. A token that sees two such databases is an error.
+- **Apps** use a database token. A token belongs to one workspace, so it decides the environment: the production tokens only see **Gwenda**, the dev tokens only **Gwenda Dev**. Tokens can't read database names, so the app finds its database by its tables (`DATABASE_FINGERPRINTS` in `shared/baserow.js`: Menu Sections / Menu Items / Ingredients for Ops; Subscribers / Form Submissions for Website), then its tables by name. A token that sees two such databases is an error.
 - **Scripts** (migrations, clones, setup) log in as `BASEROW_JWT_EMAIL` and find databases by workspace and database name (`DATABASES` in `scripts/lib/migrations.mjs`).
 
 The Baserow data tokens only exist per env (`__DEV` / `__PRODUCTION`), never as a shared value. That is what keeps a developer's machine off production data; there is no id check.

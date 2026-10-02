@@ -12,7 +12,6 @@ ark/
 │   ├── subscribe-mailchimp-sync/ ← Baserow → Mailchimp sync Worker
 │   └── wifi-captive-portal/      ← UniFi captive portal Worker
 ├── ops/                          ← internal ops Pages app
-│   └── recipe-cost-webhook/
 ├── docs/
 ├── scripts/
 └── .github/
@@ -32,6 +31,16 @@ npm run studio:dev            # Sanity Studio, dev copy → http://localhost:333
 
 Commands say which environment they touch: `dev` is your copy, `prod` is the real thing (`ops:prod` runs ops locally on real data). See [docs/sanity.md](docs/sanity.md#environments).
 
+## Making a change
+
+Work is tracked as [GitHub issues](https://github.com/gwenda-hackney/ark/issues), grouped into [milestones](https://github.com/gwenda-hackney/ark/milestones).
+
+1. Branch from `main`: `feat/<issue>-<slug>` (or `fix/`, `chore/`, `refactor/`, `test/`). Pushing deploys branch previews on dev data: the website (`<branch>.gwenda-web-dev.pages.dev`) and, for ops changes, ops (`<branch>.gwenda-ops-dev.pages.dev`). The PR's **Previews** comment links to each one, updated on every push.
+2. Open a pull request into `main` and fill in the template. [PR checks](.github/workflows/pr.yml) run lint and tests; merge when they're green, then delete the branch.
+3. `main` deploys dev. Production goes `main` → `release` (prod preview) → promote, and only on purpose. Each production release of the website or ops with code changes becomes a [GitHub Release](https://github.com/gwenda-hackney/ark/releases) listing its PRs, so write PR titles for someone who runs Gwenda; the branch prefix picks the group (`feat/` New, `fix/` Fixes, others Behind the scenes; label `skip-changelog` to leave one out).
+
+Before pushing: `npm run lint` and `npm test` (website), `npm test -w @gwenda/ops` (ops).
+
 ## Environments
 
 There are two environments, built the same way. Each is a complete, separate copy: its own ops app, website, CMS (one Sanity dataset) and databases.
@@ -44,7 +53,7 @@ There are two environments, built the same way. Each is a complete, separate cop
 - **Live**: what visitors see.
 - **Preview**: the same site showing changes saved in ops or Studio (Sanity drafts) but not yet published with **Update website**. Password-protected. Otherwise it is the live environment: forms on prod's preview are real submissions.
 
-**Code** on `main` runs in dev. Code on `release` runs prod's preview, and goes live with Web promote. **Data** only moves by copying: `npm run dev:refresh` copies prod into dev.
+**Code** on `main` runs in dev. Code on `release` runs prod's preview, and goes live with Web promote. GitHub enforces this: its `production` environment accepts deploys from `release` only, `dev` from `main` only, and `preview` (branch previews) from any branch. **Data** only moves by copying: `npm run dev:refresh` copies prod into dev.
 
 ### Prod
 
@@ -60,6 +69,10 @@ There are two environments, built the same way. Each is a complete, separate cop
 **Databases:** Baserow workspace "Gwenda", [dashboard](https://baserow.io/dashboard): "Gwenda Ops" and "Website" (found by name; no ids are configured, see [docs/config.md](docs/config.md#baserow-no-ids))
 
 **Other:** [brand.gwenda.co.uk](https://brand.gwenda.co.uk) (brand guidelines), [health.gwenda.co.uk](https://health.gwenda.co.uk) (site health)
+
+**Automatic rollback:** every production deploy (website, ops, brand, and the ops secrets redeploy) records the live Cloudflare Pages deployment first. If any check after the deploy fails, the workflow puts that deployment back (with its own secrets) before the post migrations could run, and says so in the job summary (`scripts/pages-rollback.mjs`). To roll back by hand: Cloudflare dashboard → Pages → the project → Deployments → "Rollback to this deployment".
+
+**Uptime, from outside Cloudflare:** [UptimeRobot](https://dashboard.uptimerobot.com) (free plan, login alerts@gwenda.co.uk) checks gwenda.co.uk, `/robots.txt`, `/health` (keyword `"service":"gwenda"`) and the ops sign-in page every 5 minutes, and emails **alerts@gwenda.co.uk**. alerts@ is a Google Group, so it must accept mail from outside the organisation. `npm run setup:uptime` creates any missing monitor and makes sure each alerts alerts@ (UptimeRobot v3 API; `-- --dry-run` only reports).
 
 ### Dev
 

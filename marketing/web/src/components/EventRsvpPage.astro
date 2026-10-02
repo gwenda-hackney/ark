@@ -74,7 +74,8 @@ const { meta, occurrenceSlug = "" } = Astro.props;
                 This invitation link isn't valid or has expired.
               </p>
               <p class="section-lead">
-                If someone invited you, ask them for their personal link and open it in full.
+                If someone invited you, ask them for their personal link and
+                open it in full.
               </p>
             </header>
           </div>
@@ -82,7 +83,11 @@ const { meta, occurrenceSlug = "" } = Astro.props;
           <InviteFlipCardShell>
             <div id="rsvp-form-wrap" class="rsvp-state" hidden>
               <header class="event-rsvp-intro" id="rsvp-event-header">
-                <div class="event-rsvp-hero-wrap" id="rsvp-hero-personal-wrap" hidden>
+                <div
+                  class="event-rsvp-hero-wrap"
+                  id="rsvp-hero-personal-wrap"
+                  hidden
+                >
                   <img
                     id="rsvp-hero-personal"
                     src=""
@@ -93,12 +98,23 @@ const { meta, occurrenceSlug = "" } = Astro.props;
                     loading="eager"
                   />
                 </div>
-                <p class="invite-card-badge" id="rsvp-event-eyebrow-personal" hidden>
+                <p
+                  class="invite-card-badge"
+                  id="rsvp-event-eyebrow-personal"
+                  hidden
+                >
                   Exclusive invitation
                 </p>
-                <h1 class="invite-card-headline" id="rsvp-event-title-personal"></h1>
-                <p class="invite-card-meta" id="rsvp-event-date-personal" hidden></p>
-                <p class="event-offer" id="rsvp-event-offer-personal" hidden></p>
+                <h1 class="invite-card-headline" id="rsvp-event-title-personal">
+                </h1>
+                <p
+                  class="invite-card-meta"
+                  id="rsvp-event-date-personal"
+                  hidden
+                >
+                </p>
+                <p class="event-offer" id="rsvp-event-offer-personal" hidden>
+                </p>
                 <p class="event-rsvp-venue" id="rsvp-event-venue-wrap" hidden>
                   <a
                     id="rsvp-event-maps-link"
@@ -109,7 +125,12 @@ const { meta, occurrenceSlug = "" } = Astro.props;
                     {siteConfig.location.addressShort}
                   </a>
                 </p>
-                <p class="invite-card-body" id="rsvp-event-description-personal" hidden></p>
+                <p
+                  class="invite-card-body"
+                  id="rsvp-event-description-personal"
+                  hidden
+                >
+                </p>
               </header>
 
               <RsvpPersonalForm />

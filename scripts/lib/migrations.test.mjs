@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { dirname, resolve } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import {
   DATABASES,

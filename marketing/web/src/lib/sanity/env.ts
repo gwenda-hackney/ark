@@ -15,10 +15,12 @@ export type SanityConfig = {
 export type SanityPerspective = "published" | "previewDrafts";
 
 /** Local `astro dev` and preview builds overlay drafts. Live builds stay published. */
-export function sanityPerspective(input: {
-  perspective?: string;
-  dev?: boolean;
-} = {}): SanityPerspective {
+export function sanityPerspective(
+  input: {
+    perspective?: string;
+    dev?: boolean;
+  } = {},
+): SanityPerspective {
   const explicit = (input.perspective ?? "").trim();
   if (explicit === "published" || explicit === "previewDrafts") return explicit;
   if (input.dev) return "previewDrafts";
@@ -73,13 +75,19 @@ function readDotEnv(name: string, root: string): string | undefined {
   return undefined;
 }
 
-function pickSanityToken(candidates: Array<string | undefined>): string | undefined {
+function pickSanityToken(
+  candidates: Array<string | undefined>,
+): string | undefined {
   const normalized = candidates
-    .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    .filter(
+      (value): value is string =>
+        typeof value === "string" && value.trim().length > 0,
+    )
     .map(normalizeEnvValue);
 
   const valid = normalized.filter(
-    (value) => value.startsWith("sk") && value.length >= 100 && value.length <= 512,
+    (value) =>
+      value.startsWith("sk") && value.length >= 100 && value.length <= 512,
   );
 
   if (valid.length === 0) return undefined;
@@ -109,7 +117,10 @@ function readEnv(name: string): string | undefined {
 }
 
 /** projectId + dataset only — enough to build image URLs, no API token needed. */
-export function getSanityImageConfig(): Pick<SanityConfig, "projectId" | "dataset"> {
+export function getSanityImageConfig(): Pick<
+  SanityConfig,
+  "projectId" | "dataset"
+> {
   const projectId = readEnv("SANITY_PROJECT_ID") || DEFAULT_PROJECT_ID;
   const dataset = readEnv("SANITY_DATASET") || DEFAULT_DATASET;
   return { projectId, dataset };
@@ -124,11 +135,13 @@ export function getSanityConfig(): SanityConfig {
   ]);
 
   if (!token) {
-    const hint =
-      dataset === "production"
-        ? "GitHub secret SANITY_API_TOKEN (CI) or repo-root .env (local)."
-        : "repo-root .env (local dev).";
-    throw new Error(`SANITY_API_TOKEN is required — set it in ${hint}`);
+    // Secrets come from Bitwarden Secrets Manager (docs/env.md), not GitHub
+    // secrets or .env files.
+    throw new Error(
+      "SANITY_API_TOKEN is missing. Locally: run `npm run env:status`; if the vault is locked, run " +
+        "`bw-unlock`, then start through an npm script (e.g. `npm run web:dev`). In CI: the workflow " +
+        "pulls secrets from Secrets Manager with BWS_ACCESS_TOKEN.",
+    );
   }
 
   return { projectId, dataset, token };

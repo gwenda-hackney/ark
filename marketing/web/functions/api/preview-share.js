@@ -17,7 +17,10 @@ export async function onRequestGet(context) {
   const gate = resolveGate(context.env);
   if (gate.kind === "misconfigured") return gateMisconfiguredResponse();
   if (gate.kind === "open") {
-    return json({ error: "Share links are only for the gated preview site." }, 404);
+    return json(
+      { error: "Share links are only for the gated preview site." },
+      404,
+    );
   }
 
   const bypassKey = String(context.env.GATE_BYPASS_KEY || "").trim();
@@ -26,15 +29,16 @@ export async function onRequestGet(context) {
   }
 
   const cookies = parseCookies(context.request.headers.get("Cookie"));
-  const authed = await verifyAuthToken(gate.password, cookies[AUTH_COOKIE_NAME]);
+  const authed = await verifyAuthToken(
+    gate.password,
+    cookies[AUTH_COOKIE_NAME],
+  );
   if (!authed) {
     return json({ error: "Unlock the gate first." }, 401);
   }
 
   const requestUrl = new URL(context.request.url);
-  const path = safeRedirectPath(
-    requestUrl.searchParams.get("path") || "/",
-  );
+  const path = safeRedirectPath(requestUrl.searchParams.get("path") || "/");
   const url = buildGateShareUrl(requestUrl.origin, path, bypassKey);
   if (!url) {
     return json({ error: "Could not build a share link." }, 500);
