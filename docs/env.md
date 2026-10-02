@@ -1,5 +1,7 @@
 # Local env
 
+Every variable, what it's for, its dev and production names and when it expires: [env-reference.md](env-reference.md).
+
 Local secrets are never written into the repo. **`bw-unlock` is the login**: after it, every npm script (`with-env`, `with-ops-env`, `ops:dev`, setup scripts) loads secrets from Bitwarden Secrets Manager straight into its own process env. Do **not** mint new Cloudflare / Sanity / Baserow tokens on a fresh clone.
 
 ## How it works
@@ -102,8 +104,8 @@ Baserow workspaces and tokens per env: see [config.md](./config.md#ops-baserow-w
 
 Some secrets are for scripts, not app runtimes, so they are not in `APP_SECRETS`. CI exports them with `node scripts/sm-export.mjs NAME ...` (masked).
 
-- `DISPATCH_TOKEN` (Ark): GitHub token the site-deploy Worker starts workflows with (`workers.yml` puts it on the Worker as `GITHUB_TOKEN`).
-- `MAILCHIMP_API_KEY`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` (Ark/Web): the Mailchimp sync Worker (`workers.yml`, `setup:subscribe-mailchimp-sync`).
+- `DISPATCH_TOKEN__PRODUCTION` (Ark): GitHub token the site-deploy Worker starts workflows with (`workers.yml` puts it on the Worker as `GITHUB_TOKEN`).
+- `MAILCHIMP_API_KEY__PRODUCTION`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION` (Ark/Web): the Mailchimp sync Worker (`workers.yml`, `setup:subscribe-mailchimp-sync`).
 - `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (Ark/Ops): Baserow login for the clone scripts, which create tables and columns. **Required by `baserow-copy.yml`** (ops Website → Databases → Copy production over it). Prefer a dedicated Baserow user that can see production and the copies.
 
 ## Email

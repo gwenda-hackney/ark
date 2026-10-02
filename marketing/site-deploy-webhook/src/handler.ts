@@ -28,9 +28,21 @@ export function extractBearerSecret(request: Request): string | null {
   return deploySecret?.trim() || null;
 }
 
-export function isAuthorized(request: Request, env: Env): boolean {
+/**
+ * Whose secret the caller holds: production ops' (everything) or dev ops'
+ * (the dev website only), else null.
+ */
+export function callerEnvironment(request: Request, env: Env): "production" | "dev" | null {
   const secret = extractBearerSecret(request);
-  return Boolean(secret && env.DEPLOY_WEBHOOK_SECRET && secret === env.DEPLOY_WEBHOOK_SECRET);
+  if (!secret) return null;
+  if (env.DEPLOY_WEBHOOK_SECRET && secret === env.DEPLOY_WEBHOOK_SECRET) return "production";
+  if (env.DEPLOY_WEBHOOK_SECRET_DEV && secret === env.DEPLOY_WEBHOOK_SECRET_DEV) return "dev";
+  return null;
+}
+
+/** Production ops' secret: needed for anything that touches production. */
+export function isAuthorized(request: Request, env: Env): boolean {
+  return callerEnvironment(request, env) === "production";
 }
 
 export function parseDeployTarget(body: DeployRequest | null): DeployTarget | null {
@@ -77,7 +89,8 @@ export async function handleDeploy(
   request: Request,
   env: Env,
 ): Promise<HandlerResult> {
-  if (!isAuthorized(request, env)) {
+  const caller = callerEnvironment(request, env);
+  if (!caller) {
     return { status: 401, body: { error: "Unauthorized" } };
   }
 
@@ -108,7 +121,8 @@ export async function handleDeploy(
       },
     };
   }
-  if (isDevRequest(body)) return contentBuild(env, "dev-preview", "deploy");
+  // The dev secret only ever rebuilds the dev website, whatever the body says.
+  if (caller === "dev" || isDevRequest(body)) return contentBuild(env, "dev-preview", "deploy");
   // Prod ops from before the preview moved onto drafts still asks for the
   // old staging site. Nothing builds it any more; the preview follows once
   // that release is replaced.
@@ -122,7 +136,8 @@ export async function handlePromote(
   request: Request,
   env: Env,
 ): Promise<HandlerResult> {
-  if (!isAuthorized(request, env)) {
+  const caller = callerEnvironment(request, env);
+  if (!caller) {
     return { status: 401, body: { error: "Unauthorized" } };
   }
 
@@ -138,7 +153,8 @@ export async function handlePromote(
   }
 
   // Dev ops "Update website now": rebuild the dev website, never gwenda.co.uk.
-  if (isDevRequest(body)) {
+  // The dev secret can't reach the live promote at all.
+  if (caller === "dev" || isDevRequest(body)) {
     return contentBuild(env, "dev-live", "promote");
   }
 
@@ -177,7 +193,7 @@ export async function handleStatus(
   request: Request,
   env: Env,
 ): Promise<HandlerResult> {
-  if (!isAuthorized(request, env)) {
+  if (!callerEnvironment(request, env)) {
     return { status: 401, body: { error: "Unauthorized" } };
   }
 

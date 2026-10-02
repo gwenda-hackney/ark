@@ -39,27 +39,16 @@ export const PROJECT_NAMES = { ark: "ark", ops: "ark/ops", web: "ark/web" };
 /** The dev projects: NAME__DEV and shared NAME values, all the dev token reads. */
 export const DEV_PROJECT_NAMES = { ark: "ark-dev", ops: "ark/ops-dev", web: "ark/web-dev" };
 
-const PROJECT_ID_OVERRIDES = {
-  ark: "BWS_ARK_PROJECT_ID",
-  ops: "BWS_OPS_PROJECT_ID",
-  web: "BWS_WEB_PROJECT_ID",
-};
-
 export const SECRET_ENVS = ["dev", "production"];
 export const ENV_OVERRIDE_SEPARATOR = "__";
 
 /**
- * Project ids from a `bws project list` result. `BWS_*_PROJECT_ID` overrides win.
+ * Production project ids from a `bws project list` result, by name.
  * @param {{ id: string, name: string }[]} projects
  */
-export function pickProjectIds(projects, env = process.env) {
+export function pickProjectIds(projects) {
   const out = {};
   for (const [owner, name] of Object.entries(PROJECT_NAMES)) {
-    const override = env[PROJECT_ID_OVERRIDES[owner]]?.trim();
-    if (override) {
-      out[owner] = override;
-      continue;
-    }
     const matches = projects.filter((p) => String(p.name || "").trim().toLowerCase() === name);
     if (matches.length !== 1) {
       throw new Error(
@@ -103,11 +92,8 @@ function listProjects({ accessToken, serverUrl }) {
 }
 
 /** Owner → project id, looked up by name once per token and server. */
-export function resolveProjectIds({ accessToken, serverUrl, env = process.env } = {}) {
-  if (Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim())) {
-    return pickProjectIds([], env);
-  }
-  return pickProjectIds(listProjects({ accessToken, serverUrl }), env);
+export function resolveProjectIds({ accessToken, serverUrl } = {}) {
+  return pickProjectIds(listProjects({ accessToken, serverUrl }));
 }
 
 /** Owner → -Dev project id, for the ones this token can see. */
@@ -116,10 +102,9 @@ export function resolveDevProjectIds({ accessToken, serverUrl } = {}) {
 }
 
 /** Every project this token reads, labelled by its name: [["ark", id], ["ark-dev", id], …]. */
-function readableProjects({ accessToken, serverUrl, env = process.env }) {
-  const overridden = Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim());
-  const projects = overridden ? [] : listProjects({ accessToken, serverUrl });
-  const production = overridden ? pickProjectIds([], env) : pickVisibleProjectIds(projects, PROJECT_NAMES);
+function readableProjects({ accessToken, serverUrl }) {
+  const projects = listProjects({ accessToken, serverUrl });
+  const production = pickVisibleProjectIds(projects, PROJECT_NAMES);
   const dev = pickVisibleProjectIds(projects, DEV_PROJECT_NAMES);
   const out = [
     ...Object.entries(production).map(([owner, id]) => [PROJECT_NAMES[owner], id]),
@@ -165,6 +150,20 @@ export const SECRET_OWNERS = {
     "SUBSCRIBE_MAILCHIMP_SYNC_SECRET",
   ],
 };
+
+/**
+ * Names that only ever have a production value (NAME__PRODUCTION, no shared
+ * NAME), so the dev token never sees them (#61): they act on the real
+ * services. A dev pull skips them instead of reporting them missing; a
+ * script that needs one reads productionSecretValues().
+ */
+export const PRODUCTION_ONLY = [
+  "DISPATCH_TOKEN",
+  "MAILCHIMP_API_KEY",
+  "SUBSCRIBE_MAILCHIMP_SYNC_SECRET",
+  "SANITY_DEPLOY_TOKEN",
+  "UPTIME_ROBOT_API_KEY",
+];
 
 /**
  * Runtime keys each app gets. Runtime name = SM name except `rename`
@@ -231,7 +230,7 @@ export function localSecretNames() {
   for (const app of Object.keys(APP_SECRETS)) {
     for (const key of APP_SECRETS[app].keys) {
       const smName = smNameFor(app, key);
-      if (!names.includes(smName)) names.push(smName);
+      if (!names.includes(smName) && !PRODUCTION_ONLY.includes(smName)) names.push(smName);
     }
   }
   return names;
@@ -330,13 +329,15 @@ export function resolveSecretsForEnv(raw, env) {
 
 /**
  * Runtime env for an app: resolved SM values under the app's runtime names.
+ * Outside production, PRODUCTION_ONLY names are left out, not missing.
  * @returns {{ values: Map<string, string>, missing: string[] }}
  */
-export function pickAppSecrets(app, resolved) {
+export function pickAppSecrets(app, resolved, env = "production") {
   const spec = appSecrets(app);
   const values = new Map();
   const missing = [];
   for (const key of spec.keys) {
+    if (normalizeSecretEnv(env) !== "production" && PRODUCTION_ONLY.includes(smNameFor(app, key))) continue;
     const value = resolved.get(smNameFor(app, key));
     if (value == null || !String(value).trim()) missing.push(key);
     else values.set(key, String(value));
@@ -427,11 +428,7 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
       `Missing Secrets Manager access token. ${SM_TOKEN_HINT}`,
     );
   }
-  const server = (
-    serverUrl ||
-    process.env.BWS_SERVER_URL ||
-    DEFAULT_SM_SERVER
-  ).replace(/\/$/, "");
+  const server = (serverUrl || process.env.BWS_SERVER_URL || DEFAULT_SM_SERVER).replace(/\/$/, "");
   // Several projects are listed back to back, and SM answers 429 ("Slow
   // down! ... Try again in 1s") to bursts: wait and retry instead of failing.
   let result;
@@ -522,8 +519,19 @@ export function listAllSmSecrets({ accessToken, serverUrl } = {}) {
 export function loadAppSecretsFromSm(app, env, { accessToken, serverUrl } = {}) {
   const raw = listAllSmSecrets({ accessToken, serverUrl });
   if (normalizeSecretEnv(env) === "production") assertProductionReadable(raw);
-  const picked = pickAppSecrets(app, resolveSecretsForEnv(raw, env));
+  const picked = pickAppSecrets(app, resolveSecretsForEnv(raw, env), env);
   return { ...picked, raw };
+}
+
+/**
+ * Every value resolved for production, for a script that acts on production
+ * (setup:*, a PRODUCTION_ONLY credential). Needs a token that can read it.
+ * @returns {Map<string, string>}
+ */
+export function productionSecretValues({ accessToken, serverUrl } = {}) {
+  const raw = listAllSmSecrets({ accessToken, serverUrl });
+  assertProductionReadable(raw);
+  return resolveSecretsForEnv(raw, "production");
 }
 
 /**
@@ -572,6 +580,9 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
   const owner = ownerOf(parsed.name);
   if (!owner) {
     throw new Error(`${trimmedKey} has no owning project. Add it to SECRET_OWNERS first.`);
+  }
+  if (parsed.env !== "production" && PRODUCTION_ONLY.includes(parsed.name)) {
+    throw new Error(`${parsed.name} is production-only. Store it as ${parsed.name}__PRODUCTION.`);
   }
   // NAME__PRODUCTION stays in the production project; NAME__DEV and shared
   // NAME go to the owner's -Dev project once it exists.

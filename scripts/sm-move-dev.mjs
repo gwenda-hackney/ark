@@ -5,8 +5,9 @@
  * projects hold only NAME__PRODUCTION values and the dev CI token, which reads
  * only the -Dev projects, sees no production value (#61). Lists what it would
  * move; with --apply it copies each value, checks the copy, then deletes the
- * original. Safe to rerun: a key already in the -Dev project with the same
- * value is only removed from the production one.
+ * original. Production-only names (PRODUCTION_ONLY) go the other way: a shared
+ * NAME becomes NAME__PRODUCTION in the production project. Safe to rerun: a
+ * key already copied with the same value is only removed from where it was.
  *
  * Needs bw-unlock (ark-local, read/write on all six projects).
  *
@@ -16,6 +17,7 @@
 import { vaultSmAccessToken } from "./lib/bitwarden-env.mjs";
 import {
   DEV_PROJECT_NAMES,
+  PRODUCTION_ONLY,
   PROJECT_NAMES,
   listSmSecretEntries,
   parseSecretKey,
@@ -44,30 +46,50 @@ function main() {
   }
 
   let moved = 0;
-  for (const [owner, sourceId] of Object.entries(sources)) {
-    const source = listSmSecretEntries({ ...api, projectId: sourceId });
-    const keys = [...source.keys()].filter((key) => parseSecretKey(key).env !== "production").sort();
-    if (!keys.length) continue;
-    const twin = listSmSecretEntries({ ...api, projectId: twins[owner] });
-    for (const key of keys) {
-      const { id, value } = source.get(key);
-      const already = twin.get(key);
-      if (already && already.value !== value) {
-        throw new Error(`${key} is in both ${PROJECT_NAMES[owner]} and ${DEV_PROJECT_NAMES[owner]} with different values. Pick one by hand.`);
-      }
-      if (!APPLY) {
-        console.log(`would move ${key}: ${PROJECT_NAMES[owner]} → ${DEV_PROJECT_NAMES[owner]}${already ? " (already copied)" : ""}`);
-        continue;
-      }
-      if (!already) {
-        runBws(secretCreateArgs(key, value, twins[owner]), api);
-        const copy = listSmSecretEntries({ ...api, projectId: twins[owner] }).get(key);
-        if (copy?.value !== value) throw new Error(`${key}: the copy doesn't match; original left in place.`);
-      }
-      runBws(["secret", "delete", id], api);
-      clearSecretsCache();
-      moved += 1;
-      console.log(`moved ${key}: ${PROJECT_NAMES[owner]} → ${DEV_PROJECT_NAMES[owner]}`);
+  /** Copy `fromKey` into project `toId` as `toKey`, check it, delete the original. */
+  const move = ({ from, fromLabel, fromKey, to, toLabel, toKey }) => {
+    const { id, value } = from.get(fromKey);
+    const already = listSmSecretEntries({ ...api, projectId: to }).get(toKey);
+    if (already && already.value !== value) {
+      throw new Error(`${fromKey} (${fromLabel}) and ${toKey} (${toLabel}) have different values. Pick one by hand.`);
+    }
+    const what = `${fromKey} (${fromLabel}) → ${toKey} (${toLabel})`;
+    if (!APPLY) {
+      console.log(`would move ${what}${already ? ", already copied" : ""}`);
+      return;
+    }
+    if (!already) {
+      runBws(secretCreateArgs(toKey, value, to), api);
+      const copy = listSmSecretEntries({ ...api, projectId: to }).get(toKey);
+      if (copy?.value !== value) throw new Error(`${toKey}: the copy doesn't match; original left in place.`);
+    }
+    runBws(["secret", "delete", id], api);
+    clearSecretsCache();
+    moved += 1;
+    console.log(`moved ${what}`);
+  };
+
+  for (const [owner, productionId] of Object.entries(sources)) {
+    const production = listSmSecretEntries({ ...api, projectId: productionId });
+    const dev = listSmSecretEntries({ ...api, projectId: twins[owner] });
+    const labels = { production: PROJECT_NAMES[owner], dev: DEV_PROJECT_NAMES[owner] };
+    // Dev and shared values out of the production project.
+    for (const key of [...production.keys()].sort()) {
+      if (parseSecretKey(key).env === "production") continue;
+      const productionOnly = PRODUCTION_ONLY.includes(key);
+      move({
+        from: production,
+        fromLabel: labels.production,
+        fromKey: key,
+        to: productionOnly ? productionId : twins[owner],
+        toLabel: productionOnly ? labels.production : labels.dev,
+        toKey: productionOnly ? `${key}__PRODUCTION` : key,
+      });
+    }
+    // Production-only names stored shared in the dev project: back to production.
+    for (const key of [...dev.keys()].sort()) {
+      if (!PRODUCTION_ONLY.includes(key)) continue;
+      move({ from: dev, fromLabel: labels.dev, fromKey: key, to: productionId, toLabel: labels.production, toKey: `${key}__PRODUCTION` });
     }
   }
   console.log(APPLY ? `Moved ${moved} secret(s).` : "Dry run: nothing changed. Add --apply to move.");

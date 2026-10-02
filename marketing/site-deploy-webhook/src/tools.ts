@@ -4,7 +4,7 @@
  * this worker holds.
  */
 import { githubFetch } from "./github";
-import { isAuthorized } from "./handler";
+import { callerEnvironment, isAuthorized } from "./handler";
 import type { Env, HandlerResult, WorkflowRun } from "./types";
 
 export const BASEROW_COPY_WORKFLOW_FILE = "baserow-copy.yml";
@@ -20,7 +20,8 @@ type CompareCommit = {
 
 /** GET /compare?base=<live sha>&head=<preview sha> */
 export async function handleCompare(request: Request, env: Env): Promise<HandlerResult> {
-  if (!isAuthorized(request, env)) return { status: 401, body: { error: "Unauthorized" } };
+  // Read-only, so dev ops may ask too.
+  if (!callerEnvironment(request, env)) return { status: 401, body: { error: "Unauthorized" } };
   const url = new URL(request.url);
   const base = url.searchParams.get("base") || "";
   const head = url.searchParams.get("head") || "";
@@ -82,7 +83,12 @@ async function latestCopyRun(env: Env, after: number): Promise<WorkflowRun | nul
 
 /** POST /baserow-copy { target: "ops-dev" | "website-dev" } */
 export async function handleBaserowCopy(request: Request, env: Env): Promise<HandlerResult> {
-  if (!isAuthorized(request, env)) return { status: 401, body: { error: "Unauthorized" } };
+  // Reads production, so production ops only.
+  const caller = callerEnvironment(request, env);
+  if (caller === "dev") {
+    return { status: 403, body: { error: "Copy the databases from production ops (Website → Databases)." } };
+  }
+  if (!caller) return { status: 401, body: { error: "Unauthorized" } };
   let body: { target?: string } | null = null;
   try {
     body = (await request.json()) as { target?: string };

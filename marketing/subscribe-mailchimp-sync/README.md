@@ -25,7 +25,7 @@ The table was created once at launch. Set `BASEROW_SYNC_LOG_TABLE_ID` in `wrangl
 
 ```bash
 # From repo root, after bw-unlock. Reads CLOUDFLARE_API_TOKEN, the production Website token,
-# MAILCHIMP_API_KEY and SUBSCRIBE_MAILCHIMP_SYNC_SECRET (Ark/Web) from Secrets Manager.
+# MAILCHIMP_API_KEY__PRODUCTION and SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION (Ark/Web) from Secrets Manager.
 npm run setup:subscribe-mailchimp-sync
 ```
 

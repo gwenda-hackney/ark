@@ -38,6 +38,10 @@ jobs:
         id: filter
         if: github.event_name == 'push'
         with:
+          # Compare with release before this push. Without it, a push to a
+          # branch other than the default is compared with main, and release
+          # (merged from main) shows no changes, so nothing deploys.
+          base: ${{ github.ref_name }}
           filters: |
             site_deploy:
               - 'marketing/site-deploy-webhook/**'
@@ -95,7 +99,7 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: |
           npm run env:web:pull -- --github-env
-          node scripts/sm-export.mjs DISPATCH_TOKEN
+          node scripts/sm-export.mjs DISPATCH_TOKEN DEPLOY_WEBHOOK_SECRET__DEV
       - run: npm run typecheck -w @gwenda/site-deploy-webhook
       - run: npm test -w @gwenda/site-deploy-webhook
       - uses: cloudflare/wrangler-action@v3
@@ -108,6 +112,8 @@ jobs:
         run: |
           cd marketing/site-deploy-webhook
           echo "$DEPLOY_WEBHOOK_SECRET" | npx wrangler secret put DEPLOY_WEBHOOK_SECRET
+          # Dev ops' own secret: dev rebuilds only (#120).
+          echo "$DEPLOY_WEBHOOK_SECRET__DEV" | npx wrangler secret put DEPLOY_WEBHOOK_SECRET_DEV
           echo "$DISPATCH_TOKEN" | npx wrangler secret put GITHUB_TOKEN
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
