@@ -535,6 +535,26 @@ export function productionSecretValues({ accessToken, serverUrl } = {}) {
 }
 
 /**
+ * The Cloudflare token and account id for one environment. Each has its own
+ * Cloudflare account (#129): production's Workers and Pages in one, dev's
+ * Pages in gwenda-dev. A script that changes production asks for production
+ * explicitly, because a developer's machine loads dev.
+ * @param {"production" | "dev"} env
+ */
+export function cloudflareFor(env, { accessToken, serverUrl } = {}) {
+  const values =
+    env === "production"
+      ? productionSecretValues({ accessToken, serverUrl })
+      : resolveSecretsForEnv(listAllSmSecrets({ accessToken, serverUrl }), "dev");
+  const token = values.get("CLOUDFLARE_API_TOKEN")?.trim();
+  const accountId = values.get("CLOUDFLARE_ACCOUNT_ID")?.trim();
+  if (!token || !accountId) {
+    throw new Error(`Secrets Manager has no ${env} CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID. Run bw-unlock.`);
+  }
+  return { token, accountId };
+}
+
+/**
  * bws uses clap. A value that starts with "-" is parsed as a flag unless it is
  * attached with `--name=` or, for a positional, placed after `--`.
  * @param {string} name

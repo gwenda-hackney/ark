@@ -13,6 +13,22 @@ if (!ACCOUNT_ID || !API_TOKEN) {
   process.exit(1);
 }
 
+/**
+ * pages.dev names are unique across Cloudflare: when a name is taken, the
+ * project gets a suffixed address (gwenda → gwenda-blue). Workflows and code
+ * use <name>.pages.dev, so a new project that didn't get it is an error
+ * (production's gwenda-blue predates this check).
+ */
+function checkSubdomain(result) {
+  const want = `${PROJECT}.pages.dev`;
+  if (result?.subdomain && result.subdomain !== want) {
+    console.error(
+      `Pages project "${PROJECT}" got ${result.subdomain}, not ${want}: the name is taken elsewhere on Cloudflare.`,
+    );
+    process.exit(1);
+  }
+}
+
 async function cf(path, { method = "GET", body } = {}) {
   const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
     method,
@@ -79,5 +95,6 @@ if (!created.data.success) {
 }
 
 console.log(
-  `Created Pages project "${PROJECT}" (production branch: ${BRANCH}).`,
+  `Created Pages project "${PROJECT}" at ${created.data.result.subdomain} (production branch: ${BRANCH}).`,
 );
+checkSubdomain(created.data.result);

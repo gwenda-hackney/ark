@@ -223,7 +223,7 @@ jobs:
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy src --project-name gwenda-brand --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
+          command: pages deploy src --project-name gwenda-brand-dev --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
           workingDirectory: marketing/brand
 
       - name: Resolve preview URL
@@ -234,7 +234,7 @@ jobs:
             URL="${{ steps.deploy.outputs.deployment-url }}"
           fi
           if [ -z "$URL" ]; then
-            URL="https://${{ steps.branch.outputs.name }}.gwenda-brand.pages.dev"
+            URL="https://${{ steps.branch.outputs.name }}.gwenda-brand-dev.pages.dev"
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
