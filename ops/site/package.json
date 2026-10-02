@@ -15,6 +15,8 @@
     "deploy:preview": "npm run build && wrangler pages deploy dist --project-name gwenda-ops --commit-dirty=true"
   },
   "dependencies": {
+    "@sentry/cloudflare": "^11.4.0",
+    "@sentry/svelte": "^11.4.0",
     "@tiptap/core": "^3.31.3",
     "@tiptap/extension-placeholder": "^3.31.3",
     "@tiptap/markdown": "^3.31.3",
