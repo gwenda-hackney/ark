@@ -102,11 +102,26 @@ jobs:
           node scripts/sm-export.mjs DISPATCH_TOKEN DEPLOY_WEBHOOK_SECRET__DEV
       - run: npm run typecheck -w @gwenda/site-deploy-webhook
       - run: npm test -w @gwenda/site-deploy-webhook
+      # Bundle first, so the code that deploys is the code its map (sent to
+      # Sentry, #35) describes.
+      - name: Bundle
+        run: npx wrangler deploy --dry-run --upload-source-maps --outdir dist
+        working-directory: marketing/site-deploy-webhook
+      - name: Sentry token
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SENTRY_ORG_TOKEN
+      - name: Upload source maps to Sentry
+        uses: ./.github/actions/sentry-sourcemaps
+        with:
+          path: marketing/site-deploy-webhook/dist
+          project: workers
+          auth-token: ${{ env.SENTRY_ORG_TOKEN }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy dist/index.js --no-bundle
           workingDirectory: marketing/site-deploy-webhook
       - name: Sync Worker secrets
         run: |
@@ -152,11 +167,26 @@ jobs:
           node scripts/sm-export.mjs MAILCHIMP_API_KEY SUBSCRIBE_MAILCHIMP_SYNC_SECRET
       - run: npm run typecheck -w @gwenda/subscribe-mailchimp-sync
       - run: npm test -w @gwenda/subscribe-mailchimp-sync
+      # Bundle first, so the code that deploys is the code its map (sent to
+      # Sentry, #35) describes.
+      - name: Bundle
+        run: npx wrangler deploy --dry-run --upload-source-maps --outdir dist
+        working-directory: marketing/subscribe-mailchimp-sync
+      - name: Sentry token
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SENTRY_ORG_TOKEN
+      - name: Upload source maps to Sentry
+        uses: ./.github/actions/sentry-sourcemaps
+        with:
+          path: marketing/subscribe-mailchimp-sync/dist
+          project: workers
+          auth-token: ${{ env.SENTRY_ORG_TOKEN }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy dist/index.js --no-bundle
           workingDirectory: marketing/subscribe-mailchimp-sync
       - name: Sync Worker secrets
         run: |
@@ -208,11 +238,26 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           GMAIL_SERVICE_ACCOUNT_JSON: ${{ env.GMAIL_SERVICE_ACCOUNT_JSON }}
+      # Bundle first, so the code that deploys is the code its map (sent to
+      # Sentry, #35) describes.
+      - name: Bundle
+        run: npx wrangler deploy --dry-run --upload-source-maps --outdir dist
+        working-directory: marketing/site-health
+      - name: Sentry token
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SENTRY_ORG_TOKEN
+      - name: Upload source maps to Sentry
+        uses: ./.github/actions/sentry-sourcemaps
+        with:
+          path: marketing/site-health/dist
+          project: workers
+          auth-token: ${{ env.SENTRY_ORG_TOKEN }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy dist/index.js --no-bundle
           workingDirectory: marketing/site-health
       - name: Smoke test
         run: |

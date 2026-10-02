@@ -1,0 +1,38 @@
+name: Upload source maps to Sentry
+description: >
+  Tag a build's JS files with Sentry debug IDs, upload their source maps to
+  Sentry (#35), then delete the maps so they never deploy. Sentry matches an
+  error to its map by the debug ID, so no release names are needed. Skips
+  with a notice when there is no token.
+
+inputs:
+  path:
+    description: Folder holding the built .js and .js.map files.
+    required: true
+  project:
+    description: Sentry project (ops, website, workers).
+    required: true
+  auth-token:
+    description: Sentry organisation token (SENTRY_ORG_TOKEN).
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Upload source maps
+      shell: bash
+      env:
+        SENTRY_AUTH_TOKEN: ${{ inputs.auth-token }}
+        SENTRY_URL: https://de.sentry.io/
+        SENTRY_ORG: gwenda
+        SENTRY_PROJECT: ${{ inputs.project }}
+        MAPS_PATH: ${{ inputs.path }}
+      run: |
+        if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+          echo "::notice::No SENTRY_ORG_TOKEN: source maps not uploaded."
+        else
+          npx --yes @sentry/cli@2 sourcemaps inject "$MAPS_PATH"
+          npx --yes @sentry/cli@2 sourcemaps upload "$MAPS_PATH"
+        fi
+        find "$MAPS_PATH" -name '*.map' -delete

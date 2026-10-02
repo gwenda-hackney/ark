@@ -38,3 +38,6 @@ marketing/brand/node_modules/
 
 # Local wrangler config/logs from agent deploys
 .wrangler-config/
+
+# Worker bundles built in CI before deploy (source maps for Sentry, #35)
+marketing/*/dist/

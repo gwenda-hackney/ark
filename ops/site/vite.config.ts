@@ -61,6 +61,8 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     assetsDir: "_app",
-    sourcemap: true,
+    // Maps are uploaded to Sentry and deleted before deploy (#35): no
+    // sourceMappingURL in the served files.
+    sourcemap: "hidden",
   },
 });

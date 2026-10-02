@@ -409,6 +409,16 @@ Sentry collects errors from ops (server and browser), the website's functions an
 - **Used by:** `npm run setup:sentry` (projects, no IP storage) and `npm run sentry:issues` (read recent errors, `-- --issue OPS-1` for one), on your machine only. The apps don't need it: they report with each project's DSN, a public address kept in `shared/sentry.js`.
 - **Expires:** as set when it was created in Sentry (User settings → Personal Tokens).
 
+
+### `SENTRY_ORG_TOKEN`
+
+Errors from bundled code only point at the right line of our source when Sentry has the build's source maps. Each deploy uploads them with this token, then deletes them, so the maps are never served.
+
+- **Owner:** Sentry organisation `gwenda`: an organisation token (CI rights only: upload source maps, record releases).
+- **SM:** `SENTRY_ORG_TOKEN`, shared, in [`ark-dev`](#ark-dev): dev and production builds both upload, and the token can't change projects, alerts or data.
+- **Used by:** the ops deploys (`apps.yml`) and the Worker deploys (`workers.yml`), through `.github/actions/sentry-sourcemaps`.
+- **Expires:** never.
+
 ---
 
 ## Plain settings
@@ -521,3 +531,4 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `UNIFI_SITE_MANAGER_API_KEY` | UniFi account | shared | — / [`ark/web-dev`](#arkweb-dev) | check UniFi |
 | `UPTIME_ROBOT_API_KEY` | UptimeRobot alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | never |
 | `SENTRY_AUTH_TOKEN` | Sentry alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | as created |
+| `SENTRY_ORG_TOKEN` | Sentry organisation | shared | — / [`ark-dev`](#ark-dev) | never |
