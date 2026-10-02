@@ -1,5 +1,7 @@
 # Local env
 
+Every variable, what it's for, its dev and production names and when it expires: [env-reference.md](env-reference.md).
+
 Local secrets are never written into the repo. **`bw-unlock` is the login**: after it, every npm script (`with-env`, `with-ops-env`, `ops:dev`, setup scripts) loads secrets from Bitwarden Secrets Manager straight into its own process env. Do **not** mint new Cloudflare / Sanity / Baserow tokens on a fresh clone.
 
 ## How it works
