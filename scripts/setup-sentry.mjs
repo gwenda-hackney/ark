@@ -77,7 +77,25 @@ async function main() {
     );
     dsns[project.key] = keys.find((key) => key.isActive)?.dsn?.public || "";
 
-    console.log(`ok      ${project.slug}`);
+    // Errors don't need the sender's IP; for editors' browsers it is
+    // personal data. Sentry's "Prevent storing IP addresses".
+    const settings = await call(
+      token,
+      "GET",
+      `projects/${ORG}/${project.slug}/`,
+    );
+    if (settings.scrubIPAddresses) {
+      console.log(`ok      ${project.slug}`);
+    } else if (DRY_RUN) {
+      console.log(
+        `IP      ${project.slug}: stores IP addresses (dry run, not changed)`,
+      );
+    } else {
+      await call(token, "PUT", `projects/${ORG}/${project.slug}/`, {
+        scrubIPAddresses: true,
+      });
+      console.log(`ok      ${project.slug}: no longer stores IP addresses`);
+    }
   }
   console.log("\nSENTRY_DSN for shared/sentry.js:");
   console.log(JSON.stringify(dsns, null, 2));

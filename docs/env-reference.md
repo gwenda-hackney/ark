@@ -404,9 +404,9 @@ UptimeRobot checks the sites from outside Cloudflare and emails alerts@ when one
 
 Sentry collects errors from ops (server and browser), the website's functions and the Workers, groups them, and emails alerts@ when something new breaks or comes back. `setup:sentry` uses this token to keep the projects and their alert rule in place.
 
-- **Owner:** Sentry user alerts@gwenda.co.uk (organisation `gwenda`, EU region, free plan): a personal token with `project:write`, `alerts:write`, `org:read`.
+- **Owner:** Sentry user alerts@gwenda.co.uk (organisation `gwenda`, EU region, free plan): a personal token with Project Read & Write, Organization Read, Issue & Event Read, Alerts Read & Write.
 - **SM:** `SENTRY_AUTH_TOKEN__PRODUCTION`, in [`ark`](#ark).
-- **Used by:** `npm run setup:sentry`, on your machine only. The apps don't need it: they report with each project's DSN, a public address kept in `shared/sentry.js`.
+- **Used by:** `npm run setup:sentry` (projects, no IP storage) and `npm run sentry:issues` (read recent errors, `-- --issue OPS-1` for one), on your machine only. The apps don't need it: they report with each project's DSN, a public address kept in `shared/sentry.js`.
 - **Expires:** as set when it was created in Sentry (User settings → Personal Tokens).
 
 ---
