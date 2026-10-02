@@ -9,10 +9,7 @@ export const app = "ops";
 export const phase = "post";
 export const about = "Config: remove retired settings";
 
-export async function up({ env, processEnv, log }) {
-  // One config database serves every environment, and this removes the rows
-  // for all of them: only once the production ops no longer reads them.
-  if (env !== "production") return log("production only");
+export async function up({ processEnv, log }) {
   const removed = await removeRetiredSettings(processEnv);
   for (const key of RETIRED_SETTINGS) {
     log(removed[key] ? `${key}: removed ${removed[key]} row(s)` : `${key}: nothing to remove`);

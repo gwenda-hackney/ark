@@ -40,6 +40,7 @@
     "setup:uptime": "node scripts/with-env.mjs node scripts/setup-uptime-monitors.mjs",
     "secret:set": "node scripts/secret-set.mjs",
     "secrets:move-dev": "node scripts/sm-move-dev.mjs",
+    "secrets:rename": "node scripts/sm-rename.mjs",
     "setup:baserow-rsvp": "node scripts/with-env.mjs node scripts/setup-baserow-rsvp.mjs",
     "setup:baserow-form-submissions": "node scripts/with-env.mjs node scripts/setup-baserow-form-submissions.mjs",
     "setup:baserow-ops": "node scripts/with-ops-env.mjs node ops/site/scripts/setup-baserow.mjs",

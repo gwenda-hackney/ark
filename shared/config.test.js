@@ -5,6 +5,7 @@ import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import {
   LOCAL_PLACEHOLDER,
+  describeSettings,
   getSetting,
   missingLocalSettings,
   removeRetiredEnv,
@@ -64,6 +65,17 @@ describe("config service", () => {
       // Hosted dev never takes a developer's local value.
       assert.equal(await getSetting(hosted, "web", "forms.notify_email"), "alerts@gwenda.co.uk");
     }));
+
+  it("the settings overview shows only the environment's own database", () =>
+    withRows(
+      [row("sanity.project_id", "pn5yjro6", "all", "all"), row("google.calendar_id", "prod-cal", "production", "ops")],
+      async () => {
+        const overview = await describeSettings({ SITE_ENV: "production", BASEROW_CONFIG_API_KEY: "k" });
+        assert.deepEqual(overview.environments, ["production"]);
+        const calendar = overview.settings.find((s) => s.key === "google.calendar_id");
+        assert.deepEqual(calendar.values, { production: { value: "prod-cal", from: "config: production" } });
+      },
+    ));
 
   it("a required local value left as the placeholder fails loudly", () =>
     withRows(ROWS, async () => {
