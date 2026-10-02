@@ -93,7 +93,7 @@ Lets your machine read the app secrets. It is your machine's key to Secrets Mana
 - **Owner:** Bitwarden organisation: an access token of the machine account `ark-local`.
 - **Machine account:** `ark-local`, read/write on all six projects.
 - **Stored in:** the Password Manager vault note `ark/.env.local`. Never in `.env`; the loader warns if it finds it there.
-- **Used by:** every script on a developer's machine (`with-env`, `with-ops-env`, `ops:dev`, `setup:*`, `secret:set`, `secrets:move-dev`).
+- **Used by:** every script on a developer's machine (`with-env`, `with-ops-env`, `ops:dev`, `setup:*`, `secret:set`, `secrets:move-dev`, `secrets:rename`).
 - **Gets there by:** `bw-unlock` opens the vault; the scripts read the token from the session in RAM (`/dev/shm/ark-secrets-<uid>/`).
 - **Expires:** never (created without an expiry).
 - **Changing it:** make a new access token on `ark-local`, put it in the vault note, run `npm run env:secrets:refresh`, then revoke the old one.
