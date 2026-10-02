@@ -218,7 +218,7 @@ Website content (events, menu, pages) lives in Sanity. Ops writes it and the web
 The hosted Studio at gwenda.sanity.studio is redeployed with each release when its code changed; Sanity only lets a token with the Deploy Studio role do that.
 
 - **Owner:** the Sanity project Gwenda Web (`pn5yjro6`): a robot token labelled with its SM key.
-- **SM:** `SANITY_DEPLOY_TOKEN`, shared, in [`ark/web-dev`](#arkweb-dev). Deploy Studio role on `pn5yjro6`.
+- **SM:** `SANITY_DEPLOY_TOKEN__PRODUCTION`, in [`ark/web`](#arkweb). Deploy Studio role on `pn5yjro6`.
 - **Used by:** the hosted Studio deploy (`studio:deploy`) in web promote and `studio.yml`. `with-env` passes it to the Sanity CLI as `SANITY_AUTH_TOKEN`.
 - **Expires:** never.
 
@@ -351,7 +351,7 @@ Ops starts website rebuilds and releases, but only GitHub can run them. The webh
 Starting a GitHub workflow needs a GitHub token. The webhook Worker holds this one so ops never needs GitHub access itself.
 
 - **Owner:** GitHub user **das974** (a personal account): a fine-grained token limited to `gwenda-hackney/ark`. It stops working if that account loses access to the repo.
-- **SM:** `DISPATCH_TOKEN`, shared, in [`ark-dev`](#ark-dev).
+- **SM:** `DISPATCH_TOKEN__PRODUCTION`, in [`ark`](#ark).
 - **What:** a fine-grained GitHub token for `gwenda-hackney/ark` only (Actions read/write, Contents read). The webhook Worker starts the `web.yml`, `web-promote.yml` and `baserow-copy.yml` runs with it.
 - **Runtime name:** `GITHUB_TOKEN` on the webhook Worker.
 - **Gets there by:** `workers.yml` exports it (`sm-export.mjs`) and puts it on the Worker.
@@ -363,7 +363,7 @@ Starting a GitHub workflow needs a GitHub token. The webhook Worker holds this o
 Subscribers sign up on the website (stored in Baserow); the sync Worker copies them into the Mailchimp audience that newsletters go to.
 
 - **Owner:** Mailchimp user **dscalamogna@gwenda.co.uk**, in the Gwenda account. It stops working if that user is removed.
-- **SM:** `MAILCHIMP_API_KEY`, shared, in [`ark/web-dev`](#arkweb-dev).
+- **SM:** `MAILCHIMP_API_KEY__PRODUCTION`, in [`ark/web`](#arkweb).
 - **What:** the Mailchimp API key for the real audience.
 - **Used by:** the Mailchimp sync Worker, `setup:subscribe-mailchimp-sync`, `upload-mailchimp-template.mjs`.
 - **Gets there by:** `workers.yml` puts it on the Worker.
@@ -375,7 +375,7 @@ Subscribers sign up on the website (stored in Baserow); the sync Worker copies t
 The sync Worker runs on a schedule but can also be run by hand; this secret stops anyone else from triggering it.
 
 - **Owner:** Gwenda: a random value `setup:subscribe-mailchimp-sync` generates.
-- **SM:** `SUBSCRIBE_MAILCHIMP_SYNC_SECRET`, shared, in [`ark/web-dev`](#arkweb-dev). Random; made by `setup:subscribe-mailchimp-sync` if missing.
+- **SM:** `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION`, in [`ark/web`](#arkweb). Random; made by `setup:subscribe-mailchimp-sync` if missing.
 - **What:** protects the Mailchimp sync Worker's manual run (`POST /` with `Authorization: Bearer …`).
 - **Runtime name:** `SYNC_SECRET` on the Worker.
 - **Expires:** never.
@@ -396,9 +396,18 @@ The venue Wi-Fi asks guests to sign up before going online; the portal Worker th
 UptimeRobot checks the sites from outside Cloudflare and emails alerts@ when one is down; `setup:uptime` uses this key to keep the monitors in place.
 
 - **Owner:** UptimeRobot account alerts@gwenda.co.uk: its main API key.
-- **SM:** `UPTIME_ROBOT_API_KEY`, shared, in [`ark-dev`](#ark-dev). The main API key of the UptimeRobot account (login alerts@gwenda.co.uk).
+- **SM:** `UPTIME_ROBOT_API_KEY__PRODUCTION`, in [`ark`](#ark). The main API key of the UptimeRobot account (login alerts@gwenda.co.uk).
 - **Used by:** `npm run setup:uptime`, on your machine only.
 - **Expires:** never.
+
+### `SENTRY_AUTH_TOKEN`
+
+Sentry collects errors from ops (server and browser), the website's functions and the Workers, groups them, and emails alerts@ when something new breaks or comes back. `setup:sentry` uses this token to keep the projects and their alert rule in place.
+
+- **Owner:** Sentry user alerts@gwenda.co.uk (organisation `gwenda`, EU region, free plan): a personal token with `project:write`, `alerts:write`, `org:read`.
+- **SM:** `SENTRY_AUTH_TOKEN__PRODUCTION`, in [`ark`](#ark).
+- **Used by:** `npm run setup:sentry`, on your machine only. The apps don't need it: they report with each project's DSN, a public address kept in `shared/sentry.js`.
+- **Expires:** as set when it was created in Sentry (User settings → Personal Tokens).
 
 ---
 
@@ -496,7 +505,7 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `BASEROW_CONFIG_API_KEY` | Baserow automation@ | `__DEV` / `__PRODUCTION` | [`ark`](#ark) / [`ark-dev`](#ark-dev) | never |
 | `BASEROW_JWT_EMAIL` / `_PASSWORD` | Baserow automation@ | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `SANITY_API_TOKEN` | Sanity projects | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
-| `SANITY_DEPLOY_TOKEN` | Sanity project `pn5yjro6` | shared | — / [`ark/web-dev`](#arkweb-dev) | never |
+| `SANITY_DEPLOY_TOKEN` | Sanity project `pn5yjro6` | `__PRODUCTION` | [`ark/web`](#arkweb) / — | never |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Google Cloud `gwenda-ops` | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud `682046070260` | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `OPS_SESSION_SECRET` | Gwenda | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
@@ -506,8 +515,9 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `SITE_PASSWORD` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `GATE_BYPASS_KEY` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `DEPLOY_WEBHOOK_SECRET` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
-| `DISPATCH_TOKEN` | GitHub user das974 | shared | — / [`ark-dev`](#ark-dev) | none reported |
-| `MAILCHIMP_API_KEY` | Mailchimp user dscalamogna@ | shared | — / [`ark/web-dev`](#arkweb-dev) | **~2027-10-01** |
-| `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Gwenda | shared | — / [`ark/web-dev`](#arkweb-dev) | never |
+| `DISPATCH_TOKEN` | GitHub user das974 | `__PRODUCTION` | [`ark`](#ark) / — | none reported |
+| `MAILCHIMP_API_KEY` | Mailchimp user dscalamogna@ | `__PRODUCTION` | [`ark/web`](#arkweb) / — | **~2027-10-01** |
+| `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Gwenda | `__PRODUCTION` | [`ark/web`](#arkweb) / — | never |
 | `UNIFI_SITE_MANAGER_API_KEY` | UniFi account | shared | — / [`ark/web-dev`](#arkweb-dev) | check UniFi |
-| `UPTIME_ROBOT_API_KEY` | UptimeRobot alerts@ | shared | — / [`ark-dev`](#ark-dev) | never |
+| `UPTIME_ROBOT_API_KEY` | UptimeRobot alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | never |
+| `SENTRY_AUTH_TOKEN` | Sentry alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | as created |

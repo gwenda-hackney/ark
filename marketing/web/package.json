@@ -21,6 +21,7 @@
     "@fontsource/lora": "^5.2.8",
     "@sanity/client": "^7.23.0",
     "@sanity/image-url": "^2.1.1",
+    "@sentry/cloudflare": "^11.4.0",
     "astro": "^4.16.18",
     "nodemailer": "^7.0.6",
     "passkit-generator": "^3.5.7"

@@ -124,6 +124,8 @@ export const SECRET_OWNERS = {
     "DISPATCH_TOKEN",
     // Script-only: UptimeRobot main API key (setup:uptime, alerts@ account).
     "UPTIME_ROBOT_API_KEY",
+    // Script-only: Sentry token of the alerts@ user (setup:sentry, #35).
+    "SENTRY_AUTH_TOKEN",
   ],
   ops: [
     "BASEROW_OPS_API_KEY",
@@ -163,6 +165,7 @@ export const PRODUCTION_ONLY = [
   "SUBSCRIBE_MAILCHIMP_SYNC_SECRET",
   "SANITY_DEPLOY_TOKEN",
   "UPTIME_ROBOT_API_KEY",
+  "SENTRY_AUTH_TOKEN",
 ];
 
 /**

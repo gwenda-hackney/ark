@@ -18,8 +18,23 @@ import {
   verifyAuthToken,
 } from "./_lib/site-auth.js";
 import { verifyFormsAdminRequest } from "./_lib/admin-auth.js";
+import {
+  captureConsoleIntegration,
+  sentryPagesPlugin,
+} from "@sentry/cloudflare";
+import { sentryOptions } from "../../../shared/sentry.js";
 
-export async function onRequest(context) {
+// Sentry first (#35): thrown errors, and console.error from the functions
+// (a form email that failed, a Baserow write that didn't land).
+export const onRequest = [
+  sentryPagesPlugin((context) => ({
+    ...sentryOptions(context.env, "web"),
+    integrations: [captureConsoleIntegration({ levels: ["error"] })],
+  })),
+  gate,
+];
+
+async function gate(context) {
   const gate = resolveGate(context.env);
   if (gate.kind === "misconfigured") return gateMisconfiguredResponse();
   if (gate.kind === "open") return context.next();

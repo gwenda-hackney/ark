@@ -1,6 +1,8 @@
 import { handleDeploy, handlePromote, handleStatus } from "./handler";
 import { handleBaserowCopy, handleCompare } from "./tools";
 import type { Env } from "./types";
+import { captureConsoleIntegration, withSentry } from "@sentry/cloudflare";
+import { sentryOptions } from "../../../shared/sentry.js";
 
 const ALLOWED_ORIGINS = new Set([
   "https://gwenda.sanity.studio",
@@ -16,7 +18,8 @@ function corsHeaders(request: Request): HeadersInit {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Deploy-Secret",
+    "Access-Control-Allow-Headers":
+      "Authorization, Content-Type, X-Deploy-Secret",
     Vary: "Origin",
   };
 }
@@ -60,72 +63,100 @@ export async function runOpsTick(
     headers: { Authorization: `Bearer ${secret}` },
   });
   if (!response.ok) {
-    console.error(`ops tick failed for ${opsUrl} (${response.status}): ${await response.text()}`);
+    console.error(
+      `ops tick failed for ${opsUrl} (${response.status}): ${await response.text()}`,
+    );
   }
   return response;
 }
 
-export default {
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    // Prod ops and dev ops each run their own website's schedule.
-    ctx.waitUntil(
-      Promise.allSettled([
-        runOpsTick(env),
-        runOpsTick(env, env.OPS_DEV_URL, env.DEPLOY_WEBHOOK_SECRET_DEV || env.DEPLOY_WEBHOOK_SECRET),
-      ]).then(() => undefined),
-    );
-  },
+// Errors, including console.error, go to Sentry (#35). Workers run in production only.
+export default withSentry(
+  (env: Env) => ({
+    ...sentryOptions(
+      env as unknown as Record<string, unknown>,
+      "workers",
+      "production",
+    ),
+    initialScope: { tags: { worker: "site-deploy-webhook" } },
+    integrations: [captureConsoleIntegration({ levels: ["error"] })],
+  }),
+  {
+    async scheduled(
+      _controller: ScheduledController,
+      env: Env,
+      ctx: ExecutionContext,
+    ): Promise<void> {
+      // Prod ops and dev ops each run their own website's schedule.
+      ctx.waitUntil(
+        Promise.allSettled([
+          runOpsTick(env),
+          runOpsTick(
+            env,
+            env.OPS_DEV_URL,
+            env.DEPLOY_WEBHOOK_SECRET_DEV || env.DEPLOY_WEBHOOK_SECRET,
+          ),
+        ]).then(() => undefined),
+      );
+    },
 
-  async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(request) });
-    }
-
-    const url = new URL(request.url);
-
-    try {
-      if (request.method === "GET" && url.pathname === "/health") {
-        return jsonResponse(request, { ok: true, service: "gwenda-site-deploy-webhook" });
+    async fetch(request: Request, env: Env): Promise<Response> {
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: corsHeaders(request),
+        });
       }
 
-      if (
-        request.method === "GET" &&
-        (url.pathname === "/" || url.pathname === "/deploy")
-      ) {
-        return serviceInfo(request);
-      }
+      const url = new URL(request.url);
 
-      if (request.method === "POST" && url.pathname === "/deploy") {
-        const result = await handleDeploy(request, env);
-        return jsonResponse(request, result.body, result.status);
-      }
+      try {
+        if (request.method === "GET" && url.pathname === "/health") {
+          return jsonResponse(request, {
+            ok: true,
+            service: "gwenda-site-deploy-webhook",
+          });
+        }
 
-      if (request.method === "POST" && url.pathname === "/promote") {
-        const result = await handlePromote(request, env);
-        return jsonResponse(request, result.body, result.status);
-      }
+        if (
+          request.method === "GET" &&
+          (url.pathname === "/" || url.pathname === "/deploy")
+        ) {
+          return serviceInfo(request);
+        }
 
-      if (request.method === "GET" && url.pathname === "/compare") {
-        const result = await handleCompare(request, env);
-        return jsonResponse(request, result.body, result.status);
-      }
+        if (request.method === "POST" && url.pathname === "/deploy") {
+          const result = await handleDeploy(request, env);
+          return jsonResponse(request, result.body, result.status);
+        }
 
-      if (request.method === "POST" && url.pathname === "/baserow-copy") {
-        const result = await handleBaserowCopy(request, env);
-        return jsonResponse(request, result.body, result.status);
-      }
+        if (request.method === "POST" && url.pathname === "/promote") {
+          const result = await handlePromote(request, env);
+          return jsonResponse(request, result.body, result.status);
+        }
 
-      if (request.method === "GET" && url.pathname === "/status") {
-        const result = await handleStatus(request, env);
-        return jsonResponse(request, result.body, result.status);
-      }
+        if (request.method === "GET" && url.pathname === "/compare") {
+          const result = await handleCompare(request, env);
+          return jsonResponse(request, result.body, result.status);
+        }
 
-      return jsonResponse(request, { error: "Not found" }, 404);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unexpected worker error";
-      console.error("site-deploy-webhook error:", message);
-      return jsonResponse(request, { error: message }, 502);
-    }
-  },
-};
+        if (request.method === "POST" && url.pathname === "/baserow-copy") {
+          const result = await handleBaserowCopy(request, env);
+          return jsonResponse(request, result.body, result.status);
+        }
+
+        if (request.method === "GET" && url.pathname === "/status") {
+          const result = await handleStatus(request, env);
+          return jsonResponse(request, result.body, result.status);
+        }
+
+        return jsonResponse(request, { error: "Not found" }, 404);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unexpected worker error";
+        console.error("site-deploy-webhook error:", message);
+        return jsonResponse(request, { error: message }, 502);
+      }
+    },
+  } satisfies ExportedHandler<Env>,
+);

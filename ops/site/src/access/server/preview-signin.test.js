@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
-import { onRequest as middleware } from "../../../functions/_middleware.js";
+import { protect as middleware } from "../../../functions/_middleware.js";
 import { onRequestGet as callback } from "../../../functions/api/auth/callback.js";
 import { onRequestGet as login } from "../../../functions/api/auth/login.js";
 import { onRequestGet as logout } from "../../../functions/api/auth/logout.js";

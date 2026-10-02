@@ -10,6 +10,8 @@ import {
   stateKeyFor,
 } from "./health";
 import type { Env, HealthState, ProbeResult, SiteId } from "./types";
+import { captureConsoleIntegration, withSentry } from "@sentry/cloudflare";
+import { sentryOptions } from "../../../shared/sentry.js";
 
 async function readState(env: Env, id: SiteId): Promise<HealthState> {
   const raw = await env.HEALTH_STATE.get(stateKeyFor(id));
@@ -36,7 +38,9 @@ export async function runHealthCheck(
       : env.SITE_URL?.trim() || "https://gwenda.co.uk");
   const requireHome = deps.requireHome ?? siteId !== "preview";
   const shouldAlert = deps.alert ?? siteId === "production";
-  const probe = await (deps.probe ?? probeSite)(siteUrl, fetch, { requireHome });
+  const probe = await (deps.probe ?? probeSite)(siteUrl, fetch, {
+    requireHome,
+  });
   const previous = await readState(env, siteId);
   const interpreted = interpretProbe(probe, previous.healthEndpointSeen);
   const now = deps.now ?? Date.now();
@@ -104,7 +108,9 @@ export async function runAllHealthChecks(
   }
 }
 
-export async function statusPayload(env: Env): Promise<Record<string, unknown>> {
+export async function statusPayload(
+  env: Env,
+): Promise<Record<string, unknown>> {
   const sites: Record<string, unknown> = {};
   for (const site of monitoredSites(env)) {
     const state = await readState(env, site.id);
@@ -139,48 +145,60 @@ export function isStatusAuthorized(request: Request, env: Env): boolean {
   return Boolean(bearer && bearer === token);
 }
 
-export default {
-  async scheduled(
-    _controller: ScheduledController,
-    env: Env,
-    _ctx: ExecutionContext,
-  ): Promise<void> {
-    await runAllHealthChecks(env);
-  },
+// Errors, including console.error, go to Sentry (#35). Workers run in production only.
+export default withSentry(
+  (env: Env) => ({
+    ...sentryOptions(
+      env as unknown as Record<string, unknown>,
+      "workers",
+      "production",
+    ),
+    initialScope: { tags: { worker: "site-health" } },
+    integrations: [captureConsoleIntegration({ levels: ["error"] })],
+  }),
+  {
+    async scheduled(
+      _controller: ScheduledController,
+      env: Env,
+      _ctx: ExecutionContext,
+    ): Promise<void> {
+      await runAllHealthChecks(env);
+    },
 
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+    async fetch(request: Request, env: Env): Promise<Response> {
+      const url = new URL(request.url);
 
-    if (request.method === "GET" && url.pathname === "/health") {
-      // emailConfigured is the deploy smoke check: alerts can go out.
-      return json({
-        ok: true,
-        service: "gwenda-site-health",
-        emailConfigured: isGmailConfigured(env),
-      });
-    }
-
-    if (request.method === "GET" && url.pathname === "/status") {
-      if (!isStatusAuthorized(request, env)) {
-        return json({ error: "Unauthorized" }, 401);
+      if (request.method === "GET" && url.pathname === "/health") {
+        // emailConfigured is the deploy smoke check: alerts can go out.
+        return json({
+          ok: true,
+          service: "gwenda-site-health",
+          emailConfigured: isGmailConfigured(env),
+        });
       }
-      return json(await statusPayload(env));
-    }
 
-    if (request.method === "GET" && url.pathname === "/") {
-      return json({
-        ok: true,
-        service: "gwenda-site-health",
-        cron: "*/5 * * * *",
-        sites: monitoredSites(env).map((site) => ({
-          id: site.id,
-          url: site.url,
-        })),
-        health: "GET /health",
-        status: "GET /status",
-      });
-    }
+      if (request.method === "GET" && url.pathname === "/status") {
+        if (!isStatusAuthorized(request, env)) {
+          return json({ error: "Unauthorized" }, 401);
+        }
+        return json(await statusPayload(env));
+      }
 
-    return json({ error: "Not found" }, 404);
-  },
-};
+      if (request.method === "GET" && url.pathname === "/") {
+        return json({
+          ok: true,
+          service: "gwenda-site-health",
+          cron: "*/5 * * * *",
+          sites: monitoredSites(env).map((site) => ({
+            id: site.id,
+            url: site.url,
+          })),
+          health: "GET /health",
+          status: "GET /status",
+        });
+      }
+
+      return json({ error: "Not found" }, 404);
+    },
+  } satisfies ExportedHandler<Env>,
+);
