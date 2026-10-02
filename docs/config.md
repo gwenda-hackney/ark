@@ -41,7 +41,7 @@ Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs`
 
 Everything else uses the same name at runtime and in SM. The same manifest drives local pulls (`env:<app>:pull`), CI pulls (`--github-env`) and the Cloudflare Pages sync (`setup:ops`, `sync-pages-secrets.mjs`), so there is one list to edit.
 
-Projects record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two. Each project has a **production twin** that holds its `NAME__PRODUCTION` values (#61): `ark (production)`, `ark/ops (production)`, `ark/web (production)`. A write of a `__PRODUCTION` name goes to the twin; a pull reads every project the token can see. `npm run secrets:move-production` moves existing production values into the twins (dry run first, `-- --apply` to move).
+Projects record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two. Projects come in pairs, named like everything else (#61): **`ark`, `ark/ops`, `ark/web` are production** and hold the `NAME__PRODUCTION` values; **`ark-dev`, `ark/ops-dev`, `ark/web-dev`** hold the `NAME__DEV` and shared `NAME` values. A write goes to the owner's production project for a `__PRODUCTION` name and to its `-dev` project otherwise; a pull reads every project the token can see. `npm run secrets:move-dev` moves the dev and shared values out of the production projects (dry run first, `-- --apply` to move).
 
 | Project (name in SM) | Owns |
 |---------|------|
@@ -53,11 +53,11 @@ Scripts find the projects by name (ignoring case) with `bws project list`, so re
 
 ### Who reads what (#61)
 
-| Machine account | Base projects | Production twins | Where the token lives |
+| Machine account | `ark`, `ark/ops`, `ark/web` (production) | `ark-dev`, `ark/ops-dev`, `ark/web-dev` | Where the token lives |
 |---|---|---|---|
 | `ark-local` | read/write | read/write | vault note `ark/.env.local` as `ARK_LOCAL_BW_TOKEN` (a developer's machine) |
 | `ark-ci-production` | read | read | GitHub environment `production` secret `BWS_ACCESS_TOKEN` (deploys from `release` only) |
-| `ark-ci-dev` | read | none | GitHub environments `dev` and `preview` secret `BWS_ACCESS_TOKEN` |
+| `ark-ci-dev` | none | read | GitHub environments `dev` and `preview` secret `BWS_ACCESS_TOKEN` |
 
 So a job on `main` or a feature branch can't read a production value. In CI a pull defaults to production on `release` and dev on any other branch; a production pull with a token that sees no `__PRODUCTION` value stops with "This token can't read production secrets" instead of quietly using shared values. `pr.yml` uses no secrets.
 

@@ -12,11 +12,12 @@
  * an env itself. The one reader that spans envs (ops comparing production with
  * its dev copy) asks for the suffixed name, e.g. BASEROW_OPS_API_KEY__DEV.
  *
- * Projects (Ark, Ark/Ops, Ark/Web) record ownership. Each has a production
- * twin ("Ark (production)" …) holding its NAME__PRODUCTION values (#61): the
- * dev CI token can't read those projects, so only release jobs in the
+ * Projects record ownership, in pairs like everything else (#61): Ark, Ark/Ops
+ * and Ark/Web are production and hold the NAME__PRODUCTION values; Ark-Dev,
+ * Ark/Ops-Dev and Ark/Web-Dev hold NAME__DEV and the shared NAME values. The
+ * dev CI token reads only the -Dev projects, so only release jobs in the
  * production GitHub environment see production secrets. A pull merges every
- * project the token can read; a production twin it can't see is skipped.
+ * project the token can read and skips the ones it can't.
  */
 import { spawnSync } from "node:child_process";
 import {
@@ -35,12 +36,8 @@ export const DEFAULT_SM_SERVER = "https://vault.bitwarden.eu";
 /** SM project names (matched ignoring case), so recreated projects need no code change. */
 export const PROJECT_NAMES = { ark: "ark", ops: "ark/ops", web: "ark/web" };
 
-/** The production twins: NAME__PRODUCTION values, readable by the production token only. */
-export const PRODUCTION_PROJECT_NAMES = {
-  ark: "ark (production)",
-  ops: "ark/ops (production)",
-  web: "ark/web (production)",
-};
+/** The dev projects: NAME__DEV and shared NAME values, all the dev token reads. */
+export const DEV_PROJECT_NAMES = { ark: "ark-dev", ops: "ark/ops-dev", web: "ark/web-dev" };
 
 const PROJECT_ID_OVERRIDES = {
   ark: "BWS_ARK_PROJECT_ID",
@@ -77,13 +74,15 @@ export function pickProjectIds(projects, env = process.env) {
 }
 
 /**
- * Owner → id of each production twin this token can see. A twin it can't see
- * (the dev token, or before the twins exist) is left out, not an error.
+ * Owner → id of each project in `names` this token can see. One it can't see
+ * (the dev token can't see production; before the -Dev projects exist) is left
+ * out, not an error.
  * @param {{ id: string, name: string }[]} projects
+ * @param {Record<string, string>} names
  */
-export function pickProductionProjectIds(projects) {
+export function pickVisibleProjectIds(projects, names) {
   const out = {};
-  for (const [owner, name] of Object.entries(PRODUCTION_PROJECT_NAMES)) {
+  for (const [owner, name] of Object.entries(names)) {
     const matches = projects.filter((p) => String(p.name || "").trim().toLowerCase() === name);
     if (matches.length > 1) throw new Error(`Several Secrets Manager projects are named ${name}. Keep one.`);
     if (matches.length) out[owner] = matches[0].id;
@@ -111,17 +110,23 @@ export function resolveProjectIds({ accessToken, serverUrl, env = process.env } 
   return pickProjectIds(listProjects({ accessToken, serverUrl }), env);
 }
 
-/** Owner → production twin id, for the twins this token can see. */
-export function resolveProductionProjectIds({ accessToken, serverUrl } = {}) {
-  return pickProductionProjectIds(listProjects({ accessToken, serverUrl }));
+/** Owner → -Dev project id, for the ones this token can see. */
+export function resolveDevProjectIds({ accessToken, serverUrl } = {}) {
+  return pickVisibleProjectIds(listProjects({ accessToken, serverUrl }), DEV_PROJECT_NAMES);
 }
 
-/** Every project this token reads, labelled: [["ark", id], ["ark (production)", id], …]. */
-function readableProjects({ accessToken, serverUrl }) {
-  const production = Object.entries(resolveProductionProjectIds({ accessToken, serverUrl })).map(
-    ([owner, id]) => [`${owner} (production)`, id],
-  );
-  return [...Object.entries(resolveProjectIds({ accessToken, serverUrl })), ...production];
+/** Every project this token reads, labelled by its name: [["ark", id], ["ark-dev", id], …]. */
+function readableProjects({ accessToken, serverUrl, env = process.env }) {
+  const overridden = Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim());
+  const projects = overridden ? [] : listProjects({ accessToken, serverUrl });
+  const production = overridden ? pickProjectIds([], env) : pickVisibleProjectIds(projects, PROJECT_NAMES);
+  const dev = pickVisibleProjectIds(projects, DEV_PROJECT_NAMES);
+  const out = [
+    ...Object.entries(production).map(([owner, id]) => [PROJECT_NAMES[owner], id]),
+    ...Object.entries(dev).map(([owner, id]) => [DEV_PROJECT_NAMES[owner], id]),
+  ];
+  if (!out.length) throw new Error("This token can read no Ark Secrets Manager project. Check its access.");
+  return out;
 }
 
 /** Owning SM project for each secret base name. */
@@ -568,9 +573,10 @@ export function upsertSmSecret({ key, value, accessToken, serverUrl, note } = {}
   if (!owner) {
     throw new Error(`${trimmedKey} has no owning project. Add it to SECRET_OWNERS first.`);
   }
-  // NAME__PRODUCTION goes to the owner's production twin once it exists.
+  // NAME__PRODUCTION stays in the production project; NAME__DEV and shared
+  // NAME go to the owner's -Dev project once it exists.
   const projectId =
-    (parsed.env === "production" && resolveProductionProjectIds({ accessToken, serverUrl })[owner]) ||
+    (parsed.env !== "production" && resolveDevProjectIds({ accessToken, serverUrl })[owner]) ||
     resolveProjectIds({ accessToken, serverUrl })[owner];
 
   const entries = listSmSecretEntries({ accessToken, serverUrl, projectId });

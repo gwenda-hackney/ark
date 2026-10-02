@@ -5,7 +5,8 @@ import {
   SECRET_OWNERS,
   assertProductionReadable,
   defaultSecretEnv,
-  pickProductionProjectIds,
+  DEV_PROJECT_NAMES,
+  pickVisibleProjectIds,
   envSecretKey,
   isSmRateLimited,
   ownerOf,
@@ -225,20 +226,20 @@ describe("bws secret argv", () => {
   });
 });
 
-describe("production projects (#61)", () => {
+describe("dev and production projects (#61)", () => {
   const projects = [
     { id: "a", name: "Ark" },
-    { id: "ap", name: "Ark (production)" },
-    { id: "wp", name: "Ark/Web (production)" },
+    { id: "ad", name: "Ark-Dev" },
+    { id: "wd", name: "ark/web-dev" },
   ];
 
-  it("finds the production twins the token can see, and skips the rest", () => {
-    assert.deepEqual(pickProductionProjectIds(projects), { ark: "ap", web: "wp" });
-    assert.deepEqual(pickProductionProjectIds([{ id: "a", name: "Ark" }]), {});
+  it("finds the projects the token can see, and skips the rest", () => {
+    assert.deepEqual(pickVisibleProjectIds(projects, DEV_PROJECT_NAMES), { ark: "ad", web: "wd" });
+    assert.deepEqual(pickVisibleProjectIds([{ id: "a", name: "Ark" }], DEV_PROJECT_NAMES), {});
   });
 
-  it("refuses two twins with the same name", () => {
-    assert.throws(() => pickProductionProjectIds([...projects, { id: "x", name: "ark (production)" }]), /Several/);
+  it("refuses two projects with the same name", () => {
+    assert.throws(() => pickVisibleProjectIds([...projects, { id: "x", name: "ARK-DEV" }], DEV_PROJECT_NAMES), /Several/);
   });
 
   it("reads production on release and dev on every other branch", () => {
