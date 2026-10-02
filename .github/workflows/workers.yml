@@ -38,6 +38,10 @@ jobs:
         id: filter
         if: github.event_name == 'push'
         with:
+          # Compare with release before this push. Without it, a push to a
+          # branch other than the default is compared with main, and release
+          # (merged from main) shows no changes, so nothing deploys.
+          base: ${{ github.ref_name }}
           filters: |
             site_deploy:
               - 'marketing/site-deploy-webhook/**'
