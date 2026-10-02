@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { cloudflareFor } from "./lib/bitwarden-sm.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -124,13 +125,8 @@ function ensureKvNamespace(wranglerEnv) {
 function main() {
   loadRepoEnv({ app: "web", override: true });
 
-  const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
+  const cloudflareToken = cloudflareFor("production").token;
   const serviceAccount = process.env.GMAIL_SERVICE_ACCOUNT_JSON?.trim() || "";
-  if (!cloudflareToken) {
-    throw new Error(
-      "CLOUDFLARE_API_TOKEN is missing. Run bw-unlock.",
-    );
-  }
   if (!serviceAccount) {
     throw new Error("GMAIL_SERVICE_ACCOUNT_JSON is missing. Run bw-unlock.");
   }

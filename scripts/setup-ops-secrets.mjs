@@ -23,7 +23,7 @@
  *   node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env dev   # dev ops
  *   node scripts/setup-ops-secrets.mjs --clear-preview   # also delete prod ops secrets left on its preview
  */
-import { APP_SECRETS, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
+import { APP_SECRETS, cloudflareFor, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 import { applyPagesVars } from "./lib/pages-vars.mjs";
 
@@ -47,11 +47,8 @@ if (clearPreview && !isProd) {
   console.error("--clear-preview is for gwenda-ops only: dev previews need the dev secrets.");
   process.exit(1);
 }
-const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
-if (!token) {
-  console.error("CLOUDFLARE_API_TOKEN is required.");
-  process.exit(1);
-}
+// Production ops lives in the production Cloudflare account, dev ops in gwenda-dev.
+const { token, accountId } = cloudflareFor(secretEnv);
 
 const { values, missing } = loadAppSecretsFromSm("ops", secretEnv);
 if (!values.get("BASEROW_API_KEY")) {
@@ -69,7 +66,7 @@ if (missing.length) console.log(`Not in SM (left as-is on Pages): ${missing.join
 
 try {
   const done = await applyPagesVars({
-    accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+    accountId,
     token,
     project,
     secrets,
@@ -97,4 +94,3 @@ console.log(
 console.log(
   "Redeploy required for secrets to go live: npm run deploy:production -w @gwenda/ops",
 );
-console.log("If Access still intercepts the host: npm run teardown:ops-access");

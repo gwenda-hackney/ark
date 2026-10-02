@@ -12,26 +12,36 @@
  *   npm run secrets:rename -- OLD_NAME NEW_NAME --apply     # rename
  */
 import { vaultSmAccessToken } from "./lib/bitwarden-env.mjs";
-import { deleteSmSecretByKey, listAllSmSecrets, upsertSmSecret } from "./lib/bitwarden-sm.mjs";
+import {
+  deleteSmSecretByKey,
+  listAllSmSecrets,
+  upsertSmSecret,
+} from "./lib/bitwarden-sm.mjs";
 
 const [from, to] = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 const APPLY = process.argv.includes("--apply");
 
 function main() {
-  if (!from || !to || from === to) throw new Error("Usage: secrets:rename -- OLD_NAME NEW_NAME [--apply]");
+  if (!from || !to || from === to)
+    throw new Error("Usage: secrets:rename -- OLD_NAME NEW_NAME [--apply]");
   const accessToken = vaultSmAccessToken();
-  if (!accessToken) throw new Error("The vault is locked. Run bw-unlock first.");
+  if (!accessToken)
+    throw new Error("The vault is locked. Run bw-unlock first.");
   const secrets = listAllSmSecrets({ accessToken });
   const value = secrets.get(from);
   const existing = secrets.get(to);
   if (!value) {
-    if (existing) return console.log(`${from} is gone and ${to} exists: already renamed.`);
+    if (existing)
+      return console.log(`${from} is gone and ${to} exists: already renamed.`);
     throw new Error(`${from} not found in Secrets Manager.`);
   }
   if (existing && existing !== value) {
-    throw new Error(`${to} already exists with a different value. Delete one of them first.`);
+    throw new Error(
+      `${to} already exists with a different value. Delete one of them first.`,
+    );
   }
-  if (!APPLY) return console.log(`Would rename ${from} → ${to}. Run again with --apply.`);
+  if (!APPLY)
+    return console.log(`Would rename ${from} → ${to}. Run again with --apply.`);
   if (!existing) upsertSmSecret({ key: to, value, accessToken });
   if (listAllSmSecrets({ accessToken }).get(to) !== value) {
     throw new Error(`${to} didn't read back the same value; ${from} kept.`);

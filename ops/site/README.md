@@ -70,7 +70,6 @@ OPS_SESSION_SECRET=…          # signs the app session cookie (not from Google)
 
 npm run setup:baserow-ops     # creates Users (and other Ops tables)
 npm run setup:ops             # Pages secrets
-npm run teardown:ops-access   # once: remove old Cloudflare Access apps
 ```
 
 Google Cloud **Web application** OAuth client (reuse the existing client):
@@ -81,8 +80,6 @@ Google Cloud **Web application** OAuth client (reuse the existing client):
 Local: `npm run ops:dev` → http://localhost:5174/ → Continue with Google. Optional `OPS_LOCAL_ADMIN_PW` remains a local bypass only. Leave `OPS_LOCAL_ADMIN_PW` unset on Pages.
 
 Logout clears the session cookie and returns to `/gate/`.
-
-If Cloudflare Access still intercepts production after cutover, run `npm run teardown:ops-access` (or delete the Gwenda ops Access apps in Zero Trust).
 
 ### Letting in someone outside the company (a personal Gmail)
 

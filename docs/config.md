@@ -43,7 +43,7 @@ Which runtime keys each app gets is a manifest in `scripts/lib/bitwarden-sm.mjs`
 
 Everything else uses the same name at runtime and in SM. The same manifest drives local pulls (`env:<app>:pull`), CI pulls (`--github-env`) and the Cloudflare Pages sync (`setup:ops`, `sync-pages-secrets.mjs`), so there is one list to edit.
 
-Projects record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two. Projects come in pairs, named like everything else (#61; each project and who reads it: [env-reference.md](env-reference.md#secrets-manager-projects)): **`ark`, `ark/ops`, `ark/web` are production** and hold the `NAME__PRODUCTION` values; **`ark-dev`, `ark/ops-dev`, `ark/web-dev`** hold the `NAME__DEV` and shared `NAME` values. A write goes to the owner's production project for a `__PRODUCTION` name and to its `-dev` project otherwise; a pull reads every project the token can see. `npm run secrets:move-dev` moves the dev and shared values out of the production projects (dry run first, `-- --apply` to move). `npm run secrets:rename -- OLD NEW` renames a secret, for example a shared `NAME` that becomes `NAME__PRODUCTION` (dry run first, `--apply` to rename).
+Projects record ownership (`SECRET_OWNERS`). A key must live in exactly one project; the pull fails if the same name appears in two. Projects come in pairs, named like everything else (#61; each project and who reads it: [env-reference.md](env-reference.md#secrets-manager-projects)): **`ark`, `ark/ops`, `ark/web` are production** and hold the `NAME__PRODUCTION` values; **`ark-dev`, `ark/ops-dev`, `ark/web-dev`** hold the `NAME__DEV` and shared `NAME` values. A write goes to the owner's production project for a `__PRODUCTION` name and to its `-dev` project otherwise; a pull reads every project the token can see. `npm run secrets:move-dev` moves the dev and shared values out of the production projects (dry run first, `-- --apply` to move). `npm run secrets:rename -- OLD NEW` renames a secret, for example a shared `NAME` that becomes `NAME__PRODUCTION` (dry run first, `--apply` to rename). `npm run secrets:import-env` stores secrets pasted into `.env` and removes those lines (dry run first, `-- --apply` to store).
 
 | Project (name in SM) | Owns |
 |---------|------|
@@ -69,8 +69,7 @@ A shared `NAME` is visible to the dev token, so it must not be able to change pr
 
 | Shared name | Can it touch production? | Decision |
 |---|---|---|
-| `CLOUDFLARE_ACCOUNT_ID` | No, an id | Stays shared |
-| `CLOUDFLARE_API_TOKEN` | Yes: deploys every Pages project and Worker | Split: `__DEV` scoped to the dev projects, `__PRODUCTION` |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Yes: a token deploys every Pages project and Worker in its account | Split: dev has its own Cloudflare account (gwenda-dev), `__DEV` and `__PRODUCTION` (#129) |
 | `DISPATCH_TOKEN` | Yes: starts workflows | Production only: `DISPATCH_TOKEN__PRODUCTION` |
 | `MAILCHIMP_API_KEY`, `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Yes: the real audience | Production only: `…__PRODUCTION` |
 | `SANITY_DEPLOY_TOKEN` | Yes: deploys the hosted Studio | Production only: `SANITY_DEPLOY_TOKEN__PRODUCTION` (deploy locally with `npx sanity login`) |
