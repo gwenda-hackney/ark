@@ -407,12 +407,17 @@ export function ensureBwsInstalled() {
   return binPath;
 }
 
-/** True when bws failed because Secrets Manager rate-limited us (HTTP 429). */
-export function isSmRateLimited(detail) {
-  return /\b429\b|Too Many Requests|Slow down/i.test(String(detail || ""));
+/**
+ * True when a bws failure is worth retrying: Secrets Manager rate-limited us
+ * (429) or was briefly unavailable (502, 503, 504).
+ */
+export function isSmRetryable(detail) {
+  return /\b(429|502|503|504)\b|Too Many Requests|Slow down|Service Unavailable|Bad Gateway|Gateway Timeout/i.test(
+    String(detail || ""),
+  );
 }
 
-/** Waits before retry `attempt` (1-based) after a 429: 1.5s, 3s, 6s, 12s. */
+/** Waits before retry `attempt` (1-based): 1.5s, 3s, 6s, 12s. */
 export function smRetryDelayMs(attempt) {
   return 1500 * 2 ** (attempt - 1);
 }
@@ -433,7 +438,8 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
   }
   const server = (serverUrl || process.env.BWS_SERVER_URL || DEFAULT_SM_SERVER).replace(/\/$/, "");
   // Several projects are listed back to back, and SM answers 429 ("Slow
-  // down! ... Try again in 1s") to bursts: wait and retry instead of failing.
+  // down! ... Try again in 1s") to bursts, and now and then 503: wait and
+  // retry instead of failing.
   let result;
   for (let attempt = 0; ; attempt += 1) {
     result = spawnSync(
@@ -446,7 +452,7 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
       .filter(Boolean)
       .join("\n")
       .trim();
-    if (attempt < SM_MAX_RETRIES && isSmRateLimited(detail)) {
+    if (attempt < SM_MAX_RETRIES && isSmRetryable(detail)) {
       sleepSync(smRetryDelayMs(attempt + 1));
       continue;
     }
