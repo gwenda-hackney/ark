@@ -5,21 +5,13 @@
  * A snapshot holds a short content fingerprint per Sanity document and per
  * artist row (artists come from the Ops Baserow DB). The deploy job captures
  * it before building and saves it to Gwenda Config after the deploy succeeds
- * (key site.build_snapshot, Service web, Env preview|production). Ops compares
+ * (key site.build_snapshot, Service web, Env preview|production), in the
+ * environment's own config database. Ops compares
  * it with the current data; anything added, changed or removed since is
  * pending. Changes made while a build runs stay pending, as they should.
  */
 
 export const SNAPSHOT_CONFIG_KEY = "site.build_snapshot";
-
-/**
- * Config key for one environment's snapshots. Prod keeps the plain key; the
- * dev website (built from the Gwenda Dev copy) gets its own, so the two never
- * read each other's builds.
- */
-export function snapshotConfigKey(environment = "prod") {
-  return environment === "dev" ? `${SNAPSHOT_CONFIG_KEY}.dev` : SNAPSHOT_CONFIG_KEY;
-}
 
 // `_originalId` marks a draft read through the preview; it is not content.
 const SYSTEM_KEYS = new Set(["_rev", "_updatedAt", "_createdAt", "_originalId"]);

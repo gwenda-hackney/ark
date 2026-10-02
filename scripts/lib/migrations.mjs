@@ -41,9 +41,8 @@ export const DATABASES = {
     dev: ["Gwenda Dev", "Gwenda Ops"],
     production: ["Gwenda", "Gwenda Ops"],
   },
-  // One config database serves every environment (shared/config.js).
   config: {
-    dev: ["Gwenda", "Gwenda Config"],
+    dev: ["Gwenda Dev", "Gwenda Config"],
     production: ["Gwenda", "Gwenda Config"],
   },
 };

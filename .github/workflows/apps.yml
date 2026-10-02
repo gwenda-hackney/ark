@@ -223,7 +223,7 @@ jobs:
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy src --project-name gwenda-brand --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
+          command: pages deploy src --project-name gwenda-brand-dev --branch ${{ steps.branch.outputs.name }} --commit-dirty=true
           workingDirectory: marketing/brand
 
       - name: Resolve preview URL
@@ -234,7 +234,7 @@ jobs:
             URL="${{ steps.deploy.outputs.deployment-url }}"
           fi
           if [ -z "$URL" ]; then
-            URL="https://${{ steps.branch.outputs.name }}.gwenda-brand.pages.dev"
+            URL="https://${{ steps.branch.outputs.name }}.gwenda-brand-dev.pages.dev"
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
@@ -314,11 +314,12 @@ jobs:
       - name: Build ops app
         run: npm run build -w @gwenda/ops
 
-      # Baserow schema changes need a user login (database tokens only touch rows).
-      - name: Baserow login for migrations
+      # Baserow schema changes need a user login (database tokens only touch rows);
+      # config migrations use this environment's config token.
+      - name: Baserow access for migrations
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD BASEROW_CONFIG_API_KEY
 
       # Pages keeps each deployment's secrets, so the new code's secrets go on
       # before it deploys. Adds and updates only; the running ops keeps its own.
@@ -445,11 +446,12 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/setup-ops-secrets.mjs --project gwenda-ops-dev --env dev
 
-      # Baserow schema changes need a user login (database tokens only touch rows).
-      - name: Baserow login for migrations
+      # Baserow schema changes need a user login (database tokens only touch rows);
+      # config migrations use this environment's config token.
+      - name: Baserow access for migrations
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
-        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD BASEROW_CONFIG_API_KEY
 
       # Additive only, so the ops still running keeps working (scripts/lib/migrations.mjs).
       - name: Migrations before deploy

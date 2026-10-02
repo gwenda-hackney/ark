@@ -6,7 +6,7 @@
  *     Before the build. Reads SANITY_DATASET with SANITY_API_TOKEN, and the
  *     Artists table with BASEROW_OPS_API_KEY (the token picks the database).
  *
- *   node scripts/site-build-snapshot.mjs save --in FILE --site preview|production [--environment dev|prod]
+ *   node scripts/site-build-snapshot.mjs save --in FILE --site preview|production
  *     After a successful deploy. Writes Gwenda Config (BASEROW_CONFIG_API_KEY).
  *
  * Capturing first means edits made during the build still count as pending.
@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { listArtists } from "../shared/artists.js";
 import { writeState } from "../shared/config.js";
 import {
-  snapshotConfigKey,
+  SNAPSHOT_CONFIG_KEY,
   SNAPSHOT_DOCS_QUERY,
   buildSnapshot,
   parseSnapshot,
@@ -70,12 +70,10 @@ if (command === "capture") {
   const site = arg("--site");
   if (site !== "preview" && site !== "production") fail("--site must be preview or production");
   const snapshot = parseSnapshot(readFileSync(input, "utf8")) || fail("Snapshot file is not valid.");
-  const environment = arg("--environment") || "prod";
-  if (environment !== "dev" && environment !== "prod") fail("--environment must be dev or prod");
-  await writeState(process.env, "web", snapshotConfigKey(environment), site, JSON.stringify(snapshot));
+  await writeState(process.env, "web", SNAPSHOT_CONFIG_KEY, site, JSON.stringify(snapshot));
   console.log(`Saved the ${site} build snapshot (${snapshot.at}).`);
 } else {
   fail(
-    "Usage: site-build-snapshot.mjs capture --out FILE | save --in FILE --site preview|production [--environment dev|prod]",
+    "Usage: site-build-snapshot.mjs capture --out FILE | save --in FILE --site preview|production",
   );
 }

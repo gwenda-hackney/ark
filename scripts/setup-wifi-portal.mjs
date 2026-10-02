@@ -11,7 +11,7 @@ import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { loadRepoEnv } from "./lib/load-env.mjs";
-import { loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
+import { cloudflareFor, loadAppSecretsFromSm } from "./lib/bitwarden-sm.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORKER_DIR = resolve(ROOT, "marketing/wifi-captive-portal");
@@ -77,12 +77,11 @@ function productionSecrets() {
 async function main() {
   loadRepoEnv();
 
-  const cloudflareToken = process.env.CLOUDFLARE_API_TOKEN?.trim();
+  const cloudflareToken = cloudflareFor("production").token;
   const { baserowKey, siteManagerKey } = productionSecrets();
   const consoleId =
     process.env.UNIFI_CONSOLE_ID?.trim() || readWranglerConsoleId();
 
-  if (!cloudflareToken) throw new Error("CLOUDFLARE_API_TOKEN is missing. Run bw-unlock.");
   if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   if (!siteManagerKey) {
     throw new Error(
