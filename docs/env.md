@@ -84,17 +84,17 @@ BASEROW_API_KEY=... npm run env:ops:push -- --profile dev BASEROW_API_KEY      #
 
 Keys that already have env values in SM are skipped unless `--profile` is given, so a dev token never becomes the shared value.
 
-CI (Pages secrets): set repo secret `BWS_ACCESS_TOKEN` (ark-ci), then:
+CI (Pages secrets): production runs from `release`, dev from `main` (each GitHub environment holds its own `BWS_ACCESS_TOKEN`, see [config.md](./config.md#who-reads-what-61)):
 
 ```bash
-gh workflow run ops-secrets.yml                      # production ops, then redeploy
-gh workflow run web-secrets.yml -f profile=production  # gwenda (live + preview)
-gh workflow run web-secrets.yml -f profile=dev         # gwenda-web-dev
+gh workflow run ops-secrets.yml --ref release                         # production ops, then redeploy
+gh workflow run web-secrets.yml --ref release -f profile=production   # gwenda (live + preview)
+gh workflow run web-secrets.yml --ref main -f profile=dev             # gwenda-web-dev
 ```
 
 Pages snapshots secrets per deployment, so a secret-only change needs a redeploy. The ops deploys (`apps.yml`, production and dev) sync ops Pages secrets before deploying, adding and updating only. The website deploys do not push Pages secrets; `web-secrets.yml` does. `web.yml` may pull Ark/Web into the job env for the build (`SANITY_API_TOKEN`, `BASEROW_OPS_API_KEY` for artists, `GATE_BYPASS_KEY` smoke test) but never writes them to Cloudflare.
 
-GitHub holds only `BWS_ACCESS_TOKEN`. Every workflow reads everything else from Secrets Manager: app secrets with `env:<app>:pull -- --github-env`, script credentials with `sm-export.mjs`. Do not add GitHub secrets.
+GitHub holds only `BWS_ACCESS_TOKEN`, one per environment: the production token in `production`, the dev token in `dev` and `preview`. Every workflow reads everything else from Secrets Manager: app secrets with `env:<app>:pull -- --github-env`, script credentials with `sm-export.mjs`. Do not add GitHub secrets.
 
 Baserow workspaces and tokens per env: see [config.md](./config.md#ops-baserow-workspaces).
 

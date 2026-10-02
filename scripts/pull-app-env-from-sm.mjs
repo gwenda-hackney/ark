@@ -7,8 +7,11 @@
  *
  *   npm run env:secrets:refresh                   # refetch dev into the RAM cache
  *   npm run env:secrets:refresh -- --profile production   # list resolved/missing names
- *   npm run env:ops:pull -- --github-env          # CI, ops runtime names, production
- *   npm run env:web:pull -- --github-env          # CI, web runtime names, production
+ *   npm run env:ops:pull -- --github-env          # CI, ops runtime names
+ *   npm run env:web:pull -- --github-env          # CI, web runtime names
+ *
+ * In CI the env defaults to production on release and dev elsewhere (the
+ * production GitHub environment only accepts release, #61); --profile wins.
  *
  * Locally nothing is written to the repo: the wrappers (with-env, with-ops-env,
  * ops-dev) load secrets in memory through scripts/lib/load-env.mjs. Without
@@ -24,6 +27,8 @@ import {
   APP_SECRETS,
   SM_TOKEN_HINT,
   appSecrets,
+  assertProductionReadable,
+  defaultSecretEnv,
   listAllSmSecrets,
   localSecretNames,
   normalizeSecretEnv,
@@ -34,8 +39,6 @@ import {
 } from "./lib/bitwarden-sm.mjs";
 import { REPO_ROOT, loadLocalSecrets } from "./lib/load-env.mjs";
 
-/** Default env when --profile is omitted. CI jobs rely on these. */
-const GITHUB_DEFAULT_ENV = { ark: "production", ops: "production", web: "production" };
 const LEGACY_FILES = [".env.secrets", ".env.secrets.bak", ".env.ark", ".env.ops", ".env.web"];
 
 function parseArgs(argv) {
@@ -57,7 +60,7 @@ function parseArgs(argv) {
     if ((out.githubEnv || out.envOnly) && !out.app) {
       throw new Error("--github-env / --env-only need an app (ark, ops or web).");
     }
-    if (!out.env) out.env = out.githubEnv ? GITHUB_DEFAULT_ENV[out.app] : "dev";
+    if (!out.env) out.env = out.githubEnv ? defaultSecretEnv() : "dev";
   }
   return out;
 }
@@ -80,7 +83,7 @@ function main() {
   that with-env / with-ops-env / ops-dev read (other profiles: list names only).
 
   --profile|--env dev|production
-                 dev by default; with --github-env: production
+                 dev by default; with --github-env: production on release, else dev
   --dry-run      List resolved and missing keys (no values, no cache write)
   --env-only     Print KEY=value lines; do not write files
   --github-env   Append resolved secrets (plus Ark keys) to $GITHUB_ENV
@@ -99,7 +102,9 @@ function main() {
     process.exit(1);
   }
 
-  const resolved = resolveSecretsForEnv(listAllSmSecrets({ accessToken }), opts.env);
+  const raw = listAllSmSecrets({ accessToken });
+  if (opts.env === "production") assertProductionReadable(raw);
+  const resolved = resolveSecretsForEnv(raw, opts.env);
 
   if (opts.githubEnv || opts.envOnly) {
     const { values, missing } = pickAppSecrets(opts.app, resolved);
