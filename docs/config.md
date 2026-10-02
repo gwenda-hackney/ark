@@ -51,7 +51,7 @@ Projects record ownership (`SECRET_OWNERS`). A key must live in exactly one proj
 | `ark/ops` | `BASEROW_OPS_API_KEY__*`, Google service account + OAuth secret, ops session/bypass, Lightspeed, Baserow login `BASEROW_JWT_EMAIL` / `BASEROW_JWT_PASSWORD` (automation@) |
 | `ark/web` | `BASEROW_WEBSITE_API_KEY__*`, `FORMS_ADMIN_SECRET__*`, Sanity, deploy webhook, subscribe, site gate, Instagram |
 
-Scripts find the projects by name (ignoring case) with `bws project list`, so recreating a project needs no code change. Override the base three with `BWS_ARK_PROJECT_ID` / `BWS_OPS_PROJECT_ID` / `BWS_WEB_PROJECT_ID` if needed.
+Scripts find the projects by name (ignoring case) with `bws project list`, so recreating a project needs no code change.
 
 ### Who reads what (#61)
 

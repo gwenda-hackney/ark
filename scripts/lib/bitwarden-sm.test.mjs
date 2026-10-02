@@ -163,19 +163,15 @@ describe("pickProjectIds", () => {
   ];
 
   it("finds each project by name, ignoring case", () => {
-    assert.deepEqual(pickProjectIds(projects, {}), { ark: "a", ops: "o", web: "w" });
-  });
-
-  it("lets BWS_*_PROJECT_ID override the lookup", () => {
-    assert.equal(pickProjectIds(projects, { BWS_OPS_PROJECT_ID: "custom" }).ops, "custom");
+    assert.deepEqual(pickProjectIds(projects), { ark: "a", ops: "o", web: "w" });
   });
 
   it("names the project the token can't see", () => {
-    assert.throws(() => pickProjectIds(projects.slice(0, 2), {}), /No Secrets Manager project named ark\/web/);
+    assert.throws(() => pickProjectIds(projects.slice(0, 2)), /No Secrets Manager project named ark\/web/);
   });
 
   it("refuses two projects with the same name", () => {
-    assert.throws(() => pickProjectIds([...projects, { id: "a2", name: "ARK" }], {}), /Several .* named ark\./);
+    assert.throws(() => pickProjectIds([...projects, { id: "a2", name: "ARK" }]), /Several .* named ark\./);
   });
 });
 

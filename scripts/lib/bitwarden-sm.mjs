@@ -39,27 +39,16 @@ export const PROJECT_NAMES = { ark: "ark", ops: "ark/ops", web: "ark/web" };
 /** The dev projects: NAME__DEV and shared NAME values, all the dev token reads. */
 export const DEV_PROJECT_NAMES = { ark: "ark-dev", ops: "ark/ops-dev", web: "ark/web-dev" };
 
-const PROJECT_ID_OVERRIDES = {
-  ark: "BWS_ARK_PROJECT_ID",
-  ops: "BWS_OPS_PROJECT_ID",
-  web: "BWS_WEB_PROJECT_ID",
-};
-
 export const SECRET_ENVS = ["dev", "production"];
 export const ENV_OVERRIDE_SEPARATOR = "__";
 
 /**
- * Project ids from a `bws project list` result. `BWS_*_PROJECT_ID` overrides win.
+ * Production project ids from a `bws project list` result, by name.
  * @param {{ id: string, name: string }[]} projects
  */
-export function pickProjectIds(projects, env = process.env) {
+export function pickProjectIds(projects) {
   const out = {};
   for (const [owner, name] of Object.entries(PROJECT_NAMES)) {
-    const override = env[PROJECT_ID_OVERRIDES[owner]]?.trim();
-    if (override) {
-      out[owner] = override;
-      continue;
-    }
     const matches = projects.filter((p) => String(p.name || "").trim().toLowerCase() === name);
     if (matches.length !== 1) {
       throw new Error(
@@ -103,11 +92,8 @@ function listProjects({ accessToken, serverUrl }) {
 }
 
 /** Owner → project id, looked up by name once per token and server. */
-export function resolveProjectIds({ accessToken, serverUrl, env = process.env } = {}) {
-  if (Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim())) {
-    return pickProjectIds([], env);
-  }
-  return pickProjectIds(listProjects({ accessToken, serverUrl }), env);
+export function resolveProjectIds({ accessToken, serverUrl } = {}) {
+  return pickProjectIds(listProjects({ accessToken, serverUrl }));
 }
 
 /** Owner → -Dev project id, for the ones this token can see. */
@@ -116,10 +102,9 @@ export function resolveDevProjectIds({ accessToken, serverUrl } = {}) {
 }
 
 /** Every project this token reads, labelled by its name: [["ark", id], ["ark-dev", id], …]. */
-function readableProjects({ accessToken, serverUrl, env = process.env }) {
-  const overridden = Object.values(PROJECT_ID_OVERRIDES).every((key) => env[key]?.trim());
-  const projects = overridden ? [] : listProjects({ accessToken, serverUrl });
-  const production = overridden ? pickProjectIds([], env) : pickVisibleProjectIds(projects, PROJECT_NAMES);
+function readableProjects({ accessToken, serverUrl }) {
+  const projects = listProjects({ accessToken, serverUrl });
+  const production = pickVisibleProjectIds(projects, PROJECT_NAMES);
   const dev = pickVisibleProjectIds(projects, DEV_PROJECT_NAMES);
   const out = [
     ...Object.entries(production).map(([owner, id]) => [PROJECT_NAMES[owner], id]),
@@ -427,11 +412,7 @@ export function runBws(args, { accessToken, serverUrl } = {}) {
       `Missing Secrets Manager access token. ${SM_TOKEN_HINT}`,
     );
   }
-  const server = (
-    serverUrl ||
-    process.env.BWS_SERVER_URL ||
-    DEFAULT_SM_SERVER
-  ).replace(/\/$/, "");
+  const server = (serverUrl || process.env.BWS_SERVER_URL || DEFAULT_SM_SERVER).replace(/\/$/, "");
   // Several projects are listed back to back, and SM answers 429 ("Slow
   // down! ... Try again in 1s") to bursts: wait and retry instead of failing.
   let result;

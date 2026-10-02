@@ -8,14 +8,27 @@ Every secret and setting the apps, Workers, scripts and CI read: what it is for,
 
 ## How to read an entry
 
-- **Why:** what would not work without it.
-- **Secrets Manager (SM):** the stored name, and the project it sits in. `NAME__PRODUCTION` sits in `ark`, `ark/ops` or `ark/web`. `NAME__DEV` and a shared `NAME` sit in `ark-dev`, `ark/ops-dev` or `ark/web-dev`.
-- **Dev / production:** whether each environment has its own value (`__DEV` / `__PRODUCTION`), or both share one (`NAME`).
-- **Runtime name:** what the code reads, if it differs from the SM name.
-- **Used by:** the apps, Workers, scripts and workflows that read it.
-- **Gets there by:** how the value reaches its user. For example: a CI pull, a Cloudflare Pages secret, a Worker secret, or your machine's in-memory cache.
-- **Expires:** when it stops working on its own.
+Each entry opens with **why** it exists: what would stop working without it. Then:
+
+- **SM:** the name in Secrets Manager and its project. Production values (`NAME__PRODUCTION`) sit in `ark`, `ark/ops` or `ark/web`; dev values (`NAME__DEV`) and shared values (plain `NAME`, one value for both) sit in `ark-dev`, `ark/ops-dev` or `ark/web-dev`.
+- **Runtime name:** what the code reads, when it differs.
+- **Used by:** who reads it.
+- **Gets there by:** how the value reaches them: a CI pull, a Cloudflare Pages secret, a Worker secret, or your machine's in-memory cache.
+- **Expires:** whether it stops working on its own.
 - **Changing it:** what to run, and what breaks until everything has the new value.
+
+## Contents
+
+- [Secrets Manager access](#secrets-manager-access): the tokens that unlock everything else
+- [Cloudflare](#cloudflare)
+- [Baserow](#baserow)
+- [Sanity](#sanity)
+- [Google](#google)
+- [Ops](#ops)
+- [Website](#website)
+- [Deploys and Workers](#deploys-and-workers)
+- [Plain settings](#plain-settings): not secret
+- [Overview](#overview): everything in one table
 
 ---
 
@@ -25,7 +38,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `ARK_LOCAL_BW_TOKEN`
 
-- **Why:** so your machine can read the app secrets. It is the key to Secrets Manager; it sits in your vault, so `bw-unlock` (your master password) is all you do and the scripts fetch it from there.
+Lets your machine read the app secrets. It is your machine's key to Secrets Manager. It sits in your vault, so `bw-unlock` (your master password) is all you do; the scripts fetch it from there.
+
 - **Machine account:** `ark-local`, read/write on all six projects.
 - **Stored in:** the Password Manager vault note `ark/.env.local`. Never in `.env`; the loader warns if it finds it there.
 - **Used by:** every script on a developer's machine (`with-env`, `with-ops-env`, `ops:dev`, `setup:*`, `secret:set`, `secrets:move-dev`).
@@ -35,7 +49,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `ARK_CI_TOKEN`
 
-- **Why:** so production deploys can read production secrets, and nothing else can. Only jobs on `release`, in the `production` GitHub environment, get this token.
+Lets production deploys read production secrets, and nothing else can. Only jobs on `release`, in the `production` GitHub environment, get this token.
+
 - **Machine account:** `ark-ci`, read on all six projects.
 - **Stored in:** GitHub, as the `production` environment's secret `BWS_ACCESS_TOKEN`.
 - **Used by:** every job in the `production` environment, which only accepts the `release` branch: web promote, the prod preview, ops production, brand production, Studio, Workers, Baserow copy, ops and web secrets syncs.
@@ -44,17 +59,13 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `ARK_CI_DEV_TOKEN`
 
-- **Why:** so branches and `main` can build and test without ever seeing a production secret. Anyone who can push a branch can make a workflow print its token's secrets; this one has none worth stealing.
+Lets branches and `main` build and test without ever seeing a production secret. Anyone who can push a branch can make a workflow print its token's secrets; this one has none worth stealing.
+
 - **Machine account:** `ark-ci-dev`, read on the three `-dev` projects only. It can't see any `__PRODUCTION` value; a production pull with it stops with "This token can't read production secrets".
 - **Stored in:** GitHub, as the `dev` and `preview` environments' secret `BWS_ACCESS_TOKEN`.
 - **Used by:** jobs on `main` (dev website, dev ops) and on feature branches (branch previews).
 - **Expires:** as set when it was created on 2026-10-02. Check the token list on `ark-ci-dev`.
 - **Changing it:** as above, for both `--env dev` and `--env preview`.
-
-### Overrides (rarely needed)
-
-- `BWS_SERVER_URL`: Bitwarden server. Default `https://vault.bitwarden.eu`. Without it `bws` talks to the US server and every token looks invalid.
-- `BWS_ARK_PROJECT_ID`, `BWS_OPS_PROJECT_ID`, `BWS_WEB_PROJECT_ID`: pin the production projects by id instead of finding them by name.
 
 ---
 
@@ -62,7 +73,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `CLOUDFLARE_API_TOKEN`
 
-- **Why:** everything we run is on Cloudflare (Pages sites, Workers), and deploying or changing any of it needs an API token.
+Everything we run is on Cloudflare (Pages sites, Workers), and deploying or changing any of it needs an API token.
+
 - **SM:** `CLOUDFLARE_API_TOKEN`, shared, in `ark-dev`.
 - **Used by:** every deploy: Pages (website, ops, brand), Workers, Wrangler, the Pages secrets syncs (`ops-secrets.yml`, `web-secrets.yml`), the rollback script (#18), and `ops:dev` locally (Workers AI).
 - **Gets there by:** CI pulls it (`env:ark:pull -- --github-env`); your machine loads it from the cache.
@@ -72,7 +84,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `CLOUDFLARE_ACCOUNT_ID`
 
-- **Why:** cloudflare's API addresses everything by account, so every call needs it next to the token.
+Cloudflare's API addresses everything by account, so every call needs it next to the token.
+
 - **SM:** `CLOUDFLARE_ACCOUNT_ID`, shared, in `ark-dev`. It is an id, not a secret; it is also in each Worker's `wrangler.toml`.
 - **Used by:** the same jobs as the token.
 - **Expires:** never.
@@ -83,7 +96,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `BASEROW_OPS_API_KEY`
 
-- **Why:** ops keeps its data (events, menu, inventory, artists, users) in Baserow, and a database token is how code reads and writes those rows. Each environment has its own database, so its own token.
+Ops keeps its data (events, menu, inventory, artists, users) in Baserow, and a database token is how code reads and writes those rows. Each environment has its own database, so its own token.
+
 - **SM:** `BASEROW_OPS_API_KEY__DEV` (`ark/ops-dev`), `BASEROW_OPS_API_KEY__PRODUCTION` (`ark/ops`).
 - **What:** a Baserow database token for the "Gwenda Ops" database (production) or its copy in "Gwenda Dev".
 - **Runtime name:** `BASEROW_API_KEY` in ops. The website reads it as `BASEROW_OPS_API_KEY` (featured artist at build time).
@@ -94,7 +108,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `BASEROW_WEBSITE_API_KEY`
 
-- **Why:** guest data from the website (form entries, subscribers, RSVPs) lives in Baserow's Website database; this token is how the site and its Workers write it.
+Guest data from the website (form entries, subscribers, RSVPs) lives in Baserow's Website database; this token is how the site and its Workers write it.
+
 - **SM:** `BASEROW_WEBSITE_API_KEY__DEV` (`ark/web-dev`), `BASEROW_WEBSITE_API_KEY__PRODUCTION` (`ark/web`).
 - **What:** a database token for the "Website" database (forms, subscribers, RSVPs) or its dev copy.
 - **Runtime name:** `BASEROW_API_KEY` on the website; `BASEROW_WEBSITE_API_KEY` in ops (form resends).
@@ -105,7 +120,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `BASEROW_CONFIG_API_KEY`
 
-- **Why:** non-secret settings (for example `forms.notify_email`, who gets form emails) and machine state live in a Baserow config database rather than in code, so they change without a deploy. This token reads and writes it.
+Non-secret settings (for example `forms.notify_email`, who gets form emails) and machine state live in a Baserow config database rather than in code, so they change without a deploy. This token reads and writes it.
+
 - **SM:** `BASEROW_CONFIG_API_KEY`, shared, in `ark-dev`.
 - **What:** a database token for "Gwenda Config", the runtime settings both environments read. One table holds both environments' rows.
 - **Used by:** ops and the website (`shared/config-db.js`), `setup:baserow-config`.
@@ -114,7 +130,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `BASEROW_JWT_EMAIL` and `BASEROW_JWT_PASSWORD`
 
-- **Why:** database tokens can only change rows. Adding a table or field during a deploy (a migration) or copying a database needs a real Baserow login, so CI signs in as automation@.
+Database tokens can only change rows. Adding a table or field during a deploy (a migration) or copying a database needs a real Baserow login, so CI signs in as automation@.
+
 - **SM:** both shared, in `ark/ops-dev`.
 - **What:** the automation@gwenda.co.uk Baserow login. Database tokens can only touch rows; changing tables and fields needs a logged-in user.
 - **Used by:** migrations in every ops and website deploy (`scripts/migrate.mjs`), the Baserow copy, the clone and setup scripts.
@@ -128,7 +145,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `SANITY_API_TOKEN`
 
-- **Why:** website content (events, menu, pages) lives in Sanity. Ops writes it and the website build reads it, including unpublished drafts for the preview, which needs a token.
+Website content (events, menu, pages) lives in Sanity. Ops writes it and the website build reads it, including unpublished drafts for the preview, which needs a token.
+
 - **SM:** `SANITY_API_TOKEN__DEV` (`ark/web-dev`, project `gwscpagy`, Gwenda Dev), `SANITY_API_TOKEN__PRODUCTION` (`ark/web`, project `pn5yjro6`, Gwenda Web). Both Editor.
 - **Used by:** the website build (reading content and drafts), ops (writing events and the menu, publishing), `site-build-snapshot.mjs`.
 - **Gets there by:** website build: CI pull; ops: Pages secret.
@@ -137,7 +155,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `SANITY_DEPLOY_TOKEN`
 
-- **Why:** the hosted Studio at gwenda.sanity.studio is redeployed with each release when its code changed; Sanity only lets a token with the Deploy Studio role do that.
+The hosted Studio at gwenda.sanity.studio is redeployed with each release when its code changed; Sanity only lets a token with the Deploy Studio role do that.
+
 - **SM:** `SANITY_DEPLOY_TOKEN`, shared, in `ark/web-dev`. Deploy Studio role on `pn5yjro6`.
 - **Used by:** the hosted Studio deploy (`studio:deploy`) in web promote and `studio.yml`. `with-env` passes it to the Sanity CLI as `SANITY_AUTH_TOKEN`.
 - **Expires:** never.
@@ -148,7 +167,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `GOOGLE_SERVICE_ACCOUNT_JSON`
 
-- **Why:** ops and the website send email (form confirmations, alerts) from notifications@ and keep the events calendar in sync. A service account with domain-wide delegation can do that as notifications@ without a person signing in.
+Ops and the website send email (form confirmations, alerts) from notifications@ and keep the events calendar in sync. A service account with domain-wide delegation can do that as notifications@ without a person signing in.
+
 - **SM:** `GOOGLE_SERVICE_ACCOUNT_JSON`, shared, in `ark/ops-dev`. The key of `gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`, as one line of JSON.
 - **What:** domain-wide delegation: it sends Gmail as notifications@ and edits Google Calendar and Drive.
 - **Runtime names:** `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` (ops: Drive, calendar) and `GMAIL_SERVICE_ACCOUNT_JSON` (ops form resends, website form email, site-health alerts).
@@ -160,7 +180,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `GOOGLE_OAUTH_CLIENT_SECRET`
 
-- **Why:** staff sign in to ops with their Google account. Google only completes that sign-in for an app that proves who it is with its client secret.
+Staff sign in to ops with their Google account. Google only completes that sign-in for an app that proves who it is with its client secret.
+
 - **SM:** `GOOGLE_OAUTH_CLIENT_SECRET`, shared, in `ark/ops-dev`. Its client id is the plain setting `GOOGLE_OAUTH_CLIENT_ID`.
 - **Used by:** ops sign-in with Google (`/api/auth`).
 - **Gets there by:** Pages secret.
@@ -173,7 +194,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `OPS_SESSION_SECRET`
 
-- **Why:** after sign-in, ops keeps you signed in with a cookie. Signing that cookie means nobody can forge one to get in.
+After sign-in, ops keeps you signed in with a cookie. Signing that cookie means nobody can forge one to get in.
+
 - **SM:** `OPS_SESSION_SECRET__DEV` (`ark/ops-dev`), `OPS_SESSION_SECRET__PRODUCTION` (`ark/ops`). Random, 32 bytes.
 - **What:** signs the ops sign-in cookie.
 - **Used by:** ops.
@@ -183,7 +205,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `OPS_LOCAL_ADMIN_PW`
 
-- **Why:** google sign-in only works on the registered ops addresses, not on localhost. This password lets a developer sign in to ops running on their own machine.
+Google sign-in only works on the registered ops addresses, not on localhost. This password lets a developer sign in to ops running on their own machine.
+
 - **SM:** `OPS_LOCAL_ADMIN_PW__DEV` (`ark/ops-dev`), `OPS_LOCAL_ADMIN_PW__PRODUCTION` (`ark/ops`).
 - **What:** the password for the local admin sign-in at `/gate/` when ops runs on your machine (`npm run ops:dev`), where Google sign-in isn't set up.
 - **Used by:** local ops only. It is never pushed to Cloudflare Pages (`pagesSkip`).
@@ -195,7 +218,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `SUBSCRIBE_SECRET`
 
-- **Why:** the website sends guests links that must not be guessable or editable: RSVP tickets, email-verification and edit links. Signing them with this secret is how the site knows a link is one it made.
+The website sends guests links that must not be guessable or editable: RSVP tickets, email-verification and edit links. Signing them with this secret is how the site knows a link is one it made.
+
 - **SM:** `SUBSCRIBE_SECRET__DEV` (`ark/web-dev`), `SUBSCRIBE_SECRET__PRODUCTION` (`ark/web`). Random.
 - **What:** signs the website's own links and cookies: the subscribe form's CSRF cookie, RSVP ticket links (`/events/<slug>/ticket` and the Apple Wallet pass), and form email-verification and edit links.
 - **Used by:** website functions.
@@ -205,7 +229,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `FORMS_ADMIN_SECRET`
 
-- **Why:** only ops may ask the website to resend a form email; this secret proves the request is from ops.
+Only ops may ask the website to resend a form email; this secret proves the request is from ops.
+
 - **SM:** `FORMS_ADMIN_SECRET__DEV` (`ark/web-dev`), `FORMS_ADMIN_SECRET__PRODUCTION` (`ark/web`).
 - **What:** protects the website's form admin endpoint (`/api/forms/admin/resend`).
 - **Used by:** the website, and ops (which calls it).
@@ -213,7 +238,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `SITE_PASSWORD`
 
-- **Why:** the preview shows unpublished drafts and the dev website shows test data. A password keeps both away from guests and search engines.
+The preview shows unpublished drafts and the dev website shows test data. A password keeps both away from guests and search engines.
+
 - **SM:** `SITE_PASSWORD__DEV` (`ark/web-dev`), `SITE_PASSWORD__PRODUCTION` (`ark/web`).
 - **What:** the password for the gate on the prod preview (preview.gwenda-blue) and the dev website. The live site is always public.
 - **Used by:** the website middleware.
@@ -223,7 +249,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `GATE_BYPASS_KEY`
 
-- **Why:** CI smoke tests and preview share links need to see a gated site without typing the password.
+CI smoke tests and preview share links need to see a gated site without typing the password.
+
 - **SM:** `GATE_BYPASS_KEY__DEV` (`ark/web-dev`), `GATE_BYPASS_KEY__PRODUCTION` (`ark/web`).
 - **What:** `?access=<key>` gets past the gate without the password. Used by the CI smoke tests on gated sites and by the preview share links.
 - **Used by:** the website middleware and `preview-share.js`; `smoke-test.mjs` in CI.
@@ -236,7 +263,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `DEPLOY_WEBHOOK_SECRET`
 
-- **Why:** ops starts website rebuilds and releases, but only GitHub can run them. The webhook Worker holds the GitHub token and does it for ops; this shared secret is how each side knows the other is genuine.
+Ops starts website rebuilds and releases, but only GitHub can run them. The webhook Worker holds the GitHub token and does it for ops; this shared secret is how each side knows the other is genuine.
+
 - **SM:** `DEPLOY_WEBHOOK_SECRET`, shared, in `ark/web-dev`.
 - **What:** one secret, three uses:
   - ops → the site deploy webhook Worker (rebuild, promote, status, compare, Baserow copy);
@@ -249,7 +277,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `DISPATCH_TOKEN`
 
-- **Why:** starting a GitHub workflow needs a GitHub token. The webhook Worker holds this one so ops never needs GitHub access itself.
+Starting a GitHub workflow needs a GitHub token. The webhook Worker holds this one so ops never needs GitHub access itself.
+
 - **SM:** `DISPATCH_TOKEN`, shared, in `ark-dev`.
 - **What:** a fine-grained GitHub token for `gwenda-hackney/ark` only (Actions read/write, Contents read). The webhook Worker starts the `web.yml`, `web-promote.yml` and `baserow-copy.yml` runs with it.
 - **Runtime name:** `GITHUB_TOKEN` on the webhook Worker.
@@ -259,7 +288,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `MAILCHIMP_API_KEY`
 
-- **Why:** subscribers sign up on the website (stored in Baserow); the sync Worker copies them into the Mailchimp audience that newsletters go to.
+Subscribers sign up on the website (stored in Baserow); the sync Worker copies them into the Mailchimp audience that newsletters go to.
+
 - **SM:** `MAILCHIMP_API_KEY`, shared, in `ark/web-dev`.
 - **What:** the Mailchimp API key for the real audience.
 - **Used by:** the Mailchimp sync Worker, `setup:subscribe-mailchimp-sync`, `upload-mailchimp-template.mjs`.
@@ -269,7 +299,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `SUBSCRIBE_MAILCHIMP_SYNC_SECRET`
 
-- **Why:** the sync Worker runs on a schedule but can also be run by hand; this secret stops anyone else from triggering it.
+The sync Worker runs on a schedule but can also be run by hand; this secret stops anyone else from triggering it.
+
 - **SM:** `SUBSCRIBE_MAILCHIMP_SYNC_SECRET`, shared, in `ark/web-dev`. Random; made by `setup:subscribe-mailchimp-sync` if missing.
 - **What:** protects the Mailchimp sync Worker's manual run (`POST /` with `Authorization: Bearer …`).
 - **Runtime name:** `SYNC_SECRET` on the Worker.
@@ -277,7 +308,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `UNIFI_SITE_MANAGER_API_KEY`
 
-- **Why:** the venue Wi-Fi asks guests to sign up before going online; the portal Worker then tells the UniFi controller to let that device on.
+The venue Wi-Fi asks guests to sign up before going online; the portal Worker then tells the UniFi controller to let that device on.
+
 - **SM:** `UNIFI_SITE_MANAGER_API_KEY`, shared, in `ark/web-dev`. Shared because there is one Wi-Fi controller, the venue's, and the local portal dev server uses it too.
 - **What:** the UniFi Site Manager API key; the captive portal Worker lets guests onto the Wi-Fi with it.
 - **Used by:** the Wi-Fi captive portal Worker, `setup:wifi-portal`, `wifi-portal-dev.mjs`.
@@ -286,7 +318,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 
 ### `UPTIME_ROBOT_API_KEY`
 
-- **Why:** uptimeRobot checks the sites from outside Cloudflare and emails alerts@ when one is down; `setup:uptime` uses this key to keep the monitors in place.
+UptimeRobot checks the sites from outside Cloudflare and emails alerts@ when one is down; `setup:uptime` uses this key to keep the monitors in place.
+
 - **SM:** `UPTIME_ROBOT_API_KEY`, shared, in `ark-dev`. The main API key of the UptimeRobot account (login alerts@gwenda.co.uk).
 - **Used by:** `npm run setup:uptime`, on your machine only.
 - **Expires:** never.
@@ -299,14 +332,14 @@ Not secret: committed in `wrangler*.toml`, the deploy workflows or the local def
 
 ### Environment
 
-Why: the same code runs as production, dev and on your machine; these tell it which one it is, so it picks the right data and protections.
+The same code runs as production, dev and on your machine; these tell it which one it is, so it picks the right data and protections.
 
 - `SITE_ENV`: `production`, `dev` or `local`. Required: `environmentOf` in `shared/config-db.js` throws if it is missing, so dev data can't reach production by accident. Set in every `wrangler*.toml`, and `production` on the site-health Worker.
 - `SITE_PREVIEW`: `true` on a website preview (drafts shown, password gate). Set in `[env.preview.vars]`.
 
 ### Sanity
 
-Why: which Sanity project and which view of it (published or drafts) a site builds from.
+Which Sanity project and which view of it (published or drafts) a site builds from.
 
 - `SANITY_PROJECT_ID`: `pn5yjro6` (Gwenda Web, production) or `gwscpagy` (Gwenda Dev). Your machine defaults to `gwscpagy`.
 - `SANITY_DATASET`: `production` in both projects (each has one dataset).
@@ -314,7 +347,7 @@ Why: which Sanity project and which view of it (published or drafts) a site buil
 
 ### Addresses
 
-Why: where each part finds the others, and where alerts go.
+Where each part finds the others, and where alerts go.
 
 - `ALERT_EMAIL`: `alerts@gwenda.co.uk`, where ops, the website and site health send alerts.
 - `INVITE_BASE_URL`, `INVITE_IMAGE_URL`: links and the image in event invite emails. Your machine defaults `INVITE_BASE_URL` to `http://localhost:4321`.
@@ -326,14 +359,14 @@ Why: where each part finds the others, and where alerts go.
 
 ### Google
 
-Why: public halves of the Google setup; the secrets are above.
+Public halves of the Google setup; the secrets are above.
 
 - `GOOGLE_OAUTH_CLIENT_ID`: the ops sign-in client (its secret is above).
 - `GOOGLE_CALENDAR_ID`: the production events calendar, in production ops' `wrangler.toml`.
 
 ### Mailchimp sync Worker
 
-Why: which audience and which Baserow tables the sync works on.
+Which audience and which Baserow tables the sync works on.
 
 - `MAILCHIMP_AUDIENCE_ID`: the audience it syncs into.
 - `BASEROW_API_URL`: `https://api.baserow.io` (also on the Wi-Fi portal).
@@ -341,7 +374,7 @@ Why: which audience and which Baserow tables the sync works on.
 
 ### Wi-Fi captive portal Worker
 
-Why: which Wi-Fi network the portal controls, and how guests are let on.
+Which Wi-Fi network the portal controls, and how guests are let on.
 
 - `UNIFI_CONSOLE_ID`, `UNIFI_SITE_IDENTIFIER`: which UniFi console and site.
 - `UNIFI_GUEST_MINUTES`: `1440`, how long a guest stays connected.
@@ -350,7 +383,7 @@ Why: which Wi-Fi network the portal controls, and how guests are let on.
 
 ### Website build (set by CI in `.github/actions/deploy-pages`)
 
-Why: stamped into each build so a page can say which build it is, whether it's a preview, and where it lives. The deploy checks compare the stamp to know the new build is live.
+Stamped into each build so a page can say which build it is, whether it's a preview, and where it lives. The deploy checks compare the stamp to know the new build is live.
 
 - `PUBLIC_BUILD_VERSION`, `PUBLIC_BUILD_SHA`, `PUBLIC_BUILD_REF`, `PUBLIC_BUILD_TIME`: the build stamp. The site reports the version as `X-Gwenda-Version`.
 - `PUBLIC_IS_PREVIEW`: `true` for a preview or the dev website.
@@ -358,9 +391,15 @@ Why: stamped into each build so a page can say which build it is, whether it's a
 - `PUBLIC_SITE_ORIGIN`: the public address of a non-live build.
 - `PUBLIC_OPENING_DATE`: the opening date; GitHub variable `PUBLIC_OPENING_DATE`, default `2026-08-01`.
 
+### Secrets Manager scripts
+
+Optional, not secret, and unset by default.
+
+- `BWS_SERVER_URL`: the Bitwarden server the scripts talk to. Unset means `https://vault.bitwarden.eu`, where our account is. Set it only if the account moves.
+
 ### Your machine only
 
-Why: personal settings for local work, so test email reaches you and nothing else.
+Personal settings for local work, so test email reaches you and nothing else.
 
 - `FORMS_NOTIFY_EMAIL`: the safe inbox outside production. Defaults to your git email; override it in `.env`.
 - `.env` is optional and holds personal overrides only. Never secrets, never `ARK_LOCAL_BW_TOKEN` or `BWS_ACCESS_TOKEN`.
