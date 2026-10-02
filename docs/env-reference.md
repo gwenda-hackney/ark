@@ -6,8 +6,6 @@ Every secret and setting the apps, Workers, scripts and CI read: what it is for,
 - Loading secrets on your machine and in CI: [env.md](env.md)
 - Rebuilding everything from scratch: [secrets-rebuild.md](secrets-rebuild.md)
 
-Lines marked **Planned** describe a change in an open pull request or issue. They are not live yet.
-
 ## How to read an entry
 
 - **Why:** what would not work without it.
@@ -53,13 +51,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Expires:** as set when it was created on 2026-10-02. Check the token list on `ark-ci-dev`.
 - **Changing it:** as above, for both `--env dev` and `--env preview`.
 
-### `BWS_ACCESS_TOKEN` (repo-level, retiring)
-
-- **Why:** it was the single CI token before #61, readable by every branch. It stays only until the split tokens are proven.
-- **What:** the old `ark-ci` token, as a repository secret. Jobs now use their environment's secret first, so nothing should depend on it.
-- **Planned (#61):** delete the repo secret after a production promote works with `ARK_CI_TOKEN`, then revoke the old token named `BWS_ACCESS_TOKEN` on `ark-ci`.
-- **Locally:** never put `BWS_ACCESS_TOKEN` in `.env`. It overrides the vault token. Run scripts with `env -u BWS_ACCESS_TOKEN` if your shell has one.
-
 ### Overrides (rarely needed)
 
 - `BWS_SERVER_URL`: Bitwarden server. Default `https://vault.bitwarden.eu`. Without it `bws` talks to the US server and every token looks invalid.
@@ -78,7 +69,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Permissions:** Pages Edit, Workers Scripts Edit, Workers KV Storage Edit, Workers Routes Edit (zone), Account Settings Read, Workers AI Read ([env.md](env.md#cloudflare-tokens)).
 - **Expires:** never (Cloudflare reports no expiry, checked 2026-10-02).
 - **Changing it:** create the new token, `npm run secret:set`, run one deploy, delete the old token in Cloudflare.
-- **Planned (#61):** split into `CLOUDFLARE_API_TOKEN__DEV`, scoped to `gwenda-web-dev`, `gwenda-ops-dev` and the brand previews, and `CLOUDFLARE_API_TOKEN__PRODUCTION`. Today a branch can deploy to production Pages projects with it.
 
 ### `CLOUDFLARE_ACCOUNT_ID`
 
@@ -121,7 +111,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Used by:** ops and the website (`shared/config-db.js`), `setup:baserow-config`.
 - **Gets there by:** Pages secrets on ops and the website; CI pull.
 - **Expires:** never.
-- **Planned (#120):** one config database per environment, each with its own token, so a dev credential can't change production settings.
 
 ### `BASEROW_JWT_EMAIL` and `BASEROW_JWT_PASSWORD`
 
@@ -132,7 +121,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Gets there by:** CI exports them by name (`sm-export.mjs`); scripts log in and get a short-lived token per run.
 - **Expires:** the password doesn't. Don't turn on two-factor sign-in: CI signs in with the password.
 - **Changing it:** reset the password on Baserow (the reset email reaches the notifications@ inbox; automation@ is its alias), then `npm run secret:set` for `BASEROW_JWT_PASSWORD`.
-- **Planned (#120):** a dev-only Baserow user, a member of "Gwenda Dev" only, for dev migrations. automation@ is a member of both workspaces, so today a dev credential can change production tables.
 
 ---
 
@@ -153,7 +141,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **SM:** `SANITY_DEPLOY_TOKEN`, shared, in `ark/web-dev`. Deploy Studio role on `pn5yjro6`.
 - **Used by:** the hosted Studio deploy (`studio:deploy`) in web promote and `studio.yml`. `with-env` passes it to the Sanity CLI as `SANITY_AUTH_TOKEN`.
 - **Expires:** never.
-- **Planned (#119):** production-only, stored as `SANITY_DEPLOY_TOKEN__PRODUCTION`. Deploy Studio from your machine with `npx sanity login` instead.
 
 ---
 
@@ -170,7 +157,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Expires:** service account keys don't expire unless an organisation policy says so. The current key was made on 2026-10-01.
 - **Changing it:** add a key to the same service account in Google Cloud (delegation stays), store it, redeploy ops and the website, run `setup:site-health`, then delete the old key.
 - **Outside production:** all mail is redirected to the safe inbox by `shared/gmail-send.js` (#107). That stops accidents, not someone holding the key.
-- **Planned (#121, backlog):** a dev mailbox for Gmail and a dev calendar share, so dev never holds the delegated key.
 
 ### `GOOGLE_OAUTH_CLIENT_SECRET`
 
@@ -180,7 +166,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Gets there by:** Pages secret.
 - **Expires:** never.
 - **Changing it:** add a secret to the OAuth client in Google Cloud, store it, redeploy ops (dev and production), then delete the old secret.
-- **Planned (#121, backlog):** a dev OAuth client.
 
 ---
 
@@ -225,7 +210,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **What:** protects the website's form admin endpoint (`/api/forms/admin/resend`).
 - **Used by:** the website, and ops (which calls it).
 - **Expires:** never.
-- **Planned:** remove the endpoint and the secret once the new ops form resend is live; ops sends resends itself now.
 
 ### `SITE_PASSWORD`
 
@@ -262,7 +246,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Gets there by:** Pages secrets on ops and the website; Worker secret put by `workers.yml`.
 - **Expires:** never.
 - **Changing it:** every holder must change together: the Worker (`workers.yml` on `release`), ops (ops deploys), and the website (`web-secrets.yml`).
-- **Planned (#120):** `DEPLOY_WEBHOOK_SECRET__PRODUCTION` and `__DEV`. The Worker keeps the dev one as `DEPLOY_WEBHOOK_SECRET_DEV`, and a dev secret can only rebuild the dev website: no live promote, no prod preview, no database copy.
 
 ### `DISPATCH_TOKEN`
 
@@ -273,7 +256,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **Gets there by:** `workers.yml` exports it (`sm-export.mjs`) and puts it on the Worker.
 - **Expires:** GitHub reports no expiry date (checked 2026-10-02).
 - **Changing it:** make a new fine-grained token, store it, rerun Workers on `release`, delete the old token.
-- **Planned (#119):** production-only, as `DISPATCH_TOKEN__PRODUCTION`.
 
 ### `MAILCHIMP_API_KEY`
 
@@ -282,9 +264,8 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **What:** the Mailchimp API key for the real audience.
 - **Used by:** the Mailchimp sync Worker, `setup:subscribe-mailchimp-sync`, `upload-mailchimp-template.mjs`.
 - **Gets there by:** `workers.yml` puts it on the Worker.
-- **Expires:** **yes, after a year. The current key stops working around 2027-10-01** (#98).
+- **Expires:** **yes, after a year. The current key stops working around 2027-10-01.**
 - **Changing it:** create a key in Mailchimp, check it (`/3.0/ping`), store it, rerun Workers on `release` (or `setup:subscribe-mailchimp-sync`), then revoke the old key. Check you're revoking the right one.
-- **Planned (#119):** production-only, as `MAILCHIMP_API_KEY__PRODUCTION`. #98: one command to rotate it, and a reminder before it expires.
 
 ### `SUBSCRIBE_MAILCHIMP_SYNC_SECRET`
 
@@ -293,12 +274,11 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **What:** protects the Mailchimp sync Worker's manual run (`POST /` with `Authorization: Bearer …`).
 - **Runtime name:** `SYNC_SECRET` on the Worker.
 - **Expires:** never.
-- **Planned (#119):** production-only, as `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION`.
 
 ### `UNIFI_SITE_MANAGER_API_KEY`
 
 - **Why:** the venue Wi-Fi asks guests to sign up before going online; the portal Worker then tells the UniFi controller to let that device on.
-- **SM:** `UNIFI_SITE_MANAGER_API_KEY`, shared, in `ark/web-dev`. It stays shared: there is one Wi-Fi controller, the venue's, and the local portal dev server needs it.
+- **SM:** `UNIFI_SITE_MANAGER_API_KEY`, shared, in `ark/web-dev`. Shared because there is one Wi-Fi controller, the venue's, and the local portal dev server uses it too.
 - **What:** the UniFi Site Manager API key; the captive portal Worker lets guests onto the Wi-Fi with it.
 - **Used by:** the Wi-Fi captive portal Worker, `setup:wifi-portal`, `wifi-portal-dev.mjs`.
 - **Gets there by:** `setup:wifi-portal` puts it on the Worker.
@@ -310,7 +290,6 @@ Bitwarden is two products. Your **vault** (Password Manager, `bw`) holds persona
 - **SM:** `UPTIME_ROBOT_API_KEY`, shared, in `ark-dev`. The main API key of the UptimeRobot account (login alerts@gwenda.co.uk).
 - **Used by:** `npm run setup:uptime`, on your machine only.
 - **Expires:** never.
-- **Planned (#119):** production-only, as `UPTIME_ROBOT_API_KEY__PRODUCTION`.
 
 ---
 
@@ -339,7 +318,7 @@ Why: where each part finds the others, and where alerts go.
 
 - `ALERT_EMAIL`: `alerts@gwenda.co.uk`, where ops, the website and site health send alerts.
 - `INVITE_BASE_URL`, `INVITE_IMAGE_URL`: links and the image in event invite emails. Your machine defaults `INVITE_BASE_URL` to `http://localhost:4321`.
-- `SITE_DEPLOY_WEBHOOK_URL`: where ops finds the site deploy webhook Worker. `SANITY_STUDIO_SITE_DEPLOY_URL` is its older name, still read as a fallback.
+- `SITE_DEPLOY_WEBHOOK_URL`: where ops finds the site deploy webhook Worker.
 - `SITE_HEALTH_URL`: `https://health.gwenda.co.uk`, linked from ops.
 - `OPS_URL`, `OPS_DEV_URL`: the ops sites the webhook ticks (`gwenda-ops.pages.dev`, `gwenda-ops-dev.pages.dev`).
 - `SITE_URL`, `PREVIEW_SITE_URL`: what the site-health Worker checks.
@@ -358,7 +337,7 @@ Why: which audience and which Baserow tables the sync works on.
 
 - `MAILCHIMP_AUDIENCE_ID`: the audience it syncs into.
 - `BASEROW_API_URL`: `https://api.baserow.io` (also on the Wi-Fi portal).
-- `BASEROW_SYNC_LOG_TABLE_ID`: the Baserow table it logs runs to. (#39 plans to find it by name instead.)
+- `BASEROW_SYNC_LOG_TABLE_ID`: the Baserow table it logs runs to.
 
 ### Wi-Fi captive portal Worker
 
@@ -390,30 +369,30 @@ Why: personal settings for local work, so test email reaches you and nothing els
 
 ## Overview
 
-| Name | Dev / production | SM project (production / dev) | Expires | Planned |
-|---|---|---|---|---|
-| `ARK_LOCAL_BW_TOKEN` | — | vault note | never | |
-| `ARK_CI_TOKEN` | production | GitHub env `production` | as set | |
-| `ARK_CI_DEV_TOKEN` | dev | GitHub envs `dev`, `preview` | as set | |
-| `CLOUDFLARE_API_TOKEN` | shared | — / `ark-dev` | never | split (#61) |
-| `CLOUDFLARE_ACCOUNT_ID` | shared | — / `ark-dev` | never | |
-| `BASEROW_OPS_API_KEY` | own values | `ark/ops` / `ark/ops-dev` | never | |
-| `BASEROW_WEBSITE_API_KEY` | own values | `ark/web` / `ark/web-dev` | never | |
-| `BASEROW_CONFIG_API_KEY` | shared | — / `ark-dev` | never | split (#120) |
-| `BASEROW_JWT_EMAIL` / `_PASSWORD` | shared | — / `ark/ops-dev` | never | split (#120) |
-| `SANITY_API_TOKEN` | own values | `ark/web` / `ark/web-dev` | never | |
-| `SANITY_DEPLOY_TOKEN` | shared | — / `ark/web-dev` | never | production-only (#119) |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | shared | — / `ark/ops-dev` | never | backlog (#121) |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | shared | — / `ark/ops-dev` | never | backlog (#121) |
-| `OPS_SESSION_SECRET` | own values | `ark/ops` / `ark/ops-dev` | never | |
-| `OPS_LOCAL_ADMIN_PW` | own values | `ark/ops` / `ark/ops-dev` | never | |
-| `SUBSCRIBE_SECRET` | own values | `ark/web` / `ark/web-dev` | never | |
-| `FORMS_ADMIN_SECRET` | own values | `ark/web` / `ark/web-dev` | never | remove |
-| `SITE_PASSWORD` | own values | `ark/web` / `ark/web-dev` | never | |
-| `GATE_BYPASS_KEY` | own values | `ark/web` / `ark/web-dev` | never | |
-| `DEPLOY_WEBHOOK_SECRET` | shared | — / `ark/web-dev` | never | split (#120) |
-| `DISPATCH_TOKEN` | shared | — / `ark-dev` | none reported | production-only (#119) |
-| `MAILCHIMP_API_KEY` | shared | — / `ark/web-dev` | **~2027-10-01** | production-only (#119), rotation (#98) |
-| `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | shared | — / `ark/web-dev` | never | production-only (#119) |
-| `UNIFI_SITE_MANAGER_API_KEY` | shared, on purpose | — / `ark/web-dev` | check UniFi | |
-| `UPTIME_ROBOT_API_KEY` | shared | — / `ark-dev` | never | production-only (#119) |
+| Name | Dev / production | SM project (production / dev) | Expires |
+|---|---|---|---|
+| `ARK_LOCAL_BW_TOKEN` | — | vault note | never |
+| `ARK_CI_TOKEN` | production | GitHub env `production` | as set |
+| `ARK_CI_DEV_TOKEN` | dev | GitHub envs `dev`, `preview` | as set |
+| `CLOUDFLARE_API_TOKEN` | shared | — / `ark-dev` | never |
+| `CLOUDFLARE_ACCOUNT_ID` | shared | — / `ark-dev` | never |
+| `BASEROW_OPS_API_KEY` | own values | `ark/ops` / `ark/ops-dev` | never |
+| `BASEROW_WEBSITE_API_KEY` | own values | `ark/web` / `ark/web-dev` | never |
+| `BASEROW_CONFIG_API_KEY` | shared | — / `ark-dev` | never |
+| `BASEROW_JWT_EMAIL` / `_PASSWORD` | shared | — / `ark/ops-dev` | never |
+| `SANITY_API_TOKEN` | own values | `ark/web` / `ark/web-dev` | never |
+| `SANITY_DEPLOY_TOKEN` | shared | — / `ark/web-dev` | never |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | shared | — / `ark/ops-dev` | never |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | shared | — / `ark/ops-dev` | never |
+| `OPS_SESSION_SECRET` | own values | `ark/ops` / `ark/ops-dev` | never |
+| `OPS_LOCAL_ADMIN_PW` | own values | `ark/ops` / `ark/ops-dev` | never |
+| `SUBSCRIBE_SECRET` | own values | `ark/web` / `ark/web-dev` | never |
+| `FORMS_ADMIN_SECRET` | own values | `ark/web` / `ark/web-dev` | never |
+| `SITE_PASSWORD` | own values | `ark/web` / `ark/web-dev` | never |
+| `GATE_BYPASS_KEY` | own values | `ark/web` / `ark/web-dev` | never |
+| `DEPLOY_WEBHOOK_SECRET` | shared | — / `ark/web-dev` | never |
+| `DISPATCH_TOKEN` | shared | — / `ark-dev` | none reported |
+| `MAILCHIMP_API_KEY` | shared | — / `ark/web-dev` | **~2027-10-01** |
+| `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | shared | — / `ark/web-dev` | never |
+| `UNIFI_SITE_MANAGER_API_KEY` | shared | — / `ark/web-dev` | check UniFi |
+| `UPTIME_ROBOT_API_KEY` | shared | — / `ark-dev` | never |
