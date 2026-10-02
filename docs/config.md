@@ -175,7 +175,7 @@ Each Baserow token is named exactly like the SM key that holds it, so there is n
 | `BASEROW_WEBSITE_API_KEY__PRODUCTION` | Gwenda | Website |
 | `BASEROW_OPS_API_KEY__DEV` | Gwenda Dev | Gwenda Ops, Website |
 | `BASEROW_WEBSITE_API_KEY__DEV` | Gwenda Dev | Website |
-| `BASEROW_CONFIG_API_KEY__PRODUCTION` | Gwenda | Gwenda Config |
+| `BASEROW_CONFIG_API_KEY__PRODUCTION` (in Baserow: `gwenda-config`) | Gwenda | Gwenda Config |
 | `BASEROW_CONFIG_API_KEY__DEV` | Gwenda Dev | Gwenda Config |
 
 The website has its own token so the public site never holds a key to staff data. Config has its own so a settings reader never holds a key to data.
