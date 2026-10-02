@@ -19,6 +19,8 @@ Everything loads through `scripts/lib/load-env.mjs`: `.env`, then `LOCAL_DEFAULT
 
 ## Secrets: one naming rule
 
+Each secret in detail (use, expiry, what changing it breaks): [env-reference.md](env-reference.md).
+
 Bitwarden Secrets Manager has no per-env secrets, so env is encoded in the name:
 
 | SM name | Meaning |
