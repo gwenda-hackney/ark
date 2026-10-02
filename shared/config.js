@@ -7,8 +7,9 @@
  *      value from .env. `required` ones must be set, so a fresh machine fails
  *      loudly until the developer fills it in (e.g. their email for form
  *      notifications; .env.example lists them).
- *   2. The Gwenda Config database: this environment's row (dev or production;
- *      a developer's machine reads dev), else the "all" row.
+ *   2. This environment's Gwenda Config database (production's in the Gwenda
+ *      workspace, dev's in Gwenda Dev; a developer's machine reads dev's): the
+ *      environment's row, else the "all" row.
  *
  * Machine state (build snapshots, scheduler state, secret fingerprints) also
  * lives in the config database; readState/writeState are its only doors.
@@ -48,7 +49,7 @@ export {
  * (migrations/config-retired-settings.mjs, run by CI once the new code is live),
  * never before: the code still running may read them until then.
  */
-export const RETIRED_SETTINGS = ["web.origin", "sanity.dataset", "web.pages_secrets_fingerprint"];
+export const RETIRED_SETTINGS = ["site.build_snapshot.dev", "site.auto_update.dev"];
 
 /** Remove retired settings' rows. Post-deploy only. */
 export async function removeRetiredSettings(env) {
@@ -193,8 +194,9 @@ function rowText(value) {
 }
 
 /**
- * Every setting for every environment, and where each value comes from, for
- * ops Developer tools → Settings. Also rows no setting knows about, and the
+ * Every setting in this environment, and where each value comes from, for
+ * ops Developer tools → Settings. Each environment reads only its own config
+ * database, so the developer's machine column (dev rows) is shown in dev only. Also rows no setting knows about, and the
  * machine-state rows (by name and size only).
  */
 export async function describeSettings(env) {
@@ -215,11 +217,9 @@ export async function describeSettings(env) {
       : { value: "", from: "not set" };
   };
   const machine = isLocalMachine(env);
+  const current = environmentOf(env);
   const settings = Object.entries(SETTINGS).map(([key, entry]) => {
-    const values = {};
-    for (const envName of CONFIG_ENVS) {
-      values[envName] = winner(key, entry.service, envName);
-    }
+    const values = { [current]: winner(key, entry.service, current) };
     const local = entry.local
       ? {
           env: entry.local.env,
@@ -251,8 +251,8 @@ export async function describeSettings(env) {
     else unknown.push({ ...item, value: rowText(row.Value) });
   }
   return {
-    environments: [...CONFIG_ENVS],
-    current: environmentOf(env),
+    environments: [current],
+    current,
     onMachine: machine,
     settings,
     unknown,

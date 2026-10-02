@@ -9,7 +9,7 @@
  * after a failure, then it waits for someone to press "Update website now".
  */
 import {
-  snapshotConfigKey,
+  SNAPSHOT_CONFIG_KEY,
   SNAPSHOT_DOCS_QUERY,
   parseSnapshot,
   pendingSignature,
@@ -19,7 +19,6 @@ import { readState as readConfigState, writeState as writeConfigState } from "..
 import { listArtists } from "../../../../../shared/artists.js";
 import { PREVIEW, sanityQuery } from "../../platform/sanity.js";
 import {
-  buildEnvironment,
   dispatchProductionDeploy,
   dispatchPreviewDeploy,
   fetchDeployStatus,
@@ -28,11 +27,6 @@ import {
 export const SITES = ["production", "preview"];
 export const QUIET_MS = 10 * 60 * 1000;
 const STATE_KEY = "site.auto_update";
-
-/** Dev ops keeps its scheduler state apart from prod's. */
-function stateKey(env) {
-  return buildEnvironment(env) === "dev" ? `${STATE_KEY}.dev` : STATE_KEY;
-}
 const MAX_AUTO_FAILURES = 2;
 
 /** How each site reads Sanity: "preview" is the preview site. */
@@ -60,11 +54,11 @@ export function parseState(text) {
 }
 
 export async function readState(env, site, { read = readConfigState } = {}) {
-  return parseState(await read(env, "ops", stateKey(env), site).catch(() => ""));
+  return parseState(await read(env, "ops", STATE_KEY, site).catch(() => ""));
 }
 
 export async function writeState(env, site, state, { write = writeConfigState } = {}) {
-  await write(env, "ops", stateKey(env), site, JSON.stringify(state));
+  await write(env, "ops", STATE_KEY, site, JSON.stringify(state));
 }
 
 /** Current data vs the last build of one site. */
@@ -74,7 +68,7 @@ export async function computePending(
   { query = sanityQuery, artists = listArtists, read = readConfigState } = {},
 ) {
   const [snapshotText, docs, artistRows] = await Promise.all([
-    read(env, "web", snapshotConfigKey(buildEnvironment(env)), site).catch(() => ""),
+    read(env, "web", SNAPSHOT_CONFIG_KEY, site).catch(() => ""),
     query(env, VIEWS[site], SNAPSHOT_DOCS_QUERY),
     artists(env).catch(() => []),
   ]);

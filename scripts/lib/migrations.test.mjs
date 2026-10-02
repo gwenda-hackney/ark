@@ -133,10 +133,11 @@ describe("openDatabase", () => {
     await assert.rejects(openDatabase({ key: "website", env: "staging" }), /no website database in staging/);
   });
 
-  it("maps every environment for both databases", () => {
-    assert.deepEqual(Object.keys(DATABASES.website), ENVS);
-    assert.deepEqual(Object.keys(DATABASES.ops), ENVS);
-    assert.deepEqual(Object.keys(DATABASES.config), ENVS);
+  it("maps every environment for each database, each in its own workspace", () => {
+    for (const key of ["website", "ops", "config"]) {
+      assert.deepEqual(Object.keys(DATABASES[key]), ENVS);
+      assert.notEqual(DATABASES[key].dev[0], DATABASES[key].production[0]);
+    }
   });
 });
 
@@ -165,9 +166,9 @@ describe("migrations", () => {
     assert.ok(loaded.length > 0);
   });
 
-  it("the retired-settings cleanup never runs outside production", async () => {
+  it("removing dev's rows never runs outside production", async () => {
     const [cleanup] = (await loadMigrations(resolve(ROOT, "migrations"))).filter(
-      (m) => m.name === "config-retired-settings.mjs",
+      (m) => m.name === "2026-10-02-config-dev-rows.mjs",
     );
     const lines = [];
     // No config token: it would throw if it tried to touch the database.
