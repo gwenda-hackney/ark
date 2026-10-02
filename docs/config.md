@@ -56,7 +56,7 @@ Scripts find the projects by name (ignoring case) with `bws project list`, so re
 | Machine account | `ark`, `ark/ops`, `ark/web` (production) | `ark-dev`, `ark/ops-dev`, `ark/web-dev` | Where the token lives |
 |---|---|---|---|
 | `ark-local` | read/write | read/write | vault note `ark/.env.local` as `ARK_LOCAL_BW_TOKEN` (a developer's machine) |
-| `ark-ci-production` | read | read | GitHub environment `production` secret `BWS_ACCESS_TOKEN` (deploys from `release` only) |
+| `ark-ci` | read | read | GitHub environment `production` secret `BWS_ACCESS_TOKEN` (deploys from `release` only) |
 | `ark-ci-dev` | none | read | GitHub environments `dev` and `preview` secret `BWS_ACCESS_TOKEN` |
 
 So a job on `main` or a feature branch can't read a production value. In CI a pull defaults to production on `release` and dev on any other branch; a production pull with a token that sees no `__PRODUCTION` value stops with "This token can't read production secrets" instead of quietly using shared values. `pr.yml` uses no secrets.
