@@ -45,12 +45,19 @@ function serviceInfo(request: Request): Response {
   });
 }
 
-/** Cron: let ops start any website update that is due. Ops holds the rules. */
-export async function runOpsTick(env: Env, opsUrl = env.OPS_URL): Promise<Response | null> {
-  if (!opsUrl || !env.DEPLOY_WEBHOOK_SECRET) return null;
+/**
+ * Cron: let ops start any website update that is due. Ops holds the rules.
+ * Each ops checks its own env's secret, so dev ops gets the dev one.
+ */
+export async function runOpsTick(
+  env: Env,
+  opsUrl = env.OPS_URL,
+  secret = env.DEPLOY_WEBHOOK_SECRET,
+): Promise<Response | null> {
+  if (!opsUrl || !secret) return null;
   const response = await fetch(`${opsUrl.replace(/\/$/, "")}/api/web/tick`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${env.DEPLOY_WEBHOOK_SECRET}` },
+    headers: { Authorization: `Bearer ${secret}` },
   });
   if (!response.ok) {
     console.error(`ops tick failed for ${opsUrl} (${response.status}): ${await response.text()}`);
@@ -62,7 +69,10 @@ export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     // Prod ops and dev ops each run their own website's schedule.
     ctx.waitUntil(
-      Promise.allSettled([runOpsTick(env), runOpsTick(env, env.OPS_DEV_URL)]).then(() => undefined),
+      Promise.allSettled([
+        runOpsTick(env),
+        runOpsTick(env, env.OPS_DEV_URL, env.DEPLOY_WEBHOOK_SECRET_DEV || env.DEPLOY_WEBHOOK_SECRET),
+      ]).then(() => undefined),
     );
   },
 

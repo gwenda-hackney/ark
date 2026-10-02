@@ -39,10 +39,9 @@ Store a single value by hand with `npm run secret:set` (asks for the name, then 
 ## 2. Generated secrets
 
 Make random values (`crypto.randomBytes(32).toString("base64url")`) for each env, as `NAME__DEV` and `NAME__PRODUCTION`:
-`OPS_SESSION_SECRET`, `FORMS_ADMIN_SECRET`, `SUBSCRIBE_SECRET`, `GATE_BYPASS_KEY`, `OPS_LOCAL_ADMIN_PW`, `SITE_PASSWORD`.
+`OPS_SESSION_SECRET`, `FORMS_ADMIN_SECRET`, `SUBSCRIBE_SECRET`, `GATE_BYPASS_KEY`, `OPS_LOCAL_ADMIN_PW`, `SITE_PASSWORD`, `DEPLOY_WEBHOOK_SECRET` (`setup:site-deploy` makes both of its values if missing).
 
-Two exceptions:
-- `DEPLOY_WEBHOOK_SECRET` is **one shared value** with no suffix, because a single Worker checks it for every env.
+One exception:
 - `SUBSCRIBE_MAILCHIMP_SYNC_SECRET__PRODUCTION` is created by `npm run setup:subscribe-mailchimp-sync` if missing.
 
 Pushing a new `OPS_SESSION_SECRET` logs everyone out of ops once, and a new `SITE_PASSWORD` changes the site-gate password. Pick a time when nobody is editing in ops.
@@ -50,7 +49,7 @@ Pushing a new `OPS_SESSION_SECRET` logs everyone out of ops once, and a new `SIT
 ## 3. Roll out, in this order
 
 1. **`release` must have the current SM code.** Ops production and the live website deploy only from `release`. If an SM change (for example the lookup by project name) is only on main, cherry-pick that commit onto `release`. Don't merge all of main into it.
-2. **Site-deploy Worker:** `npm run setup:site-deploy`. It gives the Worker `DEPLOY_WEBHOOK_SECRET` and `DISPATCH_TOKEN__PRODUCTION` from SM, and stops if `DISPATCH_TOKEN` is missing.
+2. **Site-deploy Worker:** `npm run setup:site-deploy`. It gives the Worker both `DEPLOY_WEBHOOK_SECRET` values and `DISPATCH_TOKEN__PRODUCTION` from SM, and stops if `DISPATCH_TOKEN` is missing.
 3. **Mailchimp sync Worker:** `npm run setup:subscribe-mailchimp-sync`
 4. **Ops production:** `gh workflow run ops-secrets.yml --ref release`. This pushes secrets and redeploys, and is the moment of the log-out. The workflow ends with the ops smoke test.
 5. **Website secrets:** `gh workflow run web-secrets.yml --ref main -f profile=production`, then the same with `profile=dev`. Pages only uses new secrets after a deploy.
