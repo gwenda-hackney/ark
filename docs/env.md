@@ -61,7 +61,7 @@ Each environment has its own Cloudflare account, because a Cloudflare token can'
 | `CLOUDFLARE_API_TOKEN__DEV` | SM `ark-dev` | The gwenda-dev account: `gwenda-web-dev`, `gwenda-ops-dev`, `gwenda-brand-dev` and their branch previews. Pages · Edit, Workers AI · Read (local `ops:dev`). |
 | `CLOUDFLARE_ACCOUNT_ID__PRODUCTION` / `__DEV` | SM `ark` / `ark-dev` | Each account's id. The Workers' `wrangler.toml` `account_id` is production's. |
 
-Dev's Cloudflare token is named like its SM key; production's is called `CLOUDFLARE_API_TOKEN` in Cloudflare. A developer's machine loads dev, so scripts that change production (`setup:ops`, `setup:site-deploy`, `setup:site-health`, `setup:subscribe-mailchimp-sync`, `setup:wifi-portal`) ask for production's token explicitly (`cloudflareFor` in `scripts/lib/bitwarden-sm.mjs`).
+Dev's Cloudflare token is named like its SM key; production's is called `CLOUDFLARE_API_TOKEN` in Cloudflare. A developer's machine loads dev, so scripts that change production (`setup:ops`, `setup:site-deploy`, `setup:site-health`, `setup:subscribe-mailchimp-sync`, `setup:wifi-portal`) ask for production's token explicitly (`cloudflareFor` in `scripts/lib/bitwarden-sm.mjs`). For a hand-run command on production, use `node scripts/with-production-cloudflare.mjs <command>`; it also gives Wrangler its own cache, since Wrangler prefers its cached Pages account over `CLOUDFLARE_ACCOUNT_ID`. A Pages project with too many deployments for the dashboard to delete goes with `scripts/pages-delete-project.mjs`, which refuses any project serving a custom domain.
 
 ## Secrets Manager pulls
 

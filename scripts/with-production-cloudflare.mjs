@@ -27,7 +27,10 @@ const result = spawnSync(command, args, {
     ...process.env,
     CLOUDFLARE_API_TOKEN: token,
     CLOUDFLARE_ACCOUNT_ID: accountId,
-    WRANGLER_CACHE_DIR: resolve(ROOT, "node_modules/.cache/wrangler-production"),
+    WRANGLER_CACHE_DIR: resolve(
+      ROOT,
+      "node_modules/.cache/wrangler-production",
+    ),
   },
 });
 process.exit(result.status ?? 1);
