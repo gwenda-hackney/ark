@@ -49,6 +49,7 @@ function addDays(iso, days) {
 }
 
 const WEDNESDAY = 3;
+const SATURDAY = 6;
 
 function weeklySeries(overrides = {}) {
   return {
@@ -488,7 +489,8 @@ describe("events: deleting", () => {
   });
 
   it("a one-off special event: off the website and the calendar", async () => {
-    const date = daysFromNow(12);
+    // A Saturday, so it never shares a date with the Wednesday series above.
+    const date = addDays(nextWeekday(SATURDAY), 7);
     const special = await ops.create({
       name: "Andy Caruso",
       shortDescription: "Vinyl only.",
