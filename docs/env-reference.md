@@ -10,7 +10,7 @@ Every secret and setting the apps, Workers, scripts and CI read: what it is for,
 
 Each entry opens with **why** it exists: what would stop working without it. Then:
 
-- **SM:** the name in Secrets Manager and its project. Production values (`NAME__PRODUCTION`) sit in `ark`, `ark/ops` or `ark/web`; dev values (`NAME__DEV`) and shared values (plain `NAME`, one value for both) sit in `ark-dev`, `ark/ops-dev` or `ark/web-dev`.
+- **SM:** the name in Secrets Manager and its project. Production values (`NAME__PRODUCTION`) sit in [`ark`](#ark), [`ark/ops`](#arkops) or [`ark/web`](#arkweb); dev values (`NAME__DEV`) and shared values (plain `NAME`, one value for both) sit in [`ark-dev`](#ark-dev), [`ark/ops-dev`](#arkops-dev) or [`ark/web-dev`](#arkweb-dev).
 - **Runtime name:** what the code reads, when it differs.
 - **Used by:** who reads it.
 - **Gets there by:** how the value reaches them: a CI pull, a Cloudflare Pages secret, a Worker secret, or your machine's in-memory cache.
@@ -19,6 +19,7 @@ Each entry opens with **why** it exists: what would stop working without it. The
 
 ## Contents
 
+- [Secrets Manager projects](#secrets-manager-projects): the six projects, and who reads each
 - [Secrets Manager access](#secrets-manager-access): the tokens that unlock everything else
 - [Cloudflare](#cloudflare)
 - [Baserow](#baserow)
@@ -29,6 +30,54 @@ Each entry opens with **why** it exists: what would stop working without it. The
 - [Deploys and Workers](#deploys-and-workers)
 - [Plain settings](#plain-settings): not secret
 - [Overview](#overview): everything in one table
+
+## Secrets Manager projects
+
+Six projects in the Bitwarden organisation, in pairs. The plain name is production; `-dev` is dev. Each pair splits by area: shared infrastructure, ops, website. The scripts find projects by name, ignoring case, and a secret's area decides its pair (`SECRET_OWNERS` in `scripts/lib/bitwarden-sm.mjs`).
+
+Production values never sit in a `-dev` project, so the dev CI token, which reads only the `-dev` projects, never sees one.
+
+### `ark`
+
+Production values (`NAME__PRODUCTION`) for shared infrastructure: Cloudflare, the config database, GitHub dispatch, UptimeRobot. None of these has a production-only value at present, so it is empty.
+
+- **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token).
+- **Open:** [ark in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/4752cab2-4d4d-441d-be41-b4d600c97608/secrets)
+
+### `ark/ops`
+
+Production values for ops: its Baserow token, session secret and local admin password.
+
+- **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token).
+- **Open:** [ark/ops in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/4d70b6fc-00e8-407a-ab30-b4d600c9879b/secrets)
+
+### `ark/web`
+
+Production values for the website: its Baserow and Sanity tokens, the signing secret, the preview password and gate key, the form admin secret.
+
+- **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token).
+- **Open:** [ark/web in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/7b53d05f-9f8a-49b7-abcf-b4d600c980ac/secrets)
+
+### `ark-dev`
+
+Dev values (`NAME__DEV`) and shared values (plain `NAME`, one value for both environments) for shared infrastructure: the Cloudflare token and account id, the config database token, the GitHub dispatch token, the UptimeRobot key.
+
+- **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token), [`ark-ci-dev`](#ark_ci_dev_token).
+- **Open:** [ark-dev in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/502b2a1d-332e-46d0-948f-b4d70079cf1e/secrets)
+
+### `ark/ops-dev`
+
+Dev and shared values for ops: its dev Baserow token, session secret and local admin password, the Baserow login, the Google service account and OAuth secret.
+
+- **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token), [`ark-ci-dev`](#ark_ci_dev_token).
+- **Open:** [ark/ops-dev in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/c0696997-f778-4d42-8948-b4d7007a068c/secrets)
+
+### `ark/web-dev`
+
+Dev and shared values for the website: its dev Baserow and Sanity tokens, signing secret, preview password and gate key, form admin secret; and the shared deploy webhook secret, Studio deploy token, Mailchimp key and sync secret, UniFi key.
+
+- **Read by:** [`ark-local`](#ark_local_bw_token) (read/write), [`ark-ci`](#ark_ci_token), [`ark-ci-dev`](#ark_ci_dev_token).
+- **Open:** [ark/web-dev in Bitwarden](https://vault.bitwarden.eu/#/sm/39757de9-63b3-4844-8aa1-b4d501372b56/projects/ebcf1b4b-8711-4863-a539-b4d70079fe89/secrets)
 
 ---
 
@@ -75,7 +124,7 @@ Lets branches and `main` build and test without ever seeing a production secret.
 
 Everything we run is on Cloudflare (Pages sites, Workers), and deploying or changing any of it needs an API token.
 
-- **SM:** `CLOUDFLARE_API_TOKEN`, shared, in `ark-dev`.
+- **SM:** `CLOUDFLARE_API_TOKEN`, shared, in [`ark-dev`](#ark-dev).
 - **Used by:** every deploy: Pages (website, ops, brand), Workers, Wrangler, the Pages secrets syncs (`ops-secrets.yml`, `web-secrets.yml`), the rollback script (#18), and `ops:dev` locally (Workers AI).
 - **Gets there by:** CI pulls it (`env:ark:pull -- --github-env`); your machine loads it from the cache.
 - **Permissions:** Pages Edit, Workers Scripts Edit, Workers KV Storage Edit, Workers Routes Edit (zone), Account Settings Read, Workers AI Read ([env.md](env.md#cloudflare-tokens)).
@@ -86,7 +135,7 @@ Everything we run is on Cloudflare (Pages sites, Workers), and deploying or chan
 
 Cloudflare's API addresses everything by account, so every call needs it next to the token.
 
-- **SM:** `CLOUDFLARE_ACCOUNT_ID`, shared, in `ark-dev`. It is an id, not a secret; it is also in each Worker's `wrangler.toml`.
+- **SM:** `CLOUDFLARE_ACCOUNT_ID`, shared, in [`ark-dev`](#ark-dev). It is an id, not a secret; it is also in each Worker's `wrangler.toml`.
 - **Used by:** the same jobs as the token.
 - **Expires:** never.
 
@@ -98,7 +147,7 @@ Cloudflare's API addresses everything by account, so every call needs it next to
 
 Ops keeps its data (events, menu, inventory, artists, users) in Baserow, and a database token is how code reads and writes those rows. Each environment has its own database, so its own token.
 
-- **SM:** `BASEROW_OPS_API_KEY__DEV` (`ark/ops-dev`), `BASEROW_OPS_API_KEY__PRODUCTION` (`ark/ops`).
+- **SM:** `BASEROW_OPS_API_KEY__DEV` ([`ark/ops-dev`](#arkops-dev)), `BASEROW_OPS_API_KEY__PRODUCTION` ([`ark/ops`](#arkops)).
 - **What:** a Baserow database token for the "Gwenda Ops" database (production) or its copy in "Gwenda Dev".
 - **Runtime name:** `BASEROW_API_KEY` in ops. The website reads it as `BASEROW_OPS_API_KEY` (featured artist at build time).
 - **Used by:** ops (events, menu, inventory, artists, users), the website build, the Baserow clone scripts. Production ops also reads `BASEROW_OPS_API_KEY__DEV` by name, to compare production with the dev copy (`db-diff.js`).
@@ -110,7 +159,7 @@ Ops keeps its data (events, menu, inventory, artists, users) in Baserow, and a d
 
 Guest data from the website (form entries, subscribers, RSVPs) lives in Baserow's Website database; this token is how the site and its Workers write it.
 
-- **SM:** `BASEROW_WEBSITE_API_KEY__DEV` (`ark/web-dev`), `BASEROW_WEBSITE_API_KEY__PRODUCTION` (`ark/web`).
+- **SM:** `BASEROW_WEBSITE_API_KEY__DEV` ([`ark/web-dev`](#arkweb-dev)), `BASEROW_WEBSITE_API_KEY__PRODUCTION` ([`ark/web`](#arkweb)).
 - **What:** a database token for the "Website" database (forms, subscribers, RSVPs) or its dev copy.
 - **Runtime name:** `BASEROW_API_KEY` on the website; `BASEROW_WEBSITE_API_KEY` in ops (form resends).
 - **Used by:** website functions (forms, subscribe, RSVP, tickets), ops forms, `setup:subscribe-mailchimp-sync`, and the Mailchimp sync and Wi-Fi portal Workers (as their `BASEROW_API_KEY`).
@@ -122,7 +171,7 @@ Guest data from the website (form entries, subscribers, RSVPs) lives in Baserow'
 
 Non-secret settings (for example `forms.notify_email`, who gets form emails) and machine state live in a Baserow config database rather than in code, so they change without a deploy. This token reads and writes it.
 
-- **SM:** `BASEROW_CONFIG_API_KEY`, shared, in `ark-dev`.
+- **SM:** `BASEROW_CONFIG_API_KEY`, shared, in [`ark-dev`](#ark-dev).
 - **What:** a database token for "Gwenda Config", the runtime settings both environments read. One table holds both environments' rows.
 - **Used by:** ops and the website (`shared/config-db.js`), `setup:baserow-config`.
 - **Gets there by:** Pages secrets on ops and the website; CI pull.
@@ -132,7 +181,7 @@ Non-secret settings (for example `forms.notify_email`, who gets form emails) and
 
 Database tokens can only change rows. Adding a table or field during a deploy (a migration) or copying a database needs a real Baserow login, so CI signs in as automation@.
 
-- **SM:** both shared, in `ark/ops-dev`.
+- **SM:** both shared, in [`ark/ops-dev`](#arkops-dev).
 - **What:** the automation@gwenda.co.uk Baserow login. Database tokens can only touch rows; changing tables and fields needs a logged-in user.
 - **Used by:** migrations in every ops and website deploy (`scripts/migrate.mjs`), the Baserow copy, the clone and setup scripts.
 - **Gets there by:** CI exports them by name (`sm-export.mjs`); scripts log in and get a short-lived token per run.
@@ -147,7 +196,7 @@ Database tokens can only change rows. Adding a table or field during a deploy (a
 
 Website content (events, menu, pages) lives in Sanity. Ops writes it and the website build reads it, including unpublished drafts for the preview, which needs a token.
 
-- **SM:** `SANITY_API_TOKEN__DEV` (`ark/web-dev`, project `gwscpagy`, Gwenda Dev), `SANITY_API_TOKEN__PRODUCTION` (`ark/web`, project `pn5yjro6`, Gwenda Web). Both Editor.
+- **SM:** `SANITY_API_TOKEN__DEV` ([`ark/web-dev`](#arkweb-dev), project `gwscpagy`, Gwenda Dev), `SANITY_API_TOKEN__PRODUCTION` ([`ark/web`](#arkweb), project `pn5yjro6`, Gwenda Web). Both Editor.
 - **Used by:** the website build (reading content and drafts), ops (writing events and the menu, publishing), `site-build-snapshot.mjs`.
 - **Gets there by:** website build: CI pull; ops: Pages secret.
 - **Expires:** never. Sanity robot tokens don't expire.
@@ -157,7 +206,7 @@ Website content (events, menu, pages) lives in Sanity. Ops writes it and the web
 
 The hosted Studio at gwenda.sanity.studio is redeployed with each release when its code changed; Sanity only lets a token with the Deploy Studio role do that.
 
-- **SM:** `SANITY_DEPLOY_TOKEN`, shared, in `ark/web-dev`. Deploy Studio role on `pn5yjro6`.
+- **SM:** `SANITY_DEPLOY_TOKEN`, shared, in [`ark/web-dev`](#arkweb-dev). Deploy Studio role on `pn5yjro6`.
 - **Used by:** the hosted Studio deploy (`studio:deploy`) in web promote and `studio.yml`. `with-env` passes it to the Sanity CLI as `SANITY_AUTH_TOKEN`.
 - **Expires:** never.
 
@@ -169,7 +218,7 @@ The hosted Studio at gwenda.sanity.studio is redeployed with each release when i
 
 Ops and the website send email (form confirmations, alerts) from notifications@ and keep the events calendar in sync. A service account with domain-wide delegation can do that as notifications@ without a person signing in.
 
-- **SM:** `GOOGLE_SERVICE_ACCOUNT_JSON`, shared, in `ark/ops-dev`. The key of `gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`, as one line of JSON.
+- **SM:** `GOOGLE_SERVICE_ACCOUNT_JSON`, shared, in [`ark/ops-dev`](#arkops-dev). The key of `gwenda-ops-drive@gwenda-ops.iam.gserviceaccount.com`, as one line of JSON.
 - **What:** domain-wide delegation: it sends Gmail as notifications@ and edits Google Calendar and Drive.
 - **Runtime names:** `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` (ops: Drive, calendar) and `GMAIL_SERVICE_ACCOUNT_JSON` (ops form resends, website form email, site-health alerts).
 - **Used by:** ops, website functions, the site-health Worker (its own `GMAIL_SERVICE_ACCOUNT_JSON` secret, put there by `setup:site-health`).
@@ -182,7 +231,7 @@ Ops and the website send email (form confirmations, alerts) from notifications@ 
 
 Staff sign in to ops with their Google account. Google only completes that sign-in for an app that proves who it is with its client secret.
 
-- **SM:** `GOOGLE_OAUTH_CLIENT_SECRET`, shared, in `ark/ops-dev`. Its client id is the plain setting `GOOGLE_OAUTH_CLIENT_ID`.
+- **SM:** `GOOGLE_OAUTH_CLIENT_SECRET`, shared, in [`ark/ops-dev`](#arkops-dev). Its client id is the plain setting `GOOGLE_OAUTH_CLIENT_ID`.
 - **Used by:** ops sign-in with Google (`/api/auth`).
 - **Gets there by:** Pages secret.
 - **Expires:** never.
@@ -196,7 +245,7 @@ Staff sign in to ops with their Google account. Google only completes that sign-
 
 After sign-in, ops keeps you signed in with a cookie. Signing that cookie means nobody can forge one to get in.
 
-- **SM:** `OPS_SESSION_SECRET__DEV` (`ark/ops-dev`), `OPS_SESSION_SECRET__PRODUCTION` (`ark/ops`). Random, 32 bytes.
+- **SM:** `OPS_SESSION_SECRET__DEV` ([`ark/ops-dev`](#arkops-dev)), `OPS_SESSION_SECRET__PRODUCTION` ([`ark/ops`](#arkops)). Random, 32 bytes.
 - **What:** signs the ops sign-in cookie.
 - **Used by:** ops.
 - **Gets there by:** Pages secret, synced by the ops deploy.
@@ -207,7 +256,7 @@ After sign-in, ops keeps you signed in with a cookie. Signing that cookie means 
 
 Google sign-in only works on the registered ops addresses, not on localhost. This password lets a developer sign in to ops running on their own machine.
 
-- **SM:** `OPS_LOCAL_ADMIN_PW__DEV` (`ark/ops-dev`), `OPS_LOCAL_ADMIN_PW__PRODUCTION` (`ark/ops`).
+- **SM:** `OPS_LOCAL_ADMIN_PW__DEV` ([`ark/ops-dev`](#arkops-dev)), `OPS_LOCAL_ADMIN_PW__PRODUCTION` ([`ark/ops`](#arkops)).
 - **What:** the password for the local admin sign-in at `/gate/` when ops runs on your machine (`npm run ops:dev`), where Google sign-in isn't set up.
 - **Used by:** local ops only. It is never pushed to Cloudflare Pages (`pagesSkip`).
 - **Expires:** never.
@@ -220,7 +269,7 @@ Google sign-in only works on the registered ops addresses, not on localhost. Thi
 
 The website sends guests links that must not be guessable or editable: RSVP tickets, email-verification and edit links. Signing them with this secret is how the site knows a link is one it made.
 
-- **SM:** `SUBSCRIBE_SECRET__DEV` (`ark/web-dev`), `SUBSCRIBE_SECRET__PRODUCTION` (`ark/web`). Random.
+- **SM:** `SUBSCRIBE_SECRET__DEV` ([`ark/web-dev`](#arkweb-dev)), `SUBSCRIBE_SECRET__PRODUCTION` ([`ark/web`](#arkweb)). Random.
 - **What:** signs the website's own links and cookies: the subscribe form's CSRF cookie, RSVP ticket links (`/events/<slug>/ticket` and the Apple Wallet pass), and form email-verification and edit links.
 - **Used by:** website functions.
 - **Gets there by:** Pages secret (`web-secrets.yml`).
@@ -231,7 +280,7 @@ The website sends guests links that must not be guessable or editable: RSVP tick
 
 Only ops may ask the website to resend a form email; this secret proves the request is from ops.
 
-- **SM:** `FORMS_ADMIN_SECRET__DEV` (`ark/web-dev`), `FORMS_ADMIN_SECRET__PRODUCTION` (`ark/web`).
+- **SM:** `FORMS_ADMIN_SECRET__DEV` ([`ark/web-dev`](#arkweb-dev)), `FORMS_ADMIN_SECRET__PRODUCTION` ([`ark/web`](#arkweb)).
 - **What:** protects the website's form admin endpoint (`/api/forms/admin/resend`).
 - **Used by:** the website, and ops (which calls it).
 - **Expires:** never.
@@ -240,7 +289,7 @@ Only ops may ask the website to resend a form email; this secret proves the requ
 
 The preview shows unpublished drafts and the dev website shows test data. A password keeps both away from guests and search engines.
 
-- **SM:** `SITE_PASSWORD__DEV` (`ark/web-dev`), `SITE_PASSWORD__PRODUCTION` (`ark/web`).
+- **SM:** `SITE_PASSWORD__DEV` ([`ark/web-dev`](#arkweb-dev)), `SITE_PASSWORD__PRODUCTION` ([`ark/web`](#arkweb)).
 - **What:** the password for the gate on the prod preview (preview.gwenda-blue) and the dev website. The live site is always public.
 - **Used by:** the website middleware.
 - **Gets there by:** Pages secret, on the preview environment only.
@@ -251,7 +300,7 @@ The preview shows unpublished drafts and the dev website shows test data. A pass
 
 CI smoke tests and preview share links need to see a gated site without typing the password.
 
-- **SM:** `GATE_BYPASS_KEY__DEV` (`ark/web-dev`), `GATE_BYPASS_KEY__PRODUCTION` (`ark/web`).
+- **SM:** `GATE_BYPASS_KEY__DEV` ([`ark/web-dev`](#arkweb-dev)), `GATE_BYPASS_KEY__PRODUCTION` ([`ark/web`](#arkweb)).
 - **What:** `?access=<key>` gets past the gate without the password. Used by the CI smoke tests on gated sites and by the preview share links.
 - **Used by:** the website middleware and `preview-share.js`; `smoke-test.mjs` in CI.
 - **Expires:** never.
@@ -265,7 +314,7 @@ CI smoke tests and preview share links need to see a gated site without typing t
 
 Ops starts website rebuilds and releases, but only GitHub can run them. The webhook Worker holds the GitHub token and does it for ops; this shared secret is how each side knows the other is genuine.
 
-- **SM:** `DEPLOY_WEBHOOK_SECRET`, shared, in `ark/web-dev`.
+- **SM:** `DEPLOY_WEBHOOK_SECRET`, shared, in [`ark/web-dev`](#arkweb-dev).
 - **What:** one secret, three uses:
   - ops → the site deploy webhook Worker (rebuild, promote, status, compare, Baserow copy);
   - the webhook → ops (`/api/web/tick`, every few minutes, for scheduled website updates);
@@ -279,7 +328,7 @@ Ops starts website rebuilds and releases, but only GitHub can run them. The webh
 
 Starting a GitHub workflow needs a GitHub token. The webhook Worker holds this one so ops never needs GitHub access itself.
 
-- **SM:** `DISPATCH_TOKEN`, shared, in `ark-dev`.
+- **SM:** `DISPATCH_TOKEN`, shared, in [`ark-dev`](#ark-dev).
 - **What:** a fine-grained GitHub token for `gwenda-hackney/ark` only (Actions read/write, Contents read). The webhook Worker starts the `web.yml`, `web-promote.yml` and `baserow-copy.yml` runs with it.
 - **Runtime name:** `GITHUB_TOKEN` on the webhook Worker.
 - **Gets there by:** `workers.yml` exports it (`sm-export.mjs`) and puts it on the Worker.
@@ -290,7 +339,7 @@ Starting a GitHub workflow needs a GitHub token. The webhook Worker holds this o
 
 Subscribers sign up on the website (stored in Baserow); the sync Worker copies them into the Mailchimp audience that newsletters go to.
 
-- **SM:** `MAILCHIMP_API_KEY`, shared, in `ark/web-dev`.
+- **SM:** `MAILCHIMP_API_KEY`, shared, in [`ark/web-dev`](#arkweb-dev).
 - **What:** the Mailchimp API key for the real audience.
 - **Used by:** the Mailchimp sync Worker, `setup:subscribe-mailchimp-sync`, `upload-mailchimp-template.mjs`.
 - **Gets there by:** `workers.yml` puts it on the Worker.
@@ -301,7 +350,7 @@ Subscribers sign up on the website (stored in Baserow); the sync Worker copies t
 
 The sync Worker runs on a schedule but can also be run by hand; this secret stops anyone else from triggering it.
 
-- **SM:** `SUBSCRIBE_MAILCHIMP_SYNC_SECRET`, shared, in `ark/web-dev`. Random; made by `setup:subscribe-mailchimp-sync` if missing.
+- **SM:** `SUBSCRIBE_MAILCHIMP_SYNC_SECRET`, shared, in [`ark/web-dev`](#arkweb-dev). Random; made by `setup:subscribe-mailchimp-sync` if missing.
 - **What:** protects the Mailchimp sync Worker's manual run (`POST /` with `Authorization: Bearer …`).
 - **Runtime name:** `SYNC_SECRET` on the Worker.
 - **Expires:** never.
@@ -310,7 +359,7 @@ The sync Worker runs on a schedule but can also be run by hand; this secret stop
 
 The venue Wi-Fi asks guests to sign up before going online; the portal Worker then tells the UniFi controller to let that device on.
 
-- **SM:** `UNIFI_SITE_MANAGER_API_KEY`, shared, in `ark/web-dev`. Shared because there is one Wi-Fi controller, the venue's, and the local portal dev server uses it too.
+- **SM:** `UNIFI_SITE_MANAGER_API_KEY`, shared, in [`ark/web-dev`](#arkweb-dev). Shared because there is one Wi-Fi controller, the venue's, and the local portal dev server uses it too.
 - **What:** the UniFi Site Manager API key; the captive portal Worker lets guests onto the Wi-Fi with it.
 - **Used by:** the Wi-Fi captive portal Worker, `setup:wifi-portal`, `wifi-portal-dev.mjs`.
 - **Gets there by:** `setup:wifi-portal` puts it on the Worker.
@@ -320,7 +369,7 @@ The venue Wi-Fi asks guests to sign up before going online; the portal Worker th
 
 UptimeRobot checks the sites from outside Cloudflare and emails alerts@ when one is down; `setup:uptime` uses this key to keep the monitors in place.
 
-- **SM:** `UPTIME_ROBOT_API_KEY`, shared, in `ark-dev`. The main API key of the UptimeRobot account (login alerts@gwenda.co.uk).
+- **SM:** `UPTIME_ROBOT_API_KEY`, shared, in [`ark-dev`](#ark-dev). The main API key of the UptimeRobot account (login alerts@gwenda.co.uk).
 - **Used by:** `npm run setup:uptime`, on your machine only.
 - **Expires:** never.
 
@@ -413,25 +462,25 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `ARK_LOCAL_BW_TOKEN` | — | vault note | never |
 | `ARK_CI_TOKEN` | production | GitHub env `production` | as set |
 | `ARK_CI_DEV_TOKEN` | dev | GitHub envs `dev`, `preview` | as set |
-| `CLOUDFLARE_API_TOKEN` | shared | — / `ark-dev` | never |
-| `CLOUDFLARE_ACCOUNT_ID` | shared | — / `ark-dev` | never |
-| `BASEROW_OPS_API_KEY` | own values | `ark/ops` / `ark/ops-dev` | never |
-| `BASEROW_WEBSITE_API_KEY` | own values | `ark/web` / `ark/web-dev` | never |
-| `BASEROW_CONFIG_API_KEY` | shared | — / `ark-dev` | never |
-| `BASEROW_JWT_EMAIL` / `_PASSWORD` | shared | — / `ark/ops-dev` | never |
-| `SANITY_API_TOKEN` | own values | `ark/web` / `ark/web-dev` | never |
-| `SANITY_DEPLOY_TOKEN` | shared | — / `ark/web-dev` | never |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | shared | — / `ark/ops-dev` | never |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | shared | — / `ark/ops-dev` | never |
-| `OPS_SESSION_SECRET` | own values | `ark/ops` / `ark/ops-dev` | never |
-| `OPS_LOCAL_ADMIN_PW` | own values | `ark/ops` / `ark/ops-dev` | never |
-| `SUBSCRIBE_SECRET` | own values | `ark/web` / `ark/web-dev` | never |
-| `FORMS_ADMIN_SECRET` | own values | `ark/web` / `ark/web-dev` | never |
-| `SITE_PASSWORD` | own values | `ark/web` / `ark/web-dev` | never |
-| `GATE_BYPASS_KEY` | own values | `ark/web` / `ark/web-dev` | never |
-| `DEPLOY_WEBHOOK_SECRET` | shared | — / `ark/web-dev` | never |
-| `DISPATCH_TOKEN` | shared | — / `ark-dev` | none reported |
-| `MAILCHIMP_API_KEY` | shared | — / `ark/web-dev` | **~2027-10-01** |
-| `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | shared | — / `ark/web-dev` | never |
-| `UNIFI_SITE_MANAGER_API_KEY` | shared | — / `ark/web-dev` | check UniFi |
-| `UPTIME_ROBOT_API_KEY` | shared | — / `ark-dev` | never |
+| `CLOUDFLARE_API_TOKEN` | shared | — / [`ark-dev`](#ark-dev) | never |
+| `CLOUDFLARE_ACCOUNT_ID` | shared | — / [`ark-dev`](#ark-dev) | never |
+| `BASEROW_OPS_API_KEY` | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
+| `BASEROW_WEBSITE_API_KEY` | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
+| `BASEROW_CONFIG_API_KEY` | shared | — / [`ark-dev`](#ark-dev) | never |
+| `BASEROW_JWT_EMAIL` / `_PASSWORD` | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
+| `SANITY_API_TOKEN` | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
+| `SANITY_DEPLOY_TOKEN` | shared | — / [`ark/web-dev`](#arkweb-dev) | never |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
+| `OPS_SESSION_SECRET` | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
+| `OPS_LOCAL_ADMIN_PW` | own values | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
+| `SUBSCRIBE_SECRET` | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
+| `FORMS_ADMIN_SECRET` | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
+| `SITE_PASSWORD` | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
+| `GATE_BYPASS_KEY` | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
+| `DEPLOY_WEBHOOK_SECRET` | shared | — / [`ark/web-dev`](#arkweb-dev) | never |
+| `DISPATCH_TOKEN` | shared | — / [`ark-dev`](#ark-dev) | none reported |
+| `MAILCHIMP_API_KEY` | shared | — / [`ark/web-dev`](#arkweb-dev) | **~2027-10-01** |
+| `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | shared | — / [`ark/web-dev`](#arkweb-dev) | never |
+| `UNIFI_SITE_MANAGER_API_KEY` | shared | — / [`ark/web-dev`](#arkweb-dev) | check UniFi |
+| `UPTIME_ROBOT_API_KEY` | shared | — / [`ark-dev`](#ark-dev) | never |
