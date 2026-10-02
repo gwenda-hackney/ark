@@ -14,7 +14,13 @@ export type ContentTarget = "preview" | "dev-preview" | "dev-live";
 export type SiteEnvironment = "prod" | "dev";
 
 export type Env = {
+  /** Production ops' secret: everything, including a live promote. */
   DEPLOY_WEBHOOK_SECRET: string;
+  /**
+   * Dev ops' secret (#120): rebuilds of the dev website, status and compare
+   * only, so a dev credential can't start a live promote or a database copy.
+   */
+  DEPLOY_WEBHOOK_SECRET_DEV?: string;
   GITHUB_TOKEN: string;
   GITHUB_REPOSITORY: string;
   /** Ops base URL for the scheduled auto-update tick. */

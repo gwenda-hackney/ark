@@ -108,3 +108,30 @@ describe("runOpsTick", () => {
     expect(await runOpsTick(env)).toBeNull();
   });
 });
+
+describe("dev ops' own secret (#120)", () => {
+  const split = { ...env, DEPLOY_WEBHOOK_SECRET_DEV: "dev-secret" };
+
+  it("can't start a database copy, which reads production", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await handleBaserowCopy(
+      new Request("https://x/baserow-copy", {
+        method: "POST",
+        headers: { Authorization: "Bearer dev-secret" },
+        body: JSON.stringify({ target: "ops-dev" }),
+      }),
+      split,
+    );
+    expect(result.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("may compare code, which only reads", async () => {
+    const noSha = await handleCompare(
+      new Request("https://x/compare?base=main&head=def5678", { headers: { Authorization: "Bearer dev-secret" } }),
+      split,
+    );
+    expect(noSha.status).toBe(400);
+  });
+});
