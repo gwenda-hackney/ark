@@ -9,11 +9,12 @@
  * (SITE_ENV=local) reports nothing: its errors are on screen.
  */
 
-/** Filled from the Sentry projects (npm run setup:sentry prints them). */
+/** Each Sentry project's DSN (npm run setup:sentry prints them). */
 export const SENTRY_DSN = {
-  ops: "",
-  web: "",
-  workers: "",
+  ops: "https://2fd27aa9d2639d5ab0801be6b51ac861@o4512187820998656.ingest.de.sentry.io/4512187860189264",
+  web: "https://9960681f23ed755a8cdfcce40a390994@o4512187820998656.ingest.de.sentry.io/4512187863793744",
+  workers:
+    "https://4f5db0eebcd283aeb5c1b9a424a05288@o4512187820998656.ingest.de.sentry.io/4512187863859280",
 };
 
 /**
