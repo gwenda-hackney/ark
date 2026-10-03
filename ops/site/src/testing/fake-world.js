@@ -18,6 +18,11 @@ import {
   artistFields,
   eventDateFields,
   eventFields,
+  ingredientFields,
+  itemFields,
+  menuPlacementFields,
+  posMenuFields,
+  sectionFields,
   userFields,
 } from "../platform/baserow-schema.js";
 
@@ -32,15 +37,27 @@ let nextId = 1000;
 const newId = () => (nextId += 1);
 
 function makeTable(name, databaseId, specs = []) {
-  const id = newId();
-  const fields = [{ id: newId(), name: "Name", type: "text", primary: true }];
-  for (const spec of specs) fields.push({ id: newId(), primary: false, ...spec.body, name: spec.name });
-  for (const field of fields) {
+  const table = {
+    id: newId(),
+    name,
+    database_id: databaseId,
+    fields: [{ id: newId(), name: "Name", type: "text", primary: true }],
+    rows: new Map(),
+  };
+  return addFields(table, specs);
+}
+
+/** Specs with a null body are optional fields setup skips (no linked table). */
+function addFields(table, specs) {
+  for (const spec of specs) {
+    if (!spec.body) continue;
+    const field = { id: newId(), primary: false, ...spec.body, name: spec.name };
     if (field.select_options) {
       field.select_options = field.select_options.map((option) => ({ id: newId(), ...option }));
     }
+    table.fields.push(field);
   }
-  return { id, name, database_id: databaseId, fields, rows: new Map() };
+  return table;
 }
 
 function emptyValue(field) {
@@ -244,10 +261,18 @@ class FakeBaserow {
 
 function opsTables() {
   const databaseId = 7;
+  // Menu tables link to each other, so they exist before their fields.
+  const sections = makeTable("Menu Sections", databaseId);
+  const items = makeTable("Menu Items", databaseId);
+  const posMenus = makeTable("POS Menus", databaseId, posMenuFields());
+  addFields(sections, sectionFields(sections.id));
+  addFields(items, itemFields(sections.id, posMenus.id));
   const tables = [
-    makeTable("Menu Sections", databaseId),
-    makeTable("Menu Items", databaseId),
-    makeTable("Ingredients", databaseId),
+    sections,
+    items,
+    makeTable("Ingredients", databaseId, ingredientFields(items.id, null)),
+    posMenus,
+    makeTable("Menu placements", databaseId, menuPlacementFields(items.id, sections.id, posMenus.id)),
     makeTable("Users", databaseId, userFields()),
     makeTable("Events", databaseId, eventFields()),
     makeTable("Artists", databaseId, artistFields()),
