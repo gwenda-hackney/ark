@@ -1,9 +1,10 @@
-import { getEventDrive, uploadEventDriveImage, type EventDriveFile } from "../app/api";
+import { deleteEventDriveImage, getEventDrive, uploadEventDriveImage, type EventDriveFile } from "../app/api";
 import { toast } from "../ui/toast.svelte";
 
 /**
- * An event's Drive gallery. The page keeps one for the editor, so switching
- * tabs doesn't reload it and an upload carries on in the background.
+ * An event's Drive gallery, or one night's (`date`). The page keeps one for
+ * the editor, so switching tabs doesn't reload it and an upload carries on in
+ * the background.
  */
 export class EventGallery {
 	files = $state<EventDriveFile[]>([]);
@@ -13,10 +14,12 @@ export class EventGallery {
 	loading = $state(false);
 	uploading = $state(false);
 	error = $state("");
+	/** The night shown, or "" for the series. */
+	date = $state("");
 	private loadedFor = "";
 
 	/** Loads once per event (again after an error, or when `force`). Returns the event folder, when Drive reports it. */
-	async load(eventId: string, force = false): Promise<{ id: string; url?: string } | null> {
+	async load(eventId: string, force = false, date = ""): Promise<{ id: string; url?: string } | null> {
 		if (!eventId) {
 			this.files = [];
 			this.folderUrl = "";
@@ -25,15 +28,17 @@ export class EventGallery {
 			this.loadedFor = "";
 			return null;
 		}
-		if (!force && this.loadedFor === eventId && !this.error) return null;
+		const key = `${eventId}:${date}`;
+		if (!force && this.loadedFor === key && !this.error) return null;
 		this.loading = true;
 		this.error = "";
+		this.date = date;
 		try {
-			const data = await getEventDrive(eventId);
+			const data = await getEventDrive(eventId, date);
 			this.files = data.files || [];
 			this.folderUrl = data.gallery?.url || "";
 			this.outsideGallery = data.outsideGallery || 0;
-			this.loadedFor = eventId;
+			this.loadedFor = key;
 			return data.folder?.id ? data.folder : null;
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Could not load gallery images.";
@@ -59,14 +64,14 @@ export class EventGallery {
 			let latest = this.files;
 			let outside = this.outsideGallery;
 			for (const file of files) {
-				const data = await uploadEventDriveImage(eventId, file);
+				const data = await uploadEventDriveImage(eventId, file, this.date);
 				latest = data.files || [];
 				this.folderUrl = data.gallery?.url || this.folderUrl;
 				outside = data.outsideGallery || outside;
 			}
 			this.files = latest;
 			this.outsideGallery = outside;
-			this.loadedFor = eventId;
+			this.loadedFor = `${eventId}:${this.date}`;
 			toast.ok(files.length === 1 ? "Image uploaded." : `${files.length} images uploaded.`);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not upload the gallery image.";
@@ -74,6 +79,19 @@ export class EventGallery {
 			toast.error(message);
 		} finally {
 			this.uploading = false;
+		}
+	}
+
+	/** Remove one photo; it leaves the website on Update website. */
+	async remove(eventId: string, fileId: string) {
+		const before = this.files;
+		this.files = this.files.filter((file) => file.id !== fileId);
+		try {
+			await deleteEventDriveImage(eventId, fileId);
+			toast.ok("Photo removed. It leaves the website when you press Update website.");
+		} catch (err) {
+			this.files = before;
+			toast.error(err instanceof Error ? err.message : "Could not remove the photo.");
 		}
 	}
 }

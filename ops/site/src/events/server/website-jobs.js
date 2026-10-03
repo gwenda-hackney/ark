@@ -29,7 +29,7 @@ import {
   withWebsiteStatus,
 } from "./event-publish.js";
 import { droppedNights, getEvent, listEvents, previewBehind } from "./event-store.js";
-import { galleryBehind, readGalleryStaged } from "./event-gallery.js";
+import { galleryBehind, readGalleryStagedIfOn } from "./event-gallery.js";
 
 export const CALENDAR_STEP = 12;
 const FAILURES_KEY = "site.prep_failures";
@@ -129,7 +129,7 @@ export async function listWebsiteJobs(env) {
     readFailures(env),
     calendarConfigured(env),
     readSeriesPreviews(env),
-    readGalleryStaged(env),
+    readGalleryStagedIfOn(env),
   ]);
   return jobsFrom(events, failures, { calendar, seriesPreviews, galleryStaged });
 }
@@ -150,7 +150,7 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
   const failures = await readFailures(env);
   const calendar = await calendarConfigured(env);
   let seriesPreviews = await readSeriesPreviews(env);
-  let galleryStaged = await readGalleryStaged(env);
+  let galleryStaged = await readGalleryStagedIfOn(env);
   let event;
   if (eventId) {
     event = await getEvent(env, eventId);
@@ -188,7 +188,7 @@ export async function runWebsiteJob(env, { eventId = "", retry = false } = {}) {
       warnings.push(...(result.warnings || []));
       event = result.event;
       seriesPreviews = await readSeriesPreviews(env);
-      galleryStaged = await readGalleryStaged(env);
+      galleryStaged = await readGalleryStagedIfOn(env);
       // The copy is staged; only the photos failed. Hold it as a failure so
       // it is not retried in a loop.
       if (result.galleryError) throw new Error(result.galleryError);

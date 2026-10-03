@@ -59,7 +59,9 @@
 					Gallery
 					<Tip
 						label="Gallery"
-						tooltip="Photos stored in this event's Drive gallery. The What's on flyer is the photo on Details."
+						tooltip={gallery.date
+							? "This night's photos. They show on its page and in the series gallery, after Update website."
+							: "Photos for the event's page, from its Drive gallery, newest first. Photos added on a night show here on the website too. They go on the website with Update website."}
 					/>
 				</span>
 			</h2>
@@ -99,6 +101,16 @@
 				<ul class="gallery">
 					{#each gallery.files as image (image.id)}
 						<li class="tile">
+							<button
+								class="remove"
+								type="button"
+								disabled={busy}
+								aria-label={`Remove ${image.name}`}
+								title="Remove photo"
+								onclick={() => void gallery.remove(eventId, image.id)}
+							>
+								<Icon name="close" size={14} />
+							</button>
 							<a
 								href={image.url || eventDriveFileUrl(eventId, image.id)}
 								target="_blank"
@@ -143,6 +155,32 @@
 	.hint {
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
+	}
+
+	.tile {
+		position: relative;
+	}
+
+	.remove {
+		position: absolute;
+		top: 0.4rem;
+		right: 0.4rem;
+		z-index: 2;
+		display: grid;
+		place-items: center;
+		width: 1.9rem;
+		height: 1.9rem;
+		border: 0;
+		border-radius: var(--radius-pill);
+		background: color-mix(in srgb, var(--card) 85%, transparent);
+		color: var(--foreground);
+		cursor: pointer;
+		backdrop-filter: blur(6px);
+	}
+
+	.remove:hover {
+		background: var(--destructive);
+		color: var(--destructive-foreground);
 	}
 
 	.tile img {
