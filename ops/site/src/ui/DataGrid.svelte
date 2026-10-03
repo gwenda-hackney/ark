@@ -476,4 +476,19 @@
 	.host :global(.ag-header-viewport) {
 		background: transparent;
 	}
+
+	/*
+	  Touch screens: AG Grid lays an invisible scrollbar strip over the right
+	  edge. Painted, it hid the end of every row border and read as a blank
+	  gutter on phones.
+	*/
+	.host :global(.ag-scrollbar-invisible),
+	.host :global(.ag-scrollbar-invisible .ag-body-vertical-scroll-viewport),
+	.host :global(.ag-scrollbar-invisible .ag-body-horizontal-scroll-viewport) {
+		background: transparent;
+	}
+
+	.host :global(.ag-body-vertical-scroll.ag-scrollbar-invisible) {
+		pointer-events: none;
+	}
 </style>

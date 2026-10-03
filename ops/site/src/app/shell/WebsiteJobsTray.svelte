@@ -169,14 +169,26 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-1) var(--space-3);
-		border: 1px solid var(--border);
+		height: 1.75rem;
+		padding: 0 var(--space-3);
+		/* One hairline, no shadow: a border plus a shadow ring read as two edges. */
+		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-pill);
-		background: var(--card, var(--background));
+		background: var(--surface-1);
 		color: var(--foreground);
 		font: inherit;
 		font-size: var(--text-sm);
 		cursor: pointer;
+	}
+
+	.pill:hover {
+		background: var(--surface-3);
+	}
+
+	.pill:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-pill);
 	}
 
 	.pill.floating {
@@ -185,12 +197,12 @@
 		left: 50%;
 		z-index: 40;
 		transform: translateX(-50%);
-		box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+		background: var(--surface-2);
 	}
 
 	/* Below the dev/local banner rather than over its text (#32). */
 	:global(body:has(.env-banner)) .pill.floating {
-		top: calc(2.5rem + env(safe-area-inset-top, 0px));
+		top: calc(2.25rem + env(safe-area-inset-top, 0px));
 	}
 
 	/* Phones: above the bottom bar, clear of the tab strip and page actions. */
