@@ -1,13 +1,32 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onDestroy, onMount } from "svelte";
 	import { fly } from "svelte/transition";
-	import { BusyOverlay, Button, Card, Field, NativeSelect, PageHeader, TextField } from "../ui";
+	import {
+		BusyOverlay,
+		Button,
+		Card,
+		ConfirmDialog,
+		Field,
+		NativeSelect,
+		PageHeader,
+		TextField,
+	} from "../ui";
 	import PourTargetsForm from "./PourTargetsForm.svelte";
 	import { pourSettings } from "./settings.svelte";
 	import { getMe, getOpsConfig, getOpsUsers, saveEventTaskSettings, type AuthMe } from "../app/api";
+	import { navigate } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
+	import {
+		beginLeave,
+		clearUnsavedGuard,
+		setUnsavedGuard,
+		takeBlockedNav,
+	} from "../ui/unsaved.svelte";
 	import type { OpsUser } from "../users/types";
+
+	let pourDirty = $state(false);
+	let discardOpen = $state(false);
 
 	const waited = !pourSettings.loaded;
 	let connection = $state<AuthMe | null>(null);
@@ -81,6 +100,37 @@
 		}
 	}
 
+	// Unsaved targets or task roles: leaving asks first, like an editor.
+	const dirty = $derived(pourDirty || tasksDirty);
+
+	$effect(() => {
+		setUnsavedGuard(dirty, () => (discardOpen = true));
+	});
+
+	$effect(() => {
+		if (!dirty || typeof window === "undefined") return;
+		const onBeforeUnload = (e: BeforeUnloadEvent) => {
+			e.preventDefault();
+			e.returnValue = "";
+		};
+		window.addEventListener("beforeunload", onBeforeUnload);
+		return () => window.removeEventListener("beforeunload", onBeforeUnload);
+	});
+
+	onDestroy(() => clearUnsavedGuard());
+
+	function keepEditing() {
+		discardOpen = false;
+		takeBlockedNav();
+	}
+
+	function discardAndLeave() {
+		discardOpen = false;
+		beginLeave();
+		const pending = takeBlockedNav();
+		if (pending?.path) navigate(pending.path, { force: true, replace: pending.replace });
+	}
+
 	const baserowHref = $derived(
 		connection?.databaseId
 			? `https://baserow.io/database/${connection.databaseId}/`
@@ -139,7 +189,7 @@
 				title="Pour cost"
 				subtitle="Ingredient cost as a share of selling price, by drink type."
 			>
-				<PourTargetsForm idPrefix="config-pour" />
+				<PourTargetsForm idPrefix="config-pour" bind:dirty={pourDirty} />
 			</Card>
 
 			<Card
@@ -161,7 +211,7 @@
 					</Field>
 					<div class="task-actions">
 						{#if tasksDirty}<span class="unsaved">Unsaved changes</span>{/if}
-						<Button type="submit" busy={savingTasks} disabled={savingTasks || !tasksDirty}>
+						<Button variant="primary" size="sm" type="submit" busy={savingTasks} disabled={savingTasks || !tasksDirty}>
 							Save task roles
 						</Button>
 					</div>
@@ -170,6 +220,15 @@
 		</div>
 	{/if}
 	<BusyOverlay active={!pourSettings.loaded} label="Loading…" />
+	<ConfirmDialog
+		open={discardOpen}
+		title="Discard unsaved changes?"
+		message="Settings you've changed here haven't been saved. They will be lost."
+		action="Discard"
+		cancelLabel="Keep editing"
+		oncancel={keepEditing}
+		onconfirm={discardAndLeave}
+	/>
 </div>
 
 <style>
@@ -184,7 +243,7 @@
 	.stack {
 		display: grid;
 		gap: var(--space-6);
-		max-width: 36rem;
+		max-width: 48rem;
 		align-content: start;
 	}
 
@@ -198,9 +257,12 @@
 		align-items: center;
 		justify-content: flex-end;
 		gap: var(--space-3);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border);
 	}
 
 	.unsaved {
+		margin-right: auto;
 		font-size: var(--text-sm);
 		color: var(--warning);
 	}

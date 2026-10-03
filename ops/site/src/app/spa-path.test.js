@@ -294,6 +294,9 @@ describe("spa-path", () => {
     assert.equal(editorKey("/forms"), "forms");
     assert.equal(navigationLeavesEditor("/forms/12", "/forms"), true);
     assert.equal(navigationLeavesEditor("/forms", "/events"), false);
+    // Configuration guards its unsaved settings like an editor (#158).
+    assert.equal(navigationLeavesEditor("/config", "/menu"), true);
+    assert.equal(navigationLeavesEditor("/config", "/config"), false);
     assert.equal(isEditorPath("/events/12"), true);
     assert.equal(isEditorPath("/events/12/gallery"), true);
     assert.equal(isEditorPath("/events/new"), true);
