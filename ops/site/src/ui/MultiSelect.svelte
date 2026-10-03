@@ -5,6 +5,7 @@
 	 */
 	import { onMount, tick } from "svelte";
 	import type { SelectOption } from "./types";
+	import { getFieldContext } from "./field-context";
 
 	let {
 		value = $bindable<string[]>([]),
@@ -24,6 +25,7 @@
 		class?: string;
 	} = $props();
 
+	const field = getFieldContext();
 	let open = $state(false);
 	let triggerEl = $state<HTMLButtonElement | undefined>();
 	let menuEl = $state<HTMLDivElement | undefined>();
@@ -161,6 +163,7 @@
 		aria-expanded={open}
 		onclick={() => void setOpen(!open)}
 		onkeydown={onTriggerKeydown}
+		aria-describedby={field?.describedBy}
 	>
 		<span class="label">{label}</span>
 		<svg
@@ -290,7 +293,8 @@
 	}
 
 	.trigger:disabled {
-		opacity: 0.5;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 		cursor: not-allowed;
 	}
 

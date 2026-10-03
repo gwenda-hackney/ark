@@ -1,15 +1,24 @@
 <script lang="ts">
 	/**
-	 * Label above control, optional live helper below. Descriptions sit behind
-	 * a ? tip so the form stays clean. Optional `actions` ride the label row.
+	 * One form field: label (with an "Optional" tag when it can be left
+	 * blank), label-row actions, the control, then one line under it: the
+	 * hint, or the error in its place. Required is the default and is not
+	 * marked. The control picks up aria-describedby and aria-invalid from
+	 * here. `tooltip` is for long help only; short help goes in `hint`.
+	 * `width` caps the field to its content: xs 6rem (%, ABV), sm 9rem
+	 * (money, times, dates), md 16rem, lg 28rem, full (default).
 	 */
 	import type { Snippet } from "svelte";
 	import Tip from "./Tip.svelte";
+	import { setFieldContext, joinIds, type FieldWidth } from "./field-context";
 
 	let {
 		label,
 		hint,
 		tooltip,
+		error = "",
+		optional = false,
+		width = "full",
 		for: htmlFor,
 		actions,
 		children,
@@ -18,17 +27,46 @@
 		label: string;
 		hint?: string;
 		tooltip?: string;
+		/** Shown in place of the hint, in the danger colour. */
+		error?: string;
+		/** Mark the field "Optional". Fields are required unless marked. */
+		optional?: boolean;
+		width?: FieldWidth;
 		for?: string;
 		actions?: Snippet;
 		children: Snippet;
 		class?: string;
 	} = $props();
+
+	const uid = `fld-${Math.random().toString(36).slice(2, 9)}`;
+	const base = $derived(htmlFor || uid);
+	const hintId = $derived(`${base}-hint`);
+	const errorId = $derived(`${base}-error`);
+
+	let localError = $state("");
+	const shownError = $derived(error || localError);
+	const describedBy = $derived(joinIds(shownError ? errorId : hint ? hintId : ""));
+
+	setFieldContext({
+		get describedBy() {
+			return describedBy;
+		},
+		get invalid() {
+			return Boolean(shownError);
+		},
+		setLocalError(message: string) {
+			localError = message;
+		},
+	});
 </script>
 
-<div class="field {className}">
+<div class="field w-{width} {className}" class:has-error={Boolean(shownError)}>
 	<div class="label-row">
 		<div class="label-left">
 			<label for={htmlFor}>{label}</label>
+			{#if optional}
+				<span class="optional">Optional</span>
+			{/if}
 			{#if tooltip}
 				<Tip {label} {tooltip} />
 			{/if}
@@ -38,8 +76,25 @@
 		{/if}
 	</div>
 	{@render children()}
-	{#if hint}
-		<p class="hint">{hint}</p>
+	{#if shownError}
+		<p class="error" id={errorId}>
+			<svg
+				width="13"
+				height="13"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.2"
+				stroke-linecap="round"
+				aria-hidden="true"
+			>
+				<circle cx="12" cy="12" r="9" />
+				<path d="M12 7.5v5.5M12 16.5v.01" />
+			</svg>
+			<span>{shownError}</span>
+		</p>
+	{:else if hint}
+		<p class="hint" id={hintId}>{hint}</p>
 	{/if}
 </div>
 
@@ -54,6 +109,30 @@
 		align-content: start;
 		gap: var(--space-2);
 		min-width: 0;
+		width: 100%;
+	}
+
+	/* Widths follow what goes in: a percentage never needs 500px. */
+	.w-xs {
+		max-width: 6rem;
+	}
+
+	.w-sm {
+		max-width: 9rem;
+	}
+
+	.w-md {
+		max-width: 16rem;
+	}
+
+	.w-lg {
+		max-width: 28rem;
+	}
+
+	/* The label row can be wider than a narrow control. */
+	.w-xs,
+	.w-sm {
+		min-width: min-content;
 	}
 
 	.label-row {
@@ -69,7 +148,7 @@
 	.label-left {
 		display: inline-flex;
 		align-items: center;
-		gap: var(--space-1);
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -77,6 +156,17 @@
 		font-size: var(--text-sm);
 		font-weight: 500;
 		color: var(--muted-foreground);
+	}
+
+	.w-xs label,
+	.w-sm label {
+		white-space: nowrap;
+	}
+
+	.optional {
+		font-size: var(--text-xs);
+		color: var(--subtle-foreground);
+		white-space: nowrap;
 	}
 
 	.label-actions {
@@ -113,9 +203,34 @@
 		height: 0.875rem;
 	}
 
-	.hint {
+	.hint,
+	.error {
+		margin: 0;
 		font-size: var(--text-xs);
-		line-height: 1.45;
+		line-height: var(--leading-xs);
+	}
+
+	.hint {
 		color: var(--subtle-foreground);
+	}
+
+	.error {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-1);
+		color: var(--danger);
+	}
+
+	.error svg {
+		flex-shrink: 0;
+		margin-top: 0.1rem;
+	}
+
+	/* Every control in an errored field takes the danger edge. */
+	.has-error :global(.input),
+	.has-error :global(.trigger),
+	.has-error :global(.wrap),
+	.has-error :global(.affix-box) {
+		border-color: var(--danger);
 	}
 </style>

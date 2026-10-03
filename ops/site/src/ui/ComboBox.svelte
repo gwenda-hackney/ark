@@ -5,6 +5,7 @@
 	 */
 	import { onMount, tick } from "svelte";
 	import type { SelectOption } from "./types";
+	import { getFieldContext } from "./field-context";
 
 	let {
 		value = $bindable(""),
@@ -30,6 +31,7 @@
 		onpick?: (option: SelectOption) => void;
 	} = $props();
 
+	const field = getFieldContext();
 	let open = $state(false);
 	/** Narrow the list by what was typed; off when opened from the chevron. */
 	let filtering = $state(false);
@@ -152,6 +154,8 @@
 		aria-expanded={open}
 		aria-controls={id ? `${id}-list` : undefined}
 		aria-autocomplete="list"
+		aria-describedby={field?.describedBy}
+		aria-invalid={field?.invalid || undefined}
 		aria-activedescendant={open && activeIndex >= 0 ? `${id || "combo"}-opt-${activeIndex}` : undefined}
 		oninput={onInput}
 		onkeydown={onKeydown}
@@ -245,7 +249,8 @@
 	}
 
 	.wrap.disabled {
-		opacity: 0.5;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 	}
 
 	.field {

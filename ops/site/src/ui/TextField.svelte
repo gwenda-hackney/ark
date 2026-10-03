@@ -3,8 +3,11 @@
 	 * Recessed input against the card, gold ring on focus. Numbers get
 	 * tabular figures and lose the spinner so columns of figures line up.
 	 * `numeric` does the same for typed figures; `mono` is for IDs and codes.
+	 * `prefix` / `suffix` sit inside the box for units (£, %, ml). Inside a
+	 * Field it picks up the hint or error for screen readers.
 	 */
 	import type { HTMLInputAttributes } from "svelte/elements";
+	import { getFieldContext, joinIds } from "./field-context";
 
 	let {
 		value = $bindable(""),
@@ -13,33 +16,74 @@
 		numeric = false,
 		align = "start",
 		type = "text",
+		prefix = "",
+		suffix = "",
+		invalid = false,
+		element = $bindable(),
 		class: className = "",
+		"aria-describedby": describedByProp,
+		"aria-invalid": invalidProp,
 		...rest
-	}: Omit<HTMLInputAttributes, "size"> & {
+	}: Omit<HTMLInputAttributes, "size" | "prefix"> & {
 		value?: string;
 		size?: "md" | "sm";
 		mono?: boolean;
 		numeric?: boolean;
 		align?: "start" | "end";
+		/** Unit before the value, such as £. */
+		prefix?: string;
+		/** Unit after the value, such as % or ml. */
+		suffix?: string;
+		/** Danger edge without a Field error (a cell in a table, say). */
+		invalid?: boolean;
+		element?: HTMLInputElement;
 	} = $props();
 
+	const field = getFieldContext();
 	const isFile = $derived(type === "file");
+	const describedBy = $derived(joinIds(describedByProp as string | undefined, field?.describedBy));
+	const ariaInvalid = $derived(
+		invalid || field?.invalid || invalidProp === true || invalidProp === "true" ? true : undefined,
+	);
+	const affixed = $derived(Boolean(prefix || suffix));
 </script>
 
 {#if isFile}
 	<input
 		class="input {size} {className}"
 		type="file"
+		aria-describedby={describedBy}
 		{...rest}
 	/>
+{:else if affixed}
+	<div class="affix-box {size} {className}" class:invalid={ariaInvalid}>
+		{#if prefix}<span class="affix" aria-hidden="true">{prefix}</span>{/if}
+		<input
+			bind:this={element}
+			class="input bare"
+			class:mono
+			class:numeric
+			class:end={align === "end"}
+			{type}
+			bind:value
+			aria-describedby={describedBy}
+			aria-invalid={ariaInvalid}
+			{...rest}
+		/>
+		{#if suffix}<span class="affix" aria-hidden="true">{suffix}</span>{/if}
+	</div>
 {:else}
 	<input
+		bind:this={element}
 		class="input {size} {className}"
 		class:mono
 		class:numeric
+		class:invalid={ariaInvalid}
 		class:end={align === "end"}
 		{type}
 		bind:value
+		aria-describedby={describedBy}
+		aria-invalid={ariaInvalid}
 		{...rest}
 	/>
 {/if}
@@ -100,8 +144,75 @@
 	}
 
 	.input:disabled {
-		opacity: 0.5;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 		cursor: not-allowed;
+	}
+
+	.input.invalid,
+	.affix-box.invalid {
+		border-color: var(--danger);
+	}
+
+	/* Units live inside the box; the input inside loses its own chrome. */
+	.affix-box {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		width: 100%;
+		min-width: 0;
+		box-sizing: border-box;
+		padding: 0 var(--space-3);
+		border: 1px solid var(--input);
+		border-radius: var(--radius-md);
+		background: var(--sunken);
+		transition:
+			border-color var(--t-fast) var(--ease-in-out),
+			box-shadow var(--t-fast) var(--ease-in-out);
+	}
+
+	.affix-box.md {
+		height: var(--control-h);
+	}
+
+	.affix-box.sm {
+		height: var(--control-h-sm);
+	}
+
+	.affix-box:hover:not(:has(:disabled)) {
+		border-color: var(--border-strong);
+	}
+
+	.affix-box:focus-within {
+		border-color: var(--ring);
+		box-shadow: 0 0 0 3px var(--ring-wash);
+	}
+
+	.affix-box:has(:disabled) {
+		background: var(--surface-3);
+	}
+
+	.affix {
+		flex-shrink: 0;
+		color: var(--muted-foreground);
+		font-size: var(--text-base);
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
+		user-select: none;
+	}
+
+	.input.bare {
+		flex: 1 1 auto;
+		height: 100%;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		font-size: var(--text-base);
+		box-shadow: none;
+	}
+
+	.input.bare:focus {
+		box-shadow: none;
 	}
 
 	.input[type="number"] {

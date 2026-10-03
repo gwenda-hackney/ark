@@ -23,3 +23,11 @@ export type PageHelpTopic = {
 	title: string;
 	body: string;
 };
+
+/** One action in an OverflowMenu ("⋯"). */
+export type OverflowItem = {
+	label: string;
+	onselect: () => void;
+	tone?: "destructive";
+	disabled?: boolean;
+};
