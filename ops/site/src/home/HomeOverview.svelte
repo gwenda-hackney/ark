@@ -32,6 +32,7 @@
 		relativeTime,
 		siteHealthState,
 		summarizeDrinks,
+		type Tone,
 	} from "./dashboard";
 
 	type Load<T> = { state: "loading" } | { state: "error"; error: string } | { state: "ready"; data: T };
@@ -150,6 +151,115 @@
 		return latest ? clockTime(latest) : data ? clockTime(data.checkedAt) : "";
 	});
 
+	type Tile = {
+		key: string;
+		label: string;
+		/** Phones: fits half the screen. */
+		short: string;
+		icon: string;
+		href: string;
+		external?: boolean;
+		state: "loading" | "ready";
+		value: string;
+		sub: string;
+		tone: Tone;
+	};
+
+	const tiles = $derived.by((): Tile[] => {
+		const site = health?.production ?? null;
+		const siteState = siteHealthState(site);
+		const checks = site?.checks || [];
+		const passing = checks.filter((check) => check.ok).length;
+		const live = pending?.production;
+		const waiting = waitingEvents.length + (live?.count || 0);
+		return [
+			{
+				key: "site",
+				label: "Website",
+				short: "Website",
+				icon: "web",
+				href: "/web",
+				state: healthCard.state === "loading" ? "loading" : "ready",
+				value: healthCard.state === "error" ? "—" : siteState.label,
+				sub:
+					healthCard.state === "error"
+						? "Could not check"
+						: checks.length
+							? `${passing} of ${checks.length} checks OK`
+							: "No results yet",
+				tone: healthCard.state === "error" ? "muted" : siteState.tone,
+			},
+			{
+				key: "errors",
+				label: "Errors, 24h",
+				short: "Errors, 24h",
+				icon: "alert",
+				href: SENTRY_ISSUES_URL,
+				external: true,
+				state: errors.state === "loading" ? "loading" : "ready",
+				value: errorData?.configured ? (errorData.capped ? `${errorData.total}+` : String(errorData.total)) : "—",
+				sub:
+					errors.state === "error"
+						? "Could not read Sentry"
+						: !errorData?.configured
+							? "Not set up"
+							: errorData.newCount
+								? `${errorData.newCount} new`
+								: "Nothing new",
+				tone: errorData?.configured ? (errorData.newCount ? "danger" : errorData.total ? "warning" : "success") : "muted",
+			},
+			{
+				key: "waiting",
+				label: "Waiting for the website",
+				short: "To publish",
+				icon: "upload",
+				href: "/web",
+				state: pendingCard.state === "loading" || eventsCard.state === "loading" ? "loading" : "ready",
+				value: pendingCard.state === "error" ? "—" : String(waiting),
+				sub: live?.failed
+					? "Last update failed"
+					: live?.updating
+						? "Updating now"
+						: waiting
+							? "Use Update website"
+							: "Up to date",
+				tone: live?.failed ? "danger" : waiting ? "warning" : "success",
+			},
+			{
+				key: "applications",
+				label: "Applications to review",
+				short: "To review",
+				icon: "forms",
+				href: "/forms",
+				state: formsCard.state === "loading" ? "loading" : "ready",
+				value: formsCard.state === "error" ? "—" : String(applications.count),
+				sub:
+					formsCard.state === "error"
+						? "Could not load"
+						: applications.count
+							? `Oldest sent ${applications.oldest}`
+							: "None waiting",
+				tone: formsCard.state === "error" ? "muted" : applications.count ? "warning" : "success",
+			},
+		];
+	});
+
+	/** Attention items, plus the featured artist running out (not counted by needsAttention). */
+	const attentionItems = $derived(
+		artistEnding
+			? [
+					...attention.items,
+					{
+						key: "artist",
+						count: 1,
+						label: `featured artist ends this month, nobody next`,
+						href: "/artists",
+						tone: "warning" as Tone,
+					},
+				]
+			: attention.items,
+	);
+
 	function siteName(site: HealthSite): string {
 		return site.id === "production" ? "Website" : "Preview";
 	}
@@ -158,12 +268,11 @@
 <div class="dash scrollbar-fade">
 	<PageHeader title="Dashboard" />
 
-	<section class="attention" aria-labelledby="attention-title" aria-busy={attentionLoading}>
-		<h2 id="attention-title" class="sr-only">Needs attention</h2>
-		{#if attention.items.length}
-			<p class="attention-label">Needs attention</p>
+	{#if attentionItems.length}
+		<section class="attention" aria-labelledby="attention-title">
+			<h2 id="attention-title" class="attention-label">Needs attention</h2>
 			<ul class="attention-list">
-				{#each attention.items as item (item.key)}
+				{#each attentionItems as item (item.key)}
 					<li>
 						<a
 							class="attention-item {item.tone}"
@@ -172,284 +281,314 @@
 							rel={item.external ? "noreferrer" : undefined}
 						>
 							<span class="attention-count tnum">{item.count}</span>
-							<span>{item.label}</span>
+							<span class="attention-text">{item.label}</span>
 							<Icon name={item.external ? "external-link" : "chevron-right"} size={14} />
 						</a>
 					</li>
 				{/each}
 			</ul>
-		{:else if attentionLoading}
-			<div class="attention-loading" aria-hidden="true"><span class="skel"></span></div>
-			<span class="sr-only">Checking what needs attention…</span>
-		{:else if attention.allClear}
-			<p class="all-clear">
-				<Icon name="check" size={16} />
-				<span><strong>All clear.</strong> {attention.allClearText}.</span>
-				{#if lastChecked}<span class="checked tnum">Checked {lastChecked}</span>{/if}
-			</p>
-		{:else}
-			<p class="attention-unknown">
-				Nothing waiting that we could check. Could not check {attention.unknown.join(", ")}.
-			</p>
-		{/if}
-	</section>
+		</section>
+	{:else if !attentionLoading && attention.allClear}
+		<p class="all-clear">
+			<Icon name="check" size={16} />
+			<span><strong>All clear.</strong> {attention.allClearText}.</span>
+			{#if lastChecked}<span class="checked tnum">Checked {lastChecked}</span>{/if}
+		</p>
+	{:else if !attentionLoading && attention.unknown.length}
+		<p class="attention-unknown">Could not check {attention.unknown.join(", ")}.</p>
+	{/if}
 
-	<div class="grid">
-		<DashCard
-			id="tonight"
-			title="Tonight and the next 7 days"
-			wide
-			state={eventsCard.state === "ready" && !nightGroups.length ? "clear" : eventsCard.state}
-			error={eventsCard.error}
-			clearText="Nothing on in the next 7 days."
-			href="/events/schedule"
-			linkLabel="Schedule"
-			skeletonRows={4}
-			onretry={loadDashboard}
-		>
-			{#snippet meta()}{plural(events?.nights.length || 0, "night")}{/snippet}
-			<div class="days">
-				{#each nightGroups as group (group.date)}
-					<div class="day" class:tonight={group.tonight}>
-						<h3 class="day-label">{group.label}</h3>
-						<ul class="rows">
-							{#each group.nights as night (night.eventId + night.date)}
-								{@const status = nightStatus(night, jobs)}
-								<li class="row night">
-									<span class="time tnum">{nightTime(night)}</span>
-									<span class="what">
-										<a class="name" href={nightHref(night)}>{night.title}</a>
-										{#if night.artist}<span class="sub">{night.artist}</span>{/if}
-										{#if night.calendarBehind}
-											<span class="sub warn-text">Calendar not up to date</span>
-										{/if}
-									</span>
-									<span class="badge {status.tone}">{status.label}</span>
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/each}
-			</div>
-		</DashCard>
-
-		<DashCard
-			id="health"
-			title="Site health"
-			state={healthCard.state}
-			error={healthCard.error}
-			href="/web"
-			linkLabel="Website"
-			skeletonRows={4}
-			onretry={loadDashboard}
-		>
-			{#snippet meta()}{#if lastChecked}Checked {lastChecked}{/if}{/snippet}
-			{#if !healthSites.length}
-				<p class="note">The site monitor has no results yet.</p>
-			{/if}
-			{#each healthSites as site (site.id)}
-				{@const state = siteHealthState(site)}
-				<div class="site">
-					<div class="site-head">
-						<span class="site-name">{siteName(site)}</span>
-						<span class="badge {state.tone}">{state.label}</span>
-					</div>
-					{#if site.checks.length}
-						<ul class="rows checks">
-							{#each site.checks as check (check.name)}
-								<li class="row check">
-									<span class="check-name">{check.name}</span>
-									<span class="badge {check.ok ? 'success' : 'danger'}" title={checkDetail(check)}>
-										{check.ok ? "OK" : checkDetail(check)}
-									</span>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-					{#if site.consecutiveFails}
-						<p class="note danger-text">{plural(site.consecutiveFails, "failed check")} in a row.</p>
-					{/if}
-				</div>
-			{/each}
-		</DashCard>
-
-		{#if errorData && !errorData.configured}
-			<DashCard id="errors" title="Website errors" state="ready">
-				{#snippet meta()}Not set up{/snippet}
-				<p class="note">
-					Add a read-only Sentry token as <code>SENTRY_READ_TOKEN</code> to see errors here.
-				</p>
-			</DashCard>
-		{:else}
-			<DashCard
-				id="errors"
-				title="Website errors"
-				state={errors.state === "ready" && errorData?.configured && !errorData.total ? "clear" : errors.state}
-				error={errors.state === "error" ? errors.error : ""}
-				clearText="No errors in the last 24 hours."
-				href={SENTRY_ISSUES_URL}
-				linkLabel="Sentry"
-				external
-				onretry={loadErrors}
-			>
-				{#snippet meta()}
-					{#if errorData?.configured}{errorData.capped ? `${errorData.total}+` : errorData.total} in 24h{/if}
-				{/snippet}
-				{#if errorData?.configured}
-					<ul class="rows">
-						{#each errorData.issues as issue (issue.id)}
-							<li class="row issue">
-								<span class="what">
-									<a class="name" href={issue.link} target="_blank" rel="noreferrer">{issue.title}</a>
-									<span class="sub">
-										{issue.project}{#if issue.lastSeen}, last seen {relativeTime(issue.lastSeen, now)}{/if}
-									</span>
-								</span>
-								{#if issue.isNew}<span class="badge danger">New</span>{/if}
-								<span class="count tnum" title="Times in 24 hours">{issue.count}×</span>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</DashCard>
-		{/if}
-
-		<DashCard
-			id="applications"
-			title="Play applications"
-			state={formsCard.state === "ready" && !applications.count ? "clear" : formsCard.state}
-			error={formsCard.error}
-			clearText={applications.emailFailed
-				? `No applications waiting. ${plural(applications.emailFailed, "submission")} with an email that did not go out.`
-				: "No applications waiting."}
-			href="/forms"
-			linkLabel="Applications"
-			onretry={loadDashboard}
-		>
-			{#snippet meta()}{applications.count} to review{/snippet}
-			<p class="lead">
-				{plural(applications.count, "application")} to review{#if applications.oldest}, the oldest sent {applications.oldest}{/if}.
-			</p>
-			<ul class="rows">
-				{#each applications.rows as row (row.id)}
-					<li class="row">
-						<a class="name" href="/forms/{encodeURIComponent(row.id)}">{row.name || row.email}</a>
-						<span class="sub tnum">{row.age}</span>
-					</li>
-				{/each}
-			</ul>
-			{#if applications.count > applications.rows.length}
-				<p class="note">{applications.count - applications.rows.length} more on Applications.</p>
-			{/if}
-			{#if applications.emailFailed}
-				<p class="note warn-text">
-					{plural(applications.emailFailed, "submission")} with an email that did not go out.
-				</p>
-			{/if}
-		</DashCard>
-
-		<DashCard
-			id="updates"
-			title="Website updates"
-			state={pendingCard.state === "ready" && websiteQuiet ? "clear" : pendingCard.state}
-			error={pendingCard.error}
-			clearText="The website is up to date."
-			href="/web"
-			linkLabel="Website"
-			onretry={loadDashboard}
-		>
-			{#if pending}
-				{@const live = pending.production}
-				{#if live.failed}
-					<p class="lead danger-text">
-						The last website update failed{#if live.lastError}: {live.lastError}{/if}.
-						{#if live.runUrl}
-							<a class="inline" href={live.runUrl} target="_blank" rel="noreferrer">See what happened</a>
+	<div class="board">
+		<ul class="tiles" aria-label="At a glance">
+			{#each tiles as tile (tile.key)}
+				<li>
+					<a
+						class="tile {tile.tone}"
+						href={tile.href}
+						target={tile.external ? "_blank" : undefined}
+						rel={tile.external ? "noreferrer" : undefined}
+						aria-busy={tile.state === "loading"}
+					>
+						<span class="tile-label">
+							<span class="tile-icon"><Icon name={tile.icon} size={14} /></span>
+							<span class="long">{tile.label}</span>
+							<span class="short">{tile.short}</span>
+						</span>
+						{#if tile.state === "loading"}
+							<span class="skel tile-skel" aria-hidden="true"></span>
+							<span class="sr-only">Loading…</span>
+						{:else}
+							<span class="tile-value tnum">{tile.value}</span>
+							<span class="tile-sub"><span class="dot" aria-hidden="true"></span>{tile.sub}</span>
 						{/if}
-					</p>
-				{/if}
-				{#if live.updating}
-					<p class="lead">Updating the website now.</p>
-				{/if}
-				{#if live.count}
-					<p class="lead">
-						{plural(live.count, "change")} waiting for the website{#if live.autoUpdateAt && !live.updating && !live.failed}, updating
-							by itself around {clockTime(live.autoUpdateAt)}{/if}.
-					</p>
-					<ul class="rows">
-						{#each live.items as item (item.label + item.change)}
-							<li class="row"><span class="name plain">{item.label}</span><span class="sub">{item.change}</span></li>
-						{/each}
-					</ul>
-				{/if}
-				{#if waitingEvents.length}
-					<p class="lead">{plural(waitingEvents.length, "event")} waiting for Update website.</p>
-					<ul class="rows">
-						{#each waitingEvents.slice(0, 5) as event (event.id)}
-							<li class="row">
-								<a class="name" href="/events/{encodeURIComponent(event.id)}">{event.name}</a>
-								<span class="sub">{event.change === "added" ? "New" : "Changed"}</span>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-				{#if failedJobs.length}
-					<p class="lead danger-text">{plural(failedJobs.length, "event")} not ready for the website.</p>
-					<ul class="rows">
-						{#each failedJobs.slice(0, 5) as job (job.eventId)}
-							<li class="row">
-								<span class="what">
-									<a class="name" href="/events/{encodeURIComponent(job.eventId)}">{job.name}</a>
-									{#if job.error}<span class="sub">{job.error}</span>{/if}
-								</span>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			{/if}
-		</DashCard>
+					</a>
+				</li>
+			{/each}
+		</ul>
 
-		<DashCard
-			id="drinks"
-			title="Drinks with problems"
-			state={drinksState}
-			error={drinks.state === "error" ? drinks.error : ""}
-			clearText={drinkSummary?.warningOnly
-				? `No drinks with critical problems. ${plural(drinkSummary.warningOnly, "drink")} with warnings.`
-				: "No drinks with problems."}
-			href="/menu"
-			linkLabel="Menu items"
-			onretry={loadDrinks}
-		>
-			{#snippet meta()}
-				{#if drinkSummary}{drinkSummary.critical} critical · {drinkSummary.atLoss} at a loss{/if}
-			{/snippet}
-			{#if drinkSummary}
+		<div class="cell week">
+			<DashCard
+				id="tonight"
+				title="This week"
+				state={eventsCard.state === "ready" && !nightGroups.length ? "clear" : eventsCard.state}
+				error={eventsCard.error}
+				clearText="Nothing on in the next 7 days."
+				href="/events/schedule"
+				linkLabel="Schedule"
+				skeletonRows={4}
+				onretry={loadDashboard}
+			>
+				{#snippet meta()}{plural(events?.nights.length || 0, "night")}{/snippet}
+				<div class="days">
+					{#each nightGroups as group (group.date)}
+						<div class="day" class:tonight={group.tonight}>
+							<h3 class="day-label">{group.label}</h3>
+							<ul class="rows">
+								{#each group.nights as night (night.eventId + night.date)}
+									{@const status = nightStatus(night, jobs)}
+									<li class="row night">
+										<span class="time tnum">{nightTime(night)}</span>
+										<span class="what">
+											<a class="name" href={nightHref(night)}>{night.title}</a>
+											{#if night.artist}<span class="sub">{night.artist}</span>{/if}
+											{#if night.calendarBehind}
+												<span class="sub warn-text">Calendar not up to date</span>
+											{/if}
+										</span>
+										<span class="badge {status.tone}">{status.label}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/each}
+				</div>
+			</DashCard>
+
+		</div>
+
+		<div class="cell side">
+			<DashCard
+				id="health"
+				title="Site health"
+				state={healthCard.state}
+				error={healthCard.error}
+				href="/web"
+				linkLabel="Website"
+				skeletonRows={4}
+				onretry={loadDashboard}
+			>
+				{#snippet meta()}{#if lastChecked}Checked {lastChecked}{/if}{/snippet}
+				{#if !healthSites.length}
+					<p class="note">The site monitor has no results yet.</p>
+				{/if}
+				{#each healthSites as site (site.id)}
+					{@const state = siteHealthState(site)}
+					<div class="site">
+						<div class="site-head">
+							<span class="site-name">{siteName(site)}</span>
+							<span class="badge {state.tone}">{state.label}</span>
+						</div>
+						{#if site.checks.length}
+							<ul class="rows checks">
+								{#each site.checks as check (check.name)}
+									<li class="row check">
+										<span class="check-name">{check.name}</span>
+										<span class="badge {check.ok ? 'success' : 'danger'}" title={checkDetail(check)}>
+											{check.ok ? "OK" : checkDetail(check)}
+										</span>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if site.consecutiveFails}
+							<p class="note danger-text">{plural(site.consecutiveFails, "failed check")} in a row.</p>
+						{/if}
+					</div>
+				{/each}
+			</DashCard>
+
+			<DashCard
+				id="updates"
+				title="Website updates"
+				state={pendingCard.state === "ready" && websiteQuiet ? "clear" : pendingCard.state}
+				error={pendingCard.error}
+				clearText="The website is up to date."
+				href="/web"
+				linkLabel="Website"
+				onretry={loadDashboard}
+			>
+				{#if pending}
+					{@const live = pending.production}
+					{#if live.failed}
+						<p class="lead danger-text">
+							The last website update failed{#if live.lastError}: {live.lastError}{/if}.
+							{#if live.runUrl}
+								<a class="inline" href={live.runUrl} target="_blank" rel="noreferrer">See what happened</a>
+							{/if}
+						</p>
+					{/if}
+					{#if live.updating}
+						<p class="lead">Updating the website now.</p>
+					{/if}
+					{#if live.count}
+						<p class="lead">
+							{plural(live.count, "change")} waiting for the website{#if live.autoUpdateAt && !live.updating && !live.failed}, updating
+								by itself around {clockTime(live.autoUpdateAt)}{/if}.
+						</p>
+						<ul class="rows">
+							{#each live.items as item (item.label + item.change)}
+								<li class="row"><span class="name plain">{item.label}</span><span class="sub">{item.change}</span></li>
+							{/each}
+						</ul>
+					{/if}
+					{#if waitingEvents.length}
+						<p class="lead">{plural(waitingEvents.length, "event")} waiting for Update website.</p>
+						<ul class="rows">
+							{#each waitingEvents.slice(0, 5) as event (event.id)}
+								<li class="row">
+									<a class="name" href="/events/{encodeURIComponent(event.id)}">{event.name}</a>
+									<span class="sub">{event.change === "added" ? "New" : "Changed"}</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					{#if failedJobs.length}
+						<p class="lead danger-text">{plural(failedJobs.length, "event")} not ready for the website.</p>
+						<ul class="rows">
+							{#each failedJobs.slice(0, 5) as job (job.eventId)}
+								<li class="row">
+									<span class="what">
+										<a class="name" href="/events/{encodeURIComponent(job.eventId)}">{job.name}</a>
+										{#if job.error}<span class="sub">{job.error}</span>{/if}
+									</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				{/if}
+			</DashCard>
+
+		</div>
+
+		<div class="cell third">
+			{#if errorData && !errorData.configured}
+				<DashCard
+					id="errors"
+					title="Website errors"
+					state="clear"
+					clearIcon="settings"
+					clearTone="muted"
+					clearText="Not set up yet. Add a read-only Sentry token as SENTRY_READ_TOKEN to see errors here."
+				/>
+			{:else}
+				<DashCard
+					id="errors"
+					title="Website errors"
+					state={errors.state === "ready" && errorData?.configured && !errorData.total ? "clear" : errors.state}
+					error={errors.state === "error" ? errors.error : ""}
+					clearText="No errors in the last 24 hours."
+					href={SENTRY_ISSUES_URL}
+					linkLabel="Sentry"
+					external
+					onretry={loadErrors}
+				>
+					{#snippet meta()}
+						{#if errorData?.configured}{errorData.capped ? `${errorData.total}+` : errorData.total} in 24h{/if}
+					{/snippet}
+					{#if errorData?.configured}
+						<ul class="rows">
+							{#each errorData.issues as issue (issue.id)}
+								<li class="row issue">
+									<span class="what">
+										<a class="name" href={issue.link} target="_blank" rel="noreferrer">{issue.title}</a>
+										<span class="sub">
+											{issue.project}{#if issue.lastSeen}, last seen {relativeTime(issue.lastSeen, now)}{/if}
+										</span>
+									</span>
+									{#if issue.isNew}<span class="badge danger">New</span>{/if}
+									<span class="count tnum" title="Times in 24 hours">{issue.count}×</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</DashCard>
+			{/if}
+
+		</div>
+		<div class="cell third">
+			<DashCard
+				id="applications"
+				title="Play applications"
+				state={formsCard.state === "ready" && !applications.count ? "clear" : formsCard.state}
+				error={formsCard.error}
+				clearText={applications.emailFailed
+					? `No applications waiting. ${plural(applications.emailFailed, "submission")} with an email that did not go out.`
+					: "No applications waiting."}
+				href="/forms"
+				linkLabel="Applications"
+				onretry={loadDashboard}
+			>
+				{#snippet meta()}{applications.count} to review{/snippet}
+				<p class="lead">
+					{plural(applications.count, "application")} to review{#if applications.oldest}, the oldest sent {applications.oldest}{/if}.
+				</p>
 				<ul class="rows">
-					{#each drinkSummary.rows as row (row.id)}
+					{#each applications.rows as row (row.id)}
 						<li class="row">
-							<a class="name" href={row.href}>{row.name}</a>
-							<span class="sub {row.atLoss ? 'danger-text' : ''}">{drinkReason(row)}</span>
+							<a class="name" href="/forms/{encodeURIComponent(row.id)}">{row.name || row.email}</a>
+							<span class="sub tnum">{row.age}</span>
 						</li>
 					{/each}
 				</ul>
-				{#if drinkSummary.more}
-					<p class="note">{drinkSummary.more} more with problems.</p>
+				{#if applications.count > applications.rows.length}
+					<p class="note">{applications.count - applications.rows.length} more on Applications.</p>
 				{/if}
-				{#if drinkSummary.warningOnly}
-					<a class="inline" href="/menu">+{plural(drinkSummary.warningOnly, "drink")} with warnings</a>
+				{#if applications.emailFailed}
+					<p class="note warn-text">
+						{plural(applications.emailFailed, "submission")} with an email that did not go out.
+					</p>
 				{/if}
-				{#if margin}
-					<p class="note {margin.tone === 'warning' ? 'warn-text' : ''}">{margin.text}</p>
-				{/if}
-			{/if}
-		</DashCard>
-
-		{#if artistEnding}
-			<DashCard id="artist" title="Featured artist" state="ready" href="/artists" linkLabel="Featured artist">
-				<p class="lead">{artistEnding}'s time on the wall ends this month and nobody is lined up next.</p>
 			</DashCard>
-		{/if}
+
+		</div>
+		<div class="cell third">
+			<DashCard
+				id="drinks"
+				title="Drinks with problems"
+				state={drinksState}
+				error={drinks.state === "error" ? drinks.error : ""}
+				clearText={drinkSummary?.warningOnly
+					? `No drinks with critical problems. ${plural(drinkSummary.warningOnly, "drink")} with warnings.`
+					: "No drinks with problems."}
+				href="/menu"
+				linkLabel="Menu items"
+				onretry={loadDrinks}
+			>
+				{#snippet meta()}
+					{#if drinkSummary}{drinkSummary.critical} critical · {drinkSummary.atLoss} at a loss{/if}
+				{/snippet}
+				{#if drinkSummary}
+					<ul class="rows">
+						{#each drinkSummary.rows as row (row.id)}
+							<li class="row">
+								<a class="name" href={row.href}>{row.name}</a>
+								<span class="sub {row.atLoss ? 'danger-text' : ''}">{drinkReason(row)}</span>
+							</li>
+						{/each}
+					</ul>
+					{#if drinkSummary.more}
+						<p class="note">{drinkSummary.more} more with problems.</p>
+					{/if}
+					{#if drinkSummary.warningOnly}
+						<a class="inline" href="/menu">+{plural(drinkSummary.warningOnly, "drink")} with warnings</a>
+					{/if}
+					{#if margin}
+						<p class="note {margin.tone === 'warning' ? 'warn-text' : ''}">{margin.text}</p>
+					{/if}
+				{/if}
+			</DashCard>
+
+		</div>
 	</div>
 </div>
 
@@ -465,18 +604,18 @@
 	/* ─── Needs attention ─────────────────────────────────────────────── */
 
 	.attention {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-2) var(--space-3);
 		margin-bottom: var(--space-4);
-		padding: var(--space-3) var(--space-4);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--surface-1);
 	}
 
 	.attention-label {
-		margin: 0 0 var(--space-2);
+		margin: 0;
 		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label, 0.06em);
 		text-transform: uppercase;
 		color: var(--fg-muted);
 	}
@@ -494,12 +633,12 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-		min-height: var(--control-h);
-		padding: 0 var(--space-3);
+		min-height: 2rem;
+		padding: 0 var(--space-2) 0 var(--space-3);
 		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-pill);
 		color: var(--fg);
-		font-size: var(--text-base);
+		font-size: var(--text-sm);
 		text-decoration: none;
 	}
 
@@ -534,9 +673,9 @@
 		align-items: center;
 		flex-wrap: wrap;
 		gap: var(--space-2);
-		margin: 0;
+		margin: 0 0 var(--space-4);
 		color: var(--success);
-		font-size: var(--text-base);
+		font-size: var(--text-sm);
 	}
 
 	.all-clear strong {
@@ -554,36 +693,222 @@
 	}
 
 	.attention-unknown {
-		margin: 0;
-		font-size: var(--text-base);
+		margin: 0 0 var(--space-4);
+		font-size: var(--text-sm);
 		color: var(--fg-muted);
 	}
 
-	.attention-loading .skel {
-		height: 1.25rem;
-		width: 60%;
-	}
+	/* ─── Board ───────────────────────────────────────────────────────────
+	   One 12-column grid so every edge lines up: four tiles of 3, the week
+	   (8) beside health and updates (4), then three cards of 4. Rows stretch,
+	   so cards side by side are always the same height. */
 
-	/* ─── Grid ────────────────────────────────────────────────────────── */
-
-	.grid {
+	.board {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		grid-auto-flow: row dense;
-		align-items: start;
+		grid-template-columns: repeat(12, minmax(0, 1fr));
 		gap: var(--space-4);
 	}
 
+	.tiles {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: var(--space-4);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.cell {
+		min-width: 0;
+	}
+
+	.week {
+		grid-column: span 8;
+	}
+
+	.side {
+		grid-column: span 4;
+		display: grid;
+		grid-template-rows: auto 1fr;
+		gap: var(--space-4);
+	}
+
+	.third {
+		grid-column: span 4;
+	}
+
+	/* Tiles */
+
+	.tile {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		height: 100%;
+		padding: var(--space-4) var(--space-5);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--surface-1);
+		color: var(--fg);
+		text-decoration: none;
+		transition: border-color 120ms ease, background-color 120ms ease;
+	}
+
+	.tile:hover {
+		border-color: var(--border-strong);
+		background: var(--surface-2);
+	}
+
+	.tile-label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.tile-label .short {
+		display: none;
+	}
+
+	.tile-icon {
+		display: inline-grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-3);
+		color: var(--fg-muted);
+	}
+
+	.tile-value {
+		margin-top: var(--space-2);
+		font-size: var(--text-2xl);
+		font-weight: 600;
+		line-height: 1.1;
+		letter-spacing: -0.02em;
+	}
+
+	.tile-sub {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-xs);
+		color: var(--fg-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.dot {
+		flex-shrink: 0;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--fg-subtle);
+	}
+
+	.tile.success .dot {
+		background: var(--success);
+	}
+
+	.tile.warning .dot {
+		background: var(--warning);
+	}
+
+	.tile.danger .dot {
+		background: var(--danger);
+	}
+
+	.tile.warning .tile-value {
+		color: var(--warning);
+	}
+
+	.tile.danger .tile-value {
+		color: var(--danger);
+	}
+
+	.tile.danger {
+		border-color: var(--danger-border);
+	}
+
+	.tile-skel {
+		height: 2rem;
+		width: 40%;
+		margin-top: var(--space-2);
+	}
+
 	@media (max-width: 1200px) {
-		.grid {
+		.board {
 			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.tiles {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.week,
+		.side {
+			grid-column: 1 / -1;
+		}
+
+		.side {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-template-rows: auto;
+		}
+
+		.third {
+			grid-column: span 1;
+		}
+
+		.third:last-child {
+			grid-column: 1 / -1;
 		}
 	}
 
 	@media (max-width: 900px) {
-		.grid {
+		.board {
 			grid-template-columns: minmax(0, 1fr);
-			grid-auto-flow: row;
+			gap: var(--space-3);
+		}
+
+		.tiles {
+			gap: var(--space-3);
+		}
+
+		.side {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--space-3);
+		}
+
+		.third,
+		.third:last-child {
+			grid-column: auto;
+		}
+
+		.tile {
+			padding: var(--space-3) var(--space-4);
+		}
+
+		.tile-value {
+			font-size: var(--text-xl);
+			margin-top: var(--space-1);
+		}
+
+		.tile-label {
+			font-size: var(--text-xs);
+		}
+
+		.tile-label .long {
+			display: none;
+		}
+
+		.tile-label .short {
+			display: inline;
 		}
 
 		.attention-item {
@@ -669,12 +994,6 @@
 		margin: var(--space-2) 0 0;
 		font-size: var(--text-sm);
 		color: var(--fg-muted);
-	}
-
-	.note code {
-		font-family: var(--font-mono);
-		font-size: 0.92em;
-		color: var(--fg);
 	}
 
 	.inline {
@@ -802,12 +1121,26 @@
 			min-height: 44px;
 		}
 
+		/* Name and time on the left, status on the right. */
 		.night {
-			flex-wrap: wrap;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-areas: "what badge" "time badge";
+			column-gap: var(--space-3);
+			padding-block: var(--space-2);
+		}
+
+		.night .what {
+			grid-area: what;
 		}
 
 		.night .time {
-			flex-basis: 100%;
+			grid-area: time;
+			font-size: var(--text-xs);
+		}
+
+		.night .badge {
+			grid-area: badge;
 		}
 	}
 </style>
