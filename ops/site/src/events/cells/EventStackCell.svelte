@@ -14,6 +14,10 @@
 		href?: string;
 	} = $props();
 
+	/** "Sunday · 4 Oct": the day leads in gold, the date follows quieter. */
+	const day = $derived(eyebrow.split(" · ")[0] || "");
+	const rest = $derived(eyebrow.split(" · ").slice(1).join(" · "));
+
 	function onClick(event: MouseEvent) {
 		if (!href) return;
 		if (hasRangeSelection()) {
@@ -30,7 +34,7 @@
 
 <div class="stack">
 	{#if eyebrow}
-		<span class="eyebrow">{eyebrow}</span>
+		<span class="when"><span class="day">{day}</span>{#if rest}<span class="date">{rest}</span>{/if}</span>
 	{/if}
 	{#if href}
 		<a class="title" {href} onclick={onClick}>{title}</a>
@@ -52,14 +56,25 @@
 		width: 100%;
 	}
 
-	.eyebrow {
-		color: var(--muted-foreground);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		line-height: 1.2;
-		text-transform: uppercase;
+	.when {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+		margin-bottom: 0.125rem;
+		line-height: 1.25;
 		white-space: nowrap;
+	}
+
+	.day {
+		color: var(--primary);
+		font-size: var(--text-md);
+		font-weight: 600;
+	}
+
+	.date {
+		color: var(--fg-muted);
+		font-size: var(--text-sm);
+		font-weight: 500;
 	}
 
 	.title {
@@ -96,6 +111,10 @@
 
 		.sub {
 			font-size: var(--text-sm);
+		}
+
+		.day {
+			font-size: var(--text-base);
 		}
 	}
 </style>

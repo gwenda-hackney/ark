@@ -60,8 +60,6 @@
 				minWidth: 180,
 				sortable: false,
 				valueGetter: (p) => (p.data?.kind === "night" ? p.data.name : ""),
-				tooltipValueGetter: (p) =>
-					p.data?.kind === "night" ? [whenLabel(p.data), p.data.name, p.data.meta].filter(Boolean).join("\n") : "",
 				cellRenderer: svelteCell(EventStackCell, (params: ICellRendererParams<ScheduleTableRow>) => ({
 					eyebrow: params.data?.kind === "night" ? whenLabel(params.data) : "",
 					title: params.data?.kind === "night" ? params.data.name : "",
