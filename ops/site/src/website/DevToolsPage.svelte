@@ -9,7 +9,8 @@
 	import { getSitePendingState } from "./site-pending.svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
-	import { BusyOverlay, Button, Dialog, PageHeader, SearchField } from "../ui";
+	import { Badge, BusyOverlay, Button, Dialog, PageHeader, SearchField } from "../ui";
+	import { changeBadgeTone, toBadgeTone } from "../ui/badge";
 	import {
 		copyDbPair,
 		getCodeDiff,
@@ -87,26 +88,53 @@
 	const preview = $derived(web?.environments.preview ?? null);
 	const live = $derived(web?.environments.production ?? null);
 
-	const codeSummary = $derived.by(() => {
+	/** Badges stay short; `title` carries the full sentence. */
+	type Summary = { tone: string; text: string; title?: string };
+
+	const codeSummary = $derived.by((): Summary => {
 		if (!code) return { tone: "muted", text: "Checking…" };
-		if (code.same === null) return { tone: "muted", text: "Version unknown" };
+		if (code.same === null) return { tone: "muted", text: "Unknown", title: "A site did not report its version" };
 		if (code.same) return { tone: "up", text: "Same code" };
 		const ahead = code.aheadBy ?? code.commits.length;
 		return {
 			tone: "warn",
-			text: ahead ? `${ahead} commit${ahead === 1 ? "" : "s"} not live` : "Different code",
+			text: ahead ? `${ahead} not live` : "Different",
+			title: ahead ? `${ahead} commit${ahead === 1 ? "" : "s"} not live` : "Different code",
 		};
 	});
 
-	function dbSummary(id: PairId): { tone: string; text: string } {
+	function dbSummary(id: PairId): Summary {
 		if (dbLoading[id] && !dbs[id]) return { tone: "muted", text: "Checking…" };
-		if (dbErrors[id]) return { tone: "muted", text: "Can't compare here" };
+		if (dbErrors[id]) return { tone: "muted", text: "Can't compare", title: dbErrors[id] };
 		const pair = dbs[id];
 		if (!pair) return { tone: "muted", text: "Not checked" };
 		if (pair.inSync) return { tone: "up", text: "In sync" };
 		const count = pair.tables.filter((table) => table.status !== "same").length;
-		return { tone: "warn", text: `${count} table${count === 1 ? "" : "s"} differ` };
+		return { tone: "warn", text: `${count} differ`, title: `${count} table${count === 1 ? "" : "s"} differ` };
 	}
+
+	const dbOverall = $derived.by((): Summary => {
+		const all = PAIRS.map((pair) => ({ pair, summary: dbSummary(pair.id) }));
+		const title = all.map(({ pair, summary }) => `${pair.label}: ${summary.title || summary.text}`).join(" · ");
+		if (all.some(({ summary }) => summary.tone === "warn")) return { tone: "warn", text: "Differ", title };
+		if (all.every(({ summary }) => summary.tone === "up")) return { tone: "up", text: "In sync", title };
+		return { tone: "muted", text: "Not checked", title };
+	});
+
+	const contentSummary = $derived.by(
+		(): Summary =>
+			entries.length
+				? {
+						tone: "warn",
+						text: `${entries.length} differ`,
+						title: `${entries.length} document${entries.length === 1 ? "" : "s"} differ`,
+					}
+				: { tone: "up", text: "In sync" },
+	);
+
+	/** Buttons stay put in every state; these say why one can't be used. */
+	const nothingWaiting = $derived(entries.length ? null : "Nothing differs from live");
+	const hostedOnly = $derived(local ? "Only runs in hosted ops" : null);
 
 	function toggle(set: Set<string>, id: string): Set<string> {
 		const next = new Set(set);
@@ -319,7 +347,7 @@
 	</div>
 {/snippet}
 
-{#snippet sectionHead(id: string, title: string, tone: string, text: string)}
+{#snippet sectionHead(id: string, title: string, summary: Summary)}
 	<button
 		type="button"
 		class="section-head"
@@ -327,10 +355,7 @@
 		onclick={() => (section = toggle(section, id))}
 	>
 		<span class="section-title">{title}</span>
-		<span class="pill {tone}">
-			<Icon name={toneIcon(tone)} size={13} />
-			{text}
-		</span>
+		<Badge tone={toBadgeTone(summary.tone)} label={summary.text} title={summary.title} />
 		<Icon name={section.has(id) ? "chevron-up" : "chevron-down"} size={18} />
 	</button>
 {/snippet}
@@ -341,10 +366,15 @@
 		subtitle="Preview against the live site: content, code and data. Admins only."
 	>
 		{#snippet actions()}
-			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev/settings")}>Settings</Button>
+			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev/settings")}>
+				{#snippet icon()}
+					<Icon name="settings" size={14} />
+				{/snippet}
+				Settings
+			</Button>
 			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={() => void load()}>
 				{#snippet icon()}
-					<Icon name="refresh" size={16} />
+					<Icon name="refresh" size={14} />
 				{/snippet}
 				Refresh
 			</Button>
@@ -383,14 +413,7 @@
 
 			<!-- 1. Content -->
 			<section class="card" aria-label="Content">
-				{@render sectionHead(
-					"content",
-					"Content",
-					entries.length ? "warn" : "up",
-					entries.length
-						? `${entries.length} document${entries.length === 1 ? "" : "s"} differ`
-						: "In sync",
-				)}
+				{@render sectionHead("content", "Content", contentSummary)}
 				{#if section.has("content")}
 					<div class="section-body">
 						{#if !entries.length}
@@ -403,20 +426,49 @@
 								{diff.counts.added} new on the preview · {diff.counts.changed} changed · {diff.counts.removed}
 								only on live. Tick documents to act on some; otherwise the buttons act on all.
 							</p>
-							<div class="actions">
-								<Button variant="primary" disabled={working} onclick={() => ask("to-production")}>
-									{#snippet icon()}
-										<Icon name="upload" size={16} />
-									{/snippet}
-									{selected.size ? `Publish ${countLabel(selectedCount)} to live` : "Publish all to live"}
-								</Button>
-								<Button variant="outline" disabled={working} onclick={() => ask("discard")}>
-									{#snippet icon()}
-										<Icon name="undo" size={16} />
-									{/snippet}
-									{selected.size ? `Discard ${countLabel(selected.size)}` : "Discard all preview changes"}
-								</Button>
-							</div>
+						{/if}
+						<!-- Secondary first, the one primary last, in every state. -->
+						<div class="actions">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={working || Boolean(nothingWaiting)}
+								reason={nothingWaiting ?? undefined}
+								onclick={() => ask("discard")}
+							>
+								{#snippet icon()}
+									<Icon name="undo" size={14} />
+								{/snippet}
+								{selected.size ? `Discard ${countLabel(selected.size)}` : "Discard all preview changes"}
+							</Button>
+							<Button
+								variant="primary"
+								size="sm"
+								disabled={working || Boolean(nothingWaiting)}
+								reason={nothingWaiting ?? undefined}
+								onclick={() => ask("to-production")}
+							>
+								{#snippet icon()}
+									<Icon name="upload" size={14} />
+								{/snippet}
+								{selected.size ? `Publish ${countLabel(selectedCount)} to live` : "Publish all to live"}
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="push-end"
+								disabled={Boolean(hostedOnly)}
+								reason={hostedOnly ?? undefined}
+								title="Preview pages look out of date? Rebuild them."
+								onclick={() => void rebuildPreview()}
+							>
+								{#snippet icon()}
+									<Icon name="refresh" size={14} />
+								{/snippet}
+								Rebuild preview
+							</Button>
+						</div>
+						{#if entries.length}
 							<SearchField
 								bind:value={query}
 								placeholder="Filter documents"
@@ -453,8 +505,11 @@
 														aria-label={`Select ${entry.label}`}
 														onchange={() => (selected = toggle(selected, entry.id))}
 													/>
-													<span class="badge {entry.change}">
-														{entry.change === "removed" ? "Live only" : changeLabel(entry.change)}
+													<span class="word">
+														<Badge
+															tone={changeBadgeTone(entry.change)}
+															label={entry.change === "removed" ? "Live only" : changeLabel(entry.change)}
+														/>
 													</span>
 													<button
 														type="button"
@@ -506,21 +561,13 @@
 								</section>
 							{/each}
 						{/if}
-						{#if !local}
-							<p class="footnote">
-								Preview pages look out of date?
-								<button type="button" class="link" onclick={() => void rebuildPreview()}>
-									Rebuild preview
-								</button>
-							</p>
-						{/if}
 					</div>
 				{/if}
 			</section>
 
 			<!-- 2. Code -->
 			<section class="card" aria-label="Code">
-				{@render sectionHead("code", "Code", codeSummary.tone, codeSummary.text)}
+				{@render sectionHead("code", "Code", codeSummary)}
 				{#if section.has("code")}
 					<div class="section-body">
 						{#if !code}
@@ -562,12 +609,7 @@
 
 			<!-- 3. Databases -->
 			<section class="card" aria-label="Databases">
-				{@render sectionHead(
-					"data",
-					"Databases",
-					PAIRS.some((pair) => dbSummary(pair.id).tone === "warn") ? "warn" : PAIRS.every((pair) => dbSummary(pair.id).tone === "up") ? "up" : "muted",
-					PAIRS.map((pair) => `${pair.label}: ${dbSummary(pair.id).text}`).join(" · "),
-				)}
+				{@render sectionHead("data", "Databases", dbOverall)}
 				{#if section.has("data")}
 					<div class="section-body">
 						<p class="muted">
@@ -579,10 +621,11 @@
 							{@const result = dbs[pair.id]}
 							{@const summary = dbSummary(pair.id)}
 							{@const run = copyRuns[pair.id]}
+							{@const copying = Boolean(run && run.status !== "completed")}
 							<section class="group" aria-label={pair.label}>
 								<header class="group-head db-head">
 									<h3>{pair.label}: production → {pair.copy}</h3>
-									<span class="pill {summary.tone}">{summary.text}</span>
+									<Badge tone={toBadgeTone(summary.tone)} label={summary.text} title={summary.title} />
 								</header>
 								<div class="db-body">
 									{#if dbErrors[pair.id]}
@@ -639,21 +682,23 @@
 											busy={dbLoading[pair.id]}
 											onclick={() => void loadDb(pair.id)}
 										>
+											{#snippet icon()}
+												<Icon name="refresh" size={14} />
+											{/snippet}
 											Compare again
 										</Button>
-										{#if !local}
-											<Button
-												variant="outline"
-												size="sm"
-												disabled={working || Boolean(run && run.status !== "completed")}
-												onclick={() => (confirmCopy = pair.id)}
-											>
-												{#snippet icon()}
-													<Icon name="undo" size={14} />
-												{/snippet}
-												Copy production over it
-											</Button>
-										{/if}
+										<Button
+											variant="outline"
+											size="sm"
+											disabled={working || copying || Boolean(hostedOnly)}
+											reason={hostedOnly ?? (copying ? "A copy is running" : undefined)}
+											onclick={() => (confirmCopy = pair.id)}
+										>
+											{#snippet icon()}
+												<Icon name="copy" size={14} />
+											{/snippet}
+											Copy production over it
+										</Button>
 										{#if run}
 											<span
 												class="run"
@@ -703,13 +748,17 @@
 			{/if}
 		</p>
 		{#snippet footer()}
-			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirm = null)}>Cancel</Button>
+			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirm = null)}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<Button
 				variant={confirm?.direction === "discard" ? "destructive" : "primary"}
 				size="sm"
 				busy={working}
 				onclick={() => void copyContent()}
 			>
+				{#snippet icon()}
+					<Icon name={confirm?.direction === "discard" ? "undo" : "upload"} size={14} />
+				{/snippet}
 				{confirm?.direction === "discard" ? "Discard" : "Publish"}
 			</Button>
 		{/snippet}
@@ -733,9 +782,13 @@
 			Production is only read. Photos are not copied. It runs as a GitHub Action and takes a few minutes.
 		</p>
 		{#snippet footer()}
-			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirmCopy = null)}>Cancel</Button>
+			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirmCopy = null)}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<!-- It overwrites the dev copy's rows: destructive, not a primary step. -->
 			<Button variant="destructive" size="sm" busy={working} onclick={() => void copyDatabase()}>
+				{#snippet icon()}
+					<Icon name="copy" size={14} />
+				{/snippet}
 				Copy and replace
 			</Button>
 		{/snippet}
@@ -756,7 +809,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
-		max-width: 60rem;
 	}
 
 	.error {
@@ -911,28 +963,6 @@
 		font-weight: 600;
 	}
 
-	.pill {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
-		padding: 0.15rem var(--space-2);
-		border-radius: var(--radius-pill);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		background: var(--muted);
-		color: var(--muted-foreground);
-	}
-
-	.pill.up {
-		color: var(--up);
-		background: color-mix(in srgb, var(--up) 14%, transparent);
-	}
-
-	.pill.warn {
-		color: var(--warning);
-		background: var(--primary-wash);
-	}
-
 	.section-body {
 		display: grid;
 		gap: var(--space-3);
@@ -947,33 +977,20 @@
 		gap: var(--space-2);
 	}
 
-	.link {
-		padding: 0;
-		border: 0;
-		background: none;
-		color: var(--primary);
-		font: inherit;
-		font-weight: 600;
-		cursor: pointer;
+	.actions :global(.push-end) {
+		margin-left: auto;
 	}
 
-	.link:hover {
-		text-decoration: underline;
-	}
-
-	/* Document list */
+	/* Document list: flat groups on the card's surface, divided by hairlines. */
 	.group {
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--background);
-		overflow: hidden;
+		border-top: 1px solid var(--border);
 	}
 
 	.group-head {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-2) 0;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -1018,7 +1035,7 @@
 		align-items: center;
 		gap: var(--space-2);
 		min-width: 0;
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-2) var(--space-2);
 	}
 
 	input[type="checkbox"] {
@@ -1028,31 +1045,11 @@
 		accent-color: var(--primary);
 	}
 
-	.badge {
+	/* Fixed width so the names line up whatever the badge says. */
+	.word {
+		display: inline-flex;
 		flex-shrink: 0;
 		width: 4.75rem;
-		padding: 0.15rem 0;
-		border-radius: var(--radius-pill);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-align: center;
-		text-transform: uppercase;
-	}
-
-	.badge.added {
-		color: var(--up);
-		background: color-mix(in srgb, var(--up) 14%, transparent);
-	}
-
-	.badge.changed {
-		color: var(--primary);
-		background: var(--primary-wash);
-	}
-
-	.badge.removed {
-		color: var(--destructive);
-		background: var(--destructive-wash);
 	}
 
 	.entry-main {
@@ -1096,7 +1093,7 @@
 	}
 
 	.entry .scroll {
-		padding: 0 var(--space-4) var(--space-3);
+		padding: 0 var(--space-2) var(--space-3);
 	}
 
 	table {
@@ -1175,7 +1172,7 @@
 	.db-body {
 		display: grid;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-4) var(--space-3);
+		padding: var(--space-2) 0 var(--space-3);
 	}
 
 	.run,
@@ -1211,9 +1208,8 @@
 			transform: rotate(90deg);
 		}
 
-		.badge {
+		.word {
 			width: auto;
-			padding: 0.15rem var(--space-2);
 		}
 
 		.checked {
