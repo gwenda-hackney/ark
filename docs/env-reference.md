@@ -309,7 +309,7 @@ The preview shows unpublished drafts and the dev website shows test data. A pass
 
 - **Owner:** Gwenda: a value we choose.
 - **SM:** `SITE_PASSWORD__DEV` ([`ark/web-dev`](#arkweb-dev)), `SITE_PASSWORD__PRODUCTION` ([`ark/web`](#arkweb)).
-- **What:** the password for the gate on the prod preview (preview.gwenda-blue) and the dev website. The live site is always public.
+- **What:** the password for the gate on the prod preview (preview.gwenda-blue) and the dev website. The live site is always public. Once Cloudflare Access is in front of the previews ([preview-access.md](preview-access.md)), people Access signed in skip it; it stays as the backstop.
 - **Used by:** the website middleware.
 - **Gets there by:** Pages secret, on the preview environment only.
 - **Expires:** never.
@@ -317,14 +317,25 @@ The preview shows unpublished drafts and the dev website shows test data. A pass
 
 ### `GATE_BYPASS_KEY`
 
-CI smoke tests and preview share links need to see a gated site without typing the password.
+CI smoke tests need to see a gated site without typing the password.
 
 - **Owner:** Gwenda: a random value we generate.
 - **SM:** `GATE_BYPASS_KEY__DEV` ([`ark/web-dev`](#arkweb-dev)), `GATE_BYPASS_KEY__PRODUCTION` ([`ark/web`](#arkweb)).
-- **What:** `?access=<key>` gets past the gate without the password. Used by the CI smoke tests on gated sites and by the preview share links.
-- **Used by:** the website middleware and `preview-share.js`; `smoke-test.mjs` in CI.
+- **What:** `?access=<key>` gets past the gate without the password. Used by the CI smoke tests on gated sites. Behind Cloudflare Access the smoke tests need `CF_ACCESS_CLIENT_ID` as well, since Access stops the request before the gate.
+- **Used by:** the website middleware; `smoke-test.mjs` in CI.
 - **Expires:** never.
-- **Changing it:** preview links already shared stop working.
+- **Changing it:** nothing else to update.
+
+### `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`
+
+The CI smoke tests check the preview sites, which sit behind Cloudflare Access.
+
+- **Owner:** each Cloudflare account: the Access service token `github-smoke-tests`.
+- **SM:** `CF_ACCESS_CLIENT_ID__DEV` / `CF_ACCESS_CLIENT_SECRET__DEV` ([`ark/web-dev`](#arkweb-dev)), and the `__PRODUCTION` pair ([`ark/web`](#arkweb)).
+- **What:** sent as `CF-Access-Client-Id` / `CF-Access-Client-Secret` on every smoke-test request, so Access lets CI through.
+- **Used by:** `smoke-test.mjs` in CI (`web.yml`). Never a Pages secret (`pagesSkip`).
+- **Expires:** never (made without an expiry).
+- **Changing it:** make a new token in Zero Trust, add it to the application's Service Auth policy, store it ([preview-access.md](preview-access.md#setting-it-up), steps 4–5), then delete the old token.
 
 ---
 
@@ -431,6 +442,7 @@ The same code runs as production, dev and on your machine; these tell it which o
 
 - `SITE_ENV`: `production`, `dev` or `local`. Required: `environmentOf` in `shared/config-db.js` throws if it is missing, so dev data can't reach production by accident. Set in every `wrangler*.toml`, and `production` on the site-health Worker.
 - `SITE_PREVIEW`: `true` on a website preview (drafts shown, password gate). Set in `[env.preview.vars]`.
+- `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`: the Cloudflare Access team (`https://<team>.cloudflareaccess.com`) and the preview application's audience tag. With both set, someone Access signed in skips the password. Set in `[env.preview.vars]`; see [preview-access.md](preview-access.md).
 
 ### Sanity
 
@@ -523,6 +535,7 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `FORMS_ADMIN_SECRET` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `SITE_PASSWORD` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `GATE_BYPASS_KEY` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
+| `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` | each Cloudflare account | `__DEV` / `__PRODUCTION` | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `DEPLOY_WEBHOOK_SECRET` | Gwenda | own values | [`ark/web`](#arkweb) / [`ark/web-dev`](#arkweb-dev) | never |
 | `DISPATCH_TOKEN` | GitHub user das974 | `__PRODUCTION` | [`ark`](#ark) / — | none reported |
 | `MAILCHIMP_API_KEY` | Mailchimp user dscalamogna@ | `__PRODUCTION` | [`ark/web`](#arkweb) / — | **~2027-10-01** |

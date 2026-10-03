@@ -147,6 +147,9 @@ export const SECRET_OWNERS = {
     "SUBSCRIBE_SECRET",
     "SITE_PASSWORD",
     "GATE_BYPASS_KEY",
+    // CI-only: the Cloudflare Access service token smoke tests use on previews.
+    "CF_ACCESS_CLIENT_ID",
+    "CF_ACCESS_CLIENT_SECRET",
     "SANITY_DEPLOY_TOKEN",
     "UNIFI_SITE_MANAGER_API_KEY",
     // Script-only (sm-export): the Mailchimp sync Worker.
@@ -216,8 +219,10 @@ export const APP_SECRETS = {
       "SANITY_API_TOKEN",
       "DEPLOY_WEBHOOK_SECRET",
       "GMAIL_SERVICE_ACCOUNT_JSON",
-        "SITE_PASSWORD",
+      "SITE_PASSWORD",
       "GATE_BYPASS_KEY",
+      "CF_ACCESS_CLIENT_ID",
+      "CF_ACCESS_CLIENT_SECRET",
       "SANITY_DEPLOY_TOKEN",
       "UNIFI_SITE_MANAGER_API_KEY",
     ],
@@ -225,7 +230,12 @@ export const APP_SECRETS = {
       BASEROW_API_KEY: "BASEROW_WEBSITE_API_KEY",
       GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
-    pagesSkip: ["SANITY_DEPLOY_TOKEN", "UNIFI_SITE_MANAGER_API_KEY"],
+    pagesSkip: [
+      "SANITY_DEPLOY_TOKEN",
+      "UNIFI_SITE_MANAGER_API_KEY",
+      "CF_ACCESS_CLIENT_ID",
+      "CF_ACCESS_CLIENT_SECRET",
+    ],
   },
 };
 

@@ -249,37 +249,6 @@ main {
   background: var(--color-gold);
 }
 
-.preview-ribbon-share {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--color-bg);
-  font: inherit;
-  line-height: 1.2;
-  text-align: center;
-  cursor: pointer;
-  pointer-events: auto;
-  appearance: none;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-}
-
-.preview-ribbon-share:hover,
-.preview-ribbon-share:focus-visible {
-  filter: brightness(1.08);
-}
-
-.preview-ribbon-share span {
-  pointer-events: none;
-}
-
 .preview-banner {
   position: fixed;
   top: 0;
@@ -7112,7 +7081,7 @@ a.event-card:focus-visible .event-title,
 
 /* Series gallery: rows of photos at one height, each as wide as its shape. */
 .series-gallery {
-  margin-top: clamp(2.5rem, 6vw, 4.5rem);
+  margin-top: clamp(0.5rem, 2vw, 1.5rem);
 }
 
 .series-gallery-list {
@@ -8048,8 +8017,7 @@ html.navigation-restore #rsvp-loading {
     overflow: visible;
   }
 
-  .preview-ribbon span,
-  .preview-ribbon-share {
+  .preview-ribbon span {
     position: static;
     width: auto;
     transform: none;
@@ -8059,23 +8027,6 @@ html.navigation-restore #rsvp-loading {
     border-radius: 2px;
     opacity: 0.65;
     box-shadow: none;
-  }
-
-  .preview-ribbon-share {
-    position: static;
-    inset: auto;
-    width: auto;
-    height: auto;
-    clip-path: none;
-    background: var(--color-gold);
-    opacity: 0.85;
-  }
-
-  .preview-ribbon-share span {
-    padding: 0;
-    opacity: 1;
-    font-size: inherit;
-    letter-spacing: inherit;
   }
 
   @media (prefers-reduced-motion: reduce) {
