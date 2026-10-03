@@ -490,8 +490,7 @@ export function renderGallery(images, { title = "" } = {}) {
     })} /></a></li>`;
   });
   return String(
-    html`<section class="series-gallery" aria-label="Gallery">
-      <h2 class="series-gallery-label">Gallery</h2>
+    html`<section class="series-gallery" aria-label="Photos">
       <ul class="series-gallery-list">
         ${items}
       </ul>
