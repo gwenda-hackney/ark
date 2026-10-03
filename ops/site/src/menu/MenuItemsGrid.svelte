@@ -7,7 +7,7 @@
 	 */
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { untrack } from "svelte";
-	import { Button, DataGrid, SearchField } from "../ui";
+	import { Button, DataGrid, EmptyState, Skeleton } from "../ui";
 	import {
 		hasRangeSelection,
 		keepFullWidthGroupsTogether,
@@ -18,6 +18,7 @@
 		compareNullable,
 		type MenuListItem,
 		type MenuListRow,
+		type MenuListSort,
 	} from "./menu-list";
 	import type { InventoryItem } from "../inventory/types";
 	import type { MenuItem, MenuSection } from "./types";
@@ -42,14 +43,23 @@
 	let {
 		sections,
 		inventory = [] as InventoryItem[],
-		query = $bindable(""),
+		query = "",
+		sort = "section",
+		count = $bindable(0),
+		loading = false,
 		selectedId = null,
 		onview,
 		onnew,
 	}: {
 		sections: MenuSection[];
 		inventory?: InventoryItem[];
+		/** The page header's search. */
 		query?: string;
+		/** Phone list order; the desktop grid sorts by its column headers. */
+		sort?: MenuListSort;
+		/** Items shown, for the header's count. */
+		count?: number;
+		loading?: boolean;
 		selectedId?: string | null;
 		onview: (item: MenuItem, tab?: string) => void;
 		onnew?: () => void;
@@ -71,6 +81,10 @@
 	const totalCount = $derived(
 		rowData.filter((row): row is MenuListItem => row._kind === "item").length,
 	);
+
+	$effect(() => {
+		count = totalCount;
+	});
 
 	const columnDefs = $derived.by((): ColDef<GridRow>[] => {
 		const search = needle;
@@ -310,8 +324,8 @@
 			{
 				headerName: "POS",
 				colId: "pos",
-				width: 120,
-				minWidth: 96,
+				width: 144,
+				minWidth: 120,
 				flex: 0,
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data._posLabel || "—" : "",
@@ -459,34 +473,26 @@
 </script>
 
 <div class="wrap">
-	<div class="toolbar">
-		<SearchField
-			bind:value={query}
-			placeholder="Search name, ingredients, description"
-			ariaLabel="Search drinks"
-			width="min(100%, 26rem)"
-			count={q ? totalCount : undefined}
-		/>
-		<div class="toolbar-end">
-			<p class="meta">{totalCount} item{totalCount === 1 ? "" : "s"}</p>
-			{#if onnew}
-				<Button variant="outline" size="sm" type="button" onclick={onnew}>
-					{#snippet icon()}
-						<Icon name="plus" size={15} />
-					{/snippet}
-					New item
-				</Button>
-			{/if}
-		</div>
-	</div>
-
-	{#if totalCount === 0}
-		<p class="empty">
-			{q ? "No drinks match that search." : "No menu items yet."}
-		</p>
+	{#if loading && totalCount === 0}
+		<div class="state"><Skeleton rows={10} thumb lines={1} label="Loading menu items…" /></div>
+	{:else if totalCount === 0}
+		{#if q}
+			<EmptyState icon="search" title="No drinks match" text="Search looks at names, ingredients and descriptions." />
+		{:else}
+			<EmptyState icon="recipes" title="No menu items yet" text="Add a drink to start the guest menu.">
+				{#snippet action()}
+					{#if onnew}
+						<Button size="sm" onclick={onnew}>
+							{#snippet icon()}<Icon name="plus" size={15} />{/snippet}
+							New item
+						</Button>
+					{/if}
+				{/snippet}
+			</EmptyState>
+		{/if}
 	{:else if phone.matches}
 		<div class="compact-host">
-			<CompactMenuList {query} {selectedId} rows={rowData} {onview} />
+			<CompactMenuList {query} {sort} {selectedId} rows={rowData} {onview} />
 		</div>
 	{:else}
 		<div class="grid-host">
@@ -558,35 +564,8 @@
 		background: var(--background);
 	}
 
-	.toolbar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-		flex-shrink: 0;
-		padding: 0.75rem var(--page-gutter);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.toolbar-end {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-3);
-	}
-
-	.meta {
-		margin: 0;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.empty {
-		margin: 2rem var(--page-gutter);
-		text-align: center;
-		color: var(--muted-foreground);
-		font-size: var(--text-md);
+	.state {
+		padding: 0 var(--page-gutter);
 	}
 
 	.grid-host {

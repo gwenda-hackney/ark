@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { NativeSelect } from "../ui";
 	import HighlightText from "../ui/HighlightText.svelte";
 	import type { MenuItem } from "./types";
 	import {
 		sortMenuListRows,
 		type MenuListRow,
+		type MenuListSort,
 	} from "./menu-list";
 	import PhotoCell from "./cells/PhotoCell.svelte";
 	import PublishStatusCell from "./cells/PublishStatusCell.svelte";
@@ -12,36 +12,22 @@
 	let {
 		rows,
 		query = "",
+		sort = "section",
 		selectedId = null,
 		onview,
 	}: {
 		rows: MenuListRow[];
 		query?: string;
+		/** Chosen in the page's Filters sheet. */
+		sort?: MenuListSort;
 		selectedId?: string | null;
 		onview: (item: MenuItem) => void;
 	} = $props();
 
-	let sort = $state("section");
-
-	const shown = $derived(
-		sortMenuListRows(rows, sort === "price" || sort === "pour" ? sort : "section"),
-	);
+	const shown = $derived(sortMenuListRows(rows, sort));
 </script>
 
 <div class="list">
-	<div class="sort">
-		<label class="sort-label" for="menu-list-sort">Sort</label>
-		<NativeSelect
-			id="menu-list-sort"
-			size="sm"
-			bind:value={sort}
-			options={[
-				{ value: "section", label: "Menu order" },
-				{ value: "pour", label: "Pour cost" },
-				{ value: "price", label: "Price" },
-			]}
-		/>
-	</div>
 	<div class="rows scrollbar-fade">
 		{#each shown as row (row._kind === "group" ? row._id : String(row._id || row.name || ""))}
 			{#if row._kind === "group"}
@@ -124,19 +110,6 @@
 		min-height: 0;
 		flex: 1;
 		height: 100%;
-	}
-
-	.sort {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		flex-shrink: 0;
-		padding: 0 0 var(--space-3);
-	}
-
-	.sort-label {
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
 	}
 
 	.rows {
@@ -227,6 +200,7 @@
 	}
 
 	.name {
+		font-size: var(--text-base);
 		font-weight: 500;
 		line-height: 1.3;
 		white-space: nowrap;
@@ -236,7 +210,7 @@
 
 	.meta,
 	.hint {
-		font-size: var(--text-xs);
+		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
@@ -263,11 +237,11 @@
 
 	.price {
 		font-size: var(--text-base);
-		font-weight: 600;
+		font-weight: 500;
 	}
 
 	.pour {
-		font-size: var(--text-xs);
+		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 	}
 

@@ -8,9 +8,12 @@
 	let {
 		label,
 		for: forId,
+		inlineLabel = true,
 		children,
 	}: {
 		label: string;
+		/** False when the control already says what it is inline (a labelled switch). */
+		inlineLabel?: boolean;
 		/** The control's id. Leave out for groups (chips), which get a role="group". */
 		for?: string;
 		children: Snippet;
@@ -18,12 +21,12 @@
 </script>
 
 {#if forId}
-	<div class="filter-field">
+	<div class="filter-field" class:quiet={!inlineLabel}>
 		<label class="filter-label" for={forId}>{label}</label>
 		<div class="filter-control">{@render children()}</div>
 	</div>
 {:else}
-	<div class="filter-field" role="group" aria-label={label}>
+	<div class="filter-field" class:quiet={!inlineLabel} role="group" aria-label={label}>
 		<span class="filter-label" aria-hidden="true">{label}</span>
 		<div class="filter-control">{@render children()}</div>
 	</div>
@@ -42,6 +45,14 @@
 		font-size: var(--text-sm);
 		color: var(--fg-muted);
 		white-space: nowrap;
+	}
+
+	.quiet .filter-label {
+		display: none;
+	}
+
+	:global(.filter-sheet) .quiet .filter-label {
+		display: block;
 	}
 
 	.filter-control {

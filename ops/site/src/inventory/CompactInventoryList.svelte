@@ -105,6 +105,7 @@
 	}
 
 	.name {
+		font-size: var(--text-base);
 		font-weight: 500;
 		line-height: 1.3;
 		white-space: nowrap;
@@ -113,7 +114,7 @@
 	}
 
 	.meta {
-		font-size: var(--text-xs);
+		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
@@ -127,6 +128,6 @@
 	.cost {
 		flex-shrink: 0;
 		font-size: var(--text-base);
-		font-weight: 600;
+		font-weight: 500;
 	}
 </style>

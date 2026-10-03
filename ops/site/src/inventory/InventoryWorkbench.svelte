@@ -5,7 +5,19 @@
 	import { onMount, untrack } from "svelte";
 	import { fade, fly } from "svelte/transition";
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
-	import { Button, BusyOverlay, DataGrid, SearchField } from "../ui";
+	import {
+		Button,
+		BusyOverlay,
+		DataGrid,
+		EmptyState,
+		FilterBar,
+		FilterField,
+		PageHeader,
+		Skeleton,
+		Switch,
+	} from "../ui";
+	import BadgeCell from "../ui/BadgeCell.svelte";
+	import { priceBasisTone } from "../ui/badge";
 	import { Icon } from "../app/shell";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
 	import * as api from "../app/api";
@@ -379,11 +391,11 @@
 				buttons: ["reset"],
 			},
 			valueGetter: (p) => priceBasisLabel(p.data),
-			cellClass: (p) => {
-				if (p.value === "Item estimate") return "warn";
-				if (p.value === "Kind estimate") return "down";
-				return "";
-			},
+			cellRenderer: svelteCell(BadgeCell, (params: ICellRendererParams<GridRow>) => ({
+				label: params.value ? String(params.value) : "",
+				tone: priceBasisTone(params.value ? String(params.value) : ""),
+				plainWhenNeutral: true,
+			})),
 		},
 		{
 			headerName: "Notes",
@@ -520,7 +532,11 @@
 <div class="workbench">
 	<div class="stage">
 		{#if loadError}
-			<p class="error">{loadError}</p>
+			<EmptyState tone="error" title="Could not load inventory" text={loadError}>
+				{#snippet action()}
+					<Button variant="outline" size="sm" onclick={() => { loadError = ""; void reload(); }}>Try again</Button>
+				{/snippet}
+			</EmptyState>
 		{:else if missingId}
 			<div class="pane list">
 				<div class="missing">
@@ -538,66 +554,68 @@
 				inert={detailOpen || item ? true : undefined}
 				aria-hidden={detailOpen || item ? true : undefined}
 			>
-				<header class="top">
-					<div class="copy">
-						<p class="eyebrow">Bar stock</p>
-						<h1>Inventory</h1>
-						<p class="lede">
-							Liquors and ingredients for cocktail recipes. Open an item to
-							see suppliers, pack price, and the product page.
-						</p>
-					</div>
-					<div class="tools">
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={reload}
-							disabled={busy}
-							busy={busy && busyLabel === "Loading…"}
-						>
-							{#snippet icon()}
-								<Icon name="refresh" size={15} />
-							{/snippet}
-							Reload
-						</Button>
-						<Button
-							variant="primary"
-							size="sm"
-							onclick={newItem}
-							disabled={busy}
-						>
-							{#snippet icon()}
-								<Icon name="plus" size={15} />
-							{/snippet}
-							Add item
-						</Button>
-					</div>
-				</header>
+				<div class="head">
+					<PageHeader
+						title="Inventory"
+						subtitle="Liquors and ingredients for cocktail recipes. Open an item for suppliers, pack price and the product page."
+					>
+						{#snippet actions()}
+							<Button
+								variant="outline"
+								size="sm"
+								data-compact
+								onclick={reload}
+								disabled={busy}
+								busy={busy && busyLabel === "Loading…"}
+							>
+								{#snippet icon()}
+									<Icon name="refresh" size={15} />
+								{/snippet}
+								Reload
+							</Button>
+							<Button variant="primary" size="sm" onclick={newItem} disabled={busy}>
+								{#snippet icon()}
+									<Icon name="plus" size={15} />
+								{/snippet}
+								Add item
+							</Button>
+						{/snippet}
+						{#snippet toolbar()}
+							<FilterBar
+								bind:query
+								placeholder="Search inventory"
+								ariaLabel="Search inventory"
+								searchCount={q ? rows.length : undefined}
+								active={showInactive ? 1 : 0}
+								chips={showInactive
+									? [{ key: "inactive", label: "Showing inactive", onremove: () => (showInactive = false) }]
+									: []}
+								onclearfilters={() => (showInactive = false)}
+							>
+								{#snippet filters()}
+									<FilterField label="Inactive items" inlineLabel={false}>
+										<Switch bind:checked={showInactive} label="Show inactive" />
+									</FilterField>
+								{/snippet}
+								{#snippet end()}
+									<p class="meta">{rows.length} item{rows.length === 1 ? "" : "s"}</p>
+								{/snippet}
+							</FilterBar>
+						{/snippet}
+					</PageHeader>
+				</div>
 
 				<div class="body">
-					<div class="toolbar">
-						<SearchField
-							bind:value={query}
-							placeholder="Search inventory"
-							ariaLabel="Search inventory"
-							width="min(100%, 22rem)"
-							count={q ? rows.length : undefined}
-						/>
-						<label class="toggle">
-							<input type="checkbox" bind:checked={showInactive} />
-							<span>Show inactive</span>
-						</label>
-						<p class="meta">
-							{rows.length} item{rows.length === 1 ? "" : "s"}
-						</p>
-					</div>
-
-					{#if rows.length === 0 && !loading}
-						<p class="empty">
-							{q
-								? "No inventory matches that search."
-								: "No inventory yet. Add liquors and mixers here."}
-						</p>
+					{#if loading && items.length === 0}
+						<Skeleton rows={10} lines={1} label="Loading inventory…" />
+					{:else if rows.length === 0 && q}
+						<EmptyState icon="search" title="Nothing matches" text="Try another name or supplier." />
+					{:else if rows.length === 0}
+						<EmptyState icon="inventory" title="No inventory yet" text="Add the liquors and mixers your recipes use.">
+							{#snippet action()}
+								<Button size="sm" onclick={newItem}>Add item</Button>
+							{/snippet}
+						</EmptyState>
 					{:else if phone.matches}
 						<CompactInventoryList {rows} {selectedId} onview={openItem} />
 					{:else}
@@ -649,7 +667,8 @@
 				</div>
 			{/if}
 		{/if}
-		<BusyOverlay active={loading} label={busyLabel} />
+		<!-- First load shows skeleton rows; the overlay covers a reload. -->
+		<BusyOverlay active={loading && items.length > 0} label={busyLabel} />
 	</div>
 </div>
 
@@ -690,52 +709,13 @@
 		z-index: 1;
 	}
 
-	.top {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-end;
-		justify-content: space-between;
-		gap: var(--space-4);
+	.head {
 		flex-shrink: 0;
-		padding: 1rem var(--page-gutter) 0.85rem;
-		border-bottom: 1px solid var(--border);
+		padding: var(--page-gutter) var(--page-gutter) 0;
 	}
 
-	.copy {
-		display: grid;
-		gap: 0.2rem;
-		min-width: 0;
-	}
-
-	.eyebrow {
-		margin: 0;
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-	}
-
-	h1 {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: var(--text-xl);
-		font-weight: 600;
-		letter-spacing: var(--tracking-2xl);
-	}
-
-	.lede {
-		margin: 0;
-		max-width: 36rem;
-		font-size: var(--text-base);
-		line-height: 1.45;
-		color: var(--muted-foreground);
-	}
-
-	.tools {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
+	.head :global(.page-header) {
+		margin-bottom: var(--space-4);
 	}
 
 	.body {
@@ -743,31 +723,7 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-3);
-		padding: 0.75rem var(--page-gutter) 0.85rem;
-	}
-
-	.toolbar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-3);
-		flex-shrink: 0;
-	}
-
-	.toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-		cursor: pointer;
-	}
-
-	.meta {
-		margin: 0 0 0 auto;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
+		padding: 0 var(--page-gutter) var(--space-3);
 	}
 
 	.grid-host {
@@ -794,18 +750,6 @@
 		background: var(--primary-wash) !important;
 	}
 
-	.empty,
-	.error {
-		margin: var(--space-6) 0;
-		font-size: var(--text-md);
-		color: var(--muted-foreground);
-	}
-
-	.error {
-		color: var(--destructive);
-		padding: 0 var(--page-gutter);
-	}
-
 	.missing {
 		display: grid;
 		gap: var(--space-3);
@@ -820,24 +764,5 @@
 	.pane.detail :global(.editor) {
 		flex: 1;
 		min-height: 0;
-	}
-
-	@media (max-width: 900px) {
-		.copy {
-			display: none;
-		}
-
-		.top {
-			padding-top: var(--space-3);
-			padding-bottom: var(--space-3);
-		}
-
-		.body {
-			padding-top: var(--space-2);
-		}
-
-		.meta {
-			margin-left: 0;
-		}
 	}
 </style>

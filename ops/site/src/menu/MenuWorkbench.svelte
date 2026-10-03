@@ -1,7 +1,18 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { fade, fly } from "svelte/transition";
-	import { Button, BusyOverlay, SidePanel } from "../ui";
+	import {
+		Button,
+		BusyOverlay,
+		Chip,
+		EmptyState,
+		FilterBar,
+		FilterField,
+		PageHeader,
+		SidePanel,
+	} from "../ui";
+	import type { FilterChip } from "../ui/filters";
+	import { MENU_LIST_SORTS, type MenuListSort } from "./menu-list";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { refreshSitePending } from "../website/site-pending.svelte";
@@ -63,6 +74,14 @@
 	let listPaneEl = $state<HTMLDivElement | undefined>();
 	let publishOpen = $state(false);
 	let query = $state("");
+	/** Phone list order. The desktop grid sorts by its column headers. */
+	let sort = $state<MenuListSort>("section");
+	let itemCount = $state(0);
+	const sortChips = $derived.by((): FilterChip[] => {
+		if (sort === "section") return [];
+		const label = MENU_LIST_SORTS.find((row) => row.id === sort)?.label || "";
+		return [{ key: "sort", label: `By ${label.toLowerCase()}`, onremove: () => (sort = "section") }];
+	});
 	let loadError = $state("");
 	let busy = $state(true);
 	let busyLabel = $state("Loading…");
@@ -553,6 +572,14 @@
 	});
 </script>
 
+{#snippet sortFilter()}
+	<FilterField label="Sort">
+		{#each MENU_LIST_SORTS as option (option.id)}
+			<Chip pressed={sort === option.id} onclick={() => (sort = option.id)}>{option.label}</Chip>
+		{/each}
+	</FilterField>
+{/snippet}
+
 {#if bookMode}
 	<div class="book-wrap">
 		<SpecBook
@@ -575,7 +602,11 @@
 	<div class="workbench">
 		<div class="stage">
 			{#if loadError}
-				<p class="load-error">{loadError}</p>
+				<EmptyState tone="error" title="Could not load the menu" text={loadError}>
+					{#snippet action()}
+						<Button variant="outline" size="sm" onclick={() => void runLoad()}>Try again</Button>
+					{/snippet}
+				</EmptyState>
 			{:else if missingId}
 				<div class="pane list">
 					<div class="missing">
@@ -593,53 +624,82 @@
 					inert={detailOpen || item ? true : undefined}
 					aria-hidden={detailOpen || item ? true : undefined}
 				>
-					<header class="top">
-						<div class="tools">
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={busy}
-								busy={loading}
-								onclick={reloadMenu}
-							>
-								{#snippet icon()}
-									<Icon name="refresh" size={15} />
-								{/snippet}
-								Reload
-							</Button>
-							{#if !phone.matches}
+					<div class="head">
+						<PageHeader title="Menu items">
+							{#snippet actions()}
 								<Button
 									variant="outline"
 									size="sm"
+									data-compact
 									disabled={busy}
-									onclick={() => goToPrint(menuPrintPath())}
+									busy={loading}
+									onclick={reloadMenu}
 								>
 									{#snippet icon()}
-										<Icon name="print" size={15} />
+										<Icon name="refresh" size={15} />
 									{/snippet}
-									Print
+									Reload
 								</Button>
-							{/if}
-							<Button
-								variant="primary"
-								size="sm"
-								disabled={busy}
-								onclick={openPublish}
-							>
-								{#snippet icon()}
-									<Icon name="upload" size={15} />
-								{/snippet}
-								{publishPending
-									? `Publish · ${publishPending}`
-									: "Publish"}
-							</Button>
-						</div>
-					</header>
+								{#if !phone.matches}
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={busy}
+										onclick={() => goToPrint(menuPrintPath())}
+									>
+										{#snippet icon()}
+											<Icon name="print" size={15} />
+										{/snippet}
+										Print
+									</Button>
+								{/if}
+								<Button variant="outline" size="sm" disabled={busy} onclick={newItem}>
+									{#snippet icon()}
+										<Icon name="plus" size={15} />
+									{/snippet}
+									New item
+								</Button>
+								<Button
+									variant="primary"
+									size="sm"
+									disabled={busy}
+									onclick={openPublish}
+								>
+									{#snippet icon()}
+										<Icon name="upload" size={15} />
+									{/snippet}
+									{publishPending
+										? `Publish · ${publishPending}`
+										: "Publish"}
+								</Button>
+							{/snippet}
+							{#snippet toolbar()}
+								<FilterBar
+									bind:query
+									placeholder="Search name, ingredients, description"
+									ariaLabel="Search drinks"
+									searchWidth="26rem"
+									searchCount={query.trim() ? itemCount : undefined}
+									active={sort === "section" ? 0 : 1}
+									chips={sortChips}
+									onclearfilters={() => (sort = "section")}
+									filters={phone.matches ? sortFilter : undefined}
+								>
+									{#snippet end()}
+										<p class="meta">{itemCount} item{itemCount === 1 ? "" : "s"}</p>
+									{/snippet}
+								</FilterBar>
+							{/snippet}
+						</PageHeader>
+					</div>
 					<div class="body">
 						<MenuItemsGrid
 							{sections}
 							{inventory}
-							bind:query
+							{query}
+							{sort}
+							bind:count={itemCount}
+							{loading}
 							{selectedId}
 							onview={(row, tab) => openItem(row, { tab })}
 							onnew={newItem}
@@ -677,7 +737,8 @@
 					</div>
 				{/if}
 			{/if}
-			<BusyOverlay active={loading} label={busyLabel} />
+			<!-- First load shows skeleton rows; the overlay covers a reload. -->
+			<BusyOverlay active={loading && itemCount > 0} label={busyLabel} />
 		</div>
 
 		<SidePanel
@@ -740,38 +801,16 @@
 		flex-direction: column;
 	}
 
-	.top {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-3) var(--space-4);
-		align-items: center;
-		justify-content: flex-end;
+	/* The grid runs edge to edge; only the header is padded. */
+	.head {
 		flex-shrink: 0;
-		padding: 0.65rem var(--page-gutter);
-		background: var(--background);
-		border-bottom: 1px solid var(--border);
-		min-height: var(--topbar-h);
+		padding: var(--page-gutter) var(--page-gutter) 0;
 	}
 
-	.tools {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-		align-items: center;
-		justify-content: flex-end;
+	.head :global(.page-header) {
+		margin-bottom: var(--space-4);
 	}
 
-	@media (max-width: 900px) {
-		.top {
-			padding: 0.55rem var(--page-gutter);
-			min-height: 0;
-		}
-	}
-
-	.load-error {
-		padding: 2rem var(--page-gutter);
-		color: var(--destructive);
-	}
 
 	.missing {
 		display: grid;
