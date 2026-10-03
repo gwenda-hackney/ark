@@ -346,7 +346,7 @@
 	>
 		{#snippet actions()}
 			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev/settings")}>Settings</Button>
-			<Button variant="outline" size="sm" disabled={loading} onclick={() => void load()}>
+			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={() => void load()}>
 				{#snippet icon()}
 					<Icon name="refresh" size={16} />
 				{/snippet}

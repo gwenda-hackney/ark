@@ -258,6 +258,7 @@
 				<Button
 					type="button"
 					variant="outline"
+					data-compact
 					disabled={busy}
 					onclick={() => void onreload()}
 				>

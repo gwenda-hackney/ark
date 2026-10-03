@@ -22,6 +22,7 @@
 	variant="ghost"
 	size="sm"
 	type="button"
+	data-compact
 	aria-expanded={open}
 	aria-haspopup="dialog"
 	onclick={() => (open = true)}

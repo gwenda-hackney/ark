@@ -3,6 +3,11 @@
 	 * Title block at the top of every page: big title, one supporting line, and
 	 * the page's actions on the right. Identical spacing everywhere, so no page
 	 * invents its own header again.
+	 *
+	 * Phones get a compact header: when the shell's tab strip already names the
+	 * page (`.title-in-strip`), the title is kept for screen readers only. The
+	 * subtitle is one line and the actions stay on one row. Give Help and
+	 * Refresh buttons `data-compact` and they shrink to their icon on phones.
 	 */
 	import type { Snippet } from "svelte";
 
@@ -87,5 +92,74 @@
 		align-items: center;
 		gap: var(--space-3);
 		flex-wrap: wrap;
+	}
+
+	/* Keep in sync with SHELL_MOBILE_MAX_PX. */
+	@media (max-width: 900px) {
+		.page-header {
+			gap: var(--space-3);
+			margin-bottom: var(--space-4);
+		}
+
+		.top {
+			flex-direction: column;
+			align-items: stretch;
+			flex-wrap: nowrap;
+			gap: var(--space-3);
+		}
+
+		.subtitle {
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			font-size: var(--text-sm);
+			line-height: var(--leading-sm);
+		}
+
+		/* The strip shows the page name; keep the heading for screen readers. */
+		:global(.title-in-strip) h1 {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			margin: -1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+
+		:global(.title-in-strip) .titles:not(:has(.eyebrow, .subtitle)) {
+			display: contents;
+		}
+
+		/* One row: scroll sideways rather than wrap into a ragged second line. */
+		.actions {
+			flex-wrap: nowrap;
+			justify-content: flex-start;
+			gap: var(--space-1);
+			margin: -2px;
+			padding: 2px;
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+
+		.actions::-webkit-scrollbar {
+			display: none;
+		}
+
+		.actions :global(.btn[data-compact]) {
+			width: var(--control-h);
+			height: var(--control-h);
+			padding: 0;
+		}
+
+		.actions :global(.btn[data-compact] .label) {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			margin: -1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
 	}
 </style>
