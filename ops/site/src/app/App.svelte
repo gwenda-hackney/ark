@@ -25,6 +25,9 @@
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
 	import { normalizeClientError, reportClientError } from "./client-error";
 	import { toast } from "../ui/toast.svelte";
+	import type { AuthMe } from "./api";
+
+	let { me }: { me: AuthMe } = $props();
 
 	const routes = NAV_ROUTES;
 
@@ -48,7 +51,7 @@
 	}
 </script>
 
-<ShellLayout {routes} bind:path>
+<ShellLayout {routes} {me} bind:path>
 	{#snippet children({ path: current })}
 		{@const key = pageKey(current)}
 		{@const print = Boolean(parseShellPath(current).print)}

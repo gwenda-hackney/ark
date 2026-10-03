@@ -129,9 +129,21 @@ describe("ops auth", () => {
   it("returns 403 when the email is not a user", async () => {
     const html = opsUserForbiddenResponse();
     assert.equal(html.status, 403);
-    assert.equal(
-      await html.text(),
-      "That Google account is not on the ops users list.",
-    );
+    assert.match(html.headers.get("Content-Type"), /^text\/html/);
+    const body = await html.text();
+    assert.match(body, /<h1>Not on the ops users list<\/h1>/);
+    assert.match(body, /href="\/api\/auth\/logout">Sign out</);
+    assert.match(body, /background:#0b0b0c/);
+    // System fonts only: nothing to swap in.
+    assert.doesNotMatch(body, /fonts\.googleapis|@font-face/);
+  });
+
+  it("returns a coded JSON 403 for API requests", async () => {
+    const res = opsUserForbiddenResponse({ json: true });
+    assert.equal(res.status, 403);
+    assert.deepEqual(await res.json(), {
+      error: "That Google account is not on the ops users list.",
+      code: "not_ops_user",
+    });
   });
 });

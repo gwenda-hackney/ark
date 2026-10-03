@@ -27,7 +27,6 @@ import {
 	eventListPath,
 	eventNewPath,
 	leaveEditor,
-	loginNext,
 	navigate,
 	normalizeEventTab,
 	parseShellPath,
@@ -279,10 +278,6 @@ export class EventEditor {
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Could not load events.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/events"))}`;
-				return;
-			}
 			this.error = message;
 		} finally {
 			this.loading = false;

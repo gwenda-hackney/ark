@@ -12,7 +12,6 @@
 	import { defaultPosMenus } from "./types";
 	import { Icon } from "../app/shell";
 	import {
-		loginNext,
 		itemMatchesKey,
 		itemSlug,
 		leaveEditor,
@@ -69,9 +68,6 @@
 	let busyLabel = $state("Loading…");
 	const loading = $derived(busy && busyLabel === "Loading…");
 	let editorCleanToken = $state(0);
-	let needsAuth = $state(false);
-	let authPassword = $state("");
-	let authError = $state("");
 	let missingId = $state("");
 	let appliedPath = "";
 
@@ -141,7 +137,6 @@
 		sections = menuData.sections || [];
 		posMenus = menuData.posMenus || [];
 		inventory = inventoryData.items || [];
-		needsAuth = false;
 		loadError = "";
 		if (selectedId && detailOpen) {
 			item = findById(selectedId);
@@ -157,12 +152,6 @@
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Failed to load menu.";
-			if (message.startsWith("auth:")) {
-				needsAuth = true;
-				loadError = "";
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/menu"))}`;
-				return false;
-			}
 			if (asReload) {
 				toast.error(message);
 			} else {
@@ -172,22 +161,6 @@
 		} finally {
 			busy = false;
 		}
-	}
-
-	async function submitAuth() {
-		authError = "";
-		try {
-			await api.login(authPassword, loginNext("/menu"));
-			authPassword = "";
-			await loadMenu();
-		} catch (err) {
-			authError = err instanceof Error ? err.message : "Login failed.";
-		}
-	}
-
-	function goLogin() {
-		const next = encodeURIComponent(loginNext("/menu"));
-		location.assign(`/api/auth/login?next=${next}`);
 	}
 
 	function blankItem(): MenuItem {
@@ -580,37 +553,7 @@
 	});
 </script>
 
-{#if needsAuth}
-	<div class="auth">
-		<p class="eyebrow">Gwenda · internal</p>
-		<h1>Sign in</h1>
-		<p class="muted">Your session expired or is missing. Sign in to continue.</p>
-		<div class="auth-form">
-			<Button variant="primary" onclick={goLogin}>Continue with Google</Button>
-			<details class="password-fallback">
-				<summary>Password instead</summary>
-				<form
-					onsubmit={(e) => {
-						e.preventDefault();
-						submitAuth();
-					}}
-				>
-					<input
-						type="password"
-						bind:value={authPassword}
-						placeholder="Password"
-						autocomplete="current-password"
-						required
-					/>
-					<Button variant="outline" type="submit">Enter</Button>
-				</form>
-			</details>
-			{#if authError}
-				<p class="auth-error">{authError}</p>
-			{/if}
-		</div>
-	</div>
-{:else if bookMode}
+{#if bookMode}
 	<div class="book-wrap">
 		<SpecBook
 			items={printBookItems}
@@ -754,63 +697,6 @@
 {/if}
 
 <style>
-	.auth {
-		flex: 1;
-		display: grid;
-		place-content: center;
-		gap: var(--space-3);
-		padding: var(--page-gutter);
-		text-align: center;
-	}
-
-	.auth h1 {
-		font-size: var(--text-xl);
-		letter-spacing: var(--tracking-xl);
-	}
-
-	.auth .muted {
-		color: var(--muted-foreground);
-		font-size: var(--text-md);
-	}
-
-	.auth-form {
-		display: grid;
-		gap: var(--space-3);
-		width: min(100%, 18rem);
-		margin: var(--space-4) auto 0;
-		justify-items: stretch;
-	}
-
-	.password-fallback {
-		text-align: left;
-		font-size: var(--text-base);
-		color: var(--muted-foreground);
-	}
-
-	.password-fallback summary {
-		cursor: pointer;
-		margin-bottom: var(--space-2);
-	}
-
-	.password-fallback form {
-		display: grid;
-		gap: var(--space-2);
-	}
-
-	.auth-form input {
-		height: var(--control-h);
-		padding: 0 var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
-		color: var(--foreground);
-	}
-
-	.auth-error {
-		color: var(--destructive);
-		font-size: var(--text-base);
-	}
-
 	.workbench {
 		position: relative;
 		display: flex;

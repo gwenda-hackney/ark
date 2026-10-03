@@ -1,15 +1,26 @@
 import { createCoalescer } from "../ui/coalesce";
+import { NOT_OPS_USER, bootAction, goToGate, pending, showForbidden } from "./boot";
 
 const coalesce = createCoalescer();
 
-function localLocation(header: string | null) {
-  if (!header) return "/gate/";
-  try {
-    const url = new URL(header, window.location.origin);
-    return `${url.pathname}${url.search}${url.hash}` || "/gate/";
-  } catch {
-    return header.startsWith("/") ? header : "/gate/";
+/**
+ * The one place a signed-out or removed user is caught, for every request.
+ * True when the page is leaving for the gate (or blocked): callers then wait
+ * on `pending()`, so no page paints an error on the way out.
+ */
+export async function handleAuthFailure(res: Response): Promise<boolean> {
+  const action = bootAction(res);
+  if (action === "gate") {
+    goToGate();
+    return true;
   }
+  if (action === "forbidden") {
+    const data = (await res.clone().json().catch(() => ({}))) as { code?: string };
+    if (data.code !== NOT_OPS_USER) return false;
+    showForbidden();
+    return true;
+  }
+  return false;
 }
 
 async function request<T = unknown>(
@@ -21,25 +32,12 @@ async function request<T = unknown>(
     redirect: "manual",
     credentials: "same-origin",
   });
-  if (res.type === "opaqueredirect" || res.status === 0 || res.status === 401) {
-    throw new Error("auth:/gate/");
-  }
-  if (res.status >= 300 && res.status < 400) {
-    throw new Error(`auth:${localLocation(res.headers.get("Location"))}`);
-  }
+  if (await handleAuthFailure(res)) return pending<T>();
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) {
     throw new Error(data.error || "Request failed.");
   }
   return data;
-}
-
-export async function login(password: string, next = "/menu") {
-  return request<{ ok: boolean; redirect?: string }>("/api/auth", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password, next }),
-  });
 }
 
 export type AuthMe = {
@@ -181,6 +179,7 @@ export function importRecipes(text: string) {
 
 export async function uploadPhoto(form: FormData) {
   const res = await fetch("/api/menu/image", { method: "POST", body: form });
+  if (await handleAuthFailure(res)) return pending<never>();
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
     url?: string;
@@ -195,6 +194,7 @@ export async function deletePhoto(itemId: string) {
     `/api/menu/image?itemId=${encodeURIComponent(itemId)}`,
     { method: "DELETE" },
   );
+  if (await handleAuthFailure(res)) return pending<never>();
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
     item?: import("../menu/types").MenuItem;

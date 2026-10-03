@@ -3,7 +3,6 @@
 	import { fly } from "svelte/transition";
 	import { BusyOverlay, Card, PageHeader } from "../ui";
 	import * as api from "../app/api";
-	import { loginNext } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
 	import type { MenuSection } from "./types";
@@ -26,10 +25,6 @@
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Could not load sections.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/sections"))}`;
-				return;
-			}
 			error = message;
 		} finally {
 			loading = false;

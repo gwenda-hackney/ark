@@ -20,7 +20,6 @@
 		type Heat,
 	} from "./dashboard";
 	import { formatPourPercent } from "../menu/cost";
-	import { loginNext } from "../app/nav";
 	import { pourSettings } from "../config/settings.svelte";
 	import type { InventoryItem } from "../inventory/types";
 	import type { MenuSection } from "../menu/types";
@@ -139,10 +138,6 @@
 			.catch((err) => {
 				const message =
 					err instanceof Error ? err.message : "Failed to load dashboard.";
-				if (message.startsWith("auth:")) {
-					window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/"))}`;
-					return;
-				}
 				loadError = message;
 			})
 			.finally(() => {

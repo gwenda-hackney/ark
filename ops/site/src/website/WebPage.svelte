@@ -29,7 +29,7 @@
 		type SitePendingItem,
 		type SiteStatus,
 	} from "../app/api";
-	import { loginNext, navigate } from "../app/nav";
+	import { navigate } from "../app/nav";
 	import { easeOut, flyMs } from "../ui/motion";
 	import { toast } from "../ui/toast.svelte";
 	import { getSitePendingState, refreshSitePending } from "./site-pending.svelte";
@@ -175,10 +175,6 @@
 			loadError = "";
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not check the website.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/web"))}`;
-				return;
-			}
 			loadError = message;
 		} finally {
 			loaded = true;

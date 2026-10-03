@@ -8,7 +8,7 @@
 	import Icon from "./Icon.svelte";
 	import MoreSheet from "./MoreSheet.svelte";
 	import type { NavRoute } from "./types";
-	import { getMe, type AuthMe } from "../api";
+	import type { AuthMe } from "../api";
 	import {
 		interceptClientNav,
 		listen,
@@ -41,9 +41,12 @@
 		brandTitle = "Gwenda",
 		brandSubtitle = "Operations",
 		path = $bindable("/"),
+		me = null,
 		children,
 	}: {
 		routes: NavRoute[];
+		/** Checked in main.ts before mount, so the banner and admin items are there on first paint. */
+		me?: AuthMe | null;
 		brandTitle?: string;
 		brandSubtitle?: string;
 		path?: string;
@@ -77,7 +80,6 @@
 	let expandedGroups = $state<Record<string, boolean>>(readExpandedGroups());
 	/** Bottom tab whose sheet is open, if any. */
 	let sheet = $state<MobileTabId | null>(null);
-	let me = $state<AuthMe | null>(null);
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
 	const sessionLabel = $derived(
@@ -114,13 +116,6 @@
 	);
 
 	onMount(() => {
-		void getMe()
-			.then((row) => {
-				me = row;
-			})
-			.catch(() => {
-				me = null;
-			});
 		const stopPending = startSitePendingPolling();
 		const stopJobs = startWebsiteJobs();
 		return () => {

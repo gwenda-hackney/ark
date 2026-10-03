@@ -9,7 +9,7 @@
 	import { Icon } from "../app/shell";
 	import { Button, PageHeader, SearchField } from "../ui";
 	import { getSettingsOverview, type SettingValue, type SettingsOverview } from "../app/api";
-	import { loginNext, navigate } from "../app/nav";
+	import { navigate } from "../app/nav";
 	import { easeOut, flyMs } from "../ui/motion";
 
 	const ENV_LABELS: Record<string, string> = {
@@ -41,7 +41,6 @@
 			loadError = "";
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not load settings.";
-			if (message.startsWith("auth:")) return loginNext();
 			loadError = message;
 		} finally {
 			loading = false;

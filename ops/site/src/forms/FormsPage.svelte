@@ -23,7 +23,7 @@
 	} from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
-	import { loginNext, navigate, parseShellPath } from "../app/nav";
+	import { navigate, parseShellPath } from "../app/nav";
 	import { formatWhen } from "../website/web-metrics";
 	import FormsGrid from "./FormsGrid.svelte";
 
@@ -219,10 +219,6 @@
 			} catch (err) {
 				const message =
 					err instanceof Error ? err.message : "Could not load submissions.";
-				if (message.startsWith("auth:")) {
-					window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/forms"))}`;
-					return;
-				}
 				error = message;
 			} finally {
 				loading = false;

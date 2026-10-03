@@ -17,7 +17,6 @@
 		itemMatchesKey,
 		itemSlug,
 		leaveEditor,
-		loginNext,
 		namesClash,
 		navigate,
 		parseShellPath,
@@ -180,10 +179,6 @@
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Failed to load inventory.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/inventory"))}`;
-				return;
-			}
 			loadError = message;
 		} finally {
 			busy = false;

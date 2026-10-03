@@ -57,10 +57,6 @@
 			.catch((err) => {
 				if (cancelled) return;
 				const message = err instanceof Error ? err.message : "Could not load the artist.";
-				if (message.startsWith("auth:")) {
-					window.location.href = message.slice("auth:".length) || "/gate/";
-					return;
-				}
 				error = message;
 				editorArtist = null;
 			})
@@ -84,10 +80,6 @@
 			artists = data.artists || [];
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not load artists.";
-			if (message.startsWith("auth:")) {
-				window.location.href = message.slice("auth:".length) || "/gate/";
-				return;
-			}
 			error = message;
 		} finally {
 			listLoading = false;

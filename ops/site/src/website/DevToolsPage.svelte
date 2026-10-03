@@ -25,7 +25,7 @@
 		type WebEnvStatus,
 		type WebStatus,
 	} from "../app/api";
-	import { loginNext, navigate } from "../app/nav";
+	import { navigate } from "../app/nav";
 	import { easeOut, flyMs } from "../ui/motion";
 	import { toast } from "../ui/toast.svelte";
 	import { beginSitePublish, writeSitePublish } from "./site-publish";
@@ -144,10 +144,6 @@
 			selected = new Set([...selected].filter((id) => ids.has(id)));
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not compare preview and live.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/web/dev"))}`;
-				return;
-			}
 			loadError = message;
 		} finally {
 			loading = false;

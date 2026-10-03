@@ -182,10 +182,6 @@
 
 	function fail(err: unknown, fallback: string): string {
 		const message = err instanceof Error ? err.message : fallback;
-		if (message.startsWith("auth:")) {
-			window.location.href = message.slice("auth:".length) || "/gate/";
-			return "";
-		}
 		return message;
 	}
 
