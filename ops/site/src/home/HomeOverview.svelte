@@ -6,7 +6,7 @@
 	 * loading and error state, so one failure never blanks the page.
 	 */
 	import { onMount } from "svelte";
-	import { PageHeader } from "../ui";
+	import { Badge, PageHeader } from "../ui";
 	import Icon from "../app/shell/Icon.svelte";
 	import * as api from "../app/api";
 	import { pourSettings } from "../config/settings.svelte";
@@ -355,7 +355,7 @@
 												<span class="sub warn-text">Calendar not up to date</span>
 											{/if}
 										</span>
-										<span class="badge {status.tone}">{status.label}</span>
+										<Badge tone={status.tone} label={status.label} />
 									</li>
 								{/each}
 							</ul>
@@ -386,16 +386,18 @@
 					<div class="site">
 						<div class="site-head">
 							<span class="site-name">{siteName(site)}</span>
-							<span class="badge {state.tone}">{state.label}</span>
+							<Badge tone={state.tone} label={state.label} />
 						</div>
 						{#if site.checks.length}
 							<ul class="rows checks">
 								{#each site.checks as check (check.name)}
 									<li class="row check">
 										<span class="check-name">{check.name}</span>
-										<span class="badge {check.ok ? 'success' : 'danger'}" title={checkDetail(check)}>
-											{check.ok ? "OK" : checkDetail(check)}
-										</span>
+										<Badge
+											tone={check.ok ? "success" : "danger"}
+											title={checkDetail(check)}
+											label={check.ok ? "OK" : checkDetail(check)}
+										/>
 									</li>
 								{/each}
 							</ul>
@@ -505,7 +507,7 @@
 											{issue.project}{#if issue.lastSeen}, last seen {relativeTime(issue.lastSeen, now)}{/if}
 										</span>
 									</span>
-									{#if issue.isNew}<span class="badge danger">New</span>{/if}
+									{#if issue.isNew}<Badge tone="danger" label="New" />{/if}
 									<span class="count tnum" title="Times in 24 hours">{issue.count}×</span>
 								</li>
 							{/each}
@@ -1013,39 +1015,6 @@
 		color: var(--warning);
 	}
 
-	.badge {
-		flex-shrink: 0;
-		padding: 0.125rem var(--space-2);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		font-size: var(--text-xs);
-		font-weight: 500;
-		line-height: 1.33;
-		color: var(--fg-muted);
-		white-space: nowrap;
-		max-width: 12rem;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.badge.success {
-		border-color: var(--success-border);
-		background: var(--success-wash);
-		color: var(--success);
-	}
-
-	.badge.warning {
-		border-color: var(--warning-border);
-		background: var(--warning-wash);
-		color: var(--warning);
-	}
-
-	.badge.danger {
-		border-color: var(--danger-border);
-		background: var(--danger-wash);
-		color: var(--danger);
-	}
-
 	.count {
 		flex-shrink: 0;
 		font-size: var(--text-sm);
@@ -1139,7 +1108,7 @@
 			font-size: var(--text-xs);
 		}
 
-		.night .badge {
+		.night > :global(.badge) {
 			grid-area: badge;
 		}
 	}
