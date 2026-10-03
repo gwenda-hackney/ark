@@ -60,9 +60,9 @@ export function readDensity(page: string, store?: Store | null): Density {
 	return readPref(densityKey(page), DENSITIES, "comfortable", store);
 }
 
-/** Cards suit a phone; a desk has room for the table. */
+/** Cards until someone picks the table; phones and desks remember separately. */
 export function readListView(page: string, phone: boolean, store?: Store | null): ListView {
-	return readPref(viewKey(page, phone), LIST_VIEWS, phone ? "cards" : "table", store);
+	return readPref(viewKey(page, phone), LIST_VIEWS, "cards", store);
 }
 
 export function rowHeightFor(density: Density): number {

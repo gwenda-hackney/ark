@@ -72,8 +72,8 @@
 	const view = listViewPref("menu-items", phone);
 	const density = densityPref("menu-items");
 	const VIEW_ITEMS = [
-		{ id: "table", label: "Table" },
 		{ id: "cards", label: "Cards" },
+		{ id: "table", label: "Table" },
 	] as const;
 
 	let sections = $state<MenuSection[]>([]);

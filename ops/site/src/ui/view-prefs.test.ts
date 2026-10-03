@@ -50,12 +50,12 @@ describe("view prefs", () => {
 		assert.doesNotThrow(() => writePref("k", "v", null));
 	});
 
-	it("defaults to cards on a phone and the table at a desk", () => {
+	it("defaults to cards on a phone and at a desk", () => {
 		const store = memoryStore();
 		assert.equal(readListView("menu-items", true, store), "cards");
-		assert.equal(readListView("menu-items", false, store), "table");
-		store.setItem(viewKey("menu-items"), "cards");
 		assert.equal(readListView("menu-items", false, store), "cards");
+		store.setItem(viewKey("menu-items"), "table");
+		assert.equal(readListView("menu-items", false, store), "table");
 		assert.equal(readListView("menu-items", true, store), "cards");
 		store.setItem(viewKey("menu-items", true), "table");
 		assert.equal(readListView("menu-items", true, store), "table");
@@ -92,15 +92,16 @@ describe("reactive list prefs", () => {
 		try {
 			const phone = { matches: false };
 			const pref = listViewPref("menu-items", phone);
-			assert.equal(pref.value, "table");
-			pref.value = "cards";
-			assert.equal(store.data.get("ops.view.menu-items"), "cards");
+			assert.equal(pref.value, "cards");
+			pref.value = "table";
+			assert.equal(store.data.get("ops.view.menu-items"), "table");
 			phone.matches = true;
 			assert.equal(pref.value, "cards");
 			pref.value = "table";
 			assert.equal(store.data.get("ops.view.menu-items.phone"), "table");
+			pref.value = "cards";
 			phone.matches = false;
-			assert.equal(pref.value, "cards");
+			assert.equal(pref.value, "table");
 		} finally {
 			Object.defineProperty(globalThis, "localStorage", { value: prior, configurable: true });
 		}
