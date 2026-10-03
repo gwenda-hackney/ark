@@ -28,6 +28,10 @@
 		icon,
 		trailing,
 		children,
+		reason,
+		disabled = false,
+		title,
+		onclick,
 		class: className = "",
 		...rest
 	}: HTMLButtonAttributes & {
@@ -39,17 +43,40 @@
 		icon?: Snippet;
 		trailing?: Snippet;
 		children?: Snippet;
+		/**
+		 * Why the button is unavailable, in plain words ("Save the series
+		 * first"). With `disabled` it becomes the tooltip, and the button is
+		 * marked aria-disabled rather than natively disabled so the tooltip
+		 * still shows on hover and keyboard users can reach it and hear why.
+		 */
+		reason?: string;
 	} = $props();
+
+	/** Disabled with a reason: still hoverable and focusable, but inert. */
+	const soft = $derived(Boolean(disabled && reason));
+
+	function handleClick(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {
+		if (soft) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
+		onclick?.(event);
+	}
 </script>
 
 <button
-	{type}
+	type={soft ? "button" : type}
 	class="btn {variant === 'secondary' ? 'outline' : variant} {size} {className}"
 	class:full
 	class:busy
 	class:icon-only={!children && !!icon}
 	aria-busy={busy || undefined}
 	{...rest}
+	disabled={soft ? undefined : disabled}
+	aria-disabled={soft ? "true" : rest["aria-disabled"]}
+	title={soft ? reason : title}
+	onclick={handleClick}
 >
 	{#if icon}
 		<span class="glyph">{@render icon()}</span>
@@ -84,12 +111,13 @@
 			transform var(--t-fast) var(--ease);
 	}
 
-	.btn:active:not(:disabled) {
+	.btn:active:not(:disabled, [aria-disabled="true"]) {
 		transform: scale(0.975);
 	}
 
 	/* Disabled reads as a flat, quiet slab, not a faded copy of itself. */
-	.btn:disabled {
+	.btn:disabled,
+	.btn[aria-disabled="true"] {
 		border-color: transparent;
 		background: var(--surface-3);
 		color: var(--fg-subtle);
@@ -97,7 +125,8 @@
 		cursor: not-allowed;
 	}
 
-	.ghost:disabled {
+	.ghost:disabled,
+	.ghost[aria-disabled="true"] {
 		background: transparent;
 	}
 
@@ -163,7 +192,7 @@
 		color: var(--primary-foreground);
 	}
 
-	.primary:hover:not(:disabled) {
+	.primary:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--primary-hover);
 	}
 
@@ -172,7 +201,7 @@
 		color: var(--foreground);
 	}
 
-	.outline:hover:not(:disabled) {
+	.outline:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--accent);
 		border-color: var(--border-strong);
 	}
@@ -183,7 +212,7 @@
 		color: var(--foreground);
 	}
 
-	.subtle:hover:not(:disabled) {
+	.subtle:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--surface-3);
 	}
 
@@ -191,7 +220,7 @@
 		color: var(--muted-foreground);
 	}
 
-	.ghost:hover:not(:disabled) {
+	.ghost:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--accent);
 		color: var(--foreground);
 	}
@@ -202,7 +231,7 @@
 		color: var(--foreground);
 	}
 
-	.accent:hover:not(:disabled) {
+	.accent:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--accent);
 	}
 
@@ -211,7 +240,7 @@
 		color: var(--destructive-foreground);
 	}
 
-	.destructive:hover:not(:disabled) {
+	.destructive:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--destructive-hover);
 	}
 

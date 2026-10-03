@@ -23,6 +23,8 @@
 	// Compared with what gwenda.co.uk shows (#42).
 	const groups = $derived(groupItemsForPublish(items, "production"));
 	const pending = $derived(groups.unpublished.length + groups.missing.length);
+	// Linked drinks with no snapshot still gain a baseline from an update.
+	const nothingToDo = $derived(pending === 0 && groups.unknown.length === 0);
 </script>
 
 <aside class="panel" aria-label="Update website" aria-busy={busy || undefined}>
@@ -41,7 +43,7 @@
 			onclick={onclose}
 		>
 			{#snippet icon()}
-				<Icon name="close" size={16} />
+				<Icon name="close" size={14} />
 			{/snippet}
 		</Button>
 	</header>
@@ -126,18 +128,22 @@
 			disabled={busy}
 			onclick={onclose}
 		>
+			{#snippet icon()}
+				<Icon name="close" size={14} />
+			{/snippet}
 			Cancel
 		</Button>
 		<Button
 			variant="primary"
 			size="sm"
 			type="button"
-			disabled={busy}
+			disabled={busy || nothingToDo}
+			reason={nothingToDo ? "The website already shows every drink" : undefined}
 			{busy}
 			onclick={onpublish}
 		>
 			{#snippet icon()}
-				<Icon name="upload" size={15} />
+				<Icon name="upload" size={14} />
 			{/snippet}
 			{busy ? "Updating…" : actionLabel}
 		</Button>
@@ -198,10 +204,6 @@
 
 	.note {
 		margin: 0;
-		padding: var(--space-3) var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
 		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--muted-foreground);

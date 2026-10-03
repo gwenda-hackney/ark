@@ -137,9 +137,13 @@
 				class="item"
 				class:destructive={item.tone === "destructive"}
 				disabled={item.disabled}
+				title={item.disabled ? item.reason : undefined}
 				onclick={() => choose(item)}
 			>
 				{item.label}
+				{#if item.disabled && item.reason}
+					<span class="item-reason">{item.reason}</span>
+				{/if}
 			</button>
 		{/each}
 	</div>
@@ -223,6 +227,20 @@
 	.item:disabled {
 		color: var(--fg-subtle);
 		cursor: not-allowed;
+	}
+
+	.item:has(.item-reason) {
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: center;
+		padding-block: var(--space-1);
+	}
+
+	.item-reason {
+		display: block;
+		font-size: var(--text-xs);
+		line-height: var(--leading-xs);
+		color: var(--fg-subtle);
 	}
 
 	@media (max-width: 900px) {

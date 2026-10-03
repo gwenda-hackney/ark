@@ -30,4 +30,6 @@ export type OverflowItem = {
 	onselect: () => void;
 	tone?: "destructive";
 	disabled?: boolean;
+	/** Why it's disabled, shown under the label ("Save the drink first"). */
+	reason?: string;
 };

@@ -63,6 +63,7 @@
 		type DraftHistory,
 	} from "./draft-history";
 	import { Icon } from "../app/shell";
+	import { menuEditorActions } from "./editor-actions";
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import MethodEditor from "./MethodEditor.svelte";
@@ -696,6 +697,18 @@
 	const currentDraft = $derived(serializeDraft(item));
 	const dirty = $derived(isDraftDirty(snapshot, currentDraft));
 	const canUndo = $derived(canUndoDraft(history, currentDraft));
+	const avail = $derived(
+		menuEditorActions({
+			saved: Boolean(item?._id),
+			named: Boolean(item?.name?.trim()),
+			canUndo,
+			cocktail: showRecipe,
+			hasIngredientLine: Boolean(flattenIngredientsForMenu(ingredients)),
+			canRecalc: canRecalcRecipe,
+			hasPhoto: Boolean(photoUrl),
+			busy,
+		}),
+	);
 	const undoHint =
 		typeof navigator !== "undefined" &&
 		/Mac|iPhone|iPad/.test(navigator.platform || "")
@@ -768,26 +781,26 @@
 					</div>
 					<div class="head-tools">
 						<div class="toolbar-actions">
-							{#if item._id && item.name?.trim()}
-								<Button
+							<Button
 									variant="ghost"
 									size="sm"
 									type="button"
-									disabled={busy}
+									disabled={avail.print.disabled}
+									reason={avail.print.reason}
 									title="Print recipe"
 									aria-label="Print recipe"
 									onclick={() => void onprint?.()}
 								>
 									{#snippet icon()}
-										<Icon name="print" size={15} />
+										<Icon name="print" size={14} />
 									{/snippet}
 								</Button>
-							{/if}
 							<Button
 								variant="ghost"
 								size="sm"
 								type="button"
-								disabled={busy || !canUndo}
+								disabled={avail.undo.disabled}
+								reason={avail.undo.reason}
 								title={`Undo ${undoHint}`}
 								aria-label={`Undo last edit (${undoHint})`}
 								onclick={undo}
@@ -800,7 +813,8 @@
 								variant="ghost"
 								size="sm"
 								type="button"
-								disabled={busy || !item._id}
+								disabled={avail.reload.disabled}
+								reason={avail.reload.reason}
 								title="Reload"
 								aria-label="Reload from server"
 								onclick={requestReload}
@@ -1054,20 +1068,19 @@
 										hint="The ingredient line or a longer blurb."
 									>
 										{#snippet actions()}
-											{#if showRecipe}
-												<Button
-													variant="ghost"
-													size="xs"
-													type="button"
-													disabled={!flattenIngredientsForMenu(ingredients)}
-													onclick={createMenuLineFromIngredients}
-												>
-													{#snippet icon()}
-														<Icon name="from-list" size={14} />
-													{/snippet}
-													From recipe
-												</Button>
-											{/if}
+											<Button
+												variant="ghost"
+												size="xs"
+												type="button"
+												disabled={avail.fromRecipe.disabled}
+												reason={avail.fromRecipe.reason}
+												onclick={createMenuLineFromIngredients}
+											>
+												{#snippet icon()}
+													<Icon name="from-list" size={14} />
+												{/snippet}
+												From recipe
+											</Button>
 										{/snippet}
 										<TextArea
 											id="f-description"
@@ -1086,21 +1099,20 @@
 											hint={showRecipe ? "From the recipe. Type over it if needed." : undefined}
 										>
 											{#snippet actions()}
-												{#if showRecipe}
-													<Button
-														variant="ghost"
-														size="xs"
-														type="button"
-														aria-label="Work out ABV and volume from the recipe"
-														title="Work out ABV and volume from the recipe"
-														disabled={!canRecalcRecipe}
-														onclick={recalculateRecipeMetrics}
-													>
-														{#snippet icon()}
-															<Icon name="refresh" />
-														{/snippet}
-													</Button>
-												{/if}
+												<Button
+													variant="ghost"
+													size="xs"
+													type="button"
+													aria-label="Work out ABV and volume from the recipe"
+													title="Work out ABV and volume from the recipe"
+													disabled={avail.recalc.disabled}
+													reason={avail.recalc.reason}
+													onclick={recalculateRecipeMetrics}
+												>
+													{#snippet icon()}
+														<Icon name="refresh" size={14} />
+													{/snippet}
+												</Button>
 											{/snippet}
 											<NumberField
 												id="f-abv"
@@ -1148,35 +1160,51 @@
 									description={item._id ? "On the digital menu." : "Save the drink first, then add a photo."}
 								>
 									{#snippet actions()}
-										{#if item?._id}
-											<label class="photo-btn camera">
-												<input
-													class="sr-only"
-													type="file"
-													accept="image/*"
-													capture="environment"
-													disabled={busy}
-													onchange={onPhotoInput}
-												/>
-												<Icon name="camera" size={15} />
-												Take photo
-											</label>
-											{#if photoUrl}
-												<label class="photo-btn">
-													<input
-														class="sr-only"
-														type="file"
-														accept="image/jpeg,image/png,image/webp,image/gif"
-														disabled={busy}
-														onchange={onPhotoInput}
-													/>
-													Replace
-												</label>
-												<button class="photo-btn remove" type="button" disabled={busy} onclick={removePhoto}>
-													Remove
-												</button>
-											{/if}
-										{/if}
+										<!-- Always shown; unavailable ones are disabled with a reason. -->
+										<label
+											class="photo-btn camera"
+											class:disabled={avail.takePhoto.disabled}
+											title={avail.takePhoto.reason}
+										>
+											<input
+												class="sr-only"
+												type="file"
+												accept="image/*"
+												capture="environment"
+												disabled={avail.takePhoto.disabled}
+												onchange={onPhotoInput}
+											/>
+											<Icon name="camera" size={14} />
+											Take photo
+										</label>
+										<label
+											class="photo-btn"
+											class:disabled={avail.replacePhoto.disabled}
+											title={avail.replacePhoto.reason}
+										>
+											<input
+												class="sr-only"
+												type="file"
+												accept="image/jpeg,image/png,image/webp,image/gif"
+												disabled={avail.replacePhoto.disabled}
+												onchange={onPhotoInput}
+											/>
+											<Icon name="upload" size={14} />
+											Replace
+										</label>
+										<Button
+											variant="outline"
+											size="sm"
+											class="photo-remove"
+											disabled={avail.removePhoto.disabled}
+											reason={avail.removePhoto.reason}
+											onclick={removePhoto}
+										>
+											{#snippet icon()}
+												<Icon name="trash" size={14} />
+											{/snippet}
+											Remove
+										</Button>
 									{/snippet}
 									<div
 										class="photo"
@@ -1313,9 +1341,15 @@
 					{dirty}
 					errorCount={errors.count}
 					onerrors={() => void showErrors()}
-					overflow={item._id
-						? [{ label: "Delete drink", tone: "destructive", disabled: busy, onselect: requestDelete }]
-						: []}
+					overflow={[
+						{
+							label: "Delete drink",
+							tone: "destructive",
+							disabled: avail.delete.disabled,
+							reason: avail.delete.reason,
+							onselect: requestDelete,
+						},
+					]}
 				/>
 			</div>
 		</div>
@@ -1648,20 +1682,26 @@
 		display: grid;
 	}
 
+	/* File pickers are labels; they match an outline sm Button beside Remove. */
 	.photo-btn {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-		height: var(--control-h-sm);
-		padding: 0 var(--space-3);
-		border: 1px solid var(--border);
+		height: var(--button-h-sm);
+		padding: 0 var(--space-3) 0 var(--space-2);
+		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
-		background: var(--surface-2);
-		color: inherit;
+		background: transparent;
+		color: var(--foreground);
 		font: inherit;
 		font-size: var(--text-sm);
-		font-weight: 600;
+		font-weight: 500;
+		white-space: nowrap;
 		cursor: pointer;
+	}
+
+	.photo-btn:hover:not(.disabled) {
+		background: var(--accent);
 	}
 
 	/* Phones and tablets only: opens the camera straight away. */
@@ -1681,15 +1721,16 @@
 		outline-offset: 2px;
 	}
 
-	.photo-btn.remove:hover:not(:disabled),
-	.photo-btn.remove:focus-visible {
+	:global(.photo-remove:hover:not(:disabled, [aria-disabled="true"])) {
 		color: var(--destructive);
 		background: var(--destructive-wash);
 	}
 
-	.photo-btn:disabled {
+	.photo-btn.disabled {
+		border-color: transparent;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 		cursor: not-allowed;
-		color: var(--subtle-foreground);
 	}
 
 	.photo-frame,

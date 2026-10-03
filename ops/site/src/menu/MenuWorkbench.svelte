@@ -654,7 +654,7 @@
 									onclick={reloadMenu}
 								>
 									{#snippet icon()}
-										<Icon name="refresh" size={15} />
+										<Icon name="refresh" size={14} />
 									{/snippet}
 									Reload
 								</Button>
@@ -666,14 +666,14 @@
 										onclick={() => goToPrint(menuPrintPath())}
 									>
 										{#snippet icon()}
-											<Icon name="print" size={15} />
+											<Icon name="print" size={14} />
 										{/snippet}
 										Print
 									</Button>
 								{/if}
 								<Button variant="outline" size="sm" disabled={busy} onclick={newItem}>
 									{#snippet icon()}
-										<Icon name="plus" size={15} />
+										<Icon name="plus" size={14} />
 									{/snippet}
 									New item
 								</Button>
@@ -684,7 +684,7 @@
 									onclick={openPublish}
 								>
 									{#snippet icon()}
-										<Icon name="upload" size={15} />
+										<Icon name="upload" size={14} />
 									{/snippet}
 									{publishPending
 										? `Publish · ${publishPending}`
@@ -705,9 +705,11 @@
 								>
 									{#snippet end()}
 										<p class="meta">{itemCount} item{itemCount === 1 ? "" : "s"}</p>
-										{#if view.value === "table"}
-											<DensityToggle bind:value={density.value} />
-										{/if}
+										<DensityToggle
+											bind:value={density.value}
+											disabled={view.value !== "table"}
+											reason="Only for the table"
+										/>
 										<Segmented
 											value={view.value}
 											items={VIEW_ITEMS}

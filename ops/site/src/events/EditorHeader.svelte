@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Icon } from "../app/shell";
-	import { Button, PageHelp } from "../ui";
+	import { Badge, Button, PageHelp } from "../ui";
+	import { editorHeaderActions } from "./editor-header-actions";
 	import type { OpsEvent } from "../app/api";
 	import { eventItemPath } from "../app/nav";
 	import { eventHeaderFlag } from "./event-header-status";
@@ -82,6 +83,17 @@
 		}),
 	);
 	const liveCurrent = $derived(current?.publish.live === "current");
+	const actions = $derived(
+		editorHeaderActions({
+			eventId,
+			isNew,
+			editingNight,
+			special: creatingOnce || editingOnce,
+			dirty,
+			busy,
+			liveCurrent,
+		}),
+	);
 	// Event pages render on request (#25): on the website means live now.
 	const pageUrl = $derived(
 		current?.slug
@@ -110,76 +122,71 @@
 				<Icon name="events" size={14} />
 			{/if}
 			<p class="eyebrow">{typeLine}</p>
-			{#if headerFlag.tone === "live" && pageUrl}
-				<a
-					class="status-flag live"
-					href={pageUrl}
-					target="_blank"
-					rel="noopener"
-					title="Open the page on the website">{headerFlag.label} ↗</a
-				>
+			{#if headerFlag.live && pageUrl}
+				<a class="flag-link" href={pageUrl} target="_blank" rel="noopener" title="{headerFlag.title}. Open the page.">
+					<Badge tone={headerFlag.tone} label="{headerFlag.label} ↗" />
+				</a>
 			{:else}
-				<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
+				<Badge tone={headerFlag.tone} label={headerFlag.label} title={headerFlag.title} />
 			{/if}
 		</div>
 		<div class="head-tools">
 			<div class="toolbar-actions">
-				{#if eventId && !isNew && !editingOccurrence && !editingOnce}
-					<Button
-						variant="outline"
-						size="sm"
-						type="button"
-						disabled={busy}
-						title="Add a night to this series."
-						onclick={onaddnight}
-					>
-						{#snippet icon()}
-							<Icon name="plus" size={16} />
-						{/snippet}
-						Add night
-					</Button>
-				{/if}
-				{#if eventId && !isNew}
-					<Button
-						variant="outline"
-						size="sm"
-						type="button"
-						disabled={busy || dirty}
-						busy={calendarSyncing}
-						title={
-							dirty
-								? "Save before updating the calendar."
-								: "Send the upcoming nights for this series to Google Calendar."
-						}
-						onclick={() => onsynccalendar()}
-					>
-						Update calendar
-					</Button>
-					{#if !liveCurrent}
-						<Button
-							variant="primary"
-							size="sm"
-							type="button"
-							disabled={busy || dirty}
-							title={dirty ? "Save first." : "Put this version of the event on gwenda.co.uk."}
-							onclick={onputonwebsite}
-						>
-							Update website
-						</Button>
-					{/if}
-				{/if}
+				<!-- Always the same buttons in the same places; ones that don't apply
+				     are disabled with a reason rather than hidden. -->
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={actions.addNight.disabled}
+					reason={actions.addNight.reason}
+					title="Add a night to this series."
+					onclick={onaddnight}
+				>
+					{#snippet icon()}
+						<Icon name="plus" size={14} />
+					{/snippet}
+					Add night
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={actions.calendar.disabled}
+					reason={actions.calendar.reason}
+					busy={calendarSyncing}
+					title="Send the upcoming nights for this series to Google Calendar."
+					onclick={() => onsynccalendar()}
+				>
+					{#snippet icon()}
+						<Icon name="calendar" size={14} />
+					{/snippet}
+					Update calendar
+				</Button>
+				<Button
+					variant="primary"
+					size="sm"
+					disabled={actions.website.disabled}
+					reason={actions.website.reason}
+					title="Put this version of the event on gwenda.co.uk."
+					onclick={onputonwebsite}
+				>
+					{#snippet icon()}
+						<Icon name="upload" size={14} />
+					{/snippet}
+					Update website
+				</Button>
 				<PageHelp title="Events" topics={EVENTS_HELP} />
 				<Button
 					variant="ghost"
 					size="sm"
 					type="button"
-					disabled={busy || !eventId}
+					disabled={actions.reload.disabled}
+					reason={actions.reload.reason}
 					title="Reload"
 					aria-label="Reload from server"
 					onclick={onreload}
 				>
 					{#snippet icon()}
-						<Icon name="refresh" />
+						<Icon name="refresh" size={14} />
 					{/snippet}
 				</Button>
 				<Button
@@ -192,7 +199,7 @@
 					onclick={onclose}
 				>
 					{#snippet icon()}
-						<Icon name="close" size={16} />
+						<Icon name="close" size={14} />
 					{/snippet}
 				</Button>
 			</div>
@@ -407,59 +414,19 @@
 		letter-spacing: var(--tracking-lg);
 	}
 
-	.status-flag {
+	.flag-link {
 		display: inline-flex;
-		align-items: center;
-		flex-shrink: 0;
-		width: fit-content;
-		margin: 0;
-		padding: 0.18rem var(--space-2);
-		border-radius: var(--radius-pill);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		line-height: 1.2;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.status-flag.unpublished {
-		color: var(--primary-foreground);
-		background: var(--primary);
-	}
-
-	.status-flag.unsaved {
-		color: var(--destructive-foreground);
-		background: var(--destructive);
-	}
-
-	.status-flag.preview {
-		color: var(--foreground);
-		background: var(--primary-wash-strong);
-	}
-
-	.status-flag.live {
-		color: var(--primary);
-		background: var(--primary-wash);
+		border-radius: var(--radius-sm);
 		text-decoration: none;
 	}
 
-	a.status-flag.live:hover {
-		background: var(--primary-wash-strong);
+	.flag-link:hover :global(.badge) {
+		border-color: var(--success);
 	}
 
-	.status-flag.new {
-		color: var(--foreground);
-		background: var(--muted);
-		box-shadow: inset 0 0 0 1px var(--border-strong);
-	}
-
-	.status-flag.muted {
-		color: var(--muted-foreground);
-		font-weight: 500;
-		text-transform: none;
-		padding: 0;
-		background: transparent;
+	.flag-link:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
 	}
 
 	.head-note {
