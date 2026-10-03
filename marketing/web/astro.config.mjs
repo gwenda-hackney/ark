@@ -680,6 +680,48 @@ function devWhatsOnApi() {
   };
 }
 
+/** Series, night and ticket pages, as functions/whats-on/[[path]].js renders them. */
+function devEventPages() {
+  return {
+    name: "dev-event-pages",
+    configureServer(server) {
+      server.middlewares.use(
+        caught("dev event pages", async (req, res, next) => {
+          const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
+          if (!url.pathname.startsWith("/whats-on/")) {
+            next();
+            return;
+          }
+          const { renderEventPage, SERIES_SHELL } = await server.ssrLoadModule(
+            "/functions/_lib/event-pages.js",
+          );
+          if (req.method !== "GET" || url.pathname.startsWith(SERIES_SHELL)) {
+            next();
+            return;
+          }
+          const response = await renderEventPage(
+            devApiEnv(),
+            url.pathname,
+            async (path) =>
+              (
+                await fetch(new URL(path, url), {
+                  headers: { cookie: req.headers.cookie || "" },
+                })
+              ).text(),
+          );
+          if (!response) {
+            next();
+            return;
+          }
+          res.statusCode = response.status;
+          response.headers.forEach((value, key) => res.setHeader(key, value));
+          res.end(await response.text());
+        }),
+      );
+    },
+  };
+}
+
 /** Dev-only stub for /api/featured-artist */
 function devFeaturedArtistApi() {
   return {
@@ -809,6 +851,7 @@ export default defineConfig({
       devTicketApi(),
       devEventsApi(),
       devWhatsOnApi(),
+      devEventPages(),
       devFeaturedArtistApi(),
       ...(gatePlugin ? [gatePlugin] : []),
     ],

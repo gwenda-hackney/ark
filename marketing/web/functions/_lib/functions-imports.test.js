@@ -16,6 +16,8 @@ const modules = [
   "../api/whats-on.js",
   "../api/whats-on/schedule.js",
   "../api/whats-on/[series].js",
+  "../whats-on/[[path]].js",
+  "../og/events/[slug].js",
   "../api/auth.js",
   "../api/preview-share.js",
   "./event-password.js",

@@ -35,6 +35,7 @@ const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") =
 
 const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   "id": slug.current,
+  formerSlugs,
   title,
   schedule,
   datesPending,
@@ -104,6 +105,7 @@ export async function fetchPublishedSeries(env) {
     .filter((row) => row?.id && row?.title)
     .map((row) => ({
       seriesId: row.id,
+      formerSlugs: Array.isArray(row.formerSlugs) ? row.formerSlugs : [],
       title: row.title,
       schedule:
         row.schedule === "repeating"
