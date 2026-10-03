@@ -2,9 +2,9 @@ import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platfor
 import {
   attachCalendarWarnings,
 } from "../../../src/events/server/event-calendar-sync.js";
-import { deleteEvent, getEvent, updateEvent } from "../../../src/events/server/event-store.js";
+import { getEvent, updateEvent } from "../../../src/events/server/event-store.js";
 import {
-  removeEventFromWebsite,
+  deleteEventFromOps,
   withWebsiteStatus,
 } from "../../../src/events/server/event-publish.js";
 
@@ -35,12 +35,9 @@ export const onRequestPatch = withApiHandler(async (context) => {
 export const onRequestDelete = withApiHandler(async (context) => {
   const id = eventId(context);
   if (!id) return jsonResponse({ error: "Missing event id." }, 400);
-  const event = await getEvent(context.env, id);
-  // Deleting takes it off the preview and the website together: every
-  // document of the series, including nights removed in ops but still live.
-  const warnings = await removeEventFromWebsite(context.env, event);
-  await deleteEvent(context.env, id);
+  // Off the preview now; off the website on Update website (#23).
+  const { pending, warnings } = await deleteEventFromOps(context.env, id);
   return jsonResponse(
-    attachCalendarWarnings(context.env, { ok: true, id, warnings }),
+    attachCalendarWarnings(context.env, { ok: true, id, pending, warnings }),
   );
 });

@@ -260,12 +260,12 @@ describe("EventEditor: one night", () => {
 describe("EventEditor: delete, calendar", () => {
 	it("deletes a series and leaves the editor", async () => {
 		const editor = await open("/events/ev1");
-		api.deleteEvent.mockResolvedValue({ ok: true, warnings: [] });
+		api.deleteEvent.mockResolvedValue({ ok: true, pending: true, warnings: [] });
 		await editor.performDelete("series");
 		assert.equal(api.deleteEvent.mock.calls[0][0], "ev1");
 		assert.equal(editor.events.length, 0);
 		assert.equal(nav.leaveEditor.mock.calls.length, 1);
-		assert.equal(toast.ok.mock.calls.at(-1)?.[0], "Event deleted and taken off the website.");
+		assert.equal(toast.ok.mock.calls.at(-1)?.[0], "Event deleted. It comes off the website when you press Update website on the Website page.");
 	});
 
 	it("won't update the calendar with unsaved changes", async () => {

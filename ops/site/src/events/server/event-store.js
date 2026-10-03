@@ -170,6 +170,8 @@ const NIGHT_SCHEDULE_OVERRIDE_FIELD = "Night schedule override";
 const SHORT_DESCRIPTION_OVERRIDE_FIELD = "Short description override";
 /** Web addresses the series had before, one per line: the website redirects them. */
 const FORMER_SLUGS_FIELD = "Former slugs";
+/** Deleted in ops but still on the website until Update website (#23). */
+const DELETED_AT_FIELD = "Deleted at";
 let eventsFieldNamesCache = null;
 let eventDatesFieldNamesCache = null;
 
@@ -293,6 +295,7 @@ export function mapEvent(row, dates = []) {
     extraDates: normalizeExtraDates(row["Extra dates"]),
     slug: text(row.Slug) || seriesSlug(name),
     formerSlugs: slugList(row[FORMER_SLUGS_FIELD]),
+    deletedAt: text(row[DELETED_AT_FIELD]),
     replacesSeries: text(row["Replaces series"]),
     driveFolderId: text(row["Drive folder id"]),
     driveFolderUrl: driveFolderWebUrl(text(row["Drive folder id"])),
@@ -669,7 +672,8 @@ async function repointReplacedSeries(env, tables, { slug, previous, rows }) {
   }
 }
 
-export async function listEvents(env) {
+/** Events in ops; `withDeleted` adds those waiting to leave the website (#23). */
+export async function listEvents(env, { withDeleted = false } = {}) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const [rows, dateRows] = await Promise.all([
     listAllRows(env, tables.events),
@@ -686,7 +690,7 @@ export async function listEvents(env) {
     }
   }
   return rows
-    .filter((row) => text(row.Name))
+    .filter((row) => text(row.Name) && (withDeleted || !text(row[DELETED_AT_FIELD])))
     .map((row) => mapEvent(row, datesByEvent.get(String(row.id)) || []))
     .sort(
       (a, b) =>
@@ -974,6 +978,12 @@ export async function syncEventOccurrences(env, event) {
   return getEvent(env, event.id);
 }
 
+/** Mark an event deleted (an ISO time), or restore it (""). */
+export async function setEventDeletedAt(env, id, at) {
+  const tables = requireEventsTables(await resolveOpsTableIds(env));
+  await updateRow(env, tables.events, id, { [DELETED_AT_FIELD]: at });
+}
+
 export async function deleteEvent(env, id) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const event = await getEvent(env, id);
@@ -1088,12 +1098,23 @@ export function occurrenceDeleteTargets(event, date, scope = "this") {
   };
 }
 
-export async function deleteOccurrences(env, eventId, date, scope = "this") {
+/**
+ * Delete nights by changing the schedule. `removeRow` and `removeEvent` say
+ * what happens to a night's row and to an event left with no nights; the
+ * delete endpoint keeps nights still on the website until Update website (#23).
+ */
+export async function deleteOccurrences(
+  env,
+  eventId,
+  date,
+  scope = "this",
+  { removeRow = removeOccurrence, removeEvent = deleteEvent } = {},
+) {
   const event = await getEvent(env, eventId);
   const plan = occurrenceDeleteTargets(event, date, scope);
 
   if (plan.mode === "series") {
-    await deleteEvent(env, eventId);
+    await removeEvent(env, eventId);
     return {
       deleted: true,
       event: null,
@@ -1106,7 +1127,7 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
   if (plan.mode === "detach") {
     let series = event;
     for (const row of plan.targets) {
-      series = (await detachOccurrenceFromSeries(env, series, row)) || null;
+      series = (await detachOccurrenceFromSeries(env, series, row, { removeRow, removeEvent })) || null;
       if (!series) {
         return {
           deleted: true,
@@ -1129,7 +1150,7 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
   if (plan.mode === "end") {
     const endsOn = plan.endsOn;
     if (!endsOn || (event.startsOn && endsOn < event.startsOn)) {
-      await deleteEvent(env, eventId);
+      await removeEvent(env, eventId);
       return {
         deleted: true,
         event: null,
@@ -1139,7 +1160,7 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
       };
     }
     for (const row of plan.targets) {
-      if (row?.id) await removeOccurrence(env, row.id);
+      if (row?.id) await removeRow(env, row.id);
     }
     const updated = await updateEvent(env, eventId, { endsOn });
     return {
@@ -1160,7 +1181,7 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
     throw error;
   }
   for (const row of plan.targets) {
-    if (row?.id) await removeOccurrence(env, row.id);
+    if (row?.id) await removeRow(env, row.id);
   }
   const skippedDates = normalizeSkippedDates([
     ...(event.skippedDates || []),
@@ -1168,7 +1189,7 @@ export async function deleteOccurrences(env, eventId, date, scope = "this") {
   ]);
   const updated = await updateEvent(env, eventId, { skippedDates });
   if (!expandSeriesOccurrenceDates(updated).length) {
-    await deleteEvent(env, eventId);
+    await removeEvent(env, eventId);
     return {
       deleted: true,
       event: null,
@@ -1516,15 +1537,20 @@ export async function assignOccurrenceToSeries(
 }
 
 /** Drop one night from a series without using the public delete scopes. */
-async function detachOccurrenceFromSeries(env, event, occurrence) {
+async function detachOccurrenceFromSeries(
+  env,
+  event,
+  occurrence,
+  { removeRow = removeOccurrence, removeEvent = deleteEvent } = {},
+) {
   const date = occurrence.date;
   if (occurrence?.id) {
-    await removeOccurrence(env, occurrence.id);
+    await removeRow(env, occurrence.id);
   }
   const remaining = (event.dates || []).filter((row) => row.date !== date);
   const unit = String(event.repeatUnit || "none").toLowerCase();
   if (!remaining.length) {
-    await deleteEvent(env, event.id);
+    await removeEvent(env, event.id);
     return null;
   }
   if (unit === "none" || unit === "") {

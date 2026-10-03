@@ -26,10 +26,13 @@
 <Dialog {open} title="Delete event?" onclose={oncancel}>
 	<p class="delete-copy">
 		Delete <strong>{eventName}</strong>
-		{recurring ? " and its recurrence" : ""}? This cannot be undone.
+		{recurring ? " and its recurrence" : ""}?{onWebsite ? "" : " This cannot be undone."}
 	</p>
 	{#if onWebsite}
-		<p class="also-website">It comes off the website too, straight away.</p>
+		<p class="also-website">
+			It stays on the website until you press Update website on the Website page. Until then you can
+			restore it there.
+		</p>
 	{/if}
 	{#snippet footer()}
 		<Button variant="outline" size="sm" type="button" disabled={busy} onclick={oncancel}>

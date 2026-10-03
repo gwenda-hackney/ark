@@ -99,6 +99,24 @@ describe("series page", () => {
     expect(html).not.toContain("Check back soon");
   });
 
+  it("shows the series' gallery when it has one", async () => {
+    sanity.series = [
+      series("negroni-chess", {
+        gallery: [
+          {
+            url: "https://cdn.sanity.io/images/p/d/a-800x600.jpg",
+            width: 800,
+            height: 600,
+            alt: "",
+          },
+        ],
+      }),
+    ];
+    const html = await (await render("/whats-on/negroni-chess")).text();
+    expect(html).toContain("series-gallery-item");
+    expect(html).toContain('alt="Negroni &amp; Chess, photo 1"');
+  });
+
   it("sends a former web address to the new one straight away", async () => {
     const response = await render("/whats-on/negroni-night/");
     expect(response.status).toBe(301);
