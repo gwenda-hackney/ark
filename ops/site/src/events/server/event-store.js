@@ -369,9 +369,15 @@ export function publishState(event, dates, today = todayIso()) {
           occurrenceHash(eventWithDates, row || date)
       );
     }) &&
-    !dates.some((row) => row.date >= today && !materialized.has(row.date));
+    // A dropped night already marked removed on the preview counts as done
+    // there; it still stands on the live site until Update website (#20).
+    !dates.some(
+      (row) => row.date >= today && !materialized.has(row.date) && !row.snapshots?.preview?.removed,
+    );
+  const stillLive = dates.some((row) => row.date >= today && row.snapshots?.preview?.removed);
   const liveCurrent =
     previewCurrent &&
+    !stillLive &&
     wanted.every((date) => {
       const row = byDate.get(date);
       return (
@@ -909,7 +915,7 @@ export function droppedNights(event, today = todayIso()) {
 
 /** The preview is behind ops: nights to write, or dropped nights to mark removed. */
 export function previewBehind(event, today = todayIso()) {
-  if (droppedNights(event, today).length) return true;
+  if (droppedNights(event, today).some((row) => !row.snapshots?.preview?.removed)) return true;
   return Boolean(event?.publish?.previewDates?.length) && event.publish.preview !== "current";
 }
 
@@ -2052,6 +2058,8 @@ export async function saveOccurrenceSnapshots(env, updates) {
           items: updates.slice(i, i + 200).map((row) => ({
             id: row.id,
             "Publish snapshots": JSON.stringify(row.snapshots || {}),
+            // A dropped night's calendar entry is gone (settleDroppedRows).
+            ...(row.clearCalendar ? { "Google calendar event id": "" } : {}),
           })),
         }),
       },

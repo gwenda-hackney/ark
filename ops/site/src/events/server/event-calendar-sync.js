@@ -244,8 +244,16 @@ export async function calendarConfigured(env) {
  * Bring the series' upcoming nights onto Google Calendar. `maxWrites` caps
  * the calendar calls in one request (Cloudflare allows 50 on the free plan);
  * `remaining` says how many nights are still to do.
+ *
+ * A night whose entry is unchanged is skipped without asking Google, which
+ * keeps the background sync cheap. `verify` (the editor's Sync calendar)
+ * lists the entries once and recreates any that were deleted by hand (#70).
  */
-export async function syncSeriesCalendar(env, event, { maxWrites = Infinity } = {}) {
+export async function syncSeriesCalendar(
+  env,
+  event,
+  { maxWrites = Infinity, verify = false } = {},
+) {
   if (!event?.id) return { event, warnings: [] };
   const { calendarId, ready } = await calendarReady(env);
   if (!calendarId || !ready) return { event, warnings: [] };
@@ -273,9 +281,8 @@ export async function syncSeriesCalendar(env, event, { maxWrites = Infinity } = 
     );
   }
 
-  const needsList = nights.some(
-    (row) => !parseCalendarLink(row.googleCalendarEventId).id,
-  );
+  const needsList =
+    verify || nights.some((row) => !parseCalendarLink(row.googleCalendarEventId).id);
   let listed = [];
   if (needsList && nights.length) {
     const first = nights[0].date;
@@ -286,6 +293,7 @@ export async function syncSeriesCalendar(env, event, { maxWrites = Infinity } = 
     });
   }
 
+  const listedIds = new Set(listed.map((item) => item.id));
   const usedIds = new Set();
   const links = [];
   let writes = 0;
@@ -293,8 +301,10 @@ export async function syncSeriesCalendar(env, event, { maxWrites = Infinity } = 
   for (const row of nights) {
     const { googleEvent, hash } = nightCalendarEvent(event, row);
     const stored = parseCalendarLink(row.googleCalendarEventId);
+    // Deleted in Google Calendar by hand: make a new entry.
+    const gone = verify && Boolean(stored.id) && !listedIds.has(stored.id);
     try {
-      if (stored.id && stored.hash === hash) {
+      if (stored.id && stored.hash === hash && !gone) {
         usedIds.add(stored.id);
         continue;
       }
@@ -303,7 +313,7 @@ export async function syncSeriesCalendar(env, event, { maxWrites = Infinity } = 
         continue;
       }
       writes += 1;
-      let eventId = stored.id;
+      let eventId = gone ? "" : stored.id;
       if (!eventId) {
         const choice = chooseCalendarEvent(
           listed.filter((item) => eventFallsOnDate(item, row.date)),

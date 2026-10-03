@@ -16,7 +16,11 @@ import {
   sanityMutatePublished,
   sanityQuery,
 } from "../../platform/sanity.js";
-import { listEvents, saveOccurrenceSnapshots } from "../../events/server/event-store.js";
+import {
+  listEvents,
+  removeOccurrence,
+  saveOccurrenceSnapshots,
+} from "../../events/server/event-store.js";
 import { copyPreviewSnapshotsToProduction } from "./publish-sync.js";
 
 const CONTENT_FILTER = [
@@ -333,14 +337,23 @@ export async function publishRelease(
   };
 }
 
-/** Mark ops rows whose documents just went live, so event and menu status read "Live". */
-export async function markReleasedInOps(env, sanityIds) {
+/**
+ * Mark ops rows whose documents just went live, so event and menu status read
+ * "Live". `deleted`: documents just taken off the website; a dropped night's
+ * row, kept until then (#20), goes now.
+ */
+export async function markReleasedInOps(env, sanityIds, { deleted = [] } = {}) {
   const ids = new Set(sanityIds);
-  if (!ids.size) return { nights: 0, menuItems: 0 };
+  const gone = new Set(deleted);
+  if (!ids.size && !gone.size) return { nights: 0, menuItems: 0 };
   const at = new Date().toISOString();
   const updates = [];
   for (const event of await listEvents(env)) {
     for (const row of event.dates || []) {
+      if (row.id && gone.has(row.sanityId) && row.snapshots?.preview?.removed) {
+        await removeOccurrence(env, row.id);
+        continue;
+      }
       if (!row.id || !row.sanityId || !ids.has(row.sanityId) || !row.snapshots?.preview) continue;
       if (row.snapshots.production?.hash === row.snapshots.preview.hash) continue;
       updates.push({
@@ -351,6 +364,27 @@ export async function markReleasedInOps(env, sanityIds) {
   }
   // One batch call instead of one per night (Cloudflare call limit).
   await saveOccurrenceSnapshots(env, updates);
+  if (!ids.size) return { nights: updates.length, menuItems: 0 };
   const menu = await copyPreviewSnapshotsToProduction(env, { sanityIds: ids });
   return { nights: updates.length, menuItems: menu.copied };
+}
+
+/**
+ * Drafts just discarded: a dropped night whose "removed" draft went with them
+ * is no longer marked on the preview, so its note goes and the website job
+ * marks it again (#20).
+ */
+export async function markDiscardedInOps(env, sanityIds) {
+  const ids = new Set(sanityIds);
+  if (!ids.size) return 0;
+  const updates = [];
+  for (const event of await listEvents(env)) {
+    for (const row of event.dates || []) {
+      if (!row.id || !ids.has(row.sanityId) || !row.snapshots?.preview?.removed) continue;
+      const { preview: _removed, ...snapshots } = row.snapshots;
+      updates.push({ id: Number(row.id), snapshots });
+    }
+  }
+  await saveOccurrenceSnapshots(env, updates);
+  return updates.length;
 }
