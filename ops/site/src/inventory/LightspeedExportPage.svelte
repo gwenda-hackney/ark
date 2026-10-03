@@ -11,6 +11,7 @@
 		SearchField,
 	} from "../ui";
 	import type { SelectOption } from "../ui/types";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { getInventory, getMenu, previewLightspeedCsv } from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import type { InventoryItem } from "./types";
@@ -139,13 +140,18 @@
 	);
 	const rows = $derived(filterRows(previewRows, query));
 
+	/** Phones scroll the table sideways; the tick and the name stay pinned. */
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
 	const columnDefs = $derived.by((): ColDef<GridRow>[] =>
 		(LIGHTSPEED_COMBINED_IMPORT_HEADERS as string[]).map((header) => ({
 			headerName: header,
 			colId: header,
 			field: header,
-			minWidth: columnWidth(header),
-			flex: header === "Name" || header === "Menu/Screen" ? 1.4 : 0,
+			pinned: phone.matches && header === "Name" ? ("left" as const) : undefined,
+			minWidth: phone.matches && header === "Name" ? 140 : columnWidth(header),
+			flex: phone.matches && header === "Name" ? 0 : header === "Name" || header === "Menu/Screen" ? 1.4 : 0,
+			width: phone.matches && header === "Name" ? 150 : undefined,
 			tooltipField: header,
 			cellClass: emptyCellClass,
 		})),
@@ -411,6 +417,7 @@
 						suppressRowClickSelection: false,
 						suppressScrollOnNewData: true,
 						enableBrowserTooltips: true,
+						selectionColumnDef: { pinned: phone.matches ? "left" : undefined },
 						rowSelection: {
 							mode: "multiRow",
 							checkboxes: true,

@@ -17,6 +17,8 @@
 		Switch,
 	} from "../ui";
 	import BadgeCell from "../ui/BadgeCell.svelte";
+	import DensityToggle from "../ui/DensityToggle.svelte";
+	import { densityPref } from "../ui/list-prefs.svelte";
 	import { priceBasisTone } from "../ui/badge";
 	import { Icon } from "../app/shell";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
@@ -69,6 +71,8 @@
 	const inventoryRoute = $derived(parseShellPath(path));
 	const q = $derived(query.trim().toLowerCase());
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	/** Row spacing for the desktop table, remembered on this device. */
+	const density = densityPref("inventory");
 
 	const rows = $derived.by((): GridRow[] =>
 		items
@@ -599,6 +603,7 @@
 								{/snippet}
 								{#snippet end()}
 									<p class="meta">{rows.length} item{rows.length === 1 ? "" : "s"}</p>
+									<DensityToggle bind:value={density.value} />
 								{/snippet}
 							</FilterBar>
 						{/snippet}
@@ -623,6 +628,7 @@
 							<DataGrid
 								rowData={rows}
 								{columnDefs}
+								density={density.value}
 								scrollKey="inventory-list"
 								context={{ selectedId }}
 								getRowId={(row) => row._id}
@@ -744,10 +750,6 @@
 		overflow: visible;
 		height: 100%;
 		line-height: 0;
-	}
-
-	.grid-host :global(.row-selected) {
-		background: var(--primary-wash) !important;
 	}
 
 	.missing {

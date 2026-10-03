@@ -53,6 +53,9 @@
 <style>
 	.page-header {
 		display: grid;
+		/* minmax(0, …): a long row of actions scrolls inside itself on phones
+		   instead of widening the page. */
+		grid-template-columns: minmax(0, 1fr);
 		gap: var(--space-4);
 		margin-bottom: var(--space-6);
 	}

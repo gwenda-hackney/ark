@@ -399,8 +399,14 @@
 		white-space: nowrap;
 	}
 
-	/* Phones: each person becomes a small block instead of a squeezed row. */
-	@media (max-width: 640px) {
+	/* Phones: each person is a card instead of a squeezed row. */
+	@media (max-width: 900px) {
+		.table,
+		.table tbody {
+			display: grid;
+			gap: var(--space-2);
+		}
+
 		.table thead {
 			display: none;
 		}
@@ -408,9 +414,15 @@
 		.table tbody tr {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
-			gap: var(--space-2) var(--space-3);
-			padding: var(--space-3) 0;
-			border-bottom: 1px solid var(--border);
+			gap: var(--space-3);
+			padding: var(--space-3);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-lg);
+			background: var(--surface-1);
+		}
+
+		.table tbody tr:hover {
+			background: var(--surface-1);
 		}
 
 		.table td,
@@ -422,6 +434,14 @@
 
 		.person {
 			grid-column: 1;
+		}
+
+		.name {
+			font-size: var(--text-base);
+		}
+
+		.email {
+			font-size: var(--text-sm);
 		}
 
 		.row-actions {
@@ -436,7 +456,9 @@
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			padding-left: 2.8rem !important;
+			min-height: 2.75rem;
+			padding-top: var(--space-1) !important;
+			border-top: 1px solid var(--border) !important;
 		}
 
 		.roles::before,
@@ -446,7 +468,7 @@
 			font-weight: 600;
 			letter-spacing: var(--tracking-label);
 			text-transform: uppercase;
-			color: var(--muted-foreground);
+			color: var(--fg-muted);
 		}
 	}
 

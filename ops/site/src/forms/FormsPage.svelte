@@ -39,10 +39,14 @@
 	} from "../ui/unsaved.svelte";
 	import { formatWhen } from "../website/web-metrics";
 	import FormsGrid from "./FormsGrid.svelte";
+	import FormsCards from "./FormsCards.svelte";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 
 	let { path = "/forms" }: { path?: string } = $props();
 
 	const route = $derived(parseShellPath(path));
+	/** Phones get cards; the table needs a desk. */
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 	const openId = $derived(route.page === "forms" ? route.slug : null);
 
 	let rows = $state<FormSubmission[]>([]);
@@ -544,7 +548,11 @@
 				{/if}
 			{:else}
 				<div class="grid-host">
-					<FormsGrid rows={visible} />
+					{#if phone.matches}
+						<FormsCards rows={visible} showForm={forms.length > 1} />
+					{:else}
+						<FormsGrid rows={visible} />
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -870,6 +878,8 @@
 		flex: 1;
 		min-height: 0;
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.error {

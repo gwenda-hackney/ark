@@ -23,6 +23,9 @@ export {
 
 /**
  * One AG Grid theme for ops — colours are CSS variables so Gwenda tokens apply.
+ * Headers: 11px uppercase muted on surface-1. Hover and selected rows use
+ * surface-3; DataGrid adds the gold edge on a selected row and the group-row
+ * fill, and sets the row height from its `density`.
  */
 export const opsGridTheme = themeQuartz.withParams({
 	accentColor: "var(--primary)",
@@ -45,7 +48,7 @@ export const opsGridTheme = themeQuartz.withParams({
 	oddRowBackgroundColor: "transparent",
 	rowBorder: { style: "solid", width: 1, color: "var(--border)" },
 	rowHoverColor: "var(--surface-3)",
-	selectedRowBackgroundColor: "var(--primary-wash)",
+	selectedRowBackgroundColor: "var(--surface-3)",
 
 	spacing: 8,
 

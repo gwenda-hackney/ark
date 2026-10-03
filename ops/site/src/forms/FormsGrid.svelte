@@ -98,6 +98,7 @@
 
 <style>
 	.frame {
+		flex: 1;
 		height: 100%;
 		min-height: 0;
 	}
