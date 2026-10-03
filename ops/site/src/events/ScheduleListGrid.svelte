@@ -14,7 +14,7 @@
 	import WeekHeadingCell from "./cells/WeekHeadingCell.svelte";
 
 	export type ScheduleTableRow =
-		| { kind: "week"; id: string; label: string }
+		| { kind: "week"; id: string; label: string; count?: number }
 		| {
 				kind: "night";
 				id: string;
@@ -108,12 +108,13 @@
 		domLayout="normal"
 		gridOptions={{
 			rowHeight: 80,
-			getRowHeight: (params) => (params.data?.kind === "week" ? 52 : 80),
+			getRowHeight: (params) => (params.data?.kind === "week" ? 40 : 80),
 			isFullWidthRow: (params) => params.rowNode.data?.kind === "week",
 			fullWidthCellRenderer: svelteCell(
 				WeekHeadingCell,
 				(params: ICellRendererParams<ScheduleTableRow>) => ({
 					label: params.data?.kind === "week" ? params.data.label : "",
+					count: params.data?.kind === "week" ? params.data.count : undefined,
 				}),
 			),
 			getRowClass: (params) => (params.data?.kind === "week" ? "week-row" : "event-row"),

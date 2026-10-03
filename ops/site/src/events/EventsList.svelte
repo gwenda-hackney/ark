@@ -28,7 +28,8 @@
 	import { EVENTS_HELP } from "./events-help";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
-	import SeriesGrid from "./SeriesGrid.svelte";
+	import SeriesCards from "./SeriesCards.svelte";
+	import { seriesCardRow } from "./series-card";
 	import {
 		compareSeriesByWeekday,
 		countEventScheduleRows,
@@ -38,16 +39,10 @@
 		formatScheduleWeekday,
 		groupEventSchedule,
 		scheduleToday,
-		seriesWeekdayLabel,
 	} from "./event-schedule";
 	import {
 		formatDate,
 		repeatLabel,
-		seriesBlurb,
-		seriesGuestLabel,
-		seriesNextCell,
-		seriesOfferLabel,
-		seriesTimeLabel,
 		statusLabel,
 		statusTone,
 	} from "./event-labels";
@@ -159,33 +154,11 @@
 		listView === "schedule" ? scheduleFiltersActive : seriesFiltersActive,
 	);
 
-	const seriesRows = $derived.by(() =>
-		filteredSeries.map((event) => {
-			const time = seriesTimeLabel(event);
-			const guest = seriesGuestLabel(event);
-			const next = seriesNextCell(event);
-			const offer = seriesOfferLabel(event);
-			return {
-				id: event.id,
-				href: eventItemPath(event.id),
-				when: seriesWeekdayLabel(event) || repeatLabel(event),
-				photo: event.mainImage?.url || "",
-				name: event.name,
-				blurb: seriesBlurb(event),
-				detail: [time, guest, next, offer].filter(Boolean).join(" · "),
-				time,
-				guest,
-				next,
-				offer,
-				status: statusLabel(event),
-				tone: statusTone(event),
-			};
-		}),
-	);
+	const seriesRows = $derived(filteredSeries.map(seriesCardRow));
 
 	const scheduleRows = $derived.by(() =>
 		visibleSchedule.flatMap((week) => [
-			{ kind: "week" as const, id: `week:${week.start}`, label: week.label },
+			{ kind: "week" as const, id: `week:${week.start}`, label: week.label, count: week.rows.length },
 			...week.rows.map((occurrence) => {
 				const artist =
 					occurrence.occurrence?.overrides.artist || occurrence.event.artist || "";
@@ -380,7 +353,7 @@
 				{#if listView === "series"}
 					{#if seriesRows.length}
 						<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-							<SeriesGrid rows={seriesRows} />
+							<SeriesCards rows={seriesRows} />
 						</div>
 					{:else if filtersActive}
 						<EmptyState icon="search" title="No series match" text="Try another name, or clear the search." />
