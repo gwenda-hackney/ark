@@ -59,9 +59,7 @@
 					Gallery
 					<Tip
 						label="Gallery"
-						tooltip={gallery.date
-							? "This night's photos. They show on its page and in the series gallery, after Update website."
-							: "Photos for the event's page, from its Drive gallery, newest first. Photos added on a night show here on the website too. They go on the website with Update website."}
+						tooltip="Photos for the event's page, from its Drive gallery, newest first. They go on the website with Update website."
 					/>
 				</span>
 			</h2>
