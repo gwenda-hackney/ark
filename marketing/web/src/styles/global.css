@@ -7113,18 +7113,6 @@ a.event-card:focus-visible .event-title,
 /* Series gallery: rows of photos at one height, each as wide as its shape. */
 .series-gallery {
   margin-top: clamp(2.5rem, 6vw, 4.5rem);
-  padding-top: clamp(1.5rem, 3vw, 2.25rem);
-  border-top: 1px solid var(--color-border);
-}
-
-.series-gallery-label {
-  margin: 0 0 1.25rem;
-  color: var(--color-gold);
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
 }
 
 .series-gallery-list {
