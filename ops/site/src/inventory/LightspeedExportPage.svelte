@@ -468,21 +468,21 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;
-		gap: var(--gap);
+		gap: var(--space-4);
 		flex-shrink: 0;
-		padding: var(--gap) var(--page-gutter);
+		padding: var(--space-4) var(--page-gutter);
 	}
 
 	.menu-field {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		min-width: min(100%, 16rem);
 	}
 
 	.menu-field span {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -494,7 +494,7 @@
 	}
 
 	.error {
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 	}
 
 	.empty {

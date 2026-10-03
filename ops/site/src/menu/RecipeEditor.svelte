@@ -1378,7 +1378,7 @@
 		flex: 1;
 		min-height: 0;
 		height: 100%;
-		padding: var(--gap) var(--page-gutter) var(--gap);
+		padding: var(--space-4) var(--page-gutter) var(--space-4);
 	}
 
 	.type-line {
@@ -1386,7 +1386,7 @@
 		grid-row: 1;
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		align-self: center;
 		height: var(--control-h-sm);
@@ -1395,11 +1395,11 @@
 	.eyebrow {
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -1446,7 +1446,7 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
-		column-gap: 0.85rem;
+		column-gap: var(--space-3);
 		row-gap: 0.2rem;
 		flex-shrink: 0;
 		padding: 0.55rem var(--card-pad-lg) 0.75rem;
@@ -1457,7 +1457,7 @@
 		display: flex;
 		align-items: center;
 		flex-shrink: 0;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		height: var(--control-h-sm);
 	}
 
@@ -1496,9 +1496,9 @@
 		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
-		font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
 		outline: none;
 		transition:
@@ -1536,7 +1536,7 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: flex-end;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
@@ -1545,12 +1545,13 @@
 	.price-input,
 	.price-alt {
 		font-family: var(--font);
-		font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: 0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.price-edit {
@@ -1558,7 +1559,7 @@
 		align-items: baseline;
 		gap: 0;
 		min-width: 0;
-		padding: 0.08em 0.28rem 0.18em 0.35rem;
+		padding: 0.08em var(--space-1) 0.18em var(--space-1);
 		border: 1px solid transparent;
 		border-radius: var(--radius-sm);
 		transition:
@@ -1613,13 +1614,13 @@
 	.pour-readout {
 		margin: 0;
 		font-family: var(--font);
-		font-size: clamp(1.05rem, 1.6vw, 1.2rem);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 		line-height: 1.25;
 		color: var(--foreground);
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.pour-readout.up {
@@ -1641,16 +1642,16 @@
 		font-family: var(--font);
 		font-size: var(--text-xs);
 		font-weight: 500;
-		letter-spacing: 0.04em;
 		line-height: 1.2;
 		color: var(--muted-foreground);
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.sub {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		color: var(--muted-foreground);
 	}
 
@@ -1658,7 +1659,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 		margin-top: auto;
 		padding: 0.65rem var(--card-pad-lg) 0.85rem;
@@ -1671,7 +1672,7 @@
 
 	.delete-copy {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--foreground);
 	}
@@ -1708,25 +1709,23 @@
 
 	.block {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.block + .block,
 	.details-board + .block {
-		margin-top: 1.5rem;
+		margin-top: var(--space-6);
 	}
 
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		margin: 0 0 0.65rem;
-		font-family: var(--font-display);
+		gap: var(--space-3);
+		margin: 0 0 var(--space-3);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -1740,8 +1739,8 @@
 	.section-head {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 0.65rem;
+		gap: var(--space-2);
+		margin-bottom: var(--space-3);
 	}
 
 	.section-head .section-title {
@@ -1753,7 +1752,7 @@
 	.grid {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 0.8rem 0.85rem;
+		gap: var(--space-3) var(--space-3);
 		align-items: start;
 	}
 
@@ -1769,7 +1768,7 @@
 	.details-board {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem 1.5rem;
+		gap: var(--space-5) var(--space-6);
 		align-items: start;
 	}
 
@@ -1785,14 +1784,14 @@
 	.photo {
 		position: relative;
 		display: grid;
-		gap: 0.6rem;
+		gap: var(--space-2);
 	}
 
 	.photo-head {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		min-height: var(--control-h-sm);
 	}
 
@@ -1805,17 +1804,17 @@
 	.photo-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.photo-btn {
 		display: inline-flex;
 		align-items: center;
 		height: var(--control-h-sm);
-		padding: 0 0.75rem;
+		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
 		color: inherit;
 		font: inherit;
 		font-size: var(--text-sm);
@@ -1824,7 +1823,7 @@
 	}
 
 	.photo-btn {
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	/* Phones and tablets only: opens the camera straight away. */
@@ -1859,13 +1858,13 @@
 	.photo-empty {
 		width: 100%;
 		aspect-ratio: 16 / 10;
-		border-radius: 0.4rem;
+		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
 
 	.photo-frame {
 		border: 1px solid var(--border);
-		background: #0d0d0d;
+		background: var(--bg);
 	}
 
 	.photo-frame img {
@@ -1879,11 +1878,11 @@
 		display: grid;
 		place-content: center;
 		justify-items: center;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		margin: 0;
-		padding: 1rem;
+		padding: var(--space-4);
 		border: 1px dashed var(--border);
-		background: var(--surface);
+		background: var(--surface-2);
 		color: var(--muted-foreground);
 		text-align: center;
 		cursor: pointer;
@@ -1920,7 +1919,7 @@
 		inset: calc(var(--control-h-sm) + 0.6rem) 0 0;
 		display: grid;
 		place-content: center;
-		border-radius: 0.4rem;
+		border-radius: var(--radius-md);
 		background: color-mix(in srgb, var(--primary) 14%, transparent);
 		color: var(--primary);
 		font-weight: 600;
@@ -1980,7 +1979,7 @@
 			grid-column: 1 / -1;
 			grid-row: 3;
 			align-items: flex-start;
-			padding-top: 0.35rem;
+			padding-top: var(--space-1);
 		}
 
 		.price-row,
@@ -1998,7 +1997,7 @@
 		}
 
 		.tab-body {
-			padding-top: 1rem;
+			padding-top: var(--space-4);
 			padding-bottom: max(var(--page-gutter), 1.125rem);
 		}
 
@@ -2011,7 +2010,7 @@
 		.head-tools {
 			flex-wrap: wrap;
 			height: auto;
-			row-gap: 0.35rem;
+			row-gap: var(--space-1);
 		}
 
 		.panel-foot {
@@ -2025,7 +2024,8 @@
 		.pound,
 		.price-input,
 		.price-alt {
-			font-size: 1.35rem;
+			font-size: var(--text-xl);
+			letter-spacing: var(--tracking-xl);
 		}
 	}
 </style>

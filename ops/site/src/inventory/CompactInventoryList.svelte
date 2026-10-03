@@ -63,18 +63,18 @@
 		flex: 1;
 		min-height: 0;
 		overflow-y: auto;
-		padding-bottom: 0.75rem;
+		padding-bottom: var(--space-3);
 	}
 
 	.item {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		width: 100%;
 		min-height: 3.35rem;
 		margin: 0;
-		padding: 0.55rem 0.1rem;
+		padding: var(--space-2) 0.1rem;
 		border: 0;
 		border-bottom: 1px solid var(--border);
 		background: none;
@@ -126,7 +126,7 @@
 
 	.cost {
 		flex-shrink: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 600;
 	}
 </style>

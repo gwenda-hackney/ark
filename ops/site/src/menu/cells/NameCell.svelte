@@ -114,9 +114,9 @@
 
 	.hint-label {
 		margin-right: 0.4em;
-		font-size: 0.65rem;
-		font-weight: 650;
-		letter-spacing: 0.04em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}

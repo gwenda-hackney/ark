@@ -286,20 +286,20 @@
 
 	.stack {
 		display: grid;
-		gap: var(--gap-lg);
+		gap: var(--space-6);
 		max-width: 40rem;
 		align-content: start;
 	}
 
 	.add {
 		display: grid;
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.field,
 	.default {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.label {
@@ -310,7 +310,7 @@
 	.default {
 		grid-template-columns: auto 1fr;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		font-size: var(--text-sm);
 	}
 
@@ -321,7 +321,7 @@
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 
@@ -344,8 +344,8 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.65rem;
-		padding: 0.65rem 0;
+		gap: var(--space-3);
+		padding: var(--space-3) 0;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -361,7 +361,7 @@
 	}
 
 	.name {
-		font-size: var(--text);
+		font-size: var(--text-base);
 	}
 
 	.meta {
@@ -372,6 +372,6 @@
 	.row-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 </style>

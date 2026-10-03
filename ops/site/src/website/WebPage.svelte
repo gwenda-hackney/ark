@@ -495,7 +495,7 @@
 	.ready {
 		display: flex;
 		flex-direction: column;
-		gap: var(--gap);
+		gap: var(--space-4);
 		max-width: 44rem;
 	}
 
@@ -513,10 +513,10 @@
 
 	.banner {
 		display: flex;
-		gap: 0.6rem;
+		gap: var(--space-2);
 		align-items: center;
 		margin: 0;
-		padding: 0.75rem 0.9rem;
+		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--primary-wash);
@@ -528,8 +528,8 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 1rem 1.25rem;
-		padding: 1.25rem 1.35rem;
+		gap: var(--space-4) var(--space-5);
+		padding: var(--space-5) var(--space-5);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
 		background: var(--card);
@@ -577,14 +577,14 @@
 	.status-copy {
 		display: grid;
 		flex: 1 1 16rem;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
 	.status-copy h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.35rem;
+		font-size: var(--text-lg);
+		letter-spacing: var(--tracking-lg);
 		font-weight: 600;
 		line-height: 1.25;
 	}
@@ -598,7 +598,7 @@
 	.site-link {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		width: fit-content;
 		color: var(--primary);
 		font-size: var(--text-sm);
@@ -609,8 +609,8 @@
 	/* Lists of changes */
 	.card {
 		display: grid;
-		gap: 0.75rem;
-		padding: 1.1rem 1.2rem;
+		gap: var(--space-3);
+		padding: var(--space-4) var(--space-5);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--card);
@@ -621,12 +621,11 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem 1rem;
+		gap: var(--space-2) var(--space-4);
 	}
 
 	.card-head h2 {
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
 	}
@@ -645,9 +644,9 @@
 	.list li {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		min-height: 3rem;
-		padding: 0.5rem 0.9rem;
+		padding: var(--space-2) var(--space-4);
 	}
 
 	.list li + li {
@@ -657,9 +656,9 @@
 	.word {
 		flex-shrink: 0;
 		width: 4.5rem;
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.04em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--primary);
 	}
@@ -675,7 +674,7 @@
 	.name {
 		flex: 1;
 		min-width: 0;
-		font-size: 1rem;
+		font-size: var(--text-md);
 		overflow-wrap: anywhere;
 	}
 
@@ -684,7 +683,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.4rem 0.75rem;
+		gap: var(--space-2) var(--space-3);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
@@ -734,8 +733,8 @@
 	}
 
 	.dialog-list {
-		margin: 0.75rem 0 0;
-		padding-left: 1.1rem;
+		margin: var(--space-3) 0 0;
+		padding-left: var(--space-4);
 		line-height: 1.6;
 	}
 

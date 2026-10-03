@@ -217,20 +217,18 @@
 
 	.block {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		margin: 0.4rem 0 0;
-		font-family: var(--font-display);
+		gap: var(--space-3);
+		margin: var(--space-2) 0 0;
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -244,13 +242,13 @@
 	.section-label {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.rule-fields {
 		display: grid;
-		gap: 1rem;
-		padding-bottom: 0.4rem;
+		gap: var(--space-4);
+		padding-bottom: var(--space-2);
 	}
 
 	/* Repeat pattern on the first row, dates on the second; fields share one width so the rows line up. */
@@ -258,7 +256,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: start;
-		gap: 0.85rem 1rem;
+		gap: var(--space-3) var(--space-4);
 	}
 
 	.rule-row > :global(.field) {
@@ -273,7 +271,7 @@
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.chip {
@@ -283,7 +281,7 @@
 		background: transparent;
 		color: var(--foreground);
 		border-radius: var(--radius-pill);
-		padding: 0 0.8rem;
+		padding: 0 var(--space-3);
 		font: inherit;
 		font-size: var(--text-sm);
 		cursor: pointer;
@@ -303,7 +301,7 @@
 	.occurrences {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
-		gap: 0.55rem;
+		gap: var(--space-2);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -313,11 +311,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.75rem 0.85rem;
+		gap: var(--space-4);
+		padding: var(--space-3) var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface);
+		background: var(--surface-2);
 	}
 
 	.occurrence-main {
@@ -330,7 +328,7 @@
 		display: inline-flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		font-size: var(--text-sm);
 		font-weight: 600;
 	}

@@ -48,13 +48,13 @@
 <style>
 	.delete-copy {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--foreground);
 	}
 
 	.put-error {
-		margin: 0.75rem 0 0;
+		margin: var(--space-3) 0 0;
 		color: var(--destructive);
 	}
 </style>

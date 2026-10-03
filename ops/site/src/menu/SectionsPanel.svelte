@@ -462,24 +462,24 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		padding: 1rem var(--card-pad) 0.65rem;
 		border-bottom: 1px solid var(--border);
 	}
 
 	.kicker {
 		margin: 0 0 0.15rem;
-		font-size: var(--text-xs);
-		font-weight: 650;
-		letter-spacing: 0.08em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 	}
 
 	h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.35rem;
+		font-size: var(--text-lg);
+		letter-spacing: var(--tracking-lg);
 		font-weight: 600;
 	}
 
@@ -490,7 +490,7 @@
 		padding: 0.9rem var(--card-pad) var(--card-pad);
 		display: flex;
 		flex-direction: column;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.lead {
@@ -507,11 +507,11 @@
 		list-style: none;
 		display: flex;
 		flex-direction: column;
-		gap: 0.55rem;
+		gap: var(--space-2);
 	}
 
 	.node {
-		padding-bottom: 0.55rem;
+		padding-bottom: var(--space-2);
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -519,11 +519,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.row.nested {
-		padding-left: 0.75rem;
+		padding-left: var(--space-3);
 	}
 
 	.identity {
@@ -532,8 +532,8 @@
 
 	.name {
 		margin: 0;
-		font-size: var(--text);
-		font-weight: 550;
+		font-size: var(--text-base);
+		font-weight: 500;
 	}
 
 	.meta {
@@ -552,9 +552,9 @@
 	.edit {
 		display: flex;
 		flex-direction: column;
-		gap: 0.55rem;
-		margin-top: 0.55rem;
-		padding: 0.65rem;
+		gap: var(--space-2);
+		margin-top: var(--space-2);
+		padding: var(--space-3);
 		border-radius: var(--radius-sm);
 		background: var(--sunken);
 	}
@@ -562,11 +562,11 @@
 	.edit-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.add-row {
-		padding-left: 0.75rem;
+		padding-left: var(--space-3);
 		margin-top: 0.2rem;
 	}
 </style>

@@ -41,40 +41,43 @@
 <style>
 	.page-header {
 		display: grid;
-		gap: var(--gap);
-		margin-bottom: var(--gap-lg);
+		gap: var(--space-4);
+		margin-bottom: var(--space-6);
 	}
 
 	.top {
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		flex-wrap: wrap;
 	}
 
 	.titles {
 		display: grid;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
+	/* Page titles keep the brand serif; everything else is Inter. */
 	h1 {
-		font-size: 1.5rem;
-		letter-spacing: 0.02em;
+		font-family: var(--font-display);
+		font-size: var(--text-xl);
+		line-height: var(--leading-xl);
+		letter-spacing: var(--tracking-xl);
 	}
 
 	.subtitle {
 		max-width: 48rem;
-		font-size: var(--text);
-		line-height: 1.55;
+		font-size: var(--text-base);
+		line-height: var(--leading-base);
 		color: var(--muted-foreground);
 	}
 
 	.actions {
 		display: flex;
 		align-items: center;
-		gap: var(--gap-xs);
+		gap: var(--space-2);
 		flex-wrap: wrap;
 		justify-content: flex-end;
 	}
@@ -82,7 +85,7 @@
 	.extra {
 		display: flex;
 		align-items: center;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		flex-wrap: wrap;
 	}
 </style>

@@ -18,12 +18,12 @@
 		box-sizing: border-box;
 		margin: 0;
 		min-height: 4.5rem;
-		padding: 0.65rem 0.75rem;
+		padding: var(--space-3) var(--space-3);
 		border: 1px solid var(--input);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
 		color: var(--foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
 		resize: vertical;
 		transition:

@@ -110,7 +110,7 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		padding: var(--card-pad) var(--card-pad) 0;
 	}
 
@@ -126,11 +126,9 @@
 
 	h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.25rem;
-		font-weight: 600;
-		letter-spacing: 0.02em;
-		line-height: 1.2;
+		font-size: var(--text-md);
+		font-weight: 500;
+		line-height: var(--leading-md);
 	}
 
 	.subtitle {
@@ -142,7 +140,7 @@
 	.actions {
 		display: flex;
 		align-items: center;
-		gap: var(--gap-xs);
+		gap: var(--space-2);
 		flex-shrink: 0;
 	}
 
@@ -157,7 +155,7 @@
 
 	/* A header above a body collapses the doubled gap between them. */
 	.head + .body {
-		padding-top: var(--gap);
+		padding-top: var(--space-4);
 	}
 
 	.flush > .body {
@@ -165,7 +163,7 @@
 	}
 
 	.flush > .head + .body {
-		padding-top: var(--gap);
+		padding-top: var(--space-4);
 	}
 
 	.card.fill {
@@ -190,13 +188,13 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		gap: var(--gap-xs);
-		padding: var(--gap) var(--card-pad) var(--card-pad);
+		gap: var(--space-2);
+		padding: var(--space-4) var(--card-pad) var(--card-pad);
 		border-top: 1px solid var(--border);
 		margin-top: auto;
 	}
 
 	.foot.lg {
-		padding: var(--gap) var(--card-pad-lg) var(--card-pad-lg);
+		padding: var(--space-4) var(--card-pad-lg) var(--card-pad-lg);
 	}
 </style>

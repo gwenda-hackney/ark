@@ -540,7 +540,7 @@
 
 	.missing {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-3);
 		align-content: start;
 		padding: var(--page-gutter);
 	}
@@ -557,11 +557,11 @@
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-areas: "panel";
 		column-gap: 0;
-		row-gap: var(--gap);
+		row-gap: var(--space-4);
 		flex: 1;
 		min-height: 0;
 		height: 100%;
-		padding: var(--gap) var(--page-gutter) var(--gap);
+		padding: var(--space-4) var(--page-gutter) var(--space-4);
 	}
 
 	.panel {
@@ -623,10 +623,10 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem 0.75rem;
-		padding: 0.6rem 0.75rem;
+		gap: var(--space-2) var(--space-3);
+		padding: var(--space-2) var(--space-3);
 		border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
-		border-radius: var(--radius-md, 0.5rem);
+		border-radius: var(--radius-md);
 		color: var(--destructive);
 		font-size: var(--text-sm);
 	}
@@ -638,7 +638,7 @@
 
 	.warnings {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		padding: 0;
 		list-style: none;
 		font-size: var(--text-sm);
@@ -648,7 +648,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 		margin-top: auto;
 		padding: 0.65rem var(--card-pad-lg) 0.85rem;
@@ -678,7 +678,7 @@
 		}
 
 		.tab-body {
-			padding-top: 1rem;
+			padding-top: var(--space-4);
 			padding-bottom: max(var(--page-gutter), 1.125rem);
 		}
 

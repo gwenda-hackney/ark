@@ -751,7 +751,7 @@
 	.ready {
 		display: flex;
 		flex-direction: column;
-		gap: var(--gap);
+		gap: var(--space-4);
 		max-width: 60rem;
 	}
 
@@ -774,16 +774,16 @@
 	}
 
 	.mono {
-		font-family: var(--font-mono, ui-monospace, monospace);
+		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 	}
 
 	.banner {
 		display: flex;
-		gap: 0.6rem;
+		gap: var(--space-2);
 		align-items: flex-start;
 		margin: 0;
-		padding: 0.75rem 0.9rem;
+		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--primary-wash);
@@ -793,7 +793,7 @@
 
 	.warnings {
 		margin: 0;
-		padding-left: 1.1rem;
+		padding-left: var(--space-4);
 		color: var(--destructive);
 		font-size: var(--text-sm);
 	}
@@ -803,15 +803,15 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 		align-items: stretch;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.site {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		align-content: start;
 		min-width: 0;
-		padding: 1rem 1.1rem;
+		padding: var(--space-4) var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--card);
@@ -819,9 +819,9 @@
 
 	.site-label {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -829,11 +829,10 @@
 	.site-host {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		width: fit-content;
 		max-width: 100%;
-		font-family: var(--font-display);
-		font-size: 1.15rem;
+		font-size: var(--text-md);
 		font-weight: 600;
 		color: var(--foreground);
 		text-decoration: none;
@@ -848,7 +847,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.35rem 0.85rem;
+		gap: var(--space-1) var(--space-3);
 		margin: 0;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
@@ -857,7 +856,7 @@
 	.health {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		font-weight: 600;
 	}
 
@@ -887,9 +886,9 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem 0.9rem;
+		gap: var(--space-2) var(--space-4);
 		width: 100%;
-		padding: 0.95rem 1.1rem;
+		padding: var(--space-4) var(--space-4);
 		border: 0;
 		background: transparent;
 		color: var(--foreground);
@@ -904,7 +903,6 @@
 	}
 
 	.section-title {
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
 	}
@@ -912,11 +910,11 @@
 	.pill {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
-		padding: 0.15rem 0.55rem;
+		gap: var(--space-1);
+		padding: 0.15rem var(--space-2);
 		border-radius: var(--radius-pill);
 		font-size: var(--text-xs);
-		font-weight: 700;
+		font-weight: 600;
 		background: var(--muted);
 		color: var(--muted-foreground);
 	}
@@ -927,14 +925,14 @@
 	}
 
 	.pill.warn {
-		color: var(--primary);
+		color: var(--warning);
 		background: var(--primary-wash);
 	}
 
 	.section-body {
 		display: grid;
-		gap: 0.85rem;
-		padding: 0 1.1rem 1.1rem;
+		gap: var(--space-3);
+		padding: 0 var(--space-4) var(--space-4);
 	}
 
 	.actions,
@@ -942,7 +940,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.link {
@@ -970,16 +968,16 @@
 	.group-head {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
-		padding: 0.6rem 0.9rem;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4);
 		border-bottom: 1px solid var(--border);
 	}
 
 	.group-head h3 {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -994,6 +992,7 @@
 		color: var(--muted-foreground);
 		font-size: var(--text-xs);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.entries {
@@ -1013,9 +1012,9 @@
 	.entry-row {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
+		gap: var(--space-2);
 		min-width: 0;
-		padding: 0.5rem 0.9rem;
+		padding: var(--space-2) var(--space-4);
 	}
 
 	input[type="checkbox"] {
@@ -1030,9 +1029,9 @@
 		width: 4.75rem;
 		padding: 0.15rem 0;
 		border-radius: var(--radius-pill);
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.04em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		text-align: center;
 		text-transform: uppercase;
 	}
@@ -1057,9 +1056,9 @@
 		flex: 1;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.1rem 0.75rem;
+		gap: 0.1rem var(--space-3);
 		min-width: 0;
-		padding: 0.25rem 0;
+		padding: var(--space-1) 0;
 		border: 0;
 		background: transparent;
 		color: var(--foreground);
@@ -1093,7 +1092,7 @@
 	}
 
 	.entry .scroll {
-		padding: 0 0.9rem 0.75rem;
+		padding: 0 var(--space-4) var(--space-3);
 	}
 
 	table {
@@ -1104,7 +1103,7 @@
 
 	th,
 	td {
-		padding: 0.45rem 0.6rem;
+		padding: var(--space-2) var(--space-2);
 		text-align: left;
 		vertical-align: top;
 		border-bottom: 1px solid var(--border);
@@ -1112,9 +1111,9 @@
 	}
 
 	thead th {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -1125,6 +1124,7 @@
 
 	td.num {
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	tr.same {
@@ -1140,7 +1140,7 @@
 	/* Commits */
 	.commits {
 		display: grid;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -1149,7 +1149,7 @@
 	.commits li {
 		display: grid;
 		grid-template-columns: 4.5rem minmax(0, 1fr);
-		gap: 0.1rem 0.6rem;
+		gap: 0.1rem var(--space-2);
 		font-size: var(--text-sm);
 	}
 
@@ -1170,8 +1170,8 @@
 	/* Databases */
 	.db-body {
 		display: grid;
-		gap: 0.6rem;
-		padding: 0.6rem 0.9rem 0.8rem;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-4) var(--space-3);
 	}
 
 	.run,
@@ -1182,7 +1182,7 @@
 
 	.run a {
 		color: var(--primary);
-		margin-left: 0.3rem;
+		margin-left: var(--space-1);
 	}
 
 	.run.failed {
@@ -1209,7 +1209,7 @@
 
 		.badge {
 			width: auto;
-			padding: 0.15rem 0.45rem;
+			padding: 0.15rem var(--space-2);
 		}
 
 		.checked {

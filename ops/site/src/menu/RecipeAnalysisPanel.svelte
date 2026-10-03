@@ -462,25 +462,25 @@
 <style>
 	.page {
 		display: grid;
-		gap: 1.5rem;
-		padding-bottom: 0.5rem;
+		gap: var(--space-6);
+		padding-bottom: var(--space-2);
 	}
 
 	.stats,
 	.ratio {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.75rem 1rem;
+		gap: var(--space-3) var(--space-4);
 	}
 
 	.stats.spaced {
-		padding-top: 0.85rem;
+		padding-top: var(--space-3);
 		margin-top: 0.15rem;
 		border-top: 1px solid var(--border);
 	}
 
 	.stats.reading {
-		padding-top: 0.75rem;
+		padding-top: var(--space-3);
 		border-top: 1px solid var(--border);
 	}
 
@@ -489,7 +489,7 @@
 	}
 
 	.serve-verdict {
-		margin: 0.25rem 0 0;
+		margin: var(--space-1) 0 0;
 		font-size: var(--text-sm);
 		line-height: 1.35;
 		color: var(--muted-foreground);
@@ -510,17 +510,19 @@
 
 	.stat-value {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+		font-size: var(--text-xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
-		line-height: 1.15;
+		letter-spacing: var(--tracking-xl);
+		line-height: var(--leading-xl);
 		color: var(--foreground);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.stat-value.sm {
-		font-size: clamp(1.15rem, 2vw, 1.45rem);
+		font-size: var(--text-lg);
+		letter-spacing: var(--tracking-lg);
+		line-height: var(--leading-lg);
 	}
 
 	.stat-value.up,
@@ -535,38 +537,36 @@
 	}
 
 	.stat-value.loss {
-		font-weight: 650;
+		font-weight: 600;
 	}
 
 	.stat-label {
 		margin: 0.2rem 0 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.house-label {
-		margin-top: 0.85rem;
+		margin-top: var(--space-3);
 	}
 
 	.block {
 		display: grid;
-		gap: 0.55rem;
+		gap: var(--space-2);
 	}
 
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -580,7 +580,7 @@
 	.section-head {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.section-head .section-title {
@@ -590,7 +590,7 @@
 
 	.issues {
 		display: grid;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -599,9 +599,9 @@
 	.issue {
 		display: flex;
 		align-items: flex-start;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--muted-foreground);
 	}
@@ -630,7 +630,7 @@
 
 	.body {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.5;
 		color: var(--foreground);
 	}
@@ -641,7 +641,7 @@
 
 	.muted {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.5;
 		color: var(--muted-foreground);
 	}
@@ -654,7 +654,7 @@
 	.peers,
 	.points {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -665,7 +665,7 @@
 		display: grid;
 		grid-template-columns: 5.5rem minmax(0, 1fr) auto;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		font-size: var(--text-sm);
 	}
 
@@ -675,7 +675,7 @@
 
 	.work {
 		display: grid;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -690,13 +690,14 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		gap: 0.75rem;
-		font-size: var(--text);
+		gap: var(--space-3);
+		font-size: var(--text-base);
 		color: var(--foreground);
 	}
 
 	.work-cost {
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 
@@ -716,6 +717,7 @@
 	.peer-meta {
 		color: var(--muted-foreground);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 
@@ -736,14 +738,14 @@
 
 	.error {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--destructive);
 	}
 
 	.note-block .note {
 		display: grid;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.note.stale {
@@ -752,11 +754,11 @@
 
 	.stale-label {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 	}
 
 	.summary {
@@ -768,14 +770,14 @@
 
 	.note-group {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 	}
 
 	.points {
-		padding-left: 1.1rem;
+		padding-left: var(--space-4);
 		list-style: disc;
 		color: var(--foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.5;
 	}
 
@@ -787,7 +789,7 @@
 		.stats,
 		.ratio {
 			grid-template-columns: 1fr;
-			gap: 0.85rem;
+			gap: var(--space-3);
 		}
 	}
 </style>

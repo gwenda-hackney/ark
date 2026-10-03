@@ -74,8 +74,8 @@
 		background: none;
 		color: inherit;
 		font: inherit;
-		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		text-align: right;
 		text-decoration: none;
 		line-height: 1.3;
@@ -92,7 +92,7 @@
 	}
 
 	.count.loss {
-		color: var(--loss);
+		color: var(--danger);
 	}
 
 	.count:hover {

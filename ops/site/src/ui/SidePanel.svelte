@@ -81,7 +81,7 @@
 		border: 0;
 		padding: 0;
 		margin: 0;
-		background: color-mix(in srgb, #0d0d0d 55%, transparent);
+		background: color-mix(in srgb, var(--bg) 55%, transparent);
 		cursor: pointer;
 	}
 

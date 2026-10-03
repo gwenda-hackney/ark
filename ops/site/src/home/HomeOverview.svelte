@@ -433,14 +433,14 @@
 	}
 
 	.section + .section {
-		margin-top: var(--gap-lg);
+		margin-top: var(--space-6);
 	}
 
 	.section-kicker {
-		margin: 0 0 var(--gap);
-		font-size: var(--text-xs);
+		margin: 0 0 var(--space-4);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -453,22 +453,22 @@
 	.pair {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		min-width: 0;
 		flex-shrink: 0;
 	}
 
 	.fig-label {
 		margin: 0.15rem 0 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.fig.warn .value {
-		color: var(--primary);
+		color: var(--warning);
 	}
 
 	.meter {
@@ -506,20 +506,21 @@
 
 	.kicker {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.value {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.75rem, 3vw, 2.25rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.03em;
-		line-height: 1.1;
+		letter-spacing: var(--tracking-2xl);
+		line-height: var(--leading-2xl);
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.hint,
@@ -553,7 +554,7 @@
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		grid-auto-rows: 28rem;
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.panels :global(.card) {
@@ -568,25 +569,26 @@
 	.metrics {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.metric-label {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.metric-value {
-		margin: 0.35rem 0 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+		margin: var(--space-1) 0 0;
+		font-size: var(--text-xl);
 		font-weight: 600;
-		letter-spacing: -0.03em;
-		line-height: 1.15;
+		letter-spacing: var(--tracking-xl);
+		line-height: var(--leading-xl);
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		overflow-wrap: anywhere;
 	}
 
@@ -607,7 +609,7 @@
 	}
 
 	.metric-value.warn {
-		color: var(--primary);
+		color: var(--warning);
 	}
 
 	.metric-value.up {
@@ -624,16 +626,15 @@
 
 	.health-mark {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(2.5rem, 4vw, 3.4rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.04em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1;
 	}
 
 	.health-site {
-		margin: 0.45rem 0 0;
-		font-size: var(--text);
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-base);
 	}
 
 	.health-site a {
@@ -674,10 +675,10 @@
 
 	.list {
 		list-style: none;
-		margin: 0.75rem 0 0;
+		margin: var(--space-3) 0 0;
 		padding: 0;
 		display: grid;
-		gap: 0.65rem;
+		gap: var(--space-3);
 		align-content: start;
 		flex: 1;
 		min-height: 0;
@@ -686,7 +687,7 @@
 
 	.list li {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
@@ -694,53 +695,51 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 
 	.figure {
 		display: inline-flex;
 		align-items: baseline;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
-		font-family: var(--font-display);
-		font-size: 1.05rem;
+		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 	}
 
 	.delta,
 	.badge {
 		font-family: var(--font);
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		opacity: 0.9;
 	}
 
 	.counts {
 		display: inline-flex;
-		gap: 0.6rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 	}
 
 	.count {
 		display: inline-flex;
 		align-items: baseline;
-		gap: 0.22rem;
-		font-size: var(--text-xs);
+		gap: var(--space-1);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.count-n {
-		font-family: var(--font-display);
-		font-size: 1.05rem;
+		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 	}
 
 	.count.down,
@@ -750,11 +749,11 @@
 
 	.count.warn,
 	.count.warn .count-n {
-		color: var(--primary);
+		color: var(--warning);
 	}
 
 	.warn {
-		color: var(--primary);
+		color: var(--warning);
 	}
 
 	.name {
@@ -762,7 +761,7 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		color: inherit;
 		text-decoration: none;
@@ -784,11 +783,12 @@
 		color: var(--muted-foreground);
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.empty,
 	.more {
-		margin-top: 0.75rem;
+		margin-top: var(--space-3);
 		flex-shrink: 0;
 	}
 

@@ -272,7 +272,7 @@
 	.empty {
 		display: grid;
 		justify-items: start;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 	}
 
 	.empty p {
@@ -281,7 +281,7 @@
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 
@@ -293,7 +293,7 @@
 
 	.table th,
 	.table td {
-		padding: 0.7rem 0.5rem;
+		padding: var(--space-3) var(--space-2);
 		text-align: left;
 		vertical-align: middle;
 		border-bottom: 1px solid var(--border);
@@ -310,9 +310,9 @@
 	}
 
 	.table th {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 		white-space: nowrap;
@@ -329,7 +329,7 @@
 	.person {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 
@@ -352,7 +352,7 @@
 	}
 
 	.name {
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 600;
 		overflow-wrap: anywhere;
 	}
@@ -379,7 +379,7 @@
 	.switch {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		cursor: pointer;
 		user-select: none;
 	}
@@ -461,7 +461,7 @@
 		.table tbody tr {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
-			gap: 0.4rem 0.75rem;
+			gap: var(--space-2) var(--space-3);
 			padding: 0.8rem var(--card-pad);
 			border-bottom: 1px solid var(--border);
 		}
@@ -499,9 +499,9 @@
 		.roles::before,
 		.status::before {
 			content: attr(data-label);
-			font-size: var(--text-xs);
+			font-size: var(--text-2xs);
 			font-weight: 600;
-			letter-spacing: 0.04em;
+			letter-spacing: var(--tracking-label);
 			text-transform: uppercase;
 			color: var(--muted-foreground);
 		}
@@ -509,7 +509,7 @@
 
 	.add {
 		display: grid;
-		gap: var(--gap-md);
+		gap: var(--space-4);
 	}
 
 	.intro {
@@ -521,6 +521,6 @@
 	.actions {
 		display: flex;
 		justify-content: flex-end;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 </style>

@@ -563,7 +563,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		flex-shrink: 0;
 		padding: 0.75rem var(--page-gutter);
 		border-bottom: 1px solid var(--border);
@@ -573,7 +573,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.meta {
@@ -622,8 +622,8 @@
 
 	.grid-host :global(.photo-cell) {
 		overflow: visible;
-		padding-left: 0.65rem;
-		padding-right: 0.35rem;
+		padding-left: var(--space-3);
+		padding-right: var(--space-1);
 	}
 
 	.grid-host :global(.photo-cell .ag-cell-wrapper) {

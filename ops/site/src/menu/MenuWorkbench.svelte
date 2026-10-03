@@ -780,13 +780,14 @@
 		flex: 1;
 		display: grid;
 		place-content: center;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		padding: var(--page-gutter);
 		text-align: center;
 	}
 
 	.auth h1 {
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
+		letter-spacing: var(--tracking-xl);
 	}
 
 	.auth .muted {
@@ -796,31 +797,31 @@
 
 	.auth-form {
 		display: grid;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		width: min(100%, 18rem);
-		margin: var(--gap) auto 0;
+		margin: var(--space-4) auto 0;
 		justify-items: stretch;
 	}
 
 	.password-fallback {
 		text-align: left;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		color: var(--muted-foreground);
 	}
 
 	.password-fallback summary {
 		cursor: pointer;
-		margin-bottom: 0.5rem;
+		margin-bottom: var(--space-2);
 	}
 
 	.password-fallback form {
 		display: grid;
-		gap: var(--gap-xs);
+		gap: var(--space-2);
 	}
 
 	.auth-form input {
 		height: var(--control-h);
-		padding: 0 0.75rem;
+		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
@@ -829,7 +830,7 @@
 
 	.auth-error {
 		color: var(--destructive);
-		font-size: var(--text);
+		font-size: var(--text-base);
 	}
 
 	.workbench {
@@ -878,20 +879,20 @@
 	.top {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--gap-sm) var(--gap);
+		gap: var(--space-3) var(--space-4);
 		align-items: center;
 		justify-content: flex-end;
 		flex-shrink: 0;
 		padding: 0.65rem var(--page-gutter);
 		background: var(--background);
 		border-bottom: 1px solid var(--border);
-		min-height: calc(var(--topbar-h, 3.25rem));
+		min-height: var(--topbar-h);
 	}
 
 	.tools {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		align-items: center;
 		justify-content: flex-end;
 	}
@@ -910,7 +911,7 @@
 
 	.missing {
 		display: grid;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		place-content: center;
 		justify-items: center;
 		height: 100%;

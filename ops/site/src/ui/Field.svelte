@@ -52,7 +52,7 @@
 		  other controls in the row sit on.
 		*/
 		align-content: start;
-		gap: 0.375rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -60,7 +60,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		min-width: 0;
 		/* Match tip / compact action height so neighbouring fields share a baseline. */
 		min-height: var(--control-h-xs);
@@ -69,7 +69,7 @@
 	.label-left {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
@@ -82,7 +82,7 @@
 	.label-actions {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		flex-shrink: 0;
 	}
 
@@ -100,7 +100,7 @@
 
 	.label-actions :global(.btn:has(.label)) {
 		width: auto;
-		padding: 0 0.45rem;
+		padding: 0 var(--space-2);
 	}
 
 	.label-actions :global(.btn .glyph) {

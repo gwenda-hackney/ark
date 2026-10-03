@@ -90,15 +90,15 @@
 		z-index: 80;
 		width: max-content;
 		max-width: min(18rem, calc(100vw - 2rem));
-		padding: 0.45rem 0.6rem;
+		padding: var(--space-2) var(--space-2);
 		border-radius: var(--radius-md);
 		border: 1px solid var(--border-strong);
 		background: var(--card);
 		color: var(--foreground);
 		font-size: var(--text-xs);
-		font-weight: 450;
+		font-weight: 400;
 		line-height: 1.4;
-		box-shadow: var(--shadow-md, var(--shadow-sm));
+		box-shadow: var(--shadow-pop);
 		opacity: 0;
 		visibility: hidden;
 		transform: translateY(-0.15rem);

@@ -83,14 +83,14 @@
 
 	.stack {
 		display: grid;
-		gap: var(--gap-lg);
+		gap: var(--space-6);
 		max-width: 40rem;
 		align-content: start;
 	}
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 </style>

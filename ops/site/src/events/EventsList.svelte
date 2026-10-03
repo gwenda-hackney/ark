@@ -379,7 +379,7 @@
 		padding: var(--page-gutter);
 		display: flex;
 		flex-direction: column;
-		gap: var(--gap);
+		gap: var(--space-4);
 		background: var(--background);
 	}
 
@@ -415,7 +415,7 @@
 	.list-filters {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		align-items: flex-end;
 	}
 
@@ -440,18 +440,18 @@
 
 	.filter-label {
 		display: block;
-		margin: 0 0 0.35rem;
+		margin: 0 0 var(--space-1);
 		color: var(--muted-foreground);
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 	}
 
 	.filter-clear {
 		align-self: end;
 		height: var(--control-h-sm);
-		padding: 0 0.75rem;
+		padding: 0 var(--space-3);
 		border: 0;
 		border-radius: var(--radius-md);
 		background: transparent;

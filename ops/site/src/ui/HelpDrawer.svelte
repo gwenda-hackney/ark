@@ -37,14 +37,13 @@
 	.topics {
 		margin: 0;
 		display: grid;
-		gap: 1.1rem;
+		gap: var(--space-4);
 	}
 
 	.topic dt {
-		margin: 0 0 0.3rem;
+		margin: 0 0 var(--space-1);
 		font-size: var(--text-sm);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 		color: var(--foreground);
 	}
 

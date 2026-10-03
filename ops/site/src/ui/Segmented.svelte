@@ -85,7 +85,7 @@
 	.tab {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.375rem;
+		gap: var(--space-2);
 		border: none;
 		border-radius: var(--radius-pill);
 		background: none;
@@ -126,26 +126,26 @@
 
 	.md .tab {
 		height: 1.875rem;
-		padding: 0 0.8125rem;
-		font-size: var(--text);
+		padding: 0 var(--space-3);
+		font-size: var(--text-base);
 	}
 
 	.sm .tab {
 		height: 1.625rem;
-		padding: 0 0.6875rem;
+		padding: 0 var(--space-3);
 		font-size: var(--text-sm);
 	}
 
 	.soft.md .tab {
 		height: auto;
 		min-height: 1.875rem;
-		padding: 0.2rem 0.55rem 0.45rem;
+		padding: 0.2rem var(--space-2) var(--space-2);
 	}
 
 	.soft.sm .tab {
 		height: auto;
 		min-height: 1.5rem;
-		padding: 0.15rem 0.45rem 0.4rem;
+		padding: 0.15rem var(--space-2) var(--space-2);
 	}
 
 	.tab:hover:not(:disabled):not([aria-disabled="true"]):not([aria-selected="true"]) {

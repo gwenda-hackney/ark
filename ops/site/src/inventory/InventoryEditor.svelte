@@ -536,7 +536,7 @@
 						<TextField
 							id="inv-estimate"
 							size="sm"
-							mono
+							numeric
 							inputmode="decimal"
 							placeholder={String(kindCostEstimate(item.kind).cost)}
 							value={
@@ -566,7 +566,7 @@
 						<TextField
 							id="inv-on-hand"
 							size="sm"
-							mono
+							numeric
 							inputmode="decimal"
 							placeholder="0"
 							value={item.actualQty != null ? String(item.actualQty) : ""}
@@ -652,7 +652,7 @@
 												<TextField
 													class="price-input"
 													size="sm"
-													mono
+													numeric
 													align="end"
 													inputmode="decimal"
 													placeholder="0.00"
@@ -893,7 +893,7 @@
 							<TextField
 								id="drawer-price"
 								size="sm"
-								mono
+								numeric
 								inputmode="decimal"
 								placeholder="0.00"
 								value={
@@ -999,7 +999,7 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		padding: 0.75rem var(--card-pad) 0.65rem;
 		border-bottom: 1px solid var(--border);
 	}
@@ -1013,11 +1013,11 @@
 
 	.eyebrow {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 	}
 
 	.title-row {
@@ -1037,9 +1037,9 @@
 		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
-		font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
 		outline: none;
 	}
@@ -1057,14 +1057,14 @@
 	.head-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 	}
 
 	.dirty-pill {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--primary);
 	}
@@ -1079,7 +1079,7 @@
 	.grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 0.7rem 0.85rem;
+		gap: var(--space-3) var(--space-3);
 		align-items: start;
 	}
 
@@ -1089,25 +1089,23 @@
 
 	.block {
 		display: grid;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.block + .block,
 	.grid + .block {
-		margin-top: 1.25rem;
+		margin-top: var(--space-5);
 	}
 
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -1121,7 +1119,7 @@
 	.section-head {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.section-head .section-title {
@@ -1151,16 +1149,16 @@
 
 	.supplier-table th,
 	.supplier-table td {
-		padding: 0.4rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		text-align: left;
 		border-bottom: 1px solid var(--border);
 		vertical-align: middle;
 	}
 
 	.supplier-table th {
-		font-size: 0.7rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 		background: color-mix(in srgb, var(--card) 70%, transparent);
@@ -1171,8 +1169,8 @@
 	}
 
 	.supplier-table .mono {
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: 0.8rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 	}
 
 	.name-cell {
@@ -1190,14 +1188,14 @@
 
 	.supplier-table :global(.price-input) {
 		height: 2rem;
-		padding: 0 0.5rem;
+		padding: 0 var(--space-2);
 		background: var(--card);
 	}
 
 	.icon-col {
 		width: 2.25rem;
 		padding-left: 0.2rem;
-		padding-right: 0.35rem;
+		padding-right: var(--space-1);
 		text-align: center;
 	}
 
@@ -1216,14 +1214,14 @@
 	.used-in {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.used-in a {
 		display: inline-flex;
 		align-items: center;
 		max-width: 100%;
-		padding: 0.28rem 0.72rem;
+		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-pill);
 		background: var(--sunken);
@@ -1264,38 +1262,37 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.9rem 1rem 0.75rem;
+		gap: var(--space-3);
+		padding: var(--space-4) var(--space-4) var(--space-3);
 		border-bottom: 1px solid var(--border);
 	}
 
 	.drawer-eyebrow {
 		margin: 0 0 0.15rem;
-		font-size: 0.7rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.drawer-head h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.1rem;
+		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: -0.01em;
+		letter-spacing: var(--tracking-lg);
 	}
 
 	.drawer-body {
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
-		padding: 1rem;
+		padding: var(--space-4);
 	}
 
 	.drawer-grid {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.drawer-manage {
@@ -1315,7 +1312,7 @@
 	.drawer-row {
 		display: grid;
 		grid-template-columns: 1fr 1fr 1fr;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.drawer-open {
@@ -1331,8 +1328,8 @@
 	.drawer-foot {
 		display: flex;
 		justify-content: flex-end;
-		gap: 0.45rem;
-		padding: 0.75rem 1rem;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-4);
 		border-top: 1px solid var(--border);
 	}
 
@@ -1344,7 +1341,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		padding: 0.55rem var(--card-pad) 0.75rem;
 		border-top: 1px solid var(--border);
 	}
@@ -1355,14 +1352,14 @@
 
 	.copy {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: var(--text-base);
 		line-height: 1.45;
 	}
 
 	.switch {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		min-height: var(--control-h-sm);
 		cursor: pointer;
 		user-select: none;
@@ -1414,7 +1411,7 @@
 	}
 
 	.switch.compact {
-		gap: 0.45rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 	}
 

@@ -200,14 +200,14 @@
 		list-style: none;
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-		gap: 0.9rem;
+		gap: var(--space-4);
 		margin: 0;
 		padding: 0;
 	}
 
 	.tile {
 		display: grid;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		color: inherit;
 		text-decoration: none;
@@ -220,7 +220,7 @@
 		aspect-ratio: 1;
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.45rem;
+		border-radius: var(--radius-md);
 		background: var(--background);
 	}
 
@@ -231,7 +231,8 @@
 	}
 
 	.mark {
-		font-size: 1.6rem;
+		font-size: var(--text-xl);
+		letter-spacing: var(--tracking-xl);
 		font-weight: 600;
 		color: var(--muted-foreground);
 	}
@@ -240,12 +241,12 @@
 		position: absolute;
 		top: 0.45rem;
 		left: 0.45rem;
-		padding: 0.12rem 0.45rem;
-		border-radius: 999px;
+		padding: 0.12rem var(--space-2);
+		border-radius: var(--radius-pill);
 		background: color-mix(in srgb, var(--background) 88%, transparent);
-		font-size: 0.68rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 	}
 
@@ -279,7 +280,7 @@
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 	}
 
 	.muted {

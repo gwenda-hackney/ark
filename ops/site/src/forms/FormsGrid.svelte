@@ -102,6 +102,6 @@
 	}
 
 	.frame :global(.not-sent) {
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 	}
 </style>

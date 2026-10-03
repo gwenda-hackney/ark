@@ -195,7 +195,7 @@
 		display: flex;
 		flex: 1;
 		flex-direction: column;
-		gap: var(--gap);
+		gap: var(--space-4);
 		min-width: 0;
 		min-height: 0;
 		height: 100%;
@@ -205,7 +205,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		flex-wrap: wrap;
 	}
 
@@ -213,16 +213,15 @@
 	.calendar-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	h2 {
 		margin: 0;
 		min-width: 11rem;
 		text-align: center;
-		font-size: 1.05rem;
+		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 	}
 
 	.count,
@@ -237,7 +236,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.35rem 0.75rem;
+		gap: var(--space-1) var(--space-3);
 	}
 
 	.jump {
@@ -287,11 +286,11 @@
 	}
 
 	.head {
-		padding: 0.55rem 0.45rem;
+		padding: var(--space-2) var(--space-2);
 		color: var(--muted-foreground);
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		line-height: 1.2;
 		text-align: center;
 		text-transform: uppercase;
@@ -300,9 +299,9 @@
 	.day {
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		min-height: 0;
-		padding: 0.4rem;
+		padding: var(--space-2);
 		overflow: auto;
 	}
 
@@ -326,6 +325,7 @@
 		font-size: var(--text-xs);
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		color: var(--muted-foreground);
 		line-height: 1;
 	}
@@ -353,7 +353,7 @@
 	.events {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
@@ -361,8 +361,8 @@
 		display: grid;
 		gap: 0.05rem;
 		min-width: 0;
-		padding: 0.28rem 0.4rem;
-		border-radius: var(--radius-xs);
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-sm);
 		background: var(--primary-wash);
 		color: inherit;
 		text-decoration: none;
@@ -392,7 +392,7 @@
 
 	.when {
 		color: var(--primary);
-		font-size: 0.6875rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
 		line-height: 1.2;
 	}
@@ -412,7 +412,7 @@
 
 	.artist {
 		color: var(--muted-foreground);
-		font-size: 0.6875rem;
+		font-size: var(--text-2xs);
 	}
 
 	@media (max-width: 720px) {

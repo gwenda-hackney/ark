@@ -54,7 +54,7 @@
 <style>
 	.delete-copy {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--foreground);
 	}
@@ -64,7 +64,7 @@
 	}
 
 	.also-website {
-		margin: 0.85rem 0 0;
+		margin: var(--space-3) 0 0;
 		font-size: var(--text-sm);
 	}
 </style>

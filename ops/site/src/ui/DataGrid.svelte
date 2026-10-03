@@ -306,8 +306,8 @@
 
 	.host :global(.ag-header-cell-text) {
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		font-size: 12px;
+		letter-spacing: var(--tracking-label);
+		font-size: var(--text-2xs);
 		font-weight: 600;
 	}
 

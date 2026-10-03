@@ -289,7 +289,7 @@
 	}
 
 	.wrap.invalid {
-		border-color: var(--destructive, #d9534f);
+		border-color: var(--danger);
 	}
 
 	.wrap.disabled {
@@ -302,18 +302,19 @@
 		height: 100%;
 		box-sizing: border-box;
 		margin: 0;
-		padding: 0 0.25rem 0 0.75rem;
+		padding: 0 var(--space-1) 0 var(--space-3);
 		border: 0;
 		background: transparent;
 		color: var(--foreground);
 		font: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		line-height: 1.25;
 	}
 
 	.sm .field {
-		padding-left: 0.6875rem;
+		padding-left: var(--space-3);
 	}
 
 	.field::placeholder {
@@ -330,7 +331,7 @@
 		flex: 0 0 auto;
 		height: 100%;
 		margin: 0;
-		padding: 0 0.6rem;
+		padding: 0 var(--space-2);
 		border: 0;
 		background: transparent;
 		color: var(--muted-foreground);
@@ -351,7 +352,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
-		padding: 0.35rem;
+		padding: var(--space-1);
 		overflow: auto;
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
@@ -363,13 +364,14 @@
 	.option {
 		width: 100%;
 		margin: 0;
-		padding: 0.45rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--muted-foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		line-height: 1.3;
 		text-align: left;
 		cursor: pointer;

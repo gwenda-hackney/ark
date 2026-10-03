@@ -1184,7 +1184,7 @@
 				/>
 			</Field>
 			<Field label="Price" for="ls-add-price">
-				<TextField id="ls-add-price" size="sm" mono bind:value={addPrice} />
+				<TextField id="ls-add-price" size="sm" numeric bind:value={addPrice} />
 			</Field>
 			{#if posMenus.length}
 				<Field label="POS menu" for="ls-add-pos-menu">
@@ -1271,7 +1271,7 @@
 
 	.stack {
 		display: grid;
-		gap: var(--gap-lg);
+		gap: var(--space-6);
 		max-width: 64rem;
 		align-content: start;
 	}
@@ -1279,8 +1279,8 @@
 	.drop {
 		display: grid;
 		justify-items: center;
-		gap: 0.65rem;
-		padding: 1.4rem 1rem;
+		gap: var(--space-3);
+		padding: var(--space-6) var(--space-4);
 		border: 1px dashed var(--border);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
@@ -1300,14 +1300,14 @@
 	}
 
 	.error {
-		margin: var(--gap-sm) 0 0;
-		color: var(--destructive, #c97a7a);
+		margin: var(--space-3) 0 0;
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 
 	.groups {
 		display: grid;
-		gap: var(--gap-lg);
+		gap: var(--space-6);
 	}
 
 	.muted {
@@ -1317,7 +1317,7 @@
 	}
 
 	.status-note {
-		margin: 0.85rem 0 0;
+		margin: var(--space-3) 0 0;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
@@ -1325,25 +1325,26 @@
 	.status {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.fig-label {
 		margin: 0.15rem 0 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.value {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.03em;
-		line-height: 1.1;
+		letter-spacing: var(--tracking-2xl);
+		line-height: var(--leading-2xl);
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.fig.up .value {
@@ -1351,7 +1352,7 @@
 	}
 
 	.fig.warn .value {
-		color: var(--primary);
+		color: var(--warning);
 	}
 
 	.fig.down .value {
@@ -1372,16 +1373,16 @@
 
 	.table th,
 	.table td {
-		padding: 0.55rem 0.4rem;
+		padding: var(--space-2) var(--space-2);
 		text-align: left;
 		border-bottom: 1px solid var(--border);
 		vertical-align: top;
 	}
 
 	.table th {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -1392,6 +1393,7 @@
 
 	.num {
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 
@@ -1402,7 +1404,7 @@
 
 	.mono,
 	.mono-cell {
-		font-family: var(--font-mono, ui-monospace, monospace);
+		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 	}
@@ -1415,7 +1417,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		white-space: nowrap;
 	}
 
@@ -1424,7 +1426,7 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.ops-only li {
@@ -1432,8 +1434,8 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.45rem 0.75rem;
-		padding: 0.45rem 0;
+		gap: var(--space-2) var(--space-3);
+		padding: var(--space-2) 0;
 		border-bottom: 1px solid var(--border);
 		font-size: var(--text-sm);
 	}
@@ -1442,7 +1444,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
-		gap: 0.45rem 0.75rem;
+		gap: var(--space-2) var(--space-3);
 		min-width: 0;
 	}
 
@@ -1455,7 +1457,7 @@
 	}
 
 	.dialog-lead {
-		margin: 0 0 var(--gap);
+		margin: 0 0 var(--space-4);
 		font-size: var(--text-sm);
 		line-height: 1.5;
 		color: var(--muted-foreground);
@@ -1463,7 +1465,7 @@
 
 	.dialog-grid {
 		display: grid;
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.sr-only {

@@ -52,7 +52,7 @@
 <style>
 	.delete-copy {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--foreground);
 	}

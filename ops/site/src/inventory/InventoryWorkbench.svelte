@@ -385,7 +385,7 @@
 			},
 			valueGetter: (p) => priceBasisLabel(p.data),
 			cellClass: (p) => {
-				if (p.value === "Item estimate") return "gold";
+				if (p.value === "Item estimate") return "warn";
 				if (p.value === "Kind estimate") return "down";
 				return "";
 			},
@@ -700,7 +700,7 @@
 		flex-wrap: wrap;
 		align-items: flex-end;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		flex-shrink: 0;
 		padding: 1rem var(--page-gutter) 0.85rem;
 		border-bottom: 1px solid var(--border);
@@ -714,25 +714,25 @@
 
 	.eyebrow {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 	}
 
 	h1 {
 		margin: 0;
 		font-family: var(--font-display);
-		font-size: 1.55rem;
+		font-size: var(--text-xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 	}
 
 	.lede {
 		margin: 0;
 		max-width: 36rem;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--muted-foreground);
 	}
@@ -740,7 +740,7 @@
 	.tools {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.45rem;
+		gap: var(--space-2);
 	}
 
 	.body {
@@ -748,7 +748,7 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.65rem;
+		gap: var(--space-3);
 		padding: 0.75rem var(--page-gutter) 0.85rem;
 	}
 
@@ -756,14 +756,14 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		flex-shrink: 0;
 	}
 
 	.toggle {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 		cursor: pointer;
@@ -801,7 +801,7 @@
 
 	.empty,
 	.error {
-		margin: 1.5rem 0;
+		margin: var(--space-6) 0;
 		font-size: var(--text-md);
 		color: var(--muted-foreground);
 	}
@@ -813,7 +813,7 @@
 
 	.missing {
 		display: grid;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		place-content: center;
 		justify-items: center;
 		height: 100%;
@@ -833,12 +833,12 @@
 		}
 
 		.top {
-			padding-top: 0.65rem;
-			padding-bottom: 0.65rem;
+			padding-top: var(--space-3);
+			padding-bottom: var(--space-3);
 		}
 
 		.body {
-			padding-top: 0.55rem;
+			padding-top: var(--space-2);
 		}
 
 		.meta {

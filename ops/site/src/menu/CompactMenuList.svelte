@@ -129,9 +129,9 @@
 	.sort {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
-		padding: 0 0 0.65rem;
+		padding: 0 0 var(--space-3);
 	}
 
 	.sort-label {
@@ -143,14 +143,14 @@
 		flex: 1;
 		min-height: 0;
 		overflow-y: auto;
-		padding-bottom: 0.75rem;
+		padding-bottom: var(--space-3);
 	}
 
 	.group {
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
-		padding: 0.85rem 0.15rem 0.4rem;
+		padding: var(--space-3) 0.15rem var(--space-2);
 		background: color-mix(in srgb, var(--foreground) 3.5%, var(--background));
 		border-bottom: 1px solid var(--border);
 		position: sticky;
@@ -160,27 +160,26 @@
 
 	.chapter {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		line-height: 1.2;
 	}
 
 	.group-row {
 		display: flex;
 		align-items: baseline;
-		gap: 0.65rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 
 	h3 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 0.95rem;
+		font-size: var(--text-base);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		color: var(--foreground);
 		white-space: nowrap;
 		overflow: hidden;
@@ -197,11 +196,11 @@
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr) auto auto;
 		align-items: center;
-		gap: 0.7rem;
+		gap: var(--space-3);
 		width: 100%;
 		min-height: 3.35rem;
 		margin: 0;
-		padding: 0.55rem 0.15rem;
+		padding: var(--space-2) 0.15rem;
 		border: 0;
 		border-bottom: 1px solid var(--border);
 		background: none;
@@ -247,9 +246,9 @@
 
 	.hint-label {
 		margin-right: 0.4em;
-		font-size: 0.65rem;
-		font-weight: 650;
-		letter-spacing: 0.04em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}
@@ -263,7 +262,7 @@
 	}
 
 	.price {
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 600;
 	}
 

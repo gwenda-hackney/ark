@@ -414,7 +414,7 @@
 	.web-address {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2, 0.5rem);
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -446,19 +446,19 @@
 	.section-label {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.details-board {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem 1.5rem;
+		gap: var(--space-5) var(--space-6);
 		align-items: start;
 	}
 
 	.details-main, .details-side {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 		align-content: start;
 		min-width: 0;
 	}
@@ -472,14 +472,14 @@
 		--gutter: 0rem;
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 0.8rem 0.7rem;
+		gap: var(--space-3) var(--space-3);
 		align-items: start;
 		min-width: 0;
 	}
 
 	.guest-group {
 		display: grid;
-		gap: 0.8rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 
@@ -489,7 +489,7 @@
 
 	.night-schedule {
 		display: grid;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -497,12 +497,12 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.night-schedule-list {
 		display: grid;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -511,7 +511,7 @@
 	.night-slot {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 0.45rem;
+		gap: var(--space-2);
 		align-items: center;
 	}
 
@@ -586,7 +586,7 @@
 		.night-slot {
 			position: relative;
 			grid-template-columns: minmax(0, 1fr) var(--time) var(--time);
-			column-gap: 0.7rem;
+			column-gap: var(--space-3);
 		}
 
 		.slot-remove {

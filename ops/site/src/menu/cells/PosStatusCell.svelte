@@ -30,6 +30,6 @@
 	}
 
 	.mark.warn {
-		color: var(--down, #c97a7a);
+		color: var(--danger);
 	}
 </style>

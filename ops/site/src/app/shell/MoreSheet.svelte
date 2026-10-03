@@ -164,7 +164,7 @@
 		border: 0;
 		padding: 0;
 		margin: 0;
-		background: color-mix(in srgb, #0d0d0d 55%, transparent);
+		background: color-mix(in srgb, var(--bg) 55%, transparent);
 		cursor: pointer;
 	}
 
@@ -173,10 +173,10 @@
 		pointer-events: auto;
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
-		margin: 0 var(--gap-sm);
+		gap: var(--space-1);
+		margin: 0 var(--space-3);
 		margin-bottom: calc(var(--bottom-nav-h) + 0.35rem);
-		padding: 0.5rem 0.5rem 0.65rem;
+		padding: var(--space-2) var(--space-2) var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
 		background: var(--card);
@@ -186,7 +186,7 @@
 	.grab {
 		width: 2.25rem;
 		height: 0.25rem;
-		margin: 0.15rem auto 0.35rem;
+		margin: 0.15rem auto var(--space-1);
 		border-radius: var(--radius-pill);
 		background: var(--border-strong);
 	}
@@ -200,24 +200,24 @@
 	}
 
 	.heading {
-		margin: 0.15rem 0.7rem 0.2rem;
-		font-size: var(--text-xs);
+		margin: 0.15rem var(--space-3) 0.2rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.heading:not(:first-child) {
-		margin-top: 0.65rem;
+		margin-top: var(--space-3);
 	}
 
 	.row {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		min-height: 3.15rem;
-		padding: 0.45rem 0.7rem;
+		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius-md);
 		color: var(--foreground);
 		text-decoration: none;
@@ -250,7 +250,7 @@
 	}
 
 	.label {
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 600;
 	}
 
@@ -265,13 +265,14 @@
 		min-width: 1.35rem;
 		height: 1.35rem;
 		margin-left: auto;
-		padding: 0 0.4rem;
+		padding: 0 var(--space-2);
 		border-radius: var(--radius-pill);
 		background: var(--primary);
 		color: var(--primary-foreground);
 		font-size: var(--text-xs);
-		font-weight: 700;
+		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		line-height: 1;
 	}
 
@@ -282,7 +283,7 @@
 
 	.badge.failed {
 		background: var(--destructive);
-		color: var(--destructive-foreground, #fff);
+		color: var(--danger-foreground);
 	}
 
 	.row.on .hint {
@@ -290,7 +291,7 @@
 	}
 
 	.session {
-		margin-top: 0.25rem;
+		margin-top: var(--space-1);
 		border-top: 1px solid var(--border);
 		color: var(--muted-foreground);
 		cursor: default;
@@ -325,7 +326,7 @@
 	}
 
 	.signout:first-child {
-		margin-top: 0.25rem;
+		margin-top: var(--space-1);
 		border-top: 1px solid var(--border);
 	}
 </style>

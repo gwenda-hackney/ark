@@ -53,10 +53,10 @@
 	}
 
 	.eyebrow {
-		color: var(--primary);
-		font-size: var(--text-xs);
+		color: var(--muted-foreground);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		line-height: 1.2;
 		text-transform: uppercase;
 		white-space: nowrap;

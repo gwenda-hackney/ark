@@ -60,7 +60,7 @@
 		justify-content: center;
 		flex-shrink: 0;
 		border: 1px solid transparent;
-		border-radius: var(--radius-pill);
+		border-radius: var(--radius-md);
 		background: transparent;
 		font-weight: 500;
 		white-space: nowrap;
@@ -92,36 +92,36 @@
 
 	.md {
 		height: var(--control-h);
-		padding: 0 1.125rem;
-		font-size: var(--text);
-		gap: 0.5rem;
+		padding: 0 var(--space-5);
+		font-size: var(--text-base);
+		gap: var(--space-2);
 	}
 
 	.sm {
 		height: var(--control-h-sm);
-		padding: 0 1rem;
-		font-size: var(--text);
-		gap: 0.5rem;
+		padding: 0 var(--space-4);
+		font-size: var(--text-base);
+		gap: var(--space-2);
 	}
 
 	.xs {
 		height: var(--control-h-xs);
-		padding: 0 0.75rem;
+		padding: 0 var(--space-3);
 		font-size: var(--text-sm);
-		gap: 0.375rem;
+		gap: var(--space-2);
 	}
 
 	/* MD3: leading-icon buttons tighten start padding, keep end breathing room. */
 	.md:has(.glyph):has(.label) {
-		padding-inline: 0.875rem 1.125rem;
+		padding-inline: var(--space-4) var(--space-5);
 	}
 
 	.sm:has(.glyph):has(.label) {
-		padding-inline: 0.75rem 1rem;
+		padding-inline: var(--space-3) var(--space-4);
 	}
 
 	.xs:has(.glyph):has(.label) {
-		padding-inline: 0.625rem 0.75rem;
+		padding-inline: var(--space-3) var(--space-3);
 	}
 
 	.md:not(:has(.label)) {

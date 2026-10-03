@@ -208,7 +208,7 @@
 								<TextField
 									id="f-cost-price-alt"
 									size="sm"
-									mono
+									numeric
 									align="end"
 									inputmode="decimal"
 									value={priceAltValue}
@@ -292,29 +292,27 @@
 <style>
 	.cost {
 		display: grid;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
 	.section-head {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 	}
 
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		flex: 0 1 auto;
 		min-width: 0;
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -326,7 +324,6 @@
 		min-width: 0;
 		margin: 0;
 		font-size: var(--text-xs);
-		letter-spacing: 0.04em;
 		line-height: 1.2;
 		color: var(--muted-foreground);
 		white-space: nowrap;
@@ -349,13 +346,13 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
 	.pour {
 		min-width: 0;
-		padding: 0.55rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--sunken);
@@ -365,7 +362,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.45rem 0.75rem;
+		gap: var(--space-2) var(--space-3);
 		min-width: 0;
 	}
 
@@ -398,6 +395,7 @@
 		text-align: end;
 		color: var(--foreground);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.price :global(input) {
@@ -409,7 +407,7 @@
 		flex-wrap: wrap;
 		align-items: flex-start;
 		justify-content: flex-end;
-		gap: 0.55rem 1rem;
+		gap: var(--space-2) var(--space-4);
 		flex: 1 1 auto;
 		min-width: 0;
 	}
@@ -422,9 +420,10 @@
 	}
 
 	.k {
-		font-size: var(--text-xs);
-		letter-spacing: 0.04em;
+		font-size: var(--text-2xs);
+		letter-spacing: var(--tracking-label);
 		color: var(--muted-foreground);
+		font-weight: 600;
 		text-transform: uppercase;
 	}
 
@@ -451,7 +450,7 @@
 	}
 
 	.add {
-		padding: 0.35rem 0.45rem;
+		padding: var(--space-1) var(--space-2);
 	}
 
 	@media (max-width: 720px) {

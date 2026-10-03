@@ -82,7 +82,7 @@
 			<TextField
 				id={`${idPrefix}-${row.value}`}
 				size="sm"
-				mono
+				numeric
 				inputmode="decimal"
 				disabled={pourSettings.saving}
 				value={draft[row.value]}
@@ -120,26 +120,26 @@
 
 <style>
 	.lead {
-		margin: 0 0 1rem;
-		font-size: var(--text);
+		margin: 0 0 var(--space-4);
+		font-size: var(--text-base);
 		line-height: 1.5;
 		color: var(--muted-foreground);
 	}
 
 	.warn {
-		margin: 0 0 1rem;
+		margin: 0 0 var(--space-4);
 		font-size: var(--text-sm);
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 	}
 
 	.rows {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.actions {
 		display: flex;
 		justify-content: flex-end;
-		margin-top: 1rem;
+		margin-top: var(--space-4);
 	}
 </style>

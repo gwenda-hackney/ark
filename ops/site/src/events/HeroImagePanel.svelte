@@ -459,12 +459,12 @@
 <style>
 	.hero-framing {
 		display: grid;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.hero-head {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-4);
 		justify-content: space-between;
 		align-items: center;
 	}
@@ -472,7 +472,7 @@
 	.section-title {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		margin: 0;
 		font-size: var(--text-sm);
 		font-weight: 600;
@@ -481,7 +481,7 @@
 	.hero-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.pick {
@@ -503,12 +503,12 @@
 	.pick-btn {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		height: var(--control-h-sm);
-		padding: 0 0.75rem;
+		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
 		color: inherit;
 		font-size: var(--text-sm);
 		font-weight: 600;
@@ -537,8 +537,8 @@
 		width: 100%;
 		aspect-ratio: 16 / 10;
 		border: 1px dashed var(--border);
-		border-radius: 0.4rem;
-		background: var(--surface);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
 		cursor: pointer;
 	}
 
@@ -556,8 +556,8 @@
 		aspect-ratio: 16 / 10;
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.4rem;
-		background: #0d0d0d;
+		border-radius: var(--radius-md);
+		background: var(--bg);
 	}
 
 	.locked-preview img {
@@ -574,7 +574,7 @@
 		aspect-ratio: 16 / 10;
 		margin: 0;
 		border: 1px dashed var(--border);
-		border-radius: 0.4rem;
+		border-radius: var(--radius-md);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
@@ -585,8 +585,8 @@
 		height: min(42vh, 22rem);
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.4rem;
-		background: #0d0d0d;
+		border-radius: var(--radius-md);
+		background: var(--bg);
 		cursor: grab;
 		touch-action: none;
 		user-select: none;
@@ -605,7 +605,7 @@
 	.crop-box {
 		position: absolute;
 		box-sizing: border-box;
-		border: 2px solid #c9a84c;
+		border: 2px solid var(--primary);
 		box-shadow: 0 0 0 999px rgba(13, 13, 13, 0.62);
 		pointer-events: none;
 	}
@@ -613,7 +613,7 @@
 	.controls {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.75rem 1rem;
+		gap: var(--space-3) var(--space-4);
 		align-items: center;
 	}
 
@@ -625,7 +625,7 @@
 	.zoom {
 		display: grid;
 		grid-template-columns: auto auto minmax(6rem, 1fr) auto;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		align-items: center;
 		flex: 1 1 12rem;
 		font-size: var(--text-sm);
@@ -635,14 +635,14 @@
 	.zoom-label {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.zoom input[type="range"] {
 		width: 100%;
 		height: 1.25rem;
 		margin: 0;
-		accent-color: #c9a84c;
+		accent-color: var(--primary);
 		cursor: pointer;
 	}
 
@@ -653,10 +653,10 @@
 		height: 1.75rem;
 		padding: 0;
 		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
 		color: var(--foreground);
-		font-size: 1rem;
+		font-size: var(--text-md);
 		line-height: 1;
 		cursor: pointer;
 	}
@@ -668,10 +668,10 @@
 
 	.reset {
 		height: var(--control-h-sm);
-		padding: 0 0.75rem;
+		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
 		color: inherit;
 		font-size: var(--text-sm);
 		font-weight: 600;

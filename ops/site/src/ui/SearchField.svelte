@@ -50,13 +50,13 @@
 	.wrap {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		height: var(--control-h);
 		width: var(--search-w);
 		max-width: 100%;
-		padding: 0 0.5rem 0 0.875rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-pill);
+		padding: 0 var(--space-2) 0 var(--space-3);
+		border: 1px solid var(--input);
+		border-radius: var(--radius-md);
 		background: var(--sunken);
 		transition:
 			border-color var(--t-fast) var(--ease-in-out),
@@ -65,7 +65,7 @@
 	}
 
 	.wrap:hover {
-		border-color: var(--border);
+		border-color: var(--border-strong);
 	}
 
 	.wrap:focus-within {
@@ -85,7 +85,7 @@
 		height: 100%;
 		border: none;
 		background: none;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		color: var(--foreground);
 	}
 

@@ -168,20 +168,20 @@
 
 	.stack {
 		display: grid;
-		gap: var(--gap-lg);
+		gap: var(--space-6);
 		max-width: 36rem;
 		align-content: start;
 	}
 
 	.tasks {
 		display: grid;
-		gap: var(--gap);
+		gap: var(--space-4);
 		justify-items: start;
 	}
 
 	.env-grid {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 		margin: 0;
 	}
 
@@ -191,7 +191,7 @@
 	}
 
 	.env-grid .span {
-		padding-top: 0.35rem;
+		padding-top: var(--space-1);
 		border-top: 1px solid var(--border);
 	}
 
@@ -200,16 +200,16 @@
 	}
 
 	.env-grid dt {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.env-grid dd {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		color: var(--foreground);
 	}
@@ -224,7 +224,7 @@
 	}
 
 	.mono {
-		font-family: var(--font-mono, ui-monospace, monospace);
+		font-family: var(--font-mono);
 		font-size: 0.9em;
 		font-weight: 500;
 		color: var(--muted-foreground);

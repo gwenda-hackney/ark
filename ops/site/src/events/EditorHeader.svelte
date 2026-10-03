@@ -310,7 +310,7 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
-		column-gap: 0.85rem;
+		column-gap: var(--space-3);
 		row-gap: 0.2rem;
 		flex-shrink: 0;
 		padding: 0.55rem var(--card-pad-lg) 0.75rem;
@@ -324,14 +324,14 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.35rem 0.85rem;
+		gap: var(--space-1) var(--space-3);
 		min-width: 0;
 	}
 
 	.type-line {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		max-width: 100%;
 		min-height: var(--control-h-sm);
@@ -340,11 +340,11 @@
 	.eyebrow {
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -362,7 +362,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: flex-end;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		min-height: var(--control-h-sm);
 	}
 
@@ -396,7 +396,7 @@
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 0.45rem 0.7rem;
+		gap: var(--space-2) var(--space-3);
 		min-width: 0;
 	}
 
@@ -411,17 +411,17 @@
 	.night-headline {
 		margin: 0;
 		font-family: var(--font);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
+		letter-spacing: var(--tracking-2xl);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.locked-title {
 		margin: 0.15rem 0 0;
 		color: var(--foreground);
-		font-size: 1.05rem;
+		font-size: var(--text-md);
 		font-weight: 500;
 		line-height: 1.3;
 	}
@@ -438,9 +438,9 @@
 		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
 		outline: none;
 		transition:
@@ -452,7 +452,7 @@
 	.title-input::placeholder {
 		color: var(--subtle-foreground);
 		font-family: var(--font);
-		font-size: 1rem;
+		font-size: var(--text-md);
 		font-weight: 400;
 		letter-spacing: 0;
 	}
@@ -473,7 +473,7 @@
 	}
 
 	.title-input.night-title {
-		font-size: 1.05rem;
+		font-size: var(--text-md);
 		font-weight: 500;
 		letter-spacing: 0;
 	}
@@ -493,19 +493,21 @@
 	.date-readout {
 		margin: 0;
 		font-family: var(--font);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
+		letter-spacing: var(--tracking-2xl);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 
 	.date-readout.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
-		font-size: 1.2rem;
+		font-size: var(--text-lg);
+		letter-spacing: var(--tracking-lg);
 	}
 
 	.status-flag {
@@ -514,11 +516,11 @@
 		flex-shrink: 0;
 		width: fit-content;
 		margin: 0;
-		padding: 0.18rem 0.5rem;
+		padding: 0.18rem var(--space-2);
 		border-radius: var(--radius-pill);
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.06em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		line-height: 1.2;
 		text-transform: uppercase;
 		white-space: nowrap;
@@ -558,7 +560,6 @@
 	.status-flag.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
-		letter-spacing: 0.04em;
 		text-transform: none;
 		padding: 0;
 		background: transparent;
@@ -573,10 +574,9 @@
 		/* A space-sized gap between the sentences, not a wide one (#32). */
 		gap: 0.2rem 0.3em;
 		margin: 0;
-		padding-top: 0.45rem;
+		padding-top: var(--space-2);
 		font-size: var(--text-xs);
 		font-weight: 500;
-		letter-spacing: 0.02em;
 		line-height: 1.4;
 		color: var(--muted-foreground);
 		max-width: 40rem;
@@ -590,8 +590,8 @@
 	.create-mode {
 		grid-column: 1 / -1;
 		display: grid;
-		gap: 0.45rem;
-		margin-top: 0.35rem;
+		gap: var(--space-2);
+		margin-top: var(--space-1);
 	}
 
 	.create-hint {
@@ -606,7 +606,7 @@
 
 	.sub {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		color: var(--muted-foreground);
 	}
 
@@ -627,11 +627,12 @@
 
 	@media (max-width: 600px) {
 		.title-input, .date-readout, .night-headline {
-			font-size: 1.35rem;
+			font-size: var(--text-xl);
+			letter-spacing: var(--tracking-xl);
 		}
 
 		.title-input.night-title {
-			font-size: 1rem;
+			font-size: var(--text-md);
 		}
 	}
 </style>

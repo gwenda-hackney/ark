@@ -59,19 +59,19 @@
 <style>
 	.delete-copy {
 		margin: 0;
-		font-size: 0.875rem;
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--foreground);
 	}
 
 	.also-website {
-		margin: 0.85rem 0 0;
+		margin: var(--space-3) 0 0;
 		font-size: var(--text-sm);
 	}
 
 	.scope-options {
 		display: grid;
-		gap: 0.625rem;
-		margin-top: 1rem;
+		gap: var(--space-3);
+		margin-top: var(--space-4);
 	}
 </style>

@@ -42,7 +42,7 @@
 
 	.remove:hover {
 		background: var(--destructive-wash);
-		color: color-mix(in srgb, var(--destructive) 85%, #e8e4dc);
+		color: color-mix(in srgb, var(--danger) 85%, var(--fg));
 	}
 
 	.remove:focus-visible {

@@ -182,7 +182,7 @@
 
 	.ready {
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-4);
 		max-width: 80rem;
 	}
 
@@ -214,16 +214,16 @@
 
 	th,
 	td {
-		padding: 0.6rem 0.75rem;
+		padding: var(--space-2) var(--space-3);
 		border-bottom: 1px solid var(--border);
 		text-align: left;
 		vertical-align: top;
 	}
 
 	thead th {
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -255,20 +255,20 @@
 	.about,
 	.meta {
 		color: var(--muted-foreground);
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-xs);
 	}
 
 	td .value {
 		display: block;
 		overflow-wrap: anywhere;
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: var(--text-xs, 0.75rem);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
 	}
 
 	.from {
 		display: inline-block;
 		margin-top: 0.2rem;
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 	}
 
@@ -282,8 +282,8 @@
 
 	.card {
 		display: grid;
-		gap: 0.5rem;
-		padding: 1rem;
+		gap: var(--space-2);
+		padding: var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--card);
@@ -291,12 +291,12 @@
 
 	.card h2 {
 		margin: 0;
-		font-size: var(--text-base, 1rem);
+		font-size: var(--text-base);
 	}
 
 	.plain {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		margin: 0;
 		padding: 0;
 		list-style: none;

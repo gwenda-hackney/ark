@@ -32,7 +32,7 @@
 		flex-shrink: 0;
 		object-fit: cover;
 		object-position: center center;
-		border-radius: 0.4rem;
+		border-radius: var(--radius-md);
 		background: var(--sunken);
 	}
 
@@ -44,13 +44,13 @@
 	.md {
 		width: 2.5rem;
 		height: 2.5rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-md);
 	}
 
 	.lg {
 		width: 3.5rem;
 		height: 3.5rem;
-		border-radius: 0.55rem;
+		border-radius: var(--radius-md);
 	}
 
 	/* Keeps the column aligned without a hollow box that reads as a checkbox. */

@@ -168,10 +168,10 @@
 		flex: none;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.45rem;
-		padding: 0.3rem 0.75rem;
+		gap: var(--space-2);
+		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--border);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--card, var(--background));
 		color: var(--foreground);
 		font: inherit;
@@ -221,23 +221,23 @@
 
 	.intro,
 	.empty {
-		margin: 0 0 1rem;
+		margin: 0 0 var(--space-4);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
 
 	h3 {
-		margin: 1.25rem 0 0.5rem;
-		font-size: var(--text-xs, 0.75rem);
+		margin: var(--space-5) 0 var(--space-2);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	ul {
 		display: grid;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -247,8 +247,8 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.35rem 0.6rem;
-		padding: 0.5rem 0;
+		gap: var(--space-1) var(--space-2);
+		padding: var(--space-2) 0;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -286,5 +286,6 @@
 	.at {
 		font-size: var(--text-sm);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 </style>

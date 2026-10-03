@@ -279,7 +279,7 @@
 <style>
 	.panel {
 		display: grid;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.table-wrap {
@@ -297,16 +297,16 @@
 
 	.menu-table th,
 	.menu-table td {
-		padding: 0.4rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		text-align: left;
 		border-bottom: 1px solid var(--border);
 		vertical-align: middle;
 	}
 
 	.menu-table th {
-		font-size: 0.7rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 		background: color-mix(in srgb, var(--card) 70%, transparent);
@@ -333,7 +333,7 @@
 	.icon-col {
 		width: 4.5rem;
 		padding-left: 0.2rem;
-		padding-right: 0.35rem;
+		padding-right: var(--space-1);
 		text-align: right;
 		white-space: nowrap;
 	}

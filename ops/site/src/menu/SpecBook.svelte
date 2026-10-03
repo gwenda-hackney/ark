@@ -367,9 +367,9 @@
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		align-items: center;
-		padding: var(--gap) var(--page-gutter);
+		padding: var(--space-4) var(--page-gutter);
 		font-family: var(--font);
 		border-bottom: 1px solid var(--border);
 		background: var(--background);
@@ -543,6 +543,7 @@
 		font-family: var(--font);
 		font-style: normal;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 		line-height: 1.2;
 	}
@@ -579,6 +580,7 @@
 	.spec-label {
 		color: var(--book-accent);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 

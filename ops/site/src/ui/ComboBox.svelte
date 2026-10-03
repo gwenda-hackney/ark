@@ -254,17 +254,17 @@
 		height: 100%;
 		box-sizing: border-box;
 		margin: 0;
-		padding: 0 0.25rem 0 0.75rem;
+		padding: 0 var(--space-1) 0 var(--space-3);
 		border: 0;
 		background: transparent;
 		color: var(--foreground);
 		font: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.25;
 	}
 
 	.sm .field {
-		padding-left: 0.6875rem;
+		padding-left: var(--space-3);
 	}
 
 	.field::placeholder {
@@ -281,7 +281,7 @@
 		flex: 0 0 auto;
 		height: 100%;
 		margin: 0;
-		padding: 0 0.6rem;
+		padding: 0 var(--space-2);
 		border: 0;
 		background: transparent;
 		color: var(--muted-foreground);
@@ -306,7 +306,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.15rem;
-		padding: 0.35rem;
+		padding: var(--space-1);
 		overflow: auto;
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
@@ -319,15 +319,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		width: 100%;
 		margin: 0;
-		padding: 0.55rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.3;
 		text-align: left;
 		cursor: pointer;
@@ -363,8 +363,8 @@
 
 	.empty {
 		margin: 0;
-		padding: 0.55rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		color: var(--muted-foreground);
-		font-size: var(--text-sm, 0.875rem);
+		font-size: var(--text-sm);
 	}
 </style>

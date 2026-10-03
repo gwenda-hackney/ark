@@ -267,25 +267,25 @@
 
 	.stack {
 		display: grid;
-		gap: var(--gap-lg);
+		gap: var(--space-6);
 		max-width: 44rem;
 		align-content: start;
 	}
 
 	.add {
 		display: grid;
-		gap: var(--gap-md);
+		gap: var(--space-4);
 	}
 
 	.actions {
 		display: flex;
 		justify-content: flex-end;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.error {
-		margin: var(--gap-sm) 0 0;
-		color: var(--destructive, #c97a7a);
+		margin: var(--space-3) 0 0;
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 
@@ -307,8 +307,8 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.45rem 0.2rem;
+		gap: var(--space-3);
+		padding: var(--space-2) 0.2rem;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -355,7 +355,7 @@
 	.row-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		flex-shrink: 0;
 		padding-top: 0.15rem;
 	}

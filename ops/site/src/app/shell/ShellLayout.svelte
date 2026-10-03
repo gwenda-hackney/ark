@@ -600,7 +600,7 @@
 		position: relative;
 		z-index: 50;
 		height: 100dvh;
-		padding: 0 0.75rem 1rem;
+		padding: 0 var(--space-3) var(--space-4);
 		background: var(--card);
 		border-right: 1px solid var(--border);
 		overflow: hidden;
@@ -628,8 +628,9 @@
 		border-radius: var(--radius-md);
 		background: var(--brand-mark);
 		color: var(--primary-foreground);
+		/* The brand G, in the brand serif. */
 		font-family: var(--font-display);
-		font-size: 1.05rem;
+		font-size: var(--text-lg);
 		font-weight: 600;
 		box-shadow: var(--shadow-primary);
 	}
@@ -652,8 +653,8 @@
 
 	.brand-title {
 		font-size: var(--text-md);
-		font-weight: 650;
-		letter-spacing: -0.02em;
+		font-weight: 600;
+		letter-spacing: var(--tracking-2xl);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -690,15 +691,15 @@
 	}
 
 	.open .nav-section {
-		margin-top: 0.85rem;
-		margin-bottom: 0.35rem;
+		margin-top: var(--space-3);
+		margin-bottom: var(--space-1);
 	}
 
 	.nav-section-label {
-		margin: 0.15rem 0 0.3rem 0.7rem;
-		font-size: 0.6875rem;
+		margin: 0.15rem 0 var(--space-1) var(--space-3);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}
@@ -744,12 +745,12 @@
 	.nav-item.nested {
 		height: 2.25rem;
 		min-height: 2.25rem;
-		padding-left: 2.7rem;
-		padding-right: 0.7rem;
+		padding-left: var(--space-10);
+		padding-right: var(--space-3);
 		border-radius: var(--radius-sm);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
-		font-weight: 450;
+		font-weight: 400;
 	}
 
 	.nav-item.nested.deep {
@@ -760,20 +761,20 @@
 
 	.nav-sub-label {
 		flex-shrink: 0;
-		margin: 0.35rem 0 0.05rem 0.4rem;
-		font-size: 0.6875rem;
+		margin: var(--space-1) 0 0.05rem var(--space-2);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.07em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}
 
 	.flyout-label {
 		flex-shrink: 0;
-		margin: 0.45rem 0 0.1rem 0.55rem;
-		font-size: var(--text-xs);
+		margin: var(--space-2) 0 0.1rem var(--space-2);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}
@@ -781,7 +782,7 @@
 	.nav-item.group-label {
 		cursor: pointer;
 		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		letter-spacing: 0;
 		text-transform: none;
@@ -839,7 +840,7 @@
 		left: 100%;
 		top: 0;
 		z-index: 70;
-		padding-left: 0.5rem;
+		padding-left: var(--space-2);
 		opacity: 0;
 		pointer-events: none;
 		transform: translate(-0.25rem, 0);
@@ -859,7 +860,7 @@
 		display: grid;
 		gap: 0.125rem;
 		min-width: 12.75rem;
-		padding: 0.35rem;
+		padding: var(--space-1);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--popover);
@@ -870,9 +871,9 @@
 	.flyout-link {
 		display: flex;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		min-height: 2.35rem;
-		padding: 0.35rem 0.55rem;
+		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius-sm);
 		color: var(--popover-foreground);
 		font-size: var(--text-sm);
@@ -900,7 +901,7 @@
 		flex-direction: column;
 		flex-shrink: 0;
 		gap: 0.1875rem;
-		padding-top: 0.5rem;
+		padding-top: var(--space-2);
 		border-top: 1px solid var(--border);
 	}
 
@@ -931,17 +932,17 @@
 		display: flex;
 		align-items: center;
 		flex-shrink: 0;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		width: 100%;
 		height: 2.75rem;
 		min-height: 2.75rem;
-		padding: 0 0.6875rem;
+		padding: 0 var(--space-3);
 		border: none;
 		border-radius: var(--radius-md);
 		background: none;
 		color: var(--muted-foreground);
 		font: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		text-align: left;
 		text-decoration: none;
@@ -1031,8 +1032,8 @@
 		border-radius: var(--radius-sm);
 		background: color-mix(in srgb, var(--primary) 22%, var(--card));
 		color: var(--primary);
-		font-size: 0.625rem;
-		font-weight: 700;
+		font-size: var(--text-2xs);
+		font-weight: 600;
 		letter-spacing: 0;
 		line-height: 1;
 		text-align: center;
@@ -1063,13 +1064,14 @@
 		min-width: 1.25rem;
 		height: 1.25rem;
 		margin-left: auto;
-		padding: 0 0.35rem;
+		padding: 0 var(--space-1);
 		border-radius: var(--radius-pill);
 		background: var(--primary);
 		color: var(--primary-foreground);
-		font-size: 0.7rem;
-		font-weight: 700;
+		font-size: var(--text-2xs);
+		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		line-height: 1;
 	}
 
@@ -1080,8 +1082,8 @@
 		left: 1.55rem;
 		min-width: 1rem;
 		height: 1rem;
-		padding: 0 0.25rem;
-		font-size: 0.6rem;
+		padding: 0 var(--space-1);
+		font-size: var(--text-2xs);
 	}
 
 	.nav-badge.updating {
@@ -1091,7 +1093,7 @@
 
 	.nav-badge.failed {
 		background: var(--destructive);
-		color: var(--destructive-foreground, #fff);
+		color: var(--danger-foreground);
 	}
 
 	.tip {
@@ -1099,7 +1101,7 @@
 		left: calc(100% + 0.625rem);
 		top: 50%;
 		z-index: 60;
-		padding: 0.3125rem 0.5625rem;
+		padding: var(--space-1) var(--space-2);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--popover);
@@ -1148,7 +1150,6 @@
 		color: var(--primary);
 		font-size: var(--text-xs);
 		font-weight: 600;
-		letter-spacing: 0.01em;
 		line-height: 1.35;
 	}
 
@@ -1180,7 +1181,7 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: 0.65rem;
+		font-size: var(--text-2xs);
 		font-weight: 500;
 		color: var(--subtle-foreground);
 		opacity: 0.9;
@@ -1189,8 +1190,8 @@
 	.nav-item.session.env {
 		height: auto;
 		min-height: 2.75rem;
-		padding-top: 0.4rem;
-		padding-bottom: 0.4rem;
+		padding-top: var(--space-2);
+		padding-bottom: var(--space-2);
 		align-items: center;
 	}
 
@@ -1198,7 +1199,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		padding: 0 var(--page-gutter);
 		border-bottom: 1px solid var(--border);
 		background: var(--background);
@@ -1206,13 +1207,13 @@
 
 	.crumbs {
 		min-width: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 	}
 
 	.crumbs ol {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		min-width: 0;
 		margin: 0;
 		padding: 0;
@@ -1222,7 +1223,7 @@
 	.crumbs li {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -1329,13 +1330,12 @@
 			justify-content: center;
 			gap: 0.15rem;
 			min-height: 2.75rem;
-			padding: 0.2rem 0.25rem;
+			padding: 0.2rem var(--space-1);
 			border-radius: var(--radius-md);
 			color: var(--muted-foreground);
 			text-decoration: none;
-			font-size: 0.6875rem;
+			font-size: var(--text-2xs);
 			font-weight: 600;
-			letter-spacing: 0.01em;
 		}
 
 		.tab.on {
@@ -1360,13 +1360,14 @@
 			place-items: center;
 			min-width: 1rem;
 			height: 1rem;
-			padding: 0 0.25rem;
+			padding: 0 var(--space-1);
 			border-radius: var(--radius-pill);
 			background: var(--primary);
 			color: var(--primary-foreground);
-			font-size: 0.6rem;
-			font-weight: 700;
+			font-size: var(--text-2xs);
+			font-weight: 600;
 			font-variant-numeric: tabular-nums;
+			font-feature-settings: var(--font-features-num);
 			line-height: 1;
 		}
 
@@ -1377,7 +1378,7 @@
 
 		.tab-badge.failed {
 			background: var(--destructive);
-			color: var(--destructive-foreground, #fff);
+			color: var(--danger-foreground);
 		}
 
 		.tab-label {

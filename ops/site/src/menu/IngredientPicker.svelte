@@ -308,13 +308,13 @@
 	.form {
 		position: relative;
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.row {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.input {
@@ -323,18 +323,18 @@
 		height: var(--control-h-sm);
 		box-sizing: border-box;
 		margin: 0;
-		padding: 0 0.65rem;
+		padding: 0 var(--space-3);
 		border: 1px solid var(--input);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
 		color: var(--foreground);
 		font: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 	}
 
 	.qty {
-		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		text-align: right;
 	}
 
@@ -350,7 +350,7 @@
 		gap: 0.15rem;
 		max-height: 14rem;
 		overflow: auto;
-		padding: 0.3rem;
+		padding: var(--space-1);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
@@ -360,16 +360,16 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		width: 100%;
 		margin: 0;
-		padding: 0.55rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--foreground);
 		font: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		text-align: left;
 		cursor: pointer;
 	}
@@ -384,10 +384,10 @@
 	}
 
 	.qty-preview {
-		margin-right: 0.35rem;
+		margin-right: var(--space-1);
 		color: var(--primary);
-		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.meta {
@@ -398,15 +398,15 @@
 
 	.empty {
 		margin: 0;
-		padding: 0.75rem 0.65rem;
-		font-size: var(--text);
+		padding: var(--space-3) var(--space-3);
+		font-size: var(--text-base);
 		color: var(--muted-foreground);
 	}
 
 	.create {
 		display: grid;
-		gap: 0.65rem;
-		padding: 0.75rem;
+		gap: var(--space-3);
+		padding: var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: color-mix(in srgb, var(--primary-wash) 55%, var(--card));
@@ -414,7 +414,7 @@
 
 	.create-title {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		color: var(--foreground);
 	}
@@ -422,6 +422,6 @@
 	.error {
 		margin: 0;
 		font-size: var(--text-sm);
-		color: var(--error, #c97a7a);
+		color: var(--danger);
 	}
 </style>

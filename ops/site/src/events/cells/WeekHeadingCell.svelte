@@ -6,11 +6,11 @@
 
 <style>
 	h2 {
-		margin: 0.85rem 0 0;
+		margin: var(--space-3) 0 0;
 		color: var(--primary);
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		line-height: 1.3;
 		text-transform: uppercase;
 	}

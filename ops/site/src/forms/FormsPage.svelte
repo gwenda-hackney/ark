@@ -496,7 +496,7 @@
 		flex: 1;
 		min-height: 0;
 		padding: var(--page-gutter);
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.detail {
@@ -511,7 +511,7 @@
 		display: flex;
 		flex: 1;
 		min-height: 0;
-		padding: var(--gap) var(--page-gutter);
+		padding: var(--space-4) var(--page-gutter);
 	}
 
 	.panel {
@@ -531,7 +531,7 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
-		column-gap: 0.85rem;
+		column-gap: var(--space-3);
 		row-gap: 0.2rem;
 		flex-shrink: 0;
 		padding: 0.55rem var(--card-pad-lg) 0.75rem;
@@ -543,7 +543,7 @@
 		grid-row: 1;
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		height: var(--control-h-sm);
 		color: var(--primary);
@@ -552,11 +552,11 @@
 	.eyebrow {
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -567,7 +567,7 @@
 		grid-row: 1;
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		height: var(--control-h-sm);
 	}
 
@@ -593,7 +593,7 @@
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 0.45rem 0.7rem;
+		gap: var(--space-2) var(--space-3);
 		min-width: 0;
 	}
 
@@ -601,9 +601,9 @@
 		margin: 0;
 		min-width: 0;
 		font-family: var(--font-display);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.15;
 		overflow-wrap: anywhere;
 	}
@@ -614,11 +614,11 @@
 		flex-shrink: 0;
 		width: fit-content;
 		margin: 0;
-		padding: 0.18rem 0.5rem;
+		padding: 0.18rem var(--space-2);
 		border-radius: var(--radius-pill);
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.06em;
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
 		line-height: 1.2;
 		text-transform: uppercase;
 		white-space: nowrap;
@@ -657,12 +657,11 @@
 		grid-row: 3;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2rem 0.65rem;
+		gap: 0.2rem var(--space-3);
 		margin: 0;
-		padding-top: 0.45rem;
+		padding-top: var(--space-2);
 		font-size: var(--text-xs);
 		font-weight: 500;
-		letter-spacing: 0.02em;
 		line-height: 1.4;
 		color: var(--muted-foreground);
 	}
@@ -680,14 +679,14 @@
 	.details-board {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem 1.5rem;
+		gap: var(--space-5) var(--space-6);
 		align-items: start;
 	}
 
 	.details-main,
 	.details-side {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 		align-content: start;
 		min-width: 0;
 	}
@@ -706,14 +705,12 @@
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -726,19 +723,19 @@
 
 	.answers {
 		display: grid;
-		gap: 1.1rem;
+		gap: var(--space-4);
 		margin: 0;
 	}
 
 	.answer {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 	}
 
 	dt {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -757,8 +754,8 @@
 
 	.card {
 		display: grid;
-		gap: 0.75rem;
-		padding: var(--card-pad, 1rem);
+		gap: var(--space-3);
+		padding: var(--card-pad);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--background);
@@ -767,7 +764,7 @@
 	.artist-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.artist-actions p {
@@ -776,16 +773,16 @@
 
 	.card-title {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.emails {
 		display: grid;
-		gap: 0.65rem;
+		gap: var(--space-3);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -795,7 +792,7 @@
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr) auto;
 		align-items: center;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.dot {
@@ -840,7 +837,7 @@
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 

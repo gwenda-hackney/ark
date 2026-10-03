@@ -466,13 +466,13 @@
 <style>
 	.grid-wrap {
 		display: grid;
-		gap: 0.55rem;
+		gap: var(--space-2);
 	}
 
 	.empty {
 		margin: 0;
-		padding: 0.85rem 0.2rem;
-		font-size: 0.8125rem;
+		padding: var(--space-3) 0.2rem;
+		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 	}
 
@@ -484,13 +484,13 @@
 
 	.cards {
 		display: grid;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.card {
 		display: grid;
-		gap: 0.55rem;
-		padding: 0.75rem 0.8rem 0.85rem;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-3) var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--sunken);
@@ -500,7 +500,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -516,7 +516,7 @@
 	.card-tools {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 	}
 
@@ -540,7 +540,7 @@
 	.card-grid {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: 0.55rem 0.65rem;
+		gap: var(--space-2) var(--space-3);
 	}
 
 	.cost {
@@ -548,9 +548,9 @@
 		align-items: center;
 		min-height: var(--control-h-sm);
 		margin: 0;
-		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-size: var(--text);
+		font-feature-settings: var(--font-features-num);
+		font-size: var(--text-base);
 	}
 
 	.cost.muted {

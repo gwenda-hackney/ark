@@ -34,27 +34,26 @@
 
 	.chapter {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		line-height: 1.2;
 	}
 
 	.row {
 		display: flex;
 		align-items: baseline;
-		gap: 0.65rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 
 	h3 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 0.95rem;
+		font-size: var(--text-base);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		color: var(--foreground);
 		white-space: nowrap;
 		overflow: hidden;
