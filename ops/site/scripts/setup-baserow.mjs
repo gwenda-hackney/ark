@@ -37,7 +37,18 @@ import {
   TABLE_GUEST_ARTISTS,
 } from "../../../shared/baserow.js";
 import { GUEST_ARTIST_FIELDS } from "../src/artists/server/guest-artists.js";
-import { artistFields, eventDateFields, eventFields, userFields } from "../src/platform/baserow-schema.js";
+import {
+  RECIPE_UNITS,
+  artistFields,
+  eventDateFields,
+  eventFields,
+  ingredientFields,
+  itemFields,
+  menuPlacementFields,
+  posMenuFields,
+  sectionFields,
+  userFields,
+} from "../src/platform/baserow-schema.js";
 import {
   DEFAULT_POS_MENU_NAME,
   LEGACY_DEFAULT_POS_MENU_NAME,
@@ -62,23 +73,6 @@ const LWC_PRICES = JSON.parse(
 );
 
 const DEFAULT_BASEROW_API = "https://api.baserow.io";
-
-const RECIPE_UNITS = [
-  "ml",
-  "cl",
-  "dash",
-  "barspoon",
-  "drop",
-  "splash",
-  "each",
-  "slice",
-  "wedge",
-  "sprig",
-  "top",
-  "pinch",
-  "tsp",
-  "tbsp",
-];
 
 function readEnv(name) {
   return process.env[name]?.trim() || "";
@@ -275,224 +269,6 @@ async function defaultBooleanField(apiBase, jwt, tableId, fieldName, value) {
   console.log(`  → ${fieldName}=${value} on ${patched} existing row(s)`);
 }
 
-function sectionFields(sectionsTableId) {
-  return [
-    { name: "Slug", body: { name: "Slug", type: "text" } },
-    { name: "Subtitle", body: { name: "Subtitle", type: "text" } },
-    {
-      name: "Parent",
-      body: {
-        name: "Parent",
-        type: "link_row",
-        link_row_table_id: sectionsTableId,
-        has_related_field: false,
-      },
-    },
-    {
-      name: "Order",
-      body: {
-        name: "Order",
-        type: "number",
-        number_decimal_places: 0,
-        number_negative: false,
-      },
-    },
-    { name: "Sanity ID", body: { name: "Sanity ID", type: "text" } },
-  ];
-}
-
-function itemFields(sectionsTableId, posMenusTableId) {
-  return [
-    {
-      name: "Section",
-      body: {
-        name: "Section",
-        type: "link_row",
-        link_row_table_id: sectionsTableId,
-        has_related_field: false,
-      },
-    },
-    { name: "Menu line", body: { name: "Menu line", type: "long_text" } },
-    {
-      name: "Lock menu line",
-      body: { name: "Lock menu line", type: "boolean" },
-    },
-    { name: "Price", body: { name: "Price", type: "text" } },
-    { name: "Alt price", body: { name: "Alt price", type: "text" } },
-    {
-      name: "Drink type",
-      body: {
-        name: "Drink type",
-        type: "single_select",
-        select_options: [
-          { value: "cocktail", color: "purple" },
-          { value: "pour", color: "orange" },
-          { value: "beer", color: "yellow" },
-          { value: "packaged", color: "cyan" },
-          { value: "postmix", color: "light-blue" },
-        ],
-      },
-    },
-    {
-      name: "Cocktail type",
-      body: {
-        name: "Cocktail type",
-        type: "single_select",
-        select_options: [
-          { value: "spritz", color: "pink" },
-          { value: "highball", color: "blue" },
-          { value: "sour", color: "yellow" },
-          { value: "stirred", color: "dark-gray" },
-          { value: "negroni", color: "orange" },
-          { value: "fizz", color: "cyan" },
-          { value: "other", color: "light-gray" },
-        ],
-      },
-    },
-    { name: "Type", body: { name: "Type", type: "text" } },
-    { name: "Glassware", body: { name: "Glassware", type: "text" } },
-    { name: "Garnish", body: { name: "Garnish", type: "text" } },
-    { name: "Ice", body: { name: "Ice", type: "text" } },
-    { name: "Method", body: { name: "Method", type: "long_text" } },
-    { name: "Signature", body: { name: "Signature", type: "boolean" } },
-    { name: "ABV", body: { name: "ABV", type: "text" } },
-    { name: "Volume", body: { name: "Volume", type: "text" } },
-    { name: "Producer", body: { name: "Producer", type: "text" } },
-    { name: "Photo", body: { name: "Photo", type: "file" } },
-    {
-      name: "Order",
-      body: {
-        name: "Order",
-        type: "number",
-        number_decimal_places: 0,
-        number_negative: false,
-      },
-    },
-    { name: "Sanity ID", body: { name: "Sanity ID", type: "text" } },
-    {
-      name: "On digital menu",
-      body: { name: "On digital menu", type: "boolean" },
-    },
-    {
-      name: "On print menu",
-      body: { name: "On print menu", type: "boolean" },
-    },
-    {
-      name: "Publish snapshots",
-      body: { name: "Publish snapshots", type: "long_text" },
-    },
-    {
-      name: "AI reading",
-      body: { name: "AI reading", type: "long_text" },
-    },
-    { name: "Lightspeed SKU", body: { name: "Lightspeed SKU", type: "text" } },
-    {
-      name: "Lightspeed SKU alt",
-      body: { name: "Lightspeed SKU alt", type: "text" },
-    },
-    {
-      name: "Lightspeed name",
-      body: { name: "Lightspeed name", type: "text" },
-    },
-    {
-      name: "Lightspeed menu/screen",
-      body: { name: "Lightspeed menu/screen", type: "text" },
-    },
-    {
-      name: "Lightspeed status",
-      body: {
-        name: "Lightspeed status",
-        type: "single_select",
-        select_options: [
-          { value: "matched", color: "green" },
-          { value: "mismatch", color: "orange" },
-          { value: "missing", color: "red" },
-        ],
-      },
-    },
-    {
-      name: "POS menus",
-      body: posMenusTableId
-        ? {
-            name: "POS menus",
-            type: "link_row",
-            link_row_table_id: posMenusTableId,
-            has_related_field: false,
-          }
-        : null,
-    },
-  ];
-}
-
-function posMenuFields() {
-  return [
-    {
-      name: "Order",
-      body: {
-        name: "Order",
-        type: "number",
-        number_decimal_places: 0,
-        number_negative: false,
-      },
-    },
-    { name: "Default", body: { name: "Default", type: "boolean" } },
-  ];
-}
-
-function menuPlacementFields(itemsTableId, sectionsTableId, posMenusTableId) {
-  return [
-    {
-      name: "Menu item",
-      body: {
-        name: "Menu item",
-        type: "link_row",
-        link_row_table_id: itemsTableId,
-        has_related_field: false,
-      },
-    },
-    {
-      name: "Channel",
-      body: {
-        name: "Channel",
-        type: "single_select",
-        select_options: [
-          { value: "print", color: "orange" },
-          { value: "digital", color: "blue" },
-          { value: "pos", color: "green" },
-        ],
-      },
-    },
-    {
-      name: "Section",
-      body: {
-        name: "Section",
-        type: "link_row",
-        link_row_table_id: sectionsTableId,
-        has_related_field: false,
-      },
-    },
-    {
-      name: "POS menu",
-      body: {
-        name: "POS menu",
-        type: "link_row",
-        link_row_table_id: posMenusTableId,
-        has_related_field: false,
-      },
-    },
-    { name: "POS screen", body: { name: "POS screen", type: "text" } },
-    {
-      name: "Order",
-      body: {
-        name: "Order",
-        type: "number",
-        number_decimal_places: 0,
-        number_negative: false,
-      },
-    },
-  ];
-}
-
 function linkIdsFrom(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -604,62 +380,6 @@ async function seedFallMenu(
     patched += 1;
   }
   console.log(`  → ${DEFAULT_POS_MENU_NAME} on ${patched} menu item(s)`);
-}
-
-function ingredientFields(itemsTableId, inventoryTableId) {
-  return [
-    {
-      name: "Menu Item",
-      body: {
-        name: "Menu Item",
-        type: "link_row",
-        link_row_table_id: itemsTableId,
-        has_related_field: false,
-      },
-    },
-    {
-      name: "Inventory",
-      body: inventoryTableId
-        ? {
-            name: "Inventory",
-            type: "link_row",
-            link_row_table_id: inventoryTableId,
-            has_related_field: false,
-          }
-        : null,
-    },
-    {
-      name: "Qty",
-      body: {
-        name: "Qty",
-        type: "number",
-        number_decimal_places: 2,
-        number_negative: false,
-      },
-    },
-    {
-      name: "Unit",
-      body: {
-        name: "Unit",
-        type: "single_select",
-        select_options: RECIPE_UNITS.map((value, index) => ({
-          value,
-          color: ["blue", "green", "orange", "purple", "cyan"][index % 5],
-        })),
-      },
-    },
-    { name: "Note", body: { name: "Note", type: "text" } },
-    { name: "ABV", body: { name: "ABV", type: "text" } },
-    {
-      name: "Order",
-      body: {
-        name: "Order",
-        type: "number",
-        number_decimal_places: 0,
-        number_negative: false,
-      },
-    },
-  ];
 }
 
 function inventoryFields() {

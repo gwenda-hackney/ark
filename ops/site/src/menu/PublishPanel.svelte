@@ -1,18 +1,16 @@
 <script lang="ts">
 	import { Button, BusyOverlay } from "../ui";
-	import { formatPublishDiff, groupItemsForPublish, publishFieldLabel, type PublishTarget } from "./publish";
+	import { formatPublishDiff, groupItemsForPublish, publishFieldLabel } from "./publish";
 	import { type MenuItem } from "./types";
 	import { Icon } from "../app/shell";
 
 	let {
-		publishTarget = $bindable("preview" as PublishTarget),
 		items = [],
 		busy = false,
 		busyLabel = "Updating website…",
 		onpublish,
 		onclose,
 	}: {
-		publishTarget?: PublishTarget;
 		items?: MenuItem[];
 		busy?: boolean;
 		busyLabel?: string;
@@ -20,9 +18,10 @@
 		onclose: () => void;
 	} = $props();
 
-	const actionLabel = "Update preview site";
+	const actionLabel = "Update website";
 
-	const groups = $derived(groupItemsForPublish(items, publishTarget));
+	// Compared with what gwenda.co.uk shows (#42).
+	const groups = $derived(groupItemsForPublish(items, "production"));
 	const pending = $derived(groups.unpublished.length + groups.missing.length);
 </script>
 
@@ -48,22 +47,16 @@
 	</header>
 
 	<div class="body scrollbar-fade">
-		<p class="lede">
-			Put saved menu changes on the preview site. The live website doesn't
-			change until you publish them.
-		</p>
+		<p class="lede">Put your saved menu changes on gwenda.co.uk.</p>
 
-		<p class="note">
-			Saves them as drafts, then rebuilds the preview site. They go live from
-			Website → Preview → live after you check them.
-		</p>
+		<p class="note">The menu page shows them about 2 minutes later.</p>
 
 		<div class="status">
 			<p class="status-lead">
 				{#if pending === 0}
-					All tracked drinks match this site.
+					The website already shows every drink.
 				{:else}
-					{pending} drink{pending === 1 ? "" : "s"} to update on this site.
+					{pending} drink{pending === 1 ? "" : "s"} to update on the website.
 				{/if}
 			</p>
 

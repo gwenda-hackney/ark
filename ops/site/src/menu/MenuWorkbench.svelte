@@ -4,8 +4,8 @@
 	import { Button, BusyOverlay, SidePanel } from "../ui";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
+	import { refreshSitePending } from "../website/site-pending.svelte";
 	import type { InventoryItem } from "../inventory/types";
-	import type { PublishTarget } from "./publish";
 	import type { DrinkType, MenuItem, MenuSection, PosMenu } from "./types";
 	import { publishPendingCount } from "./publish";
 	import { defaultPosMenus } from "./types";
@@ -63,12 +63,6 @@
 	let listPaneEl = $state<HTMLDivElement | undefined>();
 	let publishOpen = $state(false);
 	let query = $state("");
-	let publishTarget = $state<PublishTarget>(
-		localStorage.getItem("gwenda-ops-menu-publish") === "production"
-			? "preview"
-			: ((localStorage.getItem("gwenda-ops-menu-publish") as PublishTarget) ||
-				"preview"),
-	);
 	let loadError = $state("");
 	let busy = $state(true);
 	let busyLabel = $state("Loading…");
@@ -122,7 +116,7 @@
 		);
 	}
 
-	const publishPending = $derived(publishPendingCount(allItems()));
+	const publishPending = $derived(publishPendingCount(allItems(), "production"));
 
 	function firstSectionId(): string {
 		return flattenMenuSections(sections)[0]?._id || "";
@@ -414,28 +408,25 @@
 		try {
 			busy = true;
 			busyLabel = "Updating website…";
-			const data = await api.publishMenu("preview");
+			const data = await api.publishMenu();
 			await loadMenu();
 			if (selectedId && detailOpen) {
 				item = findById(selectedId) || item;
 			}
-			const where = "preview site";
-			const synced = data.sync?.synced?.length || 0;
-			const created = data.sync?.created?.length || 0;
-			const changed = synced + created;
+			for (const warning of data.warnings || []) toast.info(warning);
 			const missing = data.sync?.missing || [];
 			if (missing.length) {
-				toast.error(
-					`Updated ${changed} item(s) on the ${where}, but ${missing.length} need a menu section: ${missing.join(", ")}.`,
-				);
-			} else if (!changed) {
-				toast.ok(`Nothing to send to the ${where}.`);
+				toast.error(`${missing.length} need a menu section before they can go on the website: ${missing.join(", ")}.`);
+			}
+			if (!data.published) {
+				if (!missing.length) toast.ok("The website already shows this menu.");
 			} else {
 				toast.ok(
-					`Website update started for the ${where} (${changed} item${
-						changed === 1 ? "" : "s"
-					}). It may take a minute to appear.`,
+					data.building
+						? "Menu on the website. The menu page shows it in about 2 minutes."
+						: "Menu on the website. The menu page shows it after the next website update.",
 				);
+				void refreshSitePending();
 			}
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Update failed.");
@@ -774,7 +765,6 @@
 			ariaLabel="Update website menu"
 		>
 			<PublishPanel
-				bind:publishTarget
 				items={allItems()}
 				{busy}
 				{busyLabel}

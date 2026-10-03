@@ -1,64 +1,45 @@
-import { jsonResponse, readJsonBody, withApiHandler } from "../../../src/platform/http.js";
-import { siteEnvName } from "../../../src/platform/config-store.js";
-import { deployTargetForEnv } from "../../../src/menu/server/menu.js";
+import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
 import { syncOpsMenuToSanity } from "../../../src/website/server/publish-sync.js";
 import {
-  webhookConfig,
-  webhookJson,
-} from "../../../src/website/server/site-deploy.js";
+  getReleaseDiff,
+  markReleasedInOps,
+  publishRelease,
+} from "../../../src/website/server/release.js";
+import { readState, updateNow } from "../../../src/website/server/site-pending.js";
 
+const MENU_TYPES = new Set(["menuItem", "menuSection"]);
+
+/**
+ * The menu's Update website (#42): copy ops' menu to the preview, then put
+ * every menu change on the website, as Update website does for an event.
+ * `/menu` is a built page, so the build starts now instead of after the
+ * quiet period; one already running picks the change up next.
+ */
 export const onRequestPost = withApiHandler(async (context) => {
-  const body = await readJsonBody(context.request);
-  const target = deployTargetForEnv(
-    body?.target || body?.env,
-    siteEnvName(context.env),
-  );
-  if (target === "production") {
-    return jsonResponse(
-      { error: "Production is published from Website > Preview → live." },
-      400,
-    );
+  const { env } = context;
+  const sync = await syncOpsMenuToSanity(env, { target: "preview" });
+  const ids = (await getReleaseDiff(env)).entries
+    .filter((entry) => MENU_TYPES.has(entry.doc?._type || entry.type))
+    .map((entry) => entry.id);
+  const warnings = [];
+  let result = { written: [], deleted: [] };
+  if (ids.length) {
+    result = await publishRelease(env, { ids });
+    warnings.push(...result.warnings);
+    try {
+      await markReleasedInOps(env, [...ids, ...result.written], { deleted: result.deleted });
+    } catch (error) {
+      warnings.push(`On the website, but ops status did not update: ${error?.message || "unknown error"}.`);
+    }
   }
-  const { baseUrl, secret } = webhookConfig(context.env);
-  if (target !== "development" && (!baseUrl || !secret)) {
-    return jsonResponse(
-      { error: "Site deploy webhook is not configured on ops." },
-      503,
-    );
+  let building = false;
+  if (ids.length) {
+    try {
+      if (!(await readState(env, "production")).runId) await updateNow(env, "production");
+      building = true;
+    } catch (error) {
+      warnings.push(`The menu page will update with the next website update: ${error?.message || "the build did not start"}.`);
+    }
   }
-
-  const action = body?.action === "promote" ? "promote" : "deploy";
-  if (action === "promote") {
-    return jsonResponse(
-      { error: "Publish to production from Website > Preview → live." },
-      400,
-    );
-  }
-
-  const sync = await syncOpsMenuToSanity(context.env, { target: "preview" });
-  // The preview site updates on its own once edits go quiet (site-pending.js).
-  return jsonResponse({
-    ok: true,
-    target,
-    dataset: "preview",
-    sync,
-    deployed: false,
-  });
-});
-
-export const onRequestGet = withApiHandler(async (context) => {
-  const { baseUrl, secret } = webhookConfig(context.env);
-  if (!baseUrl || !secret) {
-    return jsonResponse(
-      { error: "Site deploy webhook is not configured on ops." },
-      503,
-    );
-  }
-  const runId = new URL(context.request.url).searchParams.get("run_id");
-  if (!runId) return jsonResponse({ error: "run_id is required." }, 400);
-  const result = await webhookJson(
-    `${baseUrl}/status?run_id=${encodeURIComponent(runId)}`,
-    secret,
-  );
-  return jsonResponse(result);
+  return jsonResponse({ ok: true, sync, published: ids.length, building, warnings });
 });
