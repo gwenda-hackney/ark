@@ -20,6 +20,7 @@
 		TextField,
 	} from "../ui";
 	import { decisionBadge } from "../ui/badge";
+	import { decisionActions } from "./decision-actions";
 	import {
 		getFormSubmissions,
 		resendFormEmail,
@@ -127,6 +128,14 @@
 		selected ? selected.answers.filter((answer) => answer.value.trim()) : [],
 	);
 
+	const can = $derived(
+		decisionActions({
+			formSlug: selected?.formSlug,
+			decision: selected?.decision,
+			email: selected?.email,
+			deciding,
+		}),
+	);
 	const statusTone = $derived.by(() => {
 		const status = selected?.status.toLowerCase() ?? "";
 		if (status === "verified") return "success";
@@ -333,42 +342,42 @@
 							{/if}
 						</div>
 						<div class="head-tools">
-							{#if selected?.formSlug === "play"}
-								{#if selected.decision !== "Approved"}
-									<Button
-										variant="primary"
-										size="sm"
-										type="button"
-										disabled={deciding}
-										title="Approved artists can be picked as an event's guest artist."
-										onclick={() => void decide(selected, "Approved")}
-									>
-										Approve
-									</Button>
-								{/if}
-								{#if selected.decision !== "Declined"}
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										disabled={deciding}
-										onclick={() => void decide(selected, "Declined")}
-									>
-										Decline
-									</Button>
-								{/if}
-							{/if}
-							{#if selected?.email}
-								<Button
-									variant="outline"
-									size="sm"
-									type="button"
-									title={`Write to ${selected.email}`}
-									onclick={() => (window.location.href = `mailto:${selected.email}`)}
-								>
-									Reply
-								</Button>
-							{/if}
+							<!-- Same three buttons on every submission; ones that don't apply are disabled. -->
+							<Button
+								variant="outline"
+								size="sm"
+								type="button"
+								disabled={can.reply.disabled}
+								reason={can.reply.reason}
+								title={selected?.email ? `Write to ${selected.email}` : undefined}
+								onclick={() => (window.location.href = `mailto:${selected?.email}`)}
+							>
+								{#snippet icon()}<Icon name="send" size={14} />{/snippet}
+								Reply
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								type="button"
+								disabled={can.decline.disabled}
+								reason={can.decline.reason}
+								onclick={() => selected && void decide(selected, "Declined")}
+							>
+								{#snippet icon()}<Icon name="x-circle" size={14} />{/snippet}
+								Decline
+							</Button>
+							<Button
+								variant="primary"
+								size="sm"
+								type="button"
+								disabled={can.approve.disabled}
+								reason={can.approve.reason}
+								title="Approved artists can be picked as an event's guest artist."
+								onclick={() => selected && void decide(selected, "Approved")}
+							>
+								{#snippet icon()}<Icon name="check" size={14} />{/snippet}
+								Approve
+							</Button>
 							<Button
 								class="close-btn"
 								variant="ghost"
@@ -470,9 +479,11 @@
 													size="sm"
 													type="button"
 													disabled={!artistDirty || savingArtist}
+													reason={!artistDirty && !savingArtist ? "No changes to save" : undefined}
 													busy={savingArtist}
 													onclick={() => void saveArtist(selected)}
 												>
+													{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 													Save
 												</Button>
 												{#if artistError}
@@ -504,6 +515,7 @@
 														busy={sending === email.kind}
 														onclick={() => resend(selected, email.kind)}
 													>
+														{#snippet icon()}<Icon name="send" size={14} />{/snippet}
 														{sentAt ? "Resend" : "Send"}
 													</Button>
 												</li>
@@ -819,13 +831,13 @@
 		text-underline-offset: 0.15em;
 	}
 
+	/* Sections of the panel sit on its surface, divided by a rule, never in a
+	   darker box. */
 	.card {
 		display: grid;
 		gap: var(--space-3);
-		padding: var(--card-pad);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--background);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border);
 	}
 
 	.artist-actions {

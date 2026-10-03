@@ -44,6 +44,7 @@
 		formatDate,
 		repeatLabel,
 		statusLabel,
+		statusTitle,
 		statusTone,
 	} from "./event-labels";
 
@@ -182,6 +183,7 @@
 					name: occurrence.occurrence?.overrides.name || occurrence.event.name,
 					meta: artist ? `${artist} · ${when}` : when,
 					status: statusLabel(occurrence.event),
+					statusTitle: statusTitle(occurrence.event),
 					tone: statusTone(occurrence.event),
 				};
 			}),
@@ -343,7 +345,7 @@
 			{#if error && !editing && !missing && !events.length}
 				<EmptyState tone="error" title="Could not load events" text={error}>
 					{#snippet action()}
-						<Button variant="outline" size="sm" onclick={() => void onreload()}>Try again</Button>
+						<Button variant="outline" size="sm" onclick={() => void onreload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 					{/snippet}
 				</EmptyState>
 			{:else if loading && !events.length}
@@ -360,7 +362,7 @@
 					{:else}
 						<EmptyState icon="events" title="No series yet" text="A series is a regular night, like a weekly residency.">
 							{#snippet action()}
-								<Button size="sm" onclick={() => navigate("/events/new")}>New series</Button>
+								<Button size="sm" onclick={() => navigate("/events/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}New series</Button>
 							{/snippet}
 						</EmptyState>
 					{/if}
@@ -382,7 +384,7 @@
 				{:else}
 					<EmptyState icon="events" title="No upcoming nights" text="Nights from your series and special events show here.">
 						{#snippet action()}
-							<Button size="sm" onclick={() => navigate("/events/new/once")}>New event</Button>
+							<Button size="sm" onclick={() => navigate("/events/new/once")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}New event</Button>
 						{/snippet}
 					</EmptyState>
 				{/if}

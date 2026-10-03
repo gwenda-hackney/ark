@@ -83,7 +83,7 @@
 {/if}
 
 <Field
-	class="span-3 row-start"
+	class="span-3 roomy row-start"
 	label={form.repeatUnit === "none" ? "First night" : "Starts on"}
 	for="event-starts"
 	optional
@@ -96,7 +96,7 @@
 </Field>
 {#if form.repeatUnit !== "none"}
 	<Field
-		class="span-3"
+		class="span-3 roomy"
 		label="Ends on"
 		for="event-ends"
 		optional={!form.startsOn}

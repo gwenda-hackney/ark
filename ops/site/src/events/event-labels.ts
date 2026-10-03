@@ -43,9 +43,16 @@ export function repeatLabel(event: {
  * Saved changes the website has not picked up wait for "Update website".
  */
 export function statusLabel(event: OpsEvent): string {
-	if (event.publish.live === "current") return "On website";
-	if (event.publish.live === "unpublished") return "Not on website";
-	return "Waiting for Update website";
+	if (event.publish.live === "current") return "Live";
+	if (event.publish.live === "unpublished") return "Not live";
+	return "Changed";
+}
+
+/** The longer words behind statusLabel, for the badge's tooltip. */
+export function statusTitle(event: OpsEvent): string {
+	if (event.publish.live === "current") return "On the website";
+	if (event.publish.live === "unpublished") return "Not on the website yet";
+	return "Changes not on the website yet. Update website puts them there.";
 }
 
 export function statusTone(event: OpsEvent | null): BadgeTone {

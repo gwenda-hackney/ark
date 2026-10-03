@@ -13,6 +13,7 @@
 		TextField,
 	} from "../ui";
 	import SectionsTab from "../menu/SectionsTab.svelte";
+	import { Icon } from "../app/shell";
 	import { CONFIG_TABS, configTab, configTabPath } from "./config-tabs";
 	import { parseShellPath } from "../app/nav";
 	import PourTargetsForm from "./PourTargetsForm.svelte";
@@ -176,21 +177,31 @@
 		<p class="lead">Who gets the social post for each event, and which ClickUp list it lands in.</p>
 		<Card>
 			<form class="tasks" novalidate onsubmit={saveTasks}>
-				<Field label="Social" for="task-social" width="lg" optional hint="Gets the social post task for each event.">
-					<NativeSelect id="task-social" bind:value={socialEmail} options={socialOptions} />
-				</Field>
-				<Field
-					label="ClickUp list id"
-					for="task-list"
-					width="md"
-					optional
-					hint="The Gwenda list that receives event tasks."
-				>
-					<TextField id="task-list" bind:value={clickupListId} mono inputmode="numeric" spellcheck="false" />
-				</Field>
+				<div class="field-grid">
+					<Field label="Social" for="task-social" width="lg" optional hint="Gets the social post task for each event.">
+						<NativeSelect id="task-social" bind:value={socialEmail} options={socialOptions} />
+					</Field>
+					<Field
+						label="ClickUp list id"
+						for="task-list"
+						width="md"
+						optional
+						hint="The Gwenda list that receives event tasks."
+					>
+						<TextField id="task-list" bind:value={clickupListId} mono inputmode="numeric" spellcheck="false" />
+					</Field>
+				</div>
 				<div class="task-actions">
 					{#if tasksDirty}<span class="unsaved">Unsaved changes</span>{/if}
-					<Button variant="primary" size="sm" type="submit" busy={savingTasks} disabled={savingTasks || !tasksDirty}>
+					<Button
+						variant="primary"
+						size="sm"
+						type="submit"
+						busy={savingTasks}
+						disabled={savingTasks || !tasksDirty}
+						reason={!savingTasks && !tasksDirty ? "No changes to save" : undefined}
+					>
+						{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 						Save task roles
 					</Button>
 				</div>
@@ -252,15 +263,23 @@
 		padding: var(--page-gutter);
 	}
 
+	/* Every tab uses the page width; fields keep their own widths inside. */
 	.panel {
 		display: grid;
 		gap: var(--space-4);
-		max-width: 48rem;
 		align-content: start;
 	}
 
-	.panel.wide {
-		max-width: 44rem;
+	/* display: grid would otherwise beat the hidden attribute and show every tab. */
+	.panel[hidden] {
+		display: none;
+	}
+
+	.field-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+		gap: var(--space-4) var(--space-6);
+		align-items: start;
 	}
 
 	.lead {
@@ -292,7 +311,8 @@
 
 	.env-grid {
 		display: grid;
-		gap: var(--space-3);
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+		gap: var(--space-3) var(--space-6);
 		margin: 0;
 	}
 
@@ -302,6 +322,7 @@
 	}
 
 	.env-grid .span {
+		grid-column: 1 / -1;
 		padding-top: var(--space-1);
 		border-top: 1px solid var(--border);
 	}

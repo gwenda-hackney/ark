@@ -580,18 +580,30 @@
 				variant="outline"
 				size="sm"
 				disabled={!preview?.itemImportCsv || (preview.opsOnly?.length || 0) === 0}
+				reason={!preview
+					? "Import an item list first"
+					: !preview.itemImportCsv || !preview.opsOnly?.length
+						? "Nothing is only in ops"
+						: undefined}
 				onclick={() =>
 					download("lightspeed-item-import.csv", preview?.itemImportCsv)}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				Download item import
 			</Button>
 			<Button
 				variant="outline"
 				size="sm"
 				disabled={!preview?.archiveSkuCsv || archiveRows.length === 0}
+				reason={!preview
+					? "Import an item list first"
+					: !preview.archiveSkuCsv || !archiveRows.length
+						? "Nothing marked for archive"
+						: undefined}
 				onclick={() =>
 					download("lightspeed-archive-skus.csv", preview?.archiveSkuCsv)}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				Download archive SKUs
 			</Button>
 			<Button
@@ -599,8 +611,10 @@
 				size="sm"
 				busy={applying}
 				disabled={!preview || applying}
+				reason={preview ? undefined : "Import an item list first"}
 				onclick={apply}
 			>
+				{#snippet icon()}<Icon name="tag" size={14} />{/snippet}
 				Stamp SKUs
 			</Button>
 		{/snippet}
@@ -619,6 +633,7 @@
 					size="sm"
 					onclick={() => (importOpen = true)}
 				>
+					{#snippet icon()}<Icon name="upload" size={14} />{/snippet}
 					Import item list
 				</Button>
 			{/snippet}
@@ -648,7 +663,7 @@
 					text="Import a Lightspeed item list to compare it with ops."
 				>
 					{#snippet action()}
-						<Button size="sm" onclick={() => (importOpen = true)}>Import item list</Button>
+						<Button size="sm" onclick={() => (importOpen = true)}>{#snippet icon()}<Icon name="upload" size={14} />{/snippet}Import item list</Button>
 					{/snippet}
 				</EmptyState>
 			{:else}
@@ -739,8 +754,10 @@
 								variant="outline"
 								size="sm"
 								disabled={!decideRows.length || Boolean(acting)}
+								reason={decideRows.length ? undefined : "None left"}
 								onclick={() => (archiveAllOpen = true)}
 							>
+								{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 								Archive remaining
 							</Button>
 						{/snippet}
@@ -782,8 +799,10 @@
 													variant="outline"
 													size="xs"
 													disabled={!row.sku || !(preview?.opsOnly.length) || Boolean(acting)}
+													reason={!row.sku ? "No SKU in the file" : !preview?.opsOnly.length ? "No ops drinks left to match" : undefined}
 													onclick={() => openMatchLs(row)}
 												>
+													{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 													Match
 												</Button>
 												<Button
@@ -792,14 +811,17 @@
 													disabled={Boolean(acting)}
 													onclick={() => openAdd(row)}
 												>
+													{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 													Add to menu
 												</Button>
 												<Button
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -851,14 +873,17 @@
 													disabled={Boolean(acting)}
 													onclick={() => void addStock(row)}
 												>
+													{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 													Add to inventory
 												</Button>
 												<Button
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -899,8 +924,10 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -951,8 +978,10 @@
 													variant="outline"
 													size="xs"
 													disabled={!row.ops.id || !row.lightspeed.sku || Boolean(acting)}
+													reason={!row.ops.id || !row.lightspeed.sku ? "Not linked yet" : undefined}
 													onclick={() => void adoptPosName(row)}
 												>
+													{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 													Use POS name
 												</Button>
 											</td>
@@ -984,8 +1013,10 @@
 												variant="outline"
 												size="xs"
 												disabled={!decideRows.length || Boolean(acting)}
+												reason={decideRows.length ? undefined : "No Lightspeed items left to match"}
 												onclick={() => openMatchOps(row)}
 											>
+												{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 												Match
 											</Button>
 										</span>
@@ -1105,8 +1136,10 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void unarchive(row)}
 												>
+													{#snippet icon()}<Icon name="undo" size={14} />{/snippet}
 													Keep
 												</Button>
 											</td>
@@ -1178,7 +1211,7 @@
 			<p class="error">No Lightspeed leftovers to pair with.</p>
 		{/if}
 		{#snippet footer()}
-			<Button variant="ghost" size="sm" onclick={closeLink}>Cancel</Button>
+			<Button variant="ghost" size="sm" onclick={closeLink}>{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<Button
 				variant="primary"
 				size="sm"
@@ -1189,6 +1222,7 @@
 				}
 				onclick={() => void confirmLink()}
 			>
+				{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 				Match
 			</Button>
 		{/snippet}
@@ -1249,14 +1283,16 @@
 			<p class="error">Create a menu section before adding drinks.</p>
 		{/if}
 		{#snippet footer()}
-			<Button variant="ghost" size="sm" onclick={closeAdd}>Cancel</Button>
+			<Button variant="ghost" size="sm" onclick={closeAdd}>{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<Button
 				variant="primary"
 				size="sm"
 				busy={Boolean(acting)}
 				disabled={!sectionOptions.length || Boolean(acting)}
+				reason={sectionOptions.length ? undefined : "Add a menu section first"}
 				onclick={() => void confirmAdd()}
 			>
+				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 				Add to menu
 			</Button>
 		{/snippet}
@@ -1273,6 +1309,7 @@
 		</p>
 		{#snippet footer()}
 			<Button variant="ghost" size="sm" onclick={() => (archiveAllOpen = false)}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 				Cancel
 			</Button>
 			<Button
@@ -1282,6 +1319,7 @@
 				disabled={acting === "all"}
 				onclick={() => void markArchive(decideRows)}
 			>
+				{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 				Mark for archive
 			</Button>
 		{/snippet}
@@ -1307,7 +1345,6 @@
 	.stack {
 		display: grid;
 		gap: var(--space-6);
-		max-width: 64rem;
 		align-content: start;
 	}
 
@@ -1316,9 +1353,9 @@
 		justify-items: center;
 		gap: var(--space-3);
 		padding: var(--space-6) var(--space-4);
-		border: 1px dashed var(--border);
+		border: 1px dashed var(--border-strong);
 		border-radius: var(--radius-md);
-		background: var(--sunken);
+		background: transparent;
 		color: var(--muted-foreground);
 		text-align: center;
 		cursor: pointer;

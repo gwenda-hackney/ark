@@ -50,13 +50,13 @@ describe("event labels", () => {
 	});
 
 	it("status follows the website: on it, never on it, or waiting for Update website", () => {
-		assert.equal(statusLabel(event()), "On website");
+		assert.equal(statusLabel(event()), "Live");
 		assert.equal(statusTone(event()), "success");
 		const changed = event({ publish: { preview: "current", live: "stale", nextDate: "", previewDates: [] } });
-		assert.equal(statusLabel(changed), "Waiting for Update website");
+		assert.equal(statusLabel(changed), "Changed");
 		assert.equal(statusTone(changed), "warning");
 		const fresh = event({ publish: { preview: "current", live: "unpublished", nextDate: "", previewDates: [] } });
-		assert.equal(statusLabel(fresh), "Not on website");
+		assert.equal(statusLabel(fresh), "Not live");
 		assert.equal(statusTone(fresh), "neutral");
 		assert.equal(statusTone(null), "neutral");
 	});

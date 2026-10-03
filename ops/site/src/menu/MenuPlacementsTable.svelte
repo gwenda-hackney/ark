@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { Button, Field, NativeSelect } from "../ui";
 	import type { SelectOption } from "../ui/types";
 	import type { MenuPlacement, PosMenu } from "./types";
@@ -243,6 +244,7 @@
 									aria-label={`Remove ${row.label}`}
 									onclick={() => remove(row.placement)}
 								>
+									{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
 									Remove
 								</Button>
 							</td>
@@ -258,7 +260,7 @@
 	{/if}
 
 	{#if addOptions.length > 1}
-		<Field label="Add" for="f-add-menu-row" width="md">
+		<Field label="Add" for="f-add-menu-row">
 			<NativeSelect
 				id="f-add-menu-row"
 				size="sm"
@@ -282,11 +284,10 @@
 		gap: var(--space-3);
 	}
 
+	/* On the card's own surface; rows carry their own dividers. */
 	.table-wrap {
 		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: transparent;
+		border-top: 1px solid var(--border);
 	}
 
 	.menu-table {
@@ -309,7 +310,7 @@
 		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
-		background: transparent;
+		background: color-mix(in srgb, var(--card) 70%, transparent);
 	}
 
 	.menu-table tbody tr:last-child td {

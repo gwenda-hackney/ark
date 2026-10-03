@@ -9,6 +9,7 @@
 	 */
 	import type { Snippet } from "svelte";
 	import Button from "./Button.svelte";
+	import { Icon } from "../app/shell";
 	import OverflowMenu from "./OverflowMenu.svelte";
 	import { errorCountLabel } from "./form-errors.svelte";
 	import type { OverflowItem } from "./types";
@@ -72,6 +73,7 @@
 			busy={saving}
 			onclick={onsave}
 		>
+			{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 			{saving ? savingLabel : saveLabel}
 		</Button>
 	</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	/**
 	 * Add a recipe line: find the stock first, then say how much. Picking a
 	 * match selects it and moves to the quantity, with the unit the stock
@@ -280,6 +281,7 @@
 				</Field>
 			</div>
 			<Button variant="outline" size="sm" type="button" disabled={busy} {busy} onclick={() => void createAndPick()}>
+				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 				{busy ? "Adding…" : "Add to stock"}
 			</Button>
 			{#if error}
@@ -320,6 +322,7 @@
 	</div>
 
 	<Button variant="primary" size="sm" type="button" disabled={!selected || busy} onclick={add}>
+		{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 		{buttonLabel}
 	</Button>
 </div>
@@ -368,7 +371,7 @@
 		padding: var(--space-1);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--sunken);
+		background: transparent;
 	}
 
 	.option {

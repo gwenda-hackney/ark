@@ -121,6 +121,7 @@
 						disabled={Boolean(retrying)}
 						onclick={() => void retry(job.eventId)}
 					>
+						{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
 						Try again
 					</Button>
 				</li>

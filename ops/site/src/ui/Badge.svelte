@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * Small status label: a wash of the tone with a matching border. Use it for
-	 * states (On website, Approved, Match), never for actions.
+	 * states (Live, Approved, Match), never for actions.
 	 */
 	import type { Snippet } from "svelte";
 	import { toBadgeTone, type BadgeTone } from "./badge";

@@ -164,7 +164,7 @@
 	{#if loadError}
 		<EmptyState tone="error" title="Could not load suppliers" text={loadError}>
 			{#snippet action()}
-				<Button variant="outline" size="sm" onclick={() => void reload()}>Try again</Button>
+				<Button variant="outline" size="sm" onclick={() => void reload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 			{/snippet}
 		</EmptyState>
 	{:else if loading && suppliers.length === 0}
@@ -172,7 +172,7 @@
 	{:else if suppliers.length === 0}
 		<EmptyState icon="suppliers" title="No suppliers yet" text="Add the wholesalers you buy from, then pick one on an inventory item.">
 			{#snippet action()}
-				<Button size="sm" onclick={openAdd}>Add supplier</Button>
+				<Button size="sm" onclick={openAdd}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add supplier</Button>
 			{/snippet}
 		</EmptyState>
 	{:else}
@@ -259,8 +259,9 @@
 		{/if}
 	</form>
 	{#snippet footer()}
-		<Button variant="ghost" type="button" disabled={saving} onclick={closeDialog}>Cancel</Button>
+		<Button variant="ghost" type="button" disabled={saving} onclick={closeDialog}>{#snippet icon()}<Icon name="close" size={16} />{/snippet}Cancel</Button>
 		<Button type="submit" form="supplier-form" variant="primary" busy={saving}>
+			{#snippet icon()}<Icon name="save" size={16} />{/snippet}
 			{dialog.submitLabel}
 		</Button>
 	{/snippet}

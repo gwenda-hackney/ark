@@ -325,6 +325,7 @@
 			<EditorBackBar label={listTitle} onback={() => leaveEditor(editor.listHomePath())} />
 			<p>{editor.error}</p>
 			<Button type="button" variant="outline" onclick={() => leaveEditor(editor.listHomePath())}>
+				{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
 				Back to {listTitle.toLowerCase()}
 			</Button>
 		</div>
@@ -441,6 +442,7 @@
 												disabled={editor.retrying}
 												onclick={() => void editor.onRetryWebsiteJob()}
 											>
+												{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
 												Try again
 											</Button>
 										</div>
@@ -466,25 +468,28 @@
 						errorCount={editor.errors.count}
 						onerrors={() => void editor.showErrors()}
 						overflow={[
-							...(editor.editingOccurrence && (editor.form.defaultsUnlocked || editor.form.ownPhoto)
+							// Nights always offer this, disabled when nothing overrides the series;
+							// a series never has it.
+							...(editor.editingOccurrence
 								? [
 										{
 											label: "Use series values for everything",
-											disabled: editor.busy,
+											disabled: editor.busy || !(editor.form.defaultsUnlocked || editor.form.ownPhoto),
+											reason:
+												editor.form.defaultsUnlocked || editor.form.ownPhoto
+													? undefined
+													: "Already follows the series",
 											onselect: () => void editor.useSeriesDefaults(),
 										},
 									]
 								: []),
-							...(editor.eventId
-								? [
-										{
-											label: deleteLabel,
-											tone: "destructive" as const,
-											disabled: editor.busy,
-											onselect: editor.requestDelete,
-										},
-									]
-								: []),
+							{
+								label: deleteLabel,
+								tone: "destructive" as const,
+								disabled: editor.busy || !editor.eventId,
+								reason: editor.eventId ? undefined : "Not saved yet",
+								onselect: editor.requestDelete,
+							},
 						]}
 					/>
 				</div>

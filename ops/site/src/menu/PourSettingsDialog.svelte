@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { Button, Dialog } from "../ui";
 	import PourTargetsForm from "../config/PourTargetsForm.svelte";
 	import { pourSettings } from "../config/settings.svelte";
@@ -25,6 +26,7 @@
 	/>
 	{#snippet footer()}
 		<Button variant="outline" size="sm" type="button" onclick={onclose}>
+			{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 			{dirty ? "Cancel" : "Close"}
 		</Button>
 		<Button
@@ -35,6 +37,7 @@
 			disabled={!dirty || pourSettings.saving}
 			onclick={() => void saveAndClose()}
 		>
+			{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 			Save pour targets
 		</Button>
 	{/snippet}

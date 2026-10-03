@@ -14,6 +14,7 @@ import {
 	seriesOfferLabel,
 	seriesTimeLabel,
 	statusLabel,
+	statusTitle,
 	statusTone,
 } from "./event-labels";
 
@@ -33,6 +34,8 @@ export type SeriesCardRow = {
 	next: string;
 	offer: string;
 	status: string;
+	/** The longer words, for the badge's tooltip. */
+	statusTitle: string;
 	tone: BadgeTone;
 };
 
@@ -51,6 +54,7 @@ export function seriesCardRow(event: OpsEvent): SeriesCardRow {
 		next: seriesNextCell(event),
 		offer: seriesOfferLabel(event),
 		status: statusLabel(event),
+		statusTitle: statusTitle(event),
 		tone: statusTone(event),
 	};
 }

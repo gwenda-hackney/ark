@@ -27,7 +27,11 @@ describe("badge tones", () => {
 	it("POS: a match is good, a wrong name needs a look, missing is a problem", () => {
 		assert.deepEqual(posStatusBadge("matched"), { label: "Match", tone: "success" });
 		assert.deepEqual(posStatusBadge("mismatch"), { label: "Name mismatch", tone: "warning" });
-		assert.deepEqual(posStatusBadge("missing"), { label: "Missing from POS", tone: "danger" });
+		assert.deepEqual(posStatusBadge("missing"), {
+			label: "Not in POS",
+			tone: "danger",
+			title: "Missing from the Lightspeed till",
+		});
 		assert.equal(posStatusBadge(""), null);
 		assert.equal(posStatusBadge(undefined), null);
 	});

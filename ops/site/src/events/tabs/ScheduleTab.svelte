@@ -37,8 +37,15 @@
 
 <FormSection title="Upcoming nights" {description}>
 	{#snippet actions()}
-		{#if eventId && onaddnight}
-			<Button variant="outline" size="sm" type="button" disabled={busy} onclick={onaddnight}>
+		{#if onaddnight}
+			<Button
+				variant="outline"
+				size="sm"
+				type="button"
+				disabled={busy || !eventId}
+				reason={eventId ? undefined : "Save the series first"}
+				onclick={onaddnight}
+			>
 				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 				Add night
 			</Button>
@@ -91,9 +98,10 @@
 	.occurrences {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-		gap: var(--space-2);
+		gap: 0 var(--space-8);
 		margin: 0;
 		padding: 0;
+		border-top: 1px solid var(--border);
 		list-style: none;
 	}
 
@@ -102,10 +110,8 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-4);
-		padding: var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: transparent;
+		padding: var(--space-3) 0;
+		border-bottom: 1px solid var(--border);
 	}
 
 	.occurrence-main {

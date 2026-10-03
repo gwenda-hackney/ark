@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { cardPhotoUrl, menuCard, menuCardBadges } from "./menu-card.ts";
 import type { MenuListItem } from "./menu-list.ts";
 
@@ -81,7 +81,7 @@ describe("menu card", () => {
 			badges.map((badge) => [badge.label, badge.tone]),
 			[
 				["3 issues", "danger"],
-				["Missing from POS", "danger"],
+				["Not in POS", "danger"],
 				["Not live", "warning"],
 				["POS only", "neutral"],
 			],
@@ -92,6 +92,14 @@ describe("menu card", () => {
 			menuCardBadges(row({ _issueCount: 1, _issueTone: "down" })).map((b) => [b.label, b.tone]),
 			[["1 issue", "warning"]],
 		);
+	});
+
+	it("says Changed, not Not live, when saved edits wait for the website", () => {
+		const badges = menuCardBadges(
+			row({ _publishPending: true, publish: { production: { status: "stale", changed: ["price"] } } } as unknown as Partial<MenuListItem>),
+		);
+		expect(badges.map((badge) => badge.label)).toContain("Changed");
+		for (const badge of badges) expect(badge.label.length).toBeLessThanOrEqual(14);
 	});
 
 	it("tones pour cost by margin", () => {

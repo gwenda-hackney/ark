@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { ShellLayout } from "./shell";
+	import { Icon, ShellLayout } from "./shell";
 	import { Button, Toaster } from "../ui";
 	import { fade, fly } from "svelte/transition";
 	import HomeOverview from "../home/HomeOverview.svelte";
@@ -115,6 +115,7 @@
 							<p class="crash-message">{errorMessage(error)}</p>
 							<div class="crash-actions">
 								<Button type="button" variant="primary" onclick={reset}>
+									{#snippet icon()}<Icon name="refresh" size={16} />{/snippet}
 									Try again
 								</Button>
 								<Button
@@ -122,6 +123,7 @@
 									variant="outline"
 									onclick={() => window.location.reload()}
 								>
+									{#snippet icon()}<Icon name="refresh" size={16} />{/snippet}
 									Reload page
 								</Button>
 							</div>

@@ -307,9 +307,9 @@
 		flex: 0 1 auto;
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-base);
+		font-size: var(--text-md);
 		font-weight: 600;
-		line-height: 1.25rem;
+		line-height: 1.3;
 		color: var(--foreground);
 	}
 
@@ -352,7 +352,7 @@
 		min-width: 0;
 		padding: var(--space-2) var(--space-3);
 		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-sm);
 		background: transparent;
 	}
 

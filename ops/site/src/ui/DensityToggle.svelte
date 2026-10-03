@@ -8,9 +8,14 @@
 	let {
 		value = $bindable<Density>("comfortable"),
 		onchange,
+		disabled = false,
+		reason,
 	}: {
 		value?: Density;
 		onchange?: (next: Density) => void;
+		/** Kept in place but inert, e.g. in cards view ("Only for the table"). */
+		disabled?: boolean;
+		reason?: string;
 	} = $props();
 
 	const OPTIONS: { id: Density; label: string; lines: number[] }[] = [
@@ -19,20 +24,21 @@
 	];
 
 	function pick(next: Density) {
-		if (next === value) return;
+		if (disabled || next === value) return;
 		value = next;
 		onchange?.(next);
 	}
 </script>
 
-<div class="track" role="group" aria-label="Row spacing">
+<div class="track" class:disabled role="group" aria-label="Row spacing" title={disabled ? reason : undefined}>
 	{#each OPTIONS as option (option.id)}
 		<button
 			type="button"
 			class="opt"
 			aria-pressed={value === option.id}
 			aria-label={option.label}
-			title={option.label}
+			aria-disabled={disabled || undefined}
+			title={disabled ? reason : option.label}
 			onclick={() => pick(option.id)}
 		>
 			<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
@@ -73,7 +79,19 @@
 			color var(--t-fast) var(--ease-in-out);
 	}
 
-	.opt:hover:not([aria-pressed="true"]) {
+	.track.disabled {
+		background: var(--surface-3);
+		border-color: transparent;
+	}
+
+	.track.disabled .opt {
+		color: var(--fg-subtle);
+		box-shadow: none;
+		background: none;
+		cursor: not-allowed;
+	}
+
+	.opt:hover:not([aria-pressed="true"], [aria-disabled="true"]) {
 		background: var(--surface-3);
 		color: var(--fg);
 	}

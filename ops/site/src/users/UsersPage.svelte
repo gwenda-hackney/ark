@@ -174,7 +174,7 @@
 	{#if loadError}
 		<EmptyState tone="error" title="Could not load users" text={loadError}>
 			{#snippet action()}
-				<Button variant="outline" size="sm" onclick={() => void reload()}>Try again</Button>
+				<Button variant="outline" size="sm" onclick={() => void reload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 			{/snippet}
 		</EmptyState>
 	{:else if loading && users.length === 0}
@@ -182,7 +182,7 @@
 	{:else if users.length === 0}
 		<EmptyState icon="users" title="No one added yet" text="Add the people who may sign in with Google.">
 			{#snippet action()}
-				<Button size="sm" onclick={openDrawer}>Add the first user</Button>
+				<Button size="sm" onclick={openDrawer}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add the first user</Button>
 			{/snippet}
 		</EmptyState>
 	{:else}
@@ -278,9 +278,10 @@
 		{/if}
 		<div class="actions">
 			<Button variant="ghost" type="button" disabled={saving} onclick={closeDrawer}>
+				{#snippet icon()}<Icon name="close" size={16} />{/snippet}
 				Cancel
 			</Button>
-			<Button type="submit" variant="primary" busy={saving}>Add user</Button>
+			<Button type="submit" variant="primary" busy={saving}>{#snippet icon()}<Icon name="plus" size={16} />{/snippet}Add user</Button>
 		</div>
 	</form>
 </PageDrawer>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import { Button, Segmented } from "../ui";
 	import type { SegmentedItem } from "../ui/types";
@@ -192,6 +193,7 @@
 <div class="book scrollbar-fade" bind:this={scroller}>
 	<div class="toolbar no-print">
 		<Button variant="outline" onclick={onclose}>
+			{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
 			{single ? "Back to drink" : "Back to menu"}
 		</Button>
 		{#if !single}
@@ -215,7 +217,7 @@
 				{drinks.length === 1 ? "page" : "pages"}
 			{/if}
 		</p>
-		<Button variant="primary" onclick={() => window.print()}>Print</Button>
+		<Button variant="primary" onclick={() => window.print()}>{#snippet icon()}<Icon name="print" size={16} />{/snippet}Print</Button>
 	</div>
 
 	<div class="pages">

@@ -647,7 +647,7 @@
 						<FormSection title="Used in">
 							{#if usedIn.length === 0}
 								<p class="muted">
-									{item.active === false
+									{item?.active === false
 										? "Not used in any recipe. Hidden from the ingredient picker."
 										: "Not used in any recipe yet."}
 								</p>
@@ -657,7 +657,7 @@
 										<a href={drink.href}>{drink.name}</a>
 									{/each}
 								</div>
-								{#if item.active === false}
+								{#if item?.active === false}
 									<p class="muted">Hidden from the ingredient picker.</p>
 								{/if}
 							{/if}
@@ -668,7 +668,7 @@
 								<TextArea
 									id="inv-notes"
 									rows={3}
-									value={item.notes || ""}
+									value={item?.notes || ""}
 									oninput={(e) =>
 										patch(
 											"notes",
@@ -777,9 +777,15 @@
 				{dirty}
 				errorCount={errors.count}
 				onerrors={() => void errors.reveal()}
-				overflow={item._id || item.id
-					? [{ label: "Delete item", tone: "destructive", disabled: busy, onselect: () => (deleteOpen = true) }]
-					: []}
+				overflow={[
+					{
+						label: "Delete item",
+						tone: "destructive",
+						disabled: busy || !(item._id || item.id),
+						reason: item._id || item.id ? undefined : "Not saved yet",
+						onselect: () => (deleteOpen = true),
+					},
+				]}
 			/>
 		</div>
 	</form>
@@ -922,23 +928,25 @@
 				</div>
 			</div>
 			<footer class="drawer-foot">
-				{#if supplierEditIndex != null}
-					<Button
-						class="drawer-remove"
-						variant="destructive"
-						size="sm"
-						type="button"
-						onclick={removeSupplierFromDrawer}
-					>
-						Remove
-					</Button>
-				{/if}
+				<Button
+					class="drawer-remove"
+					variant="destructive"
+					size="sm"
+					type="button"
+					disabled={supplierEditIndex == null}
+					reason={supplierEditIndex == null ? "Not added yet" : undefined}
+					onclick={removeSupplierFromDrawer}
+				>
+					{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
+					Remove
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"
 					type="button"
 					onclick={closeSupplierDrawer}
 				>
+					{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 					Cancel
 				</Button>
 				<Button
@@ -947,6 +955,7 @@
 					type="button"
 					onclick={applySupplierDraft}
 				>
+					{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 					Done
 				</Button>
 			</footer>
@@ -1054,11 +1063,10 @@
 		color: var(--muted-foreground);
 	}
 
+	/* On the card's own surface; rows carry their own dividers. */
 	.supplier-table-wrap {
 		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
+		border-top: 1px solid var(--border);
 	}
 
 	.supplier-table {

@@ -29,7 +29,7 @@ describe("series card", () => {
 		assert.equal(row.when, "Tuesday");
 		assert.equal(row.cadence, "Every week on Tue");
 		assert.equal(row.time, "4pm–11pm");
-		assert.equal(row.status, "On website");
+		assert.equal(row.status, "Live");
 		assert.equal(row.tone, "success");
 	});
 
@@ -39,7 +39,7 @@ describe("series card", () => {
 		);
 		assert.equal(row.next, "No nights");
 		assert.equal(row.photo, "");
-		assert.equal(row.status, "Waiting for Update website");
+		assert.equal(row.status, "Changed");
 		assert.equal(row.tone, "warning");
 	});
 });

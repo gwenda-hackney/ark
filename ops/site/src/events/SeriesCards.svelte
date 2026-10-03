@@ -44,7 +44,7 @@
 						</span>
 						<span class="line muted">{[row.cadence, row.time].filter(Boolean).join(" · ")}</span>
 						<span class="foot">
-							<Badge tone={row.tone} label={row.status} />
+							<Badge tone={row.tone} label={row.status} title={row.statusTitle} />
 							{#if row.guest}<span class="guest">{row.guest}</span>{/if}
 						</span>
 					</span>

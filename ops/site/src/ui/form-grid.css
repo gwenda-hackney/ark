@@ -38,7 +38,7 @@
 	}
 }
 
-@container (min-width: 44rem) {
+@container (min-width: 38rem) {
 	:is(.form-cols, .lead-fields) > .span-2 {
 		grid-column-end: span 2;
 	}
@@ -69,6 +69,13 @@
 
 	:is(.form-cols, .lead-fields) > .span-9 {
 		grid-column-end: span 9;
+	}
+}
+
+/* A field that needs room (a date with its weekday) pairs up a little longer. */
+@container (min-width: 38rem) and (max-width: 43.99rem) {
+	:is(.form-cols, .lead-fields) > .span-3.roomy {
+		grid-column-end: span 6;
 	}
 }
 
@@ -221,7 +228,12 @@
 .form-split {
 	container-type: inline-size;
 	min-width: 0;
+	padding-bottom: var(--space-6);
 	border-top: 1px solid var(--border);
+}
+
+.form-split:last-child {
+	padding-bottom: 0;
 }
 
 .form-split:first-child {

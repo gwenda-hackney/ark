@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import type { ColDef, GridApi } from "ag-grid-community";
 	import {
@@ -352,27 +353,33 @@
 				variant="outline"
 				size="sm"
 				disabled={!rows.length}
+				reason={rows.length ? undefined : "Nothing listed"}
 				onclick={selectAllVisible}
 			>
+				{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 				Select all
 			</Button>
 			<Button
 				variant="ghost"
 				size="sm"
 				disabled={!selectedCount}
+				reason={selectedCount ? undefined : "Nothing selected"}
 				onclick={clearSelected}
 			>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 				Clear
 			</Button>
 			<Button
 				variant="primary"
 				size="sm"
 				disabled={!selectedCount || savingSkus}
+				reason={!selectedCount ? "Select drinks or stock first" : undefined}
 				title={newSkuCount
 					? `${newSkuCount} new SKU${newSkuCount === 1 ? "" : "s"} will be saved on download`
 					: "Download the selection"}
 				onclick={() => void downloadImport()}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				{selectedCount ? `Download · ${selectedCount}` : "Download"}
 			</Button>
 		{/snippet}

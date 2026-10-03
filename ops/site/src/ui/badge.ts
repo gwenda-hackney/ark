@@ -31,13 +31,14 @@ export function toBadgeTone(tone: string | null | undefined): BadgeTone {
 	return ALIASES[key] ?? "neutral";
 }
 
-export type BadgeSpec = { label: string; tone: BadgeTone };
+/** `title` carries the longer words for the tooltip; labels stay one or two words. */
+export type BadgeSpec = { label: string; tone: BadgeTone; title?: string };
 
 /** Lightspeed match state for a menu item. Empty when the item has no POS link. */
 export function posStatusBadge(status: string | null | undefined): BadgeSpec | null {
 	if (status === "matched") return { label: "Match", tone: "success" };
 	if (status === "mismatch") return { label: "Name mismatch", tone: "warning" };
-	if (status === "missing") return { label: "Missing from POS", tone: "danger" };
+	if (status === "missing") return { label: "Not in POS", tone: "danger", title: "Missing from the Lightspeed till" };
 	return null;
 }
 

@@ -387,7 +387,7 @@
 			</Field>
 		{/if}
 		<Field
-			class={isSeries ? "span-3" : "span-4"}
+			class={isSeries ? "span-3 roomy" : "span-4"}
 			label="Starts"
 			for="event-start-time"
 			optional={!inherits}
@@ -401,7 +401,7 @@
 			{/if}
 		</Field>
 		<Field
-			class={isSeries ? "span-3" : "span-4"}
+			class={isSeries ? "span-3 roomy" : "span-4"}
 			label="Ends"
 			for="event-end-time"
 			optional={!inherits}

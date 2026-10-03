@@ -622,7 +622,7 @@
 			{#if loadError}
 				<EmptyState tone="error" title="Could not load the menu" text={loadError}>
 					{#snippet action()}
-						<Button variant="outline" size="sm" onclick={() => void runLoad()}>Try again</Button>
+						<Button variant="outline" size="sm" onclick={() => void runLoad()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 					{/snippet}
 				</EmptyState>
 			{:else if missingId}
@@ -630,6 +630,7 @@
 					<div class="missing">
 						<p>That drink is not on the menu.</p>
 						<Button variant="outline" size="sm" onclick={() => backToGrid()}>
+							{#snippet icon()}<Icon name="chevron-left" size={14} />{/snippet}
 							Back to menu items
 						</Button>
 					</div>
@@ -654,7 +655,7 @@
 									onclick={reloadMenu}
 								>
 									{#snippet icon()}
-										<Icon name="refresh" size={15} />
+										<Icon name="refresh" size={14} />
 									{/snippet}
 									Reload
 								</Button>
@@ -666,14 +667,14 @@
 										onclick={() => goToPrint(menuPrintPath())}
 									>
 										{#snippet icon()}
-											<Icon name="print" size={15} />
+											<Icon name="print" size={14} />
 										{/snippet}
 										Print
 									</Button>
 								{/if}
 								<Button variant="outline" size="sm" disabled={busy} onclick={newItem}>
 									{#snippet icon()}
-										<Icon name="plus" size={15} />
+										<Icon name="plus" size={14} />
 									{/snippet}
 									New item
 								</Button>
@@ -684,7 +685,7 @@
 									onclick={openPublish}
 								>
 									{#snippet icon()}
-										<Icon name="upload" size={15} />
+										<Icon name="upload" size={14} />
 									{/snippet}
 									{publishPending
 										? `Publish · ${publishPending}`
@@ -705,9 +706,11 @@
 								>
 									{#snippet end()}
 										<p class="meta">{itemCount} item{itemCount === 1 ? "" : "s"}</p>
-										{#if view.value === "table"}
-											<DensityToggle bind:value={density.value} />
-										{/if}
+										<DensityToggle
+											bind:value={density.value}
+											disabled={view.value !== "table"}
+											reason="Only for the table"
+										/>
 										<Segmented
 											value={view.value}
 											items={VIEW_ITEMS}

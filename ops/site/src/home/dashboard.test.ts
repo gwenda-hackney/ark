@@ -285,11 +285,18 @@ describe("groupNights", () => {
 	});
 
 	it("says what happens next on the website, job first", () => {
-		assert.equal(nightStatus(night(), []).label, "On the website");
-		assert.equal(nightStatus(night({ live: "stale" }), []).label, "Waiting for Update website");
-		assert.equal(nightStatus(night({ live: "unpublished" }), null).label, "Not on the website yet");
+		assert.equal(nightStatus(night(), []).label, "Live");
+		assert.equal(nightStatus(night({ live: "stale" }), []).label, "Changed");
+		assert.equal(nightStatus(night({ live: "stale" }), []).title, "Waiting for Update website");
+		assert.equal(nightStatus(night({ live: "unpublished" }), null).label, "Not live");
 		const failed = [{ eventId: "12", name: "R", state: "failed" as const, error: "x", failedAt: null }];
-		assert.deepEqual(nightStatus(night(), failed), { label: "Not ready for the website", tone: "danger" });
+		assert.deepEqual(nightStatus(night(), failed), {
+			label: "Failed",
+			tone: "danger",
+			title: "Not ready for the website",
+		});
+		const waiting = [{ eventId: "12", name: "R", state: "waiting" as const, error: "", failedAt: null }];
+		assert.equal(nightStatus(night(), waiting).label, "Updating");
 		assert.equal(nightHref(night()), "/events/12@2026-10-03");
 	});
 });
