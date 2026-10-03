@@ -25,6 +25,7 @@
 				name: string;
 				meta: string;
 				status: string;
+				statusTitle?: string;
 				tone: string;
 		  };
 
@@ -70,8 +71,8 @@
 			{
 				headerName: "Status",
 				colId: "status",
-				width: 210,
-				minWidth: 180,
+				width: 120,
+				minWidth: 100,
 				flex: 0,
 				sortable: false,
 				hide: compact,
@@ -79,6 +80,7 @@
 				cellRenderer: svelteCell(EventStatusCell, (params: ICellRendererParams<ScheduleTableRow>) => ({
 					label: params.data?.kind === "night" ? params.data.status : "",
 					tone: params.data?.kind === "night" ? params.data.tone : "",
+					title: params.data?.kind === "night" ? params.data.statusTitle : "",
 				})),
 			},
 		];

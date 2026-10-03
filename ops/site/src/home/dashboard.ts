@@ -208,13 +208,14 @@ export function nightTime(night: DashboardNight): string {
 export function nightStatus(
 	night: DashboardNight,
 	jobs: DashboardJob[] | null,
-): { label: string; tone: Tone } {
+): { label: string; tone: Tone; title: string } {
 	const job = jobs?.find((row) => row.eventId === night.eventId);
-	if (job?.state === "failed") return { label: "Not ready for the website", tone: "danger" };
-	if (job?.state === "waiting") return { label: "Getting it ready", tone: "muted" };
-	if (night.live === "current") return { label: "On the website", tone: "success" };
-	if (night.live === "unpublished") return { label: "Not on the website yet", tone: "warning" };
-	return { label: "Waiting for Update website", tone: "warning" };
+	// Short badge words; the sentence is the tooltip.
+	if (job?.state === "failed") return { label: "Failed", tone: "danger", title: "Not ready for the website" };
+	if (job?.state === "waiting") return { label: "Updating", tone: "muted", title: "Getting it ready for the website" };
+	if (night.live === "current") return { label: "Live", tone: "success", title: "On the website" };
+	if (night.live === "unpublished") return { label: "Not live", tone: "warning", title: "Not on the website yet" };
+	return { label: "Changed", tone: "warning", title: "Waiting for Update website" };
 }
 
 export function nightHref(night: DashboardNight): string {

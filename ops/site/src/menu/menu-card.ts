@@ -58,7 +58,9 @@ export function menuCardBadges(row: MenuListItem): MenuCard["badges"] {
 	const pos = posStatusBadge(row._posStatus);
 	if (pos && pos.tone !== "success") out.push(pos);
 	if (row._publishPending) {
-		out.push({ label: "Not live", tone: "warning", title: publishLiveLabel(row.publish) });
+		// Never on the website reads "Not live"; saved edits waiting read "Changed".
+		const never = row.publish?.production?.status === "missing";
+		out.push({ label: never ? "Not live" : "Changed", tone: "warning", title: publishLiveLabel(row.publish) });
 	}
 	if (row._guestPlacement === "none") {
 		out.push({ label: "POS only", tone: "neutral", title: "Not on the guest menus" });

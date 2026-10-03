@@ -44,6 +44,7 @@
 		formatDate,
 		repeatLabel,
 		statusLabel,
+		statusTitle,
 		statusTone,
 	} from "./event-labels";
 
@@ -182,6 +183,7 @@
 					name: occurrence.occurrence?.overrides.name || occurrence.event.name,
 					meta: artist ? `${artist} · ${when}` : when,
 					status: statusLabel(occurrence.event),
+					statusTitle: statusTitle(occurrence.event),
 					tone: statusTone(occurrence.event),
 				};
 			}),

@@ -365,7 +365,7 @@
 												<span class="sub warn-text">Calendar not up to date</span>
 											{/if}
 										</span>
-										<Badge tone={status.tone} label={status.label} />
+										<Badge tone={status.tone} label={status.label} title={status.title} />
 									</li>
 								{/each}
 							</ul>
