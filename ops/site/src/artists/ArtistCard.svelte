@@ -797,7 +797,6 @@
 		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
-		background: var(--sunken);
 	}
 
 	.tab-body {
@@ -1070,50 +1069,55 @@
 		color: var(--danger);
 	}
 
-	/* Phones: one column, the portrait straight after who they are. */
-	@container artist-detail (max-width: 51.99rem) {
-		.col-main,
-		.col-side {
-			display: contents;
-		}
-
-		.col-main > :global(.sec-artist) {
-			order: 1;
-		}
-
-		.col-side > :global(.sec-photo) {
-			order: 2;
-		}
-
-		.col-main > :global(.sec-wall) {
-			order: 3;
-		}
-
-		.col-main > :global(.sec-page) {
-			order: 4;
-		}
-
-		.board > :global(.sec-work) {
-			order: 5;
-		}
-
-		.board > :global(.sec-gwenda) {
-			order: 6;
-		}
+	/* One column everywhere, the portrait straight after who they are. */
+	.col-main,
+	.col-side {
+		display: contents;
 	}
 
-	/* Wide: details left, portrait right, the galleries across the bottom. */
-	@container artist-detail (min-width: 52rem) {
-		.board {
-			grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
-			gap: var(--space-5);
-			align-items: start;
-		}
+	.board {
+		gap: 0;
+	}
 
-		.board > :global(.sec-work),
-		.board > :global(.sec-gwenda) {
-			grid-column: 1 / -1;
-		}
+	.col-main > :global(.sec-artist) {
+		order: 1;
+	}
+
+	.col-side > :global(.sec-photo) {
+		order: 2;
+	}
+
+	.col-main > :global(.sec-wall) {
+		order: 3;
+	}
+
+	.col-main > :global(.sec-page) {
+		order: 4;
+	}
+
+	.board > :global(.sec-work) {
+		order: 5;
+	}
+
+	.board > :global(.sec-gwenda) {
+		order: 6;
+	}
+
+	/* Reordered sections: every one keeps its rule except the first shown. */
+	.board > :global(.form-section),
+	.col-main > :global(.form-section),
+	.col-side > :global(.form-section) {
+		border-top: 1px solid var(--border);
+		padding-top: var(--space-6);
+	}
+
+	.col-main > :global(.sec-artist) {
+		border-top: 0;
+		padding-top: var(--space-2);
+	}
+
+	.col-side > :global(.sec-photo .body) {
+		max-width: 26rem;
 	}
 
 	/* Keep in sync with SHELL_MOBILE_MAX_PX: edge to edge, like the other editors. */

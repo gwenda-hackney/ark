@@ -1038,13 +1038,12 @@
 		flex-shrink: 0;
 	}
 
-	/* Section cards sit on the page colour, so each group reads as one block. */
+	/* One card: the sections sit on it, divided by rules. */
 	.body {
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
 		padding: var(--space-4) var(--card-pad) var(--card-pad);
-		background: var(--sunken);
 		container-type: inline-size;
 		container-name: inventory-detail;
 	}
@@ -1053,17 +1052,13 @@
 	.col-main,
 	.col-side {
 		display: grid;
-		gap: var(--space-4);
 		align-content: start;
 		min-width: 0;
 	}
 
-	@container inventory-detail (min-width: 56rem) {
-		.board {
-			grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
-			gap: var(--space-5);
-			align-items: start;
-		}
+	.col-side > :global(.form-section:first-child) {
+		border-top: 1px solid var(--border);
+		padding-top: var(--space-6);
 	}
 
 	.muted {

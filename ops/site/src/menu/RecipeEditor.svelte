@@ -1566,14 +1566,13 @@
 		border-bottom: 1px solid var(--border);
 	}
 
-	/* Section cards sit on the page colour, so each group reads as one block. */
+	/* One card: the sections sit on it, divided by rules. */
 	.tab-scroll {
 		position: relative;
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
-		background: var(--sunken);
 	}
 
 	.tab-body {
@@ -1596,46 +1595,52 @@
 		min-width: 0;
 	}
 
-	/* Phones: one column, the photo straight after what the drink is. */
-	@container drink-detail (max-width: 51.99rem) {
-		.col-main,
-		.col-side {
-			display: contents;
-		}
-
-		.col-main > :global(.sec-drink) {
-			order: 1;
-		}
-
-		.col-side > :global(.sec-photo) {
-			order: 2;
-		}
-
-		.col-main > :global(.sec-recipe) {
-			order: 3;
-		}
-
-		.col-main > :global(.sec-method) {
-			order: 4;
-		}
-
-		.col-main > :global(.sec-copy) {
-			order: 5;
-		}
+	/* One column everywhere, the photo straight after what the drink is. */
+	.col-main,
+	.col-side {
+		display: contents;
 	}
 
-	/* Wide: the fields on the left, the photo beside them and kept in view. */
-	@container drink-detail (min-width: 52rem) {
-		.board {
-			grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
-			gap: var(--space-5);
-			align-items: start;
-		}
+	.col-main > :global(.sec-drink) {
+		order: 1;
+	}
 
-		.col-side {
-			position: sticky;
-			top: 0;
-		}
+	.col-side > :global(.sec-photo) {
+		order: 2;
+	}
+
+	.col-main > :global(.sec-recipe) {
+		order: 3;
+	}
+
+	.col-main > :global(.sec-method) {
+		order: 4;
+	}
+
+	.col-main > :global(.sec-copy) {
+		order: 5;
+	}
+
+	.board {
+		gap: 0;
+	}
+
+	/* Ordered sections: the first one shown drops its top rule. */
+	.board > :global(.form-section),
+	.col-main > :global(.form-section),
+	.col-side > :global(.form-section) {
+		border-top: 1px solid var(--border);
+		padding-top: var(--space-6);
+	}
+
+	.col-main > :global(.sec-drink) {
+		border-top: 0;
+		padding-top: var(--space-2);
+	}
+
+	/* The photo at a sensible size, not the column's full width. */
+	.col-side .photo {
+		max-width: 26rem;
 	}
 
 	.photo {

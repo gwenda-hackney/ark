@@ -633,7 +633,6 @@
 		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
-		background: var(--sunken);
 	}
 
 	.tab-body {

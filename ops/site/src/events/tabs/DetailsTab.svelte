@@ -582,53 +582,56 @@
 		min-width: 0;
 	}
 
-	/* Phones: one column, the photo straight after what the event is. */
-	@container event-detail (max-width: 51.99rem) {
-		.col-main,
-		.col-side {
-			display: contents;
-		}
-
-		.board > :global(.chooser) {
-			order: 0;
-		}
-
-		.col-main > :global(.sec-what) {
-			order: 1;
-		}
-
-		.col-side > :global(.sec-photo) {
-			order: 2;
-		}
-
-		.col-main > :global(.sec-when) {
-			order: 3;
-		}
-
-		.col-main > :global(.sec-page) {
-			order: 4;
-		}
-
-		.col-main > :global(.sec-tasks) {
-			order: 5;
-		}
+	/* One column everywhere, the photo straight after what the event is. */
+	.col-main,
+	.col-side {
+		display: contents;
 	}
 
-	/* Wide: the fields on the left, the photo beside them and kept in view. */
-	@container event-detail (min-width: 52rem) {
-		.board {
-			grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
-			gap: var(--space-5);
-		}
+	.board {
+		gap: 0;
+	}
 
-		.board > :global(.chooser) {
-			grid-column: 1 / -1;
-		}
+	.board > :global(.chooser) {
+		order: 0;
+		margin-bottom: var(--space-4);
+	}
 
-		.col-side {
-			position: sticky;
-			top: 0;
-		}
+	.col-main > :global(.sec-what) {
+		order: 1;
+	}
+
+	.col-side > :global(.sec-photo) {
+		order: 2;
+	}
+
+	.col-main > :global(.sec-when) {
+		order: 3;
+	}
+
+	.col-main > :global(.sec-page) {
+		order: 4;
+	}
+
+	.col-main > :global(.sec-tasks) {
+		order: 5;
+	}
+
+	/* The photo at a sensible size, not the full width of the fields. */
+	.col-side > :global(.sec-photo .body) {
+		max-width: 32rem;
+	}
+
+	/* Reordered sections: every one keeps its rule except the first shown. */
+	.col-main > :global(.form-section),
+	.col-side > :global(.form-section) {
+		border-top: 1px solid var(--border);
+		padding-top: var(--space-6);
+	}
+
+	.col-main > :global(.sec-what) {
+		border-top: 0;
+		padding-top: var(--space-2);
 	}
 
 	.kinds {
