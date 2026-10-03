@@ -1040,11 +1040,11 @@ export function occurrenceDeleteTargets(event, date, scope = "this") {
       };
     }
     const dates = event.dates || [];
-    // Scheduled multi-night series: remove only the targeted nights.
+    // Open series: remove only the targeted night, even its last one (#151).
     if (
       String(event?.repeatUnit || "none").toLowerCase() === "none" &&
       resolved === "this" &&
-      dates.length > 1
+      dates.some((item) => item.date === normalized)
     ) {
       const row = dates.find((item) => item.date === normalized);
       return {
@@ -1358,7 +1358,9 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
     if (!hasOccurrenceInput(overrides) && !overrides.image) {
       return { event, occurrence: existing, created: false };
     }
+    // Update the night's own row (keeping its ids), not a second row for the date.
     const occurrence = await saveOccurrence(env, eventId, {
+      ...existing,
       date: normalized,
       slug: occurrenceSlug(event.slug, normalized),
       label: `${titleOverrideForSave(event.name, overrides.name) || event.name} · ${normalized}`,
@@ -1379,6 +1381,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
         operationsNotes: text(overrides.operationsNotes),
         imageLinks: linksFrom(overrides.imageLinks),
         image: overrides.image || existing.overrides?.image || null,
+        heroCrops: existing.overrides?.heroCrops || null,
       },
     });
     return {
@@ -1419,6 +1422,7 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
     }
   }
   const occurrence = await saveOccurrence(env, eventId, {
+    ...(series.dates.find((row) => row.date === normalized) || {}),
     date: normalized,
     slug: occurrenceSlug(series.slug, normalized),
     label: `${titleOverrideForSave(series.name, overrides.name) || series.name} · ${normalized}`,
@@ -1432,6 +1436,10 @@ export async function ensureOccurrence(env, eventId, date, overrides = {}) {
       time: text(overrides.time),
       startTime: clockTime(overrides.startTime),
       endTime: clockTime(overrides.endTime),
+      nightSchedule:
+        overrides.nightSchedule == null
+          ? null
+          : parseNightSchedule(overrides.nightSchedule),
       operationsNotes: text(overrides.operationsNotes),
       imageLinks: linksFrom(overrides.imageLinks),
       image: overrides.image || null,
@@ -1549,18 +1557,19 @@ async function detachOccurrenceFromSeries(
   }
   const remaining = (event.dates || []).filter((row) => row.date !== date);
   const unit = String(event.repeatUnit || "none").toLowerCase();
-  if (!remaining.length) {
-    await removeEvent(env, event.id);
-    return null;
-  }
+  // An open series may have no nights, so it outlives its last one (#151).
   if (unit === "none" || unit === "") {
     return updateEvent(env, event.id, {
-      startsOn: remaining[0].date,
+      startsOn: remaining[0]?.date || "",
       extraDates: remaining.slice(1).map((row) => row.date),
       skippedDates: normalizeSkippedDates(event.skippedDates).filter(
         (item) => item !== date,
       ),
     });
+  }
+  if (!remaining.length) {
+    await removeEvent(env, event.id);
+    return null;
   }
   const inRule = expandSeriesOccurrenceDates({
     ...event,
@@ -1581,6 +1590,7 @@ async function detachOccurrenceFromSeries(
 
 function hasOccurrenceInput(overrides) {
   if (!overrides || typeof overrides !== "object") return false;
+  if (Array.isArray(overrides.nightSchedule) && overrides.nightSchedule.length) return true;
   return [
     "name",
     "artist",

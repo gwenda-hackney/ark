@@ -414,6 +414,20 @@ describe("events: editing", () => {
     assert.deepEqual(series[0].formerSlugs, [before]);
   });
 
+  it("slots typed on a new night are kept on that night (#151)", async () => {
+    const slots = [{ label: "Open decks", startTime: "20:00", endTime: "21:00" }];
+    const extra = addDays(nextWeekday(WEDNESDAY), 2); // a Friday, outside the pattern
+    const inRule = addDays(nextWeekday(WEDNESDAY), 7);
+    await ops.addNight(event, extra, { nightSchedule: slots });
+    await ops.addNight(event, inRule, { nightSchedule: slots });
+    const saved = await ops.open(event);
+    for (const date of [extra, inRule]) {
+      const night = saved.dates.find((row) => row.date === date);
+      assert.deepEqual(night?.overrides.nightSchedule, slots, `slots on ${date}`);
+      assert.equal(saved.dates.filter((row) => row.date === date).length, 1, `one row for ${date}`);
+    }
+  });
+
   it("a night added outside the pattern goes live with the series", async () => {
     const extra = addDays(nextWeekday(WEDNESDAY), 2); // a Friday
     await ops.addNight(event, extra);
@@ -580,6 +594,35 @@ describe("events: deleting", () => {
       "no preview copy left",
     );
     assert.equal(world.baserow.rows("Events").length, 1, "only the live series is left");
+  });
+
+  it("one night of an open series: only that night goes, the series stays (#151)", async () => {
+    const [first, second] = [addDays(nextWeekday(SATURDAY), 7), addDays(nextWeekday(SATURDAY), 14)];
+    const open = await ops.create({
+      name: "Gwenda Nights",
+      shortDescription: "Something different every time.",
+      description: "A night picked by the team.",
+      startTime: "20:00",
+      endTime: "01:00",
+      repeatUnit: "none",
+    });
+    await ops.addNight(open, first);
+    await ops.addNight(open, second);
+    await ops.waitUntilReady(open);
+
+    const res = await ops.deleteNight(open, first, "this");
+    assert.equal(res.deleted, false, "the series is not deleted");
+    await ops.waitUntilReady(open);
+    assert.deepEqual((await ops.open(open)).dates.map((row) => row.date), [second]);
+    assert.ok(!previewNights(world).includes(first), "off the preview");
+
+    const last = await ops.deleteNight(open, second, "this");
+    assert.equal(last.deleted, false, "an open series may have no nights");
+    await ops.waitUntilReady(open);
+    const left = await ops.open(open);
+    assert.equal(left.name, "Gwenda Nights");
+    assert.deepEqual(left.dates, []);
+    assert.ok((await ops.list()).some((row) => row.id === open.id), "still in the events list");
   });
 
   it("a one-off special event: off the calendar now, off the website on Update website", async () => {

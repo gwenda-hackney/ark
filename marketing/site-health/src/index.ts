@@ -137,9 +137,22 @@ function json(body: Record<string, unknown>, status = 200): Response {
   return Response.json(body, { status });
 }
 
+/**
+ * /status needs `Bearer HEALTH_STATUS_TOKEN`. Without the secret it stays
+ * open, as before, so ops keeps working until it is put; each read logs a
+ * warning so the gap shows in the Worker's logs (#151).
+ */
 export function isStatusAuthorized(request: Request, env: Env): boolean {
   const token = env.HEALTH_STATUS_TOKEN?.trim();
-  if (!token) return true;
+  if (!token) {
+    console.warn(
+      JSON.stringify({
+        event: "site_health_status_open",
+        message: "HEALTH_STATUS_TOKEN is not set, so /status is open to anyone.",
+      }),
+    );
+    return true;
+  }
   const header = request.headers.get("Authorization") || "";
   const bearer = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   return Boolean(bearer && bearer === token);

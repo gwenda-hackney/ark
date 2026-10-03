@@ -245,6 +245,30 @@ describe("EventEditor: one night", () => {
 		assert.equal(toast.ok.mock.calls.at(-1)?.[0], "Night added to the series.");
 	});
 
+	it("sends night slots typed on a new night, labelled ones only (#151)", async () => {
+		const editor = await open("/events/new/once");
+		editor.attachSeriesId = "ev1";
+		editor.form.startsOn = "2026-10-15";
+		editor.form.nightSchedule = [
+			{ label: " Open decks ", startTime: "20:00", endTime: "21:00" },
+			{ label: "", startTime: "", endTime: "" },
+		];
+		api.ensureEventOccurrence.mockResolvedValue({ event: series(), created: true, warnings: [] });
+		await editor.onSave(submit());
+		assert.deepEqual(api.ensureEventOccurrence.mock.calls[0][2].nightSchedule, [
+			{ label: "Open decks", startTime: "20:00", endTime: "21:00" },
+		]);
+	});
+
+	it("leaves a new night on the series' slots when none are typed", async () => {
+		const editor = await open("/events/new/once");
+		editor.attachSeriesId = "ev1";
+		editor.form.startsOn = "2026-10-15";
+		api.ensureEventOccurrence.mockResolvedValue({ event: series(), created: true, warnings: [] });
+		await editor.onSave(submit());
+		assert.equal("nightSchedule" in api.ensureEventOccurrence.mock.calls[0][2], false);
+	});
+
 	it("uploads a photo picked before the first save to the new night", async () => {
 		const editor = await open("/events/new/once");
 		editor.attachSeriesId = "ev1";
@@ -266,6 +290,25 @@ describe("EventEditor: delete, calendar", () => {
 		assert.equal(editor.events.length, 0);
 		assert.equal(nav.leaveEditor.mock.calls.length, 1);
 		assert.equal(toast.ok.mock.calls.at(-1)?.[0], "Event deleted. It comes off the website when you press Update website on the Website page.");
+	});
+
+	it("deletes only the night on a night of an open series, not the series (#151)", async () => {
+		const openSeries = series({ repeatUnit: "none", dates: [night("2026-10-08"), night("2026-10-15")] });
+		const editor = await open("/events/ev1@2026-10-08", [openSeries]);
+		editor.requestDelete();
+		assert.equal(editor.deleteScopeOpen, false, "an open series has no scope to choose");
+		assert.equal(editor.deleteOpen, true);
+		api.deleteEventOccurrence.mockResolvedValue({
+			deleted: false,
+			event: series({ repeatUnit: "none", dates: [night("2026-10-15")] }),
+			removed: 1,
+			warnings: [],
+		});
+		// The confirm dialog's Delete button.
+		await editor.performDelete("series");
+		assert.equal(api.deleteEvent.mock.calls.length, 0);
+		assert.deepEqual(api.deleteEventOccurrence.mock.calls[0], ["ev1", "2026-10-08", "this"]);
+		assert.equal(toast.ok.mock.calls.at(-1)?.[0], "Night deleted.");
 	});
 
 	it("won't update the calendar with unsaved changes", async () => {

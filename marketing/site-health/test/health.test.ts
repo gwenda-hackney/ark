@@ -274,21 +274,37 @@ describe("runHealthCheck", () => {
 });
 
 describe("isStatusAuthorized", () => {
-  it("allows unauthenticated reads when no token is configured", () => {
+  it("allows unauthenticated reads when no token is configured, and warns", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const request = new Request("https://health.gwenda.co.uk/status");
     expect(isStatusAuthorized(request, { HEALTH_STATUS_TOKEN: "" } as Env)).toBe(
       true,
     );
+    expect(isStatusAuthorized(request, {} as Env)).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(String(warn.mock.calls[0][0])).toContain("site_health_status_open");
+    warn.mockRestore();
   });
 
-  it("requires a matching bearer token when configured", () => {
+  it("requires a matching bearer token when configured (#151)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const env = { HEALTH_STATUS_TOKEN: "secret" } as Env;
     const denied = new Request("https://health.gwenda.co.uk/status");
+    const wrong = new Request("https://health.gwenda.co.uk/status", {
+      headers: { Authorization: "Bearer guess" },
+    });
+    const notBearer = new Request("https://health.gwenda.co.uk/status", {
+      headers: { Authorization: "secret" },
+    });
     const allowed = new Request("https://health.gwenda.co.uk/status", {
       headers: { Authorization: "Bearer secret" },
     });
     expect(isStatusAuthorized(denied, env)).toBe(false);
+    expect(isStatusAuthorized(wrong, env)).toBe(false);
+    expect(isStatusAuthorized(notBearer, env)).toBe(false);
     expect(isStatusAuthorized(allowed, env)).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
 
