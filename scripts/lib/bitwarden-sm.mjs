@@ -147,9 +147,6 @@ export const SECRET_OWNERS = {
     "SUBSCRIBE_SECRET",
     "SITE_PASSWORD",
     "GATE_BYPASS_KEY",
-    // CI-only: the Cloudflare Access service token smoke tests use on previews.
-    "CF_ACCESS_CLIENT_ID",
-    "CF_ACCESS_CLIENT_SECRET",
     "SANITY_DEPLOY_TOKEN",
     "UNIFI_SITE_MANAGER_API_KEY",
     // Script-only (sm-export): the Mailchimp sync Worker.
@@ -201,6 +198,8 @@ export const APP_SECRETS = {
       "FORMS_ADMIN_SECRET",
       // Form emails resent from /forms go out as the website's mailbox.
       "GMAIL_SERVICE_ACCOUNT_JSON",
+      // Signs website preview passes (shared/website-pass.js).
+      "GATE_BYPASS_KEY",
     ],
     rename: {
       BASEROW_API_KEY: "BASEROW_OPS_API_KEY",
@@ -221,8 +220,6 @@ export const APP_SECRETS = {
       "GMAIL_SERVICE_ACCOUNT_JSON",
       "SITE_PASSWORD",
       "GATE_BYPASS_KEY",
-      "CF_ACCESS_CLIENT_ID",
-      "CF_ACCESS_CLIENT_SECRET",
       "SANITY_DEPLOY_TOKEN",
       "UNIFI_SITE_MANAGER_API_KEY",
     ],
@@ -233,8 +230,6 @@ export const APP_SECRETS = {
     pagesSkip: [
       "SANITY_DEPLOY_TOKEN",
       "UNIFI_SITE_MANAGER_API_KEY",
-      "CF_ACCESS_CLIENT_ID",
-      "CF_ACCESS_CLIENT_SECRET",
     ],
   },
 };

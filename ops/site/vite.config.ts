@@ -50,6 +50,7 @@ export default defineConfig({
     proxy: {
       "/api": pagesProxy(),
       "/gate": pagesProxy(),
+      "/website-pass": pagesProxy(),
       "/favicon.ico": pagesProxy(),
       "/favicon.png": pagesProxy(),
       "/apple-touch-icon.png": pagesProxy(),

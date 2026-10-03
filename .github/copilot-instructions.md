@@ -108,5 +108,4 @@ npm run ensure:domain    # Attach custom domain + DNS (CUSTOM_DOMAIN, ZONE_NAME)
 - [README.md](../README.md) — full setup, branch flow, rollback
 - [docs/env.md](../docs/env.md) — local env: vault login, secrets in memory, defaults
 - [docs/secrets-rebuild.md](../docs/secrets-rebuild.md) — rebuilding every secret if Secrets Manager is lost
-- [docs/preview-access.md](../docs/preview-access.md) — Cloudflare Access in front of the preview sites (sign in with a Gwenda email)
 - [.env.example](../.env.example) — local env reference
