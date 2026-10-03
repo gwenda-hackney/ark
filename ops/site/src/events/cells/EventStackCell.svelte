@@ -87,4 +87,15 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
+
+	/* Phones: the scale's list row — 14px title, 13px muted second line. */
+	@media (max-width: 900px) {
+		.title {
+			font-size: var(--text-base);
+		}
+
+		.sub {
+			font-size: var(--text-sm);
+		}
+	}
 </style>

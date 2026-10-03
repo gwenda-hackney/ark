@@ -5,8 +5,13 @@
 <h2>{label}</h2>
 
 <style>
+	/* Sits on the bottom of its row, next to the nights it heads. */
 	h2 {
-		margin: var(--space-3) 0 0;
+		display: flex;
+		align-items: flex-end;
+		height: 100%;
+		margin: 0;
+		padding-bottom: var(--space-2);
 		color: var(--primary);
 		font-size: var(--text-2xs);
 		font-weight: 600;

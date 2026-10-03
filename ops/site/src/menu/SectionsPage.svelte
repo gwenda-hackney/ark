@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
-	import { BusyOverlay, Card, PageHeader } from "../ui";
+	import { Button, Card, EmptyState, PageHeader, Skeleton } from "../ui";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
@@ -53,8 +53,14 @@
 	/>
 
 	{#if error}
-		<p class="error">{error}</p>
-	{:else if !loading}
+		<EmptyState tone="error" title="Could not load sections" text={error}>
+			{#snippet action()}
+				<Button variant="outline" size="sm" onclick={() => void load()}>Try again</Button>
+			{/snippet}
+		</EmptyState>
+	{:else if loading}
+		<Skeleton rows={6} lines={1} label="Loading sections…" />
+	{:else}
 		<div
 			class="stack"
 			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
@@ -64,7 +70,6 @@
 			</Card>
 		</div>
 	{/if}
-	<BusyOverlay active={loading} label="Loading…" />
 </div>
 
 <style>
@@ -81,11 +86,5 @@
 		gap: var(--space-6);
 		max-width: 40rem;
 		align-content: start;
-	}
-
-	.error {
-		margin: 0;
-		color: var(--danger);
-		font-size: var(--text-sm);
 	}
 </style>

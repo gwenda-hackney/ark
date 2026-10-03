@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
-	import { BusyOverlay, Button, PageHeader } from "../ui";
+	import { BusyOverlay, Button, EmptyState, PageHeader } from "../ui";
 	import ArtistCard from "./ArtistCard.svelte";
 	import { getArtist, getArtists, type ArtistSlot, type WallArtist } from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
@@ -131,7 +131,7 @@
 	{:else}
 		<div class="sheet scrollbar-fade">
 			<PageHeader
-				title="Artist"
+				title="Featured artist"
 				subtitle="Who is on the wall, who is next, and who has been here before."
 			>
 				{#snippet actions()}
@@ -142,9 +142,23 @@
 			</PageHeader>
 
 			{#if error}
-				<p class="error">{error}</p>
-			{:else if !listLoading && artists.length === 0}
-				<p class="muted">No artists yet.</p>
+				<EmptyState tone="error" title="Could not load artists" text={error} />
+			{:else if listLoading && artists.length === 0}
+				<ul class="grid" aria-hidden="true">
+					{#each Array.from({ length: 6 }) as _, index (index)}
+						<li class="tile-skel">
+							<span class="skel frame-skel"></span>
+							<span class="skel line-skel"></span>
+						</li>
+					{/each}
+				</ul>
+				<span class="sr-only" role="status">Loading artists…</span>
+			{:else if artists.length === 0}
+				<EmptyState icon="artist" title="No artists yet" text="Add the artist whose work is on the wall, and who is next.">
+					{#snippet action()}
+						<Button size="sm" onclick={() => navigate("/artists/new")}>Add artist</Button>
+					{/snippet}
+				</EmptyState>
 			{:else}
 				<ul class="grid">
 					{#each artists as artist (artist.id)}
@@ -168,11 +182,26 @@
 				</ul>
 			{/if}
 		</div>
-		<BusyOverlay active={listLoading} label="Loading…" />
+		<BusyOverlay active={listLoading && artists.length > 0} label="Loading…" />
 	{/if}
 </div>
 
 <style>
+	.tile-skel {
+		display: grid;
+		gap: var(--space-2);
+	}
+
+	.frame-skel {
+		aspect-ratio: 1;
+		border-radius: var(--radius-lg);
+	}
+
+	.line-skel {
+		width: 60%;
+		height: 0.875rem;
+	}
+
 	.page {
 		position: relative;
 		display: flex;
@@ -260,22 +289,16 @@
 	}
 
 	.meta,
-	.muted,
 	.error {
 		font-size: var(--text-sm);
 	}
 
-	.meta,
-	.muted {
+	.meta {
 		color: var(--muted-foreground);
 	}
 
 	.error {
 		margin: 0;
 		color: var(--danger);
-	}
-
-	.muted {
-		margin: 0;
 	}
 </style>

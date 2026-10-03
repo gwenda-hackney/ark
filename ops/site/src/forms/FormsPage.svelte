@@ -3,15 +3,20 @@
 	import { fade, fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
+		Badge,
 		BusyOverlay,
 		Button,
 		EditorBackBar,
+		EmptyState,
 		Field,
+		FilterBar,
+		FilterField,
 		NativeSelect,
 		PageHeader,
-		SearchField,
+		Skeleton,
 		TextField,
 	} from "../ui";
+	import { decisionBadge } from "../ui/badge";
 	import {
 		getFormSubmissions,
 		resendFormEmail,
@@ -70,6 +75,12 @@
 		...forms.map(([value, label]) => ({ value, label })),
 	]);
 
+	const formChips = $derived(
+		formFilter
+			? [{ key: "form", label: formOptions.find((row) => row.value === formFilter)?.label || "Form", onremove: () => (formFilter = "") }]
+			: [],
+	);
+
 	const visible = $derived.by(() => {
 		const needle = query.trim().toLowerCase();
 		return rows.filter((row) => {
@@ -96,9 +107,9 @@
 
 	const statusTone = $derived.by(() => {
 		const status = selected?.status.toLowerCase() ?? "";
-		if (status === "verified") return "live";
-		if (status === "pending") return "pending";
-		return "muted";
+		if (status === "verified") return "success";
+		if (status === "pending") return "warning";
+		return "neutral";
 	});
 
 	const URL_PATTERN = /(https?:\/\/[^\s<>"']+)/g;
@@ -227,6 +238,12 @@
 	});
 </script>
 
+{#snippet formFilterField()}
+	<FilterField label="Form" for="forms-filter">
+		<NativeSelect id="forms-filter" bind:value={formFilter} options={formOptions} size="sm" />
+	</FilterField>
+{/snippet}
+
 <div class="forms-root">
 	{#if openId}
 		<div
@@ -244,12 +261,11 @@
 								Play application{selected?.formTitle ? ` · ${selected.formTitle}` : ""}
 							</p>
 							{#if selected?.status}
-								<p class="status-flag {statusTone}">{selected.status}</p>
+								<Badge tone={statusTone} label={selected.status} />
 							{/if}
 							{#if selected?.decision}
-								<p class="status-flag {selected.decision === 'Approved' ? 'live' : 'muted'}">
-									{selected.decision}
-								</p>
+								{@const decision = decisionBadge(selected.decision)}
+								{#if decision}<Badge tone={decision.tone} label={decision.label} />{/if}
 							{/if}
 						</div>
 						<div class="head-tools">
@@ -446,34 +462,41 @@
 				title="Play applications"
 				subtitle="Artists who applied to play through the site. Latest reply for each address."
 			>
-				{#snippet actions()}
-					<SearchField
-						bind:value={query}
+				{#snippet toolbar()}
+					<FilterBar
+						bind:query
 						placeholder="Search people"
 						ariaLabel="Search submissions"
-						count={query ? visible.length : undefined}
-					/>
+						searchCount={query ? visible.length : undefined}
+						active={formFilter ? 1 : 0}
+						chips={formChips}
+						onclearfilters={() => (formFilter = "")}
+						filters={forms.length > 1 ? formFilterField : undefined}
+					>
+						{#snippet end()}
+							{#if !loading}<p class="meta">{visible.length} {visible.length === 1 ? "application" : "applications"}</p>{/if}
+						{/snippet}
+					</FilterBar>
 				{/snippet}
-				{#if forms.length > 1}
-					<div class="filters">
-						<NativeSelect bind:value={formFilter} options={formOptions} size="sm" />
-					</div>
-				{/if}
 			</PageHeader>
 			{#if error}
-				<p class="error">{error}</p>
-			{:else if !loading && visible.length === 0}
-				<p class="muted">
-					{rows.length === 0 ? "No submissions yet." : "Nothing matches that search."}
-				</p>
-			{:else if !loading}
+				<EmptyState tone="error" title="Could not load applications" text={error} />
+			{:else if loading}
+				<Skeleton rows={6} lines={1} label="Loading applications…" />
+			{:else if visible.length === 0}
+				{#if rows.length === 0}
+					<EmptyState icon="forms" title="No applications yet" text="When an artist applies to play on the website, it shows here." />
+				{:else}
+					<EmptyState icon="search" title="Nothing matches" text="Try another name or email, or clear the filters." />
+				{/if}
+			{:else}
 				<div class="grid-host">
 					<FormsGrid rows={visible} />
 				</div>
 			{/if}
 		</div>
 	{/if}
-	<BusyOverlay active={loading} label="Loading…" />
+	<BusyOverlay active={loading && Boolean(openId)} label="Loading…" />
 </div>
 
 <style>
@@ -492,7 +515,6 @@
 		flex: 1;
 		min-height: 0;
 		padding: var(--page-gutter);
-		gap: var(--space-4);
 	}
 
 	.detail {
@@ -604,36 +626,6 @@
 		overflow-wrap: anywhere;
 	}
 
-	.status-flag {
-		display: inline-flex;
-		align-items: center;
-		flex-shrink: 0;
-		width: fit-content;
-		margin: 0;
-		padding: 0.18rem var(--space-2);
-		border-radius: var(--radius-pill);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		line-height: 1.2;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.status-flag.pending {
-		color: var(--primary-foreground);
-		background: var(--primary);
-	}
-
-	.status-flag.live {
-		color: var(--primary);
-		background: var(--primary-wash);
-	}
-
-	.status-flag.muted {
-		color: var(--muted-foreground);
-		background: var(--muted);
-	}
 
 	.sub {
 		width: fit-content;
@@ -819,10 +811,6 @@
 
 	.not-sent {
 		color: var(--destructive);
-	}
-
-	.filters {
-		max-width: 16rem;
 	}
 
 	.grid-host {

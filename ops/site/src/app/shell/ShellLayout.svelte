@@ -94,10 +94,6 @@
 	const sessionMark = $derived(
 		(me?.email || "L").trim().charAt(0).toUpperCase() || "?",
 	);
-	const envLabel = $derived(me?.envLabel || "");
-	const envMark = $derived(
-		envLabel ? envLabel.trim().charAt(0).toUpperCase() : "",
-	);
 	const envDetail = $derived(
 		!me
 			? ""
@@ -107,13 +103,12 @@
 					me.databaseLabel,
 				].join(" · "),
 	);
-	const envSummary = $derived(
-		!me ? "" : me.databaseId ? `${me.envLabel} · ${me.databaseId}` : me.envLabel,
-	);
 	const envBannerText = $derived(
 		!me
 			? ""
-			: me.siteEnv === "local"
+			: me.risk
+				? `${me.envLabel} is using ${me.databaseLabel}. Check this before you edit.`
+				: me.siteEnv === "local"
 				? `Local · edits go to Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}), not production.`
 				: `${me.envLabel} · Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}).`,
 	);
@@ -142,8 +137,14 @@
 	const printBook = $derived(Boolean(parseShellPath(path).print));
 	const showTabs = $derived(phone.matches && !editorChrome);
 	const showTopbar = $derived(!printBook && !phone.matches);
+	/**
+	 * Which copy of ops this is, said once. Desktop: a thin strip on any copy
+	 * that is not production. Phones: only when the pairing is risky; the
+	 * More page shows the details the rest of the time.
+	 */
 	const showEnvBanner = $derived(
-		!printBook && Boolean(me && (me.siteEnv !== "production" || me.risk)),
+		!printBook &&
+			Boolean(me && (me.risk || (!phone.matches && me.siteEnv !== "production"))),
 	);
 
 	const active = $derived(
@@ -458,23 +459,6 @@
 		</nav>
 
 		<div class="rail-foot">
-			{#if envSummary}
-				<div
-					class="nav-item session env"
-					class:risk={Boolean(me?.risk)}
-					class:local={me?.siteEnv === "local" && !me?.risk}
-					title={envDetail}
-				>
-					<span class="nav-icon" aria-hidden="true">
-						<span class="session-mark">{envMark}</span>
-					</span>
-					<span class="nav-label session-label">
-						<span class="env-line">{envSummary}</span>
-						<span class="env-db">{me?.databaseLabel}</span>
-					</span>
-					<span class="tip" aria-hidden="true">{envDetail}</span>
-				</div>
-			{/if}
 			{#if sessionLabel}
 				<div class="nav-item session" title={sessionLabel}>
 					<span class="nav-icon" aria-hidden="true">
@@ -1160,56 +1144,41 @@
 		grid-template-rows: auto minmax(0, 1fr);
 	}
 
+	/* A quiet 24px strip; it only turns amber when the pairing is risky. */
 	.env-banner {
-		padding: 0.45rem var(--page-gutter);
-		border-bottom: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
-		background: color-mix(in srgb, var(--primary) 16%, var(--background));
-		color: var(--primary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		line-height: 1.35;
+		height: 1.5rem;
+		padding: 0 var(--page-gutter);
+		border-bottom: 1px solid var(--border);
+		background: var(--surface-1);
+		color: var(--fg-muted);
+		font-size: var(--text-2xs);
+		font-weight: 500;
+		line-height: calc(1.5rem - 1px);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.env-banner::before {
+		content: "";
+		display: inline-block;
+		width: 0.375rem;
+		height: 0.375rem;
+		margin-right: var(--space-2);
+		border-radius: 50%;
+		background: var(--info);
+		vertical-align: 0.0625rem;
 	}
 
 	.env-banner.risk {
-		border-bottom-color: color-mix(in srgb, var(--warning) 45%, var(--border));
-		background: color-mix(in srgb, var(--warning) 18%, var(--background));
+		border-bottom-color: var(--warning-border);
+		background: color-mix(in srgb, var(--warning) 16%, var(--background));
 		color: var(--warning);
+		font-weight: 600;
 	}
 
-	.nav-item.session.env.local .session-mark {
-		background: color-mix(in srgb, var(--primary) 28%, var(--card));
-		color: var(--primary);
-	}
-
-	.nav-item.session.env.risk .session-mark {
-		background: color-mix(in srgb, var(--warning) 28%, var(--card));
-		color: var(--warning);
-	}
-
-	.env-line {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.env-db {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: var(--text-2xs);
-		font-weight: 500;
-		color: var(--subtle-foreground);
-		opacity: 0.9;
-	}
-
-	.nav-item.session.env {
-		height: auto;
-		min-height: 2.75rem;
-		padding-top: var(--space-2);
-		padding-bottom: var(--space-2);
-		align-items: center;
+	.env-banner.risk::before {
+		background: var(--warning);
 	}
 
 	.topbar {
@@ -1374,10 +1343,11 @@
 			min-height: 2.75rem;
 			padding: 0.2rem var(--space-1);
 			border-radius: var(--radius-md);
-			color: var(--muted-foreground);
+			color: var(--fg-muted);
 			text-decoration: none;
 			font-size: var(--text-2xs);
-			font-weight: 600;
+			font-weight: 500;
+			letter-spacing: 0.01em;
 		}
 
 		.tab.on {

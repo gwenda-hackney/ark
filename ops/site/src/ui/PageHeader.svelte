@@ -1,8 +1,9 @@
 <script lang="ts">
 	/**
 	 * Title block at the top of every page: big title, one supporting line, and
-	 * the page's actions on the right. Identical spacing everywhere, so no page
-	 * invents its own header again.
+	 * the page's actions on the right, centred on the title line. `toolbar` is
+	 * one row under it for the list's search, filters, count and view toggle.
+	 * Identical spacing everywhere, so no page invents its own header again.
 	 *
 	 * Phones get a compact header: when the shell's tab strip already names the
 	 * page (`.title-in-strip`), the title is kept for screen readers only. The
@@ -16,12 +17,15 @@
 		subtitle,
 		eyebrow,
 		actions,
+		toolbar,
 		children,
 	}: {
 		title: string;
 		subtitle?: string;
 		eyebrow?: string;
 		actions?: Snippet;
+		/** One row under the title: search, filters, count, view toggle. */
+		toolbar?: Snippet;
 		/** Extra row below the title — filters, chips, segmented controls. */
 		children?: Snippet;
 	} = $props();
@@ -38,6 +42,9 @@
 			<div class="actions">{@render actions()}</div>
 		{/if}
 	</div>
+	{#if toolbar}
+		<div class="toolbar">{@render toolbar()}</div>
+	{/if}
 	{#if children}
 		<div class="extra">{@render children()}</div>
 	{/if}
@@ -69,7 +76,7 @@
 		font-family: var(--font-display);
 		font-size: var(--text-2xl);
 		line-height: var(--leading-2xl);
-		letter-spacing: var(--tracking-2xl);
+		letter-spacing: 0;
 	}
 
 	.subtitle {
@@ -79,12 +86,22 @@
 		color: var(--muted-foreground);
 	}
 
+	/* As tall as the title's line box, so buttons centre on the title. */
 	.actions {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
 		flex-wrap: wrap;
 		justify-content: flex-end;
+		min-height: var(--leading-2xl);
+	}
+
+	.titles:has(.eyebrow) + .actions {
+		margin-top: calc(var(--leading-2xs) + var(--space-1));
+	}
+
+	.toolbar {
+		min-width: 0;
 	}
 
 	.extra {
@@ -106,6 +123,19 @@
 			align-items: stretch;
 			flex-wrap: nowrap;
 			gap: var(--space-3);
+		}
+
+		h1 {
+			font-size: var(--text-xl);
+			line-height: var(--leading-xl);
+		}
+
+		.actions {
+			min-height: 0;
+		}
+
+		.titles:has(.eyebrow) + .actions {
+			margin-top: 0;
 		}
 
 		.subtitle {

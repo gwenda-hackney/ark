@@ -36,14 +36,16 @@ describe("event labels", () => {
 		assert.equal(repeatLabel({ repeatUnit: "once" }), "Special event");
 	});
 
-	it("status follows the website: live, preview only, or not ready", () => {
+	it("status follows the website: on it, never on it, or waiting for Update website", () => {
 		assert.equal(statusLabel(event()), "On website");
-		assert.equal(statusTone(event()), "live");
-		const previewOnly = event({ publish: { preview: "current", live: "stale", nextDate: "", previewDates: [] } });
-		assert.equal(statusLabel(previewOnly), "Not on website yet");
-		assert.equal(statusTone(previewOnly), "preview");
-		assert.equal(statusTone(event({ publish: { preview: "stale", live: "current", nextDate: "", previewDates: [] } })), "unpublished");
-		assert.equal(statusTone(null), "muted");
+		assert.equal(statusTone(event()), "success");
+		const changed = event({ publish: { preview: "current", live: "stale", nextDate: "", previewDates: [] } });
+		assert.equal(statusLabel(changed), "Waiting for Update website");
+		assert.equal(statusTone(changed), "warning");
+		const fresh = event({ publish: { preview: "current", live: "unpublished", nextDate: "", previewDates: [] } });
+		assert.equal(statusLabel(fresh), "Not on website");
+		assert.equal(statusTone(fresh), "neutral");
+		assert.equal(statusTone(null), "neutral");
 	});
 
 	it("series cards: times, the next night's guest, and a blurb from the night slots", () => {

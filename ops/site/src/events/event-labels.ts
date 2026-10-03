@@ -1,4 +1,5 @@
 import type { OpsEvent } from "../app/api";
+import type { BadgeTone } from "../ui/badge";
 import { seriesNextNightLabel } from "./event-schedule";
 
 /** Labels for events, series and nights, shared by the lists and the editor. */
@@ -37,16 +38,21 @@ export function repeatLabel(event: {
 	return "Scheduled";
 }
 
+/**
+ * Where a series or night stands with the website, as the lists show it.
+ * Saved changes the website has not picked up wait for "Update website".
+ */
 export function statusLabel(event: OpsEvent): string {
 	if (event.publish.live === "current") return "On website";
-	return "Not on website yet";
+	if (event.publish.live === "unpublished") return "Not on website";
+	return "Waiting for Update website";
 }
 
-export function statusTone(event: OpsEvent | null): string {
-	if (!event) return "muted";
-	if (event.publish.preview !== "current") return "unpublished";
-	if (event.publish.live === "current") return "live";
-	return "preview";
+export function statusTone(event: OpsEvent | null): BadgeTone {
+	if (!event) return "neutral";
+	if (event.publish.live === "current") return "success";
+	if (event.publish.live === "unpublished") return "neutral";
+	return "warning";
 }
 
 export function formatDate(iso: string): string {

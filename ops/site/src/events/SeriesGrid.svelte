@@ -68,8 +68,8 @@
 			{
 				headerName: "Status",
 				colId: "status",
-				width: 120,
-				minWidth: 96,
+				width: 210,
+				minWidth: 180,
 				flex: 0,
 				sortable: false,
 				hide: compact,
@@ -99,6 +99,7 @@
 		rowData={rows}
 		{columnDefs}
 		scrollKey="events-series"
+		hideHeader={phone.matches}
 		getRowId={(row) => row.id}
 		domLayout="normal"
 		gridOptions={{

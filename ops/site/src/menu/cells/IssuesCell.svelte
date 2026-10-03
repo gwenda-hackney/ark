@@ -2,6 +2,8 @@
 	/**
 	 * Analysis issue count. Click opens the drink on the Analysis tab.
 	 */
+	import Badge from "../../ui/Badge.svelte";
+	import { issueBadgeTone } from "../../ui/badge";
 	import { hasRangeSelection } from "../../ui/grid";
 	import { menuItemPath } from "../../app/nav";
 	import type { MenuItem } from "../types";
@@ -48,7 +50,7 @@
 			{href}
 			title={hint || "Open analysis"}
 			aria-label={`Open analysis${label !== "—" ? `, ${label} issues` : ""}`}
-			onclick={onClick}>{label}</a
+			onclick={onClick}>{#if label === "—"}{label}{:else}<Badge tone={issueBadgeTone(tone)} {label} />{/if}</a
 		>
 	{:else}
 		<button
@@ -59,7 +61,7 @@
 			type="button"
 			title={hint || "Open analysis"}
 			aria-label={`Open analysis${label !== "—" ? `, ${label} issues` : ""}`}
-			onclick={onClick}>{label}</button
+			onclick={onClick}>{#if label === "—"}{label}{:else}<Badge tone={issueBadgeTone(tone)} {label} />{/if}</button
 		>
 	{/if}
 {/if}
@@ -98,6 +100,10 @@
 	.count:hover {
 		text-decoration: underline;
 		text-underline-offset: 0.18em;
+	}
+
+	.count:hover :global(.badge) {
+		border-color: currentColor;
 	}
 
 	.count:focus-visible {
