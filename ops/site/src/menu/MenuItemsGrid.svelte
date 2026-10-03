@@ -3,7 +3,8 @@
 	 * Menu items in one AG Grid, grouped by section via full-width headers.
 	 * Rows are not click-to-open: that fights copying. Open via the name,
 	 * the trailing chevron, or a double-click that is not a text selection.
-	 * On a phone the grid is replaced by a sectioned compact list.
+	 * `view` swaps the grid for cards (the phone default). On a phone the
+	 * table scrolls sideways inside itself with the name pinned on the left.
 	 */
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { untrack } from "svelte";
@@ -19,13 +20,15 @@
 		type MenuListItem,
 		type MenuListRow,
 		type MenuListSort,
+		sortMenuListRows,
 	} from "./menu-list";
+	import type { Density, ListView } from "../ui/view-prefs";
 	import type { InventoryItem } from "../inventory/types";
 	import type { MenuItem, MenuSection } from "./types";
 	import { pourSettings } from "../config/settings.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { Icon } from "../app/shell";
-	import CompactMenuList from "./CompactMenuList.svelte";
+	import MenuCards from "./MenuCards.svelte";
 	import HighlightCell from "./cells/HighlightCell.svelte";
 	import IssuesCell from "./cells/IssuesCell.svelte";
 	import NameCell from "./cells/NameCell.svelte";
@@ -48,6 +51,8 @@
 		count = $bindable(0),
 		loading = false,
 		selectedId = null,
+		view = "table",
+		density = "comfortable",
 		onview,
 		onnew,
 	}: {
@@ -61,6 +66,8 @@
 		count?: number;
 		loading?: boolean;
 		selectedId?: string | null;
+		view?: ListView;
+		density?: Density;
 		onview: (item: MenuItem, tab?: string) => void;
 		onnew?: () => void;
 	} = $props();
@@ -78,6 +85,11 @@
 		}),
 	);
 
+	/** Cards and the phone table follow the Sort filter; desktop headers sort the grid. */
+	const sortedRows = $derived(
+		view === "cards" || phone.matches ? sortMenuListRows(rowData, sort) : rowData,
+	);
+
 	const totalCount = $derived(
 		rowData.filter((row): row is MenuListItem => row._kind === "item").length,
 	);
@@ -89,10 +101,12 @@
 	const columnDefs = $derived.by((): ColDef<GridRow>[] => {
 		const search = needle;
 		const view = untrack(() => onview);
+		const narrow = phone.matches;
 		return [
 			{
 				headerName: "",
 				colId: "photo",
+				hide: narrow,
 				width: 48,
 				minWidth: 40,
 				flex: 0,
@@ -109,8 +123,10 @@
 			{
 				headerName: "Name",
 				field: "name",
-				minWidth: 160,
+				minWidth: narrow ? 140 : 160,
 				flex: 1.4,
+				// Phones scroll the table sideways; the name stays in view.
+				pinned: narrow ? "left" : undefined,
 				cellClass: "name-cell",
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data.name || "Untitled" : "",
@@ -490,15 +506,14 @@
 				{/snippet}
 			</EmptyState>
 		{/if}
-	{:else if phone.matches}
-		<div class="compact-host">
-			<CompactMenuList {query} {sort} {selectedId} rows={rowData} {onview} />
-		</div>
+	{:else if view === "cards"}
+		<MenuCards rows={sortedRows} {query} {selectedId} {onview} />
 	{:else}
 		<div class="grid-host">
 			<DataGrid
-				{rowData}
+				rowData={sortedRows}
 				{columnDefs}
+				{density}
 				scrollKey="menu-list"
 				context={{ selectedId }}
 				getRowId={(row) =>
@@ -527,12 +542,16 @@
 								params.data?._kind === "group" ? params.data.count : 0,
 						}),
 					),
+					// Reads `density` on each call; DataGrid resets heights when it changes.
 					getRowHeight: (params) => {
-						if (params.data?._kind === "group") return 48;
-						if (params.data?._kind === "item" && params.data._matchHint) {
-							return 58;
+						const compact = density === "compact";
+						if (params.data?._kind === "group") {
+							return params.data.subtitle ? (compact ? 44 : 52) : compact ? 36 : 44;
 						}
-						return 42;
+						if (params.data?._kind === "item" && params.data._matchHint) {
+							return compact ? 48 : 58;
+						}
+						return compact ? 32 : 40;
 					},
 					getRowClass: (params) => {
 						const selected =
@@ -609,24 +628,4 @@
 		overflow: visible;
 	}
 
-	.grid-host :global(.row-selected) {
-		background: var(--primary-wash) !important;
-	}
-
-	.grid-host :global(.row-group) {
-		background: color-mix(in srgb, var(--foreground) 3.5%, var(--background)) !important;
-	}
-
-	.grid-host :global(.row-group .ag-cell),
-	.grid-host :global(.ag-full-width-row) {
-		border-bottom: 1px solid var(--border);
-	}
-
-	.compact-host {
-		flex: 1;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		padding: 0 var(--page-gutter);
-	}
 </style>

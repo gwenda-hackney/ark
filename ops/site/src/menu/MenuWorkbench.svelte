@@ -9,8 +9,12 @@
 		FilterBar,
 		FilterField,
 		PageHeader,
+		Segmented,
 		SidePanel,
 	} from "../ui";
+	import DensityToggle from "../ui/DensityToggle.svelte";
+	import { densityPref, listViewPref } from "../ui/list-prefs.svelte";
+	import type { ListView } from "../ui/view-prefs";
 	import type { FilterChip } from "../ui/filters";
 	import { MENU_LIST_SORTS, type MenuListSort } from "./menu-list";
 	import * as api from "../app/api";
@@ -64,6 +68,13 @@
 	const fadeMs = reduced ? 0 : 180;
 	const flyMs = reduced ? 0 : 320;
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	/** Table or cards, and row spacing, remembered on this device. */
+	const view = listViewPref("menu-items", phone);
+	const density = densityPref("menu-items");
+	const VIEW_ITEMS = [
+		{ id: "table", label: "Table" },
+		{ id: "cards", label: "Cards" },
+	] as const;
 
 	let sections = $state<MenuSection[]>([]);
 	let posMenus = $state<PosMenu[]>([]);
@@ -573,6 +584,13 @@
 </script>
 
 {#snippet sortFilter()}
+	{#if phone.matches}
+		<FilterField label="Layout">
+			{#each VIEW_ITEMS as option (option.id)}
+				<Chip pressed={view.value === option.id} onclick={() => (view.value = option.id)}>{option.label}</Chip>
+			{/each}
+		</FilterField>
+	{/if}
 	<FilterField label="Sort">
 		{#each MENU_LIST_SORTS as option (option.id)}
 			<Chip pressed={sort === option.id} onclick={() => (sort = option.id)}>{option.label}</Chip>
@@ -683,10 +701,20 @@
 									active={sort === "section" ? 0 : 1}
 									chips={sortChips}
 									onclearfilters={() => (sort = "section")}
-									filters={phone.matches ? sortFilter : undefined}
+									filters={phone.matches || view.value === "cards" ? sortFilter : undefined}
 								>
 									{#snippet end()}
 										<p class="meta">{itemCount} item{itemCount === 1 ? "" : "s"}</p>
+										{#if view.value === "table"}
+											<DensityToggle bind:value={density.value} />
+										{/if}
+										<Segmented
+											value={view.value}
+											items={VIEW_ITEMS}
+											size="sm"
+											ariaLabel="Layout"
+											onChange={(id) => (view.value = id as ListView)}
+										/>
 									{/snippet}
 								</FilterBar>
 							{/snippet}
@@ -701,6 +729,8 @@
 							bind:count={itemCount}
 							{loading}
 							{selectedId}
+							view={view.value}
+							density={density.value}
 							onview={(row, tab) => openItem(row, { tab })}
 							onnew={newItem}
 						/>

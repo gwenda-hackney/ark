@@ -3,6 +3,11 @@
 	 * Trading-shaped AG Grid host: theme via CSS vars, dense rows.
 	 * Columns keep `flex` so they fill the viewport on grow and shrink;
 	 * `fitGridWidth` would bake pixel widths and never expand again.
+	 *
+	 * `density` sets the row height (40 or 32px) and stamps `data-density`
+	 * on the host, so cell renderers can tighten with it. Pages that size
+	 * their own rows (`getRowHeight`) read their density at call time; this
+	 * component resets row heights when it changes.
 	 */
 	import { untrack } from "svelte";
 	import {
@@ -18,6 +23,7 @@
 		rememberGridScroll,
 		scrollGridViewport,
 	} from "./grid-scroll";
+	import { HEADER_HEIGHT, rowHeightFor, type Density } from "./view-prefs";
 
 	const NUMERIC_HEADER = "ag-right-aligned-header";
 
@@ -142,6 +148,7 @@
 		pinnedBottomRowData,
 		scrollKey = "",
 		hideHeader = false,
+		density = "comfortable",
 	}: {
 		rowData: T[];
 		columnDefs: ColDef<T>[];
@@ -159,6 +166,7 @@
 		 * where a lone "NIGHT" heading says nothing the rows do not.
 		 */
 		hideHeader?: boolean;
+		density?: Density;
 	} = $props();
 
 	let host: HTMLDivElement | undefined = $state();
@@ -213,8 +221,8 @@
 				},
 			},
 			animateRows: false,
-			headerHeight: untrack(() => hideHeader) ? 0 : 40,
-			rowHeight: 38,
+			headerHeight: untrack(() => (hideHeader ? 0 : HEADER_HEIGHT[density])),
+			rowHeight: untrack(() => rowHeightFor(density)),
 			suppressCellFocus: true,
 			suppressScrollOnNewData: true,
 			enableCellTextSelection: true,
@@ -286,7 +294,25 @@
 	$effect(() => {
 		const grid = api;
 		if (!grid) return;
-		grid.setGridOption("headerHeight", hideHeader ? 0 : 40);
+		grid.setGridOption("headerHeight", hideHeader ? 0 : HEADER_HEIGHT[density]);
+	});
+	let appliedDensity: Density | undefined;
+	$effect(() => {
+		const grid = api;
+		const el = host;
+		const next = density;
+		if (!grid || !el) return;
+		if (appliedDensity === undefined || appliedDensity === next) {
+			appliedDensity = next;
+			return;
+		}
+		appliedDensity = next;
+		withPreservedScroll(el, () => {
+			if (!untrack(() => gridOptions).rowHeight) {
+				grid.setGridOption("rowHeight", rowHeightFor(next));
+			}
+			grid.resetRowHeights();
+		});
 	});
 	$effect(() => {
 		const grid = api;
@@ -300,7 +326,12 @@
 
 </script>
 
-<div class="host {className}" class:auto={domLayout === "autoHeight"} bind:this={host}></div>
+<div
+	class="host {className}"
+	class:auto={domLayout === "autoHeight"}
+	data-density={density}
+	bind:this={host}
+></div>
 
 <style>
 	.host {
@@ -452,6 +483,28 @@
 
 	.host :global(.ag-row) {
 		transition: background-color var(--t-fast) var(--ease-in-out);
+	}
+
+	/* Selected: a quiet fill and a 2px gold edge, so it reads without shouting. */
+	.host :global(.ag-row.row-selected),
+	.host :global(.ag-row.ag-row-selected) {
+		background-color: var(--surface-3) !important;
+		box-shadow: inset 2px 0 0 var(--primary);
+	}
+
+	/* Group rows (sections, weeks): one step up from the rows they head. */
+	.host :global(.ag-full-width-row),
+	.host :global(.ag-row.row-group) {
+		background-color: var(--surface-2) !important;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.host :global(.ag-full-width-row.ag-row-hover) {
+		background-color: var(--surface-2) !important;
+	}
+
+	.host[data-density="compact"] :global(.ag-cell) {
+		font-size: var(--text-sm);
 	}
 
 	.host :global(.ag-row-focus) {
