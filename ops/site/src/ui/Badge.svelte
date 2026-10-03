@@ -27,8 +27,11 @@
 </span>
 
 <style>
+	/* Flex-centred with a 1 line height so the text sits in the middle of the
+	   20px box; text-box trims Inter's extra ascent where the browser can. */
 	.badge {
-		display: inline-block;
+		display: inline-flex;
+		align-items: center;
 		flex-shrink: 0;
 		max-width: 100%;
 		height: 1.25rem;
@@ -39,8 +42,8 @@
 		color: var(--fg-muted);
 		font-size: var(--text-2xs);
 		font-weight: 600;
-		/* 20px tall: 18px line inside a 1px border. */
-		line-height: calc(1.25rem - 2px);
+		line-height: 1;
+		text-box: trim-both cap alphabetic;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
