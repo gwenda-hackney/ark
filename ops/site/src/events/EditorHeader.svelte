@@ -137,6 +137,8 @@
 				<Button
 					variant="outline"
 					size="sm"
+					data-compact
+					aria-label="Add night"
 					disabled={actions.addNight.disabled}
 					reason={actions.addNight.reason}
 					title="Add a night to this series."
@@ -150,6 +152,8 @@
 				<Button
 					variant="outline"
 					size="sm"
+					data-compact
+					aria-label="Update calendar"
 					disabled={actions.calendar.disabled}
 					reason={actions.calendar.reason}
 					busy={calendarSyncing}
@@ -460,6 +464,42 @@
 	@media (max-width: 900px) {
 		.head-tools :global(.close-btn), .head-tools :global(.photo-expand) {
 			display: none;
+		}
+
+		/* One row in a fixed order: scroll sideways rather than wrap. */
+		.head-tools {
+			width: 100%;
+			margin-left: 0;
+		}
+
+		.toolbar-actions {
+			flex-wrap: nowrap;
+			justify-content: flex-start;
+			margin: -2px;
+			padding: 2px;
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+
+		.toolbar-actions::-webkit-scrollbar {
+			display: none;
+		}
+
+		/* Secondary buttons and Help shrink to their icon so Update website fits. */
+		.toolbar-actions :global(.btn[data-compact]) {
+			width: var(--control-h);
+			height: var(--control-h);
+			padding: 0;
+		}
+
+		.toolbar-actions :global(.btn[data-compact] .label) {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			margin: -1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
 		}
 
 		.head-note {
