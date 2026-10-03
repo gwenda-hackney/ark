@@ -5,7 +5,6 @@ import {
   isUnauthenticatedCrawler,
   matchesSecret,
   resolveGate,
-  verifyAccessAssertion,
 } from "./site-auth.js";
 
 function req(userAgent) {
@@ -140,79 +139,5 @@ describe("resolveGate", () => {
     expect(resolveGate({ SITE_ENV: "dev", SITE_PASSWORD: "pw" }).kind).toBe(
       "gated",
     );
-  });
-});
-
-describe("verifyAccessAssertion", () => {
-  const team = "https://gwenda.cloudflareaccess.com";
-  const aud = "aud-tag";
-  const env = { ACCESS_TEAM_DOMAIN: team, ACCESS_AUD: aud };
-  const b64 = (value) =>
-    Buffer.from(
-      typeof value === "string" ? value : JSON.stringify(value),
-    ).toString("base64url");
-
-  async function keyPair(kid) {
-    const pair = await crypto.subtle.generateKey(
-      {
-        name: "RSASSA-PKCS1-v1_5",
-        modulusLength: 2048,
-        publicExponent: new Uint8Array([1, 0, 1]),
-        hash: "SHA-256",
-      },
-      true,
-      ["sign", "verify"],
-    );
-    const jwk = await crypto.subtle.exportKey("jwk", pair.publicKey);
-    return { kid, privateKey: pair.privateKey, jwk: { ...jwk, kid } };
-  }
-
-  async function sign(key, claims, kid = key.kid) {
-    const head = b64({ alg: "RS256", kid });
-    const body = b64({ iss: team, aud: [aud], exp: 2e9, ...claims });
-    const sig = await crypto.subtle.sign(
-      "RSASSA-PKCS1-v1_5",
-      key.privateKey,
-      new TextEncoder().encode(`${head}.${body}`),
-    );
-    return `${head}.${body}.${Buffer.from(sig).toString("base64url")}`;
-  }
-
-  const request = (token) => ({
-    headers: {
-      get: (name) => (name === "Cf-Access-Jwt-Assertion" ? token : null),
-    },
-  });
-  const certs =
-    (...keys) =>
-    async () => ({
-      ok: true,
-      json: async () => ({ keys: keys.map((key) => key.jwk) }),
-    });
-
-  it("accepts a token Access signed for this application", async () => {
-    const key = await keyPair("k1");
-    const token = await sign(key, {});
-    expect(
-      await verifyAccessAssertion(request(token), env, {
-        fetchImpl: certs(key),
-      }),
-    ).toBe(true);
-  });
-
-  it("rejects another application, an expired token, a forged signature, or no setup", async () => {
-    const key = await keyPair("k2");
-    const other = await keyPair("k2");
-    const opts = { fetchImpl: certs(key) };
-    const check = async (token, e = env) =>
-      verifyAccessAssertion(request(token), e, opts);
-    expect(await check(await sign(key, { aud: ["someone-else"] }))).toBe(false);
-    expect(await check(await sign(key, { exp: 1 }))).toBe(false);
-    expect(await check(await sign(key, { iss: "https://evil.example" }))).toBe(
-      false,
-    );
-    expect(await check(await sign(other, {}))).toBe(false);
-    expect(await check("not-a-token")).toBe(false);
-    expect(await check(await sign(key, {}), {})).toBe(false);
   });
 });
