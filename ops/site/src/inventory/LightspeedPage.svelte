@@ -749,6 +749,7 @@
 						{:else if filteredDecide.length === 0}
 							<p class="muted">None match.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -806,6 +807,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "stock"}
@@ -826,6 +828,7 @@
 						{:else if filteredStock.length === 0}
 							<p class="muted">No stock rows match that filter.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -863,6 +866,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "system"}
@@ -874,6 +878,7 @@
 						{:else if filteredSystem.length === 0}
 							<p class="muted">No system rows match that filter.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -903,6 +908,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "mismatch"}
@@ -912,6 +918,7 @@
 						{#if preview.conflicts.length === 0}
 							<p class="muted">No SKU conflicts.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -953,6 +960,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "missing"}
@@ -993,6 +1001,7 @@
 						{#if preview.matched.length === 0}
 							<p class="muted">Nothing matched this file.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -1023,12 +1032,14 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 					{#if (preview.altServes || []).length}
 						<Card
 							title="Pint and half"
 						>
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -1052,6 +1063,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						</Card>
 					{/if}
 				{:else}
@@ -1072,6 +1084,7 @@
 						{:else if filteredArchive.length === 0}
 							<p class="muted">No marked items match that filter.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -1101,6 +1114,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{/if}
@@ -1386,10 +1400,35 @@
 		}
 	}
 
+	/* Narrow screens: the table scrolls sideways inside its card, never the
+	   page, and the name column stays put. */
+	.table-scroll {
+		max-width: 100%;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+	}
+
 	.table {
 		width: 100%;
 		border-collapse: collapse;
 		font-size: var(--text-sm);
+	}
+
+	@media (max-width: 900px) {
+		.table {
+			min-width: 34rem;
+		}
+
+		.table th:first-child,
+		.table td:first-child {
+			position: sticky;
+			left: 0;
+			z-index: 1;
+			min-width: 9rem;
+			max-width: 12rem;
+			background: var(--card);
+			box-shadow: 1px 0 0 var(--border);
+		}
 	}
 
 	.table th,
