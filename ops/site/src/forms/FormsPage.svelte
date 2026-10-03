@@ -343,6 +343,7 @@
 										title="Approved artists can be picked as an event's guest artist."
 										onclick={() => void decide(selected, "Approved")}
 									>
+										{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 										Approve
 									</Button>
 								{/if}
@@ -354,6 +355,7 @@
 										disabled={deciding}
 										onclick={() => void decide(selected, "Declined")}
 									>
+										{#snippet icon()}<Icon name="x-circle" size={14} />{/snippet}
 										Decline
 									</Button>
 								{/if}
@@ -366,6 +368,7 @@
 									title={`Write to ${selected.email}`}
 									onclick={() => (window.location.href = `mailto:${selected.email}`)}
 								>
+									{#snippet icon()}<Icon name="send" size={14} />{/snippet}
 									Reply
 								</Button>
 							{/if}
@@ -473,6 +476,7 @@
 													busy={savingArtist}
 													onclick={() => void saveArtist(selected)}
 												>
+													{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 													Save
 												</Button>
 												{#if artistError}
@@ -504,6 +508,7 @@
 														busy={sending === email.kind}
 														onclick={() => resend(selected, email.kind)}
 													>
+														{#snippet icon()}<Icon name="send" size={14} />{/snippet}
 														{sentAt ? "Resend" : "Send"}
 													</Button>
 												</li>

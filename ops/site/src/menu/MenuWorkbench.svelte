@@ -622,7 +622,7 @@
 			{#if loadError}
 				<EmptyState tone="error" title="Could not load the menu" text={loadError}>
 					{#snippet action()}
-						<Button variant="outline" size="sm" onclick={() => void runLoad()}>Try again</Button>
+						<Button variant="outline" size="sm" onclick={() => void runLoad()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 					{/snippet}
 				</EmptyState>
 			{:else if missingId}
@@ -630,6 +630,7 @@
 					<div class="missing">
 						<p>That drink is not on the menu.</p>
 						<Button variant="outline" size="sm" onclick={() => backToGrid()}>
+							{#snippet icon()}<Icon name="chevron-left" size={14} />{/snippet}
 							Back to menu items
 						</Button>
 					</div>

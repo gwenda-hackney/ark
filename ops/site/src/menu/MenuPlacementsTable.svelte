@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { Button, Field, NativeSelect } from "../ui";
 	import type { SelectOption } from "../ui/types";
 	import type { MenuPlacement, PosMenu } from "./types";
@@ -243,6 +244,7 @@
 									aria-label={`Remove ${row.label}`}
 									onclick={() => remove(row.placement)}
 								>
+									{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
 									Remove
 								</Button>
 							</td>

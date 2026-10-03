@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import {
@@ -188,6 +189,7 @@
 				<Switch bind:checked={makeDefault} label="Default for new drinks" />
 				<div class="actions">
 					<Button type="submit" variant="primary" busy={saving} disabled={!name.trim()}>
+						{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 						Add
 					</Button>
 				</div>
@@ -236,9 +238,11 @@
 										busy={busyId === menu.id}
 										onclick={() => void saveRename(menu)}
 									>
+										{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 										Save
 									</Button>
 									<Button variant="ghost" size="sm" onclick={() => (renameId = "")}>
+										{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 										Cancel
 									</Button>
 								{:else}
@@ -249,6 +253,7 @@
 											disabled={busyId === menu.id}
 											onclick={() => void onDefault(menu)}
 										>
+											{#snippet icon()}<Icon name="star" size={14} />{/snippet}
 											Make default
 										</Button>
 									{/if}
@@ -258,6 +263,7 @@
 										disabled={busyId === menu.id}
 										onclick={() => startRename(menu)}
 									>
+										{#snippet icon()}<Icon name="pen" size={14} />{/snippet}
 										Rename
 									</Button>
 									<Button
@@ -266,6 +272,7 @@
 										disabled={busyId === menu.id}
 										onclick={() => void onRemove(menu)}
 									>
+										{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
 										Remove
 									</Button>
 								{/if}

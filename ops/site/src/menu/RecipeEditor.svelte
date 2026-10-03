@@ -1264,6 +1264,7 @@
 									type="button"
 									onclick={() => (addIngredientOpen = false)}
 								>
+									{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 									Done
 								</Button>
 							{/snippet}

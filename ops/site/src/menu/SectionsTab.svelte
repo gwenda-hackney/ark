@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Button, EmptyState, Skeleton } from "../ui";
@@ -52,7 +53,7 @@
 	{#if error}
 		<EmptyState tone="error" title="Could not load sections" text={error}>
 			{#snippet action()}
-				<Button variant="outline" size="sm" onclick={() => void load()}>Try again</Button>
+				<Button variant="outline" size="sm" onclick={() => void load()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 			{/snippet}
 		</EmptyState>
 	{:else if loading}

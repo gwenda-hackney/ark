@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../../app/shell";
 	/** The new night's date already has another event: replace it, or keep both. */
 	import { Button, Dialog } from "../../ui";
 	import { formatDate } from "../event-labels";
@@ -35,6 +36,7 @@
 			disabled={replacing}
 			onclick={() => onchoose(false)}
 		>
+			{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 			Keep both
 		</Button>
 		<Button
@@ -44,6 +46,7 @@
 			busy={replacing}
 			onclick={() => onchoose(true)}
 		>
+			{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 			Show {eventName} instead
 		</Button>
 	{/snippet}

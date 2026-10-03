@@ -938,6 +938,7 @@
 						type="button"
 						onclick={removeSupplierFromDrawer}
 					>
+						{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
 						Remove
 					</Button>
 				{/if}
@@ -947,6 +948,7 @@
 					type="button"
 					onclick={closeSupplierDrawer}
 				>
+					{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 					Cancel
 				</Button>
 				<Button
@@ -955,6 +957,7 @@
 					type="button"
 					onclick={applySupplierDraft}
 				>
+					{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 					Done
 				</Button>
 			</footer>

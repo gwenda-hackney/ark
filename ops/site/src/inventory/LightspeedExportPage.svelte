@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import type { ColDef, GridApi } from "ag-grid-community";
 	import {
@@ -354,6 +355,7 @@
 				disabled={!rows.length}
 				onclick={selectAllVisible}
 			>
+				{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 				Select all
 			</Button>
 			<Button
@@ -362,6 +364,7 @@
 				disabled={!selectedCount}
 				onclick={clearSelected}
 			>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 				Clear
 			</Button>
 			<Button
@@ -373,6 +376,7 @@
 					: "Download the selection"}
 				onclick={() => void downloadImport()}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				{selectedCount ? `Download · ${selectedCount}` : "Download"}
 			</Button>
 		{/snippet}

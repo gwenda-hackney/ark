@@ -59,7 +59,7 @@
 <div class="page scrollbar-fade">
 	<PageHeader title="Settings" subtitle="Every setting in this environment, and where its value comes from.">
 		{#snippet actions()}
-			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>Developer tools</Button>
+			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>{#snippet icon()}<Icon name="chevron-left" size={14} />{/snippet}Developer tools</Button>
 			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={() => void load()}>
 				{#snippet icon()}
 					<Icon name="refresh" size={16} />

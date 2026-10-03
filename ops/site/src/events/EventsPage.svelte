@@ -325,6 +325,7 @@
 			<EditorBackBar label={listTitle} onback={() => leaveEditor(editor.listHomePath())} />
 			<p>{editor.error}</p>
 			<Button type="button" variant="outline" onclick={() => leaveEditor(editor.listHomePath())}>
+				{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
 				Back to {listTitle.toLowerCase()}
 			</Button>
 		</div>
@@ -441,6 +442,7 @@
 												disabled={editor.retrying}
 												onclick={() => void editor.onRetryWebsiteJob()}
 											>
+												{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
 												Try again
 											</Button>
 										</div>

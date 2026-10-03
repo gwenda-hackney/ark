@@ -583,6 +583,7 @@
 				onclick={() =>
 					download("lightspeed-item-import.csv", preview?.itemImportCsv)}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				Download item import
 			</Button>
 			<Button
@@ -592,6 +593,7 @@
 				onclick={() =>
 					download("lightspeed-archive-skus.csv", preview?.archiveSkuCsv)}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				Download archive SKUs
 			</Button>
 			<Button
@@ -601,6 +603,7 @@
 				disabled={!preview || applying}
 				onclick={apply}
 			>
+				{#snippet icon()}<Icon name="tag" size={14} />{/snippet}
 				Stamp SKUs
 			</Button>
 		{/snippet}
@@ -619,6 +622,7 @@
 					size="sm"
 					onclick={() => (importOpen = true)}
 				>
+					{#snippet icon()}<Icon name="upload" size={14} />{/snippet}
 					Import item list
 				</Button>
 			{/snippet}
@@ -648,7 +652,7 @@
 					text="Import a Lightspeed item list to compare it with ops."
 				>
 					{#snippet action()}
-						<Button size="sm" onclick={() => (importOpen = true)}>Import item list</Button>
+						<Button size="sm" onclick={() => (importOpen = true)}>{#snippet icon()}<Icon name="upload" size={14} />{/snippet}Import item list</Button>
 					{/snippet}
 				</EmptyState>
 			{:else}
@@ -741,6 +745,7 @@
 								disabled={!decideRows.length || Boolean(acting)}
 								onclick={() => (archiveAllOpen = true)}
 							>
+								{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 								Archive remaining
 							</Button>
 						{/snippet}
@@ -784,6 +789,7 @@
 													disabled={!row.sku || !(preview?.opsOnly.length) || Boolean(acting)}
 													onclick={() => openMatchLs(row)}
 												>
+													{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 													Match
 												</Button>
 												<Button
@@ -792,6 +798,7 @@
 													disabled={Boolean(acting)}
 													onclick={() => openAdd(row)}
 												>
+													{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 													Add to menu
 												</Button>
 												<Button
@@ -800,6 +807,7 @@
 													disabled={!row.sku || Boolean(acting)}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -851,6 +859,7 @@
 													disabled={Boolean(acting)}
 													onclick={() => void addStock(row)}
 												>
+													{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 													Add to inventory
 												</Button>
 												<Button
@@ -859,6 +868,7 @@
 													disabled={!row.sku || Boolean(acting)}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -901,6 +911,7 @@
 													disabled={!row.sku || Boolean(acting)}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -953,6 +964,7 @@
 													disabled={!row.ops.id || !row.lightspeed.sku || Boolean(acting)}
 													onclick={() => void adoptPosName(row)}
 												>
+													{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 													Use POS name
 												</Button>
 											</td>
@@ -986,6 +998,7 @@
 												disabled={!decideRows.length || Boolean(acting)}
 												onclick={() => openMatchOps(row)}
 											>
+												{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 												Match
 											</Button>
 										</span>
@@ -1107,6 +1120,7 @@
 													disabled={!row.sku || Boolean(acting)}
 													onclick={() => void unarchive(row)}
 												>
+													{#snippet icon()}<Icon name="undo" size={14} />{/snippet}
 													Keep
 												</Button>
 											</td>
@@ -1178,7 +1192,7 @@
 			<p class="error">No Lightspeed leftovers to pair with.</p>
 		{/if}
 		{#snippet footer()}
-			<Button variant="ghost" size="sm" onclick={closeLink}>Cancel</Button>
+			<Button variant="ghost" size="sm" onclick={closeLink}>{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<Button
 				variant="primary"
 				size="sm"
@@ -1189,6 +1203,7 @@
 				}
 				onclick={() => void confirmLink()}
 			>
+				{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 				Match
 			</Button>
 		{/snippet}
@@ -1249,7 +1264,7 @@
 			<p class="error">Create a menu section before adding drinks.</p>
 		{/if}
 		{#snippet footer()}
-			<Button variant="ghost" size="sm" onclick={closeAdd}>Cancel</Button>
+			<Button variant="ghost" size="sm" onclick={closeAdd}>{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<Button
 				variant="primary"
 				size="sm"
@@ -1257,6 +1272,7 @@
 				disabled={!sectionOptions.length || Boolean(acting)}
 				onclick={() => void confirmAdd()}
 			>
+				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 				Add to menu
 			</Button>
 		{/snippet}
@@ -1273,6 +1289,7 @@
 		</p>
 		{#snippet footer()}
 			<Button variant="ghost" size="sm" onclick={() => (archiveAllOpen = false)}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 				Cancel
 			</Button>
 			<Button
@@ -1282,6 +1299,7 @@
 				disabled={acting === "all"}
 				onclick={() => void markArchive(decideRows)}
 			>
+				{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 				Mark for archive
 			</Button>
 		{/snippet}

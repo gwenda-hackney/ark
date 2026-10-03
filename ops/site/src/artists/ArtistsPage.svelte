@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onDestroy } from "svelte";
 	import { BusyOverlay, Button, EmptyState, PageHeader } from "../ui";
 	import ArtistCard from "./ArtistCard.svelte";
@@ -136,6 +137,7 @@
 			>
 				{#snippet actions()}
 					<Button variant="primary" type="button" onclick={() => navigate("/artists/new")}>
+						{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 						Add artist
 					</Button>
 				{/snippet}
@@ -156,7 +158,7 @@
 			{:else if artists.length === 0}
 				<EmptyState icon="artist" title="No artists yet" text="Add the artist whose work is on the wall, and who is next.">
 					{#snippet action()}
-						<Button size="sm" onclick={() => navigate("/artists/new")}>Add artist</Button>
+						<Button size="sm" onclick={() => navigate("/artists/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add artist</Button>
 					{/snippet}
 				</EmptyState>
 			{:else}

@@ -391,6 +391,7 @@
 	{/if}
 	{#snippet footer()}
 		<Button variant="outline" size="sm" type="button" onclick={closeEdit}>
+			{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 			Cancel
 		</Button>
 	{/snippet}
@@ -456,21 +457,24 @@
 			</Field>
 			<div class="sheet-actions">
 				<Button variant="outline" type="button" onclick={() => { sheetIndex = null; openEdit(index); }}>
+					{#snippet icon()}<Icon name="pen" size={16} />{/snippet}
 					Change ingredient
 				</Button>
 				{#if sheetRow.href}
 					<Button variant="ghost" type="button" onclick={() => { const href = sheetRow.href!; sheetIndex = null; navigate(href); }}>
+						{#snippet icon()}<Icon name="external-link" size={16} />{/snippet}
 						Open in stock
 					</Button>
 				{/if}
 				<Button variant="ghost" type="button" class="remove-line" onclick={() => { sheetIndex = null; removeRow(index); }}>
+					{#snippet icon()}<Icon name="trash" size={16} />{/snippet}
 					Remove
 				</Button>
 			</div>
 		</div>
 	{/if}
 	{#snippet footer()}
-		<Button variant="primary" size="sm" type="button" onclick={() => (sheetIndex = null)}>Done</Button>
+		<Button variant="primary" size="sm" type="button" onclick={() => (sheetIndex = null)}>{#snippet icon()}<Icon name="check" size={14} />{/snippet}Done</Button>
 	{/snippet}
 </Dialog>
 

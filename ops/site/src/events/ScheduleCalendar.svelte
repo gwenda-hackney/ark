@@ -123,6 +123,7 @@
 					title={thisMonth ? "Already showing this month" : "Back to this month"}
 					onclick={() => (month = today.slice(0, 7))}
 				>
+					{#snippet icon()}<Icon name="calendar" size={14} />{/snippet}
 					Today
 				</Button>
 				<Button type="button" variant="outline" size="sm" aria-label="Next month" title="Next month" onclick={() => go(1)}>

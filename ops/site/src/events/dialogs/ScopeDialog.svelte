@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../../app/shell";
 	/**
 	 * "Which nights?" for a night of a series: this one, this and later, or
 	 * all future ones. Used when saving a night and when deleting one. The
@@ -43,9 +44,11 @@
 	{/if}
 	<div class="scope-options" class:destructive>
 		<Button type="button" variant="outline" {disabled} onclick={() => onchoose("this")}>
+			{#snippet icon()}<Icon name="calendar" size={16} />{/snippet}
 			{verb} this night only
 		</Button>
 		<Button type="button" variant="outline" {disabled} onclick={() => onchoose("following")}>
+			{#snippet icon()}<Icon name="calendar" size={16} />{/snippet}
 			{verb} this night and later ones
 		</Button>
 		<Button
@@ -55,11 +58,13 @@
 			busy={allBusy}
 			onclick={() => onchoose("all")}
 		>
+			{#snippet icon()}<Icon name="calendar" size={16} />{/snippet}
 			{verb} all future nights
 		</Button>
 	</div>
 	{#snippet footer()}
 		<Button variant="outline" size="sm" type="button" disabled={allBusy} onclick={onclose}>
+			{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 			Cancel
 		</Button>
 	{/snippet}

@@ -538,7 +538,7 @@
 		{#if loadError}
 			<EmptyState tone="error" title="Could not load inventory" text={loadError}>
 				{#snippet action()}
-					<Button variant="outline" size="sm" onclick={() => { loadError = ""; void reload(); }}>Try again</Button>
+					<Button variant="outline" size="sm" onclick={() => { loadError = ""; void reload(); }}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
 				{/snippet}
 			</EmptyState>
 		{:else if missingId}
@@ -546,6 +546,7 @@
 				<div class="missing">
 					<p>That inventory item was not found.</p>
 					<Button variant="outline" size="sm" onclick={() => backToGrid()}>
+						{#snippet icon()}<Icon name="chevron-left" size={14} />{/snippet}
 						Back to inventory
 					</Button>
 				</div>
@@ -618,7 +619,7 @@
 					{:else if rows.length === 0}
 						<EmptyState icon="inventory" title="No inventory yet" text="Add the liquors and mixers your recipes use.">
 							{#snippet action()}
-								<Button size="sm" onclick={newItem}>Add item</Button>
+								<Button size="sm" onclick={newItem}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add item</Button>
 							{/snippet}
 						</EmptyState>
 					{:else if phone.matches}
