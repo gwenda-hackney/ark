@@ -538,9 +538,7 @@ describe("events: changing the schedule drops nights", () => {
     assert.equal(await ops.sees(event), "On the website");
   });
 
-  // Known bug #20: discarding the removed-night draft leaves the night live
-  // with no row in ops, and nothing marks it removed again.
-  it.fails("discarding a dropped night's draft: ops marks it removed again (known bug #20)", async () => {
+  it("discarding a dropped night's draft: ops marks it removed again", async () => {
     const nights = liveNights(world);
     await ops.edit(event, { endsOn: nights[2] });
     await ops.waitUntilReady(event);
@@ -646,8 +644,7 @@ describe("events: Google Calendar", () => {
     assert.ok(starts.every((start) => start.slice(11, 16) === "18:30"), starts.join(", "));
   });
 
-  // Known bug #70: sync skips unchanged nights without checking the entry exists.
-  it.fails("an entry deleted by hand in Google Calendar comes back with Sync calendar (known bug #70)", async () => {
+  it("an entry deleted by hand in Google Calendar comes back with Sync calendar", async () => {
     const [victim] = world.google.calendar();
     const date = (victim.start?.dateTime || victim.start?.date).slice(0, 10);
     world.google.calendarEvents.delete(victim.id);

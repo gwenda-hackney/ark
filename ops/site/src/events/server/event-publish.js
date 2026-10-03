@@ -49,8 +49,10 @@ import {
   listEvents,
   previewBehind,
   removeOccurrence,
+  saveOccurrenceSnapshots,
   saveOccurrences,
 } from "./event-store.js";
+import { forgetCalendarOccurrences } from "./event-calendar-sync.js";
 import { syncSocialTasks } from "./event-tasks.js";
 import {
   GALLERY_ENABLED,
@@ -459,12 +461,10 @@ export async function publishEventPreview(
 
   const warnings = [];
   if (drop.length) pagesChanged = true;
-  const dropWarnings = await markNightsRemoved(env, drop);
-  warnings.push(...dropWarnings);
+  const dropped = await markNightsRemoved(env, drop);
+  warnings.push(...dropped.warnings);
   // Keep the rows when marking failed, so the next run tries again.
-  for (const row of dropWarnings.length ? [] : drop) {
-    if (row.id) await removeOccurrence(env, row.id);
-  }
+  if (!dropped.warnings.length) warnings.push(...(await settleDroppedRows(env, drop, dropped.live)));
   const retired = await retireFormerSeries(
     env,
     event,
@@ -603,13 +603,39 @@ export async function unpublishOccurrences(env, rows) {
 }
 
 /**
+ * After their drafts are marked: a dropped night that never went live is done,
+ * so its row goes. One still on the live site keeps its row until Update
+ * website takes it off (markReleasedInOps), noted as `snapshots.preview.removed`
+ * so ops knows the preview is in step. If that draft is discarded, the note
+ * goes (markDiscardedInOps) and the website job marks it again (#20). Either
+ * way the calendar entry goes now: the calendar follows the schedule.
+ */
+async function settleDroppedRows(env, rows, live) {
+  const kept = rows.filter((row) => row.id && live.has(row.sanityId));
+  for (const row of rows) {
+    if (row.id && !live.has(row.sanityId)) await removeOccurrence(env, row.id);
+  }
+  const warnings = await forgetCalendarOccurrences(env, kept);
+  const at = new Date().toISOString();
+  await saveOccurrenceSnapshots(
+    env,
+    kept.map((row) => ({
+      id: Number(row.id),
+      snapshots: { ...row.snapshots, preview: { removed: true, at } },
+      clearCalendar: true,
+    })),
+  );
+  return warnings;
+}
+
+/**
  * Dropped from the schedule: a night on the website gets a draft marked
  * `removed` (the preview hides it; publishing deletes it), one that never went
- * live just loses its draft.
+ * live just loses its draft. Returns the warnings and which ids were live.
  */
 export async function markNightsRemoved(env, rows, { query = sanityQuery, mutate = sanityMutate } = {}) {
   const ids = (rows || []).map((row) => row?.sanityId).filter(Boolean);
-  if (!ids.length) return [];
+  if (!ids.length) return { warnings: [], live: new Set() };
   const live = new Set((await query(env, "production", "*[_id in $ids]._id", { ids })) || []);
   const mutations = ids.map((id) =>
     live.has(id) ? { patch: { id, set: { removed: true } } } : { delete: { id } },
@@ -620,7 +646,7 @@ export async function markNightsRemoved(env, rows, { query = sanityQuery, mutate
   } catch (error) {
     warnings.push(error?.message || "Could not take the dropped nights off the preview.");
   }
-  return warnings;
+  return { warnings, live };
 }
 
 /**
@@ -663,7 +689,7 @@ export async function retireFormerSeries(
       };
     }
   }
-  const warnings = await markNightsRemoved(
+  const { warnings } = await markNightsRemoved(
     env,
     series.map((doc) => ({ sanityId: doc._id })),
     { query, mutate },
@@ -735,7 +761,7 @@ export async function putEventOnWebsite(env, id) {
   try {
     // Everything in scope now matches the website, copied or not, so mark it
     // all: events copied live by the old whole-dataset promote get fixed here.
-    await markReleasedInOps(env, [...ids, ...result.written]);
+    await markReleasedInOps(env, [...ids, ...result.written], { deleted: result.deleted });
   } catch (error) {
     warnings.push(`On the website, but ops status did not update: ${error?.message || "unknown error"}.`);
   }
