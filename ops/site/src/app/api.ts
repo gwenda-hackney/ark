@@ -1253,3 +1253,12 @@ export function saveEventTaskSettings(events: {
     body: JSON.stringify({ events }),
   });
 }
+
+export function getDashboard() {
+  return request<import("../home/dashboard-data").DashboardData>("/api/dashboard");
+}
+
+/** Unresolved Sentry issues, read and cached by ops (never from the browser). */
+export function getWebsiteErrors() {
+  return request<import("../home/dashboard-data").WebsiteErrors>("/api/health/errors");
+}
