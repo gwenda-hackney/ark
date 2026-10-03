@@ -29,7 +29,7 @@
 		type SitePendingItem,
 		type SiteStatus,
 	} from "../app/api";
-	import { loginNext, navigate } from "../app/nav";
+	import { loginNext } from "../app/nav";
 	import { easeOut, flyMs } from "../ui/motion";
 	import { toast } from "../ui/toast.svelte";
 	import { getSitePendingState, refreshSitePending } from "./site-pending.svelte";
@@ -281,13 +281,7 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader title="Website" subtitle="What gwenda.co.uk shows, and what is about to change.">
-		{#snippet actions()}
-			{#if isAdmin}
-				<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>Developer tools</Button>
-			{/if}
-		{/snippet}
-	</PageHeader>
+	<PageHeader title="Website" subtitle="What gwenda.co.uk shows, and what is about to change." />
 
 	{#if loadError}
 		<p class="error">{loadError}</p>

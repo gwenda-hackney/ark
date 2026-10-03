@@ -193,6 +193,12 @@
 		top: calc(2.5rem + env(safe-area-inset-top, 0px));
 	}
 
+	/* Phones: above the bottom bar, clear of the tab strip and page actions. */
+	:global(body:has(.shell.has-tabs)) .pill.floating {
+		top: auto;
+		bottom: calc(var(--bottom-nav-h) + 0.75rem);
+	}
+
 	.pill.stuck {
 		border-color: color-mix(in srgb, var(--destructive) 45%, transparent);
 		color: var(--destructive);
