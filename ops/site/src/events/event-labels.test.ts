@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { OpsEvent } from "../app/api";
 import {
+	deleteEventCopy,
 	formatClock,
 	repeatLabel,
 	seriesBlurb,
@@ -58,5 +59,31 @@ describe("event labels", () => {
 			seriesBlurb(event({ nightSchedule: [{ label: "Doors" }, { label: "Set" }] as OpsEvent["nightSchedule"] })),
 			"Doors · Set",
 		);
+	});
+});
+
+describe("deleteEventCopy", () => {
+	it("names just the night when deleting one night of an open series", () => {
+		const copy = deleteEventCopy({
+			kind: "night",
+			eventName: "Gwenda Nights",
+			nightDate: "2026-10-10",
+			seriesName: "Gwenda Nights",
+		});
+		assert.equal(copy.title, "Delete the night of Sat 10 Oct?");
+		assert.equal(copy.message, "Only this night goes. Gwenda Nights and its other nights stay. This can't be undone.");
+		assert.ok(!copy.title.includes("event"));
+	});
+
+	it("says the whole series goes when deleting a series", () => {
+		const copy = deleteEventCopy({ kind: "series", eventName: "Jazz Night" });
+		assert.equal(copy.title, "Delete Jazz Night?");
+		assert.equal(copy.message, "The series and all its nights go. This can't be undone.");
+	});
+
+	it("says it can be restored while it's still on the website", () => {
+		const copy = deleteEventCopy({ kind: "event", eventName: "Halloween", onWebsite: true });
+		assert.equal(copy.message, "It goes from the schedule.");
+		assert.match(copy.website, /restore it there/);
 	});
 });

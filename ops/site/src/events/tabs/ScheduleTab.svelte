@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Icon } from "../../app/shell";
-	import { Field, NativeSelect, TextField, Tip } from "../../ui";
+	import { DateField, Field, NativeSelect, NumberField, Tip } from "../../ui";
+	import type { FormErrors } from "../../ui/form-errors.svelte";
 	import type { OpsEvent } from "../../app/api";
 	import { eventItemPath } from "../../app/nav";
 	import { WEEKDAY_LABELS } from "../event-labels";
@@ -9,12 +10,15 @@
 
 	let {
 		form,
+		errors,
 		current,
 		eventId,
 		editingOccurrence,
 		previewDates,
 	}: {
 		form: EventForm;
+		/** Problems from the last Save, by field id. */
+		errors: FormErrors;
 		/** The saved event (null while new). */
 		current: OpsEvent | null;
 		eventId: string;
@@ -36,8 +40,9 @@
 	<div class="rule-fields">
 		<div class="rule-row">
 			<Field
-				label="Unit"
+				label="Repeats"
 				for="event-unit"
+				width="md"
 				tooltip="Weekly or monthly builds the calendar. Does not repeat is for series like Gwenda Nights, where each night is added on its own date."
 			>
 				<NativeSelect
@@ -57,14 +62,16 @@
 				<Field
 					label="Every"
 					for="event-every"
-					tooltip="How often the pattern repeats. 1 with Week means every week."
+					width="xs"
+					error={errors.get("event-every")}
+					hint="1 is every {form.repeatUnit}."
 				>
-					<TextField
+					<NumberField
 						id="event-every"
 						size="sm"
-						type="number"
-						min="1"
-						max="52"
+						integer
+						min={1}
+						max={52}
 						bind:value={form.repeatEvery}
 						disabled={editingOccurrence}
 					/>
@@ -96,17 +103,19 @@
 				<Field
 					label="Day of month"
 					for="event-month-day"
-					tooltip="Which day of the month the night falls on. Leave empty to follow Starts on."
+					width="sm"
+					optional
+					error={errors.get("event-month-day")}
+					hint="Blank follows Starts on."
 				>
-					<TextField
+					<NumberField
 						id="event-month-day"
 						size="sm"
-						type="number"
-						min="1"
-						max="31"
+						integer
+						min={1}
+						max={31}
 						bind:value={form.monthDay}
 						disabled={editingOccurrence}
-						placeholder="From the start date"
 					/>
 				</Field>
 			{/if}
@@ -115,31 +124,30 @@
 			<Field
 				label="Starts on"
 				for="event-starts"
+				width="sm"
+				optional
+				error={errors.get("event-starts")}
 				tooltip={form.repeatUnit === "none"
 					? "First scheduled night. Leave empty until you add a night."
 					: "First night of the series. Recurrence builds forward from here. Leave empty if it is not fixed yet: the website says “Check back soon for the next date”."}
 			>
-				<TextField
-					id="event-starts"
-					size="sm"
-					type="date"
-					bind:value={form.startsOn}
-					disabled={editingOccurrence}
-				/>
+				<DateField id="event-starts" size="sm" bind:value={form.startsOn} disabled={editingOccurrence} />
 			</Field>
 			<Field
 				label="Ends on"
 				for="event-ends"
-				tooltip={form.repeatUnit === "none"
-					? "Optional. Not used when nights are scheduled one by one."
-					: "Last night of the series. Required once it has a start date."}
+				width="sm"
+				optional={form.repeatUnit === "none" || !form.startsOn}
+				error={errors.get("event-ends")}
+				hint={form.repeatUnit === "none"
+					? "Not used when nights are added one by one."
+					: "The last night. Needed once it has a start."}
 			>
-				<TextField
+				<DateField
 					id="event-ends"
 					size="sm"
-					type="date"
 					bind:value={form.endsOn}
-					required={form.repeatUnit !== "none" && Boolean(form.startsOn)}
+					min={form.startsOn}
 					disabled={editingOccurrence}
 				/>
 			</Field>
@@ -259,9 +267,9 @@
 		gap: var(--space-3) var(--space-4);
 	}
 
+	/* Each field takes its own width token. */
 	.rule-row > :global(.field) {
-		flex: 0 1 13rem;
-		min-width: min(100%, 11rem);
+		flex: 0 1 auto;
 	}
 
 	.rule-row > :global(.field.days) {

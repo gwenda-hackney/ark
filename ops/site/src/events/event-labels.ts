@@ -125,3 +125,39 @@ export function seriesNextCell(event: OpsEvent): string {
 	const date = formatDayMonth(next);
 	return night ? `${date} · ${night}` : date;
 }
+
+/**
+ * The delete confirm in the editor. The title names exactly what goes: a
+ * night of an open series deletes only that night (#151).
+ */
+export function deleteEventCopy({
+	kind,
+	eventName,
+	nightDate = "",
+	seriesName = "",
+	onWebsite = false,
+}: {
+	kind: "series" | "event" | "night";
+	eventName: string;
+	nightDate?: string;
+	seriesName?: string;
+	onWebsite?: boolean;
+}): { title: string; message: string; website: string } {
+	const website = onWebsite
+		? "It stays on the website until you press Update website on the Website page. Until then you can restore it there."
+		: "";
+	const undo = onWebsite ? "" : " This can't be undone.";
+	if (kind === "night") {
+		const when = nightDate ? formatDate(nightDate) : "this night";
+		const series = seriesName || eventName;
+		return {
+			title: `Delete the night of ${when}?`,
+			message: `Only this night goes. ${series} and its other nights stay.${undo}`,
+			website,
+		};
+	}
+	if (kind === "event") {
+		return { title: `Delete ${eventName}?`, message: `It goes from the schedule.${undo}`, website };
+	}
+	return { title: `Delete ${eventName}?`, message: `The series and all its nights go.${undo}`, website };
+}

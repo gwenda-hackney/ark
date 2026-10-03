@@ -9,6 +9,8 @@
 	import { toast } from "../../ui/toast.svelte";
 	import { getWebsiteJobsState, retryWebsiteJob } from "../../events/website-jobs.svelte";
 	import Icon from "./Icon.svelte";
+	import { savingPill } from "./saving-pill";
+	import { unsaved } from "../../ui/unsaved.svelte";
 
 	/** Phones have no top bar: float the pill at the top of the screen. */
 	let { floating = false }: { floating?: boolean } = $props();
@@ -38,20 +40,17 @@
 		lastBusy = count;
 	});
 
-	const tone = $derived(
-		stuck.length ? "stuck" : busyCount || jobs.running ? "busy" : doneUntil > now ? "done" : "",
+	const pill = $derived(
+		savingPill({
+			stuck: stuck.length,
+			busy: busyCount,
+			running: jobs.running,
+			recentlyDone: doneUntil > now,
+			dirty: unsaved.dirty,
+		}),
 	);
-	const label = $derived(
-		tone === "stuck"
-			? stuck.length === 1
-				? "1 needs a look"
-				: `${stuck.length} need a look`
-			: tone === "busy"
-				? busyCount > 1
-					? `Getting ${busyCount} ready…`
-					: "Getting it ready…"
-				: "All saved",
-	);
+	const tone = $derived(pill.tone);
+	const label = $derived(pill.label);
 
 	function nameFor(id: string) {
 		return jobs.recent.find((row) => row.eventId === id)?.name || "Just saved";
@@ -93,6 +92,8 @@
 			<Icon name="alert" size={15} />
 		{:else if tone === "done"}
 			<Icon name="check" size={15} />
+		{:else if tone === "unsaved"}
+			<span class="unsaved-dot" aria-hidden="true"></span>
 		{:else}
 			<span class="spin"><Icon name="refresh" size={15} /></span>
 		{/if}
@@ -206,6 +207,17 @@
 
 	.pill.done {
 		color: var(--muted-foreground);
+	}
+
+	.pill.unsaved {
+		color: var(--warning);
+	}
+
+	.unsaved-dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: var(--warning);
 	}
 
 	.spin {

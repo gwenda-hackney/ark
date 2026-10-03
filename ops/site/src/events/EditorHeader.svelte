@@ -21,6 +21,7 @@
 		occurrenceDate,
 		busy,
 		dirty,
+		nameError = "",
 		isNew,
 		creatingNight,
 		creatingOnce,
@@ -43,6 +44,8 @@
 		occurrenceDate: string;
 		busy: boolean;
 		dirty: boolean;
+		/** "Add a name." after a Save without one. */
+		nameError?: string;
 		isNew: boolean;
 		creatingNight: boolean;
 		creatingOnce: boolean;
@@ -82,7 +85,8 @@
 				: "No date",
 	);
 	const headerFlag = $derived(
-		eventHeaderFlag(current?.publish, dirty, {
+		// Unsaved shows once, in the action bar; this says where it stands on the website.
+		eventHeaderFlag(current?.publish, false, {
 			job: websiteJobFor(current?.id)?.state ?? null,
 		}),
 	);
@@ -230,6 +234,8 @@
 					required={!creatingNight && !editingOccurrence}
 					autocomplete="off"
 					aria-label="Night title"
+					aria-invalid={nameError ? true : undefined}
+					aria-describedby={nameError ? "event-name-error" : undefined}
 					placeholder={creatingNight ? "Night title (optional)" : "Night title"}
 					bind:value={form.name}
 				/>
@@ -241,11 +247,16 @@
 					id="event-name"
 					required
 					autocomplete="off"
+					aria-invalid={nameError ? true : undefined}
+					aria-describedby={nameError ? "event-name-error" : undefined}
 					aria-label={creatingOnce || editingOnce ? "Event name" : "Series name"}
 					placeholder={creatingOnce || editingOnce ? "Event name" : "Series name"}
 					bind:value={form.name}
 				/>
 			</div>
+		{/if}
+		{#if nameError}
+			<p class="name-error" id="event-name-error">{nameError}</p>
 		{/if}
 		{#if (!editingOccurrence || form.defaultsUnlocked) && form.artist.trim()}
 			<p class="sub">{form.artist.trim()}</p>
@@ -294,6 +305,12 @@
 </header>
 
 <style>
+	.name-error {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--danger);
+	}
+
 	.series-link {
 		color: var(--primary);
 		font-size: var(--text-xs);
@@ -470,6 +487,11 @@
 		border-color: var(--ring);
 		background: var(--sunken);
 		box-shadow: 0 0 0 2px var(--ring-wash);
+	}
+
+	.title-input[aria-invalid="true"],
+	.title-input[aria-invalid="true"]:hover {
+		border-color: var(--danger);
 	}
 
 	.title-input.night-title {

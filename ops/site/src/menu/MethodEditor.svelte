@@ -8,6 +8,7 @@
 	import StarterKit from "@tiptap/starter-kit";
 	import { Markdown } from "@tiptap/markdown";
 	import Placeholder from "@tiptap/extension-placeholder";
+	import { getFieldContext } from "../ui/field-context";
 
 	let {
 		id = "f-method",
@@ -25,6 +26,7 @@
 		onChange?: (next: string) => void;
 	} = $props();
 
+	const field = getFieldContext();
 	let host: HTMLDivElement | undefined = $state();
 	let editor = $state<Editor | null>(null);
 	/** Bumped on every transaction so toolbar active states stay current. */
@@ -113,6 +115,17 @@
 		ed.setEditable(!disabled);
 	});
 
+	// Inside a Field: its hint or error for screen readers, like any input.
+	$effect(() => {
+		const el = editor?.view.dom;
+		if (!el) return;
+		const describedBy = field?.describedBy;
+		if (describedBy) el.setAttribute("aria-describedby", describedBy);
+		else el.removeAttribute("aria-describedby");
+		if (field?.invalid) el.setAttribute("aria-invalid", "true");
+		else el.removeAttribute("aria-invalid");
+	});
+
 	$effect(() => {
 		const next = value || "";
 		const ed = editor;
@@ -169,7 +182,7 @@
 	});
 </script>
 
-<div class="method-editor" class:disabled>
+<div class="method-editor" class:disabled class:invalid={field?.invalid}>
 	<div class="toolbar" role="toolbar" aria-label={`${label} formatting`} aria-controls={id}>
 		<button
 			type="button"
@@ -259,6 +272,10 @@
 	.method-editor:focus-within {
 		border-color: var(--ring);
 		box-shadow: 0 0 0 3px var(--ring-wash);
+	}
+
+	.method-editor.invalid {
+		border-color: var(--danger);
 	}
 
 	.method-editor.disabled {
