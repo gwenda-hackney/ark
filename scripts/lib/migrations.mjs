@@ -137,6 +137,15 @@ export function baserowDatabase({ apiBase, jwt, databaseId, label, request = jwt
       tables = [...tables, created];
       return "created";
     },
+    /** Remove a whole table, rows and all, if it's there. Post-deploy only. */
+    async removeTable(tableName) {
+      tables ??= await call(`/api/database/tables/database/${databaseId}/`);
+      const found = tables.find((t) => t.name === tableName);
+      if (!found) return "absent";
+      await call(`/api/database/tables/${found.id}/`, { method: "DELETE" });
+      tables = tables.filter((t) => t.id !== found.id);
+      return "removed";
+    },
     /** Remove a column if it's there. Post-deploy only. */
     async removeField(tableName, fieldName) {
       const field = (await fields(tableName)).find((f) => f.name === fieldName);
