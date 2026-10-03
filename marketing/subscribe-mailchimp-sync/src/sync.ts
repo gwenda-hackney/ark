@@ -5,8 +5,8 @@ import type {
   SyncOptions,
   SyncRowResult,
   SyncSummary,
-  SyncTrigger,
 } from "./types";
+import { captureMessage } from "@sentry/cloudflare";
 
 export const DEFAULT_BASEROW_API = "https://api.baserow.io";
 export const SUBSCRIBE_TABLE_NAME = "Subscribers";
@@ -384,62 +384,6 @@ export async function markBaserowSynced({
   }
 }
 
-export function resolveSyncLogTableId(
-  env: Pick<Env, "BASEROW_SYNC_LOG_TABLE_ID">,
-): string | null {
-  const id = env.BASEROW_SYNC_LOG_TABLE_ID?.trim();
-  return id || null;
-}
-
-type RecordSyncRunParams = {
-  apiKey: string;
-  apiBase: string;
-  logTableId: string;
-  startedAt: Date;
-  trigger: SyncTrigger;
-  summary: SyncSummary;
-  fetchImpl: typeof fetch;
-};
-
-/** Best-effort: throws on failure so callers can log without failing the sync. */
-export async function recordSyncRun({
-  apiKey,
-  apiBase,
-  logTableId,
-  startedAt,
-  trigger,
-  summary,
-  fetchImpl,
-}: RecordSyncRunParams): Promise<void> {
-  const startedIso = startedAt.toISOString();
-  const url = `${apiBase}/api/database/rows/table/${logTableId}/?user_field_names=true`;
-  const upstream = await fetchImpl(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      Run: `${startedIso} ${trigger}`,
-      Started: startedIso,
-      Trigger: trigger,
-      "Dry run": summary.dryRun,
-      Scanned: summary.scanned,
-      Synced: summary.synced,
-      Errors: summary.errors,
-      Ok: summary.ok,
-      Results: JSON.stringify(summary.results),
-    }),
-  });
-
-  if (!upstream.ok) {
-    const detail = await upstream.text();
-    throw new Error(
-      `Baserow sync-log create failed (${upstream.status}): ${detail}`,
-    );
-  }
-}
-
 export async function syncUnsyncedSubscribers(
   env: Env,
   options: SyncOptions = {},
@@ -447,9 +391,7 @@ export async function syncUnsyncedSubscribers(
   const dryRun = options.dryRun === true;
   const all = options.all === true;
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const trigger = options.trigger ?? "manual";
   const fetchImpl = options.fetchImpl ?? fetch;
-  const startedAt = new Date();
 
   const baserowKey = env.BASEROW_API_KEY?.trim();
   const mailchimpKey = env.MAILCHIMP_API_KEY?.trim();
@@ -511,6 +453,14 @@ export async function syncUnsyncedSubscribers(
       continue;
     }
 
+    if (upserted.rejected) {
+      // Visible in Sentry, without an alert email; the address stays out of it.
+      captureMessage("Mailchimp rejected a subscriber address for good; not retried", {
+        level: "warning",
+        extra: { rowId: row.id },
+      });
+    }
+
     try {
       await markBaserowSynced({
         apiKey: baserowKey,
@@ -545,24 +495,6 @@ export async function syncUnsyncedSubscribers(
     errors,
     results,
   };
-
-  const logTableId = resolveSyncLogTableId(env);
-  if (logTableId) {
-    try {
-      await recordSyncRun({
-        apiKey: baserowKey,
-        apiBase,
-        logTableId,
-        startedAt,
-        trigger,
-        summary,
-        fetchImpl,
-      });
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      console.error("subscribe-mailchimp-sync log failed:", detail);
-    }
-  }
 
   return summary;
 }

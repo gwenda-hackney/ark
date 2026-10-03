@@ -461,11 +461,10 @@ Public halves of the Google setup; the secrets are above.
 
 ### Mailchimp sync Worker
 
-Which audience and which Baserow tables the sync works on.
+Which audience the sync works on, and where Baserow is.
 
 - `MAILCHIMP_AUDIENCE_ID`: the audience it syncs into.
 - `BASEROW_API_URL`: `https://api.baserow.io` (also on the Wi-Fi portal).
-- `BASEROW_SYNC_LOG_TABLE_ID`: the Baserow table it logs runs to.
 
 ### Wi-Fi captive portal Worker
 

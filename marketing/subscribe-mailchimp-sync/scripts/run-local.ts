@@ -38,7 +38,6 @@ async function main() {
     BASEROW_DATABASE_ID:
       process.env.BASEROW_DATABASE_ID ||
       process.env.SUBSCRIBE_MAILCHIMP_BASEROW_DATABASE_ID,
-    BASEROW_SYNC_LOG_TABLE_ID: process.env.BASEROW_SYNC_LOG_TABLE_ID,
     BASEROW_API_URL: process.env.BASEROW_API_URL,
   };
 
@@ -46,7 +45,6 @@ async function main() {
     dryRun,
     all,
     limit,
-    trigger: "cli",
   });
   console.log(JSON.stringify(summary, null, 2));
   if (!summary.ok) process.exitCode = 1;
