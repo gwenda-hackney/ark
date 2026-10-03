@@ -97,7 +97,7 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
   title,
   subtitle,
   "parentId": parent->slug.current,
-  "items": *[_type == "menuItem" && references(^._id)] | order(orderRank asc) {
+  "items": *[_type == "menuItem" && references(^._id) && removed != true] | order(orderRank asc) {
     "id": _id,
     name,
     description,

@@ -344,8 +344,9 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
       }
     }
 
+    // `removed`: it was taken off the digital menu and is back (below).
     await sanityMutate(env, [
-      { patch: { id: sanityId, set, ...(unset.length ? { unset } : {}) } },
+      { patch: { id: sanityId, set, unset: [...unset, "removed"] } },
     ]);
 
     await persistItemLinkAndSnapshot(
@@ -359,7 +360,36 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
     synced.push({ id: item._id, name: item.name, sanityId });
   }
 
-  return { created, synced, unchanged, missing, sectionWrites };
+  const removed = await dropOffMenuItems(env, tables, items, publishable, target);
+  return { created, synced, unchanged, missing, removed, sectionWrites };
+}
+
+/**
+ * Taken off the digital menu (#42). Like a night dropped from a schedule, a
+ * drink on the website gets a draft marked `removed`, which Update website
+ * takes off; one never published just goes. Its staged snapshot goes too, so
+ * putting it back stages it again.
+ */
+async function dropOffMenuItems(env, tables, items, publishable, target) {
+  const kept = new Set(publishable);
+  const offMenu = items.filter(
+    (item) => !kept.has(item) && item.sanityId && item.publishSnapshots?.[target],
+  );
+  if (!offMenu.length) return [];
+  const ids = offMenu.map((item) => item.sanityId);
+  const live = new Set((await sanityQuery(env, "production", "*[_id in $ids]._id", { ids })) || []);
+  await sanityMutate(
+    env,
+    ids.map((id) => (live.has(id) ? { patch: { id, set: { removed: true } } } : { delete: { id } })),
+  );
+  for (const item of offMenu) {
+    const { [target]: _staged, ...snapshots } = item.publishSnapshots;
+    await updateRow(env, tables.items, item._id, {
+      [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(snapshots),
+      ...(live.has(item.sanityId) ? {} : { "Sanity ID": "" }),
+    });
+  }
+  return offMenu.map((item) => ({ id: item._id, name: item.name, sanityId: item.sanityId }));
 }
 
 /**
