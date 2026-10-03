@@ -4,14 +4,20 @@
 	import {
 		Button,
 		BusyOverlay,
+		ConfirmDialog,
 		Dialog,
+		EditorActionBar,
 		EditorBackBar,
 		Field,
 		NativeSelect,
+		NumberField,
 		Segmented,
 		TextArea,
 		TextField,
 	} from "../ui";
+	import { FormErrors } from "../ui/form-errors.svelte";
+	import { formatMoney, parseNumber } from "../ui/number-input";
+	import { ITEM_FIELD_ORDER, itemFieldTab, stripUnit, validateItem } from "./item-validate";
 	import type { SegmentedItem, SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
 	import { type InventoryItem } from "../inventory/types";
@@ -125,6 +131,9 @@
 	let restoring = false;
 	let aiError = $state("");
 	let aiBusy = $state(false);
+	/** Problems from the last Save, by field id; kept fresh as they are fixed. */
+	const errors = new FormErrors();
+	let priceTyped = false;
 
 	const screenSuggestions = $derived(
 		collectPosScreenSuggestions(menuItems, (posMenus || []).map((menu) => menu.name)),
@@ -317,6 +326,7 @@
 		discardOpen = false;
 		aiError = "";
 		aiBusy = false;
+		errors.clearAll();
 	});
 
 	$effect(() => {
@@ -639,6 +649,52 @@
 	const aiStale = $derived(
 		Boolean(aiNote && analyzedKey && analyzedKey !== analysisKey),
 	);
+	const savedDraft = $derived(snapshot ? parseMenuDraft(snapshot) : null);
+
+	function validate() {
+		return item ? validateItem(item, menuItems, item._id ? savedDraft : null) : {};
+	}
+
+	function showErrors() {
+		return errors.reveal({
+			order: ITEM_FIELD_ORDER,
+			tabOf: itemFieldTab,
+			currentTab: tab,
+			showTab: (id) => navigate(menuTabPath(tabBase, id)),
+		});
+	}
+
+	function submit() {
+		if (busy || !item) return;
+		errors.replace(validate());
+		if (errors.count) {
+			void showErrors();
+			return;
+		}
+		onsave();
+	}
+
+	// After a Save found problems, keep them in step with what's typed.
+	$effect(() => {
+		if (!errors.count) return;
+		errors.replace(validate());
+	});
+
+	/** The figure beside its unit: "12.5%" shows as 12.5 next to %. */
+	function patchWithUnit(field: "abv" | "volume", raw: string) {
+		const text = raw.trim();
+		patch(field, text ? (field === "abv" ? `${text}%` : `${text} ml`) : "");
+	}
+
+	function tidyPrice(e: FocusEvent) {
+		if (!priceTyped) return;
+		priceTyped = false;
+		const raw = (e.currentTarget as HTMLInputElement).value;
+		if (parseNumber(raw) === null) return;
+		const next = formatMoney(raw);
+		if (next !== raw) patch("price", next);
+	}
+
 	const currentDraft = $derived(serializeDraft(item));
 	const dirty = $derived(isDraftDirty(snapshot, currentDraft));
 	const canUndo = $derived(canUndoDraft(history, currentDraft));
@@ -696,30 +752,21 @@
 {#if item}
 	<form
 		class="editor"
+		novalidate
 		aria-busy={busy || undefined}
 		onsubmit={(e) => {
 			e.preventDefault();
-			if (busy) return;
-			onsave();
+			submit();
 		}}
 	>
 		<BusyOverlay active={busy} label={busyLabel} />
-		<EditorBackBar label="Menu" {dirty} onback={discardAndClose} />
+		<EditorBackBar label="Menu" onback={discardAndClose} />
 		<div class="split">
 
 			<div class="panel" class:dirty>
 				<header class="panel-head">
 					<div class="type-line">
 						<p class="eyebrow">{typeLine}</p>
-						{#if dirty}
-							<span
-								class="dirty-dot"
-								title="Unsaved"
-								aria-live="polite"
-							>
-								<span class="sr-only">Unsaved</span>
-							</span>
-						{/if}
 					</div>
 					<div class="head-tools">
 						<div class="toolbar-actions">
@@ -786,6 +833,8 @@
 							required
 							autocomplete="off"
 							aria-label="Drink name"
+							aria-invalid={errors.get("f-name") ? true : undefined}
+							aria-describedby={errors.get("f-name") ? "f-name-error" : undefined}
 							value={item.name || ""}
 							oninput={(e) =>
 								patch(
@@ -793,33 +842,43 @@
 									(e.currentTarget as HTMLInputElement).value,
 								)}
 						/>
+						{#if errors.get("f-name")}
+							<p class="head-error" id="f-name-error">{errors.get("f-name")}</p>
+						{/if}
 						{#if item.notes}
 							<p class="sub">{item.notes}</p>
 						{/if}
 					</div>
 					<div class="title-meta">
+						<label class="price-label" for="f-price">
+							{priceFieldLabel === "Price" ? "Price" : `Price · ${priceFieldLabel}`}
+						</label>
 						<div class="price-row">
-							<label class="sr-only" for="f-price">{priceFieldLabel} price</label>
-							<div class="price-edit">
+							<div class="price-edit" class:invalid={Boolean(errors.get("f-price"))}>
 								<span class="pound" aria-hidden="true">£</span>
 								<input
 									class="price-input"
 									id="f-price"
 									inputmode="decimal"
 									autocomplete="off"
-									placeholder="0"
+									placeholder="0.00"
+									aria-invalid={errors.get("f-price") ? true : undefined}
+									aria-describedby={errors.get("f-price") ? "f-price-error" : undefined}
 									value={item.price || ""}
-									oninput={(e) =>
-										patch(
-											"price",
-											(e.currentTarget as HTMLInputElement).value,
-										)}
+									oninput={(e) => {
+										priceTyped = true;
+										patch("price", (e.currentTarget as HTMLInputElement).value);
+									}}
+									onblur={tidyPrice}
 								/>
 							</div>
 							{#if item.priceAlt}
 								<span class="price-alt tnum">/ {item.priceAlt}</span>
 							{/if}
 						</div>
+						{#if errors.get("f-price")}
+							<p class="head-error" id="f-price-error">{errors.get("f-price")}</p>
+						{/if}
 						{#if headerPourLabel}
 							<p
 								class="pour-readout tnum"
@@ -881,7 +940,8 @@
 										<Field
 											label="Category"
 											for="f-cocktail-type"
-											tooltip="Build family: spritz, highball, stirred, and so on. Separate from where it sits on the menu."
+											optional
+											hint="Spritz, highball, stirred… Not where it sits on the menu."
 										>
 											<NativeSelect
 												id="f-cocktail-type"
@@ -898,7 +958,7 @@
 											/>
 										</Field>
 									{:else}
-										<Field label="Producer" for="f-producer-d">
+										<Field label="Producer" for="f-producer-d" optional>
 											<TextField
 												id="f-producer-d"
 												size="sm"
@@ -915,7 +975,8 @@
 										<Field
 											label="Tasting note"
 											for="f-notes"
-											tooltip="Short line under the name."
+											optional
+											hint="A short line under the name."
 										>
 											<TextField
 												id="f-notes"
@@ -934,7 +995,8 @@
 										<Field
 											label="Menu description"
 											for="f-description"
-											tooltip="What guests read on the menu: the ingredient line or a longer blurb."
+											optional
+											hint="What guests read on the menu: the ingredient line or a longer blurb."
 										>
 											{#snippet actions()}
 												{#if showRecipe}
@@ -968,9 +1030,10 @@
 									<Field
 										label="ABV"
 										for="f-abv"
-										tooltip={showRecipe
-											? "Worked out from the ingredients. Type over it, or press the arrows to work it out again."
-											: undefined}
+										width="sm"
+										optional
+										error={errors.get("f-abv")}
+										hint={showRecipe ? "From the ingredients. Type over it if needed." : undefined}
 									>
 										{#snippet actions()}
 											{#if showRecipe}
@@ -989,33 +1052,40 @@
 												</Button>
 											{/if}
 										{/snippet}
-										<TextField
+										<NumberField
 											id="f-abv"
 											size="sm"
-											value={item.abv || ""}
+											unit="%"
+											min={0}
+											max={100}
+											step={0.5}
+											decimals={1}
+											noun="a percentage"
+											value={stripUnit(item.abv, "%")}
 											oninput={(e) =>
-												patch(
-													"abv",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
+												patchWithUnit("abv", (e.currentTarget as HTMLInputElement).value)}
 										/>
 									</Field>
 									<Field
 										label="Volume"
 										for="f-volume"
-										tooltip={showRecipe
-											? "Worked out from the ingredients. Type over it if the glass holds a different amount."
-											: undefined}
+										width="sm"
+										optional
+										error={errors.get("f-volume")}
+										hint={showRecipe ? "From the ingredients." : undefined}
 									>
-										<TextField
+										<NumberField
 											id="f-volume"
 											size="sm"
-											value={item.volume || ""}
+											unit="ml"
+											min={0}
+											step={5}
+											decimals={0}
+											noun="millilitres"
+											example="120"
+											value={stripUnit(item.volume, "ml")}
 											oninput={(e) =>
-												patch(
-													"volume",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
+												patchWithUnit("volume", (e.currentTarget as HTMLInputElement).value)}
 										/>
 									</Field>
 								</div>
@@ -1156,7 +1226,7 @@
 												)}
 										/>
 									</Field>
-									<Field label="Garnish" for="f-garnish">
+									<Field label="Garnish" for="f-garnish" optional>
 										<TextField
 											id="f-garnish"
 											size="sm"
@@ -1203,7 +1273,9 @@
 									<Field
 										label="Till button name"
 										for="f-pos-name"
-										tooltip="Short name on the POS button. Leave blank to use the drink name. Serve sizes are added on export."
+										width="lg"
+										optional
+										hint="Blank uses the drink name. Serve sizes are added on export."
 									>
 										<TextField
 											id="f-pos-name"
@@ -1265,100 +1337,43 @@
 				</div>
 				</div>
 
-				<footer class="panel-foot">
-					{#if item._id}
-						<Button
-							class="delete-btn"
-							variant="destructive"
-							size="sm"
-							type="button"
-							disabled={busy}
-							busy={busy && busyLabel.startsWith("Deleting")}
-							onclick={requestDelete}
-						>
-							{#snippet icon()}
-								<Icon name="x-circle" />
-							{/snippet}
-							Delete
-						</Button>
-					{/if}
-					<Button
-						variant="primary"
-						size="sm"
-						type="submit"
-						disabled={busy}
-						busy={busy && busyLabel.startsWith("Saving")}
-					>
-						{#snippet icon()}
-							<Icon name="save" />
-						{/snippet}
-						{busy && busyLabel.startsWith("Saving") ? "Saving…" : "Save"}
-					</Button>
-				</footer>
+				<EditorActionBar
+					saveLabel="Save drink"
+					saving={busy && busyLabel.startsWith("Saving")}
+					disabled={busy}
+					{dirty}
+					errorCount={errors.count}
+					onerrors={() => void showErrors()}
+					overflow={item._id
+						? [{ label: "Delete drink", tone: "destructive", disabled: busy, onselect: requestDelete }]
+						: []}
+				/>
 			</div>
 		</div>
 
-		<Dialog
+		<ConfirmDialog
 			open={discardOpen}
 			title="Discard unsaved changes?"
-			onclose={cancelDiscard}
-		>
-			<p class="delete-copy">
-				{discardKind === "reload"
-					? "Reload will discard unsaved changes."
-					: "You have edits that have not been saved. Close without saving?"}
-			</p>
-			{#snippet footer()}
-				<Button
-					variant="outline"
-					size="sm"
-					type="button"
-					onclick={cancelDiscard}
-				>
-					Keep editing
-				</Button>
-				<Button
-					variant="destructive"
-					size="sm"
-					type="button"
-					onclick={confirmDiscard}
-				>
-					Discard
-				</Button>
-			{/snippet}
-		</Dialog>
+			message={discardKind === "reload"
+				? "Reloading puts back what was last saved. Your edits will be lost."
+				: "You have edits that haven't been saved. They will be lost."}
+			action="Discard"
+			cancelLabel="Keep editing"
+			oncancel={cancelDiscard}
+			onconfirm={confirmDiscard}
+		/>
 
-		<Dialog
+		<ConfirmDialog
 			open={deleteOpen}
-			title="Delete drink?"
-			onclose={cancelDelete}
-		>
-			<p class="delete-copy">
-				Delete <strong>{item.name?.trim() || "this drink"}</strong> from the
-				menu? This cannot be undone.
-			</p>
-			{#snippet footer()}
-				<Button
-					variant="outline"
-					size="sm"
-					type="button"
-					disabled={busy}
-					onclick={cancelDelete}
-				>
-					Cancel
-				</Button>
-				<Button
-					variant="destructive"
-					size="sm"
-					type="button"
-					disabled={busy}
-					busy={busy && busyLabel.startsWith("Deleting")}
-					onclick={performDelete}
-				>
-					{busy && busyLabel.startsWith("Deleting") ? "Deleting…" : "Delete"}
-				</Button>
-			{/snippet}
-		</Dialog>
+			title={`Delete ${item.name?.trim() || "this drink"}?`}
+			message="It comes off every menu and the till export. This can't be undone."
+			action="Delete"
+			busyLabel="Deleting…"
+			busy={busy && busyLabel.startsWith("Deleting")}
+			disabled={busy}
+			oncancel={cancelDelete}
+			onconfirm={performDelete}
+		/>
 	</form>
 {/if}
 
@@ -1405,14 +1420,23 @@
 		text-overflow: ellipsis;
 	}
 
-	.dirty-dot {
-		display: inline-flex;
-		flex-shrink: 0;
-		width: 0.45rem;
-		height: 0.45rem;
-		border-radius: 50%;
-		background: var(--destructive);
-		box-shadow: 0 0 0 3px var(--destructive-wash);
+	.head-error {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--danger);
+	}
+
+	.price-label {
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
+	.price-edit.invalid,
+	.price-edit.invalid:hover {
+		border-color: var(--danger);
 	}
 
 	.head-tools {
@@ -1653,32 +1677,6 @@
 		margin: 0;
 		font-size: var(--text-base);
 		color: var(--muted-foreground);
-	}
-
-	.panel-foot {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: var(--space-2);
-		flex-shrink: 0;
-		margin-top: auto;
-		padding: 0.65rem var(--card-pad-lg) 0.85rem;
-		border-top: 1px solid var(--border);
-	}
-
-	.panel-foot :global(.delete-btn) {
-		margin-right: auto;
-	}
-
-	.delete-copy {
-		margin: 0;
-		font-size: var(--text-base);
-		line-height: 1.45;
-		color: var(--foreground);
-	}
-
-	.delete-copy strong {
-		font-weight: 600;
 	}
 
 	.tabs {
@@ -1990,8 +1988,7 @@
 
 		.panel-head,
 		.tabs,
-		.tab-body,
-		.panel-foot {
+		.tab-body {
 			padding-left: max(var(--page-gutter), 1.125rem);
 			padding-right: max(var(--page-gutter), 1.125rem);
 		}
@@ -2001,9 +1998,6 @@
 			padding-bottom: max(var(--page-gutter), 1.125rem);
 		}
 
-		.panel-foot {
-			padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
-		}
 	}
 
 	@media (max-width: 880px) {
@@ -2013,9 +2007,6 @@
 			row-gap: var(--space-1);
 		}
 
-		.panel-foot {
-			padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-		}
 	}
 
 	@media (max-width: 600px) {

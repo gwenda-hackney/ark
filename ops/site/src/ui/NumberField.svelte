@@ -52,6 +52,8 @@
 
 	const field = getFieldContext();
 	let error = $state("");
+	/** Only tidy what was typed: opening a saved "12" must not turn it into an edit. */
+	let typed = false;
 
 	$effect(() => {
 		field?.setLocalError(error);
@@ -68,10 +70,18 @@
 	}
 
 	function commit(e: FocusEvent & { currentTarget: EventTarget & HTMLInputElement }) {
-		const next = tidy(e.currentTarget.value);
-		check(next);
-		if (!error && next !== value) value = next;
-		if (!error) oncommit?.(next);
+		const raw = e.currentTarget.value;
+		check(raw);
+		if (typed && !error) {
+			const next = tidy(raw);
+			if (next !== raw) {
+				// Through the DOM so bind:value and any oninput both get the tidy figure.
+				e.currentTarget.value = next;
+				e.currentTarget.dispatchEvent(new Event("input", { bubbles: true }));
+			}
+			oncommit?.(next);
+		}
+		typed = false;
 		onblur?.(e);
 	}
 
@@ -102,6 +112,7 @@
 	onblur={commit}
 	onkeydown={stepBy}
 	oninput={(e) => {
+		typed = true;
 		if (error) error = "";
 		oninput?.(e);
 	}}
