@@ -11,6 +11,9 @@ on:
       - ".github/workflows/apps.yml"
       - ".github/scripts/sync-brand-tokens.mjs"
       - ".github/scripts/cloudflare-pages-branch.mjs"
+      # The ops deploy runs the ops migrations.
+      - "migrations/**"
+      - "scripts/lib/migrations.mjs"
   workflow_dispatch:
     inputs:
       app:
@@ -97,9 +100,8 @@ jobs:
     needs: changes
     if: >-
       needs.changes.outputs.brand == 'true'
-      && github.event_name == 'workflow_dispatch'
-      && inputs.deploy_target == 'production'
       && github.ref_name == 'release'
+      && (github.event_name == 'push' || inputs.deploy_target == 'production')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -281,9 +283,8 @@ jobs:
     needs: changes
     if: >-
       needs.changes.outputs.ops == 'true'
-      && github.event_name == 'workflow_dispatch'
-      && inputs.deploy_target == 'production'
       && github.ref_name == 'release'
+      && (github.event_name == 'push' || inputs.deploy_target == 'production')
     runs-on: ubuntu-latest
     permissions:
       contents: write
