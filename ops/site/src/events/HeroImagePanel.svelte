@@ -566,7 +566,7 @@
 		justify-items: center;
 		gap: var(--space-1);
 		width: 100%;
-		aspect-ratio: 4 / 3;
+		aspect-ratio: 16 / 10;
 		border: 1px dashed var(--border-strong);
 		border-radius: var(--radius-md);
 		background: transparent;

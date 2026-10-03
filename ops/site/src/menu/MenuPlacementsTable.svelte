@@ -260,7 +260,7 @@
 	{/if}
 
 	{#if addOptions.length > 1}
-		<Field label="Add" for="f-add-menu-row">
+		<Field label="Add" for="f-add-menu-row" width="md">
 			<NativeSelect
 				id="f-add-menu-row"
 				size="sm"

@@ -28,7 +28,7 @@
 	grid-column-end: span 6;
 }
 
-@container (min-width: 30rem) {
+@container (min-width: 27rem) {
 	:is(.form-cols, .lead-fields) > .span-2 {
 		grid-column-end: span 4;
 	}
@@ -201,9 +201,16 @@
 	min-width: 0;
 }
 
-@container (min-width: 50rem) {
+/* Not phone-narrow but not wide either: the photo keeps to a sensible size. */
+@container (min-width: 30rem) {
+	.form-lead > .lead-grid > .lead-aside {
+		max-width: 30rem;
+	}
+}
+
+@container (min-width: 42rem) {
 	.form-lead > .lead-grid {
-		grid-template-columns: minmax(0, 1fr) var(--form-aside-w, 20rem);
+		grid-template-columns: minmax(0, 1fr) min(var(--form-aside-w, 20rem), 16rem);
 		column-gap: var(--space-8);
 	}
 
@@ -220,6 +227,13 @@
 	.form-lead > .lead-grid > .lead-aside {
 		grid-column: 2;
 		order: 3;
+		max-width: none;
+	}
+}
+
+@container (min-width: 56rem) {
+	.form-lead > .lead-grid {
+		grid-template-columns: minmax(0, 1fr) var(--form-aside-w, 20rem);
 	}
 }
 
