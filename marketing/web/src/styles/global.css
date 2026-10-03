@@ -7139,7 +7139,7 @@ a.event-card:focus-visible .event-title,
 
 @media (max-width: 640px) {
   .series-gallery-item {
-    flex-basis: calc(var(--ratio) * 9rem);
+    flex-basis: calc(var(--ratio) * 12rem);
   }
 }
 
@@ -7191,11 +7191,23 @@ a.event-card:focus-visible .event-title,
   place-items: center;
 }
 
+/* Photos stack in one cell so one can slide out while the next slides in. */
+.gallery-lightbox-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 .gallery-lightbox-image {
+  grid-area: 1 / 1;
   max-width: calc(100vw - 2rem);
   max-height: calc(100dvh - 6rem);
   object-fit: contain;
   user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform, opacity;
 }
 
 .gallery-lightbox button {
