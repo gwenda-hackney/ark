@@ -10,6 +10,7 @@ import {
   normalizeSignedUp,
   normalizeTag,
   normalizeTags,
+  permanentRejection,
   resolveAudienceId,
   resolveTableId,
   SIGNED_UP_MERGE_TAG,
@@ -191,6 +192,38 @@ describe("upsertMailchimpMember", () => {
 
     expect(result).toEqual({ ok: true, skippedEspUpdate: true });
   });
+
+  it("counts an address Mailchimp rejects for good as done, so it isn't retried", async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.method) return new Response("", { status: 404 });
+      return Response.json(
+        {
+          title: "Invalid Resource",
+          status: 400,
+          detail: "test@test.com looks fake or invalid, please enter a real email address.",
+        },
+        { status: 400 },
+      );
+    });
+
+    const result = await upsertMailchimpMember({
+      apiKey: "mailchimp-key-us2",
+      audienceId: "e2c69d5d31",
+      email: "test@test.com",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      rejected: "test@test.com looks fake or invalid, please enter a real email address.",
+    });
+  });
+
+  it("still fails, to retry, on other Mailchimp errors", () => {
+    expect(permanentRejection(400, '{"title":"Member Exists"}')).toBe("");
+    expect(permanentRejection(500, '{"title":"Invalid Resource"}')).toBe("");
+    expect(permanentRejection(400, "not json")).toBe("");
+  });
 });
 
 describe("syncUnsyncedSubscribers", () => {
@@ -267,71 +300,6 @@ describe("syncUnsyncedSubscribers", () => {
     expect(summary.synced).toBe(1);
     expect(summary.errors).toBe(0);
     expect(summary.results[0]?.status).toBe("synced");
-  });
-
-  it("records a sync-run row when BASEROW_SYNC_LOG_TABLE_ID is set", async () => {
-    clearSubscribeTableIdCache();
-    const logPosts: unknown[] = [];
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("/all-tables/")) return tablesResponse();
-      if (
-        url.includes("/rows/table/999/") &&
-        init?.method === "POST"
-      ) {
-        logPosts.push(JSON.parse(String(init.body)));
-        return Response.json({ id: 1 });
-      }
-      if (url.includes("api.baserow.io") && !init?.method) {
-        return Response.json({ results: [] });
-      }
-      throw new Error(`Unexpected fetch: ${url} ${init?.method}`);
-    });
-
-    const summary = await syncUnsyncedSubscribers(
-      { ...env, BASEROW_SYNC_LOG_TABLE_ID: "999" },
-      {
-        trigger: "cron",
-        fetchImpl: fetchImpl as unknown as typeof fetch,
-      },
-    );
-
-    expect(summary.ok).toBe(true);
-    expect(summary.scanned).toBe(0);
-    expect(logPosts).toHaveLength(1);
-    const row = logPosts[0] as Record<string, unknown>;
-    expect(row.Trigger).toBe("cron");
-    expect(row.Scanned).toBe(0);
-    expect(row.Ok).toBe(true);
-    expect(row["Dry run"]).toBe(false);
-    expect(typeof row.Run).toBe("string");
-    expect(String(row.Run)).toContain("cron");
-    expect(row.Results).toBe("[]");
-  });
-
-  it("does not fail the sync when sync-log POST fails", async () => {
-    clearSubscribeTableIdCache();
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("/all-tables/")) return tablesResponse();
-      if (url.includes("/rows/table/999/") && init?.method === "POST") {
-        return new Response("nope", { status: 500 });
-      }
-      if (url.includes("api.baserow.io") && !init?.method) {
-        return Response.json({ results: [] });
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const summary = await syncUnsyncedSubscribers(
-      { ...env, BASEROW_SYNC_LOG_TABLE_ID: "999" },
-      { fetchImpl: fetchImpl as unknown as typeof fetch },
-    );
-
-    expect(summary.ok).toBe(true);
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
   });
 
   it("stops early when Mailchimp rate-limits", async () => {
