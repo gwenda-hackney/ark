@@ -23,7 +23,7 @@
 </script>
 
 <span class="badge {resolved}" {title}>
-	{#if children}{@render children()}{:else}{label}{/if}
+	<span class="text">{#if children}{@render children()}{:else}{label}{/if}</span>
 </span>
 
 <style>
@@ -48,6 +48,13 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		vertical-align: middle;
+	}
+
+	/* Ellipsis needs a block inside the flex box. */
+	.text {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.success {
