@@ -8,6 +8,7 @@
 	import type { InventoryItem } from "../inventory/types";
 	import type { DrinkType, MenuItem, MenuSection, PosMenu } from "./types";
 	import { publishPendingCount } from "./publish";
+	import { menuItemPayload } from "./item-payload";
 	import { defaultPosMenus } from "./types";
 	import { Icon } from "../app/shell";
 	import {
@@ -258,30 +259,7 @@
 		try {
 			busy = true;
 			busyLabel = "Saving…";
-			const payload = {
-				name: item.name,
-				sectionId: item.sectionId,
-				price: item.price,
-				priceAlt: item.priceAlt,
-				drinkType: item.drinkType || "cocktail",
-				cocktailType: item.cocktailType || "",
-				notes: item.notes,
-				glassware: item.glassware,
-				ice: item.ice,
-				garnish: item.garnish,
-				onDigitalMenu: item.onDigitalMenu !== false,
-				onPrintMenu: item.onPrintMenu !== false,
-				posMenuIds: (item.posMenus || []).map((row) => row.id),
-				lightspeedName: item.lightspeedName || "",
-				lightspeedMenuScreen: item.lightspeedMenuScreen || "",
-				description: item.description,
-				method: item.method,
-				abv: item.abv,
-				volume: item.volume,
-				producer: item.producer,
-				ingredients: item.ingredients || [],
-				analysisNote: item.analysisNote ?? null,
-			};
+			const payload = menuItemPayload(item);
 			const existing = item._id;
 			const data = existing
 				? await api.updateItem(existing, payload)

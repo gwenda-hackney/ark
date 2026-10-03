@@ -18,6 +18,7 @@ import {
 } from "../../functions/api/menu/image.js";
 import { onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
 import { onRequestGet as releaseDiff } from "../../functions/api/web/release.js";
+import { menuItemPayload } from "./item-payload.ts";
 
 function editor(world) {
   const ok = (res, status = 200) => {
@@ -145,6 +146,25 @@ describe("menu: each edit reaches /menu after Update website", () => {
     await ops.edit(negroni, { onDigitalMenu: true });
     await ops.updateWebsite();
     assert.ok(drink(await websiteMenu(world), "Cocktails", "Negroni"), "back on /menu");
+  });
+
+  it("a different section per channel survives the editor's Save (#151)", async () => {
+    const spritzes = await ops.section("Spritzes");
+    const split = (negroni.placements || []).map((row) =>
+      row.channel === "digital" ? { ...row, sectionId: spritzes._id } : row,
+    );
+    const placed = await ops.edit(negroni, { placements: split });
+    const sectionOf = (item, channel) => item.placements.find((row) => row.channel === channel)?.sectionId;
+    assert.equal(sectionOf(placed, "print"), cocktails._id);
+    assert.equal(sectionOf(placed, "digital"), spritzes._id);
+
+    // The editor's Save, after changing only the price.
+    const saved = await ops.edit(placed, menuItemPayload({ ...placed, price: "12" }));
+    assert.equal(saved.price, "12");
+    assert.equal(sectionOf(saved, "print"), cocktails._id, "print keeps its section");
+    assert.equal(sectionOf(saved, "digital"), spritzes._id, "digital keeps its own section");
+    await ops.updateWebsite();
+    assert.ok(drink(await websiteMenu(world), "Spritzes", "Negroni"), "/menu shows the digital section");
   });
 
   it("Update website with nothing changed publishes nothing", async () => {
