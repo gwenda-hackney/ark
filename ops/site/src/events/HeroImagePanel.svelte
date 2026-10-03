@@ -335,7 +335,6 @@
 					/>
 					<span class="pick-btn"><Icon name="camera" size={15} /> Take photo</span>
 				</label>
-			{#if sourceUrl}
 				<label class="pick">
 					<input
 						class="sr-only"
@@ -344,17 +343,20 @@
 						disabled={disabled}
 						onchange={onFile}
 					/>
-					<span class="pick-btn">Replace</span>
+					<span class="pick-btn">{sourceUrl ? "Replace" : "Add photo"}</span>
 				</label>
-				<button class="pick-btn remove" type="button" {disabled} onclick={onclear}>
+				<button class="pick-btn remove" type="button" disabled={disabled || !sourceUrl} onclick={onclear}>
 					Remove
 				</button>
-			{/if}
-			{#if originalUrl}
-				<a class="pick-btn" href={originalUrl} download target="_blank" rel="noopener">
-					<Icon name="download" size={15} /> Original
-				</a>
-			{/if}
+				{#if originalUrl}
+					<a class="pick-btn" href={originalUrl} download target="_blank" rel="noopener">
+						<Icon name="download" size={15} /> Original
+					</a>
+				{:else}
+					<button class="pick-btn" type="button" disabled title="Nothing saved to download yet">
+						<Icon name="download" size={15} /> Original
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</header>
@@ -382,7 +384,8 @@
 				disabled={disabled}
 				onchange={onFile}
 			/>
-			<span class="empty-label">Add photo</span>
+			<span class="empty-label">Drop a photo here</span>
+			<span class="empty-hint">or use Add photo below</span>
 		</label>
 	{:else}
 		<div
@@ -476,8 +479,14 @@
 		align-items: center;
 	}
 
+	/* No heading: the actions sit under the photo, in a row from the left. */
 	.hero-head.end {
-		justify-content: flex-end;
+		order: 5;
+		justify-content: flex-start;
+	}
+
+	.hero-head.end .hero-actions {
+		justify-content: flex-start;
 	}
 
 	.section-title {
@@ -521,11 +530,16 @@
 		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--surface-2);
+		background: transparent;
 		color: inherit;
+		font: inherit;
 		font-size: var(--text-sm);
-		font-weight: 600;
+		font-weight: 500;
 		cursor: pointer;
+	}
+
+	.pick-btn:hover:not(:disabled) {
+		background: var(--surface-3);
 	}
 
 	.pick-btn.remove:hover:not(:disabled),
@@ -539,20 +553,29 @@
 		width: fit-content;
 	}
 
-	.pick-btn:disabled {
+	.pick-btn:disabled,
+	.pick:has(input:disabled) .pick-btn {
 		cursor: not-allowed;
-		opacity: 0.6;
+		color: var(--fg-subtle);
+		background: transparent;
 	}
 
 	.empty {
 		display: grid;
-		place-items: center;
+		place-content: center;
+		justify-items: center;
+		gap: var(--space-1);
 		width: 100%;
-		aspect-ratio: 16 / 10;
-		border: 1px dashed var(--border);
+		aspect-ratio: 4 / 3;
+		border: 1px dashed var(--border-strong);
 		border-radius: var(--radius-md);
-		background: var(--surface-2);
+		background: transparent;
 		cursor: pointer;
+	}
+
+	.empty-hint {
+		font-size: var(--text-xs);
+		color: var(--fg-subtle);
 	}
 
 	.empty:hover {
@@ -595,11 +618,11 @@
 	.stage {
 		position: relative;
 		width: 100%;
-		height: min(42vh, 22rem);
+		aspect-ratio: 4 / 3;
 		overflow: hidden;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--bg);
+		background: transparent;
 		cursor: grab;
 		touch-action: none;
 		user-select: none;
@@ -637,7 +660,7 @@
 
 	.zoom {
 		display: grid;
-		grid-template-columns: auto auto minmax(6rem, 1fr) auto;
+		grid-template-columns: auto auto minmax(4rem, 1fr) auto;
 		gap: var(--space-2);
 		align-items: center;
 		flex: 1 1 12rem;
@@ -667,16 +690,11 @@
 		padding: 0;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--surface-2);
+		background: transparent;
 		color: var(--foreground);
 		font-size: var(--text-md);
 		line-height: 1;
 		cursor: pointer;
-	}
-
-	.step:disabled {
-		opacity: 0.45;
-		cursor: default;
 	}
 
 	.reset {
@@ -684,10 +702,21 @@
 		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--surface-2);
+		background: transparent;
 		color: inherit;
+		font: inherit;
 		font-size: var(--text-sm);
-		font-weight: 600;
+		font-weight: 500;
 		cursor: pointer;
+	}
+
+	.reset:hover:not(:disabled) {
+		background: var(--surface-3);
+	}
+
+	.reset:disabled,
+	.step:disabled {
+		color: var(--fg-subtle);
+		cursor: default;
 	}
 </style>

@@ -307,9 +307,9 @@
 		flex: 0 1 auto;
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-md);
+		font-size: var(--text-base);
 		font-weight: 600;
-		line-height: 1.3;
+		line-height: 1.25rem;
 		color: var(--foreground);
 	}
 
@@ -352,8 +352,8 @@
 		min-width: 0;
 		padding: var(--space-2) var(--space-3);
 		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		background: var(--sunken);
+		border-radius: var(--radius-md);
+		background: transparent;
 	}
 
 	.pour-line {

@@ -1,30 +1,25 @@
 <script lang="ts">
 	/**
-	 * Slots inside the night (Open decks, Chess), in the When section under
-	 * the night's own times. Each slot is one row: label, start, end, remove.
+	 * Slots inside the night (Open decks, Chess), as a section of the form.
+	 * Each slot is one row: label, start, end, remove.
 	 */
 	import { Icon } from "../../app/shell";
-	import { Button, TextField, TimeField, Tip } from "../../ui";
+	import { Button, FormSection, TextField, TimeField } from "../../ui";
 	import type { EventForm } from "../event-form.svelte";
 
 	let { form, busy }: { form: EventForm; busy: boolean } = $props();
 </script>
 
-<div class="night-schedule span-all">
-	<div class="head">
-		<span class="label">
-			Night schedule
-			<span class="optional">Optional</span>
-			<Tip
-				label="Night schedule"
-				tooltip="Slots inside the night, such as Open decks or Chess. Shown in gold on What's on when set."
-			/>
-		</span>
+<FormSection
+	title="Night schedule"
+	description="Optional. Shown in gold on What's on."
+>
+	{#snippet actions()}
 		<Button variant="outline" size="sm" type="button" disabled={busy} onclick={() => form.addNightSlot()}>
 			{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 			Add slot
 		</Button>
-	</div>
+	{/snippet}
 	{#if form.nightSchedule.length}
 		<ul class="slots">
 			{#each form.nightSchedule as slot, index (index)}
@@ -62,39 +57,9 @@
 	{:else}
 		<p class="empty">No slots. Add open decks, chess, sets, or whatever shapes the night.</p>
 	{/if}
-</div>
+</FormSection>
 
 <style>
-	.night-schedule {
-		display: grid;
-		gap: var(--space-2);
-		min-width: 0;
-		padding-top: var(--space-4);
-		border-top: 1px solid var(--border);
-	}
-
-	.head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-	}
-
-	.label {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-sm);
-		font-weight: 500;
-		color: var(--muted-foreground);
-	}
-
-	.optional {
-		font-size: var(--text-xs);
-		font-weight: 400;
-		color: var(--subtle-foreground);
-	}
-
 	.slots {
 		display: grid;
 		gap: var(--space-2);
@@ -106,7 +71,7 @@
 	/* Label takes the room; times at their own width; remove at the end. */
 	.slot {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 7.5rem 7.5rem auto;
+		grid-template-columns: minmax(0, 1fr) 6.75rem 6.75rem auto;
 		gap: var(--space-2);
 		align-items: center;
 	}
@@ -141,7 +106,7 @@
 	}
 
 	/* Phones: the name on its own line, the times and remove under it. */
-	@container (max-width: 30rem) {
+	@container (max-width: 26rem) {
 		.slot {
 			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 			padding-bottom: var(--space-2);

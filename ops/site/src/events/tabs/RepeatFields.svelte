@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
-	 * A series' pattern in the When section: how it repeats, then the first
-	 * and last night. Each control is as wide as what goes in it.
+	 * A series' pattern under When, as cells of the form's grid: how it
+	 * repeats on one row, then its first and last night (the night's times
+	 * follow on that row).
 	 */
 	import { DateField, Field, NativeSelect, NumberField } from "../../ui";
 	import type { FormErrors } from "../../ui/form-errors.svelte";
@@ -16,59 +17,55 @@
 	);
 </script>
 
-<div class="field-row">
-	<Field
-		label="Repeats"
-		for="event-unit"
-		width="md"
-		hint={form.repeatUnit === "none" ? "Add each night on its own date with Add night." : undefined}
-	>
-		<NativeSelect
-			id="event-unit"
+<Field
+	class={form.repeatUnit === "none" ? "span-6" : "span-3"}
+	label="Repeats"
+	for="event-unit"
+	hint={form.repeatUnit === "none" ? "Add each night on its own date with Add night." : undefined}
+>
+	<NativeSelect
+		id="event-unit"
+		size="sm"
+		bind:value={form.repeatUnit}
+		options={[
+			{ value: "none", label: "Doesn't repeat" },
+			{ value: "day", label: "Daily" },
+			{ value: "week", label: "Weekly" },
+			{ value: "month", label: "Monthly" },
+		]}
+	/>
+</Field>
+{#if form.repeatUnit !== "none"}
+	<Field class="span-3" label="Every" for="event-every" error={errors.get("event-every")}>
+		<NumberField
+			id="event-every"
 			size="sm"
-			bind:value={form.repeatUnit}
-			options={[
-				{ value: "none", label: "Doesn't repeat" },
-				{ value: "day", label: "Daily" },
-				{ value: "week", label: "Weekly" },
-				{ value: "month", label: "Monthly" },
-			]}
+			integer
+			min={1}
+			max={52}
+			unit={Number(form.repeatEvery) === 1 ? unitWord : `${unitWord}s`}
+			bind:value={form.repeatEvery}
 		/>
 	</Field>
-	{#if form.repeatUnit !== "none"}
-		<Field
-			label="Every"
-			for="event-every"
-			width="sm"
-			error={errors.get("event-every")}
-		>
-			<NumberField
-				id="event-every"
-				size="sm"
-				integer
-				min={1}
-				max={52}
-				unit={Number(form.repeatEvery) === 1 ? unitWord : `${unitWord}s`}
-				bind:value={form.repeatEvery}
-			/>
-		</Field>
-	{/if}
-	{#if form.repeatUnit === "month"}
-		<Field
-			label="Day of month"
-			for="event-month-day"
-			width="xs"
-			optional
-			error={errors.get("event-month-day")}
-			hint="Blank follows the first night."
-		>
-			<NumberField id="event-month-day" size="sm" integer min={1} max={31} bind:value={form.monthDay} />
-		</Field>
-	{/if}
-</div>
-
+{/if}
+{#if form.repeatUnit === "month"}
+	<Field
+		class="span-3"
+		label="Day of month"
+		for="event-month-day"
+		optional
+		error={errors.get("event-month-day")}
+		hint="Blank follows the first night."
+	>
+		<NumberField id="event-month-day" size="sm" integer min={1} max={31} bind:value={form.monthDay} />
+	</Field>
+{/if}
 {#if form.repeatUnit === "week"}
-	<Field label="On" class="span-all" hint="Pick more than one for a series that runs several nights a week.">
+	<Field
+		class="span-6 days"
+		label="On"
+		tooltip="Pick more than one for a series that runs several nights a week."
+	>
 		<div class="chips" role="group" aria-label="Weekdays">
 			{#each WEEKDAYS as day (day)}
 				<button
@@ -85,48 +82,48 @@
 	</Field>
 {/if}
 
-<div class="field-row">
+<Field
+	class="span-3 row-start"
+	label={form.repeatUnit === "none" ? "First night" : "Starts on"}
+	for="event-starts"
+	optional
+	error={errors.get("event-starts")}
+	tooltip={form.repeatUnit === "none"
+		? "Blank until the first night is booked."
+		: "Blank if it isn't fixed yet. The website says to check back soon."}
+>
+	<DateField id="event-starts" size="sm" bind:value={form.startsOn} />
+</Field>
+{#if form.repeatUnit !== "none"}
 	<Field
-		label={form.repeatUnit === "none" ? "First night" : "Starts on"}
-		for="event-starts"
-		width="sm"
-		optional
-		error={errors.get("event-starts")}
-		hint={form.repeatUnit === "none"
-			? "Blank until the first night is booked."
-			: "Blank if it isn't fixed yet. The website says to check back soon."}
+		class="span-3"
+		label="Ends on"
+		for="event-ends"
+		optional={!form.startsOn}
+		error={errors.get("event-ends")}
+		tooltip="The last night. Needed once it has a start."
 	>
-		<DateField id="event-starts" size="sm" bind:value={form.startsOn} />
+		<DateField id="event-ends" size="sm" bind:value={form.endsOn} min={form.startsOn} />
 	</Field>
-	{#if form.repeatUnit !== "none"}
-		<Field
-			label="Ends on"
-			for="event-ends"
-			width="sm"
-			optional={!form.startsOn}
-			error={errors.get("event-ends")}
-			hint="The last night. Needed once it has a start."
-		>
-			<DateField id="event-ends" size="sm" bind:value={form.endsOn} min={form.startsOn} />
-		</Field>
-	{/if}
-</div>
+{/if}
 
 <style>
+	/* Seven days share the row evenly, so they line up with the fields. */
 	.chips {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
+		display: grid;
+		grid-template-columns: repeat(7, minmax(0, 1fr));
+		gap: var(--space-1);
+		min-width: 0;
 	}
 
 	.chip {
-		min-width: 3.25rem;
+		min-width: 0;
 		height: var(--control-h-sm);
-		padding: 0 var(--space-3);
+		padding: 0;
 		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-pill);
+		border-radius: var(--radius-md);
 		background: transparent;
-		color: var(--foreground);
+		color: var(--fg-muted);
 		font: inherit;
 		font-size: var(--text-sm);
 		cursor: pointer;
@@ -134,6 +131,7 @@
 
 	.chip:hover {
 		background: var(--surface-3);
+		color: var(--fg);
 	}
 
 	.chip:focus-visible {
@@ -150,7 +148,6 @@
 	@media (max-width: 900px) {
 		.chip {
 			height: 2.75rem;
-			min-width: 2.75rem;
 		}
 	}
 </style>

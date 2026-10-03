@@ -35,7 +35,7 @@
 	);
 </script>
 
-<FormSection title="Upcoming nights" {description} columns={1}>
+<FormSection title="Upcoming nights" {description}>
 	{#snippet actions()}
 		{#if eventId && onaddnight}
 			<Button variant="outline" size="sm" type="button" disabled={busy} onclick={onaddnight}>
@@ -105,7 +105,7 @@
 		padding: var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--sunken);
+		background: transparent;
 	}
 
 	.occurrence-main {

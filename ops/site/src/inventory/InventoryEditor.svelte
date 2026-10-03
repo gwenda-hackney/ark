@@ -9,6 +9,7 @@
 		Field,
 		FormErrors,
 		FormSection,
+		FormSplit,
 		MoneyField,
 		NativeSelect,
 		NumberField,
@@ -482,13 +483,12 @@
 
 			<div class="body scrollbar-fade">
 				<div class="board">
-					<div class="col-main">
+					<FormSplit>
 						<FormSection title="Item">
 							<Field
-								class="span-all"
+								class="span-5"
 								label="Short name"
 								for="inv-name"
-								width="lg"
 								error={errors.get("inv-name")}
 								hint="What recipes and specs call it."
 							>
@@ -505,9 +505,8 @@
 								/>
 							</Field>
 							<Field
-								class="span-all"
+								class="span-7"
 								label="Full name"
-								width="lg"
 								for="inv-full-name"
 								optional
 								hint="The bottle's full name. Specs keep the short name; analysis uses this to match the menu line."
@@ -524,8 +523,7 @@
 										)}
 								/>
 							</Field>
-							<div class="field-row">
-								<Field label="Kind" for="inv-kind" width="md">
+								<Field class="span-5" label="Kind" for="inv-kind">
 									<NativeSelect
 										id="inv-kind"
 										size="sm"
@@ -535,7 +533,7 @@
 											patch("kind", e.currentTarget.value as InventoryKind)}
 									/>
 								</Field>
-								<Field label="ABV" for="inv-abv" width="sm" optional>
+								<Field class="span-3" label="ABV" for="inv-abv" optional>
 									<NumberField
 										id="inv-abv"
 										size="sm"
@@ -554,7 +552,7 @@
 											)}
 									/>
 								</Field>
-								<Field label="Default unit" for="inv-unit" width="sm">
+								<Field class="span-4" label="Default unit" for="inv-unit">
 									<NativeSelect
 										id="inv-unit"
 										size="sm"
@@ -563,14 +561,12 @@
 										onchange={(e) => patch("defaultUnit", e.currentTarget.value)}
 									/>
 								</Field>
-							</div>
 						</FormSection>
 
 						<FormSection title="Cost and stock" description="An estimate prices recipes until a supplier price is set.">
-							<div class="field-row">
 								<Field
+									class="span-4"
 									label="Estimated cost"
-									width="sm"
 									for="inv-estimate"
 									optional
 									hint={estimateHint(item.kind)}
@@ -598,11 +594,9 @@
 										}}
 									/>
 								</Field>
-							</div>
-							<div class="field-row">
 								<Field
+									class="span-4"
 									label="On hand"
-									width="sm"
 									for="inv-on-hand"
 									optional
 									hint={onHandHint}
@@ -639,7 +633,7 @@
 										}}
 									/>
 								</Field>
-								<Field label="Counted in" for="inv-on-hand-unit" width="sm">
+								<Field class="span-4" label="Counted in" for="inv-on-hand-unit">
 									<NativeSelect
 										id="inv-on-hand-unit"
 										size="sm"
@@ -648,10 +642,45 @@
 										onchange={(e) => patch("actualUnit", e.currentTarget.value)}
 									/>
 								</Field>
-							</div>
+						</FormSection>
+						{#snippet side()}
+						<FormSection title="Used in">
+							{#if usedIn.length === 0}
+								<p class="muted">
+									{item.active === false
+										? "Not used in any recipe. Hidden from the ingredient picker."
+										: "Not used in any recipe yet."}
+								</p>
+							{:else}
+								<div class="used-in">
+									{#each usedIn as drink (drink.id)}
+										<a href={drink.href}>{drink.name}</a>
+									{/each}
+								</div>
+								{#if item.active === false}
+									<p class="muted">Hidden from the ingredient picker.</p>
+								{/if}
+							{/if}
 						</FormSection>
 
-						<FormSection title="Suppliers" columns={1} description="Where it's bought and what it costs. Prices here cost the recipes.">
+						<FormSection title="Notes">
+							<Field label="For the team" for="inv-notes" optional hint="Where it lives, who to ask, anything odd about it.">
+								<TextArea
+									id="inv-notes"
+									rows={3}
+									value={item.notes || ""}
+									oninput={(e) =>
+										patch(
+											"notes",
+											(e.currentTarget as HTMLTextAreaElement).value,
+										)}
+								/>
+							</Field>
+						</FormSection>
+						{/snippet}
+					</FormSplit>
+
+						<FormSection title="Suppliers" description="Where it's bought and what it costs. Prices here cost the recipes.">
 							{#snippet actions()}
 								<Button variant="outline" size="sm" type="button" onclick={openAddSupplier}>
 									{#snippet icon()}
@@ -738,43 +767,6 @@
 								</div>
 							{/if}
 						</FormSection>
-					</div>
-
-					<div class="col-side">
-						<FormSection title="Used in" columns={1}>
-							{#if usedIn.length === 0}
-								<p class="muted">
-									{item.active === false
-										? "Not used in any recipe. Hidden from the ingredient picker."
-										: "Not used in any recipe yet."}
-								</p>
-							{:else}
-								<div class="used-in">
-									{#each usedIn as drink (drink.id)}
-										<a href={drink.href}>{drink.name}</a>
-									{/each}
-								</div>
-								{#if item.active === false}
-									<p class="muted">Hidden from the ingredient picker.</p>
-								{/if}
-							{/if}
-						</FormSection>
-
-						<FormSection title="Notes" columns={1}>
-							<Field label="For the team" for="inv-notes" optional hint="Where it lives, who to ask, anything odd about it.">
-								<TextArea
-									id="inv-notes"
-									rows={3}
-									value={item.notes || ""}
-									oninput={(e) =>
-										patch(
-											"notes",
-											(e.currentTarget as HTMLTextAreaElement).value,
-										)}
-								/>
-							</Field>
-						</FormSection>
-					</div>
 				</div>
 			</div>
 
@@ -1048,17 +1040,11 @@
 		container-name: inventory-detail;
 	}
 
-	.board,
-	.col-main,
-	.col-side {
+	.board {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		align-content: start;
 		min-width: 0;
-	}
-
-	.col-side > :global(.form-section:first-child) {
-		border-top: 1px solid var(--border);
-		padding-top: var(--space-6);
 	}
 
 	.muted {
@@ -1158,7 +1144,7 @@
 		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-pill);
-		background: var(--sunken);
+		background: transparent;
 		color: var(--foreground);
 		font-size: var(--text-sm);
 		line-height: 1.3;

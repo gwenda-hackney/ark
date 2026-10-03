@@ -9,6 +9,8 @@
 		EditorActionBar,
 		EditorBackBar,
 		Field,
+		FormHeading,
+		FormLead,
 		FormSection,
 		MoneyField,
 		NativeSelect,
@@ -884,300 +886,9 @@
 						>
 					{#if tab === "details"}
 						<div class="board">
-							<div class="col-main">
-								<FormSection title="Drink" class="sec-drink">
-									<Field
-										class="span-all"
-										label="Name"
-										for="f-name"
-										width="lg"
-										error={errors.get("f-name")}
-									>
-										<TextField
-											id="f-name"
-											size="sm"
-											autocomplete="off"
-											placeholder="Negroni"
-											value={item.name || ""}
-											oninput={(e) => patch("name", (e.currentTarget as HTMLInputElement).value)}
-										/>
-									</Field>
-									<Field label="Drink type" for="f-drink-type" width="md">
-										<NativeSelect
-											id="f-drink-type"
-											size="sm"
-											options={drinkTypeOptions}
-											value={drinkType}
-											onchange={(e) =>
-												setDrinkType((e.currentTarget as HTMLSelectElement).value as DrinkType)}
-										/>
-									</Field>
-									{#if showRecipe}
-										<Field
-											label="Category"
-											for="f-cocktail-type"
-											width="md"
-											optional
-											hint="Spritz, highball, stirred… Not where it sits on the menu."
-										>
-											<NativeSelect
-												id="f-cocktail-type"
-												size="sm"
-												options={cocktailTypeOptions}
-												value={normalizeCocktailType(item.cocktailType)}
-												onchange={(e) =>
-													patch(
-														"cocktailType",
-														normalizeCocktailType(
-															(e.currentTarget as HTMLSelectElement).value,
-														) as CocktailType | "",
-													)}
-											/>
-										</Field>
-									{:else}
-										<Field label="Producer" for="f-producer-d" width="md" optional>
-											<TextField
-												id="f-producer-d"
-												size="sm"
-												value={item.producer || ""}
-												oninput={(e) => patch("producer", (e.currentTarget as HTMLInputElement).value)}
-											/>
-										</Field>
-									{/if}
-									<div class="field-row">
-										<Field
-											label={priceFieldLabel === "Price" ? "Price" : `${priceFieldLabel} price`}
-											for="f-price"
-											width="sm"
-											optional
-											error={errors.get("f-price")}
-											hint={priceAltHint}
-										>
-											<MoneyField
-												id="f-price"
-												size="sm"
-												value={item.price || ""}
-												oninput={(e) => patch("price", (e.currentTarget as HTMLInputElement).value)}
-												oncommit={(next) => {
-													if (next !== (item?.price || "")) patch("price", next);
-												}}
-											/>
-										</Field>
-									</div>
-									<Field
-										class="span-all"
-										label="Tasting note"
-										for="f-notes"
-										width="lg"
-										optional
-										hint="A short line under the name."
-									>
-										<TextField
-											id="f-notes"
-											size="sm"
-											value={item.notes || ""}
-											placeholder="Floral fizz"
-											oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
-										/>
-									</Field>
-								</FormSection>
-
-								<FormSection
-									title={showRecipe ? "Recipe" : "Serve"}
-									class="sec-recipe"
-									columns={1}
-									description={showRecipe
-										? "What goes in, from stock. Costs and ABV follow from these."
-										: "The stock this is poured from, for cost and the till."}
-								>
-									{#snippet actions()}
-										<Button variant="outline" size="sm" type="button" onclick={() => (addIngredientOpen = true)}>
-											{#snippet icon()}
-												<Icon name="plus" size={15} />
-											{/snippet}
-											{showRecipe ? "Add ingredient" : "Add stock"}
-										</Button>
-									{/snippet}
-									<IngredientsGrid {ingredients} bind:inventory onChange={onIngredientsChange} />
-								</FormSection>
-
-								{#if showRecipe}
-									<FormSection title="Method" class="sec-method">
-										<Field class="span-all" label="How to make it" for="f-method">
-											<MethodEditor
-												id="f-method"
-												value={item.method || ""}
-												onChange={(next) => patch("method", next)}
-											/>
-										</Field>
-										<div class="field-row">
-											<Field label="Glassware" for="f-glass" width="md">
-												<NativeSelect
-													id="f-glass"
-													size="sm"
-													options={glassOptions}
-													value={item.glassware || ""}
-													onchange={(e) => patch("glassware", (e.currentTarget as HTMLSelectElement).value)}
-												/>
-											</Field>
-											<Field label="Ice" for="f-ice" width="md">
-												<NativeSelect
-													id="f-ice"
-													size="sm"
-													options={iceOptions}
-													value={item.ice || ""}
-													onchange={(e) => patch("ice", (e.currentTarget as HTMLSelectElement).value)}
-												/>
-											</Field>
-											<Field label="Garnish" for="f-garnish" width="md" optional>
-												<TextField
-													id="f-garnish"
-													size="sm"
-													value={item.garnish || ""}
-													oninput={(e) => patch("garnish", (e.currentTarget as HTMLInputElement).value)}
-												/>
-											</Field>
-										</div>
-									</FormSection>
-								{/if}
-
-								<FormSection
-									title="On the menu"
-									class="sec-copy"
-									description="What guests read, and the strength and size printed beside it."
-								>
-									<Field
-										class="span-all"
-										label="Menu description"
-										for="f-description"
-										optional
-										hint="The ingredient line or a longer blurb."
-									>
-										{#snippet actions()}
-											{#if showRecipe}
-												<Button
-													variant="ghost"
-													size="xs"
-													type="button"
-													disabled={!flattenIngredientsForMenu(ingredients)}
-													onclick={createMenuLineFromIngredients}
-												>
-													{#snippet icon()}
-														<Icon name="from-list" size={14} />
-													{/snippet}
-													From recipe
-												</Button>
-											{/if}
-										{/snippet}
-										<TextArea
-											id="f-description"
-											rows={3}
-											value={item.description || ""}
-											oninput={(e) => patch("description", (e.currentTarget as HTMLTextAreaElement).value)}
-										/>
-									</Field>
-									<div class="field-row">
-										<Field
-											label="ABV"
-											for="f-abv"
-											width="sm"
-											optional
-											error={errors.get("f-abv")}
-											hint={showRecipe ? "From the recipe. Type over it if needed." : undefined}
-										>
-											{#snippet actions()}
-												{#if showRecipe}
-													<Button
-														variant="ghost"
-														size="xs"
-														type="button"
-														aria-label="Work out ABV and volume from the recipe"
-														title="Work out ABV and volume from the recipe"
-														disabled={!canRecalcRecipe}
-														onclick={recalculateRecipeMetrics}
-													>
-														{#snippet icon()}
-															<Icon name="refresh" />
-														{/snippet}
-													</Button>
-												{/if}
-											{/snippet}
-											<NumberField
-												id="f-abv"
-												size="sm"
-												unit="%"
-												min={0}
-												max={100}
-												step={0.5}
-												decimals={1}
-												noun="a percentage"
-												value={stripUnit(item.abv, "%")}
-												oninput={(e) => patchWithUnit("abv", (e.currentTarget as HTMLInputElement).value)}
-											/>
-										</Field>
-										<Field
-											label="Volume"
-											for="f-volume"
-											width="sm"
-											optional
-											error={errors.get("f-volume")}
-											hint={showRecipe ? "From the recipe." : undefined}
-										>
-											<NumberField
-												id="f-volume"
-												size="sm"
-												unit="ml"
-												min={0}
-												step={5}
-												decimals={0}
-												noun="millilitres"
-												example="120"
-												value={stripUnit(item.volume, "ml")}
-												oninput={(e) => patchWithUnit("volume", (e.currentTarget as HTMLInputElement).value)}
-											/>
-										</Field>
-									</div>
-								</FormSection>
-							</div>
-
-							<div class="col-side">
-								<FormSection
-									title="Photo"
-									class="sec-photo"
-									columns={1}
-									description={item._id ? "On the digital menu." : "Save the drink first, then add a photo."}
-								>
-									{#snippet actions()}
-										{#if item?._id}
-											<label class="photo-btn camera">
-												<input
-													class="sr-only"
-													type="file"
-													accept="image/*"
-													capture="environment"
-													disabled={busy}
-													onchange={onPhotoInput}
-												/>
-												<Icon name="camera" size={15} />
-												Take photo
-											</label>
-											{#if photoUrl}
-												<label class="photo-btn">
-													<input
-														class="sr-only"
-														type="file"
-														accept="image/jpeg,image/png,image/webp,image/gif"
-														disabled={busy}
-														onchange={onPhotoInput}
-													/>
-													Replace
-												</label>
-												<button class="photo-btn remove" type="button" disabled={busy} onclick={removePhoto}>
-													Remove
-												</button>
-											{/if}
-										{/if}
-									{/snippet}
+							<FormLead asideWidth="17.5rem">
+								{#snippet aside()}
+									<FormHeading title="Photo" />
 									<div
 										class="photo"
 										class:dragging={photoDragging}
@@ -1214,8 +925,283 @@
 											</div>
 										{/if}
 									</div>
+									<div class="photo-actions">
+										<label class="photo-btn camera" class:disabled={busy || !item._id}>
+											<input
+												class="sr-only"
+												type="file"
+												accept="image/*"
+												capture="environment"
+												disabled={busy || !item._id}
+												onchange={onPhotoInput}
+											/>
+											<Icon name="camera" size={15} />
+											Take photo
+										</label>
+										<label class="photo-btn" class:disabled={busy || !item._id}>
+											<input
+												class="sr-only"
+												type="file"
+												accept="image/jpeg,image/png,image/webp,image/gif"
+												disabled={busy || !item._id}
+												onchange={onPhotoInput}
+											/>
+											{photoUrl ? "Replace" : "Add photo"}
+										</label>
+										<button
+											class="photo-btn remove"
+											type="button"
+											disabled={busy || !item._id || !photoUrl}
+											onclick={removePhoto}
+										>
+											Remove
+										</button>
+									</div>
+									<p class="photo-note">
+										{item._id ? "On the digital menu." : "Save the drink first, then add a photo."}
+									</p>
+								{/snippet}
+
+								<FormHeading class="lead-first" title="Drink" />
+								<Field class="lead-first" label="Name" for="f-name" error={errors.get("f-name")}>
+									<TextField
+										id="f-name"
+										size="sm"
+										autocomplete="off"
+										placeholder="Negroni"
+										value={item.name || ""}
+										oninput={(e) => patch("name", (e.currentTarget as HTMLInputElement).value)}
+									/>
+								</Field>
+								<Field class="span-4" label="Drink type" for="f-drink-type">
+									<NativeSelect
+										id="f-drink-type"
+										size="sm"
+										options={drinkTypeOptions}
+										value={drinkType}
+										onchange={(e) =>
+											setDrinkType((e.currentTarget as HTMLSelectElement).value as DrinkType)}
+									/>
+								</Field>
+								{#if showRecipe}
+									<Field
+										class="span-5"
+										label="Category"
+										for="f-cocktail-type"
+										optional
+										hint="Spritz, highball, stirred… Not where it sits on the menu."
+									>
+										<NativeSelect
+											id="f-cocktail-type"
+											size="sm"
+											options={cocktailTypeOptions}
+											value={normalizeCocktailType(item.cocktailType)}
+											onchange={(e) =>
+												patch(
+													"cocktailType",
+													normalizeCocktailType(
+														(e.currentTarget as HTMLSelectElement).value,
+													) as CocktailType | "",
+												)}
+										/>
+									</Field>
+								{:else}
+									<Field class="span-5" label="Producer" for="f-producer-d" optional>
+										<TextField
+											id="f-producer-d"
+											size="sm"
+											value={item.producer || ""}
+											oninput={(e) => patch("producer", (e.currentTarget as HTMLInputElement).value)}
+										/>
+									</Field>
+								{/if}
+								<Field
+									class="span-3"
+									label={priceFieldLabel === "Price" ? "Price" : `${priceFieldLabel} price`}
+									for="f-price"
+									optional
+									error={errors.get("f-price")}
+									hint={priceAltHint}
+								>
+									<MoneyField
+										id="f-price"
+										size="sm"
+										value={item.price || ""}
+										oninput={(e) => patch("price", (e.currentTarget as HTMLInputElement).value)}
+										oncommit={(next) => {
+											if (next !== (item?.price || "")) patch("price", next);
+										}}
+									/>
+								</Field>
+								<Field
+									label="Tasting note"
+									for="f-notes"
+									optional
+									hint="A short line under the name."
+								>
+									<TextField
+										id="f-notes"
+										size="sm"
+										value={item.notes || ""}
+										placeholder="Floral fizz"
+										oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
+									/>
+								</Field>
+							</FormLead>
+
+							<FormSection
+								title={showRecipe ? "Recipe" : "Serve"}
+								class="sec-recipe"
+								description={showRecipe
+									? "What goes in, from stock. Costs and ABV follow from these."
+									: "The stock this is poured from, for cost and the till."}
+							>
+								{#snippet actions()}
+									<Button variant="outline" size="sm" type="button" onclick={() => (addIngredientOpen = true)}>
+										{#snippet icon()}
+											<Icon name="plus" size={15} />
+										{/snippet}
+										{showRecipe ? "Add ingredient" : "Add stock"}
+									</Button>
+								{/snippet}
+								<IngredientsGrid {ingredients} bind:inventory onChange={onIngredientsChange} />
+							</FormSection>
+
+							{#if showRecipe}
+								<FormSection title="Method" class="sec-method">
+									<Field class="span-8" label="How to make it" for="f-method">
+										<MethodEditor
+											id="f-method"
+											value={item.method || ""}
+											onChange={(next) => patch("method", next)}
+										/>
+									</Field>
+									<div class="span-side form-stack">
+										<Field label="Glassware" for="f-glass">
+											<NativeSelect
+												id="f-glass"
+												size="sm"
+												options={glassOptions}
+												value={item.glassware || ""}
+												onchange={(e) => patch("glassware", (e.currentTarget as HTMLSelectElement).value)}
+											/>
+										</Field>
+										<Field label="Ice" for="f-ice">
+											<NativeSelect
+												id="f-ice"
+												size="sm"
+												options={iceOptions}
+												value={item.ice || ""}
+												onchange={(e) => patch("ice", (e.currentTarget as HTMLSelectElement).value)}
+											/>
+										</Field>
+										<Field label="Garnish" for="f-garnish" optional>
+											<TextField
+												id="f-garnish"
+												size="sm"
+												value={item.garnish || ""}
+												oninput={(e) => patch("garnish", (e.currentTarget as HTMLInputElement).value)}
+											/>
+										</Field>
+									</div>
 								</FormSection>
-							</div>
+							{/if}
+
+							<FormSection
+								title="On the menu"
+								class="sec-copy"
+								description="What guests read, and the strength and size printed beside it."
+							>
+								<Field
+									class="span-8"
+									label="Menu description"
+									for="f-description"
+									optional
+									hint="The ingredient line or a longer blurb."
+								>
+									{#snippet actions()}
+										{#if showRecipe}
+											<Button
+												variant="ghost"
+												size="xs"
+												type="button"
+												disabled={!flattenIngredientsForMenu(ingredients)}
+												onclick={createMenuLineFromIngredients}
+											>
+												{#snippet icon()}
+													<Icon name="from-list" size={14} />
+												{/snippet}
+												From recipe
+											</Button>
+										{/if}
+									{/snippet}
+									<TextArea
+										id="f-description"
+										rows={3}
+										value={item.description || ""}
+										oninput={(e) => patch("description", (e.currentTarget as HTMLTextAreaElement).value)}
+									/>
+								</Field>
+								<Field
+									class="span-2"
+									label="ABV"
+									for="f-abv"
+									optional
+									error={errors.get("f-abv")}
+									hint={showRecipe ? "From the recipe. Type over it if needed." : undefined}
+								>
+									{#snippet actions()}
+										{#if showRecipe}
+											<Button
+												variant="ghost"
+												size="xs"
+												type="button"
+												aria-label="Work out ABV and volume from the recipe"
+												title="Work out ABV and volume from the recipe"
+												disabled={!canRecalcRecipe}
+												onclick={recalculateRecipeMetrics}
+											>
+												{#snippet icon()}
+													<Icon name="refresh" />
+												{/snippet}
+											</Button>
+										{/if}
+									{/snippet}
+									<NumberField
+										id="f-abv"
+										size="sm"
+										unit="%"
+										min={0}
+										max={100}
+										step={0.5}
+										decimals={1}
+										noun="a percentage"
+										value={stripUnit(item.abv, "%")}
+										oninput={(e) => patchWithUnit("abv", (e.currentTarget as HTMLInputElement).value)}
+									/>
+								</Field>
+								<Field
+									class="span-2"
+									label="Volume"
+									for="f-volume"
+									optional
+									error={errors.get("f-volume")}
+									hint={showRecipe ? "From the recipe." : undefined}
+								>
+									<NumberField
+										id="f-volume"
+										size="sm"
+										unit="ml"
+										min={0}
+										step={5}
+										decimals={0}
+										noun="millilitres"
+										example="120"
+										value={stripUnit(item.volume, "ml")}
+										oninput={(e) => patchWithUnit("volume", (e.currentTarget as HTMLInputElement).value)}
+									/>
+								</Field>
+							</FormSection>
 						</div>
 
 						<Dialog
@@ -1242,11 +1228,11 @@
 						</Dialog>
 					{:else if tab === "menu"}
 						<div class="board-tab">
-							<FormSection title="Till" columns={1}>
+							<FormSection title="Till">
 								<Field
+									class="span-5"
 									label="Till button name"
 									for="f-pos-name"
-									width="lg"
 									optional
 									hint="Blank uses the drink name. Serve sizes are added on export."
 								>
@@ -1259,7 +1245,7 @@
 									/>
 								</Field>
 							</FormSection>
-							<FormSection title="Where it appears" description="Print, digital, and till placements." columns={1}>
+							<FormSection title="Where it appears" description="Print, digital, and till placements.">
 								<MenuPlacementsTable
 									menus={posMenus}
 									placements={item.placements || []}
@@ -1587,60 +1573,23 @@
 	}
 
 	.board,
-	.col-main,
-	.col-side {
+	.board-tab {
 		display: grid;
-		gap: var(--space-4);
-		align-content: start;
+		grid-template-columns: minmax(0, 1fr);
 		min-width: 0;
 	}
 
-	/* One column everywhere, the photo straight after what the drink is. */
-	.col-main,
-	.col-side {
-		display: contents;
+	.photo-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
 	}
 
-	.col-main > :global(.sec-drink) {
-		order: 1;
-	}
-
-	.col-side > :global(.sec-photo) {
-		order: 2;
-	}
-
-	.col-main > :global(.sec-recipe) {
-		order: 3;
-	}
-
-	.col-main > :global(.sec-method) {
-		order: 4;
-	}
-
-	.col-main > :global(.sec-copy) {
-		order: 5;
-	}
-
-	.board {
-		gap: 0;
-	}
-
-	/* Ordered sections: the first one shown drops its top rule. */
-	.board > :global(.form-section),
-	.col-main > :global(.form-section),
-	.col-side > :global(.form-section) {
-		border-top: 1px solid var(--border);
-		padding-top: var(--space-6);
-	}
-
-	.col-main > :global(.sec-drink) {
-		border-top: 0;
-		padding-top: var(--space-2);
-	}
-
-	/* The photo at a sensible size, not the column's full width. */
-	.col-side .photo {
-		max-width: 26rem;
+	.photo-note {
+		margin: 0;
+		font-size: var(--text-xs);
+		line-height: var(--leading-xs);
+		color: var(--subtle-foreground);
 	}
 
 	.photo {
@@ -1656,12 +1605,16 @@
 		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--surface-2);
+		background: transparent;
 		color: inherit;
 		font: inherit;
 		font-size: var(--text-sm);
-		font-weight: 600;
+		font-weight: 500;
 		cursor: pointer;
+	}
+
+	.photo-btn:hover:not(:disabled):not(.disabled) {
+		background: var(--surface-3);
 	}
 
 	/* Phones and tablets only: opens the camera straight away. */
@@ -1687,7 +1640,8 @@
 		background: var(--destructive-wash);
 	}
 
-	.photo-btn:disabled {
+	.photo-btn:disabled,
+	.photo-btn.disabled {
 		cursor: not-allowed;
 		color: var(--subtle-foreground);
 	}
@@ -1720,7 +1674,7 @@
 		margin: 0;
 		padding: var(--space-4);
 		border: 1px dashed var(--border-strong);
-		background: var(--sunken);
+		background: transparent;
 		color: var(--muted-foreground);
 		text-align: center;
 		cursor: pointer;
@@ -1765,18 +1719,12 @@
 	}
 
 	/* Phones: a wide photo, so the fields under it stay in reach. */
-	@container drink-detail (max-width: 51.99rem) {
+	@container drink-detail (max-width: 49.99rem) {
 		.photo-frame,
 		.photo-empty {
 			aspect-ratio: 16 / 10;
 		}
 	}
-
-	.board-tab {
-		display: grid;
-		gap: var(--space-4);
-	}
-
 
 	@media (max-width: 900px) {
 		.split {

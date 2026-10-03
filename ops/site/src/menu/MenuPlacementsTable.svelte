@@ -258,7 +258,7 @@
 	{/if}
 
 	{#if addOptions.length > 1}
-		<Field label="Add" for="f-add-menu-row">
+		<Field label="Add" for="f-add-menu-row" width="md">
 			<NativeSelect
 				id="f-add-menu-row"
 				size="sm"
@@ -286,7 +286,7 @@
 		overflow-x: auto;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--sunken);
+		background: transparent;
 	}
 
 	.menu-table {
@@ -309,7 +309,7 @@
 		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
-		background: color-mix(in srgb, var(--card) 70%, transparent);
+		background: transparent;
 	}
 
 	.menu-table tbody tr:last-child td {

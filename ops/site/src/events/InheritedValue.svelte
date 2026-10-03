@@ -1,10 +1,9 @@
 <script lang="ts">
 	/**
-	 * A night's field that follows its series: the series' value, read-only,
-	 * marked "From series". The field's Override action swaps in the control.
+	 * A night's field that follows its series: the series' value, read-only
+	 * and quiet, marked "From series". The field's Override action swaps in
+	 * the control. It is the size of the control, so the grid doesn't move.
 	 */
-	import { Badge } from "../ui";
-
 	let {
 		value,
 		empty = false,
@@ -21,7 +20,7 @@
 
 <div class="inherited" class:prose>
 	<span class="value" class:empty>{value}</span>
-	<Badge label="From series" />
+	<span class="from">From series</span>
 </div>
 
 <style>
@@ -29,11 +28,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--space-2);
+		gap: var(--space-3);
 		min-width: 0;
 		min-height: var(--control-h-sm);
-		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
-		border: 1px dashed var(--border-strong);
+		padding: var(--space-1) var(--space-3);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: transparent;
 		font-size: var(--text-base);
@@ -51,6 +50,14 @@
 		color: var(--fg-subtle);
 	}
 
+	.from {
+		flex-shrink: 0;
+		font-size: var(--text-xs);
+		line-height: var(--leading-xs);
+		color: var(--fg-subtle);
+		white-space: nowrap;
+	}
+
 	.prose {
 		align-items: flex-start;
 		padding-top: var(--space-2);
@@ -63,6 +70,10 @@
 		overflow: auto;
 		font-size: var(--text-sm);
 		line-height: var(--leading-sm, 1.125rem);
+	}
+
+	.prose .from {
+		padding-top: 0.0625rem;
 	}
 
 	@media (max-width: 900px) {

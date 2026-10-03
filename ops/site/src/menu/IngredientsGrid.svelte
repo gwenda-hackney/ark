@@ -493,6 +493,13 @@
 		min-height: 0;
 	}
 
+	/* The grid sits on the editor's card: the card's own surface, no darker box. */
+	.host :global(.ag-root-wrapper) {
+		--ag-background-color: var(--card);
+		--ag-data-background-color: var(--card);
+		--ag-header-background-color: var(--card);
+	}
+
 	.lines {
 		display: grid;
 		margin: 0;
@@ -517,7 +524,7 @@
 		margin: 0;
 		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
 		border: 0;
-		background: var(--sunken);
+		background: transparent;
 		color: var(--foreground);
 		font: inherit;
 		text-align: left;
