@@ -344,7 +344,7 @@ describe("events: editing", () => {
   it("a change to the series waits for Update website", async () => {
     await ops.edit(event, { shortDescription: "Chess, negronis, the canal." });
     await ops.waitUntilReady(event);
-    assert.equal(await ops.sees(event), "Website has an older version");
+    assert.equal(await ops.sees(event), "Changes not on the website yet");
     assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess by the canal.", "live copy unchanged");
 
     await ops.updateWebsite(event);
@@ -368,7 +368,7 @@ describe("events: editing", () => {
     const extra = addDays(nextWeekday(WEDNESDAY), 2); // a Friday
     await ops.addNight(event, extra);
     await ops.waitUntilReady(event);
-    assert.equal(await ops.sees(event), "Website has an older version");
+    assert.equal(await ops.sees(event), "Changes not on the website yet");
     await ops.updateWebsite(event);
     assert.ok(liveNights(world).includes(extra));
     assert.ok(world.google.calendar().some((entry) => (entry.start?.dateTime || entry.start?.date || "").startsWith(extra)));
@@ -530,7 +530,7 @@ describe("events: changing the schedule drops nights", () => {
     assert.deepEqual(previewNights(world), nights.slice(0, 3), "preview: only the nights still scheduled");
     assert.deepEqual(liveNights(world), nights, "live site unchanged until Update website");
     assert.deepEqual(calendarDates(world), nights.slice(0, 3), "calendar follows the schedule straight away");
-    assert.equal(await ops.sees(event), "Website has an older version");
+    assert.equal(await ops.sees(event), "Changes not on the website yet");
 
     await ops.updateWebsite(event);
     assert.deepEqual(liveNights(world), nights.slice(0, 3));
@@ -545,7 +545,7 @@ describe("events: changing the schedule drops nights", () => {
     await ops.discardPreview();
     await ops.waitUntilReady(event);
     assert.deepEqual(previewNights(world), nights.slice(0, 3), "the schedule still excludes the dropped nights");
-    assert.equal(await ops.sees(event), "Website has an older version");
+    assert.equal(await ops.sees(event), "Changes not on the website yet");
   });
 });
 
@@ -572,7 +572,7 @@ describe("events: images", () => {
     const preview = world.sanity.view("previewDrafts").find((doc) => doc._type === "eventSeries");
     assert.ok(seriesImage(preview), "the preview series has the photo");
     assert.equal(seriesImage(world.sanity.published("eventSeries")[0]), "", "the live site doesn't yet");
-    assert.equal(await ops.sees(event), "Website has an older version");
+    assert.equal(await ops.sees(event), "Changes not on the website yet");
 
     await ops.updateWebsite(event);
     assert.ok(seriesImage(world.sanity.published("eventSeries")[0]), "live after Update website");

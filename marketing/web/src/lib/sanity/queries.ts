@@ -88,17 +88,7 @@ export const RSVP_EVENTS_QUERY = `*[_type == "event" && defined(slug.current) &&
   title,
   date,
   seriesId,
-  description,
-  heroImage {
-    alt,
-    crop,
-    hotspot,
-    asset->{
-      _id,
-      url,
-      metadata { dimensions { width, height } }
-    }
-  }
+  description
 }`;
 
 /** Menu sections with nested items — ordered for display (Studio drag rank). */

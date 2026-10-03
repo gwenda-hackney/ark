@@ -26,5 +26,5 @@ export function eventHeaderFlag(
   // save behind the scenes and never named. Local ops works the same way.
   if (publish.live === "current") return { label: "On the website", tone: "live" };
   if (publish.live === "unpublished") return { label: "Not on the website yet", tone: "unpublished" };
-  return { label: "Website has an older version", tone: "preview" };
+  return { label: "Changes not on the website yet", tone: "preview" };
 }
