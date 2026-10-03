@@ -50,9 +50,11 @@ function localSanityPerspective() {
   const siteEnv = process.env.SITE_ENV || env.SITE_ENV;
   return siteEnv === "production" ? "published" : "previewDrafts";
 }
+// No password on localhost: only you can reach it. The deployed gate is in functions/_middleware.js.
 const gatePlugin = devSiteGate({
   password: sitePassword,
   bypassKey: env.GATE_BYPASS_KEY,
+  open: true,
 });
 
 const subscribeEnv = () => ({

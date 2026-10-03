@@ -2,13 +2,6 @@
 import { isPreview } from "../config/env";
 import { buildLabel } from "../config/build";
 
-interface Props {
-  /** Passwordless share is only for people already inside the site. */
-  share?: boolean;
-}
-
-const { share = true } = Astro.props;
-
 /**
  * Which environment this is. Hosted builds set PUBLIC_ENV_LABEL (the dev
  * website says "Dev" / "Dev · preview"); prod's preview says "Preview"
@@ -32,31 +25,7 @@ const envLabel =
       aria-label={`${envLabel} environment. Build ${buildLabel()}.`}
       title={`Build ${buildLabel()}`}
     >
-      {share ? (
-        <button
-          type="button"
-          class="preview-ribbon-share"
-          id="preview-share"
-          data-env-label={envLabel}
-          title="Copy a link that unlocks this site for the recipient"
-        >
-          <span data-preview-share-label>{envLabel}</span>
-        </button>
-      ) : (
-        <span>{envLabel}</span>
-      )}
+      <span>{envLabel}</span>
     </div>
   )
 }
-
-<script>
-  // Keep this script a direct child of the component. Astro does not bundle
-  // a <script> nested in {isPreview && ...}; the import is then sent raw
-  // and the share click never runs.
-  import { initPreviewShare } from "../scripts/preview-share.js";
-
-  if (import.meta.env.PUBLIC_IS_PREVIEW === "true") {
-    initPreviewShare();
-    document.addEventListener("astro:page-load", initPreviewShare);
-  }
-</script>

@@ -19,7 +19,6 @@ const modules = [
   "../whats-on/[[path]].js",
   "../og/events/[slug].js",
   "../api/auth.js",
-  "../api/preview-share.js",
   "./event-password.js",
   "./event-series.js",
   "./rsvp.js",
