@@ -8,6 +8,7 @@ import {
   nightCardModel,
   renderEventCard,
   GALLERY_FIRST,
+  tinyImageUrl,
   renderGallery,
   seriesCardModel,
 } from "./event-card.js";
@@ -174,6 +175,43 @@ describe("renderGallery", () => {
 
   it("renders nothing without photos", () => {
     expect(renderGallery([])).toBe("");
+  });
+});
+
+describe("tinyImageUrl", () => {
+  it("asks Sanity for a tiny blurred copy, keeping the crop", () => {
+    const tiny = new URL(
+      tinyImageUrl(
+        "https://cdn.sanity.io/images/p/d/a.jpg?rect=0,0,800,500&w=1800&auto=format&q=86",
+      ),
+    );
+    expect(tiny.searchParams.get("rect")).toBe("0,0,800,500");
+    expect(tiny.searchParams.get("w")).toBe("48");
+    expect(tiny.searchParams.get("blur")).toBe("30");
+  });
+
+  it("leaves other images alone", () => {
+    expect(tinyImageUrl("/images/flyer.jpg")).toBe("");
+    expect(tinyImageUrl("https://example.com/a.jpg")).toBe("");
+  });
+});
+
+describe("renderGallery: while photos load", () => {
+  it("puts the blurred copy behind the first rows and the main colour behind every photo", () => {
+    const photo = (i) => ({
+      url: `https://cdn.sanity.io/images/p/d/${i}.jpg`,
+      width: 1000,
+      height: 800,
+      lqip: "data:image/png;base64,AAAA",
+      color: "#c28a64",
+    });
+    const html = renderGallery(
+      Array.from({ length: GALLERY_FIRST + 1 }, (_, i) => photo(i)),
+    );
+    expect(html.match(/--lqip: url/g)).toHaveLength(GALLERY_FIRST);
+    expect(html.match(/--photo-color: #c28a64/g)).toHaveLength(
+      GALLERY_FIRST + 1,
+    );
   });
 });
 

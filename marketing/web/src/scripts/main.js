@@ -14,6 +14,7 @@ import { currentPageAnchorId, pageAnchorSections } from "./page-anchors.js";
 import { initSchedulePage } from "./schedule.js";
 import { initHomeNext, initSeriesPage, initWhatsOnPage } from "./whats-on.js";
 import { initGallery } from "./gallery.js";
+import { fadeInEventPhotos } from "./image-fade.js";
 
 /** @type {AbortController | null} */
 let pageAbort = null;
@@ -66,6 +67,7 @@ function initPage() {
   pageAbort?.abort();
   pageAbort = new AbortController();
   const { signal } = pageAbort;
+  fadeInEventPhotos();
 
   document.querySelectorAll("[data-site-back]").forEach((link) => {
     link.addEventListener(
