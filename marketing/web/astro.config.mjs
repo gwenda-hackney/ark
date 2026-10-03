@@ -703,11 +703,15 @@ function devEventPages() {
             devApiEnv(),
             url.pathname,
             async (path) =>
+              // Dev annotates every tag (<series-body data-astro-source-file=…>),
+              // which hides the tags the fill replaces; the build doesn't.
               (
-                await fetch(new URL(path, url), {
-                  headers: { cookie: req.headers.cookie || "" },
-                })
-              ).text(),
+                await (
+                  await fetch(new URL(path, url), {
+                    headers: { cookie: req.headers.cookie || "" },
+                  })
+                ).text()
+              ).replace(/ data-astro-source-(?:file|loc)="[^"]*"/g, ""),
           );
           if (!response) {
             next();

@@ -73,6 +73,37 @@ export function loadPersistedSession() {
   }
 }
 
+/**
+ * When a person runs a script at a terminal and the vault is locked, ask for
+ * the master password there and save the session as `bw-unlock` does. Agents
+ * and CI have no terminal, so they get the "vault locked" warning instead of a
+ * prompt that would hang.
+ * @returns {boolean} whether the vault is now unlocked
+ */
+export function promptUnlock() {
+  if (process.env.CI || !process.stdin.isTTY || !process.stderr.isTTY) return false;
+  try {
+    if (readStatus().status !== "locked") return false;
+  } catch {
+    return false; // no bw: callers explain
+  }
+  console.error("Bitwarden vault is locked. Unlock it to load secrets (same as bw-unlock).");
+  // bw prompts on stderr, so stdout carries only the session key.
+  const result = spawnSync("bw", ["unlock", "--raw"], {
+    encoding: "utf8",
+    env: process.env,
+    stdio: ["inherit", "pipe", "inherit"],
+  });
+  const session = result.status === 0 ? (result.stdout ?? "").trim() : "";
+  if (!session) return false;
+  process.env.BW_SESSION = session;
+  const path = sessionFilePath();
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  writeFileSync(path, `${session}\n`, { mode: 0o600 });
+  vaultToken = undefined;
+  return true;
+}
+
 let vaultToken;
 
 /**
