@@ -410,7 +410,6 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "stock" ||
     from === "breakeven" ||
     from === "cashflow" ||
-    from === "config" ||
     from === "sections" ||
     from === "users" ||
     from === "more" ||

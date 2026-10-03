@@ -15,11 +15,11 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Assigning to a series",
-		body: "To add a night to a series, press New event on the Schedule and pick the series, or press Add night on the series itself. Leave the series on No series for a special event. A night stays on that series. Open Edit series from the night if you need the shared defaults.",
+		body: "Press New event on the Schedule and choose Night for a series, then pick the series. Or press Add night on the series itself. Choose Special event for a one-off. On a night, anything marked From series follows the series: press Override to change it for that night, and Use series value to go back.",
 	},
 	{
 		title: "Repeating dates",
-		body: "For repeating series, Starts on, Ends on, Unit, and weekdays build the calendar. For Does not repeat, leave Starts on empty until you schedule a night, then add further nights one by one.",
+		body: "Under When on a series, Repeats, Every, the weekdays, Starts on and Ends on build the calendar. Nights lists the dates they make. For Doesn't repeat, leave the first night empty until one is booked, then add nights one by one.",
 	},
 	{
 		title: "Moving a night",
@@ -43,7 +43,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Default hero",
-		body: "The photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Original downloads the file as it was uploaded.",
+		body: "The Photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Original downloads the file as it was uploaded.",
 	},
 	{
 		title: "Gallery",

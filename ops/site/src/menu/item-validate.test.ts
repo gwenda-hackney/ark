@@ -34,10 +34,11 @@ describe("validateItem", () => {
 		expect(validateItem({ ...saved, volume: "lots" }, [], saved)["f-volume"]).toBeTruthy();
 	});
 
-	it("goes to the header first, then Build", () => {
+	it("puts name and price on Build with the rest, so a Save switches there for them (#158)", () => {
 		const errors = validateItem({ name: "", abv: "x" });
 		expect(firstErrorKey(errors, ITEM_FIELD_ORDER)).toBe("f-name");
-		expect(itemFieldTab("f-name")).toBeUndefined();
+		expect(itemFieldTab("f-name")).toBe("details");
+		expect(itemFieldTab("f-price")).toBe("details");
 		expect(itemFieldTab("f-abv")).toBe("details");
 		expect(itemFieldTab("f-pos-name")).toBe("menu");
 	});

@@ -8,6 +8,7 @@ import {
 	seriesBlurb,
 	seriesGuestLabel,
 	seriesTimeLabel,
+	socialTaskNote,
 	statusLabel,
 	statusTone,
 } from "./event-labels";
@@ -20,6 +21,17 @@ function event(overrides: Partial<OpsEvent> = {}): OpsEvent {
 		...overrides,
 	} as OpsEvent;
 }
+
+describe("social post task line (#158)", () => {
+	const night = (date: string, clickupTaskId = "") => ({ date, clickupTaskId }) as OpsEvent["dates"][number];
+	it("says whether a night has its task, and counts them on a series", () => {
+		const ev = event({ dates: [night("2026-10-01", "t0"), night("2026-10-08", "t1"), night("2026-10-15")] });
+		assert.match(socialTaskNote(ev, "2026-10-08", "2026-10-02"), /^The social post task is in ClickUp/);
+		assert.match(socialTaskNote(ev, "2026-10-15", "2026-10-02"), /^No social post task yet. Update website adds one/);
+		assert.match(socialTaskNote(ev, "", "2026-10-02"), /^Social post tasks in ClickUp: 1 of 2 upcoming nights/);
+		assert.equal(socialTaskNote(ev, "", "2026-12-01"), "No upcoming nights, so no social post tasks.");
+	});
+});
 
 describe("event labels", () => {
 	it("times read as a 12-hour clock, dropping :00", () => {

@@ -9,6 +9,8 @@
 		EditorActionBar,
 		EditorBackBar,
 		Field,
+		FormSection,
+		MoneyField,
 		NativeSelect,
 		NumberField,
 		Segmented,
@@ -16,7 +18,6 @@
 		TextField,
 	} from "../ui";
 	import { FormErrors } from "../ui/form-errors.svelte";
-	import { formatMoney, parseNumber } from "../ui/number-input";
 	import { ITEM_FIELD_ORDER, itemFieldTab, stripUnit, validateItem } from "./item-validate";
 	import type { SegmentedItem, SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
@@ -133,7 +134,6 @@
 	let aiBusy = $state(false);
 	/** Problems from the last Save, by field id; kept fresh as they are fixed. */
 	const errors = new FormErrors();
-	let priceTyped = false;
 
 	const screenSuggestions = $derived(
 		collectPosScreenSuggestions(menuItems, (posMenus || []).map((menu) => menu.name)),
@@ -619,6 +619,12 @@
 		return `${text}% pour`;
 	});
 	const priceFieldLabel = $derived(primaryServe?.label || "Price");
+	/** The second size (double, half) is set on Cost; Build says what it is. */
+	const priceAltHint = $derived(
+		item?.priceAlt
+			? `${priceLive?.serves[1]?.label || "Second size"} £${item.priceAlt}. Change it on Cost.`
+			: undefined,
+	);
 
 	const canAnalyze = $derived(
 		Boolean(
@@ -686,14 +692,6 @@
 		patch(field, text ? (field === "abv" ? `${text}%` : `${text} ml`) : "");
 	}
 
-	function tidyPrice(e: FocusEvent) {
-		if (!priceTyped) return;
-		priceTyped = false;
-		const raw = (e.currentTarget as HTMLInputElement).value;
-		if (parseNumber(raw) === null) return;
-		const next = formatMoney(raw);
-		if (next !== raw) patch("price", next);
-	}
 
 	const currentDraft = $derived(serializeDraft(item));
 	const dirty = $derived(isDraftDirty(snapshot, currentDraft));
@@ -827,58 +825,23 @@
 						</div>
 					</div>
 					<div class="title-name">
-						<input
-							class="title-input"
-							id="f-name"
-							required
-							autocomplete="off"
-							aria-label="Drink name"
-							aria-invalid={errors.get("f-name") ? true : undefined}
-							aria-describedby={errors.get("f-name") ? "f-name-error" : undefined}
-							value={item.name || ""}
-							oninput={(e) =>
-								patch(
-									"name",
-									(e.currentTarget as HTMLInputElement).value,
-								)}
-						/>
-						{#if errors.get("f-name")}
-							<p class="head-error" id="f-name-error">{errors.get("f-name")}</p>
-						{/if}
+						<h1 class="title-text" class:placeholder={!item.name?.trim()}>
+							{item.name?.trim() || "New drink"}
+						</h1>
 						{#if item.notes}
 							<p class="sub">{item.notes}</p>
 						{/if}
 					</div>
 					<div class="title-meta">
-						<label class="price-label" for="f-price">
+						<span class="price-label">
 							{priceFieldLabel === "Price" ? "Price" : `Price · ${priceFieldLabel}`}
-						</label>
-						<div class="price-row">
-							<div class="price-edit" class:invalid={Boolean(errors.get("f-price"))}>
-								<span class="pound" aria-hidden="true">£</span>
-								<input
-									class="price-input"
-									id="f-price"
-									inputmode="decimal"
-									autocomplete="off"
-									placeholder="0.00"
-									aria-invalid={errors.get("f-price") ? true : undefined}
-									aria-describedby={errors.get("f-price") ? "f-price-error" : undefined}
-									value={item.price || ""}
-									oninput={(e) => {
-										priceTyped = true;
-										patch("price", (e.currentTarget as HTMLInputElement).value);
-									}}
-									onblur={tidyPrice}
-								/>
-							</div>
+						</span>
+						<p class="price-readout tnum" class:muted={!item.price}>
+							{item.price ? `£${item.price}` : "No price"}
 							{#if item.priceAlt}
-								<span class="price-alt tnum">/ {item.priceAlt}</span>
+								<span class="price-alt">/ £{item.priceAlt}</span>
 							{/if}
-						</div>
-						{#if errors.get("f-price")}
-							<p class="head-error" id="f-price-error">{errors.get("f-price")}</p>
-						{/if}
+						</p>
 						{#if headerPourLabel}
 							<p
 								class="pour-readout tnum"
@@ -920,26 +883,40 @@
 							}}
 						>
 					{#if tab === "details"}
-						<section class="details-board">
-							<div class="details-main">
-								<div class="grid">
-									<Field label="Drink type" for="f-drink-type">
+						<div class="board">
+							<div class="col-main">
+								<FormSection title="Drink" class="sec-drink">
+									<Field
+										class="span-all"
+										label="Name"
+										for="f-name"
+										width="lg"
+										error={errors.get("f-name")}
+									>
+										<TextField
+											id="f-name"
+											size="sm"
+											autocomplete="off"
+											placeholder="Negroni"
+											value={item.name || ""}
+											oninput={(e) => patch("name", (e.currentTarget as HTMLInputElement).value)}
+										/>
+									</Field>
+									<Field label="Drink type" for="f-drink-type" width="md">
 										<NativeSelect
 											id="f-drink-type"
 											size="sm"
 											options={drinkTypeOptions}
 											value={drinkType}
 											onchange={(e) =>
-												setDrinkType(
-													(e.currentTarget as HTMLSelectElement)
-														.value as DrinkType,
-												)}
+												setDrinkType((e.currentTarget as HTMLSelectElement).value as DrinkType)}
 										/>
 									</Field>
 									{#if showRecipe}
 										<Field
 											label="Category"
 											for="f-cocktail-type"
+											width="md"
 											optional
 											hint="Spritz, highball, stirred… Not where it sits on the menu."
 										>
@@ -958,82 +935,123 @@
 											/>
 										</Field>
 									{:else}
-										<Field label="Producer" for="f-producer-d" optional>
+										<Field label="Producer" for="f-producer-d" width="md" optional>
 											<TextField
 												id="f-producer-d"
 												size="sm"
 												value={item.producer || ""}
-												oninput={(e) =>
-													patch(
-														"producer",
-														(e.currentTarget as HTMLInputElement).value,
-													)}
+												oninput={(e) => patch("producer", (e.currentTarget as HTMLInputElement).value)}
 											/>
 										</Field>
 									{/if}
-									<div class="full">
+									<div class="field-row">
 										<Field
-											label="Tasting note"
-											for="f-notes"
+											label={priceFieldLabel === "Price" ? "Price" : `${priceFieldLabel} price`}
+											for="f-price"
+											width="sm"
 											optional
-											hint="A short line under the name."
+											error={errors.get("f-price")}
+											hint={priceAltHint}
 										>
-											<TextField
-												id="f-notes"
+											<MoneyField
+												id="f-price"
 												size="sm"
-												value={item.notes || ""}
-												placeholder="e.g. Floral fizz"
-												oninput={(e) =>
-													patch(
-														"notes",
-														(e.currentTarget as HTMLInputElement).value,
-													)}
-											/>
-										</Field>
-									</div>
-									<div class="full">
-										<Field
-											label="Menu description"
-											for="f-description"
-											optional
-											hint="What guests read on the menu: the ingredient line or a longer blurb."
-										>
-											{#snippet actions()}
-												{#if showRecipe}
-													<Button
-														variant="ghost"
-														size="xs"
-														type="button"
-														aria-label="Fill in from ingredients"
-														title="Fill in from ingredients"
-														disabled={!flattenIngredientsForMenu(ingredients)}
-														onclick={createMenuLineFromIngredients}
-													>
-														{#snippet icon()}
-															<Icon name="from-list" size={14} />
-														{/snippet}
-													</Button>
-												{/if}
-											{/snippet}
-											<TextArea
-												id="f-description"
-												rows={3}
-												value={item.description || ""}
-												oninput={(e) =>
-													patch(
-														"description",
-														(e.currentTarget as HTMLTextAreaElement).value,
-													)}
+												value={item.price || ""}
+												oninput={(e) => patch("price", (e.currentTarget as HTMLInputElement).value)}
+												oncommit={(next) => {
+													if (next !== (item?.price || "")) patch("price", next);
+												}}
 											/>
 										</Field>
 									</div>
 									<Field
-										label="ABV"
-										for="f-abv"
-										width="sm"
+										class="span-all"
+										label="Tasting note"
+										for="f-notes"
+										width="lg"
 										optional
-										error={errors.get("f-abv")}
-										hint={showRecipe ? "From the ingredients. Type over it if needed." : undefined}
+										hint="A short line under the name."
+									>
+										<TextField
+											id="f-notes"
+											size="sm"
+											value={item.notes || ""}
+											placeholder="Floral fizz"
+											oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
+										/>
+									</Field>
+								</FormSection>
+
+								<FormSection
+									title={showRecipe ? "Recipe" : "Serve"}
+									class="sec-recipe"
+									columns={1}
+									description={showRecipe
+										? "What goes in, from stock. Costs and ABV follow from these."
+										: "The stock this is poured from, for cost and the till."}
+								>
+									{#snippet actions()}
+										<Button variant="outline" size="sm" type="button" onclick={() => (addIngredientOpen = true)}>
+											{#snippet icon()}
+												<Icon name="plus" size={15} />
+											{/snippet}
+											{showRecipe ? "Add ingredient" : "Add stock"}
+										</Button>
+									{/snippet}
+									<IngredientsGrid {ingredients} bind:inventory onChange={onIngredientsChange} />
+								</FormSection>
+
+								{#if showRecipe}
+									<FormSection title="Method" class="sec-method">
+										<Field class="span-all" label="How to make it" for="f-method">
+											<MethodEditor
+												id="f-method"
+												value={item.method || ""}
+												onChange={(next) => patch("method", next)}
+											/>
+										</Field>
+										<div class="field-row">
+											<Field label="Glassware" for="f-glass" width="md">
+												<NativeSelect
+													id="f-glass"
+													size="sm"
+													options={glassOptions}
+													value={item.glassware || ""}
+													onchange={(e) => patch("glassware", (e.currentTarget as HTMLSelectElement).value)}
+												/>
+											</Field>
+											<Field label="Ice" for="f-ice" width="md">
+												<NativeSelect
+													id="f-ice"
+													size="sm"
+													options={iceOptions}
+													value={item.ice || ""}
+													onchange={(e) => patch("ice", (e.currentTarget as HTMLSelectElement).value)}
+												/>
+											</Field>
+											<Field label="Garnish" for="f-garnish" width="md" optional>
+												<TextField
+													id="f-garnish"
+													size="sm"
+													value={item.garnish || ""}
+													oninput={(e) => patch("garnish", (e.currentTarget as HTMLInputElement).value)}
+												/>
+											</Field>
+										</div>
+									</FormSection>
+								{/if}
+
+								<FormSection
+									title="On the menu"
+									class="sec-copy"
+									description="What guests read, and the strength and size printed beside it."
+								>
+									<Field
+										class="span-all"
+										label="Menu description"
+										for="f-description"
+										optional
+										hint="The ingredient line or a longer blurb."
 									>
 										{#snippet actions()}
 											{#if showRecipe}
@@ -1041,69 +1059,96 @@
 													variant="ghost"
 													size="xs"
 													type="button"
-													aria-label="Work out ABV and volume from ingredients"
-													title="Work out ABV and volume from ingredients"
-													disabled={!canRecalcRecipe}
-													onclick={recalculateRecipeMetrics}
+													disabled={!flattenIngredientsForMenu(ingredients)}
+													onclick={createMenuLineFromIngredients}
 												>
 													{#snippet icon()}
-														<Icon name="refresh" />
+														<Icon name="from-list" size={14} />
 													{/snippet}
+													From recipe
 												</Button>
 											{/if}
 										{/snippet}
-										<NumberField
-											id="f-abv"
-											size="sm"
-											unit="%"
-											min={0}
-											max={100}
-											step={0.5}
-											decimals={1}
-											noun="a percentage"
-											value={stripUnit(item.abv, "%")}
-											oninput={(e) =>
-												patchWithUnit("abv", (e.currentTarget as HTMLInputElement).value)}
+										<TextArea
+											id="f-description"
+											rows={3}
+											value={item.description || ""}
+											oninput={(e) => patch("description", (e.currentTarget as HTMLTextAreaElement).value)}
 										/>
 									</Field>
-									<Field
-										label="Volume"
-										for="f-volume"
-										width="sm"
-										optional
-										error={errors.get("f-volume")}
-										hint={showRecipe ? "From the ingredients." : undefined}
-									>
-										<NumberField
-											id="f-volume"
-											size="sm"
-											unit="ml"
-											min={0}
-											step={5}
-											decimals={0}
-											noun="millilitres"
-											example="120"
-											value={stripUnit(item.volume, "ml")}
-											oninput={(e) =>
-												patchWithUnit("volume", (e.currentTarget as HTMLInputElement).value)}
-										/>
-									</Field>
-								</div>
+									<div class="field-row">
+										<Field
+											label="ABV"
+											for="f-abv"
+											width="sm"
+											optional
+											error={errors.get("f-abv")}
+											hint={showRecipe ? "From the recipe. Type over it if needed." : undefined}
+										>
+											{#snippet actions()}
+												{#if showRecipe}
+													<Button
+														variant="ghost"
+														size="xs"
+														type="button"
+														aria-label="Work out ABV and volume from the recipe"
+														title="Work out ABV and volume from the recipe"
+														disabled={!canRecalcRecipe}
+														onclick={recalculateRecipeMetrics}
+													>
+														{#snippet icon()}
+															<Icon name="refresh" />
+														{/snippet}
+													</Button>
+												{/if}
+											{/snippet}
+											<NumberField
+												id="f-abv"
+												size="sm"
+												unit="%"
+												min={0}
+												max={100}
+												step={0.5}
+												decimals={1}
+												noun="a percentage"
+												value={stripUnit(item.abv, "%")}
+												oninput={(e) => patchWithUnit("abv", (e.currentTarget as HTMLInputElement).value)}
+											/>
+										</Field>
+										<Field
+											label="Volume"
+											for="f-volume"
+											width="sm"
+											optional
+											error={errors.get("f-volume")}
+											hint={showRecipe ? "From the recipe." : undefined}
+										>
+											<NumberField
+												id="f-volume"
+												size="sm"
+												unit="ml"
+												min={0}
+												step={5}
+												decimals={0}
+												noun="millilitres"
+												example="120"
+												value={stripUnit(item.volume, "ml")}
+												oninput={(e) => patchWithUnit("volume", (e.currentTarget as HTMLInputElement).value)}
+											/>
+										</Field>
+									</div>
+								</FormSection>
 							</div>
 
-							<aside
-								class="details-side photo"
-								class:dragging={photoDragging}
-								aria-label="Photo"
-								ondragenter={onPhotoDragEnter}
-								ondragover={onPhotoDragOver}
-								ondragleave={onPhotoDragLeave}
-								ondrop={onPhotoDrop}
-							>
-								<div class="photo-head">
-									<p class="photo-title">Photo</p>
-									{#if item._id}
-										<div class="photo-actions">
+							<div class="col-side">
+								<FormSection
+									title="Photo"
+									class="sec-photo"
+									columns={1}
+									description={item._id ? "On the digital menu." : "Save the drink first, then add a photo."}
+								>
+									{#snippet actions()}
+										{#if item?._id}
 											<label class="photo-btn camera">
 												<input
 													class="sr-only"
@@ -1116,8 +1161,41 @@
 												<Icon name="camera" size={15} />
 												Take photo
 											</label>
-										{#if photoUrl}
-											<label class="photo-btn">
+											{#if photoUrl}
+												<label class="photo-btn">
+													<input
+														class="sr-only"
+														type="file"
+														accept="image/jpeg,image/png,image/webp,image/gif"
+														disabled={busy}
+														onchange={onPhotoInput}
+													/>
+													Replace
+												</label>
+												<button class="photo-btn remove" type="button" disabled={busy} onclick={removePhoto}>
+													Remove
+												</button>
+											{/if}
+										{/if}
+									{/snippet}
+									<div
+										class="photo"
+										class:dragging={photoDragging}
+										role="group"
+										aria-label="Photo"
+										ondragenter={onPhotoDragEnter}
+										ondragover={onPhotoDragOver}
+										ondragleave={onPhotoDragLeave}
+										ondrop={onPhotoDrop}
+									>
+										{#if !item._id}
+											<p class="photo-empty muted">No photo yet</p>
+										{:else if photoUrl}
+											<div class="photo-frame">
+												<img src={photoSrc} alt={item.image?.alt || item.name || ""} />
+											</div>
+										{:else}
+											<label class="photo-empty">
 												<input
 													class="sr-only"
 													type="file"
@@ -1125,122 +1203,20 @@
 													disabled={busy}
 													onchange={onPhotoInput}
 												/>
-												Replace
+												<Icon name="upload" size={18} />
+												<span class="photo-empty-label">Add photo</span>
+												<span class="photo-hint">or drop a picture here</span>
 											</label>
-											<button
-												class="photo-btn remove"
-												type="button"
-												disabled={busy}
-												onclick={removePhoto}
-											>
-												Remove
-											</button>
 										{/if}
-										</div>
-									{/if}
-								</div>
-								{#if !item._id}
-									<p class="photo-empty muted">Save the drink first, then add a photo.</p>
-								{:else if photoUrl}
-									<div class="photo-frame">
-										<img src={photoSrc} alt={item.image?.alt || item.name || ""} />
+										{#if photoDragging && item._id}
+											<div class="photo-drop" aria-hidden="true">
+												<span>Drop to {photoUrl ? "replace" : "add"}</span>
+											</div>
+										{/if}
 									</div>
-								{:else}
-									<label class="photo-empty">
-										<input
-											class="sr-only"
-											type="file"
-											accept="image/jpeg,image/png,image/webp,image/gif"
-											disabled={busy}
-											onchange={onPhotoInput}
-										/>
-										<Icon name="upload" size={18} />
-										<span class="photo-empty-label">Add photo</span>
-										<span class="photo-hint">or drop a picture here</span>
-									</label>
-								{/if}
-								{#if photoDragging && item._id}
-									<div class="photo-drop" aria-hidden="true">
-										<span>Drop to {photoUrl ? "replace" : "add"}</span>
-									</div>
-								{/if}
-							</aside>
-						</section>
-
-						<section class="block">
-							<div class="section-head">
-								<p class="section-title">{showRecipe ? "Ingredients" : "Serve"}</p>
-								<Button
-									variant="accent"
-									size="sm"
-									type="button"
-									onclick={() => (addIngredientOpen = true)}
-								>
-									{#snippet icon()}
-										<Icon name="plus" size={15} />
-									{/snippet}
-									{showRecipe ? "Add ingredient" : "Add stock"}
-								</Button>
+								</FormSection>
 							</div>
-							<IngredientsGrid
-								ingredients={ingredients}
-								bind:inventory
-								onChange={onIngredientsChange}
-							/>
-						</section>
-
-						{#if showRecipe}
-							<section class="block">
-								<p class="section-title">How to make it</p>
-								<Field label="Method" for="f-method">
-									<MethodEditor
-										id="f-method"
-										value={item.method || ""}
-										onChange={(next) => patch("method", next)}
-									/>
-								</Field>
-								<div class="grid three">
-									<Field label="Glassware" for="f-glass">
-										<NativeSelect
-											id="f-glass"
-											size="sm"
-											options={glassOptions}
-											value={item.glassware || ""}
-											onchange={(e) =>
-												patch(
-													"glassware",
-													(e.currentTarget as HTMLSelectElement).value,
-												)}
-										/>
-									</Field>
-									<Field label="Ice" for="f-ice">
-										<NativeSelect
-											id="f-ice"
-											size="sm"
-											options={iceOptions}
-											value={item.ice || ""}
-											onchange={(e) =>
-												patch(
-													"ice",
-													(e.currentTarget as HTMLSelectElement).value,
-												)}
-										/>
-									</Field>
-									<Field label="Garnish" for="f-garnish" optional>
-										<TextField
-											id="f-garnish"
-											size="sm"
-											value={item.garnish || ""}
-											oninput={(e) =>
-												patch(
-													"garnish",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-							</section>
-						{/if}
+						</div>
 
 						<Dialog
 							open={addIngredientOpen}
@@ -1265,61 +1241,54 @@
 							{/snippet}
 						</Dialog>
 					{:else if tab === "menu"}
-						<section class="block">
-							<p class="section-title">Menus</p>
-							<p class="lede-hint">Print, digital, and POS placements.</p>
-							<div class="grid">
-								<div class="full">
-									<Field
-										label="Till button name"
-										for="f-pos-name"
-										width="lg"
-										optional
-										hint="Blank uses the drink name. Serve sizes are added on export."
-									>
-										<TextField
-											id="f-pos-name"
-											size="sm"
-											value={item.lightspeedName || ""}
-											placeholder={item.name || "Same as drink name"}
-											oninput={(e) =>
-												patch(
-													"lightspeedName",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-								<div class="full">
-									<MenuPlacementsTable
-										menus={posMenus}
-										placements={item.placements || []}
-										sectionOptions={sectionOptions}
-										screenSuggestions={screenSuggestions}
-										defaultSectionId={item.sectionId || ""}
-										onchange={setPlacements}
+						<div class="board-tab">
+							<FormSection title="Till" columns={1}>
+								<Field
+									label="Till button name"
+									for="f-pos-name"
+									width="lg"
+									optional
+									hint="Blank uses the drink name. Serve sizes are added on export."
+								>
+									<TextField
+										id="f-pos-name"
+										size="sm"
+										value={item.lightspeedName || ""}
+										placeholder={item.name || "Same as drink name"}
+										oninput={(e) => patch("lightspeedName", (e.currentTarget as HTMLInputElement).value)}
 									/>
-								</div>
-							</div>
-						</section>
-					{:else if tab === "cost"}
-						<section class="block">
-							{#if priceLive}
-								<PourCostPanel
-									price={priceLive}
-									priceValue={item.price || ""}
-									priceAltValue={item.priceAlt || ""}
-									onpricealt={(value) => patch("priceAlt", value)}
+								</Field>
+							</FormSection>
+							<FormSection title="Where it appears" description="Print, digital, and till placements." columns={1}>
+								<MenuPlacementsTable
+									menus={posMenus}
+									placements={item.placements || []}
+									{sectionOptions}
+									{screenSuggestions}
+									defaultSectionId={item.sectionId || ""}
+									onchange={setPlacements}
 								/>
-							{:else}
-								<p class="section-title">Pour cost</p>
-								<p class="lede-hint">
-									{showRecipe
-										? "Add ingredients on Build to cost this drink."
-										: "Link stock on Build to cost this drink."}
-								</p>
-							{/if}
-						</section>
+							</FormSection>
+						</div>
+					{:else if tab === "cost"}
+						{#if priceLive}
+							<PourCostPanel
+								price={priceLive}
+								priceValue={item.price || ""}
+								priceAltValue={item.priceAlt || ""}
+								onpricealt={(value) => patch("priceAlt", value)}
+							/>
+						{:else}
+							<FormSection
+								title="Pour cost"
+								columns={1}
+								description={showRecipe
+									? "Add ingredients on Build to cost this drink."
+									: "Link stock on Build to cost this drink."}
+							>
+								<span class="sr-only">Nothing to cost yet.</span>
+							</FormSection>
+						{/if}
 					{:else if tab === "analysis"}
 						<RecipeAnalysisPanel
 							{analysis}
@@ -1420,23 +1389,12 @@
 		text-overflow: ellipsis;
 	}
 
-	.head-error {
-		margin: 0;
-		font-size: var(--text-xs);
-		color: var(--danger);
-	}
-
 	.price-label {
 		font-size: var(--text-2xs);
 		font-weight: 600;
 		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
-	}
-
-	.price-edit.invalid,
-	.price-edit.invalid:hover {
-		border-color: var(--danger);
 	}
 
 	.head-tools {
@@ -1508,41 +1466,20 @@
 		grid-column: 1;
 	}
 
-	.title-input {
-		display: block;
-		width: 100%;
+	.title-text {
+		margin: 0;
 		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
 		font-size: var(--text-2xl);
 		font-weight: 600;
 		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		outline: none;
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
+		overflow-wrap: anywhere;
 	}
 
-	.title-input::placeholder {
-		color: var(--subtle-foreground);
-	}
-
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
+	.title-text.placeholder {
+		color: var(--muted-foreground);
 	}
 
 	.title-meta {
@@ -1556,83 +1493,26 @@
 		padding-top: 0.12rem;
 	}
 
-	.price-row {
-		display: flex;
-		align-items: baseline;
-		justify-content: flex-end;
-		gap: var(--space-1);
-		min-width: 0;
-	}
-
-	.price-edit,
-	.pound,
-	.price-input,
-	.price-alt {
-		font-family: var(--font);
+	.price-readout {
+		margin: 0;
 		font-size: var(--text-2xl);
 		font-weight: 600;
 		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
 		color: var(--foreground);
+		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
 		font-feature-settings: var(--font-features-num);
 	}
 
-	.price-edit {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0;
-		min-width: 0;
-		padding: 0.08em var(--space-1) 0.18em var(--space-1);
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
-	}
-
-	.pound {
-		flex: none;
-		padding: 0;
-		margin: 0;
-		line-height: inherit;
-	}
-
-	.price-input {
-		width: auto;
-		min-width: 1.2ch;
-		max-width: 7ch;
-		box-sizing: content-box;
-		padding: 0;
-		margin: 0;
-		border: 0;
-		border-radius: 0;
-		background: transparent;
-		text-align: left;
-		field-sizing: content;
-		outline: none;
+	.price-readout.muted {
+		color: var(--muted-foreground);
+		font-size: var(--text-lg);
 	}
 
 	.price-alt {
-		color: color-mix(in srgb, var(--primary) 62%, var(--muted-foreground));
-		white-space: nowrap;
-	}
-
-	.price-edit:hover {
-		border-color: var(--border);
-	}
-
-	.price-edit:focus-within {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
-	}
-
-	.price-input::-webkit-outer-spin-button,
-	.price-input::-webkit-inner-spin-button {
-		appearance: none;
-		margin: 0;
+		color: var(--muted-foreground);
+		font-size: var(--text-lg);
 	}
 
 	.pour-readout {
@@ -1686,12 +1566,14 @@
 		border-bottom: 1px solid var(--border);
 	}
 
+	/* Section cards sit on the page colour, so each group reads as one block. */
 	.tab-scroll {
 		position: relative;
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
+		background: var(--sunken);
 	}
 
 	.tab-body {
@@ -1705,109 +1587,66 @@
 		min-width: 0;
 	}
 
-	.block {
+	.board,
+	.col-main,
+	.col-side {
 		display: grid;
-		gap: var(--space-3);
-	}
-
-	.block + .block,
-	.details-board + .block {
-		margin-top: var(--space-6);
-	}
-
-	.section-title {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		margin: 0 0 var(--space-3);
-		font-size: var(--text-md);
-		font-weight: 600;
-		line-height: 1.3;
-		color: var(--foreground);
-	}
-
-	.section-title::after {
-		content: "";
-		flex: 1 1 auto;
-		height: 1px;
-		min-width: 1.5rem;
-		background: var(--border-strong);
-	}
-
-	.section-head {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		margin-bottom: var(--space-3);
-	}
-
-	.section-head .section-title {
-		flex: 1 1 auto;
-		margin: 0;
+		gap: var(--space-4);
+		align-content: start;
 		min-width: 0;
 	}
 
-	.grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: var(--space-3) var(--space-3);
-		align-items: start;
+	/* Phones: one column, the photo straight after what the drink is. */
+	@container drink-detail (max-width: 51.99rem) {
+		.col-main,
+		.col-side {
+			display: contents;
+		}
+
+		.col-main > :global(.sec-drink) {
+			order: 1;
+		}
+
+		.col-side > :global(.sec-photo) {
+			order: 2;
+		}
+
+		.col-main > :global(.sec-recipe) {
+			order: 3;
+		}
+
+		.col-main > :global(.sec-method) {
+			order: 4;
+		}
+
+		.col-main > :global(.sec-copy) {
+			order: 5;
+		}
 	}
 
-	.grid.three {
-		grid-template-columns: minmax(0, 1fr);
-	}
+	/* Wide: the fields on the left, the photo beside them and kept in view. */
+	@container drink-detail (min-width: 52rem) {
+		.board {
+			grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
+			gap: var(--space-5);
+			align-items: start;
+		}
 
-	.full {
-		grid-column: 1 / -1;
-	}
-
-	/* Photo on top when narrow; beside the fields, top right, when wide. */
-	.details-board {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: var(--space-5) var(--space-6);
-		align-items: start;
-	}
-
-	.details-main {
-		min-width: 0;
-	}
-
-	.details-side {
-		order: -1;
-		min-width: 0;
+		.col-side {
+			position: sticky;
+			top: 0;
+		}
 	}
 
 	.photo {
 		position: relative;
 		display: grid;
-		gap: var(--space-2);
-	}
-
-	.photo-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-3);
-		min-height: var(--control-h-sm);
-	}
-
-	.photo-title {
-		margin: 0;
-		font-size: var(--text-sm);
-		font-weight: 600;
-	}
-
-	.photo-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
 	}
 
 	.photo-btn {
 		display: inline-flex;
 		align-items: center;
+		gap: var(--space-2);
 		height: var(--control-h-sm);
 		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
@@ -1818,10 +1657,6 @@
 		font-size: var(--text-sm);
 		font-weight: 600;
 		cursor: pointer;
-	}
-
-	.photo-btn {
-		gap: var(--space-2);
 	}
 
 	/* Phones and tablets only: opens the camera straight away. */
@@ -1849,13 +1684,13 @@
 
 	.photo-btn:disabled {
 		cursor: not-allowed;
-		opacity: 0.6;
+		color: var(--subtle-foreground);
 	}
 
 	.photo-frame,
 	.photo-empty {
 		width: 100%;
-		aspect-ratio: 16 / 10;
+		aspect-ratio: 1;
 		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
@@ -1879,8 +1714,8 @@
 		gap: var(--space-1);
 		margin: 0;
 		padding: var(--space-4);
-		border: 1px dashed var(--border);
-		background: var(--surface-2);
+		border: 1px dashed var(--border-strong);
+		background: var(--sunken);
 		color: var(--muted-foreground);
 		text-align: center;
 		cursor: pointer;
@@ -1888,7 +1723,7 @@
 
 	label.photo-empty:hover,
 	label.photo-empty:focus-within {
-		border-color: var(--border-strong, var(--border));
+		border-color: var(--primary);
 		color: var(--foreground);
 	}
 
@@ -1914,7 +1749,7 @@
 
 	.photo-drop {
 		position: absolute;
-		inset: calc(var(--control-h-sm) + 0.6rem) 0 0;
+		inset: 0;
 		display: grid;
 		place-content: center;
 		border-radius: var(--radius-md);
@@ -1924,33 +1759,19 @@
 		pointer-events: none;
 	}
 
-	@container drink-detail (min-width: 34rem) {
-		.grid.three {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-		}
-	}
-
-	@container drink-detail (min-width: 46rem) {
-		.details-board {
-			grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
-		}
-
-		.details-side {
-			order: 0;
-		}
-
+	/* Phones: a wide photo, so the fields under it stay in reach. */
+	@container drink-detail (max-width: 51.99rem) {
 		.photo-frame,
 		.photo-empty {
-			aspect-ratio: 1;
+			aspect-ratio: 16 / 10;
 		}
 	}
 
-	.lede-hint {
-		margin: -0.25rem 0 0.75rem;
-		font-size: var(--text-sm);
-		line-height: 1.45;
-		color: var(--muted-foreground);
+	.board-tab {
+		display: grid;
+		gap: var(--space-4);
 	}
+
 
 	@media (max-width: 900px) {
 		.split {
@@ -1980,9 +1801,7 @@
 			padding-top: var(--space-1);
 		}
 
-		.price-row,
 		.pour-readout {
-			justify-content: flex-start;
 			text-align: left;
 		}
 
@@ -2010,11 +1829,8 @@
 	}
 
 	@media (max-width: 600px) {
-		.title-input,
-		.price-edit,
-		.pound,
-		.price-input,
-		.price-alt {
+		.title-text,
+		.price-readout {
 			font-size: var(--text-xl);
 			letter-spacing: var(--tracking-xl);
 		}

@@ -77,37 +77,24 @@
 				? `/events/${encodeURIComponent(editor.route.slug)}`
 				: "/events/new";
 		const hrefFor = (id: string) => eventTabPath(base, id);
-		if (editor.creatingNight) {
-			return [
-				{ id: "details", label: "Details", href: editor.newEventRoute ? "/events/new/once" : hrefFor("details") },
-			];
-		}
-		if (editor.creatingOnce) {
-			return [{ id: "details", label: "Details", href: "/events/new/once" }];
-		}
-		if (editor.editingOnce) {
+		// Everything new is one form: nights and photos come after the first save.
+		if (editor.route.isNew) return [];
+		if (editor.editingOnce || editor.editingOccurrence) {
 			return [
 				{ id: "details", label: "Details", href: hrefFor("details") },
-				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
-			];
-		}
-		if (editor.editingOccurrence) {
-			return [
-				{ id: "details", label: "Details", href: hrefFor("details") },
-				{
-					id: "schedule",
-					label: "Schedule",
-					href: hrefFor("schedule"),
-				},
 				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
 			];
 		}
 		return [
 			{ id: "details", label: "Details", href: hrefFor("details") },
-			{ id: "schedule", label: "Schedule", href: hrefFor("schedule") },
+			{ id: "schedule", label: "Nights", href: hrefFor("schedule") },
 			{ id: "gallery", label: "Images", href: hrefFor("gallery") },
 		];
 	});
+
+	const nightsHref = $derived(
+		editor.route.slug ? eventTabPath(`/events/${encodeURIComponent(editor.route.slug)}`, "schedule") : "",
+	);
 
 	/** A new form starts in its name, or its date when the series is already picked. */
 	async function focusFirstField() {
@@ -135,9 +122,13 @@
 		if (routeList) listOrigin = routeList;
 	});
 
+	// A special event or a night has no Nights tab: its date is under When.
 	$effect(() => {
-		if (!editor.editingOnce || editor.tab !== "schedule" || !editor.eventId) return;
-		navigate(eventItemPath(editor.eventId, "details"), { replace: true });
+		if (editor.tab !== "schedule" || !editor.eventId) return;
+		if (editor.editingOnce) navigate(eventItemPath(editor.eventId, "details"), { replace: true });
+		else if (editor.editingOccurrence && editor.occurrenceDate) {
+			navigate(eventItemPath(`${editor.eventId}@${editor.occurrenceDate}`, "details"), { replace: true });
+		}
 	});
 
 	$effect(() => {
@@ -151,7 +142,7 @@
 	$effect(() => {
 		if (!editor.editing) return;
 		const canonical = editor.route.isNew
-			? eventNewPath(editor.route.tab || "details", { once: editor.newEventRoute })
+			? eventNewPath("details", { once: editor.newEventRoute })
 			: editor.route.slug
 				? eventItemPath(editor.route.slug, editor.route.tab || "details")
 				: "";
@@ -356,7 +347,6 @@
 						occurrenceDate={editor.occurrenceDate}
 						busy={editor.busy}
 						dirty={editor.formDirty}
-						nameError={editor.errors.get("event-name")}
 						isNew={Boolean(editor.route.isNew)}
 						creatingNight={editor.creatingNight}
 						creatingOnce={editor.creatingOnce}
@@ -364,7 +354,6 @@
 						parentSeriesName={editor.parentSeriesName}
 						calendarSyncing={editor.calendarSyncing}
 						localOps={editor.localOps}
-						onusedefaults={() => void editor.useSeriesDefaults()}
 						onaddnight={editor.addNightToSeries}
 						onsynccalendar={() => void editor.onSyncCalendar()}
 						onputonwebsite={editor.openPutOnWebsite}
@@ -372,15 +361,17 @@
 						onclose={requestClose}
 					/>
 
-					<div class="tabs">
-						<Segmented
-							value={editor.tab}
-							items={tabs}
-							tone="soft"
-							size="sm"
-							ariaLabel="Event sections"
-						/>
-					</div>
+					{#if tabs.length > 1}
+						<div class="tabs">
+							<Segmented
+								value={editor.tab}
+								items={tabs}
+								tone="soft"
+								size="sm"
+								ariaLabel="Event sections"
+							/>
+						</div>
+					{/if}
 
 					<div class="tab-scroll scrollbar-fade">
 						<div class="tab-body">
@@ -394,15 +385,17 @@
 										easing: easeOut,
 									}}
 								>
-									{#if editor.tab === "details"}
+									{#if editor.tab === "details" || editor.route.isNew}
 										<DetailsTab
 											form={editor.form}
 											errors={editor.errors}
 											current={editor.current}
+											parentSeries={editor.parentSeries}
 											eventId={editor.eventId}
+											occurrenceDate={editor.occurrenceDate}
 											busy={editor.busy}
 											isNew={Boolean(editor.route.isNew)}
-											newEventRoute={editor.newEventRoute}
+											newKind={editor.newKind}
 											creatingNight={editor.creatingNight}
 											creatingOnce={editor.creatingOnce}
 											editingOnce={editor.editingOnce}
@@ -412,11 +405,25 @@
 											approvedArtists={editor.approvedArtists}
 											webAddressChanged={editor.webAddressChanged}
 											framingUrl={editor.framingUrl}
+											previewDates={editor.previewDates}
+											{nightsHref}
+											onkind={editor.setNewKind}
+											onoverride={editor.overrideField}
+											onuseseries={editor.useSeriesValue}
+											onoverridephoto={editor.overridePhoto}
+											onuseseriesphoto={() => void editor.useSeriesPhoto()}
 											onpickphoto={editor.acceptPhotoFile}
 											onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage("main"))}
 										/>
 									{:else if editor.tab === "schedule"}
-										<ScheduleTab form={editor.form} errors={editor.errors} current={editor.current} eventId={editor.eventId} editingOccurrence={editor.editingOccurrence} previewDates={editor.previewDates} />
+										<ScheduleTab
+											form={editor.form}
+											current={editor.current}
+											eventId={editor.eventId}
+											previewDates={editor.previewDates}
+											busy={editor.busy}
+											onaddnight={editor.addNightToSeries}
+										/>
 									{:else if editor.tab === "gallery"}
 										<GalleryTab gallery={editor.gallery} eventId={editor.eventId} busy={editor.busy} />
 									{/if}
@@ -458,16 +465,27 @@
 						dirty={editor.formDirty}
 						errorCount={editor.errors.count}
 						onerrors={() => void editor.showErrors()}
-						overflow={editor.eventId
-							? [
-									{
-										label: deleteLabel,
-										tone: "destructive",
-										disabled: editor.busy,
-										onselect: editor.requestDelete,
-									},
-								]
-							: []}
+						overflow={[
+							...(editor.editingOccurrence && (editor.form.defaultsUnlocked || editor.form.ownPhoto)
+								? [
+										{
+											label: "Use series values for everything",
+											disabled: editor.busy,
+											onselect: () => void editor.useSeriesDefaults(),
+										},
+									]
+								: []),
+							...(editor.eventId
+								? [
+										{
+											label: deleteLabel,
+											tone: "destructive" as const,
+											disabled: editor.busy,
+											onselect: editor.requestDelete,
+										},
+									]
+								: []),
+						]}
 					/>
 				</div>
 			</div>
@@ -608,12 +626,14 @@
 		border-bottom: 1px solid var(--border);
 	}
 
+	/* Section cards sit on the page colour, so each group reads as one block. */
 	.tab-scroll {
 		position: relative;
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
+		background: var(--sunken);
 	}
 
 	.tab-body {

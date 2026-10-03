@@ -37,7 +37,9 @@ import { beginLeave } from "../ui/unsaved.svelte";
 import { FormErrors } from "../ui/form-errors.svelte";
 import { EVENT_FIELD_ORDER, eventFieldTab, validateEvent } from "./event-validate";
 import { EventGallery } from "./event-gallery.svelte";
-import { EventForm } from "./event-form.svelte";
+import { EventForm, type SeriesTextKey } from "./event-form.svelte";
+
+export type NewEventKind = "series" | "night" | "once";
 
 /**
  * The event editor's state and actions: the events list, the event being
@@ -100,14 +102,26 @@ export class EventEditor {
 
 	route = $derived.by(() => parseShellPath(this.getPath()));
 	editing = $derived(this.route.page === "events" && (this.route.isNew || Boolean(this.route.slug)));
-	creatingNight = $derived(Boolean(this.route.isNew && this.attachSeriesId));
+
+	/**
+	 * What a new form makes, picked up front: a series, a night for a series
+	 * or a special event. The address only sets where it starts.
+	 */
+	newKind = $state<NewEventKind>("series");
+
+	/** A series picked means a night, whatever the chooser says (Add night presets it). */
+	creatingNight = $derived(
+		Boolean(this.route.isNew) && (this.newKind === "night" || Boolean(this.attachSeriesId)),
+	);
 
 	/** "New event" (Schedule): a night for a series, or a special event without one. */
 	newEventRoute = $derived(
 		Boolean(this.route.isNew) && (this.route as { kind?: string }).kind === "once",
 	);
 
-	creatingOnce = $derived(this.newEventRoute && !this.attachSeriesId);
+	creatingOnce = $derived(
+		Boolean(this.route.isNew) && this.newKind === "once" && !this.attachSeriesId,
+	);
 
 	seriesOptions = $derived(
 		this.events
@@ -186,13 +200,16 @@ export class EventEditor {
 
 	editingNight = $derived(this.editingOccurrence || this.creatingNight);
 
-	parentSeriesName = $derived(
+	/** The series a night takes its values from: its own, or the one a new night joins. */
+	parentSeries = $derived<OpsEvent | null>(
 		this.editingOccurrence
-			? String(this.current?.name || "").trim()
+			? this.current
 			: this.creatingNight
-				? this.events.find((event) => event.id === this.attachSeriesId)?.name || ""
-				: "",
+				? this.events.find((event) => event.id === this.attachSeriesId) || null
+				: null,
 	);
+
+	parentSeriesName = $derived(String(this.parentSeries?.name || "").trim());
 
 	websiteJob = $derived(websiteJobFor(this.current?.id));
 
@@ -241,8 +258,52 @@ export class EventEditor {
 		this.clearPendingPhoto();
 		this.form.reset(this.newEventRoute ? "once" : "none");
 		this.attachSeriesId = this.presetSeriesId;
+		this.newKind = this.presetSeriesId ? "night" : this.newEventRoute ? "once" : "series";
 		this.presetSeriesId = "";
 		this.warnings = [];
+	};
+
+	/**
+	 * The chooser on a new form. What's typed stays; only what it saves as
+	 * changes. A series or special event drops the series a night was joining.
+	 */
+	setNewKind = (kind: NewEventKind) => {
+		if (!this.route.isNew || kind === this.newKind) return;
+		this.newKind = kind;
+		this.errors.clearAll();
+		if (kind !== "night") {
+			this.attachSeriesId = "";
+			this.form.overridden = [];
+			this.form.ownPhoto = false;
+		}
+		if (kind === "once") this.form.repeatUnit = "once";
+		else if (this.form.repeatUnit === "once") this.form.repeatUnit = "none";
+	};
+
+	/** "Override" on a night's field: its own value, starting from the series'. */
+	overrideField = (key: SeriesTextKey) => {
+		this.form.override(key, this.parentSeries);
+	};
+
+	/** "Use series value" on a night's field. */
+	useSeriesValue = (key: SeriesTextKey) => {
+		this.form.useSeriesValue(key, this.parentSeries, { newNight: this.creatingNight });
+	};
+
+	/** "Override" on a night's photo: pick one of its own. */
+	overridePhoto = () => {
+		this.form.ownPhoto = true;
+	};
+
+	/** "Use series photo": drop the night's own photo (removing it if it's saved). */
+	useSeriesPhoto = async () => {
+		if (this.pendingPhoto) this.clearPendingPhoto();
+		if (this.currentOccurrence?.overrides?.image?.url) {
+			await this.onClearImage("main");
+			if (this.currentOccurrence?.overrides?.image?.url) return;
+		}
+		this.form.heroCrops = null;
+		this.form.ownPhoto = false;
 	};
 
 	/** "Add night" on a series: the New event form with this series picked. */
@@ -446,20 +507,7 @@ export class EventEditor {
 				.filter((slot) => slot.label);
 			try {
 				const data = await ensureEventOccurrence(seriesId, date, {
-					name: this.form.name.trim(),
-					artist: this.form.artist.trim(),
-					offer: this.form.offer.trim(),
-					pageUrl: this.form.pageUrl.trim(),
-					description: this.form.description.trim(),
-					shortDescription: this.form.shortDescription.trim(),
-					operationsNotes: this.form.operationsNotes.trim(),
-					imageLinks: this.form.imageLinksText
-						.split(/\r?\n/)
-						.map((link) => link.trim())
-						.filter(Boolean),
-					time: this.form.startTime && this.form.endTime ? "" : this.form.time.trim(),
-					startTime: this.form.startTime,
-					endTime: this.form.endTime,
+					...this.form.newNightBody(this.parentSeries),
 					...(nightSchedule.length ? { nightSchedule } : {}),
 				});
 				this.rememberEvent(data.event, true);

@@ -6,6 +6,7 @@
 		Confirm,
 		ConfirmDialog,
 		EditorActionBar,
+		FormSection,
 		EditorBackBar,
 		Field,
 		FormErrors,
@@ -13,7 +14,6 @@
 		Segmented,
 		TextArea,
 		TextField,
-		Tip,
 	} from "../ui";
 	import {
 		clearArtistImage,
@@ -403,34 +403,34 @@
 					</Button>
 				</div>
 				<div class="title-name">
-					<input
-						class="title-input"
-						id="artist-name"
-						required
-						autocomplete="off"
-						aria-label="Full name"
-						placeholder="Full name"
-						aria-invalid={errors.get("artist-name") ? true : undefined}
-						aria-describedby={errors.get("artist-name") ? "artist-name-error" : undefined}
-						oninput={() => errors.clear("artist-name")}
-						bind:value={name}
-					/>
-					{#if errors.get("artist-name")}
-						<p class="name-error" id="artist-name-error">{errors.get("artist-name")}</p>
-					{/if}
+					<h1 class="title-text" class:placeholder={!name.trim()}>{name.trim() || "New artist"}</h1>
 				</div>
 			</header>
 
 			<div class="tab-scroll scrollbar-fade">
 				<div class="tab-body">
-					<section class="details-board">
-						<div class="details-main">
-							<div class="control-grid">
+					<div class="board">
+						<div class="col-main">
+							<FormSection title="Artist" class="sec-artist">
 								<Field
 									class="span-all"
+									label="Full name"
+									for="artist-name"
+									width="lg"
+									error={errors.get("artist-name")}
+								>
+									<TextField
+										id="artist-name"
+										size="sm"
+										autocomplete="off"
+										placeholder="Ada Lovelace"
+										oninput={() => errors.clear("artist-name")}
+										bind:value={name}
+									/>
+								</Field>
+								<Field
 									label="Artist name"
 									for="artist-short-name"
-									width="lg"
 									optional
 									hint="The first name in From on their page. Blank uses the first word of the full name."
 								>
@@ -440,39 +440,6 @@
 										bind:value={artistName}
 										placeholder={name.trim().split(/\s+/)[0] || "First name"}
 										autocomplete="off"
-									/>
-								</Field>
-								<Field
-									label="On the wall"
-									optional
-									hint="Shown under the name on the home page, as Sept to Oct."
-								>
-									<div class="months">
-										<NativeSelect
-											id="artist-start-month"
-											aria-label="From"
-											bind:value={startMonth}
-											options={monthOptions}
-											size="sm"
-										/>
-										<NativeSelect
-											id="artist-end-month"
-											aria-label="To"
-											bind:value={endMonth}
-											options={monthOptions}
-											size="sm"
-										/>
-									</div>
-								</Field>
-								<Field
-									label="Place"
-									tooltip="Current is on the wall. Next is lined up. Previous has already hung here. Only one current and one next: saving that badge moves the artist who had it to previous."
-								>
-									<Segmented
-										bind:value={slot}
-										items={statusItems}
-										ariaLabel="Place on the wall"
-										size="sm"
 									/>
 								</Field>
 								<div class="website">
@@ -496,41 +463,54 @@
 										</p>
 									{/if}
 								</div>
+							</FormSection>
+
+							<FormSection title="On the wall" class="sec-wall" description="Where they are in the line-up, and the months under their name on the home page.">
 								<Field
 									class="span-all"
-									label="Profile"
-									for="artist-profile"
-									optional
-									hint="A short introduction, above the longer bio."
+									label="Place"
+									tooltip="Current is on the wall. Next is lined up. Previous has already hung here. Only one current and one next: saving that badge moves the artist who had it to previous."
 								>
-									<TextArea
-										id="artist-profile"
-										rows={3}
-										bind:value={profile}
-										placeholder="Who they are, in a few lines."
-									/>
+									<Segmented bind:value={slot} items={statusItems} ariaLabel="Place on the wall" size="sm" />
 								</Field>
-								<Field
-									class="span-all"
-									label="Bio"
-									for="artist-bio"
-									optional
-									hint="The longer note on their page."
-								>
-									<TextArea
-										id="artist-bio"
-										rows={6}
-										bind:value={bio}
-										placeholder="The fuller story."
-									/>
+								<Field class="span-all" label="Months" width="lg" optional hint="Shown as Sept to Oct.">
+									<div class="months">
+										<NativeSelect
+											id="artist-start-month"
+											aria-label="From"
+											bind:value={startMonth}
+											options={monthOptions}
+											size="sm"
+										/>
+										<span class="months-to" aria-hidden="true">to</span>
+										<NativeSelect
+											id="artist-end-month"
+											aria-label="To"
+											bind:value={endMonth}
+											options={monthOptions}
+											size="sm"
+										/>
+									</div>
 								</Field>
-							</div>
+							</FormSection>
+
+							<FormSection title="Their page" class="sec-page" columns={1}>
+								<Field label="Profile" for="artist-profile" optional hint="A short introduction, above the longer bio.">
+									<TextArea id="artist-profile" rows={3} bind:value={profile} placeholder="Who they are, in a few lines." />
+								</Field>
+								<Field label="Bio" for="artist-bio" optional hint="The longer note on their page.">
+									<TextArea id="artist-bio" rows={6} bind:value={bio} placeholder="The fuller story." />
+								</Field>
+							</FormSection>
 						</div>
 
-						<aside class="details-side">
-							{#if !persisted}
-								<p class="hint">Save before adding a photo.</p>
-							{/if}
+						<div class="col-side">
+							<FormSection
+								title="Profile photo"
+								class="sec-photo"
+								columns={1}
+								description={persisted ? "The portrait at the top of their page." : "Save the artist first, then add photos."}
+							>
 							<section
 								class="portrait"
 								class:dropping={dropping === "portrait"}
@@ -541,15 +521,8 @@
 								ondragleave={(event) => onDragLeave("portrait", event)}
 								ondrop={(event) => onDrop("portrait", event)}
 							>
+								{#if persisted && portrait}
 								<header class="portrait-head">
-									<h2 class="section-title bare">
-										Profile photo
-										<Tip
-											label="Profile photo"
-											tooltip="The portrait at the top of their page."
-										/>
-									</h2>
-									{#if persisted && portrait}
 										<div class="portrait-actions">
 											<label class="pick">
 												<input
@@ -570,8 +543,8 @@
 												Remove
 											</button>
 										</div>
-									{/if}
 								</header>
+								{/if}
 								{#if portrait}
 									<figure class="portrait-frame">
 										<img src={portrait.url || portrait.thumb} alt="" />
@@ -591,15 +564,10 @@
 									</label>
 								{/if}
 							</section>
-						</aside>
+							</FormSection>
+						</div>
 
-						<section class="gallery-block">
-							<h2 class="section-title">
-								<span class="section-label">
-									Work
-									<Tip label="Work" tooltip="Their art, shown on the website." />
-								</span>
-							</h2>
+						<FormSection title="Work" class="sec-work" columns={1} description="Their art, shown on the website.">
 							<div
 								class="drop"
 								class:dragging={dropping === "art"}
@@ -649,18 +617,9 @@
 									<div class="drop-veil" aria-hidden="true"><span>Drop to upload</span></div>
 								{/if}
 							</div>
-						</section>
+						</FormSection>
 
-						<section class="gallery-block">
-							<h2 class="section-title">
-								<span class="section-label">
-									At Gwenda
-									<Tip
-										label="At Gwenda"
-										tooltip="Photos taken at Gwenda. These are separate from their own art."
-									/>
-								</span>
-							</h2>
+						<FormSection title="At Gwenda" class="sec-gwenda" columns={1} description="Photos taken here, kept apart from their own art.">
 							<div
 								class="drop"
 								class:dragging={dropping === "gwenda"}
@@ -710,11 +669,8 @@
 									<div class="drop-veil" aria-hidden="true"><span>Drop to upload</span></div>
 								{/if}
 							</div>
-						</section>
-					</section>
-					{#if !persisted}
-						<p class="hint">Save the name first, then add photos.</p>
-					{/if}
+						</FormSection>
+					</div>
 					{#if error}
 						<p class="error">{error}</p>
 					{/if}
@@ -819,44 +775,29 @@
 		color: var(--muted-foreground);
 	}
 
-	.title-input {
-		display: block;
-		width: 100%;
+	.title-text {
+		margin: 0;
 		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
 		font-size: var(--text-2xl);
 		font-weight: 600;
 		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		outline: none;
+		overflow-wrap: anywhere;
 	}
 
-	.title-input::placeholder {
-		color: var(--subtle-foreground);
+	.title-text.placeholder {
+		color: var(--muted-foreground);
 	}
 
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
-	}
-
+	/* Section cards sit on the page colour, so each group reads as one block. */
 	.tab-scroll {
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
+		background: var(--sunken);
 	}
 
 	.tab-body {
@@ -865,35 +806,13 @@
 		container-name: artist-detail;
 	}
 
-	.details-board {
+	.board,
+	.col-main,
+	.col-side {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: var(--space-5) var(--space-6);
-		align-items: start;
-	}
-
-	.details-main,
-	.details-side {
-		display: grid;
-		gap: var(--space-3);
+		gap: var(--space-4);
 		align-content: start;
 		min-width: 0;
-	}
-
-	.details-side {
-		order: -1;
-	}
-
-	.control-grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: var(--space-3) var(--space-3);
-		align-items: start;
-	}
-
-	.control-grid > :global(.span-all),
-	.gallery-block {
-		grid-column: 1 / -1;
 	}
 
 	.website {
@@ -904,8 +823,14 @@
 
 	.months {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+		align-items: center;
 		gap: var(--space-2);
+	}
+
+	.months-to {
+		font-size: var(--text-sm);
+		color: var(--muted-foreground);
 	}
 
 	.site {
@@ -933,36 +858,6 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-3);
-	}
-
-	.section-title {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		margin: var(--space-2) 0 0;
-		font-size: var(--text-md);
-		font-weight: 600;
-		line-height: 1.3;
-		color: var(--foreground);
-	}
-
-	.section-title.bare {
-		margin: 0;
-		flex: 1;
-	}
-
-	.section-title:not(.bare)::after {
-		content: "";
-		flex: 1 1 auto;
-		height: 1px;
-		min-width: 1.5rem;
-		background: var(--border-strong);
-	}
-
-	.section-label {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
 	}
 
 	.portrait-actions {
@@ -1048,11 +943,6 @@
 		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
-	}
-
-	.gallery-block {
-		display: grid;
-		gap: var(--space-3);
 	}
 
 	.drop {
@@ -1174,41 +1064,72 @@
 		pointer-events: none;
 	}
 
-	.hint,
 	.error {
 		margin: var(--space-3) 0 0;
 		font-size: var(--text-sm);
-	}
-
-	.hint {
-		color: var(--muted-foreground);
-	}
-
-	.error {
 		color: var(--danger);
 	}
 
-	.name-error {
-		margin: 0;
-		font-size: var(--text-xs);
-		color: var(--danger);
+	/* Phones: one column, the portrait straight after who they are. */
+	@container artist-detail (max-width: 51.99rem) {
+		.col-main,
+		.col-side {
+			display: contents;
+		}
+
+		.col-main > :global(.sec-artist) {
+			order: 1;
+		}
+
+		.col-side > :global(.sec-photo) {
+			order: 2;
+		}
+
+		.col-main > :global(.sec-wall) {
+			order: 3;
+		}
+
+		.col-main > :global(.sec-page) {
+			order: 4;
+		}
+
+		.board > :global(.sec-work) {
+			order: 5;
+		}
+
+		.board > :global(.sec-gwenda) {
+			order: 6;
+		}
 	}
 
-	.title-name .title-input[aria-invalid="true"] {
-		border-color: var(--danger);
-	}
-
+	/* Wide: details left, portrait right, the galleries across the bottom. */
 	@container artist-detail (min-width: 52rem) {
-		.details-board {
-			grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.8fr);
+		.board {
+			grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+			gap: var(--space-5);
+			align-items: start;
 		}
 
-		.details-side {
-			order: 0;
+		.board > :global(.sec-work),
+		.board > :global(.sec-gwenda) {
+			grid-column: 1 / -1;
+		}
+	}
+
+	/* Keep in sync with SHELL_MOBILE_MAX_PX: edge to edge, like the other editors. */
+	@media (max-width: 900px) {
+		.split {
+			padding: 0;
 		}
 
-		.control-grid {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		.panel {
+			border-radius: 0;
+			border-left: none;
+			border-right: none;
+		}
+
+		.tab-body {
+			padding: var(--space-4) max(var(--page-gutter), 1.125rem);
 		}
 	}
 </style>

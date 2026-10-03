@@ -167,3 +167,31 @@ export function deleteEventCopy({
 	}
 	return { title: `Delete ${eventName}?`, message: `The series and all its nights go.${undo}`, website };
 }
+
+/**
+ * The social post line in the editor's Tasks section. Update website makes
+ * one ClickUp task per night, due two weeks before it.
+ */
+export function socialTaskNote(
+	event: OpsEvent | null,
+	occurrenceDate = "",
+	today = new Date().toISOString().slice(0, 10),
+): string {
+	const later = "Update website adds one to ClickUp, due two weeks before the night.";
+	if (!event) return `No social post task yet. ${later}`;
+	if (occurrenceDate) {
+		const night = event.dates.find((row) => row.date === occurrenceDate);
+		return night?.clickupTaskId
+			? "The social post task is in ClickUp, due two weeks before the night."
+			: `No social post task yet. ${later}`;
+	}
+	const upcoming = event.dates.filter((row) => row.date >= today);
+	if (!upcoming.length) return "No upcoming nights, so no social post tasks.";
+	const withTask = upcoming.filter((row) => row.clickupTaskId).length;
+	if (withTask === upcoming.length) {
+		return upcoming.length === 1
+			? "The next night has its social post task in ClickUp."
+			: `All ${upcoming.length} upcoming nights have a social post task in ClickUp.`;
+	}
+	return `Social post tasks in ClickUp: ${withTask} of ${upcoming.length} upcoming nights. ${later}`;
+}

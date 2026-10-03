@@ -13,12 +13,15 @@
 
 	let {
 		open = false,
+		sheet = false,
 		title,
 		onclose,
 		children,
 		footer,
 	}: {
 		open?: boolean;
+		/** On phones, rise from the bottom as a sheet instead of a centred box. */
+		sheet?: boolean;
 		title: string;
 		onclose: () => void;
 		children: Snippet;
@@ -59,7 +62,7 @@
 </script>
 
 {#if open}
-	<div class="root" role="presentation" use:portal>
+	<div class="root" class:sheet role="presentation" use:portal>
 		<button
 			type="button"
 			class="backdrop"
@@ -186,5 +189,28 @@
 		gap: var(--space-2);
 		padding: var(--space-3) var(--space-4);
 		border-top: 1px solid var(--border);
+	}
+
+	/* Keep in sync with SHELL_MOBILE_MAX_PX: a sheet along the bottom, clear of the home bar. */
+	@media (max-width: 900px) {
+		.root.sheet {
+			place-items: end stretch;
+			padding: 0;
+		}
+
+		.root.sheet .dialog {
+			width: 100%;
+			max-height: calc(100dvh - 2.5rem);
+			border-bottom: 0;
+			border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+		}
+
+		.root.sheet .foot {
+			padding-bottom: max(var(--space-3), env(safe-area-inset-bottom, 0px));
+		}
+
+		.root.sheet .foot :global(.btn) {
+			min-height: 2.75rem;
+		}
 	}
 </style>

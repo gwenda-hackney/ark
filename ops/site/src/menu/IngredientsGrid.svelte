@@ -1,12 +1,14 @@
 <script lang="ts">
 	/**
-	 * Editable recipe lines. Qty / unit / note edit inline.
+	 * Editable recipe lines. On desktop qty / unit / note edit inline in the
+	 * grid; on phones each line is one compact row that opens a sheet.
 	 * Click the ingredient name to change stock (dialog). Add via parent +.
 	 * Linked stock ABV is resolved from inventory (read-only in the grid).
 	 * Line cost comes from the same pour-cost math as analysis.
 	 */
 	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
-	import { Button, DataGrid, Dialog, Field, NativeSelect, TextField } from "../ui";
+	import { Icon } from "../app/shell";
+	import { Button, DataGrid, Dialog, Field, NativeSelect, NumberField, TextField } from "../ui";
 	import { svelteCell } from "../ui/grid";
 	import { inventoryItemPath, navigate } from "../app/nav";
 	import { inventoryAbvById, resolveIngredientAbv } from "./abv";
@@ -43,6 +45,8 @@
 	const unitOptions = UNITS.map((unit) => ({ value: unit, label: unit }));
 
 	let editIndex = $state<number | null>(null);
+	/** The line open in the phone sheet. */
+	let sheetIndex = $state<number | null>(null);
 
 	const abvById = $derived(inventoryAbvById(inventory));
 
@@ -124,9 +128,18 @@
 			),
 	);
 
+	const sheetRow = $derived(sheetIndex != null ? rows[sheetIndex] ?? null : null);
+
 	const editing = $derived(
 		editIndex != null ? ingredients[editIndex] ?? null : null,
 	);
+
+	/** "50 ml", "1 each", or a dash before a quantity is set. */
+	function amountLabel(row: IngRow): string {
+		const qty = row.quantity == null || row.quantity === "" ? "" : String(row.quantity);
+		if (!qty) return "—";
+		return `${qty} ${row.unit || "ml"}`.trim();
+	}
 
 	function commit(next: Ingredient[]) {
 		onChange(next);
@@ -324,102 +337,22 @@
 	{#if ingredients.length === 0}
 		<p class="empty">No ingredients yet. Use + to add a line.</p>
 	{:else if phone.matches}
-		<div class="cards">
+		<!-- Phones: one line per ingredient; tap it to edit in a sheet. -->
+		<ul class="lines">
 			{#each rows as row, index (row._key)}
-				<article class="card">
-					<header class="card-head">
-						<span class="card-name">{row.name || "Untitled"}</span>
-						<div class="card-tools">
-							<button
-								type="button"
-								class="card-action"
-								title="Change ingredient"
-								aria-label="Change ingredient"
-								onclick={() => openEdit(index)}
-							>
-								Edit
-							</button>
-							{#if row.href}
-								<a
-									class="card-action"
-									href={row.href}
-									title="Open in inventory"
-									onclick={(e) => {
-										e.preventDefault();
-										e.stopPropagation();
-										navigate(row.href!);
-									}}
-								>
-									Stock
-								</a>
-							{/if}
-							<RemoveRowCell onremove={() => removeRow(index)} />
-						</div>
-					</header>
-					<div class="card-grid">
-						<Field label="Qty" for={`ing-qty-${index}`}>
-							<TextField
-								id={`ing-qty-${index}`}
-								size="sm"
-								inputmode="decimal"
-								value={row.quantity == null ? "" : String(row.quantity)}
-								oninput={(e) => {
-									const raw = (e.currentTarget as HTMLInputElement).value;
-									const next = parseQtyInput(raw);
-									patchIndex(index, {
-										quantity: next === false ? raw : next,
-									});
-								}}
-							/>
-						</Field>
-						<Field label="Unit" for={`ing-unit-${index}`}>
-							<NativeSelect
-								id={`ing-unit-${index}`}
-								size="sm"
-								value={row.unit || "ml"}
-								options={unitOptions}
-								onchange={(e) => patchIndex(index, { unit: e.currentTarget.value })}
-							/>
-						</Field>
-						<Field label="ABV" for={`ing-abv-${index}`}>
-							<TextField
-								id={`ing-abv-${index}`}
-								size="sm"
-								inputmode="decimal"
-								disabled={Boolean(row.inventoryId)}
-								value={row.displayAbv || ""}
-								oninput={(e) =>
-									patchIndex(index, {
-										abv: (e.currentTarget as HTMLInputElement).value,
-									})}
-							/>
-						</Field>
-						<Field label="Line cost" for={`ing-cost-${index}`}>
-							<p
-								class="cost"
-								class:muted={row.estimated}
-								id={`ing-cost-${index}`}
-								title={row.costHint || undefined}
-							>
-								{row.costLabel}
-							</p>
-						</Field>
-					</div>
-					<Field label="Note" for={`ing-note-${index}`}>
-						<TextField
-							id={`ing-note-${index}`}
-							size="sm"
-							placeholder="Optional"
-							value={row.note || ""}
-							oninput={(e) =>
-								patchIndex(index, {
-									note: (e.currentTarget as HTMLInputElement).value,
-								})}
-						/>
-					</Field>
-				</article>
+				<li>
+					<button type="button" class="line" onclick={() => (sheetIndex = index)}>
+						<span class="line-qty">{amountLabel(row)}</span>
+						<span class="line-name">
+							<span class="line-title">{row.name || "Untitled"}</span>
+							{#if row.note}<span class="line-note">{row.note}</span>{/if}
+						</span>
+						<span class="line-cost" class:muted={row.estimated}>{row.costLabel}</span>
+						<span class="line-chevron" aria-hidden="true"><Icon name="chevron-right" size={16} /></span>
+					</button>
+				</li>
 			{/each}
-		</div>
+		</ul>
 	{:else}
 		<div class="host">
 			<DataGrid
@@ -463,6 +396,84 @@
 	{/snippet}
 </Dialog>
 
+<Dialog
+	open={sheetRow != null}
+	sheet
+	title={sheetRow?.name || "Ingredient"}
+	onclose={() => (sheetIndex = null)}
+>
+	{#if sheetRow && sheetIndex != null}
+		{@const index = sheetIndex}
+		<div class="sheet-body">
+			<div class="sheet-row">
+				<Field label="How much" for="ing-sheet-qty">
+					<NumberField
+						id="ing-sheet-qty"
+						min={0}
+						noun="a quantity"
+						value={sheetRow.quantity == null ? "" : String(sheetRow.quantity)}
+						oninput={(e) => {
+							const raw = (e.currentTarget as HTMLInputElement).value;
+							const next = parseQtyInput(raw);
+							patchIndex(index, { quantity: next === false ? raw : next });
+						}}
+					/>
+				</Field>
+				<Field label="Unit" for="ing-sheet-unit">
+					<NativeSelect
+						id="ing-sheet-unit"
+						value={sheetRow.unit || "ml"}
+						options={unitOptions}
+						onchange={(e) => patchIndex(index, { unit: e.currentTarget.value })}
+					/>
+				</Field>
+			</div>
+			<div class="sheet-row">
+				<Field label="ABV" for="ing-sheet-abv" optional={!sheetRow.inventoryId} hint={sheetRow.inventoryId ? "From stock." : undefined}>
+					<NumberField
+						id="ing-sheet-abv"
+						unit="%"
+						min={0}
+						max={100}
+						decimals={1}
+						noun="a percentage"
+						disabled={Boolean(sheetRow.inventoryId)}
+						value={String(sheetRow.displayAbv || "").replace(/%/g, "")}
+						oninput={(e) => patchIndex(index, { abv: (e.currentTarget as HTMLInputElement).value })}
+					/>
+				</Field>
+				<Field label="Line cost" for="ing-sheet-cost" hint={sheetRow.costHint || undefined}>
+					<p class="cost" class:muted={sheetRow.estimated} id="ing-sheet-cost">{sheetRow.costLabel}</p>
+				</Field>
+			</div>
+			<Field label="Note" for="ing-sheet-note" optional>
+				<TextField
+					id="ing-sheet-note"
+					placeholder="Fresh, chilled, to top…"
+					value={sheetRow.note || ""}
+					oninput={(e) => patchIndex(index, { note: (e.currentTarget as HTMLInputElement).value })}
+				/>
+			</Field>
+			<div class="sheet-actions">
+				<Button variant="outline" type="button" onclick={() => { sheetIndex = null; openEdit(index); }}>
+					Change ingredient
+				</Button>
+				{#if sheetRow.href}
+					<Button variant="ghost" type="button" onclick={() => { const href = sheetRow.href!; sheetIndex = null; navigate(href); }}>
+						Open in stock
+					</Button>
+				{/if}
+				<Button variant="ghost" type="button" class="remove-line" onclick={() => { sheetIndex = null; removeRow(index); }}>
+					Remove
+				</Button>
+			</div>
+		</div>
+	{/if}
+	{#snippet footer()}
+		<Button variant="primary" size="sm" type="button" onclick={() => (sheetIndex = null)}>Done</Button>
+	{/snippet}
+</Dialog>
+
 <style>
 	.grid-wrap {
 		display: grid;
@@ -482,65 +493,108 @@
 		min-height: 0;
 	}
 
-	.cards {
+	.lines {
 		display: grid;
-		gap: var(--space-3);
-	}
-
-	.card {
-		display: grid;
-		gap: var(--space-2);
-		padding: var(--space-3) var(--space-3) var(--space-3);
+		margin: 0;
+		padding: 0;
+		list-style: none;
 		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--sunken);
+		border-radius: var(--radius-md);
+		overflow: hidden;
 	}
 
-	.card-head {
-		display: flex;
+	.lines li + li {
+		border-top: 1px solid var(--border);
+	}
+
+	.line {
+		display: grid;
+		grid-template-columns: 4.5rem minmax(0, 1fr) auto auto;
 		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
+		gap: var(--space-3);
+		width: 100%;
+		min-height: 3rem;
+		margin: 0;
+		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+		border: 0;
+		background: var(--sunken);
+		color: var(--foreground);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.line:active {
+		background: var(--surface-3);
+	}
+
+	.line:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -2px;
+	}
+
+	.line-qty,
+	.line-cost {
+		font-size: var(--text-sm);
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
+		white-space: nowrap;
+	}
+
+	.line-qty {
+		color: var(--muted-foreground);
+	}
+
+	.line-cost.muted {
+		color: var(--muted-foreground);
+	}
+
+	.line-name {
+		display: grid;
 		min-width: 0;
 	}
 
-	.card-name {
-		min-width: 0;
-		font-weight: 600;
-		line-height: 1.3;
+	.line-title,
+	.line-note {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.card-tools {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		flex-shrink: 0;
-	}
-
-	.card-action {
-		margin: 0;
-		padding: 0;
-		border: 0;
-		background: none;
-		font: inherit;
-		font-size: var(--text-sm);
+	.line-title {
 		font-weight: 500;
+	}
+
+	.line-note {
+		font-size: var(--text-xs);
 		color: var(--muted-foreground);
-		text-decoration: none;
-		cursor: pointer;
 	}
 
-	.card-action:hover {
-		color: var(--primary);
+	.line-chevron {
+		display: inline-flex;
+		color: var(--subtle-foreground);
 	}
 
-	.card-grid {
+	.sheet-body {
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	.sheet-row {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		gap: var(--space-2) var(--space-3);
+		gap: var(--space-3);
+	}
+
+	.sheet-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.sheet-actions :global(.remove-line) {
+		margin-left: auto;
+		color: var(--destructive);
 	}
 
 	.cost {

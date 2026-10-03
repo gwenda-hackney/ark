@@ -8,6 +8,7 @@
 		EditorBackBar,
 		Field,
 		FormErrors,
+		FormSection,
 		MoneyField,
 		NativeSelect,
 		NumberField,
@@ -442,26 +443,9 @@
 			<header class="panel-head">
 				<div class="titles">
 					<p class="eyebrow">{kindLabel(item.kind)}</p>
-					<div class="title-row">
-						<input
-							class="title-input"
-							id="inv-name"
-							required
-							autocomplete="off"
-							placeholder="Short name"
-							aria-label="Short name"
-							aria-invalid={errors.get("inv-name") ? true : undefined}
-							aria-describedby={errors.get("inv-name") ? "inv-name-error" : undefined}
-							value={item.name || ""}
-							oninput={(e) => {
-								errors.clear("inv-name");
-								patch("name", (e.currentTarget as HTMLInputElement).value);
-							}}
-						/>
-					</div>
-					{#if errors.get("inv-name")}
-						<p class="name-error" id="inv-name-error">{errors.get("inv-name")}</p>
-					{/if}
+					<h1 class="title-text" class:placeholder={!item.name?.trim()}>
+						{item.name?.trim() || "New item"}
+					</h1>
 				</div>
 				<div class="head-actions">
 					<label
@@ -497,276 +481,301 @@
 			</header>
 
 			<div class="body scrollbar-fade">
-				<div class="grid">
-					<div class="full">
-						<Field
-							label="Full name"
-							for="inv-full-name"
-							optional
-							hint="The bottle's full name. Specs keep the short name; analysis uses this to match the menu line."
-						>
-							<TextField
-								id="inv-full-name"
-								size="sm"
-								placeholder="St-Germain elderflower liqueur"
-								value={item.fullName || ""}
-								oninput={(e) =>
-									patch(
-										"fullName",
-										(e.currentTarget as HTMLInputElement).value,
-									)}
-							/>
-						</Field>
-					</div>
-					<Field label="Kind" for="inv-kind">
-						<NativeSelect
-							id="inv-kind"
-							size="sm"
-							options={kindOptions}
-							value={item.kind || "other"}
-							onchange={(e) =>
-								patch("kind", e.currentTarget.value as InventoryKind)}
-						/>
-					</Field>
-					<Field label="ABV" for="inv-abv" width="sm" optional>
-						<NumberField
-							id="inv-abv"
-							size="sm"
-							unit="%"
-							min={0}
-							max={100}
-							step={0.5}
-							decimals={1}
-							noun="a percentage"
-							placeholder="40"
-							value={String(item.abv || "").replace(/\s*%\s*$/, "")}
-							oninput={(e) =>
-								patch(
-									"abv",
-									(e.currentTarget as HTMLInputElement).value,
-								)}
-						/>
-					</Field>
-					<Field label="Default unit" for="inv-unit">
-						<NativeSelect
-							id="inv-unit"
-							size="sm"
-							options={unitOptions}
-							value={item.defaultUnit || ""}
-							onchange={(e) => patch("defaultUnit", e.currentTarget.value)}
-						/>
-					</Field>
-					<Field
-						label="Estimated cost"
-						for="inv-estimate"
-						optional
-						hint={estimateHint(item.kind)}
-					>
-						<div class="money">
-						<MoneyField
-							id="inv-estimate"
-							size="sm"
-							placeholder={kindCostEstimate(item.kind).cost.toFixed(2)}
-							value={
-								item.estimatedCost != null
-									? String(item.estimatedCost)
-									: ""
-							}
-							oninput={(e) => {
-								const raw = (e.currentTarget as HTMLInputElement).value.trim();
-								if (!raw) {
-									patch("estimatedCost", undefined);
-									return;
-								}
-								const n = parseNumber(raw);
-								patch(
-									"estimatedCost",
-									typeof n === "number" ? n : item?.estimatedCost,
-								);
-							}}
-						/>
-						</div>
-					</Field>
-					<Field
-						label="On hand"
-						for="inv-on-hand"
-						optional
-						hint={onHandHint}
-					>
-						<div class="money">
-						<NumberField
-							id="inv-on-hand"
-							size="sm"
-							min={0}
-							decimals={2}
-							noun="a quantity"
-							placeholder="0"
-							value={item.actualQty != null ? String(item.actualQty) : ""}
-							oninput={(e) => {
-								if (!item) return;
-								const raw = (e.currentTarget as HTMLInputElement).value.trim();
-								if (!raw) {
-									patch("actualQty", undefined);
-									return;
-								}
-								const n = parseNumber(raw);
-								if (typeof n !== "number") {
-									patch("actualQty", item.actualQty);
-									return;
-								}
-								if (!item.actualUnit && item.defaultUnit) {
-									item = {
-										...item,
-										actualQty: n,
-										actualUnit: item.defaultUnit,
-									};
-									return;
-								}
-								patch("actualQty", n);
-							}}
-						/>
-						</div>
-					</Field>
-					<Field label="On-hand unit" for="inv-on-hand-unit">
-						<NativeSelect
-							id="inv-on-hand-unit"
-							size="sm"
-							options={actualUnitOptions}
-							value={item.actualUnit || ""}
-							onchange={(e) => patch("actualUnit", e.currentTarget.value)}
-						/>
-					</Field>
-				</div>
+				<div class="board">
+					<div class="col-main">
+						<FormSection title="Item">
+							<Field
+								class="span-all"
+								label="Short name"
+								for="inv-name"
+								width="lg"
+								error={errors.get("inv-name")}
+								hint="What recipes and specs call it."
+							>
+								<TextField
+									id="inv-name"
+									size="sm"
+									autocomplete="off"
+									placeholder="St-Germain"
+									value={item.name || ""}
+									oninput={(e) => {
+										errors.clear("inv-name");
+										patch("name", (e.currentTarget as HTMLInputElement).value);
+									}}
+								/>
+							</Field>
+							<Field
+								class="span-all"
+								label="Full name"
+								width="lg"
+								for="inv-full-name"
+								optional
+								hint="The bottle's full name. Specs keep the short name; analysis uses this to match the menu line."
+							>
+								<TextField
+									id="inv-full-name"
+									size="sm"
+									placeholder="St-Germain elderflower liqueur"
+									value={item.fullName || ""}
+									oninput={(e) =>
+										patch(
+											"fullName",
+											(e.currentTarget as HTMLInputElement).value,
+										)}
+								/>
+							</Field>
+							<div class="field-row">
+								<Field label="Kind" for="inv-kind" width="md">
+									<NativeSelect
+										id="inv-kind"
+										size="sm"
+										options={kindOptions}
+										value={item.kind || "other"}
+										onchange={(e) =>
+											patch("kind", e.currentTarget.value as InventoryKind)}
+									/>
+								</Field>
+								<Field label="ABV" for="inv-abv" width="sm" optional>
+									<NumberField
+										id="inv-abv"
+										size="sm"
+										unit="%"
+										min={0}
+										max={100}
+										step={0.5}
+										decimals={1}
+										noun="a percentage"
+										placeholder="40"
+										value={String(item.abv || "").replace(/\s*%\s*$/, "")}
+										oninput={(e) =>
+											patch(
+												"abv",
+												(e.currentTarget as HTMLInputElement).value,
+											)}
+									/>
+								</Field>
+								<Field label="Default unit" for="inv-unit" width="sm">
+									<NativeSelect
+										id="inv-unit"
+										size="sm"
+										options={unitOptions}
+										value={item.defaultUnit || ""}
+										onchange={(e) => patch("defaultUnit", e.currentTarget.value)}
+									/>
+								</Field>
+							</div>
+						</FormSection>
 
-				<section class="block">
-					<div class="section-head">
-						<p class="section-title">Suppliers</p>
-						<Button
-							variant="accent"
-							size="xs"
-							type="button"
-							aria-label="Add supplier"
-							title="Add supplier"
-							onclick={openAddSupplier}
-						>
-							{#snippet icon()}
-								<Icon name="plus" size={15} />
+						<FormSection title="Cost and stock" description="An estimate prices recipes until a supplier price is set.">
+							<div class="field-row">
+								<Field
+									label="Estimated cost"
+									width="sm"
+									for="inv-estimate"
+									optional
+									hint={estimateHint(item.kind)}
+								>
+									<MoneyField
+										id="inv-estimate"
+										size="sm"
+										placeholder={kindCostEstimate(item.kind).cost.toFixed(2)}
+										value={
+											item.estimatedCost != null
+												? String(item.estimatedCost)
+												: ""
+										}
+										oninput={(e) => {
+											const raw = (e.currentTarget as HTMLInputElement).value.trim();
+											if (!raw) {
+												patch("estimatedCost", undefined);
+												return;
+											}
+											const n = parseNumber(raw);
+											patch(
+												"estimatedCost",
+												typeof n === "number" ? n : item?.estimatedCost,
+											);
+										}}
+									/>
+								</Field>
+							</div>
+							<div class="field-row">
+								<Field
+									label="On hand"
+									width="sm"
+									for="inv-on-hand"
+									optional
+									hint={onHandHint}
+								>
+									<NumberField
+										id="inv-on-hand"
+										size="sm"
+										min={0}
+										decimals={2}
+										noun="a quantity"
+										placeholder="0"
+										value={item.actualQty != null ? String(item.actualQty) : ""}
+										oninput={(e) => {
+											if (!item) return;
+											const raw = (e.currentTarget as HTMLInputElement).value.trim();
+											if (!raw) {
+												patch("actualQty", undefined);
+												return;
+											}
+											const n = parseNumber(raw);
+											if (typeof n !== "number") {
+												patch("actualQty", item.actualQty);
+												return;
+											}
+											if (!item.actualUnit && item.defaultUnit) {
+												item = {
+													...item,
+													actualQty: n,
+													actualUnit: item.defaultUnit,
+												};
+												return;
+											}
+											patch("actualQty", n);
+										}}
+									/>
+								</Field>
+								<Field label="Counted in" for="inv-on-hand-unit" width="sm">
+									<NativeSelect
+										id="inv-on-hand-unit"
+										size="sm"
+										options={actualUnitOptions}
+										value={item.actualUnit || ""}
+										onchange={(e) => patch("actualUnit", e.currentTarget.value)}
+									/>
+								</Field>
+							</div>
+						</FormSection>
+
+						<FormSection title="Suppliers" columns={1} description="Where it's bought and what it costs. Prices here cost the recipes.">
+							{#snippet actions()}
+								<Button variant="outline" size="sm" type="button" onclick={openAddSupplier}>
+									{#snippet icon()}
+										<Icon name="plus" size={15} />
+									{/snippet}
+									Add supplier
+								</Button>
 							{/snippet}
-						</Button>
+							{#if supplierRows.length === 0}
+								<p class="muted">
+									No suppliers on this item yet. Add one from the catalog.
+								</p>
+							{:else}
+								<div class="supplier-table-wrap">
+									<table class="supplier-table">
+										<thead>
+											<tr>
+												<th scope="col">Supplier</th>
+												<th scope="col">SKU</th>
+												<th scope="col">Pack</th>
+												<th scope="col" class="num">Price</th>
+												<th scope="col" class="icon-col">
+													<span class="sr-only">Product page</span>
+												</th>
+												<th scope="col" class="icon-col">
+													<span class="sr-only">Details</span>
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{#each supplierRows as entry, index (entry._id || `${entry.name}-${entry.sku}-${index}`)}
+												<tr>
+													<td class="name-cell">{entry.name || "Untitled"}</td>
+													<td class="mono">{entry.sku || ""}</td>
+													<td>{entry.pack || ""}</td>
+													<td class="price-cell">
+														<MoneyField
+															class="price-input"
+															size="sm"
+															align="end"
+															aria-label="Price for {entry.name || 'supplier'}"
+															value={
+																entry.price != null ? String(entry.price) : ""
+															}
+															oninput={(e) =>
+																patchSupplierPrice(
+																	index,
+																	(e.currentTarget as HTMLInputElement).value,
+																)}
+														/>
+													</td>
+													<td class="icon-col">
+														{#if entry.productUrl}
+															<a
+																class="icon-btn"
+																href={entry.productUrl}
+																target="_blank"
+																rel="noreferrer"
+																aria-label="Product page"
+																title="Product page"
+															>
+																<Icon name="external-link" size={15} />
+															</a>
+														{/if}
+													</td>
+													<td class="icon-col">
+														<Button
+															variant="ghost"
+															size="xs"
+															type="button"
+															aria-label="Supplier details"
+															title="Details"
+															onclick={() => openEditSupplier(index)}
+														>
+															{#snippet icon()}
+																<Icon name="pen" size={14} />
+															{/snippet}
+														</Button>
+													</td>
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</div>
+							{/if}
+						</FormSection>
 					</div>
-					{#if supplierRows.length === 0}
-						<p class="muted">
-							No suppliers on this item yet. Add one from the catalog.
-						</p>
-					{:else}
-						<div class="supplier-table-wrap">
-							<table class="supplier-table">
-								<thead>
-									<tr>
-										<th scope="col">Supplier</th>
-										<th scope="col">SKU</th>
-										<th scope="col">Pack</th>
-										<th scope="col" class="num">Price</th>
-										<th scope="col" class="icon-col">
-											<span class="sr-only">Product page</span>
-										</th>
-										<th scope="col" class="icon-col">
-											<span class="sr-only">Details</span>
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each supplierRows as entry, index (entry._id || `${entry.name}-${entry.sku}-${index}`)}
-										<tr>
-											<td class="name-cell">{entry.name || "Untitled"}</td>
-											<td class="mono">{entry.sku || ""}</td>
-											<td>{entry.pack || ""}</td>
-											<td class="price-cell">
-												<MoneyField
-													class="price-input"
-													size="sm"
-													align="end"
-													aria-label="Price for {entry.name || 'supplier'}"
-													value={
-														entry.price != null ? String(entry.price) : ""
-													}
-													oninput={(e) =>
-														patchSupplierPrice(
-															index,
-															(e.currentTarget as HTMLInputElement).value,
-														)}
-												/>
-											</td>
-											<td class="icon-col">
-												{#if entry.productUrl}
-													<a
-														class="icon-btn"
-														href={entry.productUrl}
-														target="_blank"
-														rel="noreferrer"
-														aria-label="Product page"
-														title="Product page"
-													>
-														<Icon name="external-link" size={15} />
-													</a>
-												{/if}
-											</td>
-											<td class="icon-col">
-												<Button
-													variant="ghost"
-													size="xs"
-													type="button"
-													aria-label="Supplier details"
-													title="Details"
-													onclick={() => openEditSupplier(index)}
-												>
-													{#snippet icon()}
-														<Icon name="pen" size={14} />
-													{/snippet}
-												</Button>
-											</td>
-										</tr>
+
+					<div class="col-side">
+						<FormSection title="Used in" columns={1}>
+							{#if usedIn.length === 0}
+								<p class="muted">
+									{item.active === false
+										? "Not used in any recipe. Hidden from the ingredient picker."
+										: "Not used in any recipe yet."}
+								</p>
+							{:else}
+								<div class="used-in">
+									{#each usedIn as drink (drink.id)}
+										<a href={drink.href}>{drink.name}</a>
 									{/each}
-								</tbody>
-							</table>
-						</div>
-					{/if}
-				</section>
+								</div>
+								{#if item.active === false}
+									<p class="muted">Hidden from the ingredient picker.</p>
+								{/if}
+							{/if}
+						</FormSection>
 
-				<section class="block">
-					<p class="section-title">Used in</p>
-					{#if usedIn.length === 0}
-						<p class="muted">
-							{item.active === false
-								? "Not used in any recipe. Hidden from the ingredient picker."
-								: "Not used in any recipe yet."}
-						</p>
-					{:else}
-						<div class="used-in">
-							{#each usedIn as drink (drink.id)}
-								<a href={drink.href}>{drink.name}</a>
-							{/each}
-						</div>
-						{#if item.active === false}
-							<p class="muted">Hidden from the ingredient picker.</p>
-						{/if}
-					{/if}
-				</section>
-
-				<section class="block">
-					<Field label="Notes" for="inv-notes" optional>
-						<TextArea
-							id="inv-notes"
-							rows={3}
-							value={item.notes || ""}
-							oninput={(e) =>
-								patch(
-									"notes",
-									(e.currentTarget as HTMLTextAreaElement).value,
-								)}
-						/>
-					</Field>
-				</section>
+						<FormSection title="Notes" columns={1}>
+							<Field label="For the team" for="inv-notes" optional hint="Where it lives, who to ask, anything odd about it.">
+								<TextArea
+									id="inv-notes"
+									rows={3}
+									value={item.notes || ""}
+									oninput={(e) =>
+										patch(
+											"notes",
+											(e.currentTarget as HTMLTextAreaElement).value,
+										)}
+								/>
+							</Field>
+						</FormSection>
+					</div>
+				</div>
 			</div>
 
 			<EditorActionBar
@@ -1006,38 +1015,20 @@
 		color: var(--muted-foreground);
 	}
 
-	.title-row {
-		display: flex;
+	.title-text {
+		margin: 0;
 		min-width: 0;
-	}
-
-	.title-input {
-		flex: 1;
-		width: 100%;
-		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
 		font-size: var(--text-2xl);
 		font-weight: 600;
 		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		outline: none;
+		overflow-wrap: anywhere;
 	}
 
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
+	.title-text.placeholder {
+		color: var(--muted-foreground);
 	}
 
 	.head-actions {
@@ -1047,73 +1038,32 @@
 		flex-shrink: 0;
 	}
 
-	.name-error {
-		margin: 0;
-		font-size: var(--text-xs);
-		color: var(--danger);
-	}
-
-	/* Money and counts are a few characters wide. */
-	.money {
-		max-width: 9rem;
-	}
-
+	/* Section cards sit on the page colour, so each group reads as one block. */
 	.body {
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
-		padding: 0.9rem var(--card-pad) var(--card-pad);
+		padding: var(--space-4) var(--card-pad) var(--card-pad);
+		background: var(--sunken);
+		container-type: inline-size;
+		container-name: inventory-detail;
 	}
 
-	.grid {
+	.board,
+	.col-main,
+	.col-side {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--space-3) var(--space-3);
-		align-items: start;
-	}
-
-	.full {
-		grid-column: 1 / -1;
-	}
-
-	.block {
-		display: grid;
-		gap: var(--space-3);
-	}
-
-	.block + .block,
-	.grid + .block {
-		margin-top: var(--space-5);
-	}
-
-	.section-title {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		margin: 0;
-		font-size: var(--text-md);
-		font-weight: 600;
-		line-height: 1.3;
-		color: var(--foreground);
-	}
-
-	.section-title::after {
-		content: "";
-		flex: 1 1 auto;
-		height: 1px;
-		min-width: 1.5rem;
-		background: var(--border-strong);
-	}
-
-	.section-head {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.section-head .section-title {
-		flex: 1 1 auto;
+		gap: var(--space-4);
+		align-content: start;
 		min-width: 0;
+	}
+
+	@container inventory-detail (min-width: 56rem) {
+		.board {
+			grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+			gap: var(--space-5);
+			align-items: start;
+		}
 	}
 
 	.muted {
@@ -1402,11 +1352,14 @@
 
 	@media (max-width: 900px) {
 		.editor {
-			padding-top: 0;
+			padding: 0;
 		}
 
 		.panel {
 			height: auto;
+			border-radius: 0;
+			border-left: none;
+			border-right: none;
 		}
 
 		.head-actions :global(.close-btn) {
@@ -1416,10 +1369,6 @@
 	}
 
 	@media (max-width: 880px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-
 		.drawer-row {
 			grid-template-columns: 1fr;
 		}

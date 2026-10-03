@@ -26,27 +26,24 @@ export type EventValidateContext = {
 	attachSeriesId: string;
 };
 
-/** Field ids in the order they appear, Details then Schedule. */
+/** Field ids in the order they appear: the chooser, What, When, then the website copy. */
 export const EVENT_FIELD_ORDER = [
-	"event-name",
 	"event-series",
+	"event-name",
 	"event-date",
-	"event-start-time",
-	"event-end-time",
-	"event-description",
 	"event-unit",
 	"event-every",
 	"event-month-day",
 	"event-starts",
 	"event-ends",
+	"event-start-time",
+	"event-end-time",
+	"event-description",
 ] as const;
 
-const SCHEDULE_FIELDS = new Set(["event-unit", "event-every", "event-month-day", "event-starts", "event-ends"]);
-
-/** The tab a field is on ("event-name" sits in the header, shown on every tab). */
+/** The tab a field is on. Every field is on Details; the other tabs list nights and photos. */
 export function eventFieldTab(key: string): string | undefined {
-	if (key === "event-name") return undefined;
-	return SCHEDULE_FIELDS.has(key) ? "schedule" : "details";
+	return key ? "details" : undefined;
 }
 
 const hasText = (html: string) => Boolean(String(html || "").replace(/<[^>]*>/g, "").trim());
