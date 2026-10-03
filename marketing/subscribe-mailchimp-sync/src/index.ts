@@ -12,10 +12,9 @@ export default withSentry(
   (env: Env) => ({
     ...sentryOptions(
       env as unknown as Record<string, unknown>,
-      "workers",
+      "mailchimp-sync",
       "production",
     ),
-    initialScope: { tags: { worker: "subscribe-mailchimp-sync" } },
     integrations: [captureConsoleIntegration({ levels: ["error"] })],
   }),
   {

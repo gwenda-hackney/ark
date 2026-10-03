@@ -211,8 +211,23 @@ type UpsertParams = {
 };
 
 export type UpsertResult =
-  | { ok: true; skippedEspUpdate?: boolean }
+  | { ok: true; skippedEspUpdate?: boolean; rejected?: string }
   | { ok: false; detail: string; rateLimited?: boolean };
+
+/**
+ * Mailchimp refuses some addresses for good ("looks fake or invalid"): a 400
+ * "Invalid Resource". Retrying can't help, so the row counts as done instead
+ * of failing every hour. Returns Mailchimp's reason, or "" for other errors.
+ */
+export function permanentRejection(status: number, body: string): string {
+  if (status !== 400) return "";
+  try {
+    const parsed = JSON.parse(body) as { title?: string; detail?: string };
+    return parsed.title === "Invalid Resource" ? parsed.detail || parsed.title : "";
+  } catch {
+    return "";
+  }
+}
 
 export async function upsertMailchimpMember({
   apiKey,
@@ -266,6 +281,8 @@ export async function upsertMailchimpMember({
 
   if (!put.ok) {
     const detail = await put.text();
+    const rejected = permanentRejection(put.status, detail);
+    if (rejected) return { ok: true, rejected };
     return {
       ok: false,
       detail: `Mailchimp PUT ${put.status}: ${detail}`,
@@ -507,9 +524,11 @@ export async function syncUnsyncedSubscribers(
         rowId: row.id,
         email,
         status: "synced",
-        detail: upserted.skippedEspUpdate
-          ? "Mailchimp member already terminal; Baserow marked synced"
-          : undefined,
+        detail: upserted.rejected
+          ? `Mailchimp rejected the address, not retried: ${upserted.rejected}`
+          : upserted.skippedEspUpdate
+            ? "Mailchimp member already terminal; Baserow marked synced"
+            : undefined,
       });
     } catch (error) {
       errors += 1;

@@ -10,6 +10,7 @@ import {
   normalizeSignedUp,
   normalizeTag,
   normalizeTags,
+  permanentRejection,
   resolveAudienceId,
   resolveTableId,
   SIGNED_UP_MERGE_TAG,
@@ -190,6 +191,38 @@ describe("upsertMailchimpMember", () => {
     });
 
     expect(result).toEqual({ ok: true, skippedEspUpdate: true });
+  });
+
+  it("counts an address Mailchimp rejects for good as done, so it isn't retried", async () => {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.method) return new Response("", { status: 404 });
+      return Response.json(
+        {
+          title: "Invalid Resource",
+          status: 400,
+          detail: "test@test.com looks fake or invalid, please enter a real email address.",
+        },
+        { status: 400 },
+      );
+    });
+
+    const result = await upsertMailchimpMember({
+      apiKey: "mailchimp-key-us2",
+      audienceId: "e2c69d5d31",
+      email: "test@test.com",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      rejected: "test@test.com looks fake or invalid, please enter a real email address.",
+    });
+  });
+
+  it("still fails, to retry, on other Mailchimp errors", () => {
+    expect(permanentRejection(400, '{"title":"Member Exists"}')).toBe("");
+    expect(permanentRejection(500, '{"title":"Invalid Resource"}')).toBe("");
+    expect(permanentRejection(400, "not json")).toBe("");
   });
 });
 

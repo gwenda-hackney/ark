@@ -10,7 +10,7 @@ inputs:
     description: Folder holding the built .js and .js.map files.
     required: true
   project:
-    description: Sentry project (ops, website, workers).
+    description: Sentry project (ops, website, or the Worker's own, e.g. mailchimp-sync).
     required: true
   auth-token:
     description: Sentry organisation token (SENTRY_ORG_TOKEN).

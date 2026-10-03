@@ -8,10 +8,9 @@ export default withSentry(
   (env: Env) => ({
     ...sentryOptions(
       env as unknown as Record<string, unknown>,
-      "workers",
+      "wifi-portal",
       "production",
     ),
-    initialScope: { tags: { worker: "wifi-captive-portal" } },
     integrations: [captureConsoleIntegration({ levels: ["error"] })],
   }),
   {

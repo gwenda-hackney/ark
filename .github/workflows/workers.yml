@@ -115,7 +115,7 @@ jobs:
         uses: ./.github/actions/sentry-sourcemaps
         with:
           path: marketing/site-deploy-webhook/dist
-          project: workers
+          project: deploy-webhook
           auth-token: ${{ env.SENTRY_ORG_TOKEN }}
       - uses: cloudflare/wrangler-action@v3
         with:
@@ -180,7 +180,7 @@ jobs:
         uses: ./.github/actions/sentry-sourcemaps
         with:
           path: marketing/subscribe-mailchimp-sync/dist
-          project: workers
+          project: mailchimp-sync
           auth-token: ${{ env.SENTRY_ORG_TOKEN }}
       - uses: cloudflare/wrangler-action@v3
         with:
@@ -251,7 +251,7 @@ jobs:
         uses: ./.github/actions/sentry-sourcemaps
         with:
           path: marketing/site-health/dist
-          project: workers
+          project: site-health
           auth-token: ${{ env.SENTRY_ORG_TOKEN }}
       - uses: cloudflare/wrangler-action@v3
         with:
