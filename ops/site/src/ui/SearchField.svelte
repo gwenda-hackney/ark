@@ -1,5 +1,8 @@
 <script lang="ts">
-	/** Pill search, straight from the reference: icon inset, no hard border. */
+	/**
+	 * Search box: icon inset, 8px corners like every other control. The
+	 * placeholder says what it searches, so it needs no label above it.
+	 */
 	let {
 		value = $bindable(""),
 		placeholder = "Search…",

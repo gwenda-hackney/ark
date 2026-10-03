@@ -80,18 +80,15 @@
 		flex-direction: column;
 		min-width: 0;
 		border: 1px solid var(--border);
-		border-radius: var(--radius-xl);
+		/* Cards: 12px corners, a border and no shadow; shadows are for overlays. */
+		border-radius: var(--radius-lg);
 		background: var(--card);
 		color: var(--card-foreground);
-		box-shadow: var(--shadow-sm);
-		transition:
-			border-color var(--t) var(--ease-in-out),
-			box-shadow var(--t) var(--ease);
+		transition: border-color var(--t) var(--ease-in-out);
 	}
 
 	.sunken {
 		background: var(--sunken);
-		box-shadow: none;
 	}
 
 	.primary {

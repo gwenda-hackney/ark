@@ -179,8 +179,8 @@
 
 	.hint {
 		margin: 0;
-		font-size: var(--text-xs);
-		line-height: var(--leading-xs);
+		font-size: var(--text-sm);
+		line-height: var(--leading-sm);
 		color: var(--muted-foreground);
 	}
 
