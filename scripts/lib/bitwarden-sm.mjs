@@ -135,6 +135,9 @@ export const SECRET_OWNERS = {
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "OPS_SESSION_SECRET",
     "OPS_LOCAL_ADMIN_PW",
+    // Bearer for GET /status on the site-health Worker, which holds the same
+    // value as its HEALTH_STATUS_TOKEN secret (#151).
+    "SITE_HEALTH_STATUS_TOKEN",
     // Script-only (sm-export): the automation@ Baserow login for schema changes.
     "BASEROW_JWT_EMAIL",
     "BASEROW_JWT_PASSWORD",
@@ -200,6 +203,8 @@ export const APP_SECRETS = {
       "GMAIL_SERVICE_ACCOUNT_JSON",
       // Signs website preview passes (shared/website-pass.js).
       "GATE_BYPASS_KEY",
+      // Reads the site-health Worker's /status for the Website page.
+      "SITE_HEALTH_STATUS_TOKEN",
     ],
     rename: {
       BASEROW_API_KEY: "BASEROW_OPS_API_KEY",

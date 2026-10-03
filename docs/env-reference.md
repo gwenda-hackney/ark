@@ -381,6 +381,20 @@ The sync Worker runs on a schedule but can also be run by hand; this secret stop
 - **Runtime name:** `SYNC_SECRET` on the Worker.
 - **Expires:** never.
 
+### `SITE_HEALTH_STATUS_TOKEN`
+
+`GET https://health.gwenda.co.uk/status` returns the site-health Worker's last probe of the live site and prod's preview, which the ops Website page shows. This token keeps that page private.
+
+- **Owner:** Gwenda: a random value we generate (for example `openssl rand -hex 32`).
+- **SM:** `SITE_HEALTH_STATUS_TOKEN`, one shared value in [`ark/ops-dev`](#arkops-dev): dev and production ops both read the same Worker.
+- **What:** a bearer token. Ops sends `Authorization: Bearer …` to `/status`; the Worker answers 401 without it.
+- **Runtime name:** two names, **one value**. Ops reads `SITE_HEALTH_STATUS_TOKEN`. The Worker reads `HEALTH_STATUS_TOKEN`. Both must be provisioned with the same value, or the Website page stops showing the monitor.
+- **Used by:** ops (dev and production, `src/website/server/web-status.js`), the site-health Worker.
+- **Gets there by:** ops through its usual pull and Pages secrets (an ops key in `APP_SECRETS`). The Worker by hand: `echo "$VALUE" | npx wrangler secret put HEALTH_STATUS_TOKEN` in `marketing/site-health` (neither `workers.yml` nor `setup:site-health` puts it yet).
+- **Without it:** the Worker leaves `/status` open, as it always has, and logs `site_health_status_open` on each read. Ops reads it without a token.
+- **Expires:** never.
+- **Changing it:** put the new value on the Worker and in SM together, then redeploy dev and production ops. Until ops has the new value its Website page shows no monitor status.
+
 ### `UNIFI_SITE_MANAGER_API_KEY`
 
 The venue Wi-Fi asks guests to sign up before going online; the portal Worker then tells the UniFi controller to let that device on.
@@ -528,6 +542,7 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `DISPATCH_TOKEN` | GitHub user das974 | `__PRODUCTION` | [`ark`](#ark) / — | none reported |
 | `MAILCHIMP_API_KEY` | Mailchimp user dscalamogna@ | `__PRODUCTION` | [`ark/web`](#arkweb) / — | **~2027-10-01** |
 | `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Gwenda | `__PRODUCTION` | [`ark/web`](#arkweb) / — | never |
+| `SITE_HEALTH_STATUS_TOKEN` (Worker: `HEALTH_STATUS_TOKEN`) | Gwenda | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `UNIFI_SITE_MANAGER_API_KEY` | UniFi account | shared | — / [`ark/web-dev`](#arkweb-dev) | check UniFi |
 | `UPTIME_ROBOT_API_KEY` | UptimeRobot alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | never |
 | `SENTRY_AUTH_TOKEN` | Sentry alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | as created |
