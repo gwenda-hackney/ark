@@ -13,7 +13,7 @@
 	import { onDestroy, onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
-	import { Badge, BusyOverlay, Button, Dialog, PageHeader } from "../ui";
+	import { Badge, BusyOverlay, Button, Confirm, ConfirmDialog, Dialog, PageHeader } from "../ui";
 	import { changeBadgeTone } from "../ui/badge";
 	import {
 		getDeletedEvents,
@@ -198,8 +198,22 @@
 		if (timer) clearInterval(timer);
 	});
 
+	const confirm = new Confirm();
+
 	async function updateNow(site: "production" | "preview") {
 		if (working) return;
+		if (site === "production") {
+			const count = live?.items.length || 0;
+			const ok = await confirm.ask({
+				title: "Update the website now?",
+				message: `${
+					count === 1 ? "1 change goes" : count ? `${count} changes go` : "Everything waiting goes"
+				} live on ${siteHost} for everyone, without waiting for edits to go quiet.`,
+				action: "Update website",
+				tone: "primary",
+			});
+			if (!ok) return;
+		}
 		working = `update-${site}`;
 		try {
 			await updateSiteNow(site);
@@ -475,6 +489,8 @@
 	</Dialog>
 	<BusyOverlay active={!loaded} label="Checking the website…" />
 </div>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {

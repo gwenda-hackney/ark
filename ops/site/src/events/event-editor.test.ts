@@ -142,27 +142,39 @@ describe("EventEditor: opening", () => {
 });
 
 describe("EventEditor: saving a series", () => {
-	it("asks for a name first and sends the editor to Details", async () => {
+	it("asks for a name under the name, without a toast, and saves nothing", async () => {
 		const editor = await open("/events/new/schedule");
 		await editor.onSave(submit());
-		assert.equal(editor.error, "Add a name.");
+		assert.equal(editor.errors.get("event-name"), "Add a name.");
+		assert.equal(editor.errors.count, 2, "the description too");
+		assert.equal(editor.error, "");
+		assert.equal(toast.error.mock.calls.length, 0);
 		assert.equal(api.createEvent.mock.calls.length, 0);
+	});
+
+	it("asks for a description, which the website needs, and switches to Details for it", async () => {
+		const editor = await open("/events/new/schedule");
+		editor.form.name = "Quiz";
+		await editor.onSave(submit());
+		assert.equal(editor.errors.get("event-description"), "Add a description. The website needs one.");
 		assert.equal(nav.navigate.mock.calls[0][0], "/events/new");
 	});
 
-	it("asks for a description, which the website needs", async () => {
-		const editor = await open("/events/new");
-		editor.form.name = "Quiz";
-		await editor.onSave(submit());
-		assert.equal(editor.error, "Add a description. The website needs one.");
-	});
-
-	it("asks for an end date on a repeating series with a start", async () => {
+	it("asks for an end date on a repeating series with a start, on Schedule", async () => {
 		const editor = await open("/events/ev1");
 		editor.form.endsOn = "";
 		await editor.onSave(submit());
-		assert.equal(editor.error, "Add an end date for the recurring event.");
+		assert.equal(editor.errors.get("event-ends"), "Add the last night of the series.");
+		assert.equal(nav.navigate.mock.calls[0][0], "/events/ev1/schedule");
 		assert.equal(api.updateEvent.mock.calls.length, 0);
+	});
+
+	it("forgets the problems when another event opens", async () => {
+		const editor = await open("/events/new");
+		await editor.onSave(submit());
+		assert.ok(editor.errors.count);
+		editor.blank();
+		assert.equal(editor.errors.count, 0);
 	});
 
 	it("creates a new series, opens it, and queues the website copy", async () => {

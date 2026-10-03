@@ -8,7 +8,10 @@
 		Button,
 		Card,
 		EmptyState,
+		Confirm,
+		ConfirmDialog,
 		Field,
+		FormErrors,
 		PageHeader,
 		Skeleton,
 		TextArea,
@@ -33,10 +36,13 @@
 	let website = $state("");
 	let notes = $state("");
 	let busyId = $state("");
+	const confirm = new Confirm();
+	const errors = new FormErrors();
 
 	const formTitle = $derived(editingId ? "Edit supplier" : "Add supplier");
 
 	function resetForm() {
+		errors.clearAll();
 		editingId = "";
 		name = "";
 		website = "";
@@ -66,10 +72,16 @@
 		website = row.website || "";
 		notes = row.notes || "";
 		error = "";
+		errors.clearAll();
 	}
 
 	async function onSave(event: Event) {
 		event.preventDefault();
+		errors.replace({ "supplier-name": name.trim() ? "" : "Add the supplier's name." });
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
 		saving = true;
 		error = "";
 		const body = {
@@ -121,15 +133,20 @@
 			);
 			return;
 		}
-		if (!window.confirm(`Remove ${label} from suppliers?`)) return;
+		const ok = await confirm.ask({
+			title: `Delete ${label}?`,
+			message: "It goes from the supplier list. No inventory item uses it. This can't be undone.",
+			action: "Delete",
+		});
+		if (!ok) return;
 		busyId = id;
 		try {
 			await deleteSupplier(id);
 			suppliers = suppliers.filter((item) => String(item.id) !== id);
 			if (editingId === id) resetForm();
-			toast.ok("Supplier removed.");
+			toast.ok("Supplier deleted.");
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not remove supplier.");
+			toast.error(err instanceof Error ? err.message : "Could not delete supplier.");
 		} finally {
 			busyId = "";
 		}
@@ -158,29 +175,36 @@
 				? "Name and website belong to the supplier. Product SKU stays on the inventory item."
 				: "Add LWC, Hills Prospect, or whoever you buy from."}
 		>
-			<form class="add" onsubmit={onSave}>
-				<Field label="Name" for="supplier-name">
+			<form class="add" novalidate onsubmit={onSave}>
+				<Field label="Name" for="supplier-name" width="lg" error={errors.get("supplier-name")}>
 					<TextField
 						id="supplier-name"
 						bind:value={name}
 						placeholder="LWC Drinks"
-						required
+						oninput={() => errors.clear("supplier-name")}
 					/>
 				</Field>
-				<Field label="Website" for="supplier-website">
+				<Field label="Website" for="supplier-website" width="lg" optional>
 					<TextField
 						id="supplier-website"
+						type="url"
+						inputmode="url"
+						spellcheck="false"
 						bind:value={website}
 						placeholder="https://www.lwc-drinks.co.uk"
 						autocomplete="url"
 					/>
 				</Field>
-				<Field label="Notes" for="supplier-notes">
+				<Field
+					label="Notes"
+					for="supplier-notes"
+					optional
+					hint="Account number, delivery day, who to call."
+				>
 					<TextArea
 						id="supplier-notes"
 						rows={2}
 						bind:value={notes}
-						placeholder="Account number, delivery day, who to call."
 					/>
 				</Field>
 				<div class="actions">
@@ -245,7 +269,7 @@
 									size="sm"
 									disabled={busyId === String(row.id)}
 									onclick={() => onRemove(row)}
-									aria-label="Remove {row.name}"
+									aria-label="Delete {row.name}"
 								>
 									{#snippet icon()}
 										<Icon name="trash" size={16} />
@@ -261,6 +285,8 @@
 
 	<BusyOverlay active={loading && suppliers.length > 0} label="Loading…" />
 </div>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {

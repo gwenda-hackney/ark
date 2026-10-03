@@ -7,8 +7,11 @@
 		EmptyState,
 		Button,
 		Card,
+		Confirm,
+		ConfirmDialog,
 		Dialog,
 		Field,
+		MoneyField,
 		NativeSelect,
 		PageHeader,
 		PageHelp,
@@ -294,8 +297,17 @@
 		if (file) void loadCsv(file);
 	}
 
+	const confirm = new Confirm();
+
 	async function apply() {
 		if (!csvText) return;
+		const ok = await confirm.ask({
+			title: "Stamp Lightspeed SKUs?",
+			message: `Drinks and stock matched in ${fileName || "this file"} get its Lightspeed SKUs, replacing any they have now.`,
+			action: "Stamp SKUs",
+			tone: "primary",
+		});
+		if (!ok) return;
 		applying = true;
 		acting = "save";
 		error = "";
@@ -1190,8 +1202,8 @@
 					options={drinkTypeOptions}
 				/>
 			</Field>
-			<Field label="Price" for="ls-add-price">
-				<TextField id="ls-add-price" size="sm" numeric bind:value={addPrice} />
+			<Field label="Price" for="ls-add-price" width="sm" optional>
+				<MoneyField id="ls-add-price" size="sm" bind:value={addPrice} />
 			</Field>
 			{#if posMenus.length}
 				<Field label="POS menu" for="ls-add-pos-menu">
@@ -1209,7 +1221,7 @@
 			{/if}
 			<Field
 				label="Guest menus"
-				tooltip="POS can still sell this if it is off print and the website."
+				hint="The till can still sell it when it's off print and the website."
 			>
 				<Segmented
 					bind:value={addPlacement}
@@ -1266,6 +1278,8 @@
 		label={busyLabel}
 	/>
 </div>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {

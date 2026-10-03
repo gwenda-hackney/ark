@@ -290,6 +290,10 @@ describe("spa-path", () => {
     assert.equal(eventTabPath("/events/12/schedule", "gallery"), "/events/12/gallery");
     assert.equal(editorKey("/events/12/publish"), "events:12");
     assert.equal(editorKey("/events/new/schedule"), "events:new");
+    assert.equal(editorKey("/forms/12"), "forms:12");
+    assert.equal(editorKey("/forms"), "forms");
+    assert.equal(navigationLeavesEditor("/forms/12", "/forms"), true);
+    assert.equal(navigationLeavesEditor("/forms", "/events"), false);
     assert.equal(isEditorPath("/events/12"), true);
     assert.equal(isEditorPath("/events/12/gallery"), true);
     assert.equal(isEditorPath("/events/new"), true);

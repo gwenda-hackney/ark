@@ -34,6 +34,8 @@ import {
 import { toast } from "../ui/toast.svelte";
 import { refreshSitePending } from "../website/site-pending.svelte";
 import { beginLeave } from "../ui/unsaved.svelte";
+import { FormErrors } from "../ui/form-errors.svelte";
+import { EVENT_FIELD_ORDER, eventFieldTab, validateEvent } from "./event-validate";
 import { EventGallery } from "./event-gallery.svelte";
 import { EventForm } from "./event-form.svelte";
 
@@ -57,6 +59,8 @@ export class EventEditor {
 
 	error = $state("");
 	warnings = $state<string[]>([]);
+	/** What stops a save, under each field; filled on Save, kept fresh as they fix it. */
+	errors = new FormErrors();
 	deleteOpen = $state(false);
 	deleteScopeOpen = $state(false);
 	saveScopeOpen = $state(false);
@@ -225,12 +229,14 @@ export class EventEditor {
 	};
 
 	fill = (event: OpsEvent) => {
+		if (this.current?.id !== event.id) this.errors.clearAll();
 		this.current = event;
 		this.form.fill(event, this.occurrenceDate);
 		this.attachSeriesId = event.id;
 	};
 
 	blank = () => {
+		this.errors.clearAll();
 		this.current = null;
 		this.clearPendingPhoto();
 		this.form.reset(this.newEventRoute ? "once" : "none");
@@ -394,16 +400,40 @@ export class EventEditor {
 		}
 	};
 
+	validate = () =>
+		validateEvent(this.form, {
+			creatingNight: this.creatingNight,
+			editingOccurrence: this.editingOccurrence,
+			attachSeriesId: this.attachSeriesId,
+		});
+
+	/** The tab's address for this editor (new or saved). */
+	tabPath = (tab: string) =>
+		this.route.isNew
+			? eventNewPath(tab, { once: this.newEventRoute })
+			: eventItemPath(this.route.slug || this.eventId, tab);
+
+	/** Go to the first problem: its tab, then the field itself. */
+	showErrors = () =>
+		this.errors.reveal({
+			order: EVENT_FIELD_ORDER,
+			tabOf: eventFieldTab,
+			currentTab: this.tab,
+			showTab: (tab) => {
+				const target = this.tabPath(tab);
+				if (this.getPath() !== target) navigate(target);
+			},
+		});
+
 	onSave = async (event: Event) => {
 		event.preventDefault();
 		if (this.busy) return;
+		this.errors.replace(this.validate());
+		if (this.errors.count) {
+			void this.showErrors();
+			return;
+		}
 		if (this.creatingNight) {
-			if (!this.attachSeriesId || !this.form.startsOn) {
-				const message = !this.attachSeriesId ? "Choose a series." : "Add a date.";
-				this.error = message;
-				toast.error(message);
-				return;
-			}
 			this.saving = true;
 			this.intent = "save";
 			this.error = "";
@@ -447,40 +477,6 @@ export class EventEditor {
 				this.saving = false;
 				this.intent = "";
 			}
-			return;
-		}
-		if (
-			(!this.editingOccurrence && !this.form.name.trim()) ||
-			(!this.creatingNight && !this.editingOccurrence && !this.form.startsOn && this.form.repeatUnit === "once")
-		) {
-			const message = !this.form.name.trim() ? "Add a name." : "Add a date.";
-			this.error = message;
-			toast.error(message);
-			const target = this.route.isNew
-				? eventNewPath(!this.form.name.trim() ? "details" : "schedule", { once: this.newEventRoute })
-				: eventItemPath(this.route.slug || this.eventId, !this.form.name.trim() ? "details" : "schedule");
-			if (this.getPath() !== target) navigate(target);
-			return;
-		}
-		// The website needs one (publishEventPreview); a night uses its series'.
-		if (!this.editingOccurrence && !this.form.description.replace(/<[^>]*>/g, "").trim()) {
-			this.error = "Add a description. The website needs one.";
-			toast.error(this.error);
-			const target = this.route.isNew
-				? eventNewPath("details", { once: this.newEventRoute })
-				: eventItemPath(this.route.slug || this.eventId, "details");
-			if (this.getPath() !== target) navigate(target);
-			return;
-		}
-		if (
-			!this.editingOccurrence &&
-			this.form.repeatUnit !== "none" &&
-			this.form.repeatUnit !== "once" &&
-			this.form.startsOn &&
-			!this.form.endsOn
-		) {
-			this.error = "Add an end date for the recurring event.";
-			toast.error(this.error);
 			return;
 		}
 		if (this.form.repeatUnit === "once" && !this.skipReplaceAsk) {

@@ -1,0 +1,77 @@
+import { describe, expect, it } from "vitest";
+import { firstErrorKey } from "../ui/form-errors.svelte";
+import { EVENT_FIELD_ORDER, eventFieldTab, validateEvent } from "./event-validate";
+
+const base = {
+	name: "Jazz Night",
+	description: "<p>Live jazz.</p>",
+	startsOn: "2026-10-01",
+	endsOn: "2026-12-31",
+	repeatUnit: "week",
+	repeatEvery: "1",
+	monthDay: "",
+};
+const series = { creatingNight: false, editingOccurrence: false, attachSeriesId: "" };
+
+describe("validateEvent", () => {
+	it("passes a complete series", () => {
+		expect(validateEvent(base, series)).toEqual({});
+	});
+
+	it("names each missing field by its id", () => {
+		expect(validateEvent({ ...base, name: " ", description: "<p> </p>" }, series)).toEqual({
+			"event-name": "Add a name.",
+			"event-description": "Add a description. The website needs one.",
+		});
+	});
+
+	it("wants an end date on a repeating series that has a start, and not before it", () => {
+		expect(validateEvent({ ...base, endsOn: "" }, series)["event-ends"]).toBe(
+			"Add the last night of the series.",
+		);
+		expect(validateEvent({ ...base, endsOn: "2026-09-01" }, series)["event-ends"]).toBe(
+			"Pick 01/10/2026 or later.",
+		);
+		expect(validateEvent({ ...base, repeatUnit: "none", endsOn: "" }, series)).toEqual({});
+	});
+
+	it("checks the repeat figures", () => {
+		expect(validateEvent({ ...base, repeatEvery: "0" }, series)["event-every"]).toBe(
+			"Use a number from 1 to 52.",
+		);
+		expect(validateEvent({ ...base, repeatEvery: "" }, series)["event-every"]).toBe(
+			"Add how often it repeats.",
+		);
+		expect(validateEvent({ ...base, repeatUnit: "month", monthDay: "32" }, series)["event-month-day"]).toBe(
+			"Use a number from 1 to 31.",
+		);
+	});
+
+	it("wants a date on a special event", () => {
+		expect(validateEvent({ ...base, repeatUnit: "once", startsOn: "" }, series)).toEqual({
+			"event-date": "Add a date.",
+		});
+	});
+
+	it("wants a series and a date for a new night, and nothing else", () => {
+		expect(
+			validateEvent(
+				{ ...base, name: "", description: "", startsOn: "" },
+				{ creatingNight: true, editingOccurrence: false, attachSeriesId: "" },
+			),
+		).toEqual({ "event-series": "Choose a series.", "event-date": "Add a date." });
+	});
+});
+
+describe("where the problems are", () => {
+	it("puts the rule on Schedule and the rest on Details", () => {
+		expect(eventFieldTab("event-ends")).toBe("schedule");
+		expect(eventFieldTab("event-description")).toBe("details");
+		expect(eventFieldTab("event-name")).toBeUndefined();
+	});
+
+	it("starts with the field highest on screen", () => {
+		const errors = validateEvent({ ...base, name: "", endsOn: "" }, series);
+		expect(firstErrorKey(errors, EVENT_FIELD_ORDER)).toBe("event-name");
+	});
+});

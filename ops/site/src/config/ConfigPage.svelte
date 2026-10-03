@@ -15,6 +15,11 @@
 	let socialEmail = $state("");
 	let clickupListId = $state("");
 	let savingTasks = $state(false);
+	/** As last loaded or saved, so Save only lights up for a real change. */
+	let savedTasks = $state({ socialEmail: "", clickupListId: "" });
+	const tasksDirty = $derived(
+		socialEmail !== savedTasks.socialEmail || clickupListId.trim() !== savedTasks.clickupListId,
+	);
 
 	onMount(() => {
 		void getMe()
@@ -35,6 +40,7 @@
 			.then((data) => {
 				socialEmail = data.settings?.taskRoleSocial || "";
 				clickupListId = data.settings?.clickupEventsListId || "";
+				savedTasks = { socialEmail, clickupListId };
 			})
 			.catch(() => {});
 	});
@@ -57,6 +63,7 @@
 
 	async function saveTasks(event: Event) {
 		event.preventDefault();
+		if (!tasksDirty || savingTasks) return;
 		savingTasks = true;
 		try {
 			const data = await saveEventTaskSettings({
@@ -65,6 +72,7 @@
 			});
 			socialEmail = data.settings?.taskRoleSocial || "";
 			clickupListId = data.settings?.clickupEventsListId || "";
+			savedTasks = { socialEmail, clickupListId };
 			toast.ok("Task roles saved.");
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not save task roles.");
@@ -138,18 +146,25 @@
 				title="Event tasks"
 				subtitle="Who gets the social post, and which ClickUp list it lands in."
 			>
-				<form class="tasks" onsubmit={saveTasks}>
-					<Field label="Social" for="task-social">
+				<form class="tasks" novalidate onsubmit={saveTasks}>
+					<Field label="Social" for="task-social" width="lg" optional hint="Gets the social post task for each event.">
 						<NativeSelect id="task-social" bind:value={socialEmail} options={socialOptions} />
 					</Field>
 					<Field
 						label="ClickUp list id"
 						for="task-list"
+						width="md"
+						optional
 						hint="The Gwenda list that receives event tasks."
 					>
-						<TextField id="task-list" bind:value={clickupListId} mono />
+						<TextField id="task-list" bind:value={clickupListId} mono inputmode="numeric" spellcheck="false" />
 					</Field>
-					<Button type="submit" busy={savingTasks} disabled={savingTasks}>Save</Button>
+					<div class="task-actions">
+						{#if tasksDirty}<span class="unsaved">Unsaved changes</span>{/if}
+						<Button type="submit" busy={savingTasks} disabled={savingTasks || !tasksDirty}>
+							Save task roles
+						</Button>
+					</div>
 				</form>
 			</Card>
 		</div>
@@ -176,7 +191,18 @@
 	.tasks {
 		display: grid;
 		gap: var(--space-4);
-		justify-items: start;
+	}
+
+	.task-actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-3);
+	}
+
+	.unsaved {
+		font-size: var(--text-sm);
+		color: var(--warning);
 	}
 
 	.env-grid {

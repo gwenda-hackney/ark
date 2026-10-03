@@ -12,12 +12,12 @@
 		EmptyState,
 		FilterBar,
 		FilterField,
+		DateField,
 		MultiSelect,
 		PageHeader,
 		PageHelp,
 		Segmented,
 		Skeleton,
-		TextField,
 	} from "../ui";
 	import type { SegmentedItem } from "../ui/types";
 	import { activeFilterCount, dateRangeLabel, type FilterChip } from "../ui/filters";
@@ -354,10 +354,10 @@
 								</FilterField>
 								{#if scheduleRange === "custom"}
 									<FilterField label="From" for="event-from">
-										<TextField id="event-from" size="sm" type="date" bind:value={scheduleFrom} />
+										<DateField id="event-from" size="sm" bind:value={scheduleFrom} />
 									</FilterField>
 									<FilterField label="To" for="event-to">
-										<TextField id="event-to" size="sm" type="date" bind:value={scheduleTo} />
+										<DateField id="event-to" size="sm" bind:value={scheduleTo} min={scheduleFrom} />
 									</FilterField>
 								{/if}
 							{/snippet}

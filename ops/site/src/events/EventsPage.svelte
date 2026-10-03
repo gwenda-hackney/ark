@@ -5,6 +5,7 @@
 	import {
 		BusyOverlay,
 		Button,
+		EditorActionBar,
 		EditorBackBar,
 		Segmented,
 	} from "../ui";
@@ -210,6 +211,27 @@
 		tabPrev = id;
 	});
 
+	// After a Save found problems, keep them in step with what's typed.
+	$effect(() => {
+		if (!editor.errors.count) return;
+		editor.errors.replace(editor.validate());
+	});
+
+	const saveLabel = $derived(
+		editor.editingNight
+			? "Save night"
+			: editor.creatingOnce || editor.editingOnce
+				? "Save event"
+				: "Save series",
+	);
+	const deleteLabel = $derived(
+		editor.editingNight
+			? "Delete night"
+			: editor.creatingOnce || editor.editingOnce
+				? "Delete event"
+				: "Delete series",
+	);
+
 	$effect(() => {
 		if (!editor.editing) {
 			clearUnsavedGuard();
@@ -318,12 +340,13 @@
 	{:else if editor.editing}
 		<form
 			class="editor"
+			novalidate
 			aria-busy={editor.busy || undefined}
 			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
 			out:fade={{ duration: fadeMs, easing: easeOut }}
 			onsubmit={editor.onSave}
 		>
-			<EditorBackBar label={listTitle} dirty={editor.formDirty} onback={requestClose} />
+			<EditorBackBar label={listTitle} onback={requestClose} />
 			<div class="split split--full">
 				<div class="panel" class:dirty={editor.formDirty}>
 					<EditorHeader
@@ -333,6 +356,7 @@
 						occurrenceDate={editor.occurrenceDate}
 						busy={editor.busy}
 						dirty={editor.formDirty}
+						nameError={editor.errors.get("event-name")}
 						isNew={Boolean(editor.route.isNew)}
 						creatingNight={editor.creatingNight}
 						creatingOnce={editor.creatingOnce}
@@ -373,6 +397,7 @@
 									{#if editor.tab === "details"}
 										<DetailsTab
 											form={editor.form}
+											errors={editor.errors}
 											current={editor.current}
 											eventId={editor.eventId}
 											busy={editor.busy}
@@ -391,7 +416,7 @@
 											onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage("main"))}
 										/>
 									{:else if editor.tab === "schedule"}
-										<ScheduleTab form={editor.form} current={editor.current} eventId={editor.eventId} editingOccurrence={editor.editingOccurrence} previewDates={editor.previewDates} />
+										<ScheduleTab form={editor.form} errors={editor.errors} current={editor.current} eventId={editor.eventId} editingOccurrence={editor.editingOccurrence} previewDates={editor.previewDates} />
 									{:else if editor.tab === "gallery"}
 										<GalleryTab gallery={editor.gallery} eventId={editor.eventId} busy={editor.busy} />
 									{/if}
@@ -426,38 +451,24 @@
 						</div>
 					</div>
 
-					<footer class="panel-foot">
-						{#if editor.eventId}
-							<Button
-								class="delete-btn"
-								variant="destructive"
-								size="sm"
-								type="button"
-								disabled={editor.busy}
-								onclick={editor.requestDelete}
-							>
-								Delete
-							</Button>
-						{/if}
-						<Button
-							variant="primary"
-							size="sm"
-							type="submit"
-							disabled={editor.busy}
-							busy={editor.saving && editor.intent === "save"}
-						>
-							{#snippet icon()}
-								<Icon name="save" />
-							{/snippet}
-							{editor.saving && editor.intent === "save"
-								? "Saving…"
-								: editor.editingNight
-									? "Save this night"
-									: editor.creatingOnce || editor.editingOnce
-										? "Save"
-										: "Save series"}
-						</Button>
-					</footer>
+					<EditorActionBar
+						{saveLabel}
+						saving={editor.saving && editor.intent === "save"}
+						disabled={editor.busy}
+						dirty={editor.formDirty}
+						errorCount={editor.errors.count}
+						onerrors={() => void editor.showErrors()}
+						overflow={editor.eventId
+							? [
+									{
+										label: deleteLabel,
+										tone: "destructive",
+										disabled: editor.busy,
+										onselect: editor.requestDelete,
+									},
+								]
+							: []}
+					/>
 				</div>
 			</div>
 
@@ -470,8 +481,8 @@
 
 			<ScopeDialog
 				open={editor.saveScopeOpen}
-				title="Which events should change?"
-				message="Choose how widely to apply these edits. Past events will not be changed."
+				title="Which nights should change?"
+				message="Past nights stay as they were."
 				onchoose={(scope) => editor.saveOccurrenceWithScope(scope)}
 				onclose={() => (editor.saveScopeOpen = false)}
 			/>
@@ -486,8 +497,8 @@
 
 			<ScopeDialog
 				open={editor.deleteScopeOpen}
-				title="Which events should be deleted?"
-				message="Choose how widely to delete. Past events will not be changed."
+				title="Which nights should be deleted?"
+				message="Past nights stay as they were."
 				alsoWebsite={editor.onWebsite}
 				disabled={editor.busy}
 				destructive
@@ -498,8 +509,14 @@
 
 			<DeleteEventDialog
 				open={editor.deleteOpen}
-				eventName={editor.form.name.trim() || "this event"}
-				recurring={editor.form.repeatUnit !== "none"}
+				eventName={editor.form.name.trim() || editor.current?.name || "this event"}
+				kind={editor.editingOccurrence
+					? "night"
+					: editor.editingOnce
+						? "event"
+						: "series"}
+				nightDate={editor.occurrenceDate}
+				seriesName={editor.parentSeriesName}
 				onWebsite={editor.onWebsite}
 				busy={editor.busy}
 				deleting={editor.saving && editor.intent === "delete"}
@@ -645,21 +662,6 @@
 		font-size: var(--text-sm);
 	}
 
-	.panel-foot {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: var(--space-2);
-		flex-shrink: 0;
-		margin-top: auto;
-		padding: 0.65rem var(--card-pad-lg) 0.85rem;
-		border-top: 1px solid var(--border);
-	}
-
-	.panel-foot :global(.delete-btn) {
-		margin-right: auto;
-	}
-
 	@media (max-width: 900px) {
 		.split {
 			padding: 0;
@@ -672,8 +674,7 @@
 		}
 
 		.tabs,
-	.tab-body,
-	.panel-foot {
+		.tab-body {
 			padding-left: max(var(--page-gutter), 1.125rem);
 			padding-right: max(var(--page-gutter), 1.125rem);
 		}
@@ -681,10 +682,6 @@
 		.tab-body {
 			padding-top: var(--space-4);
 			padding-bottom: max(var(--page-gutter), 1.125rem);
-		}
-
-		.panel-foot {
-			padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
 		}
 	}
 

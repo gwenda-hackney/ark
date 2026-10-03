@@ -1,7 +1,20 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { Icon } from "../app/shell";
-	import { Button, EditorBackBar, Field, NativeSelect, Segmented, TextArea, TextField, Tip } from "../ui";
+	import {
+		Button,
+		Confirm,
+		ConfirmDialog,
+		EditorActionBar,
+		EditorBackBar,
+		Field,
+		FormErrors,
+		NativeSelect,
+		Segmented,
+		TextArea,
+		TextField,
+		Tip,
+	} from "../ui";
 	import {
 		clearArtistImage,
 		createArtist,
@@ -52,6 +65,8 @@
 		{ value: "12", label: "December" },
 	];
 
+	const confirm = new Confirm();
+	const errors = new FormErrors();
 	let saving = $state(false);
 	let removing = $state(false);
 	let uploading = $state("");
@@ -146,9 +161,18 @@
 		setUnsavedGuard(dirty, () => {
 			const next = takeBlockedNav();
 			if (!next) return;
-			if (!window.confirm("Leave without saving?")) return;
-			beginLeave();
-			navigate(next.path, { replace: next.replace, force: true });
+			void confirm
+				.ask({
+					title: "Discard unsaved changes?",
+					message: "You have edits that haven't been saved. They will be lost.",
+					action: "Discard",
+					cancel: "Keep editing",
+				})
+				.then((ok) => {
+					if (!ok) return;
+					beginLeave();
+					navigate(next.path, { replace: next.replace, force: true });
+				});
 		});
 	});
 
@@ -166,6 +190,7 @@
 	}
 
 	function apply(row: WallArtist | null) {
+		errors.clearAll();
 		persisted = row;
 		name = row?.name || "";
 		artistName = row?.artistName || "";
@@ -203,6 +228,11 @@
 
 	async function onSave(event: Event) {
 		event.preventDefault();
+		errors.replace({ "artist-name": name.trim() ? "" : "Add their full name." });
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
 		saving = true;
 		error = "";
 		const body = {
@@ -245,16 +275,21 @@
 	async function onRemove() {
 		if (!persisted) return;
 		const label = persisted.name || "this artist";
-		if (!window.confirm(`Remove ${label}?`)) return;
+		const ok = await confirm.ask({
+			title: `Delete ${label}?`,
+			message: "Their page, photos and place on the wall go from the website. This can't be undone.",
+			action: "Delete",
+		});
+		if (!ok) return;
 		removing = true;
 		error = "";
 		try {
 			await deleteArtist(persisted.id);
 			beginLeave();
-			toast.ok("Artist removed.");
+			toast.ok("Artist deleted.");
 			navigate("/artists", { replace: true, force: true });
 		} catch (err) {
-			const message = fail(err, "Could not remove the artist.");
+			const message = fail(err, "Could not delete the artist.");
 			if (message) {
 				error = message;
 				toast.error(message);
@@ -344,8 +379,8 @@
 	}
 </script>
 
-<form class="editor" onsubmit={onSave}>
-	<EditorBackBar label="Artists" {dirty} onback={close} />
+<form class="editor" novalidate onsubmit={onSave}>
+	<EditorBackBar label="Artists" onback={close} />
 	<div class="split">
 		<div class="panel" class:dirty>
 			<header class="panel-head">
@@ -375,8 +410,14 @@
 						autocomplete="off"
 						aria-label="Full name"
 						placeholder="Full name"
+						aria-invalid={errors.get("artist-name") ? true : undefined}
+						aria-describedby={errors.get("artist-name") ? "artist-name-error" : undefined}
+						oninput={() => errors.clear("artist-name")}
 						bind:value={name}
 					/>
+					{#if errors.get("artist-name")}
+						<p class="name-error" id="artist-name-error">{errors.get("artist-name")}</p>
+					{/if}
 				</div>
 			</header>
 
@@ -389,7 +430,9 @@
 									class="span-all"
 									label="Artist name"
 									for="artist-short-name"
-									tooltip="The first name in the From section on their page. Leave blank to use the first word of the full name."
+									width="lg"
+									optional
+									hint="The first name in From on their page. Blank uses the first word of the full name."
 								>
 									<TextField
 										id="artist-short-name"
@@ -401,17 +444,20 @@
 								</Field>
 								<Field
 									label="On the wall"
-									tooltip="The months this artist is up. The home page shows them under the name, as Sept to Oct."
+									optional
+									hint="Shown under the name on the home page, as Sept to Oct."
 								>
 									<div class="months">
 										<NativeSelect
 											id="artist-start-month"
+											aria-label="From"
 											bind:value={startMonth}
 											options={monthOptions}
 											size="sm"
 										/>
 										<NativeSelect
 											id="artist-end-month"
+											aria-label="To"
 											bind:value={endMonth}
 											options={monthOptions}
 											size="sm"
@@ -430,10 +476,13 @@
 									/>
 								</Field>
 								<div class="website">
-									<Field label="Website" for="artist-website" tooltip="A link to their own site.">
+									<Field label="Website" for="artist-website" optional hint="A link to their own site.">
 										<TextField
 											id="artist-website"
 											size="sm"
+											type="url"
+											inputmode="url"
+											spellcheck="false"
 											bind:value={website}
 											placeholder="https://"
 											autocomplete="url"
@@ -451,7 +500,8 @@
 									class="span-all"
 									label="Profile"
 									for="artist-profile"
-									tooltip="A short introduction. This sits above the longer bio on the website."
+									optional
+									hint="A short introduction, above the longer bio."
 								>
 									<TextArea
 										id="artist-profile"
@@ -464,7 +514,8 @@
 									class="span-all"
 									label="Bio"
 									for="artist-bio"
-									tooltip="The longer note on their page."
+									optional
+									hint="The longer note on their page."
 								>
 									<TextArea
 										id="artist-bio"
@@ -670,34 +721,27 @@
 				</div>
 			</div>
 
-			<footer class="panel-foot">
-				{#if persisted}
-					<Button
-						class="delete-btn"
-						variant="destructive"
-						size="sm"
-						type="button"
-						disabled={removing || saving || Boolean(uploading)}
-						onclick={onRemove}
-					>
-						Remove
-					</Button>
-				{/if}
-				<Button
-					variant="primary"
-					size="sm"
-					type="submit"
-					busy={saving}
-					disabled={!dirty || saving || Boolean(uploading)}
-				>
-					{#snippet icon()}
-						<Icon name="save" />
-					{/snippet}
-					{saving ? "Saving…" : "Save"}
-				</Button>
-			</footer>
+			<EditorActionBar
+				saveLabel={persisted ? "Save artist" : "Add artist"}
+				{saving}
+				disabled={!dirty || Boolean(uploading) || removing}
+				{dirty}
+				errorCount={errors.count}
+				onerrors={() => void errors.reveal()}
+				overflow={persisted
+					? [
+							{
+								label: "Delete artist",
+								tone: "destructive",
+								disabled: removing || saving || Boolean(uploading),
+								onselect: () => void onRemove(),
+							},
+						]
+					: []}
+			/>
 		</div>
 	</div>
+	<ConfirmDialog {confirm} />
 </form>
 
 <style>
@@ -1144,19 +1188,14 @@
 		color: var(--danger);
 	}
 
-	.panel-foot {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: var(--space-2);
-		flex-shrink: 0;
-		margin-top: auto;
-		padding: 0.65rem var(--card-pad-lg) 0.85rem;
-		border-top: 1px solid var(--border);
+	.name-error {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--danger);
 	}
 
-	.panel-foot :global(.delete-btn) {
-		margin-right: auto;
+	.title-name .title-input[aria-invalid="true"] {
+		border-color: var(--danger);
 	}
 
 	@container artist-detail (min-width: 52rem) {

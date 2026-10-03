@@ -704,7 +704,12 @@
 		</p>
 		{#snippet footer()}
 			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirm = null)}>Cancel</Button>
-			<Button variant="primary" size="sm" busy={working} onclick={() => void copyContent()}>
+			<Button
+				variant={confirm?.direction === "discard" ? "destructive" : "primary"}
+				size="sm"
+				busy={working}
+				onclick={() => void copyContent()}
+			>
 				{confirm?.direction === "discard" ? "Discard" : "Publish"}
 			</Button>
 		{/snippet}
@@ -729,7 +734,10 @@
 		</p>
 		{#snippet footer()}
 			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirmCopy = null)}>Cancel</Button>
-			<Button variant="primary" size="sm" busy={working} onclick={() => void copyDatabase()}>Copy</Button>
+			<!-- It overwrites the dev copy's rows: destructive, not a primary step. -->
+			<Button variant="destructive" size="sm" busy={working} onclick={() => void copyDatabase()}>
+				Copy and replace
+			</Button>
 		{/snippet}
 	</Dialog>
 	<BusyOverlay active={loading && !diff} label="Comparing preview and live…" />

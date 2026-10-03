@@ -1,7 +1,9 @@
 <script lang="ts">
 	/**
-	 * "Which events?" for a night of a series: this one, this and following,
-	 * or all future ones. Used when saving a night and when deleting one.
+	 * "Which nights?" for a night of a series: this one, this and later, or
+	 * all future ones. Used when saving a night and when deleting one. The
+	 * three choices weigh the same, so the widest one is never the obvious
+	 * press, and Cancel backs out.
 	 */
 	import { Button, Dialog } from "../../ui";
 
@@ -24,12 +26,14 @@
 		/** Say when it comes off the website (deleting a night that's live). */
 		alsoWebsite?: boolean;
 		disabled?: boolean;
-		/** The last choice is destructive (deleting). */
+		/** Deleting: the choices say so. */
 		destructive?: boolean;
 		allBusy?: boolean;
 		onchoose: (scope: Scope) => void;
 		onclose: () => void;
 	} = $props();
+
+	const verb = $derived(destructive ? "Delete" : "Change");
 </script>
 
 <Dialog {open} {title} {onclose}>
@@ -37,23 +41,28 @@
 	{#if alsoWebsite}
 		<p class="also-website">It comes off the website when you press Update website.</p>
 	{/if}
-	<div class="scope-options">
+	<div class="scope-options" class:destructive>
 		<Button type="button" variant="outline" {disabled} onclick={() => onchoose("this")}>
-			This event
+			{verb} this night only
 		</Button>
 		<Button type="button" variant="outline" {disabled} onclick={() => onchoose("following")}>
-			This and following
+			{verb} this night and later ones
 		</Button>
 		<Button
 			type="button"
-			variant={destructive ? "destructive" : undefined}
+			variant="outline"
 			{disabled}
 			busy={allBusy}
 			onclick={() => onchoose("all")}
 		>
-			All future events
+			{verb} all future nights
 		</Button>
 	</div>
+	{#snippet footer()}
+		<Button variant="outline" size="sm" type="button" disabled={allBusy} onclick={onclose}>
+			Cancel
+		</Button>
+	{/snippet}
 </Dialog>
 
 <style>
@@ -71,7 +80,15 @@
 
 	.scope-options {
 		display: grid;
-		gap: var(--space-3);
+		gap: var(--space-2);
 		margin-top: var(--space-4);
+	}
+
+	.scope-options :global(.btn) {
+		justify-content: flex-start;
+	}
+
+	.scope-options.destructive :global(.btn:not(:disabled)) {
+		color: var(--danger);
 	}
 </style>

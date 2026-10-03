@@ -4,9 +4,12 @@
 	 * way ("7pm", "1930", "19.30") or pick from one list in quarter hours.
 	 * The list runs from the morning round to the small hours, so a late
 	 * finish sits after the evening. Holds "HH:MM" like a native time input.
+	 * A time it can't read is said in words under the field (inside a Field),
+	 * not only shown as a red edge.
 	 */
 	import { onMount, tick } from "svelte";
-	import { nearestIndex, parseTime, timeOptions } from "./time-input";
+	import { getFieldContext, joinIds } from "./field-context";
+	import { nearestIndex, parseTime, timeOptions, TIME_ERROR } from "./time-input";
 
 	let {
 		value = $bindable(""),
@@ -17,6 +20,7 @@
 		/** Where the list opens when the field is empty. */
 		suggest = "19:00",
 		class: className = "",
+		"aria-describedby": describedByProp = undefined,
 		...rest
 	}: {
 		value?: string;
@@ -27,7 +31,10 @@
 		suggest?: string;
 		class?: string;
 		"aria-label"?: string;
+		"aria-describedby"?: string;
 	} = $props();
+
+	const field = getFieldContext();
 
 	const options = timeOptions(15, 6);
 	const listId = `time-${Math.random().toString(36).slice(2, 9)}`;
@@ -36,6 +43,15 @@
 	let open = $state(false);
 	let activeIndex = $state(-1);
 	let invalid = $state(false);
+	const errorId = `${listId}-error`;
+	/** Inside a Field the message goes under it; on its own (a table row) screen readers still hear it. */
+	const describedBy = $derived(
+		joinIds(describedByProp, field?.describedBy, invalid && !field ? errorId : ""),
+	);
+
+	$effect(() => {
+		field?.setLocalError(invalid ? TIME_ERROR : "");
+	});
 	let wrapEl = $state<HTMLDivElement | undefined>();
 	let inputEl = $state<HTMLInputElement | undefined>();
 	let menuEl = $state<HTMLDivElement | undefined>();
@@ -193,7 +209,8 @@
 		aria-expanded={open}
 		aria-controls={listId}
 		aria-autocomplete="list"
-		aria-invalid={invalid}
+		aria-invalid={invalid || field?.invalid || undefined}
+		aria-describedby={describedBy}
 		aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
 		onclick={() => {
 			if (!open) void setOpen(true);
@@ -229,6 +246,10 @@
 			<path d="M12 7v5l3 2" />
 		</svg>
 	</button>
+
+	{#if invalid && !field}
+		<span class="sr-only" id={errorId}>{TIME_ERROR}</span>
+	{/if}
 
 	{#if open}
 		<div bind:this={menuEl} class="menu scrollbar-fade" style={menuStyle} role="listbox" id={listId}>
@@ -293,7 +314,8 @@
 	}
 
 	.wrap.disabled {
-		opacity: 0.5;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 	}
 
 	.field {

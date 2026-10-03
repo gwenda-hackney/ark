@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Field, TextField } from "../ui";
+	import { Button, Confirm, ConfirmDialog, Field, TextField } from "../ui";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { countSectionItems } from "./menu-sections.js";
@@ -27,6 +27,7 @@
 	let newTitle = $state("");
 	let newParentId = $state("");
 	let saving = $state(false);
+	const confirm = new Confirm();
 
 	function startEdit(section: MenuSection) {
 		editingId = section._id;
@@ -94,6 +95,12 @@
 			toast.error("Move the drinks (and groups) out of this section first.");
 			return;
 		}
+		const ok = await confirm.ask({
+			title: `Delete ${section.title || "this section"}?`,
+			message: "It comes off the menu. It has no drinks in it. This can't be undone.",
+			action: "Delete",
+		});
+		if (!ok) return;
 		try {
 			saving = true;
 			await api.deleteSection(section._id);
@@ -438,6 +445,8 @@
 		{/if}
 	</div>
 </div>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.panel {

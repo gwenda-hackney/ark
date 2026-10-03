@@ -3,6 +3,7 @@
 	import {
 		Button,
 		ComboBox,
+		DateField,
 		Field,
 		NativeSelect,
 		TextArea,
@@ -10,6 +11,7 @@
 		TimeField,
 		Tip,
 	} from "../../ui";
+	import type { FormErrors } from "../../ui/form-errors.svelte";
 	import MethodEditor from "../../menu/MethodEditor.svelte";
 	import type { ApprovedArtist, OpsEvent } from "../../app/api";
 	import { itemSlug } from "../../app/nav";
@@ -24,6 +26,7 @@
 
 	let {
 		form,
+		errors,
 		current,
 		eventId,
 		busy,
@@ -42,6 +45,8 @@
 		onclearphoto,
 	}: {
 		form: EventForm;
+		/** Problems from the last Save, by field id. */
+		errors: FormErrors;
 		/** The saved event (null while new). */
 		current: OpsEvent | null;
 		eventId: string;
@@ -96,9 +101,11 @@
 					class="series"
 					label="Series"
 					for="event-series"
-					tooltip={newEventRoute
-						? "Choose a series to add a night to it, or No series for a special event."
-						: "Choose an existing series to add this night, or leave empty to create a new series."}
+					width="lg"
+					error={errors.get("event-series")}
+					hint={newEventRoute
+						? "Pick one to add a night to it, or No series for a special event."
+						: "Pick one to add a night to it, or New series to start one."}
 				>
 					<NativeSelect
 						id="event-series"
@@ -119,26 +126,22 @@
 					class="when"
 					label="Date"
 					for="event-date"
-					tooltip={creatingOnce || editingOnce
+					width="sm"
+					error={errors.get("event-date")}
+					hint={creatingOnce || editingOnce
 						? "The night this event happens."
-						: "This night only. Series start and end stay on Schedule."}
+						: "This night only. The series' dates are on Schedule."}
 				>
-					<TextField
-						id="event-date"
-						size="sm"
-						type="date"
-						bind:value={form.startsOn}
-						required
-					/>
+					<DateField id="event-date" size="sm" bind:value={form.startsOn} />
 				</Field>
 			{/if}
 			<Field
 				class="start"
 				label="Start"
 				for="event-start-time"
-				tooltip={editingOccurrence
-					? "Shown on What's on. From the series until you override defaults."
-					: "Default start time for each night. A night can override it."}
+				width="sm"
+				optional
+				hint={editingOccurrence ? "From the series unless overridden." : "Each night. A night can change it."}
 			>
 				{#if locked}
 					<p class="locked-value">{lockedReadout("startTime")}</p>
@@ -154,9 +157,9 @@
 				class="end"
 				label="End"
 				for="event-end-time"
-				tooltip={editingOccurrence
-					? "Shown on What's on. From the series until you override defaults."
-					: "Default end time for each night. A night can override it."}
+				width="sm"
+				optional
+				hint={editingOccurrence ? "From the series unless overridden." : "After midnight is fine."}
 			>
 				{#if locked}
 					<p class="locked-value">{lockedReadout("endTime")}</p>
@@ -233,6 +236,7 @@
 			<Field
 				label="Guest/collaboration"
 				for="event-artist"
+				optional
 				tooltip={editingOccurrence
 					? "From the series until you override defaults. A guest of its own is a special edition on What's on."
 					: "Optional default. Type any name, or pick an approved artist from the list (approve them in Play applications) to bring their link too. A night with its own guest is labelled Guest on Upcoming and What's on."}
@@ -254,9 +258,10 @@
 			<Field
 				label="Guest/collaboration link"
 				for="event-page-url"
-				tooltip={editingOccurrence
-					? "From the series until you override defaults. A guest of this night can link their own Instagram or website."
-					: "Optional. Their Instagram or website (an @handle works), linked on the website."}
+				optional
+				hint={editingOccurrence
+					? "From the series unless overridden. A guest can link their own."
+					: "Their Instagram or website. An @handle works."}
 			>
 				{#if locked}
 					<p class="locked-value">{lockedReadout("pageUrl")}</p>
@@ -264,6 +269,10 @@
 					<TextField
 						id="event-page-url"
 						size="sm"
+						type="text"
+						inputmode="url"
+						autocomplete="off"
+						spellcheck="false"
 						bind:value={form.pageUrl}
 						placeholder="Instagram or website link"
 					/>
@@ -274,9 +283,10 @@
 				class="offer"
 				label="Offer"
 				for="event-offer"
-				tooltip={editingOccurrence
-					? "From the series until you override defaults."
-					: "Default public wording, such as a drink deal. A night can override it."}
+				optional
+				hint={editingOccurrence
+					? "From the series unless overridden."
+					: "Public wording, like a drink deal. A night can change it."}
 			>
 				{#if locked}
 					<p class="locked-value">{lockedReadout("offer")}</p>
@@ -293,9 +303,10 @@
 				class="span-all"
 				label="Short description"
 				for="event-short-description"
-				tooltip={editingOccurrence
-					? "From the series until you override defaults. The What's on card sentence."
-					: "What's on card. One or two lines on what this night is."}
+				optional
+				hint={editingOccurrence
+					? "From the series unless overridden. The sentence on the What's on card."
+					: "The What's on card. One or two lines on what the night is."}
 			>
 				{#if locked}
 					<p class="locked-value">{lockedReadout("shortDescription")}</p>
@@ -315,9 +326,11 @@
 				class="span-all"
 				label={editingOccurrence ? "Description" : "Full description"}
 				for="event-description"
-				tooltip={editingOccurrence
-					? "From the series until you override defaults."
-					: "Series and night page. Use the short field for the What's on card."}
+				optional={editingOccurrence}
+				error={errors.get("event-description")}
+				hint={editingOccurrence
+					? "From the series unless overridden."
+					: "The event's page on the website."}
 			>
 				{#if locked}
 					<p class="locked-value prose">{lockedReadout("description")}</p>
@@ -336,7 +349,10 @@
 					class="span-all"
 					label="Web address"
 					for="event-web-address"
-					tooltip="The end of this {editingOnce ? 'event' : 'series'}'s page address on the website. Letters, numbers and dashes. If you change it, old links still lead here."
+					optional
+					hint={webAddressChanged
+						? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still lead here.`
+						: "Letters, numbers and dashes. Old links still lead here if you change it."}
 				>
 					<div class="web-address">
 						<span class="web-address-base">gwenda.co.uk/whats-on/</span>
@@ -349,19 +365,14 @@
 							spellcheck="false"
 						/>
 					</div>
-					{#if webAddressChanged}
-						<p class="hint">
-							New address: gwenda.co.uk/whats-on/{itemSlug(form.webAddress)}. The website
-							changes when you press Update website, and old links will lead here.
-						</p>
-					{/if}
 				</Field>
 			{/if}
 			<Field
 				class="span-all"
 				label="Operations notes"
 				for="event-operations-notes"
-				tooltip="Internal only. Never published to the website."
+				optional
+				hint="For the team only. Never on the website."
 			>
 				{#if locked}
 					<p class="locked-value prose">{lockedReadout("operationsNotes")}</p>
@@ -569,14 +580,21 @@
 			grid-column: 1 / -1;
 		}
 
-		.control-grid > :global(.start),
-		.control-grid > :global(.guest) {
+		.control-grid > :global(.start) {
 			grid-column: 1;
 		}
 
-		.control-grid > :global(.end),
-		.control-grid > :global(.offer) {
+		.control-grid > :global(.end) {
 			grid-column: 2;
+		}
+
+		/* Name and link each get the full row, so a long link isn't cut short. */
+		.control-grid > .guest-group {
+			grid-column: 1 / -1;
+		}
+
+		.control-grid > :global(.offer) {
+			grid-column: 1;
 		}
 
 		.night-schedule-head {

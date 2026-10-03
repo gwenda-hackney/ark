@@ -1,11 +1,17 @@
 <script lang="ts">
-	/** Delete a whole event (and its recurrence). */
-	import { Button, Dialog } from "../../ui";
+	/**
+	 * Delete a series, a special event, or one night of an open series. The
+	 * title names what goes, so a night never reads as the whole event.
+	 */
+	import { ConfirmDialog } from "../../ui";
+	import { deleteEventCopy } from "../event-labels";
 
 	let {
 		open,
 		eventName,
-		recurring,
+		kind,
+		nightDate = "",
+		seriesName = "",
 		onWebsite,
 		busy,
 		deleting,
@@ -14,57 +20,34 @@
 	}: {
 		open: boolean;
 		eventName: string;
-		recurring: boolean;
+		/** What the Delete removes. */
+		kind: "series" | "event" | "night";
+		/** The night's date ("YYYY-MM-DD") when kind is "night". */
+		nightDate?: string;
+		/** The series a night belongs to. */
+		seriesName?: string;
 		onWebsite: boolean;
 		busy: boolean;
 		deleting: boolean;
 		oncancel: () => void;
 		onconfirm: () => void;
 	} = $props();
+
+	const copy = $derived(deleteEventCopy({ kind, eventName, nightDate, seriesName, onWebsite }));
 </script>
 
-<Dialog {open} title="Delete event?" onclose={oncancel}>
-	<p class="delete-copy">
-		Delete <strong>{eventName}</strong>
-		{recurring ? " and its recurrence" : ""}?{onWebsite ? "" : " This cannot be undone."}
-	</p>
-	{#if onWebsite}
-		<p class="also-website">
-			It stays on the website until you press Update website on the Website page. Until then you can
-			restore it there.
-		</p>
+<ConfirmDialog
+	{open}
+	title={copy.title}
+	message={copy.message}
+	action="Delete"
+	busyLabel="Deleting…"
+	busy={deleting}
+	disabled={busy}
+	{oncancel}
+	{onconfirm}
+>
+	{#if copy.website}
+		<p>{copy.website}</p>
 	{/if}
-	{#snippet footer()}
-		<Button variant="outline" size="sm" type="button" disabled={busy} onclick={oncancel}>
-			Cancel
-		</Button>
-		<Button
-			variant="destructive"
-			size="sm"
-			type="button"
-			disabled={busy}
-			busy={deleting}
-			onclick={onconfirm}
-		>
-			{deleting ? "Deleting…" : "Delete"}
-		</Button>
-	{/snippet}
-</Dialog>
-
-<style>
-	.delete-copy {
-		margin: 0;
-		font-size: var(--text-base);
-		line-height: 1.45;
-		color: var(--foreground);
-	}
-
-	.delete-copy strong {
-		font-weight: 600;
-	}
-
-	.also-website {
-		margin: var(--space-3) 0 0;
-		font-size: var(--text-sm);
-	}
-</style>
+</ConfirmDialog>
