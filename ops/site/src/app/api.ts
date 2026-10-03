@@ -156,22 +156,16 @@ export function deleteItem(id: string) {
   });
 }
 
-export function publishMenu(target: string) {
+/** The menu's Update website: every menu change goes on gwenda.co.uk (#42). */
+export function publishMenu() {
   return request<{
-    target?: string;
-    runUrl?: string;
-    sync?: {
-      synced?: unknown[];
-      created?: unknown[];
-      unchanged?: unknown[];
-      missing?: string[];
-    };
-    deployed?: boolean;
-  }>("/api/menu/publish", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target }),
-  });
+    sync?: { missing?: string[] };
+    /** Menu documents published. */
+    published: number;
+    /** The /menu build started. */
+    building: boolean;
+    warnings: string[];
+  }>("/api/menu/publish", { method: "POST" });
 }
 
 export function importRecipes(text: string) {
