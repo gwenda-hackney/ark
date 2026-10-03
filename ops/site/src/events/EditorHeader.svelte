@@ -12,6 +12,7 @@
 		type SeriesTextKey,
 	} from "./event-form.svelte";
 	import { websiteJobFor } from "./website-jobs.svelte";
+	import { getSitePendingState } from "../website/site-pending.svelte";
 
 	let {
 		form,
@@ -86,6 +87,12 @@
 		}),
 	);
 	const liveCurrent = $derived(current?.publish.live === "current");
+	// Event pages render on request (#25): on the website means live now.
+	const pageUrl = $derived(
+		current?.slug
+			? `${getSitePendingState().urls.live}/whats-on/${current.slug}${occurrenceDate ? `/${occurrenceDate}` : ""}`
+			: "",
+	);
 	const lockedReadout = (key: SeriesTextKey) => lockedReadoutOf(current, key);
 
 	function unlockDefaults() {
@@ -102,7 +109,17 @@
 				<Icon name="events" size={14} />
 			{/if}
 			<p class="eyebrow">{typeLine}</p>
-			<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
+			{#if headerFlag.tone === "live" && pageUrl}
+				<a
+					class="status-flag live"
+					href={pageUrl}
+					target="_blank"
+					rel="noopener"
+					title="Open the page on the website">{headerFlag.label} ↗</a
+				>
+			{:else}
+				<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
+			{/if}
 		</div>
 		<div class="head-tools">
 			<div class="toolbar-actions">
@@ -525,6 +542,11 @@
 	.status-flag.live {
 		color: var(--primary);
 		background: var(--primary-wash);
+		text-decoration: none;
+	}
+
+	a.status-flag.live:hover {
+		background: var(--primary-wash-strong);
 	}
 
 	.status-flag.new {

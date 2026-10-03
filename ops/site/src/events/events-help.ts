@@ -55,6 +55,6 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "The website",
-		body: "Saving keeps your changes in ops straight away. The header says \"Getting it ready…\" for a minute while the calendar and website copy catch up. When the event is ready, press Update website to put it on gwenda.co.uk. What's on shows it straight away, and the event's own page updates by itself a few minutes after you stop making changes. The Website page in the menu shows anything waiting. Deleting an event takes it off the website too, straight away.",
+		body: "Saving keeps your changes in ops straight away. The header says \"Getting it ready…\" for a minute while the calendar and website copy catch up. When the event is ready, press Update website to put it on gwenda.co.uk. It shows there straight away, on What's on and on the event's own page, and the header then says On the website: click it to open the page. Deleting an event takes it off the website too, straight away.",
 	},
 ];

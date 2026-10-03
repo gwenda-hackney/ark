@@ -1,0 +1,16 @@
+---
+/** A night's ticket page, filled in per request by functions/_lib/event-pages.js (#25). */
+import EventTicketPage from "../../../../components/EventTicketPage.astro";
+import { isPreview, previewOrigin } from "../../../../config/env";
+import { siteConfig } from "../../../../config/site";
+
+const siteOrigin = isPreview ? previewOrigin : siteConfig.domain;
+---
+
+<EventTicketPage
+  meta={{
+    title: "Your ticket · __EVENT_TITLE__ · Gwenda",
+    url: `${siteOrigin}${Astro.url.pathname.replace(/\/$/, "")}`,
+  }}
+  occurrenceSlug="__EVENT_SLUG__"
+/>
