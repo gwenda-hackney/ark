@@ -5,7 +5,6 @@ compatibility_flags = ["nodejs_compat"]
 account_id = "1c23e160e39a187ce33fe192595c4a7f"
 
 [vars]
-BASEROW_SYNC_LOG_TABLE_ID = "1093415"
 BASEROW_API_URL = "https://api.baserow.io"
 MAILCHIMP_AUDIENCE_ID = "e2c69d5d31"
 

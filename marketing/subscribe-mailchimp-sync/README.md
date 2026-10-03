@@ -2,7 +2,7 @@
 
 Hourly Cloudflare Worker that copies unsynced Baserow production signup rows into the Mailchimp audience, then marks each row `Synced: true`.
 
-Each run also writes a durable audit row to the Baserow table **Subscribe sync runs** (when `BASEROW_SYNC_LOG_TABLE_ID` is set).
+Failures go to Sentry (project `mailchimp-sync`, #35), which emails alerts@ when one is new or comes back.
 
 The website `/api/subscribe` path stays Baserow-only.
 
@@ -13,13 +13,9 @@ The website `/api/subscribe` path stays Baserow-only.
 3. `PATCH` Baserow `Synced: true` on success
 4. Leave failed rows unsynced for the next run; stop early on rate limit
 5. If Mailchimp already has the member as `unsubscribed` / `cleaned` / `archived`, do **not** force resubscribe; still mark Baserow synced
-6. `POST` one row to the Subscribe sync runs table (`Run`, `Started`, `Trigger`, counts, `Results` JSON)
+6. If Mailchimp rejects the address for good (400 "Invalid Resource", e.g. it looks fake), mark Baserow synced so it isn't retried every hour, and send a Sentry warning (no alert email)
 
 Audience merge field: **Signed up** (`SIGNEDUP`, date). Create once if missing (setup does this).
-
-## Sync-run log table
-
-The table was created once at launch. Set `BASEROW_SYNC_LOG_TABLE_ID` in `wrangler.toml` `[vars]` and redeploy.
 
 ## Setup (Worker secrets / first deploy)
 

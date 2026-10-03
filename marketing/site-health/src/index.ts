@@ -150,10 +150,9 @@ export default withSentry(
   (env: Env) => ({
     ...sentryOptions(
       env as unknown as Record<string, unknown>,
-      "workers",
+      "site-health",
       "production",
     ),
-    initialScope: { tags: { worker: "site-health" } },
     integrations: [captureConsoleIntegration({ levels: ["error"] })],
   }),
   {
