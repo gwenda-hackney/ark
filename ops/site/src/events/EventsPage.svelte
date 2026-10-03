@@ -516,7 +516,8 @@
 			/>
 		</form>
 	{/if}
-	<BusyOverlay active={editor.busy} label={editor.busyLabel} />
+	<!-- The list shows skeleton rows while it loads; the overlay is for the editor and saves. -->
+	<BusyOverlay active={editor.busy && (editor.editing || !editor.loading)} label={editor.busyLabel} />
 </div>
 
 <style>
