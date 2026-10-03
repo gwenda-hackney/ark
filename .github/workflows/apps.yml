@@ -318,6 +318,19 @@ jobs:
       - name: Build ops app
         run: npm run build -w @gwenda/ops
 
+      - name: Sentry token
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SENTRY_ORG_TOKEN
+
+      # Maps go to Sentry, not to the site (#35).
+      - name: Upload source maps to Sentry
+        uses: ./.github/actions/sentry-sourcemaps
+        with:
+          path: ops/site/dist
+          project: ops
+          auth-token: ${{ env.SENTRY_ORG_TOKEN }}
+
       # Baserow schema changes need a user login (database tokens only touch rows);
       # config migrations use this environment's config token.
       - name: Baserow access for migrations
@@ -436,6 +449,19 @@ jobs:
       - name: Build ops app
         run: npm run build -w @gwenda/ops
 
+      - name: Sentry token
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SENTRY_ORG_TOKEN
+
+      # Maps go to Sentry, not to the site (#35).
+      - name: Upload source maps to Sentry
+        uses: ./.github/actions/sentry-sourcemaps
+        with:
+          path: ops/site/dist
+          project: ops
+          auth-token: ${{ env.SENTRY_ORG_TOKEN }}
+
       - name: Ensure Pages project exists
         run: cd marketing/web && node scripts/ensure-pages-project.mjs
         env:
@@ -519,6 +545,19 @@ jobs:
 
       - name: Build ops app
         run: npm run build -w @gwenda/ops
+
+      - name: Sentry token
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SENTRY_ORG_TOKEN
+
+      # Maps go to Sentry, not to the site (#35).
+      - name: Upload source maps to Sentry
+        uses: ./.github/actions/sentry-sourcemaps
+        with:
+          path: ops/site/dist
+          project: ops
+          auth-token: ${{ env.SENTRY_ORG_TOKEN }}
 
       - name: Resolve Pages preview branch
         id: branch

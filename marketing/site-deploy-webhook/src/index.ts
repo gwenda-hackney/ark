@@ -75,10 +75,9 @@ export default withSentry(
   (env: Env) => ({
     ...sentryOptions(
       env as unknown as Record<string, unknown>,
-      "workers",
+      "deploy-webhook",
       "production",
     ),
-    initialScope: { tags: { worker: "site-deploy-webhook" } },
     integrations: [captureConsoleIntegration({ levels: ["error"] })],
   }),
   {

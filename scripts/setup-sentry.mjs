@@ -24,7 +24,28 @@ const DRY_RUN = process.argv.includes("--dry-run");
 const PROJECTS = [
   { key: "ops", slug: "ops", platform: "node-cloudflare-pages" },
   { key: "web", slug: "website", platform: "node-cloudflare-pages" },
-  { key: "workers", slug: "workers", platform: "node-cloudflare-workers" },
+  // One per Worker, so an error's id says which (MAILCHIMP-SYNC-1).
+  {
+    key: "deploy-webhook",
+    slug: "deploy-webhook",
+    platform: "node-cloudflare-workers",
+  },
+  {
+    key: "mailchimp-sync",
+    slug: "mailchimp-sync",
+    platform: "node-cloudflare-workers",
+    was: "workers",
+  },
+  {
+    key: "site-health",
+    slug: "site-health",
+    platform: "node-cloudflare-workers",
+  },
+  {
+    key: "wifi-portal",
+    slug: "wifi-portal",
+    platform: "node-cloudflare-workers",
+  },
 ];
 async function call(token, method, path, body) {
   const res = await fetch(`${API}/${path}`, {
@@ -58,6 +79,22 @@ async function main() {
   const dsns = {};
   for (const project of PROJECTS) {
     let found = existing.find((p) => p.slug === project.slug);
+    // A renamed project keeps its errors (the shared "workers" project held
+    // the Mailchimp sync's).
+    const old = project.was && existing.find((p) => p.slug === project.was);
+    if (!found && old) {
+      if (DRY_RUN) {
+        console.log(
+          `RENAME  ${project.was} → ${project.slug} (dry run, not changed)`,
+        );
+        continue;
+      }
+      found = await call(token, "PUT", `projects/${ORG}/${project.was}/`, {
+        name: project.slug,
+        slug: project.slug,
+      });
+      console.log(`renamed ${project.was} → ${project.slug}`);
+    }
     if (!found) {
       if (DRY_RUN) {
         console.log(`MISSING project ${project.slug} (dry run, not created)`);

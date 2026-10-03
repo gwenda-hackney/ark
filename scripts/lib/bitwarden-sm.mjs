@@ -126,6 +126,8 @@ export const SECRET_OWNERS = {
     "UPTIME_ROBOT_API_KEY",
     // Script-only: Sentry token of the alerts@ user (setup:sentry, #35).
     "SENTRY_AUTH_TOKEN",
+    // CI-only (sm-export): Sentry organisation token, uploads source maps (#35).
+    "SENTRY_ORG_TOKEN",
   ],
   ops: [
     "BASEROW_OPS_API_KEY",

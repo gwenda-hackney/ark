@@ -12,10 +12,9 @@ export default withSentry(
   (env: Env) => ({
     ...sentryOptions(
       env as unknown as Record<string, unknown>,
-      "workers",
+      "mailchimp-sync",
       "production",
     ),
-    initialScope: { tags: { worker: "subscribe-mailchimp-sync" } },
     integrations: [captureConsoleIntegration({ levels: ["error"] })],
   }),
   {
@@ -24,7 +23,7 @@ export default withSentry(
       env: Env,
       _ctx: ExecutionContext,
     ): Promise<void> {
-      const summary = await syncUnsyncedSubscribers(env, { trigger: "cron" });
+      const summary = await syncUnsyncedSubscribers(env);
       console.log(
         JSON.stringify({
           event: "subscribe-mailchimp-sync",
@@ -73,7 +72,6 @@ export default withSentry(
           const summary = await syncUnsyncedSubscribers(env, {
             dryRun,
             all,
-            trigger: "manual",
             limit:
               limit !== undefined && Number.isFinite(limit) && limit > 0
                 ? Math.floor(limit)
