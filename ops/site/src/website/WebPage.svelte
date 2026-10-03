@@ -13,7 +13,8 @@
 	import { onDestroy, onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
-	import { BusyOverlay, Button, Dialog, PageHeader } from "../ui";
+	import { Badge, BusyOverlay, Button, Dialog, PageHeader } from "../ui";
+	import { changeBadgeTone } from "../ui/badge";
 	import {
 		getDeletedEvents,
 		getEvents,
@@ -329,7 +330,7 @@
 				<ul class="list">
 					{#each live.items as item (item.kind + item.id)}
 						<li>
-							<span class="word {item.change}">{changeWord(item.change)}</span>
+							<span class="word"><Badge tone={changeBadgeTone(item.change)} label={changeWord(item.change)} /></span>
 							<span class="name">{itemLabel(item)}</span>
 						</li>
 					{/each}
@@ -346,8 +347,8 @@
 					<ul class="list">
 						{#each jobs as job (job.eventId)}
 							<li>
-								<span class="word {job.state === 'failed' ? 'removed' : 'changed'}">
-									{job.state === "failed" ? "Stuck" : "Waiting"}
+								<span class="word">
+									<Badge tone={job.state === "failed" ? "danger" : "neutral"} label={job.state === "failed" ? "Stuck" : "Waiting"} />
 								</span>
 								<span class="name">
 									{job.name}{#if job.error}<span class="muted"> · {job.error}</span>{/if}
@@ -388,8 +389,11 @@
 					<ul class="list">
 						{#each unpublished as item (item.key)}
 							<li>
-								<span class="word {item.change}">
-									{item.change === "removed" ? "Remove" : changeWord(item.change)}
+								<span class="word">
+									<Badge
+										tone={changeBadgeTone(item.change)}
+										label={item.change === "removed" ? "Remove" : changeWord(item.change)}
+									/>
 								</span>
 								<span class="name">
 									{item.label}{#if item.kind === "deleted"}<span class="muted"> · deleted in ops</span>{/if}
@@ -642,22 +646,11 @@
 		border-top: 1px solid var(--border);
 	}
 
+	/* Fixed width so the names line up whatever the badge says. */
 	.word {
+		display: inline-flex;
 		flex-shrink: 0;
-		width: 4.5rem;
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--primary);
-	}
-
-	.word.added {
-		color: var(--up);
-	}
-
-	.word.removed {
-		color: var(--destructive);
+		width: 5rem;
 	}
 
 	.name {

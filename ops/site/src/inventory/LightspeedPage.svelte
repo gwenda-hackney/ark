@@ -4,6 +4,7 @@
 	import { Icon } from "../app/shell";
 	import {
 		BusyOverlay,
+		EmptyState,
 		Button,
 		Card,
 		Dialog,
@@ -629,9 +630,15 @@
 					</div>
 				</div>
 			{:else if lastRecon.stamped === 0}
-				<p class="muted">
-					No reconcile has been stamped yet. Import a Lightspeed item list to compare.
-				</p>
+				<EmptyState
+					icon="lightspeed"
+					title="No reconcile yet"
+					text="Import a Lightspeed item list to compare it with ops."
+				>
+					{#snippet action()}
+						<Button size="sm" onclick={() => (importOpen = true)}>Import item list</Button>
+					{/snippet}
+				</EmptyState>
 			{:else}
 				<div class="status">
 					<div class="fig up">

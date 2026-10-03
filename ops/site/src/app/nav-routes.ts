@@ -64,7 +64,7 @@ export const NAV_ROUTES: NavRoute[] = [
 				name: "Artists",
 				icon: "artist",
 				children: [
-					{ id: "artist", path: "/artists", name: "Featured Artist", short: "Artist", icon: "artist", hint: "Work hanging at Gwenda" },
+					{ id: "artist", path: "/artists", name: "Featured artist", short: "Artist", icon: "artist", hint: "Work hanging at Gwenda" },
 					{ id: "forms", path: "/forms", name: "Play applications", short: "Applications", icon: "forms", hint: "Artists who applied to play" },
 				],
 			},

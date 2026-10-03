@@ -3,12 +3,15 @@
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
+		Badge,
 		BusyOverlay,
 		Button,
-		Card,
+		EmptyState,
 		Field,
 		PageDrawer,
 		PageHeader,
+		Skeleton,
+		Switch,
 		TextField,
 	} from "../ui";
 	import {
@@ -145,31 +148,37 @@
 		{/snippet}
 	</PageHeader>
 
-	<Card title="People" subtitle={loading ? "" : summary} flush>
-		{#if loadError}
-			<p class="state error">{loadError}</p>
-		{:else if !loading && users.length === 0}
-			<div class="state empty">
-				<p>No one has been added yet.</p>
-				<Button type="button" variant="outline" size="sm" onclick={openDrawer}>
-					Add the first user
-				</Button>
-			</div>
-		{:else if !loading}
-			<table class="table" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-				<thead>
-					<tr>
-						<th scope="col">Person</th>
-						<th scope="col">Roles</th>
-						<th scope="col">Can sign in</th>
-						<th scope="col"><span class="sr-only">Actions</span></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each users as user (user.id)}
-						{@const busy = busyId === String(user.id)}
-						<tr class:off={!user.active}>
-							<td class="person">
+	{#if loadError}
+		<EmptyState tone="error" title="Could not load users" text={loadError}>
+			{#snippet action()}
+				<Button variant="outline" size="sm" onclick={() => void reload()}>Try again</Button>
+			{/snippet}
+		</EmptyState>
+	{:else if loading && users.length === 0}
+		<Skeleton rows={3} thumb lines={1} label="Loading users…" />
+	{:else if users.length === 0}
+		<EmptyState icon="users" title="No one added yet" text="Add the people who may sign in with Google.">
+			{#snippet action()}
+				<Button size="sm" onclick={openDrawer}>Add the first user</Button>
+			{/snippet}
+		</EmptyState>
+	{:else}
+		<p class="count">{summary}</p>
+		<table class="table" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+			<thead>
+				<tr>
+					<th scope="col">Person</th>
+					<th scope="col">Roles</th>
+					<th scope="col">Can sign in</th>
+					<th scope="col"><span class="sr-only">Actions</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each users as user (user.id)}
+					{@const busy = busyId === String(user.id)}
+					<tr class:off={!user.active}>
+						<td class="person">
+							<div class="person-inner">
 								<span class="avatar" aria-hidden="true">{initial(user)}</span>
 								<span class="who">
 									<span class="name">{user.name || user.email}</span>
@@ -177,45 +186,43 @@
 										<span class="email">{user.email}</span>
 									{/if}
 								</span>
-							</td>
-							<td class="roles" data-label="Roles">
-								<span class="placeholder">No roles yet</span>
-							</td>
-							<td class="status" data-label="Can sign in">
-								<label class="switch">
-									<input
-										type="checkbox"
-										role="switch"
-										checked={user.active}
-										disabled={busy}
-										onchange={() => onToggle(user)}
-										aria-label="{user.email} can sign in"
-									/>
-									<span class="track" aria-hidden="true"></span>
-									<span class="switch-label">{user.active ? "Yes" : "No"}</span>
-								</label>
-							</td>
-							<td class="row-actions">
-								<Button
-									variant="ghost"
-									size="sm"
+							</div>
+						</td>
+						<td class="roles" data-label="Roles">
+							<Badge tone="neutral" label="No roles yet" />
+						</td>
+						<td class="status" data-label="Can sign in">
+							<span class="access">
+								<Switch
+									checked={Boolean(user.active)}
 									disabled={busy}
-									onclick={() => onRemove(user)}
-									aria-label="Remove {user.email}"
-								>
-									{#snippet icon()}
-										<Icon name="trash" size={16} />
-									{/snippet}
-								</Button>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		{/if}
-	</Card>
+									ariaLabel="{user.email} can sign in"
+									onchange={() => onToggle(user)}
+								/>
+								<Badge tone={user.active ? "success" : "neutral"} label={user.active ? "Yes" : "No"} />
+							</span>
+						</td>
+						<td class="row-actions">
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={busy}
+								onclick={() => onRemove(user)}
+								aria-label="Remove {user.email}"
+							>
+								{#snippet icon()}
+									<Icon name="trash" size={16} />
+								{/snippet}
+							</Button>
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	{/if}
 
-	<BusyOverlay active={loading} label="Loading…" />
+	<!-- First load shows skeleton rows; the overlay covers a reload. -->
+	<BusyOverlay active={loading && users.length > 0} label="Loading…" />
 </div>
 
 <PageDrawer open={drawerOpen} onclose={closeDrawer} title="Add user">
@@ -262,27 +269,10 @@
 		padding: var(--page-gutter);
 	}
 
-	.state {
-		margin: 0;
-		padding: 1.25rem var(--card-pad);
+	.count {
+		margin: 0 0 var(--space-2);
 		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.empty {
-		display: grid;
-		justify-items: start;
-		gap: var(--space-3);
-	}
-
-	.empty p {
-		margin: 0;
-	}
-
-	.error {
-		margin: 0;
-		color: var(--danger);
-		font-size: var(--text-sm);
+		color: var(--fg-muted);
 	}
 
 	.table {
@@ -301,15 +291,16 @@
 
 	.table th:first-child,
 	.table td:first-child {
-		padding-left: var(--card-pad);
+		padding-left: var(--space-3);
 	}
 
 	.table th:last-child,
 	.table td:last-child {
-		padding-right: var(--card-pad);
+		padding-right: var(--space-3);
 	}
 
 	.table th {
+		background: var(--surface-1);
 		font-size: var(--text-2xs);
 		font-weight: 600;
 		letter-spacing: var(--tracking-label);
@@ -318,15 +309,13 @@
 		white-space: nowrap;
 	}
 
-	.table tbody tr:last-child td {
-		border-bottom: 0;
-	}
-
 	.table tbody tr:hover {
-		background: color-mix(in srgb, var(--foreground) 3%, transparent);
+		background: var(--surface-3);
 	}
 
-	.person {
+	/* The flex row lives inside the cell: a flex td stops being a table
+	   cell, and its bottom border then ends short of the row. */
+	.person-inner {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
@@ -371,84 +360,15 @@
 		color: var(--muted-foreground);
 	}
 
-	.placeholder {
-		color: var(--muted-foreground);
-		font-style: italic;
-	}
-
-	.switch {
+	.access {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
-		cursor: pointer;
-		user-select: none;
-	}
-
-	.switch input {
-		position: absolute;
-		opacity: 0;
-		width: 1px;
-		height: 1px;
-	}
-
-	.track {
-		position: relative;
-		width: 2.2rem;
-		height: 1.25rem;
-		border-radius: var(--radius-pill);
-		background: var(--muted);
-		border: 1px solid var(--border);
-		transition: background 160ms ease;
-	}
-
-	.track::after {
-		content: "";
-		position: absolute;
-		top: 50%;
-		left: 0.15rem;
-		width: 0.85rem;
-		height: 0.85rem;
-		border-radius: 50%;
-		background: var(--muted-foreground);
-		transform: translateY(-50%);
-		transition: transform 160ms ease, background 160ms ease;
-	}
-
-	.switch input:checked + .track {
-		background: var(--primary-wash-strong);
-		border-color: var(--primary);
-	}
-
-	.switch input:checked + .track::after {
-		background: var(--primary);
-		transform: translate(0.95rem, -50%);
-	}
-
-	.switch input:focus-visible + .track {
-		outline: 2px solid var(--primary);
-		outline-offset: 2px;
-	}
-
-	.switch input:disabled + .track {
-		opacity: 0.5;
-	}
-
-	.switch-label {
-		color: var(--muted-foreground);
 	}
 
 	.row-actions {
 		width: 1%;
 		text-align: right;
-		white-space: nowrap;
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
 		white-space: nowrap;
 	}
 
@@ -462,12 +382,8 @@
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: var(--space-2) var(--space-3);
-			padding: 0.8rem var(--card-pad);
+			padding: var(--space-3) 0;
 			border-bottom: 1px solid var(--border);
-		}
-
-		.table tbody tr:last-child {
-			border-bottom: 0;
 		}
 
 		.table td,

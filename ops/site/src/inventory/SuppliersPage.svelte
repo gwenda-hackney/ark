@@ -3,11 +3,14 @@
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
+		Badge,
 		BusyOverlay,
 		Button,
 		Card,
+		EmptyState,
 		Field,
 		PageHeader,
+		Skeleton,
 		TextArea,
 		TextField,
 	} from "../ui";
@@ -197,9 +200,11 @@
 		</Card>
 
 		<Card title="List" subtitle="{suppliers.length} on the books">
-			{#if !loading && suppliers.length === 0}
-				<p class="muted">No suppliers yet. Add one above.</p>
-			{:else if !loading}
+			{#if loading && suppliers.length === 0}
+				<Skeleton rows={4} label="Loading suppliers…" />
+			{:else if suppliers.length === 0}
+				<EmptyState icon="suppliers" title="No suppliers yet" text="Add one above, then pick it on an inventory item." />
+			{:else}
 				<ul class="list" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
 					{#each suppliers as row (row.id)}
 						<li class="row" class:on={String(row.id) === editingId}>
@@ -215,9 +220,10 @@
 									{:else}
 										No website
 									{/if}
-									<span class="dot">·</span>
-									{row.itemCount || 0}
-									{(row.itemCount || 0) === 1 ? "item" : "items"}
+									<Badge
+										tone={row.itemCount ? "neutral" : "warning"}
+										label="{row.itemCount || 0} {(row.itemCount || 0) === 1 ? 'item' : 'items'}"
+									/>
 								</span>
 								{#if row.notes}
 									<span class="notes">{row.notes}</span>
@@ -253,7 +259,7 @@
 		</Card>
 	</div>
 
-	<BusyOverlay active={loading} label="Loading…" />
+	<BusyOverlay active={loading && suppliers.length > 0} label="Loading…" />
 </div>
 
 <style>
@@ -286,12 +292,6 @@
 	.error {
 		margin: var(--space-3) 0 0;
 		color: var(--danger);
-		font-size: var(--text-sm);
-	}
-
-	.muted {
-		margin: 0;
-		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
 
@@ -344,12 +344,15 @@
 		color: var(--muted-foreground);
 	}
 
-	.notes {
-		overflow-wrap: anywhere;
+	.meta {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-2);
 	}
 
-	.dot {
-		margin: 0 0.15rem;
+	.notes {
+		overflow-wrap: anywhere;
 	}
 
 	.row-actions {
