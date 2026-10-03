@@ -19,7 +19,7 @@ export const onRequestPost = withApiHandler(async (context) => {
       warnings: ["Google Calendar is not configured."],
     });
   }
-  await syncSeriesCalendar(context.env, event);
+  await syncSeriesCalendar(context.env, event, { verify: true });
   const fresh = await getEvent(context.env, id);
   return jsonResponse(
     attachCalendarWarnings(context.env, { ok: true, event: fresh }),

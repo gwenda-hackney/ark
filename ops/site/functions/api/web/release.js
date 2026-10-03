@@ -3,6 +3,7 @@ import { requireAdmin } from "../../../src/access/server/admin.js";
 import { runsOnMachine } from "../../../src/platform/sanity.js";
 import {
   getReleaseDiff,
+  markDiscardedInOps,
   markReleasedInOps,
   publishRelease,
 } from "../../../src/website/server/release.js";
@@ -40,11 +41,20 @@ export const onRequestPost = withApiHandler(async (context) => {
   if (direction === "to-production") {
     try {
       // Chosen documents that already matched live count as published too.
-      marked = await markReleasedInOps(context.env, [...(ids || result.inSync || []), ...result.written]);
+      marked = await markReleasedInOps(context.env, [...(ids || result.inSync || []), ...result.written], {
+        deleted: result.deleted,
+      });
     } catch (error) {
       warnings.push(
         `Published, but ops status did not update: ${error?.message || "unknown error"}.`,
       );
+    }
+  }
+  if (direction === "discard") {
+    try {
+      await markDiscardedInOps(context.env, result.discarded);
+    } catch (error) {
+      warnings.push(`Discarded, but ops status did not update: ${error?.message || "unknown error"}.`);
     }
   }
   const deploy = null;
