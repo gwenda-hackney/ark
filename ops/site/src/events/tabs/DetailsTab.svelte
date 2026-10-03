@@ -328,18 +328,19 @@
 			{#if isSeries}
 				<RepeatFields {form} {errors} />
 			{/if}
+			{#if !isSeries}
+				<Field
+					class="span-all"
+					label="Date"
+					for="event-date"
+					width="sm"
+					error={errors.get("event-date")}
+					hint={editingOccurrence ? "Change it to move this night only." : undefined}
+				>
+					<DateField id="event-date" size="sm" bind:value={form.startsOn} />
+				</Field>
+			{/if}
 			<div class="field-row">
-				{#if !isSeries}
-					<Field
-						label="Date"
-						for="event-date"
-						width="sm"
-						error={errors.get("event-date")}
-						hint={editingOccurrence ? "Change it to move this night only." : undefined}
-					>
-						<DateField id="event-date" size="sm" bind:value={form.startsOn} />
-					</Field>
-				{/if}
 				<Field
 					label="Starts"
 					for="event-start-time"
@@ -441,7 +442,6 @@
 				class="span-all"
 				label="Description"
 				for="event-description"
-				optional={inherits}
 				error={errors.get("event-description")}
 				hint={follows("description") ? undefined : "The event's own page on the website."}
 			>
