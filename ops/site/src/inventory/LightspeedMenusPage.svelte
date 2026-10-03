@@ -5,8 +5,12 @@
 		BusyOverlay,
 		Button,
 		Card,
+		Confirm,
+		ConfirmDialog,
+		Field,
 		PageHeader,
 		PageHelp,
+		Switch,
 		TextField,
 	} from "../ui";
 	import {
@@ -136,10 +140,15 @@
 		}
 	}
 
+	const confirm = new Confirm();
+
 	async function onRemove(menu: PosMenu) {
-		if (!window.confirm(`Remove ${menu.name} from ops? Drinks stay; they just drop this menu.`)) {
-			return;
-		}
+		const ok = await confirm.ask({
+			title: `Remove ${menu.name}?`,
+			message: "It comes off the list in ops. Drinks stay; they just drop this menu. Lightspeed isn't changed.",
+			action: "Remove",
+		});
+		if (!ok) return;
 		busyId = menu.id;
 		try {
 			await deletePosMenu(menu.id);
@@ -173,14 +182,10 @@
 			title="Add menu"
 		>
 			<form class="add" onsubmit={onAdd}>
-				<label class="field">
-					<span class="label">Name</span>
-					<TextField bind:value={name} placeholder="Live menu" required />
-				</label>
-				<label class="default">
-					<input type="checkbox" bind:checked={makeDefault} />
-					Default for new drinks
-				</label>
+				<Field label="Name" for="pos-menu-name" width="lg">
+					<TextField id="pos-menu-name" bind:value={name} placeholder="Live menu" />
+				</Field>
+				<Switch bind:checked={makeDefault} label="Default for new drinks" />
 				<div class="actions">
 					<Button type="submit" variant="primary" busy={saving} disabled={!name.trim()}>
 						Add
@@ -275,6 +280,8 @@
 	<BusyOverlay active={loading} label="Loading POS menus…" />
 </div>
 
+<ConfirmDialog {confirm} />
+
 <style>
 	.page {
 		position: relative;
@@ -294,24 +301,6 @@
 	.add {
 		display: grid;
 		gap: var(--space-4);
-	}
-
-	.field,
-	.default {
-		display: grid;
-		gap: var(--space-1);
-	}
-
-	.label {
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.default {
-		grid-template-columns: auto 1fr;
-		align-items: center;
-		gap: var(--space-2);
-		font-size: var(--text-sm);
 	}
 
 	.actions {

@@ -6,7 +6,10 @@
 		BusyOverlay,
 		Button,
 		Card,
+		Confirm,
+		ConfirmDialog,
 		Field,
+		FormErrors,
 		PageDrawer,
 		PageHeader,
 		TextField,
@@ -30,6 +33,8 @@
 	let name = $state("");
 	let email = $state("");
 	let busyId = $state("");
+	const confirm = new Confirm();
+	const errors = new FormErrors();
 
 	const activeCount = $derived(users.filter((user) => user.active).length);
 	const summary = $derived(
@@ -59,6 +64,7 @@
 		name = "";
 		email = "";
 		error = "";
+		errors.clearAll();
 		drawerOpen = true;
 	}
 
@@ -69,6 +75,18 @@
 
 	async function onAdd(event: Event) {
 		event.preventDefault();
+		const address = email.trim();
+		errors.replace({
+			"user-email": !address
+				? "Add their email address."
+				: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)
+					? ""
+					: "Use a whole email address, like name@gwenda.co.uk.",
+		});
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
 		saving = true;
 		error = "";
 		try {
@@ -111,14 +129,19 @@
 		const id = String(user.id || user._id || "");
 		if (!id) return;
 		const label = user.name || user.email || "this user";
-		if (!window.confirm(`Remove ${label}? They will no longer be able to sign in.`)) return;
+		const ok = await confirm.ask({
+			title: `Delete ${label}?`,
+			message: "They can no longer sign in to ops. To pause them instead, turn off Can sign in.",
+			action: "Delete",
+		});
+		if (!ok) return;
 		busyId = id;
 		try {
 			await deleteOpsUser(id);
 			users = users.filter((row) => String(row.id) !== id);
-			toast.ok("User removed.");
+			toast.ok("User deleted.");
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not remove user.");
+			toast.error(err instanceof Error ? err.message : "Could not delete user.");
 		} finally {
 			busyId = "";
 		}
@@ -201,7 +224,7 @@
 									size="sm"
 									disabled={busy}
 									onclick={() => onRemove(user)}
-									aria-label="Remove {user.email}"
+									aria-label="Delete {user.email}"
 								>
 									{#snippet icon()}
 										<Icon name="trash" size={16} />
@@ -219,26 +242,28 @@
 </div>
 
 <PageDrawer open={drawerOpen} onclose={closeDrawer} title="Add user">
-	<form class="add" onsubmit={onAdd}>
+	<form class="add" novalidate onsubmit={onAdd}>
 		<p class="intro">
 			They sign in with Google, so use the email address of their Google account.
 		</p>
-		<Field label="Name" for="user-name">
-			<TextField
-				id="user-name"
-				bind:value={name}
-				placeholder="Optional"
-				autocomplete="off"
-			/>
+		<Field label="Name" for="user-name" optional>
+			<TextField id="user-name" bind:value={name} autocomplete="off" />
 		</Field>
-		<Field label="Email" for="user-email">
+		<Field
+			label="Email"
+			for="user-email"
+			error={errors.get("user-email")}
+			hint="Their Google account."
+		>
 			<TextField
 				id="user-email"
 				bind:value={email}
 				type="email"
+				inputmode="email"
 				placeholder="name@gwenda.co.uk"
 				autocomplete="off"
-				required
+				spellcheck="false"
+				oninput={() => errors.clear("user-email")}
 			/>
 		</Field>
 		{#if error}
@@ -252,6 +277,8 @@
 		</div>
 	</form>
 </PageDrawer>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {

@@ -6,6 +6,8 @@
 		BusyOverlay,
 		Button,
 		Card,
+		Confirm,
+		ConfirmDialog,
 		Dialog,
 		Field,
 		NativeSelect,
@@ -293,8 +295,17 @@
 		if (file) void loadCsv(file);
 	}
 
+	const confirm = new Confirm();
+
 	async function apply() {
 		if (!csvText) return;
+		const ok = await confirm.ask({
+			title: "Stamp Lightspeed SKUs?",
+			message: `Drinks and stock matched in ${fileName || "this file"} get its Lightspeed SKUs, replacing any they have now.`,
+			action: "Stamp SKUs",
+			tone: "primary",
+		});
+		if (!ok) return;
 		applying = true;
 		acting = "save";
 		error = "";
@@ -1259,6 +1270,8 @@
 		label={busyLabel}
 	/>
 </div>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {

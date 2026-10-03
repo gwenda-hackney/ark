@@ -392,6 +392,8 @@ export function editorKey(path) {
     if (route.slug) return `artists:${route.slug}`;
     return "artists";
   }
+  // A play application's guest-artist fields can be left unsaved.
+  if (route.page === "forms" && route.slug) return `forms:${route.slug}`;
   return route.page || "home";
 }
 

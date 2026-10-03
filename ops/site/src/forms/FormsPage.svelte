@@ -5,6 +5,8 @@
 	import {
 		BusyOverlay,
 		Button,
+		Confirm,
+		ConfirmDialog,
 		EditorBackBar,
 		Field,
 		NativeSelect,
@@ -24,6 +26,12 @@
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
 	import { navigate, parseShellPath } from "../app/nav";
+	import {
+		beginLeave,
+		clearUnsavedGuard,
+		setUnsavedGuard,
+		takeBlockedNav,
+	} from "../ui/unsaved.svelte";
 	import { formatWhen } from "../website/web-metrics";
 	import FormsGrid from "./FormsGrid.svelte";
 
@@ -48,6 +56,7 @@
 	let savingArtist = $state(false);
 	let artistNote = $state("");
 	let artistError = $state("");
+	const confirm = new Confirm();
 
 	const EMAILS: { kind: FormEmailKind; label: string; field: "notifySentAt" | "receiptSentAt" }[] = [
 		{ kind: "notify", label: "Team notification", field: "notifySentAt" },
@@ -112,6 +121,7 @@
 	}
 
 	function closeDetail() {
+		// Unsaved guest-artist edits are caught by the guard below.
 		navigate("/forms");
 	}
 
@@ -131,6 +141,37 @@
 			(artistNameDraft.trim() !== (selected?.artistName || selected?.submitted?.name || "") ||
 				artistLinkDraft.trim() !== (selected?.artistLink || selected?.submitted?.link || "")),
 	);
+
+	// Unsaved guest-artist edits: ask before leaving, like the other editors,
+	// and the shell's saving pill knows.
+	$effect(() => {
+		setUnsavedGuard(artistDirty, () => {
+			const next = takeBlockedNav();
+			if (!next) return;
+			void confirm
+				.ask({
+					title: "Discard unsaved changes?",
+					message: "The guest artist name or link you changed hasn't been saved.",
+					action: "Discard",
+					cancel: "Keep editing",
+				})
+				.then((ok) => {
+					if (!ok) return;
+					beginLeave();
+					navigate(next.path, { replace: next.replace, force: true });
+				});
+		});
+	});
+
+	$effect(() => {
+		if (!artistDirty || typeof window === "undefined") return;
+		const onBeforeUnload = (e: BeforeUnloadEvent) => {
+			e.preventDefault();
+			e.returnValue = "";
+		};
+		window.addEventListener("beforeunload", onBeforeUnload);
+		return () => window.removeEventListener("beforeunload", onBeforeUnload);
+	});
 
 	/** Save ops' copy. Matching what they sent stores nothing, so it follows their answers. */
 	async function saveArtist(row: FormSubmission) {
@@ -185,6 +226,15 @@
 	/** Approve or decline; it holds for every reply from the same address. */
 	async function decide(row: FormSubmission, decision: FormDecision) {
 		if (deciding) return;
+		if (decision === "Declined") {
+			const ok = await confirm.ask({
+				title: `Decline ${personLabel(row)}?`,
+				message:
+					"They can't be picked as a guest artist. It holds for every reply from this address; you can approve them later. No email is sent.",
+				action: "Decline",
+			});
+			if (!ok) return;
+		}
 		deciding = true;
 		decisionError = "";
 		try {
@@ -209,6 +259,7 @@
 
 	onDestroy(() => {
 		setCrumbLeaf("");
+		clearUnsavedGuard();
 	});
 
 	onMount(() => {
@@ -366,7 +417,7 @@
 												How they appear when picked as an event's guest artist. Saving also updates upcoming events that
 												still show the old name or link. Their application stays as they sent it.
 											</p>
-											<Field label="Artist name" for="form-artist-name">
+											<Field label="Artist name" for="form-artist-name" optional>
 												<TextField
 													id="form-artist-name"
 													size="sm"
@@ -374,10 +425,12 @@
 													placeholder={selected.submitted.name || "Artist or DJ name"}
 												/>
 											</Field>
-											<Field label="Instagram or website" for="form-artist-link">
+											<Field label="Instagram or website" for="form-artist-link" optional>
 												<TextField
 													id="form-artist-link"
 													size="sm"
+													inputmode="url"
+													spellcheck="false"
 													bind:value={artistLinkDraft}
 													placeholder="@handle or website"
 												/>
