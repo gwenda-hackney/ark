@@ -31,7 +31,7 @@ Two environments, **dev** and **prod**, built the same way. Each has one Sanity 
 
 **Dev** runs the code on `main`: every push deploys dev ops (`apps.yml`) and both dev website sites (`web.yml`). Dev ops' builds go to the dev website only (the deploy webhook routes `env: "dev"` requests to `web.yml` `dev-preview` / `dev-live`), and dev keeps its build snapshots and scheduler state in its own config database. Both dev sites are password-gated. Form notifications outside prod go to `alerts@gwenda.co.uk` (config `forms.notify_email`, Env `dev`); on a developer's machine they go to that developer (`FORMS_NOTIFY_EMAIL`, defaulting to their git email). Outside prod, if neither is available nothing is sent rather than falling back to the form's real address. Hosted dev sets `SITE_ENV=dev`; a developer's machine is `SITE_ENV=local` and reads the dev settings plus its own `.env` values (see docs/config.md). Dev secrets in Secrets Manager end in `__DEV`.
 
-**Prod** runs the code on `release`: ops, the hosted Studio, the preview and the live site.
+**Prod** runs the code on `release`: ops, the hosted Studio, the preview and the live site. A push to `release` deploys production ops and brand (`apps.yml`) and the Workers (`workers.yml`) when their code changed, and rebuilds the preview; the live site waits for Web promote.
 
 Data only moves by copying prod into dev: `npm run dev:refresh` (Sanity with its drafts, and both Baserow databases).
 
