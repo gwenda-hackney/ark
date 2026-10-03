@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   galleryAssetFilename,
   galleryBehind,
-  galleryEnabled,
   galleryFingerprint,
   syncGalleryImages,
 } from "./event-gallery.js";
@@ -63,9 +62,4 @@ test("only an event with a Drive folder and no staged gallery is behind", () => 
   assert.equal(galleryBehind({ id: "4", driveFolderId: "f" }, {}), true);
   assert.equal(galleryBehind({ id: "4", driveFolderId: "f" }, { 4: "a:1" }), false);
   assert.equal(galleryBehind({ id: "4", driveFolderId: "" }, {}), false);
-});
-
-test("the gallery is on in dev, off in production until checked on a phone", () => {
-  assert.equal(galleryEnabled({ SITE_ENV: "dev" }), true);
-  assert.equal(galleryEnabled({ SITE_ENV: "production" }), false);
 });

@@ -44,6 +44,8 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
     "url": asset->url,
     "width": asset->metadata.dimensions.width,
     "height": asset->metadata.dimensions.height,
+    "lqip": asset->metadata.lqip,
+    "color": asset->metadata.palette.dominant.background,
     alt
   },
   recurrence,
