@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { menuCard, menuCardBadges } from "./menu-card.ts";
+import { cardPhotoUrl, menuCard, menuCardBadges } from "./menu-card.ts";
 import type { MenuListItem } from "./menu-list.ts";
 
 function row(extra: Partial<MenuListItem> = {}): MenuListItem {
@@ -97,5 +97,16 @@ describe("menu card", () => {
 	it("tones pour cost by margin", () => {
 		assert.equal(menuCard(row({ _pourTone: "down" })).pour.tone, "warning");
 		assert.equal(menuCard(row({ _pourTone: "loss" })).pour.tone, "danger");
+	});
+});
+
+describe("cardPhotoUrl", () => {
+	it("asks Sanity for a 4:3 crop and leaves other hosts alone", () => {
+		assert.equal(
+			cardPhotoUrl("https://cdn.sanity.io/images/x/y/abc.jpg?w=96"),
+			"https://cdn.sanity.io/images/x/y/abc.jpg?w=640&h=480&fit=crop&auto=format",
+		);
+		assert.equal(cardPhotoUrl("https://files.baserow.io/a.jpg"), "https://files.baserow.io/a.jpg");
+		assert.equal(cardPhotoUrl(""), "");
 	});
 });

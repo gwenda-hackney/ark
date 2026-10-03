@@ -160,6 +160,21 @@ export function dayLabel(date: string, today: string): string {
 	});
 }
 
+/** The date block of an agenda day: "Tue", "6", "Oct", and "Tonight" or "Tomorrow" when it is. */
+export function agendaDate(
+	date: string,
+	today: string,
+): { weekday: string; day: string; month: string; relative: string } {
+	const when = parseIso(date);
+	const diff = dayDiff(today, date);
+	return {
+		weekday: when.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" }),
+		day: String(when.getUTCDate()),
+		month: when.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }),
+		relative: diff === 0 ? "Tonight" : diff === 1 ? "Tomorrow" : "",
+	};
+}
+
 /** Nights by day, tonight first, each day earliest start first. */
 export function groupNights(nights: DashboardNight[], today: string): NightGroup[] {
 	const sorted = [...nights]

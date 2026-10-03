@@ -6,10 +6,9 @@
 	import { Badge, HighlightText } from "../ui";
 	import { hasRangeSelection } from "../ui/grid";
 	import { menuItemPath } from "../app/nav";
-	import { menuCard } from "./menu-card";
+	import { cardPhotoUrl, menuCard } from "./menu-card";
 	import type { MenuListRow } from "./menu-list";
 	import type { MenuItem } from "./types";
-	import PhotoCell from "./cells/PhotoCell.svelte";
 
 	let {
 		rows,
@@ -78,7 +77,7 @@
 						>
 							<span class="thumb">
 								{#if card.photo}
-									<PhotoCell size="lg" url={card.photo} alt="" />
+									<img class="photo" src={cardPhotoUrl(card.photo)} alt="" loading="lazy" decoding="async" />
 								{:else}
 									<span class="swatch" aria-hidden="true">{card.swatch.initial}</span>
 								{/if}
@@ -169,10 +168,11 @@
 		text-overflow: ellipsis;
 	}
 
+	/* Desktop: the photo leads, full width at 4:3, details under it. */
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
-		gap: var(--space-3);
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+		gap: var(--space-4);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -180,10 +180,9 @@
 
 	.card {
 		display: flex;
-		align-items: flex-start;
-		gap: var(--space-3);
+		flex-direction: column;
 		height: 100%;
-		padding: var(--space-3);
+		overflow: hidden;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--surface-1);
@@ -195,13 +194,17 @@
 	}
 
 	.card:hover {
-		background: var(--surface-3);
+		background: var(--surface-2);
 		border-color: var(--border-strong);
 	}
 
+	.card:hover .photo {
+		transform: scale(1.03);
+	}
+
 	.card.on {
-		background: var(--surface-3);
-		box-shadow: inset 2px 0 0 var(--primary);
+		border-color: var(--primary-border, var(--primary));
+		box-shadow: 0 0 0 1px var(--primary-border, var(--primary));
 	}
 
 	.card:focus-visible {
@@ -210,30 +213,44 @@
 	}
 
 	.thumb {
-		flex-shrink: 0;
+		position: relative;
+		display: block;
+		aspect-ratio: 4 / 3;
+		max-width: 100%;
+		overflow: hidden;
+		background: var(--surface-2);
 		line-height: 0;
+	}
+
+	.photo {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		transition: transform 300ms var(--ease);
 	}
 
 	.swatch {
 		display: grid;
 		place-items: center;
-		width: 3.5rem;
-		height: 3.5rem;
-		border-radius: var(--radius-md);
-		border: 1px solid var(--border);
-		background: var(--surface-2);
-		color: var(--fg-muted);
+		width: 100%;
+		height: 100%;
+		background:
+			radial-gradient(circle at 50% 40%, var(--surface-3), var(--surface-2) 70%);
+		color: var(--fg-subtle);
 		font-family: var(--font-display);
-		font-size: var(--text-xl);
+		font-size: 3.5rem;
 		font-weight: 600;
 		line-height: 1;
 	}
 
 	.copy {
 		display: grid;
+		align-content: start;
 		gap: var(--space-1);
 		flex: 1;
 		min-width: 0;
+		padding: var(--space-3) var(--space-4) var(--space-4);
 	}
 
 	.top {
@@ -316,31 +333,50 @@
 		color: var(--danger);
 	}
 
-	/* Phones: smaller type so a card is a glance, not a read. */
+	@media (prefers-reduced-motion: reduce) {
+		.photo {
+			transition: none;
+		}
+
+		.card:hover .photo {
+			transform: none;
+		}
+	}
+
+	/* Phones: a row per drink with a square photo, smaller type, so the list scans. */
 	@media (max-width: 900px) {
 		.group + .group {
 			margin-top: var(--space-4);
 		}
 
 		.grid {
+			grid-template-columns: minmax(0, 1fr);
 			gap: var(--space-2);
+		}
+
+		.card {
+			flex-direction: row;
+			align-items: stretch;
+		}
+
+		.thumb {
+			flex: 0 0 5.5rem;
+			aspect-ratio: auto;
+			min-height: 5.5rem;
+		}
+
+		.swatch {
+			font-size: var(--text-xl);
+		}
+
+		.copy {
+			padding: var(--space-3);
 		}
 
 		.title,
 		.price {
 			font-size: var(--text-base);
 			line-height: var(--leading-base);
-		}
-
-		.swatch {
-			width: 3rem;
-			height: 3rem;
-			font-size: var(--text-lg);
-		}
-
-		.thumb :global(.thumb.lg) {
-			width: 3rem;
-			height: 3rem;
 		}
 	}
 </style>

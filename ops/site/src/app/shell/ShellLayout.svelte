@@ -37,6 +37,7 @@
 	import { startSitePendingPolling, websiteBadge } from "../../website/site-pending.svelte";
 	import { startWebsiteJobs } from "../../events/website-jobs.svelte";
 	import WebsiteJobsTray from "./WebsiteJobsTray.svelte";
+	import AccountMenu from "./AccountMenu.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../ui/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
@@ -88,12 +89,6 @@
 	let lastPages = $state<LastPages>(readLastPages());
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
-	const sessionLabel = $derived(
-		me?.email ? me.email : me ? "Local access" : "",
-	);
-	const sessionMark = $derived(
-		(me?.email || "L").trim().charAt(0).toUpperCase() || "?",
-	);
 	const envDetail = $derived(
 		!me
 			? ""
@@ -459,20 +454,6 @@
 		</nav>
 
 		<div class="rail-foot">
-			{#if sessionLabel}
-				<div class="nav-item session" title={sessionLabel}>
-					<span class="nav-icon" aria-hidden="true">
-						<span class="session-mark">{sessionMark}</span>
-					</span>
-					<span class="nav-label session-label">{sessionLabel}</span>
-					<span class="tip" aria-hidden="true">{sessionLabel}</span>
-				</div>
-			{/if}
-			<a class="nav-item" href="/api/auth/logout">
-				<span class="nav-icon"><Icon name="logout" size={19} /></span>
-				<span class="nav-label">Sign out</span>
-				<span class="tip" aria-hidden="true">Sign out</span>
-			</a>
 			<button
 				type="button"
 				class="nav-item"
@@ -507,7 +488,10 @@
 						{/each}
 					</ol>
 				</nav>
-				<WebsiteJobsTray />
+				<div class="topbar-end">
+					<WebsiteJobsTray />
+					<AccountMenu {me} />
+				</div>
 			</header>
 		{:else if !printBook}
 			<WebsiteJobsTray floating />
@@ -906,24 +890,6 @@
 		border-top: 1px solid var(--border);
 	}
 
-	.nav-item.session {
-		cursor: default;
-		color: var(--muted-foreground);
-	}
-
-	.nav-item.session:hover {
-		background: transparent;
-		color: var(--muted-foreground);
-	}
-
-	.session-label {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: var(--text-xs);
-		font-weight: 500;
-	}
-
 	.nav > a.nav-item {
 		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
 	}
@@ -954,7 +920,7 @@
 			box-shadow var(--t-fast) var(--ease-in-out);
 	}
 
-	.nav-item:hover:not(.on):not(.session) {
+	.nav-item:hover:not(.on) {
 		background: var(--accent);
 		color: var(--foreground);
 	}
@@ -1021,23 +987,6 @@
 		justify-content: center;
 		position: relative;
 		flex-shrink: 0;
-	}
-
-	.session-mark {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		box-sizing: border-box;
-		width: 1.1875rem;
-		height: 1.1875rem;
-		border-radius: var(--radius-sm);
-		background: color-mix(in srgb, var(--primary) 22%, var(--card));
-		color: var(--primary);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: 0;
-		line-height: 1;
-		text-align: center;
 	}
 
 	.nav-label {
@@ -1189,6 +1138,12 @@
 		padding: 0 var(--page-gutter);
 		border-bottom: 1px solid var(--border);
 		background: var(--background);
+	}
+
+	.topbar-end {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
 	}
 
 	.crumbs {

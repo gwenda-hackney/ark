@@ -58,7 +58,7 @@ describe("mobileTabs", () => {
 describe("groupPages", () => {
 	it("splits Service where the rail does", () => {
 		assert.deepEqual(ids("service"), [
-			["recipes", "sections"],
+			["recipes"],
 			["inventory", "suppliers"],
 			["lightspeed-reconcile", "lightspeed-export"],
 		]);
@@ -99,7 +99,6 @@ describe("stripGroups", () => {
 	it("uses the short names", () => {
 		assert.deepEqual(labels("service"), [
 			"Menu items",
-			"Sections",
 			"Inventory",
 			"Suppliers",
 			"Reconcile",
@@ -121,7 +120,7 @@ describe("mobileTabFor", () => {
 		assert.equal(mobileTabFor("/"), "home");
 		assert.equal(mobileTabFor("/menu"), "service");
 		assert.equal(mobileTabFor("/menu/negroni"), "service");
-		assert.equal(mobileTabFor("/sections"), "service");
+		assert.equal(mobileTabFor("/config/sections"), "more");
 		assert.equal(mobileTabFor("/inventory"), "service");
 		assert.equal(mobileTabFor("/suppliers"), "service");
 		assert.equal(mobileTabFor("/lightspeed/export"), "service");

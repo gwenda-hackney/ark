@@ -10,15 +10,15 @@
 		sections,
 		busy = false,
 		onchanged,
-		onclose,
 	}: {
 		sections: MenuSection[];
 		busy?: boolean;
 		onchanged: () => Promise<void> | void;
-		onclose?: () => void;
 	} = $props();
 
-	const showChrome = $derived(typeof onclose === "function");
+	function drinks(count: number): string {
+		return `${count} drink${count === 1 ? "" : "s"}`;
+	}
 
 	let editingId = $state<string | null>(null);
 	let draftTitle = $state("");
@@ -143,439 +143,343 @@
 	}
 </script>
 
-<div class="panel" class:bare={!showChrome}>
-	{#if showChrome}
-		<header class="head">
-			<div>
-				<p class="kicker">Menu</p>
-				<h2>Sections</h2>
-			</div>
-			<Button variant="ghost" size="sm" type="button" aria-label="Close" onclick={onclose}>
-				{#snippet icon()}
-					<Icon name="close" size={16} />
-				{/snippet}
+{#snippet tools(section: MenuSection, index: number, count: number)}
+	<div class="tools">
+		<Button
+			variant="ghost"
+			size="xs"
+			type="button"
+			aria-label="Move {section.title} up"
+			disabled={index === 0 || saving}
+			onclick={() => move(section, -1)}
+		>
+			{#snippet icon()}<Icon name="chevron-up" size={14} />{/snippet}
+		</Button>
+		<Button
+			variant="ghost"
+			size="xs"
+			type="button"
+			aria-label="Move {section.title} down"
+			disabled={index === count - 1 || saving}
+			onclick={() => move(section, 1)}
+		>
+			{#snippet icon()}<Icon name="chevron-down" size={14} />{/snippet}
+		</Button>
+		<Button
+			variant="ghost"
+			size="xs"
+			type="button"
+			aria-expanded={editingId === section._id}
+			onclick={() => (editingId === section._id ? (editingId = null) : startEdit(section))}
+		>
+			Edit
+		</Button>
+	</div>
+{/snippet}
+
+{#snippet editForm(section: MenuSection)}
+	<form
+		class="edit"
+		novalidate
+		onsubmit={(e) => {
+			e.preventDefault();
+			saveEdit(section);
+		}}
+	>
+		<div class="edit-fields">
+			<Field label="Name" for={`sec-title-${section._id}`} width="md">
+				<TextField id={`sec-title-${section._id}`} size="sm" bind:value={draftTitle} />
+			</Field>
+			{#if !section.parentId}
+				<Field
+					label="Subtitle"
+					for={`sec-sub-${section._id}`}
+					width="lg"
+					optional
+					hint="A line under the chapter name on the menu."
+				>
+					<TextField id={`sec-sub-${section._id}`} size="sm" bind:value={draftSubtitle} />
+				</Field>
+			{/if}
+		</div>
+		<div class="edit-actions">
+			<Button variant="ghost" size="sm" type="button" class="delete" onclick={() => removeSection(section)}>
+				Delete
 			</Button>
-		</header>
-	{/if}
+			<span class="spacer"></span>
+			<Button variant="outline" size="sm" type="button" onclick={() => (editingId = null)}>Cancel</Button>
+			<Button variant="primary" size="sm" type="submit" disabled={saving}>Save</Button>
+		</div>
+	</form>
+{/snippet}
 
-	<div class="body scrollbar-fade">
-		{#if showChrome}
-			<p class="lead">
-				Chapters and groups drinks belong to. Same tree as the print menu.
-			</p>
-		{/if}
+{#snippet addForm(label: string, id: string, placeholder: string, action: string)}
+	<form
+		class="edit"
+		novalidate
+		onsubmit={(e) => {
+			e.preventDefault();
+			createSection();
+		}}
+	>
+		<Field {label} for={id} width="md">
+			<TextField {id} size="sm" bind:value={newTitle} {placeholder} />
+		</Field>
+		<div class="edit-actions">
+			<span class="spacer"></span>
+			<Button variant="outline" size="sm" type="button" onclick={() => (addingFor = null)}>Cancel</Button>
+			<Button variant="primary" size="sm" type="submit" disabled={saving}>{action}</Button>
+		</div>
+	</form>
+{/snippet}
 
-		<ul class="tree">
-			{#each sections as chapter, chapterIndex (chapter._id)}
-				<li class="node">
-					<div class="row">
-						<div class="identity">
-							<p class="name">{chapter.title}</p>
-							<p class="meta">
-								{countSectionItems(chapter)} drink{countSectionItems(chapter) === 1
-									? ""
-									: "s"}
-							</p>
-						</div>
-						<div class="tools">
-							<Button
-								variant="ghost"
-								size="xs"
-								type="button"
-								aria-label="Move up"
-								disabled={chapterIndex === 0 || saving}
-								onclick={() => move(chapter, -1)}
-							>
-								{#snippet icon()}
-									<Icon name="chevron-up" size={14} />
-								{/snippet}
-							</Button>
-							<Button
-								variant="ghost"
-								size="xs"
-								type="button"
-								aria-label="Move down"
-								disabled={chapterIndex === sections.length - 1 || saving}
-								onclick={() => move(chapter, 1)}
-							>
-								{#snippet icon()}
-									<Icon name="chevron-down" size={14} />
-								{/snippet}
-							</Button>
-							<Button
-								variant="ghost"
-								size="xs"
-								type="button"
-								onclick={() => startEdit(chapter)}
-							>
-								Edit
-							</Button>
-						</div>
+<div class="sections">
+	<ol class="chapters">
+		{#each sections as chapter, chapterIndex (chapter._id)}
+			{@const groups = chapter.subsections || []}
+			<li class="chapter">
+				<div class="chapter-head">
+					<div class="identity">
+						<h3 class="chapter-name">
+							{chapter.title}
+							<span class="chapter-count tnum">{drinks(countSectionItems(chapter))}</span>
+						</h3>
+						{#if chapter.subtitle}<p class="subtitle">{chapter.subtitle}</p>{/if}
 					</div>
+					{@render tools(chapter, chapterIndex, sections.length)}
+				</div>
+				{#if editingId === chapter._id}{@render editForm(chapter)}{/if}
 
-					{#if editingId === chapter._id}
-						<form
-							class="edit"
-							onsubmit={(e) => {
-								e.preventDefault();
-								saveEdit(chapter);
-							}}
-						>
-							<Field label="Name" for={`sec-title-${chapter._id}`}>
-								<TextField
-									id={`sec-title-${chapter._id}`}
-									size="sm"
-									bind:value={draftTitle}
-								/>
-							</Field>
-							<Field label="Subtitle" for={`sec-sub-${chapter._id}`}>
-								<TextField
-									id={`sec-sub-${chapter._id}`}
-									size="sm"
-									bind:value={draftSubtitle}
-								/>
-							</Field>
-							<div class="edit-actions">
-								<Button variant="primary" size="sm" type="submit" disabled={saving}>
-									Save
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									type="button"
-									onclick={() => (editingId = null)}
-								>
-									Cancel
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									type="button"
-									onclick={() => removeSection(chapter)}
-								>
-									Delete
-								</Button>
-							</div>
-						</form>
+				<div class="groups">
+					{#if groups.length}
+						<ol class="group-list">
+							{#each groups as sub, subIndex (sub._id)}
+								<li class="group">
+									<div class="group-row">
+										<span class="group-name">{sub.title}</span>
+										<span class="count tnum">{drinks((sub.items || []).length)}</span>
+										{@render tools(sub, subIndex, groups.length)}
+									</div>
+									{#if editingId === sub._id}{@render editForm(sub)}{/if}
+								</li>
+							{/each}
+						</ol>
 					{/if}
-
-					<ul class="subs">
-						{#each chapter.subsections || [] as sub, subIndex (sub._id)}
-							<li>
-								<div class="row nested">
-									<div class="identity">
-										<p class="name">{sub.title}</p>
-										<p class="meta">
-											{(sub.items || []).length} drink{(sub.items || []).length === 1
-												? ""
-												: "s"}
-										</p>
-									</div>
-									<div class="tools">
-										<Button
-											variant="ghost"
-											size="xs"
-											type="button"
-											aria-label="Move up"
-											disabled={subIndex === 0 || saving}
-											onclick={() => move(sub, -1)}
-										>
-											{#snippet icon()}
-												<Icon name="chevron-up" size={14} />
-											{/snippet}
-										</Button>
-										<Button
-											variant="ghost"
-											size="xs"
-											type="button"
-											aria-label="Move down"
-											disabled={
-												subIndex === (chapter.subsections || []).length - 1 ||
-												saving
-											}
-											onclick={() => move(sub, 1)}
-										>
-											{#snippet icon()}
-												<Icon name="chevron-down" size={14} />
-											{/snippet}
-										</Button>
-										<Button
-											variant="ghost"
-											size="xs"
-											type="button"
-											onclick={() => startEdit(sub)}
-										>
-											Edit
-										</Button>
-									</div>
-								</div>
-								{#if editingId === sub._id}
-									<form
-										class="edit"
-										onsubmit={(e) => {
-											e.preventDefault();
-											saveEdit(sub);
-										}}
-									>
-										<Field label="Name" for={`sec-title-${sub._id}`}>
-											<TextField
-												id={`sec-title-${sub._id}`}
-												size="sm"
-												bind:value={draftTitle}
-											/>
-										</Field>
-										<div class="edit-actions">
-											<Button
-												variant="primary"
-												size="sm"
-												type="submit"
-												disabled={saving}
-											>
-												Save
-											</Button>
-											<Button
-												variant="ghost"
-												size="sm"
-												type="button"
-												onclick={() => (editingId = null)}
-											>
-												Cancel
-											</Button>
-											<Button
-												variant="ghost"
-												size="sm"
-												type="button"
-												onclick={() => removeSection(sub)}
-											>
-												Delete
-											</Button>
-										</div>
-									</form>
-								{/if}
-							</li>
-						{/each}
-					</ul>
 
 					{#if addingFor === chapter._id}
-						<form
-							class="edit"
-							onsubmit={(e) => {
-								e.preventDefault();
-								createSection();
-							}}
-						>
-							<Field label="Group name" for={`sec-new-${chapter._id}`}>
-								<TextField
-									id={`sec-new-${chapter._id}`}
-									size="sm"
-									bind:value={newTitle}
-									placeholder="Spritz"
-								/>
-							</Field>
-							<div class="edit-actions">
-								<Button variant="primary" size="sm" type="submit" disabled={saving}>
-									Add group
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									type="button"
-									onclick={() => (addingFor = null)}
-								>
-									Cancel
-								</Button>
-							</div>
-						</form>
+						{@render addForm("Group name", `sec-new-${chapter._id}`, "Spritz", "Add group")}
 					{:else}
-						<div class="add-row">
-							<Button
-								variant="ghost"
-								size="xs"
-								type="button"
-								onclick={() => startAdd(chapter._id)}
-							>
-								{#snippet icon()}
-									<Icon name="plus" size={14} />
-								{/snippet}
-								Add group
-							</Button>
-						</div>
+						<button type="button" class="add-group" onclick={() => startAdd(chapter._id)}>
+							<Icon name="plus" size={14} />
+							Add group
+						</button>
 					{/if}
-				</li>
-			{/each}
-		</ul>
-
-		{#if addingFor === "chapter"}
-			<form
-				class="edit"
-				onsubmit={(e) => {
-					e.preventDefault();
-					createSection();
-				}}
-			>
-				<Field label="Chapter name" for="sec-new-chapter">
-					<TextField
-						id="sec-new-chapter"
-						size="sm"
-						bind:value={newTitle}
-						placeholder="Our Formulas"
-					/>
-				</Field>
-				<div class="edit-actions">
-					<Button variant="primary" size="sm" type="submit" disabled={saving}>
-						Add chapter
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						type="button"
-						onclick={() => (addingFor = null)}
-					>
-						Cancel
-					</Button>
 				</div>
-			</form>
-		{:else}
+			</li>
+		{/each}
+	</ol>
+
+	{#if addingFor === "chapter"}
+		<div class="new-chapter">
+			{@render addForm("Chapter name", "sec-new-chapter", "Our Formulas", "Add chapter")}
+		</div>
+	{:else}
+		<div>
 			<Button variant="outline" size="sm" type="button" onclick={() => startAdd("chapter")}>
-				{#snippet icon()}
-					<Icon name="plus" size={15} />
-				{/snippet}
+				{#snippet icon()}<Icon name="plus" size={15} />{/snippet}
 				Add chapter
 			</Button>
-		{/if}
-	</div>
+		</div>
+	{/if}
 </div>
 
 <ConfirmDialog {confirm} />
 
 <style>
-	.panel {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		min-height: 0;
-		background: var(--card);
+	.sections {
+		display: grid;
+		gap: var(--space-4);
 	}
 
-	.panel.bare {
-		height: auto;
-		background: transparent;
-	}
-
-	.panel.bare .body {
-		padding: 0;
-		overflow: visible;
-	}
-
-	.head {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: var(--space-3);
-		padding: 1rem var(--card-pad) 0.65rem;
-		border-bottom: 1px solid var(--border);
-	}
-
-	.kicker {
-		margin: 0 0 0.15rem;
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-	}
-
-	h2 {
-		margin: 0;
-		font-size: var(--text-lg);
-		letter-spacing: var(--tracking-lg);
-		font-weight: 600;
-	}
-
-	.body {
-		flex: 1;
-		min-height: 0;
-		overflow: auto;
-		padding: 0.9rem var(--card-pad) var(--card-pad);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-
-	.lead {
-		margin: 0;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-		line-height: 1.45;
-	}
-
-	.tree,
-	.subs {
+	.chapters,
+	.group-list {
 		margin: 0;
 		padding: 0;
 		list-style: none;
+	}
+
+	.chapters {
+		display: grid;
+		gap: var(--space-3);
+	}
+
+	.chapter {
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--surface-1);
+	}
+
+	.chapter-head {
 		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	.node {
-		padding-bottom: var(--space-2);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--space-2);
-	}
-
-	.row.nested {
-		padding-left: var(--space-3);
+		align-items: flex-start;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
 	}
 
 	.identity {
+		flex: 1;
 		min-width: 0;
+		padding-top: var(--space-1);
 	}
 
-	.name {
+	.chapter-name {
 		margin: 0;
+		font-family: var(--font);
 		font-size: var(--text-base);
-		font-weight: 500;
+		font-weight: 600;
+		line-height: var(--leading-base);
 	}
 
-	.meta {
-		margin: 0.1rem 0 0;
-		font-size: var(--text-xs);
-		color: var(--muted-foreground);
+	.chapter-count {
+		margin-left: var(--space-2);
+		font-size: var(--text-sm);
+		font-weight: 400;
+		color: var(--fg-muted);
+	}
+
+	.subtitle {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
 	}
 
 	.tools {
 		display: flex;
 		align-items: center;
-		gap: 0.1rem;
+		gap: 0.125rem;
 		flex-shrink: 0;
 	}
 
-	.edit {
+	/* Groups hang off a thin line under the chapter, so the tree reads at a glance. */
+	.groups {
+		display: grid;
+		gap: var(--space-1);
+		padding: 0 var(--space-3) var(--space-3) var(--space-5);
+	}
+
+	.group-list {
+		display: grid;
+		border-left: 1px solid var(--border-strong);
+	}
+
+	.group-row {
 		display: flex;
-		flex-direction: column;
+		align-items: center;
+		gap: var(--space-3);
+		min-height: 2.5rem;
+		padding-left: var(--space-4);
+		border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	}
+
+	.group-row:hover {
+		background: var(--surface-2);
+	}
+
+	.group-name {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: var(--text-base);
+	}
+
+	.count {
+		flex-shrink: 0;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	.add-group {
+		justify-self: start;
+		display: inline-flex;
+		align-items: center;
 		gap: var(--space-2);
-		margin-top: var(--space-2);
-		padding: var(--space-3);
-		border-radius: var(--radius-sm);
-		background: var(--sunken);
+		min-height: 2rem;
+		padding: 0 var(--space-2);
+		margin-left: calc(var(--space-4) - var(--space-2));
+		border: 0;
+		border-radius: var(--radius-md);
+		background: none;
+		color: var(--fg-muted);
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		cursor: pointer;
+	}
+
+	.add-group:hover {
+		background: var(--surface-3);
+		color: var(--fg);
+	}
+
+	.add-group:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.edit {
+		display: grid;
+		gap: var(--space-3);
+		margin: var(--space-1) 0 var(--space-2);
+		padding: var(--space-4);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+	}
+
+	.chapter > .edit {
+		margin: 0 var(--space-3) var(--space-3) var(--space-5);
+	}
+
+	.group .edit {
+		margin-left: var(--space-4);
+	}
+
+	.edit-fields {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-4);
 	}
 
 	.edit-actions {
 		display: flex;
+		align-items: center;
 		flex-wrap: wrap;
-		gap: var(--space-1);
+		gap: var(--space-2);
 	}
 
-	.add-row {
-		padding-left: var(--space-3);
-		margin-top: 0.2rem;
+	.spacer {
+		flex: 1;
+	}
+
+	.edit-actions :global(.delete) {
+		color: var(--danger);
+	}
+
+	@media (max-width: 900px) {
+		.chapter-head {
+			align-items: flex-start;
+			padding-left: var(--space-4);
+		}
+
+		.groups {
+			padding-left: var(--space-4);
+		}
+
+		.group-row {
+			min-height: 44px;
+			padding-left: var(--space-3);
+		}
 	}
 </style>

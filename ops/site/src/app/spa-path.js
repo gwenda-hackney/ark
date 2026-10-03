@@ -274,8 +274,12 @@ export function parseShellPath(path) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
     return { page: "forms", slug: part || null };
   }
-  if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
-  if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
+  if (p === "/config" || p.startsWith("/config/")) {
+    const tab = decodeSegment(p.slice("/config/".length).split("/")[0] || "");
+    return { page: "config", tab: tab || null };
+  }
+  // Sections used to be a page of its own; it's a Configuration tab now.
+  if (p === "/sections" || p.startsWith("/sections/")) return { page: "config", tab: "sections" };
   return { page: "home" };
 }
 
@@ -410,7 +414,6 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "stock" ||
     from === "breakeven" ||
     from === "cashflow" ||
-    from === "sections" ||
     from === "users" ||
     from === "more" ||
     from === "events" ||

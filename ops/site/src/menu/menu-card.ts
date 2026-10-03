@@ -88,3 +88,11 @@ export function menuCard(row: MenuListItem): MenuCard {
 		badges: menuCardBadges(row),
 	};
 }
+
+/** A card-sized photo: Sanity crops to 4:3; other hosts (Baserow files) can't, so they pass through. */
+export function cardPhotoUrl(url: string | null | undefined, width = 640): string {
+	const raw = String(url || "").trim();
+	if (!raw || !raw.includes("cdn.sanity.io")) return raw;
+	const base = raw.split("?")[0] || raw;
+	return `${base}?w=${width}&h=${Math.round((width * 3) / 4)}&fit=crop&auto=format`;
+}

@@ -16,6 +16,7 @@
 	import type { DashboardData, HealthSite, WebsiteErrors } from "./dashboard-data";
 	import {
 		SENTRY_ISSUES_URL,
+		agendaDate,
 		applicationsSummary,
 		checkDetail,
 		clockTime,
@@ -270,7 +271,9 @@
 
 	{#if attentionItems.length}
 		<section class="attention" aria-labelledby="attention-title">
-			<h2 id="attention-title" class="attention-label">Needs attention</h2>
+			<h2 id="attention-title" class="attention-label">
+				Needs attention <span class="attention-total tnum">{attentionItems.length}</span>
+			</h2>
 			<ul class="attention-list">
 				{#each attentionItems as item (item.key)}
 					<li>
@@ -280,8 +283,8 @@
 							target={item.external ? "_blank" : undefined}
 							rel={item.external ? "noreferrer" : undefined}
 						>
-							<span class="attention-count tnum">{item.count}</span>
-							<span class="attention-text">{item.label}</span>
+							<span class="attention-icon" aria-hidden="true"><Icon name="alert" size={14} /></span>
+							<span class="attention-text"><strong class="tnum">{item.count}</strong> {item.label}</span>
 							<Icon name={item.external ? "external-link" : "chevron-right"} size={14} />
 						</a>
 					</li>
@@ -339,18 +342,25 @@
 				onretry={loadDashboard}
 			>
 				{#snippet meta()}{plural(events?.nights.length || 0, "night")}{/snippet}
-				<div class="days">
+				<ol class="agenda">
 					{#each nightGroups as group (group.date)}
-						<div class="day" class:tonight={group.tonight}>
-							<h3 class="day-label">{group.label}</h3>
+						{@const when = agendaDate(group.date, events?.today || group.date)}
+						<li class="agenda-day" class:tonight={group.tonight}>
+							<div class="date" aria-label={group.label}>
+								<span class="weekday">{when.weekday}</span>
+								<span class="daynum tnum">{when.day}</span>
+								<span class="month">{when.month}</span>
+								{#if when.relative}<span class="relative">{when.relative}</span>{/if}
+							</div>
 							<ul class="rows">
 								{#each group.nights as night (night.eventId + night.date)}
 									{@const status = nightStatus(night, jobs)}
 									<li class="row night">
-										<span class="time tnum">{nightTime(night)}</span>
 										<span class="what">
 											<a class="name" href={nightHref(night)}>{night.title}</a>
-											{#if night.artist}<span class="sub">{night.artist}</span>{/if}
+											<span class="sub">
+												<span class="tnum">{nightTime(night)}</span>{#if night.artist}&nbsp;· {night.artist}{/if}
+											</span>
 											{#if night.calendarBehind}
 												<span class="sub warn-text">Calendar not up to date</span>
 											{/if}
@@ -359,9 +369,9 @@
 									</li>
 								{/each}
 							</ul>
-						</div>
+						</li>
 					{/each}
-				</div>
+				</ol>
 			</DashCard>
 
 		</div>
@@ -606,68 +616,89 @@
 	/* ─── Needs attention ─────────────────────────────────────────────── */
 
 	.attention {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: var(--space-2) var(--space-3);
 		margin-bottom: var(--space-4);
+		padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--surface-1);
 	}
 
 	.attention-label {
-		margin: 0;
-		font-size: var(--text-2xs);
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin: 0 0 var(--space-2);
+		padding-top: var(--space-1);
+		font-family: var(--font);
+		font-size: var(--text-base);
 		font-weight: 600;
-		letter-spacing: var(--tracking-label, 0.06em);
-		text-transform: uppercase;
+	}
+
+	.attention-total {
+		font-size: var(--text-sm);
+		font-weight: 400;
 		color: var(--fg-muted);
 	}
 
+	/* One row per thing to do, two columns when there's room. */
 	.attention-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+		gap: var(--space-1) var(--space-4);
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
 
 	.attention-item {
-		display: inline-flex;
+		display: flex;
 		align-items: center;
-		gap: var(--space-2);
-		min-height: 2rem;
-		padding: 0 var(--space-2) 0 var(--space-3);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-pill);
-		color: var(--fg);
-		font-size: var(--text-sm);
+		gap: var(--space-3);
+		min-height: 2.5rem;
+		padding: 0 var(--space-2) 0 0;
+		border-radius: var(--radius-md);
+		color: var(--fg-muted);
+		font-size: var(--text-base);
 		text-decoration: none;
 	}
 
 	.attention-item:hover {
+		color: var(--fg);
+	}
+
+	.attention-item:hover .attention-text {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.attention-icon {
+		display: inline-grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: var(--radius-md);
 		background: var(--surface-3);
 	}
 
-	.attention-item.danger {
-		border-color: var(--danger-border);
-		background: var(--danger-wash);
-	}
-
-	.attention-item.warning {
-		border-color: var(--warning-border);
+	.attention-item.warning .attention-icon {
 		background: var(--warning-wash);
+		color: var(--warning);
 	}
 
-	.attention-count {
-		font-weight: 600;
-	}
-
-	.attention-item.danger .attention-count {
+	.attention-item.danger .attention-icon {
+		background: var(--danger-wash);
 		color: var(--danger);
 	}
 
-	.attention-item.warning .attention-count {
-		color: var(--warning);
+	.attention-text {
+		flex: 1;
+		min-width: 0;
+		color: var(--fg);
+	}
+
+	.attention-text strong {
+		font-weight: 600;
 	}
 
 	.all-clear {
@@ -913,6 +944,10 @@
 			display: inline;
 		}
 
+		.attention {
+			padding-left: var(--space-4);
+		}
+
 		.attention-item {
 			min-height: 44px;
 		}
@@ -1029,13 +1064,39 @@
 
 	/* Tonight */
 
-	.days {
+	/* Agenda: a date block on the left, that day's nights beside it. */
+	.agenda {
 		display: grid;
-		gap: var(--space-4);
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
-	.day-label {
-		margin: 0 0 var(--space-1);
+	.agenda-day {
+		display: grid;
+		grid-template-columns: 4rem minmax(0, 1fr);
+		gap: var(--space-4);
+		padding-block: var(--space-3);
+		border-top: 1px solid var(--border);
+	}
+
+	.agenda-day:first-child {
+		border-top: 0;
+		padding-top: 0;
+	}
+
+	.date {
+		display: grid;
+		justify-items: center;
+		align-content: start;
+		padding-block: var(--space-2);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		line-height: 1.1;
+	}
+
+	.weekday,
+	.month {
 		font-size: var(--text-2xs);
 		font-weight: 600;
 		letter-spacing: 0.06em;
@@ -1043,14 +1104,30 @@
 		color: var(--fg-muted);
 	}
 
-	.day.tonight .day-label {
+	.relative {
+		margin-top: var(--space-1);
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		color: var(--primary);
+	}
+
+	.daynum {
+		margin-block: 2px;
+		font-size: var(--text-lg);
+		font-weight: 600;
 		color: var(--fg);
 	}
 
-	.night .time {
-		flex: 0 0 6.5rem;
-		font-size: var(--text-sm);
-		color: var(--fg-muted);
+	.agenda-day.tonight .date {
+		background: var(--primary-wash, var(--surface-3));
+	}
+
+	.agenda .rows {
+		align-content: start;
+	}
+
+	.agenda .night {
+		min-height: 3rem;
 	}
 
 	/* Health */
@@ -1090,26 +1167,9 @@
 			min-height: 44px;
 		}
 
-		/* Name and time on the left, status on the right. */
-		.night {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto;
-			grid-template-areas: "what badge" "time badge";
-			column-gap: var(--space-3);
-			padding-block: var(--space-2);
-		}
-
-		.night .what {
-			grid-area: what;
-		}
-
-		.night .time {
-			grid-area: time;
-			font-size: var(--text-xs);
-		}
-
-		.night > :global(.badge) {
-			grid-area: badge;
+		.agenda-day {
+			grid-template-columns: 3.75rem minmax(0, 1fr);
+			gap: var(--space-3);
 		}
 	}
 </style>

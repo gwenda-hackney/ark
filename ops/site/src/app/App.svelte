@@ -11,7 +11,6 @@
 	import LightspeedMenusPage from "../inventory/LightspeedMenusPage.svelte";
 	import SuppliersPage from "../inventory/SuppliersPage.svelte";
 	import ConfigPage from "../config/ConfigPage.svelte";
-	import SectionsPage from "../menu/SectionsPage.svelte";
 	import UsersPage from "../users/UsersPage.svelte";
 	import WebPage from "../website/WebPage.svelte";
 	import DevToolsPage from "../website/DevToolsPage.svelte";
@@ -96,10 +95,8 @@
 						<EventsPage path={current} />
 					{:else if key === "artists"}
 						<ArtistsPage path={current} />
-					{:else if key === "sections"}
-						<SectionsPage />
 					{:else if key === "config"}
-						<ConfigPage />
+						<ConfigPage path={current} />
 					{:else if key === "more"}
 						<MorePage />
 					{:else}

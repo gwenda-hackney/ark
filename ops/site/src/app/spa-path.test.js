@@ -196,7 +196,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/menus"), "lightspeed");
     assert.equal(shellPageKey("/suppliers"), "suppliers");
-    assert.equal(shellPageKey("/sections"), "sections");
+    assert.equal(shellPageKey("/sections"), "config");
     assert.equal(shellPageKey("/users"), "users");
     assert.equal(shellPageKey("/more"), "more");
     assert.equal(shellPageKey("/more/"), "more");
@@ -310,7 +310,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/forms"), "forms");
     assert.equal(shellPageKey("/forms/12"), "forms");
     assert.deepEqual(parseShellPath("/forms/12"), { page: "forms", slug: "12" });
-    assert.deepEqual(parseShellPath("/sections"), { page: "sections" });
+    assert.deepEqual(parseShellPath("/sections"), { page: "config", tab: "sections" });
     assert.deepEqual(parseShellPath("/lightspeed"), {
       page: "lightspeed",
       view: "reconcile",
@@ -353,7 +353,7 @@ describe("spa-path", () => {
     assert.equal(navigationLeavesEditor("/menu/ambra", "/menu"), true);
     assert.equal(navigationLeavesEditor("/menu/ambra", "/inventory"), true);
     assert.equal(navigationLeavesEditor("/menu", "/inventory"), false);
-    assert.equal(navigationLeavesEditor("/menu", "/sections"), false);
+    assert.equal(navigationLeavesEditor("/config", "/config/pour"), false);
     assert.equal(navigationLeavesEditor("/artists", "/events"), false);
     assert.equal(navigationLeavesEditor("/artists/3", "/artists"), true);
     assert.equal(navigationLeavesEditor("/menu/ambra", "/sections"), true);
@@ -433,12 +433,12 @@ describe("spa-path", () => {
       [{ label: "Operations", href: "/" }, { label: "Configuration" }],
     );
     assert.deepEqual(
-      shellCrumbs("/sections", {
+      shellCrumbs("/config/pour", {
         homeLabel: "Operations",
-        sectionLabel: "Sections",
-        sectionHref: "/sections",
+        sectionLabel: "Configuration",
+        sectionHref: "/config",
       }),
-      [{ label: "Operations", href: "/" }, { label: "Sections" }],
+      [{ label: "Operations", href: "/" }, { label: "Configuration" }],
     );
     assert.equal(
       shellCrumbs("/inventory/new", {

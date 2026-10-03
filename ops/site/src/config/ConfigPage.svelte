@@ -9,8 +9,12 @@
 		Field,
 		NativeSelect,
 		PageHeader,
+		Segmented,
 		TextField,
 	} from "../ui";
+	import SectionsTab from "../menu/SectionsTab.svelte";
+	import { CONFIG_TABS, configTab, configTabPath } from "./config-tabs";
+	import { parseShellPath } from "../app/nav";
 	import PourTargetsForm from "./PourTargetsForm.svelte";
 	import { pourSettings } from "./settings.svelte";
 	import { getMe, getOpsConfig, getOpsUsers, saveEventTaskSettings, type AuthMe } from "../app/api";
@@ -24,6 +28,11 @@
 		takeBlockedNav,
 	} from "../ui/unsaved.svelte";
 	import type { OpsUser } from "../users/types";
+
+	let { path }: { path: string } = $props();
+
+	const tab = $derived(configTab(parseShellPath(path).tab));
+	const tabItems = CONFIG_TABS.map((item) => ({ ...item, href: configTabPath(item.id) }));
 
 	let pourDirty = $state(false);
 	let discardOpen = $state(false);
@@ -41,6 +50,8 @@
 	);
 
 	onMount(() => {
+		// The old Sections page: show its tab's real address.
+		if (path.startsWith("/sections")) navigate("/config", { replace: true, force: true });
 		void getMe()
 			.then((row) => {
 				connection = row;
@@ -139,87 +150,88 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader
-		title="Configuration"
-		subtitle="House targets used by recipe analysis and the dashboard."
-	/>
+	<PageHeader title="Configuration" subtitle="How the menu is laid out, house targets, and who gets event tasks.">
+		{#snippet toolbar()}
+			<Segmented value={tab} items={tabItems} tone="soft" size="sm" ariaLabel="Configuration" />
+		{/snippet}
+	</PageHeader>
 
-	{#if pourSettings.loaded}
-		<div
-			class="stack"
-			in:fly={{ y: waited ? 10 : 0, duration: waited ? flyMs : 0, easing: easeOut }}
-		>
-			{#if connection}
-				<Card
-					title="Environment"
-					subtitle="Which Baserow database this ops session writes to."
-				>
-					<dl class="env-grid">
-						<div>
-							<dt>Site</dt>
-							<dd>{connection.envLabel}</dd>
-						</div>
-						<div>
-							<dt>Database</dt>
-							<dd>
-								{#if baserowHref}
-									<a href={baserowHref} target="_blank" rel="noreferrer">
-										{connection.databaseLabel}
-										<span class="mono">({connection.databaseId})</span>
-									</a>
-								{:else}
-									{connection.databaseLabel}
-								{/if}
-							</dd>
-						</div>
-						{#if connection.risk}
-							<div class="span warn">
-								<dt>Warning</dt>
-								<dd>
-									This is a local copy working on live data. Changes affect the
-									real website.
-								</dd>
-							</div>
-						{/if}
-					</dl>
+	<!-- Every tab stays mounted so unsaved edits survive a tab switch; the page's guard covers them all. -->
+	<div class="panel wide" hidden={tab !== "sections"}>
+		<SectionsTab />
+	</div>
+
+	<div class="panel" hidden={tab !== "pour"}>
+		<p class="lead">Ingredient cost as a share of selling price, by drink type. Recipe analysis and the dashboard flag drinks above their target.</p>
+		{#if pourSettings.loaded}
+			<div in:fly={{ y: waited ? 10 : 0, duration: waited ? flyMs : 0, easing: easeOut }}>
+				<Card>
+					<PourTargetsForm idPrefix="config-pour" bind:dirty={pourDirty} />
 				</Card>
-			{/if}
+			</div>
+		{/if}
+	</div>
 
-			<Card
-				title="Pour cost"
-				subtitle="Ingredient cost as a share of selling price, by drink type."
-			>
-				<PourTargetsForm idPrefix="config-pour" bind:dirty={pourDirty} />
-			</Card>
+	<div class="panel" hidden={tab !== "tasks"}>
+		<p class="lead">Who gets the social post for each event, and which ClickUp list it lands in.</p>
+		<Card>
+			<form class="tasks" novalidate onsubmit={saveTasks}>
+				<Field label="Social" for="task-social" width="lg" optional hint="Gets the social post task for each event.">
+					<NativeSelect id="task-social" bind:value={socialEmail} options={socialOptions} />
+				</Field>
+				<Field
+					label="ClickUp list id"
+					for="task-list"
+					width="md"
+					optional
+					hint="The Gwenda list that receives event tasks."
+				>
+					<TextField id="task-list" bind:value={clickupListId} mono inputmode="numeric" spellcheck="false" />
+				</Field>
+				<div class="task-actions">
+					{#if tasksDirty}<span class="unsaved">Unsaved changes</span>{/if}
+					<Button variant="primary" size="sm" type="submit" busy={savingTasks} disabled={savingTasks || !tasksDirty}>
+						Save task roles
+					</Button>
+				</div>
+			</form>
+		</Card>
+	</div>
 
-			<Card
-				title="Event tasks"
-				subtitle="Who gets the social post, and which ClickUp list it lands in."
-			>
-				<form class="tasks" novalidate onsubmit={saveTasks}>
-					<Field label="Social" for="task-social" width="lg" optional hint="Gets the social post task for each event.">
-						<NativeSelect id="task-social" bind:value={socialEmail} options={socialOptions} />
-					</Field>
-					<Field
-						label="ClickUp list id"
-						for="task-list"
-						width="md"
-						optional
-						hint="The Gwenda list that receives event tasks."
-					>
-						<TextField id="task-list" bind:value={clickupListId} mono inputmode="numeric" spellcheck="false" />
-					</Field>
-					<div class="task-actions">
-						{#if tasksDirty}<span class="unsaved">Unsaved changes</span>{/if}
-						<Button variant="primary" size="sm" type="submit" busy={savingTasks} disabled={savingTasks || !tasksDirty}>
-							Save task roles
-						</Button>
+	<div class="panel" hidden={tab !== "environment"}>
+		<p class="lead">Which Baserow database this ops session writes to.</p>
+		{#if connection}
+			<Card>
+				<dl class="env-grid">
+					<div>
+						<dt>Site</dt>
+						<dd>{connection.envLabel}</dd>
 					</div>
-				</form>
+					<div>
+						<dt>Database</dt>
+						<dd>
+							{#if baserowHref}
+								<a href={baserowHref} target="_blank" rel="noreferrer">
+									{connection.databaseLabel}
+									<span class="mono">({connection.databaseId})</span>
+								</a>
+							{:else}
+								{connection.databaseLabel}
+							{/if}
+						</dd>
+					</div>
+					{#if connection.risk}
+						<div class="span warn">
+							<dt>Warning</dt>
+							<dd>This is a local copy working on live data. Changes affect the real website.</dd>
+						</div>
+					{/if}
+				</dl>
 			</Card>
-		</div>
-	{/if}
-	<BusyOverlay active={!pourSettings.loaded} label="Loading…" />
+		{/if}
+	</div>
+
+	<BusyOverlay active={tab === "pour" && !pourSettings.loaded} label="Loading…" />
 	<ConfirmDialog
 		open={discardOpen}
 		title="Discard unsaved changes?"
@@ -240,11 +252,22 @@
 		padding: var(--page-gutter);
 	}
 
-	.stack {
+	.panel {
 		display: grid;
-		gap: var(--space-6);
+		gap: var(--space-4);
 		max-width: 48rem;
 		align-content: start;
+	}
+
+	.panel.wide {
+		max-width: 44rem;
+	}
+
+	.lead {
+		margin: 0;
+		max-width: 65ch;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
 	}
 
 	.tasks {

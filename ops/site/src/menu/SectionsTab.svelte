@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
-	import { Button, Card, EmptyState, PageHeader, Skeleton } from "../ui";
+	import { Button, EmptyState, Skeleton } from "../ui";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
@@ -46,12 +46,9 @@
 	});
 </script>
 
-<div class="page scrollbar-fade">
-	<PageHeader
-		title="Sections"
-		subtitle="Chapters and groups on the guest menu. Same tree as the print menu."
-	/>
-
+<!-- Configuration › Menu sections. -->
+<div class="tab">
+	<p class="lead">Chapters and groups on the guest menu, in the order guests see them. The print menu uses the same tree.</p>
 	{#if error}
 		<EmptyState tone="error" title="Could not load sections" text={error}>
 			{#snippet action()}
@@ -61,30 +58,22 @@
 	{:else if loading}
 		<Skeleton rows={6} lines={1} label="Loading sections…" />
 	{:else}
-		<div
-			class="stack"
-			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-		>
-			<Card>
-				<SectionsPanel {sections} busy={false} {onchanged} />
-			</Card>
+		<div in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+			<SectionsPanel {sections} busy={false} {onchanged} />
 		</div>
 	{/if}
 </div>
 
 <style>
-	.page {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
+	.tab {
+		display: grid;
+		gap: var(--space-4);
 	}
 
-	.stack {
-		display: grid;
-		gap: var(--space-6);
-		max-width: 40rem;
-		align-content: start;
+	.lead {
+		margin: 0;
+		max-width: 65ch;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
 	}
 </style>

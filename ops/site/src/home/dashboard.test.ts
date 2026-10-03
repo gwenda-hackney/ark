@@ -13,6 +13,7 @@ import {
 	siteHealthState,
 	summarizeDrinks,
 	targetGrossMargin,
+	agendaDate,
 } from "./dashboard.ts";
 import type {
 	DashboardData,
@@ -378,5 +379,18 @@ describe("summarizeDrinks", () => {
 			"Average margin 80.5%, on the 80% target.",
 		);
 		assert.equal(targetGrossMargin(20), 80);
+	});
+});
+
+describe("agendaDate", () => {
+	it("splits a day into the agenda's date block", () => {
+		assert.deepEqual(agendaDate("2026-10-06", "2026-10-03"), {
+			weekday: "Tue",
+			day: "6",
+			month: "Oct",
+			relative: "",
+		});
+		assert.equal(agendaDate("2026-10-03", "2026-10-03").relative, "Tonight");
+		assert.equal(agendaDate("2026-10-04", "2026-10-03").relative, "Tomorrow");
 	});
 });
