@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Icon } from "../app/shell";
 	import { onDestroy } from "svelte";
-	import { BusyOverlay, Button, EmptyState, PageHeader } from "../ui";
+	import { Badge, BusyOverlay, Button, EmptyState, PageHeader } from "../ui";
 	import ArtistCard from "./ArtistCard.svelte";
 	import { getArtist, getArtists, type ArtistSlot, type WallArtist } from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
@@ -18,6 +18,11 @@
 		current: "Current",
 		next: "Next",
 		previous: "Previous",
+	};
+	const badgeTone: Record<ArtistSlot, "success" | "info" | "neutral"> = {
+		current: "success",
+		next: "info",
+		previous: "neutral",
 	};
 
 	let artists = $state<WallArtist[]>([]);
@@ -172,7 +177,7 @@
 									{:else}
 										<span class="mark">{mark(artist.name)}</span>
 									{/if}
-									<span class="badge {artist.slot}">{badgeLabel[artist.slot]}</span>
+									<span class="slot"><Badge tone={badgeTone[artist.slot]} label={badgeLabel[artist.slot]} /></span>
 								</span>
 								<span class="name">{artist.name}</span>
 								{#if artist.website}
@@ -260,29 +265,14 @@
 		color: var(--muted-foreground);
 	}
 
-	.badge {
+	/* The shared Badge, on a solid backing so its wash reads over the photo. */
+	.slot {
 		position: absolute;
 		top: 0.45rem;
 		left: 0.45rem;
-		padding: 0.12rem var(--space-2);
-		border-radius: var(--radius-pill);
-		background: color-mix(in srgb, var(--background) 88%, transparent);
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-	}
-
-	.badge.current {
-		color: var(--primary);
-	}
-
-	.badge.next {
-		color: var(--foreground);
-	}
-
-	.badge.previous {
-		color: var(--muted-foreground);
+		display: inline-flex;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
 	}
 
 	.name {

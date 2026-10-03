@@ -580,6 +580,11 @@
 				variant="outline"
 				size="sm"
 				disabled={!preview?.itemImportCsv || (preview.opsOnly?.length || 0) === 0}
+				reason={!preview
+					? "Import an item list first"
+					: !preview.itemImportCsv || !preview.opsOnly?.length
+						? "Nothing is only in ops"
+						: undefined}
 				onclick={() =>
 					download("lightspeed-item-import.csv", preview?.itemImportCsv)}
 			>
@@ -590,6 +595,11 @@
 				variant="outline"
 				size="sm"
 				disabled={!preview?.archiveSkuCsv || archiveRows.length === 0}
+				reason={!preview
+					? "Import an item list first"
+					: !preview.archiveSkuCsv || !archiveRows.length
+						? "Nothing marked for archive"
+						: undefined}
 				onclick={() =>
 					download("lightspeed-archive-skus.csv", preview?.archiveSkuCsv)}
 			>
@@ -601,6 +611,7 @@
 				size="sm"
 				busy={applying}
 				disabled={!preview || applying}
+				reason={preview ? undefined : "Import an item list first"}
 				onclick={apply}
 			>
 				{#snippet icon()}<Icon name="tag" size={14} />{/snippet}
@@ -743,6 +754,7 @@
 								variant="outline"
 								size="sm"
 								disabled={!decideRows.length || Boolean(acting)}
+								reason={decideRows.length ? undefined : "None left"}
 								onclick={() => (archiveAllOpen = true)}
 							>
 								{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
@@ -787,6 +799,7 @@
 													variant="outline"
 													size="xs"
 													disabled={!row.sku || !(preview?.opsOnly.length) || Boolean(acting)}
+													reason={!row.sku ? "No SKU in the file" : !preview?.opsOnly.length ? "No ops drinks left to match" : undefined}
 													onclick={() => openMatchLs(row)}
 												>
 													{#snippet icon()}<Icon name="link" size={14} />{/snippet}
@@ -805,6 +818,7 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
 													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
@@ -866,6 +880,7 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
 													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
@@ -909,6 +924,7 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
 													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
@@ -962,6 +978,7 @@
 													variant="outline"
 													size="xs"
 													disabled={!row.ops.id || !row.lightspeed.sku || Boolean(acting)}
+													reason={!row.ops.id || !row.lightspeed.sku ? "Not linked yet" : undefined}
 													onclick={() => void adoptPosName(row)}
 												>
 													{#snippet icon()}<Icon name="check" size={14} />{/snippet}
@@ -996,6 +1013,7 @@
 												variant="outline"
 												size="xs"
 												disabled={!decideRows.length || Boolean(acting)}
+												reason={decideRows.length ? undefined : "No Lightspeed items left to match"}
 												onclick={() => openMatchOps(row)}
 											>
 												{#snippet icon()}<Icon name="link" size={14} />{/snippet}
@@ -1118,6 +1136,7 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void unarchive(row)}
 												>
 													{#snippet icon()}<Icon name="undo" size={14} />{/snippet}
@@ -1270,6 +1289,7 @@
 				size="sm"
 				busy={Boolean(acting)}
 				disabled={!sectionOptions.length || Boolean(acting)}
+				reason={sectionOptions.length ? undefined : "Add a menu section first"}
 				onclick={() => void confirmAdd()}
 			>
 				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
@@ -1325,7 +1345,6 @@
 	.stack {
 		display: grid;
 		gap: var(--space-6);
-		max-width: 64rem;
 		align-content: start;
 	}
 

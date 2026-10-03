@@ -182,7 +182,6 @@
 	.ready {
 		display: grid;
 		gap: var(--space-4);
-		max-width: 80rem;
 	}
 
 	.intro,
