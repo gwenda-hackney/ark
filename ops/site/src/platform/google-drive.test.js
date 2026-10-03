@@ -81,6 +81,7 @@ describe("google-drive helpers", () => {
         mimeType: "image/jpeg",
         webViewLink: "https://drive.google.com/file/d/abc/view",
         modifiedTime: "2026-09-22T12:00:00.000Z",
+        createdTime: "2026-09-21T12:00:00.000Z",
       }),
       {
         id: "abc",
@@ -88,6 +89,7 @@ describe("google-drive helpers", () => {
         mimeType: "image/jpeg",
         url: "https://drive.google.com/file/d/abc/view",
         modifiedTime: "2026-09-22T12:00:00.000Z",
+        createdTime: "2026-09-21T12:00:00.000Z",
       },
     );
   });

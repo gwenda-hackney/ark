@@ -25,6 +25,8 @@ import { onRequestPost as syncCalendar } from "../../functions/api/events/[id]/c
 import { onRequestDelete as removeImage, onRequestPost as uploadImage } from "../../functions/api/events/[id]/image.js";
 import { onRequestPost as uploadNightImage } from "../../functions/api/events/[id]/dates/[date]/image.js";
 import { onRequestPost as runWebsiteJob } from "../../functions/api/web/jobs.js";
+import { onRequestPost as uploadGalleryPhoto } from "../../functions/api/events/[id]/drive.js";
+import { onRequestDelete as removeGalleryPhoto } from "../../functions/api/events/[id]/drive/[fileId].js";
 import { onRequestPost as release } from "../../functions/api/web/release.js";
 
 /** ISO date `days` from today. */
@@ -210,6 +212,27 @@ function editor(world) {
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data.event;
+    },
+    /** Images tab: add a gallery photo, to the series or (`date`) one night. */
+    async addGalleryPhoto(event, { date = "", name = "crowd.jpg" } = {}) {
+      const form = new FormData();
+      form.set("file", new File([new Uint8Array(4096).fill(3)], name, { type: "image/jpeg" }));
+      const res = await callApi(world, uploadGalleryPhoto, {
+        method: "POST",
+        path: `/api/events/${id(event)}/drive${date ? `?date=${date}` : ""}`,
+        params: { id: id(event) },
+        body: form,
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data.file;
+    },
+    async removeGalleryPhoto(event, file) {
+      const res = await callApi(world, removeGalleryPhoto, {
+        method: "DELETE",
+        path: `/api/events/${id(event)}/drive/${file.id}`,
+        params: { id: id(event), fileId: file.id },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
     },
     /** The event's "Sync calendar" button. */
     async syncCalendar(event) {
@@ -693,6 +716,59 @@ describe("events: images", () => {
     const huge = await ops.uploadImage(event, { bytes: 6 * 1024 * 1024 + 1 });
     assert.equal(huge.status, 400);
     assert.match(huge.data.error, /6MB/);
+  });
+});
+
+describe("events: gallery", () => {
+  let world;
+  let ops;
+  let event;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+    event = await ops.create(weeklySeries());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+  });
+  afterEach(() => world.restore());
+
+  /** The series gallery on the live site: [driveFileId, date] pairs, as shown. */
+  const liveGallery = () =>
+    (world.sanity.published("eventSeries")[0]?.gallery || []).map((image) => [image.driveFileId, image.date || ""]);
+
+  it("series and night photos: newest first, the night's marked with its date, live on Update website", async () => {
+    const night = liveNights(world)[1];
+    const series = await ops.addGalleryPhoto(event, { name: "bar.jpg" });
+    const ofNight = await ops.addGalleryPhoto(event, { date: night, name: "crowd.jpg" });
+    await ops.waitUntilReady(event);
+    assert.deepEqual(liveGallery(), [], "the website waits for Update website");
+    assert.equal(await ops.sees(event), "Changes not on the website yet");
+
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveGallery(), [
+      [ofNight.id, night],
+      [series.id, ""],
+    ]);
+    assert.equal(await ops.sees(event), "On the website");
+  });
+
+  it("removing a photo takes it off on Update website", async () => {
+    const photo = await ops.addGalleryPhoto(event);
+    const kept = await ops.addGalleryPhoto(event, { name: "kept.jpg" });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    await ops.removeGalleryPhoto(event, photo);
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveGallery(), [[kept.id, ""]]);
+  });
+
+  it("more photos than one run uploads: they all get there", async () => {
+    for (let n = 0; n < 7; n += 1) await ops.addGalleryPhoto(event, { name: `photo-${n}.jpg` });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    assert.equal(liveGallery().length, 7);
   });
 });
 

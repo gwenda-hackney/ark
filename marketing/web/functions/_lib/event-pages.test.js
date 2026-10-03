@@ -24,7 +24,7 @@ const SHELLS = {
 <meta property="og:url" content="${ORIGIN}${NIGHT_SHELL}">
 <meta property="og:image" content="${ORIGIN}/og/events/__EVENT_SLUG__.jpg">
 <meta name="twitter:image" content="${ORIGIN}/og/events/__EVENT_SLUG__.jpg">
-</head><body data-occurrence-slug="__EVENT_SLUG__"></body></html>`,
+</head><body data-occurrence-slug="__EVENT_SLUG__"><night-gallery></night-gallery></body></html>`,
   [`${TICKET_SHELL}/`]: `<title>Your ticket · __EVENT_TITLE__ · Gwenda</title>
 <meta property="og:url" content="${ORIGIN}${TICKET_SHELL}"><body data-occurrence-slug="__EVENT_SLUG__">`,
 };
@@ -69,6 +69,7 @@ beforeEach(() => {
           series: sanity.series.map((row) => ({
             seriesId: row.id,
             formerSlugs: row.formerSlugs,
+            gallery: (row.gallery || []).filter((image) => image.date),
           })),
         };
       } else if (query.includes('_type == "eventSeries"'))
@@ -146,6 +147,40 @@ describe("night and ticket pages", () => {
       `content="${ORIGIN}/whats-on/negroni-chess/2099-01-06"`,
     );
     expect(html).toContain("/og/events/negroni-chess-2099-01-06.jpg");
+  });
+
+  it("shows the night's own photos, not the rest of the series'", async () => {
+    const photo = (name, date) => ({
+      url: `https://cdn.sanity.io/images/p/d/${name}-800x600.jpg`,
+      width: 800,
+      height: 600,
+      alt: "",
+      date,
+    });
+    sanity.series = [
+      series("negroni-chess", {
+        gallery: [
+          photo("theirs", "2099-01-13"),
+          photo("ours", "2099-01-06"),
+          photo("series", ""),
+        ],
+      }),
+    ];
+    const html = await (
+      await render("/whats-on/negroni-chess/2099-01-06")
+    ).text();
+    expect(html).toContain("ours-800x600");
+    expect(html).not.toContain("theirs-800x600");
+    expect(html).not.toContain("series-800x600");
+    expect(html).not.toContain("<night-gallery>");
+  });
+
+  it("a night without photos has no gallery", async () => {
+    const html = await (
+      await render("/whats-on/negroni-chess/2099-01-06")
+    ).text();
+    expect(html).not.toContain("series-gallery");
+    expect(html).not.toContain("<night-gallery>");
   });
 
   it("leaves out the share image when the night has none", async () => {

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   galleryAssetFilename,
   galleryBehind,
+  galleryEnabled,
   galleryFingerprint,
   syncGalleryImages,
 } from "./event-gallery.js";
@@ -59,10 +60,12 @@ test("uploads stop at the cap and the rest wait for the next run", async () => {
 });
 
 test("only an event with a Drive folder and no staged gallery is behind", () => {
-  const on = { enabled: true };
-  assert.equal(galleryBehind({ id: "4", driveFolderId: "f" }, {}, on), true);
-  assert.equal(galleryBehind({ id: "4", driveFolderId: "f" }, { 4: "a:1" }, on), false);
-  assert.equal(galleryBehind({ id: "4", driveFolderId: "" }, {}, on), false);
-  // Switched off: nothing is queued.
-  assert.equal(galleryBehind({ id: "4", driveFolderId: "f" }, {}, { enabled: false }), false);
+  assert.equal(galleryBehind({ id: "4", driveFolderId: "f" }, {}), true);
+  assert.equal(galleryBehind({ id: "4", driveFolderId: "f" }, { 4: "a:1" }), false);
+  assert.equal(galleryBehind({ id: "4", driveFolderId: "" }, {}), false);
+});
+
+test("the gallery is on in dev, off in production until checked on a phone", () => {
+  assert.equal(galleryEnabled({ SITE_ENV: "dev" }), true);
+  assert.equal(galleryEnabled({ SITE_ENV: "production" }), false);
 });

@@ -40,6 +40,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   schedule,
   datesPending,
   "gallery": gallery[]{
+    date,
     "url": asset->url,
     "width": asset->metadata.dimensions.width,
     "height": asset->metadata.dimensions.height,
