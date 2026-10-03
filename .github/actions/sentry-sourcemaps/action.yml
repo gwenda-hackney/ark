@@ -24,7 +24,6 @@ runs:
       shell: bash
       env:
         SENTRY_AUTH_TOKEN: ${{ inputs.auth-token }}
-        SENTRY_URL: https://de.sentry.io/
         SENTRY_ORG: gwenda
         SENTRY_PROJECT: ${{ inputs.project }}
         MAPS_PATH: ${{ inputs.path }}

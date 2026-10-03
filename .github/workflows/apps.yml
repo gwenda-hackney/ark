@@ -58,6 +58,9 @@ jobs:
             ops:
               - 'ops/site/**'
               - 'shared/**'
+              # Its deploy runs the ops migrations.
+              - 'migrations/**'
+              - 'scripts/lib/migrations.mjs'
               - 'ops/README.md'
               - '.github/workflows/apps.yml'
       - id: set

@@ -113,6 +113,37 @@ describe("baserowDatabase", () => {
     assert.deepEqual(created, [{ name: "Guest artists", data: [["Email"]], first_row_header: true }]);
   });
 
+  it("removes a table once, and only that one", async () => {
+    const deleted = [];
+    const request = async (_base, _jwt, path, init = {}) => {
+      if (init.method === "DELETE") {
+        deleted.push(path);
+        return null;
+      }
+      if (path === "/api/database/tables/database/7/") {
+        return [
+          { id: 42, name: "Subscribers" },
+          { id: 43, name: "Subscribe sync runs" },
+        ];
+      }
+      throw new Error(`unexpected ${path}`);
+    };
+    const database = baserowDatabase({ apiBase: "x", jwt: "j", databaseId: 7, label: "Website", request });
+    assert.equal(await database.removeTable("Subscribe sync runs"), "removed");
+    assert.equal(await database.removeTable("Subscribe sync runs"), "absent");
+    assert.deepEqual(deleted, ["/api/database/tables/43/"]);
+  });
+
+  it("removing the sync runs table never runs outside production", async () => {
+    const [migration] = (await loadMigrations(resolve(ROOT, "migrations"))).filter(
+      (m) => m.name === "2026-10-03-remove-sync-runs-table.mjs",
+    );
+    const lines = [];
+    // No database: it would throw if it tried to open one.
+    await migration.up({ env: "dev", database: null, log: (line) => lines.push(line) });
+    assert.deepEqual(lines, ["production only"]);
+  });
+
   it("names a missing table", async () => {
     const { database } = db([]);
     await assert.rejects(database.fields("Nope"), /Website: table "Nope" not found/);
