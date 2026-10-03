@@ -1,11 +1,10 @@
 /**
  * Saving an event stages it: its series and nights are written as drafts.
- * What's on on the preview site reads them live; the rest of the preview site
- * updates on its own once edits go quiet (site-pending.js).
+ * The preview site reads them live (What's on and the event pages).
  * The website only changes when the drafts are published (Put on website,
  * or Website > Preview → live). A night dropped from the schedule is a draft
  * too: marked `removed`, it leaves the website when the series is published.
- * Deleting a night or an event takes it off both at once.
+ * Deleting a night or a live event works the same way (#23).
  */
 import {
   PREVIEW,
@@ -51,6 +50,8 @@ import {
   removeOccurrence,
   saveOccurrenceSnapshots,
   saveOccurrences,
+  setEventDeletedAt,
+  deleteEvent,
 } from "./event-store.js";
 import { forgetCalendarOccurrences } from "./event-calendar-sync.js";
 import { syncSocialTasks } from "./event-tasks.js";
@@ -774,26 +775,34 @@ export async function putEventOnWebsite(env, id) {
   };
 }
 
-/** Take an event's documents off the live site and the preview (delete with "also take it off the website"). */
-export async function removeEventFromWebsite(
-  env,
-  event,
-  rows = null,
-  { query = sanityQuery, mutate = sanityMutate } = {},
-) {
-  const found = rows
-    ? rows.map((row) => row.sanityId).filter(Boolean)
-    : await eventDocumentIds(env, event, { query });
-  const ids = seriesLast(found, seriesKeys(event).seriesIds);
-  const warnings = [];
-  for (const docId of ids) {
-    try {
-      await mutate(env, [{ delete: { id: docId } }]);
-    } catch (error) {
-      warnings.push(`Could not take ${docId} off the website: ${error?.message || "unknown error"}.`);
-    }
+/**
+ * Delete an event in ops (#23). One with nothing on the website goes at once.
+ * One that is live stays there until Update website, like a dropped night:
+ * its drafts are marked `removed`, its calendar entries go, and ops hides it
+ * (Deleted at) with Restore on the Website page until it is published.
+ */
+export async function deleteEventFromOps(env, id, { query = sanityQuery, mutate = sanityMutate } = {}) {
+  const event = await getEvent(env, id);
+  const ids = await eventDocumentIds(env, event, { query });
+  // Nights before the series: Sanity won't let a series go while nights refer to it.
+  const { warnings, live } = await markNightsRemoved(
+    env,
+    ids.map((sanityId) => ({ sanityId })),
+    { query, mutate },
+  );
+  if (!live.size) {
+    await deleteEvent(env, id);
+    return { pending: false, warnings };
   }
-  return warnings;
+  warnings.push(...(await settleDroppedRows(env, event.dates || [], live)));
+  await setEventDeletedAt(env, id, new Date().toISOString());
+  return { pending: true, warnings };
+}
+
+/** Undo a delete that hasn't reached the website: the preview gets the event back. */
+export async function restoreEvent(env, id) {
+  await setEventDeletedAt(env, id, "");
+  return publishEventPreview(env, id);
 }
 
 const EVENT_DOCS_QUERY = `*[_type in ["eventSeries", "event"] && !(_id in path("drafts.**"))]`;

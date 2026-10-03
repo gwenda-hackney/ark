@@ -17,10 +17,13 @@ import {
   sanityQuery,
 } from "../../platform/sanity.js";
 import {
+  deleteEvent,
   listEvents,
   removeOccurrence,
   saveOccurrenceSnapshots,
+  setEventDeletedAt,
 } from "../../events/server/event-store.js";
+import { sanitySeriesId } from "../../events/server/event-content.js";
 import { copyPreviewSnapshotsToProduction } from "./publish-sync.js";
 
 const CONTENT_FILTER = [
@@ -348,7 +351,12 @@ export async function markReleasedInOps(env, sanityIds, { deleted = [] } = {}) {
   if (!ids.size && !gone.size) return { nights: 0, menuItems: 0 };
   const at = new Date().toISOString();
   const updates = [];
-  for (const event of await listEvents(env)) {
+  for (const event of await listEvents(env, { withDeleted: true })) {
+    // A deleted event whose series page has left the website goes from ops (#23).
+    if (event.deletedAt && [event.slug, ...(event.formerSlugs || [])].some((slug) => gone.has(sanitySeriesId(slug)))) {
+      await deleteEvent(env, event.id);
+      continue;
+    }
     for (const row of event.dates || []) {
       if (row.id && gone.has(row.sanityId) && row.snapshots?.preview?.removed) {
         await removeOccurrence(env, row.id);
@@ -378,7 +386,11 @@ export async function markDiscardedInOps(env, sanityIds) {
   const ids = new Set(sanityIds);
   if (!ids.size) return 0;
   const updates = [];
-  for (const event of await listEvents(env)) {
+  for (const event of await listEvents(env, { withDeleted: true })) {
+    // The website still has a deleted event whose drafts were discarded: it is back (#23).
+    if (event.deletedAt && [event.slug, ...(event.formerSlugs || [])].some((slug) => ids.has(sanitySeriesId(slug)))) {
+      await setEventDeletedAt(env, event.id, "");
+    }
     for (const row of event.dates || []) {
       if (!row.id || !ids.has(row.sanityId) || !row.snapshots?.preview?.removed) continue;
       const { preview: _removed, ...snapshots } = row.snapshots;

@@ -92,6 +92,7 @@ export function eventFields() {
       name: "Former slugs",
       body: { name: "Former slugs", type: "long_text" },
     },
+    { name: "Deleted at", body: { name: "Deleted at", type: "text" } },
     { name: "Drive folder id", body: { name: "Drive folder id", type: "text" } },
     {
       name: "Replaces series",

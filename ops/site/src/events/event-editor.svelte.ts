@@ -193,7 +193,7 @@ export class EventEditor {
 
 	websiteJob = $derived(websiteJobFor(this.current?.id));
 
-	/** Deleting takes it off gwenda.co.uk too; the dialog says so when it is there. */
+	/** On gwenda.co.uk: deleting waits for Update website, and the dialog says so. */
 	onWebsite = $derived(
 		Boolean(this.current?.publish) && this.current?.publish.live !== "unpublished",
 	);
@@ -320,7 +320,11 @@ export class EventEditor {
 			if (scope === "series" || !this.editingOccurrence || !this.occurrenceDate) {
 				const data = await deleteEvent(this.eventId);
 				this.events = this.events.filter((row) => row.id !== this.eventId);
-				toast.ok(this.onWebsite ? "Event deleted and taken off the website." : "Event deleted.");
+				toast.ok(
+					data.pending
+						? "Event deleted. It comes off the website when you press Update website on the Website page."
+						: "Event deleted.",
+				);
 				void refreshSitePending();
 				this.applyWarnings(data.warnings);
 				beginLeave();
@@ -332,12 +336,18 @@ export class EventEditor {
 				if (data.deleted || !data.event) {
 					this.events = this.events.filter((row) => row.id !== this.eventId);
 					toast.ok(
-						scope === "this" ? "Night deleted." : "Events deleted.",
+						data.pending
+							? "Event deleted. It comes off the website when you press Update website on the Website page."
+							: scope === "this"
+								? "Night deleted."
+								: "Events deleted.",
 					);
 					beginLeave();
 					leaveEditor(this.listHomePath(), { force: true });
 				} else {
 					this.rememberEvent(data.event, true);
+					// The background job takes the nights off the preview and the calendar.
+					queueWebsiteJob(this.eventId);
 					const count = Number(data.removed) || 1;
 					toast.ok(count === 1 ? "Night deleted." : `${count} nights deleted.`);
 					beginLeave();

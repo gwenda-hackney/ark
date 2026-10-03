@@ -60,7 +60,8 @@ export function prepNeeded(
   event,
   { calendar = true, seriesPreviews = {}, galleryStaged = null } = {},
 ) {
-  if (!event?.id) return null;
+  // A deleted event waits for Update website; nothing to get ready (#23).
+  if (!event?.id || event.deletedAt) return null;
   const awaiting = seriesAwaitingDates(event);
   // An ended series has no upcoming nights but may still have some to take off.
   if (!awaiting && !event.publish?.previewDates?.length && !droppedNights(event).length) {

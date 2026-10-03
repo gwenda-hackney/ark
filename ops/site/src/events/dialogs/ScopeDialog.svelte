@@ -21,7 +21,7 @@
 		open: boolean;
 		title: string;
 		message: string;
-		/** Say it comes off the website too (deleting a night that's live). */
+		/** Say when it comes off the website (deleting a night that's live). */
 		alsoWebsite?: boolean;
 		disabled?: boolean;
 		/** The last choice is destructive (deleting). */
@@ -35,7 +35,7 @@
 <Dialog {open} {title} {onclose}>
 	<p class="delete-copy">{message}</p>
 	{#if alsoWebsite}
-		<p class="also-website">It comes off the website too, straight away.</p>
+		<p class="also-website">It comes off the website when you press Update website.</p>
 	{/if}
 	<div class="scope-options">
 		<Button type="button" variant="outline" {disabled} onclick={() => onchoose("this")}>
