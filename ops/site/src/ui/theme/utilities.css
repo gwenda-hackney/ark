@@ -8,12 +8,12 @@
 */
 
 /* ─── Numerics ───────────────────────────────────────────────────────────── */
+/* Figures stay in Inter with tabular digits so columns line up. */
 
 .num,
-.mono {
-	font-family: var(--font-mono);
+.tnum {
 	font-variant-numeric: tabular-nums;
-	font-feature-settings: "tnum";
+	font-feature-settings: var(--font-features-num);
 }
 
 .num {
@@ -21,10 +21,10 @@
 	justify-content: flex-end;
 }
 
-/* Grouped figures in the UI font — headline balances, stat values. */
-.tnum {
-	font-variant-numeric: tabular-nums;
-	font-feature-settings: "tnum";
+/* Monospace is for SKUs, IDs, commits and code, never for figures. */
+.mono {
+	font-family: var(--font-mono);
+	font-size: 0.92em;
 }
 
 /* ─── Signed values ──────────────────────────────────────────────────────── */
@@ -37,13 +37,13 @@
 	color: var(--down);
 }
 
-.loss {
-	color: var(--down);
-	font-weight: 650;
+.warn {
+	color: var(--warning);
 }
 
-.gold {
-	color: var(--gold);
+.loss {
+	color: var(--down);
+	font-weight: 600;
 }
 
 .muted {
@@ -57,9 +57,10 @@
 /* ─── Labels ─────────────────────────────────────────────────────────────── */
 
 .eyebrow {
-	font-size: var(--text-xs);
+	font-size: var(--text-2xs);
+	line-height: var(--leading-2xs);
 	font-weight: 600;
-	letter-spacing: 0.08em;
+	letter-spacing: var(--tracking-label);
 	text-transform: uppercase;
 	color: var(--muted-foreground);
 }

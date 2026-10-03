@@ -32,17 +32,19 @@ export const opsGridTheme = themeQuartz.withParams({
 	cellTextColor: "var(--foreground)",
 	dataBackgroundColor: "var(--background)",
 	fontFamily: "var(--font)",
+	// --text-sm. AG Grid needs a pixel number here, not a CSS variable.
 	fontSize: 13,
 	foregroundColor: "var(--foreground)",
 
-	headerBackgroundColor: "var(--background)",
+	headerBackgroundColor: "var(--surface-1)",
+	// --text-2xs
 	headerFontSize: 11,
 	headerFontWeight: 600,
 	headerTextColor: "var(--muted-foreground)",
 
 	oddRowBackgroundColor: "transparent",
 	rowBorder: { style: "solid", width: 1, color: "var(--border)" },
-	rowHoverColor: "var(--accent)",
+	rowHoverColor: "var(--surface-3)",
 	selectedRowBackgroundColor: "var(--primary-wash)",
 
 	spacing: 8,

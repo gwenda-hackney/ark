@@ -1,7 +1,8 @@
 <script lang="ts">
 	/**
-	 * Recessed input against the card, gold ring on focus. Numbers get the
-	 * mono face and lose the spinner so columns of figures line up.
+	 * Recessed input against the card, gold ring on focus. Numbers get
+	 * tabular figures and lose the spinner so columns of figures line up.
+	 * `numeric` does the same for typed figures; `mono` is for IDs and codes.
 	 */
 	import type { HTMLInputAttributes } from "svelte/elements";
 
@@ -9,6 +10,7 @@
 		value = $bindable(""),
 		size = "md",
 		mono = false,
+		numeric = false,
 		align = "start",
 		type = "text",
 		class: className = "",
@@ -17,6 +19,7 @@
 		value?: string;
 		size?: "md" | "sm";
 		mono?: boolean;
+		numeric?: boolean;
 		align?: "start" | "end";
 	} = $props();
 
@@ -33,6 +36,7 @@
 	<input
 		class="input {size} {className}"
 		class:mono
+		class:numeric
 		class:end={align === "end"}
 		{type}
 		bind:value
@@ -58,19 +62,23 @@
 
 	.md {
 		height: var(--control-h);
-		padding: 0 0.75rem;
-		font-size: var(--text);
+		padding: 0 var(--space-3);
+		font-size: var(--text-base);
 	}
 
 	.sm {
 		height: var(--control-h-sm);
-		padding: 0 0.6875rem;
-		font-size: var(--text);
+		padding: 0 var(--space-3);
+		font-size: var(--text-base);
 	}
 
 	.mono {
 		font-family: var(--font-mono);
+	}
+
+	.numeric {
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.end {
@@ -97,8 +105,8 @@
 	}
 
 	.input[type="number"] {
-		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		appearance: textfield;
 	}
 
@@ -111,16 +119,16 @@
 	.input[type="file"] {
 		height: auto;
 		min-height: var(--control-h-sm);
-		padding: 0.4rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		font-size: var(--text-sm);
 		color: var(--muted-foreground);
 	}
 
 	.input[type="file"]::file-selector-button {
-		margin-right: 0.65rem;
-		padding: 0.25rem 0.65rem;
+		margin-right: var(--space-3);
+		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-pill);
+		border-radius: var(--radius-md);
 		background: transparent;
 		color: var(--foreground);
 		font: inherit;
