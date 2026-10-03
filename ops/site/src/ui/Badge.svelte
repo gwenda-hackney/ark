@@ -23,7 +23,7 @@
 </script>
 
 <span class="badge {resolved}" {title}>
-	<span class="text">{#if children}{@render children()}{:else}{label}{/if}</span>
+	<span class="text pill-text">{#if children}{@render children()}{:else}{label}{/if}</span>
 </span>
 
 <style>
@@ -42,8 +42,6 @@
 		color: var(--fg-muted);
 		font-size: var(--text-2xs);
 		font-weight: 600;
-		line-height: 1;
-		text-box: trim-both cap alphabetic;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;

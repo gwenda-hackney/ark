@@ -437,7 +437,7 @@
 						<span class="nav-label">{item.name}</span>
 						{#if item.badge === "website" && badge}
 							<span
-								class="nav-badge {badge.tone}"
+								class="nav-badge pill-text {badge.tone}"
 								title={badgeTitle(badge.tone, badge.count)}
 								aria-label={badgeTitle(badge.tone, badge.count)}
 							>
@@ -545,7 +545,7 @@
 						<Icon name={item.icon} size={20} />
 						{#if item.badge === "website" && badge}
 							<span
-								class="tab-badge {badge.tone}"
+								class="tab-badge pill-text {badge.tone}"
 								aria-label={badgeTitle(badge.tone, badge.count)}
 							>
 								{badge.tone === "failed" ? "!" : badge.count}

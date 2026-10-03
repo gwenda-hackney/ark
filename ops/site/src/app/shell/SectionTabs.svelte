@@ -57,7 +57,7 @@
 					>
 						{page.short || page.name}
 						{#if page.badge === "website" && badge}
-							<span class="badge {badge.tone}" title={badge.title} aria-label={badge.title}>
+							<span class="badge pill-text {badge.tone}" title={badge.title} aria-label={badge.title}>
 								{badge.tone === "failed" ? "!" : badge.count}
 							</span>
 						{/if}

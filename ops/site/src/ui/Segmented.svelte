@@ -43,7 +43,7 @@
 			>
 				<span>{item.label}</span>
 				{#if item.count !== undefined}
-					<span class="count num">{item.count}</span>
+					<span class="count num pill-text">{item.count}</span>
 				{/if}
 			</a>
 		{:else}
@@ -57,7 +57,7 @@
 			>
 				<span>{item.label}</span>
 				{#if item.count !== undefined}
-					<span class="count num">{item.count}</span>
+					<span class="count num pill-text">{item.count}</span>
 				{/if}
 			</button>
 		{/if}

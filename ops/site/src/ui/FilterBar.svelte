@@ -108,7 +108,7 @@
 				onclick={openSheet}
 			>
 				{#snippet icon()}<Icon name="filter" size={16} />{/snippet}
-				Filters{#if active}<span class="count num">{active}</span>{/if}
+				Filters{#if active}<span class="count num pill-text">{active}</span>{/if}
 			</Button>
 		{/if}
 		{#if !phone.matches && (filters || onclearfilters) && canClear}

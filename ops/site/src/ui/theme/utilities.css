@@ -65,6 +65,14 @@
 	color: var(--muted-foreground);
 }
 
+/* Short text in a small box (badges, counts, chips): centre it on the
+   capital height rather than the line box, so it sits in the middle in
+   every browser. Pair with a flex or grid parent that centres. */
+.pill-text {
+	line-height: 1;
+	text-box: trim-both cap alphabetic;
+}
+
 /* ─── Accessibility ──────────────────────────────────────────────────────── */
 
 .sr-only {
