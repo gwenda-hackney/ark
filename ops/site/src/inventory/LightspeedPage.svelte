@@ -10,6 +10,7 @@
 		ConfirmDialog,
 		Dialog,
 		Field,
+		MoneyField,
 		NativeSelect,
 		PageHeader,
 		PageHelp,
@@ -1194,8 +1195,8 @@
 					options={drinkTypeOptions}
 				/>
 			</Field>
-			<Field label="Price" for="ls-add-price">
-				<TextField id="ls-add-price" size="sm" numeric bind:value={addPrice} />
+			<Field label="Price" for="ls-add-price" width="sm" optional>
+				<MoneyField id="ls-add-price" size="sm" bind:value={addPrice} />
 			</Field>
 			{#if posMenus.length}
 				<Field label="POS menu" for="ls-add-pos-menu">
@@ -1213,7 +1214,7 @@
 			{/if}
 			<Field
 				label="Guest menus"
-				tooltip="POS can still sell this if it is off print and the website."
+				hint="The till can still sell it when it's off print and the website."
 			>
 				<Segmented
 					bind:value={addPlacement}

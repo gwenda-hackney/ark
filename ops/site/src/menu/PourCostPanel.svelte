@@ -3,7 +3,7 @@
 	 * Pour cost on the Cost tab. Primary sell price is edited in the drink
 	 * header; this panel shows metrics and edits the optional alt serve.
 	 */
-	import { Button, TextField } from "../ui";
+	import { Button, MoneyField } from "../ui";
 	import {
 		altCostFactor,
 		formatPourPercent,
@@ -205,12 +205,10 @@
 						<label class="serve" for="f-cost-price-alt">{labels.alt}</label>
 						<div class="price-tools">
 							<div class="price">
-								<TextField
+								<MoneyField
 									id="f-cost-price-alt"
 									size="sm"
-									numeric
 									align="end"
-									inputmode="decimal"
 									value={priceAltValue}
 									oninput={(e) =>
 										onpricealt(

@@ -4,7 +4,7 @@
 	 * Used inside the add-ingredient dialog.
 	 */
 	import { tick } from "svelte";
-	import { Button, BusyOverlay, Field, NativeSelect, TextField } from "../ui";
+	import { Button, BusyOverlay, Field, NativeSelect, NumberField } from "../ui";
 	import type { SelectOption } from "../ui/types";
 	import * as api from "../app/api";
 	import { INVENTORY_KINDS, type InventoryItem, type InventoryKind } from "../inventory/types";
@@ -278,11 +278,15 @@
 						}}
 					/>
 				</Field>
-				<Field label="ABV %" for="inv-abv-quick">
-					<TextField
+				<Field label="ABV" for="inv-abv-quick" width="sm" optional>
+					<NumberField
 						id="inv-abv-quick"
 						size="sm"
-						inputmode="decimal"
+						unit="%"
+						min={0}
+						max={100}
+						decimals={1}
+						noun="a percentage"
 						bind:value={abvDraft}
 					/>
 				</Field>
