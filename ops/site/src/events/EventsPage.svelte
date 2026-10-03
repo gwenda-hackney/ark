@@ -247,9 +247,8 @@
 	$effect(() => {
 		if (!editor.editing || editor.tab !== "gallery") return;
 		const id = editor.eventId;
-		// Editing a night: its own photos (they show on the series too).
-		const date = editor.editingOccurrence ? editor.occurrenceDate || "" : "";
-		void editor.gallery.load(id, false, date).then((folder) => {
+		// A night shows its series' photos: one gallery per series (#30). Per-night photos are #146.
+		void editor.gallery.load(id).then((folder) => {
 			if (!folder || editor.current?.id !== id) return;
 			editor.current = {
 				...editor.current,
