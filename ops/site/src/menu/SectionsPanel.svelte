@@ -150,7 +150,9 @@
 			size="xs"
 			type="button"
 			aria-label="Move {section.title} up"
+			title="Move up"
 			disabled={index === 0 || saving}
+			reason={index === 0 ? "Already first" : undefined}
 			onclick={() => move(section, -1)}
 		>
 			{#snippet icon()}<Icon name="chevron-up" size={14} />{/snippet}
@@ -160,7 +162,9 @@
 			size="xs"
 			type="button"
 			aria-label="Move {section.title} down"
+			title="Move down"
 			disabled={index === count - 1 || saving}
+			reason={index === count - 1 ? "Already last" : undefined}
 			onclick={() => move(section, 1)}
 		>
 			{#snippet icon()}<Icon name="chevron-down" size={14} />{/snippet}
@@ -172,6 +176,7 @@
 			aria-expanded={editingId === section._id}
 			onclick={() => (editingId === section._id ? (editingId = null) : startEdit(section))}
 		>
+			{#snippet icon()}<Icon name="pen" size={14} />{/snippet}
 			Edit
 		</Button>
 	</div>
@@ -204,11 +209,18 @@
 		</div>
 		<div class="edit-actions">
 			<Button variant="ghost" size="sm" type="button" class="delete" onclick={() => removeSection(section)}>
+				{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
 				Delete
 			</Button>
 			<span class="spacer"></span>
-			<Button variant="outline" size="sm" type="button" onclick={() => (editingId = null)}>Cancel</Button>
-			<Button variant="primary" size="sm" type="submit" disabled={saving}>Save</Button>
+			<Button variant="outline" size="sm" type="button" onclick={() => (editingId = null)}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
+				Cancel
+			</Button>
+			<Button variant="primary" size="sm" type="submit" disabled={saving}>
+				{#snippet icon()}<Icon name="save" size={14} />{/snippet}
+				Save
+			</Button>
 		</div>
 	</form>
 {/snippet}
@@ -227,8 +239,14 @@
 		</Field>
 		<div class="edit-actions">
 			<span class="spacer"></span>
-			<Button variant="outline" size="sm" type="button" onclick={() => (addingFor = null)}>Cancel</Button>
-			<Button variant="primary" size="sm" type="submit" disabled={saving}>{action}</Button>
+			<Button variant="outline" size="sm" type="button" onclick={() => (addingFor = null)}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
+				Cancel
+			</Button>
+			<Button variant="primary" size="sm" type="submit" disabled={saving}>
+				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
+				{action}
+			</Button>
 		</div>
 	</form>
 {/snippet}
@@ -286,7 +304,7 @@
 	{:else}
 		<div>
 			<Button variant="outline" size="sm" type="button" onclick={() => startAdd("chapter")}>
-				{#snippet icon()}<Icon name="plus" size={15} />{/snippet}
+				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 				Add chapter
 			</Button>
 		</div>
@@ -308,8 +326,10 @@
 		list-style: none;
 	}
 
+	/* Chapters as a grid of blocks across the page width; rows share a height. */
 	.chapters {
 		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
 		gap: var(--space-3);
 	}
 

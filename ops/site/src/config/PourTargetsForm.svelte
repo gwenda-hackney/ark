@@ -6,6 +6,7 @@
 	 * footer, which calls `save()`.
 	 */
 	import { Button, ConfirmDialog, Field, NumberField } from "../ui";
+	import { Icon } from "../app/shell";
 	import { Confirm } from "../ui/confirm.svelte";
 	import { DRINK_TYPES, POUR_TARGET_META, type DrinkType, type PourTargetMap } from "../menu/types";
 	import { pourSettings, resetPourTargets, setPourTargets } from "./settings.svelte";
@@ -134,6 +135,7 @@
 				disabled={pourSettings.saving}
 				onclick={() => void reset()}
 			>
+				{#snippet icon()}<Icon name="undo" size={14} />{/snippet}
 				Reset to standard
 			</Button>
 		{/if}
@@ -143,8 +145,10 @@
 			type="button"
 			busy={pourSettings.saving}
 			disabled={pourSettings.saving || !checked.dirty}
+			reason={!pourSettings.saving && !checked.dirty ? "No changes to save" : undefined}
 			onclick={() => void save()}
 		>
+			{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 			Save pour targets
 		</Button>
 	</div>

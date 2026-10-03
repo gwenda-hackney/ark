@@ -7,6 +7,7 @@
 	 */
 	import type { Snippet } from "svelte";
 	import Button from "./Button.svelte";
+	import { Icon } from "../app/shell";
 	import Dialog from "./Dialog.svelte";
 	import type { Confirm } from "./confirm.svelte";
 
@@ -88,6 +89,7 @@
 	{#snippet footer()}
 		<span class="cancel" bind:this={cancelWrap}>
 			<Button variant="outline" size="sm" type="button" disabled={isBusy} onclick={cancel}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 				{shownCancel}
 			</Button>
 		</span>
@@ -99,6 +101,7 @@
 			busy={isBusy}
 			onclick={accept}
 		>
+			{#snippet icon()}<Icon name={shownTone === "primary" ? "check" : "trash"} size={14} />{/snippet}
 			{isBusy && busyLabel ? busyLabel : shownAction}
 		</Button>
 	{/snippet}
