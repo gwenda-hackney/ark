@@ -277,6 +277,20 @@ Google sign-in only works on the registered ops addresses, not on localhost. Thi
 - **Used by:** local ops only. It is never pushed to Cloudflare Pages (`pagesSkip`).
 - **Expires:** never.
 
+### `SENTRY_READ_TOKEN`
+
+The ops dashboard shows the website's unresolved errors from the last 24 hours. Ops reads them from Sentry with this token; the browser never talks to Sentry.
+
+- **Owner:** Sentry organisation `gwenda` (EU region): an internal integration with **Issue & Event: Read** and nothing else, so the token can't change projects, alerts or data.
+- **SM:** `SENTRY_READ_TOKEN`, one shared value in [`ark/ops-dev`](#arkops-dev): dev and production ops read the same organisation.
+- **What:** a bearer token for `GET https://de.sentry.io/api/0/organizations/gwenda/issues/`. Ops keeps each answer for five minutes.
+- **Used by:** ops (dev and production, `src/website/server/sentry-errors.js`, served at `GET /api/health/errors`).
+- **Gets there by:** ops through its usual pull and Pages secrets (an ops key in `APP_SECRETS`).
+- **Without it:** the dashboard's Website errors card says "Not set up". Nothing else changes.
+- **Expires:** never.
+- **Creating it:** in Sentry, Settings → Developer Settings → Custom Integrations → Create New Integration → Internal Integration. Name it `ops dashboard (read)`, set Issue & Event to Read and leave every other permission at No Access, save, then copy the token from the integration page. Store it as `SENTRY_READ_TOKEN` in `ark/ops-dev`, run `npm run env:secrets:refresh` locally, and run the ops secrets workflow (`ops-secrets.yml`) for dev and production.
+- **Changing it:** add a new token on the same integration, store it, rerun the ops secrets workflow, then delete the old token in Sentry.
+
 ---
 
 ## Website
@@ -547,3 +561,4 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `UPTIME_ROBOT_API_KEY` | UptimeRobot alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | never |
 | `SENTRY_AUTH_TOKEN` | Sentry alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | as created |
 | `SENTRY_ORG_TOKEN` | Sentry organisation | shared | — / [`ark-dev`](#ark-dev) | never |
+| `SENTRY_READ_TOKEN` | Sentry organisation (internal integration) | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
