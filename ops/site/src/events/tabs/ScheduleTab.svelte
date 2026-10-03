@@ -37,8 +37,15 @@
 
 <FormSection title="Upcoming nights" {description} columns={1}>
 	{#snippet actions()}
-		{#if eventId && onaddnight}
-			<Button variant="outline" size="sm" type="button" disabled={busy} onclick={onaddnight}>
+		{#if onaddnight}
+			<Button
+				variant="outline"
+				size="sm"
+				type="button"
+				disabled={busy || !eventId}
+				reason={eventId ? undefined : "Save the series first"}
+				onclick={onaddnight}
+			>
 				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 				Add night
 			</Button>

@@ -460,12 +460,16 @@
 					{#snippet icon()}<Icon name="pen" size={16} />{/snippet}
 					Change ingredient
 				</Button>
-				{#if sheetRow.href}
-					<Button variant="ghost" type="button" onclick={() => { const href = sheetRow.href!; sheetIndex = null; navigate(href); }}>
-						{#snippet icon()}<Icon name="external-link" size={16} />{/snippet}
-						Open in stock
-					</Button>
-				{/if}
+				<Button
+					variant="ghost"
+					type="button"
+					disabled={!sheetRow.href}
+					reason={sheetRow.href ? undefined : "Not linked to a stock item"}
+					onclick={() => { const href = sheetRow.href; if (!href) return; sheetIndex = null; navigate(href); }}
+				>
+					{#snippet icon()}<Icon name="external-link" size={16} />{/snippet}
+					Open in stock
+				</Button>
 				<Button variant="ghost" type="button" class="remove-line" onclick={() => { sheetIndex = null; removeRow(index); }}>
 					{#snippet icon()}<Icon name="trash" size={16} />{/snippet}
 					Remove

@@ -468,25 +468,28 @@
 						errorCount={editor.errors.count}
 						onerrors={() => void editor.showErrors()}
 						overflow={[
-							...(editor.editingOccurrence && (editor.form.defaultsUnlocked || editor.form.ownPhoto)
+							// Nights always offer this, disabled when nothing overrides the series;
+							// a series never has it.
+							...(editor.editingOccurrence
 								? [
 										{
 											label: "Use series values for everything",
-											disabled: editor.busy,
+											disabled: editor.busy || !(editor.form.defaultsUnlocked || editor.form.ownPhoto),
+											reason:
+												editor.form.defaultsUnlocked || editor.form.ownPhoto
+													? undefined
+													: "Already follows the series",
 											onselect: () => void editor.useSeriesDefaults(),
 										},
 									]
 								: []),
-							...(editor.eventId
-								? [
-										{
-											label: deleteLabel,
-											tone: "destructive" as const,
-											disabled: editor.busy,
-											onselect: editor.requestDelete,
-										},
-									]
-								: []),
+							{
+								label: deleteLabel,
+								tone: "destructive" as const,
+								disabled: editor.busy || !editor.eventId,
+								reason: editor.eventId ? undefined : "Not saved yet",
+								onselect: editor.requestDelete,
+							},
 						]}
 					/>
 				</div>

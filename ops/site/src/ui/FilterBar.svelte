@@ -111,8 +111,17 @@
 				Filters{#if active}<span class="count num pill-text">{active}</span>{/if}
 			</Button>
 		{/if}
-		{#if !phone.matches && (filters || onclearfilters) && canClear}
-			<Button variant="ghost" size="sm" onclick={clearAll}>{#snippet icon()}<Icon name="close" size={14} />{/snippet}Clear</Button>
+		<!-- Always in place once the list has filters, so the row never shifts. -->
+		{#if !phone.matches && (filters || onclearfilters)}
+			<Button
+				variant="ghost"
+				size="sm"
+				disabled={!canClear}
+				reason={canClear ? undefined : "Nothing to clear"}
+				onclick={clearAll}
+			>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}Clear
+			</Button>
 		{/if}
 		{#if end && (!phone.matches || endOnPhone)}
 			<div class="end">{@render end()}</div>
@@ -150,7 +159,7 @@
 				{#if sheetOpen}{@render filters()}{/if}
 			</div>
 			<footer class="sheet-foot">
-				<Button variant="ghost" disabled={!active} onclick={() => onclearfilters?.()}>{#snippet icon()}<Icon name="close" size={16} />{/snippet}Clear all</Button>
+				<Button variant="ghost" disabled={!active} reason={active ? undefined : "No filters on"} onclick={() => onclearfilters?.()}>{#snippet icon()}<Icon name="close" size={16} />{/snippet}Clear all</Button>
 				<Button variant="primary" onclick={closeSheet}>{#snippet icon()}<Icon name="check" size={16} />{/snippet}Show results</Button>
 			</footer>
 		</div>
