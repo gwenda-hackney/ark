@@ -62,9 +62,9 @@
 	/* Page titles keep the brand serif; everything else is Inter. */
 	h1 {
 		font-family: var(--font-display);
-		font-size: var(--text-xl);
-		line-height: var(--leading-xl);
-		letter-spacing: var(--tracking-xl);
+		font-size: var(--text-2xl);
+		line-height: var(--leading-2xl);
+		letter-spacing: var(--tracking-2xl);
 	}
 
 	.subtitle {
