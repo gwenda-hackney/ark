@@ -1,11 +1,17 @@
 <script lang="ts">
-	import { Button, Field, TextField } from "../ui";
+	/**
+	 * House pour-cost targets. Each figure saves when you leave its field,
+	 * once, and says "Saved" beside its label; there is no Save button.
+	 */
+	import { Button, ConfirmDialog, Field, NumberField } from "../ui";
+	import { Confirm } from "../ui/confirm.svelte";
 	import { DRINK_TYPES, POUR_TARGET_META, type DrinkType, type PourTargetMap } from "../menu/types";
 	import {
 		pourSettings,
 		resetPourTargets,
 		setPourTargets,
 	} from "./settings.svelte";
+	import { POUR_TARGET_RULES, pourTargetToSave } from "./pour-target-commit";
 	import { toast } from "../ui/toast.svelte";
 
 	let {
@@ -26,6 +32,11 @@
 	}
 
 	let draft = $state<Record<DrinkType, string>>(draftFrom(pourSettings.targets));
+	/** The row that just saved, for its "Saved" mark. */
+	let savedType = $state<DrinkType | "">("");
+	let savingType = $state<DrinkType | "">("");
+	let savedTimer: ReturnType<typeof setTimeout> | undefined;
+	const confirm = new Confirm();
 
 	function syncDraft() {
 		draft = draftFrom(pourSettings.targets);
@@ -37,22 +48,31 @@
 	});
 
 	async function commit(type: DrinkType, raw: string) {
-		draft = { ...draft, [type]: raw };
+		const next = pourTargetToSave(raw, pourSettings.targets[type]);
+		if (next === null) return;
+		savingType = type;
+		savedType = "";
 		try {
-			await setPourTargets({ [type]: raw } as Partial<PourTargetMap>);
-			draft = {
-				...draft,
-				[type]: String(pourSettings.targets[type]),
-			};
+			await setPourTargets({ [type]: next } as Partial<PourTargetMap>);
+			draft = { ...draft, [type]: String(pourSettings.targets[type]) };
+			savedType = type;
+			clearTimeout(savedTimer);
+			savedTimer = setTimeout(() => (savedType = ""), 2500);
 		} catch (err) {
-			toast.error(
-				err instanceof Error ? err.message : "Could not save pour targets.",
-			);
+			toast.error(err instanceof Error ? err.message : "Could not save pour targets.");
 			syncDraft();
+		} finally {
+			savingType = "";
 		}
 	}
 
 	async function reset() {
+		const ok = await confirm.ask({
+			title: "Reset pour targets?",
+			message: "Every drink type goes back to the standard target, for the whole team.",
+			action: "Reset",
+		});
+		if (!ok) return;
 		try {
 			await resetPourTargets();
 			syncDraft();
@@ -67,7 +87,7 @@
 </script>
 
 <p class="lead">
-	Target pour cost is ingredient cost as a share of the selling price. Cocktails default to 20%, the usual mixed-drink target. Saved in Baserow for the whole team.
+	Target pour cost is ingredient cost as a share of the selling price. Cocktails default to 20%, the usual mixed-drink target. Saved in Baserow for the whole team as you leave each field.
 </p>
 {#if pourSettings.error && !pourSettings.saving}
 	<p class="warn" role="status">{pourSettings.error}</p>
@@ -75,32 +95,34 @@
 <div class="rows">
 	{#each DRINK_TYPES as row (row.value)}
 		<Field
-			label="{POUR_TARGET_META[row.value].label} %"
+			label={POUR_TARGET_META[row.value].label}
 			for={`${idPrefix}-${row.value}`}
 			hint={POUR_TARGET_META[row.value].blurb}
 		>
-			<TextField
-				id={`${idPrefix}-${row.value}`}
-				size="sm"
-				numeric
-				inputmode="decimal"
-				disabled={pourSettings.saving}
-				value={draft[row.value]}
-				oninput={(e) => {
-					const raw = (e.currentTarget as HTMLInputElement).value;
-					draft = { ...draft, [row.value]: raw };
-				}}
-				onchange={(e) =>
-					void commit(
-						row.value,
-						(e.currentTarget as HTMLInputElement).value,
-					)}
-				onblur={(e) =>
-					void commit(
-						row.value,
-						(e.currentTarget as HTMLInputElement).value,
-					)}
-			/>
+			{#snippet actions()}
+				<span class="saved" aria-live="polite">
+					{#if savingType === row.value}
+						Saving…
+					{:else if savedType === row.value}
+						Saved ✓
+					{/if}
+				</span>
+			{/snippet}
+			<div class="control">
+				<NumberField
+					id={`${idPrefix}-${row.value}`}
+					size="sm"
+					unit="%"
+					min={POUR_TARGET_RULES.min}
+					max={POUR_TARGET_RULES.max}
+					step={1}
+					decimals={1}
+					noun={POUR_TARGET_RULES.noun}
+					disabled={pourSettings.saving && savingType !== row.value}
+					bind:value={draft[row.value]}
+					onblur={(e) => void commit(row.value, (e.currentTarget as HTMLInputElement).value)}
+				/>
+			</div>
 		</Field>
 	{/each}
 </div>
@@ -117,6 +139,7 @@
 		</Button>
 	</div>
 {/if}
+<ConfirmDialog {confirm} />
 
 <style>
 	.lead {
@@ -134,7 +157,17 @@
 
 	.rows {
 		display: grid;
-		gap: var(--space-3);
+		gap: var(--space-4);
+	}
+
+	/* A percentage is a few characters wide; the hint can use the full row. */
+	.control {
+		max-width: 7rem;
+	}
+
+	.saved {
+		font-size: var(--text-xs);
+		color: var(--success);
 	}
 
 	.actions {
