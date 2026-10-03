@@ -230,6 +230,31 @@ export function siteHealthState(site: HealthSite | null): { label: string; tone:
 	return { label: "Up", tone: "success" };
 }
 
+const CHECK_NAMES: Record<string, string> = { health: "Health page", home: "Home page" };
+
+/** A site-health check's name in words people use. */
+export function checkName(name: string): string {
+	const known = CHECK_NAMES[name.toLowerCase()];
+	if (known) return known;
+	const words = name.replace(/[-_]+/g, " ").trim();
+	return words ? words.charAt(0).toUpperCase() + words.slice(1) : "Check";
+}
+
+/** One line per site: is it up, and if not, what failed. */
+export function siteSummary(site: HealthSite): { label: string; tone: Tone; detail: string; failing: string[] } {
+	const state = siteHealthState(site);
+	const failing = site.checks
+		.filter((check) => !check.ok)
+		.map((check) => `${checkName(check.name)}: ${checkDetail(check)}`);
+	const total = site.checks.length;
+	let detail = "";
+	if (site.down) detail = site.lastError || "Not answering";
+	else if (failing.length) detail = `${failing.length} of ${total} checks failing`;
+	else if (total) detail = total === 1 ? "Its check is passing" : `All ${total} checks passing`;
+	else detail = "No checks yet";
+	return { label: state.label, tone: state.tone, detail, failing };
+}
+
 export function checkDetail(check: { ok: boolean; status: number | null; error: string }): string {
 	if (check.ok) return check.status != null ? String(check.status) : "OK";
 	return check.error || (check.status != null ? `HTTP ${check.status}` : "Failed");

@@ -18,7 +18,6 @@
 		SENTRY_ISSUES_URL,
 		agendaDate,
 		applicationsSummary,
-		checkDetail,
 		clockTime,
 		drinkReason,
 		featuredArtistEnding,
@@ -32,6 +31,7 @@
 		plural,
 		relativeTime,
 		siteHealthState,
+		siteSummary,
 		summarizeDrinks,
 		type Tone,
 	} from "./dashboard";
@@ -262,7 +262,7 @@
 	);
 
 	function siteName(site: HealthSite): string {
-		return site.id === "production" ? "Website" : "Preview";
+		return site.id === "production" ? "Website" : "Preview site";
 	}
 </script>
 
@@ -391,32 +391,29 @@
 				{#if !healthSites.length}
 					<p class="note">The site monitor has no results yet.</p>
 				{/if}
-				{#each healthSites as site (site.id)}
-					{@const state = siteHealthState(site)}
-					<div class="site">
-						<div class="site-head">
-							<span class="site-name">{siteName(site)}</span>
-							<Badge tone={state.tone} label={state.label} />
-						</div>
-						{#if site.checks.length}
-							<ul class="rows checks">
-								{#each site.checks as check (check.name)}
-									<li class="row check">
-										<span class="check-name">{check.name}</span>
-										<Badge
-											tone={check.ok ? "success" : "danger"}
-											title={checkDetail(check)}
-											label={check.ok ? "OK" : checkDetail(check)}
-										/>
-									</li>
+				<ul class="sites">
+					{#each healthSites as site (site.id)}
+						{@const summary = siteSummary(site)}
+						<li class="site {summary.tone}">
+							<span class="site-mark" aria-hidden="true">
+								<Icon name={summary.tone === "success" ? "check" : "alert"} size={16} />
+							</span>
+							<span class="site-text">
+								<span class="site-line">
+									<span class="site-name">{siteName(site)}</span>
+									<span class="site-state">{summary.label}</span>
+								</span>
+								<span class="site-detail">{summary.detail}</span>
+								{#each summary.failing as failure (failure)}
+									<span class="site-fail">{failure}</span>
 								{/each}
-							</ul>
-						{/if}
-						{#if site.consecutiveFails}
-							<p class="note danger-text">{plural(site.consecutiveFails, "failed check")} in a row.</p>
-						{/if}
-					</div>
-				{/each}
+								{#if site.consecutiveFails > 1}
+									<span class="site-fail">{plural(site.consecutiveFails, "failed check")} in a row</span>
+								{/if}
+							</span>
+						</li>
+					{/each}
+				</ul>
 			</DashCard>
 
 			<DashCard
@@ -1074,7 +1071,7 @@
 
 	.agenda-day {
 		display: grid;
-		grid-template-columns: 4rem minmax(0, 1fr);
+		grid-template-columns: 4.5rem minmax(0, 1fr);
 		gap: var(--space-4);
 		padding-block: var(--space-3);
 		border-top: 1px solid var(--border);
@@ -1130,18 +1127,58 @@
 		min-height: 3rem;
 	}
 
-	/* Health */
-
-	.site + .site {
-		margin-top: var(--space-4);
+	/* Health: one row per site, the state in words, failures spelled out. */
+	.sites {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
-	.site-head {
+	.site {
 		display: flex;
-		align-items: center;
-		justify-content: space-between;
+		align-items: flex-start;
 		gap: var(--space-3);
-		margin-bottom: var(--space-1);
+		padding-block: var(--space-3);
+		border-top: 1px solid var(--border);
+	}
+
+	.site:first-child {
+		border-top: 0;
+		padding-top: 0;
+	}
+
+	.site-mark {
+		display: inline-grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 50%;
+		background: var(--surface-3);
+		color: var(--fg-muted);
+	}
+
+	.site.success .site-mark {
+		background: var(--success-wash);
+		color: var(--success);
+	}
+
+	.site.danger .site-mark {
+		background: var(--danger-wash);
+		color: var(--danger);
+	}
+
+	.site-text {
+		display: grid;
+		gap: 2px;
+		min-width: 0;
+	}
+
+	.site-line {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
 	}
 
 	.site-name {
@@ -1149,17 +1186,28 @@
 		font-weight: 500;
 	}
 
-	.check {
-		min-height: 2rem;
+	.site-state {
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--fg-muted);
 	}
 
-	.check-name {
+	.site.success .site-state {
+		color: var(--success);
+	}
+
+	.site.danger .site-state {
+		color: var(--danger);
+	}
+
+	.site-detail {
 		font-size: var(--text-sm);
 		color: var(--fg-muted);
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+	}
+
+	.site-fail {
+		font-size: var(--text-sm);
+		color: var(--danger);
 	}
 
 	@media (max-width: 900px) {

@@ -44,14 +44,15 @@
 		font-weight: 600;
 		white-space: nowrap;
 		overflow: hidden;
-		text-overflow: ellipsis;
 		vertical-align: middle;
 	}
 
-	/* Ellipsis needs a block inside the flex box. */
+	/* Ellipsis needs a block inside the flex box. Clip sideways only, so
+	   descenders (the tail of "p" in "Up") still show under the trimmed box. */
 	.text {
 		min-width: 0;
-		overflow: hidden;
+		overflow-x: clip;
+		overflow-y: visible;
 		text-overflow: ellipsis;
 	}
 

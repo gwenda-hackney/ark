@@ -14,6 +14,7 @@ import {
 	summarizeDrinks,
 	targetGrossMargin,
 	agendaDate,
+	siteSummary,
 } from "./dashboard.ts";
 import type {
 	DashboardData,
@@ -392,5 +393,39 @@ describe("agendaDate", () => {
 		});
 		assert.equal(agendaDate("2026-10-03", "2026-10-03").relative, "Tonight");
 		assert.equal(agendaDate("2026-10-04", "2026-10-03").relative, "Tomorrow");
+	});
+});
+
+describe("siteSummary", () => {
+	const site = (checks: { name: string; ok: boolean; status: number | null; error: string }[], extra = {}) => ({
+		id: "production" as const,
+		url: "https://gwenda.co.uk",
+		ok: checks.every((check) => check.ok),
+		down: false,
+		consecutiveFails: 0,
+		lastCheckedAt: null,
+		lastError: "",
+		checks,
+		...extra,
+	});
+
+	it("says all checks pass in one line", () => {
+		const summary = siteSummary(site([
+			{ name: "health", ok: true, status: 200, error: "" },
+			{ name: "home", ok: true, status: 200, error: "" },
+		]));
+		assert.equal(summary.label, "Up");
+		assert.equal(summary.detail, "All 2 checks passing");
+		assert.deepEqual(summary.failing, []);
+	});
+
+	it("names only the checks that fail, in words", () => {
+		const summary = siteSummary(site([
+			{ name: "health", ok: true, status: 200, error: "" },
+			{ name: "home", ok: false, status: 500, error: "" },
+		]));
+		assert.equal(summary.tone, "danger");
+		assert.equal(summary.detail, "1 of 2 checks failing");
+		assert.deepEqual(summary.failing, ["Home page: HTTP 500"]);
 	});
 });
