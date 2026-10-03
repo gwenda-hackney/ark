@@ -574,6 +574,13 @@ export function seriesGallery(value) {
       alt: String(image?.alt || "").trim(),
       // A night's photo (#30): its page shows it too.
       date: String(image?.date || "").trim(),
+      // Shown while the photo loads: Sanity's tiny blurred copy, and its main colour.
+      lqip: /^data:image\/[a-z]+;base64,[A-Za-z0-9+/=]+$/.test(
+        image?.lqip || "",
+      )
+        ? image.lqip
+        : "",
+      color: /^#[0-9a-f]{3,8}$/i.test(image?.color || "") ? image.color : "",
     }))
     .filter((image) => image.url && image.width > 0 && image.height > 0);
 }

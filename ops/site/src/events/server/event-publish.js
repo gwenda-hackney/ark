@@ -57,7 +57,6 @@ import { forgetCalendarOccurrences } from "./event-calendar-sync.js";
 import { syncSocialTasks } from "./event-tasks.js";
 import {
   galleryBehind,
-  galleryEnabled,
   galleryFingerprint,
   listGalleryFiles,
   readGalleryStaged,
@@ -247,9 +246,6 @@ async function recordSeriesPreview(env, event, datesPending) {
  * the gallery already staged rather than emptying it.
  */
 async function stageGallery(env, event) {
-  if (!galleryEnabled(env)) {
-    return { images: [], complete: false, fingerprint: "", changed: false, error: "" };
-  }
   const staged = await readGalleryStaged(env);
   try {
     const files = await listGalleryFiles(env, event);
@@ -753,7 +749,7 @@ export async function putEventOnWebsite(env, id) {
   const staged =
     previewBehind(current) ||
     seriesAwaitingDates(current) ||
-    (galleryEnabled(env) && galleryBehind(current, await readGalleryStaged(env)))
+    galleryBehind(current, await readGalleryStaged(env))
     ? await publishEventPreview(env, id)
     : { event: current, warnings: [] };
   const ids = await eventDocumentIds(env, staged.event);

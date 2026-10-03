@@ -25,6 +25,7 @@ import { EVENT_FEED_PAGE_SIZE, diaryCacheControl } from "./event-feed.js";
 import {
   buildSeriesDetail,
   nightPagePaths,
+  seriesGallery,
   seriesRedirects,
 } from "./event-series.js";
 import { portableTextToPlain } from "./portable-text.js";
@@ -60,7 +61,7 @@ const NIGHT_PAGES_QUERY = `{
   "series": *[_type == "eventSeries"] {
     "seriesId": slug.current,
     formerSlugs,
-    "gallery": gallery[defined(date)]{ date, alt, "url": asset->url, "width": asset->metadata.dimensions.width, "height": asset->metadata.dimensions.height }
+    "gallery": gallery[defined(date)]{ date, alt, "url": asset->url, "width": asset->metadata.dimensions.width, "height": asset->metadata.dimensions.height, "lqip": asset->metadata.lqip, "color": asset->metadata.palette.dominant.background }
   }
 }`;
 
@@ -181,9 +182,9 @@ async function resolveNight(env, seriesId, date, ticket) {
   }
   const { event } = page;
   // The night's own photos from the series gallery (#30).
-  const photos = (data.series || [])
-    .find((row) => row.seriesId === page.series)
-    ?.gallery?.filter((image) => image.date === page.date);
+  const photos = seriesGallery(
+    (data.series || []).find((row) => row.seriesId === page.series)?.gallery,
+  ).filter((image) => image.date === page.date);
   return {
     shell: ticket ? TICKET_SHELL : NIGHT_SHELL,
     fill: (html) =>

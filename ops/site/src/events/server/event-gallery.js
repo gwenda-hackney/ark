@@ -33,13 +33,6 @@ import {
   sanityUploadImage,
 } from "../../platform/sanity.js";
 
-/**
- * On in dev; production waits until the website gallery has been checked on
- * a phone (#30). Off, nothing is copied.
- */
-export function galleryEnabled(env) {
-  return environmentOf(env) === "dev";
-}
 const NIGHT_FOLDER = /^\d{4}-\d{2}-\d{2}$/;
 /** New photos uploaded per request. */
 export const GALLERY_UPLOADS_PER_RUN = 4;
@@ -99,11 +92,6 @@ export async function forgetGalleryStaged(env, eventId) {
 /** The event has a Drive folder whose gallery is not staged yet. */
 export function galleryBehind(event, staged = {}) {
   return Boolean(event?.driveFolderId) && !(String(event.id) in staged);
-}
-
-/** What's staged, or null while the gallery is off (nothing to copy). */
-export async function readGalleryStagedIfOn(env) {
-  return galleryEnabled(env) ? readGalleryStaged(env) : null;
 }
 
 /**
