@@ -46,6 +46,8 @@
 		noun?: string;
 		example?: string;
 		size?: "md" | "sm";
+		/** Right-align figures in a table column. */
+		align?: "start" | "end";
 		/** On blur, with the tidied value (only when it reads as a number or is blank). */
 		oncommit?: (value: string) => void;
 	} = $props();

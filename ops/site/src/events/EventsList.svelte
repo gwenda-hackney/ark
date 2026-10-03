@@ -8,12 +8,12 @@
 	import { Icon } from "../app/shell";
 	import {
 		Button,
+		DateField,
 		MultiSelect,
 		PageHeader,
 		PageHelp,
 		SearchField,
 		Segmented,
-		TextField,
 	} from "../ui";
 	import type { SegmentedItem } from "../ui/types";
 	import { easeOut, flyMs } from "../ui/motion";
@@ -322,11 +322,11 @@
 					</div>
 					<div class="filter-dates">
 						<label class="filter-label" for="event-from">From</label>
-						<TextField id="event-from" size="sm" type="date" bind:value={scheduleFrom} />
+						<DateField id="event-from" size="sm" bind:value={scheduleFrom} />
 					</div>
 					<div class="filter-dates">
 						<label class="filter-label" for="event-to">To</label>
-						<TextField id="event-to" size="sm" type="date" bind:value={scheduleTo} />
+						<DateField id="event-to" size="sm" bind:value={scheduleTo} min={scheduleFrom} />
 					</div>
 				{/if}
 				<button
@@ -431,7 +431,7 @@
 	}
 
 	.filter-dates {
-		flex: 0 1 9.5rem;
+		flex: 0 1 11rem;
 		min-width: 0;
 	}
 

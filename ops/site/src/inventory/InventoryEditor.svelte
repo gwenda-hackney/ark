@@ -3,14 +3,19 @@
 	import {
 		Button,
 		BusyOverlay,
-		Dialog,
+		ConfirmDialog,
+		EditorActionBar,
 		EditorBackBar,
 		Field,
+		FormErrors,
+		MoneyField,
 		NativeSelect,
+		NumberField,
 		SidePanel,
 		TextArea,
 		TextField,
 	} from "../ui";
+	import { parseNumber } from "../ui/number-input";
 	import type { SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
 	import { INVENTORY_KINDS, skuFromProductUrl, type CatalogSupplier, type InventoryItem, type InventoryKind, type InventorySupplier } from "./types";
@@ -46,6 +51,8 @@
 	} = $props();
 
 	let snapshot = $state("");
+	/** Problems from the last Save, by field id. */
+	const errors = new FormErrors();
 	let deleteOpen = $state(false);
 	let discardOpen = $state(false);
 	let supplierDrawerOpen = $state(false);
@@ -174,6 +181,7 @@
 		const key = itemKey;
 		void key;
 		snapshot = serialize(untrack(() => item));
+		errors.clearAll();
 		discardOpen = false;
 		deleteOpen = false;
 		supplierDrawerOpen = false;
@@ -402,24 +410,34 @@
 	function estimateHint(kind: InventoryKind | undefined): string {
 		const est = kindCostEstimate(kind);
 		if (est.variable) {
-			return `Stand-in for a ${est.label} when there is no supplier price. Fresh juice and produce move around. House guess if empty: ${formatGbp(est.cost)}.`;
+			return `Used when there's no supplier price. Fresh produce moves around. Blank uses ${formatGbp(est.cost)}.`;
 		}
-		return `Stand-in for a ${est.label} when there is no supplier price. House guess if empty: ${formatGbp(est.cost)}.`;
+		return `Used when there's no supplier price. Blank uses ${formatGbp(est.cost)}.`;
+	}
+
+	function submit() {
+		if (busy || !item) return;
+		errors.replace({ "inv-name": String(item.name || "").trim() ? "" : "Add a short name." });
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
+		onsave();
 	}
 </script>
 
 {#if item}
 	<form
 		class="editor"
+		novalidate
 		aria-busy={busy || undefined}
 		onsubmit={(e) => {
 			e.preventDefault();
-			if (busy) return;
-			onsave();
+			submit();
 		}}
 	>
 		<BusyOverlay active={busy} label={busyLabel} />
-		<EditorBackBar label="Inventory" {dirty} onback={discardAndClose} />
+		<EditorBackBar label="Inventory" onback={discardAndClose} />
 		<div class="panel" class:dirty>
 			<header class="panel-head">
 				<div class="titles">
@@ -432,11 +450,18 @@
 							autocomplete="off"
 							placeholder="Short name"
 							aria-label="Short name"
+							aria-invalid={errors.get("inv-name") ? true : undefined}
+							aria-describedby={errors.get("inv-name") ? "inv-name-error" : undefined}
 							value={item.name || ""}
-							oninput={(e) =>
-								patch("name", (e.currentTarget as HTMLInputElement).value)}
+							oninput={(e) => {
+								errors.clear("inv-name");
+								patch("name", (e.currentTarget as HTMLInputElement).value);
+							}}
 						/>
 					</div>
+					{#if errors.get("inv-name")}
+						<p class="name-error" id="inv-name-error">{errors.get("inv-name")}</p>
+					{/if}
 				</div>
 				<div class="head-actions">
 					<label
@@ -455,9 +480,6 @@
 						<span class="switch-ui"></span>
 						<span class="switch-label">Active</span>
 					</label>
-					{#if dirty}
-						<span class="dirty-pill" aria-live="polite">Unsaved</span>
-					{/if}
 					<Button
 						class="close-btn"
 						variant="ghost"
@@ -480,7 +502,8 @@
 						<Field
 							label="Full name"
 							for="inv-full-name"
-							tooltip="Bottle name. Specs keep the short name; analysis uses this to match the guest menu line (St-Germain is elderflower liqueur)."
+							optional
+							hint="The bottle's full name. Specs keep the short name; analysis uses this to match the menu line."
 						>
 							<TextField
 								id="inv-full-name"
@@ -505,13 +528,18 @@
 								patch("kind", e.currentTarget.value as InventoryKind)}
 						/>
 					</Field>
-					<Field label="ABV %" for="inv-abv">
-						<TextField
+					<Field label="ABV" for="inv-abv" width="sm" optional>
+						<NumberField
 							id="inv-abv"
 							size="sm"
-							inputmode="decimal"
+							unit="%"
+							min={0}
+							max={100}
+							step={0.5}
+							decimals={1}
+							noun="a percentage"
 							placeholder="40"
-							value={item.abv || ""}
+							value={String(item.abv || "").replace(/\s*%\s*$/, "")}
 							oninput={(e) =>
 								patch(
 									"abv",
@@ -529,16 +557,16 @@
 						/>
 					</Field>
 					<Field
-						label="Estimate (£)"
+						label="Estimated cost"
 						for="inv-estimate"
-						tooltip={estimateHint(item.kind)}
+						optional
+						hint={estimateHint(item.kind)}
 					>
-						<TextField
+						<div class="money">
+						<MoneyField
 							id="inv-estimate"
 							size="sm"
-							numeric
-							inputmode="decimal"
-							placeholder={String(kindCostEstimate(item.kind).cost)}
+							placeholder={kindCostEstimate(item.kind).cost.toFixed(2)}
 							value={
 								item.estimatedCost != null
 									? String(item.estimatedCost)
@@ -550,24 +578,28 @@
 									patch("estimatedCost", undefined);
 									return;
 								}
-								const n = Number(raw.replace(/[£,\s]/g, ""));
+								const n = parseNumber(raw);
 								patch(
 									"estimatedCost",
-									Number.isFinite(n) ? n : item?.estimatedCost,
+									typeof n === "number" ? n : item?.estimatedCost,
 								);
 							}}
 						/>
+						</div>
 					</Field>
 					<Field
 						label="On hand"
 						for="inv-on-hand"
-						tooltip={onHandHint}
+						optional
+						hint={onHandHint}
 					>
-						<TextField
+						<div class="money">
+						<NumberField
 							id="inv-on-hand"
 							size="sm"
-							numeric
-							inputmode="decimal"
+							min={0}
+							decimals={2}
+							noun="a quantity"
 							placeholder="0"
 							value={item.actualQty != null ? String(item.actualQty) : ""}
 							oninput={(e) => {
@@ -577,8 +609,8 @@
 									patch("actualQty", undefined);
 									return;
 								}
-								const n = Number(raw.replace(/,/g, ""));
-								if (!Number.isFinite(n)) {
+								const n = parseNumber(raw);
+								if (typeof n !== "number") {
 									patch("actualQty", item.actualQty);
 									return;
 								}
@@ -593,6 +625,7 @@
 								patch("actualQty", n);
 							}}
 						/>
+						</div>
 					</Field>
 					<Field label="On-hand unit" for="inv-on-hand-unit">
 						<NativeSelect
@@ -649,13 +682,10 @@
 											<td class="mono">{entry.sku || ""}</td>
 											<td>{entry.pack || ""}</td>
 											<td class="price-cell">
-												<TextField
+												<MoneyField
 													class="price-input"
 													size="sm"
-													numeric
 													align="end"
-													inputmode="decimal"
-													placeholder="0.00"
 													aria-label="Price for {entry.name || 'supplier'}"
 													value={
 														entry.price != null ? String(entry.price) : ""
@@ -724,7 +754,7 @@
 				</section>
 
 				<section class="block">
-					<Field label="Notes" for="inv-notes">
+					<Field label="Notes" for="inv-notes" optional>
 						<TextArea
 							id="inv-notes"
 							rows={3}
@@ -739,87 +769,41 @@
 				</section>
 			</div>
 
-			<footer class="panel-foot">
-				{#if item._id || item.id}
-					<Button
-						class="delete-btn"
-						variant="destructive"
-						size="sm"
-						type="button"
-						disabled={busy}
-						busy={busy && busyLabel.startsWith("Deleting")}
-						onclick={() => (deleteOpen = true)}
-					>
-						{#snippet icon()}
-							<Icon name="x-circle" />
-						{/snippet}
-						Delete
-					</Button>
-				{/if}
-				<Button
-					variant="primary"
-					size="sm"
-					type="submit"
-					disabled={busy}
-					busy={busy && busyLabel.startsWith("Saving")}
-				>
-					{busy && busyLabel.startsWith("Saving") ? "Saving…" : "Save"}
-				</Button>
-			</footer>
+			<EditorActionBar
+				saveLabel="Save item"
+				saving={busy && busyLabel.startsWith("Saving")}
+				disabled={busy}
+				{dirty}
+				errorCount={errors.count}
+				onerrors={() => void errors.reveal()}
+				overflow={item._id || item.id
+					? [{ label: "Delete item", tone: "destructive", disabled: busy, onselect: () => (deleteOpen = true) }]
+					: []}
+			/>
 		</div>
 	</form>
 
-	<Dialog
+	<ConfirmDialog
 		open={discardOpen}
 		title="Discard unsaved changes?"
-		onclose={cancelDiscard}
-	>
-		<p class="copy">You have edits that have not been saved. Close without saving?</p>
-		{#snippet footer()}
-			<Button
-				variant="outline"
-				size="sm"
-				type="button"
-				onclick={cancelDiscard}
-			>
-				Keep editing
-			</Button>
-			<Button variant="destructive" size="sm" type="button" onclick={confirmDiscard}>
-				Discard
-			</Button>
-		{/snippet}
-	</Dialog>
+		message="You have edits that haven't been saved. They will be lost."
+		action="Discard"
+		cancelLabel="Keep editing"
+		oncancel={cancelDiscard}
+		onconfirm={confirmDiscard}
+	/>
 
-	<Dialog
+	<ConfirmDialog
 		open={deleteOpen}
-		title="Remove from inventory?"
-		onclose={() => (deleteOpen = false)}
-	>
-		<p class="copy">
-			Remove <strong>{item.name || "this ingredient"}</strong> from inventory?
-		</p>
-		{#snippet footer()}
-			<Button
-				variant="outline"
-				size="sm"
-				type="button"
-				onclick={() => (deleteOpen = false)}
-			>
-				Keep
-			</Button>
-			<Button
-				variant="destructive"
-				size="sm"
-				type="button"
-				onclick={() => {
-					deleteOpen = false;
-					ondelete();
-				}}
-			>
-				Remove
-			</Button>
-		{/snippet}
-	</Dialog>
+		title={`Delete ${item.name || "this item"}?`}
+		message="It goes from inventory and the ingredient picker. This can't be undone."
+		action="Delete"
+		oncancel={() => (deleteOpen = false)}
+		onconfirm={() => {
+			deleteOpen = false;
+			ondelete();
+		}}
+	/>
 
 	<SidePanel
 		open={supplierDrawerOpen}
@@ -863,10 +847,12 @@
 						<a href="/suppliers">Manage suppliers</a>
 					</p>
 					<div class="drawer-row">
-						<Field label="SKU" for="drawer-sku">
+						<Field label="SKU" for="drawer-sku" optional>
 							<TextField
 								id="drawer-sku"
 								size="sm"
+								mono
+								spellcheck="false"
 								placeholder="SPA47010"
 								value={supplierDraft.sku || ""}
 								oninput={(e) =>
@@ -876,7 +862,7 @@
 									)}
 							/>
 						</Field>
-						<Field label="Pack" for="drawer-pack">
+						<Field label="Pack" for="drawer-pack" optional>
 							<TextField
 								id="drawer-pack"
 								size="sm"
@@ -889,13 +875,10 @@
 									)}
 							/>
 						</Field>
-						<Field label="Price" for="drawer-price">
-							<TextField
+						<Field label="Price" for="drawer-price" optional>
+							<MoneyField
 								id="drawer-price"
 								size="sm"
-								numeric
-								inputmode="decimal"
-								placeholder="0.00"
 								value={
 									supplierDraft.price == null
 										? ""
@@ -909,10 +892,13 @@
 							/>
 						</Field>
 					</div>
-					<Field label="Product page" for="drawer-url">
+					<Field label="Product page" for="drawer-url" optional>
 						<TextField
 							id="drawer-url"
 							size="sm"
+							type="url"
+							inputmode="url"
+							spellcheck="false"
 							placeholder="https://"
 							value={supplierDraft.productUrl || ""}
 							oninput={(e) =>
@@ -1061,12 +1047,15 @@
 		flex-shrink: 0;
 	}
 
-	.dirty-pill {
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--primary);
+	.name-error {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--danger);
+	}
+
+	/* Money and counts are a few characters wide. */
+	.money {
+		max-width: 9rem;
 	}
 
 	.body {
@@ -1337,24 +1326,6 @@
 		margin-right: auto;
 	}
 
-	.panel-foot {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: var(--space-2);
-		padding: 0.55rem var(--card-pad) 0.75rem;
-		border-top: 1px solid var(--border);
-	}
-
-	.panel-foot :global(.delete-btn) {
-		margin-right: auto;
-	}
-
-	.copy {
-		margin: 0;
-		font-size: var(--text-base);
-		line-height: 1.45;
-	}
 
 	.switch {
 		display: inline-flex;
@@ -1442,9 +1413,6 @@
 			display: none;
 		}
 
-		.dirty-pill {
-			display: none;
-		}
 	}
 
 	@media (max-width: 880px) {
@@ -1456,8 +1424,5 @@
 			grid-template-columns: 1fr;
 		}
 
-		.panel-foot {
-			padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-		}
 	}
 </style>
