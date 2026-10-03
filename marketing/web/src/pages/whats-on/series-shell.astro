@@ -1,0 +1,30 @@
+---
+/**
+ * The series page, filled in per request by functions/_lib/event-pages.js
+ * (#25). The __EVENT_…__ tokens and <series-…> tags are replaced there.
+ */
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import FollowUpdatesLink from "../../components/FollowUpdatesLink.astro";
+import Subpage from "../../components/Subpage.astro";
+import { DATES_PENDING_LABEL } from "../../../functions/_lib/event-series.js";
+---
+
+<BaseLayout
+  title="__EVENT_TITLE__ · Gwenda"
+  description="__EVENT_DESCRIPTION__"
+>
+  <Subpage
+    class="whats-on-series-page events-page __EVENT_LAYOUT__"
+    innerClass="events-inner whats-on-series-inner"
+    eyebrow="__EVENT_EYEBROW__"
+    title="__EVENT_TITLE__"
+  >
+    <Fragment slot="lead"><series-lead></series-lead></Fragment>
+    <series-body>
+      <section class="events-empty whats-on-series-pending">
+        <h2>{DATES_PENDING_LABEL}</h2>
+        <FollowUpdatesLink />
+      </section>
+    </series-body>
+  </Subpage>
+</BaseLayout>

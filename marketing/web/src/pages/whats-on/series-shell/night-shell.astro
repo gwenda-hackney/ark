@@ -1,0 +1,22 @@
+---
+/** A night's page, filled in per request by functions/_lib/event-pages.js (#25). */
+import EventRsvpPage from "../../../components/EventRsvpPage.astro";
+import { isPreview, previewOrigin } from "../../../config/env";
+import { siteConfig } from "../../../config/site";
+
+const siteOrigin = isPreview ? previewOrigin : siteConfig.domain;
+---
+
+<EventRsvpPage
+  meta={{
+    title: "__EVENT_TITLE__ · Gwenda",
+    description: "__EVENT_DESCRIPTION__",
+    url: `${siteOrigin}${Astro.url.pathname.replace(/\/$/, "")}`,
+    image: `${siteOrigin}/og/events/__EVENT_SLUG__.jpg`,
+    imageWidth: 1200,
+    imageHeight: 630,
+    imageType: "image/jpeg",
+    imageAlt: "__EVENT_TITLE__",
+  }}
+  occurrenceSlug="__EVENT_SLUG__"
+/>

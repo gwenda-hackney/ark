@@ -628,7 +628,7 @@ export class EventEditor {
 			this.rememberEvent(data.event, false);
 			this.putOpen = false;
 			for (const warning of data.warnings || []) toast.info(warning);
-			toast.ok("Website updated. What's on shows it now; its page follows in a few minutes.");
+			toast.ok("On the website now.");
 			void refreshSitePending();
 		} catch (err) {
 			this.putError = err instanceof Error ? err.message : "Could not update the website.";

@@ -23,17 +23,17 @@ describe("eventHeaderFlag", () => {
 
   it("never mentions the preview site in hosted ops", () => {
     assert.equal(eventHeaderFlag({ preview: "stale", live: "unpublished" }, false).label, "Not on the website yet");
-    assert.equal(eventHeaderFlag({ preview: "stale", live: "stale" }, false).label, "Website has an older version");
+    assert.equal(eventHeaderFlag({ preview: "stale", live: "stale" }, false).label, "Changes not on the website yet");
   });
 
-  it("separates never published, older version and live", () => {
+  it("separates never published, changed and live", () => {
     assert.equal(
       eventHeaderFlag({ preview: "current", live: "unpublished" }, false).label,
       "Not on the website yet",
     );
     assert.equal(
       eventHeaderFlag({ preview: "current", live: "stale" }, false).label,
-      "Website has an older version",
+      "Changes not on the website yet",
     );
     assert.deepEqual(eventHeaderFlag({ preview: "current", live: "current" }, false), {
       label: "On the website",
