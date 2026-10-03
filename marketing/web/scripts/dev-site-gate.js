@@ -13,7 +13,8 @@ import {
 } from "../functions/_lib/site-auth.js";
 
 /** Vite dev plugin — must run at the Node HTTP layer (Astro static middleware cannot read cookies). */
-export function devSiteGate({ password, bypassKey } = {}) {
+/** `open`: everyone counts as signed in (localhost is only reachable by you); share links still work. */
+export function devSiteGate({ password, bypassKey, open = false } = {}) {
   if (!password) return null;
 
   const handleAuthPost = (req, res) => {
@@ -50,7 +51,8 @@ export function devSiteGate({ password, bypassKey } = {}) {
   const handleGate = async (req, res, next) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     const cookies = parseCookies(req.headers.cookie);
-    const authed = await verifyAuthToken(password, cookies[AUTH_COOKIE_NAME]);
+    const authed =
+      open || (await verifyAuthToken(password, cookies[AUTH_COOKIE_NAME]));
     const accessParam = url.searchParams.get("access");
 
     if (bypassKey && accessParam && matchesSecret(accessParam, bypassKey)) {

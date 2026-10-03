@@ -7112,7 +7112,7 @@ a.event-card:focus-visible .event-title,
 
 /* Series gallery: rows of photos at one height, each as wide as its shape. */
 .series-gallery {
-  margin-top: clamp(2.5rem, 6vw, 4.5rem);
+  margin-top: clamp(0.5rem, 2vw, 1.5rem);
 }
 
 .series-gallery-list {
