@@ -417,9 +417,22 @@ class FakeGoogle {
     if (url.host === "oauth2.googleapis.com" && url.pathname === "/token") {
       return json({ access_token: `google-token-${newId()}`, expires_in: 3600, token_type: "Bearer" });
     }
+    if (url.pathname === "/upload/drive/v3/files" && method === "POST") return this.driveUpload(init);
     if (url.pathname.startsWith("/drive/v3/files")) return this.drive(url, init, method);
     if (url.pathname.startsWith("/calendar/v3/")) return this.calendarApi(url, init, method);
     throw new Error(`Fake Google: unhandled ${method} ${url.host}${url.pathname}`);
+  }
+
+  /** A multipart upload: the JSON metadata part, then the bytes. */
+  driveUpload(init) {
+    const raw = new TextDecoder("latin1").decode(init.body);
+    const metadata = JSON.parse(raw.split("\r\n\r\n")[1].split("\r\n--")[0]);
+    const mimeType = raw.match(/--[^\r]+\r\nContent-Type: (image\/[a-z]+)/)?.[1] || "image/jpeg";
+    // Uploads in order of creation, so "newest first" is testable.
+    const createdTime = new Date(Date.UTC(2026, 0, 1) + newId() * 1000).toISOString();
+    const file = { id: `drive-${newId()}`, name: metadata.name, mimeType, parents: metadata.parents || [], createdTime };
+    this.driveFiles.set(file.id, file);
+    return json(file);
   }
 
   drive(url, init, method) {
@@ -446,6 +459,9 @@ class FakeGoogle {
     }
     const file = this.driveFiles.get(id);
     if (!file) return json({ error: { message: "File not found" } }, 404);
+    if (method === "GET" && url.searchParams.get("alt") === "media") {
+      return new Response(new Uint8Array(2048).fill(9), { headers: { "Content-Type": file.mimeType } });
+    }
     if (method === "GET") return json(file);
     if (method === "PATCH") {
       Object.assign(file, JSON.parse(init.body || "{}"));

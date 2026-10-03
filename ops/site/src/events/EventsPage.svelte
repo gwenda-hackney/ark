@@ -247,7 +247,9 @@
 	$effect(() => {
 		if (!editor.editing || editor.tab !== "gallery") return;
 		const id = editor.eventId;
-		void editor.gallery.load(id).then((folder) => {
+		// Editing a night: its own photos (they show on the series too).
+		const date = editor.editingOccurrence ? editor.occurrenceDate || "" : "";
+		void editor.gallery.load(id, false, date).then((folder) => {
 			if (!folder || editor.current?.id !== id) return;
 			editor.current = {
 				...editor.current,

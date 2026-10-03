@@ -572,6 +572,8 @@ export function seriesGallery(value) {
       width: Number(image?.width) || 0,
       height: Number(image?.height) || 0,
       alt: String(image?.alt || "").trim(),
+      // A night's photo (#30): its page shows it too.
+      date: String(image?.date || "").trim(),
     }))
     .filter((image) => image.url && image.width > 0 && image.height > 0);
 }

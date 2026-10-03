@@ -13,12 +13,14 @@ import { initContactForm, initContactFormSubmitted } from "./contact-form.js";
 import { currentPageAnchorId, pageAnchorSections } from "./page-anchors.js";
 import { initSchedulePage } from "./schedule.js";
 import { initHomeNext, initSeriesPage, initWhatsOnPage } from "./whats-on.js";
+import { initGallery } from "./gallery.js";
 
 /** @type {AbortController | null} */
 let pageAbort = null;
 
 initOverlayScrollbars();
 initNavigationRestore();
+initGallery();
 
 /**
  * Page-scoped UI. Re-runs after Astro View Transitions swap the DOM.

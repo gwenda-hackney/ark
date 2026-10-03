@@ -138,10 +138,13 @@ const { meta, occurrenceSlug = "" } = Astro.props;
           </InviteFlipCardShell>
         </div>
       </section>
+      <slot />
     </main>
     <script>
       import { initEventRsvp } from "../scripts/event-rsvp.js";
+      import { initGallery } from "../scripts/gallery.js";
       initEventRsvp();
+      initGallery();
     </script>
   </body>
 </html>

@@ -9,15 +9,22 @@
  *
  * Drive has no change feed, so ops records which galleries are staged
  * (site.gallery_staged) and the Drive endpoints forget an event when its
- * gallery changes. Photos added in Drive directly show after the next save.
+ * gallery changes. Photos added in Drive directly show after the next save,
+ * or when someone opens the event's Images tab.
+ *
+ * A night's photos go in a subfolder of the gallery named by its date
+ * (2026-10-02). They show on the series gallery too, marked with that date,
+ * and the night's page shows its own (#30).
  */
 import { environmentOf, readState, writeState } from "../../../../../shared/config.js";
 import {
   GALLERY_FOLDER_NAME,
   downloadDriveThumbnail,
   findNamedFolder,
+  isDriveImage,
   listDriveChildren,
   listDriveImages,
+  mapDriveImage,
 } from "../../platform/google-drive.js";
 import {
   PREVIEW,
@@ -26,10 +33,14 @@ import {
   sanityUploadImage,
 } from "../../platform/sanity.js";
 
-/** Off until the series page gallery is finished: nothing is copied. */
-export const GALLERY_ENABLED = false;
-/** Photos shown on a series page. */
-export const GALLERY_MAX = 24;
+/**
+ * On in dev; production waits until the website gallery has been checked on
+ * a phone (#30). Off, nothing is copied.
+ */
+export function galleryEnabled(env) {
+  return environmentOf(env) === "dev";
+}
+const NIGHT_FOLDER = /^\d{4}-\d{2}-\d{2}$/;
 /** New photos uploaded per request. */
 export const GALLERY_UPLOADS_PER_RUN = 4;
 /** Longest edge of the copy sent to Sanity (Drive thumbnails go up to 1600). */
@@ -41,10 +52,10 @@ export function galleryAssetFilename(file) {
   return `drive-${file.id}${stamp ? `-${stamp}` : ""}`;
 }
 
-/** Changes whenever a photo is added, removed, reordered or edited. */
+/** Changes whenever a photo is added, removed, moved or edited. */
 export function galleryFingerprint(files) {
   return (files || [])
-    .map((file) => `${file.id}:${file.modifiedTime || ""}`)
+    .map((file) => `${file.id}:${file.modifiedTime || ""}:${file.date || ""}`)
     .join("|");
 }
 
@@ -86,11 +97,19 @@ export async function forgetGalleryStaged(env, eventId) {
 }
 
 /** The event has a Drive folder whose gallery is not staged yet. */
-export function galleryBehind(event, staged = {}, { enabled = GALLERY_ENABLED } = {}) {
-  return enabled && Boolean(event?.driveFolderId) && !(String(event.id) in staged);
+export function galleryBehind(event, staged = {}) {
+  return Boolean(event?.driveFolderId) && !(String(event.id) in staged);
 }
 
-/** Gallery photos in Drive order, without creating any folder. */
+/** What's staged, or null while the gallery is off (nothing to copy). */
+export async function readGalleryStagedIfOn(env) {
+  return galleryEnabled(env) ? readGalleryStaged(env) : null;
+}
+
+/**
+ * Every gallery photo, newest first, without creating any folder: the
+ * gallery's own (`date` "") and each night's dated subfolder.
+ */
 export async function listGalleryFiles(env, event) {
   if (!event?.driveFolderId) return [];
   const folder = findNamedFolder(
@@ -98,7 +117,13 @@ export async function listGalleryFiles(env, event) {
     GALLERY_FOLDER_NAME,
   );
   if (!folder?.id) return [];
-  return (await listDriveImages(env, folder.id)).slice(0, GALLERY_MAX);
+  const children = await listDriveChildren(env, folder.id);
+  const files = children.filter(isDriveImage).map((file) => ({ ...mapDriveImage(file), date: "" }));
+  for (const night of children.filter((file) => NIGHT_FOLDER.test(file?.name || "") && !isDriveImage(file))) {
+    for (const file of await listDriveImages(env, night.id)) files.push({ ...file, date: night.name });
+  }
+  const added = (file) => file.createdTime || file.modifiedTime || "";
+  return files.sort((a, b) => added(b).localeCompare(added(a)) || a.name.localeCompare(b.name));
 }
 
 function galleryImage(file, assetId) {
@@ -107,6 +132,8 @@ function galleryImage(file, assetId) {
     _key: file.id,
     alt: "",
     driveFileId: file.id,
+    // A night's photo: its page shows it as well as the series.
+    ...(file.date ? { date: file.date } : {}),
     asset: { _type: "reference", _ref: assetId },
   };
 }
