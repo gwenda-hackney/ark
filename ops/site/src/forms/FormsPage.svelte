@@ -831,13 +831,13 @@
 		text-underline-offset: 0.15em;
 	}
 
+	/* Sections of the panel sit on its surface, divided by a rule, never in a
+	   darker box. */
 	.card {
 		display: grid;
 		gap: var(--space-3);
-		padding: var(--card-pad);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--background);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border);
 	}
 
 	.artist-actions {

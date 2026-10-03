@@ -353,6 +353,7 @@
 				variant="outline"
 				size="sm"
 				disabled={!rows.length}
+				reason={rows.length ? undefined : "Nothing listed"}
 				onclick={selectAllVisible}
 			>
 				{#snippet icon()}<Icon name="check" size={14} />{/snippet}
@@ -362,6 +363,7 @@
 				variant="ghost"
 				size="sm"
 				disabled={!selectedCount}
+				reason={selectedCount ? undefined : "Nothing selected"}
 				onclick={clearSelected}
 			>
 				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
@@ -371,6 +373,7 @@
 				variant="primary"
 				size="sm"
 				disabled={!selectedCount || savingSkus}
+				reason={!selectedCount ? "Select drinks or stock first" : undefined}
 				title={newSkuCount
 					? `${newSkuCount} new SKU${newSkuCount === 1 ? "" : "s"} will be saved on download`
 					: "Download the selection"}

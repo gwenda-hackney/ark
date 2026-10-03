@@ -91,6 +91,12 @@
 		background: var(--sunken);
 	}
 
+	/* Grids and lists inside a card sit on its surface, never a darker box. */
+	.card {
+		--grid-bg: transparent;
+		--grid-head-bg: transparent;
+	}
+
 	.primary {
 		border-color: transparent;
 		background:

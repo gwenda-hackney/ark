@@ -371,7 +371,7 @@
 		padding: var(--space-1);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
-		background: var(--sunken);
+		background: transparent;
 	}
 
 	.option {

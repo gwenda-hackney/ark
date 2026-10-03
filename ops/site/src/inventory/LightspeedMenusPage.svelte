@@ -179,16 +179,20 @@
 	</PageHeader>
 
 	<div class="stack">
-		<Card
-			title="Add menu"
-		>
+		<Card title="Add menu" class="add-card">
 			<form class="add" onsubmit={onAdd}>
 				<Field label="Name" for="pos-menu-name" width="lg">
 					<TextField id="pos-menu-name" bind:value={name} placeholder="Live menu" />
 				</Field>
 				<Switch bind:checked={makeDefault} label="Default for new drinks" />
 				<div class="actions">
-					<Button type="submit" variant="primary" busy={saving} disabled={!name.trim()}>
+					<Button
+						type="submit"
+						variant="primary"
+						busy={saving}
+						disabled={!name.trim()}
+						reason={name.trim() ? undefined : "Type a name first"}
+					>
 						{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 						Add
 					</Button>
@@ -199,7 +203,7 @@
 			{/if}
 		</Card>
 
-		<Card title="Menus" subtitle="{menus.length} in ops">
+		<Card title="Menus" subtitle="{menus.length} in ops" class="menus-card">
 			{#if !loading && menus.length === 0}
 				<p class="muted">No POS menus yet.</p>
 			{:else if !loading}
@@ -246,17 +250,16 @@
 										Cancel
 									</Button>
 								{:else}
-									{#if !menu.isDefault}
-										<Button
-											variant="outline"
-											size="sm"
-											disabled={busyId === menu.id}
-											onclick={() => void onDefault(menu)}
-										>
-											{#snippet icon()}<Icon name="star" size={14} />{/snippet}
-											Make default
-										</Button>
-									{/if}
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={busyId === menu.id || menu.isDefault}
+										reason={menu.isDefault ? "Already the default" : undefined}
+										onclick={() => void onDefault(menu)}
+									>
+										{#snippet icon()}<Icon name="star" size={14} />{/snippet}
+										Make default
+									</Button>
 									<Button
 										variant="ghost"
 										size="sm"
@@ -298,11 +301,28 @@
 		padding: var(--page-gutter);
 	}
 
+	/* The menus list takes the wide column, Add menu the narrow one. */
 	.stack {
 		display: grid;
+		grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+		grid-template-areas: "menus add";
 		gap: var(--space-6);
-		max-width: 40rem;
-		align-content: start;
+		align-items: start;
+	}
+
+	.stack :global(.add-card) {
+		grid-area: add;
+	}
+
+	.stack :global(.menus-card) {
+		grid-area: menus;
+	}
+
+	@media (max-width: 1100px) {
+		.stack {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-areas: "add" "menus";
+		}
 	}
 
 	.add {

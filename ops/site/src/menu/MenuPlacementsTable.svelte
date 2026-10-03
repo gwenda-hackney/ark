@@ -284,11 +284,10 @@
 		gap: var(--space-3);
 	}
 
+	/* On the card's own surface; rows carry their own dividers. */
 	.table-wrap {
 		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
+		border-top: 1px solid var(--border);
 	}
 
 	.menu-table {

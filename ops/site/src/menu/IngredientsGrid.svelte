@@ -495,7 +495,10 @@
 		color: var(--muted-foreground);
 	}
 
+	/* Lives inside the editor card: the grid sits on the card surface. */
 	.host {
+		--grid-bg: transparent;
+		--grid-head-bg: transparent;
 		width: 100%;
 		min-width: 0;
 		min-height: 0;
@@ -525,7 +528,7 @@
 		margin: 0;
 		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
 		border: 0;
-		background: var(--sunken);
+		background: transparent;
 		color: var(--foreground);
 		font: inherit;
 		text-align: left;

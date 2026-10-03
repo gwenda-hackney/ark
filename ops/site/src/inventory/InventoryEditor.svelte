@@ -785,9 +785,15 @@
 				{dirty}
 				errorCount={errors.count}
 				onerrors={() => void errors.reveal()}
-				overflow={item._id || item.id
-					? [{ label: "Delete item", tone: "destructive", disabled: busy, onselect: () => (deleteOpen = true) }]
-					: []}
+				overflow={[
+					{
+						label: "Delete item",
+						tone: "destructive",
+						disabled: busy || !(item._id || item.id),
+						reason: item._id || item.id ? undefined : "Not saved yet",
+						onselect: () => (deleteOpen = true),
+					},
+				]}
 			/>
 		</div>
 	</form>
@@ -930,18 +936,18 @@
 				</div>
 			</div>
 			<footer class="drawer-foot">
-				{#if supplierEditIndex != null}
-					<Button
-						class="drawer-remove"
-						variant="destructive"
-						size="sm"
-						type="button"
-						onclick={removeSupplierFromDrawer}
-					>
-						{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
-						Remove
-					</Button>
-				{/if}
+				<Button
+					class="drawer-remove"
+					variant="destructive"
+					size="sm"
+					type="button"
+					disabled={supplierEditIndex == null}
+					reason={supplierEditIndex == null ? "Not added yet" : undefined}
+					onclick={removeSupplierFromDrawer}
+				>
+					{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
+					Remove
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"

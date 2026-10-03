@@ -29,17 +29,19 @@ export {
  */
 export const opsGridTheme = themeQuartz.withParams({
 	accentColor: "var(--primary)",
-	backgroundColor: "var(--background)",
+	// A grid inside a card sets --grid-bg: transparent so it sits on the card's
+	// surface; a full-page grid keeps the page background.
+	backgroundColor: "var(--grid-bg, var(--background))",
 	borderColor: "var(--border)",
 	browserColorScheme: "inherit",
 	cellTextColor: "var(--foreground)",
-	dataBackgroundColor: "var(--background)",
+	dataBackgroundColor: "var(--grid-bg, var(--background))",
 	fontFamily: "var(--font)",
 	// --text-sm. AG Grid needs a pixel number here, not a CSS variable.
 	fontSize: 13,
 	foregroundColor: "var(--foreground)",
 
-	headerBackgroundColor: "var(--surface-1)",
+	headerBackgroundColor: "var(--grid-head-bg, var(--surface-1))",
 	// --text-2xs
 	headerFontSize: 11,
 	headerFontWeight: 600,

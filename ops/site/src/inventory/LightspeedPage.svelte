@@ -1334,9 +1334,9 @@
 		justify-items: center;
 		gap: var(--space-3);
 		padding: var(--space-6) var(--space-4);
-		border: 1px dashed var(--border);
+		border: 1px dashed var(--border-strong);
 		border-radius: var(--radius-md);
-		background: var(--sunken);
+		background: transparent;
 		color: var(--muted-foreground);
 		text-align: center;
 		cursor: pointer;
