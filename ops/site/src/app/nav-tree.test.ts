@@ -62,6 +62,22 @@ describe("NAV_ROUTES", () => {
 	});
 });
 
+describe("phone tab strip labels", () => {
+	it("gives long names a short one, so the strip fits a phone", () => {
+		const leaves = flattenNavRoutes(routes);
+		const short = (id: string) => leaves.find((row) => row.id === id)?.short;
+		assert.equal(short("artist"), "Artist");
+		assert.equal(short("forms"), "Applications");
+		for (const leaf of leaves) {
+			assert.ok((leaf.short || leaf.name).length <= 15, `${leaf.id} needs a shorter label`);
+		}
+	});
+
+	it("leaves the More page out of the rail", () => {
+		assert.equal(matchActiveRoute(routes, "/more"), null);
+	});
+});
+
 describe("flattenNavRoutes", () => {
 	it("returns only leaves, not Menu, Stock, or Lightspeed groups", () => {
 		assert.deepEqual(

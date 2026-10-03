@@ -60,7 +60,7 @@
 	<PageHeader title="Settings" subtitle="Every setting in this environment, and where its value comes from.">
 		{#snippet actions()}
 			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>Developer tools</Button>
-			<Button variant="outline" size="sm" disabled={loading} onclick={() => void load()}>
+			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={() => void load()}>
 				{#snippet icon()}
 					<Icon name="refresh" size={16} />
 				{/snippet}

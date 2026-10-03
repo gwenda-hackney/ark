@@ -176,6 +176,8 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/events/new"), true);
     assert.equal(isSpaDocumentPath("/web"), true);
     assert.equal(isSpaDocumentPath("/forms"), true);
+    assert.equal(isSpaDocumentPath("/more"), true);
+    assert.equal(isSpaDocumentPath("/more/x"), false);
     assert.equal(isSpaDocumentPath("/tools/breakeven"), false, "Tools is gone (#75)");
     assert.equal(isSpaDocumentPath("/api/menu"), false);
     assert.equal(isClientNavPath("/config"), true);
@@ -188,6 +190,7 @@ describe("spa-path", () => {
     assert.equal(isClientNavPath("/web"), true);
     assert.equal(isClientNavPath("/forms"), true);
     assert.equal(isClientNavPath("/artists"), true);
+    assert.equal(isClientNavPath("/more"), true);
     assert.equal(shellPageKey("/config"), "config");
     assert.equal(shellPageKey("/lightspeed"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
@@ -195,6 +198,8 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/suppliers"), "suppliers");
     assert.equal(shellPageKey("/sections"), "sections");
     assert.equal(shellPageKey("/users"), "users");
+    assert.equal(shellPageKey("/more"), "more");
+    assert.equal(shellPageKey("/more/"), "more");
     assert.equal(shellPageKey("/events/12"), "events");
     assert.equal(shellPageKey("/artists"), "artists");
     assert.equal(shellPageKey("/events/12/publish"), "events");

@@ -19,6 +19,7 @@
 	import FormsPage from "../forms/FormsPage.svelte";
 	import EventsPage from "../events/EventsPage.svelte";
 	import ArtistsPage from "../artists/ArtistsPage.svelte";
+	import MorePage from "./shell/MorePage.svelte";
 	import { parseShellPath, shellPageKey, readPath } from "./nav";
 	import { NAV_ROUTES } from "./nav-routes";
 	import { loadPourSettings } from "../config/settings.svelte";
@@ -99,6 +100,8 @@
 						<SectionsPage />
 					{:else if key === "config"}
 						<ConfigPage />
+					{:else if key === "more"}
+						<MorePage />
 					{:else}
 						<HomeOverview />
 					{/if}

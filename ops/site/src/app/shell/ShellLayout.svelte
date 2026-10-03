@@ -6,7 +6,7 @@
 	import type { Snippet } from "svelte";
 	import { onMount } from "svelte";
 	import Icon from "./Icon.svelte";
-	import MoreSheet from "./MoreSheet.svelte";
+	import SectionTabs from "./SectionTabs.svelte";
 	import type { NavRoute } from "./types";
 	import type { AuthMe } from "../api";
 	import {
@@ -20,11 +20,17 @@
 	} from "../nav";
 	import { activeNavOverride, crumbLeaf } from "../../ui/crumbs.svelte";
 	import {
+		backToMore,
+		firstPage,
 		hideShellChrome,
+		lastPage,
 		mobileTabFor,
 		mobileTabs,
-		sheetSections,
-		tabHref,
+		MORE_PATH,
+		readLastPages,
+		rememberPage,
+		stripGroups,
+		type LastPages,
 		type MobileTabId,
 	} from "../mobile-nav";
 	import { flattenNavRoutes, matchActiveRoute, navGroupContains, visibleRoutes } from "../nav-tree";
@@ -78,8 +84,8 @@
 	/** Expanded by default — labels visible unless the user collapses the rail. */
 	let open = $state(readRail());
 	let expandedGroups = $state<Record<string, boolean>>(readExpandedGroups());
-	/** Bottom tab whose sheet is open, if any. */
-	let sheet = $state<MobileTabId | null>(null);
+	/** Last page used per bottom tab, so the bar returns there. */
+	let lastPages = $state<LastPages>(readLastPages());
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
 	const sessionLabel = $derived(
@@ -110,9 +116,6 @@
 			: me.siteEnv === "local"
 				? `Local · edits go to Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}), not production.`
 				: `${me.envLabel} · Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}).`,
-	);
-	const brandSub = $derived(
-		envLabel ? `${brandSubtitle} · ${envLabel}` : brandSubtitle,
 	);
 
 	onMount(() => {
@@ -149,8 +152,15 @@
 			matchActiveRoute(routes, path),
 	);
 	const tabs = $derived(mobileTabs(shownRoutes));
-	const currentTab = $derived(sheet ?? mobileTabFor(path, routes));
-	const sheetTab = $derived(tabs.find((row) => row.id === sheet) ?? null);
+	const currentTab = $derived(mobileTabFor(path, routes));
+	/** Phone tab strip for the current tab's pages. Editors keep their own tabs. */
+	const strip = $derived(showTabs ? stripGroups(currentTab, shownRoutes) : []);
+	const stripLabel = $derived(tabs.find((row) => row.id === currentTab)?.label || "");
+	const showBackToMore = $derived(showTabs && backToMore(path, routes));
+	/** The strip names the page, so PageHeader can drop its visible title. */
+	const titleInStrip = $derived(
+		strip.length > 0 && active?.path === (path.split("?")[0] || "/"),
+	);
 
 	const mark = $derived(brandTitle.trim().charAt(0).toUpperCase() || "G");
 
@@ -164,7 +174,6 @@
 	);
 
 	function go(next: string): void {
-		sheet = null;
 		navigate(next);
 		path = readPath();
 	}
@@ -211,23 +220,35 @@
 		persistGroups();
 	}
 
+	function tabHref(id: MobileTabId): string {
+		return lastPage(id, shownRoutes, lastPages);
+	}
+
+	/** Tapping the tab you are on goes to its first page, then back to the top. */
 	function onTab(id: MobileTabId, event: MouseEvent): void {
-		if (
-			event.metaKey ||
-			event.ctrlKey ||
-			event.shiftKey ||
-			event.altKey ||
-			event.button !== 0
-		) {
-			return;
-		}
+		if (isModifiedClick(event)) return;
 		event.preventDefault();
-		const tab = tabs.find((row) => row.id === id);
-		if (tab?.path) {
-			go(tab.path);
+		if (id !== currentTab) {
+			go(tabHref(id));
 			return;
 		}
-		sheet = sheet === id ? null : id;
+		const first = firstPage(id, shownRoutes);
+		if ((path.split("?")[0] || "/") !== first) {
+			go(first);
+			return;
+		}
+		scrollContentToTop();
+	}
+
+	let contentEl = $state<HTMLElement | null>(null);
+
+	/** Pages scroll their own inner pane, so reset whichever one has moved. */
+	function scrollContentToTop(): void {
+		if (!contentEl) return;
+		const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+		for (const el of contentEl.querySelectorAll<HTMLElement>("*")) {
+			if (el.scrollTop > 0) el.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+		}
 	}
 
 	function toggleRail(): void {
@@ -240,18 +261,14 @@
 	}
 
 	$effect(() => {
-		void path;
-		sheet = null;
+		rememberPage(path, routes);
+		lastPages = readLastPages();
 	});
 
 	/** Apply before paint so print routes do not flash rail / env banner. */
 	$effect.pre(() => {
 		if (typeof document === "undefined") return;
 		document.documentElement.classList.toggle("print-book", printBook);
-	});
-
-	$effect(() => {
-		if (!phone.matches || editorChrome) sheet = null;
 	});
 
 	$effect(() => {
@@ -276,13 +293,14 @@
 	class:has-tabs={showTabs}
 	class:has-topbar={showTopbar}
 	class:editor={editorChrome}
+	class:title-in-strip={titleInStrip}
 >
 	<aside class="rail" aria-label="Primary">
 		<div class="brand">
 			<span class="mark" aria-hidden="true">{mark}</span>
 			<span class="brand-text">
 				<span class="brand-title">{brandTitle}</span>
-				<span class="brand-sub">{brandSub}</span>
+				<span class="brand-sub">{brandSubtitle}</span>
 			</span>
 		</div>
 
@@ -522,7 +540,24 @@
 			</div>
 		{/if}
 
-		<main class="content scrollbar-fade">
+		{#if strip.length}
+			<SectionTabs
+				label={stripLabel}
+				groups={strip}
+				{active}
+				badge={badge ? { ...badge, title: badgeTitle(badge.tone, badge.count) } : null}
+				onnavigate={onLeafClick}
+			/>
+		{:else if showBackToMore}
+			<nav class="back-more" aria-label="Back">
+				<a href={MORE_PATH} onclick={(e) => onLeafClick(e, MORE_PATH)}>
+					<Icon name="chevron-left" size={20} />
+					More
+				</a>
+			</nav>
+		{/if}
+
+		<main class="content scrollbar-fade" bind:this={contentEl}>
 			{@render children({ path, active })}
 		</main>
 	</div>
@@ -534,14 +569,13 @@
 				<a
 					class="tab"
 					class:on
-					href={tabHref(item.id, shownRoutes)}
-					aria-current={on && item.path ? "page" : undefined}
-					aria-expanded={item.path ? undefined : sheet === item.id}
+					href={tabHref(item.id)}
+					aria-current={on ? "true" : undefined}
 					onclick={(e) => onTab(item.id, e)}
 				>
 					<span class="tab-icon">
 						<Icon name={item.icon} size={20} />
-						{#if item.id === "more" && badge}
+						{#if item.badge === "website" && badge}
 							<span
 								class="tab-badge {badge.tone}"
 								aria-label={badgeTitle(badge.tone, badge.count)}
@@ -556,20 +590,6 @@
 		</nav>
 	{/if}
 
-	<MoreSheet
-		open={Boolean(sheetTab)}
-		label={sheetTab?.label || "More"}
-		sections={sheet ? sheetSections(sheet, shownRoutes) : []}
-		{active}
-		account={sheet === "more"}
-		badge={badge ? { ...badge, title: badgeTitle(badge.tone, badge.count) } : null}
-		onnavigate={onLeafClick}
-		email={sessionLabel}
-		{envSummary}
-		{envDetail}
-		envRisk={Boolean(me?.risk)}
-		onclose={() => (sheet = null)}
-	/>
 </div>
 
 <style>
@@ -659,6 +679,8 @@
 		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.nav {
@@ -1289,22 +1311,47 @@
 			display: none;
 		}
 
-		.main {
+		/* Banner, tab strip or back link, then the page: a column, not grid rows. */
+		.main,
+		.shell:has(.env-banner) .main,
+		.shell:not(.has-topbar):has(.env-banner) .main {
+			display: flex;
+			flex-direction: column;
 			height: auto;
 			min-height: 0;
-			grid-template-rows: minmax(0, 1fr);
 		}
 
-		.has-topbar .main {
-			grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+		/* Editors pad for the notch in their own back bar. */
+		.shell:not(.editor) .main {
+			padding-top: env(safe-area-inset-top, 0px);
 		}
 
-		.shell:has(.env-banner) .main {
-			grid-template-rows: auto minmax(0, 1fr);
+		.content {
+			flex: 1;
 		}
 
-		.shell.has-topbar:has(.env-banner) .main {
-			grid-template-rows: var(--topbar-h) auto minmax(0, 1fr);
+		.back-more {
+			flex-shrink: 0;
+			border-bottom: 1px solid var(--border);
+			background: var(--background);
+		}
+
+		.back-more a {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.1rem;
+			min-height: 2.75rem;
+			padding: 0 var(--page-gutter) 0 calc(var(--page-gutter) - 0.4rem);
+			color: var(--primary);
+			font-size: var(--text-base);
+			font-weight: 500;
+			text-decoration: none;
+		}
+
+		.back-more a:focus-visible {
+			outline: 2px solid var(--ring);
+			outline-offset: -2px;
+			border-radius: var(--radius-md);
 		}
 
 		.tabs {
