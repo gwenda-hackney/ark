@@ -702,7 +702,7 @@
 				{confirm?.scope === "all"
 					? `All ${countLabel(entries.length)} go live.`
 					: `${countLabel(selectedCount)} go live${extra.length ? `, including ${extra.length} your selection needs` : ""}.`}
-				What's on updates straight away. Series, night and menu pages update when the live site finishes
+				Events update straight away. The menu and artist pages update when the live site finishes
 				rebuilding, in a few minutes.
 			{/if}
 		</p>

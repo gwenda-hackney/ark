@@ -830,6 +830,21 @@ export function getEvents() {
   return request<{ events: OpsEvent[] }>("/api/events");
 }
 
+/** Deleted in ops, still on the website until Update website (#23). */
+export type DeletedEvent = OpsEvent & { deletedAt: string; documentIds: string[] };
+
+export function getDeletedEvents() {
+  return request<{ events: DeletedEvent[] }>("/api/events?deleted=1");
+}
+
+/** Undo a delete that hasn't reached the website yet. */
+export function restoreEvent(id: string) {
+  return request<{ ok: boolean; event: OpsEvent; warnings: string[] }>(
+    `/api/events/${encodeURIComponent(id)}/restore`,
+    { method: "POST" },
+  );
+}
+
 export function createEvent(body: unknown) {
   return request<{ event: OpsEvent; warnings?: string[]; preview?: EventPreview }>("/api/events", {
     method: "POST",
@@ -846,9 +861,12 @@ export function updateEvent(id: string, body: unknown) {
   });
 }
 
-/** Deleting takes the event off the preview and the website too. */
+/**
+ * Deleting takes the event off the preview now. `pending`: it is still on the
+ * website until Update website (Website page, with Restore until then).
+ */
 export function deleteEvent(id: string) {
-  return request<{ ok: boolean; warnings?: string[] }>(
+  return request<{ ok: boolean; pending: boolean; warnings?: string[] }>(
     `/api/events/${encodeURIComponent(id)}`,
     { method: "DELETE" },
   );
@@ -865,6 +883,7 @@ export function deleteEventOccurrence(
     event: OpsEvent | null;
     scope: "this" | "following" | "all";
     removed: number;
+    pending: boolean;
     warnings?: string[];
   }>(
     `/api/events/${encodeURIComponent(id)}/dates/${encodeURIComponent(date)}`,

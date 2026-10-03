@@ -15,12 +15,15 @@
 	import { Icon } from "../app/shell";
 	import { BusyOverlay, Button, Dialog, PageHeader } from "../ui";
 	import {
+		getDeletedEvents,
 		getEvents,
 		getMe,
 		getReleaseDiff,
 		publishRelease,
 		putEventOnWebsite,
+		restoreEvent,
 		updateSiteNow,
+		type DeletedEvent,
 		type OpsEvent,
 		type ReleaseEntry,
 		type SitePendingItem,
@@ -40,6 +43,7 @@
 	/** Editors think in events, so events come from ops, not from document diffs. */
 	type Waiting =
 		| { key: string; kind: "event"; label: string; change: "added" | "changed"; event: OpsEvent }
+		| { key: string; kind: "deleted"; label: string; change: "removed"; event: DeletedEvent }
 		| { key: string; kind: "doc"; label: string; change: "added" | "changed" | "removed"; entry: ReleaseEntry };
 
 	let unpublished = $state<Waiting[]>([]);
@@ -120,7 +124,7 @@
 			return {
 				tone: "waiting",
 				title: `${changes(site.items.length)} will appear on the website${site.autoUpdateAt ? ` at about ${clock(site.autoUpdateAt)}` : " soon"}`,
-				note: "The What's on list already shows them. Event and artist pages update then.",
+				note: "Events already show them. Artist pages and the menu update then.",
 			};
 		}
 		return {
@@ -137,7 +141,20 @@
 
 	async function loadUnpublished() {
 		try {
-			const [diff, eventList] = await Promise.all([getReleaseDiff(), getEvents()]);
+			const [diff, eventList, deletedList] = await Promise.all([
+				getReleaseDiff(),
+				getEvents(),
+				getDeletedEvents(),
+			]);
+			// Deleted in ops, still on the website: one row each, with Restore (#23).
+			const deleted: Waiting[] = (deletedList.events || []).map((event) => ({
+				key: `deleted:${event.id}`,
+				kind: "deleted",
+				label: event.name || "Untitled event",
+				change: "removed",
+				event,
+			}));
+			const deletedDocs = new Set((deletedList.events || []).flatMap((event) => event.documentIds));
 			const events: Waiting[] = (eventList.events || [])
 				.filter((event) => event.publish.live !== "current")
 				.map((event) => ({
@@ -150,9 +167,10 @@
 			// Event documents are covered by their event, except ones still on the
 			// website for events that no longer exist in ops.
 			const docs: Waiting[] = diff.entries
+				.filter((entry) => !deletedDocs.has(entry.id))
 				.filter((entry) => !EVENT_TYPES.has(entry.type) || entry.change === "removed")
 				.map((entry) => ({ key: `doc:${entry.id}`, kind: "doc", label: entry.label, change: entry.change, entry }));
-			unpublished = [...events, ...docs];
+			unpublished = [...events, ...deleted, ...docs];
 			local = diff.local;
 			loadError = "";
 		} catch (err) {
@@ -224,8 +242,24 @@
 			const result = await putEventOnWebsite(item.event.id);
 			for (const warning of result.warnings) toast.info(warning);
 		} else {
-			const result = await publishRelease([item.entry.id]);
+			const ids = item.kind === "deleted" ? item.event.documentIds : [item.entry.id];
+			const result = await publishRelease(ids);
 			for (const warning of result.warnings) toast.info(warning);
+		}
+	}
+
+	async function restore(item: Waiting) {
+		if (working || item.kind !== "deleted") return;
+		working = `restore-${item.key}`;
+		try {
+			const result = await restoreEvent(item.event.id);
+			for (const warning of result.warnings) toast.info(warning);
+			toast.ok(`${item.label} is back in ops, as it is on the website.`);
+			await refreshAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not restore it.");
+		} finally {
+			working = "";
 		}
 	}
 
@@ -235,11 +269,7 @@
 		try {
 			for (const item of items) await putOne(item);
 			confirmAll = false;
-			toast.ok(
-				all
-					? "Website updated. Pages follow in a few minutes."
-					: "Website updated. Its page follows in a few minutes.",
-			);
+			toast.ok("Website updated.");
 			await refreshAll();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not put that on the website.");
@@ -372,7 +402,20 @@
 								<span class="word {item.change}">
 									{item.change === "removed" ? "Remove" : changeWord(item.change)}
 								</span>
-								<span class="name">{item.label}</span>
+								<span class="name">
+									{item.label}{#if item.kind === "deleted"}<span class="muted"> · deleted in ops</span>{/if}
+								</span>
+								{#if item.kind === "deleted"}
+									<Button
+										variant="ghost"
+										size="sm"
+										busy={working === `restore-${item.key}`}
+										disabled={Boolean(working)}
+										onclick={() => void restore(item)}
+									>
+										Restore
+									</Button>
+								{/if}
 								<Button
 									variant="outline"
 									size="sm"

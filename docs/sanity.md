@@ -149,7 +149,7 @@ Worker: `marketing/site-deploy-webhook/` validates a shared secret, then dispatc
 | Endpoint | Role |
 |---|---|
 | `POST /deploy` | Preview rebuild (`target: preview`; `env: "dev"` rebuilds the dev preview). The old `target: staging` from ops before this change builds nothing. |
-| `POST /promote` | Dispatch [Web promote](../.github/workflows/web-promote.yml) on `release`; `env: "dev"` rebuilds the dev live site instead. |
+| `POST /promote` | Dispatch [Web promote](../.github/workflows/web-promote.yml) on `release` with `reason: content`: a content publish needs no domain, Studio or migration steps and no test email, so it takes the short path. A promote started by hand runs everything. `env: "dev"` rebuilds the dev live site instead. |
 | `GET /status?run_id=` | Poll a run |
 
 **Automated setup** (uses Secrets Manager + `gh`):

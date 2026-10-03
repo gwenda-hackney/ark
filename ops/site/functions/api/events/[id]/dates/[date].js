@@ -11,10 +11,9 @@ import {
   deleteOccurrences,
   ensureOccurrence,
   getEvent,
-  occurrenceDeleteTargets,
   updateOccurrenceContent,
 } from "../../../../../src/events/server/event-store.js";
-import { removeEventFromWebsite, unpublishOccurrences } from "../../../../../src/events/server/event-publish.js";
+import { deleteEventFromOps, unpublishOccurrences } from "../../../../../src/events/server/event-publish.js";
 
 function params(context) {
   return {
@@ -71,16 +70,22 @@ export const onRequestDelete = withApiHandler(async (context) => {
   const scope = String(
     body?.scope || url.searchParams.get("scope") || "this",
   ).trim();
-  const event = await getEvent(context.env, id);
-  const plan = occurrenceDeleteTargets(event, date, scope);
-  // Deleting takes the nights off the preview and the website together.
-  const warnings = await unpublishOccurrences(context.env, plan.targets);
-  const result = await deleteOccurrences(context.env, id, date, scope);
-  // Nothing left of the event (e.g. every night of a series not yet started):
-  // its series page goes too, as when the whole event is deleted (#66).
-  if (result.deleted) warnings.push(...(await removeEventFromWebsite(context.env, event)));
+  const warnings = [];
+  let pending = false;
+  // Deleting nights changes the schedule. The website job then treats them
+  // like any night dropped from it: off the preview and the calendar now,
+  // off the website on Update website (#23).
+  const result = await deleteOccurrences(context.env, id, date, scope, {
+    removeRow: async () => {},
+    // Nothing left of the event: it goes the way a deleted event does (#66).
+    removeEvent: async (env, eventId) => {
+      const removed = await deleteEventFromOps(env, eventId);
+      warnings.push(...removed.warnings);
+      pending = removed.pending;
+    },
+  });
   if (result.event) await syncSeriesCalendar(context.env, result.event);
   return jsonResponse(
-    attachCalendarWarnings(context.env, { ok: true, warnings, ...result }),
+    attachCalendarWarnings(context.env, { ok: true, warnings, pending, ...result }),
   );
 });

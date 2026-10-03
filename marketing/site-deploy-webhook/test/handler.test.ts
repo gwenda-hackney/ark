@@ -301,7 +301,7 @@ describe("github integration", () => {
     ).mock.calls[0] as [string, RequestInit];
     expect(dispatchUrl).toContain("web-promote.yml");
     const body = JSON.parse(String(dispatchInit.body));
-    expect(body.ref).toBe("release");
+    expect(body).toEqual({ ref: "release", inputs: { reason: "content" } });
 
     vi.unstubAllGlobals();
   });
