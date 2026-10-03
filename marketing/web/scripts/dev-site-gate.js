@@ -1,7 +1,6 @@
 import {
   AUTH_COOKIE_NAME,
   buildAuthCookie,
-  buildGateShareUrl,
   createAuthToken,
   gateBypassRedirectPath,
   isPublicPath,
@@ -13,7 +12,8 @@ import {
 } from "../functions/_lib/site-auth.js";
 
 /** Vite dev plugin — must run at the Node HTTP layer (Astro static middleware cannot read cookies). */
-export function devSiteGate({ password, bypassKey } = {}) {
+/** `open`: everyone counts as signed in (localhost is only reachable by you). */
+export function devSiteGate({ password, bypassKey, open = false } = {}) {
   if (!password) return null;
 
   const handleAuthPost = (req, res) => {
@@ -50,7 +50,8 @@ export function devSiteGate({ password, bypassKey } = {}) {
   const handleGate = async (req, res, next) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     const cookies = parseCookies(req.headers.cookie);
-    const authed = await verifyAuthToken(password, cookies[AUTH_COOKIE_NAME]);
+    const authed =
+      open || (await verifyAuthToken(password, cookies[AUTH_COOKIE_NAME]));
     const accessParam = url.searchParams.get("access");
 
     if (bypassKey && accessParam && matchesSecret(accessParam, bypassKey)) {
@@ -65,36 +66,6 @@ export function devSiteGate({ password, bypassKey } = {}) {
         res.end();
         return;
       }
-    }
-
-    if (url.pathname === "/api/preview-share") {
-      const send = (status, body) => {
-        res.statusCode = status;
-        res.setHeader("Content-Type", "application/json");
-        res.setHeader("Cache-Control", "no-store");
-        res.end(JSON.stringify(body));
-      };
-      if (req.method !== "GET") {
-        send(405, { error: "Method not allowed." });
-        return;
-      }
-      if (!authed) {
-        send(401, { error: "Unlock the gate first." });
-        return;
-      }
-      if (!bypassKey) {
-        send(503, { error: "Share links are not configured." });
-        return;
-      }
-      const path = safeRedirectPath(url.searchParams.get("path") || "/");
-      const host = req.headers.host || url.host;
-      const shareUrl = buildGateShareUrl(`http://${host}`, path, bypassKey);
-      if (!shareUrl) {
-        send(500, { error: "Could not build a share link." });
-        return;
-      }
-      send(200, { url: shareUrl, path });
-      return;
     }
 
     if (url.pathname === "/api/auth" && req.method === "POST") {
