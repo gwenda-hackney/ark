@@ -57,7 +57,7 @@ import { markNightsRemoved } from "./event-publish.js";
 
 test("dropped nights: live ones get a removed draft, never-published ones lose their draft", async () => {
   const sent = [];
-  const warnings = await markNightsRemoved(
+  const { warnings, live } = await markNightsRemoved(
     {},
     [{ sanityId: "event-negroni-2026-09-29" }, { sanityId: "event-negroni-2026-10-06" }, { date: "x" }],
     {
@@ -70,6 +70,7 @@ test("dropped nights: live ones get a removed draft, never-published ones lose t
     },
   );
   assert.deepEqual(warnings, []);
+  assert.deepEqual([...live], ["event-negroni-2026-09-29"]);
   assert.deepEqual(sent, [
     { patch: { id: "event-negroni-2026-09-29", set: { removed: true } } },
     { delete: { id: "event-negroni-2026-10-06" } },
