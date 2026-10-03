@@ -57,6 +57,7 @@ export function fieldSnapshot(row: {
 	name?: string;
 	artist?: string;
 	offer?: string;
+	pageUrl?: string;
 	shortDescription?: string;
 	description?: string;
 	nightSchedule?: OpsNightScheduleSlot[];
@@ -76,6 +77,7 @@ export function fieldSnapshot(row: {
 		name: String(row.name || "").trim(),
 		artist: String(row.artist || "").trim(),
 		offer: String(row.offer || "").trim(),
+		pageUrl: String(row.pageUrl || "").trim(),
 		shortDescription: String(row.shortDescription || "").trim(),
 		description: String(row.description || "").trim(),
 		nightSchedule: (row.nightSchedule || [])
@@ -333,6 +335,7 @@ export class EventForm {
 			name: this.name,
 			artist: this.artist,
 			offer: this.offer,
+			pageUrl: this.pageUrl,
 			shortDescription: this.shortDescription,
 			description: this.description,
 			nightSchedule: this.nightSchedule,

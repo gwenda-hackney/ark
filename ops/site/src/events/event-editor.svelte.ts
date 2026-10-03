@@ -312,6 +312,9 @@ export class EventEditor {
 
 	performDelete = async (scope: "this" | "following" | "all" | "series" = "series") => {
 		if (!this.eventId || this.busy) return;
+		// A night of an open series gets the plain confirm, not the scope
+		// dialog: its Delete removes that night, never the whole series (#151).
+		if (scope === "series" && this.editingOccurrence && this.isOpenSeries) scope = "this";
 		this.deleteOpen = false;
 		this.deleteScopeOpen = false;
 		this.saving = true;
@@ -412,6 +415,10 @@ export class EventEditor {
 			// Filling from the saved series resets the form's date, so keep the night's.
 			const seriesId = this.attachSeriesId;
 			const date = this.form.startsOn;
+			// The new night's form starts empty, so any slots are the night's own.
+			const nightSchedule = this.form.nightSchedule
+				.map((slot) => ({ label: slot.label.trim(), startTime: slot.startTime, endTime: slot.endTime }))
+				.filter((slot) => slot.label);
 			try {
 				const data = await ensureEventOccurrence(seriesId, date, {
 					name: this.form.name.trim(),
@@ -428,6 +435,7 @@ export class EventEditor {
 					time: this.form.startTime && this.form.endTime ? "" : this.form.time.trim(),
 					startTime: this.form.startTime,
 					endTime: this.form.endTime,
+					...(nightSchedule.length ? { nightSchedule } : {}),
 				});
 				this.rememberEvent(data.event, true);
 				this.applyWarnings(data.warnings);

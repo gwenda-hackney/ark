@@ -77,6 +77,23 @@ describe("EventForm: a series", () => {
 		assert.equal(form.isDirty(event), true);
 	});
 
+	it("counts a changed link (pageUrl) as unsaved (#151)", () => {
+		const event = series({ pageUrl: "https://example.com/jazz" });
+		const form = new EventForm();
+		form.fill(event);
+		assert.equal(form.isDirty(event), false);
+		form.pageUrl = "https://example.com/jazz-nights";
+		assert.equal(form.isDirty(event), true);
+		form.pageUrl = "  https://example.com/jazz ";
+		assert.equal(form.isDirty(event), false, "whitespace is ignored");
+	});
+
+	it("counts a link typed on a new event as unsaved (#151)", () => {
+		const form = new EventForm();
+		form.pageUrl = "https://example.com/tickets";
+		assert.equal(form.isDirty(null), true);
+	});
+
 	it("ignores whitespace and weekday order when comparing", () => {
 		const event = series({ weekdays: ["thu", "fri"] });
 		const form = new EventForm();
