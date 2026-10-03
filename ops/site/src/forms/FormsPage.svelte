@@ -15,6 +15,7 @@
 		FilterField,
 		NativeSelect,
 		PageHeader,
+		Segmented,
 		Skeleton,
 		TextField,
 	} from "../ui";
@@ -40,6 +41,8 @@
 	import { formatWhen } from "../website/web-metrics";
 	import FormsGrid from "./FormsGrid.svelte";
 	import FormsCards from "./FormsCards.svelte";
+	import { listViewPref } from "../ui/list-prefs.svelte";
+	import type { ListView } from "../ui/view-prefs";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 
 	let { path = "/forms" }: { path?: string } = $props();
@@ -47,6 +50,12 @@
 	const route = $derived(parseShellPath(path));
 	/** Phones get cards; the table needs a desk. */
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	/** Cards by default; a desk can switch to the table. Phones always get cards. */
+	const view = listViewPref("forms", phone);
+	const VIEW_ITEMS = [
+		{ id: "cards", label: "Cards" },
+		{ id: "table", label: "Table" },
+	] as const;
 	const openId = $derived(route.page === "forms" ? route.slug : null);
 
 	let rows = $state<FormSubmission[]>([]);
@@ -531,7 +540,16 @@
 						filters={forms.length > 1 ? formFilterField : undefined}
 					>
 						{#snippet end()}
-							{#if !loading}<p class="meta">{visible.length} {visible.length === 1 ? "application" : "applications"}</p>{/if}
+							<p class="meta">{loading ? "" : `${visible.length} ${visible.length === 1 ? "application" : "applications"}`}</p>
+							{#if !phone.matches}
+								<Segmented
+									value={view.value}
+									items={VIEW_ITEMS}
+									size="sm"
+									ariaLabel="Layout"
+									onChange={(id) => (view.value = id as ListView)}
+								/>
+							{/if}
 						{/snippet}
 					</FilterBar>
 				{/snippet}
@@ -548,7 +566,7 @@
 				{/if}
 			{:else}
 				<div class="grid-host">
-					{#if phone.matches}
+					{#if phone.matches || view.value === "cards"}
 						<FormsCards rows={visible} showForm={forms.length > 1} />
 					{:else}
 						<FormsGrid rows={visible} />
