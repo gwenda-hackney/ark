@@ -461,6 +461,9 @@ export function renderEventCard(model) {
  * Series gallery: rows of photos, each as wide as its shape allows, so every
  * row lines up at the same height (flex-grow by aspect ratio).
  */
+/** Photos shown before "Show all" (scripts/gallery.js reveals the rest). */
+export const GALLERY_FIRST = 12;
+
 export function renderGallery(images, { title = "" } = {}) {
   const photos = (Array.isArray(images) ? images : []).filter(
     (image) => image?.url && image.width > 0 && image.height > 0,
@@ -472,15 +475,19 @@ export function renderGallery(images, { title = "" } = {}) {
       text(image.alt) || (title ? `${title}, photo ${index + 1}` : "");
     return html`<li class="series-gallery-item"${attrs({
       style: `--ratio: ${ratio}`,
-    })}><a${attrs({ href: image.url, target: "_blank", rel: "noopener" })}><img${attrs(
-      {
-        src: sizedImageUrl(image.url, 900),
-        alt,
-        loading: "lazy",
-        width: image.width,
-        height: image.height,
-      },
-    )} /></a></li>`;
+      hidden: index >= GALLERY_FIRST,
+    })}><a${attrs({
+      href: image.url,
+      "data-full": sizedImageUrl(image.url, 1800),
+      target: "_blank",
+      rel: "noopener",
+    })}><img${attrs({
+      src: sizedImageUrl(image.url, 900),
+      alt,
+      loading: "lazy",
+      width: image.width,
+      height: image.height,
+    })} /></a></li>`;
   });
   return String(
     html`<section class="series-gallery" aria-label="Gallery">
@@ -488,6 +495,17 @@ export function renderGallery(images, { title = "" } = {}) {
       <ul class="series-gallery-list">
         ${items}
       </ul>
+      ${
+        photos.length > GALLERY_FIRST
+          ? html`<button
+              class="series-gallery-more"
+              type="button"
+              data-gallery-more
+            >
+              Show all ${photos.length} photos
+            </button>`
+          : ""
+      }
     </section>`,
   );
 }

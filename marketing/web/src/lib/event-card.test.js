@@ -7,6 +7,7 @@ import {
   escapeHtml,
   nightCardModel,
   renderEventCard,
+  GALLERY_FIRST,
   renderGallery,
   seriesCardModel,
 } from "./event-card.js";
@@ -173,5 +174,31 @@ describe("renderGallery", () => {
 
   it("renders nothing without photos", () => {
     expect(renderGallery([])).toBe("");
+  });
+});
+
+describe("renderGallery: Show all", () => {
+  const photos = (count) =>
+    Array.from({ length: count }, (_, index) => ({
+      url: `https://cdn.sanity.io/images/p/d/photo${index}-800x600.jpg`,
+      width: 800,
+      height: 600,
+    }));
+
+  it("shows the first rows and a Show all button for the rest", () => {
+    const html = renderGallery(photos(GALLERY_FIRST + 3));
+    expect(
+      html.match(/<li class="series-gallery-item"[^>]* hidden/g),
+    ).toHaveLength(3);
+    expect(html).toContain(`Show all ${GALLERY_FIRST + 3} photos`);
+    expect(html).toContain(
+      'data-full="https://cdn.sanity.io/images/p/d/photo0-800x600.jpg?w=1800',
+    );
+  });
+
+  it("no button when they all fit", () => {
+    expect(renderGallery(photos(GALLERY_FIRST))).not.toContain(
+      "data-gallery-more",
+    );
   });
 });

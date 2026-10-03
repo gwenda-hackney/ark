@@ -1020,21 +1020,29 @@ export type EventDriveLibrary = {
   files: EventDriveFile[];
 };
 
-export function getEventDrive(id: string) {
-  return request<EventDriveLibrary>(
-    `/api/events/${encodeURIComponent(id)}/drive`,
-  );
+/** `date`: one night's photos (its subfolder of the gallery) instead of the series'. */
+function eventDrivePath(id: string, date = "") {
+  return `/api/events/${encodeURIComponent(id)}/drive${date ? `?date=${encodeURIComponent(date)}` : ""}`;
 }
 
-export function uploadEventDriveImage(id: string, file: File) {
+export function getEventDrive(id: string, date = "") {
+  return request<EventDriveLibrary>(eventDrivePath(id, date));
+}
+
+export function uploadEventDriveImage(id: string, file: File, date = "") {
   const body = new FormData();
   body.set("file", file);
-  return request<EventDriveLibrary & { ok: boolean; file: EventDriveFile }>(
-    `/api/events/${encodeURIComponent(id)}/drive`,
-    {
-      method: "POST",
-      body,
-    },
+  return request<EventDriveLibrary & { ok: boolean; file: EventDriveFile }>(eventDrivePath(id, date), {
+    method: "POST",
+    body,
+  });
+}
+
+/** Remove a gallery photo (to the Drive bin). */
+export function deleteEventDriveImage(id: string, fileId: string) {
+  return request<{ ok: boolean }>(
+    `/api/events/${encodeURIComponent(id)}/drive/${encodeURIComponent(fileId)}`,
+    { method: "DELETE" },
   );
 }
 

@@ -199,6 +199,7 @@ export function mapDriveImage(file) {
     mimeType: String(file?.mimeType || ""),
     url: String(file?.webViewLink || ""),
     modifiedTime: String(file?.modifiedTime || ""),
+    createdTime: String(file?.createdTime || ""),
   };
 }
 
@@ -215,7 +216,7 @@ export async function listDriveChildren(env, parentId) {
         q,
         includeItemsFromAllDrives: "true",
         fields:
-          "nextPageToken,files(id,name,mimeType,webViewLink,thumbnailLink,modifiedTime)",
+          "nextPageToken,files(id,name,mimeType,webViewLink,thumbnailLink,modifiedTime,createdTime)",
         pageSize: "200",
         orderBy: "folder,name_natural",
         pageToken,
