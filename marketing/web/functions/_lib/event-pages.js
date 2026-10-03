@@ -14,6 +14,7 @@ import {
   escapeHtml,
   nightCardModel,
   renderEventCard,
+  renderGallery,
   seriesCardModel,
 } from "../../src/lib/event-card.js";
 import {
@@ -101,6 +102,8 @@ async function resolveSeries(env, seriesId) {
         rich ? "" : renderEventCard(seriesCardModel(detail)),
         detail.datesPending ? pending : "",
         seriesNightsHtml(detail),
+        // Photos ops copied from the series' Drive gallery (#30); none while ops has it off.
+        renderGallery(detail.gallery, { title: detail.title }),
       ].join("");
       return fillShell(
         html.replace(BODY, () => body),
