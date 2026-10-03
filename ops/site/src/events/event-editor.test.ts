@@ -160,12 +160,12 @@ describe("EventEditor: saving a series", () => {
 		assert.equal(nav.navigate.mock.calls[0][0], "/events/new");
 	});
 
-	it("asks for an end date on a repeating series with a start, on Schedule", async () => {
-		const editor = await open("/events/ev1");
+	it("asks for an end date on a repeating series with a start, in When on Details (#158)", async () => {
+		const editor = await open("/events/ev1/schedule");
 		editor.form.endsOn = "";
 		await editor.onSave(submit());
 		assert.equal(editor.errors.get("event-ends"), "Add the last night of the series.");
-		assert.equal(nav.navigate.mock.calls[0][0], "/events/ev1/schedule");
+		assert.equal(nav.navigate.mock.calls[0][0], "/events/ev1");
 		assert.equal(api.updateEvent.mock.calls.length, 0);
 	});
 
@@ -290,6 +290,57 @@ describe("EventEditor: one night", () => {
 		api.uploadEventOccurrenceImage.mockResolvedValue({ event: series() });
 		await editor.onSave(submit());
 		assert.deepEqual(api.uploadEventOccurrenceImage.mock.calls[0].slice(0, 2), ["ev1", "2026-10-15"]);
+	});
+});
+
+describe("EventEditor: the new-event chooser (#158)", () => {
+	it("starts on what the address asks for, or a night when Add night picked the series", async () => {
+		assert.equal((await open("/events/new")).newKind, "series");
+		assert.equal((await open("/events/new/once")).newKind, "once");
+		const editor = await open("/events/ev1");
+		editor.addNightToSeries();
+		const preset = editor.presetSeriesId;
+		const fresh = await open("/events/new/once");
+		fresh.presetSeriesId = preset;
+		fresh.blank();
+		assert.equal(fresh.newKind, "night");
+		assert.equal(fresh.creatingNight, true);
+	});
+
+	it("switches kind without losing what's typed, and asks for a series for a night", async () => {
+		const editor = await open("/events/new");
+		editor.form.name = "Quiz";
+		editor.setNewKind("once");
+		assert.equal(editor.creatingOnce, true);
+		assert.equal(editor.form.repeatUnit, "once");
+		assert.equal(editor.form.name, "Quiz");
+
+		editor.setNewKind("night");
+		assert.equal(editor.creatingNight, true);
+		assert.equal(editor.form.repeatUnit, "none");
+		await editor.onSave(submit());
+		assert.equal(editor.errors.get("event-series"), "Choose a series.");
+		assert.equal(api.ensureEventOccurrence.mock.calls.length, 0);
+
+		editor.attachSeriesId = "ev1";
+		editor.setNewKind("series");
+		assert.equal(editor.attachSeriesId, "", "a series doesn't join another series");
+		assert.equal(editor.creatingNight, false);
+	});
+
+	it("overrides a new night's field from the series it joins, and sends only that", async () => {
+		const editor = await open("/events/new/once", [series({ offer: "£10 Negroni" })]);
+		editor.setNewKind("night");
+		editor.attachSeriesId = "ev1";
+		editor.form.startsOn = "2026-10-15";
+		editor.overrideField("offer");
+		assert.equal(editor.form.offer, "£10 Negroni");
+		editor.form.offer = "Free punch";
+		api.ensureEventOccurrence.mockResolvedValue({ event: series(), created: true, warnings: [] });
+		await editor.onSave(submit());
+		const body = api.ensureEventOccurrence.mock.calls[0][2];
+		assert.equal(body.offer, "Free punch");
+		assert.equal(body.startTime, "", "times follow the series");
 	});
 });
 

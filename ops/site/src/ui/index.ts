@@ -38,6 +38,7 @@ export { default as DateField } from "./DateField.svelte";
 export { default as ConfirmDialog } from "./ConfirmDialog.svelte";
 export { default as OverflowMenu } from "./OverflowMenu.svelte";
 export { default as EditorActionBar } from "./EditorActionBar.svelte";
+export { default as FormSection } from "./FormSection.svelte";
 export { Confirm } from "./confirm.svelte";
 export { FormErrors } from "./form-errors.svelte";
 export type { SelectOption, SegmentedItem, PageHelpTopic, OverflowItem } from "./types";

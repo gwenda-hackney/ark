@@ -27,12 +27,15 @@
 		disabled = false,
 		locked = false,
 		tooltip = "",
+		heading = "Hero",
 		onchangecrops,
 		onpickfile,
 		onclear,
 	}: {
 		sourceUrl?: string;
 		crops?: HeroFraming | null;
+		/** Blank when the surrounding section already titles it. */
+		heading?: string;
 		disabled?: boolean;
 		locked?: boolean;
 		tooltip?: string;
@@ -309,13 +312,16 @@
 	ondragleave={onFileDragLeave}
 	ondrop={onFileDrop}
 >
-	<header class="hero-head">
-		<h2 class="section-title">
-			Hero
-			{#if tooltip}
-				<Tip label="Hero" {tooltip} />
-			{/if}
-		</h2>
+	{#if heading || !locked}
+	<header class="hero-head" class:end={!heading}>
+		{#if heading}
+			<h2 class="section-title">
+				{heading}
+				{#if tooltip}
+					<Tip label={heading} {tooltip} />
+				{/if}
+			</h2>
+		{/if}
 		{#if !locked}
 			<div class="hero-actions">
 				<label class="pick camera">
@@ -352,6 +358,7 @@
 			</div>
 		{/if}
 	</header>
+	{/if}
 
 	{#if locked}
 		{#if sourceUrl}
@@ -469,6 +476,10 @@
 		align-items: center;
 	}
 
+	.hero-head.end {
+		justify-content: flex-end;
+	}
+
 	.section-title {
 		display: inline-flex;
 		align-items: center;
@@ -480,6 +491,8 @@
 
 	.hero-actions {
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 		align-items: center;
 		gap: var(--space-2);
 	}

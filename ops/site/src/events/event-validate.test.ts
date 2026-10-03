@@ -64,10 +64,15 @@ describe("validateEvent", () => {
 });
 
 describe("where the problems are", () => {
-	it("puts the rule on Schedule and the rest on Details", () => {
-		expect(eventFieldTab("event-ends")).toBe("schedule");
+	it("puts every field, the repeat rule and the name included, on Details (#158)", () => {
+		expect(eventFieldTab("event-ends")).toBe("details");
 		expect(eventFieldTab("event-description")).toBe("details");
-		expect(eventFieldTab("event-name")).toBeUndefined();
+		expect(eventFieldTab("event-name")).toBe("details");
+	});
+
+	it("puts the series a new night joins first, above its name (#158)", () => {
+		const errors = { "event-name": "Add a name.", "event-series": "Choose a series." };
+		expect(firstErrorKey(errors, EVENT_FIELD_ORDER)).toBe("event-series");
 	});
 
 	it("starts with the field highest on screen", () => {
