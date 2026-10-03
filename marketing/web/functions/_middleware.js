@@ -1,8 +1,8 @@
 /**
  * Password-protects a preview (SITE_PREVIEW=true) and the dev website. The live site is always public.
- * Behind Cloudflare Access (docs/preview-access.md), someone Access signed in skips the password.
  * Unauthenticated visitors are sent to /gate (themed login) instead of browser basic auth.
  * Optional GATE_BYPASS_KEY accepts ?access=<key> to set the gate cookie and strip the param.
+ * Sign in with Google goes through ops, which sends you back with ?pass= (shared/website-pass.js).
  */
 import {
   AUTH_COOKIE_NAME,
@@ -16,10 +16,14 @@ import {
   parseCookies,
   resolveGate,
   safeRedirectPath,
-  verifyAccessAssertion,
   verifyAuthToken,
 } from "./_lib/site-auth.js";
 import { verifyFormsAdminRequest } from "./_lib/admin-auth.js";
+import {
+  WEBSITE_PASS_PARAM,
+  opsUrlFor,
+  verifyWebsitePass,
+} from "../../../shared/website-pass.js";
 import {
   captureConsoleIntegration,
   sentryPagesPlugin,
@@ -36,13 +40,10 @@ export const onRequest = [
   gate,
 ];
 
-async function gate(context) {
+export async function gate(context) {
   const gate = resolveGate(context.env);
   if (gate.kind === "misconfigured") return gateMisconfiguredResponse();
   if (gate.kind === "open") return context.next();
-  if (await verifyAccessAssertion(context.request, context.env)) {
-    return context.next();
-  }
 
   const expected = gate.password;
   const url = new URL(context.request.url);
@@ -61,6 +62,28 @@ async function gate(context) {
       }
       return new Response(null, { status: 302, headers });
     }
+  }
+
+  // Sign in with Google: ops signs you in and checks the users list.
+  if (url.pathname === "/gate/google") {
+    const next = safeRedirectPath(url.searchParams.get("next"));
+    const ops = new URL("/website-pass", opsUrlFor(context.env.SITE_ENV));
+    ops.searchParams.set("return", new URL(next, url.origin).href);
+    return new Response(null, { status: 302, headers: { Location: ops.href } });
+  }
+
+  // Back from ops with a pass for this site: remember this browser.
+  const pass = url.searchParams.get(WEBSITE_PASS_PARAM);
+  if (pass && (await verifyWebsitePass(bypassKey, pass, url.host))) {
+    const clean = new URL(url);
+    clean.searchParams.delete(WEBSITE_PASS_PARAM);
+    const headers = {
+      Location: clean.pathname + clean.search,
+      "Cache-Control": "no-store",
+    };
+    if (!authed)
+      headers["Set-Cookie"] = buildAuthCookie(await createAuthToken(expected));
+    return new Response(null, { status: 302, headers });
   }
 
   if (url.pathname === "/gate" || url.pathname === "/gate/") {

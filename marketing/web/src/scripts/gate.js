@@ -1,15 +1,24 @@
 export function initGate(nextPath) {
-  const form = document.getElementById("gate-form");
-  const input = document.getElementById("gate-password");
-  const errorEl = document.getElementById("gate-error");
-  if (!form || !input || !errorEl) return;
-
   const fromUrl = new URLSearchParams(window.location.search).get("next");
   const next = nextPath?.startsWith("/")
     ? nextPath
     : fromUrl?.startsWith("/")
       ? fromUrl
       : "/";
+
+  // Google sign-in (through ops) comes back to the page you asked for.
+  const google = document.getElementById("gate-google");
+  if (google && next !== "/") {
+    google.setAttribute(
+      "href",
+      `/gate/google?next=${encodeURIComponent(next)}`,
+    );
+  }
+
+  const form = document.getElementById("gate-form");
+  const input = document.getElementById("gate-password");
+  const errorEl = document.getElementById("gate-error");
+  if (!form || !input || !errorEl) return;
 
   const submit = document.getElementById("gate-submit");
 

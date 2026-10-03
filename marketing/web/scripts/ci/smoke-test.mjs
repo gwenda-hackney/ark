@@ -5,9 +5,6 @@
  *   node scripts/ci/smoke-test.mjs --url https://preview.gwenda-blue.pages.dev --expected-version 2026.06.11+abc1234
  *   SMOKE_TEST_GATE_BYPASS_KEY=... node scripts/ci/smoke-test.mjs --url https://preview.gwenda-blue.pages.dev ...
  *
- * A preview behind Cloudflare Access (docs/preview-access.md) needs its service
- * token: CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET, sent on every request.
- *
  *   --deep           also POST /api/health/deep (Bearer DEPLOY_WEBHOOK_SECRET): Sanity,
  *                    both Baserow databases, config DB and Gmail login
  *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
@@ -44,22 +41,6 @@ const retries = Number(
 const retryDelayMs = Number(
   getArg("--retry-delay-ms") ?? process.env.SMOKE_TEST_RETRY_DELAY_MS ?? "5000",
 );
-
-const accessHeaders =
-  process.env.CF_ACCESS_CLIENT_ID && process.env.CF_ACCESS_CLIENT_SECRET
-    ? {
-        "CF-Access-Client-Id": process.env.CF_ACCESS_CLIENT_ID,
-        "CF-Access-Client-Secret": process.env.CF_ACCESS_CLIENT_SECRET,
-      }
-    : {};
-
-/** fetch, with the Access service token when there is one. */
-function fetch(url, init = {}) {
-  return globalThis.fetch(url, {
-    ...init,
-    headers: { ...accessHeaders, ...init.headers },
-  });
-}
 
 if (!baseUrl) {
   console.error(

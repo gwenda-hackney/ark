@@ -3028,6 +3028,18 @@ html.fonts-ready .thanks {
   line-height: 1.6;
 }
 
+.gate-google {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.gate-or {
+  margin: 1.75rem 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
 .gate-form {
   text-align: left;
 }
