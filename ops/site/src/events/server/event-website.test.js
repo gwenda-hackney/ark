@@ -126,16 +126,3 @@ test("no former web address: nothing to retire", async () => {
   });
   assert.deepEqual(result, { changed: false, warnings: [] });
 });
-
-import { removeEventFromWebsite } from "./event-publish.js";
-
-test("deleting an event takes its nights off before the series (Sanity refuses the other order)", async () => {
-  const deleted = [];
-  const query = async () => ["series-jazz", "event-jazz-2026-10-01"];
-  const warnings = await removeEventFromWebsite({}, { slug: "jazz", dates: [] }, null, {
-    query,
-    mutate: async (_env, [mutation]) => deleted.push(mutation.delete.id),
-  });
-  assert.deepEqual(warnings, []);
-  assert.deepEqual(deleted, ["event-jazz-2026-10-01", "series-jazz"]);
-});

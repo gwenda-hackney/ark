@@ -6,11 +6,22 @@ name: Web promote
 # Content is not copied here. Ops publishes the drafts the editor checked on
 # the preview (Put on website, Website > Preview → live), then this rebuilds
 # the live site from published documents only.
+#
+# `reason: content` (the deploy webhook, when ops publishes) is the short path
+# (#16): the code is what's live already, so the domain, crawler, Studio and
+# migration steps, the test email and the release tag are skipped, and the
+# checkout is shallow. A run started by hand is `code` and runs everything.
 
 run-name: promote-release-to-production
 
 on:
   workflow_dispatch:
+    inputs:
+      reason:
+        description: "code: every check (by hand). content: ops publishing content."
+        type: choice
+        options: [code, content]
+        default: code
 
 concurrency:
   group: web-promote
@@ -40,7 +51,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: release
-          fetch-depth: 0
+          # Full history only for the code path's "did Studio change" tag comparison.
+          fetch-depth: ${{ inputs.reason == 'content' && 1 || 0 }}
 
       - name: Resolve release SHA
         id: sha
@@ -73,12 +85,14 @@ jobs:
 
       # Baserow schema changes need a user login (database tokens only touch rows).
       - name: Baserow login for migrations
+        if: inputs.reason != 'content'
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
 
       # Additive only, so the website still running keeps working (scripts/lib/migrations.mjs).
       - name: Migrations before deploy
+        if: inputs.reason != 'content'
         run: node scripts/migrate.mjs --app web --phase pre --env production
 
       # What to roll back to if a check after the deploy fails (#18).
@@ -108,6 +122,7 @@ jobs:
           baserow-ops-api-key: ${{ env.BASEROW_OPS_API_KEY }}
 
       - name: Ensure apex custom domain
+        if: inputs.reason != 'content'
         run: cd marketing/web && node scripts/ensure-pages-domain.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
@@ -117,6 +132,7 @@ jobs:
           CUSTOM_DOMAIN: gwenda.co.uk
 
       - name: Ensure www custom domain
+        if: inputs.reason != 'content'
         run: cd marketing/web && node scripts/ensure-pages-domain.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
@@ -126,6 +142,7 @@ jobs:
           CUSTOM_DOMAIN: www.gwenda.co.uk
 
       - name: Allow AI crawlers on production zone
+        if: inputs.reason != 'content'
         run: cd marketing/web && node scripts/ensure-zone-ai-access.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
@@ -142,8 +159,9 @@ jobs:
       # secrets change without code changing, so a broken key must show here.
       # Two emails to alerts@gwenda.co.uk, subjects starting "Smoke test:";
       # the test row is deleted.
+      # Content runs check the same, read-only: no test email or form row.
       - name: Deep health (databases, email, forms)
-        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep --form-test
+        run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.buildmeta.outputs.version }}" --deep ${{ inputs.reason != 'content' && '--form-test' || '' }}
 
       # Any failure since the deploy: put the previous deployment back (and its
       # secrets). It must stay before the post migrations, which remove what
@@ -159,11 +177,13 @@ jobs:
 
       # The new code is live: remove what only the old code used.
       - name: Migrations after deploy
+        if: inputs.reason != 'content'
         run: node scripts/migrate.mjs --app web --phase post --env production
 
       # Studio only needs redeploying when its code changed (~30s otherwise).
       - name: Did Studio change since the last release?
         id: studio
+        if: inputs.reason != 'content'
         run: |
           last=$(git describe --tags --abbrev=0 --match '20*' HEAD^ 2>/dev/null || true)
           if [ -z "$last" ] || ! git diff --quiet "$last" HEAD -- marketing/studio package-lock.json; then
@@ -180,12 +200,14 @@ jobs:
           SANITY_DEPLOY_TOKEN: ${{ env.SANITY_DEPLOY_TOKEN }}
 
       - name: Tag production release
+        if: inputs.reason != 'content'
         run: cd marketing/web && node scripts/ci/tag-production-release.mjs
         env:
           RELEASE_VERSION: ${{ steps.buildmeta.outputs.version }}
 
       # The PRs merged since the last release; none (content only) → no release.
       - name: GitHub Release with changelog
+        if: inputs.reason != 'content'
         run: node scripts/release.mjs --app web --version "${{ steps.buildmeta.outputs.version }}"
         env:
           GH_TOKEN: ${{ github.token }}

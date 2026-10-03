@@ -165,6 +165,11 @@ export async function dispatchContentDeploy(
   return latest;
 }
 
+/**
+ * Every promote from here is ops publishing content, so it takes the short
+ * path (#16): no domain, Studio or migration steps. A promote started by hand
+ * in GitHub defaults to `code` and runs every check.
+ */
 export async function dispatchLivePromote(env: Env): Promise<WorkflowRun> {
   const res = await githubFetch(
     env,
@@ -174,6 +179,7 @@ export async function dispatchLivePromote(env: Env): Promise<WorkflowRun> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ref: "release",
+        inputs: { reason: "content" },
       }),
     },
   );
@@ -193,13 +199,6 @@ export async function dispatchLivePromote(env: Env): Promise<WorkflowRun> {
     throw new Error("Promote dispatched but workflow run could not be resolved");
   }
   return latest;
-}
-
-export async function dispatchContentPromote(
-  env: Env,
-  _previewRunId?: number,
-): Promise<WorkflowRun> {
-  return dispatchLivePromote(env);
 }
 
 async function getLatestRun(

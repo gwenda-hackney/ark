@@ -19,7 +19,8 @@ import {
   onRequestGet as getEvent,
   onRequestPatch as editEvent,
 } from "../../functions/api/events/[id].js";
-import { onRequestPost as createEvent } from "../../functions/api/events/index.js";
+import { onRequestGet as listEvents, onRequestPost as createEvent } from "../../functions/api/events/index.js";
+import { onRequestPost as restoreEvent } from "../../functions/api/events/[id]/restore.js";
 import { onRequestPost as syncCalendar } from "../../functions/api/events/[id]/calendar-sync.js";
 import { onRequestDelete as removeImage, onRequestPost as uploadImage } from "../../functions/api/events/[id]/image.js";
 import { onRequestPost as uploadNightImage } from "../../functions/api/events/[id]/dates/[date]/image.js";
@@ -152,6 +153,32 @@ function editor(world) {
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data;
+    },
+    /** Restore on the Website page: undo a delete that hasn't reached the website. */
+    async restore(event) {
+      const res = await callApi(world, restoreEvent, {
+        method: "POST",
+        path: `/api/events/${id(event)}/restore`,
+        params: { id: id(event) },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    /** Website page → Update website: publish everything waiting. */
+    async publishAll() {
+      const res = await callApi(world, release, {
+        method: "POST",
+        path: "/api/web/release",
+        body: { confirm: "production" },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data;
+    },
+    /** The events list. */
+    async list() {
+      const res = await callApi(world, listEvents, { path: "/api/events" });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data.events;
     },
     /** Website → Dev tools → Discard (admin; everyone is an admin on dev). */
     async discardPreview(ids) {
@@ -415,13 +442,18 @@ describe("events: deleting", () => {
   });
   afterEach(() => world.restore());
 
-  it("one night: gone from the website and the calendar, the rest untouched", async () => {
-    const [first, second, third] = liveNights(world);
+  it("one night: off the preview and the calendar now, off the website on Update website", async () => {
+    const nights = liveNights(world);
+    const [first, second, third] = nights;
     await ops.deleteNight(event, second, "this");
     await ops.waitUntilReady(event);
-    assert.ok(!liveNights(world).includes(second), "off the live site");
     assert.ok(!previewNights(world).includes(second), "off the preview");
     assert.ok(!calendarDates(world).includes(second), "off the calendar");
+    assert.deepEqual(liveNights(world), nights, "the website waits for Update website");
+    assert.equal(await ops.sees(event), "Changes not on the website yet");
+
+    await ops.updateWebsite(event);
+    assert.ok(!liveNights(world).includes(second), "off the live site");
     assert.ok(liveNights(world).includes(first) && liveNights(world).includes(third));
     assert.ok(!(await ops.open(event)).dates.some((row) => row.date === second), "not in ops");
     assert.equal(await ops.sees(event), "On the website");
@@ -432,17 +464,27 @@ describe("events: deleting", () => {
     const from = nights[2];
     await ops.deleteNight(event, from, "following");
     await ops.waitUntilReady(event);
-    assert.deepEqual(liveNights(world), nights.slice(0, 2));
+    assert.deepEqual(previewNights(world), nights.slice(0, 2));
     assert.deepEqual(calendarDates(world), nights.slice(0, 2));
     assert.ok((await ops.open(event)).endsOn < from, "Ends on moves before the deleted night");
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveNights(world), nights.slice(0, 2));
   });
 
-  it("all future nights of a series that hasn't started: the whole event goes", async () => {
-    const res = await ops.deleteNight(event, liveNights(world)[1], "all");
+  it("all future nights of a series that hasn't started: the whole event goes, on Update website", async () => {
+    const nights = liveNights(world);
+    const res = await ops.deleteNight(event, nights[1], "all");
     assert.equal(res.deleted, true, "ops reports the event deleted, so the screen leaves it");
-    assert.deepEqual(world.sanity.published(), []);
+    assert.equal(res.pending, true, "it is still on the website");
+    assert.deepEqual(liveNights(world), nights);
+    assert.deepEqual(previewNights(world), []);
     assert.deepEqual(world.google.calendar(), []);
+    assert.deepEqual(await ops.list(), [], "not in the events list");
+
+    await ops.publishAll();
+    assert.deepEqual(world.sanity.published(), []);
     assert.equal(world.baserow.rows("Events").length, 0);
+    assert.equal(world.baserow.rows("Event dates").length, 0);
   });
 
   it("all future nights of a running series: it ends yesterday, past nights stay", async () => {
@@ -462,33 +504,62 @@ describe("events: deleting", () => {
     assert.ok(upcoming.length > 1);
     await ops.deleteNight(running, upcoming[0], "all");
     await ops.waitUntilReady(running);
+    await ops.updateWebsite(running);
     assert.ok(quizNights().every((date) => date < today), "no upcoming quiz nights live");
     assert.equal((await ops.open(running)).endsOn, daysFromNow(-1));
     assert.ok(liveNights(world).length > quizNights().length, "the chess series is untouched");
   });
 
-  it("the whole series: its pages, nights, calendar entries and ops record all go", async () => {
-    await ops.deleteEvent(event);
+  it("the whole series: off the preview and calendar now; its pages and ops record go on Update website", async () => {
+    const nights = liveNights(world);
+    const res = await ops.deleteEvent(event);
+    assert.equal(res.pending, true);
+    assert.deepEqual(liveNights(world), nights, "still on the website");
+    assert.deepEqual(previewNights(world), []);
+    assert.deepEqual(world.google.calendar(), []);
+    assert.deepEqual(await ops.list(), []);
+
+    await ops.publishAll();
     assert.deepEqual(world.sanity.published(), []);
     assert.deepEqual(world.sanity.drafts(), []);
-    assert.deepEqual(world.google.calendar(), []);
     assert.equal(world.baserow.rows("Events").length, 0);
     assert.equal(world.baserow.rows("Event dates").length, 0);
   });
 
-  it("a series that never went live: its preview copy goes, the website is untouched", async () => {
+  it("Restore before Update website: the event is back as it was", async () => {
+    const nights = liveNights(world);
+    await ops.deleteEvent(event);
+    await ops.restore(event);
+    assert.deepEqual(previewNights(world), nights);
+    assert.equal((await ops.list()).length, 1);
+    await ops.waitUntilReady(event);
+    assert.deepEqual(calendarDates(world), nights, "calendar entries come back");
+    assert.equal(await ops.sees(event), "On the website");
+  });
+
+  it("discarding the deleted event's drafts brings it back in ops", async () => {
+    await ops.deleteEvent(event);
+    await ops.discardPreview();
+    assert.equal((await ops.list()).length, 1);
+    await ops.waitUntilReady(event);
+    assert.equal(await ops.sees(event), "On the website");
+  });
+
+  it("a series that never went live: gone at once, the website is untouched", async () => {
     const draftOnly = await ops.create(weeklySeries({ name: "Tuesday Quiz", weekdays: ["tue"] }));
     await ops.waitUntilReady(draftOnly);
     const liveBefore = world.sanity.published().length;
-    await ops.deleteEvent(draftOnly);
+    const res = await ops.deleteEvent(draftOnly);
+    assert.equal(res.pending, false);
     assert.equal(world.sanity.published().length, liveBefore, "the other series stays live");
     assert.ok(
       !world.sanity.drafts().some((doc) => String(doc.title || "").startsWith("Tuesday Quiz")),
       "no preview copy left",
     );
+    assert.equal(world.baserow.rows("Events").length, 1, "only the live series is left");
   });
 
-  it("a one-off special event: off the website and the calendar", async () => {
+  it("a one-off special event: off the calendar now, off the website on Update website", async () => {
     // A Saturday, so it never shares a date with the Wednesday series above.
     const date = addDays(nextWeekday(SATURDAY), 7);
     const special = await ops.create({
@@ -503,9 +574,11 @@ describe("events: deleting", () => {
     await ops.waitUntilReady(special);
     await ops.updateWebsite(special);
     await ops.deleteEvent(special);
+    assert.ok(!calendarDates(world).includes(date));
+    assert.ok(liveNights(world).includes(date), "still live until Update website");
+    await ops.publishAll();
     assert.ok(!liveNights(world).includes(date));
     assert.ok(!world.sanity.published("eventSeries").some((doc) => doc.title === "Andy Caruso"));
-    assert.ok(!calendarDates(world).includes(date));
   });
 });
 
