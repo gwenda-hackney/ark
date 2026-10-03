@@ -141,6 +141,7 @@
 		domLayout = "normal",
 		pinnedBottomRowData,
 		scrollKey = "",
+		hideHeader = false,
 	}: {
 		rowData: T[];
 		columnDefs: ColDef<T>[];
@@ -153,6 +154,11 @@
 		pinnedBottomRowData?: T[];
 		/** Persist/restore vertical scroll across parent remounts and overlays. */
 		scrollKey?: string;
+		/**
+		 * Drop the header row. For phone lists that are down to one column,
+		 * where a lone "NIGHT" heading says nothing the rows do not.
+		 */
+		hideHeader?: boolean;
 	} = $props();
 
 	let host: HTMLDivElement | undefined = $state();
@@ -207,7 +213,7 @@
 				},
 			},
 			animateRows: false,
-			headerHeight: 40,
+			headerHeight: untrack(() => hideHeader) ? 0 : 40,
 			rowHeight: 38,
 			suppressCellFocus: true,
 			suppressScrollOnNewData: true,
@@ -276,6 +282,11 @@
 			grid.setGridOption("context", ctx);
 			grid.redrawRows();
 		});
+	});
+	$effect(() => {
+		const grid = api;
+		if (!grid) return;
+		grid.setGridOption("headerHeight", hideHeader ? 0 : 40);
 	});
 	$effect(() => {
 		const grid = api;

@@ -1,13 +1,22 @@
 <script lang="ts">
 	/**
-	 * The one button. Pill shaped like the reference: a single solid gold
-	 * primary per view, everything else outlined or ghost so the eye has one
-	 * place to land.
+	 * The one button. One shape (8px corners) and two sizes: md 36px and sm
+	 * 32px, a little taller on phones. A single gold primary per view;
+	 * everything else is secondary (outline), ghost, or destructive, so the
+	 * eye has one place to land. `outline` is the older name for secondary;
+	 * `subtle` and `accent` are kept for old call sites and read as secondary.
 	 */
 	import type { Snippet } from "svelte";
 	import type { HTMLButtonAttributes } from "svelte/elements";
 
-	type Variant = "primary" | "outline" | "subtle" | "ghost" | "accent" | "destructive";
+	type Variant =
+		| "primary"
+		| "secondary"
+		| "outline"
+		| "subtle"
+		| "ghost"
+		| "accent"
+		| "destructive";
 	type Size = "md" | "sm" | "xs";
 
 	let {
@@ -35,7 +44,7 @@
 
 <button
 	{type}
-	class="btn {variant} {size} {className}"
+	class="btn {variant === 'secondary' ? 'outline' : variant} {size} {className}"
 	class:full
 	class:busy
 	class:icon-only={!children && !!icon}
@@ -79,9 +88,23 @@
 		transform: scale(0.975);
 	}
 
+	/* Disabled reads as a flat, quiet slab, not a faded copy of itself. */
 	.btn:disabled {
-		opacity: 0.45;
-		pointer-events: none;
+		border-color: transparent;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
+		box-shadow: none;
+		cursor: not-allowed;
+	}
+
+	.ghost:disabled {
+		background: transparent;
+	}
+
+	.btn:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-md);
 	}
 
 	.full {
@@ -98,30 +121,28 @@
 	}
 
 	.sm {
-		height: var(--control-h-sm);
-		padding: 0 var(--space-4);
-		font-size: var(--text-base);
-		gap: var(--space-2);
-	}
-
-	.xs {
-		height: var(--control-h-xs);
+		height: var(--button-h-sm);
 		padding: 0 var(--space-3);
 		font-size: var(--text-sm);
 		gap: var(--space-2);
 	}
 
-	/* MD3: leading-icon buttons tighten start padding, keep end breathing room. */
-	.md:has(.glyph):has(.label) {
-		padding-inline: var(--space-4) var(--space-5);
+	/* Older size: same height as sm so rows line up. */
+	.xs {
+		height: var(--button-h-sm);
+		padding: 0 var(--space-3);
+		font-size: var(--text-sm);
+		gap: var(--space-1);
 	}
 
-	.sm:has(.glyph):has(.label) {
+	/* MD3: leading-icon buttons tighten start padding, keep end breathing room. */
+	.md:has(.glyph):has(.label) {
 		padding-inline: var(--space-3) var(--space-4);
 	}
 
+	.sm:has(.glyph):has(.label),
 	.xs:has(.glyph):has(.label) {
-		padding-inline: var(--space-3) var(--space-3);
+		padding-inline: var(--space-2) var(--space-3);
 	}
 
 	.md:not(:has(.label)) {
@@ -129,13 +150,9 @@
 		padding: 0;
 	}
 
-	.sm:not(:has(.label)) {
-		width: var(--control-h-sm);
-		padding: 0;
-	}
-
+	.sm:not(:has(.label)),
 	.xs:not(:has(.label)) {
-		width: var(--control-h-xs);
+		width: var(--button-h-sm);
 		padding: 0;
 	}
 
@@ -144,12 +161,10 @@
 	.primary {
 		background: var(--primary);
 		color: var(--primary-foreground);
-		box-shadow: var(--shadow-sm);
 	}
 
 	.primary:hover:not(:disabled) {
 		background: var(--primary-hover);
-		box-shadow: var(--shadow-primary);
 	}
 
 	.outline {
@@ -163,12 +178,13 @@
 	}
 
 	.subtle {
-		background: var(--muted);
+		border-color: var(--border-strong);
+		background: var(--surface-2);
 		color: var(--foreground);
 	}
 
 	.subtle:hover:not(:disabled) {
-		background: var(--accent);
+		background: var(--surface-3);
 	}
 
 	.ghost {
@@ -180,16 +196,14 @@
 		color: var(--foreground);
 	}
 
+	/* Gold is for primary only now; accent reads as secondary. */
 	.accent {
-		border-color: color-mix(in srgb, var(--primary) 45%, transparent);
-		background: var(--primary-wash);
-		color: var(--primary);
+		border-color: var(--border-strong);
+		color: var(--foreground);
 	}
 
 	.accent:hover:not(:disabled) {
-		border-color: var(--primary);
-		background: var(--primary-wash-strong);
-		color: var(--primary-hover);
+		background: var(--accent);
 	}
 
 	.destructive {
@@ -221,11 +235,7 @@
 		height: 1.25rem;
 	}
 
-	.sm .glyph {
-		width: 1.125rem;
-		height: 1.125rem;
-	}
-
+	.sm .glyph,
 	.xs .glyph {
 		width: 1rem;
 		height: 1rem;

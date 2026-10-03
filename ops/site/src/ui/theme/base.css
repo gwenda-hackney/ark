@@ -153,11 +153,15 @@ svg {
 	scrollbar-color: transparent transparent;
 }
 
-.scrollbar-fade,
-.ag-body-viewport,
-.ag-center-cols-viewport,
-.ag-body-horizontal-scroll-viewport {
-	scrollbar-gutter: stable;
+/* Touch scrollbars overlay the content and take no room, so reserving a
+   gutter there only leaves a blank strip down the right edge. */
+@media (hover: hover) and (pointer: fine) {
+	.scrollbar-fade,
+	.ag-body-viewport,
+	.ag-center-cols-viewport,
+	.ag-body-horizontal-scroll-viewport {
+		scrollbar-gutter: stable;
+	}
 }
 
 ::-webkit-scrollbar {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	/**
-	 * Pill tab bar. `invert` keeps the sunken track + ink pill.
+	 * Pill tab bar. `invert` keeps the sunken track + ink pill, the same
+	 * height as a button of the same size so it sits in a toolbar row.
 	 * `soft` is a flat underline strip for sitting on cards (no gray box).
 	 */
 	import type { SegmentedItem } from "./types";
@@ -68,13 +69,19 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.125rem;
+		height: var(--control-h);
 		padding: 0.1875rem;
 		border-radius: var(--radius-pill);
 		background: var(--sunken);
 		border: 1px solid var(--border);
 	}
 
+	.track.sm {
+		height: var(--button-h-sm);
+	}
+
 	.track.soft {
+		height: auto;
 		gap: 0.15rem;
 		padding: 0;
 		border: none;
@@ -124,14 +131,15 @@
 		font-weight: 600;
 	}
 
+	/* Track height less its 3px padding and 1px border, each side. */
 	.md .tab {
-		height: 1.875rem;
+		height: calc(var(--control-h) - 0.5rem);
 		padding: 0 var(--space-3);
 		font-size: var(--text-base);
 	}
 
 	.sm .tab {
-		height: 1.625rem;
+		height: calc(var(--button-h-sm) - 0.5rem);
 		padding: 0 var(--space-3);
 		font-size: var(--text-sm);
 	}
@@ -160,8 +168,14 @@
 
 	.tab:disabled,
 	.tab[aria-disabled="true"] {
-		opacity: 0.4;
+		color: var(--fg-subtle);
 		pointer-events: none;
+	}
+
+	.tab:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-pill);
 	}
 
 	.invert .tab[aria-selected="true"] {
