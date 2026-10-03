@@ -588,10 +588,9 @@
 			grid-column: 2;
 		}
 
-		/* Name and link side by side across the row, so a long link isn't cut short. */
+		/* Name and link each get the full row, so a long link isn't cut short. */
 		.control-grid > .guest-group {
 			grid-column: 1 / -1;
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		}
 
 		.control-grid > :global(.offer) {

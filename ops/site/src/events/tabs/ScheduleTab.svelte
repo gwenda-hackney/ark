@@ -267,9 +267,15 @@
 		gap: var(--space-3) var(--space-4);
 	}
 
-	/* Each field takes its own width token. */
+	/* Each field is as wide as its control (its width token) or its hint. */
 	.rule-row > :global(.field) {
 		flex: 0 1 auto;
+		width: auto;
+		min-width: 0;
+	}
+
+	.rule-row > :global(.field.w-sm) {
+		min-width: 10.5rem;
 	}
 
 	.rule-row > :global(.field.days) {

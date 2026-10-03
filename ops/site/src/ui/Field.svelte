@@ -5,8 +5,10 @@
 	 * hint, or the error in its place. Required is the default and is not
 	 * marked. The control picks up aria-describedby and aria-invalid from
 	 * here. `tooltip` is for long help only; short help goes in `hint`.
-	 * `width` caps the field to its content: xs 6rem (%, ABV), sm 9rem
-	 * (money, times, dates), md 16rem, lg 28rem, full (default).
+	 * `width` caps the control (and its label row) to what goes in it: xs
+	 * 6rem (%, ABV), sm 9rem (money, times, dates), md 16rem, lg 28rem,
+	 * full (default). The hint and error keep the field's full width so a
+	 * narrow control doesn't wrap its help onto four lines.
 	 */
 	import type { Snippet } from "svelte";
 	import Tip from "./Tip.svelte";
@@ -75,7 +77,7 @@
 			<div class="label-actions">{@render actions()}</div>
 		{/if}
 	</div>
-	{@render children()}
+	<div class="control">{@render children()}</div>
 	{#if shownError}
 		<p class="error" id={errorId}>
 			<svg
@@ -112,27 +114,38 @@
 		width: 100%;
 	}
 
+	.control {
+		min-width: 0;
+	}
+
 	/* Widths follow what goes in: a percentage never needs 500px. */
-	.w-xs {
+	.w-xs > .control {
 		max-width: 6rem;
 	}
 
-	.w-sm {
+	.w-sm > .control {
 		max-width: 9rem;
 	}
 
-	.w-md {
+	.w-md > .control,
+	.w-md > .label-row {
 		max-width: 16rem;
 	}
 
-	.w-lg {
+	.w-lg > .control,
+	.w-lg > .label-row {
 		max-width: 28rem;
 	}
 
-	/* The label row can be wider than a narrow control. */
-	.w-xs,
-	.w-sm {
-		min-width: min-content;
+	/* Actions on a narrow field stay by its control, not across the row. */
+	.w-xs > .label-row,
+	.w-sm > .label-row {
+		justify-content: flex-start;
+	}
+
+	.hint,
+	.error {
+		max-width: 40rem;
 	}
 
 	.label-row {
