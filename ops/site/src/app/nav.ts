@@ -122,11 +122,6 @@ export function listen(onChange: () => void): () => void {
   };
 }
 
-export function loginNext(fallback = "/menu"): string {
-  const path = readPath();
-  return path === "/" ? fallback : path;
-}
-
 /** Same-origin left-clicks on shell routes stay in the SPA. */
 export function interceptClientNav(event: MouseEvent): void {
   if (event.defaultPrevented || event.button !== 0) return;

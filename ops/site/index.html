@@ -8,6 +8,130 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Splash: paints before any JS, so a signed-out visit never sees white or the
+         empty app. System fonts only, so nothing swaps. Keep in step with
+         public/gate/index.html and forbiddenPage() in src/access/server/auth.js. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0e0e10;
+        color: #ece8e1;
+        color-scheme: dark;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background: #0e0e10;
+        font: 400 14px/20px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+        transition: opacity 150ms ease-out;
+      }
+      #boot[hidden] {
+        display: none;
+      }
+      #boot.boot-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .boot-inner {
+        display: grid;
+        justify-items: center;
+        gap: 12px;
+        max-width: 22rem;
+      }
+      .boot-brand {
+        display: grid;
+        justify-items: center;
+        gap: 16px;
+        animation: boot-pulse 1.6s ease-in-out infinite;
+      }
+      .boot-still .boot-brand {
+        animation: none;
+      }
+      .boot-mark {
+        display: grid;
+        place-items: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        background: #c9a84c;
+        color: #0b0b0c;
+        font: 600 30px/1 Georgia, "Times New Roman", serif;
+      }
+      .boot-name {
+        font-size: 11px;
+        line-height: 16px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #a29d95;
+      }
+      .boot-msg {
+        display: grid;
+        justify-items: center;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .boot-msg[hidden] {
+        display: none;
+      }
+      .boot-msg h1 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 24px;
+        font-weight: 600;
+      }
+      .boot-msg p {
+        margin: 0;
+        color: #a29d95;
+      }
+      .boot-msg a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 16px;
+        margin-top: 4px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #ece8e1;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .boot-msg a:hover {
+        background: #202023;
+      }
+      .boot-msg a:focus-visible {
+        outline: 2px solid #c9a84c;
+        outline-offset: 2px;
+      }
+      @keyframes boot-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.55;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot {
+          transition: none;
+        }
+        .boot-brand {
+          animation: none;
+        }
+      }
+      @media print {
+        #boot {
+          display: none;
+        }
+      }
+    </style>
     <script>
       (function () {
         var p = (location.pathname || "/").replace(/\/+$/, "") || "/";
@@ -22,6 +146,24 @@
     </script>
   </head>
   <body>
+    <div id="boot" role="status" aria-label="Loading Gwenda Operations">
+      <div class="boot-inner">
+        <div class="boot-brand">
+          <div class="boot-mark" aria-hidden="true">G</div>
+          <div class="boot-name">Gwenda · Operations</div>
+        </div>
+        <div class="boot-msg" data-boot-msg="forbidden" hidden>
+          <h1>Not on the ops users list</h1>
+          <p>That Google account is not on the ops users list. Sign out and use another account, or ask an admin to add you.</p>
+          <a href="/api/auth/logout">Sign out</a>
+        </div>
+        <div class="boot-msg" data-boot-msg="retry" hidden>
+          <h1>Ops did not load</h1>
+          <p>Could not check your sign-in. Check your connection and try again.</p>
+          <a href="">Try again</a>
+        </div>
+      </div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/app/main.ts"></script>
   </body>

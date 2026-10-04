@@ -109,15 +109,64 @@ export function authMisconfiguredResponse() {
   );
 }
 
+export const NOT_OPS_USER = "not_ops_user";
+
 export function opsUserForbiddenResponse({ json = false } = {}) {
   const message = "That Google account is not on the ops users list.";
   if (json) {
-    return new Response(JSON.stringify({ error: message }), {
+    // The SPA keys on `code` (src/app/boot.ts), not the wording.
+    return new Response(JSON.stringify({ error: message, code: NOT_OPS_USER }), {
       status: 403,
       headers: { "Content-Type": "application/json" },
     });
   }
-  return new Response(message, { status: 403 });
+  return new Response(forbiddenPage(), {
+    status: 403,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+/** Same look as the splash in index.html and the gate. System fonts only. */
+function forbiddenPage() {
+  return `<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Not on the list · Gwenda Operations</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<style>
+html,body{margin:0;min-height:100%;background:#0b0b0c;color:#ece8e1;color-scheme:dark}
+body{min-height:100vh;display:grid;place-items:center;padding:1.5rem;box-sizing:border-box;
+  font:400 14px/20px ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{display:grid;justify-items:center;gap:12px;text-align:center;max-width:22rem}
+.mark{display:grid;place-items:center;width:56px;height:56px;border-radius:12px;background:#c9a84c;
+  color:#0b0b0c;font:600 30px/1 Georgia,"Times New Roman",serif}
+.name{margin:4px 0 12px;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:#a29d95}
+h1{margin:0;font-size:16px;line-height:24px;font-weight:600}
+p{margin:0;color:#a29d95}
+a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;margin-top:8px;border-radius:8px;
+  border:1px solid rgba(255,255,255,.12);color:#ece8e1;text-decoration:none;font-weight:500}
+a:hover{background:#202023}
+a:focus-visible{outline:2px solid #c9a84c;outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark" aria-hidden="true">G</div>
+  <div class="name">Gwenda · Operations</div>
+  <h1>Not on the ops users list</h1>
+  <p>That Google account is not on the ops users list. Sign out and use another account, or ask an admin to add you.</p>
+  <a href="/api/auth/logout">Sign out</a>
+</main>
+</body>
+</html>
+`;
 }
 
 /** Password-gate token (HMAC of scope only). */

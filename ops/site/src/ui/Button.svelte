@@ -1,13 +1,22 @@
 <script lang="ts">
 	/**
-	 * The one button. Pill shaped like the reference: a single solid gold
-	 * primary per view, everything else outlined or ghost so the eye has one
-	 * place to land.
+	 * The one button. One shape (8px corners) and two sizes: md 36px and sm
+	 * 32px, a little taller on phones. A single gold primary per view;
+	 * everything else is secondary (outline), ghost, or destructive, so the
+	 * eye has one place to land. `outline` is the older name for secondary;
+	 * `subtle` and `accent` are kept for old call sites and read as secondary.
 	 */
 	import type { Snippet } from "svelte";
 	import type { HTMLButtonAttributes } from "svelte/elements";
 
-	type Variant = "primary" | "outline" | "subtle" | "ghost" | "accent" | "destructive";
+	type Variant =
+		| "primary"
+		| "secondary"
+		| "outline"
+		| "subtle"
+		| "ghost"
+		| "accent"
+		| "destructive";
 	type Size = "md" | "sm" | "xs";
 
 	let {
@@ -19,6 +28,10 @@
 		icon,
 		trailing,
 		children,
+		reason,
+		disabled = false,
+		title,
+		onclick,
 		class: className = "",
 		...rest
 	}: HTMLButtonAttributes & {
@@ -30,17 +43,40 @@
 		icon?: Snippet;
 		trailing?: Snippet;
 		children?: Snippet;
+		/**
+		 * Why the button is unavailable, in plain words ("Save the series
+		 * first"). With `disabled` it becomes the tooltip, and the button is
+		 * marked aria-disabled rather than natively disabled so the tooltip
+		 * still shows on hover and keyboard users can reach it and hear why.
+		 */
+		reason?: string;
 	} = $props();
+
+	/** Disabled with a reason: still hoverable and focusable, but inert. */
+	const soft = $derived(Boolean(disabled && reason));
+
+	function handleClick(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {
+		if (soft) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
+		onclick?.(event);
+	}
 </script>
 
 <button
-	{type}
-	class="btn {variant} {size} {className}"
+	type={soft ? "button" : type}
+	class="btn {variant === 'secondary' ? 'outline' : variant} {size} {className}"
 	class:full
 	class:busy
 	class:icon-only={!children && !!icon}
 	aria-busy={busy || undefined}
 	{...rest}
+	disabled={soft ? undefined : disabled}
+	aria-disabled={soft ? "true" : rest["aria-disabled"]}
+	title={soft ? reason : title}
+	onclick={handleClick}
 >
 	{#if icon}
 		<span class="glyph">{@render icon()}</span>
@@ -60,7 +96,7 @@
 		justify-content: center;
 		flex-shrink: 0;
 		border: 1px solid transparent;
-		border-radius: var(--radius-pill);
+		border-radius: var(--radius-md);
 		background: transparent;
 		font-weight: 500;
 		white-space: nowrap;
@@ -75,13 +111,29 @@
 			transform var(--t-fast) var(--ease);
 	}
 
-	.btn:active:not(:disabled) {
+	.btn:active:not(:disabled, [aria-disabled="true"]) {
 		transform: scale(0.975);
 	}
 
-	.btn:disabled {
-		opacity: 0.45;
-		pointer-events: none;
+	/* Disabled reads as a flat, quiet slab, not a faded copy of itself. */
+	.btn:disabled,
+	.btn[aria-disabled="true"] {
+		border-color: transparent;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
+		box-shadow: none;
+		cursor: not-allowed;
+	}
+
+	.ghost:disabled,
+	.ghost[aria-disabled="true"] {
+		background: transparent;
+	}
+
+	.btn:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-md);
 	}
 
 	.full {
@@ -92,36 +144,34 @@
 
 	.md {
 		height: var(--control-h);
-		padding: 0 1.125rem;
-		font-size: var(--text);
-		gap: 0.5rem;
+		padding: 0 var(--space-5);
+		font-size: var(--text-base);
+		gap: var(--space-2);
 	}
 
 	.sm {
-		height: var(--control-h-sm);
-		padding: 0 1rem;
-		font-size: var(--text);
-		gap: 0.5rem;
+		height: var(--button-h-sm);
+		padding: 0 var(--space-3);
+		font-size: var(--text-sm);
+		gap: var(--space-2);
 	}
 
+	/* Older size: same height as sm so rows line up. */
 	.xs {
-		height: var(--control-h-xs);
-		padding: 0 0.75rem;
+		height: var(--button-h-sm);
+		padding: 0 var(--space-3);
 		font-size: var(--text-sm);
-		gap: 0.375rem;
+		gap: var(--space-1);
 	}
 
 	/* MD3: leading-icon buttons tighten start padding, keep end breathing room. */
 	.md:has(.glyph):has(.label) {
-		padding-inline: 0.875rem 1.125rem;
+		padding-inline: var(--space-3) var(--space-4);
 	}
 
-	.sm:has(.glyph):has(.label) {
-		padding-inline: 0.75rem 1rem;
-	}
-
+	.sm:has(.glyph):has(.label),
 	.xs:has(.glyph):has(.label) {
-		padding-inline: 0.625rem 0.75rem;
+		padding-inline: var(--space-2) var(--space-3);
 	}
 
 	.md:not(:has(.label)) {
@@ -129,13 +179,9 @@
 		padding: 0;
 	}
 
-	.sm:not(:has(.label)) {
-		width: var(--control-h-sm);
-		padding: 0;
-	}
-
+	.sm:not(:has(.label)),
 	.xs:not(:has(.label)) {
-		width: var(--control-h-xs);
+		width: var(--button-h-sm);
 		padding: 0;
 	}
 
@@ -144,12 +190,10 @@
 	.primary {
 		background: var(--primary);
 		color: var(--primary-foreground);
-		box-shadow: var(--shadow-sm);
 	}
 
-	.primary:hover:not(:disabled) {
+	.primary:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--primary-hover);
-		box-shadow: var(--shadow-primary);
 	}
 
 	.outline {
@@ -157,39 +201,38 @@
 		color: var(--foreground);
 	}
 
-	.outline:hover:not(:disabled) {
+	.outline:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--accent);
 		border-color: var(--border-strong);
 	}
 
 	.subtle {
-		background: var(--muted);
+		border-color: var(--border-strong);
+		background: var(--surface-2);
 		color: var(--foreground);
 	}
 
-	.subtle:hover:not(:disabled) {
-		background: var(--accent);
+	.subtle:hover:not(:disabled, [aria-disabled="true"]) {
+		background: var(--surface-3);
 	}
 
 	.ghost {
 		color: var(--muted-foreground);
 	}
 
-	.ghost:hover:not(:disabled) {
+	.ghost:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--accent);
 		color: var(--foreground);
 	}
 
+	/* Gold is for primary only now; accent reads as secondary. */
 	.accent {
-		border-color: color-mix(in srgb, var(--primary) 45%, transparent);
-		background: var(--primary-wash);
-		color: var(--primary);
+		border-color: var(--border-strong);
+		color: var(--foreground);
 	}
 
-	.accent:hover:not(:disabled) {
-		border-color: var(--primary);
-		background: var(--primary-wash-strong);
-		color: var(--primary-hover);
+	.accent:hover:not(:disabled, [aria-disabled="true"]) {
+		background: var(--accent);
 	}
 
 	.destructive {
@@ -197,7 +240,7 @@
 		color: var(--destructive-foreground);
 	}
 
-	.destructive:hover:not(:disabled) {
+	.destructive:hover:not(:disabled, [aria-disabled="true"]) {
 		background: var(--destructive-hover);
 	}
 
@@ -221,11 +264,7 @@
 		height: 1.25rem;
 	}
 
-	.sm .glyph {
-		width: 1.125rem;
-		height: 1.125rem;
-	}
-
+	.sm .glyph,
 	.xs .glyph {
 		width: 1rem;
 		height: 1rem;

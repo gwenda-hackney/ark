@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import { Button, Segmented } from "../ui";
 	import type { SegmentedItem } from "../ui/types";
@@ -192,6 +193,7 @@
 <div class="book scrollbar-fade" bind:this={scroller}>
 	<div class="toolbar no-print">
 		<Button variant="outline" onclick={onclose}>
+			{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
 			{single ? "Back to drink" : "Back to menu"}
 		</Button>
 		{#if !single}
@@ -215,7 +217,7 @@
 				{drinks.length === 1 ? "page" : "pages"}
 			{/if}
 		</p>
-		<Button variant="primary" onclick={() => window.print()}>Print</Button>
+		<Button variant="primary" onclick={() => window.print()}>{#snippet icon()}<Icon name="print" size={16} />{/snippet}Print</Button>
 	</div>
 
 	<div class="pages">
@@ -367,9 +369,9 @@
 	.toolbar {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		align-items: center;
-		padding: var(--gap) var(--page-gutter);
+		padding: var(--space-4) var(--page-gutter);
 		font-family: var(--font);
 		border-bottom: 1px solid var(--border);
 		background: var(--background);
@@ -543,6 +545,7 @@
 		font-family: var(--font);
 		font-style: normal;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 		line-height: 1.2;
 	}
@@ -579,6 +582,7 @@
 	.spec-label {
 		color: var(--book-accent);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 

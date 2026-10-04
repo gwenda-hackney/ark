@@ -130,7 +130,7 @@ Standalone Workers can persist logs with `[observability] enabled = true`. `gwen
 
 `GET /health` on the marketing site returns `{ ok: true, service: "gwenda", env, dataset, commit }` (liveness plus build metadata). The preview's password gate allows it without a password.
 
-`gwenda-site-health` (cron every 5 minutes) probes the live site and prod's preview. The live site emails `alerts@gwenda.co.uk` after two consecutive failures. Preview failures show in ops Web. Authenticated `GET https://health.gwenda.co.uk/status` returns the last probe for both sites (Bearer `HEALTH_STATUS_TOKEN` when that Worker secret is set). First-time wiring:
+`gwenda-site-health` (cron every 5 minutes) probes the live site and prod's preview. The live site emails `alerts@gwenda.co.uk` after two consecutive failures. Preview failures show in ops Web. Authenticated `GET https://health.gwenda.co.uk/status` returns the last probe for both sites (Bearer `HEALTH_STATUS_TOKEN` when that Worker secret is set; ops sends the same value as `SITE_HEALTH_STATUS_TOKEN`, see [env-reference.md](env-reference.md#site_health_status_token)). First-time wiring:
 
 ```
 npm run setup:site-health

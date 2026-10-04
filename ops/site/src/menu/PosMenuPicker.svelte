@@ -49,17 +49,17 @@
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.chip {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		margin: 0;
-		padding: 0.3rem 0.65rem;
+		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--input);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--sunken);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
@@ -84,7 +84,7 @@
 	}
 
 	.hint {
-		margin: 0.4rem 0 0;
+		margin: var(--space-2) 0 0;
 		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 	}

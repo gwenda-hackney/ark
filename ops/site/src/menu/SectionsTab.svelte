@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
-	import { BusyOverlay, Card, PageHeader } from "../ui";
+	import { Button, EmptyState, Skeleton } from "../ui";
 	import * as api from "../app/api";
-	import { loginNext } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
 	import type { MenuSection } from "./types";
@@ -26,10 +26,6 @@
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Could not load sections.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/sections"))}`;
-				return;
-			}
 			error = message;
 		} finally {
 			loading = false;
@@ -51,46 +47,34 @@
 	});
 </script>
 
-<div class="page scrollbar-fade">
-	<PageHeader
-		title="Sections"
-		subtitle="Chapters and groups on the guest menu. Same tree as the print menu."
-	/>
-
+<!-- Configuration › Menu sections. -->
+<div class="tab">
+	<p class="lead">Chapters and groups on the guest menu, in the order guests see them. The print menu uses the same tree.</p>
 	{#if error}
-		<p class="error">{error}</p>
-	{:else if !loading}
-		<div
-			class="stack"
-			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-		>
-			<Card>
-				<SectionsPanel {sections} busy={false} {onchanged} />
-			</Card>
+		<EmptyState tone="error" title="Could not load sections" text={error}>
+			{#snippet action()}
+				<Button variant="outline" size="sm" onclick={() => void load()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+			{/snippet}
+		</EmptyState>
+	{:else if loading}
+		<Skeleton rows={6} lines={1} label="Loading sections…" />
+	{:else}
+		<div in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+			<SectionsPanel {sections} busy={false} {onchanged} />
 		</div>
 	{/if}
-	<BusyOverlay active={loading} label="Loading…" />
 </div>
 
 <style>
-	.page {
-		position: relative;
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		padding: var(--page-gutter);
-	}
-
-	.stack {
+	.tab {
 		display: grid;
-		gap: var(--gap-lg);
-		max-width: 40rem;
-		align-content: start;
+		gap: var(--space-4);
 	}
 
-	.error {
+	.lead {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		max-width: 65ch;
 		font-size: var(--text-sm);
+		color: var(--fg-muted);
 	}
 </style>

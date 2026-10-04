@@ -1,16 +1,12 @@
 <script lang="ts">
 	import { Icon } from "../app/shell";
-	import { Button, PageHelp } from "../ui";
+	import { Badge, Button, PageHelp } from "../ui";
+	import { editorHeaderActions } from "./editor-header-actions";
 	import type { OpsEvent } from "../app/api";
 	import { eventItemPath } from "../app/nav";
 	import { eventHeaderFlag } from "./event-header-status";
 	import { formatDate, repeatLabel } from "./event-labels";
-	import { EVENTS_HELP } from "./events-help";
-	import {
-		lockedReadout as lockedReadoutOf,
-		type EventForm,
-		type SeriesTextKey,
-	} from "./event-form.svelte";
+	import type { EventForm } from "./event-form.svelte";
 	import { websiteJobFor } from "./website-jobs.svelte";
 	import { getSitePendingState } from "../website/site-pending.svelte";
 
@@ -28,7 +24,6 @@
 		parentSeriesName,
 		calendarSyncing,
 		localOps,
-		onusedefaults,
 		onaddnight,
 		onsynccalendar,
 		onputonwebsite,
@@ -52,7 +47,6 @@
 		calendarSyncing: boolean;
 		/** Local ops: Save and Update website change the Gwenda Dev copy only. */
 		localOps: boolean;
-		onusedefaults: () => void;
 		onaddnight: () => void;
 		onsynccalendar: () => void;
 		onputonwebsite: () => void;
@@ -82,22 +76,40 @@
 				: "No date",
 	);
 	const headerFlag = $derived(
-		eventHeaderFlag(current?.publish, dirty, {
+		// Unsaved shows once, in the action bar; this says where it stands on the website.
+		eventHeaderFlag(current?.publish, false, {
 			job: websiteJobFor(current?.id)?.state ?? null,
 		}),
 	);
 	const liveCurrent = $derived(current?.publish.live === "current");
+	const actions = $derived(
+		editorHeaderActions({
+			eventId,
+			isNew,
+			editingNight,
+			special: creatingOnce || editingOnce,
+			dirty,
+			busy,
+			liveCurrent,
+		}),
+	);
 	// Event pages render on request (#25): on the website means live now.
 	const pageUrl = $derived(
 		current?.slug
 			? `${getSitePendingState().urls.live}/whats-on/${current.slug}${occurrenceDate ? `/${occurrenceDate}` : ""}`
 			: "",
 	);
-	const lockedReadout = (key: SeriesTextKey) => lockedReadoutOf(current, key);
-
-	function unlockDefaults() {
-		form.defaultsUnlocked = true;
-	}
+	/** The name as typed, or what's being made while it has none. */
+	const title = $derived(
+		form.name.trim() ||
+			(isNew ? (creatingOnce ? "New special event" : "New series") : "Untitled"),
+	);
+	/** Under a night's date: its own title, else the series it belongs to. */
+	const nightTitle = $derived(
+		form.isOverridden("name") && form.name.trim()
+			? form.name.trim()
+			: parentSeriesName || (creatingNight ? "Choose a series below" : ""),
+	);
 </script>
 
 <header class="panel-head">
@@ -109,93 +121,75 @@
 				<Icon name="events" size={14} />
 			{/if}
 			<p class="eyebrow">{typeLine}</p>
-			{#if headerFlag.tone === "live" && pageUrl}
-				<a
-					class="status-flag live"
-					href={pageUrl}
-					target="_blank"
-					rel="noopener"
-					title="Open the page on the website">{headerFlag.label} ↗</a
-				>
+			{#if headerFlag.live && pageUrl}
+				<a class="flag-link" href={pageUrl} target="_blank" rel="noopener" title="{headerFlag.title}. Open the page.">
+					<Badge tone={headerFlag.tone} label="{headerFlag.label} ↗" />
+				</a>
 			{:else}
-				<p class="status-flag {headerFlag.tone}">{headerFlag.label}</p>
+				<Badge tone={headerFlag.tone} label={headerFlag.label} title={headerFlag.title} />
 			{/if}
 		</div>
 		<div class="head-tools">
 			<div class="toolbar-actions">
-				{#if editingOccurrence}
-					<Button
-						variant="accent"
-						size="sm"
-						type="button"
-						disabled={busy}
-						aria-label={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
-						title={form.defaultsUnlocked ? "Use series defaults" : "Override defaults"}
-						onclick={() =>
-							form.defaultsUnlocked ? onusedefaults() : unlockDefaults()}
-					>
-						{#snippet icon()}
-							<Icon name={form.defaultsUnlocked ? "undo" : "lock"} />
-						{/snippet}
-					</Button>
-					<span class="tool-sep" aria-hidden="true"></span>
-				{/if}
-				{#if eventId && !isNew && !editingOccurrence && !editingOnce}
-					<Button
-						variant="outline"
-						size="sm"
-						type="button"
-						disabled={busy}
-						title="Add a night to this series."
-						onclick={onaddnight}
-					>
-						{#snippet icon()}
-							<Icon name="plus" size={16} />
-						{/snippet}
-						Add night
-					</Button>
-				{/if}
-				{#if eventId && !isNew}
-					<Button
-						variant="outline"
-						size="sm"
-						type="button"
-						disabled={busy || dirty}
-						busy={calendarSyncing}
-						title={
-							dirty
-								? "Save before updating the calendar."
-								: "Send the upcoming nights for this series to Google Calendar."
-						}
-						onclick={() => onsynccalendar()}
-					>
-						Update calendar
-					</Button>
-					{#if !liveCurrent}
-						<Button
-							variant="primary"
-							size="sm"
-							type="button"
-							disabled={busy || dirty}
-							title={dirty ? "Save first." : "Put this version of the event on gwenda.co.uk."}
-							onclick={onputonwebsite}
-						>
-							Update website
-						</Button>
-					{/if}
-				{/if}
-				<PageHelp title="Events" topics={EVENTS_HELP} />
+				<!-- Always the same buttons in the same places; ones that don't apply
+				     are disabled with a reason rather than hidden. -->
+				<Button
+					variant="outline"
+					size="sm"
+					data-compact
+					aria-label="Add night"
+					disabled={actions.addNight.disabled}
+					reason={actions.addNight.reason}
+					title="Add a night to this series."
+					onclick={onaddnight}
+				>
+					{#snippet icon()}
+						<Icon name="plus" size={14} />
+					{/snippet}
+					Add night
+				</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					data-compact
+					aria-label="Update calendar"
+					disabled={actions.calendar.disabled}
+					reason={actions.calendar.reason}
+					busy={calendarSyncing}
+					title="Send the upcoming nights for this series to Google Calendar."
+					onclick={() => onsynccalendar()}
+				>
+					{#snippet icon()}
+						<Icon name="calendar" size={14} />
+					{/snippet}
+					Update calendar
+				</Button>
+				<Button
+					variant="primary"
+					size="sm"
+					disabled={actions.website.disabled}
+					reason={actions.website.reason}
+					title="Put this version of the event on gwenda.co.uk."
+					onclick={onputonwebsite}
+				>
+					{#snippet icon()}
+						<Icon name="upload" size={14} />
+					{/snippet}
+					Update website
+				</Button>
+				<PageHelp />
 				<Button
 					variant="ghost"
 					size="sm"
 					type="button"
-					disabled={busy || !eventId}
+					disabled={actions.reload.disabled}
+					reason={actions.reload.reason}
 					title="Reload"
 					aria-label="Reload from server"
 					onclick={onreload}
 				>
 					{#snippet icon()}
-						<Icon name="refresh" />
+						<Icon name="refresh" size={14} />
 					{/snippet}
 				</Button>
 				<Button
@@ -208,7 +202,7 @@
 					onclick={onclose}
 				>
 					{#snippet icon()}
-						<Icon name="close" size={16} />
+						<Icon name="close" size={14} />
 					{/snippet}
 				</Button>
 			</div>
@@ -221,34 +215,16 @@
 					{headerDate === "No date" ? "Pick a date" : headerDate}
 				</p>
 			</div>
-			{#if editingOccurrence && !form.defaultsUnlocked}
-				<p class="locked-title">{lockedReadout("name")}</p>
-			{:else}
-				<input
-					class="title-input night-title"
-					id="event-name"
-					required={!creatingNight && !editingOccurrence}
-					autocomplete="off"
-					aria-label="Night title"
-					placeholder={creatingNight ? "Night title (optional)" : "Night title"}
-					bind:value={form.name}
-				/>
+			{#if nightTitle}
+				<p class="locked-title">{nightTitle}</p>
 			{/if}
 		{:else}
 			<div class="name-line">
-				<input
-					class="title-input"
-					id="event-name"
-					required
-					autocomplete="off"
-					aria-label={creatingOnce || editingOnce ? "Event name" : "Series name"}
-					placeholder={creatingOnce || editingOnce ? "Event name" : "Series name"}
-					bind:value={form.name}
-				/>
+				<h1 class="title-text" class:placeholder={!form.name.trim()}>{title}</h1>
 			</div>
-		{/if}
-		{#if (!editingOccurrence || form.defaultsUnlocked) && form.artist.trim()}
-			<p class="sub">{form.artist.trim()}</p>
+			{#if form.artist.trim()}
+				<p class="sub">{form.artist.trim()}</p>
+			{/if}
 		{/if}
 	</div>
 	{#if showHeaderDate}
@@ -256,34 +232,16 @@
 			<p class="date-readout" class:muted={headerDate === "No date"}>{headerDate}</p>
 		</div>
 	{/if}
-	{#if editingNight}
+	{#if editingOccurrence}
 		<p class="head-note">
 			{#if parentSeriesName}<span>Part of {parentSeriesName}.</span>{/if}
-			<span>
-				{#if editingOccurrence && !form.defaultsUnlocked}
-					Times, flyer, and copy come from the series.
-				{:else}
-					Changes apply to this night only.
-				{/if}
-			</span>
-			{#if editingOccurrence && eventId}
+			<span>Anything marked From series follows the series until you override it.</span>
+			{#if eventId}
 				<a class="series-link" href={eventItemPath(eventId)}>Edit series</a>
 			{/if}
 		</p>
-	{:else if isNew && !creatingOnce}
-		<div class="create-mode">
-			<p class="create-hint muted">
-				Pick a series below to add a night, or leave it empty for a new series.
-			</p>
-		</div>
-	{:else if creatingOnce}
-		<div class="create-mode">
-			<p class="create-hint muted">
-				Pick a series below to add a night to it, or leave it on "No series" for a special event.
-			</p>
-		</div>
-	{:else if !editingOnce}
-		<p class="head-note">Series defaults, shared by its nights.</p>
+	{:else if !isNew && !editingOnce && !editingNight}
+		<p class="head-note">Its nights take these details unless a night overrides them.</p>
 	{/if}
 	{#if localOps && eventId}
 		<p class="head-note local-note">
@@ -310,7 +268,7 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
-		column-gap: 0.85rem;
+		column-gap: var(--space-3);
 		row-gap: 0.2rem;
 		flex-shrink: 0;
 		padding: 0.55rem var(--card-pad-lg) 0.75rem;
@@ -324,14 +282,14 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.35rem 0.85rem;
+		gap: var(--space-1) var(--space-3);
 		min-width: 0;
 	}
 
 	.type-line {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		max-width: 100%;
 		min-height: var(--control-h-sm);
@@ -340,11 +298,11 @@
 	.eyebrow {
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -362,15 +320,8 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: flex-end;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		min-height: var(--control-h-sm);
-	}
-
-	.tool-sep {
-		width: 1px;
-		height: 1rem;
-		margin: 0 0.15rem;
-		background: var(--border);
 	}
 
 	.head-tools :global(.close-btn) {
@@ -396,86 +347,42 @@
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 0.45rem 0.7rem;
+		gap: var(--space-2) var(--space-3);
 		min-width: 0;
-	}
-
-	.name-line .title-input {
-		flex: 0 1 auto;
-		width: auto;
-		min-width: min(100%, 10rem);
-		max-width: 100%;
-		field-sizing: content;
 	}
 
 	.night-headline {
 		margin: 0;
 		font-family: var(--font);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
+		letter-spacing: var(--tracking-2xl);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.locked-title {
 		margin: 0.15rem 0 0;
 		color: var(--foreground);
-		font-size: 1.05rem;
+		font-size: var(--text-md);
 		font-weight: 500;
 		line-height: 1.3;
 	}
 
-	.title-input {
-		display: block;
-		width: 100%;
+	.title-text {
+		margin: 0;
 		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		outline: none;
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
+		overflow-wrap: anywhere;
 	}
 
-	.title-input::placeholder {
-		color: var(--subtle-foreground);
-		font-family: var(--font);
-		font-size: 1rem;
-		font-weight: 400;
-		letter-spacing: 0;
-	}
-
-	.name-line .title-input:placeholder-shown {
-		min-width: min(100%, 20rem);
-		border-color: var(--border);
-	}
-
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
-	}
-
-	.title-input.night-title {
-		font-size: 1.05rem;
-		font-weight: 500;
-		letter-spacing: 0;
+	.title-text.placeholder {
+		color: var(--muted-foreground);
 	}
 
 	.title-meta {
@@ -493,75 +400,36 @@
 	.date-readout {
 		margin: 0;
 		font-family: var(--font);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
+		letter-spacing: var(--tracking-2xl);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 
 	.date-readout.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
-		font-size: 1.2rem;
+		font-size: var(--text-lg);
+		letter-spacing: var(--tracking-lg);
 	}
 
-	.status-flag {
+	.flag-link {
 		display: inline-flex;
-		align-items: center;
-		flex-shrink: 0;
-		width: fit-content;
-		margin: 0;
-		padding: 0.18rem 0.5rem;
-		border-radius: var(--radius-pill);
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		line-height: 1.2;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.status-flag.unpublished {
-		color: var(--primary-foreground);
-		background: var(--primary);
-	}
-
-	.status-flag.unsaved {
-		color: var(--destructive-foreground);
-		background: var(--destructive);
-	}
-
-	.status-flag.preview {
-		color: var(--foreground);
-		background: var(--primary-wash-strong);
-	}
-
-	.status-flag.live {
-		color: var(--primary);
-		background: var(--primary-wash);
+		border-radius: var(--radius-sm);
 		text-decoration: none;
 	}
 
-	a.status-flag.live:hover {
-		background: var(--primary-wash-strong);
+	.flag-link:hover :global(.badge) {
+		border-color: var(--success);
 	}
 
-	.status-flag.new {
-		color: var(--foreground);
-		background: var(--muted);
-		box-shadow: inset 0 0 0 1px var(--border-strong);
-	}
-
-	.status-flag.muted {
-		color: var(--muted-foreground);
-		font-weight: 500;
-		letter-spacing: 0.04em;
-		text-transform: none;
-		padding: 0;
-		background: transparent;
+	.flag-link:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
 	}
 
 	.head-note {
@@ -573,10 +441,9 @@
 		/* A space-sized gap between the sentences, not a wide one (#32). */
 		gap: 0.2rem 0.3em;
 		margin: 0;
-		padding-top: 0.45rem;
+		padding-top: var(--space-2);
 		font-size: var(--text-xs);
 		font-weight: 500;
-		letter-spacing: 0.02em;
 		line-height: 1.4;
 		color: var(--muted-foreground);
 		max-width: 40rem;
@@ -587,32 +454,51 @@
 		padding-top: 0.2rem;
 	}
 
-	.create-mode {
-		grid-column: 1 / -1;
-		display: grid;
-		gap: 0.45rem;
-		margin-top: 0.35rem;
-	}
-
-	.create-hint {
-		margin: 0;
-		font-size: var(--text-xs);
-		line-height: 1.4;
-	}
-
-	.create-hint.muted {
-		color: var(--muted-foreground);
-	}
-
 	.sub {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		color: var(--muted-foreground);
 	}
 
 	@media (max-width: 900px) {
 		.head-tools :global(.close-btn), .head-tools :global(.photo-expand) {
 			display: none;
+		}
+
+		/* One row in a fixed order: scroll sideways rather than wrap. */
+		.head-tools {
+			width: 100%;
+			margin-left: 0;
+		}
+
+		.toolbar-actions {
+			flex-wrap: nowrap;
+			justify-content: flex-start;
+			margin: -2px;
+			padding: 2px;
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+
+		.toolbar-actions::-webkit-scrollbar {
+			display: none;
+		}
+
+		/* Secondary buttons and Help shrink to their icon so Update website fits. */
+		.toolbar-actions :global(.btn[data-compact]) {
+			width: var(--control-h);
+			height: var(--control-h);
+			padding: 0;
+		}
+
+		.toolbar-actions :global(.btn[data-compact] .label) {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			margin: -1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
 		}
 
 		.head-note {
@@ -626,12 +512,9 @@
 	}
 
 	@media (max-width: 600px) {
-		.title-input, .date-readout, .night-headline {
-			font-size: 1.35rem;
-		}
-
-		.title-input.night-title {
-			font-size: 1rem;
+		.title-text, .date-readout, .night-headline {
+			font-size: var(--text-xl);
+			letter-spacing: var(--tracking-xl);
 		}
 	}
 </style>

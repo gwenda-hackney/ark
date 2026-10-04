@@ -5,6 +5,9 @@
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/** What TimeField says when it can't read what was typed. */
+export const TIME_ERROR = "Use a time like 7pm or 19:30.";
+
 /** "HH:MM", "" for a blank field, or null when it cannot be read as a time. */
 export function parseTime(raw: string): string | null {
 	const text = raw.trim().toLowerCase().replace(/\s+/g, "");

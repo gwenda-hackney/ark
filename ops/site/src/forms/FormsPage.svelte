@@ -3,15 +3,24 @@
 	import { fade, fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
+		Badge,
 		BusyOverlay,
 		Button,
+		Confirm,
+		ConfirmDialog,
 		EditorBackBar,
+		EmptyState,
 		Field,
+		FilterBar,
+		FilterField,
 		NativeSelect,
 		PageHeader,
-		SearchField,
+		Segmented,
+		Skeleton,
 		TextField,
 	} from "../ui";
+	import { decisionBadge } from "../ui/badge";
+	import { decisionActions } from "./decision-actions";
 	import {
 		getFormSubmissions,
 		resendFormEmail,
@@ -23,13 +32,31 @@
 	} from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
-	import { loginNext, navigate, parseShellPath } from "../app/nav";
+	import { navigate, parseShellPath } from "../app/nav";
+	import {
+		beginLeave,
+		clearUnsavedGuard,
+		setUnsavedGuard,
+		takeBlockedNav,
+	} from "../ui/unsaved.svelte";
 	import { formatWhen } from "../website/web-metrics";
 	import FormsGrid from "./FormsGrid.svelte";
+	import FormsCards from "./FormsCards.svelte";
+	import { listViewPref } from "../ui/list-prefs.svelte";
+	import type { ListView } from "../ui/view-prefs";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 
 	let { path = "/forms" }: { path?: string } = $props();
 
 	const route = $derived(parseShellPath(path));
+	/** Phones get cards; the table needs a desk. */
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	/** Cards by default; a desk can switch to the table. Phones always get cards. */
+	const view = listViewPref("forms", phone);
+	const VIEW_ITEMS = [
+		{ id: "cards", label: "Cards" },
+		{ id: "table", label: "Table" },
+	] as const;
 	const openId = $derived(route.page === "forms" ? route.slug : null);
 
 	let rows = $state<FormSubmission[]>([]);
@@ -48,6 +75,7 @@
 	let savingArtist = $state(false);
 	let artistNote = $state("");
 	let artistError = $state("");
+	const confirm = new Confirm();
 
 	const EMAILS: { kind: FormEmailKind; label: string; field: "notifySentAt" | "receiptSentAt" }[] = [
 		{ kind: "notify", label: "Team notification", field: "notifySentAt" },
@@ -69,6 +97,12 @@
 		{ value: "", label: "All forms" },
 		...forms.map(([value, label]) => ({ value, label })),
 	]);
+
+	const formChips = $derived(
+		formFilter
+			? [{ key: "form", label: formOptions.find((row) => row.value === formFilter)?.label || "Form", onremove: () => (formFilter = "") }]
+			: [],
+	);
 
 	const visible = $derived.by(() => {
 		const needle = query.trim().toLowerCase();
@@ -94,11 +128,19 @@
 		selected ? selected.answers.filter((answer) => answer.value.trim()) : [],
 	);
 
+	const can = $derived(
+		decisionActions({
+			formSlug: selected?.formSlug,
+			decision: selected?.decision,
+			email: selected?.email,
+			deciding,
+		}),
+	);
 	const statusTone = $derived.by(() => {
 		const status = selected?.status.toLowerCase() ?? "";
-		if (status === "verified") return "live";
-		if (status === "pending") return "pending";
-		return "muted";
+		if (status === "verified") return "success";
+		if (status === "pending") return "warning";
+		return "neutral";
 	});
 
 	const URL_PATTERN = /(https?:\/\/[^\s<>"']+)/g;
@@ -112,6 +154,7 @@
 	}
 
 	function closeDetail() {
+		// Unsaved guest-artist edits are caught by the guard below.
 		navigate("/forms");
 	}
 
@@ -131,6 +174,37 @@
 			(artistNameDraft.trim() !== (selected?.artistName || selected?.submitted?.name || "") ||
 				artistLinkDraft.trim() !== (selected?.artistLink || selected?.submitted?.link || "")),
 	);
+
+	// Unsaved guest-artist edits: ask before leaving, like the other editors,
+	// and the shell's saving pill knows.
+	$effect(() => {
+		setUnsavedGuard(artistDirty, () => {
+			const next = takeBlockedNav();
+			if (!next) return;
+			void confirm
+				.ask({
+					title: "Discard unsaved changes?",
+					message: "The guest artist name or link you changed hasn't been saved.",
+					action: "Discard",
+					cancel: "Keep editing",
+				})
+				.then((ok) => {
+					if (!ok) return;
+					beginLeave();
+					navigate(next.path, { replace: next.replace, force: true });
+				});
+		});
+	});
+
+	$effect(() => {
+		if (!artistDirty || typeof window === "undefined") return;
+		const onBeforeUnload = (e: BeforeUnloadEvent) => {
+			e.preventDefault();
+			e.returnValue = "";
+		};
+		window.addEventListener("beforeunload", onBeforeUnload);
+		return () => window.removeEventListener("beforeunload", onBeforeUnload);
+	});
 
 	/** Save ops' copy. Matching what they sent stores nothing, so it follows their answers. */
 	async function saveArtist(row: FormSubmission) {
@@ -185,6 +259,15 @@
 	/** Approve or decline; it holds for every reply from the same address. */
 	async function decide(row: FormSubmission, decision: FormDecision) {
 		if (deciding) return;
+		if (decision === "Declined") {
+			const ok = await confirm.ask({
+				title: `Decline ${personLabel(row)}?`,
+				message:
+					"They can't be picked as a guest artist. It holds for every reply from this address; you can approve them later. No email is sent.",
+				action: "Decline",
+			});
+			if (!ok) return;
+		}
 		deciding = true;
 		decisionError = "";
 		try {
@@ -209,6 +292,7 @@
 
 	onDestroy(() => {
 		setCrumbLeaf("");
+		clearUnsavedGuard();
 	});
 
 	onMount(() => {
@@ -219,10 +303,6 @@
 			} catch (err) {
 				const message =
 					err instanceof Error ? err.message : "Could not load submissions.";
-				if (message.startsWith("auth:")) {
-					window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/forms"))}`;
-					return;
-				}
 				error = message;
 			} finally {
 				loading = false;
@@ -230,6 +310,12 @@
 		})();
 	});
 </script>
+
+{#snippet formFilterField()}
+	<FilterField label="Form" for="forms-filter">
+		<NativeSelect id="forms-filter" bind:value={formFilter} options={formOptions} size="sm" />
+	</FilterField>
+{/snippet}
 
 <div class="forms-root">
 	{#if openId}
@@ -248,51 +334,50 @@
 								Play application{selected?.formTitle ? ` · ${selected.formTitle}` : ""}
 							</p>
 							{#if selected?.status}
-								<p class="status-flag {statusTone}">{selected.status}</p>
+								<Badge tone={statusTone} label={selected.status} />
 							{/if}
 							{#if selected?.decision}
-								<p class="status-flag {selected.decision === 'Approved' ? 'live' : 'muted'}">
-									{selected.decision}
-								</p>
+								{@const decision = decisionBadge(selected.decision)}
+								{#if decision}<Badge tone={decision.tone} label={decision.label} />{/if}
 							{/if}
 						</div>
 						<div class="head-tools">
-							{#if selected?.formSlug === "play"}
-								{#if selected.decision !== "Approved"}
-									<Button
-										variant="primary"
-										size="sm"
-										type="button"
-										disabled={deciding}
-										title="Approved artists can be picked as an event's guest artist."
-										onclick={() => void decide(selected, "Approved")}
-									>
-										Approve
-									</Button>
-								{/if}
-								{#if selected.decision !== "Declined"}
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										disabled={deciding}
-										onclick={() => void decide(selected, "Declined")}
-									>
-										Decline
-									</Button>
-								{/if}
-							{/if}
-							{#if selected?.email}
-								<Button
-									variant="outline"
-									size="sm"
-									type="button"
-									title={`Write to ${selected.email}`}
-									onclick={() => (window.location.href = `mailto:${selected.email}`)}
-								>
-									Reply
-								</Button>
-							{/if}
+							<!-- Same three buttons on every submission; ones that don't apply are disabled. -->
+							<Button
+								variant="outline"
+								size="sm"
+								type="button"
+								disabled={can.reply.disabled}
+								reason={can.reply.reason}
+								title={selected?.email ? `Write to ${selected.email}` : undefined}
+								onclick={() => (window.location.href = `mailto:${selected?.email}`)}
+							>
+								{#snippet icon()}<Icon name="send" size={14} />{/snippet}
+								Reply
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								type="button"
+								disabled={can.decline.disabled}
+								reason={can.decline.reason}
+								onclick={() => selected && void decide(selected, "Declined")}
+							>
+								{#snippet icon()}<Icon name="x-circle" size={14} />{/snippet}
+								Decline
+							</Button>
+							<Button
+								variant="primary"
+								size="sm"
+								type="button"
+								disabled={can.approve.disabled}
+								reason={can.approve.reason}
+								title="Approved artists can be picked as an event's guest artist."
+								onclick={() => selected && void decide(selected, "Approved")}
+							>
+								{#snippet icon()}<Icon name="check" size={14} />{/snippet}
+								Approve
+							</Button>
 							<Button
 								class="close-btn"
 								variant="ghost"
@@ -370,7 +455,7 @@
 												How they appear when picked as an event's guest artist. Saving also updates upcoming events that
 												still show the old name or link. Their application stays as they sent it.
 											</p>
-											<Field label="Artist name" for="form-artist-name">
+											<Field label="Artist name" for="form-artist-name" optional>
 												<TextField
 													id="form-artist-name"
 													size="sm"
@@ -378,10 +463,12 @@
 													placeholder={selected.submitted.name || "Artist or DJ name"}
 												/>
 											</Field>
-											<Field label="Instagram or website" for="form-artist-link">
+											<Field label="Instagram or website" for="form-artist-link" optional>
 												<TextField
 													id="form-artist-link"
 													size="sm"
+													inputmode="url"
+													spellcheck="false"
 													bind:value={artistLinkDraft}
 													placeholder="@handle or website"
 												/>
@@ -392,9 +479,11 @@
 													size="sm"
 													type="button"
 													disabled={!artistDirty || savingArtist}
+													reason={!artistDirty && !savingArtist ? "No changes to save" : undefined}
 													busy={savingArtist}
 													onclick={() => void saveArtist(selected)}
 												>
+													{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 													Save
 												</Button>
 												{#if artistError}
@@ -426,6 +515,7 @@
 														busy={sending === email.kind}
 														onclick={() => resend(selected, email.kind)}
 													>
+														{#snippet icon()}<Icon name="send" size={14} />{/snippet}
 														{sentAt ? "Resend" : "Send"}
 													</Button>
 												</li>
@@ -450,34 +540,54 @@
 				title="Play applications"
 				subtitle="Artists who applied to play through the site. Latest reply for each address."
 			>
-				{#snippet actions()}
-					<SearchField
-						bind:value={query}
+				{#snippet toolbar()}
+					<FilterBar
+						bind:query
 						placeholder="Search people"
 						ariaLabel="Search submissions"
-						count={query ? visible.length : undefined}
-					/>
+						searchCount={query ? visible.length : undefined}
+						active={formFilter ? 1 : 0}
+						chips={formChips}
+						onclearfilters={() => (formFilter = "")}
+						filters={forms.length > 1 ? formFilterField : undefined}
+					>
+						{#snippet end()}
+							<p class="meta">{loading ? "" : `${visible.length} ${visible.length === 1 ? "application" : "applications"}`}</p>
+							{#if !phone.matches}
+								<Segmented
+									value={view.value}
+									items={VIEW_ITEMS}
+									size="sm"
+									ariaLabel="Layout"
+									onChange={(id) => (view.value = id as ListView)}
+								/>
+							{/if}
+						{/snippet}
+					</FilterBar>
 				{/snippet}
-				{#if forms.length > 1}
-					<div class="filters">
-						<NativeSelect bind:value={formFilter} options={formOptions} size="sm" />
-					</div>
-				{/if}
 			</PageHeader>
 			{#if error}
-				<p class="error">{error}</p>
-			{:else if !loading && visible.length === 0}
-				<p class="muted">
-					{rows.length === 0 ? "No submissions yet." : "Nothing matches that search."}
-				</p>
-			{:else if !loading}
+				<EmptyState tone="error" title="Could not load applications" text={error} />
+			{:else if loading}
+				<Skeleton rows={6} lines={1} label="Loading applications…" />
+			{:else if visible.length === 0}
+				{#if rows.length === 0}
+					<EmptyState icon="forms" title="No applications yet" text="When an artist applies to play on the website, it shows here." />
+				{:else}
+					<EmptyState icon="search" title="Nothing matches" text="Try another name or email, or clear the filters." />
+				{/if}
+			{:else}
 				<div class="grid-host">
-					<FormsGrid rows={visible} />
+					{#if phone.matches || view.value === "cards"}
+						<FormsCards rows={visible} showForm={forms.length > 1} />
+					{:else}
+						<FormsGrid rows={visible} />
+					{/if}
 				</div>
 			{/if}
 		</div>
 	{/if}
-	<BusyOverlay active={loading} label="Loading…" />
+	<BusyOverlay active={loading && Boolean(openId)} label="Loading…" />
 </div>
 
 <style>
@@ -487,7 +597,7 @@
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.list {
@@ -496,7 +606,6 @@
 		flex: 1;
 		min-height: 0;
 		padding: var(--page-gutter);
-		gap: var(--gap);
 	}
 
 	.detail {
@@ -511,7 +620,7 @@
 		display: flex;
 		flex: 1;
 		min-height: 0;
-		padding: var(--gap) var(--page-gutter);
+		padding: var(--space-4) var(--page-gutter);
 	}
 
 	.panel {
@@ -522,7 +631,7 @@
 		min-height: 0;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 	}
@@ -531,7 +640,7 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
-		column-gap: 0.85rem;
+		column-gap: var(--space-3);
 		row-gap: 0.2rem;
 		flex-shrink: 0;
 		padding: 0.55rem var(--card-pad-lg) 0.75rem;
@@ -543,7 +652,7 @@
 		grid-row: 1;
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		height: var(--control-h-sm);
 		color: var(--primary);
@@ -552,11 +661,11 @@
 	.eyebrow {
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -567,7 +676,7 @@
 		grid-row: 1;
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		height: var(--control-h-sm);
 	}
 
@@ -593,7 +702,7 @@
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 0.45rem 0.7rem;
+		gap: var(--space-2) var(--space-3);
 		min-width: 0;
 	}
 
@@ -601,43 +710,13 @@
 		margin: 0;
 		min-width: 0;
 		font-family: var(--font-display);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.15;
 		overflow-wrap: anywhere;
 	}
 
-	.status-flag {
-		display: inline-flex;
-		align-items: center;
-		flex-shrink: 0;
-		width: fit-content;
-		margin: 0;
-		padding: 0.18rem 0.5rem;
-		border-radius: var(--radius-pill);
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		line-height: 1.2;
-		text-transform: uppercase;
-		white-space: nowrap;
-	}
-
-	.status-flag.pending {
-		color: var(--primary-foreground);
-		background: var(--primary);
-	}
-
-	.status-flag.live {
-		color: var(--primary);
-		background: var(--primary-wash);
-	}
-
-	.status-flag.muted {
-		color: var(--muted-foreground);
-		background: var(--muted);
-	}
 
 	.sub {
 		width: fit-content;
@@ -657,12 +736,11 @@
 		grid-row: 3;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.2rem 0.65rem;
+		gap: 0.2rem var(--space-3);
 		margin: 0;
-		padding-top: 0.45rem;
+		padding-top: var(--space-2);
 		font-size: var(--text-xs);
 		font-weight: 500;
-		letter-spacing: 0.02em;
 		line-height: 1.4;
 		color: var(--muted-foreground);
 	}
@@ -680,14 +758,14 @@
 	.details-board {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem 1.5rem;
+		gap: var(--space-5) var(--space-6);
 		align-items: start;
 	}
 
 	.details-main,
 	.details-side {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 		align-content: start;
 		min-width: 0;
 	}
@@ -706,14 +784,12 @@
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -726,19 +802,19 @@
 
 	.answers {
 		display: grid;
-		gap: 1.1rem;
+		gap: var(--space-4);
 		margin: 0;
 	}
 
 	.answer {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 	}
 
 	dt {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -755,19 +831,19 @@
 		text-underline-offset: 0.15em;
 	}
 
+	/* Sections of the panel sit on its surface, divided by a rule, never in a
+	   darker box. */
 	.card {
 		display: grid;
-		gap: 0.75rem;
-		padding: var(--card-pad, 1rem);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--background);
+		gap: var(--space-3);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border);
 	}
 
 	.artist-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.artist-actions p {
@@ -776,16 +852,16 @@
 
 	.card-title {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.emails {
 		display: grid;
-		gap: 0.65rem;
+		gap: var(--space-3);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -795,7 +871,7 @@
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr) auto;
 		align-items: center;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.dot {
@@ -828,19 +904,17 @@
 		color: var(--destructive);
 	}
 
-	.filters {
-		max-width: 16rem;
-	}
-
 	.grid-host {
 		flex: 1;
 		min-height: 0;
 		min-width: 0;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 

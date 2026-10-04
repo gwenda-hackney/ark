@@ -7768,6 +7768,36 @@ body.site-nav-open .menu-toc {
   flex-shrink: 0;
 }
 
+/* Three or more sizes: each name and price on a line under the name. */
+.menu-item-prices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0;
+  margin-top: 0.4rem;
+}
+
+.menu-item-prices-entry {
+  white-space: nowrap;
+}
+
+.menu-item-prices-entry:not(:last-child)::after {
+  content: "·";
+  margin: 0 0.6rem;
+  color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+}
+
+.menu-item-prices-name {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.menu-item-prices .menu-item-price {
+  font-size: 1rem;
+}
+
 .menu-item-description {
   margin-top: 0.45rem;
   padding-right: 0.25rem;

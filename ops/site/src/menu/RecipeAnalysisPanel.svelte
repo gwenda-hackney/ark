@@ -1,9 +1,10 @@
 <script lang="ts">
 	/**
 	 * Analysis tab: issues first, then overview numbers, detail, and AI.
+	 * Each row lays its sections side by side once the tab is wide enough.
 	 */
-	import { Button } from "../ui";
-	import { formatAbv } from "./abv";
+	import { Button, HelpTip } from "../ui";
+		import { formatAbv } from "./abv";
 	import {
 		formatMl,
 		type AnalyzeNote,
@@ -61,17 +62,9 @@
 		return value == null ? "" : formatAbv(value);
 	}
 
-	function percentileLabel(value: number | null, n: number): string {
-		if (value == null || n < 2) return "";
-		const ordinal =
-			value % 10 === 1 && value !== 11
-				? "st"
-				: value % 10 === 2 && value !== 12
-					? "nd"
-					: value % 10 === 3 && value !== 13
-						? "rd"
-						: "th";
-		return `${value}${ordinal} of ${n}`;
+	/** "61%" of house cocktails sit below this one; blank when there's nothing to compare. */
+	function shareBelow(value: number | null, n: number): string {
+		return value == null || n < 2 ? "" : `${value}%`;
 	}
 
 	function kindRows(kindMl: KindMl, volumeMl: number | null) {
@@ -120,6 +113,17 @@
 	const showHouse = $derived(isCocktail && (analysis?.peers.n ?? 0) >= 2);
 	const showDetail = $derived(showBalance || showHouse || pricedLines.length > 0);
 
+	/** Why Analyse is unavailable; while it runs, the spinner says so. */
+	const analyzeReason = $derived(
+		!canAnalyze
+			? isCocktail
+				? "Add recipe volumes or stock costs first"
+				: "Link stock on Build and set a price first"
+			: disabled && !busy
+				? "Wait for the current save to finish"
+				: undefined,
+	);
+
 	function serveTone(serve: ServePourReading) {
 		return marginTone(serve.margin, serve.pourCost, price?.targetPourCost);
 	}
@@ -154,345 +158,401 @@
 {/snippet}
 
 {#if analysis}
-	<div class="page">
-		<section class="block" aria-label="Issues">
-			<p class="section-title">Issues</p>
-			{#if issues.length}
-				<ul class="issues">
-					{#each issues as flag (flag.id)}
-						<li class={flagClass(flag)}>
-							{#if flag.severity === "critical" || flag.kind === "missing" || flag.severity === "warning"}
-								<span class="gap-icon" aria-hidden="true">
-									<Icon name="alert" size={16} />
-								</span>
-							{/if}
-							{@render flagCopy(flag)}
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<p class="muted ok-line">Nothing to fix on this drink.</p>
-			{/if}
-		</section>
-
-		<section class="block" aria-label="Overview">
-			<p class="section-title">Overview</p>
-			{#if analysis.volumeMl != null}
-				<div class="stats" aria-label="Spec">
-					<div class="stat">
-						<p class="stat-value">{formatMl(analysis.volumeMl)} ml</p>
-						<p class="stat-label">Spec</p>
-					</div>
-					<div class="stat">
-						<p class="stat-value">{abvLabel(analysis.specAbv) || "n/a"}</p>
-						<p class="stat-label">ABV</p>
-					</div>
-					<div class="stat">
-						<p class="stat-value">
-							{analysis.ukUnits != null ? formatMl(analysis.ukUnits) : "n/a"}
-						</p>
-						<p class="stat-label">UK units</p>
-					</div>
-				</div>
-			{/if}
-
-			{#if isCocktail && analysis.volumeMl != null}
-				{#if !methodMissing && analysis.inGlassMl != null}
-					<p class="body soft">
-						About {formatMl(analysis.inGlassMl)} ml{#if analysis.inGlassAbv != null}
-							{" "}at {abvLabel(analysis.inGlassAbv)}{/if}
-						after a {analysis.dilution.method}
-						({analysis.dilution.confidence} confidence).
-						{#if analysis.glassware.name && analysis.glassware.capacityMl}
-							{" "}{analysis.glassware.name}
-							· {formatMl(analysis.glassware.capacityMl)} ml glass{#if analysis.glassware.fill != null}
-								{" "}· {Math.round(analysis.glassware.fill * 100)}% full{/if}.
-						{/if}
-					</p>
-				{/if}
-			{/if}
-
-			{#if price}
-				<div
-					class="stats"
-					class:spaced={analysis.volumeMl != null}
-					aria-label="Price"
-				>
-					<div class="stat">
-						<p class="stat-value">
-							{price.drinkCost != null
-								? `${price.hasEstimates ? "~" : ""}${formatGbp(price.drinkCost)}`
-								: "n/a"}
-						</p>
-						<p class="stat-label">Drink cost</p>
-					</div>
-					<div class="stat">
-						<p class="stat-value">
-							{price.complete && price.targetPrice != null
-								? formatGbp(price.targetPrice)
-								: "n/a"}
-						</p>
-						<p class="stat-label">
-							Target · {formatPourPercent(price.targetPourCost)}
-						</p>
-					</div>
-					<div class="stat">
-						<p class="stat-value">
-							{price.actualPrice != null
-								? formatGbp(price.actualPrice)
-								: "n/a"}
-						</p>
-						<p class="stat-label">{serves[0]?.label || "Menu price"}</p>
-					</div>
-				</div>
-
-				{#if price.drinkCost != null && price.complete && serves.some((s) => s.pourCost != null)}
-					<div
-						class="stats reading"
-						class:pair={serves.filter((s) => s.pourCost != null).length > 1}
-						aria-label="Pour cost by serve"
-					>
-						{#each serves as serve (serve.key)}
-							{#if serve.pourCost != null}
-								{@const tone = serveTone(serve)}
-								{@const verdict = serveVerdict(serve, price.complete)}
-								<div class="stat">
-									<p
-										class="stat-value"
-										class:up={tone === "up"}
-										class:down={tone === "down"}
-										class:loss={tone === "loss"}
-									>
-										{formatPourPercent(serve.pourCost)}
-									</p>
-									<p class="stat-label">{serve.label} pour</p>
-									{#if verdict}
-										<p
-											class="serve-verdict"
-											class:ok={verdict.tone === "ok"}
-											class:low={verdict.tone === "low"}
-											class:loss={verdict.tone === "loss"}
-											class:muted={verdict.tone === "muted"}
-										>
-											{verdict.headline} vs target
-											{#if serve.suggestedPrice != null && verdict.tone !== "ok"}
-												{" "}· aim {formatGbp(serve.suggestedPrice)}
-											{/if}
-										</p>
-									{/if}
-								</div>
-							{/if}
-						{/each}
-					</div>
-				{:else if !price.lines.length}
-					<p class="muted">
-						{isCocktail
-							? "Add recipe lines on Build to cost this drink."
-							: "Link stock on Build to cost this drink."}
-					</p>
-				{/if}
-			{/if}
-		</section>
-
-		{#if showDetail}
-			<section class="block" aria-label="Detail">
-				<p class="section-title">Detail</p>
-
-				{#if showBalance && analysis.ratio}
-					<p class="stat-label">Balance</p>
-					<div class="ratio">
-						<div>
-							<p class="stat-value sm">{formatMl(analysis.ratio.spirit)}</p>
-							<p class="stat-label">Spirit</p>
-						</div>
-						<div>
-							<p class="stat-value sm">{formatMl(analysis.ratio.citrus)}</p>
-							<p class="stat-label">Citrus</p>
-						</div>
-						<div>
-							<p class="stat-value sm">{formatMl(analysis.ratio.sweet)}</p>
-							<p class="stat-label">Sweet</p>
-						</div>
-					</div>
-					{#if kinds.length}
-						<ul class="kinds">
-							{#each kinds as row (row.key)}
-								<li>
-									<span class="kind-label">{row.label}</span>
-									<span class="kind-bar" aria-hidden="true">
-										<span style:width={`${Math.max(row.share * 100, 3)}%`}
-										></span>
+	<div class="analysis">
+		<div class="page">
+			<section class="block issues-block" aria-label="Issues">
+				<p class="section-title">Issues</p>
+				{#if issues.length}
+					<ul class="issues">
+						{#each issues as flag (flag.id)}
+							<li class={flagClass(flag)}>
+								{#if flag.severity === "critical" || flag.kind === "missing" || flag.severity === "warning"}
+									<span class="gap-icon" aria-hidden="true">
+										<Icon name="alert" size={18} />
 									</span>
-									<span class="kind-ml">{formatMl(row.ml)} ml</span>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				{/if}
-
-				{#if showHouse && analysis.peers}
-					<p class="stat-label house-label">House</p>
-					<p class="body soft">
-						{#if percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)}
-							Volume {percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)} house cocktails.
-						{/if}
-						{#if percentileLabel(analysis.peers.abvPercentile, analysis.peers.n)}
-							{" "}ABV {percentileLabel(analysis.peers.abvPercentile, analysis.peers.n)}.
-						{/if}
-					</p>
-					{#if analysis.peers.nearest.length}
-						<ul class="peers">
-							{#each analysis.peers.nearest.slice(0, 5) as peer (peer.name)}
-								<li>
-									<span>{peer.name}</span>
-									<span class="peer-meta">
-										{#if peer.volumeMl != null}{formatMl(peer.volumeMl)} ml{/if}
-										{#if peer.specAbv != null}
-											{" "}· {abvLabel(peer.specAbv)}{/if}
-									</span>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				{/if}
-
-				{#if pricedLines.length}
-					<p class="stat-label house-label">
-						{isCocktail ? "Ingredient costs" : "Serve cost"}
-					</p>
-					<ul class="work">
-						{#each pricedLines as line, i (`ok-${line.name}-${i}`)}
-							<li>
-								<div class="work-head">
-									{#if line.href}
-										<InventoryLink
-											text={line.name}
-											href={line.href}
-											inline
-										/>
-									{:else}
-										<span>{line.name}</span>
-									{/if}
-									<span class="work-cost">
-										{line.cost != null ? formatGbp(line.cost) : "n/a"}
-									</span>
-								</div>
-								<p class="work-meta">
-									{#if lineQty(line)}{lineQty(line)}{/if}
-									{#if line.packPrice != null && line.packMl != null}
-										{" "}· {formatGbp(line.packPrice)} / {formatMl(line.packMl)} ml
-										{#if line.assumedSize}
-											{" "}(assumed bottle)
-										{/if}
-									{/if}
-								</p>
+								{/if}
+								{@render flagCopy(flag)}
 							</li>
 						{/each}
 					</ul>
+				{:else}
+					<p class="muted ok-line">Nothing to fix on this drink.</p>
 				{/if}
 			</section>
-		{/if}
 
-		<section class="block note-block">
-			<div class="section-head">
-				<p class="section-title">AI reading</p>
-				<Button
-					variant="primary"
-					size="sm"
-					type="button"
-					disabled={disabled || busy || !canAnalyze}
-					{busy}
-					onclick={onanalyze}
-				>
-					{#snippet icon()}
-						<Icon name="pen" size={15} />
-					{/snippet}
-					{busy ? "Analysing…" : "Analyse"}
-				</Button>
-			</div>
-			{#if error}
-				<p class="error">{error}</p>
-			{/if}
-			{#if note}
-				<div class="note" class:stale>
-					{#if stale}
-						<p class="stale-label">Spec changed since this reading.</p>
-					{/if}
-					{#if note.summary}
-						<p class="summary">{note.summary}</p>
-					{/if}
-					{#if note.concerns.length}
-						<div class="note-group">
-							<p class="stat-label">Concerns</p>
-							<ul class="points">
-								{#each note.concerns as row, i (`c-${i}-${row}`)}
-									<li>{row}</li>
-								{/each}
-							</ul>
+			<section class="block" aria-label="Overview">
+				<p class="section-title"><span>Overview</span><HelpTip label="Overview" topic="Analysis" /></p>
+				<div class="row overview">
+					{#if analysis.volumeMl != null}
+						<div class="group">
+							<div class="stats" aria-label="Spec">
+								<div class="stat">
+									<p class="stat-value">{formatMl(analysis.volumeMl)} ml</p>
+									<p class="stat-label">Spec</p>
+								</div>
+								<div class="stat">
+									<p class="stat-value">{abvLabel(analysis.specAbv) || "n/a"}</p>
+									<p class="stat-label">ABV</p>
+								</div>
+								<div class="stat">
+									<p class="stat-value">
+										{analysis.ukUnits != null ? formatMl(analysis.ukUnits) : "n/a"}
+									</p>
+									<p class="stat-label">UK units</p>
+								</div>
+							</div>
+
+							{#if isCocktail && !methodMissing && analysis.inGlassMl != null}
+								<p class="body soft">
+									About {formatMl(analysis.inGlassMl)} ml{#if analysis.inGlassAbv != null}
+										{" "}at {abvLabel(analysis.inGlassAbv)}{/if}
+									after a {analysis.dilution.method}
+									({analysis.dilution.confidence} confidence).
+									{#if analysis.glassware.name && analysis.glassware.capacityMl}
+										{" "}{analysis.glassware.name}
+										· {formatMl(analysis.glassware.capacityMl)} ml glass{#if analysis.glassware.fill != null}
+											{" "}· {Math.round(analysis.glassware.fill * 100)}% full{/if}.
+									{/if}
+								</p>
+							{/if}
 						</div>
 					{/if}
-					{#if note.questions.length}
-						<div class="note-group">
-							<p class="stat-label">Questions</p>
-							<ul class="points questions">
-								{#each note.questions as row, i (`q-${i}-${row}`)}
-									<li>{row}</li>
-								{/each}
-							</ul>
+
+					{#if price}
+						<div class="group">
+							<div class="stats" aria-label="Price">
+								<div class="stat">
+									<p class="stat-value">
+										{price.drinkCost != null
+											? `${price.hasEstimates ? "~" : ""}${formatGbp(price.drinkCost)}`
+											: "n/a"}
+									</p>
+									<p class="stat-label">Drink cost</p>
+								</div>
+								<div class="stat">
+									<p class="stat-value">
+										{price.complete && price.targetPrice != null
+											? formatGbp(price.targetPrice)
+											: "n/a"}
+									</p>
+									<p class="stat-label">
+										Target · {formatPourPercent(price.targetPourCost)}
+									</p>
+								</div>
+								<div class="stat">
+									<p class="stat-value">
+										{price.actualPrice != null
+											? formatGbp(price.actualPrice)
+											: "n/a"}
+									</p>
+									<p class="stat-label">{serves[0]?.label || "Menu price"}</p>
+								</div>
+							</div>
+							{#if !(price.drinkCost != null && price.complete && serves.some((s) => s.pourCost != null)) && !price.lines.length}
+								<p class="muted">
+									{isCocktail
+										? "Add recipe lines on Build to cost this drink."
+										: "Link stock on Build to cost this drink."}
+								</p>
+							{/if}
 						</div>
+
+						{#if price.drinkCost != null && price.complete && serves.some((s) => s.pourCost != null)}
+							<div class="group">
+								<div class="stats" aria-label="Pour cost by serve">
+									{#each serves as serve (serve.key)}
+										{#if serve.pourCost != null}
+											{@const tone = serveTone(serve)}
+											{@const verdict = serveVerdict(serve, price.complete)}
+											<div class="stat">
+												<p
+													class="stat-value"
+													class:up={tone === "up"}
+													class:down={tone === "down"}
+													class:loss={tone === "loss"}
+												>
+													{formatPourPercent(serve.pourCost)}
+												</p>
+												<p class="stat-label">{serve.label} pour</p>
+												{#if verdict}
+													<p
+														class="serve-verdict"
+														class:ok={verdict.tone === "ok"}
+														class:low={verdict.tone === "low"}
+														class:loss={verdict.tone === "loss"}
+														class:muted={verdict.tone === "muted"}
+													>
+														{verdict.headline} vs target
+														{#if serve.suggestedPrice != null && verdict.tone !== "ok"}
+															{" "}· aim {formatGbp(serve.suggestedPrice)}
+														{/if}
+													</p>
+												{/if}
+											</div>
+										{/if}
+									{/each}
+								</div>
+							</div>
+						{/if}
 					{/if}
 				</div>
-			{:else}
-				<p class="muted">
-					{#if !canAnalyze}
-						{isCocktail
-							? "Add recipe volumes or stock costs before asking for a reading."
-							: "Link stock on Build and set a price before asking for a reading."}
-					{:else}
-						A short note on this drink, separate from the numbers above. It will not invent volumes or ABV.
+			</section>
+
+			{#if showDetail}
+				<div class="row detail">
+					{#if showBalance && analysis.ratio}
+						<section class="block" aria-label="Balance">
+							<p class="section-title"><span>Balance</span><HelpTip label="Balance" topic="Balance" /></p>
+							<div class="ratio">
+								<div>
+									<p class="stat-value sm">{formatMl(analysis.ratio.spirit)}</p>
+									<p class="stat-label">Spirit</p>
+								</div>
+								<div>
+									<p class="stat-value sm">{formatMl(analysis.ratio.citrus)}</p>
+									<p class="stat-label">Citrus</p>
+								</div>
+								<div>
+									<p class="stat-value sm">{formatMl(analysis.ratio.sweet)}</p>
+									<p class="stat-label">Sweet</p>
+								</div>
+							</div>
+							{#if kinds.length}
+								<ul class="kinds">
+									{#each kinds as row (row.key)}
+										<li>
+											<span class="kind-label">{row.label}</span>
+											<span class="kind-bar" aria-hidden="true">
+												<span style:width={`${Math.max(row.share * 100, 3)}%`}
+												></span>
+											</span>
+											<span class="kind-ml">{formatMl(row.ml)} ml</span>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</section>
 					{/if}
-				</p>
+
+					{#if showHouse && analysis.peers}
+						<section class="block" aria-label="House">
+							<p class="section-title"><span>House</span><HelpTip label="House" topic="House" /></p>
+							<p class="body soft">
+								{#if shareBelow(analysis.peers.volumePercentile, analysis.peers.n)}
+									Bigger than {shareBelow(analysis.peers.volumePercentile, analysis.peers.n)} of the {analysis.peers.n} house cocktails.
+								{/if}
+								{#if shareBelow(analysis.peers.abvPercentile, analysis.peers.n)}
+									{" "}Stronger than {shareBelow(analysis.peers.abvPercentile, analysis.peers.n)}.
+								{/if}
+							</p>
+							{#if analysis.peers.nearest.length}
+								<ul class="table peers">
+									{#each analysis.peers.nearest.slice(0, 5) as peer (peer.name)}
+										<li>
+											<span class="peer-name">{peer.name}</span>
+											<span class="num">
+												{#if peer.volumeMl != null}{formatMl(peer.volumeMl)} ml{/if}
+											</span>
+											<span class="num">
+												{#if peer.specAbv != null}{abvLabel(peer.specAbv)}{/if}
+											</span>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</section>
+					{/if}
+
+					{#if pricedLines.length}
+						<section class="block" aria-label={isCocktail ? "Ingredient costs" : "Serve cost"}>
+							<p class="section-title">
+								{isCocktail ? "Ingredient costs" : "Serve cost"}
+							</p>
+							<ul class="table work">
+								{#each pricedLines as line, i (`ok-${line.name}-${i}`)}
+									<li>
+										<div class="work-name">
+											{#if line.href}
+												<InventoryLink
+													text={line.name}
+													href={line.href}
+													inline
+												/>
+											{:else}
+												<span>{line.name}</span>
+											{/if}
+											<p class="work-meta">
+												{#if lineQty(line)}{lineQty(line)}{/if}
+												{#if line.packPrice != null && line.packMl != null}
+													{" "}· {formatGbp(line.packPrice)} / {formatMl(line.packMl)} ml
+													{#if line.assumedSize}
+														{" "}(assumed bottle)
+													{/if}
+												{/if}
+											</p>
+										</div>
+										<span class="num work-cost">
+											{line.cost != null ? formatGbp(line.cost) : "n/a"}
+										</span>
+									</li>
+								{/each}
+							</ul>
+						</section>
+					{/if}
+				</div>
 			{/if}
-		</section>
+
+			<section class="block note-block" aria-label="AI reading">
+				<div class="section-head">
+					<p class="section-title"><span>AI reading</span><HelpTip label="AI reading" topic="AI reading" /></p>
+					<Button
+						variant="primary"
+						size="sm"
+						type="button"
+						disabled={disabled || busy || !canAnalyze}
+						reason={analyzeReason}
+						{busy}
+						onclick={onanalyze}
+					>
+						{#snippet icon()}
+							<Icon name="pen" size={15} />
+						{/snippet}
+						{busy ? "Analysing…" : "Analyse"}
+					</Button>
+				</div>
+				{#if error}
+					<p class="error">{error}</p>
+				{/if}
+				{#if note}
+					<div class="note" class:stale>
+						{#if stale}
+							<p class="stale-label">Spec changed since this reading.</p>
+						{/if}
+						{#if note.summary}
+							<p class="summary">{note.summary}</p>
+						{/if}
+						{#if note.concerns.length || note.questions.length}
+							<div class="row note-groups">
+								{#if note.concerns.length}
+									<div class="note-group">
+										<p class="stat-label">Concerns</p>
+										<ul class="points">
+											{#each note.concerns as row, i (`c-${i}-${row}`)}
+												<li>{row}</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+								{#if note.questions.length}
+									<div class="note-group">
+										<p class="stat-label">Questions</p>
+										<ul class="points questions">
+											{#each note.questions as row, i (`q-${i}-${row}`)}
+												<li>{row}</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{:else}
+					<p class="muted">
+						{#if !canAnalyze}
+							{isCocktail
+								? "Add recipe volumes or stock costs before asking for a reading."
+								: "Link stock on Build and set a price before asking for a reading."}
+						{:else}
+							No reading yet.
+						{/if}
+					</p>
+				{/if}
+			</section>
+		</div>
 	</div>
 {:else}
 	<p class="muted">Open a drink to analyse it.</p>
 {/if}
 
 <style>
+	/*
+	 * Layout follows the space the editor gives the tab, not the window:
+	 * one column when narrow; at 60rem the sections sit side by side on an
+	 * even grid (Overview groups, then Balance · House · Costs, then the AI
+	 * note's groups), each column taking an equal share so none is left
+	 * narrow beside a blank. Sections stay on the card surface, separated
+	 * by the title hairlines and space.
+	 */
+	.analysis {
+		container-type: inline-size;
+	}
+
 	.page {
 		display: grid;
-		gap: 1.5rem;
-		padding-bottom: 0.5rem;
+		gap: var(--space-8);
+		padding-bottom: var(--space-2);
 	}
 
-	.stats,
-	.ratio {
+	.block {
+		display: grid;
+		align-content: start;
+		gap: var(--space-3);
+		min-width: 0;
+	}
+
+	/* Rows of equal columns; stacked until there is room. */
+	.row {
+		display: grid;
+		gap: var(--space-6);
+	}
+
+	.row.overview {
+		gap: var(--space-5);
+	}
+
+	.group {
+		display: grid;
+		align-content: start;
+		gap: var(--space-3);
+		min-width: 0;
+	}
+
+	.row.overview > .group + .group {
+		padding-top: var(--space-5);
+		border-top: 1px solid var(--border);
+	}
+
+	.stats {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 0.75rem 1rem;
+		gap: var(--space-3) var(--space-4);
 	}
 
-	.stats.spaced {
-		padding-top: 0.85rem;
-		margin-top: 0.15rem;
-		border-top: 1px solid var(--border);
+	.stats:has(> .stat:only-child) {
+		grid-template-columns: minmax(0, 1fr);
 	}
 
-	.stats.reading {
-		padding-top: 0.75rem;
-		border-top: 1px solid var(--border);
-	}
-
-	.stats.reading.pair {
+	.stats:has(> .stat:nth-child(2):last-child) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
+	/* Same three columns as the Overview stats, so the numbers line up. */
+	.ratio {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--space-3) var(--space-4);
+		padding-bottom: var(--space-1);
+	}
+
+	.stat {
+		min-width: 0;
+	}
+
 	.serve-verdict {
-		margin: 0.25rem 0 0;
+		margin: var(--space-1) 0 0;
 		font-size: var(--text-sm);
 		line-height: 1.35;
-		color: var(--muted-foreground);
+		color: var(--fg-muted);
 	}
 
 	.serve-verdict.ok {
@@ -505,22 +565,25 @@
 	}
 
 	.serve-verdict.muted {
-		color: var(--muted-foreground);
+		color: var(--fg-muted);
 	}
 
 	.stat-value {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		letter-spacing: -0.02em;
-		line-height: 1.15;
-		color: var(--foreground);
+		letter-spacing: var(--tracking-lg);
+		line-height: var(--leading-lg);
+		color: var(--fg);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
+		white-space: nowrap;
 	}
 
 	.stat-value.sm {
-		font-size: clamp(1.15rem, 2vw, 1.45rem);
+		font-size: var(--text-lg);
+		letter-spacing: var(--tracking-lg);
+		line-height: var(--leading-lg);
 	}
 
 	.stat-value.up,
@@ -534,39 +597,29 @@
 		color: var(--down);
 	}
 
-	.stat-value.loss {
-		font-weight: 650;
-	}
-
 	.stat-label {
 		margin: 0.2rem 0 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--muted-foreground);
-	}
-
-	.house-label {
-		margin-top: 0.85rem;
-	}
-
-	.block {
-		display: grid;
-		gap: 0.55rem;
+		color: var(--fg-muted);
 	}
 
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--fg);
+	}
+
+	/* The ? sits right after the title, before the rule. */
+	.section-title :global(.help-tip) {
+		margin-left: calc(var(--space-1) - var(--space-3));
 	}
 
 	.section-title::after {
@@ -580,7 +633,7 @@
 	.section-head {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.section-head .section-title {
@@ -588,9 +641,11 @@
 		min-width: 0;
 	}
 
+	/* Issues flow into columns of readable width, critical first. */
 	.issues {
 		display: grid;
-		gap: 0.55rem;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+		gap: var(--space-2) var(--space-8);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -599,11 +654,11 @@
 	.issue {
 		display: flex;
 		align-items: flex-start;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
-		color: var(--muted-foreground);
+		color: var(--fg-muted);
 	}
 
 	.issue.critical {
@@ -613,13 +668,13 @@
 
 	.issue.warning,
 	.issue.gap {
-		color: var(--foreground);
+		color: var(--fg);
 	}
 
 	.gap-icon {
 		display: flex;
 		flex: none;
-		margin-top: 0.12rem;
+		margin-top: 0.05rem;
 		color: var(--warning);
 	}
 
@@ -630,98 +685,60 @@
 
 	.body {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.5;
-		color: var(--foreground);
+		color: var(--fg);
+		max-width: 65ch;
 	}
 
 	.body.soft {
-		color: var(--muted-foreground);
+		color: var(--fg-muted);
 	}
 
 	.muted {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.5;
-		color: var(--muted-foreground);
+		color: var(--fg-muted);
+		max-width: 65ch;
 	}
 
 	.ok-line {
 		color: var(--up);
 	}
 
-	.kinds,
-	.peers,
-	.points {
+	/* Balance bars: label, bar, ml, in one tight row. */
+	.kinds {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-2);
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
 
-	.kinds li,
-	.peers li {
+	.kinds li {
 		display: grid;
-		grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+		grid-template-columns: 4.5rem minmax(0, 1fr) 4rem;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-3);
 		font-size: var(--text-sm);
 	}
 
-	.peers li {
-		grid-template-columns: minmax(0, 1fr) auto;
+	.kind-label {
+		color: var(--fg);
 	}
 
-	.work {
-		display: grid;
-		gap: 0.55rem;
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.work li {
-		display: grid;
-		gap: 0.15rem;
-	}
-
-	.work-head {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.75rem;
-		font-size: var(--text);
-		color: var(--foreground);
-	}
-
-	.work-cost {
+	.kind-ml {
+		text-align: right;
+		color: var(--fg-muted);
 		font-variant-numeric: tabular-nums;
-		white-space: nowrap;
-	}
-
-	.work-meta {
-		margin: 0;
-		font-size: var(--text-sm);
-		line-height: 1.4;
-		color: var(--muted-foreground);
-	}
-
-	.kind-label,
-	.peers li span:first-child {
-		color: var(--foreground);
-	}
-
-	.kind-ml,
-	.peer-meta {
-		color: var(--muted-foreground);
-		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 
 	.kind-bar {
 		display: block;
-		height: 0.35rem;
+		height: 0.375rem;
 		border-radius: var(--radius-pill);
 		background: var(--muted);
 		overflow: hidden;
@@ -734,16 +751,77 @@
 		border-radius: inherit;
 	}
 
+	/* House and costs read as small tables with hairline rows. */
+	.table {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		border-top: 1px solid var(--border);
+	}
+
+	.table li {
+		display: grid;
+		align-items: baseline;
+		gap: var(--space-4);
+		padding-block: var(--space-2);
+		border-bottom: 1px solid var(--border);
+		font-size: var(--text-base);
+		color: var(--fg);
+	}
+
+	.peers li {
+		grid-template-columns: minmax(0, 1fr) 4.5rem 4rem;
+	}
+
+	.peer-name {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.num {
+		text-align: right;
+		color: var(--fg-muted);
+		font-size: var(--text-sm);
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
+		white-space: nowrap;
+	}
+
+	.work li {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
+	.work-name {
+		display: grid;
+		gap: 0.15rem;
+		min-width: 0;
+	}
+
+	.work-cost {
+		color: var(--fg);
+		font-size: var(--text-base);
+	}
+
+	.work-meta {
+		margin: 0;
+		font-size: var(--text-sm);
+		line-height: 1.4;
+		color: var(--fg-muted);
+	}
+
 	.error {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--destructive);
 	}
 
-	.note-block .note {
+	.note {
 		display: grid;
-		gap: 0.75rem;
+		gap: var(--space-4);
 	}
 
 	.note.stale {
@@ -752,42 +830,80 @@
 
 	.stale-label {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--fg-muted);
 	}
 
 	.summary {
 		margin: 0;
+		max-width: 75ch;
 		font-size: var(--text-md);
 		line-height: 1.55;
-		color: var(--foreground);
+		color: var(--fg);
 	}
 
 	.note-group {
 		display: grid;
-		gap: 0.3rem;
+		align-content: start;
+		gap: var(--space-1);
+		min-width: 0;
 	}
 
 	.points {
-		padding-left: 1.1rem;
+		display: grid;
+		gap: var(--space-1);
+		margin: 0;
+		padding-left: var(--space-4);
 		list-style: disc;
-		color: var(--foreground);
-		font-size: var(--text);
+		color: var(--fg);
+		font-size: var(--text-base);
 		line-height: 1.5;
+		max-width: 75ch;
 	}
 
 	.points.questions {
-		color: var(--muted-foreground);
+		color: var(--fg-muted);
 	}
 
-	@media (max-width: 880px) {
-		.stats,
-		.ratio {
-			grid-template-columns: 1fr;
-			gap: 0.85rem;
+	/* Wide: each row's sections share it equally, on one baseline. The
+	   Overview stays as rows (spec, price, pour) at every width. */
+	@container (min-width: 60rem) {
+		.row:not(.overview) {
+			grid-auto-flow: column;
+			grid-auto-columns: minmax(0, 1fr);
+			gap: var(--space-10);
+		}
+
+		/* Fixed columns, so each row's numbers line up under the one above. */
+		.row.overview .stats,
+		.row.overview .stats:has(> .stat:only-child),
+		.row.overview .stats:has(> .stat:nth-child(2):last-child) {
+			grid-template-columns: repeat(3, minmax(0, 12rem));
+		}
+
+		.row.overview .serve-verdict {
+			white-space: nowrap;
+		}
+
+		.stat-value {
+			font-size: var(--text-xl);
+			letter-spacing: var(--tracking-xl);
+			line-height: var(--leading-xl);
+		}
+
+		.stat-value.sm {
+			font-size: var(--text-lg);
+			letter-spacing: var(--tracking-lg);
+			line-height: var(--leading-lg);
+		}
+
+		/* A costs table alone in its row splits into columns, not one long line. */
+		.detail > :only-child .table {
+			grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+			column-gap: var(--space-10);
 		}
 	}
 </style>

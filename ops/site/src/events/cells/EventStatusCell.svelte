@@ -1,35 +1,18 @@
 <script lang="ts">
+	import Badge from "../../ui/Badge.svelte";
+
 	let {
 		label = "",
 		tone = "",
+		title = "",
 	}: {
 		label?: string;
 		tone?: string;
+		/** The longer words; the badge shows the short label. */
+		title?: string;
 	} = $props();
 </script>
 
 {#if label}
-	<span class="badge {tone}">{label}</span>
+	<Badge {tone} {label} title={title || label} />
 {/if}
-
-<style>
-	.badge {
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		line-height: 1.3;
-		white-space: nowrap;
-	}
-
-	.live {
-		color: var(--primary);
-	}
-
-	.preview {
-		color: var(--foreground);
-	}
-
-	.unpublished {
-		color: var(--primary);
-		font-weight: 700;
-	}
-</style>

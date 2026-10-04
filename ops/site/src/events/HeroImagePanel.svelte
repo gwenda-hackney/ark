@@ -4,7 +4,7 @@
 	 * frame on it is exactly what the site shows. Drag the frame, zoom to tighten.
 	 */
 	import Icon from "../app/shell/Icon.svelte";
-	import { Tip } from "../ui";
+	import { HelpTip, PhotoActions } from "../ui";
 	import {
 		HERO_ASPECT,
 		HERO_ZOOM_MAX,
@@ -26,16 +26,23 @@
 		crops = null as HeroFraming | null,
 		disabled = false,
 		locked = false,
-		tooltip = "",
+		help = "",
+		heading = "Hero",
+		ownActions = true,
 		onchangecrops,
 		onpickfile,
 		onclear,
 	}: {
 		sourceUrl?: string;
 		crops?: HeroFraming | null;
+		/** Blank when the surrounding section already titles it. */
+		heading?: string;
 		disabled?: boolean;
 		locked?: boolean;
-		tooltip?: string;
+		/** Help drawer topic for the ? beside the heading. */
+		help?: string;
+		/** False when the caller puts PhotoActions on its own label row. */
+		ownActions?: boolean;
 		onchangecrops: (
 			crops: HeroFraming | null,
 			meta: { width: number; height: number },
@@ -309,14 +316,17 @@
 	ondragleave={onFileDragLeave}
 	ondrop={onFileDrop}
 >
-	<header class="hero-head">
-		<h2 class="section-title">
-			Hero
-			{#if tooltip}
-				<Tip label="Hero" {tooltip} />
-			{/if}
-		</h2>
-		{#if !locked}
+	{#if heading || (!locked && !sourceUrl)}
+	<header class="hero-head" class:end={!heading}>
+		{#if heading}
+			<h2 class="section-title">
+				{heading}
+				{#if help}
+					<HelpTip label={heading} topic={help} />
+				{/if}
+			</h2>
+		{/if}
+		{#if !locked && !sourceUrl}
 			<div class="hero-actions">
 				<label class="pick camera">
 					<input
@@ -329,7 +339,6 @@
 					/>
 					<span class="pick-btn"><Icon name="camera" size={15} /> Take photo</span>
 				</label>
-			{#if sourceUrl}
 				<label class="pick">
 					<input
 						class="sr-only"
@@ -338,20 +347,12 @@
 						disabled={disabled}
 						onchange={onFile}
 					/>
-					<span class="pick-btn">Replace</span>
+					<span class="pick-btn">Add photo</span>
 				</label>
-				<button class="pick-btn remove" type="button" {disabled} onclick={onclear}>
-					Remove
-				</button>
-			{/if}
-			{#if originalUrl}
-				<a class="pick-btn" href={originalUrl} download target="_blank" rel="noopener">
-					<Icon name="download" size={15} /> Original
-				</a>
-			{/if}
 			</div>
 		{/if}
 	</header>
+	{/if}
 
 	{#if locked}
 		{#if sourceUrl}
@@ -375,9 +376,22 @@
 				disabled={disabled}
 				onchange={onFile}
 			/>
-			<span class="empty-label">Add photo</span>
+			<span class="empty-label">Drop a photo here</span>
+			<span class="empty-hint">or use Add photo below</span>
 		</label>
 	{:else}
+{#if ownActions}
+				<div class="photo-actions">
+				<PhotoActions
+					take={{ disabled }}
+					replace={{ disabled }}
+					remove={{ disabled }}
+					download={originalUrl || null}
+					onfile={onFile}
+					onremove={onclear}
+				/>
+			</div>
+		{/if}
 		<div
 			class="stage"
 			bind:this={stageEl}
@@ -409,22 +423,16 @@
 		</div>
 
 		<div class="controls">
-			<label class="zoom">
-				<span class="zoom-label">
-					Zoom
-					<Tip
-						label="Zoom"
-						tooltip="Tightens the gold frame on the photo. Drag the frame to move it. Scroll over the photo to zoom too."
-					/>
-				</span>
+			<div class="zoom" role="group" aria-label="Zoom">
 				<button
-					class="step"
+					class="icon-btn"
 					type="button"
 					aria-label="Zoom out"
+					title="Zoom out"
 					disabled={disabled || !naturalW || slider <= 0.001}
 					onclick={() => nudgeZoom(-1)}
 				>
-					−
+					<Icon name="minus" size={15} />
 				</button>
 				<input
 					type="range"
@@ -433,6 +441,7 @@
 					step="0.001"
 					value={slider}
 					aria-label="Zoom"
+					title="Zoom: tightens the gold frame. Scrolling over the photo zooms too."
 					disabled={disabled || !naturalW}
 					onpointerdown={() => (sliderHeld = true)}
 					oninput={onZoomInput}
@@ -440,18 +449,26 @@
 					onpointerup={releaseZoom}
 				/>
 				<button
-					class="step"
+					class="icon-btn"
 					type="button"
 					aria-label="Zoom in"
+					title="Zoom in"
 					disabled={disabled || !naturalW || slider >= 0.999}
 					onclick={() => nudgeZoom(1)}
 				>
-					+
+					<Icon name="plus" size={15} />
 				</button>
-			</label>
-			<button class="reset" type="button" disabled={disabled || !naturalW} onclick={resetFraming}>
-				Reset
-			</button>
+				<button
+					class="icon-btn"
+					type="button"
+					aria-label="Reset framing"
+					title="Reset framing"
+					disabled={disabled || !naturalW}
+					onclick={resetFraming}
+				>
+					<Icon name="undo" size={15} />
+				</button>
+			</div>
 		</div>
 	{/if}
 </section>
@@ -459,20 +476,30 @@
 <style>
 	.hero-framing {
 		display: grid;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.hero-head {
 		display: flex;
-		gap: 1rem;
+		gap: var(--space-4);
 		justify-content: space-between;
 		align-items: center;
+	}
+
+	/* No heading: the actions sit under the photo, in a row from the left. */
+	.hero-head.end {
+		order: 5;
+		justify-content: flex-start;
+	}
+
+	.hero-head.end .hero-actions {
+		justify-content: flex-start;
 	}
 
 	.section-title {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		margin: 0;
 		font-size: var(--text-sm);
 		font-weight: 600;
@@ -480,8 +507,10 @@
 
 	.hero-actions {
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.pick {
@@ -503,23 +532,23 @@
 	.pick-btn {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		height: var(--control-h-sm);
-		padding: 0 0.75rem;
+		padding: 0 var(--space-3);
 		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
+		border-radius: var(--radius-md);
+		background: transparent;
 		color: inherit;
+		font: inherit;
 		font-size: var(--text-sm);
-		font-weight: 600;
+		font-weight: 500;
 		cursor: pointer;
 	}
 
-	.pick-btn.remove:hover:not(:disabled),
-	.pick-btn.remove:focus-visible {
-		color: var(--destructive);
-		background: var(--destructive-wash);
+	.pick-btn:hover:not(:disabled) {
+		background: var(--surface-3);
 	}
+
 
 	a.pick-btn {
 		text-decoration: none;
@@ -528,18 +557,26 @@
 
 	.pick-btn:disabled {
 		cursor: not-allowed;
-		opacity: 0.6;
+		color: var(--fg-subtle);
+		background: transparent;
 	}
 
 	.empty {
 		display: grid;
-		place-items: center;
+		place-content: center;
+		justify-items: center;
+		gap: var(--space-1);
 		width: 100%;
 		aspect-ratio: 16 / 10;
-		border: 1px dashed var(--border);
-		border-radius: 0.4rem;
-		background: var(--surface);
+		border: 1px dashed var(--border-strong);
+		border-radius: var(--radius-md);
+		background: transparent;
 		cursor: pointer;
+	}
+
+	.empty-hint {
+		font-size: var(--text-xs);
+		color: var(--fg-subtle);
 	}
 
 	.empty:hover {
@@ -556,8 +593,8 @@
 		aspect-ratio: 16 / 10;
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.4rem;
-		background: #0d0d0d;
+		border-radius: var(--radius-md);
+		background: var(--bg);
 	}
 
 	.locked-preview img {
@@ -574,7 +611,7 @@
 		aspect-ratio: 16 / 10;
 		margin: 0;
 		border: 1px dashed var(--border);
-		border-radius: 0.4rem;
+		border-radius: var(--radius-md);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
@@ -582,11 +619,11 @@
 	.stage {
 		position: relative;
 		width: 100%;
-		height: min(42vh, 22rem);
+		aspect-ratio: 4 / 3;
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.4rem;
-		background: #0d0d0d;
+		border-radius: var(--radius-md);
+		background: transparent;
 		cursor: grab;
 		touch-action: none;
 		user-select: none;
@@ -605,15 +642,14 @@
 	.crop-box {
 		position: absolute;
 		box-sizing: border-box;
-		border: 2px solid #c9a84c;
+		border: 2px solid var(--primary);
 		box-shadow: 0 0 0 999px rgba(13, 13, 13, 0.62);
 		pointer-events: none;
 	}
 
+	/* Zoom under the photo. */
 	.controls {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem 1rem;
 		align-items: center;
 	}
 
@@ -623,58 +659,62 @@
 	}
 
 	.zoom {
-		display: grid;
-		grid-template-columns: auto auto minmax(6rem, 1fr) auto;
-		gap: 0.45rem;
+		display: flex;
 		align-items: center;
-		flex: 1 1 12rem;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.zoom-label {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
+		flex: 1 1 10rem;
+		min-width: 0;
 	}
 
 	.zoom input[type="range"] {
-		width: 100%;
+		flex: 1 1 auto;
+		min-width: 3rem;
 		height: 1.25rem;
-		margin: 0;
-		accent-color: #c9a84c;
+		margin: 0 var(--space-1);
+		accent-color: var(--primary);
 		cursor: pointer;
 	}
 
-	.step {
+	/* Replace, download and remove: a row of icons above the photo, at its right. */
+	.photo-actions {
+		margin-bottom: calc(-1 * var(--space-2));
+	}
+
+	.icon-btn {
 		display: grid;
 		place-items: center;
-		width: 1.75rem;
-		height: 1.75rem;
+		flex-shrink: 0;
+		width: var(--control-h-sm);
+		height: var(--control-h-sm);
 		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
-		color: var(--foreground);
-		font-size: 1rem;
-		line-height: 1;
+		border: 1px solid transparent;
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--muted-foreground);
+		text-decoration: none;
 		cursor: pointer;
 	}
 
-	.step:disabled {
-		opacity: 0.45;
+	.icon-btn:hover:not(:disabled) {
+		color: var(--fg);
+		background: var(--surface-3);
+	}
+
+	.icon-btn:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.icon-btn:disabled {
+		color: var(--fg-subtle);
+		background: transparent;
 		cursor: default;
 	}
 
-	.reset {
-		height: var(--control-h-sm);
-		padding: 0 0.75rem;
-		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
-		color: inherit;
-		font-size: var(--text-sm);
-		font-weight: 600;
-		cursor: pointer;
+	@media (max-width: 900px) {
+		.icon-btn {
+			width: 2.75rem;
+			height: 2.75rem;
+		}
 	}
 </style>

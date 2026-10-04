@@ -19,15 +19,10 @@ describe("NAV_ROUTES", () => {
 		assert.equal(service?.name, "Service");
 		assert.deepEqual(
 			service?.children?.map((row) => row.id),
-			["menu", "stock", "lightspeed"],
+			["recipes", "stock", "lightspeed"],
 		);
-		const menu = service?.children?.find((row) => row.id === "menu");
 		const stock = service?.children?.find((row) => row.id === "stock");
 		const lightspeed = service?.children?.find((row) => row.id === "lightspeed");
-		assert.deepEqual(
-			menu?.children?.map((row) => row.id),
-			["recipes", "sections"],
-		);
 		assert.deepEqual(
 			stock?.children?.map((row) => row.id),
 			["inventory", "suppliers"],
@@ -62,6 +57,22 @@ describe("NAV_ROUTES", () => {
 	});
 });
 
+describe("phone tab strip labels", () => {
+	it("gives long names a short one, so the strip fits a phone", () => {
+		const leaves = flattenNavRoutes(routes);
+		const short = (id: string) => leaves.find((row) => row.id === id)?.short;
+		assert.equal(short("artist"), "Artist");
+		assert.equal(short("forms"), "Applications");
+		for (const leaf of leaves) {
+			assert.ok((leaf.short || leaf.name).length <= 15, `${leaf.id} needs a shorter label`);
+		}
+	});
+
+	it("leaves the More page out of the rail", () => {
+		assert.equal(matchActiveRoute(routes, "/more"), null);
+	});
+});
+
 describe("flattenNavRoutes", () => {
 	it("returns only leaves, not Menu, Stock, or Lightspeed groups", () => {
 		assert.deepEqual(
@@ -69,7 +80,6 @@ describe("flattenNavRoutes", () => {
 			[
 				"home",
 				"recipes",
-				"sections",
 				"inventory",
 				"suppliers",
 				"lightspeed-reconcile",
@@ -95,7 +105,7 @@ describe("matchActiveRoute", () => {
 		assert.equal(matchActiveRoute(routes, "/lightspeed")?.id, "lightspeed-reconcile");
 		assert.equal(matchActiveRoute(routes, "/lightspeed/export")?.id, "lightspeed-export");
 		assert.equal(matchActiveRoute(routes, "/suppliers")?.id, "suppliers");
-		assert.equal(matchActiveRoute(routes, "/sections")?.id, "sections");
+		assert.equal(matchActiveRoute(routes, "/config/pour")?.id, "config");
 		assert.equal(matchActiveRoute(routes, "/config")?.id, "config");
 		assert.equal(matchActiveRoute(routes, "/events")?.id, "events-series");
 		assert.equal(matchActiveRoute(routes, "/events/new")?.id, "events-series");
@@ -123,7 +133,7 @@ describe("matchActiveRoute", () => {
 
 	it("does not treat groups as the active page", () => {
 		assert.notEqual(matchActiveRoute(routes, "/menu")?.id, "stock");
-		assert.notEqual(matchActiveRoute(routes, "/sections")?.id, "menu");
+		assert.notEqual(matchActiveRoute(routes, "/config")?.id, "settings");
 		assert.notEqual(matchActiveRoute(routes, "/lightspeed")?.id, "lightspeed");
 	});
 });
@@ -132,10 +142,7 @@ describe("navGroupContains", () => {
 	it("puts menu under Menu, inventory under Stock, reconcile under Lightspeed", () => {
 		const service = routes.find((row) => row.id === "service")!;
 		const stock = service.children?.find((row) => row.id === "stock")!;
-		const menu = service.children?.find((row) => row.id === "menu")!;
 		const lightspeed = service.children?.find((row) => row.id === "lightspeed")!;
-		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/menu")), true);
-		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/sections")), true);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/menu")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/inventory")), true);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/lightspeed")), false);
@@ -145,8 +152,6 @@ describe("navGroupContains", () => {
 			true,
 		);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/suppliers")), true);
-		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/sections")), false);
-		assert.equal(navGroupContains(menu, matchActiveRoute(routes, "/inventory")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/")), false);
 		assert.equal(navGroupContains(stock, matchActiveRoute(routes, "/users")), false);
 		const events = routes

@@ -483,7 +483,7 @@ export async function updateInventoryItem(env, itemId, input) {
   const next = mapInventoryItem(row, suppliers);
   const nextAbv = text(String(next.abv ?? "")).replace(/%/g, "");
   if (prevAbv !== nextAbv) {
-    await recomputeDrinksForInventoryId(env, itemId);
+    await recomputeDrinksForInventoryId(env, itemId, { previousAbv: prevAbv });
   }
   return next;
 }

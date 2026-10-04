@@ -4,9 +4,12 @@
 	 * way ("7pm", "1930", "19.30") or pick from one list in quarter hours.
 	 * The list runs from the morning round to the small hours, so a late
 	 * finish sits after the evening. Holds "HH:MM" like a native time input.
+	 * A time it can't read is said in words under the field (inside a Field),
+	 * not only shown as a red edge.
 	 */
 	import { onMount, tick } from "svelte";
-	import { nearestIndex, parseTime, timeOptions } from "./time-input";
+	import { getFieldContext, joinIds } from "./field-context";
+	import { nearestIndex, parseTime, timeOptions, TIME_ERROR } from "./time-input";
 
 	let {
 		value = $bindable(""),
@@ -17,6 +20,7 @@
 		/** Where the list opens when the field is empty. */
 		suggest = "19:00",
 		class: className = "",
+		"aria-describedby": describedByProp = undefined,
 		...rest
 	}: {
 		value?: string;
@@ -27,7 +31,10 @@
 		suggest?: string;
 		class?: string;
 		"aria-label"?: string;
+		"aria-describedby"?: string;
 	} = $props();
+
+	const field = getFieldContext();
 
 	const options = timeOptions(15, 6);
 	const listId = `time-${Math.random().toString(36).slice(2, 9)}`;
@@ -36,6 +43,15 @@
 	let open = $state(false);
 	let activeIndex = $state(-1);
 	let invalid = $state(false);
+	const errorId = `${listId}-error`;
+	/** Inside a Field the message goes under it; on its own (a table row) screen readers still hear it. */
+	const describedBy = $derived(
+		joinIds(describedByProp, field?.describedBy, invalid && !field ? errorId : ""),
+	);
+
+	$effect(() => {
+		field?.setLocalError(invalid ? TIME_ERROR : "");
+	});
 	let wrapEl = $state<HTMLDivElement | undefined>();
 	let inputEl = $state<HTMLInputElement | undefined>();
 	let menuEl = $state<HTMLDivElement | undefined>();
@@ -193,7 +209,8 @@
 		aria-expanded={open}
 		aria-controls={listId}
 		aria-autocomplete="list"
-		aria-invalid={invalid}
+		aria-invalid={invalid || field?.invalid || undefined}
+		aria-describedby={describedBy}
 		aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
 		onclick={() => {
 			if (!open) void setOpen(true);
@@ -229,6 +246,10 @@
 			<path d="M12 7v5l3 2" />
 		</svg>
 	</button>
+
+	{#if invalid && !field}
+		<span class="sr-only" id={errorId}>{TIME_ERROR}</span>
+	{/if}
 
 	{#if open}
 		<div bind:this={menuEl} class="menu scrollbar-fade" style={menuStyle} role="listbox" id={listId}>
@@ -289,11 +310,12 @@
 	}
 
 	.wrap.invalid {
-		border-color: var(--destructive, #d9534f);
+		border-color: var(--danger);
 	}
 
 	.wrap.disabled {
-		opacity: 0.5;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 	}
 
 	.field {
@@ -302,18 +324,19 @@
 		height: 100%;
 		box-sizing: border-box;
 		margin: 0;
-		padding: 0 0.25rem 0 0.75rem;
+		padding: 0 var(--space-1) 0 var(--space-3);
 		border: 0;
 		background: transparent;
-		color: var(--foreground);
+		color: var(--field-foreground);
 		font: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		line-height: 1.25;
 	}
 
 	.sm .field {
-		padding-left: 0.6875rem;
+		padding-left: var(--space-3);
 	}
 
 	.field::placeholder {
@@ -330,7 +353,7 @@
 		flex: 0 0 auto;
 		height: 100%;
 		margin: 0;
-		padding: 0 0.6rem;
+		padding: 0 var(--space-2);
 		border: 0;
 		background: transparent;
 		color: var(--muted-foreground);
@@ -351,7 +374,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
-		padding: 0.35rem;
+		padding: var(--space-1);
 		overflow: auto;
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
@@ -363,13 +386,14 @@
 	.option {
 		width: 100%;
 		margin: 0;
-		padding: 0.45rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--muted-foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		line-height: 1.3;
 		text-align: left;
 		cursor: pointer;

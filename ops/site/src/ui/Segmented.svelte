@@ -1,6 +1,7 @@
 <script lang="ts">
 	/**
-	 * Pill tab bar. `invert` keeps the sunken track + ink pill.
+	 * Pill tab bar. `invert` keeps the sunken track + ink pill, the same
+	 * height as a button of the same size so it sits in a toolbar row.
 	 * `soft` is a flat underline strip for sitting on cards (no gray box).
 	 */
 	import type { SegmentedItem } from "./types";
@@ -42,7 +43,7 @@
 			>
 				<span>{item.label}</span>
 				{#if item.count !== undefined}
-					<span class="count num">{item.count}</span>
+					<span class="count num pill-text">{item.count}</span>
 				{/if}
 			</a>
 		{:else}
@@ -56,7 +57,7 @@
 			>
 				<span>{item.label}</span>
 				{#if item.count !== undefined}
-					<span class="count num">{item.count}</span>
+					<span class="count num pill-text">{item.count}</span>
 				{/if}
 			</button>
 		{/if}
@@ -68,13 +69,19 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.125rem;
+		height: var(--control-h);
 		padding: 0.1875rem;
 		border-radius: var(--radius-pill);
 		background: var(--sunken);
 		border: 1px solid var(--border);
 	}
 
+	.track.sm {
+		height: var(--button-h-sm);
+	}
+
 	.track.soft {
+		height: auto;
 		gap: 0.15rem;
 		padding: 0;
 		border: none;
@@ -85,7 +92,7 @@
 	.tab {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.375rem;
+		gap: var(--space-2);
 		border: none;
 		border-radius: var(--radius-pill);
 		background: none;
@@ -101,10 +108,11 @@
 			box-shadow var(--t) var(--ease);
 	}
 
+	/* Equal padding above and below, so the focus ring sits evenly round the
+	   label; the underline sits on the bottom edge inside it. */
 	.soft .tab {
 		position: relative;
 		border-radius: var(--radius-sm);
-		padding-bottom: 0.35rem;
 		margin-bottom: -1px;
 	}
 
@@ -124,28 +132,29 @@
 		font-weight: 600;
 	}
 
+	/* Track height less its 3px padding and 1px border, each side. */
 	.md .tab {
-		height: 1.875rem;
-		padding: 0 0.8125rem;
-		font-size: var(--text);
+		height: calc(var(--control-h) - 0.5rem);
+		padding: 0 var(--space-3);
+		font-size: var(--text-base);
 	}
 
 	.sm .tab {
-		height: 1.625rem;
-		padding: 0 0.6875rem;
+		height: calc(var(--button-h-sm) - 0.5rem);
+		padding: 0 var(--space-3);
 		font-size: var(--text-sm);
 	}
 
 	.soft.md .tab {
 		height: auto;
-		min-height: 1.875rem;
-		padding: 0.2rem 0.55rem 0.45rem;
+		min-height: 2.25rem;
+		padding: var(--space-2) var(--space-3);
 	}
 
 	.soft.sm .tab {
 		height: auto;
-		min-height: 1.5rem;
-		padding: 0.15rem 0.45rem 0.4rem;
+		min-height: 2rem;
+		padding: var(--space-2) var(--space-2);
 	}
 
 	.tab:hover:not(:disabled):not([aria-disabled="true"]):not([aria-selected="true"]) {
@@ -160,8 +169,19 @@
 
 	.tab:disabled,
 	.tab[aria-disabled="true"] {
-		opacity: 0.4;
+		color: var(--fg-subtle);
 		pointer-events: none;
+	}
+
+	.tab:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-pill);
+	}
+
+	.soft .tab:focus-visible {
+		outline-offset: 0;
+		border-radius: var(--radius-md);
 	}
 
 	.invert .tab[aria-selected="true"] {

@@ -3,12 +3,19 @@
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
+		Badge,
 		BusyOverlay,
 		Button,
-		Card,
+		Confirm,
+		ConfirmDialog,
+		EmptyState,
 		Field,
+		FormErrors,
 		PageDrawer,
 		PageHeader,
+		RowAction,
+		Skeleton,
+		Switch,
 		TextField,
 	} from "../ui";
 	import {
@@ -30,6 +37,8 @@
 	let name = $state("");
 	let email = $state("");
 	let busyId = $state("");
+	const confirm = new Confirm();
+	const errors = new FormErrors();
 
 	const activeCount = $derived(users.filter((user) => user.active).length);
 	const summary = $derived(
@@ -59,6 +68,7 @@
 		name = "";
 		email = "";
 		error = "";
+		errors.clearAll();
 		drawerOpen = true;
 	}
 
@@ -69,6 +79,18 @@
 
 	async function onAdd(event: Event) {
 		event.preventDefault();
+		const address = email.trim();
+		errors.replace({
+			"user-email": !address
+				? "Add their email address."
+				: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)
+					? ""
+					: "Use a whole email address, like name@gwenda.co.uk.",
+		});
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
 		saving = true;
 		error = "";
 		try {
@@ -111,14 +133,19 @@
 		const id = String(user.id || user._id || "");
 		if (!id) return;
 		const label = user.name || user.email || "this user";
-		if (!window.confirm(`Remove ${label}? They will no longer be able to sign in.`)) return;
+		const ok = await confirm.ask({
+			title: `Delete ${label}?`,
+			message: "They can no longer sign in to ops. To pause them instead, turn off Can sign in.",
+			action: "Delete",
+		});
+		if (!ok) return;
 		busyId = id;
 		try {
 			await deleteOpsUser(id);
 			users = users.filter((row) => String(row.id) !== id);
-			toast.ok("User removed.");
+			toast.ok("User deleted.");
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not remove user.");
+			toast.error(err instanceof Error ? err.message : "Could not delete user.");
 		} finally {
 			busyId = "";
 		}
@@ -145,31 +172,37 @@
 		{/snippet}
 	</PageHeader>
 
-	<Card title="People" subtitle={loading ? "" : summary} flush>
-		{#if loadError}
-			<p class="state error">{loadError}</p>
-		{:else if !loading && users.length === 0}
-			<div class="state empty">
-				<p>No one has been added yet.</p>
-				<Button type="button" variant="outline" size="sm" onclick={openDrawer}>
-					Add the first user
-				</Button>
-			</div>
-		{:else if !loading}
-			<table class="table" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-				<thead>
-					<tr>
-						<th scope="col">Person</th>
-						<th scope="col">Roles</th>
-						<th scope="col">Can sign in</th>
-						<th scope="col"><span class="sr-only">Actions</span></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each users as user (user.id)}
-						{@const busy = busyId === String(user.id)}
-						<tr class:off={!user.active}>
-							<td class="person">
+	{#if loadError}
+		<EmptyState tone="error" title="Could not load users" text={loadError}>
+			{#snippet action()}
+				<Button variant="outline" size="sm" onclick={() => void reload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+			{/snippet}
+		</EmptyState>
+	{:else if loading && users.length === 0}
+		<Skeleton rows={3} thumb lines={1} label="Loading users…" />
+	{:else if users.length === 0}
+		<EmptyState icon="users" title="No one added yet" text="Add the people who may sign in with Google.">
+			{#snippet action()}
+				<Button size="sm" onclick={openDrawer}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add the first user</Button>
+			{/snippet}
+		</EmptyState>
+	{:else}
+		<p class="count">{summary}</p>
+		<table class="table" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+			<thead>
+				<tr>
+					<th scope="col">Person</th>
+					<th scope="col">Roles</th>
+					<th scope="col">Can sign in</th>
+					<th scope="col"><span class="sr-only">Actions</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each users as user (user.id)}
+					{@const busy = busyId === String(user.id)}
+					<tr class:off={!user.active}>
+						<td class="person">
+							<div class="person-inner">
 								<span class="avatar" aria-hidden="true">{initial(user)}</span>
 								<span class="who">
 									<span class="name">{user.name || user.email}</span>
@@ -177,68 +210,59 @@
 										<span class="email">{user.email}</span>
 									{/if}
 								</span>
-							</td>
-							<td class="roles" data-label="Roles">
-								<span class="placeholder">No roles yet</span>
-							</td>
-							<td class="status" data-label="Can sign in">
-								<label class="switch">
-									<input
-										type="checkbox"
-										role="switch"
-										checked={user.active}
-										disabled={busy}
-										onchange={() => onToggle(user)}
-										aria-label="{user.email} can sign in"
-									/>
-									<span class="track" aria-hidden="true"></span>
-									<span class="switch-label">{user.active ? "Yes" : "No"}</span>
-								</label>
-							</td>
-							<td class="row-actions">
-								<Button
-									variant="ghost"
-									size="sm"
+							</div>
+						</td>
+						<td class="roles" data-label="Roles">
+							<Badge tone="neutral" label="No roles yet" />
+						</td>
+						<td class="status" data-label="Can sign in">
+							<span class="access">
+								<Switch
+									checked={Boolean(user.active)}
 									disabled={busy}
-									onclick={() => onRemove(user)}
-									aria-label="Remove {user.email}"
-								>
-									{#snippet icon()}
-										<Icon name="trash" size={16} />
-									{/snippet}
-								</Button>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		{/if}
-	</Card>
+									ariaLabel="{user.email} can sign in"
+									onchange={() => onToggle(user)}
+								/>
+								<Badge tone={user.active ? "success" : "neutral"} label={user.active ? "Yes" : "No"} />
+							</span>
+						</td>
+						<td class="row-actions">
+							<RowAction label="Delete {user.email}" disabled={busy} reason="Saving…" onclick={() => onRemove(user)} />
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	{/if}
 
-	<BusyOverlay active={loading} label="Loading…" />
+	<!-- First load shows skeleton rows; the overlay covers a reload. -->
+	<BusyOverlay active={loading && users.length > 0} label="Loading…" />
 </div>
 
 <PageDrawer open={drawerOpen} onclose={closeDrawer} title="Add user">
-	<form class="add" onsubmit={onAdd}>
+	<form class="add" novalidate onsubmit={onAdd}>
 		<p class="intro">
 			They sign in with Google, so use the email address of their Google account.
 		</p>
-		<Field label="Name" for="user-name">
-			<TextField
-				id="user-name"
-				bind:value={name}
-				placeholder="Optional"
-				autocomplete="off"
-			/>
+		<Field label="Name" for="user-name" optional>
+			<TextField id="user-name" bind:value={name} autocomplete="off" />
 		</Field>
-		<Field label="Email" for="user-email">
+		<Field
+			label="Email"
+			for="user-email"
+			required
+			error={errors.get("user-email")}
+			hint="Their Google account."
+		>
 			<TextField
 				id="user-email"
 				bind:value={email}
 				type="email"
+				inputmode="email"
 				placeholder="name@gwenda.co.uk"
 				autocomplete="off"
-				required
+				spellcheck="false"
+				oninput={() => errors.clear("user-email")}
 			/>
 		</Field>
 		{#if error}
@@ -246,12 +270,15 @@
 		{/if}
 		<div class="actions">
 			<Button variant="ghost" type="button" disabled={saving} onclick={closeDrawer}>
+				{#snippet icon()}<Icon name="close" size={16} />{/snippet}
 				Cancel
 			</Button>
-			<Button type="submit" variant="primary" busy={saving}>Add user</Button>
+			<Button type="submit" variant="primary" busy={saving}>{#snippet icon()}<Icon name="plus" size={16} />{/snippet}Add user</Button>
 		</div>
 	</form>
 </PageDrawer>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {
@@ -262,27 +289,10 @@
 		padding: var(--page-gutter);
 	}
 
-	.state {
-		margin: 0;
-		padding: 1.25rem var(--card-pad);
+	.count {
+		margin: 0 0 var(--space-2);
 		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.empty {
-		display: grid;
-		justify-items: start;
-		gap: var(--gap-sm);
-	}
-
-	.empty p {
-		margin: 0;
-	}
-
-	.error {
-		margin: 0;
-		color: var(--destructive, #c97a7a);
-		font-size: var(--text-sm);
+		color: var(--fg-muted);
 	}
 
 	.table {
@@ -293,7 +303,7 @@
 
 	.table th,
 	.table td {
-		padding: 0.7rem 0.5rem;
+		padding: var(--space-3) var(--space-2);
 		text-align: left;
 		vertical-align: middle;
 		border-bottom: 1px solid var(--border);
@@ -301,35 +311,34 @@
 
 	.table th:first-child,
 	.table td:first-child {
-		padding-left: var(--card-pad);
+		padding-left: var(--space-3);
 	}
 
 	.table th:last-child,
 	.table td:last-child {
-		padding-right: var(--card-pad);
+		padding-right: var(--space-3);
 	}
 
 	.table th {
-		font-size: var(--text-xs);
+		background: var(--surface-1);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 		white-space: nowrap;
 	}
 
-	.table tbody tr:last-child td {
-		border-bottom: 0;
-	}
-
 	.table tbody tr:hover {
-		background: color-mix(in srgb, var(--foreground) 3%, transparent);
+		background: var(--surface-3);
 	}
 
-	.person {
+	/* The flex row lives inside the cell: a flex td stops being a table
+	   cell, and its bottom border then ends short of the row. */
+	.person-inner {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 
@@ -352,7 +361,7 @@
 	}
 
 	.name {
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 600;
 		overflow-wrap: anywhere;
 	}
@@ -371,70 +380,10 @@
 		color: var(--muted-foreground);
 	}
 
-	.placeholder {
-		color: var(--muted-foreground);
-		font-style: italic;
-	}
-
-	.switch {
+	.access {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
-		cursor: pointer;
-		user-select: none;
-	}
-
-	.switch input {
-		position: absolute;
-		opacity: 0;
-		width: 1px;
-		height: 1px;
-	}
-
-	.track {
-		position: relative;
-		width: 2.2rem;
-		height: 1.25rem;
-		border-radius: var(--radius-pill);
-		background: var(--muted);
-		border: 1px solid var(--border);
-		transition: background 160ms ease;
-	}
-
-	.track::after {
-		content: "";
-		position: absolute;
-		top: 50%;
-		left: 0.15rem;
-		width: 0.85rem;
-		height: 0.85rem;
-		border-radius: 50%;
-		background: var(--muted-foreground);
-		transform: translateY(-50%);
-		transition: transform 160ms ease, background 160ms ease;
-	}
-
-	.switch input:checked + .track {
-		background: var(--primary-wash-strong);
-		border-color: var(--primary);
-	}
-
-	.switch input:checked + .track::after {
-		background: var(--primary);
-		transform: translate(0.95rem, -50%);
-	}
-
-	.switch input:focus-visible + .track {
-		outline: 2px solid var(--primary);
-		outline-offset: 2px;
-	}
-
-	.switch input:disabled + .track {
-		opacity: 0.5;
-	}
-
-	.switch-label {
-		color: var(--muted-foreground);
+		gap: var(--space-2);
 	}
 
 	.row-actions {
@@ -443,17 +392,14 @@
 		white-space: nowrap;
 	}
 
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
-	}
+	/* Phones: each person is a card instead of a squeezed row. */
+	@media (max-width: 900px) {
+		.table,
+		.table tbody {
+			display: grid;
+			gap: var(--space-2);
+		}
 
-	/* Phones: each person becomes a small block instead of a squeezed row. */
-	@media (max-width: 640px) {
 		.table thead {
 			display: none;
 		}
@@ -461,13 +407,15 @@
 		.table tbody tr {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) auto;
-			gap: 0.4rem 0.75rem;
-			padding: 0.8rem var(--card-pad);
-			border-bottom: 1px solid var(--border);
+			gap: var(--space-3);
+			padding: var(--space-3);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-lg);
+			background: var(--panel-bg);
 		}
 
-		.table tbody tr:last-child {
-			border-bottom: 0;
+		.table tbody tr:hover {
+			background: var(--surface-1);
 		}
 
 		.table td,
@@ -479,6 +427,14 @@
 
 		.person {
 			grid-column: 1;
+		}
+
+		.name {
+			font-size: var(--text-base);
+		}
+
+		.email {
+			font-size: var(--text-sm);
 		}
 
 		.row-actions {
@@ -493,23 +449,25 @@
 			display: flex;
 			align-items: center;
 			justify-content: space-between;
-			padding-left: 2.8rem !important;
+			min-height: 2.75rem;
+			padding-top: var(--space-1) !important;
+			border-top: 1px solid var(--border) !important;
 		}
 
 		.roles::before,
 		.status::before {
 			content: attr(data-label);
-			font-size: var(--text-xs);
+			font-size: var(--text-2xs);
 			font-weight: 600;
-			letter-spacing: 0.04em;
+			letter-spacing: var(--tracking-label);
 			text-transform: uppercase;
-			color: var(--muted-foreground);
+			color: var(--fg-muted);
 		}
 	}
 
 	.add {
 		display: grid;
-		gap: var(--gap-md);
+		gap: var(--space-4);
 	}
 
 	.intro {
@@ -521,6 +479,6 @@
 	.actions {
 		display: flex;
 		justify-content: flex-end;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 </style>

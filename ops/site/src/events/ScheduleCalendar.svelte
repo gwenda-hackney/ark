@@ -1,8 +1,10 @@
 <script lang="ts">
 	/**
 	 * Month grid for the same upcoming nights the schedule list shows.
-	 * Monday-first, matching the week groups on the list.
+	 * Monday-first, matching the week groups on the list. Phones get the
+	 * month as an agenda instead: seven columns don't fit.
 	 */
+	import { mediaMatches, SHELL_MOBILE_QUERY } from "../ui/viewport.svelte";
 	import { Icon } from "../app/shell";
 	import { Button } from "../ui";
 	import type { EventScheduleWeek } from "./event-schedule";
@@ -83,6 +85,20 @@
 		return String(Number(iso.slice(8, 10)) || "");
 	}
 
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	const agendaDays = $derived(calendar.days.filter((day) => day.inMonth && day.rows.length));
+	const thisMonth = $derived(calendar.month === today.slice(0, 7));
+
+	function weekdayShort(iso: string): string {
+		return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+	}
+
+	function rowHref(row: EventScheduleWeek["rows"][number]): string {
+		return row.event.repeatUnit === "once"
+			? eventItemPath(row.event.id)
+			: eventItemPath(`${row.event.id}@${row.date}`);
+	}
+
 	function go(delta: number): void {
 		month = shiftScheduleMonth(calendar.month, delta);
 	}
@@ -90,44 +106,30 @@
 
 <div class="calendar">
 	<div class="calendar-bar">
-		<div class="calendar-nav">
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				aria-label="Previous month"
-				onclick={() => go(-1)}
-			>
-				{#snippet icon()}
-					<Icon name="chevron-left" size={16} />
-				{/snippet}
-			</Button>
-			<h2 aria-live="polite">{calendar.label}</h2>
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				aria-label="Next month"
-				onclick={() => go(1)}
-			>
-				{#snippet icon()}
-					<Icon name="chevron-right" size={16} />
-				{/snippet}
-			</Button>
-		</div>
+		<h2 aria-live="polite">{calendar.label}</h2>
 		<div class="calendar-actions">
 			<p class="count">
 				{nightsInMonth === 1 ? "1 night" : `${nightsInMonth} nights`}
 			</p>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				disabled={calendar.month === today.slice(0, 7)}
-				onclick={() => (month = today.slice(0, 7))}
-			>
-				Today
-			</Button>
+			<div class="stepper" role="group" aria-label="Month">
+				<Button type="button" variant="outline" size="sm" aria-label="Previous month" title="Previous month" onclick={() => go(-1)}>
+					{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					disabled={thisMonth}
+					title={thisMonth ? "Already showing this month" : "Back to this month"}
+					onclick={() => (month = today.slice(0, 7))}
+				>
+					{#snippet icon()}<Icon name="calendar" size={14} />{/snippet}
+					Today
+				</Button>
+				<Button type="button" variant="outline" size="sm" aria-label="Next month" title="Next month" onclick={() => go(1)}>
+					{#snippet icon()}<Icon name="chevron-right" size={16} />{/snippet}
+				</Button>
+			</div>
 		</div>
 	</div>
 
@@ -151,6 +153,30 @@
 		</p>
 	{/if}
 
+	{#if phone.matches}
+		<ol class="agenda" aria-label={calendar.label}>
+			{#each agendaDays as day (day.date)}
+				<li class="agenda-day" class:today={day.date === today} class:past={day.date < today}>
+					<div class="date" aria-label={day.date}>
+						<span class="weekday">{weekdayShort(day.date)}</span>
+						<span class="daynum tnum">{dayNumber(day.date)}</span>
+					</div>
+					<div class="events">
+						{#each day.rows as row (`${row.event.id}:${row.occurrence?.id || row.date}`)}
+							{@const name = rowName(row)}
+							{@const artist = rowArtist(row)}
+							{@const time = rowTime(row)}
+							<a class="chip {tone(row.event)}" href={rowHref(row)}>
+								{#if time}<span class="when">{time}</span>{/if}
+								<span class="name">{name}</span>
+								{#if artist}<span class="artist">{artist}</span>{/if}
+							</a>
+						{/each}
+					</div>
+				</li>
+			{/each}
+		</ol>
+	{:else}
 	<div class="scroll">
 		<div class="grid" role="grid" aria-label={calendar.label}>
 			{#each calendar.weekdays as weekday (weekday)}
@@ -188,14 +214,18 @@
 			{/each}
 		</div>
 	</div>
+	{/if}
 </div>
 
 <style>
+	/* A little room so focus rings on the edge buttons aren't clipped by the list's scroll box. */
 	.calendar {
 		display: flex;
 		flex: 1;
 		flex-direction: column;
-		gap: var(--gap);
+		gap: var(--space-4);
+		margin: -3px;
+		padding: 3px;
 		min-width: 0;
 		min-height: 0;
 		height: 100%;
@@ -205,24 +235,28 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		flex-wrap: wrap;
 	}
 
-	.calendar-nav,
 	.calendar-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3);
+	}
+
+	.stepper {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
 	}
 
 	h2 {
 		margin: 0;
-		min-width: 11rem;
-		text-align: center;
-		font-size: 1.05rem;
+		font-family: var(--font);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		letter-spacing: 0.02em;
+		letter-spacing: -0.01em;
 	}
 
 	.count,
@@ -237,7 +271,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.35rem 0.75rem;
+		gap: var(--space-1) var(--space-3);
 	}
 
 	.jump {
@@ -282,16 +316,16 @@
 
 	.head,
 	.day {
-		background: var(--background);
+		background: var(--ambient), var(--background);
 		min-width: 0;
 	}
 
 	.head {
-		padding: 0.55rem 0.45rem;
+		padding: var(--space-2) var(--space-2);
 		color: var(--muted-foreground);
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		line-height: 1.2;
 		text-align: center;
 		text-transform: uppercase;
@@ -300,9 +334,9 @@
 	.day {
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		min-height: 0;
-		padding: 0.4rem;
+		padding: var(--space-2);
 		overflow: auto;
 	}
 
@@ -326,6 +360,7 @@
 		font-size: var(--text-xs);
 		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		color: var(--muted-foreground);
 		line-height: 1;
 	}
@@ -353,7 +388,7 @@
 	.events {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
@@ -361,8 +396,8 @@
 		display: grid;
 		gap: 0.05rem;
 		min-width: 0;
-		padding: 0.28rem 0.4rem;
-		border-radius: var(--radius-xs);
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-sm);
 		background: var(--primary-wash);
 		color: inherit;
 		text-decoration: none;
@@ -392,7 +427,7 @@
 
 	.when {
 		color: var(--primary);
-		font-size: 0.6875rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
 		line-height: 1.2;
 	}
@@ -412,12 +447,71 @@
 
 	.artist {
 		color: var(--muted-foreground);
-		font-size: 0.6875rem;
+		font-size: var(--text-2xs);
 	}
 
-	@media (max-width: 720px) {
-		.grid {
-			min-width: 46rem;
-		}
+	/* Phones: the month as an agenda, a date block beside each day's nights. */
+	.agenda {
+		display: grid;
+		margin: 0;
+		padding: 0 0 var(--space-4);
+		overflow-y: auto;
+		list-style: none;
+	}
+
+	.agenda-day {
+		display: grid;
+		grid-template-columns: 3rem minmax(0, 1fr);
+		gap: var(--space-3);
+		padding-block: var(--space-3);
+		border-top: 1px solid var(--border);
+	}
+
+	.agenda-day:first-child {
+		border-top: 0;
+	}
+
+	.date {
+		display: grid;
+		justify-items: center;
+		align-content: start;
+		padding-block: var(--space-2);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		line-height: 1.1;
+	}
+
+	.weekday {
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--primary);
+	}
+
+	.daynum {
+		font-size: var(--text-lg);
+		font-weight: 600;
+	}
+
+	.agenda-day.today .date {
+		background: var(--primary-wash);
+	}
+
+	.agenda-day.past {
+		opacity: 0.6;
+	}
+
+	.agenda .chip {
+		padding: var(--space-2) var(--space-3);
+	}
+
+	.agenda .name {
+		font-size: var(--text-base);
+	}
+
+	.agenda .when,
+	.agenda .artist {
+		font-size: var(--text-xs);
 	}
 </style>

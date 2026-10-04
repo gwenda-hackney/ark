@@ -4,10 +4,14 @@
 	import { Icon } from "../app/shell";
 	import {
 		BusyOverlay,
+		EmptyState,
 		Button,
 		Card,
+		Confirm,
+		ConfirmDialog,
 		Dialog,
 		Field,
+		MoneyField,
 		NativeSelect,
 		PageHeader,
 		PageHelp,
@@ -293,8 +297,17 @@
 		if (file) void loadCsv(file);
 	}
 
+	const confirm = new Confirm();
+
 	async function apply() {
 		if (!csvText) return;
+		const ok = await confirm.ask({
+			title: "Stamp Lightspeed SKUs?",
+			message: `Drinks and stock matched in ${fileName || "this file"} get its Lightspeed SKUs, replacing any they have now.`,
+			action: "Stamp SKUs",
+			tone: "primary",
+		});
+		if (!ok) return;
 		applying = true;
 		acting = "save";
 		error = "";
@@ -567,18 +580,30 @@
 				variant="outline"
 				size="sm"
 				disabled={!preview?.itemImportCsv || (preview.opsOnly?.length || 0) === 0}
+				reason={!preview
+					? "Import an item list first"
+					: !preview.itemImportCsv || !preview.opsOnly?.length
+						? "Nothing is only in ops"
+						: undefined}
 				onclick={() =>
 					download("lightspeed-item-import.csv", preview?.itemImportCsv)}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				Download item import
 			</Button>
 			<Button
 				variant="outline"
 				size="sm"
 				disabled={!preview?.archiveSkuCsv || archiveRows.length === 0}
+				reason={!preview
+					? "Import an item list first"
+					: !preview.archiveSkuCsv || !archiveRows.length
+						? "Nothing marked for archive"
+						: undefined}
 				onclick={() =>
 					download("lightspeed-archive-skus.csv", preview?.archiveSkuCsv)}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				Download archive SKUs
 			</Button>
 			<Button
@@ -586,8 +611,10 @@
 				size="sm"
 				busy={applying}
 				disabled={!preview || applying}
+				reason={preview ? undefined : "Import an item list first"}
 				onclick={apply}
 			>
+				{#snippet icon()}<Icon name="tag" size={14} />{/snippet}
 				Stamp SKUs
 			</Button>
 		{/snippet}
@@ -606,6 +633,7 @@
 					size="sm"
 					onclick={() => (importOpen = true)}
 				>
+					{#snippet icon()}<Icon name="upload" size={14} />{/snippet}
 					Import item list
 				</Button>
 			{/snippet}
@@ -629,9 +657,15 @@
 					</div>
 				</div>
 			{:else if lastRecon.stamped === 0}
-				<p class="muted">
-					No reconcile has been stamped yet. Import a Lightspeed item list to compare.
-				</p>
+				<EmptyState
+					icon="lightspeed"
+					title="No reconcile yet"
+					text="Import a Lightspeed item list to compare it with ops."
+				>
+					{#snippet action()}
+						<Button size="sm" onclick={() => (importOpen = true)}>{#snippet icon()}<Icon name="upload" size={14} />{/snippet}Import item list</Button>
+					{/snippet}
+				</EmptyState>
 			{:else}
 				<div class="status">
 					<div class="fig up">
@@ -720,8 +754,10 @@
 								variant="outline"
 								size="sm"
 								disabled={!decideRows.length || Boolean(acting)}
+								reason={decideRows.length ? undefined : "None left"}
 								onclick={() => (archiveAllOpen = true)}
 							>
+								{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 								Archive remaining
 							</Button>
 						{/snippet}
@@ -730,6 +766,7 @@
 						{:else if filteredDecide.length === 0}
 							<p class="muted">None match.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -762,8 +799,10 @@
 													variant="outline"
 													size="xs"
 													disabled={!row.sku || !(preview?.opsOnly.length) || Boolean(acting)}
+													reason={!row.sku ? "No SKU in the file" : !preview?.opsOnly.length ? "No ops drinks left to match" : undefined}
 													onclick={() => openMatchLs(row)}
 												>
+													{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 													Match
 												</Button>
 												<Button
@@ -772,14 +811,17 @@
 													disabled={Boolean(acting)}
 													onclick={() => openAdd(row)}
 												>
+													{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 													Add to menu
 												</Button>
 												<Button
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -787,6 +829,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "stock"}
@@ -807,6 +850,7 @@
 						{:else if filteredStock.length === 0}
 							<p class="muted">No stock rows match that filter.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -829,14 +873,17 @@
 													disabled={Boolean(acting)}
 													onclick={() => void addStock(row)}
 												>
+													{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 													Add to inventory
 												</Button>
 												<Button
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -844,6 +891,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "system"}
@@ -855,6 +903,7 @@
 						{:else if filteredSystem.length === 0}
 							<p class="muted">No system rows match that filter.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -875,8 +924,10 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void markArchive([row])}
 												>
+													{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 													Archive
 												</Button>
 											</td>
@@ -884,6 +935,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "mismatch"}
@@ -893,6 +945,7 @@
 						{#if preview.conflicts.length === 0}
 							<p class="muted">No SKU conflicts.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -925,8 +978,10 @@
 													variant="outline"
 													size="xs"
 													disabled={!row.ops.id || !row.lightspeed.sku || Boolean(acting)}
+													reason={!row.ops.id || !row.lightspeed.sku ? "Not linked yet" : undefined}
 													onclick={() => void adoptPosName(row)}
 												>
+													{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 													Use POS name
 												</Button>
 											</td>
@@ -934,6 +989,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{:else if tab === "missing"}
@@ -957,8 +1013,10 @@
 												variant="outline"
 												size="xs"
 												disabled={!decideRows.length || Boolean(acting)}
+												reason={decideRows.length ? undefined : "No Lightspeed items left to match"}
 												onclick={() => openMatchOps(row)}
 											>
+												{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 												Match
 											</Button>
 										</span>
@@ -974,6 +1032,7 @@
 						{#if preview.matched.length === 0}
 							<p class="muted">Nothing matched this file.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -1004,12 +1063,14 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 					{#if (preview.altServes || []).length}
 						<Card
 							title="Pint and half"
 						>
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -1033,6 +1094,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						</Card>
 					{/if}
 				{:else}
@@ -1053,6 +1115,7 @@
 						{:else if filteredArchive.length === 0}
 							<p class="muted">No marked items match that filter.</p>
 						{:else}
+							<div class="table-scroll">
 							<table class="table">
 								<thead>
 									<tr>
@@ -1073,8 +1136,10 @@
 													variant="ghost"
 													size="xs"
 													disabled={!row.sku || Boolean(acting)}
+													reason={row.sku ? undefined : "No SKU in the file"}
 													onclick={() => void unarchive(row)}
 												>
+													{#snippet icon()}<Icon name="undo" size={14} />{/snippet}
 													Keep
 												</Button>
 											</td>
@@ -1082,6 +1147,7 @@
 									{/each}
 								</tbody>
 							</table>
+							</div>
 						{/if}
 					</Card>
 				{/if}
@@ -1110,7 +1176,7 @@
 				width="100%"
 			/>
 			{#if linkLs}
-				<Field label="Menu item" for="ls-link-ops">
+				<Field label="Menu item" for="ls-link-ops" required>
 					<NativeSelect
 						id="ls-link-ops"
 						size="sm"
@@ -1120,7 +1186,7 @@
 					/>
 				</Field>
 			{:else}
-				<Field label="Lightspeed item" for="ls-link-pos">
+				<Field label="Lightspeed item" for="ls-link-pos" required>
 					<NativeSelect
 						id="ls-link-pos"
 						size="sm"
@@ -1145,7 +1211,7 @@
 			<p class="error">No Lightspeed leftovers to pair with.</p>
 		{/if}
 		{#snippet footer()}
-			<Button variant="ghost" size="sm" onclick={closeLink}>Cancel</Button>
+			<Button variant="ghost" size="sm" onclick={closeLink}>{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<Button
 				variant="primary"
 				size="sm"
@@ -1156,6 +1222,7 @@
 				}
 				onclick={() => void confirmLink()}
 			>
+				{#snippet icon()}<Icon name="link" size={14} />{/snippet}
 				Match
 			</Button>
 		{/snippet}
@@ -1163,10 +1230,10 @@
 
 	<Dialog open={Boolean(addRow)} title="Add to menu" onclose={closeAdd}>
 		<div class="dialog-grid">
-			<Field label="Name" for="ls-add-name">
+			<Field label="Name" for="ls-add-name" required>
 				<TextField id="ls-add-name" size="sm" bind:value={addName} />
 			</Field>
-			<Field label="Section" for="ls-add-section">
+			<Field label="Section" for="ls-add-section" required>
 				<NativeSelect
 					id="ls-add-section"
 					size="sm"
@@ -1183,8 +1250,8 @@
 					options={drinkTypeOptions}
 				/>
 			</Field>
-			<Field label="Price" for="ls-add-price">
-				<TextField id="ls-add-price" size="sm" mono bind:value={addPrice} />
+			<Field label="Price" for="ls-add-price" width="sm" optional>
+				<MoneyField id="ls-add-price" size="sm" bind:value={addPrice} />
 			</Field>
 			{#if posMenus.length}
 				<Field label="POS menu" for="ls-add-pos-menu">
@@ -1202,7 +1269,7 @@
 			{/if}
 			<Field
 				label="Guest menus"
-				tooltip="POS can still sell this if it is off print and the website."
+				hint="The till can still sell it when it's off print and the website."
 			>
 				<Segmented
 					bind:value={addPlacement}
@@ -1216,14 +1283,16 @@
 			<p class="error">Create a menu section before adding drinks.</p>
 		{/if}
 		{#snippet footer()}
-			<Button variant="ghost" size="sm" onclick={closeAdd}>Cancel</Button>
+			<Button variant="ghost" size="sm" onclick={closeAdd}>{#snippet icon()}<Icon name="close" size={14} />{/snippet}Cancel</Button>
 			<Button
 				variant="primary"
 				size="sm"
 				busy={Boolean(acting)}
 				disabled={!sectionOptions.length || Boolean(acting)}
+				reason={sectionOptions.length ? undefined : "Add a menu section first"}
 				onclick={() => void confirmAdd()}
 			>
+				{#snippet icon()}<Icon name="plus" size={14} />{/snippet}
 				Add to menu
 			</Button>
 		{/snippet}
@@ -1240,6 +1309,7 @@
 		</p>
 		{#snippet footer()}
 			<Button variant="ghost" size="sm" onclick={() => (archiveAllOpen = false)}>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 				Cancel
 			</Button>
 			<Button
@@ -1249,6 +1319,7 @@
 				disabled={acting === "all"}
 				onclick={() => void markArchive(decideRows)}
 			>
+				{#snippet icon()}<Icon name="archive" size={14} />{/snippet}
 				Mark for archive
 			</Button>
 		{/snippet}
@@ -1259,6 +1330,8 @@
 		label={busyLabel}
 	/>
 </div>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {
@@ -1271,19 +1344,18 @@
 
 	.stack {
 		display: grid;
-		gap: var(--gap-lg);
-		max-width: 64rem;
+		gap: var(--space-6);
 		align-content: start;
 	}
 
 	.drop {
 		display: grid;
 		justify-items: center;
-		gap: 0.65rem;
-		padding: 1.4rem 1rem;
-		border: 1px dashed var(--border);
+		gap: var(--space-3);
+		padding: var(--space-6) var(--space-4);
+		border: 1px dashed var(--border-strong);
 		border-radius: var(--radius-md);
-		background: var(--sunken);
+		background: transparent;
 		color: var(--muted-foreground);
 		text-align: center;
 		cursor: pointer;
@@ -1300,14 +1372,14 @@
 	}
 
 	.error {
-		margin: var(--gap-sm) 0 0;
-		color: var(--destructive, #c97a7a);
+		margin: var(--space-3) 0 0;
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 
 	.groups {
 		display: grid;
-		gap: var(--gap-lg);
+		gap: var(--space-6);
 	}
 
 	.muted {
@@ -1317,7 +1389,7 @@
 	}
 
 	.status-note {
-		margin: 0.85rem 0 0;
+		margin: var(--space-3) 0 0;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
@@ -1325,25 +1397,26 @@
 	.status {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.fig-label {
 		margin: 0.15rem 0 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.value {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.03em;
-		line-height: 1.1;
+		letter-spacing: var(--tracking-2xl);
+		line-height: var(--leading-2xl);
+		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.fig.up .value {
@@ -1351,7 +1424,7 @@
 	}
 
 	.fig.warn .value {
-		color: var(--primary);
+		color: var(--warning);
 	}
 
 	.fig.down .value {
@@ -1364,24 +1437,49 @@
 		}
 	}
 
+	/* Narrow screens: the table scrolls sideways inside its card, never the
+	   page, and the name column stays put. */
+	.table-scroll {
+		max-width: 100%;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+	}
+
 	.table {
 		width: 100%;
 		border-collapse: collapse;
 		font-size: var(--text-sm);
 	}
 
+	@media (max-width: 900px) {
+		.table {
+			min-width: 34rem;
+		}
+
+		.table th:first-child,
+		.table td:first-child {
+			position: sticky;
+			left: 0;
+			z-index: 1;
+			min-width: 9rem;
+			max-width: 12rem;
+			background: var(--card);
+			box-shadow: 1px 0 0 var(--border);
+		}
+	}
+
 	.table th,
 	.table td {
-		padding: 0.55rem 0.4rem;
+		padding: var(--space-2) var(--space-2);
 		text-align: left;
 		border-bottom: 1px solid var(--border);
 		vertical-align: top;
 	}
 
 	.table th {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -1392,6 +1490,7 @@
 
 	.num {
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		white-space: nowrap;
 	}
 
@@ -1402,7 +1501,7 @@
 
 	.mono,
 	.mono-cell {
-		font-family: var(--font-mono, ui-monospace, monospace);
+		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 	}
@@ -1415,7 +1514,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		white-space: nowrap;
 	}
 
@@ -1424,7 +1523,7 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.ops-only li {
@@ -1432,8 +1531,8 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.45rem 0.75rem;
-		padding: 0.45rem 0;
+		gap: var(--space-2) var(--space-3);
+		padding: var(--space-2) 0;
 		border-bottom: 1px solid var(--border);
 		font-size: var(--text-sm);
 	}
@@ -1442,7 +1541,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
-		gap: 0.45rem 0.75rem;
+		gap: var(--space-2) var(--space-3);
 		min-width: 0;
 	}
 
@@ -1455,7 +1554,7 @@
 	}
 
 	.dialog-lead {
-		margin: 0 0 var(--gap);
+		margin: 0 0 var(--space-4);
 		font-size: var(--text-sm);
 		line-height: 1.5;
 		color: var(--muted-foreground);
@@ -1463,7 +1562,7 @@
 
 	.dialog-grid {
 		display: grid;
-		gap: var(--gap);
+		gap: var(--space-4);
 	}
 
 	.sr-only {

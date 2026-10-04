@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Badge from "../../ui/Badge.svelte";
+
 	let {
 		title = "",
 		subtitle,
@@ -16,7 +18,7 @@
 	{/if}
 	<div class="row">
 		<h3>{title}</h3>
-		<span class="count">{count} item{count === 1 ? "" : "s"}</span>
+		<Badge label={String(count)} title="{count} item{count === 1 ? '' : 's'}" />
 	</div>
 </div>
 
@@ -34,36 +36,29 @@
 
 	.chapter {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		line-height: 1.2;
 	}
 
 	.row {
 		display: flex;
-		align-items: baseline;
-		gap: 0.65rem;
+		align-items: center;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 
 	h3 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 0.95rem;
+		font-size: var(--text-sm);
+		line-height: var(--leading-sm);
 		font-weight: 600;
-		letter-spacing: -0.02em;
 		color: var(--foreground);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-	}
-
-	.count {
-		flex-shrink: 0;
-		font-size: var(--text-xs);
-		color: var(--muted-foreground);
 	}
 </style>

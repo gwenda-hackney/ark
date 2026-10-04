@@ -10,17 +10,42 @@ import {
 import { changedFields, websiteProjection } from "../../inventory/server/reconcile.js";
 
 describe("menu placements", () => {
-  it("normalizes at most one print and digital row", () => {
+  it("keeps every row per channel, dropping only exact repeats", () => {
     const rows = normalizePlacements([
       { channel: "print", sectionId: "1" },
       { channel: "print", sectionId: "2" },
+      { channel: "print", sectionId: "2" },
       { channel: "digital", sectionId: "3" },
       { channel: "pos", posMenuId: "9", posScreen: "Spritz" },
+      { channel: "pos", posMenuId: "9", posScreen: "Mocktails" },
+      { channel: "pos", posMenuId: "9", posScreen: "spritz" },
     ]);
-    assert.equal(rows.filter((row) => row.channel === "print").length, 1);
-    assert.equal(rows.find((row) => row.channel === "print")?.sectionId, "2");
+    assert.deepEqual(
+      rows.filter((row) => row.channel === "print").map((row) => row.sectionId),
+      ["1", "2"],
+    );
     assert.equal(rows.find((row) => row.channel === "digital")?.sectionId, "3");
-    assert.equal(rows.filter((row) => row.channel === "pos").length, 1);
+    assert.deepEqual(
+      rows.filter((row) => row.channel === "pos").map((row) => row.posScreen),
+      ["Spritz", "Mocktails"],
+    );
+  });
+
+  it("derives the legacy flags and section from the first row of each channel", () => {
+    const item = applyPlacementDerivedFields({
+      placements: [
+        { channel: "digital", sectionId: "7" },
+        { channel: "print", sectionId: "5" },
+        { channel: "print", sectionId: "6" },
+        { channel: "pos", posMenuId: "9", posScreen: "Spritz" },
+        { channel: "pos", posMenuId: "9", posScreen: "Mocktails" },
+      ],
+    });
+    assert.equal(item.sectionId, "5");
+    assert.equal(item.onPrintMenu, true);
+    assert.equal(item.lightspeedMenuScreen, "Spritz,Mocktails");
+    assert.equal(item.placements.length, 5);
+    assert.deepEqual(item.posMenus, [{ id: "9", name: "" }]);
   });
 
   it("builds legacy placements and derives flags", () => {

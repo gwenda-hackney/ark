@@ -1,116 +1,212 @@
 /*
-  Ops design tokens — trading shell semantics, Gwenda palette.
+  Ops design tokens — Gwenda palette on a neutral dark tool UI.
 
-  Components and pages read these names only. Colours are Gwenda hex
-  (docs/colors.md); radii / density / motion follow trading shell.web.
+  Components and pages read these names only. New code uses the scale names
+  (--text-*, --space-*, --radius-*, --surface-*, --fg-*, semantic colours).
+  The older names further down are aliases so existing pages keep working;
+  prefer the scale names when you touch a component.
 */
 
 :root {
-  /* ─── Radii ──────────────────────────────────────────────────────────── */
-  --radius-xs: 0.375rem;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.5rem;
-  --radius-pill: 999px;
-  --radius: var(--radius-md);
+	/* ─── Type ───────────────────────────────────────────────────────────── */
+	/* Inter for everything; Cormorant only for page and editor titles. */
+	--font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+		"Helvetica Neue", Arial, sans-serif;
+	--font-display: "Cormorant Garamond", "Cormorant", Georgia, "Times New Roman", serif;
+	/* SKUs, IDs, commits and code only. Figures use Inter tabular (.num). */
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	--font-features-num: "tnum", "cv11", "ss01";
 
-  /* ─── Layout rhythm ──────────────────────────────────────────────────── */
-  --page-gutter: 1.5rem;
-  --card-pad: 1.25rem;
-  --card-pad-lg: 1.5rem;
-  --gap-xs: 0.375rem;
-  --gap-sm: 0.625rem;
-  --gap: 1rem;
-  --gap-lg: 1.5rem;
-  --rail-w: 4.5rem;
-  --rail-w-open: 15rem;
-  --topbar-h: 3.5rem;
-  /* Keep in sync with SHELL_MOBILE_MAX_PX. Includes the home indicator. */
-  --bottom-nav-h: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+	--text-2xs: 0.6875rem; /* 11px — uppercase labels, 600, +0.06em */
+	--text-xs: 0.75rem; /* 12px — hints, meta */
+	--text-sm: 0.8125rem; /* 13px — table cells, field labels */
+	--text-base: 0.875rem; /* 14px — controls, body */
+	--text-md: 1rem; /* 16px — card titles, 500 */
+	--text-lg: 1.25rem; /* 20px — section and dialog titles, 600 */
+	--text-xl: 1.5rem; /* 24px — page titles */
+	--text-2xl: 2rem; /* 32px — editor titles, stat values */
 
-  /* ─── Controls ───────────────────────────────────────────────────────── */
-  --control-h: 2.625rem;
-  --control-h-sm: 2.25rem;
-  --control-h-xs: 1.875rem;
+	--leading-2xs: 1rem;
+	--leading-xs: 1rem;
+	--leading-sm: 1.125rem;
+	--leading-base: 1.25rem;
+	--leading-md: 1.5rem;
+	--leading-lg: 1.75rem;
+	--leading-xl: 2rem;
+	--leading-2xl: 2.5rem;
 
-  /* ─── Motion ─────────────────────────────────────────────────────────── */
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --t-fast: 120ms;
-  --t: 200ms;
-  --t-slow: 320ms;
+	--tracking-label: 0.06em;
+	--tracking-lg: -0.01em;
+	--tracking-xl: -0.015em;
+	--tracking-2xl: -0.02em;
 
-  /* ─── Type ───────────────────────────────────────────────────────────── */
-  /* Ops is a tool UI: Roboto only. Cormorant / Lora stay on the marketing site. */
-  --font: "Roboto", system-ui, sans-serif;
-  --font-display: var(--font);
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-  --text-xs: 0.75rem; /* 12px — hints, meta */
-  --text-sm: 0.8125rem; /* 13px — field labels */
-  --text: 0.875rem; /* 14px — controls, secondary */
-  --text-md: 1rem; /* 16px — body */
+	--weight-regular: 400;
+	--weight-medium: 500;
+	--weight-semibold: 600;
 
-  /* ─── Gwenda dark palette (semantic) ─────────────────────────────────── */
-  color-scheme: dark;
+	/* ─── Spacing (4px base) ─────────────────────────────────────────────── */
+	--space-1: 0.25rem; /* 4 */
+	--space-2: 0.5rem; /* 8 */
+	--space-3: 0.75rem; /* 12 */
+	--space-4: 1rem; /* 16 */
+	--space-5: 1.25rem; /* 20 */
+	--space-6: 1.5rem; /* 24 */
+	--space-8: 2rem; /* 32 */
+	--space-10: 2.5rem; /* 40 */
+	--space-12: 3rem; /* 48 */
 
-  --background: #0d0d0d;
-  --foreground: #e8e4dc;
+	/* ─── Radii ──────────────────────────────────────────────────────────── */
+	/* Buttons and search are not pills; pill is for chips, segmented, avatars. */
+	--radius-sm: 0.375rem; /* 6 — badges */
+	--radius-md: 0.5rem; /* 8 — inputs, selects, buttons */
+	--radius-lg: 0.75rem; /* 12 — cards, popovers */
+	--radius-xl: 1rem; /* 16 — dialogs, sheets */
+	--radius-pill: 999px;
 
-  --card: #1a1a1a;
-  --card-foreground: var(--foreground);
+	/* ─── Surfaces and ink ───────────────────────────────────────────────── */
+	color-scheme: dark;
 
-  --sunken: #141414;
+	--bg: #0e0e10;
+	--surface-1: #141416; /* rail, cards */
+	--surface-2: #1a1a1d; /* popover, dialog, group header */
+	--surface-3: #222226; /* hover, selected */
+	--border: rgba(255, 255, 255, 0.07);
+	--border-strong: rgba(255, 255, 255, 0.12);
+	/* Full --fg is for titles, headings and the active item. Values and
+	   running text use --fg-body so a form doesn't glow evenly. */
+	--fg: #ece8e1;
+	--fg-body: #d4cfc7;
+	--fg-muted: #a29d95;
+	--fg-subtle: #6f6b65;
 
-  --muted: #151414;
-  --muted-foreground: #8a8680;
-  --subtle-foreground: color-mix(in srgb, var(--muted-foreground) 75%, transparent);
+	/* ─── Semantic colours ───────────────────────────────────────────────── */
+	/* Gold is for primary actions, the focus ring and active nav only. */
+	--primary: #c9a84c;
+	--primary-hover: color-mix(in srgb, var(--primary) 88%, var(--fg));
+	--primary-foreground: var(--bg);
+	--primary-wash: color-mix(in srgb, var(--primary) 14%, transparent);
+	--primary-wash-strong: color-mix(in srgb, var(--primary) 22%, transparent);
+	--primary-border: color-mix(in srgb, var(--primary) 35%, transparent);
 
-  --accent: color-mix(in srgb, #c9a84c 8%, #141414);
-  --accent-foreground: #e8e4dc;
+	--success: #6fae84;
+	--success-wash: color-mix(in srgb, var(--success) 14%, transparent);
+	--success-border: color-mix(in srgb, var(--success) 35%, transparent);
 
-  --border: color-mix(in srgb, #c9a84c 12%, transparent);
-  --border-strong: color-mix(in srgb, #c9a84c 28%, transparent);
-  --input: var(--border);
+	--warning: #d9a441;
+	--warning-wash: color-mix(in srgb, var(--warning) 14%, transparent);
+	--warning-border: color-mix(in srgb, var(--warning) 35%, transparent);
 
-  --primary: #c9a84c;
-  --primary-hover: color-mix(in srgb, #c9a84c 88%, #e8e4dc);
-  --primary-foreground: #0d0d0d;
-  --primary-wash: color-mix(in srgb, #c9a84c 14%, transparent);
-  --primary-wash-strong: color-mix(in srgb, #c9a84c 22%, transparent);
+	--danger: #d97a7a;
+	--danger-hover: color-mix(in srgb, var(--danger) 85%, var(--fg));
+	--danger-foreground: var(--bg);
+	--danger-wash: color-mix(in srgb, var(--danger) 14%, transparent);
+	--danger-border: color-mix(in srgb, var(--danger) 35%, transparent);
 
-  --ring: #c9a84c;
-  --ring-wash: color-mix(in srgb, #c9a84c 22%, transparent);
+	--info: #7aa2d9;
+	--info-wash: color-mix(in srgb, var(--info) 14%, transparent);
+	--info-border: color-mix(in srgb, var(--info) 35%, transparent);
 
-  --up: #6b9b78;
-  --down: #c97a7a;
-  --success: var(--up);
-  --warning: #c97a7a;
-  --destructive: #c97a7a;
-  --destructive-hover: color-mix(in srgb, #c97a7a 85%, #e8e4dc);
-  --destructive-foreground: #0d0d0d;
-  --destructive-wash: color-mix(in srgb, #c97a7a 14%, transparent);
+	/* Extra accents: for tags and labels that need a colour of their own,
+	   apart from gold (action) and the good/warn/bad set. Add more here. */
+	--accent-sky: #8ab8dc;
+	--accent-sky-wash: color-mix(in srgb, var(--accent-sky) 14%, transparent);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-primary: 0 0 0 1px color-mix(in srgb, #c9a84c 40%, transparent),
-    0 4px 18px color-mix(in srgb, #c9a84c 18%, transparent);
-  --shadow-pop: var(--shadow);
+	--ring: var(--primary);
+	--ring-wash: color-mix(in srgb, var(--primary) 22%, transparent);
 
-  --brand-mark: #c9a84c;
-  --glow: color-mix(in srgb, #c9a84c 18%, transparent);
-  --popover: #1a1a1a;
-  --popover-foreground: #e8e4dc;
+	/* ─── Ambient light ──────────────────────────────────────────────────── */
+	/* One faint gold and bar-green light behind the whole app. The layers are
+	   pinned to the viewport (fixed), so any opaque page that paints
+	   background: var(--ambient), var(--background) lines up with the shell
+	   and reads as the same surface. Panels sit on it in --panel-bg. */
+	--ambient-green: #2f6b5a;
+	--ambient:
+		radial-gradient(70rem 45rem at 100% -10%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 70%) fixed,
+		radial-gradient(60rem 45rem at -10% 110%, color-mix(in srgb, var(--ambient-green) 20%, transparent), transparent 70%) fixed;
+	/* Cards and editor panels: the surface colour, letting a little glow through. */
+	--panel-bg: color-mix(in srgb, var(--surface-1) 86%, transparent);
 
-  --scrollbar: color-mix(in srgb, #8a8680 72%, transparent);
-  --scrollbar-hover: #8a8680;
-  --scrollbar-size: 8px;
+	/* ─── Shadows (overlays only) ────────────────────────────────────────── */
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.35);
+	--shadow-pop: 0 2px 4px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
+	--shadow-primary: 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
+		0 4px 18px color-mix(in srgb, var(--primary) 18%, transparent);
 
-  /* Spec book: white paper, black ink, gold-dark accents */
-  --book-bg: #ffffff;
-  --book-ink: #0d0d0d;
-  --book-muted: color-mix(in srgb, #0d0d0d 58%, #8a8680);
-  --book-accent: #8b6914;
-  --book-rule: color-mix(in srgb, #0d0d0d 14%, transparent);
+	/* ─── Layout rhythm ──────────────────────────────────────────────────── */
+	--page-gutter: var(--space-6);
+	--card-pad: var(--space-5);
+	--card-pad-lg: var(--space-6);
+	--rail-w: 4.5rem;
+	--rail-w-open: 15rem;
+	--topbar-h: 3.5rem;
+	/* Keep in sync with SHELL_MOBILE_MAX_PX. Includes the home indicator. */
+	--bottom-nav-h: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+
+	/* ─── Controls ───────────────────────────────────────────────────────── */
+	--control-h: 2.25rem; /* 36, 40 on phones (below) */
+	--control-h-sm: 2.25rem;
+	--control-h-xs: 1.875rem;
+	/* Buttons and segmented controls: md uses --control-h, sm is 32 (36 on phones). */
+	--button-h-sm: 2rem;
+
+	/* ─── Motion ─────────────────────────────────────────────────────────── */
+	--ease: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+	--t-fast: 120ms;
+	--t: 200ms;
+	--t-slow: 320ms;
+
+	/* ─── Misc ───────────────────────────────────────────────────────────── */
+	--brand-mark: var(--primary);
+	--glow: color-mix(in srgb, var(--primary) 18%, transparent);
+	--scrollbar: color-mix(in srgb, var(--fg-muted) 60%, transparent);
+	--scrollbar-hover: var(--fg-muted);
+	--scrollbar-size: 8px;
+
+	/* Spec book: white paper, black ink, gold-dark accents */
+	--book-bg: #ffffff;
+	--book-ink: #0d0d0d;
+	--book-muted: color-mix(in srgb, #0d0d0d 58%, #8a8680);
+	--book-accent: #8b6914;
+	--book-rule: color-mix(in srgb, #0d0d0d 14%, transparent);
+
+	/* ─── Aliases (older names; keep working, prefer the names above) ────── */
+	--text: var(--text-base);
+	--radius-xs: var(--radius-sm);
+	--radius-2xl: var(--radius-xl);
+	--radius: var(--radius-md);
+	--gap-xs: var(--space-2);
+	--gap-sm: var(--space-3);
+	--gap: var(--space-4);
+	--gap-lg: var(--space-6);
+
+	--background: var(--bg);
+	--foreground: var(--fg);
+	--card: var(--surface-1);
+	--card-foreground: var(--fg);
+	--sunken: var(--bg);
+	--field-foreground: var(--fg-body);
+	--muted: var(--surface-2);
+	--muted-foreground: var(--fg-muted);
+	--subtle-foreground: var(--fg-subtle);
+	--accent: var(--surface-3);
+	--accent-foreground: var(--fg);
+	--popover: var(--surface-2);
+	--popover-foreground: var(--fg);
+	--input: var(--border-strong);
+
+	--up: var(--success);
+	--down: var(--danger);
+	--destructive: var(--danger);
+	--destructive-hover: var(--danger-hover);
+	--destructive-foreground: var(--danger-foreground);
+	--destructive-wash: var(--danger-wash);
+}
+
+@media (max-width: 900px) {
+	:root {
+		--control-h: 2.5rem;
+		--button-h-sm: 2.25rem;
+	}
 }

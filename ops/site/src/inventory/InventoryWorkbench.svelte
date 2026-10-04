@@ -2,10 +2,24 @@
 	/**
 	 * Shared liquors and ingredients — ABV feeds cocktail recipe calc.
 	 */
+	import { EditorPlaceholder, EditorReveal, editorZoom } from "../ui";
 	import { onMount, untrack } from "svelte";
-	import { fade, fly } from "svelte/transition";
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
-	import { Button, BusyOverlay, DataGrid, SearchField } from "../ui";
+	import {
+		Button,
+		BusyOverlay,
+		DataGrid,
+		EmptyState,
+		FilterBar,
+		FilterField,
+		PageHeader,
+		Skeleton,
+		Switch,
+	} from "../ui";
+	import BadgeCell from "../ui/BadgeCell.svelte";
+	import DensityToggle from "../ui/DensityToggle.svelte";
+	import { densityPref } from "../ui/list-prefs.svelte";
+	import { priceBasisTone } from "../ui/badge";
 	import { Icon } from "../app/shell";
 	import { hasRangeSelection, svelteCell } from "../ui/grid";
 	import * as api from "../app/api";
@@ -17,7 +31,6 @@
 		itemMatchesKey,
 		itemSlug,
 		leaveEditor,
-		loginNext,
 		namesClash,
 		navigate,
 		parseShellPath,
@@ -26,7 +39,7 @@
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { unsaved, rememberBlockedNav } from "../ui/unsaved.svelte";
 	import { restoreGridScroll, parkGridScroll, unparkGridScroll } from "../ui/grid-scroll";
-	import { easeOut, fadeMs, flyMs } from "../ui/motion";
+	import { fadeMs } from "../ui/motion";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { formatGbp } from "../app/money";
 	import { INVENTORY_KINDS, type InventoryItem } from "./types";
@@ -50,6 +63,8 @@
 	let selectedId = $state<string | null>(null);
 	let item = $state<InventoryItem | null>(null);
 	let detailOpen = $state(false);
+	/** The editor mounts once its pane has come forward over the list. */
+	const reveal = new EditorReveal();
 	let listPaneEl = $state<HTMLDivElement | undefined>();
 	let missingId = $state("");
 	let editorCleanToken = $state(0);
@@ -58,6 +73,8 @@
 	const inventoryRoute = $derived(parseShellPath(path));
 	const q = $derived(query.trim().toLowerCase());
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	/** Row spacing for the desktop table, remembered on this device. */
+	const density = densityPref("inventory");
 
 	const rows = $derived.by((): GridRow[] =>
 		items
@@ -180,10 +197,6 @@
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Failed to load inventory.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/inventory"))}`;
-				return;
-			}
 			loadError = message;
 		} finally {
 			busy = false;
@@ -384,11 +397,11 @@
 				buttons: ["reset"],
 			},
 			valueGetter: (p) => priceBasisLabel(p.data),
-			cellClass: (p) => {
-				if (p.value === "Item estimate") return "gold";
-				if (p.value === "Kind estimate") return "down";
-				return "";
-			},
+			cellRenderer: svelteCell(BadgeCell, (params: ICellRendererParams<GridRow>) => ({
+				label: params.value ? String(params.value) : "",
+				tone: priceBasisTone(params.value ? String(params.value) : ""),
+				plainWhenNeutral: true,
+			})),
 		},
 		{
 			headerName: "Notes",
@@ -525,12 +538,17 @@
 <div class="workbench">
 	<div class="stage">
 		{#if loadError}
-			<p class="error">{loadError}</p>
+			<EmptyState tone="error" title="Could not load inventory" text={loadError}>
+				{#snippet action()}
+					<Button variant="outline" size="sm" onclick={() => { loadError = ""; void reload(); }}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+				{/snippet}
+			</EmptyState>
 		{:else if missingId}
 			<div class="pane list">
 				<div class="missing">
 					<p>That inventory item was not found.</p>
 					<Button variant="outline" size="sm" onclick={() => backToGrid()}>
+						{#snippet icon()}<Icon name="chevron-left" size={14} />{/snippet}
 						Back to inventory
 					</Button>
 				</div>
@@ -543,66 +561,69 @@
 				inert={detailOpen || item ? true : undefined}
 				aria-hidden={detailOpen || item ? true : undefined}
 			>
-				<header class="top">
-					<div class="copy">
-						<p class="eyebrow">Bar stock</p>
-						<h1>Inventory</h1>
-						<p class="lede">
-							Liquors and ingredients for cocktail recipes. Open an item to
-							see suppliers, pack price, and the product page.
-						</p>
-					</div>
-					<div class="tools">
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={reload}
-							disabled={busy}
-							busy={busy && busyLabel === "Loading…"}
-						>
-							{#snippet icon()}
-								<Icon name="refresh" size={15} />
-							{/snippet}
-							Reload
-						</Button>
-						<Button
-							variant="primary"
-							size="sm"
-							onclick={newItem}
-							disabled={busy}
-						>
-							{#snippet icon()}
-								<Icon name="plus" size={15} />
-							{/snippet}
-							Add item
-						</Button>
-					</div>
-				</header>
+				<div class="head">
+					<PageHeader
+						title="Inventory"
+						subtitle="Liquors and ingredients for cocktail recipes. Open an item for suppliers, pack price and the product page."
+					>
+						{#snippet actions()}
+							<Button
+								variant="outline"
+								size="sm"
+								data-compact
+								onclick={reload}
+								disabled={busy}
+								busy={busy && busyLabel === "Loading…"}
+							>
+								{#snippet icon()}
+									<Icon name="refresh" size={15} />
+								{/snippet}
+								Reload
+							</Button>
+							<Button variant="primary" size="sm" onclick={newItem} disabled={busy}>
+								{#snippet icon()}
+									<Icon name="plus" size={15} />
+								{/snippet}
+								Add item
+							</Button>
+						{/snippet}
+						{#snippet toolbar()}
+							<FilterBar
+								bind:query
+								placeholder="Search inventory"
+								ariaLabel="Search inventory"
+								searchCount={q ? rows.length : undefined}
+								active={showInactive ? 1 : 0}
+								chips={showInactive
+									? [{ key: "inactive", label: "Showing inactive", onremove: () => (showInactive = false) }]
+									: []}
+								onclearfilters={() => (showInactive = false)}
+							>
+								{#snippet filters()}
+									<FilterField label="Inactive items" inlineLabel={false}>
+										<Switch bind:checked={showInactive} label="Show inactive" />
+									</FilterField>
+								{/snippet}
+								{#snippet end()}
+									<p class="meta">{rows.length} item{rows.length === 1 ? "" : "s"}</p>
+									<DensityToggle bind:value={density.value} />
+								{/snippet}
+							</FilterBar>
+						{/snippet}
+					</PageHeader>
+				</div>
 
 				<div class="body">
-					<div class="toolbar">
-						<SearchField
-							bind:value={query}
-							placeholder="Search inventory"
-							ariaLabel="Search inventory"
-							width="min(100%, 22rem)"
-							count={q ? rows.length : undefined}
-						/>
-						<label class="toggle">
-							<input type="checkbox" bind:checked={showInactive} />
-							<span>Show inactive</span>
-						</label>
-						<p class="meta">
-							{rows.length} item{rows.length === 1 ? "" : "s"}
-						</p>
-					</div>
-
-					{#if rows.length === 0 && !loading}
-						<p class="empty">
-							{q
-								? "No inventory matches that search."
-								: "No inventory yet. Add liquors and mixers here."}
-						</p>
+					{#if loading && items.length === 0}
+						<Skeleton rows={10} lines={1} label="Loading inventory…" />
+					{:else if rows.length === 0 && q}
+						<EmptyState icon="search" title="Nothing matches" text="Try another name or supplier." />
+					{:else if rows.length === 0}
+						<EmptyState icon="inventory" title="No inventory yet" text="Add the liquors and mixers your recipes use.">
+							{#snippet action()}
+								<Button size="sm" onclick={newItem}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add item</Button>
+							{/snippet}
+						</EmptyState>
 					{:else if phone.matches}
 						<CompactInventoryList {rows} {selectedId} onview={openItem} />
 					{:else}
@@ -610,6 +631,7 @@
 							<DataGrid
 								rowData={rows}
 								{columnDefs}
+								density={density.value}
 								scrollKey="inventory-list"
 								context={{ selectedId }}
 								getRowId={(row) => row._id}
@@ -639,22 +661,28 @@
 			{#if detailOpen && item}
 				<div
 					class="pane detail"
-					in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-					out:fade={{ duration: fadeMs, easing: easeOut }}
+					transition:editorZoom
+					onintroend={reveal.introend}
+					onoutrostart={reveal.outrostart}
 				>
-					<InventoryEditor
-						bind:item
-						{busy}
-						{busyLabel}
-						cleanToken={editorCleanToken}
-						onsave={save}
-						ondelete={remove}
-						onback={backToGrid}
-					/>
+					{#if !reveal.settled}
+						<EditorPlaceholder />
+					{:else}
+						<InventoryEditor
+							bind:item
+							{busy}
+							{busyLabel}
+							cleanToken={editorCleanToken}
+							onsave={save}
+							ondelete={remove}
+							onback={backToGrid}
+						/>
+					{/if}
 				</div>
 			{/if}
 		{/if}
-		<BusyOverlay active={loading} label={busyLabel} />
+		<!-- First load shows skeleton rows; the overlay covers a reload. -->
+		<BusyOverlay active={loading && items.length > 0} label={busyLabel} />
 	</div>
 </div>
 
@@ -666,7 +694,7 @@
 		height: 100%;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.stage {
@@ -681,7 +709,7 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.pane.parked {
@@ -691,56 +719,35 @@
 		z-index: 0;
 	}
 
+	/* Steps back and dims while an editor comes forward over it. */
+	.pane:not(.detail) {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
+	}
+
+	.pane:not(.detail).parked {
+		transform: scale(0.97);
+		opacity: 0.35;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.pane:not(.detail) {
+			transition: none;
+		}
+	}
+
 	.pane.detail {
 		z-index: 1;
 	}
 
-	.top {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-end;
-		justify-content: space-between;
-		gap: var(--gap);
+	.head {
 		flex-shrink: 0;
-		padding: 1rem var(--page-gutter) 0.85rem;
-		border-bottom: 1px solid var(--border);
+		padding: var(--page-gutter) var(--page-gutter) 0;
 	}
 
-	.copy {
-		display: grid;
-		gap: 0.2rem;
-		min-width: 0;
-	}
-
-	.eyebrow {
-		margin: 0;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--primary);
-	}
-
-	h1 {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.55rem;
-		font-weight: 600;
-		letter-spacing: -0.02em;
-	}
-
-	.lede {
-		margin: 0;
-		max-width: 36rem;
-		font-size: var(--text);
-		line-height: 1.45;
-		color: var(--muted-foreground);
-	}
-
-	.tools {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.45rem;
+	.head :global(.page-header) {
+		margin-bottom: var(--space-4);
 	}
 
 	.body {
@@ -748,31 +755,7 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.65rem;
-		padding: 0.75rem var(--page-gutter) 0.85rem;
-	}
-
-	.toolbar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.75rem;
-		flex-shrink: 0;
-	}
-
-	.toggle {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-		cursor: pointer;
-	}
-
-	.meta {
-		margin: 0 0 0 auto;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
+		padding: 0 var(--page-gutter) var(--space-3);
 	}
 
 	.grid-host {
@@ -795,25 +778,9 @@
 		line-height: 0;
 	}
 
-	.grid-host :global(.row-selected) {
-		background: var(--primary-wash) !important;
-	}
-
-	.empty,
-	.error {
-		margin: 1.5rem 0;
-		font-size: var(--text-md);
-		color: var(--muted-foreground);
-	}
-
-	.error {
-		color: var(--destructive);
-		padding: 0 var(--page-gutter);
-	}
-
 	.missing {
 		display: grid;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		place-content: center;
 		justify-items: center;
 		height: 100%;
@@ -825,24 +792,5 @@
 	.pane.detail :global(.editor) {
 		flex: 1;
 		min-height: 0;
-	}
-
-	@media (max-width: 900px) {
-		.copy {
-			display: none;
-		}
-
-		.top {
-			padding-top: 0.65rem;
-			padding-bottom: 0.65rem;
-		}
-
-		.body {
-			padding-top: 0.55rem;
-		}
-
-		.meta {
-			margin-left: 0;
-		}
 	}
 </style>

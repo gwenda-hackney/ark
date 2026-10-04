@@ -1,4 +1,5 @@
-import { normalizeDrinkType, type Ingredient, type MenuItem } from "./types.ts";
+import { normalizeDrinkType, type Ingredient, type MenuItem, type PriceRow } from "./types.ts";
+import { normalizePrices } from "./prices.js";
 import { parseStoredAnalyzeNote } from "./analyze-note.js";
 
 export const MAX_UNDO = 80;
@@ -8,6 +9,8 @@ export type MenuDraft = {
 	sectionId: string;
 	price: string;
 	priceAlt: string;
+	/** The price table; `price` / `priceAlt` above are its first two rows. */
+	prices: PriceRow[];
 	drinkType: ReturnType<typeof normalizeDrinkType>;
 	notes: string;
 	glassware: string;
@@ -23,6 +26,8 @@ export type MenuDraft = {
 	method: string;
 	abv: string;
 	volume: string;
+	abvOverride: boolean;
+	volumeOverride: boolean;
 	producer: string;
 	ingredients: Ingredient[];
 	analysisNote: ReturnType<typeof parseStoredAnalyzeNote>;
@@ -44,6 +49,7 @@ export function serializeMenuDraft(row: MenuItem | null): string {
 		sectionId: row.sectionId || row.section?._ref || row.section?._id || "",
 		price: row.price || "",
 		priceAlt: row.priceAlt || "",
+		prices: normalizePrices(row),
 		drinkType: normalizeDrinkType(row.drinkType),
 		notes: row.notes || "",
 		glassware: row.glassware || "",
@@ -62,6 +68,8 @@ export function serializeMenuDraft(row: MenuItem | null): string {
 		method: row.method || "",
 		abv: row.abv || "",
 		volume: row.volume || "",
+		abvOverride: row.abvOverride === true,
+		volumeOverride: row.volumeOverride === true,
 		producer: row.producer || "",
 		ingredients: row.ingredients || [],
 		analysisNote: parseStoredAnalyzeNote(row.analysisNote),

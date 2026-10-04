@@ -1,4 +1,5 @@
 import type { OpsEvent } from "../app/api";
+import type { BadgeTone } from "../ui/badge";
 import { seriesNextNightLabel } from "./event-schedule";
 
 /** Labels for events, series and nights, shared by the lists and the editor. */
@@ -37,16 +38,28 @@ export function repeatLabel(event: {
 	return "Scheduled";
 }
 
+/**
+ * Where a series or night stands with the website, as the lists show it.
+ * Saved changes the website has not picked up wait for "Update website".
+ */
 export function statusLabel(event: OpsEvent): string {
-	if (event.publish.live === "current") return "On website";
-	return "Not on website yet";
+	if (event.publish.live === "current") return "Live";
+	if (event.publish.live === "unpublished") return "Not live";
+	return "Changed";
 }
 
-export function statusTone(event: OpsEvent | null): string {
-	if (!event) return "muted";
-	if (event.publish.preview !== "current") return "unpublished";
-	if (event.publish.live === "current") return "live";
-	return "preview";
+/** The longer words behind statusLabel, for the badge's tooltip. */
+export function statusTitle(event: OpsEvent): string {
+	if (event.publish.live === "current") return "On the website";
+	if (event.publish.live === "unpublished") return "Not on the website yet";
+	return "Changes not on the website yet. Update website puts them there.";
+}
+
+export function statusTone(event: OpsEvent | null): BadgeTone {
+	if (!event) return "neutral";
+	if (event.publish.live === "current") return "success";
+	if (event.publish.live === "unpublished") return "neutral";
+	return "warning";
 }
 
 export function formatDate(iso: string): string {
@@ -124,4 +137,68 @@ export function seriesNextCell(event: OpsEvent): string {
 	const night = seriesNextNightLabel(event);
 	const date = formatDayMonth(next);
 	return night ? `${date} · ${night}` : date;
+}
+
+/**
+ * The delete confirm in the editor. The title names exactly what goes: a
+ * night of an open series deletes only that night (#151).
+ */
+export function deleteEventCopy({
+	kind,
+	eventName,
+	nightDate = "",
+	seriesName = "",
+	onWebsite = false,
+}: {
+	kind: "series" | "event" | "night";
+	eventName: string;
+	nightDate?: string;
+	seriesName?: string;
+	onWebsite?: boolean;
+}): { title: string; message: string; website: string } {
+	const website = onWebsite
+		? "It stays on the website until you press Update website on the Website page. Until then you can restore it there."
+		: "";
+	const undo = onWebsite ? "" : " This can't be undone.";
+	if (kind === "night") {
+		const when = nightDate ? formatDate(nightDate) : "this night";
+		const series = seriesName || eventName;
+		return {
+			title: `Delete the night of ${when}?`,
+			message: `Only this night goes. ${series} and its other nights stay.${undo}`,
+			website,
+		};
+	}
+	if (kind === "event") {
+		return { title: `Delete ${eventName}?`, message: `It goes from the schedule.${undo}`, website };
+	}
+	return { title: `Delete ${eventName}?`, message: `The series and all its nights go.${undo}`, website };
+}
+
+/**
+ * The social post line in the editor's Tasks section. Update website makes
+ * one ClickUp task per night, due two weeks before it.
+ */
+export function socialTaskNote(
+	event: OpsEvent | null,
+	occurrenceDate = "",
+	today = new Date().toISOString().slice(0, 10),
+): string {
+	const later = "Update website adds one to ClickUp, due two weeks before the night.";
+	if (!event) return `No social post task yet. ${later}`;
+	if (occurrenceDate) {
+		const night = event.dates.find((row) => row.date === occurrenceDate);
+		return night?.clickupTaskId
+			? "The social post task is in ClickUp, due two weeks before the night."
+			: `No social post task yet. ${later}`;
+	}
+	const upcoming = event.dates.filter((row) => row.date >= today);
+	if (!upcoming.length) return "No upcoming nights, so no social post tasks.";
+	const withTask = upcoming.filter((row) => row.clickupTaskId).length;
+	if (withTask === upcoming.length) {
+		return upcoming.length === 1
+			? "The next night has its social post task in ClickUp."
+			: `All ${upcoming.length} upcoming nights have a social post task in ClickUp.`;
+	}
+	return `Social post tasks in ClickUp: ${withTask} of ${upcoming.length} upcoming nights. ${later}`;
 }

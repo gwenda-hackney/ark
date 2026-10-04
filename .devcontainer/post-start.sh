@@ -38,6 +38,10 @@ install_bw_session_bashrc
 if [ -d /commandhistory ]; then
   sudo chown node:node /commandhistory 2>/dev/null || true
 fi
+# Claude Code chats live in ~/.claude; the named volume keeps them across rebuilds
+if [ -d /home/node/.claude ]; then
+  sudo chown node:node /home/node/.claude 2>/dev/null || true
+fi
 
 if [ -z "$ROOT" ]; then
   exit 0

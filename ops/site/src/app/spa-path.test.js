@@ -176,6 +176,8 @@ describe("spa-path", () => {
     assert.equal(isSpaDocumentPath("/events/new"), true);
     assert.equal(isSpaDocumentPath("/web"), true);
     assert.equal(isSpaDocumentPath("/forms"), true);
+    assert.equal(isSpaDocumentPath("/more"), true);
+    assert.equal(isSpaDocumentPath("/more/x"), false);
     assert.equal(isSpaDocumentPath("/tools/breakeven"), false, "Tools is gone (#75)");
     assert.equal(isSpaDocumentPath("/api/menu"), false);
     assert.equal(isClientNavPath("/config"), true);
@@ -188,13 +190,16 @@ describe("spa-path", () => {
     assert.equal(isClientNavPath("/web"), true);
     assert.equal(isClientNavPath("/forms"), true);
     assert.equal(isClientNavPath("/artists"), true);
+    assert.equal(isClientNavPath("/more"), true);
     assert.equal(shellPageKey("/config"), "config");
     assert.equal(shellPageKey("/lightspeed"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/export"), "lightspeed");
     assert.equal(shellPageKey("/lightspeed/menus"), "lightspeed");
     assert.equal(shellPageKey("/suppliers"), "suppliers");
-    assert.equal(shellPageKey("/sections"), "sections");
+    assert.equal(shellPageKey("/sections"), "config");
     assert.equal(shellPageKey("/users"), "users");
+    assert.equal(shellPageKey("/more"), "more");
+    assert.equal(shellPageKey("/more/"), "more");
     assert.equal(shellPageKey("/events/12"), "events");
     assert.equal(shellPageKey("/artists"), "artists");
     assert.equal(shellPageKey("/events/12/publish"), "events");
@@ -285,6 +290,13 @@ describe("spa-path", () => {
     assert.equal(eventTabPath("/events/12/schedule", "gallery"), "/events/12/gallery");
     assert.equal(editorKey("/events/12/publish"), "events:12");
     assert.equal(editorKey("/events/new/schedule"), "events:new");
+    assert.equal(editorKey("/forms/12"), "forms:12");
+    assert.equal(editorKey("/forms"), "forms");
+    assert.equal(navigationLeavesEditor("/forms/12", "/forms"), true);
+    assert.equal(navigationLeavesEditor("/forms", "/events"), false);
+    // Configuration guards its unsaved settings like an editor (#158).
+    assert.equal(navigationLeavesEditor("/config", "/menu"), true);
+    assert.equal(navigationLeavesEditor("/config", "/config"), false);
     assert.equal(isEditorPath("/events/12"), true);
     assert.equal(isEditorPath("/events/12/gallery"), true);
     assert.equal(isEditorPath("/events/new"), true);
@@ -298,7 +310,7 @@ describe("spa-path", () => {
     assert.equal(shellPageKey("/forms"), "forms");
     assert.equal(shellPageKey("/forms/12"), "forms");
     assert.deepEqual(parseShellPath("/forms/12"), { page: "forms", slug: "12" });
-    assert.deepEqual(parseShellPath("/sections"), { page: "sections" });
+    assert.deepEqual(parseShellPath("/sections"), { page: "config", tab: "sections" });
     assert.deepEqual(parseShellPath("/lightspeed"), {
       page: "lightspeed",
       view: "reconcile",
@@ -341,7 +353,7 @@ describe("spa-path", () => {
     assert.equal(navigationLeavesEditor("/menu/ambra", "/menu"), true);
     assert.equal(navigationLeavesEditor("/menu/ambra", "/inventory"), true);
     assert.equal(navigationLeavesEditor("/menu", "/inventory"), false);
-    assert.equal(navigationLeavesEditor("/menu", "/sections"), false);
+    assert.equal(navigationLeavesEditor("/config", "/config/pour"), false);
     assert.equal(navigationLeavesEditor("/artists", "/events"), false);
     assert.equal(navigationLeavesEditor("/artists/3", "/artists"), true);
     assert.equal(navigationLeavesEditor("/menu/ambra", "/sections"), true);
@@ -421,12 +433,12 @@ describe("spa-path", () => {
       [{ label: "Operations", href: "/" }, { label: "Configuration" }],
     );
     assert.deepEqual(
-      shellCrumbs("/sections", {
+      shellCrumbs("/config/pour", {
         homeLabel: "Operations",
-        sectionLabel: "Sections",
-        sectionHref: "/sections",
+        sectionLabel: "Configuration",
+        sectionHref: "/config",
       }),
-      [{ label: "Operations", href: "/" }, { label: "Sections" }],
+      [{ label: "Operations", href: "/" }, { label: "Configuration" }],
     );
     assert.equal(
       shellCrumbs("/inventory/new", {

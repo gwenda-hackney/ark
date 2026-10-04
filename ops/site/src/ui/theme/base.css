@@ -27,11 +27,10 @@ html {
 
 body {
 	font-family: var(--font);
-	font-size: var(--text-md);
-	line-height: 1.5;
-	letter-spacing: -0.006em;
+	font-size: var(--text-base);
+	line-height: var(--leading-base);
 	color: var(--foreground);
-	background: var(--background);
+	background: var(--ambient), var(--background);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	font-synthesis-weight: none;
@@ -43,28 +42,38 @@ body {
 	isolation: isolate;
 }
 
+/* Inter by default. Page and editor titles opt into --font-display. */
 h1,
 h2,
 h3,
 h4 {
 	margin: 0;
-	font-family: var(--font-display);
+	font-family: var(--font);
 	font-weight: 600;
-	line-height: 1.2;
-	letter-spacing: -0.02em;
 	color: var(--foreground);
 }
 
 h1 {
-	font-size: 1.5rem;
+	font-size: var(--text-xl);
+	line-height: var(--leading-xl);
+	letter-spacing: var(--tracking-xl);
 }
 
 h2 {
-	font-size: 1rem;
+	font-size: var(--text-lg);
+	line-height: var(--leading-lg);
+	letter-spacing: var(--tracking-lg);
 }
 
 h3 {
-	font-size: var(--text);
+	font-size: var(--text-md);
+	line-height: var(--leading-md);
+	font-weight: 500;
+}
+
+h4 {
+	font-size: var(--text-base);
+	line-height: var(--leading-base);
 }
 
 p {
@@ -125,7 +134,7 @@ svg {
 :focus-visible {
 	outline: 2px solid var(--ring);
 	outline-offset: 2px;
-	border-radius: var(--radius-xs);
+	border-radius: var(--radius-sm);
 }
 
 /* ─── Scrollbars ─────────────────────────────────────────────────────────── */
@@ -144,11 +153,15 @@ svg {
 	scrollbar-color: transparent transparent;
 }
 
-.scrollbar-fade,
-.ag-body-viewport,
-.ag-center-cols-viewport,
-.ag-body-horizontal-scroll-viewport {
-	scrollbar-gutter: stable;
+/* Touch scrollbars overlay the content and take no room, so reserving a
+   gutter there only leaves a blank strip down the right edge. */
+@media (hover: hover) and (pointer: fine) {
+	.scrollbar-fade,
+	.ag-body-viewport,
+	.ag-center-cols-viewport,
+	.ag-body-horizontal-scroll-viewport {
+		scrollbar-gutter: stable;
+	}
 }
 
 ::-webkit-scrollbar {

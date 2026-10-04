@@ -9,7 +9,7 @@
 	import { Icon } from "../app/shell";
 	import { Button, PageHeader, SearchField } from "../ui";
 	import { getSettingsOverview, type SettingValue, type SettingsOverview } from "../app/api";
-	import { loginNext, navigate } from "../app/nav";
+	import { navigate } from "../app/nav";
 	import { easeOut, flyMs } from "../ui/motion";
 
 	const ENV_LABELS: Record<string, string> = {
@@ -41,7 +41,6 @@
 			loadError = "";
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not load settings.";
-			if (message.startsWith("auth:")) return loginNext();
 			loadError = message;
 		} finally {
 			loading = false;
@@ -60,8 +59,8 @@
 <div class="page scrollbar-fade">
 	<PageHeader title="Settings" subtitle="Every setting in this environment, and where its value comes from.">
 		{#snippet actions()}
-			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>Developer tools</Button>
-			<Button variant="outline" size="sm" disabled={loading} onclick={() => void load()}>
+			<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>{#snippet icon()}<Icon name="chevron-left" size={14} />{/snippet}Developer tools</Button>
+			<Button variant="outline" size="sm" data-compact disabled={loading} onclick={() => void load()}>
 				{#snippet icon()}
 					<Icon name="refresh" size={16} />
 				{/snippet}
@@ -182,8 +181,7 @@
 
 	.ready {
 		display: grid;
-		gap: 1rem;
-		max-width: 80rem;
+		gap: var(--space-4);
 	}
 
 	.intro,
@@ -202,7 +200,7 @@
 		overflow-x: auto;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	table {
@@ -214,16 +212,16 @@
 
 	th,
 	td {
-		padding: 0.6rem 0.75rem;
+		padding: var(--space-2) var(--space-3);
 		border-bottom: 1px solid var(--border);
 		text-align: left;
 		vertical-align: top;
 	}
 
 	thead th {
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -255,20 +253,20 @@
 	.about,
 	.meta {
 		color: var(--muted-foreground);
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-xs);
 	}
 
 	td .value {
 		display: block;
 		overflow-wrap: anywhere;
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: var(--text-xs, 0.75rem);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
 	}
 
 	.from {
 		display: inline-block;
 		margin-top: 0.2rem;
-		font-size: var(--text-xs, 0.75rem);
+		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 	}
 
@@ -282,21 +280,21 @@
 
 	.card {
 		display: grid;
-		gap: 0.5rem;
-		padding: 1rem;
+		gap: var(--space-2);
+		padding: var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	.card h2 {
 		margin: 0;
-		font-size: var(--text-base, 1rem);
+		font-size: var(--text-base);
 	}
 
 	.plain {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		margin: 0;
 		padding: 0;
 		list-style: none;

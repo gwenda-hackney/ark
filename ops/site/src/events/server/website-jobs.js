@@ -123,9 +123,10 @@ export function jobsFrom(
   return jobs;
 }
 
-export async function listWebsiteJobs(env) {
+/** `events`: the event list when the caller already has it (the dashboard). */
+export async function listWebsiteJobs(env, { events: known = null } = {}) {
   const [events, failures, calendar, seriesPreviews, galleryStaged] = await Promise.all([
-    listEvents(env),
+    known || listEvents(env),
     readFailures(env),
     calendarConfigured(env),
     readSeriesPreviews(env),

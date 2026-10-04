@@ -26,6 +26,7 @@ const PUBLISH_FIELD_LABELS: Record<string, string> = {
   description: "description",
   price: "price",
   priceAlt: "alt price",
+  prices: "prices",
   notes: "tasting note",
   drinkType: "kind",
   abv: "ABV",

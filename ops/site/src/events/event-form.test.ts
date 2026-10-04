@@ -77,6 +77,23 @@ describe("EventForm: a series", () => {
 		assert.equal(form.isDirty(event), true);
 	});
 
+	it("counts a changed link (pageUrl) as unsaved (#151)", () => {
+		const event = series({ pageUrl: "https://example.com/jazz" });
+		const form = new EventForm();
+		form.fill(event);
+		assert.equal(form.isDirty(event), false);
+		form.pageUrl = "https://example.com/jazz-nights";
+		assert.equal(form.isDirty(event), true);
+		form.pageUrl = "  https://example.com/jazz ";
+		assert.equal(form.isDirty(event), false, "whitespace is ignored");
+	});
+
+	it("counts a link typed on a new event as unsaved (#151)", () => {
+		const form = new EventForm();
+		form.pageUrl = "https://example.com/tickets";
+		assert.equal(form.isDirty(null), true);
+	});
+
 	it("ignores whitespace and weekday order when comparing", () => {
 		const event = series({ weekdays: ["thu", "fri"] });
 		const form = new EventForm();
@@ -218,6 +235,77 @@ describe("EventForm: one night of a series", () => {
 		assert.equal(form.defaultsUnlocked, false);
 		assert.equal(form.artist, "House trio");
 		assert.equal(form.shortDescription, "");
+	});
+
+	it("overrides one field at a time; the rest stay From series (#158)", () => {
+		const event = series({ dates: [night("2026-10-08", { offer: "Free punch" })] });
+		const form = new EventForm();
+		form.fill(event, "2026-10-08");
+		assert.deepEqual(form.overridden, ["offer"], "only what the night saved as its own");
+		assert.equal(form.isOverridden("artist"), false);
+
+		form.override("artist", event);
+		assert.equal(form.artist, "House trio", "starts from the series value");
+		form.artist = "Guest quartet";
+		form.name = "Typed but not overridden";
+		const body = form.occurrenceBody("this", event, {
+			seriesId: "ev1",
+			occurrenceDate: "2026-10-08",
+			hasOwnPhoto: false,
+		});
+		assert.equal(body.artist, "Guest quartet");
+		assert.equal(body.offer, "Free punch");
+		assert.equal(body.name, "", "a field left on the series saves blank");
+		assert.equal(body.startTime, "");
+	});
+
+	it("goes back to the series for one field, which is an unsaved change when the night had its own (#158)", () => {
+		const event = series({ dates: [night("2026-10-08", { offer: "Free punch" })] });
+		const form = new EventForm();
+		form.fill(event, "2026-10-08");
+		form.useSeriesValue("offer", event);
+		assert.equal(form.offer, "£10 Negroni");
+		assert.equal(form.isOverridden("offer"), false);
+		assert.equal(form.isDirty(event, { occurrenceDate: "2026-10-08" }), true);
+		assert.equal(
+			form.occurrenceBody("this", event, { seriesId: "ev1", occurrenceDate: "2026-10-08", hasOwnPhoto: false })
+				.offer,
+			"",
+		);
+	});
+
+	it("starts a night's card line blank on override, not with the series' line", () => {
+		const event = series({ dates: [night("2026-10-08")] });
+		const form = new EventForm();
+		form.fill(event, "2026-10-08");
+		form.override("shortDescription", event);
+		assert.equal(form.shortDescription, "");
+	});
+
+	it("knows the night's own photo from the saved night", () => {
+		const event = series({
+			dates: [night("2026-10-08", { image: { name: "flyer.jpg", url: "https://x/flyer.jpg" } })],
+		});
+		const form = new EventForm();
+		form.fill(event, "2026-10-08");
+		assert.equal(form.ownPhoto, true);
+		form.useSeriesDefaults(event);
+		assert.equal(form.ownPhoto, false);
+	});
+
+	it("sends only the overridden fields for a night not saved yet (#158)", () => {
+		const event = series();
+		const form = new EventForm();
+		form.reset("once");
+		form.override("startTime", event);
+		form.startTime = "20:00";
+		form.override("offer", event);
+		const body = form.newNightBody(event);
+		assert.equal(body.startTime, "20:00");
+		assert.equal(body.offer, "", "same as the series");
+		assert.equal(body.artist, "");
+		form.useSeriesValue("startTime", event, { newNight: true });
+		assert.equal(form.startTime, "", "a new night holds blank for the series");
 	});
 
 	it("shows a locked field's series value, or says there is none", () => {

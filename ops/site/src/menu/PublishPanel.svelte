@@ -23,6 +23,8 @@
 	// Compared with what gwenda.co.uk shows (#42).
 	const groups = $derived(groupItemsForPublish(items, "production"));
 	const pending = $derived(groups.unpublished.length + groups.missing.length);
+	// Linked drinks with no snapshot still gain a baseline from an update.
+	const nothingToDo = $derived(pending === 0 && groups.unknown.length === 0);
 </script>
 
 <aside class="panel" aria-label="Update website" aria-busy={busy || undefined}>
@@ -41,7 +43,7 @@
 			onclick={onclose}
 		>
 			{#snippet icon()}
-				<Icon name="close" size={16} />
+				<Icon name="close" size={14} />
 			{/snippet}
 		</Button>
 	</header>
@@ -126,18 +128,22 @@
 			disabled={busy}
 			onclick={onclose}
 		>
+			{#snippet icon()}
+				<Icon name="close" size={14} />
+			{/snippet}
 			Cancel
 		</Button>
 		<Button
 			variant="primary"
 			size="sm"
 			type="button"
-			disabled={busy}
+			disabled={busy || nothingToDo}
+			reason={nothingToDo ? "The website already shows every drink" : undefined}
 			{busy}
 			onclick={onpublish}
 		>
 			{#snippet icon()}
-				<Icon name="upload" size={15} />
+				<Icon name="upload" size={14} />
 			{/snippet}
 			{busy ? "Updating…" : actionLabel}
 		</Button>
@@ -151,33 +157,32 @@
 		flex-direction: column;
 		height: 100%;
 		min-height: 0;
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	.head {
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		padding: var(--card-pad);
 		border-bottom: 1px solid var(--border);
 	}
 
 	.eyebrow {
 		margin: 0 0 0.2rem;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 	}
 
 	h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.35rem;
+		font-size: var(--text-lg);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 	}
 
 	.body {
@@ -185,7 +190,7 @@
 		min-height: 0;
 		overflow: auto;
 		display: grid;
-		gap: 1rem;
+		gap: var(--space-4);
 		align-content: start;
 		padding: var(--card-pad);
 	}
@@ -199,43 +204,39 @@
 
 	.note {
 		margin: 0;
-		padding: 0.75rem 0.85rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
 		color: var(--muted-foreground);
 	}
 
 	.status {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.status-lead {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 	}
 
 	.group {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.group h3 {
 		margin: 0;
-		font-size: var(--text-sm);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.group-note {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.4;
 		color: var(--muted-foreground);
 	}
@@ -249,7 +250,7 @@
 	}
 
 	.group li {
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.4;
 	}
 
@@ -258,7 +259,7 @@
 	}
 
 	.diff {
-		margin: 0.15rem 0 0.35rem;
+		margin: 0.15rem 0 var(--space-1);
 		padding: 0;
 		list-style: none;
 		display: grid;
@@ -271,7 +272,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: flex-end;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		padding: var(--card-pad);
 		border-top: 1px solid var(--border);
 	}

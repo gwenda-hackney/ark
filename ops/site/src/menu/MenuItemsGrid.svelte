@@ -3,11 +3,12 @@
 	 * Menu items in one AG Grid, grouped by section via full-width headers.
 	 * Rows are not click-to-open: that fights copying. Open via the name,
 	 * the trailing chevron, or a double-click that is not a text selection.
-	 * On a phone the grid is replaced by a sectioned compact list.
+	 * `view` swaps the grid for cards (the phone default). On a phone the
+	 * table scrolls sideways inside itself with the name pinned on the left.
 	 */
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { untrack } from "svelte";
-	import { Button, DataGrid, SearchField } from "../ui";
+	import { Button, DataGrid, EmptyState, Skeleton } from "../ui";
 	import {
 		hasRangeSelection,
 		keepFullWidthGroupsTogether,
@@ -18,13 +19,16 @@
 		compareNullable,
 		type MenuListItem,
 		type MenuListRow,
+		type MenuListSort,
+		sortMenuListRows,
 	} from "./menu-list";
+	import type { Density, ListView } from "../ui/view-prefs";
 	import type { InventoryItem } from "../inventory/types";
 	import type { MenuItem, MenuSection } from "./types";
 	import { pourSettings } from "../config/settings.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { Icon } from "../app/shell";
-	import CompactMenuList from "./CompactMenuList.svelte";
+	import MenuCards from "./MenuCards.svelte";
 	import HighlightCell from "./cells/HighlightCell.svelte";
 	import IssuesCell from "./cells/IssuesCell.svelte";
 	import NameCell from "./cells/NameCell.svelte";
@@ -42,15 +46,28 @@
 	let {
 		sections,
 		inventory = [] as InventoryItem[],
-		query = $bindable(""),
+		query = "",
+		sort = "section",
+		count = $bindable(0),
+		loading = false,
 		selectedId = null,
+		view = "table",
+		density = "comfortable",
 		onview,
 		onnew,
 	}: {
 		sections: MenuSection[];
 		inventory?: InventoryItem[];
+		/** The page header's search. */
 		query?: string;
+		/** Phone list order; the desktop grid sorts by its column headers. */
+		sort?: MenuListSort;
+		/** Items shown, for the header's count. */
+		count?: number;
+		loading?: boolean;
 		selectedId?: string | null;
+		view?: ListView;
+		density?: Density;
 		onview: (item: MenuItem, tab?: string) => void;
 		onnew?: () => void;
 	} = $props();
@@ -68,17 +85,28 @@
 		}),
 	);
 
+	/** Cards and the phone table follow the Sort filter; desktop headers sort the grid. */
+	const sortedRows = $derived(
+		view === "cards" || phone.matches ? sortMenuListRows(rowData, sort) : rowData,
+	);
+
 	const totalCount = $derived(
 		rowData.filter((row): row is MenuListItem => row._kind === "item").length,
 	);
 
+	$effect(() => {
+		count = totalCount;
+	});
+
 	const columnDefs = $derived.by((): ColDef<GridRow>[] => {
 		const search = needle;
 		const view = untrack(() => onview);
+		const narrow = phone.matches;
 		return [
 			{
 				headerName: "",
 				colId: "photo",
+				hide: narrow,
 				width: 48,
 				minWidth: 40,
 				flex: 0,
@@ -95,8 +123,10 @@
 			{
 				headerName: "Name",
 				field: "name",
-				minWidth: 160,
+				minWidth: narrow ? 140 : 160,
 				flex: 1.4,
+				// Phones scroll the table sideways; the name stays in view.
+				pinned: narrow ? "left" : undefined,
 				cellClass: "name-cell",
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data.name || "Untitled" : "",
@@ -310,8 +340,8 @@
 			{
 				headerName: "POS",
 				colId: "pos",
-				width: 120,
-				minWidth: 96,
+				width: 144,
+				minWidth: 120,
 				flex: 0,
 				valueGetter: (p) =>
 					p.data?._kind === "item" ? p.data._posLabel || "—" : "",
@@ -459,40 +489,31 @@
 </script>
 
 <div class="wrap">
-	<div class="toolbar">
-		<SearchField
-			bind:value={query}
-			placeholder="Search name, ingredients, description"
-			ariaLabel="Search drinks"
-			width="min(100%, 26rem)"
-			count={q ? totalCount : undefined}
-		/>
-		<div class="toolbar-end">
-			<p class="meta">{totalCount} item{totalCount === 1 ? "" : "s"}</p>
-			{#if onnew}
-				<Button variant="outline" size="sm" type="button" onclick={onnew}>
-					{#snippet icon()}
-						<Icon name="plus" size={15} />
-					{/snippet}
-					New item
-				</Button>
-			{/if}
-		</div>
-	</div>
-
-	{#if totalCount === 0}
-		<p class="empty">
-			{q ? "No drinks match that search." : "No menu items yet."}
-		</p>
-	{:else if phone.matches}
-		<div class="compact-host">
-			<CompactMenuList {query} {selectedId} rows={rowData} {onview} />
-		</div>
+	{#if loading && totalCount === 0}
+		<div class="state"><Skeleton rows={10} thumb lines={1} label="Loading menu items…" /></div>
+	{:else if totalCount === 0}
+		{#if q}
+			<EmptyState icon="search" title="No drinks match" text="Search looks at names, ingredients and descriptions." />
+		{:else}
+			<EmptyState icon="recipes" title="No menu items yet" text="Add a drink to start the guest menu.">
+				{#snippet action()}
+					{#if onnew}
+						<Button size="sm" onclick={onnew}>
+							{#snippet icon()}<Icon name="plus" size={15} />{/snippet}
+							New item
+						</Button>
+					{/if}
+				{/snippet}
+			</EmptyState>
+		{/if}
+	{:else if view === "cards"}
+		<MenuCards rows={sortedRows} {query} {selectedId} {onview} />
 	{:else}
 		<div class="grid-host">
 			<DataGrid
-				{rowData}
+				rowData={sortedRows}
 				{columnDefs}
+				{density}
 				scrollKey="menu-list"
 				context={{ selectedId }}
 				getRowId={(row) =>
@@ -521,12 +542,16 @@
 								params.data?._kind === "group" ? params.data.count : 0,
 						}),
 					),
+					// Reads `density` on each call; DataGrid resets heights when it changes.
 					getRowHeight: (params) => {
-						if (params.data?._kind === "group") return 48;
-						if (params.data?._kind === "item" && params.data._matchHint) {
-							return 58;
+						const compact = density === "compact";
+						if (params.data?._kind === "group") {
+							return params.data.subtitle ? (compact ? 44 : 52) : compact ? 36 : 44;
 						}
-						return 42;
+						if (params.data?._kind === "item" && params.data._matchHint) {
+							return compact ? 48 : 58;
+						}
+						return compact ? 32 : 40;
 					},
 					getRowClass: (params) => {
 						const selected =
@@ -555,38 +580,11 @@
 		gap: 0;
 		min-height: 0;
 		height: 100%;
-		background: var(--background);
+		background: transparent;
 	}
 
-	.toolbar {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--gap-sm);
-		flex-shrink: 0;
-		padding: 0.75rem var(--page-gutter);
-		border-bottom: 1px solid var(--border);
-	}
-
-	.toolbar-end {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.65rem;
-	}
-
-	.meta {
-		margin: 0;
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.empty {
-		margin: 2rem var(--page-gutter);
-		text-align: center;
-		color: var(--muted-foreground);
-		font-size: var(--text-md);
+	.state {
+		padding: 0 var(--page-gutter);
 	}
 
 	.grid-host {
@@ -622,32 +620,12 @@
 
 	.grid-host :global(.photo-cell) {
 		overflow: visible;
-		padding-left: 0.65rem;
-		padding-right: 0.35rem;
+		padding-left: var(--space-3);
+		padding-right: var(--space-1);
 	}
 
 	.grid-host :global(.photo-cell .ag-cell-wrapper) {
 		overflow: visible;
 	}
 
-	.grid-host :global(.row-selected) {
-		background: var(--primary-wash) !important;
-	}
-
-	.grid-host :global(.row-group) {
-		background: color-mix(in srgb, var(--foreground) 3.5%, var(--background)) !important;
-	}
-
-	.grid-host :global(.row-group .ag-cell),
-	.grid-host :global(.ag-full-width-row) {
-		border-bottom: 1px solid var(--border);
-	}
-
-	.compact-host {
-		flex: 1;
-		min-height: 0;
-		display: flex;
-		flex-direction: column;
-		padding: 0 var(--page-gutter);
-	}
 </style>

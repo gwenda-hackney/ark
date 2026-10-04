@@ -43,7 +43,7 @@
 		bottom: max(1rem, env(safe-area-inset-bottom));
 		z-index: 320;
 		display: grid;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		width: min(24rem, calc(100vw - 2rem));
 		pointer-events: none;
 	}
@@ -53,8 +53,8 @@
 		display: grid;
 		grid-template-columns: 1fr auto;
 		align-items: start;
-		gap: 0.65rem;
-		padding: 0.75rem 0.85rem;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-3);
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-lg);
 		background: var(--card);
@@ -78,7 +78,7 @@
 
 	.msg {
 		margin: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.45;
 	}
 
@@ -97,7 +97,7 @@
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--muted-foreground);
-		font-size: 1.1rem;
+		font-size: var(--text-md);
 		line-height: 1.2;
 		cursor: pointer;
 	}
