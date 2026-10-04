@@ -26,9 +26,9 @@
 	import type { SegmentedItem, SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
 	import { type InventoryItem } from "../inventory/types";
-	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, priceLabels, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
+	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
 	import { flattenMenuSections, sectionPathLabel } from "./menu-sections.js";
-	import { suggestedAltPrice as suggestAltPrice } from "./cost";
+	import { formatPriceSummary, newPriceRow, normalizePrices, relabelPrices, withPrices, type PriceRow } from "./prices.js";
 	import {
 		computeRecipeAbv,
 		computeRecipeVolumeMl,
@@ -44,6 +44,7 @@
 	} from "./analyze";
 	import { parseStoredAnalyzeNote } from "./analyze-note.js";
 	import {
+		formatPourPercent,
 		marginTone,
 		recipePriceAnalysis,
 	} from "./cost";
@@ -72,7 +73,8 @@
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import MethodEditor from "./MethodEditor.svelte";
-	import PourCostPanel from "./PourCostPanel.svelte";
+	import PriceTable from "./PriceTable.svelte";
+	import PourSettingsDialog from "./PourSettingsDialog.svelte";
 	import RecipeAnalysisPanel from "./RecipeAnalysisPanel.svelte";
 	import MenuPlacementsTable from "./MenuPlacementsTable.svelte";
 	import {
@@ -138,6 +140,7 @@
 	let restoring = false;
 	let aiError = $state("");
 	let aiBusy = $state(false);
+	let pourSettingsOpen = $state(false);
 	/** Problems from the last Save, by field id; kept fresh as they are fixed. */
 	const errors = new FormErrors();
 
@@ -563,12 +566,12 @@
 		if (!item) return;
 		if (normalizeDrinkType(item.drinkType) === next) return;
 		remember("drinkType");
+		// Rows still named for the old type (Single, Double) take the new type's names.
+		const priced = withPrices(item, relabelPrices(normalizePrices(item), item.drinkType, next));
 		const cleared =
-			next === "packaged"
-				? { ...item, drinkType: next, priceAlt: "", cocktailType: "" as const }
-				: next === "cocktail"
-					? { ...item, drinkType: next }
-					: { ...item, drinkType: next, cocktailType: "" as const };
+			next === "cocktail"
+				? { ...priced, drinkType: next }
+				: { ...priced, drinkType: next, cocktailType: "" as const };
 		if (next === "cocktail") {
 			item = cleared;
 			return;
@@ -642,12 +645,22 @@
 	});
 	const priceFieldLabel = $derived(primaryServe?.label || "Price");
 
-	/** Single and Double (Pint and Half pint): both prices sit together on Build. */
-	const sizeLabels = $derived(priceLabels(drinkType));
-	const suggestedAltPrice = $derived.by(() => {
-		const value = suggestAltPrice(priceLive);
-		return value == null ? "" : value.toFixed(2).replace(/\.00$/, "");
-	});
+	/** The price table (Pricing tab); Build shows it on one line. */
+	const priceRows = $derived(item ? normalizePrices(item) : []);
+	const priceSummary = $derived(formatPriceSummary(priceRows));
+	const hasRecipeCost = $derived(
+		Boolean(priceLive && (priceLive.drinkCost != null || priceLive.lines.length > 0)),
+	);
+
+	function setPrices(next: PriceRow[], field: string) {
+		if (!item) return;
+		remember(field);
+		item = withPrices(item, next);
+	}
+
+	function addPrice() {
+		setPrices([...priceRows, newPriceRow(priceRows, drinkType)], "prices:add");
+	}
 
 	const canAnalyze = $derived(
 		Boolean(
@@ -664,8 +677,7 @@
 					glassware: item.glassware,
 					description: item.description,
 					volume: item.volume,
-					price: item.price,
-					priceAlt: item.priceAlt,
+					prices: normalizePrices(item),
 					drinkType: item.drinkType,
 					targets: pourSettings.targets,
 				})
@@ -1106,43 +1118,18 @@
 										/>
 									</Field>
 								{/if}
-								<Field
-									class="span-3"
-									label={sizeLabels.alt ? sizeLabels.primary : "Price"}
-									for="f-price"
-									error={errors.get("f-price")}
-								>
-									<MoneyField
-										id="f-price"
-										size="sm"
-										value={item.price || ""}
-										oninput={(e) => patch("price", (e.currentTarget as HTMLInputElement).value)}
-										oncommit={(next) => {
-											if (next !== (item?.price || "")) patch("price", next);
-										}}
-									/>
-								</Field>
-								{#if sizeLabels.alt}
-									<Field
-										class="span-3"
-										label={sizeLabels.alt}
-										for="f-price-alt"
-										optional
-										error={errors.get("f-price-alt")}
-										hint={suggestedAltPrice && !item.priceAlt ? `£${suggestedAltPrice} meets the pour target.` : undefined}
+								<Field class="span-6" label="Price" for="f-price-summary">
+									{#snippet actions()}
+										<a class="edit-prices" href={menuTabPath(tabBase, "cost")}>Edit prices</a>
+									{/snippet}
+									<output
+										id="f-price-summary"
+										class="price-summary tnum"
+										class:muted={!priceSummary}
 									>
-										<MoneyField
-											id="f-price-alt"
-											size="sm"
-											value={item.priceAlt || ""}
-											placeholder={suggestedAltPrice ? suggestedAltPrice : ""}
-											oninput={(e) => patch("priceAlt", (e.currentTarget as HTMLInputElement).value)}
-											oncommit={(next) => {
-												if (next !== (item?.priceAlt || "")) patch("priceAlt", next);
-											}}
-										/>
-									</Field>
-								{/if}
+										{priceSummary || "No price yet"}
+									</output>
+								</Field>
 							</FormLead>
 
 							<FormSection
@@ -1318,22 +1305,50 @@
 							</FormSection>
 						</div>
 					{:else if tab === "cost"}
-						{#if priceLive}
-							<PourCostPanel
-								price={priceLive}
-								priceValue={item.price || ""}
-								priceAltValue={item.priceAlt || ""}
-							/>
-						{:else}
+						<div class="board-tab">
 							<FormSection
-								title="Pour cost"
-								description={showRecipe
-									? "Add ingredients on Build to cost this drink."
-									: "Link stock on Build to cost this drink."}
+								title="Prices"
+								description="Each size it sells in, what it costs to pour and its till button."
 							>
-								<span class="sr-only">Nothing to cost yet.</span>
+								{#snippet actions()}
+									<Button
+										variant="ghost"
+										size="sm"
+										type="button"
+										aria-label="Pour cost targets"
+										title="Pour targets"
+										onclick={() => (pourSettingsOpen = true)}
+									>
+										{#snippet icon()}
+											<Icon name="settings" size={14} />
+										{/snippet}
+									</Button>
+									<Button variant="outline" size="sm" type="button" onclick={addPrice}>
+										{#snippet icon()}
+											<Icon name="plus" size={15} />
+										{/snippet}
+										Add price
+									</Button>
+								{/snippet}
+								<PriceTable
+									rows={priceRows}
+									price={priceLive}
+									error={errors.get}
+									onchange={setPrices}
+								/>
+								<p class="price-note">
+									{#if !hasRecipeCost}
+										{showRecipe
+											? "Add ingredients on Build to cost this drink."
+											: "Link stock on Build to cost this drink."}
+									{:else}
+										Pour is the cost to make it as a share of its price. Target {formatPourPercent(priceLive?.targetPourCost) || "n/a"}.
+										{#if priceLive?.hasEstimates}<span class="estimates">Includes estimates.</span>{/if}
+									{/if}
+								</p>
 							</FormSection>
-						{/if}
+						</div>
+						<PourSettingsDialog open={pourSettingsOpen} onclose={() => (pourSettingsOpen = false)} />
 					{:else if tab === "analysis"}
 						<RecipeAnalysisPanel
 							{analysis}
@@ -1642,6 +1657,54 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		min-width: 0;
+	}
+
+	/* Build's read-only price line: as tall as the controls beside it. */
+	.price-summary {
+		display: flex;
+		align-items: center;
+		min-height: var(--control-h-sm, 2rem);
+		font-size: var(--text-base);
+		font-weight: 500;
+		color: var(--foreground);
+	}
+
+	.price-summary.muted {
+		color: var(--muted-foreground);
+		font-weight: 400;
+	}
+
+	.edit-prices {
+		font-size: var(--text-xs);
+		font-weight: 500;
+		color: var(--muted-foreground);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		border-radius: var(--radius-sm);
+	}
+
+	.edit-prices:hover {
+		color: var(--foreground);
+	}
+
+	.edit-prices:focus-visible {
+		outline: 2px solid var(--primary);
+		outline-offset: 2px;
+	}
+
+	@media (pointer: coarse) {
+		.edit-prices {
+			display: inline-flex;
+			align-items: center;
+			min-height: 44px;
+		}
+	}
+
+	.price-note {
+		margin: 0;
+		font-size: var(--text-xs);
+		line-height: 1.4;
+		color: var(--muted-foreground);
 	}
 
 	.photo-actions {

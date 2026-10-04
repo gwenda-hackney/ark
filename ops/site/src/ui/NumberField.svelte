@@ -24,6 +24,7 @@
 		noun = undefined,
 		example = undefined,
 		size = "md",
+		invalid = false,
 		oncommit,
 		onblur,
 		onkeydown,
@@ -48,6 +49,8 @@
 		size?: "md" | "sm";
 		/** Right-align figures in a table column. */
 		align?: "start" | "end";
+		/** Danger edge without a Field error (a cell in a table, say). */
+		invalid?: boolean;
 		/** On blur, with the tidied value (only when it reads as a number or is blank). */
 		oncommit?: (value: string) => void;
 	} = $props();
@@ -108,7 +111,7 @@
 	{prefix}
 	suffix={unit}
 	numeric
-	invalid={Boolean(error) && !field}
+	invalid={invalid || (Boolean(error) && !field)}
 	inputmode={integer ? "numeric" : "decimal"}
 	autocomplete="off"
 	onblur={commit}
