@@ -15,12 +15,14 @@
 		MoneyField,
 		NativeSelect,
 		NumberField,
+		OverflowMenu,
 		Segmented,
 		TextArea,
 		TextField,
 	} from "../ui";
 	import { FormErrors } from "../ui/form-errors.svelte";
 	import { ITEM_FIELD_ORDER, itemFieldTab, stripUnit, validateItem } from "./item-validate";
+	import { addPlacement, defaultPosScreen, placementChoices } from "./placement-add";
 	import type { SegmentedItem, SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
 	import { type InventoryItem } from "../inventory/types";
@@ -486,6 +488,22 @@
 		remember(String(field));
 		item = { ...item, [field]: value };
 	}
+
+	/** Add placement: the kinds still free, each adding a row with sensible defaults. */
+	const placementItems = $derived(
+		placementChoices(item?.placements || [], posMenus || []).map((choice) => ({
+			label: choice.label,
+			onselect: () => {
+				const current = item?.placements || [];
+				setPlacements(
+					addPlacement(current, choice.value, posMenus || [], {
+						sectionId: String(item?.sectionId || sectionOptions[0]?.value || "").trim(),
+						screen: defaultPosScreen(current, screenSuggestions),
+					}),
+				);
+			},
+		})),
+	);
 
 	function setPlacements(next: MenuPlacement[]) {
 		if (!item) return;
@@ -1254,30 +1272,25 @@
 									/>
 								</Field>
 							</FormSection>
-							<FormSection title="Till">
-								<Field
-									class="span-5"
-									label="Till button name"
-									for="f-pos-name"
-									optional
-									hint="Blank uses the drink name. Serve sizes are added on export."
-								>
-									<TextField
-										id="f-pos-name"
-										size="sm"
-										value={item.lightspeedName || ""}
-										placeholder={item.name || "Same as drink name"}
-										oninput={(e) => patch("lightspeedName", (e.currentTarget as HTMLInputElement).value)}
+							<FormSection title="Where it appears" description="The menus this drink is on, where it sits on each, and the name it goes by.">
+								{#snippet actions()}
+									<OverflowMenu
+										text="Add placement"
+										icon="plus"
+										label="Add placement"
+										items={placementItems}
+										disabled={!placementItems.length}
+										reason="It's on every menu already"
 									/>
-								</Field>
-							</FormSection>
-							<FormSection title="Where it appears" description="Print, digital, and till placements.">
+								{/snippet}
 								<MenuPlacementsTable
 									menus={posMenus}
 									placements={item.placements || []}
 									{sectionOptions}
 									{screenSuggestions}
-									defaultSectionId={item.sectionId || ""}
+									drinkName={item.name || ""}
+									posName={item.lightspeedName || ""}
+									onposname={(next) => patch("lightspeedName", next)}
 									onchange={setPlacements}
 								/>
 							</FormSection>

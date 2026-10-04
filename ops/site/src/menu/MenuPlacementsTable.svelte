@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Icon } from "../app/shell";
-	import { Button, Field, NativeSelect } from "../ui";
+	import { Button, NativeSelect, TextField } from "../ui";
 	import type { SelectOption } from "../ui/types";
 	import type { MenuPlacement, PosMenu } from "./types";
 	import { parsePosScreenInput } from "../inventory/lightspeed-stock.js";
@@ -10,14 +10,20 @@
 		placements = [],
 		sectionOptions = [],
 		screenSuggestions = [],
-		defaultSectionId = "",
+		drinkName = "",
+		posName = "",
+		onposname,
 		onchange,
 	}: {
 		menus?: PosMenu[];
 		placements?: MenuPlacement[];
 		sectionOptions?: SelectOption[];
 		screenSuggestions?: string[];
-		defaultSectionId?: string;
+		/** Shown on Print and Digital, which always use the drink's name. */
+		drinkName?: string;
+		/** The till button name: one override shared by every POS row. */
+		posName?: string;
+		onposname: (next: string) => void;
 		onchange: (next: MenuPlacement[]) => void;
 	} = $props();
 
@@ -59,35 +65,6 @@
 		return out;
 	});
 
-	const canAddPrint = $derived(!(placements || []).some((row) => row.channel === "print"));
-	const canAddDigital = $derived(
-		!(placements || []).some((row) => row.channel === "digital"),
-	);
-	const unusedMenus = $derived(
-		(menus || []).filter(
-			(menu) =>
-				!(placements || []).some(
-					(row) =>
-						row.channel === "pos" && String(row.posMenuId) === String(menu.id),
-				),
-		),
-	);
-
-	const addOptions = $derived.by((): SelectOption[] => {
-		const options: SelectOption[] = [{ value: "", label: "Add…" }];
-		if (canAddPrint) options.push({ value: "print", label: "Print" });
-		if (canAddDigital) options.push({ value: "digital", label: "Digital" });
-		for (const menu of unusedMenus) {
-			options.push({
-				value: `pos:${menu.id}`,
-				label: menu.isDefault
-					? `POS · ${menu.name} (default)`
-					: `POS · ${menu.name}`,
-			});
-		}
-		return options;
-	});
-
 	const screenOptions = $derived.by((): SelectOption[] => {
 		const known = new Set(
 			(screenSuggestions || []).map((path) => path.toLowerCase()),
@@ -105,51 +82,6 @@
 
 	function emit(next: MenuPlacement[]) {
 		onchange(next);
-	}
-
-	function defaultScreen() {
-		const existing = (placements || []).find((row) => row.channel === "pos");
-		return (
-			parsePosScreenInput(existing?.posScreen) ||
-			parsePosScreenInput(screenSuggestions[0]) ||
-			"Signature Cocktails"
-		);
-	}
-
-	function defaultSection() {
-		return (
-			String(defaultSectionId || "").trim() ||
-			String(sectionOptions[0]?.value || "").trim()
-		);
-	}
-
-	function onAdd(event: { currentTarget: { value: string } }) {
-		const value = event.currentTarget.value;
-		if (!value) return;
-		const list = [...(placements || [])];
-		if (value === "print" || value === "digital") {
-			const sectionId = defaultSection();
-			if (!sectionId) return;
-			emit([
-				...list.filter((row) => row.channel !== value),
-				{ channel: value, sectionId },
-			]);
-			return;
-		}
-		if (value.startsWith("pos:")) {
-			const id = value.slice(4);
-			const menu = (menus || []).find((row) => String(row.id) === id);
-			if (!menu) return;
-			emit([
-				...list,
-				{
-					channel: "pos",
-					posMenuId: String(menu.id),
-					posMenuName: menu.name,
-					posScreen: defaultScreen(),
-				},
-			]);
-		}
 	}
 
 	function setSection(channel: "print" | "digital", sectionId: string) {
@@ -198,6 +130,7 @@
 					<tr>
 						<th scope="col">Channel</th>
 						<th scope="col">Location</th>
+						<th scope="col">Name on it</th>
 						<th scope="col" class="icon-col">
 							<span class="sr-only">Remove</span>
 						</th>
@@ -236,6 +169,20 @@
 									/>
 								{/if}
 							</td>
+							<td class="name-on">
+								{#if row.channel === "pos"}
+									<TextField
+										id={`f-pos-name-${row.placement.posMenuId}`}
+										size="sm"
+										value={posName}
+										placeholder={drinkName || "Same as the drink"}
+										aria-label={`Name on the till for ${row.label}`}
+										oninput={(e) => onposname((e.currentTarget as HTMLInputElement).value)}
+									/>
+								{:else}
+									<span class="inherited" title="Print and digital menus use the drink's name">{drinkName || "The drink's name"}</span>
+								{/if}
+							</td>
 							<td class="icon-col">
 								<Button
 									variant="ghost"
@@ -254,21 +201,7 @@
 			</table>
 		</div>
 	{:else}
-		<p class="hint">
-			No menus yet. Add Print, Digital, and/or a POS menu below.
-		</p>
-	{/if}
-
-	{#if addOptions.length > 1}
-		<Field label="Add" for="f-add-menu-row" width="md">
-			<NativeSelect
-				id="f-add-menu-row"
-				size="sm"
-				options={addOptions}
-				value=""
-				onchange={onAdd}
-			/>
-		</Field>
+		<p class="hint">Not on any menu yet. Use Add placement to put it on Print, Digital or a POS menu.</p>
 	{/if}
 
 	{#if rows.some((row) => row.channel === "print" || row.channel === "digital") && !rows.some((row) => row.channel === "pos")}
@@ -320,11 +253,20 @@
 	.name-cell {
 		font-weight: 500;
 		white-space: nowrap;
-		width: 28%;
+		width: 20%;
 	}
 
 	.location-cell {
+		width: 40%;
 		min-width: 12rem;
+	}
+
+	.name-on {
+		min-width: 12rem;
+	}
+
+	.inherited {
+		color: var(--fg-muted);
 	}
 
 	.location-cell :global(select) {

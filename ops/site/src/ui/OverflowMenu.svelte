@@ -2,8 +2,10 @@
 	/**
 	 * "⋯" menu for actions that shouldn't sit next to Save: Delete, Reload,
 	 * Print. Opens above or below, whichever has room. Arrow keys move,
-	 * Escape closes and gives focus back.
+	 * Escape closes and gives focus back. With `text` it is a labelled button
+	 * instead ("+ Add placement ▾"), for adding one of a few kinds of row.
 	 */
+	import { Icon } from "../app/shell";
 	import { onMount, tick } from "svelte";
 	import { portal } from "./portal";
 	import type { OverflowItem } from "./types";
@@ -12,10 +14,18 @@
 		items,
 		label = "More actions",
 		disabled = false,
+		text = "",
+		icon = "",
+		reason = "",
 	}: {
 		items: OverflowItem[];
 		label?: string;
 		disabled?: boolean;
+		/** Visible button text; without it the trigger is the "⋯" icon. */
+		text?: string;
+		icon?: string;
+		/** Why it's disabled, as the tooltip. */
+		reason?: string;
 	} = $props();
 
 	const menuId = `menu-${Math.random().toString(36).slice(2, 9)}`;
@@ -97,8 +107,9 @@
 	bind:this={triggerEl}
 	type="button"
 	class="trigger"
-	aria-label={label}
-	title={label}
+	class:labelled={Boolean(text)}
+	aria-label={text ? undefined : label}
+	title={disabled && reason ? reason : text ? undefined : label}
 	aria-haspopup="menu"
 	aria-expanded={open}
 	aria-controls={open ? menuId : undefined}
@@ -111,11 +122,17 @@
 		}
 	}}
 >
-	<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-		<circle cx="5" cy="12" r="1.8" />
-		<circle cx="12" cy="12" r="1.8" />
-		<circle cx="19" cy="12" r="1.8" />
-	</svg>
+	{#if text}
+		{#if icon}<Icon name={icon} size={14} />{/if}
+		<span>{text}</span>
+		<Icon name="chevron-down" size={14} />
+	{:else}
+		<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+			<circle cx="5" cy="12" r="1.8" />
+			<circle cx="12" cy="12" r="1.8" />
+			<circle cx="19" cy="12" r="1.8" />
+		</svg>
+	{/if}
 </button>
 
 {#if open}
@@ -162,6 +179,21 @@
 		background: transparent;
 		color: var(--muted-foreground);
 		cursor: pointer;
+	}
+
+	/* Labelled: the same shape as an outline button of the small size. */
+	.trigger.labelled {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		width: auto;
+		height: var(--button-h-sm, var(--control-h-sm));
+		padding: 0 var(--space-3);
+		color: var(--fg);
+		font: inherit;
+		font-size: var(--text-sm);
+		font-weight: 500;
+		white-space: nowrap;
 	}
 
 	.trigger:hover:not(:disabled),
