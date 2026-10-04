@@ -14,7 +14,10 @@ import {
   syncInviteCardHeight,
 } from "./invite-card.js";
 import { formatEventWhen } from "../data/events.ts";
-import { portableTextToPlain } from "../lib/sanity/portable-text.ts";
+import {
+  portableTextToRich,
+  richToHtml,
+} from "../../functions/_lib/rich-text.js";
 
 /** `/whats-on/<series>/<date>` (or legacy `/events/<slug>`). */
 function parseEventRsvp() {
@@ -140,9 +143,12 @@ function renderEvent(event) {
   const description = document.getElementById(
     "rsvp-event-description-personal",
   );
-  const descriptionText = portableTextToPlain(event.description);
-  if (description && descriptionText) {
-    description.textContent = descriptionText;
+  // Links, bold, italic and lists (#33); richToHtml escapes everything else.
+  const descriptionHtml = richToHtml(
+    event.descriptionRich ?? portableTextToRich(event.description),
+  );
+  if (description && descriptionHtml) {
+    description.innerHTML = descriptionHtml;
     description.hidden = false;
   }
 

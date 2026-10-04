@@ -18,6 +18,7 @@ import {
   seriesCardNextLine,
 } from "../../functions/_lib/event-series.js";
 import { followUpdatesLink } from "./follow-updates.js";
+import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
 
 /** How many nights "Nights ahead" lists under a repeating series. */
 const NIGHTS_AHEAD = 3;
@@ -470,7 +471,7 @@ export function renderEventCard(model) {
     )}${datesHtml(model.dates)}${
       model.description.length
         ? html`<div class="event-description">
-            ${model.description.map((paragraph) => html`<p>${paragraph}</p>`)}
+            ${model.description.map((paragraph) => new SafeHtml(richParagraphHtml(paragraph)))}
           </div>`
         : ""
     }${linkHtml(model.pageLink)}${linkHtml(model.followLink)}${follow}</article></${new SafeHtml(tag)}>`,

@@ -25,6 +25,13 @@ describe("validateEvent", () => {
 		});
 	});
 
+	it("won't save a description link the website wouldn't show (#33)", () => {
+		expect(validateEvent({ ...base, description: "[Tickets](javascript:alert)" }, series)["event-description"]).toMatch(
+			/won't work on the website/,
+		);
+		expect(validateEvent({ ...base, description: "[Tickets](https://dice.fm/x)" }, series)).toEqual({});
+	});
+
 	it("wants an end date on a repeating series that has a start, and not before it", () => {
 		expect(validateEvent({ ...base, endsOn: "" }, series)["event-ends"]).toBe(
 			"Add the last night of the series.",

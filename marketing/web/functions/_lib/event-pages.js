@@ -28,7 +28,11 @@ import {
   seriesGallery,
   seriesRedirects,
 } from "./event-series.js";
-import { portableTextToPlain } from "./portable-text.js";
+import {
+  portableTextToRich,
+  richParagraphHtml,
+  richToPlain,
+} from "./rich-text.js";
 import {
   sanityDatasetForEnv,
   sanityProjectId,
@@ -116,7 +120,9 @@ async function resolveSeries(env, seriesId) {
           path: [SERIES_SHELL, `/whats-on/${detail.seriesId}`],
           values: {
             [TOKENS.title]: detail.title,
-            [TOKENS.description]: seriesSummary(detail.description),
+            [TOKENS.description]: seriesSummary(
+              richToPlain(detail.description),
+            ),
             [TOKENS.eyebrow]: detail.scheduleLabel
               ? formatEventRecurrence(detail.scheduleLabel)
               : "Regular events",
@@ -127,7 +133,7 @@ async function resolveSeries(env, seriesId) {
           html: {
             "<series-lead></series-lead>": rich
               ? eventDescriptionParagraphs(detail.description)
-                  .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+                  .map(richParagraphHtml)
                   .join("")
               : "",
           },
@@ -161,7 +167,7 @@ async function resolveNight(env, seriesId, date, ticket) {
   const events = (data.events || [])
     .map((event) => ({
       ...event,
-      description: portableTextToPlain(event.description),
+      description: portableTextToRich(event.description),
     }))
     .filter(
       (event) =>
@@ -192,7 +198,9 @@ async function resolveNight(env, seriesId, date, ticket) {
         path: [NIGHT_SHELL, `/whats-on/${page.series}/${page.date}`],
         values: {
           [TOKENS.title]: event.title.trim(),
-          [TOKENS.description]: socialDescription(event.description),
+          [TOKENS.description]: socialDescription(
+            richToPlain(event.description),
+          ),
           [TOKENS.slug]: event.slug,
         },
         html: {

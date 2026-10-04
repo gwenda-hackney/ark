@@ -4,7 +4,7 @@ import {
   sanityProjectId,
   sanityQuery,
 } from "./sanity-query.js";
-import { portableTextToPlain } from "./portable-text.js";
+import { portableTextToRich, richToPlain } from "./rich-text.js";
 
 const EVENT_FIELDS = `{
   title,
@@ -47,7 +47,9 @@ function toEventRecord(doc) {
   return {
     title: doc.title,
     eventType: doc.eventType === "private" ? "private" : "public",
-    description: portableTextToPlain(doc.description),
+    // Plain for calendar entries and emails; the page shows descriptionRich.
+    description: richToPlain(portableTextToRich(doc.description)),
+    descriptionRich: portableTextToRich(doc.description),
     offer: doc.offer ?? null,
     date: doc.date ?? null,
     time: doc.time ?? null,
@@ -66,7 +68,11 @@ export function publicEventFields(event) {
   return {
     title: event.title,
     eventType: event.eventType,
-    description: portableTextToPlain(event.description),
+    description: event.descriptionRich
+      ? richToPlain(event.descriptionRich)
+      : richToPlain(portableTextToRich(event.description)),
+    descriptionRich:
+      event.descriptionRich ?? portableTextToRich(event.description),
     offer: event.offer,
     date: event.date,
     time: event.time,
