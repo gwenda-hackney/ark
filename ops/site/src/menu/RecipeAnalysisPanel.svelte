@@ -63,17 +63,9 @@
 		return value == null ? "" : formatAbv(value);
 	}
 
-	function percentileLabel(value: number | null, n: number): string {
-		if (value == null || n < 2) return "";
-		const ordinal =
-			value % 10 === 1 && value !== 11
-				? "st"
-				: value % 10 === 2 && value !== 12
-					? "nd"
-					: value % 10 === 3 && value !== 13
-						? "rd"
-						: "th";
-		return `${value}${ordinal} of ${n}`;
+	/** "61%" of house cocktails sit below this one; blank when there's nothing to compare. */
+	function shareBelow(value: number | null, n: number): string {
+		return value == null || n < 2 ? "" : `${value}%`;
 	}
 
 	function kindRows(kindMl: KindMl, volumeMl: number | null) {
@@ -347,11 +339,11 @@
 						<section class="block" aria-label="House">
 							<p class="section-title"><span>House</span><Tip label="House" tooltip={ITEM_TIPS.house} /></p>
 							<p class="body soft">
-								{#if percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)}
-									Volume {percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)} house cocktails.
+								{#if shareBelow(analysis.peers.volumePercentile, analysis.peers.n)}
+									Bigger than {shareBelow(analysis.peers.volumePercentile, analysis.peers.n)} of the {analysis.peers.n} house cocktails.
 								{/if}
-								{#if percentileLabel(analysis.peers.abvPercentile, analysis.peers.n)}
-									{" "}ABV {percentileLabel(analysis.peers.abvPercentile, analysis.peers.n)}.
+								{#if shareBelow(analysis.peers.abvPercentile, analysis.peers.n)}
+									{" "}Stronger than {shareBelow(analysis.peers.abvPercentile, analysis.peers.n)}.
 								{/if}
 							</p>
 							{#if analysis.peers.nearest.length}
