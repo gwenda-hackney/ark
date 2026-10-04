@@ -992,7 +992,7 @@
 								{/snippet}
 
 								<FormHeading class="lead-first" title="Drink" />
-								<Field class="lead-first" label="Name" for="f-name" error={errors.get("f-name")}>
+								<Field class="lead-first span-6" label="Name" for="f-name" error={errors.get("f-name")}>
 									<TextField
 										id="f-name"
 										size="sm"
@@ -1000,6 +1000,21 @@
 										placeholder="Negroni"
 										value={item.name || ""}
 										oninput={(e) => patch("name", (e.currentTarget as HTMLInputElement).value)}
+									/>
+								</Field>
+								<Field
+									class="span-6"
+									label="Tasting note"
+									for="f-notes"
+									optional
+									hint="A short line under the name."
+								>
+									<TextField
+										id="f-notes"
+										size="sm"
+										value={item.notes || ""}
+										placeholder="Floral fizz"
+										oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
 								<Field class="span-4" label="Drink type" for="f-drink-type">
@@ -1060,20 +1075,6 @@
 										oncommit={(next) => {
 											if (next !== (item?.price || "")) patch("price", next);
 										}}
-									/>
-								</Field>
-								<Field
-									label="Tasting note"
-									for="f-notes"
-									optional
-									hint="A short line under the name."
-								>
-									<TextField
-										id="f-notes"
-										size="sm"
-										value={item.notes || ""}
-										placeholder="Floral fizz"
-										oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
 							</FormLead>
