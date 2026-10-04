@@ -27,8 +27,9 @@ export const ITEM_HELP: PageHelpTopic[] = [
 		body: "How the bar makes it. Glassware and the method (shake, stir, build) also tell Analysis how much water ends up in the glass.",
 	},
 	{
+		id: "abv-volume",
 		title: "ABV and Volume",
-		body: "The strength and size printed beside the drink. For a cocktail they come from the recipe. Type over them if the menu should say something different. The refresh button works them out from the recipe again.",
+		body: "The strength and size printed beside the drink. For a cocktail they're worked out from the recipe and locked (a lock in the box), so they change when the recipe does. Override (the pen button) unlocks one so you can type what the menu should say; it then shows a pen and keeps your figure when the recipe changes. Use recipe value locks it again on the recipe's figure. Beers, wines and spirits have no recipe, so you type theirs.",
 	},
 	{
 		title: "Where it appears",
@@ -80,7 +81,7 @@ export const ITEM_TIPS = {
 	recipe: "What goes in, from stock. Cost, ABV and volume follow from these lines.",
 	serve: "The stock this is poured from, for cost and the till.",
 	method: "Glassware and method also tell Analysis how much water ends up in the glass.",
-	abv: "From the recipe for a cocktail. Type over it if the menu should say something else.",
+	abv: "Worked out from the recipe and locked. Override to type your own; Use recipe value to go back.",
 	placements: "Each row puts the drink on one menu. Location is the chapter, or the screen on the till.",
 	tillName: "A shorter name for the till. Every POS row uses it.",
 	menuName: "Print and digital menus use the drink's name.",

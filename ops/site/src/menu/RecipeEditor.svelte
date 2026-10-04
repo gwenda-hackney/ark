@@ -2,6 +2,7 @@
 	import { onDestroy, untrack } from "svelte";
 	import { fly } from "svelte/transition";
 	import {
+		Badge,
 		Button,
 		BusyOverlay,
 		ConfirmDialog,
@@ -30,13 +31,15 @@
 	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
 	import { flattenMenuSections, sectionPathLabel } from "./menu-sections.js";
 	import { newPriceRow, normalizePrices, priceLabels, relabelPrices, withPrices, type PriceRow } from "./prices.js";
+	import { formatAbv, parseAbvPercent } from "./abv";
 	import {
-		computeRecipeAbv,
-		computeRecipeVolumeMl,
-		formatAbv,
-		inventoryAbvById,
-		parseAbvPercent,
-	} from "./abv";
+		followRecipe,
+		metricOverridden,
+		recipeFigures,
+		settleOverrides,
+		withOverride,
+		type Metric,
+	} from "./metric-lock";
 	import {
 		analyzeRecipe,
 		analysisPayload,
@@ -71,7 +74,7 @@
 		type DraftHistory,
 	} from "./draft-history";
 	import { Icon } from "../app/shell";
-	import { menuEditorActions } from "./editor-actions";
+	import { menuEditorActions, metricActions, type MetricActions } from "./editor-actions";
 	import { ITEM_HELP, ITEM_TIPS } from "./item-help";
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
@@ -165,6 +168,18 @@
 			tabSlide = to > from ? 1 : -1;
 		}
 		tabPrev = id;
+	}
+
+	/**
+	 * Before the snapshot: a cocktail's ABV and volume flags settled, so one
+	 * stored before the flags existed, and not the recipe's, opens set by hand
+	 * without counting as an edit.
+	 */
+	function settleItemOverrides() {
+		const current = untrack(() => item);
+		if (!current) return;
+		const settled = settleOverrides(current, untrack(() => inventory));
+		if (settled !== current) item = settled;
 	}
 
 	function serializeDraft(row: MenuItem | null): string {
@@ -335,6 +350,7 @@
 		syncedKey = key;
 		const rows = untrack(() => item?.ingredients);
 		ingredients = (rows || []).map((ing) => ({ ...ing }));
+		settleItemOverrides();
 		snapshot = serializeDraft(untrack(() => item));
 		history = emptyDraftHistory();
 		discardOpen = false;
@@ -346,6 +362,7 @@
 	$effect(() => {
 		const token = cleanToken;
 		if (!token) return;
+		settleItemOverrides();
 		snapshot = serializeDraft(untrack(() => item));
 		history = emptyDraftHistory();
 	});
@@ -368,23 +385,16 @@
 					? "ingredients:remove"
 					: "ingredients";
 		remember(kind);
+		if (!item) {
+			ingredients = next;
+			return;
+		}
+		const before = recipeFigures(item.drinkType, ingredients, inventory);
 		ingredients = next;
-		if (!item) return;
 		item = {
 			...item,
 			ingredients: next.map((ing) => ({ ...ing })),
-			...recipeMetricsFrom(next),
-		};
-	}
-
-	function recipeMetricsFrom(rows: Ingredient[]) {
-		if (!hasRecipe(item?.drinkType)) return {};
-		const byId = inventoryAbvById(inventory);
-		const abv = computeRecipeAbv(rows, byId);
-		const volumeMl = computeRecipeVolumeMl(rows);
-		return {
-			...(abv != null ? { abv: formatAbv(abv) } : {}),
-			...(volumeMl != null ? { volume: `${volumeMl} ml` } : {}),
+			...followRecipe(item, before, recipeFigures(item.drinkType, next, inventory)),
 		};
 	}
 
@@ -403,10 +413,22 @@
 		};
 	}
 
-	function recalculateRecipeMetrics() {
+	/** Lock inside a figure that follows the recipe, pen inside one set by hand; nothing on other drinks. */
+	function metricIcon(overridden: boolean) {
+		if (!showRecipe) return undefined;
+		return overridden ? handIcon : lockedIcon;
+	}
+
+	function metricTitle(overridden: boolean) {
+		if (!showRecipe) return undefined;
+		return overridden ? "Set by hand" : "From the recipe. Override to type your own.";
+	}
+
+	/** Override (on) unlocks a figure for typing; Use recipe value (off) locks it on the recipe's. */
+	function setMetricOverride(metric: Metric, on: boolean) {
 		if (!item) return;
-		remember("metrics");
-		item = { ...item, ...recipeMetricsFrom(ingredients) };
+		remember(`${metric}:override`);
+		item = withOverride(item, metric, on, figures);
 	}
 
 	async function runAnalyze() {
@@ -586,7 +608,8 @@
 				? { ...priced, drinkType: next }
 				: { ...priced, drinkType: next, cocktailType: "" as const };
 		if (next === "cocktail") {
-			item = cleared;
+			// ABV and volume: locked when they match the recipe, set by hand when not.
+			item = { ...cleared, abvOverride: undefined, volumeOverride: undefined };
 			return;
 		}
 		const serve = defaultServeLine(next, item.name);
@@ -616,8 +639,15 @@
 		return parsed == null ? "" : formatAbv(parsed);
 	});
 	const typeLine = $derived(drinkTypeLabel(drinkType));
-	const canRecalcRecipe = $derived(
-		computeRecipeAbv(ingredients, inventoryAbvById(inventory)) != null,
+	/** What the recipe works out for ABV and volume, live. */
+	const figures = $derived(recipeFigures(drinkType, ingredients, inventory));
+	const abvOverridden = $derived(item ? metricOverridden(item, "abv", figures) : false);
+	const volumeOverridden = $derived(item ? metricOverridden(item, "volume", figures) : false);
+	const abvActions = $derived(
+		metricActions({ cocktail: showRecipe, overridden: abvOverridden, hasRecipeValue: Boolean(figures.abv) }),
+	);
+	const volumeActions = $derived(
+		metricActions({ cocktail: showRecipe, overridden: volumeOverridden, hasRecipeValue: Boolean(figures.volume) }),
 	);
 	const analysis = $derived(
 		item
@@ -774,7 +804,6 @@
 			canUndo,
 			cocktail: showRecipe,
 			hasIngredientLine: Boolean(flattenIngredientsForMenu(ingredients)),
-			canRecalc: canRecalcRecipe,
 			hasPhoto: Boolean(photoUrl),
 			busy,
 		}),
@@ -1248,7 +1277,8 @@
 								class="sec-copy"
 							>
 								<Field
-									class="span-2"
+									class="span-6"
+									width="md"
 									label="ABV"
 									for="f-abv"
 									optional
@@ -1256,20 +1286,7 @@
 									tooltip={showRecipe ? ITEM_TIPS.abv : undefined}
 								>
 									{#snippet actions()}
-										<Button
-											variant="ghost"
-											size="xs"
-											type="button"
-											aria-label="Work out ABV and volume from the recipe"
-											title="Work out ABV and volume from the recipe"
-											disabled={avail.recalc.disabled}
-											reason={avail.recalc.reason}
-											onclick={recalculateRecipeMetrics}
-										>
-											{#snippet icon()}
-												<Icon name="refresh" size={14} />
-											{/snippet}
-										</Button>
+										{@render metricButtons("abv", "ABV", abvActions, abvOverridden)}
 									{/snippet}
 									<NumberField
 										id="f-abv"
@@ -1280,17 +1297,26 @@
 										step={0.5}
 										decimals={1}
 										noun="a percentage"
-										value={stripUnit(item.abv, "%")}
+										readonly={!abvOverridden}
+										placeholder={abvOverridden ? undefined : "—"}
+										title={metricTitle(abvOverridden)}
+										leading={metricIcon(abvOverridden)}
+										value={stripUnit(abvOverridden ? item.abv : figures.abv, "%")}
 										oninput={(e) => patchWithUnit("abv", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
 								<Field
-									class="span-2"
+									class="span-6"
+									width="md"
 									label="Volume"
 									for="f-volume"
 									optional
 									error={errors.get("f-volume")}
+									tooltip={showRecipe ? ITEM_TIPS.abv : undefined}
 								>
+									{#snippet actions()}
+										{@render metricButtons("volume", "volume", volumeActions, volumeOverridden)}
+									{/snippet}
 									<NumberField
 										id="f-volume"
 										size="sm"
@@ -1300,7 +1326,11 @@
 										decimals={0}
 										noun="millilitres"
 										example="120"
-										value={stripUnit(item.volume, "ml")}
+										readonly={!volumeOverridden}
+										placeholder={volumeOverridden ? undefined : "—"}
+										title={metricTitle(volumeOverridden)}
+										leading={metricIcon(volumeOverridden)}
+										value={stripUnit(volumeOverridden ? item.volume : figures.volume, "ml")}
 										oninput={(e) => patchWithUnit("volume", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
@@ -1442,7 +1472,58 @@
 	</form>
 {/if}
 
+{#snippet lockedIcon()}<span class="metric-icon locked"><Icon name="lock" size={14} /></span>{/snippet}
+{#snippet handIcon()}<span class="metric-icon hand"><Icon name="pen" size={14} /></span>{/snippet}
+
+<!-- ABV / Volume: Override unlocks the figure for typing; Use recipe value locks it on the recipe's again. -->
+{#snippet metricButtons(metric: Metric, noun: string, state: MetricActions, overridden: boolean)}
+	{#if showRecipe}
+		<Badge
+			tone={overridden ? "info" : "neutral"}
+			label={overridden ? "By hand" : "Recipe"}
+			title={overridden ? "Set by hand" : "Worked out from the recipe"}
+		/>
+	{/if}
+	<Button
+		variant="ghost"
+		size="xs"
+		type="button"
+		aria-label="Override {noun}"
+		title="Override: type your own {noun}"
+		disabled={state.override.disabled}
+		reason={state.override.reason}
+		onclick={() => setMetricOverride(metric, true)}
+	>
+		{#snippet icon()}<Icon name="pen" size={14} />{/snippet}
+	</Button>
+	<Button
+		variant="ghost"
+		size="xs"
+		type="button"
+		aria-label="Use recipe {noun}"
+		title="Use recipe value: lock it on what the recipe works out"
+		disabled={state.useRecipe.disabled}
+		reason={state.useRecipe.reason}
+		onclick={() => setMetricOverride(metric, false)}
+	>
+		{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
+	</Button>
+{/snippet}
+
 <style>
+	/* Inside ABV / Volume: a lock while the figure follows the recipe, a pen once typed in. */
+	.metric-icon {
+		display: inline-flex;
+	}
+
+	.metric-icon.locked {
+		color: var(--muted-foreground);
+	}
+
+	.metric-icon.hand {
+		color: var(--primary);
+	}
+
 	.editor {
 		position: relative;
 		display: flex;

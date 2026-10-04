@@ -63,4 +63,13 @@ describe("serializeMenuDraft", () => {
 		]);
 		assert.equal(isDraftDirty(serializeMenuDraft(old), serializeMenuDraft(withRows)), false);
 	});
+
+	it("sees Override and Use recipe value, so undo and the unsaved guard do", () => {
+		const locked = serializeMenuDraft({ ...base, abv: "20%", abvOverride: false });
+		const overridden = serializeMenuDraft({ ...base, abv: "20%", abvOverride: true });
+		assert.equal(isDraftDirty(locked, overridden), true);
+		assert.equal(parseMenuDraft(overridden).abvOverride, true);
+		// Not settled yet reads as off, so settling a locked figure isn't an edit.
+		assert.equal(serializeMenuDraft({ ...base, abv: "20%" }), locked);
+	});
 });

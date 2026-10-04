@@ -38,4 +38,13 @@ describe("menuItemPayload", () => {
 		const payload = menuItemPayload({ name: "Negroni", sectionId: "1" });
 		assert.equal("placements" in payload, false);
 	});
+
+	it("sends the ABV and volume overrides once the editor has settled them, and leaves them out before", () => {
+		const settled = menuItemPayload({ name: "Gin tonic", abv: "18%", abvOverride: true, volumeOverride: false });
+		assert.equal(settled.abvOverride, true);
+		assert.equal(settled.volumeOverride, false);
+		const unsettled = menuItemPayload({ name: "Gin tonic", abv: "18%" });
+		assert.equal("abvOverride" in unsettled, false);
+		assert.equal("volumeOverride" in unsettled, false);
+	});
 });

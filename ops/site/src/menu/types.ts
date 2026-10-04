@@ -307,6 +307,12 @@ export type MenuItem = {
 	method?: string;
   abv?: string;
   volume?: string;
+  /**
+   * ABV / volume set by hand. Off: a cocktail's figure follows its recipe,
+   * unless what's stored isn't the recipe's (metric-override.js).
+   */
+  abvOverride?: boolean;
+  volumeOverride?: boolean;
   producer?: string;
   ingredients?: Ingredient[];
   /** Ops-only AI reading for this spec. Not published to the website. */
