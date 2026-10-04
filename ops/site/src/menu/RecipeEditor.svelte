@@ -1504,6 +1504,8 @@
 		align-items: center;
 		justify-self: end;
 		height: var(--control-h-sm);
+		/* The last icon's glyph lines up with the price's right edge, not its button box. */
+		margin-right: calc((var(--control-h-sm) - 1rem) / -2);
 	}
 
 	.panel {
@@ -1514,7 +1516,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-ambient), var(--card);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 		transition: border-color var(--t-fast) var(--ease-in-out);
@@ -1529,9 +1531,9 @@
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
 		column-gap: var(--space-3);
-		row-gap: 0.2rem;
+		row-gap: var(--space-2);
 		flex-shrink: 0;
-		padding: 0.55rem var(--card-pad-lg) 0.75rem;
+		padding: var(--space-3) var(--card-pad-lg) var(--space-5);
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -1679,7 +1681,7 @@
 	.tabs {
 		flex-shrink: 0;
 		padding: var(--space-2) var(--card-pad-lg) 0;
-		background: var(--card);
+		background: transparent;
 		border-bottom: 1px solid var(--border);
 	}
 
