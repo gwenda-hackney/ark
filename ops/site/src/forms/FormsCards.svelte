@@ -71,7 +71,7 @@
 		padding: var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface-1);
+		background: var(--panel-bg);
 		color: inherit;
 		text-decoration: none;
 	}

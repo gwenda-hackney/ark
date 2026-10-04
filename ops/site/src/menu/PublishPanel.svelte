@@ -157,7 +157,7 @@
 		flex-direction: column;
 		height: 100%;
 		min-height: 0;
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	.head {

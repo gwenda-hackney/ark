@@ -411,7 +411,7 @@
 			padding: var(--space-3);
 			border: 1px solid var(--border);
 			border-radius: var(--radius-lg);
-			background: var(--surface-1);
+			background: var(--panel-bg);
 		}
 
 		.table tbody tr:hover {

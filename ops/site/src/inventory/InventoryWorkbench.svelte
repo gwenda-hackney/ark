@@ -2,8 +2,8 @@
 	/**
 	 * Shared liquors and ingredients — ABV feeds cocktail recipe calc.
 	 */
+	import { EditorPlaceholder, EditorReveal, editorZoom } from "../ui";
 	import { onMount, untrack } from "svelte";
-	import { fade, fly } from "svelte/transition";
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import {
 		Button,
@@ -39,7 +39,7 @@
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
 	import { unsaved, rememberBlockedNav } from "../ui/unsaved.svelte";
 	import { restoreGridScroll, parkGridScroll, unparkGridScroll } from "../ui/grid-scroll";
-	import { easeOut, fadeMs, flyMs } from "../ui/motion";
+	import { fadeMs } from "../ui/motion";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { formatGbp } from "../app/money";
 	import { INVENTORY_KINDS, type InventoryItem } from "./types";
@@ -63,6 +63,8 @@
 	let selectedId = $state<string | null>(null);
 	let item = $state<InventoryItem | null>(null);
 	let detailOpen = $state(false);
+	/** The editor mounts once its pane has come forward over the list. */
+	const reveal = new EditorReveal();
 	let listPaneEl = $state<HTMLDivElement | undefined>();
 	let missingId = $state("");
 	let editorCleanToken = $state(0);
@@ -659,18 +661,23 @@
 			{#if detailOpen && item}
 				<div
 					class="pane detail"
-					in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-					out:fade={{ duration: fadeMs, easing: easeOut }}
+					transition:editorZoom
+					onintroend={reveal.introend}
+					onoutrostart={reveal.outrostart}
 				>
-					<InventoryEditor
-						bind:item
-						{busy}
-						{busyLabel}
-						cleanToken={editorCleanToken}
-						onsave={save}
-						ondelete={remove}
-						onback={backToGrid}
-					/>
+					{#if !reveal.settled}
+						<EditorPlaceholder />
+					{:else}
+						<InventoryEditor
+							bind:item
+							{busy}
+							{busyLabel}
+							cleanToken={editorCleanToken}
+							onsave={save}
+							ondelete={remove}
+							onback={backToGrid}
+						/>
+					{/if}
 				</div>
 			{/if}
 		{/if}
@@ -687,7 +694,7 @@
 		height: 100%;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.stage {
@@ -702,7 +709,7 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.pane.parked {
@@ -710,6 +717,24 @@
 		   visibility:hidden makes AG Grid dump its viewport. */
 		pointer-events: none;
 		z-index: 0;
+	}
+
+	/* Steps back and dims while an editor comes forward over it. */
+	.pane:not(.detail) {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
+	}
+
+	.pane:not(.detail).parked {
+		transform: scale(0.97);
+		opacity: 0.35;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.pane:not(.detail) {
+			transition: none;
+		}
 	}
 
 	.pane.detail {

@@ -4,8 +4,9 @@
 	 * Viewport never scrolls — only `.content` does.
 	 */
 	import type { Snippet } from "svelte";
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import Icon from "./Icon.svelte";
+	import { ease, lerpBox, targetBox, type MarkBox } from "./nav-mark";
 	import SectionTabs from "./SectionTabs.svelte";
 	import type { NavRoute } from "./types";
 	import type { AuthMe } from "../api";
@@ -190,6 +191,16 @@
 		go(href);
 	}
 
+	/** The group whose icon or flyout was just clicked: its flyout stays shut until the pointer leaves. */
+	let flyoutDismissed = $state<string | null>(null);
+
+	function onFlyoutClick(event: MouseEvent, href: string, groupId: string): void {
+		onLeafClick(event, href);
+		if (isModifiedClick(event)) return;
+		flyoutDismissed = groupId;
+		(event.currentTarget as HTMLElement).blur();
+	}
+
 	function collapsedGroupHref(item: NavRoute): string {
 		if (item.id === "lightspeed") return "/lightspeed";
 		const child = item.children?.find((row) => row.path);
@@ -247,6 +258,63 @@
 		}
 	}
 
+	/* The current-page mark (see nav-mark.ts). */
+	let navEl = $state<HTMLElement | undefined>();
+	let markEl = $state<HTMLElement | undefined>();
+	let markBox: MarkBox | null = null;
+	let markFrame = 0;
+	const MARK_MS = 320; // --t-slow, the rail's own transition
+
+	function drawMark(box: MarkBox | null): void {
+		markBox = box;
+		if (!markEl) return;
+		if (!box) {
+			markEl.style.opacity = "0";
+			return;
+		}
+		markEl.style.opacity = "1";
+		markEl.style.transform = `translate(${box.x}px, ${box.y}px)`;
+		markEl.style.width = `${box.w}px`;
+		markEl.style.height = `${box.h}px`;
+		markEl.style.borderRadius = `${box.r}px`;
+	}
+
+	/** Ease from where the mark is to where it belongs, re-measuring every frame. */
+	function moveMark(animate: boolean): void {
+		cancelAnimationFrame(markFrame);
+		const nav = navEl;
+		if (!nav) return;
+		const from = markBox;
+		const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+		if (!animate || !from || reduce) {
+			drawMark(targetBox(nav, open));
+			return;
+		}
+		const start = performance.now();
+		const step = (now: number) => {
+			const t = Math.min(1, (now - start) / MARK_MS);
+			const to = targetBox(nav, open);
+			drawMark(to && lerpBox(from, to, ease(t)));
+			if (to && t < 1) markFrame = requestAnimationFrame(step);
+		};
+		markFrame = requestAnimationFrame(step);
+	}
+
+	$effect(() => {
+		// Rail, page or a group opening or closing: the mark moves.
+		void [open, active?.id, JSON.stringify(expandedGroups), shownRoutes.length, navEl, markEl];
+		void tick().then(() => moveMark(true));
+	});
+
+	onMount(() => {
+		const onResize = () => moveMark(false);
+		window.addEventListener("resize", onResize);
+		return () => {
+			window.removeEventListener("resize", onResize);
+			cancelAnimationFrame(markFrame);
+		};
+	});
+
 	function toggleRail(): void {
 		open = !open;
 		try {
@@ -300,13 +368,15 @@
 			</span>
 		</div>
 
-		<nav class="nav scrollbar-fade">
+		<nav class="nav scrollbar-fade" bind:this={navEl}>
+			<span class="nav-mark" class:halo={!open} bind:this={markEl} aria-hidden="true"></span>
 			{#snippet navEntry(item: NavRoute)}
 				{#if item.heading && item.children?.length}
 					<div class="nav-section">
-						{#if open}
+						<!-- Always here, folding away with the rail, so nothing below jumps. -->
+						<div class="nav-section-head" aria-hidden={open ? undefined : true}>
 							<p class="nav-section-label">{item.name}</p>
-						{/if}
+						</div>
 						{#each item.children as child (child.id)}
 							{@render navEntry(child)}
 						{/each}
@@ -314,13 +384,22 @@
 				{:else if item.children?.length}
 					{@const inGroup = navGroupContains(item, active)}
 					{@const groupHref = collapsedGroupHref(item)}
-					{@const groupOpen = isGroupExpanded(item.id)}
-					<div class="nav-group" class:expanded={groupOpen}>
+					{@const groupOpen = open && isGroupExpanded(item.id)}
+					<div
+						class="nav-group"
+						class:expanded={groupOpen}
+						class:dismissed={flyoutDismissed === item.id}
+						role="presentation"
+						onpointerleave={() => {
+							if (flyoutDismissed === item.id) flyoutDismissed = null;
+						}}
+					>
 						{#if open}
 							<button
 								type="button"
 								class="nav-item group-label"
 								class:in={inGroup}
+								data-mark={inGroup && !groupOpen ? "" : undefined}
 								class:open={groupOpen}
 								aria-expanded={groupOpen}
 								aria-controls={`nav-group-${item.id}`}
@@ -332,6 +411,20 @@
 									<Icon name="chevron-right" size={14} />
 								</span>
 							</button>
+						{:else}
+							<a
+								class="nav-item"
+								class:on={inGroup}
+								data-mark={inGroup ? "" : undefined}
+								href={groupHref}
+								aria-current={inGroup ? "true" : undefined}
+								aria-haspopup="true"
+								onclick={(e) => onFlyoutClick(e, groupHref, item.id)}
+							>
+								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
+								<span class="nav-label">{item.name}</span>
+							</a>
+						{/if}
 							<div
 								class="nav-children"
 								id={`nav-group-${item.id}`}
@@ -350,6 +443,7 @@
 												<a
 													class="nav-item nested deep"
 													class:on
+													data-mark={on && groupOpen ? "" : undefined}
 													href={href}
 													aria-current={on ? "page" : undefined}
 													tabindex={groupOpen ? undefined : -1}
@@ -364,6 +458,7 @@
 										<a
 											class="nav-item nested"
 											class:on
+											data-mark={on && groupOpen ? "" : undefined}
 											href={href}
 											aria-current={on ? "page" : undefined}
 											tabindex={groupOpen ? undefined : -1}
@@ -375,18 +470,7 @@
 									{/each}
 								</div>
 							</div>
-						{:else}
-							<a
-								class="nav-item"
-								class:on={inGroup}
-								href={groupHref}
-								aria-current={inGroup ? "true" : undefined}
-								aria-haspopup="true"
-								onclick={(e) => onLeafClick(e, groupHref)}
-							>
-								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
-								<span class="nav-label">{item.name}</span>
-							</a>
+						{#if !open}
 							<nav class="flyout" aria-label={item.name}>
 								<div class="flyout-card">
 									{#each item.children as child (child.id)}
@@ -399,7 +483,7 @@
 													class="flyout-link"
 													href={href}
 													aria-current={on ? "page" : undefined}
-													onclick={(e) => onLeafClick(e, href)}
+													onclick={(e) => onFlyoutClick(e, href, item.id)}
 												>
 													<span class="nav-icon"><Icon name={leaf.icon} size={16} /></span>
 													{leaf.name}
@@ -412,7 +496,7 @@
 											class="flyout-link"
 											href={href}
 											aria-current={on ? "page" : undefined}
-											onclick={(e) => onLeafClick(e, href)}
+											onclick={(e) => onFlyoutClick(e, href, item.id)}
 										>
 											<span class="nav-icon"><Icon name={child.icon} size={16} /></span>
 											{child.name}
@@ -429,6 +513,7 @@
 					<a
 						class="nav-item"
 						class:on
+						data-mark={on ? "" : undefined}
 						href={href}
 						aria-current={on ? "page" : undefined}
 						onclick={(e) => onLeafClick(e, href)}
@@ -567,7 +652,7 @@
 		position: relative;
 		height: 100dvh;
 		overflow: hidden;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 		color: var(--foreground);
 		transition: grid-template-columns var(--t-slow) var(--ease);
 	}
@@ -584,7 +669,7 @@
 		z-index: 50;
 		height: 100dvh;
 		padding: 0 var(--space-3) var(--space-4);
-		background: var(--card);
+		background: var(--panel-bg);
 		border-right: 1px solid var(--border);
 		overflow: hidden;
 	}
@@ -652,6 +737,7 @@
 	}
 
 	.nav {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: 0.1875rem;
@@ -669,19 +755,51 @@
 		overflow: visible;
 	}
 
+	/* Not scrolling, so no gutter to hide: items keep the rail's 3rem and centre on their icons. */
+	.shell:not(.open) .nav {
+		margin-right: 0;
+	}
+
 	.nav-section {
 		display: flex;
 		flex-direction: column;
 		gap: 0.0625rem;
 	}
 
-	.open .nav-section {
-		margin-top: var(--space-3);
-		margin-bottom: var(--space-1);
+	/*
+	  Collapsing the rail folds the section labels, their spacing and any open
+	  group's links away over the same time as the width, so the entries glide
+	  to their new rows with the gold mark instead of jumping.
+	*/
+	.nav-section {
+		margin-block: var(--space-3) var(--space-1);
+		transition: margin var(--t-slow) var(--ease);
+	}
+
+	.shell:not(.open) .nav-section {
+		margin-block: 0;
+	}
+
+	.nav-section-head {
+		display: grid;
+		grid-template-rows: 1fr;
+		opacity: 1;
+		transition:
+			grid-template-rows var(--t-slow) var(--ease),
+			opacity var(--t-slow) var(--ease);
+	}
+
+	.shell:not(.open) .nav-section-head {
+		grid-template-rows: 0fr;
+		opacity: 0;
 	}
 
 	.nav-section-label {
-		margin: 0.15rem 0 var(--space-1) var(--space-3);
+		min-height: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		margin: 0;
+		padding: 0.15rem 0 var(--space-1) var(--space-3);
 		font-size: var(--text-2xs);
 		font-weight: 600;
 		letter-spacing: var(--tracking-label);
@@ -720,7 +838,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.0625rem;
-		padding: 0 0 0.15rem;
+	}
+
+	/* The space under the links, inside the fold so a closed group has none. */
+	.nav-children-inner::after {
+		content: "";
+		flex-shrink: 0;
+		height: 0.15rem;
 	}
 
 	.nav-group.expanded .nav-children-inner {
@@ -841,6 +965,13 @@
 		transform: translate(0, 0);
 	}
 
+	/* Picked a page from it: shut while the pointer is still over it. */
+	.nav-group.dismissed .flyout {
+		opacity: 0;
+		pointer-events: none;
+		transform: translate(-0.25rem, 0);
+	}
+
 	.flyout-card {
 		display: grid;
 		gap: 0.125rem;
@@ -903,7 +1034,8 @@
 		width: 100%;
 		height: 2.75rem;
 		min-height: 2.75rem;
-		padding: 0 var(--space-3);
+		/* (3rem item - 19px icon) / 2: the icon sits in the middle of the collapsed rail's item. */
+		padding: 0 0.90625rem;
 		border: none;
 		border-radius: var(--radius-md);
 		background: none;
@@ -934,34 +1066,34 @@
 	}
 
 	.nav-item.on {
-		background: var(--primary-wash);
 		color: var(--primary);
 	}
 
 	.nav-item.on:focus-visible {
 		color: var(--primary);
-		background: var(--primary-wash);
+		background: transparent;
 		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent);
 	}
 
-	/* Collapsed: circle halo only (no rect wash). Expanded: rect wash only. */
-	.shell:not(.open) .nav-item.on {
-		background: transparent;
-	}
-
-	.nav-item.on::before {
-		content: "";
+	/*
+	  The current page's mark, one shape for the whole nav: the row's wash when
+	  the rail is open, the halo round the icon when collapsed. nav-mark.ts
+	  moves and reshapes it; only its colour is left to CSS.
+	*/
+	.nav-mark {
 		position: absolute;
-		left: 0.0625rem;
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 50%;
-		background: var(--glow);
+		top: 0;
+		left: 0;
+		width: 0;
+		height: 0;
+		opacity: 0;
+		background: var(--primary-wash);
 		pointer-events: none;
+		transition: background-color var(--t-slow) var(--ease);
 	}
 
-	.open .nav-item.on::before {
-		display: none;
+	.nav-mark.halo {
+		background: var(--glow);
 	}
 
 	/* Collapsed rail clips outer rings; keep keyboard focus on the icon halo. */
@@ -973,7 +1105,7 @@
 	.shell:not(.open) .nav-item:focus-visible::after {
 		content: "";
 		position: absolute;
-		left: 0.0625rem;
+		left: 0.25rem;
 		width: 2.5rem;
 		height: 2.5rem;
 		border-radius: 50%;
@@ -1029,7 +1161,7 @@
 	.shell:not(.open) .nav-badge {
 		position: absolute;
 		top: 0.3rem;
-		left: 1.55rem;
+		left: 1.7rem;
 		min-width: 1rem;
 		height: 1rem;
 		padding: 0 var(--space-1);
@@ -1137,7 +1269,7 @@
 		gap: var(--space-4);
 		padding: 0 var(--page-gutter);
 		border-bottom: 1px solid var(--border);
-		background: var(--background);
+		background: transparent;
 	}
 
 	.topbar-end {
@@ -1257,7 +1389,7 @@
 		.back-more {
 			flex-shrink: 0;
 			border-bottom: 1px solid var(--border);
-			background: var(--background);
+			background: transparent;
 		}
 
 		.back-more a {
@@ -1286,7 +1418,7 @@
 			height: var(--bottom-nav-h);
 			padding: 0.35rem 0.4rem env(safe-area-inset-bottom, 0px);
 			border-top: 1px solid var(--border);
-			background: var(--card);
+			background: var(--panel-bg);
 		}
 
 		.tab {

@@ -316,7 +316,7 @@
 
 	.head,
 	.day {
-		background: var(--background);
+		background: var(--ambient), var(--background);
 		min-width: 0;
 	}
 

@@ -97,7 +97,7 @@ describe("splash markup", () => {
 
   it("paints the dark splash before any script", () => {
     assert.ok(index.indexOf('id="boot"') < index.indexOf("/src/app/main.ts"));
-    assert.match(index, /background: #0b0b0c/);
+    assert.match(index, /background: #0e0e10/);
     assert.match(index, /prefers-reduced-motion/);
   });
 

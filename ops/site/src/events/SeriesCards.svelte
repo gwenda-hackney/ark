@@ -59,7 +59,8 @@
 		flex: 1;
 		min-height: 0;
 		overflow-y: auto;
-		padding-bottom: var(--space-6);
+		/* The page's gutter, inside the scroll so the scrollbar sits at the edge. */
+		padding: var(--space-1) var(--page-gutter) var(--space-6);
 	}
 
 	.grid {
@@ -77,7 +78,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface-1);
+		background: var(--panel-bg);
 		color: inherit;
 		text-decoration: none;
 		overflow: hidden;

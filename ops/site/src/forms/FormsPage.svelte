@@ -597,7 +597,7 @@
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.list {
@@ -631,7 +631,7 @@
 		min-height: 0;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 	}

@@ -344,6 +344,13 @@
 ></div>
 
 <style>
+	/* The surface behind the see-through rows. Full-page grids repaint the
+	   viewport-pinned glow so they read as the page; cards pass transparent. */
+	.host :global(.ag-root-wrapper),
+	.host :global(.ag-pinned-left-cols-container .ag-row) {
+		background: var(--grid-bg, var(--ambient), var(--background));
+	}
+
 	.host {
 		width: 100%;
 		height: 100%;

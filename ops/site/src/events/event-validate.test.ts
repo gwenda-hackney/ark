@@ -64,9 +64,10 @@ describe("validateEvent", () => {
 });
 
 describe("where the problems are", () => {
-	it("puts a saved series' pattern and times on Schedule, the rest on Details", () => {
+	it("puts a saved series' pattern on Schedule, its times and the rest on Details", () => {
 		expect(eventFieldTab("event-ends", true)).toBe("schedule");
 		expect(eventFieldTab("event-unit", true)).toBe("schedule");
+		expect(eventFieldTab("event-start-time", true)).toBe("details");
 		expect(eventFieldTab("event-description", true)).toBe("details");
 		expect(eventFieldTab("event-name", true)).toBe("details");
 	});

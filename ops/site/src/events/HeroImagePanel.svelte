@@ -28,6 +28,7 @@
 		locked = false,
 		help = "",
 		heading = "Hero",
+		ownActions = true,
 		onchangecrops,
 		onpickfile,
 		onclear,
@@ -40,6 +41,8 @@
 		locked?: boolean;
 		/** Help drawer topic for the ? beside the heading. */
 		help?: string;
+		/** False when the caller puts PhotoActions on its own label row. */
+		ownActions?: boolean;
 		onchangecrops: (
 			crops: HeroFraming | null,
 			meta: { width: number; height: number },
@@ -377,16 +380,18 @@
 			<span class="empty-hint">or use Add photo below</span>
 		</label>
 	{:else}
-		<div class="photo-actions">
-			<PhotoActions
-				take={{ disabled }}
-				replace={{ disabled }}
-				remove={{ disabled }}
-				download={originalUrl || null}
-				onfile={onFile}
-				onremove={onclear}
-			/>
-		</div>
+{#if ownActions}
+				<div class="photo-actions">
+				<PhotoActions
+					take={{ disabled }}
+					replace={{ disabled }}
+					remove={{ disabled }}
+					download={originalUrl || null}
+					onfile={onFile}
+					onremove={onclear}
+				/>
+			</div>
+		{/if}
 		<div
 			class="stage"
 			bind:this={stageEl}

@@ -327,7 +327,7 @@
 		padding: 0 var(--space-1) 0 var(--space-3);
 		border: 0;
 		background: transparent;
-		color: var(--foreground);
+		color: var(--field-foreground);
 		font: inherit;
 		font-size: var(--text-base);
 		font-variant-numeric: tabular-nums;

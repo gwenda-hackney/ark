@@ -870,7 +870,7 @@
 		padding: var(--space-4) var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	.site-label {
@@ -934,7 +934,7 @@
 	.card {
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 		overflow: hidden;
 	}
 

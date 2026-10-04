@@ -1,9 +1,10 @@
 <script lang="ts">
 	/**
 	 * The event editor's fields, a tab's worth at a time. Details is what it
-	 * is, in the website's words, and the photo; Schedule is a series' pattern,
-	 * times and night schedule; Ops is the team's tasks and notes. A night or
-	 * a special event has one date, so its When stays on Details. A new form
+	 * is and when each night runs, in the website's words, and the photo;
+	 * Schedule is a series' pattern and night schedule; Ops is the team's tasks
+	 * and notes. A night or a special event has one date, which sits with its
+	 * times under the name. A new form
 	 * is every part on one page, starting with the chooser. A night shows each
 	 * value it takes from its series as "From series", with Override beside it.
 	 */
@@ -15,6 +16,7 @@
 		Field,
 		FormSection,
 		NativeSelect,
+		PhotoActions,
 		TextArea,
 		TextField,
 		TimeField,
@@ -119,7 +121,7 @@
 		return {
 			what: details,
 			photo: details,
-			when: schedule,
+			when: isSeries && schedule,
 			slots: schedule && !editingOccurrence,
 			slotsBeside: part === "schedule" && isSeries,
 			ops: all || part === "ops",
@@ -189,6 +191,13 @@
 		if (!hit.link) return;
 		if (inherits && !form.isOverridden("pageUrl")) onoverride("pageUrl");
 		form.pageUrl = hit.link;
+	}
+
+	function onPhotoFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = "";
+		if (file) onpickphoto(file);
 	}
 
 	function onCropsChange(next: HeroFraming | null) {
@@ -268,7 +277,7 @@
 						for="event-name"
 						required={!inherits}
 						error={errors.get("event-name")}
-						help="Name"
+						help={inherits ? "Name" : undefined}
 					>
 						{#snippet actions()}{@render inheritAction("name")}{/snippet}
 						{#if follows("name")}
@@ -280,6 +289,48 @@
 								autocomplete="off"
 								bind:value={form.name}
 								placeholder={inherits ? "Halloween special" : isOnce ? "Halloween party" : "Jazz Thursdays"}
+							/>
+						{/if}
+					</Field>
+					{#if !isSeries}
+					<Field
+						class="span-4"
+						label="Date"
+						for="event-date"
+						required
+						error={errors.get("event-date")}
+					>
+						<DateField id="event-date" size="sm" bind:value={form.startsOn} />
+					</Field>
+					{/if}
+					<Field
+						class={isSeries ? "span-6" : "span-4"}
+						label="Starts"
+						for="event-start-time"
+						optional={!inherits}
+					>
+						{#snippet actions()}{@render inheritAction("startTime")}{/snippet}
+						{#if follows("startTime")}
+							<InheritedValue value={readout("startTime")} empty={!seriesText(parentSeries, "startTime")} />
+						{:else}
+							<TimeField id="event-start-time" size="sm" bind:value={form.startTime} />
+						{/if}
+					</Field>
+					<Field
+						class={isSeries ? "span-6" : "span-4"}
+						label="Ends"
+						for="event-end-time"
+						optional={!inherits}
+					>
+						{#snippet actions()}{@render inheritAction("endTime")}{/snippet}
+						{#if follows("endTime")}
+							<InheritedValue value={readout("endTime")} empty={!seriesText(parentSeries, "endTime")} />
+						{:else}
+							<TimeField
+								id="event-end-time"
+								size="sm"
+								bind:value={form.endTime}
+								suggest={form.startTime || "23:00"}
 							/>
 						{/if}
 					</Field>
@@ -310,7 +361,6 @@
 						label="Guest link"
 						for="event-page-url"
 						optional={!inherits}
-						help="Guest/collaboration and Guest link"
 					>
 						{#snippet actions()}{@render inheritAction("pageUrl")}{/snippet}
 						{#if follows("pageUrl")}
@@ -333,7 +383,6 @@
 						label="Offer"
 						for="event-offer"
 						optional={!inherits}
-						help="Offer"
 					>
 						{#snippet actions()}{@render inheritAction("offer")}{/snippet}
 						{#if follows("offer")}
@@ -393,7 +442,6 @@
 						for="event-description"
 						required={!inherits}
 						error={errors.get("event-description")}
-						help="Card line and Description"
 					>
 						{#snippet actions()}{@render inheritAction("description")}{/snippet}
 						{#if follows("description")}
@@ -419,52 +467,7 @@
 					title="When"
 					class="sec-when"
 				>
-					{#if isSeries}
-						<RepeatFields {form} {errors} />
-					{:else}
-						<Field
-							class="span-4"
-							label="Date"
-							for="event-date"
-							required
-							error={errors.get("event-date")}
-						>
-							<DateField id="event-date" size="sm" bind:value={form.startsOn} />
-						</Field>
-					{/if}
-					<Field
-						class={isSeries ? "span-half" : "span-4"}
-						label="Starts"
-						for="event-start-time"
-						optional={!inherits}
-						help="Starts and Ends"
-					>
-						{#snippet actions()}{@render inheritAction("startTime")}{/snippet}
-						{#if follows("startTime")}
-							<InheritedValue value={readout("startTime")} empty={!seriesText(parentSeries, "startTime")} />
-						{:else}
-							<TimeField id="event-start-time" size="sm" bind:value={form.startTime} />
-						{/if}
-					</Field>
-					<Field
-						class={isSeries ? "span-half" : "span-4"}
-						label="Ends"
-						for="event-end-time"
-						optional={!inherits}
-						help="Starts and Ends"
-					>
-						{#snippet actions()}{@render inheritAction("endTime")}{/snippet}
-						{#if follows("endTime")}
-							<InheritedValue value={readout("endTime")} empty={!seriesText(parentSeries, "endTime")} />
-						{:else}
-							<TimeField
-								id="event-end-time"
-								size="sm"
-								bind:value={form.endTime}
-								suggest={form.startTime || "23:00"}
-							/>
-						{/if}
-					</Field>
+					<RepeatFields {form} {errors} />
 					{#if part === "all" && isSeries && form.repeatUnit !== "none" && nextNights.length}
 						<p class="next-nights">
 							<span class="next-label">Next</span>
@@ -486,7 +489,6 @@
 						label="Notes for the team"
 						for="event-operations-notes"
 						optional={!inherits}
-						help="Ops tab"
 					>
 						{#snippet actions()}{@render inheritAction("operationsNotes")}{/snippet}
 						{#if follows("operationsNotes")}
@@ -509,48 +511,63 @@
 		</div>
 		{#if show.photo}
 			<div class="col col-side">
-				<FormSection title="Photo" class="sec-photo" help="Default hero">
-					{#snippet actions()}
-						{#if inherits}
-							{#if photoFollows}
-								<button type="button" class="field-link" disabled={busy || !parentSeries} onclick={onoverridephoto}>
-									Override
-								</button>
-							{:else}
-								<button type="button" class="field-link" disabled={busy} onclick={onuseseriesphoto}>
-									Use series photo
-								</button>
+				<!-- A field label, not a group heading: it lines up with Name beside it. -->
+				<section class="form-section sec-photo" aria-label="Photo">
+					<Field label="Photo" help="Default hero">
+						{#snippet actions()}
+							{#if inherits}
+								{#if photoFollows}
+									<button type="button" class="field-link" disabled={busy || !parentSeries} onclick={onoverridephoto}>
+										Override
+									</button>
+								{:else}
+									<button type="button" class="field-link" disabled={busy} onclick={onuseseriesphoto}>
+										Use series photo
+									</button>
+								{/if}
 							{/if}
-						{/if}
-					{/snippet}
-					<div class="photo-block">
-						{#if photoFollows}
-							<HeroImagePanel
-								heading=""
-								sourceUrl={seriesPhotoUrl}
-								locked
-								onchangecrops={() => undefined}
-								onpickfile={() => undefined}
-								onclear={() => undefined}
-							/>
-						{:else}
-							<HeroImagePanel
-								heading=""
-								sourceUrl={framingUrl}
-								crops={form.heroCrops}
-								disabled={busy}
-								onchangecrops={onCropsChange}
-								onpickfile={(file) => onpickphoto(file)}
-								onclear={onclearphoto}
-							/>
-						{/if}
-						{#if photoFollows || (!eventId && framingUrl)}
-							<p class="photo-note">
-								{photoFollows ? "This night uses the series photo." : "It uploads when you save."}
-							</p>
-						{/if}
-					</div>
-				</FormSection>
+							{#if !photoFollows && framingUrl}
+								<!-- Replace, download, remove: on the label's row, not a row of their own. -->
+								<PhotoActions
+									take={{ disabled: busy }}
+									replace={{ disabled: busy }}
+									remove={{ disabled: busy }}
+									download={/^https?:\/\//i.test(framingUrl) ? framingUrl : null}
+									onfile={onPhotoFile}
+									onremove={onclearphoto}
+								/>
+							{/if}
+						{/snippet}
+						<div class="photo-block">
+							{#if photoFollows}
+								<HeroImagePanel
+									heading=""
+									sourceUrl={seriesPhotoUrl}
+									locked
+									onchangecrops={() => undefined}
+									onpickfile={() => undefined}
+									onclear={() => undefined}
+								/>
+							{:else}
+								<HeroImagePanel
+									heading=""
+									sourceUrl={framingUrl}
+									crops={form.heroCrops}
+									disabled={busy}
+									ownActions={false}
+									onchangecrops={onCropsChange}
+									onpickfile={(file) => onpickphoto(file)}
+									onclear={onclearphoto}
+								/>
+							{/if}
+							{#if photoFollows || (!eventId && framingUrl)}
+								<p class="photo-note">
+									{photoFollows ? "This night uses the series photo." : "It uploads when you save."}
+								</p>
+							{/if}
+						</div>
+					</Field>
+				</section>
 			</div>
 		{/if}
 		{#if show.slotsBeside}
@@ -634,6 +651,11 @@
 		.with-photo > .col-side > :global(.form-section) {
 			padding-top: 0;
 			border-top: 0;
+		}
+
+		/* Skip the What heading's row so the Photo label sits level with Name. */
+		.with-photo > .col-side > :global(.sec-photo) {
+			padding-top: calc(1.25rem + var(--space-4));
 		}
 
 		.photo-block {

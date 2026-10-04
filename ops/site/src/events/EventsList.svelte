@@ -340,7 +340,7 @@
 				{/if}
 			{/snippet}
 		</PageHeader>
-		<div class="list-main fill">
+		<div class="list-main fill" class:bleed={listView === "series" && seriesRows.length > 0 && !loading}>
 			{#if error && !editing && !missing && !events.length}
 				<EmptyState tone="error" title="Could not load events" text={error}>
 					{#snippet action()}
@@ -400,7 +400,7 @@
 		padding: var(--page-gutter);
 		display: flex;
 		flex-direction: column;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.list-main {
@@ -416,6 +416,12 @@
 		overflow: hidden;
 	}
 
+	/* Series cards scroll edge to edge, like the menu's, so the scrollbar sits
+	   at the side of the page; SeriesCards puts the gutter back inside. */
+	.list-main.bleed {
+		margin: 0 calc(-1 * var(--page-gutter)) calc(-1 * var(--page-gutter));
+	}
+
 	.grid-host,
 	.calendar-host {
 		flex: 1;
@@ -428,6 +434,24 @@
 	.list-page.parked {
 		/* Keep the list laid out and scrolled under the detail. */
 		pointer-events: none;
+	}
+
+	/* Steps back and dims while an editor comes forward over it. */
+	.list-page {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
+	}
+
+	.list-page.parked {
+		transform: scale(0.97);
+		opacity: 0.35;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.list-page {
+			transition: none;
+		}
 	}
 
 	.error {

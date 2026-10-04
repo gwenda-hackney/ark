@@ -427,8 +427,6 @@
 	/* The grid sits on the editor's card: the card's own surface, no darker box. */
 	.host :global(.ag-root-wrapper) {
 		--ag-background-color: var(--card);
-		--ag-data-background-color: var(--card);
-		--ag-header-background-color: var(--card);
 	}
 
 	.lines {

@@ -580,7 +580,7 @@
 		gap: 0;
 		min-height: 0;
 		height: 100%;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.state {

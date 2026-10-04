@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { render } from "svelte/server";
 import { describe, expect, it } from "vitest";
 import HelpHarness from "./fixtures/HelpHarness.svelte";
-import { HelpController } from "./help.svelte";
+import { filterHelp, HelpController, parseHelpQuery } from "./help.svelte";
 import type { PageHelpTopic } from "./types";
 import { ITEM_HELP } from "../menu/item-help";
 import { EVENTS_HELP } from "../events/events-help";
@@ -33,6 +33,50 @@ describe("HelpController", () => {
 		help.show("Nope");
 		expect(help.open).toBe(true);
 		expect(help.focus).toBe(null);
+	});
+
+	it("fills the search with the topic it opens on", () => {
+		const help = new HelpController(() => "Item", () => topics);
+		help.show("Price");
+		expect(help.query).toBe("field:Price");
+		help.showAll();
+		expect(help.query).toBe("");
+	});
+});
+
+describe("parseHelpQuery", () => {
+	it("splits field: from free text", () => {
+		expect(parseHelpQuery("  ")).toEqual({});
+		expect(parseHelpQuery("field: Series name ")).toEqual({ field: "Series name" });
+		expect(parseHelpQuery("pour cost")).toEqual({ text: "pour cost" });
+	});
+});
+
+describe("filterHelp", () => {
+	const list: PageHelpTopic[] = [
+		{ title: "Series name", body: "The series." },
+		{ title: "Notes", body: "Shown under the name." },
+		{ title: "Name", body: "What it is called." },
+		{ title: "Price", body: "Pounds." },
+	];
+
+	it("keeps everything for an empty query", () => {
+		expect(filterHelp(list, "  ")).toEqual(list);
+	});
+
+	it("puts the exact title first, then titles, then text", () => {
+		expect(filterHelp(list, "name").map((t) => t.title)).toEqual(["Name", "Series name", "Notes"]);
+	});
+
+	it("drops topics that don't match", () => {
+		expect(filterHelp(list, "zzz")).toEqual([]);
+	});
+
+	it("field: looks only at titles, from the start", () => {
+		expect(filterHelp(list, "field:name").map((t) => t.title)).toEqual(["Name"]);
+		expect(filterHelp(list, "Field: Series name").map((t) => t.title)).toEqual(["Series name"]);
+		expect(filterHelp(list, "field:n").map((t) => t.title)).toEqual(["Notes", "Name"]);
+		expect(filterHelp(list, "field:")).toEqual(list);
 	});
 });
 

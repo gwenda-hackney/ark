@@ -4,7 +4,6 @@
 	 * on `topic` (see help.svelte.ts). Renders nothing without a Help drawer
 	 * above it or when the drawer has no such topic.
 	 */
-	import { Icon } from "../app/shell";
 	import { getHelp } from "./help.svelte";
 
 	let { label, topic }: { label: string; topic: string } = $props();
@@ -28,7 +27,12 @@
 			help.show(topic);
 		}}
 	>
-		<Icon name="help" size={16} />
+		<!-- Wider ring than the shared help icon, so the ? has room inside it. -->
+		<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+			<circle cx="12" cy="12" r="10" />
+			<path d="M9.75 9.2c0-1.35 1.05-2.25 2.25-2.25s2.25.85 2.25 2.1c0 1.15-.85 1.7-1.55 2.15-.7.45-1.05.85-1.05 1.7" />
+			<path d="M12 16.15h.01" />
+		</svg>
 	</button>
 {/if}
 
@@ -38,8 +42,8 @@
 		display: inline-grid;
 		place-content: center;
 		flex-shrink: 0;
-		width: 1.25rem;
-		height: 1.25rem;
+		width: 1.125rem;
+		height: 1.125rem;
 		padding: 0;
 		border: 0;
 		border-radius: 50%;
@@ -58,6 +62,14 @@
 		content: "";
 		position: absolute;
 		inset: -0.6rem;
+	}
+
+	.help-tip svg {
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	.help-tip:hover,

@@ -336,7 +336,7 @@
 	.chapter {
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface-1);
+		background: var(--panel-bg);
 	}
 
 	.chapter-head {

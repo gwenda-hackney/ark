@@ -29,19 +29,20 @@ export {
  */
 export const opsGridTheme = themeQuartz.withParams({
 	accentColor: "var(--primary)",
-	// A grid inside a card sets --grid-bg: transparent so it sits on the card's
-	// surface; a full-page grid keeps the page background.
-	backgroundColor: "var(--grid-bg, var(--background))",
+	// Rows are see-through; DataGrid paints the surface behind them: the page's
+	// glow on a full-page grid, nothing in a card (--grid-bg: transparent).
+	backgroundColor: "transparent",
 	borderColor: "var(--border)",
 	browserColorScheme: "inherit",
 	cellTextColor: "var(--foreground)",
-	dataBackgroundColor: "var(--grid-bg, var(--background))",
+	dataBackgroundColor: "transparent",
 	fontFamily: "var(--font)",
 	// --text-sm. AG Grid needs a pixel number here, not a CSS variable.
 	fontSize: 13,
 	foregroundColor: "var(--foreground)",
 
-	headerBackgroundColor: "var(--grid-head-bg, var(--surface-1))",
+	headerBackgroundColor: "var(--grid-head-bg, var(--panel-bg))",
+	menuBackgroundColor: "var(--popover)",
 	// --text-2xs
 	headerFontSize: 11,
 	headerFontWeight: 600,

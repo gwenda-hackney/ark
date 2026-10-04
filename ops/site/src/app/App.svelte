@@ -144,7 +144,7 @@
 		flex-direction: column;
 		min-height: 0;
 		width: 100%;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.page.fill :global(.workbench),

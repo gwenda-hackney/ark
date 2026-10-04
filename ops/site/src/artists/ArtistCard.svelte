@@ -726,7 +726,7 @@
 		flex-direction: column;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.split {
@@ -745,7 +745,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 		transition: border-color var(--t-fast) var(--ease-in-out);

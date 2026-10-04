@@ -617,7 +617,7 @@
 		padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface-1);
+		background: var(--panel-bg);
 	}
 
 	.attention-label {
@@ -778,7 +778,7 @@
 		padding: var(--space-4) var(--space-5);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface-1);
+		background: var(--panel-bg);
 		color: var(--fg);
 		text-decoration: none;
 		transition: border-color 120ms ease, background-color 120ms ease;

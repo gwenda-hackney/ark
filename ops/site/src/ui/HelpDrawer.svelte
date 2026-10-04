@@ -2,16 +2,14 @@
 	/**
 	 * Side drawer for page help. Portaled over the page. Escape and backdrop close.
 	 *
-	 * Given `help` (an editor's HelpController), it follows that: opened from
-	 * a field's "?", it shows that one topic with Show all help under it;
-	 * Show all lists every topic and keeps the one you came from marked and in
-	 * view. Without `help` it lists `topics` while `open`.
+	 * A search box on top filters the topics by title and text, or by title
+	 * alone with `field:Name`. Given `help` (an editor's HelpController), it
+	 * follows that: a field's "?" opens it with `field:<topic>` in the box,
+	 * and clearing the box shows every topic. Without `help` it lists `topics` while `open`.
 	 */
-	import { tick } from "svelte";
-	import { Icon } from "../app/shell";
-	import Button from "./Button.svelte";
 	import PageDrawer from "./PageDrawer.svelte";
-	import type { HelpController } from "./help.svelte";
+	import SearchField from "./SearchField.svelte";
+	import { filterHelp, type HelpController } from "./help.svelte";
 	import type { PageHelpTopic } from "./types";
 
 	let {
@@ -31,30 +29,23 @@
 	const isOpen = $derived(help ? help.open : open);
 	const allTopics = $derived(help ? help.topics : topics);
 	const drawerTitle = $derived(help ? help.title : title);
-	const focus = $derived(help?.focus ?? null);
-	const shown = $derived(focus ? allTopics.filter((t) => t.title === focus) : allTopics);
 
-	/** The topic opened from a "?", still marked after Show all. */
-	let marked = $state<string | null>(null);
-	let listEl = $state<HTMLElement | undefined>();
-
+	/** The search box without a controller; starts empty on every open. */
+	let localQuery = $state("");
 	$effect(() => {
-		if (!isOpen) marked = null;
-		else if (focus) marked = focus;
+		if (!help && !open) localQuery = "";
 	});
+	const query = $derived(help ? help.query : localQuery);
+	const shown = $derived(filterHelp(allTopics, query));
+
+	function setQuery(next: string) {
+		if (help) help.query = next;
+		else localQuery = next;
+	}
 
 	function close() {
 		if (help) help.close();
 		else onclose();
-	}
-
-	async function showAll() {
-		help?.showAll();
-		await tick();
-		// The button is gone now: keep focus, and the eye, on the topic.
-		const el = listEl?.querySelector<HTMLElement>(".topic.marked");
-		el?.focus({ preventScroll: true });
-		el?.scrollIntoView({ block: "center" });
 	}
 </script>
 
@@ -62,26 +53,27 @@
 	{#if allTopics.length === 0}
 		<p class="empty">No help for this page yet.</p>
 	{:else}
-		<div bind:this={listEl}>
+		<div class="search">
+			<SearchField
+				bind:value={() => query, setQuery}
+				placeholder="Search help, or field:name"
+				ariaLabel="Search help"
+				count={shown.length}
+				width="100%"
+			/>
+		</div>
+		{#if shown.length === 0}
+			<p class="empty">No help matches “{query.trim()}”.</p>
+		{:else}
 			<dl class="topics">
 				{#each shown as topic (topic.title)}
-					<div class="topic" class:marked={marked === topic.title} tabindex="-1">
+					<div class="topic">
 						<dt>{topic.title}</dt>
 						<dd>{topic.body}</dd>
 					</div>
 				{/each}
 			</dl>
-			{#if focus}
-				<div class="show-all">
-					<Button variant="secondary" size="sm" type="button" onclick={showAll}>
-						{#snippet icon()}
-							<Icon name="list" size={16} />
-						{/snippet}
-						Show all help
-					</Button>
-				</div>
-			{/if}
-		</div>
+		{/if}
 	{/if}
 </PageDrawer>
 
@@ -90,24 +82,6 @@
 		margin: 0;
 		display: grid;
 		gap: var(--space-4);
-	}
-
-	.topic {
-		border-radius: var(--radius-md);
-		scroll-margin-block: var(--space-4);
-	}
-
-	/* Focus lands here only from Show all; the mark already shows where. */
-	.topic:focus {
-		outline: none;
-	}
-
-	/* The topic you opened from a "?": a primary edge, kept after Show all. */
-	.topic.marked {
-		margin-inline: calc(-1 * var(--space-3));
-		padding: var(--space-3);
-		background: color-mix(in srgb, var(--primary) 8%, transparent);
-		box-shadow: inset 3px 0 0 var(--primary);
 	}
 
 	.topic dt {
@@ -124,10 +98,15 @@
 		color: var(--muted-foreground);
 	}
 
-	.show-all {
-		margin-top: var(--space-5);
-		padding-top: var(--space-4);
-		border-top: 1px solid var(--border);
+	/* Stays on top while the topics scroll under it. */
+	.search {
+		position: sticky;
+		top: -0.85rem;
+		z-index: 1;
+		margin: -0.85rem calc(-1 * var(--card-pad)) var(--space-4);
+		padding: 0.85rem var(--card-pad) var(--space-3);
+		background: var(--panel-bg);
+		backdrop-filter: blur(16px);
 	}
 
 	.empty {

@@ -137,7 +137,9 @@
 		gap: 0.1rem;
 		padding: var(--space-2) 0;
 		margin-bottom: var(--space-3);
-		background: var(--background);
+		/* Same viewport-pinned glow as the page, so it hides cards scrolling
+		   under it without showing as a band. */
+		background: var(--ambient), var(--background);
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -185,7 +187,7 @@
 		overflow: hidden;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface-1);
+		background: var(--panel-bg);
 		color: inherit;
 		text-decoration: none;
 		transition:

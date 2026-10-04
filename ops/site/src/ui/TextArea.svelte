@@ -34,7 +34,7 @@
 		border: 1px solid var(--input);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
-		color: var(--foreground);
+		color: var(--field-foreground);
 		font-size: var(--text-base);
 		line-height: 1.45;
 		resize: vertical;

@@ -463,7 +463,7 @@
 		height: 100%;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.page :global(.page-header) {

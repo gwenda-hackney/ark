@@ -298,7 +298,7 @@
 		flex-direction: column;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--surface-1);
+		background: var(--panel-bg);
 		transition:
 			background-color var(--t-fast) var(--ease-in-out),
 			border-color var(--t-fast) var(--ease-in-out);

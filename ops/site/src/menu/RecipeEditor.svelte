@@ -1602,7 +1602,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--panel-ambient), var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 		transition: border-color var(--t-fast) var(--ease-in-out);

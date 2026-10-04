@@ -46,6 +46,8 @@ export { default as FormLead } from "./FormLead.svelte";
 export { default as FormSplit } from "./FormSplit.svelte";
 export { Confirm } from "./confirm.svelte";
 export { FormErrors } from "./form-errors.svelte";
+export { editorZoom, EditorReveal } from "./editor-zoom.svelte";
+export { default as EditorPlaceholder } from "./EditorPlaceholder.svelte";
 export { provideHelp, getHelp, HelpController } from "./help.svelte";
 export type { SelectOption, SegmentedItem, PageHelpTopic, OverflowItem } from "./types";
 export type { BadgeTone } from "./badge";

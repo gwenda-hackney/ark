@@ -200,7 +200,7 @@
 		overflow-x: auto;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	table {
@@ -284,7 +284,7 @@
 		padding: var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	.card h2 {

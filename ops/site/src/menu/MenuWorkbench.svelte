@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { EditorPlaceholder, EditorReveal, editorZoom } from "../ui";
 	import { onMount } from "svelte";
-	import { fade, fly } from "svelte/transition";
 	import {
 		Button,
 		BusyOverlay,
@@ -82,11 +82,14 @@
 	let selectedId = $state<string | null>(null);
 	let item = $state<MenuItem | null>(null);
 	let detailOpen = $state(false);
+	/** The editor mounts once its pane has come forward over the list. */
+	const reveal = new EditorReveal();
 	let listPaneEl = $state<HTMLDivElement | undefined>();
 	let publishOpen = $state(false);
 	let query = $state("");
 	/** Phone list order. The desktop grid sorts by its column headers. */
 	let sort = $state<MenuListSort>("section");
+	const sortLocked = $derived(!phone.matches && view.value === "table");
 	let itemCount = $state(0);
 	const sortChips = $derived.by((): FilterChip[] => {
 		if (sort === "section") return [];
@@ -591,10 +594,14 @@
 			{/each}
 		</FilterField>
 	{/if}
+	<!-- Always shown so the toolbar keeps its layout when Cards/Table switches;
+	     the desktop table sorts by its column headers instead. -->
 	<FilterField label="Sort">
-		{#each MENU_LIST_SORTS as option (option.id)}
-			<Chip pressed={sort === option.id} onclick={() => (sort = option.id)}>{option.label}</Chip>
-		{/each}
+		<span class="sort-chips" title={sortLocked ? "The table sorts by its column headers" : undefined}>
+			{#each MENU_LIST_SORTS as option (option.id)}
+				<Chip pressed={sort === option.id} disabled={sortLocked} onclick={() => (sort = option.id)}>{option.label}</Chip>
+			{/each}
+		</span>
 	</FilterField>
 {/snippet}
 
@@ -702,7 +709,7 @@
 									active={sort === "section" ? 0 : 1}
 									chips={sortChips}
 									onclearfilters={() => (sort = "section")}
-									filters={phone.matches || view.value === "cards" ? sortFilter : undefined}
+									filters={sortFilter}
 								>
 									{#snippet end()}
 										<p class="meta">{itemCount} item{itemCount === 1 ? "" : "s"}</p>
@@ -742,31 +749,36 @@
 				{#if detailOpen && item}
 					<div
 						class="pane detail"
-						in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-						out:fade={{ duration: fadeMs, easing: easeOut }}
+						transition:editorZoom
+						onintroend={reveal.introend}
+						onoutrostart={reveal.outrostart}
 					>
-						<RecipeEditor
-							bind:item
-							{sections}
-							bind:inventory
-							menuItems={allItems()}
-							{posMenus}
-							{busy}
-							{busyLabel}
-							cleanToken={editorCleanToken}
-							tab={editorTab}
-							{tabBase}
-							onsave={save}
-							onprint={() =>
-								item?.name?.trim() &&
-								goToPrint(menuItemPrintPath(item.name))}
-							ondelete={remove}
-							onphoto={onPhoto}
-							onphotoremove={onPhotoRemove}
-							onback={backToGrid}
-							onrefresh={refreshEditor}
-							ontab={setEditorTab}
-						/>
+						{#if !reveal.settled}
+							<EditorPlaceholder />
+						{:else}
+							<RecipeEditor
+								bind:item
+								{sections}
+								bind:inventory
+								menuItems={allItems()}
+								{posMenus}
+								{busy}
+								{busyLabel}
+								cleanToken={editorCleanToken}
+								tab={editorTab}
+								{tabBase}
+								onsave={save}
+								onprint={() =>
+									item?.name?.trim() &&
+									goToPrint(menuItemPrintPath(item.name))}
+								ondelete={remove}
+								onphoto={onPhoto}
+								onphotoremove={onPhotoRemove}
+								onback={backToGrid}
+								onrefresh={refreshEditor}
+								ontab={setEditorTab}
+							/>
+						{/if}
 					</div>
 				{/if}
 			{/if}
@@ -791,6 +803,18 @@
 {/if}
 
 <style>
+	.sort-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.sort-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
 	.workbench {
 		position: relative;
 		display: flex;
@@ -798,7 +822,7 @@
 		height: 100%;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.stage {
@@ -813,7 +837,7 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.pane.parked {
@@ -821,6 +845,24 @@
 		   visibility:hidden makes AG Grid dump its viewport. */
 		pointer-events: none;
 		z-index: 0;
+	}
+
+	/* Steps back and dims while an editor comes forward over it. */
+	.pane:not(.detail) {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
+	}
+
+	.pane:not(.detail).parked {
+		transform: scale(0.97);
+		opacity: 0.35;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.pane:not(.detail) {
+			transition: none;
+		}
 	}
 
 	.pane.detail {

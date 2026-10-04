@@ -115,15 +115,16 @@
 	--ring-wash: color-mix(in srgb, var(--primary) 22%, transparent);
 
 	/* ─── Ambient light ──────────────────────────────────────────────────── */
-	/* Faint gold and bar-green light so large surfaces aren't flat. Layer
-	   these over a solid colour: background: var(--ambient), var(--bg). */
+	/* One faint gold and bar-green light behind the whole app. The layers are
+	   pinned to the viewport (fixed), so any opaque page that paints
+	   background: var(--ambient), var(--background) lines up with the shell
+	   and reads as the same surface. Panels sit on it in --panel-bg. */
 	--ambient-green: #2f6b5a;
 	--ambient:
-		radial-gradient(70rem 45rem at 100% -10%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 70%),
-		radial-gradient(60rem 45rem at -10% 110%, color-mix(in srgb, var(--ambient-green) 14%, transparent), transparent 70%);
-	--panel-ambient:
-		radial-gradient(40rem 24rem at 100% 0%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 70%),
-		radial-gradient(40rem 30rem at 0% 100%, color-mix(in srgb, var(--ambient-green) 10%, transparent), transparent 70%);
+		radial-gradient(70rem 45rem at 100% -10%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 70%) fixed,
+		radial-gradient(60rem 45rem at -10% 110%, color-mix(in srgb, var(--ambient-green) 20%, transparent), transparent 70%) fixed;
+	/* Cards and editor panels: the surface colour, letting a little glow through. */
+	--panel-bg: color-mix(in srgb, var(--surface-1) 86%, transparent);
 
 	/* ─── Shadows (overlays only) ────────────────────────────────────────── */
 	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);

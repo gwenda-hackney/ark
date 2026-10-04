@@ -82,7 +82,7 @@
 		border: 1px solid var(--border);
 		/* Cards: 12px corners, a border and no shadow; shadows are for overlays. */
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 		color: var(--card-foreground);
 		transition: border-color var(--t) var(--ease-in-out);
 	}
@@ -106,7 +106,7 @@
 				var(--primary-wash) 55%,
 				transparent
 			),
-			var(--card);
+			var(--panel-bg);
 	}
 
 	.head {

@@ -74,7 +74,7 @@
 		position: relative;
 		z-index: 5;
 		border-bottom: 1px solid var(--border);
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	ul {

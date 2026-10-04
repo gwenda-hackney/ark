@@ -75,7 +75,7 @@ export const NAV_ROUTES: NavRoute[] = [
 				id: "dev-tools",
 				path: "/web/dev",
 				name: "Developer tools",
-				icon: "settings",
+				icon: "code",
 				hint: "Compare test and live",
 				adminOnly: true,
 			},

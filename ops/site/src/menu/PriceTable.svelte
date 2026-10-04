@@ -359,8 +359,6 @@
 
 	.host :global(.ag-root-wrapper) {
 		--ag-background-color: var(--card);
-		--ag-data-background-color: var(--card);
-		--ag-header-background-color: var(--card);
 	}
 
 	.lines {

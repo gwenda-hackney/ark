@@ -323,8 +323,6 @@
 	/* The grid sits on the editor's card: the card's own surface, no darker box. */
 	.host :global(.ag-root-wrapper) {
 		--ag-background-color: var(--card);
-		--ag-data-background-color: var(--card);
-		--ag-header-background-color: var(--card);
 	}
 
 	/* Print and Digital carry the drink's name; a POS row with no override shows it too. */

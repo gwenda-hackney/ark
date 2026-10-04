@@ -92,7 +92,9 @@
 		margin-top: auto;
 		padding: var(--space-3) var(--card-pad-lg);
 		border-top: 1px solid var(--border);
-		background: var(--card);
+		/* Content scrolls under it: frosted, so the panel's glow still shows. */
+		background: color-mix(in srgb, var(--surface-1) 70%, transparent);
+		backdrop-filter: blur(12px);
 	}
 
 	.status {

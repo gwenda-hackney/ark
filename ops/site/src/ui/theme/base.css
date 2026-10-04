@@ -30,7 +30,7 @@ body {
 	font-size: var(--text-base);
 	line-height: var(--leading-base);
 	color: var(--foreground);
-	background: var(--background);
+	background: var(--ambient), var(--background);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	font-synthesis-weight: none;

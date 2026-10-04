@@ -89,7 +89,7 @@
 		border: none;
 		background: none;
 		font-size: var(--text-base);
-		color: var(--foreground);
+		color: var(--field-foreground);
 	}
 
 	input:focus {

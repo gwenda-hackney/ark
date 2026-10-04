@@ -237,7 +237,7 @@
 		border: 1px solid var(--input);
 		border-radius: var(--radius-md);
 		background: var(--sunken);
-		color: var(--foreground);
+		color: var(--field-foreground);
 		line-height: 1.25;
 		text-align: left;
 		cursor: pointer;

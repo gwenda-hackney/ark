@@ -94,7 +94,8 @@
 		border-left: 1px solid var(--border);
 		box-shadow: var(--shadow);
 		overflow: hidden;
-		background: var(--card);
+		background: var(--panel-bg);
+		backdrop-filter: blur(16px);
 		will-change: transform;
 		padding-bottom: env(safe-area-inset-bottom, 0px);
 	}

@@ -26,35 +26,26 @@ export type EventValidateContext = {
 	attachSeriesId: string;
 };
 
-/** Field ids in the order they appear: the chooser, What, When, then the website copy. */
+/** Field ids in the order they appear: the chooser, Details, then a series' pattern. */
 export const EVENT_FIELD_ORDER = [
 	"event-series",
 	"event-name",
 	"event-date",
-	"event-unit",
-	"event-every",
-	"event-month-day",
-	"event-starts",
-	"event-ends",
 	"event-start-time",
 	"event-end-time",
 	"event-description",
-] as const;
-
-/** A series' pattern and times, on its Schedule tab. */
-const SCHEDULE_FIELDS = new Set([
 	"event-unit",
 	"event-every",
 	"event-month-day",
 	"event-starts",
 	"event-ends",
-	"event-start-time",
-	"event-end-time",
-]);
+] as const;
+
+/** A series' pattern, on its Schedule tab. */
+const SCHEDULE_FIELDS = new Set(["event-unit", "event-every", "event-month-day", "event-starts", "event-ends"]);
 
 /**
- * The tab a field is on. A saved series keeps its pattern and times on
- * Schedule; everything else, and every field of a night, a special event or
+ * The tab a field is on. A saved series keeps its pattern on Schedule; everything else, and every field of a night, a special event or
  * a new form, is on Details.
  */
 export function eventFieldTab(key: string, savedSeries = false): string | undefined {

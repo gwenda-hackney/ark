@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick } from "svelte";
-	import { fade, fly } from "svelte/transition";
+	import { EditorPlaceholder, EditorReveal, editorZoom } from "../ui";
+	import { onDestroy, onMount, tick, untrack } from "svelte";
+	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
 		BusyOverlay,
@@ -35,7 +36,7 @@
 		navigate,
 	} from "../app/nav";
 	import { setActiveNavOverride, setCrumbLeaf } from "../ui/crumbs.svelte";
-	import { easeOut, fadeMs, flyMs } from "../ui/motion";
+	import { easeOut } from "../ui/motion";
 	import {
 		beginLeave,
 		clearUnsavedGuard,
@@ -99,8 +100,16 @@
 		];
 	});
 
+	/** The form mounts once the editor has come forward; a page opened straight on an editor has no intro. */
+	const reveal = new EditorReveal(untrack(() => editor.editing));
+
 	/** A new form starts in its name, or its date when the series is already picked. */
 	async function focusFirstField() {
+		await tick();
+		// The form mounts once the editor has come forward.
+		for (let wait = 0; !reveal.settled && wait < 40; wait += 1) {
+			await new Promise((done) => setTimeout(done, 25));
+		}
 		await tick();
 		const id = editor.attachSeriesId ? "event-date" : "event-name";
 		(document.getElementById(id) as HTMLInputElement | null)?.focus();
@@ -337,227 +346,232 @@
 			class="editor"
 			novalidate
 			aria-busy={editor.busy || undefined}
-			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-			out:fade={{ duration: fadeMs, easing: easeOut }}
+			transition:editorZoom
+			onintroend={reveal.introend}
+			onoutrostart={reveal.outrostart}
 			onsubmit={editor.onSave}
 		>
-			<EditorBackBar label={listTitle} onback={requestClose} />
-			<div class="split split--full">
-				<div class="panel" class:dirty={editor.formDirty}>
-					<EditorHeader
-						form={editor.form}
-						current={editor.current}
-						eventId={editor.eventId}
-						occurrenceDate={editor.occurrenceDate}
-						busy={editor.busy}
-						dirty={editor.formDirty}
-						isNew={Boolean(editor.route.isNew)}
-						creatingNight={editor.creatingNight}
-						creatingOnce={editor.creatingOnce}
-						editingOnce={editor.editingOnce}
-						parentSeriesName={editor.parentSeriesName}
-						calendarSyncing={editor.calendarSyncing}
-						localOps={editor.localOps}
-						onaddnight={editor.addNightToSeries}
-						onsynccalendar={() => void editor.onSyncCalendar()}
-						onputonwebsite={editor.openPutOnWebsite}
-						onreload={requestReload}
-						onclose={requestClose}
-					/>
+			{#if !reveal.settled}
+				<EditorPlaceholder />
+			{:else}
+				<EditorBackBar label={listTitle} onback={requestClose} />
+				<div class="split split--full">
+					<div class="panel" class:dirty={editor.formDirty}>
+						<EditorHeader
+							form={editor.form}
+							current={editor.current}
+							eventId={editor.eventId}
+							occurrenceDate={editor.occurrenceDate}
+							busy={editor.busy}
+							dirty={editor.formDirty}
+							isNew={Boolean(editor.route.isNew)}
+							creatingNight={editor.creatingNight}
+							creatingOnce={editor.creatingOnce}
+							editingOnce={editor.editingOnce}
+							parentSeriesName={editor.parentSeriesName}
+							calendarSyncing={editor.calendarSyncing}
+							localOps={editor.localOps}
+							onaddnight={editor.addNightToSeries}
+							onsynccalendar={() => void editor.onSyncCalendar()}
+							onputonwebsite={editor.openPutOnWebsite}
+							onreload={requestReload}
+							onclose={requestClose}
+						/>
 
-					{#if tabs.length > 1}
-						<div class="tabs">
-							<Segmented
-								value={editor.tab}
-								items={tabs}
-								tone="soft"
-								size="sm"
-								ariaLabel="Event sections"
-							/>
-						</div>
-					{/if}
+						{#if tabs.length > 1}
+							<div class="tabs">
+								<Segmented
+									value={editor.tab}
+									items={tabs}
+									tone="soft"
+									size="sm"
+									ariaLabel="Event sections"
+								/>
+							</div>
+						{/if}
 
-					<div class="tab-scroll scrollbar-fade">
-						<div class="tab-body">
-							{#key editor.tab}
-								<div
-									class="tab-panel"
-									in:fly={{
-										x: tabSlide * 14,
-										duration: 260,
-										opacity: 0,
-										easing: easeOut,
-									}}
-								>
-									{#if editor.tab !== "gallery" || editor.route.isNew}
-										<EventFields
-											part={editor.route.isNew ? "all" : editor.tab === "schedule" || editor.tab === "ops" ? editor.tab : "details"}
-											form={editor.form}
-											errors={editor.errors}
-											current={editor.current}
-											parentSeries={editor.parentSeries}
-											eventId={editor.eventId}
-											occurrenceDate={editor.occurrenceDate}
-											busy={editor.busy}
-											isNew={Boolean(editor.route.isNew)}
-											newKind={editor.newKind}
-											creatingNight={editor.creatingNight}
-											creatingOnce={editor.creatingOnce}
-											editingOnce={editor.editingOnce}
-											editingOccurrence={editor.editingOccurrence}
-											bind:attachSeriesId={editor.attachSeriesId}
-											seriesOptions={editor.seriesOptions}
-											approvedArtists={editor.approvedArtists}
-											webAddressChanged={editor.webAddressChanged}
-											framingUrl={editor.framingUrl}
-											previewDates={editor.previewDates}
-											onkind={editor.setNewKind}
-											onoverride={editor.overrideField}
-											onuseseries={editor.useSeriesValue}
-											onoverridephoto={editor.overridePhoto}
-											onuseseriesphoto={() => void editor.useSeriesPhoto()}
-											onpickphoto={editor.acceptPhotoFile}
-											onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage("main"))}
-										/>
-										{#if editor.tab === "schedule" && !editor.route.isNew}
-											<ScheduleTab
+						<div class="tab-scroll scrollbar-fade">
+							<div class="tab-body">
+								{#key editor.tab}
+									<div
+										class="tab-panel"
+										in:fly={{
+											x: tabSlide * 14,
+											duration: 260,
+											opacity: 0,
+											easing: easeOut,
+										}}
+									>
+										{#if editor.tab !== "gallery" || editor.route.isNew}
+											<EventFields
+												part={editor.route.isNew ? "all" : editor.tab === "schedule" || editor.tab === "ops" ? editor.tab : "details"}
 												form={editor.form}
+												errors={editor.errors}
 												current={editor.current}
+												parentSeries={editor.parentSeries}
 												eventId={editor.eventId}
-												previewDates={editor.previewDates}
+												occurrenceDate={editor.occurrenceDate}
 												busy={editor.busy}
-												onaddnight={editor.addNightToSeries}
+												isNew={Boolean(editor.route.isNew)}
+												newKind={editor.newKind}
+												creatingNight={editor.creatingNight}
+												creatingOnce={editor.creatingOnce}
+												editingOnce={editor.editingOnce}
+												editingOccurrence={editor.editingOccurrence}
+												bind:attachSeriesId={editor.attachSeriesId}
+												seriesOptions={editor.seriesOptions}
+												approvedArtists={editor.approvedArtists}
+												webAddressChanged={editor.webAddressChanged}
+												framingUrl={editor.framingUrl}
+												previewDates={editor.previewDates}
+												onkind={editor.setNewKind}
+												onoverride={editor.overrideField}
+												onuseseries={editor.useSeriesValue}
+												onoverridephoto={editor.overridePhoto}
+												onuseseriesphoto={() => void editor.useSeriesPhoto()}
+												onpickphoto={editor.acceptPhotoFile}
+												onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage("main"))}
 											/>
+											{#if editor.tab === "schedule" && !editor.route.isNew}
+												<ScheduleTab
+													form={editor.form}
+													current={editor.current}
+													eventId={editor.eventId}
+													previewDates={editor.previewDates}
+													busy={editor.busy}
+													onaddnight={editor.addNightToSeries}
+												/>
+											{/if}
+										{:else if editor.tab === "gallery"}
+											<GalleryTab gallery={editor.gallery} eventId={editor.eventId} busy={editor.busy} />
 										{/if}
-									{:else if editor.tab === "gallery"}
-										<GalleryTab gallery={editor.gallery} eventId={editor.eventId} busy={editor.busy} />
-									{/if}
-									{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
-										<div class="job-failed" role="alert">
-											<p>
-												Saved, but it couldn't be got ready for the website: {editor.websiteJob.error ||
-													"something went wrong."}
-											</p>
-											<Button
-												variant="outline"
-												size="sm"
-												type="button"
-												busy={editor.retrying}
-												disabled={editor.retrying}
-												onclick={() => void editor.onRetryWebsiteJob()}
-											>
-												{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
-												Try again
-											</Button>
-										</div>
-									{/if}
-									{#if editor.warnings.length}
-										<ul class="warnings">
-											{#each editor.warnings as warning (warning)}
-												<li>{warning}</li>
-											{/each}
-										</ul>
-									{/if}
-									{#if editor.error}<p class="error">{editor.error}</p>{/if}
-								</div>
-							{/key}
+										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
+											<div class="job-failed" role="alert">
+												<p>
+													Saved, but it couldn't be got ready for the website: {editor.websiteJob.error ||
+														"something went wrong."}
+												</p>
+												<Button
+													variant="outline"
+													size="sm"
+													type="button"
+													busy={editor.retrying}
+													disabled={editor.retrying}
+													onclick={() => void editor.onRetryWebsiteJob()}
+												>
+													{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
+													Try again
+												</Button>
+											</div>
+										{/if}
+										{#if editor.warnings.length}
+											<ul class="warnings">
+												{#each editor.warnings as warning (warning)}
+													<li>{warning}</li>
+												{/each}
+											</ul>
+										{/if}
+										{#if editor.error}<p class="error">{editor.error}</p>{/if}
+									</div>
+								{/key}
+							</div>
 						</div>
+
+						<EditorActionBar
+							{saveLabel}
+							saving={editor.saving && editor.intent === "save"}
+							disabled={editor.busy}
+							dirty={editor.formDirty}
+							errorCount={editor.errors.count}
+							onerrors={() => void editor.showErrors()}
+							overflow={[
+								// Nights always offer this, disabled when nothing overrides the series;
+								// a series never has it.
+								...(editor.editingOccurrence
+									? [
+											{
+												label: "Use series values for everything",
+												disabled: editor.busy || !(editor.form.defaultsUnlocked || editor.form.ownPhoto),
+												reason:
+													editor.form.defaultsUnlocked || editor.form.ownPhoto
+														? undefined
+														: "Already follows the series",
+												onselect: () => void editor.useSeriesDefaults(),
+											},
+										]
+									: []),
+								{
+									label: deleteLabel,
+									tone: "destructive" as const,
+									disabled: editor.busy || !editor.eventId,
+									reason: editor.eventId ? undefined : "Not saved yet",
+									onselect: editor.requestDelete,
+								},
+							]}
+						/>
 					</div>
-
-					<EditorActionBar
-						{saveLabel}
-						saving={editor.saving && editor.intent === "save"}
-						disabled={editor.busy}
-						dirty={editor.formDirty}
-						errorCount={editor.errors.count}
-						onerrors={() => void editor.showErrors()}
-						overflow={[
-							// Nights always offer this, disabled when nothing overrides the series;
-							// a series never has it.
-							...(editor.editingOccurrence
-								? [
-										{
-											label: "Use series values for everything",
-											disabled: editor.busy || !(editor.form.defaultsUnlocked || editor.form.ownPhoto),
-											reason:
-												editor.form.defaultsUnlocked || editor.form.ownPhoto
-													? undefined
-													: "Already follows the series",
-											onselect: () => void editor.useSeriesDefaults(),
-										},
-									]
-								: []),
-							{
-								label: deleteLabel,
-								tone: "destructive" as const,
-								disabled: editor.busy || !editor.eventId,
-								reason: editor.eventId ? undefined : "Not saved yet",
-								onselect: editor.requestDelete,
-							},
-						]}
-					/>
 				</div>
-			</div>
 
-			<DiscardDialog
-				open={discardOpen}
-				kind={discardKind}
-				oncancel={cancelDiscard}
-				onconfirm={confirmDiscard}
-			/>
+				<DiscardDialog
+					open={discardOpen}
+					kind={discardKind}
+					oncancel={cancelDiscard}
+					onconfirm={confirmDiscard}
+				/>
 
-			<ScopeDialog
-				open={editor.saveScopeOpen}
-				title="Which nights should change?"
-				message="Past nights stay as they were."
-				onchoose={(scope) => editor.saveOccurrenceWithScope(scope)}
-				onclose={() => (editor.saveScopeOpen = false)}
-			/>
+				<ScopeDialog
+					open={editor.saveScopeOpen}
+					title="Which nights should change?"
+					message="Past nights stay as they were."
+					onchoose={(scope) => editor.saveOccurrenceWithScope(scope)}
+					onclose={() => (editor.saveScopeOpen = false)}
+				/>
 
-			<ReplaceNightDialog
-				prompt={editor.replacePrompt}
-				eventName={editor.form.name.trim() || "this event"}
-				replacing={editor.replacing}
-				onchoose={(replace) => void editor.chooseConflict(replace)}
-				onclose={() => (editor.replacePrompt = null)}
-			/>
+				<ReplaceNightDialog
+					prompt={editor.replacePrompt}
+					eventName={editor.form.name.trim() || "this event"}
+					replacing={editor.replacing}
+					onchoose={(replace) => void editor.chooseConflict(replace)}
+					onclose={() => (editor.replacePrompt = null)}
+				/>
 
-			<ScopeDialog
-				open={editor.deleteScopeOpen}
-				title="Which nights should be deleted?"
-				message="Past nights stay as they were."
-				alsoWebsite={editor.onWebsite}
-				disabled={editor.busy}
-				destructive
-				allBusy={editor.saving && editor.intent === "delete"}
-				onchoose={(scope) => void editor.performDelete(scope)}
-				onclose={editor.cancelDelete}
-			/>
+				<ScopeDialog
+					open={editor.deleteScopeOpen}
+					title="Which nights should be deleted?"
+					message="Past nights stay as they were."
+					alsoWebsite={editor.onWebsite}
+					disabled={editor.busy}
+					destructive
+					allBusy={editor.saving && editor.intent === "delete"}
+					onchoose={(scope) => void editor.performDelete(scope)}
+					onclose={editor.cancelDelete}
+				/>
 
-			<DeleteEventDialog
-				open={editor.deleteOpen}
-				eventName={editor.form.name.trim() || editor.current?.name || "this event"}
-				kind={editor.editingOccurrence
-					? "night"
-					: editor.editingOnce
-						? "event"
-						: "series"}
-				nightDate={editor.occurrenceDate}
-				seriesName={editor.parentSeriesName}
-				onWebsite={editor.onWebsite}
-				busy={editor.busy}
-				deleting={editor.saving && editor.intent === "delete"}
-				oncancel={editor.cancelDelete}
-				onconfirm={() => void editor.performDelete("series")}
-			/>
+				<DeleteEventDialog
+					open={editor.deleteOpen}
+					eventName={editor.form.name.trim() || editor.current?.name || "this event"}
+					kind={editor.editingOccurrence
+						? "night"
+						: editor.editingOnce
+							? "event"
+							: "series"}
+					nightDate={editor.occurrenceDate}
+					seriesName={editor.parentSeriesName}
+					onWebsite={editor.onWebsite}
+					busy={editor.busy}
+					deleting={editor.saving && editor.intent === "delete"}
+					oncancel={editor.cancelDelete}
+					onconfirm={() => void editor.performDelete("series")}
+				/>
 
-			<UpdateWebsiteDialog
-				open={editor.putOpen}
-				putting={editor.putting}
-				error={editor.putError}
-				onclose={() => (editor.putOpen = false)}
-				onconfirm={() => void editor.confirmPutOnWebsite()}
-			/>
+				<UpdateWebsiteDialog
+					open={editor.putOpen}
+					putting={editor.putting}
+					error={editor.putError}
+					onclose={() => (editor.putOpen = false)}
+					onconfirm={() => void editor.confirmPutOnWebsite()}
+				/>
+			{/if}
 		</form>
 	{/if}
 	<!-- The list shows skeleton rows while it loads; the overlay is for the editor and saves. -->
@@ -582,7 +596,7 @@
 		position: absolute;
 		inset: 0;
 		z-index: 1;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.missing {
@@ -620,7 +634,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 		transition: border-color var(--t-fast) var(--ease-in-out);
@@ -633,7 +647,7 @@
 	.tabs {
 		flex-shrink: 0;
 		padding: var(--space-2) var(--card-pad-lg) 0;
-		background: var(--card);
+		background: transparent;
 		border-bottom: 1px solid var(--border);
 	}
 

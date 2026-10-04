@@ -62,7 +62,6 @@
 	<Field
 		class="span-6 days"
 		label="On"
-		help="Schedule tab"
 	>
 		<div class="chips" role="group" aria-label="Weekdays">
 			{#each WEEKDAYS as day (day)}
@@ -97,7 +96,6 @@
 		for="event-ends"
 		required={Boolean(form.startsOn)}
 		error={errors.get("event-ends")}
-		help="Schedule tab"
 	>
 		<DateField id="event-ends" size="sm" bind:value={form.endsOn} min={form.startsOn} />
 	</Field>
