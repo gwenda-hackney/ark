@@ -1286,7 +1286,7 @@
 								class="sec-copy"
 							>
 								<Field
-									class="span-4"
+									class="span-5"
 									label="ABV"
 									for="f-abv"
 									optional
@@ -1314,7 +1314,7 @@
 									/>
 								</Field>
 								<Field
-									class="span-4"
+									class="span-5"
 									label="Volume"
 									for="f-volume"
 									optional
