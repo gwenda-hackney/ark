@@ -4,6 +4,7 @@
  * form is submitted and by ops when it resends one.
  */
 import { isValidEmail } from "./field-rules.js";
+import { APPLICATION_SERIES_PROJECTION } from "./series-choice.js";
 
 /** The Sanity form document the website renders, validates and emails. */
 export const FORM_QUERY = `*[_type == "form" && enabled == true && slug.current == $slug][0] {
@@ -26,7 +27,8 @@ export const FORM_QUERY = `*[_type == "form" && enabled == true && slug.current 
     helpText,
     required,
     options[] { label, value }
-  }
+  },
+  ${APPLICATION_SERIES_PROJECTION}
 }`;
 
 function answerValue(answers, key) {

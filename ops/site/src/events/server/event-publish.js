@@ -350,6 +350,7 @@ export async function publishEventPreview(
       datesPending,
       gallery: gallery.images,
       formerSlugs: event.formerSlugs || [],
+      takingApplications: event.takingApplications === true,
     }),
   });
 

@@ -350,6 +350,8 @@ export function occurrencePayload(event, occurrence) {
     occurrenceHeroCrops: stableHeroFraming(row?.overrides?.heroCrops),
     shortDescription: content.shortDescription || null,
     seriesNightSchedule: stableNightSchedule(event?.nightSchedule),
+    // Only when on, so series that never take applications keep their hash.
+    ...(event?.takingApplications === true ? { seriesTakingApplications: true } : {}),
     isSpecialEdition: content.isSpecialEdition,
     seriesId: String(event?.slug || "").trim(),
     seriesTitle: String(event?.name || "").trim(),
@@ -423,6 +425,7 @@ export function sanitySeriesDocument({
   datesPending = false,
   gallery = [],
   formerSlugs = [],
+  takingApplications = false,
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -439,6 +442,8 @@ export function sanitySeriesDocument({
     nightSchedule: toSanityNightSchedule(nightSchedule),
   };
   if (datesPending) doc.datesPending = true;
+  // Listed on the website's Play at Gwenda form (#41).
+  if (takingApplications) doc.takingApplications = true;
   // Old web addresses the website redirects here. Left off when none.
   const former = formerSlugs.map((old) => String(old || "").trim()).filter((old) => old && old !== key);
   if (former.length) doc.formerSlugs = former;
