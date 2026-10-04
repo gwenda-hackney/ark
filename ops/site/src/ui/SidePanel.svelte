@@ -81,7 +81,7 @@
 		border: 0;
 		padding: 0;
 		margin: 0;
-		background: color-mix(in srgb, #0d0d0d 55%, transparent);
+		background: color-mix(in srgb, var(--bg) 55%, transparent);
 		cursor: pointer;
 	}
 
@@ -94,7 +94,8 @@
 		border-left: 1px solid var(--border);
 		box-shadow: var(--shadow);
 		overflow: hidden;
-		background: var(--card);
+		background: var(--panel-bg);
+		backdrop-filter: blur(16px);
 		will-change: transform;
 		padding-bottom: env(safe-area-inset-bottom, 0px);
 	}

@@ -1,272 +1,246 @@
 <script lang="ts">
-	import { Button, Field, NativeSelect } from "../ui";
+	/**
+	 * Where a drink appears: one row per placement, as many per channel as
+	 * wanted: a grid on desktop, a compact list on phones. Clicking a row opens
+	 * the same editor everywhere: a dialog on desktop, a bottom sheet on phones.
+	 * Rows are keyed by position, since two rows can name the same place.
+	 */
+	import type { ColDef, ICellRendererParams } from "ag-grid-community";
+	import { Icon } from "../app/shell";
+	import { Badge, Button, DataGrid, Dialog, Field, NativeSelect, TextField } from "../ui";
+	import { ROW_ACTION_COLUMN, svelteCell } from "../ui/grid";
 	import type { SelectOption } from "../ui/types";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import type { MenuPlacement, PosMenu } from "./types";
 	import { parsePosScreenInput } from "../inventory/lightspeed-stock.js";
+	import { isRepeatPlacement } from "./placement-add";
+	import PlacementChannelCell from "./cells/PlacementChannelCell.svelte";
+	import RemoveRowCell from "./cells/RemoveRowCell.svelte";
+
+	type PlacementRow = {
+		_key: string;
+		index: number;
+		channel: MenuPlacement["channel"];
+		label: string;
+		/** Chapter id (Print, Digital) or screen path (POS). */
+		location: string;
+		locationLabel: string;
+		repeat: boolean;
+	};
 
 	let {
 		menus = [],
 		placements = [],
 		sectionOptions = [],
 		screenSuggestions = [],
-		defaultSectionId = "",
+		drinkName = "",
+		posName = "",
+		onposname,
 		onchange,
 	}: {
 		menus?: PosMenu[];
 		placements?: MenuPlacement[];
 		sectionOptions?: SelectOption[];
 		screenSuggestions?: string[];
-		defaultSectionId?: string;
+		/** Shown on Print and Digital, which always use the drink's name. */
+		drinkName?: string;
+		/** The till button name: one override shared by every POS row. */
+		posName?: string;
+		onposname: (next: string) => void;
 		onchange: (next: MenuPlacement[]) => void;
 	} = $props();
 
-	const rows = $derived.by(() => {
-		const list = placements || [];
-		const print = list.find((row) => row.channel === "print");
-		const digital = list.find((row) => row.channel === "digital");
-		const pos = list.filter((row) => row.channel === "pos");
-		const out: Array<{
-			key: string;
-			channel: "print" | "digital" | "pos";
-			label: string;
-			placement: MenuPlacement;
-		}> = [];
-		if (print) {
-			out.push({
-				key: "print",
-				channel: "print",
-				label: "Print",
-				placement: print,
-			});
-		}
-		if (digital) {
-			out.push({
-				key: "digital",
-				channel: "digital",
-				label: "Digital",
-				placement: digital,
-			});
-		}
-		for (const row of pos) {
-			out.push({
-				key: `pos:${row.posMenuId}`,
-				channel: "pos",
-				label: row.posMenuName ? `POS · ${row.posMenuName}` : "POS",
-				placement: row,
-			});
-		}
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
+	/** The placement open in the phone sheet. */
+	let sheetIndex = $state<number | null>(null);
+
+	const sectionLabels = $derived(
+		new Map(sectionOptions.map((option) => [String(option.value), option.label])),
+	);
+
+	/** Known till screens, plus any a row already uses. */
+	const screenPaths = $derived.by((): string[] => {
+		const out: string[] = [];
+		const seen = new Set<string>();
+		const add = (raw: unknown) => {
+			const path = parsePosScreenInput(raw);
+			if (!path || seen.has(path.toLowerCase())) return;
+			seen.add(path.toLowerCase());
+			out.push(path);
+		};
+		for (const path of screenSuggestions || []) add(path);
+		for (const row of placements || []) if (row.channel === "pos") add(row.posScreen);
 		return out;
 	});
 
-	const canAddPrint = $derived(!(placements || []).some((row) => row.channel === "print"));
-	const canAddDigital = $derived(
-		!(placements || []).some((row) => row.channel === "digital"),
-	);
-	const unusedMenus = $derived(
-		(menus || []).filter(
-			(menu) =>
-				!(placements || []).some(
-					(row) =>
-						row.channel === "pos" && String(row.posMenuId) === String(menu.id),
-				),
-		),
+	function channelLabel(row: MenuPlacement): string {
+		if (row.channel === "print") return "Print";
+		if (row.channel === "digital") return "Digital";
+		const name =
+			row.posMenuName ||
+			(menus || []).find((menu) => String(menu.id) === String(row.posMenuId))?.name ||
+			"";
+		return name ? `POS · ${name}` : "POS";
+	}
+
+	function sectionLabel(id: string): string {
+		if (!id) return "Choose chapter…";
+		return sectionLabels.get(id) || "Unknown chapter";
+	}
+
+	const rows = $derived.by((): PlacementRow[] =>
+		(placements || []).map((row, index) => {
+			const location =
+				row.channel === "pos"
+					? parsePosScreenInput(row.posScreen)
+					: String(row.sectionId || "");
+			return {
+				_key: `placement-${index}`,
+				index,
+				channel: row.channel,
+				label: channelLabel(row),
+				location,
+				locationLabel:
+					row.channel === "pos" ? location || "Choose screen…" : sectionLabel(location),
+				repeat: isRepeatPlacement(placements || [], index),
+			};
+		}),
 	);
 
-	const addOptions = $derived.by((): SelectOption[] => {
-		const options: SelectOption[] = [{ value: "", label: "Add…" }];
-		if (canAddPrint) options.push({ value: "print", label: "Print" });
-		if (canAddDigital) options.push({ value: "digital", label: "Digital" });
-		for (const menu of unusedMenus) {
-			options.push({
-				value: `pos:${menu.id}`,
-				label: menu.isDefault
-					? `POS · ${menu.name} (default)`
-					: `POS · ${menu.name}`,
-			});
+	const sheetRow = $derived(sheetIndex != null ? rows[sheetIndex] ?? null : null);
+
+	const sheetLocationOptions = $derived.by((): SelectOption[] => {
+		if (!sheetRow) return [];
+		if (sheetRow.channel === "pos") {
+			return screenPaths.map((path) => ({ value: path, label: path }));
 		}
-		return options;
+		return sectionOptions;
 	});
 
-	const screenOptions = $derived.by((): SelectOption[] => {
-		const known = new Set(
-			(screenSuggestions || []).map((path) => path.toLowerCase()),
-		);
-		const extras = (placements || [])
-			.filter((row) => row.channel === "pos")
-			.map((row) => parsePosScreenInput(row.posScreen))
-			.filter((path) => path && !known.has(path.toLowerCase()));
-		const paths = [...(screenSuggestions || []), ...extras];
-		return [
-			{ value: "", label: "Choose screen…" },
-			...paths.map((path) => ({ value: path, label: path })),
-		];
-	});
-
-	function emit(next: MenuPlacement[]) {
-		onchange(next);
+	function patchIndex(index: number, patch: Partial<MenuPlacement>) {
+		onchange((placements || []).map((row, i) => (i === index ? { ...row, ...patch } : row)));
 	}
 
-	function defaultScreen() {
-		const existing = (placements || []).find((row) => row.channel === "pos");
-		return (
-			parsePosScreenInput(existing?.posScreen) ||
-			parsePosScreenInput(screenSuggestions[0]) ||
-			"Signature Cocktails"
-		);
-	}
-
-	function defaultSection() {
-		return (
-			String(defaultSectionId || "").trim() ||
-			String(sectionOptions[0]?.value || "").trim()
-		);
-	}
-
-	function onAdd(event: { currentTarget: { value: string } }) {
-		const value = event.currentTarget.value;
-		if (!value) return;
-		const list = [...(placements || [])];
-		if (value === "print" || value === "digital") {
-			const sectionId = defaultSection();
-			if (!sectionId) return;
-			emit([
-				...list.filter((row) => row.channel !== value),
-				{ channel: value, sectionId },
-			]);
-			return;
-		}
-		if (value.startsWith("pos:")) {
-			const id = value.slice(4);
-			const menu = (menus || []).find((row) => String(row.id) === id);
-			if (!menu) return;
-			emit([
-				...list,
-				{
-					channel: "pos",
-					posMenuId: String(menu.id),
-					posMenuName: menu.name,
-					posScreen: defaultScreen(),
-				},
-			]);
-		}
-	}
-
-	function setSection(channel: "print" | "digital", sectionId: string) {
-		if (!sectionId) return;
-		emit(
-			(placements || []).map((row) =>
-				row.channel === channel ? { ...row, sectionId } : row,
-			),
-		);
-	}
-
-	function setScreen(posMenuId: string, screen: string) {
-		const path = parsePosScreenInput(screen);
-		if (!path) return;
-		emit(
-			(placements || []).map((row) =>
-				row.channel === "pos" && String(row.posMenuId) === String(posMenuId)
-					? { ...row, posScreen: path }
-					: row,
-			),
-		);
-	}
-
-	function remove(row: MenuPlacement) {
+	function setLocation(index: number, raw: unknown) {
+		const row = (placements || [])[index];
+		if (!row) return false;
 		if (row.channel === "pos") {
-			emit(
-				(placements || []).filter(
-					(entry) =>
-						!(
-							entry.channel === "pos" &&
-							String(entry.posMenuId) === String(row.posMenuId)
-						),
-				),
-			);
-			return;
+			const path = parsePosScreenInput(raw);
+			if (!path) return false;
+			patchIndex(index, { posScreen: path });
+			return true;
 		}
-		emit((placements || []).filter((entry) => entry.channel !== row.channel));
+		const sectionId = String(raw ?? "").trim();
+		if (!sectionId) return false;
+		patchIndex(index, { sectionId, sectionTitle: sectionLabels.get(sectionId) });
+		return true;
 	}
+
+	function removeRow(index: number) {
+		onchange((placements || []).filter((_, i) => i !== index));
+	}
+
+	const columnDefs = $derived.by((): ColDef<PlacementRow>[] => [
+		{
+			headerName: "Channel",
+			colId: "channel",
+			editable: false,
+			flex: 1,
+			minWidth: 160,
+			valueGetter: (params) => params.data?.label || "",
+			cellRenderer: svelteCell(
+				PlacementChannelCell,
+				(params: ICellRendererParams<PlacementRow>) => ({
+					label: params.data?.label || "",
+					repeat: Boolean(params.data?.repeat),
+				}),
+			),
+		},
+		{
+			headerName: "Location",
+			colId: "location",
+			editable: false,
+			flex: 1.6,
+			minWidth: 200,
+			cellDataType: "text",
+			valueGetter: (params) => params.data?.location || "",
+			valueFormatter: (params) => {
+				const value = String(params.value ?? "");
+				const channel = params.data?.channel;
+				if (channel === "print" || channel === "digital") return sectionLabel(value);
+				if (channel === "pos") return value || "Choose screen…";
+				return sectionLabels.get(value) ?? value;
+			},
+		},
+		{
+			headerName: "Name on it",
+			colId: "name",
+			flex: 1.4,
+			minWidth: 180,
+			cellDataType: "text",
+			editable: false,
+			valueGetter: (params) => (params.data?.channel === "pos" ? posName : drinkName),
+			valueFormatter: (params) =>
+				String(params.value || "") || drinkName || "The drink's name",
+			cellClass: (params) =>
+				params.data?.channel !== "pos" || !posName ? "muted" : "",
+			tooltipValueGetter: (params) =>
+				params.data?.channel === "pos"
+					? "The till button name, shared by every POS row"
+					: "Print and digital menus use the drink's name",
+		},
+		{
+			...ROW_ACTION_COLUMN,
+			colId: "remove",
+			cellRenderer: svelteCell(
+				RemoveRowCell,
+				(params: ICellRendererParams<PlacementRow>) => ({
+					label: `Remove ${params.data?.label || "this placement"}`,
+					onremove: () => {
+						if (params.data) removeRow(params.data.index);
+					},
+				}),
+			),
+		},
+	]);
 </script>
 
 <div class="panel">
-	{#if rows.length}
-		<div class="table-wrap">
-			<table class="menu-table">
-				<thead>
-					<tr>
-						<th scope="col">Channel</th>
-						<th scope="col">Location</th>
-						<th scope="col" class="icon-col">
-							<span class="sr-only">Remove</span>
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each rows as row (row.key)}
-						<tr>
-							<td class="name-cell">{row.label}</td>
-							<td class="location-cell">
-								{#if row.channel === "pos"}
-									<NativeSelect
-										id={`f-menu-screen-${row.placement.posMenuId}`}
-										size="sm"
-										options={screenOptions}
-										value={parsePosScreenInput(row.placement.posScreen)}
-										aria-label={`Screen for ${row.label}`}
-										onchange={(e) =>
-											setScreen(
-												String(row.placement.posMenuId),
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								{:else}
-									<NativeSelect
-										id={`f-menu-section-${row.channel}`}
-										size="sm"
-										options={sectionOptions}
-										value={row.placement.sectionId || ""}
-										aria-label={`Chapter for ${row.label}`}
-										onchange={(e) =>
-											setSection(
-												row.channel as "print" | "digital",
-												(e.currentTarget as HTMLSelectElement).value,
-											)}
-									/>
-								{/if}
-							</td>
-							<td class="icon-col">
-								<Button
-									variant="ghost"
-									size="xs"
-									type="button"
-									aria-label={`Remove ${row.label}`}
-									onclick={() => remove(row.placement)}
-								>
-									Remove
-								</Button>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+	{#if rows.length === 0}
+		<p class="hint">Not on any menu yet. Use Add placement to put it on Print, Digital or a POS menu.</p>
+	{:else if phone.matches}
+		<!-- Phones: one line per placement; tap it to edit in a sheet. -->
+		<ul class="lines">
+			{#each rows as row (row._key)}
+				<li>
+					<button type="button" class="line" onclick={() => (sheetIndex = row.index)}>
+						<span class="line-main">
+							<span class="line-title">
+								{row.label}
+								{#if row.repeat}<Badge tone="warning" label="Repeat" />{/if}
+							</span>
+							<span class="line-sub">{row.locationLabel}</span>
+						</span>
+						<span class="line-chevron" aria-hidden="true"><Icon name="chevron-right" size={16} /></span>
+					</button>
+				</li>
+			{/each}
+		</ul>
 	{:else}
-		<p class="hint">
-			No menus yet. Add Print, Digital, and/or a POS menu below.
-		</p>
-	{/if}
-
-	{#if addOptions.length > 1}
-		<Field label="Add" for="f-add-menu-row">
-			<NativeSelect
-				id="f-add-menu-row"
-				size="sm"
-				options={addOptions}
-				value=""
-				onchange={onAdd}
+		<div class="host">
+			<DataGrid
+				rowData={rows}
+				{columnDefs}
+				getRowId={(row) => row._key}
+				domLayout="autoHeight"
+				onRowClicked={(row) => (sheetIndex = row.index)}
+				gridOptions={{
+					suppressCellFocus: false,
+					enableBrowserTooltips: true,
+				}}
 			/>
-		</Field>
+		</div>
 	{/if}
 
 	{#if rows.some((row) => row.channel === "print" || row.channel === "digital") && !rows.some((row) => row.channel === "pos")}
@@ -276,66 +250,84 @@
 	{/if}
 </div>
 
+<Dialog
+	open={sheetRow != null}
+	sheet={phone.matches}
+	title={sheetRow?.label || "Placement"}
+	onclose={() => (sheetIndex = null)}
+>
+	{#if sheetRow}
+		{@const index = sheetRow.index}
+		<div class="sheet-body">
+			{#if sheetRow.repeat}
+				<p class="hint warn">Same as a row above. Save keeps one; change the {sheetRow.channel === "pos" ? "screen" : "chapter"} to keep both.</p>
+			{/if}
+			{#if sheetRow.channel === "pos"}
+				<Field label="Till screen" for="placement-sheet-location">
+					<NativeSelect
+						id="placement-sheet-location"
+						value={sheetRow.location}
+						options={[{ value: "", label: "Choose screen…" }, ...sheetLocationOptions]}
+						onchange={(e) => setLocation(index, e.currentTarget.value)}
+					/>
+				</Field>
+				<Field label="Name on the till" for="placement-sheet-name" optional help="Name on it">
+					<TextField
+						id="placement-sheet-name"
+						value={posName}
+						placeholder={drinkName || "Same as the drink"}
+						oninput={(e) => onposname((e.currentTarget as HTMLInputElement).value)}
+					/>
+				</Field>
+			{:else}
+				<Field label="Chapter" for="placement-sheet-location">
+					<NativeSelect
+						id="placement-sheet-location"
+						value={sheetRow.location}
+						options={sheetLocationOptions}
+						onchange={(e) => setLocation(index, e.currentTarget.value)}
+					/>
+				</Field>
+				<Field label="Name on it" for="placement-sheet-name" help="Name on it">
+					<p class="inherited" id="placement-sheet-name">{drinkName || "The drink's name"}</p>
+				</Field>
+			{/if}
+			<div class="sheet-actions">
+				<Button variant="ghost" type="button" class="remove-line" onclick={() => { sheetIndex = null; removeRow(index); }}>
+					{#snippet icon()}<Icon name="trash" size={16} />{/snippet}
+					Remove
+				</Button>
+			</div>
+		</div>
+	{/if}
+	{#snippet footer()}
+		<Button variant="primary" size="sm" type="button" onclick={() => (sheetIndex = null)}>{#snippet icon()}<Icon name="check" size={14} />{/snippet}Done</Button>
+	{/snippet}
+</Dialog>
+
 <style>
 	.panel {
 		display: grid;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
-	.table-wrap {
-		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
-	}
-
-	.menu-table {
+	/* Lives inside the editor card: the grid sits on the card surface. */
+	.host {
+		--grid-bg: transparent;
+		--grid-head-bg: transparent;
 		width: 100%;
-		border-collapse: collapse;
-		font-size: var(--text-sm);
+		min-width: 0;
+		min-height: 0;
 	}
 
-	.menu-table th,
-	.menu-table td {
-		padding: 0.4rem 0.65rem;
-		text-align: left;
-		border-bottom: 1px solid var(--border);
-		vertical-align: middle;
+	/* The grid sits on the editor's card: the card's own surface, no darker box. */
+	.host :global(.ag-root-wrapper) {
+		--ag-background-color: var(--card);
 	}
 
-	.menu-table th {
-		font-size: 0.7rem;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+	/* Print and Digital carry the drink's name; a POS row with no override shows it too. */
+	.host :global(.ag-cell.muted) {
 		color: var(--muted-foreground);
-		background: color-mix(in srgb, var(--card) 70%, transparent);
-	}
-
-	.menu-table tbody tr:last-child td {
-		border-bottom: 0;
-	}
-
-	.name-cell {
-		font-weight: 500;
-		white-space: nowrap;
-		width: 28%;
-	}
-
-	.location-cell {
-		min-width: 12rem;
-	}
-
-	.location-cell :global(select) {
-		width: 100%;
-	}
-
-	.icon-col {
-		width: 4.5rem;
-		padding-left: 0.2rem;
-		padding-right: 0.35rem;
-		text-align: right;
-		white-space: nowrap;
 	}
 
 	.hint {
@@ -349,15 +341,99 @@
 		color: var(--warning, var(--primary));
 	}
 
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
+	.lines {
+		display: grid;
+		margin: 0;
 		padding: 0;
-		margin: -1px;
+		list-style: none;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
 		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
+	}
+
+	.lines li + li {
+		border-top: 1px solid var(--border);
+	}
+
+	.line {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		align-items: center;
+		gap: var(--space-3);
+		width: 100%;
+		min-height: 3rem;
+		margin: 0;
+		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
 		border: 0;
+		background: transparent;
+		color: var(--foreground);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.line:active {
+		background: var(--surface-3);
+	}
+
+	.line:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -2px;
+	}
+
+	.line-main {
+		display: grid;
+		min-width: 0;
+	}
+
+	.line-title,
+	.line-sub {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.line-title {
+		font-weight: 500;
+	}
+
+	.line-title {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.line-sub {
+		font-size: var(--text-xs);
+		color: var(--muted-foreground);
+	}
+
+	.line-chevron {
+		display: inline-flex;
+		color: var(--subtle-foreground);
+	}
+
+	.sheet-body {
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	.inherited {
+		display: flex;
+		align-items: center;
+		min-height: var(--control-h-sm);
+		margin: 0;
+		color: var(--muted-foreground);
+	}
+
+	.sheet-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.sheet-actions :global(.remove-line) {
+		margin-left: auto;
+		color: var(--destructive);
 	}
 </style>

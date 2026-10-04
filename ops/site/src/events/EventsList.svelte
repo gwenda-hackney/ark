@@ -8,21 +8,27 @@
 	import { Icon } from "../app/shell";
 	import {
 		Button,
+		Chip,
+		EmptyState,
+		FilterBar,
+		FilterField,
+		DateField,
 		MultiSelect,
 		PageHeader,
 		PageHelp,
-		SearchField,
 		Segmented,
-		TextField,
+		Skeleton,
 	} from "../ui";
 	import type { SegmentedItem } from "../ui/types";
+	import { activeFilterCount, dateRangeLabel, type FilterChip } from "../ui/filters";
+	import { SCHEDULE_RANGES, scheduleRangeDates, type ScheduleRange } from "./schedule-filters";
 	import { easeOut, flyMs } from "../ui/motion";
 	import type { OpsEvent } from "../app/api";
 	import { eventItemPath, navigate } from "../app/nav";
-	import { EVENTS_HELP } from "./events-help";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
-	import SeriesGrid from "./SeriesGrid.svelte";
+	import SeriesCards from "./SeriesCards.svelte";
+	import { seriesCardRow } from "./series-card";
 	import {
 		compareSeriesByWeekday,
 		countEventScheduleRows,
@@ -32,17 +38,12 @@
 		formatScheduleWeekday,
 		groupEventSchedule,
 		scheduleToday,
-		seriesWeekdayLabel,
 	} from "./event-schedule";
 	import {
 		formatDate,
 		repeatLabel,
-		seriesBlurb,
-		seriesGuestLabel,
-		seriesNextCell,
-		seriesOfferLabel,
-		seriesTimeLabel,
 		statusLabel,
+		statusTitle,
 		statusTone,
 	} from "./event-labels";
 
@@ -153,33 +154,11 @@
 		listView === "schedule" ? scheduleFiltersActive : seriesFiltersActive,
 	);
 
-	const seriesRows = $derived.by(() =>
-		filteredSeries.map((event) => {
-			const time = seriesTimeLabel(event);
-			const guest = seriesGuestLabel(event);
-			const next = seriesNextCell(event);
-			const offer = seriesOfferLabel(event);
-			return {
-				id: event.id,
-				href: eventItemPath(event.id),
-				when: seriesWeekdayLabel(event) || repeatLabel(event),
-				photo: event.mainImage?.url || "",
-				name: event.name,
-				blurb: seriesBlurb(event),
-				detail: [time, guest, next, offer].filter(Boolean).join(" · "),
-				time,
-				guest,
-				next,
-				offer,
-				status: statusLabel(event),
-				tone: statusTone(event),
-			};
-		}),
-	);
+	const seriesRows = $derived(filteredSeries.map(seriesCardRow));
 
 	const scheduleRows = $derived.by(() =>
 		visibleSchedule.flatMap((week) => [
-			{ kind: "week" as const, id: `week:${week.start}`, label: week.label },
+			{ kind: "week" as const, id: `week:${week.start}`, label: week.label, count: week.rows.length },
 			...week.rows.map((occurrence) => {
 				const artist =
 					occurrence.occurrence?.overrides.artist || occurrence.event.artist || "";
@@ -203,21 +182,47 @@
 					name: occurrence.occurrence?.overrides.name || occurrence.event.name,
 					meta: artist ? `${artist} · ${when}` : when,
 					status: statusLabel(occurrence.event),
+					statusTitle: statusTitle(occurrence.event),
 					tone: statusTone(occurrence.event),
 				};
 			}),
 		]),
 	);
 
-	function clearListFilters() {
-		if (listView === "schedule") {
-			scheduleEventIds = [];
-			scheduleQuery = "";
-			scheduleFrom = "";
-			scheduleTo = "";
-			return;
+	/** Quick date choice. Custom keeps whatever From and To say. */
+	let scheduleRange = $state<ScheduleRange>("any");
+
+	function pickRange(range: ScheduleRange) {
+		scheduleRange = range;
+		const dates = scheduleRangeDates(range, scheduleTodayIso);
+		if (!dates) return;
+		scheduleFrom = dates.from;
+		scheduleTo = dates.to;
+	}
+
+	const seriesNames = $derived(new Map(eventFilterOptions.map((row) => [row.value, row.label])));
+
+	/** Series and dates count as one filter each; the search is separate. */
+	const scheduleFilterCount = $derived(
+		activeFilterCount([scheduleEventIds, scheduleFrom || scheduleTo]),
+	);
+
+	const scheduleChips = $derived.by((): FilterChip[] => {
+		const chips: FilterChip[] = scheduleEventIds.map((id) => ({
+			key: `series:${id}`,
+			label: seriesNames.get(id) || "Series",
+			onremove: () => (scheduleEventIds = scheduleEventIds.filter((row) => row !== id)),
+		}));
+		const dates = dateRangeLabel(scheduleFrom, scheduleTo);
+		if (dates) {
+			chips.push({ key: "dates", label: dates, onremove: () => pickRange("any") });
 		}
-		seriesQuery = "";
+		return chips;
+	});
+
+	function clearScheduleFilters() {
+		scheduleEventIds = [];
+		pickRange("any");
 	}
 
 	$effect(() => {
@@ -254,11 +259,14 @@
 						ariaLabel="Schedule layout"
 					/>
 				{/if}
-				<PageHelp title={listTitle} topics={EVENTS_HELP} />
+				<PageHelp />
 				<Button
 					type="button"
 					variant="outline"
+					size="sm"
+					data-compact
 					disabled={busy}
+					busy={loading}
 					onclick={() => void onreload()}
 				>
 					{#snippet icon()}
@@ -267,14 +275,14 @@
 					Refresh
 				</Button>
 				{#if listView === "series"}
-					<Button type="button" disabled={busy} onclick={() => navigate("/events/new")}>
+					<Button type="button" size="sm" disabled={busy} onclick={() => navigate("/events/new")}>
 						{#snippet icon()}
 							<Icon name="plus" size={16} />
 						{/snippet}
 						New series
 					</Button>
 				{:else}
-					<Button type="button" disabled={busy} onclick={() => navigate("/events/new/once")}>
+					<Button type="button" size="sm" disabled={busy} onclick={() => navigate("/events/new/once")}>
 						{#snippet icon()}
 							<Icon name="plus" size={16} />
 						{/snippet}
@@ -282,92 +290,105 @@
 					</Button>
 				{/if}
 			{/snippet}
-		</PageHeader>
-		{#if error && !editing && !missing}<p class="error">{error}</p>{/if}
-		{#if events.length || (!error && !loading)}
-			<div class="list-filters">
-				<div class="filter-search">
-					<span class="filter-label">Search</span>
+			{#snippet toolbar()}
+				{#if events.length || (!error && !loading)}
 					{#if listView === "series"}
-						<SearchField
-							bind:value={seriesQuery}
-							placeholder="Series name…"
+						<FilterBar
+							bind:query={seriesQuery}
+							placeholder="Search series"
 							ariaLabel="Search series"
-							count={seriesQuery.trim() ? filteredSeries.length : undefined}
-							width="100%"
+							searchCount={seriesQuery.trim() ? filteredSeries.length : undefined}
 						/>
 					{:else}
-						<SearchField
-							bind:value={scheduleQuery}
-							placeholder="Name, artist, offer…"
+						<FilterBar
+							bind:query={scheduleQuery}
+							placeholder="Search name, artist, offer"
 							ariaLabel="Search nights"
-							count={scheduleQuery.trim()
-								? countEventScheduleRows(filteredSchedule)
-								: undefined}
-							width="100%"
-						/>
+							searchCount={scheduleQuery.trim() ? countEventScheduleRows(filteredSchedule) : undefined}
+							active={scheduleFilterCount}
+							chips={scheduleChips}
+							onclearfilters={clearScheduleFilters}
+						>
+							{#snippet filters()}
+								<FilterField label="Series" for="event-filter">
+									<MultiSelect
+										id="event-filter"
+										size="sm"
+										bind:value={scheduleEventIds}
+										options={eventFilterOptions}
+										placeholder="All series"
+									/>
+								</FilterField>
+								<FilterField label="When">
+									{#each SCHEDULE_RANGES as range (range.id)}
+										<Chip pressed={scheduleRange === range.id} onclick={() => pickRange(range.id)}>
+											{range.label}
+										</Chip>
+									{/each}
+								</FilterField>
+								{#if scheduleRange === "custom"}
+									<FilterField label="From" for="event-from">
+										<DateField id="event-from" size="sm" bind:value={scheduleFrom} />
+									</FilterField>
+									<FilterField label="To" for="event-to">
+										<DateField id="event-to" size="sm" bind:value={scheduleTo} min={scheduleFrom} />
+									</FilterField>
+								{/if}
+							{/snippet}
+						</FilterBar>
 					{/if}
-				</div>
-				{#if listView === "schedule"}
-					<div class="filter-events">
-						<label class="filter-label" for="event-filter">Series name</label>
-						<MultiSelect
-							id="event-filter"
-							size="sm"
-							bind:value={scheduleEventIds}
-							options={eventFilterOptions}
-							placeholder="All series"
+				{/if}
+			{/snippet}
+		</PageHeader>
+		<div class="list-main fill" class:bleed={listView === "series" && seriesRows.length > 0 && !loading}>
+			{#if error && !editing && !missing && !events.length}
+				<EmptyState tone="error" title="Could not load events" text={error}>
+					{#snippet action()}
+						<Button variant="outline" size="sm" onclick={() => void onreload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+					{/snippet}
+				</EmptyState>
+			{:else if loading && !events.length}
+				<Skeleton rows={8} thumb label="Loading events…" />
+			{:else}
+				{#if error && !editing && !missing}<p class="error">{error}</p>{/if}
+				{#if listView === "series"}
+					{#if seriesRows.length}
+						<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+							<SeriesCards rows={seriesRows} />
+						</div>
+					{:else if filtersActive}
+						<EmptyState icon="search" title="No series match" text="Try another name, or clear the search." />
+					{:else}
+						<EmptyState icon="events" title="No series yet" text="A series is a regular night, like a weekly residency.">
+							{#snippet action()}
+								<Button size="sm" onclick={() => navigate("/events/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}New series</Button>
+							{/snippet}
+						</EmptyState>
+					{/if}
+				{:else if scheduleView === "calendar"}
+					<div class="calendar-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+						<ScheduleCalendar
+							weeks={visibleSchedule}
+							bind:month={calendarMonth}
+							today={scheduleTodayIso}
+							filtersActive={scheduleFiltersActive}
 						/>
 					</div>
-					<div class="filter-dates">
-						<label class="filter-label" for="event-from">From</label>
-						<TextField id="event-from" size="sm" type="date" bind:value={scheduleFrom} />
-					</div>
-					<div class="filter-dates">
-						<label class="filter-label" for="event-to">To</label>
-						<TextField id="event-to" size="sm" type="date" bind:value={scheduleTo} />
-					</div>
-				{/if}
-				<button
-					type="button"
-					class="filter-clear"
-					disabled={!filtersActive}
-					onclick={clearListFilters}
-				>
-					Clear
-				</button>
-			</div>
-			<div class="list-main fill">
-			{#if listView === "series"}
-				{#if seriesRows.length}
+				{:else if scheduleRows.length}
 					<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-						<SeriesGrid rows={seriesRows} />
+						<ScheduleListGrid rows={scheduleRows} />
 					</div>
+				{:else if filtersActive}
+					<EmptyState icon="search" title="No nights match" text="Try other filters, or clear them to see every night." />
 				{:else}
-					<p class="empty">
-						{filtersActive ? "No series match these filters." : "No series yet."}
-					</p>
+					<EmptyState icon="events" title="No upcoming nights" text="Nights from your series and special events show here.">
+						{#snippet action()}
+							<Button size="sm" onclick={() => navigate("/events/new/once")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}New event</Button>
+						{/snippet}
+					</EmptyState>
 				{/if}
-			{:else if scheduleView === "calendar"}
-				<div class="calendar-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-					<ScheduleCalendar
-						weeks={visibleSchedule}
-						bind:month={calendarMonth}
-						today={scheduleTodayIso}
-						filtersActive={scheduleFiltersActive}
-					/>
-				</div>
-			{:else if scheduleRows.length}
-				<div class="grid-host" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-					<ScheduleListGrid rows={scheduleRows} />
-				</div>
-			{:else}
-				<p class="empty">
-					{filtersActive ? "No nights match these filters." : "No upcoming nights."}
-				</p>
 			{/if}
-			</div>
-		{/if}
+		</div>
 	</div>
 
 <style>
@@ -379,8 +400,7 @@
 		padding: var(--page-gutter);
 		display: flex;
 		flex-direction: column;
-		gap: var(--gap);
-		background: var(--background);
+		background: transparent;
 	}
 
 	.list-main {
@@ -394,6 +414,12 @@
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
+	}
+
+	/* Series cards scroll edge to edge, like the menu's, so the scrollbar sits
+	   at the side of the page; SeriesCards puts the gutter back inside. */
+	.list-main.bleed {
+		margin: 0 calc(-1 * var(--page-gutter)) calc(-1 * var(--page-gutter));
 	}
 
 	.grid-host,
@@ -410,86 +436,34 @@
 		pointer-events: none;
 	}
 
-	/* Wraps instead of running off the edge when the page is narrower than
-	   the five filters (#32). */
-	.list-filters {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.75rem;
-		align-items: flex-end;
+	/* Steps back and dims while an editor comes forward over it. */
+	.list-page {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
 	}
 
-	.filter-search {
-		flex: 1 1 12rem;
-		min-width: 0;
+	.list-page.parked {
+		transform: scale(0.97);
+		opacity: 0.35;
 	}
 
-	.filter-events {
-		flex: 0 1 14rem;
-		min-width: 0;
-	}
-
-	.filter-dates {
-		flex: 0 1 9.5rem;
-		min-width: 0;
-	}
-
-	.filter-search :global(.wrap) {
-		height: var(--control-h-sm);
-	}
-
-	.filter-label {
-		display: block;
-		margin: 0 0 0.35rem;
-		color: var(--muted-foreground);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.filter-clear {
-		align-self: end;
-		height: var(--control-h-sm);
-		padding: 0 0.75rem;
-		border: 0;
-		border-radius: var(--radius-md);
-		background: transparent;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.filter-clear:hover:not(:disabled) {
-		color: var(--foreground);
-		background: var(--accent);
-	}
-
-	.filter-clear:disabled {
-		opacity: 0;
-		pointer-events: none;
-	}
-
-	@media (max-width: 720px) {
-		.list-filters {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
+	@media (prefers-reduced-motion: reduce) {
+		.list-page {
+			transition: none;
 		}
-
-		.filter-search,
-		.filter-events {
-			grid-column: 1 / -1;
-		}
-	}
-
-	.empty {
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
 	}
 
 	.error {
-		margin: 0;
+		margin: 0 0 var(--space-3);
 		color: var(--destructive);
+		font-size: var(--text-sm);
+	}
+
+	/* Phones: the list runs edge to edge, so rows use the full width. */
+	@media (max-width: 900px) {
+		.list-page {
+			padding-bottom: 0;
+		}
 	}
 </style>

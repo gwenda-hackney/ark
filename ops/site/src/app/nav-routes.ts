@@ -1,7 +1,7 @@
 import type { NavRoute } from "./shell/types";
 
 /**
- * Side rail. Menu is the guest menu. Stock is inventory and suppliers.
+ * Side rail. Menu items is the guest menu (its sections are in Configuration). Stock is inventory and suppliers.
  * Lightspeed is POS reconcile and export. Events is series and schedule.
  * Artists holds the artist whose work is hanging at Gwenda and play applications
  * (the website's play form). Website shows what is waiting to appear on the
@@ -15,15 +15,7 @@ export const NAV_ROUTES: NavRoute[] = [
 		icon: "",
 		heading: true,
 		children: [
-			{
-				id: "menu",
-				name: "Menu",
-				icon: "menu",
-				children: [
-					{ id: "recipes", path: "/menu", name: "Menu items", icon: "recipes", hint: "Drinks on the guest menu" },
-					{ id: "sections", path: "/sections", name: "Sections", icon: "list", hint: "Guest menu chapters and groups" },
-				],
-			},
+			{ id: "recipes", path: "/menu", name: "Menu items", icon: "menu", hint: "Drinks on the guest menu" },
 			{
 				id: "stock",
 				name: "Stock",
@@ -64,8 +56,8 @@ export const NAV_ROUTES: NavRoute[] = [
 				name: "Artists",
 				icon: "artist",
 				children: [
-					{ id: "artist", path: "/artists", name: "Featured Artist", icon: "artist", hint: "Work hanging at Gwenda" },
-					{ id: "forms", path: "/forms", name: "Play applications", icon: "forms", hint: "Artists who applied to play" },
+					{ id: "artist", path: "/artists", name: "Featured artist", short: "Artist", icon: "artist", hint: "Work hanging at Gwenda" },
+					{ id: "forms", path: "/forms", name: "Play applications", short: "Applications", icon: "forms", hint: "Artists who applied to play" },
 				],
 			},
 			{ id: "web", path: "/web", name: "Website", icon: "web", badge: "website", hint: "See what's waiting and publish it" },
@@ -78,12 +70,12 @@ export const NAV_ROUTES: NavRoute[] = [
 		heading: true,
 		children: [
 			{ id: "users", path: "/users", name: "Users", icon: "users", hint: "Who may sign in" },
-			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Pour cost targets" },
+			{ id: "config", path: "/config", name: "Configuration", icon: "settings", hint: "Menu sections, pour targets, event tasks" },
 			{
 				id: "dev-tools",
 				path: "/web/dev",
 				name: "Developer tools",
-				icon: "settings",
+				icon: "code",
 				hint: "Compare test and live",
 				adminOnly: true,
 			},

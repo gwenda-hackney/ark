@@ -3,6 +3,11 @@
 	 * Trading-shaped AG Grid host: theme via CSS vars, dense rows.
 	 * Columns keep `flex` so they fill the viewport on grow and shrink;
 	 * `fitGridWidth` would bake pixel widths and never expand again.
+	 *
+	 * `density` sets the row height (40 or 32px) and stamps `data-density`
+	 * on the host, so cell renderers can tighten with it. Pages that size
+	 * their own rows (`getRowHeight`) read their density at call time; this
+	 * component resets row heights when it changes.
 	 */
 	import { untrack } from "svelte";
 	import {
@@ -18,6 +23,7 @@
 		rememberGridScroll,
 		scrollGridViewport,
 	} from "./grid-scroll";
+	import { HEADER_HEIGHT, rowHeightFor, type Density } from "./view-prefs";
 
 	const NUMERIC_HEADER = "ag-right-aligned-header";
 
@@ -141,6 +147,8 @@
 		domLayout = "normal",
 		pinnedBottomRowData,
 		scrollKey = "",
+		hideHeader = false,
+		density = "comfortable",
 	}: {
 		rowData: T[];
 		columnDefs: ColDef<T>[];
@@ -153,6 +161,12 @@
 		pinnedBottomRowData?: T[];
 		/** Persist/restore vertical scroll across parent remounts and overlays. */
 		scrollKey?: string;
+		/**
+		 * Drop the header row. For phone lists that are down to one column,
+		 * where a lone "NIGHT" heading says nothing the rows do not.
+		 */
+		hideHeader?: boolean;
+		density?: Density;
 	} = $props();
 
 	let host: HTMLDivElement | undefined = $state();
@@ -207,8 +221,8 @@
 				},
 			},
 			animateRows: false,
-			headerHeight: 40,
-			rowHeight: 38,
+			headerHeight: untrack(() => (hideHeader ? 0 : HEADER_HEIGHT[density])),
+			rowHeight: untrack(() => rowHeightFor(density)),
 			suppressCellFocus: true,
 			suppressScrollOnNewData: true,
 			enableCellTextSelection: true,
@@ -218,7 +232,16 @@
 			pinnedBottomRowData: untrack(() => pinnedBottomRowData) ?? [],
 			onRowClicked: (event) => {
 				if (hasRangeSelection()) return;
+				// A button or link inside the row (remove, open stock) does its own thing.
+				const target = event.event?.target;
+				if (target instanceof Element && target.closest("button, a, input, label, [role='button']")) return;
 				if (event.data) onRowClicked?.(event.data);
+			},
+			onCellKeyDown: (event) => {
+				const key = (event.event as KeyboardEvent | undefined)?.key;
+				if (key === "Enter" && onRowClicked && event.data && !("colDef" in event && event.colDef.editable)) {
+					onRowClicked(event.data);
+				}
 			},
 			...extra,
 			onBodyScroll: (event) => {
@@ -279,6 +302,29 @@
 	});
 	$effect(() => {
 		const grid = api;
+		if (!grid) return;
+		grid.setGridOption("headerHeight", hideHeader ? 0 : HEADER_HEIGHT[density]);
+	});
+	let appliedDensity: Density | undefined;
+	$effect(() => {
+		const grid = api;
+		const el = host;
+		const next = density;
+		if (!grid || !el) return;
+		if (appliedDensity === undefined || appliedDensity === next) {
+			appliedDensity = next;
+			return;
+		}
+		appliedDensity = next;
+		withPreservedScroll(el, () => {
+			if (!untrack(() => gridOptions).rowHeight) {
+				grid.setGridOption("rowHeight", rowHeightFor(next));
+			}
+			grid.resetRowHeights();
+		});
+	});
+	$effect(() => {
+		const grid = api;
 		const el = host;
 		if (!grid || !el) return;
 		const pinned = pinnedBottomRowData ?? [];
@@ -289,9 +335,22 @@
 
 </script>
 
-<div class="host {className}" class:auto={domLayout === "autoHeight"} bind:this={host}></div>
+<div
+	class="host {className}"
+	class:auto={domLayout === "autoHeight"}
+	class:clickable={Boolean(onRowClicked)}
+	data-density={density}
+	bind:this={host}
+></div>
 
 <style>
+	/* The surface behind the see-through rows. Full-page grids repaint the
+	   viewport-pinned glow so they read as the page; cards pass transparent. */
+	.host :global(.ag-root-wrapper),
+	.host :global(.ag-pinned-left-cols-container .ag-row) {
+		background: var(--grid-bg, var(--ambient), var(--background));
+	}
+
 	.host {
 		width: 100%;
 		height: 100%;
@@ -304,10 +363,14 @@
 		min-height: 0;
 	}
 
+	.host.clickable :global(.ag-row) {
+		cursor: pointer;
+	}
+
 	.host :global(.ag-header-cell-text) {
 		text-transform: uppercase;
-		letter-spacing: 0.06em;
-		font-size: 12px;
+		letter-spacing: var(--tracking-label);
+		font-size: var(--text-2xs);
 		font-weight: 600;
 	}
 
@@ -443,6 +506,28 @@
 		transition: background-color var(--t-fast) var(--ease-in-out);
 	}
 
+	/* Selected: a quiet fill and a 2px gold edge, so it reads without shouting. */
+	.host :global(.ag-row.row-selected),
+	.host :global(.ag-row.ag-row-selected) {
+		background-color: var(--surface-3) !important;
+		box-shadow: inset 2px 0 0 var(--primary);
+	}
+
+	/* Group rows (sections, weeks): one step up from the rows they head. */
+	.host :global(.ag-full-width-row),
+	.host :global(.ag-row.row-group) {
+		background-color: var(--surface-2) !important;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.host :global(.ag-full-width-row.ag-row-hover) {
+		background-color: var(--surface-2) !important;
+	}
+
+	.host[data-density="compact"] :global(.ag-cell) {
+		font-size: var(--text-sm);
+	}
+
 	.host :global(.ag-row-focus) {
 		outline: none;
 	}
@@ -464,5 +549,20 @@
 	.host :global(.ag-center-cols-viewport),
 	.host :global(.ag-header-viewport) {
 		background: transparent;
+	}
+
+	/*
+	  Touch screens: AG Grid lays an invisible scrollbar strip over the right
+	  edge. Painted, it hid the end of every row border and read as a blank
+	  gutter on phones.
+	*/
+	.host :global(.ag-scrollbar-invisible),
+	.host :global(.ag-scrollbar-invisible .ag-body-vertical-scroll-viewport),
+	.host :global(.ag-scrollbar-invisible .ag-body-horizontal-scroll-viewport) {
+		background: transparent;
+	}
+
+	.host :global(.ag-body-vertical-scroll.ag-scrollbar-invisible) {
+		pointer-events: none;
 	}
 </style>

@@ -207,3 +207,41 @@ describe("migrations", () => {
     assert.deepEqual(lines, ["production only"]);
   });
 });
+
+describe("2026-10-04-menu-prices-column", () => {
+  it("adds the Menu Items Prices column before the ops deploy, once", async () => {
+    const [migration] = (await loadMigrations(resolve(ROOT, "migrations"))).filter(
+      (m) => m.name === "2026-10-04-menu-prices-column.mjs",
+    );
+    assert.equal(migration.app, "ops");
+    assert.equal(migration.phase, "pre");
+    const columns = [{ id: 1, name: "Price" }];
+    const request = async (_base, _jwt, path, init = {}) => {
+      if (path === "/api/database/tables/database/7/") return [{ id: 42, name: "Menu Items" }];
+      if (path === "/api/database/fields/table/42/" && init.method === "POST") {
+        columns.push({ id: columns.length + 1, ...JSON.parse(init.body) });
+        return {};
+      }
+      if (path === "/api/database/fields/table/42/") return columns.map((c) => ({ ...c }));
+      throw new Error("unexpected " + path);
+    };
+    const ops = baserowDatabase({ apiBase: "x", jwt: "j", databaseId: 7, label: "Ops", request });
+    const lines = [];
+    const run = () =>
+      migration.up({
+        env: "dev",
+        database: async (key) => {
+          assert.equal(key, "ops");
+          return ops;
+        },
+        log: (line) => lines.push(line),
+      });
+    await run();
+    await run();
+    assert.deepEqual(columns, [
+      { id: 1, name: "Price" },
+      { id: 2, name: "Prices", type: "long_text" },
+    ]);
+    assert.deepEqual(lines, ["Ops: Prices created", "Ops: Prices exists"]);
+  });
+});

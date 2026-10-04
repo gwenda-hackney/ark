@@ -103,6 +103,7 @@ export const MENU_QUERY = `*[_type == "menuSection"] | order(orderRank asc) {
     description,
     price,
     priceAlt,
+    prices[] { name, size, price },
     drinkType,
     notes,
     abv,

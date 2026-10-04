@@ -1,7 +1,9 @@
 <script lang="ts">
-	import type { ColDef, RowClickedEvent } from "ag-grid-community";
+	import type { ColDef, ICellRendererParams, RowClickedEvent } from "ag-grid-community";
 	import type { FormSubmission } from "../app/api";
-	import { hasRangeSelection } from "../ui/grid";
+	import { hasRangeSelection, svelteCell } from "../ui/grid";
+	import BadgeCell from "../ui/BadgeCell.svelte";
+	import { decisionBadge } from "../ui/badge";
 	import { navigate } from "../app/nav";
 	import { formatWhen } from "../website/web-metrics";
 	import { DataGrid } from "../ui";
@@ -32,8 +34,11 @@
 			field: "decision",
 			width: 120,
 			minWidth: 100,
-			valueGetter: (p) =>
-				p.data?.decision || (p.data?.formSlug === "play" ? "To review" : ""),
+			valueGetter: (p) => decisionBadge(p.data?.decision, p.data?.formSlug)?.label || "",
+			cellRenderer: svelteCell(BadgeCell, (params: ICellRendererParams<FormSubmission>) => {
+				const badge = decisionBadge(params.data?.decision, params.data?.formSlug);
+				return { label: badge?.label || "", tone: badge?.tone || "neutral" };
+			}),
 		},
 		{
 			headerName: "Status",
@@ -93,6 +98,7 @@
 
 <style>
 	.frame {
+		flex: 1;
 		height: 100%;
 		min-height: 0;
 	}
@@ -102,6 +108,6 @@
 	}
 
 	.frame :global(.not-sent) {
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 	}
 </style>

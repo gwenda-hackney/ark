@@ -133,7 +133,7 @@ export function lightspeedStatusLabel(
 ): string {
   if (status === "matched") return "Match";
   if (status === "mismatch") return "Name mismatch";
-  if (status === "missing") return "Missing from POS";
+  if (status === "missing") return "Not in POS";
   return "";
 }
 export function skuFromProductUrl(url: string | undefined): string {

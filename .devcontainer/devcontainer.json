@@ -5,6 +5,7 @@
   "mounts": [
     "source=..,target=/src,type=bind,consistency=cached",
     "source=bashhistory,target=/commandhistory,type=volume",
+    "source=claude-config,target=/home/node/.claude,type=volume",
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/gh,target=/home/node/.config/gh,type=bind,consistency=cached",
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/Bitwarden CLI,target=/home/node/.config/Bitwarden CLI,type=bind,consistency=cached"
   ],
@@ -23,7 +24,8 @@
         "mechatroner.rainbow-csv",
         "GrapeCity.gc-excelviewer",
         "redhat.vscode-yaml",
-        "tamasfe.even-better-toml"
+        "tamasfe.even-better-toml",
+        "Anthropic.claude-code"
       ],
       "settings": {
         "[python]": {
@@ -36,6 +38,8 @@
   },
   "forwardPorts": [4321, 3333, 5174, 8788],
   "portsAttributes": {
+    "4321": { "label": "Website" },
+    "3333": { "label": "Studio" },
     "5174": { "label": "Ops SPA" },
     "8788": { "label": "Ops Functions" }
   },

@@ -20,6 +20,18 @@ export type SegmentedItem = {
 
 /** One control (or group of controls) explained in a page help drawer. */
 export type PageHelpTopic = {
+	/** Stable id, so a field's "?" can open the drawer at this topic. */
+	id?: string;
 	title: string;
 	body: string;
+};
+
+/** One action in an OverflowMenu ("⋯"). */
+export type OverflowItem = {
+	label: string;
+	onselect: () => void;
+	tone?: "destructive";
+	disabled?: boolean;
+	/** Why it's disabled, shown under the label ("Save the drink first"). */
+	reason?: string;
 };

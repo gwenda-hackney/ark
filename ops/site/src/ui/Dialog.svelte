@@ -13,12 +13,15 @@
 
 	let {
 		open = false,
+		sheet = false,
 		title,
 		onclose,
 		children,
 		footer,
 	}: {
 		open?: boolean;
+		/** On phones, rise from the bottom as a sheet instead of a centred box. */
+		sheet?: boolean;
 		title: string;
 		onclose: () => void;
 		children: Snippet;
@@ -59,7 +62,7 @@
 </script>
 
 {#if open}
-	<div class="root" role="presentation" use:portal>
+	<div class="root" class:sheet role="presentation" use:portal>
 		<button
 			type="button"
 			class="backdrop"
@@ -103,7 +106,7 @@
 		z-index: 200;
 		display: grid;
 		place-items: center;
-		padding: var(--page-gutter, 1rem);
+		padding: var(--page-gutter);
 		pointer-events: none;
 	}
 
@@ -114,7 +117,7 @@
 		border: 0;
 		padding: 0;
 		margin: 0;
-		background: color-mix(in srgb, #0d0d0d 62%, transparent);
+		background: color-mix(in srgb, var(--bg) 62%, transparent);
 		cursor: pointer;
 	}
 
@@ -127,8 +130,8 @@
 		max-height: min(36rem, calc(100vh - 2rem));
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-xl);
-		background: var(--card);
-		box-shadow: var(--shadow);
+		background: var(--surface-2);
+		box-shadow: var(--shadow-pop);
 		overflow: hidden;
 		outline: none;
 	}
@@ -137,17 +140,17 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.9rem 1rem 0.75rem;
+		gap: var(--space-3);
+		padding: var(--space-4) var(--space-4) var(--space-3);
 		border-bottom: 1px solid var(--border);
 	}
 
 	h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.05rem;
+		font-size: var(--text-lg);
 		font-weight: 600;
-		letter-spacing: -0.01em;
+		line-height: var(--leading-lg);
+		letter-spacing: var(--tracking-lg);
 		color: var(--foreground);
 	}
 
@@ -163,7 +166,7 @@
 		background: transparent;
 		color: var(--muted-foreground);
 		font: inherit;
-		font-size: 1.35rem;
+		font-size: var(--text-lg);
 		line-height: 1;
 		cursor: pointer;
 	}
@@ -177,14 +180,37 @@
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
-		padding: 1rem;
+		padding: var(--space-4);
 	}
 
 	.foot {
 		display: flex;
 		justify-content: flex-end;
-		gap: 0.45rem;
-		padding: 0.75rem 1rem;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-4);
 		border-top: 1px solid var(--border);
+	}
+
+	/* Keep in sync with SHELL_MOBILE_MAX_PX: a sheet along the bottom, clear of the home bar. */
+	@media (max-width: 900px) {
+		.root.sheet {
+			place-items: end stretch;
+			padding: 0;
+		}
+
+		.root.sheet .dialog {
+			width: 100%;
+			max-height: calc(100dvh - 2.5rem);
+			border-bottom: 0;
+			border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+		}
+
+		.root.sheet .foot {
+			padding-bottom: max(var(--space-3), env(safe-area-inset-bottom, 0px));
+		}
+
+		.root.sheet .foot :global(.btn) {
+			min-height: 2.75rem;
+		}
 	}
 </style>

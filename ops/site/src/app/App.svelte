@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { ShellLayout } from "./shell";
+	import { Icon, ShellLayout } from "./shell";
 	import { Button, Toaster } from "../ui";
 	import { fade, fly } from "svelte/transition";
 	import HomeOverview from "../home/HomeOverview.svelte";
@@ -11,7 +11,6 @@
 	import LightspeedMenusPage from "../inventory/LightspeedMenusPage.svelte";
 	import SuppliersPage from "../inventory/SuppliersPage.svelte";
 	import ConfigPage from "../config/ConfigPage.svelte";
-	import SectionsPage from "../menu/SectionsPage.svelte";
 	import UsersPage from "../users/UsersPage.svelte";
 	import WebPage from "../website/WebPage.svelte";
 	import DevToolsPage from "../website/DevToolsPage.svelte";
@@ -19,12 +18,16 @@
 	import FormsPage from "../forms/FormsPage.svelte";
 	import EventsPage from "../events/EventsPage.svelte";
 	import ArtistsPage from "../artists/ArtistsPage.svelte";
+	import MorePage from "./shell/MorePage.svelte";
 	import { parseShellPath, shellPageKey, readPath } from "./nav";
 	import { NAV_ROUTES } from "./nav-routes";
 	import { loadPourSettings } from "../config/settings.svelte";
 	import { easeOut, fadeMs, flyMs } from "../ui/motion";
 	import { normalizeClientError, reportClientError } from "./client-error";
 	import { toast } from "../ui/toast.svelte";
+	import type { AuthMe } from "./api";
+
+	let { me }: { me: AuthMe } = $props();
 
 	const routes = NAV_ROUTES;
 
@@ -48,7 +51,7 @@
 	}
 </script>
 
-<ShellLayout {routes} bind:path>
+<ShellLayout {routes} {me} bind:path>
 	{#snippet children({ path: current })}
 		{@const key = pageKey(current)}
 		{@const print = Boolean(parseShellPath(current).print)}
@@ -92,10 +95,10 @@
 						<EventsPage path={current} />
 					{:else if key === "artists"}
 						<ArtistsPage path={current} />
-					{:else if key === "sections"}
-						<SectionsPage />
 					{:else if key === "config"}
-						<ConfigPage />
+						<ConfigPage path={current} />
+					{:else if key === "more"}
+						<MorePage />
 					{:else}
 						<HomeOverview />
 					{/if}
@@ -112,6 +115,7 @@
 							<p class="crash-message">{errorMessage(error)}</p>
 							<div class="crash-actions">
 								<Button type="button" variant="primary" onclick={reset}>
+									{#snippet icon()}<Icon name="refresh" size={16} />{/snippet}
 									Try again
 								</Button>
 								<Button
@@ -119,6 +123,7 @@
 									variant="outline"
 									onclick={() => window.location.reload()}
 								>
+									{#snippet icon()}<Icon name="refresh" size={16} />{/snippet}
 									Reload page
 								</Button>
 							</div>
@@ -139,7 +144,7 @@
 		flex-direction: column;
 		min-height: 0;
 		width: 100%;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.page.fill :global(.workbench),
@@ -153,39 +158,40 @@
 	.page-crash {
 		align-items: center;
 		justify-content: center;
-		padding: 2rem 1.25rem;
+		padding: var(--space-8) var(--space-5);
 	}
 
 	.crash {
 		width: min(36rem, 100%);
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: var(--space-3);
 	}
 
 	.crash-title {
 		margin: 0;
-		font-family: var(--font-display, inherit);
-		font-size: 1.5rem;
+		font-family: var(--font-display);
+		font-size: var(--text-xl);
+		letter-spacing: var(--tracking-xl);
 		font-weight: 500;
-		color: var(--text);
+		color: var(--text-base);
 	}
 
 	.crash-copy {
 		margin: 0;
-		color: var(--text-muted);
+		color: var(--fg-muted);
 		line-height: 1.45;
 	}
 
 	.crash-message {
 		margin: 0;
-		padding: 0.75rem 0.9rem;
-		border: 1px solid color-mix(in srgb, var(--error, #c97a7a) 45%, transparent);
-		border-radius: 6px;
-		background: color-mix(in srgb, var(--error, #c97a7a) 12%, transparent);
-		color: var(--error, #c97a7a);
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: 0.85rem;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--danger) 12%, transparent);
+		color: var(--danger);
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 		line-height: 1.4;
 		overflow-wrap: anywhere;
 	}
@@ -193,7 +199,7 @@
 	.crash-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.6rem;
-		margin-top: 0.35rem;
+		gap: var(--space-2);
+		margin-top: var(--space-1);
 	}
 </style>

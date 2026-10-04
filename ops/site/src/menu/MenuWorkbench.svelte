@@ -1,17 +1,32 @@
 <script lang="ts">
+	import { EditorPlaceholder, EditorReveal, editorZoom } from "../ui";
 	import { onMount } from "svelte";
-	import { fade, fly } from "svelte/transition";
-	import { Button, BusyOverlay, SidePanel } from "../ui";
+	import {
+		Button,
+		BusyOverlay,
+		Chip,
+		EmptyState,
+		FilterBar,
+		FilterField,
+		PageHeader,
+		Segmented,
+		SidePanel,
+	} from "../ui";
+	import DensityToggle from "../ui/DensityToggle.svelte";
+	import { densityPref, listViewPref } from "../ui/list-prefs.svelte";
+	import type { ListView } from "../ui/view-prefs";
+	import type { FilterChip } from "../ui/filters";
+	import { MENU_LIST_SORTS, type MenuListSort } from "./menu-list";
 	import * as api from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import { refreshSitePending } from "../website/site-pending.svelte";
 	import type { InventoryItem } from "../inventory/types";
 	import type { DrinkType, MenuItem, MenuSection, PosMenu } from "./types";
 	import { publishPendingCount } from "./publish";
+	import { menuItemPayload } from "./item-payload";
 	import { defaultPosMenus } from "./types";
 	import { Icon } from "../app/shell";
 	import {
-		loginNext,
 		itemMatchesKey,
 		itemSlug,
 		leaveEditor,
@@ -53,6 +68,13 @@
 	const fadeMs = reduced ? 0 : 180;
 	const flyMs = reduced ? 0 : 320;
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	/** Table or cards, and row spacing, remembered on this device. */
+	const view = listViewPref("menu-items", phone);
+	const density = densityPref("menu-items");
+	const VIEW_ITEMS = [
+		{ id: "cards", label: "Cards" },
+		{ id: "table", label: "Table" },
+	] as const;
 
 	let sections = $state<MenuSection[]>([]);
 	let posMenus = $state<PosMenu[]>([]);
@@ -60,17 +82,25 @@
 	let selectedId = $state<string | null>(null);
 	let item = $state<MenuItem | null>(null);
 	let detailOpen = $state(false);
+	/** The editor mounts once its pane has come forward over the list. */
+	const reveal = new EditorReveal();
 	let listPaneEl = $state<HTMLDivElement | undefined>();
 	let publishOpen = $state(false);
 	let query = $state("");
+	/** Phone list order. The desktop grid sorts by its column headers. */
+	let sort = $state<MenuListSort>("section");
+	const sortLocked = $derived(!phone.matches && view.value === "table");
+	let itemCount = $state(0);
+	const sortChips = $derived.by((): FilterChip[] => {
+		if (sort === "section") return [];
+		const label = MENU_LIST_SORTS.find((row) => row.id === sort)?.label || "";
+		return [{ key: "sort", label: `By ${label.toLowerCase()}`, onremove: () => (sort = "section") }];
+	});
 	let loadError = $state("");
 	let busy = $state(true);
 	let busyLabel = $state("Loading…");
 	const loading = $derived(busy && busyLabel === "Loading…");
 	let editorCleanToken = $state(0);
-	let needsAuth = $state(false);
-	let authPassword = $state("");
-	let authError = $state("");
 	let missingId = $state("");
 	let appliedPath = "";
 
@@ -140,7 +170,6 @@
 		sections = menuData.sections || [];
 		posMenus = menuData.posMenus || [];
 		inventory = inventoryData.items || [];
-		needsAuth = false;
 		loadError = "";
 		if (selectedId && detailOpen) {
 			item = findById(selectedId);
@@ -156,12 +185,6 @@
 		} catch (err) {
 			const message =
 				err instanceof Error ? err.message : "Failed to load menu.";
-			if (message.startsWith("auth:")) {
-				needsAuth = true;
-				loadError = "";
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/menu"))}`;
-				return false;
-			}
 			if (asReload) {
 				toast.error(message);
 			} else {
@@ -171,22 +194,6 @@
 		} finally {
 			busy = false;
 		}
-	}
-
-	async function submitAuth() {
-		authError = "";
-		try {
-			await api.login(authPassword, loginNext("/menu"));
-			authPassword = "";
-			await loadMenu();
-		} catch (err) {
-			authError = err instanceof Error ? err.message : "Login failed.";
-		}
-	}
-
-	function goLogin() {
-		const next = encodeURIComponent(loginNext("/menu"));
-		location.assign(`/api/auth/login?next=${next}`);
 	}
 
 	function blankItem(): MenuItem {
@@ -258,30 +265,7 @@
 		try {
 			busy = true;
 			busyLabel = "Saving…";
-			const payload = {
-				name: item.name,
-				sectionId: item.sectionId,
-				price: item.price,
-				priceAlt: item.priceAlt,
-				drinkType: item.drinkType || "cocktail",
-				cocktailType: item.cocktailType || "",
-				notes: item.notes,
-				glassware: item.glassware,
-				ice: item.ice,
-				garnish: item.garnish,
-				onDigitalMenu: item.onDigitalMenu !== false,
-				onPrintMenu: item.onPrintMenu !== false,
-				posMenuIds: (item.posMenus || []).map((row) => row.id),
-				lightspeedName: item.lightspeedName || "",
-				lightspeedMenuScreen: item.lightspeedMenuScreen || "",
-				description: item.description,
-				method: item.method,
-				abv: item.abv,
-				volume: item.volume,
-				producer: item.producer,
-				ingredients: item.ingredients || [],
-				analysisNote: item.analysisNote ?? null,
-			};
+			const payload = menuItemPayload(item);
 			const existing = item._id;
 			const data = existing
 				? await api.updateItem(existing, payload)
@@ -602,37 +586,26 @@
 	});
 </script>
 
-{#if needsAuth}
-	<div class="auth">
-		<p class="eyebrow">Gwenda · internal</p>
-		<h1>Sign in</h1>
-		<p class="muted">Your session expired or is missing. Sign in to continue.</p>
-		<div class="auth-form">
-			<Button variant="primary" onclick={goLogin}>Continue with Google</Button>
-			<details class="password-fallback">
-				<summary>Password instead</summary>
-				<form
-					onsubmit={(e) => {
-						e.preventDefault();
-						submitAuth();
-					}}
-				>
-					<input
-						type="password"
-						bind:value={authPassword}
-						placeholder="Password"
-						autocomplete="current-password"
-						required
-					/>
-					<Button variant="outline" type="submit">Enter</Button>
-				</form>
-			</details>
-			{#if authError}
-				<p class="auth-error">{authError}</p>
-			{/if}
-		</div>
-	</div>
-{:else if bookMode}
+{#snippet sortFilter()}
+	{#if phone.matches}
+		<FilterField label="Layout">
+			{#each VIEW_ITEMS as option (option.id)}
+				<Chip pressed={view.value === option.id} onclick={() => (view.value = option.id)}>{option.label}</Chip>
+			{/each}
+		</FilterField>
+	{/if}
+	<!-- Always shown so the toolbar keeps its layout when Cards/Table switches;
+	     the desktop table sorts by its column headers instead. -->
+	<FilterField label="Sort">
+		<span class="sort-chips" title={sortLocked ? "The table sorts by its column headers" : undefined}>
+			{#each MENU_LIST_SORTS as option (option.id)}
+				<Chip pressed={sort === option.id} disabled={sortLocked} onclick={() => (sort = option.id)}>{option.label}</Chip>
+			{/each}
+		</span>
+	</FilterField>
+{/snippet}
+
+{#if bookMode}
 	<div class="book-wrap">
 		<SpecBook
 			items={printBookItems}
@@ -654,12 +627,17 @@
 	<div class="workbench">
 		<div class="stage">
 			{#if loadError}
-				<p class="load-error">{loadError}</p>
+				<EmptyState tone="error" title="Could not load the menu" text={loadError}>
+					{#snippet action()}
+						<Button variant="outline" size="sm" onclick={() => void runLoad()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+					{/snippet}
+				</EmptyState>
 			{:else if missingId}
 				<div class="pane list">
 					<div class="missing">
 						<p>That drink is not on the menu.</p>
 						<Button variant="outline" size="sm" onclick={() => backToGrid()}>
+							{#snippet icon()}<Icon name="chevron-left" size={14} />{/snippet}
 							Back to menu items
 						</Button>
 					</div>
@@ -672,54 +650,97 @@
 					inert={detailOpen || item ? true : undefined}
 					aria-hidden={detailOpen || item ? true : undefined}
 				>
-					<header class="top">
-						<div class="tools">
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={busy}
-								busy={loading}
-								onclick={reloadMenu}
-							>
-								{#snippet icon()}
-									<Icon name="refresh" size={15} />
-								{/snippet}
-								Reload
-							</Button>
-							{#if !phone.matches}
+					<div class="head">
+						<PageHeader title="Menu items">
+							{#snippet actions()}
 								<Button
 									variant="outline"
 									size="sm"
+									data-compact
 									disabled={busy}
-									onclick={() => goToPrint(menuPrintPath())}
+									busy={loading}
+									onclick={reloadMenu}
 								>
 									{#snippet icon()}
-										<Icon name="print" size={15} />
+										<Icon name="refresh" size={14} />
 									{/snippet}
-									Print
+									Reload
 								</Button>
-							{/if}
-							<Button
-								variant="primary"
-								size="sm"
-								disabled={busy}
-								onclick={openPublish}
-							>
-								{#snippet icon()}
-									<Icon name="upload" size={15} />
-								{/snippet}
-								{publishPending
-									? `Publish · ${publishPending}`
-									: "Publish"}
-							</Button>
-						</div>
-					</header>
+								{#if !phone.matches}
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={busy}
+										onclick={() => goToPrint(menuPrintPath())}
+									>
+										{#snippet icon()}
+											<Icon name="print" size={14} />
+										{/snippet}
+										Print
+									</Button>
+								{/if}
+								<Button variant="outline" size="sm" disabled={busy} onclick={newItem}>
+									{#snippet icon()}
+										<Icon name="plus" size={14} />
+									{/snippet}
+									New item
+								</Button>
+								<Button
+									variant="primary"
+									size="sm"
+									disabled={busy}
+									onclick={openPublish}
+								>
+									{#snippet icon()}
+										<Icon name="upload" size={14} />
+									{/snippet}
+									{publishPending
+										? `Publish · ${publishPending}`
+										: "Publish"}
+								</Button>
+							{/snippet}
+							{#snippet toolbar()}
+								<FilterBar
+									bind:query
+									placeholder="Search name, ingredients, description"
+									ariaLabel="Search drinks"
+									searchWidth="26rem"
+									searchCount={query.trim() ? itemCount : undefined}
+									active={sort === "section" ? 0 : 1}
+									chips={sortChips}
+									onclearfilters={() => (sort = "section")}
+									filters={sortFilter}
+								>
+									{#snippet end()}
+										<p class="meta">{itemCount} item{itemCount === 1 ? "" : "s"}</p>
+										<DensityToggle
+											bind:value={density.value}
+											disabled={view.value !== "table"}
+											reason="Only for the table"
+										/>
+										<Segmented
+											value={view.value}
+											items={VIEW_ITEMS}
+											size="sm"
+											ariaLabel="Layout"
+											onChange={(id) => (view.value = id as ListView)}
+										/>
+									{/snippet}
+								</FilterBar>
+							{/snippet}
+						</PageHeader>
+					</div>
 					<div class="body">
 						<MenuItemsGrid
 							{sections}
 							{inventory}
-							bind:query
+							{query}
+							{sort}
+							bind:count={itemCount}
+							{loading}
 							{selectedId}
+							view={view.value}
+							density={density.value}
 							onview={(row, tab) => openItem(row, { tab })}
 							onnew={newItem}
 						/>
@@ -728,35 +749,41 @@
 				{#if detailOpen && item}
 					<div
 						class="pane detail"
-						in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-						out:fade={{ duration: fadeMs, easing: easeOut }}
+						transition:editorZoom
+						onintroend={reveal.introend}
+						onoutrostart={reveal.outrostart}
 					>
-						<RecipeEditor
-							bind:item
-							{sections}
-							bind:inventory
-							menuItems={allItems()}
-							{posMenus}
-							{busy}
-							{busyLabel}
-							cleanToken={editorCleanToken}
-							tab={editorTab}
-							{tabBase}
-							onsave={save}
-							onprint={() =>
-								item?.name?.trim() &&
-								goToPrint(menuItemPrintPath(item.name))}
-							ondelete={remove}
-							onphoto={onPhoto}
-							onphotoremove={onPhotoRemove}
-							onback={backToGrid}
-							onrefresh={refreshEditor}
-							ontab={setEditorTab}
-						/>
+						{#if !reveal.settled}
+							<EditorPlaceholder />
+						{:else}
+							<RecipeEditor
+								bind:item
+								{sections}
+								bind:inventory
+								menuItems={allItems()}
+								{posMenus}
+								{busy}
+								{busyLabel}
+								cleanToken={editorCleanToken}
+								tab={editorTab}
+								{tabBase}
+								onsave={save}
+								onprint={() =>
+									item?.name?.trim() &&
+									goToPrint(menuItemPrintPath(item.name))}
+								ondelete={remove}
+								onphoto={onPhoto}
+								onphotoremove={onPhotoRemove}
+								onback={backToGrid}
+								onrefresh={refreshEditor}
+								ontab={setEditorTab}
+							/>
+						{/if}
 					</div>
 				{/if}
 			{/if}
-			<BusyOverlay active={loading} label={busyLabel} />
+			<!-- First load shows skeleton rows; the overlay covers a reload. -->
+			<BusyOverlay active={loading && itemCount > 0} label={busyLabel} />
 		</div>
 
 		<SidePanel
@@ -776,60 +803,16 @@
 {/if}
 
 <style>
-	.auth {
-		flex: 1;
-		display: grid;
-		place-content: center;
-		gap: var(--gap-sm);
-		padding: var(--page-gutter);
-		text-align: center;
+	.sort-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
 	}
 
-	.auth h1 {
-		font-size: 1.5rem;
-	}
-
-	.auth .muted {
-		color: var(--muted-foreground);
-		font-size: var(--text-md);
-	}
-
-	.auth-form {
-		display: grid;
-		gap: var(--gap-sm);
-		width: min(100%, 18rem);
-		margin: var(--gap) auto 0;
-		justify-items: stretch;
-	}
-
-	.password-fallback {
-		text-align: left;
-		font-size: var(--text);
-		color: var(--muted-foreground);
-	}
-
-	.password-fallback summary {
-		cursor: pointer;
-		margin-bottom: 0.5rem;
-	}
-
-	.password-fallback form {
-		display: grid;
-		gap: var(--gap-xs);
-	}
-
-	.auth-form input {
-		height: var(--control-h);
-		padding: 0 0.75rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
-		color: var(--foreground);
-	}
-
-	.auth-error {
-		color: var(--destructive);
-		font-size: var(--text);
+	.sort-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
 	}
 
 	.workbench {
@@ -839,7 +822,7 @@
 		height: 100%;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.stage {
@@ -854,7 +837,7 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.pane.parked {
@@ -862,6 +845,24 @@
 		   visibility:hidden makes AG Grid dump its viewport. */
 		pointer-events: none;
 		z-index: 0;
+	}
+
+	/* Steps back and dims while an editor comes forward over it. */
+	.pane:not(.detail) {
+		transition:
+			transform 440ms var(--ease),
+			opacity 440ms var(--ease);
+	}
+
+	.pane:not(.detail).parked {
+		transform: scale(0.97);
+		opacity: 0.35;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.pane:not(.detail) {
+			transition: none;
+		}
 	}
 
 	.pane.detail {
@@ -875,42 +876,20 @@
 		flex-direction: column;
 	}
 
-	.top {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--gap-sm) var(--gap);
-		align-items: center;
-		justify-content: flex-end;
+	/* The grid runs edge to edge; only the header is padded. */
+	.head {
 		flex-shrink: 0;
-		padding: 0.65rem var(--page-gutter);
-		background: var(--background);
-		border-bottom: 1px solid var(--border);
-		min-height: calc(var(--topbar-h, 3.25rem));
+		padding: var(--page-gutter) var(--page-gutter) 0;
 	}
 
-	.tools {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.45rem;
-		align-items: center;
-		justify-content: flex-end;
+	.head :global(.page-header) {
+		margin-bottom: var(--space-4);
 	}
 
-	@media (max-width: 900px) {
-		.top {
-			padding: 0.55rem var(--page-gutter);
-			min-height: 0;
-		}
-	}
-
-	.load-error {
-		padding: 2rem var(--page-gutter);
-		color: var(--destructive);
-	}
 
 	.missing {
 		display: grid;
-		gap: var(--gap-sm);
+		gap: var(--space-3);
 		place-content: center;
 		justify-items: center;
 		height: 100%;

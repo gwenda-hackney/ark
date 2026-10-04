@@ -1,12 +1,18 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import {
 		BusyOverlay,
 		Button,
 		Card,
+		Confirm,
+		ConfirmDialog,
+		Field,
 		PageHeader,
+		HelpDrawer,
 		PageHelp,
+		Switch,
 		TextField,
 	} from "../ui";
 	import {
@@ -20,6 +26,10 @@
 	import { collectMenuItems } from "./lightspeed-stock.js";
 	import type { MenuItem, PosMenu } from "../menu/types";
 	import { MENUS_HELP } from "./lightspeed-help";
+	import { provideHelp } from "../ui/help.svelte";
+
+	/** The Help drawer; the ? beside Name opens it on that topic. */
+	const help = provideHelp("POS menus", MENUS_HELP);
 
 	let menus = $state<PosMenu[]>([]);
 	let items = $state<MenuItem[]>([]);
@@ -136,10 +146,15 @@
 		}
 	}
 
+	const confirm = new Confirm();
+
 	async function onRemove(menu: PosMenu) {
-		if (!window.confirm(`Remove ${menu.name} from ops? Drinks stay; they just drop this menu.`)) {
-			return;
-		}
+		const ok = await confirm.ask({
+			title: `Remove ${menu.name}?`,
+			message: "It comes off the list in ops. Drinks stay; they just drop this menu. Lightspeed isn't changed.",
+			action: "Remove",
+		});
+		if (!ok) return;
 		busyId = menu.id;
 		try {
 			await deletePosMenu(menu.id);
@@ -164,25 +179,26 @@
 		title="POS menus"
 	>
 		{#snippet actions()}
-			<PageHelp title="POS menus" topics={MENUS_HELP} />
+			<PageHelp />
 		{/snippet}
 	</PageHeader>
 
 	<div class="stack">
-		<Card
-			title="Add menu"
-		>
+		<Card title="Add menu" class="add-card">
 			<form class="add" onsubmit={onAdd}>
-				<label class="field">
-					<span class="label">Name</span>
-					<TextField bind:value={name} placeholder="Live menu" required />
-				</label>
-				<label class="default">
-					<input type="checkbox" bind:checked={makeDefault} />
-					Default for new drinks
-				</label>
+				<Field label="Name" for="pos-menu-name" width="lg" required help="Name">
+					<TextField id="pos-menu-name" bind:value={name} placeholder="Live menu" />
+				</Field>
+				<Switch bind:checked={makeDefault} label="Default for new drinks" />
 				<div class="actions">
-					<Button type="submit" variant="primary" busy={saving} disabled={!name.trim()}>
+					<Button
+						type="submit"
+						variant="primary"
+						busy={saving}
+						disabled={!name.trim()}
+						reason={name.trim() ? undefined : "Type a name first"}
+					>
+						{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 						Add
 					</Button>
 				</div>
@@ -192,7 +208,7 @@
 			{/if}
 		</Card>
 
-		<Card title="Menus" subtitle="{menus.length} in ops">
+		<Card title="Menus" subtitle="{menus.length} in ops" class="menus-card">
 			{#if !loading && menus.length === 0}
 				<p class="muted">No POS menus yet.</p>
 			{:else if !loading}
@@ -231,28 +247,31 @@
 										busy={busyId === menu.id}
 										onclick={() => void saveRename(menu)}
 									>
+										{#snippet icon()}<Icon name="save" size={14} />{/snippet}
 										Save
 									</Button>
 									<Button variant="ghost" size="sm" onclick={() => (renameId = "")}>
+										{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 										Cancel
 									</Button>
 								{:else}
-									{#if !menu.isDefault}
-										<Button
-											variant="outline"
-											size="sm"
-											disabled={busyId === menu.id}
-											onclick={() => void onDefault(menu)}
-										>
-											Make default
-										</Button>
-									{/if}
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={busyId === menu.id || menu.isDefault}
+										reason={menu.isDefault ? "Already the default" : undefined}
+										onclick={() => void onDefault(menu)}
+									>
+										{#snippet icon()}<Icon name="star" size={14} />{/snippet}
+										Make default
+									</Button>
 									<Button
 										variant="ghost"
 										size="sm"
 										disabled={busyId === menu.id}
 										onclick={() => startRename(menu)}
 									>
+										{#snippet icon()}<Icon name="pen" size={14} />{/snippet}
 										Rename
 									</Button>
 									<Button
@@ -261,6 +280,7 @@
 										disabled={busyId === menu.id}
 										onclick={() => void onRemove(menu)}
 									>
+										{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
 										Remove
 									</Button>
 								{/if}
@@ -275,6 +295,9 @@
 	<BusyOverlay active={loading} label="Loading POS menus…" />
 </div>
 
+<ConfirmDialog {confirm} />
+<HelpDrawer {help} />
+
 <style>
 	.page {
 		position: relative;
@@ -284,34 +307,33 @@
 		padding: var(--page-gutter);
 	}
 
+	/* The menus list takes the wide column, Add menu the narrow one. */
 	.stack {
 		display: grid;
-		gap: var(--gap-lg);
-		max-width: 40rem;
-		align-content: start;
+		grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+		grid-template-areas: "menus add";
+		gap: var(--space-6);
+		align-items: start;
+	}
+
+	.stack :global(.add-card) {
+		grid-area: add;
+	}
+
+	.stack :global(.menus-card) {
+		grid-area: menus;
+	}
+
+	@media (max-width: 1100px) {
+		.stack {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-areas: "add" "menus";
+		}
 	}
 
 	.add {
 		display: grid;
-		gap: var(--gap);
-	}
-
-	.field,
-	.default {
-		display: grid;
-		gap: 0.35rem;
-	}
-
-	.label {
-		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.default {
-		grid-template-columns: auto 1fr;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: var(--text-sm);
+		gap: var(--space-4);
 	}
 
 	.actions {
@@ -321,7 +343,7 @@
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 		font-size: var(--text-sm);
 	}
 
@@ -344,8 +366,8 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.65rem;
-		padding: 0.65rem 0;
+		gap: var(--space-3);
+		padding: var(--space-3) 0;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -361,7 +383,7 @@
 	}
 
 	.name {
-		font-size: var(--text);
+		font-size: var(--text-base);
 	}
 
 	.meta {
@@ -372,6 +394,6 @@
 	.row-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 </style>

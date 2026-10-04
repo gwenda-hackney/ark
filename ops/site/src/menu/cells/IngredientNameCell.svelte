@@ -66,7 +66,7 @@
 	.cell {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		width: 100%;
 	}

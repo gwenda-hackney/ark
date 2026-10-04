@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onMount } from "svelte";
 	import type { ColDef, GridApi } from "ag-grid-community";
 	import {
@@ -11,6 +12,7 @@
 		SearchField,
 	} from "../ui";
 	import type { SelectOption } from "../ui/types";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { getInventory, getMenu, previewLightspeedCsv } from "../app/api";
 	import { toast } from "../ui/toast.svelte";
 	import type { InventoryItem } from "./types";
@@ -139,13 +141,18 @@
 	);
 	const rows = $derived(filterRows(previewRows, query));
 
+	/** Phones scroll the table sideways; the tick and the name stay pinned. */
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+
 	const columnDefs = $derived.by((): ColDef<GridRow>[] =>
 		(LIGHTSPEED_COMBINED_IMPORT_HEADERS as string[]).map((header) => ({
 			headerName: header,
 			colId: header,
 			field: header,
-			minWidth: columnWidth(header),
-			flex: header === "Name" || header === "Menu/Screen" ? 1.4 : 0,
+			pinned: phone.matches && header === "Name" ? ("left" as const) : undefined,
+			minWidth: phone.matches && header === "Name" ? 140 : columnWidth(header),
+			flex: phone.matches && header === "Name" ? 0 : header === "Name" || header === "Menu/Screen" ? 1.4 : 0,
+			width: phone.matches && header === "Name" ? 150 : undefined,
 			tooltipField: header,
 			cellClass: emptyCellClass,
 		})),
@@ -346,27 +353,33 @@
 				variant="outline"
 				size="sm"
 				disabled={!rows.length}
+				reason={rows.length ? undefined : "Nothing listed"}
 				onclick={selectAllVisible}
 			>
+				{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 				Select all
 			</Button>
 			<Button
 				variant="ghost"
 				size="sm"
 				disabled={!selectedCount}
+				reason={selectedCount ? undefined : "Nothing selected"}
 				onclick={clearSelected}
 			>
+				{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 				Clear
 			</Button>
 			<Button
 				variant="primary"
 				size="sm"
 				disabled={!selectedCount || savingSkus}
+				reason={!selectedCount ? "Select drinks or stock first" : undefined}
 				title={newSkuCount
 					? `${newSkuCount} new SKU${newSkuCount === 1 ? "" : "s"} will be saved on download`
 					: "Download the selection"}
 				onclick={() => void downloadImport()}
 			>
+				{#snippet icon()}<Icon name="download" size={14} />{/snippet}
 				{selectedCount ? `Download · ${selectedCount}` : "Download"}
 			</Button>
 		{/snippet}
@@ -411,6 +424,7 @@
 						suppressRowClickSelection: false,
 						suppressScrollOnNewData: true,
 						enableBrowserTooltips: true,
+						selectionColumnDef: { pinned: phone.matches ? "left" : undefined },
 						rowSelection: {
 							mode: "multiRow",
 							checkboxes: true,
@@ -449,7 +463,7 @@
 		height: 100%;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: transparent;
 	}
 
 	.page :global(.page-header) {
@@ -468,21 +482,21 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: flex-end;
-		gap: var(--gap);
+		gap: var(--space-4);
 		flex-shrink: 0;
-		padding: var(--gap) var(--page-gutter);
+		padding: var(--space-4) var(--page-gutter);
 	}
 
 	.menu-field {
 		display: grid;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		min-width: min(100%, 16rem);
 	}
 
 	.menu-field span {
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
@@ -494,7 +508,7 @@
 	}
 
 	.error {
-		color: var(--destructive, #c97a7a);
+		color: var(--danger);
 	}
 
 	.empty {

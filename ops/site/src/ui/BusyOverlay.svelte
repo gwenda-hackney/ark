@@ -76,14 +76,14 @@
 		z-index: 1;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		margin: 0;
-		padding: 0.55rem 0.9rem;
+		padding: var(--space-2) var(--space-4);
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-pill);
 		background: var(--card);
 		color: var(--foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		box-shadow: var(--shadow);
 	}

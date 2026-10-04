@@ -83,22 +83,22 @@
 <style>
 	.picker {
 		display: grid;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.chips {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.chip {
 		display: inline-flex;
 		align-items: center;
 		margin: 0;
-		padding: 0.3rem 0.65rem;
+		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--input);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--sunken);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);

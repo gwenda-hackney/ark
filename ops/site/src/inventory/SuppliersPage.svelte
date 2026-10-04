@@ -1,13 +1,23 @@
 <script lang="ts">
+	/**
+	 * Suppliers as cards. Adding or editing one opens a dialog; the card's
+	 * own actions open the website or delete it.
+	 */
 	import { onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
 	import {
+		Badge,
 		BusyOverlay,
 		Button,
-		Card,
+		Dialog,
+		EmptyState,
+		Confirm,
+		ConfirmDialog,
 		Field,
+		FormErrors,
 		PageHeader,
+		Skeleton,
 		TextArea,
 		TextField,
 	} from "../ui";
@@ -20,34 +30,32 @@
 	import { toast } from "../ui/toast.svelte";
 	import { easeOut, flyMs } from "../ui/motion";
 	import type { CatalogSupplier } from "./types";
+	import {
+		SupplierDialog,
+		hostLabel,
+		sortSuppliers,
+		supplierId,
+		usageLabel,
+	} from "./suppliers.svelte";
 
 	let suppliers = $state<CatalogSupplier[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
+	let loadError = $state("");
 	let error = $state("");
-	let editingId = $state("");
-	let name = $state("");
-	let website = $state("");
-	let notes = $state("");
 	let busyId = $state("");
-
-	const formTitle = $derived(editingId ? "Edit supplier" : "Add supplier");
-
-	function resetForm() {
-		editingId = "";
-		name = "";
-		website = "";
-		notes = "";
-	}
+	const dialog = new SupplierDialog();
+	const confirm = new Confirm();
+	const errors = new FormErrors();
 
 	async function reload() {
 		loading = true;
-		error = "";
+		loadError = "";
 		try {
 			const data = await getSuppliers();
 			suppliers = data.suppliers || [];
 		} catch (err) {
-			error = err instanceof Error ? err.message : "Could not load suppliers.";
+			loadError = err instanceof Error ? err.message : "Could not load suppliers.";
 		} finally {
 			loading = false;
 		}
@@ -57,56 +65,57 @@
 		void reload();
 	});
 
-	function startEdit(row: CatalogSupplier) {
-		editingId = String(row.id || row._id || "");
-		name = row.name || "";
-		website = row.website || "";
-		notes = row.notes || "";
+	function openAdd() {
 		error = "";
+		errors.clearAll();
+		dialog.add();
+	}
+
+	function openEdit(row: CatalogSupplier) {
+		error = "";
+		errors.clearAll();
+		dialog.edit(row);
+	}
+
+	function closeDialog() {
+		if (saving) return;
+		dialog.close();
 	}
 
 	async function onSave(event: Event) {
 		event.preventDefault();
+		errors.replace(dialog.errors());
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
 		saving = true;
 		error = "";
-		const body = {
-			name: name.trim(),
-			website: website.trim(),
-			notes: notes.trim(),
-		};
+		const body = dialog.body();
+		const editingId = dialog.editingId;
 		try {
 			if (editingId) {
 				const data = await updateSupplier(editingId, body);
-				suppliers = suppliers
-					.map((row) => (String(row.id) === editingId ? data.supplier : row))
-					.sort((a, b) =>
-						String(a.name).localeCompare(String(b.name), undefined, {
-							sensitivity: "base",
-						}),
-					);
+				suppliers = sortSuppliers(
+					suppliers.map((row) => (supplierId(row) === editingId ? data.supplier : row)),
+				);
 				toast.ok("Supplier saved.");
 			} else {
 				const data = await createSupplier(body);
-				suppliers = [...suppliers, data.supplier].sort((a, b) =>
-					String(a.name).localeCompare(String(b.name), undefined, {
-						sensitivity: "base",
-					}),
-				);
+				suppliers = sortSuppliers([...suppliers, data.supplier]);
 				toast.ok("Supplier added.");
 			}
-			resetForm();
+			saving = false;
+			dialog.close();
 		} catch (err) {
-			const message =
-				err instanceof Error ? err.message : "Could not save supplier.";
-			error = message;
-			toast.error(message);
+			error = err instanceof Error ? err.message : "Could not save supplier.";
 		} finally {
 			saving = false;
 		}
 	}
 
 	async function onRemove(row: CatalogSupplier) {
-		const id = String(row.id || row._id || "");
+		const id = supplierId(row);
 		if (!id) return;
 		const label = row.name || "this supplier";
 		const used = row.itemCount || 0;
@@ -118,26 +127,21 @@
 			);
 			return;
 		}
-		if (!window.confirm(`Remove ${label} from suppliers?`)) return;
+		const ok = await confirm.ask({
+			title: `Delete ${label}?`,
+			message: "It goes from the supplier list. No inventory item uses it. This can't be undone.",
+			action: "Delete",
+		});
+		if (!ok) return;
 		busyId = id;
 		try {
 			await deleteSupplier(id);
-			suppliers = suppliers.filter((item) => String(item.id) !== id);
-			if (editingId === id) resetForm();
-			toast.ok("Supplier removed.");
+			suppliers = suppliers.filter((item) => supplierId(item) !== id);
+			toast.ok("Supplier deleted.");
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Could not remove supplier.");
+			toast.error(err instanceof Error ? err.message : "Could not delete supplier.");
 		} finally {
 			busyId = "";
-		}
-	}
-
-	function hostLabel(url: string | undefined): string {
-		if (!url) return "";
-		try {
-			return new URL(url).hostname.replace(/^www\./i, "");
-		} catch {
-			return url;
 		}
 	}
 </script>
@@ -146,115 +150,124 @@
 	<PageHeader
 		title="Suppliers"
 		subtitle="Wholesalers you buy from. Inventory items pick from this list, then store SKU, pack, and price on the product."
-	/>
+	>
+		{#snippet actions()}
+			<Button type="button" onclick={openAdd}>
+				{#snippet icon()}
+					<Icon name="plus" size={16} />
+				{/snippet}
+				Add supplier
+			</Button>
+		{/snippet}
+	</PageHeader>
 
-	<div class="stack">
-		<Card
-			title={formTitle}
-			subtitle={editingId
-				? "Name and website belong to the supplier. Product SKU stays on the inventory item."
-				: "Add LWC, Hills Prospect, or whoever you buy from."}
-		>
-			<form class="add" onsubmit={onSave}>
-				<Field label="Name" for="supplier-name">
-					<TextField
-						id="supplier-name"
-						bind:value={name}
-						placeholder="LWC Drinks"
-						required
-					/>
-				</Field>
-				<Field label="Website" for="supplier-website">
-					<TextField
-						id="supplier-website"
-						bind:value={website}
-						placeholder="https://www.lwc-drinks.co.uk"
-						autocomplete="url"
-					/>
-				</Field>
-				<Field label="Notes" for="supplier-notes">
-					<TextArea
-						id="supplier-notes"
-						rows={2}
-						bind:value={notes}
-						placeholder="Account number, delivery day, who to call."
-					/>
-				</Field>
-				<div class="actions">
-					{#if editingId}
-						<Button variant="ghost" type="button" onclick={resetForm}>
-							Cancel
-						</Button>
-					{/if}
-					<Button type="submit" variant="primary" busy={saving}>
-						{editingId ? "Save" : "Add"}
-					</Button>
-				</div>
-			</form>
-			{#if error}
-				<p class="error">{error}</p>
-			{/if}
-		</Card>
-
-		<Card title="List" subtitle="{suppliers.length} on the books">
-			{#if !loading && suppliers.length === 0}
-				<p class="muted">No suppliers yet. Add one above.</p>
-			{:else if !loading}
-				<ul class="list" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
-					{#each suppliers as row (row.id)}
-						<li class="row" class:on={String(row.id) === editingId}>
-							<button
-								type="button"
-								class="copy"
-								onclick={() => startEdit(row)}
+	{#if loadError}
+		<EmptyState tone="error" title="Could not load suppliers" text={loadError}>
+			{#snippet action()}
+				<Button variant="outline" size="sm" onclick={() => void reload()}>{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}Try again</Button>
+			{/snippet}
+		</EmptyState>
+	{:else if loading && suppliers.length === 0}
+		<Skeleton rows={4} label="Loading suppliers…" />
+	{:else if suppliers.length === 0}
+		<EmptyState icon="suppliers" title="No suppliers yet" text="Add the wholesalers you buy from, then pick one on an inventory item.">
+			{#snippet action()}
+				<Button size="sm" onclick={openAdd}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add supplier</Button>
+			{/snippet}
+		</EmptyState>
+	{:else}
+		<p class="count">{suppliers.length} on the books</p>
+		<ul class="grid" in:fly={{ y: 10, duration: flyMs, easing: easeOut }}>
+			{#each suppliers as row (supplierId(row))}
+				{@const id = supplierId(row)}
+				<li class="card">
+					<button type="button" class="open-edit" onclick={() => openEdit(row)}>
+						<span class="name">{row.name}</span>
+						<span class="host">{row.website ? hostLabel(row.website) : "No website"}</span>
+						{#if row.notes}
+							<span class="notes">{row.notes}</span>
+						{/if}
+					</button>
+					<div class="foot">
+						<Badge
+							tone={row.itemCount ? "neutral" : "warning"}
+							label={usageLabel(row.itemCount)}
+							title={row.itemCount ? undefined : "No inventory item uses this supplier yet"}
+						/>
+						<div class="card-actions">
+							{#if row.website}
+								<a class="web" href={row.website} target="_blank" rel="noreferrer">
+									Website
+									<Icon name="external-link" size={14} />
+								</a>
+							{/if}
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={busyId === id}
+								onclick={() => onRemove(row)}
+								aria-label="Delete {row.name}"
 							>
-								<span class="name">{row.name}</span>
-								<span class="meta">
-									{#if row.website}
-										{hostLabel(row.website)}
-									{:else}
-										No website
-									{/if}
-									<span class="dot">·</span>
-									{row.itemCount || 0}
-									{(row.itemCount || 0) === 1 ? "item" : "items"}
-								</span>
-								{#if row.notes}
-									<span class="notes">{row.notes}</span>
-								{/if}
-							</button>
-							<div class="row-actions">
-								{#if row.website}
-									<a
-										class="open"
-										href={row.website}
-										target="_blank"
-										rel="noreferrer"
-									>
-										Open
-									</a>
-								{/if}
-								<Button
-									variant="ghost"
-									size="sm"
-									disabled={busyId === String(row.id)}
-									onclick={() => onRemove(row)}
-									aria-label="Remove {row.name}"
-								>
-									{#snippet icon()}
-										<Icon name="trash" size={16} />
-									{/snippet}
-								</Button>
-							</div>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</Card>
-	</div>
+								{#snippet icon()}
+									<Icon name="trash" size={16} />
+								{/snippet}
+							</Button>
+						</div>
+					</div>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
-	<BusyOverlay active={loading} label="Loading…" />
+	<BusyOverlay active={loading && suppliers.length > 0} label="Loading…" />
 </div>
+
+<Dialog open={dialog.open} title={dialog.title} onclose={closeDialog}>
+	<form id="supplier-form" class="form" novalidate onsubmit={onSave}>
+		<Field label="Name" for="supplier-name" required error={errors.get("supplier-name")}>
+			<TextField
+				id="supplier-name"
+				bind:value={dialog.name}
+				placeholder="LWC Drinks"
+				oninput={() => errors.clear("supplier-name")}
+			/>
+		</Field>
+		<Field label="Website" for="supplier-website" optional>
+			<TextField
+				id="supplier-website"
+				type="url"
+				inputmode="url"
+				spellcheck="false"
+				bind:value={dialog.website}
+				placeholder="https://www.lwc-drinks.co.uk"
+				autocomplete="url"
+			/>
+		</Field>
+		<Field
+			label="Notes"
+			for="supplier-notes"
+			optional
+			hint="Account number, delivery day, who to call."
+		>
+			<TextArea id="supplier-notes" rows={3} bind:value={dialog.notes} />
+		</Field>
+		{#if dialog.editingId}
+			<p class="aside">Product SKU, pack and price stay on each inventory item.</p>
+		{/if}
+		{#if error}
+			<p class="error">{error}</p>
+		{/if}
+	</form>
+	{#snippet footer()}
+		<Button variant="ghost" type="button" disabled={saving} onclick={closeDialog}>{#snippet icon()}<Icon name="close" size={16} />{/snippet}Cancel</Button>
+		<Button type="submit" form="supplier-form" variant="primary" busy={saving}>
+			{#snippet icon()}<Icon name="save" size={16} />{/snippet}
+			{dialog.submitLabel}
+		</Button>
+	{/snippet}
+</Dialog>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {
@@ -265,108 +278,154 @@
 		padding: var(--page-gutter);
 	}
 
-	.stack {
-		display: grid;
-		gap: var(--gap-lg);
-		max-width: 44rem;
-		align-content: start;
-	}
-
-	.add {
-		display: grid;
-		gap: var(--gap-md);
-	}
-
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.4rem;
-	}
-
-	.error {
-		margin: var(--gap-sm) 0 0;
-		color: var(--destructive, #c97a7a);
+	.count {
+		margin: 0 0 var(--space-3);
 		font-size: var(--text-sm);
+		color: var(--fg-muted);
 	}
 
-	.muted {
-		margin: 0;
-		color: var(--muted-foreground);
-		font-size: var(--text-sm);
-	}
-
-	.list {
-		list-style: none;
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+		gap: var(--space-3);
 		margin: 0;
 		padding: 0;
-		display: grid;
-		gap: 0.15rem;
+		list-style: none;
 	}
 
-	.row {
+	.card {
 		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.45rem 0.2rem;
-		border-bottom: 1px solid var(--border);
+		flex-direction: column;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--panel-bg);
+		transition:
+			background-color var(--t-fast) var(--ease-in-out),
+			border-color var(--t-fast) var(--ease-in-out);
 	}
 
-	.row:last-child {
-		border-bottom: 0;
+	.card:hover {
+		background: var(--surface-3);
+		border-color: var(--border-strong);
 	}
 
-	.row.on .name {
-		color: var(--primary);
-	}
-
-	.copy {
+	.open-edit {
 		display: grid;
-		gap: 0.12rem;
+		gap: var(--space-1);
+		flex: 1;
+		align-content: start;
 		min-width: 0;
 		margin: 0;
-		padding: 0.2rem 0;
+		padding: var(--space-4) var(--space-4) var(--space-2);
 		border: 0;
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 		background: none;
 		color: inherit;
+		font: inherit;
 		text-align: left;
 		cursor: pointer;
 	}
 
+	.open-edit:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -2px;
+	}
+
 	.name {
-		font-weight: 600;
+		font-size: var(--text-md);
+		line-height: var(--leading-md);
+		font-weight: 500;
+		color: var(--fg);
 		overflow-wrap: anywhere;
 	}
 
-	.meta,
-	.notes {
+	.host {
 		font-size: var(--text-sm);
-		color: var(--muted-foreground);
-	}
-
-	.notes {
+		color: var(--fg-muted);
 		overflow-wrap: anywhere;
 	}
 
-	.dot {
-		margin: 0 0.15rem;
+	.notes {
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		margin-top: var(--space-1);
+		font-size: var(--text-sm);
+		line-height: var(--leading-sm);
+		color: var(--fg-muted);
 	}
 
-	.row-actions {
+	.foot {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
-		flex-shrink: 0;
-		padding-top: 0.15rem;
+		justify-content: space-between;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
 	}
 
-	.open {
+	.card-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	.web {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		min-height: var(--button-h-sm);
+		padding: 0 var(--space-2);
+		border-radius: var(--radius-md);
 		font-size: var(--text-sm);
-		color: var(--muted-foreground);
+		color: var(--fg-muted);
 		text-decoration: none;
 	}
 
-	.open:hover {
-		color: var(--foreground);
+	.web:hover {
+		background: var(--surface-3);
+		color: var(--fg);
+	}
+
+	.web:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.form {
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	.aside {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	.error {
+		margin: 0;
+		color: var(--danger);
+		font-size: var(--text-sm);
+	}
+
+	@media (max-width: 900px) {
+		.grid {
+			gap: var(--space-2);
+		}
+
+		.open-edit {
+			padding: var(--space-3) var(--space-3) var(--space-1);
+		}
+
+		.name {
+			font-size: var(--text-base);
+			line-height: var(--leading-base);
+		}
+
+		.foot {
+			padding-left: var(--space-3);
+		}
 	}
 </style>

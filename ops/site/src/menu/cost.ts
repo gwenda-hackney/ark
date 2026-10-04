@@ -2,7 +2,8 @@ import { quantityToMl } from "./abv.ts";
 import { inventoryItemPath, namesClash } from "../app/spa-path.js";
 import { parseGbp, formatGbp } from "../app/money.ts";
 import { type InventoryItem, type InventoryKind, type InventorySupplier } from "../inventory/types.ts";
-import { normalizeDrinkType, pourTargetFor, priceLabels, type DrinkType, type Ingredient, type MenuItem, type PourTargetMap } from "./types.ts";
+import { defaultServeQuantity, normalizeDrinkType, pourTargetFor, priceLabels, type DrinkType, type Ingredient, type MenuItem, type PourTargetMap, type PriceRow } from "./types.ts";
+import { normalizePrices, parseSizeMl } from "./prices.js";
 
 function roundMl(value: number): number {
 	return Math.round(value * 10) / 10;
@@ -134,11 +135,22 @@ export type RecipePriceAnalysis = {
 	suggestedPrice: number | null;
 	variance: number | null;
 	margin: number | null;
-	/** Primary and optional alt (double / half) pour readings. */
+	/** The main price and every other size whose cost can be worked out. */
 	serves: ServePourReading[];
+	/** One per price row, in order; `serve` is null when its cost can't be worked out. */
+	priceRows: PriceRowReading[];
 };
 
-export type ServePourKey = "primary" | "alt";
+/** `alt` is the second row (double / half pint); later rows are `row-2`, `row-3`… */
+export type ServePourKey = "primary" | "alt" | `row-${number}`;
+
+export type PriceRowReading = {
+	index: number;
+	name: string;
+	size: string;
+	costFactor: number | null;
+	serve: ServePourReading | null;
+};
 
 export type ServePourReading = {
 	key: ServePourKey;
@@ -170,6 +182,39 @@ export function altCostFactor(drinkType: DrinkType | undefined): number | null {
 		default:
 			return 2;
 	}
+}
+
+/**
+ * How much of the recipe cost a price row uses: 1 for the main row; the
+ * size over the main size when both read as millilitres (50 ml over 25 ml
+ * is 2); else `altCostFactor` for the second size's usual name (Double,
+ * Half pint). Null when it can't be worked out (a bottle, a "Large").
+ */
+export function priceRowCostFactor(
+	rows: PriceRow[],
+	index: number,
+	drinkType: DrinkType | undefined,
+): number | null {
+	if (index === 0) return 1;
+	const row = rows[index];
+	if (!row) return null;
+	const mainSize = String(rows[0]?.size || "").trim();
+	const mainMl = mainSize
+		? parseSizeMl(mainSize)
+		: (defaultServeQuantity(drinkType)?.quantity ?? null);
+	const rowMl = parseSizeMl(row.size);
+	if (mainMl && rowMl) return Math.round((rowMl / mainMl) * 1000) / 1000;
+	const alt = priceLabels(drinkType).alt;
+	if (alt && String(row.name || "").trim().toLowerCase() === alt.toLowerCase()) {
+		return altCostFactor(drinkType);
+	}
+	return null;
+}
+
+function serveKey(index: number): ServePourKey {
+	if (index === 0) return "primary";
+	if (index === 1) return "alt";
+	return `row-${index}`;
 }
 
 function pourReading(input: {
@@ -715,32 +760,35 @@ export function recipePriceAnalysis(
 	const complete = lines.length > 0 && missingLines === 0;
 	const hasEstimates = estimatedLines > 0;
 	const labels = priceLabels(drinkType);
-	const primary = pourReading({
-		key: "primary",
-		label: labels.primary,
-		costFactor: 1,
-		baseCost,
-		price: parseGbp(item?.price),
-		complete,
-		targetPourCost,
+	const rows = normalizePrices(item);
+	const priceRows: PriceRowReading[] = rows.map((row, index) => {
+		const costFactor = priceRowCostFactor(rows, index, drinkType);
+		return {
+			index,
+			name: row.name,
+			size: row.size || "",
+			costFactor,
+			serve:
+				costFactor == null
+					? null
+					: pourReading({
+							key: serveKey(index),
+							label: row.name || (index === 0 ? labels.primary : `Price ${index + 1}`),
+							costFactor,
+							baseCost,
+							price: parseGbp(row.price),
+							complete,
+							targetPourCost,
+						}),
+		};
 	});
-	const serves: ServePourReading[] = [primary];
-	const altFactor = altCostFactor(drinkType);
-	const altPriceRaw = String(item?.priceAlt || "").trim();
-	// Alt serve is opt-in per drink (set a double / half price to enable it).
-	if (labels.alt && altFactor != null && altPriceRaw) {
-		serves.push(
-			pourReading({
-				key: "alt",
-				label: labels.alt,
-				costFactor: altFactor,
-				baseCost,
-				price: parseGbp(altPriceRaw),
-				complete,
-				targetPourCost,
-			}),
-		);
-	}
+	// normalizePrices always gives the main row, so this is its reading.
+	const primary = priceRows[0].serve as ServePourReading;
+	// Other sizes are opt-in per drink: a row on the price table.
+	const serves: ServePourReading[] = [
+		primary,
+		...priceRows.slice(1).flatMap((row) => (row.serve ? [row.serve] : [])),
+	];
 
 	return {
 		drinkType,
@@ -760,5 +808,16 @@ export function recipePriceAnalysis(
 		variance: primary.variance,
 		margin: primary.margin,
 		serves,
+		priceRows,
 	};
+}
+
+/** The second size's price at the house pour target (a double, a half pint), or null when the cost isn't known. */
+export function suggestedAltPrice(
+	price: Pick<RecipePriceAnalysis, "drinkType" | "drinkCost" | "complete" | "targetPourCost"> | null | undefined,
+): number | null {
+	if (!price) return null;
+	const factor = altCostFactor(price.drinkType);
+	if (factor == null || price.drinkCost == null || !price.complete || !(price.targetPourCost > 0)) return null;
+	return snapGbp((price.drinkCost * factor) / (price.targetPourCost / 100));
 }

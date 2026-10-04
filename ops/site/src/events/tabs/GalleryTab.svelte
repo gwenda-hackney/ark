@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Icon } from "../../app/shell";
-	import { Tip } from "../../ui";
+	import { HelpTip } from "../../ui";
 	import { eventDriveFileUrl } from "../../app/api";
 	import type { EventGallery } from "../event-gallery.svelte";
 
@@ -57,10 +57,7 @@
 			<h2 class="section-title">
 				<span class="section-label">
 					Gallery
-					<Tip
-						label="Gallery"
-						tooltip="Photos for the event's page, from its Drive gallery, newest first. They go on the website with Update website."
-					/>
+					<HelpTip label="Gallery" topic="Gallery" />
 				</span>
 			</h2>
 			{#if gallery.folderUrl}
@@ -189,7 +186,7 @@
 		object-fit: cover;
 		object-position: center;
 		display: block;
-		background: #0a0a0a;
+		background: var(--bg);
 		pointer-events: none;
 	}
 
@@ -213,15 +210,15 @@
 		z-index: 1;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		height: var(--control-h-sm);
-		padding: 0 0.95rem;
+		padding: 0 var(--space-4);
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-pill);
 		background: color-mix(in srgb, var(--card) 88%, transparent);
 		color: var(--foreground);
 		font-family: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		line-height: 1;
 		appearance: none;
@@ -241,20 +238,18 @@
 
 	.block {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.section-title {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		margin: 0.4rem 0 0;
-		font-family: var(--font-display);
+		gap: var(--space-3);
+		margin: var(--space-2) 0 0;
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
 	}
 
 	.section-title::after {
@@ -268,7 +263,7 @@
 	.section-label {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-1);
 	}
 
 	.hint, .error {
@@ -282,7 +277,7 @@
 	.gallery {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-		gap: 0.75rem;
+		gap: var(--space-3);
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -292,8 +287,8 @@
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
-		gap: 1rem;
-		margin-top: 1.25rem;
+		gap: var(--space-4);
+		margin-top: var(--space-5);
 	}
 
 	.drive-head .section-title {
@@ -345,7 +340,6 @@
 		color: var(--primary);
 		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: 0.04em;
 	}
 
 	.tile, .tile.add {

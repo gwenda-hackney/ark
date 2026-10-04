@@ -4,11 +4,12 @@
 	 * Viewport never scrolls — only `.content` does.
 	 */
 	import type { Snippet } from "svelte";
-	import { onMount } from "svelte";
+	import { onMount, tick } from "svelte";
 	import Icon from "./Icon.svelte";
-	import MoreSheet from "./MoreSheet.svelte";
+	import { ease, lerpBox, targetBox, type MarkBox } from "./nav-mark";
+	import SectionTabs from "./SectionTabs.svelte";
 	import type { NavRoute } from "./types";
-	import { getMe, type AuthMe } from "../api";
+	import type { AuthMe } from "../api";
 	import {
 		interceptClientNav,
 		listen,
@@ -20,17 +21,24 @@
 	} from "../nav";
 	import { activeNavOverride, crumbLeaf } from "../../ui/crumbs.svelte";
 	import {
+		backToMore,
+		firstPage,
 		hideShellChrome,
+		lastPage,
 		mobileTabFor,
 		mobileTabs,
-		sheetSections,
-		tabHref,
+		MORE_PATH,
+		readLastPages,
+		rememberPage,
+		stripGroups,
+		type LastPages,
 		type MobileTabId,
 	} from "../mobile-nav";
 	import { flattenNavRoutes, matchActiveRoute, navGroupContains, visibleRoutes } from "../nav-tree";
 	import { startSitePendingPolling, websiteBadge } from "../../website/site-pending.svelte";
 	import { startWebsiteJobs } from "../../events/website-jobs.svelte";
 	import WebsiteJobsTray from "./WebsiteJobsTray.svelte";
+	import AccountMenu from "./AccountMenu.svelte";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../ui/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
@@ -41,9 +49,12 @@
 		brandTitle = "Gwenda",
 		brandSubtitle = "Operations",
 		path = $bindable("/"),
+		me = null,
 		children,
 	}: {
 		routes: NavRoute[];
+		/** Checked in main.ts before mount, so the banner and admin items are there on first paint. */
+		me?: AuthMe | null;
 		brandTitle?: string;
 		brandSubtitle?: string;
 		path?: string;
@@ -75,21 +86,10 @@
 	/** Expanded by default — labels visible unless the user collapses the rail. */
 	let open = $state(readRail());
 	let expandedGroups = $state<Record<string, boolean>>(readExpandedGroups());
-	/** Bottom tab whose sheet is open, if any. */
-	let sheet = $state<MobileTabId | null>(null);
-	let me = $state<AuthMe | null>(null);
+	/** Last page used per bottom tab, so the bar returns there. */
+	let lastPages = $state<LastPages>(readLastPages());
 	const phone = mediaMatches(SHELL_MOBILE_QUERY);
 
-	const sessionLabel = $derived(
-		me?.email ? me.email : me ? "Local access" : "",
-	);
-	const sessionMark = $derived(
-		(me?.email || "L").trim().charAt(0).toUpperCase() || "?",
-	);
-	const envLabel = $derived(me?.envLabel || "");
-	const envMark = $derived(
-		envLabel ? envLabel.trim().charAt(0).toUpperCase() : "",
-	);
 	const envDetail = $derived(
 		!me
 			? ""
@@ -99,28 +99,17 @@
 					me.databaseLabel,
 				].join(" · "),
 	);
-	const envSummary = $derived(
-		!me ? "" : me.databaseId ? `${me.envLabel} · ${me.databaseId}` : me.envLabel,
-	);
 	const envBannerText = $derived(
 		!me
 			? ""
-			: me.siteEnv === "local"
+			: me.risk
+				? `${me.envLabel} is using ${me.databaseLabel}. Check this before you edit.`
+				: me.siteEnv === "local"
 				? `Local · edits go to Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}), not production.`
 				: `${me.envLabel} · Baserow DB ${me.databaseId || "?"} (${me.databaseLabel}).`,
 	);
-	const brandSub = $derived(
-		envLabel ? `${brandSubtitle} · ${envLabel}` : brandSubtitle,
-	);
 
 	onMount(() => {
-		void getMe()
-			.then((row) => {
-				me = row;
-			})
-			.catch(() => {
-				me = null;
-			});
 		const stopPending = startSitePendingPolling();
 		const stopJobs = startWebsiteJobs();
 		return () => {
@@ -144,8 +133,14 @@
 	const printBook = $derived(Boolean(parseShellPath(path).print));
 	const showTabs = $derived(phone.matches && !editorChrome);
 	const showTopbar = $derived(!printBook && !phone.matches);
+	/**
+	 * Which copy of ops this is, said once. Desktop: a thin strip on any copy
+	 * that is not production. Phones: only when the pairing is risky; the
+	 * More page shows the details the rest of the time.
+	 */
 	const showEnvBanner = $derived(
-		!printBook && Boolean(me && (me.siteEnv !== "production" || me.risk)),
+		!printBook &&
+			Boolean(me && (me.risk || (!phone.matches && me.siteEnv !== "production"))),
 	);
 
 	const active = $derived(
@@ -154,8 +149,15 @@
 			matchActiveRoute(routes, path),
 	);
 	const tabs = $derived(mobileTabs(shownRoutes));
-	const currentTab = $derived(sheet ?? mobileTabFor(path, routes));
-	const sheetTab = $derived(tabs.find((row) => row.id === sheet) ?? null);
+	const currentTab = $derived(mobileTabFor(path, routes));
+	/** Phone tab strip for the current tab's pages. Editors keep their own tabs. */
+	const strip = $derived(showTabs ? stripGroups(currentTab, shownRoutes) : []);
+	const stripLabel = $derived(tabs.find((row) => row.id === currentTab)?.label || "");
+	const showBackToMore = $derived(showTabs && backToMore(path, routes));
+	/** The strip names the page, so PageHeader can drop its visible title. */
+	const titleInStrip = $derived(
+		strip.length > 0 && active?.path === (path.split("?")[0] || "/"),
+	);
 
 	const mark = $derived(brandTitle.trim().charAt(0).toUpperCase() || "G");
 
@@ -169,7 +171,6 @@
 	);
 
 	function go(next: string): void {
-		sheet = null;
 		navigate(next);
 		path = readPath();
 	}
@@ -188,6 +189,16 @@
 		if (isModifiedClick(event) || !href) return;
 		event.preventDefault();
 		go(href);
+	}
+
+	/** The group whose icon or flyout was just clicked: its flyout stays shut until the pointer leaves. */
+	let flyoutDismissed = $state<string | null>(null);
+
+	function onFlyoutClick(event: MouseEvent, href: string, groupId: string): void {
+		onLeafClick(event, href);
+		if (isModifiedClick(event)) return;
+		flyoutDismissed = groupId;
+		(event.currentTarget as HTMLElement).blur();
 	}
 
 	function collapsedGroupHref(item: NavRoute): string {
@@ -216,24 +227,93 @@
 		persistGroups();
 	}
 
-	function onTab(id: MobileTabId, event: MouseEvent): void {
-		if (
-			event.metaKey ||
-			event.ctrlKey ||
-			event.shiftKey ||
-			event.altKey ||
-			event.button !== 0
-		) {
-			return;
-		}
-		event.preventDefault();
-		const tab = tabs.find((row) => row.id === id);
-		if (tab?.path) {
-			go(tab.path);
-			return;
-		}
-		sheet = sheet === id ? null : id;
+	function tabHref(id: MobileTabId): string {
+		return lastPage(id, shownRoutes, lastPages);
 	}
+
+	/** Tapping the tab you are on goes to its first page, then back to the top. */
+	function onTab(id: MobileTabId, event: MouseEvent): void {
+		if (isModifiedClick(event)) return;
+		event.preventDefault();
+		if (id !== currentTab) {
+			go(tabHref(id));
+			return;
+		}
+		const first = firstPage(id, shownRoutes);
+		if ((path.split("?")[0] || "/") !== first) {
+			go(first);
+			return;
+		}
+		scrollContentToTop();
+	}
+
+	let contentEl = $state<HTMLElement | null>(null);
+
+	/** Pages scroll their own inner pane, so reset whichever one has moved. */
+	function scrollContentToTop(): void {
+		if (!contentEl) return;
+		const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+		for (const el of contentEl.querySelectorAll<HTMLElement>("*")) {
+			if (el.scrollTop > 0) el.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+		}
+	}
+
+	/* The current-page mark (see nav-mark.ts). */
+	let navEl = $state<HTMLElement | undefined>();
+	let markEl = $state<HTMLElement | undefined>();
+	let markBox: MarkBox | null = null;
+	let markFrame = 0;
+	const MARK_MS = 320; // --t-slow, the rail's own transition
+
+	function drawMark(box: MarkBox | null): void {
+		markBox = box;
+		if (!markEl) return;
+		if (!box) {
+			markEl.style.opacity = "0";
+			return;
+		}
+		markEl.style.opacity = "1";
+		markEl.style.transform = `translate(${box.x}px, ${box.y}px)`;
+		markEl.style.width = `${box.w}px`;
+		markEl.style.height = `${box.h}px`;
+		markEl.style.borderRadius = `${box.r}px`;
+	}
+
+	/** Ease from where the mark is to where it belongs, re-measuring every frame. */
+	function moveMark(animate: boolean): void {
+		cancelAnimationFrame(markFrame);
+		const nav = navEl;
+		if (!nav) return;
+		const from = markBox;
+		const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+		if (!animate || !from || reduce) {
+			drawMark(targetBox(nav, open));
+			return;
+		}
+		const start = performance.now();
+		const step = (now: number) => {
+			const t = Math.min(1, (now - start) / MARK_MS);
+			const to = targetBox(nav, open);
+			drawMark(to && lerpBox(from, to, ease(t)));
+			if (to && t < 1) markFrame = requestAnimationFrame(step);
+		};
+		markFrame = requestAnimationFrame(step);
+	}
+
+	$effect(() => {
+		// Rail, page or a group opening or closing: the mark moves.
+		void [open, active?.id, JSON.stringify(expandedGroups), shownRoutes.length, navEl, markEl];
+		void tick().then(() => moveMark(true));
+	});
+
+	onMount(() => {
+		const onResize = () => moveMark(false);
+		window.addEventListener("resize", onResize);
+		return () => {
+			window.removeEventListener("resize", onResize);
+			cancelAnimationFrame(markFrame);
+		};
+	});
 
 	function toggleRail(): void {
 		open = !open;
@@ -245,18 +325,14 @@
 	}
 
 	$effect(() => {
-		void path;
-		sheet = null;
+		rememberPage(path, routes);
+		lastPages = readLastPages();
 	});
 
 	/** Apply before paint so print routes do not flash rail / env banner. */
 	$effect.pre(() => {
 		if (typeof document === "undefined") return;
 		document.documentElement.classList.toggle("print-book", printBook);
-	});
-
-	$effect(() => {
-		if (!phone.matches || editorChrome) sheet = null;
 	});
 
 	$effect(() => {
@@ -281,23 +357,26 @@
 	class:has-tabs={showTabs}
 	class:has-topbar={showTopbar}
 	class:editor={editorChrome}
+	class:title-in-strip={titleInStrip}
 >
 	<aside class="rail" aria-label="Primary">
 		<div class="brand">
 			<span class="mark" aria-hidden="true">{mark}</span>
 			<span class="brand-text">
 				<span class="brand-title">{brandTitle}</span>
-				<span class="brand-sub">{brandSub}</span>
+				<span class="brand-sub">{brandSubtitle}</span>
 			</span>
 		</div>
 
-		<nav class="nav scrollbar-fade">
+		<nav class="nav scrollbar-fade" bind:this={navEl}>
+			<span class="nav-mark" class:halo={!open} bind:this={markEl} aria-hidden="true"></span>
 			{#snippet navEntry(item: NavRoute)}
 				{#if item.heading && item.children?.length}
 					<div class="nav-section">
-						{#if open}
+						<!-- Always here, folding away with the rail, so nothing below jumps. -->
+						<div class="nav-section-head" aria-hidden={open ? undefined : true}>
 							<p class="nav-section-label">{item.name}</p>
-						{/if}
+						</div>
 						{#each item.children as child (child.id)}
 							{@render navEntry(child)}
 						{/each}
@@ -305,13 +384,22 @@
 				{:else if item.children?.length}
 					{@const inGroup = navGroupContains(item, active)}
 					{@const groupHref = collapsedGroupHref(item)}
-					{@const groupOpen = isGroupExpanded(item.id)}
-					<div class="nav-group" class:expanded={groupOpen}>
+					{@const groupOpen = open && isGroupExpanded(item.id)}
+					<div
+						class="nav-group"
+						class:expanded={groupOpen}
+						class:dismissed={flyoutDismissed === item.id}
+						role="presentation"
+						onpointerleave={() => {
+							if (flyoutDismissed === item.id) flyoutDismissed = null;
+						}}
+					>
 						{#if open}
 							<button
 								type="button"
 								class="nav-item group-label"
 								class:in={inGroup}
+								data-mark={inGroup && !groupOpen ? "" : undefined}
 								class:open={groupOpen}
 								aria-expanded={groupOpen}
 								aria-controls={`nav-group-${item.id}`}
@@ -323,6 +411,20 @@
 									<Icon name="chevron-right" size={14} />
 								</span>
 							</button>
+						{:else}
+							<a
+								class="nav-item"
+								class:on={inGroup}
+								data-mark={inGroup ? "" : undefined}
+								href={groupHref}
+								aria-current={inGroup ? "true" : undefined}
+								aria-haspopup="true"
+								onclick={(e) => onFlyoutClick(e, groupHref, item.id)}
+							>
+								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
+								<span class="nav-label">{item.name}</span>
+							</a>
+						{/if}
 							<div
 								class="nav-children"
 								id={`nav-group-${item.id}`}
@@ -341,6 +443,7 @@
 												<a
 													class="nav-item nested deep"
 													class:on
+													data-mark={on && groupOpen ? "" : undefined}
 													href={href}
 													aria-current={on ? "page" : undefined}
 													tabindex={groupOpen ? undefined : -1}
@@ -355,6 +458,7 @@
 										<a
 											class="nav-item nested"
 											class:on
+											data-mark={on && groupOpen ? "" : undefined}
 											href={href}
 											aria-current={on ? "page" : undefined}
 											tabindex={groupOpen ? undefined : -1}
@@ -366,18 +470,7 @@
 									{/each}
 								</div>
 							</div>
-						{:else}
-							<a
-								class="nav-item"
-								class:on={inGroup}
-								href={groupHref}
-								aria-current={inGroup ? "true" : undefined}
-								aria-haspopup="true"
-								onclick={(e) => onLeafClick(e, groupHref)}
-							>
-								<span class="nav-icon"><Icon name={item.icon} size={19} /></span>
-								<span class="nav-label">{item.name}</span>
-							</a>
+						{#if !open}
 							<nav class="flyout" aria-label={item.name}>
 								<div class="flyout-card">
 									{#each item.children as child (child.id)}
@@ -390,7 +483,7 @@
 													class="flyout-link"
 													href={href}
 													aria-current={on ? "page" : undefined}
-													onclick={(e) => onLeafClick(e, href)}
+													onclick={(e) => onFlyoutClick(e, href, item.id)}
 												>
 													<span class="nav-icon"><Icon name={leaf.icon} size={16} /></span>
 													{leaf.name}
@@ -403,7 +496,7 @@
 											class="flyout-link"
 											href={href}
 											aria-current={on ? "page" : undefined}
-											onclick={(e) => onLeafClick(e, href)}
+											onclick={(e) => onFlyoutClick(e, href, item.id)}
 										>
 											<span class="nav-icon"><Icon name={child.icon} size={16} /></span>
 											{child.name}
@@ -420,6 +513,7 @@
 					<a
 						class="nav-item"
 						class:on
+						data-mark={on ? "" : undefined}
 						href={href}
 						aria-current={on ? "page" : undefined}
 						onclick={(e) => onLeafClick(e, href)}
@@ -428,7 +522,7 @@
 						<span class="nav-label">{item.name}</span>
 						{#if item.badge === "website" && badge}
 							<span
-								class="nav-badge {badge.tone}"
+								class="nav-badge pill-text {badge.tone}"
 								title={badgeTitle(badge.tone, badge.count)}
 								aria-label={badgeTitle(badge.tone, badge.count)}
 							>
@@ -445,37 +539,6 @@
 		</nav>
 
 		<div class="rail-foot">
-			{#if envSummary}
-				<div
-					class="nav-item session env"
-					class:risk={Boolean(me?.risk)}
-					class:local={me?.siteEnv === "local" && !me?.risk}
-					title={envDetail}
-				>
-					<span class="nav-icon" aria-hidden="true">
-						<span class="session-mark">{envMark}</span>
-					</span>
-					<span class="nav-label session-label">
-						<span class="env-line">{envSummary}</span>
-						<span class="env-db">{me?.databaseLabel}</span>
-					</span>
-					<span class="tip" aria-hidden="true">{envDetail}</span>
-				</div>
-			{/if}
-			{#if sessionLabel}
-				<div class="nav-item session" title={sessionLabel}>
-					<span class="nav-icon" aria-hidden="true">
-						<span class="session-mark">{sessionMark}</span>
-					</span>
-					<span class="nav-label session-label">{sessionLabel}</span>
-					<span class="tip" aria-hidden="true">{sessionLabel}</span>
-				</div>
-			{/if}
-			<a class="nav-item" href="/api/auth/logout">
-				<span class="nav-icon"><Icon name="logout" size={19} /></span>
-				<span class="nav-label">Sign out</span>
-				<span class="tip" aria-hidden="true">Sign out</span>
-			</a>
 			<button
 				type="button"
 				class="nav-item"
@@ -510,7 +573,10 @@
 						{/each}
 					</ol>
 				</nav>
-				<WebsiteJobsTray />
+				<div class="topbar-end">
+					<WebsiteJobsTray />
+					<AccountMenu {me} />
+				</div>
 			</header>
 		{:else if !printBook}
 			<WebsiteJobsTray floating />
@@ -527,7 +593,24 @@
 			</div>
 		{/if}
 
-		<main class="content scrollbar-fade">
+		{#if strip.length}
+			<SectionTabs
+				label={stripLabel}
+				groups={strip}
+				{active}
+				badge={badge ? { ...badge, title: badgeTitle(badge.tone, badge.count) } : null}
+				onnavigate={onLeafClick}
+			/>
+		{:else if showBackToMore}
+			<nav class="back-more" aria-label="Back">
+				<a href={MORE_PATH} onclick={(e) => onLeafClick(e, MORE_PATH)}>
+					<Icon name="chevron-left" size={20} />
+					More
+				</a>
+			</nav>
+		{/if}
+
+		<main class="content scrollbar-fade" bind:this={contentEl}>
 			{@render children({ path, active })}
 		</main>
 	</div>
@@ -539,16 +622,15 @@
 				<a
 					class="tab"
 					class:on
-					href={tabHref(item.id, shownRoutes)}
-					aria-current={on && item.path ? "page" : undefined}
-					aria-expanded={item.path ? undefined : sheet === item.id}
+					href={tabHref(item.id)}
+					aria-current={on ? "true" : undefined}
 					onclick={(e) => onTab(item.id, e)}
 				>
 					<span class="tab-icon">
 						<Icon name={item.icon} size={20} />
-						{#if item.id === "more" && badge}
+						{#if item.badge === "website" && badge}
 							<span
-								class="tab-badge {badge.tone}"
+								class="tab-badge pill-text {badge.tone}"
 								aria-label={badgeTitle(badge.tone, badge.count)}
 							>
 								{badge.tone === "failed" ? "!" : badge.count}
@@ -561,20 +643,6 @@
 		</nav>
 	{/if}
 
-	<MoreSheet
-		open={Boolean(sheetTab)}
-		label={sheetTab?.label || "More"}
-		sections={sheet ? sheetSections(sheet, shownRoutes) : []}
-		{active}
-		account={sheet === "more"}
-		badge={badge ? { ...badge, title: badgeTitle(badge.tone, badge.count) } : null}
-		onnavigate={onLeafClick}
-		email={sessionLabel}
-		{envSummary}
-		{envDetail}
-		envRisk={Boolean(me?.risk)}
-		onclose={() => (sheet = null)}
-	/>
 </div>
 
 <style>
@@ -584,7 +652,7 @@
 		position: relative;
 		height: 100dvh;
 		overflow: hidden;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 		color: var(--foreground);
 		transition: grid-template-columns var(--t-slow) var(--ease);
 	}
@@ -600,8 +668,8 @@
 		position: relative;
 		z-index: 50;
 		height: 100dvh;
-		padding: 0 0.75rem 1rem;
-		background: var(--card);
+		padding: 0 var(--space-3) var(--space-4);
+		background: var(--panel-bg);
 		border-right: 1px solid var(--border);
 		overflow: hidden;
 	}
@@ -628,8 +696,9 @@
 		border-radius: var(--radius-md);
 		background: var(--brand-mark);
 		color: var(--primary-foreground);
+		/* The brand G, in the brand serif. */
 		font-family: var(--font-display);
-		font-size: 1.05rem;
+		font-size: var(--text-lg);
 		font-weight: 600;
 		box-shadow: var(--shadow-primary);
 	}
@@ -652,8 +721,8 @@
 
 	.brand-title {
 		font-size: var(--text-md);
-		font-weight: 650;
-		letter-spacing: -0.02em;
+		font-weight: 600;
+		letter-spacing: var(--tracking-2xl);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -663,9 +732,12 @@
 		font-size: var(--text-xs);
 		color: var(--muted-foreground);
 		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.nav {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: 0.1875rem;
@@ -683,22 +755,54 @@
 		overflow: visible;
 	}
 
+	/* Not scrolling, so no gutter to hide: items keep the rail's 3rem and centre on their icons. */
+	.shell:not(.open) .nav {
+		margin-right: 0;
+	}
+
 	.nav-section {
 		display: flex;
 		flex-direction: column;
 		gap: 0.0625rem;
 	}
 
-	.open .nav-section {
-		margin-top: 0.85rem;
-		margin-bottom: 0.35rem;
+	/*
+	  Collapsing the rail folds the section labels, their spacing and any open
+	  group's links away over the same time as the width, so the entries glide
+	  to their new rows with the gold mark instead of jumping.
+	*/
+	.nav-section {
+		margin-block: var(--space-3) var(--space-1);
+		transition: margin var(--t-slow) var(--ease);
+	}
+
+	.shell:not(.open) .nav-section {
+		margin-block: 0;
+	}
+
+	.nav-section-head {
+		display: grid;
+		grid-template-rows: 1fr;
+		opacity: 1;
+		transition:
+			grid-template-rows var(--t-slow) var(--ease),
+			opacity var(--t-slow) var(--ease);
+	}
+
+	.shell:not(.open) .nav-section-head {
+		grid-template-rows: 0fr;
+		opacity: 0;
 	}
 
 	.nav-section-label {
-		margin: 0.15rem 0 0.3rem 0.7rem;
-		font-size: 0.6875rem;
+		min-height: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		margin: 0;
+		padding: 0.15rem 0 var(--space-1) var(--space-3);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.08em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}
@@ -734,7 +838,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.0625rem;
-		padding: 0 0 0.15rem;
+	}
+
+	/* The space under the links, inside the fold so a closed group has none. */
+	.nav-children-inner::after {
+		content: "";
+		flex-shrink: 0;
+		height: 0.15rem;
 	}
 
 	.nav-group.expanded .nav-children-inner {
@@ -744,12 +854,12 @@
 	.nav-item.nested {
 		height: 2.25rem;
 		min-height: 2.25rem;
-		padding-left: 2.7rem;
-		padding-right: 0.7rem;
+		padding-left: var(--space-10);
+		padding-right: var(--space-3);
 		border-radius: var(--radius-sm);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
-		font-weight: 450;
+		font-weight: 400;
 	}
 
 	.nav-item.nested.deep {
@@ -760,20 +870,20 @@
 
 	.nav-sub-label {
 		flex-shrink: 0;
-		margin: 0.35rem 0 0.05rem 0.4rem;
-		font-size: 0.6875rem;
+		margin: var(--space-1) 0 0.05rem var(--space-2);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.07em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}
 
 	.flyout-label {
 		flex-shrink: 0;
-		margin: 0.45rem 0 0.1rem 0.55rem;
-		font-size: var(--text-xs);
+		margin: var(--space-2) 0 0.1rem var(--space-2);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--subtle-foreground);
 	}
@@ -781,7 +891,7 @@
 	.nav-item.group-label {
 		cursor: pointer;
 		color: color-mix(in srgb, var(--foreground) 72%, var(--muted-foreground));
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		letter-spacing: 0;
 		text-transform: none;
@@ -839,7 +949,7 @@
 		left: 100%;
 		top: 0;
 		z-index: 70;
-		padding-left: 0.5rem;
+		padding-left: var(--space-2);
 		opacity: 0;
 		pointer-events: none;
 		transform: translate(-0.25rem, 0);
@@ -855,11 +965,18 @@
 		transform: translate(0, 0);
 	}
 
+	/* Picked a page from it: shut while the pointer is still over it. */
+	.nav-group.dismissed .flyout {
+		opacity: 0;
+		pointer-events: none;
+		transform: translate(-0.25rem, 0);
+	}
+
 	.flyout-card {
 		display: grid;
 		gap: 0.125rem;
 		min-width: 12.75rem;
-		padding: 0.35rem;
+		padding: var(--space-1);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		background: var(--popover);
@@ -870,9 +987,9 @@
 	.flyout-link {
 		display: flex;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		min-height: 2.35rem;
-		padding: 0.35rem 0.55rem;
+		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius-sm);
 		color: var(--popover-foreground);
 		font-size: var(--text-sm);
@@ -900,26 +1017,8 @@
 		flex-direction: column;
 		flex-shrink: 0;
 		gap: 0.1875rem;
-		padding-top: 0.5rem;
+		padding-top: var(--space-2);
 		border-top: 1px solid var(--border);
-	}
-
-	.nav-item.session {
-		cursor: default;
-		color: var(--muted-foreground);
-	}
-
-	.nav-item.session:hover {
-		background: transparent;
-		color: var(--muted-foreground);
-	}
-
-	.session-label {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: var(--text-xs);
-		font-weight: 500;
 	}
 
 	.nav > a.nav-item {
@@ -931,17 +1030,18 @@
 		display: flex;
 		align-items: center;
 		flex-shrink: 0;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		width: 100%;
 		height: 2.75rem;
 		min-height: 2.75rem;
-		padding: 0 0.6875rem;
+		/* (3rem item - 19px icon) / 2: the icon sits in the middle of the collapsed rail's item. */
+		padding: 0 0.90625rem;
 		border: none;
 		border-radius: var(--radius-md);
 		background: none;
 		color: var(--muted-foreground);
 		font: inherit;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		text-align: left;
 		text-decoration: none;
@@ -952,7 +1052,7 @@
 			box-shadow var(--t-fast) var(--ease-in-out);
 	}
 
-	.nav-item:hover:not(.on):not(.session) {
+	.nav-item:hover:not(.on) {
 		background: var(--accent);
 		color: var(--foreground);
 	}
@@ -966,34 +1066,34 @@
 	}
 
 	.nav-item.on {
-		background: var(--primary-wash);
 		color: var(--primary);
 	}
 
 	.nav-item.on:focus-visible {
 		color: var(--primary);
-		background: var(--primary-wash);
+		background: transparent;
 		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent);
 	}
 
-	/* Collapsed: circle halo only (no rect wash). Expanded: rect wash only. */
-	.shell:not(.open) .nav-item.on {
-		background: transparent;
-	}
-
-	.nav-item.on::before {
-		content: "";
+	/*
+	  The current page's mark, one shape for the whole nav: the row's wash when
+	  the rail is open, the halo round the icon when collapsed. nav-mark.ts
+	  moves and reshapes it; only its colour is left to CSS.
+	*/
+	.nav-mark {
 		position: absolute;
-		left: 0.0625rem;
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 50%;
-		background: var(--glow);
+		top: 0;
+		left: 0;
+		width: 0;
+		height: 0;
+		opacity: 0;
+		background: var(--primary-wash);
 		pointer-events: none;
+		transition: background-color var(--t-slow) var(--ease);
 	}
 
-	.open .nav-item.on::before {
-		display: none;
+	.nav-mark.halo {
+		background: var(--glow);
 	}
 
 	/* Collapsed rail clips outer rings; keep keyboard focus on the icon halo. */
@@ -1005,7 +1105,7 @@
 	.shell:not(.open) .nav-item:focus-visible::after {
 		content: "";
 		position: absolute;
-		left: 0.0625rem;
+		left: 0.25rem;
 		width: 2.5rem;
 		height: 2.5rem;
 		border-radius: 50%;
@@ -1019,23 +1119,6 @@
 		justify-content: center;
 		position: relative;
 		flex-shrink: 0;
-	}
-
-	.session-mark {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		box-sizing: border-box;
-		width: 1.1875rem;
-		height: 1.1875rem;
-		border-radius: var(--radius-sm);
-		background: color-mix(in srgb, var(--primary) 22%, var(--card));
-		color: var(--primary);
-		font-size: 0.625rem;
-		font-weight: 700;
-		letter-spacing: 0;
-		line-height: 1;
-		text-align: center;
 	}
 
 	.nav-label {
@@ -1063,13 +1146,14 @@
 		min-width: 1.25rem;
 		height: 1.25rem;
 		margin-left: auto;
-		padding: 0 0.35rem;
+		padding: 0 var(--space-1);
 		border-radius: var(--radius-pill);
 		background: var(--primary);
 		color: var(--primary-foreground);
-		font-size: 0.7rem;
-		font-weight: 700;
+		font-size: var(--text-2xs);
+		font-weight: 600;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 		line-height: 1;
 	}
 
@@ -1077,11 +1161,11 @@
 	.shell:not(.open) .nav-badge {
 		position: absolute;
 		top: 0.3rem;
-		left: 1.55rem;
+		left: 1.7rem;
 		min-width: 1rem;
 		height: 1rem;
-		padding: 0 0.25rem;
-		font-size: 0.6rem;
+		padding: 0 var(--space-1);
+		font-size: var(--text-2xs);
 	}
 
 	.nav-badge.updating {
@@ -1091,7 +1175,7 @@
 
 	.nav-badge.failed {
 		background: var(--destructive);
-		color: var(--destructive-foreground, #fff);
+		color: var(--danger-foreground);
 	}
 
 	.tip {
@@ -1099,7 +1183,7 @@
 		left: calc(100% + 0.625rem);
 		top: 50%;
 		z-index: 60;
-		padding: 0.3125rem 0.5625rem;
+		padding: var(--space-1) var(--space-2);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--popover);
@@ -1141,78 +1225,68 @@
 		grid-template-rows: auto minmax(0, 1fr);
 	}
 
+	/* A quiet 24px strip; it only turns amber when the pairing is risky. */
 	.env-banner {
-		padding: 0.45rem var(--page-gutter);
-		border-bottom: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border));
-		background: color-mix(in srgb, var(--primary) 16%, var(--background));
-		color: var(--primary);
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.01em;
-		line-height: 1.35;
+		height: 1.5rem;
+		padding: 0 var(--page-gutter);
+		border-bottom: 1px solid var(--border);
+		background: var(--surface-1);
+		color: var(--fg-muted);
+		font-size: var(--text-2xs);
+		font-weight: 500;
+		line-height: calc(1.5rem - 1px);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.env-banner::before {
+		content: "";
+		display: inline-block;
+		width: 0.375rem;
+		height: 0.375rem;
+		margin-right: var(--space-2);
+		border-radius: 50%;
+		background: var(--info);
+		vertical-align: 0.0625rem;
 	}
 
 	.env-banner.risk {
-		border-bottom-color: color-mix(in srgb, var(--warning) 45%, var(--border));
-		background: color-mix(in srgb, var(--warning) 18%, var(--background));
+		border-bottom-color: var(--warning-border);
+		background: color-mix(in srgb, var(--warning) 16%, var(--background));
 		color: var(--warning);
+		font-weight: 600;
 	}
 
-	.nav-item.session.env.local .session-mark {
-		background: color-mix(in srgb, var(--primary) 28%, var(--card));
-		color: var(--primary);
-	}
-
-	.nav-item.session.env.risk .session-mark {
-		background: color-mix(in srgb, var(--warning) 28%, var(--card));
-		color: var(--warning);
-	}
-
-	.env-line {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.env-db {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: 0.65rem;
-		font-weight: 500;
-		color: var(--subtle-foreground);
-		opacity: 0.9;
-	}
-
-	.nav-item.session.env {
-		height: auto;
-		min-height: 2.75rem;
-		padding-top: 0.4rem;
-		padding-bottom: 0.4rem;
-		align-items: center;
+	.env-banner.risk::before {
+		background: var(--warning);
 	}
 
 	.topbar {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--gap);
+		gap: var(--space-4);
 		padding: 0 var(--page-gutter);
 		border-bottom: 1px solid var(--border);
-		background: var(--background);
+		background: transparent;
+	}
+
+	.topbar-end {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
 	}
 
 	.crumbs {
 		min-width: 0;
-		font-size: var(--text);
+		font-size: var(--text-base);
 	}
 
 	.crumbs ol {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		min-width: 0;
 		margin: 0;
 		padding: 0;
@@ -1222,7 +1296,7 @@
 	.crumbs li {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 
@@ -1293,22 +1367,47 @@
 			display: none;
 		}
 
-		.main {
+		/* Banner, tab strip or back link, then the page: a column, not grid rows. */
+		.main,
+		.shell:has(.env-banner) .main,
+		.shell:not(.has-topbar):has(.env-banner) .main {
+			display: flex;
+			flex-direction: column;
 			height: auto;
 			min-height: 0;
-			grid-template-rows: minmax(0, 1fr);
 		}
 
-		.has-topbar .main {
-			grid-template-rows: var(--topbar-h) minmax(0, 1fr);
+		/* Editors pad for the notch in their own back bar. */
+		.shell:not(.editor) .main {
+			padding-top: env(safe-area-inset-top, 0px);
 		}
 
-		.shell:has(.env-banner) .main {
-			grid-template-rows: auto minmax(0, 1fr);
+		.content {
+			flex: 1;
 		}
 
-		.shell.has-topbar:has(.env-banner) .main {
-			grid-template-rows: var(--topbar-h) auto minmax(0, 1fr);
+		.back-more {
+			flex-shrink: 0;
+			border-bottom: 1px solid var(--border);
+			background: transparent;
+		}
+
+		.back-more a {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.1rem;
+			min-height: 2.75rem;
+			padding: 0 var(--page-gutter) 0 calc(var(--page-gutter) - 0.4rem);
+			color: var(--primary);
+			font-size: var(--text-base);
+			font-weight: 500;
+			text-decoration: none;
+		}
+
+		.back-more a:focus-visible {
+			outline: 2px solid var(--ring);
+			outline-offset: -2px;
+			border-radius: var(--radius-md);
 		}
 
 		.tabs {
@@ -1319,7 +1418,7 @@
 			height: var(--bottom-nav-h);
 			padding: 0.35rem 0.4rem env(safe-area-inset-bottom, 0px);
 			border-top: 1px solid var(--border);
-			background: var(--card);
+			background: var(--panel-bg);
 		}
 
 		.tab {
@@ -1329,12 +1428,12 @@
 			justify-content: center;
 			gap: 0.15rem;
 			min-height: 2.75rem;
-			padding: 0.2rem 0.25rem;
+			padding: 0.2rem var(--space-1);
 			border-radius: var(--radius-md);
-			color: var(--muted-foreground);
+			color: var(--fg-muted);
 			text-decoration: none;
-			font-size: 0.6875rem;
-			font-weight: 600;
+			font-size: var(--text-2xs);
+			font-weight: 500;
 			letter-spacing: 0.01em;
 		}
 
@@ -1360,13 +1459,14 @@
 			place-items: center;
 			min-width: 1rem;
 			height: 1rem;
-			padding: 0 0.25rem;
+			padding: 0 var(--space-1);
 			border-radius: var(--radius-pill);
 			background: var(--primary);
 			color: var(--primary-foreground);
-			font-size: 0.6rem;
-			font-weight: 700;
+			font-size: var(--text-2xs);
+			font-weight: 600;
 			font-variant-numeric: tabular-nums;
+			font-feature-settings: var(--font-features-num);
 			line-height: 1;
 		}
 
@@ -1377,7 +1477,7 @@
 
 		.tab-badge.failed {
 			background: var(--destructive);
-			color: var(--destructive-foreground, #fff);
+			color: var(--danger-foreground);
 		}
 
 		.tab-label {
