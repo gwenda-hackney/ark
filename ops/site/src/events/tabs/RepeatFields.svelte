@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
 	 * A series' pattern under When, as cells of the form's grid: how it
-	 * repeats on one row, then its first and last night (the night's times
-	 * follow on that row).
+	 * repeats on one row, then its first and last night as a pair (the
+	 * night's times pair up on the row after).
 	 */
 	import { DateField, Field, NativeSelect, NumberField } from "../../ui";
 	import type { FormErrors } from "../../ui/form-errors.svelte";
@@ -83,8 +83,8 @@
 {/if}
 
 <Field
-	class="span-3 roomy row-start"
-	label={form.repeatUnit === "none" ? "First night" : "Starts on"}
+	class="span-half row-start"
+	label="First night"
 	for="event-starts"
 	optional
 	error={errors.get("event-starts")}
@@ -96,12 +96,12 @@
 </Field>
 {#if form.repeatUnit !== "none"}
 	<Field
-		class="span-3 roomy"
-		label="Ends on"
+		class="span-half"
+		label="Last night"
 		for="event-ends"
 		optional={!form.startsOn}
 		error={errors.get("event-ends")}
-		tooltip="The last night. Needed once it has a start."
+		tooltip="Needed once it has a first night."
 	>
 		<DateField id="event-ends" size="sm" bind:value={form.endsOn} min={form.startsOn} />
 	</Field>

@@ -1,52 +1,18 @@
 <script lang="ts">
-	import { Icon } from "../../app/shell";
+	/** AG Grid cell: remove this line. The shared row button, named for the line. */
+	import RowAction from "../../ui/RowAction.svelte";
 
 	let {
 		onremove,
 		show = true,
+		label = "Remove line",
 	}: {
 		onremove: () => void;
 		show?: boolean;
+		label?: string;
 	} = $props();
 </script>
 
 {#if show}
-	<button
-		type="button"
-		class="remove"
-		aria-label="Remove line"
-		title="Remove line"
-		onclick={(e) => {
-			e.stopPropagation();
-			onremove();
-		}}
-	>
-		<Icon name="x-circle" size={18} strokeWidth={1.8} />
-	</button>
+	<RowAction {label} onclick={onremove} />
 {/if}
-
-<style>
-	.remove {
-		display: inline-grid;
-		place-content: center;
-		width: 1.75rem;
-		height: 1.75rem;
-		margin: 0;
-		padding: 0;
-		border: 0;
-		border-radius: var(--radius-pill);
-		background: transparent;
-		color: var(--destructive);
-		cursor: pointer;
-	}
-
-	.remove:hover {
-		background: var(--destructive-wash);
-		color: color-mix(in srgb, var(--danger) 85%, var(--fg));
-	}
-
-	.remove:focus-visible {
-		outline: 2px solid var(--destructive);
-		outline-offset: 2px;
-	}
-</style>

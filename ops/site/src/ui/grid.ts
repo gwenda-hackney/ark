@@ -103,3 +103,21 @@ export function svelteCell(
 		}
 	};
 }
+
+/**
+ * The column a RowAction sits in: just wide enough for the circle, no cell
+ * padding, centred. Spread it into a column def and add the cellRenderer.
+ */
+export const ROW_ACTION_COLUMN = {
+	headerName: "",
+	width: 48,
+	minWidth: 48,
+	maxWidth: 48,
+	flex: 0,
+	sortable: false,
+	filter: false,
+	editable: false,
+	resizable: false,
+	suppressMovable: true,
+	cellClass: "row-action-cell",
+} as const;

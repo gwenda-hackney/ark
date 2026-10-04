@@ -163,7 +163,7 @@
 						<li class={flagClass(flag)}>
 							{#if flag.severity === "critical" || flag.kind === "missing" || flag.severity === "warning"}
 								<span class="gap-icon" aria-hidden="true">
-									<Icon name="alert" size={16} />
+									<Icon name="alert" size={20} />
 								</span>
 							{/if}
 							{@render flagCopy(flag)}
@@ -619,7 +619,7 @@
 	.gap-icon {
 		display: flex;
 		flex: none;
-		margin-top: 0.12rem;
+		margin-top: 0;
 		color: var(--warning);
 	}
 

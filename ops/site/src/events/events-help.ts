@@ -19,7 +19,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Repeating dates",
-		body: "Under When on a series, Repeats, Every, the weekdays, Starts on and Ends on build the calendar. Nights lists the dates they make. For Doesn't repeat, leave the first night empty until one is booked, then add nights one by one.",
+		body: "Under When on a series, Repeats, Every, the weekdays, First night and Last night build the calendar. Nights lists the dates they make. For Doesn't repeat, leave the first night empty until one is booked, then add nights one by one.",
 	},
 	{
 		title: "Moving a night",

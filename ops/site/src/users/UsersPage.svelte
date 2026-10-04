@@ -6,13 +6,14 @@
 		Badge,
 		BusyOverlay,
 		Button,
-		EmptyState,
 		Confirm,
 		ConfirmDialog,
+		EmptyState,
 		Field,
 		FormErrors,
 		PageDrawer,
 		PageHeader,
+		RowAction,
 		Skeleton,
 		Switch,
 		TextField,
@@ -226,17 +227,7 @@
 							</span>
 						</td>
 						<td class="row-actions">
-							<Button
-								variant="ghost"
-								size="sm"
-								disabled={busy}
-								onclick={() => onRemove(user)}
-								aria-label="Delete {user.email}"
-							>
-								{#snippet icon()}
-									<Icon name="trash" size={16} />
-								{/snippet}
-							</Button>
+							<RowAction label="Delete {user.email}" disabled={busy} reason="Saving…" onclick={() => onRemove(user)} />
 						</td>
 					</tr>
 				{/each}

@@ -206,3 +206,11 @@ html.print-book .shell .main {
 		display: none !important;
 	}
 }
+
+/* AG Grid cell holding a RowAction (ROW_ACTION_COLUMN in ui/grid.ts). */
+.ag-cell.row-action-cell {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+}

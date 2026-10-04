@@ -2,8 +2,11 @@
 	/**
 	 * The event editor's fields, in the order the job is done: what it is,
 	 * when it happens, what the website says, the photo, then the team's
-	 * notes and tasks. A new form starts with the chooser. A night shows each
-	 * value it takes from its series as "From series", with Override beside it.
+	 * notes and tasks. A wide card sets them in three columns (the event, the
+	 * website, the photo and the team); a narrow one stacks them, the photo
+	 * straight after What. A new form starts with the chooser. A night shows
+	 * each value it takes from its series as "From series", with Override
+	 * beside it.
 	 */
 	import { tick } from "svelte";
 	import { Icon } from "../../app/shell";
@@ -11,10 +14,7 @@
 		ComboBox,
 		DateField,
 		Field,
-		FormHeading,
-		FormLead,
 		FormSection,
-		FormSplit,
 		NativeSelect,
 		TextArea,
 		TextField,
@@ -242,9 +242,244 @@
 		</FormSection>
 	{/if}
 
-	<FormLead>
-		{#snippet aside()}
-			<FormHeading title="Photo">
+	<div class="cols" class:after-chooser={isNew}>
+		<div class="col col-event">
+			<FormSection
+				title="What"
+				class="sec-what"
+				description={inherits ? "From the series unless you override it for this night." : undefined}
+			>
+				<Field
+					label={inherits ? "Night title" : "Name"}
+					for="event-name"
+					optional={inherits && form.isOverridden("name")}
+					error={errors.get("event-name")}
+					hint={inherits && form.isOverridden("name") ? "Shown instead of the series name for this night." : undefined}
+				>
+					{#snippet actions()}{@render inheritAction("name")}{/snippet}
+					{#if follows("name")}
+						<InheritedValue value={readout("name")} empty={!seriesText(parentSeries, "name")} />
+					{:else}
+						<TextField
+							id="event-name"
+							size="sm"
+							autocomplete="off"
+							bind:value={form.name}
+							placeholder={inherits ? "Halloween special" : isOnce ? "Halloween party" : "Jazz Thursdays"}
+						/>
+					{/if}
+				</Field>
+				<Field
+					class="span-6"
+					label="Guest/collaboration"
+					for="event-artist"
+					optional={!inherits}
+					hint={follows("artist")
+						? undefined
+						: inherits
+							? "A guest of its own makes this a special edition on What's on."
+							: "Any name, or pick an approved artist to bring their link too."}
+				>
+					{#snippet actions()}{@render inheritAction("artist")}{/snippet}
+					{#if follows("artist")}
+						<InheritedValue value={readout("artist")} empty={!seriesText(parentSeries, "artist")} />
+					{:else}
+						<ComboBox
+							id="event-artist"
+							size="sm"
+							bind:value={form.artist}
+							placeholder="Artist, DJ or collaborator"
+							emptyText="No approved artists yet. Approve them in Play applications."
+							options={approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
+							onpick={(option) => pickApprovedArtist(option.value)}
+						/>
+					{/if}
+				</Field>
+				<Field
+					class="span-6"
+					label="Guest link"
+					for="event-page-url"
+					optional={!inherits}
+					hint={follows("pageUrl") ? undefined : "Instagram or website. An @handle works."}
+				>
+					{#snippet actions()}{@render inheritAction("pageUrl")}{/snippet}
+					{#if follows("pageUrl")}
+						<InheritedValue value={readout("pageUrl")} empty={!seriesText(parentSeries, "pageUrl")} />
+					{:else}
+						<TextField
+							id="event-page-url"
+							size="sm"
+							type="text"
+							inputmode="url"
+							autocomplete="off"
+							spellcheck="false"
+							bind:value={form.pageUrl}
+							placeholder="instagram.com/… or @handle"
+						/>
+					{/if}
+				</Field>
+			</FormSection>
+			<FormSection
+				title="When"
+				class="sec-when"
+				description={isSeries ? "How often it runs, its first and last night, and the times each night." : undefined}
+			>
+				{#if isSeries}
+					<RepeatFields {form} {errors} />
+				{:else}
+					<Field
+						class="span-4"
+						label="Date"
+						for="event-date"
+						error={errors.get("event-date")}
+						hint={editingOccurrence ? "Change it to move this night only." : undefined}
+					>
+						<DateField id="event-date" size="sm" bind:value={form.startsOn} />
+					</Field>
+				{/if}
+				<Field
+					class={isSeries ? "span-half" : "span-4"}
+					label="Starts"
+					for="event-start-time"
+					optional={!inherits}
+					tooltip={!inherits && isSeries ? "The time each night starts. A night can change it." : undefined}
+				>
+					{#snippet actions()}{@render inheritAction("startTime")}{/snippet}
+					{#if follows("startTime")}
+						<InheritedValue value={readout("startTime")} empty={!seriesText(parentSeries, "startTime")} />
+					{:else}
+						<TimeField id="event-start-time" size="sm" bind:value={form.startTime} />
+					{/if}
+				</Field>
+				<Field
+					class={isSeries ? "span-half" : "span-4"}
+					label="Ends"
+					for="event-end-time"
+					optional={!inherits}
+					tooltip={follows("endTime") ? undefined : "After midnight is fine."}
+				>
+					{#snippet actions()}{@render inheritAction("endTime")}{/snippet}
+					{#if follows("endTime")}
+						<InheritedValue value={readout("endTime")} empty={!seriesText(parentSeries, "endTime")} />
+					{:else}
+						<TimeField
+							id="event-end-time"
+							size="sm"
+							bind:value={form.endTime}
+							suggest={form.startTime || "23:00"}
+						/>
+					{/if}
+				</Field>
+				{#if isSeries && form.repeatUnit !== "none" && nextNights.length}
+					<p class="next-nights">
+						<span class="next-label">Next</span>
+						{nextNights.map((date) => formatDate(date)).join(" · ")}
+						{#if eventId && previewDates.length > nextNights.length}
+							<a href={nightsHref}>See all {previewDates.length}</a>
+						{/if}
+					</p>
+				{/if}
+			</FormSection>
+		</div>
+		<div class="col col-site">
+			<FormSection
+				title="On the website"
+				class="sec-page"
+				description={inherits
+					? "The series' words unless you override them."
+					: "The What's on card and the event's own page."}
+			>
+				<Field
+					class="span-5"
+					label="Offer"
+					for="event-offer"
+					optional={!inherits}
+					hint={follows("offer") ? undefined : "Public wording, like a drink deal."}
+				>
+					{#snippet actions()}{@render inheritAction("offer")}{/snippet}
+					{#if follows("offer")}
+						<InheritedValue value={readout("offer")} empty={!seriesText(parentSeries, "offer")} />
+					{:else}
+						<TextField id="event-offer" size="sm" bind:value={form.offer} placeholder="£10 Negroni" />
+					{/if}
+				</Field>
+				{#if current && !inherits}
+					<Field
+						class="span-7"
+						label="Page address"
+						for="event-web-address"
+						optional
+						hint={webAddressChanged
+							? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still work.`
+							: "Letters, numbers and dashes. Old links still work if you change it."}
+					>
+						<TextField
+							id="event-web-address"
+							size="sm"
+							prefix="gwenda.co.uk/whats-on/"
+							bind:value={form.webAddress}
+							placeholder={current.slug}
+							autocomplete="off"
+							spellcheck="false"
+						/>
+					</Field>
+				{/if}
+				<Field
+					label="Card line"
+					for="event-short-description"
+					optional={!inherits}
+					hint={follows("shortDescription")
+						? undefined
+						: "One or two lines on the What's on card."}
+				>
+					{#snippet actions()}{@render inheritAction("shortDescription")}{/snippet}
+					{#if follows("shortDescription")}
+						<InheritedValue
+							value={readout("shortDescription")}
+							empty={!seriesText(parentSeries, "shortDescription")}
+							prose
+						/>
+					{:else}
+						<TextArea
+							id="event-short-description"
+							bind:value={form.shortDescription}
+							rows={2}
+							placeholder={inherits
+								? seriesText(parentSeries, "shortDescription") || "On Sat 10 Oct we are excited to host…"
+								: "Live jazz from the house trio, every Thursday."}
+						/>
+					{/if}
+				</Field>
+				<Field
+					label="Description"
+					for="event-description"
+					error={errors.get("event-description")}
+					hint={follows("description") ? undefined : "The event's own page on the website."}
+				>
+					{#snippet actions()}{@render inheritAction("description")}{/snippet}
+					{#if follows("description")}
+						<InheritedValue
+							value={readout("description")}
+							empty={!seriesText(parentSeries, "description")}
+							prose
+						/>
+					{:else}
+						<MethodEditor
+							id="event-description"
+							value={form.description}
+							label="Event description"
+							placeholder="Set the scene…"
+							onChange={(next) => (form.description = next)}
+						/>
+					{/if}
+				</Field>
+			</FormSection>
+			{#if !editingOccurrence}
+				<NightScheduleFields {form} {busy} />
+			{/if}
+		</div>
+		<div class="col col-side">
+			<FormSection title="Photo" class="sec-photo">
 				{#snippet actions()}
 					{#if inherits}
 						{#if photoFollows}
@@ -258,276 +493,38 @@
 						{/if}
 					{/if}
 				{/snippet}
-			</FormHeading>
-			{#if photoFollows}
-				<HeroImagePanel
-					heading=""
-					sourceUrl={seriesPhotoUrl}
-					locked
-					onchangecrops={() => undefined}
-					onpickfile={() => undefined}
-					onclear={() => undefined}
-				/>
-			{:else}
-				<HeroImagePanel
-					heading=""
-					sourceUrl={framingUrl}
-					crops={form.heroCrops}
-					disabled={busy}
-					onchangecrops={onCropsChange}
-					onpickfile={(file) => onpickphoto(file)}
-					onclear={onclearphoto}
-				/>
-			{/if}
-			<p class="photo-note">
-				{photoFollows
-					? "This night uses the series photo."
-					: !eventId && framingUrl
-						? "It uploads when you save."
-						: inherits
-							? "This night's own flyer. What's on uses it while this is the next night."
-							: "The What's on flyer. Drag the gold frame to choose the card crop."}
-			</p>
-		{/snippet}
-
-		<FormHeading
-			class="lead-first"
-			title="What"
-			description={inherits
-				? "From the series unless you override it for this night."
-				: undefined}
-		/>
-		<Field
-			class="lead-first"
-			label={inherits ? "Night title" : "Name"}
-			for="event-name"
-			optional={inherits && form.isOverridden("name")}
-			error={errors.get("event-name")}
-			hint={inherits && form.isOverridden("name") ? "Shown instead of the series name for this night." : undefined}
-		>
-			{#snippet actions()}{@render inheritAction("name")}{/snippet}
-			{#if follows("name")}
-				<InheritedValue value={readout("name")} empty={!seriesText(parentSeries, "name")} />
-			{:else}
-				<TextField
-					id="event-name"
-					size="sm"
-					autocomplete="off"
-					bind:value={form.name}
-					placeholder={inherits ? "Halloween special" : isOnce ? "Halloween party" : "Jazz Thursdays"}
-				/>
-			{/if}
-		</Field>
-		<Field
-			class="span-6"
-			label="Guest/collaboration"
-			for="event-artist"
-			optional={!inherits}
-			hint={follows("artist")
-				? undefined
-				: inherits
-					? "A guest of its own makes this a special edition on What's on."
-					: "Any name, or pick an approved artist to bring their link too."}
-		>
-			{#snippet actions()}{@render inheritAction("artist")}{/snippet}
-			{#if follows("artist")}
-				<InheritedValue value={readout("artist")} empty={!seriesText(parentSeries, "artist")} />
-			{:else}
-				<ComboBox
-					id="event-artist"
-					size="sm"
-					bind:value={form.artist}
-					placeholder="Artist, DJ or collaborator"
-					emptyText="No approved artists yet. Approve them in Play applications."
-					options={approvedArtists.map((row) => ({ value: row.id, label: row.name }))}
-					onpick={(option) => pickApprovedArtist(option.value)}
-				/>
-			{/if}
-		</Field>
-		<Field
-			class="span-6"
-			label="Guest link"
-			for="event-page-url"
-			optional={!inherits}
-			hint={follows("pageUrl") ? undefined : "Instagram or website. An @handle works."}
-		>
-			{#snippet actions()}{@render inheritAction("pageUrl")}{/snippet}
-			{#if follows("pageUrl")}
-				<InheritedValue value={readout("pageUrl")} empty={!seriesText(parentSeries, "pageUrl")} />
-			{:else}
-				<TextField
-					id="event-page-url"
-					size="sm"
-					type="text"
-					inputmode="url"
-					autocomplete="off"
-					spellcheck="false"
-					bind:value={form.pageUrl}
-					placeholder="instagram.com/… or @handle"
-				/>
-			{/if}
-		</Field>
-
-		<FormHeading
-			ruled
-			title="When"
-			description={isSeries ? "How often it runs, its first and last night, and the times each night." : undefined}
-		/>
-		{#if isSeries}
-			<RepeatFields {form} {errors} />
-		{:else}
-			<Field
-				class="span-4"
-				label="Date"
-				for="event-date"
-				error={errors.get("event-date")}
-				hint={editingOccurrence ? "Change it to move this night only." : undefined}
-			>
-				<DateField id="event-date" size="sm" bind:value={form.startsOn} />
-			</Field>
-		{/if}
-		<Field
-			class={isSeries ? "span-3 roomy" : "span-4"}
-			label="Starts"
-			for="event-start-time"
-			optional={!inherits}
-			tooltip={!inherits && isSeries ? "The time each night starts. A night can change it." : undefined}
-		>
-			{#snippet actions()}{@render inheritAction("startTime")}{/snippet}
-			{#if follows("startTime")}
-				<InheritedValue value={readout("startTime")} empty={!seriesText(parentSeries, "startTime")} />
-			{:else}
-				<TimeField id="event-start-time" size="sm" bind:value={form.startTime} />
-			{/if}
-		</Field>
-		<Field
-			class={isSeries ? "span-3 roomy" : "span-4"}
-			label="Ends"
-			for="event-end-time"
-			optional={!inherits}
-			tooltip={follows("endTime") ? undefined : "After midnight is fine."}
-		>
-			{#snippet actions()}{@render inheritAction("endTime")}{/snippet}
-			{#if follows("endTime")}
-				<InheritedValue value={readout("endTime")} empty={!seriesText(parentSeries, "endTime")} />
-			{:else}
-				<TimeField
-					id="event-end-time"
-					size="sm"
-					bind:value={form.endTime}
-					suggest={form.startTime || "23:00"}
-				/>
-			{/if}
-		</Field>
-		{#if isSeries && form.repeatUnit !== "none" && nextNights.length}
-			<p class="next-nights">
-				<span class="next-label">Next</span>
-				{nextNights.map((date) => formatDate(date)).join(" · ")}
-				{#if eventId && previewDates.length > nextNights.length}
-					<a href={nightsHref}>See all {previewDates.length}</a>
-				{/if}
-			</p>
-		{/if}
-	</FormLead>
-
-	<FormSplit>
-		<FormSection
-			title="On the website"
-			class="sec-page"
-			description={inherits
-				? "The series' words unless you override them."
-				: "The What's on card and the event's own page."}
-		>
-			<Field
-				class="span-5"
-				label="Offer"
-				for="event-offer"
-				optional={!inherits}
-				hint={follows("offer") ? undefined : "Public wording, like a drink deal."}
-			>
-				{#snippet actions()}{@render inheritAction("offer")}{/snippet}
-				{#if follows("offer")}
-					<InheritedValue value={readout("offer")} empty={!seriesText(parentSeries, "offer")} />
-				{:else}
-					<TextField id="event-offer" size="sm" bind:value={form.offer} placeholder="£10 Negroni" />
-				{/if}
-			</Field>
-			{#if current && !inherits}
-				<Field
-					class="span-7"
-					label="Page address"
-					for="event-web-address"
-					optional
-					hint={webAddressChanged
-						? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still work.`
-						: "Letters, numbers and dashes. Old links still work if you change it."}
-				>
-					<TextField
-						id="event-web-address"
-						size="sm"
-						prefix="gwenda.co.uk/whats-on/"
-						bind:value={form.webAddress}
-						placeholder={current.slug}
-						autocomplete="off"
-						spellcheck="false"
-					/>
-				</Field>
-			{/if}
-			<Field
-				label="Card line"
-				for="event-short-description"
-				optional={!inherits}
-				hint={follows("shortDescription")
-					? undefined
-					: "One or two lines on the What's on card."}
-			>
-				{#snippet actions()}{@render inheritAction("shortDescription")}{/snippet}
-				{#if follows("shortDescription")}
-					<InheritedValue
-						value={readout("shortDescription")}
-						empty={!seriesText(parentSeries, "shortDescription")}
-						prose
-					/>
-				{:else}
-					<TextArea
-						id="event-short-description"
-						bind:value={form.shortDescription}
-						rows={2}
-						placeholder={inherits
-							? seriesText(parentSeries, "shortDescription") || "On Sat 10 Oct we are excited to host…"
-							: "Live jazz from the house trio, every Thursday."}
-					/>
-				{/if}
-			</Field>
-			<Field
-				label="Description"
-				for="event-description"
-				error={errors.get("event-description")}
-				hint={follows("description") ? undefined : "The event's own page on the website."}
-			>
-				{#snippet actions()}{@render inheritAction("description")}{/snippet}
-				{#if follows("description")}
-					<InheritedValue
-						value={readout("description")}
-						empty={!seriesText(parentSeries, "description")}
-						prose
-					/>
-				{:else}
-					<MethodEditor
-						id="event-description"
-						value={form.description}
-						label="Event description"
-						placeholder="Set the scene…"
-						onChange={(next) => (form.description = next)}
-					/>
-				{/if}
-			</Field>
-		</FormSection>
-
-		{#snippet side()}
-			{#if !editingOccurrence}
-				<NightScheduleFields {form} {busy} />
-			{/if}
+				<div class="photo-block">
+					{#if photoFollows}
+						<HeroImagePanel
+							heading=""
+							sourceUrl={seriesPhotoUrl}
+							locked
+							onchangecrops={() => undefined}
+							onpickfile={() => undefined}
+							onclear={() => undefined}
+						/>
+					{:else}
+						<HeroImagePanel
+							heading=""
+							sourceUrl={framingUrl}
+							crops={form.heroCrops}
+							disabled={busy}
+							onchangecrops={onCropsChange}
+							onpickfile={(file) => onpickphoto(file)}
+							onclear={onclearphoto}
+						/>
+					{/if}
+					<p class="photo-note">
+						{photoFollows
+							? "This night uses the series photo."
+							: !eventId && framingUrl
+								? "It uploads when you save."
+								: inherits
+									? "This night's own flyer. What's on uses it while this is the next night."
+									: "The What's on flyer. Drag the gold frame to choose the card crop."}
+					</p>
+				</div>
+			</FormSection>
 			<FormSection title="Tasks and notes" class="sec-tasks">
 				<p class="task-note">
 					<Icon name="check" size={15} />
@@ -556,8 +553,8 @@
 					{/if}
 				</Field>
 			</FormSection>
-		{/snippet}
-	</FormSplit>
+		</div>
+	</div>
 </div>
 
 <style>
@@ -565,6 +562,152 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		min-width: 0;
+		container-type: inline-size;
+		container-name: event-board;
+	}
+
+	.board > :global(.chooser) {
+		border-bottom: 1px solid var(--border);
+	}
+
+	.cols.after-chooser {
+		padding-top: var(--space-5);
+	}
+
+	/* Narrow: one column of sections, the photo straight after What. */
+	.cols {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		min-width: 0;
+	}
+
+	.col {
+		display: contents;
+	}
+
+	.cols :global(.form-section) {
+		padding-block: var(--space-5) var(--space-6);
+		border-top: 1px solid var(--border);
+	}
+
+	.cols :global(.sec-what) {
+		order: 0;
+		padding-top: 0;
+		border-top: 0;
+	}
+
+	.cols :global(.sec-photo) {
+		order: 1;
+	}
+
+	.cols :global(.sec-when) {
+		order: 2;
+	}
+
+	.cols :global(.sec-page) {
+		order: 3;
+	}
+
+	.cols :global(.sec-slots) {
+		order: 4;
+	}
+
+	.cols :global(.sec-tasks) {
+		order: 5;
+		padding-bottom: 0;
+	}
+
+	.photo-block {
+		display: grid;
+		gap: var(--space-2);
+		min-width: 0;
+		max-width: 30rem;
+	}
+
+	/* Mid-width: the event beside its photo, the website across the card below. */
+	@container event-board (min-width: 42rem) {
+		.cols {
+			grid-template-columns: minmax(0, 1fr) 16rem;
+			grid-template-areas:
+				"event side"
+				"site site";
+			column-gap: var(--space-8);
+		}
+
+		.col {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			align-content: start;
+			min-width: 0;
+		}
+
+		.col-event {
+			grid-area: event;
+		}
+
+		.col-site {
+			grid-area: site;
+		}
+
+		.col-side {
+			grid-area: side;
+		}
+
+		.col > :global(.form-section:first-child) {
+			padding-top: 0;
+			border-top: 0;
+		}
+
+		.col > :global(.form-section:last-child) {
+			padding-bottom: 0;
+		}
+	}
+
+	@container event-board (min-width: 42rem) and (max-width: 79.99rem) {
+		.col-site {
+			margin-top: var(--space-6);
+			padding-top: var(--space-5);
+			border-top: 1px solid var(--border);
+		}
+	}
+
+	@container event-board (min-width: 56rem) {
+		.cols {
+			grid-template-columns: minmax(0, 1fr) 20rem;
+		}
+	}
+
+	/* The website's words beside the night schedule while they share a row. */
+	@container event-board (min-width: 56rem) and (max-width: 79.99rem) {
+		.col-site:has(> :global(.sec-slots)) {
+			grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+			column-gap: var(--space-8);
+		}
+
+		.col-site > :global(.form-section) {
+			padding-block: 0;
+			border-top: 0;
+		}
+	}
+
+	/* Wide: three columns with a rule between, each read top to bottom. */
+	@container event-board (min-width: 80rem) {
+		.cols {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 20rem;
+			grid-template-areas: "event site side";
+			column-gap: var(--space-6);
+		}
+
+		.col + .col {
+			padding-left: var(--space-6);
+			border-left: 1px solid var(--border);
+		}
+	}
+
+	@container event-board (min-width: 110rem) {
+		.cols {
+			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 24rem;
+		}
 	}
 
 	.kinds {

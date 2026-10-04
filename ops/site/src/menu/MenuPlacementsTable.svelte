@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { Icon } from "../app/shell";
-	import { Button, NativeSelect, TextField } from "../ui";
+	import { NativeSelect, RowAction, TextField } from "../ui";
 	import type { SelectOption } from "../ui/types";
 	import type { MenuPlacement, PosMenu } from "./types";
 	import { parsePosScreenInput } from "../inventory/lightspeed-stock.js";
@@ -184,16 +183,7 @@
 								{/if}
 							</td>
 							<td class="icon-col">
-								<Button
-									variant="ghost"
-									size="xs"
-									type="button"
-									aria-label={`Remove ${row.label}`}
-									onclick={() => remove(row.placement)}
-								>
-									{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
-									Remove
-								</Button>
+								<RowAction label={`Remove ${row.label}`} onclick={() => remove(row.placement)} />
 							</td>
 						</tr>
 					{/each}
@@ -274,7 +264,7 @@
 	}
 
 	.icon-col {
-		width: 4.5rem;
+		width: 3rem;
 		padding-left: 0.2rem;
 		padding-right: var(--space-1);
 		text-align: right;

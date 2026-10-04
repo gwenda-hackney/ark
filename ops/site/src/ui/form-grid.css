@@ -79,6 +79,11 @@
 	}
 }
 
+/* Half the row at any width: a pair that belongs together (first and last night). */
+:is(.form-cols, .lead-fields) > .span-half {
+	grid-column-end: span 6;
+}
+
 /* Starts a new row whatever came before it. */
 :is(.form-cols, .lead-fields) > .row-start {
 	grid-column-start: 1;

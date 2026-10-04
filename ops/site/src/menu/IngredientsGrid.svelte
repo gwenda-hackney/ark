@@ -9,7 +9,7 @@
 	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
 	import { Icon } from "../app/shell";
 	import { Button, DataGrid, Dialog, Field, NativeSelect, NumberField, TextField } from "../ui";
-	import { svelteCell } from "../ui/grid";
+	import { ROW_ACTION_COLUMN, svelteCell } from "../ui/grid";
 	import { inventoryItemPath, navigate } from "../app/nav";
 	import { inventoryAbvById, resolveIngredientAbv } from "./abv";
 	import { costIngredientLine } from "./cost";
@@ -311,18 +311,12 @@
 			valueSetter: setter("note"),
 		},
 		{
-			headerName: "",
+			...ROW_ACTION_COLUMN,
 			colId: "remove",
-			width: 48,
-			minWidth: 48,
-			maxWidth: 48,
-			flex: 0,
-			sortable: false,
-			filter: false,
-			editable: false,
 			cellRenderer: svelteCell(
 				RemoveRowCell,
 				(params: ICellRendererParams<IngRow>) => ({
+					label: `Remove ${params.data?.name || "this line"}`,
 					onremove: () => {
 						const index = rows.findIndex((r) => r._key === params.data?._key);
 						if (index >= 0) removeRow(index);

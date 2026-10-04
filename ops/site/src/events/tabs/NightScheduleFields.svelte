@@ -4,7 +4,7 @@
 	 * Each slot is one row: label, start, end, remove.
 	 */
 	import { Icon } from "../../app/shell";
-	import { Button, FormSection, TextField, TimeField } from "../../ui";
+	import { Button, FormSection, RowAction, TextField, TimeField } from "../../ui";
 	import type { EventForm } from "../event-form.svelte";
 
 	let { form, busy }: { form: EventForm; busy: boolean } = $props();
@@ -12,6 +12,7 @@
 
 <FormSection
 	title="Night schedule"
+	class="sec-slots"
 	description="Optional. Shown in gold on What's on."
 >
 	{#snippet actions()}
@@ -23,7 +24,7 @@
 	{#if form.nightSchedule.length}
 		<ul class="slots">
 			{#each form.nightSchedule as slot, index (index)}
-				<li class="slot">
+				<li class="slot reveal-row">
 					<TextField
 						size="sm"
 						placeholder="Open decks"
@@ -41,16 +42,12 @@
 						suggest={form.nightSchedule[index].startTime || form.endTime || "23:00"}
 						aria-label={`Slot ${index + 1} end`}
 					/>
-					<button
-						class="remove"
-						type="button"
+					<RowAction
+						label={`Remove slot ${index + 1}`}
 						disabled={busy}
-						aria-label={`Remove slot ${index + 1}`}
-						title="Remove slot"
+						reason="Saving…"
 						onclick={() => form.removeNightSlot(index)}
-					>
-						<Icon name="close" size={14} />
-					</button>
+					/>
 				</li>
 			{/each}
 		</ul>
@@ -76,28 +73,8 @@
 		align-items: center;
 	}
 
-	.remove {
-		display: grid;
-		place-content: center;
-		width: var(--control-h-sm);
-		height: var(--control-h-sm);
-		padding: 0;
-		border: 1px solid transparent;
-		border-radius: var(--radius-md);
-		background: transparent;
-		color: var(--muted-foreground);
-		cursor: pointer;
-	}
 
-	.remove:hover:not(:disabled) {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
 
-	.remove:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: 2px;
-	}
 
 	.empty {
 		margin: 0;
@@ -117,9 +94,5 @@
 			grid-column: 1 / -1;
 		}
 
-		.remove {
-			width: 2.75rem;
-			height: 2.75rem;
-		}
 	}
 </style>
