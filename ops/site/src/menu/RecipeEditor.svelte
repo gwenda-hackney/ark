@@ -919,8 +919,12 @@
 						<h1 class="title-text" class:placeholder={!item.name?.trim()}>
 							{item.name?.trim() || "New drink"}
 						</h1>
-						{#if item.notes}
-							<p class="sub">{item.notes}</p>
+						<!-- As on the website's digital menu: the description, then the tasting note in gold. -->
+						{#if item.description?.trim()}
+							<p class="sub">{item.description}</p>
+						{/if}
+						{#if item.notes?.trim()}
+							<p class="notes-line">{item.notes}</p>
 						{/if}
 					</div>
 					<div class="title-meta">
@@ -1650,9 +1654,26 @@
 	}
 
 	.sub {
-		margin: 0;
+		max-width: 60ch;
+		margin: var(--space-1) 0 0;
 		font-size: var(--text-base);
+		line-height: 1.5;
 		color: var(--muted-foreground);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.notes-line {
+		margin: var(--space-1) 0 0;
+		font-family: var(--font-display);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--primary);
 	}
 
 	.tabs {
