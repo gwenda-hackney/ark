@@ -494,20 +494,27 @@
 		item = { ...item, [field]: value };
 	}
 
-	/** Add placement: the kinds still free, each adding a row with sensible defaults. */
+	/** Add placement: every kind, every time, each adding a row with sensible defaults. */
 	const placementItems = $derived(
-		placementChoices(item?.placements || [], posMenus || []).map((choice) => ({
-			label: choice.label,
-			onselect: () => {
-				const current = item?.placements || [];
-				setPlacements(
-					addPlacement(current, choice.value, posMenus || [], {
-						sectionId: String(item?.sectionId || sectionOptions[0]?.value || "").trim(),
-						screen: defaultPosScreen(current, screenSuggestions),
-					}),
-				);
-			},
-		})),
+		placementChoices(posMenus || []).map((choice) => {
+			const noChapter = (choice.value === "print" || choice.value === "digital") && !sectionOptions.length;
+			return {
+				label: choice.label,
+				disabled: noChapter,
+				reason: noChapter ? "Add a chapter in Sections first" : undefined,
+				onselect: () => {
+					const current = item?.placements || [];
+					setPlacements(
+						addPlacement(current, choice.value, posMenus || [], {
+							sectionId: String(item?.sectionId || sectionOptions[0]?.value || "").trim(),
+							screen: defaultPosScreen(current, screenSuggestions),
+							sectionIds: sectionOptions.map((option) => String(option.value)),
+							screens: screenSuggestions,
+						}),
+					);
+				},
+			};
+		}),
 	);
 
 	function setPlacements(next: MenuPlacement[]) {
@@ -523,7 +530,8 @@
 			onPrintMenu: Boolean(print),
 			onDigitalMenu: Boolean(digital),
 			sectionId: print?.sectionId || digital?.sectionId || item.sectionId,
-			posMenus: pos
+			// One entry per POS menu, though a menu can carry several screens.
+			posMenus: [...new Map(pos.map((row) => [String(row.posMenuId), row])).values()]
 				.map((row) => {
 					const menu = (posMenus || []).find(
 						(entry) => String(entry.id) === String(row.posMenuId),
@@ -1289,8 +1297,6 @@
 										icon="plus"
 										label="Add placement"
 										items={placementItems}
-										disabled={!placementItems.length}
-										reason="It's on every menu already"
 									/>
 								{/snippet}
 								<MenuPlacementsTable

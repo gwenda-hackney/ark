@@ -1,44 +1,80 @@
 /**
- * Adding a placement to a drink: which kinds are still free (Print, Digital,
- * each POS menu once), and the row each one starts as.
+ * Adding a placement to a drink: every kind (Print, Digital, each POS menu) is
+ * always on offer, as often as wanted, and the row each one starts as.
  */
 import type { MenuPlacement, PosMenu } from "./types";
 import { parsePosScreenInput } from "../inventory/lightspeed-stock.js";
 
 export type PlacementChoice = { value: string; label: string };
 
-export function placementChoices(placements: MenuPlacement[], menus: PosMenu[]): PlacementChoice[] {
-	const has = (channel: string) => placements.some((row) => row.channel === channel);
-	const out: PlacementChoice[] = [];
-	if (!has("print")) out.push({ value: "print", label: "Print" });
-	if (!has("digital")) out.push({ value: "digital", label: "Digital" });
-	for (const menu of menus) {
-		const used = placements.some((row) => row.channel === "pos" && String(row.posMenuId) === String(menu.id));
-		if (!used) out.push({ value: `pos:${menu.id}`, label: menu.isDefault ? `POS · ${menu.name} (default)` : `POS · ${menu.name}` });
-	}
-	return out;
+/** Every kind of placement. A drink can sit in two Print chapters, or on two screens of one POS menu. */
+export function placementChoices(menus: PosMenu[]): PlacementChoice[] {
+	return [
+		{ value: "print", label: "Print" },
+		{ value: "digital", label: "Digital" },
+		...menus.map((menu) => ({
+			value: `pos:${menu.id}`,
+			label: menu.isDefault ? `POS · ${menu.name} (default)` : `POS · ${menu.name}`,
+		})),
+	];
 }
 
-/** The placements with `value` added, or unchanged when it can't be. */
+/**
+ * The placements with a `value` row added at the end, or unchanged when it can't be.
+ * The row starts in the default chapter or screen; when the drink already sits
+ * there on that channel or POS menu, it takes the first of `sectionIds` or
+ * `screens` still free, so a second row doesn't start as a repeat.
+ */
 export function addPlacement(
 	placements: MenuPlacement[],
 	value: string,
 	menus: PosMenu[],
-	defaults: { sectionId: string; screen: string },
+	defaults: { sectionId: string; screen: string; sectionIds?: string[]; screens?: string[] },
 ): MenuPlacement[] {
 	if (value === "print" || value === "digital") {
 		if (!defaults.sectionId) return placements;
-		return [...placements.filter((row) => row.channel !== value), { channel: value, sectionId: defaults.sectionId }];
+		const taken = new Set(
+			placements.filter((row) => row.channel === value).map((row) => String(row.sectionId || "")),
+		);
+		const sectionId = firstFree(defaults.sectionId, defaults.sectionIds, (id) => taken.has(id));
+		return [...placements, { channel: value, sectionId }];
 	}
 	if (value.startsWith("pos:")) {
 		const menu = menus.find((row) => String(row.id) === value.slice(4));
 		if (!menu) return placements;
-		return [
-			...placements,
-			{ channel: "pos", posMenuId: String(menu.id), posMenuName: menu.name, posScreen: defaults.screen },
-		];
+		const taken = new Set(
+			placements
+				.filter((row) => row.channel === "pos" && String(row.posMenuId) === String(menu.id))
+				.map((row) => parsePosScreenInput(row.posScreen).toLowerCase()),
+		);
+		const posScreen = firstFree(defaults.screen, defaults.screens, (path) =>
+			taken.has(parsePosScreenInput(path).toLowerCase()),
+		);
+		return [...placements, { channel: "pos", posMenuId: String(menu.id), posMenuName: menu.name, posScreen }];
 	}
 	return placements;
+}
+
+function firstFree(preferred: string, others: string[] | undefined, taken: (value: string) => boolean): string {
+	if (!taken(preferred)) return preferred;
+	return (others || []).find((value) => value && !taken(value)) || preferred;
+}
+
+/**
+ * True when a row above has the same channel and chapter, or the same POS menu
+ * and screen. Save keeps only one of them, so the table flags the repeat.
+ */
+export function isRepeatPlacement(placements: MenuPlacement[], index: number): boolean {
+	const key = placementRowKey(placements[index]);
+	return Boolean(key) && placements.slice(0, index).some((row) => placementRowKey(row) === key);
+}
+
+function placementRowKey(row: MenuPlacement | undefined): string {
+	if (!row) return "";
+	if (row.channel === "pos") {
+		return `pos:${String(row.posMenuId || "")}:${parsePosScreenInput(row.posScreen).toLowerCase()}`;
+	}
+	return `${row.channel}:${String(row.sectionId || "")}`;
 }
 
 /** A new POS row's screen: the one this drink already uses, else the first known, else Signature Cocktails. */
