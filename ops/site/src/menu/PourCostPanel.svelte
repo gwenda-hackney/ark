@@ -1,26 +1,21 @@
 <script lang="ts">
 	/**
-	 * Pour cost on the Pricing tab: each size's price (set on Build) beside
-	 * what it costs to make and how that compares with the house target.
+	 * Pour cost on the Pricing tab: each size's price (set on Build) on a bar
+	 * against the price that hits the house pour target.
 	 */
 	import { Button } from "../ui";
-	import {
-		formatPourPercent,
-		marginTone,
-		serveVerdict,
-		type RecipePriceAnalysis,
-		type ServePourReading,
-	} from "./cost";
+	import { formatPourPercent, type ServePourReading, type RecipePriceAnalysis } from "./cost";
 	import { formatGbp } from "../app/money";
 	import { hasRecipe, priceLabels } from "./types";
 	import { Icon } from "../app/shell";
 	import PourSettingsDialog from "./PourSettingsDialog.svelte";
+	import PriceGauge from "./PriceGauge.svelte";
+	import { priceGauge } from "./price-gauge";
 
 	let {
 		price,
 		priceValue = "",
 		priceAltValue = "",
-
 	}: {
 		price: RecipePriceAnalysis;
 		priceValue?: string;
@@ -28,62 +23,41 @@
 	} = $props();
 
 	let settingsOpen = $state(false);
-	/** Local draft so Add pour can open an empty field before a price is saved. */
 
 	const labels = $derived(priceLabels(price.drinkType));
 	const hasAlt = $derived(String(priceAltValue || "").trim() !== "");
-	const showAlt = $derived(hasAlt);
-	const primary = $derived(price.serves.find((s) => s.key === "primary") ?? null);
-	const alt = $derived(price.serves.find((s) => s.key === "alt") ?? null);
-	const altPriceLabel = $derived.by(() => {
-		const n = Number(String(priceAltValue || "").trim());
-		return Number.isFinite(n) ? formatGbp(n) : String(priceAltValue);
-	});
-	const primaryPriceLabel = $derived.by(() => {
-		const raw = String(priceValue || "").trim();
-		if (!raw) return "Set it on Build";
+	const rows = $derived(
+		price.serves
+			.filter((s) => s.key === "primary" || (hasAlt && labels.alt))
+			.map((serve) => ({
+				serve,
+				label: serve.key === "alt" ? labels.alt || serve.label : serve.label,
+				priceLabel: priceCopy(serve.key === "alt" ? priceAltValue : priceValue),
+				gauge: priceGauge(serve, price.complete),
+			})),
+	);
+	const hasRecipeCost = $derived(price.drinkCost != null || (price.lines || []).length > 0);
+
+	function priceCopy(value: string): string {
+		const raw = String(value || "").trim();
+		if (!raw) return "No price";
 		const n = Number(raw);
 		if (Number.isFinite(n)) return formatGbp(n);
 		return raw.startsWith("£") ? raw : `£${raw}`;
-	});
-	const hasRecipeCost = $derived(
-		price.drinkCost != null || (price.lines || []).length > 0,
-	);
-
-	function costCopy(serve: ServePourReading | null): string {
-		if (!serve || serve.drinkCost == null) return "n/a";
-		const amount = formatGbp(serve.drinkCost);
-		return price.hasEstimates ? `~${amount}` : amount;
 	}
 
-	function actualCopy(serve: ServePourReading | null): string {
-		if (!serve) return "n/a";
-		if (serve.pourCost != null) return formatPourPercent(serve.pourCost);
-		if (serve.price == null) return "set price";
-		return "n/a";
+	function factsCopy(serve: ServePourReading): string {
+		const parts: string[] = [];
+		if (serve.drinkCost != null) {
+			const amount = formatGbp(serve.drinkCost);
+			parts.push(`Costs ${price.hasEstimates ? "~" : ""}${amount} to make`);
+		}
+		if (serve.pourCost != null) {
+			parts.push(`pour cost ${formatPourPercent(serve.pourCost)} (target ${formatPourPercent(price.targetPourCost)})`);
+		}
+		const text = parts.join(", ");
+		return text.charAt(0).toUpperCase() + text.slice(1);
 	}
-
-	function overUnderCopy(serve: ServePourReading | null): string {
-		if (!serve) return "n/a";
-		const verdict = serveVerdict(serve, price.complete);
-		return verdict?.headline || "n/a";
-	}
-
-	function overUnderTone(serve: ServePourReading | null): string {
-		if (!serve) return "muted";
-		const verdict = serveVerdict(serve, price.complete);
-		if (!verdict) return "muted";
-		if (verdict.tone === "ok") return "up";
-		if (verdict.tone === "high" || verdict.tone === "low") return "down";
-		if (verdict.tone === "loss") return "loss";
-		return "muted";
-	}
-
-	function pourTone(serve: ServePourReading | null) {
-		if (!serve) return "muted";
-		return marginTone(serve.margin, serve.pourCost, price.targetPourCost);
-	}
-
 </script>
 
 <section class="cost" aria-label="Pour cost">
@@ -114,110 +88,22 @@
 		</p>
 	{:else}
 		<ul class="pours">
-			{#if primary}
-				{@const actualTone = pourTone(primary)}
-				{@const deltaTone = overUnderTone(primary)}
+			{#each rows as row (row.serve.key)}
 				<li class="pour">
-					<div class="pour-line">
-						<span class="serve">{primary.label}</span>
-						<p class="price-readout tnum" title="Prices are set on Build">
-							{primaryPriceLabel}
-						</p>
-						<div
-							class="metrics"
-							role="group"
-							aria-label={`${primary.label} pour metrics`}
-						>
-							<div class="metric">
-								<span class="k">Cost</span>
-								<span class="v tnum">{costCopy(primary)}</span>
-							</div>
-							<div class="metric">
-								<span class="k">Target</span>
-								<span class="v tnum muted">
-									{formatPourPercent(price.targetPourCost) || "n/a"}
-								</span>
-							</div>
-							<div class="metric">
-								<span class="k">Actual</span>
-								<span
-									class="v tnum"
-									class:up={actualTone === "up"}
-									class:down={actualTone === "down"}
-									class:loss={actualTone === "loss"}
-									class:muted={actualTone === "muted" ||
-										primary.pourCost == null}
-								>
-									{actualCopy(primary)}
-								</span>
-							</div>
-							<div class="metric">
-								<span class="k">Over/under</span>
-								<span
-									class="v tnum"
-									class:up={deltaTone === "up"}
-									class:down={deltaTone === "down"}
-									class:loss={deltaTone === "loss"}
-									class:muted={deltaTone === "muted"}
-								>
-									{overUnderCopy(primary)}
-								</span>
-							</div>
-						</div>
+					<div class="pour-head">
+						<span class="serve">{row.label}</span>
+						<span class="price-readout tnum" title="Prices are set on Build">{row.priceLabel}</span>
+						<span class="verdict {row.gauge.tone}">
+							<strong>{row.gauge.headline}</strong>
+							<span class="detail">{row.gauge.detail}</span>
+						</span>
 					</div>
+					<PriceGauge gauge={row.gauge} label={row.label} />
+					{#if factsCopy(row.serve)}
+						<p class="facts tnum">{factsCopy(row.serve)}</p>
+					{/if}
 				</li>
-			{/if}
-
-			{#if showAlt && labels.alt}
-				{@const actualTone = pourTone(alt)}
-				{@const deltaTone = overUnderTone(alt)}
-				<li class="pour">
-					<div class="pour-line">
-						<span class="serve">{labels.alt}</span>
-						<p class="price-readout tnum" title="Prices are set on Build">{altPriceLabel}</p>
-						<div
-							class="metrics"
-							role="group"
-							aria-label={`${labels.alt} pour metrics`}
-						>
-							<div class="metric">
-								<span class="k">Cost</span>
-								<span class="v tnum">{costCopy(alt)}</span>
-							</div>
-							<div class="metric">
-								<span class="k">Target</span>
-								<span class="v tnum muted">
-									{formatPourPercent(price.targetPourCost) || "n/a"}
-								</span>
-							</div>
-							<div class="metric">
-								<span class="k">Actual</span>
-								<span
-									class="v tnum"
-									class:up={actualTone === "up"}
-									class:down={actualTone === "down"}
-									class:loss={actualTone === "loss"}
-									class:muted={actualTone === "muted" || !alt?.pourCost}
-								>
-									{actualCopy(alt)}
-								</span>
-							</div>
-							<div class="metric">
-								<span class="k">Over/under</span>
-								<span
-									class="v tnum"
-									class:up={deltaTone === "up"}
-									class:down={deltaTone === "down"}
-									class:loss={deltaTone === "loss"}
-									class:muted={deltaTone === "muted"}
-								>
-									{overUnderCopy(alt)}
-								</span>
-							</div>
-						</div>
-					</div>
-				</li>
-{/if}
+			{/each}
 		</ul>
 	{/if}
 </section>
@@ -281,106 +167,86 @@
 		margin: 0;
 		padding: 0;
 		display: grid;
-		gap: var(--space-2);
 		min-width: 0;
 	}
 
 	.pour {
+		display: grid;
+		gap: var(--space-2);
 		min-width: 0;
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		background: transparent;
+		padding-block: var(--space-4);
+		border-top: 1px solid var(--border);
 	}
 
-	.pour-line {
+	.pour:first-child {
+		border-top: 0;
+		padding-top: var(--space-2);
+	}
+
+	.pour-head {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-2) var(--space-3);
+		align-items: baseline;
+		gap: var(--space-1) var(--space-3);
 		min-width: 0;
 	}
 
 	.serve {
-		flex: 0 0 auto;
-		min-width: 4.5rem;
 		font-size: var(--text-sm);
 		font-weight: 600;
-		color: var(--foreground);
+		color: var(--fg-muted);
 	}
 
 	.price-readout {
-		flex: 0 0 auto;
-		min-width: 4.5rem;
-		margin: 0;
-		font-size: var(--text-sm);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		line-height: 1.2;
-		text-align: end;
-		color: var(--foreground);
-		font-variant-numeric: tabular-nums;
-		font-feature-settings: var(--font-features-num);
+		color: var(--fg);
 	}
 
-	.metrics {
+	.verdict {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: flex-start;
-		justify-content: flex-end;
-		gap: var(--space-2) var(--space-4);
-		flex: 1 1 auto;
-		min-width: 0;
-	}
-
-	.metric {
-		display: grid;
-		gap: 0.1rem;
-		justify-items: end;
-		min-width: 3.5rem;
-	}
-
-	.k {
-		font-size: var(--text-2xs);
-		letter-spacing: var(--tracking-label);
-		color: var(--muted-foreground);
-		font-weight: 600;
-		text-transform: uppercase;
-	}
-
-	.v {
+		align-items: baseline;
+		gap: var(--space-1) var(--space-2);
+		margin-left: auto;
 		font-size: var(--text-sm);
+	}
+
+	.verdict strong {
 		font-weight: 600;
-		line-height: 1.2;
-		color: var(--foreground);
 	}
 
-	.v.up {
-		color: var(--up);
+	.verdict.good strong {
+		color: var(--success);
 	}
 
-	.v.down,
-	.v.loss {
-		color: var(--down);
+	.verdict.low strong,
+	.verdict.loss strong {
+		color: var(--danger);
 	}
 
-	.v.muted,
-	.muted {
-		color: var(--muted-foreground);
-		font-weight: 500;
+	.verdict.high strong {
+		color: var(--warning);
+	}
+
+	.verdict.muted strong {
+		color: var(--fg-muted);
+	}
+
+	.detail {
+		color: var(--fg-muted);
+	}
+
+	.facts {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--fg-subtle);
 	}
 
 	@media (max-width: 720px) {
-		.metrics {
-			justify-content: flex-start;
-			flex: 1 1 100%;
-		}
-
-		.metric {
-			justify-items: start;
-		}
-
-		.price-readout {
-			text-align: start;
+		.verdict {
+			margin-left: 0;
+			flex-basis: 100%;
 		}
 	}
 </style>
