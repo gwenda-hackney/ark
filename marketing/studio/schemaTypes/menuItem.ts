@@ -1,4 +1,4 @@
-import { defineField, defineType } from "sanity";
+import { defineArrayMember, defineField, defineType } from "sanity";
 import { orderRankField, orderRankOrdering } from "@sanity/orderable-document-list";
 
 export const menuItem = defineType({
@@ -60,6 +60,51 @@ export const menuItem = defineType({
       title: "Alt price",
       description: "Second size without £ (double or half pint).",
       type: "string",
+    }),
+    defineField({
+      name: "prices",
+      title: "Prices",
+      description:
+        "Every size and its price, main one first. Set in ops; Price and Alt price are the first two.",
+      type: "array",
+      of: [
+        defineArrayMember({
+          type: "object",
+          name: "menuPrice",
+          title: "Price",
+          fields: [
+            defineField({
+              name: "name",
+              title: "Name",
+              type: "string",
+              description: "e.g. Single, Pint, 175 ml, Bottle.",
+              validation: (rule) => rule.required(),
+            }),
+            defineField({
+              name: "size",
+              title: "Size",
+              type: "string",
+              description: "Optional, with its unit, e.g. 25 ml.",
+            }),
+            defineField({
+              name: "price",
+              title: "Price",
+              type: "string",
+              description: "Without £.",
+              validation: (rule) => rule.required(),
+            }),
+          ],
+          preview: {
+            select: { name: "name", size: "size", price: "price" },
+            prepare({ name, size, price }) {
+              return {
+                title: [name, price ? `£${price}` : null].filter(Boolean).join(" · "),
+                subtitle: size,
+              };
+            },
+          },
+        }),
+      ],
     }),
     defineField({
       name: "image",
