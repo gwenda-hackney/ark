@@ -1707,11 +1707,16 @@
 		outline-offset: 2px;
 	}
 
+	/* Touch: a 44px tap area that doesn't make the label row taller than its neighbours. */
 	@media (pointer: coarse) {
 		.edit-prices {
-			display: inline-flex;
-			align-items: center;
-			min-height: 44px;
+			position: relative;
+		}
+
+		.edit-prices::after {
+			content: "";
+			position: absolute;
+			inset: calc((100% - 44px) / 2) -0.5rem;
 		}
 	}
 
