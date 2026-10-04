@@ -626,7 +626,7 @@
 
 	.tabs {
 		flex-shrink: 0;
-		padding: 0.65rem var(--card-pad-lg) 0.35rem;
+		padding: var(--space-2) var(--card-pad-lg) 0;
 		background: var(--card);
 		border-bottom: 1px solid var(--border);
 	}

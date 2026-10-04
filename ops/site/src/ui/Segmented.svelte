@@ -108,10 +108,11 @@
 			box-shadow var(--t) var(--ease);
 	}
 
+	/* Equal padding above and below, so the focus ring sits evenly round the
+	   label; the underline sits on the bottom edge inside it. */
 	.soft .tab {
 		position: relative;
 		border-radius: var(--radius-sm);
-		padding-bottom: 0.35rem;
 		margin-bottom: -1px;
 	}
 
@@ -146,14 +147,14 @@
 
 	.soft.md .tab {
 		height: auto;
-		min-height: 1.875rem;
-		padding: 0.2rem var(--space-2) var(--space-2);
+		min-height: 2.25rem;
+		padding: var(--space-2) var(--space-3);
 	}
 
 	.soft.sm .tab {
 		height: auto;
-		min-height: 1.5rem;
-		padding: 0.15rem var(--space-2) var(--space-2);
+		min-height: 2rem;
+		padding: var(--space-2) var(--space-2);
 	}
 
 	.tab:hover:not(:disabled):not([aria-disabled="true"]):not([aria-selected="true"]) {
@@ -176,6 +177,11 @@
 		outline: 2px solid var(--ring);
 		outline-offset: 2px;
 		border-radius: var(--radius-pill);
+	}
+
+	.soft .tab:focus-visible {
+		outline-offset: 0;
+		border-radius: var(--radius-md);
 	}
 
 	.invert .tab[aria-selected="true"] {
