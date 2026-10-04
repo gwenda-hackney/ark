@@ -64,9 +64,16 @@ describe("validateEvent", () => {
 });
 
 describe("where the problems are", () => {
-	it("puts every field, the repeat rule and the name included, on Details (#158)", () => {
+	it("puts a saved series' pattern and times on Schedule, the rest on Details", () => {
+		expect(eventFieldTab("event-ends", true)).toBe("schedule");
+		expect(eventFieldTab("event-unit", true)).toBe("schedule");
+		expect(eventFieldTab("event-description", true)).toBe("details");
+		expect(eventFieldTab("event-name", true)).toBe("details");
+	});
+
+	it("keeps every field of a night, a special event or a new form on Details (#158)", () => {
 		expect(eventFieldTab("event-ends")).toBe("details");
-		expect(eventFieldTab("event-description")).toBe("details");
+		expect(eventFieldTab("event-date")).toBe("details");
 		expect(eventFieldTab("event-name")).toBe("details");
 	});
 

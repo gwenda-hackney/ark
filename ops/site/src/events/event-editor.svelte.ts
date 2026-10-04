@@ -478,7 +478,8 @@ export class EventEditor {
 	showErrors = () =>
 		this.errors.reveal({
 			order: EVENT_FIELD_ORDER,
-			tabOf: eventFieldTab,
+			tabOf: (key) =>
+				eventFieldTab(key, !this.route.isNew && !this.editingOnce && !this.editingOccurrence),
 			currentTab: this.tab,
 			showTab: (tab) => {
 				const target = this.tabPath(tab);

@@ -41,9 +41,25 @@ export const EVENT_FIELD_ORDER = [
 	"event-description",
 ] as const;
 
-/** The tab a field is on. Every field is on Details; the other tabs list nights and photos. */
-export function eventFieldTab(key: string): string | undefined {
-	return key ? "details" : undefined;
+/** A series' pattern and times, on its Schedule tab. */
+const SCHEDULE_FIELDS = new Set([
+	"event-unit",
+	"event-every",
+	"event-month-day",
+	"event-starts",
+	"event-ends",
+	"event-start-time",
+	"event-end-time",
+]);
+
+/**
+ * The tab a field is on. A saved series keeps its pattern and times on
+ * Schedule; everything else, and every field of a night, a special event or
+ * a new form, is on Details.
+ */
+export function eventFieldTab(key: string, savedSeries = false): string | undefined {
+	if (!key) return undefined;
+	return savedSeries && SCHEDULE_FIELDS.has(key) ? "schedule" : "details";
 }
 
 const hasText = (html: string) => Boolean(String(html || "").replace(/<[^>]*>/g, "").trim());

@@ -3,7 +3,7 @@ import type { PageHelpTopic } from "../ui/types";
 export const EVENTS_HELP: PageHelpTopic[] = [
 	{
 		title: "Series",
-		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit name, schedule, and the What's on photo. You can edit a series even when it has no upcoming nights.",
+		body: "Series lists every residency by weekday, with time, guest, the next night, and offer. Open a series to edit it: Details has the name, guest, photo and website wording, Schedule has the pattern and nights, Ops has the team's notes. You can edit a series even when it has no upcoming nights.",
 	},
 	{
 		title: "Schedule",
@@ -19,7 +19,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Repeating dates",
-		body: "Under When on a series, Repeats, Every, the weekdays, First night and Last night build the calendar. Nights lists the dates they make. For Doesn't repeat, leave the first night empty until one is booked, then add nights one by one.",
+		body: "On a series' Schedule tab, Repeats, Every, the weekdays, First night and Last night build the calendar. Upcoming nights, below them, lists the dates they make. For Doesn't repeat, leave the first night empty until one is booked, then add nights one by one.",
 	},
 	{
 		title: "Moving a night",

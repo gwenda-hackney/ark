@@ -13,7 +13,7 @@
 	import { onWebsiteJobEvent } from "./website-jobs.svelte";
 	import EditorHeader from "./EditorHeader.svelte";
 	import EventsList from "./EventsList.svelte";
-	import DetailsTab from "./tabs/DetailsTab.svelte";
+	import EventFields from "./tabs/EventFields.svelte";
 	import GalleryTab from "./tabs/GalleryTab.svelte";
 	import ScheduleTab from "./tabs/ScheduleTab.svelte";
 	import DeleteEventDialog from "./dialogs/DeleteEventDialog.svelte";
@@ -82,19 +82,17 @@
 		if (editor.editingOnce || editor.editingOccurrence) {
 			return [
 				{ id: "details", label: "Details", href: hrefFor("details") },
+				{ id: "ops", label: "Ops", href: hrefFor("ops") },
 				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
 			];
 		}
 		return [
 			{ id: "details", label: "Details", href: hrefFor("details") },
-			{ id: "schedule", label: "Nights", href: hrefFor("schedule") },
+			{ id: "schedule", label: "Schedule", href: hrefFor("schedule") },
+			{ id: "ops", label: "Ops", href: hrefFor("ops") },
 			{ id: "gallery", label: "Images", href: hrefFor("gallery") },
 		];
 	});
-
-	const nightsHref = $derived(
-		editor.route.slug ? eventTabPath(`/events/${encodeURIComponent(editor.route.slug)}`, "schedule") : "",
-	);
 
 	/** A new form starts in its name, or its date when the series is already picked. */
 	async function focusFirstField() {
@@ -122,7 +120,7 @@
 		if (routeList) listOrigin = routeList;
 	});
 
-	// A special event or a night has no Nights tab: its date is under When.
+	// A special event or a night has no Schedule tab: its date is under When on Details.
 	$effect(() => {
 		if (editor.tab !== "schedule" || !editor.eventId) return;
 		if (editor.editingOnce) navigate(eventItemPath(editor.eventId, "details"), { replace: true });
@@ -195,7 +193,7 @@
 			tabReady = true;
 			return;
 		}
-		const order = ["details", "schedule", "gallery"];
+		const order = ["details", "schedule", "ops", "gallery"];
 		const from = order.indexOf(tabPrev);
 		const to = order.indexOf(id);
 		if (from >= 0 && to >= 0 && from !== to) tabSlide = to > from ? 1 : -1;
@@ -386,8 +384,9 @@
 										easing: easeOut,
 									}}
 								>
-									{#if editor.tab === "details" || editor.route.isNew}
-										<DetailsTab
+									{#if editor.tab !== "gallery" || editor.route.isNew}
+										<EventFields
+											part={editor.route.isNew ? "all" : editor.tab === "schedule" || editor.tab === "ops" ? editor.tab : "details"}
 											form={editor.form}
 											errors={editor.errors}
 											current={editor.current}
@@ -407,7 +406,6 @@
 											webAddressChanged={editor.webAddressChanged}
 											framingUrl={editor.framingUrl}
 											previewDates={editor.previewDates}
-											{nightsHref}
 											onkind={editor.setNewKind}
 											onoverride={editor.overrideField}
 											onuseseries={editor.useSeriesValue}
@@ -416,15 +414,16 @@
 											onpickphoto={editor.acceptPhotoFile}
 											onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage("main"))}
 										/>
-									{:else if editor.tab === "schedule"}
-										<ScheduleTab
-											form={editor.form}
-											current={editor.current}
-											eventId={editor.eventId}
-											previewDates={editor.previewDates}
-											busy={editor.busy}
-											onaddnight={editor.addNightToSeries}
-										/>
+										{#if editor.tab === "schedule" && !editor.route.isNew}
+											<ScheduleTab
+												form={editor.form}
+												current={editor.current}
+												eventId={editor.eventId}
+												previewDates={editor.previewDates}
+												busy={editor.busy}
+												onaddnight={editor.addNightToSeries}
+											/>
+										{/if}
 									{:else if editor.tab === "gallery"}
 										<GalleryTab gallery={editor.gallery} eventId={editor.eventId} busy={editor.busy} />
 									{/if}

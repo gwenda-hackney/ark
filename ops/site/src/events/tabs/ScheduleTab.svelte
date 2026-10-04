@@ -1,8 +1,8 @@
 <script lang="ts">
 	/**
-	 * A series' Nights tab: the upcoming nights from its pattern, each with
-	 * what it changes, and a link to edit it. The pattern itself is under
-	 * When on Details.
+	 * The nights on a series' Schedule tab: the upcoming nights from its
+	 * pattern, each with what it changes, and a link to edit it. The pattern
+	 * itself is under When, above.
 	 */
 	import { Icon } from "../../app/shell";
 	import { Button, FormSection } from "../../ui";
@@ -31,7 +31,7 @@
 	const description = $derived(
 		form.repeatUnit === "none"
 			? "Each night is added on its own date. A star marks a night with a guest of its own."
-			: "From the pattern under When. A night lists what it changes from the series.",
+			: "From the pattern above. A night lists what it changes from the series.",
 	);
 </script>
 
