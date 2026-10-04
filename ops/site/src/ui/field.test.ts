@@ -30,8 +30,9 @@ describe("Field", () => {
 	});
 
 	it("marks required fields and nothing else", () => {
-		expect(html({ required: true })).toContain(">Required<");
-		expect(html({})).not.toContain(">Required<");
+		expect(html({ required: true })).toContain('class="req');
+		expect(html({ required: true })).toContain("(required)");
+		expect(html({})).not.toContain("(required)");
 		expect(html({ optional: true })).not.toContain(">Optional<");
 	});
 

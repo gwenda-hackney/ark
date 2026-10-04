@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * One form field: label (with a "Required" tag when it must be filled
+	 * One form field: label (with a red asterisk when it must be filled
 	 * in), label-row actions, the control, then one line under it: the
 	 * hint, or the error in its place. Fields that may be left blank carry
 	 * no tag. The control picks up aria-describedby and aria-invalid from
@@ -68,10 +68,11 @@
 <div class="field w-{width} {className}" class:has-error={Boolean(shownError)}>
 	<div class="label-row">
 		<div class="label-left">
-			<label for={htmlFor}>{label}</label>
-			{#if required && !optional}
-				<span class="required">Required</span>
-			{/if}
+			<!-- Required: the usual asterisk after the label; screen readers hear "required". -->
+			<label for={htmlFor}
+				>{label}{#if required && !optional}<span class="req" aria-hidden="true">*</span
+					><span class="sr-only">{" (required)"}</span>{/if}</label
+			>
 			{#if tooltip}
 				<Tip {label} {tooltip} />
 			{/if}
@@ -179,12 +180,10 @@
 		white-space: nowrap;
 	}
 
-	.required {
-		font-size: var(--text-xs);
-		font-weight: 500;
-		font-style: italic;
-		color: var(--accent-sky);
-		white-space: nowrap;
+	.req {
+		margin-left: 0.125rem;
+		color: var(--danger);
+		font-weight: 600;
 	}
 
 	.label-actions {

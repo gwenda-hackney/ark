@@ -1026,7 +1026,6 @@
 									</div>
 								{/snippet}
 
-								<FormHeading class="lead-first" title="Drink" />
 								<Field class="lead-first span-6" label="Name" for="f-name" required error={errors.get("f-name")}>
 									<TextField
 										id="f-name"
@@ -1053,7 +1052,7 @@
 										oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
-								<Field class="span-3" label="Drink type" for="f-drink-type">
+								<Field class="span-3" label="Drink type" for="f-drink-type" required>
 									<NativeSelect
 										id="f-drink-type"
 										size="sm"
