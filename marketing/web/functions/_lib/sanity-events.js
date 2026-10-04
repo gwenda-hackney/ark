@@ -1,5 +1,5 @@
 import { sanityQuery } from "./sanity-query.js";
-import { portableTextToPlain } from "./portable-text.js";
+import { portableTextToRich } from "./rich-text.js";
 import {
   resolveHeroUrl,
   resolveSeriesHeroUrl,
@@ -88,7 +88,7 @@ export async function fetchPublishedEvents(env) {
             }))
             .filter((slot) => slot.label)
         : [],
-      description: portableTextToPlain(row.description),
+      description: portableTextToRich(row.description),
       heroImageUrl: resolveHeroUrl(row),
       heroObjectPosition: objectPositionFromHotspot(
         row.heroHotspot,
@@ -130,7 +130,7 @@ export async function fetchPublishedSeries(env) {
             }))
             .filter((slot) => slot.label)
         : [],
-      description: portableTextToPlain(row.description),
+      description: portableTextToRich(row.description),
       heroImageUrl: resolveHeroUrl(row),
       heroObjectPosition: objectPositionFromHotspot(
         row.heroHotspot,

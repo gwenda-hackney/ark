@@ -43,7 +43,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Card line and Description",
-		body: "Card line is one or two lines on the What's on card. Description is the event's own page on the website.",
+		body: "Card line is one or two lines on the What's on card. Description is the event's own page on the website. It can have bold, italic, bullet lists and links: select words and press the link button, then type a web address, an @handle (their Instagram), an email, a phone number or a page on the site (/whats-on/…). Shift+Enter starts a new line in the same paragraph.",
 	},
 	{
 		title: "Schedule tab",
