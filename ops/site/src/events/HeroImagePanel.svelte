@@ -2,9 +2,13 @@
 	/**
 	 * Crop the What's on card: the whole photo stays visible, and the 16×10
 	 * frame on it is exactly what the site shows. Drag the frame, zoom to tighten.
+	 *
+	 * Whole image (#27): for flyers that don't fit 16×10, the site shows the
+	 * photo uncropped on a blurred copy of itself, and so does the preview.
+	 * A new square or portrait photo starts on Whole image.
 	 */
 	import Icon from "../app/shell/Icon.svelte";
-	import { HelpTip, PhotoActions } from "../ui";
+	import { HelpTip, PhotoActions, Segmented } from "../ui";
 	import {
 		HERO_ASPECT,
 		HERO_ZOOM_MAX,
@@ -14,7 +18,10 @@
 		coverWindow,
 		framingFromWindow,
 		hasMeaningfulFraming,
+		isWholeImage,
 		normalizeHeroFraming,
+		prefersWholeImage,
+		wholeImageFraming,
 		serializeHeroFraming,
 		zoomFromFrame,
 		type HeroCropRect,
@@ -131,7 +138,7 @@
 		const el = stageEl;
 		if (!el) return;
 		const onWheel = (event: WheelEvent) => {
-			if (disabled || !naturalW) return;
+			if (disabled || whole || !naturalW) return;
 			event.preventDefault();
 			const zoom = HERO_ZOOM_MAX ** slider;
 			const next = Math.min(
@@ -187,6 +194,34 @@
 		};
 	});
 
+	const FIT_ITEMS = [
+		{ id: "fill", label: "Fill frame" },
+		{ id: "whole", label: "Whole image" },
+	];
+	const whole = $derived(isWholeImage(crops));
+
+	function setFit(next: string) {
+		if (disabled || !naturalW || !naturalH) return;
+		if (next === "whole") {
+			if (whole) return;
+			onchangecrops(wholeImageFraming(), { width: naturalW, height: naturalH });
+			return;
+		}
+		if (!whole) return;
+		sliderHeld = false;
+		commit(coverRect());
+	}
+
+	/* A new upload that's square or portrait (a flyer) starts on Whole image. */
+	let autoFitFor = "";
+	$effect(() => {
+		const url = loadedFor;
+		if (!url || url === autoFitFor || disabled) return;
+		autoFitFor = url;
+		const fresh = url.startsWith("blob:") && !(crops && hasMeaningfulFraming(normalizeHeroFraming(crops)));
+		if (fresh && prefersWholeImage(naturalW, naturalH)) setFit("whole");
+	});
+
 	function commit(rect: HeroCropRect) {
 		windowCrop = rect;
 		if (!sliderHeld) slider = zoomFromFrame(rect, naturalW, naturalH);
@@ -215,7 +250,7 @@
 	}
 
 	function onPointerDown(e: PointerEvent) {
-		if (disabled || !naturalW || !imageBox.w) return;
+		if (disabled || whole || !naturalW || !imageBox.w) return;
 		e.preventDefault();
 		dragging = true;
 		startX = e.clientX;
@@ -401,8 +436,16 @@
 			onpointerup={onPointerUp}
 			onpointercancel={onPointerUp}
 		>
+			{#if whole}
+				<!-- What the site shows: the whole photo on a blurred copy of itself. -->
+				<div class="whole-frame">
+					<img class="whole-backdrop" src={sourceUrl} alt="" draggable="false" />
+					<img class="whole-photo" src={sourceUrl} alt="" draggable="false" />
+				</div>
+			{/if}
 			<img
 				class="source"
+				class:hidden={whole}
 				src={sourceUrl}
 				alt=""
 				draggable="false"
@@ -411,7 +454,7 @@
 				style:width="{imageBox.w}px"
 				style:height="{imageBox.h}px"
 			/>
-			{#if cropBox.w > 0}
+			{#if cropBox.w > 0 && !whole}
 				<div
 					class="crop-box"
 					style:left="{cropBox.x}px"
@@ -423,13 +466,20 @@
 		</div>
 
 		<div class="controls">
-			<div class="zoom" role="group" aria-label="Zoom">
+			<Segmented
+				value={whole ? "whole" : "fill"}
+				items={FIT_ITEMS}
+				size="sm"
+				ariaLabel="How the photo fits the card"
+				onChange={setFit}
+			/>
+			<div class="zoom" role="group" aria-label="Zoom" title={whole ? "Zoom is for Fill frame" : undefined}>
 				<button
 					class="icon-btn"
 					type="button"
 					aria-label="Zoom out"
 					title="Zoom out"
-					disabled={disabled || !naturalW || slider <= 0.001}
+					disabled={disabled || whole || !naturalW || slider <= 0.001}
 					onclick={() => nudgeZoom(-1)}
 				>
 					<Icon name="minus" size={15} />
@@ -442,7 +492,7 @@
 					value={slider}
 					aria-label="Zoom"
 					title="Zoom: tightens the gold frame. Scrolling over the photo zooms too."
-					disabled={disabled || !naturalW}
+					disabled={disabled || whole || !naturalW}
 					onpointerdown={() => (sliderHeld = true)}
 					oninput={onZoomInput}
 					onchange={releaseZoom}
@@ -453,7 +503,7 @@
 					type="button"
 					aria-label="Zoom in"
 					title="Zoom in"
-					disabled={disabled || !naturalW || slider >= 0.999}
+					disabled={disabled || whole || !naturalW || slider >= 0.999}
 					onclick={() => nudgeZoom(1)}
 				>
 					<Icon name="plus" size={15} />
@@ -463,7 +513,7 @@
 					type="button"
 					aria-label="Reset framing"
 					title="Reset framing"
-					disabled={disabled || !naturalW}
+					disabled={disabled || whole || !naturalW}
 					onclick={resetFraming}
 				>
 					<Icon name="undo" size={15} />
@@ -639,6 +689,42 @@
 		pointer-events: none;
 	}
 
+	.source.hidden {
+		visibility: hidden;
+	}
+
+	/* Whole image: a 16×10 card, centred in the stage, as the site draws it. */
+	.whole-frame {
+		position: absolute;
+		inset: 0;
+		margin: auto;
+		width: 100%;
+		max-height: 100%;
+		aspect-ratio: 16 / 10;
+		overflow: hidden;
+		background: var(--surface-1);
+	}
+
+	.whole-backdrop {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		filter: blur(18px) brightness(0.55);
+		transform: scale(1.15);
+		pointer-events: none;
+	}
+
+	.whole-photo {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		pointer-events: none;
+	}
+
 	.crop-box {
 		position: absolute;
 		box-sizing: border-box;
@@ -650,7 +736,9 @@
 	/* Zoom under the photo. */
 	.controls {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
+		gap: var(--space-2) var(--space-3);
 	}
 
 	.hero-framing.dropping .stage,

@@ -19,6 +19,10 @@ import {
 } from "../../functions/_lib/event-series.js";
 import { followUpdatesLink } from "./follow-updates.js";
 import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
+import {
+  isWholeFit,
+  withImageParams,
+} from "../../functions/_lib/sanity-image-url.js";
 
 /** How many nights "Nights ahead" lists under a repeating series. */
 const NIGHTS_AHEAD = 3;
@@ -81,7 +85,7 @@ export function sizedImageUrl(url, width) {
   const src = text(url);
   if (!src) return "";
   if (/[?&](rect|fit|w)=/.test(src)) return src;
-  return `${src}${src.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
+  return withImageParams(src, `w=${width}&auto=format&q=86`);
 }
 
 /**
@@ -321,7 +325,9 @@ function mediaHtml(media) {
   }
   const placeholder = tinyImageUrl(media.src);
   return html`<figure${attrs({
-    class: "event-media",
+    class: isWholeFit(media.src)
+      ? "event-media event-media--whole"
+      : "event-media",
     style: placeholder ? `--placeholder: url("${placeholder}")` : "",
   })}>
     <img${attrs({

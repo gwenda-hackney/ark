@@ -41,6 +41,28 @@ function dom(markup) {
 }
 
 describe("renderEventCard", () => {
+  it("draws a whole-image hero uncropped on its blurred copy (#27)", () => {
+    const whole = dom(
+      renderEventCard(
+        diaryCardModel({
+          ...negroni,
+          heroImageUrl: "https://cdn.sanity.io/images/p/d/flyer.jpg#whole",
+        }),
+      ),
+    );
+    const media = whole.querySelector(".event-media");
+    expect(media.classList.contains("event-media--whole")).toBe(true);
+    expect(media.querySelector("img").getAttribute("src")).toMatch(
+      /\?w=960[^#]*#whole$/,
+    );
+    const fill = dom(renderEventCard(diaryCardModel(negroni)));
+    expect(
+      fill
+        .querySelector(".event-media")
+        .classList.contains("event-media--whole"),
+    ).toBe(false);
+  });
+
   it("escapes every value", () => {
     expect(escapeHtml(`<b onclick="x">&'`)).toBe(
       "&lt;b onclick=&quot;x&quot;&gt;&amp;&#39;",

@@ -14,7 +14,6 @@ const series: EditorHeaderInput = {
 describe("editorHeaderActions", () => {
 	it("enables everything on a saved series with changes waiting", () => {
 		const actions = editorHeaderActions(series);
-		expect(actions.addNight).toEqual({ disabled: false });
 		expect(actions.calendar).toEqual({ disabled: false });
 		expect(actions.website).toEqual({ disabled: false });
 		expect(actions.reload).toEqual({ disabled: false });
@@ -22,19 +21,9 @@ describe("editorHeaderActions", () => {
 
 	it("asks for a save first on a new series", () => {
 		const actions = editorHeaderActions({ ...series, eventId: "", isNew: true });
-		expect(actions.addNight).toEqual({ disabled: true, reason: "Save the series first" });
 		expect(actions.calendar.reason).toBe("Save the series first");
 		expect(actions.website.reason).toBe("Save the series first");
 		expect(actions.reload.reason).toBe("Nothing saved to reload yet");
-	});
-
-	it("explains why a night or special event has no Add night", () => {
-		expect(editorHeaderActions({ ...series, editingNight: true }).addNight.reason).toBe(
-			"Add nights from the series",
-		);
-		expect(editorHeaderActions({ ...series, special: true }).addNight.reason).toBe(
-			"A special event has one night",
-		);
 	});
 
 	it("names the kind of record in Save first", () => {
@@ -48,7 +37,6 @@ describe("editorHeaderActions", () => {
 		const actions = editorHeaderActions({ ...series, dirty: true });
 		expect(actions.calendar.reason).toBe("Save your changes first");
 		expect(actions.website.reason).toBe("Save your changes first");
-		expect(actions.addNight.disabled).toBe(false);
 	});
 
 	it("keeps Update website in place, disabled, when the website is current", () => {
@@ -61,6 +49,6 @@ describe("editorHeaderActions", () => {
 	it("disables without a reason while busy", () => {
 		const actions = editorHeaderActions({ ...series, busy: true });
 		expect(actions.website).toEqual({ disabled: true });
-		expect(actions.addNight).toEqual({ disabled: true });
+		expect(actions.calendar).toEqual({ disabled: true });
 	});
 });

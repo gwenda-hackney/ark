@@ -26,10 +26,12 @@ const EVENTS_LIST_QUERY = `*[_type == "event" && coalesce(eventType, "public") =
   "heroAssetUrl": heroImage.asset->url,
   "heroCrop": heroImage.crop,
   "heroHotspot": heroImage.hotspot,
+  "heroFit": heroImage.fit,
   "heroDimensions": heroImage.asset->metadata.dimensions,
   "seriesHeroAssetUrl": seriesHeroImage.asset->url,
   "seriesHeroCrop": seriesHeroImage.crop,
   "seriesHeroHotspot": seriesHeroImage.hotspot,
+  "seriesHeroFit": seriesHeroImage.fit,
   "seriesHeroDimensions": seriesHeroImage.asset->metadata.dimensions
 }`;
 
@@ -56,6 +58,7 @@ const SERIES_LIST_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   "heroAssetUrl": heroImage.asset->url,
   "heroCrop": heroImage.crop,
   "heroHotspot": heroImage.hotspot,
+  "heroFit": heroImage.fit,
   "heroDimensions": heroImage.asset->metadata.dimensions
 }`;
 

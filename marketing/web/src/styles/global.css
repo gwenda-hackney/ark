@@ -6627,6 +6627,22 @@ a.event-card:focus-visible .event-title,
   opacity: 0;
 }
 
+/*
+  Show whole image (#27): flyers that aren't 16×10 sit uncropped in the
+  frame, over the same tiny blurred copy, kept on and darkened as a backdrop.
+*/
+.event-media--whole::before {
+  opacity: 1;
+  filter: blur(18px) brightness(0.5) saturate(1.1);
+  transform: scale(1.2);
+}
+
+.event-media--whole .event-hero {
+  position: relative;
+  object-fit: contain;
+  object-position: 50% 50%;
+}
+
 .event-card:hover .event-hero {
   transform: scale(1.015);
 }

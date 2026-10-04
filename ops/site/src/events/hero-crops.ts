@@ -25,7 +25,26 @@ export type HeroHotspot = {
 export type HeroFraming = {
 	crop: HeroCropRect;
 	hotspot: HeroHotspot;
+	/**
+	 * "whole": the site shows the photo uncropped inside the 16×10 frame, on
+	 * a blurred copy of itself (#27); crop and hotspot are then unused.
+	 */
+	fit?: "whole";
 };
+
+/** Square and portrait photos (flyers) look best whole; landscape fills. */
+export function prefersWholeImage(width: number, height: number): boolean {
+	return width > 0 && height > 0 && height >= width * 0.95;
+}
+
+export function isWholeImage(value: unknown): boolean {
+	return Boolean(value && typeof value === "object" && (value as { fit?: unknown }).fit === "whole");
+}
+
+/** Framing for "show the whole image". */
+export function wholeImageFraming(): HeroFraming {
+	return { crop: emptyCrop(), hotspot: { x: 0.5, y: 0.5, width: 1, height: 1 }, fit: "whole" };
+}
 
 function clamp01(value: unknown): number {
 	const n = Number(value);
@@ -226,6 +245,7 @@ export function normalizeHeroFraming(value: unknown): HeroFraming {
 	if (!source.crop && (source.main || source.card)) {
 		crop = normalizeCrop(source.main || source.card);
 	}
+	if (source.fit === "whole") return wholeImageFraming();
 	return {
 		crop,
 		hotspot: normalizeHotspot(source.hotspot, crop),
@@ -244,6 +264,7 @@ export function parseHeroFraming(raw: unknown): HeroFraming | null {
 
 export function hasMeaningfulFraming(value: HeroFraming | null | undefined) {
 	if (!value) return false;
+	if (value.fit === "whole") return true;
 	const { crop } = value;
 	return Boolean(crop.left || crop.top || crop.right || crop.bottom);
 }

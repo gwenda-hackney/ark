@@ -147,10 +147,17 @@ function clamp01(value) {
   return Math.min(1, Math.max(0, n));
 }
 
-/** Attach Sanity crop + hotspot from ops hero framing. */
-function withImageCrop(image, framingOrCrop) {
+/**
+ * Attach Sanity crop + hotspot from ops hero framing. Whole image (#27):
+ * no crop, and `fit: "whole"` so the site shows it uncropped.
+ */
+export function withImageCrop(image, framingOrCrop) {
   if (!image || !framingOrCrop || typeof framingOrCrop !== "object")
     return image;
+  if (framingOrCrop.fit === "whole") {
+    const { crop: _crop, hotspot: _hotspot, ...rest } = image;
+    return { ...rest, fit: "whole" };
+  }
   const framing = framingOrCrop.crop
     ? framingOrCrop
     : { crop: framingOrCrop, hotspot: framingOrCrop.hotspot };
@@ -190,7 +197,7 @@ function withImageCrop(image, framingOrCrop) {
 function framingFromEvent(event) {
   const raw = event?.heroCrops;
   if (!raw || typeof raw !== "object") return null;
-  if (raw.crop || raw.hotspot) return raw;
+  if (raw.fit === "whole" || raw.crop || raw.hotspot) return raw;
   // Legacy main/card → prefer main, else card
   if (raw.main || raw.card) {
     return { crop: raw.main || raw.card, hotspot: null };
@@ -201,7 +208,7 @@ function framingFromEvent(event) {
 function framingFromOccurrence(event, occurrence) {
   const override = occurrence?.overrides?.heroCrops;
   if (override && typeof override === "object") {
-    if (override.crop || override.hotspot) return override;
+    if (override.fit === "whole" || override.crop || override.hotspot) return override;
     if (override.main || override.card) {
       return { crop: override.main || override.card, hotspot: null };
     }
