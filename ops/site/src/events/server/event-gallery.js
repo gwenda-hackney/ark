@@ -22,6 +22,7 @@ import {
   downloadDriveThumbnail,
   findNamedFolder,
   isDriveImage,
+  isOwnEventFolder,
   listDriveChildren,
   listDriveImages,
   mapDriveImage,
@@ -100,6 +101,8 @@ export function galleryBehind(event, staged = {}) {
  */
 export async function listGalleryFiles(env, event) {
   if (!event?.driveFolderId) return [];
+  // Another environment's folder: none of its photos are this event's.
+  if (!(await isOwnEventFolder(env, event.driveFolderId))) return [];
   const folder = findNamedFolder(
     await listDriveChildren(env, event.driveFolderId),
     GALLERY_FOLDER_NAME,
