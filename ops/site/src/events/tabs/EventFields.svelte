@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
 	 * The event editor's fields, a tab's worth at a time. Details is what it
-	 * is, what the website says and the photo; Schedule is a series' pattern,
+	 * is, in the website's words, and the photo; Schedule is a series' pattern,
 	 * times and night schedule; Ops is the team's tasks and notes. A night or
 	 * a special event has one date, so its When stays on Details. A new form
 	 * is every part on one page, starting with the chooser. A night shows each
@@ -119,7 +119,6 @@
 		return {
 			what: details,
 			photo: details,
-			site: details,
 			when: schedule,
 			slots: schedule && !editingOccurrence,
 			slotsBeside: part === "schedule" && isSeries,
@@ -263,14 +262,12 @@
 				<FormSection
 					title="What"
 					class="sec-what"
-					description={inherits ? "From the series unless you override it for this night." : undefined}
 				>
 					<Field
 						label={inherits ? "Night title" : "Name"}
 						for="event-name"
 						optional={inherits && form.isOverridden("name")}
 						error={errors.get("event-name")}
-						hint={inherits && form.isOverridden("name") ? "Shown instead of the series name for this night." : undefined}
 					>
 						{#snippet actions()}{@render inheritAction("name")}{/snippet}
 						{#if follows("name")}
@@ -290,11 +287,6 @@
 						label="Guest/collaboration"
 						for="event-artist"
 						optional={!inherits}
-						hint={follows("artist")
-							? undefined
-							: inherits
-								? "A guest of its own makes this a special edition on What's on."
-								: "Any name, or pick an approved artist to bring their link too."}
 					>
 						{#snippet actions()}{@render inheritAction("artist")}{/snippet}
 						{#if follows("artist")}
@@ -316,7 +308,6 @@
 						label="Guest link"
 						for="event-page-url"
 						optional={!inherits}
-						hint={follows("pageUrl") ? undefined : "Instagram or website. An @handle works."}
 					>
 						{#snippet actions()}{@render inheritAction("pageUrl")}{/snippet}
 						{#if follows("pageUrl")}
@@ -334,13 +325,91 @@
 							/>
 						{/if}
 					</Field>
+					<Field
+						class="span-6"
+						label="Offer"
+						for="event-offer"
+						optional={!inherits}
+					>
+						{#snippet actions()}{@render inheritAction("offer")}{/snippet}
+						{#if follows("offer")}
+							<InheritedValue value={readout("offer")} empty={!seriesText(parentSeries, "offer")} />
+						{:else}
+							<TextField id="event-offer" size="sm" bind:value={form.offer} placeholder="£10 Negroni" />
+						{/if}
+					</Field>
+					{#if current && !inherits}
+						<Field
+							class="span-6"
+							label="Page address"
+							for="event-web-address"
+							optional
+							hint={webAddressChanged
+								? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still work.`
+								: undefined}
+						>
+							<TextField
+								id="event-web-address"
+								size="sm"
+								prefix="gwenda.co.uk/whats-on/"
+								bind:value={form.webAddress}
+								placeholder={current.slug}
+								autocomplete="off"
+								spellcheck="false"
+							/>
+						</Field>
+					{/if}
+					<Field
+						label="Card line"
+						for="event-short-description"
+						optional={!inherits}
+					>
+						{#snippet actions()}{@render inheritAction("shortDescription")}{/snippet}
+						{#if follows("shortDescription")}
+							<InheritedValue
+								value={readout("shortDescription")}
+								empty={!seriesText(parentSeries, "shortDescription")}
+								prose
+							/>
+						{:else}
+							<TextArea
+								id="event-short-description"
+								bind:value={form.shortDescription}
+								rows={2}
+								placeholder={inherits
+									? seriesText(parentSeries, "shortDescription") || "On Sat 10 Oct we are excited to host…"
+									: "Live jazz from the house trio, every Thursday."}
+							/>
+						{/if}
+					</Field>
+					<Field
+						label="Description"
+						for="event-description"
+						error={errors.get("event-description")}
+					>
+						{#snippet actions()}{@render inheritAction("description")}{/snippet}
+						{#if follows("description")}
+							<InheritedValue
+								value={readout("description")}
+								empty={!seriesText(parentSeries, "description")}
+								prose
+							/>
+						{:else}
+							<MethodEditor
+								id="event-description"
+								value={form.description}
+								label="Event description"
+								placeholder="Set the scene…"
+								onChange={(next) => (form.description = next)}
+							/>
+						{/if}
+					</Field>
 				</FormSection>
 			{/if}
 			{#if show.when}
 				<FormSection
 					title="When"
 					class="sec-when"
-					description={isSeries ? "How often it runs, its first and last night, and the times each night." : undefined}
 				>
 					{#if isSeries}
 						<RepeatFields {form} {errors} />
@@ -350,7 +419,6 @@
 							label="Date"
 							for="event-date"
 							error={errors.get("event-date")}
-							hint={editingOccurrence ? "Change it to move this night only." : undefined}
 						>
 							<DateField id="event-date" size="sm" bind:value={form.startsOn} />
 						</Field>
@@ -396,100 +464,6 @@
 					{/if}
 				</FormSection>
 			{/if}
-			{#if show.site}
-				<FormSection
-					title="On the website"
-					class="sec-page"
-					description={inherits
-						? "The series' words unless you override them."
-						: "The What's on card and the event's own page."}
-				>
-					<Field
-						class="span-5"
-						label="Offer"
-						for="event-offer"
-						optional={!inherits}
-						hint={follows("offer") ? undefined : "Public wording, like a drink deal."}
-					>
-						{#snippet actions()}{@render inheritAction("offer")}{/snippet}
-						{#if follows("offer")}
-							<InheritedValue value={readout("offer")} empty={!seriesText(parentSeries, "offer")} />
-						{:else}
-							<TextField id="event-offer" size="sm" bind:value={form.offer} placeholder="£10 Negroni" />
-						{/if}
-					</Field>
-					{#if current && !inherits}
-						<Field
-							class="span-7"
-							label="Page address"
-							for="event-web-address"
-							optional
-							hint={webAddressChanged
-								? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still work.`
-								: "Letters, numbers and dashes. Old links still work if you change it."}
-						>
-							<TextField
-								id="event-web-address"
-								size="sm"
-								prefix="gwenda.co.uk/whats-on/"
-								bind:value={form.webAddress}
-								placeholder={current.slug}
-								autocomplete="off"
-								spellcheck="false"
-							/>
-						</Field>
-					{/if}
-					<Field
-						label="Card line"
-						for="event-short-description"
-						optional={!inherits}
-						hint={follows("shortDescription")
-							? undefined
-							: "One or two lines on the What's on card."}
-					>
-						{#snippet actions()}{@render inheritAction("shortDescription")}{/snippet}
-						{#if follows("shortDescription")}
-							<InheritedValue
-								value={readout("shortDescription")}
-								empty={!seriesText(parentSeries, "shortDescription")}
-								prose
-							/>
-						{:else}
-							<TextArea
-								id="event-short-description"
-								bind:value={form.shortDescription}
-								rows={2}
-								placeholder={inherits
-									? seriesText(parentSeries, "shortDescription") || "On Sat 10 Oct we are excited to host…"
-									: "Live jazz from the house trio, every Thursday."}
-							/>
-						{/if}
-					</Field>
-					<Field
-						label="Description"
-						for="event-description"
-						error={errors.get("event-description")}
-						hint={follows("description") ? undefined : "The event's own page on the website."}
-					>
-						{#snippet actions()}{@render inheritAction("description")}{/snippet}
-						{#if follows("description")}
-							<InheritedValue
-								value={readout("description")}
-								empty={!seriesText(parentSeries, "description")}
-								prose
-							/>
-						{:else}
-							<MethodEditor
-								id="event-description"
-								value={form.description}
-								label="Event description"
-								placeholder="Set the scene…"
-								onChange={(next) => (form.description = next)}
-							/>
-						{/if}
-					</Field>
-				</FormSection>
-			{/if}
 			{#if show.slots && !show.slotsBeside}
 				<NightScheduleFields {form} {busy} />
 			{/if}
@@ -503,7 +477,6 @@
 						label="Notes for the team"
 						for="event-operations-notes"
 						optional={!inherits}
-						hint={follows("operationsNotes") ? undefined : "Never on the website."}
 					>
 						{#snippet actions()}{@render inheritAction("operationsNotes")}{/snippet}
 						{#if follows("operationsNotes")}
@@ -561,15 +534,11 @@
 								onclear={onclearphoto}
 							/>
 						{/if}
-						<p class="photo-note">
-							{photoFollows
-								? "This night uses the series photo."
-								: !eventId && framingUrl
-									? "It uploads when you save."
-									: inherits
-										? "This night's own flyer. What's on uses it while this is the next night."
-										: "The What's on flyer. Drag the gold frame to choose the card crop."}
-						</p>
+						{#if photoFollows || (!eventId && framingUrl)}
+							<p class="photo-note">
+								{photoFollows ? "This night uses the series photo." : "It uploads when you save."}
+							</p>
+						{/if}
 					</div>
 				</FormSection>
 			</div>

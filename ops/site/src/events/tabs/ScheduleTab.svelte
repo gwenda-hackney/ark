@@ -27,15 +27,9 @@
 		busy?: boolean;
 		onaddnight?: () => void;
 	} = $props();
-
-	const description = $derived(
-		form.repeatUnit === "none"
-			? "Each night is added on its own date. A star marks a night with a guest of its own."
-			: "From the pattern above. A night lists what it changes from the series.",
-	);
 </script>
 
-<FormSection title="Upcoming nights" {description}>
+<FormSection title="Upcoming nights">
 	{#snippet actions()}
 		{#if onaddnight}
 			<Button

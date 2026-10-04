@@ -26,28 +26,44 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "On a night, change Date and save This event. The series window stays the same. The old date is skipped and the new date is kept for that night only.",
 	},
 	{
-		title: "Guest/collaboration",
-		body: "Optional. On an open series night, a guest of its own shows a star on Schedule. Recurring residencies just list the guest under that night. On a series, this is the default name when a night has none.",
+		title: "Name",
+		body: "The series or event name on What's on. On a night, Override gives it a title of its own, shown instead of the series name for that night only. Anything marked From series follows the series until you override it.",
+	},
+	{
+		title: "Guest/collaboration and Guest link",
+		body: "Optional. Type any name, or pick an approved artist to bring their Instagram or website too. Guest link takes a full address or an @handle. On an open series night, a guest of its own shows a star on Schedule and makes it a special edition on What's on. Recurring residencies just list the guest under that night. On a series, this is the default name when a night has none.",
 	},
 	{
 		title: "Offer",
 		body: "Optional public wording for the night, such as a drink deal.",
 	},
 	{
+		title: "Card line and Description",
+		body: "Card line is one or two lines on the What's on card. Description is the event's own page on the website.",
+	},
+	{
+		title: "Schedule tab",
+		body: "Repeats, Every and On set how often a series runs. For Monthly, a blank Day of month follows the first night. First night can stay blank until it's fixed: the website says to check back soon. Last night is needed once there's a first night. Starts and Ends are the times each night, and a night can change them; after midnight is fine. Upcoming nights lists the dates the pattern makes, each with what it changes from the series. For Doesn't repeat, add each night on its own date with Add night. On a night or special event, the date and times are on Details instead: changing a night's Date moves that night only.",
+	},
+	{
 		title: "Night schedule",
 		body: "Optional structured slots for the night, such as Open decks or Chess. Each slot needs a label and can include start and end times. When set, What's on shows them in gold under the series.",
 	},
 	{
-		title: "Web address",
-		body: "On a series, Web address is the end of its page link: gwenda.co.uk/whats-on/… It starts from the name and stays the same when you rename the series. Change it here if you want a different link. The website changes when you press Update website, and old links still lead to the page. RSVPs and tickets people already have keep working.",
+		title: "Page address",
+		body: "On a series, Page address is the end of its page link (letters, numbers and dashes): gwenda.co.uk/whats-on/… It starts from the name and stays the same when you rename the series. Change it here if you want a different link. The website changes when you press Update website, and old links still lead to the page. RSVPs and tickets people already have keep working.",
 	},
 	{
 		title: "Default hero",
-		body: "The Photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Original downloads the file as it was uploaded.",
+		body: "The Photo on Details is the What's on flyer. The gold frame is the card: drag it, and zoom to tighten (scrolling over the photo zooms too). The buttons under it reset the framing, replace the photo, download the original and remove it. A night's own photo is its flyer while it's the next night. What's on shows the next night's flyer when that night has its own photo. The series photo is the fallback. Original downloads the file as it was uploaded.",
 	},
 	{
 		title: "Gallery",
 		body: "Images is the Drive gallery for this event. Those photos are not the What's on flyer. The flyer is the photo on Details.",
+	},
+	{
+		title: "Ops tab",
+		body: "Notes for the team are never on the website: contacts, fee, setup, access, equipment. The line above them counts the social post tasks in ClickUp.",
 	},
 	{
 		title: "Google Calendar",

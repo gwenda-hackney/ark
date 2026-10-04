@@ -10,11 +10,7 @@
 	let { form, busy }: { form: EventForm; busy: boolean } = $props();
 </script>
 
-<FormSection
-	title="Night schedule"
-	class="sec-slots"
-	description="Optional. Shown in gold on What's on."
->
+<FormSection title="Night schedule" class="sec-slots">
 	{#snippet actions()}
 		<Button variant="outline" size="sm" type="button" disabled={busy} onclick={() => form.addNightSlot()}>
 			{#snippet icon()}<Icon name="plus" size={14} />{/snippet}

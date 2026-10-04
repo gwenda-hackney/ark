@@ -63,6 +63,7 @@
 			"M12 16.25a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
 		],
 		plus: ["M12 5.5v13", "M5.5 12h13"],
+		minus: ["M5.5 12h13"],
 		close: ["M6.5 6.5l11 11", "M17.5 6.5l-11 11"],
 		/* Recipe names → guest menu description */
 		"from-list": [

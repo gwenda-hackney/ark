@@ -12,17 +12,20 @@
 		aside,
 		children,
 		asideWidth = "20rem",
+		fill = false,
 		class: className = "",
 	}: {
 		/** The photo block. */
 		aside: Snippet;
 		children: Snippet;
 		asideWidth?: string;
+		/** Beside the fields, the aside's second child (the photo) grows to their full height. */
+		fill?: boolean;
 		class?: string;
 	} = $props();
 </script>
 
-<div class="form-lead {className}" style:--form-aside-w={asideWidth}>
+<div class="form-lead {className}" class:aside-fill={fill} style:--form-aside-w={asideWidth}>
 	<div class="lead-grid">
 		<div class="lead-fields">
 			{@render children()}

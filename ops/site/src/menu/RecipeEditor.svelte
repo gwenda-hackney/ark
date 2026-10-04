@@ -933,9 +933,59 @@
 						>
 					{#if tab === "details"}
 						<div class="board">
-							<FormLead asideWidth="17.5rem">
+							<FormLead asideWidth="24rem" fill>
 								{#snippet aside()}
-									<FormHeading title="Photo" />
+									<FormHeading title="Photo">
+										{#snippet actions()}
+										<!-- Always shown; unavailable ones are disabled with a reason. -->
+										<div class="photo-actions">
+											<label
+												class="photo-btn camera"
+												class:disabled={avail.takePhoto.disabled}
+												title={avail.takePhoto.reason}
+											>
+												<input
+													class="sr-only"
+													type="file"
+													accept="image/*"
+													capture="environment"
+													disabled={avail.takePhoto.disabled}
+													onchange={onPhotoInput}
+												/>
+												<Icon name="camera" size={14} />
+												Take photo
+											</label>
+											<label
+												class="photo-btn"
+												class:disabled={avail.replacePhoto.disabled}
+												title={avail.replacePhoto.reason}
+											>
+												<input
+													class="sr-only"
+													type="file"
+													accept="image/jpeg,image/png,image/webp,image/gif"
+													disabled={avail.replacePhoto.disabled}
+													onchange={onPhotoInput}
+												/>
+												<Icon name="upload" size={14} />
+												Replace
+											</label>
+											<Button
+												variant="outline"
+												size="sm"
+												class="photo-remove"
+												disabled={avail.removePhoto.disabled}
+												reason={avail.removePhoto.reason}
+												onclick={removePhoto}
+											>
+												{#snippet icon()}
+													<Icon name="trash" size={14} />
+												{/snippet}
+												Remove
+											</Button>
+										</div>
+										{/snippet}
+									</FormHeading>
 									<div
 										class="photo"
 										class:dragging={photoDragging}
@@ -972,56 +1022,6 @@
 											</div>
 										{/if}
 									</div>
-									<!-- Always shown; unavailable ones are disabled with a reason. -->
-									<div class="photo-actions">
-										<label
-											class="photo-btn camera"
-											class:disabled={avail.takePhoto.disabled}
-											title={avail.takePhoto.reason}
-										>
-											<input
-												class="sr-only"
-												type="file"
-												accept="image/*"
-												capture="environment"
-												disabled={avail.takePhoto.disabled}
-												onchange={onPhotoInput}
-											/>
-											<Icon name="camera" size={14} />
-											Take photo
-										</label>
-										<label
-											class="photo-btn"
-											class:disabled={avail.replacePhoto.disabled}
-											title={avail.replacePhoto.reason}
-										>
-											<input
-												class="sr-only"
-												type="file"
-												accept="image/jpeg,image/png,image/webp,image/gif"
-												disabled={avail.replacePhoto.disabled}
-												onchange={onPhotoInput}
-											/>
-											<Icon name="upload" size={14} />
-											Replace
-										</label>
-										<Button
-											variant="outline"
-											size="sm"
-											class="photo-remove"
-											disabled={avail.removePhoto.disabled}
-											reason={avail.removePhoto.reason}
-											onclick={removePhoto}
-										>
-											{#snippet icon()}
-												<Icon name="trash" size={14} />
-											{/snippet}
-											Remove
-										</Button>
-									</div>
-									<p class="photo-note">
-										{item?._id ? "On the digital menu." : "Save the drink first, then add a photo."}
-									</p>
 								{/snippet}
 
 								<FormHeading class="lead-first" title="Drink" />
@@ -1718,20 +1718,25 @@
 
 	.photo-actions {
 		display: flex;
-		flex-wrap: wrap;
 		gap: var(--space-2);
-	}
-
-	.photo-note {
-		margin: 0;
-		font-size: var(--text-xs);
-		line-height: var(--leading-xs);
-		color: var(--subtle-foreground);
 	}
 
 	.photo {
 		position: relative;
 		display: grid;
+	}
+
+	/* Beside the fields: the photo fills their height (FormLead `fill`). */
+	@container (min-width: 42rem) {
+		.photo {
+			min-height: 0;
+		}
+
+		.photo-frame,
+		.photo-empty {
+			height: 100%;
+			aspect-ratio: auto;
+		}
 	}
 
 	/* File pickers are labels; they match an outline sm Button beside Remove. */
@@ -1794,11 +1799,15 @@
 	}
 
 	.photo-frame {
+		position: relative;
 		border: 1px solid var(--border);
 		background: var(--bg);
 	}
 
+	/* Out of flow, so the fields set the height and the photo fills it. */
 	.photo-frame img {
+		position: absolute;
+		inset: 0;
 		display: block;
 		width: 100%;
 		height: 100%;

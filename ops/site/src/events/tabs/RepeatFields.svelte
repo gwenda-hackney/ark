@@ -21,7 +21,6 @@
 	class={form.repeatUnit === "none" ? "span-6" : "span-3"}
 	label="Repeats"
 	for="event-unit"
-	hint={form.repeatUnit === "none" ? "Add each night on its own date with Add night." : undefined}
 >
 	<NativeSelect
 		id="event-unit"
@@ -55,7 +54,6 @@
 		for="event-month-day"
 		optional
 		error={errors.get("event-month-day")}
-		hint="Blank follows the first night."
 	>
 		<NumberField id="event-month-day" size="sm" integer min={1} max={31} bind:value={form.monthDay} />
 	</Field>

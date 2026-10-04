@@ -234,6 +234,13 @@
 		order: 3;
 		max-width: none;
 	}
+
+	/* The photo takes the fields' full height: heading, then the photo, then the rest. */
+	.form-lead.aside-fill > .lead-grid > .lead-aside {
+		align-self: stretch;
+		grid-template-rows: auto minmax(12rem, 1fr);
+		grid-auto-rows: auto;
+	}
 }
 
 @container (min-width: 56rem) {
