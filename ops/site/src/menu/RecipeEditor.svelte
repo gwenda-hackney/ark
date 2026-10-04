@@ -1017,7 +1017,7 @@
 										oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
-								<Field class="span-4" label="Drink type" for="f-drink-type">
+								<Field class="span-3" label="Drink type" for="f-drink-type">
 									<NativeSelect
 										id="f-drink-type"
 										size="sm"
@@ -1029,7 +1029,7 @@
 								</Field>
 								{#if showRecipe}
 									<Field
-										class="span-5"
+										class="span-3"
 										label="Category"
 										for="f-cocktail-type"
 										optional
@@ -1050,7 +1050,7 @@
 										/>
 									</Field>
 								{:else}
-									<Field class="span-5" label="Producer" for="f-producer-d" optional>
+									<Field class="span-3" label="Producer" for="f-producer-d" optional>
 										<TextField
 											id="f-producer-d"
 											size="sm"
