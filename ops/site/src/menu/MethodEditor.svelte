@@ -2,6 +2,10 @@
 	/**
 	 * Method field: TipTap (ProseMirror) WYSIWYG, stored as light Markdown
 	 * for Baserow / SpecBook / dilution parsing.
+	 *
+	 * `kind="description"` is the event description (#33): only what the
+	 * website shows: bold, italic, links, bullet lists and line breaks
+	 * (Shift+Enter). No headings, numbered lists or underline.
 	 */
 	import { onDestroy, onMount } from "svelte";
 	import { Editor } from "@tiptap/core";
@@ -9,6 +13,8 @@
 	import { Markdown } from "@tiptap/markdown";
 	import Placeholder from "@tiptap/extension-placeholder";
 	import { getFieldContext } from "../ui/field-context";
+	import { Icon } from "../app/shell";
+	import { isShownLink, normalizeDescriptionLink } from "../events/description-links";
 
 	let {
 		id = "f-method",
@@ -16,6 +22,7 @@
 		placeholder = "Shake hard with ice…",
 		label = "Method",
 		disabled = false,
+		kind = "method",
 		onChange,
 	}: {
 		id?: string;
@@ -23,8 +30,12 @@
 		placeholder?: string;
 		label?: string;
 		disabled?: boolean;
+		/** "description": the event description's smaller set, with links. */
+		kind?: "method" | "description";
 		onChange?: (next: string) => void;
 	} = $props();
+
+	const isDescription = $derived(kind === "description");
 
 	const field = getFieldContext();
 	let host: HTMLDivElement | undefined = $state();
@@ -64,14 +75,34 @@
 			element: host,
 			editable: !disabled,
 			extensions: [
-				StarterKit.configure({
-					blockquote: false,
-					code: false,
-					codeBlock: false,
-					horizontalRule: false,
-					strike: false,
-					heading: { levels: [1, 2, 3] },
-				}),
+				StarterKit.configure(
+					kind === "description"
+						? {
+								blockquote: false,
+								code: false,
+								codeBlock: false,
+								horizontalRule: false,
+								strike: false,
+								heading: false,
+								orderedList: false,
+								underline: false,
+								link: {
+									openOnClick: false,
+									autolink: true,
+									linkOnPaste: true,
+									defaultProtocol: "https",
+									isAllowedUri: (url) => isShownLink(url),
+								},
+							}
+						: {
+								blockquote: false,
+								code: false,
+								codeBlock: false,
+								horizontalRule: false,
+								strike: false,
+								heading: { levels: [1, 2, 3] },
+							},
+				),
 				Markdown.configure({
 					markedOptions: {
 						breaks: false,
@@ -180,6 +211,69 @@
 		uiTick;
 		return Boolean(editor?.isActive("orderedList"));
 	});
+	const linkOn = $derived.by(() => {
+		uiTick;
+		return Boolean(editor?.isActive("link"));
+	});
+
+	/* The link box under the toolbar: an address for the selection or link under the cursor. */
+	let linkOpen = $state(false);
+	let linkDraft = $state("");
+	let linkError = $state("");
+	let linkInput: HTMLInputElement | undefined = $state();
+
+	function openLink(): void {
+		const ed = editor;
+		if (!ed || ed.isDestroyed || disabled) return;
+		ed.chain().focus().extendMarkRange("link").run();
+		linkDraft = String(ed.getAttributes("link").href || "");
+		linkError = "";
+		linkOpen = true;
+		queueMicrotask(() => linkInput?.focus());
+	}
+
+	function closeLink(): void {
+		linkOpen = false;
+		linkError = "";
+		editor?.view.focus();
+	}
+
+	function applyLink(): void {
+		const ed = editor;
+		if (!ed || ed.isDestroyed) return;
+		if (!linkDraft.trim()) {
+			removeLink();
+			return;
+		}
+		const href = normalizeDescriptionLink(linkDraft);
+		if (!href) {
+			linkError = "Use a web address, an @handle, an email, a phone number or a page on the site (/…).";
+			return;
+		}
+		const chain = ed.chain().focus().extendMarkRange("link");
+		if (ed.state.selection.empty && !ed.isActive("link")) {
+			// Nothing selected: the address becomes the link's text.
+			chain.insertContent({ type: "text", text: linkDraft.trim(), marks: [{ type: "link", attrs: { href } }] }).run();
+		} else {
+			chain.setLink({ href }).run();
+		}
+		closeLink();
+	}
+
+	function removeLink(): void {
+		editor?.chain().focus().extendMarkRange("link").unsetLink().run();
+		closeLink();
+	}
+
+	function onLinkKeydown(event: KeyboardEvent): void {
+		if (event.key === "Enter") {
+			event.preventDefault();
+			applyLink();
+		} else if (event.key === "Escape") {
+			event.preventDefault();
+			closeLink();
+		}
+	}
 </script>
 
 <div class="method-editor" class:disabled class:invalid={field?.invalid}>
@@ -211,6 +305,22 @@
 			<span class="glyph italic">I</span>
 		</button>
 		<span class="sep" aria-hidden="true"></span>
+		{#if isDescription}
+		<button
+			type="button"
+			class="tool"
+			class:on={linkOn || linkOpen}
+			aria-label="Link"
+			aria-pressed={linkOn}
+			aria-expanded={linkOpen}
+			title="Link"
+			disabled={disabled}
+			onmousedown={onToolbarMouseDown}
+			onclick={() => (linkOpen ? closeLink() : openLink())}
+		>
+			<Icon name="link" size={15} />
+		</button>
+		{:else}
 		<button
 			type="button"
 			class="tool"
@@ -224,6 +334,7 @@
 		>
 			<span class="glyph">H</span>
 		</button>
+		{/if}
 		<span class="sep" aria-hidden="true"></span>
 		<button
 			type="button"
@@ -238,6 +349,7 @@
 		>
 			<span class="glyph">•</span>
 		</button>
+		{#if !isDescription}
 		<button
 			type="button"
 			class="tool"
@@ -251,7 +363,32 @@
 		>
 			<span class="glyph">1.</span>
 		</button>
+		{/if}
 	</div>
+	{#if linkOpen}
+		<div class="link-box">
+			<input
+				bind:this={linkInput}
+				bind:value={linkDraft}
+				class="link-input"
+				type="text"
+				inputmode="url"
+				autocomplete="off"
+				spellcheck="false"
+				placeholder="https://…, @handle, email or /page"
+				aria-label="Link address"
+				aria-invalid={linkError ? "true" : undefined}
+				onkeydown={onLinkKeydown}
+				oninput={() => (linkError = "")}
+			/>
+			<button type="button" class="link-action primary" onclick={applyLink}>Apply</button>
+			{#if linkOn}
+				<button type="button" class="link-action" onclick={removeLink}>Remove</button>
+			{/if}
+			<button type="button" class="link-action" onclick={closeLink}>Cancel</button>
+			{#if linkError}<p class="link-error" role="alert">{linkError}</p>{/if}
+		</div>
+	{/if}
 
 	<div class="host" bind:this={host}></div>
 </div>
@@ -341,6 +478,71 @@
 		height: 1.1rem;
 		margin: 0 var(--space-1);
 		background: var(--border);
+	}
+
+	.link-box {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.link-input {
+		flex: 1 1 14rem;
+		min-width: 0;
+		height: var(--control-h-sm);
+		padding: 0 var(--space-3);
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-md);
+		background: var(--sunken);
+		color: var(--foreground);
+		font: inherit;
+		font-size: var(--text-sm);
+	}
+
+	.link-input:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 1px;
+	}
+
+	.link-input[aria-invalid="true"] {
+		border-color: var(--danger);
+	}
+
+	.link-action {
+		height: var(--control-h-sm);
+		padding: 0 var(--space-3);
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--foreground);
+		font: inherit;
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.link-action.primary {
+		border-color: var(--primary);
+		color: var(--primary);
+	}
+
+	.link-action:hover {
+		background: var(--accent);
+	}
+
+	.link-error {
+		flex-basis: 100%;
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--danger);
+	}
+
+	.host :global(.ProseMirror a) {
+		color: var(--primary);
+		text-decoration: underline;
+		text-underline-offset: 0.18em;
 	}
 
 	.host {

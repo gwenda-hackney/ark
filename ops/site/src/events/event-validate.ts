@@ -6,6 +6,7 @@
 import { numberError } from "../ui/number-input";
 import type { ErrorMap } from "../ui/form-errors.svelte";
 import { formatDateGB } from "../ui/date-input";
+import { unshownDescriptionLinks } from "./description-links";
 
 export type EventValidateForm = {
 	name: string;
@@ -69,6 +70,9 @@ export function validateEvent(form: EventValidateForm, ctx: EventValidateContext
 	if (!form.name.trim()) errors["event-name"] = "Add a name.";
 	// The website needs one (publishEventPreview); a night uses its series'.
 	if (!hasText(form.description)) errors["event-description"] = "Add a description. The website needs one.";
+	else if (unshownDescriptionLinks(form.description).length) {
+		errors["event-description"] = "A link in the description won't work on the website. Use https://…, an email, a phone number or a page on the site.";
+	}
 	if (form.repeatUnit === "once") {
 		if (!form.startsOn) errors["event-date"] = "Add a date.";
 		return errors;
