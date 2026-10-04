@@ -5,6 +5,7 @@
 	 * against the house target. Cells edit inline on one click. The first row
 	 * is the main price. On phones each row opens a sheet.
 	 */
+	import { ITEM_TIPS } from "./item-help";
 	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
 	import { Button, DataGrid, Dialog, Field, MoneyField, TextField } from "../ui";
 	import { svelteCell } from "../ui/grid";
@@ -302,7 +303,7 @@
 						oncommit={(next) => update(index, "price", next)}
 					/>
 				</Field>
-				<Field label="Till SKU" for={priceFieldId("sku", index)} optional>
+				<Field label="Till SKU" for={priceFieldId("sku", index)} optional tooltip={ITEM_TIPS.sku}>
 					<TextField
 						id={priceFieldId("sku", index)}
 						mono

@@ -3,7 +3,8 @@
 	 * Analysis tab: issues first, then overview numbers, detail, and AI.
 	 * Each row lays its sections side by side once the tab is wide enough.
 	 */
-	import { Button } from "../ui";
+	import { Button, Tip } from "../ui";
+	import { ITEM_TIPS } from "./item-help";
 	import { formatAbv } from "./abv";
 	import {
 		formatMl,
@@ -189,7 +190,7 @@
 			</section>
 
 			<section class="block" aria-label="Overview">
-				<p class="section-title">Overview</p>
+				<p class="section-title"><span>Overview</span><Tip label="Overview" tooltip={ITEM_TIPS.overview} /></p>
 				<div class="row overview">
 					{#if analysis.volumeMl != null}
 						<div class="group">
@@ -310,7 +311,7 @@
 				<div class="row detail">
 					{#if showBalance && analysis.ratio}
 						<section class="block" aria-label="Balance">
-							<p class="section-title">Balance</p>
+							<p class="section-title"><span>Balance</span><Tip label="Balance" tooltip={ITEM_TIPS.balance} /></p>
 							<div class="ratio">
 								<div>
 									<p class="stat-value sm">{formatMl(analysis.ratio.spirit)}</p>
@@ -344,7 +345,7 @@
 
 					{#if showHouse && analysis.peers}
 						<section class="block" aria-label="House">
-							<p class="section-title">House</p>
+							<p class="section-title"><span>House</span><Tip label="House" tooltip={ITEM_TIPS.house} /></p>
 							<p class="body soft">
 								{#if percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)}
 									Volume {percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)} house cocktails.
@@ -412,7 +413,7 @@
 
 			<section class="block note-block" aria-label="AI reading">
 				<div class="section-head">
-					<p class="section-title">AI reading</p>
+					<p class="section-title"><span>AI reading</span><Tip label="AI reading" tooltip={ITEM_TIPS.aiReading} /></p>
 					<Button
 						variant="primary"
 						size="sm"
@@ -471,7 +472,7 @@
 								? "Add recipe volumes or stock costs before asking for a reading."
 								: "Link stock on Build and set a price before asking for a reading."}
 						{:else}
-							A short note on this drink, separate from the numbers above. It will not invent volumes or ABV.
+							No reading yet.
 						{/if}
 					</p>
 				{/if}
@@ -623,6 +624,11 @@
 		font-weight: 600;
 		line-height: 1.3;
 		color: var(--fg);
+	}
+
+	/* The ? sits right after the title, before the rule. */
+	.section-title :global(.tip-wrap) {
+		margin-left: calc(var(--space-1) - var(--space-3));
 	}
 
 	.section-title::after {
