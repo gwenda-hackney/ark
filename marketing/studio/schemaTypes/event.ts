@@ -318,6 +318,19 @@ Need to change your reply? {modify_url}`,
           type: "string",
           title: "Alternative text",
         }),
+        defineField({
+          name: "fit",
+          type: "string",
+          title: "Fit",
+          description:
+            "Whole image: the photo is shown uncropped inside the 16×10 frame, on a blurred copy of itself (#27). Set by ops.",
+          options: {
+            list: [
+              { title: "Fill the frame", value: "fill" },
+              { title: "Whole image", value: "whole" },
+            ],
+          },
+        }),
       ],
     }),
     defineField({
@@ -334,6 +347,19 @@ Need to change your reply? {modify_url}`,
           name: "alt",
           type: "string",
           title: "Alternative text",
+        }),
+        defineField({
+          name: "fit",
+          type: "string",
+          title: "Fit",
+          description:
+            "Whole image: the photo is shown uncropped inside the 16×10 frame, on a blurred copy of itself (#27). Set by ops.",
+          options: {
+            list: [
+              { title: "Fill the frame", value: "fill" },
+              { title: "Whole image", value: "whole" },
+            ],
+          },
         }),
       ],
     }),

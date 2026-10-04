@@ -1,6 +1,37 @@
 const HERO_ASPECT = 16 / 10;
 
 /**
+ * "Show whole image" heroes (#27) travel as their URL with this fragment, so
+ * every card path that already passes the hero URL along knows to draw the
+ * photo uncropped on a blurred copy of itself. Browsers and the Sanity CDN
+ * ignore fragments; add query parameters before it (withImageParams).
+ */
+const WHOLE_FIT = "#whole";
+
+/** The hero URL, marked when its fit is "whole". */
+export function markWholeFit(url, fit) {
+  const value = String(url ?? "").trim();
+  if (!value || fit !== "whole" || value.endsWith(WHOLE_FIT)) return value;
+  return `${value}${WHOLE_FIT}`;
+}
+
+export function isWholeFit(url) {
+  return String(url ?? "")
+    .trim()
+    .endsWith(WHOLE_FIT);
+}
+
+/** `url` with `params` ("w=960&auto=format") added before any fragment. */
+export function withImageParams(url, params) {
+  const value = String(url ?? "").trim();
+  if (!value) return "";
+  const hashAt = value.indexOf("#");
+  const base = hashAt < 0 ? value : value.slice(0, hashAt);
+  const hash = hashAt < 0 ? "" : value.slice(hashAt);
+  return `${base}${base.includes("?") ? "&" : "?"}${params}${hash}`;
+}
+
+/**
  * 16×10 card inside a stored crop, in source pixels.
  * The site used to take that crop and fit=crop it again, which cut the card.
  */
@@ -88,7 +119,12 @@ export function objectPositionFromHotspot(hotspot, crop) {
   return `${(Math.min(1, Math.max(0, x)) * 100).toFixed(1)}% ${(Math.min(1, Math.max(0, y)) * 100).toFixed(1)}%`;
 }
 
-export function resolveHeroUrl(row, { width = 1600, height = 1000 } = {}) {
+export function resolveHeroUrl(row, options = {}) {
+  const url = resolveHeroUrlUnmarked(row, options);
+  return url ? markWholeFit(url, row?.heroFit) : url;
+}
+
+function resolveHeroUrlUnmarked(row, { width = 1600, height = 1000 } = {}) {
   const asset = String(row?.heroAssetUrl || row?.heroImageUrl || "").trim();
   if (!asset) return null;
   const url = sanityCroppedUrl(asset, row?.heroCrop, row?.heroDimensions, {
@@ -100,7 +136,12 @@ export function resolveHeroUrl(row, { width = 1600, height = 1000 } = {}) {
   return withFocalPoint(url, row?.heroHotspot) || asset;
 }
 
-export function resolveSeriesHeroUrl(
+export function resolveSeriesHeroUrl(row, options = {}) {
+  const url = resolveSeriesHeroUrlUnmarked(row, options);
+  return url ? markWholeFit(url, row?.seriesHeroFit) : url;
+}
+
+function resolveSeriesHeroUrlUnmarked(
   row,
   { width = 1600, height = 1000 } = {},
 ) {

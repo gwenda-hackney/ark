@@ -2,6 +2,7 @@ import { createImageUrlBuilder } from "@sanity/image-url";
 import type { SanityImageSource } from "@sanity/image-url";
 import type { MenuItemImage } from "../../types/menu";
 import { getSanityImageConfig } from "./env";
+import { markWholeFit } from "../../../functions/_lib/sanity-image-url.js";
 
 function createBuilder() {
   const { projectId, dataset } = getSanityImageConfig();
@@ -35,6 +36,8 @@ type SanityImageAsset = {
 
 export type SanityImageField = {
   alt?: string | null;
+  /** "whole": show uncropped on a blurred copy of itself (#27). */
+  fit?: string | null;
   crop?: SanityImageCrop | null;
   hotspot?: SanityImageHotspot | null;
   asset?: SanityImageAsset | null;
@@ -182,6 +185,16 @@ export function mapSanityHeroImage(
   const source = image ? toImageSource(image) : null;
   if (!source || !image) return undefined;
 
+  // Whole image (#27): never cropped, marked for the blurred-backdrop card.
+  if (image.fit === "whole") {
+    return {
+      url: markWholeFit(buildHeroFullUrl(source), "whole"),
+      width: HERO_WIDTH,
+      height: assetDimensions(image).height,
+      objectPosition: undefined,
+      alt: image.alt?.trim() || fallbackAlt,
+    };
+  }
   const framed = hasImageFraming(image);
   return {
     url: framed ? buildHeroFramedUrl(source) : buildHeroFullUrl(source),

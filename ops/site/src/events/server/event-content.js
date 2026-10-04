@@ -305,6 +305,8 @@ function roundFrac(value) {
 /** Stable crop+hotspot shape so key order / float noise cannot keep preview stale. */
 export function stableHeroFraming(value) {
   if (!value || typeof value !== "object") return null;
+  // Whole image (#27): no crop to compare, only the choice.
+  if (value.fit === "whole") return { fit: "whole" };
   const source =
     value.crop || value.main || value.card ? value : { crop: value };
   const cropSrc = source.crop || source.main || source.card || {};
