@@ -43,10 +43,12 @@ import {
   createEventDriveFolder,
   driveFolderWebUrl,
   ensureNamedChildFolder,
+  isOwnEventFolder,
   renameDriveFile,
   trashDriveFile,
   untrashDriveFile,
 } from "../../platform/google-drive.js";
+import { forgetGalleryStaged } from "./event-gallery.js";
 import {
   parseNightSchedule,
   serializeNightSchedule,
@@ -731,10 +733,15 @@ async function takenDriveFolderIds(env, tables, exceptId = "") {
   return ids;
 }
 
-/** Ensure the event has a Drive folder; create one if missing. */
+/**
+ * Ensure the event has a Drive folder of this environment's own; create one
+ * if it has none, or if the row points at another environment's folder (see
+ * isOwnEventFolder). A new folder starts with an empty gallery, so the staged
+ * gallery is forgotten and copied again.
+ */
 export async function ensureEventDriveFolder(env, id) {
   const event = await getEvent(env, id);
-  if (event.driveFolderId) return event;
+  if (event.driveFolderId && (await isOwnEventFolder(env, event.driveFolderId))) return event;
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const folder = await createEventDriveFolder(env, event.name || "Event", {
     takenFolderIds: await takenDriveFolderIds(env, tables, id),
@@ -742,6 +749,7 @@ export async function ensureEventDriveFolder(env, id) {
   await updateRow(env, tables.events, id, {
     "Drive folder id": folder.id,
   });
+  if (event.driveFolderId) await forgetGalleryStaged(env, id);
   return getEvent(env, id);
 }
 

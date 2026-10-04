@@ -4,7 +4,8 @@
  *
  * Creates workspace + database, recreates tables/fields, copies rows with link
  * remapping. File field *values* (e.g. Photo) are skipped (re-fetch later);
- * empty file columns are still created so uploads work on the clone.
+ * empty file columns are still created so uploads work on the clone. Event
+ * Drive folder ids are left empty too: dev makes its own folders.
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
  * Source rows: BASEROW_API_KEY with read access to the production Ops DB, so
@@ -54,6 +55,13 @@ const SKIP_LINK_CREATE = new Set([
   `${TABLE_INVENTORY}|Inventory suppliers`,
   `${TABLE_SUPPLIERS}|Inventory suppliers`,
 ]);
+
+/**
+ * Values that point at a production resource outside Baserow. Copied, dev
+ * would read and write production's (dev's uploads showed in production's
+ * event galleries); left empty, dev makes its own on first use.
+ */
+const PRODUCTION_OWNED_FIELDS = new Set(["Drive folder id"]);
 
 function readEnv(name, fallback = "") {
   return process.env[name]?.trim() || fallback;
@@ -218,6 +226,7 @@ function remapRowPayload(row, fields, idMapsByOldTableId) {
       continue;
     }
     if (field.type === "file") continue;
+    if (PRODUCTION_OWNED_FIELDS.has(field.name)) continue;
     if (field.read_only && field.type !== "text") continue;
     if (
       field.type === "formula" ||
