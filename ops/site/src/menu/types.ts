@@ -1,5 +1,6 @@
 import type { LightspeedStatus } from "../inventory/types";
 import type { ItemPublishState } from "./publish";
+import { SINGLE_POUR_ML, UK_PINT_ML, normalizePrices, priceLabels, type PriceRow } from "./prices.js";
 
 export type Ingredient = {
   id?: number | string;
@@ -284,6 +285,11 @@ export type MenuItem = {
   price?: string;
   /** Second size: double (cocktail/pour) or half pint (beer). */
   priceAlt?: string;
+  /**
+   * Every price, main one first. `price` / `priceAlt` and the two SKUs are
+   * kept in step with the first two rows (see prices.js).
+   */
+  prices?: PriceRow[];
   drinkType?: DrinkType;
   /** Cocktail build: spritz, highball, stirred, etc. Ops only. */
   cocktailType?: CocktailType | "";
@@ -359,10 +365,7 @@ export function hasRecipe(type: DrinkType | undefined): boolean {
 export function serveTabLabel(type: DrinkType | undefined): string {
   return hasRecipe(type) ? "Recipe" : "Serve";
 }
-/** UK pint. Half pint is half of this via `altCostFactor`. */
-export const UK_PINT_ML = 568;
-/** Standard single spirit / wine pour. Double is 2× via `altCostFactor`. */
-export const SINGLE_POUR_ML = 25;
+export { UK_PINT_ML, SINGLE_POUR_ML };
 /** Primary serve quantity used to cost a draught pint or a neat pour. */
 export function defaultServeQuantity(
   type: DrinkType | undefined,
@@ -377,38 +380,15 @@ export function defaultServeQuantity(
       return null;
   }
 }
-export function priceLabels(type: DrinkType | undefined): {
-  primary: string;
-  alt?: string;
-} {
-  switch (normalizeDrinkType(type)) {
-    case "pour":
-      return { primary: "Single", alt: "Double" };
-    case "beer":
-    case "postmix":
-      return { primary: "Pint", alt: "Half pint" };
-    case "packaged":
-      return { primary: "Price" };
-    case "cocktail":
-    default:
-      return { primary: "Single", alt: "Double" };
-  }
-}
-/** Guest / grid display: £14 · £18 or £7. */
-export function formatPrices(item: {
-  drinkType?: DrinkType;
-  price?: string;
-  priceAlt?: string;
-}): string {
-  const labels = priceLabels(item.drinkType);
-  const primary = item.price?.trim();
-  const alt = item.priceAlt?.trim();
-  if (primary && alt && labels.alt) {
-    return `£${primary} / £${alt}`;
-  }
-  if (primary) return `£${primary}`;
-  if (alt) return `£${alt}`;
-  return "";
+export { priceLabels };
+export type { PriceRow };
+/** Guest / grid display: £14 / £18, £7, or every size for more. */
+export function formatPrices(item: Parameters<typeof normalizePrices>[0]): string {
+  return normalizePrices(item)
+    .map((row) => row.price)
+    .filter(Boolean)
+    .map((price) => `£${price}`)
+    .join(" / ");
 }
 export const UNITS = [
   "ml",

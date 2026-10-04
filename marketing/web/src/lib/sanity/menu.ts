@@ -1,4 +1,4 @@
-import type { Menu, MenuItem, MenuSection } from "../../types/menu";
+import type { Menu, MenuItem, MenuPrice, MenuSection } from "../../types/menu";
 import type { MenuTeaseCocktail } from "../../data/menu-tease";
 import { createSanityClient } from "./client";
 import { getSanityImageConfig } from "./env";
@@ -8,6 +8,27 @@ import {
   type SanityImageField,
 } from "./images";
 import { MENU_QUERY } from "./queries";
+
+type SanityMenuPrice = {
+  name?: string | null;
+  size?: string | null;
+  price?: string | null;
+};
+
+/** Rows with a name and a price; none when the drink was published before the list. */
+export function mapMenuPrices(
+  rows: SanityMenuPrice[] | null | undefined,
+): MenuPrice[] | undefined {
+  const out: MenuPrice[] = [];
+  for (const row of rows || []) {
+    const name = row?.name?.trim() || "";
+    const price = row?.price?.trim() || "";
+    if (!name || !price) continue;
+    const size = row?.size?.trim();
+    out.push(size ? { name, size, price } : { name, price });
+  }
+  return out.length ? out : undefined;
+}
 
 type SanityMenuSection = {
   id: string | null;
@@ -20,6 +41,7 @@ type SanityMenuSection = {
     description?: string | null;
     price?: string | null;
     priceAlt?: string | null;
+    prices?: SanityMenuPrice[] | null;
     drinkType?: string | null;
     notes?: string | null;
     abv?: string | null;
@@ -48,6 +70,7 @@ function mapMenuItem(doc: SanityMenuSection["items"][number]): MenuItem | null {
     description: doc.description?.trim() || undefined,
     price: doc.price?.trim() || undefined,
     priceAlt: doc.priceAlt?.trim() || undefined,
+    prices: mapMenuPrices(doc.prices),
     drinkType: mapDrinkType(doc.drinkType),
     notes: doc.notes?.trim() || undefined,
     abv: doc.abv?.trim() || undefined,
@@ -159,6 +182,7 @@ export async function fetchMenuTeaseCocktails(): Promise<MenuTeaseCocktail[]> {
         description: item.description?.trim() || undefined,
         price: item.price?.trim() || undefined,
         priceAlt: item.priceAlt?.trim() || undefined,
+        prices: mapMenuPrices(item.prices),
         drinkType: mapDrinkType(item.drinkType),
         notes: item.notes?.trim() || undefined,
         image,

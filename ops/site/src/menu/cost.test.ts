@@ -8,6 +8,7 @@ import {
 	parseLabelVolumeMl,
 	parsePackCode,
 	priceBasisLabel,
+	priceRowCostFactor,
 	priceVerdict,
 	recipePriceAnalysis,
 	resolvePackVolume,
@@ -392,5 +393,90 @@ describe("suggestedAltPrice", () => {
 		assert.equal(suggestedAltPrice({ ...base, complete: false }), null);
 		assert.equal(suggestedAltPrice({ ...base, drinkType: "packaged" }), null);
 		assert.equal(suggestedAltPrice(null), null);
+	});
+});
+
+describe("price table pour cost", () => {
+	const gin: InventoryItem[] = [
+		{
+			id: "gin",
+			_id: "gin",
+			name: "House gin",
+			kind: "liquor",
+			suppliers: [{ name: "LWC", pack: "BOTTLE", price: 14 }],
+		},
+	];
+	const pour: MenuItem = {
+		name: "House gin",
+		drinkType: "pour",
+		ingredients: [{ inventoryId: "gin", name: "House gin", quantity: 25, unit: "ml" }],
+	};
+
+	it("scales each row by its size over the main size", () => {
+		const price = recipePriceAnalysis(
+			{
+				...pour,
+				prices: [
+					{ name: "Single", size: "25 ml", price: "6" },
+					{ name: "Double", size: "50 ml", price: "10" },
+					{ name: "Large", size: "75ml", price: "14" },
+				],
+			},
+			gin,
+			DEFAULT_POUR_TARGETS,
+		);
+		assert.ok(price.drinkCost != null);
+		assert.deepEqual(
+			price.priceRows.map((row) => row.costFactor),
+			[1, 2, 3],
+		);
+		assert.equal(price.priceRows[2].serve?.drinkCost, Math.round(price.drinkCost * 3 * 100) / 100);
+		assert.equal(price.priceRows[2].serve?.key, "row-2");
+		assert.equal(price.serves.length, 3);
+		assert.equal(price.serves[2].label, "Large");
+	});
+
+	it("uses the house factor for a second row with the usual name, and the house serve for a blank main size", () => {
+		assert.equal(priceRowCostFactor([{ name: "Single", price: "12" }, { name: "Double", price: "18" }], 1, "cocktail"), 2);
+		assert.equal(
+			priceRowCostFactor([{ name: "Pint", price: "6" }, { name: "Half pint", price: "3.5" }], 1, "beer"),
+			0.5,
+		);
+		// A pour's main serve is 25 ml, so a 50 ml row is twice it.
+		assert.equal(priceRowCostFactor([{ name: "Single", price: "6" }, { name: "Big", size: "50 ml", price: "10" }], 1, "pour"), 2);
+	});
+
+	it("can't cost a row with no measure and no usual name", () => {
+		const rows = [
+			{ name: "Glass", size: "175 ml", price: "9" },
+			{ name: "Bottle", price: "34" },
+		];
+		assert.equal(priceRowCostFactor(rows, 1, "pour"), null);
+		const price = recipePriceAnalysis({ ...pour, prices: rows }, gin, DEFAULT_POUR_TARGETS);
+		assert.equal(price.priceRows[1].serve, null);
+		assert.equal(price.serves.length, 1);
+	});
+
+	it("reads the old two slots the same as before", () => {
+		const price = recipePriceAnalysis({ ...pour, price: "6", priceAlt: "10" }, gin, DEFAULT_POUR_TARGETS);
+		assert.deepEqual(
+			price.serves.map((serve) => [serve.key, serve.label, serve.costFactor]),
+			[
+				["primary", "Single", 1],
+				["alt", "Double", 2],
+			],
+		);
+	});
+
+	it("suggests a price at the target for a row without one", () => {
+		const price = recipePriceAnalysis(
+			{ ...pour, prices: [{ name: "Single", price: "6" }, { name: "Double", price: "" }] },
+			gin,
+			DEFAULT_POUR_TARGETS,
+		);
+		const double = price.priceRows[1].serve;
+		assert.ok(double);
+		assert.equal(double.pourCost, null);
+		assert.ok(double.suggestedPrice != null && double.suggestedPrice > 0);
 	});
 });
