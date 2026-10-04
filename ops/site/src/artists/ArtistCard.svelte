@@ -12,7 +12,9 @@
 		EditorBackBar,
 		Field,
 		FormErrors,
+		HelpDrawer,
 		NativeSelect,
+		PageHelp,
 		Segmented,
 		TextArea,
 		TextField,
@@ -30,6 +32,8 @@
 	} from "../app/api";
 	import { leaveEditor, navigate } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
+	import { provideHelp } from "../ui/help.svelte";
+	import { ARTIST_HELP } from "./artist-help";
 	import {
 		beginLeave,
 		clearUnsavedGuard,
@@ -44,6 +48,9 @@
 		artist?: WallArtist | null;
 		onCreated?: (artist: WallArtist) => void;
 	} = $props();
+
+	/** The Help drawer; a field's ? opens it on its own topic. */
+	const help = provideHelp("Featured artist", ARTIST_HELP);
 
 	const statusItems = [
 		{ id: "current", label: "Current" },
@@ -390,6 +397,7 @@
 					<p class="eyebrow">{placeLabel}</p>
 				</div>
 				<div class="head-tools">
+					<PageHelp />
 					<Button
 						class="close-btn"
 						variant="ghost"
@@ -483,6 +491,7 @@
 									class="lead-first"
 									label="Full name"
 									for="artist-name"
+									required
 									error={errors.get("artist-name")}
 								>
 									<TextField
@@ -499,7 +508,7 @@
 									label="Artist name"
 									for="artist-short-name"
 									optional
-									hint="The first name in From on their page. Blank uses the first word of the full name."
+									help="Artist name"
 								>
 									<TextField
 										id="artist-short-name"
@@ -510,7 +519,7 @@
 									/>
 								</Field>
 								<div class="website span-6">
-									<Field label="Website" for="artist-website" optional hint="A link to their own site.">
+									<Field label="Website" for="artist-website" optional>
 										<TextField
 											id="artist-website"
 											size="sm"
@@ -539,11 +548,11 @@
 								<Field
 									class="span-5"
 									label="Place"
-									tooltip="Current is on the wall. Next is lined up. Previous has already hung here. Only one current and one next: saving that badge moves the artist who had it to previous."
+									help="Place"
 								>
 									<Segmented bind:value={slot} items={statusItems} ariaLabel="Place on the wall" size="sm" />
 								</Field>
-								<Field class="span-7" label="Months" optional hint="Shown as Sept to Oct.">
+								<Field class="span-7" label="Months" optional help="Months">
 									<div class="months">
 										<NativeSelect
 											id="artist-start-month"
@@ -565,10 +574,10 @@
 						</FormLead>
 
 						<FormSection title="Their page" class="sec-page">
-								<Field class="span-5" label="Profile" for="artist-profile" optional hint="A short introduction, above the longer bio.">
+								<Field class="span-5" label="Profile" for="artist-profile" optional help="Profile and Bio">
 									<TextArea id="artist-profile" rows={6} bind:value={profile} placeholder="Who they are, in a few lines." />
 								</Field>
-								<Field class="span-7" label="Bio" for="artist-bio" optional hint="The longer note on their page.">
+								<Field class="span-7" label="Bio" for="artist-bio" optional help="Profile and Bio">
 									<TextArea id="artist-bio" rows={6} bind:value={bio} placeholder="The fuller story." />
 								</Field>
 						</FormSection>
@@ -705,6 +714,8 @@
 	</div>
 	<ConfirmDialog {confirm} />
 </form>
+
+<HelpDrawer {help} />
 
 <style>
 	.editor {

@@ -192,7 +192,7 @@
 		}}
 	>
 		<div class="edit-fields">
-			<Field label="Name" for={`sec-title-${section._id}`} width="md">
+			<Field label="Name" for={`sec-title-${section._id}`} width="md" required>
 				<TextField id={`sec-title-${section._id}`} size="sm" bind:value={draftTitle} />
 			</Field>
 			{#if !section.parentId}
@@ -234,7 +234,7 @@
 			createSection();
 		}}
 	>
-		<Field {label} for={id} width="md">
+		<Field {label} for={id} width="md" required>
 			<TextField {id} size="sm" bind:value={newTitle} {placeholder} />
 		</Field>
 		<div class="edit-actions">

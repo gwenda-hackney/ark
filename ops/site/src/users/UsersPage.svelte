@@ -250,6 +250,7 @@
 		<Field
 			label="Email"
 			for="user-email"
+			required
 			error={errors.get("user-email")}
 			hint="Their Google account."
 		>

@@ -10,6 +10,7 @@
 		ConfirmDialog,
 		Field,
 		PageHeader,
+		HelpDrawer,
 		PageHelp,
 		Switch,
 		TextField,
@@ -25,6 +26,10 @@
 	import { collectMenuItems } from "./lightspeed-stock.js";
 	import type { MenuItem, PosMenu } from "../menu/types";
 	import { MENUS_HELP } from "./lightspeed-help";
+	import { provideHelp } from "../ui/help.svelte";
+
+	/** The Help drawer; the ? beside Name opens it on that topic. */
+	const help = provideHelp("POS menus", MENUS_HELP);
 
 	let menus = $state<PosMenu[]>([]);
 	let items = $state<MenuItem[]>([]);
@@ -174,14 +179,14 @@
 		title="POS menus"
 	>
 		{#snippet actions()}
-			<PageHelp title="POS menus" topics={MENUS_HELP} />
+			<PageHelp />
 		{/snippet}
 	</PageHeader>
 
 	<div class="stack">
 		<Card title="Add menu" class="add-card">
 			<form class="add" onsubmit={onAdd}>
-				<Field label="Name" for="pos-menu-name" width="lg">
+				<Field label="Name" for="pos-menu-name" width="lg" required help="Name">
 					<TextField id="pos-menu-name" bind:value={name} placeholder="Live menu" />
 				</Field>
 				<Switch bind:checked={makeDefault} label="Default for new drinks" />
@@ -291,6 +296,7 @@
 </div>
 
 <ConfirmDialog {confirm} />
+<HelpDrawer {help} />
 
 <style>
 	.page {

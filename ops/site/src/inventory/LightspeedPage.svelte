@@ -1176,7 +1176,7 @@
 				width="100%"
 			/>
 			{#if linkLs}
-				<Field label="Menu item" for="ls-link-ops">
+				<Field label="Menu item" for="ls-link-ops" required>
 					<NativeSelect
 						id="ls-link-ops"
 						size="sm"
@@ -1186,7 +1186,7 @@
 					/>
 				</Field>
 			{:else}
-				<Field label="Lightspeed item" for="ls-link-pos">
+				<Field label="Lightspeed item" for="ls-link-pos" required>
 					<NativeSelect
 						id="ls-link-pos"
 						size="sm"
@@ -1230,10 +1230,10 @@
 
 	<Dialog open={Boolean(addRow)} title="Add to menu" onclose={closeAdd}>
 		<div class="dialog-grid">
-			<Field label="Name" for="ls-add-name">
+			<Field label="Name" for="ls-add-name" required>
 				<TextField id="ls-add-name" size="sm" bind:value={addName} />
 			</Field>
-			<Field label="Section" for="ls-add-section">
+			<Field label="Section" for="ls-add-section" required>
 				<NativeSelect
 					id="ls-add-section"
 					size="sm"

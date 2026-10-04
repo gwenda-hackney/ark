@@ -12,6 +12,7 @@
 		FormHeading,
 		FormLead,
 		FormSection,
+		HelpDrawer,
 		MoneyField,
 		NativeSelect,
 		NumberField,
@@ -22,6 +23,7 @@
 		TextField,
 	} from "../ui";
 	import { FormErrors } from "../ui/form-errors.svelte";
+	import { provideHelp } from "../ui/help.svelte";
 	import { ITEM_FIELD_ORDER, itemFieldTab, stripUnit, validateItem } from "./item-validate";
 	import { addPlacement, defaultPosScreen, placementChoices } from "./placement-add";
 	import type { SegmentedItem, SelectOption } from "../ui/types";
@@ -72,7 +74,7 @@
 	} from "./draft-history";
 	import { Icon } from "../app/shell";
 	import { menuEditorActions } from "./editor-actions";
-	import { ITEM_HELP, ITEM_TIPS } from "./item-help";
+	import { ITEM_HELP } from "./item-help";
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import MethodEditor from "./MethodEditor.svelte";
@@ -128,6 +130,9 @@
 		onrefresh: () => void | Promise<void>;
 		ontab?: (id: string) => void;
 	} = $props();
+
+	/** The Help drawer; each field's ? opens it on its own topic. */
+	const help = provideHelp("Menu item", ITEM_HELP);
 
 	let tabSlide = $state(1);
 	let tabPrev = "details";
@@ -885,7 +890,7 @@
 									<Icon name="undo" />
 								{/snippet}
 							</Button>
-							<PageHelp title="Menu item" topics={ITEM_HELP} />
+							<PageHelp />
 							<Button
 								variant="ghost"
 								size="sm"
@@ -1042,7 +1047,7 @@
 									for="f-notes"
 									required={showRecipe}
 									error={errors.get("f-notes")}
-									tooltip={ITEM_TIPS.tastingNote}
+									help="Tasting note"
 								>
 									<TextField
 										id="f-notes"
@@ -1068,7 +1073,7 @@
 										label="Category"
 										for="f-cocktail-type"
 										optional
-										tooltip={ITEM_TIPS.category}
+										help="Category"
 									>
 										<NativeSelect
 											id="f-cocktail-type"
@@ -1134,7 +1139,7 @@
 									for="f-description"
 									required
 									error={errors.get("f-description")}
-									tooltip={ITEM_TIPS.description}
+									help="Menu description"
 								>
 									{#snippet actions()}
 										<Button
@@ -1163,7 +1168,7 @@
 							<FormSection
 								title={showRecipe ? "Recipe" : "Serve"}
 								class="sec-recipe"
-								tooltip={showRecipe ? ITEM_TIPS.recipe : ITEM_TIPS.serve}
+								help={showRecipe ? "Recipe" : "Serve"}
 							>
 								{#snippet actions()}
 									<Button variant="outline" size="sm" type="button" onclick={() => (addIngredientOpen = true)}>
@@ -1177,7 +1182,7 @@
 							</FormSection>
 
 							{#if showRecipe}
-								<FormSection title="Method" class="sec-method" tooltip={ITEM_TIPS.method}>
+								<FormSection title="Method" class="sec-method" help="Method and glassware">
 									<Field class="span-8" label="How to make it" for="f-method">
 										<MethodEditor
 											id="f-method"
@@ -1253,7 +1258,7 @@
 									for="f-abv"
 									optional
 									error={errors.get("f-abv")}
-									tooltip={showRecipe ? ITEM_TIPS.abv : undefined}
+									help="ABV and Volume"
 								>
 									{#snippet actions()}
 										<Button
@@ -1305,7 +1310,7 @@
 									/>
 								</Field>
 							</FormSection>
-							<FormSection title="Where it appears" tooltip={ITEM_TIPS.placements}>
+							<FormSection title="Where it appears" help="Where it appears">
 								{#snippet actions()}
 									<OverflowMenu
 										text="Add placement"
@@ -1330,7 +1335,7 @@
 						<div class="board-tab">
 							<FormSection
 								title="Prices"
-								tooltip={ITEM_TIPS.prices}
+								help="Prices"
 							>
 								{#snippet actions()}
 									<Button
@@ -1372,7 +1377,7 @@
 							{#if priceLive && hasRecipeCost}
 								<FormSection
 									title="Against the pour target"
-									tooltip={ITEM_TIPS.gauges}
+									help="The price bar"
 								>
 									<PriceGauges price={priceLive} />
 								</FormSection>
@@ -1441,6 +1446,8 @@
 		/>
 	</form>
 {/if}
+
+<HelpDrawer {help} />
 
 <style>
 	.editor {

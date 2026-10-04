@@ -6,7 +6,6 @@
 	 * Linked stock ABV is resolved from inventory (read-only in the grid).
 	 * Line cost comes from the same pour-cost math as analysis.
 	 */
-	import { ITEM_TIPS } from "./item-help";
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { Icon } from "../app/shell";
 	import { Button, DataGrid, Dialog, Field, NativeSelect, NumberField, TextField } from "../ui";
@@ -351,7 +350,7 @@
 				</Field>
 			</div>
 			<div class="sheet-row">
-				<Field label="ABV" for="ing-sheet-abv" optional={!sheetRow.inventoryId} tooltip={sheetRow.inventoryId ? ITEM_TIPS.stockAbv : undefined}>
+				<Field label="ABV" for="ing-sheet-abv" optional={!sheetRow.inventoryId} help={sheetRow.inventoryId ? "Recipe" : undefined}>
 					<NumberField
 						id="ing-sheet-abv"
 						unit="%"

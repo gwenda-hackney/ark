@@ -29,7 +29,7 @@
 	} = $props();
 </script>
 
-<FormSection title="Upcoming nights">
+<FormSection title="Upcoming nights" help="Schedule tab">
 	{#snippet actions()}
 		{#if onaddnight}
 			<Button

@@ -224,7 +224,7 @@
 
 <Dialog open={dialog.open} title={dialog.title} onclose={closeDialog}>
 	<form id="supplier-form" class="form" novalidate onsubmit={onSave}>
-		<Field label="Name" for="supplier-name" error={errors.get("supplier-name")}>
+		<Field label="Name" for="supplier-name" required error={errors.get("supplier-name")}>
 			<TextField
 				id="supplier-name"
 				bind:value={dialog.name}

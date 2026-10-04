@@ -30,6 +30,10 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "The series or event name on What's on. On a night, Override gives it a title of its own, shown instead of the series name for that night only. Anything marked From series follows the series until you override it.",
 	},
 	{
+		title: "Starts and Ends",
+		body: "Under the name on Details: the times each night runs. A night can change them. After midnight is fine.",
+	},
+	{
 		title: "Guest/collaboration and Guest link",
 		body: "Optional. Type any name, or pick an approved artist to bring their Instagram or website too. Guest link takes a full address or an @handle. On an open series night, a guest of its own shows a star on Schedule and makes it a special edition on What's on. Recurring residencies just list the guest under that night. On a series, this is the default name when a night has none.",
 	},
@@ -43,7 +47,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Schedule tab",
-		body: "Repeats, Every and On set how often a series runs. For Monthly, a blank Day of month follows the first night. First night can stay blank until it's fixed: the website says to check back soon. Last night is needed once there's a first night. Starts and Ends are the times each night, and a night can change them; after midnight is fine. Upcoming nights lists the dates the pattern makes, each with what it changes from the series. For Doesn't repeat, add each night on its own date with Add night. On a night or special event, the date and times are on Details instead: changing a night's Date moves that night only.",
+		body: "Repeats, Every and On set how often a series runs. For Monthly, a blank Day of month follows the first night. First night can stay blank until it's fixed: the website says to check back soon. Last night is needed once there's a first night. Upcoming nights lists the dates the pattern makes, each with what it changes from the series. For Doesn't repeat, add each night on its own date with Add night. On a night or special event, the date is on Details under the name: changing a night's Date moves that night only.",
 	},
 	{
 		title: "Night schedule",
@@ -59,7 +63,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Gallery",
-		body: "Images is the Drive gallery for this event. Those photos are not the What's on flyer. The flyer is the photo on Details.",
+		body: "Photos for the event's page, from its Drive gallery, newest first. They go on the website with Update website. They are not the What's on flyer: the flyer is the photo on Details.",
 	},
 	{
 		title: "Ops tab",

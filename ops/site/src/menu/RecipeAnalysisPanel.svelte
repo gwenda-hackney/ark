@@ -3,9 +3,8 @@
 	 * Analysis tab: issues first, then overview numbers, detail, and AI.
 	 * Each row lays its sections side by side once the tab is wide enough.
 	 */
-	import { Button, Tip } from "../ui";
-	import { ITEM_TIPS } from "./item-help";
-	import { formatAbv } from "./abv";
+	import { Button, HelpTip } from "../ui";
+		import { formatAbv } from "./abv";
 	import {
 		formatMl,
 		type AnalyzeNote,
@@ -190,7 +189,7 @@
 			</section>
 
 			<section class="block" aria-label="Overview">
-				<p class="section-title"><span>Overview</span><Tip label="Overview" tooltip={ITEM_TIPS.overview} /></p>
+				<p class="section-title"><span>Overview</span><HelpTip label="Overview" topic="Analysis" /></p>
 				<div class="row overview">
 					{#if analysis.volumeMl != null}
 						<div class="group">
@@ -311,7 +310,7 @@
 				<div class="row detail">
 					{#if showBalance && analysis.ratio}
 						<section class="block" aria-label="Balance">
-							<p class="section-title"><span>Balance</span><Tip label="Balance" tooltip={ITEM_TIPS.balance} /></p>
+							<p class="section-title"><span>Balance</span><HelpTip label="Balance" topic="Balance" /></p>
 							<div class="ratio">
 								<div>
 									<p class="stat-value sm">{formatMl(analysis.ratio.spirit)}</p>
@@ -345,7 +344,7 @@
 
 					{#if showHouse && analysis.peers}
 						<section class="block" aria-label="House">
-							<p class="section-title"><span>House</span><Tip label="House" tooltip={ITEM_TIPS.house} /></p>
+							<p class="section-title"><span>House</span><HelpTip label="House" topic="House" /></p>
 							<p class="body soft">
 								{#if percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)}
 									Volume {percentileLabel(analysis.peers.volumePercentile, analysis.peers.n)} house cocktails.
@@ -413,7 +412,7 @@
 
 			<section class="block note-block" aria-label="AI reading">
 				<div class="section-head">
-					<p class="section-title"><span>AI reading</span><Tip label="AI reading" tooltip={ITEM_TIPS.aiReading} /></p>
+					<p class="section-title"><span>AI reading</span><HelpTip label="AI reading" topic="AI reading" /></p>
 					<Button
 						variant="primary"
 						size="sm"
@@ -627,7 +626,7 @@
 	}
 
 	/* The ? sits right after the title, before the rule. */
-	.section-title :global(.tip-wrap) {
+	.section-title :global(.help-tip) {
 		margin-left: calc(var(--space-1) - var(--space-3));
 	}
 

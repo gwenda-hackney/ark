@@ -244,7 +244,7 @@
 				{/each}
 			</div>
 			{#if newKind === "night"}
-				<Field class="span-4" label="Series" for="event-series" error={errors.get("event-series")}>
+				<Field class="span-4" label="Series" for="event-series" required error={errors.get("event-series")}>
 					<NativeSelect
 						id="event-series"
 						size="sm"
@@ -266,8 +266,9 @@
 					<Field
 						label={inherits ? "Night title" : "Name"}
 						for="event-name"
-						optional={inherits && form.isOverridden("name")}
+						required={!inherits}
 						error={errors.get("event-name")}
+						help="Name"
 					>
 						{#snippet actions()}{@render inheritAction("name")}{/snippet}
 						{#if follows("name")}
@@ -287,6 +288,7 @@
 						label="Guest/collaboration"
 						for="event-artist"
 						optional={!inherits}
+						help="Guest/collaboration and Guest link"
 					>
 						{#snippet actions()}{@render inheritAction("artist")}{/snippet}
 						{#if follows("artist")}
@@ -308,6 +310,7 @@
 						label="Guest link"
 						for="event-page-url"
 						optional={!inherits}
+						help="Guest/collaboration and Guest link"
 					>
 						{#snippet actions()}{@render inheritAction("pageUrl")}{/snippet}
 						{#if follows("pageUrl")}
@@ -330,6 +333,7 @@
 						label="Offer"
 						for="event-offer"
 						optional={!inherits}
+						help="Offer"
 					>
 						{#snippet actions()}{@render inheritAction("offer")}{/snippet}
 						{#if follows("offer")}
@@ -344,6 +348,7 @@
 							label="Page address"
 							for="event-web-address"
 							optional
+							help="Page address"
 							hint={webAddressChanged
 								? `New address: gwenda.co.uk/whats-on/${itemSlug(form.webAddress)}. It changes when you press Update website; old links still work.`
 								: undefined}
@@ -363,6 +368,7 @@
 						label="Card line"
 						for="event-short-description"
 						optional={!inherits}
+						help="Card line and Description"
 					>
 						{#snippet actions()}{@render inheritAction("shortDescription")}{/snippet}
 						{#if follows("shortDescription")}
@@ -385,7 +391,9 @@
 					<Field
 						label="Description"
 						for="event-description"
+						required={!inherits}
 						error={errors.get("event-description")}
+						help="Card line and Description"
 					>
 						{#snippet actions()}{@render inheritAction("description")}{/snippet}
 						{#if follows("description")}
@@ -418,6 +426,7 @@
 							class="span-4"
 							label="Date"
 							for="event-date"
+							required
 							error={errors.get("event-date")}
 						>
 							<DateField id="event-date" size="sm" bind:value={form.startsOn} />
@@ -428,7 +437,7 @@
 						label="Starts"
 						for="event-start-time"
 						optional={!inherits}
-						tooltip={!inherits && isSeries ? "The time each night starts. A night can change it." : undefined}
+						help="Starts and Ends"
 					>
 						{#snippet actions()}{@render inheritAction("startTime")}{/snippet}
 						{#if follows("startTime")}
@@ -442,7 +451,7 @@
 						label="Ends"
 						for="event-end-time"
 						optional={!inherits}
-						tooltip={follows("endTime") ? undefined : "After midnight is fine."}
+						help="Starts and Ends"
 					>
 						{#snippet actions()}{@render inheritAction("endTime")}{/snippet}
 						{#if follows("endTime")}
@@ -477,6 +486,7 @@
 						label="Notes for the team"
 						for="event-operations-notes"
 						optional={!inherits}
+						help="Ops tab"
 					>
 						{#snippet actions()}{@render inheritAction("operationsNotes")}{/snippet}
 						{#if follows("operationsNotes")}
@@ -499,7 +509,7 @@
 		</div>
 		{#if show.photo}
 			<div class="col col-side">
-				<FormSection title="Photo" class="sec-photo">
+				<FormSection title="Photo" class="sec-photo" help="Default hero">
 					{#snippet actions()}
 						{#if inherits}
 							{#if photoFollows}

@@ -489,6 +489,7 @@
 								class="span-5"
 								label="Short name"
 								for="inv-name"
+								required
 								error={errors.get("inv-name")}
 								hint="What recipes and specs call it."
 							>
