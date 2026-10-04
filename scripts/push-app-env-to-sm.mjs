@@ -1,19 +1,28 @@
 #!/usr/bin/env node
 /**
  * Push secrets into Secrets Manager. Name the keys; each value comes from the
- * shell under the name given. Each key goes to its owning project under its SM
- * name. Keys may be given as the app's runtime name or the SM name.
+ * shell under the name given, else from .env (delete the line once pushed).
+ * Each key goes to its owning project under its SM name. Keys may be given as
+ * the app's runtime name, the SM name, or a script-only secret the app's
+ * project owns (SECRET_OWNERS, e.g. ark's SENTRY_AUTH_TOKEN).
  *
  *   SUBSCRIBE_SECRET=... npm run env:web:push -- SUBSCRIBE_SECRET   # shared value
  *   SUBSCRIBE_SECRET=... npm run env:web:push -- --dry-run SUBSCRIBE_SECRET
  *   npm run env:ops:push -- --profile dev BASEROW_API_KEY   # BASEROW_OPS_API_KEY__DEV
  *
- * Without --profile a key is pushed as the shared NAME. Keys that already have
+ * Without --profile a key is pushed as the shared NAME; a PRODUCTION_ONLY key
+ * always goes as NAME__PRODUCTION. Keys that already have
  * env overrides in SM are skipped unless --profile is given, so a dev token
  * never becomes the shared value for every env.
  */
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { parseDotEnv } from "../shared/env-file.js";
+import { REPO_ROOT } from "./lib/load-env.mjs";
 import {
   APP_SECRETS,
+  PRODUCTION_ONLY,
+  SECRET_OWNERS,
   SM_TOKEN_HINT,
   appSecrets,
   envSecretKey,
@@ -64,6 +73,10 @@ function main() {
   const spec = APP_SECRETS[opts.app];
   const runtimeFor = (key) =>
     spec.keys.includes(key) ? key : spec.keys.find((k) => smNameFor(opts.app, k) === key);
+  /** Script-only secrets this app's project owns: stored under their own name. */
+  const scriptOnly = (key) => (SECRET_OWNERS[opts.app] || []).includes(key) && !runtimeFor(key);
+  const dotEnvPath = resolve(REPO_ROOT, ".env");
+  const dotEnv = new Map(existsSync(dotEnvPath) ? parseDotEnv(readFileSync(dotEnvPath, "utf8")) : []);
   const existingKeys = [...listAllSmSecrets({ accessToken }).keys()];
   const hasOverrides = (name) =>
     existingKeys.some((key) => {
@@ -72,31 +85,34 @@ function main() {
     });
 
   for (const arg of opts.only) {
-    const key = runtimeFor(arg);
+    const key = runtimeFor(arg) || (scriptOnly(arg) ? arg : undefined);
     if (!key) {
       console.log(`skip ${arg}: not an ${opts.app} secret`);
       continue;
     }
-    const smName = smNameFor(opts.app, key);
-    const value = String(process.env[arg] ?? "").trim();
+    const smName = scriptOnly(key) ? key : smNameFor(opts.app, key);
+    const fromShell = String(process.env[arg] ?? "").trim();
+    const value = fromShell || String(dotEnv.get(arg) ?? "").trim();
     if (!value) {
-      console.log(`skip ${arg}: no value in the shell (${arg}=... npm run env:${opts.app}:push -- ${arg})`);
+      console.log(`skip ${arg}: no value in the shell or .env (${arg}=... npm run env:${opts.app}:push -- ${arg})`);
       continue;
     }
     if (!ownerOf(smName)) {
       console.log(`skip ${key}: ${smName} has no owning project`);
       continue;
     }
-    if (!opts.env && hasOverrides(smName)) {
+    const env = PRODUCTION_ONLY.includes(smName) ? "production" : opts.env;
+    if (!env && hasOverrides(smName)) {
       console.log(`skip ${key}: ${smName} has env overrides in SM. Pass --profile.`);
       continue;
     }
-    const target = envSecretKey(smName, opts.env);
+    const target = envSecretKey(smName, env);
     if (opts.dryRun) {
       console.log(`would upsert ${target} (${ownerOf(smName)}) from ${key}`);
       continue;
     }
     console.log(`${upsertSmSecret({ key: target, value, accessToken })}: ${target}`);
+    if (!fromShell) console.log(`  from .env: delete the ${arg} line there now.`);
   }
 }
 

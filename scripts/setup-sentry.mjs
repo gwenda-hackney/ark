@@ -9,8 +9,8 @@
  * priority issues", emailed to the organisation's members (alerts@), and an
  * error-level report is high priority.
  *
- * Needs bw-unlock (SENTRY_AUTH_TOKEN__PRODUCTION, a personal token of the
- * alerts@ Sentry user: project:write, org:read).
+ * Needs bw-unlock (SENTRY_AUTH_TOKEN__PRODUCTION, the organisation's internal
+ * integration SENTRY_AUTH_TOKEN: Project write, Team and Organization read).
  *
  *   npm run setup:sentry -- --dry-run    only report
  *   npm run setup:sentry                 create what's missing

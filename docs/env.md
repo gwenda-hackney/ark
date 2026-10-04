@@ -78,14 +78,15 @@ A load lists **Ark + Ark/Ops + Ark/Web** and keeps every secret any app uses onc
 
 No Baserow database or workspace ids are configured anywhere. A database token opens one workspace and the apps find their database by its tables; scripts log in and find databases by name. See [config.md](./config.md#baserow-no-ids).
 
-Push a value (to the owning project, under its SM name). Name the keys; each value comes from the shell:
+Push a value (to the owning project, under its SM name). Name the keys; each value comes from the shell, else from `.env` (delete the line once it's pushed):
 
 ```bash
 SUBSCRIBE_SECRET=... npm run env:web:push -- SUBSCRIBE_SECRET                  # shared NAME
 BASEROW_API_KEY=... npm run env:ops:push -- --profile dev BASEROW_API_KEY      # BASEROW_OPS_API_KEY__DEV
+npm run env:ark:push -- SENTRY_AUTH_TOKEN                                       # from .env; production-only → SENTRY_AUTH_TOKEN__PRODUCTION
 ```
 
-Keys that already have env values in SM are skipped unless `--profile` is given, so a dev token never becomes the shared value.
+Script-only secrets a project owns (`SECRET_OWNERS`, such as ark's `SENTRY_AUTH_TOKEN` or `UPTIME_ROBOT_API_KEY`) push the same way. A production-only name always goes as `NAME__PRODUCTION`. Keys that already have env values in SM are skipped unless `--profile` is given, so a dev token never becomes the shared value.
 
 CI (Pages secrets): production runs from `release`, dev from `main` (each GitHub environment holds its own `BWS_ACCESS_TOKEN`, see [config.md](./config.md#who-reads-what-61)):
 

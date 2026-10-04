@@ -281,14 +281,14 @@ Google sign-in only works on the registered ops addresses, not on localhost. Thi
 
 The ops dashboard shows the website's unresolved errors from the last 24 hours. Ops reads them from Sentry with this token; the browser never talks to Sentry.
 
-- **Owner:** Sentry organisation `gwenda` (EU region): an internal integration with **Issue & Event: Read** and nothing else, so the token can't change projects, alerts or data.
+- **Owner:** Sentry organisation `gwenda` (EU region): the internal integration `SENTRY_READ_TOKEN`, with **Issue & Event: Read** and nothing else, so the token can't change projects, alerts or data.
 - **SM:** `SENTRY_READ_TOKEN`, one shared value in [`ark/ops-dev`](#arkops-dev): dev and production ops read the same organisation.
 - **What:** a bearer token for `GET https://de.sentry.io/api/0/organizations/gwenda/issues/`. Ops keeps each answer for five minutes.
 - **Used by:** ops (dev and production, `src/website/server/sentry-errors.js`, served at `GET /api/health/errors`).
 - **Gets there by:** ops through its usual pull and Pages secrets (an ops key in `APP_SECRETS`).
 - **Without it:** the dashboard's Website errors card says "Not set up". Nothing else changes.
 - **Expires:** never.
-- **Creating it:** in Sentry, Settings → Developer Settings → Custom Integrations → Create New Integration → Internal Integration. Name it `ops dashboard (read)`, set Issue & Event to Read and leave every other permission at No Access, save, then copy the token from the integration page. Store it as `SENTRY_READ_TOKEN` in `ark/ops-dev`, run `npm run env:secrets:refresh` locally, and run the ops secrets workflow (`ops-secrets.yml`) for dev and production.
+- **Creating it:** in Sentry, Settings → Developer Settings → Create New Integration → Internal Integration. Name it `SENTRY_READ_TOKEN`, set Issue & Event to Read and leave every other permission at No Access and every webhook off, save, then copy the token from the integration's Tokens section (the client secret isn't needed). Store it with `SENTRY_READ_TOKEN=... npm run env:ops:push -- SENTRY_READ_TOKEN` (or put the line in `.env`, push, then delete it), run `npm run env:secrets:refresh`, and run the ops secrets workflow (`ops-secrets.yml`) for production; dev ops picks it up on its next deploy.
 - **Changing it:** add a new token on the same integration, store it, rerun the ops secrets workflow, then delete the old token in Sentry.
 
 ---
@@ -433,10 +433,11 @@ UptimeRobot checks the sites from outside Cloudflare and emails alerts@ when one
 
 Sentry collects errors from ops (server and browser), the website's functions and the Workers, groups them, and emails alerts@ when something new breaks or comes back. `setup:sentry` uses this token to keep the projects and their alert rule in place.
 
-- **Owner:** Sentry user alerts@gwenda.co.uk (organisation `gwenda`, EU region, free plan): a personal token with Project Read & Write, Organization Read, Issue & Event Read, Alerts Read & Write.
+- **Owner:** Sentry organisation `gwenda` (EU region, free plan): the internal integration `SENTRY_AUTH_TOKEN`, with Project Read & Write, Team Read, Organization Read and Issue & Event Read. Not tied to a person.
 - **SM:** `SENTRY_AUTH_TOKEN__PRODUCTION`, in [`ark`](#ark).
 - **Used by:** `npm run setup:sentry` (projects, no IP storage) and `npm run sentry:issues` (read recent errors, `-- --issue OPS-1` for one), on your machine only. The apps don't need it: they report with each project's DSN, a public address kept in `shared/sentry.js`.
-- **Expires:** as set when it was created in Sentry (User settings → Personal Tokens).
+- **Expires:** never.
+- **Creating it:** in Sentry, Settings → Developer Settings → Create New Integration → Internal Integration. Name it `SENTRY_AUTH_TOKEN`, set the permissions above (everything else No Access, webhooks off), save, and copy the token from its Tokens section. Store it with `SENTRY_AUTH_TOKEN=... npm run env:ark:push -- SENTRY_AUTH_TOKEN` (production-only, so it lands as `SENTRY_AUTH_TOKEN__PRODUCTION`), then check with `npm run setup:sentry -- --dry-run`.
 
 
 ### `SENTRY_ORG_TOKEN`
@@ -559,6 +560,6 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `SITE_HEALTH_STATUS_TOKEN` (Worker: `HEALTH_STATUS_TOKEN`) | Gwenda | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `UNIFI_SITE_MANAGER_API_KEY` | UniFi account | shared | — / [`ark/web-dev`](#arkweb-dev) | check UniFi |
 | `UPTIME_ROBOT_API_KEY` | UptimeRobot alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | never |
-| `SENTRY_AUTH_TOKEN` | Sentry alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | as created |
+| `SENTRY_AUTH_TOKEN` | Sentry organisation (internal integration) | `__PRODUCTION` | [`ark`](#ark) / — | never |
 | `SENTRY_ORG_TOKEN` | Sentry organisation | shared | — / [`ark-dev`](#ark-dev) | never |
 | `SENTRY_READ_TOKEN` | Sentry organisation (internal integration) | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
