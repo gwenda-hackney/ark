@@ -61,15 +61,14 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		padding: 0.85rem var(--card-pad) 0.75rem;
 		border-bottom: 1px solid var(--border);
 	}
 
 	.head h2 {
 		margin: 0;
-		font-size: 1.05rem;
-		letter-spacing: 0.02em;
+		font-size: var(--text-md);
 	}
 
 	.body {

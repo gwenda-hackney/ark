@@ -249,37 +249,6 @@ main {
   background: var(--color-gold);
 }
 
-.preview-ribbon-share {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--color-bg);
-  font: inherit;
-  line-height: 1.2;
-  text-align: center;
-  cursor: pointer;
-  pointer-events: auto;
-  appearance: none;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-}
-
-.preview-ribbon-share:hover,
-.preview-ribbon-share:focus-visible {
-  filter: brightness(1.08);
-}
-
-.preview-ribbon-share span {
-  pointer-events: none;
-}
-
 .preview-banner {
   position: fixed;
   top: 0;
@@ -3057,6 +3026,18 @@ html.fonts-ready .thanks {
   color: var(--color-text-muted);
   margin-bottom: 2rem;
   line-height: 1.6;
+}
+
+.gate-google {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.gate-or {
+  margin: 1.75rem 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
 }
 
 .gate-form {
@@ -6619,7 +6600,31 @@ a.event-card:focus-visible .event-title,
   object-fit: cover;
   display: block;
   filter: saturate(0.9) contrast(1.02);
-  transition: transform 0.8s var(--ease-out, ease);
+  transition:
+    transform 0.8s var(--ease-out, ease),
+    opacity 0.6s var(--ease-smooth);
+}
+
+/* scripts/image-fade.js: while the photo loads, a tiny blurred copy shows,
+   then the photo fades in over it. */
+.event-media::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--placeholder) center / cover no-repeat;
+  filter: blur(16px);
+  transform: scale(1.1);
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-smooth);
+  pointer-events: none;
+}
+
+.event-media.is-loading::before {
+  opacity: 1;
+}
+
+.event-media.is-loading .event-hero {
+  opacity: 0;
 }
 
 .event-card:hover .event-hero {
@@ -7110,56 +7115,93 @@ a.event-card:focus-visible .event-title,
   margin-top: 0.55rem;
 }
 
-/* Series gallery: rows of photos at one height, each as wide as its shape. */
+/* Series gallery: masonry, photos at their own heights in columns. */
 .series-gallery {
-  margin-top: clamp(2.5rem, 6vw, 4.5rem);
-  padding-top: clamp(1.5rem, 3vw, 2.25rem);
-  border-top: 1px solid var(--color-border);
+  margin-top: clamp(0.5rem, 2vw, 1.5rem);
 }
 
-.series-gallery-label {
-  margin: 0 0 1.25rem;
-  color: var(--color-gold);
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-}
-
+/* Without the script: the browser's columns (order runs down each column). */
 .series-gallery-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  columns: 3;
+  column-gap: 0.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* Keeps a short last row at the same height instead of stretching it. */
-.series-gallery-list::after {
-  content: "";
-  flex-grow: 1000000;
-}
-
 .series-gallery-item {
-  flex-grow: calc(var(--ratio) * 100);
-  flex-basis: calc(var(--ratio) * 15rem);
+  break-inside: avoid;
+  margin-bottom: 0.5rem;
 }
 
+/* With it (scripts/gallery.js): each photo goes in the shortest column, so the
+   order reads across, and photos glide when the columns change. */
+.series-gallery-list.is-masonry {
+  position: relative;
+  columns: auto;
+}
+
+.series-gallery-list.is-masonry .series-gallery-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* A photo grown to level its column fills its box, trimmed at the edges. */
+.series-gallery-list.is-masonry .series-gallery-item a,
+.series-gallery-list.is-masonry .series-gallery-item img {
+  height: 100%;
+}
+
+.series-gallery-list.is-masonry .series-gallery-item img {
+  object-fit: cover;
+}
+
+.series-gallery-list.is-settling .series-gallery-item {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .series-gallery-list.is-masonry .series-gallery-item {
+    transition: none;
+  }
+}
+
+/* While a photo loads: its main colour, then Sanity's tiny copy, blurred. */
 .series-gallery-item a {
+  position: relative;
   display: block;
   overflow: hidden;
-  background: var(--color-bg-card);
+  background: var(--photo-color, var(--color-bg-card));
+}
+
+.series-gallery-item a::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--lqip) center / cover no-repeat;
+  filter: blur(14px);
+  transform: scale(1.15);
 }
 
 .series-gallery-item img {
+  position: relative;
   display: block;
   width: 100%;
   height: auto;
   transition:
-    opacity 0.35s var(--ease-smooth),
+    opacity 0.6s var(--ease-smooth),
     transform 0.6s var(--ease-smooth);
+}
+
+/* scripts/gallery.js: a photo still loading fades in over its blurred copy. */
+.series-gallery-item img.is-loading {
+  opacity: 0;
 }
 
 .series-gallery-item a:hover img,
@@ -7169,8 +7211,8 @@ a.event-card:focus-visible .event-title,
 }
 
 @media (max-width: 640px) {
-  .series-gallery-item {
-    flex-basis: calc(var(--ratio) * 9rem);
+  .series-gallery-list {
+    columns: 2;
   }
 }
 
@@ -7222,11 +7264,23 @@ a.event-card:focus-visible .event-title,
   place-items: center;
 }
 
+/* Photos stack in one cell so one can slide out while the next slides in. */
+.gallery-lightbox-stage {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 .gallery-lightbox-image {
+  grid-area: 1 / 1;
   max-width: calc(100vw - 2rem);
   max-height: calc(100dvh - 6rem);
   object-fit: contain;
   user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform, opacity;
 }
 
 .gallery-lightbox button {
@@ -7282,53 +7336,55 @@ a.event-card:focus-visible .event-title,
   }
 }
 
-/* "Nights ahead" on a series page: a short list after the next night. */
+/* "Nights ahead" on a series page: one line under the time, dates between dots. */
 .event-dates {
-  margin-top: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.9rem;
+  margin: -0.4rem 0 1.4rem;
 }
 
 .event-dates-label {
-  margin: 0 0 0.5rem;
+  margin: 0;
   color: var(--color-gold);
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
 }
 
 .event-dates ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--color-border);
-}
-
-.event-dates li {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 1rem;
-  padding: 0.7rem 0;
-  border-bottom: 1px solid var(--color-border);
+  gap: 0.2rem 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.event-dates time {
+.event-dates li + li::before {
+  content: "·";
+  margin: 0 0.6rem;
+  color: var(--color-text-muted);
+}
+
+.event-dates time,
+.event-dates-instead {
   color: var(--color-text);
   font-family: var(--font-display);
-  font-size: 1.3rem;
-  line-height: 1.2;
+  font-size: 1.1rem;
+  line-height: 1.3;
 }
 
 .event-dates-guest,
 .event-dates-note {
-  margin: 0;
   color: var(--color-text-muted);
   font-family: var(--font-display);
   font-size: 1rem;
   font-style: italic;
-  line-height: 1.35;
 }
 
 .night-schedule {
@@ -7712,6 +7768,36 @@ body.site-nav-open .menu-toc {
   flex-shrink: 0;
 }
 
+/* Three or more sizes: each name and price on a line under the name. */
+.menu-item-prices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0;
+  margin-top: 0.4rem;
+}
+
+.menu-item-prices-entry {
+  white-space: nowrap;
+}
+
+.menu-item-prices-entry:not(:last-child)::after {
+  content: "·";
+  margin: 0 0.6rem;
+  color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+}
+
+.menu-item-prices-name {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.menu-item-prices .menu-item-price {
+  font-size: 1rem;
+}
+
 .menu-item-description {
   margin-top: 0.45rem;
   padding-right: 0.25rem;
@@ -8060,8 +8146,7 @@ html.navigation-restore #rsvp-loading {
     overflow: visible;
   }
 
-  .preview-ribbon span,
-  .preview-ribbon-share {
+  .preview-ribbon span {
     position: static;
     width: auto;
     transform: none;
@@ -8071,23 +8156,6 @@ html.navigation-restore #rsvp-loading {
     border-radius: 2px;
     opacity: 0.65;
     box-shadow: none;
-  }
-
-  .preview-ribbon-share {
-    position: static;
-    inset: auto;
-    width: auto;
-    height: auto;
-    clip-path: none;
-    background: var(--color-gold);
-    opacity: 0.85;
-  }
-
-  .preview-ribbon-share span {
-    padding: 0;
-    opacity: 1;
-    font-size: inherit;
-    letter-spacing: inherit;
   }
 
   @media (prefers-reduced-motion: reduce) {

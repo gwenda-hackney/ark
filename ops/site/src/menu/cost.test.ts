@@ -8,10 +8,12 @@ import {
 	parseLabelVolumeMl,
 	parsePackCode,
 	priceBasisLabel,
+	priceRowCostFactor,
 	priceVerdict,
 	recipePriceAnalysis,
 	resolvePackVolume,
 	snapGbp,
+	suggestedAltPrice,
 } from "./cost.ts";
 import { DEFAULT_POUR_TARGETS, UK_PINT_ML, defaultServeQuantity } from "./types.ts";
 import type { InventoryItem } from "../inventory/types.ts";
@@ -379,5 +381,102 @@ describe("estimated cost", () => {
 		assert.equal(traded.lines[0].source, "trade");
 		assert.equal(traded.hasEstimates, false);
 		assert.equal(traded.drinkCost, Math.round((40 * 17.5) / 700 * 100) / 100);
+	});
+});
+
+describe("suggestedAltPrice", () => {
+	it("prices the second size at the pour target, or says nothing without a full cost", () => {
+		const base = { drinkType: "cocktail" as const, drinkCost: 2, complete: true, targetPourCost: 20 };
+		const doubled = suggestedAltPrice(base);
+		assert.equal(typeof doubled, "number");
+		assert.ok((doubled as number) > 10);
+		assert.equal(suggestedAltPrice({ ...base, complete: false }), null);
+		assert.equal(suggestedAltPrice({ ...base, drinkType: "packaged" }), null);
+		assert.equal(suggestedAltPrice(null), null);
+	});
+});
+
+describe("price table pour cost", () => {
+	const gin: InventoryItem[] = [
+		{
+			id: "gin",
+			_id: "gin",
+			name: "House gin",
+			kind: "liquor",
+			suppliers: [{ name: "LWC", pack: "BOTTLE", price: 14 }],
+		},
+	];
+	const pour: MenuItem = {
+		name: "House gin",
+		drinkType: "pour",
+		ingredients: [{ inventoryId: "gin", name: "House gin", quantity: 25, unit: "ml" }],
+	};
+
+	it("scales each row by its size over the main size", () => {
+		const price = recipePriceAnalysis(
+			{
+				...pour,
+				prices: [
+					{ name: "Single", size: "25 ml", price: "6" },
+					{ name: "Double", size: "50 ml", price: "10" },
+					{ name: "Large", size: "75ml", price: "14" },
+				],
+			},
+			gin,
+			DEFAULT_POUR_TARGETS,
+		);
+		assert.ok(price.drinkCost != null);
+		assert.deepEqual(
+			price.priceRows.map((row) => row.costFactor),
+			[1, 2, 3],
+		);
+		assert.equal(price.priceRows[2].serve?.drinkCost, Math.round(price.drinkCost * 3 * 100) / 100);
+		assert.equal(price.priceRows[2].serve?.key, "row-2");
+		assert.equal(price.serves.length, 3);
+		assert.equal(price.serves[2].label, "Large");
+	});
+
+	it("uses the house factor for a second row with the usual name, and the house serve for a blank main size", () => {
+		assert.equal(priceRowCostFactor([{ name: "Single", price: "12" }, { name: "Double", price: "18" }], 1, "cocktail"), 2);
+		assert.equal(
+			priceRowCostFactor([{ name: "Pint", price: "6" }, { name: "Half pint", price: "3.5" }], 1, "beer"),
+			0.5,
+		);
+		// A pour's main serve is 25 ml, so a 50 ml row is twice it.
+		assert.equal(priceRowCostFactor([{ name: "Single", price: "6" }, { name: "Big", size: "50 ml", price: "10" }], 1, "pour"), 2);
+	});
+
+	it("can't cost a row with no measure and no usual name", () => {
+		const rows = [
+			{ name: "Glass", size: "175 ml", price: "9" },
+			{ name: "Bottle", price: "34" },
+		];
+		assert.equal(priceRowCostFactor(rows, 1, "pour"), null);
+		const price = recipePriceAnalysis({ ...pour, prices: rows }, gin, DEFAULT_POUR_TARGETS);
+		assert.equal(price.priceRows[1].serve, null);
+		assert.equal(price.serves.length, 1);
+	});
+
+	it("reads the old two slots the same as before", () => {
+		const price = recipePriceAnalysis({ ...pour, price: "6", priceAlt: "10" }, gin, DEFAULT_POUR_TARGETS);
+		assert.deepEqual(
+			price.serves.map((serve) => [serve.key, serve.label, serve.costFactor]),
+			[
+				["primary", "Single", 1],
+				["alt", "Double", 2],
+			],
+		);
+	});
+
+	it("suggests a price at the target for a row without one", () => {
+		const price = recipePriceAnalysis(
+			{ ...pour, prices: [{ name: "Single", price: "6" }, { name: "Double", price: "" }] },
+			gin,
+			DEFAULT_POUR_TARGETS,
+		);
+		const double = price.priceRows[1].serve;
+		assert.ok(double);
+		assert.equal(double.pourCost, null);
+		assert.ok(double.suggestedPrice != null && double.suggestedPrice > 0);
 	});
 });

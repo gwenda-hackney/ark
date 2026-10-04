@@ -300,7 +300,7 @@ describe("events: creating", () => {
       ["Negroni Chess Society"],
       "a Drive folder for its photos",
     );
-    assert.equal(await ops.sees(event), "Not on the website yet");
+    assert.equal(await ops.sees(event), "Not live");
 
     await ops.waitUntilReady(event);
     const nights = world.baserow.rows("Event dates").map((row) => row.Date).sort();
@@ -308,7 +308,7 @@ describe("events: creating", () => {
     assert.ok(nights.every((date) => new Date(`${date}T12:00:00Z`).getUTCDay() === WEDNESDAY));
     assert.equal(world.google.calendar().length, nights.length, "every night is in Google Calendar");
     assert.equal(world.sanity.published().length, 0, "nothing live before Update website");
-    assert.equal(await ops.sees(event), "Not on the website yet");
+    assert.equal(await ops.sees(event), "Not live");
 
     await ops.updateWebsite(event);
     const [series] = world.sanity.published("eventSeries");
@@ -317,7 +317,7 @@ describe("events: creating", () => {
     assert.equal(series.shortDescription, "Chess by the canal.");
     assert.deepEqual(liveNights(world), nights);
     assert.equal(world.sanity.drafts().length, 0, "no drafts left over");
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("every other week: only alternate Wednesdays", async () => {
@@ -356,7 +356,7 @@ describe("events: creating", () => {
     assert.equal(series.schedule, "once");
     assert.deepEqual(liveNights(world), [date]);
     assert.equal(world.google.calendar().length, 1);
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("refuses a second series with the same name", async () => {
@@ -394,12 +394,12 @@ describe("events: editing", () => {
   it("a change to the series waits for Update website", async () => {
     await ops.edit(event, { shortDescription: "Chess, negronis, the canal." });
     await ops.waitUntilReady(event);
-    assert.equal(await ops.sees(event), "Changes not on the website yet");
+    assert.equal(await ops.sees(event), "Changed");
     assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess by the canal.", "live copy unchanged");
 
     await ops.updateWebsite(event);
     assert.equal(world.sanity.published("eventSeries")[0].shortDescription, "Chess, negronis, the canal.");
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
     assert.deepEqual(world.sanity.drafts().map((doc) => doc._id), [], "no drafts left behind");
   });
 
@@ -414,11 +414,25 @@ describe("events: editing", () => {
     assert.deepEqual(series[0].formerSlugs, [before]);
   });
 
+  it("slots typed on a new night are kept on that night (#151)", async () => {
+    const slots = [{ label: "Open decks", startTime: "20:00", endTime: "21:00" }];
+    const extra = addDays(nextWeekday(WEDNESDAY), 2); // a Friday, outside the pattern
+    const inRule = addDays(nextWeekday(WEDNESDAY), 7);
+    await ops.addNight(event, extra, { nightSchedule: slots });
+    await ops.addNight(event, inRule, { nightSchedule: slots });
+    const saved = await ops.open(event);
+    for (const date of [extra, inRule]) {
+      const night = saved.dates.find((row) => row.date === date);
+      assert.deepEqual(night?.overrides.nightSchedule, slots, `slots on ${date}`);
+      assert.equal(saved.dates.filter((row) => row.date === date).length, 1, `one row for ${date}`);
+    }
+  });
+
   it("a night added outside the pattern goes live with the series", async () => {
     const extra = addDays(nextWeekday(WEDNESDAY), 2); // a Friday
     await ops.addNight(event, extra);
     await ops.waitUntilReady(event);
-    assert.equal(await ops.sees(event), "Changes not on the website yet");
+    assert.equal(await ops.sees(event), "Changed");
     await ops.updateWebsite(event);
     assert.ok(liveNights(world).includes(extra));
     assert.ok(world.google.calendar().some((entry) => (entry.start?.dateTime || entry.start?.date || "").startsWith(extra)));
@@ -473,13 +487,13 @@ describe("events: deleting", () => {
     assert.ok(!previewNights(world).includes(second), "off the preview");
     assert.ok(!calendarDates(world).includes(second), "off the calendar");
     assert.deepEqual(liveNights(world), nights, "the website waits for Update website");
-    assert.equal(await ops.sees(event), "Changes not on the website yet");
+    assert.equal(await ops.sees(event), "Changed");
 
     await ops.updateWebsite(event);
     assert.ok(!liveNights(world).includes(second), "off the live site");
     assert.ok(liveNights(world).includes(first) && liveNights(world).includes(third));
     assert.ok(!(await ops.open(event)).dates.some((row) => row.date === second), "not in ops");
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("this and following nights: the series ends before that night", async () => {
@@ -557,7 +571,7 @@ describe("events: deleting", () => {
     assert.equal((await ops.list()).length, 1);
     await ops.waitUntilReady(event);
     assert.deepEqual(calendarDates(world), nights, "calendar entries come back");
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("discarding the deleted event's drafts brings it back in ops", async () => {
@@ -565,7 +579,7 @@ describe("events: deleting", () => {
     await ops.discardPreview();
     assert.equal((await ops.list()).length, 1);
     await ops.waitUntilReady(event);
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("a series that never went live: gone at once, the website is untouched", async () => {
@@ -580,6 +594,35 @@ describe("events: deleting", () => {
       "no preview copy left",
     );
     assert.equal(world.baserow.rows("Events").length, 1, "only the live series is left");
+  });
+
+  it("one night of an open series: only that night goes, the series stays (#151)", async () => {
+    const [first, second] = [addDays(nextWeekday(SATURDAY), 7), addDays(nextWeekday(SATURDAY), 14)];
+    const open = await ops.create({
+      name: "Gwenda Nights",
+      shortDescription: "Something different every time.",
+      description: "A night picked by the team.",
+      startTime: "20:00",
+      endTime: "01:00",
+      repeatUnit: "none",
+    });
+    await ops.addNight(open, first);
+    await ops.addNight(open, second);
+    await ops.waitUntilReady(open);
+
+    const res = await ops.deleteNight(open, first, "this");
+    assert.equal(res.deleted, false, "the series is not deleted");
+    await ops.waitUntilReady(open);
+    assert.deepEqual((await ops.open(open)).dates.map((row) => row.date), [second]);
+    assert.ok(!previewNights(world).includes(first), "off the preview");
+
+    const last = await ops.deleteNight(open, second, "this");
+    assert.equal(last.deleted, false, "an open series may have no nights");
+    await ops.waitUntilReady(open);
+    const left = await ops.open(open);
+    assert.equal(left.name, "Gwenda Nights");
+    assert.deepEqual(left.dates, []);
+    assert.ok((await ops.list()).some((row) => row.id === open.id), "still in the events list");
   });
 
   it("a one-off special event: off the calendar now, off the website on Update website", async () => {
@@ -626,12 +669,12 @@ describe("events: changing the schedule drops nights", () => {
     assert.deepEqual(previewNights(world), nights.slice(0, 3), "preview: only the nights still scheduled");
     assert.deepEqual(liveNights(world), nights, "live site unchanged until Update website");
     assert.deepEqual(calendarDates(world), nights.slice(0, 3), "calendar follows the schedule straight away");
-    assert.equal(await ops.sees(event), "Changes not on the website yet");
+    assert.equal(await ops.sees(event), "Changed");
 
     await ops.updateWebsite(event);
     assert.deepEqual(liveNights(world), nights.slice(0, 3));
     assert.deepEqual(world.sanity.drafts(), []);
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("discarding a dropped night's draft: ops marks it removed again", async () => {
@@ -641,7 +684,7 @@ describe("events: changing the schedule drops nights", () => {
     await ops.discardPreview();
     await ops.waitUntilReady(event);
     assert.deepEqual(previewNights(world), nights.slice(0, 3), "the schedule still excludes the dropped nights");
-    assert.equal(await ops.sees(event), "Changes not on the website yet");
+    assert.equal(await ops.sees(event), "Changed");
   });
 });
 
@@ -668,11 +711,11 @@ describe("events: images", () => {
     const preview = world.sanity.view("previewDrafts").find((doc) => doc._type === "eventSeries");
     assert.ok(seriesImage(preview), "the preview series has the photo");
     assert.equal(seriesImage(world.sanity.published("eventSeries")[0]), "", "the live site doesn't yet");
-    assert.equal(await ops.sees(event), "Changes not on the website yet");
+    assert.equal(await ops.sees(event), "Changed");
 
     await ops.updateWebsite(event);
     assert.ok(seriesImage(world.sanity.published("eventSeries")[0]), "live after Update website");
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("replacing the photo puts the new one live", async () => {
@@ -695,7 +738,7 @@ describe("events: images", () => {
     await ops.waitUntilReady(event);
     await ops.updateWebsite(event);
     assert.equal(seriesImage(world.sanity.published("eventSeries")[0]), "");
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("a night's own photo shows on that night only", async () => {
@@ -743,14 +786,14 @@ describe("events: gallery", () => {
     const ofNight = await ops.addGalleryPhoto(event, { date: night, name: "crowd.jpg" });
     await ops.waitUntilReady(event);
     assert.deepEqual(liveGallery(), [], "the website waits for Update website");
-    assert.equal(await ops.sees(event), "Changes not on the website yet");
+    assert.equal(await ops.sees(event), "Changed");
 
     await ops.updateWebsite(event);
     assert.deepEqual(liveGallery(), [
       [ofNight.id, night],
       [series.id, ""],
     ]);
-    assert.equal(await ops.sees(event), "On the website");
+    assert.equal(await ops.sees(event), "Live");
   });
 
   it("removing a photo takes it off on Update website", async () => {

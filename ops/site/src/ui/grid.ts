@@ -23,27 +23,35 @@ export {
 
 /**
  * One AG Grid theme for ops — colours are CSS variables so Gwenda tokens apply.
+ * Headers: 11px uppercase muted on surface-1. Hover and selected rows use
+ * surface-3; DataGrid adds the gold edge on a selected row and the group-row
+ * fill, and sets the row height from its `density`.
  */
 export const opsGridTheme = themeQuartz.withParams({
 	accentColor: "var(--primary)",
-	backgroundColor: "var(--background)",
+	// Rows are see-through; DataGrid paints the surface behind them: the page's
+	// glow on a full-page grid, nothing in a card (--grid-bg: transparent).
+	backgroundColor: "transparent",
 	borderColor: "var(--border)",
 	browserColorScheme: "inherit",
 	cellTextColor: "var(--foreground)",
-	dataBackgroundColor: "var(--background)",
+	dataBackgroundColor: "transparent",
 	fontFamily: "var(--font)",
+	// --text-sm. AG Grid needs a pixel number here, not a CSS variable.
 	fontSize: 13,
 	foregroundColor: "var(--foreground)",
 
-	headerBackgroundColor: "var(--background)",
+	headerBackgroundColor: "var(--grid-head-bg, var(--panel-bg))",
+	menuBackgroundColor: "var(--popover)",
+	// --text-2xs
 	headerFontSize: 11,
 	headerFontWeight: 600,
 	headerTextColor: "var(--muted-foreground)",
 
 	oddRowBackgroundColor: "transparent",
 	rowBorder: { style: "solid", width: 1, color: "var(--border)" },
-	rowHoverColor: "var(--accent)",
-	selectedRowBackgroundColor: "var(--primary-wash)",
+	rowHoverColor: "var(--surface-3)",
+	selectedRowBackgroundColor: "var(--surface-3)",
 
 	spacing: 8,
 
@@ -96,3 +104,21 @@ export function svelteCell(
 		}
 	};
 }
+
+/**
+ * The column a RowAction sits in: just wide enough for the circle, no cell
+ * padding, centred. Spread it into a column def and add the cellRenderer.
+ */
+export const ROW_ACTION_COLUMN = {
+	headerName: "",
+	width: 48,
+	minWidth: 48,
+	maxWidth: 48,
+	flex: 0,
+	sortable: false,
+	filter: false,
+	editable: false,
+	resizable: false,
+	suppressMovable: true,
+	cellClass: "row-action-cell",
+} as const;

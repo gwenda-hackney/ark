@@ -180,7 +180,7 @@ describe("menu-list", () => {
 		assert.equal(gwenda?._kind, "item");
 		if (negroni?._kind !== "item" || gwenda?._kind !== "item") return;
 		assert.equal(negroni._posLabel, "Match");
-		assert.equal(gwenda._posLabel, "Missing from POS");
+		assert.equal(gwenda._posLabel, "Not in POS");
 	});
 
 	it("labels guest print and digital placement", () => {

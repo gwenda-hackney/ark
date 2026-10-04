@@ -30,6 +30,35 @@ export function lockedReadout(event: OpsEvent | null | undefined, key: SeriesTex
 	return raw;
 }
 
+/** Every field a night can take from its series, in the order the editor shows them. */
+export const SERIES_TEXT_KEYS: SeriesTextKey[] = [
+	"name",
+	"artist",
+	"pageUrl",
+	"startTime",
+	"endTime",
+	"offer",
+	"shortDescription",
+	"description",
+	"operationsNotes",
+];
+
+/** The fields a saved night has its own value for (the rest come from the series). */
+export function nightOverriddenKeys(
+	event: OpsEvent,
+	occurrence: OpsEventOccurrence | null | undefined,
+): SeriesTextKey[] {
+	const overrides = occurrence?.overrides;
+	if (!overrides) return [];
+	return SERIES_TEXT_KEYS.filter((key) => {
+		const own = String(overrides[key] || "").trim();
+		if (!own) return false;
+		// A title that only repeats the series name is not a title of its own.
+		if (key === "name") return own.toLowerCase() !== String(event.name || "").trim().toLowerCase();
+		return true;
+	});
+}
+
 /** A night with any copy of its own starts with the series defaults unlocked. */
 export function nightHasOwnCopy(
 	event: OpsEvent,
@@ -57,6 +86,7 @@ export function fieldSnapshot(row: {
 	name?: string;
 	artist?: string;
 	offer?: string;
+	pageUrl?: string;
 	shortDescription?: string;
 	description?: string;
 	nightSchedule?: OpsNightScheduleSlot[];
@@ -76,6 +106,7 @@ export function fieldSnapshot(row: {
 		name: String(row.name || "").trim(),
 		artist: String(row.artist || "").trim(),
 		offer: String(row.offer || "").trim(),
+		pageUrl: String(row.pageUrl || "").trim(),
 		shortDescription: String(row.shortDescription || "").trim(),
 		description: String(row.description || "").trim(),
 		nightSchedule: (row.nightSchedule || [])
@@ -140,8 +171,13 @@ export function cropsKey(value: HeroFraming | Record<string, unknown> | null | u
  */
 export class EventForm {
 	name = $state("");
-	/** A night edits its own copy; locked, it shows the series values. */
-	defaultsUnlocked = $state(false);
+	/**
+	 * A night's fields that have their own value. The rest show the series
+	 * value ("From series") and save as blank, so they follow the series.
+	 */
+	overridden = $state<SeriesTextKey[]>([]);
+	/** The night shows (or is getting) a photo of its own instead of the series'. */
+	ownPhoto = $state(false);
 	artist = $state("");
 	offer = $state("");
 	pageUrl = $state("");
@@ -163,6 +199,40 @@ export class EventForm {
 	endsOn = $state("");
 	replacesSeries = $state("");
 	heroCrops = $state<HeroFraming | null>(null);
+
+	/** Any field overridden. Setting it overrides every field, or none. */
+	get defaultsUnlocked(): boolean {
+		return this.overridden.length > 0;
+	}
+
+	set defaultsUnlocked(value: boolean) {
+		this.overridden = value ? [...SERIES_TEXT_KEYS] : [];
+	}
+
+	isOverridden(key: SeriesTextKey): boolean {
+		return this.overridden.includes(key);
+	}
+
+	/**
+	 * Give a night its own value for one field, starting from the series'
+	 * so it can be tweaked rather than retyped. A night's card line starts
+	 * blank: the series' line is written for the series.
+	 */
+	override(key: SeriesTextKey, series: OpsEvent | null) {
+		if (!this.isOverridden(key)) this.overridden = [...this.overridden, key];
+		if (key !== "shortDescription" && !String(this[key] || "").trim()) {
+			this[key] = seriesText(series, key);
+		}
+	}
+
+	/**
+	 * Back to the series for one field. A saved night holds the series value
+	 * (what it shows); a night not saved yet holds blank (what it sends).
+	 */
+	useSeriesValue(key: SeriesTextKey, series: OpsEvent | null, options: { newNight?: boolean } = {}) {
+		this.overridden = this.overridden.filter((item) => item !== key);
+		this[key] = options.newNight || key === "shortDescription" ? "" : seriesText(series, key);
+	}
 
 	/** Fill from a saved event, or from one of its nights when `occurrenceDate` is set. */
 	fill(event: OpsEvent, occurrenceDate = "") {
@@ -208,7 +278,8 @@ export class EventForm {
 		this.endsOn = event.endsOn || "";
 		this.replacesSeries = event.replacesSeries || "";
 		this.syncHeroCrops(event, occurrenceDate);
-		this.defaultsUnlocked = nightHasOwnCopy(event, occurrence);
+		this.overridden = nightOverriddenKeys(event, occurrence);
+		this.ownPhoto = Boolean(occurrence?.overrides?.image?.url);
 	}
 
 	/** Crops follow the photo this editor owns: the night's own, or the series'. */
@@ -246,7 +317,8 @@ export class EventForm {
 		this.endsOn = "";
 		this.replacesSeries = "";
 		this.heroCrops = null;
-		this.defaultsUnlocked = false;
+		this.overridden = [];
+		this.ownPhoto = false;
 	}
 
 	/** Back to the series defaults on a night (the night's own photo is cleared separately). */
@@ -261,7 +333,8 @@ export class EventForm {
 		this.startTime = seriesText(event, "startTime");
 		this.endTime = seriesText(event, "endTime");
 		this.operationsNotes = seriesText(event, "operationsNotes");
-		this.defaultsUnlocked = false;
+		this.overridden = [];
+		this.ownPhoto = false;
 	}
 
 	addNightSlot() {
@@ -333,6 +406,7 @@ export class EventForm {
 			name: this.name,
 			artist: this.artist,
 			offer: this.offer,
+			pageUrl: this.pageUrl,
 			shortDescription: this.shortDescription,
 			description: this.description,
 			nightSchedule: this.nightSchedule,
@@ -397,7 +471,7 @@ export class EventForm {
 	/** Empty means this night keeps the series value. */
 	nightField(current: OpsEvent | null, key: SeriesTextKey, value: string): string {
 		const trimmed = value.trim();
-		if (!this.defaultsUnlocked || trimmed.toLowerCase() === seriesText(current, key).toLowerCase()) {
+		if (!this.isOverridden(key) || trimmed.toLowerCase() === seriesText(current, key).toLowerCase()) {
 			return "";
 		}
 		return trimmed;
@@ -425,10 +499,39 @@ export class EventForm {
 			shortDescription: this.nightField(current, "shortDescription", this.shortDescription),
 			operationsNotes: this.nightField(current, "operationsNotes", this.operationsNotes),
 			imageLinks: ownLinks,
-			time: !this.defaultsUnlocked || (this.startTime && this.endTime) ? "" : this.time.trim(),
+			time: !this.ownTimes() || (this.startTime && this.endTime) ? "" : this.time.trim(),
 			startTime: this.nightField(current, "startTime", this.startTime),
 			endTime: this.nightField(current, "endTime", this.endTime),
 			heroCrops: options.hasOwnPhoto ? this.heroCrops || null : null,
+		};
+	}
+
+	/** The night keeps times of its own (so its free-text time goes too). */
+	private ownTimes(): boolean {
+		return this.isOverridden("startTime") || this.isOverridden("endTime");
+	}
+
+	/**
+	 * Save body for a night not saved yet: the fields it overrides, each
+	 * blank when it matches the series, so the rest follow the series.
+	 */
+	newNightBody(series: OpsEvent | null) {
+		const field = (key: SeriesTextKey) => this.nightField(series, key, String(this[key] || ""));
+		return {
+			name: field("name"),
+			artist: field("artist"),
+			offer: field("offer"),
+			pageUrl: field("pageUrl"),
+			description: field("description"),
+			shortDescription: field("shortDescription"),
+			operationsNotes: field("operationsNotes"),
+			imageLinks: this.imageLinksText
+				.split(/\r?\n/)
+				.map((link) => link.trim())
+				.filter(Boolean),
+			time: !this.ownTimes() || (this.startTime && this.endTime) ? "" : this.time.trim(),
+			startTime: field("startTime"),
+			endTime: field("endTime"),
 		};
 	}
 

@@ -13,7 +13,9 @@
 	import { onDestroy, onMount } from "svelte";
 	import { fly } from "svelte/transition";
 	import { Icon } from "../app/shell";
-	import { BusyOverlay, Button, Dialog, PageHeader } from "../ui";
+	import { Badge, BusyOverlay, Button, Confirm, ConfirmDialog, Dialog, PageHeader } from "../ui";
+	import { changeBadgeTone } from "../ui/badge";
+	import { retryJobAction, updateAllAction, updateNowAction } from "./web-page-actions";
 	import {
 		getDeletedEvents,
 		getEvents,
@@ -29,7 +31,6 @@
 		type SitePendingItem,
 		type SiteStatus,
 	} from "../app/api";
-	import { loginNext, navigate } from "../app/nav";
 	import { easeOut, flyMs } from "../ui/motion";
 	import { toast } from "../ui/toast.svelte";
 	import { getSitePendingState, refreshSitePending } from "./site-pending.svelte";
@@ -136,6 +137,9 @@
 
 	const liveStatus = $derived(statusOf(live));
 	const previewStatus = $derived(statusOf(preview));
+	const updateLive = $derived(updateNowAction(live, local, Boolean(working)));
+	const updatePreview = $derived(updateNowAction(preview, local, Boolean(working)));
+	const updateAll = $derived(updateAllAction(unpublished.length, Boolean(working)));
 
 	const EVENT_TYPES = new Set(["event", "eventSeries"]);
 
@@ -175,10 +179,6 @@
 			loadError = "";
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not check the website.";
-			if (message.startsWith("auth:")) {
-				window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/web"))}`;
-				return;
-			}
 			loadError = message;
 		} finally {
 			loaded = true;
@@ -202,8 +202,22 @@
 		if (timer) clearInterval(timer);
 	});
 
+	const confirm = new Confirm();
+
 	async function updateNow(site: "production" | "preview") {
 		if (working) return;
+		if (site === "production") {
+			const count = live?.items.length || 0;
+			const ok = await confirm.ask({
+				title: "Update the website now?",
+				message: `${
+					count === 1 ? "1 change goes" : count ? `${count} changes go` : "Everything waiting goes"
+				} live on ${siteHost} for everyone, without waiting for edits to go quiet.`,
+				action: "Update website",
+				tone: "primary",
+			});
+			if (!ok) return;
+		}
 		working = `update-${site}`;
 		try {
 			await updateSiteNow(site);
@@ -281,13 +295,7 @@
 </script>
 
 <div class="page scrollbar-fade">
-	<PageHeader title="Website" subtitle="What gwenda.co.uk shows, and what is about to change.">
-		{#snippet actions()}
-			{#if isAdmin}
-				<Button variant="ghost" size="sm" onclick={() => navigate("/web/dev")}>Developer tools</Button>
-			{/if}
-		{/snippet}
-	</PageHeader>
+	<PageHeader title="Website" subtitle="What gwenda.co.uk shows, and what is about to change." />
 
 	{#if loadError}
 		<p class="error">{loadError}</p>
@@ -303,163 +311,205 @@
 				</p>
 			{/if}
 
-			<!-- 1. The website -->
-			<section class="status {liveStatus.tone}" aria-live="polite">
-				<span class="status-icon" aria-hidden="true">
-					<Icon
-						name={liveStatus.tone === "ok"
-							? "check"
-							: liveStatus.tone === "failed"
-								? "alert"
-								: liveStatus.tone === "updating"
-									? "refresh"
-									: "web"}
-						size={24}
-					/>
-				</span>
-				<div class="status-copy">
-					<h2>{liveStatus.title}</h2>
-					{#if liveStatus.note}<p>{liveStatus.note}</p>{/if}
-					<a class="site-link" href={siteUrls.live} target="_blank" rel="noreferrer">
-						Open {siteHost} <Icon name="external-link" size={12} />
-					</a>
-				</div>
-				{#if !local && live && (live.items.length || live.failed || !live.known) && !live.updating}
-					<Button
-						variant={liveStatus.tone === "failed" ? "primary" : "outline"}
-						busy={working === "update-production"}
-						disabled={Boolean(working)}
-						onclick={() => void updateNow("production")}
-					>
-						{liveStatus.tone === "failed" ? "Try again" : "Update website now"}
-					</Button>
-				{/if}
-			</section>
+			<!-- Wide screens: what's waiting on the left, the website's state on the right. -->
+			<div class="columns">
+				<div class="main">
+					<!-- Saved but not on the website -->
+					<section class="card" aria-labelledby="unpublished-title">
+						<header class="card-head">
+							<h2 id="unpublished-title">Not on the website yet</h2>
+							<Button
+								variant="primary"
+								size="sm"
+								disabled={updateAll.disabled}
+								reason={updateAll.reason}
+								onclick={() => (confirmAll = true)}
+							>
+								{#snippet icon()}
+									<Icon name="upload" size={14} />
+								{/snippet}
+								Update website with all
+							</Button>
+						</header>
+						{#if !unpublished.length}
+							<p class="muted">Nothing. Everything you've saved is on the website.</p>
+						{:else}
+							<p class="muted">You've saved these, but the website doesn't show them yet.</p>
+							<ul class="list">
+								{#each unpublished as item (item.key)}
+									<li>
+										<span class="word">
+											<Badge
+												tone={changeBadgeTone(item.change)}
+												label={item.change === "removed" ? "Remove" : changeWord(item.change)}
+											/>
+										</span>
+										<span class="name">
+											{item.label}{#if item.kind === "deleted"}<span class="muted"> · deleted in ops</span>{/if}
+										</span>
+										<!-- Restore only ever applies to a deleted event; the row's main
+										     action stays at the far right either way. -->
+										{#if item.kind === "deleted"}
+											<Button
+												variant="ghost"
+												size="sm"
+												busy={working === `restore-${item.key}`}
+												disabled={Boolean(working)}
+												onclick={() => void restore(item)}
+											>
+												{#snippet icon()}
+													<Icon name="undo" size={14} />
+												{/snippet}
+												Restore
+											</Button>
+										{/if}
+										<Button
+											variant="outline"
+											size="sm"
+											busy={working === `put-${item.key}`}
+											disabled={Boolean(working)}
+											onclick={() => void putOnWebsite([item], false)}
+										>
+											{#snippet icon()}
+												<Icon name={item.change === "removed" ? "trash" : "upload"} size={14} />
+											{/snippet}
+											{item.change === "removed" ? "Take off website" : "Update website"}
+										</Button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</section>
 
-			{#if live?.items.length}
-				<ul class="list">
-					{#each live.items as item (item.kind + item.id)}
-						<li>
-							<span class="word {item.change}">{changeWord(item.change)}</span>
-							<span class="name">{itemLabel(item)}</span>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-
-			<!-- Saved, still being got ready (calendar + website copy) -->
-			{#if jobs.length}
-				<section class="card" aria-labelledby="jobs-title">
-					<header class="card-head">
-						<h2 id="jobs-title">Getting ready</h2>
-					</header>
-					<p class="muted">Saved. The calendar and website copy are catching up, which takes a minute or two.</p>
-					<ul class="list">
-						{#each jobs as job (job.eventId)}
-							<li>
-								<span class="word {job.state === 'failed' ? 'removed' : 'changed'}">
-									{job.state === "failed" ? "Stuck" : "Waiting"}
-								</span>
-								<span class="name">
-									{job.name}{#if job.error}<span class="muted"> · {job.error}</span>{/if}
-								</span>
-								{#if job.state === "failed"}
-									<Button
-										variant="outline"
-										size="sm"
-										busy={working === `retry-${job.eventId}`}
-										disabled={Boolean(working)}
-										onclick={() => void retryJob(job.eventId)}
-									>
-										Try again
-									</Button>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				</section>
-			{/if}
-
-			<!-- 2. Saved but not on the website -->
-			<section class="card" aria-labelledby="unpublished-title">
-				<header class="card-head">
-					<h2 id="unpublished-title">Not on the website yet</h2>
-					{#if unpublished.length}
-						<Button variant="primary" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = true)}>
-							Update website with all
-						</Button>
+					<!-- Saved, still being got ready (calendar + website copy) -->
+					{#if jobs.length}
+						<section class="card" aria-labelledby="jobs-title">
+							<header class="card-head">
+								<h2 id="jobs-title">Getting ready</h2>
+							</header>
+							<p class="muted">Saved. The calendar and website copy are catching up, which takes a minute or two.</p>
+							<ul class="list">
+								{#each jobs as job (job.eventId)}
+									{@const retry = retryJobAction(job.state, Boolean(working))}
+									<li>
+										<span class="word">
+											<Badge
+												tone={job.state === "failed" ? "danger" : "neutral"}
+												label={job.state === "failed" ? "Failed" : "Updating"}
+												title={job.state === "failed" ? "It didn't finish. Try again." : "Getting it ready…"}
+											/>
+										</span>
+										<span class="name">
+											{job.name}{#if job.error}<span class="muted"> · {job.error}</span>{/if}
+										</span>
+										<Button
+											variant="outline"
+											size="sm"
+											busy={working === `retry-${job.eventId}`}
+											disabled={retry.disabled}
+											reason={retry.reason}
+											onclick={() => void retryJob(job.eventId)}
+										>
+											{#snippet icon()}
+												<Icon name="refresh" size={14} />
+											{/snippet}
+											Try again
+										</Button>
+									</li>
+								{/each}
+							</ul>
+						</section>
 					{/if}
-				</header>
-				{#if !unpublished.length}
-					<p class="muted">Nothing. Everything you've saved is on the website.</p>
-				{:else}
-					<p class="muted">
-						You've saved these, but the website doesn't show them yet.
-					</p>
-					<ul class="list">
-						{#each unpublished as item (item.key)}
-							<li>
-								<span class="word {item.change}">
-									{item.change === "removed" ? "Remove" : changeWord(item.change)}
-								</span>
-								<span class="name">
-									{item.label}{#if item.kind === "deleted"}<span class="muted"> · deleted in ops</span>{/if}
-								</span>
-								{#if item.kind === "deleted"}
-									<Button
-										variant="ghost"
-										size="sm"
-										busy={working === `restore-${item.key}`}
-										disabled={Boolean(working)}
-										onclick={() => void restore(item)}
-									>
-										Restore
-									</Button>
-								{/if}
-								<Button
-									variant="outline"
-									size="sm"
-									busy={working === `put-${item.key}`}
-									disabled={Boolean(working)}
-									onclick={() => void putOnWebsite([item], false)}
-								>
-									{item.change === "removed" ? "Take off website" : "Update website"}
-								</Button>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</section>
+				</div>
 
-			<!-- Preview site: developers only -->
-			{#if isAdmin}
-			<section class="preview" aria-label="Preview site">
-				<span class="dot {previewStatus.tone}" aria-hidden="true"></span>
-				<p>
-					<strong>Preview site:</strong>
-					{previewStatus.tone === "ok"
-						? "up to date."
-						: previewStatus.tone === "updating"
-							? "updating."
-							: previewStatus.tone === "failed"
-								? "didn't update."
-								: preview?.items.length
-									? `${changes(preview.items.length)} will show there${preview.autoUpdateAt ? ` at about ${clock(preview.autoUpdateAt)}` : " soon"}.`
-									: "checking…"}
-					<a href={siteUrls.preview} target="_blank" rel="noreferrer">Open preview site</a>
-				</p>
-				{#if !local && preview && (preview.items.length || preview.failed) && !preview.updating}
-					<button
-						type="button"
-						class="link"
-						disabled={Boolean(working)}
-						onclick={() => void updateNow("preview")}
-					>
-						Update it now
-					</button>
-				{/if}
-			</section>
-			{/if}
+				<aside class="side">
+					<!-- The website -->
+					<section class="card status {liveStatus.tone}" aria-live="polite">
+						<div class="status-row">
+							<span class="status-icon" aria-hidden="true">
+								<Icon
+									name={liveStatus.tone === "ok"
+										? "check"
+										: liveStatus.tone === "failed"
+											? "alert"
+											: liveStatus.tone === "updating"
+												? "refresh"
+												: "web"}
+									size={24}
+								/>
+							</span>
+							<div class="status-copy">
+								<h2>{liveStatus.title}</h2>
+								{#if liveStatus.note}<p>{liveStatus.note}</p>{/if}
+								<a class="site-link" href={siteUrls.live} target="_blank" rel="noreferrer">
+									Open {siteHost} <Icon name="external-link" size={12} />
+								</a>
+							</div>
+						</div>
+						{#if live?.items.length}
+							<ul class="list">
+								{#each live.items as item (item.kind + item.id)}
+									<li>
+										<span class="word"><Badge tone={changeBadgeTone(item.change)} label={changeWord(item.change)} /></span>
+										<span class="name">{itemLabel(item)}</span>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						<div class="status-actions">
+							<Button
+								variant={liveStatus.tone === "failed" ? "primary" : "outline"}
+								size="sm"
+								busy={working === "update-production"}
+								disabled={updateLive.disabled}
+								reason={updateLive.reason}
+								onclick={() => void updateNow("production")}
+							>
+								{#snippet icon()}
+									<Icon name={liveStatus.tone === "failed" ? "refresh" : "upload"} size={14} />
+								{/snippet}
+								{liveStatus.tone === "failed" ? "Try again" : "Update website now"}
+							</Button>
+						</div>
+					</section>
+
+					<!-- Preview site: developers only -->
+					{#if isAdmin}
+						<section class="card preview" aria-label="Preview site">
+							<p>
+								<span class="dot {previewStatus.tone}" aria-hidden="true"></span>
+								<strong>Preview site:</strong>
+								{previewStatus.tone === "ok"
+									? "up to date."
+									: previewStatus.tone === "updating"
+										? "updating."
+										: previewStatus.tone === "failed"
+											? "didn't update."
+											: preview?.items.length
+												? `${changes(preview.items.length)} will show there${preview.autoUpdateAt ? ` at about ${clock(preview.autoUpdateAt)}` : " soon"}.`
+												: "checking…"}
+							</p>
+							<div class="preview-actions">
+								<a href={siteUrls.preview} target="_blank" rel="noreferrer">
+									Open preview site <Icon name="external-link" size={12} />
+								</a>
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={updatePreview.disabled}
+									reason={updatePreview.reason}
+									onclick={() => void updateNow("preview")}
+								>
+									{#snippet icon()}
+										<Icon name="refresh" size={14} />
+									{/snippet}
+									Update it now
+								</Button>
+							</div>
+						</section>
+					{/if}
+				</aside>
+			</div>
 		</div>
 	{/if}
 
@@ -473,15 +523,23 @@
 		<p class="dialog-copy">{changes(unpublished.length)} will go on gwenda.co.uk.</p>
 		{#snippet footer()}
 			<Button variant="outline" size="sm" disabled={Boolean(working)} onclick={() => (confirmAll = false)}>
+				{#snippet icon()}
+					<Icon name="close" size={14} />
+				{/snippet}
 				Cancel
 			</Button>
 			<Button variant="primary" size="sm" busy={working === "put-all"} onclick={() => void putOnWebsite(unpublished, true)}>
+				{#snippet icon()}
+					<Icon name="upload" size={14} />
+				{/snippet}
 				Update website
 			</Button>
 		{/snippet}
 	</Dialog>
 	<BusyOverlay active={!loaded} label="Checking the website…" />
 </div>
+
+<ConfirmDialog {confirm} />
 
 <style>
 	.page {
@@ -493,10 +551,35 @@
 	}
 
 	.ready {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap);
-		max-width: 44rem;
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	/* Uses the page width: the list gets the wide column, the website's state
+	   the narrow one. They stack when there isn't room for both. */
+	.columns {
+		display: grid;
+		grid-template-columns: minmax(0, 2fr) minmax(20rem, 1fr);
+		align-items: start;
+		gap: var(--space-4);
+	}
+
+	.main,
+	.side {
+		display: grid;
+		gap: var(--space-4);
+		min-width: 0;
+	}
+
+	@media (max-width: 1100px) {
+		.columns {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		/* The website's state first when stacked: it's the headline. */
+		.side {
+			order: -1;
+		}
 	}
 
 	.error {
@@ -513,10 +596,10 @@
 
 	.banner {
 		display: flex;
-		gap: 0.6rem;
+		gap: var(--space-2);
 		align-items: center;
 		margin: 0;
-		padding: 0.75rem 0.9rem;
+		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
 		background: var(--primary-wash);
@@ -524,15 +607,21 @@
 	}
 
 	/* The website: one big, calm status */
-	.status {
+	.status-row {
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 1rem 1.25rem;
-		padding: 1.25rem 1.35rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-xl);
-		background: var(--card);
+		align-items: flex-start;
+		gap: var(--space-4);
+	}
+
+	.status-icon {
+		flex-shrink: 0;
+	}
+
+	.status-actions {
+		display: flex;
+		justify-content: flex-end;
+		padding-top: var(--space-3);
+		border-top: 1px solid var(--border);
 	}
 
 	.status-icon {
@@ -576,15 +665,15 @@
 
 	.status-copy {
 		display: grid;
-		flex: 1 1 16rem;
-		gap: 0.3rem;
+		flex: 1 1 auto;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
 	.status-copy h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.35rem;
+		font-size: var(--text-lg);
+		letter-spacing: var(--tracking-lg);
 		font-weight: 600;
 		line-height: 1.25;
 	}
@@ -598,7 +687,7 @@
 	.site-link {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		width: fit-content;
 		color: var(--primary);
 		font-size: var(--text-sm);
@@ -609,11 +698,11 @@
 	/* Lists of changes */
 	.card {
 		display: grid;
-		gap: 0.75rem;
-		padding: 1.1rem 1.2rem;
+		gap: var(--space-3);
+		padding: var(--space-4) var(--space-5);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
-		background: var(--card);
+		background: var(--panel-bg);
 	}
 
 	.card-head {
@@ -621,94 +710,84 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem 1rem;
+		gap: var(--space-2) var(--space-4);
 	}
 
 	.card-head h2 {
 		margin: 0;
-		font-family: var(--font-display);
 		font-size: var(--text-md);
 		font-weight: 600;
 	}
 
+	/* Plain rows on the card's own surface, divided by hairlines; no darker
+	   box inside the card. */
 	.list {
 		display: grid;
 		gap: 0;
 		margin: 0;
 		padding: 0;
 		list-style: none;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-lg);
-		background: var(--background);
+		border-top: 1px solid var(--border);
 	}
 
 	.list li {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		min-height: 3rem;
-		padding: 0.5rem 0.9rem;
+		padding: var(--space-2) 0;
 	}
 
 	.list li + li {
 		border-top: 1px solid var(--border);
 	}
 
+	/* Fixed width so the names line up whatever the badge says. */
 	.word {
+		display: inline-flex;
 		flex-shrink: 0;
-		width: 4.5rem;
-		font-size: var(--text-xs);
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--primary);
-	}
-
-	.word.added {
-		color: var(--up);
-	}
-
-	.word.removed {
-		color: var(--destructive);
+		width: 5rem;
 	}
 
 	.name {
 		flex: 1;
 		min-width: 0;
-		font-size: 1rem;
+		font-size: var(--text-md);
 		overflow-wrap: anywhere;
 	}
 
-	/* Preview site: one quiet line */
+	/* Preview site: a quiet note */
 	.preview {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 0.4rem 0.75rem;
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
 
 	.preview p {
 		margin: 0;
+		line-height: 1.5;
 	}
 
-	.preview a,
-	.link {
+	.preview-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-2) var(--space-3);
+	}
+
+	.preview a {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
 		color: var(--primary);
 		font-weight: 600;
-	}
-
-	.link {
-		padding: 0;
-		border: 0;
-		background: none;
-		font: inherit;
-		font-size: var(--text-sm);
-		cursor: pointer;
+		text-decoration: none;
 	}
 
 	.dot {
+		display: inline-block;
+		margin-right: var(--space-1);
+		vertical-align: 0.05em;
 		width: 0.6rem;
 		height: 0.6rem;
 		border-radius: 50%;
@@ -734,8 +813,8 @@
 	}
 
 	.dialog-list {
-		margin: 0.75rem 0 0;
-		padding-left: 1.1rem;
+		margin: var(--space-3) 0 0;
+		padding-left: var(--space-4);
 		line-height: 1.6;
 	}
 
@@ -754,6 +833,11 @@
 	@media (max-width: 640px) {
 		.list li {
 			flex-wrap: wrap;
+		}
+
+		/* Badge and name on one line; the row's buttons drop below when tight. */
+		.list .name {
+			flex-basis: 10rem;
 		}
 	}
 </style>

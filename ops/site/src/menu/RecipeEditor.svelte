@@ -2,28 +2,46 @@
 	import { onDestroy, untrack } from "svelte";
 	import { fly } from "svelte/transition";
 	import {
+		Badge,
 		Button,
 		BusyOverlay,
+		ConfirmDialog,
 		Dialog,
+		EditorActionBar,
 		EditorBackBar,
 		Field,
+		FormHeading,
+		FormLead,
+		FormSection,
+		HelpDrawer,
+		MoneyField,
 		NativeSelect,
+		NumberField,
+		OverflowMenu,
+		PageHelp,
 		Segmented,
 		TextArea,
 		TextField,
 	} from "../ui";
+	import { FormErrors } from "../ui/form-errors.svelte";
+	import { provideHelp } from "../ui/help.svelte";
+	import { ITEM_FIELD_ORDER, itemFieldTab, stripUnit, validateItem } from "./item-validate";
+	import { addPlacement, defaultPosScreen, placementChoices } from "./placement-add";
 	import type { SegmentedItem, SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
 	import { type InventoryItem } from "../inventory/types";
 	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
 	import { flattenMenuSections, sectionPathLabel } from "./menu-sections.js";
+	import { newPriceRow, normalizePrices, priceLabels, relabelPrices, withPrices, type PriceRow } from "./prices.js";
+	import { formatAbv, parseAbvPercent } from "./abv";
 	import {
-		computeRecipeAbv,
-		computeRecipeVolumeMl,
-		formatAbv,
-		inventoryAbvById,
-		parseAbvPercent,
-	} from "./abv";
+		followRecipe,
+		metricOverridden,
+		recipeFigures,
+		settleOverrides,
+		withOverride,
+		type Metric,
+	} from "./metric-lock";
 	import {
 		analyzeRecipe,
 		analysisPayload,
@@ -32,8 +50,10 @@
 	} from "./analyze";
 	import { parseStoredAnalyzeNote } from "./analyze-note.js";
 	import {
+		formatPourPercent,
 		marginTone,
 		recipePriceAnalysis,
+		suggestedAltPrice,
 	} from "./cost";
 	import { pourSettings } from "../config/settings.svelte";
 	import { namesClash } from "../app/spa-path.js";
@@ -56,10 +76,15 @@
 		type DraftHistory,
 	} from "./draft-history";
 	import { Icon } from "../app/shell";
+	import { menuEditorActions, metricActions, type MetricActions } from "./editor-actions";
+	import { ITEM_HELP } from "./item-help";
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import MethodEditor from "./MethodEditor.svelte";
-	import PourCostPanel from "./PourCostPanel.svelte";
+	import { PhotoActions } from "../ui";
+	import PriceTable from "./PriceTable.svelte";
+	import PriceGauges from "./PriceGauges.svelte";
+	import PourSettingsDialog from "./PourSettingsDialog.svelte";
 	import RecipeAnalysisPanel from "./RecipeAnalysisPanel.svelte";
 	import MenuPlacementsTable from "./MenuPlacementsTable.svelte";
 	import {
@@ -109,6 +134,9 @@
 		ontab?: (id: string) => void;
 	} = $props();
 
+	/** The Help drawer; each field's ? opens it on its own topic. */
+	const help = provideHelp("Menu item", ITEM_HELP);
+
 	let tabSlide = $state(1);
 	let tabPrev = "details";
 	let tabReady = false;
@@ -125,6 +153,9 @@
 	let restoring = false;
 	let aiError = $state("");
 	let aiBusy = $state(false);
+	let pourSettingsOpen = $state(false);
+	/** Problems from the last Save, by field id; kept fresh as they are fixed. */
+	const errors = new FormErrors();
 
 	const screenSuggestions = $derived(
 		collectPosScreenSuggestions(menuItems, (posMenus || []).map((menu) => menu.name)),
@@ -142,6 +173,18 @@
 			tabSlide = to > from ? 1 : -1;
 		}
 		tabPrev = id;
+	}
+
+	/**
+	 * Before the snapshot: a cocktail's ABV and volume flags settled, so one
+	 * stored before the flags existed, and not the recipe's, opens set by hand
+	 * without counting as an edit.
+	 */
+	function settleItemOverrides() {
+		const current = untrack(() => item);
+		if (!current) return;
+		const settled = settleOverrides(current, untrack(() => inventory));
+		if (settled !== current) item = settled;
 	}
 
 	function serializeDraft(row: MenuItem | null): string {
@@ -260,7 +303,7 @@
 		return [
 			{ id: "details", label: "Build", href: hrefFor("details") },
 			{ id: "menu", label: "Menu", href: hrefFor("menu") },
-			{ id: "cost", label: "Cost", href: hrefFor("cost") },
+			{ id: "cost", label: "Pricing", href: hrefFor("cost") },
 			{ id: "analysis", label: "Analysis", href: hrefFor("analysis") },
 		];
 	});
@@ -312,16 +355,19 @@
 		syncedKey = key;
 		const rows = untrack(() => item?.ingredients);
 		ingredients = (rows || []).map((ing) => ({ ...ing }));
+		settleItemOverrides();
 		snapshot = serializeDraft(untrack(() => item));
 		history = emptyDraftHistory();
 		discardOpen = false;
 		aiError = "";
 		aiBusy = false;
+		errors.clearAll();
 	});
 
 	$effect(() => {
 		const token = cleanToken;
 		if (!token) return;
+		settleItemOverrides();
 		snapshot = serializeDraft(untrack(() => item));
 		history = emptyDraftHistory();
 	});
@@ -344,23 +390,16 @@
 					? "ingredients:remove"
 					: "ingredients";
 		remember(kind);
+		if (!item) {
+			ingredients = next;
+			return;
+		}
+		const before = recipeFigures(item.drinkType, ingredients, inventory);
 		ingredients = next;
-		if (!item) return;
 		item = {
 			...item,
 			ingredients: next.map((ing) => ({ ...ing })),
-			...recipeMetricsFrom(next),
-		};
-	}
-
-	function recipeMetricsFrom(rows: Ingredient[]) {
-		if (!hasRecipe(item?.drinkType)) return {};
-		const byId = inventoryAbvById(inventory);
-		const abv = computeRecipeAbv(rows, byId);
-		const volumeMl = computeRecipeVolumeMl(rows);
-		return {
-			...(abv != null ? { abv: formatAbv(abv) } : {}),
-			...(volumeMl != null ? { volume: `${volumeMl} ml` } : {}),
+			...followRecipe(item, before, recipeFigures(item.drinkType, next, inventory)),
 		};
 	}
 
@@ -379,10 +418,22 @@
 		};
 	}
 
-	function recalculateRecipeMetrics() {
+	/** Lock inside a figure that follows the recipe, pen inside one set by hand; nothing on other drinks. */
+	function metricIcon(overridden: boolean) {
+		if (!showRecipe) return undefined;
+		return overridden ? handIcon : lockedIcon;
+	}
+
+	function metricTitle(overridden: boolean) {
+		if (!showRecipe) return undefined;
+		return overridden ? "Set by hand" : "From the recipe. Override to type your own.";
+	}
+
+	/** Override (on) unlocks a figure for typing; Use recipe value (off) locks it on the recipe's. */
+	function setMetricOverride(metric: Metric, on: boolean) {
 		if (!item) return;
-		remember("metrics");
-		item = { ...item, ...recipeMetricsFrom(ingredients) };
+		remember(`${metric}:override`);
+		item = withOverride(item, metric, on, figures);
 	}
 
 	async function runAnalyze() {
@@ -474,6 +525,29 @@
 		item = { ...item, [field]: value };
 	}
 
+	/** Add placement: every kind, every time, each adding a row with sensible defaults. */
+	const placementItems = $derived(
+		placementChoices(posMenus || []).map((choice) => {
+			const noChapter = (choice.value === "print" || choice.value === "digital") && !sectionOptions.length;
+			return {
+				label: choice.label,
+				disabled: noChapter,
+				reason: noChapter ? "Add a chapter in Sections first" : undefined,
+				onselect: () => {
+					const current = item?.placements || [];
+					setPlacements(
+						addPlacement(current, choice.value, posMenus || [], {
+							sectionId: String(item?.sectionId || sectionOptions[0]?.value || "").trim(),
+							screen: defaultPosScreen(current, screenSuggestions),
+							sectionIds: sectionOptions.map((option) => String(option.value)),
+							screens: screenSuggestions,
+						}),
+					);
+				},
+			};
+		}),
+	);
+
 	function setPlacements(next: MenuPlacement[]) {
 		if (!item) return;
 		remember("placements");
@@ -487,7 +561,8 @@
 			onPrintMenu: Boolean(print),
 			onDigitalMenu: Boolean(digital),
 			sectionId: print?.sectionId || digital?.sectionId || item.sectionId,
-			posMenus: pos
+			// One entry per POS menu, though a menu can carry several screens.
+			posMenus: [...new Map(pos.map((row) => [String(row.posMenuId), row])).values()]
 				.map((row) => {
 					const menu = (posMenus || []).find(
 						(entry) => String(entry.id) === String(row.posMenuId),
@@ -531,14 +606,15 @@
 		if (!item) return;
 		if (normalizeDrinkType(item.drinkType) === next) return;
 		remember("drinkType");
+		// Rows still named for the old type (Single, Double) take the new type's names.
+		const priced = withPrices(item, relabelPrices(normalizePrices(item), item.drinkType, next));
 		const cleared =
-			next === "packaged"
-				? { ...item, drinkType: next, priceAlt: "", cocktailType: "" as const }
-				: next === "cocktail"
-					? { ...item, drinkType: next }
-					: { ...item, drinkType: next, cocktailType: "" as const };
+			next === "cocktail"
+				? { ...priced, drinkType: next }
+				: { ...priced, drinkType: next, cocktailType: "" as const };
 		if (next === "cocktail") {
-			item = cleared;
+			// ABV and volume: locked when they match the recipe, set by hand when not.
+			item = { ...cleared, abvOverride: undefined, volumeOverride: undefined };
 			return;
 		}
 		const serve = defaultServeLine(next, item.name);
@@ -568,8 +644,15 @@
 		return parsed == null ? "" : formatAbv(parsed);
 	});
 	const typeLine = $derived(drinkTypeLabel(drinkType));
-	const canRecalcRecipe = $derived(
-		computeRecipeAbv(ingredients, inventoryAbvById(inventory)) != null,
+	/** What the recipe works out for ABV and volume, live. */
+	const figures = $derived(recipeFigures(drinkType, ingredients, inventory));
+	const abvOverridden = $derived(item ? metricOverridden(item, "abv", figures) : false);
+	const volumeOverridden = $derived(item ? metricOverridden(item, "volume", figures) : false);
+	const abvActions = $derived(
+		metricActions({ cocktail: showRecipe, overridden: abvOverridden, hasRecipeValue: Boolean(figures.abv) }),
+	);
+	const volumeActions = $derived(
+		metricActions({ cocktail: showRecipe, overridden: volumeOverridden, hasRecipeValue: Boolean(figures.volume) }),
 	);
 	const analysis = $derived(
 		item
@@ -610,6 +693,46 @@
 	});
 	const priceFieldLabel = $derived(primaryServe?.label || "Price");
 
+	/** The price table (Pricing tab); Build shows it on one line. */
+	const priceRows = $derived(item ? normalizePrices(item) : []);
+	/** Build edits the first two prices; the rest live on Pricing. */
+	const buildPriceLabels = $derived(priceLabels(drinkType));
+	const showSecondPrice = $derived(priceRows.length > 1 || Boolean(buildPriceLabels.alt));
+	const secondSuggested = $derived(
+		priceLive?.priceRows?.[1]?.serve?.suggestedPrice ?? suggestedAltPrice(priceLive),
+	);
+	const morePrices = $derived(Math.max(0, priceRows.length - 2));
+
+	function setBuildPrice(index: 0 | 1, value: string) {
+		const next = value.trim();
+		if (index === 1 && !priceRows[1]) {
+			if (!next) return;
+			setPrices([...priceRows, { ...newPriceRow(priceRows, drinkType), price: next }], "prices:price:1");
+			return;
+		}
+		const row = priceRows[index];
+		if (!row || (row.price || "") === next) return;
+		// Clearing a second price nobody has named or given a SKU takes the row away.
+		if (index === 1 && !next && priceRows.length === 2 && !row.sku) {
+			setPrices([priceRows[0]], "prices:price:1");
+			return;
+		}
+		setPrices(priceRows.map((r, i) => (i === index ? { ...r, price: next } : r)), `prices:price:${index}`);
+	}
+	const hasRecipeCost = $derived(
+		Boolean(priceLive && (priceLive.drinkCost != null || priceLive.lines.length > 0)),
+	);
+
+	function setPrices(next: PriceRow[], field: string) {
+		if (!item) return;
+		remember(field);
+		item = withPrices(item, next);
+	}
+
+	function addPrice() {
+		setPrices([...priceRows, newPriceRow(priceRows, drinkType)], "prices:add");
+	}
+
 	const canAnalyze = $derived(
 		Boolean(
 			analysis &&
@@ -625,8 +748,7 @@
 					glassware: item.glassware,
 					description: item.description,
 					volume: item.volume,
-					price: item.price,
-					priceAlt: item.priceAlt,
+					prices: normalizePrices(item),
 					drinkType: item.drinkType,
 					targets: pourSettings.targets,
 				})
@@ -639,9 +761,58 @@
 	const aiStale = $derived(
 		Boolean(aiNote && analyzedKey && analyzedKey !== analysisKey),
 	);
+	const savedDraft = $derived(snapshot ? parseMenuDraft(snapshot) : null);
+
+	function validate() {
+		return item ? validateItem(item, menuItems, item._id ? savedDraft : null) : {};
+	}
+
+	function showErrors() {
+		return errors.reveal({
+			order: ITEM_FIELD_ORDER,
+			tabOf: itemFieldTab,
+			currentTab: tab,
+			showTab: (id) => navigate(menuTabPath(tabBase, id)),
+		});
+	}
+
+	function submit() {
+		if (busy || !item) return;
+		errors.replace(validate());
+		if (errors.count) {
+			void showErrors();
+			return;
+		}
+		onsave();
+	}
+
+	// After a Save found problems, keep them in step with what's typed.
+	$effect(() => {
+		if (!errors.count) return;
+		errors.replace(validate());
+	});
+
+	/** The figure beside its unit: "12.5%" shows as 12.5 next to %. */
+	function patchWithUnit(field: "abv" | "volume", raw: string) {
+		const text = raw.trim();
+		patch(field, text ? (field === "abv" ? `${text}%` : `${text} ml`) : "");
+	}
+
+
 	const currentDraft = $derived(serializeDraft(item));
 	const dirty = $derived(isDraftDirty(snapshot, currentDraft));
 	const canUndo = $derived(canUndoDraft(history, currentDraft));
+	const avail = $derived(
+		menuEditorActions({
+			saved: Boolean(item?._id),
+			named: Boolean(item?.name?.trim()),
+			canUndo,
+			cocktail: showRecipe,
+			hasIngredientLine: Boolean(flattenIngredientsForMenu(ingredients)),
+			hasPhoto: Boolean(photoUrl),
+			busy,
+		}),
+	);
 	const undoHint =
 		typeof navigator !== "undefined" &&
 		/Mac|iPhone|iPad/.test(navigator.platform || "")
@@ -693,56 +864,53 @@
 	});
 </script>
 
+{#snippet editPrices()}
+	<a class="edit-prices" href={menuTabPath(tabBase, "cost")}>
+		{morePrices ? `${morePrices} more on Pricing` : "Edit prices"}
+	</a>
+{/snippet}
+
 {#if item}
 	<form
 		class="editor"
+		novalidate
 		aria-busy={busy || undefined}
 		onsubmit={(e) => {
 			e.preventDefault();
-			if (busy) return;
-			onsave();
+			submit();
 		}}
 	>
 		<BusyOverlay active={busy} label={busyLabel} />
-		<EditorBackBar label="Menu" {dirty} onback={discardAndClose} />
+		<EditorBackBar label="Menu" onback={discardAndClose} />
 		<div class="split">
 
 			<div class="panel" class:dirty>
 				<header class="panel-head">
 					<div class="type-line">
 						<p class="eyebrow">{typeLine}</p>
-						{#if dirty}
-							<span
-								class="dirty-dot"
-								title="Unsaved"
-								aria-live="polite"
-							>
-								<span class="sr-only">Unsaved</span>
-							</span>
-						{/if}
 					</div>
 					<div class="head-tools">
 						<div class="toolbar-actions">
-							{#if item._id && item.name?.trim()}
-								<Button
+							<Button
 									variant="ghost"
 									size="sm"
 									type="button"
-									disabled={busy}
+									disabled={avail.print.disabled}
+									reason={avail.print.reason}
 									title="Print recipe"
 									aria-label="Print recipe"
 									onclick={() => void onprint?.()}
 								>
 									{#snippet icon()}
-										<Icon name="print" size={15} />
+										<Icon name="print" size={14} />
 									{/snippet}
 								</Button>
-							{/if}
 							<Button
 								variant="ghost"
 								size="sm"
 								type="button"
-								disabled={busy || !canUndo}
+								disabled={avail.undo.disabled}
+								reason={avail.undo.reason}
 								title={`Undo ${undoHint}`}
 								aria-label={`Undo last edit (${undoHint})`}
 								onclick={undo}
@@ -751,11 +919,13 @@
 									<Icon name="undo" />
 								{/snippet}
 							</Button>
+							<PageHelp />
 							<Button
 								variant="ghost"
 								size="sm"
 								type="button"
-								disabled={busy || !item._id}
+								disabled={avail.reload.disabled}
+								reason={avail.reload.reason}
 								title="Reload"
 								aria-label="Reload from server"
 								onclick={requestReload}
@@ -780,46 +950,27 @@
 						</div>
 					</div>
 					<div class="title-name">
-						<input
-							class="title-input"
-							id="f-name"
-							required
-							autocomplete="off"
-							aria-label="Drink name"
-							value={item.name || ""}
-							oninput={(e) =>
-								patch(
-									"name",
-									(e.currentTarget as HTMLInputElement).value,
-								)}
-						/>
-						{#if item.notes}
-							<p class="sub">{item.notes}</p>
+						<h1 class="title-text" class:placeholder={!item.name?.trim()}>
+							{item.name?.trim() || "New drink"}
+						</h1>
+						<!-- As on the website's digital menu: the description, then the tasting note in gold. -->
+						{#if item.description?.trim()}
+							<p class="sub">{item.description}</p>
+						{/if}
+						{#if item.notes?.trim()}
+							<p class="notes-line">{item.notes}</p>
 						{/if}
 					</div>
 					<div class="title-meta">
-						<div class="price-row">
-							<label class="sr-only" for="f-price">{priceFieldLabel} price</label>
-							<div class="price-edit">
-								<span class="pound" aria-hidden="true">£</span>
-								<input
-									class="price-input"
-									id="f-price"
-									inputmode="decimal"
-									autocomplete="off"
-									placeholder="0"
-									value={item.price || ""}
-									oninput={(e) =>
-										patch(
-											"price",
-											(e.currentTarget as HTMLInputElement).value,
-										)}
-								/>
-							</div>
+						<span class="price-label">
+							{priceFieldLabel === "Price" ? "Price" : `Price · ${priceFieldLabel}`}
+						</span>
+						<p class="price-readout tnum" class:muted={!item.price}>
+							{item.price ? `£${item.price}` : "No price"}
 							{#if item.priceAlt}
-								<span class="price-alt tnum">/ {item.priceAlt}</span>
+								<span class="price-alt">/ £{item.priceAlt}</span>
 							{/if}
-						</div>
+						</p>
 						{#if headerPourLabel}
 							<p
 								class="pour-readout tnum"
@@ -861,193 +1012,38 @@
 							}}
 						>
 					{#if tab === "details"}
-						<section class="details-board">
-							<div class="details-main">
-								<div class="grid">
-									<Field label="Drink type" for="f-drink-type">
-										<NativeSelect
-											id="f-drink-type"
-											size="sm"
-											options={drinkTypeOptions}
-											value={drinkType}
-											onchange={(e) =>
-												setDrinkType(
-													(e.currentTarget as HTMLSelectElement)
-														.value as DrinkType,
-												)}
-										/>
-									</Field>
-									{#if showRecipe}
-										<Field
-											label="Category"
-											for="f-cocktail-type"
-											tooltip="Build family: spritz, highball, stirred, and so on. Separate from where it sits on the menu."
-										>
-											<NativeSelect
-												id="f-cocktail-type"
-												size="sm"
-												options={cocktailTypeOptions}
-												value={normalizeCocktailType(item.cocktailType)}
-												onchange={(e) =>
-													patch(
-														"cocktailType",
-														normalizeCocktailType(
-															(e.currentTarget as HTMLSelectElement).value,
-														) as CocktailType | "",
-													)}
-											/>
-										</Field>
-									{:else}
-										<Field label="Producer" for="f-producer-d">
-											<TextField
-												id="f-producer-d"
-												size="sm"
-												value={item.producer || ""}
-												oninput={(e) =>
-													patch(
-														"producer",
-														(e.currentTarget as HTMLInputElement).value,
-													)}
-											/>
-										</Field>
-									{/if}
-									<div class="full">
-										<Field
-											label="Tasting note"
-											for="f-notes"
-											tooltip="Short line under the name."
-										>
-											<TextField
-												id="f-notes"
-												size="sm"
-												value={item.notes || ""}
-												placeholder="e.g. Floral fizz"
-												oninput={(e) =>
-													patch(
-														"notes",
-														(e.currentTarget as HTMLInputElement).value,
-													)}
-											/>
-										</Field>
-									</div>
-									<div class="full">
-										<Field
-											label="Menu description"
-											for="f-description"
-											tooltip="What guests read on the menu: the ingredient line or a longer blurb."
-										>
-											{#snippet actions()}
-												{#if showRecipe}
-													<Button
-														variant="ghost"
-														size="xs"
-														type="button"
-														aria-label="Fill in from ingredients"
-														title="Fill in from ingredients"
-														disabled={!flattenIngredientsForMenu(ingredients)}
-														onclick={createMenuLineFromIngredients}
-													>
-														{#snippet icon()}
-															<Icon name="from-list" size={14} />
-														{/snippet}
-													</Button>
-												{/if}
-											{/snippet}
-											<TextArea
-												id="f-description"
-												rows={3}
-												value={item.description || ""}
-												oninput={(e) =>
-													patch(
-														"description",
-														(e.currentTarget as HTMLTextAreaElement).value,
-													)}
-											/>
-										</Field>
-									</div>
-									<Field
-										label="ABV"
-										for="f-abv"
-										tooltip={showRecipe
-											? "Worked out from the ingredients. Type over it, or press the arrows to work it out again."
-											: undefined}
-									>
+						<div class="board">
+							<FormLead asideWidth="24rem" fill>
+								{#snippet aside()}
+									<FormHeading title="Photo">
 										{#snippet actions()}
-											{#if showRecipe}
-												<Button
-													variant="ghost"
-													size="xs"
-													type="button"
-													aria-label="Work out ABV and volume from ingredients"
-													title="Work out ABV and volume from ingredients"
-													disabled={!canRecalcRecipe}
-													onclick={recalculateRecipeMetrics}
-												>
-													{#snippet icon()}
-														<Icon name="refresh" />
-													{/snippet}
-												</Button>
-											{/if}
+										<PhotoActions
+											take={avail.takePhoto}
+											replace={avail.replacePhoto}
+											remove={avail.removePhoto}
+											onfile={onPhotoInput}
+											onremove={removePhoto}
+										/>
 										{/snippet}
-										<TextField
-											id="f-abv"
-											size="sm"
-											value={item.abv || ""}
-											oninput={(e) =>
-												patch(
-													"abv",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-									<Field
-										label="Volume"
-										for="f-volume"
-										tooltip={showRecipe
-											? "Worked out from the ingredients. Type over it if the glass holds a different amount."
-											: undefined}
+									</FormHeading>
+									<div
+										class="photo"
+										class:dragging={photoDragging}
+										role="group"
+										aria-label="Photo"
+										ondragenter={onPhotoDragEnter}
+										ondragover={onPhotoDragOver}
+										ondragleave={onPhotoDragLeave}
+										ondrop={onPhotoDrop}
 									>
-										<TextField
-											id="f-volume"
-											size="sm"
-											value={item.volume || ""}
-											oninput={(e) =>
-												patch(
-													"volume",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-							</div>
-
-							<aside
-								class="details-side photo"
-								class:dragging={photoDragging}
-								aria-label="Photo"
-								ondragenter={onPhotoDragEnter}
-								ondragover={onPhotoDragOver}
-								ondragleave={onPhotoDragLeave}
-								ondrop={onPhotoDrop}
-							>
-								<div class="photo-head">
-									<p class="photo-title">Photo</p>
-									{#if item._id}
-										<div class="photo-actions">
-											<label class="photo-btn camera">
-												<input
-													class="sr-only"
-													type="file"
-													accept="image/*"
-													capture="environment"
-													disabled={busy}
-													onchange={onPhotoInput}
-												/>
-												<Icon name="camera" size={15} />
-												Take photo
-											</label>
-										{#if photoUrl}
-											<label class="photo-btn">
+										{#if !item?._id}
+											<p class="photo-empty muted">No photo yet</p>
+										{:else if photoUrl}
+											<div class="photo-frame">
+												<img src={photoSrc} alt={item?.image?.alt || item?.name || ""} />
+											</div>
+										{:else}
+											<label class="photo-empty">
 												<input
 													class="sr-only"
 													type="file"
@@ -1055,122 +1051,210 @@
 													disabled={busy}
 													onchange={onPhotoInput}
 												/>
-												Replace
+												<Icon name="upload" size={18} />
+												<span class="photo-empty-label">Add photo</span>
+												<span class="photo-hint">or drop a picture here</span>
 											</label>
-											<button
-												class="photo-btn remove"
-												type="button"
-												disabled={busy}
-												onclick={removePhoto}
-											>
-												Remove
-											</button>
 										{/if}
-										</div>
-									{/if}
-								</div>
-								{#if !item._id}
-									<p class="photo-empty muted">Save the drink first, then add a photo.</p>
-								{:else if photoUrl}
-									<div class="photo-frame">
-										<img src={photoSrc} alt={item.image?.alt || item.name || ""} />
+										{#if photoDragging && item?._id}
+											<div class="photo-drop" aria-hidden="true">
+												<span>Drop to {photoUrl ? "replace" : "add"}</span>
+											</div>
+										{/if}
 									</div>
-								{:else}
-									<label class="photo-empty">
-										<input
-											class="sr-only"
-											type="file"
-											accept="image/jpeg,image/png,image/webp,image/gif"
-											disabled={busy}
-											onchange={onPhotoInput}
-										/>
-										<Icon name="upload" size={18} />
-										<span class="photo-empty-label">Add photo</span>
-										<span class="photo-hint">or drop a picture here</span>
-									</label>
-								{/if}
-								{#if photoDragging && item._id}
-									<div class="photo-drop" aria-hidden="true">
-										<span>Drop to {photoUrl ? "replace" : "add"}</span>
-									</div>
-								{/if}
-							</aside>
-						</section>
+								{/snippet}
 
-						<section class="block">
-							<div class="section-head">
-								<p class="section-title">{showRecipe ? "Ingredients" : "Serve"}</p>
-								<Button
-									variant="accent"
-									size="sm"
-									type="button"
-									onclick={() => (addIngredientOpen = true)}
-								>
-									{#snippet icon()}
-										<Icon name="plus" size={15} />
-									{/snippet}
-									{showRecipe ? "Add ingredient" : "Add stock"}
-								</Button>
-							</div>
-							<IngredientsGrid
-								ingredients={ingredients}
-								bind:inventory
-								onChange={onIngredientsChange}
-							/>
-						</section>
-
-						{#if showRecipe}
-							<section class="block">
-								<p class="section-title">How to make it</p>
-								<Field label="Method" for="f-method">
-									<MethodEditor
-										id="f-method"
-										value={item.method || ""}
-										onChange={(next) => patch("method", next)}
+								<Field class="lead-first span-6" label="Name" for="f-name" required error={errors.get("f-name")}>
+									<TextField
+										id="f-name"
+										size="sm"
+										autocomplete="off"
+										placeholder="Negroni"
+										value={item.name || ""}
+										oninput={(e) => patch("name", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
-								<div class="grid three">
-									<Field label="Glassware" for="f-glass">
+								<Field
+									class="span-6"
+									label="Tasting note"
+									for="f-notes"
+									required={showRecipe}
+									error={errors.get("f-notes")}
+									help="Tasting note"
+								>
+									<TextField
+										id="f-notes"
+										size="sm"
+										value={item.notes || ""}
+										placeholder="Floral fizz"
+										oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
+									/>
+								</Field>
+								<Field class="span-3" label="Drink type" for="f-drink-type" required>
+									<NativeSelect
+										id="f-drink-type"
+										size="sm"
+										options={drinkTypeOptions}
+										value={drinkType}
+										onchange={(e) =>
+											setDrinkType((e.currentTarget as HTMLSelectElement).value as DrinkType)}
+									/>
+								</Field>
+								{#if showRecipe}
+									<Field
+										class="span-3"
+										label="Category"
+										for="f-cocktail-type"
+										optional
+										help="Category"
+									>
 										<NativeSelect
-											id="f-glass"
+											id="f-cocktail-type"
 											size="sm"
-											options={glassOptions}
-											value={item.glassware || ""}
+											options={cocktailTypeOptions}
+											value={normalizeCocktailType(item.cocktailType)}
 											onchange={(e) =>
 												patch(
-													"glassware",
-													(e.currentTarget as HTMLSelectElement).value,
+													"cocktailType",
+													normalizeCocktailType(
+														(e.currentTarget as HTMLSelectElement).value,
+													) as CocktailType | "",
 												)}
 										/>
 									</Field>
-									<Field label="Ice" for="f-ice">
-										<NativeSelect
-											id="f-ice"
-											size="sm"
-											options={iceOptions}
-											value={item.ice || ""}
-											onchange={(e) =>
-												patch(
-													"ice",
-													(e.currentTarget as HTMLSelectElement).value,
-												)}
-										/>
-									</Field>
-									<Field label="Garnish" for="f-garnish">
+								{:else}
+									<Field class="span-3" label="Producer" for="f-producer-d" optional>
 										<TextField
-											id="f-garnish"
+											id="f-producer-d"
 											size="sm"
-											value={item.garnish || ""}
-											oninput={(e) =>
-												patch(
-													"garnish",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
+											value={item.producer || ""}
+											oninput={(e) => patch("producer", (e.currentTarget as HTMLInputElement).value)}
 										/>
 									</Field>
-								</div>
-							</section>
-						{/if}
+								{/if}
+								<Field
+									class={showSecondPrice ? "span-3" : "span-6"}
+									label={priceRows[0]?.name?.trim() || buildPriceLabels.primary}
+									for="f-price-0"
+									required
+									error={errors.get("f-price-0")}
+									actions={showSecondPrice ? undefined : editPrices}
+								>
+									<MoneyField
+										id="f-price-0"
+										size="sm"
+										value={priceRows[0]?.price || ""}
+										oninput={(e) => setBuildPrice(0, (e.currentTarget as HTMLInputElement).value)}
+										oncommit={(next) => setBuildPrice(0, next)}
+									/>
+								</Field>
+								{#if showSecondPrice}
+									<Field
+										class="span-3"
+										label={priceRows[1]?.name?.trim() || buildPriceLabels.alt || "Second price"}
+										for="f-price-1"
+										optional
+										error={errors.get("f-price-1")}
+										actions={editPrices}
+									>
+										<MoneyField
+											id="f-price-1"
+											size="sm"
+											value={priceRows[1]?.price || ""}
+											placeholder={secondSuggested != null ? `${secondSuggested} meets the pour target` : ""}
+											oninput={(e) => setBuildPrice(1, (e.currentTarget as HTMLInputElement).value)}
+											oncommit={(next) => setBuildPrice(1, next)}
+										/>
+									</Field>
+								{/if}
+								<Field
+									label="Menu description"
+									for="f-description"
+									required
+									error={errors.get("f-description")}
+									help="Menu description"
+								>
+									{#snippet actions()}
+										<Button
+											variant="ghost"
+											size="xs"
+											type="button"
+											disabled={avail.fromRecipe.disabled}
+											reason={avail.fromRecipe.reason}
+											onclick={createMenuLineFromIngredients}
+										>
+											{#snippet icon()}
+												<Icon name="from-list" size={14} />
+											{/snippet}
+											From recipe
+										</Button>
+									{/snippet}
+									<TextArea
+										id="f-description"
+										rows={3}
+										value={item.description || ""}
+										oninput={(e) => patch("description", (e.currentTarget as HTMLTextAreaElement).value)}
+									/>
+								</Field>
+							</FormLead>
+
+							<FormSection
+								title={showRecipe ? "Recipe" : "Serve"}
+								class="sec-recipe"
+								help={showRecipe ? "Recipe" : "Serve"}
+							>
+								{#snippet actions()}
+									<Button variant="outline" size="sm" type="button" onclick={() => (addIngredientOpen = true)}>
+										{#snippet icon()}
+											<Icon name="plus" size={15} />
+										{/snippet}
+										{showRecipe ? "Add ingredient" : "Add stock"}
+									</Button>
+								{/snippet}
+								<IngredientsGrid {ingredients} bind:inventory onChange={onIngredientsChange} />
+							</FormSection>
+
+							{#if showRecipe}
+								<FormSection title="Method" class="sec-method" help="Method and glassware">
+									<Field class="span-8" label="How to make it" for="f-method">
+										<MethodEditor
+											id="f-method"
+											value={item.method || ""}
+											onChange={(next) => patch("method", next)}
+										/>
+									</Field>
+									<div class="span-side form-stack">
+										<Field label="Glassware" for="f-glass">
+											<NativeSelect
+												id="f-glass"
+												size="sm"
+												options={glassOptions}
+												value={item.glassware || ""}
+												onchange={(e) => patch("glassware", (e.currentTarget as HTMLSelectElement).value)}
+											/>
+										</Field>
+										<Field label="Ice" for="f-ice">
+											<NativeSelect
+												id="f-ice"
+												size="sm"
+												options={iceOptions}
+												value={item.ice || ""}
+												onchange={(e) => patch("ice", (e.currentTarget as HTMLSelectElement).value)}
+											/>
+										</Field>
+										<Field label="Garnish" for="f-garnish" optional>
+											<TextField
+												id="f-garnish"
+												size="sm"
+												value={item.garnish || ""}
+												oninput={(e) => patch("garnish", (e.currentTarget as HTMLInputElement).value)}
+											/>
+										</Field>
+									</div>
+								</FormSection>
+							{/if}
+
+						</div>
 
 						<Dialog
 							open={addIngredientOpen}
@@ -1190,64 +1274,148 @@
 									type="button"
 									onclick={() => (addIngredientOpen = false)}
 								>
+									{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 									Done
 								</Button>
 							{/snippet}
 						</Dialog>
 					{:else if tab === "menu"}
-						<section class="block">
-							<p class="section-title">Menus</p>
-							<p class="lede-hint">Print, digital, and POS placements.</p>
-							<div class="grid">
-								<div class="full">
-									<Field
-										label="Till button name"
-										for="f-pos-name"
-										tooltip="Short name on the POS button. Leave blank to use the drink name. Serve sizes are added on export."
-									>
-										<TextField
-											id="f-pos-name"
-											size="sm"
-											value={item.lightspeedName || ""}
-											placeholder={item.name || "Same as drink name"}
-											oninput={(e) =>
-												patch(
-													"lightspeedName",
-													(e.currentTarget as HTMLInputElement).value,
-												)}
-										/>
-									</Field>
-								</div>
-								<div class="full">
-									<MenuPlacementsTable
-										menus={posMenus}
-										placements={item.placements || []}
-										sectionOptions={sectionOptions}
-										screenSuggestions={screenSuggestions}
-										defaultSectionId={item.sectionId || ""}
-										onchange={setPlacements}
+						<div class="board-tab">
+							<FormSection
+								title="On the menu"
+								class="sec-copy"
+							>
+								<Field
+									class="span-5"
+									label="ABV"
+									for="f-abv"
+									optional
+									error={errors.get("f-abv")}
+									help="ABV and Volume"
+								>
+									{#snippet actions()}
+										{@render metricButtons("abv", "ABV", abvActions, abvOverridden)}
+									{/snippet}
+									<NumberField
+										id="f-abv"
+										size="sm"
+										unit="%"
+										min={0}
+										max={100}
+										step={0.5}
+										decimals={1}
+										noun="a percentage"
+										readonly={!abvOverridden}
+										placeholder={abvOverridden ? undefined : "—"}
+										title={metricTitle(abvOverridden)}
+										leading={metricIcon(abvOverridden)}
+										value={stripUnit(abvOverridden ? item.abv : figures.abv, "%")}
+										oninput={(e) => patchWithUnit("abv", (e.currentTarget as HTMLInputElement).value)}
 									/>
-								</div>
-							</div>
-						</section>
-					{:else if tab === "cost"}
-						<section class="block">
-							{#if priceLive}
-								<PourCostPanel
-									price={priceLive}
-									priceValue={item.price || ""}
-									priceAltValue={item.priceAlt || ""}
-									onpricealt={(value) => patch("priceAlt", value)}
+								</Field>
+								<Field
+									class="span-5"
+									label="Volume"
+									for="f-volume"
+									optional
+									error={errors.get("f-volume")}
+									help="ABV and Volume"
+								>
+									{#snippet actions()}
+										{@render metricButtons("volume", "volume", volumeActions, volumeOverridden)}
+									{/snippet}
+									<NumberField
+										id="f-volume"
+										size="sm"
+										unit="ml"
+										min={0}
+										step={5}
+										decimals={0}
+										noun="millilitres"
+										example="120"
+										readonly={!volumeOverridden}
+										placeholder={volumeOverridden ? undefined : "—"}
+										title={metricTitle(volumeOverridden)}
+										leading={metricIcon(volumeOverridden)}
+										value={stripUnit(volumeOverridden ? item.volume : figures.volume, "ml")}
+										oninput={(e) => patchWithUnit("volume", (e.currentTarget as HTMLInputElement).value)}
+									/>
+								</Field>
+							</FormSection>
+							<FormSection title="Where it appears" help="Where it appears">
+								{#snippet actions()}
+									<OverflowMenu
+										text="Add placement"
+										icon="plus"
+										label="Add placement"
+										items={placementItems}
+									/>
+								{/snippet}
+								<MenuPlacementsTable
+									menus={posMenus}
+									placements={item.placements || []}
+									{sectionOptions}
+									{screenSuggestions}
+									drinkName={item.name || ""}
+									posName={item.lightspeedName || ""}
+									onposname={(next) => patch("lightspeedName", next)}
+									onchange={setPlacements}
 								/>
-							{:else}
-								<p class="section-title">Pour cost</p>
-								<p class="lede-hint">
-									{showRecipe
-										? "Add ingredients on Build to cost this drink."
-										: "Link stock on Build to cost this drink."}
+							</FormSection>
+						</div>
+					{:else if tab === "cost"}
+						<div class="board-tab">
+							<FormSection
+								title="Prices"
+								help="Prices"
+							>
+								{#snippet actions()}
+									<Button
+										variant="ghost"
+										size="sm"
+										type="button"
+										aria-label="Pour cost targets"
+										title="Pour targets"
+										onclick={() => (pourSettingsOpen = true)}
+									>
+										{#snippet icon()}
+											<Icon name="settings" size={14} />
+										{/snippet}
+									</Button>
+									<Button variant="outline" size="sm" type="button" onclick={addPrice}>
+										{#snippet icon()}
+											<Icon name="plus" size={15} />
+										{/snippet}
+										Add price
+									</Button>
+								{/snippet}
+								<PriceTable
+									rows={priceRows}
+									price={priceLive}
+									error={errors.get}
+									onchange={setPrices}
+								/>
+								<p class="price-note">
+									{#if !hasRecipeCost}
+										{showRecipe
+											? "Add ingredients on Build to cost this drink."
+											: "Link stock on Build to cost this drink."}
+									{:else}
+										Pour target {formatPourPercent(priceLive?.targetPourCost) || "n/a"}.
+										{#if priceLive?.hasEstimates}<span class="estimates">Includes estimates.</span>{/if}
+									{/if}
 								</p>
+							</FormSection>
+							{#if priceLive && hasRecipeCost}
+								<FormSection
+									title="Against the pour target"
+									help="The price bar"
+								>
+									<PriceGauges price={priceLive} />
+								</FormSection>
 							{/if}
-						</section>
+						</div>
+						<PourSettingsDialog open={pourSettingsOpen} onclose={() => (pourSettingsOpen = false)} />
 					{:else if tab === "analysis"}
 						<RecipeAnalysisPanel
 							{analysis}
@@ -1265,104 +1433,106 @@
 				</div>
 				</div>
 
-				<footer class="panel-foot">
-					{#if item._id}
-						<Button
-							class="delete-btn"
-							variant="destructive"
-							size="sm"
-							type="button"
-							disabled={busy}
-							busy={busy && busyLabel.startsWith("Deleting")}
-							onclick={requestDelete}
-						>
-							{#snippet icon()}
-								<Icon name="x-circle" />
-							{/snippet}
-							Delete
-						</Button>
-					{/if}
-					<Button
-						variant="primary"
-						size="sm"
-						type="submit"
-						disabled={busy}
-						busy={busy && busyLabel.startsWith("Saving")}
-					>
-						{#snippet icon()}
-							<Icon name="save" />
-						{/snippet}
-						{busy && busyLabel.startsWith("Saving") ? "Saving…" : "Save"}
-					</Button>
-				</footer>
+				<EditorActionBar
+					saveLabel="Save drink"
+					saving={busy && busyLabel.startsWith("Saving")}
+					disabled={busy}
+					{dirty}
+					errorCount={errors.count}
+					onerrors={() => void showErrors()}
+					overflow={[
+						{
+							label: "Delete drink",
+							tone: "destructive",
+							disabled: avail.delete.disabled,
+							reason: avail.delete.reason,
+							onselect: requestDelete,
+						},
+					]}
+				/>
 			</div>
 		</div>
 
-		<Dialog
+		<ConfirmDialog
 			open={discardOpen}
 			title="Discard unsaved changes?"
-			onclose={cancelDiscard}
-		>
-			<p class="delete-copy">
-				{discardKind === "reload"
-					? "Reload will discard unsaved changes."
-					: "You have edits that have not been saved. Close without saving?"}
-			</p>
-			{#snippet footer()}
-				<Button
-					variant="outline"
-					size="sm"
-					type="button"
-					onclick={cancelDiscard}
-				>
-					Keep editing
-				</Button>
-				<Button
-					variant="destructive"
-					size="sm"
-					type="button"
-					onclick={confirmDiscard}
-				>
-					Discard
-				</Button>
-			{/snippet}
-		</Dialog>
+			message={discardKind === "reload"
+				? "Reloading puts back what was last saved. Your edits will be lost."
+				: "You have edits that haven't been saved. They will be lost."}
+			action="Discard"
+			cancelLabel="Keep editing"
+			oncancel={cancelDiscard}
+			onconfirm={confirmDiscard}
+		/>
 
-		<Dialog
+		<ConfirmDialog
 			open={deleteOpen}
-			title="Delete drink?"
-			onclose={cancelDelete}
-		>
-			<p class="delete-copy">
-				Delete <strong>{item.name?.trim() || "this drink"}</strong> from the
-				menu? This cannot be undone.
-			</p>
-			{#snippet footer()}
-				<Button
-					variant="outline"
-					size="sm"
-					type="button"
-					disabled={busy}
-					onclick={cancelDelete}
-				>
-					Cancel
-				</Button>
-				<Button
-					variant="destructive"
-					size="sm"
-					type="button"
-					disabled={busy}
-					busy={busy && busyLabel.startsWith("Deleting")}
-					onclick={performDelete}
-				>
-					{busy && busyLabel.startsWith("Deleting") ? "Deleting…" : "Delete"}
-				</Button>
-			{/snippet}
-		</Dialog>
+			title={`Delete ${item.name?.trim() || "this drink"}?`}
+			message="It comes off every menu and the till export. This can't be undone."
+			action="Delete"
+			busyLabel="Deleting…"
+			busy={busy && busyLabel.startsWith("Deleting")}
+			disabled={busy}
+			oncancel={cancelDelete}
+			onconfirm={performDelete}
+		/>
 	</form>
 {/if}
 
+<HelpDrawer {help} />
+
+{#snippet lockedIcon()}<span class="metric-icon locked"><Icon name="lock" size={14} /></span>{/snippet}
+{#snippet handIcon()}<span class="metric-icon hand"><Icon name="pen" size={14} /></span>{/snippet}
+
+<!-- ABV / Volume: Override unlocks the figure for typing; Use recipe value locks it on the recipe's again. -->
+{#snippet metricButtons(metric: Metric, noun: string, state: MetricActions, overridden: boolean)}
+	{#if showRecipe}
+		<Badge
+			tone={overridden ? "info" : "neutral"}
+			label={overridden ? "By hand" : "Recipe"}
+			title={overridden ? "Set by hand" : "Worked out from the recipe"}
+		/>
+	{/if}
+	<Button
+		variant="ghost"
+		size="xs"
+		type="button"
+		aria-label="Override {noun}"
+		title="Override: type your own {noun}"
+		disabled={state.override.disabled}
+		reason={state.override.reason}
+		onclick={() => setMetricOverride(metric, true)}
+	>
+		{#snippet icon()}<Icon name="pen" size={14} />{/snippet}
+	</Button>
+	<Button
+		variant="ghost"
+		size="xs"
+		type="button"
+		aria-label="Use recipe {noun}"
+		title="Use recipe value: lock it on what the recipe works out"
+		disabled={state.useRecipe.disabled}
+		reason={state.useRecipe.reason}
+		onclick={() => setMetricOverride(metric, false)}
+	>
+		{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
+	</Button>
+{/snippet}
+
 <style>
+	/* Inside ABV / Volume: a lock while the figure follows the recipe, a pen once typed in. */
+	.metric-icon {
+		display: inline-flex;
+	}
+
+	.metric-icon.locked {
+		color: var(--muted-foreground);
+	}
+
+	.metric-icon.hand {
+		color: var(--primary);
+	}
+
 	.editor {
 		position: relative;
 		display: flex;
@@ -1378,7 +1548,7 @@
 		flex: 1;
 		min-height: 0;
 		height: 100%;
-		padding: var(--gap) var(--page-gutter) var(--gap);
+		padding: var(--space-4) var(--page-gutter) var(--space-4);
 	}
 
 	.type-line {
@@ -1386,7 +1556,7 @@
 		grid-row: 1;
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		align-self: center;
 		height: var(--control-h-sm);
@@ -1395,24 +1565,22 @@
 	.eyebrow {
 		min-width: 0;
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	.dirty-dot {
-		display: inline-flex;
-		flex-shrink: 0;
-		width: 0.45rem;
-		height: 0.45rem;
-		border-radius: 50%;
-		background: var(--destructive);
-		box-shadow: 0 0 0 3px var(--destructive-wash);
+	.price-label {
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: var(--tracking-label);
+		text-transform: uppercase;
+		color: var(--muted-foreground);
 	}
 
 	.head-tools {
@@ -1422,6 +1590,8 @@
 		align-items: center;
 		justify-self: end;
 		height: var(--control-h-sm);
+		/* The last icon's glyph lines up with the price's right edge, not its button box. */
+		margin-right: calc((var(--control-h-sm) - 1rem) / -2);
 	}
 
 	.panel {
@@ -1432,7 +1602,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 		transition: border-color var(--t-fast) var(--ease-in-out);
@@ -1446,10 +1616,10 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
-		column-gap: 0.85rem;
-		row-gap: 0.2rem;
+		column-gap: var(--space-3);
+		row-gap: var(--space-2);
 		flex-shrink: 0;
-		padding: 0.55rem var(--card-pad-lg) 0.75rem;
+		padding: var(--space-3) var(--card-pad-lg) var(--space-5);
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -1457,7 +1627,7 @@
 		display: flex;
 		align-items: center;
 		flex-shrink: 0;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		height: var(--control-h-sm);
 	}
 
@@ -1484,41 +1654,20 @@
 		grid-column: 1;
 	}
 
-	.title-input {
-		display: block;
-		width: 100%;
+	.title-text {
+		margin: 0;
 		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
-		font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		outline: none;
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
+		overflow-wrap: anywhere;
 	}
 
-	.title-input::placeholder {
-		color: var(--subtle-foreground);
-	}
-
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
+	.title-text.placeholder {
+		color: var(--muted-foreground);
 	}
 
 	.title-meta {
@@ -1532,94 +1681,38 @@
 		padding-top: 0.12rem;
 	}
 
-	.price-row {
-		display: flex;
-		align-items: baseline;
-		justify-content: flex-end;
-		gap: 0.35rem;
-		min-width: 0;
-	}
-
-	.price-edit,
-	.pound,
-	.price-input,
-	.price-alt {
-		font-family: var(--font);
-		font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+	.price-readout {
+		margin: 0;
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: 0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		color: var(--primary);
+		color: var(--foreground);
+		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
-	.price-edit {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0;
-		min-width: 0;
-		padding: 0.08em 0.28rem 0.18em 0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		transition:
-			border-color var(--t-fast) var(--ease-in-out),
-			background-color var(--t-fast) var(--ease-in-out),
-			box-shadow var(--t-fast) var(--ease-in-out);
-	}
-
-	.pound {
-		flex: none;
-		padding: 0;
-		margin: 0;
-		line-height: inherit;
-	}
-
-	.price-input {
-		width: auto;
-		min-width: 1.2ch;
-		max-width: 7ch;
-		box-sizing: content-box;
-		padding: 0;
-		margin: 0;
-		border: 0;
-		border-radius: 0;
-		background: transparent;
-		text-align: left;
-		field-sizing: content;
-		outline: none;
+	.price-readout.muted {
+		color: var(--muted-foreground);
+		font-size: var(--text-lg);
 	}
 
 	.price-alt {
-		color: color-mix(in srgb, var(--primary) 62%, var(--muted-foreground));
-		white-space: nowrap;
-	}
-
-	.price-edit:hover {
-		border-color: var(--border);
-	}
-
-	.price-edit:focus-within {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
-	}
-
-	.price-input::-webkit-outer-spin-button,
-	.price-input::-webkit-inner-spin-button {
-		appearance: none;
-		margin: 0;
+		color: var(--muted-foreground);
+		font-size: var(--text-lg);
 	}
 
 	.pour-readout {
 		margin: 0;
 		font-family: var(--font);
-		font-size: clamp(1.05rem, 1.6vw, 1.2rem);
+		font-size: var(--text-lg);
 		font-weight: 600;
-		letter-spacing: 0.02em;
 		line-height: 1.25;
 		color: var(--foreground);
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.pour-readout.up {
@@ -1641,52 +1734,44 @@
 		font-family: var(--font);
 		font-size: var(--text-xs);
 		font-weight: 500;
-		letter-spacing: 0.04em;
 		line-height: 1.2;
 		color: var(--muted-foreground);
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 
 	.sub {
-		margin: 0;
-		font-size: var(--text);
+		max-width: 60ch;
+		margin: var(--space-1) 0 0;
+		font-size: var(--text-base);
+		line-height: 1.5;
 		color: var(--muted-foreground);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 
-	.panel-foot {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		flex-shrink: 0;
-		margin-top: auto;
-		padding: 0.65rem var(--card-pad-lg) 0.85rem;
-		border-top: 1px solid var(--border);
-	}
-
-	.panel-foot :global(.delete-btn) {
-		margin-right: auto;
-	}
-
-	.delete-copy {
-		margin: 0;
-		font-size: 0.875rem;
-		line-height: 1.45;
-		color: var(--foreground);
-	}
-
-	.delete-copy strong {
+	.notes-line {
+		margin: var(--space-1) 0 0;
+		font-family: var(--font-display);
+		font-size: var(--text-sm);
 		font-weight: 600;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--primary);
 	}
 
 	.tabs {
 		flex-shrink: 0;
-		padding: 0.65rem var(--card-pad-lg) 0.35rem;
-		background: var(--card);
+		padding: var(--space-2) var(--card-pad-lg) 0;
+		background: transparent;
 		border-bottom: 1px solid var(--border);
 	}
 
+	/* One card: the sections sit on it, divided by rules. */
 	.tab-scroll {
 		position: relative;
 		flex: 1;
@@ -1706,169 +1791,88 @@
 		min-width: 0;
 	}
 
-	.block {
+	.board,
+	.board-tab {
 		display: grid;
-		gap: 0.85rem;
+		grid-template-columns: minmax(0, 1fr);
+		min-width: 0;
 	}
 
-	.block + .block,
-	.details-board + .block {
-		margin-top: 1.5rem;
+	/* Build's read-only price line: as tall as the controls beside it. */
+	.edit-prices {
+		font-size: var(--text-xs);
+		font-weight: 500;
+		color: var(--muted-foreground);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		border-radius: var(--radius-sm);
 	}
 
-	.section-title {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin: 0 0 0.65rem;
-		font-family: var(--font-display);
-		font-size: var(--text-md);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		line-height: 1.3;
-		color: var(--primary);
+	.edit-prices:hover {
+		color: var(--foreground);
 	}
 
-	.section-title::after {
-		content: "";
-		flex: 1 1 auto;
-		height: 1px;
-		min-width: 1.5rem;
-		background: var(--border-strong);
+	.edit-prices:focus-visible {
+		outline: 2px solid var(--primary);
+		outline-offset: 2px;
 	}
 
-	.section-head {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 0.65rem;
+	/* Touch: a 44px tap area that doesn't make the label row taller than its neighbours. */
+	@media (pointer: coarse) {
+		.edit-prices {
+			position: relative;
+		}
+
+		.edit-prices::after {
+			content: "";
+			position: absolute;
+			inset: calc((100% - 44px) / 2) -0.5rem;
+		}
 	}
 
-	.section-head .section-title {
-		flex: 1 1 auto;
+	.price-note {
 		margin: 0;
-		min-width: 0;
-	}
-
-	.grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-		gap: 0.8rem 0.85rem;
-		align-items: start;
-	}
-
-	.grid.three {
-		grid-template-columns: minmax(0, 1fr);
-	}
-
-	.full {
-		grid-column: 1 / -1;
-	}
-
-	/* Photo on top when narrow; beside the fields, top right, when wide. */
-	.details-board {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem 1.5rem;
-		align-items: start;
-	}
-
-	.details-main {
-		min-width: 0;
-	}
-
-	.details-side {
-		order: -1;
-		min-width: 0;
+		font-size: var(--text-xs);
+		line-height: 1.4;
+		color: var(--muted-foreground);
 	}
 
 	.photo {
 		position: relative;
 		display: grid;
-		gap: 0.6rem;
 	}
 
-	.photo-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		min-height: var(--control-h-sm);
-	}
-
-	.photo-title {
-		margin: 0;
-		font-size: var(--text-sm);
-		font-weight: 600;
-	}
-
-	.photo-actions {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-	}
-
-	.photo-btn {
-		display: inline-flex;
-		align-items: center;
-		height: var(--control-h-sm);
-		padding: 0 0.75rem;
-		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
-		color: inherit;
-		font: inherit;
-		font-size: var(--text-sm);
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.photo-btn {
-		gap: 0.4rem;
-	}
-
-	/* Phones and tablets only: opens the camera straight away. */
-	.photo-btn.camera {
-		display: none;
-	}
-
-	@media (pointer: coarse) {
-		.photo-btn.camera {
-			display: inline-flex;
+	/* Beside the fields: the photo fills their height (FormLead `fill`, same breakpoint). */
+	@container (min-width: 64rem) {
+		.photo {
+			min-height: 0;
 		}
-	}
 
-	.photo-btn:focus-within,
-	.photo-btn:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: 2px;
-	}
-
-	.photo-btn.remove:hover:not(:disabled),
-	.photo-btn.remove:focus-visible {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
-
-	.photo-btn:disabled {
-		cursor: not-allowed;
-		opacity: 0.6;
+		.photo-frame,
+		.photo-empty {
+			height: 100%;
+			aspect-ratio: auto;
+		}
 	}
 
 	.photo-frame,
 	.photo-empty {
 		width: 100%;
-		aspect-ratio: 16 / 10;
-		border-radius: 0.4rem;
+		aspect-ratio: 1;
+		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
 
 	.photo-frame {
+		position: relative;
 		border: 1px solid var(--border);
-		background: #0d0d0d;
+		background: var(--bg);
 	}
 
+	/* Out of flow, so the fields set the height and the photo fills it. */
 	.photo-frame img {
+		position: absolute;
+		inset: 0;
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -1879,11 +1883,11 @@
 		display: grid;
 		place-content: center;
 		justify-items: center;
-		gap: 0.3rem;
+		gap: var(--space-1);
 		margin: 0;
-		padding: 1rem;
-		border: 1px dashed var(--border);
-		background: var(--surface);
+		padding: var(--space-4);
+		border: 1px dashed var(--border-strong);
+		background: transparent;
 		color: var(--muted-foreground);
 		text-align: center;
 		cursor: pointer;
@@ -1891,7 +1895,7 @@
 
 	label.photo-empty:hover,
 	label.photo-empty:focus-within {
-		border-color: var(--border-strong, var(--border));
+		border-color: var(--primary);
 		color: var(--foreground);
 	}
 
@@ -1917,42 +1921,30 @@
 
 	.photo-drop {
 		position: absolute;
-		inset: calc(var(--control-h-sm) + 0.6rem) 0 0;
+		inset: 0;
 		display: grid;
 		place-content: center;
-		border-radius: 0.4rem;
+		border-radius: var(--radius-md);
 		background: color-mix(in srgb, var(--primary) 14%, transparent);
 		color: var(--primary);
 		font-weight: 600;
 		pointer-events: none;
 	}
 
-	@container drink-detail (min-width: 34rem) {
-		.grid.three {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
-		}
-	}
-
-	@container drink-detail (min-width: 46rem) {
-		.details-board {
-			grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
-		}
-
-		.details-side {
-			order: 0;
-		}
-
+	/* Stacked under the fields: a wide banner. */
+	@container (min-width: 30rem) and (max-width: 63.99rem) {
 		.photo-frame,
 		.photo-empty {
-			aspect-ratio: 1;
+			aspect-ratio: 21 / 9;
 		}
 	}
 
-	.lede-hint {
-		margin: -0.25rem 0 0.75rem;
-		font-size: var(--text-sm);
-		line-height: 1.45;
-		color: var(--muted-foreground);
+	/* Phones: a wide photo, so the fields under it stay in reach. */
+	@container drink-detail (max-width: 49.99rem) {
+		.photo-frame,
+		.photo-empty {
+			aspect-ratio: 16 / 10;
+		}
 	}
 
 	@media (max-width: 900px) {
@@ -1980,52 +1972,41 @@
 			grid-column: 1 / -1;
 			grid-row: 3;
 			align-items: flex-start;
-			padding-top: 0.35rem;
+			padding-top: var(--space-1);
 		}
 
-		.price-row,
 		.pour-readout {
-			justify-content: flex-start;
 			text-align: left;
 		}
 
 		.panel-head,
 		.tabs,
-		.tab-body,
-		.panel-foot {
+		.tab-body {
 			padding-left: max(var(--page-gutter), 1.125rem);
 			padding-right: max(var(--page-gutter), 1.125rem);
 		}
 
 		.tab-body {
-			padding-top: 1rem;
+			padding-top: var(--space-4);
 			padding-bottom: max(var(--page-gutter), 1.125rem);
 		}
 
-		.panel-foot {
-			padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0px));
-		}
 	}
 
 	@media (max-width: 880px) {
 		.head-tools {
 			flex-wrap: wrap;
 			height: auto;
-			row-gap: 0.35rem;
+			row-gap: var(--space-1);
 		}
 
-		.panel-foot {
-			padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-		}
 	}
 
 	@media (max-width: 600px) {
-		.title-input,
-		.price-edit,
-		.pound,
-		.price-input,
-		.price-alt {
-			font-size: 1.35rem;
+		.title-text,
+		.price-readout {
+			font-size: var(--text-xl);
+			letter-spacing: var(--tracking-xl);
 		}
 	}
 </style>

@@ -41,7 +41,8 @@ export function isSpaDocumentPath(pathname) {
     p === "/web" ||
     p.startsWith("/web/") ||
     p === "/forms" ||
-    p.startsWith("/forms/")
+    p.startsWith("/forms/") ||
+    p === "/more"
   );
 }
 
@@ -82,7 +83,7 @@ export const MENU_DETAIL_TABS = ["details", "menu", "cost", "analysis"];
 const MENU_TAB_IDS = new Set(MENU_DETAIL_TABS);
 /** Event editor tabs. `details` is the default and is omitted from the URL. */
 /** Publishing moved to Website > Preview → live; old /publish links land on details. */
-export const EVENT_DETAIL_TABS = ["details", "schedule", "gallery"];
+export const EVENT_DETAIL_TABS = ["details", "schedule", "ops", "gallery"];
 const EVENT_TAB_IDS = new Set(EVENT_DETAIL_TABS);
 /** Older drink tabs still resolve. */
 const MENU_TAB_ALIASES = new Map([
@@ -201,6 +202,7 @@ export function parseShellPath(path) {
     return { page: "suppliers" };
   }
   if (p === "/users" || p.startsWith("/users/")) return { page: "users" };
+  if (p === "/more") return { page: "more" };
   if (p === "/events" || p === "/events/nights" || p === "/events/schedule") {
     return {
       page: "events",
@@ -272,8 +274,12 @@ export function parseShellPath(path) {
     const part = decodeSegment(p.slice("/forms/".length).split("/")[0] || "");
     return { page: "forms", slug: part || null };
   }
-  if (p === "/config" || p.startsWith("/config/")) return { page: "config" };
-  if (p === "/sections" || p.startsWith("/sections/")) return { page: "sections" };
+  if (p === "/config" || p.startsWith("/config/")) {
+    const tab = decodeSegment(p.slice("/config/".length).split("/")[0] || "");
+    return { page: "config", tab: tab || null };
+  }
+  // Sections used to be a page of its own; it's a Configuration tab now.
+  if (p === "/sections" || p.startsWith("/sections/")) return { page: "config", tab: "sections" };
   return { page: "home" };
 }
 
@@ -390,6 +396,8 @@ export function editorKey(path) {
     if (route.slug) return `artists:${route.slug}`;
     return "artists";
   }
+  // A play application's guest-artist fields can be left unsaved.
+  if (route.page === "forms" && route.slug) return `forms:${route.slug}`;
   return route.page || "home";
 }
 
@@ -406,9 +414,8 @@ export function navigationLeavesEditor(fromPath, toPath) {
     from === "stock" ||
     from === "breakeven" ||
     from === "cashflow" ||
-    from === "config" ||
-    from === "sections" ||
     from === "users" ||
+    from === "more" ||
     from === "events" ||
     from === "artists" ||
     from === "web" ||

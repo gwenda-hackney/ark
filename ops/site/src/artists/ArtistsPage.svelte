@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { Icon } from "../app/shell";
 	import { onDestroy } from "svelte";
-	import { BusyOverlay, Button, PageHeader } from "../ui";
+	import { Badge, BusyOverlay, Button, EmptyState, PageHeader } from "../ui";
 	import ArtistCard from "./ArtistCard.svelte";
 	import { getArtist, getArtists, type ArtistSlot, type WallArtist } from "../app/api";
 	import { setCrumbLeaf } from "../ui/crumbs.svelte";
@@ -17,6 +18,11 @@
 		current: "Current",
 		next: "Next",
 		previous: "Previous",
+	};
+	const badgeTone: Record<ArtistSlot, "success" | "info" | "neutral"> = {
+		current: "success",
+		next: "info",
+		previous: "neutral",
 	};
 
 	let artists = $state<WallArtist[]>([]);
@@ -57,10 +63,6 @@
 			.catch((err) => {
 				if (cancelled) return;
 				const message = err instanceof Error ? err.message : "Could not load the artist.";
-				if (message.startsWith("auth:")) {
-					window.location.href = message.slice("auth:".length) || "/gate/";
-					return;
-				}
 				error = message;
 				editorArtist = null;
 			})
@@ -84,10 +86,6 @@
 			artists = data.artists || [];
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not load artists.";
-			if (message.startsWith("auth:")) {
-				window.location.href = message.slice("auth:".length) || "/gate/";
-				return;
-			}
 			error = message;
 		} finally {
 			listLoading = false;
@@ -139,20 +137,35 @@
 	{:else}
 		<div class="sheet scrollbar-fade">
 			<PageHeader
-				title="Artist"
+				title="Featured artist"
 				subtitle="Who is on the wall, who is next, and who has been here before."
 			>
 				{#snippet actions()}
 					<Button variant="primary" type="button" onclick={() => navigate("/artists/new")}>
+						{#snippet icon()}<Icon name="plus" size={16} />{/snippet}
 						Add artist
 					</Button>
 				{/snippet}
 			</PageHeader>
 
 			{#if error}
-				<p class="error">{error}</p>
-			{:else if !listLoading && artists.length === 0}
-				<p class="muted">No artists yet.</p>
+				<EmptyState tone="error" title="Could not load artists" text={error} />
+			{:else if listLoading && artists.length === 0}
+				<ul class="grid" aria-hidden="true">
+					{#each Array.from({ length: 6 }) as _, index (index)}
+						<li class="tile-skel">
+							<span class="skel frame-skel"></span>
+							<span class="skel line-skel"></span>
+						</li>
+					{/each}
+				</ul>
+				<span class="sr-only" role="status">Loading artists…</span>
+			{:else if artists.length === 0}
+				<EmptyState icon="artist" title="No artists yet" text="Add the artist whose work is on the wall, and who is next.">
+					{#snippet action()}
+						<Button size="sm" onclick={() => navigate("/artists/new")}>{#snippet icon()}<Icon name="plus" size={14} />{/snippet}Add artist</Button>
+					{/snippet}
+				</EmptyState>
 			{:else}
 				<ul class="grid">
 					{#each artists as artist (artist.id)}
@@ -164,7 +177,7 @@
 									{:else}
 										<span class="mark">{mark(artist.name)}</span>
 									{/if}
-									<span class="badge {artist.slot}">{badgeLabel[artist.slot]}</span>
+									<span class="slot"><Badge tone={badgeTone[artist.slot]} label={badgeLabel[artist.slot]} /></span>
 								</span>
 								<span class="name">{artist.name}</span>
 								{#if artist.website}
@@ -176,11 +189,26 @@
 				</ul>
 			{/if}
 		</div>
-		<BusyOverlay active={listLoading} label="Loading…" />
+		<BusyOverlay active={listLoading && artists.length > 0} label="Loading…" />
 	{/if}
 </div>
 
 <style>
+	.tile-skel {
+		display: grid;
+		gap: var(--space-2);
+	}
+
+	.frame-skel {
+		aspect-ratio: 1;
+		border-radius: var(--radius-lg);
+	}
+
+	.line-skel {
+		width: 60%;
+		height: 0.875rem;
+	}
+
 	.page {
 		position: relative;
 		display: flex;
@@ -200,14 +228,14 @@
 		list-style: none;
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-		gap: 0.9rem;
+		gap: var(--space-4);
 		margin: 0;
 		padding: 0;
 	}
 
 	.tile {
 		display: grid;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		min-width: 0;
 		color: inherit;
 		text-decoration: none;
@@ -220,7 +248,7 @@
 		aspect-ratio: 1;
 		overflow: hidden;
 		border: 1px solid var(--border);
-		border-radius: 0.45rem;
+		border-radius: var(--radius-md);
 		background: var(--background);
 	}
 
@@ -231,34 +259,20 @@
 	}
 
 	.mark {
-		font-size: 1.6rem;
+		font-size: var(--text-xl);
+		letter-spacing: var(--tracking-xl);
 		font-weight: 600;
 		color: var(--muted-foreground);
 	}
 
-	.badge {
+	/* The shared Badge, on a solid backing so its wash reads over the photo. */
+	.slot {
 		position: absolute;
 		top: 0.45rem;
 		left: 0.45rem;
-		padding: 0.12rem 0.45rem;
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--background) 88%, transparent);
-		font-size: 0.68rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-
-	.badge.current {
-		color: var(--primary);
-	}
-
-	.badge.next {
-		color: var(--foreground);
-	}
-
-	.badge.previous {
-		color: var(--muted-foreground);
+		display: inline-flex;
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
 	}
 
 	.name {
@@ -267,22 +281,16 @@
 	}
 
 	.meta,
-	.muted,
 	.error {
 		font-size: var(--text-sm);
 	}
 
-	.meta,
-	.muted {
+	.meta {
 		color: var(--muted-foreground);
 	}
 
 	.error {
 		margin: 0;
-		color: var(--destructive, #c97a7a);
-	}
-
-	.muted {
-		margin: 0;
+		color: var(--danger);
 	}
 </style>

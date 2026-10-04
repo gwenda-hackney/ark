@@ -1,420 +1,604 @@
 <script lang="ts">
+	/**
+	 * Dashboard: what to do first, then tonight, the site, errors, applications,
+	 * website updates and drinks. Three sources load side by side (the dashboard
+	 * summary, Sentry, and the menu for drinks) and each card shows its own
+	 * loading and error state, so one failure never blanks the page.
+	 */
 	import { onMount } from "svelte";
-	import { fly } from "svelte/transition";
-	import { BusyOverlay, Card, PageHeader } from "../ui";
+	import { Badge, PageHeader } from "../ui";
 	import Icon from "../app/shell/Icon.svelte";
-	import { easeOut, flyMs } from "../ui/motion";
 	import * as api from "../app/api";
-	import type { WebStatus } from "../app/api";
-	import {
-		issueHeat,
-		marginAgainstTargetHeat,
-		marginHeat,
-		menuItemsFromSections,
-		missMagnitude,
-		ON_TARGET_BAND,
-		pourDelta as pourCostDelta,
-		summarizeDashboard,
-		type DashboardSummary,
-		type FlaggedRecipe,
-		type Heat,
-	} from "./dashboard";
-	import { formatPourPercent } from "../menu/cost";
-	import { loginNext } from "../app/nav";
 	import { pourSettings } from "../config/settings.svelte";
 	import type { InventoryItem } from "../inventory/types";
 	import type { MenuSection } from "../menu/types";
+	import DashCard from "./DashCard.svelte";
+	import type { DashboardData, HealthSite, WebsiteErrors } from "./dashboard-data";
 	import {
-		buildSyncMetrics,
-		formatWhen,
-		healthLabel,
-		healthTone,
-	} from "../website/web-metrics";
+		SENTRY_ISSUES_URL,
+		agendaDate,
+		applicationsSummary,
+		clockTime,
+		drinkReason,
+		featuredArtistEnding,
+		groupNights,
+		marginLine,
+		menuItemsFromSections,
+		needsAttention,
+		nightHref,
+		nightStatus,
+		nightTime,
+		plural,
+		relativeTime,
+		siteHealthState,
+		siteSummary,
+		summarizeDrinks,
+		type Tone,
+	} from "./dashboard";
 
-	let sections = $state<MenuSection[]>([]);
-	let inventory = $state<InventoryItem[]>([]);
-	let webStatus = $state<WebStatus | null>(null);
-	let loaded = $state(false);
-	let loadError = $state("");
+	type Load<T> = { state: "loading" } | { state: "error"; error: string } | { state: "ready"; data: T };
 
-	const ready = $derived(loaded && pourSettings.loaded && !loadError);
-	const summary = $derived.by((): DashboardSummary | null => {
-		if (!ready) return null;
-		return summarizeDashboard(
-			menuItemsFromSections(sections),
-			inventory,
-			pourSettings.targets,
-		);
-	});
+	let dashboard = $state<Load<DashboardData>>({ state: "loading" });
+	let errors = $state<Load<WebsiteErrors>>({ state: "loading" });
+	let drinks = $state<Load<{ sections: MenuSection[]; inventory: InventoryItem[] }>>({ state: "loading" });
+	let now = $state(Date.now());
 
-	function signedPercent(value: number | null | undefined): string {
-		if (value == null) return "";
-		const text = formatPourPercent(value);
-		return value > 0 ? `+${text}` : text;
+	function failMessage(err: unknown, fallback: string): string {
+		// Signed out is handled once in api.ts (the splash, then the gate).
+		const message = err instanceof Error ? err.message : fallback;
+		return message || fallback;
 	}
 
-	function share(part: number, total: number): number {
-		if (!total) return 0;
-		return Math.round((part / total) * 1000) / 10;
-	}
-
-	function rowFill(row: FlaggedRecipe): number {
-		return missMagnitude(pourCostDelta(row.pourCost, row.targetPourCost), row.margin);
-	}
-
-	function rowTone(row: FlaggedRecipe): "up" | "down" | "loss" {
-		if (row.margin != null && row.margin < 0) return "loss";
-		const delta = pourCostDelta(row.pourCost, row.targetPourCost);
-		if (delta != null && delta > 0) return "down";
-		return "up";
-	}
-
-	function issueWeight(row: FlaggedRecipe): number {
-		return row.critical * 2 + row.warning;
-	}
-
-	const recipeTone = $derived.by((): Heat | "caution" => {
-		if (!summary) return "ok";
-		if (summary.recipesWithCritical > 0) {
-			return issueHeat(summary.recipesWithCritical, summary.recipeCount);
+	async function loadDashboard() {
+		dashboard = { state: "loading" };
+		try {
+			dashboard = { state: "ready", data: await api.getDashboard() };
+			now = Date.now();
+		} catch (err) {
+			dashboard = { state: "error", error: failMessage(err, "Could not load the dashboard.") };
 		}
-		if (summary.recipesWithWarning > 0) return "caution";
-		return "ok";
-	});
-
-	const marginTone = $derived.by((): Heat => {
-		if (!summary) return "ok";
-		return marginHeat(summary.overTarget, summary.recipesAtLoss, summary.recipesPriced);
-	});
-
-	const gmHeat = $derived.by((): Heat => {
-		if (!summary) return "ok";
-		return marginAgainstTargetHeat(summary.marginVsTarget, summary.avgGrossMargin);
-	});
-
-	function gmValueTone(
-		margin: number | null,
-		delta: number | null,
-	): "up" | "down" | "loss" | "muted" {
-		if (margin == null) return "muted";
-		if (margin < 0) return "loss";
-		if (delta == null) return "muted";
-		if (delta < -ON_TARGET_BAND) return "down";
-		return "up";
 	}
 
-	function gmVerdict(delta: number, target: number): string {
-		const targetText = formatPourPercent(target);
-		if (Math.abs(delta) <= ON_TARGET_BAND) return `On the ${targetText} house target`;
-		if (delta > 0) return `${formatPourPercent(delta)} above the ${targetText} house target`;
-		return `${formatPourPercent(Math.abs(delta))} under the ${targetText} house target`;
+	async function loadErrors() {
+		errors = { state: "loading" };
+		try {
+			errors = { state: "ready", data: await api.getWebsiteErrors() };
+		} catch (err) {
+			failMessage(err, "");
+			// The server's message for a Sentry failure is generic; say what failed.
+			errors = { state: "error", error: "Could not read errors from Sentry." };
+		}
 	}
 
-	const issueMaxWeight = $derived(
-		summary
-			? Math.max(1, ...summary.flaggedRecipes.slice(0, 8).map(issueWeight))
-			: 1,
-	);
-
-	const previewEnv = $derived(webStatus?.environments.preview ?? null);
-	const productionEnv = $derived(webStatus?.environments.production ?? null);
-	const syncMetrics = $derived(
-		previewEnv && productionEnv
-			? buildSyncMetrics(previewEnv, productionEnv)
-			: [],
-	);
-
-	const prodHealth = $derived(productionEnv?.health ?? null);
-	const prodHealthTone = $derived(healthTone(productionEnv));
-	const prodHealthLabel = $derived(healthLabel(productionEnv));
+	async function loadDrinks() {
+		drinks = { state: "loading" };
+		try {
+			const [menu, stock] = await Promise.all([api.getMenu(), api.getInventory(false)]);
+			drinks = { state: "ready", data: { sections: menu.sections || [], inventory: stock.items || [] } };
+		} catch (err) {
+			drinks = { state: "error", error: failMessage(err, "Could not load the menu.") };
+		}
+	}
 
 	onMount(() => {
-		Promise.all([api.getMenu(), api.getInventory(false), api.getWebStatus().catch(() => null)])
-			.then(([menuData, inventoryData, web]) => {
-				sections = menuData.sections || [];
-				inventory = inventoryData.items || [];
-				webStatus = web;
-				loadError = "";
-			})
-			.catch((err) => {
-				const message =
-					err instanceof Error ? err.message : "Failed to load dashboard.";
-				if (message.startsWith("auth:")) {
-					window.location.href = `/api/auth/login?next=${encodeURIComponent(loginNext("/"))}`;
-					return;
-				}
-				loadError = message;
-			})
-			.finally(() => {
-				loaded = true;
-			});
+		void loadDashboard();
+		void loadErrors();
+		void loadDrinks();
 	});
+
+	const data = $derived(dashboard.state === "ready" ? dashboard.data : null);
+	const errorData = $derived(errors.state === "ready" ? errors.data : null);
+
+	/** A card's state from the whole summary and its own section. */
+	function sectionState(key: keyof Omit<DashboardData, "ok" | "checkedAt">) {
+		if (dashboard.state === "loading") return { state: "loading" as const, error: "" };
+		if (dashboard.state === "error") return { state: "error" as const, error: dashboard.error };
+		const section = dashboard.data[key];
+		return section.ok ? { state: "ready" as const, error: "" } : { state: "error" as const, error: section.error };
+	}
+
+	const attention = $derived(
+		needsAttention(data, errorData, { errorsFailed: errors.state === "error" }),
+	);
+	const attentionLoading = $derived(dashboard.state === "loading" || errors.state === "loading");
+
+	const events = $derived(data?.events.ok ? data.events.data : null);
+	const jobs = $derived(data?.jobs.ok ? data.jobs.data.jobs : null);
+	const nightGroups = $derived(events ? groupNights(events.nights, events.today) : []);
+	const eventsCard = $derived(sectionState("events"));
+
+	const health = $derived(data?.health.ok ? data.health.data : null);
+	const healthCard = $derived(sectionState("health"));
+
+	const applications = $derived(applicationsSummary(data?.forms.ok ? data.forms.data : null, now));
+	const formsCard = $derived(sectionState("forms"));
+
+	const pending = $derived(data?.pending.ok ? data.pending.data : null);
+	const pendingCard = $derived(sectionState("pending"));
+	const failedJobs = $derived((jobs || []).filter((job) => job.state === "failed"));
+	const waitingEvents = $derived(events?.waitingForUpdate || []);
+	const websiteQuiet = $derived(
+		Boolean(pending) &&
+			!pending!.production.count &&
+			!pending!.production.failed &&
+			!pending!.production.updating &&
+			!failedJobs.length &&
+			!waitingEvents.length,
+	);
+
+	const artistEnding = $derived(
+		featuredArtistEnding(data?.artists.ok ? data.artists.data : null, new Date(now)),
+	);
+
+	const drinkSummary = $derived(
+		drinks.state === "ready" && pourSettings.loaded
+			? summarizeDrinks(menuItemsFromSections(drinks.data.sections), drinks.data.inventory, pourSettings.targets)
+			: null,
+	);
+	const margin = $derived(drinkSummary ? marginLine(drinkSummary) : null);
+	const drinksState = $derived.by(() => {
+		if (drinks.state === "error") return "error" as const;
+		if (!drinkSummary) return "loading" as const;
+		if (!drinkSummary.rows.length) return "clear" as const;
+		return "ready" as const;
+	});
+
+	const healthSites = $derived(
+		health ? ([health.production, health.preview].filter(Boolean) as HealthSite[]) : [],
+	);
+	const lastChecked = $derived.by(() => {
+		const times = healthSites.map((site) => Number(site.lastCheckedAt) || Date.parse(String(site.lastCheckedAt)));
+		const latest = Math.max(...times.filter(Number.isFinite), 0);
+		return latest ? clockTime(latest) : data ? clockTime(data.checkedAt) : "";
+	});
+
+	type Tile = {
+		key: string;
+		label: string;
+		/** Phones: fits half the screen. */
+		short: string;
+		icon: string;
+		href: string;
+		external?: boolean;
+		state: "loading" | "ready";
+		value: string;
+		sub: string;
+		tone: Tone;
+	};
+
+	const tiles = $derived.by((): Tile[] => {
+		const site = health?.production ?? null;
+		const siteState = siteHealthState(site);
+		const checks = site?.checks || [];
+		const passing = checks.filter((check) => check.ok).length;
+		const live = pending?.production;
+		const waiting = waitingEvents.length + (live?.count || 0);
+		return [
+			{
+				key: "site",
+				label: "Website",
+				short: "Website",
+				icon: "web",
+				href: "/web",
+				state: healthCard.state === "loading" ? "loading" : "ready",
+				value: healthCard.state === "error" ? "—" : siteState.label,
+				sub:
+					healthCard.state === "error"
+						? "Could not check"
+						: checks.length
+							? `${passing} of ${checks.length} checks OK`
+							: "No results yet",
+				tone: healthCard.state === "error" ? "muted" : siteState.tone,
+			},
+			{
+				key: "errors",
+				label: "Errors, 24h",
+				short: "Errors, 24h",
+				icon: "alert",
+				href: SENTRY_ISSUES_URL,
+				external: true,
+				state: errors.state === "loading" ? "loading" : "ready",
+				value: errorData?.configured ? (errorData.capped ? `${errorData.total}+` : String(errorData.total)) : "—",
+				sub:
+					errors.state === "error"
+						? "Could not read Sentry"
+						: !errorData?.configured
+							? "Not set up"
+							: errorData.newCount
+								? `${errorData.newCount} new`
+								: "Nothing new",
+				tone: errorData?.configured ? (errorData.newCount ? "danger" : errorData.total ? "warning" : "success") : "muted",
+			},
+			{
+				key: "waiting",
+				label: "Waiting for the website",
+				short: "To publish",
+				icon: "upload",
+				href: "/web",
+				state: pendingCard.state === "loading" || eventsCard.state === "loading" ? "loading" : "ready",
+				value: pendingCard.state === "error" ? "—" : String(waiting),
+				sub: live?.failed
+					? "Last update failed"
+					: live?.updating
+						? "Updating now"
+						: waiting
+							? "Use Update website"
+							: "Up to date",
+				tone: live?.failed ? "danger" : waiting ? "warning" : "success",
+			},
+			{
+				key: "applications",
+				label: "Applications to review",
+				short: "To review",
+				icon: "forms",
+				href: "/forms",
+				state: formsCard.state === "loading" ? "loading" : "ready",
+				value: formsCard.state === "error" ? "—" : String(applications.count),
+				sub:
+					formsCard.state === "error"
+						? "Could not load"
+						: applications.count
+							? `Oldest sent ${applications.oldest}`
+							: "None waiting",
+				tone: formsCard.state === "error" ? "muted" : applications.count ? "warning" : "success",
+			},
+		];
+	});
+
+	/** Attention items, plus the featured artist running out (not counted by needsAttention). */
+	const attentionItems = $derived(
+		artistEnding
+			? [
+					...attention.items,
+					{
+						key: "artist",
+						count: 1,
+						label: `featured artist ends this month, nobody next`,
+						href: "/artists",
+						tone: "warning" as Tone,
+					},
+				]
+			: attention.items,
+	);
+
+	function siteName(site: HealthSite): string {
+		return site.id === "production" ? "Website" : "Preview site";
+	}
 </script>
 
 <div class="dash scrollbar-fade">
-	<PageHeader
-		title="Dashboard"
-		subtitle="Stock that needs a look, then how the website is syncing and whether it is up."
-	/>
+	<PageHeader title="Dashboard" />
 
-	{#if loadError}
-		<p class="error">{loadError}</p>
-	{:else if ready && summary}
-		<div
-			class="ready"
-			in:fly={{ y: 10, duration: flyMs, easing: easeOut }}
-		>
-		<section class="section" aria-labelledby="dash-stock">
-			<h2 class="section-kicker" id="dash-stock">Stock</h2>
-		<div class="panels">
-			<Card
-				fill
-				class="heat-{recipeTone}"
-				title="Flagged recipes"
-				subtitle="Critical serve problems first, then warnings from spec analysis and missing data."
-			>
-					<div class="pair">
-						<div
-							class="fig"
-							class:down={summary.recipesWithCritical > 0}
-							class:up={summary.recipesWithCritical === 0 && summary.recipesWithWarning === 0}
+	{#if attentionItems.length}
+		<section class="attention" aria-labelledby="attention-title">
+			<h2 id="attention-title" class="attention-label">
+				Needs attention <span class="attention-total tnum">{attentionItems.length}</span>
+			</h2>
+			<ul class="attention-list">
+				{#each attentionItems as item (item.key)}
+					<li>
+						<a
+							class="attention-item {item.tone}"
+							href={item.href}
+							target={item.external ? "_blank" : undefined}
+							rel={item.external ? "noreferrer" : undefined}
 						>
-							<p class="value tnum">{summary.recipesWithCritical}</p>
-							<p class="fig-label">Critical</p>
-						</div>
-						<div
-							class="fig"
-							class:warn={summary.recipesWithWarning > 0}
-							class:up={summary.recipesWithWarning === 0 && summary.recipesWithCritical === 0}
-						>
-							<p class="value tnum">{summary.recipesWithWarning}</p>
-							<p class="fig-label">Warnings</p>
-						</div>
-					</div>
-					<div class="meter" aria-hidden="true">
-						<span
-							class="fill down"
-							style:width="{share(summary.recipesWithCritical, summary.recipeCount)}%"
-						></span>
-						<span
-							class="fill warn"
-							style:width="{share(
-								Math.max(0, summary.recipesWithIssues - summary.recipesWithCritical),
-								summary.recipeCount,
-							)}%"
-						></span>
-					</div>
-					{#if summary.flaggedRecipes.length}
-						<ul class="list scrollbar-fade">
-							{#each summary.flaggedRecipes.slice(0, 8) as row (row.id)}
-								<li>
-									<div class="row-top">
-										<a class="name" href={row.href}>{row.name}</a>
-										<span class="counts">
-											{#if row.critical}
-												<span class="count down">
-													<span class="count-n tnum">{row.critical}</span>
-													crit
-												</span>
-											{/if}
-											{#if row.warning}
-												<span class="count warn">
-													<span class="count-n tnum">{row.warning}</span>
-													warn
-												</span>
-											{/if}
-										</span>
-									</div>
-									<div class="meter" aria-hidden="true">
-										<span
-											class="fill down"
-											style:width="{share(row.critical * 2, issueMaxWeight)}%"
-										></span>
-										<span
-											class="fill warn"
-											style:width="{share(row.warning, issueMaxWeight)}%"
-										></span>
-									</div>
-								</li>
-							{/each}
-						</ul>
-						{#if summary.flaggedRecipes.length > 8}
-							<p class="more">
-								{summary.flaggedRecipes.length - 8} more on Menu items.
-							</p>
-						{/if}
-					{:else}
-						<p class="empty">No recipe issues. Open a drink to read the full spec analysis.</p>
-					{/if}
-				{#snippet footer()}
-					<a class="go" href="/menu">
-						Menu items
-						<Icon name="chevron-right" size={16} />
-					</a>
-				{/snippet}
-			</Card>
-
-			<Card
-				fill
-				class={summary.avgGrossMargin != null ? `heat-${gmHeat}` : `heat-${marginTone}`}
-				title="Margin"
-				subtitle="Average gross margin against the house target, then drinks that miss it."
-			>
-					<div class="pair">
-						<div class="fig {gmValueTone(summary.avgGrossMargin, summary.marginVsTarget)}">
-							<p class="value tnum">
-								{summary.avgGrossMargin == null
-									? "n/a"
-									: formatPourPercent(summary.avgGrossMargin)}
-							</p>
-							<p class="fig-label">Gross margin</p>
-						</div>
-						<div
-							class="fig"
-							class:down={summary.overTarget > 0}
-							class:up={summary.overTarget === 0 && summary.recipesPriced > 0}
-						>
-							<p class="value tnum">
-								{summary.recipesPriced ? summary.overTarget : "n/a"}
-							</p>
-							<p class="fig-label">Over target</p>
-						</div>
-					</div>
-					{#if summary.avgGrossMargin != null && summary.avgTargetMargin != null}
-						{@const delta = summary.marginVsTarget}
-						{@const tone = gmValueTone(summary.avgGrossMargin, delta)}
-						<p class="hint {tone}">
-							{#if delta == null}
-								House target {formatPourPercent(summary.avgTargetMargin)}.
-							{:else}
-								{gmVerdict(delta, summary.avgTargetMargin)}.
-							{/if}
-							{summary.overTarget} over · {summary.onTarget} on · {summary.underTarget} under.
-						</p>
-					{/if}
-					<div
-						class="meter"
-						aria-hidden="true"
-						title="{summary.overTarget} of {summary.recipesPriced} priced drinks miss the house target"
-					>
-						<span
-							class="fill"
-							class:down={summary.recipesAtLoss === 0}
-							class:loss={summary.recipesAtLoss > 0}
-							style:width="{share(summary.overTarget, summary.recipesPriced)}%"
-						></span>
-					</div>
-					{#if summary.pourOutliers.length}
-						<ul class="list scrollbar-fade">
-							{#each summary.pourOutliers.slice(0, 8) as row (row.id)}
-								{@const tone = rowTone(row)}
-								{@const delta = pourCostDelta(row.pourCost, row.targetPourCost)}
-								<li>
-									<div class="row-top">
-										<a class="name" href={row.href}>{row.name}</a>
-										<span class="figure tnum {tone}">
-											{formatPourPercent(row.margin)}
-											{#if row.margin != null && row.margin < 0}
-												<span class="badge">below cost</span>
-											{:else if delta != null}
-												<span class="delta">{signedPercent(delta)} over</span>
-											{/if}
-										</span>
-									</div>
-									<div class="meter" aria-hidden="true">
-										<span class="fill {tone}" style:width="{rowFill(row) * 100}%"></span>
-									</div>
-								</li>
-							{/each}
-						</ul>
-					{:else}
-						<p class="empty">
-							{#if summary.recipesPriced === 0}
-								Cost recipes and set menu prices to see gross margin.
-							{:else}
-								Priced drinks sit on the house target.
-							{/if}
-						</p>
-					{/if}
-				{#snippet footer()}
-					<a class="go" href="/config">
-						Pour targets
-						<Icon name="chevron-right" size={16} />
-					</a>
-				{/snippet}
-			</Card>
-		</div>
-		</section>
-
-		<section class="section" aria-labelledby="dash-web">
-			<h2 class="section-kicker" id="dash-web">Web</h2>
-			<div class="panels web">
-				<Card
-					fill
-					title="Sync"
-					subtitle="Preview against production."
-				>
-					{#if !webStatus || !previewEnv || !productionEnv}
-						<p class="empty">Website status did not load.</p>
-					{:else}
-						<div class="metrics">
-							{#each syncMetrics as metric (metric.label)}
-								<div class="metric" title={metric.title}>
-									<p class="metric-label">{metric.label}</p>
-									<p class="metric-value tnum {metric.tone}">{metric.value}</p>
-								</div>
-							{/each}
-						</div>
-					{/if}
-					{#snippet footer()}
-						<a class="go" href="/web">
-							Web
-							<Icon name="chevron-right" size={16} />
+							<span class="attention-icon" aria-hidden="true"><Icon name="alert" size={14} /></span>
+							<span class="attention-text"><strong class="tnum">{item.count}</strong> {item.label}</span>
+							<Icon name={item.external ? "external-link" : "chevron-right"} size={14} />
 						</a>
-					{/snippet}
-				</Card>
-
-				<Card
-					fill
-					title="Health"
-					subtitle="Production only."
-				>
-					{#if !productionEnv}
-						<p class="empty">Website status did not load.</p>
-					{:else}
-						<p class="health-mark {prodHealthTone}">{prodHealthLabel}</p>
-						<p class="health-site">
-							{#if productionEnv.siteUrl}
-								<a href={productionEnv.siteUrl} target="_blank" rel="noreferrer">
-									{productionEnv.siteUrl.replace(/^https:\/\//, "")}
-								</a>
-							{:else}
-								gwenda.co.uk
-							{/if}
-						</p>
-						<p class="hint">
-							Last check {formatWhen(prodHealth?.lastCheckedAt)}.
-							{#if prodHealth?.consecutiveFails}
-								{" "}{prodHealth.consecutiveFails} failed
-								{prodHealth.consecutiveFails === 1 ? "check" : "checks"} in a row.
-							{/if}
-						</p>
-						{#if prodHealth?.lastError}
-							<p class="hint down">{prodHealth.lastError}</p>
-						{/if}
-					{/if}
-					{#snippet footer()}
-						<a class="go" href="/web">
-							Web
-							<Icon name="chevron-right" size={16} />
-						</a>
-					{/snippet}
-				</Card>
-			</div>
+					</li>
+				{/each}
+			</ul>
 		</section>
-		</div>
+	{:else if !attentionLoading && attention.allClear}
+		<p class="all-clear">
+			<Icon name="check" size={16} />
+			<span><strong>All clear.</strong> {attention.allClearText}.</span>
+			{#if lastChecked}<span class="checked tnum">Checked {lastChecked}</span>{/if}
+		</p>
+	{:else if !attentionLoading && attention.unknown.length}
+		<p class="attention-unknown">Could not check {attention.unknown.join(", ")}.</p>
 	{/if}
-	<BusyOverlay active={!ready && !loadError} label="Loading…" />
+
+	<div class="board">
+		<ul class="tiles" aria-label="At a glance">
+			{#each tiles as tile (tile.key)}
+				<li>
+					<a
+						class="tile {tile.tone}"
+						href={tile.href}
+						target={tile.external ? "_blank" : undefined}
+						rel={tile.external ? "noreferrer" : undefined}
+						aria-busy={tile.state === "loading"}
+					>
+						<span class="tile-label">
+							<span class="tile-icon"><Icon name={tile.icon} size={14} /></span>
+							<span class="long">{tile.label}</span>
+							<span class="short">{tile.short}</span>
+						</span>
+						{#if tile.state === "loading"}
+							<span class="skel tile-skel" aria-hidden="true"></span>
+							<span class="sr-only">Loading…</span>
+						{:else}
+							<span class="tile-value tnum">{tile.value}</span>
+							<span class="tile-sub"><span class="dot" aria-hidden="true"></span>{tile.sub}</span>
+						{/if}
+					</a>
+				</li>
+			{/each}
+		</ul>
+
+		<div class="cell week">
+			<DashCard
+				id="tonight"
+				title="This week"
+				state={eventsCard.state === "ready" && !nightGroups.length ? "clear" : eventsCard.state}
+				error={eventsCard.error}
+				clearText="Nothing on in the next 7 days."
+				href="/events/schedule"
+				linkLabel="Schedule"
+				skeletonRows={4}
+				onretry={loadDashboard}
+			>
+				{#snippet meta()}{plural(events?.nights.length || 0, "night")}{/snippet}
+				<ol class="agenda">
+					{#each nightGroups as group (group.date)}
+						{@const when = agendaDate(group.date, events?.today || group.date)}
+						<li class="agenda-day" class:tonight={group.tonight}>
+							<div class="date" aria-label={group.label}>
+								<span class="weekday">{when.weekday}</span>
+								<span class="daynum tnum">{when.day}</span>
+								<span class="month">{when.month}</span>
+								{#if when.relative}<span class="relative">{when.relative}</span>{/if}
+							</div>
+							<ul class="rows">
+								{#each group.nights as night (night.eventId + night.date)}
+									{@const status = nightStatus(night, jobs)}
+									<li class="row night">
+										<span class="what">
+											<a class="name" href={nightHref(night)}>{night.title}</a>
+											<span class="sub">
+												<span class="tnum">{nightTime(night)}</span>{#if night.artist}&nbsp;· {night.artist}{/if}
+											</span>
+											{#if night.calendarBehind}
+												<span class="sub warn-text">Calendar not up to date</span>
+											{/if}
+										</span>
+										<Badge tone={status.tone} label={status.label} title={status.title} />
+									</li>
+								{/each}
+							</ul>
+						</li>
+					{/each}
+				</ol>
+			</DashCard>
+
+		</div>
+
+		<div class="cell side">
+			<DashCard
+				id="health"
+				title="Site health"
+				state={healthCard.state}
+				error={healthCard.error}
+				href="/web"
+				linkLabel="Website"
+				skeletonRows={4}
+				onretry={loadDashboard}
+			>
+				{#snippet meta()}{#if lastChecked}Checked {lastChecked}{/if}{/snippet}
+				{#if !healthSites.length}
+					<p class="note">The site monitor has no results yet.</p>
+				{/if}
+				<ul class="sites">
+					{#each healthSites as site (site.id)}
+						{@const summary = siteSummary(site)}
+						<li class="site {summary.tone}">
+							<span class="site-mark" aria-hidden="true">
+								<Icon name={summary.tone === "success" ? "check" : "alert"} size={16} />
+							</span>
+							<span class="site-text">
+								<span class="site-line">
+									<span class="site-name">{siteName(site)}</span>
+									<span class="site-state">{summary.label}</span>
+								</span>
+								<span class="site-detail">{summary.detail}</span>
+								{#each summary.failing as failure (failure)}
+									<span class="site-fail">{failure}</span>
+								{/each}
+								{#if site.consecutiveFails > 1}
+									<span class="site-fail">{plural(site.consecutiveFails, "failed check")} in a row</span>
+								{/if}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			</DashCard>
+
+			<DashCard
+				id="updates"
+				title="Website updates"
+				state={pendingCard.state === "ready" && websiteQuiet ? "clear" : pendingCard.state}
+				error={pendingCard.error}
+				clearText="The website is up to date."
+				href="/web"
+				linkLabel="Website"
+				onretry={loadDashboard}
+			>
+				{#if pending}
+					{@const live = pending.production}
+					{#if live.failed}
+						<p class="lead danger-text">
+							The last website update failed{#if live.lastError}: {live.lastError}{/if}.
+							{#if live.runUrl}
+								<a class="inline" href={live.runUrl} target="_blank" rel="noreferrer">See what happened</a>
+							{/if}
+						</p>
+					{/if}
+					{#if live.updating}
+						<p class="lead">Updating the website now.</p>
+					{/if}
+					{#if live.count}
+						<p class="lead">
+							{plural(live.count, "change")} waiting for the website{#if live.autoUpdateAt && !live.updating && !live.failed}, updating
+								by itself around {clockTime(live.autoUpdateAt)}{/if}.
+						</p>
+						<ul class="rows">
+							{#each live.items as item (item.label + item.change)}
+								<li class="row"><span class="name plain">{item.label}</span><span class="sub">{item.change}</span></li>
+							{/each}
+						</ul>
+					{/if}
+					{#if waitingEvents.length}
+						<p class="lead">{plural(waitingEvents.length, "event")} waiting for Update website.</p>
+						<ul class="rows">
+							{#each waitingEvents.slice(0, 5) as event (event.id)}
+								<li class="row">
+									<a class="name" href="/events/{encodeURIComponent(event.id)}">{event.name}</a>
+									<span class="sub">{event.change === "added" ? "New" : "Changed"}</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					{#if failedJobs.length}
+						<p class="lead danger-text">{plural(failedJobs.length, "event")} not ready for the website.</p>
+						<ul class="rows">
+							{#each failedJobs.slice(0, 5) as job (job.eventId)}
+								<li class="row">
+									<span class="what">
+										<a class="name" href="/events/{encodeURIComponent(job.eventId)}">{job.name}</a>
+										{#if job.error}<span class="sub">{job.error}</span>{/if}
+									</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				{/if}
+			</DashCard>
+
+		</div>
+
+		<div class="cell third">
+			{#if errorData && !errorData.configured}
+				<DashCard
+					id="errors"
+					title="Website errors"
+					state="clear"
+					clearIcon="settings"
+					clearTone="muted"
+					clearText="Not set up yet. Add a read-only Sentry token as SENTRY_READ_TOKEN to see errors here."
+				/>
+			{:else}
+				<DashCard
+					id="errors"
+					title="Website errors"
+					state={errors.state === "ready" && errorData?.configured && !errorData.total ? "clear" : errors.state}
+					error={errors.state === "error" ? errors.error : ""}
+					clearText="No errors in the last 24 hours."
+					href={SENTRY_ISSUES_URL}
+					linkLabel="Sentry"
+					external
+					onretry={loadErrors}
+				>
+					{#snippet meta()}
+						{#if errorData?.configured}{errorData.capped ? `${errorData.total}+` : errorData.total} in 24h{/if}
+					{/snippet}
+					{#if errorData?.configured}
+						<ul class="rows">
+							{#each errorData.issues as issue (issue.id)}
+								<li class="row issue">
+									<span class="what">
+										<a class="name" href={issue.link} target="_blank" rel="noreferrer">{issue.title}</a>
+										<span class="sub">
+											{issue.project}{#if issue.lastSeen}, last seen {relativeTime(issue.lastSeen, now)}{/if}
+										</span>
+									</span>
+									{#if issue.isNew}<Badge tone="danger" label="New" />{/if}
+									<span class="count tnum" title="Times in 24 hours">{issue.count}×</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</DashCard>
+			{/if}
+
+		</div>
+		<div class="cell third">
+			<DashCard
+				id="applications"
+				title="Play applications"
+				state={formsCard.state === "ready" && !applications.count ? "clear" : formsCard.state}
+				error={formsCard.error}
+				clearText={applications.emailFailed
+					? `No applications waiting. ${plural(applications.emailFailed, "submission")} with an email that did not go out.`
+					: "No applications waiting."}
+				href="/forms"
+				linkLabel="Applications"
+				onretry={loadDashboard}
+			>
+				{#snippet meta()}{applications.count} to review{/snippet}
+				<p class="lead">
+					{plural(applications.count, "application")} to review{#if applications.oldest}, the oldest sent {applications.oldest}{/if}.
+				</p>
+				<ul class="rows">
+					{#each applications.rows as row (row.id)}
+						<li class="row">
+							<a class="name" href="/forms/{encodeURIComponent(row.id)}">{row.name || row.email}</a>
+							<span class="sub tnum">{row.age}</span>
+						</li>
+					{/each}
+				</ul>
+				{#if applications.count > applications.rows.length}
+					<p class="note">{applications.count - applications.rows.length} more on Applications.</p>
+				{/if}
+				{#if applications.emailFailed}
+					<p class="note warn-text">
+						{plural(applications.emailFailed, "submission")} with an email that did not go out.
+					</p>
+				{/if}
+			</DashCard>
+
+		</div>
+		<div class="cell third">
+			<DashCard
+				id="drinks"
+				title="Drinks with problems"
+				state={drinksState}
+				error={drinks.state === "error" ? drinks.error : ""}
+				clearText={drinkSummary?.warningOnly
+					? `No drinks with critical problems. ${plural(drinkSummary.warningOnly, "drink")} with warnings.`
+					: "No drinks with problems."}
+				href="/menu"
+				linkLabel="Menu items"
+				onretry={loadDrinks}
+			>
+				{#snippet meta()}
+					{#if drinkSummary}{drinkSummary.critical} critical · {drinkSummary.atLoss} at a loss{/if}
+				{/snippet}
+				{#if drinkSummary}
+					<ul class="rows">
+						{#each drinkSummary.rows as row (row.id)}
+							<li class="row">
+								<a class="name" href={row.href}>{row.name}</a>
+								<span class="sub {row.atLoss ? 'danger-text' : ''}">{drinkReason(row)}</span>
+							</li>
+						{/each}
+					</ul>
+					{#if drinkSummary.more}
+						<p class="note">{drinkSummary.more} more with problems.</p>
+					{/if}
+					{#if drinkSummary.warningOnly}
+						<a class="inline" href="/menu">+{plural(drinkSummary.warningOnly, "drink")} with warnings</a>
+					{/if}
+					{#if margin}
+						<p class="note {margin.tone === 'warning' ? 'warn-text' : ''}">{margin.text}</p>
+					{/if}
+				{/if}
+			</DashCard>
+
+		</div>
+	</div>
 </div>
 
 <style>
@@ -426,335 +610,374 @@
 		padding: var(--page-gutter);
 	}
 
-	.ready {
+	/* ─── Needs attention ─────────────────────────────────────────────── */
+
+	.attention {
+		margin-bottom: var(--space-4);
+		padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--panel-bg);
+	}
+
+	.attention-label {
 		display: flex;
-		flex-direction: column;
-		min-height: 0;
-	}
-
-	.section + .section {
-		margin-top: var(--gap-lg);
-	}
-
-	.section-kicker {
-		margin: 0 0 var(--gap);
-		font-size: var(--text-xs);
+		align-items: center;
+		gap: var(--space-2);
+		margin: 0 0 var(--space-2);
+		padding-top: var(--space-1);
+		font-family: var(--font);
+		font-size: var(--text-base);
 		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--muted-foreground);
 	}
 
-	.error {
-		margin: 0;
-		color: var(--destructive);
-	}
-
-	.pair {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: var(--gap-sm);
-		min-width: 0;
-		flex-shrink: 0;
-	}
-
-	.fig-label {
-		margin: 0.15rem 0 0;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-	}
-
-	.fig.warn .value {
-		color: var(--primary);
-	}
-
-	.meter {
-		position: relative;
-		display: flex;
-		flex-shrink: 0;
-		height: 0.4rem;
-		border-radius: var(--radius-pill);
-		background: color-mix(in srgb, var(--foreground) 8%, transparent);
-		overflow: hidden;
-	}
-
-	.fill {
-		display: block;
-		height: 100%;
-		min-width: 0;
-	}
-
-	.fill.down,
-	.fill.loss {
-		background: var(--down);
-	}
-
-	.fill.warn {
-		background: var(--primary);
-	}
-
-	.fill.up {
-		background: var(--up);
-	}
-
-	.fill.loss {
-		box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--down) 18%, transparent);
-	}
-
-	.kicker {
-		margin: 0;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-	}
-
-	.value {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.75rem, 3vw, 2.25rem);
-		font-weight: 600;
-		letter-spacing: -0.03em;
-		line-height: 1.1;
-	}
-
-	.hint,
-	.empty,
-	.more {
-		margin: 0;
+	.attention-total {
 		font-size: var(--text-sm);
-		line-height: 1.5;
-		color: var(--muted-foreground);
+		font-weight: 400;
+		color: var(--fg-muted);
 	}
 
-	.hint {
-		margin-top: auto;
-		display: -webkit-box;
-		-webkit-line-clamp: 3;
-		line-clamp: 3;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-
-	.hint.up {
-		color: var(--up);
-	}
-
-	.hint.down,
-	.hint.loss {
-		color: var(--down);
-	}
-
-	.panels {
+	/* One row per thing to do, two columns when there's room. */
+	.attention-list {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		grid-auto-rows: 28rem;
-		gap: var(--gap);
-	}
-
-	.panels :global(.card) {
-		height: 100%;
-		min-height: 0;
-	}
-
-	.panels.web {
-		grid-auto-rows: auto;
-	}
-
-	.metrics {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: var(--gap);
-	}
-
-	.metric-label {
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+		gap: var(--space-1) var(--space-4);
 		margin: 0;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--muted-foreground);
+		padding: 0;
+		list-style: none;
 	}
 
-	.metric-value {
-		margin: 0.35rem 0 0;
-		font-family: var(--font-display);
-		font-size: clamp(1.35rem, 2.2vw, 1.85rem);
-		font-weight: 600;
-		letter-spacing: -0.03em;
-		line-height: 1.15;
-		overflow-wrap: anywhere;
-	}
-
-	.metric-value.up {
-		color: var(--up);
-	}
-
-	.metric-value.gold {
-		color: var(--primary);
-	}
-
-	.metric-value.down {
-		color: var(--down);
-	}
-
-	.metric-value.muted {
-		color: var(--muted-foreground);
-	}
-
-	.metric-value.warn {
-		color: var(--primary);
-	}
-
-	.metric-value.up {
-		color: var(--up);
-	}
-
-	.metric-value.down {
-		color: var(--down);
-	}
-
-	.metric-value.muted {
-		color: var(--muted-foreground);
-	}
-
-	.health-mark {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: clamp(2.5rem, 4vw, 3.4rem);
-		font-weight: 600;
-		letter-spacing: -0.04em;
-		line-height: 1;
-	}
-
-	.health-site {
-		margin: 0.45rem 0 0;
-		font-size: var(--text);
-	}
-
-	.health-site a {
-		color: inherit;
+	.attention-item {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		min-height: 2.5rem;
+		padding: 0 var(--space-2) 0 0;
+		border-radius: var(--radius-md);
+		color: var(--fg-muted);
+		font-size: var(--text-base);
 		text-decoration: none;
 	}
 
-	.health-site a:hover {
-		color: var(--primary);
+	.attention-item:hover {
+		color: var(--fg);
 	}
 
-	.panels :global(.card.heat-ok) {
-		border-color: color-mix(in srgb, var(--up) 32%, var(--border));
-		background: linear-gradient(
-			165deg,
-			color-mix(in srgb, var(--up) 14%, transparent),
-			var(--card) 72%
-		);
+	.attention-item:hover .attention-text {
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 
-	.panels :global(.card.heat-bad),
-	.panels :global(.card.heat-severe) {
-		border-color: color-mix(in srgb, var(--down) 40%, var(--border));
-		background: linear-gradient(165deg, var(--destructive-wash), var(--card) 58%);
+	.attention-icon {
+		display: inline-grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: var(--radius-md);
+		background: var(--surface-3);
 	}
 
-	.panels :global(.card.heat-severe) {
-		border-color: color-mix(in srgb, var(--down) 58%, transparent);
+	.attention-item.warning .attention-icon {
+		background: var(--warning-wash);
+		color: var(--warning);
 	}
 
-	.panels :global(.subtitle) {
-		min-height: calc(var(--text-sm) * 1.5 * 2);
+	.attention-item.danger .attention-icon {
+		background: var(--danger-wash);
+		color: var(--danger);
 	}
 
-	.panels :global(.body.fill) {
-		overflow: hidden;
-	}
-
-	.list {
-		list-style: none;
-		margin: 0.75rem 0 0;
-		padding: 0;
-		display: grid;
-		gap: 0.65rem;
-		align-content: start;
+	.attention-text {
 		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-	}
-
-	.list li {
-		display: grid;
-		gap: 0.3rem;
 		min-width: 0;
+		color: var(--fg);
 	}
 
-	.row-top {
+	.attention-text strong {
+		font-weight: 600;
+	}
+
+	.all-clear {
 		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 0.75rem;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		margin: 0 0 var(--space-4);
+		color: var(--success);
+		font-size: var(--text-sm);
+	}
+
+	.all-clear strong {
+		font-weight: 600;
+	}
+
+	.all-clear span:not(.checked) {
+		color: var(--fg);
+	}
+
+	.checked {
+		margin-left: auto;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	.attention-unknown {
+		margin: 0 0 var(--space-4);
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	/* ─── Board ───────────────────────────────────────────────────────────
+	   One 12-column grid so every edge lines up: four tiles of 3, the week
+	   (8) beside health and updates (4), then three cards of 4. Rows stretch,
+	   so cards side by side are always the same height. */
+
+	.board {
+		display: grid;
+		grid-template-columns: repeat(12, minmax(0, 1fr));
+		gap: var(--space-4);
+	}
+
+	.tiles {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: var(--space-4);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.cell {
 		min-width: 0;
 	}
 
-	.figure {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.4rem;
+	.week {
+		grid-column: span 8;
+	}
+
+	.side {
+		grid-column: span 4;
+		display: grid;
+		grid-template-rows: auto 1fr;
+		gap: var(--space-4);
+	}
+
+	.third {
+		grid-column: span 4;
+	}
+
+	/* Tiles */
+
+	.tile {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		height: 100%;
+		padding: var(--space-4) var(--space-5);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background: var(--panel-bg);
+		color: var(--fg);
+		text-decoration: none;
+		transition: border-color 120ms ease, background-color 120ms ease;
+	}
+
+	.tile:hover {
+		border-color: var(--border-strong);
+		background: var(--surface-2);
+	}
+
+	.tile-label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.tile-label .short {
+		display: none;
+	}
+
+	.tile-icon {
+		display: inline-grid;
+		place-items: center;
 		flex-shrink: 0;
-		font-family: var(--font-display);
-		font-size: 1.05rem;
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: var(--radius-sm);
+		background: var(--surface-3);
+		color: var(--fg-muted);
+	}
+
+	.tile-value {
+		margin-top: var(--space-2);
+		font-size: var(--text-2xl);
 		font-weight: 600;
+		line-height: 1.1;
 		letter-spacing: -0.02em;
 	}
 
-	.delta,
-	.badge {
-		font-family: var(--font);
+	.tile-sub {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		opacity: 0.9;
+		color: var(--fg-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
-	.counts {
-		display: inline-flex;
-		gap: 0.6rem;
+	.dot {
 		flex-shrink: 0;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--fg-subtle);
 	}
 
-	.count {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.22rem;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--muted-foreground);
+	.tile.success .dot {
+		background: var(--success);
 	}
 
-	.count-n {
-		font-family: var(--font-display);
-		font-size: 1.05rem;
-		font-weight: 600;
-		letter-spacing: -0.02em;
+	.tile.warning .dot {
+		background: var(--warning);
 	}
 
-	.count.down,
-	.count.down .count-n {
-		color: var(--down);
+	.tile.danger .dot {
+		background: var(--danger);
 	}
 
-	.count.warn,
-	.count.warn .count-n {
-		color: var(--primary);
+	.tile.warning .tile-value {
+		color: var(--warning);
 	}
 
-	.warn {
-		color: var(--primary);
+	.tile.danger .tile-value {
+		color: var(--danger);
+	}
+
+	.tile.danger {
+		border-color: var(--danger-border);
+	}
+
+	.tile-skel {
+		height: 2rem;
+		width: 40%;
+		margin-top: var(--space-2);
+	}
+
+	@media (max-width: 1200px) {
+		.board {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.tiles {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.week,
+		.side {
+			grid-column: 1 / -1;
+		}
+
+		.side {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			grid-template-rows: auto;
+		}
+
+		.third {
+			grid-column: span 1;
+		}
+
+		.third:last-child {
+			grid-column: 1 / -1;
+		}
+	}
+
+	@media (max-width: 900px) {
+		.board {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--space-3);
+		}
+
+		.tiles {
+			gap: var(--space-3);
+		}
+
+		.side {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--space-3);
+		}
+
+		.third,
+		.third:last-child {
+			grid-column: auto;
+		}
+
+		.tile {
+			padding: var(--space-3) var(--space-4);
+		}
+
+		.tile-value {
+			font-size: var(--text-xl);
+			margin-top: var(--space-1);
+		}
+
+		.tile-label {
+			font-size: var(--text-xs);
+		}
+
+		.tile-label .long {
+			display: none;
+		}
+
+		.tile-label .short {
+			display: inline;
+		}
+
+		.attention {
+			padding-left: var(--space-4);
+		}
+
+		.attention-item {
+			min-height: 44px;
+		}
+	}
+
+	/* ─── Card content ────────────────────────────────────────────────── */
+
+	.rows {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--space-3);
+		min-height: 2.5rem;
+		padding-block: var(--space-1);
+		border-top: 1px solid var(--border);
+		min-width: 0;
+	}
+
+	.row:first-child {
+		border-top: 0;
+	}
+
+	.what {
+		display: grid;
+		flex: 1;
+		min-width: 0;
 	}
 
 	.name {
@@ -762,50 +985,239 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
-		color: inherit;
+		color: var(--fg);
 		text-decoration: none;
 	}
 
-	.name:hover {
-		color: var(--primary);
+	a.name:hover {
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 
-	.name:focus-visible,
-	.go:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: 3px;
+	.name.plain {
+		font-weight: 400;
 	}
 
-	.meta {
-		flex-shrink: 0;
-		font-size: var(--text-xs);
-		color: var(--muted-foreground);
-		white-space: nowrap;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.empty,
-	.more {
-		margin-top: 0.75rem;
-		flex-shrink: 0;
-	}
-
-	.go {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.125rem;
+	.sub {
 		font-size: var(--text-sm);
+		color: var(--fg-muted);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		flex-shrink: 0;
+		max-width: 60%;
+	}
+
+	.what .sub {
+		max-width: none;
+	}
+
+	.lead {
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-base);
+		color: var(--fg);
+	}
+
+	.lead + .rows {
+		margin-bottom: var(--space-3);
+	}
+
+	.note {
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	.inline {
+		display: inline-block;
+		margin-top: var(--space-2);
+		font-size: var(--text-sm);
+		font-weight: 500;
+		color: var(--fg);
+		text-underline-offset: 3px;
+	}
+
+	.danger-text {
+		color: var(--danger);
+	}
+
+	.warn-text {
+		color: var(--warning);
+	}
+
+	.count {
+		flex-shrink: 0;
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	a:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-sm);
+	}
+
+	/* Tonight */
+
+	/* Agenda: a date block on the left, that day's nights beside it. */
+	.agenda {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.agenda-day {
+		display: grid;
+		grid-template-columns: 4.5rem minmax(0, 1fr);
+		gap: var(--space-4);
+		padding-block: var(--space-3);
+		border-top: 1px solid var(--border);
+	}
+
+	.agenda-day:first-child {
+		border-top: 0;
+		padding-top: 0;
+	}
+
+	.date {
+		display: grid;
+		justify-items: center;
+		align-content: start;
+		padding-block: var(--space-2);
+		border-radius: var(--radius-md);
+		background: var(--surface-2);
+		line-height: 1.1;
+	}
+
+	.weekday,
+	.month {
+		font-size: var(--text-2xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--fg-muted);
+	}
+
+	.relative {
+		margin-top: var(--space-1);
+		font-size: var(--text-2xs);
 		font-weight: 600;
 		color: var(--primary);
-		text-decoration: none;
 	}
 
-	@media (max-width: 720px) {
-		.panels,
-		.metrics {
-			grid-template-columns: 1fr;
+	.daynum {
+		margin-block: 2px;
+		font-size: var(--text-lg);
+		font-weight: 600;
+		color: var(--fg);
+	}
+
+	.agenda-day.tonight .date {
+		background: var(--primary-wash, var(--surface-3));
+	}
+
+	.agenda .rows {
+		align-content: start;
+	}
+
+	.agenda .night {
+		min-height: 3rem;
+	}
+
+	/* Health: one row per site, the state in words, failures spelled out. */
+	.sites {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.site {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-3);
+		padding-block: var(--space-3);
+		border-top: 1px solid var(--border);
+	}
+
+	.site:first-child {
+		border-top: 0;
+		padding-top: 0;
+	}
+
+	.site-mark {
+		display: inline-grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 50%;
+		background: var(--surface-3);
+		color: var(--fg-muted);
+	}
+
+	.site.success .site-mark {
+		background: var(--success-wash);
+		color: var(--success);
+	}
+
+	.site.danger .site-mark {
+		background: var(--danger-wash);
+		color: var(--danger);
+	}
+
+	.site-text {
+		display: grid;
+		gap: 2px;
+		min-width: 0;
+	}
+
+	.site-line {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+	}
+
+	.site-name {
+		font-size: var(--text-base);
+		font-weight: 500;
+	}
+
+	.site-state {
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--fg-muted);
+	}
+
+	.site.success .site-state {
+		color: var(--success);
+	}
+
+	.site.danger .site-state {
+		color: var(--danger);
+	}
+
+	.site-detail {
+		font-size: var(--text-sm);
+		color: var(--fg-muted);
+	}
+
+	.site-fail {
+		font-size: var(--text-sm);
+		color: var(--danger);
+	}
+
+	@media (max-width: 900px) {
+		.row {
+			min-height: 44px;
+		}
+
+		.agenda-day {
+			grid-template-columns: 3.75rem minmax(0, 1fr);
+			gap: var(--space-3);
 		}
 	}
 </style>

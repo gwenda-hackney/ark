@@ -17,7 +17,7 @@ Local secrets are never written into the repo. **`bw-unlock` is the login**: aft
 
 `scripts/lib/load-env.mjs` does this: `.env`, then `LOCAL_DEFAULTS` for anything still unset, then the cache (on a miss: token from the vault, then `bws` lists Ark, Ark/Ops and Ark/Web, env `dev`), then that app's runtime names (`APP_SECRETS` rename). The cache entry holds a hash of the session key, so after `bw-lock` or a new unlock it no longer matches. Scripts that write to SM (`env:*:push`, `setup:*`) clear it. A cold load takes about 4 seconds; a cached one about 60 ms.
 
-Scripts read the session from the file, not only from the shell variable, so a shell that did not source `~/.bashrc` (an editor task, an agent) still works while the vault is unlocked. Check with `npm run env:status`. Plain `bw status` in such a shell says `locked` even when the vault is unlocked, because it only looks at `BW_SESSION`. If a script prints `Secrets not loaded: vault locked`, run `bw-unlock` and rerun. Nothing else is needed.
+Scripts read the session from the file, not only from the shell variable, so a shell that did not source `~/.bashrc` (an editor task, an agent) still works while the vault is unlocked. Check with `npm run env:status`. Plain `bw status` in such a shell says `locked` even when the vault is unlocked, because it only looks at `BW_SESSION`. Run in a terminal with the vault locked, a script asks for the master password itself and saves the session as `bw-unlock` does. Without a terminal (an agent, CI) it prints `Secrets not loaded: vault locked` instead; run `bw-unlock` and rerun. Nothing else is needed.
 
 Wrangler's bindings go in a per-run file in the same RAM directory (mode 600, deleted on exit). `wrangler pages dev` only reads `.dev.vars` (it ignores `--env-file`), so for `ops:dev` `ops/site/.dev.vars` is a gitignored symlink to that file while it runs; `wifi-portal` passes `--env-file`. Wrangler's own process env keeps `CLOUDFLARE_API_TOKEN`, which the remote `AI` binding needs; without it Wrangler falls back to a browser OAuth login and hangs. A leftover `.dev.vars` is deleted on start, because Wrangler would prefer it.
 
@@ -78,14 +78,15 @@ A load lists **Ark + Ark/Ops + Ark/Web** and keeps every secret any app uses onc
 
 No Baserow database or workspace ids are configured anywhere. A database token opens one workspace and the apps find their database by its tables; scripts log in and find databases by name. See [config.md](./config.md#baserow-no-ids).
 
-Push a value (to the owning project, under its SM name). Name the keys; each value comes from the shell:
+Push a value (to the owning project, under its SM name). Name the keys; each value comes from the shell, else from `.env` (delete the line once it's pushed):
 
 ```bash
 SUBSCRIBE_SECRET=... npm run env:web:push -- SUBSCRIBE_SECRET                  # shared NAME
 BASEROW_API_KEY=... npm run env:ops:push -- --profile dev BASEROW_API_KEY      # BASEROW_OPS_API_KEY__DEV
+npm run env:ark:push -- SENTRY_AUTH_TOKEN                                       # from .env; production-only → SENTRY_AUTH_TOKEN__PRODUCTION
 ```
 
-Keys that already have env values in SM are skipped unless `--profile` is given, so a dev token never becomes the shared value.
+Script-only secrets a project owns (`SECRET_OWNERS`, such as ark's `SENTRY_AUTH_TOKEN` or `UPTIME_ROBOT_API_KEY`) push the same way. A production-only name always goes as `NAME__PRODUCTION`. Keys that already have env values in SM are skipped unless `--profile` is given, so a dev token never becomes the shared value.
 
 CI (Pages secrets): production runs from `release`, dev from `main` (each GitHub environment holds its own `BWS_ACCESS_TOKEN`, see [config.md](./config.md#who-reads-what-61)):
 
@@ -130,7 +131,7 @@ Standalone Workers can persist logs with `[observability] enabled = true`. `gwen
 
 `GET /health` on the marketing site returns `{ ok: true, service: "gwenda", env, dataset, commit }` (liveness plus build metadata). The preview's password gate allows it without a password.
 
-`gwenda-site-health` (cron every 5 minutes) probes the live site and prod's preview. The live site emails `alerts@gwenda.co.uk` after two consecutive failures. Preview failures show in ops Web. Authenticated `GET https://health.gwenda.co.uk/status` returns the last probe for both sites (Bearer `HEALTH_STATUS_TOKEN` when that Worker secret is set). First-time wiring:
+`gwenda-site-health` (cron every 5 minutes) probes the live site and prod's preview. The live site emails `alerts@gwenda.co.uk` after two consecutive failures. Preview failures show in ops Web. Authenticated `GET https://health.gwenda.co.uk/status` returns the last probe for both sites (Bearer `HEALTH_STATUS_TOKEN` when that Worker secret is set; ops sends the same value as `SITE_HEALTH_STATUS_TOKEN`, see [env-reference.md](env-reference.md#site_health_status_token)). First-time wiring:
 
 ```
 npm run setup:site-health

@@ -14,7 +14,7 @@
 	import WeekHeadingCell from "./cells/WeekHeadingCell.svelte";
 
 	export type ScheduleTableRow =
-		| { kind: "week"; id: string; label: string }
+		| { kind: "week"; id: string; label: string; count?: number }
 		| {
 				kind: "night";
 				id: string;
@@ -25,6 +25,7 @@
 				name: string;
 				meta: string;
 				status: string;
+				statusTitle?: string;
 				tone: string;
 		  };
 
@@ -60,8 +61,6 @@
 				minWidth: 180,
 				sortable: false,
 				valueGetter: (p) => (p.data?.kind === "night" ? p.data.name : ""),
-				tooltipValueGetter: (p) =>
-					p.data?.kind === "night" ? [whenLabel(p.data), p.data.name, p.data.meta].filter(Boolean).join("\n") : "",
 				cellRenderer: svelteCell(EventStackCell, (params: ICellRendererParams<ScheduleTableRow>) => ({
 					eyebrow: params.data?.kind === "night" ? whenLabel(params.data) : "",
 					title: params.data?.kind === "night" ? params.data.name : "",
@@ -73,7 +72,7 @@
 				headerName: "Status",
 				colId: "status",
 				width: 120,
-				minWidth: 96,
+				minWidth: 100,
 				flex: 0,
 				sortable: false,
 				hide: compact,
@@ -81,6 +80,7 @@
 				cellRenderer: svelteCell(EventStatusCell, (params: ICellRendererParams<ScheduleTableRow>) => ({
 					label: params.data?.kind === "night" ? params.data.status : "",
 					tone: params.data?.kind === "night" ? params.data.tone : "",
+					title: params.data?.kind === "night" ? params.data.statusTitle : "",
 				})),
 			},
 		];
@@ -103,16 +103,18 @@
 		rowData={rows}
 		{columnDefs}
 		scrollKey="events-schedule"
+		hideHeader={phone.matches}
 		getRowId={(row) => row.id}
 		domLayout="normal"
 		gridOptions={{
 			rowHeight: 80,
-			getRowHeight: (params) => (params.data?.kind === "week" ? 52 : 80),
+			getRowHeight: (params) => (params.data?.kind === "week" ? 40 : 80),
 			isFullWidthRow: (params) => params.rowNode.data?.kind === "week",
 			fullWidthCellRenderer: svelteCell(
 				WeekHeadingCell,
 				(params: ICellRendererParams<ScheduleTableRow>) => ({
 					label: params.data?.kind === "week" ? params.data.label : "",
+					count: params.data?.kind === "week" ? params.data.count : undefined,
 				}),
 			),
 			getRowClass: (params) => (params.data?.kind === "week" ? "week-row" : "event-row"),

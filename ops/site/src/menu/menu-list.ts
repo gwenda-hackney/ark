@@ -81,6 +81,13 @@ export type MenuListRow = MenuListItem | MenuListGroup;
 
 export type MenuListSort = "section" | "price" | "pour";
 
+/** Orders for the phone list, highest first within each section. */
+export const MENU_LIST_SORTS: readonly { id: MenuListSort; label: string }[] = [
+	{ id: "section", label: "Menu order" },
+	{ id: "pour", label: "Pour cost" },
+	{ id: "price", label: "Price" },
+];
+
 function compareNullable(
 	av: number | null | undefined,
 	bv: number | null | undefined,

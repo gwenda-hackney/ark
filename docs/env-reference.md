@@ -277,6 +277,20 @@ Google sign-in only works on the registered ops addresses, not on localhost. Thi
 - **Used by:** local ops only. It is never pushed to Cloudflare Pages (`pagesSkip`).
 - **Expires:** never.
 
+### `SENTRY_READ_TOKEN`
+
+The ops dashboard shows the website's unresolved errors from the last 24 hours. Ops reads them from Sentry with this token; the browser never talks to Sentry.
+
+- **Owner:** Sentry organisation `gwenda` (EU region): the internal integration `SENTRY_READ_TOKEN`, with **Issue & Event: Read** and nothing else, so the token can't change projects, alerts or data.
+- **SM:** `SENTRY_READ_TOKEN`, one shared value in [`ark/ops-dev`](#arkops-dev): dev and production ops read the same organisation.
+- **What:** a bearer token for `GET https://de.sentry.io/api/0/organizations/gwenda/issues/`. Ops keeps each answer for five minutes.
+- **Used by:** ops (dev and production, `src/website/server/sentry-errors.js`, served at `GET /api/health/errors`).
+- **Gets there by:** ops through its usual pull and Pages secrets (an ops key in `APP_SECRETS`).
+- **Without it:** the dashboard's Website errors card says "Not set up". Nothing else changes.
+- **Expires:** never.
+- **Creating it:** in Sentry, Settings → Developer Settings → Create New Integration → Internal Integration. Name it `SENTRY_READ_TOKEN`, set Issue & Event to Read and leave every other permission at No Access and every webhook off, save, then copy the token from the integration's Tokens section (the client secret isn't needed). Store it with `SENTRY_READ_TOKEN=... npm run env:ops:push -- SENTRY_READ_TOKEN` (or put the line in `.env`, push, then delete it), run `npm run env:secrets:refresh`, and run the ops secrets workflow (`ops-secrets.yml`) for production; dev ops picks it up on its next deploy.
+- **Changing it:** add a new token on the same integration, store it, rerun the ops secrets workflow, then delete the old token in Sentry.
+
 ---
 
 ## Website
@@ -309,7 +323,7 @@ The preview shows unpublished drafts and the dev website shows test data. A pass
 
 - **Owner:** Gwenda: a value we choose.
 - **SM:** `SITE_PASSWORD__DEV` ([`ark/web-dev`](#arkweb-dev)), `SITE_PASSWORD__PRODUCTION` ([`ark/web`](#arkweb)).
-- **What:** the password for the gate on the prod preview (preview.gwenda-blue) and the dev website. The live site is always public.
+- **What:** the password for the gate on the prod preview (preview.gwenda-blue) and the dev website. The live site is always public. Editors normally use **Sign in with Google** on the same page instead (see `GATE_BYPASS_KEY`); the password is the fallback.
 - **Used by:** the website middleware.
 - **Gets there by:** Pages secret, on the preview environment only.
 - **Expires:** never.
@@ -317,14 +331,15 @@ The preview shows unpublished drafts and the dev website shows test data. A pass
 
 ### `GATE_BYPASS_KEY`
 
-CI smoke tests and preview share links need to see a gated site without typing the password.
+CI smoke tests need to see a gated site without typing the password, and editors sign in to the previews with Google through ops.
 
 - **Owner:** Gwenda: a random value we generate.
 - **SM:** `GATE_BYPASS_KEY__DEV` ([`ark/web-dev`](#arkweb-dev)), `GATE_BYPASS_KEY__PRODUCTION` ([`ark/web`](#arkweb)).
-- **What:** `?access=<key>` gets past the gate without the password. Used by the CI smoke tests on gated sites and by the preview share links.
-- **Used by:** the website middleware and `preview-share.js`; `smoke-test.mjs` in CI.
+- **What:** `?access=<key>` gets past the gate without the password (CI smoke tests). It also signs the five-minute pass ops hands back after **Sign in with Google** on a preview's password page (`shared/website-pass.js`): production ops signs for `*.gwenda-blue.pages.dev`, dev ops for `*.gwenda-web-dev.pages.dev`.
+- **Used by:** the website middleware; ops `/website-pass`; `smoke-test.mjs` in CI.
 - **Expires:** never.
-- **Changing it:** preview links already shared stop working.
+- **Changing it:** push it to both the website's and ops' Pages secrets (`web-secrets.yml`, and the next ops deploy), or Google sign-in on the previews fails until both match.
+
 
 ---
 
@@ -380,6 +395,20 @@ The sync Worker runs on a schedule but can also be run by hand; this secret stop
 - **Runtime name:** `SYNC_SECRET` on the Worker.
 - **Expires:** never.
 
+### `SITE_HEALTH_STATUS_TOKEN`
+
+`GET https://health.gwenda.co.uk/status` returns the site-health Worker's last probe of the live site and prod's preview, which the ops Website page shows. This token keeps that page private.
+
+- **Owner:** Gwenda: a random value we generate (for example `openssl rand -hex 32`).
+- **SM:** `SITE_HEALTH_STATUS_TOKEN`, one shared value in [`ark/ops-dev`](#arkops-dev): dev and production ops both read the same Worker.
+- **What:** a bearer token. Ops sends `Authorization: Bearer …` to `/status`; the Worker answers 401 without it.
+- **Runtime name:** two names, **one value**. Ops reads `SITE_HEALTH_STATUS_TOKEN`. The Worker reads `HEALTH_STATUS_TOKEN`. Both must be provisioned with the same value, or the Website page stops showing the monitor.
+- **Used by:** ops (dev and production, `src/website/server/web-status.js`), the site-health Worker.
+- **Gets there by:** ops through its usual pull and Pages secrets (an ops key in `APP_SECRETS`). The Worker by hand: `echo "$VALUE" | npx wrangler secret put HEALTH_STATUS_TOKEN` in `marketing/site-health` (neither `workers.yml` nor `setup:site-health` puts it yet).
+- **Without it:** the Worker leaves `/status` open, as it always has, and logs `site_health_status_open` on each read. Ops reads it without a token.
+- **Expires:** never.
+- **Changing it:** put the new value on the Worker and in SM together, then redeploy dev and production ops. Until ops has the new value its Website page shows no monitor status.
+
 ### `UNIFI_SITE_MANAGER_API_KEY`
 
 The venue Wi-Fi asks guests to sign up before going online; the portal Worker then tells the UniFi controller to let that device on.
@@ -404,10 +433,11 @@ UptimeRobot checks the sites from outside Cloudflare and emails alerts@ when one
 
 Sentry collects errors from ops (server and browser), the website's functions and the Workers, groups them, and emails alerts@ when something new breaks or comes back. `setup:sentry` uses this token to keep the projects and their alert rule in place.
 
-- **Owner:** Sentry user alerts@gwenda.co.uk (organisation `gwenda`, EU region, free plan): a personal token with Project Read & Write, Organization Read, Issue & Event Read, Alerts Read & Write.
+- **Owner:** Sentry organisation `gwenda` (EU region, free plan): the internal integration `SENTRY_AUTH_TOKEN`, with Project Read & Write, Team Read, Organization Read and Issue & Event Read. Not tied to a person.
 - **SM:** `SENTRY_AUTH_TOKEN__PRODUCTION`, in [`ark`](#ark).
 - **Used by:** `npm run setup:sentry` (projects, no IP storage) and `npm run sentry:issues` (read recent errors, `-- --issue OPS-1` for one), on your machine only. The apps don't need it: they report with each project's DSN, a public address kept in `shared/sentry.js`.
-- **Expires:** as set when it was created in Sentry (User settings → Personal Tokens).
+- **Expires:** never.
+- **Creating it:** in Sentry, Settings → Developer Settings → Create New Integration → Internal Integration. Name it `SENTRY_AUTH_TOKEN`, set the permissions above (everything else No Access, webhooks off), save, and copy the token from its Tokens section. Store it with `SENTRY_AUTH_TOKEN=... npm run env:ark:push -- SENTRY_AUTH_TOKEN` (production-only, so it lands as `SENTRY_AUTH_TOKEN__PRODUCTION`), then check with `npm run setup:sentry -- --dry-run`.
 
 
 ### `SENTRY_ORG_TOKEN`
@@ -527,7 +557,9 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `DISPATCH_TOKEN` | GitHub user das974 | `__PRODUCTION` | [`ark`](#ark) / — | none reported |
 | `MAILCHIMP_API_KEY` | Mailchimp user dscalamogna@ | `__PRODUCTION` | [`ark/web`](#arkweb) / — | **~2027-10-01** |
 | `SUBSCRIBE_MAILCHIMP_SYNC_SECRET` | Gwenda | `__PRODUCTION` | [`ark/web`](#arkweb) / — | never |
+| `SITE_HEALTH_STATUS_TOKEN` (Worker: `HEALTH_STATUS_TOKEN`) | Gwenda | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
 | `UNIFI_SITE_MANAGER_API_KEY` | UniFi account | shared | — / [`ark/web-dev`](#arkweb-dev) | check UniFi |
 | `UPTIME_ROBOT_API_KEY` | UptimeRobot alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | never |
-| `SENTRY_AUTH_TOKEN` | Sentry alerts@ | `__PRODUCTION` | [`ark`](#ark) / — | as created |
+| `SENTRY_AUTH_TOKEN` | Sentry organisation (internal integration) | `__PRODUCTION` | [`ark`](#ark) / — | never |
 | `SENTRY_ORG_TOKEN` | Sentry organisation | shared | — / [`ark-dev`](#ark-dev) | never |
+| `SENTRY_READ_TOKEN` | Sentry organisation (internal integration) | shared | — / [`ark/ops-dev`](#arkops-dev) | never |

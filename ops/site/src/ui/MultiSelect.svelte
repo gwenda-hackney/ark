@@ -5,6 +5,7 @@
 	 */
 	import { onMount, tick } from "svelte";
 	import type { SelectOption } from "./types";
+	import { getFieldContext } from "./field-context";
 
 	let {
 		value = $bindable<string[]>([]),
@@ -24,6 +25,7 @@
 		class?: string;
 	} = $props();
 
+	const field = getFieldContext();
 	let open = $state(false);
 	let triggerEl = $state<HTMLButtonElement | undefined>();
 	let menuEl = $state<HTMLDivElement | undefined>();
@@ -161,6 +163,7 @@
 		aria-expanded={open}
 		onclick={() => void setOpen(!open)}
 		onkeydown={onTriggerKeydown}
+		aria-describedby={field?.describedBy}
 	>
 		<span class="label">{label}</span>
 		<svg
@@ -228,7 +231,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		width: 100%;
 		min-width: 0;
 		box-sizing: border-box;
@@ -247,14 +250,14 @@
 
 	.md {
 		height: var(--control-h);
-		padding: 0 0.65rem 0 0.75rem;
-		font-size: var(--text);
+		padding: 0 var(--space-3) 0 var(--space-3);
+		font-size: var(--text-base);
 	}
 
 	.sm {
 		height: var(--control-h-sm);
-		padding: 0 0.55rem 0 0.6875rem;
-		font-size: var(--text);
+		padding: 0 var(--space-2) 0 var(--space-3);
+		font-size: var(--text-base);
 	}
 
 	.label {
@@ -290,7 +293,8 @@
 	}
 
 	.trigger:disabled {
-		opacity: 0.5;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 		cursor: not-allowed;
 	}
 
@@ -300,7 +304,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.15rem;
-		padding: 0.35rem;
+		padding: var(--space-1);
 		overflow: auto;
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-md);
@@ -312,15 +316,15 @@
 	.option {
 		display: flex;
 		align-items: center;
-		gap: 0.55rem;
+		gap: var(--space-2);
 		width: 100%;
 		margin: 0;
-		padding: 0.55rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		border: 0;
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		line-height: 1.3;
 		text-align: left;
 		cursor: pointer;
@@ -354,7 +358,7 @@
 		width: 0.85rem;
 		color: var(--primary);
 		font-size: var(--text-xs);
-		font-weight: 700;
+		font-weight: 600;
 		text-align: center;
 	}
 

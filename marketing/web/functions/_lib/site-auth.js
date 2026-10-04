@@ -60,22 +60,6 @@ export function gateBypassRedirectPath(url) {
   return clean.pathname + (search ? `?${search}` : "");
 }
 
-/**
- * Shareable preview URL with ?access= so the recipient unlocks the gate.
- * Path must be same-origin (starts with a single /).
- */
-export function buildGateShareUrl(origin, pathWithSearch, bypassKey) {
-  const key = String(bypassKey || "").trim();
-  const base = String(origin || "")
-    .trim()
-    .replace(/\/$/, "");
-  if (!key || !base) return "";
-  const path = safeRedirectPath(pathWithSearch || "/");
-  const url = new URL(path, `${base}/`);
-  url.searchParams.set(GATE_BYPASS_PARAM, key);
-  return url.toString();
-}
-
 export function parseCookies(header) {
   const out = {};
   if (!header) return out;

@@ -69,11 +69,11 @@
 <style>
 	.site-publish {
 		display: grid;
-		gap: 0.45rem;
+		gap: var(--space-2);
 		justify-items: start;
-		padding: 0.85rem 1rem;
+		padding: var(--space-3) var(--space-4);
 		border: 1px solid var(--border);
-		border-radius: var(--radius);
+		border-radius: var(--radius-md);
 	}
 
 	.status,
@@ -87,7 +87,7 @@
 	.links {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		color: var(--muted-foreground);
 	}
 

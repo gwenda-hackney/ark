@@ -9,6 +9,8 @@
 	import { toast } from "../../ui/toast.svelte";
 	import { getWebsiteJobsState, retryWebsiteJob } from "../../events/website-jobs.svelte";
 	import Icon from "./Icon.svelte";
+	import { savingPill } from "./saving-pill";
+	import { unsaved } from "../../ui/unsaved.svelte";
 
 	/** Phones have no top bar: float the pill at the top of the screen. */
 	let { floating = false }: { floating?: boolean } = $props();
@@ -38,20 +40,17 @@
 		lastBusy = count;
 	});
 
-	const tone = $derived(
-		stuck.length ? "stuck" : busyCount || jobs.running ? "busy" : doneUntil > now ? "done" : "",
+	const pill = $derived(
+		savingPill({
+			stuck: stuck.length,
+			busy: busyCount,
+			running: jobs.running,
+			recentlyDone: doneUntil > now,
+			dirty: unsaved.dirty,
+		}),
 	);
-	const label = $derived(
-		tone === "stuck"
-			? stuck.length === 1
-				? "1 needs a look"
-				: `${stuck.length} need a look`
-			: tone === "busy"
-				? busyCount > 1
-					? `Getting ${busyCount} ready…`
-					: "Getting it ready…"
-				: "All saved",
-	);
+	const tone = $derived(pill.tone);
+	const label = $derived(pill.label);
 
 	function nameFor(id: string) {
 		return jobs.recent.find((row) => row.eventId === id)?.name || "Just saved";
@@ -93,6 +92,8 @@
 			<Icon name="alert" size={15} />
 		{:else if tone === "done"}
 			<Icon name="check" size={15} />
+		{:else if tone === "unsaved"}
+			<span class="unsaved-dot" aria-hidden="true"></span>
 		{:else}
 			<span class="spin"><Icon name="refresh" size={15} /></span>
 		{/if}
@@ -120,6 +121,7 @@
 						disabled={Boolean(retrying)}
 						onclick={() => void retry(job.eventId)}
 					>
+						{#snippet icon()}<Icon name="refresh" size={14} />{/snippet}
 						Try again
 					</Button>
 				</li>
@@ -168,15 +170,27 @@
 		flex: none;
 		display: inline-flex;
 		align-items: center;
-		gap: 0.45rem;
-		padding: 0.3rem 0.75rem;
-		border: 1px solid var(--border);
-		border-radius: 999px;
-		background: var(--card, var(--background));
+		gap: var(--space-2);
+		height: 1.75rem;
+		padding: 0 var(--space-3);
+		/* One hairline, no shadow: a border plus a shadow ring read as two edges. */
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-pill);
+		background: var(--surface-1);
 		color: var(--foreground);
 		font: inherit;
 		font-size: var(--text-sm);
 		cursor: pointer;
+	}
+
+	.pill:hover {
+		background: var(--surface-3);
+	}
+
+	.pill:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+		border-radius: var(--radius-pill);
 	}
 
 	.pill.floating {
@@ -185,12 +199,18 @@
 		left: 50%;
 		z-index: 40;
 		transform: translateX(-50%);
-		box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+		background: var(--surface-2);
 	}
 
 	/* Below the dev/local banner rather than over its text (#32). */
 	:global(body:has(.env-banner)) .pill.floating {
-		top: calc(2.5rem + env(safe-area-inset-top, 0px));
+		top: calc(2.25rem + env(safe-area-inset-top, 0px));
+	}
+
+	/* Phones: above the bottom bar, clear of the tab strip and page actions. */
+	:global(body:has(.shell.has-tabs)) .pill.floating {
+		top: auto;
+		bottom: calc(var(--bottom-nav-h) + 0.75rem);
 	}
 
 	.pill.stuck {
@@ -200,6 +220,17 @@
 
 	.pill.done {
 		color: var(--muted-foreground);
+	}
+
+	.pill.unsaved {
+		color: var(--warning);
+	}
+
+	.unsaved-dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
+		background: var(--warning);
 	}
 
 	.spin {
@@ -221,23 +252,23 @@
 
 	.intro,
 	.empty {
-		margin: 0 0 1rem;
+		margin: 0 0 var(--space-4);
 		color: var(--muted-foreground);
 		font-size: var(--text-sm);
 	}
 
 	h3 {
-		margin: 1.25rem 0 0.5rem;
-		font-size: var(--text-xs, 0.75rem);
+		margin: var(--space-5) 0 var(--space-2);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	ul {
 		display: grid;
-		gap: 0.25rem;
+		gap: var(--space-1);
 		margin: 0;
 		padding: 0;
 		list-style: none;
@@ -247,8 +278,8 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.35rem 0.6rem;
-		padding: 0.5rem 0;
+		gap: var(--space-1) var(--space-2);
+		padding: var(--space-2) 0;
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -286,5 +317,6 @@
 	.at {
 		font-size: var(--text-sm);
 		font-variant-numeric: tabular-nums;
+		font-feature-settings: var(--font-features-num);
 	}
 </style>

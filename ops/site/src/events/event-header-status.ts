@@ -1,11 +1,18 @@
+import type { BadgeTone } from "../ui/badge";
+
 export type EventPublishState = {
   preview: "unpublished" | "stale" | "current" | string;
   live: "unpublished" | "stale" | "current" | string;
 };
 
 export type HeaderFlag = {
+  /** One or two words for the badge. */
   label: string;
-  tone: "unsaved" | "unpublished" | "preview" | "live" | "muted" | "new";
+  /** The longer explanation, for the badge's tooltip. */
+  title: string;
+  tone: BadgeTone;
+  /** On the website and current: the badge can link to the page. */
+  live: boolean;
 };
 
 /**
@@ -17,14 +24,15 @@ export function eventHeaderFlag(
   dirty: boolean,
   { job = null }: { job?: "waiting" | "failed" | null } = {},
 ): HeaderFlag {
-  if (dirty) return { label: "Not saved", tone: "unsaved" };
-  if (!publish) return { label: "New", tone: "new" };
+  const flag = (label: string, title: string, tone: BadgeTone, live = false) => ({ label, title, tone, live });
+  if (dirty) return flag("Not saved", "You have changes that are not saved", "danger");
+  if (!publish) return flag("New", "Not saved yet", "neutral");
   // Saved; the calendar and website copy are still following in the background.
-  if (job === "waiting") return { label: "Saved. Getting it ready…", tone: "muted" };
-  if (job === "failed") return { label: "Saved, but not ready for the website", tone: "unpublished" };
+  if (job === "waiting") return flag("Updating", "Saved. Getting it ready for the website…", "neutral");
+  if (job === "failed") return flag("Failed", "Saved, but not ready for the website", "danger");
   // Editors only think about the website. The preview site is updated on
   // save behind the scenes and never named. Local ops works the same way.
-  if (publish.live === "current") return { label: "On the website", tone: "live" };
-  if (publish.live === "unpublished") return { label: "Not on the website yet", tone: "unpublished" };
-  return { label: "Changes not on the website yet", tone: "preview" };
+  if (publish.live === "current") return flag("Live", "On the website", "success", true);
+  if (publish.live === "unpublished") return flag("Not live", "Not on the website yet", "neutral");
+  return flag("Changed", "Changes not on the website yet. Update website puts them there.", "warning");
 }

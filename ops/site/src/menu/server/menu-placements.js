@@ -157,48 +157,48 @@ export function placementKey(entry) {
 }
 
 /**
- * Normalize client / migrate payloads into placement rows.
- * At most one print and one digital; many pos (one per menu preferred).
+ * Normalize client / migrate payloads into placement rows, in the order given.
+ * Any number of rows per channel: two Print chapters, two screens on one POS
+ * menu. Only exact repeats (same channel and chapter, or same POS menu and
+ * screen) collapse into one, since the junction keys rows that way.
  */
 export function normalizePlacements(entries) {
   const list = Array.isArray(entries) ? entries : [];
-  const print = [];
-  const digital = [];
-  const pos = [];
-  const seenPos = new Set();
+  const out = [];
+  const seen = new Set();
 
   for (const raw of list) {
     const channel = normalizePlacementChannel(raw?.channel);
     if (!channel) continue;
+    let row;
     if (channel === "print" || channel === "digital") {
       const sectionId = String(raw.sectionId || raw.section?._id || "").trim();
       if (!sectionId) continue;
-      const row = {
+      row = {
         channel,
         sectionId,
         sectionTitle: text(raw.sectionTitle || raw.section?.title) || undefined,
         orderRank: parseOrder(raw.orderRank),
       };
-      if (channel === "print") print.splice(0, print.length, row);
-      else digital.splice(0, digital.length, row);
-      continue;
+    } else {
+      const posMenuId = String(raw.posMenuId || raw.posMenu?.id || "").trim();
+      const posScreen = parsePosScreenInput(raw.posScreen || raw.lightspeedMenuScreen);
+      if (!posMenuId || !posScreen) continue;
+      row = {
+        channel: "pos",
+        posMenuId,
+        posMenuName: text(raw.posMenuName || raw.posMenu?.name) || undefined,
+        posScreen,
+        orderRank: parseOrder(raw.orderRank),
+      };
     }
-    const posMenuId = String(raw.posMenuId || raw.posMenu?.id || "").trim();
-    const posScreen = parsePosScreenInput(raw.posScreen || raw.lightspeedMenuScreen);
-    if (!posMenuId || !posScreen) continue;
-    const key = `${posMenuId}:${posScreen.toLowerCase()}`;
-    if (seenPos.has(key)) continue;
-    seenPos.add(key);
-    pos.push({
-      channel: "pos",
-      posMenuId,
-      posMenuName: text(raw.posMenuName || raw.posMenu?.name) || undefined,
-      posScreen,
-      orderRank: parseOrder(raw.orderRank),
-    });
+    const key = placementKey(row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
   }
 
-  return [...print, ...digital, ...pos];
+  return out;
 }
 
 /** Build placements from legacy item fields (pre-junction). */
@@ -322,10 +322,13 @@ export function applyPlacementDerivedFields(item) {
     onPrintMenu: Boolean(print),
     onDigitalMenu: Boolean(digital),
     sectionId: sectionId ? String(sectionId) : null,
-    posMenus: pos.map((row) => ({
-      id: String(row.posMenuId),
-      name: row.posMenuName || "",
-    })),
+    // One entry per POS menu, though a menu can carry several screens.
+    posMenus: [...new Map(
+      pos.map((row) => [
+        String(row.posMenuId),
+        { id: String(row.posMenuId), name: row.posMenuName || "" },
+      ]),
+    ).values()],
     lightspeedMenuScreen: serializePosScreens(screens) || undefined,
   };
 }
@@ -514,9 +517,13 @@ export function legacyFieldsFromPlacements(placements, tables) {
     fields.Section = [sectionId];
   }
   if (tables?.posMenus) {
-    fields["POS menus"] = pos
-      .map((row) => Number(row.posMenuId))
-      .filter((id) => Number.isFinite(id) && id > 0);
+    fields["POS menus"] = [
+      ...new Set(
+        pos
+          .map((row) => Number(row.posMenuId))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    ];
   }
   return fields;
 }

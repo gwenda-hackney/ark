@@ -925,6 +925,11 @@ export function lightspeedServeItemName(item, serve = "primary") {
  * pint + half (half always, using Alt price or half the pint).
  * Alt rows use id `alt:{menuItemId}` and `lightspeedSkuAlt`.
  * Soft-drink Item Names include (pint)/(half); Button name uses POS name.
+ *
+ * Only the first two rows of a drink's price table reach the till, through
+ * `price` / `lightspeedSku` and `priceAlt` / `lightspeedSkuAlt` (kept in step
+ * with them, see menu/prices.js). A third row's SKU is stored on the drink
+ * but not exported or matched yet.
  */
 export function expandMenuItemsForLightspeedExport(items) {
   const out = [];

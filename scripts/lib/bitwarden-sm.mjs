@@ -124,7 +124,7 @@ export const SECRET_OWNERS = {
     "DISPATCH_TOKEN",
     // Script-only: UptimeRobot main API key (setup:uptime, alerts@ account).
     "UPTIME_ROBOT_API_KEY",
-    // Script-only: Sentry token of the alerts@ user (setup:sentry, #35).
+    // Script-only: Sentry internal integration SENTRY_AUTH_TOKEN (setup:sentry, sentry:issues, #35).
     "SENTRY_AUTH_TOKEN",
     // CI-only (sm-export): Sentry organisation token, uploads source maps (#35).
     "SENTRY_ORG_TOKEN",
@@ -135,6 +135,11 @@ export const SECRET_OWNERS = {
     "GOOGLE_OAUTH_CLIENT_SECRET",
     "OPS_SESSION_SECRET",
     "OPS_LOCAL_ADMIN_PW",
+    // Bearer for GET /status on the site-health Worker, which holds the same
+    // value as its HEALTH_STATUS_TOKEN secret (#151).
+    "SITE_HEALTH_STATUS_TOKEN",
+    // Read-only Sentry token (Issue & Event: Read) for the dashboard's errors card (#156).
+    "SENTRY_READ_TOKEN",
     // Script-only (sm-export): the automation@ Baserow login for schema changes.
     "BASEROW_JWT_EMAIL",
     "BASEROW_JWT_PASSWORD",
@@ -198,6 +203,12 @@ export const APP_SECRETS = {
       "FORMS_ADMIN_SECRET",
       // Form emails resent from /forms go out as the website's mailbox.
       "GMAIL_SERVICE_ACCOUNT_JSON",
+      // Signs website preview passes (shared/website-pass.js).
+      "GATE_BYPASS_KEY",
+      // Reads the site-health Worker's /status for the Website page.
+      "SITE_HEALTH_STATUS_TOKEN",
+      // Reads Sentry issues for the dashboard (api/health/errors.js).
+      "SENTRY_READ_TOKEN",
     ],
     rename: {
       BASEROW_API_KEY: "BASEROW_OPS_API_KEY",
@@ -216,7 +227,7 @@ export const APP_SECRETS = {
       "SANITY_API_TOKEN",
       "DEPLOY_WEBHOOK_SECRET",
       "GMAIL_SERVICE_ACCOUNT_JSON",
-        "SITE_PASSWORD",
+      "SITE_PASSWORD",
       "GATE_BYPASS_KEY",
       "SANITY_DEPLOY_TOKEN",
       "UNIFI_SITE_MANAGER_API_KEY",
@@ -225,7 +236,10 @@ export const APP_SECRETS = {
       BASEROW_API_KEY: "BASEROW_WEBSITE_API_KEY",
       GMAIL_SERVICE_ACCOUNT_JSON: "GOOGLE_SERVICE_ACCOUNT_JSON",
     },
-    pagesSkip: ["SANITY_DEPLOY_TOKEN", "UNIFI_SITE_MANAGER_API_KEY"],
+    pagesSkip: [
+      "SANITY_DEPLOY_TOKEN",
+      "UNIFI_SITE_MANAGER_API_KEY",
+    ],
   },
 };
 

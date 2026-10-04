@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildGateShareUrl,
   isAiReadingBot,
   isPublicPath,
   isUnauthenticatedCrawler,
@@ -13,40 +12,6 @@ function req(userAgent) {
     headers: { get: (name) => (name === "User-Agent" ? userAgent : "") },
   };
 }
-
-describe("buildGateShareUrl", () => {
-  it("adds the access param to the current path", () => {
-    expect(
-      buildGateShareUrl(
-        "https://preview.gwenda-blue.pages.dev",
-        "/whats-on",
-        "secret-key",
-      ),
-    ).toBe("https://preview.gwenda-blue.pages.dev/whats-on?access=secret-key");
-  });
-
-  it("keeps existing query params and replaces access", () => {
-    expect(
-      buildGateShareUrl(
-        "https://preview.gwenda-blue.pages.dev",
-        "/events?x=1&access=old",
-        "secret-key",
-      ),
-    ).toBe(
-      "https://preview.gwenda-blue.pages.dev/events?x=1&access=secret-key",
-    );
-  });
-
-  it("rejects open redirects", () => {
-    expect(
-      buildGateShareUrl(
-        "https://preview.gwenda-blue.pages.dev",
-        "//evil.example",
-        "secret-key",
-      ),
-    ).toBe("https://preview.gwenda-blue.pages.dev/?access=secret-key");
-  });
-});
 
 describe("isPublicPath", () => {
   it("allows stable brand assets through the preview gate", () => {

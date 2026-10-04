@@ -11,7 +11,9 @@ export type NavRoute = {
 	heading?: boolean;
 	/** Hidden unless the signed-in user is an admin. */
 	adminOnly?: boolean;
-	/** One-line explanation under the name in the phone menu sheet. */
+	/** Shorter name for the phone tab strip. Falls back to `name`. */
+	short?: string;
+	/** One-line explanation under the name on the phone More page. */
 	hint?: string;
 	/** Shows the "waiting for the website" count. */
 	badge?: "website";

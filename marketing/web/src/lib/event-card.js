@@ -83,6 +83,24 @@ export function sizedImageUrl(url, width) {
   return `${src}${src.includes("?") ? "&" : "?"}w=${width}&auto=format&q=86`;
 }
 
+/**
+ * A tiny, blurred copy of a Sanity photo (a few hundred bytes) to show while
+ * the real one loads. "" for anything that isn't a Sanity image.
+ */
+export function tinyImageUrl(url) {
+  try {
+    const tiny = new URL(text(url));
+    if (tiny.hostname !== "cdn.sanity.io") return "";
+    tiny.searchParams.set("w", "48");
+    tiny.searchParams.set("q", "30");
+    tiny.searchParams.set("blur", "30");
+    tiny.searchParams.set("auto", "format");
+    return tiny.href;
+  } catch {
+    return "";
+  }
+}
+
 function scheduleRows(slots) {
   return (Array.isArray(slots) ? slots : [])
     .map((slot) => ({
@@ -300,7 +318,11 @@ function mediaHtml(media) {
       <span>Gwenda</span>
     </div>`;
   }
-  return html`<figure class="event-media">
+  const placeholder = tinyImageUrl(media.src);
+  return html`<figure${attrs({
+    class: "event-media",
+    style: placeholder ? `--placeholder: url("${placeholder}")` : "",
+  })}>
     <img${attrs({
       class: "event-hero",
       src: media.src,
@@ -383,7 +405,7 @@ function linkHtml(link) {
   })}>${link.label}</a></p>`;
 }
 
-/** "Nights ahead": a short list after the next night. */
+/** "Nights ahead": the nights after the next one, on a line under the time. */
 function datesHtml(dates) {
   const rows = dates
     .map((night) => {
@@ -398,9 +420,9 @@ function datesHtml(dates) {
       const artist = text(night.artist);
       return html`<li><time${attrs({ datetime: night.date, title: formatEventDate(night.date) })}>${formatShortEventDate(night.date)}</time>${
         night.isSpecialEdition && artist
-          ? html`<p class="event-dates-guest">With ${artist}</p>`
+          ? html` <span class="event-dates-guest">with ${artist}</span>`
           : ""
-      }${night.note ? html`<p class="event-dates-note">${night.note}</p>` : ""}</li>`;
+      }${night.note ? html` <span class="event-dates-note">${night.note}</span>` : ""}</li>`;
     })
     .filter(Boolean);
   if (!rows.length) return "";
@@ -445,15 +467,13 @@ export function renderEventCard(model) {
       teaserHtml,
     )}${model.offer ? html`<p class="event-offer">${model.offer}</p>` : ""}${scheduleHtml(
       model.schedule,
-    )}${
+    )}${datesHtml(model.dates)}${
       model.description.length
         ? html`<div class="event-description">
             ${model.description.map((paragraph) => html`<p>${paragraph}</p>`)}
           </div>`
         : ""
-    }${linkHtml(model.pageLink)}${linkHtml(model.followLink)}${datesHtml(
-      model.dates,
-    )}${follow}</article></${new SafeHtml(tag)}>`,
+    }${linkHtml(model.pageLink)}${linkHtml(model.followLink)}${follow}</article></${new SafeHtml(tag)}>`,
   );
 }
 
@@ -473,8 +493,12 @@ export function renderGallery(images, { title = "" } = {}) {
     const ratio = Math.round((image.width / image.height) * 1000) / 1000;
     const alt =
       text(image.alt) || (title ? `${title}, photo ${index + 1}` : "");
+    // While it loads: the blurred copy for the first rows, the main colour after.
+    const blur =
+      index < GALLERY_FIRST && image.lqip ? `--lqip: url("${image.lqip}")` : "";
+    const color = image.color ? `--photo-color: ${image.color}` : "";
     return html`<li class="series-gallery-item"${attrs({
-      style: `--ratio: ${ratio}`,
+      style: [`--ratio: ${ratio}`, color, blur].filter(Boolean).join("; "),
       hidden: index >= GALLERY_FIRST,
     })}><a${attrs({
       href: image.url,
@@ -490,8 +514,7 @@ export function renderGallery(images, { title = "" } = {}) {
     })} /></a></li>`;
   });
   return String(
-    html`<section class="series-gallery" aria-label="Gallery">
-      <h2 class="series-gallery-label">Gallery</h2>
+    html`<section class="series-gallery" aria-label="Photos">
       <ul class="series-gallery-list">
         ${items}
       </ul>

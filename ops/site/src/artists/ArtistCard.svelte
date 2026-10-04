@@ -1,7 +1,24 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { Icon } from "../app/shell";
-	import { Button, EditorBackBar, Field, NativeSelect, Segmented, TextArea, TextField, Tip } from "../ui";
+	import {
+		Button,
+		Confirm,
+		ConfirmDialog,
+		EditorActionBar,
+		FormHeading,
+		FormLead,
+		FormSection,
+		EditorBackBar,
+		Field,
+		FormErrors,
+		HelpDrawer,
+		NativeSelect,
+		PageHelp,
+		Segmented,
+		TextArea,
+		TextField,
+	} from "../ui";
 	import {
 		clearArtistImage,
 		createArtist,
@@ -15,6 +32,8 @@
 	} from "../app/api";
 	import { leaveEditor, navigate } from "../app/nav";
 	import { toast } from "../ui/toast.svelte";
+	import { provideHelp } from "../ui/help.svelte";
+	import { ARTIST_HELP } from "./artist-help";
 	import {
 		beginLeave,
 		clearUnsavedGuard,
@@ -29,6 +48,9 @@
 		artist?: WallArtist | null;
 		onCreated?: (artist: WallArtist) => void;
 	} = $props();
+
+	/** The Help drawer; a field's ? opens it on its own topic. */
+	const help = provideHelp("Featured artist", ARTIST_HELP);
 
 	const statusItems = [
 		{ id: "current", label: "Current" },
@@ -52,6 +74,8 @@
 		{ value: "12", label: "December" },
 	];
 
+	const confirm = new Confirm();
+	const errors = new FormErrors();
 	let saving = $state(false);
 	let removing = $state(false);
 	let uploading = $state("");
@@ -146,9 +170,18 @@
 		setUnsavedGuard(dirty, () => {
 			const next = takeBlockedNav();
 			if (!next) return;
-			if (!window.confirm("Leave without saving?")) return;
-			beginLeave();
-			navigate(next.path, { replace: next.replace, force: true });
+			void confirm
+				.ask({
+					title: "Discard unsaved changes?",
+					message: "You have edits that haven't been saved. They will be lost.",
+					action: "Discard",
+					cancel: "Keep editing",
+				})
+				.then((ok) => {
+					if (!ok) return;
+					beginLeave();
+					navigate(next.path, { replace: next.replace, force: true });
+				});
 		});
 	});
 
@@ -166,6 +199,7 @@
 	}
 
 	function apply(row: WallArtist | null) {
+		errors.clearAll();
 		persisted = row;
 		name = row?.name || "";
 		artistName = row?.artistName || "";
@@ -182,10 +216,6 @@
 
 	function fail(err: unknown, fallback: string): string {
 		const message = err instanceof Error ? err.message : fallback;
-		if (message.startsWith("auth:")) {
-			window.location.href = message.slice("auth:".length) || "/gate/";
-			return "";
-		}
 		return message;
 	}
 
@@ -207,6 +237,11 @@
 
 	async function onSave(event: Event) {
 		event.preventDefault();
+		errors.replace({ "artist-name": name.trim() ? "" : "Add their full name." });
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
 		saving = true;
 		error = "";
 		const body = {
@@ -249,16 +284,21 @@
 	async function onRemove() {
 		if (!persisted) return;
 		const label = persisted.name || "this artist";
-		if (!window.confirm(`Remove ${label}?`)) return;
+		const ok = await confirm.ask({
+			title: `Delete ${label}?`,
+			message: "Their page, photos and place on the wall go from the website. This can't be undone.",
+			action: "Delete",
+		});
+		if (!ok) return;
 		removing = true;
 		error = "";
 		try {
 			await deleteArtist(persisted.id);
 			beginLeave();
-			toast.ok("Artist removed.");
+			toast.ok("Artist deleted.");
 			navigate("/artists", { replace: true, force: true });
 		} catch (err) {
-			const message = fail(err, "Could not remove the artist.");
+			const message = fail(err, "Could not delete the artist.");
 			if (message) {
 				error = message;
 				toast.error(message);
@@ -348,8 +388,8 @@
 	}
 </script>
 
-<form class="editor" onsubmit={onSave}>
-	<EditorBackBar label="Artists" {dirty} onback={close} />
+<form class="editor" novalidate onsubmit={onSave}>
+	<EditorBackBar label="Artists" onback={close} />
 	<div class="split">
 		<div class="panel" class:dirty>
 			<header class="panel-head">
@@ -357,6 +397,7 @@
 					<p class="eyebrow">{placeLabel}</p>
 				</div>
 				<div class="head-tools">
+					<PageHelp />
 					<Button
 						class="close-btn"
 						variant="ghost"
@@ -372,28 +413,102 @@
 					</Button>
 				</div>
 				<div class="title-name">
-					<input
-						class="title-input"
-						id="artist-name"
-						required
-						autocomplete="off"
-						aria-label="Full name"
-						placeholder="Full name"
-						bind:value={name}
-					/>
+					<h1 class="title-text" class:placeholder={!name.trim()}>{name.trim() || "New artist"}</h1>
 				</div>
 			</header>
 
 			<div class="tab-scroll scrollbar-fade">
 				<div class="tab-body">
-					<section class="details-board">
-						<div class="details-main">
-							<div class="control-grid">
+					<div class="board">
+						<FormLead asideWidth="16rem">
+							{#snippet aside()}
+								<FormHeading title="Profile photo" />
+								<section
+									class="portrait"
+									class:dropping={dropping === "portrait"}
+									role="group"
+									aria-label="Profile photo"
+									ondragenter={(event) => onDragEnter("portrait", event)}
+									ondragover={onDragOver}
+									ondragleave={(event) => onDragLeave("portrait", event)}
+									ondrop={(event) => onDrop("portrait", event)}
+								>
+									{#if portrait}
+										<figure class="portrait-frame">
+											<img src={portrait.url || portrait.thumb} alt="" />
+										</figure>
+									{:else}
+										<label class="empty">
+											<input
+												class="sr-only"
+												type="file"
+												accept="image/jpeg,image/png,image/webp,image/gif"
+												disabled={!persisted || Boolean(uploading)}
+												onchange={(event) => onInput("portrait", event)}
+											/>
+											<span class="empty-label">
+												{uploading === "portrait" ? "Uploading…" : persisted ? "Drop a photo here" : "No photo yet"}
+											</span>
+										</label>
+									{/if}
+									<!-- Always shown; unavailable ones are disabled with a reason. -->
+									<div class="portrait-actions">
+										<label
+											class="pick-btn"
+											class:disabled={!persisted || Boolean(uploading)}
+											title={!persisted ? "Save the artist first" : uploading ? "Wait for the upload" : undefined}
+										>
+											<input
+												class="sr-only"
+												type="file"
+												accept="image/jpeg,image/png,image/webp,image/gif"
+												disabled={!persisted || Boolean(uploading)}
+												onchange={(event) => onInput("portrait", event)}
+											/>
+											<Icon name="upload" size={14} />
+											{portrait ? "Replace" : "Add photo"}
+										</label>
+										<Button
+											variant="outline"
+											size="sm"
+											class="portrait-remove"
+											disabled={!portrait || Boolean(uploading)}
+											reason={!portrait ? "No photo to remove" : uploading ? "Wait for the upload" : undefined}
+											onclick={() => onClearImage("portrait", portrait?.name || "")}
+										>
+											{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
+											Remove
+										</Button>
+									</div>
+								</section>
+								<p class="photo-note">
+									{persisted ? "The portrait at the top of their page." : "Save the artist first, then add photos."}
+								</p>
+							{/snippet}
+
+							<FormHeading class="lead-first" title="Artist" />
 								<Field
-									class="span-all"
+									class="lead-first"
+									label="Full name"
+									for="artist-name"
+									required
+									error={errors.get("artist-name")}
+								>
+									<TextField
+										id="artist-name"
+										size="sm"
+										autocomplete="off"
+										placeholder="Ada Lovelace"
+										oninput={() => errors.clear("artist-name")}
+										bind:value={name}
+									/>
+								</Field>
+								<Field
+									class="span-6"
 									label="Artist name"
 									for="artist-short-name"
-									tooltip="The first name in the From section on their page. Leave blank to use the first word of the full name."
+									optional
+									help="Artist name"
 								>
 									<TextField
 										id="artist-short-name"
@@ -403,41 +518,14 @@
 										autocomplete="off"
 									/>
 								</Field>
-								<Field
-									label="On the wall"
-									tooltip="The months this artist is up. The home page shows them under the name, as Sept to Oct."
-								>
-									<div class="months">
-										<NativeSelect
-											id="artist-start-month"
-											bind:value={startMonth}
-											options={monthOptions}
-											size="sm"
-										/>
-										<NativeSelect
-											id="artist-end-month"
-											bind:value={endMonth}
-											options={monthOptions}
-											size="sm"
-										/>
-									</div>
-								</Field>
-								<Field
-									label="Place"
-									tooltip="Current is on the wall. Next is lined up. Previous has already hung here. Only one current and one next: saving that badge moves the artist who had it to previous."
-								>
-									<Segmented
-										bind:value={slot}
-										items={statusItems}
-										ariaLabel="Place on the wall"
-										size="sm"
-									/>
-								</Field>
-								<div class="website">
-									<Field label="Website" for="artist-website" tooltip="A link to their own site.">
+								<div class="website span-6">
+									<Field label="Website" for="artist-website" optional>
 										<TextField
 											id="artist-website"
 											size="sm"
+											type="url"
+											inputmode="url"
+											spellcheck="false"
 											bind:value={website}
 											placeholder="https://"
 											autocomplete="url"
@@ -451,108 +539,50 @@
 										</p>
 									{/if}
 								</div>
-								<Field
-									class="span-all"
-									label="Profile"
-									for="artist-profile"
-									tooltip="A short introduction. This sits above the longer bio on the website."
-								>
-									<TextArea
-										id="artist-profile"
-										rows={3}
-										bind:value={profile}
-										placeholder="Who they are, in a few lines."
-									/>
-								</Field>
-								<Field
-									class="span-all"
-									label="Bio"
-									for="artist-bio"
-									tooltip="The longer note on their page."
-								>
-									<TextArea
-										id="artist-bio"
-										rows={6}
-										bind:value={bio}
-										placeholder="The fuller story."
-									/>
-								</Field>
-							</div>
-						</div>
 
-						<aside class="details-side">
-							{#if !persisted}
-								<p class="hint">Save before adding a photo.</p>
-							{/if}
-							<section
-								class="portrait"
-								class:dropping={dropping === "portrait"}
-								role="group"
-								aria-label="Profile photo"
-								ondragenter={(event) => onDragEnter("portrait", event)}
-								ondragover={onDragOver}
-								ondragleave={(event) => onDragLeave("portrait", event)}
-								ondrop={(event) => onDrop("portrait", event)}
-							>
-								<header class="portrait-head">
-									<h2 class="section-title bare">
-										Profile photo
-										<Tip
-											label="Profile photo"
-											tooltip="The portrait at the top of their page."
+							<FormHeading
+								ruled
+								title="On the wall"
+								description="Their place in the line-up, and the months under their name on the home page."
+							/>
+								<Field
+									class="span-5"
+									label="Place"
+									help="Place"
+								>
+									<Segmented bind:value={slot} items={statusItems} ariaLabel="Place on the wall" size="sm" />
+								</Field>
+								<Field class="span-7" label="Months" optional help="Months">
+									<div class="months">
+										<NativeSelect
+											id="artist-start-month"
+											aria-label="From"
+											bind:value={startMonth}
+											options={monthOptions}
+											size="sm"
 										/>
-									</h2>
-									{#if persisted && portrait}
-										<div class="portrait-actions">
-											<label class="pick">
-												<input
-													class="sr-only"
-													type="file"
-													accept="image/jpeg,image/png,image/webp,image/gif"
-													disabled={Boolean(uploading)}
-													onchange={(event) => onInput("portrait", event)}
-												/>
-												<span class="pick-btn">Replace</span>
-											</label>
-											<button
-												class="pick-btn remove"
-												type="button"
-												disabled={Boolean(uploading)}
-												onclick={() => onClearImage("portrait", portrait?.name || "")}
-											>
-												Remove
-											</button>
-										</div>
-									{/if}
-								</header>
-								{#if portrait}
-									<figure class="portrait-frame">
-										<img src={portrait.url || portrait.thumb} alt="" />
-									</figure>
-								{:else}
-									<label class="empty">
-										<input
-											class="sr-only"
-											type="file"
-											accept="image/jpeg,image/png,image/webp,image/gif"
-											disabled={!persisted || Boolean(uploading)}
-											onchange={(event) => onInput("portrait", event)}
+										<span class="months-to" aria-hidden="true">to</span>
+										<NativeSelect
+											id="artist-end-month"
+											aria-label="To"
+											bind:value={endMonth}
+											options={monthOptions}
+											size="sm"
 										/>
-										<span class="empty-label">
-											{uploading === "portrait" ? "Uploading…" : "Add photo"}
-										</span>
-									</label>
-								{/if}
-							</section>
-						</aside>
+									</div>
+								</Field>
+						</FormLead>
 
-						<section class="gallery-block">
-							<h2 class="section-title">
-								<span class="section-label">
-									Work
-									<Tip label="Work" tooltip="Their art, shown on the website." />
-								</span>
-							</h2>
+						<FormSection title="Their page" class="sec-page">
+								<Field class="span-5" label="Profile" for="artist-profile" optional help="Profile and Bio">
+									<TextArea id="artist-profile" rows={6} bind:value={profile} placeholder="Who they are, in a few lines." />
+								</Field>
+								<Field class="span-7" label="Bio" for="artist-bio" optional help="Profile and Bio">
+									<TextArea id="artist-bio" rows={6} bind:value={bio} placeholder="The fuller story." />
+								</Field>
+						</FormSection>
+
+						<FormSection title="Work" class="sec-work" description="Their art, shown on the website.">
 							<div
 								class="drop"
 								class:dragging={dropping === "art"}
@@ -602,18 +632,9 @@
 									<div class="drop-veil" aria-hidden="true"><span>Drop to upload</span></div>
 								{/if}
 							</div>
-						</section>
+						</FormSection>
 
-						<section class="gallery-block">
-							<h2 class="section-title">
-								<span class="section-label">
-									At Gwenda
-									<Tip
-										label="At Gwenda"
-										tooltip="Photos taken at Gwenda. These are separate from their own art."
-									/>
-								</span>
-							</h2>
+						<FormSection title="At Gwenda" class="sec-gwenda" description="Photos taken here, kept apart from their own art.">
 							<div
 								class="drop"
 								class:dragging={dropping === "gwenda"}
@@ -663,46 +684,38 @@
 									<div class="drop-veil" aria-hidden="true"><span>Drop to upload</span></div>
 								{/if}
 							</div>
-						</section>
-					</section>
-					{#if !persisted}
-						<p class="hint">Save the name first, then add photos.</p>
-					{/if}
+						</FormSection>
+					</div>
 					{#if error}
 						<p class="error">{error}</p>
 					{/if}
 				</div>
 			</div>
 
-			<footer class="panel-foot">
-				{#if persisted}
-					<Button
-						class="delete-btn"
-						variant="destructive"
-						size="sm"
-						type="button"
-						disabled={removing || saving || Boolean(uploading)}
-						onclick={onRemove}
-					>
-						Remove
-					</Button>
-				{/if}
-				<Button
-					variant="primary"
-					size="sm"
-					type="submit"
-					busy={saving}
-					disabled={!dirty || saving || Boolean(uploading)}
-				>
-					{#snippet icon()}
-						<Icon name="save" />
-					{/snippet}
-					{saving ? "Saving…" : "Save"}
-				</Button>
-			</footer>
+			<EditorActionBar
+				saveLabel={persisted ? "Save artist" : "Add artist"}
+				{saving}
+				disabled={!dirty || Boolean(uploading) || removing}
+				{dirty}
+				errorCount={errors.count}
+				onerrors={() => void errors.reveal()}
+				overflow={persisted
+					? [
+							{
+								label: "Delete artist",
+								tone: "destructive",
+								disabled: removing || saving || Boolean(uploading),
+								onselect: () => void onRemove(),
+							},
+						]
+					: []}
+			/>
 		</div>
 	</div>
+	<ConfirmDialog {confirm} />
 </form>
+
+<HelpDrawer {help} />
 
 <style>
 	.editor {
@@ -713,7 +726,7 @@
 		flex-direction: column;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--background);
+		background: var(--ambient), var(--background);
 	}
 
 	.split {
@@ -721,7 +734,7 @@
 		flex: 1;
 		min-height: 0;
 		height: 100%;
-		padding: var(--gap) var(--page-gutter) var(--gap);
+		padding: var(--space-4) var(--page-gutter) var(--space-4);
 	}
 
 	.panel {
@@ -732,7 +745,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 		transition: border-color var(--t-fast) var(--ease-in-out);
@@ -746,7 +759,7 @@
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: start;
-		column-gap: 0.85rem;
+		column-gap: var(--space-3);
 		row-gap: 0.2rem;
 		flex-shrink: 0;
 		padding: 0.55rem var(--card-pad-lg) 0.75rem;
@@ -762,11 +775,11 @@
 
 	.eyebrow {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 	}
 
 	.head-tools {
@@ -779,39 +792,23 @@
 		color: var(--muted-foreground);
 	}
 
-	.title-input {
-		display: block;
-		width: 100%;
+	.title-text {
+		margin: 0;
 		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
-		font-size: 1.85rem;
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		outline: none;
+		overflow-wrap: anywhere;
 	}
 
-	.title-input::placeholder {
-		color: var(--subtle-foreground);
+	.title-text.placeholder {
+		color: var(--muted-foreground);
 	}
 
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
-	}
-
+	/* Section cards sit on the page colour, so each group reads as one block. */
 	.tab-scroll {
 		flex: 1;
 		min-height: 0;
@@ -825,47 +822,36 @@
 		container-name: artist-detail;
 	}
 
-	.details-board {
+	.board {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
-		gap: 1.25rem 1.5rem;
-		align-items: start;
-	}
-
-	.details-main,
-	.details-side {
-		display: grid;
-		gap: 0.85rem;
 		align-content: start;
 		min-width: 0;
 	}
 
-	.details-side {
-		order: -1;
-	}
-
-	.control-grid {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr);
-		gap: 0.8rem 0.7rem;
-		align-items: start;
-	}
-
-	.control-grid > :global(.span-all),
-	.gallery-block {
-		grid-column: 1 / -1;
+	.photo-note {
+		margin: 0;
+		font-size: var(--text-xs);
+		line-height: var(--leading-xs);
+		color: var(--fg-subtle);
 	}
 
 	.website {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 
 	.months {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.5rem;
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.months-to {
+		font-size: var(--text-sm);
+		color: var(--muted-foreground);
 	}
 
 	.site {
@@ -885,89 +871,61 @@
 
 	.portrait {
 		display: grid;
-		gap: 0.75rem;
-	}
-
-	.portrait-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-	}
-
-	.section-title {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin: 0.4rem 0 0;
-		font-family: var(--font-display);
-		font-size: var(--text-md);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		line-height: 1.3;
-		color: var(--primary);
-	}
-
-	.section-title.bare {
-		margin: 0;
-		flex: 1;
-	}
-
-	.section-title:not(.bare)::after {
-		content: "";
-		flex: 1 1 auto;
-		height: 1px;
-		min-width: 1.5rem;
-		background: var(--border-strong);
-	}
-
-	.section-label {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-2);
 	}
 
 	.portrait-actions {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
-	.pick {
-		display: inline-flex;
-		cursor: pointer;
-	}
-
+	/* The file picker is a label; it matches the outline sm Button beside it. */
 	.pick-btn {
 		display: inline-flex;
 		align-items: center;
-		height: var(--control-h-sm);
-		padding: 0 0.75rem;
-		border: 1px solid var(--border);
-		border-radius: 0.35rem;
-		background: var(--surface);
-		color: inherit;
+		gap: var(--space-2);
+		height: var(--button-h-sm);
+		padding: 0 var(--space-3) 0 var(--space-2);
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--foreground);
+		font: inherit;
 		font-size: var(--text-sm);
-		font-weight: 600;
+		font-weight: 500;
+		white-space: nowrap;
 		cursor: pointer;
 	}
 
-	.pick-btn.remove:hover:not(:disabled) {
-		color: var(--destructive);
-		background: var(--destructive-wash);
+	.pick-btn:hover:not(.disabled) {
+		background: var(--accent);
 	}
 
-	.pick-btn:disabled {
+	.pick-btn:focus-within {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	.pick-btn.disabled {
+		border-color: transparent;
+		background: var(--surface-3);
+		color: var(--fg-subtle);
 		cursor: not-allowed;
-		opacity: 0.6;
+	}
+
+	:global(.portrait-remove:hover:not(:disabled, [aria-disabled="true"])) {
+		color: var(--destructive);
+		background: var(--destructive-wash);
 	}
 
 	.portrait-frame,
 	.empty {
 		width: 100%;
 		aspect-ratio: 4 / 5;
-		border-radius: 0.4rem;
-		background: #0d0d0d;
+		border-radius: var(--radius-md);
+		background: transparent;
 	}
 
 	.portrait-frame {
@@ -986,8 +944,8 @@
 	.empty {
 		display: grid;
 		place-items: center;
-		border: 1px dashed var(--border);
-		background: var(--surface);
+		border: 1px dashed var(--border-strong);
+		background: transparent;
 		cursor: pointer;
 	}
 
@@ -1010,11 +968,6 @@
 		clip: rect(0, 0, 0, 0);
 		white-space: nowrap;
 		border: 0;
-	}
-
-	.gallery-block {
-		display: grid;
-		gap: 0.85rem;
 	}
 
 	.drop {
@@ -1050,7 +1003,7 @@
 	.gallery {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-		gap: 0.75rem;
+		gap: var(--space-3);
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -1082,11 +1035,11 @@
 		height: 100%;
 		min-height: 0;
 		object-fit: contain;
-		background: #0d0d0d;
+		background: var(--bg);
 	}
 
 	.caption {
-		padding: 0.35rem 0.45rem 0.45rem;
+		padding: var(--space-1) var(--space-2) var(--space-2);
 		font-size: var(--text-xs);
 		line-height: 1.3;
 		color: var(--muted-foreground);
@@ -1103,9 +1056,9 @@
 		height: 1.4rem;
 		padding: 0;
 		border: 0;
-		border-radius: 999px;
-		background: color-mix(in srgb, #0d0d0d 72%, transparent);
-		color: #e8e4dc;
+		border-radius: var(--radius-pill);
+		background: color-mix(in srgb, var(--bg) 72%, transparent);
+		color: var(--fg);
 		cursor: pointer;
 	}
 
@@ -1124,58 +1077,38 @@
 	.photo-btn {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		height: var(--control-h-sm);
-		padding: 0 0.95rem;
+		padding: 0 var(--space-4);
 		border: 1px solid var(--primary);
 		border-radius: var(--radius-pill);
 		background: var(--primary);
 		color: var(--primary-foreground);
-		font-size: var(--text);
+		font-size: var(--text-base);
 		font-weight: 500;
 		pointer-events: none;
 	}
 
-	.hint,
 	.error {
-		margin: 0.75rem 0 0;
+		margin: var(--space-3) 0 0;
 		font-size: var(--text-sm);
+		color: var(--danger);
 	}
 
-	.hint {
-		color: var(--muted-foreground);
-	}
-
-	.error {
-		color: var(--destructive, #c97a7a);
-	}
-
-	.panel-foot {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		flex-shrink: 0;
-		margin-top: auto;
-		padding: 0.65rem var(--card-pad-lg) 0.85rem;
-		border-top: 1px solid var(--border);
-	}
-
-	.panel-foot :global(.delete-btn) {
-		margin-right: auto;
-	}
-
-	@container artist-detail (min-width: 52rem) {
-		.details-board {
-			grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.8fr);
+	/* Keep in sync with SHELL_MOBILE_MAX_PX: edge to edge, like the other editors. */
+	@media (max-width: 900px) {
+		.split {
+			padding: 0;
 		}
 
-		.details-side {
-			order: 0;
+		.panel {
+			border-radius: 0;
+			border-left: none;
+			border-right: none;
 		}
 
-		.control-grid {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		.tab-body {
+			padding: var(--space-4) max(var(--page-gutter), 1.125rem);
 		}
 	}
 </style>

@@ -3,14 +3,21 @@
 	import {
 		Button,
 		BusyOverlay,
-		Dialog,
+		ConfirmDialog,
+		EditorActionBar,
 		EditorBackBar,
 		Field,
+		FormErrors,
+		FormSection,
+		FormSplit,
+		MoneyField,
 		NativeSelect,
+		NumberField,
 		SidePanel,
 		TextArea,
 		TextField,
 	} from "../ui";
+	import { parseNumber } from "../ui/number-input";
 	import type { SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
 	import { INVENTORY_KINDS, skuFromProductUrl, type CatalogSupplier, type InventoryItem, type InventoryKind, type InventorySupplier } from "./types";
@@ -46,6 +53,8 @@
 	} = $props();
 
 	let snapshot = $state("");
+	/** Problems from the last Save, by field id. */
+	const errors = new FormErrors();
 	let deleteOpen = $state(false);
 	let discardOpen = $state(false);
 	let supplierDrawerOpen = $state(false);
@@ -174,6 +183,7 @@
 		const key = itemKey;
 		void key;
 		snapshot = serialize(untrack(() => item));
+		errors.clearAll();
 		discardOpen = false;
 		deleteOpen = false;
 		supplierDrawerOpen = false;
@@ -402,41 +412,41 @@
 	function estimateHint(kind: InventoryKind | undefined): string {
 		const est = kindCostEstimate(kind);
 		if (est.variable) {
-			return `Stand-in for a ${est.label} when there is no supplier price. Fresh juice and produce move around. House guess if empty: ${formatGbp(est.cost)}.`;
+			return `Used when there's no supplier price. Fresh produce moves around. Blank uses ${formatGbp(est.cost)}.`;
 		}
-		return `Stand-in for a ${est.label} when there is no supplier price. House guess if empty: ${formatGbp(est.cost)}.`;
+		return `Used when there's no supplier price. Blank uses ${formatGbp(est.cost)}.`;
+	}
+
+	function submit() {
+		if (busy || !item) return;
+		errors.replace({ "inv-name": String(item.name || "").trim() ? "" : "Add a short name." });
+		if (errors.count) {
+			void errors.reveal();
+			return;
+		}
+		onsave();
 	}
 </script>
 
 {#if item}
 	<form
 		class="editor"
+		novalidate
 		aria-busy={busy || undefined}
 		onsubmit={(e) => {
 			e.preventDefault();
-			if (busy) return;
-			onsave();
+			submit();
 		}}
 	>
 		<BusyOverlay active={busy} label={busyLabel} />
-		<EditorBackBar label="Inventory" {dirty} onback={discardAndClose} />
+		<EditorBackBar label="Inventory" onback={discardAndClose} />
 		<div class="panel" class:dirty>
 			<header class="panel-head">
 				<div class="titles">
 					<p class="eyebrow">{kindLabel(item.kind)}</p>
-					<div class="title-row">
-						<input
-							class="title-input"
-							id="inv-name"
-							required
-							autocomplete="off"
-							placeholder="Short name"
-							aria-label="Short name"
-							value={item.name || ""}
-							oninput={(e) =>
-								patch("name", (e.currentTarget as HTMLInputElement).value)}
-						/>
-					</div>
+					<h1 class="title-text" class:placeholder={!item.name?.trim()}>
+						{item.name?.trim() || "New item"}
+					</h1>
 				</div>
 				<div class="head-actions">
 					<label
@@ -455,9 +465,6 @@
 						<span class="switch-ui"></span>
 						<span class="switch-label">Active</span>
 					</label>
-					{#if dirty}
-						<span class="dirty-pill" aria-live="polite">Unsaved</span>
-					{/if}
 					<Button
 						class="close-btn"
 						variant="ghost"
@@ -475,351 +482,336 @@
 			</header>
 
 			<div class="body scrollbar-fade">
-				<div class="grid">
-					<div class="full">
-						<Field
-							label="Full name"
-							for="inv-full-name"
-							tooltip="Bottle name. Specs keep the short name; analysis uses this to match the guest menu line (St-Germain is elderflower liqueur)."
-						>
-							<TextField
-								id="inv-full-name"
-								size="sm"
-								placeholder="St-Germain elderflower liqueur"
-								value={item.fullName || ""}
-								oninput={(e) =>
-									patch(
-										"fullName",
-										(e.currentTarget as HTMLInputElement).value,
-									)}
-							/>
-						</Field>
-					</div>
-					<Field label="Kind" for="inv-kind">
-						<NativeSelect
-							id="inv-kind"
-							size="sm"
-							options={kindOptions}
-							value={item.kind || "other"}
-							onchange={(e) =>
-								patch("kind", e.currentTarget.value as InventoryKind)}
-						/>
-					</Field>
-					<Field label="ABV %" for="inv-abv">
-						<TextField
-							id="inv-abv"
-							size="sm"
-							inputmode="decimal"
-							placeholder="40"
-							value={item.abv || ""}
-							oninput={(e) =>
-								patch(
-									"abv",
-									(e.currentTarget as HTMLInputElement).value,
-								)}
-						/>
-					</Field>
-					<Field label="Default unit" for="inv-unit">
-						<NativeSelect
-							id="inv-unit"
-							size="sm"
-							options={unitOptions}
-							value={item.defaultUnit || ""}
-							onchange={(e) => patch("defaultUnit", e.currentTarget.value)}
-						/>
-					</Field>
-					<Field
-						label="Estimate (£)"
-						for="inv-estimate"
-						tooltip={estimateHint(item.kind)}
-					>
-						<TextField
-							id="inv-estimate"
-							size="sm"
-							mono
-							inputmode="decimal"
-							placeholder={String(kindCostEstimate(item.kind).cost)}
-							value={
-								item.estimatedCost != null
-									? String(item.estimatedCost)
-									: ""
-							}
-							oninput={(e) => {
-								const raw = (e.currentTarget as HTMLInputElement).value.trim();
-								if (!raw) {
-									patch("estimatedCost", undefined);
-									return;
-								}
-								const n = Number(raw.replace(/[£,\s]/g, ""));
-								patch(
-									"estimatedCost",
-									Number.isFinite(n) ? n : item?.estimatedCost,
-								);
-							}}
-						/>
-					</Field>
-					<Field
-						label="On hand"
-						for="inv-on-hand"
-						tooltip={onHandHint}
-					>
-						<TextField
-							id="inv-on-hand"
-							size="sm"
-							mono
-							inputmode="decimal"
-							placeholder="0"
-							value={item.actualQty != null ? String(item.actualQty) : ""}
-							oninput={(e) => {
-								if (!item) return;
-								const raw = (e.currentTarget as HTMLInputElement).value.trim();
-								if (!raw) {
-									patch("actualQty", undefined);
-									return;
-								}
-								const n = Number(raw.replace(/,/g, ""));
-								if (!Number.isFinite(n)) {
-									patch("actualQty", item.actualQty);
-									return;
-								}
-								if (!item.actualUnit && item.defaultUnit) {
-									item = {
-										...item,
-										actualQty: n,
-										actualUnit: item.defaultUnit,
-									};
-									return;
-								}
-								patch("actualQty", n);
-							}}
-						/>
-					</Field>
-					<Field label="On-hand unit" for="inv-on-hand-unit">
-						<NativeSelect
-							id="inv-on-hand-unit"
-							size="sm"
-							options={actualUnitOptions}
-							value={item.actualUnit || ""}
-							onchange={(e) => patch("actualUnit", e.currentTarget.value)}
-						/>
-					</Field>
-				</div>
+				<div class="board">
+					<FormSplit>
+						<FormSection title="Item">
+							<Field
+								class="span-5"
+								label="Short name"
+								for="inv-name"
+								required
+								error={errors.get("inv-name")}
+								hint="What recipes and specs call it."
+							>
+								<TextField
+									id="inv-name"
+									size="sm"
+									autocomplete="off"
+									placeholder="St-Germain"
+									value={item.name || ""}
+									oninput={(e) => {
+										errors.clear("inv-name");
+										patch("name", (e.currentTarget as HTMLInputElement).value);
+									}}
+								/>
+							</Field>
+							<Field
+								class="span-7"
+								label="Full name"
+								for="inv-full-name"
+								optional
+								hint="The bottle's full name. Specs keep the short name; analysis uses this to match the menu line."
+							>
+								<TextField
+									id="inv-full-name"
+									size="sm"
+									placeholder="St-Germain elderflower liqueur"
+									value={item.fullName || ""}
+									oninput={(e) =>
+										patch(
+											"fullName",
+											(e.currentTarget as HTMLInputElement).value,
+										)}
+								/>
+							</Field>
+								<Field class="span-5" label="Kind" for="inv-kind">
+									<NativeSelect
+										id="inv-kind"
+										size="sm"
+										options={kindOptions}
+										value={item.kind || "other"}
+										onchange={(e) =>
+											patch("kind", e.currentTarget.value as InventoryKind)}
+									/>
+								</Field>
+								<Field class="span-3" label="ABV" for="inv-abv" optional>
+									<NumberField
+										id="inv-abv"
+										size="sm"
+										unit="%"
+										min={0}
+										max={100}
+										step={0.5}
+										decimals={1}
+										noun="a percentage"
+										placeholder="40"
+										value={String(item.abv || "").replace(/\s*%\s*$/, "")}
+										oninput={(e) =>
+											patch(
+												"abv",
+												(e.currentTarget as HTMLInputElement).value,
+											)}
+									/>
+								</Field>
+								<Field class="span-4" label="Default unit" for="inv-unit">
+									<NativeSelect
+										id="inv-unit"
+										size="sm"
+										options={unitOptions}
+										value={item.defaultUnit || ""}
+										onchange={(e) => patch("defaultUnit", e.currentTarget.value)}
+									/>
+								</Field>
+						</FormSection>
 
-				<section class="block">
-					<div class="section-head">
-						<p class="section-title">Suppliers</p>
-						<Button
-							variant="accent"
-							size="xs"
-							type="button"
-							aria-label="Add supplier"
-							title="Add supplier"
-							onclick={openAddSupplier}
-						>
-							{#snippet icon()}
-								<Icon name="plus" size={15} />
-							{/snippet}
-						</Button>
-					</div>
-					{#if supplierRows.length === 0}
-						<p class="muted">
-							No suppliers on this item yet. Add one from the catalog.
-						</p>
-					{:else}
-						<div class="supplier-table-wrap">
-							<table class="supplier-table">
-								<thead>
-									<tr>
-										<th scope="col">Supplier</th>
-										<th scope="col">SKU</th>
-										<th scope="col">Pack</th>
-										<th scope="col" class="num">Price</th>
-										<th scope="col" class="icon-col">
-											<span class="sr-only">Product page</span>
-										</th>
-										<th scope="col" class="icon-col">
-											<span class="sr-only">Details</span>
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each supplierRows as entry, index (entry._id || `${entry.name}-${entry.sku}-${index}`)}
-										<tr>
-											<td class="name-cell">{entry.name || "Untitled"}</td>
-											<td class="mono">{entry.sku || ""}</td>
-											<td>{entry.pack || ""}</td>
-											<td class="price-cell">
-												<TextField
-													class="price-input"
-													size="sm"
-													mono
-													align="end"
-													inputmode="decimal"
-													placeholder="0.00"
-													aria-label="Price for {entry.name || 'supplier'}"
-													value={
-														entry.price != null ? String(entry.price) : ""
-													}
-													oninput={(e) =>
-														patchSupplierPrice(
-															index,
-															(e.currentTarget as HTMLInputElement).value,
-														)}
-												/>
-											</td>
-											<td class="icon-col">
-												{#if entry.productUrl}
-													<a
-														class="icon-btn"
-														href={entry.productUrl}
-														target="_blank"
-														rel="noreferrer"
-														aria-label="Product page"
-														title="Product page"
-													>
-														<Icon name="external-link" size={15} />
-													</a>
-												{/if}
-											</td>
-											<td class="icon-col">
-												<Button
-													variant="ghost"
-													size="xs"
-													type="button"
-													aria-label="Supplier details"
-													title="Details"
-													onclick={() => openEditSupplier(index)}
-												>
-													{#snippet icon()}
-														<Icon name="pen" size={14} />
-													{/snippet}
-												</Button>
-											</td>
-										</tr>
+						<FormSection title="Cost and stock" description="An estimate prices recipes until a supplier price is set.">
+								<Field
+									class="span-4"
+									label="Estimated cost"
+									for="inv-estimate"
+									optional
+									hint={estimateHint(item.kind)}
+								>
+									<MoneyField
+										id="inv-estimate"
+										size="sm"
+										placeholder={kindCostEstimate(item.kind).cost.toFixed(2)}
+										value={
+											item.estimatedCost != null
+												? String(item.estimatedCost)
+												: ""
+										}
+										oninput={(e) => {
+											const raw = (e.currentTarget as HTMLInputElement).value.trim();
+											if (!raw) {
+												patch("estimatedCost", undefined);
+												return;
+											}
+											const n = parseNumber(raw);
+											patch(
+												"estimatedCost",
+												typeof n === "number" ? n : item?.estimatedCost,
+											);
+										}}
+									/>
+								</Field>
+								<Field
+									class="span-4"
+									label="On hand"
+									for="inv-on-hand"
+									optional
+									hint={onHandHint}
+								>
+									<NumberField
+										id="inv-on-hand"
+										size="sm"
+										min={0}
+										decimals={2}
+										noun="a quantity"
+										placeholder="0"
+										value={item.actualQty != null ? String(item.actualQty) : ""}
+										oninput={(e) => {
+											if (!item) return;
+											const raw = (e.currentTarget as HTMLInputElement).value.trim();
+											if (!raw) {
+												patch("actualQty", undefined);
+												return;
+											}
+											const n = parseNumber(raw);
+											if (typeof n !== "number") {
+												patch("actualQty", item.actualQty);
+												return;
+											}
+											if (!item.actualUnit && item.defaultUnit) {
+												item = {
+													...item,
+													actualQty: n,
+													actualUnit: item.defaultUnit,
+												};
+												return;
+											}
+											patch("actualQty", n);
+										}}
+									/>
+								</Field>
+								<Field class="span-4" label="Counted in" for="inv-on-hand-unit">
+									<NativeSelect
+										id="inv-on-hand-unit"
+										size="sm"
+										options={actualUnitOptions}
+										value={item.actualUnit || ""}
+										onchange={(e) => patch("actualUnit", e.currentTarget.value)}
+									/>
+								</Field>
+						</FormSection>
+						{#snippet side()}
+						<FormSection title="Used in">
+							{#if usedIn.length === 0}
+								<p class="muted">
+									{item?.active === false
+										? "Not used in any recipe. Hidden from the ingredient picker."
+										: "Not used in any recipe yet."}
+								</p>
+							{:else}
+								<div class="used-in">
+									{#each usedIn as drink (drink.id)}
+										<a href={drink.href}>{drink.name}</a>
 									{/each}
-								</tbody>
-							</table>
-						</div>
-					{/if}
-				</section>
+								</div>
+								{#if item?.active === false}
+									<p class="muted">Hidden from the ingredient picker.</p>
+								{/if}
+							{/if}
+						</FormSection>
 
-				<section class="block">
-					<p class="section-title">Used in</p>
-					{#if usedIn.length === 0}
-						<p class="muted">
-							{item.active === false
-								? "Not used in any recipe. Hidden from the ingredient picker."
-								: "Not used in any recipe yet."}
-						</p>
-					{:else}
-						<div class="used-in">
-							{#each usedIn as drink (drink.id)}
-								<a href={drink.href}>{drink.name}</a>
-							{/each}
-						</div>
-						{#if item.active === false}
-							<p class="muted">Hidden from the ingredient picker.</p>
-						{/if}
-					{/if}
-				</section>
+						<FormSection title="Notes">
+							<Field label="For the team" for="inv-notes" optional hint="Where it lives, who to ask, anything odd about it.">
+								<TextArea
+									id="inv-notes"
+									rows={3}
+									value={item?.notes || ""}
+									oninput={(e) =>
+										patch(
+											"notes",
+											(e.currentTarget as HTMLTextAreaElement).value,
+										)}
+								/>
+							</Field>
+						</FormSection>
+						{/snippet}
+					</FormSplit>
 
-				<section class="block">
-					<Field label="Notes" for="inv-notes">
-						<TextArea
-							id="inv-notes"
-							rows={3}
-							value={item.notes || ""}
-							oninput={(e) =>
-								patch(
-									"notes",
-									(e.currentTarget as HTMLTextAreaElement).value,
-								)}
-						/>
-					</Field>
-				</section>
+						<FormSection title="Suppliers" description="Where it's bought and what it costs. Prices here cost the recipes.">
+							{#snippet actions()}
+								<Button variant="outline" size="sm" type="button" onclick={openAddSupplier}>
+									{#snippet icon()}
+										<Icon name="plus" size={15} />
+									{/snippet}
+									Add supplier
+								</Button>
+							{/snippet}
+							{#if supplierRows.length === 0}
+								<p class="muted">
+									No suppliers on this item yet. Add one from the catalog.
+								</p>
+							{:else}
+								<div class="supplier-table-wrap">
+									<table class="supplier-table">
+										<thead>
+											<tr>
+												<th scope="col">Supplier</th>
+												<th scope="col">SKU</th>
+												<th scope="col">Pack</th>
+												<th scope="col" class="num">Price</th>
+												<th scope="col" class="icon-col">
+													<span class="sr-only">Product page</span>
+												</th>
+												<th scope="col" class="icon-col">
+													<span class="sr-only">Details</span>
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{#each supplierRows as entry, index (entry._id || `${entry.name}-${entry.sku}-${index}`)}
+												<tr>
+													<td class="name-cell">{entry.name || "Untitled"}</td>
+													<td class="mono">{entry.sku || ""}</td>
+													<td>{entry.pack || ""}</td>
+													<td class="price-cell">
+														<MoneyField
+															class="price-input"
+															size="sm"
+															align="end"
+															aria-label="Price for {entry.name || 'supplier'}"
+															value={
+																entry.price != null ? String(entry.price) : ""
+															}
+															oninput={(e) =>
+																patchSupplierPrice(
+																	index,
+																	(e.currentTarget as HTMLInputElement).value,
+																)}
+														/>
+													</td>
+													<td class="icon-col">
+														{#if entry.productUrl}
+															<a
+																class="icon-btn"
+																href={entry.productUrl}
+																target="_blank"
+																rel="noreferrer"
+																aria-label="Product page"
+																title="Product page"
+															>
+																<Icon name="external-link" size={15} />
+															</a>
+														{/if}
+													</td>
+													<td class="icon-col">
+														<Button
+															variant="ghost"
+															size="xs"
+															type="button"
+															aria-label="Supplier details"
+															title="Details"
+															onclick={() => openEditSupplier(index)}
+														>
+															{#snippet icon()}
+																<Icon name="pen" size={14} />
+															{/snippet}
+														</Button>
+													</td>
+												</tr>
+											{/each}
+										</tbody>
+									</table>
+								</div>
+							{/if}
+						</FormSection>
+				</div>
 			</div>
 
-			<footer class="panel-foot">
-				{#if item._id || item.id}
-					<Button
-						class="delete-btn"
-						variant="destructive"
-						size="sm"
-						type="button"
-						disabled={busy}
-						busy={busy && busyLabel.startsWith("Deleting")}
-						onclick={() => (deleteOpen = true)}
-					>
-						{#snippet icon()}
-							<Icon name="x-circle" />
-						{/snippet}
-						Delete
-					</Button>
-				{/if}
-				<Button
-					variant="primary"
-					size="sm"
-					type="submit"
-					disabled={busy}
-					busy={busy && busyLabel.startsWith("Saving")}
-				>
-					{busy && busyLabel.startsWith("Saving") ? "Saving…" : "Save"}
-				</Button>
-			</footer>
+			<EditorActionBar
+				saveLabel="Save item"
+				saving={busy && busyLabel.startsWith("Saving")}
+				disabled={busy}
+				{dirty}
+				errorCount={errors.count}
+				onerrors={() => void errors.reveal()}
+				overflow={[
+					{
+						label: "Delete item",
+						tone: "destructive",
+						disabled: busy || !(item._id || item.id),
+						reason: item._id || item.id ? undefined : "Not saved yet",
+						onselect: () => (deleteOpen = true),
+					},
+				]}
+			/>
 		</div>
 	</form>
 
-	<Dialog
+	<ConfirmDialog
 		open={discardOpen}
 		title="Discard unsaved changes?"
-		onclose={cancelDiscard}
-	>
-		<p class="copy">You have edits that have not been saved. Close without saving?</p>
-		{#snippet footer()}
-			<Button
-				variant="outline"
-				size="sm"
-				type="button"
-				onclick={cancelDiscard}
-			>
-				Keep editing
-			</Button>
-			<Button variant="destructive" size="sm" type="button" onclick={confirmDiscard}>
-				Discard
-			</Button>
-		{/snippet}
-	</Dialog>
+		message="You have edits that haven't been saved. They will be lost."
+		action="Discard"
+		cancelLabel="Keep editing"
+		oncancel={cancelDiscard}
+		onconfirm={confirmDiscard}
+	/>
 
-	<Dialog
+	<ConfirmDialog
 		open={deleteOpen}
-		title="Remove from inventory?"
-		onclose={() => (deleteOpen = false)}
-	>
-		<p class="copy">
-			Remove <strong>{item.name || "this ingredient"}</strong> from inventory?
-		</p>
-		{#snippet footer()}
-			<Button
-				variant="outline"
-				size="sm"
-				type="button"
-				onclick={() => (deleteOpen = false)}
-			>
-				Keep
-			</Button>
-			<Button
-				variant="destructive"
-				size="sm"
-				type="button"
-				onclick={() => {
-					deleteOpen = false;
-					ondelete();
-				}}
-			>
-				Remove
-			</Button>
-		{/snippet}
-	</Dialog>
+		title={`Delete ${item.name || "this item"}?`}
+		message="It goes from inventory and the ingredient picker. This can't be undone."
+		action="Delete"
+		oncancel={() => (deleteOpen = false)}
+		onconfirm={() => {
+			deleteOpen = false;
+			ondelete();
+		}}
+	/>
 
 	<SidePanel
 		open={supplierDrawerOpen}
@@ -863,10 +855,12 @@
 						<a href="/suppliers">Manage suppliers</a>
 					</p>
 					<div class="drawer-row">
-						<Field label="SKU" for="drawer-sku">
+						<Field label="SKU" for="drawer-sku" optional>
 							<TextField
 								id="drawer-sku"
 								size="sm"
+								mono
+								spellcheck="false"
 								placeholder="SPA47010"
 								value={supplierDraft.sku || ""}
 								oninput={(e) =>
@@ -876,7 +870,7 @@
 									)}
 							/>
 						</Field>
-						<Field label="Pack" for="drawer-pack">
+						<Field label="Pack" for="drawer-pack" optional>
 							<TextField
 								id="drawer-pack"
 								size="sm"
@@ -889,13 +883,10 @@
 									)}
 							/>
 						</Field>
-						<Field label="Price" for="drawer-price">
-							<TextField
+						<Field label="Price" for="drawer-price" optional>
+							<MoneyField
 								id="drawer-price"
 								size="sm"
-								mono
-								inputmode="decimal"
-								placeholder="0.00"
 								value={
 									supplierDraft.price == null
 										? ""
@@ -909,10 +900,13 @@
 							/>
 						</Field>
 					</div>
-					<Field label="Product page" for="drawer-url">
+					<Field label="Product page" for="drawer-url" optional>
 						<TextField
 							id="drawer-url"
 							size="sm"
+							type="url"
+							inputmode="url"
+							spellcheck="false"
 							placeholder="https://"
 							value={supplierDraft.productUrl || ""}
 							oninput={(e) =>
@@ -935,23 +929,25 @@
 				</div>
 			</div>
 			<footer class="drawer-foot">
-				{#if supplierEditIndex != null}
-					<Button
-						class="drawer-remove"
-						variant="destructive"
-						size="sm"
-						type="button"
-						onclick={removeSupplierFromDrawer}
-					>
-						Remove
-					</Button>
-				{/if}
+				<Button
+					class="drawer-remove"
+					variant="destructive"
+					size="sm"
+					type="button"
+					disabled={supplierEditIndex == null}
+					reason={supplierEditIndex == null ? "Not added yet" : undefined}
+					onclick={removeSupplierFromDrawer}
+				>
+					{#snippet icon()}<Icon name="trash" size={14} />{/snippet}
+					Remove
+				</Button>
 				<Button
 					variant="outline"
 					size="sm"
 					type="button"
 					onclick={closeSupplierDrawer}
 				>
+					{#snippet icon()}<Icon name="close" size={14} />{/snippet}
 					Cancel
 				</Button>
 				<Button
@@ -960,6 +956,7 @@
 					type="button"
 					onclick={applySupplierDraft}
 				>
+					{#snippet icon()}<Icon name="check" size={14} />{/snippet}
 					Done
 				</Button>
 			</footer>
@@ -986,7 +983,7 @@
 		height: 100%;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xl);
-		background: var(--card);
+		background: var(--panel-bg);
 		box-shadow: var(--shadow-sm);
 		overflow: hidden;
 	}
@@ -999,7 +996,7 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		padding: 0.75rem var(--card-pad) 0.65rem;
 		border-bottom: 1px solid var(--border);
 	}
@@ -1013,119 +1010,50 @@
 
 	.eyebrow {
 		margin: 0;
-		font-size: var(--text-xs);
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.1em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
-		color: var(--primary);
+		color: var(--muted-foreground);
 	}
 
-	.title-row {
-		display: flex;
+	.title-text {
+		margin: 0;
 		min-width: 0;
-	}
-
-	.title-input {
-		flex: 1;
-		width: 100%;
-		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.08em 0.35rem 0.22em;
-		margin: 0 -0.35rem;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: transparent;
 		color: var(--foreground);
 		font-family: var(--font-display);
-		font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+		font-size: var(--text-2xl);
 		font-weight: 600;
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-2xl);
 		line-height: 1.3;
-		outline: none;
+		overflow-wrap: anywhere;
 	}
 
-	.title-input:hover {
-		border-color: var(--border);
-	}
-
-	.title-input:focus {
-		border-color: var(--ring);
-		background: var(--sunken);
-		box-shadow: 0 0 0 2px var(--ring-wash);
+	.title-text.placeholder {
+		color: var(--muted-foreground);
 	}
 
 	.head-actions {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 	}
 
-	.dirty-pill {
-		font-size: var(--text-xs);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--primary);
-	}
-
+	/* One card: the sections sit on it, divided by rules. */
 	.body {
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
-		padding: 0.9rem var(--card-pad) var(--card-pad);
+		padding: var(--space-4) var(--card-pad) var(--card-pad);
+		container-type: inline-size;
+		container-name: inventory-detail;
 	}
 
-	.grid {
+	.board {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.7rem 0.85rem;
-		align-items: start;
-	}
-
-	.full {
-		grid-column: 1 / -1;
-	}
-
-	.block {
-		display: grid;
-		gap: 0.65rem;
-	}
-
-	.block + .block,
-	.grid + .block {
-		margin-top: 1.25rem;
-	}
-
-	.section-title {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: var(--text-md);
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		line-height: 1.3;
-		color: var(--primary);
-	}
-
-	.section-title::after {
-		content: "";
-		flex: 1 1 auto;
-		height: 1px;
-		min-width: 1.5rem;
-		background: var(--border-strong);
-	}
-
-	.section-head {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.section-head .section-title {
-		flex: 1 1 auto;
+		grid-template-columns: minmax(0, 1fr);
+		align-content: start;
 		min-width: 0;
 	}
 
@@ -1136,11 +1064,10 @@
 		color: var(--muted-foreground);
 	}
 
+	/* On the card's own surface; rows carry their own dividers. */
 	.supplier-table-wrap {
 		overflow-x: auto;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		background: var(--sunken);
+		border-top: 1px solid var(--border);
 	}
 
 	.supplier-table {
@@ -1151,16 +1078,16 @@
 
 	.supplier-table th,
 	.supplier-table td {
-		padding: 0.4rem 0.65rem;
+		padding: var(--space-2) var(--space-3);
 		text-align: left;
 		border-bottom: 1px solid var(--border);
 		vertical-align: middle;
 	}
 
 	.supplier-table th {
-		font-size: 0.7rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.04em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 		background: color-mix(in srgb, var(--card) 70%, transparent);
@@ -1171,8 +1098,8 @@
 	}
 
 	.supplier-table .mono {
-		font-family: var(--font-mono, ui-monospace, monospace);
-		font-size: 0.8rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 	}
 
 	.name-cell {
@@ -1190,14 +1117,14 @@
 
 	.supplier-table :global(.price-input) {
 		height: 2rem;
-		padding: 0 0.5rem;
+		padding: 0 var(--space-2);
 		background: var(--card);
 	}
 
 	.icon-col {
 		width: 2.25rem;
 		padding-left: 0.2rem;
-		padding-right: 0.35rem;
+		padding-right: var(--space-1);
 		text-align: center;
 	}
 
@@ -1216,17 +1143,17 @@
 	.used-in {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem;
+		gap: var(--space-2);
 	}
 
 	.used-in a {
 		display: inline-flex;
 		align-items: center;
 		max-width: 100%;
-		padding: 0.28rem 0.72rem;
+		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-pill);
-		background: var(--sunken);
+		background: transparent;
 		color: var(--foreground);
 		font-size: var(--text-sm);
 		line-height: 1.3;
@@ -1264,38 +1191,37 @@
 		display: flex;
 		align-items: flex-start;
 		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.9rem 1rem 0.75rem;
+		gap: var(--space-3);
+		padding: var(--space-4) var(--space-4) var(--space-3);
 		border-bottom: 1px solid var(--border);
 	}
 
 	.drawer-eyebrow {
 		margin: 0 0 0.15rem;
-		font-size: 0.7rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
-		letter-spacing: 0.06em;
+		letter-spacing: var(--tracking-label);
 		text-transform: uppercase;
 		color: var(--muted-foreground);
 	}
 
 	.drawer-head h2 {
 		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.1rem;
+		font-size: var(--text-md);
 		font-weight: 600;
-		letter-spacing: -0.01em;
+		letter-spacing: var(--tracking-lg);
 	}
 
 	.drawer-body {
 		flex: 1;
 		min-height: 0;
 		overflow: auto;
-		padding: 1rem;
+		padding: var(--space-4);
 	}
 
 	.drawer-grid {
 		display: grid;
-		gap: 0.85rem;
+		gap: var(--space-3);
 	}
 
 	.drawer-manage {
@@ -1315,7 +1241,7 @@
 	.drawer-row {
 		display: grid;
 		grid-template-columns: 1fr 1fr 1fr;
-		gap: 0.65rem;
+		gap: var(--space-3);
 	}
 
 	.drawer-open {
@@ -1331,8 +1257,8 @@
 	.drawer-foot {
 		display: flex;
 		justify-content: flex-end;
-		gap: 0.45rem;
-		padding: 0.75rem 1rem;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-4);
 		border-top: 1px solid var(--border);
 	}
 
@@ -1340,29 +1266,11 @@
 		margin-right: auto;
 	}
 
-	.panel-foot {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		padding: 0.55rem var(--card-pad) 0.75rem;
-		border-top: 1px solid var(--border);
-	}
-
-	.panel-foot :global(.delete-btn) {
-		margin-right: auto;
-	}
-
-	.copy {
-		margin: 0;
-		font-size: 0.875rem;
-		line-height: 1.45;
-	}
 
 	.switch {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.75rem;
+		gap: var(--space-3);
 		min-height: var(--control-h-sm);
 		cursor: pointer;
 		user-select: none;
@@ -1414,7 +1322,7 @@
 	}
 
 	.switch.compact {
-		gap: 0.45rem;
+		gap: var(--space-2);
 		flex-shrink: 0;
 	}
 
@@ -1434,33 +1342,26 @@
 
 	@media (max-width: 900px) {
 		.editor {
-			padding-top: 0;
+			padding: 0;
 		}
 
 		.panel {
 			height: auto;
+			border-radius: 0;
+			border-left: none;
+			border-right: none;
 		}
 
 		.head-actions :global(.close-btn) {
 			display: none;
 		}
 
-		.dirty-pill {
-			display: none;
-		}
 	}
 
 	@media (max-width: 880px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-
 		.drawer-row {
 			grid-template-columns: 1fr;
 		}
 
-		.panel-foot {
-			padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-		}
 	}
 </style>

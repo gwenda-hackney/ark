@@ -831,7 +831,9 @@ export function analyzeRecipe(
 				"volume-low-vs-citrus",
 				"warning",
 				"note",
-				`Spec is small for house drinks with juice (${citrusVolumePercentile}th percentile).`,
+				citrusVolumePercentile === 0
+					? "Spec is the smallest of the house drinks with juice."
+					: `Spec is small for house drinks with juice: only ${citrusVolumePercentile}% are smaller.`,
 			),
 		);
 	}

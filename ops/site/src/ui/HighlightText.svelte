@@ -20,7 +20,7 @@
 	mark {
 		background: var(--primary-wash-strong);
 		color: var(--primary);
-		font-weight: 650;
+		font-weight: 600;
 		padding: 0.02em 0.12em;
 		border-radius: 2px;
 	}

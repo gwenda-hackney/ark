@@ -20,7 +20,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDotEnv } from "../../shared/env-file.js";
-import { VAULT_ONLY_KEYS, loadPersistedSession } from "./bitwarden-env.mjs";
+import { VAULT_ONLY_KEYS, loadPersistedSession, promptUnlock } from "./bitwarden-env.mjs";
 import {
   APP_SECRETS,
   SM_TOKEN_HINT,
@@ -113,7 +113,9 @@ function applySecrets(override) {
   }
   let values;
   try {
-    ({ values } = loadLocalSecrets({ refresh: Boolean(process.env.ARK_SECRETS_REFRESH) }));
+    const refresh = Boolean(process.env.ARK_SECRETS_REFRESH);
+    ({ values } = loadLocalSecrets({ refresh }));
+    if (!values && promptUnlock()) ({ values } = loadLocalSecrets({ refresh }));
   } catch (error) {
     console.warn(
       `Secrets not loaded from Secrets Manager: ${error instanceof Error ? error.message : error}`,
