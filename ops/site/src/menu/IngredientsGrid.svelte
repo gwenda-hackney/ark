@@ -1,12 +1,12 @@
 <script lang="ts">
 	/**
-	 * Editable recipe lines. On desktop qty / unit / note edit inline in the
-	 * grid; on phones each line is one compact row that opens a sheet.
+	 * Recipe lines. Clicking a line opens the same editor everywhere: a
+	 * centred dialog on desktop, a bottom sheet on phones (a compact list there).
 	 * Click the ingredient name to change stock (dialog). Add via parent +.
 	 * Linked stock ABV is resolved from inventory (read-only in the grid).
 	 * Line cost comes from the same pour-cost math as analysis.
 	 */
-	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
+	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { Icon } from "../app/shell";
 	import { Button, DataGrid, Dialog, Field, NativeSelect, NumberField, TextField } from "../ui";
 	import { ROW_ACTION_COLUMN, svelteCell } from "../ui/grid";
@@ -120,14 +120,6 @@
 		}),
 	);
 
-	const catalog = $derived(
-		[...inventory]
-			.filter((item) => item.active !== false && String(item.name || "").trim())
-			.sort((a, b) =>
-				String(a.name || "").localeCompare(String(b.name || "")),
-			),
-	);
-
 	const sheetRow = $derived(sheetIndex != null ? rows[sheetIndex] ?? null : null);
 
 	const editing = $derived(
@@ -174,88 +166,22 @@
 		closeEdit();
 	}
 
-	function findInventory(name: string): InventoryItem | undefined {
-		const needle = name.trim().toLowerCase();
-		if (!needle) return undefined;
-		return catalog.find(
-			(item) => String(item.name || "").trim().toLowerCase() === needle,
-		);
-	}
-
-	function applyName(index: number, next: string | undefined) {
-		const match = next ? findInventory(next) : undefined;
-		if (match) {
-			patchIndex(index, {
-				name: match.name,
-				abv: undefined,
-				inventoryId: String(match._id || match.id || ""),
-				unit: ingredients[index]?.unit || match.defaultUnit || "ml",
-			});
-			return;
-		}
-		patchIndex(index, {
-			name: next,
-			inventoryId: undefined,
-		});
-	}
-
-	function setter(field: keyof Ingredient) {
-		return (params: ValueSetterParams<IngRow>) => {
-			const index = rows.findIndex((r) => r._key === params.data?._key);
-			if (index < 0 || !params.data) return false;
-			const value = params.newValue;
-
-			if (field === "quantity") {
-				const next = parseQtyInput(value);
-				if (next === false) return false;
-				params.data.quantity = next;
-				patchIndex(index, { quantity: next });
-				return true;
-			}
-
-			const next =
-				value == null || value === "" ? undefined : String(value);
-
-			if (field === "name") {
-				applyName(index, next);
-				return true;
-			}
-
-			if (field === "abv") {
-				const row = ingredients[index];
-				if (row?.inventoryId) return false;
-				params.data.abv = next;
-				params.data.displayAbv = next || "";
-				patchIndex(index, { abv: next });
-				return true;
-			}
-
-			(params.data as Record<string, unknown>)[field] = next;
-			patchIndex(index, { [field]: next } as Partial<Ingredient>);
-			return true;
-		};
-	}
-
 	const columnDefs = $derived.by((): ColDef<IngRow>[] => [
 		{
 			headerName: "Qty",
 			field: "quantity",
-			editable: true,
+			editable: false,
 			width: 88,
 			flex: 0,
 			type: "num",
 			cellDataType: "number",
-			valueSetter: setter("quantity"),
 		},
 		{
 			headerName: "Unit",
 			field: "unit",
-			editable: true,
+			editable: false,
 			width: 96,
 			flex: 0,
-			cellEditor: "agSelectCellEditor",
-			cellEditorParams: { values: [...UNITS] },
-			valueSetter: setter("unit"),
 		},
 		{
 			headerName: "Ingredient",
@@ -282,9 +208,8 @@
 			flex: 0,
 			type: "num",
 			cellDataType: "text",
-			editable: (params) => !params.data?.inventoryId,
+			editable: false,
 			valueGetter: (params) => params.data?.displayAbv || "",
-			valueSetter: setter("abv"),
 		},
 		{
 			headerName: "Price",
@@ -305,10 +230,9 @@
 		{
 			headerName: "Note",
 			field: "note",
-			editable: true,
+			editable: false,
 			minWidth: 120,
 			flex: 1,
-			valueSetter: setter("note"),
 		},
 		{
 			...ROW_ACTION_COLUMN,
@@ -354,10 +278,12 @@
 				{columnDefs}
 				getRowId={(row) => row._key}
 				domLayout="autoHeight"
+				onRowClicked={(row) => {
+					const index = rows.findIndex((r) => r._key === row._key);
+					if (index >= 0) sheetIndex = index;
+				}}
 				gridOptions={{
 					suppressCellFocus: false,
-					singleClickEdit: true,
-					stopEditingWhenCellsLoseFocus: true,
 					enableBrowserTooltips: true,
 				}}
 			/>
@@ -393,7 +319,7 @@
 
 <Dialog
 	open={sheetRow != null}
-	sheet
+	sheet={phone.matches}
 	title={sheetRow?.name || "Ingredient"}
 	onclose={() => (sheetIndex = null)}
 >

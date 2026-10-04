@@ -2,10 +2,11 @@
 	/**
 	 * The Pricing tab's prices, on the data grid: one row per size the drink
 	 * sells in, with its name, size, price, till SKU and what it costs to pour
-	 * against the house target. Cells edit inline on one click. The first row
-	 * is the main price. On phones each row opens a sheet.
+	 * against the house target. Clicking a row opens the same editor
+	 * everywhere: a dialog on desktop, a bottom sheet on phones. The first
+	 * row is the main price.
 	 */
-	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
+	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { Button, DataGrid, Dialog, Field, MoneyField, TextField } from "../ui";
 	import { svelteCell } from "../ui/grid";
 	import { Icon } from "../app/shell";
@@ -114,22 +115,6 @@
 		onchange(rows.filter((_, i) => i !== index), "prices:remove");
 	}
 
-	function cleanMoney(value: string): string {
-		const text = value.replace(/[£,\s]/g, "");
-		if (!text) return "";
-		const n = Number(text);
-		return Number.isFinite(n) ? String(Math.round(n * 100) / 100) : text;
-	}
-
-	function setter(key: keyof PriceRow) {
-		return (params: ValueSetterParams<GridRow>) => {
-			if (!params.data) return false;
-			const raw = params.newValue == null ? "" : String(params.newValue).trim();
-			update(params.data._index, key, key === "price" ? cleanMoney(raw) : raw);
-			return true;
-		};
-	}
-
 	function fieldCell(key: "name" | "size" | "price" | "sku") {
 		return svelteCell(FieldCell, (params: ICellRendererParams<GridRow>) => {
 			const row = params.data;
@@ -156,29 +141,26 @@
 		{
 			headerName: "Name",
 			field: "name",
-			editable: true,
+			editable: false,
 			flex: 1.4,
 			minWidth: 140,
-			valueSetter: setter("name"),
 			cellRenderer: fieldCell("name"),
 		},
 		{
 			headerName: "Size",
 			field: "size",
-			editable: true,
+			editable: false,
 			flex: 1,
 			minWidth: 110,
-			valueSetter: setter("size"),
 			cellRenderer: fieldCell("size"),
 		},
 		{
 			headerName: "Price",
 			field: "price",
-			editable: true,
+			editable: false,
 			width: 120,
 			type: "num",
 			cellDataType: "text",
-			valueSetter: setter("price"),
 			cellRenderer: fieldCell("price"),
 			tooltipValueGetter: (params) =>
 				params.data?._suggested ? `£${params.data._suggested} meets the pour target` : undefined,
@@ -186,9 +168,8 @@
 		{
 			headerName: "Till SKU",
 			field: "sku",
-			editable: true,
+			editable: false,
 			width: 140,
-			valueSetter: setter("sku"),
 			cellRenderer: fieldCell("sku"),
 		},
 		{
@@ -256,17 +237,16 @@
 			{columnDefs}
 			getRowId={(row) => row._key}
 			domLayout="autoHeight"
+			onRowClicked={(row) => (sheetIndex = row._index)}
 			gridOptions={{
 				suppressCellFocus: false,
-				singleClickEdit: true,
-				stopEditingWhenCellsLoseFocus: true,
 				enableBrowserTooltips: true,
 			}}
 		/>
 	</div>
 {/if}
 
-<Dialog open={sheetRow != null} sheet title={sheetRow?.name || "Price"} onclose={() => (sheetIndex = null)}>
+<Dialog open={sheetRow != null} sheet={phone.matches} title={sheetRow?.name || "Price"} onclose={() => (sheetIndex = null)}>
 	{#if sheetRow}
 		{@const index = sheetRow._index}
 		<div class="sheet-body">

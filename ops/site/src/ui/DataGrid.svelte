@@ -232,7 +232,16 @@
 			pinnedBottomRowData: untrack(() => pinnedBottomRowData) ?? [],
 			onRowClicked: (event) => {
 				if (hasRangeSelection()) return;
+				// A button or link inside the row (remove, open stock) does its own thing.
+				const target = event.event?.target;
+				if (target instanceof Element && target.closest("button, a, input, label, [role='button']")) return;
 				if (event.data) onRowClicked?.(event.data);
+			},
+			onCellKeyDown: (event) => {
+				const key = (event.event as KeyboardEvent | undefined)?.key;
+				if (key === "Enter" && onRowClicked && event.data && !("colDef" in event && event.colDef.editable)) {
+					onRowClicked(event.data);
+				}
 			},
 			...extra,
 			onBodyScroll: (event) => {
@@ -329,6 +338,7 @@
 <div
 	class="host {className}"
 	class:auto={domLayout === "autoHeight"}
+	class:clickable={Boolean(onRowClicked)}
 	data-density={density}
 	bind:this={host}
 ></div>
@@ -344,6 +354,10 @@
 	.host.auto {
 		height: auto;
 		min-height: 0;
+	}
+
+	.host.clickable :global(.ag-row) {
+		cursor: pointer;
 	}
 
 	.host :global(.ag-header-cell-text) {

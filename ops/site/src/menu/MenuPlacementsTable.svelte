@@ -1,11 +1,11 @@
 <script lang="ts">
 	/**
 	 * Where a drink appears: one row per placement, as many per channel as
-	 * wanted. On desktop the location and till name edit inline in the grid; on
-	 * phones each placement is one compact row that opens a sheet.
+	 * wanted: a grid on desktop, a compact list on phones. Clicking a row opens
+	 * the same editor everywhere: a dialog on desktop, a bottom sheet on phones.
 	 * Rows are keyed by position, since two rows can name the same place.
 	 */
-	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
+	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { Icon } from "../app/shell";
 	import { Badge, Button, DataGrid, Dialog, Field, NativeSelect, TextField } from "../ui";
 	import { ROW_ACTION_COLUMN, svelteCell } from "../ui/grid";
@@ -141,19 +141,6 @@
 		onchange((placements || []).filter((_, i) => i !== index));
 	}
 
-	function setLocationCell(params: ValueSetterParams<PlacementRow>) {
-		if (!params.data) return false;
-		if (!setLocation(params.data.index, params.newValue)) return false;
-		params.data.location = String(params.newValue ?? "");
-		return true;
-	}
-
-	function setNameCell(params: ValueSetterParams<PlacementRow>) {
-		if (params.data?.channel !== "pos") return false;
-		onposname(params.newValue == null ? "" : String(params.newValue));
-		return true;
-	}
-
 	const columnDefs = $derived.by((): ColDef<PlacementRow>[] => [
 		{
 			headerName: "Channel",
@@ -173,13 +160,11 @@
 		{
 			headerName: "Location",
 			colId: "location",
-			editable: true,
+			editable: false,
 			flex: 1.6,
 			minWidth: 200,
 			cellDataType: "text",
 			valueGetter: (params) => params.data?.location || "",
-			// The select editor formats its options without row data: a chapter id
-			// reads as its name, a screen path as itself.
 			valueFormatter: (params) => {
 				const value = String(params.value ?? "");
 				const channel = params.data?.channel;
@@ -187,14 +172,6 @@
 				if (channel === "pos") return value || "Choose screen…";
 				return sectionLabels.get(value) ?? value;
 			},
-			valueSetter: setLocationCell,
-			cellEditor: "agSelectCellEditor",
-			cellEditorParams: (params: { data?: PlacementRow }) => ({
-				values:
-					params.data?.channel === "pos"
-						? screenPaths
-						: sectionOptions.map((option) => String(option.value)),
-			}),
 		},
 		{
 			headerName: "Name on it",
@@ -202,11 +179,10 @@
 			flex: 1.4,
 			minWidth: 180,
 			cellDataType: "text",
-			editable: (params) => params.data?.channel === "pos",
+			editable: false,
 			valueGetter: (params) => (params.data?.channel === "pos" ? posName : drinkName),
 			valueFormatter: (params) =>
 				String(params.value || "") || drinkName || "The drink's name",
-			valueSetter: setNameCell,
 			cellClass: (params) =>
 				params.data?.channel !== "pos" || !posName ? "muted" : "",
 			tooltipValueGetter: (params) =>
@@ -258,10 +234,9 @@
 				{columnDefs}
 				getRowId={(row) => row._key}
 				domLayout="autoHeight"
+				onRowClicked={(row) => (sheetIndex = row.index)}
 				gridOptions={{
 					suppressCellFocus: false,
-					singleClickEdit: true,
-					stopEditingWhenCellsLoseFocus: true,
 					enableBrowserTooltips: true,
 				}}
 			/>
@@ -277,7 +252,7 @@
 
 <Dialog
 	open={sheetRow != null}
-	sheet
+	sheet={phone.matches}
 	title={sheetRow?.label || "Placement"}
 	onclose={() => (sheetIndex = null)}
 >
