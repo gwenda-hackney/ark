@@ -871,29 +871,24 @@
 		color: var(--fg-muted);
 	}
 
-	/* Wide: each row's sections share it equally, on one baseline. */
+	/* Wide: each row's sections share it equally, on one baseline. The
+	   Overview stays as rows (spec, price, pour) at every width. */
 	@container (min-width: 60rem) {
-		.row,
-		.row.overview {
+		.row:not(.overview) {
 			grid-auto-flow: column;
 			grid-auto-columns: minmax(0, 1fr);
 			gap: var(--space-10);
 		}
 
-		/* Divider sits mid-gap so the groups line up with the columns below. */
-		.row.overview > .group + .group {
-			position: relative;
-			padding-top: 0;
-			border-top: 0;
+		/* Fixed columns, so each row's numbers line up under the one above. */
+		.row.overview .stats,
+		.row.overview .stats:has(> .stat:only-child),
+		.row.overview .stats:has(> .stat:nth-child(2):last-child) {
+			grid-template-columns: repeat(3, minmax(0, 12rem));
 		}
 
-		.row.overview > .group + .group::before {
-			content: "";
-			position: absolute;
-			inset-block: 0;
-			left: calc(var(--space-5) * -1);
-			width: 1px;
-			background: var(--border);
+		.row.overview .serve-verdict {
+			white-space: nowrap;
 		}
 
 		.stat-value {
