@@ -570,6 +570,27 @@ export async function createEventDriveFolder(
   return { ...created, reused: false };
 }
 
+/**
+ * Whether a series folder belongs to this environment: it sits directly in
+ * the environment's events root. Rows copied between databases (the dev
+ * clone) carry the other environment's folder id, and reading or uploading
+ * there would leak photos across environments. A folder Drive no longer has
+ * is not ours either.
+ */
+export async function isOwnEventFolder(env, folderId) {
+  const id = String(folderId || "").trim();
+  if (!id) return false;
+  const rootId = await driveEventsRootFolderId(env);
+  if (!rootId) return false;
+  try {
+    const file = await getDriveFile(env, id);
+    return Array.isArray(file?.parents) && file.parents.includes(rootId);
+  } catch (error) {
+    if (error?.status === 404) return false;
+    throw error;
+  }
+}
+
 /** @internal test helper */
 export function resetDriveTokenCacheForTests() {
   cachedToken = null;

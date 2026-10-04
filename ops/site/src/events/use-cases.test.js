@@ -807,6 +807,31 @@ describe("events: gallery", () => {
     assert.deepEqual(liveGallery(), [[kept.id, ""]]);
   });
 
+  it("a row pointing at another environment's folder: its photos stay out, new ones get a folder of its own", async () => {
+    // The dev clone copies rows from production, Drive folder id included.
+    const folder = (id, name, parent) => world.google.driveFiles.set(id, { id, name, mimeType: "application/vnd.google-apps.folder", parents: [parent] });
+    folder("other-root", "Events-dev", "drive-root");
+    folder("other-series", "Series", "other-root");
+    folder("other-gallery", "gallery", "other-series");
+    world.google.driveFiles.set("theirs", { id: "theirs", name: "theirs.jpg", mimeType: "image/jpeg", parents: ["other-gallery"] });
+    const table = world.baserow.tableByName("Events");
+    world.baserow.write(table, [...table.rows.values()][0], { "Drive folder id": "other-series" });
+
+    await ops.edit(event, { offer: "Two for one" });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveGallery(), [], "the other environment's photo stays off the website");
+
+    const mine = await ops.addGalleryPhoto(event, { name: "mine.jpg" });
+    const folderId = world.baserow.rows("Events")[0]["Drive folder id"];
+    assert.notEqual(folderId, "other-series");
+    assert.ok(world.google.eventFolders().some((f) => f.id === folderId), "a new folder under this environment's root");
+    assert.ok(world.google.driveFiles.get("theirs").parents.includes("other-gallery"), "the other folder is left alone");
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveGallery(), [[mine.id, ""]]);
+  });
+
   it("more photos than one run uploads: they all get there", async () => {
     for (let n = 0; n < 7; n += 1) await ops.addGalleryPhoto(event, { name: `photo-${n}.jpg` });
     await ops.waitUntilReady(event);
