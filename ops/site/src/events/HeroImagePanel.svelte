@@ -4,7 +4,7 @@
 	 * frame on it is exactly what the site shows. Drag the frame, zoom to tighten.
 	 */
 	import Icon from "../app/shell/Icon.svelte";
-	import { Tip } from "../ui";
+	import { PhotoActions, Tip } from "../ui";
 	import {
 		HERO_ASPECT,
 		HERO_ZOOM_MAX,
@@ -376,6 +376,16 @@
 			<span class="empty-hint">or use Add photo below</span>
 		</label>
 	{:else}
+		<div class="photo-actions">
+			<PhotoActions
+				take={{ disabled }}
+				replace={{ disabled }}
+				remove={{ disabled }}
+				download={originalUrl || null}
+				onfile={onFile}
+				onremove={onclear}
+			/>
+		</div>
 		<div
 			class="stage"
 			bind:this={stageEl}
@@ -451,64 +461,6 @@
 					onclick={resetFraming}
 				>
 					<Icon name="undo" size={15} />
-				</button>
-			</div>
-			<div class="photo-actions">
-				<label class="pick camera" title="Take photo">
-					<input
-						class="sr-only"
-						type="file"
-						accept="image/*"
-						capture="environment"
-						aria-label="Take photo"
-						disabled={disabled}
-						onchange={onFile}
-					/>
-					<span class="icon-btn" aria-hidden="true"><Icon name="camera" size={15} /></span>
-				</label>
-				<label class="pick" title="Replace photo">
-					<input
-						class="sr-only"
-						type="file"
-						accept="image/jpeg,image/png,image/webp,image/gif"
-						aria-label="Replace photo"
-						disabled={disabled}
-						onchange={onFile}
-					/>
-					<span class="icon-btn" aria-hidden="true"><Icon name="upload" size={15} /></span>
-				</label>
-				{#if originalUrl}
-					<a
-						class="icon-btn"
-						href={originalUrl}
-						download
-						target="_blank"
-						rel="noopener"
-						aria-label="Download original"
-						title="Download original"
-					>
-						<Icon name="download" size={15} />
-					</a>
-				{:else}
-					<button
-						class="icon-btn"
-						type="button"
-						disabled
-						aria-label="Download original"
-						title="Nothing saved to download yet"
-					>
-						<Icon name="download" size={15} />
-					</button>
-				{/if}
-				<button
-					class="icon-btn remove"
-					type="button"
-					aria-label="Remove photo"
-					title="Remove photo"
-					disabled={disabled}
-					onclick={onclear}
-				>
-					<Icon name="trash" size={15} />
 				</button>
 			</div>
 		</div>
@@ -597,8 +549,7 @@
 		width: fit-content;
 	}
 
-	.pick-btn:disabled,
-	.pick:has(input:disabled) .pick-btn {
+	.pick-btn:disabled {
 		cursor: not-allowed;
 		color: var(--fg-subtle);
 		background: transparent;
@@ -690,13 +641,10 @@
 		pointer-events: none;
 	}
 
-	/* Zoom on the left, the photo's actions on the right, all icons. */
+	/* Zoom under the photo. */
 	.controls {
 		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2) var(--space-4);
 		align-items: center;
-		justify-content: space-between;
 	}
 
 	.hero-framing.dropping .stage,
@@ -721,10 +669,9 @@
 		cursor: pointer;
 	}
 
+	/* Replace, download and remove: a row of icons above the photo, at its right. */
 	.photo-actions {
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
+		margin-bottom: calc(-1 * var(--space-2));
 	}
 
 	.icon-btn {
@@ -742,26 +689,17 @@
 		cursor: pointer;
 	}
 
-	.icon-btn:hover:not(:disabled),
-	.pick:hover .icon-btn {
+	.icon-btn:hover:not(:disabled) {
 		color: var(--fg);
 		background: var(--surface-3);
 	}
 
-	.icon-btn:focus-visible,
-	.pick:has(input:focus-visible) .icon-btn {
+	.icon-btn:focus-visible {
 		outline: 2px solid var(--ring);
 		outline-offset: 2px;
 	}
 
-	.icon-btn.remove:hover:not(:disabled),
-	.icon-btn.remove:focus-visible {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
-
-	.icon-btn:disabled,
-	.pick:has(input:disabled) .icon-btn {
+	.icon-btn:disabled {
 		color: var(--fg-subtle);
 		background: transparent;
 		cursor: default;

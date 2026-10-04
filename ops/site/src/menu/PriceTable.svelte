@@ -1,14 +1,21 @@
 <script lang="ts">
 	/**
-	 * The Pricing tab's price table: one row per size the drink sells in,
-	 * each with its name, size, price, till SKU and what it costs to pour
-	 * against the house target. The first row is the main price.
+	 * The Pricing tab's prices, on the data grid: one row per size the drink
+	 * sells in, with its name, size, price, till SKU and what it costs to pour
+	 * against the house target. Cells edit inline on one click. The first row
+	 * is the main price. On phones each row opens a sheet.
 	 */
-	import { MoneyField, RowAction, TextField } from "../ui";
+	import type { ColDef, ICellRendererParams, ValueSetterParams } from "ag-grid-community";
+	import { Button, DataGrid, Dialog, Field, MoneyField, TextField } from "../ui";
+	import { svelteCell } from "../ui/grid";
+	import { Icon } from "../app/shell";
 	import { formatGbp } from "../app/money";
+	import { SHELL_MOBILE_QUERY, mediaMatches } from "../ui/viewport.svelte";
 	import { formatPourPercent, marginTone, type PriceRowReading, type RecipePriceAnalysis } from "./cost";
 	import { priceFieldId } from "./item-validate";
 	import type { PriceRow } from "./prices.js";
+	import FieldCell from "./cells/FieldCell.svelte";
+	import PriceRowActionsCell from "./cells/PriceRowActionsCell.svelte";
 
 	let {
 		rows,
@@ -25,17 +32,73 @@
 		onchange: (next: PriceRow[], field: string) => void;
 	} = $props();
 
-	const readings = $derived(price?.priceRows ?? []);
+	type GridRow = PriceRow & {
+		_key: string;
+		_index: number;
+		_label: string;
+		_pour: string;
+		_cost: string;
+		_tone: string;
+		_suggested: string;
+		_nameError: string;
+		_priceError: string;
+	};
+
+	const phone = mediaMatches(SHELL_MOBILE_QUERY);
+	let sheetIndex = $state<number | null>(null);
 
 	function reading(index: number): PriceRowReading | null {
-		return readings[index] ?? null;
+		return price?.priceRows?.[index] ?? null;
 	}
+
+	function label(row: PriceRow, index: number): string {
+		return row.name?.trim() || (index === 0 ? "main price" : `price ${index + 1}`);
+	}
+
+	function costText(read: PriceRowReading | null): string {
+		const cost = read?.serve?.drinkCost;
+		if (cost == null) return "";
+		return `${price?.hasEstimates ? "~" : ""}${formatGbp(cost)}`;
+	}
+
+	function pourText(read: PriceRowReading | null): string {
+		const serve = read?.serve;
+		if (!serve || serve.drinkCost == null) return "n/a";
+		return serve.pourCost != null ? formatPourPercent(serve.pourCost) : "No price";
+	}
+
+	function pourTone(read: PriceRowReading | null): string {
+		const serve = read?.serve;
+		if (!serve || serve.pourCost == null) return "muted";
+		return marginTone(serve.margin, serve.pourCost, price?.targetPourCost);
+	}
+
+	const gridRows = $derived.by((): GridRow[] =>
+		rows.map((row, index) => {
+			const read = reading(index);
+			const suggested = read?.serve?.suggestedPrice;
+			return {
+				...row,
+				_key: `price-${index}`,
+				_index: index,
+				_label: label(row, index),
+				_pour: pourText(read),
+				_cost: costText(read),
+				_tone: pourTone(read),
+				_suggested: suggested == null ? "" : suggested.toFixed(2),
+				_nameError: error(priceFieldId("name", index)),
+				_priceError: error(priceFieldId("price", index)),
+			};
+		}),
+	);
 
 	function update(index: number, key: keyof PriceRow, value: string) {
 		const current = rows[index];
 		if (!current || (current[key] || "") === value) return;
-		const next = rows.map((row, i) => (i === index ? { ...row, [key]: value } : row));
-		onchange(next, `prices:${key}:${index}`);
+		onchange(
+			rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)),
+			`prices:${key}:${index}`,
+		);
 	}
 
 	function move(index: number, by: -1 | 1) {
@@ -48,367 +111,368 @@
 
 	function remove(index: number) {
 		if (index === 0) return;
-		onchange(
-			rows.filter((_, i) => i !== index),
-			"prices:remove",
-		);
+		onchange(rows.filter((_, i) => i !== index), "prices:remove");
 	}
 
-	function costText(row: PriceRowReading | null): string {
-		const cost = row?.serve?.drinkCost;
-		if (cost == null) return "";
-		const amount = formatGbp(cost);
-		return price?.hasEstimates ? `~${amount}` : amount;
+	function cleanMoney(value: string): string {
+		const text = value.replace(/[£,\s]/g, "");
+		if (!text) return "";
+		const n = Number(text);
+		return Number.isFinite(n) ? String(Math.round(n * 100) / 100) : text;
 	}
 
-	function pourText(row: PriceRowReading | null): string {
-		const serve = row?.serve;
-		if (!serve || serve.drinkCost == null) return "n/a";
-		if (serve.pourCost != null) return formatPourPercent(serve.pourCost);
-		return "No price";
+	function setter(key: keyof PriceRow) {
+		return (params: ValueSetterParams<GridRow>) => {
+			if (!params.data) return false;
+			const raw = params.newValue == null ? "" : String(params.newValue).trim();
+			update(params.data._index, key, key === "price" ? cleanMoney(raw) : raw);
+			return true;
+		};
 	}
 
-	function pourTone(row: PriceRowReading | null): string {
-		const serve = row?.serve;
-		if (!serve || serve.pourCost == null) return "muted";
-		return marginTone(serve.margin, serve.pourCost, price?.targetPourCost);
+	function fieldCell(key: "name" | "size" | "price" | "sku") {
+		return svelteCell(FieldCell, (params: ICellRendererParams<GridRow>) => {
+			const row = params.data;
+			if (!row) return {};
+			if (key === "price") {
+				return {
+					id: priceFieldId("price", row._index),
+					text: row.price ? formatGbp(Number(row.price)) || `£${row.price}` : "",
+					placeholder: row._suggested ? `£${row._suggested}` : "£0.00",
+					error: row._priceError,
+				};
+			}
+			return {
+				id: key === "name" ? priceFieldId("name", row._index) : undefined,
+				text: row[key] || "",
+				placeholder: key === "name" ? (row._index === 0 ? "Single" : "Name it") : key === "size" ? "e.g. 25 ml" : "",
+				error: key === "name" ? row._nameError : "",
+				mono: key === "sku",
+			};
+		});
 	}
 
-	function suggested(row: PriceRowReading | null): string {
-		const value = row?.serve?.suggestedPrice;
-		return value == null ? "" : value.toFixed(2);
-	}
+	const columnDefs = $derived.by((): ColDef<GridRow>[] => [
+		{
+			headerName: "Name",
+			field: "name",
+			editable: true,
+			flex: 1.4,
+			minWidth: 140,
+			valueSetter: setter("name"),
+			cellRenderer: fieldCell("name"),
+		},
+		{
+			headerName: "Size",
+			field: "size",
+			editable: true,
+			flex: 1,
+			minWidth: 110,
+			valueSetter: setter("size"),
+			cellRenderer: fieldCell("size"),
+		},
+		{
+			headerName: "Price",
+			field: "price",
+			editable: true,
+			width: 120,
+			type: "num",
+			cellDataType: "text",
+			valueSetter: setter("price"),
+			cellRenderer: fieldCell("price"),
+			tooltipValueGetter: (params) =>
+				params.data?._suggested ? `£${params.data._suggested} meets the pour target` : undefined,
+		},
+		{
+			headerName: "Till SKU",
+			field: "sku",
+			editable: true,
+			width: 140,
+			valueSetter: setter("sku"),
+			cellRenderer: fieldCell("sku"),
+		},
+		{
+			headerName: "Pour",
+			colId: "pour",
+			width: 130,
+			type: "num",
+			editable: false,
+			valueGetter: (params) => params.data?._pour || "",
+			cellClass: (params) => `num ag-right-aligned-cell tnum ${params.data?._tone || "muted"}`,
+			valueFormatter: (params) =>
+				params.data?._cost ? `${params.data._pour}  ·  ${params.data._cost}` : params.data?._pour || "",
+			tooltipValueGetter: (params) =>
+				params.data?._pour === "n/a" ? "Give it a size in ml to cost it" : "Pour cost, then what it costs to make",
+		},
+		{
+			headerName: "",
+			colId: "actions",
+			width: 120,
+			flex: 0,
+			sortable: false,
+			filter: false,
+			editable: false,
+			resizable: false,
+			suppressMovable: true,
+			cellClass: "row-action-cell",
+			cellRenderer: svelteCell(PriceRowActionsCell, (params: ICellRendererParams<GridRow>) => ({
+				label: params.data?._label || "price",
+				first: params.data?._index === 0,
+				last: params.data?._index === rows.length - 1,
+				onmove: (by: -1 | 1) => params.data && move(params.data._index, by),
+				onremove: () => params.data && remove(params.data._index),
+			})),
+		},
+	]);
 
-	function label(row: PriceRow, index: number): string {
-		return row.name?.trim() || (index === 0 ? "main price" : `price ${index + 1}`);
-	}
+	const sheetRow = $derived(sheetIndex != null ? gridRows[sheetIndex] ?? null : null);
 </script>
 
-<div class="wrap">
-	<table class="price-table">
-		<thead>
-			<tr>
-				<th scope="col" class="c-name">Name</th>
-				<th scope="col" class="c-size">Size</th>
-				<th scope="col" class="c-price">Price</th>
-				<th scope="col" class="c-sku">Till SKU</th>
-				<th scope="col" class="c-pour">Pour</th>
-				<th scope="col" class="c-actions"><span class="sr-only">Order and remove</span></th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each rows as row, index}
-				{@const read = reading(index)}
-				{@const nameId = priceFieldId("name", index)}
-				{@const priceId = priceFieldId("price", index)}
-				{@const nameError = error(nameId)}
-				{@const priceError = error(priceId)}
-				{@const tone = pourTone(read)}
-				<tr>
-					<td class="c-name">
-						<span class="cell-label" aria-hidden="true">Name</span>
-						<TextField
-							id={nameId}
-							size="sm"
-							autocomplete="off"
-							value={row.name || ""}
-							placeholder={index === 0 ? "Single" : "Double"}
-							aria-label={`Name of ${label(row, index)}`}
-							invalid={Boolean(nameError)}
-							aria-describedby={nameError ? `${nameId}-error` : undefined}
-							oninput={(e) => update(index, "name", (e.currentTarget as HTMLInputElement).value)}
-						/>
-						{#if nameError}<p class="cell-error" id={`${nameId}-error`}>{nameError}</p>{/if}
-					</td>
-					<td class="c-size">
-						<span class="cell-label" aria-hidden="true">Size</span>
-						<TextField
-							id={priceFieldId("size", index)}
-							size="sm"
-							autocomplete="off"
-							value={row.size || ""}
-							placeholder="e.g. 25 ml"
-							aria-label={`Size of ${label(row, index)}`}
-							oninput={(e) => update(index, "size", (e.currentTarget as HTMLInputElement).value)}
-						/>
-					</td>
-					<td class="c-price">
-						<span class="cell-label" aria-hidden="true">Price</span>
-						<MoneyField
-							id={priceId}
-							size="sm"
-							value={row.price || ""}
-							placeholder={suggested(read) || "0.00"}
-							title={suggested(read) ? `£${suggested(read)} meets the pour target` : undefined}
-							aria-label={`Price of ${label(row, index)}`}
-							invalid={Boolean(priceError)}
-							aria-describedby={priceError ? `${priceId}-error` : undefined}
-							oninput={(e) => update(index, "price", (e.currentTarget as HTMLInputElement).value)}
-							oncommit={(next) => update(index, "price", next)}
-						/>
-						{#if priceError}<p class="cell-error" id={`${priceId}-error`}>{priceError}</p>{/if}
-					</td>
-					<td class="c-sku">
-						<span class="cell-label" aria-hidden="true">Till SKU</span>
-						<TextField
-							id={priceFieldId("sku", index)}
-							size="sm"
-							mono
-							autocomplete="off"
-							spellcheck={false}
-							value={row.sku || ""}
-							aria-label={`Till SKU for ${label(row, index)}`}
-							oninput={(e) => update(index, "sku", (e.currentTarget as HTMLInputElement).value)}
-						/>
-					</td>
-					<td class="c-pour">
-						<span class="cell-label" aria-hidden="true">Pour</span>
-						<span class="pour tnum">
-							<span
-								class="pct"
-								class:up={tone === "up"}
-								class:down={tone === "down"}
-								class:loss={tone === "loss"}
-								class:muted={tone === "muted"}
-								title={read?.serve
-									? "Pour cost from what it costs to make and its price"
-									: "Give it a size in ml to cost it"}
-							>
-								{pourText(read)}
-							</span>
-							{#if costText(read)}
-								<span class="cost">{costText(read)}</span>
-							{/if}
-						</span>
-					</td>
-					<td class="c-actions">
-						<div class="row-actions">
-							<RowAction
-								icon="chevron-up"
-								tone="neutral"
-								label={`Move ${label(row, index)} up`}
-								disabled={index === 0}
-								reason="Already first"
-								onclick={() => move(index, -1)}
-							/>
-							<RowAction
-								icon="chevron-down"
-								tone="neutral"
-								label={`Move ${label(row, index)} down`}
-								disabled={index === rows.length - 1}
-								reason="Already last"
-								onclick={() => move(index, 1)}
-							/>
-							<RowAction
-								label={`Remove ${label(row, index)}`}
-								disabled={index === 0}
-								reason="A drink needs one price"
-								onclick={() => remove(index)}
-							/>
-						</div>
-					</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
-</div>
+{#if phone.matches}
+	<ul class="lines">
+		{#each gridRows as row (row._key)}
+			<li>
+				<button
+					type="button"
+					class="line"
+					class:invalid={Boolean(row._nameError || row._priceError)}
+					onclick={() => (sheetIndex = row._index)}
+				>
+					<span class="line-name">
+						<span class="line-title">{row.name || "Unnamed"}</span>
+						{#if row.size}<span class="line-sub">{row.size}</span>{/if}
+					</span>
+					<span class="line-price tnum">{row.price ? formatGbp(Number(row.price)) : "No price"}</span>
+					<span class="line-pour tnum {row._tone}">{row._pour}</span>
+					<span class="line-chevron" aria-hidden="true"><Icon name="chevron-right" size={16} /></span>
+				</button>
+			</li>
+		{/each}
+	</ul>
+{:else}
+	<div class="host">
+		<DataGrid
+			rowData={gridRows}
+			{columnDefs}
+			getRowId={(row) => row._key}
+			domLayout="autoHeight"
+			gridOptions={{
+				suppressCellFocus: false,
+				singleClickEdit: true,
+				stopEditingWhenCellsLoseFocus: true,
+				enableBrowserTooltips: true,
+			}}
+		/>
+	</div>
+{/if}
+
+<Dialog open={sheetRow != null} sheet title={sheetRow?.name || "Price"} onclose={() => (sheetIndex = null)}>
+	{#if sheetRow}
+		{@const index = sheetRow._index}
+		<div class="sheet-body">
+			<div class="sheet-row">
+				<Field label="Name" for={priceFieldId("name", index)} error={sheetRow._nameError}>
+					<TextField
+						id={priceFieldId("name", index)}
+						value={sheetRow.name || ""}
+						oninput={(e) => update(index, "name", (e.currentTarget as HTMLInputElement).value)}
+					/>
+				</Field>
+				<Field label="Size" for={priceFieldId("size", index)} optional>
+					<TextField
+						id={priceFieldId("size", index)}
+						placeholder="e.g. 25 ml"
+						value={sheetRow.size || ""}
+						oninput={(e) => update(index, "size", (e.currentTarget as HTMLInputElement).value)}
+					/>
+				</Field>
+			</div>
+			<div class="sheet-row">
+				<Field
+					label="Price"
+					for={priceFieldId("price", index)}
+					error={sheetRow._priceError}
+					hint={sheetRow._suggested ? `£${sheetRow._suggested} meets the pour target.` : undefined}
+				>
+					<MoneyField
+						id={priceFieldId("price", index)}
+						value={sheetRow.price || ""}
+						placeholder={sheetRow._suggested || "0.00"}
+						oninput={(e) => update(index, "price", (e.currentTarget as HTMLInputElement).value)}
+						oncommit={(next) => update(index, "price", next)}
+					/>
+				</Field>
+				<Field label="Till SKU" for={priceFieldId("sku", index)} optional>
+					<TextField
+						id={priceFieldId("sku", index)}
+						mono
+						value={sheetRow.sku || ""}
+						oninput={(e) => update(index, "sku", (e.currentTarget as HTMLInputElement).value)}
+					/>
+				</Field>
+			</div>
+			<div class="sheet-actions">
+				<Button
+					variant="outline"
+					type="button"
+					disabled={index === 0}
+					reason="Already first"
+					onclick={() => {
+						move(index, -1);
+						sheetIndex = index - 1;
+					}}
+				>
+					{#snippet icon()}<Icon name="chevron-up" size={16} />{/snippet}
+					Move up
+				</Button>
+				<Button
+					variant="outline"
+					type="button"
+					disabled={index === rows.length - 1}
+					reason="Already last"
+					onclick={() => {
+						move(index, 1);
+						sheetIndex = index + 1;
+					}}
+				>
+					{#snippet icon()}<Icon name="chevron-down" size={16} />{/snippet}
+					Move down
+				</Button>
+				<Button
+					variant="ghost"
+					type="button"
+					class="remove-line"
+					disabled={index === 0}
+					reason="A drink needs one price"
+					onclick={() => {
+						sheetIndex = null;
+						remove(index);
+					}}
+				>
+					{#snippet icon()}<Icon name="trash" size={16} />{/snippet}
+					Remove
+				</Button>
+			</div>
+		</div>
+	{/if}
+	{#snippet footer()}
+		<Button variant="primary" size="sm" type="button" onclick={() => (sheetIndex = null)}>
+			{#snippet icon()}<Icon name="check" size={14} />{/snippet}
+			Done
+		</Button>
+	{/snippet}
+</Dialog>
 
 <style>
-	/* On the card's own surface; rows carry their own hairlines (as MenuPlacementsTable). */
-	.wrap {
-		container-type: inline-size;
-		border-top: 1px solid var(--border);
+	/* The grid sits on the editor's card: the card's own surface, no darker box. */
+	.host {
+		--grid-bg: transparent;
+		--grid-head-bg: transparent;
+		width: 100%;
 		min-width: 0;
 	}
 
-	.price-table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: var(--text-sm);
+	/* Only as tall as its rows: AG Grid gives auto-height grids a floor otherwise. */
+	.host :global(:is(.ag-center-cols-viewport, .ag-center-cols-container, .ag-body-viewport, .ag-center-cols-clipper)) {
+		min-height: 0 !important;
 	}
 
-	.price-table th,
-	.price-table td {
-		padding: var(--space-2) var(--space-3);
-		text-align: left;
-		border-bottom: 1px solid var(--border);
-		vertical-align: top;
+	.host :global(.ag-root-wrapper) {
+		--ag-background-color: var(--card);
+		--ag-data-background-color: var(--card);
+		--ag-header-background-color: var(--card);
 	}
 
-	.price-table th {
-		font-size: var(--text-2xs);
-		font-weight: 600;
-		letter-spacing: var(--tracking-label);
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-		background: color-mix(in srgb, var(--card) 70%, transparent);
-		vertical-align: middle;
-	}
-
-	.price-table tbody tr:last-child td {
-		border-bottom: 0;
-	}
-
-	.c-name {
-		width: 24%;
-	}
-
-	.c-size {
-		width: 16%;
-	}
-
-	.c-price {
-		width: 9.5rem;
-	}
-
-	.c-sku {
-		width: 16%;
-	}
-
-	.c-pour {
-		width: 9rem;
-	}
-
-	th.c-pour,
-	td.c-pour {
-		text-align: right;
-	}
-
-	.c-actions {
-		width: 1%;
-		padding-left: var(--space-1);
-		padding-right: var(--space-1);
-		white-space: nowrap;
-	}
-
-	.row-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.125rem;
-		min-height: var(--control-h-sm, 2rem);
-		align-items: center;
-	}
-
-	.pour {
-		display: inline-flex;
-		align-items: baseline;
-		justify-content: flex-end;
-		gap: var(--space-2);
-		min-height: var(--control-h-sm, 2rem);
-		line-height: var(--control-h-sm, 2rem);
-		white-space: nowrap;
-	}
-
-	.pct {
-		font-weight: 600;
-		color: var(--foreground);
-	}
-
-	.pct.up {
-		color: var(--up);
-	}
-
-	.pct.down,
-	.pct.loss {
-		color: var(--down);
-	}
-
-	.pct.muted {
-		color: var(--muted-foreground);
-		font-weight: 500;
-	}
-
-	.cost {
-		font-size: var(--text-xs);
-		color: var(--muted-foreground);
-	}
-
-	.cell-error {
-		display: flex;
-		margin: var(--space-1) 0 0;
-		font-size: var(--text-xs);
-		line-height: 1.35;
-		color: var(--destructive);
-	}
-
-	/* Column headers label the cells on a wide card; each cell says its own on a narrow one. */
-	.cell-label {
-		display: none;
-	}
-
-	@container (max-width: 640px) {
-		.price-table thead {
-			position: absolute;
-			width: 1px;
-			height: 1px;
-			overflow: hidden;
-			clip: rect(0, 0, 0, 0);
-		}
-
-		.price-table,
-		.price-table tbody {
-			display: block;
-		}
-
-		.price-table tr {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-			gap: var(--space-3);
-			padding: var(--space-3) 0;
-			border-bottom: 1px solid var(--border);
-		}
-
-		.price-table tbody tr:last-child {
-			border-bottom: 0;
-		}
-
-		.price-table td {
-			display: grid;
-			gap: var(--space-1);
-			align-content: start;
-			width: auto;
-			padding: 0;
-			border: 0;
-			text-align: left;
-		}
-
-		td.c-name {
-			grid-column: 1 / -1;
-		}
-
-		td.c-pour {
-			text-align: left;
-		}
-
-		.pour {
-			justify-content: flex-start;
-		}
-
-		td.c-actions {
-			grid-column: 1 / -1;
-		}
-
-		.cell-label {
-			display: block;
-			font-size: var(--text-sm);
-			font-weight: 500;
-			color: var(--muted-foreground);
-		}
-
-		.row-actions {
-			justify-content: flex-end;
-		}
-	}
-
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
+	.lines {
+		display: grid;
+		margin: 0;
 		padding: 0;
-		margin: -1px;
+		list-style: none;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
 		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
+	}
+
+	.lines li + li {
+		border-top: 1px solid var(--border);
+	}
+
+	.line {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto auto auto;
+		align-items: center;
+		gap: var(--space-3);
+		width: 100%;
+		min-height: 3rem;
+		margin: 0;
+		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
 		border: 0;
+		background: transparent;
+		color: var(--fg);
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.line.invalid {
+		box-shadow: inset 3px 0 0 var(--danger);
+	}
+
+	.line:active {
+		background: var(--surface-3);
+	}
+
+	.line:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -2px;
+	}
+
+	.line-name {
+		display: grid;
+		min-width: 0;
+	}
+
+	.line-title {
+		font-weight: 500;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.line-sub {
+		font-size: var(--text-xs);
+		color: var(--fg-muted);
+	}
+
+	.line-price,
+	.line-pour {
+		font-size: var(--text-sm);
+		white-space: nowrap;
+	}
+
+	.line-chevron {
+		display: inline-flex;
+		color: var(--fg-subtle);
+	}
+
+	.sheet-body {
+		display: grid;
+		gap: var(--space-4);
+	}
+
+	.sheet-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-3);
+	}
+
+	.sheet-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.sheet-actions :global(.remove-line) {
+		margin-left: auto;
 	}
 </style>

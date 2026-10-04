@@ -38,6 +38,7 @@ export { default as DateField } from "./DateField.svelte";
 export { default as ConfirmDialog } from "./ConfirmDialog.svelte";
 export { default as OverflowMenu } from "./OverflowMenu.svelte";
 export { default as RowAction } from "./RowAction.svelte";
+export { default as PhotoActions } from "./PhotoActions.svelte";
 export { default as EditorActionBar } from "./EditorActionBar.svelte";
 export { default as FormSection } from "./FormSection.svelte";
 export { default as FormHeading } from "./FormHeading.svelte";

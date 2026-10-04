@@ -28,7 +28,7 @@
 	import { type InventoryItem } from "../inventory/types";
 	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
 	import { flattenMenuSections, sectionPathLabel } from "./menu-sections.js";
-	import { formatPriceSummary, newPriceRow, normalizePrices, relabelPrices, withPrices, type PriceRow } from "./prices.js";
+	import { newPriceRow, normalizePrices, priceLabels, relabelPrices, withPrices, type PriceRow } from "./prices.js";
 	import {
 		computeRecipeAbv,
 		computeRecipeVolumeMl,
@@ -47,6 +47,7 @@
 		formatPourPercent,
 		marginTone,
 		recipePriceAnalysis,
+		suggestedAltPrice,
 	} from "./cost";
 	import { pourSettings } from "../config/settings.svelte";
 	import { namesClash } from "../app/spa-path.js";
@@ -73,6 +74,7 @@
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import MethodEditor from "./MethodEditor.svelte";
+	import { PhotoActions } from "../ui";
 	import PriceTable from "./PriceTable.svelte";
 	import PriceGauges from "./PriceGauges.svelte";
 	import PourSettingsDialog from "./PourSettingsDialog.svelte";
@@ -648,7 +650,30 @@
 
 	/** The price table (Pricing tab); Build shows it on one line. */
 	const priceRows = $derived(item ? normalizePrices(item) : []);
-	const priceSummary = $derived(formatPriceSummary(priceRows));
+	/** Build edits the first two prices; the rest live on Pricing. */
+	const buildPriceLabels = $derived(priceLabels(drinkType));
+	const showSecondPrice = $derived(priceRows.length > 1 || Boolean(buildPriceLabels.alt));
+	const secondSuggested = $derived(
+		priceLive?.priceRows?.[1]?.serve?.suggestedPrice ?? suggestedAltPrice(priceLive),
+	);
+	const morePrices = $derived(Math.max(0, priceRows.length - 2));
+
+	function setBuildPrice(index: 0 | 1, value: string) {
+		const next = value.trim();
+		if (index === 1 && !priceRows[1]) {
+			if (!next) return;
+			setPrices([...priceRows, { ...newPriceRow(priceRows, drinkType), price: next }], "prices:price:1");
+			return;
+		}
+		const row = priceRows[index];
+		if (!row || (row.price || "") === next) return;
+		// Clearing a second price nobody has named or given a SKU takes the row away.
+		if (index === 1 && !next && priceRows.length === 2 && !row.sku) {
+			setPrices([priceRows[0]], "prices:price:1");
+			return;
+		}
+		setPrices(priceRows.map((r, i) => (i === index ? { ...r, price: next } : r)), `prices:price:${index}`);
+	}
 	const hasRecipeCost = $derived(
 		Boolean(priceLive && (priceLive.drinkCost != null || priceLive.lines.length > 0)),
 	);
@@ -795,6 +820,12 @@
 	});
 </script>
 
+{#snippet editPrices()}
+	<a class="edit-prices" href={menuTabPath(tabBase, "cost")}>
+		{morePrices ? `${morePrices} more on Pricing` : "Edit prices"}
+	</a>
+{/snippet}
+
 {#if item}
 	<form
 		class="editor"
@@ -937,53 +968,13 @@
 								{#snippet aside()}
 									<FormHeading title="Photo">
 										{#snippet actions()}
-										<!-- Always shown; unavailable ones are disabled with a reason. -->
-										<div class="photo-actions">
-											<label
-												class="photo-btn camera"
-												class:disabled={avail.takePhoto.disabled}
-												title={avail.takePhoto.reason}
-											>
-												<input
-													class="sr-only"
-													type="file"
-													accept="image/*"
-													capture="environment"
-													disabled={avail.takePhoto.disabled}
-													onchange={onPhotoInput}
-												/>
-												<Icon name="camera" size={14} />
-												Take photo
-											</label>
-											<label
-												class="photo-btn"
-												class:disabled={avail.replacePhoto.disabled}
-												title={avail.replacePhoto.reason}
-											>
-												<input
-													class="sr-only"
-													type="file"
-													accept="image/jpeg,image/png,image/webp,image/gif"
-													disabled={avail.replacePhoto.disabled}
-													onchange={onPhotoInput}
-												/>
-												<Icon name="upload" size={14} />
-												Replace
-											</label>
-											<Button
-												variant="outline"
-												size="sm"
-												class="photo-remove"
-												disabled={avail.removePhoto.disabled}
-												reason={avail.removePhoto.reason}
-												onclick={removePhoto}
-											>
-												{#snippet icon()}
-													<Icon name="trash" size={14} />
-												{/snippet}
-												Remove
-											</Button>
-										</div>
+										<PhotoActions
+											take={avail.takePhoto}
+											replace={avail.replacePhoto}
+											remove={avail.removePhoto}
+											onfile={onPhotoInput}
+											onremove={removePhoto}
+										/>
 										{/snippet}
 									</FormHeading>
 									<div
@@ -1091,18 +1082,41 @@
 										/>
 									</Field>
 								{/if}
-								<Field class="span-6" label="Price" for="f-price-summary">
-									{#snippet actions()}
-										<a class="edit-prices" href={menuTabPath(tabBase, "cost")}>Edit prices</a>
-									{/snippet}
-									<output
-										id="f-price-summary"
-										class="price-summary tnum"
-										class:muted={!priceSummary}
-									>
-										{priceSummary || "No price yet"}
-									</output>
+								<Field
+									class={showSecondPrice ? "span-3" : "span-6"}
+									label={priceRows[0]?.name?.trim() || buildPriceLabels.primary}
+									for="f-price-0"
+									error={errors.get("f-price-0")}
+									actions={showSecondPrice ? undefined : editPrices}
+								>
+									<MoneyField
+										id="f-price-0"
+										size="sm"
+										value={priceRows[0]?.price || ""}
+										oninput={(e) => setBuildPrice(0, (e.currentTarget as HTMLInputElement).value)}
+										oncommit={(next) => setBuildPrice(0, next)}
+									/>
 								</Field>
+								{#if showSecondPrice}
+									<Field
+										class="span-3"
+										label={priceRows[1]?.name?.trim() || buildPriceLabels.alt || "Second price"}
+										for="f-price-1"
+										optional
+										error={errors.get("f-price-1")}
+										hint={secondSuggested != null && !priceRows[1]?.price ? `£${secondSuggested} meets the pour target.` : undefined}
+										actions={editPrices}
+									>
+										<MoneyField
+											id="f-price-1"
+											size="sm"
+											value={priceRows[1]?.price || ""}
+											placeholder={secondSuggested != null ? String(secondSuggested) : ""}
+											oninput={(e) => setBuildPrice(1, (e.currentTarget as HTMLInputElement).value)}
+											oncommit={(next) => setBuildPrice(1, next)}
+										/>
+									</Field>
+								{/if}
 								<Field
 									label="Menu description"
 									for="f-description"
@@ -1669,20 +1683,6 @@
 	}
 
 	/* Build's read-only price line: as tall as the controls beside it. */
-	.price-summary {
-		display: flex;
-		align-items: center;
-		min-height: var(--control-h-sm, 2rem);
-		font-size: var(--text-base);
-		font-weight: 500;
-		color: var(--foreground);
-	}
-
-	.price-summary.muted {
-		color: var(--muted-foreground);
-		font-weight: 400;
-	}
-
 	.edit-prices {
 		font-size: var(--text-xs);
 		font-weight: 500;
@@ -1716,18 +1716,13 @@
 		color: var(--muted-foreground);
 	}
 
-	.photo-actions {
-		display: flex;
-		gap: var(--space-2);
-	}
-
 	.photo {
 		position: relative;
 		display: grid;
 	}
 
-	/* Beside the fields: the photo fills their height (FormLead `fill`). */
-	@container (min-width: 42rem) {
+	/* Beside the fields: the photo fills their height (FormLead `fill`, same breakpoint). */
+	@container (min-width: 64rem) {
 		.photo {
 			min-height: 0;
 		}
@@ -1737,57 +1732,6 @@
 			height: 100%;
 			aspect-ratio: auto;
 		}
-	}
-
-	/* File pickers are labels; they match an outline sm Button beside Remove. */
-	.photo-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-2);
-		height: var(--button-h-sm);
-		padding: 0 var(--space-3) 0 var(--space-2);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-md);
-		background: transparent;
-		color: var(--foreground);
-		font: inherit;
-		font-size: var(--text-sm);
-		font-weight: 500;
-		white-space: nowrap;
-		cursor: pointer;
-	}
-
-	.photo-btn:hover:not(.disabled) {
-		background: var(--accent);
-	}
-
-	/* Phones and tablets only: opens the camera straight away. */
-	.photo-btn.camera {
-		display: none;
-	}
-
-	@media (pointer: coarse) {
-		.photo-btn.camera {
-			display: inline-flex;
-		}
-	}
-
-	.photo-btn:focus-within,
-	.photo-btn:focus-visible {
-		outline: 2px solid var(--ring);
-		outline-offset: 2px;
-	}
-
-	:global(.photo-remove:hover:not(:disabled, [aria-disabled="true"])) {
-		color: var(--destructive);
-		background: var(--destructive-wash);
-	}
-
-	.photo-btn.disabled {
-		border-color: transparent;
-		background: var(--surface-3);
-		color: var(--fg-subtle);
-		cursor: not-allowed;
 	}
 
 	.photo-frame,
@@ -1864,6 +1808,14 @@
 		color: var(--primary);
 		font-weight: 600;
 		pointer-events: none;
+	}
+
+	/* Stacked under the fields: a wide banner. */
+	@container (min-width: 30rem) and (max-width: 63.99rem) {
+		.photo-frame,
+		.photo-empty {
+			aspect-ratio: 21 / 9;
+		}
 	}
 
 	/* Phones: a wide photo, so the fields under it stay in reach. */
