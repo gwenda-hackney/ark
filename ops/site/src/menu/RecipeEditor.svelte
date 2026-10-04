@@ -275,7 +275,7 @@
 		return [
 			{ id: "details", label: "Build", href: hrefFor("details") },
 			{ id: "menu", label: "Menu", href: hrefFor("menu") },
-			{ id: "cost", label: "Cost", href: hrefFor("cost") },
+			{ id: "cost", label: "Pricing", href: hrefFor("cost") },
 			{ id: "analysis", label: "Analysis", href: hrefFor("analysis") },
 		];
 	});
@@ -641,7 +641,6 @@
 		return `${text}% pour`;
 	});
 	const priceFieldLabel = $derived(primaryServe?.label || "Price");
-	/** The second size (double, half) is set on Cost; Build says what it is. */
 
 	/** Single and Double (Pint and Half pint): both prices sit together on Build. */
 	const sizeLabels = $derived(priceLabels(drinkType));

@@ -1,7 +1,7 @@
 <script lang="ts">
 	/**
-	 * Pour cost on the Cost tab. Primary sell price is edited in the drink
-	 * header; this panel shows metrics and edits the optional alt serve.
+	 * Pour cost on the Pricing tab: each size's price (set on Build) beside
+	 * what it costs to make and how that compares with the house target.
 	 */
 	import { Button } from "../ui";
 	import {
