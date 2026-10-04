@@ -251,7 +251,7 @@
 		{@const index = sheetRow._index}
 		<div class="sheet-body">
 			<div class="sheet-row">
-				<Field label="Name" for={priceFieldId("name", index)} error={sheetRow._nameError}>
+				<Field label="Name" for={priceFieldId("name", index)} required error={sheetRow._nameError}>
 					<TextField
 						id={priceFieldId("name", index)}
 						value={sheetRow.name || ""}
@@ -271,13 +271,13 @@
 				<Field
 					label="Price"
 					for={priceFieldId("price", index)}
+					required
 					error={sheetRow._priceError}
-					hint={sheetRow._suggested ? `£${sheetRow._suggested} meets the pour target.` : undefined}
 				>
 					<MoneyField
 						id={priceFieldId("price", index)}
 						value={sheetRow.price || ""}
-						placeholder={sheetRow._suggested || "0.00"}
+						placeholder={sheetRow._suggested ? `${sheetRow._suggested} meets the pour target` : "0.00"}
 						oninput={(e) => update(index, "price", (e.currentTarget as HTMLInputElement).value)}
 						oncommit={(next) => update(index, "price", next)}
 					/>

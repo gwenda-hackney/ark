@@ -4,7 +4,7 @@ import { ITEM_FIELD_ORDER, itemFieldTab, priceFieldId, stripUnit, validateItem, 
 
 describe("validateItem", () => {
 	it("passes a drink with a name and sensible figures", () => {
-		expect(validateItem({ name: "Negroni", price: "12.50", abv: "24.5%", volume: "90 ml" })).toEqual({});
+		expect(validateItem({ name: "Negroni", price: "12.50", abv: "24.5%", volume: "90 ml", description: "Gin, Campari, vermouth", notes: "Bitter" })).toEqual({});
 	});
 
 	it("wants a price, even on a drink saved without one", () => {
@@ -21,11 +21,11 @@ describe("validateItem", () => {
 				{ _id: "b", name: "Negroni" },
 			])["f-name"],
 		).toBe("A drink with that name already exists.");
-		expect(validateItem({ _id: "a", name: "Negroni", price: "12" }, [{ _id: "a", name: "Negroni" }])).toEqual({});
+		expect(validateItem({ _id: "a", name: "Negroni", price: "12", description: "Gin, Campari, vermouth", notes: "Bitter" }, [{ _id: "a", name: "Negroni" }])).toEqual({});
 	});
 
 	it("says what's wrong with a figure", () => {
-		const errors = validateItem({ name: "X", price: "twelve", abv: "140%", volume: "lots" });
+		const errors = validateItem({ name: "X", price: "twelve", abv: "140%", volume: "lots", description: "Gin, Campari, vermouth", notes: "Bitter" });
 		expect(errors).toEqual({
 			"f-price-0": "Enter an amount in pounds, like 12.50.",
 			"f-abv": "Use a number from 0 to 100.",
@@ -34,10 +34,10 @@ describe("validateItem", () => {
 	});
 
 	it("leaves a figure alone that hasn't changed since it was saved", () => {
-		const saved = { name: "House white", price: "8", volume: "125/175 ml" };
+		const saved = { name: "House white", drinkType: "pour", description: "Dry", price: "8", volume: "125/175 ml" };
 		expect(validateItem({ ...saved, name: "House white wine" }, [], saved)).toEqual({});
 		expect(validateItem({ ...saved, volume: "lots" }, [], saved)["f-volume"]).toBeTruthy();
-		const odd = { name: "House white", prices: [{ name: "Glass", price: "8/9" }] };
+		const odd = { name: "House white", drinkType: "pour", description: "Dry", prices: [{ name: "Glass", price: "8/9" }] };
 		expect(validateItem({ ...odd, name: "House white wine" }, [], odd)).toEqual({});
 	});
 
@@ -48,20 +48,33 @@ describe("validateItem", () => {
 		expect(itemFieldTab("f-abv")).toBe("menu");
 		expect(itemFieldTab("f-volume")).toBe("menu");
 		expect(itemFieldTab("f-pos-name")).toBe("menu");
-		expect(itemFieldTab("f-price-0")).toBe("cost");
+		expect(itemFieldTab("f-price-0")).toBe("details");
+		expect(itemFieldTab("f-price-1")).toBe("details");
+		expect(itemFieldTab("f-price-2")).toBe("cost");
 		expect(itemFieldTab("f-price-name-3")).toBe("cost");
 	});
 
 	it("orders price rows after the Menu tab, each row's name before its amount", () => {
 		const errors = validateItem({
 			name: "Gin and tonic",
+			description: "Gin, tonic",
+			notes: "Crisp",
 			prices: [
 				{ name: "Single", price: "8" },
 				{ name: "", price: "" },
 			],
 		});
-		expect(firstErrorKey(errors, ITEM_FIELD_ORDER)).toBe("f-price-name-1");
-		expect(ITEM_FIELD_ORDER.indexOf("f-price-0")).toBeGreaterThan(ITEM_FIELD_ORDER.indexOf("f-pos-name"));
+		expect(firstErrorKey(errors, ITEM_FIELD_ORDER)).toBe("f-price-1");
+		expect(ITEM_FIELD_ORDER.indexOf("f-price-2")).toBeGreaterThan(ITEM_FIELD_ORDER.indexOf("f-pos-name"));
+		expect(ITEM_FIELD_ORDER.indexOf("f-price-0")).toBeLessThan(ITEM_FIELD_ORDER.indexOf("f-abv"));
+	});
+
+	it("wants a menu description, and a tasting note on a cocktail", () => {
+		const cocktail = validateItem({ name: "Negroni", price: "12" });
+		expect(cocktail["f-description"]).toBe("Add a menu description.");
+		expect(cocktail["f-notes"]).toBe("Add a tasting note.");
+		const beer = validateItem({ name: "Lager", drinkType: "beer", price: "6", description: "Crisp" });
+		expect(beer["f-notes"]).toBeUndefined();
 	});
 });
 

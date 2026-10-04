@@ -29,9 +29,10 @@ describe("Field", () => {
 		expect(tag).toContain('aria-invalid="true"');
 	});
 
-	it("marks optional fields and nothing else", () => {
-		expect(html({ optional: true })).toContain(">Optional<");
-		expect(html({})).not.toContain(">Optional<");
+	it("marks required fields and nothing else", () => {
+		expect(html({ required: true })).toContain(">Required<");
+		expect(html({})).not.toContain(">Required<");
+		expect(html({ optional: true })).not.toContain(">Optional<");
 	});
 
 	it("carries the width token", () => {

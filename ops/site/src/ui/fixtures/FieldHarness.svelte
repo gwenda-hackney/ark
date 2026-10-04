@@ -11,17 +11,19 @@
 		error = "",
 		hint = "",
 		optional = false,
+		required = false,
 		width = "full",
 	}: {
 		control?: "text" | "time" | "money" | "date";
 		error?: string;
 		hint?: string;
 		optional?: boolean;
+		required?: boolean;
 		width?: "xs" | "sm" | "md" | "lg" | "full";
 	} = $props();
 </script>
 
-<Field label="Price" for="f-x" {error} {hint} {optional} {width}>
+<Field label="Price" for="f-x" {error} {hint} {optional} {required} {width}>
 	{#if control === "time"}
 		<TimeField id="f-x" value="19:00" />
 	{:else if control === "money"}

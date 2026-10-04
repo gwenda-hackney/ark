@@ -1024,7 +1024,7 @@
 								{/snippet}
 
 								<FormHeading class="lead-first" title="Drink" />
-								<Field class="lead-first span-6" label="Name" for="f-name" error={errors.get("f-name")}>
+								<Field class="lead-first span-6" label="Name" for="f-name" required error={errors.get("f-name")}>
 									<TextField
 										id="f-name"
 										size="sm"
@@ -1038,7 +1038,8 @@
 									class="span-6"
 									label="Tasting note"
 									for="f-notes"
-									optional
+									required={showRecipe}
+									error={errors.get("f-notes")}
 									hint="A short line under the name."
 								>
 									<TextField
@@ -1094,6 +1095,7 @@
 									class={showSecondPrice ? "span-3" : "span-6"}
 									label={priceRows[0]?.name?.trim() || buildPriceLabels.primary}
 									for="f-price-0"
+									required
 									error={errors.get("f-price-0")}
 									actions={showSecondPrice ? undefined : editPrices}
 								>
@@ -1112,14 +1114,13 @@
 										for="f-price-1"
 										optional
 										error={errors.get("f-price-1")}
-										hint={secondSuggested != null && !priceRows[1]?.price ? `£${secondSuggested} meets the pour target.` : undefined}
 										actions={editPrices}
 									>
 										<MoneyField
 											id="f-price-1"
 											size="sm"
 											value={priceRows[1]?.price || ""}
-											placeholder={secondSuggested != null ? String(secondSuggested) : ""}
+											placeholder={secondSuggested != null ? `${secondSuggested} meets the pour target` : ""}
 											oninput={(e) => setBuildPrice(1, (e.currentTarget as HTMLInputElement).value)}
 											oncommit={(next) => setBuildPrice(1, next)}
 										/>
@@ -1128,7 +1129,8 @@
 								<Field
 									label="Menu description"
 									for="f-description"
-									optional
+									required
+									error={errors.get("f-description")}
 									hint="The ingredient line or a longer blurb."
 								>
 									{#snippet actions()}

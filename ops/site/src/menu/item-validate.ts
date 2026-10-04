@@ -6,6 +6,7 @@ import { namesClash } from "../app/spa-path.js";
 import type { ErrorMap } from "../ui/form-errors.svelte";
 import { numberError } from "../ui/number-input";
 import { normalizePrices, type PriceRow } from "./prices.js";
+import { hasRecipe, type DrinkType } from "./types";
 
 export type ItemValidateFields = {
 	_id?: string;
@@ -14,6 +15,8 @@ export type ItemValidateFields = {
 	price?: string;
 	priceAlt?: string;
 	prices?: PriceRow[];
+	description?: string;
+	notes?: string;
 	abv?: string;
 	volume?: string;
 };
@@ -27,19 +30,28 @@ export function priceFieldId(field: "name" | "price" | "size" | "sku", index: nu
 }
 
 /**
- * Field ids in screen order: Build (name), then Menu (ABV, volume, till
- * name), then Pricing (each row's name, then its amount).
+ * Field ids in screen order: Build (name, tasting note, the first two
+ * prices, menu description), then Menu (ABV, volume, till name), then Pricing (each
+ * row's name, then its amount).
  */
 export const ITEM_FIELD_ORDER: readonly string[] = [
 	"f-name",
+	"f-notes",
+	"f-price-0",
+	"f-price-1",
+	"f-description",
 	"f-abv",
 	"f-volume",
 	"f-pos-name",
-	...Array.from({ length: ORDERED_PRICE_ROWS }, (_, i) => [priceFieldId("name", i), priceFieldId("price", i)]).flat(),
+	...Array.from({ length: ORDERED_PRICE_ROWS }, (_, i) => [priceFieldId("name", i), priceFieldId("price", i)])
+		.flat()
+		.filter((id) => id !== "f-price-0" && id !== "f-price-1"),
 ];
 
 export function itemFieldTab(key: string): string | undefined {
 	if (key === "f-abv" || key === "f-volume" || key === "f-pos-name") return "menu";
+	// The first two prices are fields on Build; every row is also on Pricing.
+	if (key === "f-price-0" || key === "f-price-1") return "details";
 	if (key.startsWith("f-price")) return "cost";
 	return "details";
 }
@@ -66,6 +78,11 @@ export function validateItem(
 	else if (others.some((row) => row._id !== item._id && namesClash(row.name, name))) {
 		errors["f-name"] = "A drink with that name already exists.";
 	}
+	// The menu sets a cocktail's tasting note under its name; without one the layout breaks.
+	if (hasRecipe(item.drinkType as DrinkType) && !String(item.notes || "").trim()) {
+		errors["f-notes"] = "Add a tasting note.";
+	}
+	if (!String(item.description || "").trim()) errors["f-description"] = "Add a menu description.";
 	Object.assign(errors, validatePrices(normalizePrices(item), saved ? normalizePrices(saved) : null));
 	const abv = changed("abv") && numberError(stripUnit(item.abv, "%"), { min: 0, max: 100, noun: "a percentage" });
 	if (abv) errors["f-abv"] = abv;

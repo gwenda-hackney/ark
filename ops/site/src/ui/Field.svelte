@@ -1,9 +1,9 @@
 <script lang="ts">
 	/**
-	 * One form field: label (with an "Optional" tag when it can be left
-	 * blank), label-row actions, the control, then one line under it: the
-	 * hint, or the error in its place. Required is the default and is not
-	 * marked. The control picks up aria-describedby and aria-invalid from
+	 * One form field: label (with a "Required" tag when it must be filled
+	 * in), label-row actions, the control, then one line under it: the
+	 * hint, or the error in its place. Fields that may be left blank carry
+	 * no tag. The control picks up aria-describedby and aria-invalid from
 	 * here. `tooltip` is for long help only; short help goes in `hint`.
 	 * `width` caps the control (and its label row) to what goes in it: xs
 	 * 6rem (%, ABV), sm 9rem (money, times, dates), md 16rem, lg 28rem,
@@ -19,6 +19,7 @@
 		hint,
 		tooltip,
 		error = "",
+		required = false,
 		optional = false,
 		width = "full",
 		for: htmlFor,
@@ -31,7 +32,9 @@
 		tooltip?: string;
 		/** Shown in place of the hint, in the danger colour. */
 		error?: string;
-		/** Mark the field "Optional". Fields are required unless marked. */
+		/** Mark the field "Required": Save checks it can't be blank. */
+		required?: boolean;
+		/** May be left blank. Shows nothing; kept so call sites read clearly. */
 		optional?: boolean;
 		width?: FieldWidth;
 		for?: string;
@@ -66,8 +69,8 @@
 	<div class="label-row">
 		<div class="label-left">
 			<label for={htmlFor}>{label}</label>
-			{#if optional}
-				<span class="optional">Optional</span>
+			{#if required && !optional}
+				<span class="required">Required</span>
 			{/if}
 			{#if tooltip}
 				<Tip {label} {tooltip} />
@@ -176,7 +179,7 @@
 		white-space: nowrap;
 	}
 
-	.optional {
+	.required {
 		font-size: var(--text-xs);
 		font-weight: 500;
 		font-style: italic;
