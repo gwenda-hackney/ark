@@ -11,7 +11,7 @@ export const ITEM_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Tasting note",
-		body: "A few words shown under the drink's name, such as \"Floral fizz\". Keep it short.",
+		body: "A few words printed in gold under the description, such as \"Floral fizz\". Keep it short: a cocktail without one breaks the menu layout.",
 	},
 	{
 		title: "Category",
