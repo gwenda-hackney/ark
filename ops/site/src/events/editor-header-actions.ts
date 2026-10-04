@@ -22,7 +22,6 @@ export type EditorHeaderInput = {
 };
 
 export type EditorHeaderActions = {
-	addNight: ActionState;
 	calendar: ActionState;
 	website: ActionState;
 	reload: ActionState;
@@ -32,14 +31,6 @@ export function editorHeaderActions(input: EditorHeaderInput): EditorHeaderActio
 	const saved = Boolean(input.eventId) && !input.isNew;
 	const kind = input.editingNight ? "night" : input.special ? "event" : "series";
 	const saveFirst = `Save the ${kind} first`;
-
-	const addNight = input.editingNight
-		? "Add nights from the series"
-		: input.special
-			? "A special event has one night"
-			: !saved
-				? saveFirst
-				: null;
 
 	const calendar = !saved
 		? saveFirst
@@ -58,7 +49,6 @@ export function editorHeaderActions(input: EditorHeaderInput): EditorHeaderActio
 	const reload = input.eventId ? null : "Nothing saved to reload yet";
 
 	return {
-		addNight: actionState(addNight, input.busy),
 		calendar: actionState(calendar, input.busy),
 		website: actionState(website, input.busy),
 		reload: actionState(reload, input.busy),

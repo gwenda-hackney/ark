@@ -371,7 +371,6 @@
 							parentSeriesName={editor.parentSeriesName}
 							calendarSyncing={editor.calendarSyncing}
 							localOps={editor.localOps}
-							onaddnight={editor.addNightToSeries}
 							onsynccalendar={() => void editor.onSyncCalendar()}
 							onputonwebsite={editor.openPutOnWebsite}
 							onreload={requestReload}
