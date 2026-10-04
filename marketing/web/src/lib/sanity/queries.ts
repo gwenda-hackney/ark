@@ -18,6 +18,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   description,
   heroImage {
     alt,
+    fit,
     crop,
     hotspot,
     asset->{
@@ -28,6 +29,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   },
   seriesHeroImage {
     alt,
+    fit,
     crop,
     hotspot,
     asset->{
@@ -57,6 +59,7 @@ export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   description,
   heroImage {
     alt,
+    fit,
     crop,
     hotspot,
     asset->{
@@ -74,6 +77,7 @@ export const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug 
   description,
   heroImage {
     alt,
+    fit,
     asset->{
       _id,
       url,
