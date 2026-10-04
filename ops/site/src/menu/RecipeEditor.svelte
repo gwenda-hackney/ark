@@ -1017,6 +1017,34 @@
 										oninput={(e) => patch("notes", (e.currentTarget as HTMLInputElement).value)}
 									/>
 								</Field>
+								<Field
+									label="Menu description"
+									for="f-description"
+									optional
+									hint="The ingredient line or a longer blurb."
+								>
+									{#snippet actions()}
+										<Button
+											variant="ghost"
+											size="xs"
+											type="button"
+											disabled={avail.fromRecipe.disabled}
+											reason={avail.fromRecipe.reason}
+											onclick={createMenuLineFromIngredients}
+										>
+											{#snippet icon()}
+												<Icon name="from-list" size={14} />
+											{/snippet}
+											From recipe
+										</Button>
+									{/snippet}
+									<TextArea
+										id="f-description"
+										rows={3}
+										value={item.description || ""}
+										oninput={(e) => patch("description", (e.currentTarget as HTMLTextAreaElement).value)}
+									/>
+								</Field>
 								<Field class="span-3" label="Drink type" for="f-drink-type">
 									<NativeSelect
 										id="f-drink-type"
@@ -1165,37 +1193,8 @@
 							<FormSection
 								title="On the menu"
 								class="sec-copy"
-								description="What guests read, and the strength and size printed beside it."
+								description="The strength and size printed beside the drink."
 							>
-								<Field
-									class="span-8"
-									label="Menu description"
-									for="f-description"
-									optional
-									hint="The ingredient line or a longer blurb."
-								>
-									{#snippet actions()}
-										<Button
-											variant="ghost"
-											size="xs"
-											type="button"
-											disabled={avail.fromRecipe.disabled}
-											reason={avail.fromRecipe.reason}
-											onclick={createMenuLineFromIngredients}
-										>
-											{#snippet icon()}
-												<Icon name="from-list" size={14} />
-											{/snippet}
-											From recipe
-										</Button>
-									{/snippet}
-									<TextArea
-										id="f-description"
-										rows={3}
-										value={item.description || ""}
-										oninput={(e) => patch("description", (e.currentTarget as HTMLTextAreaElement).value)}
-									/>
-								</Field>
 								<Field
 									class="span-2"
 									label="ABV"
