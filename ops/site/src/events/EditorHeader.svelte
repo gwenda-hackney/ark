@@ -6,7 +6,6 @@
 	import { eventItemPath } from "../app/nav";
 	import { eventHeaderFlag } from "./event-header-status";
 	import { formatDate, repeatLabel } from "./event-labels";
-	import { EVENTS_HELP } from "./events-help";
 	import type { EventForm } from "./event-form.svelte";
 	import { websiteJobFor } from "./website-jobs.svelte";
 	import { getSitePendingState } from "../website/site-pending.svelte";
@@ -178,7 +177,7 @@
 					{/snippet}
 					Update website
 				</Button>
-				<PageHelp title="Events" topics={EVENTS_HELP} />
+				<PageHelp />
 				<Button
 					variant="ghost"
 					size="sm"

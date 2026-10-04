@@ -7,8 +7,11 @@
 		Button,
 		EditorActionBar,
 		EditorBackBar,
+		HelpDrawer,
 		Segmented,
 	} from "../ui";
+	import { provideHelp } from "../ui/help.svelte";
+	import { EVENTS_HELP } from "./events-help";
 	import type { SegmentedItem } from "../ui/types";
 	import { onWebsiteJobEvent } from "./website-jobs.svelte";
 	import EditorHeader from "./EditorHeader.svelte";
@@ -69,6 +72,8 @@
 					: listOrigin),
 	);
 	const listTitle = $derived(listView === "schedule" ? "Schedule" : "Series");
+	/** One Help drawer for the lists and the editor; a field's ? opens its topic. */
+	const help = provideHelp(() => (editor.editing ? "Events" : listTitle), EVENTS_HELP);
 
 	const tabs = $derived.by((): SegmentedItem[] => {
 		const base = editor.route.isNew
@@ -558,6 +563,8 @@
 	<!-- The list shows skeleton rows while it loads; the overlay is for the editor and saves. -->
 	<BusyOverlay active={editor.busy && (editor.editing || !editor.loading)} label={editor.busyLabel} />
 </div>
+
+<HelpDrawer {help} />
 
 <style>
 	.events-root {

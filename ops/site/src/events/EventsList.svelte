@@ -25,7 +25,6 @@
 	import { easeOut, flyMs } from "../ui/motion";
 	import type { OpsEvent } from "../app/api";
 	import { eventItemPath, navigate } from "../app/nav";
-	import { EVENTS_HELP } from "./events-help";
 	import ScheduleCalendar from "./ScheduleCalendar.svelte";
 	import ScheduleListGrid from "./ScheduleListGrid.svelte";
 	import SeriesCards from "./SeriesCards.svelte";
@@ -260,7 +259,7 @@
 						ariaLabel="Schedule layout"
 					/>
 				{/if}
-				<PageHelp title={listTitle} topics={EVENTS_HELP} />
+				<PageHelp />
 				<Button
 					type="button"
 					variant="outline"

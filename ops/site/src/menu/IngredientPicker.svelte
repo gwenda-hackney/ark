@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { ITEM_TIPS } from "./item-help";
 	import { Icon } from "../app/shell";
 	/**
 	 * Add a recipe line: find the stock first, then say how much. Picking a
@@ -202,7 +201,7 @@
 <div class="form" aria-busy={busy || undefined}>
 	<BusyOverlay active={busy} label="Adding to inventory…" />
 
-	<Field label="Ingredient" for="add-ing-search" tooltip={ITEM_TIPS.ingredientSearch}>
+	<Field label="Ingredient" for="add-ing-search" help="Recipe">
 		<input
 			bind:this={searchEl}
 			id="add-ing-search"

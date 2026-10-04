@@ -35,7 +35,7 @@
 	/>
 </Field>
 {#if form.repeatUnit !== "none"}
-	<Field class="span-3" label="Every" for="event-every" error={errors.get("event-every")}>
+	<Field class="span-3" label="Every" for="event-every" required error={errors.get("event-every")}>
 		<NumberField
 			id="event-every"
 			size="sm"
@@ -62,7 +62,7 @@
 	<Field
 		class="span-6 days"
 		label="On"
-		tooltip="Pick more than one for a series that runs several nights a week."
+		help="Schedule tab"
 	>
 		<div class="chips" role="group" aria-label="Weekdays">
 			{#each WEEKDAYS as day (day)}
@@ -86,9 +86,7 @@
 	for="event-starts"
 	optional
 	error={errors.get("event-starts")}
-	tooltip={form.repeatUnit === "none"
-		? "Blank until the first night is booked."
-		: "Blank if it isn't fixed yet. The website says to check back soon."}
+	help="Schedule tab"
 >
 	<DateField id="event-starts" size="sm" bind:value={form.startsOn} />
 </Field>
@@ -97,9 +95,9 @@
 		class="span-half"
 		label="Last night"
 		for="event-ends"
-		optional={!form.startsOn}
+		required={Boolean(form.startsOn)}
 		error={errors.get("event-ends")}
-		tooltip="Needed once it has a first night."
+		help="Schedule tab"
 	>
 		<DateField id="event-ends" size="sm" bind:value={form.endsOn} min={form.startsOn} />
 	</Field>

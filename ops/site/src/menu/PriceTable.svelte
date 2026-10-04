@@ -6,7 +6,6 @@
 	 * everywhere: a dialog on desktop, a bottom sheet on phones. The first
 	 * row is the main price.
 	 */
-	import { ITEM_TIPS } from "./item-help";
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { Button, DataGrid, Dialog, Field, MoneyField, TextField } from "../ui";
 	import { svelteCell } from "../ui/grid";
@@ -283,7 +282,7 @@
 						oncommit={(next) => update(index, "price", next)}
 					/>
 				</Field>
-				<Field label="Till SKU" for={priceFieldId("sku", index)} optional tooltip={ITEM_TIPS.sku}>
+				<Field label="Till SKU" for={priceFieldId("sku", index)} optional help="Prices">
 					<TextField
 						id={priceFieldId("sku", index)}
 						mono

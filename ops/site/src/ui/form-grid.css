@@ -119,10 +119,9 @@
 }
 
 /* The ? beside a heading sits on the title's line, a small gap after it. */
-.form-heading > h2:has(.tip-wrap) {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-2);
+.form-heading > h2 + .help-tip {
+	align-self: center;
+	margin-left: calc(var(--space-2) - var(--space-3));
 }
 
 .form-heading > .description {

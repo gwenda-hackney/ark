@@ -4,20 +4,21 @@
 	 * in), label-row actions, the control, then one line under it: the
 	 * hint, or the error in its place. Fields that may be left blank carry
 	 * no tag. The control picks up aria-describedby and aria-invalid from
-	 * here. `tooltip` is for long help only; short help goes in `hint`.
+	 * here. `help` names a topic in the editor's Help drawer: the "?" beside
+	 * the label opens the drawer on it (see help.svelte.ts).
 	 * `width` caps the control (and its label row) to what goes in it: xs
 	 * 6rem (%, ABV), sm 9rem (money, times, dates), md 16rem, lg 28rem,
 	 * full (default). The hint and error keep the field's full width so a
 	 * narrow control doesn't wrap its help onto four lines.
 	 */
 	import type { Snippet } from "svelte";
-	import Tip from "./Tip.svelte";
+	import HelpTip from "./HelpTip.svelte";
 	import { setFieldContext, joinIds, type FieldWidth } from "./field-context";
 
 	let {
 		label,
 		hint,
-		tooltip,
+		help,
 		error = "",
 		required = false,
 		optional = false,
@@ -29,7 +30,8 @@
 	}: {
 		label: string;
 		hint?: string;
-		tooltip?: string;
+		/** Help drawer topic (its title) for the "?" beside the label. */
+		help?: string;
 		/** Shown in place of the hint, in the danger colour. */
 		error?: string;
 		/** Mark the field "Required": Save checks it can't be blank. */
@@ -73,8 +75,8 @@
 				>{label}{#if required && !optional}<span class="req" aria-hidden="true">*</span
 					><span class="sr-only">{" (required)"}</span>{/if}</label
 			>
-			{#if tooltip}
-				<Tip {label} {tooltip} />
+			{#if help}
+				<HelpTip {label} topic={help} />
 			{/if}
 		</div>
 		{#if actions}

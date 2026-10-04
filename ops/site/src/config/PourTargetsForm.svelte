@@ -106,6 +106,7 @@
 			label={POUR_TARGET_META[row.value].label}
 			for={`${idPrefix}-${row.value}`}
 			width="xs"
+			required
 			hint={POUR_TARGET_META[row.value].blurb}
 			error={showErrors ? checked.errors[row.value] || "" : ""}
 		>

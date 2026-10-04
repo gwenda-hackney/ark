@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Icon } from "../../app/shell";
-	import { Tip } from "../../ui";
+	import { HelpTip } from "../../ui";
 	import { eventDriveFileUrl } from "../../app/api";
 	import type { EventGallery } from "../event-gallery.svelte";
 
@@ -57,10 +57,7 @@
 			<h2 class="section-title">
 				<span class="section-label">
 					Gallery
-					<Tip
-						label="Gallery"
-						tooltip="Photos for the event's page, from its Drive gallery, newest first. They go on the website with Update website."
-					/>
+					<HelpTip label="Gallery" topic="Gallery" />
 				</span>
 			</h2>
 			{#if gallery.folderUrl}

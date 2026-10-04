@@ -4,7 +4,7 @@
 	 * frame on it is exactly what the site shows. Drag the frame, zoom to tighten.
 	 */
 	import Icon from "../app/shell/Icon.svelte";
-	import { PhotoActions, Tip } from "../ui";
+	import { HelpTip, PhotoActions } from "../ui";
 	import {
 		HERO_ASPECT,
 		HERO_ZOOM_MAX,
@@ -26,7 +26,7 @@
 		crops = null as HeroFraming | null,
 		disabled = false,
 		locked = false,
-		tooltip = "",
+		help = "",
 		heading = "Hero",
 		onchangecrops,
 		onpickfile,
@@ -38,7 +38,8 @@
 		heading?: string;
 		disabled?: boolean;
 		locked?: boolean;
-		tooltip?: string;
+		/** Help drawer topic for the ? beside the heading. */
+		help?: string;
 		onchangecrops: (
 			crops: HeroFraming | null,
 			meta: { width: number; height: number },
@@ -317,8 +318,8 @@
 		{#if heading}
 			<h2 class="section-title">
 				{heading}
-				{#if tooltip}
-					<Tip label={heading} {tooltip} />
+				{#if help}
+					<HelpTip label={heading} topic={help} />
 				{/if}
 			</h2>
 		{/if}

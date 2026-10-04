@@ -1,6 +1,9 @@
 import type { PageHelpTopic } from "../ui/types";
 
-/** Help drawer for the menu item editor. Only for what isn't obvious from the label. */
+/**
+ * Help drawer for the menu item editor. Only for what isn't obvious from the
+ * label. A field's "?" opens one topic by its title (`help="Recipe"`).
+ */
 export const ITEM_HELP: PageHelpTopic[] = [
 	{
 		title: "Tabs",
@@ -20,7 +23,11 @@ export const ITEM_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Recipe",
-		body: "What goes in, picked from stock. The drink's cost, ABV and volume are worked out from these lines, so keep amounts right.",
+		body: "What goes in, picked from stock. The drink's cost, ABV and volume are worked out from these lines, so keep amounts right. Add ingredient searches stock: Enter picks the top match. A line's ABV comes from its stock item; change it on Inventory.",
+	},
+	{
+		title: "Serve",
+		body: "The stock this is poured from and how much goes in a serve. Its cost and the till both follow from it.",
 	},
 	{
 		title: "Method and glassware",
@@ -71,26 +78,3 @@ export const ITEM_HELP: PageHelpTopic[] = [
 		body: "Press Analyse for a short note on the drink, separate from the numbers. It does not make up volumes or ABV. Edit the spec and it says the reading is out of date.",
 	},
 ];
-
-/** Short ? tips beside a field or section title. The drawer has the longer story. */
-export const ITEM_TIPS = {
-	tastingNote: "A few words shown under the drink's name.",
-	category: "The style of cocktail. It shows in the Menu list and search.",
-	description: "Printed under the drink on the menu. From recipe fills it with the ingredients.",
-	recipe: "What goes in, from stock. Cost, ABV and volume follow from these lines.",
-	serve: "The stock this is poured from, for cost and the till.",
-	method: "Glassware and method also tell Analysis how much water ends up in the glass.",
-	abv: "From the recipe for a cocktail. Type over it if the menu should say something else.",
-	placements: "Each row puts the drink on one menu. Location is the chapter, or the screen on the till.",
-	tillName: "A shorter name for the till. Every POS row uses it.",
-	menuName: "Print and digital menus use the drink's name.",
-	prices: "One row per size. Pour is the cost to make it as a share of its price.",
-	sku: "Links this price to its button on the till.",
-	gauges: "Red is too cheap, green earns enough, amber may be too dear.",
-	stockAbv: "From the stock item. Change it on Inventory.",
-	ingredientSearch: "Search stock. Enter picks the top match.",
-	overview: "Spec, strength, cost and pour cost at a glance.",
-	balance: "Spirit, citrus and sweet in the drink, in ml.",
-	house: "Where this drink sits among the house cocktails, by size and strength.",
-	aiReading: "A short note on the drink, separate from the numbers. It won't make up volumes or ABV.",
-} as const;
