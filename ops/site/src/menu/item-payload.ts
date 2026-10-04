@@ -30,6 +30,9 @@ export function menuItemPayload(item: MenuItem) {
 		method: item.method,
 		abv: item.abv,
 		volume: item.volume,
+		// The editor settles both before Save; a flag left out is worked out on the server.
+		...(typeof item.abvOverride === "boolean" ? { abvOverride: item.abvOverride } : {}),
+		...(typeof item.volumeOverride === "boolean" ? { volumeOverride: item.volumeOverride } : {}),
 		producer: item.producer,
 		ingredients: item.ingredients || [],
 		analysisNote: item.analysisNote ?? null,

@@ -325,6 +325,10 @@ export function itemFields(sectionsTableId, posMenusTableId) {
     { name: "Signature", body: { name: "Signature", type: "boolean" } },
     { name: "ABV", body: { name: "ABV", type: "text" } },
     { name: "Volume", body: { name: "Volume", type: "text" } },
+    // On: ABV / Volume was set by hand and a save keeps it. Off: it follows the
+    // recipe (menu/metric-override.js).
+    { name: "ABV override", body: { name: "ABV override", type: "boolean" } },
+    { name: "Volume override", body: { name: "Volume override", type: "boolean" } },
     { name: "Producer", body: { name: "Producer", type: "text" } },
     { name: "Photo", body: { name: "Photo", type: "file" } },
     {

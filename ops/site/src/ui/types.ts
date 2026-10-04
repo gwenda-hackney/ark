@@ -20,6 +20,8 @@ export type SegmentedItem = {
 
 /** One control (or group of controls) explained in a page help drawer. */
 export type PageHelpTopic = {
+	/** Stable id, so a field's "?" can open the drawer at this topic. */
+	id?: string;
 	title: string;
 	body: string;
 };

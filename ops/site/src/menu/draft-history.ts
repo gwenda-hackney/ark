@@ -26,6 +26,8 @@ export type MenuDraft = {
 	method: string;
 	abv: string;
 	volume: string;
+	abvOverride: boolean;
+	volumeOverride: boolean;
 	producer: string;
 	ingredients: Ingredient[];
 	analysisNote: ReturnType<typeof parseStoredAnalyzeNote>;
@@ -66,6 +68,8 @@ export function serializeMenuDraft(row: MenuItem | null): string {
 		method: row.method || "",
 		abv: row.abv || "",
 		volume: row.volume || "",
+		abvOverride: row.abvOverride === true,
+		volumeOverride: row.volumeOverride === true,
 		producer: row.producer || "",
 		ingredients: row.ingredients || [],
 		analysisNote: parseStoredAnalyzeNote(row.analysisNote),

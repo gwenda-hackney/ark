@@ -153,6 +153,36 @@ describe("menu: each edit reaches /menu after Update website", () => {
     assert.deepEqual(after?.prices, [{ name: "125 ml", size: "125 ml", price: "7" }]);
   });
 
+  it("ABV and volume follow the recipe until overridden, and go back with Use recipe value", async () => {
+    const ingredients = [
+      { name: "Gin", quantity: 50, unit: "ml", abv: "40" },
+      { name: "Tonic", quantity: 50, unit: "ml" },
+    ];
+    const built = await ops.edit(negroni, menuItemPayload({ ...negroni, ingredients }));
+    assert.equal(built.abv, "20%");
+    assert.equal(built.volume, "100 ml");
+    assert.equal(built.abvOverride, undefined, "locked");
+
+    // Override: the editor sends the flag with the typed figure; a recipe change keeps it.
+    const typed = await ops.edit(built, menuItemPayload({ ...built, abv: "18%", abvOverride: true, volumeOverride: false }));
+    assert.equal(typed.abv, "18%");
+    assert.equal(typed.abvOverride, true);
+    const longer = [...ingredients, { name: "Soda", quantity: 50, unit: "ml" }];
+    const grown = await ops.edit(typed, menuItemPayload({ ...typed, ingredients: longer, volume: "150 ml", volumeOverride: false }));
+    assert.equal(grown.abv, "18%", "set by hand, so the recipe doesn't move it");
+    assert.equal(grown.volume, "150 ml");
+
+    // Use recipe value.
+    const back = await ops.edit(grown, menuItemPayload({ ...grown, abv: "13.3%", abvOverride: false }));
+    assert.equal(back.abv, "13.3%");
+    assert.equal(back.abvOverride, undefined);
+
+    // A save without the flags (an old tab) keeps a figure that isn't the recipe's.
+    const old = await ops.edit(back, { ingredients: longer, abv: "15%" });
+    assert.equal(old.abv, "15%");
+    assert.equal(old.abvOverride, true);
+  });
+
   it("adding and removing a photo", async () => {
     await ops.updateWebsite();
     await ops.addPhoto(negroni);

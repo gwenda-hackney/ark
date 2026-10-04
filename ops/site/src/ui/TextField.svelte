@@ -3,9 +3,12 @@
 	 * Recessed input against the card, gold ring on focus. Numbers get
 	 * tabular figures and lose the spinner so columns of figures line up.
 	 * `numeric` does the same for typed figures; `mono` is for IDs and codes.
-	 * `prefix` / `suffix` sit inside the box for units (£, %, ml). Inside a
-	 * Field it picks up the hint or error for screen readers.
+	 * `prefix` / `suffix` sit inside the box for units (£, %, ml); `leading`
+	 * puts an icon at its start (a lock on a figure worked out for you).
+	 * Read-only is muted like disabled but still focusable and copyable.
+	 * Inside a Field it picks up the hint or error for screen readers.
 	 */
+	import type { Snippet } from "svelte";
 	import type { HTMLInputAttributes } from "svelte/elements";
 	import { getFieldContext, joinIds } from "./field-context";
 
@@ -18,6 +21,7 @@
 		type = "text",
 		prefix = "",
 		suffix = "",
+		leading,
 		invalid = false,
 		element = $bindable(),
 		class: className = "",
@@ -34,6 +38,8 @@
 		prefix?: string;
 		/** Unit after the value, such as % or ml. */
 		suffix?: string;
+		/** An icon inside the box, before the value. */
+		leading?: Snippet;
 		/** Danger edge without a Field error (a cell in a table, say). */
 		invalid?: boolean;
 		element?: HTMLInputElement;
@@ -45,7 +51,7 @@
 	const ariaInvalid = $derived(
 		invalid || field?.invalid || invalidProp === true || invalidProp === "true" ? true : undefined,
 	);
-	const affixed = $derived(Boolean(prefix || suffix));
+	const affixed = $derived(Boolean(prefix || suffix || leading));
 </script>
 
 {#if isFile}
@@ -57,6 +63,7 @@
 	/>
 {:else if affixed}
 	<div class="affix-box {size} {className}" class:invalid={ariaInvalid}>
+		{#if leading}<span class="affix lead" aria-hidden="true">{@render leading()}</span>{/if}
 		{#if prefix}<span class="affix" aria-hidden="true">{prefix}</span>{/if}
 		<input
 			bind:this={element}
@@ -133,7 +140,7 @@
 		color: var(--subtle-foreground);
 	}
 
-	.input:hover:not(:disabled) {
+	.input:hover:not(:disabled, [readonly]) {
 		border-color: var(--border-strong);
 	}
 
@@ -147,6 +154,11 @@
 		background: var(--surface-3);
 		color: var(--fg-subtle);
 		cursor: not-allowed;
+	}
+
+	.input[readonly]:not(:disabled) {
+		background: var(--surface-3);
+		color: var(--muted-foreground);
 	}
 
 	.input.invalid,
@@ -179,7 +191,7 @@
 		height: var(--control-h-sm);
 	}
 
-	.affix-box:hover:not(:has(:disabled)) {
+	.affix-box:hover:not(:has(:disabled, [readonly])) {
 		border-color: var(--border-strong);
 	}
 
@@ -188,8 +200,13 @@
 		box-shadow: 0 0 0 3px var(--ring-wash);
 	}
 
-	.affix-box:has(:disabled) {
+	.affix-box:has(:disabled),
+	.affix-box:has(.input[readonly]) {
 		background: var(--surface-3);
+	}
+
+	.input.bare[readonly]:not(:disabled) {
+		background: transparent;
 	}
 
 	.affix {
@@ -199,6 +216,11 @@
 		font-variant-numeric: tabular-nums;
 		font-feature-settings: var(--font-features-num);
 		user-select: none;
+	}
+
+	.affix.lead {
+		display: inline-flex;
+		align-items: center;
 	}
 
 	.input.bare {

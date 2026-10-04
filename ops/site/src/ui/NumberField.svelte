@@ -5,6 +5,7 @@
 	 * against min/max. A problem is said under the Field, not only in red.
 	 * Holds a string, like the forms it feeds.
 	 */
+	import type { Snippet } from "svelte";
 	import type { HTMLInputAttributes } from "svelte/elements";
 	import TextField from "./TextField.svelte";
 	import { getFieldContext } from "./field-context";
@@ -51,6 +52,8 @@
 		align?: "start" | "end";
 		/** Danger edge without a Field error (a cell in a table, say). */
 		invalid?: boolean;
+		/** An icon inside the box, before the value. */
+		leading?: Snippet;
 		/** On blur, with the tidied value (only when it reads as a number or is blank). */
 		oncommit?: (value: string) => void;
 	} = $props();
@@ -92,7 +95,7 @@
 
 	function stepBy(e: KeyboardEvent & { currentTarget: EventTarget & HTMLInputElement }) {
 		onkeydown?.(e);
-		if (e.defaultPrevented || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+		if (e.defaultPrevented || e.currentTarget.readOnly || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
 		const n = parseNumber(e.currentTarget.value);
 		if (n === null) return;
 		e.preventDefault();

@@ -39,6 +39,13 @@ import {
   resolvePlacementsForWrite,
 } from "./menu-placements.js";
 import {
+  METRICS,
+  OVERRIDE_FIELDS,
+  OVERRIDE_KEYS,
+  isMetricOverridden,
+  resolveMetric,
+} from "../metric-override.js";
+import {
   ANALYSIS_NOTE_FIELD,
   parseStoredAnalyzeNote,
   serializeAnalyzeNote,
@@ -162,6 +169,12 @@ export function mapItem(row) {
     method: text(row.Method) || undefined,
     abv: text(row.ABV) || undefined,
     volume: text(row.Volume) || undefined,
+    // Missing column or off: the editor and saves still treat a stored figure
+    // that isn't the recipe's as set by hand (metric-override.js).
+    // Only "on" is passed along, so a mapped row sent back as a save never
+    // claims a field is locked.
+    abvOverride: boolField(row[OVERRIDE_FIELDS.abv]) || undefined,
+    volumeOverride: boolField(row[OVERRIDE_FIELDS.volume]) || undefined,
     producer: text(row.Producer) || undefined,
     orderRank: parseQuantity(row.Order) ?? 0,
     sectionId: linkValue(row.Section) != null ? String(linkValue(row.Section)) : null,
@@ -266,15 +279,49 @@ async function loadInventoryAbvMap(env, tables) {
   );
 }
 
-/** Drink ABV/volume from recipe lines + live inventory ABV. */
-function drinkMetricsFields(drinkType, ingredients, inventoryById) {
-  if (drinkType !== "cocktail") return {};
+/** The recipe's ABV and volume, formatted as stored ("12.5%", "120 ml"); "" when it can't say. */
+export function recipeMetrics(ingredients, inventoryById) {
   const abv = computeRecipeAbv(ingredients, inventoryById);
   const volumeMl = computeRecipeVolumeMl(ingredients);
   return {
-    ...(abv != null ? { ABV: formatAbv(abv) } : {}),
-    ...(volumeMl != null ? { Volume: `${volumeMl} ml` } : {}),
+    abv: abv != null ? formatAbv(abv) : "",
+    volume: volumeMl != null ? `${volumeMl} ml` : "",
   };
+}
+
+/** Whether the table has the ABV / Volume override columns (any row says). */
+export function rowHasOverrideColumns(row) {
+  return rowHasField(row, OVERRIDE_FIELDS.abv) && rowHasField(row, OVERRIDE_FIELDS.volume);
+}
+
+/**
+ * A cocktail's ABV and Volume: the recipe's, unless set by hand
+ * (metric-override.js). `input` is what the save sent (abv / volume and the
+ * abvOverride / volumeOverride flags); `saved` the drink as stored, for a
+ * value or flag the save left out. The flags are written only when the
+ * table has their columns.
+ */
+export function drinkMetricsFields(
+  drinkType,
+  ingredients,
+  inventoryById,
+  { input = {}, saved = {}, overrideColumns = false } = {},
+) {
+  if (drinkType !== "cocktail") return {};
+  const recipe = recipeMetrics(ingredients, inventoryById);
+  const fields = {};
+  for (const metric of METRICS) {
+    const key = OVERRIDE_KEYS[metric];
+    const { value, override } = resolveMetric({
+      given: input[key],
+      saved: saved[key],
+      stored: Object.prototype.hasOwnProperty.call(input, metric) ? input[metric] : saved[metric],
+      recipe: recipe[metric],
+    });
+    fields[metric === "abv" ? "ABV" : "Volume"] = value;
+    if (overrideColumns) fields[OVERRIDE_FIELDS[metric]] = override;
+  }
+  return fields;
 }
 
 function boolInput(value, fallback = true) {
@@ -495,7 +542,10 @@ export async function createMenuItem(env, input) {
   );
   Object.assign(
     fields,
-    drinkMetricsFields(fields["Drink type"], ingredients, inventoryById),
+    drinkMetricsFields(fields["Drink type"], ingredients, inventoryById, {
+      input,
+      overrideColumns: rowHasOverrideColumns(siblings[0]),
+    }),
   );
   if (!fields.Order) {
     const maxOrder = siblings.reduce((max, row) => {
@@ -580,7 +630,11 @@ export async function updateMenuItem(env, itemId, input) {
   };
   Object.assign(
     fields,
-    drinkMetricsFields(fields["Drink type"], ingredients, inventoryById),
+    drinkMetricsFields(fields["Drink type"], ingredients, inventoryById, {
+      input,
+      saved: existingMapped,
+      overrideColumns: rowHasOverrideColumns(existing),
+    }),
   );
   const siblings = await listAllRows(env, tables.items);
   assertUniqueItemName(
@@ -604,10 +658,32 @@ export async function updateMenuItem(env, itemId, input) {
 }
 
 /**
- * After inventory ABV changes, recompute drink ABV for every cocktail that
- * links that stock row.
+ * The ABV and Volume to write after a stock item's ABV changed, for one
+ * cocktail row: the new recipe figure for each field that follows the
+ * recipe, nothing for one set by hand. `before` is the recipe as it was
+ * (old stock ABV): a stored figure that isn't it was typed in, even with
+ * the flag off or its column missing (metric-override.js).
  */
-export async function recomputeDrinksForInventoryId(env, inventoryId) {
+export function recomputedMetricFields(row, ingredients, inventoryById, before) {
+  const next = recipeMetrics(ingredients, inventoryById);
+  const fields = {};
+  for (const metric of METRICS) {
+    const column = metric === "abv" ? "ABV" : "Volume";
+    if (!next[metric]) continue;
+    const flag = boolField(row[OVERRIDE_FIELDS[metric]]);
+    if (isMetricOverridden(flag, text(row[column]), before[metric])) continue;
+    if (text(row[column]) !== next[metric]) fields[column] = next[metric];
+  }
+  return fields;
+}
+
+/**
+ * After inventory ABV changes, recompute drink ABV for every cocktail that
+ * links that stock row. `previousAbv`: the stock item's ABV before the
+ * change, so a figure typed over the old recipe is told from one that
+ * followed it. Without it only the override flags are trusted.
+ */
+export async function recomputeDrinksForInventoryId(env, inventoryId, { previousAbv } = {}) {
   const invId = Number(inventoryId);
   if (!Number.isFinite(invId)) return { updated: 0 };
 
@@ -620,6 +696,10 @@ export async function recomputeDrinksForInventoryId(env, inventoryId) {
     listAllRows(env, tables.ingredients),
     loadInventoryAbvMap(env, tables),
   ]);
+  const previousById =
+    previousAbv === undefined
+      ? null
+      : new Map([...inventoryById, [String(invId), text(String(previousAbv ?? "")) || undefined]]);
 
   const menuItemIds = new Set();
   for (const row of ingredientRows) {
@@ -648,7 +728,11 @@ export async function recomputeDrinksForInventoryId(env, inventoryId) {
     const drinkType = normalizeDrinkType(itemRow["Drink type"]);
     if (drinkType !== "cocktail") continue;
     const ingredients = ingredientsByItem.get(itemId) || [];
-    const metrics = drinkMetricsFields(drinkType, ingredients, inventoryById);
+    // No old ABV to compare with: a stored figure only counts as typed in when flagged.
+    const before = previousById
+      ? recipeMetrics(ingredients, previousById)
+      : { abv: text(itemRow.ABV), volume: text(itemRow.Volume) };
+    const metrics = recomputedMetricFields(itemRow, ingredients, inventoryById, before);
     if (!Object.keys(metrics).length) continue;
     await updateRow(env, tables.items, itemId, metrics);
     updated += 1;

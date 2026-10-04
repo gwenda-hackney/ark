@@ -34,8 +34,9 @@ export const ITEM_HELP: PageHelpTopic[] = [
 		body: "How the bar makes it. Glassware and the method (shake, stir, build) also tell Analysis how much water ends up in the glass.",
 	},
 	{
+		id: "abv-volume",
 		title: "ABV and Volume",
-		body: "The strength and size printed beside the drink. For a cocktail they come from the recipe. Type over them if the menu should say something different. The refresh button works them out from the recipe again.",
+		body: "The strength and size printed beside the drink. For a cocktail they're worked out from the recipe and locked (a lock in the box), so they change when the recipe does. Override (the pen button) unlocks one so you can type what the menu should say; it then shows a pen and keeps your figure when the recipe changes. Use recipe value locks it again on the recipe's figure. Beers, wines and spirits have no recipe, so you type theirs.",
 	},
 	{
 		title: "Where it appears",

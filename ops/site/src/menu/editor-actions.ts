@@ -14,8 +14,6 @@ export type MenuEditorInput = {
 	cocktail: boolean;
 	/** The recipe has ingredients that read as a menu line. */
 	hasIngredientLine: boolean;
-	/** ABV and volume can be worked out from the recipe. */
-	canRecalc: boolean;
 	hasPhoto: boolean;
 	busy: boolean;
 };
@@ -25,7 +23,6 @@ export type MenuEditorActions = {
 	undo: ActionState;
 	reload: ActionState;
 	fromRecipe: ActionState;
-	recalc: ActionState;
 	takePhoto: ActionState;
 	replacePhoto: ActionState;
 	removePhoto: ActionState;
@@ -41,10 +38,41 @@ export function menuEditorActions(input: MenuEditorInput): MenuEditorActions {
 		undo: actionState(input.canUndo ? null : "Nothing to undo", input.busy),
 		reload: actionState(input.saved ? null : "Nothing saved to reload yet", input.busy),
 		fromRecipe: actionState(recipeOnly ?? (input.hasIngredientLine ? null : "Add ingredients first"), false),
-		recalc: actionState(recipeOnly ?? (input.canRecalc ? null : "Add ingredients with an ABV first"), false),
 		takePhoto: actionState(saveFirst, input.busy),
 		replacePhoto: actionState(photo, input.busy),
 		removePhoto: actionState(photo, input.busy),
 		delete: actionState(input.saved ? null : "Not saved yet", input.busy),
+	};
+}
+
+export type MetricInput = {
+	/** Cocktails work ABV and volume out from the recipe; other drinks type them. */
+	cocktail: boolean;
+	/** Set by hand (metric-override.js). */
+	overridden: boolean;
+	/** The recipe can work this figure out. */
+	hasRecipeValue: boolean;
+};
+
+export type MetricActions = {
+	/** Unlock the field to type over the recipe's figure. */
+	override: ActionState;
+	/** Lock it again on the recipe's figure. */
+	useRecipe: ActionState;
+};
+
+/** The Override and Use recipe value buttons beside ABV or Volume. */
+export function metricActions(input: MetricInput): MetricActions {
+	const recipeOnly = input.cocktail ? null : "Only cocktails work this out from a recipe";
+	return {
+		override: actionState(recipeOnly ?? (input.overridden ? "Already set by hand" : null)),
+		useRecipe: actionState(
+			recipeOnly ??
+				(!input.overridden
+					? "Already the recipe value"
+					: input.hasRecipeValue
+						? null
+						: "Add ingredients with amounts first"),
+		),
 	};
 }
