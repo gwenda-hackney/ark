@@ -118,6 +118,13 @@
 	color: var(--fg);
 }
 
+/* The ? beside a heading sits on the title's line, a small gap after it. */
+.form-heading > h2:has(.tip-wrap) {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
 .form-heading > .description {
 	flex: 1 1 12rem;
 	margin: 0;

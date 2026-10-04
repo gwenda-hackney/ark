@@ -5,6 +5,7 @@
 	 * the same editor everywhere: a dialog on desktop, a bottom sheet on phones.
 	 * Rows are keyed by position, since two rows can name the same place.
 	 */
+	import { ITEM_TIPS } from "./item-help";
 	import type { ColDef, ICellRendererParams } from "ag-grid-community";
 	import { Icon } from "../app/shell";
 	import { Badge, Button, DataGrid, Dialog, Field, NativeSelect, TextField } from "../ui";
@@ -271,7 +272,7 @@
 						onchange={(e) => setLocation(index, e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Name on the till" for="placement-sheet-name" optional hint="Shared by every POS row.">
+				<Field label="Name on the till" for="placement-sheet-name" optional tooltip={ITEM_TIPS.tillName}>
 					<TextField
 						id="placement-sheet-name"
 						value={posName}
@@ -288,7 +289,7 @@
 						onchange={(e) => setLocation(index, e.currentTarget.value)}
 					/>
 				</Field>
-				<Field label="Name on it" for="placement-sheet-name" hint="Print and digital menus use the drink's name.">
+				<Field label="Name on it" for="placement-sheet-name" tooltip={ITEM_TIPS.menuName}>
 					<p class="inherited" id="placement-sheet-name">{drinkName || "The drink's name"}</p>
 				</Field>
 			{/if}

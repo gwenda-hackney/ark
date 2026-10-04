@@ -15,6 +15,7 @@
 	let {
 		title,
 		description,
+		tooltip,
 		id,
 		actions,
 		children,
@@ -22,6 +23,8 @@
 	}: {
 		title: string;
 		description?: string;
+		/** Help for the ? beside the title. */
+		tooltip?: string;
 		/** Anchor for the section; the heading's id is `${id}-title`. */
 		id?: string;
 		actions?: Snippet;
@@ -34,7 +37,7 @@
 </script>
 
 <section class="form-section {className}" {id} aria-labelledby={headingId}>
-	<FormHeading {title} {description} id={headingId} {actions} />
+	<FormHeading {title} {description} {tooltip} id={headingId} {actions} />
 	<div class="form-cols">
 		{@render children()}
 	</div>

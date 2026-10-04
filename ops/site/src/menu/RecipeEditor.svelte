@@ -16,6 +16,7 @@
 		NativeSelect,
 		NumberField,
 		OverflowMenu,
+		PageHelp,
 		Segmented,
 		TextArea,
 		TextField,
@@ -71,6 +72,7 @@
 	} from "./draft-history";
 	import { Icon } from "../app/shell";
 	import { menuEditorActions } from "./editor-actions";
+	import { ITEM_HELP, ITEM_TIPS } from "./item-help";
 	import IngredientPicker from "./IngredientPicker.svelte";
 	import IngredientsGrid from "./IngredientsGrid.svelte";
 	import MethodEditor from "./MethodEditor.svelte";
@@ -883,6 +885,7 @@
 									<Icon name="undo" />
 								{/snippet}
 							</Button>
+							<PageHelp title="Menu item" topics={ITEM_HELP} />
 							<Button
 								variant="ghost"
 								size="sm"
@@ -1040,7 +1043,7 @@
 									for="f-notes"
 									required={showRecipe}
 									error={errors.get("f-notes")}
-									hint="A short line under the name."
+									tooltip={ITEM_TIPS.tastingNote}
 								>
 									<TextField
 										id="f-notes"
@@ -1066,6 +1069,7 @@
 										label="Category"
 										for="f-cocktail-type"
 										optional
+										tooltip={ITEM_TIPS.category}
 									>
 										<NativeSelect
 											id="f-cocktail-type"
@@ -1131,7 +1135,7 @@
 									for="f-description"
 									required
 									error={errors.get("f-description")}
-									hint="The ingredient line or a longer blurb."
+									tooltip={ITEM_TIPS.description}
 								>
 									{#snippet actions()}
 										<Button
@@ -1160,9 +1164,7 @@
 							<FormSection
 								title={showRecipe ? "Recipe" : "Serve"}
 								class="sec-recipe"
-								description={showRecipe
-									? "What goes in, from stock. Costs and ABV follow from these."
-									: "The stock this is poured from, for cost and the till."}
+								tooltip={showRecipe ? ITEM_TIPS.recipe : ITEM_TIPS.serve}
 							>
 								{#snippet actions()}
 									<Button variant="outline" size="sm" type="button" onclick={() => (addIngredientOpen = true)}>
@@ -1176,7 +1178,7 @@
 							</FormSection>
 
 							{#if showRecipe}
-								<FormSection title="Method" class="sec-method">
+								<FormSection title="Method" class="sec-method" tooltip={ITEM_TIPS.method}>
 									<Field class="span-8" label="How to make it" for="f-method">
 										<MethodEditor
 											id="f-method"
@@ -1245,7 +1247,6 @@
 							<FormSection
 								title="On the menu"
 								class="sec-copy"
-								description="The strength and size printed beside the drink."
 							>
 								<Field
 									class="span-2"
@@ -1253,7 +1254,7 @@
 									for="f-abv"
 									optional
 									error={errors.get("f-abv")}
-									hint={showRecipe ? "From the recipe. Type over it if needed." : undefined}
+									tooltip={showRecipe ? ITEM_TIPS.abv : undefined}
 								>
 									{#snippet actions()}
 										<Button
@@ -1290,7 +1291,6 @@
 									for="f-volume"
 									optional
 									error={errors.get("f-volume")}
-									hint={showRecipe ? "From the recipe." : undefined}
 								>
 									<NumberField
 										id="f-volume"
@@ -1306,7 +1306,7 @@
 									/>
 								</Field>
 							</FormSection>
-							<FormSection title="Where it appears" description="The menus this drink is on, where it sits on each, and the name it goes by.">
+							<FormSection title="Where it appears" tooltip={ITEM_TIPS.placements}>
 								{#snippet actions()}
 									<OverflowMenu
 										text="Add placement"
@@ -1331,7 +1331,7 @@
 						<div class="board-tab">
 							<FormSection
 								title="Prices"
-								description="Each size it sells in, what it costs to pour and its till button."
+								tooltip={ITEM_TIPS.prices}
 							>
 								{#snippet actions()}
 									<Button
@@ -1365,7 +1365,7 @@
 											? "Add ingredients on Build to cost this drink."
 											: "Link stock on Build to cost this drink."}
 									{:else}
-										Pour is the cost to make it as a share of its price. Target {formatPourPercent(priceLive?.targetPourCost) || "n/a"}.
+										Pour target {formatPourPercent(priceLive?.targetPourCost) || "n/a"}.
 										{#if priceLive?.hasEstimates}<span class="estimates">Includes estimates.</span>{/if}
 									{/if}
 								</p>
@@ -1373,7 +1373,7 @@
 							{#if priceLive && hasRecipeCost}
 								<FormSection
 									title="Against the pour target"
-									description="Red is too cheap, green earns enough, amber may be too dear."
+									tooltip={ITEM_TIPS.gauges}
 								>
 									<PriceGauges price={priceLive} />
 								</FormSection>
