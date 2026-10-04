@@ -1,11 +1,14 @@
 import { sanityQuery } from "./sanity-query.js";
 import { formatErrorForFieldValue } from "../../../../shared/forms/field-rules.js";
 import { FORM_QUERY } from "../../../../shared/forms/format.js";
+import { withSeriesChoices } from "../../../../shared/forms/series-choice.js";
 
 export async function fetchFormForSubmit(env, slug) {
   const normalized = String(slug ?? "").trim();
   if (!normalized) return null;
-  return sanityQuery(env, FORM_QUERY, { $slug: normalized });
+  return withSeriesChoices(
+    await sanityQuery(env, FORM_QUERY, { $slug: normalized }),
+  );
 }
 
 function optionValue(option) {
@@ -85,8 +88,19 @@ export function validateFormAnswers(form, answers) {
           error: `Please specify for ${field.label}.`,
         };
       }
+      // Series choices (#41) read as the series names; the ids stay in raw.
+      const labels = field.labelAsAnswer
+        ? new Map(
+            (field.options ?? []).map((option) => [
+              optionValue(option),
+              option.name || option.label,
+            ]),
+          )
+        : null;
       const display = selected.map((item) =>
-        resolveChoiceValue(item, otherDetail),
+        labels
+          ? labels.get(item) || item
+          : resolveChoiceValue(item, otherDetail),
       );
       normalized.push({
         key,

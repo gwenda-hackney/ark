@@ -1,5 +1,6 @@
 import { createSanityClient } from "./client";
 import { FORM_BY_SLUG_QUERY, FORM_SLUGS_QUERY } from "./queries";
+import { withSeriesChoices } from "../../../../../shared/forms/series-choice.js";
 
 export type FormFieldOption = {
   label: string;
@@ -82,7 +83,9 @@ export async function fetchFormSlugs(): Promise<string[]> {
 
 export async function fetchFormBySlug(slug: string): Promise<FormPage | null> {
   const client = createSanityClient();
-  const doc = await client.fetch<FormPage | null>(FORM_BY_SLUG_QUERY, { slug });
+  const doc = withSeriesChoices(
+    await client.fetch<FormPage | null>(FORM_BY_SLUG_QUERY, { slug }),
+  ) as FormPage | null;
   if (!doc?.slug || !doc.heading || !Array.isArray(doc.fields)) return null;
   return {
     ...doc,

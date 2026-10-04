@@ -174,6 +174,8 @@ const SHORT_DESCRIPTION_OVERRIDE_FIELD = "Short description override";
 const FORMER_SLUGS_FIELD = "Former slugs";
 /** Deleted in ops but still on the website until Update website (#23). */
 const DELETED_AT_FIELD = "Deleted at";
+/** Listed on the website's Play at Gwenda form (#41). */
+const TAKING_APPLICATIONS_FIELD = "Taking applications";
 let eventsFieldNamesCache = null;
 let eventDatesFieldNamesCache = null;
 
@@ -191,6 +193,14 @@ async function eventFieldNames(env) {
     eventsFieldNamesCache = await tableFieldNames(env, tables.events);
   }
   return eventsFieldNamesCache;
+}
+
+/** Optional columns a database may not have yet (no migration run): leave them out. */
+async function withoutMissingColumns(env, fields) {
+  if (!(TAKING_APPLICATIONS_FIELD in fields)) return fields;
+  if ((await eventFieldNames(env)).has(TAKING_APPLICATIONS_FIELD)) return fields;
+  const { [TAKING_APPLICATIONS_FIELD]: _missing, ...rest } = fields;
+  return rest;
 }
 
 async function nightScheduleFieldName(env) {
@@ -298,6 +308,7 @@ export function mapEvent(row, dates = []) {
     slug: text(row.Slug) || seriesSlug(name),
     formerSlugs: slugList(row[FORMER_SLUGS_FIELD]),
     deletedAt: text(row[DELETED_AT_FIELD]),
+    takingApplications: row[TAKING_APPLICATIONS_FIELD] === true,
     replacesSeries: text(row["Replaces series"]),
     driveFolderId: text(row["Drive folder id"]),
     driveFolderUrl: driveFolderWebUrl(text(row["Drive folder id"])),
@@ -428,6 +439,11 @@ function fieldsFromInput(
   }
   set("Artist", input.artist !== undefined, text(input.artist));
   set("Offer", input.offer !== undefined, text(input.offer));
+  set(
+    TAKING_APPLICATIONS_FIELD,
+    input.takingApplications !== undefined,
+    input.takingApplications === true,
+  );
   set(
     "Short description",
     input.shortDescription !== undefined,
@@ -772,7 +788,10 @@ export async function createEvent(env, input) {
     takenFolderIds: await takenDriveFolderIds(env, tables),
   });
   const nightScheduleField = await nightScheduleFieldName(env);
-  const fields = fieldsFromInput(input || {}, { slug, nightScheduleField });
+  const fields = await withoutMissingColumns(
+    env,
+    fieldsFromInput(input || {}, { slug, nightScheduleField }),
+  );
   assignPageLink(fields, input?.pageUrl);
   fields["Drive folder id"] = driveFolder.id;
   let row;
@@ -799,6 +818,10 @@ export async function updateEvent(env, id, input) {
     name: input?.name !== undefined ? input.name : current.name,
     artist: input?.artist !== undefined ? input.artist : current.artist,
     offer: input?.offer !== undefined ? input.offer : current.offer,
+    takingApplications:
+      input?.takingApplications !== undefined
+        ? input.takingApplications
+        : current.takingApplications,
     pageUrl: input?.pageUrl !== undefined ? input.pageUrl : current.pageUrl,
     shortDescription:
       input?.shortDescription !== undefined
@@ -852,10 +875,13 @@ export async function updateEvent(env, id, input) {
       ? await planSlugChange(env, tables, current, input.slug)
       : null;
   const nightScheduleField = await nightScheduleFieldName(env);
-  const fields = fieldsFromInput(merged, {
-    slug: slugChange?.slug || current.slug || seriesSlug(merged.name),
-    nightScheduleField,
-  });
+  const fields = await withoutMissingColumns(
+    env,
+    fieldsFromInput(merged, {
+      slug: slugChange?.slug || current.slug || seriesSlug(merged.name),
+      nightScheduleField,
+    }),
+  );
   if (slugChange) fields[FORMER_SLUGS_FIELD] = slugChange.formerSlugs.join("\n");
   assignPageLink(fields, merged.pageUrl);
   const nextName = text(merged.name);
