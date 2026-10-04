@@ -1136,6 +1136,33 @@
 								</FormSection>
 							{/if}
 
+						</div>
+
+						<Dialog
+							open={addIngredientOpen}
+							title={showRecipe ? "Add ingredient" : "Add stock"}
+							onclose={() => (addIngredientOpen = false)}
+						>
+							<IngredientPicker
+								bind:inventory
+								active={addIngredientOpen}
+								defaultQuantity={serveQty != null ? String(serveQty) : ""}
+								onpick={addIngredientLine}
+							/>
+							{#snippet footer()}
+								<Button
+									variant="outline"
+									size="sm"
+									type="button"
+									onclick={() => (addIngredientOpen = false)}
+								>
+									{#snippet icon()}<Icon name="check" size={14} />{/snippet}
+									Done
+								</Button>
+							{/snippet}
+						</Dialog>
+					{:else if tab === "menu"}
+						<div class="board-tab">
 							<FormSection
 								title="On the menu"
 								class="sec-copy"
@@ -1229,33 +1256,6 @@
 									/>
 								</Field>
 							</FormSection>
-						</div>
-
-						<Dialog
-							open={addIngredientOpen}
-							title={showRecipe ? "Add ingredient" : "Add stock"}
-							onclose={() => (addIngredientOpen = false)}
-						>
-							<IngredientPicker
-								bind:inventory
-								active={addIngredientOpen}
-								defaultQuantity={serveQty != null ? String(serveQty) : ""}
-								onpick={addIngredientLine}
-							/>
-							{#snippet footer()}
-								<Button
-									variant="outline"
-									size="sm"
-									type="button"
-									onclick={() => (addIngredientOpen = false)}
-								>
-									{#snippet icon()}<Icon name="check" size={14} />{/snippet}
-									Done
-								</Button>
-							{/snippet}
-						</Dialog>
-					{:else if tab === "menu"}
-						<div class="board-tab">
 							<FormSection title="Till">
 								<Field
 									class="span-5"

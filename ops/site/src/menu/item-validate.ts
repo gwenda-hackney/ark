@@ -14,11 +14,11 @@ export type ItemValidateFields = {
 	volume?: string;
 };
 
-/** Field ids in screen order: Build (name and price under Drink, then ABV and volume), then Menu. */
+/** Field ids in screen order: Build (name and price under Drink), then Menu (ABV, volume, till name). */
 export const ITEM_FIELD_ORDER = ["f-name", "f-price", "f-abv", "f-volume", "f-pos-name"] as const;
 
 export function itemFieldTab(key: string): string | undefined {
-	if (key === "f-pos-name") return "menu";
+	if (key === "f-abv" || key === "f-volume" || key === "f-pos-name") return "menu";
 	return "details";
 }
 

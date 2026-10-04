@@ -39,7 +39,8 @@ describe("validateItem", () => {
 		expect(firstErrorKey(errors, ITEM_FIELD_ORDER)).toBe("f-name");
 		expect(itemFieldTab("f-name")).toBe("details");
 		expect(itemFieldTab("f-price")).toBe("details");
-		expect(itemFieldTab("f-abv")).toBe("details");
+		expect(itemFieldTab("f-abv")).toBe("menu");
+		expect(itemFieldTab("f-volume")).toBe("menu");
 		expect(itemFieldTab("f-pos-name")).toBe("menu");
 	});
 });
