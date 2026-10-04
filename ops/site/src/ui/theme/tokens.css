@@ -66,13 +66,16 @@
 	/* ─── Surfaces and ink ───────────────────────────────────────────────── */
 	color-scheme: dark;
 
-	--bg: #0b0b0c;
-	--surface-1: #121213; /* rail, cards */
-	--surface-2: #18181a; /* popover, dialog, group header */
-	--surface-3: #202023; /* hover, selected */
+	--bg: #0e0e10;
+	--surface-1: #141416; /* rail, cards */
+	--surface-2: #1a1a1d; /* popover, dialog, group header */
+	--surface-3: #222226; /* hover, selected */
 	--border: rgba(255, 255, 255, 0.07);
 	--border-strong: rgba(255, 255, 255, 0.12);
+	/* Full --fg is for titles, headings and the active item. Values and
+	   running text use --fg-body so a form doesn't glow evenly. */
 	--fg: #ece8e1;
+	--fg-body: #d4cfc7;
 	--fg-muted: #a29d95;
 	--fg-subtle: #6f6b65;
 
@@ -103,8 +106,24 @@
 	--info-wash: color-mix(in srgb, var(--info) 14%, transparent);
 	--info-border: color-mix(in srgb, var(--info) 35%, transparent);
 
+	/* Extra accents: for tags and labels that need a colour of their own,
+	   apart from gold (action) and the good/warn/bad set. Add more here. */
+	--accent-sky: #8ab8dc;
+	--accent-sky-wash: color-mix(in srgb, var(--accent-sky) 14%, transparent);
+
 	--ring: var(--primary);
 	--ring-wash: color-mix(in srgb, var(--primary) 22%, transparent);
+
+	/* ─── Ambient light ──────────────────────────────────────────────────── */
+	/* Faint gold and bar-green light so large surfaces aren't flat. Layer
+	   these over a solid colour: background: var(--ambient), var(--bg). */
+	--ambient-green: #2f6b5a;
+	--ambient:
+		radial-gradient(70rem 45rem at 100% -10%, color-mix(in srgb, var(--primary) 7%, transparent), transparent 70%),
+		radial-gradient(60rem 45rem at -10% 110%, color-mix(in srgb, var(--ambient-green) 14%, transparent), transparent 70%);
+	--panel-ambient:
+		radial-gradient(40rem 24rem at 100% 0%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 70%),
+		radial-gradient(40rem 30rem at 0% 100%, color-mix(in srgb, var(--ambient-green) 10%, transparent), transparent 70%);
 
 	/* ─── Shadows (overlays only) ────────────────────────────────────────── */
 	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -166,6 +185,7 @@
 	--card: var(--surface-1);
 	--card-foreground: var(--fg);
 	--sunken: var(--bg);
+	--field-foreground: var(--fg-body);
 	--muted: var(--surface-2);
 	--muted-foreground: var(--fg-muted);
 	--subtle-foreground: var(--fg-subtle);

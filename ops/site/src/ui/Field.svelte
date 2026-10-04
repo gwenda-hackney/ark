@@ -178,7 +178,8 @@
 
 	.optional {
 		font-size: var(--text-xs);
-		color: var(--subtle-foreground);
+		font-weight: 500;
+		color: var(--accent-sky);
 		white-space: nowrap;
 	}
 
