@@ -23,6 +23,7 @@ import {
   parseQuantity,
 } from "./menu.js";
 import { assertUniqueItemName, itemSlug } from "../item-key.js";
+import { mergeLegacyPrices, mirrorPrices, normalizePrices, serializePrices } from "../prices.js";
 import { parsePublishSnapshots } from "../../inventory/server/reconcile.js";
 import { normalizeLightspeedStatus } from "../../inventory/lightspeed-stock.js";
 import { flattenMenuSections, nestMenuSections } from "../menu-sections.js";
@@ -119,8 +120,30 @@ function mapSection(row) {
   };
 }
 
-function mapItem(row) {
+/**
+ * The price table as JSON. Price / Alt price and the two SKU columns are
+ * still written from its first two rows. Until the column exists (see
+ * migrations/2026-10-04-menu-prices-column.mjs) rows read from those and
+ * saves leave it out.
+ */
+export const PRICES_FIELD = "Prices";
+
+/** Baserow returns every column on a row, so a row says whether the table has one. */
+export function rowHasField(row, field) {
+  return Boolean(row) && Object.prototype.hasOwnProperty.call(row, field);
+}
+
+export function mapItem(row) {
   const photo = fileUrl(row.Photo);
+  const drinkType = normalizeDrinkType(row["Drink type"]);
+  const prices = mergeLegacyPrices({
+    drinkType,
+    prices: row[PRICES_FIELD],
+    price: text(row.Price),
+    priceAlt: text(row["Alt price"]),
+    lightspeedSku: text(row["Lightspeed SKU"]),
+    lightspeedSkuAlt: text(row["Lightspeed SKU alt"]),
+  });
   return {
     _id: String(row.id),
     id: String(row.id),
@@ -129,7 +152,8 @@ function mapItem(row) {
     lockDescription: boolField(row["Lock menu line"]),
     price: text(row.Price) || undefined,
     priceAlt: text(row["Alt price"]) || undefined,
-    drinkType: normalizeDrinkType(row["Drink type"]),
+    prices,
+    drinkType,
     cocktailType: normalizeCocktailType(row["Cocktail type"]) || undefined,
     notes: text(row.Type) || undefined,
     glassware: text(row.Glassware) || undefined,
@@ -259,7 +283,16 @@ function boolInput(value, fallback = true) {
   return value === true || value === "true";
 }
 
-function itemFieldsFromInput(input, { requireSection = true } = {}) {
+/**
+ * `pricesGiven`: the save sent the whole price table, so its SKUs are written
+ * as they are, blanks included (a SKU cleared in the table is cleared).
+ * Otherwise a SKU is only written when there is one, as before the table.
+ * `pricesColumn`: the table has the Prices column.
+ */
+export function itemFieldsFromInput(
+  input,
+  { requireSection = true, pricesGiven = false, pricesColumn = false } = {},
+) {
   const name = text(input.name);
   if (!name) {
     const error = new Error("Name is required.");
@@ -277,14 +310,19 @@ function itemFieldsFromInput(input, { requireSection = true } = {}) {
   const drinkType = normalizeDrinkType(input.drinkType);
   const cocktailType =
     drinkType === "cocktail" ? normalizeCocktailType(input.cocktailType) : "";
+  const prices = pricesGiven
+    ? normalizePrices({ ...input, drinkType })
+    : mergeLegacyPrices({ ...input, drinkType });
+  const mirrored = mirrorPrices(prices);
 
   return {
     Name: name,
     ...(hasSection ? { Section: [sectionId] } : {}),
     "Menu line": text(input.description) || "",
     "Lock menu line": false,
-    Price: text(input.price),
-    "Alt price": text(input.priceAlt),
+    Price: mirrored.price,
+    "Alt price": mirrored.priceAlt,
+    ...(pricesColumn ? { [PRICES_FIELD]: serializePrices(prices) } : {}),
     "Drink type": drinkType,
     "Cocktail type": cocktailType || null,
     Type: text(input.notes),
@@ -300,11 +338,11 @@ function itemFieldsFromInput(input, { requireSection = true } = {}) {
     "On digital menu": boolInput(input.onDigitalMenu, true),
     "On print menu": boolInput(input.onPrintMenu, true),
     ...(text(input.sanityId) ? { "Sanity ID": text(input.sanityId) } : {}),
-    ...(text(input.lightspeedSku)
-      ? { "Lightspeed SKU": text(input.lightspeedSku) }
+    ...(pricesGiven || mirrored.lightspeedSku
+      ? { "Lightspeed SKU": mirrored.lightspeedSku }
       : {}),
-    ...(text(input.lightspeedSkuAlt)
-      ? { "Lightspeed SKU alt": text(input.lightspeedSkuAlt) }
+    ...(pricesGiven || mirrored.lightspeedSkuAlt
+      ? { "Lightspeed SKU alt": mirrored.lightspeedSkuAlt }
       : {}),
     ...(Object.prototype.hasOwnProperty.call(input, "lightspeedName")
       ? { "Lightspeed name": text(input.lightspeedName) }
@@ -440,11 +478,16 @@ export async function createMenuItem(env, input) {
   const hasGuest = placements.some(
     (row) => row.channel === "print" || row.channel === "digital",
   );
+  const siblings = await listAllRows(env, tables.items);
   const fields = {
-    ...itemFieldsFromInput(payload, { requireSection: hasGuest }),
+    ...itemFieldsFromInput(payload, {
+      requireSection: hasGuest,
+      pricesGiven: Array.isArray(input.prices),
+      // No other drink to look at: leave the column out and rebuild from Price / Alt price.
+      pricesColumn: rowHasField(siblings[0], PRICES_FIELD),
+    }),
     ...legacyFieldsFromPlacements(placements, tables),
   };
-  const siblings = await listAllRows(env, tables.items);
   assertUniqueItemName(
     siblings.map((row) => ({ id: row.id, name: text(row.Name) })),
     fields.Name,
@@ -528,7 +571,11 @@ export async function updateMenuItem(env, itemId, input) {
     (row) => row.channel === "print" || row.channel === "digital",
   );
   const fields = {
-    ...itemFieldsFromInput(payload, { requireSection: hasGuest }),
+    ...itemFieldsFromInput(payload, {
+      requireSection: hasGuest,
+      pricesGiven: Array.isArray(input.prices),
+      pricesColumn: rowHasField(existing, PRICES_FIELD),
+    }),
     ...legacyFieldsFromPlacements(placements, tables),
   };
   Object.assign(

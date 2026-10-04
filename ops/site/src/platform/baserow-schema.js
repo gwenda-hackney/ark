@@ -285,6 +285,8 @@ export function itemFields(sectionsTableId, posMenusTableId) {
     },
     { name: "Price", body: { name: "Price", type: "text" } },
     { name: "Alt price", body: { name: "Alt price", type: "text" } },
+    // Every price as JSON (menu/prices.js); Price / Alt price are its first two rows.
+    { name: "Prices", body: { name: "Prices", type: "long_text" } },
     {
       name: "Drink type",
       body: {

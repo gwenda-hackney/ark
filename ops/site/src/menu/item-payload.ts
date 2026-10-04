@@ -1,4 +1,5 @@
 import type { MenuItem } from "./types";
+import { mergeLegacyPrices, mirrorPrices } from "./prices.js";
 
 /**
  * What the drink editor's Save sends. Placements go as they are: without them
@@ -6,11 +7,14 @@ import type { MenuItem } from "./types";
  * the same section and loses a different one set per channel (#151).
  */
 export function menuItemPayload(item: MenuItem) {
+	// The price table, with the two old price and SKU slots filled from its
+	// first two rows. A caller that set only `price` still has it saved.
+	const prices = mergeLegacyPrices(item);
 	return {
 		name: item.name,
 		sectionId: item.sectionId,
-		price: item.price,
-		priceAlt: item.priceAlt,
+		prices,
+		...mirrorPrices(prices),
 		drinkType: item.drinkType || "cocktail",
 		cocktailType: item.cocktailType || "",
 		notes: item.notes,

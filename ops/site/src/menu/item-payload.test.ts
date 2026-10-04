@@ -12,6 +12,28 @@ describe("menuItemPayload", () => {
 		assert.deepEqual(payload.placements, placements);
 	});
 
+	it("sends the price table with the old price and SKU fields filled from its first two rows", () => {
+		const prices = [
+			{ name: "Single", size: "25 ml", price: "8", sku: "G1" },
+			{ name: "Double", size: "50 ml", price: "10" },
+			{ name: "Triple", size: "75 ml", price: "14", sku: "G3" },
+		];
+		const payload = menuItemPayload({ name: "Gin", drinkType: "pour", prices, price: "8", priceAlt: "10" });
+		assert.deepEqual(payload.prices, prices);
+		assert.equal(payload.price, "8");
+		assert.equal(payload.priceAlt, "10");
+		assert.equal(payload.lightspeedSku, "G1");
+		assert.equal(payload.lightspeedSkuAlt, "");
+	});
+
+	it("builds the table from the old fields for a drink that has none", () => {
+		const payload = menuItemPayload({ name: "Lager", drinkType: "beer", price: "6", priceAlt: "3.5" });
+		assert.deepEqual(payload.prices, [
+			{ name: "Pint", size: "Pint", price: "6" },
+			{ name: "Half pint", size: "Half pint", price: "3.5" },
+		]);
+	});
+
 	it("leaves placements out for a new drink that has none yet, so the server fills them from the section", () => {
 		const payload = menuItemPayload({ name: "Negroni", sectionId: "1" });
 		assert.equal("placements" in payload, false);

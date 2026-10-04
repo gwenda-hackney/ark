@@ -3,6 +3,7 @@ import { describe, it } from "vitest";
 import {
   TARGETS,
   changedFields,
+  fieldDiffs,
   parsePublishSnapshots,
   projectionHash,
   projectionsEqual,
@@ -116,6 +117,7 @@ describe("projectionHash", () => {
       drinkType: a.drinkType,
       notes: a.notes,
       priceAlt: a.priceAlt,
+      prices: a.prices,
       price: a.price,
       description: a.description,
       name: a.name,
@@ -129,6 +131,57 @@ describe("projectionHash", () => {
     const b = websiteProjection({ ...baseItem, price: "16" });
     assert.notEqual(projectionHash(a), projectionHash(b));
     assert.deepEqual(changedFields(b, a), ["price"]);
+  });
+});
+
+describe("price table on the website", () => {
+  const wine = {
+    ...baseItem,
+    name: "House red",
+    drinkType: "pour",
+    price: "7",
+    priceAlt: "9",
+    prices: [
+      { name: "125 ml", size: "125 ml", price: "7", sku: "G1" },
+      { name: "175 ml", size: "175 ml", price: "9" },
+      { name: "Bottle", price: "32", sku: "G3" },
+    ],
+  };
+
+  it("sends every price, without till SKUs", () => {
+    assert.deepEqual(websiteProjection(wine).prices, [
+      { name: "125 ml", size: "125 ml", price: "7" },
+      { name: "175 ml", size: "175 ml", price: "9" },
+      { name: "Bottle", price: "32" },
+    ]);
+  });
+
+  it("keeps a drink published from before the table up to date", () => {
+    const { prices: _prices, ...before } = websiteProjection(baseItem);
+    const item = { ...baseItem, publishSnapshots: recordTargetSnapshot({}, "preview", before) };
+    assert.equal(websiteTargetStatus(item, "preview").status, "published");
+  });
+
+  it("names a third price as a prices change", () => {
+    const two = websiteProjection({ ...wine, prices: wine.prices.slice(0, 2) });
+    const three = websiteProjection(wine);
+    assert.deepEqual(changedFields(three, two), ["prices"]);
+    assert.deepEqual(fieldDiffs(three, two)[0], {
+      field: "prices",
+      from: "£7 125 ml · £9 175 ml",
+      to: "£7 125 ml · £9 175 ml · £32 bottle",
+    });
+    // A new main price is said once, as the price.
+    assert.deepEqual(changedFields(websiteProjection({ ...baseItem, price: "16" }), websiteProjection(baseItem)), ["price"]);
+  });
+
+  it("writes keyed rows to Sanity, and unsets them when there are none", () => {
+    const { set } = sanityPatchFromProjection(websiteProjection(wine));
+    assert.deepEqual(set.prices[2], { _key: "p2", _type: "menuPrice", name: "Bottle", price: "32" });
+    assert.equal(set.price, "7");
+    assert.equal(set.priceAlt, "9");
+    const { unset } = sanityPatchFromProjection(websiteProjection({ name: "Negroni", drinkType: "cocktail" }));
+    assert.ok(unset.includes("prices"));
   });
 });
 

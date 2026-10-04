@@ -7,9 +7,13 @@
  * POS is a stub (`unsupported`). A later live adapter should fetch external
  * records and diff against a POS-specific projection (name, prices, SKU),
  * not the guest website projection. Swap snapshot compare for live fetch
- * without changing the status model the UI already understands.
+ * without changing the status model the UI already understands. That
+ * adapter should match the first two price rows through `price` /
+ * `lightspeedSku` and `priceAlt` / `lightspeedSkuAlt`, as the till export
+ * does; later rows keep a SKU that nothing reconciles yet.
  */
 import { flattenIngredientsForMenu } from "../../menu/server/menu.js";
+import { formatPriceSummary, mergeLegacyPrices, pricesFromLegacy } from "../../menu/prices.js";
 import {
   digitalSectionId,
   hasDigitalPlacement,
@@ -25,6 +29,7 @@ export const WEBSITE_FIELDS = [
   "description",
   "price",
   "priceAlt",
+  "prices",
   "notes",
   "drinkType",
   "abv",
@@ -101,6 +106,13 @@ export function guestPackagedMeta(item) {
   };
 }
 
+/** What the website shows of each price: its name, size and amount (not the till SKU). */
+function guestPrices(rows) {
+  return rows
+    .filter((row) => row.price)
+    .map((row) => ({ name: row.name, ...(row.size ? { size: row.size } : {}), price: row.price }));
+}
+
 /** Guest-facing payload for marketing site Sanity docs. */
 export function websiteProjection(item) {
   const packaged = guestPackagedMeta(item);
@@ -114,6 +126,7 @@ export function websiteProjection(item) {
     description: guestDescription(item),
     price: text(item?.price),
     priceAlt: text(item?.priceAlt),
+    prices: guestPrices(mergeLegacyPrices(item)),
     notes: text(item?.notes),
     drinkType: text(item?.drinkType) || "cocktail",
     abv: packaged.abv,
@@ -138,6 +151,8 @@ export function normalizeWebsitePayload(payload) {
   next.abv = packaged.abv;
   next.volume = packaged.volume;
   next.producer = packaged.producer;
+  // Snapshots from before the price table have only the two price slots.
+  if (!Array.isArray(next.prices)) next.prices = guestPrices(pricesFromLegacy(next));
   return next;
 }
 
@@ -167,16 +182,23 @@ export function projectionsEqual(a, b) {
 export function changedFields(current, previous) {
   const left = normalizeWebsitePayload(current);
   const right = normalizeWebsitePayload(previous);
-  return WEBSITE_FIELDS.filter((field) => {
+  const changed = WEBSITE_FIELDS.filter((field) => {
     const a = left[field];
     const b = right[field];
     if (field === "onDigitalMenu") return Boolean(a) !== Boolean(b);
+    if (field === "prices") return canonicalValue(a || []) !== canonicalValue(b || []);
     return text(a) !== text(b);
   });
+  // A new main or second price changes the table too; say it once.
+  if (changed.includes("price") || changed.includes("priceAlt")) {
+    return changed.filter((field) => field !== "prices");
+  }
+  return changed;
 }
 
 function fieldValue(payload, field) {
   if (field === "onDigitalMenu") return Boolean(payload?.[field]) ? "on" : "off";
+  if (field === "prices") return formatPriceSummary(Array.isArray(payload?.prices) ? payload.prices : []);
   return text(payload?.[field]);
 }
 
@@ -251,6 +273,13 @@ export function sanityPatchFromProjection(payload) {
     const value = payload[key];
     if (value) set[key] = value;
     else unset.push(key);
+  }
+  const prices = Array.isArray(payload.prices) ? payload.prices : [];
+  if (prices.length) {
+    // Sanity wants a _key on each array item; the row's place is enough.
+    set.prices = prices.map((row, index) => ({ _key: `p${index}`, _type: "menuPrice", ...row }));
+  } else {
+    unset.push("prices");
   }
   return { set, unset };
 }

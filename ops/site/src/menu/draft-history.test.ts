@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { isDraftDirty, serializeMenuDraft } from "./draft-history.ts";
+import { isDraftDirty, parseMenuDraft, serializeMenuDraft } from "./draft-history.ts";
+import { withPrices } from "./prices.js";
 import type { MenuItem } from "./types.ts";
 
 const base: MenuItem = {
@@ -38,5 +39,28 @@ describe("serializeMenuDraft", () => {
 		};
 		const snap = serializeMenuDraft(withNote);
 		assert.equal(isDraftDirty(snap, serializeMenuDraft(withNote)), false);
+	});
+
+	it("sees a change anywhere in the price table, so undo and the unsaved guard do", () => {
+		const prices = [
+			{ name: "125 ml", price: "7" },
+			{ name: "175 ml", price: "9" },
+			{ name: "Bottle", price: "32" },
+		];
+		const snap = serializeMenuDraft(withPrices(base, prices));
+		const third = withPrices(base, prices.map((row, i) => (i === 2 ? { ...row, price: "34" } : row)));
+		assert.equal(isDraftDirty(snap, serializeMenuDraft(third)), true);
+		assert.deepEqual(parseMenuDraft(serializeMenuDraft(third)).prices[2], { name: "Bottle", price: "34" });
+		const added = withPrices(base, [...prices, { name: "Price 4", price: "" }]);
+		assert.equal(isDraftDirty(snap, serializeMenuDraft(added)), true);
+	});
+
+	it("reads a drink without a table the same as one with its derived rows", () => {
+		const old: MenuItem = { ...base, price: "12", priceAlt: "18" };
+		const withRows = withPrices(old, [
+			{ name: "Single", price: "12" },
+			{ name: "Double", price: "18" },
+		]);
+		assert.equal(isDraftDirty(serializeMenuDraft(old), serializeMenuDraft(withRows)), false);
 	});
 });

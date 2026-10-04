@@ -19,6 +19,7 @@ import {
 import { onRequestPost as publishMenu } from "../../functions/api/menu/publish.js";
 import { onRequestGet as releaseDiff } from "../../functions/api/web/release.js";
 import { menuItemPayload } from "./item-payload.ts";
+import { withPrices } from "./prices.js";
 
 function editor(world) {
   const ok = (res, status = 200) => {
@@ -116,6 +117,40 @@ describe("menu: each edit reaches /menu after Update website", () => {
     const shown = drink(menu, "Cocktails", "Negroni Sbagliato");
     assert.equal(shown?.price, "12");
     assert.equal(shown?.description, "Prosecco instead of gin.");
+  });
+
+  it("a price table: every size on /menu, the first two still in price and priceAlt", async () => {
+    await ops.updateWebsite();
+    const prices = [
+      { name: "125 ml", size: "125 ml", price: "7", sku: "G0101" },
+      { name: "175 ml", size: "175 ml", price: "9" },
+      { name: "Bottle", price: "32", sku: "G0103" },
+    ];
+    // As the editor does: the table and its mirrored fields change together.
+    const saved = await ops.edit(negroni, menuItemPayload(withPrices({ ...negroni, drinkType: "pour" }, prices)));
+    assert.deepEqual(saved.prices, prices);
+    assert.equal(saved.price, "7");
+    assert.equal(saved.priceAlt, "9");
+    assert.equal(saved.lightspeedSku, "G0101");
+    assert.deepEqual(saved.publish.preview.changed, ["price", "priceAlt", "drinkType"]);
+    await ops.updateWebsite();
+    const shown = drink(await websiteMenu(world), "Cocktails", "Negroni");
+    assert.equal(shown?.price, "7");
+    assert.equal(shown?.priceAlt, "9");
+    assert.deepEqual(shown?.prices, [
+      { name: "125 ml", size: "125 ml", price: "7" },
+      { name: "175 ml", size: "175 ml", price: "9" },
+      { name: "Bottle", size: null, price: "32" },
+    ]);
+
+    // Dropping back to one price leaves one on /menu.
+    const single = await ops.edit(saved, menuItemPayload(withPrices(saved, prices.slice(0, 1))));
+    assert.equal(single.priceAlt, undefined);
+    assert.deepEqual(single.publish.preview.changed, ["priceAlt"]);
+    await ops.updateWebsite();
+    const after = drink(await websiteMenu(world), "Cocktails", "Negroni");
+    assert.equal(after?.priceAlt, null);
+    assert.deepEqual(after?.prices, [{ name: "125 ml", size: "125 ml", price: "7" }]);
   });
 
   it("adding and removing a photo", async () => {
