@@ -1033,7 +1033,6 @@
 										label="Category"
 										for="f-cocktail-type"
 										optional
-										hint="Spritz, highball, stirred… Not where it sits on the menu."
 									>
 										<NativeSelect
 											id="f-cocktail-type"
@@ -1063,7 +1062,6 @@
 									class="span-3"
 									label={priceFieldLabel === "Price" ? "Price" : `${priceFieldLabel} price`}
 									for="f-price"
-									optional
 									error={errors.get("f-price")}
 									hint={priceAltHint}
 								>

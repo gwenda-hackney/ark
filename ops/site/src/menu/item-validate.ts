@@ -45,7 +45,11 @@ export function validateItem(
 	else if (others.some((row) => row._id !== item._id && namesClash(row.name, name))) {
 		errors["f-name"] = "A drink with that name already exists.";
 	}
-	const price = changed("price") && numberError(item.price, { min: 0, noun: "an amount in pounds", example: "12.50" });
+	// Every drink on the menu has a price; a blank one is the only check that
+	// runs even when the figure hasn't changed since the last save.
+	const price = !String(item.price || "").trim()
+		? "Add a price."
+		: changed("price") && numberError(item.price, { min: 0, noun: "an amount in pounds", example: "12.50" });
 	if (price) errors["f-price"] = price;
 	const abv = changed("abv") && numberError(stripUnit(item.abv, "%"), { min: 0, max: 100, noun: "a percentage" });
 	if (abv) errors["f-abv"] = abv;
