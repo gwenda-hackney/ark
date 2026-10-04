@@ -12,6 +12,7 @@ import {
 	recipePriceAnalysis,
 	resolvePackVolume,
 	snapGbp,
+	suggestedAltPrice,
 } from "./cost.ts";
 import { DEFAULT_POUR_TARGETS, UK_PINT_ML, defaultServeQuantity } from "./types.ts";
 import type { InventoryItem } from "../inventory/types.ts";
@@ -379,5 +380,17 @@ describe("estimated cost", () => {
 		assert.equal(traded.lines[0].source, "trade");
 		assert.equal(traded.hasEstimates, false);
 		assert.equal(traded.drinkCost, Math.round((40 * 17.5) / 700 * 100) / 100);
+	});
+});
+
+describe("suggestedAltPrice", () => {
+	it("prices the second size at the pour target, or says nothing without a full cost", () => {
+		const base = { drinkType: "cocktail" as const, drinkCost: 2, complete: true, targetPourCost: 20 };
+		const doubled = suggestedAltPrice(base);
+		assert.equal(typeof doubled, "number");
+		assert.ok((doubled as number) > 10);
+		assert.equal(suggestedAltPrice({ ...base, complete: false }), null);
+		assert.equal(suggestedAltPrice({ ...base, drinkType: "packaged" }), null);
+		assert.equal(suggestedAltPrice(null), null);
 	});
 });

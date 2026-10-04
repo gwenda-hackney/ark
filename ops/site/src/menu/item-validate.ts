@@ -10,12 +10,13 @@ export type ItemValidateFields = {
 	_id?: string;
 	name?: string;
 	price?: string;
+	priceAlt?: string;
 	abv?: string;
 	volume?: string;
 };
 
 /** Field ids in screen order: Build (name and price under Drink), then Menu (ABV, volume, till name). */
-export const ITEM_FIELD_ORDER = ["f-name", "f-price", "f-abv", "f-volume", "f-pos-name"] as const;
+export const ITEM_FIELD_ORDER = ["f-name", "f-price", "f-price-alt", "f-abv", "f-volume", "f-pos-name"] as const;
 
 export function itemFieldTab(key: string): string | undefined {
 	if (key === "f-abv" || key === "f-volume" || key === "f-pos-name") return "menu";
@@ -38,7 +39,7 @@ export function validateItem(
 	saved: ItemValidateFields | null = null,
 ): ErrorMap {
 	const errors: ErrorMap = {};
-	const changed = (key: "price" | "abv" | "volume") =>
+	const changed = (key: "price" | "priceAlt" | "abv" | "volume") =>
 		!saved || String(saved[key] || "") !== String(item[key] || "");
 	const name = String(item.name || "").trim();
 	if (!name) errors["f-name"] = "Add a name.";
@@ -51,6 +52,12 @@ export function validateItem(
 		? "Add a price."
 		: changed("price") && numberError(item.price, { min: 0, noun: "an amount in pounds", example: "12.50" });
 	if (price) errors["f-price"] = price;
+	// The second size (double, half pint) is optional; when given it must be an amount.
+	const priceAlt =
+		String(item.priceAlt || "").trim() &&
+		changed("priceAlt") &&
+		numberError(item.priceAlt, { min: 0, noun: "an amount in pounds", example: "16" });
+	if (priceAlt) errors["f-price-alt"] = priceAlt;
 	const abv = changed("abv") && numberError(stripUnit(item.abv, "%"), { min: 0, max: 100, noun: "a percentage" });
 	if (abv) errors["f-abv"] = abv;
 	const volume =

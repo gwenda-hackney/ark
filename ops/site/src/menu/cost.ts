@@ -762,3 +762,13 @@ export function recipePriceAnalysis(
 		serves,
 	};
 }
+
+/** The second size's price at the house pour target (a double, a half pint), or null when the cost isn't known. */
+export function suggestedAltPrice(
+	price: Pick<RecipePriceAnalysis, "drinkType" | "drinkCost" | "complete" | "targetPourCost"> | null | undefined,
+): number | null {
+	if (!price) return null;
+	const factor = altCostFactor(price.drinkType);
+	if (factor == null || price.drinkCost == null || !price.complete || !(price.targetPourCost > 0)) return null;
+	return snapGbp((price.drinkCost * factor) / (price.targetPourCost / 100));
+}

@@ -57,3 +57,13 @@ describe("stripUnit", () => {
 		expect(stripUnit("", "ml")).toBe("");
 	});
 });
+
+describe("second price", () => {
+	it("is optional, but must be an amount when given", () => {
+		expect(validateItem({ name: "Negroni", price: "12" })["f-price-alt"]).toBeUndefined();
+		expect(validateItem({ name: "Negroni", price: "12", priceAlt: "lots" })["f-price-alt"]).toBe(
+			"Enter an amount in pounds, like 16.",
+		);
+		expect(itemFieldTab("f-price-alt")).toBe("details");
+	});
+});

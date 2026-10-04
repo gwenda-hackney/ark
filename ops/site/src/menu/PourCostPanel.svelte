@@ -3,13 +3,11 @@
 	 * Pour cost on the Cost tab. Primary sell price is edited in the drink
 	 * header; this panel shows metrics and edits the optional alt serve.
 	 */
-	import { Button, MoneyField } from "../ui";
+	import { Button } from "../ui";
 	import {
-		altCostFactor,
 		formatPourPercent,
 		marginTone,
 		serveVerdict,
-		snapGbp,
 		type RecipePriceAnalysis,
 		type ServePourReading,
 	} from "./cost";
@@ -22,29 +20,28 @@
 		price,
 		priceValue = "",
 		priceAltValue = "",
-		onpricealt,
+
 	}: {
 		price: RecipePriceAnalysis;
 		priceValue?: string;
 		priceAltValue?: string;
-		onpricealt: (value: string) => void;
 	} = $props();
 
 	let settingsOpen = $state(false);
 	/** Local draft so Add pour can open an empty field before a price is saved. */
-	let draftingAlt = $state(false);
 
 	const labels = $derived(priceLabels(price.drinkType));
-	const canOfferAlt = $derived(
-		!!labels.alt && altCostFactor(price.drinkType) != null,
-	);
 	const hasAlt = $derived(String(priceAltValue || "").trim() !== "");
-	const showAlt = $derived(hasAlt || draftingAlt);
+	const showAlt = $derived(hasAlt);
 	const primary = $derived(price.serves.find((s) => s.key === "primary") ?? null);
 	const alt = $derived(price.serves.find((s) => s.key === "alt") ?? null);
+	const altPriceLabel = $derived.by(() => {
+		const n = Number(String(priceAltValue || "").trim());
+		return Number.isFinite(n) ? formatGbp(n) : String(priceAltValue);
+	});
 	const primaryPriceLabel = $derived.by(() => {
 		const raw = String(priceValue || "").trim();
-		if (!raw) return "Set price in the header";
+		if (!raw) return "Set it on Build";
 		const n = Number(raw);
 		if (Number.isFinite(n)) return formatGbp(n);
 		return raw.startsWith("£") ? raw : `£${raw}`;
@@ -52,10 +49,6 @@
 	const hasRecipeCost = $derived(
 		price.drinkCost != null || (price.lines || []).length > 0,
 	);
-
-	$effect(() => {
-		if (hasAlt) draftingAlt = false;
-	});
 
 	function costCopy(serve: ServePourReading | null): string {
 		if (!serve || serve.drinkCost == null) return "n/a";
@@ -91,28 +84,6 @@
 		return marginTone(serve.margin, serve.pourCost, price.targetPourCost);
 	}
 
-	function addAlt() {
-		const factor = altCostFactor(price.drinkType);
-		if (
-			factor != null &&
-			price.drinkCost != null &&
-			price.complete &&
-			price.targetPourCost > 0
-		) {
-			const suggested = snapGbp(
-				(price.drinkCost * factor) / (price.targetPourCost / 100),
-			);
-			onpricealt(String(suggested));
-			return;
-		}
-		draftingAlt = true;
-		onpricealt("");
-	}
-
-	function removeAlt() {
-		draftingAlt = false;
-		onpricealt("");
-	}
 </script>
 
 <section class="cost" aria-label="Pour cost">
@@ -149,7 +120,7 @@
 				<li class="pour">
 					<div class="pour-line">
 						<span class="serve">{primary.label}</span>
-						<p class="price-readout tnum" title="Edit sell price in the header">
+						<p class="price-readout tnum" title="Prices are set on Build">
 							{primaryPriceLabel}
 						</p>
 						<div
@@ -202,33 +173,8 @@
 				{@const deltaTone = overUnderTone(alt)}
 				<li class="pour">
 					<div class="pour-line">
-						<label class="serve" for="f-cost-price-alt">{labels.alt}</label>
-						<div class="price-tools">
-							<div class="price">
-								<MoneyField
-									id="f-cost-price-alt"
-									size="sm"
-									align="end"
-									value={priceAltValue}
-									oninput={(e) =>
-										onpricealt(
-											(e.currentTarget as HTMLInputElement).value,
-										)}
-								/>
-							</div>
-							<Button
-								variant="ghost"
-								size="xs"
-								type="button"
-								aria-label={`Remove ${labels.alt.toLowerCase()} price`}
-								title={`Remove ${labels.alt.toLowerCase()}`}
-								onclick={removeAlt}
-							>
-								{#snippet icon()}
-									<Icon name="close" size={14} />
-								{/snippet}
-							</Button>
-						</div>
+						<span class="serve">{labels.alt}</span>
+						<p class="price-readout tnum" title="Prices are set on Build">{altPriceLabel}</p>
 						<div
 							class="metrics"
 							role="group"
@@ -271,16 +217,7 @@
 						</div>
 					</div>
 				</li>
-			{:else if canOfferAlt && labels.alt}
-				<li class="add">
-					<Button variant="ghost" size="xs" type="button" onclick={addAlt}>
-						{#snippet icon()}
-							<Icon name="plus" size={14} />
-						{/snippet}
-						Add {labels.alt.toLowerCase()}
-					</Button>
-				</li>
-			{/if}
+{/if}
 		</ul>
 	{/if}
 </section>
@@ -372,17 +309,6 @@
 		color: var(--foreground);
 	}
 
-	.price,
-	.price-tools {
-		flex: 0 0 auto;
-	}
-
-	.price-tools {
-		display: flex;
-		align-items: center;
-		gap: 0.2rem;
-	}
-
 	.price-readout {
 		flex: 0 0 auto;
 		min-width: 4.5rem;
@@ -394,10 +320,6 @@
 		color: var(--foreground);
 		font-variant-numeric: tabular-nums;
 		font-feature-settings: var(--font-features-num);
-	}
-
-	.price :global(input) {
-		width: 5.5rem;
 	}
 
 	.metrics {
@@ -445,10 +367,6 @@
 	.muted {
 		color: var(--muted-foreground);
 		font-weight: 500;
-	}
-
-	.add {
-		padding: var(--space-1) var(--space-2);
 	}
 
 	@media (max-width: 720px) {

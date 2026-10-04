@@ -26,8 +26,9 @@
 	import type { SegmentedItem, SelectOption } from "../ui/types";
 	import { formatGbp } from "../app/money";
 	import { type InventoryItem } from "../inventory/types";
-	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
+	import { COCKTAIL_TYPES, DRINK_TYPES, GLASSWARE, ICE_OPTIONS, defaultPosMenus, defaultServeQuantity, drinkTypeLabel, priceLabels, flattenIngredientsForMenu, hasRecipe, normalizeCocktailType, normalizeDrinkType, type CocktailType, type DrinkType, type Ingredient, type MenuItem, type MenuPlacement, type MenuSection, type PosMenu } from "./types";
 	import { flattenMenuSections, sectionPathLabel } from "./menu-sections.js";
+	import { suggestedAltPrice as suggestAltPrice } from "./cost";
 	import {
 		computeRecipeAbv,
 		computeRecipeVolumeMl,
@@ -641,11 +642,13 @@
 	});
 	const priceFieldLabel = $derived(primaryServe?.label || "Price");
 	/** The second size (double, half) is set on Cost; Build says what it is. */
-	const priceAltHint = $derived(
-		item?.priceAlt
-			? `${priceLive?.serves[1]?.label || "Second size"} £${item.priceAlt}. Change it on Cost.`
-			: undefined,
-	);
+
+	/** Single and Double (Pint and Half pint): both prices sit together on Build. */
+	const sizeLabels = $derived(priceLabels(drinkType));
+	const suggestedAltPrice = $derived.by(() => {
+		const value = suggestAltPrice(priceLive);
+		return value == null ? "" : value.toFixed(2).replace(/\.00$/, "");
+	});
 
 	const canAnalyze = $derived(
 		Boolean(
@@ -1106,10 +1109,9 @@
 								{/if}
 								<Field
 									class="span-3"
-									label={priceFieldLabel === "Price" ? "Price" : `${priceFieldLabel} price`}
+									label={sizeLabels.alt ? sizeLabels.primary : "Price"}
 									for="f-price"
 									error={errors.get("f-price")}
-									hint={priceAltHint}
 								>
 									<MoneyField
 										id="f-price"
@@ -1121,6 +1123,27 @@
 										}}
 									/>
 								</Field>
+								{#if sizeLabels.alt}
+									<Field
+										class="span-3"
+										label={sizeLabels.alt}
+										for="f-price-alt"
+										optional
+										error={errors.get("f-price-alt")}
+										hint={suggestedAltPrice && !item.priceAlt ? `£${suggestedAltPrice} meets the pour target.` : undefined}
+									>
+										<MoneyField
+											id="f-price-alt"
+											size="sm"
+											value={item.priceAlt || ""}
+											placeholder={suggestedAltPrice ? suggestedAltPrice : ""}
+											oninput={(e) => patch("priceAlt", (e.currentTarget as HTMLInputElement).value)}
+											oncommit={(next) => {
+												if (next !== (item?.priceAlt || "")) patch("priceAlt", next);
+											}}
+										/>
+									</Field>
+								{/if}
 							</FormLead>
 
 							<FormSection
@@ -1301,7 +1324,6 @@
 								price={priceLive}
 								priceValue={item.price || ""}
 								priceAltValue={item.priceAlt || ""}
-								onpricealt={(value) => patch("priceAlt", value)}
 							/>
 						{:else}
 							<FormSection
