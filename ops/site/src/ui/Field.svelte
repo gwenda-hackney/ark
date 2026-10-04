@@ -179,6 +179,7 @@
 	.optional {
 		font-size: var(--text-xs);
 		font-weight: 500;
+		font-style: italic;
 		color: var(--accent-sky);
 		white-space: nowrap;
 	}
