@@ -26,6 +26,7 @@ import { spawn } from "node:child_process";
 import { rmSync, symlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { APP_SECRETS } from "./lib/bitwarden-sm.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 import { writeRuntimeEnvFile } from "./lib/secrets-cache.mjs";
 
@@ -34,29 +35,24 @@ const OPS_DIR = resolve(ROOT, "ops/site");
 const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
 
 /** Secrets + config fills Wrangler binds for the Functions. */
+/**
+ * What the local Functions get: every ops runtime key (APP_SECRETS, the same
+ * list Pages gets, so a new secret reaches local dev too) plus local-only ones.
+ */
 const DEV_VAR_KEYS = [
-  "OPS_LOCAL_ADMIN_PW",
-  "OPS_SESSION_SECRET",
-  "GOOGLE_OAUTH_CLIENT_ID",
-  "GOOGLE_OAUTH_CLIENT_SECRET",
-  "GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON",
-  "GOOGLE_CALENDAR_ID_LOCAL",
-  "BASEROW_API_KEY",
-  "BASEROW_OPS_API_KEY__DEV",
-  "BASEROW_WEBSITE_API_KEY",
-  "BASEROW_CONFIG_API_KEY",
-  "SANITY_API_TOKEN",
-  "DEPLOY_WEBHOOK_SECRET",
-  "FORMS_ADMIN_SECRET",
-  "GMAIL_SERVICE_ACCOUNT_JSON",
-  // Where form emails resent from /forms go on this machine.
-  "FORMS_NOTIFY_EMAIL",
-  // Optional env overrides (normally config database):
-  "SANITY_PROJECT_ID",
-  "SANITY_DATASET",
-  "SITE_DEPLOY_WEBHOOK_URL",
-  "SANITY_STUDIO_SITE_DEPLOY_URL",
-  "GOOGLE_CALENDAR_ID",
+  ...new Set([
+    ...APP_SECRETS.ops.keys,
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "GOOGLE_CALENDAR_ID_LOCAL",
+    // Where form emails resent from /forms go on this machine.
+    "FORMS_NOTIFY_EMAIL",
+    // Optional env overrides (normally config database):
+    "SANITY_PROJECT_ID",
+    "SANITY_DATASET",
+    "SITE_DEPLOY_WEBHOOK_URL",
+    "SANITY_STUDIO_SITE_DEPLOY_URL",
+    "GOOGLE_CALENDAR_ID",
+  ]),
 ];
 
 const LIVE = process.argv.includes("--live");

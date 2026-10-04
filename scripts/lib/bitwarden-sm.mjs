@@ -124,7 +124,7 @@ export const SECRET_OWNERS = {
     "DISPATCH_TOKEN",
     // Script-only: UptimeRobot main API key (setup:uptime, alerts@ account).
     "UPTIME_ROBOT_API_KEY",
-    // Script-only: Sentry token of the alerts@ user (setup:sentry, #35).
+    // Script-only: Sentry internal integration SENTRY_AUTH_TOKEN (setup:sentry, sentry:issues, #35).
     "SENTRY_AUTH_TOKEN",
     // CI-only (sm-export): Sentry organisation token, uploads source maps (#35).
     "SENTRY_ORG_TOKEN",
