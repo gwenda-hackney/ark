@@ -45,6 +45,19 @@ dist/          Build output (gitignored)
 - **SEO files** (`robots.txt`, `sitemap.xml`, `_headers`) are generated at build time by scripts in `scripts/`.
 - **Version headers:** CalVer `YYYY.MM.DD+shortsha` via `scripts/compute-build-version.mjs`.
 
+## Data and domain (DDD)
+
+Server code is organised by domain-driven design, so a storage change (Baserow → D1, #127) touches adapters only. Code written before this rule is moving over in #186.
+
+- **One bounded context per feature** (events, menu and inventory, artists, guests, users, config and state). Each has:
+  - a domain model: plain objects and rules, no I/O, no column or table names;
+  - a repository interface in domain terms (`get`, `list`, `save`, …);
+  - storage adapters that implement it.
+- **Only adapters know the storage.** Nothing else imports `shared/baserow.js` (or, later, a D1 binding) or writes column names. Publishing, sync jobs, website functions and scripts go through the repository.
+- **Use cases** (application services) call repositories and other ports: Sanity, Google Drive, Calendar, mail.
+- **Tests:** use-case tests check behaviour through the API or domain, never storage columns. Each repository has a contract test that every adapter must pass.
+- **New fields** start in the domain model, then go into each adapter and its schema or migration. If a change to what something stores edits code outside the repository and its adapters, fix the boundary in the same PR or file an issue.
+
 ## Server logic (Pages Functions)
 
 | Path                                   | Role                                                     |
