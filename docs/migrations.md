@@ -31,7 +31,7 @@ A migration can also change **Sanity content** (a form's field, a document the c
 
 Pick `app` by which deploy the change belongs to: the app whose new code needs it (pre) or whose old code last used it (post).
 
-**Every migration must be safe to run again.** Nothing records which ones ran: every deploy runs them all, and each checks the real state first. A record would be wrong after `baserow-copy` replaces a copy from production. Also add new columns to the matching `setup:baserow-*` script, so a table built from scratch has them.
+**Every migration must be safe to run again.** Nothing records which ones ran: every deploy runs them all, and each checks the real state first. A record would be wrong after `copy-prod-to-dev` replaces a copy from production. Also add new columns to the matching `setup:baserow-*` script, so a table built from scratch has them.
 
 Delete a migration once it has run in production. `config-retired-settings.mjs` is the exception: it stays and removes whatever is listed in `RETIRED_SETTINGS`.
 

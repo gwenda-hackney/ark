@@ -9,7 +9,7 @@
  *
  * Requires JWT (schema): BASEROW_JWT_EMAIL/PASSWORD or cached `.baserow-jwt.json`.
  * Source rows: BASEROW_API_KEY with read access to the production Ops DB, so
- * this runs in CI (baserow-copy.yml, production token). Locally the token only
+ * this runs in CI (copy-prod-to-dev.yml, production token). Locally the token only
  * opens Gwenda Dev. Databases are found by name (scripts/lib/migrations.mjs).
  *
  *   npm run dev:refresh:baserow-ops -- --dry-run

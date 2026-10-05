@@ -18,7 +18,7 @@
  *
  * Nothing records which migrations ran. Every deploy runs them all, so each
  * one checks the real state first and does nothing when it's already done.
- * A record would lie after `baserow-copy` replaces a copy from production.
+ * A record would lie after `copy-prod-to-dev` replaces a copy from production.
  * Delete a migration once it has run in production.
  */
 import { readdir } from "node:fs/promises";
