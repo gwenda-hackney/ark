@@ -27,6 +27,8 @@ export async function up({ env, database, processEnv, log }) {
 
 `database(key)` opens this environment's database (`scripts/lib/migrations.mjs` `DATABASES`): `website` or `ops`, in `dev` (Gwenda Dev) or `production` (Gwenda), or `config`, that environment's Gwenda Config database. It offers `ensureField`, `ensureSelectOption`, `removeField` and `fields`. Anything else can call the Baserow API with the same login.
 
+A migration can also change **Sanity content** (a form's field, a document the code now reads differently). Web deploys pull `SANITY_API_TOKEN` before they migrate: use it from `processEnv`, with the project from `shared/sanity-projects.js` (`env` "dev" is the Gwenda Dev copy). Query the real state first and patch only what's left to do; see `2026-10-05-play-form-series-choice.mjs`.
+
 Pick `app` by which deploy the change belongs to: the app whose new code needs it (pre) or whose old code last used it (post).
 
 **Every migration must be safe to run again.** Nothing records which ones ran: every deploy runs them all, and each checks the real state first. A record would be wrong after `baserow-copy` replaces a copy from production. Also add new columns to the matching `setup:baserow-*` script, so a table built from scratch has them.
