@@ -14,10 +14,10 @@ Ops can post a series, a night or a special to the Instagram feed from the event
 
 Meta has no sandbox: an app in development mode still posts for real. So dev and local never talk to Meta. They talk to our own fake Instagram (`ops/instagram-fake`).
 
-| | Production ops | Dev ops | Your machine and tests |
-|---|---|---|---|
-| Graph API (`INSTAGRAM_GRAPH_URL`) | `https://graph.facebook.com/v24.0` (the code's default; leave it unset) | the fake Worker's address | `wrangler dev` of the fake, or unset for a dry run. Tests use the fake in process (`src/testing/fake-world.js`). |
-| `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_USER_ID` | `__PRODUCTION`: the Meta system user's token, @gwendahackney's Instagram user id | `__DEV`: made-up values only the fake accepts | the same `__DEV` values |
+|                                               | Production ops                                                                   | Dev ops                                       | Your machine and tests                                                                                           |
+| --------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Graph API (`INSTAGRAM_GRAPH_URL`)             | `https://graph.facebook.com/v24.0` (the code's default; leave it unset)          | the fake Worker's address                     | `wrangler dev` of the fake, or unset for a dry run. Tests use the fake in process (`src/testing/fake-world.js`). |
+| `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_USER_ID` | `__PRODUCTION`: the Meta system user's token, @gwendahackney's Instagram user id | `__DEV`: made-up values only the fake accepts | the same `__DEV` values                                                                                          |
 
 Guards in `adapters/graph-publisher.js`:
 
@@ -29,7 +29,7 @@ Guards in `adapters/graph-publisher.js`:
 
 ## Before it works anywhere
 
-Posts are stored in `gwenda-ops` through the `OPS_DB` binding (#190). Until ops has it, the tab says "Instagram isn't set up in this environment yet."
+Posts are stored in `gwenda-ops` through the `OPS_DB` binding (#190). Hosted ops has it, and deploys apply `db/ops/migrations` first (#191). `npm run ops:dev` applies them to its throwaway local databases before it starts. Without the binding or an Instagram address, the tab says "Instagram isn't set up in this environment yet."
 
 ## The fake Instagram (dev)
 
@@ -37,13 +37,13 @@ Posts are stored in `gwenda-ops` through the `OPS_DB` binding (#190). Until ops 
 
 Fault switches, to try what happens when Instagram misbehaves:
 
-| Switch | What happens |
-|---|---|
-| `slow` | the container needs a few checks before it's ready (ops waits) |
-| `stuck` | the container never finishes (ops says to press Post again in a minute) |
-| `error` | the container ends in an error |
-| `token` | every call fails as an expired token |
-| `rate-limit` | publishing fails on the daily limit |
+| Switch       | What happens                                                            |
+| ------------ | ----------------------------------------------------------------------- |
+| `slow`       | the container needs a few checks before it's ready (ops waits)          |
+| `stuck`      | the container never finishes (ops says to press Post again in a minute) |
+| `error`      | the container ends in an error                                          |
+| `token`      | every call fails as an expired token                                    |
+| `rate-limit` | publishing fails on the daily limit                                     |
 
 Turn one on with `[fail:<switch>]` anywhere in the caption, or point `INSTAGRAM_GRAPH_URL` at `…/fail/<switch>/v24.0` for every post. Direct calls can also use `?fail=<switch>` or an `X-Fake-Fail` header.
 
@@ -78,7 +78,11 @@ CI doesn't deploy the fake: it changes rarely, and the Workers workflow deploys 
 node scripts/with-ops-env.mjs sh -c 'npx wrangler dev -c ops/instagram-fake/wrangler.toml --port 8790 --var INSTAGRAM_ACCESS_TOKEN:"$INSTAGRAM_ACCESS_TOKEN"'
 ```
 
-Then put `INSTAGRAM_GRAPH_URL=http://localhost:8790/v24.0` in your `.env` and run `npm run ops:dev`. Without it, local ops is a dry run. `npm run ops:prod` ignores that line, so it talks to the real Instagram like production does.
+Then put `INSTAGRAM_GRAPH_URL=http://localhost:8790/v24.0` in your `.env` and run `npm run ops:dev`. Without it, local ops is a dry run. Both sides read the made-up `INSTAGRAM_ACCESS_TOKEN__DEV` and `INSTAGRAM_USER_ID__DEV` (`17841400000000001`, the fake's account), so push those once (dev setup step 2) before the first local run.
+
+`ops:dev` gives posts a local `OPS_DB` with the migrations applied (in `ops/site/.wrangler/state`, gitignored), so Post, the posts list and the double-post guard all work. Delete that folder to start again with no posts.
+
+`npm run ops:prod` ignores `INSTAGRAM_GRAPH_URL`, so it talks to the real Instagram like production does. Its posts are recorded only in the local database.
 
 ## Production: the Meta setup
 
@@ -105,6 +109,7 @@ Someone with admin rights on Gwenda's Meta Business portfolio does this once. It
    ```
 
    Use the `instagram_business_account.id` next to Gwenda's Page.
+
 7. **Store both** as production values, then sync production ops' secrets from `release`:
 
    ```bash

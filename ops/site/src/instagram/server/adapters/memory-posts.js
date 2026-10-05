@@ -6,6 +6,9 @@ import { POST_STATUS, failedFields, sentFields } from "../post-model.js";
 
 const copy = (value) => structuredClone(value);
 
+/** Snapshots are keyed like the D1 adapter's, so a copy works between them. */
+const TABLE = "instagram_posts";
+
 function conflict(message) {
   const error = new Error(message);
   error.status = 409;
@@ -25,7 +28,11 @@ export function memoryPostRepository() {
       throw error;
     }
     if (post.status !== POST_STATUS.publishing) {
-      throw conflict(post.status === POST_STATUS.sent ? "This post was already sent." : "This post is no longer being published.");
+      throw conflict(
+        post.status === POST_STATUS.sent
+          ? "This post was already sent."
+          : "This post is no longer being published.",
+      );
     }
     Object.assign(post, change(post));
     return copy(post);
@@ -34,7 +41,11 @@ export function memoryPostRepository() {
   return {
     async listFor(eventId, nightOn) {
       return [...posts.values()]
-        .filter((post) => post.eventId === String(eventId) && (nightOn === undefined || post.nightOn === (nightOn || "")))
+        .filter(
+          (post) =>
+            post.eventId === String(eventId) &&
+            (nightOn === undefined || post.nightOn === (nightOn || "")),
+        )
         .sort(newest)
         .map(copy);
     },
@@ -51,18 +62,47 @@ export function memoryPostRepository() {
       );
       if (busy) return null;
       const id = String(nextId++);
-      const saved = { ...copy(post), id, eventId: String(post.eventId), nightOn: post.nightOn || "", status: POST_STATUS.publishing };
+      const saved = {
+        ...copy(post),
+        id,
+        eventId: String(post.eventId),
+        nightOn: post.nightOn || "",
+        status: POST_STATUS.publishing,
+      };
       posts.set(id, saved);
       return copy(saved);
     },
     async finish(id, fields) {
       return update(id, (post) => {
-        const { status, mediaId, permalink, sentAt } = sentFields(post, { mediaId: fields.mediaId, permalink: fields.permalink });
-        return { status, mediaId, permalink, sentAt: fields.sentAt || sentAt, lastError: "" };
+        const { status, mediaId, permalink, sentAt } = sentFields(post, {
+          mediaId: fields.mediaId,
+          permalink: fields.permalink,
+        });
+        return {
+          status,
+          mediaId,
+          permalink,
+          sentAt: fields.sentAt || sentAt,
+          lastError: "",
+        };
       });
     },
     async fail(id, error) {
       return update(id, (post) => failedFields(post, error));
+    },
+    /** Every post, ids kept, oldest first: what a copy carries. */
+    async exportAll() {
+      const all = [...posts.values()]
+        .sort((a, b) => Number(a.id) - Number(b.id))
+        .map(copy);
+      return { [TABLE]: all };
+    },
+    /** Replace every post with a snapshot from exportAll. */
+    async importAll(snapshot) {
+      posts.clear();
+      for (const post of snapshot?.[TABLE] ?? [])
+        posts.set(String(post.id), copy(post));
+      nextId = Math.max(0, ...[...posts.keys()].map(Number)) + 1;
     },
   };
 }
