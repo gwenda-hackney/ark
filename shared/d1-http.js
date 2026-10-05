@@ -4,8 +4,8 @@
  * the website build in CI and `astro dev`. Needs a token with D1 access to
  * the account (CLOUDFLARE_API_TOKEN).
  *
- * The binding runs a batch as one transaction. Whether the REST batch does is
- * not documented, so scripts that rely on it check the outcome (#190 spike).
+ * A batch is one transaction here too: a failing statement rolls back the
+ * rest (checked against dev D1, #190).
  */
 
 const API = "https://api.cloudflare.com/client/v4";

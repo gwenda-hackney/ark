@@ -25,3 +25,21 @@ GOOGLE_CALENDAR_ID = "c_5f8cc21d86540230e430cc5d0fdb58cda525cfbf673d84b1f0bf596d
 [ai]
 binding = "AI"
 remote = true
+
+# D1 databases (#127, db/README.md): this account's own; ids from shared/d1-databases.js.
+# Unused until each feature moves. Never `remote = true` here: ops:dev runs this file
+# locally, so it gets a throwaway local database, never production's.
+[[d1_databases]]
+binding = "OPS_DB"
+database_name = "gwenda-ops"
+database_id = "2b070281-670d-412b-9da3-da906325ea74"
+
+[[d1_databases]]
+binding = "WEBSITE_DB"
+database_name = "gwenda-website"
+database_id = "e5ac0a26-2c6c-4182-9230-073ea8f331b1"
+
+[[d1_databases]]
+binding = "CONFIG_DB"
+database_name = "gwenda-config"
+database_id = "af5ceb9e-edfb-40f1-a92c-54a7dbb3cd7b"

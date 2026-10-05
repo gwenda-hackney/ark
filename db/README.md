@@ -12,7 +12,14 @@ Each Cloudflare account (production, and gwenda-dev) has its own three databases
 | `website` | `gwenda-website` | `WEBSITE_DB` | guests: subscribers, form submissions, invites        | website, ops, Mailchimp sync, Wi-Fi portal |
 | `config`  | `gwenda-config`  | `CONFIG_DB`  | settings and sync state                               | ops, website                               |
 
-The names, ids and bindings are listed in `shared/d1-databases.js`.
+The names, ids and bindings are listed in `shared/d1-databases.js`. `npm run setup:d1` creates any database that's missing (location: western Europe) and records its id there. `shared/d1-databases.test.js` checks every wrangler config binds those ids, preview envs included.
+
+Checked against real D1 (#190):
+
+- a failing statement rolls back the whole batch, over REST too;
+- inserting rows with their ids moves the id counter past them, so new rows never reuse an imported id;
+- `RETURNING` works;
+- `wrangler pages dev` can use a remote binding. Our wrangler configs never set `remote = true`, though: `ops:dev` runs them locally, so a local run gets a throwaway database. Pointing local runs at dev D1 comes with #127's local-dev step.
 
 ## Reaching a database
 
@@ -74,6 +81,6 @@ Each feature has its own D1 adapter, because only that adapter knows its tables 
 | 100 KB per statement               | large JSON goes in as a bound parameter, never as SQL text                                                           |
 | 50 queries per request (free plan) | adapters write with `batch`, one call                                                                                |
 | Foreign keys are always on         | a migration that rebuilds a table uses `PRAGMA defer_foreign_keys = true`                                            |
-| A `batch` is one transaction       | over the REST API, not documented; scripts check the outcome (#190)                                                  |
+| A `batch` is one transaction       | on the binding and over the REST API alike (checked on dev D1, #190)                                                 |
 
 Free-plan allowances per account: 5M rows read and 100k written per day, 5 GB storage, 7 days of Time Travel. At our size this should cost $0. Going over a daily limit stops queries until 00:00 UTC, so Dev tools shows the day's usage.

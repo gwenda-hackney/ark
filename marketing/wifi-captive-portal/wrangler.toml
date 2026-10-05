@@ -24,3 +24,9 @@ UNIFI_GUEST_MINUTES = "1440"
 REDIRECT_URL = "https://gwenda.co.uk"
 # Console id from https://unifi.ui.com/consoles/{UNIFI_CONSOLE_ID}/…
 UNIFI_CONSOLE_ID = "A89C6C0EB1810000000009A42CB9000000000A2C1924000000006920A430:1883747293"
+
+# D1 (#127): the website database only, for subscribers. Unused until guests move.
+[[d1_databases]]
+binding = "WEBSITE_DB"
+database_name = "gwenda-website"
+database_id = "e5ac0a26-2c6c-4182-9230-073ea8f331b1"

@@ -10,3 +10,9 @@ MAILCHIMP_AUDIENCE_ID = "e2c69d5d31"
 
 [triggers]
 crons = ["0 * * * *"]
+
+# D1 (#127): the website database only, for subscribers. Unused until guests move.
+[[d1_databases]]
+binding = "WEBSITE_DB"
+database_name = "gwenda-website"
+database_id = "e5ac0a26-2c6c-4182-9230-073ea8f331b1"
