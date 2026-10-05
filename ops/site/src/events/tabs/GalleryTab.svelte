@@ -64,7 +64,9 @@
 					class="drive-link"
 					href={gallery.folderUrl}
 					target="_blank"
-					rel="noreferrer">Open gallery</a
+					rel="noreferrer"
+					title={gallery.photos ? "Copies of the event's photos for collaborators, in its website images folder" : undefined}
+					>{gallery.photos ? "Open in Drive" : "Open gallery"}</a
 				>
 			{/if}
 		</div>

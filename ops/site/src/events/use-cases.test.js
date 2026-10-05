@@ -28,6 +28,7 @@ import { onRequestPost as runWebsiteJob } from "../../functions/api/web/jobs.js"
 import { onRequestPost as uploadDrivePhoto } from "../../functions/api/events/[id]/drive.js";
 import { onRequestDelete as removeDrivePhoto } from "../../functions/api/events/[id]/drive/[fileId].js";
 import { onRequestPost as uploadGalleryPhoto } from "../../functions/api/events/[id]/gallery.js";
+import { onRequestPost as tick } from "../../functions/api/web/tick.js";
 import { onRequestDelete as removeGalleryPhoto } from "../../functions/api/events/[id]/gallery/[key].js";
 import { onRequestPost as release } from "../../functions/api/web/release.js";
 
@@ -236,6 +237,16 @@ function editor(world) {
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data.event;
+    },
+    /** One scheduler run of the Drive copy. */
+    async copyToDrive() {
+      const res = await callApi(world, tick, {
+        method: "POST",
+        path: "/api/web/tick?step=drive",
+        headers: { Authorization: `Bearer ${world.env.DEPLOY_WEBHOOK_SECRET}` },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data.drive;
     },
     /** A series from before #183: its gallery photos go to Drive. */
     async addDrivePhoto(event, { date = "", name = "crowd.jpg" } = {}) {
@@ -898,6 +909,104 @@ describe("events: gallery", () => {
 
 // Storage-specific on purpose: only series from before #183 have no gallery
 // list in ops, and keep theirs in Drive until the backfill.
+describe("events: the Drive copy for collaborators", () => {
+  let world;
+  let ops;
+  let event;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+    event = await ops.create(weeklySeries());
+  });
+  afterEach(() => world.restore());
+
+  /** The event's "website images" folder, and what's in it (not binned). */
+  async function websiteImages() {
+    const { driveFolderId } = await ops.open(event);
+    const folder = [...world.google.driveFiles.values()].find(
+      (file) => file.name === "website images" && file.parents.includes(driveFolderId) && !file.trashed,
+    );
+    const files = folder
+      ? [...world.google.driveFiles.values()].filter((file) => file.parents.includes(folder.id) && !file.trashed)
+      : [];
+    return { folder, files };
+  }
+  const tags = (files) => files.map((file) => file.appProperties?.opsImage || "").sort();
+
+  it("copies the main image, a night's flyer and gallery photos, once", async () => {
+    const night = (await ops.open(event)).dates[1].date;
+    await ops.uploadImage(event, { name: "hero.jpg" });
+    await ops.uploadImage(event, { name: "guest.jpg", date: night, bytes: 3000 });
+    const photo = await ops.addGalleryPhoto(event, { name: "crowd.jpg", date: night });
+    const opened = await ops.open(event);
+
+    const first = await ops.copyToDrive();
+    assert.equal(first.copied, 3);
+    const { files } = await websiteImages();
+    assert.deepEqual(tags(files), [
+      `flyer:${night}:${opened.dates.find((row) => row.date === night).overrides.image.asset}`,
+      `gallery:${night}:${photo.asset}`,
+      `hero::${opened.mainImage.asset}`,
+    ]);
+    assert.ok(files.some((file) => file.name.startsWith("hero - ")), "named for people, not ids");
+
+    const again = await ops.copyToDrive();
+    assert.equal(again.behind, 0, "nothing to do when nothing changed");
+  });
+
+  it("a photo taken off in ops goes to the Drive bin", async () => {
+    const gone = await ops.addGalleryPhoto(event, { name: "gone.jpg" });
+    await ops.addGalleryPhoto(event, { name: "kept.jpg" });
+    await ops.copyToDrive();
+    await ops.removeGalleryPhoto(event, gone);
+    const run = await ops.copyToDrive();
+    assert.equal(run.binned, 1);
+    const { files } = await websiteImages();
+    assert.equal(files.length, 1);
+    assert.ok(!tags(files).some((tag) => tag.endsWith(gone.asset)));
+  });
+
+  it("leaves files people put in the folder by hand", async () => {
+    await ops.addGalleryPhoto(event, { name: "a.jpg" });
+    await ops.copyToDrive();
+    const { folder } = await websiteImages();
+    world.google.driveFiles.set("by-hand", { id: "by-hand", name: "poster.png", mimeType: "image/png", parents: [folder.id] });
+    await ops.addGalleryPhoto(event, { name: "b.jpg" });
+    await ops.copyToDrive();
+    assert.ok(!world.google.driveFiles.get("by-hand").trashed);
+  });
+
+  it("a gallery photo that came from Drive moves in, rather than being copied again", async () => {
+    // As the backfill leaves it: the original in the old gallery folder, the photo in ops.
+    const { driveFolderId } = await ops.open(event);
+    world.google.driveFiles.set("old-gallery", { id: "old-gallery", name: "gallery", mimeType: "application/vnd.google-apps.folder", parents: [driveFolderId] });
+    world.google.driveFiles.set("original", { id: "original", name: "IMG_1.jpg", mimeType: "image/jpeg", parents: ["old-gallery"] });
+    const asset = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+    world.baserow.update("Events", event.id, {
+      Gallery: JSON.stringify([{ key: "original", asset, date: "", added: "", source: "drive:original" }]),
+    });
+    const run = await ops.copyToDrive();
+    assert.equal(run.copied, 1);
+    const { folder, files } = await websiteImages();
+    assert.deepEqual(files.map((file) => file.id), ["original"], "the original, no second copy");
+    assert.deepEqual(world.google.driveFiles.get("original").parents, [folder.id]);
+    assert.deepEqual(tags(files), [`gallery::${asset}`]);
+  });
+
+  it("more photos than one run copies: they all get there", async () => {
+    for (let n = 0; n < 24; n += 1) await ops.addGalleryPhoto(event, { name: `photo-${n}.jpg` });
+    const runs = [];
+    for (let n = 0; n < 5; n += 1) {
+      const run = await ops.copyToDrive();
+      runs.push(run.copied);
+      if (!run.behind) break;
+    }
+    assert.ok(runs[0] < 24, "more than one run");
+    assert.equal((await websiteImages()).files.length, 24);
+  });
+});
+
 describe("events: a gallery still in Drive", () => {
   let world;
   let ops;

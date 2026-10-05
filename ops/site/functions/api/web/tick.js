@@ -2,6 +2,7 @@ import { jsonResponse, withApiHandler } from "../../../src/platform/http.js";
 import { runsOnMachine } from "../../../src/platform/sanity.js";
 import { autoUpdateTick } from "../../../src/website/server/site-pending.js";
 import { runWebsiteJob } from "../../../src/events/server/website-jobs.js";
+import { runDriveMirrorJob } from "../../../src/events/server/event-drive-mirror.js";
 
 function sameSecret(a, b) {
   if (!a || !b || a.length !== b.length) return false;
@@ -15,8 +16,9 @@ function sameSecret(a, b) {
  * with the shared DEPLOY_WEBHOOK_SECRET. Public path: no user session.
  *
  * It also moves the "getting ready for the website" queue on by one step,
- * for when nobody has ops open. That step is its own request (`?step=jobs`)
- * so it gets its own Cloudflare call allowance.
+ * for when nobody has ops open, and the events' Drive copy (#183). Each step
+ * is its own request (`?step=jobs`, `?step=drive`) so it gets its own
+ * Cloudflare call allowance.
  */
 export const onRequestPost = withApiHandler(async (context) => {
   const header = context.request.headers.get("Authorization") || "";
@@ -25,13 +27,13 @@ export const onRequestPost = withApiHandler(async (context) => {
   if (!sameSecret(token, secret)) return jsonResponse({ error: "Unauthorized" }, 401);
   if (runsOnMachine(context.env)) return jsonResponse({ ok: true, skipped: "local" });
   const url = new URL(context.request.url);
-  if (url.searchParams.get("step") === "jobs") {
-    return jsonResponse({ ok: true, job: await runWebsiteJob(context.env) });
-  }
-  url.searchParams.set("step", "jobs");
-  const jobs = fetch(url.toString(), { method: "POST", headers: { Authorization: header } }).catch(
-    () => null,
-  );
-  if (typeof context.waitUntil === "function") context.waitUntil(jobs);
+  const step = url.searchParams.get("step");
+  if (step === "jobs") return jsonResponse({ ok: true, job: await runWebsiteJob(context.env) });
+  if (step === "drive") return jsonResponse({ ok: true, drive: await runDriveMirrorJob(context.env) });
+  const steps = ["jobs", "drive"].map((name) => {
+    url.searchParams.set("step", name);
+    return fetch(url.toString(), { method: "POST", headers: { Authorization: header } }).catch(() => null);
+  });
+  if (typeof context.waitUntil === "function") context.waitUntil(Promise.all(steps));
   return jsonResponse({ ok: true, sites: await autoUpdateTick(context.env) });
 });
