@@ -21,7 +21,9 @@ import {
   loadMigrations,
   openDatabase,
   runMigrations,
+  sanityContent,
   selectMigrations,
+  siteChanges,
 } from "./lib/migrations.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -45,16 +47,20 @@ console.log(`${app} ${phase}-deploy migrations for ${env}: ${migrations.length |
 if (!migrations.length) process.exit(0);
 
 const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(/\/$/, "");
+// What the migrations change that the website build reads.
+const site = siteChanges();
 let jwt = null;
 const opened = new Map();
 async function database(key) {
   jwt ??= await getBaserowJwt(apiBase, { hint: `${env} migrations` });
-  if (!opened.has(key)) opened.set(key, await openDatabase({ apiBase, jwt, key, env }));
+  if (!opened.has(key)) opened.set(key, await openDatabase({ apiBase, jwt, key, env, site }));
   return opened.get(key);
 }
+let content = null;
+const sanity = () => (content ??= sanityContent({ env, processEnv: process.env, site }));
 
-const { rebuild } = await runMigrations(migrations, { env, processEnv: process.env, database });
-// CI rebuilds the website when a migration changed its content.
+const { rebuild, changes } = await runMigrations(migrations, { env, processEnv: process.env, database, sanity, site });
+// CI rebuilds the website when a migration changed what it shows.
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `rebuild=${rebuild}\n`);
-if (rebuild) console.log("Website content changed: the site needs a rebuild.");
+if (rebuild) console.log(`The website shows what changed (${changes.join("; ")}): it needs a rebuild.`);
 console.log("Done.");
