@@ -70,6 +70,14 @@ export const eventSeries = defineType({
         "Set by ops when the series has no nights yet. What's on shows it with “Check back soon for the next date”.",
     }),
     defineField({
+      name: "takingApplications",
+      title: "Taking applications",
+      type: "boolean",
+      readOnly: true,
+      description:
+        "Set by ops. Lists this series on forms with a “Series taking applications” field, such as Play at Gwenda.",
+    }),
+    defineField({
       name: "shortDescription",
       title: "Short description",
       type: "text",
