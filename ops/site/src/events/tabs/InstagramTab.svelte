@@ -178,6 +178,11 @@
 						</Button>
 					</div>
 
+					{#if draft.posting}
+						<p class="hint">
+							A post is on its way to Instagram. If it isn't listed below in a minute, press Post again to finish it. It won't post twice.
+						</p>
+					{/if}
 					{#if !draft.live}
 						<p class="hint">Update website first: the post links to {what}'s page, which isn't on the website yet.</p>
 					{/if}
