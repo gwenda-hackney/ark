@@ -299,7 +299,7 @@ export class EventEditor {
 	useSeriesPhoto = async () => {
 		if (this.pendingPhoto) this.clearPendingPhoto();
 		if (this.currentOccurrence?.overrides?.image?.url) {
-			await this.onClearImage("main");
+			await this.onClearImage();
 			if (this.currentOccurrence?.overrides?.image?.url) return;
 		}
 		this.form.heroCrops = null;
@@ -325,7 +325,7 @@ export class EventEditor {
 
 	useSeriesDefaults = async () => {
 		if (this.currentOccurrence?.overrides?.image?.url) {
-			await this.onClearImage("main");
+			await this.onClearImage();
 			if (this.currentOccurrence?.overrides?.image?.url) return;
 		}
 		this.form.useSeriesDefaults(this.current);
@@ -705,7 +705,7 @@ export class EventEditor {
 		if (!file || !file.type.startsWith("image/")) return;
 		void preparePhoto(file).then((ready) => {
 			if (!ready) return;
-			if (this.eventId) return this.onImage("main", ready);
+			if (this.eventId) return this.onImage(ready);
 			// Not saved yet: hold it and show it; Save uploads it.
 			this.clearPendingPhoto();
 			this.pendingPhoto = ready;
@@ -721,7 +721,7 @@ export class EventEditor {
 		try {
 			const data = nightDate
 				? await uploadEventOccurrenceImage(id, nightDate, photo)
-				: await uploadEventImage(id, photo, "main");
+				: await uploadEventImage(id, photo);
 			this.rememberEvent(data.event, false);
 		} catch (err) {
 			toast.error(
@@ -730,12 +730,12 @@ export class EventEditor {
 		}
 	};
 
-	onImage = async (role: "main" | "gallery", file: File | null) => {
+	onImage = async (file: File | null) => {
 		if (!file || !this.eventId) return;
 		this.saving = true;
 		this.intent = "image";
 		try {
-			if (this.editingOccurrence && this.occurrenceDate && role === "main") {
+			if (this.editingOccurrence && this.occurrenceDate) {
 				const data = await uploadEventOccurrenceImage(
 					this.eventId,
 					this.occurrenceDate,
@@ -744,9 +744,9 @@ export class EventEditor {
 				this.rememberEvent(data.event, false);
 				await this.stageAfterSave(this.eventId, "Photo saved.");
 			} else {
-				const data = await uploadEventImage(this.eventId, file, role);
+				const data = await uploadEventImage(this.eventId, file);
 				this.rememberEvent(data.event, false);
-				if (role === "main") await this.stageAfterSave(this.eventId, "Photo saved.");
+				await this.stageAfterSave(this.eventId, "Photo saved.");
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not upload the image.";
@@ -758,21 +758,19 @@ export class EventEditor {
 		}
 	};
 
-	onClearImage = async (role: "main" | "gallery", imageName = "") => {
+	onClearImage = async () => {
 		if (!this.eventId || this.busy) return;
 		this.saving = true;
 		this.intent = "image";
 		try {
-			if (this.editingOccurrence && this.occurrenceDate && role === "main") {
+			if (this.editingOccurrence && this.occurrenceDate) {
 				const data = await clearEventOccurrenceImage(this.eventId, this.occurrenceDate);
 				this.rememberEvent(data.event, false);
 				await this.stageAfterSave(this.eventId, "Photo removed.");
 			} else {
-				const data = await clearEventImage(this.eventId, role, imageName);
+				const data = await clearEventImage(this.eventId);
 				this.rememberEvent(data.event, false);
-				if (role === "main") {
-					await this.stageAfterSave(this.eventId, "Photo removed.");
-				}
+				await this.stageAfterSave(this.eventId, "Photo removed.");
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Could not remove the image.";

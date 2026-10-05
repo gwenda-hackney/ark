@@ -102,6 +102,8 @@ export function eventFields() {
       name: "Replaces series",
       body: { name: "Replaces series", type: "text" },
     },
+    // The Sanity asset id of the main image (#183). Main image is the old copy.
+    { name: "Hero asset", body: { name: "Hero asset", type: "text" } },
     { name: "Main image", body: { name: "Main image", type: "file" } },
     {
       name: "Hero crops",
@@ -178,6 +180,7 @@ export function eventDateFields(eventsTableId) {
       name: "Image links override",
       body: { name: "Image links override", type: "long_text" },
     },
+    { name: "Override asset", body: { name: "Override asset", type: "text" } },
     { name: "Override image", body: { name: "Override image", type: "file" } },
     {
       name: "Override hero crops",

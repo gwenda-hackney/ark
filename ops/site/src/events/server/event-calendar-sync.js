@@ -2,10 +2,7 @@
  * Push ops nights onto the configured Google Calendar, and remove them
  * when the night row goes away. Calendar failures are warnings.
  */
-import {
-  baserowFetch,
-  resolveOpsTableIds,
-} from "../../../../../shared/baserow.js";
+import { eventRepository } from "./event-repository.js";
 import { OPS_CONFIG_KEYS, getConfigString, siteEnvName } from "../../platform/config-store.js";
 import { resolveOccurrenceContent } from "./event-content.js";
 import { expandSeriesOccurrenceDates, todayIso } from "../event-recurrence.js";
@@ -14,7 +11,6 @@ import {
   CALENDAR_SYNC_LIMIT,
   buildCalendarEvent,
   calendarEventHash,
-  calendarLinkValue,
   chooseCalendarEvent,
   deleteCalendarEvent,
   eventFallsOnDate,
@@ -26,10 +22,6 @@ import {
   patchCalendarEvent,
 } from "../../platform/google-calendar.js";
 
-export const GOOGLE_CALENDAR_EVENT_FIELD = "Google calendar event id";
-const CALENDAR_LINK_NOTES_FIELD = "Notes";
-
-let fieldCache = { key: "", at: 0, names: null, tableId: "" };
 
 export function noteCalendarWarning(env, message) {
   const text = String(message || "").trim();
@@ -96,37 +88,11 @@ async function calendarReady(env) {
   return { calendarId, ready: true };
 }
 
-async function eventDateFields(env) {
-  const tables = await resolveOpsTableIds(env);
-  const tableId = tables.eventDates ? String(tables.eventDates) : "";
-  if (!tableId) return { tableId: "", names: new Set() };
-  const key = tableId;
-  if (
-    fieldCache.names &&
-    fieldCache.key === key &&
-    Date.now() - fieldCache.at < 60_000
-  ) {
-    return { tableId, names: fieldCache.names };
-  }
-  const fields = await baserowFetch(
-    env,
-    `/api/database/fields/table/${tableId}/`,
-  );
-  const names = new Set((fields || []).map((field) => field.name));
-  fieldCache = { key, at: Date.now(), names, tableId };
-  return { tableId, names };
-}
-
 function occurrenceFromRow(row) {
   return {
     id: row?.id ? String(row.id) : "",
     date: String(row?.date || row?.Date || "").slice(0, 10),
-    googleCalendarEventId: String(
-      row?.googleCalendarEventId ||
-        row?.[GOOGLE_CALENDAR_EVENT_FIELD] ||
-        calendarLinkValue(row?.Notes) ||
-        "",
-    ).trim(),
+    googleCalendarEventId: String(row?.googleCalendarEventId || "").trim(),
   };
 }
 
@@ -149,28 +115,6 @@ export async function forgetCalendarOccurrences(env, occurrences) {
     }
   }
   return warnings;
-}
-
-/** Remember each night's calendar entry, in one Baserow batch call. */
-async function writeCalendarLinks(env, tableId, fieldName, links) {
-  for (let i = 0; i < links.length; i += 200) {
-    await baserowFetch(
-      env,
-      `/api/database/rows/table/${tableId}/batch/?user_field_names=true`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          items: links.slice(i, i + 200).map(({ id, value }) => ({
-            id: Number(id),
-            [fieldName]: value,
-            ...(fieldName === GOOGLE_CALENDAR_EVENT_FIELD
-              ? { [CALENDAR_LINK_NOTES_FIELD]: "" }
-              : {}),
-          })),
-        }),
-      },
-    );
-  }
 }
 
 async function saveGoogleEvent(env, calendarId, body, existingId) {
@@ -258,13 +202,8 @@ export async function syncSeriesCalendar(
   const { calendarId, ready } = await calendarReady(env);
   if (!calendarId || !ready) return { event, warnings: [] };
 
-  const { tableId, names } = await eventDateFields(env);
-  const linkField = names.has(GOOGLE_CALENDAR_EVENT_FIELD)
-    ? GOOGLE_CALENDAR_EVENT_FIELD
-    : names.has(CALENDAR_LINK_NOTES_FIELD)
-      ? CALENDAR_LINK_NOTES_FIELD
-      : "";
-  if (!linkField) {
+  const canRemember = (await eventRepository(env).capabilities()).calendarLinks;
+  if (!canRemember) {
     noteCalendarWarning(
       env,
       "Google Calendar could not store event ids on the night rows.",
@@ -349,7 +288,7 @@ export async function syncSeriesCalendar(
       }
       usedIds.add(savedId);
       if (
-        linkField &&
+        canRemember &&
         formatCalendarLink(savedId, hash) !== row.googleCalendarEventId
       ) {
         links.push({ id: row.id, value: formatCalendarLink(savedId, hash) });
@@ -364,7 +303,7 @@ export async function syncSeriesCalendar(
 
   if (links.length) {
     try {
-      await writeCalendarLinks(env, tableId, linkField, links);
+      await eventRepository(env).setNightCalendarLinks(links);
     } catch (error) {
       noteCalendarWarning(
         env,

@@ -282,6 +282,8 @@ export function titleOverrideEchoesSeries(seriesName, titleOverride) {
 /** Stable file identity: Baserow URLs rotate signed query tokens. */
 export function stableImageRef(image) {
   if (!image) return "";
+  const asset = String(image.asset || "").trim();
+  if (asset) return `asset:${asset}`;
   const name = String(image.name || image.visible_name || "").trim();
   if (name) return `name:${name}`;
   const url = String(image.url || "").trim();
