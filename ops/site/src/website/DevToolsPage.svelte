@@ -4,6 +4,7 @@
 	 *   Content   Drafts that differ from what is live. Publish them, or discard them.
 	 *   Code      Commits the preview runs that live does not. Ships on promote.
 	 *   Databases Baserow production vs its copies. Production may drift; copy it over to debug.
+	 *   Dev copy  Copy production over dev in one go: website content and both databases.
 	 */
 	import { onDestroy, onMount } from "svelte";
 	import { getSitePendingState } from "./site-pending.svelte";
@@ -12,15 +13,17 @@
 	import { Badge, BusyOverlay, Button, Dialog, PageHeader, SearchField } from "../ui";
 	import { changeBadgeTone, toBadgeTone } from "../ui/badge";
 	import {
-		copyDbPair,
 		getCodeDiff,
 		getDbPairDiff,
 		getDeployStatus,
+		getMe,
 		getReleaseDiff,
 		getWebStatus,
 		publishRelease,
+		startDevCopy,
 		type CodeDiff,
 		type DbPairDiff,
+		type DevCopyTarget,
 		type ReleaseDiff,
 		type ReleaseEntry,
 		type WebEnvStatus,
@@ -42,6 +45,8 @@
 	import SitePublishMonitor from "./SitePublishMonitor.svelte";
 
 	type PairId = "ops" | "website";
+	/** One database pair, or "all": content and both databases. */
+	type CopyId = PairId | "all";
 	type Direction = "to-production" | "discard";
 	type CopyRun = { runId: number | null; runUrl: string; status: string; conclusion: string | null };
 
@@ -50,13 +55,20 @@
 		{ id: "website", label: "Website", copy: "Gwenda Dev copy (dev website)" },
 	];
 
+	const COPIES: { id: CopyId; label: string; target: DevCopyTarget }[] = [
+		{ id: "all", label: "Dev", target: "everything" },
+		{ id: "ops", label: "Ops", target: "ops-data" },
+		{ id: "website", label: "Website", target: "website-data" },
+	];
+
 	let diff = $state<ReleaseDiff | null>(null);
 	let web = $state<WebStatus | null>(null);
 	let code = $state<CodeDiff | null>(null);
 	let dbs = $state<Record<PairId, DbPairDiff | null>>({ ops: null, website: null });
 	let dbErrors = $state<Record<PairId, string>>({ ops: "", website: "" });
 	let dbLoading = $state<Record<PairId, boolean>>({ ops: false, website: false });
-	let copyRuns = $state<Record<PairId, CopyRun | null>>({ ops: null, website: null });
+	let copyRuns = $state<Record<CopyId, CopyRun | null>>({ all: null, ops: null, website: null });
+	let siteEnv = $state("");
 	let loading = $state(true);
 	let loadError = $state("");
 	let query = $state(
@@ -74,7 +86,7 @@
 		),
 	);
 	let confirm = $state<{ direction: Direction; scope: "all" | "selected" } | null>(null);
-	let confirmCopy = $state<PairId | null>(null);
+	let confirmCopy = $state<CopyId | null>(null);
 	let working = $state(false);
 	let warnings = $state<string[]>([]);
 	let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -135,6 +147,21 @@
 	/** Buttons stay put in every state; these say why one can't be used. */
 	const nothingWaiting = $derived(entries.length ? null : "Nothing differs from live");
 	const hostedOnly = $derived(local ? "Only runs in hosted ops" : null);
+	/** Copies read production: production ops starts them, never dev ops. */
+	const copyBlocked = $derived(
+		hostedOnly ?? (siteEnv === "dev" ? "Start it from production ops: it reads production" : null),
+	);
+	/** Copies share one queue, so one at a time. */
+	const copying = $derived(COPIES.some(({ id }) => copyRuns[id] && copyRuns[id].status !== "completed"));
+	const copyReason = $derived(copyBlocked ?? (copying ? "A copy is running" : null));
+
+	const devCopySummary = $derived.by((): Summary => {
+		const run = copyRuns.all;
+		if (!run) return { tone: "muted", text: "On demand" };
+		if (run.status !== "completed") return { tone: "muted", text: "Copying…" };
+		if (run.conclusion === "success") return { tone: "up", text: "Copied" };
+		return { tone: "warn", text: "Failed", title: "Open the log for details" };
+	});
 
 	function toggle(set: Set<string>, id: string): Set<string> {
 		const next = new Set(set);
@@ -194,7 +221,7 @@
 	}
 
 	async function pollCopies() {
-		for (const pair of PAIRS) {
+		for (const pair of COPIES) {
 			const run = copyRuns[pair.id];
 			if (!run?.runId || run.status === "completed") continue;
 			try {
@@ -211,7 +238,8 @@
 				if (status.completed) {
 					if (status.conclusion === "success") {
 						toast.ok(`${pair.label} copy finished.`);
-						void loadDb(pair.id);
+						if (pair.id === "all") void load();
+						else void loadDb(pair.id);
 					} else {
 						toast.error(`${pair.label} copy did not finish. Open the log for details.`);
 					}
@@ -224,6 +252,9 @@
 
 	onMount(() => {
 		void load();
+		getMe()
+			.then((me) => (siteEnv = me.siteEnv))
+			.catch(() => {});
 		pollTimer = setInterval(() => void pollCopies(), 5000);
 	});
 
@@ -296,7 +327,8 @@
 		const id = confirmCopy;
 		working = true;
 		try {
-			const run = await copyDbPair(id);
+			const target = COPIES.find((copy) => copy.id === id)?.target ?? "everything";
+			const run = await startDevCopy(target);
 			confirmCopy = null;
 			copyRuns = {
 				...copyRuns,
@@ -345,6 +377,21 @@
 			{/if}
 		</p>
 	</div>
+{/snippet}
+
+{#snippet runStatus(run: CopyRun | null)}
+	{#if run}
+		<span class="run" class:failed={run.status === "completed" && run.conclusion !== "success"}>
+			{run.status !== "completed"
+				? "Copying…"
+				: run.conclusion === "success"
+					? "Copy finished."
+					: "Copy failed."}
+			{#if run.runUrl}
+				<a href={run.runUrl} target="_blank" rel="noreferrer">Log</a>
+			{/if}
+		</span>
+	{/if}
 {/snippet}
 
 {#snippet sectionHead(id: string, title: string, summary: Summary)}
@@ -621,7 +668,6 @@
 							{@const result = dbs[pair.id]}
 							{@const summary = dbSummary(pair.id)}
 							{@const run = copyRuns[pair.id]}
-							{@const copying = Boolean(run && run.status !== "completed")}
 							<section class="group" aria-label={pair.label}>
 								<header class="group-head db-head">
 									<h3>{pair.label}: production → {pair.copy}</h3>
@@ -690,8 +736,8 @@
 										<Button
 											variant="outline"
 											size="sm"
-											disabled={working || copying || Boolean(hostedOnly)}
-											reason={hostedOnly ?? (copying ? "A copy is running" : undefined)}
+											disabled={working || Boolean(copyReason)}
+											reason={copyReason ?? undefined}
 											onclick={() => (confirmCopy = pair.id)}
 										>
 											{#snippet icon()}
@@ -699,21 +745,7 @@
 											{/snippet}
 											Copy production over it
 										</Button>
-										{#if run}
-											<span
-												class="run"
-												class:failed={run.status === "completed" && run.conclusion !== "success"}
-											>
-												{run.status !== "completed"
-													? "Copying…"
-													: run.conclusion === "success"
-														? "Copy finished."
-														: "Copy failed."}
-												{#if run.runUrl}
-													<a href={run.runUrl} target="_blank" rel="noreferrer">Log</a>
-												{/if}
-											</span>
-										{/if}
+										{@render runStatus(run)}
 										{#if result}
 											<span class="checked">Checked {formatWhen(result.checkedAt)}</span>
 										{/if}
@@ -721,6 +753,36 @@
 								</div>
 							</section>
 						{/each}
+					</div>
+				{/if}
+			</section>
+
+			<!-- 4. Dev copy -->
+			<section class="card" aria-label="Copy production to dev">
+				{@render sectionHead("copy", "Copy production to dev", devCopySummary)}
+				{#if section.has("copy")}
+					<div class="section-body">
+						<p class="muted">
+							Makes dev a fresh copy of production: website content (events, menu, pages, drafts
+							included) goes to Gwenda Dev Sanity, and the Ops and Website databases to their Gwenda
+							Dev copies. Dev's own changes, and anything only dev has, are removed. Photos in the databases are not copied.
+							Production is only read. It only runs when you start it.
+						</p>
+						<div class="db-actions">
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={working || Boolean(copyReason)}
+								reason={copyReason ?? undefined}
+								onclick={() => (confirmCopy = "all")}
+							>
+								{#snippet icon()}
+									<Icon name="copy" size={14} />
+								{/snippet}
+								Copy production to dev
+							</Button>
+							{@render runStatus(copyRuns.all)}
+						</div>
 					</div>
 				{/if}
 			</section>
@@ -766,20 +828,27 @@
 
 	<Dialog
 		open={confirmCopy !== null}
-		title="Copy production over the {confirmCopy === 'ops' ? 'Ops dev copy' : 'Website dev copy'}?"
+		title={confirmCopy === "all"
+			? "Copy production over dev?"
+			: `Copy production over the ${confirmCopy === "ops" ? "Ops dev copy" : "Website dev copy"}?`}
 		onclose={() => {
 			if (!working) confirmCopy = null;
 		}}
 	>
 		<p class="dialog-copy">
-			{#if confirmCopy === "ops"}
+			{#if confirmCopy === "all"}
+				Dev's website content (Gwenda Dev Sanity) and every row in the Gwenda Dev copies of the Ops
+				and Website DBs are replaced with production's, so dev will hold real people's data
+				(subscribers, form submissions). Dev-only documents and rows are deleted.
+			{:else if confirmCopy === "ops"}
 				Every row in the Gwenda Dev copy of the Ops DB (what dev ops uses) is replaced with
 				production's. Local edits there are lost.
 			{:else}
 				Every row in the Gwenda Dev copy of the Website DB (subscribers, form submissions) is replaced
 				with production's, so the dev website will hold real people's data. Dev-only rows are lost.
 			{/if}
-			Production is only read. Photos are not copied. It runs as a GitHub Action and takes a few minutes.
+			Production is only read. Database photos are not copied. It runs as a GitHub Action and takes a
+			few minutes.
 		</p>
 		{#snippet footer()}
 			<Button variant="outline" size="sm" disabled={working} onclick={() => (confirmCopy = null)}>

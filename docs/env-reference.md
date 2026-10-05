@@ -367,7 +367,7 @@ Starting a GitHub workflow needs a GitHub token. The webhook Worker holds this o
 
 - **Owner:** GitHub user **das974** (a personal account): a fine-grained token limited to `gwenda-hackney/ark`. It stops working if that account loses access to the repo.
 - **SM:** `DISPATCH_TOKEN__PRODUCTION`, in [`ark`](#ark).
-- **What:** a fine-grained GitHub token for `gwenda-hackney/ark` only (Actions read/write, Contents read). The webhook Worker starts the `web.yml`, `web-promote.yml` and `baserow-copy.yml` runs with it.
+- **What:** a fine-grained GitHub token for `gwenda-hackney/ark` only (Actions read/write, Contents read). The webhook Worker starts the `web.yml`, `web-promote.yml` and `copy-prod-to-dev.yml` runs with it.
 - **Runtime name:** `GITHUB_TOKEN` on the webhook Worker.
 - **Gets there by:** `workers.yml` exports it (`sm-export.mjs`) and puts it on the Worker.
 - **Expires:** GitHub reports no expiry date (checked 2026-10-02).

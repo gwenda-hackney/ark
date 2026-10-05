@@ -1,14 +1,16 @@
 /**
  * Ops Website page helpers: compare the code the preview and live run, and start
- * a Baserow copy (production → dev). Both need the GitHub token only
- * this worker holds.
+ * a copy of production over dev (content and databases). Both need the GitHub
+ * token only this worker holds.
  */
 import { githubFetch } from "./github";
 import { callerEnvironment, isAuthorized } from "./handler";
 import type { Env, HandlerResult, WorkflowRun } from "./types";
 
-export const BASEROW_COPY_WORKFLOW_FILE = "baserow-copy.yml";
-export const BASEROW_COPY_TARGETS = new Set(["ops-dev", "website-dev"]);
+export const DEV_COPY_WORKFLOW_FILE = "copy-prod-to-dev.yml";
+export const DEV_COPY_TARGETS = new Set(["everything", "content", "ops-data", "website-data"]);
+/** Targets ops sent before the copy took content too (POST /baserow-copy). */
+const LEGACY_TARGETS: Record<string, string> = { "ops-dev": "ops-data", "website-dev": "website-data" };
 
 const SHA = /^[0-9a-f]{7,40}$/i;
 
@@ -70,7 +72,7 @@ export async function handleCompare(request: Request, env: Env): Promise<Handler
 async function latestCopyRun(env: Env, after: number): Promise<WorkflowRun | null> {
   const res = await githubFetch(
     env,
-    `/actions/workflows/${BASEROW_COPY_WORKFLOW_FILE}/runs?event=workflow_dispatch&per_page=5`,
+    `/actions/workflows/${DEV_COPY_WORKFLOW_FILE}/runs?event=workflow_dispatch&per_page=5`,
   );
   if (!res.ok) return null;
   const data = (await res.json()) as { workflow_runs?: (WorkflowRun & { created_at?: string })[] };
@@ -81,12 +83,15 @@ async function latestCopyRun(env: Env, after: number): Promise<WorkflowRun | nul
   );
 }
 
-/** POST /baserow-copy { target: "ops-dev" | "website-dev" } */
-export async function handleBaserowCopy(request: Request, env: Env): Promise<HandlerResult> {
+/**
+ * POST /dev-copy { target: "everything" | "content" | "ops-data" | "website-data" }
+ * (also POST /baserow-copy, which older ops sends "ops-dev" | "website-dev" to).
+ */
+export async function handleDevCopy(request: Request, env: Env): Promise<HandlerResult> {
   // Reads production, so production ops only.
   const caller = callerEnvironment(request, env);
   if (caller === "dev") {
-    return { status: 403, body: { error: "Copy the databases from production ops (Website → Databases)." } };
+    return { status: 403, body: { error: "Copy production to dev from production ops (Developer tools)." } };
   }
   if (!caller) return { status: 401, body: { error: "Unauthorized" } };
   let body: { target?: string } | null = null;
@@ -95,12 +100,13 @@ export async function handleBaserowCopy(request: Request, env: Env): Promise<Han
   } catch {
     body = null;
   }
-  const target = String(body?.target || "");
-  if (!BASEROW_COPY_TARGETS.has(target)) {
-    return { status: 400, body: { error: 'target must be "ops-dev" or "website-dev".' } };
+  const raw = String(body?.target || "");
+  const target = LEGACY_TARGETS[raw] || raw;
+  if (!DEV_COPY_TARGETS.has(target)) {
+    return { status: 400, body: { error: `target must be one of: ${[...DEV_COPY_TARGETS].join(", ")}.` } };
   }
   const started = Date.now();
-  const res = await githubFetch(env, `/actions/workflows/${BASEROW_COPY_WORKFLOW_FILE}/dispatches`, {
+  const res = await githubFetch(env, `/actions/workflows/${DEV_COPY_WORKFLOW_FILE}/dispatches`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // Reads production, so it runs on release in the production environment (#61).
