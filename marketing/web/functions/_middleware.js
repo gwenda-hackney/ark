@@ -37,7 +37,7 @@ import {
 
 /** Which features each website API path writes, for the write freeze (#191). */
 export const WEB_WRITE_FEATURES = [
-  [/^\/api\/(subscribe|forms|rsvp|ticket)(\/|$)/, ["guests"]],
+  [/^\/api\/(subscribe|forms)(\/|$)/, ["guests"]],
 ];
 
 // Sentry first (#35): thrown errors, and console.error from the functions
@@ -51,7 +51,7 @@ export const onRequest = [
   gate,
 ];
 
-/** While guests' data moves to D1, sign-ups, forms and RSVPs wait (#191). */
+/** While guests' data moves to D1, sign-ups and forms wait (#191). */
 export async function refuseFrozenWrites(context) {
   const url = new URL(context.request.url);
   if (url.pathname.startsWith("/api/") && isWriteRequest(context.request)) {

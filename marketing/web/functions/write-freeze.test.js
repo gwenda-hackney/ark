@@ -11,7 +11,7 @@ const context = (env, method, path) => ({
 });
 
 describe("website write freeze", () => {
-  it("holds sign-ups, forms and RSVPs while guests move; reads and other paths pass", async () => {
+  it("holds sign-ups and forms while guests move; reads and other paths pass", async () => {
     const WEBSITE_DB = createTestD1("website");
     const env = { WEBSITE_DB };
     assert.equal(
@@ -25,12 +25,7 @@ describe("website write freeze", () => {
       WEBSITE_DB,
       "INSERT INTO _meta (key, value) VALUES ('write_freeze:guests', 'now')",
     );
-    for (const path of [
-      "/api/subscribe",
-      "/api/forms",
-      "/api/forms/edit",
-      "/api/rsvp",
-    ]) {
+    for (const path of ["/api/subscribe", "/api/forms", "/api/forms/edit"]) {
       assert.equal(
         (await refuseFrozenWrites(context(env, "POST", path))).status,
         423,
