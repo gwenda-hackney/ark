@@ -510,6 +510,13 @@ jobs:
       - name: Smoke test dev auth gate
         run: node scripts/smoke-ops-auth.mjs https://gwenda-ops-dev.pages.dev/
 
+      # Post migrations may read Sanity and Drive (the event photo backfill, #183),
+      # like production's, which pulls the ops runtime secrets first.
+      - name: Pull ops runtime secrets for migrations
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env --profile dev
+
       # The new code is live: remove what only the old code used.
       - name: Migrations after deploy
         run: node scripts/migrate.mjs --app ops --phase post --env dev
