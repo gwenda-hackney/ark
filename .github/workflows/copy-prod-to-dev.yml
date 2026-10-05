@@ -1,0 +1,85 @@
+name: Copy production to dev
+
+# Copy production over dev: website content (Sanity) and the backend databases
+# (Baserow today; scripts/lib/dev-copy/database.mjs). Production is only read.
+# On demand only, never scheduled: ops Developer tools (via the site-deploy
+# webhook) or by hand.
+#
+#   everything     content, then the Ops and Website databases
+#   content        Gwenda Web Sanity → Gwenda Dev Sanity (drafts included)
+#   ops-data       Gwenda / Gwenda Ops → Gwenda Dev copy (dev ops)
+#   website-data   Gwenda / Website → Gwenda Dev copy (dev website)
+#
+# Databases keep their ids: tables are reused, rows wiped and re-copied. File
+# values (photos) are not copied. Sanity documents are replaced by id.
+#
+# Needs in Bitwarden SM: BASEROW_JWT_EMAIL / BASEROW_JWT_PASSWORD (the clone
+# scripts create missing tables and columns), SANITY_API_TOKEN__PRODUCTION
+# (reads the real project) and SANITY_API_TOKEN__DEV (writes Gwenda Dev).
+#
+# It reads production, so it runs on release in the production environment
+# (#61); the site-deploy webhook dispatches it there.
+
+run-name: copy-prod-to-dev-${{ inputs.target }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to overwrite in dev from production
+        required: true
+        type: choice
+        default: everything
+        options:
+          - everything
+          - content
+          - ops-data
+          - website-data
+
+# One copy at a time: "everything" and "ops-data" write the same database.
+concurrency:
+  group: copy-prod-to-dev
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    name: Copy production → dev (${{ inputs.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        uses: ./.github/actions/npm-install
+
+      - name: Pull production ops secrets
+        if: inputs.target != 'content'
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: npm run env:ops:pull -- --github-env
+
+      - name: Baserow login
+        if: inputs.target != 'content'
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      - name: Sanity tokens
+        if: inputs.target == 'everything' || inputs.target == 'content'
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs SANITY_API_TOKEN__PRODUCTION SANITY_API_TOKEN__DEV
+
+      - name: Copy
+        run: node scripts/copy-prod-to-dev.mjs --target=${{ inputs.target }}
