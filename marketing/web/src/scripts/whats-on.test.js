@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   applyHomeArtist,
   applyHomeNext,
+  cardLayout,
   earliestDiaryNight,
   initHomeNext,
   readsLiveDiary,
@@ -223,6 +224,75 @@ describe("initWhatsOnPage", () => {
       expect(content?.dataset.live).toBe("static");
     });
     expect(content?.querySelectorAll(".event-card")).toHaveLength(1);
+  });
+});
+
+describe("4:5 card trial (#27)", () => {
+  const RECT =
+    "https://cdn.sanity.io/images/p/d/abc-2000x1500.jpg?rect=200,100,1600,1000&w=1600&h=1000&fit=max";
+
+  function page(cards) {
+    document.body.innerHTML = `
+      <main class="whats-on-page"${cards ? ` data-cards="${cards}"` : ""}>
+        <div id="whats-on-content"></div>
+      </main>
+    `;
+    return document.querySelector("main");
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.innerHTML = "";
+    delete document.documentElement.dataset.siteEnv;
+  });
+
+  it("reads the layout from the page, never on the live site", () => {
+    expect(cardLayout("preview", page("portrait"))).toBe("portrait");
+    expect(cardLayout("local", page("portrait-grid"))).toBe("portrait-grid");
+    expect(cardLayout("preview", page("sideways"))).toBe("");
+    expect(cardLayout("preview", page(""))).toBe("");
+    expect(cardLayout("production", page("portrait"))).toBe("");
+  });
+
+  async function refreshedSrc(env) {
+    document.documentElement.dataset.siteEnv = env;
+    page("portrait");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          nights: [
+            {
+              title: "Negroni Knights",
+              href: "/whats-on/negroni-knights",
+              date: "2026-09-29",
+              regular: true,
+              scheduleLabel: "Every Tuesday",
+              heroImageUrl: RECT,
+            },
+          ],
+          next: null,
+        }),
+      })),
+    );
+    initWhatsOnPage();
+    const content = document.getElementById("whats-on-content");
+    await vi.waitFor(() => {
+      expect(content?.dataset.live).toBe("ready");
+    });
+    return new URL(content?.querySelector(".event-hero")?.getAttribute("src"));
+  }
+
+  it("re-renders the cards 4:5 on dev", async () => {
+    const src = await refreshedSrc("preview");
+    expect(src.searchParams.get("rect")).toBe("600,100,800,1000");
+    expect(src.searchParams.get("h")).toBe("1000");
+  });
+
+  it("ignores the layout on the live site", async () => {
+    const src = await refreshedSrc("production");
+    expect(src.searchParams.get("rect")).toBe("200,100,1600,1000");
   });
 });
 
