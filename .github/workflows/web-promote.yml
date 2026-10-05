@@ -34,7 +34,8 @@ jobs:
     permissions:
       contents: write
       deployments: write
-      actions: read
+      # actions: write to rebuild after a content migration (below).
+      actions: write
       pull-requests: read
     environment:
       name: production
@@ -177,8 +178,20 @@ jobs:
 
       # The new code is live: remove what only the old code used.
       - name: Migrations after deploy
+        id: post-migrations
         if: inputs.reason != 'content'
         run: node scripts/migrate.mjs --app web --phase post --env production
+
+      # The live site and production's preview were built before a migration
+      # changed their content: build them again from it, as ops publishing
+      # does. The content promote queues behind this run (concurrency).
+      - name: Rebuild with the migrated content
+        if: steps.post-migrations.outputs.rebuild == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run web-promote.yml --ref release -f reason=content
+          gh workflow run web.yml --ref release -f action=preview
 
       # Studio only needs redeploying when its code changed (~30s otherwise).
       - name: Did Studio change since the last release?

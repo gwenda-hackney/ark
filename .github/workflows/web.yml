@@ -67,6 +67,8 @@ jobs:
     permissions:
       contents: read
       deployments: write
+      # Rebuild after a content migration (below).
+      actions: write
     environment:
       name: dev
       url: ${{ matrix.site == 'live' && 'https://gwenda-web-dev.pages.dev' || 'https://preview.gwenda-web-dev.pages.dev' }}
@@ -152,7 +154,18 @@ jobs:
 
       # The new code is live: remove what only the old code used.
       - name: Migrations after deploy
+        id: post-migrations
         run: node scripts/migrate.mjs --app web --phase post --env dev
+
+      # Both dev sites were built before a migration changed their content:
+      # build them again from it (that run's migrations find nothing to do).
+      - name: Rebuild with the migrated content
+        if: steps.post-migrations.outputs.rebuild == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run web.yml --ref main -f action=dev-live
+          gh workflow run web.yml --ref main -f action=dev-preview
 
   # Prod's preview: the release code on drafts over published. A push to
   # release builds it with the new code; ops's content rebuilds dispatch it on

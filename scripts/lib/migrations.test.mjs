@@ -192,6 +192,13 @@ describe("migrations", () => {
     assert.deepEqual(ran, ["1.mjs", "4.mjs"]);
   });
 
+  it("asks for a website rebuild when a migration changed its content", async () => {
+    const make = (name, result) => checkMigration(name, { app: "web", phase: "post", about: name, up: async () => result });
+    const run = (list) => runMigrations(list, { env: "dev", database: async () => null, log: () => {} });
+    assert.deepEqual(await run([make("1.mjs", undefined), make("2.mjs", { rebuild: true }), make("3.mjs")]), { rebuild: true });
+    assert.deepEqual(await run([make("1.mjs", undefined), make("2.mjs", { rebuild: false })]), { rebuild: false });
+  });
+
   it("every file in migrations/ is a valid migration", async () => {
     const loaded = await loadMigrations(resolve(ROOT, "migrations"));
     assert.ok(loaded.length > 0);
