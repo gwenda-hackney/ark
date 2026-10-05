@@ -8,6 +8,10 @@
  * jobs can apply the same migration together. The loser fails (for example
  * "duplicate column"), so a failed apply is retried once: by then the
  * migration is recorded and the retry does nothing.
+ *
+ * Local runs (ops:dev) apply the same migrations to the throwaway local
+ * databases `wrangler pages dev` opens: localD1MigrationPlan reads the app's
+ * own wrangler.toml, because local state is keyed by the database_id it binds.
  */
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -51,6 +55,35 @@ export function d1MigrationPlan(
   });
 }
 
+/**
+ * The D1 databases an app's wrangler.toml binds, as a plan for local
+ * migrations. Unknown bindings are ignored.
+ * @param {string} toml
+ */
+export function localD1MigrationPlan(toml) {
+  const roleOf = Object.fromEntries(
+    Object.entries(D1_BINDINGS).map(([role, binding]) => [binding, role]),
+  );
+  const blocks = String(toml)
+    .split(/^\[\[d1_databases\]\]\s*$/m)
+    .slice(1);
+  return blocks.flatMap((block) => {
+    const value = (key) =>
+      new RegExp(`^${key}\\s*=\\s*"([^"]*)"`, "m").exec(block)?.[1] ?? "";
+    const role = roleOf[value("binding")];
+    const id = value("database_id");
+    if (!role || !id) return [];
+    return [
+      {
+        role,
+        name: value("database_name"),
+        id,
+        migrationsDir: join(ROOT, "db", role, "migrations"),
+      },
+    ];
+  });
+}
+
 /** A wrangler config naming only this database. */
 export function wranglerConfig({ role, name, id, migrationsDir }) {
   return [
@@ -66,8 +99,14 @@ export function wranglerConfig({ role, name, id, migrationsDir }) {
   ].join("\n");
 }
 
-function wrangler(args, { configPath, env = process.env, run = spawnSync }) {
-  const result = run(WRANGLER, [...args, "--remote", "-c", configPath], {
+function wrangler(
+  args,
+  { configPath, env = process.env, run = spawnSync, persistTo = "" },
+) {
+  const target = persistTo
+    ? ["--local", "--persist-to", persistTo]
+    : ["--remote"];
+  const result = run(WRANGLER, [...args, ...target, "-c", configPath], {
     stdio: "inherit",
     env: { ...env, CI: "true" },
   });
@@ -76,6 +115,7 @@ function wrangler(args, { configPath, env = process.env, run = spawnSync }) {
 
 /**
  * Apply (or, with dryRun, list) pending migrations for each planned database.
+ * With persistTo, to the local databases kept there instead of the remote ones.
  * @returns {Promise<{ role: string, status: "applied" | "listed" | "skipped" }[]>}
  */
 export async function applyD1Migrations(
@@ -86,8 +126,10 @@ export async function applyD1Migrations(
     run = spawnSync,
     wait = sleep,
     log = console.log,
+    persistTo = "",
   } = {},
 ) {
+  const where = persistTo ? " (local)" : "";
   const results = [];
   for (const item of plan) {
     if (item.skip) {
@@ -101,15 +143,15 @@ export async function applyD1Migrations(
       writeFileSync(configPath, wranglerConfig(item));
       const args = ["d1", "migrations", dryRun ? "list" : "apply", item.name];
       log(
-        `D1 ${item.name}: ${dryRun ? "pending migrations" : "applying migrations"}…`,
+        `D1 ${item.name}${where}: ${dryRun ? "pending migrations" : "applying migrations"}…`,
       );
-      let ok = wrangler(args, { configPath, env, run });
-      if (!ok && !dryRun) {
+      let ok = wrangler(args, { configPath, env, run, persistTo });
+      if (!ok && !dryRun && !persistTo) {
         log(
           `D1 ${item.name}: apply failed; retrying once in case another deploy got there first…`,
         );
         await wait(10_000);
-        ok = wrangler(args, { configPath, env, run });
+        ok = wrangler(args, { configPath, env, run, persistTo });
       }
       if (!ok) throw new Error(`D1 migrations for ${item.name} failed.`);
       results.push({ role: item.role, status: dryRun ? "listed" : "applied" });

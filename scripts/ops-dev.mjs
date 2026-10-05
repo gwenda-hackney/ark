@@ -23,16 +23,19 @@
  * stack traces. The app shows a red "LOCAL COPY ON LIVE DATA" banner.
  */
 import { spawn } from "node:child_process";
-import { rmSync, symlinkSync } from "node:fs";
+import { readFileSync, rmSync, symlinkSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { APP_SECRETS } from "./lib/bitwarden-sm.mjs";
+import { applyD1Migrations, localD1MigrationPlan } from "./lib/d1-migrate.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 import { writeRuntimeEnvFile } from "./lib/secrets-cache.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OPS_DIR = resolve(ROOT, "ops/site");
 const DEV_VARS_PATH = resolve(OPS_DIR, ".dev.vars");
+/** Where `wrangler pages dev` keeps local state (its default), D1 included. */
+const LOCAL_STATE = resolve(OPS_DIR, ".wrangler/state");
 
 /** Secrets + config fills Wrangler binds for the Functions. */
 /**
@@ -226,6 +229,17 @@ async function main() {
     console.log(`Baserow Ops DB ${databaseId} (${LIVE ? "Gwenda, PRODUCTION" : "Gwenda Dev"} token)`);
   } catch (error) {
     console.warn(`Baserow Ops DB not reachable: ${error instanceof Error ? error.message : error}`);
+  }
+
+  // wrangler.toml never binds D1 remotely, so local runs (live included) get
+  // throwaway local databases; give them the schema hosted ops has.
+  try {
+    const plan = localD1MigrationPlan(readFileSync(resolve(OPS_DIR, "wrangler.toml"), "utf8"));
+    await applyD1Migrations(plan, { persistTo: LOCAL_STATE });
+  } catch (error) {
+    console.warn(
+      `Local D1 not migrated (${error instanceof Error ? error.message : error}). Features stored in D1 may fail.`,
+    );
   }
 
   const children = [];

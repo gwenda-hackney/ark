@@ -4,8 +4,8 @@
  * migrations applied (so the in-flight unique index is covered too).
  */
 import assert from "node:assert/strict";
-import { beforeEach, describe, it } from "vitest";
 import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
+import { repositoryContract } from "../../../../../shared/testing/repository-contract.js";
 import { d1PostRepository } from "./adapters/d1-posts.js";
 import { memoryPostRepository } from "./adapters/memory-posts.js";
 import { POST_STATUS, newPost } from "./post-model.js";
@@ -23,7 +23,8 @@ function post(overrides = {}) {
     nightOn: "2026-10-08",
     caption: "Negroni Chess\n\nThursday 8 October",
     imageAsset: ASSET,
-    imageUrl: "https://cdn.sanity.io/images/p/production/x-1600x1000.jpg?w=1080&h=1350",
+    imageUrl:
+      "https://cdn.sanity.io/images/p/production/x-1600x1000.jpg?w=1080&h=1350",
     containerId: "c1",
     postedBy: "editor@gwenda.co.uk",
     now: new Date("2026-10-05T18:02:00.000Z"),
@@ -31,22 +32,28 @@ function post(overrides = {}) {
   });
 }
 
-for (const [name, make] of Object.entries(ADAPTERS)) {
-  describe(`InstagramPostRepository: ${name}`, () => {
-    let repo;
-    beforeEach(() => {
-      repo = make();
+repositoryContract("InstagramPostRepository", {
+  adapters: ADAPTERS,
+  seed: async (repo) => {
+    const sent = await repo.start(post());
+    await repo.finish(sent.id, {
+      mediaId: "m1",
+      permalink: "https://instagram.com/p/m1",
+      sentAt: "2026-10-05T18:03:00.000Z",
     });
-
-    it("keeps every field of a post", async () => {
+    const failed = await repo.start(post({ nightOn: "" }));
+    await repo.fail(failed.id, "Instagram couldn't fetch the image.");
+    await repo.start(post({ eventId: "13", nightOn: "2026-10-15" }));
+  },
+  cases: {
+    "keeps every field of a post": async (repo) => {
       const started = await repo.start(post());
       assert.ok(started.id);
       const { id, ...stored } = await repo.get(started.id);
       assert.equal(id, started.id);
       assert.deepEqual(stored, { ...post(), eventId: "12" });
-    });
-
-    it("one post in flight per night", async () => {
+    },
+    "one post in flight per night": async (repo) => {
       assert.ok(await repo.start(post()));
       assert.equal(await repo.start(post({ containerId: "c2" })), null);
       // Another night, the series, another event: all free.
@@ -54,57 +61,76 @@ for (const [name, make] of Object.entries(ADAPTERS)) {
       assert.ok(await repo.start(post({ nightOn: "" })));
       assert.equal(await repo.start(post({ nightOn: "" })), null);
       assert.ok(await repo.start(post({ eventId: "13" })));
-    });
-
-    it("the night is free again once the post is sent or failed", async () => {
+    },
+    "the night is free again once the post is sent or failed": async (repo) => {
       const first = await repo.start(post());
       await repo.fail(first.id, "Instagram couldn't fetch the image.");
       const second = await repo.start(post({ containerId: "c2" }));
       assert.ok(second);
-      await repo.finish(second.id, { mediaId: "m1", permalink: "https://instagram.com/p/m1", sentAt: "2026-10-05T18:03:00.000Z" });
+      await repo.finish(second.id, {
+        mediaId: "m1",
+        permalink: "https://instagram.com/p/m1",
+        sentAt: "2026-10-05T18:03:00.000Z",
+      });
       assert.ok(await repo.start(post({ containerId: "c3" })));
-    });
-
-    it("finishing records the post sent", async () => {
+    },
+    "finishing records the post sent": async (repo) => {
       const started = await repo.start(post());
-      const sent = await repo.finish(started.id, { mediaId: "m1", permalink: "https://instagram.com/p/m1", sentAt: "2026-10-05T18:03:00.000Z" });
+      const sent = await repo.finish(started.id, {
+        mediaId: "m1",
+        permalink: "https://instagram.com/p/m1",
+        sentAt: "2026-10-05T18:03:00.000Z",
+      });
       assert.equal(sent.status, POST_STATUS.sent);
       assert.equal(sent.mediaId, "m1");
       assert.equal(sent.permalink, "https://instagram.com/p/m1");
       assert.equal(sent.sentAt, "2026-10-05T18:03:00.000Z");
       assert.deepEqual(await repo.get(started.id), sent);
-    });
-
-    it("can't send a post twice, or fail a sent one", async () => {
+    },
+    "can't send a post twice, or fail a sent one": async (repo) => {
       const started = await repo.start(post());
       await repo.finish(started.id, { mediaId: "m1", permalink: "" });
-      await assert.rejects(repo.finish(started.id, { mediaId: "m2" }), { status: 409, message: "This post was already sent." });
+      await assert.rejects(repo.finish(started.id, { mediaId: "m2" }), {
+        status: 409,
+        message: "This post was already sent.",
+      });
       await assert.rejects(repo.fail(started.id, "x"), { status: 409 });
       assert.equal((await repo.get(started.id)).mediaId, "m1");
-    });
-
-    it("failing keeps what went wrong", async () => {
+    },
+    "failing keeps what went wrong": async (repo) => {
       const started = await repo.start(post());
-      const failed = await repo.fail(started.id, "Instagram can't use this image's shape.");
+      const failed = await repo.fail(
+        started.id,
+        "Instagram can't use this image's shape.",
+      );
       assert.equal(failed.status, POST_STATUS.failed);
       assert.equal(failed.lastError, "Instagram can't use this image's shape.");
-      await assert.rejects(repo.finish(started.id, { mediaId: "m1" }), { status: 409 });
-    });
-
-    it("lists an event's posts newest first, or one night's", async () => {
+      await assert.rejects(repo.finish(started.id, { mediaId: "m1" }), {
+        status: 409,
+      });
+    },
+    "lists an event's posts newest first, or one night's": async (repo) => {
       const a = await repo.start(post());
       await repo.fail(a.id, "x");
       const b = await repo.start(post());
       const c = await repo.start(post({ nightOn: "" }));
       await repo.start(post({ eventId: "99" }));
-      assert.deepEqual((await repo.listFor("12")).map((p) => p.id), [c.id, b.id, a.id]);
-      assert.deepEqual((await repo.listFor("12", "2026-10-08")).map((p) => p.id), [b.id, a.id]);
-      assert.deepEqual((await repo.listFor("12", "")).map((p) => p.id), [c.id]);
+      assert.deepEqual(
+        (await repo.listFor("12")).map((p) => p.id),
+        [c.id, b.id, a.id],
+      );
+      assert.deepEqual(
+        (await repo.listFor("12", "2026-10-08")).map((p) => p.id),
+        [b.id, a.id],
+      );
+      assert.deepEqual(
+        (await repo.listFor("12", "")).map((p) => p.id),
+        [c.id],
+      );
       assert.deepEqual(await repo.listFor("12", "2027-01-01"), []);
-    });
-
-    it("a missing post is null", async () => {
+    },
+    "a missing post is null": async (repo) => {
       assert.equal(await repo.get("424242"), null);
-    });
-  });
-}
+    },
+  },
+});
