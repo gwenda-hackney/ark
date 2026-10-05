@@ -8,6 +8,8 @@
  * - Sanity: documents in memory, queried with groq-js (the real GROQ engine)
  *   under the raw / published / previewDrafts perspectives.
  * - Google: service-account tokens, Drive folders, Calendar events.
+ * - Instagram: the fake Graph API dev ops posts to (ops/instagram-fake), and
+ *   the Sanity CDN images it fetches (`serveImage` changes what they are).
  *
  * Every world gets fresh random tokens, so ops' module-level caches (keyed by
  * token) never carry one test's data into the next. Anything not faked throws
@@ -25,11 +27,14 @@ import {
   sectionFields,
   userFields,
 } from "../platform/baserow-schema.js";
+import { createFakeInstagram, memoryStore, tinyJpeg } from "../../../instagram-fake/src/fake-instagram.js";
 
 const SANITY_PROJECT_ID = "gwscpagy";
 const DRIVE_EVENTS_ROOT = "drive-events-root";
 const FILES_HOST = "files.baserow.test";
 const CALENDAR_ID = "events@group.calendar.google.com";
+const INSTAGRAM_HOST = "instagram.fake.test";
+const INSTAGRAM_USER_ID = "17841400000000001";
 
 // ---------------------------------------------------------------- Baserow
 
@@ -586,10 +591,29 @@ export async function createFakeWorld() {
     GOOGLE_OAUTH_CLIENT_ID: "client-id",
     GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
     OPS_SESSION_SECRET: `session-${suffix}`,
+    INSTAGRAM_GRAPH_URL: `https://${INSTAGRAM_HOST}/v24.0`,
+    INSTAGRAM_ACCESS_TOKEN: `instagram-${suffix}`,
+    INSTAGRAM_USER_ID: INSTAGRAM_USER_ID,
   };
 
   const calls = [];
   const realFetch = globalThis.fetch;
+  const world = {};
+  /** A Sanity CDN image: a JPEG of the size asked for (w, h), else the asset's own. */
+  const defaultImage = (url) => {
+    const own = /-(\d+)x(\d+)\.\w+$/.exec(url.pathname);
+    const width = Number(url.searchParams.get("w")) || Number(own?.[1]) || 800;
+    const height = Number(url.searchParams.get("h")) || Number(own?.[2]) || 1000;
+    return new Response(tinyJpeg(width, height), { headers: { "Content-Type": "image/jpeg" } });
+  };
+  const instagramStore = memoryStore();
+  const instagram = createFakeInstagram({
+    token: env.INSTAGRAM_ACCESS_TOKEN,
+    userId: INSTAGRAM_USER_ID,
+    username: "gwenda_dev_test",
+    store: instagramStore,
+    fetchImage: (url) => fakeFetch(url),
+  });
   async function fakeFetch(input, init = {}) {
     const request = input instanceof Request ? input : null;
     const url = new URL(request ? request.url : String(input));
@@ -601,14 +625,24 @@ export async function createFakeWorld() {
     if (url.host === FILES_HOST) return baserow.serveFile(url);
     if (url.host.endsWith(".api.sanity.io") || url.host.endsWith(".apicdn.sanity.io")) return sanity.handle(url, merged);
     if (url.host.endsWith("googleapis.com")) return google.handle(url, merged);
+    if (url.host === "cdn.sanity.io") return (world.serveImage || defaultImage)(url);
+    if (url.host === INSTAGRAM_HOST) {
+      const method = (merged.method || "GET").toUpperCase();
+      return instagram.fetch(
+        new Request(url, { method, headers: merged.headers, body: method === "GET" ? undefined : merged.body }),
+      );
+    }
     throw new Error(`Fake world: nothing fakes ${merged.method || "GET"} ${url}`);
   }
 
-  return {
+  return Object.assign(world, {
     env,
     baserow,
     sanity,
     google,
+    instagram: { store: instagramStore, host: INSTAGRAM_HOST },
+    /** Replace to serve other images from cdn.sanity.io: (url) => Response. */
+    serveImage: null,
     calls,
     install() {
       globalThis.fetch = fakeFetch;
@@ -616,7 +650,7 @@ export async function createFakeWorld() {
     restore() {
       globalThis.fetch = realFetch;
     },
-  };
+  });
 }
 
 /**

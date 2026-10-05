@@ -291,6 +291,27 @@ The ops dashboard shows the website's unresolved errors from the last 24 hours. 
 - **Creating it:** in Sentry, Settings → Developer Settings → Create New Integration → Internal Integration. Name it `SENTRY_READ_TOKEN`, set Issue & Event to Read and leave every other permission at No Access and every webhook off, save, then copy the token from the integration's Tokens section (the client secret isn't needed). Store it with `SENTRY_READ_TOKEN=... npm run env:ops:push -- SENTRY_READ_TOKEN` (or put the line in `.env`, push, then delete it), run `npm run env:secrets:refresh`, and run the ops secrets workflow (`ops-secrets.yml`) for production; dev ops picks it up on its next deploy.
 - **Changing it:** add a new token on the same integration, store it, rerun the ops secrets workflow, then delete the old token in Sentry.
 
+### `INSTAGRAM_ACCESS_TOKEN`
+
+Ops posts to Instagram with it (#26). Without it, the Instagram tab says Instagram isn't set up.
+
+- **Owner:** production: the Meta system user `INSTAGRAM_ACCESS_TOKEN` in Gwenda's Business portfolio, on the `gwenda-ops` app (Facebook Login for Business), with `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement` and `business_management`. Dev: Gwenda, a made-up value only the fake Instagram Worker accepts (the same value is that Worker's `INSTAGRAM_ACCESS_TOKEN` secret).
+- **SM:** `INSTAGRAM_ACCESS_TOKEN__PRODUCTION` in [`ark/ops`](#arkops), `INSTAGRAM_ACCESS_TOKEN__DEV` in [`ark/ops-dev`](#arkops-dev). Never a shared value: dev must never hold a token Meta accepts.
+- **Used by:** ops (`src/instagram/server/adapters/graph-publisher.js`).
+- **Gets there by:** ops through its usual pull and Pages secrets (an ops key in `APP_SECRETS`).
+- **Expires:** never (system user token, expiry set to Never).
+- **Creating and changing it:** [instagram.md](instagram.md#production-the-meta-setup).
+
+### `INSTAGRAM_USER_ID`
+
+Which Instagram account ops posts as: the account's Graph API id, not its @handle. A setting more than a secret, kept next to its token so the two change together.
+
+- **Owner:** production: @gwendahackney's Instagram business account id. Dev: `17841400000000001`, the made-up account the fake Instagram answers as (`ops/instagram-fake/wrangler.toml`).
+- **SM:** `INSTAGRAM_USER_ID__PRODUCTION` in [`ark/ops`](#arkops), `INSTAGRAM_USER_ID__DEV` in [`ark/ops-dev`](#arkops-dev).
+- **Used by:** ops, with `INSTAGRAM_ACCESS_TOKEN`.
+- **Gets there by:** as `INSTAGRAM_ACCESS_TOKEN`.
+- **Expires:** never.
+
 ---
 
 ## Website
@@ -515,6 +536,10 @@ Stamped into each build so a page can say which build it is, whether it's a prev
 - `PUBLIC_SITE_ORIGIN`: the public address of a non-live build.
 - `PUBLIC_OPENING_DATE`: the opening date; GitHub variable `PUBLIC_OPENING_DATE`, default `2026-08-01`.
 
+### Instagram
+
+- `INSTAGRAM_GRAPH_URL`: where ops sends Instagram calls. Unset in production, which always uses `https://graph.facebook.com/v24.0` and refuses anything else. Dev ops sets it in `wrangler.dev.toml` to the fake Instagram Worker; your machine can set it in `.env` to `wrangler dev` of the fake. Unset outside production is a dry run. See [instagram.md](instagram.md).
+
 ### Secrets Manager scripts
 
 Optional, not secret, and unset by default.
@@ -563,3 +588,5 @@ Personal settings for local work, so test email reaches you and nothing else.
 | `SENTRY_AUTH_TOKEN` | Sentry organisation (internal integration) | `__PRODUCTION` | [`ark`](#ark) / — | never |
 | `SENTRY_ORG_TOKEN` | Sentry organisation | shared | — / [`ark-dev`](#ark-dev) | never |
 | `SENTRY_READ_TOKEN` | Sentry organisation (internal integration) | shared | — / [`ark/ops-dev`](#arkops-dev) | never |
+| `INSTAGRAM_ACCESS_TOKEN` | Meta system user (production), Gwenda (dev, fake) | `__DEV` / `__PRODUCTION` | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |
+| `INSTAGRAM_USER_ID` | Instagram account id | `__DEV` / `__PRODUCTION` | [`ark/ops`](#arkops) / [`ark/ops-dev`](#arkops-dev) | never |

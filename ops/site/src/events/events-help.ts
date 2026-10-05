@@ -70,6 +70,10 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "Photos for the event's page, from its Drive gallery, newest first. They go on the website with Update website. They are not the What's on flyer: the flyer is the photo on Details.",
 	},
 	{
+		title: "Instagram",
+		body: "Post a series, a night or a special to Instagram's feed now. The image is the photo from Details, cropped to Instagram's 4:5 shape (or shown whole, as on the website). The caption starts from the event's details; change it as you like, up to 2,200 characters. Check has Instagram look at the image and caption without posting anything. Post shows the account it goes to and asks first. A night has to be on the website before it can be posted, so the link in the post works: press Update website first. Posting the same night again asks you to confirm. You can delete a post on Instagram, not here.",
+	},
+	{
 		title: "Ops tab",
 		body: "Notes for the team are never on the website: contacts, fee, setup, access, equipment. The line above them counts the social post tasks in ClickUp.",
 	},

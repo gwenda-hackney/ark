@@ -271,6 +271,13 @@ describe("spa-path", () => {
       tab: "gallery",
       list: null,
     });
+    assert.deepEqual(parseShellPath("/events/12@2026-10-08/instagram"), {
+      page: "events",
+      slug: "12@2026-10-08",
+      isNew: false,
+      tab: "instagram",
+      list: null,
+    });
     assert.deepEqual(parseShellPath("/events/12/bogus"), {
       page: "events",
       slug: "12",
