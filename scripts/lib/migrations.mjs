@@ -11,19 +11,26 @@
  *   export const app = "web";          // whose deploy runs it: "web" | "ops"
  *   export const phase = "pre";        // "pre" | "post"
  *   export const about = "Form Submissions: Edit Link column";
- *   export async function up({ env, database, processEnv, log }) {
+ *   export async function up({ env, database, sanity, processEnv, log }) {
  *     const website = await database("website");
  *     log(await website.ensureField("Form Submissions", { name: "Edit Link", type: "url" }));
  *   }
  *
+ * `database(key)` changes this environment's Baserow; `sanity()` its Sanity
+ * content. Both note changes to what the website build reads (published
+ * documents, the tables in SITE_BUILD_TABLES): the site was built before the
+ * post migrations, so CI then rebuilds it from the migrated data.
+ *
  * Nothing records which migrations ran. Every deploy runs them all, so each
  * one checks the real state first and does nothing when it's already done.
- * A record would lie after `baserow-copy` replaces a copy from production.
+ * A record would lie after `copy-prod-to-dev` replaces a copy from production.
  * Delete a migration once it has run in production.
  */
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { TABLE_ARTISTS } from "../../shared/baserow.js";
+import { DEV_SANITY_PROJECT_ID, REAL_SANITY_PROJECT_ID } from "../../shared/sanity-projects.js";
 import { jwtRequest } from "./baserow-clone.mjs";
 
 export const PHASES = ["pre", "post"];
@@ -46,6 +53,21 @@ export const DATABASES = {
     production: ["Gwenda", "Gwenda Config"],
   },
 };
+
+/** Baserow tables the website build reads, by database: changing their rows means a rebuild. */
+export const SITE_BUILD_TABLES = { ops: [TABLE_ARTISTS] };
+
+/** What a run changed that the website shows. `rebuild` once there is any. */
+export function siteChanges() {
+  const changes = [];
+  return {
+    changes,
+    note: (what) => changes.push(what),
+    get rebuild() {
+      return changes.length > 0;
+    },
+  };
+}
 
 /** Check a migration module's exports; returns it with its name. */
 export function checkMigration(name, mod) {
@@ -76,7 +98,7 @@ export function selectMigrations(migrations, { app, phase }) {
  * One Baserow database, changed through a user JWT (database tokens can only
  * touch rows). Tables are found by name.
  */
-export function baserowDatabase({ apiBase, jwt, databaseId, label, request = jwtRequest }) {
+export function baserowDatabase({ apiBase, jwt, databaseId, label, key, site, request = jwtRequest }) {
   const call = (path, init) => request(apiBase, jwt, path, init);
   let tables = null;
 
@@ -115,6 +137,7 @@ export function baserowDatabase({ apiBase, jwt, databaseId, label, request = jwt
           body: JSON.stringify({ items: items.slice(i, i + 100) }),
         });
       }
+      if (SITE_BUILD_TABLES[key]?.includes(tableName)) site?.note(`${label}: ${tableName}`);
     },
     /** Add a column unless one with that name exists. Returns what happened. */
     async ensureField(tableName, body) {
@@ -200,18 +223,72 @@ export async function findDatabase({ apiBase, jwt, key, env, request = jwtReques
 }
 
 /** Open an environment's database by name for a migration. */
-export async function openDatabase({ apiBase, jwt, key, env, request = jwtRequest }) {
+export async function openDatabase({ apiBase, jwt, key, env, site, request = jwtRequest }) {
   const { databaseId, label } = await findDatabase({ apiBase, jwt, key, env, request });
-  return baserowDatabase({ apiBase, jwt, databaseId, label, request });
+  return baserowDatabase({ apiBase, jwt, databaseId, label, key, site, request });
+}
+
+/** The documents a Sanity mutation touches; null when it picks them by query. */
+function mutationIds(mutation) {
+  const body = Object.values(mutation)[0] || {};
+  const id = body.id ?? body._id;
+  return id ? [String(id)] : null;
+}
+
+/**
+ * This environment's Sanity content (each project has one dataset,
+ * "production"), through SANITY_API_TOKEN. A change to a published document,
+ * or one picked by query, is noted for the rebuild; drafts are not, since the
+ * site reads only published documents.
+ */
+export function sanityContent({ env, processEnv, site, request = fetch }) {
+  const token = String(processEnv.SANITY_API_TOKEN || "").trim();
+  if (!token) throw new Error("SANITY_API_TOKEN is not set.");
+  const project = env === "production" ? REAL_SANITY_PROJECT_ID : DEV_SANITY_PROJECT_ID;
+  const base = `https://${project}.api.sanity.io/v2025-01-01/data`;
+  const call = async (path, init = {}) => {
+    const res = await request(`${base}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    });
+    if (!res.ok) throw new Error(`Sanity ${res.status}: ${await res.text()}`);
+    return res.json();
+  };
+
+  return {
+    project,
+    /** A GROQ query; `params` without their `$`. Drafts too unless `perspective` says. */
+    async query(groq, params = {}, { perspective = "raw" } = {}) {
+      const search = new URLSearchParams({ query: groq, perspective });
+      for (const [name, value] of Object.entries(params)) search.set(`$${name}`, JSON.stringify(value));
+      const { result } = await call(`/query/production?${search}`);
+      return result;
+    },
+    /** Apply mutations in one transaction. */
+    async mutate(mutations) {
+      if (!mutations.length) return;
+      await call("/mutate/production", { method: "POST", body: JSON.stringify({ mutations }) });
+      const ids = mutations.map(mutationIds);
+      const published = ids.flat().filter((id) => id && !id.startsWith("drafts."));
+      if (ids.includes(null)) site?.note(`${project}: documents by query`);
+      else if (published.length) site?.note(`${project}: ${published.join(", ")}`);
+    },
+  };
 }
 
 /**
  * Run the selected migrations in order. `database(key)` opens this env's
- * database of that kind (cached). Stops at the first failure.
+ * database of that kind and `sanity()` its Sanity content (both cached, both
+ * noting into `site`). Stops at the first failure.
+ * @returns {Promise<{ rebuild: boolean, changes: string[] }>}
  */
-export async function runMigrations(migrations, { env, processEnv, database, log = console.log }) {
+export async function runMigrations(
+  migrations,
+  { env, processEnv, database, sanity, site = siteChanges(), log = console.log },
+) {
   for (const migration of migrations) {
     log(`→ ${migration.name}: ${migration.about}`);
-    await migration.up({ env, processEnv, database, log: (line) => log(`    ${line}`) });
+    await migration.up({ env, processEnv, database, sanity, log: (line) => log(`    ${line}`) });
   }
+  return { rebuild: site.rebuild, changes: site.changes };
 }

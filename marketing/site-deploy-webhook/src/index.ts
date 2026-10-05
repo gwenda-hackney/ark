@@ -1,5 +1,5 @@
 import { handleDeploy, handlePromote, handleStatus } from "./handler";
-import { handleBaserowCopy, handleCompare } from "./tools";
+import { handleCompare, handleDevCopy } from "./tools";
 import type { Env } from "./types";
 import { captureConsoleIntegration, withSentry } from "@sentry/cloudflare";
 import { sentryOptions } from "../../../shared/sentry.js";
@@ -43,7 +43,7 @@ function serviceInfo(request: Request): Response {
     promote: "POST /promote",
     status: "GET /status?run_id=",
     compare: "GET /compare?base=&head=",
-    baserowCopy: "POST /baserow-copy",
+    devCopy: "POST /dev-copy",
     health: "GET /health",
   });
 }
@@ -139,8 +139,11 @@ export default withSentry(
           return jsonResponse(request, result.body, result.status);
         }
 
-        if (request.method === "POST" && url.pathname === "/baserow-copy") {
-          const result = await handleBaserowCopy(request, env);
+        if (
+          request.method === "POST" &&
+          (url.pathname === "/dev-copy" || url.pathname === "/baserow-copy")
+        ) {
+          const result = await handleDevCopy(request, env);
           return jsonResponse(request, result.body, result.status);
         }
 

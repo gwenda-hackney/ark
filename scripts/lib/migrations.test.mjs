@@ -10,7 +10,9 @@ import {
   loadMigrations,
   openDatabase,
   runMigrations,
+  sanityContent,
   selectMigrations,
+  siteChanges,
 } from "./migrations.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -190,6 +192,50 @@ describe("migrations", () => {
       log: () => {},
     });
     assert.deepEqual(ran, ["1.mjs", "4.mjs"]);
+  });
+
+  it("asks for a website rebuild only when a migration changed what the build reads", async () => {
+    const site = siteChanges();
+    const make = (name, up) => checkMigration(name, { app: "web", phase: "post", about: name, up });
+    const run = (list) => runMigrations(list, { env: "dev", database: async () => null, site, log: () => {} });
+    assert.equal((await run([make("1.mjs", async () => {})])).rebuild, false);
+    const result = await run([make("2.mjs", async () => site.note("series-x"))]);
+    assert.deepEqual(result, { rebuild: true, changes: ["series-x"] });
+  });
+
+  it("notes Sanity changes to published documents or by query, not drafts", async () => {
+    const sent = [];
+    const request = async (url, init = {}) => {
+      if (init.method === "POST") sent.push(JSON.parse(init.body).mutations);
+      return { ok: true, json: async () => ({ result: url.includes("%24slug=%22play%22") ? "found" : null }) };
+    };
+    const site = siteChanges();
+    const content = sanityContent({ env: "dev", processEnv: { SANITY_API_TOKEN: "t" }, site, request });
+    assert.equal(content.project, "gwscpagy");
+    assert.equal(await content.query("*[slug.current == $slug]", { slug: "play" }), "found");
+    await content.mutate([{ patch: { id: "drafts.series-a", set: { x: 1 } } }]);
+    assert.equal(site.rebuild, false);
+    await content.mutate([{ patch: { id: "series-a", set: { x: 1 } } }]);
+    await content.mutate([{ delete: { query: "*[_type == 'old']" } }]);
+    await content.mutate([]);
+    assert.deepEqual(site.changes, ["gwscpagy: series-a", "gwscpagy: documents by query"]);
+    assert.equal(sent.length, 3);
+  });
+
+  it("notes Baserow row changes only in the tables the website build reads", async () => {
+    const request = async (_base, _jwt, path) => {
+      if (path === "/api/database/tables/database/7/") return [{ id: 1, name: "Artists" }, { id: 2, name: "Events" }];
+      return {};
+    };
+    const site = siteChanges();
+    const ops = baserowDatabase({ apiBase: "x", jwt: "j", databaseId: 7, label: "Ops", key: "ops", site, request });
+    await ops.updateRows("Events", [{ id: 1, Name: "x" }]);
+    assert.equal(site.rebuild, false);
+    await ops.updateRows("Artists", [{ id: 1, Name: "x" }]);
+    assert.deepEqual(site.changes, ["Ops: Artists"]);
+    const website = baserowDatabase({ apiBase: "x", jwt: "j", databaseId: 7, label: "Web", key: "website", site, request });
+    await website.updateRows("Artists", [{ id: 1 }]);
+    assert.equal(site.changes.length, 1);
   });
 
   it("every file in migrations/ is a valid migration", async () => {

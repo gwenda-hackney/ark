@@ -1,5 +1,6 @@
 import { formatShortEventDate } from "../../functions/_lib/event-series.js";
 import { artistRunLabel } from "../lib/artist-run.js";
+import { artistTeaser } from "../lib/artist-teaser.js";
 import { diaryGroups } from "../lib/diary-groups.js";
 import {
   diaryCardModel,
@@ -148,10 +149,17 @@ export function applyHomeNext(path, night) {
   fillHomeLine(path, title, title ? when : "", title ? night.date : "");
 }
 
-/** Home artist path: their name, and the months they are on the wall. */
+/** Home artist path: who is on the wall now, their months, and their line; the generic line once nobody is. */
 export function applyHomeArtist(path, artist) {
   const who = String(artist?.name || "").trim();
   fillHomeLine(path, who, artistRunLabel(artist?.startMonth, artist?.endMonth));
+  const body = path?.querySelector(".what-we-do-artist-body");
+  if (body) {
+    body.textContent = artistTeaser(
+      who ? artist.profile : "",
+      path.dataset.artistFallback,
+    );
+  }
 }
 
 /** @type {AbortController | null} */

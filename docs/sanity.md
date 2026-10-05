@@ -5,7 +5,7 @@ Sanity is Gwenda's **editorial layer**: website data and copy that editors own, 
 Two projects on [sanity.io/manage](https://www.sanity.io/manage), both on the **Free** plan, each with **one dataset, `production`**:
 
 - **Gwenda Web** (`pn5yjro6`): the real website.
-- **Gwenda Dev** (`gwscpagy`): a copy for dev. Dev ops, the dev website and local Studio use it, so dev runs exactly the prod flow (Save, then Put on website) and can never reach gwenda.co.uk. Refresh it from the real project with `npm run dev:refresh:sanity` (your personal `npx sanity login`; the real project is only read).
+- **Gwenda Dev** (`gwscpagy`): a copy for dev. Dev ops, the dev website and local Studio use it, so dev runs exactly the prod flow (Save, then Put on website) and can never reach gwenda.co.uk. Refresh it from the real project with `npm run dev:refresh:sanity` (your personal `npx sanity login`; the real project is only read, and documents only dev has are deleted).
 
 ## Drafts are the preview
 
@@ -33,7 +33,7 @@ Two environments, **dev** and **prod**, built the same way. Each has one Sanity 
 
 **Prod** runs the code on `release`: ops, the hosted Studio, the preview and the live site. A push to `release` deploys production ops and brand (`apps.yml`) and the Workers (`workers.yml`) when their code changed, and rebuilds the preview; the live site waits for Web promote.
 
-Data only moves by copying prod into dev: `npm run dev:refresh` (Sanity with its drafts, and both Baserow databases).
+Data only moves by copying prod into dev: ops Developer tools → **Copy production to dev** (CI, `copy-prod-to-dev.yml`), or `npm run dev:refresh` with your own logins (Sanity with its drafts, and both Baserow databases).
 
 ## Workflows
 
@@ -63,7 +63,8 @@ Settings → Developer tools (`/web/dev`), for emails listed in config `ops.admi
 
 - **Content**: drafts that differ from what is live, field by field; publish them, or discard them.
 - **Code**: commits the preview runs that live lacks (webhook `/compare`). Code ships on promote.
-- **Databases**: Baserow production vs its dev copies (Gwenda Ops and Website in Gwenda vs their Gwenda Dev copies), table by table; **Copy production over it** runs `baserow-copy.yml`.
+- **Databases**: Baserow production vs its dev copies (Gwenda Ops and Website in Gwenda vs their Gwenda Dev copies), table by table; **Copy production over it** copies one database (`copy-prod-to-dev.yml`, target `ops-data` / `website-data`).
+- **Copy production to dev**: one button for all of it: Sanity content (drafts included) into Gwenda Dev, and both databases into their Gwenda Dev copies (`copy-prod-to-dev.yml`, target `everything`). On demand only, never scheduled. It reads production, so production ops starts it; dev ops shows the button disabled.
 
 ### Local ops
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { handleBaserowCopy, handleCompare } from "../src/tools";
+import { handleCompare, handleDevCopy } from "../src/tools";
 
 const env = {
   DEPLOY_WEBHOOK_SECRET: "test-secret",
@@ -51,10 +51,31 @@ describe("handleCompare", () => {
   });
 });
 
-describe("handleBaserowCopy", () => {
-  it("only accepts the two known targets", async () => {
-    const result = await handleBaserowCopy(
-      new Request("https://x/baserow-copy", {
+/** Dispatch `target` and return what was sent to GitHub. */
+async function dispatched(path: string, target: string) {
+  vi.useFakeTimers();
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    .mockResolvedValueOnce(
+      Response.json({ workflow_runs: [{ id: 7, status: "queued", html_url: "run7" }] }),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  const pending = handleDevCopy(
+    new Request(`https://x${path}`, { method: "POST", headers: auth, body: JSON.stringify({ target }) }),
+    env,
+  );
+  await vi.advanceTimersByTimeAsync(1600);
+  const result = await pending;
+  vi.useRealTimers();
+  const [url, init] = fetchMock.mock.calls[0];
+  return { result, url: String(url), body: JSON.parse(String(init.body)) };
+}
+
+describe("handleDevCopy", () => {
+  it("only accepts the known targets", async () => {
+    const result = await handleDevCopy(
+      new Request("https://x/dev-copy", {
         method: "POST",
         headers: auth,
         body: JSON.stringify({ target: "production" }),
@@ -64,31 +85,18 @@ describe("handleBaserowCopy", () => {
     expect(result.status).toBe(400);
   });
 
-  it("dispatches the copy workflow on main with the target", async () => {
-    vi.useFakeTimers();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(
-        Response.json({ workflow_runs: [{ id: 7, status: "queued", html_url: "run7" }] }),
-      );
-    vi.stubGlobal("fetch", fetchMock);
-    const pending = handleBaserowCopy(
-      new Request("https://x/baserow-copy", {
-        method: "POST",
-        headers: auth,
-        body: JSON.stringify({ target: "ops-dev" }),
-      }),
-      env,
-    );
-    await vi.advanceTimersByTimeAsync(1600);
-    const result = await pending;
-    vi.useRealTimers();
+  it("dispatches the copy workflow on release with the target", async () => {
+    const { result, url, body } = await dispatched("/dev-copy", "everything");
     expect(result.status).toBe(202);
     expect(result.body.runId).toBe(7);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toContain("/actions/workflows/baserow-copy.yml/dispatches");
-    expect(JSON.parse(String(init.body))).toEqual({ ref: "release", inputs: { target: "ops-dev" } });
+    expect(url).toContain("/actions/workflows/copy-prod-to-dev.yml/dispatches");
+    expect(body).toEqual({ ref: "release", inputs: { target: "everything" } });
+  });
+
+  it("maps the targets older ops sends to /baserow-copy", async () => {
+    const { result, body } = await dispatched("/baserow-copy", "website-dev");
+    expect(result.body.target).toBe("website-data");
+    expect(body.inputs).toEqual({ target: "website-data" });
   });
 });
 
@@ -112,14 +120,14 @@ describe("runOpsTick", () => {
 describe("dev ops' own secret (#120)", () => {
   const split = { ...env, DEPLOY_WEBHOOK_SECRET_DEV: "dev-secret" };
 
-  it("can't start a database copy, which reads production", async () => {
+  it("can't start a copy to dev, which reads production", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const result = await handleBaserowCopy(
-      new Request("https://x/baserow-copy", {
+    const result = await handleDevCopy(
+      new Request("https://x/dev-copy", {
         method: "POST",
         headers: { Authorization: "Bearer dev-secret" },
-        body: JSON.stringify({ target: "ops-dev" }),
+        body: JSON.stringify({ target: "everything" }),
       }),
       split,
     );
