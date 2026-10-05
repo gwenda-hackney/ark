@@ -761,16 +761,14 @@ describe("events: images", () => {
     assert.match(huge.data.error, /20MB/);
   });
 
-  it("a photo goes straight to Sanity: ops keeps its asset id, not a file", async () => {
+  it("a photo goes straight to Sanity: the event points at that asset", async () => {
     const res = await ops.uploadImage(event, { name: "flyer.jpg" });
     assert.equal(res.status, 200, JSON.stringify(res.data));
     const assets = world.sanity.view("raw").filter((doc) => doc._type === "sanity.imageAsset");
     assert.equal(assets.length, 1, "uploaded before any staging");
-    const [row] = world.baserow.rows("Events");
-    assert.equal(row["Hero asset"], assets[0]._id);
-    assert.deepEqual(row["Main image"] || [], [], "no copy in Baserow");
-    assert.equal(res.data.event.mainImage.asset, assets[0]._id);
-    assert.match(res.data.event.mainImage.url, /^https:\/\/cdn\.sanity\.io\/images\//);
+    const { mainImage } = await ops.open(event);
+    assert.equal(mainImage.asset, assets[0]._id);
+    assert.match(mainImage.url, /^https:\/\/cdn\.sanity\.io\/images\//, "ops shows it from the Sanity CDN");
 
     await ops.waitUntilReady(event);
     await ops.updateWebsite(event);
@@ -783,10 +781,12 @@ describe("events: images", () => {
     await ops.uploadImage(event, { name: "b.jpg", date: night });
     const assets = world.sanity.view("raw").filter((doc) => doc._type === "sanity.imageAsset");
     assert.equal(assets.length, 1);
-    const nightRow = world.baserow.rows("Event dates").find((row) => row.Date === night);
-    assert.equal(nightRow["Override asset"], assets[0]._id);
+    const opened = await ops.open(event);
+    assert.equal(opened.mainImage.asset, assets[0]._id);
+    assert.equal(opened.dates.find((row) => row.date === night).overrides.image.asset, assets[0]._id);
   });
 
+  // Storage-specific on purpose: only Baserow has photos from before #183.
   it("a photo from before (a Baserow file) still reaches the website", async () => {
     const res = await ops.uploadImage(event);
     const [row] = world.baserow.rows("Events");
