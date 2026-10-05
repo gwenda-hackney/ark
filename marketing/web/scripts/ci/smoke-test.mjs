@@ -6,7 +6,8 @@
  *   SMOKE_TEST_GATE_BYPASS_KEY=... node scripts/ci/smoke-test.mjs --url https://preview.gwenda-blue.pages.dev ...
  *
  *   --deep           also POST /api/health/deep (Bearer DEPLOY_WEBHOOK_SECRET): Sanity,
- *                    both Baserow databases, config DB and Gmail login
+ *                    both Baserow databases, config DB, the three D1 databases
+ *                    (migrated, a test row written and deleted) and Gmail login
  *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
  *   --form-test      with --deep, submit the play form end to end: row saved, team and
  *                    applicant emails to alerts@ (not play@), row deleted afterwards

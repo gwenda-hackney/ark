@@ -59,3 +59,13 @@ describe("checkEmail", () => {
     );
   });
 });
+
+describe("CHECKS", () => {
+  it("checks every D1 database the site binds", async () => {
+    const { CHECKS } = await import("./deep-health.js");
+    expect(
+      Object.keys(CHECKS).filter((name) => name.startsWith("d1:")),
+    ).toEqual(["d1:ops", "d1:website", "d1:config"]);
+    await expect(CHECKS["d1:website"]({})).rejects.toThrow("not bound");
+  });
+});
