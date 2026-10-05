@@ -72,6 +72,7 @@ function httpError(message, status) {
 
 /** Sanity filename for an ops photo: Baserow file names are unique per upload. */
 function assetFilename(image) {
+  if (image?.asset) return "";
   const name = String(image?.name || "").trim();
   return name ? `ops-${name}` : "";
 }
@@ -118,8 +119,12 @@ async function imageFromUrl(url, upload, filename = "event.jpg") {
   return { ...imageRef(asset._id), originalFilename: asset.originalFilename };
 }
 
-/** Sanity image for an ops photo: reuse the uploaded asset, else upload once. */
+/**
+ * Sanity image for an ops photo. Photos uploaded since #183 are already in
+ * Sanity; older ones reuse the asset copied before, else upload once.
+ */
 export async function heroImage(env, image, known) {
+  if (image?.asset) return imageRef(image.asset);
   const url = String(image?.url || "").trim();
   if (!url) return undefined;
   const filename = assetFilename(image);

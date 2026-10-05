@@ -1,32 +1,20 @@
 /**
- * Ops events. One row is the series. Event dates are the nights publish writes.
+ * Ops events, the use cases: create, edit and delete series and their nights.
+ * Rules live in event-model.js; storage only through the EventRepository
+ * (event-repository.js), never tables or columns here (#186).
  */
 import { itemSlug, namesClash } from "../../menu/item-key.js";
-import {
-  baserowFetch,
-  createRow,
-  deleteRow,
-  getRow,
-  linkHasQuery,
-  listAllRows,
-  resolveOpsTableIds,
-  updateRow,
-  uploadUserFile,
-} from "../../../../../shared/baserow.js";
+import { parseImageAssetId } from "../../../../../shared/sanity-image.js";
+import { sanityProjectId, sanityUploadImage } from "../../platform/sanity.js";
 import {
   dayBeforeIso,
-  expandOccurrenceDates,
   expandSeriesOccurrenceDates,
   normalizeExtraDates,
   normalizeSkippedDates,
-  normalizeWeekdays,
-  parseIsoDate,
   planOccurrenceMove,
   todayIso,
 } from "../event-recurrence.js";
 import {
-  occurrenceHash,
-  occurrenceIsSpecialEdition,
   occurrenceSlug,
   resolveOccurrenceContent,
   seriesSlug,
@@ -37,11 +25,9 @@ import {
   forgetCalendarOccurrences,
   noteCalendarWarning,
 } from "./event-calendar-sync.js";
-import { calendarLinkValue } from "../../platform/google-calendar.js";
 import {
   GALLERY_FOLDER_NAME,
   createEventDriveFolder,
-  driveFolderWebUrl,
   ensureNamedChildFolder,
   isOwnEventFolder,
   renameDriveFile,
@@ -49,573 +35,45 @@ import {
   untrashDriveFile,
 } from "../../platform/google-drive.js";
 import { forgetGalleryStaged } from "./event-gallery.js";
+import { parseNightSchedule } from "./night-schedule.js";
+import { eventRepository } from "./event-repository.js";
 import {
-  parseNightSchedule,
-  serializeNightSchedule,
-} from "./night-schedule.js";
+  buildEvent,
+  buildNight,
+  clockTime,
+  eventFieldsFromInput,
+  isoDate,
+  keepsDroppedNight,
+  linksFrom,
+  nightForSave,
+  occurrenceRank,
+  slugChangePlan,
+  text,
+} from "./event-model.js";
 
-const REPEAT_UNITS = new Set(["none", "once", "day", "week", "month"]);
+export {
+  dedupeOccurrences,
+  droppedNights,
+  keepsDroppedNight,
+  normalizePageUrl,
+  previewBehind,
+  publishState,
+  slugChangePlan,
+} from "./event-model.js";
 
-function parseHeroCropsJson(raw) {
-  if (!raw) return null;
-  if (typeof raw === "object") return raw;
-  try {
-    const parsed = JSON.parse(String(raw));
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function text(value) {
-  if (typeof value === "string") return value.trim();
-  if (value == null) return "";
-  if (typeof value === "object" && value.value != null)
-    return String(value.value).trim();
-  return String(value).trim();
-}
-
-function isoDate(value) {
-  const raw = text(value).slice(0, 10);
-  return parseIsoDate(raw) ? raw : "";
-}
-
-/** Empty is allowed. Anything else must be an http(s) URL. */
-export function normalizePageUrl(value) {
-  let raw = text(value);
-  if (!raw) return "";
-  // "@handle" is an Instagram account; "example.com" means https.
-  if (/^@[\w.]+$/.test(raw)) raw = `https://www.instagram.com/${raw.slice(1)}/`;
-  else if (!/^[a-z][a-z0-9+.-]*:/i.test(raw) && raw.includes(".")) raw = `https://${raw}`;
-  let parsed;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    parsed = null;
-  }
-  if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
-    const error = new Error("Link must be a website address or an @Instagram handle.");
-    error.status = 400;
-    throw error;
-  }
-  return parsed.toString();
-}
-
-function assignPageLink(fields, value) {
-  if (!eventsFieldNamesCache?.has(PAGE_LINK_FIELD)) return;
-  fields[PAGE_LINK_FIELD] = normalizePageUrl(value);
-}
-
-function clockTime(value) {
-  const raw = text(value);
-  if (!raw) return "";
-  const match = /^(\d{1,2}):(\d{2})$/.exec(raw);
-  if (!match) return "";
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return "";
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-}
-
-function filesFrom(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry) => ({
-      name: text(entry?.name || entry?.visible_name),
-      url: text(entry?.url),
-    }))
-    .filter((entry) => entry.url || entry.name);
-}
-
-function linksFrom(value) {
-  const raw = Array.isArray(value) ? value : String(value || "").split(/\r?\n/);
-  return raw.map((entry) => text(entry)).filter(Boolean);
-}
-
-function slugList(value) {
-  return [...new Set(linksFrom(value).map(itemSlug).filter(Boolean))];
-}
-
-function parseSnapshots(value) {
-  if (!value) return {};
-  let parsed = value;
-  if (typeof value !== "object") {
-    try {
-      parsed = JSON.parse(String(value));
-    } catch {
-      return {};
-    }
-  }
-  if (!parsed || typeof parsed !== "object") return {};
-  // Rows saved before the preview moved onto drafts call it "staging".
-  const { staging, ...rest } = parsed;
-  return staging && !rest.preview ? { ...rest, preview: staging } : rest;
-}
-
-function requireEventsTables(tables) {
-  if (!tables.events || !tables.eventDates) {
-    const error = new Error(
-      'Baserow tables "Events" and "Event dates" were not found. Run npm run setup:baserow-ops.',
-    );
-    error.status = 503;
-    throw error;
-  }
-  return tables;
-}
-
-/** Prefer dedicated column; fall back to unused Notes until schema sync. */
-const PAGE_LINK_FIELD = "Page link";
-const PAGE_LINK_OVERRIDE_FIELD = "Page link override";
-const NIGHT_SCHEDULE_FIELD = "Night schedule";
-const NIGHT_SCHEDULE_FALLBACK = "Notes";
-const NIGHT_SCHEDULE_OVERRIDE_FIELD = "Night schedule override";
-const SHORT_DESCRIPTION_OVERRIDE_FIELD = "Short description override";
-/** Web addresses the series had before, one per line: the website redirects them. */
-const FORMER_SLUGS_FIELD = "Former slugs";
-/** Deleted in ops but still on the website until Update website (#23). */
-const DELETED_AT_FIELD = "Deleted at";
-/** Listed on the website's Play at Gwenda form (#41). */
-const TAKING_APPLICATIONS_FIELD = "Taking applications";
-let eventsFieldNamesCache = null;
-let eventDatesFieldNamesCache = null;
-
-async function tableFieldNames(env, tableId) {
-  const fields = await baserowFetch(
-    env,
-    `/api/database/fields/table/${tableId}/`,
-  );
-  return new Set((fields || []).map((field) => field.name));
-}
-
-async function eventFieldNames(env) {
-  if (!eventsFieldNamesCache) {
-    const tables = requireEventsTables(await resolveOpsTableIds(env));
-    eventsFieldNamesCache = await tableFieldNames(env, tables.events);
-  }
-  return eventsFieldNamesCache;
-}
-
-/** Optional columns a database may not have yet (no migration run): leave them out. */
-async function withoutMissingColumns(env, fields) {
-  if (!(TAKING_APPLICATIONS_FIELD in fields)) return fields;
-  if ((await eventFieldNames(env)).has(TAKING_APPLICATIONS_FIELD)) return fields;
-  const { [TAKING_APPLICATIONS_FIELD]: _missing, ...rest } = fields;
-  return rest;
-}
-
-async function nightScheduleFieldName(env) {
-  return (await eventFieldNames(env)).has(NIGHT_SCHEDULE_FIELD)
-    ? NIGHT_SCHEDULE_FIELD
-    : NIGHT_SCHEDULE_FALLBACK;
+/** How ops shows images: from the Sanity project it writes to (#183). */
+function buildOptions(env) {
+  return { projectId: sanityProjectId(env) };
 }
 
 export async function hasShortDescriptionOverrideColumn(env) {
-  const names = await eventDateFieldNames(env);
-  return names.has(SHORT_DESCRIPTION_OVERRIDE_FIELD);
+  return (await eventRepository(env).capabilities()).shortDescriptionOverride;
 }
 
-async function eventDateFieldNames(env) {
-  if (!eventDatesFieldNamesCache) {
-    const tables = requireEventsTables(await resolveOpsTableIds(env));
-    eventDatesFieldNamesCache = await tableFieldNames(env, tables.eventDates);
-  }
-  return eventDatesFieldNamesCache;
-}
-
-async function nightScheduleOverrideFieldName(env) {
-  const names = await eventDateFieldNames(env);
-  return names.has(NIGHT_SCHEDULE_OVERRIDE_FIELD)
-    ? NIGHT_SCHEDULE_OVERRIDE_FIELD
-    : null;
-}
-
-function readNightScheduleFromRow(row) {
-  if (Object.prototype.hasOwnProperty.call(row, NIGHT_SCHEDULE_FIELD)) {
-    const fromField = parseNightSchedule(row[NIGHT_SCHEDULE_FIELD]);
-    if (fromField.length) return fromField;
-    // Leftover JSON in Notes from before the dedicated column existed.
-    return parseNightSchedule(row[NIGHT_SCHEDULE_FALLBACK]);
-  }
-  return parseNightSchedule(row[NIGHT_SCHEDULE_FALLBACK]);
-}
-
-function readNightScheduleOverrideFromRow(row) {
-  if (Object.prototype.hasOwnProperty.call(row, NIGHT_SCHEDULE_OVERRIDE_FIELD)) {
-    const raw = row[NIGHT_SCHEDULE_OVERRIDE_FIELD];
-    if (raw == null || String(raw).trim() === "") return null;
-    return parseNightSchedule(raw);
-  }
-  return null;
-}
-
-export function mapEventDate(row) {
-  const overrides = {
-    name: text(row["Title override"]),
-    artist: text(row["Artist override"]),
-    offer: text(row["Offer override"]),
-    pageUrl: text(row[PAGE_LINK_OVERRIDE_FIELD]),
-    description: text(row["Description override"]),
-    shortDescription: text(row[SHORT_DESCRIPTION_OVERRIDE_FIELD]),
-    time: text(row["Time override"]),
-    startTime: clockTime(row["Start time override"]),
-    endTime: clockTime(row["End time override"]),
-    nightSchedule: readNightScheduleOverrideFromRow(row),
-    operationsNotes: text(row["Operations notes override"]),
-    imageLinks: linksFrom(row["Image links override"]),
-    image: filesFrom(row["Override image"])[0] || null,
-    heroCrops: parseHeroCropsJson(row["Override hero crops"]),
-  };
-  return {
-    id: String(row.id),
-    date: isoDate(row.Date),
-    slug: text(row.Slug),
-    sanityId: text(row["Sanity ID"]),
-    clickupTaskId: text(row["ClickUp Task ID"]),
-    overrides,
-    isSpecialEdition: false,
-    snapshots: parseSnapshots(row["Publish snapshots"]),
-    googleCalendarEventId:
-      text(row["Google calendar event id"]) || calendarLinkValue(row.Notes),
-  };
-}
-
-export function mapEvent(row, dates = []) {
-  const name = text(row.Name);
-  const event = {
-    id: String(row.id),
-    name,
-    artist: text(row.Artist),
-    offer: text(row.Offer),
-    pageUrl: text(row["Page link"]),
-    shortDescription: text(row["Short description"]),
-    description: text(row.Description),
-    operationsNotes: text(row["Operations notes"]),
-    imageLinks: linksFrom(row["Image links"]),
-    startsOn: isoDate(row["Starts on"]),
-    time: text(row.Time),
-    startTime: clockTime(row["Start time"]),
-    endTime: clockTime(row["End time"]),
-    nightSchedule: readNightScheduleFromRow(row),
-    repeatEvery: Math.max(1, Math.floor(Number(row["Repeat every"]) || 1)),
-    repeatUnit: REPEAT_UNITS.has(text(row["Repeat unit"]).toLowerCase())
-      ? text(row["Repeat unit"]).toLowerCase()
-      : "none",
-    weekdays: normalizeWeekdays(row.Weekdays),
-    monthDay: Math.max(0, Math.floor(Number(row["Month day"]) || 0)),
-    endsOn: isoDate(row["Ends on"]),
-    skippedDates: normalizeSkippedDates(row["Skipped dates"]),
-    extraDates: normalizeExtraDates(row["Extra dates"]),
-    slug: text(row.Slug) || seriesSlug(name),
-    formerSlugs: slugList(row[FORMER_SLUGS_FIELD]),
-    deletedAt: text(row[DELETED_AT_FIELD]),
-    takingApplications: row[TAKING_APPLICATIONS_FIELD] === true,
-    replacesSeries: text(row["Replaces series"]),
-    driveFolderId: text(row["Drive folder id"]),
-    driveFolderUrl: driveFolderWebUrl(text(row["Drive folder id"])),
-    mainImage: filesFrom(row["Main image"])[0] || null,
-    heroCrops: parseHeroCropsJson(row["Hero crops"]),
-    images: filesFrom(row.Images),
-  };
-  const occurrences = dedupeOccurrences(
-    dates
-      .map(mapEventDate)
-      .map((occurrence) => ({
-        ...occurrence,
-        isSpecialEdition: occurrenceIsSpecialEdition(event, occurrence),
-      }))
-      .filter((date) => date.date),
-  );
-  return {
-    ...event,
-    dates: occurrences,
-    publish: publishState(event, occurrences),
-  };
-}
-
-function occurrenceRank(row) {
-  let score = 0;
-  if (row?.snapshots?.preview) score += 2;
-  if (row?.snapshots?.production) score += 2;
-  if (row?.isSpecialEdition) score += 4;
-  if (row?.overrides?.image) score += 2;
-  if (row?.sanityId) score += 1;
-  if (row?.clickupTaskId) score += 1;
-  return score;
-}
-
-/** Keep one row per calendar night when Baserow has duplicate date rows. */
-export function dedupeOccurrences(occurrences) {
-  const byDate = new Map();
-  for (const row of occurrences || []) {
-    const date = row?.date;
-    if (!date) continue;
-    const prev = byDate.get(date);
-    if (!prev) {
-      byDate.set(date, row);
-      continue;
-    }
-    const prevRank = occurrenceRank(prev);
-    const nextRank = occurrenceRank(row);
-    if (
-      nextRank > prevRank ||
-      (nextRank === prevRank && Number(row.id) > Number(prev.id))
-    ) {
-      byDate.set(date, row);
-    }
-  }
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-}
-
-export function publishState(event, dates, today = todayIso()) {
-  const wanted = expandOccurrenceDates(event, { today });
-  const materialized = new Set(expandSeriesOccurrenceDates(event));
-  const byDate = new Map(dates.map((row) => [row.date, row]));
-  // Hash against the date row (overrides), not the bare date string. mapEvent
-  // calls this before `dates` are attached to the event object, so a string
-  // lookup via occurrenceRow(event, date) would miss night overrides and keep
-  // preview forever stale after a successful push.
-  const eventWithDates = { ...event, dates };
-  const previewCurrent =
-    wanted.length > 0 &&
-    wanted.every((date) => {
-      const row = byDate.get(date);
-      return (
-        row?.sanityId &&
-        row.snapshots?.preview?.hash ===
-          occurrenceHash(eventWithDates, row || date)
-      );
-    }) &&
-    // A dropped night already marked removed on the preview counts as done
-    // there; it still stands on the live site until Update website (#20).
-    !dates.some(
-      (row) => row.date >= today && !materialized.has(row.date) && !row.snapshots?.preview?.removed,
-    );
-  const stillLive = dates.some((row) => row.date >= today && row.snapshots?.preview?.removed);
-  const liveCurrent =
-    previewCurrent &&
-    !stillLive &&
-    wanted.every((date) => {
-      const row = byDate.get(date);
-      return (
-        row?.snapshots?.production?.hash ===
-        occurrenceHash(eventWithDates, row || date)
-      );
-    });
-  const previewDates = wanted;
-  const nextDate =
-    previewDates[0] || dates.find((row) => row.date >= today)?.date || "";
-  return {
-    preview: previewCurrent
-      ? "current"
-      : dates.some((row) => row.snapshots?.preview)
-        ? "stale"
-        : "unpublished",
-    live: liveCurrent
-      ? "current"
-      : dates.some((row) => row.snapshots?.production)
-        ? "stale"
-        : "unpublished",
-    nextDate,
-    previewDates,
-  };
-}
-
-function fieldsFromInput(
-  input,
-  { partial = false, slug, nightScheduleField = NIGHT_SCHEDULE_FIELD } = {},
-) {
-  const fields = {};
-  const set = (key, present, value) => {
-    if (!partial || present) fields[key] = value;
-  };
-  if (!partial || input.name !== undefined) {
-    const name = text(input.name);
-    if (!name) {
-      const error = new Error("Name is required.");
-      error.status = 400;
-      throw error;
-    }
-    fields.Name = name;
-  }
-  set("Artist", input.artist !== undefined, text(input.artist));
-  set("Offer", input.offer !== undefined, text(input.offer));
-  set(
-    TAKING_APPLICATIONS_FIELD,
-    input.takingApplications !== undefined,
-    input.takingApplications === true,
-  );
-  set(
-    "Short description",
-    input.shortDescription !== undefined,
-    text(input.shortDescription),
-  );
-  set("Description", input.description !== undefined, text(input.description));
-  set(
-    "Operations notes",
-    input.operationsNotes !== undefined,
-    text(input.operationsNotes),
-  );
-  if (!partial || input.imageLinks !== undefined) {
-    const links = linksFrom(input.imageLinks);
-    const invalid = links.find((link) => !/^https?:\/\/\S+$/i.test(link));
-    if (invalid) {
-      const error = new Error(
-        `Image link must start with http:// or https://: ${invalid}`,
-      );
-      error.status = 400;
-      throw error;
-    }
-    fields["Image links"] = links.join("\n");
-  }
-  if (input.heroCrops !== undefined) {
-    fields["Hero crops"] =
-      input.heroCrops == null || input.heroCrops === ""
-        ? ""
-        : typeof input.heroCrops === "string"
-          ? input.heroCrops
-          : JSON.stringify(input.heroCrops);
-  } else if (!partial) {
-    fields["Hero crops"] = "";
-  }
-  if (input.nightSchedule !== undefined) {
-    fields[nightScheduleField] = serializeNightSchedule(input.nightSchedule);
-  } else if (!partial) {
-    fields[nightScheduleField] = "";
-  }
-  set("Time", input.time !== undefined, text(input.time));
-  if (!partial || input.startTime !== undefined) {
-    const value = text(input.startTime);
-    const parsed = clockTime(value);
-    if (value && !parsed) {
-      const error = new Error("Start time must use 24-hour HH:mm.");
-      error.status = 400;
-      throw error;
-    }
-    fields["Start time"] = parsed;
-  }
-  if (!partial || input.endTime !== undefined) {
-    const value = text(input.endTime);
-    const parsed = clockTime(value);
-    if (value && !parsed) {
-      const error = new Error("End time must use 24-hour HH:mm.");
-      error.status = 400;
-      throw error;
-    }
-    fields["End time"] = parsed;
-  }
-  if (!partial || input.startsOn !== undefined) {
-    const startsOn = isoDate(input.startsOn);
-    const unit = text(input.repeatUnit || "none").toLowerCase();
-    // A series may have no start date yet: the website shows it with
-    // "Check back soon for the next date". A one-off still needs its date.
-    if (!startsOn && unit === "once") {
-      const error = new Error("Start date is required.");
-      error.status = 400;
-      throw error;
-    }
-    fields["Starts on"] = startsOn || null;
-  }
-  if (!partial || input.repeatUnit !== undefined) {
-    const unit = text(input.repeatUnit || "none").toLowerCase();
-    if (!REPEAT_UNITS.has(unit)) {
-      const error = new Error("Repeat must be none, once, day, week, or month.");
-      error.status = 400;
-      throw error;
-    }
-    fields["Repeat unit"] = unit;
-  }
-  if (!partial || input.repeatEvery !== undefined) {
-    const every = Math.floor(Number(input.repeatEvery) || 1);
-    if (every < 1 || every > 52) {
-      const error = new Error("Repeat interval must be between 1 and 52.");
-      error.status = 400;
-      throw error;
-    }
-    fields["Repeat every"] = every;
-  }
-  if (!partial || input.weekdays !== undefined) {
-    fields.Weekdays = normalizeWeekdays(input.weekdays).join(",");
-  }
-  if (!partial || input.monthDay !== undefined) {
-    const day = Math.floor(Number(input.monthDay) || 0);
-    if (day && (day < 1 || day > 31)) {
-      const error = new Error("Day of month must be from 1 to 31.");
-      error.status = 400;
-      throw error;
-    }
-    fields["Month day"] = day || null;
-  }
-  if (!partial || input.endsOn !== undefined) {
-    const endsOn = text(input.endsOn);
-    if (endsOn && !isoDate(endsOn)) {
-      const error = new Error("End date is not a valid date.");
-      error.status = 400;
-      throw error;
-    }
-    fields["Ends on"] = endsOn ? isoDate(endsOn) : null;
-  }
-  if (!partial || input.skippedDates !== undefined) {
-    fields["Skipped dates"] = normalizeSkippedDates(input.skippedDates).join(
-      "\n",
-    );
-  }
-  // Only write when present so older Baserow tables without the column still save.
-  if (input.extraDates !== undefined) {
-    fields["Extra dates"] = normalizeExtraDates(input.extraDates).join("\n");
-  }
-  if (input.replacesSeries !== undefined) {
-    fields["Replaces series"] = text(input.replacesSeries);
-  }
-  if (slug) fields.Slug = slug;
-  const unit = fields["Repeat unit"];
-  const weekdays = fields.Weekdays;
-  if (
-    fields["Repeat unit"] === "month" &&
-    !fields["Month day"] &&
-    fields["Starts on"]
-  ) {
-    fields["Month day"] =
-      Number(String(fields["Starts on"]).slice(8, 10)) || null;
-  }
-  if (unit === "week" && !weekdays) {
-    const error = new Error("Choose at least one weekday.");
-    error.status = 400;
-    throw error;
-  }
-  if (
-    unit &&
-    unit !== "none" &&
-    unit !== "once" &&
-    fields["Starts on"] &&
-    !fields["Ends on"]
-  ) {
-    const error = new Error("Recurring events need an end date.");
-    error.status = 400;
-    throw error;
-  }
-  if (
-    fields["Ends on"] &&
-    fields["Starts on"] &&
-    fields["Ends on"] < fields["Starts on"]
-  ) {
-    const error = new Error("End date must be on or after the start date.");
-    error.status = 400;
-    throw error;
-  }
-  return fields;
-}
-
-async function loadDates(env, tables, eventId) {
-  const rows = await listAllRows(env, tables.eventDates, {
-    filters: linkHasQuery("Event", eventId),
-  });
-  return rows;
-}
-
-async function assertUniqueName(env, tables, name, exceptId = "") {
-  const rows = await listAllRows(env, tables.events);
-  const clash = rows.find(
-    (row) => String(row.id) !== String(exceptId) && namesClash(row.Name, name),
+async function assertUniqueName(env, name, exceptId = "") {
+  const events = await eventRepository(env).listEvents();
+  const clash = events.find(
+    (event) => String(event.id) !== String(exceptId) && namesClash(event.name, name),
   );
   if (clash) {
     const error = new Error("An event with that name already exists.");
@@ -633,83 +91,35 @@ async function assertUniqueName(env, tables, name, exceptId = "") {
   return slug;
 }
 
-/** Website paths under /whats-on/ that are pages of their own, not series. */
-const RESERVED_SLUGS = new Set(["schedule"]);
-
-/**
- * A new web address (/whats-on/<slug>) for a series, checked against the other
- * events' rows. The old one moves to Former slugs so the website redirects it.
- * Nights keep their own slugs: RSVPs and ticket links are keyed by them.
- * Null when the address does not change.
- */
-export function slugChangePlan(current, value, rows) {
-  const slug = itemSlug(value);
-  const fail = (message, status = 400) => {
-    const error = new Error(message);
-    error.status = status;
-    throw error;
-  };
-  if (!slug) fail("Use letters or numbers in the web address.");
-  if (slug === current.slug) return null;
-  if (RESERVED_SLUGS.has(slug)) fail("That web address is used by another page. Pick another.", 409);
-  for (const row of rows) {
-    if (String(row.id) === String(current.id)) continue;
-    const name = text(row.Name);
-    if ((text(row.Slug) || seriesSlug(name)) === slug) {
-      fail(`${name} already uses that web address.`, 409);
-    }
-    if (slugList(row[FORMER_SLUGS_FIELD]).includes(slug)) {
-      fail(`${name} used that web address before, and it still leads there. Pick another.`, 409);
-    }
-  }
-  const formerSlugs = [
-    ...new Set([...(current.formerSlugs || []), current.slug].filter((old) => old && old !== slug)),
-  ];
-  return { slug, previous: current.slug, formerSlugs, rows };
-}
-
-async function planSlugChange(env, tables, current, value) {
+async function planSlugChange(env, current, value) {
   if (itemSlug(value) === current.slug) return null;
-  if (!(await eventFieldNames(env)).has(FORMER_SLUGS_FIELD)) {
+  const events = eventRepository(env);
+  if (!(await events.capabilities()).formerSlugs) {
     const error = new Error(
       "Changing the web address is not set up yet: the events table needs its Former slugs column.",
     );
     error.status = 503;
     throw error;
   }
-  return slugChangePlan(current, value, await listAllRows(env, tables.events));
+  return slugChangePlan(current, value, await events.listEvents());
 }
 
 /** One-off events that replace (or sit beside) this series follow its new address. */
-async function repointReplacedSeries(env, tables, { slug, previous, rows }) {
-  for (const row of rows) {
-    const value = text(row["Replaces series"]);
+async function repointReplacedSeries(env, { slug, previous, events }) {
+  for (const event of events) {
+    const value = event.replacesSeries;
     const next =
       value === previous ? slug : value === `keep:${previous}` ? `keep:${slug}` : "";
-    if (next) await updateRow(env, tables.events, row.id, { "Replaces series": next });
+    if (next) await eventRepository(env).update(event.id, { replacesSeries: next });
   }
 }
 
 /** Events in ops; `withDeleted` adds those waiting to leave the website (#23). */
 export async function listEvents(env, { withDeleted = false } = {}) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const [rows, dateRows] = await Promise.all([
-    listAllRows(env, tables.events),
-    listAllRows(env, tables.eventDates),
-  ]);
-  const datesByEvent = new Map();
-  for (const row of dateRows) {
-    const links = Array.isArray(row.Event) ? row.Event : [];
-    for (const link of links) {
-      const id = String(link?.id || "");
-      if (!id) continue;
-      if (!datesByEvent.has(id)) datesByEvent.set(id, []);
-      datesByEvent.get(id).push(row);
-    }
-  }
-  return rows
-    .filter((row) => text(row.Name) && (withDeleted || !text(row[DELETED_AT_FIELD])))
-    .map((row) => mapEvent(row, datesByEvent.get(String(row.id)) || []))
+  const options = buildOptions(env);
+  return (await eventRepository(env).listEventsWithNights())
+    .filter(({ event }) => event.name && (withDeleted || !event.deletedAt))
+    .map(({ event, nights }) => buildEvent(event, nights, options))
     .sort(
       (a, b) =>
         (a.publish.nextDate || "9999").localeCompare(
@@ -718,35 +128,16 @@ export async function listEvents(env, { withDeleted = false } = {}) {
     );
 }
 
-async function readEventRow(env, tables, id) {
-  try {
-    return await getRow(env, tables.events, id);
-  } catch (error) {
-    if (error?.status === 404) {
-      const missing = new Error("Event not found.");
-      missing.status = 404;
-      throw missing;
-    }
-    throw error;
-  }
-}
-
 export async function getEvent(env, id) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const row = await readEventRow(env, tables, id);
-  const dates = await loadDates(env, tables, id);
-  return mapEvent(row, dates);
+  const events = eventRepository(env);
+  const record = await events.get(id);
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
 }
 
-async function takenDriveFolderIds(env, tables, exceptId = "") {
-  const rows = await listAllRows(env, tables.events);
-  const ids = [];
-  for (const row of rows) {
-    if (String(row.id) === String(exceptId)) continue;
-    const folderId = text(row["Drive folder id"]);
-    if (folderId) ids.push(folderId);
-  }
-  return ids;
+async function takenDriveFolderIds(env, exceptId = "") {
+  return (await eventRepository(env).listEvents())
+    .filter((event) => String(event.id) !== String(exceptId) && event.driveFolderId)
+    .map((event) => event.driveFolderId);
 }
 
 /**
@@ -758,13 +149,10 @@ async function takenDriveFolderIds(env, tables, exceptId = "") {
 export async function ensureEventDriveFolder(env, id) {
   const event = await getEvent(env, id);
   if (event.driveFolderId && (await isOwnEventFolder(env, event.driveFolderId))) return event;
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
   const folder = await createEventDriveFolder(env, event.name || "Event", {
-    takenFolderIds: await takenDriveFolderIds(env, tables, id),
+    takenFolderIds: await takenDriveFolderIds(env, id),
   });
-  await updateRow(env, tables.events, id, {
-    "Drive folder id": folder.id,
-  });
+  await eventRepository(env).update(id, { driveFolderId: folder.id });
   if (event.driveFolderId) await forgetGalleryStaged(env, id);
   return getEvent(env, id);
 }
@@ -781,37 +169,29 @@ export async function ensureEventGalleryFolder(env, id) {
 }
 
 export async function createEvent(env, input) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
   const name = text(input?.name);
-  const slug = await assertUniqueName(env, tables, name);
+  const slug = await assertUniqueName(env, name);
   const driveFolder = await createEventDriveFolder(env, name, {
-    takenFolderIds: await takenDriveFolderIds(env, tables),
+    takenFolderIds: await takenDriveFolderIds(env),
   });
-  const nightScheduleField = await nightScheduleFieldName(env);
-  const fields = await withoutMissingColumns(
-    env,
-    fieldsFromInput(input || {}, { slug, nightScheduleField }),
-  );
-  assignPageLink(fields, input?.pageUrl);
-  fields["Drive folder id"] = driveFolder.id;
-  let row;
+  const fields = { ...eventFieldsFromInput(input || {}, { slug }), driveFolderId: driveFolder.id };
+  let record;
   try {
-    row = await createRow(env, tables.events, fields);
+    record = await eventRepository(env).create(fields);
   } catch (error) {
     if (!driveFolder.reused && driveFolder.id) {
       try {
         await trashDriveFile(env, driveFolder.id);
       } catch {
-        /* keep the Baserow error */
+        /* keep the storage error */
       }
     }
     throw error;
   }
-  return syncEventOccurrences(env, mapEvent(row, []));
+  return syncEventOccurrences(env, buildEvent(record, [], buildOptions(env)));
 }
 
 export async function updateEvent(env, id, input) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
   const current = await getEvent(env, id);
   const previousName = text(current.name);
   const merged = {
@@ -869,21 +249,15 @@ export async function updateEvent(env, id, input) {
     merged.replacesSeries = input.replacesSeries;
   }
   if (input?.name !== undefined)
-    await assertUniqueName(env, tables, text(merged.name), id);
+    await assertUniqueName(env, text(merged.name), id);
   const slugChange =
     input?.slug !== undefined
-      ? await planSlugChange(env, tables, current, input.slug)
+      ? await planSlugChange(env, current, input.slug)
       : null;
-  const nightScheduleField = await nightScheduleFieldName(env);
-  const fields = await withoutMissingColumns(
-    env,
-    fieldsFromInput(merged, {
-      slug: slugChange?.slug || current.slug || seriesSlug(merged.name),
-      nightScheduleField,
-    }),
-  );
-  if (slugChange) fields[FORMER_SLUGS_FIELD] = slugChange.formerSlugs.join("\n");
-  assignPageLink(fields, merged.pageUrl);
+  const fields = eventFieldsFromInput(merged, {
+    slug: slugChange?.slug || current.slug || seriesSlug(merged.name),
+  });
+  if (slugChange) fields.formerSlugs = slugChange.formerSlugs;
   const nextName = text(merged.name);
   const nameChanged =
     input?.name !== undefined &&
@@ -893,22 +267,21 @@ export async function updateEvent(env, id, input) {
   if (nameChanged && current.driveFolderId) {
     await renameDriveFile(env, current.driveFolderId, nextName);
   }
-  let row;
+  let record;
   try {
-    row = await updateRow(env, tables.events, id, fields);
+    record = await eventRepository(env).update(id, fields);
   } catch (error) {
     if (nameChanged && current.driveFolderId) {
       try {
         await renameDriveFile(env, current.driveFolderId, previousName);
       } catch {
-        /* keep the Baserow error */
+        /* keep the storage error */
       }
     }
     throw error;
   }
-  if (slugChange) await repointReplacedSeries(env, tables, slugChange);
-  const dates = await loadDates(env, tables, id);
-  let event = mapEvent(row, dates);
+  if (slugChange) await repointReplacedSeries(env, slugChange);
+  let event = buildEvent(record, await eventRepository(env).nightsOf(id), buildOptions(env));
   if (nameChanged) {
     event = await clearSeriesTitleEchoes(env, event, previousName);
   }
@@ -934,31 +307,7 @@ async function clearSeriesTitleEchoes(env, event, previousName) {
   return changed ? getEvent(env, event.id) : event;
 }
 
-/**
- * A night no longer in the schedule that is still on the website keeps its
- * row until the website job marks it removed on the preview (publishEventPreview).
- * Deleting it on save would leave it on the website with nothing left to say so.
- */
-export function keepsDroppedNight(row, today = todayIso()) {
-  return Boolean(row?.sanityId) && row.date >= today;
-}
-
-/** Upcoming nights on the website that the schedule no longer has. */
-export function droppedNights(event, today = todayIso()) {
-  const scheduled = new Set(expandSeriesOccurrenceDates(event));
-  return (event?.dates || []).filter(
-    (row) => !scheduled.has(row.date) && keepsDroppedNight(row, today),
-  );
-}
-
-/** The preview is behind ops: nights to write, or dropped nights to mark removed. */
-export function previewBehind(event, today = todayIso()) {
-  if (droppedNights(event, today).some((row) => !row.snapshots?.preview?.removed)) return true;
-  return Boolean(event?.publish?.previewDates?.length) && event.publish.preview !== "current";
-}
-
 export async function syncEventOccurrences(env, event) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
   const wanted = new Set(expandSeriesOccurrenceDates(event));
   const byDate = new Map();
   const extras = [];
@@ -1014,12 +363,10 @@ export async function syncEventOccurrences(env, event) {
 
 /** Mark an event deleted (an ISO time), or restore it (""). */
 export async function setEventDeletedAt(env, id, at) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  await updateRow(env, tables.events, id, { [DELETED_AT_FIELD]: at });
+  await eventRepository(env).update(id, { deletedAt: at });
 }
 
 export async function deleteEvent(env, id) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
   const event = await getEvent(env, id);
   const dates = event.dates || [];
   const folderId = event.driveFolderId;
@@ -1028,18 +375,18 @@ export async function deleteEvent(env, id) {
     for (const row of dates) {
       if (row?.id) await removeOccurrence(env, row.id);
     }
-    await deleteRow(env, tables.events, id);
+    await eventRepository(env).remove(id);
   } catch (error) {
     if (folderId) {
       try {
         await untrashDriveFile(env, folderId);
       } catch {
-        /* keep the Baserow error */
+        /* keep the storage error */
       }
     }
     throw error;
   }
-  return { id: String(id), dates: dates.map(mapEventDate) };
+  return { id: String(id), dates };
 }
 
 /**
@@ -1241,141 +588,44 @@ export async function deleteOccurrences(
   };
 }
 
-async function attachFiles(env, tables, id, field, entries, extra = {}) {
-  const row = await updateRow(env, tables.events, id, {
-    [field]: entries.map((entry) => ({ name: entry.name })),
-    ...extra,
-  });
-  const dates = await loadDates(env, tables, id);
-  return mapEvent(row, dates);
+/** Upload a photo to Sanity; the asset is the image's only copy (#183). */
+async function uploadEventPhoto(env, { bytes, filename, contentType }) {
+  const asset = await sanityUploadImage(env, bytes, { filename, contentType });
+  if (!parseImageAssetId(asset?._id)) {
+    const error = new Error("The photo didn't upload to Sanity.");
+    error.status = 502;
+    throw error;
+  }
+  return asset._id;
 }
 
-export async function setEventImage(
-  env,
-  id,
-  bytes,
-  { filename, contentType, role },
-) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const existing = await getEvent(env, id);
-  const uploaded = await uploadUserFile(env, bytes, { filename, contentType });
-  if (role === "gallery") {
-    const names = [
-      ...existing.images
-        .map((image) => ({ name: image.name }))
-        .filter((image) => image.name),
-      { name: uploaded.name },
-    ];
-    return attachFiles(env, tables, id, "Images", names);
-  }
-  return attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }], {
-    "Hero crops": "",
-  });
+/** The series main image: a new photo starts with no crop. */
+async function writeMainImage(env, id, asset) {
+  const events = eventRepository(env);
+  await events.get(id);
+  const record = await events.update(id, { mainImage: asset ? { asset } : null, heroCrops: null });
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
 }
 
-export async function clearEventImage(env, id, { role, name }) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const existing = await getEvent(env, id);
-  if (role === "gallery") {
-    const names = existing.images
-      .filter((image) => image.name && image.name !== name)
-      .map((image) => ({ name: image.name }));
-    return attachFiles(env, tables, id, "Images", names);
-  }
-  return attachFiles(env, tables, id, "Main image", [], {
-    "Hero crops": "",
-  });
+export async function setEventImage(env, id, upload) {
+  return writeMainImage(env, id, await uploadEventPhoto(env, upload));
 }
 
-/** Baserow fields for one night row (shared by single and batch saves). */
-async function occurrenceFields(env, eventId, occurrence) {
-  const fields = {
-    Name: occurrence.label,
-    Event: [Number(eventId)],
-    Date: occurrence.date,
-    Slug: occurrence.slug,
-    "Sanity ID": occurrence.sanityId || "",
-    "ClickUp Task ID": occurrence.clickupTaskId || "",
-    "Publish snapshots": JSON.stringify(occurrence.snapshots || {}),
-  };
-  if (occurrence.overrides !== undefined) {
-    fields["Title override"] = text(occurrence.overrides?.name);
-    fields["Artist override"] = text(occurrence.overrides?.artist);
-    fields["Offer override"] = text(occurrence.overrides?.offer);
-    fields["Description override"] = text(occurrence.overrides?.description);
-    const dateFields = await eventDateFieldNames(env);
-    // Added by migration; ops running before it simply has no per-night link.
-    if (dateFields.has(PAGE_LINK_OVERRIDE_FIELD)) {
-      fields[PAGE_LINK_OVERRIDE_FIELD] = normalizePageUrl(occurrence.overrides?.pageUrl);
-    }
-    if (dateFields.has(SHORT_DESCRIPTION_OVERRIDE_FIELD)) {
-      fields[SHORT_DESCRIPTION_OVERRIDE_FIELD] = text(
-        occurrence.overrides?.shortDescription,
-      );
-    }
-    fields["Time override"] = text(occurrence.overrides?.time);
-    fields["Start time override"] = clockTime(occurrence.overrides?.startTime);
-    fields["End time override"] = clockTime(occurrence.overrides?.endTime);
-    const overrideField = await nightScheduleOverrideFieldName(env);
-    if (overrideField) {
-      fields[overrideField] =
-        occurrence.overrides?.nightSchedule == null
-          ? ""
-          : serializeNightSchedule(occurrence.overrides.nightSchedule);
-    }
-    fields["Operations notes override"] = text(
-      occurrence.overrides?.operationsNotes,
-    );
-    fields["Image links override"] = linksFrom(
-      occurrence.overrides?.imageLinks,
-    ).join("\n");
-    fields["Override image"] = occurrence.overrides?.image?.name
-      ? [{ name: occurrence.overrides.image.name }]
-      : [];
-    fields["Override hero crops"] =
-      occurrence.overrides?.heroCrops == null
-        ? ""
-        : typeof occurrence.overrides.heroCrops === "string"
-          ? occurrence.overrides.heroCrops
-          : JSON.stringify(occurrence.overrides.heroCrops);
-  }
-  return fields;
+/** Takes the photo off the event. The Sanity asset stays: the live site may still show it. */
+export async function clearEventImage(env, id) {
+  return writeMainImage(env, id, "");
 }
 
 export async function saveOccurrence(env, eventId, occurrence) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const fields = await occurrenceFields(env, eventId, occurrence);
-  if (occurrence.id) {
-    return mapEventDate(
-      await updateRow(env, tables.eventDates, occurrence.id, fields),
-    );
-  }
-  return mapEventDate(await createRow(env, tables.eventDates, fields));
+  const saved = await eventRepository(env).saveNight(eventId, nightForSave(occurrence));
+  return buildNight(saved, buildOptions(env));
 }
 
-/**
- * Save many nights: existing rows in one batch request (Baserow allows 200),
- * new rows one by one. Keeps a series save inside Cloudflare's call limit.
- */
+/** Save many nights at once: keeps a series save inside Cloudflare's call limit. */
 export async function saveOccurrences(env, eventId, occurrences) {
   const list = (occurrences || []).filter(Boolean);
   if (!list.length) return;
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const existing = [];
-  for (const occurrence of list) {
-    if (occurrence.id) {
-      existing.push({ id: Number(occurrence.id), ...(await occurrenceFields(env, eventId, occurrence)) });
-    } else {
-      await createRow(env, tables.eventDates, await occurrenceFields(env, eventId, occurrence));
-    }
-  }
-  for (let i = 0; i < existing.length; i += 200) {
-    await baserowFetch(
-      env,
-      `/api/database/rows/table/${tables.eventDates}/batch/?user_field_names=true`,
-      { method: "PATCH", body: JSON.stringify({ items: existing.slice(i, i + 200) }) },
-    );
-  }
+  await eventRepository(env).saveNights(eventId, list.map(nightForSave));
 }
 
 /** Ensure a calendar night exists on the series, even outside the recurrence rule. */
@@ -2025,20 +1275,13 @@ export async function moveOccurrence(
   };
 }
 
-export async function setOccurrenceImage(
-  env,
-  eventId,
-  date,
-  bytes,
-  { filename, contentType },
-) {
+export async function setOccurrenceImage(env, eventId, date, upload) {
   const {
     event,
     date: normalized,
     occurrence,
   } = await occurrenceForDate(env, eventId, date);
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const uploaded = await uploadUserFile(env, bytes, { filename, contentType });
+  const asset = await uploadEventPhoto(env, upload);
   const saved = await saveOccurrence(env, eventId, {
     ...(occurrence || {}),
     date: normalized,
@@ -2046,19 +1289,11 @@ export async function setOccurrenceImage(
     label: `${event.name} · ${normalized}`,
     overrides: {
       ...(occurrence?.overrides || {}),
-      image: { name: uploaded.name, url: uploaded.url || "" },
+      image: { asset },
       heroCrops: null,
     },
   });
-  let occurrenceSaved = saved;
-  if (!saved.overrides.image?.url) {
-    const row = await updateRow(env, tables.eventDates, saved.id, {
-      "Override image": [{ name: uploaded.name }],
-      "Override hero crops": "",
-    });
-    occurrenceSaved = mapEventDate(row);
-  }
-  return { event: await getEvent(env, eventId), occurrence: occurrenceSaved };
+  return { event: await getEvent(env, eventId), occurrence: saved };
 }
 
 export async function clearOccurrenceImage(env, eventId, date) {
@@ -2080,60 +1315,27 @@ export async function clearOccurrenceImage(env, eventId, date) {
 }
 
 export async function removeOccurrence(env, id) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
+  const events = eventRepository(env);
   let warnings = [];
   try {
-    const row = await getRow(env, tables.eventDates, id);
-    warnings = await forgetCalendarOccurrences(env, [
-      {
-        id: String(row.id),
-        date: isoDate(row.Date),
-        googleCalendarEventId:
-          text(row["Google calendar event id"]) || calendarLinkValue(row.Notes),
-      },
-    ]);
+    const night = await events.getNight(id);
+    if (night) warnings = await forgetCalendarOccurrences(env, [night]);
   } catch (error) {
-    if (error?.status !== 404) {
-      warnings = [
-        noteCalendarWarning(
-          env,
-          error?.message ||
-            "Could not remove that night from Google Calendar.",
-        ),
-      ];
-    }
+    warnings = [
+      noteCalendarWarning(
+        env,
+        error?.message ||
+          "Could not remove that night from Google Calendar.",
+      ),
+    ];
   }
-  try {
-    await deleteRow(env, tables.eventDates, id);
-  } catch (error) {
-    if (error?.status !== 404) throw error;
-  }
+  await events.removeNight(id);
   return warnings;
 }
 
-/**
- * Update only "Publish snapshots" on many night rows in one request
- * (Baserow batch update, up to 200 rows per call).
- */
+/** Save only the publish snapshots of many nights (and clear dropped nights' calendar links). */
 export async function saveOccurrenceSnapshots(env, updates) {
   if (!updates?.length) return 0;
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  for (let i = 0; i < updates.length; i += 200) {
-    await baserowFetch(
-      env,
-      `/api/database/rows/table/${tables.eventDates}/batch/?user_field_names=true`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          items: updates.slice(i, i + 200).map((row) => ({
-            id: row.id,
-            "Publish snapshots": JSON.stringify(row.snapshots || {}),
-            // A dropped night's calendar entry is gone (settleDroppedRows).
-            ...(row.clearCalendar ? { "Google calendar event id": "" } : {}),
-          })),
-        }),
-      },
-    );
-  }
+  await eventRepository(env).saveNightSnapshots(updates);
   return updates.length;
 }
