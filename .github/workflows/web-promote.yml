@@ -180,7 +180,13 @@ jobs:
         if: failure() && steps.rollback.outcome == 'success' && steps.previous.outputs.previous-version != ''
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.previous.outputs.previous-version }}" --retries 18 --retry-delay-ms 5000
 
-      # The new code is live: remove what only the old code used.
+      # The new code is live: remove what only the old code used, and what the
+      # smoke test left (smoke-test-cleanup.mjs, which needs the Mailchimp key).
+      - name: Mailchimp key for the smoke-test cleanup
+        if: inputs.reason != 'content'
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs MAILCHIMP_API_KEY
       - name: Migrations after deploy
         id: post-migrations
         if: inputs.reason != 'content'
