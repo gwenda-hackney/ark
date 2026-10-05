@@ -27,7 +27,7 @@ export async function up({ env, database, processEnv, log }) {
 
 `database(key)` opens this environment's database (`scripts/lib/migrations.mjs` `DATABASES`): `website` or `ops`, in `dev` (Gwenda Dev) or `production` (Gwenda), or `config`, that environment's Gwenda Config database. It offers `ensureField`, `ensureSelectOption`, `removeField` and `fields`. Anything else can call the Baserow API with the same login.
 
-A migration can also change **Sanity content** (a form's field, a document the code now reads differently). Web deploys pull `SANITY_API_TOKEN` before they migrate: use it from `processEnv`, with the project from `shared/sanity-projects.js` (`env` "dev" is the Gwenda Dev copy). Query the real state first and patch only what's left to do; see `2026-10-05-play-form-series-choice.mjs`.
+A migration can also change **Sanity content** (a form's field, a document the code now reads differently). Web deploys pull `SANITY_API_TOKEN` before they migrate: use it from `processEnv`, with the project from `shared/sanity-projects.js` (`env` "dev" is the Gwenda Dev copy). Query the real state first and patch only what's left to do; see `2026-10-05-play-form-series-choice.mjs`. The website is built before the post migrations, so a migration that changed what the site shows returns `{ rebuild: true }`: `web.yml` then rebuilds both dev sites, and `web-promote.yml` promotes the content and rebuilds production's preview. Website content only counts when it's published; the site never reads drafts.
 
 Pick `app` by which deploy the change belongs to: the app whose new code needs it (pre) or whose old code last used it (post).
 

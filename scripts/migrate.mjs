@@ -10,6 +10,7 @@
  * scripts/sm-export.mjs), or prompt on a developer's machine. The login only
  * happens if a migration opens a database.
  */
+import { appendFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
@@ -52,5 +53,8 @@ async function database(key) {
   return opened.get(key);
 }
 
-await runMigrations(migrations, { env, processEnv: process.env, database });
+const { rebuild } = await runMigrations(migrations, { env, processEnv: process.env, database });
+// CI rebuilds the website when a migration changed its content.
+if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `rebuild=${rebuild}\n`);
+if (rebuild) console.log("Website content changed: the site needs a rebuild.");
 console.log("Done.");

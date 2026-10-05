@@ -54,4 +54,5 @@ export async function up({ env, processEnv, log }) {
     }),
   });
   log(`${project}: ${todo.map((form) => form._id).join(", ")} now list the series taking applications`);
+  return { rebuild: true };
 }
