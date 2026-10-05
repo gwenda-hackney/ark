@@ -429,7 +429,7 @@
 												onoverridephoto={editor.overridePhoto}
 												onuseseriesphoto={() => void editor.useSeriesPhoto()}
 												onpickphoto={editor.acceptPhotoFile}
-												onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage("main"))}
+												onclearphoto={() => (editor.pendingPhoto ? editor.clearPendingPhoto() : void editor.onClearImage())}
 											/>
 											{#if editor.tab === "schedule" && !editor.route.isNew}
 												<ScheduleTab

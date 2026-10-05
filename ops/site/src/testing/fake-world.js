@@ -107,6 +107,21 @@ class FakeBaserow {
     return this.present(table, this.write(table, { id: newId() }, fields));
   }
 
+  /** Change a row behind ops' back, as someone editing Baserow would. */
+  update(tableName, id, fields) {
+    const table = this.tableByName(tableName);
+    const row = table.rows.get(Number(id));
+    if (!row) throw new Error(`Fake Baserow: no row ${id} in "${tableName}"`);
+    return this.present(table, this.write(table, row, fields));
+  }
+
+  /** A user file, as an upload made before (#183) left it. */
+  addFile(visibleName, bytes, type = "image/jpeg") {
+    const name = `${newId()}_${visibleName}`;
+    this.files.set(name, { bytes, type, visibleName });
+    return { name };
+  }
+
   write(table, row, input) {
     for (const [key, value] of Object.entries(input || {})) {
       const field = table.fields.find((f) => f.name === key);
@@ -340,7 +355,11 @@ class FakeSanity {
       return json({ transactionId: `tx-${this.rev}`, results });
     }
     if (/\/assets\/images\//.test(url.pathname) && method === "POST") {
-      const id = `image-${newId()}-800x600-jpg`;
+      // Like Sanity: the id is a hash of the bytes, so the same photo is one asset.
+      const bytes = init.body == null ? new Uint8Array() : new Uint8Array(await new Response(init.body).arrayBuffer());
+      const sha1 = Buffer.from(await crypto.subtle.digest("SHA-1", bytes)).toString("hex");
+      const id = `image-${sha1}-800x600-jpg`;
+      if (this.docs.has(id)) return json({ document: this.docs.get(id) });
       const filename = url.searchParams.get("filename") || "upload.jpg";
       const doc = { _id: id, _type: "sanity.imageAsset", originalFilename: filename, url: `https://cdn.sanity.test/${id}.jpg` };
       this.docs.set(id, doc);
@@ -460,7 +479,9 @@ class FakeGoogle {
     const file = this.driveFiles.get(id);
     if (!file) return json({ error: { message: "File not found" } }, 404);
     if (method === "GET" && url.searchParams.get("alt") === "media") {
-      return new Response(new Uint8Array(2048).fill(9), { headers: { "Content-Type": file.mimeType } });
+      // Bytes of its own per file: Sanity keeps one asset for identical photos.
+      const bytes = new Blob([file.id, new Uint8Array(2048).fill(9)]);
+      return new Response(bytes, { headers: { "Content-Type": file.mimeType } });
     }
     if (method === "GET") return json(file);
     if (method === "PATCH") {

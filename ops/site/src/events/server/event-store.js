@@ -11,8 +11,9 @@ import {
   listAllRows,
   resolveOpsTableIds,
   updateRow,
-  uploadUserFile,
 } from "../../../../../shared/baserow.js";
+import { parseImageAssetId, sanityImageUrl } from "../../../../../shared/sanity-image.js";
+import { sanityProjectId, sanityUploadImage } from "../../platform/sanity.js";
 import {
   dayBeforeIso,
   expandOccurrenceDates,
@@ -125,6 +126,30 @@ function filesFrom(value) {
       url: text(entry?.url),
     }))
     .filter((entry) => entry.url || entry.name);
+}
+
+/**
+ * A photo ops uploaded to Sanity (#183): its asset id, CDN address and size.
+ * Rows from before keep their Baserow file until the backfill moves them.
+ */
+function imageFrom(assetValue, fileValue, { projectId } = {}) {
+  const asset = text(assetValue);
+  const parsed = parseImageAssetId(asset);
+  if (parsed) {
+    return {
+      name: "",
+      asset,
+      url: sanityImageUrl(projectId, asset),
+      width: parsed.width,
+      height: parsed.height,
+    };
+  }
+  return filesFrom(fileValue)[0] || null;
+}
+
+/** Where mapEvent builds image addresses: the Sanity project ops writes to. */
+function imageOptions(env) {
+  return { projectId: sanityProjectId(env) };
 }
 
 function linksFrom(value) {
@@ -248,7 +273,7 @@ function readNightScheduleOverrideFromRow(row) {
   return null;
 }
 
-export function mapEventDate(row) {
+export function mapEventDate(row, options = {}) {
   const overrides = {
     name: text(row["Title override"]),
     artist: text(row["Artist override"]),
@@ -262,7 +287,7 @@ export function mapEventDate(row) {
     nightSchedule: readNightScheduleOverrideFromRow(row),
     operationsNotes: text(row["Operations notes override"]),
     imageLinks: linksFrom(row["Image links override"]),
-    image: filesFrom(row["Override image"])[0] || null,
+    image: imageFrom(row["Override asset"], row["Override image"], options),
     heroCrops: parseHeroCropsJson(row["Override hero crops"]),
   };
   return {
@@ -279,7 +304,7 @@ export function mapEventDate(row) {
   };
 }
 
-export function mapEvent(row, dates = []) {
+export function mapEvent(row, dates = [], options = {}) {
   const name = text(row.Name);
   const event = {
     id: String(row.id),
@@ -312,13 +337,12 @@ export function mapEvent(row, dates = []) {
     replacesSeries: text(row["Replaces series"]),
     driveFolderId: text(row["Drive folder id"]),
     driveFolderUrl: driveFolderWebUrl(text(row["Drive folder id"])),
-    mainImage: filesFrom(row["Main image"])[0] || null,
+    mainImage: imageFrom(row["Hero asset"], row["Main image"], options),
     heroCrops: parseHeroCropsJson(row["Hero crops"]),
-    images: filesFrom(row.Images),
   };
   const occurrences = dedupeOccurrences(
     dates
-      .map(mapEventDate)
+      .map((date) => mapEventDate(date, options))
       .map((occurrence) => ({
         ...occurrence,
         isSpecialEdition: occurrenceIsSpecialEdition(event, occurrence),
@@ -709,7 +733,7 @@ export async function listEvents(env, { withDeleted = false } = {}) {
   }
   return rows
     .filter((row) => text(row.Name) && (withDeleted || !text(row[DELETED_AT_FIELD])))
-    .map((row) => mapEvent(row, datesByEvent.get(String(row.id)) || []))
+    .map((row) => mapEvent(row, datesByEvent.get(String(row.id)) || [], imageOptions(env)))
     .sort(
       (a, b) =>
         (a.publish.nextDate || "9999").localeCompare(
@@ -735,7 +759,7 @@ export async function getEvent(env, id) {
   const tables = requireEventsTables(await resolveOpsTableIds(env));
   const row = await readEventRow(env, tables, id);
   const dates = await loadDates(env, tables, id);
-  return mapEvent(row, dates);
+  return mapEvent(row, dates, imageOptions(env));
 }
 
 async function takenDriveFolderIds(env, tables, exceptId = "") {
@@ -807,7 +831,7 @@ export async function createEvent(env, input) {
     }
     throw error;
   }
-  return syncEventOccurrences(env, mapEvent(row, []));
+  return syncEventOccurrences(env, mapEvent(row, [], imageOptions(env)));
 }
 
 export async function updateEvent(env, id, input) {
@@ -908,7 +932,7 @@ export async function updateEvent(env, id, input) {
   }
   if (slugChange) await repointReplacedSeries(env, tables, slugChange);
   const dates = await loadDates(env, tables, id);
-  let event = mapEvent(row, dates);
+  let event = mapEvent(row, dates, imageOptions(env));
   if (nameChanged) {
     event = await clearSeriesTitleEchoes(env, event, previousName);
   }
@@ -1241,50 +1265,37 @@ export async function deleteOccurrences(
   };
 }
 
-async function attachFiles(env, tables, id, field, entries, extra = {}) {
+/** Upload a photo to Sanity; the asset is the image's only copy (#183). */
+async function uploadEventPhoto(env, { bytes, filename, contentType }) {
+  const asset = await sanityUploadImage(env, bytes, { filename, contentType });
+  if (!parseImageAssetId(asset?._id)) {
+    const error = new Error("The photo didn't upload to Sanity.");
+    error.status = 502;
+    throw error;
+  }
+  return asset._id;
+}
+
+/** The series main image: a new photo starts with no crop. */
+async function writeHeroAsset(env, id, asset) {
+  const tables = requireEventsTables(await resolveOpsTableIds(env));
+  await readEventRow(env, tables, id);
   const row = await updateRow(env, tables.events, id, {
-    [field]: entries.map((entry) => ({ name: entry.name })),
-    ...extra,
+    "Hero asset": asset,
+    "Main image": [],
+    "Hero crops": "",
   });
   const dates = await loadDates(env, tables, id);
-  return mapEvent(row, dates);
+  return mapEvent(row, dates, imageOptions(env));
 }
 
-export async function setEventImage(
-  env,
-  id,
-  bytes,
-  { filename, contentType, role },
-) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const existing = await getEvent(env, id);
-  const uploaded = await uploadUserFile(env, bytes, { filename, contentType });
-  if (role === "gallery") {
-    const names = [
-      ...existing.images
-        .map((image) => ({ name: image.name }))
-        .filter((image) => image.name),
-      { name: uploaded.name },
-    ];
-    return attachFiles(env, tables, id, "Images", names);
-  }
-  return attachFiles(env, tables, id, "Main image", [{ name: uploaded.name }], {
-    "Hero crops": "",
-  });
+export async function setEventImage(env, id, upload) {
+  return writeHeroAsset(env, id, await uploadEventPhoto(env, upload));
 }
 
-export async function clearEventImage(env, id, { role, name }) {
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const existing = await getEvent(env, id);
-  if (role === "gallery") {
-    const names = existing.images
-      .filter((image) => image.name && image.name !== name)
-      .map((image) => ({ name: image.name }));
-    return attachFiles(env, tables, id, "Images", names);
-  }
-  return attachFiles(env, tables, id, "Main image", [], {
-    "Hero crops": "",
-  });
+/** Takes the photo off the event. The Sanity asset stays: the live site may still show it. */
+export async function clearEventImage(env, id) {
+  return writeHeroAsset(env, id, "");
 }
 
 /** Baserow fields for one night row (shared by single and batch saves). */
@@ -1329,9 +1340,10 @@ async function occurrenceFields(env, eventId, occurrence) {
     fields["Image links override"] = linksFrom(
       occurrence.overrides?.imageLinks,
     ).join("\n");
-    fields["Override image"] = occurrence.overrides?.image?.name
-      ? [{ name: occurrence.overrides.image.name }]
-      : [];
+    const image = occurrence.overrides?.image;
+    fields["Override asset"] = parseImageAssetId(image?.asset) ? image.asset : "";
+    fields["Override image"] =
+      !fields["Override asset"] && image?.name ? [{ name: image.name }] : [];
     fields["Override hero crops"] =
       occurrence.overrides?.heroCrops == null
         ? ""
@@ -1348,9 +1360,10 @@ export async function saveOccurrence(env, eventId, occurrence) {
   if (occurrence.id) {
     return mapEventDate(
       await updateRow(env, tables.eventDates, occurrence.id, fields),
+      imageOptions(env),
     );
   }
-  return mapEventDate(await createRow(env, tables.eventDates, fields));
+  return mapEventDate(await createRow(env, tables.eventDates, fields), imageOptions(env));
 }
 
 /**
@@ -2025,20 +2038,13 @@ export async function moveOccurrence(
   };
 }
 
-export async function setOccurrenceImage(
-  env,
-  eventId,
-  date,
-  bytes,
-  { filename, contentType },
-) {
+export async function setOccurrenceImage(env, eventId, date, upload) {
   const {
     event,
     date: normalized,
     occurrence,
   } = await occurrenceForDate(env, eventId, date);
-  const tables = requireEventsTables(await resolveOpsTableIds(env));
-  const uploaded = await uploadUserFile(env, bytes, { filename, contentType });
+  const asset = await uploadEventPhoto(env, upload);
   const saved = await saveOccurrence(env, eventId, {
     ...(occurrence || {}),
     date: normalized,
@@ -2046,19 +2052,11 @@ export async function setOccurrenceImage(
     label: `${event.name} · ${normalized}`,
     overrides: {
       ...(occurrence?.overrides || {}),
-      image: { name: uploaded.name, url: uploaded.url || "" },
+      image: { asset },
       heroCrops: null,
     },
   });
-  let occurrenceSaved = saved;
-  if (!saved.overrides.image?.url) {
-    const row = await updateRow(env, tables.eventDates, saved.id, {
-      "Override image": [{ name: uploaded.name }],
-      "Override hero crops": "",
-    });
-    occurrenceSaved = mapEventDate(row);
-  }
-  return { event: await getEvent(env, eventId), occurrence: occurrenceSaved };
+  return { event: await getEvent(env, eventId), occurrence: saved };
 }
 
 export async function clearOccurrenceImage(env, eventId, date) {

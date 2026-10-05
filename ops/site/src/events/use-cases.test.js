@@ -207,7 +207,7 @@ function editor(world) {
     async removeImage(event) {
       const res = await callApi(world, removeImage, {
         method: "DELETE",
-        path: `/api/events/${id(event)}/image?role=main`,
+        path: `/api/events/${id(event)}/image`,
         params: { id: id(event) },
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
@@ -752,13 +752,52 @@ describe("events: images", () => {
     assert.ok(!byDate.get(first).heroImage?.asset?._ref, "other nights don't");
   });
 
-  it("refuses files that aren't images, and images over 6 MB", async () => {
+  it("refuses files that aren't images, and images over 20 MB", async () => {
     const pdf = await ops.uploadImage(event, { name: "menu.pdf", type: "application/pdf" });
     assert.equal(pdf.status, 400);
     assert.match(pdf.data.error, /JPEG, PNG, WebP, or GIF/);
-    const huge = await ops.uploadImage(event, { bytes: 6 * 1024 * 1024 + 1 });
+    const huge = await ops.uploadImage(event, { bytes: 20 * 1024 * 1024 + 1 });
     assert.equal(huge.status, 400);
-    assert.match(huge.data.error, /6MB/);
+    assert.match(huge.data.error, /20MB/);
+  });
+
+  it("a photo goes straight to Sanity: ops keeps its asset id, not a file", async () => {
+    const res = await ops.uploadImage(event, { name: "flyer.jpg" });
+    assert.equal(res.status, 200, JSON.stringify(res.data));
+    const assets = world.sanity.view("raw").filter((doc) => doc._type === "sanity.imageAsset");
+    assert.equal(assets.length, 1, "uploaded before any staging");
+    const [row] = world.baserow.rows("Events");
+    assert.equal(row["Hero asset"], assets[0]._id);
+    assert.deepEqual(row["Main image"] || [], [], "no copy in Baserow");
+    assert.equal(res.data.event.mainImage.asset, assets[0]._id);
+    assert.match(res.data.event.mainImage.url, /^https:\/\/cdn\.sanity\.io\/images\//);
+
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    assert.equal(seriesImage(world.sanity.published("eventSeries")[0]), assets[0]._id, "the website shows that asset");
+  });
+
+  it("the same photo on the series and a night is one asset", async () => {
+    const night = liveNights(world)[1];
+    await ops.uploadImage(event, { name: "a.jpg" });
+    await ops.uploadImage(event, { name: "b.jpg", date: night });
+    const assets = world.sanity.view("raw").filter((doc) => doc._type === "sanity.imageAsset");
+    assert.equal(assets.length, 1);
+    const nightRow = world.baserow.rows("Event dates").find((row) => row.Date === night);
+    assert.equal(nightRow["Override asset"], assets[0]._id);
+  });
+
+  it("a photo from before (a Baserow file) still reaches the website", async () => {
+    const res = await ops.uploadImage(event);
+    const [row] = world.baserow.rows("Events");
+    const file = world.baserow.addFile("old.jpg", new Uint8Array(1024).fill(9));
+    world.baserow.update("Events", row.id, { "Hero asset": "", "Main image": [file] });
+    assert.equal(res.status, 200);
+    await ops.edit(event, { shortDescription: "Still here" });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const live = seriesImage(world.sanity.published("eventSeries")[0]);
+    assert.ok(live && live !== row["Hero asset"], "the old file was copied in at staging");
   });
 });
 

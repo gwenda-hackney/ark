@@ -742,7 +742,17 @@ export function getDeployStatus(runId: number) {
   );
 }
 
-export type OpsEventImage = { name: string; url: string };
+/**
+ * An event photo. Since #183 it lives in Sanity: `asset` is its id and `url`
+ * its cdn.sanity.io address. Older ones are Baserow files (name and url only).
+ */
+export type OpsEventImage = {
+  name: string;
+  url: string;
+  asset?: string;
+  width?: number;
+  height?: number;
+};
 
 /** What happened to preview after a save. Saving never fails because of it. */
 export type EventPreview = {
@@ -980,14 +990,9 @@ export function publishAllEventsPreview() {
   });
 }
 
-export function uploadEventImage(
-  id: string,
-  file: File,
-  role: "main" | "gallery",
-) {
+export function uploadEventImage(id: string, file: File) {
   const body = new FormData();
   body.set("file", file);
-  body.set("role", role);
   return request<{ event: OpsEvent; preview?: EventPreview }>(
     `/api/events/${encodeURIComponent(id)}/image`,
     {
@@ -997,15 +1002,9 @@ export function uploadEventImage(
   );
 }
 
-export function clearEventImage(
-  id: string,
-  role: "main" | "gallery",
-  name = "",
-) {
-  const params = new URLSearchParams({ role });
-  if (name) params.set("name", name);
+export function clearEventImage(id: string) {
   return request<{ event: OpsEvent }>(
-    `/api/events/${encodeURIComponent(id)}/image?${params}`,
+    `/api/events/${encodeURIComponent(id)}/image`,
     { method: "DELETE" },
   );
 }
