@@ -26,6 +26,21 @@ All three ways have the same shape (`prepare/bind/all/first/run`, `batch`), so a
 
 `databaseFor(env, role)` in `shared/d1-env.js` picks the binding when there is one, and the REST API otherwise. Only repository adapters call it. Helpers for queries, inserts and patches are in `shared/d1.js`.
 
+## Writing a feature's D1 adapter
+
+Each feature has its own D1 adapter, because only that adapter knows its tables (#186). Adapters are built from shared functions they compose, never from base classes:
+
+1. **Declare each table** with `d1Table({ table, columns, orderBy })` from `shared/d1-table.js`. That gives:
+   - `toRecord/toRow`;
+   - `get/list/insert/patch/remove/upsert`;
+   - `*Statement` versions, to put changes to several tables in one `batch`;
+   - `exportAll`.
+2. **Write only the queries the domain needs,** usually `table.list(db, { where, params })`.
+3. **Copy methods:**
+   - `exportAll()` returns `exportTables(db, [parents…, children…])`;
+   - `importAll(snapshot)` calls `importTables(db, [[table, records], …])`, which keeps ids and works in dependency order.
+4. **Test it** with `repositoryContract(name, { adapters, seed, cases })` from `shared/testing/repository-contract.js`. It runs the feature's cases against every adapter, plus the shared copy round trip.
+
 ## Migrations
 
 `db/<role>/migrations/NNNN_<what>.sql`, applied in order by `wrangler d1 migrations apply`. It runs before every deploy (#191), and wrangler records which migrations ran.
