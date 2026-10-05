@@ -1,12 +1,15 @@
 /**
  * Deep health: can this deployment reach everything it depends on?
  * Run by the post-deploy smoke test (POST /api/health/deep). Read-only,
- * except the optional test email to ALERT_EMAIL (alerts@gwenda.co.uk).
+ * except a test row in each D1 database's `_meta` (deleted straight after)
+ * and the optional test email to ALERT_EMAIL (alerts@gwenda.co.uk).
  *
  * Each check is independent and reports ok/error and how long it took, so one
  * broken token doesn't hide the others.
  */
 import { getSettings } from "../../../../shared/config.js";
+import { D1_BINDINGS } from "../../../../shared/d1-databases.js";
+import { checkD1 } from "../../../../shared/d1-health.js";
 import { listArtists } from "../../../../shared/artists.js";
 import { opsArtistEnv } from "../../src/lib/featured-artist.js";
 import {
@@ -68,6 +71,13 @@ export const CHECKS = {
     const values = await getSettings(env, "web");
     return `${Object.keys(values).length} settings`;
   },
+  // D1 (#127): every database this site binds, before features move onto them.
+  ...Object.fromEntries(
+    Object.entries(D1_BINDINGS).map(([role, binding]) => [
+      `d1:${role}`,
+      (env) => checkD1(env[binding]),
+    ]),
+  ),
 };
 
 /** Gmail: log in only, or also send a test message to the alert address. */
