@@ -4,8 +4,8 @@ import { slugChangePlan } from "./event-store.js";
 
 const jazz = { id: "1", slug: "jazz", formerSlugs: [] };
 const rows = [
-  { id: "1", Name: "Jazz", Slug: "jazz" },
-  { id: "2", Name: "Negroni Hour", Slug: "negroni-hour", "Former slugs": "negroni-night" },
+  { id: "1", name: "Jazz", slug: "jazz", formerSlugs: [] },
+  { id: "2", name: "Negroni Hour", slug: "negroni-hour", formerSlugs: ["negroni-night"] },
 ];
 
 describe("changing a series' web address", () => {
@@ -14,7 +14,7 @@ describe("changing a series' web address", () => {
       slug: "jazz-and-soul",
       previous: "jazz",
       formerSlugs: ["jazz"],
-      rows,
+      events: rows,
     });
   });
 
