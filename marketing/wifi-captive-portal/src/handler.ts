@@ -1,3 +1,4 @@
+import { frozenFeatures } from "../../../shared/write-freeze.js";
 import { normalizeEmail, subscribeEmailToBaserow } from "./baserow.js";
 import { renderPortalPage, renderSuccessPage } from "./portal-html.js";
 import type { Env } from "./types.js";
@@ -139,13 +140,19 @@ export async function handlePortalRequest(
       );
     }
 
-    const saved = await subscribe({
-      email,
-      tag: resolveSubscribeTag(env),
-      apiKey: env.BASEROW_API_KEY,
-      apiUrl: resolveApiUrl(env),
-      tableId,
-    });
+    // While subscribers move to D1 (#191), guests still get online; only the
+    // sign-up isn't kept, or it would be lost between the copy and the switch.
+    const frozen = (await frozenFeatures(env, ["guests"])).length > 0;
+    if (frozen) console.log("wifi portal: guests frozen, sign-up not saved");
+    const saved = frozen
+      ? { ok: true as const }
+      : await subscribe({
+          email,
+          tag: resolveSubscribeTag(env),
+          apiKey: env.BASEROW_API_KEY,
+          apiUrl: resolveApiUrl(env),
+          tableId,
+        });
 
     if (!saved.ok) {
       return html(

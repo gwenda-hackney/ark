@@ -51,6 +51,8 @@ export type AuthMe = {
   risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
   /** Sees developer tools. Always true in dev. */
   isAdmin?: boolean;
+  /** Features that are read-only while their data moves to D1 (#191). */
+  frozen?: string[];
 };
 
 export function getMe() {

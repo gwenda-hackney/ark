@@ -10,6 +10,7 @@ import { opsEnv } from "../../../src/platform/ops-env.js";
 import { resolveOpsTableIds } from "../../../../../shared/baserow.js";
 import { isOpsAdmin } from "../../../src/access/server/admin.js";
 import { isOpsUser } from "../../../src/users/server/user-store.js";
+import { frozenFeatures } from "../../../../../shared/write-freeze.js";
 
 /** Current session identity and Baserow connection for the shell. */
 export async function onRequestGet(context) {
@@ -44,6 +45,8 @@ export async function onRequestGet(context) {
       isProductionDb: connection.isProductionDb,
       risk: connection.risk,
       isAdmin: await isOpsAdmin(env, email).catch(() => false),
+      // Features whose data is moving to D1 right now: read-only (#191).
+      frozen: await frozenFeatures(context.env),
     }),
     {
       status: 200,

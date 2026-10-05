@@ -233,6 +233,21 @@ describe("syncUnsyncedSubscribers", () => {
     ]);
   }
 
+  it("skips the run while guests are frozen for the move to D1 (#191)", async () => {
+    const fetchImpl = vi.fn();
+    const frozenDb = {
+      prepare: () => ({
+        bind: () => ({ all: async () => ({ results: [{ key: "write_freeze:guests" }] }) }),
+      }),
+    };
+    const summary = await syncUnsyncedSubscribers(
+      { ...env, WEBSITE_DB: frozenDb },
+      { fetchImpl: fetchImpl as unknown as typeof fetch },
+    );
+    expect(summary).toMatchObject({ ok: true, frozen: true, scanned: 0 });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("dry-run does not call Mailchimp or patch Baserow", async () => {
     clearSubscribeTableIdCache();
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

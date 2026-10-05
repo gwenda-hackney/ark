@@ -48,6 +48,19 @@ Each feature has its own D1 adapter, because only that adapter knows its tables 
    - `importAll(snapshot)` calls `importTables(db, [[table, records], …])`, which keeps ids and works in dependency order.
 4. **Test it** with `repositoryContract(name, { adapters, seed, cases })` from `shared/testing/repository-contract.js`. It runs the feature's cases against every adapter, plus the shared copy round trip.
 
+## Write freeze (during a feature's move)
+
+While a feature's data is copied from Baserow and the code switches over, writes to it must wait, or a change made in between is lost.
+
+`npm run d1:freeze -- --env <dev|production> --feature <events|menu|artists|users|guests> [--off]` sets or clears a `write_freeze:<feature>` row in `_meta` of the database the feature moves into, and `--list` shows what's frozen. Everything that writes the feature reads that flag through its binding, and the flag takes effect on the next request:
+
+- ops (all its API writes, the 5-minute website tick included);
+- the website (sign-ups, forms, RSVPs);
+- the Mailchimp sync, which skips its run;
+- the Wi-Fi portal, which lets guests online but doesn't save the sign-up.
+
+A refused write gets **423** with "read-only for a few minutes", and ops shows an amber banner. If the database can't be read, writes go ahead (fail open). The code is in `shared/write-freeze.js`, with each app's path table next to its middleware.
+
 ## Migrations
 
 `db/<role>/migrations/NNNN_<what>.sql`, applied in order by `wrangler d1 migrations apply`. It runs before every deploy (#191), and wrangler records which migrations ran.
