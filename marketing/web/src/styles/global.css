@@ -6637,7 +6637,9 @@ a.event-card:focus-visible .event-title,
   transform: scale(1.2);
 }
 
-.event-media--whole .event-hero {
+/* Two classes on the frame so this beats page rules that crop, such as
+   .whats-on-page .event-card--series .event-hero (the series cards). */
+.event-media.event-media--whole .event-hero {
   position: relative;
   object-fit: contain;
   object-position: 50% 50%;
