@@ -12,6 +12,7 @@ import {
   seriesShortDescriptionForPublish,
   sanityEventDocument,
   sanitySeriesDocument,
+  occurrencePayload,
   stableHeroFraming,
   stableImageRef,
   titleOverrideEchoesSeries,
@@ -540,4 +541,15 @@ test("a series with no start date and no nights ahead waits for dates", () => {
   // Left off otherwise, so series already on the website stay unchanged.
   const dated = sanitySeriesDocument({ slug: "vinyl-club", title: "Vinyl Club" });
   assert.equal("datesPending" in dated, false);
+});
+
+test("a series taking applications says so on its Sanity document and in its change hash (#41)", () => {
+  const base = { slug: "jazz", title: "The Jazz Room", description: "Jazz.", schedule: "repeating", nightSchedule: [] };
+  assert.equal(sanitySeriesDocument(base).takingApplications, undefined);
+  assert.equal(sanitySeriesDocument({ ...base, takingApplications: true }).takingApplications, true);
+  const event = { name: "The Jazz Room", slug: "jazz", repeatUnit: "week", dates: [{ date: "2026-10-07", overrides: {} }] };
+  const off = JSON.stringify(occurrencePayload(event, "2026-10-07"));
+  const on = JSON.stringify(occurrencePayload({ ...event, takingApplications: true }, "2026-10-07"));
+  assert.notEqual(off, on);
+  assert.ok(!off.includes("TakingApplications"));
 });

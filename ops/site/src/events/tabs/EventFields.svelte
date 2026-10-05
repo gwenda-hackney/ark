@@ -17,6 +17,7 @@
 		FormSection,
 		NativeSelect,
 		PhotoActions,
+		Switch,
 		TextArea,
 		TextField,
 		TimeField,
@@ -411,6 +412,21 @@
 								placeholder={current.slug}
 								autocomplete="off"
 								spellcheck="false"
+							/>
+						</Field>
+					{/if}
+					{#if isSeries}
+						<Field
+							class="span-6"
+							label="Play at Gwenda form"
+							for="event-taking-applications"
+							help="Taking applications"
+							hint="Artists applying to play can pick this series. Changes when you press Update website."
+						>
+							<Switch
+								id="event-taking-applications"
+								bind:checked={form.takingApplications}
+								label="Taking applications"
 							/>
 						</Field>
 					{/if}

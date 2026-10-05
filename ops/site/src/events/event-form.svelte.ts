@@ -101,6 +101,7 @@ export function fieldSnapshot(row: {
 	weekdays?: string[];
 	monthDay?: number | string;
 	endsOn?: string;
+	takingApplications?: boolean;
 }) {
 	return JSON.stringify({
 		name: String(row.name || "").trim(),
@@ -127,6 +128,7 @@ export function fieldSnapshot(row: {
 		weekdays: [...(row.weekdays || [])].sort(),
 		monthDay: Number(row.monthDay) || 0,
 		endsOn: row.endsOn || "",
+		takingApplications: row.takingApplications === true,
 	});
 }
 
@@ -198,6 +200,8 @@ export class EventForm {
 	monthDay = $state("");
 	endsOn = $state("");
 	replacesSeries = $state("");
+	/** A series listed on the website's Play at Gwenda form (#41). */
+	takingApplications = $state(false);
 	heroCrops = $state<HeroFraming | null>(null);
 
 	/** Any field overridden. Setting it overrides every field, or none. */
@@ -277,6 +281,7 @@ export class EventForm {
 		this.monthDay = event.monthDay ? String(event.monthDay) : "";
 		this.endsOn = event.endsOn || "";
 		this.replacesSeries = event.replacesSeries || "";
+		this.takingApplications = event.takingApplications === true;
 		this.syncHeroCrops(event, occurrenceDate);
 		this.overridden = nightOverriddenKeys(event, occurrence);
 		this.ownPhoto = Boolean(occurrence?.overrides?.image?.url);
@@ -316,6 +321,7 @@ export class EventForm {
 		this.monthDay = "";
 		this.endsOn = "";
 		this.replacesSeries = "";
+		this.takingApplications = false;
 		this.heroCrops = null;
 		this.overridden = [];
 		this.ownPhoto = false;
@@ -421,6 +427,7 @@ export class EventForm {
 			weekdays: this.weekdays,
 			monthDay: this.monthDay,
 			endsOn: this.endsOn,
+			takingApplications: this.takingApplications,
 		});
 		if (!current) {
 			return draft !== fieldSnapshot({ repeatUnit: options.creatingOnce ? "once" : "none" });
@@ -463,6 +470,7 @@ export class EventForm {
 			monthDay: Number(this.monthDay) || 0,
 			endsOn: this.endsOn,
 			...(this.repeatUnit === "once" ? { replacesSeries: this.replacesSeries } : {}),
+			...(this.repeatUnit === "once" ? {} : { takingApplications: this.takingApplications }),
 			...(this.webAddressChanged(current) ? { slug: this.webAddress.trim() } : {}),
 			heroCrops: this.heroCrops || null,
 		};

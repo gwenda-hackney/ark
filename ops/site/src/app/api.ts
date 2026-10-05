@@ -787,6 +787,8 @@ export type OpsEvent = {
   name: string;
   artist: string;
   offer: string;
+  /** Listed on the website's Play at Gwenda form (#41). */
+  takingApplications?: boolean;
   pageUrl: string;
   description: string;
   shortDescription: string;
