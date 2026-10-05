@@ -22,6 +22,9 @@ on:
     paths:
       - "marketing/web/**"
       - "shared/**"
+      # Its deploys run the web migrations.
+      - "migrations/**"
+      - "scripts/lib/migrations.mjs"
       - "package-lock.json"
       - ".github/workflows/web.yml"
       - ".github/actions/deploy-pages/**"
