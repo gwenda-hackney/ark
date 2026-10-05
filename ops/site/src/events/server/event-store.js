@@ -26,15 +26,12 @@ import {
   noteCalendarWarning,
 } from "./event-calendar-sync.js";
 import {
-  GALLERY_FOLDER_NAME,
   createEventDriveFolder,
-  ensureNamedChildFolder,
   isOwnEventFolder,
   renameDriveFile,
   trashDriveFile,
   untrashDriveFile,
 } from "../../platform/google-drive.js";
-import { forgetGalleryStaged } from "./event-gallery.js";
 import { parseNightSchedule } from "./night-schedule.js";
 import { eventRepository } from "./event-repository.js";
 import {
@@ -143,8 +140,7 @@ async function takenDriveFolderIds(env, exceptId = "") {
 /**
  * Ensure the event has a Drive folder of this environment's own; create one
  * if it has none, or if the row points at another environment's folder (see
- * isOwnEventFolder). A new folder starts with an empty gallery, so the staged
- * gallery is forgotten and copied again.
+ * isOwnEventFolder). The Drive copy then fills its "website images".
  */
 export async function ensureEventDriveFolder(env, id) {
   const event = await getEvent(env, id);
@@ -153,19 +149,7 @@ export async function ensureEventDriveFolder(env, id) {
     takenFolderIds: await takenDriveFolderIds(env, id),
   });
   await eventRepository(env).update(id, { driveFolderId: folder.id });
-  if (event.driveFolderId) await forgetGalleryStaged(env, id);
   return getEvent(env, id);
-}
-
-/** Gallery folder under the series. The hero copy sits in the series folder. */
-export async function ensureEventGalleryFolder(env, id) {
-  const event = await ensureEventDriveFolder(env, id);
-  const gallery = await ensureNamedChildFolder(
-    env,
-    event.driveFolderId,
-    GALLERY_FOLDER_NAME,
-  );
-  return { event, gallery };
 }
 
 export async function createEvent(env, input) {
@@ -617,25 +601,17 @@ export async function clearEventImage(env, id) {
   return writeMainImage(env, id, "");
 }
 
-/**
- * Add a photo to the series' gallery, or to one night's (`date`). A series
- * whose gallery is still in Drive adds it there until the backfill (#183).
- */
+/** Add a photo to the series' gallery, or to one night's (`date`). */
 export async function addGalleryImage(env, id, upload, { date = "" } = {}) {
-  const event = await getEvent(env, id);
-  if (!Array.isArray(event.gallery)) {
-    const error = new Error("This series' gallery is still in Google Drive.");
-    error.status = 409;
-    throw error;
-  }
   const night = date ? isoDate(date) : "";
   if (date && !night) {
     const error = new Error("Date is not valid.");
     error.status = 400;
     throw error;
   }
-  const asset = await uploadEventPhoto(env, upload);
   const events = eventRepository(env);
+  await events.get(id);
+  const asset = await uploadEventPhoto(env, upload);
   const record = await events.addGalleryPhoto(id, {
     key: crypto.randomUUID().replace(/-/g, "").slice(0, 16),
     asset,
@@ -1084,7 +1060,7 @@ export async function updateOccurrenceContent(env, eventId, date, input) {
           operationsNotes: content.operationsNotes,
           imageLinks: content.imageLinks,
           // Keep a real per-night flyer only. Never bake the series main image
-          // into Override image (that falsely creates "special guests").
+          // into the night's own photo (that falsely creates "special guests").
           image: row.overrides?.image || null,
           heroCrops: row.overrides?.heroCrops || null,
         },

@@ -102,14 +102,12 @@ export function eventFields() {
       name: "Replaces series",
       body: { name: "Replaces series", type: "text" },
     },
-    // The Sanity asset id of the main image (#183). Main image is the old copy.
+    // The Sanity asset id of the main image (#183).
     { name: "Hero asset", body: { name: "Hero asset", type: "text" } },
-    { name: "Main image", body: { name: "Main image", type: "file" } },
     {
       name: "Hero crops",
       body: { name: "Hero crops", type: "long_text" },
     },
-    { name: "Images", body: { name: "Images", type: "file" } },
     // Gallery photos as JSON (#183): Sanity asset ids, newest first.
     { name: "Gallery", body: { name: "Gallery", type: "long_text" } },
   ];
@@ -183,7 +181,6 @@ export function eventDateFields(eventsTableId) {
       body: { name: "Image links override", type: "long_text" },
     },
     { name: "Override asset", body: { name: "Override asset", type: "text" } },
-    { name: "Override image", body: { name: "Override image", type: "file" } },
     {
       name: "Override hero crops",
       body: { name: "Override hero crops", type: "long_text" },

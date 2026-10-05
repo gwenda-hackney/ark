@@ -25,8 +25,6 @@ import { onRequestPost as syncCalendar } from "../../functions/api/events/[id]/c
 import { onRequestDelete as removeImage, onRequestPost as uploadImage } from "../../functions/api/events/[id]/image.js";
 import { onRequestPost as uploadNightImage } from "../../functions/api/events/[id]/dates/[date]/image.js";
 import { onRequestPost as runWebsiteJob } from "../../functions/api/web/jobs.js";
-import { onRequestPost as uploadDrivePhoto } from "../../functions/api/events/[id]/drive.js";
-import { onRequestDelete as removeDrivePhoto } from "../../functions/api/events/[id]/drive/[fileId].js";
 import { onRequestPost as uploadGalleryPhoto } from "../../functions/api/events/[id]/gallery.js";
 import { onRequestPost as tick } from "../../functions/api/web/tick.js";
 import { onRequestDelete as removeGalleryPhoto } from "../../functions/api/events/[id]/gallery/[key].js";
@@ -247,27 +245,6 @@ function editor(world) {
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data.drive;
-    },
-    /** A series from before #183: its gallery photos go to Drive. */
-    async addDrivePhoto(event, { date = "", name = "crowd.jpg" } = {}) {
-      const form = new FormData();
-      form.set("file", new File([new Uint8Array(4096).fill(3)], name, { type: "image/jpeg" }));
-      const res = await callApi(world, uploadDrivePhoto, {
-        method: "POST",
-        path: `/api/events/${id(event)}/drive${date ? `?date=${date}` : ""}`,
-        params: { id: id(event) },
-        body: form,
-      });
-      assert.equal(res.status, 200, JSON.stringify(res.data));
-      return res.data.file;
-    },
-    async removeDrivePhoto(event, file) {
-      const res = await callApi(world, removeDrivePhoto, {
-        method: "DELETE",
-        path: `/api/events/${id(event)}/drive/${file.id}`,
-        params: { id: id(event), fileId: file.id },
-      });
-      assert.equal(res.status, 200, JSON.stringify(res.data));
     },
     /** The event's "Sync calendar" button. */
     async syncCalendar(event) {
@@ -821,19 +798,6 @@ describe("events: images", () => {
     assert.equal(opened.dates.find((row) => row.date === night).overrides.image.asset, assets[0]._id);
   });
 
-  // Storage-specific on purpose: only Baserow has photos from before #183.
-  it("a photo from before (a Baserow file) still reaches the website", async () => {
-    const res = await ops.uploadImage(event);
-    const [row] = world.baserow.rows("Events");
-    const file = world.baserow.addFile("old.jpg", new Uint8Array(1024).fill(9));
-    world.baserow.update("Events", row.id, { "Hero asset": "", "Main image": [file] });
-    assert.equal(res.status, 200);
-    await ops.edit(event, { shortDescription: "Still here" });
-    await ops.waitUntilReady(event);
-    await ops.updateWebsite(event);
-    const live = seriesImage(world.sanity.published("eventSeries")[0]);
-    assert.ok(live && live !== row["Hero asset"], "the old file was copied in at staging");
-  });
 });
 
 describe("events: gallery", () => {
@@ -907,8 +871,6 @@ describe("events: gallery", () => {
   });
 });
 
-// Storage-specific on purpose: only series from before #183 have no gallery
-// list in ops, and keep theirs in Drive until the backfill.
 describe("events: the Drive copy for collaborators", () => {
   let world;
   let ops;
@@ -994,6 +956,20 @@ describe("events: the Drive copy for collaborators", () => {
     assert.deepEqual(tags(files), [`gallery::${asset}`]);
   });
 
+  it("a row pointing at another environment's folder gets one of its own, then its copies", async () => {
+    // The dev clone copies rows from production, Drive folder id included.
+    world.google.driveFiles.set("other-series", { id: "other-series", name: "Series", mimeType: "application/vnd.google-apps.folder", parents: ["other-root"] });
+    world.baserow.update("Events", event.id, { "Drive folder id": "other-series" });
+    await ops.addGalleryPhoto(event, { name: "mine.jpg" });
+    await ops.copyToDrive();
+    const { driveFolderId } = await ops.open(event);
+    assert.notEqual(driveFolderId, "other-series");
+    assert.ok(world.google.eventFolders().some((folder) => folder.id === driveFolderId), "under this environment's root");
+    await ops.copyToDrive();
+    assert.equal((await websiteImages()).files.length, 1);
+    assert.ok(![...world.google.driveFiles.values()].some((file) => file.parents.includes("other-series")), "nothing in theirs");
+  });
+
   it("more photos than one run copies: they all get there", async () => {
     for (let n = 0; n < 24; n += 1) await ops.addGalleryPhoto(event, { name: `photo-${n}.jpg` });
     const runs = [];
@@ -1004,89 +980,6 @@ describe("events: the Drive copy for collaborators", () => {
     }
     assert.ok(runs[0] < 24, "more than one run");
     assert.equal((await websiteImages()).files.length, 24);
-  });
-});
-
-describe("events: a gallery still in Drive", () => {
-  let world;
-  let ops;
-  let event;
-  beforeEach(async () => {
-    world = await createFakeWorld();
-    world.install();
-    ops = editor(world);
-    event = await ops.create(weeklySeries());
-    world.baserow.update("Events", event.id, { Gallery: "" });
-    await ops.waitUntilReady(event);
-    await ops.updateWebsite(event);
-  });
-  afterEach(() => world.restore());
-
-  /** The series gallery on the live site: [driveFileId, date] pairs, as shown. */
-  const liveGallery = () =>
-    (world.sanity.published("eventSeries")[0]?.gallery || []).map((image) => [image.driveFileId, image.date || ""]);
-
-  it("series and night photos: newest first, the night's marked with its date, live on Update website", async () => {
-    const night = liveNights(world)[1];
-    const series = await ops.addDrivePhoto(event, { name: "bar.jpg" });
-    const ofNight = await ops.addDrivePhoto(event, { date: night, name: "crowd.jpg" });
-    await ops.waitUntilReady(event);
-    assert.deepEqual(liveGallery(), [], "the website waits for Update website");
-    assert.equal(await ops.sees(event), "Changed");
-
-    await ops.updateWebsite(event);
-    assert.deepEqual(liveGallery(), [
-      [ofNight.id, night],
-      [series.id, ""],
-    ]);
-    assert.equal(await ops.sees(event), "Live");
-  });
-
-  it("removing a photo takes it off on Update website", async () => {
-    const photo = await ops.addDrivePhoto(event);
-    const kept = await ops.addDrivePhoto(event, { name: "kept.jpg" });
-    await ops.waitUntilReady(event);
-    await ops.updateWebsite(event);
-    await ops.removeDrivePhoto(event, photo);
-    await ops.waitUntilReady(event);
-    await ops.updateWebsite(event);
-    assert.deepEqual(liveGallery(), [[kept.id, ""]]);
-  });
-
-  it("a row pointing at another environment's folder: its photos stay out, new ones get a folder of its own", async () => {
-    // The dev clone copies rows from production, Drive folder id included.
-    const folder = (id, name, parent) => world.google.driveFiles.set(id, { id, name, mimeType: "application/vnd.google-apps.folder", parents: [parent] });
-    folder("other-root", "Events-dev", "drive-root");
-    folder("other-series", "Series", "other-root");
-    folder("other-gallery", "gallery", "other-series");
-    world.google.driveFiles.set("theirs", { id: "theirs", name: "theirs.jpg", mimeType: "image/jpeg", parents: ["other-gallery"] });
-    const table = world.baserow.tableByName("Events");
-    world.baserow.write(table, [...table.rows.values()][0], { "Drive folder id": "other-series" });
-
-    await ops.edit(event, { offer: "Two for one" });
-    await ops.waitUntilReady(event);
-    await ops.updateWebsite(event);
-    assert.deepEqual(liveGallery(), [], "the other environment's photo stays off the website");
-
-    const mine = await ops.addDrivePhoto(event, { name: "mine.jpg" });
-    const folderId = world.baserow.rows("Events")[0]["Drive folder id"];
-    assert.notEqual(folderId, "other-series");
-    assert.ok(world.google.eventFolders().some((f) => f.id === folderId), "a new folder under this environment's root");
-    assert.ok(world.google.driveFiles.get("theirs").parents.includes("other-gallery"), "the other folder is left alone");
-    await ops.waitUntilReady(event);
-    await ops.updateWebsite(event);
-    assert.deepEqual(liveGallery(), [[mine.id, ""]]);
-  });
-
-  it("more photos than one run uploads: they all get there", async () => {
-    for (let n = 0; n < 7; n += 1) await ops.addDrivePhoto(event, { name: `photo-${n}.jpg` });
-    await ops.waitUntilReady(event);
-    await ops.updateWebsite(event);
-    assert.equal(liveGallery().length, 7);
-  });
-
-  it("photos can't be added the new way until it moves", async () => {
-    await ops.addGalleryPhoto(event, { status: 409 });
   });
 });
 

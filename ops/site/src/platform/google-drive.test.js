@@ -4,7 +4,6 @@ import {
   driveFolderWebUrl,
   findNamedFolder,
   isDriveImage,
-  isHeroDriveFileName,
   mapDriveImage,
   parseDriveServiceAccount,
   pickReusableDriveFolder,
@@ -92,12 +91,5 @@ describe("google-drive helpers", () => {
         createdTime: "2026-09-21T12:00:00.000Z",
       },
     );
-  });
-
-  it("recognises the hero copies older folders still hold", () => {
-    assert.equal(isHeroDriveFileName("hero.webp"), true);
-    assert.equal(isHeroDriveFileName("hero-2026-10-10.gif"), true);
-    assert.equal(isHeroDriveFileName("crowd.jpg"), false);
-    assert.equal(isHeroDriveFileName("hero-notes.jpg"), false);
   });
 });
