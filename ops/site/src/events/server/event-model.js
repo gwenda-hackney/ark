@@ -7,7 +7,12 @@
  *   description, operationsNotes, imageLinks[], startsOn, time, startTime,
  *   endTime, nightSchedule[], repeatEvery, repeatUnit, weekdays[], monthDay,
  *   endsOn, skippedDates[], extraDates[], slug, formerSlugs[], deletedAt,
- *   takingApplications, replacesSeries, driveFolderId, mainImage, heroCrops }
+ *   takingApplications, replacesSeries, driveFolderId, mainImage, heroCrops,
+ *   gallery }
+ *
+ * gallery: GalleryPhoto[] newest first, or null while the series' gallery is
+ * still in Drive (#183, until the backfill moves it). GalleryPhoto:
+ *   { key, asset, date ("" for the series, or a night's date), added, source }
  *
  * NightRecord: { id, date, slug, label, sanityId, clickupTaskId, snapshots,
  *   googleCalendarEventId, overrides: { name, artist, offer, pageUrl,
@@ -134,6 +139,32 @@ export function eventImage(image, { projectId } = {}) {
   return name || url ? { name, url } : null;
 }
 
+/** A gallery photo as kept, or null when it isn't one. */
+export function storedGalleryPhoto(photo) {
+  const asset = text(photo?.asset);
+  const key = text(photo?.key);
+  if (!key || !parseImageAssetId(asset)) return null;
+  return {
+    key,
+    asset,
+    date: isoDate(photo.date),
+    added: text(photo.added),
+    source: text(photo.source) || "ops",
+  };
+}
+
+/** A stored gallery: a list of photos, or null when there is none yet. */
+export function storedGallery(list) {
+  if (!Array.isArray(list)) return null;
+  return list.map(storedGalleryPhoto).filter(Boolean);
+}
+
+/** A gallery photo as ops shows it, from the Sanity CDN. */
+export function galleryPhoto(photo, options = {}) {
+  const { url, width, height } = eventImage({ asset: photo.asset }, options);
+  return { ...photo, url, width, height };
+}
+
 /** A night as ops works with it. */
 export function buildNight(record, options = {}) {
   return {
@@ -151,13 +182,14 @@ export function buildNight(record, options = {}) {
 
 /** A series as ops works with it: its nights, and where it stands on the website. */
 export function buildEvent(record, nights = [], options = {}) {
-  const { mainImage, ...rest } = record;
+  const { mainImage, gallery, ...rest } = record;
   const event = {
     ...rest,
     id: String(record.id),
     slug: record.slug || seriesSlug(record.name),
     driveFolderUrl: driveFolderWebUrl(record.driveFolderId),
     mainImage: eventImage(mainImage, options),
+    gallery: Array.isArray(gallery) ? gallery.map((photo) => galleryPhoto(photo, options)) : null,
   };
   const occurrences = dedupeOccurrences(
     nights

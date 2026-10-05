@@ -99,7 +99,29 @@ for (const [name, make] of Object.entries(ADAPTERS)) {
       const created = await repo.create(fields);
       assert.ok(created.id);
       const { id: _id, ...stored } = await repo.get(created.id);
-      assert.deepEqual(stored, { ...fields, formerSlugs: [], deletedAt: "" });
+      assert.deepEqual(stored, { ...fields, formerSlugs: [], deletedAt: "", gallery: null });
+    });
+
+    it("a gallery: none yet, then photos newest first, each asset once", async () => {
+      const old = await repo.create(seriesFields());
+      assert.equal((await repo.get(old.id)).gallery, null, "a series from before keeps its gallery in Drive");
+      const { id } = await repo.create(seriesFields({ name: "Gwenda Live", slug: "gwenda-live", gallery: [] }));
+      assert.deepEqual((await repo.get(id)).gallery, []);
+      const first = { key: "k1", asset: ASSET, date: "", added: "2026-10-05T09:00:00.000Z", source: "ops" };
+      const second = { key: "k2", asset: OTHER_ASSET, date: "2026-10-08", added: "2026-10-05T09:01:00.000Z", source: "ops" };
+      await repo.addGalleryPhoto(id, first);
+      const added = await repo.addGalleryPhoto(id, second);
+      assert.deepEqual(added.gallery, [second, first]);
+      await repo.addGalleryPhoto(id, { ...first, key: "k3" });
+      assert.deepEqual((await repo.get(id)).gallery, [second, first], "the same asset isn't added twice");
+      const removed = await repo.removeGalleryPhoto(id, "k2");
+      assert.deepEqual(removed.gallery, [first]);
+      assert.deepEqual((await repo.get(id)).gallery, [first]);
+    });
+
+    it("a gallery on a missing series is a 404", async () => {
+      await assert.rejects(repo.addGalleryPhoto("999999", { key: "k", asset: ASSET }), { status: 404 });
+      await assert.rejects(repo.removeGalleryPhoto("999999", "k"), { status: 404 });
     });
 
     it("an update changes only the fields given", async () => {

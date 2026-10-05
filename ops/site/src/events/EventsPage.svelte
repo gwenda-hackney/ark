@@ -273,7 +273,7 @@
 		if (!editor.editing || editor.tab !== "gallery") return;
 		const id = editor.eventId;
 		// A night shows its series' photos: one gallery per series (#30). Per-night photos are #146.
-		void editor.gallery.load(id).then((folder) => {
+		void editor.gallery.load(id, false, "", editor.current?.gallery ?? null).then((folder) => {
 			if (!folder || editor.current?.id !== id) return;
 			editor.current = {
 				...editor.current,

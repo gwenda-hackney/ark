@@ -280,6 +280,11 @@ export function titleOverrideEchoesSeries(seriesName, titleOverride) {
 }
 
 /** Stable file identity: Baserow URLs rotate signed query tokens. */
+/** What of a gallery shows on the website: which photos, in order, and their nights. */
+export function stableGallery(gallery) {
+  return (gallery || []).map((photo) => `${photo.key}:${photo.asset}:${photo.date || ""}`);
+}
+
 export function stableImageRef(image) {
   if (!image) return "";
   const asset = String(image.asset || "").trim();
@@ -354,6 +359,11 @@ export function occurrencePayload(event, occurrence) {
     seriesNightSchedule: stableNightSchedule(event?.nightSchedule),
     // Only when on, so series that never take applications keep their hash.
     ...(event?.takingApplications === true ? { seriesTakingApplications: true } : {}),
+    // A gallery kept in ops (#183): a change puts the series' pages behind.
+    // Only when it has photos, so other series keep their hash.
+    ...(Array.isArray(event?.gallery) && event.gallery.length
+      ? { seriesGallery: stableGallery(event.gallery) }
+      : {}),
     isSpecialEdition: content.isSpecialEdition,
     seriesId: String(event?.slug || "").trim(),
     seriesTitle: String(event?.name || "").trim(),

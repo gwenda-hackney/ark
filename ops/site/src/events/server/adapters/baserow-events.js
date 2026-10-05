@@ -28,6 +28,7 @@ import {
   linksFrom,
   parseHeroCrops,
   slugList,
+  storedGallery,
   text,
 } from "../event-model.js";
 
@@ -41,11 +42,13 @@ const SHORT_DESCRIPTION_OVERRIDE = "Short description override";
 const FORMER_SLUGS = "Former slugs";
 const DELETED_AT = "Deleted at";
 const TAKING_APPLICATIONS = "Taking applications";
+/** The series' gallery photos as JSON (#183); empty while they're still in Drive. */
+const GALLERY = "Gallery";
 const CALENDAR_EVENT = "Google calendar event id";
 /** Calendar links lived in Notes before their own column. */
 const CALENDAR_FALLBACK = "Notes";
 /** Columns added by migrations: a database without them yet saves without them. */
-const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS];
+const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS, GALLERY];
 
 const fieldNamesCache = new Map();
 
@@ -108,6 +111,16 @@ function parseSnapshots(value) {
   return staging && !rest.preview ? { ...rest, preview: staging } : rest;
 }
 
+function galleryFromRow(value) {
+  const raw = text(value);
+  if (!raw) return null;
+  try {
+    return storedGallery(JSON.parse(raw)) || [];
+  } catch {
+    return [];
+  }
+}
+
 function nightScheduleFromRow(row) {
   if (Object.prototype.hasOwnProperty.call(row, NIGHT_SCHEDULE)) {
     const fromField = parseNightSchedule(row[NIGHT_SCHEDULE]);
@@ -155,6 +168,7 @@ export function eventFromRow(row) {
     driveFolderId: text(row["Drive folder id"]),
     mainImage: imageFromRow(row["Hero asset"], row["Main image"]),
     heroCrops: parseHeroCrops(row["Hero crops"]),
+    gallery: galleryFromRow(row[GALLERY]),
   };
 }
 
@@ -219,6 +233,7 @@ export function eventToRow(fields, columns) {
   put("formerSlugs", FORMER_SLUGS, (value) => (value || []).join("\n"));
   put("deletedAt", DELETED_AT, text);
   put("driveFolderId", "Drive folder id", text);
+  put("gallery", GALLERY, (value) => (Array.isArray(value) ? JSON.stringify(storedGallery(value)) : ""));
   if (fields.slug) row.Slug = fields.slug;
   if ("mainImage" in fields) Object.assign(row, imageColumns(fields.mainImage, "Hero asset", "Main image"));
   for (const column of OPTIONAL_EVENT_COLUMNS) {
@@ -287,6 +302,24 @@ export function baserowEventRepository(env) {
   const tables = async () => requireEventsTables(await resolveOpsTableIds(env));
   const eventColumns = async () => columnNames(env, (await tables()).events);
   const nightColumns = async () => columnNames(env, (await tables()).eventDates);
+
+  /** Read the row just before writing, so photos added meanwhile are kept. */
+  async function changeGallery(eventId, change) {
+    const { events } = await tables();
+    if (!(await eventColumns()).has(GALLERY)) {
+      const error = new Error('The events table needs its "Gallery" column: run the migrations.');
+      error.status = 503;
+      throw error;
+    }
+    let row;
+    try {
+      row = await getRow(env, events, eventId);
+    } catch (error) {
+      throw notFound(error, "Event not found.");
+    }
+    const gallery = change(galleryFromRow(row[GALLERY]) || []);
+    return eventFromRow(await updateRow(env, events, eventId, { [GALLERY]: JSON.stringify(gallery) }));
+  }
 
   return {
     async listEvents() {
@@ -406,6 +439,16 @@ export function baserowEventRepository(env) {
           ...(column === CALENDAR_EVENT && columns.has(CALENDAR_FALLBACK) ? { [CALENDAR_FALLBACK]: "" } : {}),
         })),
       );
+    },
+
+    async addGalleryPhoto(eventId, photo) {
+      return changeGallery(eventId, (gallery) =>
+        gallery.some((item) => item.asset === photo.asset) ? gallery : [photo, ...gallery],
+      );
+    },
+
+    async removeGalleryPhoto(eventId, key) {
+      return changeGallery(eventId, (gallery) => gallery.filter((item) => item.key !== key));
     },
 
     async capabilities() {

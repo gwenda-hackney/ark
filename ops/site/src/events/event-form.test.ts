@@ -60,7 +60,7 @@ function series(fields: Partial<OpsEvent> = {}): OpsEvent {
 		driveFolderUrl: "",
 		mainImage: null,
 		heroCrops: null,
-		images: [],
+		gallery: [],
 		dates: [],
 		publish: { preview: "current", live: "current", nextDate: "", previewDates: [] },
 		...fields,

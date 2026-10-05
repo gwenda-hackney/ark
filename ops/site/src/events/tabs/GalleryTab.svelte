@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Icon } from "../../app/shell";
 	import { HelpTip } from "../../ui";
-	import { eventDriveFileUrl } from "../../app/api";
 	import type { EventGallery } from "../event-gallery.svelte";
 
 	let {
@@ -90,11 +89,11 @@
 			ondragleave={onDragLeave}
 			ondrop={onDrop}
 		>
-			{#if gallery.loading && !gallery.files.length}
+			{#if gallery.loading && !gallery.tiles.length}
 				<p class="hint">Loading…</p>
 			{:else}
 				<ul class="gallery">
-					{#each gallery.files as image (image.id)}
+					{#each gallery.tiles as image (image.key)}
 						<li class="tile">
 							<button
 								class="remove"
@@ -102,18 +101,18 @@
 								disabled={busy}
 								aria-label={`Remove ${image.name}`}
 								title="Remove photo"
-								onclick={() => void gallery.remove(eventId, image.id)}
+								onclick={() => void gallery.remove(eventId, image.key)}
 							>
 								<Icon name="close" size={14} />
 							</button>
 							<a
-								href={image.url || eventDriveFileUrl(eventId, image.id)}
+								href={image.full}
 								target="_blank"
 								rel="noreferrer"
 								title={image.name}
 							>
 								<img
-									src={eventDriveFileUrl(eventId, image.id)}
+									src={image.thumb}
 									alt={image.name}
 									loading="lazy"
 								/>
