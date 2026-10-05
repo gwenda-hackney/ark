@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { getBaserowJwt } from "./lib/baserow-jwt.mjs";
 import { findDatabase } from "./lib/migrations.mjs";
 import {
+  copyRows,
   fieldCreateBody,
   findOrCreateDatabase,
   findWorkspaceByName,
@@ -27,7 +28,6 @@ import {
   refuseSourceWorkspace,
   listAllRows,
   orderTables,
-  remapRowPayload,
   wipeTableRows,
 } from "./lib/baserow-clone.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
@@ -244,8 +244,6 @@ async function main() {
     const dest = destByName.get(source.name);
     const sourceFields = sourceFieldsByTableId.get(String(source.id));
     const rows = await listAllRows(apiBase, jwt, source.id);
-    const idMap = new Map();
-    idMapsByOldTableId.set(String(source.id), idMap);
 
     console.log(`Rows → ${source.name} (${rows.length})`);
 
@@ -272,15 +270,14 @@ async function main() {
           skippedFiles += 1;
         }
       }
-      const payload = remapRowPayload(row, sourceFields, idMapsByOldTableId);
-      const created = await jwtRequest(
-        apiBase,
-        jwt,
-        `/api/database/rows/table/${dest.id}/?user_field_names=true`,
-        { method: "POST", body: JSON.stringify(payload) },
-      );
-      idMap.set(String(row.id), String(created.id));
     }
+    await copyRows(apiBase, jwt, {
+      rows,
+      fields: sourceFields,
+      sourceTableId: source.id,
+      destTableId: dest.id,
+      idMapsByOldTableId,
+    });
     console.log(`  copied ${rows.length}`);
   }
 
