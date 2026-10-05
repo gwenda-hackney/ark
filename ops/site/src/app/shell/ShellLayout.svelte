@@ -39,6 +39,7 @@
 	import { startWebsiteJobs } from "../../events/website-jobs.svelte";
 	import WebsiteJobsTray from "./WebsiteJobsTray.svelte";
 	import AccountMenu from "./AccountMenu.svelte";
+	import { frozenList } from "./frozen-label";
 	import { SHELL_MOBILE_QUERY, mediaMatches } from "../../ui/viewport.svelte";
 
 	const RAIL_KEY = "ops.rail";
@@ -99,9 +100,13 @@
 					me.databaseLabel,
 				].join(" · "),
 	);
+	/** Read-only while their data moves to the new database (#191). */
+	const frozen = $derived(me?.frozen ?? []);
 	const envBannerText = $derived(
 		!me
 			? ""
+			: frozen.length
+				? `Maintenance: ${frozenList(frozen)} ${frozen.length === 1 ? "is" : "are"} read-only for a few minutes while the data moves. Saving will work again shortly.`
 			: me.risk
 				? `${me.envLabel} is using ${me.databaseLabel}. Check this before you edit.`
 				: me.siteEnv === "local"
@@ -140,7 +145,9 @@
 	 */
 	const showEnvBanner = $derived(
 		!printBook &&
-			Boolean(me && (me.risk || (!phone.matches && me.siteEnv !== "production"))),
+			Boolean(
+				me && (frozen.length || me.risk || (!phone.matches && me.siteEnv !== "production")),
+			),
 	);
 
 	const active = $derived(
@@ -585,7 +592,7 @@
 		{#if showEnvBanner}
 			<div
 				class="env-banner"
-				class:risk={Boolean(me?.risk)}
+				class:risk={Boolean(me?.risk) || frozen.length > 0}
 				role="status"
 				title={envDetail}
 			>

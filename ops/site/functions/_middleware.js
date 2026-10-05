@@ -21,6 +21,8 @@ import { attachLogger } from "../src/platform/log.js";
 import { opsEnv } from "../src/platform/ops-env.js";
 import { isSpaDocumentPath } from "../src/app/spa-path.js";
 import { isOpsUser } from "../src/users/server/user-store.js";
+import { opsWriteFeatures } from "../src/platform/write-freeze-paths.js";
+import { frozenWriteResponse, isWriteRequest } from "../../../shared/write-freeze.js";
 
 // Sentry first, so it sees every error the request throws (#35).
 export const onRequest = [
@@ -31,11 +33,17 @@ export const onRequest = [
 // A thrown error reaches Sentry through its plugin, with the stack.
 export async function protect(context) {
   attachLogger(context);
+  const url = new URL(context.request.url);
+  // While a feature's data moves to D1, its writes wait (#191). The tick runs
+  // before sign-in checks, so this comes first.
+  if (url.pathname.startsWith("/api/") && isWriteRequest(context.request)) {
+    const refused = await frozenWriteResponse(context.env, opsWriteFeatures(url.pathname));
+    if (refused) return refused;
+  }
   const env = await opsEnv(context);
   const auth = resolveAuth(env);
   if (auth.kind === "misconfigured") return authMisconfiguredResponse();
 
-  const url = new URL(context.request.url);
   const authed = await isRequestAuthed(auth, context.request);
 
   if (isPublicPath(url.pathname)) {

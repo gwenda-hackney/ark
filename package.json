@@ -56,6 +56,7 @@
     "setup:ops": "node scripts/setup-ops-secrets.mjs",
     "setup:subscribe-mailchimp-sync": "node scripts/setup-subscribe-mailchimp-sync.mjs",
     "setup:d1": "node scripts/setup-d1.mjs",
+    "d1:freeze": "node scripts/d1-freeze.mjs",
     "setup:site-health": "node scripts/setup-site-health.mjs",
     "setup:wifi-portal": "node scripts/setup-wifi-portal.mjs",
     "subscribe-mailchimp-sync": "node scripts/with-env.mjs npm run cli -w @gwenda/subscribe-mailchimp-sync --",

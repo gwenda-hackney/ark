@@ -10,6 +10,8 @@ export type Env = {
   BASEROW_SUBSCRIBE_TABLE_NAME?: string;
   /** Baserow table for durable sync-run history. */
   BASEROW_API_URL?: string;
+  /** The website D1 database (#127); here only for the write freeze (#191). */
+  WEBSITE_DB?: unknown;
 };
 
 export type SyncOptions = {
@@ -48,4 +50,6 @@ export type SyncSummary = {
   dryRun: boolean;
   errors: number;
   results: SyncRowResult[];
+  /** Set when the run was skipped because guests are frozen (#191). */
+  frozen?: boolean;
 };
