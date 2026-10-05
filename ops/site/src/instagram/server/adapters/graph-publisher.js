@@ -56,6 +56,11 @@ export function graphSettings(env = {}) {
     .replace(/\/+$/, "");
   let mode;
   let baseUrl;
+  // `npm run ops:prod` (a local copy on live data) records posts only in its
+  // own local database, so it can't see what production posted: it never posts.
+  if (environment === "production" && String(env.OPS_LOCAL_LIVE || "") === "1") {
+    return { mode: "dry-run", baseUrl: "", token: "", userId: "", environment };
+  }
   if (environment === "production") {
     baseUrl = configured || META_GRAPH_URL;
     const url = parsedUrl(baseUrl);

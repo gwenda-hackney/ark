@@ -143,6 +143,10 @@ describe("graph publisher: environment guards", () => {
     assert.equal(settings.mode, "dry-run");
     assert.equal(settings.token, "");
     assert.equal(instagramPublisher({ SITE_ENV: "dev" }).mode, "dry-run");
+    // ops:prod: production secrets, but a local copy that can't see production's posts.
+    const localLive = { SITE_ENV: "production", OPS_LOCAL_LIVE: "1", INSTAGRAM_ACCESS_TOKEN: "production-token", INSTAGRAM_USER_ID: "1" };
+    assert.equal(graphSettings(localLive).mode, "dry-run");
+    assert.equal(instagramPublisher(localLive).mode, "dry-run");
   });
 
   it("missing credentials mean not set up", () => {

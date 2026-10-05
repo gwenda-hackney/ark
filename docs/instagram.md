@@ -82,7 +82,7 @@ Then put `INSTAGRAM_GRAPH_URL=http://localhost:8790/v24.0` in your `.env` and ru
 
 `ops:dev` gives posts a local `OPS_DB` with the migrations applied (in `ops/site/.wrangler/state`, gitignored), so Post, the posts list and the double-post guard all work. Delete that folder to start again with no posts.
 
-`npm run ops:prod` ignores `INSTAGRAM_GRAPH_URL`, so it talks to the real Instagram like production does. Its posts are recorded only in the local database.
+`npm run ops:prod` (a local copy on live data) is always a dry run for Instagram: it would record posts only in its local database, so it couldn't warn about a night production already posted.
 
 ## Production: the Meta setup
 

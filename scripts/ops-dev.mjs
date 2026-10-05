@@ -116,7 +116,7 @@ async function loadProductionSecrets() {
 function writeBindings() {
   const bindings = new Map();
   for (const key of DEV_VAR_KEYS) {
-    // --live posts to the real Instagram, never to a fake set for dev.
+    // --live never posts to Instagram (OPS_LOCAL_LIVE makes it a dry run), and never to a fake set for dev.
     if (LIVE && key === "INSTAGRAM_GRAPH_URL") continue;
     const value = process.env[key]?.trim();
     if (value) bindings.set(key, value);
