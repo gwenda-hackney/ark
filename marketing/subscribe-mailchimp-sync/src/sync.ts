@@ -1,4 +1,5 @@
 import { frozenFeatures } from "../../../shared/write-freeze.js";
+import { isSmokeSubscriber } from "../../../shared/smoke-test.js";
 import { createHash } from "node:crypto";
 import type {
   BaserowSubscribeRow,
@@ -430,6 +431,12 @@ export async function syncUnsyncedSubscribers(
         status: "skipped",
         detail: "Invalid or missing Email",
       });
+      continue;
+    }
+
+    // The deploy smoke test's sign-up: deleted within seconds, never for Mailchimp.
+    if (isSmokeSubscriber(email)) {
+      results.push({ rowId: row.id, email, status: "skipped", detail: "Smoke test" });
       continue;
     }
 

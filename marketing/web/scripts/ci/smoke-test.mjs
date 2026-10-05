@@ -10,7 +10,8 @@
  *                    (migrated, a test row written and deleted) and Gmail login
  *   --send-email     with --deep, send a test email to alerts@gwenda.co.uk
  *   --form-test      with --deep, submit the play form end to end: row saved, team and
- *                    applicant emails to alerts@ (not play@), row deleted afterwards
+ *                    applicant emails to alerts@ (not play@), row deleted afterwards;
+ *                    and sign up a test address twice (tags merged), row deleted
  */
 import {
   assertHealthPayload,

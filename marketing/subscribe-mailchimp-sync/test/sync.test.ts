@@ -317,6 +317,28 @@ describe("syncUnsyncedSubscribers", () => {
     expect(summary.results[0]?.status).toBe("synced");
   });
 
+  it("never sends the deploy smoke test's sign-up to Mailchimp", async () => {
+    clearSubscribeTableIdCache();
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("api.mailchimp.com")) throw new Error(`Unexpected Mailchimp call: ${url}`);
+      if (url.includes("/all-tables/")) return tablesResponse();
+      if (url.includes("/rows/table/")) {
+        return Response.json({
+          results: [{ id: 9, Email: "Alerts+Signup-Smoke@gwenda.co.uk", Tag: "prelaunch", Synced: false }],
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const summary = await syncUnsyncedSubscribers(env, {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    expect(summary).toMatchObject({ ok: true, synced: 0, errors: 0 });
+    expect(summary.results[0]).toMatchObject({ rowId: 9, status: "skipped", detail: "Smoke test" });
+  });
+
   it("stops early when Mailchimp rate-limits", async () => {
     clearSubscribeTableIdCache();
     let mailchimpPuts = 0;
