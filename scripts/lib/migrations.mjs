@@ -144,6 +144,17 @@ export function baserowDatabase({ apiBase, jwt, databaseId, label, key, site, re
       }
       if (SITE_BUILD_TABLES[key]?.includes(tableName)) site?.note(`${label}: ${tableName}`);
     },
+    /** Delete rows by id, 200 at a time. */
+    async deleteRows(tableName, ids) {
+      if (!ids.length) return;
+      const { id } = await table(tableName);
+      for (let i = 0; i < ids.length; i += 200) {
+        await call(`/api/database/rows/table/${id}/batch-delete/`, {
+          method: "POST",
+          body: JSON.stringify({ items: ids.slice(i, i + 200) }),
+        });
+      }
+    },
     /** Add a column unless one with that name exists. Returns what happened. */
     async ensureField(tableName, body) {
       if ((await fields(tableName)).some((f) => f.name === body.name)) return "exists";

@@ -464,3 +464,77 @@ describe("running one migration as a dry run", () => {
     assert.equal(seen, true);
   });
 });
+
+describe("smoke-test-cleanup", () => {
+  const load = async () =>
+    (await loadMigrations(resolve(ROOT, "migrations"))).find((m) => m.name === "smoke-test-cleanup.mjs");
+
+  function website(rows) {
+    const deleted = [];
+    const request = async (_base, _jwt, path, init = {}) => {
+      if (path === "/api/database/tables/database/3/") return [{ id: 55, name: "Subscribers" }];
+      if (path.startsWith("/api/database/rows/table/55/?")) return { results: rows, next: null };
+      if (path === "/api/database/rows/table/55/batch-delete/" && init.method === "POST") {
+        deleted.push(...JSON.parse(init.body).items);
+        return null;
+      }
+      throw new Error("unexpected " + path);
+    };
+    return { db: baserowDatabase({ apiBase: "x", jwt: "j", databaseId: 3, label: "Website", request }), deleted };
+  }
+
+  it("runs after the web deploy, so after its smoke test", async () => {
+    const migration = await load();
+    assert.equal(migration.app, "web");
+    assert.equal(migration.phase, "post");
+  });
+
+  it("removes only the test sign-up, and skips Mailchimp without a key", async () => {
+    const { db, deleted } = website([
+      { id: 1, Email: "guest@example.com" },
+      { id: 2, Email: "Alerts+Signup-Smoke@gwenda.co.uk" },
+    ]);
+    const lines = [];
+    await (await load()).up({ database: async () => db, processEnv: {}, log: (line) => lines.push(line) });
+    assert.deepEqual(deleted, [2]);
+    assert.deepEqual(lines, ["Subscribers: removed 1 test row(s)", "Mailchimp: no key here (production only); skipped"]);
+  });
+
+  it("only reports on a dry run", async () => {
+    const { db, deleted } = website([{ id: 2, Email: "alerts+signup-smoke@gwenda.co.uk" }]);
+    const lines = [];
+    await (await load()).up({ database: async () => db, processEnv: {}, dryRun: true, log: (line) => lines.push(line) });
+    assert.deepEqual(deleted, []);
+    assert.equal(lines[0], "Subscribers: would remove 1 test row(s)");
+    const { archiveSmokeMember } = await import("../../migrations/smoke-test-cleanup.mjs");
+    const methods = [];
+    const fetchImpl = async (_url, init = {}) => {
+      methods.push(init.method || "GET");
+      return Response.json({ status: "subscribed" });
+    };
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl, dryRun: true }), "would archive (is subscribed)");
+    assert.deepEqual(methods, ["GET"]);
+  });
+
+  it("archives the test address in Mailchimp only when it's there", async () => {
+    const { archiveSmokeMember } = await import("../../migrations/smoke-test-cleanup.mjs");
+    const calls = [];
+    const mailchimp = (status) => async (url, init = {}) => {
+      calls.push([init.method || "GET", url]);
+      if (status === null) return new Response("{}", { status: 404 });
+      if (init.method === "DELETE") return new Response(null, { status: 204 });
+      return Response.json({ status });
+    };
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl: mailchimp(null) }), "not on the list");
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl: mailchimp("archived") }), "already archived");
+    calls.length = 0;
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl: mailchimp("subscribed") }), "archived (was subscribed)");
+    assert.deepEqual(
+      calls.map(([method, url]) => [method, url.replace(/[0-9a-f]{32}$/, "<hash>")]),
+      [
+        ["GET", "https://us21.api.mailchimp.com/3.0/lists/e2c69d5d31/members/<hash>"],
+        ["DELETE", "https://us21.api.mailchimp.com/3.0/lists/e2c69d5d31/members/<hash>"],
+      ],
+    );
+  });
+});
