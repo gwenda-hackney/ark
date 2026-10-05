@@ -208,10 +208,18 @@ export async function openDatabase({ apiBase, jwt, key, env, request = jwtReques
 /**
  * Run the selected migrations in order. `database(key)` opens this env's
  * database of that kind (cached). Stops at the first failure.
+ *
+ * A migration that changed what the website shows (Sanity content) returns
+ * `{ rebuild: true }`: the site was built before the post migrations, so CI
+ * rebuilds it from the migrated content.
+ * @returns {Promise<{ rebuild: boolean }>}
  */
 export async function runMigrations(migrations, { env, processEnv, database, log = console.log }) {
+  let rebuild = false;
   for (const migration of migrations) {
     log(`→ ${migration.name}: ${migration.about}`);
-    await migration.up({ env, processEnv, database, log: (line) => log(`    ${line}`) });
+    const result = await migration.up({ env, processEnv, database, log: (line) => log(`    ${line}`) });
+    if (result?.rebuild === true) rebuild = true;
   }
+  return { rebuild };
 }

@@ -71,4 +71,5 @@ export async function up({ env, database, processEnv, log }) {
     }),
   });
   log(`${project}: taking applications on ${ids.join(", ")}`);
+  return { rebuild: true };
 }
