@@ -136,6 +136,14 @@ describe("catalog", () => {
     assert.equal(new Set(all).size, all.length);
   });
 
+  it("gives ops its Instagram credentials, per environment (#26)", () => {
+    for (const key of ["INSTAGRAM_ACCESS_TOKEN", "INSTAGRAM_USER_ID"]) {
+      assert.ok(APP_SECRETS.ops.keys.includes(key), key);
+      assert.equal(ownerOf(key), "ops");
+      assert.ok(!PRODUCTION_ONLY.includes(key), `${key} has a dev value: the fake Instagram's`);
+    }
+  });
+
   it("keeps the local admin password off Pages", () => {
     assert.ok(APP_SECRETS.ops.pagesSkip.includes("OPS_LOCAL_ADMIN_PW"));
   });

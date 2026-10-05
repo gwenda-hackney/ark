@@ -139,6 +139,10 @@ npm run setup:site-health
 
 That creates the KV namespace, puts `GMAIL_SERVICE_ACCOUNT_JSON` and deploys the Worker on `health.gwenda.co.uk`. CI redeploys from `.github/workflows/workers.yml`: it puts the secret before the deploy, checks `GET /health` reports `emailConfigured: true`, then deletes the retired `SMTP_PASSWORD`.
 
+## Instagram
+
+Ops posts to Instagram with `INSTAGRAM_ACCESS_TOKEN` and `INSTAGRAM_USER_ID` (ops keys, `__DEV` / `__PRODUCTION`). Only production talks to Meta: dev values are made up and only our fake Instagram accepts them, and `INSTAGRAM_GRAPH_URL` points dev at that fake (unset is a dry run). Setup, the fake Worker and the Meta steps: [instagram.md](instagram.md).
+
 ## Secrets vs config
 
 Bitwarden is for **credentials** only. Plain settings for ops and web belong in the Baserow **Gwenda Config** database (profiled by Env and Service, never copied with Ops or Website data). Marketing tables (`Subscribers`, `Event Invites`, `Form Submissions`) are resolved by name. See [config.md](./config.md#runtime-config-gwenda-config-database).
