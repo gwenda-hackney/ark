@@ -59,14 +59,17 @@ export class EventGallery {
 
 	/**
 	 * Shows the event's gallery. Kept in ops (`photos`), there is nothing to
-	 * fetch. In Drive, loads once per event (again after an error, or when
-	 * `force`) and returns the event folder, when Drive reports it.
+	 * fetch, and `driveUrl` is the event's Drive folder, where the Drive copy
+	 * puts its "website images" for collaborators. In Drive, loads once per
+	 * event (again after an error, or when `force`) and returns the event
+	 * folder, when Drive reports it.
 	 */
 	async load(
 		eventId: string,
 		force = false,
 		date = "",
 		photos: OpsGalleryPhoto[] | null = null,
+		driveUrl = "",
 	): Promise<{ id: string; url?: string } | null> {
 		this.eventId = eventId;
 		if (!eventId) {
@@ -82,7 +85,7 @@ export class EventGallery {
 		if (photos) {
 			this.photos = photos;
 			this.files = [];
-			this.folderUrl = "";
+			this.folderUrl = driveUrl;
 			this.outsideGallery = 0;
 			this.error = "";
 			this.loadedFor = "";

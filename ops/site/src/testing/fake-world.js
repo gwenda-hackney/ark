@@ -449,7 +449,14 @@ class FakeGoogle {
     const mimeType = raw.match(/--[^\r]+\r\nContent-Type: (image\/[a-z]+)/)?.[1] || "image/jpeg";
     // Uploads in order of creation, so "newest first" is testable.
     const createdTime = new Date(Date.UTC(2026, 0, 1) + newId() * 1000).toISOString();
-    const file = { id: `drive-${newId()}`, name: metadata.name, mimeType, parents: metadata.parents || [], createdTime };
+    const file = {
+      id: `drive-${newId()}`,
+      name: metadata.name,
+      mimeType,
+      parents: metadata.parents || [],
+      createdTime,
+      ...(metadata.appProperties ? { appProperties: metadata.appProperties } : {}),
+    };
     this.driveFiles.set(file.id, file);
     return json(file);
   }
@@ -485,7 +492,12 @@ class FakeGoogle {
     }
     if (method === "GET") return json(file);
     if (method === "PATCH") {
-      Object.assign(file, JSON.parse(init.body || "{}"));
+      const { appProperties, ...rest } = JSON.parse(init.body || "{}");
+      Object.assign(file, rest);
+      if (appProperties) file.appProperties = { ...(file.appProperties || {}), ...appProperties };
+      const add = url.searchParams.get("addParents");
+      const remove = url.searchParams.get("removeParents");
+      if (add || remove) file.parents = [...file.parents.filter((parent) => parent !== remove), ...(add ? [add] : [])];
       return json(file);
     }
     if (method === "DELETE") {
@@ -586,6 +598,7 @@ export async function createFakeWorld() {
     GOOGLE_OAUTH_CLIENT_ID: "client-id",
     GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
     OPS_SESSION_SECRET: `session-${suffix}`,
+    DEPLOY_WEBHOOK_SECRET: `deploy-${suffix}`,
   };
 
   const calls = [];
@@ -601,6 +614,10 @@ export async function createFakeWorld() {
     if (url.host === FILES_HOST) return baserow.serveFile(url);
     if (url.host.endsWith(".api.sanity.io") || url.host.endsWith(".apicdn.sanity.io")) return sanity.handle(url, merged);
     if (url.host.endsWith("googleapis.com")) return google.handle(url, merged);
+    // The Sanity image CDN: the bytes of any asset, by its address.
+    if (url.host === "cdn.sanity.io") {
+      return new Response(new Blob([url.pathname, new Uint8Array(1024).fill(5)]), { headers: { "Content-Type": "image/jpeg" } });
+    }
     throw new Error(`Fake world: nothing fakes ${merged.method || "GET"} ${url}`);
   }
 
@@ -623,12 +640,12 @@ export async function createFakeWorld() {
  * Call an ops Pages Function the way Cloudflare does. `path` is the URL path,
  * `params` the route params, `body` JSON for POST/PATCH/PUT.
  */
-export async function callApi(world, handler, { method = "GET", path = "/", params = {}, body } = {}) {
+export async function callApi(world, handler, { method = "GET", path = "/", params = {}, body, headers = {} } = {}) {
   // FormData (file uploads) goes as multipart; anything else as JSON.
   const multipart = body instanceof FormData;
   const request = new Request(`https://gwenda-ops-dev.pages.dev${path}`, {
     method,
-    headers: body === undefined || multipart ? {} : { "Content-Type": "application/json" },
+    headers: { ...(body === undefined || multipart ? {} : { "Content-Type": "application/json" }), ...headers },
     body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
   });
   const response = await handler({ request, env: { ...world.env }, params, data: {}, waitUntil() {} });

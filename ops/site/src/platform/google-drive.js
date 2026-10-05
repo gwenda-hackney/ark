@@ -216,7 +216,7 @@ export async function listDriveChildren(env, parentId) {
         q,
         includeItemsFromAllDrives: "true",
         fields:
-          "nextPageToken,files(id,name,mimeType,webViewLink,thumbnailLink,modifiedTime,createdTime)",
+          "nextPageToken,files(id,name,mimeType,webViewLink,thumbnailLink,modifiedTime,createdTime,appProperties,parents)",
         pageSize: "200",
         orderBy: "folder,name_natural",
         pageToken,
@@ -299,7 +299,7 @@ export async function getDriveFile(env, fileId) {
   if (!id) return null;
   return driveFetch(env, `/files/${encodeURIComponent(id)}`, {
     query: {
-      fields: "id,name,mimeType,webViewLink,thumbnailLink,parents",
+      fields: "id,name,mimeType,webViewLink,thumbnailLink,parents,trashed",
     },
   });
 }
@@ -382,9 +382,10 @@ function multipartRelatedBody(metadata, bytes, contentType, boundary) {
   return body;
 }
 
+/** `appProperties`: private tags only this app sees (the Drive copy, #183). */
 export async function uploadDriveFile(
   env,
-  { name, parentId, bytes, contentType },
+  { name, parentId, bytes, contentType, appProperties },
 ) {
   const fileName = String(name || "image.jpg").trim() || "image.jpg";
   const parent = String(parentId || "").trim();
@@ -403,7 +404,7 @@ export async function uploadDriveFile(
   const token = await driveAccessToken(env);
   const boundary = `ops_${crypto.randomUUID().replace(/-/g, "")}`;
   const body = multipartRelatedBody(
-    { name: fileName, parents: [parent] },
+    { name: fileName, parents: [parent], ...(appProperties ? { appProperties } : {}) },
     media,
     type,
     boundary,
@@ -481,8 +482,8 @@ export async function renameDriveFile(env, fileId, name) {
   };
 }
 
-/** Move a file to another folder in the same drive. */
-export async function moveDriveFile(env, fileId, { addParentId, removeParentId }) {
+/** Move a file to another folder in the same drive; optionally rename and tag it. */
+export async function moveDriveFile(env, fileId, { addParentId, removeParentId, name, appProperties }) {
   const id = String(fileId || "").trim();
   const add = String(addParentId || "").trim();
   const remove = String(removeParentId || "").trim();
@@ -496,8 +497,11 @@ export async function moveDriveFile(env, fileId, { addParentId, removeParentId }
     query: {
       addParents: add,
       removeParents: remove,
-      fields: "id,name,parents",
+      fields: "id,name,parents,appProperties",
     },
+    ...(name || appProperties
+      ? { body: { ...(name ? { name } : {}), ...(appProperties ? { appProperties } : {}) } }
+      : {}),
   });
 }
 
