@@ -538,7 +538,7 @@ Stamped into each build so a page can say which build it is, whether it's a prev
 
 ### Instagram
 
-- `INSTAGRAM_GRAPH_URL`: where ops sends Instagram calls. Unset in production, which always uses `https://graph.facebook.com/v24.0` and refuses anything else. Dev ops sets it in `wrangler.dev.toml` to the fake Instagram Worker; your machine can set it in `.env` to `wrangler dev` of the fake. Unset outside production is a dry run. See [instagram.md](instagram.md).
+- `INSTAGRAM_GRAPH_URL`: where ops sends Instagram calls. Unset in production, which always uses `https://graph.facebook.com/v24.0` and refuses anything else. Dev ops sets it in `wrangler.dev.toml` to the fake Instagram Worker; your machine defaults to the devcontainer's fake (`http://localhost:8790/v24.0`, `LOCAL_DEFAULTS`). Unset on hosted dev is a dry run. See [instagram.md](instagram.md).
 
 ### Secrets Manager scripts
 

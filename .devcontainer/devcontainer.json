@@ -36,12 +36,13 @@
       }
     }
   },
-  "forwardPorts": [4321, 3333, 5174, 8788],
+  "forwardPorts": [4321, 3333, 5174, 8788, 8790],
   "portsAttributes": {
     "4321": { "label": "Website" },
     "3333": { "label": "Studio" },
     "5174": { "label": "Ops SPA" },
-    "8788": { "label": "Ops Functions" }
+    "8788": { "label": "Ops Functions" },
+    "8790": { "label": "Fake Instagram" }
   },
   "postStartCommand": "bash /src/.devcontainer/post-start.sh",
   "remoteUser": "node",

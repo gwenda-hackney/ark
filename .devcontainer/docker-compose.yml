@@ -5,6 +5,31 @@ services:
     working_dir: /src
     init: true
     command: sleep infinity
+  # The fake Instagram Graph API (#26, docs/instagram.md) that local ops posts to.
+  # Its own container (it can't see the devcontainer's files or the unlocked
+  # vault in /dev/shm), on the devcontainer's network, so ops and your browser
+  # both reach it at localhost:8790. Waits until the repo has the fake and
+  # node_modules (post-start installs them), then serves it with live reload.
+  instagram-fake:
+    build: .
+    network_mode: service:devcontainer
+    depends_on:
+      - devcontainer
+    init: true
+    user: node
+    volumes:
+      - ..:/src:cached
+    working_dir: /src/ops/instagram-fake
+    environment:
+      CI: "true"
+      WRANGLER_SEND_METRICS: "false"
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - |
+        until [ -f wrangler.toml ] && [ -x /src/node_modules/.bin/wrangler ]; do sleep 30; done
+        exec /src/node_modules/.bin/wrangler dev --ip 0.0.0.0 --port 8790 --var LOCAL:1
 volumes:
   ark-node-modules:
   ark-forge:

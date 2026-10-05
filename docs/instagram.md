@@ -74,11 +74,15 @@ CI doesn't deploy the fake: it changes rarely, and the Workers workflow deploys 
 
 ### On your machine
 
-```bash
-node scripts/with-ops-env.mjs sh -c 'npx wrangler dev -c ops/instagram-fake/wrangler.toml --port 8790 --var INSTAGRAM_ACCESS_TOKEN:"$INSTAGRAM_ACCESS_TOKEN"'
-```
+The devcontainer runs the fake for you: the `instagram-fake` service in `.devcontainer/docker-compose.yml`, started with the devcontainer (rebuild the container once to get it). It has its own container, so it can't see the devcontainer's files or the unlocked vault. It shares the devcontainer's network, so ops and your browser both reach it at `http://localhost:8790` (forwarded as "Fake Instagram"). It runs with `LOCAL=1`, which accepts any token, and reloads when you change its code. Its posts are in `ops/instagram-fake/.wrangler/state`. Open `http://localhost:8790/` for the list.
 
-Then put `INSTAGRAM_GRAPH_URL=http://localhost:8790/v24.0` in your `.env` and run `npm run ops:dev`. Without it, local ops is a dry run. Both sides read the made-up `INSTAGRAM_ACCESS_TOKEN__DEV` and `INSTAGRAM_USER_ID__DEV` (`17841400000000001`, the fake's account), so push those once (dev setup step 2) before the first local run.
+Local ops points at it with no setup: `LOCAL_DEFAULTS` in `scripts/lib/load-env.mjs` set `INSTAGRAM_GRAPH_URL=http://localhost:8790/v24.0`, the fake's user id and a made-up token. Run `npm run ops:dev`, open a night that's on the dev website, and use its Instagram tab. Values in `.env` or the vault win over these defaults; keep `INSTAGRAM_USER_ID__DEV` at `17841400000000001` if you push it.
+
+Outside the devcontainer, start the fake yourself:
+
+```bash
+cd ops/instagram-fake && npx wrangler dev --port 8790 --var LOCAL:1
+```
 
 `ops:dev` gives posts a local `OPS_DB` with the migrations applied (in `ops/site/.wrangler/state`, gitignored), so Post, the posts list and the double-post guard all work. Delete that folder to start again with no posts.
 

@@ -41,6 +41,11 @@ const LOCAL_DEFAULTS = {
   SANITY_PROJECT_ID: "gwscpagy", // Gwenda Dev (shared/sanity-projects.js DEV_SANITY_PROJECT_ID)
   SANITY_DATASET: "production",
   INVITE_BASE_URL: "http://localhost:4321",
+  // The devcontainer's fake Instagram (instagram-fake in .devcontainer/docker-compose.yml,
+  // docs/instagram.md). It accepts any token; the user id is the fake's account.
+  INSTAGRAM_GRAPH_URL: "http://localhost:8790/v24.0",
+  INSTAGRAM_USER_ID: "17841400000000001",
+  INSTAGRAM_ACCESS_TOKEN: "local-fake-instagram",
 };
 
 /** This checkout's git email (`git config user.email`), or "". */

@@ -246,12 +246,12 @@ async function readParams(request, url) {
 
 /**
  * @param {{
- *   token: string, userId: string, username?: string,
+ *   token: string, userId: string, username?: string, anyToken?: boolean,
  *   store: { get(key: string): Promise<string|null>, put(key: string, value: string): Promise<void> },
  *   fetchImage?: typeof fetch, now?: () => number
  * }} options
  */
-export function createFakeInstagram({ token, userId, username = "gwenda_dev_test", store, fetchImage, now = () => Date.now() }) {
+export function createFakeInstagram({ token, userId, username = "gwenda_dev_test", anyToken = false, store, fetchImage, now = () => Date.now() }) {
   const load = async (key) => {
     const raw = await store.get(key);
     return raw ? JSON.parse(raw) : null;
@@ -334,7 +334,8 @@ export function createFakeInstagram({ token, userId, username = "gwenda_dev_test
       if (!given) {
         return graphError(400, { message: "An active access token must be used to query information about the current user.", code: 2500 });
       }
-      if (!token || given !== token) return ERRORS.badToken();
+      // anyToken: the devcontainer's fake (LOCAL=1), where the token is made up on both sides.
+      if (!anyToken && (!token || given !== token)) return ERRORS.badToken();
       if (fail === "token") return ERRORS.token();
 
       const parts = path.split("/").filter(Boolean);

@@ -13,6 +13,8 @@ export default {
       token: String(env.INSTAGRAM_ACCESS_TOKEN || "").trim(),
       userId: String(env.INSTAGRAM_USER_ID || "").trim(),
       username: String(env.INSTAGRAM_USERNAME || "gwenda_dev_test").trim(),
+      // Set only by the devcontainer's instagram-fake service, never on the deployed Worker.
+      anyToken: String(env.LOCAL || "") === "1",
       store: env.POSTS,
     }).fetch(request);
   },

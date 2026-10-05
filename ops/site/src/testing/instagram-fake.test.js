@@ -10,12 +10,13 @@ const TOKEN = "t0ken";
 const USER = "17841400000000001";
 const ORIGIN = "https://fake.test";
 
-function fake({ image = tinyJpeg(1080, 1350), now } = {}) {
+function fake({ image = tinyJpeg(1080, 1350), now, anyToken = false } = {}) {
   const store = memoryStore();
   const fetched = [];
   const ig = createFakeInstagram({
     token: TOKEN,
     userId: USER,
+    anyToken,
     store,
     now,
     fetchImage: async (url) => {
@@ -68,6 +69,15 @@ describe("fake Instagram", () => {
     assert.equal(wrong.body.error.code, 190);
     assert.equal(wrong.body.error.type, "OAuthException");
     assert.ok(wrong.body.error.fbtrace_id);
+  });
+
+  it("the devcontainer's fake (anyToken) takes any token, but still needs one", async () => {
+    const world = fake({ anyToken: true });
+    const other = await world.call("GET", `/${USER}`, {}, { Authorization: "Bearer made-up-elsewhere" });
+    assert.equal(other.status, 200);
+    assert.equal(other.body.id, USER);
+    const none = await world.call("GET", `/${USER}`, {}, { Authorization: "" });
+    assert.equal(none.status, 400);
   });
 
   it("really fetches the image, then publishes and serves a preview page", async () => {
