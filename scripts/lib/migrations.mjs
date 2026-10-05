@@ -11,7 +11,7 @@
  *   export const app = "web";          // whose deploy runs it: "web" | "ops"
  *   export const phase = "pre";        // "pre" | "post"
  *   export const about = "Form Submissions: Edit Link column";
- *   export async function up({ env, database, d1, sanity, processEnv, log }) {
+ *   export async function up({ env, database, d1, sanity, processEnv, log, dryRun }) {
  *     const website = await database("website");
  *     log(await website.ensureField("Form Submissions", { name: "Edit Link", type: "url" }));
  *   }
@@ -22,6 +22,9 @@
  * content. Both note changes to what the website build reads (published
  * documents, the tables in SITE_BUILD_TABLES): the site was built before the
  * post migrations, so CI then rebuilds it from the migrated data.
+ *
+ * `dryRun` (migrate.mjs --dry-run) asks a migration to report what it would
+ * do and change nothing; a migration that changes data supports it.
  *
  * Nothing records which migrations ran. Every deploy runs them all, so each
  * one checks the real state first and does nothing when it's already done.
@@ -266,6 +269,18 @@ export function sanityContent({ env, processEnv, site, request = fetch }) {
       const { result } = await call(`/query/production?${search}`);
       return result;
     },
+    /** Upload an image asset; Sanity hands back the existing one when the bytes match. */
+    async uploadImage(bytes, { filename, contentType } = {}) {
+      const url = new URL(`https://${project}.api.sanity.io/v2025-01-01/assets/images/production`);
+      if (filename) url.searchParams.set("filename", filename);
+      const res = await request(url.toString(), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": contentType || "application/octet-stream" },
+        body: bytes,
+      });
+      if (!res.ok) throw new Error(`Sanity upload ${res.status}: ${await res.text()}`);
+      return (await res.json())?.document ?? null;
+    },
     /** Apply mutations in one transaction. */
     async mutate(mutations) {
       if (!mutations.length) return;
@@ -286,11 +301,11 @@ export function sanityContent({ env, processEnv, site, request = fetch }) {
  */
 export async function runMigrations(
   migrations,
-  { env, processEnv, database, d1, sanity, site = siteChanges(), log = console.log },
+  { env, processEnv, database, d1, sanity, site = siteChanges(), log = console.log, dryRun = false },
 ) {
   for (const migration of migrations) {
-    log(`→ ${migration.name}: ${migration.about}`);
-    await migration.up({ env, processEnv, database, d1, sanity, log: (line) => log(`    ${line}`) });
+    log(`→ ${migration.name}: ${migration.about}${dryRun ? " (dry run)" : ""}`);
+    await migration.up({ env, processEnv, database, d1, sanity, dryRun, log: (line) => log(`    ${line}`) });
   }
   return { rebuild: site.rebuild, changes: site.changes };
 }
