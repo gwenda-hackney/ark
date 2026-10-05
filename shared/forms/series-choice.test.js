@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seriesOption, withSeriesChoices } from "./series-choice.js";
+import { seriesOption, shortRecurrence, withSeriesChoices } from "./series-choice.js";
 import { validateFormAnswers } from "../../marketing/web/functions/_lib/form-submit.js";
 
 const form = {
@@ -20,7 +20,7 @@ describe("series choice fields (#41)", () => {
     expect(expanded.applicationSeries).toBeUndefined();
     expect(expanded.fields[1]).toMatchObject({ key: "availability", type: "multiSelect", labelAsAnswer: true });
     expect(expanded.fields[1].options).toEqual([
-      { value: "the-jazz-room", label: "The Jazz Room · Every Wednesday", name: "The Jazz Room" },
+      { value: "the-jazz-room", label: "The Jazz Room · Wednesdays", name: "The Jazz Room" },
       { value: "negroni-chess-society", label: "Negroni Chess Society", name: "Negroni Chess Society" },
     ]);
   });
@@ -42,5 +42,32 @@ describe("series choice fields (#41)", () => {
 
   it("names a series without its schedule", () => {
     expect(seriesOption({ value: "x", label: " Radio Gwenda " }).label).toBe("Radio Gwenda");
+  });
+
+  it("say the weekday briefly", () => {
+    expect(shortRecurrence("Every Thursday")).toBe("Thursdays");
+    expect(shortRecurrence("Every Tuesday and Friday")).toBe("Tuesdays and Fridays");
+    expect(shortRecurrence("Every 2 weeks on Friday")).toBe("Every 2 weeks on Friday");
+    expect(shortRecurrence("Every day")).toBe("Every day");
+  });
+
+  it("list the series in week order, Monday first, undated last", () => {
+    const labels = withSeriesChoices({
+      ...form,
+      applicationSeries: [
+        { value: "radio", label: "Radio Gwenda", recurrence: "Every Sunday" },
+        { value: "live", label: "Gwenda + Live", recurrence: "" },
+        { value: "friday", label: "Friday, With Guests", recurrence: "Every Friday" },
+        { value: "chess", label: "Negroni Chess Society", recurrence: "Every Tuesday" },
+        { value: "selects", label: "Gwenda Selects", recurrence: "Every Thursday" },
+      ],
+    }).fields[1].options.map((option) => option.label);
+    expect(labels).toEqual([
+      "Negroni Chess Society · Tuesdays",
+      "Gwenda Selects · Thursdays",
+      "Friday, With Guests · Fridays",
+      "Radio Gwenda · Sundays",
+      "Gwenda + Live",
+    ]);
   });
 });
