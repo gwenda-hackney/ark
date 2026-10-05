@@ -21,6 +21,7 @@ import { followUpdatesLink } from "./follow-updates.js";
 import { richParagraphHtml } from "../../functions/_lib/rich-text.js";
 import {
   isWholeFit,
+  portraitImageUrl,
   withImageParams,
 } from "../../functions/_lib/sanity-image-url.js";
 
@@ -96,6 +97,12 @@ export function tinyImageUrl(url) {
   try {
     const tiny = new URL(text(url));
     if (tiny.hostname !== "cdn.sanity.io") return "";
+    // A framed URL keeps its shape: scale its height with the width.
+    const w = Number(tiny.searchParams.get("w"));
+    const h = Number(tiny.searchParams.get("h"));
+    if (w > 0 && h > 0) {
+      tiny.searchParams.set("h", String(Math.max(1, Math.round((48 * h) / w))));
+    }
     tiny.searchParams.set("w", "48");
     tiny.searchParams.set("q", "30");
     tiny.searchParams.set("blur", "30");
@@ -143,8 +150,11 @@ function mediaModel({ src, alt, position, eager, captionLabel, captionName }) {
   };
 }
 
-/** What's on: one card per series. */
-export function diaryCardModel(event, { eager = false } = {}) {
+/**
+ * What's on: one card per series. `layout` "portrait" or "portrait-grid" is
+ * the dev-only 4:5 card trial (#27); anything else is the 16×10 card.
+ */
+export function diaryCardModel(event, { eager = false, layout = "" } = {}) {
   const regular = Boolean(event.regular);
   const href = text(event.href) || "/whats-on";
   const guest = guestModel(event.guestName, event.guestUrl);
@@ -175,7 +185,13 @@ export function diaryCardModel(event, { eager = false } = {}) {
     ariaLabel: linked ? "" : label,
     hit: linked ? { href, label } : null,
     media: mediaModel({
-      src: sizedImageUrl(event.heroImageUrl || event.heroImage?.url, 960),
+      // Portrait leaves whole images and other hosts alone; size those as usual.
+      src: sizedImageUrl(
+        String(layout).startsWith("portrait")
+          ? portraitImageUrl(event.heroImageUrl || event.heroImage?.url)
+          : event.heroImageUrl || event.heroImage?.url,
+        960,
+      ),
       alt:
         event.heroImage?.alt ||
         event.heroImageAlt ||
