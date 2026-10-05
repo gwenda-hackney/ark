@@ -15,11 +15,35 @@ export const APPLICATION_SERIES_PROJECTION = `"applicationSeries": *[
   _type == "eventSeries" && takingApplications == true && removed != true && defined(slug.current)
 ] | order(title asc) { "value": slug.current, "label": title, recurrence }`;
 
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const WEEKLY = new RegExp(`^Every (${WEEKDAYS.join("|")})((?: and (?:${WEEKDAYS.join("|")}))*)$`);
+
+/** "Every Thursday" → "Thursdays"; other schedules ("Every 2 weeks on …") stay as ops wrote them. */
+export function shortRecurrence(recurrence) {
+  const when = String(recurrence ?? "").trim();
+  return WEEKLY.test(when) ? when.slice("Every ".length).replace(/day\b/g, "days") : when;
+}
+
+/** Monday first; series without a weekday after the rest. */
+function weekdayRank(recurrence) {
+  const ranks = WEEKDAYS.map((day, i) => (String(recurrence ?? "").includes(day) ? i : 7));
+  return Math.min(...ranks);
+}
+
 /** One series as a choice: its name, and when it runs if the website says. */
 export function seriesOption(series) {
   const title = String(series?.label ?? "").trim();
-  const when = String(series?.recurrence ?? "").trim();
+  const when = shortRecurrence(series?.recurrence);
   return { value: String(series?.value ?? "").trim(), label: when ? `${title} · ${when}` : title, name: title };
+}
+
+/** The series in week order (Monday first), then by name. */
+export function sortSeriesByWeekday(series) {
+  return [...series].sort(
+    (a, b) =>
+      weekdayRank(a?.recurrence) - weekdayRank(b?.recurrence) ||
+      String(a?.label ?? "").localeCompare(String(b?.label ?? "")),
+  );
 }
 
 /**
@@ -28,7 +52,7 @@ export function seriesOption(series) {
  */
 export function withSeriesChoices(form) {
   if (!form || !Array.isArray(form.fields)) return form;
-  const options = (form.applicationSeries ?? []).map(seriesOption).filter((option) => option.value && option.name);
+  const options = sortSeriesByWeekday(form.applicationSeries ?? []).map(seriesOption).filter((option) => option.value && option.name);
   const { applicationSeries: _series, ...rest } = form;
   return {
     ...rest,
