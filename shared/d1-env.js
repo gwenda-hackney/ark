@@ -7,7 +7,7 @@
  * Cloudflare token, CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID, which the
  * env wrappers already set per environment.
  */
-import { environmentOf } from "./config-db.js";
+import { environmentOf } from "./config.js";
 import { d1Http } from "./d1-http.js";
 import { D1_BINDINGS, D1_DATABASES } from "./d1-databases.js";
 
