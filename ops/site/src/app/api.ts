@@ -1075,6 +1075,93 @@ export function uploadEventDriveImage(id: string, file: File, date = "") {
   });
 }
 
+/** Instagram (#26): is it set up here, and where posts go. */
+export type InstagramSetup = {
+  ready: boolean;
+  /** live: Meta. fake: our fake Instagram (dev). dry-run: nothing is sent. off: not set up. */
+  mode: "live" | "fake" | "dry-run" | "off";
+  message: string;
+  detail: string;
+};
+
+export type InstagramAccount = { id: string; username: string; profileUrl: string };
+
+export type InstagramStatus = InstagramSetup & {
+  account: InstagramAccount | null;
+  quota: { used: number; total: number } | null;
+  accountError?: string;
+};
+
+export type InstagramPost = {
+  id: string;
+  eventId: string;
+  /** The night's date, or "" for the series or special. */
+  nightOn: string;
+  caption: string;
+  imageUrl: string;
+  status: "publishing" | "sent" | "failed";
+  permalink: string;
+  postedBy: string;
+  lastError: string;
+  createdAt: string;
+  sentAt: string;
+};
+
+export type InstagramDraft = {
+  eventId: string;
+  date: string;
+  nightOn: string;
+  kind: "series" | "night" | "special";
+  title: string;
+  imageUrl: string;
+  imageProblem: string;
+  /** On the website: the post's link works. */
+  live: boolean;
+  link: string;
+  caption: string;
+  captionLimit: number;
+  posts: InstagramPost[];
+  lastPosted: InstagramPost | null;
+  /** A post for this night is on its way. */
+  posting: boolean;
+};
+
+export type InstagramPostResult = {
+  ok: boolean;
+  post?: InstagramPost;
+  /** Instagram is still preparing the image; Post again finishes it. */
+  pending?: boolean;
+  message?: string;
+  recovered?: boolean;
+  dryRun?: boolean;
+  checked?: boolean;
+  account?: InstagramAccount;
+};
+
+export function getInstagramStatus() {
+  return request<InstagramStatus>("/api/instagram/status");
+}
+
+/** `date`: a night's post instead of the series'. */
+export function getEventInstagram(id: string, date = "") {
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  return request<{ setup: InstagramSetup; draft: InstagramDraft }>(
+    `/api/events/${encodeURIComponent(id)}/instagram${query}`,
+  );
+}
+
+/** Post now; `check` only has Instagram check it, `again` confirms a repeat. */
+export function postEventInstagram(
+  id: string,
+  body: { date?: string; caption: string; check?: boolean; again?: boolean },
+) {
+  return request<InstagramPostResult>(`/api/events/${encodeURIComponent(id)}/instagram/post`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 /** Remove a gallery photo (to the Drive bin). */
 export function deleteEventDriveImage(id: string, fileId: string) {
   return request<{ ok: boolean }>(

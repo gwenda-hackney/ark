@@ -19,6 +19,8 @@
 	import EventsList from "./EventsList.svelte";
 	import EventFields from "./tabs/EventFields.svelte";
 	import GalleryTab from "./tabs/GalleryTab.svelte";
+	import InstagramTab from "./tabs/InstagramTab.svelte";
+	import { EventInstagram } from "./event-instagram.svelte";
 	import ScheduleTab from "./tabs/ScheduleTab.svelte";
 	import DeleteEventDialog from "./dialogs/DeleteEventDialog.svelte";
 	import DiscardDialog from "./dialogs/DiscardDialog.svelte";
@@ -48,6 +50,8 @@
 	let { path = "/" }: { path?: string } = $props();
 
 	const editor = new EventEditor(() => path);
+	/** One per page, like the gallery: switching tabs keeps a caption being written. */
+	const instagram = new EventInstagram();
 	let openedKey = $state("");
 	let discardOpen = $state(false);
 	let discardKind = $state<"close" | "reload">("close");
@@ -90,6 +94,7 @@
 				{ id: "details", label: "Details", href: hrefFor("details") },
 				{ id: "ops", label: "Ops", href: hrefFor("ops") },
 				{ id: "gallery", label: "Images", href: hrefFor("gallery") },
+				{ id: "instagram", label: "Instagram", href: hrefFor("instagram") },
 			];
 		}
 		return [
@@ -97,6 +102,7 @@
 			{ id: "schedule", label: "Schedule", href: hrefFor("schedule") },
 			{ id: "ops", label: "Ops", href: hrefFor("ops") },
 			{ id: "gallery", label: "Images", href: hrefFor("gallery") },
+			{ id: "instagram", label: "Instagram", href: hrefFor("instagram") },
 		];
 	});
 
@@ -207,7 +213,7 @@
 			tabReady = true;
 			return;
 		}
-		const order = ["details", "schedule", "ops", "gallery"];
+		const order = ["details", "schedule", "ops", "gallery", "instagram"];
 		const from = order.indexOf(tabPrev);
 		const to = order.indexOf(id);
 		if (from >= 0 && to >= 0 && from !== to) tabSlide = to > from ? 1 : -1;
@@ -281,6 +287,12 @@
 				driveFolderUrl: folder.url || editor.current.driveFolderUrl,
 			};
 		});
+	});
+
+	$effect(() => {
+		if (!editor.editing || editor.tab !== "instagram" || editor.route.isNew) return;
+		// A night posts as itself; a series or a special as a whole.
+		void instagram.load(editor.eventId, editor.occurrenceDate);
 	});
 
 	onDestroy(() => clearUnsavedGuard());
@@ -401,7 +413,7 @@
 											easing: easeOut,
 										}}
 									>
-										{#if editor.tab !== "gallery" || editor.route.isNew}
+										{#if (editor.tab !== "gallery" && editor.tab !== "instagram") || editor.route.isNew}
 											<EventFields
 												part={editor.route.isNew ? "all" : editor.tab === "schedule" || editor.tab === "ops" ? editor.tab : "details"}
 												form={editor.form}
@@ -443,6 +455,8 @@
 											{/if}
 										{:else if editor.tab === "gallery"}
 											<GalleryTab gallery={editor.gallery} eventId={editor.eventId} busy={editor.busy} />
+										{:else if editor.tab === "instagram"}
+											<InstagramTab {instagram} eventId={editor.eventId} date={editor.occurrenceDate} />
 										{/if}
 										{#if editor.websiteJob?.state === "failed" && !editor.formDirty}
 											<div class="job-failed" role="alert">
