@@ -349,6 +349,10 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/setup-ops-secrets.mjs
 
+      # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
+      - name: D1 schema migrations
+        run: node scripts/d1-migrate.mjs --env production
+
       # Additive only, so the ops still running keeps working (scripts/lib/migrations.mjs).
       - name: Migrations before deploy
         run: node scripts/migrate.mjs --app ops --phase pre --env production
@@ -486,6 +490,10 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD BASEROW_CONFIG_API_KEY
+
+      # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
+      - name: D1 schema migrations
+        run: node scripts/d1-migrate.mjs --env dev
 
       # Additive only, so the ops still running keeps working (scripts/lib/migrations.mjs).
       - name: Migrations before deploy

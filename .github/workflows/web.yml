@@ -119,6 +119,10 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
 
+      # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
+      - name: D1 schema migrations
+        run: node scripts/d1-migrate.mjs --env dev
+
       # Additive only, so the website still running keeps working (scripts/lib/migrations.mjs).
       - name: Migrations before deploy
         run: node scripts/migrate.mjs --app web --phase pre --env dev
@@ -234,6 +238,10 @@ jobs:
         env:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
+
+      # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
+      - name: D1 schema migrations
+        run: node scripts/d1-migrate.mjs --env production
 
       # Additive only: the live site still runs the old code. Never post here;
       # post-deploy migrations run when web-promote puts this code live.
