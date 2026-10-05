@@ -14,6 +14,8 @@ export type Env = {
   UNIFI_SITE_IDENTIFIER?: string;
   UNIFI_GUEST_MINUTES?: string;
   REDIRECT_URL?: string;
+  /** The website D1 database (#127); here only for the write freeze (#191). */
+  WEBSITE_DB?: unknown;
 };
 
 export const SUBSCRIBE_TABLE_NAME = "Subscribers";

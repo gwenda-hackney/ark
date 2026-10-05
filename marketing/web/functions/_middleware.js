@@ -29,6 +29,16 @@ import {
   sentryPagesPlugin,
 } from "@sentry/cloudflare";
 import { sentryOptions } from "../../../shared/sentry.js";
+import {
+  featuresForPath,
+  frozenWriteResponse,
+  isWriteRequest,
+} from "../../../shared/write-freeze.js";
+
+/** Which features each website API path writes, for the write freeze (#191). */
+export const WEB_WRITE_FEATURES = [
+  [/^\/api\/(subscribe|forms)(\/|$)/, ["guests"]],
+];
 
 // Sentry first (#35): thrown errors, and console.error from the functions
 // (a form email that failed, a Baserow write that didn't land).
@@ -37,8 +47,22 @@ export const onRequest = [
     ...sentryOptions(context.env, "web"),
     integrations: [captureConsoleIntegration({ levels: ["error"] })],
   })),
+  refuseFrozenWrites,
   gate,
 ];
+
+/** While guests' data moves to D1, sign-ups and forms wait (#191). */
+export async function refuseFrozenWrites(context) {
+  const url = new URL(context.request.url);
+  if (url.pathname.startsWith("/api/") && isWriteRequest(context.request)) {
+    const refused = await frozenWriteResponse(
+      context.env,
+      featuresForPath(url.pathname, WEB_WRITE_FEATURES),
+    );
+    if (refused) return refused;
+  }
+  return context.next();
+}
 
 export async function gate(context) {
   const gate = resolveGate(context.env);

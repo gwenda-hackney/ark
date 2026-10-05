@@ -1,3 +1,4 @@
+import { frozenFeatures } from "../../../shared/write-freeze.js";
 import { createHash } from "node:crypto";
 import type {
   BaserowSubscribeRow,
@@ -392,6 +393,12 @@ export async function syncUnsyncedSubscribers(
   const all = options.all === true;
   const limit = options.limit ?? DEFAULT_LIMIT;
   const fetchImpl = options.fetchImpl ?? fetch;
+
+  // While subscribers move to D1, marking them synced would be lost (#191);
+  // the next hourly run catches up.
+  if ((await frozenFeatures(env, ["guests"])).length) {
+    return { ok: true, scanned: 0, synced: 0, dryRun, errors: 0, results: [], frozen: true };
+  }
 
   const baserowKey = env.BASEROW_API_KEY?.trim();
   const mailchimpKey = env.MAILCHIMP_API_KEY?.trim();
