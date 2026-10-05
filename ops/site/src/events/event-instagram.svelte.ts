@@ -35,7 +35,6 @@ export function postBlocker(input: {
 	if (!setup?.ready) return setup?.message || "Instagram isn't set up in this environment yet.";
 	if (!draft) return "Loading…";
 	if (busy) return "Working…";
-	if (draft.posting) return "A post for this is on its way. Wait a minute, then reload.";
 	if (draft.imageProblem) return draft.imageProblem;
 	if (!draft.live) return "Update website first";
 	if (!caption.trim()) return "Write a caption first";

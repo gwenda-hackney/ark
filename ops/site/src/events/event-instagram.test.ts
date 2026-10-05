@@ -41,6 +41,10 @@ describe("Instagram tab", () => {
 		);
 	});
 
+	it("a post on its way doesn't block Post: pressing it again finishes that post", () => {
+		assert.equal(postBlocker({ ...input, draft: { ...draft, posting: true } }), "");
+	});
+
 	it("Check has nothing to do in a dry run", () => {
 		assert.match(checkBlocker({ ...input, setup: { ...setup, mode: "dry-run" } }), /Nothing is sent/);
 	});
