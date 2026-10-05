@@ -5645,6 +5645,11 @@ a.credit-name {
   max-width: 64rem;
 }
 
+/* Wraps the wall page so the live check can swap it; adds no box of its own. */
+.artist-live {
+  display: contents;
+}
+
 .artist-header,
 .artist-section-header {
   text-align: center;
