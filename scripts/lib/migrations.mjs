@@ -11,12 +11,14 @@
  *   export const app = "web";          // whose deploy runs it: "web" | "ops"
  *   export const phase = "pre";        // "pre" | "post"
  *   export const about = "Form Submissions: Edit Link column";
- *   export async function up({ env, database, sanity, processEnv, log }) {
+ *   export async function up({ env, database, d1, sanity, processEnv, log }) {
  *     const website = await database("website");
  *     log(await website.ensureField("Form Submissions", { name: "Edit Link", type: "url" }));
  *   }
  *
- * `database(key)` changes this environment's Baserow; `sanity()` its Sanity
+ * `database(key)` changes this environment's Baserow; `d1(role)` is its D1
+ * database ("ops" | "website" | "config", shared/d1.js helpers apply; schema
+ * changes go in db/<role>/migrations/*.sql instead); `sanity()` its Sanity
  * content. Both note changes to what the website build reads (published
  * documents, the tables in SITE_BUILD_TABLES): the site was built before the
  * post migrations, so CI then rebuilds it from the migrated data.
@@ -284,11 +286,11 @@ export function sanityContent({ env, processEnv, site, request = fetch }) {
  */
 export async function runMigrations(
   migrations,
-  { env, processEnv, database, sanity, site = siteChanges(), log = console.log },
+  { env, processEnv, database, d1, sanity, site = siteChanges(), log = console.log },
 ) {
   for (const migration of migrations) {
     log(`→ ${migration.name}: ${migration.about}`);
-    await migration.up({ env, processEnv, database, sanity, log: (line) => log(`    ${line}`) });
+    await migration.up({ env, processEnv, database, d1, sanity, log: (line) => log(`    ${line}`) });
   }
   return { rebuild: site.rebuild, changes: site.changes };
 }
