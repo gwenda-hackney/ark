@@ -2,7 +2,8 @@
  * Deep health: can this deployment reach everything it depends on?
  * Run by the post-deploy smoke test (POST /api/health/deep). Read-only,
  * except a test row in each D1 database's `_meta` (deleted straight after)
- * and the optional test email to ALERT_EMAIL (alerts@gwenda.co.uk).
+ * and, when asked, a test email to alerts@gwenda.co.uk, a play form
+ * submission and a sign-up (both deleted after).
  *
  * Each check is independent and reports ok/error and how long it took, so one
  * broken token doesn't hide the others.
@@ -23,6 +24,7 @@ import {
 } from "../../../../shared/gmail-send.js";
 import { NOTIFICATIONS_FROM } from "../../../../shared/mail-from.js";
 import { runFormSmoke } from "./form-smoke.js";
+import { runSignupSmoke } from "./signup-smoke.js";
 import { sanityDatasetForEnv, sanityQuery } from "./sanity-query.js";
 
 const DEFAULT_BASEROW_API = "https://api.baserow.io";
@@ -129,6 +131,7 @@ export async function runDeepHealth(
     checks = CHECKS,
     emailDeps,
     formSmoke = runFormSmoke,
+    signupSmoke = runSignupSmoke,
   } = {},
 ) {
   const results = await Promise.all([
@@ -137,7 +140,13 @@ export async function runDeepHealth(
       checkEmail(env, { send: sendEmail, label, deps: emailDeps }),
     ),
     // A real submission of the play form, emails to alerts@, row deleted after.
-    ...(formTest ? [timed("form", () => formSmoke(env, { requestUrl }))] : []),
+    // A real sign-up of a test address (two tags), row deleted after.
+    ...(formTest
+      ? [
+          timed("form", () => formSmoke(env, { requestUrl })),
+          timed("signup", () => signupSmoke(env)),
+        ]
+      : []),
   ]);
   return { ok: results.every((result) => result.ok), checks: results };
 }
