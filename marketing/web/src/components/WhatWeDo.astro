@@ -1,6 +1,7 @@
 ---
 import { siteConfig } from "../config/site";
 import { artistRunLabel } from "../lib/artist-run.js";
+import { artistTeaser } from "../lib/artist-teaser.js";
 import { fetchFeaturedArtists } from "../lib/featured-artist.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 import {
@@ -26,14 +27,9 @@ const nextNight = nights
   .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
 const nextWhen = nextNight ? formatShortEventDate(nextNight.date) : "";
 
-const profile = String(artist?.profile || "").trim();
 const artistName = String(artist?.name || "").trim();
 const artistRun = artistRunLabel(artist?.startMonth, artist?.endMonth);
-const artistBody = profile
-  ? /[.!?]$/.test(profile)
-    ? profile
-    : `${profile}.`
-  : copy.whatWeDoArtistBody;
+const artistBody = artistTeaser(artist?.profile, copy.whatWeDoArtistBody);
 ---
 
 <section class="what-we-do section" id="what-we-do">
@@ -59,9 +55,13 @@ const artistBody = profile
         </p>
         <a class="what-we-do-cta" href="/whats-on">What's on</a>
       </article>
-      <article class="what-we-do-path reveal" data-home-artist>
+      <article
+        class="what-we-do-path reveal"
+        data-home-artist
+        data-artist-fallback={copy.whatWeDoArtistBody}
+      >
         <h3>{copy.whatWeDoArtistHeading}</h3>
-        <p>{artistBody}</p>
+        <p class="what-we-do-artist-body">{artistBody}</p>
         <p class="what-we-do-next-name">{artistName}</p>
         <p class="what-we-do-next-meta">{artistRun}</p>
         <a class="what-we-do-cta" href="/artists/current">Featured artist</a>

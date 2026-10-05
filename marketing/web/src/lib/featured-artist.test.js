@@ -3,6 +3,8 @@ import {
   artistPagePath,
   bioParagraphs,
   featuredFromArtists,
+  fetchFeaturedArtists,
+  liveArtist,
   opsArtistEnv,
   publicArtist,
   websiteLabel,
@@ -102,6 +104,48 @@ describe("bioParagraphs / websiteLabel", () => {
     expect(bioParagraphs("One.\n\nTwo.")).toEqual(["One.", "Two."]);
     expect(websiteLabel("https://www.ritamatosart.com/")).toBe(
       "ritamatosart.com",
+    );
+  });
+});
+
+describe("liveArtist", () => {
+  it("sends what the live pages redraw from", () => {
+    expect(
+      liveArtist({
+        slug: "rita-matos",
+        name: "Rita Matos",
+        profile: "Paints.",
+        website: "https://rita.example/",
+        portrait: "https://x.example/p.jpg",
+        startMonth: "9",
+        endMonth: "",
+        bio: "Not sent.",
+      }),
+    ).toEqual({
+      slug: "rita-matos",
+      name: "Rita Matos",
+      profile: "Paints.",
+      website: "https://rita.example/",
+      portrait: "https://x.example/p.jpg",
+      startMonth: "9",
+      endMonth: "",
+    });
+    expect(liveArtist(null)).toBeNull();
+  });
+});
+
+describe("fetchFeaturedArtists", () => {
+  it("builds without artists when the token is missing", async () => {
+    await expect(fetchFeaturedArtists({})).resolves.toEqual({
+      current: null,
+      next: null,
+      previous: [],
+    });
+  });
+
+  it("throws in strict mode, so a live check never reads an outage as an empty wall", async () => {
+    await expect(fetchFeaturedArtists({}, { strict: true })).rejects.toThrow(
+      "BASEROW_OPS_API_KEY",
     );
   });
 });

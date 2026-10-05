@@ -10,7 +10,13 @@ import {
 } from "../lib/featured-artist.js";
 import { artistNavItems } from "../lib/site-nav.js";
 
-const { artist = null, next = null, previous = [], now = null } = Astro.props;
+const {
+  artist = null,
+  next = null,
+  previous = [],
+  now = null,
+  live = false,
+} = Astro.props;
 
 const works = (artist?.art || []).slice(0, 3);
 const archived = artist?.slot === "previous";
@@ -25,164 +31,218 @@ const archive = (previous || []).filter((person) => artistPagePath(person));
 
 <BaseLayout title={pageTitle} description={pageDescription}>
   <Subpage class="artist-page" innerClass="artist-inner" {navItems}>
-    {
-      artist ? (
-        <>
-          <header
-            class:list={["artist-intro reveal", !artist.portrait && "is-plain"]}
-          >
-            {artist.portrait ? (
-              <figure class="artist-portrait artist-frame">
-                <img src={artist.portrait} alt="" />
-              </figure>
-            ) : null}
-            <div class="artist-intro-copy">
-              <PageHeader
-                eyebrow={archived ? "Previously" : "The wall"}
-                title={artist.name}
-                align={artist.portrait ? "beside" : "center"}
-                animate={false}
-              />
-              {artist.profile ? (
-                <p class="artist-lead">{artist.profile}</p>
+    <div
+      class="artist-live"
+      data-artist-live={live ? artist?.slug || "" : undefined}
+      data-fallback-title={live ? siteConfig.seo.artists.title : undefined}
+    >
+      {
+        artist ? (
+          <>
+            <header
+              class:list={[
+                "artist-intro reveal",
+                !artist.portrait && "is-plain",
+              ]}
+            >
+              {artist.portrait ? (
+                <figure class="artist-portrait artist-frame">
+                  <img src={artist.portrait} alt="" />
+                </figure>
               ) : null}
-              <p class="artist-programme">
+              <div class="artist-intro-copy">
+                <PageHeader
+                  eyebrow={archived ? "Previously" : "The wall"}
+                  title={artist.name}
+                  align={artist.portrait ? "beside" : "center"}
+                  animate={false}
+                />
+                {artist.profile ? (
+                  <p class="artist-lead">{artist.profile}</p>
+                ) : null}
+                <p class="artist-programme">
+                  We collaborate with local artists, and give them the wall. A
+                  place to show the work, here in the room.
+                </p>
+                {artist.website ? (
+                  <p class="artist-site">
+                    <a href={artist.website} target="_blank" rel="noreferrer">
+                      {websiteLabel(artist.website)}
+                    </a>
+                  </p>
+                ) : null}
+                {bioParagraphs(artist.bio).length ? (
+                  <div class="artist-copy">
+                    {bioParagraphs(artist.bio).map((paragraph) => (
+                      <p>{paragraph}</p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </header>
+
+            {artist.gwenda.length ? (
+              <section class="artist-section" id="at-gwenda">
+                <header class="artist-section-header">
+                  <p class="section-eyebrow">At Gwenda</p>
+                  <h2>In the room</h2>
+                </header>
+                <ul class="artist-room">
+                  {artist.gwenda.map((image, index) => (
+                    <li
+                      class="artist-frame reveal reveal-stagger"
+                      style={`--reveal-delay: ${(index * 0.09).toFixed(2)}s`}
+                    >
+                      <img src={image.url} alt={`${artist.name} at Gwenda`} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {works.length ? (
+              <section class="artist-section" id="work">
+                <header class="artist-section-header">
+                  <p class="section-eyebrow">More</p>
+                  <h2>From {artist.artistName}</h2>
+                </header>
+                <ul
+                  class:list={[
+                    "artist-samples",
+                    works.length === 1 && "is-single",
+                    works.length === 2 && "is-pair",
+                  ]}
+                >
+                  {works.map((image, index) => (
+                    <li>
+                      <figure
+                        class="reveal reveal-stagger"
+                        style={`--reveal-delay: ${(index * 0.09).toFixed(2)}s`}
+                      >
+                        <div class="artist-frame">
+                          <img
+                            src={image.url}
+                            alt={image.label || `${artist.name} artwork`}
+                          />
+                        </div>
+                        {image.label ? (
+                          <figcaption>{image.label}</figcaption>
+                        ) : null}
+                      </figure>
+                    </li>
+                  ))}
+                </ul>
+                {artist.website ? (
+                  <p class="artist-more">
+                    A sample from {artist.artistName}'s latest work. The rest is
+                    at{" "}
+                    <a href={artist.website} target="_blank" rel="noreferrer">
+                      {websiteLabel(artist.website)}
+                    </a>
+                    .
+                  </p>
+                ) : null}
+              </section>
+            ) : artist.website ? (
+              <p class="artist-more">
+                The work is at{" "}
+                <a href={artist.website} target="_blank" rel="noreferrer">
+                  {websiteLabel(artist.website)}
+                </a>
+                .
+              </p>
+            ) : null}
+
+            {next ? (
+              <aside class="artist-next reveal">
+                <p class="section-eyebrow">Next</p>
+                <h2>{next.name}</h2>
+                {next.profile ? <p>{next.profile}</p> : null}
+              </aside>
+            ) : null}
+
+            {now ? (
+              <aside class="artist-next reveal">
+                <p class="section-eyebrow">The wall</p>
+                <h2>
+                  <a href="/artists/current">{now.name}</a>
+                </h2>
+                <p>On the wall now.</p>
+              </aside>
+            ) : null}
+
+            {archive.length ? (
+              <aside class="artist-archive reveal">
+                <p class="section-eyebrow">Previously</p>
+                <ul>
+                  {archive.map((person) => (
+                    <li>
+                      <a href={artistPagePath(person)}>{person.name}</a>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <PageHeader eyebrow="The wall" title="Featured artist">
+              <p>
                 We collaborate with local artists, and give them the wall. A
                 place to show the work, here in the room.
               </p>
-              {artist.website ? (
-                <p class="artist-site">
-                  <a href={artist.website} target="_blank" rel="noreferrer">
-                    {websiteLabel(artist.website)}
-                  </a>
-                </p>
-              ) : null}
-              {bioParagraphs(artist.bio).length ? (
-                <div class="artist-copy">
-                  {bioParagraphs(artist.bio).map((paragraph) => (
-                    <p>{paragraph}</p>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </header>
-
-          {artist.gwenda.length ? (
-            <section class="artist-section" id="at-gwenda">
-              <header class="artist-section-header">
-                <p class="section-eyebrow">At Gwenda</p>
-                <h2>In the room</h2>
-              </header>
-              <ul class="artist-room">
-                {artist.gwenda.map((image, index) => (
-                  <li
-                    class="artist-frame reveal reveal-stagger"
-                    style={`--reveal-delay: ${(index * 0.09).toFixed(2)}s`}
-                  >
-                    <img src={image.url} alt={`${artist.name} at Gwenda`} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {works.length ? (
-            <section class="artist-section" id="work">
-              <header class="artist-section-header">
-                <p class="section-eyebrow">More</p>
-                <h2>From {artist.artistName}</h2>
-              </header>
-              <ul
-                class:list={[
-                  "artist-samples",
-                  works.length === 1 && "is-single",
-                  works.length === 2 && "is-pair",
-                ]}
-              >
-                {works.map((image, index) => (
-                  <li>
-                    <figure
-                      class="reveal reveal-stagger"
-                      style={`--reveal-delay: ${(index * 0.09).toFixed(2)}s`}
-                    >
-                      <div class="artist-frame">
-                        <img
-                          src={image.url}
-                          alt={image.label || `${artist.name} artwork`}
-                        />
-                      </div>
-                      {image.label ? (
-                        <figcaption>{image.label}</figcaption>
-                      ) : null}
-                    </figure>
-                  </li>
-                ))}
-              </ul>
-              {artist.website ? (
-                <p class="artist-more">
-                  A sample from {artist.artistName}'s latest work. The rest is
-                  at{" "}
-                  <a href={artist.website} target="_blank" rel="noreferrer">
-                    {websiteLabel(artist.website)}
-                  </a>
-                  .
-                </p>
-              ) : null}
-            </section>
-          ) : artist.website ? (
-            <p class="artist-more">
-              The work is at{" "}
-              <a href={artist.website} target="_blank" rel="noreferrer">
-                {websiteLabel(artist.website)}
-              </a>
-              .
+            </PageHeader>
+            <p class="artist-lead artist-waiting">
+              The next artist will hang here.
             </p>
-          ) : null}
-
-          {next ? (
-            <aside class="artist-next reveal">
-              <p class="section-eyebrow">Next</p>
-              <h2>{next.name}</h2>
-              {next.profile ? <p>{next.profile}</p> : null}
-            </aside>
-          ) : null}
-
-          {now ? (
-            <aside class="artist-next reveal">
-              <p class="section-eyebrow">The wall</p>
-              <h2>
-                <a href="/artists/current">{now.name}</a>
-              </h2>
-              <p>On the wall now.</p>
-            </aside>
-          ) : null}
-
-          {archive.length ? (
-            <aside class="artist-archive reveal">
-              <p class="section-eyebrow">Previously</p>
-              <ul>
-                {archive.map((person) => (
-                  <li>
-                    <a href={artistPagePath(person)}>{person.name}</a>
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          ) : null}
-        </>
-      ) : (
+          </>
+        )
+      }
+    </div>
+    {
+      live ? (
         <>
-          <PageHeader eyebrow="The wall" title="Featured artist">
-            <p>
-              We collaborate with local artists, and give them the wall. A place
-              to show the work, here in the room.
+          {/* The wall page is built; scripts/artist-live.js swaps these in when ops has moved on since. */}
+          <template data-artist-waiting>
+            <PageHeader
+              eyebrow="The wall"
+              title="Featured artist"
+              animate={false}
+            >
+              <p>
+                We collaborate with local artists, and give them the wall. A
+                place to show the work, here in the room.
+              </p>
+            </PageHeader>
+            <p class="artist-lead artist-waiting">
+              The next artist will hang here.
             </p>
-          </PageHeader>
-          <p class="artist-lead artist-waiting">
-            The next artist will hang here.
-          </p>
+          </template>
+          <template data-artist-intro>
+            <header class="artist-intro">
+              <figure class="artist-portrait artist-frame" data-artist-portrait>
+                <img src="" alt="" />
+              </figure>
+              <div class="artist-intro-copy">
+                <PageHeader
+                  eyebrow="The wall"
+                  title=""
+                  align="beside"
+                  animate={false}
+                />
+                <p class="artist-lead" data-artist-lead />
+                <p class="artist-programme">
+                  We collaborate with local artists, and give them the wall. A
+                  place to show the work, here in the room.
+                </p>
+                <p class="artist-site" data-artist-site>
+                  <a href="" target="_blank" rel="noreferrer" />
+                </p>
+              </div>
+            </header>
+          </template>
         </>
-      )
+      ) : null
     }
   </Subpage>
 </BaseLayout>

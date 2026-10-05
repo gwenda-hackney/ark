@@ -119,6 +119,20 @@ export function featuredFromArtists(artists) {
   };
 }
 
+/** What /api/featured-artist sends: enough to redraw the home card and the wall page. */
+export function liveArtist(artist) {
+  if (!artist) return null;
+  return {
+    slug: text(artist.slug),
+    name: text(artist.name),
+    profile: text(artist.profile),
+    website: text(artist.website),
+    portrait: text(artist.portrait),
+    startMonth: text(artist.startMonth),
+    endMonth: text(artist.endMonth),
+  };
+}
+
 export function bioParagraphs(bio) {
   return text(bio)
     .split(/\n{2,}|\n/)
@@ -134,12 +148,23 @@ export function websiteLabel(url) {
   }
 }
 
-export async function fetchFeaturedArtists(env = process.env) {
+/**
+ * The build treats a failed read as nobody on the wall. `strict` throws instead,
+ * so a live check never blanks a page that is right only because Baserow is down.
+ */
+export async function fetchFeaturedArtists(
+  env = process.env,
+  { strict = false } = {},
+) {
   const readEnv = opsArtistEnv(env);
-  if (!readEnv) return { current: null, next: null, previous: [] };
+  if (!readEnv) {
+    if (strict) throw new Error("BASEROW_OPS_API_KEY is not set.");
+    return { current: null, next: null, previous: [] };
+  }
   try {
     return featuredFromArtists(await listArtists(readEnv));
   } catch (error) {
+    if (strict) throw error;
     console.warn(
       "Featured artist unavailable:",
       error instanceof Error ? error.message : error,
