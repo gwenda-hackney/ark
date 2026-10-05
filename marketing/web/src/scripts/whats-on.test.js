@@ -316,4 +316,41 @@ describe("home next night", () => {
       "Sept to Oct",
     );
   });
+
+  it("puts the generic line back once nobody is on the wall", () => {
+    document.body.innerHTML = `
+      <article data-home-artist data-artist-fallback="Local artists take the wall.">
+        <p class="what-we-do-artist-body">You might have noticed the walls.</p>
+        <p class="what-we-do-next-name">Rita Matos</p>
+        <p class="what-we-do-next-meta">Sept to Oct</p>
+      </article>
+    `;
+    applyHomeArtist(document.querySelector("[data-home-artist]"), null);
+    expect(document.querySelector(".what-we-do-artist-body")?.textContent).toBe(
+      "Local artists take the wall.",
+    );
+    expect(document.querySelector(".what-we-do-next-name")?.textContent).toBe(
+      "",
+    );
+    expect(document.querySelector(".what-we-do-next-meta")?.textContent).toBe(
+      "",
+    );
+  });
+
+  it("shows a new artist's line as a sentence", () => {
+    document.body.innerHTML = `
+      <article data-home-artist data-artist-fallback="Local artists take the wall.">
+        <p class="what-we-do-artist-body"></p>
+        <p class="what-we-do-next-name"></p>
+        <p class="what-we-do-next-meta"></p>
+      </article>
+    `;
+    applyHomeArtist(document.querySelector("[data-home-artist]"), {
+      name: "Ana Lima",
+      profile: "Paints the canal",
+    });
+    expect(document.querySelector(".what-we-do-artist-body")?.textContent).toBe(
+      "Paints the canal.",
+    );
+  });
 });

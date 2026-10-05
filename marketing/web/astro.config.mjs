@@ -740,20 +740,14 @@ function devFeaturedArtistApi() {
             next();
             return;
           }
-          const { fetchFeaturedArtists } = await server.ssrLoadModule(
-            "/src/lib/featured-artist.js",
-          );
-          const featured = await fetchFeaturedArtists(devApiEnv());
-          const current = featured.current;
+          const { fetchFeaturedArtists, liveArtist } =
+            await server.ssrLoadModule("/src/lib/featured-artist.js");
+          const featured = await fetchFeaturedArtists(devApiEnv(), {
+            strict: true,
+          });
           sendJson(res, 200, {
             ok: true,
-            artist: current
-              ? {
-                  name: current.name,
-                  startMonth: current.startMonth || "",
-                  endMonth: current.endMonth || "",
-                }
-              : null,
+            artist: liveArtist(featured.current),
           });
         }),
       );
