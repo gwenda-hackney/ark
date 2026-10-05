@@ -174,7 +174,8 @@ export async function createEvent(env, input) {
   const driveFolder = await createEventDriveFolder(env, name, {
     takenFolderIds: await takenDriveFolderIds(env),
   });
-  const fields = { ...eventFieldsFromInput(input || {}, { slug }), driveFolderId: driveFolder.id };
+  // A new series keeps its gallery in ops from the start (#183).
+  const fields = { ...eventFieldsFromInput(input || {}, { slug }), driveFolderId: driveFolder.id, gallery: [] };
   let record;
   try {
     record = await eventRepository(env).create(fields);
@@ -614,6 +615,42 @@ export async function setEventImage(env, id, upload) {
 /** Takes the photo off the event. The Sanity asset stays: the live site may still show it. */
 export async function clearEventImage(env, id) {
   return writeMainImage(env, id, "");
+}
+
+/**
+ * Add a photo to the series' gallery, or to one night's (`date`). A series
+ * whose gallery is still in Drive adds it there until the backfill (#183).
+ */
+export async function addGalleryImage(env, id, upload, { date = "" } = {}) {
+  const event = await getEvent(env, id);
+  if (!Array.isArray(event.gallery)) {
+    const error = new Error("This series' gallery is still in Google Drive.");
+    error.status = 409;
+    throw error;
+  }
+  const night = date ? isoDate(date) : "";
+  if (date && !night) {
+    const error = new Error("Date is not valid.");
+    error.status = 400;
+    throw error;
+  }
+  const asset = await uploadEventPhoto(env, upload);
+  const events = eventRepository(env);
+  const record = await events.addGalleryPhoto(id, {
+    key: crypto.randomUUID().replace(/-/g, "").slice(0, 16),
+    asset,
+    date: night,
+    added: new Date().toISOString(),
+    source: "ops",
+  });
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
+}
+
+/** Take a photo off the gallery. The Sanity asset stays: the live site may still show it. */
+export async function removeGalleryImage(env, id, key) {
+  const events = eventRepository(env);
+  const record = await events.removeGalleryPhoto(id, key);
+  return buildEvent(record, await events.nightsOf(id), buildOptions(env));
 }
 
 export async function saveOccurrence(env, eventId, occurrence) {

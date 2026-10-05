@@ -25,8 +25,10 @@ import { onRequestPost as syncCalendar } from "../../functions/api/events/[id]/c
 import { onRequestDelete as removeImage, onRequestPost as uploadImage } from "../../functions/api/events/[id]/image.js";
 import { onRequestPost as uploadNightImage } from "../../functions/api/events/[id]/dates/[date]/image.js";
 import { onRequestPost as runWebsiteJob } from "../../functions/api/web/jobs.js";
-import { onRequestPost as uploadGalleryPhoto } from "../../functions/api/events/[id]/drive.js";
-import { onRequestDelete as removeGalleryPhoto } from "../../functions/api/events/[id]/drive/[fileId].js";
+import { onRequestPost as uploadDrivePhoto } from "../../functions/api/events/[id]/drive.js";
+import { onRequestDelete as removeDrivePhoto } from "../../functions/api/events/[id]/drive/[fileId].js";
+import { onRequestPost as uploadGalleryPhoto } from "../../functions/api/events/[id]/gallery.js";
+import { onRequestDelete as removeGalleryPhoto } from "../../functions/api/events/[id]/gallery/[key].js";
 import { onRequestPost as release } from "../../functions/api/web/release.js";
 
 /** ISO date `days` from today. */
@@ -213,11 +215,33 @@ function editor(world) {
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data.event;
     },
-    /** Images tab: add a gallery photo, to the series or (`date`) one night. */
-    async addGalleryPhoto(event, { date = "", name = "crowd.jpg" } = {}) {
+    /** Images tab: add a gallery photo, to the series or (`date`) one night. Returns the photo, newest first. */
+    async addGalleryPhoto(event, { date = "", name = "crowd.jpg", fill = 3, status = 200 } = {}) {
+      const form = new FormData();
+      form.set("file", new File([new TextEncoder().encode(name), new Uint8Array(4096).fill(fill)], name, { type: "image/jpeg" }));
+      const res = await callApi(world, uploadGalleryPhoto, {
+        method: "POST",
+        path: `/api/events/${id(event)}/gallery${date ? `?date=${date}` : ""}`,
+        params: { id: id(event) },
+        body: form,
+      });
+      assert.equal(res.status, status, JSON.stringify(res.data));
+      return res.data.event?.gallery?.[0];
+    },
+    async removeGalleryPhoto(event, photo) {
+      const res = await callApi(world, removeGalleryPhoto, {
+        method: "DELETE",
+        path: `/api/events/${id(event)}/gallery/${photo.key}`,
+        params: { id: id(event), key: photo.key },
+      });
+      assert.equal(res.status, 200, JSON.stringify(res.data));
+      return res.data.event;
+    },
+    /** A series from before #183: its gallery photos go to Drive. */
+    async addDrivePhoto(event, { date = "", name = "crowd.jpg" } = {}) {
       const form = new FormData();
       form.set("file", new File([new Uint8Array(4096).fill(3)], name, { type: "image/jpeg" }));
-      const res = await callApi(world, uploadGalleryPhoto, {
+      const res = await callApi(world, uploadDrivePhoto, {
         method: "POST",
         path: `/api/events/${id(event)}/drive${date ? `?date=${date}` : ""}`,
         params: { id: id(event) },
@@ -226,8 +250,8 @@ function editor(world) {
       assert.equal(res.status, 200, JSON.stringify(res.data));
       return res.data.file;
     },
-    async removeGalleryPhoto(event, file) {
-      const res = await callApi(world, removeGalleryPhoto, {
+    async removeDrivePhoto(event, file) {
+      const res = await callApi(world, removeDrivePhoto, {
         method: "DELETE",
         path: `/api/events/${id(event)}/drive/${file.id}`,
         params: { id: id(event), fileId: file.id },
@@ -815,14 +839,88 @@ describe("events: gallery", () => {
   });
   afterEach(() => world.restore());
 
+  /** The series gallery on the live site: [key, date] pairs, as shown. */
+  const liveGallery = () =>
+    (world.sanity.published("eventSeries")[0]?.gallery || []).map((image) => [image._key, image.date || ""]);
+
+  it("a photo goes straight to Sanity, and ops shows it from there", async () => {
+    const photo = await ops.addGalleryPhoto(event, { name: "bar.jpg" });
+    assert.ok(world.sanity.view("raw").some((doc) => doc._id === photo.asset), "in Sanity before any staging");
+    assert.match(photo.url, /^https:\/\/cdn\.sanity\.io\/images\//);
+    assert.deepEqual((await ops.open(event)).gallery.map((item) => item.key), [photo.key]);
+  });
+
+  it("series and night photos: newest first, the night's marked with its date, live on Update website", async () => {
+    const night = liveNights(world)[1];
+    const series = await ops.addGalleryPhoto(event, { name: "bar.jpg" });
+    const ofNight = await ops.addGalleryPhoto(event, { date: night, name: "crowd.jpg" });
+    await ops.waitUntilReady(event);
+    assert.deepEqual(liveGallery(), [], "the website waits for Update website");
+    assert.equal(await ops.sees(event), "Changed");
+
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveGallery(), [
+      [ofNight.key, night],
+      [series.key, ""],
+    ]);
+    assert.equal(await ops.sees(event), "Live");
+  });
+
+  it("removing a photo takes it off on Update website", async () => {
+    const photo = await ops.addGalleryPhoto(event, { name: "gone.jpg" });
+    const kept = await ops.addGalleryPhoto(event, { name: "kept.jpg" });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    await ops.removeGalleryPhoto(event, photo);
+    await ops.waitUntilReady(event);
+    assert.equal(await ops.sees(event), "Changed");
+    await ops.updateWebsite(event);
+    assert.deepEqual(liveGallery(), [[kept.key, ""]]);
+  });
+
+  it("many photos at once: all live after one Update website", async () => {
+    for (let n = 0; n < 12; n += 1) await ops.addGalleryPhoto(event, { name: `photo-${n}.jpg` });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    assert.equal(liveGallery().length, 12);
+  });
+
+  it("the same photo twice is in the gallery once", async () => {
+    await ops.addGalleryPhoto(event, { name: "a.jpg" });
+    await ops.addGalleryPhoto(event, { name: "a.jpg" });
+    assert.equal((await ops.open(event)).gallery.length, 1);
+  });
+
+  it("refuses a night date that isn't a date", async () => {
+    await ops.addGalleryPhoto(event, { date: "soon", status: 400 });
+  });
+});
+
+// Storage-specific on purpose: only series from before #183 have no gallery
+// list in ops, and keep theirs in Drive until the backfill.
+describe("events: a gallery still in Drive", () => {
+  let world;
+  let ops;
+  let event;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+    event = await ops.create(weeklySeries());
+    world.baserow.update("Events", event.id, { Gallery: "" });
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+  });
+  afterEach(() => world.restore());
+
   /** The series gallery on the live site: [driveFileId, date] pairs, as shown. */
   const liveGallery = () =>
     (world.sanity.published("eventSeries")[0]?.gallery || []).map((image) => [image.driveFileId, image.date || ""]);
 
   it("series and night photos: newest first, the night's marked with its date, live on Update website", async () => {
     const night = liveNights(world)[1];
-    const series = await ops.addGalleryPhoto(event, { name: "bar.jpg" });
-    const ofNight = await ops.addGalleryPhoto(event, { date: night, name: "crowd.jpg" });
+    const series = await ops.addDrivePhoto(event, { name: "bar.jpg" });
+    const ofNight = await ops.addDrivePhoto(event, { date: night, name: "crowd.jpg" });
     await ops.waitUntilReady(event);
     assert.deepEqual(liveGallery(), [], "the website waits for Update website");
     assert.equal(await ops.sees(event), "Changed");
@@ -836,11 +934,11 @@ describe("events: gallery", () => {
   });
 
   it("removing a photo takes it off on Update website", async () => {
-    const photo = await ops.addGalleryPhoto(event);
-    const kept = await ops.addGalleryPhoto(event, { name: "kept.jpg" });
+    const photo = await ops.addDrivePhoto(event);
+    const kept = await ops.addDrivePhoto(event, { name: "kept.jpg" });
     await ops.waitUntilReady(event);
     await ops.updateWebsite(event);
-    await ops.removeGalleryPhoto(event, photo);
+    await ops.removeDrivePhoto(event, photo);
     await ops.waitUntilReady(event);
     await ops.updateWebsite(event);
     assert.deepEqual(liveGallery(), [[kept.id, ""]]);
@@ -861,7 +959,7 @@ describe("events: gallery", () => {
     await ops.updateWebsite(event);
     assert.deepEqual(liveGallery(), [], "the other environment's photo stays off the website");
 
-    const mine = await ops.addGalleryPhoto(event, { name: "mine.jpg" });
+    const mine = await ops.addDrivePhoto(event, { name: "mine.jpg" });
     const folderId = world.baserow.rows("Events")[0]["Drive folder id"];
     assert.notEqual(folderId, "other-series");
     assert.ok(world.google.eventFolders().some((f) => f.id === folderId), "a new folder under this environment's root");
@@ -872,10 +970,14 @@ describe("events: gallery", () => {
   });
 
   it("more photos than one run uploads: they all get there", async () => {
-    for (let n = 0; n < 7; n += 1) await ops.addGalleryPhoto(event, { name: `photo-${n}.jpg` });
+    for (let n = 0; n < 7; n += 1) await ops.addDrivePhoto(event, { name: `photo-${n}.jpg` });
     await ops.waitUntilReady(event);
     await ops.updateWebsite(event);
     assert.equal(liveGallery().length, 7);
+  });
+
+  it("photos can't be added the new way until it moves", async () => {
+    await ops.addGalleryPhoto(event, { status: 409 });
   });
 });
 

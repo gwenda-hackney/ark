@@ -825,7 +825,8 @@ export type OpsEvent = {
   driveFolderUrl: string;
   mainImage: OpsEventImage | null;
   heroCrops: Record<string, unknown> | null;
-  images: OpsEventImage[];
+  /** Newest first; null while the series' gallery is still in Drive (#183). */
+  gallery: OpsGalleryPhoto[] | null;
   dates: OpsEventOccurrence[];
   publish: {
     preview: "unpublished" | "stale" | "current";
@@ -1005,6 +1006,38 @@ export function uploadEventImage(id: string, file: File) {
 export function clearEventImage(id: string) {
   return request<{ event: OpsEvent }>(
     `/api/events/${encodeURIComponent(id)}/image`,
+    { method: "DELETE" },
+  );
+}
+
+/** A gallery photo kept in ops (#183): a Sanity asset, shown from cdn.sanity.io. */
+export type OpsGalleryPhoto = {
+  key: string;
+  asset: string;
+  url: string;
+  width: number;
+  height: number;
+  /** A night's photo, or "" for the series. */
+  date: string;
+  added: string;
+  source: string;
+};
+
+/** Add a photo to the series' gallery, or (`date`) one night's. */
+export function uploadGalleryPhoto(id: string, file: File, date = "") {
+  const body = new FormData();
+  body.set("file", file);
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/gallery${query}`, {
+    method: "POST",
+    body,
+  });
+}
+
+/** Take a photo off the gallery; it leaves the website on Update website. */
+export function deleteGalleryPhoto(id: string, key: string) {
+  return request<{ event: OpsEvent }>(
+    `/api/events/${encodeURIComponent(id)}/gallery/${encodeURIComponent(key)}`,
     { method: "DELETE" },
   );
 }

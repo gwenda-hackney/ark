@@ -18,6 +18,9 @@
  *   removeNight(id)               a missing night is fine
  *   saveNightSnapshots(updates)   [{ id, snapshots, clearCalendar? }]
  *   setNightCalendarLinks(links)  [{ id, value }]
+ *   addGalleryPhoto(eventId, photo)    EventRecord; newest first, and a photo whose
+ *                                      asset is already in the gallery isn't added again
+ *   removeGalleryPhoto(eventId, key)   EventRecord
  *   capabilities()                { formerSlugs, shortDescriptionOverride, calendarLinks }:
  *                                 what this storage can keep yet (columns added by migration)
  *

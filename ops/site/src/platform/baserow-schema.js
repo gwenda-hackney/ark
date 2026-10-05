@@ -110,6 +110,8 @@ export function eventFields() {
       body: { name: "Hero crops", type: "long_text" },
     },
     { name: "Images", body: { name: "Images", type: "file" } },
+    // Gallery photos as JSON (#183): Sanity asset ids, newest first.
+    { name: "Gallery", body: { name: "Gallery", type: "long_text" } },
   ];
 }
 

@@ -66,7 +66,11 @@ export class EventEditor {
 	deleteOpen = $state(false);
 	deleteScopeOpen = $state(false);
 	saveScopeOpen = $state(false);
-	gallery = new EventGallery();
+	/** A gallery change in ops: show the event, and bring the preview up to date. */
+	gallery = new EventGallery((event) => {
+		if (String(event.id) === String(this.eventId) && !this.formDirty) this.rememberEvent(event, false);
+		queueWebsiteJob(String(event.id));
+	});
 
 	/** Photo picked on a new event: shown now, uploaded right after the first save. */
 	pendingPhoto = $state<File | null>(null);

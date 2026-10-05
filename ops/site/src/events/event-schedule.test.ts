@@ -50,7 +50,7 @@ function event(
 		driveFolderUrl: "",
 		mainImage: null,
 		heroCrops: null,
-		images: [],
+		gallery: [],
 		dates: [],
 		publish: {
 			preview: "current",
