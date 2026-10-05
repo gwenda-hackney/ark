@@ -286,3 +286,42 @@ describe("Events: Taking applications migration (#41)", () => {
     assert.deepEqual(updated, []);
   });
 });
+
+describe("series taking applications onto Sanity", () => {
+  it("takes the live series ops marks, not deleted rows or one-offs", async () => {
+    const { seriesTakingApplications } = await import(
+      "../../migrations/2026-10-04-series-taking-applications-sanity.mjs"
+    );
+    const rows = [
+      { Name: "Gwenda Selects", "Taking applications": true, "Repeat unit": { value: "week" } },
+      { Name: "Happy Hour", "Taking applications": false, "Repeat unit": { value: "week" } },
+      { Name: "Radio Gwenda", "Taking applications": true, "Deleted at": "2026-10-01" },
+      { Name: "Launch", "Taking applications": true, "Repeat unit": { value: "once" } },
+      { Name: "Old row" },
+    ];
+    assert.deepEqual(seriesTakingApplications(rows).map((row) => row.Name), ["Gwenda Selects"]);
+  });
+
+  it("matches published series and drafts by web address or name, skipping ones already on", async () => {
+    const { seriesIdsToSwitchOn } = await import(
+      "../../migrations/2026-10-04-series-taking-applications-sanity.mjs"
+    );
+    const rows = [
+      { Name: "Gwenda + Live", Slug: "gwenda-nights" },
+      { Name: "Friday, With Guests", Slug: "" },
+      { Name: "Radio Gwenda", Slug: "gwenda-radio" },
+    ];
+    const documents = [
+      { _id: "series-gwenda-nights", title: "Gwenda + Live", slug: "gwenda-nights" },
+      { _id: "drafts.series-gwenda-nights", title: "Gwenda + Live", slug: "gwenda-nights" },
+      { _id: "series-music-friday", title: "Friday, With Guests", slug: "music-friday" },
+      { _id: "series-gwenda-radio", title: "Radio Gwenda", slug: "gwenda-radio", takingApplications: true },
+      { _id: "series-happy-houre", title: "HAPPY HOURE", slug: "happy-houre" },
+    ];
+    assert.deepEqual(seriesIdsToSwitchOn(rows, documents), [
+      "series-gwenda-nights",
+      "drafts.series-gwenda-nights",
+      "series-music-friday",
+    ]);
+  });
+});
