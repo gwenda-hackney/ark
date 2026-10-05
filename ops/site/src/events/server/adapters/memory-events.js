@@ -31,6 +31,7 @@ const EMPTY_EVENT = {
   driveFolderId: "",
   mainImage: null,
   heroCrops: null,
+  gallery: null,
 };
 
 const EMPTY_OVERRIDES = {
@@ -152,6 +153,20 @@ export function memoryEventRepository() {
         const night = nights.get(String(id));
         if (night) night.googleCalendarEventId = value;
       }
+    },
+    async addGalleryPhoto(eventId, photo) {
+      const event = events.get(String(eventId));
+      if (!event) throw notFound();
+      const gallery = event.gallery || [];
+      if (!gallery.some((item) => item.asset === photo.asset)) event.gallery = [copy(photo), ...gallery];
+      else event.gallery = gallery;
+      return copy(event);
+    },
+    async removeGalleryPhoto(eventId, key) {
+      const event = events.get(String(eventId));
+      if (!event) throw notFound();
+      event.gallery = (event.gallery || []).filter((item) => item.key !== key);
+      return copy(event);
     },
     async capabilities() {
       return { formerSlugs: true, shortDescriptionOverride: true, calendarLinks: true };

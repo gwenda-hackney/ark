@@ -92,6 +92,8 @@ export async function forgetGalleryStaged(env, eventId) {
 
 /** The event has a Drive folder whose gallery is not staged yet. */
 export function galleryBehind(event, staged = {}) {
+  // A gallery kept in ops changes the preview hash instead (event-content.js).
+  if (Array.isArray(event?.gallery)) return false;
   return Boolean(event?.driveFolderId) && !(String(event.id) in staged);
 }
 
