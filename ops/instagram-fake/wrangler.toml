@@ -1,0 +1,21 @@
+# The fake Instagram Graph API (#26), for dev ops only. Deploy it to the
+# gwenda-dev Cloudflare account, never production: see docs/instagram.md.
+# No account_id here: Wrangler takes CLOUDFLARE_ACCOUNT_ID from
+# `node scripts/with-env.mjs`, which is the dev account on a developer's machine.
+name = "gwenda-instagram-fake"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[vars]
+# Made-up account the fake answers as. Dev ops' INSTAGRAM_USER_ID__DEV must
+# match. The token is the Worker secret INSTAGRAM_ACCESS_TOKEN (the same value
+# as INSTAGRAM_ACCESS_TOKEN__DEV), put with `wrangler secret put`.
+INSTAGRAM_USER_ID = "17841400000000001"
+INSTAGRAM_USERNAME = "gwenda_dev_test"
+
+# Published posts and containers. With no id, Wrangler creates the namespace
+# on the first deploy. If it asks for one instead, run
+# `wrangler kv namespace create POSTS` and add its `id = "…"` here.
+[[kv_namespaces]]
+binding = "POSTS"
