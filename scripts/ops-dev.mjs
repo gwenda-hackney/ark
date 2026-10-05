@@ -52,6 +52,8 @@ const DEV_VAR_KEYS = [
     "SITE_DEPLOY_WEBHOOK_URL",
     "SANITY_STUDIO_SITE_DEPLOY_URL",
     "GOOGLE_CALENDAR_ID",
+    // The fake Instagram this machine posts to (docs/instagram.md); unset is a dry run.
+    "INSTAGRAM_GRAPH_URL",
   ]),
 ];
 
@@ -111,6 +113,8 @@ async function loadProductionSecrets() {
 function writeBindings() {
   const bindings = new Map();
   for (const key of DEV_VAR_KEYS) {
+    // --live posts to the real Instagram, never to a fake set for dev.
+    if (LIVE && key === "INSTAGRAM_GRAPH_URL") continue;
     const value = process.env[key]?.trim();
     if (value) bindings.set(key, value);
   }

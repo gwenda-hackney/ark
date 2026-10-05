@@ -140,6 +140,11 @@ export const SECRET_OWNERS = {
     "SITE_HEALTH_STATUS_TOKEN",
     // Read-only Sentry token (Issue & Event: Read) for the dashboard's errors card (#156).
     "SENTRY_READ_TOKEN",
+    // Posting to Instagram from ops (#26, docs/instagram.md). __PRODUCTION is
+    // the Meta system user's token and @gwendahackney's Instagram user id;
+    // __DEV are made-up values only the fake Instagram Worker accepts.
+    "INSTAGRAM_ACCESS_TOKEN",
+    "INSTAGRAM_USER_ID",
     // Script-only (sm-export): the automation@ Baserow login for schema changes.
     "BASEROW_JWT_EMAIL",
     "BASEROW_JWT_PASSWORD",
@@ -209,6 +214,9 @@ export const APP_SECRETS = {
       "SITE_HEALTH_STATUS_TOKEN",
       // Reads Sentry issues for the dashboard (api/health/errors.js).
       "SENTRY_READ_TOKEN",
+      // Posts to Instagram (#26): Meta in production, the fake Instagram in dev.
+      "INSTAGRAM_ACCESS_TOKEN",
+      "INSTAGRAM_USER_ID",
     ],
     rename: {
       BASEROW_API_KEY: "BASEROW_OPS_API_KEY",
