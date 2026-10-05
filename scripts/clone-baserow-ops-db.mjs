@@ -29,7 +29,13 @@ import {
   TABLE_SUPPLIERS,
   TABLE_USERS,
 } from "../shared/baserow.js";
-import { refuseSourceWorkspace } from "./lib/baserow-clone.mjs";
+import {
+  copyRows,
+  jwtRequest,
+  refuseSourceWorkspace,
+  tokenRequest,
+  wipeTableRows,
+} from "./lib/baserow-clone.mjs";
 import { findDatabase } from "./lib/migrations.mjs";
 import { loadRepoEnv } from "./lib/load-env.mjs";
 
@@ -76,54 +82,6 @@ function parseArgs(argv) {
     else throw new Error(`Unknown argument: ${arg}`);
   }
   return out;
-}
-
-async function jwtRequest(apiBase, jwt, path, init = {}) {
-  const url = path.startsWith("http") ? path : `${apiBase}${path}`;
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `JWT ${jwt}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
-  const text = await response.text();
-  let json;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
-  }
-  if (!response.ok) {
-    const detail = json?.detail || json?.error || text.slice(0, 400);
-    throw new Error(`${init.method || "GET"} ${path} → ${response.status}: ${detail}`);
-  }
-  return json;
-}
-
-async function tokenRequest(apiBase, apiKey, path, init = {}) {
-  const url = path.startsWith("http") ? path : `${apiBase}${path}`;
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
-  const text = await response.text();
-  let json;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
-  }
-  if (!response.ok) {
-    const detail = json?.detail || json?.error || text.slice(0, 400);
-    throw new Error(`${init.method || "GET"} ${path} → ${response.status}: ${detail}`);
-  }
-  return json;
 }
 
 async function listAllRows(apiBase, apiKey, tableId) {
@@ -522,8 +480,6 @@ async function main() {
     const dest = destByName.get(name);
     const sourceFields = sourceFieldsByTable.get(name);
     const rows = await listAllRows(apiBase, apiKey, source.id);
-    const idMap = new Map();
-    idMapsByOldTableId.set(String(source.id), idMap);
 
     // Row API with JWT for create (database token may not see new workspace yet)
     console.log(`Rows → ${name} (${rows.length})`);
@@ -542,37 +498,22 @@ async function main() {
         );
       }
       console.log(`  wiping ${existingCount} existing row(s) (--force)…`);
-      let page = 1;
-      for (;;) {
-        const batch = await jwtRequest(
-          apiBase,
-          jwt,
-          `/api/database/rows/table/${dest.id}/?user_field_names=true&size=200&page=${page}`,
-        );
-        const ids = (batch.results || []).map((row) => row.id);
-        if (!ids.length) break;
-        await jwtRequest(
-          apiBase,
-          jwt,
-          `/api/database/rows/table/${dest.id}/batch-delete/`,
-          { method: "POST", body: JSON.stringify({ items: ids }) },
-        );
-        if (!batch.next) break;
-      }
+      await wipeTableRows(apiBase, jwt, dest.id);
     }
 
-    for (const row of rows) {
-      if (Array.isArray(row.Photo) && row.Photo.length) skippedPhotos += 1;
-      const payload = remapRowPayload(row, sourceFields, idMapsByOldTableId);
-      if (!payload.Name && row.Name) payload.Name = row.Name;
-      const created = await jwtRequest(
-        apiBase,
-        jwt,
-        `/api/database/rows/table/${dest.id}/?user_field_names=true`,
-        { method: "POST", body: JSON.stringify(payload) },
-      );
-      idMap.set(String(row.id), String(created.id));
-    }
+    skippedPhotos += rows.filter((row) => Array.isArray(row.Photo) && row.Photo.length).length;
+    await copyRows(apiBase, jwt, {
+      rows,
+      fields: sourceFields,
+      sourceTableId: source.id,
+      destTableId: dest.id,
+      idMapsByOldTableId,
+      remap: (row, fields, maps) => {
+        const payload = remapRowPayload(row, fields, maps);
+        if (!payload.Name && row.Name && fields.some((field) => field.primary)) payload.Name = row.Name;
+        return payload;
+      },
+    });
     console.log(`  copied ${rows.length}`);
   }
 
