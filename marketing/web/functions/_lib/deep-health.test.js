@@ -30,6 +30,32 @@ describe("runDeepHealth", () => {
   });
 });
 
+describe("runDeepHealth with formTest", () => {
+  it("runs the play form and the sign-up end to end", async () => {
+    const formSmoke = vi.fn(async () => "form ok");
+    const signupSmoke = vi.fn(async () => "signup ok");
+    const result = await runDeepHealth(gmailEnv, {
+      formTest: true,
+      checks: {},
+      emailDeps: { token: async () => "t" },
+      formSmoke,
+      signupSmoke,
+    });
+    expect(result.checks.map((row) => [row.name, row.detail])).toEqual([
+      ["email", "Gmail login works (no email sent)"],
+      ["form", "form ok"],
+      ["signup", "signup ok"],
+    ]);
+    const plain = await runDeepHealth(gmailEnv, {
+      checks: {},
+      emailDeps: { token: async () => "t" },
+      signupSmoke,
+    });
+    expect(plain.checks.map((row) => row.name)).toEqual(["email"]);
+    expect(signupSmoke).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("checkEmail", () => {
   it("only logs in unless asked to send", async () => {
     const send = vi.fn();
