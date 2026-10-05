@@ -4,8 +4,9 @@
  * of choices typed into Sanity. After the website deploy, since only the new
  * code knows the field type.
  *
- * Waits until ops has marked at least one series Taking applications, so the
- * live form never loses the question (with no series the site leaves it off).
+ * Waits until a published series is Taking applications (the website reads
+ * only published ones), so the live form never loses the question: with no
+ * series the site leaves it off.
  * Changes the published form and any unpublished draft of it. Safe to rerun.
  */
 import { DEV_SANITY_PROJECT_ID, REAL_SANITY_PROJECT_ID } from "../shared/sanity-projects.js";
@@ -34,7 +35,7 @@ export async function up({ env, processEnv, log }) {
 
   const query = `{
     "forms": *[_type == "form" && slug.current == $slug]{ _id, "field": fields[key == $key][0]{ _key, type } },
-    "series": count(*[_type == "eventSeries" && takingApplications == true && removed != true])
+    "series": count(*[_type == "eventSeries" && takingApplications == true && removed != true && !(_id in path("drafts.**"))])
   }`;
   const params = new URLSearchParams({ query, $slug: JSON.stringify(FORM_SLUG), $key: JSON.stringify(FIELD_KEY), perspective: "raw" });
   const { result } = await call(`/query/production?${params}`);
