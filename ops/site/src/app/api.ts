@@ -689,13 +689,16 @@ export function getDbPairDiff(pair: "ops" | "website") {
   return request<DbPairDiff>(`/api/web/databases?pair=${pair}`);
 }
 
-export function copyDbPair(pair: "ops" | "website") {
+/** What a copy of production over dev covers (copy-prod-to-dev.yml). */
+export type DevCopyTarget = "everything" | "content" | "ops-data" | "website-data";
+
+export function startDevCopy(target: DevCopyTarget) {
   return request<{ ok: boolean; runId?: number | null; runUrl?: string; status?: string }>(
-    "/api/web/databases",
+    "/api/web/dev-copy",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pair, confirm: pair }),
+      body: JSON.stringify({ target, confirm: target }),
     },
   );
 }

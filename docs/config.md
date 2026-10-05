@@ -188,7 +188,7 @@ Ops uses **two Baserow workspaces** so a local token cannot see production data:
 | production | `Gwenda` | `Gwenda Ops` | `BASEROW_OPS_API_KEY__PRODUCTION` |
 | dev | `Gwenda Dev` (Free) | `Gwenda Ops` (copy) | `BASEROW_OPS_API_KEY__DEV` |
 
-The copies are refreshed from production by CI (ops Website → Databases → Copy production over it, `baserow-copy.yml`): reading production needs the production token. Clone and promote scripts do not touch config (it is in its own database).
+The copies are refreshed from production by CI (ops Developer tools → Copy production to dev, or Databases → Copy production over it; `copy-prod-to-dev.yml`): reading production needs the production token. Clone and promote scripts do not touch config (it is in its own database).
 
 **Not hand-edited for production:**
 

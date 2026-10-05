@@ -101,16 +101,25 @@ export async function compareCode(env, { base, head }) {
   return webhookJson(`${baseUrl}/compare?${query}`, secret);
 }
 
-/** Start the Baserow copy workflow: production → ops-dev or website-dev. */
-export async function dispatchBaserowCopy(env, target) {
-  assertNotLocal(env, "Local ops cannot start a database copy.");
+/** What a copy of production over dev can cover (copy-prod-to-dev.yml). */
+export const DEV_COPY_TARGETS = ["everything", "content", "ops-data", "website-data"];
+
+/** Start the copy-prod-to-dev workflow for one target. */
+export async function dispatchDevCopy(env, target) {
+  assertNotLocal(env, "Local ops cannot start a copy to dev.");
+  // It reads production, so only production ops may ask (the webhook checks too).
+  if (isLocalOps(env)) {
+    const error = new Error("Copy production to dev from production ops: it reads production.");
+    error.status = 403;
+    throw error;
+  }
   const { baseUrl, secret } = webhookConfig(env);
   if (!baseUrl || !secret) {
     const error = new Error("Site deploy webhook is not configured on ops.");
     error.status = 503;
     throw error;
   }
-  return webhookJson(`${baseUrl}/baserow-copy`, secret, {
+  return webhookJson(`${baseUrl}/dev-copy`, secret, {
     method: "POST",
     body: { target },
   });
