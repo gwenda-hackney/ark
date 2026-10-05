@@ -42,6 +42,39 @@ export function seriesAwaitingDates(event, today = todayIso()) {
   return !expandSeriesOccurrenceDates(event).some((date) => date >= today);
 }
 
+/** Links the website shows (#33): web, email, phone or a page on the site. */
+export function safeDescriptionHref(value) {
+  const href = String(value ?? "").trim();
+  if (!href) return "";
+  if (/^\/(?!\/)/.test(href)) return href;
+  if (/^(https?:\/\/|mailto:|tel:)\S+$/i.test(href)) return href;
+  return "";
+}
+
+/** `[text](href)` from `start`: where its text ends, its href and its end. */
+function markdownLinkAt(source, start) {
+  for (let i = start + 1; i < source.length; i += 1) {
+    if (source[i] === "\\") {
+      i += 1;
+      continue;
+    }
+    if (source[i] === "[") return null;
+    if (source[i] === "]") {
+      if (source[i + 1] !== "(") return null;
+      const end = source.indexOf(")", i + 2);
+      if (end < 0) return null;
+      return { textEnd: i, href: source.slice(i + 2, end).trim(), end: end + 1 };
+    }
+  }
+  return null;
+}
+
+/**
+ * The editor's Markdown as Portable Text (#33): paragraphs, line breaks ("\n"
+ * in a span), **bold**, *italic*, [links](https://…) and bullet lists, with
+ * backslash escapes. Headings become paragraphs and numbered items bullets,
+ * so older copy still reads; a link the website wouldn't show keeps its text.
+ */
 export function plainToEventDescription(text) {
   const lines = String(text || "")
     .replace(/\r\n/g, "\n")
@@ -49,51 +82,78 @@ export function plainToEventDescription(text) {
   const blocks = [];
   let paragraph = [];
 
-  const inlineChildren = (value, blockIndex) => {
+  const inline = (value, blockIndex) => {
     const children = [];
-    const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
-    let cursor = 0;
-    let match;
-    while ((match = pattern.exec(value))) {
-      if (match.index > cursor) {
-        children.push({
-          _type: "span",
-          _key: `s${blockIndex}-${children.length}`,
-          text: value.slice(cursor, match.index),
-          marks: [],
-        });
+    const markDefs = [];
+    const state = { strong: false, em: false };
+    let buffer = "";
+    let link = "";
+    const flush = () => {
+      if (!buffer) return;
+      const marks = [];
+      if (state.strong) marks.push("strong");
+      if (state.em) marks.push("em");
+      if (link) marks.push(link);
+      children.push({ _type: "span", _key: `s${blockIndex}-${children.length}`, text: buffer, marks });
+      buffer = "";
+    };
+    const walk = (from, to) => {
+      let i = from;
+      while (i < to) {
+        const char = value[i];
+        if (char === "\\" && i + 1 < to) {
+          buffer += value[i + 1];
+          i += 2;
+        } else if (char === "*") {
+          flush();
+          if (value[i + 1] === "*") {
+            state.strong = !state.strong;
+            i += 2;
+          } else {
+            state.em = !state.em;
+            i += 1;
+          }
+        } else if (char === "[" && !link) {
+          const found = markdownLinkAt(value, i);
+          if (!found || found.end > to) {
+            buffer += char;
+            i += 1;
+            continue;
+          }
+          flush();
+          const href = safeDescriptionHref(found.href);
+          if (href) {
+            link = `l${blockIndex}-${markDefs.length}`;
+            markDefs.push({ _type: "link", _key: link, href });
+          }
+          walk(i + 1, found.textEnd);
+          flush();
+          link = "";
+          i = found.end;
+        } else {
+          buffer += char;
+          i += 1;
+        }
       }
-      const strong = match[0].startsWith("**");
-      children.push({
-        _type: "span",
-        _key: `s${blockIndex}-${children.length}`,
-        text: match[0].slice(strong ? 2 : 1, strong ? -2 : -1),
-        marks: [strong ? "strong" : "em"],
-      });
-      cursor = match.index + match[0].length;
-    }
-    if (cursor < value.length || !children.length) {
-      children.push({
-        _type: "span",
-        _key: `s${blockIndex}-${children.length}`,
-        text: value.slice(cursor),
-        marks: [],
-      });
-    }
-    return children;
+    };
+    walk(0, value.length);
+    flush();
+    if (!children.length) children.push({ _type: "span", _key: `s${blockIndex}-0`, text: "", marks: [] });
+    return { children, markDefs };
   };
 
   const addBlock = (value, options = {}) => {
     const cleaned = String(value || "").trim();
     if (!cleaned) return;
     const index = blocks.length;
+    const { children, markDefs } = inline(cleaned, index);
     blocks.push({
       _type: "block",
       _key: `p${index}`,
-      style: options.style || "normal",
-      ...(options.listItem ? { listItem: options.listItem, level: 1 } : {}),
-      markDefs: [],
-      children: inlineChildren(cleaned, index),
+      style: "normal",
+      ...(options.listItem ? { listItem: "bullet", level: 1 } : {}),
+      markDefs,
+      children,
     });
   };
 
@@ -104,17 +164,15 @@ export function plainToEventDescription(text) {
   };
 
   for (const line of lines) {
-    const heading = line.match(/^\s*(#{1,3})\s+(.+?)\s*$/);
-    const bullet = line.match(/^\s*[-*]\s+(.+?)\s*$/);
+    const heading = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
+    const bullet = line.match(/^\s*[-*+]\s+(.+?)\s*$/);
     const numbered = line.match(/^\s*\d+[.)]\s+(.+?)\s*$/);
     if (heading) {
       flushParagraph();
-      addBlock(heading[2], { style: `h${heading[1].length}` });
+      addBlock(heading[1]);
     } else if (bullet || numbered) {
       flushParagraph();
-      addBlock((bullet || numbered)[1], {
-        listItem: bullet ? "bullet" : "number",
-      });
+      addBlock((bullet || numbered)[1], { listItem: true });
     } else if (!line.trim()) {
       flushParagraph();
     } else {
@@ -247,6 +305,8 @@ function roundFrac(value) {
 /** Stable crop+hotspot shape so key order / float noise cannot keep preview stale. */
 export function stableHeroFraming(value) {
   if (!value || typeof value !== "object") return null;
+  // Whole image (#27): no crop to compare, only the choice.
+  if (value.fit === "whole") return { fit: "whole" };
   const source =
     value.crop || value.main || value.card ? value : { crop: value };
   const cropSrc = source.crop || source.main || source.card || {};
@@ -290,6 +350,8 @@ export function occurrencePayload(event, occurrence) {
     occurrenceHeroCrops: stableHeroFraming(row?.overrides?.heroCrops),
     shortDescription: content.shortDescription || null,
     seriesNightSchedule: stableNightSchedule(event?.nightSchedule),
+    // Only when on, so series that never take applications keep their hash.
+    ...(event?.takingApplications === true ? { seriesTakingApplications: true } : {}),
     isSpecialEdition: content.isSpecialEdition,
     seriesId: String(event?.slug || "").trim(),
     seriesTitle: String(event?.name || "").trim(),
@@ -363,6 +425,7 @@ export function sanitySeriesDocument({
   datesPending = false,
   gallery = [],
   formerSlugs = [],
+  takingApplications = false,
 }) {
   const key = String(slug || "").trim();
   const doc = {
@@ -379,6 +442,8 @@ export function sanitySeriesDocument({
     nightSchedule: toSanityNightSchedule(nightSchedule),
   };
   if (datesPending) doc.datesPending = true;
+  // Listed on the website's Play at Gwenda form (#41).
+  if (takingApplications) doc.takingApplications = true;
   // Old web addresses the website redirects here. Left off when none.
   const former = formerSlugs.map((old) => String(old || "").trim()).filter((old) => old && old !== key);
   if (former.length) doc.formerSlugs = former;

@@ -42,8 +42,12 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 		body: "Optional public wording for the night, such as a drink deal.",
 	},
 	{
+		title: "Taking applications",
+		body: "On a series: when it's on, the website's Play at Gwenda form lists this series, so artists can say which nights they'd like to play. Turn it off when a series is full or has ended. The form changes when you press Update website. Each application in Forms shows the series picked.",
+	},
+	{
 		title: "Card line and Description",
-		body: "Card line is one or two lines on the What's on card. Description is the event's own page on the website.",
+		body: "Card line is one or two lines on the What's on card. Description is the event's own page on the website. It can have bold, italic, bullet lists and links: select words and press the link button, then type a web address, an @handle (their Instagram), an email, a phone number or a page on the site (/whats-on/…). Shift+Enter starts a new line in the same paragraph.",
 	},
 	{
 		title: "Schedule tab",

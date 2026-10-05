@@ -95,6 +95,27 @@ export function baserowDatabase({ apiBase, jwt, databaseId, label, request = jwt
   return {
     label,
     fields,
+    /** Every row of a table, by field name. */
+    async rows(tableName) {
+      const { id } = await table(tableName);
+      const out = [];
+      for (let page = 1; ; page += 1) {
+        const data = await call(`/api/database/rows/table/${id}/?user_field_names=true&size=200&page=${page}`);
+        out.push(...(data?.results || []));
+        if (!data?.next) return out;
+      }
+    },
+    /** Change rows: `items` are { id, "Field name": value }. */
+    async updateRows(tableName, items) {
+      if (!items.length) return;
+      const { id } = await table(tableName);
+      for (let i = 0; i < items.length; i += 100) {
+        await call(`/api/database/rows/table/${id}/batch/?user_field_names=true`, {
+          method: "PATCH",
+          body: JSON.stringify({ items: items.slice(i, i + 100) }),
+        });
+      }
+    },
     /** Add a column unless one with that name exists. Returns what happened. */
     async ensureField(tableName, body) {
       if ((await fields(tableName)).some((f) => f.name === body.name)) return "exists";

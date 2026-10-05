@@ -1,3 +1,6 @@
+// Series choices on the play form (#41): shared with the Pages Function.
+import { APPLICATION_SERIES_PROJECTION } from "../../../../../shared/forms/series-choice.js";
+
 /** Published events for the events page — ordered by date ascending. */
 export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public") == "public" && removed != true] | order(date asc) {
   "id": slug.current,
@@ -18,6 +21,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   description,
   heroImage {
     alt,
+    fit,
     crop,
     hotspot,
     asset->{
@@ -28,6 +32,7 @@ export const EVENTS_QUERY = `*[_type == "event" && coalesce(eventType, "public")
   },
   seriesHeroImage {
     alt,
+    fit,
     crop,
     hotspot,
     asset->{
@@ -57,6 +62,7 @@ export const SERIES_QUERY = `*[_type == "eventSeries"] | order(title asc) {
   description,
   heroImage {
     alt,
+    fit,
     crop,
     hotspot,
     asset->{
@@ -74,6 +80,7 @@ export const EVENT_BY_SLUG_QUERY = `*[_type == "event" && slug.current == $slug 
   description,
   heroImage {
     alt,
+    fit,
     asset->{
       _id,
       url,
@@ -160,7 +167,8 @@ export const FORM_BY_SLUG_QUERY = `*[_type == "form" && enabled == true && slug.
   successMessage,
   verifyPendingTitle,
   verifyPendingMessage,
-  ${FORM_FIELDS_PROJECTION}
+  ${FORM_FIELDS_PROJECTION},
+  ${APPLICATION_SERIES_PROJECTION}
 }`;
 
 /** Runtime validation for form submissions (Pages Function). */
@@ -175,5 +183,6 @@ export const FORM_SUBMIT_QUERY = `*[_type == "form" && enabled == true && slug.c
   successMessage,
   verifyPendingTitle,
   verifyPendingMessage,
-  ${FORM_FIELDS_PROJECTION}
+  ${FORM_FIELDS_PROJECTION},
+  ${APPLICATION_SERIES_PROJECTION}
 }`;

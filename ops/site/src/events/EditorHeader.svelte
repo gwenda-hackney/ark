@@ -24,7 +24,6 @@
 		parentSeriesName,
 		calendarSyncing,
 		localOps,
-		onaddnight,
 		onsynccalendar,
 		onputonwebsite,
 		onreload,
@@ -47,7 +46,6 @@
 		calendarSyncing: boolean;
 		/** Local ops: Save and Update website change the Gwenda Dev copy only. */
 		localOps: boolean;
-		onaddnight: () => void;
 		onsynccalendar: () => void;
 		onputonwebsite: () => void;
 		onreload: () => void;
@@ -133,21 +131,6 @@
 			<div class="toolbar-actions">
 				<!-- Always the same buttons in the same places; ones that don't apply
 				     are disabled with a reason rather than hidden. -->
-				<Button
-					variant="outline"
-					size="sm"
-					data-compact
-					aria-label="Add night"
-					disabled={actions.addNight.disabled}
-					reason={actions.addNight.reason}
-					title="Add a night to this series."
-					onclick={onaddnight}
-				>
-					{#snippet icon()}
-						<Icon name="plus" size={14} />
-					{/snippet}
-					Add night
-				</Button>
 				<Button
 					variant="outline"
 					size="sm"

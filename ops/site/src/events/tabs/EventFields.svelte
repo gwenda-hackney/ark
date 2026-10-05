@@ -17,12 +17,14 @@
 		FormSection,
 		NativeSelect,
 		PhotoActions,
+		Switch,
 		TextArea,
 		TextField,
 		TimeField,
 	} from "../../ui";
 	import type { FormErrors } from "../../ui/form-errors.svelte";
 	import MethodEditor from "../../menu/MethodEditor.svelte";
+	import { descriptionReadout } from "../description-links";
 	import type { ApprovedArtist, OpsEvent } from "../../app/api";
 	import { itemSlug } from "../../app/nav";
 	import HeroImagePanel from "../HeroImagePanel.svelte";
@@ -165,7 +167,7 @@
 	function readout(key: SeriesTextKey): string {
 		if (!parentSeries) return "Pick a series first";
 		const raw = lockedReadout(parentSeries, key);
-		return key === "description" ? plainText(raw) : raw;
+		return key === "description" ? descriptionReadout(plainText(raw)) : raw;
 	}
 
 	function plainText(html: string): string {
@@ -413,6 +415,21 @@
 							/>
 						</Field>
 					{/if}
+					{#if isSeries}
+						<Field
+							class="span-6"
+							label="Play at Gwenda form"
+							for="event-taking-applications"
+							help="Taking applications"
+							hint="Artists applying to play can pick this series. Changes when you press Update website."
+						>
+							<Switch
+								id="event-taking-applications"
+								bind:checked={form.takingApplications}
+								label="Taking applications"
+							/>
+						</Field>
+					{/if}
 					<Field
 						label="Card line"
 						for="event-short-description"
@@ -455,6 +472,7 @@
 								id="event-description"
 								value={form.description}
 								label="Event description"
+								kind="description"
 								placeholder="Set the scene…"
 								onChange={(next) => (form.description = next)}
 							/>

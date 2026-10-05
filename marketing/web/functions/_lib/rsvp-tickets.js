@@ -3,6 +3,7 @@
 // - .pkpass Apple Wallet (when APPLE_WALLET_* env is configured)
 
 import { formatEventWhen } from "./rsvp-email-template.js";
+import { withImageParams } from "./sanity-image-url.js";
 import { fetchImageBuffer } from "../../../../shared/email-image.js";
 import { WALLET_BRAND_ASSETS } from "./wallet-brand-assets.generated.js";
 
@@ -181,8 +182,7 @@ const WALLET_BRAND_FILES = [
 export function walletStripImageUrl(heroImageUrl, width, height) {
   const url = heroImageUrl?.trim();
   if (!url || !width || !height) return null;
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}w=${width}&h=${height}&fit=crop&auto=format`;
+  return withImageParams(url, `w=${width}&h=${height}&fit=crop&auto=format`);
 }
 
 async function buildPassImageBuffers({ heroImageUrl }) {

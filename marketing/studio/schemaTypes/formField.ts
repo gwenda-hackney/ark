@@ -8,6 +8,8 @@ const FIELD_TYPES = [
   { title: "Long text", value: "textarea" },
   { title: "Single choice", value: "select" },
   { title: "Multiple choice", value: "multiSelect" },
+  // The choices are the series ops marks Taking applications (#41).
+  { title: "Series taking applications", value: "seriesChoice" },
 ] as const;
 
 export const formField = defineType({

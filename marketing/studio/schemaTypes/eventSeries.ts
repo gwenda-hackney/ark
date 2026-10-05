@@ -70,6 +70,14 @@ export const eventSeries = defineType({
         "Set by ops when the series has no nights yet. What's on shows it with “Check back soon for the next date”.",
     }),
     defineField({
+      name: "takingApplications",
+      title: "Taking applications",
+      type: "boolean",
+      readOnly: true,
+      description:
+        "Set by ops. Lists this series on forms with a “Series taking applications” field, such as Play at Gwenda.",
+    }),
+    defineField({
       name: "shortDescription",
       title: "Short description",
       type: "text",
@@ -152,6 +160,19 @@ export const eventSeries = defineType({
           name: "alt",
           type: "string",
           title: "Alternative text",
+        }),
+        defineField({
+          name: "fit",
+          type: "string",
+          title: "Fit",
+          description:
+            "Whole image: the photo is shown uncropped inside the 16×10 frame, on a blurred copy of itself (#27). Set by ops.",
+          options: {
+            list: [
+              { title: "Fill the frame", value: "fill" },
+              { title: "Whole image", value: "whole" },
+            ],
+          },
         }),
       ],
     }),

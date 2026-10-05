@@ -95,6 +95,7 @@ describe("fetchEventBySlug", () => {
       title: "Launch Party",
       eventType: "private",
       description: "An intimate evening",
+      descriptionRich: "An intimate evening",
       offer: "£10 Negroni",
       date: "2026-08-15",
       time: "Two sessions",
@@ -114,6 +115,7 @@ describe("fetchEventBySlug", () => {
       title: "Launch Party",
       eventType: "private",
       description: "An intimate evening",
+      descriptionRich: "An intimate evening",
       offer: "£10 Negroni",
       date: "2026-08-15",
       time: "Two sessions",
@@ -148,5 +150,25 @@ describe("fetchEventBySlug", () => {
     expect(publicEventFields(event)?.description).toBe(
       "First paragraph.\n\nSecond paragraph.",
     );
+  });
+
+  it("keeps links and bold for the page, plain text for calendars and email", () => {
+    const fields = publicEventFields({
+      title: "Launch Party",
+      description: [
+        {
+          _type: "block",
+          markDefs: [{ _type: "link", _key: "t", href: "https://dice.fm/x" }],
+          children: [
+            { _type: "span", text: "Tickets", marks: ["t"] },
+            { _type: "span", text: " on the door", marks: ["strong"] },
+          ],
+        },
+      ],
+    });
+    expect(fields?.descriptionRich).toBe(
+      "[Tickets](https://dice.fm/x)** on the door**",
+    );
+    expect(fields?.description).toBe("Tickets (https://dice.fm/x) on the door");
   });
 });

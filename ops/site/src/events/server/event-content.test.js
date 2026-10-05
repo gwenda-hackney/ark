@@ -12,6 +12,7 @@ import {
   seriesShortDescriptionForPublish,
   sanityEventDocument,
   sanitySeriesDocument,
+  occurrencePayload,
   stableHeroFraming,
   stableImageRef,
   titleOverrideEchoesSeries,
@@ -464,17 +465,41 @@ test("uses concise weekly recurrence labels", () => {
   );
 });
 
-test("turns light Markdown into structured event description blocks", () => {
+test("description Markdown: bold, italic, links, line breaks and bullets reach Portable Text (#33)", () => {
   const blocks = plainToEventDescription(
-    "First paragraph with **bold** copy.\n\n## What to expect\n\n- Vinyl DJs\n- Guest sets",
+    "Doors **8pm**, *late*.  \nUpstairs at [Gwenda](https://gwenda.co.uk) or [mail](mailto:hi@gwenda.co.uk).\n\n- Vinyl DJs\n- [Line-up](/whats-on/x)",
   );
+  assert.equal(blocks.length, 3);
+  const [first, dj, lineUp] = blocks;
+  assert.deepEqual(
+    first.children.map((c) => [c.text, c.marks]),
+    [
+      ["Doors ", []],
+      ["8pm", ["strong"]],
+      [", ", []],
+      ["late", ["em"]],
+      [".\nUpstairs at ", []],
+      ["Gwenda", ["l0-0"]],
+      [" or ", []],
+      ["mail", ["l0-1"]],
+      [".", []],
+    ],
+  );
+  assert.deepEqual(first.markDefs, [
+    { _type: "link", _key: "l0-0", href: "https://gwenda.co.uk" },
+    { _type: "link", _key: "l0-1", href: "mailto:hi@gwenda.co.uk" },
+  ]);
+  assert.equal(dj.listItem, "bullet");
+  assert.equal(lineUp.markDefs[0].href, "/whats-on/x");
+});
 
-  assert.equal(blocks.length, 4);
-  assert.equal(blocks[0].children[1].text, "bold");
-  assert.deepEqual(blocks[0].children[1].marks, ["strong"]);
-  assert.equal(blocks[1].style, "h2");
+test("description Markdown: unsafe links keep their text, escapes stay literal, headings and numbers fit the set", () => {
+  const blocks = plainToEventDescription("[click](javascript:alert) 2\\*3 \\[x\\]\n\n## What to expect\n\n1. One");
+  assert.deepEqual(blocks[0].markDefs, []);
+  assert.equal(blocks[0].children.map((c) => c.text).join(""), "click 2*3 [x]");
+  assert.equal(blocks[1].style, "normal");
+  assert.equal(blocks[1].children[0].text, "What to expect");
   assert.equal(blocks[2].listItem, "bullet");
-  assert.equal(blocks[3].children[0].text, "Guest sets");
 });
 
 test("a night's own link wins over the series link", () => {
@@ -516,4 +541,15 @@ test("a series with no start date and no nights ahead waits for dates", () => {
   // Left off otherwise, so series already on the website stay unchanged.
   const dated = sanitySeriesDocument({ slug: "vinyl-club", title: "Vinyl Club" });
   assert.equal("datesPending" in dated, false);
+});
+
+test("a series taking applications says so on its Sanity document and in its change hash (#41)", () => {
+  const base = { slug: "jazz", title: "The Jazz Room", description: "Jazz.", schedule: "repeating", nightSchedule: [] };
+  assert.equal(sanitySeriesDocument(base).takingApplications, undefined);
+  assert.equal(sanitySeriesDocument({ ...base, takingApplications: true }).takingApplications, true);
+  const event = { name: "The Jazz Room", slug: "jazz", repeatUnit: "week", dates: [{ date: "2026-10-07", overrides: {} }] };
+  const off = JSON.stringify(occurrencePayload(event, "2026-10-07"));
+  const on = JSON.stringify(occurrencePayload({ ...event, takingApplications: true }, "2026-10-07"));
+  assert.notEqual(off, on);
+  assert.ok(!off.includes("TakingApplications"));
 });

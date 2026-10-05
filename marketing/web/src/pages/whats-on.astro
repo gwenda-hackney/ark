@@ -1,4 +1,5 @@
 ---
+import { richToPlain } from "../../functions/_lib/rich-text.js";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Subpage from "../components/Subpage.astro";
 import EventCard from "../components/EventCard.astro";
@@ -63,7 +64,7 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
   "@type": "Event",
   name: event.title,
   startDate: event.date,
-  description: event.description,
+  description: richToPlain(event.description),
   ...(event.artist
     ? { performer: { "@type": "Person", name: event.artist } }
     : {}),

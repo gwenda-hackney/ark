@@ -245,3 +245,44 @@ describe("2026-10-04-menu-prices-column", () => {
     assert.deepEqual(lines, ["Ops: Prices created", "Ops: Prices exists"]);
   });
 });
+
+describe("Events: Taking applications migration (#41)", () => {
+  const fakeOps = (result, rows) => {
+    const updated = [];
+    return {
+      updated,
+      db: {
+        label: "Gwenda / Ops",
+        ensureField: async () => result,
+        rows: async () => rows,
+        updateRows: async (_table, items) => updated.push(...items),
+      },
+    };
+  };
+  const rows = [
+    { id: 1, Name: "Negroni Chess Society test", "Repeat unit": { value: "week" } },
+    { id: 2, Name: "Gwenda + Live", "Repeat unit": { value: "none" } },
+    { id: 3, Name: "Gwenda Selects", "Repeat unit": { value: "week" } },
+    { id: 4, Name: "Friday, With Guests", "Repeat unit": { value: "week" } },
+    { id: 5, Name: "Radio Gwenda", "Repeat unit": { value: "week" } },
+    { id: 6, Name: "The Jazz Room", "Repeat unit": { value: "week" } },
+    { id: 7, Name: "Happy Hour", "Repeat unit": { value: "week" } },
+    { id: 8, Name: "Radio Gwenda", "Repeat unit": { value: "week" }, "Deleted at": "2026-10-01" },
+    { id: 9, Name: "Gwenda Selects", "Repeat unit": { value: "once" } },
+  ];
+
+  it("switches on the five play-form series when it adds the column", async () => {
+    const { up } = await import("../../migrations/2026-10-04-events-taking-applications.mjs");
+    const { db, updated } = fakeOps("created", rows);
+    await up({ database: async () => db, log: () => {} });
+    assert.deepEqual(updated.map((item) => item.id), [1, 2, 3, 4, 5]);
+    assert.ok(updated.every((item) => item["Taking applications"] === true));
+  });
+
+  it("leaves rows alone once the column exists", async () => {
+    const { up } = await import("../../migrations/2026-10-04-events-taking-applications.mjs");
+    const { db, updated } = fakeOps("exists", rows);
+    await up({ database: async () => db, log: () => {} });
+    assert.deepEqual(updated, []);
+  });
+});

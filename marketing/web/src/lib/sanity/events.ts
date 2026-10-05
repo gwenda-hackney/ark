@@ -5,7 +5,7 @@ import {
   mapSanityImage,
   type SanityImageField,
 } from "./images";
-import { portableTextToPlain } from "./portable-text";
+import { portableTextToRich } from "../../../functions/_lib/rich-text.js";
 import { EVENTS_QUERY, SERIES_QUERY } from "./queries";
 
 type PortableTextBlock = {
@@ -52,7 +52,7 @@ function mapNightSchedule(
 }
 
 function mapEvent(doc: SanityEvent): Event | null {
-  const description = portableTextToPlain(doc.description);
+  const description = portableTextToRich(doc.description);
   if (!doc.id || !doc.title || !doc.date || !description) {
     return null;
   }
@@ -126,7 +126,7 @@ function mapSeries(doc: SanitySeries): EventSeries | null {
     recurrence: doc.recurrence?.trim() || "",
     shortDescription: doc.shortDescription?.trim() || "",
     nightSchedule: mapNightSchedule(doc.nightSchedule),
-    description: portableTextToPlain(doc.description || ""),
+    description: portableTextToRich(doc.description || ""),
     heroImageUrl: hero?.url || null,
     heroObjectPosition: hero?.objectPosition || null,
   };

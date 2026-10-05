@@ -6627,6 +6627,22 @@ a.event-card:focus-visible .event-title,
   opacity: 0;
 }
 
+/*
+  Show whole image (#27): flyers that aren't 16×10 sit uncropped in the
+  frame, over the same tiny blurred copy, kept on and darkened as a backdrop.
+*/
+.event-media--whole::before {
+  opacity: 1;
+  filter: blur(18px) brightness(0.5) saturate(1.1);
+  transform: scale(1.2);
+}
+
+.event-media--whole .event-hero {
+  position: relative;
+  object-fit: contain;
+  object-position: 50% 50%;
+}
+
 .event-card:hover .event-hero {
   transform: scale(1.015);
 }
@@ -7011,6 +7027,57 @@ a.event-card:focus-visible .event-title,
 
 .event-description p + p {
   margin-top: 0.9rem;
+}
+
+/*
+  Formatting in event descriptions (#33): bold, italic, links and bullet
+  lists, on cards, series and night pages and the RSVP/ticket page. Links are
+  gold like every link on the site, underlined so they read as links in a
+  paragraph of muted text.
+*/
+.event-description :is(p, ul) + :is(p, ul),
+.whats-on-series-lead :is(p, ul) + :is(p, ul),
+.invite-card-body :is(p, ul) + :is(p, ul) {
+  margin-top: 0.9rem;
+}
+
+.event-description ul,
+.whats-on-series-lead ul,
+.invite-card-body ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  list-style: disc;
+}
+
+.event-description li + li,
+.whats-on-series-lead li + li,
+.invite-card-body li + li {
+  margin-top: 0.25rem;
+}
+
+.event-description li::marker,
+.whats-on-series-lead li::marker,
+.invite-card-body li::marker {
+  color: var(--color-gold);
+}
+
+.event-description strong,
+.whats-on-series-lead strong,
+.invite-card-body strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.event-description a,
+.whats-on-series-lead a,
+.invite-card-body a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.invite-card-body p {
+  margin: 0;
 }
 
 .event-page-link {
