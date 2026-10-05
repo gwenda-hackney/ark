@@ -1,28 +1,69 @@
 /**
  * Shared Baserow clone helpers (JWT schema + row copy with link remapping).
  */
-export async function jwtRequest(apiBase, jwt, path, init = {}) {
+/** Answers worth waiting out: Baserow throttling, or a gateway blip. */
+const RETRY_STATUSES = new Set([429, 502, 503, 504]);
+const MAX_ATTEMPTS = 7;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** How long to wait before retry `attempt` (1-based): Retry-After, else 1s, 2s, 4s… up to 60s. */
+export function retryDelayMs(response, attempt) {
+  const header = Number(response.headers.get("retry-after"));
+  if (Number.isFinite(header) && header > 0) return Math.min(header, 60) * 1000;
+  return Math.min(2 ** (attempt - 1), 60) * 1000;
+}
+
+/**
+ * One Baserow API call with `Authorization: <scheme> <credential>`. Retries
+ * throttled (429) and gateway (502–504) answers, so a big copy slows down
+ * instead of stopping halfway.
+ */
+export async function baserowRequest(
+  apiBase,
+  scheme,
+  credential,
+  path,
+  init = {},
+  { fetchImpl = fetch, wait = sleep } = {},
+) {
   const url = path.startsWith("http") ? path : `${apiBase}${path}`;
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `JWT ${jwt}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
-  const text = await response.text();
-  let json;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetchImpl(url, {
+      ...init,
+      headers: {
+        Authorization: `${scheme} ${credential}`,
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    });
+    if (RETRY_STATUSES.has(response.status) && attempt < MAX_ATTEMPTS) {
+      const ms = retryDelayMs(response, attempt);
+      console.log(`  Baserow answered ${response.status}; retrying in ${ms / 1000}s…`);
+      await wait(ms);
+      continue;
+    }
+    const text = await response.text();
+    let json;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!response.ok) {
+      const detail = json?.detail || json?.error || text.slice(0, 400);
+      throw new Error(`${init.method || "GET"} ${path} → ${response.status}: ${detail}`);
+    }
+    return json;
   }
-  if (!response.ok) {
-    const detail = json?.detail || json?.error || text.slice(0, 400);
-    throw new Error(`${init.method || "GET"} ${path} → ${response.status}: ${detail}`);
-  }
-  return json;
+}
+
+export function jwtRequest(apiBase, jwt, path, init = {}) {
+  return baserowRequest(apiBase, "JWT", jwt, path, init);
+}
+
+/** Same, with a database token (reads production rows in CI). */
+export function tokenRequest(apiBase, apiKey, path, init = {}) {
+  return baserowRequest(apiBase, "Token", apiKey, path, init);
 }
 
 export async function listAllRows(apiBase, jwt, tableId) {
@@ -327,4 +368,65 @@ export async function wipeTableRows(apiBase, jwt, tableId) {
     });
     if (!batch.next) break;
   }
+}
+
+/** Rows per batch create / update: Baserow's limit. */
+export const ROW_BATCH = 200;
+
+/**
+ * Create `rows` (source rows) in `destTableId`, ROW_BATCH at a time, and
+ * record old id → new id in idMapsByOldTableId for later tables' links.
+ * Links from a table to itself are set afterwards, once every row exists.
+ * `remap` builds a row's payload (default remapRowPayload).
+ */
+export async function copyRows(
+  apiBase,
+  jwt,
+  { rows, fields, sourceTableId, destTableId, idMapsByOldTableId, remap = remapRowPayload },
+  request = jwtRequest,
+) {
+  const idMap = new Map();
+  idMapsByOldTableId.set(String(sourceTableId), idMap);
+  const selfLinks = fields.filter(
+    (field) => field.type === "link_row" && String(field.link_row_table_id) === String(sourceTableId),
+  );
+  const selfNames = selfLinks.map((field) => field.name);
+  const batchPath = `/api/database/rows/table/${destTableId}/batch/?user_field_names=true`;
+
+  for (let i = 0; i < rows.length; i += ROW_BATCH) {
+    const chunk = rows.slice(i, i + ROW_BATCH);
+    const items = chunk.map((row) => {
+      const payload = remap(row, fields, idMapsByOldTableId);
+      for (const name of selfNames) delete payload[name];
+      return payload;
+    });
+    const created = await request(apiBase, jwt, batchPath, {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    });
+    const made = created?.items || [];
+    if (made.length !== chunk.length) {
+      throw new Error(`Table ${destTableId}: asked Baserow for ${chunk.length} rows, it made ${made.length}.`);
+    }
+    chunk.forEach((row, index) => idMap.set(String(row.id), String(made[index].id)));
+  }
+
+  if (!selfLinks.length) return idMap;
+  const updates = [];
+  for (const row of rows) {
+    const payload = remap(row, selfLinks, idMapsByOldTableId);
+    const links = selfNames.filter((name) => name in payload);
+    if (!links.length) continue;
+    updates.push({
+      id: Number(idMap.get(String(row.id))),
+      ...Object.fromEntries(links.map((name) => [name, payload[name]])),
+    });
+  }
+  for (let i = 0; i < updates.length; i += ROW_BATCH) {
+    await request(apiBase, jwt, batchPath, {
+      method: "PATCH",
+      body: JSON.stringify({ items: updates.slice(i, i + ROW_BATCH) }),
+    });
+  }
+  return idMap;
 }
