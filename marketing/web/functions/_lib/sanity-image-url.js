@@ -1,10 +1,3 @@
-import {
-  aspectFrame,
-  parseRect,
-  PORTRAIT_ASPECT,
-  sourceSizeFromUrl,
-} from "../../../../shared/sanity-frame.js";
-
 const HERO_ASPECT = 16 / 10;
 
 /**
@@ -36,46 +29,6 @@ export function withImageParams(url, params) {
   const base = hashAt < 0 ? value : value.slice(0, hashAt);
   const hash = hashAt < 0 ? "" : value.slice(hashAt);
   return `${base}${base.includes("?") ? "&" : "?"}${params}${hash}`;
-}
-
-/**
- * The same hero as a 4:5 portrait (the What's on card trial), `width` wide.
- * - "Whole image" heroes and non-Sanity URLs: unchanged.
- * - A stored crop (`rect=`): the 4:5 slice through its middle, at its height.
- * - Otherwise Sanity crops to 4:5, around the hotspot when there is one.
- */
-export function portraitImageUrl(url, { width = 800 } = {}) {
-  const value = String(url ?? "").trim();
-  if (!value || isWholeFit(value)) return value;
-  let parsed;
-  try {
-    parsed = new URL(value);
-  } catch {
-    return value;
-  }
-  if (parsed.hostname !== "cdn.sanity.io") return value;
-  const params = parsed.searchParams;
-  const rect = parseRect(params.get("rect"));
-  if (rect) {
-    // Without the source size, stay inside the stored crop.
-    const source = sourceSizeFromUrl(parsed.pathname) || {
-      width: rect.x + rect.w,
-      height: rect.y + rect.h,
-    };
-    const frame = aspectFrame(source, PORTRAIT_ASPECT, { around: rect });
-    if (frame) {
-      params.set("rect", `${frame.x},${frame.y},${frame.w},${frame.h}`);
-    }
-  } else {
-    params.delete("rect");
-    if (params.has("fp-x")) params.set("crop", "focalpoint");
-  }
-  params.set("w", String(width));
-  params.set("h", String(Math.round(width / PORTRAIT_ASPECT)));
-  params.set("fit", "crop");
-  if (!params.has("auto")) params.set("auto", "format");
-  if (!params.has("q")) params.set("q", "86");
-  return parsed.toString();
 }
 
 /**
