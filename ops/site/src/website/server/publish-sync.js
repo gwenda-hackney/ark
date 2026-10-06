@@ -1,10 +1,8 @@
 import {
-  PUBLISH_SNAPSHOTS_FIELD,
   photoFingerprint,
   projectionHash,
   recordTargetSnapshot,
   sanityPatchFromProjection,
-  serializePublishSnapshots,
   websiteProjection,
 } from "../../inventory/server/reconcile.js";
 import {
@@ -13,7 +11,6 @@ import {
 } from "../../menu/server/menu-placements.js";
 import { flattenMenuSections } from "../../menu/menu-sections.js";
 import { loadMenuTree } from "../../menu/server/menu-store.js";
-import { baserowFetch, updateRow } from "../../../../../shared/baserow.js";
 import {
   PREVIEW,
   sanityMutate,
@@ -21,7 +18,7 @@ import {
   sanityUploadImage,
 } from "../../platform/sanity.js";
 
-/** Sortable Sanity orderRank from Baserow numeric Order (create only). */
+/** Sortable Sanity orderRank from the menu's numeric order (create only). */
 export function orderRankFromOrder(order, kind = "item") {
   const n = Math.max(0, Math.floor(Number(order) || 0));
   const tag = kind === "section" ? "s" : "i";
@@ -89,33 +86,38 @@ async function syncPhoto(env, item) {
   };
 }
 
-async function persistItemLinkAndSnapshot(env, tables, item, target, payload, sanityId) {
-  const next = recordTargetSnapshot(item.publishSnapshots, target, payload);
-  const fields = {
-    [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(next),
+/**
+ * What a publish writes back to the menu (Sanity ids, publish snapshots),
+ * kept until the end and written in one go: one repository write however
+ * many drinks changed.
+ */
+function pendingWrites() {
+  const changes = [];
+  return {
+    item(id, fields) {
+      changes.push({ op: "update", collection: "menu_items", id, fields });
+    },
+    section(id, fields) {
+      changes.push({ op: "update", collection: "menu_sections", id, fields });
+    },
+    async flush(repo) {
+      await repo.write(changes.splice(0));
+    },
   };
-  if (!item.sanityId && sanityId) fields["Sanity ID"] = sanityId;
-  await updateRow(env, tables.items, item._id, fields);
 }
 
-async function persistSectionLink(env, tables, section, sanityId) {
+function persistItemLinkAndSnapshot(pending, item, target, payload, sanityId) {
+  const next = recordTargetSnapshot(item.publishSnapshots, target, payload);
+  pending.item(item._id, {
+    publishSnapshots: next,
+    ...(!item.sanityId && sanityId ? { sanityId } : {}),
+  });
+}
+
+function persistSectionLink(pending, section, sanityId) {
   if (section.sanityId === sanityId) return;
-  await updateRow(env, tables.sections, section._id, { "Sanity ID": sanityId });
+  pending.section(section._id, { sanityId });
   section.sanityId = sanityId;
-}
-
-async function assertPublishSnapshotsField(env, tableId) {
-  const fields = await baserowFetch(
-    env,
-    `/api/database/fields/table/${tableId}/`,
-  );
-  const names = Array.isArray(fields) ? fields.map((field) => field.name) : [];
-  if (names.includes(PUBLISH_SNAPSHOTS_FIELD)) return;
-  const error = new Error(
-    "Baserow Menu Items is missing the Publish snapshots field. Run npm run setup:baserow-ops.",
-  );
-  error.status = 503;
-  throw error;
 }
 
 async function createdDocId(result) {
@@ -124,11 +126,11 @@ async function createdDocId(result) {
 }
 
 /**
- * Ensure every Baserow section exists in Sanity; return map of Baserow id → Sanity id.
+ * Ensure every ops section exists in Sanity; return map of ops id → Sanity id.
  * Parents are walked before children via flattenMenuSections.
  * Already-linked sections are left as-is (item publish carries section refs).
  */
-async function ensureSanitySections(env, tables, sections) {
+async function ensureSanitySections(env, pending, sections) {
   const flat = flattenMenuSections(sections);
   const byBaserowId = new Map();
   let writes = 0;
@@ -198,7 +200,7 @@ async function ensureSanitySections(env, tables, sections) {
       writes += 1;
     }
 
-    await persistSectionLink(env, tables, section, sanityId);
+    persistSectionLink(pending, section, sanityId);
     byBaserowId.set(String(section._id), sanityId);
   }
 
@@ -244,13 +246,22 @@ async function createSanityItem(env, item, payload, sanitySectionId) {
 }
 
 /**
- * Push guest-facing fields from Baserow ops → Sanity drafts (the preview).
- * Creates missing sections/items. Recipes / method / glass stay in Baserow only.
- * `target` names the publish snapshot this records.
+ * Push guest-facing fields from the ops menu → Sanity drafts (the preview).
+ * Creates missing sections/items. Recipes / method / glass stay in ops only.
+ * `target` names the publish snapshot this records. What it learns (Sanity
+ * ids, snapshots) is written back at the end, also when a step fails.
  */
 export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
-  const { items, sections, tables } = await loadMenuTree(env);
-  await assertPublishSnapshotsField(env, tables.items);
+  const { items, sections, repo } = await loadMenuTree(env);
+  const pending = pendingWrites();
+  try {
+    return await publishItems(env, pending, { items, sections, target });
+  } finally {
+    await pending.flush(repo);
+  }
+}
+
+async function publishItems(env, pending, { items, sections, target }) {
 
   const publishable = items.filter((item) =>
     Array.isArray(item.placements) && item.placements.length
@@ -286,7 +297,7 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
   }
 
   const { byBaserowId: sectionIds, writes: sectionWrites } =
-    await ensureSanitySections(env, tables, [...withAncestors.values()]);
+    await ensureSanitySections(env, pending, [...withAncestors.values()]);
 
   const created = [];
   const synced = [];
@@ -313,9 +324,7 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
     const isNew = !sanityId;
 
     if (!isNew && hashMatches) {
-      if (!item.sanityId) {
-        await updateRow(env, tables.items, item._id, { "Sanity ID": sanityId });
-      }
+      if (!item.sanityId) pending.item(item._id, { sanityId });
       unchanged.push({ id: item._id, name: item.name, sanityId });
       continue;
     }
@@ -327,14 +336,7 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
         payload,
         sanitySectionId,
       );
-      await persistItemLinkAndSnapshot(
-        env,
-        tables,
-        item,
-        target,
-        payload,
-        sanityId,
-      );
+      persistItemLinkAndSnapshot(pending, item, target, payload, sanityId);
       created.push({ id: item._id, name: item.name, sanityId });
       continue;
     }
@@ -362,18 +364,11 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
       { patch: { id: sanityId, set, unset: [...unset, "removed"] } },
     ]);
 
-    await persistItemLinkAndSnapshot(
-      env,
-      tables,
-      item,
-      target,
-      payload,
-      sanityId,
-    );
+    persistItemLinkAndSnapshot(pending, item, target, payload, sanityId);
     synced.push({ id: item._id, name: item.name, sanityId });
   }
 
-  const removed = await dropOffMenuItems(env, tables, items, publishable, target);
+  const removed = await dropOffMenuItems(env, pending, items, publishable, target);
   return { created, synced, unchanged, missing, removed, sectionWrites };
 }
 
@@ -383,7 +378,7 @@ export async function syncOpsMenuToSanity(env, { target = "preview" } = {}) {
  * takes off; one never published just goes. Its staged snapshot goes too, so
  * putting it back stages it again.
  */
-async function dropOffMenuItems(env, tables, items, publishable, target) {
+async function dropOffMenuItems(env, pending, items, publishable, target) {
   const kept = new Set(publishable);
   const offMenu = items.filter(
     (item) => !kept.has(item) && item.sanityId && item.publishSnapshots?.[target],
@@ -397,9 +392,9 @@ async function dropOffMenuItems(env, tables, items, publishable, target) {
   );
   for (const item of offMenu) {
     const { [target]: _staged, ...snapshots } = item.publishSnapshots;
-    await updateRow(env, tables.items, item._id, {
-      [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(snapshots),
-      ...(live.has(item.sanityId) ? {} : { "Sanity ID": "" }),
+    pending.item(item._id, {
+      publishSnapshots: snapshots,
+      ...(live.has(item.sanityId) ? {} : { sanityId: "" }),
     });
   }
   return offMenu.map((item) => ({ id: item._id, name: item.name, sanityId: item.sanityId }));
@@ -410,7 +405,8 @@ async function dropOffMenuItems(env, tables, items, publishable, target) {
  * to limit it to the menu items that were actually published.
  */
 export async function copyPreviewSnapshotsToProduction(env, { sanityIds } = {}) {
-  const { items, tables } = await loadMenuTree(env);
+  const { items, repo } = await loadMenuTree(env);
+  const pending = pendingWrites();
   let copied = 0;
   for (const item of items) {
     const preview = item.publishSnapshots?.preview;
@@ -422,10 +418,9 @@ export async function copyPreviewSnapshotsToProduction(env, { sanityIds } = {}) 
       preview.payload || {},
     );
     if (preview.hash) next.production.hash = preview.hash;
-    await updateRow(env, tables.items, item._id, {
-      [PUBLISH_SNAPSHOTS_FIELD]: serializePublishSnapshots(next),
-    });
+    pending.item(item._id, { publishSnapshots: next });
     copied += 1;
   }
+  await pending.flush(repo);
   return { copied };
 }

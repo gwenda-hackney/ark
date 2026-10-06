@@ -38,15 +38,17 @@ import {
 } from "../../../shared/baserow.js";
 import {
   GUEST_ARTIST_FIELDS,
-  RECIPE_UNITS,
   artistFields,
   eventDateFields,
   eventFields,
   ingredientFields,
+  inventoryFields,
+  inventorySupplierFields,
   itemFields,
   menuPlacementFields,
   posMenuFields,
   sectionFields,
+  supplierFields,
   userFields,
 } from "../src/platform/baserow-schema.js";
 import {
@@ -380,117 +382,6 @@ async function seedFallMenu(
     patched += 1;
   }
   console.log(`  → ${DEFAULT_POS_MENU_NAME} on ${patched} menu item(s)`);
-}
-
-function inventoryFields() {
-  return [
-    { name: "Full name", body: { name: "Full name", type: "text" } },
-    {
-      name: "Kind",
-      body: {
-        name: "Kind",
-        type: "single_select",
-        select_options: [
-          { value: "liquor", color: "purple" },
-          { value: "liqueur", color: "dark-purple" },
-          { value: "wine", color: "red" },
-          { value: "beer", color: "yellow" },
-          { value: "syrup", color: "orange" },
-          { value: "juice", color: "green" },
-          { value: "bitter", color: "brown" },
-          { value: "mixer", color: "cyan" },
-          { value: "garnish", color: "light-green" },
-          { value: "other", color: "gray" },
-        ],
-      },
-    },
-    { name: "ABV", body: { name: "ABV", type: "text" } },
-    {
-      name: "Default unit",
-      body: {
-        name: "Default unit",
-        type: "single_select",
-        select_options: RECIPE_UNITS.map((value, index) => ({
-          value,
-          color: ["blue", "green", "orange", "purple", "cyan"][index % 5],
-        })),
-      },
-    },
-    {
-      name: "Estimated cost",
-      body: {
-        name: "Estimated cost",
-        type: "number",
-        number_decimal_places: 2,
-        number_negative: false,
-      },
-    },
-    { name: "Notes", body: { name: "Notes", type: "text" } },
-    { name: "Active", body: { name: "Active", type: "boolean" } },
-    { name: "Lightspeed SKU", body: { name: "Lightspeed SKU", type: "text" } },
-    {
-      name: "Actual qty",
-      body: {
-        name: "Actual qty",
-        type: "number",
-        number_decimal_places: 3,
-        number_negative: false,
-      },
-    },
-    { name: "Actual unit", body: { name: "Actual unit", type: "text" } },
-    {
-      name: "Counted at",
-      body: {
-        name: "Counted at",
-        type: "date",
-        date_format: "ISO",
-        date_include_time: true,
-        date_time_format: "24",
-      },
-    },
-  ];
-}
-
-function supplierFields() {
-  return [
-    { name: "Website", body: { name: "Website", type: "url" } },
-    { name: "Notes", body: { name: "Notes", type: "text" } },
-  ];
-}
-
-function inventorySupplierFields(inventoryTableId, suppliersTableId) {
-  return [
-    {
-      name: "Inventory",
-      body: {
-        name: "Inventory",
-        type: "link_row",
-        link_row_table_id: inventoryTableId,
-        has_related_field: true,
-      },
-    },
-    {
-      name: "Supplier",
-      body: {
-        name: "Supplier",
-        type: "link_row",
-        link_row_table_id: suppliersTableId,
-        has_related_field: true,
-      },
-    },
-    { name: "Product URL", body: { name: "Product URL", type: "url" } },
-    { name: "SKU", body: { name: "SKU", type: "text" } },
-    { name: "Pack", body: { name: "Pack", type: "text" } },
-    {
-      name: "Price",
-      body: {
-        name: "Price",
-        type: "number",
-        number_decimal_places: 2,
-        number_negative: false,
-      },
-    },
-  ];
 }
 
 async function listRows(apiBase, jwt, tableId) {
