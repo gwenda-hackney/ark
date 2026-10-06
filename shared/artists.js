@@ -2,8 +2,16 @@
  * Wall artists, as ops stores them in the Gwenda Ops database: one current
  * guest, one next, any number of previous. Ops edits them
  * (ops/site/src/artists/server/artist-store.js); the website reads them.
+ *
+ * Their photos live in Sanity (#183): the row keeps asset ids ("Portrait
+ * asset", and JSON lists in "Art assets" and "Gwenda assets"), and both ops
+ * and the website show them from cdn.sanity.io. A row whose photos are still
+ * Baserow files (Portrait, Art, Gwenda photos) shows those until the backfill
+ * moves them.
  */
 import { TABLE_ARTISTS, listAllRows, resolveOpsTableIds } from "./baserow.js";
+import { parseImageAssetId, sanityImageUrl } from "./sanity-image.js";
+import { REAL_SANITY_PROJECT_ID } from "./sanity-projects.js";
 import { parseProductUrl } from "./web-address.js";
 
 export const ARTIST_SLOTS = ["current", "next", "previous"];
@@ -66,6 +74,16 @@ export function normalizeArtistMonth(value) {
   return index >= 0 ? String(index + 1) : "";
 }
 
+/** The Sanity project the photos are in: the one this runtime reads and writes. */
+export function artistImageProject(env = {}) {
+  return text(env.SANITY_PROJECT_ID) || REAL_SANITY_PROJECT_ID;
+}
+
+/** Sizes the website and ops ask the CDN for; never larger than the upload. */
+const FULL = { w: 2000, fit: "max", auto: "format" };
+const THUMB = { w: 400, fit: "max", auto: "format" };
+
+/** A photo from before #183: a Baserow file. */
 function mapFile(entry) {
   const name = text(entry?.name);
   const label = text(entry?.visible_name) || name;
@@ -82,11 +100,57 @@ function filesFrom(value) {
   return value.map(mapFile).filter(Boolean);
 }
 
-export function mapArtist(row) {
+/**
+ * A Sanity photo as ops and the website show it. `name` is the asset id: ops
+ * removes a photo by it.
+ */
+export function artistImage(asset, label, projectId) {
+  if (!parseImageAssetId(asset)) return null;
+  return {
+    name: asset,
+    asset,
+    label: text(label),
+    url: sanityImageUrl(projectId, asset, FULL),
+    thumb: sanityImageUrl(projectId, asset, THUMB),
+  };
+}
+
+/** One stored photo of a list: { asset, label }, or null when it isn't one. */
+export function storedArtistAsset(entry) {
+  const asset = text(entry?.asset);
+  if (!parseImageAssetId(asset)) return null;
+  return { asset, label: text(entry?.label) };
+}
+
+/**
+ * A stored list of photos ("Art assets", "Gwenda assets"): [] or more once
+ * the photos are in Sanity, null while they are still Baserow files.
+ */
+export function parseArtistAssets(value) {
+  const raw = text(value);
+  if (!raw) return null;
+  let list;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  return Array.isArray(list) ? list.map(storedArtistAsset).filter(Boolean) : null;
+}
+
+function imagesFrom(assets, files, projectId) {
+  if (!assets) return filesFrom(files);
+  return assets.map((entry) => artistImage(entry.asset, entry.label, projectId)).filter(Boolean);
+}
+
+export function mapArtist(row, { projectId = REAL_SANITY_PROJECT_ID } = {}) {
   if (!row || row.id == null) return null;
   const slot = normalizeArtistSlot(row.Slot);
   if (!slot) return null;
-  const portrait = filesFrom(row.Portrait)[0] || null;
+  const portraitAsset = text(row["Portrait asset"]);
+  const portrait = parseImageAssetId(portraitAsset)
+    ? artistImage(portraitAsset, "", projectId)
+    : filesFrom(row.Portrait)[0] || null;
   return {
     id: String(row.id),
     slot,
@@ -98,8 +162,8 @@ export function mapArtist(row) {
     startMonth: normalizeArtistMonth(row["Start month"]),
     endMonth: normalizeArtistMonth(row["End month"]),
     portrait,
-    art: filesFrom(row.Art),
-    gwenda: filesFrom(row["Gwenda photos"]),
+    art: imagesFrom(parseArtistAssets(row["Art assets"]), row.Art, projectId),
+    gwenda: imagesFrom(parseArtistAssets(row["Gwenda assets"]), row["Gwenda photos"], projectId),
   };
 }
 
@@ -118,7 +182,8 @@ export function orderArtists(artists) {
 
 export async function loadArtists(env, tableId) {
   const rows = await listAllRows(env, tableId);
-  return orderArtists(rows.map(mapArtist));
+  const options = { projectId: artistImageProject(env) };
+  return orderArtists(rows.map((row) => mapArtist(row, options)));
 }
 
 export async function listArtists(env) {

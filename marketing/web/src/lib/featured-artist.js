@@ -1,5 +1,6 @@
 /**
- * The artist on the wall, read from Ops Baserow.
+ * The artist on the wall, read from Ops Baserow. Their photos are on
+ * cdn.sanity.io (#183), or Baserow files until the backfill moves them.
  * Marketing's own Baserow token cannot see that database, so this uses
  * BASEROW_OPS_API_KEY (from Secrets Manager via with-env).
  */
@@ -10,11 +11,18 @@ function text(value) {
   return String(value || "").trim();
 }
 
-/** Ops Baserow access for the website; the token alone picks the database. */
+/**
+ * Ops Baserow access for the website; the token alone picks the database.
+ * SANITY_PROJECT_ID picks the project the photos are shown from (#183).
+ */
 export function opsArtistEnv(env = process.env) {
   const key = text(env.BASEROW_OPS_API_KEY);
   if (!key) return null;
-  return { BASEROW_API_KEY: key, BASEROW_API_URL: env.BASEROW_API_URL };
+  return {
+    BASEROW_API_KEY: key,
+    BASEROW_API_URL: env.BASEROW_API_URL,
+    SANITY_PROJECT_ID: env.SANITY_PROJECT_ID,
+  };
 }
 
 function imageUrl(file) {

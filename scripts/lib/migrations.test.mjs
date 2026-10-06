@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { dirname, resolve } from "node:path";
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 import { fileURLToPath } from "node:url";
 import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
 import {
@@ -449,6 +449,88 @@ describe("event photos from before #183", () => {
       { table: "Event dates", id: 10, "Override asset": ASSET },
       { table: "Events", id: 1, Gallery: "[]" },
       { table: "Events", id: 3, Gallery: "[]" },
+    ]);
+  });
+});
+
+describe("artist photos from before #183", () => {
+  const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+  const NEW = "image-ffffffffffffffffffffffffffffffffffffffff-400x400-png";
+  const file = (name) => ({ name, visible_name: `${name} shown`, url: `https://files/${name}` });
+  const rows = [
+    { id: 1, Name: "Ada", Portrait: [file("face.jpg")], Art: [file("a.jpg"), file("b.png")], "Gwenda photos": [] },
+    {
+      id: 2,
+      Name: "Bea",
+      Portrait: [file("old.jpg")],
+      "Portrait asset": ASSET,
+      Art: [file("c.jpg")],
+      "Art assets": "[]",
+      "Gwenda assets": JSON.stringify([{ asset: ASSET, label: "x" }]),
+    },
+  ];
+
+  function world() {
+    const updated = [];
+    const uploads = [];
+    const db = {
+      label: "Gwenda Dev / Gwenda Ops",
+      rows: async () => rows,
+      updateRows: async (table, items) => updated.push(...items.map((item) => ({ table, ...item }))),
+    };
+    const content = {
+      query: async (_groq, { names }) =>
+        names.includes("artist-face.jpg") ? [{ _id: ASSET, originalFilename: "artist-face.jpg" }] : [],
+      uploadImage: async (_bytes, meta) => {
+        uploads.push(meta.filename);
+        return { _id: NEW };
+      },
+    };
+    return { updated, uploads, database: async () => db, sanity: () => content };
+  }
+
+  it("plans only what hasn't moved", async () => {
+    const { planArtistBackfill } = await import("../../migrations/2026-10-06-artist-images-backfill.mjs");
+    const plan = planArtistBackfill(rows);
+    assert.deepEqual(
+      plan.map((item) => [item.id, Object.keys(item.columns), item.photos]),
+      [[1, ["Portrait asset", "Art assets", "Gwenda assets"], 3]],
+    );
+  });
+
+  it("a dry run changes nothing", async () => {
+    const { up } = await import("../../migrations/2026-10-06-artist-images-backfill.mjs");
+    const { updated, uploads, database, sanity } = world();
+    const lines = [];
+    await up({ database, sanity, log: (line) => lines.push(line), dryRun: true });
+    assert.deepEqual(updated, []);
+    assert.deepEqual(uploads, []);
+    assert.ok(lines.some((line) => /1 artists, 3 photos to move/.test(line)));
+  });
+
+  it("reuses a photo already in Sanity, uploads the rest in order, and marks empty lists moved", async () => {
+    const { up } = await import("../../migrations/2026-10-06-artist-images-backfill.mjs");
+    const { updated, uploads, database, sanity } = world();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response(new Uint8Array([1]), { headers: { "content-type": "image/png" } }));
+    try {
+      await up({ database, sanity, log: () => {} });
+    } finally {
+      fetchMock.mockRestore();
+    }
+    assert.deepEqual(uploads, ["artist-a.jpg", "artist-b.png"]);
+    assert.deepEqual(updated, [
+      {
+        table: "Artists",
+        id: 1,
+        "Portrait asset": ASSET,
+        "Art assets": JSON.stringify([
+          { asset: NEW, label: "a.jpg shown" },
+          { asset: NEW, label: "b.png shown" },
+        ]),
+        "Gwenda assets": "[]",
+      },
     ]);
   });
 });
