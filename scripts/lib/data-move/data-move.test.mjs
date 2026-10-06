@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { describe, it } from "vitest";
 import { run } from "../../../shared/d1.js";
 import {
@@ -203,19 +204,51 @@ describe("the menu feature", () => {
     world.install();
     try {
       const { menu } = FEATURES;
-      assert.deepEqual([menu.app, menu.role, menu.freeze], ["ops", "ops", true]);
+      assert.deepEqual(
+        [menu.app, menu.role, menu.freeze],
+        ["ops", "ops", true],
+      );
       const source = menu.adapters.baserow({ env: world.env });
-      const section = await source.create("menu_sections", { name: "Cocktails", slug: "cocktails" });
-      const fall = await source.create("pos_menus", { name: "Fall 2026", isDefault: true });
-      const drink = await source.create("menu_items", { name: "Negroni", sectionId: section.id, posMenuIds: [fall.id] });
+      const section = await source.create("menu_sections", {
+        name: "Cocktails",
+        slug: "cocktails",
+      });
+      const fall = await source.create("pos_menus", {
+        name: "Fall 2026",
+        isDefault: true,
+      });
+      const drink = await source.create("menu_items", {
+        name: "Negroni",
+        sectionId: section.id,
+        posMenuIds: [fall.id],
+      });
       const gin = await source.create("inventory", { name: "Gin", abv: "40" });
-      await source.create("ingredients", { name: "Gin", itemId: drink.id, inventoryId: gin.id, quantity: 30, unit: "ml" });
-      await source.create("menu_placements", { itemId: drink.id, channel: "pos", posMenuId: fall.id, posScreen: "Classic" });
+      await source.create("ingredients", {
+        name: "Gin",
+        itemId: drink.id,
+        inventoryId: gin.id,
+        quantity: 30,
+        unit: "ml",
+      });
+      await source.create("menu_placements", {
+        itemId: drink.id,
+        channel: "pos",
+        posMenuId: fall.id,
+        posScreen: "Classic",
+      });
       const lwc = await source.create("suppliers", { name: "LWC Drinks" });
-      await source.create("inventory_suppliers", { name: "LWC Drinks", inventoryId: gin.id, supplierId: lwc.id, price: 19.5 });
+      await source.create("inventory_suppliers", {
+        name: "LWC Drinks",
+        inventoryId: gin.id,
+        supplierId: lwc.id,
+        price: 19.5,
+      });
 
       const db = createTestD1("ops");
-      const { counts } = await moveFeature({ source, target: menu.adapters.d1({ db }) });
+      const { counts } = await moveFeature({
+        source,
+        target: menu.adapters.d1({ db }),
+      });
       assert.deepEqual(counts, {
         menu_sections: 1,
         pos_menus: 1,
@@ -226,9 +259,26 @@ describe("the menu feature", () => {
         suppliers: 1,
         inventory_suppliers: 1,
       });
-      assert.deepEqual((await menu.adapters.d1({ db }).get("menu_items", drink.id)).posMenuIds, [fall.id]);
+      assert.deepEqual(
+        (await menu.adapters.d1({ db }).get("menu_items", drink.id)).posMenuIds,
+        [fall.id],
+      );
     } finally {
       world.restore();
     }
+  });
+});
+
+describe("the registry under plain Node", () => {
+  it("loads, as data:move does (the test runner tolerates what Node rejects, e.g. a repeated import)", () => {
+    const out = execFileSync(
+      process.execPath,
+      [
+        "-e",
+        "import('./scripts/lib/data-move/features.mjs').then((m) => console.log(Object.keys(m.FEATURES).join(',')))",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(out.trim(), "users,config,guests,artists,menu");
   });
 });
