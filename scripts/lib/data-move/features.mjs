@@ -13,11 +13,24 @@
  *     },
  *   }
  */
+import { baserowUserRepository } from "../../../ops/site/src/users/server/adapters/baserow-users.js";
+import { d1UserRepository } from "../../../ops/site/src/users/server/adapters/d1-users.js";
 import { baserowConfigRepository } from "../../../shared/config-adapters/baserow-config.js";
 import { d1ConfigRepository } from "../../../shared/config-adapters/d1-config.js";
 import { sameSlot } from "../../../shared/config-model.js";
 
 export const FEATURES = {
+  users: {
+    app: "ops",
+    role: "ops",
+    freeze: true,
+    // A Users row without an email can't sign in and ops doesn't list it.
+    keep: (_collection, user) => Boolean(user.email),
+    adapters: {
+      baserow: ({ env }) => baserowUserRepository(env),
+      d1: ({ db }) => d1UserRepository(db),
+    },
+  },
   // Settings and machine state. It can't be frozen (shared/write-freeze.js):
   // code rewrites its state on the next run, and a setting saved in ops
   // during the move (pour targets) is saved again after it.
