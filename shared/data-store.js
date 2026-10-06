@@ -10,6 +10,7 @@
  * Once it can be reached, a failed read throws: guessing Baserow after the
  * cutover would serve stale data and lose writes.
  */
+import { first } from "./d1.js";
 import { databaseFor } from "./d1-env.js";
 import { FREEZABLE_FEATURES } from "./write-freeze.js";
 
@@ -62,10 +63,9 @@ async function readStore(env, feature) {
     return "baserow";
   }
   try {
-    const row = await db
-      .prepare("SELECT value FROM _meta WHERE key = ?")
-      .bind(STORE_KEY_PREFIX + feature)
-      .first();
+    const row = await first(db, "SELECT value FROM _meta WHERE key = ?", [
+      STORE_KEY_PREFIX + feature,
+    ]);
     return row?.value === "d1" ? "d1" : "baserow";
   } catch (error) {
     if (/no such table/i.test(String(error?.message))) return "baserow";
