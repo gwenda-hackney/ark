@@ -20,10 +20,13 @@ import {
   eventDateFields,
   eventFields,
   ingredientFields,
+  inventoryFields,
+  inventorySupplierFields,
   itemFields,
   menuPlacementFields,
   posMenuFields,
   sectionFields,
+  supplierFields,
   userFields,
 } from "../platform/baserow-schema.js";
 
@@ -161,7 +164,10 @@ class FakeBaserow {
       if (value === undefined) out[field.name] = emptyValue(field);
       else if (field.type === "link_row") {
         const target = this.tableById(field.link_row_table_id);
-        out[field.name] = value.map((id) => ({ id, value: target?.rows.get(id)?.Name ?? "" }));
+        // Like Baserow: a link to a deleted row is gone.
+        out[field.name] = value
+          .filter((id) => !target || target.rows.has(id))
+          .map((id) => ({ id, value: target?.rows.get(id)?.Name ?? "" }));
       } else if (field.type === "file") {
         out[field.name] = value.map((name) => ({
           name,
@@ -239,6 +245,17 @@ class FakeBaserow {
         return json({ error: "ERROR_REQUEST_BODY_VALIDATION", detail: error.message }, error.status || 400);
       }
     }
+    match = path.match(/^\/api\/database\/rows\/table\/(\d+)\/batch-delete\/$/);
+    if (match && method === "POST") {
+      const table = tables.get(Number(match[1]));
+      if (!table) return json({ error: "ERROR_TABLE_DOES_NOT_EXIST" }, 404);
+      const { items = [] } = init.body ? JSON.parse(init.body) : {};
+      // Like Baserow: one missing row fails the whole batch.
+      const missing = items.find((id) => !table.rows.has(Number(id)));
+      if (missing != null) return json({ error: "ERROR_ROW_DOES_NOT_EXIST", detail: `Row ${missing} does not exist.` }, 404);
+      for (const id of items) table.rows.delete(Number(id));
+      return new Response(null, { status: 204 });
+    }
     if (path === "/api/user-files/upload-file/" && method === "POST") {
       const file = init.body instanceof FormData ? init.body.get("file") : null;
       if (!file || typeof file === "string") throw new Error("Fake Baserow: upload without a file");
@@ -281,12 +298,17 @@ function opsTables() {
   const sections = makeTable("Menu Sections", databaseId);
   const items = makeTable("Menu Items", databaseId);
   const posMenus = makeTable("POS Menus", databaseId, posMenuFields());
+  const inventory = makeTable("Inventory", databaseId, inventoryFields());
+  const suppliers = makeTable("Suppliers", databaseId, supplierFields());
   addFields(sections, sectionFields(sections.id));
   addFields(items, itemFields(sections.id, posMenus.id));
   const tables = [
     sections,
     items,
-    makeTable("Ingredients", databaseId, ingredientFields(items.id, null)),
+    makeTable("Ingredients", databaseId, ingredientFields(items.id, inventory.id)),
+    inventory,
+    suppliers,
+    makeTable("Inventory suppliers", databaseId, inventorySupplierFields(inventory.id, suppliers.id)),
     posMenus,
     makeTable("Menu placements", databaseId, menuPlacementFields(items.id, sections.id, posMenus.id)),
     makeTable("Users", databaseId, userFields()),
