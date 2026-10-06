@@ -67,7 +67,7 @@ export const EVENTS_HELP: PageHelpTopic[] = [
 	},
 	{
 		title: "Gallery",
-		body: "Photos for the event's page, from its Drive gallery, newest first. They go on the website with Update website. They are not the What's on flyer: the flyer is the photo on Details.",
+		body: "Photos for the event's page, newest first. They go on the website with Update website, and a copy goes in the event's Drive folder (website images) for collaborators. They are not the What's on flyer: the flyer is the photo on Details.",
 	},
 	{
 		title: "Ops tab",

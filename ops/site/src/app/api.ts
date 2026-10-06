@@ -827,8 +827,8 @@ export type OpsEvent = {
   driveFolderUrl: string;
   mainImage: OpsEventImage | null;
   heroCrops: Record<string, unknown> | null;
-  /** Newest first; null while the series' gallery is still in Drive (#183). */
-  gallery: OpsGalleryPhoto[] | null;
+  /** Newest first (#183). */
+  gallery: OpsGalleryPhoto[];
   dates: OpsEventOccurrence[];
   publish: {
     preview: "unpublished" | "stale" | "current";
@@ -1042,57 +1042,6 @@ export function deleteGalleryPhoto(id: string, key: string) {
     `/api/events/${encodeURIComponent(id)}/gallery/${encodeURIComponent(key)}`,
     { method: "DELETE" },
   );
-}
-
-export type EventDriveFile = {
-  id: string;
-  name: string;
-  mimeType: string;
-  url: string;
-  modifiedTime: string;
-};
-
-export type EventDriveLibrary = {
-  folder: { id: string; url: string };
-  gallery: { id: string; url: string };
-  outsideGallery?: number;
-  files: EventDriveFile[];
-};
-
-/** `date`: one night's photos (its subfolder of the gallery) instead of the series'. */
-function eventDrivePath(id: string, date = "") {
-  return `/api/events/${encodeURIComponent(id)}/drive${date ? `?date=${encodeURIComponent(date)}` : ""}`;
-}
-
-export function getEventDrive(id: string, date = "") {
-  return request<EventDriveLibrary>(eventDrivePath(id, date));
-}
-
-export function uploadEventDriveImage(id: string, file: File, date = "") {
-  const body = new FormData();
-  body.set("file", file);
-  return request<EventDriveLibrary & { ok: boolean; file: EventDriveFile }>(eventDrivePath(id, date), {
-    method: "POST",
-    body,
-  });
-}
-
-/** Remove a gallery photo (to the Drive bin). */
-export function deleteEventDriveImage(id: string, fileId: string) {
-  return request<{ ok: boolean }>(
-    `/api/events/${encodeURIComponent(id)}/drive/${encodeURIComponent(fileId)}`,
-    { method: "DELETE" },
-  );
-}
-
-export function eventDriveFileUrl(
-  eventId: string,
-  fileId: string,
-  variant: "thumb" | "full" = "thumb",
-) {
-  const params = new URLSearchParams({ variant });
-  if (variant === "thumb") params.set("size", "400");
-  return `/api/events/${encodeURIComponent(eventId)}/drive/${encodeURIComponent(fileId)}?${params}`;
 }
 
 export function updateEventOccurrence(

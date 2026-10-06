@@ -239,19 +239,8 @@ export async function sanityUploadAsset(env, kind, bytes, { filename, contentTyp
 }
 
 /**
- * Give an uploaded photo the name ops looks it up by. Sanity hands back an
- * existing asset when the bytes match, keeping its old name.
- */
-export async function sanityRenameImageAsset(env, assetId, filename) {
-  if (!assetId || !filename) return;
-  await sanityMutatePublished(env, [
-    { patch: { id: assetId, set: { originalFilename: filename } } },
-  ]);
-}
-
-/**
  * Send mutations exactly as given, drafts or not. Publishing and discarding
- * drafts (release.js) and asset renames use this; everyday saves go through
+ * drafts (release.js) uses this; everyday saves go through
  * sanityMutate.
  */
 export async function sanityMutatePublished(env, mutations) {

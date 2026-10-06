@@ -12,18 +12,6 @@ const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 
-/** Child folder under each series folder. Gallery photos live here. */
-export const GALLERY_FOLDER_NAME = "gallery";
-
-/**
- * Hero copies ops used to keep beside the gallery folder (hero.jpg,
- * hero-YYYY-MM-DD.jpg). Ops no longer writes them: the hero lives in Baserow
- * only. Older folders may still hold them, so the gallery leaves them out.
- */
-export function isHeroDriveFileName(name) {
-  return /^hero(-\d{4}-\d{2}-\d{2})?\.(jpg|png|webp|gif)$/i.test(String(name || "").trim());
-}
-
 /** @type {Map<string, { id: string, name: string, url: string }>} */
 const namedChildFolders = new Map();
 
@@ -331,41 +319,6 @@ export async function downloadDriveFile(env, fileId) {
       response.headers.get("content-type") || "application/octet-stream",
     name: "",
   };
-}
-
-/** Prefer Google's thumbnail (small). Falls back to the full file if missing. */
-export async function downloadDriveThumbnail(
-  env,
-  fileId,
-  { size = 400 } = {},
-) {
-  const id = String(fileId || "").trim();
-  if (!id) {
-    const error = new Error("Drive file id is required.");
-    error.status = 400;
-    throw error;
-  }
-  const edge = Math.max(64, Math.min(1600, Math.floor(Number(size) || 400)));
-  const meta = await getDriveFile(env, id);
-  const raw = String(meta?.thumbnailLink || "").trim();
-  if (raw) {
-    const thumbUrl = raw.includes("=")
-      ? raw.replace(/=s\d+(-[a-z])?/i, `=s${edge}$1`)
-      : `${raw}=s${edge}`;
-    const token = await driveAccessToken(env);
-    const response = await fetch(thumbUrl, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (response.ok) {
-      return {
-        bytes: await response.arrayBuffer(),
-        contentType:
-          response.headers.get("content-type") || "image/jpeg",
-        name: String(meta?.name || ""),
-      };
-    }
-  }
-  return downloadDriveFile(env, id);
 }
 
 function multipartRelatedBody(metadata, bytes, contentType, boundary) {
