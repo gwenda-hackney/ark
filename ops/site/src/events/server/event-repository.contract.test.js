@@ -99,13 +99,11 @@ for (const [name, make] of Object.entries(ADAPTERS)) {
       const created = await repo.create(fields);
       assert.ok(created.id);
       const { id: _id, ...stored } = await repo.get(created.id);
-      assert.deepEqual(stored, { ...fields, formerSlugs: [], deletedAt: "", gallery: null });
+      assert.deepEqual(stored, { ...fields, formerSlugs: [], deletedAt: "", gallery: [] });
     });
 
-    it("a gallery: none yet, then photos newest first, each asset once", async () => {
-      const old = await repo.create(seriesFields());
-      assert.equal((await repo.get(old.id)).gallery, null, "a series from before keeps its gallery in Drive");
-      const { id } = await repo.create(seriesFields({ name: "Gwenda Live", slug: "gwenda-live", gallery: [] }));
+    it("a gallery: empty, then photos newest first, each asset once", async () => {
+      const { id } = await repo.create(seriesFields());
       assert.deepEqual((await repo.get(id)).gallery, []);
       const first = { key: "k1", asset: ASSET, date: "", added: "2026-10-05T09:00:00.000Z", source: "ops" };
       const second = { key: "k2", asset: OTHER_ASSET, date: "2026-10-08", added: "2026-10-05T09:01:00.000Z", source: "ops" };

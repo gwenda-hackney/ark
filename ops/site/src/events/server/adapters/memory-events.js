@@ -31,7 +31,7 @@ const EMPTY_EVENT = {
   driveFolderId: "",
   mainImage: null,
   heroCrops: null,
-  gallery: null,
+  gallery: [],
 };
 
 const EMPTY_OVERRIDES = {

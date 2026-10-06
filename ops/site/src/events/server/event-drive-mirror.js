@@ -25,7 +25,7 @@ import {
   uploadDriveFile,
 } from "../../platform/google-drive.js";
 import { sanityProjectId } from "../../platform/sanity.js";
-import { listEvents } from "./event-store.js";
+import { ensureEventDriveFolder, listEvents } from "./event-store.js";
 
 export const MIRROR_FOLDER_NAME = "website images";
 const MIRRORED_KEY = "drive.mirrored";
@@ -145,7 +145,6 @@ export async function runDriveMirrorJob(env, { budget = MIRROR_CALL_BUDGET } = {
     readMap(env, FAILURES_KEY),
   ]);
   const behind = events
-    .filter((event) => event.driveFolderId)
     .map((event) => ({ event, desired: desiredImages(event) }))
     .filter(({ event, desired }) => mirrored[event.id] !== mirrorSignature(event, desired));
   const done = [];
@@ -157,11 +156,11 @@ export async function runDriveMirrorJob(env, { budget = MIRROR_CALL_BUDGET } = {
     if (calls + 4 > budget) break;
     try {
       calls += 2;
-      // Another environment's folder (a copied row): nothing of ours goes there.
-      // Its folder id is in the signature, so a new folder is copied again.
-      if (!(await isOwnEventFolder(env, event.driveFolderId))) {
-        mirrored[event.id] = mirrorSignature(event, desired);
-        changedState = true;
+      // No folder, or another environment's (a copied row): give it its own.
+      // Its new folder id changes the signature, so the next run copies into it.
+      if (!event.driveFolderId || !(await isOwnEventFolder(env, event.driveFolderId))) {
+        calls += 6;
+        await ensureEventDriveFolder(env, event.id);
         continue;
       }
       calls += 2;

@@ -10,8 +10,7 @@
  *   takingApplications, replacesSeries, driveFolderId, mainImage, heroCrops,
  *   gallery }
  *
- * gallery: GalleryPhoto[] newest first, or null while the series' gallery is
- * still in Drive (#183, until the backfill moves it). GalleryPhoto:
+ * gallery: GalleryPhoto[] newest first (#183). GalleryPhoto:
  *   { key, asset, date ("" for the series, or a night's date), added, source }
  *
  * NightRecord: { id, date, slug, label, sanityId, clickupTaskId, snapshots,
@@ -19,7 +18,7 @@
  *   description, shortDescription, time, startTime, endTime, nightSchedule,
  *   operationsNotes, imageLinks[], image, heroCrops } }
  *
- * An image is { asset } (a Sanity image id, #183) or, from before, { name, url }.
+ * An image is { asset }: a Sanity image id (#183).
  */
 import { itemSlug } from "../../menu/item-key.js";
 import { parseImageAssetId, sanityImageUrl } from "../../../../../shared/sanity-image.js";
@@ -110,33 +109,22 @@ export function normalizePageUrl(value) {
   return parsed.toString();
 }
 
-/** A stored image as it is kept: { asset }, { name } from before, or null. */
+/** A stored image as it is kept: { asset }, or null. */
 export function storedImage(image) {
-  if (!image) return null;
-  if (parseImageAssetId(image.asset)) return { asset: image.asset };
-  const name = text(image.name);
-  return name ? { name, url: text(image.url) } : null;
+  return parseImageAssetId(image?.asset) ? { asset: image.asset } : null;
 }
 
-/**
- * An image as ops shows it. A Sanity photo (#183) gets its CDN address and
- * size; one from before keeps its stored file address.
- */
+/** An image as ops shows it: its Sanity asset, CDN address and size. */
 export function eventImage(image, { projectId } = {}) {
-  if (!image) return null;
-  const parsed = parseImageAssetId(image.asset);
-  if (parsed) {
-    return {
-      name: "",
-      asset: image.asset,
-      url: sanityImageUrl(projectId, image.asset),
-      width: parsed.width,
-      height: parsed.height,
-    };
-  }
-  const name = text(image.name);
-  const url = text(image.url);
-  return name || url ? { name, url } : null;
+  const parsed = parseImageAssetId(image?.asset);
+  if (!parsed) return null;
+  return {
+    name: "",
+    asset: image.asset,
+    url: sanityImageUrl(projectId, image.asset),
+    width: parsed.width,
+    height: parsed.height,
+  };
 }
 
 /** A gallery photo as kept, or null when it isn't one. */
@@ -153,10 +141,9 @@ export function storedGalleryPhoto(photo) {
   };
 }
 
-/** A stored gallery: a list of photos, or null when there is none yet. */
+/** A stored gallery: a list of photos. */
 export function storedGallery(list) {
-  if (!Array.isArray(list)) return null;
-  return list.map(storedGalleryPhoto).filter(Boolean);
+  return (Array.isArray(list) ? list : []).map(storedGalleryPhoto).filter(Boolean);
 }
 
 /** A gallery photo as ops shows it, from the Sanity CDN. */
@@ -189,7 +176,7 @@ export function buildEvent(record, nights = [], options = {}) {
     slug: record.slug || seriesSlug(record.name),
     driveFolderUrl: driveFolderWebUrl(record.driveFolderId),
     mainImage: eventImage(mainImage, options),
-    gallery: Array.isArray(gallery) ? gallery.map((photo) => galleryPhoto(photo, options)) : null,
+    gallery: (gallery || []).map((photo) => galleryPhoto(photo, options)),
   };
   const occurrences = dedupeOccurrences(
     nights

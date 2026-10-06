@@ -157,29 +157,10 @@ test("hero framing changes affect the occurrence snapshot", () => {
   );
 });
 
-test("occurrence hash ignores Baserow signed URL tokens", () => {
-  const event = {
-    name: "Gwenda Nights",
-    slug: "gwenda-nights",
-    mainImage: {
-      name: "flyer.jpg",
-      url: "https://files.baserow.io/user_files/flyer.jpg?token=aaa",
-    },
-  };
-  assert.equal(
-    occurrenceHash(event, "2026-09-26"),
-    occurrenceHash(
-      {
-        ...event,
-        mainImage: {
-          name: "flyer.jpg",
-          url: "https://files.baserow.io/user_files/flyer.jpg?token=bbb",
-        },
-      },
-      "2026-09-26",
-    ),
-  );
-  assert.equal(stableImageRef(event.mainImage), "name:flyer.jpg");
+test("a photo's fingerprint is its Sanity asset (#183)", () => {
+  const asset = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+  assert.equal(stableImageRef({ asset, url: "https://cdn.sanity.io/x.jpg?w=400" }), `asset:${asset}`);
+  assert.equal(stableImageRef(null), "");
 });
 
 test("occurrence hash ignores hero crop key order", () => {
