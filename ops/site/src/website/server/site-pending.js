@@ -29,6 +29,13 @@ export const QUIET_MS = 10 * 60 * 1000;
 const STATE_KEY = "site.auto_update";
 const MAX_AUTO_FAILURES = 2;
 
+/**
+ * Documents a tick fingerprints at most, per site. Fingerprinting is the CPU
+ * an ops request spends (the free plan allows 10 ms); fingerprints are kept by
+ * revision in the state, so after the first ticks only new revisions cost.
+ */
+export const TICK_FINGERPRINT_BUDGET = 30;
+
 /** How each site reads Sanity: "preview" is the preview site. */
 const VIEWS = { production: "production", preview: PREVIEW };
 
@@ -42,6 +49,8 @@ function emptyState() {
     failures: 0,
     failedAt: null,
     lastError: "",
+    // { documentId: [rev, fingerprint] }: see pendingSince.
+    fingerprints: {},
   };
 }
 
@@ -66,13 +75,18 @@ export async function computePending(
   env,
   site,
   { query = sanityQuery, artists = listArtists, read = readConfigState } = {},
+  { fingerprints = {}, budget = Infinity } = {},
 ) {
   const [snapshotText, docs, artistRows] = await Promise.all([
     read(env, "web", SNAPSHOT_CONFIG_KEY, site).catch(() => ""),
     query(env, VIEWS[site], SNAPSHOT_DOCS_QUERY),
     artists(env).catch(() => []),
   ]);
-  return pendingSince(parseSnapshot(snapshotText), { docs: docs || [], artists: artistRows });
+  return pendingSince(
+    parseSnapshot(snapshotText),
+    { docs: docs || [], artists: artistRows },
+    { fingerprints, budget },
+  );
 }
 
 /**
@@ -82,12 +96,6 @@ export async function computePending(
 export function decide(state, pending, { now, run = null }) {
   const next = { ...state };
   const iso = new Date(now).toISOString();
-  const items = pending.known ? pending.items : [];
-  const signature = items.length ? pendingSignature(items) : "";
-  if (signature !== state.signature) {
-    next.signature = signature;
-    next.changedAt = signature ? iso : null;
-  }
 
   if (next.runId && run) {
     if (!run.completed) return { state: next, action: "wait-build" };
@@ -101,6 +109,15 @@ export function decide(state, pending, { now, run = null }) {
     }
     next.runId = null;
     next.startedAt = null;
+  }
+
+  // Not every document fingerprinted yet: the list isn't known, so leave it be.
+  if (pending.known && pending.complete === false) return { state: next, action: "checking" };
+  const items = pending.known ? pending.items : [];
+  const signature = items.length ? pendingSignature(items) : "";
+  if (signature !== state.signature) {
+    next.signature = signature;
+    next.changedAt = signature ? iso : null;
   }
 
   if (!items.length) {
@@ -129,14 +146,17 @@ async function startBuild(env, site, state, now, dispatch) {
   };
 }
 
-/** One scheduler pass over both sites. */
+/** One scheduler pass over `sites` (both by default). */
 export async function autoUpdateTick(env, deps = {}) {
   const now = deps.now ?? Date.now();
   const status = deps.status ?? fetchDeployStatus;
   const results = {};
-  for (const site of SITES) {
+  for (const site of deps.sites ?? SITES) {
     const state = await readState(env, site, deps);
-    const pending = await computePending(env, site, deps);
+    const pending = await computePending(env, site, deps, {
+      fingerprints: state.fingerprints,
+      budget: deps.budget ?? TICK_FINGERPRINT_BUDGET,
+    });
     const run = state.runId ? await status(env, state.runId).catch(() => null) : null;
     let { state: next, action } = decide(state, pending, { now, run });
     if (action === "build") {
@@ -152,8 +172,12 @@ export async function autoUpdateTick(env, deps = {}) {
         action = "dispatch-failed";
       }
     }
+    if (pending.known) next = { ...next, fingerprints: pending.fingerprints };
     await writeState(env, site, next, deps);
-    results[site] = { action, pending: pending.items.length };
+    // While some documents aren't fingerprinted yet, the count isn't known.
+    results[site] = pending.unresolved
+      ? { action, pending: 0, unchecked: pending.unresolved }
+      : { action, pending: pending.items.length };
   }
   return results;
 }
@@ -170,10 +194,10 @@ export async function updateNow(env, site, deps = {}) {
 
 /** What the Website page and the menu badge show. */
 export async function siteStatus(env, site, deps = {}) {
-  const [pending, state] = await Promise.all([
-    computePending(env, site, deps),
-    readState(env, site, deps),
-  ]);
+  // The tick keeps fingerprints by revision; reuse them, so a page load only
+  // fingerprints documents changed since the last tick.
+  const state = await readState(env, site, deps);
+  const pending = await computePending(env, site, deps, { fingerprints: state.fingerprints });
   const changedAt = state.changedAt ? Date.parse(state.changedAt) : null;
   return {
     site,
