@@ -171,5 +171,26 @@ export function memoryEventRepository() {
     async capabilities() {
       return { formerSlugs: true, shortDescriptionOverride: true, calendarLinks: true };
     },
+
+    /** Every series and night, ids kept; a night carries its eventId ("" for none). */
+    async exportAll() {
+      const byId = (a, b) => Number(a.id) - Number(b.id);
+      return {
+        events: [...events.values()].map(copy).sort(byId),
+        nights: [...nights.values()].map(copy).sort(byId),
+      };
+    },
+
+    /** Replace every series and night with `snapshot`'s, ids kept. */
+    async importAll(snapshot) {
+      events.clear();
+      nights.clear();
+      for (const event of snapshot.events || []) events.set(String(event.id), { ...copy(event), id: String(event.id) });
+      for (const night of snapshot.nights || []) {
+        nights.set(String(night.id), { ...copy(night), id: String(night.id), eventId: String(night.eventId ?? "") });
+      }
+      const ids = [...events.keys(), ...nights.keys()].map(Number).filter(Number.isFinite);
+      nextId = Math.max(nextId, ...ids.map((id) => id + 1));
+    },
   };
 }
