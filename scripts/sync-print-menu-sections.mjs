@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Align Baserow + Sanity menu sections with the guest print tree.
- * Deletes leftover untitled Baserow sample rows. Does not rewrite recipes.
+ * Align the ops menu sections + Sanity with the guest print tree.
+ * Deletes leftover untitled sample rows. Does not rewrite recipes. The ops
+ * side goes through the menu repository (Baserow or D1, wherever the menu
+ * lives).
  * Writes published Sanity documents, not drafts: point it at Gwenda Dev
  * (SANITY_PROJECT_ID=gwscpagy) unless the change should go live.
  *
@@ -13,20 +15,9 @@ import {
   PRINT_MENU_CHAPTERS,
   flattenPrintMenuSections,
 } from "./lib/print-menu-sections.mjs";
-import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
+import { menuRepository } from "../ops/site/src/menu/server/menu-repository.js";
 
-const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
-  /\/$/,
-  "",
-);
-const apiKey = process.env.BASEROW_API_KEY?.trim();
-let sectionsTableId = "";
-let itemsTableId = "";
-
-if (!apiKey) {
-  console.error("Need BASEROW_API_KEY");
-  process.exit(1);
-}
+const repo = menuRepository(process.env);
 
 const PRINT_ITEMS = [
   {
@@ -192,37 +183,6 @@ const DROP_SANITY_NAMES = new Set([
   "Vodka Lemon",
 ]);
 
-async function baserow(path, init = {}) {
-  const response = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
-  });
-  const text = await response.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw new Error(`${path} → ${response.status}: ${JSON.stringify(json).slice(0, 400)}`);
-  }
-  return json;
-}
-
-async function listRows(tableId) {
-  const rows = [];
-  let page = 1;
-  for (;;) {
-    const payload = await baserow(
-      `/api/database/rows/table/${tableId}/?user_field_names=true&size=200&page=${page}`,
-    );
-    rows.push(...(payload.results || []));
-    if (!payload.next) break;
-    page += 1;
-  }
-  return rows;
-}
-
 function allocateOrderRanks(count) {
   const ranks = [];
   let rank = LexoRank.min();
@@ -247,29 +207,26 @@ function sanityClient() {
   });
 }
 
-async function deleteGhostBaserowRows() {
-  console.log("Baserow leftovers…");
-  for (const [tableId, label] of [
-    [sectionsTableId, "section"],
-    [itemsTableId, "item"],
+async function deleteUntitledRows() {
+  console.log("Untitled leftovers…");
+  for (const [collection, label] of [
+    ["menu_sections", "section"],
+    ["menu_items", "item"],
   ]) {
-    const rows = await listRows(tableId);
-    for (const row of rows) {
-      if (String(row.Name || "").trim()) continue;
-      await baserow(`/api/database/rows/table/${tableId}/${row.id}/`, {
-        method: "DELETE",
-      });
-      console.log(`  deleted untitled ${label} #${row.id}`);
+    for (const record of await repo.list(collection)) {
+      if (String(record.name || "").trim()) continue;
+      await repo.remove(collection, record.id);
+      console.log(`  deleted untitled ${label} #${record.id}`);
     }
   }
 }
 
-async function ensureBaserowSections() {
-  console.log("Baserow sections…");
+async function ensureOpsSections() {
+  console.log("Ops sections…");
   let order = 0;
   for (const chapter of PRINT_MENU_CHAPTERS) {
     order += 1;
-    const chapterId = await upsertBaserowSection({
+    const chapterId = await upsertSection({
       title: chapter.title,
       slug: chapter.slug,
       subtitle: chapter.subtitle,
@@ -277,7 +234,7 @@ async function ensureBaserowSections() {
     });
     for (const sub of chapter.subsections || []) {
       order += 1;
-      await upsertBaserowSection({
+      await upsertSection({
         title: sub.title,
         slug: sub.slug,
         order,
@@ -287,29 +244,23 @@ async function ensureBaserowSections() {
   }
 }
 
-async function upsertBaserowSection({ title, slug, subtitle, order, parentId }) {
-  const existing = (await listRows(sectionsTableId)).find(
-    (row) => String(row.Slug || "").trim() === slug,
+async function upsertSection({ title, slug, subtitle, order, parentId }) {
+  const existing = (await repo.list("menu_sections")).find(
+    (record) => String(record.slug || "").trim() === slug,
   );
   const fields = {
-    Name: title,
-    Slug: slug,
-    Subtitle: subtitle || "",
-    Order: order,
-    Parent: parentId ? [parentId] : [],
+    name: title,
+    slug,
+    subtitle: subtitle || "",
+    order,
+    parentId: parentId || null,
   };
   if (existing) {
-    await baserow(
-      `/api/database/rows/table/${sectionsTableId}/${existing.id}/?user_field_names=true`,
-      { method: "PATCH", body: JSON.stringify(fields) },
-    );
+    await repo.update("menu_sections", existing.id, fields);
     console.log(`  ${title}`);
     return existing.id;
   }
-  const created = await baserow(
-    `/api/database/rows/table/${sectionsTableId}/?user_field_names=true`,
-    { method: "POST", body: JSON.stringify(fields) },
-  );
+  const created = await repo.create("menu_sections", fields);
   console.log(`  created ${title}`);
   return created.id;
 }
@@ -473,11 +424,8 @@ async function dropEmptyLeftoverSections(client) {
 }
 
 async function main() {
-  const tables = await requireOpsTables();
-  sectionsTableId = tables.sections;
-  itemsTableId = tables.items;
-  await deleteGhostBaserowRows();
-  await ensureBaserowSections();
+  await deleteUntitledRows();
+  await ensureOpsSections();
 
   const client = sanityClient();
   if (!client) {

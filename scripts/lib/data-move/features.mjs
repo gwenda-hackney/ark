@@ -27,6 +27,8 @@ import { baserowArtistRepository } from "../../../shared/artists/baserow-artists
 import { isBlankArtist } from "../../../shared/artists/artist-model.js";
 import { d1ArtistRepository } from "../../../shared/artists/d1-artists.js";
 import { isSmokeSubscriber } from "../../../shared/smoke-test.js";
+import { baserowMenuRepository } from "../../../ops/site/src/menu/server/adapters/baserow-menu.js";
+import { d1MenuRepository } from "../../../ops/site/src/menu/server/adapters/d1-menu.js";
 
 export const FEATURES = {
   users: {
@@ -84,6 +86,19 @@ export const FEATURES = {
     adapters: {
       baserow: ({ env }) => baserowArtistRepository(env),
       d1: ({ db }) => d1ArtistRepository(db),
+    },
+  },
+  // Menu and inventory: sections, POS menus, drinks, placements, stock,
+  // recipe lines, suppliers and supplier links. Every record moves. The
+  // Baserow export refuses while a drink photo is still a Baserow file: run
+  // the photos backfill (migrations/2026-10-06-menu-photos-backfill.mjs) first.
+  menu: {
+    app: "ops",
+    role: "ops",
+    freeze: true,
+    adapters: {
+      baserow: ({ env }) => baserowMenuRepository(env),
+      d1: ({ db }) => d1MenuRepository(db),
     },
   },
 };

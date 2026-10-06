@@ -8,6 +8,7 @@ import {
 } from "../../../shared/d1-table.js";
 import { createTestD1 } from "../../../shared/testing/d1-sqlite.js";
 import { parseArgs } from "../../data-move.mjs";
+import { createFakeWorld } from "../../../ops/site/src/testing/fake-world.js";
 import { FEATURES, featureFor } from "./features.mjs";
 import { diffSnapshots, keptSnapshot, moveFeature } from "./index.mjs";
 
@@ -193,5 +194,41 @@ describe("data-move CLI", () => {
   it("names the features it knows", () => {
     assert.throws(() => featureFor("nope", { events: {} }), /Known: events\./);
     assert.throws(() => featureFor("nope", {}), /None can move yet/);
+  });
+});
+
+describe("the menu feature", () => {
+  it("moves from Baserow to D1 record for record", async () => {
+    const world = await createFakeWorld();
+    world.install();
+    try {
+      const { menu } = FEATURES;
+      assert.deepEqual([menu.app, menu.role, menu.freeze], ["ops", "ops", true]);
+      const source = menu.adapters.baserow({ env: world.env });
+      const section = await source.create("menu_sections", { name: "Cocktails", slug: "cocktails" });
+      const fall = await source.create("pos_menus", { name: "Fall 2026", isDefault: true });
+      const drink = await source.create("menu_items", { name: "Negroni", sectionId: section.id, posMenuIds: [fall.id] });
+      const gin = await source.create("inventory", { name: "Gin", abv: "40" });
+      await source.create("ingredients", { name: "Gin", itemId: drink.id, inventoryId: gin.id, quantity: 30, unit: "ml" });
+      await source.create("menu_placements", { itemId: drink.id, channel: "pos", posMenuId: fall.id, posScreen: "Classic" });
+      const lwc = await source.create("suppliers", { name: "LWC Drinks" });
+      await source.create("inventory_suppliers", { name: "LWC Drinks", inventoryId: gin.id, supplierId: lwc.id, price: 19.5 });
+
+      const db = createTestD1("ops");
+      const { counts } = await moveFeature({ source, target: menu.adapters.d1({ db }) });
+      assert.deepEqual(counts, {
+        menu_sections: 1,
+        pos_menus: 1,
+        menu_items: 1,
+        menu_placements: 1,
+        inventory: 1,
+        ingredients: 1,
+        suppliers: 1,
+        inventory_suppliers: 1,
+      });
+      assert.deepEqual((await menu.adapters.d1({ db }).get("menu_items", drink.id)).posMenuIds, [fall.id]);
+    } finally {
+      world.restore();
+    }
   });
 });

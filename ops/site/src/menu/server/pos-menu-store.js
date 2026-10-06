@@ -1,16 +1,10 @@
 /**
  * Lightspeed POS menus (Fall 2026, the live menu, etc.).
- * Menu items can sit on more than one.
+ * Menu items can sit on more than one. Stored through the MenuRepository
+ * (collection pos_menus).
  */
-import {
-  boolField,
-  createRow,
-  deleteRow,
-  listAllRows,
-  resolveOpsTableIds,
-  updateRow,
-} from "../../../../../shared/baserow.js";
 import { namesClash } from "../item-key.js";
+import { menuRepository } from "./menu-repository.js";
 
 import { DEFAULT_POS_MENU_NAME, LEGACY_DEFAULT_POS_MENU_NAME, LIVE_POS_MENU_NAME } from "../pos-menus.js";
 
@@ -37,37 +31,17 @@ function parseOrder(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function mapPosMenu(row) {
-  if (!row) return null;
-  const name = text(row.Name);
+/** A pos_menus record → the menu ops shows; null without a name. */
+export function mapPosMenu(record) {
+  if (!record) return null;
+  const name = text(record.name);
   if (!name) return null;
   return {
-    id: String(row.id),
+    id: String(record.id),
     name,
-    orderRank: parseOrder(row.Order),
-    isDefault: boolField(row.Default),
+    orderRank: parseOrder(record.order),
+    isDefault: Boolean(record.isDefault),
   };
-}
-
-export function mapPosMenuLinks(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  const seen = new Set();
-  for (const entry of value) {
-    if (entry == null) continue;
-    const id =
-      typeof entry === "object"
-        ? String(entry.id || "")
-        : String(entry);
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    const name =
-      typeof entry === "object"
-        ? text(entry.value || entry.name)
-        : "";
-    out.push({ id, name });
-  }
-  return out;
 }
 
 export function normalizePosMenuIds(value) {
@@ -85,18 +59,6 @@ export function normalizePosMenuIds(value) {
   return out;
 }
 
-export function posMenuLinkFields(input, tables) {
-  if (!tables?.posMenus) return {};
-  if (!Object.prototype.hasOwnProperty.call(input || {}, "posMenuIds")) {
-    return {};
-  }
-  return {
-    "POS menus": normalizePosMenuIds(input.posMenuIds)
-      .map((id) => Number(id))
-      .filter((id) => Number.isFinite(id) && id > 0),
-  };
-}
-
 function sortMenus(menus) {
   return [...(menus || [])].sort(
     (a, b) =>
@@ -105,11 +67,8 @@ function sortMenus(menus) {
   );
 }
 
-export async function listPosMenus(env) {
-  const tables = await resolveOpsTableIds(env);
-  if (!tables.posMenus) return [];
-  const rows = await listAllRows(env, tables.posMenus);
-  return sortMenus(rows.map(mapPosMenu).filter(Boolean));
+export async function listPosMenus(env, repo = menuRepository(env)) {
+  return sortMenus((await repo.list("pos_menus")).map(mapPosMenu).filter(Boolean));
 }
 
 export function defaultPosMenus(menus) {
@@ -134,38 +93,30 @@ function assertUniqueMenuName(menus, name, exceptId = "") {
   return trimmed;
 }
 
-async function clearOtherDefaults(env, tableId, keepId) {
-  const rows = await listAllRows(env, tableId);
-  for (const row of rows) {
-    if (String(row.id) === String(keepId)) continue;
-    if (!boolField(row.Default)) continue;
-    await updateRow(env, tableId, row.id, { Default: false });
-  }
+/** Changes that switch Default off on every menu but `keepId`. */
+function clearOtherDefaults(menus, keepId) {
+  return menus
+    .filter((menu) => menu.isDefault && String(menu.id) !== String(keepId))
+    .map((menu) => ({ op: "update", collection: "pos_menus", id: menu.id, fields: { isDefault: false } }));
 }
 
 export async function createPosMenu(env, input) {
-  const tables = await resolveOpsTableIds(env);
-  if (!tables.posMenus) fail(503, "POS Menus is not set up. Run setup:baserow-ops.");
-  const existing = await listPosMenus(env);
+  const repo = menuRepository(env);
+  const existing = await listPosMenus(env, repo);
   const name = assertUniqueMenuName(existing, input?.name);
   const isDefault =
     input?.isDefault === true || existing.length === 0;
   const order =
     parseOrder(input?.orderRank) ||
     existing.reduce((max, row) => Math.max(max, row.orderRank || 0), 0) + 1;
-  const row = await createRow(env, tables.posMenus, {
-    Name: name,
-    Order: order,
-    Default: isDefault,
-  });
-  if (isDefault) await clearOtherDefaults(env, tables.posMenus, row.id);
-  return mapPosMenu(row);
+  const record = await repo.create("pos_menus", { name, order, isDefault });
+  if (isDefault) await repo.write(clearOtherDefaults(existing, record.id));
+  return mapPosMenu(record);
 }
 
 export async function updatePosMenu(env, menuId, input) {
-  const tables = await resolveOpsTableIds(env);
-  if (!tables.posMenus) fail(503, "POS Menus is not set up. Run setup:baserow-ops.");
-  const existing = await listPosMenus(env);
+  const repo = menuRepository(env);
+  const existing = await listPosMenus(env, repo);
   const current = existing.find((row) => String(row.id) === String(menuId));
   if (!current) fail(404, "POS menu not found.");
   const name = Object.prototype.hasOwnProperty.call(input || {}, "name")
@@ -177,27 +128,24 @@ export async function updatePosMenu(env, menuId, input) {
   const order = Object.prototype.hasOwnProperty.call(input || {}, "orderRank")
     ? parseOrder(input.orderRank)
     : current.orderRank;
-  const row = await updateRow(env, tables.posMenus, menuId, {
-    Name: name,
-    Order: order,
-    Default: isDefault,
-  });
-  if (isDefault) await clearOtherDefaults(env, tables.posMenus, menuId);
-  return mapPosMenu(row);
+  const [record] = await repo.write([
+    { op: "update", collection: "pos_menus", id: menuId, fields: { name, order, isDefault } },
+    ...(isDefault ? clearOtherDefaults(existing, menuId) : []),
+  ]);
+  return mapPosMenu(record);
 }
 
 export async function deletePosMenu(env, menuId) {
-  const tables = await resolveOpsTableIds(env);
-  if (!tables.posMenus) fail(503, "POS Menus is not set up. Run setup:baserow-ops.");
-  const existing = await listPosMenus(env);
+  const repo = menuRepository(env);
+  const existing = await listPosMenus(env, repo);
   const current = existing.find((row) => String(row.id) === String(menuId));
   if (!current) fail(404, "POS menu not found.");
-  await deleteRow(env, tables.posMenus, menuId);
-  if (current.isDefault) {
-    const leftover = existing.filter((row) => String(row.id) !== String(menuId));
-    if (leftover[0]) {
-      await updateRow(env, tables.posMenus, leftover[0].id, { Default: true });
-    }
-  }
+  const leftover = existing.filter((row) => String(row.id) !== String(menuId));
+  await repo.write([
+    { op: "remove", collection: "pos_menus", id: menuId },
+    ...(current.isDefault && leftover[0]
+      ? [{ op: "update", collection: "pos_menus", id: leftover[0].id, fields: { isDefault: true } }]
+      : []),
+  ]);
   return { id: String(menuId) };
 }
