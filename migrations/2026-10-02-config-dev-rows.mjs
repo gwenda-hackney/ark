@@ -11,5 +11,5 @@ export const about = "Config: remove dev's rows from the production database (En
 
 export async function up({ env, processEnv, log }) {
   if (env !== "production") return log("production only");
-  log(`removed ${await removeRetiredEnv(processEnv, "dev")} row(s)`);
+  log(`removed ${await removeRetiredEnv({ ...processEnv, SITE_ENV: env }, "dev")} row(s)`);
 }
