@@ -13,7 +13,28 @@
  *     },
  *   }
  */
-export const FEATURES = {};
+import { baserowGuests, d1Guests } from "../../../shared/guests/guests-copy.js";
+import {
+  isSmokeFormSubmission,
+  isSmokeSubscriber,
+} from "../../../shared/smoke-test.js";
+
+export const FEATURES = {
+  // Subscribers and form submissions (Website database), one store:guests flag.
+  guests: {
+    app: "web",
+    role: "website",
+    freeze: true,
+    keep: (collection, record) =>
+      collection === "subscribers"
+        ? !isSmokeSubscriber(record.email)
+        : !isSmokeFormSubmission(record),
+    adapters: {
+      baserow: ({ env }) => baserowGuests(env),
+      d1: ({ db }) => d1Guests(db),
+    },
+  },
+};
 
 export function featureFor(name, features = FEATURES) {
   const feature = features[name];
