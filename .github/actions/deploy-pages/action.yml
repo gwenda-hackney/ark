@@ -196,3 +196,7 @@ runs:
       if: inputs.snapshot-site != '' && inputs.skip-build != 'true'
       shell: bash
       run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}"
+      # Which environment's config database (Baserow or D1, #127) to write.
+      # The job env already has BASEROW_CONFIG_API_KEY and the Cloudflare token.
+      env:
+        SITE_ENV: ${{ inputs.secrets-profile }}

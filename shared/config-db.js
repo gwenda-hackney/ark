@@ -11,14 +11,19 @@
  * Every env reads the same table with BASEROW_CONFIG_API_KEY (a token scoped to
  * this database only). It lives outside the Ops and Website databases so copying
  * data between envs never copies config. Secrets never belong here.
+ *
+ * Only the config repository's Baserow adapter (shared/config-adapters) and
+ * shared/config.js import this file.
  */
+import { CONFIG_CACHE_TTL_MS, configRecord, environmentOf, valuesFromRecords } from "./config-model.js";
+
+export { CONFIG_CACHE_TTL_MS, environmentOf, isLocalMachine } from "./config-model.js";
 
 export const CONFIG_DATABASE_NAME = "Gwenda Config";
 export const CONFIG_TABLE_NAME = "Config";
 /** Config Env values. A developer's machine reads "dev"; prod's preview is production. */
 export const CONFIG_ENVS = ["dev", "production"];
 export const CONFIG_SERVICES = ["ops", "web"];
-export const CONFIG_CACHE_TTL_MS = 60_000;
 
 const DEFAULT_BASEROW_API = "https://api.baserow.io";
 
@@ -28,35 +33,6 @@ let tableIdByKey = new Map();
 export function resetConfigCacheForTests() {
   cache.clear();
   tableIdByKey = new Map();
-}
-
-/**
- * The environment a runtime belongs to (its config Env): dev or production,
- * from SITE_ENV. Prod's preview runs as production. A developer's machine
- * (SITE_ENV=local) is dev.
- */
-export function environmentOf(env = {}) {
-  const raw = String(env.SITE_ENV || "")
-    .trim()
-    .toLowerCase();
-  if (raw === "local" || raw === "development" || raw === "dev") return "dev";
-  if (raw === "production" || raw === "prod") return "production";
-  if (!raw) {
-    // No default: code run outside a deployment without SITE_ENV used to read
-    // production settings with whatever database keys it had, and on
-    // 2026-09-26 wrote dev nights into the production calendar.
-    throw new Error("SITE_ENV is not set. Use production, dev or local.");
-  }
-  return raw;
-}
-
-/**
- * A developer's machine (npm run ops:dev / web:dev set SITE_ENV=local): dev
- * settings plus that developer's own values from .env. Hosted dev is SITE_ENV=dev.
- */
-export function isLocalMachine(env = {}) {
-  const raw = String(env.SITE_ENV || "").trim().toLowerCase();
-  return raw === "local" || raw === "development";
 }
 
 function text(value) {
@@ -70,26 +46,20 @@ function scope(value) {
   return text(value).toLowerCase() || "all";
 }
 
-function specificity(row, envName, service) {
-  const rowEnv = scope(row.Env);
-  const rowService = scope(row.Service);
-  if (rowEnv !== "all" && rowEnv !== envName) return -1;
-  if (rowService !== "all" && rowService !== service) return -1;
-  return (rowEnv === envName ? 2 : 0) + (rowService === service ? 1 : 0);
+/** A Config row as a config record (shared/config-model.js). */
+export function rowRecord(row) {
+  return configRecord({
+    id: row.id,
+    name: text(row.Name),
+    value: text(row.Value),
+    env: text(row.Env),
+    service: text(row.Service),
+  });
 }
 
 /** Collapse config rows into key → value for one env + service. */
 export function valuesFromRows(rows, envName, service) {
-  const best = new Map();
-  for (const row of rows || []) {
-    const key = text(row.Name);
-    if (!key) continue;
-    const score = specificity(row, envName, service);
-    if (score < 0) continue;
-    const prev = best.get(key);
-    if (!prev || score > prev.score) best.set(key, { score, value: text(row.Value) });
-  }
-  return Object.fromEntries([...best].map(([key, entry]) => [key, entry.value]));
+  return valuesFromRecords((rows || []).map(rowRecord), envName, service);
 }
 
 function configError(message, status = 503) {
@@ -164,9 +134,11 @@ async function loadRows(env) {
   return rows;
 }
 
-/** Every row, for the settings overview (cached like reads). */
-export async function listConfigRows(env) {
-  return loadRows(env);
+/** Every row, for the settings overview (cached like reads; `fresh` skips the cache). */
+export async function listConfigRows(env, { fresh = false } = {}) {
+  if (!fresh) return loadRows(env);
+  const api = client(env);
+  return listRows(api, await configTableId(api));
 }
 
 /** A row's Env / Service value, lowercased ("all" when blank). */
@@ -203,12 +175,19 @@ export async function setConfigValue(env, service, key, value) {
  * not for settings: settings use getConfigValues.
  */
 export async function getConfigValueFor(env, service, key, envName) {
+  const match = await findConfigRow(env, service, key, envName);
+  return match ? text(match.Value) : "";
+}
+
+/** The exact row for one name + env + service, or null, bypassing the cache. */
+export async function findConfigRow(env, service, key, envName) {
   const api = client(env);
   const rows = await listRows(api, await configTableId(api));
-  const match = rows.find(
-    (row) => text(row.Name) === key && scope(row.Env) === envName && scope(row.Service) === service,
+  return (
+    rows.find(
+      (row) => text(row.Name) === key && scope(row.Env) === envName && scope(row.Service) === service,
+    ) || null
   );
-  return match ? text(match.Value) : "";
 }
 
 /** Delete every row named `key` (any Env / Service). Returns how many. */
@@ -232,7 +211,10 @@ async function deleteMatchingRows(env, matches) {
   return rows.length;
 }
 
-/** Create or update the exact row for one env + service. */
+/**
+ * Create or update the exact row for one env + service; returns the row.
+ * Find, then create: two writers at once can both create (D1 has a unique key).
+ */
 export async function setConfigValueFor(env, service, key, envName, value) {
   const api = client(env);
   const tableId = await configTableId(api);
@@ -244,6 +226,7 @@ export async function setConfigValueFor(env, service, key, envName, value) {
   const path = match
     ? `/api/database/rows/table/${tableId}/${match.id}/?user_field_names=true`
     : `/api/database/rows/table/${tableId}/?user_field_names=true`;
-  await api.call(path, { method: match ? "PATCH" : "POST", body: JSON.stringify(fields) });
+  const saved = await api.call(path, { method: match ? "PATCH" : "POST", body: JSON.stringify(fields) });
   cache.delete(api.apiKey);
+  return saved;
 }
