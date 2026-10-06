@@ -108,6 +108,8 @@ There are no roles: an active user sees all of ops (recipes and trade prices, fo
 | House pour-cost targets and other non-secret knobs | **Baserow** `Gwenda Config` database (Name, Value, Env, Service), shared with the website and never copied with Ops data. Edit pour targets at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 
+The menu and inventory tables above (sections, drinks, recipe lines, placements, POS menus, stock, suppliers and their links) are reached only through the menu repository (`src/menu/server/menu-repository.js`, #186). They move to D1 (`db/ops/migrations/0005_menu.sql`) with `npm run data:move -- --feature menu` and switch over when `store:menu` says `d1` ([db/README.md](../../db/README.md)).
+
 Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section) from Baserow into Sanity as **drafts**, and points each drink at its photo's asset. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
 
 ## Local
