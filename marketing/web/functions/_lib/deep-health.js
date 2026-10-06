@@ -13,10 +13,8 @@ import { D1_BINDINGS } from "../../../../shared/d1-databases.js";
 import { checkD1 } from "../../../../shared/d1-health.js";
 import { listArtists } from "../../../../shared/artists.js";
 import { opsArtistEnv } from "../../src/lib/featured-artist.js";
-import {
-  resolveFormSubmissionsTableId,
-  resolveSubscribeTableId,
-} from "./baserow.js";
+import { formSubmissionRepository } from "../../../../shared/guests/form-submission-repository.js";
+import { subscriberRepository } from "../../../../shared/guests/subscriber-repository.js";
 import {
   gmailAccessToken,
   isGmailConfigured,
@@ -26,26 +24,6 @@ import { NOTIFICATIONS_FROM } from "../../../../shared/mail-from.js";
 import { runFormSmoke } from "./form-smoke.js";
 import { runSignupSmoke } from "./signup-smoke.js";
 import { sanityDatasetForEnv, sanityQuery } from "./sanity-query.js";
-
-const DEFAULT_BASEROW_API = "https://api.baserow.io";
-
-async function readOneRow(env, resolveTable, label) {
-  const table = await resolveTable(env);
-  if (!table.ok) throw new Error(table.error || `${label} table not found.`);
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
-    /\/$/,
-    "",
-  );
-  const response = await fetch(
-    `${apiBase}/api/database/rows/table/${table.tableId}/?size=1`,
-    {
-      headers: { Authorization: `Token ${env.BASEROW_API_KEY}` },
-    },
-  );
-  if (!response.ok) throw new Error(`${label}: Baserow ${response.status}.`);
-  const body = await response.json();
-  return `${body.count ?? 0} rows`;
-}
 
 export const CHECKS = {
   async sanity(env) {
@@ -57,11 +35,12 @@ export const CHECKS = {
       throw new Error(`No content in dataset ${sanityDatasetForEnv(env)}.`);
     return `${count} documents in ${sanityDatasetForEnv(env)}`;
   },
+  // Wherever guests live now: Baserow, or D1 once store:guests says so.
   async subscribers(env) {
-    return readOneRow(env, resolveSubscribeTableId, "Subscribers");
+    return `${await subscriberRepository(env).count()} rows`;
   },
   async formSubmissions(env) {
-    return readOneRow(env, resolveFormSubmissionsTableId, "Form Submissions");
+    return `${await formSubmissionRepository(env).count()} rows`;
   },
   async opsArtists(env) {
     const opsEnv = opsArtistEnv(env);

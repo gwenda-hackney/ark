@@ -9,6 +9,12 @@ import { listAllTables } from "../../baserow.js";
 export const SUBSCRIBERS_TABLE = "Subscribers";
 export const FORM_SUBMISSIONS_TABLE = "Form Submissions";
 
+/** Optional overrides of those names, for a token that sees a copy under another name. */
+const NAME_OVERRIDES = {
+  [SUBSCRIBERS_TABLE]: "BASEROW_SUBSCRIBE_TABLE_NAME",
+  [FORM_SUBMISSIONS_TABLE]: "BASEROW_FORM_SUBMISSIONS_TABLE_NAME",
+};
+
 /** Per token, table and database: a Worker or Function resolves each table once. */
 const tableIds = new Map();
 
@@ -23,12 +29,13 @@ function httpError(message, status) {
 }
 
 /** The table's id; throws (503) when it isn't there or the token sees two. */
-export async function websiteTableId(env, name) {
+export async function websiteTableId(env, table) {
+  const name = String(env[NAME_OVERRIDES[table]] || "").trim() || table;
   const databaseId = String(env.BASEROW_DATABASE_ID || "").trim();
   const key = `${env.BASEROW_API_KEY}:${name}:${databaseId}`;
   if (tableIds.has(key)) return tableIds.get(key);
   let matches = (await listAllTables(env)).filter(
-    (table) => table.name === name,
+    (found) => found.name === name,
   );
   if (databaseId)
     matches = matches.filter(
