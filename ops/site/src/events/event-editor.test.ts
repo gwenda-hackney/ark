@@ -16,8 +16,6 @@ const api = vi.hoisted(() => ({
 	uploadEventOccurrenceImage: vi.fn(),
 	clearEventImage: vi.fn(),
 	clearEventOccurrenceImage: vi.fn(),
-	getEventDrive: vi.fn(),
-	uploadEventDriveImage: vi.fn(),
 }));
 const nav = vi.hoisted(() => ({ navigate: vi.fn(), leaveEditor: vi.fn() }));
 const jobs = vi.hoisted(() => ({ queueWebsiteJob: vi.fn() }));

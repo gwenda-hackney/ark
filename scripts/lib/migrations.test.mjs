@@ -373,83 +373,47 @@ describe("series taking applications onto Sanity", () => {
   });
 });
 
-describe("event photos from before #183", () => {
-  const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+describe("removing the Baserow photo files", () => {
   const events = [
-    { id: 1, Name: "Jazz", "Main image": [{ name: "abc_jazz.jpg", url: "https://files/abc_jazz.jpg" }], Gallery: "" },
-    { id: 2, Name: "Chess", "Main image": [{ name: "x.jpg", url: "u" }], "Hero asset": ASSET, Gallery: "[]" },
-    { id: 3, Name: "Quiz", "Main image": [], Gallery: "", "Drive folder id": "" },
+    { id: 1, Name: "Jazz", "Main image": [{ name: "a.jpg" }], "Hero asset": "image-a-1x1-jpg", Gallery: "[]" },
+    { id: 2, Name: "Chess", "Main image": [{ name: "b.jpg" }], "Hero asset": "", Gallery: "[]" },
+    { id: 3, Name: "Quiz", "Main image": [], Gallery: "" },
     { id: 4, Name: "", Gallery: "" },
   ];
-  const nights = [
-    { id: 10, Name: "Jazz · 2026-10-08", "Override image": [{ name: "def_guest.jpg", url: "https://files/def_guest.jpg" }] },
-    { id: 11, Name: "Jazz · 2026-10-15", "Override image": [] },
-  ];
+  const nights = [{ id: 10, Name: "Jazz · 2026-10-08", "Override image": [{ name: "c.jpg" }], "Override asset": "" }];
 
-  /** Ops tables and Sanity, recording writes and uploads. */
-  function world() {
-    const updated = [];
-    const uploads = [];
-    const db = {
-      label: "Gwenda Dev / Gwenda Ops",
-      rows: async (table) => (table === "Events" ? events : nights),
-      updateRows: async (table, items) => updated.push(...items.map((item) => ({ table, ...item }))),
+  function fakeOps(rowsFor) {
+    const removed = [];
+    return {
+      removed,
+      database: async () => ({
+        label: "Gwenda Dev / Gwenda Ops",
+        rows: async (table) => rowsFor(table),
+        removeField: async (table, field) => {
+          removed.push(`${table}.${field}`);
+          return "removed";
+        },
+      }),
     };
-    const content = {
-      query: async () => [
-        { _id: ASSET, originalFilename: "ops-abc_jazz.jpg" },
-        { _id: ASSET, originalFilename: "ops-def_guest.jpg" },
-      ],
-      uploadImage: async (_bytes, meta) => {
-        uploads.push(meta.filename);
-        return { _id: ASSET };
-      },
-    };
-    return { updated, uploads, database: async () => db, sanity: () => content };
   }
 
-  it("plans only what hasn't moved", async () => {
-    const { planImageBackfill } = await import("../../migrations/2026-10-05-event-images-backfill.mjs");
-    const plan = planImageBackfill({ events, nights });
-    assert.deepEqual(plan.heroes.map((item) => item.id), [1]);
-    assert.deepEqual(plan.flyers.map((item) => item.id), [10]);
-    assert.deepEqual(plan.galleries.map((item) => item.id), [1, 3], "an empty Gallery is still in Drive; [] has moved");
+  it("names every photo that hasn't moved", async () => {
+    const { unmoved } = await import("../../migrations/2026-10-05-remove-event-image-files.mjs");
+    assert.deepEqual(unmoved({ events, nights }), ["Chess: main image", "Quiz: gallery", "Jazz · 2026-10-08: flyer"]);
   });
 
-  it("turns Drive files into gallery photos, newest first, keeping their ids and nights", async () => {
-    const { galleryFromDrive } = await import("../../migrations/2026-10-05-event-images-backfill.mjs");
-    const files = [
-      { id: "d2", date: "2026-10-08", createdTime: "2026-10-09T10:00:00Z" },
-      { id: "d1", date: "", createdTime: "2026-10-01T10:00:00Z" },
-      { id: "d0", date: "" },
-    ];
-    assert.deepEqual(galleryFromDrive(files, new Map([["d2", "a2"], ["d1", "a1"]])), [
-      { key: "d2", asset: "a2", date: "2026-10-08", added: "2026-10-09T10:00:00Z", source: "drive:d2" },
-      { key: "d1", asset: "a1", date: "", added: "2026-10-01T10:00:00Z", source: "drive:d1" },
-    ]);
+  it("refuses to remove anything while a photo hasn't moved", async () => {
+    const { up } = await import("../../migrations/2026-10-05-remove-event-image-files.mjs");
+    const { removed, database } = fakeOps((table) => (table === "Events" ? events : nights));
+    await assert.rejects(up({ database, log: () => {} }), /3 photos haven't moved/);
+    assert.deepEqual(removed, []);
   });
 
-  it("a dry run changes nothing", async () => {
-    const { up } = await import("../../migrations/2026-10-05-event-images-backfill.mjs");
-    const { updated, uploads, database, sanity } = world();
-    const lines = [];
-    await up({ env: "dev", processEnv: {}, database, sanity, log: (line) => lines.push(line), dryRun: true });
-    assert.deepEqual(updated, []);
-    assert.deepEqual(uploads, []);
-    assert.ok(lines.some((line) => /1 main images, 1 flyers, 2 galleries/.test(line)));
-  });
-
-  it("reuses the assets ops copied before, and moves a gallery without a Drive folder as empty", async () => {
-    const { up } = await import("../../migrations/2026-10-05-event-images-backfill.mjs");
-    const { updated, uploads, database, sanity } = world();
-    await up({ env: "dev", processEnv: {}, database, sanity, log: () => {} });
-    assert.deepEqual(uploads, [], "both were in Sanity already");
-    assert.deepEqual(updated, [
-      { table: "Events", id: 1, "Hero asset": ASSET },
-      { table: "Event dates", id: 10, "Override asset": ASSET },
-      { table: "Events", id: 1, Gallery: "[]" },
-      { table: "Events", id: 3, Gallery: "[]" },
-    ]);
+  it("removes the three columns once everything has moved", async () => {
+    const { up } = await import("../../migrations/2026-10-05-remove-event-image-files.mjs");
+    const { removed, database } = fakeOps((table) => (table === "Events" ? [events[0]] : []));
+    await up({ database, log: () => {} });
+    assert.deepEqual(removed, ["Events.Main image", "Events.Images", "Event dates.Override image"]);
   });
 });
 

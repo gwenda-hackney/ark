@@ -10,8 +10,6 @@ import {
   PREVIEW,
   sanityMutate,
   sanityQuery,
-  sanityRenameImageAsset,
-  sanityUploadImage,
 } from "../../platform/sanity.js";
 import {
   getReleaseDiff,
@@ -55,14 +53,6 @@ import {
 } from "./event-store.js";
 import { forgetCalendarOccurrences } from "./event-calendar-sync.js";
 import { syncSocialTasks } from "./event-tasks.js";
-import {
-  galleryBehind,
-  galleryFingerprint,
-  listGalleryFiles,
-  readGalleryStaged,
-  recordGalleryStaged,
-  syncGalleryImages,
-} from "./event-gallery.js";
 
 function httpError(message, status) {
   const error = new Error(message);
@@ -70,13 +60,7 @@ function httpError(message, status) {
   throw error;
 }
 
-/** Sanity filename for an ops photo: Baserow file names are unique per upload. */
-function assetFilename(image) {
-  if (image?.asset) return "";
-  const name = String(image?.name || "").trim();
-  return name ? `ops-${name}` : "";
-}
-
+/** A Sanity image for a photo ops keeps (#183): its asset is already there. */
 function imageRef(assetId) {
   return {
     _type: "image",
@@ -85,65 +69,15 @@ function imageRef(assetId) {
   };
 }
 
-/**
- * Photos already in Sanity, by ops filename, so saves reuse them instead of
- * downloading and uploading the same bytes again. One query for all of them.
- */
-export async function existingImageAssets(env, images) {
-  const names = [...new Set(images.map(assetFilename).filter(Boolean))];
-  const found = new Map();
-  if (!names.length) return found;
-  const rows =
-    (await sanityQuery(
-      env,
-      PREVIEW,
-      `*[_type == "sanity.imageAsset" && originalFilename in $names]{ _id, originalFilename }`,
-      { names },
-    )) || [];
-  for (const row of rows) found.set(row.originalFilename, row._id);
-  return found;
-}
-
-async function imageFromUrl(url, upload, filename = "event.jpg") {
-  if (!url) return undefined;
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!response.ok) {
-    httpError("Could not read the main image.", 502);
-  }
-  const bytes = await response.arrayBuffer();
-  const contentType = response.headers.get("content-type") || "image/jpeg";
-  const asset = await upload(bytes, { filename, contentType });
-  if (!asset?._id) return undefined;
-  return { ...imageRef(asset._id), originalFilename: asset.originalFilename };
-}
-
-/**
- * Sanity image for an ops photo. Photos uploaded since #183 are already in
- * Sanity; older ones reuse the asset copied before, else upload once.
- */
-export async function heroImage(env, image, known) {
-  if (image?.asset) return imageRef(image.asset);
-  const url = String(image?.url || "").trim();
-  if (!url) return undefined;
-  const filename = assetFilename(image);
-  const assetId = filename ? known.get(filename) : "";
-  if (assetId) return imageRef(assetId);
-  const hero = await imageFromUrl(
-    url,
-    (bytes, meta) => sanityUploadImage(env, bytes, meta),
-    filename || "event.jpg",
-  );
-  if (!hero) return hero;
-  const { originalFilename, ...uploaded } = hero;
-  if (filename) {
-    known.set(filename, uploaded.asset._ref);
-    if (originalFilename !== filename) {
-      await sanityRenameImageAsset(env, uploaded.asset._ref, filename);
-    }
-  }
-  return uploaded;
+/** A gallery photo as a Sanity image on the series; a night's photo shows on its page too. */
+function galleryImage(photo) {
+  return {
+    _type: "image",
+    _key: photo.key,
+    alt: "",
+    ...(photo.date ? { date: photo.date } : {}),
+    asset: { _type: "reference", _ref: photo.asset },
+  };
 }
 
 function clamp01(value) {
@@ -265,52 +199,6 @@ function opsGalleryImage(photo) {
   };
 }
 
-/**
- * The series' Drive gallery as Sanity images. If Drive cannot be read, keep
- * the gallery already staged rather than emptying it.
- */
-async function stageGallery(env, event) {
-  // Kept in ops (#183): the photos are in Sanity already, nothing to copy.
-  if (Array.isArray(event.gallery)) {
-    return {
-      images: event.gallery.map(opsGalleryImage),
-      complete: false,
-      fingerprint: "",
-      changed: false,
-      error: "",
-    };
-  }
-  const staged = await readGalleryStaged(env);
-  try {
-    const files = await listGalleryFiles(env, event);
-    const fingerprint = galleryFingerprint(files);
-    const { images, complete } = await syncGalleryImages(env, files);
-    return {
-      images,
-      complete,
-      fingerprint,
-      changed:
-        staged[String(event.id)] !== fingerprint &&
-        (images.length > 0 || String(event.id) in staged),
-      error: "",
-    };
-  } catch (error) {
-    const current = await sanityQuery(
-      env,
-      PREVIEW,
-      `*[_id == $id][0].gallery`,
-      { id: sanitySeriesId(event.slug) },
-    ).catch(() => null);
-    return {
-      images: Array.isArray(current) ? current : [],
-      complete: false,
-      fingerprint: "",
-      changed: false,
-      error: `The gallery could not be copied from Drive: ${error?.message || "unknown error"}.`,
-    };
-  }
-}
-
 export async function publishEventPreview(
   env,
   id,
@@ -338,31 +226,12 @@ export async function publishEventPreview(
   }
 
   const existingByDate = new Map(event.dates.map((row) => [row.date, row]));
-  const heroByUrl = new Map();
   const occurrences = [];
   const mutations = [];
 
-  const knownAssets = await existingImageAssets(env, [
-    event.mainImage,
-    ...wanted.map(
-      (date) => resolveOccurrenceContent(event, existingByDate.get(date) || date).image,
-    ),
-  ]);
-  const seriesImageUrl = event.mainImage?.url || "";
-  let seriesHero;
-  if (seriesImageUrl) {
-    const uploaded = await heroImage(env, event.mainImage, knownAssets);
-    seriesHero = withImageCrop(
-      uploaded ? { ...uploaded, alt: event.name } : uploaded,
-      framingFromEvent(event),
-    );
-    if (seriesHero && !seriesHero.alt) {
-      seriesHero = { ...seriesHero, alt: event.name };
-    }
-    heroByUrl.set(`series:${seriesImageUrl}`, seriesHero);
-  }
-  const gallery = await stageGallery(env, event);
-  if (gallery.changed) pagesChanged = true;
+  const seriesHero = event.mainImage?.asset
+    ? withImageCrop({ ...imageRef(event.mainImage.asset), alt: event.name }, framingFromEvent(event))
+    : undefined;
   mutations.push({
     createOrReplace: sanitySeriesDocument({
       slug: event.slug,
@@ -375,7 +244,7 @@ export async function publishEventPreview(
       nightSchedule: event.nightSchedule || [],
       heroImage: seriesHero || null,
       datesPending,
-      gallery: gallery.images,
+      gallery: (event.gallery || []).map(galleryImage),
       formerSlugs: event.formerSlugs || [],
       takingApplications: event.takingApplications === true,
     }),
@@ -426,21 +295,12 @@ export async function publishEventPreview(
     // A night keeps its slug when the series gets a new web address: RSVPs
     // and ticket links are keyed by it.
     const slug = previous?.slug || occurrenceSlug(event.slug, date);
-    const imageUrl = content.image?.url || "";
-    let hero = heroByUrl.get(imageUrl);
-    if (imageUrl && !heroByUrl.has(imageUrl)) {
-      hero = await heroImage(env, content.image, knownAssets);
-      heroByUrl.set(imageUrl, hero);
-    }
-    if (hero) {
-      hero = withImageCrop(
-        { ...hero, alt: content.title },
-        framingFromOccurrence(event, previous),
-      );
-    }
-    if (seriesHero && !seriesHero.alt) {
-      seriesHero = { ...seriesHero, alt: event.name || content.title };
-    }
+    const hero = content.image?.asset
+      ? withImageCrop(
+          { ...imageRef(content.image.asset), alt: content.title },
+          framingFromOccurrence(event, previous),
+        )
+      : undefined;
     const doc = sanityEventDocument({
       slug,
       title: content.title,
@@ -489,7 +349,6 @@ export async function publishEventPreview(
     await sanityMutate(env, mutations.slice(i, i + 25));
   }
   await recordSeriesPreview(env, event, datesPending);
-  if (gallery.complete) await recordGalleryStaged(env, event.id, gallery.fingerprint);
 
   const warnings = [];
   if (drop.length) pagesChanged = true;
@@ -523,12 +382,9 @@ export async function publishEventPreview(
   const deployed = false;
   const deploy = null;
 
-  if (gallery.error) warnings.push(gallery.error);
-
   return {
     event: await getEvent(env, id),
     warnings,
-    galleryError: gallery.error,
     deployed,
     deploy,
     pagesChanged,
@@ -782,9 +638,7 @@ export async function putEventOnWebsite(env, id) {
   // Saving already staged it; only stage again if the drafts are behind ops.
   const current = await getEvent(env, id);
   const staged =
-    previewBehind(current) ||
-    seriesAwaitingDates(current) ||
-    galleryBehind(current, await readGalleryStaged(env))
+    previewBehind(current) || seriesAwaitingDates(current)
     ? await publishEventPreview(env, id)
     : { event: current, warnings: [] };
   const ids = await eventDocumentIds(env, staged.event);

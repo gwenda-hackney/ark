@@ -42,13 +42,13 @@ const SHORT_DESCRIPTION_OVERRIDE = "Short description override";
 const FORMER_SLUGS = "Former slugs";
 const DELETED_AT = "Deleted at";
 const TAKING_APPLICATIONS = "Taking applications";
-/** The series' gallery photos as JSON (#183); empty while they're still in Drive. */
+/** The series' gallery photos as JSON (#183). */
 const GALLERY = "Gallery";
 const CALENDAR_EVENT = "Google calendar event id";
 /** Calendar links lived in Notes before their own column. */
 const CALENDAR_FALLBACK = "Notes";
 /** Columns added by migrations: a database without them yet saves without them. */
-const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS, GALLERY];
+const OPTIONAL_EVENT_COLUMNS = [PAGE_LINK, TAKING_APPLICATIONS, FORMER_SLUGS];
 
 const fieldNamesCache = new Map();
 
@@ -70,25 +70,10 @@ function notFound(error, message) {
   return missing;
 }
 
-function filesFrom(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((entry) => ({ name: text(entry?.name || entry?.visible_name), url: text(entry?.url) }))
-    .filter((entry) => entry.url || entry.name);
-}
-
-/** A Sanity asset id column, or the Baserow file column it replaced (#183). */
-function imageFromRow(assetValue, fileValue) {
-  const asset = text(assetValue);
-  if (parseImageAssetId(asset)) return { asset };
-  return filesFrom(fileValue)[0] || null;
-}
-
-function imageColumns(image, assetColumn, fileColumn) {
-  return {
-    [assetColumn]: image?.asset || "",
-    [fileColumn]: !image?.asset && image?.name ? [{ name: image.name }] : [],
-  };
+/** A Sanity image asset id column (#183). */
+function imageFromRow(value) {
+  const asset = text(value);
+  return parseImageAssetId(asset) ? { asset } : null;
 }
 
 function cropsJson(value) {
@@ -113,9 +98,9 @@ function parseSnapshots(value) {
 
 function galleryFromRow(value) {
   const raw = text(value);
-  if (!raw) return null;
+  if (!raw) return [];
   try {
-    return storedGallery(JSON.parse(raw)) || [];
+    return storedGallery(JSON.parse(raw));
   } catch {
     return [];
   }
@@ -166,7 +151,7 @@ export function eventFromRow(row) {
     takingApplications: row[TAKING_APPLICATIONS] === true,
     replacesSeries: text(row["Replaces series"]),
     driveFolderId: text(row["Drive folder id"]),
-    mainImage: imageFromRow(row["Hero asset"], row["Main image"]),
+    mainImage: imageFromRow(row["Hero asset"]),
     heroCrops: parseHeroCrops(row["Hero crops"]),
     gallery: galleryFromRow(row[GALLERY]),
   };
@@ -195,7 +180,7 @@ export function nightFromRow(row) {
       nightSchedule: nightScheduleOverrideFromRow(row),
       operationsNotes: text(row["Operations notes override"]),
       imageLinks: linksFrom(row["Image links override"]),
-      image: imageFromRow(row["Override asset"], row["Override image"]),
+      image: imageFromRow(row["Override asset"]),
       heroCrops: parseHeroCrops(row["Override hero crops"]),
     },
   };
@@ -233,9 +218,9 @@ export function eventToRow(fields, columns) {
   put("formerSlugs", FORMER_SLUGS, (value) => (value || []).join("\n"));
   put("deletedAt", DELETED_AT, text);
   put("driveFolderId", "Drive folder id", text);
-  put("gallery", GALLERY, (value) => (Array.isArray(value) ? JSON.stringify(storedGallery(value)) : ""));
+  put("gallery", GALLERY, (value) => JSON.stringify(storedGallery(value)));
   if (fields.slug) row.Slug = fields.slug;
-  if ("mainImage" in fields) Object.assign(row, imageColumns(fields.mainImage, "Hero asset", "Main image"));
+  put("mainImage", "Hero asset", (value) => value?.asset || "");
   for (const column of OPTIONAL_EVENT_COLUMNS) {
     if (column in row && !columns.has(column)) delete row[column];
   }
@@ -266,7 +251,7 @@ export function nightToRow(eventId, night, columns) {
     "Operations notes override": text(overrides?.operationsNotes),
     "Image links override": linksFrom(overrides?.imageLinks).join("\n"),
     "Override hero crops": cropsJson(overrides?.heroCrops),
-    ...imageColumns(overrides?.image, "Override asset", "Override image"),
+    "Override asset": overrides?.image?.asset || "",
   });
   // Added by migrations; ops running before them saves the night without.
   if (columns.has(PAGE_LINK_OVERRIDE)) row[PAGE_LINK_OVERRIDE] = text(overrides?.pageUrl);
@@ -317,7 +302,7 @@ export function baserowEventRepository(env) {
     } catch (error) {
       throw notFound(error, "Event not found.");
     }
-    const gallery = change(galleryFromRow(row[GALLERY]) || []);
+    const gallery = change(galleryFromRow(row[GALLERY]));
     return eventFromRow(await updateRow(env, events, eventId, { [GALLERY]: JSON.stringify(gallery) }));
   }
 
@@ -457,6 +442,22 @@ export function baserowEventRepository(env) {
         formerSlugs: events.has(FORMER_SLUGS),
         shortDescriptionOverride: nights.has(SHORT_DESCRIPTION_OVERRIDE),
         calendarLinks: nights.has(CALENDAR_EVENT) || nights.has(CALENDAR_FALLBACK),
+      };
+    },
+
+    /** Every series and night, ids kept; a night carries its eventId ("" for none). A source only. */
+    async exportAll() {
+      const { events, eventDates } = await tables();
+      const [rows, dateRows] = await Promise.all([listAllRows(env, events), listAllRows(env, eventDates)]);
+      const byId = (a, b) => Number(a.id) - Number(b.id);
+      return {
+        events: rows.map(eventFromRow).sort(byId),
+        nights: dateRows
+          .map((row) => {
+            const link = Array.isArray(row.Event) ? row.Event[0] : null;
+            return { ...nightFromRow(row), eventId: link?.id ? String(link.id) : "" };
+          })
+          .sort(byId),
       };
     },
   };

@@ -285,22 +285,10 @@ export function stableGallery(gallery) {
   return (gallery || []).map((photo) => `${photo.key}:${photo.asset}:${photo.date || ""}`);
 }
 
+/** Which photo: its Sanity asset id (#183). */
 export function stableImageRef(image) {
-  if (!image) return "";
-  const asset = String(image.asset || "").trim();
-  if (asset) return `asset:${asset}`;
-  const name = String(image.name || image.visible_name || "").trim();
-  if (name) return `name:${name}`;
-  const url = String(image.url || "").trim();
-  if (!url) return "";
-  try {
-    const parsed = new URL(url);
-    parsed.search = "";
-    parsed.hash = "";
-    return `url:${parsed.toString()}`;
-  } catch {
-    return `url:${url.split(/[?#]/)[0]}`;
-  }
+  const asset = String(image?.asset || "").trim();
+  return asset ? `asset:${asset}` : "";
 }
 
 function roundFrac(value) {

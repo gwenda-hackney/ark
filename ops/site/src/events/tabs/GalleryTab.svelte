@@ -65,79 +65,68 @@
 					href={gallery.folderUrl}
 					target="_blank"
 					rel="noreferrer"
-					title={gallery.photos ? "Copies of the event's photos for collaborators, in its website images folder" : undefined}
-					>{gallery.photos ? "Open in Drive" : "Open gallery"}</a
+					title="Copies of the event's photos for collaborators, in its website images folder"
+					>Open in Drive</a
 				>
 			{/if}
 		</div>
 		{#if gallery.error}
 			<p class="error">{gallery.error}</p>
 		{/if}
-		{#if gallery.outsideGallery > 0}
-			<p class="hint">
-				{gallery.outsideGallery === 1
-					? "1 image is in the event folder, outside the gallery, so it is not shown here."
-					: `${gallery.outsideGallery} images are in the event folder, outside the gallery, so they are not shown here.`}
-			</p>
-		{/if}
 		<div
 			class="drive-drop"
 			role="group"
 			aria-label="Drop images here to add them to the gallery"
 			class:dragging={dragging}
-			class:busy={gallery.loading || gallery.uploading}
+			class:busy={gallery.uploading}
 			ondragenter={onDragEnter}
 			ondragover={onDragOver}
 			ondragleave={onDragLeave}
 			ondrop={onDrop}
 		>
-			{#if gallery.loading && !gallery.tiles.length}
-				<p class="hint">Loading…</p>
-			{:else}
-				<ul class="gallery">
-					{#each gallery.tiles as image (image.key)}
-						<li class="tile">
-							<button
-								class="remove"
-								type="button"
-								disabled={busy}
-								aria-label={`Remove ${image.name}`}
-								title="Remove photo"
-								onclick={() => void gallery.remove(eventId, image.key)}
-							>
-								<Icon name="close" size={14} />
-							</button>
-							<a
-								href={image.full}
-								target="_blank"
-								rel="noreferrer"
-								title={image.name}
-							>
-								<img
-									src={image.thumb}
-									alt={image.name}
-									loading="lazy"
-								/>
-							</a>
-						</li>
-					{/each}
-					<li>
-						<label class="tile add">
-							<span class="photo-btn primary">
-								<Icon name="upload" size={16} />
-								{gallery.uploading ? "Uploading…" : "Add images"}
-							</span>
-							<input
-								type="file"
-								accept="image/jpeg,image/png,image/webp,image/gif"
-								multiple
-								disabled={busy}
-								onchange={onInput}
+			<ul class="gallery">
+				{#each gallery.tiles as image (image.key)}
+					<li class="tile">
+						<button
+							class="remove"
+							type="button"
+							disabled={busy}
+							aria-label={`Remove ${image.name}`}
+							title="Remove photo"
+							onclick={() => void gallery.remove(eventId, image.key)}
+						>
+							<Icon name="close" size={14} />
+						</button>
+						<a
+							href={image.full}
+							target="_blank"
+							rel="noreferrer"
+							title={image.name}
+						>
+							<img
+								src={image.thumb}
+								alt={image.name}
+								loading="lazy"
 							/>
-						</label>
+						</a>
 					</li>
-				</ul>
-			{/if}
+				{/each}
+				<li>
+					<label class="tile add">
+						<span class="photo-btn primary">
+							<Icon name="upload" size={16} />
+							{gallery.uploading ? "Uploading…" : "Add images"}
+						</span>
+						<input
+							type="file"
+							accept="image/jpeg,image/png,image/webp,image/gif"
+							multiple
+							disabled={busy}
+							onchange={onInput}
+						/>
+					</label>
+				</li>
+			</ul>
 			{#if dragging}
 				<div class="drive-drop-veil" aria-hidden="true">
 					<span>Drop to upload</span>

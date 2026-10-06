@@ -279,6 +279,6 @@ describe("the registry under plain Node", () => {
       ],
       { encoding: "utf8" },
     );
-    assert.equal(out.trim(), "users,config,guests,artists,menu");
+    assert.equal(out.trim(), "users,config,guests,artists,menu,events");
   });
 });

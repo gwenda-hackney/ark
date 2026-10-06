@@ -134,16 +134,24 @@ export const eventSeries = defineType({
       type: "array",
       readOnly: true,
       description:
-        "Copied by ops from the series' Drive gallery folder. Shown at the bottom of its What's on page.",
+        "The series' gallery from ops (its Images tab). Shown at the bottom of its What's on page; a night's photos also on that night's page.",
       of: [
         {
           type: "image",
           fields: [
             defineField({ name: "alt", type: "string", title: "Alternative text" }),
             defineField({
+              name: "date",
+              type: "string",
+              title: "Night",
+              description: "A night's photo (YYYY-MM-DD): its page shows it too.",
+              hidden: true,
+            }),
+            defineField({
               name: "driveFileId",
               type: "string",
               title: "Drive file",
+              description: "Galleries copied from Drive before #183.",
               hidden: true,
             }),
           ],
