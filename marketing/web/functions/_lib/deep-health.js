@@ -44,7 +44,7 @@ export const CHECKS = {
   },
   async opsArtists(env) {
     const opsEnv = opsArtistEnv(env);
-    if (!opsEnv) throw new Error("BASEROW_OPS_API_KEY not set.");
+    if (!opsEnv) throw new Error("BASEROW_OPS_API_KEY not set, and no OPS_DB.");
     const artists = await listArtists(opsEnv);
     return `${artists.length} artists`;
   },

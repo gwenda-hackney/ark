@@ -15,6 +15,7 @@
  */
 import { evaluate, parse } from "groq-js";
 import {
+  GUEST_ARTIST_FIELDS,
   artistFields,
   eventDateFields,
   eventFields,
@@ -36,12 +37,12 @@ const CALENDAR_ID = "events@group.calendar.google.com";
 let nextId = 1000;
 const newId = () => (nextId += 1);
 
-function makeTable(name, databaseId, specs = []) {
+function makeTable(name, databaseId, specs = [], primary = "Name") {
   const table = {
     id: newId(),
     name,
     database_id: databaseId,
-    fields: [{ id: newId(), name: "Name", type: "text", primary: true }],
+    fields: [{ id: newId(), name: primary, type: "text", primary: true }],
     rows: new Map(),
   };
   return addFields(table, specs);
@@ -291,6 +292,12 @@ function opsTables() {
     makeTable("Users", databaseId, userFields()),
     makeTable("Events", databaseId, eventFields()),
     makeTable("Artists", databaseId, artistFields()),
+    makeTable(
+      "Guest artists",
+      databaseId,
+      GUEST_ARTIST_FIELDS.map((body) => ({ name: body.name, body })),
+      "Email",
+    ),
   ];
   const events = tables.find((table) => table.name === "Events");
   tables.push(makeTable("Event dates", databaseId, eventDateFields(events.id)));

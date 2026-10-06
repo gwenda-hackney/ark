@@ -11,7 +11,7 @@
  * fields. Safe to run again: it only touches what hasn't moved yet. Supports
  * --dry-run (with --only).
  */
-import { parseArtistAssets } from "../shared/artists.js";
+import { parseArtistAssets } from "../shared/artists/baserow-artists.js";
 import { parseImageAssetId } from "../shared/sanity-image.js";
 
 export const app = "ops";

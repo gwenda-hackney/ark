@@ -230,6 +230,20 @@ export function artistFields() {
   ];
 }
 
+/** Guest artists columns besides the primary "Email" (migration and setup both use these). */
+export const GUEST_ARTIST_FIELDS = [
+  {
+    name: "Decision",
+    type: "single_select",
+    select_options: [
+      { value: "Approved", color: "green" },
+      { value: "Declined", color: "red" },
+    ],
+  },
+  { name: "Artist name", type: "text" },
+  { name: "Artist link", type: "url" },
+];
+
 export function userFields() {
   return [
     { name: "Email", body: { name: "Email", type: "email" } },

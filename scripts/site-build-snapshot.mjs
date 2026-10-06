@@ -4,7 +4,8 @@
  *
  *   node scripts/site-build-snapshot.mjs capture --out FILE
  *     Before the build. Reads SANITY_DATASET with SANITY_API_TOKEN, and the
- *     Artists table with BASEROW_OPS_API_KEY (the token picks the database).
+ *     artists: Baserow with BASEROW_OPS_API_KEY (the token picks the
+ *     database), or ops D1 with CLOUDFLARE_API_TOKEN once they have moved.
  *
  *   node scripts/site-build-snapshot.mjs save --in FILE --site preview|production
  *     After a successful deploy. Writes Gwenda Config for SITE_ENV (Baserow with
@@ -51,14 +52,18 @@ async function sanityDocs() {
 
 async function artists() {
   const key = process.env.BASEROW_OPS_API_KEY;
-  if (!key) {
-    console.warn("No BASEROW_OPS_API_KEY: artists not in the snapshot.");
+  if (!key && !process.env.CLOUDFLARE_API_TOKEN) {
+    console.warn("No BASEROW_OPS_API_KEY or CLOUDFLARE_API_TOKEN: artists not in the snapshot.");
     return [];
   }
+  // Baserow, or ops D1 over its API once artists have moved there (#127).
   return listArtists({
     BASEROW_API_KEY: key,
     BASEROW_API_URL: process.env.BASEROW_API_URL,
     SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID,
+    SITE_ENV: process.env.SITE_ENV,
+    CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
   });
 }
 

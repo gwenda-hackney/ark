@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, vi } from "vitest";
 import { resetBaserowClientForTests } from "../../../../../shared/baserow.js";
-import { clearArtistImage, createArtist, deleteArtist, setArtistImage } from "./artist-store.js";
-import { listArtists, mapArtist, orderArtists } from "../../../../../shared/artists.js";
+import { d1ArtistRepository } from "../../../../../shared/artists/d1-artists.js";
+import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
+import { clearArtistImage, createArtist, deleteArtist, getArtist, setArtistImage } from "./artist-store.js";
+import { artistView, listArtists, orderArtists } from "../../../../../shared/artists.js";
+import { artistFromRow } from "../../../../../shared/artists/baserow-artists.js";
 import { jsonResponse, mockOpsBaserow, opsCatalogTables } from "../../testing/test-baserow-mock.js";
 
 afterEach(() => {
@@ -11,6 +14,9 @@ afterEach(() => {
 });
 
 const tableEnv = { BASEROW_API_KEY: "token" };
+
+/** A Baserow row as ops shows it. */
+const mapArtist = (row, options) => artistView(artistFromRow(row), options);
 
 function row(partial) {
   return {
@@ -27,7 +33,7 @@ function row(partial) {
   };
 }
 
-describe("mapArtist / orderArtists", () => {
+describe("artistView / orderArtists", () => {
   it("orders current, next, then previous by name", () => {
     const current = mapArtist(row({ id: 4 }));
     const next = mapArtist(row({ id: 2, Name: "Jo", Slot: "next", Website: "" }));
@@ -246,5 +252,30 @@ describe("artist photos in Sanity (#183)", () => {
     );
     await clearArtistImage(imageEnv, "7", { kind: "art", name: "one.jpg" });
     assert.deepEqual(patches, [{ Art: [{ name: "two.jpg" }] }]);
+  });
+});
+
+describe("artist use cases on D1 (#127)", () => {
+  it("keep one current artist and add photos, whatever holds them", async () => {
+    const artistRepository = d1ArtistRepository(createTestD1("ops"));
+    const env = { ...imageEnv, artistRepository };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).includes("/assets/images/")) return jsonResponse({ document: { _id: ASSET } });
+      throw new Error(`unexpected ${input}`);
+    });
+    const first = await createArtist(env, { name: "Ada", slot: "current" });
+    const second = await createArtist(env, { name: "Bea", slot: "current" });
+    assert.equal((await getArtist(env, first.id)).slot, "previous");
+    const withArt = await setArtistImage(env, second.id, new Uint8Array([1]), {
+      filename: "one.jpg",
+      contentType: "image/jpeg",
+      kind: "art",
+    });
+    assert.deepEqual(withArt.art.map((image) => [image.name, image.label]), [[ASSET, "one.jpg"]]);
+    assert.match(withArt.art[0].url, /cdn\.sanity\.io\/images\/gwscpagy\//);
+    const removed = await clearArtistImage(env, second.id, { kind: "art", name: ASSET });
+    assert.deepEqual(removed.art, []);
+    await deleteArtist(env, first.id);
+    await assert.rejects(getArtist(env, first.id), { status: 404 });
   });
 });

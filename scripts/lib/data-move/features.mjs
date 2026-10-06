@@ -23,6 +23,10 @@ import {
   isSmokeFormSubmission,
   isSmokeSubscriber,
 } from "../../../shared/smoke-test.js";
+import { baserowArtistRepository } from "../../../shared/artists/baserow-artists.js";
+import { isBlankArtist } from "../../../shared/artists/artist-model.js";
+import { d1ArtistRepository } from "../../../shared/artists/d1-artists.js";
+import { isSmokeSubscriber } from "../../../shared/smoke-test.js";
 
 export const FEATURES = {
   users: {
@@ -61,6 +65,25 @@ export const FEATURES = {
     adapters: {
       baserow: ({ env }) => baserowGuests(env),
       d1: ({ db }) => d1Guests(db),
+    },
+  },
+  artists: {
+    app: "ops",
+    role: "ops",
+    freeze: true,
+    // Every artist row moves, slot or not (one with no slot may be in the
+    // making); only a completely blank row is left out, and named in the log.
+    // A guest artist is kept by email, and the deploy smoke test's never is.
+    keep: (collection, record) => {
+      if (collection !== "artists")
+        return Boolean(record.email) && !isSmokeSubscriber(record.email);
+      if (!isBlankArtist(record)) return true;
+      console.log(`  left out: blank artist row ${record.id}`);
+      return false;
+    },
+    adapters: {
+      baserow: ({ env }) => baserowArtistRepository(env),
+      d1: ({ db }) => d1ArtistRepository(db),
     },
   },
 };
