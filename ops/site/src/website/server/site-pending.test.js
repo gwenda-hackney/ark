@@ -76,3 +76,42 @@ test("the tick builds each quiet site once and saves state", async () => {
   assert.equal(JSON.parse(store.get("ops:site.auto_update:production")).runId, 9);
   assert.equal(result.preview.action, "idle");
 });
+
+test("while documents are still being fingerprinted, the tick only checks: no timer, no build", () => {
+  const state = { ...parseState(""), signature: "old", changedAt: new Date(T0).toISOString() };
+  const step = decide(state, { known: true, items: [], complete: false, unresolved: 4 }, { now: T0 + QUIET_MS });
+  assert.equal(step.action, "checking");
+  assert.equal(step.state.signature, "old", "the pending list isn't known, so it isn't replaced");
+});
+
+test("the tick fingerprints a few documents per run, keeps them, and only one site when asked", async () => {
+  const docs = Array.from({ length: 5 }, (_, i) => ({ _id: `d${i}`, _type: "event", _rev: `r${i}`, title: `T${i}` }));
+  const store = new Map([
+    // A snapshot from before revisions were recorded: everything needs a fingerprint once.
+    ["web:site.build_snapshot:production", JSON.stringify({ version: 1, documents: { d0: ["x", "T0", "event"] }, artists: {} })],
+  ]);
+  let queries = 0;
+  const deps = {
+    sites: ["production"],
+    budget: 2,
+    now: T0,
+    read: async (_env, service, key, site) => store.get(`${service}:${key}:${site}`) || "",
+    write: async (_env, service, key, site, value) => store.set(`${service}:${key}:${site}`, value),
+    query: async () => (queries++, docs),
+    artists: async () => [],
+    status: async () => ({ completed: false }),
+    dispatch: () => async () => ({ runId: 1 }),
+  };
+  const saved = () => JSON.parse(store.get("ops:site.auto_update:production"));
+
+  let result = await autoUpdateTick({}, deps);
+  assert.deepEqual(result, { production: { action: "checking", pending: 0, unchecked: 3 } });
+  assert.equal(Object.keys(saved().fingerprints).length, 2);
+  result = await autoUpdateTick({}, deps);
+  assert.equal(result.production.unchecked, 1);
+  result = await autoUpdateTick({}, deps);
+  assert.equal(result.production.action, "wait-quiet", "all known: d0 changed, d1–d4 added");
+  assert.equal(result.production.pending, 5);
+  assert.equal(Object.keys(saved().fingerprints).length, 5);
+  assert.equal(queries, 3, "the preview site wasn't checked");
+});

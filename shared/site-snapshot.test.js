@@ -44,7 +44,7 @@ test("pending lists added, changed and removed documents and artists", () => {
     ),
   );
   const pending = pendingSince(snapshot, {
-    docs: [night("2026-10-03", { time: "20:00" }), night("2026-10-17")],
+    docs: [night("2026-10-03", { time: "20:00", _rev: "r2" }), night("2026-10-17")],
     artists: [
       { id: 1, order: "2", Name: "Ana", Active: true },
       { id: 2, Name: "Bo" },
@@ -72,4 +72,39 @@ test("signature ignores order", () => {
   const b = { kind: "artist", id: "1", change: "changed" };
   assert.equal(pendingSignature([a, b]), pendingSignature([b, a]));
   assert.notEqual(pendingSignature([a]), pendingSignature([a, b]));
+});
+
+test("a document whose revision the snapshot recorded isn't fingerprinted again", () => {
+  const snapshot = parseSnapshot(JSON.stringify(buildSnapshot({ docs: [night("2026-10-03")] })));
+  assert.equal(snapshot.documents["event-nights-2026-10-03"][3], "r1");
+  // Same revision: taken as unchanged without hashing (budget 0 proves it).
+  const same = pendingSince(snapshot, { docs: [night("2026-10-03")] }, { budget: 0 });
+  assert.deepEqual([same.items, same.complete], [[], true]);
+  // A new revision with the same content: hashed, and not a change.
+  const saved = pendingSince(snapshot, { docs: [night("2026-10-03", { _rev: "r2" })] });
+  assert.deepEqual(saved.items, []);
+  assert.deepEqual(saved.fingerprints, {
+    "event-nights-2026-10-03": ["r2", documentFingerprint(night("2026-10-03"))],
+  });
+});
+
+test("fingerprints kept from an earlier run are reused, and the budget caps new work", () => {
+  // A snapshot from before revisions were recorded: every document needs a fingerprint once.
+  const old = buildSnapshot({ docs: [night("a"), night("b"), night("c")] });
+  for (const entry of Object.values(old.documents)) entry.length = 3;
+  const docs = [night("a"), night("b"), night("c", { time: "20:00", _rev: "r2" })];
+
+  const first = pendingSince(old, { docs }, { budget: 2 });
+  assert.equal(first.complete, false);
+  assert.equal(first.unresolved, 1);
+  assert.deepEqual(first.items, [], "a document not looked at yet isn't reported as changed or removed");
+
+  const second = pendingSince(old, { docs }, { fingerprints: first.fingerprints, budget: 2 });
+  assert.equal(second.complete, true);
+  assert.deepEqual(
+    second.items.map((item) => `${item.change}:${item.label}`),
+    ["changed:Gwenda Nights · c"],
+  );
+  const third = pendingSince(old, { docs }, { fingerprints: second.fingerprints, budget: 0 });
+  assert.deepEqual([third.complete, third.items.length], [true, 1], "nothing left to hash");
 });
