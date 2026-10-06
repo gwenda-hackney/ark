@@ -8,12 +8,12 @@ import { parseArgs } from "../scripts/d1-store.mjs";
 describe("storeOf", () => {
   it("is Baserow until _meta says d1, and Baserow where D1 can't be reached", async () => {
     const env = { OPS_DB: createTestD1("ops") };
-    assert.equal(await storeOf(env, "users"), "baserow");
+    assert.equal(await storeOf(env, "users", { now: 0 }), "baserow");
     await run(
       env.OPS_DB,
       "INSERT INTO _meta (key, value) VALUES ('store:users', 'd1')",
     );
-    assert.equal(await storeOf(env, "users"), "d1");
+    assert.equal(await storeOf(env, "users", { now: 60_000 }), "d1");
     assert.equal(await storeOf(env, "menu"), "baserow");
     assert.equal(await storeOf({}, "users"), "baserow");
     assert.equal(
@@ -41,6 +41,28 @@ describe("storeOf", () => {
       /Can't tell where users lives/,
     );
     await assert.rejects(storeOf({}, "rsvp"), /Unknown feature/);
+  });
+});
+
+describe("storeOf cache", () => {
+  it("reads _meta once per few seconds per runtime, not per call", async () => {
+    const db = createTestD1("ops");
+    let reads = 0;
+    const counting = { prepare: (sql) => (reads++, db.prepare(sql)) };
+    const env = { OPS_DB: counting };
+    await storeOf(env, "users", { now: 1000 });
+    await storeOf(env, "users", { now: 2000 });
+    assert.equal(reads, 1);
+    await run(
+      db,
+      "INSERT INTO _meta (key, value) VALUES ('store:users', 'd1')",
+    );
+    assert.equal(
+      await storeOf(env, "users", { now: 7000 }),
+      "d1",
+      "seen once the cache is older than STORE_CACHE_MS",
+    );
+    assert.equal(reads, 2);
   });
 });
 
