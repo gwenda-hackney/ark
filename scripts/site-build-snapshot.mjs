@@ -55,7 +55,11 @@ async function artists() {
     console.warn("No BASEROW_OPS_API_KEY: artists not in the snapshot.");
     return [];
   }
-  return listArtists({ BASEROW_API_KEY: key, BASEROW_API_URL: process.env.BASEROW_API_URL });
+  return listArtists({
+    BASEROW_API_KEY: key,
+    BASEROW_API_URL: process.env.BASEROW_API_URL,
+    SANITY_PROJECT_ID: process.env.SANITY_PROJECT_ID,
+  });
 }
 
 if (command === "capture") {

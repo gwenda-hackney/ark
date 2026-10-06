@@ -219,6 +219,11 @@ export function artistFields() {
     { name: "Website", body: { name: "Website", type: "url" } },
     { name: "Profile", body: { name: "Profile", type: "long_text" } },
     { name: "Bio", body: { name: "Bio", type: "long_text" } },
+    // Sanity asset ids (#183): the portrait's, and JSON lists for art and Gwenda photos.
+    { name: "Portrait asset", body: { name: "Portrait asset", type: "text" } },
+    { name: "Art assets", body: { name: "Art assets", type: "long_text" } },
+    { name: "Gwenda assets", body: { name: "Gwenda assets", type: "long_text" } },
+    // The Baserow files from before, until the cleanup after the backfill.
     { name: "Portrait", body: { name: "Portrait", type: "file" } },
     { name: "Art", body: { name: "Art", type: "file" } },
     { name: "Gwenda photos", body: { name: "Gwenda photos", type: "file" } },
