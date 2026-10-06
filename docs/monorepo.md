@@ -23,7 +23,7 @@ An app never imports another app's files. Code that two apps (or an app and `scr
 | Module | What | Used by |
 |---|---|---|
 | `baserow.js` | Baserow client (rate-limited, retrying), Gwenda Ops table names and lookup | ops, website, scripts |
-| `artists.js` | Reading wall artists from Gwenda Ops (`listArtists`) | ops, website, scripts |
+| `artists.js`, `artists/` | Wall artists and guest artists: `listArtists`, and the ArtistRepository (Baserow, D1, memory adapters) | ops, website, scripts |
 | `web-address.js` | Web addresses typed by editors (`parseProductUrl`, `normalizeWebsite`) | ops, scripts |
 | `sanity-projects.js` | The real and Gwenda Dev Sanity project IDs | ops, Studio, scripts |
 | `env-file.js` | `.env`-style parsing (`parseDotEnv`) and PEM values | website config, scripts |

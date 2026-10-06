@@ -1,18 +1,15 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
+import { memorySubscriberRepository } from "../../../shared/guests/adapters/memory-subscribers.js";
+import type { SubscriberRecord } from "../../../shared/guests/subscribers.js";
 import {
-  clearSubscribeTableIdCache,
   isAuthorized,
   isRateLimited,
-  listUnsyncedRows,
   mailchimpSubscriberHash,
   normalizeEmail,
   normalizeSignedUp,
-  normalizeTag,
-  normalizeTags,
   permanentRejection,
   resolveAudienceId,
-  resolveTableId,
   SIGNED_UP_MERGE_TAG,
   syncUnsyncedSubscribers,
   upsertMailchimpMember,
@@ -33,53 +30,14 @@ describe("helpers", () => {
     expect(normalizeEmail("nope")).toBeNull();
   });
 
-  it("normalizes tags and signed-up dates", () => {
-    expect(normalizeTag("prelaunch")).toBe("prelaunch");
-    expect(normalizeTag({ value: "prelaunch" })).toBe("prelaunch");
-    expect(normalizeTag({})).toBeUndefined();
-    expect(normalizeTags("prelaunch")).toEqual(["prelaunch"]);
-    expect(normalizeTags([{ value: "prelaunch" }, { value: "wifi" }])).toEqual([
-      "prelaunch",
-      "wifi",
-    ]);
-    expect(normalizeTags(["prelaunch", "wifi", "prelaunch"])).toEqual([
-      "prelaunch",
-      "wifi",
-    ]);
+  it("normalizes signed-up dates", () => {
     expect(normalizeSignedUp("2026-07-04")).toBe("2026-07-04");
     expect(normalizeSignedUp("2026-07-04T12:00:00.000Z")).toBe("2026-07-04");
     expect(normalizeSignedUp("nope")).toBeUndefined();
   });
 
-  it("resolves Subscribers by name and defaults the audience", async () => {
-    clearSubscribeTableIdCache();
+  it("defaults the audience", () => {
     expect(resolveAudienceId({})).toBe("e2c69d5d31");
-
-    const fetchImpl = vi.fn(async () => ({
-      ok: true,
-      json: async () => [
-        { id: 1017358, name: "Subscribers", database_id: 461843 },
-      ],
-    })) as unknown as typeof fetch;
-
-    await expect(
-      resolveTableId({ BASEROW_API_KEY: "k" }, fetchImpl),
-    ).resolves.toBe("1017358");
-  });
-
-  it("errors when the token can see more than one Subscribers table", async () => {
-    clearSubscribeTableIdCache();
-    const fetchImpl = vi.fn(async () => ({
-      ok: true,
-      json: async () => [
-        { id: 1017358, name: "Subscribers", database_id: 461843 },
-        { id: 1024006, name: "Subscribers", database_id: 563090 },
-      ],
-    })) as unknown as typeof fetch;
-
-    await expect(
-      resolveTableId({ BASEROW_API_KEY: "k" }, fetchImpl),
-    ).rejects.toThrow(/Website database/);
   });
 
   it("hashes lowercase email for Mailchimp", () => {
@@ -104,30 +62,6 @@ describe("helpers", () => {
     expect(isRateLimited(429, "")).toBe(true);
     expect(isRateLimited(400, "too many requests")).toBe(true);
     expect(isRateLimited(500, "boom")).toBe(false);
-  });
-});
-
-describe("listUnsyncedRows", () => {
-  it("can list all rows when all=true", async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      expect(url).not.toContain("filter__Synced__boolean");
-      expect(url).toContain("size=100");
-      return Response.json({
-        results: [{ id: 1, Email: "a@example.com", Synced: true }],
-      });
-    });
-
-    const rows = await listUnsyncedRows({
-      apiKey: "k",
-      apiBase: "https://api.baserow.io",
-      tableId: "1017358",
-      limit: 100,
-      all: true,
-      fetchImpl: fetchImpl as unknown as typeof fetch,
-    });
-
-    expect(rows).toHaveLength(1);
   });
 });
 
@@ -227,100 +161,121 @@ describe("upsertMailchimpMember", () => {
 });
 
 describe("syncUnsyncedSubscribers", () => {
-  function tablesResponse() {
-    return Response.json([
-      { id: 1017358, name: "Subscribers", database_id: 461843 },
-    ]);
+  /** Subscribers in memory, with these records (ids kept). */
+  async function subscribers(records: Array<Partial<SubscriberRecord> & { id: number }>) {
+    const repository = memorySubscriberRepository();
+    await repository.importAll({
+      subscribers: records.map((record) => ({
+        email: "",
+        tags: [],
+        signedUpOn: null,
+        synced: false,
+        ...record,
+      })),
+    });
+    return repository;
   }
 
-  it("dry-run does not call Mailchimp or patch Baserow", async () => {
-    clearSubscribeTableIdCache();
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes("api.mailchimp.com") || init?.method === "PATCH") {
-        throw new Error(`Unexpected mutating fetch: ${url}`);
-      }
-      if (url.includes("/all-tables/")) return tablesResponse();
-      if (url.includes("/rows/table/")) {
-        return Response.json({
-          results: [
-            { id: 7, Email: "a@example.com", Tag: "prelaunch", Synced: false },
-          ],
-        });
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
+  it("skips the run while guests are frozen for the move to D1 (#191)", async () => {
+    const fetchImpl = vi.fn();
+    const repository = await subscribers([{ id: 7, email: "a@example.com" }]);
+    const listUnsynced = vi.spyOn(repository, "listUnsynced");
+    const frozenDb = {
+      prepare: () => ({
+        bind: () => ({ all: async () => ({ results: [{ key: "write_freeze:guests" }] }) }),
+      }),
+    };
+    const summary = await syncUnsyncedSubscribers(
+      { ...env, WEBSITE_DB: frozenDb },
+      { fetchImpl: fetchImpl as unknown as typeof fetch, repository },
+    );
+    expect(summary).toMatchObject({ ok: true, frozen: true, scanned: 0 });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(listUnsynced).not.toHaveBeenCalled();
+  });
+
+  it("dry-run does not call Mailchimp or mark anything synced", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      throw new Error(`Unexpected fetch: ${String(input)}`);
     });
+    const repository = await subscribers([
+      { id: 7, email: "a@example.com", tags: ["prelaunch"] },
+    ]);
 
     const summary = await syncUnsyncedSubscribers(env, {
       dryRun: true,
       fetchImpl: fetchImpl as unknown as typeof fetch,
+      repository,
     });
 
     expect(summary.ok).toBe(true);
     expect(summary.dryRun).toBe(true);
     expect(summary.synced).toBe(1);
     expect(summary.results[0]?.status).toBe("dry-run");
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect((await repository.listUnsynced()).map((r) => r.id)).toEqual([7]);
   });
 
-  it("upserts in Mailchimp then marks Baserow Synced", async () => {
-    clearSubscribeTableIdCache();
+  it("upserts in Mailchimp with the tags and sign-up date, then marks the subscriber synced", async () => {
     const hash = mailchimpSubscriberHash("a@example.com");
+    const puts: unknown[] = [];
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.includes("/all-tables/")) return tablesResponse();
-      if (url.includes("api.baserow.io") && init?.method !== "PATCH") {
-        return Response.json({
-          results: [
-            { id: 7, Email: "a@example.com", Tag: "prelaunch", Synced: false },
-          ],
-        });
-      }
-      if (url.includes("api.mailchimp.com") && url.endsWith(`/members/${hash}`) && !init?.method) {
+      if (url.endsWith(`/members/${hash}`) && !init?.method) {
         return new Response("{}", { status: 404 });
       }
-      if (url.includes("api.mailchimp.com") && init?.method === "PUT") {
+      if (init?.method === "PUT") {
+        puts.push(JSON.parse(String(init.body)));
         return new Response("{}", { status: 200 });
       }
-      if (url.includes("api.mailchimp.com") && init?.method === "POST") {
-        return new Response(null, { status: 204 });
-      }
-      if (url.includes("/7/") && init?.method === "PATCH") {
-        expect(JSON.parse(String(init.body))).toEqual({ Synced: true });
-        return new Response("{}", { status: 200 });
-      }
+      if (init?.method === "POST") return new Response(null, { status: 204 });
       throw new Error(`Unexpected fetch: ${url} ${init?.method}`);
     });
+    const repository = await subscribers([
+      { id: 7, email: "a@example.com", tags: ["prelaunch"], signedUpOn: "2026-07-04" },
+      { id: 8, email: "done@example.com", synced: true },
+    ]);
 
     const summary = await syncUnsyncedSubscribers(env, {
       fetchImpl: fetchImpl as unknown as typeof fetch,
+      repository,
     });
 
     expect(summary.ok).toBe(true);
     expect(summary.synced).toBe(1);
     expect(summary.errors).toBe(0);
     expect(summary.results[0]?.status).toBe("synced");
+    expect(puts[0]).toMatchObject({ merge_fields: { [SIGNED_UP_MERGE_TAG]: "2026-07-04" } });
+    expect(await repository.listUnsynced()).toEqual([]);
+  });
+
+  it("never sends the deploy smoke test's sign-up to Mailchimp", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      throw new Error(`Unexpected Mailchimp call: ${String(input)}`);
+    });
+    const repository = await subscribers([
+      { id: 9, email: "Alerts+Signup-Smoke@gwenda.co.uk", tags: ["prelaunch"] },
+    ]);
+
+    const summary = await syncUnsyncedSubscribers(env, {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      repository,
+    });
+
+    expect(summary).toMatchObject({ ok: true, synced: 0, errors: 0 });
+    expect(summary.results[0]).toMatchObject({ rowId: 9, status: "skipped", detail: "Smoke test" });
+    expect((await repository.listUnsynced()).map((r) => r.id)).toEqual([9]);
   });
 
   it("stops early when Mailchimp rate-limits", async () => {
-    clearSubscribeTableIdCache();
     let mailchimpPuts = 0;
     const hashA = mailchimpSubscriberHash("a@example.com");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      if (url.includes("/all-tables/")) return tablesResponse();
-      if (url.includes("api.baserow.io") && init?.method !== "PATCH") {
-        return Response.json({
-          results: [
-            { id: 1, Email: "a@example.com", Synced: false },
-            { id: 2, Email: "b@example.com", Synced: false },
-          ],
-        });
-      }
-      if (url.includes("api.mailchimp.com") && url.includes(`/members/${hashA}`) && !init?.method) {
+      if (url.includes(`/members/${hashA}`) && !init?.method) {
         return new Response("{}", { status: 404 });
       }
-      if (url.includes("api.mailchimp.com") && init?.method === "PUT") {
+      if (init?.method === "PUT") {
         mailchimpPuts += 1;
         return new Response(
           JSON.stringify({ title: "Too Many Requests" }),
@@ -329,9 +284,14 @@ describe("syncUnsyncedSubscribers", () => {
       }
       throw new Error(`Unexpected fetch: ${url}`);
     });
+    const repository = await subscribers([
+      { id: 1, email: "a@example.com" },
+      { id: 2, email: "b@example.com" },
+    ]);
 
     const summary = await syncUnsyncedSubscribers(env, {
       fetchImpl: fetchImpl as unknown as typeof fetch,
+      repository,
     });
 
     expect(mailchimpPuts).toBe(1);

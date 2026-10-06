@@ -2,28 +2,27 @@
 /**
  * Pull product photos from Hills Prospect (and similar vendor pages) onto
  * non-custom menu drinks: pours, packaged bottles, and draught beer.
- * Skips cocktails (Our Formulas / By the Book mixed drinks).
+ * Skips cocktails (Our Formulas / By the Book mixed drinks). Each photo goes
+ * to Sanity, like one uploaded in ops (#183); the drink keeps its asset id
+ * (Menu Items "Photo asset"). with-ops-env points at the Gwenda Dev project
+ * unless SANITY_PROJECT_ID says otherwise. Drinks, recipes and supplier
+ * links come through the menu repository (Baserow or D1, wherever the menu
+ * lives).
  *
  * Usage:
  *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs
  *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs --dry-run
  *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs --force
  */
-import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
+import { menuRepository } from "../ops/site/src/menu/server/menu-repository.js";
+import { sanityUploadImage } from "../ops/site/src/platform/sanity.js";
+import { parseImageAssetId } from "../shared/sanity-image.js";
 
-const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
-  /\/$/,
-  "",
-);
-const apiKey = process.env.BASEROW_API_KEY?.trim();
-let itemsTableId = "";
-let ingredientsTableId = "";
-let inventorySuppliersTableId = "";
 const dryRun = process.argv.includes("--dry-run");
 const force = process.argv.includes("--force");
 
-if (!apiKey) {
-  console.error("Need BASEROW_API_KEY");
+if (!dryRun && !process.env.SANITY_API_TOKEN?.trim()) {
+  console.error("Need SANITY_API_TOKEN");
   process.exit(1);
 }
 
@@ -31,67 +30,14 @@ const TARGET_TYPES = new Set(["pour", "packaged", "beer"]);
 const UA =
   "Mozilla/5.0 (compatible; GwendaOps/1.0; +https://gwenda.co.uk)";
 
-async function baserow(path, init = {}) {
-  const headers = {
-    Authorization: `Token ${apiKey}`,
-    ...(init.body && !(init.body instanceof FormData)
-      ? { "Content-Type": "application/json" }
-      : {}),
-    ...(init.headers || {}),
-  };
-  const response = await fetch(`${apiBase}${path}`, { ...init, headers });
-  const text = await response.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
-  }
-  if (!response.ok) {
-    throw new Error(
-      `${path} → ${response.status}: ${JSON.stringify(json || text).slice(0, 400)}`,
-    );
-  }
-  return json;
-}
-
-async function listRows(tableId) {
-  const rows = [];
-  let page = 1;
-  for (;;) {
-    const payload = await baserow(
-      `/api/database/rows/table/${tableId}/?user_field_names=true&size=200&page=${page}`,
-    );
-    rows.push(...(payload.results || []));
-    if (!payload.next) break;
-    page += 1;
-  }
-  return rows;
-}
-
-function selectValue(value) {
-  if (typeof value === "string") return value.trim();
-  if (value && typeof value === "object" && typeof value.value === "string") {
-    return value.value.trim();
-  }
-  return "";
-}
-
-function linkId(field) {
-  if (Array.isArray(field) && field[0] != null) {
-    return typeof field[0] === "object" ? field[0].id : field[0];
-  }
-  return null;
-}
-
-function drinkType(row) {
-  const raw = selectValue(row["Drink type"]).toLowerCase();
+function drinkType(record) {
+  const raw = String(record.drinkType || "").trim().toLowerCase();
   if (raw === "pour" || raw === "beer" || raw === "packaged") return raw;
   return "cocktail";
 }
 
-function hasPhoto(row) {
-  return Array.isArray(row.Photo) && row.Photo.length > 0;
+function hasPhoto(record) {
+  return Boolean(parseImageAssetId(record.photoAsset) || record.legacyPhotoUrl);
 }
 
 function sleep(ms) {
@@ -177,42 +123,25 @@ async function fetchVendorImage(productUrl) {
   return { ok: true, bytes, contentType, imageUrl, ext };
 }
 
-async function uploadAndAttach(itemId, name, bytes, contentType, ext) {
-  const form = new FormData();
+async function uploadAndAttach(repo, itemId, name, bytes, contentType, ext) {
   const slug = String(name || "drink")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-  form.append(
-    "file",
-    new Blob([bytes], { type: contentType }),
-    `${slug || "drink"}.${ext}`,
-  );
-  const uploaded = await baserow("/api/user-files/upload-file/", {
-    method: "POST",
-    body: form,
+  const asset = await sanityUploadImage(process.env, bytes, {
+    filename: `${slug || "drink"}.${ext}`,
+    contentType,
   });
-  await baserow(
-    `/api/database/rows/table/${itemsTableId}/${itemId}/?user_field_names=true`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ Photo: [{ name: uploaded.name }] }),
-    },
-  );
-  return uploaded.url || uploaded.name;
+  if (!parseImageAssetId(asset?._id)) {
+    throw new Error("Sanity didn't take the photo");
+  }
+  await repo.update("menu_items", itemId, { photoAsset: asset._id });
+  return asset._id;
 }
 
 async function main() {
-  const tables = await requireOpsTables();
-  itemsTableId = tables.items;
-  ingredientsTableId = tables.ingredients;
-  inventorySuppliersTableId = tables.inventorySuppliers;
-  if (!inventorySuppliersTableId) {
-    throw new Error(
-      'Baserow table "Inventory suppliers" not found. Run npm run setup:baserow-ops.',
-    );
-  }
+  const repo = menuRepository(process.env);
   console.log(
     dryRun
       ? "Dry run: vendor photos for pour / packaged / beer…\n"
@@ -220,25 +149,23 @@ async function main() {
   );
 
   const [items, ingredients, links] = await Promise.all([
-    listRows(itemsTableId),
-    listRows(ingredientsTableId),
-    listRows(inventorySuppliersTableId),
+    repo.list("menu_items"),
+    repo.list("ingredients"),
+    repo.list("inventory_suppliers"),
   ]);
 
   const urlByInv = new Map();
   for (const link of links) {
-    const invId = String(linkId(link.Inventory) ?? "");
-    const url = String(link["Product URL"] || "").trim();
+    const invId = String(link.inventoryId ?? "");
+    const url = String(link.productUrl || "").trim();
     if (!invId || !url) continue;
     if (!urlByInv.has(invId)) urlByInv.set(invId, url);
   }
 
   const firstInvByItem = new Map();
-  for (const row of ingredients) {
-    const itemId = Number(linkId(row["Menu Item"]));
-    const invId = linkId(row.Inventory);
-    if (!itemId || invId == null) continue;
-    if (!firstInvByItem.has(itemId)) firstInvByItem.set(itemId, String(invId));
+  for (const line of ingredients) {
+    if (!line.itemId || line.inventoryId == null) continue;
+    if (!firstInvByItem.has(line.itemId)) firstInvByItem.set(line.itemId, String(line.inventoryId));
   }
 
   const targets = items.filter((row) => TARGET_TYPES.has(drinkType(row)));
@@ -247,7 +174,7 @@ async function main() {
   const results = [];
 
   for (const item of targets) {
-    const name = String(item.Name || "").trim();
+    const name = String(item.name || "").trim();
     if (!name) {
       skipped += 1;
       continue;
@@ -257,7 +184,7 @@ async function main() {
       results.push({ name, status: "skip", reason: "already has photo" });
       continue;
     }
-    const invId = firstInvByItem.get(Number(item.id));
+    const invId = firstInvByItem.get(item.id);
     const productUrl = invId ? urlByInv.get(invId) : null;
     if (!productUrl) {
       skipped += 1;
@@ -300,6 +227,7 @@ async function main() {
         });
       } else {
         const attached = await uploadAndAttach(
+          repo,
           item.id,
           name,
           fetched.bytes,

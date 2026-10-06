@@ -13,7 +13,7 @@ vi.mock("./form-store.js", () => ({
   FORM_STATUS_VERIFIED: "verified",
   upsertFormSubmission: vi.fn(async () => ({ ok: true, rowId: 7 })),
   markFormSubmissionEmailSent: vi.fn(async () => ({ ok: true })),
-  fetchFormSubmissionRow: vi.fn(async () => ({ id: 7 })),
+  fetchFormSubmission: vi.fn(async () => ({ ok: true, submission: { id: 7 } })),
   deleteFormSubmission: vi.fn(async () => ({ ok: true })),
 }));
 vi.mock("./form-submit.js", async (importOriginal) => ({

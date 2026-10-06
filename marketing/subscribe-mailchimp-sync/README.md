@@ -1,19 +1,17 @@
 # Subscribe Mailchimp sync
 
-Hourly Cloudflare Worker that copies unsynced Baserow production signup rows into the Mailchimp audience, then marks each row `Synced: true`.
+Hourly Cloudflare Worker that copies unsynced production subscribers into the Mailchimp audience, then marks each one synced. It reads them through the guests repository (`shared/guests`): Baserow `Subscribers` until `store:guests` says D1 (#127).
 
 Failures go to Sentry (project `mailchimp-sync`, #35), which emails alerts@ when one is new or comes back.
 
-The website `/api/subscribe` path stays Baserow-only.
-
 ## Behaviour
 
-1. List Baserow rows where `Synced` is false (production `Subscribers` table, up to 100 per run)
-2. Upsert each email in Mailchimp (`PUT /lists/{id}/members/{md5}`), set merge field `SIGNEDUP` from Baserow `Signed up`, and apply Baserow `Tag` when present
-3. `PATCH` Baserow `Synced: true` on success
+1. List unsynced subscribers (up to 100 per run)
+2. Upsert each email in Mailchimp (`PUT /lists/{id}/members/{md5}`), set merge field `SIGNEDUP` from its sign-up date, and apply its tags when present
+3. Mark it synced on success
 4. Leave failed rows unsynced for the next run; stop early on rate limit
-5. If Mailchimp already has the member as `unsubscribed` / `cleaned` / `archived`, do **not** force resubscribe; still mark Baserow synced
-6. If Mailchimp rejects the address for good (400 "Invalid Resource", e.g. it looks fake), mark Baserow synced so it isn't retried every hour, and send a Sentry warning (no alert email)
+5. If Mailchimp already has the member as `unsubscribed` / `cleaned` / `archived`, do **not** force resubscribe; still mark it synced
+6. If Mailchimp rejects the address for good (400 "Invalid Resource", e.g. it looks fake), mark it synced so it isn't retried every hour, and send a Sentry warning (no alert email)
 
 Audience merge field: **Signed up** (`SIGNEDUP`, date). Create once if missing (setup does this).
 

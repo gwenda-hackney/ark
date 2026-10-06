@@ -91,6 +91,10 @@ jobs:
           BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
         run: node scripts/sm-export.mjs BASEROW_JWT_EMAIL BASEROW_JWT_PASSWORD
 
+      # D1 schema first (db/<role>/migrations, #191): it only adds, and skips databases not created yet.
+      - name: D1 schema migrations
+        run: node scripts/d1-migrate.mjs --env production
+
       # Additive only, so the website still running keeps working (scripts/lib/migrations.mjs).
       - name: Migrations before deploy
         if: inputs.reason != 'content'
@@ -176,7 +180,13 @@ jobs:
         if: failure() && steps.rollback.outcome == 'success' && steps.previous.outputs.previous-version != ''
         run: cd marketing/web && node scripts/ci/smoke-test.mjs --url https://gwenda.co.uk --expected-version "${{ steps.previous.outputs.previous-version }}" --retries 18 --retry-delay-ms 5000
 
-      # The new code is live: remove what only the old code used.
+      # The new code is live: remove what only the old code used, and what the
+      # smoke test left (smoke-test-cleanup.mjs, which needs the Mailchimp key).
+      - name: Mailchimp key for the smoke-test cleanup
+        if: inputs.reason != 'content'
+        env:
+          BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+        run: node scripts/sm-export.mjs MAILCHIMP_API_KEY
       - name: Migrations after deploy
         id: post-migrations
         if: inputs.reason != 'content'

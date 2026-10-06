@@ -1,4 +1,5 @@
 export type Env = {
+  /** The Website Baserow token, while subscribers are on Baserow (#127). */
   BASEROW_API_KEY: string;
   /** Site Manager API key from unifi.ui.com → Settings → API Keys */
   UNIFI_SITE_MANAGER_API_KEY: string;
@@ -14,72 +15,14 @@ export type Env = {
   UNIFI_SITE_IDENTIFIER?: string;
   UNIFI_GUEST_MINUTES?: string;
   REDIRECT_URL?: string;
+  /** The website D1 database (#127): subscribers once guests move, and the write freeze (#191). */
+  WEBSITE_DB?: unknown;
 };
 
-export const SUBSCRIBE_TABLE_NAME = "Subscribers";
-export const DEFAULT_BASEROW_API_URL = "https://api.baserow.io";
 export const DEFAULT_SUBSCRIBE_TAG = "wifi";
 export const DEFAULT_SITE_IDENTIFIER = "default";
 export const DEFAULT_GUEST_MINUTES = 1440;
 export const DEFAULT_REDIRECT_URL = "https://gwenda.co.uk";
-
-const tableIdCache = new Map<string, string>();
-
-export function clearSubscribeTableIdCache() {
-  tableIdCache.clear();
-}
-
-export function resolveSubscribeTableName(env: Env): string {
-  return env.BASEROW_SUBSCRIBE_TABLE_NAME?.trim() || SUBSCRIBE_TABLE_NAME;
-}
-
-export function resolveApiUrl(env: Env): string {
-  return (env.BASEROW_API_URL?.trim() || DEFAULT_BASEROW_API_URL).replace(
-    /\/$/,
-    "",
-  );
-}
-
-export async function resolveSubscribeTableId(env: Env): Promise<string> {
-  const apiKey = env.BASEROW_API_KEY?.trim();
-  if (!apiKey) throw new Error("BASEROW_API_KEY is not configured");
-
-  const tableName = resolveSubscribeTableName(env);
-  const databaseId = env.BASEROW_DATABASE_ID?.trim() || "";
-  const apiBase = resolveApiUrl(env);
-  const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
-  const cached = tableIdCache.get(cacheKey);
-  if (cached) return cached;
-
-  const upstream = await fetch(`${apiBase}/api/database/tables/all-tables/`, {
-    headers: { Authorization: `Token ${apiKey}` },
-  });
-  if (!upstream.ok) {
-    throw new Error(`Could not list Baserow tables (${upstream.status})`);
-  }
-  const tables = (await upstream.json()) as Array<{
-    id: number;
-    name: string;
-    database_id: number;
-  }>;
-  let matches = tables.filter((table) => table.name === tableName);
-  if (databaseId) {
-    matches = matches.filter(
-      (table) => String(table.database_id) === databaseId,
-    );
-  }
-  if (matches.length === 0) {
-    throw new Error(`Baserow table "${tableName}" not found.`);
-  }
-  if (matches.length > 1) {
-    throw new Error(
-      `Multiple Baserow tables named "${tableName}". Scope the token to the Website database.`,
-    );
-  }
-  const tableId = String(matches[0].id);
-  tableIdCache.set(cacheKey, tableId);
-  return tableId;
-}
 
 export function resolveSubscribeTag(env: Env): string {
   return env.WIFI_SUBSCRIBE_TAG?.trim() || DEFAULT_SUBSCRIBE_TAG;

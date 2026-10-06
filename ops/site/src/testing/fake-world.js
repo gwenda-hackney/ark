@@ -15,14 +15,18 @@
  */
 import { evaluate, parse } from "groq-js";
 import {
+  GUEST_ARTIST_FIELDS,
   artistFields,
   eventDateFields,
   eventFields,
   ingredientFields,
+  inventoryFields,
+  inventorySupplierFields,
   itemFields,
   menuPlacementFields,
   posMenuFields,
   sectionFields,
+  supplierFields,
   userFields,
 } from "../platform/baserow-schema.js";
 
@@ -36,12 +40,12 @@ const CALENDAR_ID = "events@group.calendar.google.com";
 let nextId = 1000;
 const newId = () => (nextId += 1);
 
-function makeTable(name, databaseId, specs = []) {
+function makeTable(name, databaseId, specs = [], primary = "Name") {
   const table = {
     id: newId(),
     name,
     database_id: databaseId,
-    fields: [{ id: newId(), name: "Name", type: "text", primary: true }],
+    fields: [{ id: newId(), name: primary, type: "text", primary: true }],
     rows: new Map(),
   };
   return addFields(table, specs);
@@ -107,6 +111,21 @@ class FakeBaserow {
     return this.present(table, this.write(table, { id: newId() }, fields));
   }
 
+  /** Change a row behind ops' back, as someone editing Baserow would. */
+  update(tableName, id, fields) {
+    const table = this.tableByName(tableName);
+    const row = table.rows.get(Number(id));
+    if (!row) throw new Error(`Fake Baserow: no row ${id} in "${tableName}"`);
+    return this.present(table, this.write(table, row, fields));
+  }
+
+  /** A user file, as an upload made before (#183) left it. */
+  addFile(visibleName, bytes, type = "image/jpeg") {
+    const name = `${newId()}_${visibleName}`;
+    this.files.set(name, { bytes, type, visibleName });
+    return { name };
+  }
+
   write(table, row, input) {
     for (const [key, value] of Object.entries(input || {})) {
       const field = table.fields.find((f) => f.name === key);
@@ -145,7 +164,10 @@ class FakeBaserow {
       if (value === undefined) out[field.name] = emptyValue(field);
       else if (field.type === "link_row") {
         const target = this.tableById(field.link_row_table_id);
-        out[field.name] = value.map((id) => ({ id, value: target?.rows.get(id)?.Name ?? "" }));
+        // Like Baserow: a link to a deleted row is gone.
+        out[field.name] = value
+          .filter((id) => !target || target.rows.has(id))
+          .map((id) => ({ id, value: target?.rows.get(id)?.Name ?? "" }));
       } else if (field.type === "file") {
         out[field.name] = value.map((name) => ({
           name,
@@ -223,6 +245,17 @@ class FakeBaserow {
         return json({ error: "ERROR_REQUEST_BODY_VALIDATION", detail: error.message }, error.status || 400);
       }
     }
+    match = path.match(/^\/api\/database\/rows\/table\/(\d+)\/batch-delete\/$/);
+    if (match && method === "POST") {
+      const table = tables.get(Number(match[1]));
+      if (!table) return json({ error: "ERROR_TABLE_DOES_NOT_EXIST" }, 404);
+      const { items = [] } = init.body ? JSON.parse(init.body) : {};
+      // Like Baserow: one missing row fails the whole batch.
+      const missing = items.find((id) => !table.rows.has(Number(id)));
+      if (missing != null) return json({ error: "ERROR_ROW_DOES_NOT_EXIST", detail: `Row ${missing} does not exist.` }, 404);
+      for (const id of items) table.rows.delete(Number(id));
+      return new Response(null, { status: 204 });
+    }
     if (path === "/api/user-files/upload-file/" && method === "POST") {
       const file = init.body instanceof FormData ? init.body.get("file") : null;
       if (!file || typeof file === "string") throw new Error("Fake Baserow: upload without a file");
@@ -265,17 +298,28 @@ function opsTables() {
   const sections = makeTable("Menu Sections", databaseId);
   const items = makeTable("Menu Items", databaseId);
   const posMenus = makeTable("POS Menus", databaseId, posMenuFields());
+  const inventory = makeTable("Inventory", databaseId, inventoryFields());
+  const suppliers = makeTable("Suppliers", databaseId, supplierFields());
   addFields(sections, sectionFields(sections.id));
   addFields(items, itemFields(sections.id, posMenus.id));
   const tables = [
     sections,
     items,
-    makeTable("Ingredients", databaseId, ingredientFields(items.id, null)),
+    makeTable("Ingredients", databaseId, ingredientFields(items.id, inventory.id)),
+    inventory,
+    suppliers,
+    makeTable("Inventory suppliers", databaseId, inventorySupplierFields(inventory.id, suppliers.id)),
     posMenus,
     makeTable("Menu placements", databaseId, menuPlacementFields(items.id, sections.id, posMenus.id)),
     makeTable("Users", databaseId, userFields()),
     makeTable("Events", databaseId, eventFields()),
     makeTable("Artists", databaseId, artistFields()),
+    makeTable(
+      "Guest artists",
+      databaseId,
+      GUEST_ARTIST_FIELDS.map((body) => ({ name: body.name, body })),
+      "Email",
+    ),
   ];
   const events = tables.find((table) => table.name === "Events");
   tables.push(makeTable("Event dates", databaseId, eventDateFields(events.id)));
@@ -340,7 +384,11 @@ class FakeSanity {
       return json({ transactionId: `tx-${this.rev}`, results });
     }
     if (/\/assets\/images\//.test(url.pathname) && method === "POST") {
-      const id = `image-${newId()}-800x600-jpg`;
+      // Like Sanity: the id is a hash of the bytes, so the same photo is one asset.
+      const bytes = init.body == null ? new Uint8Array() : new Uint8Array(await new Response(init.body).arrayBuffer());
+      const sha1 = Buffer.from(await crypto.subtle.digest("SHA-1", bytes)).toString("hex");
+      const id = `image-${sha1}-800x600-jpg`;
+      if (this.docs.has(id)) return json({ document: this.docs.get(id) });
       const filename = url.searchParams.get("filename") || "upload.jpg";
       const doc = { _id: id, _type: "sanity.imageAsset", originalFilename: filename, url: `https://cdn.sanity.test/${id}.jpg` };
       this.docs.set(id, doc);
@@ -430,7 +478,14 @@ class FakeGoogle {
     const mimeType = raw.match(/--[^\r]+\r\nContent-Type: (image\/[a-z]+)/)?.[1] || "image/jpeg";
     // Uploads in order of creation, so "newest first" is testable.
     const createdTime = new Date(Date.UTC(2026, 0, 1) + newId() * 1000).toISOString();
-    const file = { id: `drive-${newId()}`, name: metadata.name, mimeType, parents: metadata.parents || [], createdTime };
+    const file = {
+      id: `drive-${newId()}`,
+      name: metadata.name,
+      mimeType,
+      parents: metadata.parents || [],
+      createdTime,
+      ...(metadata.appProperties ? { appProperties: metadata.appProperties } : {}),
+    };
     this.driveFiles.set(file.id, file);
     return json(file);
   }
@@ -460,11 +515,18 @@ class FakeGoogle {
     const file = this.driveFiles.get(id);
     if (!file) return json({ error: { message: "File not found" } }, 404);
     if (method === "GET" && url.searchParams.get("alt") === "media") {
-      return new Response(new Uint8Array(2048).fill(9), { headers: { "Content-Type": file.mimeType } });
+      // Bytes of its own per file: Sanity keeps one asset for identical photos.
+      const bytes = new Blob([file.id, new Uint8Array(2048).fill(9)]);
+      return new Response(bytes, { headers: { "Content-Type": file.mimeType } });
     }
     if (method === "GET") return json(file);
     if (method === "PATCH") {
-      Object.assign(file, JSON.parse(init.body || "{}"));
+      const { appProperties, ...rest } = JSON.parse(init.body || "{}");
+      Object.assign(file, rest);
+      if (appProperties) file.appProperties = { ...(file.appProperties || {}), ...appProperties };
+      const add = url.searchParams.get("addParents");
+      const remove = url.searchParams.get("removeParents");
+      if (add || remove) file.parents = [...file.parents.filter((parent) => parent !== remove), ...(add ? [add] : [])];
       return json(file);
     }
     if (method === "DELETE") {
@@ -565,6 +627,7 @@ export async function createFakeWorld() {
     GOOGLE_OAUTH_CLIENT_ID: "client-id",
     GOOGLE_OAUTH_CLIENT_SECRET: "client-secret",
     OPS_SESSION_SECRET: `session-${suffix}`,
+    DEPLOY_WEBHOOK_SECRET: `deploy-${suffix}`,
   };
 
   const calls = [];
@@ -580,6 +643,10 @@ export async function createFakeWorld() {
     if (url.host === FILES_HOST) return baserow.serveFile(url);
     if (url.host.endsWith(".api.sanity.io") || url.host.endsWith(".apicdn.sanity.io")) return sanity.handle(url, merged);
     if (url.host.endsWith("googleapis.com")) return google.handle(url, merged);
+    // The Sanity image CDN: the bytes of any asset, by its address.
+    if (url.host === "cdn.sanity.io") {
+      return new Response(new Blob([url.pathname, new Uint8Array(1024).fill(5)]), { headers: { "Content-Type": "image/jpeg" } });
+    }
     throw new Error(`Fake world: nothing fakes ${merged.method || "GET"} ${url}`);
   }
 
@@ -602,12 +669,12 @@ export async function createFakeWorld() {
  * Call an ops Pages Function the way Cloudflare does. `path` is the URL path,
  * `params` the route params, `body` JSON for POST/PATCH/PUT.
  */
-export async function callApi(world, handler, { method = "GET", path = "/", params = {}, body } = {}) {
+export async function callApi(world, handler, { method = "GET", path = "/", params = {}, body, headers = {} } = {}) {
   // FormData (file uploads) goes as multipart; anything else as JSON.
   const multipart = body instanceof FormData;
   const request = new Request(`https://gwenda-ops-dev.pages.dev${path}`, {
     method,
-    headers: body === undefined || multipart ? {} : { "Content-Type": "application/json" },
+    headers: { ...(body === undefined || multipart ? {} : { "Content-Type": "application/json" }), ...headers },
     body: body === undefined ? undefined : multipart ? body : JSON.stringify(body),
   });
   const response = await handler({ request, env: { ...world.env }, params, data: {}, waitUntil() {} });

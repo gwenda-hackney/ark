@@ -2,17 +2,10 @@
  * Per-channel menu placements: print / digital / POS each with its own location.
  *
  * Guest (print|digital) ⇒ at least one POS row. Archive clears all placements.
+ * Stored through the MenuRepository (collection menu_placements).
  */
 import {
-  createRow,
-  deleteRowsInOrder,
-  linkHasQuery,
-  listAllRows,
-  updateRow,
-} from "../../../../../shared/baserow.js";
-import {
   defaultPosMenuIds,
-  mapPosMenuLinks,
   normalizePosMenuIds,
 } from "./pos-menu-store.js";
 
@@ -83,32 +76,6 @@ function defaultPosScreenForItem(item) {
   return "";
 }
 
-function linkValue(value) {
-  if (Array.isArray(value) && value[0]) {
-    const first = value[0];
-    if (typeof first === "number") return first;
-    if (first && typeof first === "object" && first.id != null) return Number(first.id);
-  }
-  if (typeof value === "number") return value;
-  return null;
-}
-
-function linkLabel(value) {
-  if (!Array.isArray(value) || !value[0]) return "";
-  const first = value[0];
-  if (first && typeof first === "object") {
-    return text(first.value || first.name);
-  }
-  return "";
-}
-
-function selectValue(value) {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return text(value.value);
-  }
-  return text(value);
-}
-
 function parseOrder(value) {
   const n = typeof value === "number" ? value : Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -120,28 +87,28 @@ export function normalizePlacementChannel(value) {
   return "";
 }
 
-export function mapPlacement(row) {
-  if (!row) return null;
-  const channel = normalizePlacementChannel(row.Channel || row.channel);
+/**
+ * A menu_placements record → the placement ops shows. `labels` names its
+ * section and POS menu: { sectionTitles, posMenuNames }, Maps by id.
+ */
+export function mapPlacement(record, { sectionTitles, posMenuNames } = {}) {
+  if (!record) return null;
+  const channel = normalizePlacementChannel(record.channel);
   if (!channel) return null;
-  const sectionId = linkValue(row.Section);
-  const posMenuId = linkValue(row["POS menu"] || row.posMenu);
-  const posScreen = parsePosScreenInput(
-    selectValue(row["POS screen"]) || text(row.posScreen),
-  );
+  const sectionId = record.sectionId != null ? String(record.sectionId) : null;
+  const posMenuId = record.posMenuId != null ? String(record.posMenuId) : null;
+  const posScreen = parsePosScreenInput(text(record.posScreen));
   return {
-    _id: String(row.id),
-    id: String(row.id),
-    itemId: linkValue(row["Menu item"] || row.menuItem) != null
-      ? String(linkValue(row["Menu item"] || row.menuItem))
-      : "",
+    _id: String(record.id),
+    id: String(record.id),
+    itemId: record.itemId != null ? String(record.itemId) : "",
     channel,
-    sectionId: sectionId != null ? String(sectionId) : null,
-    sectionTitle: linkLabel(row.Section) || undefined,
-    posMenuId: posMenuId != null ? String(posMenuId) : null,
-    posMenuName: linkLabel(row["POS menu"] || row.posMenu) || undefined,
+    sectionId,
+    sectionTitle: (sectionId && sectionTitles?.get(sectionId)) || undefined,
+    posMenuId,
+    posMenuName: (posMenuId && posMenuNames?.get(posMenuId)) || undefined,
     posScreen: posScreen || undefined,
-    orderRank: parseOrder(row.Order),
+    orderRank: parseOrder(record.order),
   };
 }
 
@@ -333,111 +300,98 @@ export function applyPlacementDerivedFields(item) {
   };
 }
 
-function junctionFields(itemId, entry) {
+/** A placement → the menu_placements fields to store for drink `itemId`. */
+function placementFields(itemId, entry) {
   const channel = normalizePlacementChannel(entry.channel);
   const fields = {
-    "Menu item": [Number(itemId)],
-    Channel: channel,
-    Order: parseOrder(entry.orderRank),
-    Section: [],
-    "POS menu": [],
-    "POS screen": "",
+    itemId: Number(itemId),
+    channel,
+    order: parseOrder(entry.orderRank),
+    sectionId: null,
+    posMenuId: null,
+    posScreen: "",
   };
   if (channel === "print" || channel === "digital") {
     const sectionId = Number(entry.sectionId);
-    if (Number.isFinite(sectionId) && sectionId > 0) {
-      fields.Section = [sectionId];
-    }
+    if (Number.isFinite(sectionId) && sectionId > 0) fields.sectionId = sectionId;
   } else if (channel === "pos") {
     const posMenuId = Number(entry.posMenuId);
-    if (Number.isFinite(posMenuId) && posMenuId > 0) {
-      fields["POS menu"] = [posMenuId];
-    }
-    fields["POS screen"] = parsePosScreenInput(entry.posScreen);
+    if (Number.isFinite(posMenuId) && posMenuId > 0) fields.posMenuId = posMenuId;
+    fields.posScreen = parsePosScreenInput(entry.posScreen);
   }
   return fields;
 }
 
-function placementChanged(row, fields) {
-  const mapped = mapPlacement(row);
+function placementChanged(record, fields) {
+  const mapped = mapPlacement(record);
   if (!mapped) return true;
-  if (mapped.channel !== fields.Channel) return true;
-  if (mapped.orderRank !== parseOrder(fields.Order)) return true;
+  if (mapped.channel !== fields.channel) return true;
+  if (mapped.orderRank !== parseOrder(fields.order)) return true;
   if (mapped.channel === "pos") {
     return (
-      mapped.posMenuId !== String(linkValue(fields["POS menu"]) || "") ||
-      mapped.posScreen !== parsePosScreenInput(fields["POS screen"])
+      mapped.posMenuId !== String(fields.posMenuId || "") ||
+      mapped.posScreen !== parsePosScreenInput(fields.posScreen)
     );
   }
-  return mapped.sectionId !== String(linkValue(fields.Section) || "");
+  return mapped.sectionId !== String(fields.sectionId || "");
 }
 
-export async function replaceMenuPlacements(env, tables, itemId, entries) {
-  if (!tables?.menuPlacements) return normalizePlacements(entries);
-
-  const existingRows = await listAllRows(env, tables.menuPlacements, {
-    filters: linkHasQuery("Menu item", itemId),
-  });
+/**
+ * Store drink `itemId`'s placements as `entries`: rows already there are
+ * kept or updated, the rest created, and leftovers (and exact repeats)
+ * removed, all in one repository write.
+ */
+export async function replaceMenuPlacements(repo, itemId, entries, labels) {
+  const existing = await repo.list("menu_placements", { itemId });
   const existingByKey = new Map();
   const duplicateIds = new Set();
-  for (const row of existingRows) {
-    const mapped = mapPlacement(row);
-    if (!mapped) {
-      duplicateIds.add(row.id);
-      continue;
-    }
-    const key = placementKey(mapped);
+  for (const record of existing) {
+    const mapped = mapPlacement(record);
+    const key = mapped ? placementKey(mapped) : "";
     if (!key || existingByKey.has(key)) {
-      duplicateIds.add(row.id);
+      duplicateIds.add(record.id);
       continue;
     }
-    existingByKey.set(key, row);
+    existingByKey.set(key, record);
   }
 
   const keep = new Set();
-  const out = [];
+  const changes = [];
+  const slots = [];
   for (const entry of normalizePlacements(entries)) {
     const key = placementKey(entry);
     if (!key) continue;
     keep.add(key);
-    const fields = junctionFields(itemId, entry);
+    const fields = placementFields(itemId, entry);
     const current = existingByKey.get(key);
-    if (current) {
-      if (placementChanged(current, fields)) {
-        const row = await updateRow(env, tables.menuPlacements, current.id, fields);
-        const mapped = mapPlacement(row);
-        if (mapped) out.push(mapped);
-      } else {
-        const mapped = mapPlacement(current);
-        if (mapped) out.push(mapped);
-      }
+    if (current && !placementChanged(current, fields)) {
+      slots.push({ record: current });
       continue;
     }
-    const row = await createRow(env, tables.menuPlacements, fields);
-    const mapped = mapPlacement(row);
-    if (mapped) out.push(mapped);
+    slots.push({ change: changes.length });
+    changes.push(
+      current
+        ? { op: "update", collection: "menu_placements", id: current.id, fields }
+        : { op: "create", collection: "menu_placements", fields },
+    );
+  }
+  for (const record of existing) {
+    const mapped = mapPlacement(record);
+    if (duplicateIds.has(record.id) || !mapped || !keep.has(placementKey(mapped))) {
+      changes.push({ op: "remove", collection: "menu_placements", id: record.id });
+    }
   }
 
-  await deleteRowsInOrder(
-    env,
-    tables.menuPlacements,
-    existingRows
-      .filter((row) => {
-        if (duplicateIds.has(row.id)) return true;
-        const mapped = mapPlacement(row);
-        if (!mapped) return true;
-        return !keep.has(placementKey(mapped));
-      })
-      .map((row) => row.id),
-  );
-
-  return out;
+  const written = await repo.write(changes);
+  return slots
+    .map((slot) => mapPlacement(slot.record ?? written[slot.change], labels))
+    .filter(Boolean);
 }
 
-export function attachPlacements(items, placementRows) {
+export function attachPlacements(items, placementRecords, labels) {
   const byItem = new Map();
-  for (const row of placementRows || []) {
-    const mapped = mapPlacement(row);
+  for (const record of placementRecords || []) {
+    const mapped = mapPlacement(record, labels);
     if (!mapped?.itemId) continue;
     const list = byItem.get(mapped.itemId) ?? [];
     list.push(mapped);
@@ -500,8 +454,8 @@ export function resolvePlacementsForWrite(input, { existingItem, defaultPosMenus
   );
 }
 
-/** Legacy Baserow mirrors written alongside the junction. */
-export function legacyFieldsFromPlacements(placements, tables) {
+/** The drink's own copies of its placements (section, menu flags, POS menus), stored alongside them. */
+export function legacyFieldsFromPlacements(placements) {
   const list = normalizePlacements(placements);
   const print = list.find((row) => row.channel === "print");
   const digital = list.find((row) => row.channel === "digital");
@@ -509,23 +463,19 @@ export function legacyFieldsFromPlacements(placements, tables) {
   const sectionId = Number(print?.sectionId || digital?.sectionId || 0);
   const screens = [...new Set(pos.map((row) => row.posScreen).filter(Boolean))];
   const fields = {
-    "On print menu": Boolean(print),
-    "On digital menu": Boolean(digital),
-    "Lightspeed menu/screen": serializePosScreens(screens),
-  };
-  if (Number.isFinite(sectionId) && sectionId > 0) {
-    fields.Section = [sectionId];
-  }
-  if (tables?.posMenus) {
-    fields["POS menus"] = [
+    onPrintMenu: Boolean(print),
+    onDigitalMenu: Boolean(digital),
+    lightspeedMenuScreen: serializePosScreens(screens),
+    posMenuIds: [
       ...new Set(
         pos
           .map((row) => Number(row.posMenuId))
           .filter((id) => Number.isFinite(id) && id > 0),
       ),
-    ];
+    ],
+  };
+  if (Number.isFinite(sectionId) && sectionId > 0) {
+    fields.sectionId = sectionId;
   }
   return fields;
 }
-
-export { mapPosMenuLinks };

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  fetchFormSubmissionRow: vi.fn(),
+  fetchFormSubmission: vi.fn(),
   markFormSubmissionEmailSent: vi.fn(),
   fetchFormForSubmit: vi.fn(),
   sendFormNotificationEmail: vi.fn(),
@@ -9,10 +9,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../_lib/form-store.js", () => ({
-  FORM_EMAIL_SENT_FIELDS: { notify: "Notify Sent", receipt: "Receipt Sent" },
-  fetchFormSubmissionRow: mocks.fetchFormSubmissionRow,
+  fetchFormSubmission: mocks.fetchFormSubmission,
   markFormSubmissionEmailSent: mocks.markFormSubmissionEmailSent,
-  parseFormSubmissionAnswers: () => [
+  submissionAnswers: () => [
     { key: "email", label: "Email", value: "alex@example.com" },
   ],
 }));
@@ -45,9 +44,9 @@ function post(body, secret = "s3cret") {
 describe("POST /api/forms/admin/resend", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.fetchFormSubmissionRow.mockResolvedValue({
+    mocks.fetchFormSubmission.mockResolvedValue({
       ok: true,
-      row: { id: 501, "Form Slug": "play", "Reply To": "alex@example.com" },
+      submission: { id: 501, formSlug: "play", replyTo: "alex@example.com" },
     });
     mocks.fetchFormForSubmit.mockResolvedValue({ slug: "play", title: "Play" });
     mocks.markFormSubmissionEmailSent.mockResolvedValue({
@@ -63,7 +62,7 @@ describe("POST /api/forms/admin/resend", () => {
     expect((await post({ rowId: "501", kind: "notify" }, "nope")).status).toBe(
       401,
     );
-    expect(mocks.fetchFormSubmissionRow).not.toHaveBeenCalled();
+    expect(mocks.fetchFormSubmission).not.toHaveBeenCalled();
   });
 
   it("rejects unknown kinds", async () => {

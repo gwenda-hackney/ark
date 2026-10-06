@@ -109,6 +109,10 @@ runs:
         SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
+        # Artists come from ops D1 once they have moved (#127).
+        SITE_ENV: ${{ inputs.secrets-profile }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         BUILD_SHA: ${{ inputs.build-sha }}
 
     - name: Build
@@ -129,6 +133,9 @@ runs:
         SANITY_PERSPECTIVE: ${{ inputs.sanity-perspective }}
         SANITY_API_TOKEN: ${{ inputs.sanity-api-token }}
         BASEROW_OPS_API_KEY: ${{ inputs.baserow-ops-api-key }}
+        SITE_ENV: ${{ inputs.secrets-profile }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
 
     # What verify.yml used to check on its own separate build.
     - name: Check build output
@@ -196,3 +203,7 @@ runs:
       if: inputs.snapshot-site != '' && inputs.skip-build != 'true'
       shell: bash
       run: node scripts/site-build-snapshot.mjs save --in "$RUNNER_TEMP/site-snapshot.json" --site "${{ inputs.snapshot-site }}"
+      # Which environment's config database (Baserow or D1, #127) to write.
+      # The job env already has BASEROW_CONFIG_API_KEY and the Cloudflare token.
+      env:
+        SITE_ENV: ${{ inputs.secrets-profile }}

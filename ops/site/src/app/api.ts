@@ -51,6 +51,8 @@ export type AuthMe = {
   risk: "nonprod_on_production_db" | "production_on_nonprod_db" | null;
   /** Sees developer tools. Always true in dev. */
   isAdmin?: boolean;
+  /** Features that are read-only while their data moves to D1 (#191). */
+  frozen?: string[];
 };
 
 export function getMe() {
@@ -742,7 +744,17 @@ export function getDeployStatus(runId: number) {
   );
 }
 
-export type OpsEventImage = { name: string; url: string };
+/**
+ * An event photo. Since #183 it lives in Sanity: `asset` is its id and `url`
+ * its cdn.sanity.io address. Older ones are Baserow files (name and url only).
+ */
+export type OpsEventImage = {
+  name: string;
+  url: string;
+  asset?: string;
+  width?: number;
+  height?: number;
+};
 
 /** What happened to preview after a save. Saving never fails because of it. */
 export type EventPreview = {
@@ -815,7 +827,8 @@ export type OpsEvent = {
   driveFolderUrl: string;
   mainImage: OpsEventImage | null;
   heroCrops: Record<string, unknown> | null;
-  images: OpsEventImage[];
+  /** Newest first; null while the series' gallery is still in Drive (#183). */
+  gallery: OpsGalleryPhoto[] | null;
   dates: OpsEventOccurrence[];
   publish: {
     preview: "unpublished" | "stale" | "current";
@@ -980,14 +993,9 @@ export function publishAllEventsPreview() {
   });
 }
 
-export function uploadEventImage(
-  id: string,
-  file: File,
-  role: "main" | "gallery",
-) {
+export function uploadEventImage(id: string, file: File) {
   const body = new FormData();
   body.set("file", file);
-  body.set("role", role);
   return request<{ event: OpsEvent; preview?: EventPreview }>(
     `/api/events/${encodeURIComponent(id)}/image`,
     {
@@ -997,15 +1005,41 @@ export function uploadEventImage(
   );
 }
 
-export function clearEventImage(
-  id: string,
-  role: "main" | "gallery",
-  name = "",
-) {
-  const params = new URLSearchParams({ role });
-  if (name) params.set("name", name);
+export function clearEventImage(id: string) {
   return request<{ event: OpsEvent }>(
-    `/api/events/${encodeURIComponent(id)}/image?${params}`,
+    `/api/events/${encodeURIComponent(id)}/image`,
+    { method: "DELETE" },
+  );
+}
+
+/** A gallery photo kept in ops (#183): a Sanity asset, shown from cdn.sanity.io. */
+export type OpsGalleryPhoto = {
+  key: string;
+  asset: string;
+  url: string;
+  width: number;
+  height: number;
+  /** A night's photo, or "" for the series. */
+  date: string;
+  added: string;
+  source: string;
+};
+
+/** Add a photo to the series' gallery, or (`date`) one night's. */
+export function uploadGalleryPhoto(id: string, file: File, date = "") {
+  const body = new FormData();
+  body.set("file", file);
+  const query = date ? `?date=${encodeURIComponent(date)}` : "";
+  return request<{ event: OpsEvent }>(`/api/events/${encodeURIComponent(id)}/gallery${query}`, {
+    method: "POST",
+    body,
+  });
+}
+
+/** Take a photo off the gallery; it leaves the website on Update website. */
+export function deleteGalleryPhoto(id: string, key: string) {
+  return request<{ event: OpsEvent }>(
+    `/api/events/${encodeURIComponent(id)}/gallery/${encodeURIComponent(key)}`,
     { method: "DELETE" },
   );
 }

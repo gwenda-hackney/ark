@@ -72,6 +72,7 @@ function httpError(message, status) {
 
 /** Sanity filename for an ops photo: Baserow file names are unique per upload. */
 function assetFilename(image) {
+  if (image?.asset) return "";
   const name = String(image?.name || "").trim();
   return name ? `ops-${name}` : "";
 }
@@ -118,8 +119,12 @@ async function imageFromUrl(url, upload, filename = "event.jpg") {
   return { ...imageRef(asset._id), originalFilename: asset.originalFilename };
 }
 
-/** Sanity image for an ops photo: reuse the uploaded asset, else upload once. */
+/**
+ * Sanity image for an ops photo. Photos uploaded since #183 are already in
+ * Sanity; older ones reuse the asset copied before, else upload once.
+ */
 export async function heroImage(env, image, known) {
+  if (image?.asset) return imageRef(image.asset);
   const url = String(image?.url || "").trim();
   if (!url) return undefined;
   const filename = assetFilename(image);
@@ -248,11 +253,33 @@ async function recordSeriesPreview(env, event, datesPending) {
   await writeState(env, "ops", SERIES_PREVIEWS_KEY, environmentOf(env), JSON.stringify(next));
 }
 
+/** A gallery photo kept in ops, as a Sanity image on the series. */
+function opsGalleryImage(photo) {
+  return {
+    _type: "image",
+    _key: photo.key,
+    alt: "",
+    // A night's photo: its page shows it as well as the series.
+    ...(photo.date ? { date: photo.date } : {}),
+    asset: { _type: "reference", _ref: photo.asset },
+  };
+}
+
 /**
  * The series' Drive gallery as Sanity images. If Drive cannot be read, keep
  * the gallery already staged rather than emptying it.
  */
 async function stageGallery(env, event) {
+  // Kept in ops (#183): the photos are in Sanity already, nothing to copy.
+  if (Array.isArray(event.gallery)) {
+    return {
+      images: event.gallery.map(opsGalleryImage),
+      complete: false,
+      fingerprint: "",
+      changed: false,
+      error: "",
+    };
+  }
   const staged = await readGalleryStaged(env);
   try {
     const files = await listGalleryFiles(env, event);

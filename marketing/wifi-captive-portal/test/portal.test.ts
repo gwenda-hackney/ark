@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { normalizeEmail, subscribeEmailToBaserow } from "../src/baserow.js";
-import { handlePortalRequest } from "../src/handler.js";
+import { memorySubscriberRepository } from "../../../shared/guests/adapters/memory-subscribers.js";
+import { handlePortalRequest, subscribeEmail } from "../src/handler.js";
 import type { Env } from "../src/types.js";
-import {
-  clearSubscribeTableIdCache,
-  resolveSubscribeTableId,
-} from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
 
 const env: Env = {
@@ -19,142 +15,52 @@ const env: Env = {
   WIFI_SUBSCRIBE_TAG: "wifi",
 };
 
-describe("types", () => {
-  it("resolves Subscribers by name", async () => {
-    clearSubscribeTableIdCache();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => [
-          { id: 1017358, name: "Subscribers", database_id: 461843 },
-        ],
-      })),
-    );
-    await expect(resolveSubscribeTableId(env)).resolves.toBe("1017358");
-    vi.unstubAllGlobals();
-  });
+describe("sign-up", () => {
+  const withRepo = () => {
+    const subscriberRepository = memorySubscriberRepository();
+    return {
+      repo: subscriberRepository,
+      env: { ...env, subscriberRepository } as Env,
+    };
+  };
 
-  it("errors when the token can see more than one Subscribers table", async () => {
-    clearSubscribeTableIdCache();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => [
-          { id: 1017358, name: "Subscribers", database_id: 461843 },
-          { id: 1024006, name: "Subscribers", database_id: 563090 },
-        ],
-      })),
-    );
-    await expect(resolveSubscribeTableId(env)).rejects.toThrow(/Website database/);
-    vi.unstubAllGlobals();
-  });
-});
-
-describe("baserow", () => {
-  it("normalizes emails", () => {
-    expect(normalizeEmail("  Dan@Gwenda.co.uk ")).toBe("dan@gwenda.co.uk");
-    expect(normalizeEmail("nope")).toBeNull();
-  });
-
-  it("posts a Synced=false wifi row with Tag as an array", async () => {
-    const calls: { url: string; method?: string; body?: unknown }[] = [];
-    const fetchImpl = (async (url: string, init?: RequestInit) => {
-      const method = init?.method ?? "GET";
-      calls.push({
-        url: String(url),
-        method,
-        body: init?.body ? JSON.parse(String(init.body)) : undefined,
-      });
-      if (method === "GET") {
-        return Response.json({ results: [] });
-      }
-      return new Response("{}", { status: 200 });
-    }) as unknown as typeof fetch;
-
-    const result = await subscribeEmailToBaserow({
+  it("saves an unsynced wifi sign-up, the address in lower case", async () => {
+    const { repo, env: repoEnv } = withRepo();
+    const result = await subscribeEmail(repoEnv, {
       email: "Guest@Example.com",
       tag: "wifi",
-      apiKey: "token",
-      apiUrl: "https://api.baserow.io",
-      tableId: "1017358",
-      fetchImpl,
     });
-    expect(result).toEqual({ ok: true });
-    expect(calls[0]?.url).toContain("filter__Email__equal=guest%40example.com");
-    expect(calls[1]?.body).toMatchObject({
-      Email: "guest@example.com",
-      Tag: ["wifi"],
-      Synced: false,
-    });
+    expect(result.ok).toBe(true);
+    expect(await repo.listByEmail("guest@example.com")).toMatchObject([
+      { email: "guest@example.com", tags: ["wifi"], synced: false },
+    ]);
   });
 
-  it("merges wifi onto an existing prelaunch row and clears Synced", async () => {
-    const calls: { method?: string; body?: unknown }[] = [];
-    const fetchImpl = (async (_url: string, init?: RequestInit) => {
-      const method = init?.method ?? "GET";
-      calls.push({
-        method,
-        body: init?.body ? JSON.parse(String(init.body)) : undefined,
-      });
-      if (method === "GET") {
-        return Response.json({
-          results: [
-            {
-              id: 42,
-              Email: "guest@example.com",
-              Tag: [{ id: 1, value: "prelaunch", color: "blue" }],
-              Synced: true,
-            },
-          ],
-        });
-      }
-      return new Response("{}", { status: 200 });
-    }) as unknown as typeof fetch;
-
-    const result = await subscribeEmailToBaserow({
+  it("merges wifi onto an existing prelaunch sign-up and syncs it again", async () => {
+    const { repo, env: repoEnv } = withRepo();
+    await repo.create({
       email: "guest@example.com",
-      tag: "wifi",
-      apiKey: "token",
-      apiUrl: "https://api.baserow.io",
-      tableId: "1017358",
-      fetchImpl,
+      tags: ["prelaunch"],
+      signedUpOn: "2026-07-04",
+      synced: true,
     });
-    expect(result).toEqual({ ok: true });
-    expect(calls).toHaveLength(2);
-    expect(calls[1]).toEqual({
-      method: "PATCH",
-      body: { Tag: ["prelaunch", "wifi"], Synced: false },
-    });
+    await subscribeEmail(repoEnv, { email: "guest@example.com", tag: "wifi" });
+    expect(await repo.listByEmail("guest@example.com")).toMatchObject([
+      { tags: ["prelaunch", "wifi"], signedUpOn: "2026-07-04", synced: false },
+    ]);
   });
 
   it("no-ops when the email already has the wifi tag", async () => {
-    let patched = false;
-    const fetchImpl = (async (_url: string, init?: RequestInit) => {
-      if ((init?.method ?? "GET") === "PATCH") patched = true;
-      return Response.json({
-        results: [
-          {
-            id: 42,
-            Email: "guest@example.com",
-            Tag: ["prelaunch", "wifi"],
-            Synced: true,
-          },
-        ],
-      });
-    }) as unknown as typeof fetch;
-
-    const result = await subscribeEmailToBaserow({
+    const { repo, env: repoEnv } = withRepo();
+    await repo.create({
       email: "guest@example.com",
-      tag: "wifi",
-      apiKey: "token",
-      apiUrl: "https://api.baserow.io",
-      tableId: "1017358",
-      fetchImpl,
+      tags: ["prelaunch", "wifi"],
+      signedUpOn: "2026-07-04",
+      synced: true,
     });
-    expect(result).toEqual({ ok: true });
-    expect(patched).toBe(false);
+    const update = vi.spyOn(repo, "update");
+    await subscribeEmail(repoEnv, { email: "guest@example.com", tag: "wifi" });
+    expect(update).not.toHaveBeenCalled();
   });
 });
 
@@ -212,23 +118,18 @@ describe("unifi site manager authorize", () => {
 
 describe("handler", () => {
   it("serves the UniFi guest path and authorizes on submit", async () => {
-    clearSubscribeTableIdCache();
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
-        const url = String(input);
-        if (url.includes("/all-tables/")) {
-          return {
-            ok: true,
-            json: async () => [
-              { id: 1017358, name: "Subscribers", database_id: 461843 },
-            ],
-          };
-        }
-        throw new Error(`Unexpected fetch: ${url}`);
+        throw new Error(`Unexpected fetch: ${String(input)}`);
       }),
     );
-    const subscribe = vi.fn(async () => ({ ok: true as const }));
+    const subscribe = vi.fn(async () => ({
+      ok: true as const,
+      status: 200 as const,
+      subscriber: null,
+      changed: true,
+    }));
     const authorize = vi.fn(async () => ({ ok: true as const }));
 
     const page = await handlePortalRequest(
@@ -264,13 +165,10 @@ describe("handler", () => {
     );
     expect(post.status).toBe(200);
     expect(await post.text()).toContain("Connected");
-    expect(subscribe).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: "guest@example.com",
-        tag: "wifi",
-        tableId: "1017358",
-      }),
-    );
+    expect(subscribe).toHaveBeenCalledWith(env, {
+      email: "guest@example.com",
+      tag: "wifi",
+    });
     expect(authorize).toHaveBeenCalledWith(
       env,
       expect.objectContaining({

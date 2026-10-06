@@ -12,6 +12,7 @@ import {
   withGuestRecords,
 } from "./form-submissions.js";
 import { jsonResponse, opsCatalogTables } from "../../testing/test-baserow-mock.js";
+import { EMPTY_FORM_SUBMISSION } from "../../../../../shared/guests/form-submissions.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -24,23 +25,27 @@ const env = {
 };
 
 describe("mapFormSubmission", () => {
+  const record = (fields) => ({ ...EMPTY_FORM_SUBMISSION, id: 4, ...fields });
+
   it("reads name, email, and other answers", () => {
-    const mapped = mapFormSubmission({
-      id: 4,
-      "Form Slug": "play",
-      "Form Title": "Play at Gwenda",
-      "Reply To": "Alex@Example.com",
-      Status: { value: "Verified" },
-      Current: true,
-      Submitted: "2026-09-24T12:00:00Z",
-      Answers: JSON.stringify({
-        entries: [
-          { key: "name", label: "Name", value: "Alex" },
-          { key: "email", label: "Email", value: "alex@example.com" },
-          { key: "note", label: "Note", value: "Thursday" },
-        ],
+    const mapped = mapFormSubmission(
+      record({
+        formSlug: "play",
+        formTitle: "Play at Gwenda",
+        replyTo: "Alex@Example.com",
+        status: "Verified",
+        current: true,
+        submittedAt: "2026-09-24T12:00:00Z",
+        answers: {
+          entries: [
+            { key: "name", label: "Name", value: "Alex" },
+            { key: "email", label: "Email", value: "alex@example.com" },
+            { key: "note", label: "Note", value: "Thursday" },
+          ],
+        },
       }),
-    });
+    );
+    assert.equal(mapped.id, "4");
     assert.equal(mapped.name, "Alex");
     assert.equal(mapped.email, "alex@example.com");
     assert.equal(mapped.status, "Verified");
@@ -48,17 +53,8 @@ describe("mapFormSubmission", () => {
     assert.deepEqual(mapped.answers, [{ key: "note", label: "Note", value: "Thursday" }]);
   });
 
-  it("treats a missing Current flag as current", () => {
-    assert.equal(mapFormSubmission({ id: 1, Current: false }).current, false);
-    assert.equal(mapFormSubmission({ id: 1 }).current, true);
-  });
-
   it("exposes the email sent stamps", () => {
-    const mapped = mapFormSubmission({
-      id: 1,
-      "Notify Sent": "2026-09-24T10:00:00Z",
-      "Receipt Sent": null,
-    });
+    const mapped = mapFormSubmission(record({ notifySentAt: "2026-09-24T10:00:00Z" }));
     assert.equal(mapped.notifySentAt, "2026-09-24T10:00:00Z");
     assert.equal(mapped.receiptSentAt, "");
   });

@@ -6,11 +6,6 @@ export const SUBSCRIBE_TABLE_NAME = "Subscribers";
 export const RSVP_TABLE_NAME = "Event Invites";
 export const FORM_SUBMISSIONS_TABLE_NAME = "Form Submissions";
 
-/** @deprecated Prefer name resolution; kept for one-off migration scripts. */
-export const DEV_SUBSCRIBE_TABLE_ID = "1208349";
-/** @deprecated Prefer name resolution; kept for one-off migration scripts. */
-export const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
-
 const tableIdCache = new Map();
 
 export function clearBaserowTableIdCache() {
@@ -26,19 +21,8 @@ export function isProductionSite(env) {
   return env.SITE_ENV?.trim().toLowerCase() === "production";
 }
 
-export function subscribeTableName(env) {
-  return env.BASEROW_SUBSCRIBE_TABLE_NAME?.trim() || SUBSCRIBE_TABLE_NAME;
-}
-
 export function rsvpTableName(env) {
   return env.BASEROW_RSVP_TABLE_NAME?.trim() || RSVP_TABLE_NAME;
-}
-
-export function formSubmissionsTableName(env) {
-  return (
-    env.BASEROW_FORM_SUBMISSIONS_TABLE_NAME?.trim() ||
-    FORM_SUBMISSIONS_TABLE_NAME
-  );
 }
 
 /** Optional numeric filter. Prefer a token that can see only one Website database. */
@@ -98,17 +82,6 @@ async function resolveTableIdByName(env, tableName) {
   return { ok: true, tableId };
 }
 
-export async function resolveSubscribeTableId(env) {
-  const result = await resolveTableIdByName(env, subscribeTableName(env));
-  if (!result.ok && result.error?.includes("not found")) {
-    return {
-      ok: false,
-      error: `Baserow table "${subscribeTableName(env)}" not found.`,
-    };
-  }
-  return result;
-}
-
 export async function resolveRsvpTableId(env) {
   const tableName = rsvpTableName(env);
   const result = await resolveTableIdByName(env, tableName);
@@ -119,44 +92,6 @@ export async function resolveRsvpTableId(env) {
     };
   }
   return result;
-}
-
-export async function resolveFormSubmissionsTableId(env) {
-  const tableName = formSubmissionsTableName(env);
-  const result = await resolveTableIdByName(env, tableName);
-  if (!result.ok && result.error?.includes("not found")) {
-    return {
-      ok: false,
-      error: `Baserow table "${tableName}" not found. Run npm run setup:baserow-form-submissions.`,
-    };
-  }
-  return result;
-}
-
-export async function baserowRowsUrl(env) {
-  const apiKey = env.BASEROW_API_KEY?.trim();
-  if (!apiKey) {
-    return { ok: false, error: "Baserow is not configured." };
-  }
-
-  const resolved = await resolveSubscribeTableId(env);
-  if (!resolved.ok) {
-    return resolved;
-  }
-
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
-    /\/$/,
-    "",
-  );
-  const { tableId } = resolved;
-  return {
-    ok: true,
-    apiKey,
-    tableId,
-    rowsUrl: `${apiBase}/api/database/rows/table/${tableId}/?user_field_names=true`,
-    rowUrl: (rowId) =>
-      `${apiBase}/api/database/rows/table/${tableId}/${rowId}/?user_field_names=true`,
-  };
 }
 
 export async function baserowRsvpRowsUrl(env) {
@@ -179,33 +114,6 @@ export async function baserowRsvpRowsUrl(env) {
     ok: true,
     apiKey,
     tableId,
-    rowsUrl: `${apiBase}/api/database/rows/table/${tableId}/?user_field_names=true`,
-    rowUrl: (rowId) =>
-      `${apiBase}/api/database/rows/table/${tableId}/${rowId}/?user_field_names=true`,
-  };
-}
-
-export async function baserowFormSubmissionRowsUrl(env) {
-  const apiKey = env.BASEROW_API_KEY?.trim();
-  if (!apiKey) {
-    return { ok: false, error: "Baserow is not configured." };
-  }
-
-  const resolved = await resolveFormSubmissionsTableId(env);
-  if (!resolved.ok) {
-    return resolved;
-  }
-
-  const apiBase = (env.BASEROW_API_URL || DEFAULT_BASEROW_API).replace(
-    /\/$/,
-    "",
-  );
-  const { tableId } = resolved;
-  return {
-    ok: true,
-    apiKey,
-    tableId,
-    fieldsUrl: `${apiBase}/api/database/fields/table/${tableId}/`,
     rowsUrl: `${apiBase}/api/database/rows/table/${tableId}/?user_field_names=true`,
     rowUrl: (rowId) =>
       `${apiBase}/api/database/rows/table/${tableId}/${rowId}/?user_field_names=true`,

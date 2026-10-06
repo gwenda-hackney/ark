@@ -1,47 +1,30 @@
 /**
  * Wall artists. One current guest, one next, and any number of previous.
- * Photos stay on the row: portrait, their art, and pictures taken at Gwenda.
- * Reading them (listArtists, mapArtist) is shared with the website: shared/artists.js.
+ * Photos: a portrait, their art, and pictures taken at Gwenda. They upload
+ * straight to Sanity (#183) and the artist keeps their asset ids.
+ * Use cases over the ArtistRepository (shared/artists/artist-repository.js);
+ * listing them (listArtists) is shared with the website: shared/artists.js.
  */
 import {
-  loadArtists,
-  mapArtist,
+  artistImageProject,
+  artistRepository,
+  artistView,
   normalizeArtistMonth,
   normalizeArtistSlot,
-  requireArtistsTable,
 } from "../../../../../shared/artists.js";
+import { fail, isFilePhoto, text } from "../../../../../shared/artists/artist-model.js";
+import { parseImageAssetId } from "../../../../../shared/sanity-image.js";
 import { normalizeWebsite } from "../../../../../shared/web-address.js";
-import {
-  createRow,
-  deleteRow,
-  getRow,
-  resolveOpsTableIds,
-  updateRow,
-  uploadUserFile,
-} from "../../../../../shared/baserow.js";
+import { sanityUploadImage } from "../../platform/sanity.js";
 
 const SINGLE_SLOTS = new Set(["current", "next"]);
 const IMAGE_KINDS = new Set(["portrait", "art", "gwenda"]);
 
-const IMAGE_FIELDS = {
-  portrait: "Portrait",
-  art: "Art",
-  gwenda: "Gwenda photos",
-};
-
-function fail(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  throw error;
-}
-
-function text(value) {
-  if (typeof value === "string") return value.trim();
-  if (value == null) return "";
-  if (typeof value === "object" && value.value != null) {
-    return String(value.value).trim();
-  }
-  return String(value).trim();
+/** An artist as ops shows them: photos from the Sanity project ops writes to. */
+function view(env, record, message = "Artist not found.") {
+  const artist = artistView(record, { projectId: artistImageProject(env) });
+  if (!artist) fail(record ? 502 : 404, message);
+  return artist;
 }
 
 function fieldsFromInput(input, { slotRequired = true } = {}) {
@@ -66,63 +49,64 @@ function fieldsFromInput(input, { slotRequired = true } = {}) {
   if (startRaw && !startMonth) fail(400, "Choose a start month, or leave it blank.");
   if (endRaw && !endMonth) fail(400, "Choose an end month, or leave it blank.");
   return {
-    Name: name,
-    "Artist name": artistName,
-    Slot: slot,
-    Website: website,
-    Profile: text(input?.profile),
-    Bio: text(input?.bio),
-    "Start month": startMonth,
-    "End month": endMonth,
+    name,
+    artistName,
+    slot,
+    website,
+    profile: text(input?.profile),
+    bio: text(input?.bio),
+    startMonth,
+    endMonth,
   };
 }
 
 /** Current and next are singular. The artist who held the badge moves to previous. */
-async function releaseSlot(env, tableId, slot, exceptId) {
+async function releaseSlot(artists, slot, exceptId) {
   if (!SINGLE_SLOTS.has(slot)) return;
-  const artists = await loadArtists(env, tableId);
   const except = String(exceptId || "");
-  for (const artist of artists) {
-    if (artist.slot !== slot || artist.id === except) continue;
-    await updateRow(env, tableId, artist.id, { Slot: "previous" });
+  for (const artist of await artists.listArtists()) {
+    if (artist.slot !== slot || String(artist.id) === except) continue;
+    await artists.updateArtist(artist.id, { slot: "previous" });
   }
 }
 
-export async function getArtist(env, id) {
-  const tableId = requireArtistsTable(await resolveOpsTableIds(env));
+function artistId(id) {
   const rowId = String(id || "").trim();
   if (!rowId) fail(400, "Missing id.");
-  const artist = mapArtist(await getRow(env, tableId, rowId));
-  if (!artist) fail(404, "Artist not found.");
-  return artist;
+  return rowId;
+}
+
+/** The stored record (photos as kept, not as shown); a 404 for a row that isn't an artist. */
+async function artistRecordOf(artists, id) {
+  const record = await artists.getArtist(artistId(id));
+  if (!record?.slot) fail(404, "Artist not found.");
+  return record;
+}
+
+export async function getArtist(env, id) {
+  return view(env, await artistRecordOf(artistRepository(env), id));
 }
 
 export async function createArtist(env, input) {
-  const tableId = requireArtistsTable(await resolveOpsTableIds(env));
+  const artists = artistRepository(env);
   const fields = fieldsFromInput(input || {});
-  await releaseSlot(env, tableId, fields.Slot, "");
-  const artist = mapArtist(await createRow(env, tableId, fields));
-  if (!artist) fail(502, "Could not read the artist after saving.");
-  return artist;
+  await releaseSlot(artists, fields.slot, "");
+  return view(env, await artists.createArtist(fields), "Could not read the artist after saving.");
 }
 
 export async function updateArtist(env, id, input) {
-  const tableId = requireArtistsTable(await resolveOpsTableIds(env));
-  const rowId = String(id || "").trim();
-  if (!rowId) fail(400, "Missing id.");
+  const artists = artistRepository(env);
+  const rowId = artistId(id);
   const fields = fieldsFromInput(input || {});
-  await releaseSlot(env, tableId, fields.Slot, rowId);
-  const artist = mapArtist(await updateRow(env, tableId, rowId, fields));
-  if (!artist) fail(502, "Could not read the artist after saving.");
-  return artist;
+  await releaseSlot(artists, fields.slot, rowId);
+  return view(env, await artists.updateArtist(rowId, fields), "Could not read the artist after saving.");
 }
 
 export async function deleteArtist(env, id) {
-  const tableId = requireArtistsTable(await resolveOpsTableIds(env));
-  const rowId = String(id || "").trim();
-  if (!rowId) fail(400, "Missing id.");
-  await getArtist(env, rowId);
-  await deleteRow(env, tableId, rowId);
+  const artists = artistRepository(env);
+  const rowId = artistId(id);
+  await artistRecordOf(artists, rowId);
+  await artists.removeArtist(rowId);
   return { ok: true, id: rowId };
 }
 
@@ -132,46 +116,46 @@ function imageKind(value) {
   return kind;
 }
 
-function namesOf(files) {
-  return (files || [])
-    .map((file) => ({ name: text(file?.name) }))
-    .filter((file) => file.name);
+/** Upload a photo to Sanity; the asset is the photo's only copy (#183). */
+async function uploadArtistPhoto(env, bytes, { filename, contentType }) {
+  const asset = await sanityUploadImage(env, bytes, { filename, contentType });
+  if (!parseImageAssetId(asset?._id)) fail(502, "The photo didn't upload to Sanity.");
+  return asset._id;
 }
 
+/**
+ * Add a photo: a new portrait replaces the old one, art and Gwenda photos
+ * add to the list. A list still in Baserow files waits for the backfill.
+ */
 export async function setArtistImage(env, id, bytes, { filename, contentType, kind }) {
   const image = imageKind(kind);
-  const tableId = requireArtistsTable(await resolveOpsTableIds(env));
-  const existing = await getArtist(env, id);
-  const uploaded = await uploadUserFile(env, bytes, { filename, contentType });
-  if (!uploaded?.name) fail(502, "The photo uploaded, but Baserow did not return a file name.");
-  const field = IMAGE_FIELDS[image];
-  const current =
-    image === "portrait" ? [] : image === "art" ? existing.art : existing.gwenda;
-  const names = [...namesOf(current), { name: uploaded.name }];
-  const artist = mapArtist(await updateRow(env, tableId, existing.id, { [field]: names }));
-  if (!artist) fail(502, "Could not read the artist after adding the photo.");
-  return artist;
+  const artists = artistRepository(env);
+  const record = await artistRecordOf(artists, id);
+  if (image !== "portrait" && record[image].some(isFilePhoto)) {
+    fail(409, "These photos are still being moved to Sanity. Try again after the next deploy.");
+  }
+  const asset = await uploadArtistPhoto(env, bytes, { filename, contentType });
+  const fields =
+    image === "portrait"
+      ? { portrait: { asset } }
+      : {
+          [image]: [...record[image].filter((photo) => photo.asset !== asset), { asset, label: text(filename) }],
+        };
+  return view(env, await artists.updateArtist(record.id, fields), "Could not read the artist after adding the photo.");
 }
 
+/**
+ * Take a photo off the artist (`name`: its asset id, or a file name from
+ * before). The Sanity asset stays: the live site may still show it.
+ */
 export async function clearArtistImage(env, id, { kind, name }) {
   const image = imageKind(kind);
-  const tableId = requireArtistsTable(await resolveOpsTableIds(env));
-  const existing = await getArtist(env, id);
-  const field = IMAGE_FIELDS[image];
-  const fileName = text(name);
-  const current =
+  const artists = artistRepository(env);
+  const record = await artistRecordOf(artists, id);
+  const key = text(name);
+  const fields =
     image === "portrait"
-      ? existing.portrait
-        ? [existing.portrait]
-        : []
-      : image === "art"
-        ? existing.art
-        : existing.gwenda;
-  const names =
-    image === "portrait" && !fileName
-      ? []
-      : namesOf(current).filter((file) => file.name !== fileName);
-  const artist = mapArtist(await updateRow(env, tableId, existing.id, { [field]: names }));
-  if (!artist) fail(502, "Could not read the artist after removing the photo.");
-  return artist;
+      ? { portrait: null }
+      : { [image]: record[image].filter((photo) => (photo.asset || photo.name) !== key) };
+  return view(env, await artists.updateArtist(record.id, fields), "Could not read the artist after removing the photo.");
 }

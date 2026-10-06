@@ -21,3 +21,21 @@ ALERT_EMAIL = "alerts@gwenda.co.uk"
 [ai]
 binding = "AI"
 remote = true
+
+# D1 databases (#127, db/README.md): this account's own; ids from shared/d1-databases.js.
+# Unused until each feature moves. Never `remote = true` here: ops:dev runs this file
+# locally, so it gets a throwaway local database, never production's.
+[[d1_databases]]
+binding = "OPS_DB"
+database_name = "gwenda-ops"
+database_id = "d3d5053d-45b7-48ba-b2f4-af5af109fbb3"
+
+[[d1_databases]]
+binding = "WEBSITE_DB"
+database_name = "gwenda-website"
+database_id = "868113b6-d7bd-4e34-8ee9-5bf5438c50a1"
+
+[[d1_databases]]
+binding = "CONFIG_DB"
+database_name = "gwenda-config"
+database_id = "9123334a-25d7-4238-b478-dd5bd2499658"

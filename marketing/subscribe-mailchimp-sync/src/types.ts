@@ -1,4 +1,7 @@
+import type { SubscriberRepository } from "../../../shared/guests/subscriber-repository.js";
+
 export type Env = {
+  /** The Website Baserow token, while subscribers are on Baserow (#127). */
   BASEROW_API_KEY: string;
   MAILCHIMP_API_KEY: string;
   /** Bearer secret for manual POST / sync runs. */
@@ -10,28 +13,27 @@ export type Env = {
   BASEROW_SUBSCRIBE_TABLE_NAME?: string;
   /** Baserow table for durable sync-run history. */
   BASEROW_API_URL?: string;
+  /** The website D1 database (#127): subscribers once guests move, and the write freeze (#191). */
+  WEBSITE_DB?: unknown;
+  /** Local runs only (scripts/run-local.ts): no binding, so D1 is reached over the API. */
+  SITE_ENV?: string;
+  CLOUDFLARE_API_TOKEN?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
 };
 
 export type SyncOptions = {
   dryRun?: boolean;
-  /** Max Baserow rows to process in one run. */
+  /** Max subscribers to process in one run. */
   limit?: number;
   /**
    * When true, process every row (ignore Synced filter).
    * Used for ESP migration / Mailchimp backfill after Buttondown already marked Synced.
    */
   all?: boolean;
+  /** Mailchimp's fetch, for tests. */
   fetchImpl?: typeof fetch;
-};
-
-export type BaserowSubscribeRow = {
-  id: number;
-  Email?: string;
-  /** single_select string/object or multiple_select array of those. */
-  Tag?: string | { value?: string } | Array<string | { value?: string }>;
-  /** Website signup date (YYYY-MM-DD). */
-  "Signed up"?: string;
-  Synced?: boolean;
+  /** Where subscribers are read and marked synced; by default this env's (tests hand in memory). */
+  repository?: SubscriberRepository;
 };
 
 export type SyncRowResult = {
@@ -48,4 +50,6 @@ export type SyncSummary = {
   dryRun: boolean;
   errors: number;
   results: SyncRowResult[];
+  /** Set when the run was skipped because guests are frozen (#191). */
+  frozen?: boolean;
 };
