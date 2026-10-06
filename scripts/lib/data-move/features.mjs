@@ -28,6 +28,8 @@ import { isBlankArtist } from "../../../shared/artists/artist-model.js";
 import { d1ArtistRepository } from "../../../shared/artists/d1-artists.js";
 import { baserowMenuRepository } from "../../../ops/site/src/menu/server/adapters/baserow-menu.js";
 import { d1MenuRepository } from "../../../ops/site/src/menu/server/adapters/d1-menu.js";
+import { baserowEventRepository } from "../../../ops/site/src/events/server/adapters/baserow-events.js";
+import { d1EventRepository } from "../../../ops/site/src/events/server/adapters/d1-events.js";
 
 export const FEATURES = {
   users: {
@@ -98,6 +100,15 @@ export const FEATURES = {
     adapters: {
       baserow: ({ env }) => baserowMenuRepository(env),
       d1: ({ db }) => d1MenuRepository(db),
+    },
+  },
+  events: {
+    app: "ops",
+    role: "ops",
+    freeze: true,
+    adapters: {
+      baserow: ({ env }) => baserowEventRepository(env),
+      d1: ({ db }) => d1EventRepository(db),
     },
   },
 };

@@ -444,5 +444,21 @@ export function baserowEventRepository(env) {
         calendarLinks: nights.has(CALENDAR_EVENT) || nights.has(CALENDAR_FALLBACK),
       };
     },
+
+    /** Every series and night, ids kept; a night carries its eventId ("" for none). A source only. */
+    async exportAll() {
+      const { events, eventDates } = await tables();
+      const [rows, dateRows] = await Promise.all([listAllRows(env, events), listAllRows(env, eventDates)]);
+      const byId = (a, b) => Number(a.id) - Number(b.id);
+      return {
+        events: rows.map(eventFromRow).sort(byId),
+        nights: dateRows
+          .map((row) => {
+            const link = Array.isArray(row.Event) ? row.Event[0] : null;
+            return { ...nightFromRow(row), eventId: link?.id ? String(link.id) : "" };
+          })
+          .sort(byId),
+      };
+    },
   };
 }

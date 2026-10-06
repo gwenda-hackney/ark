@@ -23,12 +23,28 @@
  *   removeGalleryPhoto(eventId, key)   EventRecord
  *   capabilities()                { formerSlugs, shortDescriptionOverride, calendarLinks }:
  *                                 what this storage can keep yet (columns added by migration)
+ *   exportAll()                   { events: EventRecord[], nights: (NightRecord & { eventId })[] },
+ *                                 ids kept: what a data move copies (#127)
+ *   importAll(snapshot)           replace everything with an exportAll() snapshot (memory, D1)
  *
- * Baserow is the adapter today; D1 comes with #127.
+ * Baserow holds events until the cutover to D1 (#127): `store:events` in the
+ * ops database's _meta picks the adapter per request (shared/data-store.js).
  */
+import { databaseFor } from "../../../../../shared/d1-env.js";
+import { switchedRepository } from "../../../../../shared/data-store.js";
 import { baserowEventRepository } from "./adapters/baserow-events.js";
+import { d1EventRepository } from "./adapters/d1-events.js";
 
-/** The repository for this runtime. Tests may hand one in as env.eventRepository. */
+/**
+ * The repository for this runtime. Tests may hand one in as env.eventRepository.
+ * Every method is async: the adapter is picked on the first call.
+ */
 export function eventRepository(env) {
-  return env?.eventRepository || baserowEventRepository(env);
+  return (
+    env?.eventRepository ||
+    switchedRepository(env, "events", {
+      baserow: baserowEventRepository,
+      d1: (env) => d1EventRepository(databaseFor(env, "ops")),
+    })
+  );
 }
