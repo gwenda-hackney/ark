@@ -39,6 +39,10 @@ async function main() {
       process.env.BASEROW_DATABASE_ID ||
       process.env.SUBSCRIBE_MAILCHIMP_BASEROW_DATABASE_ID,
     BASEROW_API_URL: process.env.BASEROW_API_URL,
+    // Where subscribers live is this environment's store:guests (shared/data-store.js).
+    SITE_ENV: process.env.SITE_ENV,
+    CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
   };
 
   const summary = await syncUnsyncedSubscribers(env, {

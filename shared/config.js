@@ -13,25 +13,20 @@
  *
  * Machine state (build snapshots, scheduler state, secret fingerprints) also
  * lives in the config database; readState/writeState are its only doors.
+ *
+ * The database is Baserow or D1, whichever `store:config` names (#127): all
+ * storage goes through the config repository (config-repository.js).
  */
 import {
-  CONFIG_CACHE_TTL_MS,
   CONFIG_DATABASE_NAME,
   CONFIG_ENVS,
   CONFIG_TABLE_NAME,
-  deleteConfigEnvRows,
-  deleteConfigRows,
-  environmentOf,
-  getConfigValueFor,
-  getConfigValues as rowValues,
-  isLocalMachine,
-  listConfigRows,
-  resetConfigCacheForTests,
-  rowScope,
-  setConfigValue,
-  setConfigValueFor,
+  resetConfigCacheForTests as resetBaserowConfigCache,
   valuesFromRows,
 } from "./config-db.js";
+import { resetD1ConfigCacheForTests } from "./config-adapters/d1-config.js";
+import { CONFIG_CACHE_TTL_MS, environmentOf, isLocalMachine, valuesFromRecords } from "./config-model.js";
+import { configRepository } from "./config-repository.js";
 
 export {
   CONFIG_CACHE_TTL_MS,
@@ -40,9 +35,18 @@ export {
   CONFIG_TABLE_NAME,
   environmentOf,
   isLocalMachine,
-  resetConfigCacheForTests,
   valuesFromRows,
 };
+
+export function resetConfigCacheForTests() {
+  resetBaserowConfigCache();
+  resetD1ConfigCacheForTests();
+}
+
+/** Every config record this runtime's environment and `service` can see, collapsed to key → value. */
+async function rowValues(env, service) {
+  return valuesFromRecords(await configRepository(env).list(), environmentOf(env), service);
+}
 
 /**
  * Settings that code no longer reads. Their rows are removed after a deploy
@@ -53,14 +57,15 @@ export const RETIRED_SETTINGS = ["site.build_snapshot.dev", "site.auto_update.de
 
 /** Remove retired settings' rows. Post-deploy only. */
 export async function removeRetiredSettings(env) {
+  const repo = configRepository(env);
   const removed = {};
-  for (const key of RETIRED_SETTINGS) removed[key] = await deleteConfigRows(env, key);
+  for (const key of RETIRED_SETTINGS) removed[key] = await repo.removeNamed(key);
   return removed;
 }
 
 /** Remove every row of an Env no code uses any more. Post-deploy only. */
 export async function removeRetiredEnv(env, envName) {
-  return deleteConfigEnvRows(env, envName);
+  return configRepository(env).removeEnv(envName);
 }
 
 /** A placeholder that counts as unset (older .env files carry it). */
@@ -161,7 +166,7 @@ export async function getSettingOrEmpty(env, service, key) {
 
 /** Write this environment's row for a setting (e.g. pour targets from /config). */
 export async function setSetting(env, service, key, value) {
-  await setConfigValue(env, service, key, value);
+  await configRepository(env).set({ name: key, env: environmentOf(env), service, value });
 }
 
 /**
@@ -178,20 +183,16 @@ export function missingLocalSettings(env = process.env, { services = ["ops", "we
 
 /** Machine state row (not a setting): exact Env + Service, no fallback. */
 export async function readState(env, service, key, scope) {
-  return getConfigValueFor(env, service, key, scope);
+  const record = await configRepository(env).find({ name: key, env: scope, service });
+  return record ? record.value.trim() : "";
 }
 
 export async function writeState(env, service, key, scope, value) {
-  return setConfigValueFor(env, service, key, scope, value);
+  await configRepository(env).set({ name: key, env: scope, service, value });
 }
 
 /** Keys written by code (build snapshots, scheduler state), not settings. */
 const STATE_KEY = /^site\.|fingerprint$/;
-
-function rowText(value) {
-  if (value && typeof value === "object" && value.value != null) return String(value.value).trim();
-  return String(value ?? "").trim();
-}
 
 /**
  * Every setting in this environment, and where each value comes from, for
@@ -200,20 +201,21 @@ function rowText(value) {
  * machine-state rows (by name and size only).
  */
 export async function describeSettings(env) {
-  const rows = await listConfigRows(env);
+  const records = await configRepository(env).list();
   const winner = (key, service, envName) => {
     let best = null;
-    for (const row of rows) {
-      if (rowText(row.Name) !== key) continue;
-      const rowEnv = rowScope(row.Env);
-      const rowService = rowScope(row.Service);
-      if (rowEnv !== "all" && rowEnv !== envName) continue;
-      if (rowService !== "all" && rowService !== service && service !== "all") continue;
-      const score = (rowEnv === envName ? 2 : 0) + (rowService === service ? 1 : 0);
-      if (!best || score > best.score) best = { score, row, rowEnv };
+    for (const record of records) {
+      if (record.name !== key) continue;
+      if (record.env !== "all" && record.env !== envName) continue;
+      if (record.service !== "all" && record.service !== service && service !== "all") continue;
+      const score = (record.env === envName ? 2 : 0) + (record.service === service ? 1 : 0);
+      if (!best || score > best.score) best = { score, record };
     }
     return best
-      ? { value: rowText(best.row.Value), from: best.rowEnv === "all" ? "config: all" : `config: ${best.rowEnv}` }
+      ? {
+          value: best.record.value.trim(),
+          from: best.record.env === "all" ? "config: all" : `config: ${best.record.env}`,
+        }
       : { value: "", from: "not set" };
   };
   const machine = isLocalMachine(env);
@@ -243,12 +245,13 @@ export async function describeSettings(env) {
   const known = new Set(Object.keys(SETTINGS));
   const unknown = [];
   const state = [];
-  for (const row of rows) {
-    const key = rowText(row.Name);
+  for (const record of records) {
+    const key = record.name;
     if (!key || known.has(key)) continue;
-    const item = { key, env: rowScope(row.Env), service: rowScope(row.Service) };
-    if (STATE_KEY.test(key)) state.push({ ...item, size: rowText(row.Value).length });
-    else unknown.push({ ...item, value: rowText(row.Value) });
+    const item = { key, env: record.env, service: record.service };
+    const value = record.value.trim();
+    if (STATE_KEY.test(key)) state.push({ ...item, size: value.length });
+    else unknown.push({ ...item, value });
   }
   return {
     environments: [current],

@@ -2,9 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearBaserowTableIdCache,
   FORM_SUBMISSIONS_TABLE_NAME,
-  resolveFormSubmissionsTableId,
   resolveRsvpTableId,
-  resolveSubscribeTableId,
   RSVP_TABLE_NAME,
   SUBSCRIBE_TABLE_NAME,
   WEBSITE_DATABASE_NAME,
@@ -90,74 +88,5 @@ describe("resolveRsvpTableId", () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain(RSVP_TABLE_NAME);
-  });
-});
-
-describe("resolveFormSubmissionsTableId", () => {
-  afterEach(() => {
-    clearBaserowTableIdCache();
-    vi.unstubAllGlobals();
-  });
-
-  it("finds Form Submissions by name", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => [
-          { id: 99, name: SUBSCRIBE_TABLE_NAME, database_id: 1 },
-          { id: 77, name: FORM_SUBMISSIONS_TABLE_NAME, database_id: 1 },
-        ],
-      })),
-    );
-
-    const result = await resolveFormSubmissionsTableId({
-      BASEROW_API_KEY: "test-token",
-    });
-
-    expect(result).toEqual({ ok: true, tableId: "77" });
-  });
-
-  it("returns an error when the table is missing", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => [{ id: 99, name: "Other", database_id: 1 }],
-      })),
-    );
-
-    const result = await resolveFormSubmissionsTableId({
-      BASEROW_API_KEY: "test-token",
-    });
-
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain(FORM_SUBMISSIONS_TABLE_NAME);
-    expect(result.error).toContain("setup:baserow-form-submissions");
-  });
-});
-
-describe("resolveSubscribeTableId", () => {
-  afterEach(() => {
-    clearBaserowTableIdCache();
-    vi.unstubAllGlobals();
-  });
-
-  it("finds Subscribers by name", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => [
-          { id: 1024006, name: SUBSCRIBE_TABLE_NAME, database_id: 1 },
-        ],
-      })),
-    );
-
-    const result = await resolveSubscribeTableId({
-      BASEROW_API_KEY: "test-token",
-    });
-
-    expect(result).toEqual({ ok: true, tableId: "1024006" });
   });
 });

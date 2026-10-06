@@ -9,8 +9,9 @@ export const app = "ops";
 export const phase = "post";
 export const about = "Config: remove retired settings";
 
-export async function up({ processEnv, log }) {
-  const removed = await removeRetiredSettings(processEnv);
+export async function up({ env, processEnv, log }) {
+  // SITE_ENV picks this environment's config database once it's on D1 (#127).
+  const removed = await removeRetiredSettings({ ...processEnv, SITE_ENV: env });
   for (const key of RETIRED_SETTINGS) {
     log(removed[key] ? `${key}: removed ${removed[key]} row(s)` : `${key}: nothing to remove`);
   }

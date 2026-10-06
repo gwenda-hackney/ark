@@ -7,7 +7,8 @@
  *     Artists table with BASEROW_OPS_API_KEY (the token picks the database).
  *
  *   node scripts/site-build-snapshot.mjs save --in FILE --site preview|production
- *     After a successful deploy. Writes Gwenda Config (BASEROW_CONFIG_API_KEY).
+ *     After a successful deploy. Writes Gwenda Config for SITE_ENV (Baserow with
+ *     BASEROW_CONFIG_API_KEY, or D1 with the Cloudflare token once config moved).
  *
  * Capturing first means edits made during the build still count as pending.
  */

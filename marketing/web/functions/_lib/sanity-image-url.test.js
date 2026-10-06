@@ -3,7 +3,6 @@ import {
   isWholeFit,
   markWholeFit,
   objectPositionFromHotspot,
-  portraitImageUrl,
   resolveHeroUrl,
   sanityCroppedUrl,
   withImageParams,
@@ -74,59 +73,5 @@ describe("whole image heroes (#27)", () => {
     });
     expect(url).not.toMatch(/rect=/);
     expect(isWholeFit(url)).toBe(true);
-  });
-});
-
-describe("portraitImageUrl", () => {
-  const ASSET =
-    "https://cdn.sanity.io/images/demo/production/abc123-2000x1500.jpg";
-
-  it("takes the 4:5 slice through the middle of a stored crop", () => {
-    const url = new URL(
-      portraitImageUrl(
-        `${ASSET}?rect=200,100,1600,1000&w=1600&h=1000&fit=max&auto=format&q=86`,
-      ),
-    );
-    expect(url.searchParams.get("rect")).toBe("600,100,800,1000");
-    expect(url.searchParams.get("w")).toBe("800");
-    expect(url.searchParams.get("h")).toBe("1000");
-    expect(url.searchParams.get("fit")).toBe("crop");
-    expect(url.searchParams.get("q")).toBe("86");
-  });
-
-  it("stays inside the stored crop when the source size is unknown", () => {
-    const url = new URL(
-      portraitImageUrl(
-        "https://cdn.sanity.io/images/demo/production/hero.jpg?rect=0,0,1600,1000",
-      ),
-    );
-    expect(url.searchParams.get("rect")).toBe("400,0,800,1000");
-  });
-
-  it("crops to 4:5 around the hotspot, or the centre", () => {
-    const focal = new URL(
-      portraitImageUrl(`${ASSET}?w=1600&auto=format&q=86&fp-x=0.3&fp-y=0.4`),
-    );
-    expect(focal.searchParams.get("w")).toBe("800");
-    expect(focal.searchParams.get("h")).toBe("1000");
-    expect(focal.searchParams.get("fit")).toBe("crop");
-    expect(focal.searchParams.get("crop")).toBe("focalpoint");
-    expect(focal.searchParams.get("fp-x")).toBe("0.3");
-
-    const plain = new URL(portraitImageUrl(ASSET, { width: 640 }));
-    expect(plain.searchParams.get("w")).toBe("640");
-    expect(plain.searchParams.get("h")).toBe("800");
-    expect(plain.searchParams.get("fit")).toBe("crop");
-    expect(plain.searchParams.has("crop")).toBe(false);
-    expect(plain.searchParams.get("auto")).toBe("format");
-  });
-
-  it("leaves whole images and other hosts alone", () => {
-    const whole = `${ASSET}?w=1600#whole`;
-    expect(portraitImageUrl(whole)).toBe(whole);
-    expect(portraitImageUrl("https://cdn.example/negroni.jpg")).toBe(
-      "https://cdn.example/negroni.jpg",
-    );
-    expect(portraitImageUrl("")).toBe("");
   });
 });

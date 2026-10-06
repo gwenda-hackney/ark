@@ -1,75 +1,50 @@
 /**
- * Ops membership: Baserow Users (Email, Name, Active).
- * Cloudflare Access authenticates Google; this table decides who may use the app.
+ * Ops membership: who may use the app (UserRepository: Baserow Users, then D1).
+ * Google OAuth authenticates; this list decides who gets in.
  */
-import {
-  createRow,
-  deleteRow,
-  getRow,
-  listAllRows,
-  resolveOpsTableIds,
-  updateRow,
-} from "../../../../../shared/baserow.js";
+import { normalizeEmail, text } from "./user-model.js";
+import { usersRepository } from "./user-repository.js";
+
+export { normalizeEmail };
 
 const CACHE_TTL_MS = 30_000;
-let cache = { key: "", at: 0, emails: null };
+let cache = { at: 0, emails: null };
 
 export function resetUsersCacheForTests() {
-  cache = { key: "", at: 0, emails: null };
+  cache = { at: 0, emails: null };
 }
 
 function bustUsersCache() {
-  cache = { key: "", at: 0, emails: null };
+  cache = { at: 0, emails: null };
 }
 
-export function normalizeEmail(value) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function text(value) {
-  if (typeof value !== "string") return "";
-  return value.trim();
-}
-
-function requireUsersTable(tables) {
-  if (!tables.users) {
-    const error = new Error(
-      'Baserow table "Users" not found. Run npm run setup:baserow-ops.',
-    );
-    error.status = 503;
-    throw error;
-  }
-  return tables.users;
-}
-
-export function mapOpsUser(row) {
+/** A user as the API returns it. */
+export function mapOpsUser(user) {
   return {
-    _id: String(row.id),
-    id: String(row.id),
-    email: normalizeEmail(row.Email),
-    name: text(row.Name) || undefined,
-    active: row.Active == null ? true : Boolean(row.Active),
+    _id: String(user.id),
+    id: String(user.id),
+    email: user.email,
+    name: user.name || undefined,
+    active: user.active,
   };
 }
 
-export function activeEmailsFromRows(rows) {
+export function activeEmailsFrom(users) {
   const emails = new Set();
-  for (const row of rows || []) {
-    if (row?.Active === false) continue;
-    const email = normalizeEmail(row?.Email);
+  for (const user of users || []) {
+    if (!user?.active) continue;
+    const email = normalizeEmail(user.email);
     if (email) emails.add(email);
   }
   return emails;
 }
 
 export async function listActiveOpsEmails(env) {
-  const tableId = requireUsersTable(await resolveOpsTableIds(env));
-  if (cache.emails && cache.key === tableId && Date.now() - cache.at < CACHE_TTL_MS) {
+  if (cache.emails && Date.now() - cache.at < CACHE_TTL_MS) {
     return cache.emails;
   }
-  const rows = await listAllRows(env, tableId);
-  const emails = activeEmailsFromRows(rows);
-  cache = { key: tableId, at: Date.now(), emails };
+  const emails = activeEmailsFrom(await usersRepository(env).list());
+  cache = { at: Date.now(), emails };
   return emails;
 }
 
@@ -81,12 +56,11 @@ export async function isOpsUser(env, email) {
 }
 
 export async function listOpsUsers(env) {
-  const tableId = requireUsersTable(await resolveOpsTableIds(env));
-  const rows = await listAllRows(env, tableId);
-  return rows
-    .map(mapOpsUser)
+  const users = await usersRepository(env).list();
+  return users
     .filter((user) => user.email)
-    .sort((a, b) => a.email.localeCompare(b.email));
+    .sort((a, b) => a.email.localeCompare(b.email))
+    .map(mapOpsUser);
 }
 
 function fieldsFromInput(input, { partial = false } = {}) {
@@ -98,14 +72,14 @@ function fieldsFromInput(input, { partial = false } = {}) {
       error.status = 400;
       throw error;
     }
-    fields.Email = email;
+    fields.email = email;
   }
   if (!partial || input.name !== undefined) {
     const name = text(input.name);
-    fields.Name = name || fields.Email || text(input.email) || "";
+    fields.name = name || fields.email || text(input.email) || "";
   }
   if (!partial || input.active !== undefined) {
-    fields.Active =
+    fields.active =
       input.active == null
         ? true
         : input.active === true || input.active === "true";
@@ -113,26 +87,25 @@ function fieldsFromInput(input, { partial = false } = {}) {
   return fields;
 }
 
+function emailTaken() {
+  const error = new Error("That email is already on the users list.");
+  error.status = 409;
+  return error;
+}
+
 export async function createOpsUser(env, input) {
-  const tableId = requireUsersTable(await resolveOpsTableIds(env));
+  const repo = usersRepository(env);
   const fields = fieldsFromInput(input || {});
-  if (!fields.Name) fields.Name = fields.Email;
-  const siblings = await listAllRows(env, tableId);
-  const clash = siblings.find(
-    (row) => normalizeEmail(row.Email) === fields.Email,
-  );
-  if (clash) {
-    const error = new Error("That email is already on the users list.");
-    error.status = 409;
-    throw error;
-  }
-  const row = await createRow(env, tableId, fields);
+  if (!fields.name) fields.name = fields.email;
+  const siblings = await repo.list();
+  if (siblings.some((user) => user.email === fields.email)) throw emailTaken();
+  const user = await repo.create(fields);
   bustUsersCache();
-  return mapOpsUser(row);
+  return mapOpsUser(user);
 }
 
 export async function updateOpsUser(env, id, input) {
-  const tableId = requireUsersTable(await resolveOpsTableIds(env));
+  const repo = usersRepository(env);
   const rowId = String(id || "").trim();
   if (!rowId) {
     const error = new Error("Missing id.");
@@ -140,35 +113,29 @@ export async function updateOpsUser(env, id, input) {
     throw error;
   }
   const fields = fieldsFromInput(input || {}, { partial: true });
-  if (fields.Email) {
-    const siblings = await listAllRows(env, tableId);
+  if (fields.email) {
+    const siblings = await repo.list();
     const clash = siblings.find(
-      (row) =>
-        String(row.id) !== rowId && normalizeEmail(row.Email) === fields.Email,
+      (user) => String(user.id) !== rowId && user.email === fields.email,
     );
-    if (clash) {
-      const error = new Error("That email is already on the users list.");
-      error.status = 409;
-      throw error;
-    }
-    if (fields.Name === undefined) {
-      const current = await getRow(env, tableId, rowId);
-      if (!text(current?.Name)) fields.Name = fields.Email;
+    if (clash) throw emailTaken();
+    if (fields.name === undefined) {
+      const current = await repo.get(rowId);
+      if (!current?.name) fields.name = fields.email;
     }
   }
-  const row = await updateRow(env, tableId, rowId, fields);
+  const user = await repo.update(rowId, fields);
   bustUsersCache();
-  return mapOpsUser(row);
+  return mapOpsUser(user);
 }
 
 export async function deleteOpsUser(env, id) {
-  const tableId = requireUsersTable(await resolveOpsTableIds(env));
   const rowId = String(id || "").trim();
   if (!rowId) {
     const error = new Error("Missing id.");
     error.status = 400;
     throw error;
   }
-  await deleteRow(env, tableId, rowId);
+  await usersRepository(env).remove(rowId);
   bustUsersCache();
 }

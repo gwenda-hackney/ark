@@ -120,6 +120,8 @@ All code reads settings through **`shared/config.js`**, never the database direc
 
 The environment comes from `SITE_ENV`: `dev` (hosted dev), `local` (a developer's machine, which is dev), `production`. Prod's preview runs as `production`. A runtime writes only its own Env row (e.g. ops `/config` pour targets). Values are cached for 60 seconds per isolate. Each environment reads its own database with its own token, `BASEROW_CONFIG_API_KEY__DEV` or `__PRODUCTION`, which sees only that database.
 
+**Moving to D1 (#127).** `shared/config.js` reaches the rows only through the config repository (`shared/config-repository.js`): Baserow today, the `config_values` table of the `gwenda-config` D1 database once `store:config` in its `_meta` says `d1` (`npm run data:move -- --feature config …`, then `npm run d1:store`). In D1 a name + Env + Service is one row (a unique key), so a write is an upsert. Code outside Pages (scripts, CI) reaches D1 with `SITE_ENV` and that environment's `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`; without them it stays on Baserow.
+
 Ops **Developer tools → Settings** lists every setting in its environment and where its value comes from; in dev it also shows a developer's machine.
 
 | Key | Env / Service | Meaning | On a developer's machine |
