@@ -172,7 +172,8 @@ describe("usersRepository", () => {
     await OPS_DB.prepare(
       "INSERT INTO _meta (key, value) VALUES ('store:users', 'd1')",
     ).run();
-    const onD1 = await usersRepository(env).list();
+    // A new runtime: each one keeps the flag it read for a few seconds.
+    const onD1 = await usersRepository({ ...env }).list();
     assert.deepEqual(
       onD1.map((u) => u.email),
       ["d1@gwenda.co.uk"],
