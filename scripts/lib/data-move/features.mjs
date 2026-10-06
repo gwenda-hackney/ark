@@ -26,7 +26,6 @@ import {
 import { baserowArtistRepository } from "../../../shared/artists/baserow-artists.js";
 import { isBlankArtist } from "../../../shared/artists/artist-model.js";
 import { d1ArtistRepository } from "../../../shared/artists/d1-artists.js";
-import { isSmokeSubscriber } from "../../../shared/smoke-test.js";
 import { baserowMenuRepository } from "../../../ops/site/src/menu/server/adapters/baserow-menu.js";
 import { d1MenuRepository } from "../../../ops/site/src/menu/server/adapters/d1-menu.js";
 
