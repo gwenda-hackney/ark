@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Ingest an LWC customer price-list CSV into ops/site/scripts/data/lwc-price-list.json
- * and patch Baserow Inventory suppliers (Price / Pack / SKU) for matching codes.
+ * and patch the supplier links (Price / Pack / SKU) for matching codes, through
+ * the menu repository (Baserow or D1, wherever the menu lives).
  *
  * Usage:
  *   npm run ingest:lwc-price-list -- [csv]
@@ -10,13 +11,12 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { listAllRows, updateRow } from "../../../shared/baserow.js";
 import {
   parseMoney,
   skuFromProductUrl,
 } from "../src/inventory/suppliers.js";
 import { diffLwcPriceLists, parseLwcPriceListCsv } from "../src/inventory/lwc-price-list.js";
-import { requireOpsTables } from "../../../scripts/lib/ops-baserow-tables.mjs";
+import { menuRepository } from "../src/menu/server/menu-repository.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const jsonPath = join(root, "scripts/data/lwc-price-list.json");
@@ -27,15 +27,6 @@ const csvArg = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
 function text(value) {
   if (typeof value !== "string") return "";
   return value.trim();
-}
-
-function linkId(value) {
-  if (Array.isArray(value) && value[0]) {
-    const first = value[0];
-    if (typeof first === "number") return first;
-    if (first && typeof first === "object" && first.id != null) return Number(first.id);
-  }
-  return null;
 }
 
 function loadPrevious() {
@@ -49,26 +40,24 @@ function gbp(value) {
   return `£${n.toFixed(2)}`;
 }
 
-async function patchBaserow(bySku) {
-  const tables = await requireOpsTables();
-  if (!tables.inventorySuppliers) {
-    throw new Error("Missing Inventory suppliers table. Run npm run setup:baserow-ops.");
-  }
-  const [linkRows, inventoryRows] = await Promise.all([
-    listAllRows(process.env, tables.inventorySuppliers),
-    tables.inventory ? listAllRows(process.env, tables.inventory) : [],
+async function patchLinks(bySku) {
+  const repo = menuRepository(process.env);
+  const [links, inventory] = await Promise.all([
+    repo.list("inventory_suppliers"),
+    repo.list("inventory"),
   ]);
   const inventoryName = new Map(
-    inventoryRows.map((row) => [row.id, text(row.Name)]),
+    inventory.map((record) => [record.id, text(record.name)]),
   );
 
   let patched = 0;
   let unchanged = 0;
   let unmatched = 0;
   const updates = [];
+  const changes = [];
 
-  for (const row of linkRows) {
-    const sku = (text(row.SKU) || skuFromProductUrl(row["Product URL"])).toUpperCase();
+  for (const link of links) {
+    const sku = (text(link.sku) || skuFromProductUrl(link.productUrl)).toUpperCase();
     if (!sku) {
       unmatched += 1;
       continue;
@@ -79,26 +68,25 @@ async function patchBaserow(bySku) {
       continue;
     }
     const fields = {};
-    if (text(row.SKU).toUpperCase() !== sku) fields.SKU = sku;
-    if (text(row.Pack).toUpperCase() !== hit.pack) fields.Pack = hit.pack;
-    if (parseMoney(row.Price) !== hit.price) fields.Price = hit.price;
+    if (text(link.sku).toUpperCase() !== sku) fields.sku = sku;
+    if (text(link.pack).toUpperCase() !== hit.pack) fields.pack = hit.pack;
+    if (parseMoney(link.price) !== hit.price) fields.price = hit.price;
     if (!Object.keys(fields).length) {
       unchanged += 1;
       continue;
     }
-    const label = inventoryName.get(linkId(row.Inventory)) || text(row.Name) || sku;
+    const label = inventoryName.get(link.inventoryId) || text(link.name) || sku;
     updates.push({
       sku,
       label,
-      from: parseMoney(row.Price),
+      from: parseMoney(link.price),
       to: hit.price,
       pack: hit.pack,
     });
-    if (!dryRun) {
-      await updateRow(process.env, tables.inventorySuppliers, row.id, fields);
-    }
+    changes.push({ op: "update", collection: "inventory_suppliers", id: link.id, fields });
     patched += 1;
   }
+  if (!dryRun) await repo.write(changes);
 
   return { patched, unchanged, unmatched, updates };
 }
@@ -136,7 +124,7 @@ async function main() {
     );
   }
 
-  const result = await patchBaserow(next);
+  const result = await patchLinks(next);
   console.log(
     `\n${dryRun ? "Dry run: would patch" : "Patched"} ${result.patched} inventory–supplier row(s); ${result.unchanged} already current; ${result.unmatched} with no list SKU.`,
   );
