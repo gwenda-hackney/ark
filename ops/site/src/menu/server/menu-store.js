@@ -11,8 +11,9 @@ import {
   listAllRows,
   resolveOpsTableIds,
   updateRow,
-  uploadUserFile,
 } from "../../../../../shared/baserow.js";
+import { parseImageAssetId, sanityImageUrl } from "../../../../../shared/sanity-image.js";
+import { sanityProjectId, sanityUploadImage } from "../../platform/sanity.js";
 import {
   computeRecipeAbv,
   computeRecipeVolumeMl,
@@ -140,8 +141,29 @@ export function rowHasField(row, field) {
   return Boolean(row) && Object.prototype.hasOwnProperty.call(row, field);
 }
 
-export function mapItem(row) {
+/**
+ * A drink's photo is a Sanity asset (#183): ops keeps its id in Photo asset.
+ * A photo from before is still a Baserow file (Photo) until the backfill
+ * (migrations/2026-10-06-menu-photos-backfill.mjs) gives it an asset.
+ */
+export const PHOTO_ASSET_FIELD = "Photo asset";
+
+function itemImage(row, projectId) {
+  const name = text(row.Name);
+  const assetId = text(row[PHOTO_ASSET_FIELD]);
+  if (parseImageAssetId(assetId)) {
+    return { alt: name, asset: { _id: assetId, url: sanityImageUrl(projectId, assetId) } };
+  }
   const photo = fileUrl(row.Photo);
+  return photo ? { alt: name, asset: { url: photo } } : undefined;
+}
+
+/** What mapItem needs from the runtime: the Sanity project photos are shown from. */
+function mapOptions(env) {
+  return { projectId: sanityProjectId(env) };
+}
+
+export function mapItem(row, { projectId } = {}) {
   const drinkType = normalizeDrinkType(row["Drink type"]);
   const prices = mergeLegacyPrices({
     drinkType,
@@ -189,12 +211,7 @@ export function mapItem(row) {
     lightspeedStatus: normalizeLightspeedStatus(row["Lightspeed status"]) || undefined,
     posMenus: mapPosMenuLinks(row["POS menus"]),
     analysisNote: parseStoredAnalyzeNote(row[ANALYSIS_NOTE_FIELD]),
-    image: photo
-      ? {
-          alt: text(row.Name),
-          asset: { url: photo },
-        }
-      : undefined,
+    image: itemImage(row, projectId),
     ingredients: [],
   };
 }
@@ -234,8 +251,9 @@ export async function loadMenuTree(env) {
     list.sort((a, b) => a.order - b.order || a.id - b.id);
   }
 
+  const options = mapOptions(env);
   let items = itemRows
-    .map(mapItem)
+    .map((row) => mapItem(row, options))
     .filter((item) => Boolean(item.name))
     .sort((a, b) => a.orderRank - b.orderRank);
   items = attachPlacements(items, placementRows);
@@ -563,7 +581,7 @@ export async function createMenuItem(env, input) {
     placements,
   );
   const item = applyPlacementDerivedFields({
-    ...mapItem(row),
+    ...mapItem(row, mapOptions(env)),
     ingredients: savedIngredients,
     placements: savedPlacements,
   });
@@ -585,7 +603,7 @@ export async function updateMenuItem(env, itemId, input) {
     error.status = 404;
     throw error;
   }
-  const existingMapped = mapItem(existing);
+  const existingMapped = mapItem(existing, mapOptions(env));
   if (tables.menuPlacements) {
     const placementRows = await listAllRows(env, tables.menuPlacements, {
       filters: linkHasQuery("Menu item", itemId),
@@ -651,7 +669,7 @@ export async function updateMenuItem(env, itemId, input) {
     placements,
   );
   return applyPlacementDerivedFields({
-    ...mapItem(row),
+    ...mapItem(row, mapOptions(env)),
     ingredients: savedIngredients,
     placements: savedPlacements,
   });
@@ -769,17 +787,23 @@ export async function archiveMenuItem(env, itemId) {
   return updateMenuItem(env, itemId, { archived: true, placements: [] });
 }
 
-export async function setMenuItemPhoto(env, itemId, bytes, { filename, contentType, alt }) {
+/** Upload a drink's photo to Sanity; the asset is the photo's only copy (#183). */
+export async function setMenuItemPhoto(env, itemId, bytes, { filename, contentType }) {
   const tables = await resolveOpsTableIds(env);
-  const uploaded = await uploadUserFile(env, bytes, { filename, contentType });
+  const asset = await sanityUploadImage(env, bytes, { filename, contentType });
+  if (!parseImageAssetId(asset?._id)) {
+    const error = new Error("The photo didn't upload to Sanity.");
+    error.status = 502;
+    throw error;
+  }
   const row = await updateRow(env, tables.items, itemId, {
-    Photo: [{ name: uploaded.name }],
-    ...(alt ? {} : {}),
+    [PHOTO_ASSET_FIELD]: asset._id,
+    Photo: [],
   });
-  const item = mapItem(row);
-  if (!item.image?.asset?.url) {
+  const item = mapItem(row, mapOptions(env));
+  if (item.image?.asset?._id !== asset._id) {
     const error = new Error(
-      'Photo did not attach. Menu Items is missing a "Photo" file field (or Baserow ignored the upload). Run npm run setup:baserow-ops against this Ops database.',
+      `Photo did not attach. Menu Items is missing a "${PHOTO_ASSET_FIELD}" field: run the ops pre-deploy migrations (npm run migrate).`,
     );
     error.status = 502;
     throw error;
@@ -787,10 +811,11 @@ export async function setMenuItemPhoto(env, itemId, bytes, { filename, contentTy
   return item;
 }
 
+/** Takes the photo off the drink. The Sanity asset stays: the live site may still show it. */
 export async function clearMenuItemPhoto(env, itemId) {
   const tables = await resolveOpsTableIds(env);
-  const row = await updateRow(env, tables.items, itemId, { Photo: [] });
-  return mapItem(row);
+  const row = await updateRow(env, tables.items, itemId, { [PHOTO_ASSET_FIELD]: "", Photo: [] });
+  return mapItem(row, mapOptions(env));
 }
 
 export async function importIngredientsForItems(env, rows) {
@@ -984,7 +1009,7 @@ export async function applyLightspeedMenuMatch(env, patches) {
     const fields = lightspeedMenuFields(patch);
     if (!Object.keys(fields).length) continue;
     const row = await updateRow(env, tables.items, id, fields);
-    updated.push(mapItem(row));
+    updated.push(mapItem(row, mapOptions(env)));
   }
   return updated;
 }

@@ -96,7 +96,8 @@ There are no roles: an active user sees all of ops (recipes and trade prices, fo
 
 | Data | Store |
 |------|--------|
-| Recipes, ingredients, method, glass, garnish, ops photos | **Baserow** `Menu Items` + `Ingredients` |
+| Recipes, ingredients, method, glass, garnish | **Baserow** `Menu Items` + `Ingredients` |
+| Drink photos | **Sanity** image assets, uploaded straight from ops (#183); Menu Items `Photo asset` holds the asset id. Older photos are a Baserow file (`Photo`) until the backfill. |
 | Where a drink appears (print / digital / POS) | **Baserow** `Menu placements` (channel + section or POS menu/screen). Legacy Section / On print / On digital / POS menus fields are mirrored for compatibility. |
 | Lightspeed menus catalog (Fall 2026, Gwenda, …) | **Baserow** `POS Menus`. Manage at `/lightspeed/menus`. |
 | Lightspeed till screen path | **Baserow** `Menu placements` POS screen (also mirrored on Menu Items `Lightspeed menu/screen`). |
@@ -107,7 +108,7 @@ There are no roles: an active user sees all of ops (recipes and trade prices, fo
 | House pour-cost targets and other non-secret knobs | **Baserow** `Gwenda Config` database (Name, Value, Env, Service), shared with the website and never copied with Ops data. Edit pour targets at `/config`. |
 | Guest digital menu (names, prices, short lines, gallery) | **Sanity** (marketing site only) |
 
-Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section, photo) from Baserow into Sanity as **drafts**. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
+Ops does **not** store recipes in Sanity. **Publish to digital menu** copies guest-facing fields (name, prices, menu line, section) from Baserow into Sanity as **drafts**, and points each drink at its photo's asset. It matches by stored Sanity ID or name, creates missing sections/items, and the preview site rebuilds once edits go quiet. They go live when ops publishes them (Website → Preview → live). In local ops this writes the Gwenda Dev copy instead.
 
 ## Local
 
