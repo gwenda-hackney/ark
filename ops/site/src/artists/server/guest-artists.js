@@ -1,95 +1,43 @@
 /**
- * Guest artists: ops' own record of play applicants, one row per email.
+ * Guest artists: ops' own record of play applicants, one per email.
  * The decision (approved or declined) and the artist name and link ops uses
  * for events live here, so the website's Form Submissions (whatever schema a
- * form has) are never written by ops.
+ * form has) are never written by ops. Kept through the ArtistRepository
+ * (shared/artists/artist-repository.js), with the wall artists.
  */
-import {
-  TABLE_GUEST_ARTISTS,
-  createRow,
-  listAllRows,
-  resolveOpsTableIds,
-  updateRow,
-} from "../../../../../shared/baserow.js";
+import { artistRepository } from "../../../../../shared/artists.js";
+import { emailKey } from "../../../../../shared/artists/artist-model.js";
 
-export const DECISIONS = ["Approved", "Declined"];
+export { DECISIONS, emailKey } from "../../../../../shared/artists/artist-model.js";
 
-/** Columns besides the primary "Email" (migration and setup both use these). */
-export const GUEST_ARTIST_FIELDS = [
-  {
-    name: "Decision",
-    type: "single_select",
-    select_options: [
-      { value: "Approved", color: "green" },
-      { value: "Declined", color: "red" },
-    ],
-  },
-  { name: "Artist name", type: "text" },
-  { name: "Artist link", type: "url" },
-];
-
-function text(value) {
-  if (value == null) return "";
-  if (typeof value === "object" && value.value != null) return String(value.value).trim();
-  return String(value).trim();
-}
-
-export function emailKey(value) {
-  return text(value).toLowerCase();
-}
-
-export function mapGuestArtist(row) {
+/** A guest artist as forms work with it: the record, with its id as text. */
+function guestArtist(record) {
   return {
-    id: String(row?.id ?? ""),
-    email: emailKey(row?.Email),
-    decision: text(row?.Decision),
-    artistName: text(row?.["Artist name"]),
-    artistLink: text(row?.["Artist link"]),
+    id: String(record.id ?? ""),
+    email: record.email,
+    decision: record.decision,
+    artistName: record.artistName,
+    artistLink: record.artistLink,
   };
-}
-
-async function tableId(env) {
-  const tables = await resolveOpsTableIds(env);
-  if (!tables.guestArtists) {
-    const error = new Error(
-      `Baserow table "${TABLE_GUEST_ARTISTS}" was not found. Run the deploy migrations.`,
-    );
-    error.status = 503;
-    throw error;
-  }
-  return tables.guestArtists;
 }
 
 /** Every record, by email. A missing table reads as none, so lists still load. */
 export async function guestArtistsByEmail(env) {
-  const tables = await resolveOpsTableIds(env);
-  if (!tables.guestArtists) return new Map();
-  const rows = await listAllRows(env, tables.guestArtists);
   const out = new Map();
-  for (const row of rows.map(mapGuestArtist)) {
-    if (row.email && !out.has(row.email)) out.set(row.email, row);
+  for (const record of await artistRepository(env).listGuestArtists()) {
+    if (record.email && !out.has(record.email)) out.set(record.email, guestArtist(record));
   }
   return out;
 }
 
 /** Create or update the record for `email` with the given fields. */
 export async function saveGuestArtist(env, email, patch) {
-  const key = emailKey(email);
-  if (!key) {
+  if (!emailKey(email)) {
     const error = new Error("This application has no email address to keep a record by.");
     error.status = 400;
     throw error;
   }
-  const id = await tableId(env);
-  const fields = {};
-  if (patch.decision !== undefined) fields.Decision = patch.decision || null;
-  if (patch.artistName !== undefined) fields["Artist name"] = patch.artistName;
-  if (patch.artistLink !== undefined) fields["Artist link"] = patch.artistLink;
-  const existing = (await guestArtistsByEmail(env)).get(key);
-  const row = existing
-    ? await updateRow(env, id, existing.id, fields)
-    : await createRow(env, id, { Email: key, ...fields });
-  return mapGuestArtist(row);
+  return guestArtist(await artistRepository(env).saveGuestArtist(email, patch));
 }
 
 function same(a, b) {

@@ -1,6 +1,7 @@
 /**
- * The artist on the wall, read from Ops Baserow. Their photos are on
- * cdn.sanity.io (#183), or Baserow files until the backfill moves them.
+ * The artist on the wall, read from ops' artists (Baserow, then D1, #127).
+ * Their photos are on cdn.sanity.io (#183), or Baserow files until the
+ * backfill moves them.
  * Marketing's own Baserow token cannot see that database, so this uses
  * BASEROW_OPS_API_KEY (from Secrets Manager via with-env).
  */
@@ -12,16 +13,25 @@ function text(value) {
 }
 
 /**
- * Ops Baserow access for the website; the token alone picks the database.
- * SANITY_PROJECT_ID picks the project the photos are shown from (#183).
+ * What the website needs to read ops' artists (shared/artists.js): the ops
+ * Baserow token (it alone picks the database), and the ops D1 database once
+ * artists move there (#127): the OPS_DB binding at runtime, the D1 API with
+ * this environment's Cloudflare token in the build. SANITY_PROJECT_ID picks
+ * the project the photos are shown from (#183). Null when it can reach
+ * neither.
  */
 export function opsArtistEnv(env = process.env) {
   const key = text(env.BASEROW_OPS_API_KEY);
-  if (!key) return null;
+  if (!key && !env.OPS_DB && !text(env.CLOUDFLARE_API_TOKEN)) return null;
   return {
     BASEROW_API_KEY: key,
     BASEROW_API_URL: env.BASEROW_API_URL,
     SANITY_PROJECT_ID: env.SANITY_PROJECT_ID,
+    OPS_DB: env.OPS_DB,
+    SITE_ENV: env.SITE_ENV,
+    CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID,
+    DATA_STORE_ARTISTS: env.DATA_STORE_ARTISTS,
   };
 }
 
@@ -166,7 +176,10 @@ export async function fetchFeaturedArtists(
 ) {
   const readEnv = opsArtistEnv(env);
   if (!readEnv) {
-    if (strict) throw new Error("BASEROW_OPS_API_KEY is not set.");
+    if (strict)
+      throw new Error(
+        "BASEROW_OPS_API_KEY is not set, and there is no OPS_DB.",
+      );
     return { current: null, next: null, previous: [] };
   }
   try {
