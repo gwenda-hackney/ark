@@ -185,12 +185,31 @@ describe("menu: each edit reaches /menu after Update website", () => {
 
   it("adding and removing a photo", async () => {
     await ops.updateWebsite();
-    await ops.addPhoto(negroni);
+    const withPhoto = await ops.addPhoto(negroni);
+    const assets = world.sanity.view("raw").filter((doc) => doc._type === "sanity.imageAsset");
+    assert.equal(assets.length, 1, "the photo went straight to Sanity (#183)");
+    assert.equal(withPhoto.image.asset._id, assets[0]._id);
+    assert.match(withPhoto.image.asset.url, /^https:\/\/cdn\.sanity\.io\//);
+    assert.deepEqual(world.baserow.rows("Menu Items")[0].Photo, [], "no Baserow file");
     await ops.updateWebsite();
     assert.ok(drink(await websiteMenu(world), "Cocktails", "Negroni")?.image?.asset?.url, "photo on /menu");
+    assert.equal(
+      world.sanity.view("raw").filter((doc) => doc._type === "sanity.imageAsset").length,
+      1,
+      "Update website referenced the asset, it didn't copy it",
+    );
     await ops.removePhoto(negroni);
     await ops.updateWebsite();
     assert.ok(!drink(await websiteMenu(world), "Cocktails", "Negroni")?.image?.asset, "photo gone from /menu");
+  });
+
+  // Storage-specific on purpose: only Baserow has photos from before #183.
+  it("a photo from before (a Baserow file) still reaches /menu", async () => {
+    const file = world.baserow.addFile("old.jpg", new Uint8Array(1024).fill(9));
+    const [row] = world.baserow.rows("Menu Items");
+    world.baserow.update("Menu Items", row.id, { Photo: [file] });
+    await ops.updateWebsite();
+    assert.ok(drink(await websiteMenu(world), "Cocktails", "Negroni")?.image?.asset?.url, "copied in at publish");
   });
 
   it("moving a drink to another section", async () => {

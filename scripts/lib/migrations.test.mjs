@@ -452,6 +452,114 @@ describe("event photos from before #183", () => {
   });
 });
 
+describe("drink photos from before #183", () => {
+  const realFetch = globalThis.fetch;
+  const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+  const NEW = "image-1111111111111111111111111111111111111111-800x600-jpg";
+  const photo = (name) => [{ name, url: `https://files/${name}` }];
+  const snapshot = (url) => ({ at: "2026-10-01T10:00:00Z", hash: "", payload: { name: "x", photo: url } });
+  const rows = [
+    // Published with this photo: the asset is on its Sanity draft.
+    {
+      id: 1,
+      Name: "Negroni",
+      Photo: photo("negroni.jpg"),
+      "Sanity ID": "item-1",
+      "Publish snapshots": JSON.stringify({ preview: snapshot("https://files/negroni.jpg") }),
+    },
+    // Moved already.
+    { id: 2, Name: "Spritz", Photo: photo("spritz.jpg"), "Photo asset": ASSET },
+    // Never published: uploaded.
+    { id: 3, Name: "Stout", Photo: photo("stout.jpg"), "Sanity ID": "" },
+    // A new photo since the last publish: its Sanity copy is the old photo.
+    {
+      id: 4,
+      Name: "Pils",
+      Photo: photo("pils-2.jpg"),
+      "Sanity ID": "item-4",
+      "Publish snapshots": JSON.stringify({ production: snapshot("https://files/pils-1.jpg") }),
+    },
+    { id: 5, Name: "", Photo: photo("none.jpg") },
+    { id: 6, Name: "Soda", Photo: [] },
+  ];
+
+  function world() {
+    const updated = [];
+    const uploads = [];
+    const db = {
+      label: "Gwenda Dev / Gwenda Ops",
+      rows: async () => rows,
+      updateRows: async (table, items) => updated.push(...items.map((item) => ({ table, ...item }))),
+    };
+    const content = {
+      query: async (_groq, { ids }) =>
+        [
+          { _id: "drafts.item-1", asset: ASSET },
+          { _id: "item-1", asset: "image-2222222222222222222222222222222222222222-10x10-jpg" },
+          { _id: "item-4", asset: ASSET },
+        ].filter((doc) => ids.includes(doc._id)),
+      uploadImage: async (_bytes, meta) => {
+        uploads.push(meta.filename);
+        return { _id: NEW };
+      },
+    };
+    return { updated, uploads, database: async () => db, sanity: () => content };
+  }
+
+  it("plans only named drinks whose photo is still a file", async () => {
+    const { planPhotoBackfill } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    assert.deepEqual(planPhotoBackfill(rows).drinks.map((drink) => drink.id), [1, 3, 4]);
+  });
+
+  it("a dry run changes nothing", async () => {
+    const { up } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    const { updated, uploads, database, sanity } = world();
+    const lines = [];
+    await up({ database, sanity, log: (line) => lines.push(line), dryRun: true });
+    assert.deepEqual(updated, []);
+    assert.deepEqual(uploads, []);
+    assert.ok(lines.some((line) => /3 drink photos to move/.test(line)));
+    assert.ok(lines.some((line) => /Negroni: found in Sanity/.test(line)));
+  });
+
+  it("reuses the asset publishing made of this photo, uploads the rest, and moves the snapshots across", async () => {
+    const { up } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    globalThis.fetch = async () => new Response(new Uint8Array(4), { headers: { "Content-Type": "image/jpeg" } });
+    try {
+      const { updated, uploads, database, sanity } = world();
+      await up({ database, sanity, log: () => {} });
+      assert.deepEqual(uploads, ["stout.jpg", "pils-2.jpg"], "Pils' Sanity copy is its old photo");
+      assert.deepEqual(
+        updated.map((row) => [row.id, row["Photo asset"]]),
+        [
+          [1, ASSET],
+          [3, NEW],
+          [4, NEW],
+        ],
+      );
+      const negroni = JSON.parse(updated[0]["Publish snapshots"]);
+      assert.equal(negroni.preview.payload.photo, ASSET);
+      assert.equal(negroni.preview.hash, "", "a hash that wasn't the payload's stays");
+      assert.equal(updated[2]["Publish snapshots"], undefined, "Pils' snapshot is of another photo");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("keeps a snapshot's hash the payload's", async () => {
+    const { snapshotsWithAsset } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    const { projectionHash } = await import("../../ops/site/src/inventory/server/reconcile.js");
+    const payload = { name: "x", photo: "https://files/a.jpg" };
+    const next = snapshotsWithAsset(
+      { preview: { at: "", hash: projectionHash(payload), payload } },
+      "https://files/a.jpg",
+      ASSET,
+    );
+    assert.equal(next.preview.hash, projectionHash({ name: "x", photo: ASSET }));
+    assert.equal(snapshotsWithAsset({ preview: { at: "", hash: "", payload } }, "https://files/b.jpg", ASSET), null);
+  });
+});
+
 describe("running one migration as a dry run", () => {
   it("passes dryRun to the migration", async () => {
     let seen = null;

@@ -340,6 +340,8 @@ export function itemFields(sectionsTableId, posMenusTableId) {
     { name: "Volume override", body: { name: "Volume override", type: "boolean" } },
     { name: "Producer", body: { name: "Producer", type: "text" } },
     { name: "Photo", body: { name: "Photo", type: "file" } },
+    // The photo's Sanity asset id (#183); Photo holds ones from before.
+    { name: "Photo asset", body: { name: "Photo asset", type: "text" } },
     {
       name: "Order",
       body: {
