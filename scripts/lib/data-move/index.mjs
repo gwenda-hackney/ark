@@ -70,12 +70,16 @@ export function diffSnapshots(expected, actual) {
   return out;
 }
 
-/** The snapshot without the records the feature never copies. */
+/**
+ * The snapshot without the records the feature never copies. `keep` also
+ * gets the whole collection, for rules about one record among others
+ * (config's duplicates).
+ */
 export function keptSnapshot(snapshot, keep = () => true) {
   return Object.fromEntries(
     Object.entries(snapshot).map(([collection, records]) => [
       collection,
-      records.filter((record) => keep(collection, record)),
+      records.filter((record) => keep(collection, record, records)),
     ]),
   );
 }
@@ -83,7 +87,7 @@ export function keptSnapshot(snapshot, keep = () => true) {
 /**
  * Export, import, check. Throws when the target doesn't match afterwards.
  * @param {{ source: { exportAll(): Promise<Snapshot> }, target: { importAll(s: Snapshot): Promise<unknown>, exportAll(): Promise<Snapshot> },
- *   keep?: (collection: string, record: object) => boolean, log?: (line: string) => void }} move
+ *   keep?: (collection: string, record: object, records: object[]) => boolean, log?: (line: string) => void }} move
  * @returns {Promise<{ counts: Record<string, number>, skipped: Record<string, number> }>}
  */
 export async function moveFeature({ source, target, keep, log = () => {} }) {
