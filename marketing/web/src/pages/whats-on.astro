@@ -57,29 +57,6 @@ const diaryEntries = [
   })),
 ];
 const whatsOnNav = whatsOnNavItems(nights);
-
-/**
- * Dev-only 4:5 card trial (#27): ?cards=portrait | portrait-grid sets
- * data-cards on the page (remembered in localStorage), ?cards=landscape goes
- * back. Inline and before the list, so the cards never flash in 16×10.
- * Delete with its block in global.css when the trial ends.
- */
-const cardTrialScript = `(() => {
-  if (document.documentElement.dataset.siteEnv === "production") return;
-  const page = document.querySelector("main.whats-on-page");
-  if (!page) return;
-  const KEY = "gwenda.cards";
-  const LAYOUTS = ["portrait", "portrait-grid"];
-  const asked = new URLSearchParams(location.search).get("cards");
-  let layout = LAYOUTS.includes(asked) ? asked : "";
-  try {
-    if (layout) localStorage.setItem(KEY, layout);
-    else if (asked) localStorage.removeItem(KEY);
-    else layout = localStorage.getItem(KEY) || "";
-  } catch {}
-  if (LAYOUTS.includes(layout)) page.dataset.cards = layout;
-  else delete page.dataset.cards;
-})();`;
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.whatsOn;
 
@@ -130,13 +107,6 @@ const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
     <p slot="lead">
       Music and late evenings by the water in {siteConfig.location.area}.
     </p>
-
-    {/* Dev-only 4:5 card trial (#27); never rendered on the live site. */}
-    {
-      (isPreview || import.meta.env.DEV) && (
-        <script is:inline data-astro-rerun set:html={cardTrialScript} />
-      )
-    }
 
     <p
       id="whats-on-loading"

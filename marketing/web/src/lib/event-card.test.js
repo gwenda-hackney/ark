@@ -63,39 +63,6 @@ describe("renderEventCard", () => {
     ).toBe(false);
   });
 
-  it("frames the What's on hero 4:5 for the portrait trial", () => {
-    const rect =
-      "https://cdn.sanity.io/images/p/d/abc-2000x1500.jpg?rect=200,100,1600,1000&w=1600&h=1000&fit=max";
-    for (const layout of ["portrait", "portrait-grid"]) {
-      const src = new URL(
-        diaryCardModel({ ...negroni, heroImageUrl: rect }, { layout }).media
-          .src,
-      );
-      expect(src.searchParams.get("rect")).toBe("600,100,800,1000");
-      expect(src.searchParams.get("w")).toBe("800");
-      expect(src.searchParams.get("h")).toBe("1000");
-    }
-    // Landscape (the default) keeps the stored 16×10 frame.
-    expect(diaryCardModel({ ...negroni, heroImageUrl: rect }).media.src).toBe(
-      rect,
-    );
-    expect(
-      diaryCardModel(
-        { ...negroni, heroImageUrl: rect },
-        { layout: "landscape" },
-      ).media.src,
-    ).toBe(rect);
-    // Whole images stay whole, sized as usual.
-    const whole = diaryCardModel(
-      {
-        ...negroni,
-        heroImageUrl: "https://cdn.sanity.io/images/p/d/flyer.jpg#whole",
-      },
-      { layout: "portrait" },
-    );
-    expect(whole.media.src).toMatch(/\?w=960[^#]*#whole$/);
-  });
-
   it("escapes every value", () => {
     expect(escapeHtml(`<b onclick="x">&'`)).toBe(
       "&lt;b onclick=&quot;x&quot;&gt;&amp;&#39;",
@@ -243,16 +210,6 @@ describe("tinyImageUrl", () => {
     expect(tiny.searchParams.get("rect")).toBe("0,0,800,500");
     expect(tiny.searchParams.get("w")).toBe("48");
     expect(tiny.searchParams.get("blur")).toBe("30");
-  });
-
-  it("keeps the shape of a framed URL", () => {
-    const tiny = new URL(
-      tinyImageUrl(
-        "https://cdn.sanity.io/images/p/d/a.jpg?rect=0,0,800,1000&w=800&h=1000&fit=crop",
-      ),
-    );
-    expect(tiny.searchParams.get("w")).toBe("48");
-    expect(tiny.searchParams.get("h")).toBe("60");
   });
 
   it("leaves other images alone", () => {
