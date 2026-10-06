@@ -4,7 +4,7 @@ import { formPublicPath } from "../../_lib/form-paths.js";
 import { parseFormVerifyToken } from "../../_lib/form-verify-auth.js";
 import {
   draftAnswersFromSubmission,
-  fetchFormSubmissionRow,
+  fetchFormSubmission,
   markFormSubmissionVerified,
 } from "../../_lib/form-store.js";
 
@@ -52,11 +52,11 @@ export async function onRequestGet(context) {
     form?.successMessage || "Thanks for writing. We'll be in touch.";
   const formPath = formPublicPath(marked.formSlug || parsed.slug);
 
-  // Ops were notified on submit; verifying only flips status in Baserow.
+  // Ops were notified on submit; verifying only flips the status.
 
-  const loaded = await fetchFormSubmissionRow(context.env, parsed.rowId);
+  const loaded = await fetchFormSubmission(context.env, parsed.rowId);
   const draftAnswers = loaded.ok
-    ? draftAnswersFromSubmission(loaded.row)
+    ? draftAnswersFromSubmission(loaded.submission)
     : Object.fromEntries(
         (marked.answers || [])
           .filter((row) => row?.key)
@@ -96,15 +96,15 @@ async function draftExtrasForClaims(env, claims) {
   }
   if (!rowId) return extras;
 
-  const loaded = await fetchFormSubmissionRow(env, rowId);
+  const loaded = await fetchFormSubmission(env, rowId);
   if (!loaded.ok) return extras;
 
-  const draftAnswers = draftAnswersFromSubmission(loaded.row);
+  const draftAnswers = draftAnswersFromSubmission(loaded.submission);
   if (draftAnswers && Object.keys(draftAnswers).length > 0) {
     extras.draftAnswers = draftAnswers;
   }
   if (!extras.formPath) {
-    const rowSlug = String(loaded.row["Form Slug"] ?? "").trim();
+    const rowSlug = loaded.submission.formSlug;
     if (rowSlug && /^[a-z0-9-]+$/i.test(rowSlug)) {
       extras.formPath = formPublicPath(rowSlug);
     }

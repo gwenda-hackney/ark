@@ -2,6 +2,8 @@
 /**
  * Attach inventory items to supplier rows (junction + product URL)
  * and pull ABV from those pages (Hills Prospect embeds AddFil_…_ABV).
+ * Reads and writes through the menu repository (Baserow or D1, wherever
+ * the menu lives).
  *
  * Usage:
  *   npm run enrich:ops-inventory
@@ -16,7 +18,7 @@ import {
   supplierFromUrl,
 } from "../src/inventory/suppliers.js";
 import { parseProductUrl } from "../../../shared/web-address.js";
-import { requireOpsTables } from "../../../scripts/lib/ops-baserow-tables.mjs";
+import { menuRepository } from "../src/menu/server/menu-repository.js";
 
 const LWC_PRICES = JSON.parse(
   readFileSync(
@@ -25,20 +27,8 @@ const LWC_PRICES = JSON.parse(
   ),
 );
 
-const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
-  /\/$/,
-  "",
-);
-const apiKey = process.env.BASEROW_API_KEY?.trim();
-let inventoryTableId = "";
-let suppliersTableId = "";
-let inventorySuppliersTableId = "";
 const dryRun = process.argv.includes("--dry-run");
-
-if (!apiKey) {
-  console.error("Need BASEROW_API_KEY. Run npm run setup:baserow-ops first.");
-  process.exit(1);
-}
+const repo = menuRepository(process.env);
 
 /** Inventory name → Hills Prospect / LWC product URLs (codes from LWC price list). */
 const SUPPLIER_LINKS = {
@@ -241,46 +231,6 @@ const ABV_RE = /AddFil_PRODEX1_STPROD_1_ABV"\s*:\s*([0-9]+(?:\.[0-9]+)?)/;
 const SIZE_RE = /AddFil_PRODEX1_STPROD_1_SIZE"\s*:\s*"([^"]*)"/;
 const NET_PRICE_RE = /"CurDPNet"\s*:\s*([0-9]+(?:\.[0-9]+)?)/;
 
-async function baserow(path, init = {}) {
-  const response = await fetch(`${apiBase}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
-  });
-  const text = await response.text();
-  const json = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw new Error(`${path} → ${response.status}: ${JSON.stringify(json).slice(0, 400)}`);
-  }
-  return json;
-}
-
-async function listRows(tableId) {
-  const rows = [];
-  let page = 1;
-  for (;;) {
-    const payload = await baserow(
-      `/api/database/rows/table/${tableId}/?user_field_names=true&size=200&page=${page}`,
-    );
-    rows.push(...(payload.results || []));
-    if (!payload.next) break;
-    page += 1;
-  }
-  return rows;
-}
-
-function linkId(value) {
-  if (Array.isArray(value) && value[0]) {
-    const first = value[0];
-    if (typeof first === "number") return first;
-    if (first && typeof first === "object" && first.id != null) return Number(first.id);
-  }
-  return null;
-}
-
 function lwcForUrl(url) {
   const sku = skuFromProductUrl(url);
   const hit = sku ? LWC_PRICES[sku] : null;
@@ -292,18 +242,9 @@ function lwcForUrl(url) {
   };
 }
 
-async function listFieldNames(tableId) {
-  const fields = await baserow(`/api/database/fields/table/${tableId}/`);
-  return new Set((fields || []).map((field) => field.name));
-}
-
-function leftoverUrls(row) {
-  const dedicated = String(row["Supplier links"] || "");
-  const notes = String(row.Notes || "");
-  return mergeLinks(
-    dedicated.split(/\r?\n/),
-    looksLikeOnlyUrls(notes) ? notes.split(/\r?\n/) : [],
-  );
+function leftoverUrls(record) {
+  const notes = String(record.notes || "");
+  return mergeLinks(looksLikeOnlyUrls(notes) ? notes.split(/\r?\n/) : []);
 }
 
 async function findOrCreateSupplier(byName, hint) {
@@ -312,33 +253,20 @@ async function findOrCreateSupplier(byName, hint) {
   const key = name.toLowerCase();
   const hit = byName.get(key);
   if (hit) {
-    const website = String(hit.Website || "").trim();
+    const website = String(hit.website || "").trim();
     if (!dryRun && hint.website && !website) {
-      const updated = await baserow(
-        `/api/database/rows/table/${suppliersTableId}/${hit.id}/?user_field_names=true`,
-        { method: "PATCH", body: JSON.stringify({ Website: hint.website }) },
-      );
+      const updated = await repo.update("suppliers", hit.id, { website: hint.website });
       byName.set(key, updated);
       return updated;
     }
     return hit;
   }
   if (dryRun) {
-    const fake = { id: `dry:${key}`, Name: name, Website: hint.website || "" };
+    const fake = { id: `dry:${key}`, name, website: hint.website || "" };
     byName.set(key, fake);
     return fake;
   }
-  const created = await baserow(
-    `/api/database/rows/table/${suppliersTableId}/?user_field_names=true`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        Name: name,
-        Website: hint.website || "",
-        Notes: "",
-      }),
-    },
-  );
+  const created = await repo.create("suppliers", { name, website: hint.website || "", notes: "" });
   byName.set(key, created);
   return created;
 }
@@ -379,14 +307,6 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function selectKind(value) {
-  if (typeof value === "string") return value.trim().toLowerCase();
-  if (value && typeof value === "object" && typeof value.value === "string") {
-    return value.value.trim().toLowerCase();
-  }
-  return "";
-}
-
 function mergeLinks(...groups) {
   const seen = new Set();
   const out = [];
@@ -404,37 +324,22 @@ function mergeLinks(...groups) {
 }
 
 async function main() {
-  const tables = await requireOpsTables();
-  inventoryTableId = tables.inventory;
-  suppliersTableId = tables.suppliers;
-  inventorySuppliersTableId = tables.inventorySuppliers;
-  if (!inventoryTableId || !suppliersTableId || !inventorySuppliersTableId) {
-    throw new Error(
-      "Missing Inventory / Suppliers / Inventory suppliers. Run npm run setup:baserow-ops.",
-    );
-  }
   console.log(dryRun ? "Dry run…\n" : "Enriching inventory from supplier pages…\n");
 
-  const [inventoryRows, supplierRows, linkRows, linkFieldNames] = await Promise.all([
-    listRows(inventoryTableId),
-    listRows(suppliersTableId),
-    listRows(inventorySuppliersTableId),
-    listFieldNames(inventorySuppliersTableId),
+  const [inventory, suppliers, links] = await Promise.all([
+    repo.list("inventory"),
+    repo.list("suppliers"),
+    repo.list("inventory_suppliers"),
   ]);
-  if (!linkFieldNames.has("Price")) {
-    console.log(
-      "Note: Inventory suppliers has no Price column yet. Run npm run setup:baserow-ops.\n",
-    );
-  }
   const supplierByName = new Map(
-    supplierRows.map((row) => [String(row.Name || "").trim().toLowerCase(), row]),
+    suppliers.map((record) => [String(record.name || "").trim().toLowerCase(), record]),
   );
   const linksByInventory = new Map();
-  for (const row of linkRows) {
-    const invId = String(linkId(row.Inventory) ?? "");
+  for (const link of links) {
+    const invId = String(link.inventoryId ?? "");
     if (!invId) continue;
     const list = linksByInventory.get(invId) ?? [];
-    list.push(row);
+    list.push(link);
     linksByInventory.set(invId, list);
   }
 
@@ -442,18 +347,18 @@ async function main() {
   let updated = 0;
   let skipped = 0;
 
-  for (const row of inventoryRows) {
-    const name = String(row.Name || "").trim();
+  for (const record of inventory) {
+    const name = String(record.name || "").trim();
     if (!name) {
       skipped += 1;
       continue;
     }
 
-    const kind = selectKind(row.Kind);
+    const kind = String(record.kind || "").trim().toLowerCase();
     const keepZero =
       KEEP_ZERO_ABV.has(kind) || /\bNA\b|\b0\.0%?\b/i.test(name);
     const mapped = SUPPLIER_LINKS[name] || [];
-    const resolvedLinks = mergeLinks(leftoverUrls(row), mapped);
+    const resolvedLinks = mergeLinks(leftoverUrls(record), mapped);
     let abv = null;
 
     const hillsByUrl = new Map();
@@ -473,11 +378,11 @@ async function main() {
       if (meta?.ok && meta.abv != null && abv == null) abv = meta.abv;
     }
 
-    const existing = linksByInventory.get(String(row.id)) || [];
+    const existing = linksByInventory.get(String(record.id)) || [];
     const existingByKey = new Map();
     for (const link of existing) {
-      const url = parseProductUrl(link["Product URL"]).toLowerCase();
-      const sku = (String(link.SKU || "").trim() || skuFromProductUrl(url)).toUpperCase();
+      const url = parseProductUrl(link.productUrl).toLowerCase();
+      const sku = (String(link.sku || "").trim() || skuFromProductUrl(url)).toUpperCase();
       if (sku) existingByKey.set(`sku:${sku}`, link);
       if (url) existingByKey.set(`url:${url}`, link);
     }
@@ -498,34 +403,27 @@ async function main() {
           : supplierFromUrl(url);
       const supplier = await findOrCreateSupplier(supplierByName, hint);
       if (!supplier) continue;
-      const payload = {
-        Name: String(supplier.Name || hint.name || "").trim(),
-        Inventory: [Number(row.id)],
-        Supplier: [Number(supplier.id)],
-        "Product URL": url,
+      const fields = {
+        name: String(supplier.name || hint.name || "").trim(),
+        inventoryId: Number(record.id),
+        supplierId: Number(supplier.id),
+        productUrl: url,
+        sku: lwc.sku,
+        ...(pack ? { pack } : {}),
+        ...(price != null ? { price } : {}),
       };
-      if (linkFieldNames.has("SKU")) payload.SKU = lwc.sku;
-      if (linkFieldNames.has("Pack") && pack) payload.Pack = pack;
-      if (linkFieldNames.has("Price") && price != null) payload.Price = price;
 
       const skuKey = lwc.sku ? `sku:${lwc.sku}` : "";
       const urlKey = `url:${url.toLowerCase()}`;
       const current =
         (skuKey && existingByKey.get(skuKey)) || existingByKey.get(urlKey);
-      const samePrice =
-        !linkFieldNames.has("Price") ||
-        Number(current?.Price) === Number(price ?? current?.Price);
-      const sameSku =
-        !linkFieldNames.has("SKU") ||
-        String(current?.SKU || "") === String(lwc.sku || "");
-      const samePack =
-        !linkFieldNames.has("Pack") ||
-        String(current?.Pack || "") === String(pack || current?.Pack || "");
-      const sameSupplier =
-        current && String(linkId(current.Supplier) ?? "") === String(supplier.id);
+      const samePrice = Number(current?.price) === Number(price ?? current?.price);
+      const sameSku = String(current?.sku || "") === String(lwc.sku || "");
+      const samePack = String(current?.pack || "") === String(pack || current?.pack || "");
+      const sameSupplier = current && String(current.supplierId ?? "") === String(supplier.id);
       const sameUrl =
         current &&
-        parseProductUrl(current["Product URL"]).toLowerCase() === url.toLowerCase();
+        parseProductUrl(current.productUrl).toLowerCase() === url.toLowerCase();
 
       if (current && samePrice && sameSku && samePack && sameSupplier && sameUrl) {
         continue;
@@ -533,28 +431,22 @@ async function main() {
 
       if (!dryRun && !String(supplier.id).startsWith("dry:")) {
         if (current) {
-          const patched = await baserow(
-            `/api/database/rows/table/${inventorySuppliersTableId}/${current.id}/?user_field_names=true`,
-            { method: "PATCH", body: JSON.stringify(payload) },
-          );
+          const patched = await repo.update("inventory_suppliers", current.id, fields);
           if (skuKey) existingByKey.set(skuKey, patched);
           existingByKey.set(urlKey, patched);
         } else {
-          const created = await baserow(
-            `/api/database/rows/table/${inventorySuppliersTableId}/?user_field_names=true`,
-            { method: "POST", body: JSON.stringify(payload) },
-          );
+          const created = await repo.create("inventory_suppliers", fields);
           existing.push(created);
           if (skuKey) existingByKey.set(skuKey, created);
           existingByKey.set(urlKey, created);
-          linksByInventory.set(String(row.id), existing);
+          linksByInventory.set(String(record.id), existing);
         }
       }
       linksChanged += 1;
     }
 
-    const prevAbv = String(row.ABV || "").trim();
-    const prevNotes = String(row.Notes || "").trim();
+    const prevAbv = String(record.abv || "").trim();
+    const prevNotes = String(record.notes || "").trim();
     const clearNotes = looksLikeOnlyUrls(prevNotes) && Boolean(prevNotes);
     const sameAbv = abv == null || prevAbv === abv;
 
@@ -567,14 +459,11 @@ async function main() {
     }
 
     const fields = {};
-    if (abv != null) fields.ABV = abv;
-    if (clearNotes) fields.Notes = "";
+    if (abv != null) fields.abv = abv;
+    if (clearNotes) fields.notes = "";
 
     if (!dryRun && Object.keys(fields).length) {
-      await baserow(
-        `/api/database/rows/table/${inventoryTableId}/${row.id}/?user_field_names=true`,
-        { method: "PATCH", body: JSON.stringify(fields) },
-      );
+      await repo.update("inventory", record.id, fields);
     }
 
     const abvLabel =

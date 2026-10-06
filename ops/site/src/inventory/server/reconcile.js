@@ -89,8 +89,9 @@ export function guestDescription(item) {
   return flattenIngredientsForMenu(item?.ingredients) || "";
 }
 
+/** The photo as publish snapshots record it: its Sanity asset id (#183), else its file address. */
 export function photoFingerprint(item) {
-  return text(item?.image?.asset?.url);
+  return text(item?.image?.asset?._id) || text(item?.image?.asset?.url);
 }
 
 /** Guest menus only show ABV / volume / producer on packaged (bottled) drinks. */

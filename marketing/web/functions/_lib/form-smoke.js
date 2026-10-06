@@ -16,12 +16,13 @@ import {
 import {
   FORM_STATUS_VERIFIED,
   deleteFormSubmission,
-  fetchFormSubmissionRow,
+  fetchFormSubmission,
   markFormSubmissionEmailSent,
   upsertFormSubmission,
 } from "./form-store.js";
 import { fetchFormForSubmit, validateFormAnswers } from "./form-submit.js";
 import { formPublicPath } from "./form-paths.js";
+import { FORM_SMOKE_ANSWER } from "../../../../shared/smoke-test.js";
 
 export const SMOKE_FORM_SLUG = "play";
 
@@ -51,7 +52,7 @@ export function smokeAnswers(form, email) {
     else if (field.type === "tel" || field.key === "phone")
       answers[field.key] = "07700 900000";
     else if (field.type === "url") answers[field.key] = "https://gwenda.co.uk";
-    else answers[field.key] = "Smoke test (automatic, deleted straight after)";
+    else answers[field.key] = FORM_SMOKE_ANSWER;
   }
   return answers;
 }
@@ -128,9 +129,11 @@ export async function runFormSmoke(
       );
     }
 
-    const row = await fetchFormSubmissionRow(env, rowId);
-    if (row && typeof row === "object" && "ok" in row && !row.ok) {
-      throw new Error(`Reading the row back failed: ${row.error || "unknown"}`);
+    const read = await fetchFormSubmission(env, rowId);
+    if (read && typeof read === "object" && "ok" in read && !read.ok) {
+      throw new Error(
+        `Reading the row back failed: ${read.error || "unknown"}`,
+      );
     }
   } finally {
     const removed = await deleteFormSubmission(env, rowId);

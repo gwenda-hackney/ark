@@ -5,28 +5,8 @@ import { planIngredientSync } from "./menu-store.js";
 describe("planIngredientSync", () => {
   it("keeps unchanged lines, updates qty, creates and deletes the rest", () => {
     const existing = [
-      {
-        id: 1,
-        Name: "Gin",
-        Qty: 25,
-        Unit: { value: "ml" },
-        Note: "",
-        ABV: "",
-        Order: 1,
-        Inventory: [{ id: 9 }],
-        "Menu Item": [{ id: 3 }],
-      },
-      {
-        id: 2,
-        Name: "Lemon",
-        Qty: 15,
-        Unit: { value: "ml" },
-        Note: "",
-        ABV: "",
-        Order: 2,
-        Inventory: [],
-        "Menu Item": [{ id: 3 }],
-      },
+      { id: 1, name: "Gin", quantity: 25, unit: "ml", note: "", abv: "", order: 1, inventoryId: 9, itemId: 3 },
+      { id: 2, name: "Lemon", quantity: 15, unit: "ml", note: "", abv: "", order: 2, inventoryId: null, itemId: 3 },
     ];
     const { ops, deletes } = planIngredientSync(
       existing,
@@ -46,17 +26,7 @@ describe("planIngredientSync", () => {
 
   it("matches lines without ids by name and inventory", () => {
     const existing = [
-      {
-        id: 8,
-        Name: "Campari",
-        Qty: 25,
-        Unit: { value: "ml" },
-        Note: "",
-        ABV: "",
-        Order: 1,
-        Inventory: [{ id: 12 }],
-        "Menu Item": [{ id: 3 }],
-      },
+      { id: 8, name: "Campari", quantity: 25, unit: "ml", note: "", abv: "", order: 1, inventoryId: 12, itemId: 3 },
     ];
     const { ops, deletes } = planIngredientSync(existing, [
       { name: "Campari", quantity: 25, unit: "ml", inventoryId: "12" },

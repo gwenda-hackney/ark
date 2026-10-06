@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { dirname, resolve } from "node:path";
-import { describe, it } from "vitest";
+import { describe, it, vi } from "vitest";
 import { fileURLToPath } from "node:url";
+import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
 import {
   DATABASES,
   ENVS,
@@ -416,6 +417,196 @@ describe("removing the Baserow photo files", () => {
   });
 });
 
+describe("artist photos from before #183", () => {
+  const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+  const NEW = "image-ffffffffffffffffffffffffffffffffffffffff-400x400-png";
+  const file = (name) => ({ name, visible_name: `${name} shown`, url: `https://files/${name}` });
+  const rows = [
+    { id: 1, Name: "Ada", Portrait: [file("face.jpg")], Art: [file("a.jpg"), file("b.png")], "Gwenda photos": [] },
+    {
+      id: 2,
+      Name: "Bea",
+      Portrait: [file("old.jpg")],
+      "Portrait asset": ASSET,
+      Art: [file("c.jpg")],
+      "Art assets": "[]",
+      "Gwenda assets": JSON.stringify([{ asset: ASSET, label: "x" }]),
+    },
+  ];
+
+  function world() {
+    const updated = [];
+    const uploads = [];
+    const db = {
+      label: "Gwenda Dev / Gwenda Ops",
+      rows: async () => rows,
+      updateRows: async (table, items) => updated.push(...items.map((item) => ({ table, ...item }))),
+    };
+    const content = {
+      query: async (_groq, { names }) =>
+        names.includes("artist-face.jpg") ? [{ _id: ASSET, originalFilename: "artist-face.jpg" }] : [],
+      uploadImage: async (_bytes, meta) => {
+        uploads.push(meta.filename);
+        return { _id: NEW };
+      },
+    };
+    return { updated, uploads, database: async () => db, sanity: () => content };
+  }
+
+  it("plans only what hasn't moved", async () => {
+    const { planArtistBackfill } = await import("../../migrations/2026-10-06-artist-images-backfill.mjs");
+    const plan = planArtistBackfill(rows);
+    assert.deepEqual(
+      plan.map((item) => [item.id, Object.keys(item.columns), item.photos]),
+      [[1, ["Portrait asset", "Art assets", "Gwenda assets"], 3]],
+    );
+  });
+
+  it("a dry run changes nothing", async () => {
+    const { up } = await import("../../migrations/2026-10-06-artist-images-backfill.mjs");
+    const { updated, uploads, database, sanity } = world();
+    const lines = [];
+    await up({ database, sanity, log: (line) => lines.push(line), dryRun: true });
+    assert.deepEqual(updated, []);
+    assert.deepEqual(uploads, []);
+    assert.ok(lines.some((line) => /1 artists, 3 photos to move/.test(line)));
+  });
+
+  it("reuses a photo already in Sanity, uploads the rest in order, and marks empty lists moved", async () => {
+    const { up } = await import("../../migrations/2026-10-06-artist-images-backfill.mjs");
+    const { updated, uploads, database, sanity } = world();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => new Response(new Uint8Array([1]), { headers: { "content-type": "image/png" } }));
+    try {
+      await up({ database, sanity, log: () => {} });
+    } finally {
+      fetchMock.mockRestore();
+    }
+    assert.deepEqual(uploads, ["artist-a.jpg", "artist-b.png"]);
+    assert.deepEqual(updated, [
+      {
+        table: "Artists",
+        id: 1,
+        "Portrait asset": ASSET,
+        "Art assets": JSON.stringify([
+          { asset: NEW, label: "a.jpg shown" },
+          { asset: NEW, label: "b.png shown" },
+        ]),
+        "Gwenda assets": "[]",
+      },
+    ]);
+  });
+});
+
+describe("drink photos from before #183", () => {
+  const realFetch = globalThis.fetch;
+  const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
+  const NEW = "image-1111111111111111111111111111111111111111-800x600-jpg";
+  const photo = (name) => [{ name, url: `https://files/${name}` }];
+  const snapshot = (url) => ({ at: "2026-10-01T10:00:00Z", hash: "", payload: { name: "x", photo: url } });
+  const rows = [
+    // Published with this photo: the asset is on its Sanity draft.
+    {
+      id: 1,
+      Name: "Negroni",
+      Photo: photo("negroni.jpg"),
+      "Sanity ID": "item-1",
+      "Publish snapshots": JSON.stringify({ preview: snapshot("https://files/negroni.jpg") }),
+    },
+    // Moved already.
+    { id: 2, Name: "Spritz", Photo: photo("spritz.jpg"), "Photo asset": ASSET },
+    // Never published: uploaded.
+    { id: 3, Name: "Stout", Photo: photo("stout.jpg"), "Sanity ID": "" },
+    // A new photo since the last publish: its Sanity copy is the old photo.
+    {
+      id: 4,
+      Name: "Pils",
+      Photo: photo("pils-2.jpg"),
+      "Sanity ID": "item-4",
+      "Publish snapshots": JSON.stringify({ production: snapshot("https://files/pils-1.jpg") }),
+    },
+    { id: 5, Name: "", Photo: photo("none.jpg") },
+    { id: 6, Name: "Soda", Photo: [] },
+  ];
+
+  function world() {
+    const updated = [];
+    const uploads = [];
+    const db = {
+      label: "Gwenda Dev / Gwenda Ops",
+      rows: async () => rows,
+      updateRows: async (table, items) => updated.push(...items.map((item) => ({ table, ...item }))),
+    };
+    const content = {
+      query: async (_groq, { ids }) =>
+        [
+          { _id: "drafts.item-1", asset: ASSET },
+          { _id: "item-1", asset: "image-2222222222222222222222222222222222222222-10x10-jpg" },
+          { _id: "item-4", asset: ASSET },
+        ].filter((doc) => ids.includes(doc._id)),
+      uploadImage: async (_bytes, meta) => {
+        uploads.push(meta.filename);
+        return { _id: NEW };
+      },
+    };
+    return { updated, uploads, database: async () => db, sanity: () => content };
+  }
+
+  it("plans only named drinks whose photo is still a file", async () => {
+    const { planPhotoBackfill } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    assert.deepEqual(planPhotoBackfill(rows).drinks.map((drink) => drink.id), [1, 3, 4]);
+  });
+
+  it("a dry run changes nothing", async () => {
+    const { up } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    const { updated, uploads, database, sanity } = world();
+    const lines = [];
+    await up({ database, sanity, log: (line) => lines.push(line), dryRun: true });
+    assert.deepEqual(updated, []);
+    assert.deepEqual(uploads, []);
+    assert.ok(lines.some((line) => /3 drink photos to move/.test(line)));
+    assert.ok(lines.some((line) => /Negroni: found in Sanity/.test(line)));
+  });
+
+  it("reuses the asset publishing made of this photo, uploads the rest, and moves the snapshots across", async () => {
+    const { up } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    globalThis.fetch = async () => new Response(new Uint8Array(4), { headers: { "Content-Type": "image/jpeg" } });
+    try {
+      const { updated, uploads, database, sanity } = world();
+      await up({ database, sanity, log: () => {} });
+      assert.deepEqual(uploads, ["stout.jpg", "pils-2.jpg"], "Pils' Sanity copy is its old photo");
+      assert.deepEqual(
+        updated.map((row) => [row.id, row["Photo asset"]]),
+        [
+          [1, ASSET],
+          [3, NEW],
+          [4, NEW],
+        ],
+      );
+      const negroni = JSON.parse(updated[0]["Publish snapshots"]);
+      assert.equal(negroni.preview.payload.photo, ASSET);
+      assert.equal(negroni.preview.hash, "", "a hash that wasn't the payload's stays");
+      assert.equal(updated[2]["Publish snapshots"], undefined, "Pils' snapshot is of another photo");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("keeps a snapshot's hash the payload's", async () => {
+    const { snapshotsWithAsset } = await import("../../migrations/2026-10-06-menu-photos-backfill.mjs");
+    const { projectionHash } = await import("../../ops/site/src/inventory/server/reconcile.js");
+    const payload = { name: "x", photo: "https://files/a.jpg" };
+    const next = snapshotsWithAsset(
+      { preview: { at: "", hash: projectionHash(payload), payload } },
+      "https://files/a.jpg",
+      ASSET,
+    );
+    assert.equal(next.preview.hash, projectionHash({ name: "x", photo: ASSET }));
+    assert.equal(snapshotsWithAsset({ preview: { at: "", hash: "", payload } }, "https://files/b.jpg", ASSET), null);
+  });
+});
+
 describe("running one migration as a dry run", () => {
   it("passes dryRun to the migration", async () => {
     let seen = null;
@@ -426,5 +617,95 @@ describe("running one migration as a dry run", () => {
       dryRun: true,
     });
     assert.equal(seen, true);
+  });
+});
+
+describe("smoke-test-cleanup", () => {
+  const load = async () =>
+    (await loadMigrations(resolve(ROOT, "migrations"))).find((m) => m.name === "smoke-test-cleanup.mjs");
+
+  function website(rows) {
+    const deleted = [];
+    const request = async (_base, _jwt, path, init = {}) => {
+      if (path === "/api/database/tables/database/3/") return [{ id: 55, name: "Subscribers" }];
+      if (path.startsWith("/api/database/rows/table/55/?")) return { results: rows, next: null };
+      if (path === "/api/database/rows/table/55/batch-delete/" && init.method === "POST") {
+        deleted.push(...JSON.parse(init.body).items);
+        return null;
+      }
+      throw new Error("unexpected " + path);
+    };
+    return { db: baserowDatabase({ apiBase: "x", jwt: "j", databaseId: 3, label: "Website", request }), deleted };
+  }
+
+  it("runs after the web deploy, so after its smoke test", async () => {
+    const migration = await load();
+    assert.equal(migration.app, "web");
+    assert.equal(migration.phase, "post");
+  });
+
+  it("removes only the test sign-up, and skips Mailchimp without a key", async () => {
+    const { db, deleted } = website([
+      { id: 1, Email: "guest@example.com" },
+      { id: 2, Email: "Alerts+Signup-Smoke@gwenda.co.uk" },
+    ]);
+    const lines = [];
+    await (await load()).up({ database: async () => db, processEnv: {}, log: (line) => lines.push(line) });
+    assert.deepEqual(deleted, [2]);
+    assert.deepEqual(lines, ["Subscribers: removed 1 test row(s)", "Mailchimp: no key here (production only); skipped"]);
+  });
+
+  it("only reports on a dry run", async () => {
+    const { db, deleted } = website([{ id: 2, Email: "alerts+signup-smoke@gwenda.co.uk" }]);
+    const lines = [];
+    await (await load()).up({ database: async () => db, processEnv: {}, dryRun: true, log: (line) => lines.push(line) });
+    assert.deepEqual(deleted, []);
+    assert.equal(lines[0], "Subscribers: would remove 1 test row(s)");
+    const { archiveSmokeMember } = await import("../../migrations/smoke-test-cleanup.mjs");
+    const methods = [];
+    const fetchImpl = async (_url, init = {}) => {
+      methods.push(init.method || "GET");
+      return Response.json({ status: "subscribed" });
+    };
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl, dryRun: true }), "would archive (is subscribed)");
+    assert.deepEqual(methods, ["GET"]);
+  });
+
+  it("removes the test sign-up from D1 once subscribers live there", async () => {
+    const db = createTestD1("website");
+    db.exec(`INSERT INTO _meta (key, value) VALUES ('store:guests', 'd1');
+      INSERT INTO subscribers (email, tags) VALUES ('guest@example.com', '[]'), ('Alerts+Signup-Smoke@gwenda.co.uk', '[]');`);
+    const lines = [];
+    const database = async () => {
+      throw new Error("Baserow is not used once guests are on D1");
+    };
+    await (await load()).up({ database, d1: () => db, processEnv: {}, log: (line) => lines.push(line) });
+    assert.equal(lines[0], "Subscribers: removed 1 test row(s)");
+    assert.deepEqual(
+      (await db.prepare("SELECT email FROM subscribers").all()).results.map((row) => row.email),
+      ["guest@example.com"],
+    );
+  });
+
+  it("archives the test address in Mailchimp only when it's there", async () => {
+    const { archiveSmokeMember } = await import("../../migrations/smoke-test-cleanup.mjs");
+    const calls = [];
+    const mailchimp = (status) => async (url, init = {}) => {
+      calls.push([init.method || "GET", url]);
+      if (status === null) return new Response("{}", { status: 404 });
+      if (init.method === "DELETE") return new Response(null, { status: 204 });
+      return Response.json({ status });
+    };
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl: mailchimp(null) }), "not on the list");
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl: mailchimp("archived") }), "already archived");
+    calls.length = 0;
+    assert.equal(await archiveSmokeMember("key-us21", { fetchImpl: mailchimp("subscribed") }), "archived (was subscribed)");
+    assert.deepEqual(
+      calls.map(([method, url]) => [method, url.replace(/[0-9a-f]{32}$/, "<hash>")]),
+      [
+        ["GET", "https://us21.api.mailchimp.com/3.0/lists/e2c69d5d31/members/<hash>"],
+        ["DELETE", "https://us21.api.mailchimp.com/3.0/lists/e2c69d5d31/members/<hash>"],
+      ],
+    );
   });
 });

@@ -216,11 +216,30 @@ export function artistFields() {
     { name: "Website", body: { name: "Website", type: "url" } },
     { name: "Profile", body: { name: "Profile", type: "long_text" } },
     { name: "Bio", body: { name: "Bio", type: "long_text" } },
+    // Sanity asset ids (#183): the portrait's, and JSON lists for art and Gwenda photos.
+    { name: "Portrait asset", body: { name: "Portrait asset", type: "text" } },
+    { name: "Art assets", body: { name: "Art assets", type: "long_text" } },
+    { name: "Gwenda assets", body: { name: "Gwenda assets", type: "long_text" } },
+    // The Baserow files from before, until the cleanup after the backfill.
     { name: "Portrait", body: { name: "Portrait", type: "file" } },
     { name: "Art", body: { name: "Art", type: "file" } },
     { name: "Gwenda photos", body: { name: "Gwenda photos", type: "file" } },
   ];
 }
+
+/** Guest artists columns besides the primary "Email" (migration and setup both use these). */
+export const GUEST_ARTIST_FIELDS = [
+  {
+    name: "Decision",
+    type: "single_select",
+    select_options: [
+      { value: "Approved", color: "green" },
+      { value: "Declined", color: "red" },
+    ],
+  },
+  { name: "Artist name", type: "text" },
+  { name: "Artist link", type: "url" },
+];
 
 export function userFields() {
   return [
@@ -337,6 +356,8 @@ export function itemFields(sectionsTableId, posMenusTableId) {
     { name: "Volume override", body: { name: "Volume override", type: "boolean" } },
     { name: "Producer", body: { name: "Producer", type: "text" } },
     { name: "Photo", body: { name: "Photo", type: "file" } },
+    // The photo's Sanity asset id (#183); Photo holds ones from before.
+    { name: "Photo asset", body: { name: "Photo asset", type: "text" } },
     {
       name: "Order",
       body: {
@@ -521,6 +542,118 @@ export function ingredientFields(itemsTableId, inventoryTableId) {
         name: "Order",
         type: "number",
         number_decimal_places: 0,
+        number_negative: false,
+      },
+    },
+  ];
+}
+
+// Inventory, Suppliers and the Inventory suppliers junction.
+export function inventoryFields() {
+  return [
+    { name: "Full name", body: { name: "Full name", type: "text" } },
+    {
+      name: "Kind",
+      body: {
+        name: "Kind",
+        type: "single_select",
+        select_options: [
+          { value: "liquor", color: "purple" },
+          { value: "liqueur", color: "dark-purple" },
+          { value: "wine", color: "red" },
+          { value: "beer", color: "yellow" },
+          { value: "syrup", color: "orange" },
+          { value: "juice", color: "green" },
+          { value: "bitter", color: "brown" },
+          { value: "mixer", color: "cyan" },
+          { value: "garnish", color: "light-green" },
+          { value: "other", color: "gray" },
+        ],
+      },
+    },
+    { name: "ABV", body: { name: "ABV", type: "text" } },
+    {
+      name: "Default unit",
+      body: {
+        name: "Default unit",
+        type: "single_select",
+        select_options: RECIPE_UNITS.map((value, index) => ({
+          value,
+          color: ["blue", "green", "orange", "purple", "cyan"][index % 5],
+        })),
+      },
+    },
+    {
+      name: "Estimated cost",
+      body: {
+        name: "Estimated cost",
+        type: "number",
+        number_decimal_places: 2,
+        number_negative: false,
+      },
+    },
+    { name: "Notes", body: { name: "Notes", type: "text" } },
+    { name: "Active", body: { name: "Active", type: "boolean" } },
+    { name: "Lightspeed SKU", body: { name: "Lightspeed SKU", type: "text" } },
+    {
+      name: "Actual qty",
+      body: {
+        name: "Actual qty",
+        type: "number",
+        number_decimal_places: 3,
+        number_negative: false,
+      },
+    },
+    { name: "Actual unit", body: { name: "Actual unit", type: "text" } },
+    {
+      name: "Counted at",
+      body: {
+        name: "Counted at",
+        type: "date",
+        date_format: "ISO",
+        date_include_time: true,
+        date_time_format: "24",
+      },
+    },
+  ];
+}
+
+export function supplierFields() {
+  return [
+    { name: "Website", body: { name: "Website", type: "url" } },
+    { name: "Notes", body: { name: "Notes", type: "text" } },
+  ];
+}
+
+export function inventorySupplierFields(inventoryTableId, suppliersTableId) {
+  return [
+    {
+      name: "Inventory",
+      body: {
+        name: "Inventory",
+        type: "link_row",
+        link_row_table_id: inventoryTableId,
+        has_related_field: true,
+      },
+    },
+    {
+      name: "Supplier",
+      body: {
+        name: "Supplier",
+        type: "link_row",
+        link_row_table_id: suppliersTableId,
+        has_related_field: true,
+      },
+    },
+    { name: "Product URL", body: { name: "Product URL", type: "url" } },
+    { name: "SKU", body: { name: "SKU", type: "text" } },
+    { name: "Pack", body: { name: "Pack", type: "text" } },
+    {
+      name: "Price",
+      body: {
+        name: "Price",
+        type: "number",
+        number_decimal_places: 2,
         number_negative: false,
       },
     },

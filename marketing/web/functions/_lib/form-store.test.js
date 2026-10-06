@@ -1,371 +1,133 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  clearBaserowTableIdCache,
-  FORM_SUBMISSIONS_TABLE_NAME,
-} from "./baserow.js";
-import {
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { memoryFormSubmissionRepository } from "../../../../shared/guests/adapters/memory-form-submissions.js";
+
+vi.mock("../../../../shared/forms/form-alert.js", () => ({
+  reportFormError: vi.fn(async () => undefined),
+}));
+
+const {
+  draftAnswersFromSubmission,
+  fetchFormSubmission,
   findFormSubmissionByEmail,
   markFormSubmissionEmailSent,
+  markFormSubmissionVerified,
   storeFormSubmission,
-} from "./form-store.js";
+  updateFormSubmissionEmail,
+  upsertFormSubmission,
+} = await import("./form-store.js");
+const { reportFormError } =
+  await import("../../../../shared/forms/form-alert.js");
+
+const play = {
+  title: "Play",
+  slug: "play",
+  fields: [
+    { key: "name", label: "Name" },
+    { key: "email", label: "Email" },
+  ],
+};
+
+const answers = (name, email = "alex@example.com") => [
+  { key: "name", label: "Name", value: name },
+  { key: "email", label: "Email", value: email },
+];
+
+let repo;
+let env;
+beforeEach(() => {
+  vi.clearAllMocks();
+  repo = memoryFormSubmissionRepository();
+  env = { formSubmissionRepository: repo };
+});
 
 describe("storeFormSubmission", () => {
-  afterEach(() => {
-    clearBaserowTableIdCache();
-    vi.unstubAllGlobals();
-  });
-
-  it("POSTs a document row with metadata and JSON answers", async () => {
-    const fetchMock = vi.fn(async (url, init) => {
-      if (String(url).includes("/all-tables/")) {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              id: 77,
-              name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 1,
-            },
-          ],
-        };
-      }
-
-      expect(init.method).toBe("POST");
-      expect(init.headers.Authorization).toBe("Token test-token");
-      const body = JSON.parse(init.body);
-      expect(body["Form Slug"]).toBe("play");
-      expect(body["Form Title"]).toBe("Play");
-      expect(body["Reply To"]).toBe("alex@example.com");
-      expect(body.Submitted).toBe("2026-09-17T12:00:00.000Z");
-      expect(body.Status).toBe("Verified");
-      expect(body.Current).toBe(true);
-      expect(JSON.parse(body.Answers)).toEqual([
-        { key: "name", label: "Name", value: "Alex" },
-        { key: "email", label: "Email", value: "alex@example.com" },
-      ]);
-
-      return {
-        ok: true,
-        json: async () => ({ id: 501 }),
-        text: async () => "",
-      };
+  it("saves a current record with its metadata and answers", async () => {
+    const result = await storeFormSubmission(env, {
+      form: play,
+      answers: answers("Alex", "Alex@Example.com"),
+      rawAnswers: { name: "Alex", email: "Alex@Example.com" },
+      submittedAt: "2026-09-17T18:00:00.000Z",
     });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await storeFormSubmission(
-      { BASEROW_API_KEY: "test-token" },
-      {
-        form: { title: "Play", slug: "play" },
-        answers: [
-          { key: "name", label: "Name", value: "Alex" },
-          { key: "email", label: "Email", value: "alex@example.com" },
-        ],
-        submittedAt: "2026-09-17T12:00:00.000Z",
+    expect(result).toEqual({ ok: true, rowId: "1", updated: false });
+    expect(await repo.get(1)).toMatchObject({
+      formSlug: "play",
+      formTitle: "Play",
+      submittedAt: "2026-09-17T18:00:00.000Z",
+      replyTo: "alex@example.com",
+      status: "Verified",
+      current: true,
+      answers: {
+        v: 1,
+        entries: answers("Alex"),
+        raw: { name: "Alex", email: "alex@example.com" },
       },
-    );
-
-    expect(result).toEqual({ ok: true, rowId: "501", updated: false });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("stores Pending when status is passed", async () => {
-    const fetchMock = vi.fn(async (url, init) => {
-      if (String(url).includes("/all-tables/")) {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              id: 77,
-              name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 1,
-            },
-          ],
-        };
-      }
-      const body = JSON.parse(init.body);
-      expect(body.Status).toBe("Pending");
-      return {
-        ok: true,
-        json: async () => ({ id: 502 }),
-        text: async () => "",
-      };
     });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await storeFormSubmission(
-      { BASEROW_API_KEY: "test-token" },
-      {
-        form: { title: "Play", slug: "play" },
-        answers: [{ key: "email", label: "Email", value: "a@b.co" }],
-        status: "Pending",
-      },
-    );
-    expect(result).toEqual({ ok: true, rowId: "502", updated: false });
   });
 
-  it("returns an error when Baserow is not configured", async () => {
-    const result = await storeFormSubmission(
-      {},
-      {
-        form: { title: "Play", slug: "play" },
-        answers: [],
-      },
-    );
-
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("Baserow");
+  it("stores Pending when asked", async () => {
+    await storeFormSubmission(env, {
+      form: play,
+      answers: answers("Alex"),
+      status: "Pending",
+    });
+    expect((await repo.get(1)).status).toBe("Pending");
   });
 
-  it("returns an error when the write fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url) => {
-        if (String(url).includes("/all-tables/")) {
-          return {
-            ok: true,
-            json: async () => [
-              {
-                id: 77,
-                name: FORM_SUBMISSIONS_TABLE_NAME,
-                database_id: 1,
-              },
-            ],
-          };
-        }
-        return {
-          ok: false,
-          status: 500,
-          text: async () => "boom",
-          json: async () => null,
-        };
-      }),
+  it("says it could not save, and alerts, when storage fails", async () => {
+    vi.spyOn(repo, "create").mockRejectedValue(
+      Object.assign(new Error("Baserow 500: boom"), { status: 502 }),
     );
-
-    const result = await storeFormSubmission(
-      { BASEROW_API_KEY: "test-token" },
-      {
-        form: { title: "Play", slug: "play" },
-        answers: [{ key: "name", label: "Name", value: "Alex" }],
-      },
+    const result = await storeFormSubmission(env, {
+      form: play,
+      answers: answers("Alex"),
+    });
+    expect(result).toEqual({ ok: false, error: "Could not save. Try again?" });
+    expect(reportFormError).toHaveBeenCalledWith(
+      env,
+      "form_store_failed",
+      expect.objectContaining({ op: "write", slug: "play", status: 502 }),
     );
-
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain("Could not save");
   });
 });
 
 describe("findFormSubmissionByEmail", () => {
-  afterEach(() => {
-    clearBaserowTableIdCache();
-    vi.unstubAllGlobals();
-  });
-
-  it("returns the latest row for an email even when an older Verified duplicate exists", async () => {
-    const fetchMock = vi.fn(async (url) => {
-      if (String(url).includes("/all-tables/")) {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              id: 77,
-              name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 1,
-            },
-          ],
-        };
-      }
-
-      const href = String(url);
-      expect(href).toContain("filter__Form+Slug__equal=play");
-      expect(href).not.toContain("filter__Reply");
-
-      return {
-        ok: true,
-        json: async () => ({
-          results: [
-            {
-              id: 14,
-              Status: { value: "Pending" },
-              "Form Slug": "play",
-              "Reply To": "Alex@Example.com",
-              Submitted: "2026-09-17T18:00:00.000Z",
-            },
-            {
-              id: 13,
-              Status: { value: "Verified" },
-              "Form Slug": "play",
-              "Reply To": "alex@example.com",
-              Submitted: "2026-09-17T12:00:00.000Z",
-            },
-          ],
-        }),
-      };
+  it("prefers the current record over an older one, in any case", async () => {
+    await repo.create({
+      formSlug: "play",
+      replyTo: "alex@example.com",
+      status: "Verified",
+      submittedAt: "2026-09-17T12:00:00.000Z",
     });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const result = await findFormSubmissionByEmail(
-      { BASEROW_API_KEY: "test-token" },
-      { slug: "play", email: "Alex@Example.com" },
-    );
-
-    expect(result.ok).toBe(true);
-    expect(result.row?.id).toBe(14);
-  });
-
-  it("patches a pending row in place on resubmit", async () => {
-    const fetchMock = vi.fn(async (url, init) => {
-      if (String(url).includes("/all-tables/")) {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              id: 77,
-              name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 1,
-            },
-          ],
-        };
-      }
-
-      if (!init?.method || init.method === "GET") {
-        return {
-          ok: true,
-          json: async () => ({
-            results: [
-              {
-                id: 13,
-                Status: { value: "Pending" },
-                Current: true,
-                "Form Slug": "play",
-                "Reply To": "alex@example.com",
-                Answers: JSON.stringify([
-                  { key: "name", label: "Name", value: "Alex" },
-                  { key: "email", label: "Email", value: "alex@example.com" },
-                ]),
-              },
-            ],
-          }),
-        };
-      }
-
-      expect(init.method).toBe("PATCH");
-      expect(String(url)).toContain("/13/");
-      const body = JSON.parse(init.body);
-      expect(body.Status).toBe("Pending");
-      expect(body.Current).toBe(true);
-      expect(body["Reply To"]).toBe("alex@example.com");
-      expect(JSON.parse(body.Answers).raw.email).toBe("alex@example.com");
-
-      return {
-        ok: true,
-        json: async () => ({ id: 13 }),
-        text: async () => "",
-      };
+    const latest = await repo.create({
+      formSlug: "play",
+      replyTo: "alex@example.com",
+      status: "Pending",
+      current: true,
+      submittedAt: "2026-09-17T18:00:00.000Z",
     });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { upsertFormSubmission } = await import("./form-store.js");
-    const result = await upsertFormSubmission(
-      { BASEROW_API_KEY: "test-token" },
-      {
-        form: { title: "Play", slug: "play" },
-        answers: [
-          { key: "name", label: "Name", value: "Alex" },
-          { key: "email", label: "Email", value: "Alex@Example.com" },
-        ],
-        rawAnswers: { name: "Alex", email: "Alex@Example.com" },
-        status: "Pending",
-      },
-    );
-
-    expect(result.ok).toBe(true);
-    expect(result.rowId).toBe("13");
-    expect(result.updated).toBe(true);
-  });
-
-  it("inserts a new Current row when a verified submission is updated", async () => {
-    const calls = [];
-    const fetchMock = vi.fn(async (url, init) => {
-      if (String(url).includes("/all-tables/")) {
-        return {
-          ok: true,
-          json: async () => [
-            {
-              id: 77,
-              name: FORM_SUBMISSIONS_TABLE_NAME,
-              database_id: 1,
-            },
-          ],
-        };
-      }
-
-      const method = init?.method || "GET";
-      calls.push({ method, url: String(url), body: init?.body });
-
-      if (method === "GET") {
-        return {
-          ok: true,
-          json: async () => ({
-            results: [
-              {
-                id: 13,
-                Status: { value: "Verified" },
-                Current: true,
-                "Form Slug": "play",
-                "Reply To": "alex@example.com",
-                Answers: JSON.stringify([
-                  { key: "name", label: "Name", value: "Alex" },
-                  { key: "email", label: "Email", value: "alex@example.com" },
-                ]),
-              },
-            ],
-          }),
-        };
-      }
-
-      if (method === "PATCH") {
-        expect(String(url)).toContain("/13/");
-        expect(JSON.parse(init.body)).toEqual({ Current: false });
-        return {
-          ok: true,
-          json: async () => ({ id: 13 }),
-          text: async () => "",
-        };
-      }
-
-      expect(method).toBe("POST");
-      const body = JSON.parse(init.body);
-      expect(body.Current).toBe(true);
-      expect(body.Status).toBe("Verified");
-      expect(JSON.parse(body.Answers).entries[0].value).toBe("Alexandra");
-      return { ok: true, json: async () => ({ id: 99 }), text: async () => "" };
+    const result = await findFormSubmissionByEmail(env, {
+      slug: "play",
+      email: "Alex@Example.com",
     });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { upsertFormSubmission } = await import("./form-store.js");
-    const result = await upsertFormSubmission(
-      { BASEROW_API_KEY: "test-token" },
-      {
-        form: {
-          title: "Play",
-          slug: "play",
-          fields: [
-            { key: "name", label: "Name" },
-            { key: "email", label: "Email" },
-          ],
-        },
-        answers: [
-          { key: "name", label: "Name", value: "Alexandra" },
-          { key: "email", label: "Email", value: "alex@example.com" },
-        ],
-        rawAnswers: { name: "Alexandra", email: "alex@example.com" },
-        status: "Verified",
-      },
-    );
-
     expect(result.ok).toBe(true);
-    expect(result.rowId).toBe("99");
-    expect(result.updated).toBe(true);
+    expect(result.submission.id).toBe(latest.id);
+    expect(result.matches).toHaveLength(2);
+  });
+});
+
+describe("upsertFormSubmission", () => {
+  it("changes a pending record in place on resubmit", async () => {
+    await upsertFormSubmission(env, {
+      form: play,
+      answers: answers("Alex"),
+      status: "Pending",
+    });
+    const result = await upsertFormSubmission(env, {
+      form: play,
+      answers: answers("Alexandra"),
+      status: "Pending",
+    });
+    expect(result).toMatchObject({ ok: true, rowId: "1", updated: true });
     expect(result.changes).toEqual([
       {
         key: "name",
@@ -375,64 +137,93 @@ describe("findFormSubmissionByEmail", () => {
         kind: "text",
       },
     ]);
-    expect(calls.some((call) => call.method === "PATCH")).toBe(true);
-    expect(calls.some((call) => call.method === "POST")).toBe(true);
+    expect(await repo.count()).toBe(1);
+    expect((await repo.get(1)).answers).toEqual(answers("Alexandra"));
+  });
+
+  it("adds a new current record when a verified one is sent again", async () => {
+    await upsertFormSubmission(env, { form: play, answers: answers("Alex") });
+    const result = await upsertFormSubmission(env, {
+      form: play,
+      answers: answers("Alexandra"),
+      rawAnswers: { name: "Alexandra", email: "alex@example.com" },
+    });
+    expect(result).toMatchObject({ ok: true, rowId: "2", updated: true });
+    expect(result.previousAnswers).toEqual(answers("Alex"));
+    expect((await repo.get(1)).current).toBe(false);
+    expect(await repo.get(2)).toMatchObject({
+      current: true,
+      answers: { entries: answers("Alexandra") },
+    });
+  });
+});
+
+describe("confirming and correcting", () => {
+  beforeEach(async () => {
+    await storeFormSubmission(env, {
+      form: play,
+      answers: answers("Alex"),
+      rawAnswers: { name: "Alex", email: "alex@example.com" },
+      status: "Pending",
+    });
+  });
+
+  it("marks a pending submission verified, once", async () => {
+    const first = await markFormSubmissionVerified(
+      env,
+      "1",
+      "alex@example.com",
+    );
+    expect(first).toMatchObject({ ok: true, already: false, formSlug: "play" });
+    expect((await repo.get(1)).status).toBe("Verified");
+    expect(await markFormSubmissionVerified(env, "1")).toMatchObject({
+      ok: true,
+      already: true,
+    });
+    expect(
+      await markFormSubmissionVerified(env, "1", "someone@example.com"),
+    ).toEqual({ ok: false, error: "This link isn't valid." });
+  });
+
+  it("fixes the email in the record and its answers", async () => {
+    const result = await updateFormSubmissionEmail(env, "1", "Al@Example.com");
+    expect(result.ok).toBe(true);
+    const { submission } = await fetchFormSubmission(env, "1");
+    expect(submission.replyTo).toBe("al@example.com");
+    expect(draftAnswersFromSubmission(submission)).toEqual({
+      name: "Alex",
+      email: "al@example.com",
+    });
+  });
+
+  it("says when there is no such submission", async () => {
+    expect(await fetchFormSubmission(env, "99")).toEqual({
+      ok: false,
+      error: "Submission not found.",
+    });
   });
 });
 
 describe("markFormSubmissionEmailSent", () => {
-  afterEach(() => {
-    clearBaserowTableIdCache();
-    vi.unstubAllGlobals();
-  });
-
-  it("PATCHes the matching sent column", async () => {
-    const patches = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url, init) => {
-        if (String(url).includes("/all-tables/")) {
-          return {
-            ok: true,
-            json: async () => [
-              { id: 77, name: FORM_SUBMISSIONS_TABLE_NAME, database_id: 1 },
-            ],
-          };
-        }
-        patches.push({
-          url: String(url),
-          method: init.method,
-          body: JSON.parse(init.body),
-        });
-        return { ok: true, json: async () => ({}), text: async () => "" };
-      }),
-    );
-
+  it("stamps the matching email", async () => {
+    await repo.create({ formSlug: "play" });
     const result = await markFormSubmissionEmailSent(
-      { BASEROW_API_KEY: "test-token" },
-      "501",
+      env,
+      "1",
       "receipt",
       "2026-09-24T10:00:00.000Z",
     );
-
     expect(result).toEqual({ ok: true, sentAt: "2026-09-24T10:00:00.000Z" });
-    expect(patches).toHaveLength(1);
-    expect(patches[0].method).toBe("PATCH");
-    expect(patches[0].url).toContain("/77/501/");
-    expect(patches[0].body).toEqual({
-      "Receipt Sent": "2026-09-24T10:00:00.000Z",
+    expect(await repo.get(1)).toMatchObject({
+      receiptSentAt: "2026-09-24T10:00:00.000Z",
+      notifySentAt: null,
     });
   });
 
-  it("rejects unknown kinds without calling Baserow", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const result = await markFormSubmissionEmailSent(
-      { BASEROW_API_KEY: "test-token" },
-      "501",
-      "other",
-    );
+  it("rejects unknown kinds without touching storage", async () => {
+    const update = vi.spyOn(repo, "update");
+    const result = await markFormSubmissionEmailSent(env, "1", "other");
     expect(result.ok).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });
