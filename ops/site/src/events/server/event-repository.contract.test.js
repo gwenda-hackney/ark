@@ -1,11 +1,15 @@
 /**
  * What every EventRepository adapter must do (#186). The same cases run on
- * each adapter: a new one (D1, #127) is added to ADAPTERS and must pass them.
+ * each adapter in ADAPTERS, and a copy from each into each one that can be
+ * written to (memory, D1) must keep every record (#127).
  */
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "vitest";
+import { createTestD1 } from "../../../../../shared/testing/d1-sqlite.js";
+import { copyRoundTrip } from "../../../../../shared/testing/repository-contract.js";
 import { createFakeWorld } from "../../testing/fake-world.js";
 import { baserowEventRepository } from "./adapters/baserow-events.js";
+import { d1EventRepository } from "./adapters/d1-events.js";
 import { memoryEventRepository } from "./adapters/memory-events.js";
 import { eventFieldsFromInput } from "./event-model.js";
 
@@ -16,6 +20,7 @@ const ADAPTERS = {
     world.install();
     return { repo: baserowEventRepository(world.env), done: () => world.restore() };
   },
+  d1: async () => ({ repo: d1EventRepository(createTestD1("ops")), done() {} }),
 };
 
 const ASSET = "image-0a1b2c3d4e5f60718293a4b5c6d7e8f901234567-800x600-jpg";
@@ -242,3 +247,75 @@ for (const [name, make] of Object.entries(ADAPTERS)) {
     });
   });
 }
+
+/** Two series, nights with overrides, snapshots, a calendar link and a gallery. */
+async function seed(repo) {
+  const chess = await repo.create(seriesFields());
+  const live = await repo.create(seriesFields({ name: "Gwenda Live", slug: "gwenda-live", mainImage: null, heroCrops: null }));
+  await repo.update(live.id, { formerSlugs: ["live"], deletedAt: "2026-10-05T08:00:00Z", takingApplications: false });
+  await repo.addGalleryPhoto(chess.id, { key: "k1", asset: ASSET, date: "", added: "2026-10-05T09:00:00.000Z", source: "ops" });
+  const first = await repo.saveNight(chess.id, night());
+  await repo.saveNight(chess.id, night({ date: "2026-10-22", slug: "negroni-chess-2026-10-22", overrides: undefined }));
+  await repo.saveNight(live.id, night({ date: "2026-11-01", slug: "gwenda-live-2026-11-01", sanityId: "event-live-1" }));
+  await repo.setNightCalendarLinks([{ id: first.id, value: "abc123#hash" }]);
+  await repo.saveNightSnapshots([{ id: first.id, snapshots: { preview: { hash: "h1" } } }]);
+}
+
+describe("EventRepository: copy between adapters", () => {
+  for (const [fromName, makeSource] of Object.entries(ADAPTERS)) {
+    for (const toName of ["memory", "d1"]) {
+      it(`${fromName} → ${toName} keeps every record`, async () => {
+        const source = await makeSource();
+        const target = await ADAPTERS[toName]();
+        try {
+          const { snapshot } = await copyRoundTrip(source.repo, target.repo, seed);
+          assert.deepEqual(
+            snapshot.nights.map((n) => n.eventId),
+            [snapshot.events[0].id, snapshot.events[0].id, snapshot.events[1].id],
+          );
+          assert.equal(snapshot.nights[0].googleCalendarEventId, "abc123#hash");
+          // The copy reads the same through the rest of the repository too.
+          const [chess] = snapshot.events;
+          assert.deepEqual(await target.repo.get(chess.id), chess);
+          assert.equal((await target.repo.nightsOf(chess.id)).length, 2);
+          // New records after a copy never reuse a copied id.
+          const next = await target.repo.create(seriesFields({ slug: "after-copy" }));
+          assert.ok(!snapshot.events.some((event) => event.id === next.id));
+        } finally {
+          source.done();
+          target.done();
+        }
+      });
+    }
+  }
+});
+
+describe("EventRepository: d1 writes", () => {
+  it("saves many nights, snapshots and calendar links in one batch each", async () => {
+    const db = createTestD1("ops");
+    let batches = 0;
+    const counted = { prepare: (sql) => db.prepare(sql), batch: (statements) => (batches++, db.batch(statements)) };
+    const repo = d1EventRepository(counted);
+    const { id } = await repo.create(seriesFields());
+    const first = await repo.saveNight(id, night());
+    await repo.saveNights(id, [
+      night({ id: first.id, sanityId: "event-1" }),
+      night({ date: "2026-10-22", slug: "b" }),
+      night({ date: "2026-10-29", slug: "c" }),
+    ]);
+    assert.equal(batches, 1);
+    const ids = (await repo.nightsOf(id)).map((n) => n.id);
+    await repo.saveNightSnapshots(ids.map((nightId) => ({ id: nightId, snapshots: { live: { hash: nightId } } })));
+    await repo.setNightCalendarLinks(ids.map((nightId) => ({ id: nightId, value: `cal-${nightId}` })));
+    assert.equal(batches, 3);
+    assert.deepEqual((await repo.nightsOf(id)).map((n) => n.googleCalendarEventId), ids.map((nightId) => `cal-${nightId}`));
+  });
+
+  it("removing a series removes its nights", async () => {
+    const repo = d1EventRepository(createTestD1("ops"));
+    const { id } = await repo.create(seriesFields());
+    const saved = await repo.saveNight(id, night());
+    await repo.remove(id);
+    assert.equal(await repo.getNight(saved.id), null);
+  });
+});
