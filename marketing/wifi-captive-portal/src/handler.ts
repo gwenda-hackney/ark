@@ -1,17 +1,25 @@
 import { frozenFeatures } from "../../../shared/write-freeze.js";
-import { normalizeEmail, subscribeEmailToBaserow } from "./baserow.js";
+import { subscriberRepository } from "../../../shared/guests/subscriber-repository.js";
+import {
+  normalizeEmail,
+  subscribe as subscribeGuest,
+  type SubscribeResult,
+} from "../../../shared/guests/subscribers.js";
 import { renderPortalPage, renderSuccessPage } from "./portal-html.js";
 import type { Env } from "./types.js";
-import {
-  resolveApiUrl,
-  resolveRedirectUrl,
-  resolveSubscribeTag,
-  resolveSubscribeTableId,
-} from "./types.js";
+import { resolveRedirectUrl, resolveSubscribeTag } from "./types.js";
 import { authorizeGuest } from "./unifi.js";
 
+/** The guests sign-up (the website's too), wherever subscribers live now. */
+export function subscribeEmail(
+  env: Env,
+  input: { email: string; tag: string },
+): Promise<SubscribeResult> {
+  return subscribeGuest(subscriberRepository(env), input);
+}
+
 export type HandlerDeps = {
-  subscribe?: typeof subscribeEmailToBaserow;
+  subscribe?: typeof subscribeEmail;
   authorize?: typeof authorizeGuest;
 };
 
@@ -55,7 +63,7 @@ export async function handlePortalRequest(
   env: Env,
   deps: HandlerDeps = {},
 ): Promise<Response> {
-  const subscribe = deps.subscribe ?? subscribeEmailToBaserow;
+  const subscribe = deps.subscribe ?? subscribeEmail;
   const authorize = deps.authorize ?? authorizeGuest;
   const url = new URL(request.url);
   const path = normalizePath(url.pathname);
@@ -117,42 +125,13 @@ export async function handlePortalRequest(
       );
     }
 
-    if (!env.BASEROW_API_KEY?.trim()) {
-      return html(
-        renderPortalPage({
-          ...pageFields,
-          error: "Something went wrong. Try again?",
-        }),
-        502,
-      );
-    }
-
-    let tableId: string;
-    try {
-      tableId = await resolveSubscribeTableId(env);
-    } catch {
-      return html(
-        renderPortalPage({
-          ...pageFields,
-          error: "Something went wrong. Try again?",
-        }),
-        502,
-      );
-    }
-
     // While subscribers move to D1 (#191), guests still get online; only the
     // sign-up isn't kept, or it would be lost between the copy and the switch.
     const frozen = (await frozenFeatures(env, ["guests"])).length > 0;
     if (frozen) console.log("wifi portal: guests frozen, sign-up not saved");
     const saved = frozen
       ? { ok: true as const }
-      : await subscribe({
-          email,
-          tag: resolveSubscribeTag(env),
-          apiKey: env.BASEROW_API_KEY,
-          apiUrl: resolveApiUrl(env),
-          tableId,
-        });
+      : await subscribe(env, { email, tag: resolveSubscribeTag(env) });
 
     if (!saved.ok) {
       return html(

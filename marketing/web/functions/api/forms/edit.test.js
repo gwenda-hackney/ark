@@ -3,18 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { parseFormEditToken } = vi.hoisted(() => ({
   parseFormEditToken: vi.fn(),
 }));
-const { fetchFormSubmissionRow, draftAnswersFromSubmission } = vi.hoisted(
-  () => ({
-    fetchFormSubmissionRow: vi.fn(),
-    draftAnswersFromSubmission: vi.fn(),
-  }),
-);
+const { fetchFormSubmission, draftAnswersFromSubmission } = vi.hoisted(() => ({
+  fetchFormSubmission: vi.fn(),
+  draftAnswersFromSubmission: vi.fn(),
+}));
 
 vi.mock("../../_lib/form-verify-auth.js", () => ({
   parseFormEditToken,
 }));
 vi.mock("../../_lib/form-store.js", () => ({
-  fetchFormSubmissionRow,
+  fetchFormSubmission,
   draftAnswersFromSubmission,
 }));
 vi.mock("../../_lib/form-paths.js", () => ({
@@ -35,12 +33,9 @@ describe("GET /api/forms/edit", () => {
       email: "alex@example.com",
       slug: "play",
     });
-    fetchFormSubmissionRow.mockResolvedValue({
+    fetchFormSubmission.mockResolvedValue({
       ok: true,
-      row: {
-        "Reply To": "alex@example.com",
-        "Form Slug": "play",
-      },
+      submission: { replyTo: "alex@example.com", formSlug: "play" },
     });
     draftAnswersFromSubmission.mockReturnValue({
       name: "Alex",
@@ -85,12 +80,9 @@ describe("GET /api/forms/edit", () => {
       email: "alex@example.com",
       slug: "play",
     });
-    fetchFormSubmissionRow.mockResolvedValue({
+    fetchFormSubmission.mockResolvedValue({
       ok: true,
-      row: {
-        "Reply To": "other@example.com",
-        "Form Slug": "play",
-      },
+      submission: { replyTo: "other@example.com", formSlug: "play" },
     });
 
     const res = await onRequestGet({

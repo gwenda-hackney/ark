@@ -18,6 +18,11 @@ import { d1UserRepository } from "../../../ops/site/src/users/server/adapters/d1
 import { baserowConfigRepository } from "../../../shared/config-adapters/baserow-config.js";
 import { d1ConfigRepository } from "../../../shared/config-adapters/d1-config.js";
 import { sameSlot } from "../../../shared/config-model.js";
+import { baserowGuests, d1Guests } from "../../../shared/guests/guests-copy.js";
+import {
+  isSmokeFormSubmission,
+  isSmokeSubscriber,
+} from "../../../shared/smoke-test.js";
 
 export const FEATURES = {
   users: {
@@ -42,6 +47,20 @@ export const FEATURES = {
     adapters: {
       baserow: ({ env }) => baserowConfigRepository(env),
       d1: ({ db }) => d1ConfigRepository(db),
+    },
+  },
+  // Subscribers and form submissions (Website database), one store:guests flag.
+  guests: {
+    app: "web",
+    role: "website",
+    freeze: true,
+    keep: (collection, record) =>
+      collection === "subscribers"
+        ? !isSmokeSubscriber(record.email)
+        : !isSmokeFormSubmission(record),
+    adapters: {
+      baserow: ({ env }) => baserowGuests(env),
+      d1: ({ db }) => d1Guests(db),
     },
   },
 };
