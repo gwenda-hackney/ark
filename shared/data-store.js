@@ -19,8 +19,29 @@ export const STORE_FEATURES = { ...FREEZABLE_FEATURES, config: "config" };
 export const STORE_KEY_PREFIX = "store:";
 export const STORES = ["baserow", "d1"];
 
+/**
+ * How long a runtime keeps a flag it read. Repositories are built per call,
+ * so without this every call would read _meta (D1's free plan allows 50
+ * queries per request). A switch happens while the feature is frozen, so a
+ * few seconds of the old value can't lose a write.
+ */
+export const STORE_CACHE_MS = 5000;
+const cache = new WeakMap(); // env → Map(feature → { at, value: Promise })
+
 /** @returns {Promise<"baserow" | "d1">} */
-export async function storeOf(env, feature) {
+export function storeOf(env, feature, { now = Date.now() } = {}) {
+  if (!env || typeof env !== "object") return readStore(env, feature);
+  let perEnv = cache.get(env);
+  if (!perEnv) cache.set(env, (perEnv = new Map()));
+  const hit = perEnv.get(feature);
+  if (hit && now - hit.at < STORE_CACHE_MS) return hit.value;
+  const value = readStore(env, feature);
+  perEnv.set(feature, { at: now, value });
+  value.catch(() => perEnv.delete(feature)); // a failed read isn't kept
+  return value;
+}
+
+async function readStore(env, feature) {
   const role = STORE_FEATURES[feature];
   if (!role) throw new Error(`Unknown feature "${feature}" for a data store.`);
   // Tests and local runs can pin a store: DATA_STORE_USERS=d1.
