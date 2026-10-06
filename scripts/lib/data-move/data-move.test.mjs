@@ -8,7 +8,7 @@ import {
 } from "../../../shared/d1-table.js";
 import { createTestD1 } from "../../../shared/testing/d1-sqlite.js";
 import { parseArgs } from "../../data-move.mjs";
-import { featureFor } from "./features.mjs";
+import { FEATURES, featureFor } from "./features.mjs";
 import { diffSnapshots, keptSnapshot, moveFeature } from "./index.mjs";
 
 /** A repository in memory: exportAll / importAll only, like a Baserow source plus a target. */
@@ -109,6 +109,29 @@ describe("diffSnapshots", () => {
       { collection: "x", id: "3", kind: "extra" },
       { collection: "y", id: "1", kind: "extra" },
     ]);
+  });
+
+  it("config moves only the first row of each name + env + service", () => {
+    const row = (id, value) => ({
+      id,
+      name: "a",
+      value,
+      env: "dev",
+      service: "ops",
+    });
+    const records = [
+      row(3, "kept"),
+      row(9, "never read"),
+      { ...row(4, "x"), env: "all" },
+    ];
+    assert.deepEqual(
+      keptSnapshot(
+        { config_values: records },
+        FEATURES.config.keep,
+      ).config_values.map((r) => r.id),
+      [3, 4],
+    );
+    assert.equal(FEATURES.config.freeze, false);
   });
 
   it("keptSnapshot filters per collection", () => {
