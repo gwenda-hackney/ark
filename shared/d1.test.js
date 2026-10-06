@@ -12,6 +12,7 @@ import {
   insertRows,
   patchStatement,
   run,
+  statement,
   toBool,
   toJson,
 } from "./d1.js";
@@ -326,5 +327,71 @@ describe("databaseFor", () => {
   it("names one database per role in each environment", () => {
     for (const env of ["production", "dev"])
       assert.deepEqual(Object.keys(D1_DATABASES[env]), D1_ROLES);
+  });
+});
+
+describe("transient D1 errors", () => {
+  const flaky = (failures, message = "internal error; reference = abc123") => {
+    let calls = 0;
+    const db = {
+      prepare: (sql) => ({
+        sql,
+        bind: () => db.prepare(sql),
+        all: async () => {
+          calls += 1;
+          if (calls <= failures) throw new Error(message);
+          return { results: [{ ok: 1 }] };
+        },
+        first: async () => ({ ok: 1 }),
+        run: async () => {
+          throw new Error(message);
+        },
+      }),
+      batch: async () => {
+        throw new Error(message);
+      },
+    };
+    return { db, calls: () => calls };
+  };
+  const fast = { delays: [0, 0] };
+
+  it("retries a read through Cloudflare's own errors", async () => {
+    const { db, calls } = flaky(2);
+    assert.deepEqual(await all(db, "SELECT 1", [], fast), [{ ok: 1 }]);
+    assert.equal(calls(), 3);
+  });
+
+  it("gives up after the last try, saying which statement, as a 503", async () => {
+    const { db } = flaky(5);
+    await assert.rejects(
+      all(db, "SELECT *\n  FROM users WHERE email = ?", ["a@b.c"], fast),
+      (error) => {
+        assert.match(
+          error.message,
+          /^D1 read failed \(SELECT \* FROM users WHERE email = \?\): internal error; reference = abc123$/,
+        );
+        assert.equal(error.status, 503);
+        assert.doesNotMatch(error.message, /a@b\.c/, "parameters stay out");
+        return true;
+      },
+    );
+  });
+
+  it("doesn't retry our own mistakes, or writes", async () => {
+    const bad = flaky(1, "no such column: nope");
+    await assert.rejects(
+      all(bad.db, "SELECT nope", [], fast),
+      /D1 read failed \(SELECT nope\): no such column/,
+    );
+    assert.equal(bad.calls(), 1);
+    await assert.rejects(
+      run(bad.db, "DELETE FROM users"),
+      /D1 write failed \(DELETE FROM users\)/,
+    );
+    const s = statement(bad.db, "INSERT INTO users (id) VALUES (?)", [1]);
+    await assert.rejects(
+      batch(bad.db, [s, s]),
+      /D1 batch failed \(2 statements, first INSERT INTO users/,
+    );
   });
 });

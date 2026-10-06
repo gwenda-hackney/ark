@@ -19,32 +19,107 @@ export function identifier(name) {
   return name;
 }
 
+/** SQL of the statements made here, so a failed batch can say what it was. */
+const SQL = new WeakMap();
+
 export function statement(db, sql, params = []) {
   const prepared = db.prepare(sql);
-  return params.length ? prepared.bind(...params) : prepared;
+  const bound = params.length ? prepared.bind(...params) : prepared;
+  if (bound && typeof bound === "object") SQL.set(bound, sql);
+  return bound;
+}
+
+/**
+ * D1 errors that are Cloudflare's, not ours, and pass on a second try
+ * ("internal error; reference = …", a dropped connection, an overloaded or
+ * restarting database). Cloudflare's advice is to retry them.
+ */
+const TRANSIENT =
+  /internal error|network connection lost|overloaded|exceeded timeout|reset because its code was updated|transient issue/i;
+
+export function isTransientD1Error(error) {
+  return TRANSIENT.test(String(error?.message ?? error));
+}
+
+/** Waits between tries of a read: 0, 100 and 400 ms. */
+export const READ_RETRY_DELAYS = [100, 400];
+
+/** The statement, for an error message: its SQL, never its parameters (they may be personal). */
+export function describeSql(sql) {
+  const text = String(sql).replace(/\s+/g, " ").trim();
+  return text.length > 100 ? `${text.slice(0, 97)}...` : text;
+}
+
+/** D1's own message says nothing about what failed; add the statement. */
+function failed(verb, sqls, error) {
+  const what =
+    sqls.length === 1
+      ? describeSql(sqls[0])
+      : `${sqls.length} statements, first ${describeSql(sqls[0])}`;
+  const wrapped = new Error(
+    `D1 ${verb} failed (${what}): ${error?.message ?? error}`,
+    { cause: error },
+  );
+  if (isTransientD1Error(error)) wrapped.status = 503;
+  return wrapped;
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** A read, tried again on a transient D1 error. Writes aren't: a failed one may have landed. */
+async function read(verb, sql, attempt, { delays = READ_RETRY_DELAYS } = {}) {
+  for (let i = 0; ; i += 1) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (i >= delays.length || !isTransientD1Error(error))
+        throw failed(verb, [sql], error);
+      await wait(delays[i]);
+    }
+  }
 }
 
 /** Every row the query returns. */
-export async function all(db, sql, params = []) {
-  const result = await statement(db, sql, params).all();
+export async function all(db, sql, params = [], opts) {
+  const result = await read(
+    "read",
+    sql,
+    () => statement(db, sql, params).all(),
+    opts,
+  );
   return result?.results ?? [];
 }
 
 /** The first row, or null. */
-export async function first(db, sql, params = []) {
-  return (await statement(db, sql, params).first()) ?? null;
+export async function first(db, sql, params = [], opts) {
+  return (
+    (await read("read", sql, () => statement(db, sql, params).first(), opts)) ??
+    null
+  );
 }
 
 /** Runs a write; returns D1's meta ({ changes, last_row_id, ... }). */
 export async function run(db, sql, params = []) {
-  const result = await statement(db, sql, params).run();
-  return result?.meta ?? {};
+  try {
+    const result = await statement(db, sql, params).run();
+    return result?.meta ?? {};
+  } catch (error) {
+    throw failed("write", [sql], error);
+  }
 }
 
 /** Runs prepared statements as one transaction. */
 export async function batch(db, statements) {
   if (!statements.length) return [];
-  return db.batch(statements);
+  try {
+    return await db.batch(statements);
+  } catch (error) {
+    throw failed(
+      "batch",
+      statements.map((s) => SQL.get(s) ?? s?.sql ?? "?"),
+      error,
+    );
+  }
 }
 
 /**
