@@ -58,6 +58,7 @@
     "setup:d1": "node scripts/setup-d1.mjs",
     "d1:freeze": "node scripts/d1-freeze.mjs",
     "data:move": "node scripts/data-move.mjs",
+    "d1:store": "node scripts/d1-store.mjs",
     "setup:site-health": "node scripts/setup-site-health.mjs",
     "setup:wifi-portal": "node scripts/setup-wifi-portal.mjs",
     "subscribe-mailchimp-sync": "node scripts/with-env.mjs npm run cli -w @gwenda/subscribe-mailchimp-sync --",

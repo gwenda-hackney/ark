@@ -69,13 +69,17 @@ A refused write gets **423** with "read-only for a few minutes", and ops shows a
 - **With `--write`** it imports into the target D1. Into production it refuses unless the feature is frozen. Before importing it logs a Time Travel bookmark (restore with `wrangler d1 time-travel restore <db> --bookmark <bookmark>`). After, it checks foreign keys and records the move in `_meta` (`moved:<feature>`).
 - **Every run checks** by exporting the target again and diffing it, record by record, with what the source exported. It reports collections, ids and field names, never values.
 
-A production cutover:
+**The cutover is a flag, not a deploy.** `shared/data-store.js` reads `store:<feature>` from `_meta` of the feature's database on every request, and a feature's repository goes to D1 once it says `d1` (`switchedRepository`). `npm run d1:store -- --env <env> --feature <name> --to <d1|baserow>` sets it; `--to d1` refuses until data-move has recorded `moved:<feature>`, and `--list` shows where each feature is.
 
-1. Dry run.
-2. `npm run d1:freeze -- --env production --feature <name>`.
-3. `--write`.
-4. Release and promote the code that reads D1.
-5. Unfreeze.
+A cutover, dev first, then production:
+
+1. Run `data:move` as a dry run.
+2. Freeze: `npm run d1:freeze -- --env <env> --feature <name>`.
+3. Run `data:move` again with `--write`.
+4. Switch: `npm run d1:store -- --env <env> --feature <name> --to d1`.
+5. Check the feature, then unfreeze.
+
+To roll back, run `--to baserow`. Writes made on D1 after the switch stay in D1, and its Time Travel bookmark undoes the import itself.
 
 ## Migrations
 
