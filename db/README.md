@@ -61,6 +61,26 @@ While a feature's data is copied from Baserow and the code switches over, writes
 
 A refused write gets **423** with "read-only for a few minutes", and ops shows an amber banner. If the database can't be read, writes go ahead (fail open). The code is in `shared/write-freeze.js`, with each app's path table next to its middleware.
 
+## Moving a feature's data
+
+`npm run data:move -- --feature <name> --from <baserow|d1>:<env> --to d1:<env> [--write]` copies a feature from one repository to another (`scripts/data-move.mjs`). A feature can move once it has an entry in `scripts/lib/data-move/features.mjs`, which gives its D1 adapter, its source adapters and the records it never copies (the deploy smoke test's).
+
+- **Without `--write`** it's a dry run: it reads the source and imports into a local SQLite database with the real migrations, so the copy is proved without touching the target.
+- **With `--write`** it imports into the target D1. Into production it refuses unless the feature is frozen. Before importing it logs a Time Travel bookmark (restore with `wrangler d1 time-travel restore <db> --bookmark <bookmark>`). After, it checks foreign keys and records the move in `_meta` (`moved:<feature>`).
+- **Every run checks** by exporting the target again and diffing it, record by record, with what the source exported. It reports collections, ids and field names, never values.
+
+**The cutover is a flag, not a deploy.** `shared/data-store.js` reads `store:<feature>` from `_meta` of the feature's database on every request, and a feature's repository goes to D1 once it says `d1` (`switchedRepository`). `npm run d1:store -- --env <env> --feature <name> --to <d1|baserow>` sets it; `--to d1` refuses until data-move has recorded `moved:<feature>`, and `--list` shows where each feature is.
+
+A cutover, dev first, then production:
+
+1. Run `data:move` as a dry run.
+2. Freeze: `npm run d1:freeze -- --env <env> --feature <name>`.
+3. Run `data:move` again with `--write`.
+4. Switch: `npm run d1:store -- --env <env> --feature <name> --to d1`.
+5. Check the feature, then unfreeze.
+
+To roll back, run `--to baserow`. Writes made on D1 after the switch stay in D1, and its Time Travel bookmark undoes the import itself.
+
 ## Migrations
 
 `db/<role>/migrations/NNNN_<what>.sql`, applied in order by `wrangler d1 migrations apply`. It runs before every deploy (#191), and wrangler records which migrations ran.
