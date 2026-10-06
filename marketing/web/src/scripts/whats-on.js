@@ -19,26 +19,11 @@ function cardElement(model) {
 }
 
 /** What's on: a series card in its list item. */
-function seriesCard(event, { eager = false, layout = "" } = {}) {
+function seriesCard(event, { eager = false } = {}) {
   const item = document.createElement("li");
   item.dataset.schedule = event.schedule === "once" ? "once" : "series";
-  item.appendChild(cardElement(diaryCardModel(event, { eager, layout })));
+  item.appendChild(cardElement(diaryCardModel(event, { eager })));
   return item;
-}
-
-const CARD_LAYOUTS = ["portrait", "portrait-grid"];
-
-/**
- * Dev-only 4:5 card trial (#27): the layout the inline script in
- * whats-on.astro put on the page from ?cards=. Never on the live site.
- */
-export function cardLayout(
-  env = pageSiteEnv(),
-  page = document.querySelector("main.whats-on-page"),
-) {
-  if (env === "production") return "";
-  const value = page instanceof HTMLElement ? page.dataset.cards || "" : "";
-  return CARD_LAYOUTS.includes(value) ? value : "";
 }
 
 /** Series page: one night. */
@@ -114,11 +99,8 @@ function syncDiaryLabels(list) {
 }
 
 function appendDiaryCards(list, nights, { eagerFirst = false } = {}) {
-  const layout = cardLayout();
   nights.forEach((night, index) => {
-    list.appendChild(
-      seriesCard(night, { eager: eagerFirst && index === 0, layout }),
-    );
+    list.appendChild(seriesCard(night, { eager: eagerFirst && index === 0 }));
   });
   syncDiaryLabels(list);
 }

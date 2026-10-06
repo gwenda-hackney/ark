@@ -37,6 +37,7 @@ const ROWS = [
 ];
 
 describe("config service", () => {
+  // The config repository's Baserow adapter is the one other door to config-db.js.
   it("all code reads config through shared/config.js", () => {
     const hits = execFileSync(
       "git",
@@ -49,6 +50,7 @@ describe("config service", () => {
         (file) =>
           ![
             "shared/config.js",
+            "shared/config-adapters/baserow-config.js",
             "shared/config-db.test.js",
             "shared/config.test.js",
           ].includes(file),

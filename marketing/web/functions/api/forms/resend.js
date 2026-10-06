@@ -5,8 +5,7 @@ import { sendFormVerifyEmail } from "../../_lib/form-verify-email.js";
 import { verifyFormResendToken } from "../../_lib/form-verify-auth.js";
 import {
   FORM_STATUS_PENDING,
-  fetchFormSubmissionRow,
-  formSubmissionStatus,
+  fetchFormSubmission,
   updateFormSubmissionEmail,
 } from "../../_lib/form-store.js";
 import { fetchFormForSubmit } from "../../_lib/form-submit.js";
@@ -61,12 +60,12 @@ export async function onRequestPost(context) {
     return json({ error: "This form isn't available." }, 404);
   }
 
-  const loaded = await fetchFormSubmissionRow(context.env, rowId);
+  const loaded = await fetchFormSubmission(context.env, rowId);
   if (!loaded.ok) {
     return json({ error: loaded.error }, 404);
   }
 
-  const status = formSubmissionStatus(loaded.row);
+  const { status, formSlug: rowSlug } = loaded.submission;
   if (status === "Verified") {
     return json({ ok: true, alreadyVerified: true });
   }
@@ -74,7 +73,6 @@ export async function onRequestPost(context) {
     return json({ error: "This submission can't be updated." }, 400);
   }
 
-  const rowSlug = String(loaded.row["Form Slug"] ?? "");
   if (rowSlug && rowSlug !== slug) {
     return json({ error: "This session isn't valid." }, 403);
   }
