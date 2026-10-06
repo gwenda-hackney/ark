@@ -1,5 +1,3 @@
-export const ANALYSIS_NOTE_FIELD = "AI reading";
-
 export function parseStoredAnalyzeNote(raw) {
   if (raw == null) return null;
   let parsed = raw;

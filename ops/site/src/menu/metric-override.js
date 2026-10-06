@@ -20,12 +20,6 @@
 
 /** @typedef {"abv" | "volume"} Metric */
 
-/** Baserow columns (migrations/2026-10-04-menu-metric-overrides.mjs). */
-export const ABV_OVERRIDE_FIELD = "ABV override";
-export const VOLUME_OVERRIDE_FIELD = "Volume override";
-
-/** @type {Record<Metric, string>} */
-export const OVERRIDE_FIELDS = { abv: ABV_OVERRIDE_FIELD, volume: VOLUME_OVERRIDE_FIELD };
 /** @type {Record<Metric, "abvOverride" | "volumeOverride">} */
 export const OVERRIDE_KEYS = { abv: "abvOverride", volume: "volumeOverride" };
 /** @type {Metric[]} */
