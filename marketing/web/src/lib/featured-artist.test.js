@@ -18,6 +18,12 @@ describe("opsArtistEnv", () => {
         BASEROW_OPS_API_KEY: "ops",
       }),
     ).toMatchObject({ BASEROW_API_KEY: "ops" });
+    expect(
+      opsArtistEnv({
+        BASEROW_OPS_API_KEY: "ops",
+        SANITY_PROJECT_ID: "gwscpagy",
+      }),
+    ).toMatchObject({ SANITY_PROJECT_ID: "gwscpagy" });
     expect(opsArtistEnv({ BASEROW_API_KEY: "marketing" })).toBeNull();
   });
 });
