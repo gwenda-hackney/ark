@@ -1,96 +1,23 @@
 import { frozenFeatures } from "../../../shared/write-freeze.js";
 import { isSmokeSubscriber } from "../../../shared/smoke-test.js";
+import { subscriberRepository } from "../../../shared/guests/subscriber-repository.js";
+import { normalizeEmail } from "../../../shared/guests/subscribers.js";
 import { createHash } from "node:crypto";
-import type {
-  BaserowSubscribeRow,
-  Env,
-  SyncOptions,
-  SyncRowResult,
-  SyncSummary,
-} from "./types";
+import type { Env, SyncOptions, SyncRowResult, SyncSummary } from "./types";
 import { captureMessage } from "@sentry/cloudflare";
 
-export const DEFAULT_BASEROW_API = "https://api.baserow.io";
-export const SUBSCRIBE_TABLE_NAME = "Subscribers";
-/** @deprecated Prefer name resolution; kept for migration scripts. */
-export const PRODUCTION_SUBSCRIBE_TABLE_ID = "1017358";
+export { normalizeEmail };
+
 export const DEFAULT_MAILCHIMP_AUDIENCE_ID = "e2c69d5d31";
 export const DEFAULT_LIMIT = 100;
-/** Mailchimp merge field for Baserow "Signed up" (YYYY-MM-DD). */
+/** Mailchimp merge field for the subscriber's sign-up date (YYYY-MM-DD). */
 export const SIGNED_UP_MERGE_TAG = "SIGNEDUP";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TERMINAL_MAILCHIMP_STATUSES = new Set([
   "unsubscribed",
   "cleaned",
   "archived",
 ]);
-
-const tableIdCache = new Map<string, string>();
-
-export function clearSubscribeTableIdCache() {
-  tableIdCache.clear();
-}
-
-export function resolveSubscribeTableName(
-  env: Pick<Env, "BASEROW_SUBSCRIBE_TABLE_NAME">,
-): string {
-  return env.BASEROW_SUBSCRIBE_TABLE_NAME?.trim() || SUBSCRIBE_TABLE_NAME;
-}
-
-export async function resolveTableId(
-  env: Pick<
-    Env,
-    | "BASEROW_API_KEY"
-    | "BASEROW_API_URL"
-    | "BASEROW_DATABASE_ID"
-    | "BASEROW_SUBSCRIBE_TABLE_NAME"
-  >,
-  fetchImpl: typeof fetch = fetch,
-): Promise<string> {
-  const apiKey = env.BASEROW_API_KEY?.trim();
-  if (!apiKey) throw new Error("BASEROW_API_KEY is not configured");
-
-  const tableName = resolveSubscribeTableName(env);
-  const databaseId = env.BASEROW_DATABASE_ID?.trim() || "";
-  const apiBase = resolveApiBase(env);
-  const cacheKey = `${apiKey}:${tableName}:${databaseId}`;
-  const cached = tableIdCache.get(cacheKey);
-  if (cached) return cached;
-
-  const upstream = await fetchImpl(`${apiBase}/api/database/tables/all-tables/`, {
-    headers: { Authorization: `Token ${apiKey}` },
-  });
-  if (!upstream.ok) {
-    throw new Error(`Could not list Baserow tables (${upstream.status})`);
-  }
-  const tables = (await upstream.json()) as Array<{
-    id: number;
-    name: string;
-    database_id: number;
-  }>;
-  let matches = tables.filter((table) => table.name === tableName);
-  if (databaseId) {
-    matches = matches.filter(
-      (table) => String(table.database_id) === databaseId,
-    );
-  }
-  if (matches.length === 0) {
-    throw new Error(`Baserow table "${tableName}" not found.`);
-  }
-  if (matches.length > 1) {
-    throw new Error(
-      `Multiple Baserow tables named "${tableName}". Scope the token to the Website database.`,
-    );
-  }
-  const tableId = String(matches[0].id);
-  tableIdCache.set(cacheKey, tableId);
-  return tableId;
-}
-
-export function resolveApiBase(env: Pick<Env, "BASEROW_API_URL">): string {
-  return (env.BASEROW_API_URL?.trim() || DEFAULT_BASEROW_API).replace(/\/$/, "");
-}
 
 export function resolveAudienceId(
   env: Pick<Env, "MAILCHIMP_AUDIENCE_ID">,
@@ -112,39 +39,6 @@ export function mailchimpSubscriberHash(email: string): string {
   return createHash("md5").update(email.trim().toLowerCase()).digest("hex");
 }
 
-export function normalizeEmail(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const email = raw.trim().toLowerCase();
-  return email && EMAIL_RE.test(email) ? email : null;
-}
-
-/** Baserow Tag may be a string, `{ value }`, or a multiple_select array. */
-export function normalizeTags(raw: unknown): string[] {
-  if (raw == null) return [];
-  if (typeof raw === "string") {
-    const tag = raw.trim();
-    return tag ? [tag] : [];
-  }
-  if (Array.isArray(raw)) {
-    const out: string[] = [];
-    for (const item of raw) {
-      for (const tag of normalizeTags(item)) {
-        if (!out.includes(tag)) out.push(tag);
-      }
-    }
-    return out;
-  }
-  if (typeof raw === "object" && "value" in raw) {
-    return normalizeTags((raw as { value?: unknown }).value);
-  }
-  return [];
-}
-
-/** @deprecated Prefer normalizeTags. Returns the first tag only. */
-export function normalizeTag(raw: unknown): string | undefined {
-  return normalizeTags(raw)[0];
-}
-
 /** Accept YYYY-MM-DD or ISO datetime; return YYYY-MM-DD for Mailchimp date fields. */
 export function normalizeSignedUp(raw: unknown): string | undefined {
   if (typeof raw !== "string") return undefined;
@@ -163,44 +57,6 @@ export function isAuthorized(
   if (!header?.startsWith("Bearer ")) return false;
   const secret = header.slice("Bearer ".length).trim();
   return Boolean(secret && env.SYNC_SECRET && secret === env.SYNC_SECRET);
-}
-
-type ListUnsyncedParams = {
-  apiKey: string;
-  apiBase: string;
-  tableId: string;
-  limit: number;
-  /** When true, do not filter on Synced=false. */
-  all?: boolean;
-  fetchImpl: typeof fetch;
-};
-
-export async function listUnsyncedRows({
-  apiKey,
-  apiBase,
-  tableId,
-  limit,
-  all = false,
-  fetchImpl,
-}: ListUnsyncedParams): Promise<BaserowSubscribeRow[]> {
-  const url = new URL(`${apiBase}/api/database/rows/table/${tableId}/`);
-  url.searchParams.set("user_field_names", "true");
-  if (!all) {
-    url.searchParams.set("filter__Synced__boolean", "false");
-  }
-  url.searchParams.set("size", String(limit));
-
-  const upstream = await fetchImpl(url.toString(), {
-    headers: { Authorization: `Token ${apiKey}` },
-  });
-
-  if (!upstream.ok) {
-    const detail = await upstream.text();
-    throw new Error(`Baserow list failed (${upstream.status}): ${detail}`);
-  }
-
-  const body = (await upstream.json()) as { results?: BaserowSubscribeRow[] };
-  return Array.isArray(body.results) ? body.results : [];
 }
 
 type UpsertParams = {
@@ -251,7 +107,7 @@ export async function upsertMailchimpMember({
   if (existing.ok) {
     const member = (await existing.json()) as { status?: string };
     if (member.status && TERMINAL_MAILCHIMP_STATUSES.has(member.status)) {
-      // Do not force resubscribe; treat as synced for Baserow.
+      // Do not force resubscribe; treat as synced.
       return { ok: true, skippedEspUpdate: true };
     }
   } else if (existing.status !== 404) {
@@ -353,39 +209,6 @@ export function isRateLimited(status: number, detail: string): boolean {
   return /rate.?limit|too many requests|try again later/i.test(detail);
 }
 
-type MarkSyncedParams = {
-  apiKey: string;
-  apiBase: string;
-  tableId: string;
-  rowId: number;
-  fetchImpl: typeof fetch;
-};
-
-export async function markBaserowSynced({
-  apiKey,
-  apiBase,
-  tableId,
-  rowId,
-  fetchImpl,
-}: MarkSyncedParams): Promise<void> {
-  const url = `${apiBase}/api/database/rows/table/${tableId}/${rowId}/?user_field_names=true`;
-  const upstream = await fetchImpl(url, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Token ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ Synced: true }),
-  });
-
-  if (!upstream.ok) {
-    const detail = await upstream.text();
-    throw new Error(
-      `Baserow patch ${rowId} failed (${upstream.status}): ${detail}`,
-    );
-  }
-}
-
 export async function syncUnsyncedSubscribers(
   env: Env,
   options: SyncOptions = {},
@@ -401,33 +224,24 @@ export async function syncUnsyncedSubscribers(
     return { ok: true, scanned: 0, synced: 0, dryRun, errors: 0, results: [], frozen: true };
   }
 
-  const baserowKey = env.BASEROW_API_KEY?.trim();
   const mailchimpKey = env.MAILCHIMP_API_KEY?.trim();
-  if (!baserowKey) throw new Error("BASEROW_API_KEY is not configured");
   if (!mailchimpKey) throw new Error("MAILCHIMP_API_KEY is not configured");
 
-  const apiBase = resolveApiBase(env);
-  const tableId = await resolveTableId(env, fetchImpl);
+  // Wherever subscribers live now: Baserow, or D1 once store:guests says so.
+  const subscribers = options.repository ?? subscriberRepository(env);
   const audienceId = resolveAudienceId(env);
-  const rows = await listUnsyncedRows({
-    apiKey: baserowKey,
-    apiBase,
-    tableId,
-    limit,
-    all,
-    fetchImpl,
-  });
+  const rows = await subscribers.listUnsynced({ limit, all });
 
   const results: SyncRowResult[] = [];
   let synced = 0;
   let errors = 0;
 
   for (const row of rows) {
-    const email = normalizeEmail(row.Email);
+    const email = normalizeEmail(row.email);
     if (!email) {
       results.push({
         rowId: row.id,
-        email: String(row.Email ?? ""),
+        email: row.email,
         status: "skipped",
         detail: "Invalid or missing Email",
       });
@@ -450,8 +264,8 @@ export async function syncUnsyncedSubscribers(
       apiKey: mailchimpKey,
       audienceId,
       email,
-      tags: normalizeTags(row.Tag),
-      signedUp: normalizeSignedUp(row["Signed up"]),
+      tags: row.tags,
+      signedUp: normalizeSignedUp(row.signedUpOn),
       fetchImpl,
     });
 
@@ -476,13 +290,8 @@ export async function syncUnsyncedSubscribers(
     }
 
     try {
-      await markBaserowSynced({
-        apiKey: baserowKey,
-        apiBase,
-        tableId,
-        rowId: row.id,
-        fetchImpl,
-      });
+      const marked = await subscribers.update(row.id, { synced: true });
+      if (!marked) throw new Error(`Subscriber ${row.id} is gone; not marked synced`);
       synced += 1;
       results.push({
         rowId: row.id,
@@ -491,7 +300,7 @@ export async function syncUnsyncedSubscribers(
         detail: upserted.rejected
           ? `Mailchimp rejected the address, not retried: ${upserted.rejected}`
           : upserted.skippedEspUpdate
-            ? "Mailchimp member already terminal; Baserow marked synced"
+            ? "Mailchimp member already terminal; marked synced"
             : undefined,
       });
     } catch (error) {

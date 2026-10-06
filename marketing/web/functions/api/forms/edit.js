@@ -2,7 +2,7 @@ import { formPublicPath } from "../../_lib/form-paths.js";
 import { parseFormEditToken } from "../../_lib/form-verify-auth.js";
 import {
   draftAnswersFromSubmission,
-  fetchFormSubmissionRow,
+  fetchFormSubmission,
 } from "../../_lib/form-store.js";
 import {
   FORM_RATE_LIMITS,
@@ -12,7 +12,7 @@ import {
 
 /**
  * Prefill draft for "Change your application" links from the receipt email.
- * Does not mutate Baserow status.
+ * Does not change the submission.
  */
 export async function onRequestGet(context) {
   const limited = await checkFormRateLimit(
@@ -39,7 +39,7 @@ export async function onRequestGet(context) {
     );
   }
 
-  const loaded = await fetchFormSubmissionRow(context.env, parsed.rowId);
+  const loaded = await fetchFormSubmission(context.env, parsed.rowId);
   if (!loaded.ok) {
     return json(
       {
@@ -51,10 +51,8 @@ export async function onRequestGet(context) {
     );
   }
 
-  const row = loaded.row;
-  const replyTo = String(row["Reply To"] ?? "")
-    .trim()
-    .toLowerCase();
+  const { submission } = loaded;
+  const replyTo = submission.replyTo;
   if (replyTo && replyTo !== parsed.email) {
     return json(
       {
@@ -66,7 +64,7 @@ export async function onRequestGet(context) {
     );
   }
 
-  const rowSlug = String(row["Form Slug"] ?? "").trim() || parsed.slug;
+  const rowSlug = submission.formSlug || parsed.slug;
   if (rowSlug && rowSlug !== parsed.slug) {
     return json(
       {
@@ -78,7 +76,7 @@ export async function onRequestGet(context) {
     );
   }
 
-  const draftAnswers = draftAnswersFromSubmission(row);
+  const draftAnswers = draftAnswersFromSubmission(submission);
   const formPath = formPublicPath(rowSlug || parsed.slug);
 
   return json({

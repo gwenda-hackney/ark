@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { dirname, resolve } from "node:path";
 import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
+import { createTestD1 } from "../../shared/testing/d1-sqlite.js";
 import {
   DATABASES,
   ENVS,
@@ -514,6 +515,22 @@ describe("smoke-test-cleanup", () => {
     };
     assert.equal(await archiveSmokeMember("key-us21", { fetchImpl, dryRun: true }), "would archive (is subscribed)");
     assert.deepEqual(methods, ["GET"]);
+  });
+
+  it("removes the test sign-up from D1 once subscribers live there", async () => {
+    const db = createTestD1("website");
+    db.exec(`INSERT INTO _meta (key, value) VALUES ('store:guests', 'd1');
+      INSERT INTO subscribers (email, tags) VALUES ('guest@example.com', '[]'), ('Alerts+Signup-Smoke@gwenda.co.uk', '[]');`);
+    const lines = [];
+    const database = async () => {
+      throw new Error("Baserow is not used once guests are on D1");
+    };
+    await (await load()).up({ database, d1: () => db, processEnv: {}, log: (line) => lines.push(line) });
+    assert.equal(lines[0], "Subscribers: removed 1 test row(s)");
+    assert.deepEqual(
+      (await db.prepare("SELECT email FROM subscribers").all()).results.map((row) => row.email),
+      ["guest@example.com"],
+    );
   });
 
   it("archives the test address in Mailchimp only when it's there", async () => {
