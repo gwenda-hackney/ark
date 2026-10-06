@@ -88,44 +88,6 @@ export const FEATURES = {
       d1: ({ db }) => d1ArtistRepository(db),
     },
   },
-  users: {
-    app: "ops",
-    role: "ops",
-    freeze: true,
-    // A Users row without an email can't sign in and ops doesn't list it.
-    keep: (_collection, user) => Boolean(user.email),
-    adapters: {
-      baserow: ({ env }) => baserowUserRepository(env),
-      d1: ({ db }) => d1UserRepository(db),
-    },
-  },
-  // Settings and machine state. It can't be frozen (shared/write-freeze.js):
-  // code rewrites its state on the next run, and a setting saved in ops
-  // during the move (pour targets) is saved again after it.
-  config: {
-    app: "ops",
-    role: "config",
-    freeze: false,
-    keep: firstOfEachSlot,
-    adapters: {
-      baserow: ({ env }) => baserowConfigRepository(env),
-      d1: ({ db }) => d1ConfigRepository(db),
-    },
-  },
-  // Subscribers and form submissions (Website database), one store:guests flag.
-  guests: {
-    app: "web",
-    role: "website",
-    freeze: true,
-    keep: (collection, record) =>
-      collection === "subscribers"
-        ? !isSmokeSubscriber(record.email)
-        : !isSmokeFormSubmission(record),
-    adapters: {
-      baserow: ({ env }) => baserowGuests(env),
-      d1: ({ db }) => d1Guests(db),
-    },
-  },
   // Menu and inventory: sections, POS menus, drinks, placements, stock,
   // recipe lines, suppliers and supplier links. Every record moves. The
   // Baserow export refuses while a drink photo is still a Baserow file: run
