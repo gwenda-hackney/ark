@@ -13,7 +13,22 @@
  *     },
  *   }
  */
-export const FEATURES = {};
+import { baserowUserRepository } from "../../../ops/site/src/users/server/adapters/baserow-users.js";
+import { d1UserRepository } from "../../../ops/site/src/users/server/adapters/d1-users.js";
+
+export const FEATURES = {
+  users: {
+    app: "ops",
+    role: "ops",
+    freeze: true,
+    // A Users row without an email can't sign in and ops doesn't list it.
+    keep: (_collection, user) => Boolean(user.email),
+    adapters: {
+      baserow: ({ env }) => baserowUserRepository(env),
+      d1: ({ db }) => d1UserRepository(db),
+    },
+  },
+};
 
 export function featureFor(name, features = FEATURES) {
   const feature = features[name];
