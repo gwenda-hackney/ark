@@ -36,8 +36,8 @@ import {
   TABLE_ARTISTS,
   TABLE_GUEST_ARTISTS,
 } from "../../../shared/baserow.js";
-import { GUEST_ARTIST_FIELDS } from "../src/artists/server/guest-artists.js";
 import {
+  GUEST_ARTIST_FIELDS,
   RECIPE_UNITS,
   artistFields,
   eventDateFields,
