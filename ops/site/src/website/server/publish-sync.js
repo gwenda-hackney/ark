@@ -57,7 +57,20 @@ async function resolveSanityItemId(env, item) {
   return found || null;
 }
 
+/**
+ * The drink's photo as a Sanity image. One uploaded in ops is already an
+ * asset (#183) and is only referenced; one from before is still a Baserow
+ * file and is copied, until the backfill gives it an asset.
+ */
 async function syncPhoto(env, item) {
+  const assetId = item.image?.asset?._id;
+  if (assetId) {
+    return {
+      _type: "image",
+      alt: item.name,
+      asset: { _type: "reference", _ref: assetId },
+    };
+  }
   const url = item.image?.asset?.url;
   if (!url) return undefined;
   const response = await fetch(url);

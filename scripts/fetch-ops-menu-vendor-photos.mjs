@@ -2,7 +2,10 @@
 /**
  * Pull product photos from Hills Prospect (and similar vendor pages) onto
  * non-custom menu drinks: pours, packaged bottles, and draught beer.
- * Skips cocktails (Our Formulas / By the Book mixed drinks).
+ * Skips cocktails (Our Formulas / By the Book mixed drinks). Each photo goes
+ * to Sanity, like one uploaded in ops (#183); the drink keeps its asset id
+ * (Menu Items "Photo asset"). with-ops-env points at the Gwenda Dev project
+ * unless SANITY_PROJECT_ID says otherwise.
  *
  * Usage:
  *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs
@@ -10,6 +13,8 @@
  *   node scripts/with-ops-env.mjs node scripts/fetch-ops-menu-vendor-photos.mjs --force
  */
 import { requireOpsTables } from "./lib/ops-baserow-tables.mjs";
+import { sanityUploadImage } from "../ops/site/src/platform/sanity.js";
+import { parseImageAssetId } from "../shared/sanity-image.js";
 
 const apiBase = (process.env.BASEROW_API_URL || "https://api.baserow.io").replace(
   /\/$/,
@@ -24,6 +29,10 @@ const force = process.argv.includes("--force");
 
 if (!apiKey) {
   console.error("Need BASEROW_API_KEY");
+  process.exit(1);
+}
+if (!dryRun && !process.env.SANITY_API_TOKEN?.trim()) {
+  console.error("Need SANITY_API_TOKEN");
   process.exit(1);
 }
 
@@ -91,7 +100,10 @@ function drinkType(row) {
 }
 
 function hasPhoto(row) {
-  return Array.isArray(row.Photo) && row.Photo.length > 0;
+  return (
+    Boolean(parseImageAssetId(String(row["Photo asset"] || "").trim())) ||
+    (Array.isArray(row.Photo) && row.Photo.length > 0)
+  );
 }
 
 function sleep(ms) {
@@ -178,29 +190,26 @@ async function fetchVendorImage(productUrl) {
 }
 
 async function uploadAndAttach(itemId, name, bytes, contentType, ext) {
-  const form = new FormData();
   const slug = String(name || "drink")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-  form.append(
-    "file",
-    new Blob([bytes], { type: contentType }),
-    `${slug || "drink"}.${ext}`,
-  );
-  const uploaded = await baserow("/api/user-files/upload-file/", {
-    method: "POST",
-    body: form,
+  const asset = await sanityUploadImage(process.env, bytes, {
+    filename: `${slug || "drink"}.${ext}`,
+    contentType,
   });
+  if (!parseImageAssetId(asset?._id)) {
+    throw new Error("Sanity didn't take the photo");
+  }
   await baserow(
     `/api/database/rows/table/${itemsTableId}/${itemId}/?user_field_names=true`,
     {
       method: "PATCH",
-      body: JSON.stringify({ Photo: [{ name: uploaded.name }] }),
+      body: JSON.stringify({ "Photo asset": asset._id, Photo: [] }),
     },
   );
-  return uploaded.url || uploaded.name;
+  return asset._id;
 }
 
 async function main() {
