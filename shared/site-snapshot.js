@@ -71,11 +71,15 @@ export function artistFingerprint(row) {
   return fingerprint(stableStringify(clean));
 }
 
-/** { id: [fingerprint, label, type] } for documents; { rowId: [fingerprint, name] } for artists. */
+/**
+ * { id: [fingerprint, label, type, rev] } for documents; { rowId: [fingerprint, name] } for artists.
+ * The revision lets a later comparison skip documents that haven't changed
+ * (Sanity gives every change a new _rev) instead of fingerprinting them again.
+ */
 export function buildSnapshot({ docs = [], artists = [], at = new Date().toISOString(), commit = "" }) {
   const documents = {};
   for (const doc of docs) {
-    if (doc?._id) documents[doc._id] = [documentFingerprint(doc), documentLabel(doc), doc._type || ""];
+    if (doc?._id) documents[doc._id] = [documentFingerprint(doc), documentLabel(doc), doc._type || "", doc._rev || ""];
   }
   const artistRows = {};
   for (const row of artists) {
@@ -97,26 +101,59 @@ export function parseSnapshot(text) {
 /**
  * What changed since the snapshot. Without a snapshot (never recorded) the
  * site state is unknown: `known` is false and nothing is listed.
+ *
+ * Fingerprinting every document is most of the CPU an ops request has (the
+ * free plan allows 10 ms), so a document is only fingerprinted when its
+ * revision is new: one the snapshot recorded, or one in `fingerprints`
+ * ({ id: [rev, fingerprint] }, kept by the caller between runs), is reused.
+ * At most `budget` documents are fingerprinted; the rest are `unresolved`,
+ * and `complete` is false until a later run gets to them.
+ * Returns `fingerprints` for every document with a revision, to keep.
  */
-export function pendingSince(snapshot, current) {
+export function pendingSince(snapshot, current, { fingerprints = {}, budget = Infinity } = {}) {
   if (!snapshot) return { known: false, items: [] };
-  const now = buildSnapshot({ docs: current.docs || [], artists: current.artists || [] });
+  const before = snapshot.documents || {};
+  const documents = {};
+  const learned = {};
+  let unresolved = 0;
+  let left = budget;
+  for (const doc of current.docs || []) {
+    if (!doc?._id) continue;
+    const rev = doc._rev || "";
+    const recorded = before[doc._id];
+    let print = null;
+    if (rev && recorded?.[3] === rev) print = recorded[0];
+    else if (rev && fingerprints[doc._id]?.[0] === rev) print = fingerprints[doc._id][1];
+    else if (left > 0) {
+      print = documentFingerprint(doc);
+      left -= 1;
+    }
+    if (print === null) {
+      unresolved += 1;
+      documents[doc._id] = null;
+      continue;
+    }
+    if (rev) learned[doc._id] = [rev, print];
+    documents[doc._id] = [print, documentLabel(doc), doc._type || ""];
+  }
+  const artists = buildSnapshot({ artists: current.artists || [] }).artists;
   const items = [];
-  const compare = (kind, before, after) => {
-    for (const [id, entry] of Object.entries(after)) {
-      const old = before[id];
+  const compare = (kind, was, now) => {
+    for (const [id, entry] of Object.entries(now)) {
+      if (!entry) continue; // not fingerprinted yet: unknown, not changed
+      const old = was[id];
       if (!old) items.push({ kind, id, change: "added", label: entry[1], type: entry[2] || kind });
       else if (old[0] !== entry[0]) {
         items.push({ kind, id, change: "changed", label: entry[1], type: entry[2] || kind });
       }
     }
-    for (const [id, entry] of Object.entries(before)) {
-      if (!after[id]) items.push({ kind, id, change: "removed", label: entry[1], type: entry[2] || kind });
+    for (const [id, entry] of Object.entries(was)) {
+      if (!(id in now)) items.push({ kind, id, change: "removed", label: entry[1], type: entry[2] || kind });
     }
   };
-  compare("document", snapshot.documents || {}, now.documents);
-  compare("artist", snapshot.artists || {}, now.artists);
-  return { known: true, builtAt: snapshot.at || null, items };
+  compare("document", before, documents);
+  compare("artist", snapshot.artists || {}, artists);
+  return { known: true, builtAt: snapshot.at || null, items, complete: unresolved === 0, unresolved, fingerprints: learned };
 }
 
 /** Order-independent signature of a pending list, to notice when it changes. */
