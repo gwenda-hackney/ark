@@ -54,47 +54,66 @@
 /* The chart: a button in the corner, a panel down the left when it is open */
 .ch-chart-btn {
   position: fixed;
-  top: 1rem;
-  left: 1rem;
+  top: 1.25rem;
+  right: 1.5rem;
   z-index: 40;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
-  height: 2.75rem;
-  padding: 0 1rem 0 0.875rem;
-  border: 1px solid var(--ch-gold);
-  border-radius: 0;
-  background: rgb(11 10 8 / 0.75);
-  color: var(--ch-gold);
-  font-family: var(--ch-caps);
-  font-size: 0.9375rem;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-  backdrop-filter: blur(4px);
-  transition:
-    background 0.2s ease,
-    color 0.2s ease;
-}
-
-.ch-chart-btn:hover {
-  background: var(--ch-gold);
-  color: var(--ch-bg);
-}
-
-.ch-chart-btn-icon {
   display: grid;
-  gap: 4px;
-  width: 1.125rem;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ch-gold);
+  cursor: pointer;
 }
 
-.ch-chart-btn-icon i {
+/* Two hairlines, the lower one a little short, like a rule drawn twice */
+.ch-chart-btn-icon {
+  position: relative;
   display: block;
+  width: 24px;
+  height: 9px;
+}
+
+.ch-chart-btn-icon::before,
+.ch-chart-btn-icon::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
   height: 1.5px;
   background: currentColor;
+  transition:
+    transform 0.35s ease,
+    width 0.35s ease;
 }
 
-.ch-chart-btn-icon i:nth-child(2) {
-  width: 75%;
+.ch-chart-btn-icon::before {
+  width: 100%;
+}
+
+.ch-chart-btn-icon::after {
+  width: 70%;
+  transform: translate3d(0, 8px, 0);
+}
+
+.ch-chart-btn:hover .ch-chart-btn-icon::after {
+  width: 100%;
+}
+
+.ch-page[data-chart="open"] .ch-chart-btn {
+  z-index: 52;
+  color: var(--ch-ink);
+}
+
+.ch-page[data-chart="open"] .ch-chart-btn-icon::before {
+  transform: translate3d(0, 4px, 0) rotate(45deg);
+}
+
+.ch-page[data-chart="open"] .ch-chart-btn-icon::after {
+  width: 100%;
+  transform: translate3d(0, 4px, 0) rotate(-45deg);
 }
 
 .ch-chart-btn:focus-visible,
