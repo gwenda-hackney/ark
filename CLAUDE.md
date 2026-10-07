@@ -1,6 +1,6 @@
 # Notes for Claude
 
-Architecture and conventions: [.github/copilot-instructions.md](.github/copilot-instructions.md). Secrets in full: [docs/env.md](docs/env.md).
+Architecture and conventions: [.github/copilot-instructions.md](.github/copilot-instructions.md). Secrets in full: [docs/env.md](docs/env.md). Reference images for design work (renders, logo concepts, food and room photos) are in [docs/brand/](docs/brand/README.md); look there before asking for them, and add new ones with `npm run brand:add -- <file>` rather than copying originals in.
 
 ## Secrets: you normally have access
 
