@@ -1,0 +1,86 @@
+---
+/**
+ * One entry from the log under the hero: tonight, or the next night when
+ * nothing is on today (#240). The bell beside it books a table.
+ */
+import { siteConfig } from "../../config/site";
+import { bookingUrl } from "../../config/booking";
+import {
+  formatEventDiaryDate,
+  formatEventSpan,
+  getUpcomingEvents,
+} from "../../data/events";
+import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
+import ChartBell from "./ChartBell.astro";
+
+const { occurrences } = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+const next = getUpcomingEvents(occurrences)[0];
+const { bookingEnabled } = await fetchSiteSettings();
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const when = next ? formatEventDiaryDate(next.date) : "";
+const today = when === "Today";
+const [, , dayNumber] = next ? next.date.split("-").map(Number) : [];
+const weekday = next
+  ? WEEKDAYS[
+      new Date(
+        Number(next.date.slice(0, 4)),
+        Number(next.date.slice(5, 7)) - 1,
+        dayNumber,
+      ).getDay()
+    ]
+  : "";
+const span = next
+  ? formatEventSpan(next.startTime, next.endTime, next.time)
+  : "";
+const note = next ? next.shortDescription || next.artist || "" : "";
+---
+
+{
+  next && (
+    <section class="ch-tonight" aria-labelledby="ch-tonight-title">
+      <div class="ch-head">
+        <h2 id="ch-tonight-title">{today ? "Tonight" : "Next"}</h2>
+        <span class="ch-ital">{when}</span>
+      </div>
+      <div class="ch-tonight-row">
+        <a
+          href="/whats-on"
+          class:list={["ch-entry", today && "ch-entry--today"]}
+        >
+          <span class="ch-stamp">
+            <span class="ch-ring">{dayNumber}</span>
+            <span class="ch-caps">{weekday}</span>
+          </span>
+          <span>
+            <span class="ch-entry-name">
+              {next.title}
+              {span && <span class="ch-time">{span}</span>}
+            </span>
+            {(note || next.offer) && (
+              <p class="ch-entry-note ch-ital">
+                {note}
+                {next.offer && <span class="ch-offer">{next.offer}</span>}
+              </p>
+            )}
+          </span>
+        </a>
+        {bookingEnabled && (
+          <a
+            href={bookingUrl}
+            class="ch-bell"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ChartBell />
+            {siteConfig.copy.bookingCta}
+          </a>
+        )}
+      </div>
+    </section>
+  )
+}

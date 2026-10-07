@@ -1,0 +1,99 @@
+---
+/**
+ * The chart: the site's navigation (#240). A button in the corner opens a
+ * panel down the left: the flag, a compass rose, the sections as numbered
+ * rings, the bell to book.
+ */
+import { Image } from "astro:assets";
+import { siteConfig } from "../../config/site";
+import { bookingUrl } from "../../config/booking";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
+import { chartButtonLogo, chartFlag } from "../../lib/chart-assets";
+import { chartSections } from "../../lib/chart-nav";
+import ChartBell from "./ChartBell.astro";
+
+interface Props {
+  pathname?: string;
+}
+
+const { pathname = Astro.url.pathname } = Astro.props;
+const { bookingEnabled } = await fetchSiteSettings();
+const sections = chartSections(pathname);
+---
+
+<button
+  type="button"
+  class="ch-chart-btn"
+  id="ch-chart-btn"
+  aria-expanded="false"
+  aria-controls="ch-chart"
+>
+  <Image {...chartButtonLogo} alt="" />
+  <span>The chart</span>
+</button>
+
+<div class="ch-chart-scrim" id="ch-chart-scrim" aria-hidden="true"></div>
+
+<nav class="ch-chart" id="ch-chart" aria-label="The chart" tabindex="-1">
+  <button type="button" class="ch-chart-close" id="ch-chart-close">
+    Close ×
+  </button>
+
+  <a href="/" class="ch-flag-up" aria-label="Gwenda home">
+    <Image {...chartFlag} alt="" />
+    <span class="ch-caps">Flag's up</span>
+    <span class="ch-ital">{siteConfig.location.addressShort}</span>
+  </a>
+
+  <svg
+    class="ch-rose"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="9.2"></circle>
+    <circle cx="12" cy="12" r="1.2"></circle>
+    <path
+      d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M12 5.6l1.8 5.2L12 18.4l-1.8-7.6z"
+    ></path>
+    <path d="M12 5.6l1.8 5.2H10.2z" fill="currentColor"></path>
+    <path d="M5.6 12l5.2-1.8 7.6 1.8-7.6 1.8z"></path>
+  </svg>
+
+  <ul class="ch-chart-list">
+    {
+      sections.map((item) => (
+        <li>
+          <a href={item.href} aria-current={item.current ? "page" : undefined}>
+            <span class="ch-ring">{item.numeral}</span>
+            <span class="ch-caps">{item.label}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  {
+    bookingEnabled && (
+      <a
+        href={bookingUrl}
+        class="ch-bell"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <ChartBell />
+        {siteConfig.copy.bookingCta}
+      </a>
+    )
+  }
+</nav>
+
+<script>
+  import { initChartNav } from "../../scripts/chart-nav.js";
+  initChartNav();
+  document.addEventListener("astro:page-load", initChartNav);
+</script>

@@ -1,14 +1,11 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import HomePage from "../components/HomePage.astro";
-import HeroPreload from "../components/HeroPreload.astro";
+import ChartHome from "../components/chart/ChartHome.astro";
 import { siteConfig } from "../config/site";
 
 const { title, description } = siteConfig.seo.home;
 ---
 
-<BaseLayout title={title} description={description}>
-  <HeroPreload slot="head" />
-
-  <HomePage mode="promo" />
+<BaseLayout title={title} description={description} showBooking={false}>
+  <ChartHome />
 </BaseLayout>

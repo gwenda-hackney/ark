@@ -1,0 +1,45 @@
+---
+/**
+ * Home, redesigned as The Chart (#240): the room darkened behind the torn
+ * flag and the slogan, tonight beneath, the chart behind a button.
+ */
+import { Image } from "astro:assets";
+import "../../styles/chart.css";
+import { siteConfig } from "../../config/site";
+import { chartHeroBackground, chartHeroLogo } from "../../lib/chart-assets";
+import ChartNav from "./ChartNav.astro";
+import ChartTonight from "./ChartTonight.astro";
+---
+
+<div class="ch-page" data-chart="closed">
+  <ChartNav />
+  <main>
+    <section class="ch-hero" id="hero">
+      <div class="ch-hero-media" aria-hidden="true">
+        <Image
+          {...chartHeroBackground}
+          alt=""
+          loading="eager"
+          fetchpriority="high"
+        />
+        <div class="ch-hero-scrim"></div>
+      </div>
+      <div class="ch-hero-content">
+        <h1 class="visually-hidden">{siteConfig.seoTitle}</h1>
+        <Image
+          {...chartHeroLogo}
+          alt="Gwenda"
+          class="ch-hero-logo"
+          loading="eager"
+          fetchpriority="high"
+        />
+        <p class="ch-slogan">{siteConfig.copy.heroCta}</p>
+        <p class="ch-hero-line ch-ital">A bar by the canal.</p>
+        <span class="ch-caps"
+          >Flag's up · {siteConfig.location.addressShort}</span
+        >
+      </div>
+    </section>
+    <ChartTonight />
+  </main>
+</div>
