@@ -1,41 +1,21 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
-import MenuDisplay from "../components/MenuDisplay.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMenu from "../components/chart/ChartMenu.astro";
 import { siteConfig } from "../config/site";
-import { getAvailableItems } from "../data/menu";
-import { withHome } from "../lib/site-nav.js";
 import { fetchMenu } from "../lib/sanity/menu";
 
 const menu = await fetchMenu();
 const { title: pageTitle, description: pageDescription } = siteConfig.seo.menu;
-
-function chapterHasContent(section: (typeof menu.sections)[number]): boolean {
-  if (getAvailableItems(section).length > 0) return true;
-  return (section.subsections ?? []).some(
-    (sub) => getAvailableItems(sub).length > 0,
-  );
-}
-
-const menuNav = withHome(
-  menu.sections.filter(chapterHasContent).map((chapter) => ({
-    href: `#${chapter.id}`,
-    label: chapter.title,
-  })),
-);
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription}>
-  <link rel="prefetch" href="/" slot="head" />
-
-  <Subpage
-    class="menu-page"
-    innerClass="menu-inner"
-    navItems={menuNav}
-    eyebrow="Tabula"
-    title="Menu"
+<BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
+  <ChartPage
+    class="ch-menu-page"
+    title="Bar and galley"
+    numeral="I"
+    lead="Drinks first, the kitchen after."
   >
-    <p slot="lead">Craft cocktails, Italian small plates, and natural wine.</p>
-    <MenuDisplay menu={menu} showPrices />
-  </Subpage>
+    <ChartMenu menu={menu} />
+  </ChartPage>
 </BaseLayout>

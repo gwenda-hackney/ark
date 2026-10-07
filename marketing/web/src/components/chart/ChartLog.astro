@@ -1,0 +1,113 @@
+---
+/**
+ * The log (#240): every upcoming night in order, a week at a time. Each
+ * entry is the ringed day stamp, the name, the time, a line, the offer.
+ */
+import {
+  eventWeekStart,
+  formatEventSpan,
+  formatEventWeek,
+} from "../../data/events";
+import type { Event } from "../../types/events";
+import { sizedImageUrl } from "../../lib/event-card.js";
+
+interface Props {
+  nights: Event[];
+}
+
+const { nights } = Astro.props;
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const todayIso = (() => {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+})();
+
+const weeks = new Map<string, Event[]>();
+for (const night of nights) {
+  const key = eventWeekStart(night.date);
+  weeks.set(key, [...(weeks.get(key) ?? []), night]);
+}
+
+function entry(night: Event) {
+  const [year, month, day] = night.date.split("-").map(Number);
+  const weekday = WEEKDAYS[new Date(year, month - 1, day).getDay()];
+  const title =
+    night.seriesTitle && night.title !== night.seriesTitle
+      ? night.title
+      : night.seriesTitle || night.title;
+  const note = night.shortDescription || night.artist || "";
+  const photo = sizedImageUrl(
+    night.seriesHeroImageUrl || night.heroImage?.url,
+    320,
+  );
+  return {
+    day,
+    weekday,
+    title,
+    note,
+    photo,
+    span: formatEventSpan(night.startTime, night.endTime, night.time),
+    href: night.seriesId
+      ? `/whats-on/${encodeURIComponent(night.seriesId)}`
+      : "/whats-on",
+    today: night.date === todayIso,
+  };
+}
+---
+
+{
+  nights.length === 0 ? (
+    <p class="ch-ital">
+      Nothing in the log yet. The nights go in as they are set.
+    </p>
+  ) : (
+    [...weeks.entries()].map(([weekStart, list]) => (
+      <section class="ch-week">
+        <div class="ch-head">
+          <h2>{formatEventWeek(weekStart)}</h2>
+        </div>
+        <ol class="ch-log">
+          {list.map((night) => {
+            const e = entry(night);
+            return (
+              <li>
+                <a
+                  href={e.href}
+                  class:list={["ch-entry", e.today && "ch-entry--today"]}
+                >
+                  <span class="ch-stamp">
+                    <span class="ch-ring">{e.day}</span>
+                    <span class="ch-caps">{e.weekday}</span>
+                  </span>
+                  <span class="ch-entry-body">
+                    <span class="ch-entry-name">
+                      {e.title}
+                      {e.span && <span class="ch-time">{e.span}</span>}
+                    </span>
+                    {(e.note || night.offer) && (
+                      <p class="ch-entry-note ch-ital">
+                        {e.note}
+                        {night.offer && (
+                          <span class="ch-offer">{night.offer}</span>
+                        )}
+                      </p>
+                    )}
+                  </span>
+                  {e.photo && (
+                    <span class="ch-frame ch-entry-photo">
+                      <img src={e.photo} alt="" loading="lazy" />
+                    </span>
+                  )}
+                </a>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    ))
+  )
+}

@@ -1,0 +1,27 @@
+---
+/** The foot of every page in The Chart (#240): where we are, the few links. */
+import { siteConfig } from "../../config/site";
+
+const { social, location } = siteConfig;
+const year = new Date().getFullYear();
+---
+
+<footer class="ch-footer">
+  <div class="ch-rule ch-rule--dash"></div>
+  <div class="ch-footer-row">
+    <a
+      href={location.mapsUrl}
+      class="ch-caps"
+      target="_blank"
+      rel="noopener noreferrer">{location.address}</a
+    >
+    <nav class="ch-footer-links" aria-label="Footer">
+      <a href={social.instagram} target="_blank" rel="noopener noreferrer"
+        >Instagram</a
+      >
+      <a href="/join-list">{siteConfig.copy.signupHeading}</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+    <span class="ch-caps">© {year} {siteConfig.name}</span>
+  </div>
+</footer>

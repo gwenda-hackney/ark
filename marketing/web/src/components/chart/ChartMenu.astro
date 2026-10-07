@@ -1,0 +1,77 @@
+---
+/**
+ * The menu in The Chart (#240): chapters in the order ops sets them, the
+ * items on dotted leaders, descriptions in italic.
+ */
+import type { Menu, MenuSection } from "../../types/menu";
+import { formatMenuPrice, menuPrices } from "../../types/menu";
+import { getAvailableItems } from "../../data/menu";
+
+interface Props {
+  menu: Menu;
+}
+
+const { menu } = Astro.props;
+
+function hasContent(section: MenuSection): boolean {
+  if (getAvailableItems(section).length > 0) return true;
+  return (section.subsections ?? []).some(hasContent);
+}
+
+const chapters = menu.sections.filter(hasContent);
+---
+
+<nav class="ch-jump" aria-label="Menu chapters">
+  {chapters.map((chapter) => <a href={`#${chapter.id}`}>{chapter.title}</a>)}
+</nav>
+
+{
+  chapters.map((chapter) => (
+    <section class="ch-chapter" id={chapter.id}>
+      <div class="ch-head">
+        <h2>{chapter.title}</h2>
+        {chapter.subtitle && <span class="ch-ital">{chapter.subtitle}</span>}
+      </div>
+      {[chapter, ...(chapter.subsections ?? [])]
+        .filter(hasContent)
+        .map((group) => (
+          <div class="ch-group">
+            {group !== chapter && <h3 class="ch-caps">{group.title}</h3>}
+            <ul class="ch-list">
+              {getAvailableItems(group).map((item) => {
+                const price = formatMenuPrice(item);
+                const rows = price ? [] : menuPrices(item);
+                return (
+                  <li>
+                    <span class="ch-item-line">
+                      <span class="ch-item-name">{item.name}</span>
+                      {item.notes && (
+                        <span class="ch-item-note ch-ital">{item.notes}</span>
+                      )}
+                      <span class="ch-dots" />
+                      {price && <span class="ch-price">{price}</span>}
+                    </span>
+                    {item.description && (
+                      <span class="ch-item-desc ch-ital">
+                        {item.description}
+                      </span>
+                    )}
+                    {rows.length > 0 && (
+                      <span class="ch-item-sizes">
+                        {rows.map((row) => (
+                          <span>
+                            <span class="ch-caps">{row.name || row.size}</span>{" "}
+                            <span class="ch-price">{row.price}</span>
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+    </section>
+  ))
+}
