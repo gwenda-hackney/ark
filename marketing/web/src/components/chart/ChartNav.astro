@@ -8,7 +8,7 @@ import { Image } from "astro:assets";
 import { siteConfig } from "../../config/site";
 import { bookingUrl } from "../../config/booking";
 import { fetchSiteSettings } from "../../lib/sanity/site-settings";
-import { chartButtonLogo, chartFlag } from "../../lib/chart-assets";
+import { chartFlag } from "../../lib/chart-assets";
 import { chartSections } from "../../lib/chart-nav";
 import ChartBell from "./ChartBell.astro";
 
@@ -27,9 +27,11 @@ const sections = chartSections(pathname);
   id="ch-chart-btn"
   aria-expanded="false"
   aria-controls="ch-chart"
+  aria-label="Open the menu"
 >
-  <Image {...chartButtonLogo} alt="" />
-  <span>The chart</span>
+  <span class="ch-chart-btn-icon" aria-hidden="true"><i></i><i></i><i></i></span
+  >
+  <span>Menu</span>
 </button>
 
 <div class="ch-chart-scrim" id="ch-chart-scrim" aria-hidden="true"></div>
@@ -41,8 +43,7 @@ const sections = chartSections(pathname);
 
   <a href="/" class="ch-flag-up" aria-label="Gwenda home">
     <Image {...chartFlag} alt="" />
-    <span class="ch-caps">Flag's up</span>
-    <span class="ch-ital">{siteConfig.location.addressShort}</span>
+    <span class="ch-caps">{siteConfig.location.addressShort}</span>
   </a>
 
   <svg

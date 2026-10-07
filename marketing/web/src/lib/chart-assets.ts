@@ -1,10 +1,11 @@
 import flagImg from "../assets/images/logos/flag.png";
+import bottleImg from "../assets/images/logos/bottle.png";
 import tavernImg from "../assets/images/hero/tavern.webp";
 
-/** The torn flag, large, over the hero: max rendered width is 18rem (288px). */
+/** The spilt bottle, large, over the hero: max rendered width is 22rem (352px). */
 export const chartHeroLogo = {
-  src: flagImg,
-  width: 288,
+  src: bottleImg,
+  width: 352,
   format: "webp" as const,
   densities: [1, 2] as const,
 };
@@ -13,14 +14,6 @@ export const chartHeroLogo = {
 export const chartFlag = {
   src: flagImg,
   width: 88,
-  format: "webp" as const,
-  densities: [1, 2] as const,
-};
-
-/** The flag on the button that opens the chart: 2.75rem (44px). */
-export const chartButtonLogo = {
-  src: flagImg,
-  width: 44,
   format: "webp" as const,
   densities: [1, 2] as const,
 };

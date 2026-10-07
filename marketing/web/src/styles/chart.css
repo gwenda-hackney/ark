@@ -54,27 +54,47 @@
 /* The chart: a button in the corner, a panel down the left when it is open */
 .ch-chart-btn {
   position: fixed;
-  top: 0.75rem;
-  left: 0.75rem;
+  top: 1rem;
+  left: 1rem;
   z-index: 40;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem 0.5rem 0.5rem;
-  border: 0;
-  background: transparent;
+  gap: 0.625rem;
+  height: 2.75rem;
+  padding: 0 1rem 0 0.875rem;
+  border: 1px solid var(--ch-gold);
+  border-radius: 0;
+  background: rgb(11 10 8 / 0.75);
   color: var(--ch-gold);
   font-family: var(--ch-caps);
-  font-size: 0.875rem;
-  letter-spacing: 0.1em;
+  font-size: 0.9375rem;
+  letter-spacing: 0.12em;
   cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
-.ch-chart-btn img {
-  width: 2.75rem;
-  height: auto;
-  transform: rotate(-4deg);
-  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.7));
+.ch-chart-btn:hover {
+  background: var(--ch-gold);
+  color: var(--ch-bg);
+}
+
+.ch-chart-btn-icon {
+  display: grid;
+  gap: 4px;
+  width: 1.125rem;
+}
+
+.ch-chart-btn-icon i {
+  display: block;
+  height: 1.5px;
+  background: currentColor;
+}
+
+.ch-chart-btn-icon i:nth-child(2) {
+  width: 75%;
 }
 
 .ch-chart-btn:focus-visible,
@@ -153,11 +173,6 @@
 
 .ch-flag-up .ch-caps {
   color: var(--ch-gold);
-}
-
-.ch-flag-up .ch-ital {
-  font-size: 0.8125rem;
-  color: var(--ch-ink-3);
 }
 
 .ch-rose {
@@ -306,10 +321,9 @@
 }
 
 .ch-hero-logo {
-  width: min(18rem, 70vw);
+  width: min(22rem, 78vw);
   height: auto;
-  margin-bottom: 0.5rem;
-  transform: rotate(-3deg);
+  margin-bottom: 0.75rem;
   filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.8));
 }
 
@@ -326,15 +340,10 @@
   text-wrap: balance;
 }
 
-.ch-hero-line {
-  margin: 0;
-  font-size: 1.125rem;
-  color: var(--ch-ink);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
-}
-
 .ch-hero-content .ch-caps {
-  color: var(--ch-gold);
+  margin-top: 0.25rem;
+  font-size: 0.9375rem;
+  color: var(--ch-ink);
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
 }
 
