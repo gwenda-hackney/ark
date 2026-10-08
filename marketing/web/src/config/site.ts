@@ -136,7 +136,7 @@ export const siteConfig = {
         /** Lives on /about, which is not published yet. */
         aside: true,
         paragraphs: [
-          "Gigi already runs The Pirate's Hub on this canal. A room three metres by three on Fish Island, porchetta from the house, sandwiches taken down to the water.",
+          "You might know Gigi from The Pirate's Hub, down the canal on Fish Island.",
           "Born in Castro, on the Salento coast. He wanted that gathering again, and a kitchen big enough to cook for it.",
         ],
       },
