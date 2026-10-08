@@ -477,11 +477,19 @@ html[data-body-font="courier"] .ch-page {
   border-top: 1px dashed var(--ch-rule);
 }
 
-.ch-tonight-book {
+/* Under the nights: the whole of what's on, and the bell for any night */
+.ch-tonight-more {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 2rem;
   padding-top: 1.25rem;
   border-top: 1px dashed var(--ch-rule);
+}
+
+.ch-tonight-more .ch-btn {
+  margin-left: auto;
 }
 
 .ch-entry {
@@ -1349,29 +1357,61 @@ html[data-body-font="courier"] .ch-page {
   display: none;
 }
 
-/* A sounding line: a gold hairline dropping from the hero's foot, still */
+/*
+ * Down to tonight: a word and a hand-drawn arrow at the hero's foot. Still,
+ * bar two nudges a moment after the page opens, to catch the eye.
+ */
 .ch-hero-more {
   position: absolute;
   left: 50%;
-  bottom: 0;
-  width: 2.75rem;
-  height: 4.5rem;
-  margin-left: -1.375rem;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
   display: grid;
   justify-items: center;
+  gap: 0.375rem;
+  color: var(--ch-gold);
+  text-decoration: none;
 }
 
-.ch-hero-more span {
-  display: block;
-  width: 1px;
-  height: 100%;
-  background: linear-gradient(transparent, var(--ch-gold));
-  opacity: 0.7;
-  transition: opacity 0.25s ease;
+.ch-hero-more .ch-caps {
+  font-size: 0.875rem;
+  letter-spacing: 0.12em;
+  color: var(--ch-ink);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
+  transition: color 0.25s ease;
 }
 
-.ch-hero-more:hover span {
-  opacity: 1;
+.ch-hero-more svg {
+  width: 1.25rem;
+  height: 2.25rem;
+  filter: url(#ch-ink);
+  animation: ch-nudge 0.9s ease-in-out 2s 2;
+}
+
+.ch-hero-more:hover .ch-caps,
+.ch-hero-more:focus-visible .ch-caps {
+  color: var(--ch-gold);
+}
+
+.ch-hero-more:focus-visible {
+  outline: 1px solid var(--ch-gold);
+  outline-offset: 6px;
+}
+
+@keyframes ch-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-hero-more svg {
+    animation: none;
+  }
 }
 
 .ch-tonight {
@@ -1535,6 +1575,75 @@ html[data-body-font="courier"] .ch-page {
   letter-spacing: 0.06em;
   color: var(--paper-ink-2);
   text-align: center;
+}
+
+/* Finding us: a word before the map, the ways here after it */
+.ch-find-intro {
+  max-width: 40rem;
+  margin: 0 0 1.5rem;
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  color: var(--ch-ink-2);
+}
+
+.ch-find-ways {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 2rem 3rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--ch-rule);
+}
+
+.ch-find-ways p {
+  margin: 0 0 0.75rem;
+  line-height: 1.6;
+}
+
+.ch-find-head {
+  margin: 0 0 0.875rem;
+  font-family: var(--ch-press);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  color: var(--ch-gold);
+}
+
+.ch-find-steps {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+  display: grid;
+  gap: 0.625rem;
+  line-height: 1.55;
+}
+
+.ch-find-steps li::marker {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: var(--ch-gold);
+}
+
+.ch-find-note {
+  font-style: italic;
+  color: var(--ch-ink-3);
+}
+
+@media (max-width: 40rem) {
+  .ch-find-ways {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The play page: the call for artists under the turntable */
+.ch-call {
+  margin-top: 1.75rem;
+}
+
+.ch-call p {
+  margin: 0 0 0.875rem;
+  line-height: 1.6;
+  color: var(--ch-ink-2);
 }
 
 .ch-find-page .ch-main {

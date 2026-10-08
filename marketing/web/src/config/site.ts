@@ -210,7 +210,7 @@ export const siteConfig = {
       playEyebrow: "The floor",
       playHeading: "Play at Gwenda",
       playLead:
-        "DJs, bands, selectors, anyone with a crate of records. Tell us what you’d play and we’ll get back to you.",
+        "We want Gwenda to sound like Hackney Wick. DJs, bands, selectors, crews, anyone with a crate of records and something to play: we’d love to have you. Tell us what you’d bring.",
       playCta: "Apply to play",
     },
   },

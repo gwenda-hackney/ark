@@ -13,8 +13,44 @@ import { siteConfig } from "../config/site";
   <ChartPage
     class="ch-find-page"
     title="Finding us"
-    lead="Five minutes from Hackney Wick station. Follow the water."
+    lead="Five minutes from Hackney Wick station. Follow the water and you can’t miss us."
   >
+    <p class="ch-find-intro">
+      Gwenda sits right on the canal at Schwartz Wharf, round the corner from
+      Barge East. It’s a short, easy walk from the station, along the lane and
+      down the towpath, and the map below will see you here.
+    </p>
     <ChartMap />
+    <div class="ch-find-ways">
+      <section>
+        <h2 class="ch-find-head">From Hackney Wick station</h2>
+        <ol class="ch-find-steps">
+          <li>
+            Out of the station, head south with the railway at your back, about
+            300 paces.
+          </li>
+          <li>
+            Turn left onto White Post Lane and follow it past the theatre, down
+            to the water.
+          </li>
+          <li>Join the towpath and bear right, south along the river.</li>
+          <li>
+            Where the canal comes in, follow it a few paces west. X marks the
+            bar.
+          </li>
+        </ol>
+        <p class="ch-find-note">
+          Know the yard? You can cut straight down it instead.
+        </p>
+      </section>
+      <section>
+        <h2 class="ch-find-head">Coming along the water</h2>
+        <p>
+          Walking or cycling the towpath? Look for Barge East, then come round
+          the corner onto the canal. We’re right there on the bank.
+        </p>
+        <p class="ch-find-note">{siteConfig.location.address}</p>
+      </section>
+    </div>
   </ChartPage>
 </BaseLayout>

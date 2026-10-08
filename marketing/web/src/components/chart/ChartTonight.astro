@@ -95,8 +95,11 @@ const aside = heading === "Next" ? (entries[0]?.when ?? "") : "";
           </a>
         </div>
       ))}
-      {bookingEnabled && (
-        <div class="ch-tonight-book">
+      <div class="ch-tonight-more">
+        <a href="/whats-on" class="ch-link-line">
+          Everything on, the full log →
+        </a>
+        {bookingEnabled && (
           <a
             href={bookingUrl}
             class="ch-btn ch-btn--solid"
@@ -106,8 +109,8 @@ const aside = heading === "Next" ? (entries[0]?.when ?? "") : "";
             <ChartBell />
             {siteConfig.copy.bookingCta}
           </a>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   )
 }
