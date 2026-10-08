@@ -51,50 +51,6 @@ const sections = chartSections(pathname);
       xChannelSelector="R"
       yChannelSelector="G"></feDisplacementMap>
   </filter>
-  <!--
-    Old paper (.ch-paper): the edge roughened a little, browned along
-    every tear, and a soft shadow where the sheet lifts off the wall.
-  -->
-  <filter
-    id="ch-paper"
-    x="-5%"
-    y="-5%"
-    width="110%"
-    height="110%"
-    color-interpolation-filters="sRGB"
-  >
-    <feTurbulence
-      type="fractalNoise"
-      baseFrequency="0.09"
-      numOctaves="3"
-      seed="4"
-      result="n"></feTurbulence>
-    <feDisplacementMap
-      in="SourceGraphic"
-      in2="n"
-      scale="5"
-      xChannelSelector="R"
-      yChannelSelector="G"
-      result="paper"></feDisplacementMap>
-    <feMorphology in="paper" operator="erode" radius="10" result="core"
-    ></feMorphology>
-    <feGaussianBlur in="core" stdDeviation="12" result="soft"></feGaussianBlur>
-    <feComposite in="paper" in2="soft" operator="out" result="rim"
-    ></feComposite>
-    <feFlood flood-color="#5e3d17" flood-opacity="0.6"></feFlood>
-    <feComposite in2="rim" operator="in" result="tint"></feComposite>
-    <feColorMatrix
-      in="paper"
-      type="matrix"
-      values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.65 0"></feColorMatrix>
-    <feGaussianBlur stdDeviation="9"></feGaussianBlur>
-    <feOffset dy="10" result="shadow"></feOffset>
-    <feMerge>
-      <feMergeNode in="shadow"></feMergeNode>
-      <feMergeNode in="paper"></feMergeNode>
-      <feMergeNode in="tint"></feMergeNode>
-    </feMerge>
-  </filter>
 </svg>
 
 <button

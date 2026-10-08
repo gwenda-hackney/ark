@@ -34,17 +34,7 @@ const chapters = sections.filter(hasContent);
   )
 }
 
-<!--
-  Two looks while we choose (#240): the parchment sheet (default) and the
-  menu written straight onto the page's texture, like the map (?look=texture).
--->
-<script is:inline>
-  if (new URLSearchParams(location.search).get("look") === "texture") {
-    document.documentElement.dataset.menuLook = "texture";
-  }
-</script>
 <div class="ch-sheet">
-  <div class="ch-paper" aria-hidden="true"></div>
   {
     chapters.map((chapter) => (
       <section class="ch-chapter" id={chapter.id}>
