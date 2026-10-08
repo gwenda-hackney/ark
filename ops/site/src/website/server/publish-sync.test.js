@@ -61,6 +61,25 @@ describe("linkedSectionPatch", () => {
     assert.equal(linkedSectionPatch({ title: "Our Formulas" }, current, null), null);
   });
 
+  it("moves a section to its place in the ops order", () => {
+    assert.deepEqual(
+      linkedSectionPatch(
+        { title: "Dry Ship", orderRank: 3 },
+        { title: "Dry Ship", orderRank: "0|10000o:" },
+        null,
+      ),
+      { set: { orderRank: "0|i00000003s:" } },
+    );
+    assert.equal(
+      linkedSectionPatch(
+        { title: "Dry Ship", orderRank: 3 },
+        { title: "Dry Ship", orderRank: "0|i00000003s:" },
+        null,
+      ),
+      null,
+    );
+  });
+
   it("sets or clears the subtitle and the parent", () => {
     assert.deepEqual(
       linkedSectionPatch({ title: "Rum", subtitle: "From the islands" }, { title: "Rum" }, "s-11"),

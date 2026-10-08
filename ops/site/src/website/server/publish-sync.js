@@ -18,7 +18,7 @@ import {
   sanityUploadImage,
 } from "../../platform/sanity.js";
 
-/** Sortable Sanity orderRank from the menu's numeric order (create only). */
+/** Sortable Sanity orderRank from the menu's numeric order. */
 export function orderRankFromOrder(order, kind = "item") {
   const n = Math.max(0, Math.floor(Number(order) || 0));
   const tag = kind === "section" ? "s" : "i";
@@ -142,7 +142,7 @@ async function ensureSanitySections(env, pending, sections) {
       ? (await sanityQuery(
           env,
           PREVIEW,
-          `*[_type == "menuSection" && _id in $ids]{_id, title, subtitle, "parent": parent._ref}`,
+          `*[_type == "menuSection" && _id in $ids]{_id, title, subtitle, orderRank, "parent": parent._ref}`,
           { ids: linkedIds },
         )) || []
       : []
@@ -229,7 +229,8 @@ async function ensureSanitySections(env, pending, sections) {
 
 /**
  * What a section already on the website needs so it matches ops: a rename,
- * a new subtitle or a move under another chapter. Null when it matches.
+ * a new subtitle, a move under another chapter or a new place in the
+ * order. Null when it matches.
  * The slug stays, so links to a chapter keep working after a rename.
  */
 export function linkedSectionPatch(section, current, parentSanityId) {
@@ -246,6 +247,10 @@ export function linkedSectionPatch(section, current, parentSanityId) {
   if (parent !== (current.parent || null)) {
     if (parent) set.parent = { _type: "reference", _ref: parent };
     else unset.push("parent");
+  }
+  if (section.orderRank != null) {
+    const rank = orderRankFromOrder(section.orderRank, "section");
+    if (rank !== current.orderRank) set.orderRank = rank;
   }
   if (!Object.keys(set).length && !unset.length) return null;
   return {
