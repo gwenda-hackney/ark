@@ -1524,17 +1524,17 @@ html[data-body-font="courier"] .ch-page {
   stroke-width: 3;
 }
 
+/* Under the map: the address, and directions in Google Maps as a button */
 .ch-map figcaption {
-  margin-top: 0.5rem;
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
   font-family: var(--ch-caps);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   letter-spacing: 0.06em;
   color: var(--paper-ink-2);
   text-align: center;
-}
-
-.ch-map figcaption a:hover {
-  color: var(--paper-walk);
 }
 
 .ch-find-page .ch-main {

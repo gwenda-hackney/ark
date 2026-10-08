@@ -20,6 +20,8 @@ interface Props {
 const { class: className, thumb = false } = Astro.props;
 const Tag = thumb ? "span" : "figure";
 const { location } = siteConfig;
+/** Google's directions link: opens the Maps app on a phone, routed to the bar */
+const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${location.geo.latitude},${location.geo.longitude}`;
 
 /** The Lee down the right, the Hertford Union coming in from the south-west */
 const LEE =
@@ -240,8 +242,16 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
   {
     !thumb && (
       <figcaption>
-        <a href={location.mapsUrl} target="_blank" rel="noopener noreferrer">
-          {location.address}
+        <span>{location.address}</span>
+        <a
+          href={directionsUrl}
+          class="ch-btn ch-btn--solid"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Directions on Google Maps
+          <span aria-hidden="true">↗</span>
+          <span class="visually-hidden">(opens Google Maps)</span>
         </a>
       </figcaption>
     )
