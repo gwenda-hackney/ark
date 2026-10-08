@@ -58,6 +58,21 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
       Gwenda.
     </title>
     <defs>
+      <!-- The paper's edge: torn and uneven (used by .ch-scroll::before) -->
+      <filter id="ch-paper-edge" x="-3%" y="-3%" width="106%" height="106%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.04"
+          numOctaves="4"
+          seed="11"
+          result="n"></feTurbulence>
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="n"
+          scale="22"
+          xChannelSelector="R"
+          yChannelSelector="G"></feDisplacementMap>
+      </filter>
       <filter id="ch-map-ink" x="-5%" y="-5%" width="110%" height="110%">
         <feTurbulence
           type="fractalNoise"
