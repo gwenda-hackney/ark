@@ -815,3 +815,236 @@
   max-width: 60ch;
   color: var(--ch-ink-2);
 }
+
+/* Buttons: the bell in gold, the rest outlined */
+.ch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding: 0 1.25rem;
+  border: 1px solid var(--ch-gold);
+  color: var(--ch-gold);
+  font-family: var(--ch-caps);
+  font-size: 0.9375rem;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.ch-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ch-btn:hover,
+.ch-btn--solid {
+  background: var(--ch-gold);
+  color: var(--ch-bg);
+}
+
+.ch-btn--solid:hover {
+  background: var(--ch-ink);
+  border-color: var(--ch-ink);
+}
+
+.ch-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+/* Home: play here, stay close */
+.ch-home-paths {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 0 1.25rem 4rem;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.ch-home-path {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--ch-gold);
+}
+
+.ch-home-path--play {
+  grid-template-columns: 11rem 1fr;
+  align-items: start;
+}
+
+.ch-home-path-photo {
+  aspect-ratio: 4 / 5;
+}
+
+.ch-home-path-body {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.ch-home-path .ch-ital {
+  color: var(--ch-ink-2);
+  max-width: 48ch;
+}
+
+.ch-link-line {
+  margin-top: 0.25rem;
+  font-family: var(--ch-caps);
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  color: var(--ch-gold);
+}
+
+.ch-home-path:hover .ch-path-title {
+  color: var(--ch-gold);
+}
+
+@media (max-width: 48rem) {
+  .ch-home-paths {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .ch-home-path--play {
+    grid-template-columns: 7rem 1fr;
+  }
+}
+
+/* The forms (play, the list): the old form markup inside the new frame */
+.ch-form-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: 3rem;
+  align-items: start;
+}
+
+.ch-form-aside {
+  position: sticky;
+  top: 5rem;
+}
+
+.ch-form-aside img {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: grayscale(0.3) contrast(1.15) brightness(0.9);
+}
+
+@media (max-width: 56rem) {
+  .ch-form-split {
+    grid-template-columns: 1fr;
+  }
+
+  .ch-form-aside {
+    display: none;
+  }
+}
+
+.ch-page .signup--embedded::before,
+.ch-page .signup::before {
+  display: none;
+}
+
+.ch-page .signup {
+  padding: 0;
+  background: transparent;
+}
+
+.ch-page .signup--embedded .signup-inner,
+.ch-page .signup-inner {
+  padding: 0;
+  max-width: none;
+}
+
+.ch-page .section-header,
+.ch-page .contact-section-header h2,
+.ch-page .contact-field-heading,
+.ch-page .signup-confirm-title {
+  font-family: var(--ch-press);
+  font-weight: 400;
+  color: var(--ch-gold);
+}
+
+.ch-page .section-eyebrow,
+.ch-page .contact-field-label,
+.ch-page .contact-label-name,
+.ch-page .contact-nav-label,
+.ch-page .contact-help,
+.ch-page .contact-required-note,
+.ch-page .signup-consent,
+.ch-page .signup-confirm-eyebrow {
+  font-family: var(--ch-caps);
+  letter-spacing: 0.06em;
+}
+
+.ch-page .contact-form,
+.ch-page .signup-form,
+.ch-page .contact-field,
+.ch-page .signup-field {
+  font-family: var(--ch-book);
+}
+
+.ch-page .gw-field input,
+.ch-page .gw-field textarea,
+.ch-page .signup-field input[type="email"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ch-rule);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ch-ink);
+  font-family: var(--ch-book);
+  font-size: 1rem;
+}
+
+.ch-page .gw-field textarea {
+  min-height: 7rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.ch-page .gw-field input::placeholder,
+.ch-page .gw-field textarea::placeholder {
+  color: var(--ch-ink-3);
+}
+
+.ch-page .gw-field input:focus,
+.ch-page .gw-field textarea:focus {
+  outline: none;
+  border-color: var(--ch-gold);
+}
+
+.ch-page .btn.btn-primary,
+.ch-page .btn.btn-ghost {
+  border-radius: 0;
+  font-family: var(--ch-caps);
+  letter-spacing: 0.1em;
+  text-transform: none;
+}
+
+.ch-page .btn.btn-primary {
+  background: var(--ch-gold);
+  color: var(--ch-bg);
+  border: 1px solid var(--ch-gold);
+}
+
+.ch-page .btn.btn-ghost {
+  background: transparent;
+  color: var(--ch-gold);
+  border: 1px solid var(--ch-gold);
+}
+
+/* The page head already says it; the embedded signup keeps its form only */
+.ch-page .signup .section-header {
+  display: none;
+}

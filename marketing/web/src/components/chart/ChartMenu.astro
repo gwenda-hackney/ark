@@ -3,27 +3,36 @@
  * The menu in The Chart (#240): chapters in the order ops sets them, the
  * items on dotted leaders, descriptions in italic.
  */
-import type { Menu, MenuSection } from "../../types/menu";
+import type { MenuSection } from "../../types/menu";
 import { formatMenuPrice, menuPrices } from "../../types/menu";
 import { getAvailableItems } from "../../data/menu";
 
 interface Props {
-  menu: Menu;
+  sections: MenuSection[];
+  /** Shown when the menu has no chapters yet. */
+  empty: string;
 }
 
-const { menu } = Astro.props;
+const { sections, empty } = Astro.props;
 
 function hasContent(section: MenuSection): boolean {
   if (getAvailableItems(section).length > 0) return true;
   return (section.subsections ?? []).some(hasContent);
 }
 
-const chapters = menu.sections.filter(hasContent);
+const chapters = sections.filter(hasContent);
 ---
 
-<nav class="ch-jump" aria-label="Menu chapters">
-  {chapters.map((chapter) => <a href={`#${chapter.id}`}>{chapter.title}</a>)}
-</nav>
+{chapters.length === 0 && <p class="ch-ital">{empty}</p>}
+{
+  chapters.length > 1 && (
+    <nav class="ch-jump" aria-label="Menu chapters">
+      {chapters.map((chapter) => (
+        <a href={`#${chapter.id}`}>{chapter.title}</a>
+      ))}
+    </nav>
+  )
+}
 
 {
   chapters.map((chapter) => (

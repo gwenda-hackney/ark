@@ -1,13 +1,12 @@
 ---
 import { Image } from "astro:assets";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import PageHeader from "../../components/PageHeader.astro";
-import Subpage from "../../components/Subpage.astro";
+import ChartPage from "../../components/chart/ChartPage.astro";
 import ContactForm from "../../components/ContactForm.astro";
 import { siteConfig } from "../../config/site";
 import { PLAY_FORM_SLUG, isReservedFormSlug } from "../../lib/form-paths";
 import { fetchFormBySlug, fetchFormSlugs } from "../../lib/sanity/forms";
-import turnTable from "../../assets/images/play/turn-table.jpg";
+import { chartTurntableLarge } from "../../lib/chart-assets";
 
 export async function getStaticPaths() {
   try {
@@ -45,65 +44,32 @@ const showEyebrow =
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
-  <Subpage
-    class:list={["contact-page", showTurntable && "contact-page--play"]}
-    innerClass="contact-inner"
-    href="/contact"
-    layout={showTurntable ? "split" : "stack"}
+  <ChartPage
+    class:list={["ch-form-page", showTurntable && "ch-form-page--play"]}
+    title={heading}
+    numeral={showTurntable ? "IV" : undefined}
+    lead={form.intro?.trim() || undefined}
   >
     {
-      showTurntable ? (
-        <aside slot="aside" class="contact-visual">
-          <div class="contact-visual-bg" aria-hidden="true" />
-          <div
-            class="contact-visual-stage"
-            data-play-parallax
-            aria-hidden="true"
-          >
-            <Image
-              src={turnTable}
-              alt=""
-              widths={[720, 1080, 1440]}
-              sizes="(min-width: 900px) 33vw, 100vw"
-              class="contact-visual-image"
-              loading="eager"
-              fetchpriority="high"
-            />
-          </div>
-          <div class="contact-visual-overlay" aria-hidden="true" />
-          <div class="contact-visual-vignette" aria-hidden="true" />
-        </aside>
-      ) : null
+      showEyebrow && (
+        <span slot="head" class="ch-caps">
+          {eyebrow}
+        </span>
+      )
     }
-
-    <div id="contact-panel" class="contact-panel">
+    <div class="ch-form-split">
+      <div id="contact-panel" class="ch-form">
+        <ContactForm form={form} />
+      </div>
       {
-        showTurntable ? (
-          <header class="page-header page-header--start contact-header reveal">
-            <h1 class="contact-play-title">
-              <span class="contact-play-title-gold">Play</span>
-              <span class="contact-play-title-at"> at </span>
-              <span class="contact-play-title-name">Gwenda</span>
-            </h1>
-            {form.intro ? (
-              <div class="page-header-lead">
-                <p>{form.intro}</p>
-              </div>
-            ) : null}
-          </header>
-        ) : (
-          <PageHeader
-            class="contact-header"
-            eyebrow={showEyebrow ? eyebrow : undefined}
-            title={heading}
-            align="start"
-          >
-            {form.intro ? <p>{form.intro}</p> : null}
-          </PageHeader>
+        showTurntable && (
+          <aside class="ch-form-aside" aria-hidden="true">
+            <span class="ch-frame">
+              <Image {...chartTurntableLarge} alt="" loading="eager" />
+            </span>
+          </aside>
         )
       }
-
-      <ContactForm form={form} />
     </div>
-  </Subpage>
+  </ChartPage>
 </BaseLayout>

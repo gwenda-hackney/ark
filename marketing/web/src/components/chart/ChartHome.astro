@@ -6,10 +6,20 @@
 import { Image } from "astro:assets";
 import "../../styles/chart.css";
 import { siteConfig } from "../../config/site";
-import { chartHeroBackground, chartHeroLogo } from "../../lib/chart-assets";
+import { bookingUrl } from "../../config/booking";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
+import {
+  chartHeroBackground,
+  chartHeroLogo,
+  chartTurntable,
+} from "../../lib/chart-assets";
+import ChartBell from "./ChartBell.astro";
 import ChartNav from "./ChartNav.astro";
 import ChartTonight from "./ChartTonight.astro";
 import ChartFooter from "./ChartFooter.astro";
+
+const { bookingEnabled } = await fetchSiteSettings();
+const { contactPage } = siteConfig.copy;
 ---
 
 <div class="ch-page" data-chart="closed">
@@ -36,9 +46,46 @@ import ChartFooter from "./ChartFooter.astro";
         />
         <p class="ch-slogan">{siteConfig.copy.heroCta}</p>
         <span class="ch-caps">{siteConfig.location.addressShort}</span>
+        <div class="ch-hero-actions">
+          {
+            bookingEnabled && (
+              <a
+                href={bookingUrl}
+                class="ch-btn ch-btn--solid"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ChartBell />
+                {siteConfig.copy.bookingCta}
+              </a>
+            )
+          }
+          <a href="/whats-on" class="ch-btn">What's on</a>
+        </div>
       </div>
     </section>
     <ChartTonight />
+    <section class="ch-home-paths" aria-label="Play here, or stay close">
+      <a href="/contact/play" class="ch-home-path ch-home-path--play">
+        <span class="ch-frame ch-home-path-photo">
+          <Image {...chartTurntable} alt="" loading="lazy" />
+        </span>
+        <span class="ch-home-path-body">
+          <span class="ch-caps">{contactPage.playEyebrow}</span>
+          <span class="ch-path-title">{contactPage.playHeading}</span>
+          <span class="ch-ital">{contactPage.playLead}</span>
+          <span class="ch-link-line">{contactPage.playCta} →</span>
+        </span>
+      </a>
+      <a href="/join-list" class="ch-home-path">
+        <span class="ch-home-path-body">
+          <span class="ch-caps">{contactPage.listEyebrow}</span>
+          <span class="ch-path-title">{contactPage.listHeading}</span>
+          <span class="ch-ital">{contactPage.listLead}</span>
+          <span class="ch-link-line">{contactPage.listCta} →</span>
+        </span>
+      </a>
+    </section>
   </main>
   <ChartFooter />
 </div>

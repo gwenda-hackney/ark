@@ -34,6 +34,7 @@ type SanityMenuSection = {
   id: string | null;
   title: string;
   subtitle?: string | null;
+  kind?: string | null;
   parentId?: string | null;
   items: Array<{
     id: string | null;
@@ -95,6 +96,7 @@ function mapFlatSection(
     id: doc.id,
     title: doc.title,
     subtitle: doc.subtitle?.trim() || undefined,
+    kind: doc.kind === "kitchen" ? "kitchen" : "bar",
     items,
     parentId: doc.parentId?.trim() || undefined,
   };

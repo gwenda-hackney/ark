@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { chartSections } from "./chart-nav.js";
 
 describe("chartSections", () => {
-  it("marks the current page once, on the first section that owns it", () => {
-    const marked = chartSections("/menu/").filter((item) => item.current);
+  it("marks the current page", () => {
+    const marked = chartSections("/bar/").filter((item) => item.current);
     expect(marked.map((item) => item.label)).toEqual(["Bar"]);
   });
 
@@ -18,6 +18,7 @@ describe("chartSections", () => {
       "III",
       "IV",
       "V",
+      "VI",
     ]);
   });
 });

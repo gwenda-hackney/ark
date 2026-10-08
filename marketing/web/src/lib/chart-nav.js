@@ -2,16 +2,16 @@ import { navPathname } from "./site-nav.js";
 
 /** The chart's sections, in order, as numbered rings (#240). */
 export const CHART_SECTIONS = [
-  { numeral: "I", label: "Bar", href: "/menu" },
-  { numeral: "II", label: "Galley", href: "/menu#kitchen" },
-  { numeral: "III", label: "The log", href: "/whats-on" },
-  { numeral: "IV", label: "The Articles", href: "/about" },
-  { numeral: "V", label: "Find us", href: "/contact" },
+  { numeral: "I", label: "Bar", href: "/bar" },
+  { numeral: "II", label: "Kitchen", href: "/kitchen" },
+  { numeral: "III", label: "What's on", href: "/whats-on" },
+  { numeral: "IV", label: "Play here", href: "/contact/play" },
+  { numeral: "V", label: "About", href: "/about" },
+  { numeral: "VI", label: "Contact", href: "/contact" },
 ];
 
 /**
- * The sections with the current page marked. Two sections can share a page
- * (Bar and Galley are both the menu); the first one takes the mark.
+ * The sections with the current page marked.
  *
  * @param {string} [pathname]
  */
