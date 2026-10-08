@@ -73,38 +73,20 @@
   cursor: pointer;
 }
 
-/* Two hairlines, the lower one a little short, like a rule drawn twice */
+/* Three strokes of the pen, a little crooked; a drawn cross while open */
 .ch-chart-btn-icon {
-  position: relative;
-  display: block;
-  width: 24px;
-  height: 9px;
+  width: 1.75rem;
+  height: 1.375rem;
+  filter: url(#ch-ink);
 }
 
-.ch-chart-btn-icon::before,
-.ch-chart-btn-icon::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 1.5px;
-  background: currentColor;
-  transition:
-    transform 0.35s ease,
-    width 0.35s ease;
+.ch-cross {
+  display: none;
 }
 
-.ch-chart-btn-icon::before {
-  width: 100%;
-}
-
-.ch-chart-btn-icon::after {
-  width: 70%;
-  transform: translate3d(0, 8px, 0);
-}
-
-.ch-chart-btn:hover .ch-chart-btn-icon::after {
-  width: 100%;
+.ch-chart-btn:hover .ch-burger {
+  transform: rotate(-3deg);
+  transform-origin: center;
 }
 
 .ch-page[data-chart="open"] .ch-chart-btn {
@@ -112,13 +94,12 @@
   color: var(--ch-ink);
 }
 
-.ch-page[data-chart="open"] .ch-chart-btn-icon::before {
-  transform: translate3d(0, 4px, 0) rotate(45deg);
+.ch-page[data-chart="open"] .ch-burger {
+  display: none;
 }
 
-.ch-page[data-chart="open"] .ch-chart-btn-icon::after {
-  width: 100%;
-  transform: translate3d(0, 4px, 0) rotate(-45deg);
+.ch-page[data-chart="open"] .ch-cross {
+  display: inline;
 }
 
 .ch-chart-btn:focus-visible,
