@@ -83,13 +83,20 @@ const { contactPage } = siteConfig.copy;
     </section>
     <ChartTonight />
     <section class="ch-home-paths" aria-label="Play here, or stay close">
-      <a href="/find-us" class="ch-home-path">
-        <span class="ch-home-path-photo ch-home-path-map">
+      <div class="ch-home-path">
+        <a
+          href="/find-us"
+          class="ch-home-path-photo ch-home-path-map"
+          tabindex="-1"
+          aria-hidden="true"
+        >
           <ChartMap thumb />
-        </span>
+        </a>
         <span class="ch-home-path-body">
           <span class="ch-caps">Getting here</span>
-          <span class="ch-path-title">Five minutes from the station</span>
+          <a href="/find-us" class="ch-path-title"
+            >Five minutes from the station</a
+          >
           <span class="ch-home-side">
             <span class="ch-home-ways">
               <span class="ch-ital">{directions.intro}</span>
@@ -118,53 +125,69 @@ const { contactPage } = siteConfig.copy;
                 >{siteConfig.location.address}</span
               >
             </span>
-            <span class="ch-link-line">The map and directions →</span>
+            <a href="/find-us" class="ch-link-line">The map and directions →</a>
           </span>
         </span>
-      </a>
-      <a href="/contact/play" class="ch-home-path ch-home-path--play">
-        <span class="ch-frame ch-home-path-photo">
+      </div>
+      <div class="ch-home-path ch-home-path--play">
+        <a
+          href="/contact/play"
+          class="ch-frame ch-home-path-photo"
+          tabindex="-1"
+          aria-hidden="true"
+        >
           <Image {...chartTurntableLarge} alt="" loading="lazy" />
-        </span>
+        </a>
         <span class="ch-home-path-body">
           <span class="ch-caps">{contactPage.playEyebrow}</span>
-          <span class="ch-path-title">{contactPage.playHeading}</span>
+          <a href="/contact/play" class="ch-path-title"
+            >{contactPage.playHeading}</a
+          >
           <span class="ch-home-side">
             <span class="ch-ital">{contactPage.playLead}</span>
-            <span class="ch-link-line">{contactPage.playCta} →</span>
+            {
+              contactPage.playMore.map((line) => (
+                <span class="ch-ital">{line}</span>
+              ))
+            }
+            <a href="/contact/play" class="ch-link-line"
+              >{contactPage.playCta} →</a
+            >
           </span>
         </span>
-      </a>
-      <a href="/join-list" class="ch-home-path">
+      </div>
+      <div class="ch-home-path">
         <span class="ch-home-path-body">
           <span class="ch-caps">{contactPage.listEyebrow}</span>
-          <span class="ch-path-title">{contactPage.listHeading}</span>
+          <a href="/join-list" class="ch-path-title"
+            >{contactPage.listHeading}</a
+          >
           <span class="ch-home-side">
             <span class="ch-ital">{contactPage.listLead}</span>
-            <span class="ch-link-line">{contactPage.listCta} →</span>
+            <a href="/join-list" class="ch-link-line">{contactPage.listCta} →</a
+            >
           </span>
         </span>
-      </a>
-      <a href="/about" class="ch-home-path">
+      </div>
+      <div class="ch-home-path">
         <span class="ch-home-path-body">
-          <span class="ch-caps">The story</span>
-          <span class="ch-path-title">Who’s Gwenda?</span>
+          <span class="ch-caps">Who’s behind it</span>
+          <a href="/about" class="ch-path-title">Who’s Gwenda?</a>
           <span class="ch-home-side">
             <span class="ch-ital">
               You might know Gigi from The Pirate’s Hub, down the canal on Fish
-              Island: porchetta, sandwiches by the water, Hackney Wick wandering
-              past. Gwenda is that with more room. A proper kitchen, and a place
-              for the Wick’s artists, musicians and neighbours to make some
-              noise.
+              Island: porchetta, sandwiches down by the water. Gwenda is that
+              with more room. A proper kitchen, and a place for the Wick’s
+              artists, musicians and neighbours to make some noise.
             </span>
             <span class="ch-ital">
               The name? Guenda, a summer club back in Salento where everybody
               met. We’d like this place remembered the same way.
             </span>
-            <span class="ch-link-line">The whole story →</span>
+            <a href="/about" class="ch-link-line">The whole story →</a>
           </span>
         </span>
-      </a>
+      </div>
     </section>
   </main>
   <ChartFooter />

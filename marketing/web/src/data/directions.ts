@@ -4,19 +4,19 @@
  */
 export const directions = {
   intro:
-    "We’re right on the canal at Schwartz Wharf, just round the corner from Barge East. Hop off the Overground at Hackney Wick, wander down the lane, hit the towpath and you’re basically here.",
+    "Schwartz Wharf, on the canal, round the corner from Barge East. Overground to Hackney Wick, along White Post Lane, down the yard to the water. Five minutes, ten if you stop to look at the walls.",
   fromStation: {
     heading: "From the station",
     steps: [
-      "Out of the station, railway at your back, head south. 300-odd paces.",
-      "Hang a left on White Post Lane, past the theatre, down to the water.",
-      "Hit the towpath and go right, down along the river.",
-      "Where the canal comes in, a few steps along. That’s us. X marks the bar.",
+      "Out of Hackney Wick station, railway behind you, head south.",
+      "Left onto White Post Lane, past the theatre.",
+      "Straight down the yard to the canal.",
+      "That’s us, right on the water.",
     ],
-    note: "Locals cut straight down the yard. You’ll get the hang of it.",
+    note: "Lost? Ask for Barge East. We’re round the corner.",
   },
   fromTowpath: {
     heading: "Already on the towpath?",
-    text: "Walking, running, on a bike, whatever. Find Barge East, swing round the corner onto the canal, and there we are on the bank. Come on in.",
+    text: "On foot, on a bike, off a boat. Find Barge East, go round the corner, and we’re there on the bank.",
   },
 } as const;

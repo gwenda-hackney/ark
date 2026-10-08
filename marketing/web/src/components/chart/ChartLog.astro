@@ -53,7 +53,7 @@ function entry(night: Event) {
   const note = night.shortDescription || night.artist || "";
   const photo = sizedImageUrl(
     night.seriesHeroImageUrl || night.heroImage?.url,
-    320,
+    720,
   );
   return {
     day,
@@ -95,18 +95,14 @@ function entry(night: Event) {
                     <span class="ch-caps">{e.weekday}</span>
                   </span>
                   <span class="ch-entry-body">
-                    <span class="ch-entry-name">
-                      {e.title}
-                      {e.span && <span class="ch-time">{e.span}</span>}
+                    <span class="ch-entry-top">
+                      <span class="ch-entry-name">{e.title}</span>
+                      {night.offer && (
+                        <span class="ch-offer">{night.offer}</span>
+                      )}
                     </span>
-                    {(e.note || night.offer) && (
-                      <p class="ch-entry-note ch-ital">
-                        {e.note}
-                        {night.offer && (
-                          <span class="ch-offer">{night.offer}</span>
-                        )}
-                      </p>
-                    )}
+                    {e.span && <span class="ch-time">{e.span}</span>}
+                    {e.note && <p class="ch-entry-note ch-ital">{e.note}</p>}
                   </span>
                   {e.photo && (
                     <span class="ch-frame ch-entry-photo">

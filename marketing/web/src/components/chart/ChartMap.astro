@@ -64,9 +64,9 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
     {
       !thumb && (
         <title id="ch-map-title">
-          Map: from Hackney Wick station walk south, turn east along White Post
-          Lane to the water, then follow the towpath south and west along the
-          canal to Gwenda.
+          Map: from Hackney Wick station walk south, turn left along White Post
+          Lane past the theatre, then straight down the yard to Gwenda on the
+          canal.
         </title>
       )
     }
@@ -141,23 +141,22 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
         <path d="M470 440 C500 520 540 610 590 700"></path>
       </g>
 
-      <!-- The walk: station, the lane, the water, the towpath, the bar -->
+      <!-- The walk: station, along the lane, straight down the yard to the bar -->
       <path
         class="ch-map-walk"
-        d="M296 75 C300 150 330 230 380 300 S430 420 420 430 C540 400 640 370 724 348 C744 430 780 530 798 610 C740 640 680 672 640 700"
+        d="M296 75 C300 150 330 230 380 300 S430 420 420 430 C440 433 455 437 470 440 C500 520 540 600 596 676"
       ></path>
-      <!-- Or straight down the yard -->
-      <path
-        class="ch-map-walk ch-map-walk--other"
-        d="M470 440 C500 520 540 610 590 700"></path>
 
       <!-- Landmarks -->
       <g class="ch-map-marks">
         {MARKS.map(([x, y]) => <circle cx={x} cy={y} r="4" />)}
       </g>
+    </g>
 
-      <!-- Gwenda -->
-      <path class="ch-map-here" d="M622 692 l36 36 M658 692 l-36 36"></path>
+    <!-- Gwenda: the cross from the chart's own button, big and red -->
+    <g class="ch-map-here" transform="translate(588 664) scale(3.4)">
+      <path d="M5 3.5c5 5 11 10 18 15.5"></path>
+      <path d="M22.5 3c-5 5.5-11 11-18 16"></path>
     </g>
 
     <!-- Words stay crisp -->
@@ -200,7 +199,7 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
         transform="translate(170 918) rotate(-26)">Hertford Union</text
       >
 
-      <text class="ch-map-name" transform="translate(664 768) rotate(-6)"
+      <text class="ch-map-name" transform="translate(690 800) rotate(-6)"
         >Gwenda</text
       >
 
@@ -210,21 +209,12 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
         <tspan x="0" dy="22">keeping the railway at your back</tspan>
       </text>
       <text class="ch-map-note" transform="translate(440 322) rotate(-8)">
-        <tspan x="0" dy="0">turn east at the lane,</tspan>
-        <tspan x="0" dy="22">past the theatre, to the water</tspan>
+        <tspan x="0" dy="0">left at the lane,</tspan>
+        <tspan x="0" dy="22">past the theatre</tspan>
       </text>
-      <text class="ch-map-note" transform="translate(822 500) rotate(68)">
-        <tspan x="0" dy="0">bear south along the towpath</tspan>
-      </text>
-      <text class="ch-map-note" transform="translate(470 880) rotate(-22)">
-        <tspan x="0" dy="0">then 60 paces west-south-west</tspan>
-        <tspan x="0" dy="22">along the cut. X marks the bar</tspan>
-      </text>
-      <text
-        class="ch-map-note ch-map-note--faint"
-        transform="translate(350 548) rotate(62)"
-      >
-        <tspan x="0" dy="0">or straight down the yard</tspan>
+      <text class="ch-map-note" transform="translate(512 452) rotate(62)">
+        <tspan x="0" dy="0">then straight down the yard</tspan>
+        <tspan x="0" dy="22">to the water. X marks the bar</tspan>
       </text>
 
       <!-- The compass rose -->

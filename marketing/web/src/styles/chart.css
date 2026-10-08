@@ -14,13 +14,17 @@
 @import "@fontsource/zilla-slab/latin-500.css";
 
 .ch-page {
-  /* Black lacquer, bone ink, old gold, the Negroni red */
+  /* Black lacquer, bone ink, old gold, verdigris; the Negroni red, sparingly */
   --ch-bg: #0b0a08;
   --ch-ink: #e8dfcc;
+  /* Headers: tallow, an old candle's colour; warmer than the ink */
+  --ch-tallow: #e5d4b8;
   --ch-ink-2: #c2b79f;
   --ch-ink-3: #8c826e;
   --ch-gold: #c9a24a;
   --ch-red: #b3161d;
+  /* Verdigris: weathered brass and canal water, the one cool colour */
+  --ch-verdigris: #6a9a8a;
   --ch-rule: rgb(232 223 204 / 0.3);
   --ch-chalk: "Fredericka the Great", "IM Fell English", Georgia, serif;
   --ch-press: "IM Fell English", Georgia, serif;
@@ -425,7 +429,7 @@
 
 /* Tonight (and tomorrow): entries from the log, the bell under them */
 .ch-tonight {
-  max-width: 60rem;
+  max-width: 72rem;
   margin: 0 auto;
   padding: 1.5rem 1.25rem 5rem;
 }
@@ -444,7 +448,7 @@
   margin: 0;
   font-family: var(--ch-press);
   font-weight: 400;
-  font-size: 1.5rem;
+  font-size: 1.875rem;
   line-height: 1;
   color: var(--ch-gold);
 }
@@ -511,29 +515,37 @@
   color: var(--ch-red);
 }
 
+/* The day of the week, readable at a glance */
 .ch-stamp .ch-caps {
-  font-size: 0.6875rem;
+  font-size: 1.0625rem;
+  color: var(--ch-ink);
+}
+
+/* The name, and the offer across from it */
+.ch-entry-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
 }
 
 .ch-entry-name {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
   font-family: var(--ch-press);
   font-size: 1.5rem;
   line-height: 1.1;
   color: var(--ch-ink);
 }
 
-/* The times written up by hand, like a board behind the bar */
-.ch-entry-name .ch-time {
-  margin-left: auto;
+/* The times written up by hand under the name, like a board behind the bar */
+.ch-entry .ch-time {
+  display: block;
+  margin-top: 0.25rem;
   font-family: var(--ch-pen);
   font-weight: 600;
   font-size: 1.625rem;
   line-height: 1;
-  color: var(--ch-ink);
+  color: var(--ch-verdigris);
   white-space: nowrap;
 }
 
@@ -542,13 +554,11 @@
   font-size: 1rem;
 }
 
-.ch-entry-note .ch-offer {
+.ch-entry .ch-offer {
   font-family: var(--ch-caps);
-  font-style: normal;
-  font-size: 0.8125rem;
+  font-size: 1rem;
   letter-spacing: 0.06em;
-  color: var(--ch-red);
-  margin-left: 0.5rem;
+  color: var(--ch-verdigris);
 }
 
 .ch-entry:hover .ch-entry-name {
@@ -572,7 +582,7 @@
 
 /* Section pages: a header with the numeral, then the page, then the foot */
 .ch-main {
-  max-width: 60rem;
+  max-width: 72rem;
   margin: 0 auto;
   padding: 6rem 1.25rem 4rem;
 }
@@ -626,9 +636,70 @@
   border-top-style: dashed;
 }
 
+/*
+ * Rough rules: every divider is drawn, not ruled. The border stays (clear) to
+ * keep the spacing; the line itself is a brushed stroke, or uneven dashes,
+ * masked in the divider's colour.
+ */
+.ch-page {
+  --ch-line: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='6'%3E%3Cpath fill-rule='evenodd' d='M0.00 2.45L20.00 1.88L40.00 2.42L60.00 2.84L80.00 2.44L100.00 2.48L120.00 1.98L140.00 2.06L160.00 2.33L180.00 2.48L200.00 1.97L220.00 2.47L240.00 2.51L260.00 2.04L280.00 2.02L300.00 2.38L320.00 1.92L340.00 2.81L360.00 1.90L380.00 2.99L400.00 3.08L420.00 2.49L440.00 3.00L460.00 1.88L480.00 2.45L480.00 3.55L460.00 3.38L440.00 3.99L420.00 3.99L400.00 3.80L380.00 4.02L360.00 3.21L340.00 4.04L320.00 3.01L300.00 3.79L280.00 2.91L260.00 3.54L240.00 3.44L220.00 3.73L200.00 3.41L180.00 3.26L160.00 3.86L140.00 3.14L120.00 3.40L100.00 3.46L80.00 3.60L60.00 3.95L40.00 3.17L20.00 3.02L0.00 3.55ZM437.11 0h4.43v6h-4.43ZM459.92 0h4.70v6h-4.70ZM209.83 0h2.52v6h-2.52ZM290.83 0h1.60v6h-1.60Z'/%3E%3C/svg%3E");
+  --ch-line-dash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='6'%3E%3Cpath d='M0.00 2.69L17.47 2.54L17.47 3.96L0.00 4.10ZM22.48 2.90L36.81 2.95L36.81 4.23L22.48 4.18ZM44.86 2.17L61.25 2.60L61.25 4.10L44.86 3.67ZM68.80 2.59L84.72 2.32L84.72 3.15L68.80 3.43ZM90.03 1.94L106.13 1.79L106.13 2.97L90.03 3.12ZM113.39 2.07L125.59 1.95L125.59 2.87L113.39 2.99ZM134.03 2.77L147.09 2.37L147.09 3.85L134.03 4.25ZM158.05 2.38L173.57 2.25L173.57 3.65L158.05 3.78ZM182.44 2.28L194.97 2.31L194.97 3.29L182.44 3.26ZM205.74 3.04L219.01 2.68L219.01 3.60L205.74 3.95ZM229.77 2.22L244.37 2.55L244.37 3.60L229.77 3.27ZM254.65 2.58L266.96 2.31L266.96 3.18L254.65 3.45ZM276.75 2.20L293.36 2.45L293.36 3.49L276.75 3.23ZM303.53 1.99L315.31 1.51L315.31 2.33L303.53 2.81ZM323.66 2.75L333.91 2.56L333.91 3.81L323.66 3.99ZM344.85 2.68L357.27 2.35L357.27 3.61L344.85 3.94ZM365.24 2.10L374.92 2.10L374.92 3.33L365.24 3.34ZM382.68 2.55L392.99 2.56L392.99 3.44L382.68 3.43ZM401.77 2.52L417.75 2.58L417.75 3.53L401.77 3.47ZM427.39 1.99L438.50 2.06L438.50 3.13L427.39 3.06ZM444.68 3.05L457.31 2.94L457.31 3.86L444.68 3.96Z'/%3E%3C/svg%3E");
+}
+
+.ch-head,
+.ch-rule,
+.ch-tonight-row + .ch-tonight-row,
+.ch-tonight-more,
+.ch-log li + li .ch-entry,
+.ch-paths li + li .ch-path,
+.ch-home-path,
+.ch-find-ways {
+  position: relative;
+  border-color: transparent;
+}
+
+.ch-head::after,
+.ch-rule::before,
+.ch-tonight-row + .ch-tonight-row::before,
+.ch-tonight-more::before,
+.ch-log li + li .ch-entry::before,
+.ch-paths li + li .ch-path::before,
+.ch-home-path::before,
+.ch-find-ways::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3.5px;
+  height: 6px;
+  background: var(--ch-rule);
+  -webkit-mask: var(--ch-line) 0 0 / 480px 6px repeat-x;
+  mask: var(--ch-line) 0 0 / 480px 6px repeat-x;
+  pointer-events: none;
+}
+
+.ch-head::after {
+  top: auto;
+  bottom: -3.5px;
+  background: var(--ch-gold);
+}
+
+.ch-home-path:first-child::before {
+  background: var(--ch-gold);
+}
+
+.ch-rule--dash::before,
+.ch-tonight-row + .ch-tonight-row::before,
+.ch-tonight-more::before,
+.ch-log li + li .ch-entry::before,
+.ch-paths li + li .ch-path::before {
+  -webkit-mask-image: var(--ch-line-dash);
+  mask-image: var(--ch-line-dash);
+}
+
 /* The foot */
 .ch-footer {
-  max-width: 60rem;
+  max-width: 72rem;
   margin: 0 auto;
   padding: 0 1.25rem 2.5rem;
 }
@@ -714,19 +785,29 @@
   pointer-events: none;
 }
 
+/* The picture, landscape as before but big enough to see */
 .ch-entry-photo {
-  width: 7.5rem;
+  width: 16rem;
   aspect-ratio: 16 / 10;
 }
 
+/* On a phone the picture sits under the words, full width */
 @media (max-width: 40rem) {
   .ch-log .ch-entry {
     grid-template-columns: 3.25rem 1fr;
   }
 
   .ch-entry-photo {
-    display: none;
+    grid-column: 2;
+    width: 100%;
+    max-width: 28rem;
+    margin-top: 0.5rem;
   }
+}
+
+/* Flyers carry their own colours and words: only a touch of the old print */
+.ch-entry-photo img {
+  filter: sepia(0.1) contrast(1.05) brightness(0.95);
 }
 
 /*
@@ -759,7 +840,7 @@
 @media (max-width: 72rem) {
   .ch-sheet {
     columns: 1;
-    max-width: 38rem;
+    max-width: 44rem;
   }
 }
 
@@ -791,9 +872,9 @@
   margin: 0 0 0.75rem;
   font-family: var(--ch-hand);
   font-weight: 400;
-  font-size: 1.5rem;
+  font-size: 1.875rem;
   line-height: 1.3;
-  color: var(--ch-ink);
+  color: var(--ch-tallow);
   transform: rotate(-1.5deg);
   position: relative;
   isolation: isolate;
@@ -828,9 +909,9 @@
   margin: 0 0 0.25rem;
   font-family: var(--ch-hand);
   font-weight: 400;
-  font-size: 1rem;
+  font-size: 1.25rem;
   line-height: 1.4;
-  color: var(--ch-gold);
+  color: var(--ch-verdigris);
   transform: rotate(-1deg);
 }
 
@@ -970,9 +1051,9 @@
 
 .ch-path-title {
   font-family: var(--ch-press);
-  font-size: 1.5rem;
+  font-size: 1.875rem;
   line-height: 1.1;
-  color: var(--ch-ink);
+  color: var(--ch-tallow);
 }
 
 .ch-path:hover .ch-path-title {
@@ -1111,7 +1192,7 @@
  * The way here shows the map and the play row its photo, under the title.
  */
 .ch-home-paths {
-  max-width: 60rem;
+  max-width: 72rem;
   margin: 0 auto;
   padding: 0 1.25rem 4rem;
   display: grid;
@@ -1144,9 +1225,16 @@
   grid-area: eyebrow;
 }
 
+/* Eyebrows over the section titles: a size up, in gold, so they read */
+.ch-home-path-body > .ch-caps,
+.ch-path > .ch-caps {
+  font-size: 1.0625rem;
+  color: var(--ch-gold);
+}
+
 .ch-home-path-body > .ch-path-title {
   grid-area: title;
-  font-size: 2rem;
+  font-size: 2.5rem;
 }
 
 /* The right side: what it is, then the link, kept together */
@@ -1244,7 +1332,9 @@
   color: var(--ch-gold);
 }
 
-.ch-home-path:hover .ch-path-title {
+.ch-home-path a.ch-path-title:hover,
+.ch-home-path a.ch-path-title:focus-visible,
+.ch-home-path:has(.ch-home-path-photo:hover) .ch-path-title {
   color: var(--ch-gold);
 }
 
@@ -1261,7 +1351,7 @@
   }
 
   .ch-home-path-body > .ch-path-title {
-    font-size: 1.625rem;
+    font-size: 2rem;
   }
 
   .ch-home-side > .ch-ital {
@@ -1504,7 +1594,7 @@
 }
 
 .ch-map-towpath {
-  stroke: #8fae78;
+  stroke: var(--ch-verdigris);
   stroke-width: 5;
   stroke-dasharray: 22 12;
   opacity: 0.8;
@@ -1528,19 +1618,14 @@
   stroke-dasharray: 14 12;
 }
 
-.ch-map-walk--other {
-  stroke-width: 5;
-  opacity: 0.6;
-}
-
 .ch-map-marks circle {
   fill: var(--paper-ink);
   r: 6;
 }
 
 .ch-map-here {
-  stroke: #c8262c;
-  stroke-width: 10;
+  stroke: var(--ch-red);
+  stroke-width: 2.6;
 }
 
 /* Everything on the map is written by hand, bar the soundings */
@@ -1579,17 +1664,13 @@
 
 .ch-map-labels .ch-map-name {
   font-size: 46px;
-  fill: #d0402f;
+  fill: var(--ch-verdigris);
 }
 
 .ch-map-labels .ch-map-note {
   font-family: var(--ch-hand);
   font-size: 15px;
   fill: var(--paper-walk);
-}
-
-.ch-map-labels .ch-map-note--faint {
-  fill: var(--paper-ink-3);
 }
 
 .ch-map-labels .ch-map-n {
@@ -1650,7 +1731,7 @@
   margin: 0 0 0.875rem;
   font-family: var(--ch-press);
   font-weight: 400;
-  font-size: 1.5rem;
+  font-size: 1.875rem;
   line-height: 1.15;
   color: var(--ch-gold);
 }
@@ -1693,7 +1774,7 @@
 }
 
 .ch-find-page .ch-main {
-  max-width: 54rem;
+  max-width: 64rem;
 }
 
 /* A little homemade: titles get a brush line under them, rings a wobble */
@@ -1726,6 +1807,6 @@
   font-family: var(--ch-hand);
   font-size: 0.875rem;
   line-height: 1.4;
-  color: var(--ch-gold);
+  color: var(--ch-verdigris);
   transform: rotate(-3deg);
 }

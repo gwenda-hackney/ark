@@ -79,18 +79,14 @@ const aside = heading === "Next" ? (entries[0]?.when ?? "") : "";
               <span class="ch-caps">{entry.weekday}</span>
             </span>
             <span>
-              <span class="ch-entry-name">
-                {entry.event.title}
-                {entry.span && <span class="ch-time">{entry.span}</span>}
+              <span class="ch-entry-top">
+                <span class="ch-entry-name">{entry.event.title}</span>
+                {entry.event.offer && (
+                  <span class="ch-offer">{entry.event.offer}</span>
+                )}
               </span>
-              {(entry.note || entry.event.offer) && (
-                <p class="ch-entry-note ch-ital">
-                  {entry.note}
-                  {entry.event.offer && (
-                    <span class="ch-offer">{entry.event.offer}</span>
-                  )}
-                </p>
-              )}
+              {entry.span && <span class="ch-time">{entry.span}</span>}
+              {entry.note && <p class="ch-entry-note ch-ital">{entry.note}</p>}
             </span>
           </a>
         </div>
