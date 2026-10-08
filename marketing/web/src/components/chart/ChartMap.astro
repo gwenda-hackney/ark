@@ -37,9 +37,9 @@ const SOUNDINGS = [
 const MARKS: Array<[number, number, string, "l" | "r"]> = [
   [410, 350, "the theatre", "l"],
   [690, 225, "fish and chips", "l"],
-  [822, 300, "the pub on the far bank", "r"],
+  [830, 300, "a pub, far bank", "r"],
   [560, 745, "the canal club", "l"],
-  [590, 905, "the footbridge", "r"],
+  [300, 930, "the footbridge", "r"],
 ];
 ---
 
@@ -185,8 +185,8 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
       }
 
       <circle cx="296" cy="62" r="11" class="ch-map-station"></circle>
-      <text x="316" y="40">Hackney Wick</text>
-      <text x="316" y="58" class="ch-map-small">station</text>
+      <text transform="translate(316 36) rotate(-2)">Hackney Wick</text>
+      <text x="318" y="96" class="ch-map-small">station</text>
 
       <text class="ch-map-road" transform="translate(470 395) rotate(-12)"
         >White Post Lane</text
@@ -202,7 +202,9 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
         transform="translate(170 918) rotate(-26)">Hertford Union</text
       >
 
-      <text x="668" y="748" class="ch-map-name">Gwenda</text>
+      <text class="ch-map-name" transform="translate(664 768) rotate(-6)"
+        >Gwenda</text
+      >
 
       <!-- The directions, in the hand -->
       <text class="ch-map-note" transform="translate(130 150) rotate(-4)">
@@ -216,7 +218,7 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
       <text class="ch-map-note" transform="translate(822 500) rotate(68)">
         <tspan x="0" dy="0">bear south along the towpath</tspan>
       </text>
-      <text class="ch-map-note" transform="translate(556 836) rotate(-22)">
+      <text class="ch-map-note" transform="translate(470 880) rotate(-22)">
         <tspan x="0" dy="0">then 60 paces west-south-west</tspan>
         <tspan x="0" dy="22">along the cut. X marks the bar</tspan>
       </text>
