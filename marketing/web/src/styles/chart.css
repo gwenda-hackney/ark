@@ -741,6 +741,24 @@
   line-height: 1.3;
   color: var(--ch-ink);
   transform: rotate(-1.5deg);
+  position: relative;
+  isolation: isolate;
+}
+
+/* A stroke of the Negroni red under each chapter, as the gold under a title */
+.ch-sheet-head::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -0.2rem;
+  right: 10%;
+  bottom: -0.15rem;
+  height: 0.4rem;
+  background: var(--ch-red);
+  opacity: 0.85;
+  border-radius: 40% 10% 60% 10% / 80% 20% 80% 20%;
+  transform: rotate(-1deg) skewX(-18deg);
+  filter: url(#ch-ink);
 }
 
 .ch-group {
