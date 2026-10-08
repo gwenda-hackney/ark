@@ -10,9 +10,15 @@ import { siteConfig } from "../../config/site";
 
 interface Props {
   class?: string;
+  /**
+   * The drawing alone, as a picture inside a link (home's way-here row):
+   * no caption link, and hidden from screen readers, as the link says it.
+   */
+  thumb?: boolean;
 }
 
-const { class: className } = Astro.props;
+const { class: className, thumb = false } = Astro.props;
+const Tag = thumb ? "span" : "figure";
 const { location } = siteConfig;
 
 /** The Lee down the right, the Hertford Union coming in from the south-west */
@@ -43,20 +49,25 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
 ];
 ---
 
-<figure class:list={["ch-map", "ch-scroll", className]}>
+<Tag class:list={["ch-map", "ch-scroll", className]}>
   <svg
     viewBox="0 0 1000 960"
-    role="img"
-    aria-labelledby="ch-map-title"
+    role={thumb ? undefined : "img"}
+    aria-labelledby={thumb ? undefined : "ch-map-title"}
+    aria-hidden={thumb ? "true" : undefined}
     fill="none"
     stroke-linecap="round"
     stroke-linejoin="round"
   >
-    <title id="ch-map-title">
-      Map: from Hackney Wick station walk south, turn east along White Post Lane
-      to the water, then follow the towpath south and west along the canal to
-      Gwenda.
-    </title>
+    {
+      !thumb && (
+        <title id="ch-map-title">
+          Map: from Hackney Wick station walk south, turn east along White Post
+          Lane to the water, then follow the towpath south and west along the
+          canal to Gwenda.
+        </title>
+      )
+    }
     <defs>
       <filter id="ch-map-ink" x="-5%" y="-5%" width="110%" height="110%">
         <!-- Wobble the line like a hand drawing it -->
@@ -226,9 +237,13 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
       </g>
     </g>
   </svg>
-  <figcaption>
-    <a href={location.mapsUrl} target="_blank" rel="noopener noreferrer"
-      >{location.address}</a
-    >
-  </figcaption>
-</figure>
+  {
+    !thumb && (
+      <figcaption>
+        <a href={location.mapsUrl} target="_blank" rel="noopener noreferrer">
+          {location.address}
+        </a>
+      </figcaption>
+    )
+  }
+</Tag>

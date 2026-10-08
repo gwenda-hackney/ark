@@ -1111,7 +1111,7 @@ html[data-body-font="courier"] .ch-page {
 /*
  * Home: play here, stay close. One row each on one grid, so they line up:
  * the eyebrow and title on the left, what it is and the link on the right.
- * The play row's photo sits under its title.
+ * The way here shows the map and the play row its photo, under the title.
  */
 .ch-home-paths {
   max-width: 60rem;
@@ -1170,6 +1170,16 @@ html[data-body-font="courier"] .ch-page {
   max-width: 26rem;
   aspect-ratio: 5 / 4;
   margin-top: 1.25rem;
+}
+
+/* The way here: the map from Finding us, small, drawn straight on */
+.ch-home-path-map {
+  aspect-ratio: auto;
+}
+
+.ch-home-path-map .ch-map {
+  display: block;
+  margin: 0;
 }
 
 .ch-link-line {

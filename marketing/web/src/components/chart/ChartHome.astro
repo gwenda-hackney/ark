@@ -14,6 +14,7 @@ import {
   chartTurntableLarge,
 } from "../../lib/chart-assets";
 import ChartBell from "./ChartBell.astro";
+import ChartMap from "./ChartMap.astro";
 import ChartNav from "./ChartNav.astro";
 import ChartTonight from "./ChartTonight.astro";
 import ChartFooter from "./ChartFooter.astro";
@@ -69,6 +70,20 @@ const { contactPage } = siteConfig.copy;
     </section>
     <ChartTonight />
     <section class="ch-home-paths" aria-label="Play here, or stay close">
+      <a href="/find-us" class="ch-home-path">
+        <span class="ch-home-path-photo ch-home-path-map">
+          <ChartMap thumb />
+        </span>
+        <span class="ch-home-path-body">
+          <span class="ch-caps">Getting here</span>
+          <span class="ch-path-title">Five minutes from the station</span>
+          <span class="ch-ital"
+            >Down from Hackney Wick, along the lane, then the towpath by the
+            water.</span
+          >
+          <span class="ch-link-line">The map →</span>
+        </span>
+      </a>
       <a href="/contact/play" class="ch-home-path ch-home-path--play">
         <span class="ch-frame ch-home-path-photo">
           <Image {...chartTurntableLarge} alt="" loading="lazy" />
@@ -78,17 +93,6 @@ const { contactPage } = siteConfig.copy;
           <span class="ch-path-title">{contactPage.playHeading}</span>
           <span class="ch-ital">{contactPage.playLead}</span>
           <span class="ch-link-line">{contactPage.playCta} →</span>
-        </span>
-      </a>
-      <a href="/find-us" class="ch-home-path">
-        <span class="ch-home-path-body">
-          <span class="ch-caps">Getting here</span>
-          <span class="ch-path-title">Five minutes from the station</span>
-          <span class="ch-ital"
-            >Down from Hackney Wick, along the lane, then the towpath by the
-            water.</span
-          >
-          <span class="ch-link-line">The map →</span>
         </span>
       </a>
       <a href="/join-list" class="ch-home-path">
