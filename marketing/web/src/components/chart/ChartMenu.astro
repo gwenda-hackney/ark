@@ -35,6 +35,7 @@ const chapters = sections.filter(hasContent);
 }
 
 <div class="ch-sheet">
+  <div class="ch-paper" aria-hidden="true"></div>
   {
     chapters.map((chapter) => (
       <section class="ch-chapter" id={chapter.id}>
