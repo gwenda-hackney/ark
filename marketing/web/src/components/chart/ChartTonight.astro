@@ -1,8 +1,8 @@
 ---
 /**
  * Under the hero: tonight's and tomorrow's nights from the log, or the
- * next night when neither has one (#240). The bell beside the first books
- * a table.
+ * next night when neither has one (#240). Under them, the bell books a
+ * table, for any night.
  */
 import { siteConfig } from "../../config/site";
 import { bookingUrl } from "../../config/booking";
@@ -65,7 +65,7 @@ const aside = heading === "Next" ? (entries[0]?.when ?? "") : "";
         <h2 id="ch-tonight-title">{heading}</h2>
         {aside && <span class="ch-ital">{aside}</span>}
       </div>
-      {entries.map((entry, index) => (
+      {entries.map((entry) => (
         <div class="ch-tonight-row">
           <a
             href="/whats-on"
@@ -93,19 +93,21 @@ const aside = heading === "Next" ? (entries[0]?.when ?? "") : "";
               )}
             </span>
           </a>
-          {index === 0 && bookingEnabled && (
-            <a
-              href={bookingUrl}
-              class="ch-btn ch-btn--solid"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ChartBell />
-              {siteConfig.copy.bookingCta}
-            </a>
-          )}
         </div>
       ))}
+      {bookingEnabled && (
+        <div class="ch-tonight-book">
+          <a
+            href={bookingUrl}
+            class="ch-btn ch-btn--solid"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ChartBell />
+            {siteConfig.copy.bookingCta}
+          </a>
+        </div>
+      )}
     </section>
   )
 }

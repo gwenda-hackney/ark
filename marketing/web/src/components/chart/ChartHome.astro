@@ -11,7 +11,7 @@ import { fetchSiteSettings } from "../../lib/sanity/site-settings";
 import {
   chartHeroBackground,
   chartHeroLogo,
-  chartTurntable,
+  chartTurntableLarge,
 } from "../../lib/chart-assets";
 import ChartBell from "./ChartBell.astro";
 import ChartNav from "./ChartNav.astro";
@@ -71,7 +71,7 @@ const { contactPage } = siteConfig.copy;
     <section class="ch-home-paths" aria-label="Play here, or stay close">
       <a href="/contact/play" class="ch-home-path ch-home-path--play">
         <span class="ch-frame ch-home-path-photo">
-          <Image {...chartTurntable} alt="" loading="lazy" />
+          <Image {...chartTurntableLarge} alt="" loading="lazy" />
         </span>
         <span class="ch-home-path-body">
           <span class="ch-caps">{contactPage.playEyebrow}</span>

@@ -431,7 +431,7 @@ html[data-body-font="courier"] .ch-page {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
 }
 
-/* Tonight (and tomorrow): entries from the log, the bell beside the first */
+/* Tonight (and tomorrow): entries from the log, the bell under them */
 .ch-tonight {
   max-width: 60rem;
   margin: 0 auto;
@@ -471,6 +471,13 @@ html[data-body-font="courier"] .ch-page {
 }
 
 .ch-tonight-row + .ch-tonight-row {
+  border-top: 1px dashed var(--ch-rule);
+}
+
+.ch-tonight-book {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1.25rem;
   border-top: 1px dashed var(--ch-rule);
 }
 
@@ -1153,9 +1160,10 @@ html[data-body-font="courier"] .ch-page {
 
 .ch-home-path-photo {
   grid-area: photo;
-  width: 12rem;
-  aspect-ratio: 4 / 5;
-  margin-top: 1rem;
+  width: 100%;
+  max-width: 26rem;
+  aspect-ratio: 5 / 4;
+  margin-top: 1.25rem;
 }
 
 .ch-link-line {
@@ -1179,7 +1187,6 @@ html[data-body-font="courier"] .ch-page {
   }
 
   .ch-home-path-photo {
-    width: 9rem;
     margin-top: 0.75rem;
   }
 

@@ -26,15 +26,7 @@ export const chartHeroBackground = {
   quality: 72,
 };
 
-/** The turntable from the play form, small on home: 20rem (320px) wide. */
-export const chartTurntable = {
-  src: turntableImg,
-  width: 320,
-  format: "webp" as const,
-  densities: [1, 2] as const,
-};
-
-/** The same on the play form page, beside the form: up to 28rem (448px). */
+/** The turntable from the play form: beside the form, and in home's play row. Up to 28rem (448px). */
 export const chartTurntableLarge = {
   src: turntableImg,
   width: 448,
