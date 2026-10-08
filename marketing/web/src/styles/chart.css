@@ -89,16 +89,23 @@ html[data-body-font="courier"] .ch-page {
 /* The chart: a button in the corner, a panel down the left when it is open */
 .ch-chart-btn {
   position: fixed;
-  top: 1.25rem;
-  left: 1.25rem;
+  top: 0.75rem;
+  left: 0.75rem;
   z-index: 40;
   display: grid;
   place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
   padding: 0;
   border: 0;
-  background: transparent;
+  /* A patch of the dark ground, so the page scrolls under the button, not through it */
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    var(--ch-bg) 62%,
+    rgb(11 10 8 / 0.85) 78%,
+    transparent
+  );
   color: var(--ch-gold);
   cursor: pointer;
 }
@@ -174,12 +181,15 @@ html[data-body-font="courier"] .ch-page {
 }
 
 .ch-chart-btn {
-  transition: color 0.4s ease;
+  transition:
+    color 0.4s ease,
+    background 0.4s ease;
 }
 
 .ch-page[data-chart="open"] .ch-chart-btn {
   z-index: 52;
   color: var(--ch-ink);
+  background: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
