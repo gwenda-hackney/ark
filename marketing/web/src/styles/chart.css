@@ -1245,7 +1245,7 @@
   scroll-margin-top: 1rem;
 }
 
-/* The map: drawn in bone ink on the black, the water washed in */
+/* The map: the chart from the brief. Water as a dark band with soundings. */
 .ch-map {
   margin: 0;
 }
@@ -1257,47 +1257,43 @@
   max-width: 100%;
 }
 
-.ch-map-water path {
+.ch-map-band {
+  stroke: rgb(232 223 204 / 0.14);
+  stroke-width: 60;
+}
+
+.ch-map-band--union {
+  stroke-width: 48;
+}
+
+.ch-map-edge {
   stroke: var(--ch-ink);
-  stroke-width: 2;
-  opacity: 0.8;
-}
-
-.ch-map-water .ch-map-wash {
-  stroke: rgb(120 150 140 / 0.14);
-  opacity: 1;
-}
-
-.ch-map-water .ch-map-ripple {
-  stroke-width: 1.5;
-  opacity: 0.45;
+  stroke-width: 1.6;
+  opacity: 0.75;
 }
 
 .ch-map-rail path {
   stroke: var(--ch-ink);
-  stroke-width: 2;
-  opacity: 0.75;
-}
-
-.ch-map-rail .ch-map-faint {
-  stroke-width: 1.2;
-  opacity: 0.4;
+  stroke-width: 1.4;
+  opacity: 0.55;
 }
 
 .ch-map-roads path {
   stroke: var(--ch-ink-3);
-  stroke-width: 2.5;
+  stroke-width: 1.4;
+  stroke-dasharray: 6 8;
+  opacity: 0.7;
 }
 
 .ch-map-walk {
   stroke: var(--ch-gold);
   stroke-width: 3;
-  stroke-dasharray: 2 12;
+  stroke-dasharray: 2 11;
 }
 
-.ch-map-here path {
+.ch-map-here {
   stroke: var(--ch-red);
-  stroke-width: 6;
+  stroke-width: 5;
 }
 
 .ch-map-labels text {
@@ -1306,8 +1302,14 @@
   font-size: 22px;
 }
 
+.ch-map-labels .ch-map-sound {
+  font-size: 15px;
+  fill: var(--ch-ink-3);
+  text-anchor: middle;
+}
+
 .ch-map-labels .ch-map-small {
-  font-size: 16px;
+  font-size: 15px;
   fill: var(--ch-ink-3);
   font-style: italic;
   font-family: var(--ch-book);
@@ -1315,33 +1317,34 @@
 
 .ch-map-labels .ch-map-road {
   font-family: var(--ch-caps);
-  font-size: 17px;
-  letter-spacing: 0.06em;
+  font-size: 15px;
+  letter-spacing: 0.08em;
   fill: var(--ch-ink-3);
+  opacity: 0.8;
 }
 
 .ch-map-labels .ch-map-water-label {
-  font-family: var(--ch-book);
-  font-style: italic;
-  font-size: 19px;
-  fill: rgb(150 180 170 / 0.85);
-}
-
-.ch-map-labels .ch-map-place {
-  font-size: 18px;
-  fill: var(--ch-ink-2);
+  font-family: var(--ch-caps);
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  fill: var(--ch-ink-3);
 }
 
 .ch-map-labels .ch-map-name {
-  font-family: var(--ch-chalk);
-  font-size: 40px;
-  fill: var(--ch-gold);
+  font-family: var(--ch-press);
+  font-size: 36px;
+  fill: var(--ch-ink);
 }
 
 .ch-map-labels .ch-map-note {
   font-family: var(--ch-hand);
   font-size: 15px;
-  fill: var(--ch-gold);
+  fill: var(--ch-ink-2);
+}
+
+.ch-map-note-line {
+  stroke: var(--ch-ink-3);
+  stroke-width: 1;
 }
 
 .ch-map-station {
@@ -1350,8 +1353,10 @@
   stroke-width: 2.5;
 }
 
-.ch-map-dot {
-  fill: var(--ch-ink-2);
+.ch-map-rose {
+  color: var(--ch-ink-3);
+  stroke: currentColor;
+  stroke-width: 1.4;
 }
 
 .ch-map figcaption {

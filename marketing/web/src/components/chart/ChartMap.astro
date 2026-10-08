@@ -1,8 +1,9 @@
 ---
 /**
- * The way to the bar, drawn by hand (#240): the Lee and the Hertford Union,
- * the railway and the station, the streets between, the walk from the
- * station, Gwenda marked. Traced loosely from the street map, not to scale.
+ * The way to the bar, drawn like the chart in the brief (#240): the water
+ * as a wide dark band with soundings, the station and
+ * the walk down from it, a few roads lightly, Gwenda marked with an X.
+ * Loosely from the street map; not to scale.
  */
 import { siteConfig } from "../../config/site";
 
@@ -13,20 +14,22 @@ interface Props {
 const { class: className } = Astro.props;
 const { location } = siteConfig;
 
-/** Little ripples on the water: [x, y] */
-const RIPPLES = [
-  [668, 60],
-  [682, 170],
-  [700, 270],
-  [742, 380],
-  [806, 560],
-  [840, 690],
-  [880, 840],
-  [150, 860],
-  [270, 790],
-  [390, 712],
-  [470, 655],
-  [660, 520],
+/** The two waters, as centre lines; the band and both edges follow them. */
+const LEE = "M662 -20 C682 150 702 300 744 420 S832 640 864 780 L905 940";
+const UNION = "M-20 930 C180 820 400 700 560 600 S690 506 736 466";
+
+/** Soundings in the water: [x, y, depth] */
+const SOUNDINGS = [
+  [650, 90, "3"],
+  [690, 230, "2½"],
+  [728, 360, "4"],
+  [800, 520, "3"],
+  [838, 680, "2"],
+  [872, 830, "3"],
+  [150, 850, "2"],
+  [300, 760, "1½"],
+  [440, 672, "2"],
+  [600, 568, "3"],
 ];
 ---
 
@@ -40,75 +43,58 @@ const RIPPLES = [
     stroke-linejoin="round"
   >
     <title id="ch-map-title">
-      Map: Gwenda on the Hertford Union canal, where it meets the Lee, a few
+      Map: Gwenda on the Hertford Union canal where it meets the Lee, a few
       minutes' walk south of Hackney Wick station.
     </title>
     <defs>
       <filter id="ch-map-ink" x="-5%" y="-5%" width="110%" height="110%">
         <feTurbulence
           type="fractalNoise"
-          baseFrequency="0.03"
+          baseFrequency="0.028"
           numOctaves="2"
           seed="4"
           result="n"></feTurbulence>
         <feDisplacementMap
           in="SourceGraphic"
           in2="n"
-          scale="5"
+          scale="6"
           xChannelSelector="R"
           yChannelSelector="G"></feDisplacementMap>
       </filter>
     </defs>
 
     <g filter="url(#ch-map-ink)">
-      <!-- The water: the Lee down the right, the Hertford Union into it -->
+      <!-- The water: a wide band, an edge each side, soundings, the banks hatched -->
       <g class="ch-map-water">
-        <path
-          class="ch-map-wash"
-          d="M660 -10 C680 150 700 300 742 420 S830 640 862 780 L905 930"
-          stroke-width="64"></path>
-        <path
-          class="ch-map-wash"
-          d="M70 930 C250 820 420 700 560 600 S700 500 770 448"
-          stroke-width="46"></path>
-        <path d="M628 -10 C648 150 668 300 712 425 S800 645 830 790 L870 930"
-        ></path>
-        <path d="M692 -10 C712 150 732 300 772 415 S860 635 894 770 L940 930"
-        ></path>
-        <path d="M40 916 C220 800 400 680 548 582 S690 482 742 432"></path>
-        <path d="M100 944 C280 838 440 722 572 620 S710 520 790 468"></path>
-        {
-          RIPPLES.map(([x, y]) => (
-            <path class="ch-map-ripple" d={`M${x} ${y} q 6 -5 12 0 t 12 0`} />
-          ))
-        }
+        <path class="ch-map-band" d={LEE}></path>
+        <path class="ch-map-band ch-map-band--union" d={UNION}></path>
+        <path class="ch-map-edge" d={LEE} transform="translate(-30 0)"></path>
+        <path class="ch-map-edge" d={LEE} transform="translate(30 0)"></path>
+        <path class="ch-map-edge" d={UNION} transform="translate(0 -24)"></path>
+        <path class="ch-map-edge" d={UNION} transform="translate(0 24)"></path>
       </g>
 
-      <!-- The railway, with its sleepers, and the station -->
+      <!-- The railway and the station -->
       <g class="ch-map-rail">
-        <path d="M-10 160 L640 128"></path>
-        <path d="M-10 170 L640 138" class="ch-map-faint"></path>
+        <path d="M-10 160 L612 130"></path>
         {
-          Array.from({ length: 26 }, (_, i) => {
-            const x = 10 + i * 24;
+          Array.from({ length: 24 }, (_, i) => {
+            const x = 14 + i * 25;
             const y = 159 - i * 1.2;
-            return <path d={`M${x} ${y - 6} l -2 16`} class="ch-map-faint" />;
+            return <path d={`M${x} ${y - 6} l -1 12`} />;
           })
         }
       </g>
 
-      <!-- Streets: single strokes, a little uneven -->
+      <!-- Roads: a few, lightly -->
       <g class="ch-map-roads">
-        <path d="M-10 268 C60 240 130 214 196 196"></path>
-        <path d="M196 196 C260 230 330 246 420 244 S700 262 1010 276"></path>
-        <path d="M30 460 C140 420 260 384 400 352 S520 340 540 338"></path>
-        <path d="M540 338 L546 450"></path>
-        <path d="M370 518 C430 496 490 470 546 450"></path>
+        <path
+          d="M-10 268 C60 240 130 214 196 196 C260 230 330 246 420 244 S640 258 1010 274"
+        ></path>
+        <path
+          d="M30 460 C140 420 260 384 400 352 S520 340 540 338 L546 450 C566 470 584 488 600 506"
+        ></path>
         <path d="M20 612 C120 572 240 520 380 470"></path>
-        <path d="M60 540 C80 660 96 790 104 930"></path>
-        <path d="M430 912 C500 870 580 830 652 800"></path>
-        <path d="M640 700 C690 770 740 850 790 930"></path>
-        <path d="M410 244 L420 352"></path>
       </g>
 
       <!-- The walk from the station -->
@@ -118,48 +104,52 @@ const RIPPLES = [
       ></path>
 
       <!-- Gwenda -->
-      <g class="ch-map-here">
-        <path d="M588 494 l26 26 M614 494 l-26 26"></path>
-      </g>
+      <path class="ch-map-here" d="M586 492 l28 28 M614 492 l-28 28"></path>
     </g>
 
-    <!-- Words stay crisp: they are written, not drawn -->
+    <!-- Words stay crisp -->
     <g class="ch-map-labels">
+      {
+        SOUNDINGS.map(([x, y, d]) => (
+          <text class="ch-map-sound" x={x} y={y}>
+            {d}
+          </text>
+        ))
+      }
       <circle cx="372" cy="140" r="11" class="ch-map-station"></circle>
       <text x="390" y="112">Hackney Wick</text>
-      <text x="390" y="128" class="ch-map-small">station</text>
+      <text x="390" y="130" class="ch-map-small">station</text>
 
-      <text x="760" y="395" class="ch-map-place">Barge East</text>
-      <circle cx="790" cy="410" r="4" class="ch-map-dot"></circle>
-
-      <text class="ch-map-water-label" transform="translate(800 520) rotate(68)"
-        >River Lee Navigation</text
+      <text class="ch-map-water-label" transform="translate(770 560) rotate(68)"
+        >Lee Navigation</text
       >
       <text
         class="ch-map-water-label"
-        transform="translate(250 812) rotate(-33)">Hertford Union Canal</text
+        transform="translate(140 846) rotate(-33)">Hertford Union</text
       >
 
-      <text class="ch-map-road" transform="translate(70 238) rotate(-20)"
-        >Wallis Rd</text
-      >
       <text class="ch-map-road" transform="translate(240 410) rotate(-15)"
         >Rothbury Rd</text
       >
-      <text class="ch-map-road" transform="translate(400 500) rotate(-20)"
-        >Davey Rd</text
-      >
-      <text class="ch-map-road" transform="translate(130 560) rotate(-22)"
+      <text class="ch-map-road" transform="translate(120 575) rotate(-22)"
         >Trego Rd</text
       >
-      <text class="ch-map-road" transform="translate(500 880) rotate(-24)"
-        >Wyke Rd</text
-      >
 
-      <text x="628" y="540" class="ch-map-name">Gwenda</text>
-      <text class="ch-map-note" transform="translate(436 214) rotate(-8)"
-        >five mins from the station</text
+      <text x="628" y="542" class="ch-map-name">Gwenda</text>
+      <text class="ch-map-note" transform="translate(470 470) rotate(-8)"
+        >you are here</text
       >
+      <path class="ch-map-note-line" d="M560 466 c 10 10 18 18 26 28"></path>
+
+      <!-- The compass rose -->
+      <g class="ch-map-rose" transform="translate(915 70)">
+        <circle r="34"></circle>
+        <circle r="4"></circle>
+        <path d="M0 -42v8M0 34v8M-42 0h8M34 0h8"></path>
+        <path d="M0 -30 l7 22 L0 30 l-7 -22 z"></path>
+        <path d="M0 -30 l7 22 h-14 z" fill="currentColor"></path>
+        <path d="M-30 0 l22 -7 L30 0 l-22 7 z"></path>
+      </g>
     </g>
   </svg>
   <figcaption>
