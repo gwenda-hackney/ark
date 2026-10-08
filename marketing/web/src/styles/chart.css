@@ -257,11 +257,10 @@
 }
 
 /* Hero: the room, darkened, the flag and the slogan */
-/* A little short of the screen, so the gold rule of Tonight shows below it */
 .ch-hero {
   position: relative;
-  min-height: 88vh;
-  min-height: 88svh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   overflow: hidden;
