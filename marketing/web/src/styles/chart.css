@@ -11,6 +11,7 @@
 @import "@fontsource/alegreya/latin-400-italic.css";
 @import "@fontsource/alegreya/latin-500.css";
 @import "@fontsource/rock-salt/latin-400.css";
+@import "@fontsource/caveat/latin-600.css";
 /* Body face candidates while we choose (?body=vollkorn|bitter|courier) */
 @import "@fontsource/vollkorn/latin-400.css";
 @import "@fontsource/vollkorn/latin-400-italic.css";
@@ -35,6 +36,8 @@
   --ch-caps: "IM Fell English SC", "IM Fell English", Georgia, serif;
   --ch-book: "Alegreya", Georgia, serif;
   --ch-hand: "Rock Salt", "Bradley Hand", cursive;
+  /* A plainer hand for short things written up, like a night's times */
+  --ch-pen: "Caveat", "Bradley Hand", cursive;
 
   min-height: 100vh;
   min-height: 100dvh;
@@ -526,12 +529,15 @@ html[data-body-font="courier"] .ch-page {
   color: var(--ch-ink);
 }
 
+/* The times written up by hand, like a board behind the bar */
 .ch-entry-name .ch-time {
   margin-left: auto;
-  font-size: 1rem;
-  color: var(--ch-ink-2);
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.625rem;
+  line-height: 1;
+  color: var(--ch-ink);
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 .ch-entry-note {
