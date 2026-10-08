@@ -73,20 +73,78 @@
   cursor: pointer;
 }
 
-/* Three strokes of the pen, a little crooked; a drawn cross while open */
+/*
+ * Three strokes of the pen, a little crooked. Opening wipes them away one
+ * by one and draws the cross in; closing runs it back.
+ */
 .ch-chart-btn-icon {
   width: 1.75rem;
   height: 1.375rem;
   filter: url(#ch-ink);
+  overflow: visible;
 }
 
-.ch-cross {
-  display: none;
+.ch-chart-btn-icon path {
+  /* A wide gap, so a hidden stroke leaves no dot from its round cap */
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.26s ease-in-out;
 }
 
-.ch-chart-btn:hover .ch-burger {
-  transform: rotate(-3deg);
-  transform-origin: center;
+.ch-burger path:nth-child(1) {
+  transition-delay: 0.24s;
+}
+
+.ch-burger path:nth-child(2) {
+  transition-delay: 0.3s;
+}
+
+.ch-burger path:nth-child(3) {
+  transition-delay: 0.36s;
+}
+
+.ch-cross path {
+  stroke-dashoffset: 1.5;
+}
+
+.ch-cross path:nth-child(1) {
+  transition-delay: 0.06s;
+}
+
+.ch-cross path:nth-child(2) {
+  transition-delay: 0s;
+}
+
+.ch-page[data-chart="open"] .ch-burger path {
+  stroke-dashoffset: -1.5;
+}
+
+.ch-page[data-chart="open"] .ch-burger path:nth-child(1) {
+  transition-delay: 0s;
+}
+
+.ch-page[data-chart="open"] .ch-burger path:nth-child(2) {
+  transition-delay: 0.06s;
+}
+
+.ch-page[data-chart="open"] .ch-burger path:nth-child(3) {
+  transition-delay: 0.12s;
+}
+
+.ch-page[data-chart="open"] .ch-cross path {
+  stroke-dashoffset: 0;
+}
+
+.ch-page[data-chart="open"] .ch-cross path:nth-child(1) {
+  transition-delay: 0.26s;
+}
+
+.ch-page[data-chart="open"] .ch-cross path:nth-child(2) {
+  transition-delay: 0.42s;
+}
+
+.ch-chart-btn {
+  transition: color 0.4s ease;
 }
 
 .ch-page[data-chart="open"] .ch-chart-btn {
@@ -94,12 +152,11 @@
   color: var(--ch-ink);
 }
 
-.ch-page[data-chart="open"] .ch-burger {
-  display: none;
-}
-
-.ch-page[data-chart="open"] .ch-cross {
-  display: inline;
+@media (prefers-reduced-motion: reduce) {
+  .ch-chart-btn-icon path {
+    transition-duration: 0s;
+    transition-delay: 0s !important;
+  }
 }
 
 .ch-chart-btn:focus-visible,
