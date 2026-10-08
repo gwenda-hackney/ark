@@ -691,15 +691,20 @@
   background: var(--ch-rule);
 }
 
-.ch-home-path:first-child::before {
-  background: var(--ch-rule);
+/* Home's sections are plain enough apart: no rule between them */
+.ch-home-path::before {
+  content: none;
 }
 
-.ch-rule--dash::before,
+/* Every rule drawn as the uneven dashes: lighter than a solid line */
+.ch-head::after,
+.ch-rule::before,
 .ch-tonight-row + .ch-tonight-row::before,
 .ch-tonight-more::before,
 .ch-log li + li .ch-entry::before,
-.ch-paths li + li .ch-path::before {
+.ch-paths li + li .ch-path::before,
+.ch-home-path::before,
+.ch-find-ways::before {
   -webkit-mask-image: var(--ch-line-dash);
   mask-image: var(--ch-line-dash);
 }
@@ -1217,11 +1222,6 @@
   gap: 0.375rem 2.5rem;
   align-items: start;
   padding: 2.25rem 0;
-  border-top: 1px solid var(--ch-rule);
-}
-
-.ch-home-path:first-child {
-  border-top-color: var(--ch-rule);
 }
 
 .ch-home-path-body {
