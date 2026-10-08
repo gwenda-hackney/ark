@@ -1292,8 +1292,8 @@
 }
 
 /*
- * The map: the chart from the brief, inked on a scroll. Old paper, the
- * ends rolled, the water a dark band with soundings, the walk in paces.
+ * The map: the chart from the brief, inked on parchment. The paper is a
+ * flat texture, nothing rolled or folded; the drawing does the work.
  */
 .ch-scroll {
   --paper-ink: #1d1711;
@@ -1302,43 +1302,12 @@
   --paper-walk: #8a5a12;
   position: relative;
   margin: 1rem 0 0;
-  padding: 1.75rem clamp(0.75rem, 3vw, 2rem) 1.5rem;
+  padding: 1.5rem clamp(0.75rem, 3vw, 2rem) 1.25rem;
   color: var(--paper-ink);
   background:
-    radial-gradient(circle at 12% 10%, rgb(120 80 30 / 0.16), transparent 30%),
-    radial-gradient(circle at 88% 85%, rgb(90 60 20 / 0.14), transparent 34%),
-    linear-gradient(172deg, #ebe0c6 0%, #e0d2b2 60%, #d6c49f 100%);
-  box-shadow:
-    inset 0 0 50px rgb(90 60 20 / 0.28),
-    0 18px 30px -18px rgb(0 0 0 / 0.9);
-}
-
-/* The rolled ends: a darker fold at the top and foot, in shadow */
-.ch-scroll::before,
-.ch-scroll::after {
-  content: "";
-  position: absolute;
-  left: -0.5rem;
-  right: -0.5rem;
-  height: 1.1rem;
-  background: linear-gradient(
-    180deg,
-    #c4b08a 0%,
-    #efe4cc 35%,
-    #d9c9a6 70%,
-    #a08a62 100%
-  );
-  box-shadow: 0 4px 8px -3px rgb(0 0 0 / 0.7);
-  border-radius: 0.3rem;
-}
-
-.ch-scroll::before {
-  top: -0.55rem;
-}
-
-.ch-scroll::after {
-  bottom: -0.55rem;
-  transform: scaleY(-1);
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.1 0 0 0 0.18 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23p)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012' numOctaves='2' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.2 0 0 0 0 0.05 0 0 0 0.22 0'/%3E%3C/filter%3E%3Crect width='600' height='600' filter='url(%23b)'/%3E%3C/svg%3E"),
+    linear-gradient(168deg, #e9dfc4 0%, #dfd1b0 55%, #d4c29c 100%);
 }
 
 .ch-map svg {
@@ -1477,7 +1446,7 @@
 }
 
 .ch-map figcaption {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   font-family: var(--ch-caps);
   font-size: 0.875rem;
   letter-spacing: 0.06em;
