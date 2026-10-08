@@ -891,9 +891,9 @@
 /*
  * Buttons, drawn by hand like the rings and the menu: the plain one is a
  * gold frame in pen, a little crooked; the solid one a swatch of gold laid
- * on with the brush. Hover or focus draws a second line in, the way a ring
- * doubles when it is picked. Only the drawing takes the pen filter, so the
- * words stay sharp. The old `.btn` on these pages is drawn the same way.
+ * on with the brush. Hover only deepens the ink. Only the drawing takes the
+ * pen filter, so the words stay sharp. The old `.btn` on these pages is
+ * drawn the same way.
  */
 .ch-btn,
 .ch-page .btn.btn-primary,
@@ -929,23 +929,23 @@
 }
 
 .ch-btn::before,
-.ch-btn::after,
 .ch-page .btn.btn-primary::before,
-.ch-page .btn.btn-primary::after,
-.ch-page .btn.btn-ghost::before,
-.ch-page .btn.btn-ghost::after {
+.ch-page .btn.btn-ghost::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   filter: url(#ch-pen);
+  transition:
+    border-color 0.25s ease,
+    background 0.25s ease;
 }
 
 /* The frame: one pass of the pen, corners not quite square */
 .ch-btn::before,
 .ch-page .btn.btn-ghost::before {
-  border: 1.5px solid var(--ch-gold);
+  border: 1.5px solid rgb(201 162 74 / 0.7);
   border-radius: 5px 12px 4px 10px / 10px 4px 12px 5px;
   transform: rotate(-0.6deg);
 }
@@ -958,24 +958,6 @@
   background: var(--ch-gold);
   border-radius: 3px 14px 4px 12px / 12px 4px 14px 3px;
   transform: rotate(-0.8deg) skewX(-4deg);
-  transition: background 0.25s ease;
-}
-
-/* The second line: inside the frame, around the swatch; drawn in left to right */
-.ch-btn::after,
-.ch-page .btn.btn-primary::after,
-.ch-page .btn.btn-ghost::after {
-  inset: 0.3rem;
-  border: 1px solid var(--ch-gold);
-  border-radius: 10px 4px 12px 5px / 5px 12px 4px 10px;
-  transform: rotate(0.7deg);
-  clip-path: inset(-8px calc(100% + 8px) -8px -8px);
-  transition: clip-path 0.35s ease-in-out;
-}
-
-.ch-btn--solid::after,
-.ch-page .btn.btn-primary::after {
-  inset: -0.35rem -0.6rem;
 }
 
 .ch-btn:hover,
@@ -987,13 +969,11 @@
   color: var(--ch-ink);
 }
 
-.ch-btn:hover::after,
-.ch-btn:focus-visible::after,
-.ch-page .btn.btn-primary:hover:not(:disabled)::after,
-.ch-page .btn.btn-primary:focus-visible::after,
-.ch-page .btn.btn-ghost:hover:not(:disabled)::after,
-.ch-page .btn.btn-ghost:focus-visible::after {
-  clip-path: inset(-8px);
+.ch-btn:hover::before,
+.ch-btn:focus-visible::before,
+.ch-page .btn.btn-ghost:hover:not(:disabled)::before,
+.ch-page .btn.btn-ghost:focus-visible::before {
+  border-color: var(--ch-gold);
 }
 
 .ch-btn--solid,
@@ -1008,7 +988,9 @@
 }
 
 .ch-btn--solid:hover::before,
-.ch-page .btn.btn-primary:hover:not(:disabled)::before {
+.ch-btn--solid:focus-visible::before,
+.ch-page .btn.btn-primary:hover:not(:disabled)::before,
+.ch-page .btn.btn-primary:focus-visible::before {
   background: #d8b25a;
 }
 
@@ -1016,15 +998,7 @@
 .ch-page .btn.btn-primary:focus-visible,
 .ch-page .btn.btn-ghost:focus-visible {
   outline: 1px solid var(--ch-ink);
-  outline-offset: 0.6rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ch-btn::after,
-  .ch-page .btn.btn-primary::after,
-  .ch-page .btn.btn-ghost::after {
-    transition-duration: 0s;
-  }
+  outline-offset: 0.4rem;
 }
 
 .ch-hero-actions {
