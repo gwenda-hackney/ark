@@ -1,7 +1,8 @@
 ---
 /**
- * One entry from the log under the hero: tonight, or the next night when
- * nothing is on today (#240). The bell beside it books a table.
+ * Under the hero: tonight's and tomorrow's nights from the log, or the
+ * next night when neither has one (#240). The bell beside the first books
+ * a table.
  */
 import { siteConfig } from "../../config/site";
 import { bookingUrl } from "../../config/booking";
@@ -18,73 +19,93 @@ const { occurrences } = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
   occurrences: [],
 }));
-const next = getUpcomingEvents(occurrences)[0];
+const upcoming = getUpcomingEvents(occurrences);
 const { bookingEnabled } = await fetchSiteSettings();
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const when = next ? formatEventDiaryDate(next.date) : "";
-const today = when === "Today";
-const [, , dayNumber] = next ? next.date.split("-").map(Number) : [];
-const weekday = next
-  ? WEEKDAYS[
-      new Date(
-        Number(next.date.slice(0, 4)),
-        Number(next.date.slice(5, 7)) - 1,
-        dayNumber,
-      ).getDay()
-    ]
-  : "";
-const span = next
-  ? formatEventSpan(next.startTime, next.endTime, next.time)
-  : "";
-const note = next ? next.shortDescription || next.artist || "" : "";
+
+/** Today's and tomorrow's nights; the next one when neither has any. */
+const soon = upcoming.filter((event) =>
+  ["Today", "Tomorrow"].includes(formatEventDiaryDate(event.date)),
+);
+const entries = (soon.length ? soon : upcoming.slice(0, 1))
+  .slice(0, 3)
+  .map((event) => {
+    const [year, month, day] = event.date.split("-").map(Number);
+    return {
+      event,
+      when: formatEventDiaryDate(event.date),
+      dayNumber: day,
+      weekday: WEEKDAYS[new Date(year, month - 1, day).getDay()],
+      span: formatEventSpan(event.startTime, event.endTime, event.time),
+      note: event.shortDescription || event.artist || "",
+    };
+  });
+const days = new Set(entries.map((entry) => entry.when));
+const heading =
+  days.has("Today") && days.has("Tomorrow")
+    ? "Tonight and tomorrow"
+    : days.has("Today")
+      ? "Tonight"
+      : days.has("Tomorrow")
+        ? "Tomorrow"
+        : "Next";
+/** The day goes on the right of the head only when it isn't in the heading. */
+const aside = heading === "Next" ? (entries[0]?.when ?? "") : "";
 ---
 
 {
-  next && (
+  entries.length > 0 && (
     <section
       class="ch-tonight"
       id="ch-tonight"
       aria-labelledby="ch-tonight-title"
     >
       <div class="ch-head">
-        <h2 id="ch-tonight-title">{today ? "Tonight" : "Next"}</h2>
-        <span class="ch-ital">{when}</span>
+        <h2 id="ch-tonight-title">{heading}</h2>
+        {aside && <span class="ch-ital">{aside}</span>}
       </div>
-      <div class="ch-tonight-row">
-        <a
-          href="/whats-on"
-          class:list={["ch-entry", today && "ch-entry--today"]}
-        >
-          <span class="ch-stamp">
-            <span class="ch-ring">{dayNumber}</span>
-            <span class="ch-caps">{weekday}</span>
-          </span>
-          <span>
-            <span class="ch-entry-name">
-              {next.title}
-              {span && <span class="ch-time">{span}</span>}
-            </span>
-            {(note || next.offer) && (
-              <p class="ch-entry-note ch-ital">
-                {note}
-                {next.offer && <span class="ch-offer">{next.offer}</span>}
-              </p>
-            )}
-          </span>
-        </a>
-        {bookingEnabled && (
+      {entries.map((entry, index) => (
+        <div class="ch-tonight-row">
           <a
-            href={bookingUrl}
-            class="ch-btn ch-btn--solid"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/whats-on"
+            class:list={[
+              "ch-entry",
+              entry.when === "Today" && "ch-entry--today",
+            ]}
           >
-            <ChartBell />
-            {siteConfig.copy.bookingCta}
+            <span class="ch-stamp">
+              <span class="ch-ring">{entry.dayNumber}</span>
+              <span class="ch-caps">{entry.weekday}</span>
+            </span>
+            <span>
+              <span class="ch-entry-name">
+                {entry.event.title}
+                {entry.span && <span class="ch-time">{entry.span}</span>}
+              </span>
+              {(entry.note || entry.event.offer) && (
+                <p class="ch-entry-note ch-ital">
+                  {entry.note}
+                  {entry.event.offer && (
+                    <span class="ch-offer">{entry.event.offer}</span>
+                  )}
+                </p>
+              )}
+            </span>
           </a>
-        )}
-      </div>
+          {index === 0 && bookingEnabled && (
+            <a
+              href={bookingUrl}
+              class="ch-btn ch-btn--solid"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ChartBell />
+              {siteConfig.copy.bookingCta}
+            </a>
+          )}
+        </div>
+      ))}
     </section>
   )
 }

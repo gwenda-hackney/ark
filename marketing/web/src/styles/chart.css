@@ -11,6 +11,15 @@
 @import "@fontsource/alegreya/latin-400-italic.css";
 @import "@fontsource/alegreya/latin-500.css";
 @import "@fontsource/rock-salt/latin-400.css";
+/* Body face candidates while we choose (?body=vollkorn|bitter|courier) */
+@import "@fontsource/vollkorn/latin-400.css";
+@import "@fontsource/vollkorn/latin-400-italic.css";
+@import "@fontsource/vollkorn/latin-500.css";
+@import "@fontsource/bitter/latin-400.css";
+@import "@fontsource/bitter/latin-400-italic.css";
+@import "@fontsource/bitter/latin-500.css";
+@import "@fontsource/courier-prime/latin-400.css";
+@import "@fontsource/courier-prime/latin-400-italic.css";
 
 .ch-page {
   /* Black lacquer, bone ink, old gold, the Negroni red */
@@ -40,6 +49,18 @@
   font-family: var(--ch-book);
   font-size: 1.0625rem;
   line-height: 1.5;
+}
+
+html[data-body-font="vollkorn"] .ch-page {
+  --ch-book: "Vollkorn", Georgia, serif;
+}
+
+html[data-body-font="bitter"] .ch-page {
+  --ch-book: "Bitter", Georgia, serif;
+}
+
+html[data-body-font="courier"] .ch-page {
+  --ch-book: "Courier Prime", "Courier New", monospace;
 }
 
 .ch-page a:where(:not(.ch-btn)) {
@@ -410,7 +431,7 @@
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
 }
 
-/* Tonight: one entry from the log, the bell beside it */
+/* Tonight (and tomorrow): entries from the log, the bell beside the first */
 .ch-tonight {
   max-width: 60rem;
   margin: 0 auto;
@@ -447,6 +468,10 @@
   grid-template-columns: 1fr auto;
   gap: 1.5rem;
   align-items: center;
+}
+
+.ch-tonight-row + .ch-tonight-row {
+  border-top: 1px dashed var(--ch-rule);
 }
 
 .ch-entry {
@@ -1071,9 +1096,9 @@
 }
 
 /*
- * Home: play here, stay close. One row each, the full width: the eyebrow
- * and title on the left, what it is and the link on the right, the photo
- * leading the play row.
+ * Home: play here, stay close. One row each on one grid, so they line up:
+ * the eyebrow and title on the left, what it is and the link on the right.
+ * The play row's photo sits under its title.
  */
 .ch-home-paths {
   max-width: 60rem;
@@ -1084,7 +1109,13 @@
 
 .ch-home-path {
   display: grid;
-  gap: 1.5rem 2.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-areas:
+    "eyebrow lead"
+    "title lead"
+    "photo link";
+  grid-template-rows: auto auto 1fr;
+  gap: 0.375rem 2.5rem;
   align-items: start;
   padding: 2.25rem 0;
   border-top: 1px solid var(--ch-rule);
@@ -1094,24 +1125,8 @@
   border-top-color: var(--ch-gold);
 }
 
-.ch-home-path--play {
-  grid-template-columns: 13rem minmax(0, 1fr);
-}
-
-.ch-home-path-photo {
-  aspect-ratio: 4 / 5;
-}
-
 .ch-home-path-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-  grid-template-areas:
-    "eyebrow lead"
-    "title lead"
-    "title link";
-  grid-template-rows: auto auto 1fr;
-  gap: 0.375rem 2.5rem;
-  align-items: start;
+  display: contents;
 }
 
 .ch-home-path-body > .ch-caps {
@@ -1136,11 +1151,11 @@
   margin-top: 0.5rem;
 }
 
-/* The play row has the photo beside it, so its words stack */
-.ch-home-path--play .ch-home-path-body {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "eyebrow" "title" "lead" "link";
-  grid-template-rows: none;
+.ch-home-path-photo {
+  grid-area: photo;
+  width: 12rem;
+  aspect-ratio: 4 / 5;
+  margin-top: 1rem;
 }
 
 .ch-link-line {
@@ -1157,18 +1172,15 @@
 
 @media (max-width: 40rem) {
   .ch-home-path {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "eyebrow" "title" "lead" "link" "photo";
+    grid-template-rows: none;
     padding: 1.75rem 0;
   }
 
-  .ch-home-path--play {
-    grid-template-columns: 7.5rem minmax(0, 1fr);
-    gap: 1.25rem;
-  }
-
-  .ch-home-path-body {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "eyebrow" "title" "lead" "link";
-    grid-template-rows: none;
+  .ch-home-path-photo {
+    width: 9rem;
+    margin-top: 0.75rem;
   }
 
   .ch-home-path-body > .ch-path-title {
