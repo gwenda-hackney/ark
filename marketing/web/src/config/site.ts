@@ -184,13 +184,13 @@ export const siteConfig = {
     bookTableEyebrow: "The table",
     bookTableHeading: "Book a table",
     bookTableLead: "Olive trees at Schwartz Wharf. A table, when you want one.",
-    signupHeading: "Stay close",
+    signupHeading: "Join the list",
     signupNavCta: "Join the experience",
     signupEyebrowPromo: "The list",
     signupSubheading:
-      "Nights ahead. Openings, gatherings, and the occasional whisper.",
+      "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
     signupSubheadingPromo:
-      "Nights ahead. Openings, gatherings, and the occasional whisper.",
+      "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
     signupConsent:
       "I agree to receive emails about events and nights at Gwenda. I can unsubscribe at any time.",
     signupButton: "Let me know",
@@ -200,18 +200,18 @@ export const siteConfig = {
     signupSuccessBack: "Back to Gwenda",
     contactPage: {
       eyebrow: "Write to us",
-      heading: "Get in touch",
-      lead: "Stay on the list for nights ahead, or write if you’d like to play here.",
+      heading: "Say hello",
+      lead: "Get on the list, or tell us you want to play.",
       listEyebrow: "The list",
-      listHeading: "Stay close",
+      listHeading: "Join the list",
       listLead:
-        "Nights ahead. Openings, gatherings, and the occasional whisper.",
-      listCta: "Stay in touch",
+        "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
+      listCta: "Sign me up",
       playEyebrow: "The floor",
       playHeading: "Play at Gwenda",
       playLead:
-        "A canalside room for DJs, live acts, and selectors who want something a little more intimate. Bring your sound. Tell us what you’d play here.",
-      playCta: "Play at Gwenda",
+        "DJs, bands, selectors, anyone with a crate of records. Tell us what you’d play and we’ll get back to you.",
+      playCta: "Apply to play",
     },
   },
 } as const;

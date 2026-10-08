@@ -34,53 +34,46 @@ const chapters = sections.filter(hasContent);
   )
 }
 
-{
-  chapters.map((chapter) => (
-    <section class="ch-chapter" id={chapter.id}>
-      <div class="ch-head">
-        <h2>{chapter.title}</h2>
-        {chapter.subtitle && <span class="ch-ital">{chapter.subtitle}</span>}
-      </div>
-      {[chapter, ...(chapter.subsections ?? [])]
-        .filter(hasContent)
-        .map((group) => (
-          <div class="ch-group">
-            {group !== chapter && <h3 class="ch-caps">{group.title}</h3>}
-            <ul class="ch-list">
-              {getAvailableItems(group).map((item) => {
-                const price = formatMenuPrice(item);
-                const rows = price ? [] : menuPrices(item);
-                return (
-                  <li>
-                    <span class="ch-item-line">
-                      <span class="ch-item-name">{item.name}</span>
-                      {item.notes && (
-                        <span class="ch-item-note ch-ital">{item.notes}</span>
+<div class="ch-sheet">
+  {
+    chapters.map((chapter) => (
+      <section class="ch-chapter" id={chapter.id}>
+        <h2 class="ch-sheet-head">{chapter.title}</h2>
+        {[chapter, ...(chapter.subsections ?? [])]
+          .filter(hasContent)
+          .map((group) => (
+            <div class="ch-group">
+              {group !== chapter && <h3>{group.title}</h3>}
+              <ul class="ch-list">
+                {getAvailableItems(group).map((item) => {
+                  const price = formatMenuPrice(item);
+                  const rows = price ? [] : menuPrices(item);
+                  return (
+                    <li>
+                      <span class="ch-item-line">
+                        <span class="ch-item-name">{item.name}</span>
+                        {price && <span class="ch-price">{price}</span>}
+                      </span>
+                      {item.description && (
+                        <span class="ch-item-desc">{item.description}</span>
                       )}
-                      <span class="ch-dots" />
-                      {price && <span class="ch-price">{price}</span>}
-                    </span>
-                    {item.description && (
-                      <span class="ch-item-desc ch-ital">
-                        {item.description}
-                      </span>
-                    )}
-                    {rows.length > 0 && (
-                      <span class="ch-item-sizes">
-                        {rows.map((row) => (
-                          <span>
-                            <span class="ch-caps">{row.name || row.size}</span>{" "}
-                            <span class="ch-price">{row.price}</span>
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-    </section>
-  ))
-}
+                      {rows.length > 0 && (
+                        <span class="ch-item-sizes">
+                          {rows.map((row) => (
+                            <span>
+                              {row.name || row.size}{" "}
+                              <span class="ch-price">{row.price}</span>
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+      </section>
+    ))
+  }
+</div>

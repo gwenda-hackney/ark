@@ -1,0 +1,170 @@
+---
+/**
+ * The way to the bar, drawn by hand (#240): the Lee and the Hertford Union,
+ * the railway and the station, the streets between, the walk from the
+ * station, Gwenda marked. Traced loosely from the street map, not to scale.
+ */
+import { siteConfig } from "../../config/site";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+const { location } = siteConfig;
+
+/** Little ripples on the water: [x, y] */
+const RIPPLES = [
+  [668, 60],
+  [682, 170],
+  [700, 270],
+  [742, 380],
+  [806, 560],
+  [840, 690],
+  [880, 840],
+  [150, 860],
+  [270, 790],
+  [390, 712],
+  [470, 655],
+  [660, 520],
+];
+---
+
+<figure class:list={["ch-map", className]}>
+  <svg
+    viewBox="0 0 1000 920"
+    role="img"
+    aria-labelledby="ch-map-title"
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <title id="ch-map-title">
+      Map: Gwenda on the Hertford Union canal, where it meets the Lee, a few
+      minutes' walk south of Hackney Wick station.
+    </title>
+    <defs>
+      <filter id="ch-map-ink" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.03"
+          numOctaves="2"
+          seed="4"
+          result="n"></feTurbulence>
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="n"
+          scale="5"
+          xChannelSelector="R"
+          yChannelSelector="G"></feDisplacementMap>
+      </filter>
+    </defs>
+
+    <g filter="url(#ch-map-ink)">
+      <!-- The water: the Lee down the right, the Hertford Union into it -->
+      <g class="ch-map-water">
+        <path
+          class="ch-map-wash"
+          d="M660 -10 C680 150 700 300 742 420 S830 640 862 780 L905 930"
+          stroke-width="64"></path>
+        <path
+          class="ch-map-wash"
+          d="M70 930 C250 820 420 700 560 600 S700 500 770 448"
+          stroke-width="46"></path>
+        <path d="M628 -10 C648 150 668 300 712 425 S800 645 830 790 L870 930"
+        ></path>
+        <path d="M692 -10 C712 150 732 300 772 415 S860 635 894 770 L940 930"
+        ></path>
+        <path d="M40 916 C220 800 400 680 548 582 S690 482 742 432"></path>
+        <path d="M100 944 C280 838 440 722 572 620 S710 520 790 468"></path>
+        {
+          RIPPLES.map(([x, y]) => (
+            <path class="ch-map-ripple" d={`M${x} ${y} q 6 -5 12 0 t 12 0`} />
+          ))
+        }
+      </g>
+
+      <!-- The railway, with its sleepers, and the station -->
+      <g class="ch-map-rail">
+        <path d="M-10 160 L640 128"></path>
+        <path d="M-10 170 L640 138" class="ch-map-faint"></path>
+        {
+          Array.from({ length: 26 }, (_, i) => {
+            const x = 10 + i * 24;
+            const y = 159 - i * 1.2;
+            return <path d={`M${x} ${y - 6} l -2 16`} class="ch-map-faint" />;
+          })
+        }
+      </g>
+
+      <!-- Streets: single strokes, a little uneven -->
+      <g class="ch-map-roads">
+        <path d="M-10 268 C60 240 130 214 196 196"></path>
+        <path d="M196 196 C260 230 330 246 420 244 S700 262 1010 276"></path>
+        <path d="M30 460 C140 420 260 384 400 352 S520 340 540 338"></path>
+        <path d="M540 338 L546 450"></path>
+        <path d="M370 518 C430 496 490 470 546 450"></path>
+        <path d="M20 612 C120 572 240 520 380 470"></path>
+        <path d="M60 540 C80 660 96 790 104 930"></path>
+        <path d="M430 912 C500 870 580 830 652 800"></path>
+        <path d="M640 700 C690 770 740 850 790 930"></path>
+        <path d="M410 244 L420 352"></path>
+      </g>
+
+      <!-- The walk from the station -->
+      <path
+        class="ch-map-walk"
+        d="M372 150 C384 190 400 220 418 248 C450 290 500 320 540 340 L546 448 C566 470 584 488 600 506"
+      ></path>
+
+      <!-- Gwenda -->
+      <g class="ch-map-here">
+        <path d="M588 494 l26 26 M614 494 l-26 26"></path>
+      </g>
+    </g>
+
+    <!-- Words stay crisp: they are written, not drawn -->
+    <g class="ch-map-labels">
+      <circle cx="372" cy="140" r="11" class="ch-map-station"></circle>
+      <text x="390" y="112">Hackney Wick</text>
+      <text x="390" y="128" class="ch-map-small">station</text>
+
+      <text x="760" y="395" class="ch-map-place">Barge East</text>
+      <circle cx="790" cy="410" r="4" class="ch-map-dot"></circle>
+
+      <text class="ch-map-water-label" transform="translate(800 520) rotate(68)"
+        >River Lee Navigation</text
+      >
+      <text
+        class="ch-map-water-label"
+        transform="translate(250 812) rotate(-33)">Hertford Union Canal</text
+      >
+
+      <text class="ch-map-road" transform="translate(70 238) rotate(-20)"
+        >Wallis Rd</text
+      >
+      <text class="ch-map-road" transform="translate(240 410) rotate(-15)"
+        >Rothbury Rd</text
+      >
+      <text class="ch-map-road" transform="translate(400 500) rotate(-20)"
+        >Davey Rd</text
+      >
+      <text class="ch-map-road" transform="translate(130 560) rotate(-22)"
+        >Trego Rd</text
+      >
+      <text class="ch-map-road" transform="translate(500 880) rotate(-24)"
+        >Wyke Rd</text
+      >
+
+      <text x="628" y="540" class="ch-map-name">Gwenda</text>
+      <text class="ch-map-note" transform="translate(436 214) rotate(-8)"
+        >five mins from the station</text
+      >
+    </g>
+  </svg>
+  <figcaption>
+    <a href={location.mapsUrl} target="_blank" rel="noopener noreferrer"
+      >{location.address}</a
+    >
+  </figcaption>
+</figure>

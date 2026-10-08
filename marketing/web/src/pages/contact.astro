@@ -3,9 +3,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import { siteConfig } from "../config/site";
 import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
+import ChartMap from "../components/chart/ChartMap.astro";
 
 const { contactPage } = siteConfig.copy;
-const { location, social } = siteConfig;
+const { social } = siteConfig;
 ---
 
 <BaseLayout
@@ -15,20 +16,12 @@ const { location, social } = siteConfig;
 >
   <ChartPage class="ch-find-page" title="Contact" numeral="VI">
     <section class="ch-find">
-      <div class="ch-head"><h2>Where</h2></div>
-      <p class="ch-address">
-        <a href={location.mapsUrl} target="_blank" rel="noopener noreferrer"
-          >{location.address}</a
-        >
-      </p>
+      <div class="ch-head"><h2>Find us</h2></div>
       <p class="ch-ital">
-        On the canal at Hackney Wick. <a
-          href={location.mapsUrl}
-          class="ch-link"
-          target="_blank"
-          rel="noopener noreferrer">Open the map</a
-        >.
+        On the canal behind Hackney Wick station, where the Hertford Union meets
+        the Lee.
       </p>
+      <ChartMap />
     </section>
 
     <section class="ch-find">
@@ -59,7 +52,7 @@ const { location, social } = siteConfig;
             <span class="ch-caps">Instagram</span>
             <span class="ch-path-title">@gwendahackney</span>
             <span class="ch-ital"
-              >Photos from the room, nights as they're announced.</span
+              >Photos from the room and what's on next.</span
             >
           </a>
         </li>

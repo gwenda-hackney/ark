@@ -3,11 +3,7 @@
  * The log (#240): every upcoming night in order, a week at a time. Each
  * entry is the ringed day stamp, the name, the time, a line, the offer.
  */
-import {
-  eventWeekStart,
-  formatEventSpan,
-  formatEventWeek,
-} from "../../data/events";
+import { eventWeekStart, formatEventSpan } from "../../data/events";
 import type { Event } from "../../types/events";
 import { sizedImageUrl } from "../../lib/event-card.js";
 
@@ -25,6 +21,21 @@ const todayIso = (() => {
     String(now.getDate()).padStart(2, "0"),
   ].join("-");
 })();
+
+const thisWeek = eventWeekStart(todayIso);
+
+/** "This week", "Next week", then "Week of 19 October". */
+function weekLabel(weekStart: string): string {
+  const [y, m, d] = weekStart.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  const [ty, tm, td] = thisWeek.split("-").map(Number);
+  const weeksAway = Math.round(
+    (start.getTime() - new Date(ty, tm - 1, td).getTime()) / (7 * 86400000),
+  );
+  if (weeksAway <= 0) return "This week";
+  if (weeksAway === 1) return "Next week";
+  return `Week of ${start.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`;
+}
 
 const weeks = new Map<string, Event[]>();
 for (const night of nights) {
@@ -68,7 +79,7 @@ function entry(night: Event) {
     [...weeks.entries()].map(([weekStart, list]) => (
       <section class="ch-week">
         <div class="ch-head">
-          <h2>{formatEventWeek(weekStart)}</h2>
+          <h2>{weekLabel(weekStart)}</h2>
         </div>
         <ol class="ch-log">
           {list.map((night) => {

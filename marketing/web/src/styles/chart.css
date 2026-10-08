@@ -10,6 +10,7 @@
 @import "@fontsource/alegreya/latin-400.css";
 @import "@fontsource/alegreya/latin-400-italic.css";
 @import "@fontsource/alegreya/latin-500.css";
+@import "@fontsource/rock-salt/latin-400.css";
 
 .ch-page {
   /* Black lacquer, bone ink, old gold, the Negroni red */
@@ -24,6 +25,7 @@
   --ch-press: "IM Fell English", Georgia, serif;
   --ch-caps: "IM Fell English SC", "IM Fell English", Georgia, serif;
   --ch-book: "Alegreya", Georgia, serif;
+  --ch-hand: "Rock Salt", "Bradley Hand", cursive;
 
   min-height: 100vh;
   min-height: 100dvh;
@@ -615,15 +617,18 @@
   }
 }
 
-/* The menu */
+/*
+ * The menu: a sheet the bar printed and pinned up. Old paper, black ink,
+ * headings written by hand, two columns, nothing between the lines.
+ */
 .ch-jump {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem 1.5rem;
-  margin: -1rem 0 2.5rem;
+  margin: -1rem 0 2rem;
   font-family: var(--ch-caps);
-  font-size: 0.875rem;
-  letter-spacing: 0.08em;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
   color: var(--ch-ink-3);
 }
 
@@ -631,22 +636,83 @@
   color: var(--ch-gold);
 }
 
-.ch-chapter {
-  scroll-margin-top: 5rem;
+.ch-sheet {
+  position: relative;
+  padding: 2.5rem clamp(1.25rem, 4vw, 3rem) 2.5rem;
+  color: #1d1711;
+  background:
+    radial-gradient(circle at 15% 12%, rgb(120 80 30 / 0.14), transparent 30%),
+    radial-gradient(circle at 85% 80%, rgb(90 60 20 / 0.12), transparent 34%),
+    linear-gradient(172deg, #ebe0c6 0%, #e0d2b2 60%, #d6c49f 100%);
+  box-shadow:
+    inset 0 0 50px rgb(90 60 20 / 0.25),
+    0 18px 30px -18px rgb(0 0 0 / 0.9);
+  columns: 2 22rem;
+  column-gap: 3rem;
 }
 
-.ch-chapter + .ch-chapter {
-  margin-top: 3rem;
+/* One strip of tape holds it up */
+.ch-sheet::before {
+  content: "";
+  position: absolute;
+  top: -0.75rem;
+  left: 50%;
+  width: 7rem;
+  height: 1.6rem;
+  margin-left: -3.5rem;
+  background: linear-gradient(
+    90deg,
+    rgb(226 214 186 / 0.85),
+    rgb(240 230 204 / 0.92) 50%,
+    rgb(222 208 176 / 0.85)
+  );
+  transform: rotate(-2deg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  clip-path: polygon(
+    2% 0,
+    98% 0,
+    100% 30%,
+    98% 60%,
+    100% 100%,
+    2% 100%,
+    0 70%,
+    2% 40%
+  );
+}
+
+.ch-chapter {
+  break-inside: avoid-column;
+  scroll-margin-top: 5rem;
+  margin-bottom: 2.25rem;
+}
+
+.ch-sheet-head {
+  display: inline-block;
+  margin: 0 0 0.75rem;
+  font-family: var(--ch-hand);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  color: #1d1711;
+  transform: rotate(-1.5deg);
+}
+
+.ch-group {
+  break-inside: avoid;
 }
 
 .ch-group + .ch-group {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
 .ch-group h3 {
   margin: 0 0 0.25rem;
-  font-weight: 400;
-  color: var(--ch-gold);
+  font-family: var(--ch-book);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b3a14;
 }
 
 .ch-list {
@@ -656,61 +722,45 @@
 }
 
 .ch-list li {
-  padding: 0.625rem 0;
-  border-bottom: 1px dashed var(--ch-rule);
+  padding: 0.3rem 0;
+  break-inside: avoid;
 }
 
 .ch-item-line {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
-  color: var(--ch-ink);
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .ch-item-name {
-  font-family: var(--ch-press);
-  font-size: 1.1875rem;
-  line-height: 1.2;
-}
-
-.ch-item-note {
-  font-size: 0.875rem;
-  color: var(--ch-ink-3);
-}
-
-.ch-dots {
-  flex: 1;
-  min-width: 1rem;
-  border-bottom: 1px dotted rgb(232 223 204 / 0.4);
-  transform: translateY(-0.3em);
+  font-family: var(--ch-book);
+  font-weight: 500;
+  font-size: 1.0625rem;
+  line-height: 1.25;
 }
 
 .ch-price {
-  font-family: var(--ch-press);
+  font-family: var(--ch-book);
+  font-weight: 500;
   font-size: 1.0625rem;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.ch-price::before {
-  content: "£";
-  opacity: 0.6;
-  margin-right: 1px;
-}
-
 .ch-item-desc {
   display: block;
-  margin-top: 0.125rem;
   font-size: 0.9375rem;
-  color: var(--ch-ink-2);
-  max-width: 60ch;
+  line-height: 1.35;
+  color: #4a3d30;
 }
 
 .ch-item-sizes {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
-  margin-top: 0.25rem;
+  gap: 0.125rem 1rem;
+  font-size: 0.9375rem;
+  color: #4a3d30;
 }
 
 /* The Articles */
@@ -1155,4 +1205,166 @@
 
 .ch-tonight {
   scroll-margin-top: 1rem;
+}
+
+/* The map: drawn in bone ink on the black, the water washed in */
+.ch-map {
+  margin: 0;
+}
+
+.ch-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+
+.ch-map-water path {
+  stroke: var(--ch-ink);
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
+.ch-map-water .ch-map-wash {
+  stroke: rgb(120 150 140 / 0.14);
+  opacity: 1;
+}
+
+.ch-map-water .ch-map-ripple {
+  stroke-width: 1.5;
+  opacity: 0.45;
+}
+
+.ch-map-rail path {
+  stroke: var(--ch-ink);
+  stroke-width: 2;
+  opacity: 0.75;
+}
+
+.ch-map-rail .ch-map-faint {
+  stroke-width: 1.2;
+  opacity: 0.4;
+}
+
+.ch-map-roads path {
+  stroke: var(--ch-ink-3);
+  stroke-width: 2.5;
+}
+
+.ch-map-walk {
+  stroke: var(--ch-gold);
+  stroke-width: 3;
+  stroke-dasharray: 2 12;
+}
+
+.ch-map-here path {
+  stroke: var(--ch-red);
+  stroke-width: 6;
+}
+
+.ch-map-labels text {
+  fill: var(--ch-ink);
+  font-family: var(--ch-press);
+  font-size: 22px;
+}
+
+.ch-map-labels .ch-map-small {
+  font-size: 16px;
+  fill: var(--ch-ink-3);
+  font-style: italic;
+  font-family: var(--ch-book);
+}
+
+.ch-map-labels .ch-map-road {
+  font-family: var(--ch-caps);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  fill: var(--ch-ink-3);
+}
+
+.ch-map-labels .ch-map-water-label {
+  font-family: var(--ch-book);
+  font-style: italic;
+  font-size: 19px;
+  fill: rgb(150 180 170 / 0.85);
+}
+
+.ch-map-labels .ch-map-place {
+  font-size: 18px;
+  fill: var(--ch-ink-2);
+}
+
+.ch-map-labels .ch-map-name {
+  font-family: var(--ch-chalk);
+  font-size: 40px;
+  fill: var(--ch-gold);
+}
+
+.ch-map-labels .ch-map-note {
+  font-family: var(--ch-hand);
+  font-size: 15px;
+  fill: var(--ch-gold);
+}
+
+.ch-map-station {
+  fill: var(--ch-bg);
+  stroke: var(--ch-ink);
+  stroke-width: 2.5;
+}
+
+.ch-map-dot {
+  fill: var(--ch-ink-2);
+}
+
+.ch-map figcaption {
+  margin-top: 0.5rem;
+  font-family: var(--ch-caps);
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  color: var(--ch-ink-3);
+}
+
+.ch-map figcaption a:hover {
+  color: var(--ch-gold);
+}
+
+/* Home: getting here */
+.ch-home-map {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 0 1.25rem 4rem;
+}
+
+/* A little homemade: titles get a brush line under them, rings a wobble */
+.ch-title {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.5rem;
+}
+
+.ch-title::after {
+  content: "";
+  position: absolute;
+  left: -0.25rem;
+  right: 15%;
+  bottom: 0;
+  height: 0.5rem;
+  background: var(--ch-gold);
+  opacity: 0.75;
+  border-radius: 40% 10% 60% 10% / 80% 20% 80% 20%;
+  transform: rotate(-1deg) skewX(-18deg);
+  filter: url(#ch-ink);
+}
+
+.ch-ring {
+  filter: url(#ch-ink);
+}
+
+.ch-hand-note {
+  display: inline-block;
+  font-family: var(--ch-hand);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--ch-gold);
+  transform: rotate(-3deg);
 }
