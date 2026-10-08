@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import {
+  linkedSectionPatch,
   orderRankFromOrder,
   slugifySection,
 } from "./publish-sync.js";
@@ -44,5 +45,32 @@ describe("websiteProjection section", () => {
     });
     assert.equal(a.sectionId, "10");
     assert.deepEqual(changedFields(b, a), ["sectionId"]);
+  });
+});
+
+describe("linkedSectionPatch", () => {
+  const current = { title: "Our Formulas", subtitle: "", parent: null };
+
+  it("renames a section already on the website", () => {
+    assert.deepEqual(linkedSectionPatch({ title: "Our Own" }, current, null), {
+      set: { title: "Our Own" },
+    });
+  });
+
+  it("is null when the website already matches", () => {
+    assert.equal(linkedSectionPatch({ title: "Our Formulas" }, current, null), null);
+  });
+
+  it("sets or clears the subtitle and the parent", () => {
+    assert.deepEqual(
+      linkedSectionPatch({ title: "Rum", subtitle: "From the islands" }, { title: "Rum" }, "s-11"),
+      {
+        set: { subtitle: "From the islands", parent: { _type: "reference", _ref: "s-11" } },
+      },
+    );
+    assert.deepEqual(
+      linkedSectionPatch({ title: "Rum" }, { title: "Rum", subtitle: "Old", parent: "s-11" }, null),
+      { unset: ["subtitle", "parent"] },
+    );
   });
 });

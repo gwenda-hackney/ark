@@ -128,12 +128,26 @@ async function createdDocId(result) {
 /**
  * Ensure every ops section exists in Sanity; return map of ops id → Sanity id.
  * Parents are walked before children via flattenMenuSections.
- * Already-linked sections are left as-is (item publish carries section refs).
+ * Sections already linked get a rename, subtitle or move patched in
+ * (linkedSectionPatch); before, a rename in ops never reached the website.
  */
 async function ensureSanitySections(env, pending, sections) {
   const flat = flattenMenuSections(sections);
   const byBaserowId = new Map();
   let writes = 0;
+
+  const linkedIds = flat.map((s) => s.sanityId).filter(Boolean);
+  const linked = new Map(
+    (linkedIds.length
+      ? (await sanityQuery(
+          env,
+          PREVIEW,
+          `*[_type == "menuSection" && _id in $ids]{_id, title, subtitle, "parent": parent._ref}`,
+          { ids: linkedIds },
+        )) || []
+      : []
+    ).map((doc) => [doc._id, doc]),
+  );
 
   for (const section of flat) {
     const slug =
@@ -143,6 +157,12 @@ async function ensureSanitySections(env, pending, sections) {
       : null;
 
     if (section.sanityId) {
+      const current = linked.get(section.sanityId);
+      const patch = current && linkedSectionPatch(section, current, parentSanityId);
+      if (patch) {
+        await sanityMutate(env, [{ patch: { id: section.sanityId, ...patch } }]);
+        writes += 1;
+      }
       byBaserowId.set(String(section._id), section.sanityId);
       continue;
     }
@@ -205,6 +225,33 @@ async function ensureSanitySections(env, pending, sections) {
   }
 
   return { byBaserowId, writes };
+}
+
+/**
+ * What a section already on the website needs so it matches ops: a rename,
+ * a new subtitle or a move under another chapter. Null when it matches.
+ * The slug stays, so links to a chapter keep working after a rename.
+ */
+export function linkedSectionPatch(section, current, parentSanityId) {
+  const title = section.title || "";
+  const subtitle = section.subtitle || "";
+  const parent = parentSanityId || null;
+  const set = {};
+  const unset = [];
+  if (title && title !== (current.title || "")) set.title = title;
+  if (subtitle !== (current.subtitle || "")) {
+    if (subtitle) set.subtitle = subtitle;
+    else unset.push("subtitle");
+  }
+  if (parent !== (current.parent || null)) {
+    if (parent) set.parent = { _type: "reference", _ref: parent };
+    else unset.push("parent");
+  }
+  if (!Object.keys(set).length && !unset.length) return null;
+  return {
+    ...(Object.keys(set).length ? { set } : {}),
+    ...(unset.length ? { unset } : {}),
+  };
 }
 
 function sectionRef(sanitySectionId) {
