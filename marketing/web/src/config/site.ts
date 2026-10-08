@@ -205,12 +205,12 @@ export const siteConfig = {
       listEyebrow: "The list",
       listHeading: "Join the list",
       listLead:
-        "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
+        "New nights, what’s on, the odd party. Nothing boring, and you can bail whenever.",
       listCta: "Sign me up",
       playEyebrow: "The floor",
       playHeading: "Play at Gwenda",
       playLead:
-        "We want Gwenda to sound like Hackney Wick. DJs, bands, selectors, crews, anyone with a crate of records and something to play: we’d love to have you. Tell us what you’d bring.",
+        "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
       playCta: "Apply to play",
     },
   },

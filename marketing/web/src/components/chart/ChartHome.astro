@@ -14,6 +14,7 @@ import {
   chartTurntableLarge,
 } from "../../lib/chart-assets";
 import ChartBell from "./ChartBell.astro";
+import { directions } from "../../data/directions";
 import ChartMap from "./ChartMap.astro";
 import ChartNav from "./ChartNav.astro";
 import ChartTonight from "./ChartTonight.astro";
@@ -89,11 +90,36 @@ const { contactPage } = siteConfig.copy;
         <span class="ch-home-path-body">
           <span class="ch-caps">Getting here</span>
           <span class="ch-path-title">Five minutes from the station</span>
-          <span class="ch-ital"
-            >Down from Hackney Wick, along the lane, then the towpath by the
-            water.</span
-          >
-          <span class="ch-link-line">The map →</span>
+          <span class="ch-home-side">
+            <span class="ch-home-ways">
+              <span class="ch-ital">{directions.intro}</span>
+              <span class="ch-home-way">
+                <span class="ch-home-way-head">
+                  {directions.fromStation.heading}
+                </span>
+                <span class="ch-home-way-steps">
+                  {
+                    directions.fromStation.steps.map((step, i) => (
+                      <span>
+                        <span class="ch-home-way-n">{i + 1}</span>
+                        {step}
+                      </span>
+                    ))
+                  }
+                </span>
+              </span>
+              <span class="ch-home-way">
+                <span class="ch-home-way-head">
+                  {directions.fromTowpath.heading}
+                </span>
+                <span>{directions.fromTowpath.text}</span>
+              </span>
+              <span class="ch-home-way-address"
+                >{siteConfig.location.address}</span
+              >
+            </span>
+            <span class="ch-link-line">The map and directions →</span>
+          </span>
         </span>
       </a>
       <a href="/contact/play" class="ch-home-path ch-home-path--play">
@@ -103,16 +129,20 @@ const { contactPage } = siteConfig.copy;
         <span class="ch-home-path-body">
           <span class="ch-caps">{contactPage.playEyebrow}</span>
           <span class="ch-path-title">{contactPage.playHeading}</span>
-          <span class="ch-ital">{contactPage.playLead}</span>
-          <span class="ch-link-line">{contactPage.playCta} →</span>
+          <span class="ch-home-side">
+            <span class="ch-ital">{contactPage.playLead}</span>
+            <span class="ch-link-line">{contactPage.playCta} →</span>
+          </span>
         </span>
       </a>
       <a href="/join-list" class="ch-home-path">
         <span class="ch-home-path-body">
           <span class="ch-caps">{contactPage.listEyebrow}</span>
           <span class="ch-path-title">{contactPage.listHeading}</span>
-          <span class="ch-ital">{contactPage.listLead}</span>
-          <span class="ch-link-line">{contactPage.listCta} →</span>
+          <span class="ch-home-side">
+            <span class="ch-ital">{contactPage.listLead}</span>
+            <span class="ch-link-line">{contactPage.listCta} →</span>
+          </span>
         </span>
       </a>
     </section>

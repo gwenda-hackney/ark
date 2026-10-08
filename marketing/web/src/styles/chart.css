@@ -1132,9 +1132,10 @@ html[data-body-font="courier"] .ch-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   grid-template-areas:
-    "eyebrow lead"
-    "title lead"
-    "photo link";
+    "eyebrow side"
+    "title side"
+    "photo side";
+  /* Extra height from a long right side goes under the picture, not the title */
   grid-template-rows: auto auto 1fr;
   gap: 0.375rem 2.5rem;
   align-items: start;
@@ -1159,17 +1160,73 @@ html[data-body-font="courier"] .ch-page {
   font-size: 2rem;
 }
 
-.ch-home-path-body > .ch-ital {
-  grid-area: lead;
+/* The right side: what it is, then the link, kept together */
+.ch-home-side {
+  grid-area: side;
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.ch-home-side > .ch-ital {
   font-size: 1.1875rem;
   line-height: 1.55;
   color: var(--ch-ink-2);
   max-width: 44ch;
 }
 
-.ch-home-path-body > .ch-link-line {
-  grid-area: link;
-  margin-top: 0.5rem;
+/* The way-here row carries the directions themselves, not just a pointer */
+.ch-home-ways {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44ch;
+  color: var(--ch-ink-2);
+  line-height: 1.55;
+}
+
+.ch-home-ways > .ch-ital {
+  font-size: 1.1875rem;
+}
+
+.ch-home-way {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.ch-home-way-head {
+  font-family: var(--ch-press);
+  font-size: 1.25rem;
+  color: var(--ch-gold);
+}
+
+.ch-home-way-steps {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.ch-home-way-steps > span {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  gap: 0.5rem;
+}
+
+.ch-home-way-n {
+  font-family: var(--ch-pen);
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: var(--ch-gold);
+}
+
+.ch-home-way-address {
+  font-family: var(--ch-caps);
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  color: var(--ch-ink-3);
+}
+
+.ch-home-side > .ch-link-line {
+  margin-top: 0.25rem;
 }
 
 .ch-home-path-photo {
@@ -1205,7 +1262,7 @@ html[data-body-font="courier"] .ch-page {
 @media (max-width: 40rem) {
   .ch-home-path {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "eyebrow" "title" "lead" "link" "photo";
+    grid-template-areas: "eyebrow" "title" "side" "photo";
     grid-template-rows: none;
     padding: 1.75rem 0;
   }
@@ -1218,7 +1275,7 @@ html[data-body-font="courier"] .ch-page {
     font-size: 1.625rem;
   }
 
-  .ch-home-path-body > .ch-ital {
+  .ch-home-side > .ch-ital {
     font-size: 1.0625rem;
   }
 }
