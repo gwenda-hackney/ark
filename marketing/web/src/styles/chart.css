@@ -935,6 +935,40 @@
   font-size: 1.375rem;
 }
 
+/*
+ * The other look (?look=texture): no sheet, the menu written straight onto
+ * the page in light ink over the map's crazed texture.
+ */
+html[data-menu-look="texture"] .ch-page:has(.ch-menu-page) {
+  background: var(--ch-bg) url("../assets/images/texture/crazed.webp") repeat;
+  background-size: 900px 900px;
+}
+
+html[data-menu-look="texture"] .ch-sheet {
+  padding: 1rem 0 0;
+  color: var(--ch-ink);
+}
+
+html[data-menu-look="texture"] .ch-paper,
+html[data-menu-look="texture"] .ch-sheet::before {
+  display: none;
+}
+
+html[data-menu-look="texture"] .ch-sheet-head,
+html[data-menu-look="texture"] .ch-item-name,
+html[data-menu-look="texture"] .ch-price {
+  color: var(--ch-ink);
+}
+
+html[data-menu-look="texture"] .ch-group h3 {
+  color: var(--ch-gold);
+}
+
+html[data-menu-look="texture"] .ch-item-desc,
+html[data-menu-look="texture"] .ch-item-sizes {
+  color: var(--ch-ink-3);
+}
+
 /* The Articles */
 .ch-articles {
   list-style: none;
