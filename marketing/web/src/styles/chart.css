@@ -7,20 +7,11 @@
 @import "@fontsource/im-fell-english/latin-400.css";
 @import "@fontsource/im-fell-english/latin-400-italic.css";
 @import "@fontsource/im-fell-english-sc/latin-400.css";
-@import "@fontsource/alegreya/latin-400.css";
-@import "@fontsource/alegreya/latin-400-italic.css";
-@import "@fontsource/alegreya/latin-500.css";
 @import "@fontsource/rock-salt/latin-400.css";
 @import "@fontsource/caveat/latin-600.css";
-/* Body face candidates while we choose (?body=vollkorn|bitter|courier) */
-@import "@fontsource/vollkorn/latin-400.css";
-@import "@fontsource/vollkorn/latin-400-italic.css";
-@import "@fontsource/vollkorn/latin-500.css";
-@import "@fontsource/bitter/latin-400.css";
-@import "@fontsource/bitter/latin-400-italic.css";
-@import "@fontsource/bitter/latin-500.css";
-@import "@fontsource/courier-prime/latin-400.css";
-@import "@fontsource/courier-prime/latin-400-italic.css";
+@import "@fontsource/zilla-slab/latin-400.css";
+@import "@fontsource/zilla-slab/latin-400-italic.css";
+@import "@fontsource/zilla-slab/latin-500.css";
 
 .ch-page {
   /* Black lacquer, bone ink, old gold, the Negroni red */
@@ -34,7 +25,7 @@
   --ch-chalk: "Fredericka the Great", "IM Fell English", Georgia, serif;
   --ch-press: "IM Fell English", Georgia, serif;
   --ch-caps: "IM Fell English SC", "IM Fell English", Georgia, serif;
-  --ch-book: "Alegreya", Georgia, serif;
+  --ch-book: "Zilla Slab", Georgia, serif;
   --ch-hand: "Rock Salt", "Bradley Hand", cursive;
   /* A plainer hand for short things written up, like a night's times */
   --ch-pen: "Caveat", "Bradley Hand", cursive;
@@ -50,20 +41,8 @@
   background-size: 900px 900px;
   color: var(--ch-ink-2);
   font-family: var(--ch-book);
-  font-size: 1.0625rem;
-  line-height: 1.5;
-}
-
-html[data-body-font="vollkorn"] .ch-page {
-  --ch-book: "Vollkorn", Georgia, serif;
-}
-
-html[data-body-font="bitter"] .ch-page {
-  --ch-book: "Bitter", Georgia, serif;
-}
-
-html[data-body-font="courier"] .ch-page {
-  --ch-book: "Courier Prime", "Courier New", monospace;
+  font-size: 1.1875rem;
+  line-height: 1.55;
 }
 
 .ch-page a:where(:not(.ch-btn)) {
@@ -560,7 +539,7 @@ html[data-body-font="courier"] .ch-page {
 
 .ch-entry-note {
   margin: 0.25rem 0 0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
 }
 
 .ch-entry-note .ch-offer {
@@ -628,7 +607,7 @@ html[data-body-font="courier"] .ch-page {
 
 .ch-lead {
   margin: 0.625rem 0 0;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   color: var(--ch-ink-2);
   max-width: 60ch;
 }
@@ -901,7 +880,7 @@ html[data-body-font="courier"] .ch-page {
 .ch-item-desc {
   display: block;
   margin-top: 0.125rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
   line-height: 1.4;
   color: var(--ch-ink-3);
 }
@@ -910,7 +889,7 @@ html[data-body-font="courier"] .ch-page {
   display: flex;
   flex-wrap: wrap;
   gap: 0.125rem 1rem;
-  font-size: 1rem;
+  font-size: 1.0625rem;
   color: var(--ch-ink-3);
 }
 
@@ -1230,7 +1209,7 @@ html[data-body-font="courier"] .ch-page {
 
 .ch-home-way-address {
   font-family: var(--ch-caps);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   letter-spacing: 0.06em;
   color: var(--ch-ink-3);
 }
@@ -1286,7 +1265,7 @@ html[data-body-font="courier"] .ch-page {
   }
 
   .ch-home-side > .ch-ital {
-    font-size: 1.0625rem;
+    font-size: 1.125rem;
   }
 }
 
@@ -1638,7 +1617,7 @@ html[data-body-font="courier"] .ch-page {
   gap: 1rem;
   margin-top: 1rem;
   font-family: var(--ch-caps);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   letter-spacing: 0.06em;
   color: var(--paper-ink-2);
   text-align: center;

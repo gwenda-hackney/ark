@@ -21,13 +21,6 @@ const { bookingEnabled } = await fetchSiteSettings();
 const sections = chartSections(pathname);
 ---
 
-<!-- Body face candidates while we choose (#240): ?body=vollkorn|bitter|courier -->
-<script is:inline>
-  (function () {
-    const pick = new URLSearchParams(location.search).get("body");
-    if (pick) document.documentElement.dataset.bodyFont = pick;
-  })();
-</script>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <filter id="ch-ink" x="-10%" y="-20%" width="120%" height="140%">
     <feTurbulence
