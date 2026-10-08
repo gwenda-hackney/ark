@@ -34,10 +34,11 @@
   min-height: 100vh;
   min-height: 100dvh;
   /*
-   * Dry cracked leather behind every page: one seamless tile, drawn by
-   * scripts/write-leather-texture.mjs.
+   * Behind every page: dark paper, faintly crazed like old varnish. One
+   * seamless tile of hairline cracks, drawn by
+   * scripts/write-crazed-texture.mjs.
    */
-  background: var(--ch-bg) url("../assets/images/texture/leather.webp") repeat;
+  background: var(--ch-bg) url("../assets/images/texture/crazed.webp") repeat;
   background-size: 900px 900px;
   color: var(--ch-ink-2);
   font-family: var(--ch-book);
@@ -313,7 +314,13 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  background: var(--ch-bg);
+}
+
+/* The room fades out at the foot, into the page's texture, with no edge */
+.ch-hero-media,
+.ch-hero-scrim {
+  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
 }
 
 .ch-hero-media {
@@ -666,7 +673,7 @@
 
 /*
  * The menu, written straight onto the page like the map: light ink on the
- * leather, names and prices in pen, two columns, nothing between the lines.
+ * crazed paper, names and prices in pen, two columns, nothing between the lines.
  */
 .ch-jump {
   display: flex;
@@ -1011,27 +1018,32 @@
   margin-top: 1.25rem;
 }
 
-/* Home: play here, stay close */
+/*
+ * Home: play here, stay close. One row each, the full width: the eyebrow
+ * and title on the left, what it is and the link on the right, the photo
+ * leading the play row.
+ */
 .ch-home-paths {
   max-width: 60rem;
   margin: 0 auto;
   padding: 0 1.25rem 4rem;
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
-  gap: 2.5rem;
-  align-items: start;
 }
 
 .ch-home-path {
   display: grid;
-  gap: 1rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--ch-gold);
+  gap: 1.5rem 2.5rem;
+  align-items: start;
+  padding: 2.25rem 0;
+  border-top: 1px solid var(--ch-rule);
+}
+
+.ch-home-path:first-child {
+  border-top-color: var(--ch-gold);
 }
 
 .ch-home-path--play {
-  grid-template-columns: 11rem 1fr;
-  align-items: start;
+  grid-template-columns: 13rem minmax(0, 1fr);
 }
 
 .ch-home-path-photo {
@@ -1040,18 +1052,49 @@
 
 .ch-home-path-body {
   display: grid;
-  gap: 0.25rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-areas:
+    "eyebrow lead"
+    "title lead"
+    "title link";
+  grid-template-rows: auto auto 1fr;
+  gap: 0.375rem 2.5rem;
+  align-items: start;
 }
 
-.ch-home-path .ch-ital {
+.ch-home-path-body > .ch-caps {
+  grid-area: eyebrow;
+}
+
+.ch-home-path-body > .ch-path-title {
+  grid-area: title;
+  font-size: 2rem;
+}
+
+.ch-home-path-body > .ch-ital {
+  grid-area: lead;
+  font-size: 1.1875rem;
+  line-height: 1.55;
   color: var(--ch-ink-2);
-  max-width: 48ch;
+  max-width: 44ch;
+}
+
+.ch-home-path-body > .ch-link-line {
+  grid-area: link;
+  margin-top: 0.5rem;
+}
+
+/* The play row has the photo beside it, so its words stack */
+.ch-home-path--play .ch-home-path-body {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "eyebrow" "title" "lead" "link";
+  grid-template-rows: none;
 }
 
 .ch-link-line {
   margin-top: 0.25rem;
   font-family: var(--ch-caps);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   letter-spacing: 0.08em;
   color: var(--ch-gold);
 }
@@ -1060,24 +1103,28 @@
   color: var(--ch-gold);
 }
 
-@media (max-width: 60rem) {
-  .ch-home-paths {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .ch-home-path--play {
-    grid-column: 1 / -1;
-  }
-}
-
 @media (max-width: 40rem) {
-  .ch-home-paths {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+  .ch-home-path {
+    padding: 1.75rem 0;
   }
 
   .ch-home-path--play {
-    grid-template-columns: 7rem 1fr;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+
+  .ch-home-path-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "eyebrow" "title" "lead" "link";
+    grid-template-rows: none;
+  }
+
+  .ch-home-path-body > .ch-path-title {
+    font-size: 1.625rem;
+  }
+
+  .ch-home-path-body > .ch-ital {
+    font-size: 1.0625rem;
   }
 }
 
@@ -1215,7 +1262,7 @@
   display: none;
 }
 
-/* A sounding line: a gold hairline that keeps dropping from the hero's foot */
+/* A sounding line: a gold hairline dropping from the hero's foot, still */
 .ch-hero-more {
   position: absolute;
   left: 50%;
@@ -1231,36 +1278,13 @@
   display: block;
   width: 1px;
   height: 100%;
-  background: linear-gradient(var(--ch-gold), var(--ch-gold)) no-repeat;
-  background-size: 1px 0%;
-  animation: ch-sound 2.4s ease-in-out infinite;
+  background: linear-gradient(transparent, var(--ch-gold));
+  opacity: 0.7;
+  transition: opacity 0.25s ease;
 }
 
 .ch-hero-more:hover span {
-  background-color: rgb(201 162 74 / 0.35);
-}
-
-@keyframes ch-sound {
-  0% {
-    background-size: 1px 0%;
-    background-position: 0 0;
-  }
-  50% {
-    background-size: 1px 100%;
-    background-position: 0 0;
-  }
-  100% {
-    background-size: 1px 0%;
-    background-position: 0 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ch-hero-more span {
-    animation: none;
-    background-size: 1px 100%;
-    opacity: 0.6;
-  }
+  opacity: 1;
 }
 
 .ch-tonight {
