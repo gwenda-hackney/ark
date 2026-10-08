@@ -1,9 +1,10 @@
 ---
 /**
- * The way to the bar, drawn like the chart in the brief (#240): the water
- * as a wide dark band with soundings, the station and
- * the walk down from it, a few roads lightly, Gwenda marked with an X.
- * Loosely from the street map; not to scale.
+ * The way to the bar, drawn as a chart on a scroll (#240). The waters as
+ * dark bands with soundings, the towpath along them, the walk from the
+ * station in paces and compass points, a few landmarks, the X. Traced
+ * loosely from the street map; the directions are for the feel, not the
+ * feet.
  */
 import { siteConfig } from "../../config/site";
 
@@ -14,28 +15,37 @@ interface Props {
 const { class: className } = Astro.props;
 const { location } = siteConfig;
 
-/** The two waters, as centre lines; the band and both edges follow them. */
-const LEE = "M662 -20 C682 150 702 300 744 420 S832 640 864 780 L905 940";
-const UNION = "M-20 930 C180 820 400 700 560 600 S690 506 736 466";
+/** The Lee down the right, the Hertford Union coming in from the south-west */
+const LEE =
+  "M745 -20 C760 120 770 240 790 330 S860 560 905 700 S950 860 962 940";
+const UNION = "M-20 1000 C120 940 300 860 470 790 S720 690 830 650";
 
 /** Soundings in the water: [x, y, depth] */
 const SOUNDINGS = [
-  [650, 90, "3"],
-  [690, 230, "2½"],
-  [728, 360, "4"],
-  [800, 520, "3"],
-  [838, 680, "2"],
-  [872, 830, "3"],
-  [150, 850, "2"],
-  [300, 760, "1½"],
-  [440, 672, "2"],
-  [600, 568, "3"],
+  [752, 70, "3"],
+  [776, 220, "2½"],
+  [820, 400, "4"],
+  [870, 560, "3"],
+  [925, 760, "3"],
+  [120, 950, "2"],
+  [300, 866, "1½"],
+  [520, 780, "2"],
+  [720, 706, "3"],
+];
+
+/** Landmarks: [x, y, name, which side the name sits] */
+const MARKS: Array<[number, number, string, "l" | "r"]> = [
+  [410, 350, "the theatre", "l"],
+  [690, 225, "fish and chips", "l"],
+  [822, 300, "the pub on the far bank", "r"],
+  [560, 745, "the canal club", "l"],
+  [590, 905, "the footbridge", "r"],
 ];
 ---
 
-<figure class:list={["ch-map", className]}>
+<figure class:list={["ch-map", "ch-scroll", className]}>
   <svg
-    viewBox="0 0 1000 920"
+    viewBox="0 0 1000 960"
     role="img"
     aria-labelledby="ch-map-title"
     fill="none"
@@ -43,8 +53,9 @@ const SOUNDINGS = [
     stroke-linejoin="round"
   >
     <title id="ch-map-title">
-      Map: Gwenda on the Hertford Union canal where it meets the Lee, a few
-      minutes' walk south of Hackney Wick station.
+      Map: from Hackney Wick station walk south, turn east along White Post Lane
+      to the water, then follow the towpath south and west along the canal to
+      Gwenda.
     </title>
     <defs>
       <filter id="ch-map-ink" x="-5%" y="-5%" width="110%" height="110%">
@@ -64,47 +75,61 @@ const SOUNDINGS = [
     </defs>
 
     <g filter="url(#ch-map-ink)">
-      <!-- The water: a wide band, an edge each side, soundings, the banks hatched -->
+      <!-- The water -->
       <g class="ch-map-water">
         <path class="ch-map-band" d={LEE}></path>
         <path class="ch-map-band ch-map-band--union" d={UNION}></path>
-        <path class="ch-map-edge" d={LEE} transform="translate(-30 0)"></path>
-        <path class="ch-map-edge" d={LEE} transform="translate(30 0)"></path>
-        <path class="ch-map-edge" d={UNION} transform="translate(0 -24)"></path>
-        <path class="ch-map-edge" d={UNION} transform="translate(0 24)"></path>
+        <path class="ch-map-edge" d={LEE} transform="translate(-26 0)"></path>
+        <path class="ch-map-edge" d={LEE} transform="translate(26 0)"></path>
+        <path class="ch-map-edge" d={UNION} transform="translate(0 -22)"></path>
+        <path class="ch-map-edge" d={UNION} transform="translate(0 22)"></path>
       </g>
+
+      <!-- The towpath: along the near bank of the Lee, then the canal -->
+      <path
+        class="ch-map-towpath"
+        d="M724 340 C744 430 780 530 800 610 C740 640 640 690 540 735 S330 830 180 900"
+      ></path>
 
       <!-- The railway and the station -->
       <g class="ch-map-rail">
-        <path d="M-10 160 L612 130"></path>
+        <path d="M-10 68 L740 44"></path>
         {
-          Array.from({ length: 24 }, (_, i) => {
-            const x = 14 + i * 25;
-            const y = 159 - i * 1.2;
+          Array.from({ length: 30 }, (_, i) => {
+            const x = 10 + i * 25;
+            const y = 67.4 - i * 0.8;
             return <path d={`M${x} ${y - 6} l -1 12`} />;
           })
         }
       </g>
 
-      <!-- Roads: a few, lightly -->
+      <!-- Roads: the one down from the station, the lane, two more lightly -->
       <g class="ch-map-roads">
-        <path
-          d="M-10 268 C60 240 130 214 196 196 C260 230 330 246 420 244 S640 258 1010 274"
+        <path d="M296 70 C300 150 330 230 380 300 S430 420 420 430"></path>
+        <path d="M-10 330 C140 322 300 318 420 430 C540 400 640 370 760 345"
         ></path>
-        <path
-          d="M30 460 C140 420 260 384 400 352 S520 340 540 338 L546 450 C566 470 584 488 600 506"
-        ></path>
-        <path d="M20 612 C120 572 240 520 380 470"></path>
+        <path d="M40 520 C140 480 240 450 330 440"></path>
+        <path d="M290 690 C360 660 420 630 480 606"></path>
+        <path d="M470 440 C500 520 540 610 590 700"></path>
       </g>
 
-      <!-- The walk from the station -->
+      <!-- The walk: station, the lane, the water, the towpath, the bar -->
       <path
         class="ch-map-walk"
-        d="M372 150 C384 190 400 220 418 248 C450 290 500 320 540 340 L546 448 C566 470 584 488 600 506"
+        d="M296 75 C300 150 330 230 380 300 S430 420 420 430 C540 400 640 370 724 348 C744 430 780 530 798 610 C740 640 680 672 640 700"
       ></path>
+      <!-- Or straight down the yard -->
+      <path
+        class="ch-map-walk ch-map-walk--other"
+        d="M470 440 C500 520 540 610 590 700"></path>
+
+      <!-- Landmarks -->
+      <g class="ch-map-marks">
+        {MARKS.map(([x, y]) => <circle cx={x} cy={y} r="4" />)}
+      </g>
 
       <!-- Gwenda -->
-      <path class="ch-map-here" d="M586 492 l28 28 M614 492 l-28 28"></path>
+      <path class="ch-map-here" d="M626 696 l28 28 M654 696 l-28 28"></path>
     </g>
 
     <!-- Words stay crisp -->
@@ -116,39 +141,71 @@ const SOUNDINGS = [
           </text>
         ))
       }
-      <circle cx="372" cy="140" r="11" class="ch-map-station"></circle>
-      <text x="390" y="112">Hackney Wick</text>
-      <text x="390" y="130" class="ch-map-small">station</text>
+      {
+        MARKS.map(([x, y, name, side]) => (
+          <text
+            class="ch-map-mark"
+            x={side === "l" ? x - 10 : x + 10}
+            y={y + 5}
+            text-anchor={side === "l" ? "end" : "start"}
+          >
+            {name}
+          </text>
+        ))
+      }
 
-      <text class="ch-map-water-label" transform="translate(770 560) rotate(68)"
+      <circle cx="296" cy="62" r="11" class="ch-map-station"></circle>
+      <text x="316" y="40">Hackney Wick</text>
+      <text x="316" y="58" class="ch-map-small">station</text>
+
+      <text class="ch-map-road" transform="translate(470 395) rotate(-12)"
+        >White Post Lane</text
+      >
+      <text class="ch-map-road" transform="translate(60 512) rotate(-18)"
+        >Rothbury Rd</text
+      >
+      <text class="ch-map-water-label" transform="translate(766 120) rotate(74)"
         >Lee Navigation</text
       >
       <text
         class="ch-map-water-label"
-        transform="translate(140 846) rotate(-33)">Hertford Union</text
+        transform="translate(170 918) rotate(-26)">Hertford Union</text
       >
 
-      <text class="ch-map-road" transform="translate(240 410) rotate(-15)"
-        >Rothbury Rd</text
-      >
-      <text class="ch-map-road" transform="translate(120 575) rotate(-22)"
-        >Trego Rd</text
-      >
+      <text x="668" y="748" class="ch-map-name">Gwenda</text>
 
-      <text x="628" y="542" class="ch-map-name">Gwenda</text>
-      <text class="ch-map-note" transform="translate(470 470) rotate(-8)"
-        >you are here</text
+      <!-- The directions, in the hand -->
+      <text class="ch-map-note" transform="translate(130 150) rotate(-4)">
+        <tspan x="0" dy="0">From the station, 300 paces south,</tspan>
+        <tspan x="0" dy="22">keeping the railway at your back</tspan>
+      </text>
+      <text class="ch-map-note" transform="translate(440 322) rotate(-8)">
+        <tspan x="0" dy="0">turn east at the lane,</tspan>
+        <tspan x="0" dy="22">past the theatre, to the water</tspan>
+      </text>
+      <text class="ch-map-note" transform="translate(822 500) rotate(68)">
+        <tspan x="0" dy="0">bear south along the towpath</tspan>
+      </text>
+      <text class="ch-map-note" transform="translate(556 836) rotate(-22)">
+        <tspan x="0" dy="0">then 60 paces west-south-west</tspan>
+        <tspan x="0" dy="22">along the cut. X marks the bar</tspan>
+      </text>
+      <text
+        class="ch-map-note ch-map-note--faint"
+        transform="translate(350 548) rotate(62)"
       >
-      <path class="ch-map-note-line" d="M560 466 c 10 10 18 18 26 28"></path>
+        <tspan x="0" dy="0">or straight down the yard</tspan>
+      </text>
 
       <!-- The compass rose -->
-      <g class="ch-map-rose" transform="translate(915 70)">
+      <g class="ch-map-rose" transform="translate(80 850)">
         <circle r="34"></circle>
         <circle r="4"></circle>
         <path d="M0 -42v8M0 34v8M-42 0h8M34 0h8"></path>
         <path d="M0 -30 l7 22 L0 30 l-7 -22 z"></path>
         <path d="M0 -30 l7 22 h-14 z" fill="currentColor"></path>
         <path d="M-30 0 l22 -7 L30 0 l-22 7 z"></path>
+        <text class="ch-map-n" x="0" y="-48" text-anchor="middle">N</text>
       </g>
     </g>
   </svg>

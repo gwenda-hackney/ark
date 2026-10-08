@@ -17,7 +17,6 @@ import ChartBell from "./ChartBell.astro";
 import ChartNav from "./ChartNav.astro";
 import ChartTonight from "./ChartTonight.astro";
 import ChartFooter from "./ChartFooter.astro";
-import ChartMap from "./ChartMap.astro";
 
 const { bookingEnabled } = await fetchSiteSettings();
 const { contactPage } = siteConfig.copy;
@@ -81,6 +80,17 @@ const { contactPage } = siteConfig.copy;
           <span class="ch-link-line">{contactPage.playCta} →</span>
         </span>
       </a>
+      <a href="/find-us" class="ch-home-path">
+        <span class="ch-home-path-body">
+          <span class="ch-caps">Getting here</span>
+          <span class="ch-path-title">Five minutes from the station</span>
+          <span class="ch-ital"
+            >Down from Hackney Wick, along the lane, then the towpath by the
+            water.</span
+          >
+          <span class="ch-link-line">The map →</span>
+        </span>
+      </a>
       <a href="/join-list" class="ch-home-path">
         <span class="ch-home-path-body">
           <span class="ch-caps">{contactPage.listEyebrow}</span>
@@ -89,10 +99,6 @@ const { contactPage } = siteConfig.copy;
           <span class="ch-link-line">{contactPage.listCta} →</span>
         </span>
       </a>
-    </section>
-    <section class="ch-home-map" aria-labelledby="ch-home-map-title">
-      <div class="ch-head"><h2 id="ch-home-map-title">Finding us</h2></div>
-      <ChartMap />
     </section>
   </main>
   <ChartFooter />

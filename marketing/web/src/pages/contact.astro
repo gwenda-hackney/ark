@@ -3,7 +3,6 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import ChartPage from "../components/chart/ChartPage.astro";
 import { siteConfig } from "../config/site";
 import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
-import ChartMap from "../components/chart/ChartMap.astro";
 
 const { contactPage } = siteConfig.copy;
 const { social } = siteConfig;
@@ -17,11 +16,19 @@ const { social } = siteConfig;
   <ChartPage class="ch-find-page" title="Contact" numeral="VI">
     <section class="ch-find">
       <div class="ch-head"><h2>Find us</h2></div>
-      <p class="ch-ital">
-        On the canal behind Hackney Wick station, where the Hertford Union meets
-        the Lee.
+      <p class="ch-address">
+        <a
+          href={siteConfig.location.mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer">{siteConfig.location.address}</a
+        >
       </p>
-      <ChartMap />
+      <p class="ch-ital">
+        On the canal behind Hackney Wick station. <a
+          href="/find-us"
+          class="ch-link">The map</a
+        >, if you like a walk by the water.
+      </p>
     </section>
 
     <section class="ch-find">
