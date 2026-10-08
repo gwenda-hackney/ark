@@ -35,10 +35,6 @@ const sections = chartSections(pathname);
 <div class="ch-chart-scrim" id="ch-chart-scrim" aria-hidden="true"></div>
 
 <nav class="ch-chart" id="ch-chart" aria-label="The chart" tabindex="-1">
-  <button type="button" class="ch-chart-close" id="ch-chart-close">
-    Close ×
-  </button>
-
   <a href="/" class="ch-flag-up" aria-label="Gwenda home">
     <Image {...chartFlag} alt="" />
     <span class="ch-caps">{siteConfig.location.addressShort}</span>
@@ -80,7 +76,7 @@ const sections = chartSections(pathname);
     bookingEnabled && (
       <a
         href={bookingUrl}
-        class="ch-bell"
+        class="ch-btn ch-btn--solid"
         target="_blank"
         rel="noopener noreferrer"
       >

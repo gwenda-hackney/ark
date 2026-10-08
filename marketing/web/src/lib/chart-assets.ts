@@ -1,4 +1,3 @@
-import flagImg from "../assets/images/logos/flag.png";
 import bottleImg from "../assets/images/logos/bottle.png";
 import tavernImg from "../assets/images/hero/tavern.webp";
 import turntableImg from "../assets/images/play/turn-table.jpg";
@@ -11,9 +10,9 @@ export const chartHeroLogo = {
   densities: [1, 2] as const,
 };
 
-/** The flag at the top of the chart: 5.5rem (88px). */
+/** The mark at the top of the chart: 5.5rem (88px). */
 export const chartFlag = {
-  src: flagImg,
+  src: bottleImg,
   width: 88,
   format: "webp" as const,
   densities: [1, 2] as const,
