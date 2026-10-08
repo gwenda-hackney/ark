@@ -257,10 +257,11 @@
 }
 
 /* Hero: the room, darkened, the flag and the slogan */
+/* A little short of the screen, so the gold rule of Tonight shows below it */
 .ch-hero {
   position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 88vh;
+  min-height: 88svh;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -1103,4 +1104,56 @@
 /* The page head already says it; the embedded signup keeps its form only */
 .ch-page .signup .section-header {
   display: none;
+}
+
+/* A sounding line: a gold hairline that keeps dropping from the hero's foot */
+.ch-hero-more {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 2.75rem;
+  height: 4.5rem;
+  margin-left: -1.375rem;
+  display: grid;
+  justify-items: center;
+}
+
+.ch-hero-more span {
+  display: block;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(var(--ch-gold), var(--ch-gold)) no-repeat;
+  background-size: 1px 0%;
+  animation: ch-sound 2.4s ease-in-out infinite;
+}
+
+.ch-hero-more:hover span {
+  background-color: rgb(201 162 74 / 0.35);
+}
+
+@keyframes ch-sound {
+  0% {
+    background-size: 1px 0%;
+    background-position: 0 0;
+  }
+  50% {
+    background-size: 1px 100%;
+    background-position: 0 0;
+  }
+  100% {
+    background-size: 1px 0%;
+    background-position: 0 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-hero-more span {
+    animation: none;
+    background-size: 1px 100%;
+    opacity: 0.6;
+  }
+}
+
+.ch-tonight {
+  scroll-margin-top: 1rem;
 }

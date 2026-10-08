@@ -42,7 +42,11 @@ const note = next ? next.shortDescription || next.artist || "" : "";
 
 {
   next && (
-    <section class="ch-tonight" aria-labelledby="ch-tonight-title">
+    <section
+      class="ch-tonight"
+      id="ch-tonight"
+      aria-labelledby="ch-tonight-title"
+    >
       <div class="ch-head">
         <h2 id="ch-tonight-title">{today ? "Tonight" : "Next"}</h2>
         <span class="ch-ital">{when}</span>
