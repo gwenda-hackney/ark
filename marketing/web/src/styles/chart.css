@@ -319,8 +319,16 @@
 /* The room fades out at the foot, into the page's texture, with no edge */
 .ch-hero-media,
 .ch-hero-scrim {
-  -webkit-mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 68%, transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 7rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 7rem),
+    transparent 100%
+  );
 }
 
 .ch-hero-media {
