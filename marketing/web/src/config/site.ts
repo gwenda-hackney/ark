@@ -136,8 +136,8 @@ export const siteConfig = {
         /** Lives on /about, which is not published yet. */
         aside: true,
         paragraphs: [
-          "You might know Gigi from The Pirate's Hub, down the canal on Fish Island.",
-          "Born in Castro, on the Salento coast. He wanted that gathering again, and a kitchen big enough to cook for it.",
+          "You might know Gigi from The Pirate's Hub, down the canal on Fish Island. Porchetta from the house, sandwiches taken down to the water, Hackney Wick wandering past.",
+          "Gwenda is that again, with more room: a proper kitchen, and a place for the Wick to come together.",
         ],
       },
       {
