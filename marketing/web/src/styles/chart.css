@@ -11,8 +11,6 @@
 @import "@fontsource/alegreya/latin-400-italic.css";
 @import "@fontsource/alegreya/latin-500.css";
 @import "@fontsource/rock-salt/latin-400.css";
-@import "@fontsource/caveat/latin-500.css";
-@import "@fontsource/caveat/latin-600.css";
 
 .ch-page {
   /* Black lacquer, bone ink, old gold, the Negroni red */
@@ -28,8 +26,6 @@
   --ch-caps: "IM Fell English SC", "IM Fell English", Georgia, serif;
   --ch-book: "Alegreya", Georgia, serif;
   --ch-hand: "Rock Salt", "Bradley Hand", cursive;
-  /* The pen the menu is written up in: plainer than Rock Salt, easy to read */
-  --ch-pen: "Caveat", "Bradley Hand", cursive;
 
   min-height: 100vh;
   min-height: 100dvh;
@@ -780,20 +776,23 @@
   gap: 1rem;
 }
 
-/* Names and prices written in pen; what's in them stays in the book face */
+/*
+ * Names and prices in the press face of the page titles; the hand is kept
+ * for the chapter and group heads. What's in them stays in the book face.
+ */
 .ch-item-name {
-  font-family: var(--ch-pen);
-  font-weight: 600;
-  font-size: 1.625rem;
-  line-height: 1.05;
+  font-family: var(--ch-press);
+  font-weight: 400;
+  font-size: 1.375rem;
+  line-height: 1.15;
   color: var(--ch-ink);
 }
 
 .ch-price {
-  font-family: var(--ch-pen);
-  font-weight: 600;
-  font-size: 1.625rem;
-  line-height: 1.05;
+  font-family: var(--ch-press);
+  font-weight: 400;
+  font-size: 1.375rem;
+  line-height: 1.15;
   white-space: nowrap;
   color: var(--ch-ink);
 }
@@ -815,7 +814,7 @@
 }
 
 .ch-item-sizes .ch-price {
-  font-size: 1.375rem;
+  font-size: 1.1875rem;
 }
 
 /* The Articles */
