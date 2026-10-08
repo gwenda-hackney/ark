@@ -1345,47 +1345,48 @@
 
 .ch-map-edge {
   stroke: var(--paper-ink);
-  stroke-width: 1.6;
-  opacity: 0.8;
+  stroke-width: 4.5;
+  opacity: 0.85;
 }
 
 .ch-map-towpath {
   stroke: #5e7a4a;
-  stroke-width: 2.2;
-  stroke-dasharray: 10 6;
+  stroke-width: 5;
+  stroke-dasharray: 22 12;
   opacity: 0.8;
 }
 
 .ch-map-rail path {
   stroke: var(--paper-ink);
-  stroke-width: 1.4;
-  opacity: 0.55;
+  stroke-width: 3.5;
+  opacity: 0.7;
 }
 
 .ch-map-roads path {
   stroke: var(--paper-ink-3);
-  stroke-width: 1.4;
-  opacity: 0.7;
+  stroke-width: 4;
+  opacity: 0.75;
 }
 
 .ch-map-walk {
   stroke: var(--paper-walk);
-  stroke-width: 3;
-  stroke-dasharray: 2 10;
+  stroke-width: 6;
+  stroke-dasharray: 14 12;
 }
 
 .ch-map-walk--other {
-  stroke-width: 2.2;
+  stroke-width: 5;
   opacity: 0.6;
 }
 
 .ch-map-marks circle {
   fill: var(--paper-ink);
+  r: 6;
 }
 
 .ch-map-here {
   stroke: #9c1218;
-  stroke-width: 5;
+  stroke-width: 10;
 }
 
 .ch-map-labels text {
@@ -1453,13 +1454,13 @@
 .ch-map-station {
   fill: #ebe0c6;
   stroke: var(--paper-ink);
-  stroke-width: 2.5;
+  stroke-width: 4.5;
 }
 
 .ch-map-rose {
   color: var(--paper-ink-2);
   stroke: currentColor;
-  stroke-width: 1.4;
+  stroke-width: 3;
 }
 
 .ch-map figcaption {

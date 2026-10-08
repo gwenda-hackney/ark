@@ -74,18 +74,33 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
           yChannelSelector="G"></feDisplacementMap>
       </filter>
       <filter id="ch-map-ink" x="-5%" y="-5%" width="110%" height="110%">
+        <!-- Wobble the line like a hand drawing it -->
         <feTurbulence
           type="fractalNoise"
           baseFrequency="0.028"
           numOctaves="2"
           seed="4"
-          result="n"></feTurbulence>
+          result="wobble"></feTurbulence>
         <feDisplacementMap
           in="SourceGraphic"
-          in2="n"
+          in2="wobble"
           scale="6"
           xChannelSelector="R"
-          yChannelSelector="G"></feDisplacementMap>
+          yChannelSelector="G"
+          result="drawn"></feDisplacementMap>
+        <!-- Grease pencil: the wax skips on the paper's tooth -->
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.38"
+          numOctaves="2"
+          seed="2"
+          result="tooth"></feTurbulence>
+        <feColorMatrix
+          in="tooth"
+          type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.62"
+          result="wax"></feColorMatrix>
+        <feComposite in="drawn" in2="wax" operator="in"></feComposite>
       </filter>
     </defs>
 
@@ -113,7 +128,7 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
           Array.from({ length: 30 }, (_, i) => {
             const x = 10 + i * 25;
             const y = 67.4 - i * 0.8;
-            return <path d={`M${x} ${y - 6} l -1 12`} />;
+            return <path d={`M${x} ${y - 8} l -1 16`} />;
           })
         }
       </g>
@@ -144,7 +159,7 @@ const MARKS: Array<[number, number, string, "l" | "r"]> = [
       </g>
 
       <!-- Gwenda -->
-      <path class="ch-map-here" d="M626 696 l28 28 M654 696 l-28 28"></path>
+      <path class="ch-map-here" d="M622 692 l36 36 M658 692 l-36 36"></path>
     </g>
 
     <!-- Words stay crisp -->
