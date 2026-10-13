@@ -27,6 +27,8 @@
   --ch-red-ink: #dc4a3a;
   /* Olive: the trees at the wharf, the one cool colour */
   --ch-olive: #747e54;
+  /* Brass: a duller gold for labels, so bright gold stays for what you act on */
+  --ch-brass: #8f7646;
   --ch-rule: rgb(232 223 204 / 0.3);
   --ch-chalk: "Fredericka the Great", "IM Fell English", Georgia, serif;
   --ch-press: "IM Fell English", Georgia, serif;
@@ -591,7 +593,15 @@
 .ch-main {
   max-width: 72rem;
   margin: 0 auto;
-  padding: 6rem 1.25rem 4rem;
+  /* Clear of the menu button in the corner */
+  padding: 5rem 1.25rem 4rem;
+}
+
+/* Wide enough that the button sits in the margin: the title can come up */
+@media (min-width: 80rem) {
+  .ch-main {
+    padding-top: 4rem;
+  }
 }
 
 .ch-page-head {
@@ -691,8 +701,12 @@
   background: var(--ch-rule);
 }
 
-/* Home's sections are plain enough apart: no rule between them */
-.ch-home-path::before {
+/* Home's sections are plain enough apart: the rule between them only just there */
+.ch-home-path + .ch-home-path::before {
+  background: rgb(232 223 204 / 0.1);
+}
+
+.ch-home-path:first-child::before {
   content: none;
 }
 
@@ -923,7 +937,7 @@
   font-weight: 400;
   font-size: 1.25rem;
   line-height: 1.4;
-  color: var(--ch-olive);
+  color: var(--ch-brass);
   transform: rotate(-1deg);
 }
 
@@ -1236,7 +1250,7 @@
 .ch-home-path-body > .ch-caps,
 .ch-path > .ch-caps {
   font-size: 1.0625rem;
-  color: var(--ch-olive);
+  color: var(--ch-brass);
 }
 
 .ch-home-path-body > .ch-path-title {
@@ -1300,6 +1314,11 @@
   font-size: 1.25rem;
   line-height: 1.2;
   color: var(--ch-olive);
+}
+
+.ch-home-menu-names {
+  color: var(--ch-ink-2);
+  line-height: 1.5;
 }
 
 .ch-home-way-address {
@@ -1585,6 +1604,15 @@
   max-width: 100%;
 }
 
+/* Finding us: the whole map on the first screen, under the title */
+.ch-find-page .ch-map svg {
+  max-height: calc(100vh - 14rem);
+  max-height: calc(100svh - 14rem);
+  min-height: 22rem;
+  width: auto;
+  margin: 0 auto;
+}
+
 .ch-map-band {
   stroke: rgb(232 223 204 / 0.09);
   stroke-width: 52;
@@ -1632,7 +1660,28 @@
 
 .ch-map-here {
   stroke: var(--ch-red);
-  stroke-width: 2.6;
+  stroke-width: 10;
+}
+
+/* The X drawn in like the menu's close: one stroke, then the other */
+.ch-map-here path {
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.32s ease-in-out;
+}
+
+.ch-map-here.is-waiting:not(.is-drawn) path {
+  stroke-dashoffset: 1.5;
+}
+
+.ch-map-here.is-drawn path:nth-child(2) {
+  transition-delay: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-map-here path {
+    transition: none;
+  }
 }
 
 /* Everything on the map is written by hand, bar the soundings */
@@ -1678,6 +1727,11 @@
   font-family: var(--ch-hand);
   font-size: 15px;
   fill: var(--paper-walk);
+  /* A rim of the dark ground, so the words lift off any line under them */
+  stroke: var(--ch-bg);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 
 .ch-map-labels .ch-map-n {
@@ -1714,7 +1768,7 @@
 /* Finding us: a word before the map, the ways here after it */
 .ch-find-intro {
   max-width: 40rem;
-  margin: 0 0 1.5rem;
+  margin: 2.5rem 0 0;
   font-size: 1.1875rem;
   line-height: 1.6;
   color: var(--ch-ink-2);

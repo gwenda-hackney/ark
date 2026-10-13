@@ -15,6 +15,12 @@ import {
 } from "../../lib/chart-assets";
 import ChartBell from "./ChartBell.astro";
 import { directions } from "../../data/directions";
+import {
+  flattenMenuSections,
+  getAvailableItems,
+  menuChapters,
+} from "../../data/menu";
+import { fetchMenu } from "../../lib/sanity/menu";
 import ChartMap from "./ChartMap.astro";
 import ChartNav from "./ChartNav.astro";
 import ChartTonight from "./ChartTonight.astro";
@@ -22,6 +28,33 @@ import ChartFooter from "./ChartFooter.astro";
 
 const { bookingEnabled } = await fetchSiteSettings();
 const { contactPage } = siteConfig.copy;
+
+/** A taste of each menu: the first few names from the bar and the kitchen */
+const menu = await fetchMenu();
+function firstNames(kind: "bar" | "kitchen", count = 4): string[] {
+  return flattenMenuSections(menuChapters(menu, kind))
+    .flatMap((section) => getAvailableItems(section))
+    .slice(0, count)
+    .map((item) => item.name);
+}
+const tastes = [
+  {
+    eyebrow: "At the bar",
+    title: "Cocktails, and the old favourites",
+    lead: "Our own cocktails, the classics done properly, cold beer, and a few things without the booze.",
+    href: "/bar",
+    link: "The whole bar",
+    names: firstNames("bar"),
+  },
+  {
+    eyebrow: "From the kitchen",
+    title: "Italian plates",
+    lead: "Panzerotti, timballo, boards of salumi and cheese to pick at. Food for sharing, with a drink in the other hand.",
+    href: "/kitchen",
+    link: "The whole kitchen",
+    names: firstNames("kitchen"),
+  },
+];
 ---
 
 <div class="ch-page" data-chart="closed">
@@ -83,6 +116,29 @@ const { contactPage } = siteConfig.copy;
     </section>
     <ChartTonight />
     <section class="ch-home-paths" aria-label="Play here, or stay close">
+      {
+        tastes.map((taste) => (
+          <div class="ch-home-path">
+            <span class="ch-home-path-body">
+              <span class="ch-caps">{taste.eyebrow}</span>
+              <a href={taste.href} class="ch-path-title">
+                {taste.title}
+              </a>
+              <span class="ch-home-side">
+                <span class="ch-ital">{taste.lead}</span>
+                {taste.names.length > 0 && (
+                  <span class="ch-home-menu-names">
+                    {taste.names.join(" · ")}
+                  </span>
+                )}
+                <a href={taste.href} class="ch-link-line">
+                  {taste.link} →
+                </a>
+              </span>
+            </span>
+          </div>
+        ))
+      }
       <div class="ch-home-path">
         <a
           href="/find-us"
