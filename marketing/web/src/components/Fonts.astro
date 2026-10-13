@@ -1,33 +1,18 @@
 ---
-import cormorant400 from "@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2?url";
-import cormorant400Italic from "@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2?url";
-import cormorant600 from "@fontsource/cormorant-garamond/files/cormorant-garamond-latin-600-normal.woff2?url";
-import lora400 from "@fontsource/lora/files/lora-latin-400-normal.woff2?url";
+import zilla400 from "@fontsource/zilla-slab/files/zilla-slab-latin-400-normal.woff2?url";
+import zilla500 from "@fontsource/zilla-slab/files/zilla-slab-latin-500-normal.woff2?url";
+import fredericka400 from "@fontsource/fredericka-the-great/files/fredericka-the-great-latin-400-normal.woff2?url";
 ---
 
+<link rel="preload" href={zilla400} as="font" type="font/woff2" crossorigin />
+<link rel="preload" href={zilla500} as="font" type="font/woff2" crossorigin />
 <link
   rel="preload"
-  href={cormorant400}
+  href={fredericka400}
   as="font"
   type="font/woff2"
   crossorigin
 />
-<link
-  rel="preload"
-  href={cormorant400Italic}
-  as="font"
-  type="font/woff2"
-  crossorigin
-/>
-<link
-  rel="preload"
-  href={cormorant600}
-  as="font"
-  type="font/woff2"
-  crossorigin
-/>
-<link rel="preload" href={lora400} as="font" type="font/woff2" crossorigin />
-
 <script>
   import { initFontsReady } from "../scripts/fonts-ready.js";
   initFontsReady();

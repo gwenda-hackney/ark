@@ -1,6 +1,7 @@
 import type { ImageMetadata } from "astro";
 import heroImg from "../assets/images/hero/hero.png";
 import logo from "../assets/images/logos/logo.png";
+import bottleLogo from "../assets/images/logos/bottle.png";
 
 /** Blurred full-bleed background — 1024px is plenty at typical viewports. */
 export const heroBackground = {
@@ -10,10 +11,10 @@ export const heroBackground = {
   quality: 80,
 };
 
-/** Hero logo: max rendered height is 340px (see .hero-logo). */
+/** Hero logo, the bottle over the record: max rendered height is 440px (see .hero-logo). */
 export const heroLogo = {
-  src: logo,
-  height: 340,
+  src: bottleLogo,
+  height: 440,
   format: "webp" as const,
   densities: [1, 2] as const,
 };

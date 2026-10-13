@@ -1,7 +1,6 @@
 /* Latin subset only — site is en-GB */
-@import "@fontsource/cormorant-garamond/latin-400.css";
-@import "@fontsource/cormorant-garamond/latin-500.css";
-@import "@fontsource/cormorant-garamond/latin-600.css";
-@import "@fontsource/cormorant-garamond/latin-400-italic.css";
-@import "@fontsource/lora/latin-400.css";
-@import "@fontsource/lora/latin-400-italic.css";
+@import "@fontsource/zilla-slab/latin-400.css";
+@import "@fontsource/zilla-slab/latin-500.css";
+@import "@fontsource/zilla-slab/latin-600.css";
+@import "@fontsource/zilla-slab/latin-400-italic.css";
+@import "@fontsource/fredericka-the-great/latin-400.css";

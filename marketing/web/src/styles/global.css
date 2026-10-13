@@ -2,8 +2,10 @@
 @import "./colors.css";
 
 :root {
-  --font-display: "Cormorant Garamond", Georgia, serif;
-  --font-body: "Lora", Georgia, serif;
+  /* Slab for labels, nav and small heads; the chalk face for the big ones */
+  --font-display: "Zilla Slab", Georgia, serif;
+  --font-body: "Zilla Slab", Georgia, serif;
+  --font-chalk: "Fredericka the Great", "Zilla Slab", Georgia, serif;
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   --header-height: 88px;
@@ -1514,8 +1516,8 @@ html.fonts-ready .thanks {
 }
 
 .hero-logo {
-  /* vh cap keeps the wordmark clear of the CTA on short desktop windows. */
-  height: clamp(120px, min(20vw, 34vh), 340px);
+  /* vh cap keeps the logo clear of the CTA on short desktop windows. */
+  height: clamp(220px, min(60vw, 46vh), 440px);
   width: auto;
   margin-inline: auto;
   filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
@@ -1524,7 +1526,9 @@ html.fonts-ready .thanks {
 .hero-location {
   font-family: var(--font-display);
   font-size: 1rem;
-  letter-spacing: 0.35em;
+  /* The slab is wider than the old serif: less tracking, one line */
+  letter-spacing: 0.25em;
+  white-space: nowrap;
   text-transform: uppercase;
   color: var(--color-text);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
@@ -8297,4 +8301,28 @@ html.navigation-restore #rsvp-loading {
   .site-footer-list {
     width: 100%;
   }
+}
+
+/*
+ * Big headings in the chalk face, like the board behind the bar (#240).
+ * Fredericka has one weight and wide letters: no bold, no extra tracking,
+ * no capitals.
+ */
+.section-intro h2,
+.section-header h2,
+.page-header-title,
+.credit-header h1,
+.contact-hub-header h1,
+.contact-list-header h1,
+.contact-play-title,
+.contact-section-header h2,
+.contact-success h2,
+.artist-section-header h2,
+.events-section-header h2,
+.events-empty h2,
+.menu-section-title {
+  font-family: var(--font-chalk);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: none;
 }
