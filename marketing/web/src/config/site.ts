@@ -115,7 +115,7 @@ export const siteConfig = {
   copy: {
     descriptionPromo:
       "A canalside ristobar in Hackney Wick. Craft cocktails, Italian small plates, art and vinyl.",
-    heroCta: "Come on in",
+    heroCta: "Enter our world",
     bookingCta: "Book a table",
     storyHeading: "On the canal",
     storyLead:
