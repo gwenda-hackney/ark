@@ -405,7 +405,7 @@
 }
 
 .ch-hero-logo {
-  width: min(22rem, 78vw);
+  width: min(19rem, 70vw);
   height: auto;
   margin-bottom: 0.75rem;
   filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.8));

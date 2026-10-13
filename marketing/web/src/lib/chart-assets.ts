@@ -2,10 +2,10 @@ import bottleImg from "../assets/images/logos/bottle.png";
 import tavernImg from "../assets/images/hero/tavern.webp";
 import turntableImg from "../assets/images/play/turn-table.jpg";
 
-/** The spilt bottle, large, over the hero: max rendered width is 22rem (352px). */
+/** The spilt bottle, large, over the hero: max rendered width is 19rem (304px). */
 export const chartHeroLogo = {
   src: bottleImg,
-  width: 352,
+  width: 304,
   format: "webp" as const,
   densities: [1, 2] as const,
 };
