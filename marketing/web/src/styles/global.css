@@ -1380,8 +1380,7 @@ body:has(.preview-banner) .site-header-nav {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  /* The room as it is, a little dimmed so the logo reads over it */
-  filter: brightness(0.62) saturate(1.05);
+  filter: blur(2px) brightness(0.55);
   opacity: 0;
   transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
