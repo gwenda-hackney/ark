@@ -14,22 +14,22 @@ Use these exact hex values in Canva, Figma, print, and social templates.
 
 | Name                       | Hex       | Where it appears                                     |
 | -------------------------- | --------- | ---------------------------------------------------- |
-| **Background**             | `#120e0a` | Page body, footer, hero base, browser theme color    |
-| **Background elevated**    | `#1a140f` | Base fill for story, menu tease (before glow)        |
-| **Background story**       | `#1b140f` | On-screen mathematical average (story section)       |
-| **Background story print** | `#292117` | **Flat print / Canva — use this**                    |
-| **Background card**        | `#201812` | Email signup section                                 |
-| **Text**                   | `#efe5d2` | Body copy, headings                                  |
-| **Text muted**             | `#9c8f7c` | Secondary copy, nav links                            |
-| **Gold**                   | `#d4a44c` | Accent, buttons, links, eyebrows                     |
+| **Background**             | `#0f0e0c` | Page body, footer, hero base, browser theme color    |
+| **Background elevated**    | `#161513` | Base fill for story, menu tease (before glow)        |
+| **Background story**       | `#171513` | On-screen mathematical average (story section)       |
+| **Background story print** | `#25221a` | **Flat print / Canva — use this**                    |
+| **Background card**        | `#1c1a17` | Email signup section                                 |
+| **Text**                   | `#ebe5d8` | Body copy, headings                                  |
+| **Text muted**             | `#8f8a80` | Secondary copy, nav links                            |
+| **Gold**                   | `#cfa64c` | Accent, buttons, links, eyebrows                     |
 | **Gold dark**              | `#8b6914` | Deeper gold — shadows, depth, hover states           |
 | **Error**                  | `#c97a7a` | Form validation, decline / opt-out buttons (outline) |
 
 ### Quick answers
 
-- **“What is the website background?”** → `#120e0a`
-- **“What is the charcoal section background?”** → `#292117` for print and flat fills (see below)
-- **“What is the accent gold?”** → `#d4a44c`
+- **“What is the website background?”** → `#0f0e0c`
+- **“What is the charcoal section background?”** → `#25221a` for print and flat fills (see below)
+- **“What is the accent gold?”** → `#cfa64c`
 
 ---
 
@@ -43,20 +43,20 @@ The story section on the site is **not** a flat `#141414`. It layers:
 
 ### Flat colour for print and Canva
 
-Use **`#292117`** (`bgStoryPrint`).
+Use **`#25221a`** (`bgStoryPrint`).
 
 This is a warm charcoal — slightly lighter than the raw `#141414` base — that simulates how the story section reads on screen when the gold glow and grain are visually “baked in” to a single solid. It is computed as:
 
-1. `#141414` + 6% `#d4a44c` (gold glow dispersed as a flat fill)
-2. - 2% `#efe5d2` (subtle lift so ink on paper matches on-screen brightness)
+1. `#141414` + 6% `#cfa64c` (gold glow dispersed as a flat fill)
+2. - 2% `#ebe5d8` (subtle lift so ink on paper matches on-screen brightness)
 
-Do **not** use `#141414` or `#1b140f` for print — they are too dark and too cold.
+Do **not** use `#141414` or `#171513` for print — they are too dark and too cold.
 
 | Token              | Hex           | When to use                                  |
 | ------------------ | ------------- | -------------------------------------------- |
 | `bgElevated`       | `#141414`     | Code only — base layer before glow           |
-| `bgStory`          | `#1b140f`     | On-screen mathematical average               |
-| **`bgStoryPrint`** | **`#292117`** | **Print, Canva, business cards, flat fills** |
+| `bgStory`          | `#171513`     | On-screen mathematical average               |
+| **`bgStoryPrint`** | **`#25221a`** | **Print, Canva, business cards, flat fills** |
 
 ### Image swatch (optional)
 
@@ -72,13 +72,13 @@ These are **not** general page backgrounds. They appear only in the hero decorat
 | Warm mid   | `#0f0e0c` |
 | Deep       | `#0a0908` |
 
-The hero still sits on `#120e0a` as its base fill.
+The hero still sits on `#0f0e0c` as its base fill.
 
 ---
 
 ## Brown-hue greens (material lane)
 
-Green does **not** join gold as a UI accent. The only greens in the system are **brown-hue** — olive, moss, canal mud — so desaturated they read as timber shadow before they read as green (hue ~70–95°, lightness never above `#292117`).
+Green does **not** join gold as a UI accent. The only greens in the system are **brown-hue** — olive, moss, canal mud — so desaturated they read as timber shadow before they read as green (hue ~70–95°, lightness never above `#25221a`).
 
 | Token               | Hex       | When to use                                                               |
 | ------------------- | --------- | ------------------------------------------------------------------------- |
@@ -92,7 +92,7 @@ Green does **not** join gold as a UI accent. The only greens in the system are *
 - **Material shadows** — optional fills/overlays using the tokens above.
 - **Never** — buttons, eyebrows, logos, or bright sage/emerald/mint accents.
 
-Material ladder: `#0a0908` → `#161310` → `#292117` → `#1e261c` → `#1a2218`. See [brand guidelines §3.7](../marketing/brand/brand-guidelines.md#37-green--brown-hue-materials).
+Material ladder: `#0a0908` → `#161310` → `#25221a` → `#1e261c` → `#1a2218`. See [brand guidelines §3.7](../marketing/brand/brand-guidelines.md#37-green--brown-hue-materials).
 
 ---
 
