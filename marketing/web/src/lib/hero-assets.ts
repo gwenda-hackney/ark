@@ -11,7 +11,7 @@ export const heroBackground = {
   quality: 80,
 };
 
-/** Hero logo, the bottle over the record: max rendered height is 440px (see .hero-logo). */
+/** Hero logo, the bottle melting onto the record above the name: max rendered height is 440px (see .hero-logo). */
 export const heroLogo = {
   src: bottleLogo,
   height: 440,
