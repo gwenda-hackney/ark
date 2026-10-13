@@ -4,28 +4,52 @@ import { artistRunLabel } from "../lib/artist-run.js";
 import { artistTeaser } from "../lib/artist-teaser.js";
 import { fetchFeaturedArtists } from "../lib/featured-artist.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
-import {
-  buildWhatsOnHome,
-  formatShortEventDate,
-} from "../../functions/_lib/event-series.js";
+import { formatEventSpan, getUpcomingEvents } from "../data/events";
 
 const { copy } = siteConfig;
 const featured = await fetchFeaturedArtists();
 const artist = featured.current;
 
-const catalog = await fetchWhatsOnCatalog().catch(() => ({
+const { occurrences } = await fetchWhatsOnCatalog().catch(() => ({
   series: [],
   occurrences: [],
 }));
-const { nights } = buildWhatsOnHome(catalog.occurrences, {
-  limit: 12,
-  series: catalog.series,
-});
-const nextNight = nights
-  .filter((night) => night?.title && night?.date)
-  .slice()
-  .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
-const nextWhen = nextNight ? formatShortEventDate(nextNight.date) : "";
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/**
+ * The next nights, a few more than show: the browser drops the ones that
+ * have passed since the build (trimHomeComingUp in scripts/whats-on.js).
+ */
+const comingUp = getUpcomingEvents(occurrences)
+  .filter((event) => event.title && event.date)
+  .slice(0, 8)
+  .map((event) => {
+    const [year, month, day] = event.date.split("-").map(Number);
+    return {
+      date: event.date,
+      title: event.title,
+      weekday: WEEKDAYS[new Date(year, month - 1, day).getDay()],
+      day,
+      month: MONTHS[month - 1],
+      span: formatEventSpan(event.startTime, event.endTime, event.time),
+      note: event.shortDescription || event.artist || "",
+    };
+  });
 
 const artistName = String(artist?.name || "").trim();
 const artistRun = artistRunLabel(artist?.startMonth, artist?.endMonth);
@@ -38,33 +62,52 @@ const artistBody = artistTeaser(artist?.profile, copy.whatWeDoArtistBody);
       <p class="section-eyebrow">{copy.whatWeDoEyebrow}</p>
       <h2>{copy.whatWeDoHeading}</h2>
       <p class="section-lead">{copy.whatWeDoLead}</p>
-      <p class="what-we-do-body">{copy.whatWeDoBody}</p>
     </header>
 
-    <div class="what-we-do-grid">
-      <article class="what-we-do-path reveal" data-home-next>
-        <h3>{copy.whatWeDoEventsHeading}</h3>
-        <p>{copy.whatWeDoEventsBody}</p>
-        <p class="what-we-do-next-name">{nextNight?.title || ""}</p>
-        <p class="what-we-do-next-meta">
+    <div class="home-on-grid">
+      <div class="home-on-nights reveal">
+        <ol class="home-on-list" data-coming-up>
           {
-            nextNight && nextWhen && (
-              <time datetime={nextNight.date}>{nextWhen}</time>
-            )
+            comingUp.map((night, index) => (
+              <li data-date={night.date} hidden={index >= 4}>
+                <a href="/whats-on" class="home-on-row">
+                  <span class="home-on-date">
+                    <span class="home-on-day">{night.day}</span>
+                    <span class="home-on-weekday">
+                      {night.weekday} {night.month}
+                    </span>
+                  </span>
+                  <span class="home-on-what">
+                    <span class="home-on-title">{night.title}</span>
+                    {(night.span || night.note) && (
+                      <span class="home-on-meta">
+                        {[night.span, night.note].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
+                  </span>
+                </a>
+              </li>
+            ))
           }
+        </ol>
+        <p class="home-on-empty" data-empty hidden={comingUp.length > 0}>
+          Nothing listed just now. Get on the list and we’ll tell you first.
         </p>
-        <a class="what-we-do-cta" href="/whats-on">What's on</a>
-      </article>
+        <a href="/whats-on" class="btn btn-ghost home-on-more"
+          >Everything that's on</a
+        >
+      </div>
+
       <article
-        class="what-we-do-path reveal"
+        class="what-we-do-path home-on-artist reveal"
         data-home-artist
         data-artist-fallback={copy.whatWeDoArtistBody}
       >
         <h3>{copy.whatWeDoArtistHeading}</h3>
-        <p class="what-we-do-artist-body">{artistBody}</p>
         <p class="what-we-do-next-name">{artistName}</p>
         <p class="what-we-do-next-meta">{artistRun}</p>
-        <a class="what-we-do-cta" href="/artists/current">Featured artist</a>
+        <p class="what-we-do-artist-body">{artistBody}</p>
+        <a class="what-we-do-cta" href="/artists/current">See their work</a>
       </article>
     </div>
   </div>

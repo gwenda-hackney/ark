@@ -1,0 +1,70 @@
+---
+/**
+ * Home's food and drink (#240): a line on the bar and the kitchen, and the
+ * first few names from each menu. A side with no names yet keeps its line.
+ */
+import { siteConfig } from "../config/site";
+import {
+  flattenMenuSections,
+  getAvailableItems,
+  menuChapters,
+} from "../data/menu";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const menu = await fetchMenu().catch(() => ({ sections: [] }));
+
+function firstNames(kind: "bar" | "kitchen", count = 5): string[] {
+  return flattenMenuSections(menuChapters(menu, kind))
+    .flatMap((section) => getAvailableItems(section))
+    .slice(0, count)
+    .map((item) => item.name);
+}
+
+const sides = [
+  {
+    eyebrow: "At the bar",
+    title: "Cocktails and the old favourites",
+    lead: "Our own cocktails, the classics done properly, cold beer, and a few things without the booze.",
+    names: firstNames("bar"),
+  },
+  {
+    eyebrow: "From the kitchen",
+    title: "Italian plates",
+    lead: "Panzerotti, timballo, boards of salumi and cheese to pick at. Food for sharing, with a drink in the other hand.",
+    names: firstNames("kitchen"),
+  },
+];
+---
+
+<section class="home-serve section" id="menu">
+  <div class="container">
+    <header class="section-intro reveal">
+      <p class="section-eyebrow">Food and drink</p>
+      <h2>{siteConfig.copy.menuTeaseHeading}</h2>
+      <p class="section-lead">{siteConfig.copy.menuTeaseLead}</p>
+    </header>
+
+    <div class="home-serve-grid">
+      {
+        sides.map((side) => (
+          <article class="home-serve-side reveal">
+            <p class="home-serve-eyebrow">{side.eyebrow}</p>
+            <h3>{side.title}</h3>
+            <p class="home-serve-lead">{side.lead}</p>
+            {side.names.length > 0 && (
+              <ul class="home-serve-names">
+                {side.names.map((name) => (
+                  <li>{name}</li>
+                ))}
+              </ul>
+            )}
+          </article>
+        ))
+      }
+    </div>
+
+    <footer class="home-serve-footer reveal">
+      <a href="/menu" class="btn btn-ghost">See the menu</a>
+    </footer>
+  </div>
+</section>

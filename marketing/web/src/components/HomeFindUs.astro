@@ -1,0 +1,46 @@
+---
+/**
+ * Home's way here (#240): the address, the walk from the station, and the
+ * towpath, from the same directions as the Chart's Finding us.
+ */
+import { siteConfig } from "../config/site";
+import { directions } from "../data/directions";
+
+const { location } = siteConfig;
+---
+
+<section class="home-find section" id="find-us">
+  <div class="container">
+    <header class="section-intro reveal">
+      <p class="section-eyebrow">Getting here</p>
+      <h2>Five minutes from the station</h2>
+      <p class="section-lead">{directions.intro}</p>
+    </header>
+
+    <div class="home-find-grid">
+      <article class="home-find-way reveal">
+        <h3>{directions.fromStation.heading}</h3>
+        <ol class="home-find-steps">
+          {directions.fromStation.steps.map((step) => <li>{step}</li>)}
+        </ol>
+        <p class="home-find-note">{directions.fromStation.note}</p>
+      </article>
+
+      <article class="home-find-way reveal">
+        <h3>{directions.fromTowpath.heading}</h3>
+        <p>{directions.fromTowpath.text}</p>
+        <address class="home-find-address">
+          {location.streetAddress}<br />
+          {location.addressLocality}
+          {location.postalCode}
+        </address>
+        <a
+          href={location.mapsUrl}
+          class="btn btn-ghost"
+          target="_blank"
+          rel="noopener noreferrer">Open in Maps</a
+        >
+      </article>
+    </div>
+  </div>
+</section>

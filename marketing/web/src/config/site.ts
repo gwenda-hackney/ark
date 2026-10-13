@@ -171,7 +171,7 @@ export const siteConfig = {
     menuTeaseHeading: "What we serve",
     menuTeaseLead:
       "Cocktails made in the house, and Italian plates for sharing.",
-    whatWeDoEyebrow: "The room",
+    whatWeDoEyebrow: "Coming up",
     whatWeDoHeading: "What's on",
     whatWeDoLead:
       "Something on most nights: DJs, bands, the odd party, and local artists on the wall.",

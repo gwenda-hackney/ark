@@ -162,20 +162,54 @@ export function applyHomeArtist(path, artist) {
   }
 }
 
+/**
+ * Home's coming-up list is built with a few nights more than it shows.
+ * In the browser, nights before today drop off and the next `show` stay,
+ * so the page is right between rebuilds. Rows carry `data-date` (YYYY-MM-DD).
+ * With none left, the list's `data-empty` sibling shows instead.
+ */
+export function trimHomeComingUp(list, now = new Date(), show = 4) {
+  if (!(list instanceof HTMLElement)) return;
+  const today = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  let shown = 0;
+  for (const row of list.querySelectorAll("[data-date]")) {
+    const keep = String(row.getAttribute("data-date")) >= today && shown < show;
+    if (keep) shown += 1;
+    row.hidden = !keep;
+  }
+  list.hidden = shown === 0;
+  const empty = list.parentElement?.querySelector("[data-empty]");
+  if (empty instanceof HTMLElement) empty.hidden = shown > 0;
+}
+
+export function initHomeComingUp() {
+  trimHomeComingUp(document.querySelector("[data-coming-up]"));
+}
+
 /** @type {AbortController | null} */
 let homeNextAbort = null;
 
 export function initHomeNext() {
   const path = document.querySelector("[data-home-next]");
-  if (!(path instanceof HTMLElement)) return;
+  const artistPath = document.querySelector("[data-home-artist]");
+  if (!(path instanceof HTMLElement) && !(artistPath instanceof HTMLElement)) {
+    return;
+  }
   if (!readsLiveDiary(pageSiteEnv())) return;
 
   homeNextAbort?.abort();
   homeNextAbort = new AbortController();
   const { signal } = homeNextAbort;
 
-  const artistPath = document.querySelector("[data-home-artist]");
+  if (path instanceof HTMLElement) fetchHomeNext(path, signal);
+  if (artistPath instanceof HTMLElement) fetchHomeArtist(artistPath, signal);
+}
 
+function fetchHomeNext(path, signal) {
   void fetch("/api/whats-on?limit=24", {
     credentials: "same-origin",
     cache: "no-store",
@@ -192,8 +226,9 @@ export function initHomeNext() {
     .catch((error) => {
       if (signal.aborted || error?.name === "AbortError") return;
     });
+}
 
-  if (!(artistPath instanceof HTMLElement)) return;
+function fetchHomeArtist(artistPath, signal) {
   void fetch("/api/featured-artist", {
     credentials: "same-origin",
     cache: "no-store",

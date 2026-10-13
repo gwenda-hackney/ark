@@ -3,6 +3,7 @@
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
+  trimHomeComingUp,
   applyHomeArtist,
   applyHomeNext,
   earliestDiaryNight,
@@ -352,5 +353,47 @@ describe("home next night", () => {
     expect(document.querySelector(".what-we-do-artist-body")?.textContent).toBe(
       "Paints the canal.",
     );
+  });
+});
+
+describe("trimHomeComingUp", () => {
+  const html = (dates) => `
+    <div>
+      <ol data-coming-up>
+        ${dates.map((date) => `<li data-date="${date}">${date}</li>`).join("")}
+      </ol>
+      <p data-empty hidden>Nothing listed</p>
+    </div>`;
+  const visible = () =>
+    [...document.querySelectorAll("[data-date]")]
+      .filter((row) => !row.hidden)
+      .map((row) => row.getAttribute("data-date"));
+  const now = new Date(2026, 9, 14, 20, 0);
+
+  it("drops nights before today and keeps the next four", () => {
+    document.body.innerHTML = html([
+      "2026-10-12",
+      "2026-10-14",
+      "2026-10-15",
+      "2026-10-16",
+      "2026-10-18",
+      "2026-10-20",
+    ]);
+    trimHomeComingUp(document.querySelector("[data-coming-up]"), now);
+    expect(visible()).toEqual([
+      "2026-10-14",
+      "2026-10-15",
+      "2026-10-16",
+      "2026-10-18",
+    ]);
+    expect(document.querySelector("[data-empty]").hidden).toBe(true);
+  });
+
+  it("shows the empty line once every night has passed", () => {
+    document.body.innerHTML = html(["2026-10-01", "2026-10-13"]);
+    trimHomeComingUp(document.querySelector("[data-coming-up]"), now);
+    expect(visible()).toEqual([]);
+    expect(document.querySelector("[data-coming-up]").hidden).toBe(true);
+    expect(document.querySelector("[data-empty]").hidden).toBe(false);
   });
 });

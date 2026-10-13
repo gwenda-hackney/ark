@@ -77,12 +77,18 @@ describe("homeAnchorItems", () => {
       homeAnchorItems({ showMenu: true, showTeam: true }).map(
         (item) => item.href,
       ),
-    ).toEqual(["#story", "#menu", "#what-we-do", "#list"]);
+    ).toEqual(["#what-we-do", "#menu", "#find-us", "#story", "#list"]);
     expect(
       homeAnchorItems({ showMenu: true, showTeam: true }).map(
         (item) => item.label,
       ),
-    ).toEqual(["On the canal", "Menu", "What's on", "Get on the list"]);
+    ).toEqual([
+      "What's on",
+      "Menu",
+      "Find us",
+      "On the canal",
+      "Get on the list",
+    ]);
     expect(homeAnchorItems({ showTeam: true }).at(-1)).toMatchObject({
       href: "#list",
       cta: true,
@@ -94,7 +100,7 @@ describe("homeAnchorItems", () => {
       homeAnchorItems({ showTeam: true, showGallery: true }).map(
         (item) => item.href,
       ),
-    ).toEqual(["#story", "#what-we-do", "#glimpse", "#list"]);
+    ).toEqual(["#what-we-do", "#find-us", "#story", "#glimpse", "#list"]);
     expect(
       homeAnchorItems({ showTeam: true }).some((item) => item.href === "#team"),
     ).toBe(false);

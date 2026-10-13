@@ -1,4 +1,9 @@
-import type { Menu, MenuItem, MenuSection } from "../types/menu";
+import type { Menu, MenuItem, MenuKind, MenuSection } from "../types/menu";
+
+/** The chapters of one menu: the bar or the kitchen (#240). */
+export function menuChapters(menu: Menu, kind: MenuKind): MenuSection[] {
+  return menu.sections.filter((section) => (section.kind ?? "bar") === kind);
+}
 
 export function flattenMenuSections(sections: MenuSection[]): MenuSection[] {
   return sections.flatMap((section) => [

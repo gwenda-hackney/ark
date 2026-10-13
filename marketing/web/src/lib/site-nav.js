@@ -65,9 +65,10 @@ export function homeAnchorItems({
   signupLabel = "Get on the list",
 } = {}) {
   return [
-    { href: "#story", label: "On the canal" },
-    ...(showMenu ? [{ href: "#menu", label: "Menu" }] : []),
     { href: "#what-we-do", label: "What's on" },
+    ...(showMenu ? [{ href: "#menu", label: "Menu" }] : []),
+    { href: "#find-us", label: "Find us" },
+    { href: "#story", label: "On the canal" },
     ...(showGallery ? [{ href: "#glimpse", label: "Photos" }] : []),
     { href: "#list", label: signupLabel, cta: true },
   ];
