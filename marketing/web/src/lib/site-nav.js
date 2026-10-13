@@ -62,13 +62,13 @@ export function isCurrentNavPage(href, pathname) {
 export function homeAnchorItems({
   showMenu = false,
   showGallery = false,
-  signupLabel = "Join the experience",
+  signupLabel = "Get on the list",
 } = {}) {
   return [
-    { href: "#story", label: "Behind the doors" },
+    { href: "#story", label: "On the canal" },
     ...(showMenu ? [{ href: "#menu", label: "Menu" }] : []),
     { href: "#what-we-do", label: "What's on" },
-    ...(showGallery ? [{ href: "#glimpse", label: "Glimpse" }] : []),
+    ...(showGallery ? [{ href: "#glimpse", label: "Photos" }] : []),
     { href: "#list", label: signupLabel, cta: true },
   ];
 }

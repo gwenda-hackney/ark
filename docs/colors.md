@@ -12,24 +12,24 @@ The palette is **monochromatic black, brown, and gold** — drawn from the ship'
 
 Use these exact hex values in Canva, Figma, print, and social templates.
 
-| Name                       | Hex       | Where it appears                                  |
-| -------------------------- | --------- | ------------------------------------------------- |
-| **Background**             | `#0d0d0d` | Page body, footer, hero base, browser theme color |
-| **Background elevated**    | `#141414` | Base fill for story, menu tease (before glow)     |
-| **Background story**       | `#151414` | On-screen mathematical average (story section)    |
-| **Background story print** | `#23211b` | **Flat print / Canva — use this**                 |
-| **Background card**        | `#1a1a1a` | Email signup section                              |
-| **Text**                   | `#e8e4dc` | Body copy, headings                               |
-| **Text muted**             | `#8a8680` | Secondary copy, nav links                         |
-| **Gold**                   | `#c9a84c` | Accent, buttons, links, eyebrows                  |
-| **Gold dark**              | `#8b6914` | Deeper gold — shadows, depth, hover states      |
+| Name                       | Hex       | Where it appears                                     |
+| -------------------------- | --------- | ---------------------------------------------------- |
+| **Background**             | `#120e0a` | Page body, footer, hero base, browser theme color    |
+| **Background elevated**    | `#1a140f` | Base fill for story, menu tease (before glow)        |
+| **Background story**       | `#1b140f` | On-screen mathematical average (story section)       |
+| **Background story print** | `#292117` | **Flat print / Canva — use this**                    |
+| **Background card**        | `#201812` | Email signup section                                 |
+| **Text**                   | `#efe5d2` | Body copy, headings                                  |
+| **Text muted**             | `#9c8f7c` | Secondary copy, nav links                            |
+| **Gold**                   | `#d4a44c` | Accent, buttons, links, eyebrows                     |
+| **Gold dark**              | `#8b6914` | Deeper gold — shadows, depth, hover states           |
 | **Error**                  | `#c97a7a` | Form validation, decline / opt-out buttons (outline) |
 
 ### Quick answers
 
-- **“What is the website background?”** → `#0d0d0d`
-- **“What is the charcoal section background?”** → `#23211b` for print and flat fills (see below)
-- **“What is the accent gold?”** → `#c9a84c`
+- **“What is the website background?”** → `#120e0a`
+- **“What is the charcoal section background?”** → `#292117` for print and flat fills (see below)
+- **“What is the accent gold?”** → `#d4a44c`
 
 ---
 
@@ -43,20 +43,20 @@ The story section on the site is **not** a flat `#141414`. It layers:
 
 ### Flat colour for print and Canva
 
-Use **`#23211b`** (`bgStoryPrint`).
+Use **`#292117`** (`bgStoryPrint`).
 
 This is a warm charcoal — slightly lighter than the raw `#141414` base — that simulates how the story section reads on screen when the gold glow and grain are visually “baked in” to a single solid. It is computed as:
 
-1. `#141414` + 6% `#c9a84c` (gold glow dispersed as a flat fill)
-2. - 2% `#e8e4dc` (subtle lift so ink on paper matches on-screen brightness)
+1. `#141414` + 6% `#d4a44c` (gold glow dispersed as a flat fill)
+2. - 2% `#efe5d2` (subtle lift so ink on paper matches on-screen brightness)
 
-Do **not** use `#141414` or `#151414` for print — they are too dark and too cold.
+Do **not** use `#141414` or `#1b140f` for print — they are too dark and too cold.
 
 | Token              | Hex           | When to use                                  |
 | ------------------ | ------------- | -------------------------------------------- |
 | `bgElevated`       | `#141414`     | Code only — base layer before glow           |
-| `bgStory`          | `#151414`     | On-screen mathematical average               |
-| **`bgStoryPrint`** | **`#23211b`** | **Print, Canva, business cards, flat fills** |
+| `bgStory`          | `#1b140f`     | On-screen mathematical average               |
+| **`bgStoryPrint`** | **`#292117`** | **Print, Canva, business cards, flat fills** |
 
 ### Image swatch (optional)
 
@@ -72,19 +72,19 @@ These are **not** general page backgrounds. They appear only in the hero decorat
 | Warm mid   | `#0f0e0c` |
 | Deep       | `#0a0908` |
 
-The hero still sits on `#0d0d0d` as its base fill.
+The hero still sits on `#120e0a` as its base fill.
 
 ---
 
 ## Brown-hue greens (material lane)
 
-Green does **not** join gold as a UI accent. The only greens in the system are **brown-hue** — olive, moss, canal mud — so desaturated they read as timber shadow before they read as green (hue ~70–95°, lightness never above `#23211b`).
+Green does **not** join gold as a UI accent. The only greens in the system are **brown-hue** — olive, moss, canal mud — so desaturated they read as timber shadow before they read as green (hue ~70–95°, lightness never above `#292117`).
 
-| Token | Hex | When to use |
-| ----- | --- | ----------- |
+| Token               | Hex       | When to use                                                               |
+| ------------------- | --------- | ------------------------------------------------------------------------- |
 | **`bgCanalShadow`** | `#1a2218` | Murky canal water at dusk, moss in deep shadow — photography grade target |
-| **`bgDampTimber`** | `#1e261c` | Wet deck wood, herb tones in shadow — brown extension of timber |
-| **`bgVerdigris`** | `#2a3530` | Oxidized brass patina — overlay on gold only (6–12%), cool limit |
+| **`bgDampTimber`**  | `#1e261c` | Wet deck wood, herb tones in shadow — brown extension of timber           |
+| **`bgVerdigris`**   | `#2a3530` | Oxidized brass patina — overlay on gold only (6–12%), cool limit          |
 
 **Where green appears:**
 
@@ -92,7 +92,7 @@ Green does **not** join gold as a UI accent. The only greens in the system are *
 - **Material shadows** — optional fills/overlays using the tokens above.
 - **Never** — buttons, eyebrows, logos, or bright sage/emerald/mint accents.
 
-Material ladder: `#0a0908` → `#161310` → `#23211b` → `#1e261c` → `#1a2218`. See [brand guidelines §3.7](../marketing/brand/brand-guidelines.md#37-green--brown-hue-materials).
+Material ladder: `#0a0908` → `#161310` → `#292117` → `#1e261c` → `#1a2218`. See [brand guidelines §3.7](../marketing/brand/brand-guidelines.md#37-green--brown-hue-materials).
 
 ---
 

@@ -2,21 +2,21 @@
 
 :root {
   /* Solid palette */
-  --color-bg: #0d0d0d;
-  --color-bg-elevated: #141414;
-  --color-bg-story: #151414;
-  --color-bg-story-print: #23211b;
-  --color-bg-card: #1a1a1a;
-  --color-bg-scrim: rgba(8, 8, 8, 0.94);
+  --color-bg: #120e0a;
+  --color-bg-elevated: #1a140f;
+  --color-bg-story: #1b140f;
+  --color-bg-story-print: #292117;
+  --color-bg-card: #201812;
+  --color-bg-scrim: rgba(14, 10, 7, 0.94);
   --color-bg-warm-light: #161310;
   --color-bg-warm-mid: #0f0e0c;
   --color-bg-deep: #0a0908;
   --color-bg-canal-shadow: #1a2218;
   --color-bg-damp-timber: #1e261c;
   --color-bg-verdigris: #2a3530;
-  --color-text: #e8e4dc;
-  --color-text-muted: #8a8680;
-  --color-gold: #c9a84c;
+  --color-text: #efe5d2;
+  --color-text-muted: #9c8f7c;
+  --color-gold: #d4a44c;
   --color-gold-dark: #8b6914;
   --color-error: #c97a7a;
 

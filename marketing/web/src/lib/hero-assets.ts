@@ -1,14 +1,14 @@
 import type { ImageMetadata } from "astro";
-import heroImg from "../assets/images/hero/hero.png";
+import heroImg from "../assets/images/hero/tavern.webp";
 import logo from "../assets/images/logos/logo.png";
 import bottleLogo from "../assets/images/logos/bottle.png";
 
-/** Blurred full-bleed background — 1024px is plenty at typical viewports. */
+/** The tavern, lantern-lit, full bleed and sharp: 1600px wide. */
 export const heroBackground = {
   src: heroImg,
-  width: 1024,
+  width: 1600,
   format: "webp" as const,
-  quality: 80,
+  quality: 72,
 };
 
 /** Hero logo, the bottle over the record: max rendered height is 440px (see .hero-logo). */

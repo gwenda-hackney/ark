@@ -82,7 +82,7 @@ describe("homeAnchorItems", () => {
       homeAnchorItems({ showMenu: true, showTeam: true }).map(
         (item) => item.label,
       ),
-    ).toEqual(["Behind the doors", "Menu", "What's on", "Join the experience"]);
+    ).toEqual(["On the canal", "Menu", "What's on", "Get on the list"]);
     expect(homeAnchorItems({ showTeam: true }).at(-1)).toMatchObject({
       href: "#list",
       cta: true,

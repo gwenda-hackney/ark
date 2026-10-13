@@ -3,7 +3,7 @@ export const siteConfig = {
   tagline: "Hackney Wick",
   domain: "https://gwenda.co.uk",
   openingRoman: "MMXXVI",
-  menuAntiquated: "Tabula",
+  menuAntiquated: "Food and drink",
   /** Public venue type — titles, SEO, listings. See docs/brand-brief.md § Public naming */
   publicLabel: "Ristobar",
   description:

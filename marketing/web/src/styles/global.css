@@ -948,13 +948,15 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   transition: none;
 }
 
+/* Plain words, as you'd say them: sentence case, no tracking */
 .site-header-nav a {
   display: block;
-  padding: 0.85rem 0;
+  padding: 0.6rem 0;
   font-family: var(--font-display);
-  font-size: 0.95rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: center;
   color: var(--color-text-muted);
   border: none;
@@ -989,16 +991,16 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   margin: 0 0 0.35rem;
   padding: 0 0 0.45rem;
   font-family: var(--font-display);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--color-gold);
+  font-size: 0.95rem;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--color-text-muted);
   opacity: 0;
   transition: opacity 0.35s var(--ease-out);
 }
 
 .site-nav-label.is-current::after {
+  display: none;
   content: "";
   position: absolute;
   left: 0;
@@ -1076,8 +1078,8 @@ body:has(.booking-float:not([hidden])) .scroll-top-hint {
   margin-top: 1.25rem;
   padding: 0.55rem 1.25rem;
   border: 1px solid var(--color-gold-dim);
-  font-size: 0.85rem;
-  letter-spacing: 0.12em;
+  font-size: 1.15rem;
+  letter-spacing: 0;
   color: var(--color-gold) !important;
   transition:
     border-color 0.3s var(--ease-smooth),
@@ -1247,9 +1249,10 @@ body:has(.preview-banner) .site-header-nav {
     display: inline;
     padding: 0;
     font-family: var(--font-display);
-    font-size: 0.85rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: 1.05rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
     text-align: left;
     color: var(--color-text-muted);
     opacity: 1;
@@ -1377,7 +1380,8 @@ body:has(.preview-banner) .site-header-nav {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  filter: blur(2px) brightness(0.55);
+  /* The room as it is, a little dimmed so the logo reads over it */
+  filter: brightness(0.62) saturate(1.05);
   opacity: 0;
   transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -6520,7 +6524,7 @@ a.event-card:focus-visible .event-title,
   width: 100%;
   max-width: none;
   aspect-ratio: 16 / 10;
-  background: #0d0d0d;
+  background: var(--color-bg);
 }
 
 .whats-on-page .event-card--series .event-hero {
