@@ -1,5 +1,6 @@
 import { frozenFeatures } from "../../../shared/write-freeze.js";
-import { subscriberRepository } from "../../../shared/guests/subscriber-repository.js";
+import { d1SubscriberRepository } from "../../../shared/guests/adapters/d1-subscribers.js";
+import type { SubscriberRepository } from "../../../shared/guests/subscriber-repository.js";
 import {
   normalizeEmail,
   subscribe as subscribeGuest,
@@ -10,12 +11,13 @@ import type { Env } from "./types.js";
 import { resolveRedirectUrl, resolveSubscribeTag } from "./types.js";
 import { authorizeGuest } from "./unifi.js";
 
-/** The guests sign-up (the website's too), wherever subscribers live now. */
+/** The guests sign-up (the website's too), on D1; Baserow is retired (#234). Tests hand in a repository. */
 export function subscribeEmail(
-  env: Env,
+  env: Env & { subscriberRepository?: SubscriberRepository },
   input: { email: string; tag: string },
 ): Promise<SubscribeResult> {
-  return subscribeGuest(subscriberRepository(env), input);
+  const repo = env.subscriberRepository ?? d1SubscriberRepository(env.WEBSITE_DB);
+  return subscribeGuest(repo, input);
 }
 
 export type HandlerDeps = {

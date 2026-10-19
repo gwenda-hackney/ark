@@ -25,14 +25,19 @@ No LAN host required while the console is online at [unifi.ui.com](https://unifi
 
    `https://unifi.ui.com/consoles/{UNIFI_CONSOLE_ID}/network/…`
 
-4. Deploy:
+4. Deploy: merging to `release` runs the **Workers** workflow, which tests,
+   uploads source maps to Sentry (`wifi-portal` project), deploys and syncs
+   `UNIFI_SITE_MANAGER_API_KEY`. Run it by hand from Actions (worker:
+   `wifi-captive-portal`) to redeploy without a change. When CI can't run:
 
 ```bash
-# needs bw-unlock: CLOUDFLARE_API_TOKEN, BASEROW_API_KEY, UNIFI_SITE_MANAGER_API_KEY come from Secrets Manager
+# needs bw-unlock: CLOUDFLARE_API_TOKEN and UNIFI_SITE_MANAGER_API_KEY come from Secrets Manager
 npm run setup:wifi-portal
 ```
 
-That deploys `gwenda-wifi-captive-portal` and sets its Worker secrets.
+Sign-ups are saved to D1 (`WEBSITE_DB`, the `subscribers` table); Baserow is retired.
+Errors, including every failed UniFi authorise or sign-up save, go to Sentry, and
+the Worker's logs are kept in the Cloudflare dashboard (Workers → Logs).
 
 Local preview:
 
@@ -40,8 +45,9 @@ Local preview:
 npm run wifi-portal
 ```
 
-Loads `BASEROW_API_KEY` and `UNIFI_SITE_MANAGER_API_KEY` from Secrets Manager (after `bw-unlock`)
-and starts Wrangler locally with them in a per-run env file in RAM (no `.dev.vars`).
+Loads `UNIFI_SITE_MANAGER_API_KEY` from Secrets Manager (after `bw-unlock`)
+and starts Wrangler locally with it in a per-run env file in RAM (no `.dev.vars`).
+Sign-ups go to the local D1.
 Open the URL Wrangler prints (usually `http://127.0.0.1:8787/guest/s/default/?id=aa:bb:cc:dd:ee:ff`).
 
 ## Configure UniFi (UDR7)
@@ -56,7 +62,7 @@ Use the Hotspot UI you already have open, e.g.
    (or `wifi.gwenda.co.uk` once you attach a custom route)
 4. **Pre-authorization allowances** (walled garden): add that same hostname so
    guests can load the splash page before they are authorized  
-   (Baserow / Mailchimp stay server-side; no need to allowlist them for guests)
+   (D1 / Mailchimp stay server-side; no need to allowlist them for guests)
 5. Keep the UDR online to UI.com; authorize calls go through Site Manager
 
 ### Test
@@ -71,9 +77,9 @@ Use the Hotspot UI you already have open, e.g.
 
 | Name | Where | Notes |
 |---|---|---|
-| `BASEROW_API_KEY` | Worker secret | Same as site subscribe; only while subscribers are on Baserow |
 | `UNIFI_SITE_MANAGER_API_KEY` | Worker secret | From unifi.ui.com API Keys |
 | `UNIFI_CONSOLE_ID` | `wrangler.toml` `[vars]` | From the Site Manager URL |
+| `WEBSITE_DB` | `wrangler.toml` D1 binding | Production `gwenda-website`: subscribers |
 | `WIFI_SUBSCRIBE_TAG` | vars | Default `wifi` |
 | `UNIFI_GUEST_MINUTES` | vars | Default `1440` |
 | `REDIRECT_URL` | vars | Default `https://gwenda.co.uk` |
@@ -95,5 +101,4 @@ After deploy, UniFi should use:
 ```bash
 npm test -w @gwenda/wifi-captive-portal
 npm run typecheck -w @gwenda/wifi-captive-portal
-npm run deploy -w @gwenda/wifi-captive-portal
 ```

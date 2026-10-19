@@ -5,7 +5,7 @@ import type { Env } from "../src/types.js";
 import { authorizeGuest } from "../src/unifi.js";
 
 const env: Env = {
-  BASEROW_API_KEY: "baserow-key",
+  WEBSITE_DB: {},
   UNIFI_SITE_MANAGER_API_KEY: "sm-key",
   UNIFI_CONSOLE_ID:
     "A89C6C0EB1810000000009A42CB9000000000A2C1924000000006920A430:1883747293",
