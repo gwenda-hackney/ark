@@ -179,6 +179,34 @@ describe("handler", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    ["can't save it", async () => ({ ok: false as const, status: 502, error: "Saving failed." })],
+    ["throws", async () => { throw new Error("D1_ERROR: no such table"); }],
+  ])("lets the guest on when the sign-up %s, and logs it", async (_, failing) => {
+    const subscribe = vi.fn(failing);
+    const authorize = vi.fn(async () => ({ ok: true as const }));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const post = await handlePortalRequest(
+      new Request("https://wifi.example/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ email: "guest@example.com", id: "aa:bb:cc:dd:ee:ff" }),
+      }),
+      env,
+      { subscribe: subscribe as never, authorize },
+    );
+
+    expect(post.status).toBe(200);
+    expect(await post.text()).toContain("Connected");
+    expect(authorize).toHaveBeenCalled();
+    expect(logged).toHaveBeenCalledWith(
+      "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
+      ...(_ === "throws" ? [expect.stringContaining("no such table")] : [502, "Saving failed."]),
+    );
+    logged.mockRestore();
+  });
+
   it("exposes health", async () => {
     const res = await handlePortalRequest(
       new Request("https://wifi.example/health"),

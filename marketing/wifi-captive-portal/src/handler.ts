@@ -60,6 +60,38 @@ async function parseForm(request: Request): Promise<Record<string, string>> {
   return out;
 }
 
+/**
+ * Keep the guest's email. Getting online never waits on it: a sign-up that
+ * can't be saved is logged (so it reaches Sentry) and the guest goes on.
+ * While subscribers are frozen for a data move (#191) it isn't kept, or it
+ * would be lost between the copy and the switch.
+ */
+async function saveSignUp(
+  env: Env,
+  subscribe: typeof subscribeEmail,
+  email: string,
+): Promise<void> {
+  try {
+    if ((await frozenFeatures(env, ["guests"])).length > 0) {
+      console.log("wifi portal: guests frozen, sign-up not saved");
+      return;
+    }
+    const saved = await subscribe(env, { email, tag: resolveSubscribeTag(env) });
+    if (!saved.ok) {
+      console.error(
+        "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
+        saved.status,
+        saved.error,
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[wifi-captive-portal] Sign-up not saved; guest let on anyway",
+      err instanceof Error ? err.stack || err.message : err,
+    );
+  }
+}
+
 export async function handlePortalRequest(
   request: Request,
   env: Env,
@@ -127,23 +159,7 @@ export async function handlePortalRequest(
       );
     }
 
-    // While subscribers move to D1 (#191), guests still get online; only the
-    // sign-up isn't kept, or it would be lost between the copy and the switch.
-    const frozen = (await frozenFeatures(env, ["guests"])).length > 0;
-    if (frozen) console.log("wifi portal: guests frozen, sign-up not saved");
-    const saved = frozen
-      ? { ok: true as const }
-      : await subscribe(env, { email, tag: resolveSubscribeTag(env) });
-
-    if (!saved.ok) {
-      return html(
-        renderPortalPage({
-          ...pageFields,
-          error: saved.error,
-        }),
-        saved.status,
-      );
-    }
+    await saveSignUp(env, subscribe, email);
 
     const auth = await authorize(env, {
       mac,
