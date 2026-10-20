@@ -9,18 +9,19 @@ import { formatClock, formatDate, WEEKDAY_LABELS } from "./event-labels";
 import { WEEKDAYS } from "./event-recurrence.js";
 import type { NewEventKind } from "./event-editor.svelte";
 
-export type WizardStep = "kind" | "name" | "when" | "guest" | "about" | "picture" | "notes" | "check";
+export type WizardStep = "kind" | "name" | "when" | "running" | "guest" | "about" | "picture" | "notes" | "check";
 
 /** The questions for each kind, in order. A night takes the rest from its series. */
 export function wizardSteps(kind: NewEventKind): WizardStep[] {
-	if (kind === "night") return ["kind", "when", "guest", "picture", "notes", "check"];
-	return ["kind", "name", "when", "about", "picture", "notes", "check"];
+	if (kind === "night") return ["kind", "when", "running", "guest", "picture", "notes", "check"];
+	return ["kind", "name", "when", "running", "about", "picture", "notes", "check"];
 }
 
 export const STEP_TITLES: Record<WizardStep, string> = {
 	kind: "What are you adding?",
 	name: "What's it called?",
 	when: "When is it?",
+	running: "How does the night run?",
 	guest: "Anyone special?",
 	about: "Tell people about it",
 	picture: "Add a picture",
@@ -41,6 +42,7 @@ const STEP_FIELDS: Record<WizardStep, string[]> = {
 		"event-weekdays",
 		"event-start-time",
 	],
+	running: [],
 	guest: [],
 	about: ["event-description"],
 	picture: [],

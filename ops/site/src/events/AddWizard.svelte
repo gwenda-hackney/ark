@@ -7,9 +7,10 @@
 	 */
 	import { tick } from "svelte";
 	import { Icon } from "../app/shell";
-	import { Button, ComboBox, DateField, Field, NativeSelect, TextArea, TextField, TimeField } from "../ui";
+	import { Button, ComboBox, DateField, Dialog, Field, NativeSelect, TextArea, TextField, TimeField } from "../ui";
 	import MethodEditor from "../menu/MethodEditor.svelte";
 	import HeroImagePanel from "./HeroImagePanel.svelte";
+	import NightScheduleFields from "./tabs/NightScheduleFields.svelte";
 	import type { EventEditor, NewEventKind } from "./event-editor.svelte";
 	import { formatClock, formatDate, WEEKDAY_LABELS } from "./event-labels";
 	import { WEEKDAYS } from "./event-recurrence.js";
@@ -26,7 +27,7 @@
 		type WizardStep,
 	} from "./add-wizard";
 
-	let { editor }: { editor: EventEditor } = $props();
+	let { editor, onclose }: { editor: EventEditor; onclose: () => void } = $props();
 
 	const form = $derived(editor.form);
 	const kind = $derived(editor.newKind);
@@ -58,7 +59,7 @@
 
 	async function focusFirst() {
 		await tick();
-		const el = document.querySelector<HTMLElement>(".wizard-body input, .wizard-body textarea, .wizard-body [contenteditable='true']");
+		const el = document.querySelector<HTMLElement>(".wizard-body input:not(.sr-only), .wizard-body textarea, .wizard-body [contenteditable='true']");
 		el?.focus({ preventScroll: true });
 	}
 
@@ -136,13 +137,22 @@
 			: "",
 	);
 	const nextNights = $derived(kind === "series" ? editor.previewDates.slice(0, 4) : []);
+	const slotsText = $derived(
+		form.nightSchedule
+			.filter((slot) => slot.label.trim())
+			.map((slot) => [slot.label.trim(), [formatClock(slot.startTime), formatClock(slot.endTime)].filter(Boolean).join("–")].filter(Boolean).join(" "))
+			.join(", "),
+	);
 	const kindTitle = $derived(KINDS.find((row) => row.id === kind)?.title || "");
 	const checkRows = $derived(
 		[
 			{ label: "What", value: kind === "night" ? `${kindTitle}: ${editor.parentSeriesName}` : kindTitle, at: "kind" as WizardStep },
 			{ label: "Name", value: form.name.trim(), at: "name" as WizardStep },
 			{ label: "When", value: whenSentence(form, kind), at: "when" as WizardStep },
+			{ label: "Running order", value: slotsText, at: "running" as WizardStep },
 			{ label: "Guest", value: form.artist.trim(), at: (kind === "night" ? "guest" : "name") as WizardStep },
+			{ label: "Guest link", value: form.pageUrl.trim(), at: (kind === "night" ? "guest" : "name") as WizardStep },
+			{ label: "Offer", value: form.offer.trim(), at: (kind === "night" ? "guest" : "name") as WizardStep },
 			{ label: "Card line", value: form.shortDescription.trim(), at: "about" as WizardStep },
 			{ label: "Description", value: descriptionReadout(form.description).slice(0, 220), at: "about" as WizardStep },
 			{ label: "Picture", value: editor.framingUrl ? "Added" : "None yet", at: "picture" as WizardStep },
@@ -152,6 +162,27 @@
 	const shown = $derived<Record<string, string>>(showProblems ? problems(step) : {});
 </script>
 
+{#snippet foot()}
+	<div class="wizard-foot">
+		<Button type="button" variant="outline" disabled={index === 0 || busy} onclick={() => go(index - 1)}>
+			{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
+			Back
+		</Button>
+		<div class="wizard-actions">
+			<!-- Always there, so Next never moves; only the last step uses it. -->
+			<Button type="button" variant="ghost" class={last ? "" : "reserve"} disabled={!last || busy} onclick={() => void finish(false)}>
+				Save as draft
+			</Button>
+			{#if last}
+				<Button type="button" busy={busy} disabled={busy} onclick={() => void finish(true)}>Save and put on website</Button>
+			{:else}
+				<Button type="button" disabled={busy} onclick={next}>Next</Button>
+			{/if}
+		</div>
+	</div>
+{/snippet}
+
+<Dialog open sheet size="lg" title="Add to What's on" {onclose} footer={foot}>
 <div class="wizard">
 	<header class="wizard-head">
 		<p class="wizard-count">Step {index + 1} of {steps.length}</p>
@@ -208,6 +239,14 @@
 					onpick={(option) => pickArtist(option.value)}
 				/>
 			</Field>
+			<div class="pair">
+				<Field label="Guest link" for="event-page-url" optional>
+					<TextField id="event-page-url" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={form.pageUrl} placeholder="instagram.com/… or @handle" />
+				</Field>
+				<Field label="Offer" for="event-offer" optional>
+					<TextField id="event-offer" bind:value={form.offer} placeholder="£10 Negroni" />
+				</Field>
+			</div>
 		{:else if step === "when"}
 			{#if kind === "series"}
 				<Field label="How often?" for="wizard-how-often" required>
@@ -278,6 +317,12 @@
 			{#if nextNights.length}
 				<p class="hint">Next: {nextNights.map(formatDate).join(", ")}…</p>
 			{/if}
+		{:else if step === "running"}
+			<p class="hint">
+				Sets, acts or rounds, with their times. Nothing like that? Press Next.
+				{kind === "night" ? "Left empty, the night follows its series." : ""}
+			</p>
+			<NightScheduleFields {form} {busy} />
 		{:else if step === "guest"}
 			<Field label="Guest or artist" for="event-artist" optional>
 				<ComboBox
@@ -289,6 +334,14 @@
 					onpick={(option) => pickArtist(option.value)}
 				/>
 			</Field>
+			<div class="pair">
+				<Field label="Guest link" for="event-page-url" optional>
+					<TextField id="event-page-url" type="text" inputmode="url" autocomplete="off" spellcheck="false" bind:value={form.pageUrl} placeholder="instagram.com/… or @handle" />
+				</Field>
+				<Field label="Offer" for="event-offer" optional>
+					<TextField id="event-offer" bind:value={form.offer} placeholder="£10 Negroni" />
+				</Field>
+			</div>
 			<Field label="Anything special about this night?" for="event-description" optional>
 				<MethodEditor
 					id="event-description"
@@ -345,34 +398,14 @@
 		{/if}
 	</div>
 
-	<footer class="wizard-foot">
-		<Button type="button" variant="outline" disabled={index === 0 || busy} onclick={() => go(index - 1)}>
-			{#snippet icon()}<Icon name="chevron-left" size={16} />{/snippet}
-			Back
-		</Button>
-		<div class="wizard-actions">
-			<!-- Always there, so Next never moves; only the last step uses it. -->
-			<Button type="button" variant="ghost" class={last ? "" : "reserve"} disabled={!last || busy} onclick={() => void finish(false)}>
-				Save as draft
-			</Button>
-			{#if last}
-				<Button type="button" busy={busy} disabled={busy} onclick={() => void finish(true)}>Save and put on website</Button>
-			{:else}
-				<Button type="button" disabled={busy} onclick={next}>Next</Button>
-			{/if}
-		</div>
-	</footer>
 </div>
+</Dialog>
 
 <style>
 	.wizard {
 		display: grid;
-		grid-template-rows: auto 1fr auto;
-		width: min(100%, 40rem);
-		min-height: 100%;
-		margin: 0 auto;
-		padding: var(--space-5) var(--space-4) 0;
 		gap: var(--space-5);
+		align-content: start;
 	}
 
 	.wizard-count {
@@ -383,7 +416,7 @@
 
 	.wizard-title {
 		margin: var(--space-1) 0 var(--space-3);
-		font-size: var(--text-2xl, 1.5rem);
+		font-size: var(--text-xl, 1.25rem);
 		font-weight: 600;
 	}
 
@@ -572,14 +605,10 @@
 	}
 
 	.wizard-foot {
-		position: sticky;
-		bottom: 0;
 		display: flex;
+		flex: 1;
 		justify-content: space-between;
 		gap: var(--space-3);
-		padding: var(--space-3) 0 var(--space-4);
-		border-top: 1px solid var(--border);
-		background: var(--background);
 	}
 
 	.wizard-actions {
