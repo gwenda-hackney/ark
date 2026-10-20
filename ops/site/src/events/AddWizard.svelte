@@ -216,7 +216,7 @@
 				{/each}
 			</div>
 			{#if kind === "night"}
-				<Field label="Which series?" for="event-series" required error={shown["event-series"]}>
+				<Field label="Which series?" for="event-series" required reserve error={shown["event-series"]}>
 					<NativeSelect
 						id="event-series"
 						onchange={() => (touched = true)}
@@ -226,7 +226,7 @@
 				</Field>
 			{/if}
 		{:else if step === "name"}
-			<Field label="Name" for="event-name" required error={shown["event-name"]}>
+			<Field label="Name" for="event-name" required reserve error={shown["event-name"]}>
 				<TextField id="event-name" bind:value={form.name} placeholder={kind === "series" ? "Happy Hour" : "Halloween party"} />
 			</Field>
 			<Field label="Guest or artist" for="event-artist" optional>
@@ -263,7 +263,7 @@
 					</div>
 				</Field>
 				{#if form.repeatUnit === "week"}
-					<Field label="Which days?" for="wizard-days" required error={shown["event-weekdays"]}>
+					<Field label="Which days?" for="wizard-days" required reserve error={shown["event-weekdays"]}>
 						<div class="days" id="wizard-days">
 							{#each WEEKDAYS as day (day)}
 								<button
@@ -278,10 +278,10 @@
 					</Field>
 				{/if}
 				<div class="pair">
-					<Field label="Starting from" for="event-starts" required error={shown["event-starts"]}>
+					<Field label="Starting from" for="event-starts" required reserve error={shown["event-starts"]}>
 						<DateField id="event-starts" bind:value={form.startsOn} />
 					</Field>
-					<Field label="Until" for="wizard-until" required error={shown["event-ends"]}>
+					<Field label="Until" for="wizard-until" required reserve error={shown["event-ends"]}>
 						<div class="choices" id="wizard-until">
 							<button type="button" class="choice" class:on={noEnd} aria-pressed={noEnd} onclick={() => setNoEnd(true)}>
 								No end date
@@ -296,12 +296,12 @@
 					</Field>
 				</div>
 			{:else}
-				<Field label="Date" for="event-date" required error={shown["event-date"]}>
+				<Field label="Date" for="event-date" required reserve error={shown["event-date"]}>
 					<DateField id="event-date" bind:value={form.startsOn} />
 				</Field>
 			{/if}
 			<div class="pair">
-				<Field label="Starts" for="event-start-time" required={kind !== "night"} optional={kind === "night"} error={shown["event-start-time"]}>
+				<Field label="Starts" for="event-start-time" required={kind !== "night"} optional={kind === "night"} reserve error={shown["event-start-time"]}>
 					<TimeField id="event-start-time" bind:value={form.startTime} />
 				</Field>
 				<Field label="Ends" for="event-end-time" optional>
@@ -356,7 +356,7 @@
 			<Field label="One line for the listing" for="event-short-description" optional>
 				<TextArea id="event-short-description" bind:value={form.shortDescription} rows={2} placeholder="20% off all cocktails, Wed to Sat." />
 			</Field>
-			<Field label="Description" for="event-description" required error={shown["event-description"]}>
+			<Field label="Description" for="event-description" required reserve error={shown["event-description"]}>
 				<MethodEditor
 					id="event-description"
 					value={form.description}
@@ -394,7 +394,7 @@
 					</div>
 				{/each}
 			</dl>
-			{#if editor.error}<p class="error" role="alert">{editor.error}</p>{/if}
+			<p class="error" role="alert">{editor.error}</p>
 		{/if}
 	</div>
 
@@ -562,6 +562,7 @@
 
 	.error {
 		margin: 0;
+		min-height: 1lh;
 		color: var(--destructive);
 		font-size: var(--text-sm);
 	}
