@@ -1,0 +1,23 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMenu from "../components/chart/ChartMenu.astro";
+import { siteConfig } from "../config/site";
+import { menuChapters } from "../data/menu";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const menu = await fetchMenu();
+---
+
+<BaseLayout
+  title={`Kitchen · ${siteConfig.name}`}
+  description="The kitchen at Gwenda: Italian plates by the canal in Hackney Wick."
+  showBooking={false}
+>
+  <ChartPage class="ch-menu-page" title="Kitchen" numeral="II">
+    <ChartMenu
+      sections={menuChapters(menu, "kitchen")}
+      empty="The kitchen menu’s on its way."
+    />
+  </ChartPage>
+</BaseLayout>

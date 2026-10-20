@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMap from "../components/chart/ChartMap.astro";
+import { siteConfig } from "../config/site";
+import { directions } from "../data/directions";
+---
+
+<BaseLayout
+  title={`Finding us · ${siteConfig.name}`}
+  description="How to find Gwenda: five minutes from Hackney Wick station, along the towpath by the canal."
+  showBooking={false}
+>
+  <ChartPage
+    class="ch-find-page"
+    title="Finding us"
+    lead="Five minutes from Hackney Wick. Follow the water, you can’t miss us."
+  >
+    <ChartMap />
+    <p class="ch-find-intro">{directions.intro}</p>
+    <div class="ch-find-ways">
+      <section>
+        <h2 class="ch-find-head">{directions.fromStation.heading}</h2>
+        <ol class="ch-find-steps">
+          {directions.fromStation.steps.map((step) => <li>{step}</li>)}
+        </ol>
+        <p class="ch-find-note">{directions.fromStation.note}</p>
+      </section>
+      <section>
+        <h2 class="ch-find-head">{directions.fromTowpath.heading}</h2>
+        <p>{directions.fromTowpath.text}</p>
+        <p class="ch-find-note">{siteConfig.location.address}</p>
+      </section>
+    </div>
+  </ChartPage>
+</BaseLayout>

@@ -1,0 +1,144 @@
+---
+/**
+ * The chart: the site's navigation (#240). A button in the corner opens a
+ * panel down the left: the flag, a compass rose, the sections as numbered
+ * rings, the bell to book.
+ */
+import { Image } from "astro:assets";
+import { siteConfig } from "../../config/site";
+import { bookingUrl } from "../../config/booking";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
+import { chartFlag } from "../../lib/chart-assets";
+import { chartSections } from "../../lib/chart-nav";
+import ChartBell from "./ChartBell.astro";
+
+interface Props {
+  pathname?: string;
+}
+
+const { pathname = Astro.url.pathname } = Astro.props;
+const { bookingEnabled } = await fetchSiteSettings();
+const sections = chartSections(pathname);
+---
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="ch-ink" x="-10%" y="-20%" width="120%" height="140%">
+    <feTurbulence
+      type="fractalNoise"
+      baseFrequency="0.06"
+      numOctaves="2"
+      seed="7"
+      result="n"></feTurbulence>
+    <feDisplacementMap
+      in="SourceGraphic"
+      in2="n"
+      scale="2.2"
+      xChannelSelector="R"
+      yChannelSelector="G"></feDisplacementMap>
+  </filter>
+  <!-- The buttons' pen: a slower wobble, so long edges bend rather than tear -->
+  <filter id="ch-pen" x="-5%" y="-20%" width="110%" height="140%">
+    <feTurbulence
+      type="fractalNoise"
+      baseFrequency="0.03"
+      numOctaves="1"
+      seed="3"
+      result="n"></feTurbulence>
+    <feDisplacementMap
+      in="SourceGraphic"
+      in2="n"
+      scale="3"
+      xChannelSelector="R"
+      yChannelSelector="G"></feDisplacementMap>
+  </filter>
+</svg>
+
+<button
+  type="button"
+  class="ch-chart-btn"
+  id="ch-chart-btn"
+  aria-expanded="false"
+  aria-controls="ch-chart"
+  aria-label="Open the menu"
+>
+  <svg
+    class="ch-chart-btn-icon"
+    viewBox="0 0 28 22"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.4"
+    stroke-linecap="round"
+    aria-hidden="true"
+  >
+    <g class="ch-burger">
+      <path pathLength="1" d="M3 4.5c6-0.8 13-1.2 22-0.4"></path>
+      <path pathLength="1" d="M4 11.2c5 0.5 10 0.4 18-0.6"></path>
+      <path pathLength="1" d="M3 17.6c6-0.3 11 0.3 20 0.1"></path>
+    </g>
+    <g class="ch-cross">
+      <path pathLength="1" d="M5 3.5c5 5 11 10 18 15.5"></path>
+      <path pathLength="1" d="M22.5 3c-5 5.5-11 11-18 16"></path>
+    </g>
+  </svg>
+</button>
+
+<div class="ch-chart-scrim" id="ch-chart-scrim" aria-hidden="true"></div>
+
+<nav class="ch-chart" id="ch-chart" aria-label="The chart" tabindex="-1">
+  <a href="/" class="ch-flag-up" aria-label="Gwenda home">
+    <Image {...chartFlag} alt="" />
+    <span class="ch-caps">{siteConfig.location.addressShort}</span>
+  </a>
+
+  <svg
+    class="ch-rose"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="9.2"></circle>
+    <circle cx="12" cy="12" r="1.2"></circle>
+    <path
+      d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M12 5.6l1.8 5.2L12 18.4l-1.8-7.6z"
+    ></path>
+    <path d="M12 5.6l1.8 5.2H10.2z" fill="currentColor"></path>
+    <path d="M5.6 12l5.2-1.8 7.6 1.8-7.6 1.8z"></path>
+  </svg>
+
+  <ul class="ch-chart-list">
+    {
+      sections.map((item) => (
+        <li>
+          <a href={item.href} aria-current={item.current ? "page" : undefined}>
+            <span class="ch-ring">{item.numeral}</span>
+            <span class="ch-caps">{item.label}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  {
+    bookingEnabled && (
+      <a
+        href={bookingUrl}
+        class="ch-btn ch-btn--solid"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <ChartBell />
+        {siteConfig.copy.bookingCta}
+      </a>
+    )
+  }
+</nav>
+
+<script>
+  import { initChartNav } from "../../scripts/chart-nav.js";
+  initChartNav();
+  document.addEventListener("astro:page-load", initChartNav);
+</script>

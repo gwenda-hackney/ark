@@ -1,166 +1,27 @@
 ---
-import { richToPlain } from "../../functions/_lib/rich-text.js";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
-import EventCard from "../components/EventCard.astro";
-import { isPreview } from "../config/env";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartLog from "../components/chart/ChartLog.astro";
 import { siteConfig } from "../config/site";
 import { getUpcomingEvents } from "../data/events";
-import { buildWhatsOnHome } from "../../functions/_lib/event-series.js";
-import { diaryGroups } from "../lib/diary-groups.js";
-import { diaryCardModel } from "../lib/event-card.js";
-import { whatsOnNavItems } from "../lib/site-nav.js";
 import { fetchWhatsOnCatalog } from "../lib/sanity/events";
 
-const { series: seriesRecords, occurrences } =
-  await fetchWhatsOnCatalog().catch(() => ({ series: [], occurrences: [] }));
-const upcomingEvents = getUpcomingEvents(occurrences);
-const { nights, next } = buildWhatsOnHome(occurrences, {
-  limit: 24,
-  series: seriesRecords,
-});
-const hasContent = nights.length > 0;
-const seriesNights = nights.filter((event) => event.schedule !== "once");
-const specialNights = nights.filter((event) => event.schedule === "once");
-const diaryEntries = [
-  ...(specialNights.length
-    ? [
-        {
-          kind: "label" as const,
-          id: diaryGroups.special.id,
-          label: diaryGroups.special.label,
-          tagline: diaryGroups.special.tagline,
-          lead: true,
-        },
-      ]
-    : []),
-  ...specialNights.map((event, index) => ({
-    kind: "card" as const,
-    event,
-    eager: index === 0,
-  })),
-  ...(seriesNights.length && specialNights.length
-    ? [
-        {
-          kind: "label" as const,
-          id: diaryGroups.series.id,
-          label: diaryGroups.series.label,
-          tagline: diaryGroups.series.tagline,
-          lead: false,
-        },
-      ]
-    : []),
-  ...seriesNights.map((event) => ({
-    kind: "card" as const,
-    event,
-    eager: false,
-  })),
-];
-const whatsOnNav = whatsOnNavItems(nights);
+const { occurrences } = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+/** The next few weeks; the rest goes in as the dates come round. */
+const nights = getUpcomingEvents(occurrences).slice(0, 24);
 const { title: pageTitle, description: pageDescription } =
   siteConfig.seo.whatsOn;
-
-const eventSchema = upcomingEvents.slice(0, 12).map((event) => ({
-  "@type": "Event",
-  name: event.title,
-  startDate: event.date,
-  description: richToPlain(event.description),
-  ...(event.artist
-    ? { performer: { "@type": "Person", name: event.artist } }
-    : {}),
-  eventStatus: "https://schema.org/EventScheduled",
-  eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
-  location: {
-    "@type": "Place",
-    name: siteConfig.name,
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: siteConfig.location.streetAddress,
-      addressLocality: siteConfig.location.addressLocality,
-      postalCode: siteConfig.location.postalCode,
-    },
-  },
-  organizer: {
-    "@type": "Organization",
-    name: siteConfig.name,
-    url: siteConfig.domain,
-  },
-}));
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription}>
-  <script
-    type="application/ld+json"
-    set:html={JSON.stringify({
-      "@context": "https://schema.org",
-      "@graph": eventSchema,
-    })}
-  />
-
-  <Subpage
-    class="whats-on-page events-page"
-    innerClass="whats-on-inner"
-    navItems={whatsOnNav}
-    eyebrow="Diary"
+<BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
+  <ChartPage
     title="What's on"
+    numeral="III"
+    lead="What’s coming up. We’re shut on Mondays."
   >
-    <p slot="lead">
-      Music and late evenings by the water in {siteConfig.location.area}.
-    </p>
-
-    <p
-      id="whats-on-loading"
-      class="events-loading"
-      hidden={hasContent && !isPreview}
-    >
-      Looking at the diary…
-    </p>
-    <section
-      id="whats-on-empty"
-      class="events-empty reveal"
-      hidden={hasContent}
-    >
-      <p class="events-empty-date">The diary is quiet</p>
-      <h2>Nothing announced yet</h2>
-      <p>There is always something taking shape. Check back soon.</p>
-    </section>
-
-    <div
-      id="whats-on-content"
-      data-whats-on-next={next ? JSON.stringify(next) : ""}
-    >
-      {
-        nights.length ? (
-          <ol class="events-list whats-on-series-list">
-            {diaryEntries.map((entry) => {
-              if (entry.kind === "label") {
-                return (
-                  <li
-                    id={entry.id}
-                    class={`whats-on-divider${entry.lead ? " whats-on-divider--lead" : ""}`}
-                    data-group={entry.id}
-                  >
-                    <h2 class="whats-on-group-label">{entry.label}</h2>
-                    <p class="whats-on-group-tagline">{entry.tagline}</p>
-                  </li>
-                );
-              }
-              const event = entry.event;
-              return (
-                <li
-                  data-schedule={event.schedule === "once" ? "once" : "series"}
-                >
-                  <EventCard
-                    model={diaryCardModel(event, {
-                      eager: Boolean(entry.eager),
-                    })}
-                  />
-                </li>
-              );
-            })}
-          </ol>
-        ) : null
-      }
-    </div>
-  </Subpage>
+    <ChartLog nights={nights} />
+  </ChartPage>
 </BaseLayout>

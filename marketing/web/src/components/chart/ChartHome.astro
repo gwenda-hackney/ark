@@ -1,0 +1,250 @@
+---
+/**
+ * Home, redesigned as The Chart (#240): the room darkened behind the torn
+ * flag and the slogan, tonight beneath, the chart behind a button.
+ */
+import { Image } from "astro:assets";
+import "../../styles/chart.css";
+import { siteConfig } from "../../config/site";
+import { bookingUrl } from "../../config/booking";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
+import {
+  chartHeroBackground,
+  chartHeroLogo,
+  chartTurntableLarge,
+} from "../../lib/chart-assets";
+import ChartBell from "./ChartBell.astro";
+import { directions } from "../../data/directions";
+import {
+  flattenMenuSections,
+  getAvailableItems,
+  menuChapters,
+} from "../../data/menu";
+import { fetchMenu } from "../../lib/sanity/menu";
+import ChartMap from "./ChartMap.astro";
+import ChartNav from "./ChartNav.astro";
+import ChartTonight from "./ChartTonight.astro";
+import ChartFooter from "./ChartFooter.astro";
+
+const { bookingEnabled } = await fetchSiteSettings();
+const { contactPage } = siteConfig.copy;
+
+/** A taste of each menu: the first few names from the bar and the kitchen */
+const menu = await fetchMenu();
+function firstNames(kind: "bar" | "kitchen", count = 4): string[] {
+  return flattenMenuSections(menuChapters(menu, kind))
+    .flatMap((section) => getAvailableItems(section))
+    .slice(0, count)
+    .map((item) => item.name);
+}
+const tastes = [
+  {
+    eyebrow: "At the bar",
+    title: "Cocktails, and the old favourites",
+    lead: "Our own cocktails, the classics done properly, cold beer, and a few things without the booze.",
+    href: "/bar",
+    link: "The whole bar",
+    names: firstNames("bar"),
+  },
+  {
+    eyebrow: "From the kitchen",
+    title: "Italian plates",
+    lead: "Panzerotti, timballo, boards of salumi and cheese to pick at. Food for sharing, with a drink in the other hand.",
+    href: "/kitchen",
+    link: "The whole kitchen",
+    names: firstNames("kitchen"),
+  },
+];
+---
+
+<div class="ch-page" data-chart="closed">
+  <ChartNav />
+  <main>
+    <section class="ch-hero" id="hero">
+      <div class="ch-hero-media" aria-hidden="true">
+        <Image
+          {...chartHeroBackground}
+          alt=""
+          loading="eager"
+          fetchpriority="high"
+        />
+        <div class="ch-hero-scrim"></div>
+      </div>
+      <div class="ch-hero-content">
+        <h1 class="visually-hidden">{siteConfig.seoTitle}</h1>
+        <Image
+          {...chartHeroLogo}
+          alt="Gwenda"
+          class="ch-hero-logo"
+          loading="eager"
+          fetchpriority="high"
+        />
+        <p class="ch-slogan">{siteConfig.copy.heroCta}</p>
+        <span class="ch-caps">{siteConfig.location.addressShort}</span>
+        <div class="ch-hero-actions">
+          {
+            bookingEnabled && (
+              <a
+                href={bookingUrl}
+                class="ch-btn ch-btn--solid"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ChartBell />
+                {siteConfig.copy.bookingCta}
+              </a>
+            )
+          }
+          <a href="/whats-on" class="ch-btn">What's on</a>
+        </div>
+      </div>
+      <a href="#ch-tonight" class="ch-hero-more">
+        <span class="ch-caps">Tonight and more</span>
+        <svg
+          viewBox="0 0 24 40"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12.5 2c-.6 9 .4 22-.3 33"></path>
+          <path d="M4 27c3 3 6 6 8.2 8.6 2.4-3 5-5.6 7.8-8.4"></path>
+        </svg>
+      </a>
+    </section>
+    <ChartTonight />
+    <section class="ch-home-paths" aria-label="Play here, or stay close">
+      {
+        tastes.map((taste) => (
+          <div class="ch-home-path">
+            <span class="ch-home-path-body">
+              <span class="ch-caps">{taste.eyebrow}</span>
+              <a href={taste.href} class="ch-path-title">
+                {taste.title}
+              </a>
+              <span class="ch-home-side">
+                <span class="ch-ital">{taste.lead}</span>
+                {taste.names.length > 0 && (
+                  <span class="ch-home-menu-names">
+                    {taste.names.join(" · ")}
+                  </span>
+                )}
+                <a href={taste.href} class="ch-link-line">
+                  {taste.link} →
+                </a>
+              </span>
+            </span>
+          </div>
+        ))
+      }
+      <div class="ch-home-path">
+        <a
+          href="/find-us"
+          class="ch-home-path-photo ch-home-path-map"
+          tabindex="-1"
+          aria-hidden="true"
+        >
+          <ChartMap thumb />
+        </a>
+        <span class="ch-home-path-body">
+          <span class="ch-caps">Getting here</span>
+          <a href="/find-us" class="ch-path-title"
+            >Five minutes from the station</a
+          >
+          <span class="ch-home-side">
+            <span class="ch-home-ways">
+              <span class="ch-ital">{directions.intro}</span>
+              <span class="ch-home-way">
+                <span class="ch-home-way-head">
+                  {directions.fromStation.heading}
+                </span>
+                <span class="ch-home-way-steps">
+                  {
+                    directions.fromStation.steps.map((step, i) => (
+                      <span>
+                        <span class="ch-home-way-n">{i + 1}</span>
+                        {step}
+                      </span>
+                    ))
+                  }
+                </span>
+              </span>
+              <span class="ch-home-way">
+                <span class="ch-home-way-head">
+                  {directions.fromTowpath.heading}
+                </span>
+                <span>{directions.fromTowpath.text}</span>
+              </span>
+              <span class="ch-home-way-address"
+                >{siteConfig.location.address}</span
+              >
+            </span>
+            <a href="/find-us" class="ch-link-line">The map and directions →</a>
+          </span>
+        </span>
+      </div>
+      <div class="ch-home-path ch-home-path--play">
+        <a
+          href="/contact/play"
+          class="ch-frame ch-home-path-photo"
+          tabindex="-1"
+          aria-hidden="true"
+        >
+          <Image {...chartTurntableLarge} alt="" loading="lazy" />
+        </a>
+        <span class="ch-home-path-body">
+          <span class="ch-caps">{contactPage.playEyebrow}</span>
+          <a href="/contact/play" class="ch-path-title"
+            >{contactPage.playHeading}</a
+          >
+          <span class="ch-home-side">
+            <span class="ch-ital">{contactPage.playLead}</span>
+            {
+              contactPage.playMore.map((line) => (
+                <span class="ch-ital">{line}</span>
+              ))
+            }
+            <a href="/contact/play" class="ch-link-line"
+              >{contactPage.playCta} →</a
+            >
+          </span>
+        </span>
+      </div>
+      <div class="ch-home-path">
+        <span class="ch-home-path-body">
+          <span class="ch-caps">{contactPage.listEyebrow}</span>
+          <a href="/join-list" class="ch-path-title"
+            >{contactPage.listHeading}</a
+          >
+          <span class="ch-home-side">
+            <span class="ch-ital">{contactPage.listLead}</span>
+            <a href="/join-list" class="ch-link-line">{contactPage.listCta} →</a
+            >
+          </span>
+        </span>
+      </div>
+      <div class="ch-home-path">
+        <span class="ch-home-path-body">
+          <span class="ch-caps">Who’s behind it</span>
+          <a href="/about" class="ch-path-title">Who’s Gwenda?</a>
+          <span class="ch-home-side">
+            <span class="ch-ital">
+              You might know Gigi from The Pirate’s Hub, down the canal on Fish
+              Island: porchetta, sandwiches down by the water. Gwenda is that
+              with more room. A proper kitchen, and a place for the Wick’s
+              artists, musicians and neighbours to make some noise.
+            </span>
+            <span class="ch-ital">
+              The name? Guenda, a summer club back in Salento where everybody
+              met. We’d like this place remembered the same way.
+            </span>
+            <a href="/about" class="ch-link-line">The whole story →</a>
+          </span>
+        </span>
+      </div>
+    </section>
+  </main>
+  <ChartFooter />
+</div>

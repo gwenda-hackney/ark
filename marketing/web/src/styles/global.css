@@ -216,7 +216,8 @@ main {
   --ribbon-fold: 5.5rem;
   position: fixed;
   top: 0;
-  left: 0;
+  /* The right-hand corner: the left is the Chart's menu button */
+  right: 0;
   /* Above site-header / subpage-chrome (110); below preview-banner (200). */
   z-index: 130;
   /* Stay painted across view transitions. A fixed corner inside the root
@@ -236,9 +237,9 @@ main {
   display: block;
   width: 8.5rem;
   top: 1.15rem;
-  left: -2.15rem;
+  right: -2.15rem;
   padding: 0.3rem 0;
-  transform: rotate(-45deg);
+  transform: rotate(45deg);
   text-align: center;
   font-family: var(--font-display);
   font-size: 0.65rem;
@@ -4163,13 +4164,6 @@ html.fonts-ready .thanks {
 .subpage-chrome .page-back {
   margin: 0;
   flex-shrink: 0;
-}
-
-/* Corner fold overlaps the back chip; nudge it clear of the ribbon (desktop). */
-@media (min-width: 641px) {
-  body:has(.preview-ribbon) .subpage-chrome .page-back {
-    margin-left: 3.25rem;
-  }
 }
 
 .page-back {

@@ -1,15 +1,11 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
 import { siteConfig } from "../config/site";
 import { formPublicPath, PLAY_FORM_SLUG } from "../lib/form-paths";
-import { withHome } from "../lib/site-nav.js";
 
 const { contactPage } = siteConfig.copy;
-const contactNav = withHome([
-  { href: "/join-list", label: contactPage.listHeading },
-  { href: formPublicPath(PLAY_FORM_SLUG), label: contactPage.playHeading },
-]);
+const { social } = siteConfig;
 ---
 
 <BaseLayout
@@ -17,39 +13,56 @@ const contactNav = withHome([
   description={siteConfig.seo.contact.description}
   showBooking={false}
 >
-  <Subpage
-    class="contact-hub"
-    innerClass="contact-hub-inner"
-    navItems={contactNav}
-    eyebrow={contactPage.eyebrow}
-    title={contactPage.heading}
-  >
-    <p slot="lead">{contactPage.lead}</p>
-
-    <div class="contact-hub-paths">
-      <article
-        class="contact-hub-path reveal reveal-stagger"
-        style="--reveal-delay: 0.08s"
-      >
-        <p class="contact-hub-path-eyebrow">{contactPage.listEyebrow}</p>
-        <h2>{contactPage.listHeading}</h2>
-        <p>{contactPage.listLead}</p>
-        <a href="/join-list" class="btn btn-primary">{contactPage.listCta}</a>
-      </article>
-
-      <div class="contact-hub-rule" aria-hidden="true"></div>
-
-      <article
-        class="contact-hub-path reveal reveal-stagger"
-        style="--reveal-delay: 0.16s"
-      >
-        <p class="contact-hub-path-eyebrow">{contactPage.playEyebrow}</p>
-        <h2>{contactPage.playHeading}</h2>
-        <p>{contactPage.playLead}</p>
-        <a href={formPublicPath(PLAY_FORM_SLUG)} class="btn btn-ghost"
-          >{contactPage.playCta}</a
+  <ChartPage class="ch-find-page" title="Contact" numeral="VI">
+    <section class="ch-find">
+      <div class="ch-head"><h2>Find us</h2></div>
+      <p class="ch-address">
+        <a
+          href={siteConfig.location.mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer">{siteConfig.location.address}</a
         >
-      </article>
-    </div>
-  </Subpage>
+      </p>
+      <p class="ch-ital">
+        On the canal behind Hackney Wick station. <a
+          href="/find-us"
+          class="ch-link">The map</a
+        >, if you like a walk by the water.
+      </p>
+    </section>
+
+    <section class="ch-find">
+      <div class="ch-head"><h2>{contactPage.heading}</h2></div>
+      <p class="ch-ital">{contactPage.lead}</p>
+      <ul class="ch-paths">
+        <li>
+          <a href="/join-list" class="ch-path">
+            <span class="ch-caps">{contactPage.listEyebrow}</span>
+            <span class="ch-path-title">{contactPage.listHeading}</span>
+            <span class="ch-ital">{contactPage.listLead}</span>
+          </a>
+        </li>
+        <li>
+          <a href={formPublicPath(PLAY_FORM_SLUG)} class="ch-path">
+            <span class="ch-caps">{contactPage.playEyebrow}</span>
+            <span class="ch-path-title">{contactPage.playHeading}</span>
+            <span class="ch-ital">{contactPage.playLead}</span>
+          </a>
+        </li>
+        <li>
+          <a
+            href={social.instagram}
+            class="ch-path"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span class="ch-caps">Instagram</span>
+            <span class="ch-path-title">@gwendahackney</span>
+            <span class="ch-ital">Photos from the room and what's on next.</span
+            >
+          </a>
+        </li>
+      </ul>
+    </section>
+  </ChartPage>
 </BaseLayout>

@@ -28,6 +28,21 @@ export const menuSection = defineType({
       type: "string",
     }),
     defineField({
+      name: "kind",
+      title: "Menu",
+      type: "string",
+      description: "Which menu the chapter belongs to. Subsections follow their parent.",
+      options: {
+        list: [
+          { title: "Bar", value: "bar" },
+          { title: "Kitchen", value: "kitchen" },
+        ],
+        layout: "radio",
+      },
+      initialValue: "bar",
+      hidden: ({ document }) => Boolean(document?.parent),
+    }),
+    defineField({
       name: "parent",
       title: "Parent chapter",
       type: "reference",

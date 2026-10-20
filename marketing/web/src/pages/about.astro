@@ -1,31 +1,36 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
 import { siteConfig } from "../config/site";
-import { withHome } from "../lib/site-nav.js";
 
-const sections = siteConfig.copy.teamSections.filter(
+const NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+const articles = siteConfig.copy.teamSections.filter(
   (section) => section.aside,
 );
 const { title, description } = siteConfig.seo.about;
 ---
 
-<BaseLayout title={title} description={description} noindex>
-  <Subpage
-    class="legal-page"
-    navItems={withHome()}
-    eyebrow="The house"
+<BaseLayout title={title} description={description} noindex showBooking={false}>
+  <ChartPage
+    class="ch-articles-page"
     title="About"
+    numeral="V"
+    lead="Who we are, and how we ended up on the canal."
   >
-    {
-      sections.map((section) => (
-        <section>
-          <h2>{section.heading}</h2>
-          {section.paragraphs.map((paragraph) => (
-            <p>{paragraph}</p>
-          ))}
-        </section>
-      ))
-    }
-  </Subpage>
+    <ol class="ch-articles">
+      {
+        articles.map((article, index) => (
+          <li class="ch-article">
+            <span class="ch-ring">{NUMERALS[index]}</span>
+            <div>
+              <h2>{article.heading}</h2>
+              {article.paragraphs.map((paragraph) => (
+                <p>{paragraph}</p>
+              ))}
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </ChartPage>
 </BaseLayout>

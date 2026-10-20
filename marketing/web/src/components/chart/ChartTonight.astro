@@ -1,0 +1,112 @@
+---
+/**
+ * Under the hero: tonight's and tomorrow's nights from the log, or the
+ * next night when neither has one (#240). Under them, the bell books a
+ * table, for any night.
+ */
+import { siteConfig } from "../../config/site";
+import { bookingUrl } from "../../config/booking";
+import {
+  formatEventDiaryDate,
+  formatEventSpan,
+  getUpcomingEvents,
+} from "../../data/events";
+import { fetchWhatsOnCatalog } from "../../lib/sanity/events";
+import { fetchSiteSettings } from "../../lib/sanity/site-settings";
+import ChartBell from "./ChartBell.astro";
+
+const { occurrences } = await fetchWhatsOnCatalog().catch(() => ({
+  series: [],
+  occurrences: [],
+}));
+const upcoming = getUpcomingEvents(occurrences);
+const { bookingEnabled } = await fetchSiteSettings();
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Today's and tomorrow's nights; the next one when neither has any. */
+const soon = upcoming.filter((event) =>
+  ["Today", "Tomorrow"].includes(formatEventDiaryDate(event.date)),
+);
+const entries = (soon.length ? soon : upcoming.slice(0, 1))
+  .slice(0, 3)
+  .map((event) => {
+    const [year, month, day] = event.date.split("-").map(Number);
+    return {
+      event,
+      when: formatEventDiaryDate(event.date),
+      dayNumber: day,
+      weekday: WEEKDAYS[new Date(year, month - 1, day).getDay()],
+      span: formatEventSpan(event.startTime, event.endTime, event.time),
+      note: event.shortDescription || event.artist || "",
+    };
+  });
+const days = new Set(entries.map((entry) => entry.when));
+const heading =
+  days.has("Today") && days.has("Tomorrow")
+    ? "Tonight and tomorrow"
+    : days.has("Today")
+      ? "Tonight"
+      : days.has("Tomorrow")
+        ? "Tomorrow"
+        : "Next";
+/** The day goes on the right of the head only when it isn't in the heading. */
+const aside = heading === "Next" ? (entries[0]?.when ?? "") : "";
+---
+
+{
+  entries.length > 0 && (
+    <section
+      class="ch-tonight"
+      id="ch-tonight"
+      aria-labelledby="ch-tonight-title"
+    >
+      <div class="ch-head">
+        <h2 id="ch-tonight-title">{heading}</h2>
+        {aside && <span class="ch-ital">{aside}</span>}
+      </div>
+      {entries.map((entry) => (
+        <div class="ch-tonight-row">
+          <a
+            href="/whats-on"
+            class:list={[
+              "ch-entry",
+              entry.when === "Today" && "ch-entry--today",
+            ]}
+          >
+            <span class="ch-stamp">
+              <span class="ch-ring">{entry.dayNumber}</span>
+              <span class="ch-caps">{entry.weekday}</span>
+            </span>
+            <span>
+              <span class="ch-entry-top">
+                <span class="ch-entry-name">{entry.event.title}</span>
+                {entry.event.offer && (
+                  <span class="ch-offer">{entry.event.offer}</span>
+                )}
+              </span>
+              {entry.span && <span class="ch-time">{entry.span}</span>}
+              {entry.note && <p class="ch-entry-note ch-ital">{entry.note}</p>}
+            </span>
+          </a>
+        </div>
+      ))}
+      <div class="ch-tonight-more">
+        <a href="/whats-on" class="ch-link-line">
+          The whole lot →
+        </a>
+        {bookingEnabled && (
+          <a
+            href={bookingUrl}
+            class="ch-btn ch-btn--solid"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ChartBell />
+            {siteConfig.copy.bookingCta}
+          </a>
+        )}
+      </div>
+    </section>
+  )
+}

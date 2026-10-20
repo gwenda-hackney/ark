@@ -1,0 +1,35 @@
+---
+/**
+ * A section page in The Chart (#240): the chart behind the corner button,
+ * a header (numeral, title, a line), the page, the footer.
+ */
+import "../../styles/chart.css";
+import ChartNav from "./ChartNav.astro";
+import ChartFooter from "./ChartFooter.astro";
+
+interface Props {
+  title: string;
+  /** The ring beside the title: the section's numeral on the chart. */
+  numeral?: string;
+  lead?: string;
+  class?: string;
+}
+
+const { title, numeral, lead, class: className } = Astro.props;
+---
+
+<div class="ch-page" data-chart="closed">
+  <ChartNav />
+  <main class:list={["ch-main", className]}>
+    <header class="ch-page-head">
+      {numeral && <span class="ch-ring ch-ring--title">{numeral}</span>}
+      <div>
+        <h1 class="ch-title">{title}</h1>
+        {lead && <p class="ch-lead ch-ital">{lead}</p>}
+        <slot name="head" />
+      </div>
+    </header>
+    <slot />
+  </main>
+  <ChartFooter />
+</div>

@@ -1,0 +1,278 @@
+---
+/**
+ * The way to the bar, drawn as a chart straight onto the page (#240). The waters as
+ * dark bands with soundings, the towpath along them, the walk from the
+ * station in paces and compass points, a few landmarks, the X. Traced
+ * loosely from the street map; the directions are for the feel, not the
+ * feet.
+ */
+import { siteConfig } from "../../config/site";
+
+interface Props {
+  class?: string;
+  /**
+   * The drawing alone, as a picture inside a link (home's way-here row):
+   * no caption link, and hidden from screen readers, as the link says it.
+   */
+  thumb?: boolean;
+}
+
+const { class: className, thumb = false } = Astro.props;
+const Tag = thumb ? "span" : "figure";
+const { location } = siteConfig;
+/** Google's directions link: opens the Maps app on a phone, routed to the bar */
+const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${location.geo.latitude},${location.geo.longitude}`;
+
+/** The Lee down the right, the Hertford Union coming in from the south-west */
+const LEE =
+  "M745 -20 C760 120 770 240 790 330 S860 560 905 700 S950 860 962 940";
+const UNION = "M-20 1000 C120 940 300 860 470 790 S720 690 830 650";
+
+/** Soundings in the water: [x, y, depth] */
+const SOUNDINGS = [
+  [752, 70, "3"],
+  [776, 220, "2½"],
+  [820, 400, "4"],
+  [870, 560, "3"],
+  [925, 760, "3"],
+  [120, 950, "2"],
+  [300, 866, "1½"],
+  [520, 780, "2"],
+  [720, 706, "3"],
+];
+
+/** Landmarks: [x, y, name, which side the name sits] */
+const MARKS: Array<[number, number, string, "l" | "r"]> = [
+  [410, 350, "the theatre", "l"],
+  [690, 225, "fish and chips", "l"],
+  [830, 300, "a pub, far bank", "r"],
+  [560, 745, "the canal club", "l"],
+  [300, 930, "the footbridge", "r"],
+];
+---
+
+<Tag class:list={["ch-map", "ch-scroll", className]}>
+  <svg
+    viewBox="0 0 1000 960"
+    role={thumb ? undefined : "img"}
+    aria-labelledby={thumb ? undefined : "ch-map-title"}
+    aria-hidden={thumb ? "true" : undefined}
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    {
+      !thumb && (
+        <title id="ch-map-title">
+          Map: from Hackney Wick station walk south, turn left along White Post
+          Lane past the theatre, then straight down the yard to Gwenda on the
+          canal.
+        </title>
+      )
+    }
+    <defs>
+      <filter id="ch-map-ink" x="-5%" y="-5%" width="110%" height="110%">
+        <!-- Wobble the line like a hand drawing it -->
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.028"
+          numOctaves="2"
+          seed="4"
+          result="wobble"></feTurbulence>
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="wobble"
+          scale="6"
+          xChannelSelector="R"
+          yChannelSelector="G"
+          result="drawn"></feDisplacementMap>
+        <!-- Grease pencil: the wax skips on the paper's tooth -->
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.38"
+          numOctaves="2"
+          seed="2"
+          result="tooth"></feTurbulence>
+        <feColorMatrix
+          in="tooth"
+          type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.62"
+          result="wax"></feColorMatrix>
+        <feComposite in="drawn" in2="wax" operator="in"></feComposite>
+      </filter>
+    </defs>
+
+    <g filter="url(#ch-map-ink)">
+      <!-- The water -->
+      <g class="ch-map-water">
+        <path class="ch-map-band" d={LEE}></path>
+        <path class="ch-map-band ch-map-band--union" d={UNION}></path>
+        <path class="ch-map-edge" d={LEE} transform="translate(-26 0)"></path>
+        <path class="ch-map-edge" d={LEE} transform="translate(26 0)"></path>
+        <path class="ch-map-edge" d={UNION} transform="translate(0 -22)"></path>
+        <path class="ch-map-edge" d={UNION} transform="translate(0 22)"></path>
+      </g>
+
+      <!-- The towpath: along the near bank of the Lee, then the canal -->
+      <path
+        class="ch-map-towpath"
+        d="M724 340 C744 430 780 530 800 610 C740 640 640 690 540 735 S330 830 180 900"
+      ></path>
+
+      <!-- The railway and the station -->
+      <g class="ch-map-rail">
+        <path d="M-10 68 L740 44"></path>
+        {
+          Array.from({ length: 30 }, (_, i) => {
+            const x = 10 + i * 25;
+            const y = 67.4 - i * 0.8;
+            return <path d={`M${x} ${y - 8} l -1 16`} />;
+          })
+        }
+      </g>
+
+      <!-- Roads: the one down from the station, the lane, two more lightly -->
+      <g class="ch-map-roads">
+        <path d="M296 70 C300 150 330 230 380 300 S430 420 420 430"></path>
+        <path d="M-10 330 C140 322 300 318 420 430 C540 400 640 370 760 345"
+        ></path>
+        <path d="M40 520 C140 480 240 450 330 440"></path>
+        <path d="M290 690 C360 660 420 630 480 606"></path>
+        <path d="M470 440 C500 520 540 610 590 700"></path>
+      </g>
+
+      <!-- The walk: station, along the lane, straight down the yard to the bar -->
+      <path
+        class="ch-map-walk"
+        d="M296 75 C300 150 330 230 380 300 S430 420 420 430 C440 433 455 437 470 440 C500 520 540 600 596 676"
+      ></path>
+
+      <!-- Landmarks -->
+      <g class="ch-map-marks">
+        {MARKS.map(([x, y]) => <circle cx={x} cy={y} r="4" />)}
+      </g>
+    </g>
+
+    <!--
+      Gwenda: the cross from the chart's own button, big and red, in the
+      map's grease pencil. Drawn in, stroke by stroke, when it comes into view.
+    -->
+    <g class="ch-map-here" filter="url(#ch-map-ink)">
+      <path pathLength="1" d="M605 676 c17 17 37.4 34 61.2 52.7"></path>
+      <path pathLength="1" d="M664.5 674.2 c-17 18.7 -37.4 37.4 -61.2 54.4"
+      ></path>
+    </g>
+
+    <!-- Words stay crisp -->
+    <g class="ch-map-labels">
+      {
+        SOUNDINGS.map(([x, y, d]) => (
+          <text class="ch-map-sound" x={x} y={y}>
+            {d}
+          </text>
+        ))
+      }
+      {
+        MARKS.map(([x, y, name, side]) => (
+          <text
+            class="ch-map-mark"
+            x={side === "l" ? x - 10 : x + 10}
+            y={y + 5}
+            text-anchor={side === "l" ? "end" : "start"}
+          >
+            {name}
+          </text>
+        ))
+      }
+
+      <circle cx="296" cy="62" r="11" class="ch-map-station"></circle>
+      <text transform="translate(316 36) rotate(-2)">Hackney Wick</text>
+      <text x="318" y="96" class="ch-map-small">station</text>
+
+      <text class="ch-map-road" transform="translate(470 395) rotate(-12)"
+        >White Post Lane</text
+      >
+      <text class="ch-map-road" transform="translate(60 512) rotate(-18)"
+        >Rothbury Rd</text
+      >
+      <text class="ch-map-water-label" transform="translate(766 120) rotate(74)"
+        >Lee Navigation</text
+      >
+      <text
+        class="ch-map-water-label"
+        transform="translate(170 918) rotate(-26)">Hertford Union</text
+      >
+
+      <text class="ch-map-name" transform="translate(690 800) rotate(-6)"
+        >Gwenda</text
+      >
+
+      <!-- The directions, in the hand -->
+      <text class="ch-map-note" transform="translate(338 158) rotate(-4)">
+        <tspan x="0" dy="0">From the station, 300 paces south,</tspan>
+        <tspan x="0" dy="22">keeping the railway at your back</tspan>
+      </text>
+      <text class="ch-map-note" transform="translate(440 322) rotate(-8)">
+        <tspan x="0" dy="0">left at the lane,</tspan>
+        <tspan x="0" dy="22">past the theatre</tspan>
+      </text>
+      <text class="ch-map-note" transform="translate(578 512) rotate(-8)">
+        <tspan x="0" dy="0">then straight</tspan>
+        <tspan x="0" dy="22">down the yard.</tspan>
+        <tspan x="0" dy="22">X marks the bar</tspan>
+      </text>
+
+      <!-- The compass rose -->
+      <g class="ch-map-rose" transform="translate(80 850)">
+        <circle r="34"></circle>
+        <circle r="4"></circle>
+        <path d="M0 -42v8M0 34v8M-42 0h8M34 0h8"></path>
+        <path d="M0 -30 l7 22 L0 30 l-7 -22 z"></path>
+        <path d="M0 -30 l7 22 h-14 z" fill="currentColor"></path>
+        <path d="M-30 0 l22 -7 L30 0 l-22 7 z"></path>
+        <text class="ch-map-n" x="0" y="-48" text-anchor="middle">N</text>
+      </g>
+    </g>
+  </svg>
+  {
+    !thumb && (
+      <figcaption>
+        <span>{location.address}</span>
+        <a
+          href={directionsUrl}
+          class="ch-btn ch-btn--solid"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Directions on Google Maps
+          <span aria-hidden="true">↗</span>
+          <span class="visually-hidden">(opens Google Maps)</span>
+        </a>
+      </figcaption>
+    )
+  }
+</Tag>
+
+<script>
+  /* Draw the X when the map scrolls into view (once per page) */
+  function drawTheX() {
+    const marks = document.querySelectorAll<SVGElement>(".ch-map-here");
+    if (!("IntersectionObserver" in window)) return;
+    const seen = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.classList.add("is-drawn");
+          seen.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.6 },
+    );
+    for (const mark of marks) {
+      mark.classList.add("is-waiting");
+      seen.observe(mark);
+    }
+  }
+  drawTheX();
+  document.addEventListener("astro:after-swap", drawTheX);
+</script>

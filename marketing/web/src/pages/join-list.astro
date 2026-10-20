@@ -1,6 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Subpage from "../components/Subpage.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
 import EmailSignup from "../components/EmailSignup.astro";
 import { siteConfig } from "../config/site";
 
@@ -12,20 +12,13 @@ const { contactPage } = siteConfig.copy;
   description="Join the Gwenda list for nights ahead in Hackney Wick."
   showBooking={false}
 >
-  <Subpage
-    class="contact-list-page"
-    innerClass="contact-list-inner"
-    href="/contact"
-    eyebrow={contactPage.listEyebrow}
+  <ChartPage
+    class="ch-form-page"
     title={contactPage.listHeading}
+    lead={contactPage.listLead}
   >
-    <p slot="lead">{contactPage.listLead}</p>
-
-    <div
-      class="contact-list-form reveal reveal-stagger"
-      style="--reveal-delay: 0.1s"
-    >
+    <div class="ch-form">
       <EmailSignup mode="promo" embedded />
     </div>
-  </Subpage>
+  </ChartPage>
 </BaseLayout>

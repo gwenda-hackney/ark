@@ -132,27 +132,27 @@ export const siteConfig = {
     teamHeading: "Who we are",
     teamSections: [
       {
-        heading: "Where we started",
+        heading: "How it started",
         /** Lives on /about, which is not published yet. */
         aside: true,
         paragraphs: [
-          "Gigi already runs The Pirate's Hub on this canal. A room three metres by three on Fish Island, porchetta from the house, sandwiches taken down to the water.",
-          "Born in Castro, on the Salento coast. He wanted that gathering again, and a kitchen big enough to cook for it.",
+          "You might know Gigi from The Pirate's Hub, down the canal on Fish Island. Porchetta from the house, sandwiches taken down to the water.",
+          "Gwenda is that again, with more room: a proper kitchen, and a place for the Wick to come together.",
         ],
       },
       {
-        heading: "What comes next",
+        heading: "What it is",
         aside: true,
         paragraphs: [
-          "Gwenda is the next room on this canal, among the artists and musicians of the Wick.",
+          "A bar, a kitchen, records on the decks and a wall for local artists. Right on the canal, in the middle of the Wick.",
         ],
       },
       {
-        heading: "The name",
+        heading: "Why Gwenda?",
         aside: true,
         paragraphs: [
-          "The name comes from Guenda, a summer nightclub in Salento where everybody met.",
-          "Friends still talk about those nights. We would like this place to be remembered the same way.",
+          "It's named after Guenda, a summer club in Salento where everybody ended up.",
+          "People still talk about those nights. We'd like this place to be like that.",
         ],
       },
       {
@@ -160,7 +160,7 @@ export const siteConfig = {
         /** On /about, which is not published yet. */
         aside: true,
         paragraphs: [
-          "The nights are played by people from here. The wall is for artists who live here. The room is for the Wick: artists, selectors, musicians, and performers.",
+          "The nights are played by people from round here, and the wall is for artists who live here. It's a room for the Wick: artists, DJs, musicians, whoever.",
         ],
         showLinks: true,
       },
@@ -184,34 +184,39 @@ export const siteConfig = {
     bookTableEyebrow: "The table",
     bookTableHeading: "Book a table",
     bookTableLead: "Olive trees at Schwartz Wharf. A table, when you want one.",
-    signupHeading: "Stay close",
-    signupNavCta: "Join the experience",
-    signupEyebrowPromo: "The list",
+    signupHeading: "Get on the list",
+    signupNavCta: "Get on the list",
+    signupEyebrowPromo: "Stay in the loop",
     signupSubheading:
-      "Nights ahead. Openings, gatherings, and the occasional whisper.",
+      "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
     signupSubheadingPromo:
-      "Nights ahead. Openings, gatherings, and the occasional whisper.",
+      "What’s on, new nights, and the odd party. No spam, unsubscribe any time.",
     signupConsent:
-      "I agree to receive emails about events and nights at Gwenda. I can unsubscribe at any time.",
-    signupButton: "Let me know",
-    signupSuccessTitle: "You're on the list",
-    signupSuccessLead:
-      "We'll be in touch with nights ahead, and the occasional whisper.",
+      "Yes, email me about nights at Gwenda. I can unsubscribe whenever.",
+    signupButton: "Sign me up",
+    signupSuccessTitle: "You're in",
+    signupSuccessLead: "We'll let you know what's coming up. No spam, promise.",
     signupSuccessBack: "Back to Gwenda",
     contactPage: {
-      eyebrow: "Write to us",
-      heading: "Get in touch",
-      lead: "Stay on the list for nights ahead, or write if you’d like to play here.",
-      listEyebrow: "The list",
-      listHeading: "Stay close",
+      eyebrow: "Get in touch",
+      heading: "Say hello",
+      lead: "Get on the list, or tell us you want to play.",
+      listEyebrow: "Stay in the loop",
+      listHeading: "Get on the list",
       listLead:
-        "Nights ahead. Openings, gatherings, and the occasional whisper.",
-      listCta: "Stay in touch",
-      playEyebrow: "The floor",
+        "New nights, what’s on, the odd party. Nothing boring, and you can bail whenever.",
+      listCta: "Sign me up",
+      playEyebrow: "Bands, DJs, artists",
       playHeading: "Play at Gwenda",
       playLead:
-        "A canalside room for DJs, live acts, and selectors who want something a little more intimate. Bring your sound. Tell us what you’d play here.",
-      playCta: "Play at Gwenda",
+        "Got records? Got a band? Got a mate who won’t shut up about their mixes? We want this place to sound like Hackney Wick, so come and play. Tell us what you’d bring.",
+      /** More on the call, under the lead on home (#240) */
+      playMore: [
+        "This is meant to be the Wick’s room, not ours. DJs, bands, singers, poets, comedians, whoever. If you make something and need a room to do it in, we want to hear from you.",
+        "Painters, photographers, illustrators: the wall’s yours. Local artists take it over, and the work stays up in the room.",
+        "First gig or fiftieth, doesn’t matter. Send us a link, a few words, whatever you’ve got.",
+      ],
+      playCta: "Apply to play",
     },
   },
 } as const;

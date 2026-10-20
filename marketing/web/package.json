@@ -17,8 +17,14 @@
     "lint:fix": "eslint . --fix && prettier --write ."
   },
   "dependencies": {
+    "@fontsource/caveat": "^5.3.0",
     "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fontsource/fredericka-the-great": "^5.3.0",
+    "@fontsource/im-fell-english": "^5.3.0",
+    "@fontsource/im-fell-english-sc": "^5.3.0",
     "@fontsource/lora": "^5.2.8",
+    "@fontsource/rock-salt": "^5.3.0",
+    "@fontsource/zilla-slab": "^5.3.0",
     "@sanity/client": "^7.23.0",
     "@sanity/image-url": "^2.1.1",
     "@sentry/cloudflare": "^11.4.0",

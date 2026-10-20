@@ -1,0 +1,20 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ChartPage from "../components/chart/ChartPage.astro";
+import ChartMenu from "../components/chart/ChartMenu.astro";
+import { siteConfig } from "../config/site";
+import { menuChapters } from "../data/menu";
+import { fetchMenu } from "../lib/sanity/menu";
+
+const menu = await fetchMenu();
+const { title: pageTitle, description: pageDescription } = siteConfig.seo.menu;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription} showBooking={false}>
+  <ChartPage class="ch-menu-page" title="Bar" numeral="I">
+    <ChartMenu
+      sections={menuChapters(menu, "bar")}
+      empty="The bar list’s on its way."
+    />
+  </ChartPage>
+</BaseLayout>
