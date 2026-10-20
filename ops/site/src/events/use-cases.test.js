@@ -5,7 +5,7 @@
  * what reached the calendar and the website.
  */
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { eventHeaderFlag } from "./event-header-status.ts";
 import { callApi, createFakeWorld } from "../testing/fake-world.js";
 import {
@@ -378,14 +378,74 @@ describe("events: creating", () => {
     assert.equal(world.baserow.rows("Events").length, 1);
   });
 
-  it("refuses times that aren't 24-hour, and a recurring series without an end date", async () => {
+  it("refuses times that aren't 24-hour, and a repeating series without its first night (#245)", async () => {
     const badTime = await ops.tryCreate(weeklySeries({ startTime: "7pm" }));
     assert.equal(badTime.status, 400);
     assert.match(badTime.data.error, /24-hour/);
-    const noEnd = await ops.tryCreate(weeklySeries({ endsOn: "" }));
-    assert.equal(noEnd.status, 400);
-    assert.match(noEnd.data.error, /end date/);
+    // Happy Hour went live like this: every day, no start date, so no nights.
+    const noStart = await ops.tryCreate(weeklySeries({ repeatUnit: "day", weekdays: [], startsOn: "", endsOn: "" }));
+    assert.equal(noStart.status, 400);
+    assert.match(noStart.data.error, /first night/);
     assert.equal(world.baserow.rows("Events").length, 0, "nothing saved");
+  });
+});
+
+// A series with no end date keeps going (#245): 12 weeks of nights ahead, and
+// as the weeks pass the new ones go on the website by themselves.
+describe("events: no end date", () => {
+  let world;
+  let ops;
+  beforeEach(async () => {
+    world = await createFakeWorld();
+    world.install();
+    ops = editor(world);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    world.restore();
+  });
+
+  const happyHour = () =>
+    weeklySeries({ name: "Happy Hour", weekdays: ["wed", "thu", "fri", "sat"], endsOn: "" });
+
+  it("saves with no last night and has 12 weeks of nights", async () => {
+    const event = await ops.create(happyHour());
+    await ops.waitUntilReady(event);
+    const nights = previewNights(world);
+    assert.ok(nights.length >= 44 && nights.length <= 48, `about 12 weeks of 4 nights, got ${nights.length}`);
+    assert.ok(nights.at(-1) > daysFromNow(80) && nights.at(-1) <= daysFromNow(84));
+  });
+
+  it("puts the new nights on the website as the weeks pass, but not a night added by hand", async () => {
+    const event = await ops.create(happyHour());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const lastBefore = liveNights(world).at(-1);
+
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${daysFromNow(21)}T12:00:00Z`) });
+    await ops.waitUntilReady(event);
+    const live = liveNights(world);
+    assert.ok(live.at(-1) > lastBefore, "new nights went live without Update website");
+    assert.equal(await ops.sees(event), "Live");
+
+    const extra = addDays(nextWeekday(1), 7); // a Monday, outside the pattern
+    await ops.addNight(event, extra);
+    await ops.waitUntilReady(event);
+    assert.ok(!liveNights(world).includes(extra), "a night added by hand waits for Update website");
+    assert.equal(await ops.sees(event), "Changed");
+  });
+
+  it("keeps an edit to a live series waiting, new nights and all", async () => {
+    const event = await ops.create(happyHour());
+    await ops.waitUntilReady(event);
+    await ops.updateWebsite(event);
+    const liveBefore = liveNights(world);
+
+    await ops.edit(event, { description: "Two-for-one spritz." });
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${daysFromNow(21)}T12:00:00Z`) });
+    await ops.waitUntilReady(event);
+    assert.deepEqual(liveNights(world).filter((date) => date > liveBefore.at(-1)), [], "nothing new went live");
+    assert.equal(await ops.sees(event), "Changed");
   });
 });
 

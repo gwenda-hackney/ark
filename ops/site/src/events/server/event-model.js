@@ -280,9 +280,13 @@ export function eventFieldsFromInput(input, { slug } = {}) {
   if (!name) fail("Name is required.");
   const startsOn = isoDate(input.startsOn);
   const repeatUnit = text(input.repeatUnit || "none").toLowerCase();
-  // A series may have no start date yet: the website shows it with
-  // "Check back soon for the next date". A one-off still needs its date.
+  // An open series (repeat "none") may have no start date yet: the website
+  // shows it with "Check back soon for the next date". A one-off needs its
+  // date, and a repeating series its first night: its nights count from it.
   if (!startsOn && repeatUnit === "once") fail("Start date is required.");
+  if (!startsOn && ["day", "week", "month"].includes(repeatUnit)) {
+    fail("A repeating series needs its first night.");
+  }
   if (!REPEAT_UNITS.has(repeatUnit)) fail("Repeat must be none, once, day, week, or month.");
   const repeatEvery = Math.floor(Number(input.repeatEvery) || 1);
   if (repeatEvery < 1 || repeatEvery > 52) fail("Repeat interval must be between 1 and 52.");
@@ -294,9 +298,6 @@ export function eventFieldsFromInput(input, { slug } = {}) {
   const weekdays = normalizeWeekdays(input.weekdays);
   if (repeatUnit === "month" && !monthDay && startsOn) monthDay = Number(startsOn.slice(8, 10)) || 0;
   if (repeatUnit === "week" && !weekdays.length) fail("Choose at least one weekday.");
-  if (repeatUnit !== "none" && repeatUnit !== "once" && startsOn && !endsOn) {
-    fail("Recurring events need an end date.");
-  }
   if (endsOn && startsOn && endsOn < startsOn) fail("End date must be on or after the start date.");
   const fields = {
     name,
