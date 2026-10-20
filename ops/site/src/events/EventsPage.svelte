@@ -18,6 +18,7 @@
 	import EditorHeader from "./EditorHeader.svelte";
 	import EventsList from "./EventsList.svelte";
 	import EventFields from "./tabs/EventFields.svelte";
+	import AddWizard from "./AddWizard.svelte";
 	import GalleryTab from "./tabs/GalleryTab.svelte";
 	import ScheduleTab from "./tabs/ScheduleTab.svelte";
 	import DeleteEventDialog from "./dialogs/DeleteEventDialog.svelte";
@@ -341,12 +342,15 @@
 			transition:editorZoom
 			onintroend={reveal.introend}
 			onoutrostart={reveal.outrostart}
-			onsubmit={editor.onSave}
+			onsubmit={(e) => (editor.route.isNew ? e.preventDefault() : editor.onSave(e))}
 		>
 			{#if !reveal.settled}
 				<EditorPlaceholder />
 			{:else}
 				<EditorBackBar label={listTitle} onback={requestClose} />
+				{#if editor.route.isNew}
+					<AddWizard {editor} />
+				{:else}
 				<div class="split split--full">
 					<div class="panel" class:dirty={editor.formDirty}>
 						<EditorHeader
@@ -502,6 +506,7 @@
 						/>
 					</div>
 				</div>
+				{/if}
 
 				<DiscardDialog
 					open={discardOpen}
@@ -523,7 +528,10 @@
 					eventName={editor.form.name.trim() || "this event"}
 					replacing={editor.replacing}
 					onchoose={(replace) => void editor.chooseConflict(replace)}
-					onclose={() => (editor.replacePrompt = null)}
+					onclose={() => {
+						editor.replacePrompt = null;
+						editor.publishAfterSave = false;
+					}}
 				/>
 
 				<ScopeDialog
