@@ -84,7 +84,8 @@ export function validateEvent(form: EventValidateForm, ctx: EventValidateContext
 			const day = numberError(form.monthDay, { min: 1, max: 31, integer: true });
 			if (day) errors["event-month-day"] = day;
 		}
-		if (form.startsOn && !form.endsOn) errors["event-ends"] = "Add the last night of the series.";
+		// Its nights count from the first one; with no last night it keeps going (#245).
+		if (!form.startsOn) errors["event-starts"] = "Add the first night.";
 	}
 	if (form.startsOn && form.endsOn && form.endsOn < form.startsOn) {
 		errors["event-ends"] = `Pick ${formatDateGB(form.startsOn)} or later.`;

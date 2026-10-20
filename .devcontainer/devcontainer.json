@@ -37,6 +37,7 @@
     }
   },
   "forwardPorts": [4321, 3333, 5174, 8788],
+  "otherPortsAttributes": { "onAutoForward": "ignore" },
   "portsAttributes": {
     "4321": { "label": "Website" },
     "3333": { "label": "Studio" },

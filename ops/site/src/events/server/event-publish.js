@@ -9,6 +9,7 @@
 import {
   PREVIEW,
   sanityMutate,
+  sanityMutatePublished,
   sanityQuery,
 } from "../../platform/sanity.js";
 import {
@@ -24,6 +25,7 @@ import { environmentOf, readState, writeState } from "../../../../../shared/conf
 import {
   expandOccurrenceDates,
   expandSeriesOccurrenceDates,
+  normalizeExtraDates,
   todayIso,
 } from "../event-recurrence.js";
 import {
@@ -199,6 +201,30 @@ function opsGalleryImage(photo) {
   };
 }
 
+/**
+ * The nights that may go straight on the website (#245): a series with no end
+ * date keeps going, and as the 12-week window moves on it brings in new
+ * nights. If the series is live and in step (none of its live nights has
+ * changed since), those new nights are all that's waiting, so they go live
+ * by themselves and the series never runs dry. Only nights the pattern made,
+ * after the last live one: a night added by hand, or any other edit, still
+ * waits for someone to publish it. Returns a test for a date.
+ */
+export function rollingNightsGoLive(event, wanted, byDate) {
+  const never = () => false;
+  if (event.endsOn) return never;
+  const live = wanted.map((date) => byDate.get(date)).filter((row) => row?.snapshots?.production);
+  if (!live.length) return never;
+  const inStep = live.every((row) => {
+    const hash = occurrenceHash(event, row);
+    return row.snapshots.production.hash === hash && row.snapshots.preview?.hash === hash;
+  });
+  if (!inStep) return never;
+  const lastLive = live[live.length - 1].date;
+  const added = new Set(normalizeExtraDates(event.extraDates));
+  return (date) => date > lastLive && !added.has(date) && !byDate.get(date)?.snapshots?.production;
+}
+
 export async function publishEventPreview(
   env,
   id,
@@ -228,6 +254,9 @@ export async function publishEventPreview(
   const existingByDate = new Map(event.dates.map((row) => [row.date, row]));
   const occurrences = [];
   const mutations = [];
+  const goesLive =
+    drop.length || datesPending ? () => false : rollingNightsGoLive(event, wanted, existingByDate);
+  const liveMutations = [];
 
   const seriesHero = event.mainImage?.asset
     ? withImageCrop({ ...imageRef(event.mainImage.asset), alt: event.name }, framingFromEvent(event))
@@ -326,7 +355,10 @@ export async function publishEventPreview(
       nightSchedule: content.nightSchedule || [],
       isSpecialEdition: content.isSpecialEdition,
     });
-    mutations.push({ createOrReplace: doc });
+    // A new night of a series that's live and unchanged goes on the website
+    // now, so the series doesn't run dry 12 weeks after its last publish.
+    const live = goesLive(date);
+    (live ? liveMutations : mutations).push({ createOrReplace: doc });
     occurrences.push({
       id: previous?.id,
       date,
@@ -342,11 +374,16 @@ export async function publishEventPreview(
           hash,
           at: new Date().toISOString(),
         },
+        ...(live ? { production: { hash, at: new Date().toISOString() } } : {}),
       },
     });
   }
   for (let i = 0; i < mutations.length; i += 25) {
     await sanityMutate(env, mutations.slice(i, i + 25));
+  }
+  // After the drafts, so the series they refer to is written first.
+  for (let i = 0; i < liveMutations.length; i += 25) {
+    await sanityMutatePublished(env, liveMutations.slice(i, i + 25));
   }
   await recordSeriesPreview(env, event, datesPending);
 
@@ -389,6 +426,7 @@ export async function publishEventPreview(
     deploy,
     pagesChanged,
     target: "preview",
+    published: liveMutations.length,
   };
 }
 
