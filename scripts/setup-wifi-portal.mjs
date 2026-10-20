@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Deploy Wi‑Fi captive portal Worker and sync secrets.
+ * Deploy the Wi‑Fi captive portal Worker by hand and sync its secret. The usual
+ * route is the Workers workflow, from release; this is for when that can't run.
  *
- * Needs CLOUDFLARE_API_TOKEN (Secrets Manager, bw-unlock). UNIFI_SITE_MANAGER_API_KEY and the
- * production Website Baserow token come from Secrets Manager.
- * UNIFI_CONSOLE_ID comes from marketing/wifi-captive-portal/wrangler.toml [vars].
+ * Needs CLOUDFLARE_API_TOKEN (Secrets Manager, bw-unlock). UNIFI_SITE_MANAGER_API_KEY
+ * comes from Secrets Manager; UNIFI_CONSOLE_ID from wrangler.toml [vars]. Sign-ups
+ * are on D1 (the WEBSITE_DB binding), so the retired Baserow secret is removed.
  */
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -48,41 +49,20 @@ function readWranglerConsoleId() {
   return match?.[1] ?? "";
 }
 
-function repoSlug() {
-  return run(
-    "gh",
-    ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
-    { quiet: true },
-  ).trim();
-}
-
-function setGhSecret(name, value) {
-  run("gh", ["secret", "set", name, "--repo", repoSlug()], {
-    input: value,
-    quiet: true,
-  });
-  console.log(`Set GitHub secret ${name}.`);
-}
-
-
-/** Production Website token (live Subscribers) and UniFi key, from Secrets Manager. */
-function productionSecrets() {
+/** The production UniFi Site Manager key, from Secrets Manager. */
+function productionSiteManagerKey() {
   const { values } = loadAppSecretsFromSm("web", "production");
-  return {
-    baserowKey: values.get("BASEROW_API_KEY")?.trim() || "",
-    siteManagerKey: values.get("UNIFI_SITE_MANAGER_API_KEY")?.trim() || "",
-  };
+  return values.get("UNIFI_SITE_MANAGER_API_KEY")?.trim() || "";
 }
 
 async function main() {
   loadRepoEnv();
 
   const cloudflareToken = cloudflareFor("production").token;
-  const { baserowKey, siteManagerKey } = productionSecrets();
+  const siteManagerKey = productionSiteManagerKey();
   const consoleId =
     process.env.UNIFI_CONSOLE_ID?.trim() || readWranglerConsoleId();
 
-  if (!baserowKey) throw new Error("BASEROW_WEBSITE_API_KEY__PRODUCTION is missing from Secrets Manager.");
   if (!siteManagerKey) {
     throw new Error(
       "UNIFI_SITE_MANAGER_API_KEY is missing from Secrets Manager.\n" +
@@ -107,30 +87,28 @@ async function main() {
   const workerUrl = urlMatch ? urlMatch[0] : "(see wrangler output)";
   console.log(`Worker URL: ${workerUrl}`);
 
-  console.log("Syncing Worker secrets…");
-  run("npx", ["wrangler", "secret", "put", "BASEROW_API_KEY"], {
-    cwd: WORKER_DIR,
-    env: wranglerEnv,
-    input: baserowKey,
-    quiet: true,
-  });
+  console.log("Syncing Worker secret…");
   run("npx", ["wrangler", "secret", "put", "UNIFI_SITE_MANAGER_API_KEY"], {
     cwd: WORKER_DIR,
     env: wranglerEnv,
     input: siteManagerKey,
     quiet: true,
   });
-  console.log("Worker secrets synced.");
-
-  try {
-    setGhSecret("UNIFI_SITE_MANAGER_API_KEY", siteManagerKey);
-    setGhSecret("UNIFI_CONSOLE_ID", consoleId);
-  } catch (error) {
-    console.warn(
-      "Could not set GitHub secrets (gh auth?). CI deploy will need them later:",
-      error instanceof Error ? error.message : error,
-    );
+  const secrets = run("npx", ["wrangler", "secret", "list", "--format", "json"], {
+    cwd: WORKER_DIR,
+    env: wranglerEnv,
+    quiet: true,
+  });
+  if (/"name":\s*"BASEROW_API_KEY"/.test(secrets)) {
+    run("npx", ["wrangler", "secret", "delete", "BASEROW_API_KEY"], {
+      cwd: WORKER_DIR,
+      env: wranglerEnv,
+      input: "y\n",
+      quiet: true,
+    });
+    console.log("Removed the retired BASEROW_API_KEY secret.");
   }
+  console.log("Worker secret synced.");
 
   const host = "wifi.gwenda.co.uk";
 
